@@ -181,15 +181,18 @@
           </div>
           <div style="display:flex;gap:8px;margin-top:4px;">
             <button class="admin-btn" style="flex:1; background: var(--color-surface-2); color: var(--color-text);" onclick="enterAsStudent('pilot')" >
-              👁️ כנס כתלמיד פיילוט (קריאה בלבד)
+              👁️ כנס כפיילוט 1
             </button>
-            <button class="admin-btn" onclick="toggleTeacherCreds('creds-pilot')" title="הצג פרטי כניסה תלמיד">🔑</button>
+            <button class="admin-btn" style="flex:1; background: var(--color-surface-2); color: var(--color-text);" onclick="enterAsStudent('pilot2')" >
+              👁️ כנס כפיילוט 2
+            </button>
+            <button class="admin-btn" onclick="toggleTeacherCreds('creds-pilot')" title="הצג פרטי כניסה תלמידים">🔑</button>
           </div>
           <div id="creds-moreh2" style="display:none;background:var(--color-surface-2);border-radius:8px;padding:10px;font-size:13px; margin-top:4px;">
             מורה: <span class="cred-badge">moreh2</span> / <span class="cred-badge">levana123</span>
           </div>
           <div id="creds-pilot" style="display:none;background:var(--color-surface-2);border-radius:8px;padding:10px;font-size:13px; margin-top:4px;">
-            תלמיד: <span class="cred-badge">pilot</span> / <span class="cred-badge">10203040</span>
+            תלמידים: <span class="cred-badge">pilot</span> / <span class="cred-badge">pilot2</span> | סיסמה: <span class="cred-badge">10203040</span>
           </div>
         </div>
 
@@ -265,7 +268,8 @@
     }
 
     const STUDENT_DATA = {
-      'pilot': { name: 'פיילוט תלמיד', school: 'הטכנופדגוגייים האמיצים' }
+      'pilot': { name: 'פיילוט תלמיד', school: 'הטכנופדגוגייים האמיצים' },
+      'pilot2': { name: 'פיילוט תלמיד 2', school: 'הטכנופדגוגייים האמיצים' }
     };
 
     function enterAsStudent(username) {

@@ -27,7 +27,7 @@ const QMatrix = (() => {
    ─────────────────────────────────────────────────────────── */
   const TASKS = [
     {
-      id:           'q1',
+      id:           'task1_zero_placeholder',
       type:         'place_value_zero',
       titleHe:      'מגלים את האפס',
       instructionHe: 'בנו את המספר המופיע למטה בתוך לוח הקוביות, ואז בחרו את התשובה הנכונה:',
@@ -47,7 +47,8 @@ const QMatrix = (() => {
       backwardDiagnosis: {
         triggerOn:    'wrong_choice',
         subtaskNumber: 70,
-        subtaskInstructionHe: 'בואו נבדוק על מספר קטן יותר: מה עושה האפס במספר 70?',
+        asdSubtaskNumber: 30,
+        subtaskInstructionHe: 'בואו נבדוק על מספר קטן יותר: מה עושה האפס במספר?',
         subtaskChoices: [
           { id: 'A', textHe: 'הוא שומר מקום - ומראה שאין לנו יחידות (טור היחידות ריק).' },
           { id: 'B', textHe: 'האפס מיותר לחלוטין.' }
@@ -56,7 +57,7 @@ const QMatrix = (() => {
       }
     },
     {
-      id:           'q2',
+      id:           'task2_estimation_error_margin',
       type:         'number_line',
       titleHe:      'מסע על ישר המספרים',
       instructionHe: 'היכן לדעתכם נמצא המספר 750 על ישר המספרים? הזיזו את החץ למקום המתאים ביותר.',
@@ -71,13 +72,15 @@ const QMatrix = (() => {
         deviationPct:  0.15,
         subtaskNumber: 35,
         subtaskRange:  [0, 100],
-        subtaskInstructionHe: 'בואו ננסה על קו קצר יותר: איפה נשים את המספר 35?',
+        asdSubtaskNumber: 15,
+        asdSubtaskRange:  [0, 50],
+        subtaskInstructionHe: 'בואו ננסה על קו קצר יותר: איפה נשים את המספר?',
         /* ASD: glowing anchor ticks at 10, 20, 30, ... */
         asdAnchors: [10, 20, 30, 40, 50, 60, 70, 80, 90]
       }
     },
     {
-      id:           'q3',
+      id:           'task3_flexible_regrouping',
       type:         'flexible_decomp',
       titleHe:      'פירוק והרכבה גמישים',
       instructionHe: 'בנו את המספר 240 בלוח, ולחצו "הוסף ייצוג". לאחר מכן, מצאו דרך אחרת לגמרי לבנות את אותו המספר, ולחצו שוב! (רמז: נסו להשתמש בפריטה של עשרות או מאות).',
@@ -102,16 +105,16 @@ const QMatrix = (() => {
       }
     },
     {
-      id:           'q4',
+      id:           'task4_basic_addition_fluency',
       type:         'vertical_addition',
       titleHe:      'חיבור במאונך',
       instructionHe: 'פתרו את תרגיל החיבור בעזרת הקוביות בלוח, ורשמו את התשובה הסופית בתיבה.',
-      numberA:      124,
-      numberB:      231,
-      asdNumberA:   24,
-      asdNumberB:   13,
-      correctAnswer:    355,
-      asdCorrectAnswer: 37,
+      numberA:      126,
+      numberB:      235,
+      asdNumberA:   26,
+      asdNumberB:   15,
+      correctAnswer:    361,
+      asdCorrectAnswer: 41,
       backwardDiagnosis: {
         triggerOn:    'wrong_answer',
         /* Probe: is this a procedural (column alignment) or fact error? */
@@ -123,7 +126,7 @@ const QMatrix = (() => {
       }
     },
     {
-      id:           'q5',
+      id:           'q5_small_change', /* Not strictly in required schema, kept for logic but named uniquely */
       type:         'small_change',
       titleHe:      'השינוי הקטן — אומדן',
       instructionHe: 'הביטו בתרגיל שפתרנו עבורכם. נסו לענות על השאלה הבאה בלי לחשב מחדש, רק בעזרת חשיבה והיגיון!',
@@ -182,8 +185,13 @@ const QMatrix = (() => {
   /** Get effective number for current mode */
   function getEffectiveNumber(task) {
     if (!task) return null;
-    if (phase === 'correction' && correctionSubphase === 'subtask' && task.backwardDiagnosis?.subtaskNumber !== undefined) {
-      return task.backwardDiagnosis.subtaskNumber;
+    if (phase === 'correction' && correctionSubphase === 'subtask') {
+      if (isASD && task.backwardDiagnosis?.asdSubtaskNumber !== undefined) {
+        return task.backwardDiagnosis.asdSubtaskNumber;
+      }
+      if (task.backwardDiagnosis?.subtaskNumber !== undefined) {
+        return task.backwardDiagnosis.subtaskNumber;
+      }
     }
     if (isASD && task.asdNumber !== undefined) return task.asdNumber;
     return task.number;
@@ -192,8 +200,13 @@ const QMatrix = (() => {
   /** Get effective range for number line */
   function getEffectiveRange(task) {
     if (!task) return null;
-    if (phase === 'correction' && correctionSubphase === 'subtask' && task.backwardDiagnosis?.subtaskRange) {
-      return task.backwardDiagnosis.subtaskRange;
+    if (phase === 'correction' && correctionSubphase === 'subtask') {
+      if (isASD && task.backwardDiagnosis?.asdSubtaskRange !== undefined) {
+        return task.backwardDiagnosis.asdSubtaskRange;
+      }
+      if (task.backwardDiagnosis?.subtaskRange) {
+        return task.backwardDiagnosis.subtaskRange;
+      }
     }
     if (isASD && task.asdRange) return task.asdRange;
     return task.range;
@@ -300,15 +313,16 @@ const QMatrix = (() => {
    */
   function evaluateQ3(representations) {
     const task    = TASKS[2];
-    const targetValue = isASD ? task.asdNumber : task.number;
+    const validArray = isASD ? task.asdValidRepresentations : task.validRepresentations;
 
-    /* Check: values sum correctly and are different from each other */
+    /* Check: values match one of the predefined valid representations */
     const validatedReps = representations.filter(rep => {
-      const sum = (rep.units ?? 0) * 1
-                + (rep.tens ?? 0) * 10
-                + (rep.hundreds ?? 0) * 100
-                + (rep.thousands ?? 0) * 1000;
-      return sum === targetValue;
+      return validArray.some(validRep => {
+        return (rep.units ?? 0) === (validRep.units ?? 0) &&
+               (rep.tens ?? 0) === (validRep.tens ?? 0) &&
+               (rep.hundreds ?? 0) === (validRep.hundreds ?? 0) &&
+               (rep.thousands ?? 0) === (validRep.thousands ?? 0);
+      });
     });
 
     if (validatedReps.length < 2) {
@@ -316,9 +330,12 @@ const QMatrix = (() => {
     }
 
     /* Check they are genuinely different */
-    const r1 = JSON.stringify(validatedReps[0]);
-    const r2 = JSON.stringify(validatedReps[1]);
-    const different = r1 !== r2;
+    const r1 = validatedReps[0];
+    const r2 = validatedReps[1];
+    const different = (r1.units ?? 0) !== (r2.units ?? 0) ||
+                      (r1.tens ?? 0) !== (r2.tens ?? 0) ||
+                      (r1.hundreds ?? 0) !== (r2.hundreds ?? 0) ||
+                      (r1.thousands ?? 0) !== (r2.thousands ?? 0);
 
     /* Backward diagnosis: only canonical form shown (no flexibility) */
     const onlyCanonical = !different;
@@ -406,7 +423,7 @@ const QMatrix = (() => {
       if (correctionSubphase === 'subtask') {
         results.subtaskCorrect = correct;
         results.subtaskDetail = detail;
-        if (task.id === 'q4') {
+        if (task.id === 'task4_basic_addition_fluency') {
           results.q4_backward_diag = correct ? 'procedural_error' : 'basic_facts_error';
         }
         SessionManager.updateQMatrixResult(task.id, results);

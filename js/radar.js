@@ -80,6 +80,13 @@ const SilentRadar = (() => {
   }
 
   function fireHesitationAlert() {
+    if (document.hidden) {
+      /* Restart timer without firing if page is not visible */
+      hesitationTimer = setTimeout(() => {
+        fireHesitationAlert();
+      }, HESITATION_THRESHOLD_MS);
+      return;
+    }
     const alert = buildAlert('HESITATION', {
       taskId:         currentTaskId,
       durationMs:     Date.now() - lastActionTime,
@@ -105,7 +112,7 @@ const SilentRadar = (() => {
     recentDeleteTimes = recentDeleteTimes.filter(t => now - t < RAPID_DELETE_WINDOW_MS);
     recentDeleteTimes.push(now);
 
-    if (recentDeleteTimes.length >= RAPID_DELETE_THRESHOLD) {
+    if (recentDeleteTimes.length === RAPID_DELETE_THRESHOLD) {
       const alert = buildAlert('PASSIVE_DRIFTING', {
         taskId:        currentTaskId,
         deleteCount:   recentDeleteTimes.length,
@@ -117,7 +124,6 @@ const SilentRadar = (() => {
       if (typeof SessionManager !== 'undefined') {
         SessionManager.state.persistence.randomDeleteCount++;
       }
-      recentDeleteTimes = [];  /* reset window after alert */
     }
   }
 

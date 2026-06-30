@@ -85,12 +85,15 @@ const SessionManager = (() => {
 
   /**
    * Pop the most recent undo state. Returns null if stack is empty.
-   * Also increments the Persistence Index undo counter.
+   * Also increments the Persistence Index undo counter unless it's a penalty pop (e.g. invalid action).
+   * @param {boolean} isPenalty - If true, do not increment pedagogical undoCount
    * @returns {object|null}
    */
-  function popUndoState() {
+  function popUndoState(isPenalty = false) {
     if (undoStack.length === 0) return null;
-    state.persistence.undoCount++;
+    if (!isPenalty) {
+      state.persistence.undoCount++;
+    }
     return undoStack.pop();
   }
 
@@ -153,9 +156,10 @@ const SessionManager = (() => {
    * NEVER displayed to the student.
    */
   function computePersistenceIndex() {
-    const { undoCount, randomDeleteCount, taskCompletions, hintsRequested } = state.persistence;
-    /* Positive signals: undo usage (self-correction), task completions */
-    const positive = (undoCount * 2) + (taskCompletions * 10);
+    const { undoCount, randomDeleteCount, taskCompletions, hintsRequested, totalTimeMs } = state.persistence;
+    /* Positive signals: undo usage (self-correction), task completions, time spent (e.g. 5 pts per minute) */
+    const minutesSpent = totalTimeMs / 60000;
+    const positive = (undoCount * 2) + (taskCompletions * 10) + (minutesSpent * 5);
     /* Negative signals: random rapid deletes without progress */
     const negative = randomDeleteCount * 3;
     const raw = Math.max(0, positive - negative);

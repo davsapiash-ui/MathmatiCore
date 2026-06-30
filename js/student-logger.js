@@ -122,12 +122,10 @@ const StudentLogger = (() => {
     try {
       localStorage.setItem(`mathematicor_student_replay_${username}`, JSON.stringify(rrwebEvents));
     } catch (e) {
-      /* If localStorage is full, truncate early rrweb events */
-      if (e.name === 'QuotaExceededError' && rrwebEvents.length > 500) {
-        rrwebEvents.splice(0, 100); // discard oldest 100 events
-        try {
-          localStorage.setItem(`mathematicor_student_replay_${username}`, JSON.stringify(rrwebEvents));
-        } catch (inner) {}
+      /* If localStorage is full, stop recording to prevent snapshot corruption */
+      if (e.name === 'QuotaExceededError') {
+        isRecording = false;
+        console.warn('LocalStorage quota exceeded. Stopped rrweb recording to preserve initial snapshot.');
       }
     }
   }

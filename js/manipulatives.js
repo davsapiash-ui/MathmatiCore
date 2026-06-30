@@ -652,34 +652,37 @@ const DragController = (() => {
 
     if (source === 'palette') {
       if (sourcePlace === targetPlace) {
-        PlaceValueModel.addBlock(targetPlace);
+        const result = PlaceValueModel.addBlock(targetPlace, true);
+        if (result && result.regroup && result.regroup.length > 0) {
+          regroupEvents = result.regroup;
+        }
       } else if (srcIdx > tgtIdx && srcIdx - tgtIdx === 1) {
         const result = PlaceValueModel.addUngroupedFromPalette(sourcePlace);
         if (result) {
           ungrouped = true;
         } else {
-          SessionManager.popUndoState();
+          SessionManager.popUndoState(true);
           return;
         }
       } else {
-        SessionManager.popUndoState();
+        SessionManager.popUndoState(true);
         return;
       }
 
     } else if (source === 'column' && sourcePlace === targetPlace) {
-      SessionManager.popUndoState();
+      SessionManager.popUndoState(true);
       return;
 
     } else if (source === 'column' && srcIdx > tgtIdx) {
       if (srcIdx - tgtIdx === 1) {
         const ungroupResult = PlaceValueModel.ungroupBlock(sourcePlace);
         if (!ungroupResult) {
-          SessionManager.popUndoState();
+          SessionManager.popUndoState(true);
           return;
         }
         ungrouped = true;
       } else {
-        SessionManager.popUndoState();
+        SessionManager.popUndoState(true);
         return;
       }
 
@@ -691,13 +694,16 @@ const DragController = (() => {
           for (let i = 0; i < 10; i++) {
             PlaceValueModel.removeBlock(sourcePlace);
           }
-          PlaceValueModel.addBlock(targetPlace);
+          const addResult = PlaceValueModel.addBlock(targetPlace, true);
           regroupEvents = [{ from: sourcePlace, to: targetPlace, groups: 1 }];
+          if (addResult && addResult.regroup && addResult.regroup.length > 0) {
+            regroupEvents = regroupEvents.concat(addResult.regroup);
+          }
           if (typeof StudentLogger !== 'undefined') {
             StudentLogger.logEvent('block_group_manual', { from: sourcePlace, to: targetPlace });
           }
         } else {
-          SessionManager.popUndoState();
+          SessionManager.popUndoState(true);
           // Flash error on source column
           const colEl = containerEl.querySelector(`[data-place="${sourcePlace}"] .pv-drop-zone`);
           if (colEl) {
@@ -707,11 +713,11 @@ const DragController = (() => {
           return;
         }
       } else {
-        SessionManager.popUndoState();
+        SessionManager.popUndoState(true);
         return;
       }
     } else {
-      SessionManager.popUndoState();
+      SessionManager.popUndoState(true);
       return;
     }
 

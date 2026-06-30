@@ -78,17 +78,25 @@ const TeacherClustering = (() => {
 
     /* Priority logic for clustering based on the lowest foundational gap */
     qMatrixResults.forEach(res => {
-      const student = { username: res.student, name: res.studentName || res.student, q1: res.q1, q2: res.q2, q3: res.q3, q4: res.q4, q5: res.q5 };
+      const student = { 
+        username: res.student, 
+        name: res.studentName || res.student, 
+        task1: res.task1_zero_placeholder, 
+        task2: res.task2_estimation_error_margin, 
+        task3: res.task3_flexible_regrouping, 
+        task4: res.task4_basic_addition_fluency, 
+        q5: res.q5_small_change 
+      };
       
-      if (res.q1 === false) {
+      if (res.task1_zero_placeholder === false) {
         clustersMap.zero_placeholder.push(student);
-      } else if (res.q3 === false) {
+      } else if (res.task3_flexible_regrouping === false) {
         clustersMap.flexibility.push(student);
-      } else if (res.q4 === false && res.q4_backward_diag === 'basic_facts_error') {
+      } else if (res.task4_basic_addition_fluency === false) {
         clustersMap.basic_facts.push(student);
-      } else if (res.q2 === false) {
+      } else if (res.task2_estimation_error_margin === false) {
         clustersMap.number_line.push(student);
-      } else if (res.q5 === false) {
+      } else if (res.q5_small_change === false) {
         clustersMap.estimation.push(student);
       } else {
         clustersMap.proficient.push(student);
