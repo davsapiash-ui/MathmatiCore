@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>מתמטיקאור — ניהול מערכת (Admin)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="../css/admin.css">
+</head>
+<body class="admin-page">
+
+  <!-- ── Sidebar ── -->
+  <aside class="admin-sidebar">
+    <div class="admin-sidebar-logo">
+      <div class="admin-logo-mark">מ</div>
+      <div>
+        <div class="admin-logo-text">מתמטיקאור</div>
+        <div class="admin-logo-badge">School System Manager</div>
+      </div>
+    </div>
+    
+    <div class="sidebar-nav">
+      <div class="sidebar-nav-group">
+        <div class="sidebar-group-label">ניהול מערכת אדמיניסטרטיבי</div>
+        <button class="sidebar-nav-item active" data-target="panel-schools">
+          <span class="nav-icon">🏢</span> מוסדות חינוך
+        </button>
+        <button class="sidebar-nav-item" data-target="panel-licenses">
+          <span class="nav-icon">🔑</span> הקצאת רישיונות
+        </button>
+        <button class="sidebar-nav-item" data-target="panel-teachers">
+          <span class="nav-icon">👨‍🏫</span> הקמת מורים (3/3)
+        </button>
+        <button class="sidebar-nav-item" data-target="panel-audit" style="color:#FCA5A5;">
+          <span class="nav-icon">🔐</span> לוג ביקורת (סמוי)
+        </button>
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="admin-user-info">
+        <div class="admin-avatar">AD</div>
+        <div>
+          <div class="admin-user-name">מנהל מערכת</div>
+          <div class="admin-user-role">Super Admin</div>
+        </div>
+      </div>
+      <button class="sidebar-nav-item" style="color:#FCA5A5;" onclick="window.location.href='../index.html'">
+        <span class="nav-icon">🚪</span> התנתק
+      </button>
+    </div>
+  </aside>
+
+  <!-- ── Main Content ── -->
+  <main class="admin-main">
+
+    <!-- SCHOOLS PANEL -->
+    <div class="admin-panel active" id="panel-schools">
+      <div class="admin-panel-header">
+        <div>
+          <h1 class="admin-panel-title">ניהול מוסדות ובתי ספר</h1>
+          <p class="admin-panel-subtitle">הקמה, עריכה ומעקב אחר בתי הספר המחוברים לסביבת מתמטיקאור.</p>
+        </div>
+        <button class="admin-btn admin-btn--primary">+ רישום בית ספר חדש</button>
+      </div>
+
+      <div class="admin-card">
+        <div class="admin-card-header">
+          <div class="admin-card-title">מוסדות רשומים</div>
+          <input type="text" class="admin-input" placeholder="חיפוש מוסד (למשל: סמל מוסד)..." style="width:250px; padding:6px 12px;">
+        </div>
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>סמל מוסד</th>
+              <th>שם בית הספר</th>
+              <th>מחוז</th>
+              <th>רישיונות פעילים</th>
+              <th>סטטוס</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="cred-badge" style="color:var(--color-text);">112233</span></td>
+              <td style="font-weight:700;">אלון - רמת השרון</td>
+              <td>תל אביב</td>
+              <td>120/150</td>
+              <td><span class="status-badge status-badge--active">פעיל</span></td>
+            </tr>
+            <tr>
+              <td><span class="cred-badge" style="color:var(--color-text);">445566</span></td>
+              <td style="font-weight:700;">אורנים - יקנעם</td>
+              <td>צפון</td>
+              <td>80/100</td>
+              <td><span class="status-badge status-badge--active">פעיל</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- LICENSES PANEL -->
+    <div class="admin-panel" id="panel-licenses">
+      <div class="admin-panel-header">
+        <div>
+          <h1 class="admin-panel-title">הקצאת רישיונות</h1>
+          <p class="admin-panel-subtitle">ניהול חבילות רישוי ותוקפן עבור המוסדות הרשומים.</p>
+        </div>
+      </div>
+      <div class="admin-card">
+        <div class="admin-card-header">
+          <div class="admin-card-title">ניהול חבילות רישוי</div>
+          <button class="admin-btn admin-btn--primary">+ הקצה חבילה חדשה</button>
+        </div>
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>שם בית הספר</th>
+              <th>חבילת רישוי</th>
+              <th>תוקף רישיון</th>
+              <th>כמות נוצלה</th>
+              <th>סטטוס</th>
+              <th>פעולות</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="font-weight:700;">אלון - רמת השרון</td>
+              <td>רישוי אזורי (150 תלמידים)</td>
+              <td>31/08/2027</td>
+              <td>120 / 150</td>
+              <td><span class="status-badge status-badge--active">פעיל</span></td>
+              <td><button class="admin-btn">עדכן מכסה</button></td>
+            </tr>
+            <tr>
+              <td style="font-weight:700;">אורנים - יקנעם</td>
+              <td>רישוי בית ספרי (100 תלמידים)</td>
+              <td>31/08/2027</td>
+              <td>80 / 100</td>
+              <td><span class="status-badge status-badge--active">פעיל</span></td>
+              <td><button class="admin-btn">עדכן מכסה</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TEACHERS PANEL -->
+    <div class="admin-panel" id="panel-teachers">
+      <div class="admin-panel-header">
+        <div>
+          <h1 class="admin-panel-title">הקמה ומעקב — מורי הפיילוט</h1>
+          <p class="admin-panel-subtitle">ניהול הרשאות, צפייה בנתוני מורה, וכניסה לדשבורד שלו (עד 3 מורים בפיילוט).</p>
+        </div>
+        <button class="admin-btn admin-btn--primary" style="opacity: 0.5; cursor: not-allowed;" title="הגעת למכסת המורים המקסימלית (3/3)">+ הוסף מורה (מכסה מלאה)</button>
+      </div>
+
+      <!-- Teacher Cards (summary) -->
+      <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:20px; margin-bottom:28px;">
+
+        <!-- Teacher 1 -->
+        <div class="admin-card" style="padding:24px; display:flex; flex-direction:column; gap:14px;">
+          <div style="display:flex; align-items:center; gap:14px;">
+            <div style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#5B4FFF,#9B5CFF);display:flex;align-items:center;justify-content:center;font-size:1.4rem;font-weight:900;color:#fff;">ד</div>
+            <div>
+              <div style="font-weight:800;font-size:1.05rem;">דוד ספיאשוילי</div>
+              <div style="font-size:13px;color:var(--color-text-muted);">אלון - רמת השרון</div>
+              <span class="status-badge status-badge--active">פעיל</span>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div style="background:var(--color-surface-2);border-radius:10px;padding:10px;text-align:center;">
+              <div style="font-size:1.5rem;font-weight:900;color:var(--color-primary);">2</div>
+              <div style="font-size:11px;color:var(--color-text-muted);">כיתות פעילות</div>
+            </div>
+            <div style="background:var(--color-surface-2);border-radius:10px;padding:10px;text-align:center;">
+              <div style="font-size:1.5rem;font-weight:900;color:var(--color-success);">24</div>
+              <div style="font-size:11px;color:var(--color-text-muted);">תלמידים פעילים</div>
+            </div>
+            <div style="background:var(--color-surface-2);border-radius:10px;padding:10px;text-align:center;">
+              <div style="font-size:1.5rem;font-weight:900;color:var(--color-accent);">3</div>
+              <div style="font-size:11px;color:var(--color-text-muted);">התראות רדאר</div>
+            </div>
+            <div style="background:var(--color-surface-2);border-radius:10px;padding:10px;text-align:center;">
+              <div style="font-size:1.5rem;font-weight:900;color:var(--color-text-secondary);">מ2</div>
+              <div style="font-size:11px;color:var(--color-text-muted);">מפגש נוכחי</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:4px;">
+            <button class="admin-btn admin-btn--primary" style="flex:1;" onclick="enterAsteacher('moreh1')">
+              👁️ כנס כמורה דוד
+            </button>
+            <button class="admin-btn" onclick="toggleTeacherCreds('creds-moreh1')" title="הצג פרטי כניסה">🔑</button>
+          </div>
+          <div id="creds-moreh1" style="display:none;background:var(--color-surface-2);border-radius:8px;padding:10px;font-size:13px;">
+            <span class="cred-badge">moreh1</span> / <span class="cred-badge">david123</span>
+          </div>
+        </div>
+
+        <!-- Teacher 2 -->
+        <div class="admin-card" style="padding:24px; display:flex; flex-direction:column; gap:14px;">
+          <div style="display:flex; align-items:center; gap:14px;">
+            <div style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#10B981,#059669);display:flex;align-items:center;justify-content:font-size:1.4rem;font-weight:900;color:#fff;" >ל</div>
+            <div>
+              <div style="font-weight:800;font-size:1.05rem;">לבנה קדשאי</div>
+              <div style="font-size:13px;color:var(--color-text-muted);">אורנים - יקנעם</div>
+              <span class="status-badge status-badge--active">פעיל</span>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div style="background:var(--color-surface-2);border-radius:10px;padding:10px;text-align:center;">
+              <div style="font-size:1.5rem;font-weight:900;color:var(--color-primary);">1</div>
+              <div style="font-size:11px;color:var(--color-text-muted);">כיתות פעילות</div>
+            </div>
+            <div style="background:var(--color-surface-2);border-radius:10px;padding:10px;text-align:center;">
+              <div style="font-size:1.5rem;font-weight:900;color:var(--color-success);">12</div>
+              <div style="font-size:11px;color:var(--color-text-muted);">תלמידים פעילים</div>
+            </div>
+            <div style="background:var(--color-surface-2);border-radius:10px;padding:10px;text-align:center;">
+              <div style="font-size:1.5rem;font-weight:900;color:var(--color-success);">0</div>
+              <div style="font-size:11px;color:var(--color-text-muted);">התראות רדאר</div>
+            </div>
+            <div style="background:var(--color-surface-2);border-radius:10px;padding:10px;text-align:center;">
+              <div style="font-size:1.5rem;font-weight:900;color:var(--color-text-secondary);">מ1</div>
+              <div style="font-size:11px;color:var(--color-text-muted);">מפגש נוכחי</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:4px;">
+            <button class="admin-btn admin-btn--primary" style="flex:1;" onclick="enterAsteacher('moreh2')" >
+              👁️ כנס כמורה לבנה
+            </button>
+            <button class="admin-btn" onclick="toggleTeacherCreds('creds-moreh2')" title="הצג פרטי כניסה">🔑</button>
+          </div>
+          <div id="creds-moreh2" style="display:none;background:var(--color-surface-2);border-radius:8px;padding:10px;font-size:13px;">
+            <span class="cred-badge">moreh2</span> / <span class="cred-badge">levana123</span>
+          </div>
+        </div>
+
+        <!-- Teacher 3 -->
+        <div class="admin-card" style="padding:24px; display:flex; flex-direction:column; gap:14px; opacity:0.7;">
+          <div style="display:flex; align-items:center; gap:14px;">
+            <div style="width:52px;height:52px;border-radius:50%;background:var(--color-border);display:flex;align-items:center;justify-content:center;font-size:1.4rem;font-weight:900;color:var(--color-text-muted);">ר</div>
+            <div>
+              <div style="font-weight:800;font-size:1.05rem;">רונית כהן (נסיינית)</div>
+              <div style="font-size:13px;color:var(--color-text-muted);">מטה פיילוט</div>
+              <span class="status-badge status-badge--suspended">טרם התחבר</span>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div style="background:var(--color-surface-2);border-radius:10px;padding:10px;text-align:center;">
+              <div style="font-size:1.5rem;font-weight:900;color:var(--color-border);">—</div>
+              <div style="font-size:11px;color:var(--color-text-muted);">כיתות פעילות</div>
+            </div>
+            <div style="background:var(--color-surface-2);border-radius:10px;padding:10px;text-align:center;">
+              <div style="font-size:1.5rem;font-weight:900;color:var(--color-border);">—</div>
+              <div style="font-size:11px;color:var(--color-text-muted);">תלמידים פעילים</div>
+            </div>
+            <div style="background:var(--color-surface-2);border-radius:10px;padding:10px;text-align:center;">
+              <div style="font-size:1.5rem;font-weight:900;color:var(--color-border);">—</div>
+              <div style="font-size:11px;color:var(--color-text-muted);">התראות רדאר</div>
+            </div>
+            <div style="background:var(--color-surface-2);border-radius:10px;padding:10px;text-align:center;">
+              <div style="font-size:1.5rem;font-weight:900;color:var(--color-border);">—</div>
+              <div style="font-size:11px;color:var(--color-text-muted);">מפגש נוכחי</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:4px;">
+            <button class="admin-btn" style="flex:1;opacity:0.5;cursor:not-allowed;" disabled>
+              טרם פעיל
+            </button>
+            <button class="admin-btn" onclick="toggleTeacherCreds('creds-moreh3')" title="הצג פרטי כניסה">🔑</button>
+          </div>
+          <div id="creds-moreh3" style="display:none;background:var(--color-surface-2);border-radius:8px;padding:10px;font-size:13px;">
+            <span class="cred-badge">moreh3</span> / <span class="cred-badge">ronit123</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AUDIT LOG PANEL (Admin Only - Silent) -->
+    <div class="admin-panel" id="panel-audit">
+      <div class="admin-panel-header">
+        <div>
+          <h1 class="admin-panel-title">🔐 לוג ביקורת גישה — סמוי</h1>
+          <p class="admin-panel-subtitle">רישום אוטומטי של כל פעם שמנהל נכנס לצפות בנתוני מורה. המורה אינו מודע לכך. המידע נשמר מקומית בדפדפן זה בלבד (בגרסת פיילוט).</p>
+        </div>
+        <button class="admin-btn" onclick="clearAuditLog()" style="color:#FCA5A5;border-color:#FCA5A5;">🗑️ נקה לוג</button>
+      </div>
+      <div class="admin-card">
+        <div class="admin-card-header">
+          <div class="admin-card-title">כניסות אחרונות</div>
+          <button class="admin-btn" onclick="refreshAuditLog()">🔄 רענן</button>
+        </div>
+        <table class="admin-table" id="audit-log-table">
+          <thead>
+            <tr>
+              <th>תאריך ושעה</th>
+              <th>מנהל</th>
+              <th>צפה בלוח הבקרה של</th>
+              <th>בית ספר</th>
+              <th>Session ID</th>
+            </tr>
+          </thead>
+          <tbody id="audit-log-body">
+            <tr><td colspan="5" style="text-align:center;color:var(--color-text-muted);padding:24px;">אין רישומים עדיין</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    /* global localStorage, sessionStorage */
+    // Sidebar Tabs
+    document.querySelectorAll('.sidebar-nav-item[data-target]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.sidebar-nav-item').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.admin-panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(btn.getAttribute('data-target')).classList.add('active');
+      });
+    });
+
+    /* כניסה כמורה (Admin Impersonation)
+       מגדיר סשן שמאפשר לדשבורד לזהות את המשתמש כמנהל צופה */
+    const TEACHER_DATA = {
+      'moreh1': { name: 'דוד ספיאשוילי', school: 'אלון - רמת השרון' },
+      'moreh2': { name: 'לבנה קדשאי',    school: 'אורנים - יקנעם' },
+      'moreh3': { name: 'רונית כהן',      school: 'מטה - פיילוט'  }
+    };
+
+    function enterAsteacher(username) {
+      const teacher = TEACHER_DATA[username];
+      if (!teacher) return;
+
+      /* שמירת התחזות ב-sessionStorage — הדשבורד יזהה את זה ויציג באנר מנהל */
+      sessionStorage.setItem('mathematicor_admin_impersonation', JSON.stringify({
+        active:      true,
+        adminName:   'מנהל מערכת',
+        teacherName: teacher.name,
+        teacherUser: username,
+        school:      teacher.school,
+        returnUrl:   window.location.href
+      }));
+
+      /* ניגוד לדשבורד המורה באותו חלון */
+      window.location.href = '../teacher/dashboard.html';
+    }
+
+    function toggleTeacherCreds(id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.style.display = el.style.display === 'none' ? 'block' : 'none';
+    }
+
+    /* ── Audit Log Reader (Admin only) ── */
+    function refreshAuditLog() {
+      const AUDIT_KEY = 'mathematicor_admin_audit_log';
+      const log = JSON.parse(localStorage.getItem(AUDIT_KEY) || '[]');
+      const tbody = document.getElementById('audit-log-body');
+      if (!tbody) return;
+
+      if (log.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--color-text-muted);padding:24px;">אין רישומים עדיין</td></tr>';
+        return;
+      }
+
+      /* Show newest first */
+      const rows = [...log].reverse().map(entry => {
+        const dt = new Date(entry.timestamp);
+        const dateStr = dt.toLocaleDateString('he-IL') + ' ' + dt.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        return `<tr>
+          <td style="direction:ltr;text-align:right;font-size:13px;">${dateStr}</td>
+          <td style="font-weight:700;">${entry.adminUser || '—'}</td>
+          <td>${entry.teacherName || entry.teacherUser}</td>
+          <td style="color:var(--color-text-secondary);">${entry.school || '—'}</td>
+          <td><span class="cred-badge" style="font-size:11px;color:var(--color-text-muted);">${entry.sessionId || '—'}</span></td>
+        </tr>`;
+      }).join('');
+      tbody.innerHTML = rows;
+    }
+
+    function clearAuditLog() {
+      if (!confirm('האם אתה בטוח שברצונך למחוק את כל רישומי הביקורת?')) return;
+      localStorage.removeItem('mathematicor_admin_audit_log');
+      refreshAuditLog();
+    }
+
+    /* Load audit log when panel is opened */
+    document.querySelectorAll('.sidebar-nav-item[data-target="panel-audit"]').forEach(btn => {
+      btn.addEventListener('click', refreshAuditLog);
+    });
+
+    // Modals
+    function openModal(id) { document.getElementById(id).classList.add('open'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+  </script>
+</body>
+</html>

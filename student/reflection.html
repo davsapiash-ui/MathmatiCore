@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>מתמטיקאור — רפלקציה עצמית</title>
+  <meta name="description" content="מסך סיכום ורפלקציה — מתמטיקאור">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="../css/reflection.css">
+</head>
+<body class="reflection-page">
+
+  <!-- ── Celebration Header ── -->
+  <div class="reflection-hero" role="banner">
+    <div class="reflection-stars" aria-hidden="true">⭐ ✨ ⭐</div>
+    <h1 class="reflection-title">עשיתם עבודה נהדרת!</h1>
+    <p class="reflection-subtitle">
+      קחו רגע לחשוב על הפעילות שלכם היום.<br>
+      אין תשובות נכונות או לא נכונות — רק מחשבות שלכם.
+    </p>
+  </div>
+
+  <!-- ── Main Reflection Card ── -->
+  <article class="reflection-card" role="main">
+
+    <!-- ── Section 1: Effort Rating (מדד מאמץ חזותי) ──
+         VISUAL ICONS ONLY. No numeric scores. No "you got X/5" messages.
+         This measures cognitive effort, not performance. ── -->
+    <section class="effort-section" aria-labelledby="effort-heading">
+      <h2 class="section-title" id="effort-heading">כמה השתדלתם היום?</h2>
+      <p class="section-subtitle">בחרו את האייקון שמתאר הכי טוב את המאמץ שהשקעתם</p>
+
+      <div class="effort-icons-row" role="radiogroup" aria-required="true" id="effort-group">
+
+        <button class="effort-icon-btn" data-effort="1" role="radio" aria-checked="false"
+                aria-label="התאמצתי מעט" id="effort-1">
+          <span class="effort-icon-visual" aria-hidden="true">😴</span>
+          <span class="effort-icon-label">מעט</span>
+        </button>
+
+        <button class="effort-icon-btn" data-effort="2" role="radio" aria-checked="false"
+                aria-label="התאמצתי בינוני" id="effort-2">
+          <span class="effort-icon-visual" aria-hidden="true">🙂</span>
+          <span class="effort-icon-label">בינוני</span>
+        </button>
+
+        <button class="effort-icon-btn" data-effort="3" role="radio" aria-checked="false"
+                aria-label="התאמצתי הרבה" id="effort-3">
+          <span class="effort-icon-visual" aria-hidden="true">💪</span>
+          <span class="effort-icon-label">הרבה</span>
+        </button>
+
+        <button class="effort-icon-btn" data-effort="4" role="radio" aria-checked="false"
+                aria-label="התאמצתי מאוד מאוד" id="effort-4">
+          <span class="effort-icon-visual" aria-hidden="true">🚀</span>
+          <span class="effort-icon-label">מאוד!</span>
+        </button>
+
+      </div>
+    </section>
+
+    <!-- ── Section 2: Strategy Selection (בחירת אסטרטגיה מוצלחת) ──
+         Illustrated closed options — metacognitive self-reflection.
+         These are STRATEGY ILLUSTRATIONS, not generic radio buttons. ── -->
+    <section class="strategy-section" aria-labelledby="strategy-heading">
+      <h2 class="section-title" id="strategy-heading">מה עזר לך להצליח היום?</h2>
+      <p class="section-subtitle">בחרו אפשרות אחת שמתאימה לכם</p>
+
+      <div class="strategy-options" role="radiogroup" aria-required="true" id="strategy-group">
+
+        <!-- Strategy 1: Using virtual block manipulatives (בית המספרים) -->
+        <button class="strategy-option-btn" data-strategy="blocks" role="radio" aria-checked="false"
+                id="strategy-blocks">
+          <div class="strategy-icon" aria-hidden="true">🟨</div>
+          <div class="strategy-text">
+            <span class="strategy-name">השתמשתי בקוביות של טבלת הטורים</span>
+            <span class="strategy-desc">גררתי קוביות ועשרות לטבלה כדי לחשוב</span>
+          </div>
+          <div class="strategy-check" aria-hidden="true"></div>
+        </button>
+
+        <!-- Strategy 2: Used the digital hint system (Support Palette) -->
+        <button class="strategy-option-btn" data-strategy="hints" role="radio" aria-checked="false"
+                id="strategy-hints">
+          <div class="strategy-icon" aria-hidden="true">💡</div>
+          <div class="strategy-text">
+            <span class="strategy-name">ביקשתי עזרה מהחונך הדיגיטלי</span>
+            <span class="strategy-desc">לחצתי על כפתור העזרה כשלא הצלחתי לבד</span>
+          </div>
+          <div class="strategy-check" aria-hidden="true"></div>
+        </button>
+
+        <!-- Strategy 3: Used Undo for self-correction (Persistence / SRL) -->
+        <button class="strategy-option-btn" data-strategy="undo" role="radio" aria-checked="false"
+                id="strategy-undo">
+          <div class="strategy-icon" aria-hidden="true">↩️</div>
+          <div class="strategy-text">
+            <span class="strategy-name">עצרתי ובדקתי את עצמי</span>
+            <span class="strategy-desc">לחצתי על "בטל" כדי לנסות שוב בצורה אחרת</span>
+          </div>
+          <div class="strategy-check" aria-hidden="true"></div>
+        </button>
+
+      </div>
+    </section>
+
+    <!-- ── Process Feedback (NOT a score — encourages persistence and effort) ── -->
+    <section class="process-feedback" id="process-feedback" aria-live="polite">
+      <div class="feedback-emoji" aria-hidden="true">🌟</div>
+      <p class="feedback-text">
+        הכוח שלכם הוא בהתמדה ובניסיון שוב ושוב!
+      </p>
+      <p class="feedback-sub-text">
+        כל פעם שניסיתם שוב — הדמיון שלכם גדל. זה המתמטיקאי הטוב ביותר שיכול להיות.
+      </p>
+    </section>
+
+    <!-- ── Done Button ── -->
+    <button class="reflection-done-btn"
+            id="reflection-done-btn"
+            disabled
+            onclick="completeReflection()">
+      ✓ סיימתי — יאללה להמשיך!
+    </button>
+
+  </article>
+
+  <script src="../js/session.js"></script>
+  <script>
+    /* global SessionManager, selectedEffort, selectedStrategy, checkCanComplete, updateFeedback, completeReflection, sessionStorage */
+    /* ── Session Reflection Logic ── */
+
+    let selectedEffort   = null;
+    let selectedStrategy = null;
+
+    /* Guard: must have valid session */
+    if (!sessionStorage.getItem('mathematicor_student')) {
+      window.location.href = '../index.html';
+    }
+
+    /* Load student name */
+    (function () {
+      try {
+        const s = JSON.parse(sessionStorage.getItem('mathematicor_student') || '{}');
+        if (s.name) {
+          const title = document.querySelector('.reflection-title');
+          if (title) title.textContent = `כל הכבוד, ${s.name}! 🎉`;
+        }
+      } catch {}
+    })();
+
+    /* ── Effort Icon Selection ── */
+    document.querySelectorAll('.effort-icon-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.effort-icon-btn').forEach(b => {
+          b.classList.remove('selected');
+          b.setAttribute('aria-checked', 'false');
+        });
+        btn.classList.add('selected');
+        btn.setAttribute('aria-checked', 'true');
+        selectedEffort = parseInt(btn.getAttribute('data-effort'), 10);
+        checkCanComplete();
+        /* Update process feedback based on effort */
+        updateFeedback();
+      });
+    });
+
+    /* ── Strategy Option Selection ── */
+    document.querySelectorAll('.strategy-option-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.strategy-option-btn').forEach(b => {
+          b.classList.remove('selected');
+          b.setAttribute('aria-checked', 'false');
+          b.querySelector('.strategy-check').textContent = '';
+        });
+        btn.classList.add('selected');
+        btn.setAttribute('aria-checked', 'true');
+        btn.querySelector('.strategy-check').textContent = '✓';
+        selectedStrategy = btn.getAttribute('data-strategy');
+        checkCanComplete();
+      });
+    });
+
+    /* Enable Done button only when both selections are made */
+    function checkCanComplete() {
+      const doneBtn = document.getElementById('reflection-done-btn');
+      if (doneBtn) {
+        doneBtn.disabled = !(selectedEffort && selectedStrategy);
+      }
+    }
+
+    /* Update the process feedback message based on effort level */
+    function updateFeedback() {
+      const feedbackEl = document.getElementById('process-feedback');
+      if (!feedbackEl) return;
+      const emojiEl = feedbackEl.querySelector('.feedback-emoji');
+      const textEl  = feedbackEl.querySelector('.feedback-text');
+      const subEl   = feedbackEl.querySelector('.feedback-sub-text');
+
+      const messages = {
+        1: {
+          emoji: '💛',
+          text:  'טוב שבאת ונסית!',
+          sub:   'כל יום שמנסים — הוא יום שלומדים. בפגישה הבאה נמשיך ביחד.'
+        },
+        2: {
+          emoji: '⭐',
+          text:  'הייתה עבודה טובה היום!',
+          sub:   'כל פעם שחשבתם — המוח שלכם התחזק. כך לומדים!'
+        },
+        3: {
+          emoji: '🌟',
+          text:  'התאמצתם מאוד — זה ניכר!',
+          sub:   'הכוח שלכם הוא בהתמדה ובניסיון חוזר. המשיכו כך!'
+        },
+        4: {
+          emoji: '🚀',
+          text:  'עבודה מדהימה! אתם מתמטיקאים אמיתיים!',
+          sub:   'מאמץ כזה בונה הבנה עמוקה. אנחנו גאים בכם!'
+        }
+      };
+
+      const msg = messages[selectedEffort];
+      if (msg) {
+        emojiEl.textContent = msg.emoji;
+        textEl.textContent  = msg.text;
+        subEl.textContent   = msg.sub;
+        feedbackEl.style.animation = 'none';
+        void feedbackEl.offsetWidth;
+        feedbackEl.style.animation = 'successBounce 0.4s ease';
+      }
+    }
+
+    /* ── Complete Reflection ── */
+    function completeReflection() {
+      /* Store reflection data silently (for teacher dashboard — Phase B) */
+      try {
+        const studentObj = JSON.parse(sessionStorage.getItem('mathematicor_student') || '{}');
+        const reflection = {
+          effort:    selectedEffort,
+          strategy:  selectedStrategy,
+          timestamp: Date.now(),
+          student:   studentObj.username
+        };
+        const key      = 'mathematicor_reflections';
+        const existing = JSON.parse(localStorage.getItem(key) || '[]');
+        existing.push(reflection);
+        localStorage.setItem(key, JSON.stringify(existing));
+
+        /* Sync Q-Matrix results to localStorage for teacher dashboard clustering */
+        const stateObj = JSON.parse(sessionStorage.getItem('mathematicor_state') || '{}');
+        if (stateObj && stateObj.qmatrixResults) {
+          const resultsKey = 'mathematicor_qmatrix_results';
+          const existingResults = JSON.parse(localStorage.getItem(resultsKey) || '[]');
+          
+          // Remove existing entry for this student if present, then add new one
+          const filtered = existingResults.filter(r => r.student !== studentObj.username);
+          
+          filtered.push({
+            student: studentObj.username,
+            studentName: studentObj.name,
+            q1: stateObj.qmatrixResults.q1 ? stateObj.qmatrixResults.q1.correct : null,
+            q2: stateObj.qmatrixResults.q2 ? stateObj.qmatrixResults.q2.correct : null,
+            q3: stateObj.qmatrixResults.q3 ? stateObj.qmatrixResults.q3.correct : null,
+            q4: stateObj.qmatrixResults.q4 ? stateObj.qmatrixResults.q4.correct : null,
+            q5: stateObj.qmatrixResults.q5 ? stateObj.qmatrixResults.q5.correct : null,
+            q4_backward_diag: stateObj.qmatrixResults.q4 ? stateObj.qmatrixResults.q4.q4_backward_diag : null
+          });
+          
+          localStorage.setItem(resultsKey, JSON.stringify(filtered));
+        }
+      } catch (e) {
+        console.error(e);
+      }
+
+      /* Animate and show completion */
+      const doneBtn = document.getElementById('reflection-done-btn');
+      doneBtn.textContent = '✓ נשמר! תודה רבה!';
+      doneBtn.disabled    = true;
+      doneBtn.style.background = 'linear-gradient(135deg, #10B981, #059669)';
+
+      /* Final celebratory message */
+      const hero = document.querySelector('.reflection-hero');
+      if (hero) {
+        hero.innerHTML = `
+          <div class="reflection-stars">🎉 🌟 🎊</div>
+          <h1 class="reflection-title" style="color:var(--color-success);">מעולה! עבודה נהדרת!</h1>
+          <p class="reflection-subtitle">המורה שלך יראה את הדוח שלכם. נתראה בפגישה הבאה!</p>
+        `;
+      }
+    }
+  </script>
+</body>
+</html>

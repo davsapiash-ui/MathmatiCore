@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>מתמטיקאור — נגן הקלטות מפגש (מלא)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="../css/dashboard.css">
+  <script src="https://cdn.jsdelivr.net/npm/rrweb@latest/dist/rrweb.min.js"></script>
+  <style>
+    body.viewer-page {
+      background: #0f172a;
+      color: #f1f5f9;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      font-family: 'Heebo', sans-serif;
+    }
+    .viewer-header {
+      background: #1e293b;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 2px solid #334155;
+    }
+    .viewer-container {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 320px 1fr 340px;
+      overflow: hidden;
+    }
+    .viewer-sidebar {
+      background: #1e293b;
+      border-left: 2px solid #334155;
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+      overflow-y: auto;
+    }
+    .viewer-sidebar-left {
+      background: #1e293b;
+      border-right: 2px solid #334155;
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+      overflow-y: auto;
+    }
+    .viewer-content {
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+      gap: 15px;
+      align-items: center;
+      justify-content: center;
+      background: #0f172a;
+    }
+    .full-player-frame {
+      width: 100%;
+      max-width: 900px;
+      aspect-ratio: 16/10;
+      background: #000;
+      border-radius: var(--radius-xl);
+      border: 3px solid #334155;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+    }
+    .full-player-container {
+      width: 100%;
+      height: 100%;
+    }
+    /* YouTube-style Chapters Progress Bar */
+    .chapters-progress-bar {
+      width: 100%;
+      max-width: 900px;
+      height: 24px;
+      background: #334155;
+      border-radius: var(--radius-sm);
+      display: flex;
+      overflow: hidden;
+      position: relative;
+      cursor: pointer;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    }
+    .chapter-segment {
+      height: 100%;
+      border-left: 2px solid #0f172a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 800;
+      color: #94a3b8;
+      transition: all 0.2s;
+      position: relative;
+    }
+    .chapter-segment:hover {
+      filter: brightness(1.2);
+      color: #fff;
+    }
+    .chapter-segment-fill {
+      position: absolute;
+      top: 0; left: 0; bottom: 0; right: 0;
+      background: var(--color-primary);
+      opacity: 0.3;
+      pointer-events: none;
+    }
+    .chapter-segment.active .chapter-segment-fill {
+      background: var(--color-success);
+      opacity: 0.55;
+    }
+    .full-controls {
+      width: 100%;
+      max-width: 900px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      padding: 12px 24px;
+      border-radius: var(--radius-lg);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .timeline-event-item {
+      background: #334155;
+      color: #f1f5f9;
+      border-right: 4px solid #475569;
+      margin-bottom: 8px;
+    }
+    .timeline-event-item:hover {
+      background: #475569;
+    }
+    .timeline-event-item.type-correct   { border-right-color: var(--color-success); }
+    .timeline-event-item.type-incorrect { border-right-color: var(--color-danger); }
+    .timeline-event-item.type-hint      { border-right-color: var(--color-primary); }
+    .timeline-event-item.type-radar     { border-right-color: var(--color-warning); }
+  </style>
+</head>
+<body class="viewer-page">
+
+  <header class="viewer-header">
+    <div style="display:flex; align-items:center; gap:12px;">
+      <span style="font-size:1.8rem;">📹</span>
+      <div>
+        <h1 style="font-size:1.25rem; font-weight:900; margin:0;">נגן הקלטות מלא — מתמטיקאור</h1>
+        <p style="font-size:13px; color:#94a3b8; margin:0;">צפייה בשלבי פתרון ובביצועי תלמיד</p>
+      </div>
+    </div>
+    <div style="font-size:15px; font-weight:700;">
+      תלמיד: <span id="student-name-badge" style="color:var(--color-primary-light);">—</span>
+    </div>
+    <button class="admin-btn" style="background:#e2e8f0; color:#0f172a;" onclick="window.close()">🗙 סגור נגן</button>
+  </header>
+
+  <div class="viewer-container">
+    <!-- Sidebar: Event Timeline -->
+    <aside class="viewer-sidebar">
+      <h2 style="font-size:15px; font-weight:800; color:#38bdf8; margin:0 0 16px 0; border-bottom:1px solid #334155; padding-bottom:8px;">📋 שלבי פתרון ולוגים</h2>
+      <div class="timeline-list" id="timeline-list" style="max-height:none; overflow:visible;">
+        <!-- Injected by JS -->
+      </div>
+    </aside>
+
+    <!-- Main Content: Replay Screen & YouTube Chapters -->
+    <main class="viewer-content">
+      <div class="full-player-frame">
+        <div id="player-container" class="full-player-container"></div>
+      </div>
+      
+      <!-- YouTube-style Chapters Bar -->
+      <div class="chapters-progress-bar" id="chapters-bar" title="ניווט מהיר לפי משימות (כמו ביוטיוב)">
+        <!-- Segments injected by JS -->
+      </div>
+
+      <div class="full-controls">
+        <div style="display:flex; gap:12px;">
+          <button class="replay-btn" id="play-btn" style="width:40px; height:40px; font-size:1.2rem;" onclick="togglePlay()">▶</button>
+          <button class="replay-btn" style="width:50px; height:40px;" onclick="setSpeed(0.5)">0.5x</button>
+          <button class="replay-btn" style="width:50px; height:40px;" onclick="setSpeed(1)">1x</button>
+          <button class="replay-btn" style="width:50px; height:40px;" onclick="setSpeed(2)">2x</button>
+        </div>
+        <div style="font-size:13px; color:#94a3b8;" id="status-display">ממתין להפעלה...</div>
+      </div>
+    </main>
+
+    <!-- Left Sidebar: AI Diagnostic Panel -->
+    <aside class="viewer-sidebar-left" id="ai-sidebar">
+      <h2 style="font-size:15px; font-weight:800; color:#10b981; margin:0 0 16px 0; border-bottom:1px solid #334155; padding-bottom:8px;">🤖 אבחון ומסקנות פדגוגיות (AI)</h2>
+      <div id="ai-insights-content" style="display:flex; flex-direction:column; gap:16px;">
+        <!-- Injected by JS -->
+      </div>
+    </aside>
+  </div>
+
+  <script>
+    /* global rrweb, localStorage, sessionStorage */
+    let replayer = null;
+    let isPlaying = false;
+    let username = '';
+    let firstEventTime = 0;
+    let replayEvents = [];
+    let chapters = [];
+
+    function getQueryParam(name) {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get(name);
+    }
+
+    function init() {
+      username = getQueryParam('student');
+      const studentName = getQueryParam('name') || username;
+      document.getElementById('student-name-badge').textContent = studentName;
+
+      if (!username) {
+        alert('לא נבחר תלמיד לצפייה.');
+        return;
+      }
+
+      /* Load logs and replay events from localStorage */
+      const logs = JSON.parse(localStorage.getItem(`mathematicor_student_logs_${username}`) || '[]');
+      const events = JSON.parse(localStorage.getItem(`mathematicor_student_replay_${username}`) || '[]');
+
+      renderTimeline(logs);
+      setupReplayer(events);
+      analyzePedagogicalLogs(logs);
+      generateYouTubeChapters(logs, events);
+    }
+
+    function renderTimeline(logs) {
+      const list = document.getElementById('timeline-list');
+      if (logs.length === 0) {
+        list.innerHTML = '<div style="text-align:center; color:#94a3b8; padding:20px;">אין לוגים מתועדים למפגש זה</div>';
+        return;
+      }
+
+      list.innerHTML = logs.map(l => {
+        let typeClass = '';
+        let eventText = l.event;
+        let timeStr = new Date(l.timestamp).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+        if (l.event === 'task_correct') { typeClass = 'type-correct'; eventText = `✅ משימה נפתרה נכון: ${l.taskId}`; }
+        else if (l.event === 'task_incorrect') { typeClass = 'type-incorrect'; eventText = `❌ שגיאה במשימה: ${l.taskId}`; }
+        else if (l.event === 'block_add') { typeClass = 'type-hint'; eventText = `➕ הוספת בלוק ב${_translateCol(l.detail.place)}`; }
+        else if (l.event === 'block_remove') { typeClass = 'type-incorrect'; eventText = `➖ הסרת בלוק מ${_translateCol(l.detail.place)}`; }
+        else if (l.event === 'block_ungroup') { typeClass = 'type-hint'; eventText = `💥 פריטה: ${l.detail.from} ל-${l.detail.to}`; }
+        else if (l.event === 'block_regroup') { typeClass = 'type-correct'; eventText = `📦 המרה אוטומטית`; }
+        else if (l.event === 'undo') { typeClass = 'type-hint'; eventText = `↩ לחץ בטל (Undo)`; }
+        else if (l.event === 'hint_requested') { typeClass = 'type-radar'; eventText = `💡 ביקש עזרה מה-AI`; }
+        else if (l.event === 'hint_choice_selected') { typeClass = 'type-radar'; eventText = `🔍 בחר עזרה: ${l.detail.choiceType}`; }
+        else if (l.event === 'hesitation_alert') { typeClass = 'type-radar'; eventText = `⏸️ רדאר: היסוס קוגניטיבי (${Math.round(l.detail.durationMs/1000)} ש׳)`; }
+        else if (l.event === 'session_completed') { typeClass = 'type-correct'; eventText = `🏁 המפגש הושלם בהצלחה`; }
+
+        /* Get the timestamp offset if replayer is ready */
+        let clickAttr = '';
+        if (replayEventsExist(l.timestamp)) {
+          clickAttr = `onclick="seekToTime('${l.timestamp}')"`;
+        }
+
+        return `
+          <div class="timeline-event-item ${typeClass}" ${clickAttr} style="cursor:pointer; padding:10px; border-radius:8px; display:flex; flex-direction:column; gap:4px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span class="timeline-event-text" style="font-size:13px; font-weight:700;">${eventText}</span>
+              <span class="timeline-event-time" style="font-size:11px; opacity:0.7;">${timeStr}</span>
+            </div>
+            ${l.pvState ? `<div style="font-size:11px; opacity:0.8; font-family:Courier New, monospace;">מצב: י:${l.pvState.units} ע:${l.pvState.tens} מ:${l.pvState.hundreds} א:${l.pvState.thousands}</div>` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function setupReplayer(events) {
+      const container = document.getElementById('player-container');
+      if (events.length === 0) {
+        container.innerHTML = '<div style="height:100%; display:flex; align-items:center; justify-content:center; color:#94a3b8; font-weight:800;">אין אירועי הקלטה זמינים (rrweb)</div>';
+        document.getElementById('status-display').textContent = 'אין הקלטה';
+        return;
+      }
+
+      replayEvents = events;
+      firstEventTime = events[0].timestamp;
+
+      try {
+        replayer = new rrweb.Replayer(events, {
+          root: container,
+          mouseTail: true,
+          unpackFn: null
+        });
+
+        replayer.on('play', () => {
+          isPlaying = true;
+          document.getElementById('play-btn').textContent = '⏸';
+          document.getElementById('status-display').textContent = 'מנגן...';
+        });
+
+        replayer.on('pause', () => {
+          isPlaying = false;
+          document.getElementById('play-btn').textContent = '▶';
+          document.getElementById('status-display').textContent = 'מושהה';
+        });
+
+        replayer.on('finish', () => {
+          isPlaying = false;
+          document.getElementById('play-btn').textContent = '▶';
+          document.getElementById('status-display').textContent = 'ההקלטה הסתיימה';
+        });
+
+        /* Sync chapters active class on progress */
+        replayer.on('ui-update-progress', (progress) => {
+          const currentTime = firstEventTime + (progress * replayer.getMetaData().totalTime);
+          syncActiveChapter(currentTime);
+        });
+
+        document.getElementById('status-display').textContent = 'הקלטה נטענה. לחץ Play';
+      } catch (err) {
+        console.error('Error setting up replayer:', err);
+      }
+    }
+
+    /* ── YouTube Replay Chapters Generator ── */
+    function generateYouTubeChapters(logs, events) {
+      const bar = document.getElementById('chapters-bar');
+      if (events.length === 0 || logs.length === 0) {
+        bar.style.display = 'none';
+        return;
+      }
+
+      const totalTime = events[events.length - 1].timestamp - firstEventTime;
+      const loadedLogs = logs.filter(l => l.event === 'task_loaded');
+
+      if (loadedLogs.length === 0) {
+        /* Fallback to single segment */
+        bar.innerHTML = `<div class="chapter-segment" style="width: 100%;">
+          <div class="chapter-segment-fill"></div>
+          מפגש למידה פעיל
+        </div>`;
+        return;
+      }
+
+      chapters = [];
+      for (let i = 0; i < loadedLogs.length; i++) {
+        const currentLog = loadedLogs[i];
+        const nextLog = loadedLogs[i + 1];
+
+        const start = new Date(currentLog.timestamp).getTime();
+        const end = nextLog ? new Date(nextLog.timestamp).getTime() : events[events.length - 1].timestamp;
+        
+        const duration = Math.max(1000, end - start);
+        const startOffset = Math.max(0, start - firstEventTime);
+        const widthPct = (duration / totalTime) * 100;
+
+        chapters.push({
+          id: currentLog.taskId,
+          title: _translateTask(currentLog.taskId),
+          startOffset: startOffset,
+          startTime: start,
+          endTime: end,
+          widthPct: widthPct
+        });
+      }
+
+      bar.innerHTML = chapters.map((c, idx) => `
+        <div class="chapter-segment" id="ch-seg-${c.id}" 
+             style="width: ${c.widthPct}%;" 
+             onclick="seekReplayer(${c.startOffset})"
+             title="${c.title} (לחץ לניווט)">
+          <div class="chapter-segment-fill"></div>
+          <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:0 4px;">${c.title}</span>
+        </div>
+      `).join('');
+    }
+
+    window.seekReplayer = function(offset) {
+      if (!replayer) return;
+      replayer.play(offset);
+    }
+
+    function syncActiveChapter(currentTime) {
+      chapters.forEach(c => {
+        const seg = document.getElementById(`ch-seg-${c.id}`);
+        if (seg) {
+          if (currentTime >= c.startTime && currentTime <= c.endTime) {
+            seg.classList.add('active');
+          } else {
+            seg.classList.remove('active');
+          }
+        }
+      });
+    }
+
+    /* ── AI Pedagogical Diagnostic Engine ── */
+    function analyzePedagogicalLogs(logs) {
+      const container = document.getElementById('ai-insights-content');
+      if (logs.length === 0) {
+        container.innerHTML = '<div style="color:#94a3b8; font-size:13px; text-align:center;">ממתין ללוגים לניתוח...</div>';
+        return;
+      }
+
+      let hesitationCount = 0;
+      let undoCount = 0;
+      let errorsCount = 0;
+      let hintsCount = 0;
+      let wrongAnswers = [];
+      let finalState = 'active';
+
+      logs.forEach(l => {
+        if (l.event === 'hesitation_alert') hesitationCount++;
+        if (l.event === 'undo') undoCount++;
+        if (l.event === 'task_incorrect') {
+          errorsCount++;
+          wrongAnswers.push(l.taskId);
+        }
+        if (l.event === 'hint_requested') hintsCount++;
+        if (l.event === 'session_completed') finalState = 'completed';
+      });
+
+      /* Diagnose core struggle category */
+      let coreStruggle = 'ללא קושי מהותי';
+      let diagnosticDetail = 'התלמיד ביצע את המשימות ללא עומס קוגניטיבי חריג.';
+      
+      if (wrongAnswers.includes('q1')) {
+        coreStruggle = 'ערך המקום והאפס';
+        diagnosticDetail = 'הלומד מראה קושי מהותי בהתייחסות לאפס כשומר מקום במספר דו-ספרתי או תלת-ספרתי, ונוטה להשמיט אותו.';
+      } else if (wrongAnswers.includes('q2')) {
+        coreStruggle = 'מיקום על ישר המספרים';
+        diagnosticDetail = 'ניכר קושי באומדן ובקשר הוויזואלי-כמותי בין מספר ספרתי למיקומו המרחבי על גבי ציר המספרים.';
+      } else if (wrongAnswers.includes('q3')) {
+        coreStruggle = 'פירוק והרכבה (גמישות ייצוגית)';
+        diagnosticDetail = 'הלומד מתקשה לבצע פירוק גמיש של עשרות בודדות ומעדיף את המבנה הפורמלי הקבוע.';
+      } else if (wrongAnswers.includes('q4')) {
+        coreStruggle = 'חיבור מאונך והמרה';
+        diagnosticDetail = 'זוהה קושי בביצוע המרה (מעבר של 10 יחידות לעשרת אחת) במהלך חיבור של מספרים רב-ספרתיים.';
+      }
+
+      /* Determine behavior patterns */
+      let behavioralPattern = 'פעיל וממוקד';
+      if (undoCount > 5) {
+        behavioralPattern = 'ויסות עצמי גבוה (ניסוי וטעייה בריאים)';
+      }
+      if (hesitationCount > 2) {
+        behavioralPattern = 'מאבק קוגניטיבי בריא (התעמקות ממושכת)';
+      }
+      if (undoCount > 6 && errorsCount > 3) {
+        behavioralPattern = 'קושי בבקרת איכות ותנועתיות יתר';
+      }
+
+      /* Recommendations */
+      let recommendationsHTML = '';
+      if (coreStruggle === 'ערך המקום והאפס') {
+        recommendationsHTML = `
+          <li style="font-size:12px; line-height:1.5; color:#cbd5e1;">🎯 מומלץ להנחות את התלמיד להוסיף 0 בטור היחידות כדי לחוש שהמקום נשמר.</li>
+          <li style="font-size:12px; line-height:1.5; color:#cbd5e1;">🎯 מנע התערבות ישירה; אפשר לפיגום החזותי של המארגן (Graphic Organizer) לפעול.</li>
+        `;
+      } else if (coreStruggle === 'חיבור מאונך והמרה') {
+        recommendationsHTML = `
+          <li style="font-size:12px; line-height:1.5; color:#cbd5e1;">🎯 הנחה את התלמיד לבצע פריטה והמרה דרך בלוקי העשרת שמתפוצצים כדי לראות את השינוי הכמותי.</li>
+          <li style="font-size:12px; line-height:1.5; color:#cbd5e1;">🎯 שים לב אם הילד משתמש בבטלים (Undo) כדי לתקן את עצמו.</li>
+        `;
+      } else {
+        recommendationsHTML = `
+          <li style="font-size:12px; line-height:1.5; color:#cbd5e1;">🎯 המשך תרגול רגיל.</li>
+          <li style="font-size:12px; line-height:1.5; color:#cbd5e1;">🎯 התלמיד משתמש נכון במשאבי הלמידה.</li>
+        `;
+      }
+
+      container.innerHTML = `
+        <!-- Core struggle metric -->
+        <div style="background:#334155; padding:12px; border-radius:8px; border-right:4px solid #10b981;">
+          <div style="font-size:12px; color:#94a3b8; font-weight:700;">מוקד קושי מאובחן:</div>
+          <div style="font-size:15px; font-weight:900; color:#10b981; margin-top:4px;">${coreStruggle}</div>
+          <div style="font-size:12px; color:#cbd5e1; margin-top:6px; line-height:1.5;">${diagnosticDetail}</div>
+        </div>
+
+        <!-- Silent Signals metrics -->
+        <div style="background:#334155; padding:12px; border-radius:8px; border-right:4px solid #38bdf8;">
+          <div style="font-size:12px; color:#94a3b8; font-weight:700;">דפוס התנהגותי (Silent Trace Data):</div>
+          <div style="font-size:14px; font-weight:800; color:#38bdf8; margin-top:4px;">${behavioralPattern}</div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:10px; font-size:11px;">
+            <div style="background:#1e293b; padding:4px 8px; border-radius:4px;">🔄 בטלים (Undo): <strong>${undoCount}</strong></div>
+            <div style="background:#1e293b; padding:4px 8px; border-radius:4px;">⏸️ היסוסים: <strong>${hesitationCount}</strong></div>
+            <div style="background:#1e293b; padding:4px 8px; border-radius:4px;">❌ שגיאות: <strong>${errorsCount}</strong></div>
+            <div style="background:#1e293b; padding:4px 8px; border-radius:4px;">💡 רמזים: <strong>${hintsCount}</strong></div>
+          </div>
+        </div>
+
+        <!-- Strategy recommendation -->
+        <div style="background:#334155; padding:12px; border-radius:8px; border-right:4px solid #f59e0b;">
+          <div style="font-size:12px; color:#94a3b8; font-weight:700;">המלצה מותאמת אישית למורה:</div>
+          <ul style="margin:8px 0 0 0; padding-right:16px; display:flex; flex-direction:column; gap:6px;">
+            ${recommendationsHTML}
+          </ul>
+        </div>
+      `;
+    }
+
+    function _translateTask(taskId) {
+      const m = {
+        q1: 'משימה 1 (האפס)',
+        q2: 'משימה 2 (הישר)',
+        q3: 'משימה 3 (פירוק גמיש)',
+        q4: 'משימה 4 (חיבור במאונך)',
+        q5: 'משימה 5 (השינוי הקטן)',
+        s1_welcome: 'היכרות',
+        s1_t1: 'חיבור פשוט 1',
+        s1_t2: 'חיבור פשוט 2',
+        s1_t3: 'חיבור פשוט 3'
+      };
+      return m[taskId] ?? taskId;
+    }
+
+    function togglePlay() {
+      if (!replayer) return;
+      if (isPlaying) {
+        replayer.pause();
+      } else {
+        replayer.play();
+      }
+    }
+
+    function setSpeed(speed) {
+      if (!replayer) return;
+      replayer.setConfig({ speed: speed });
+      document.getElementById('status-display').textContent = `מהירות: ${speed}x`;
+    }
+
+    function replayEventsExist(timestampStr) {
+      if (replayEvents.length === 0) return false;
+      const targetTime = new Date(timestampStr).getTime();
+      return targetTime >= firstEventTime && targetTime <= replayEvents[replayEvents.length - 1].timestamp;
+    }
+
+    window.seekToTime = function(timestampStr) {
+      if (!replayer) return;
+      const targetTime = new Date(timestampStr).getTime();
+      const offset = targetTime - firstEventTime;
+      if (offset >= 0) {
+        replayer.play(offset);
+      }
+    }
+
+    function _translateCol(place) {
+      const m = { units: 'יחידות', tens: 'עשרות', hundreds: 'מאות', thousands: 'אלפים' };
+      return m[place] ?? place;
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+
+</body>
+</html>
