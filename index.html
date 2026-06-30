@@ -132,11 +132,15 @@
     function executeMockSSO() {
       // Admin specific check before visual loading
       if (selectedRole === 'admin') {
-        const email = prompt("אימות נדרש: אנא הזן כתובת דוא״ל של מנהל מערכת:");
-        // ניתן לשנות את המייל כאן למייל המבוקש
-        const AUTHORIZED_ADMIN_EMAIL = "admin@mathematicore.com"; 
+        const email = prompt("אימות Google Workspace נדרש: אנא הזן את כתובת הדוא״ל שלך:");
         
-        if (email !== AUTHORIZED_ADMIN_EMAIL) {
+        // רשימת המיילים המורשים (כולל הכינוי המשני)
+        const AUTHORIZED_ADMIN_EMAILS = [
+          "davidsep@edu-haifa.org.il",
+          "1002220159@edu-haifa.org.il"
+        ];
+        
+        if (!AUTHORIZED_ADMIN_EMAILS.includes(email)) {
           alert("גישה נדחתה: כתובת הדוא״ל אינה מורשית להתחבר כמנהל מערכת.");
           return;
         }
