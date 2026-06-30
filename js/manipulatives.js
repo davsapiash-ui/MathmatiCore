@@ -344,12 +344,16 @@ const ManipulativeRenderer = (() => {
   /**
    * Animate ungrouping (1 block explodes into 10).
    */
-  function animateUngrouping(fromPlace, toPlace, containerEl, onComplete) {
+  function animateUngrouping(fromPlace, toPlace, containerEl, source, onComplete) {
     const fromCol  = containerEl.querySelector(`[data-place="${fromPlace}"] .pv-drop-zone`);
     const toCol    = containerEl.querySelector(`[data-place="${toPlace}"] .pv-drop-zone`);
 
     const blocks   = fromCol ? fromCol.querySelectorAll('.math-block') : [];
-    const lastBlock = blocks.length > 0 ? blocks[blocks.length - 1] : null;
+    let lastBlock = blocks.length > 0 ? blocks[blocks.length - 1] : null;
+    
+    if (source === 'palette') {
+      lastBlock = null; // Do not animate existing blocks if dropped from palette
+    }
 
     if (typeof gsap !== 'undefined' && lastBlock) {
       /* GSAP Ungrouping */
@@ -530,6 +534,7 @@ const DragController = (() => {
         draggedSource = 'palette';
         e.dataTransfer.effectAllowed = 'copy';
         e.dataTransfer.setData('text/plain', draggedPlace);
+        e.dataTransfer.setData('source', 'palette');
         block.style.opacity = '0.5';
         SilentRadar.recordStudentAction();
       });
@@ -718,7 +723,7 @@ const DragController = (() => {
 
     if (ungrouped) {
       /* אנימציית פירוק (התפוצצות) */
-      ManipulativeRenderer.animateUngrouping(sourcePlace, targetPlace, containerEl, () => {
+      ManipulativeRenderer.animateUngrouping(sourcePlace, targetPlace, containerEl, source, () => {
         rerenderAll();
       });
     } else if (regroupEvents && regroupEvents.length > 0) {

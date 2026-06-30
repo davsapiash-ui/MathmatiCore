@@ -304,8 +304,8 @@ input[type=number] {
 }
 
 .place-value-structure.open {
-  flex: 0 0 40%;
-  width: 40%;
+  flex: 0 0 45%;
+  width: 45%;
   opacity: 1;
   padding: var(--space-6);
 }
@@ -327,11 +327,14 @@ input[type=number] {
   direction: rtl;   /* units on right, thousands on left — standard Hebrew notation */
   align-items: stretch;
   flex: 1;
+  min-height: 0;
 }
 
 /* Each mathematical column container */
 .pv-column {
   flex: 1;
+  min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -382,7 +385,8 @@ input[type=number] {
   gap: 4px;
   box-sizing: border-box;
   min-height: 150px;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   transition: background var(--transition-fast);
   position: relative;
   cursor: pointer;
@@ -516,9 +520,8 @@ input[type=number] {
 
 /* מאה — hundred-flat (blue) */
 .math-block--hundred {
-  width: 80px;
-  height: 80px;
-  scale: 0.85;
+  width: 64px;
+  height: 64px;
   background: var(--block-hundred);
   border-radius: 4px;
   box-shadow: 0 4px 0 var(--block-hundred-dark), 0 4px 6px rgba(0,0,0,0.2);
@@ -530,9 +533,8 @@ input[type=number] {
 
 /* אלף — thousand-cube (red) */
 .math-block--thousand {
-  width: 80px;
-  height: 80px;
-  scale: 0.90;
+  width: 64px;
+  height: 64px;
   background: var(--block-thousand);
   border-radius: 4px;
   box-shadow: 
