@@ -73,7 +73,7 @@ body.reflection-page {
 .section-subtitle {
   font-size: var(--font-size-sm);
   color: var(--color-text-muted);
-  margin-top: -var(--space-2);
+  margin-top: calc(-1 * var(--space-2));
 }
 
 .effort-icons-row {

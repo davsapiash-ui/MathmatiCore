@@ -170,26 +170,40 @@ const SilentRadar = (() => {
 
   /* ── localStorage Alert Queue (teacher dashboard reads this) ── */
   function storeAlert(alert) {
-    let alerts;
-    try {
-      const key = RADAR_STORAGE_KEY;
-      const existing = JSON.parse(localStorage.getItem(key) || '[]');
-      existing.push(alert);
-      /* Prevent unbounded growth */
-      if (existing.length > MAX_STORED_ALERTS) {
-        existing.splice(0, existing.length - MAX_STORED_ALERTS);
+    // Run asynchronously to prevent breaking the main thread
+    setTimeout(() => {
+      let alerts;
+      try {
+        const key = RADAR_STORAGE_KEY;
+        const existing = JSON.parse(localStorage.getItem(key) || '[]');
+        existing.push(alert);
+        /* Prevent unbounded growth */
+        if (existing.length > MAX_STORED_ALERTS) {
+          existing.splice(0, existing.length - MAX_STORED_ALERTS);
+        }
+        localStorage.setItem(key, JSON.stringify(existing));
+        alerts = existing;
+      } catch {
+        /* Silent fail — storage might be unavailable */
       }
-      localStorage.setItem(key, JSON.stringify(existing));
-      alerts = existing;
-    } catch {
-      /* Silent fail — storage might be unavailable */
-    }
-    // סנכרון התראות רדאר ל-Firebase
-    try {
-      if (typeof firebase !== 'undefined' && firebase.database && alerts) {
-        firebase.database().ref('radar_alerts').set(alerts);
+      
+      // Background network request to avoid blocking UI
+      if (typeof fetch !== 'undefined') {
+        fetch('/api/radar/event', {
+          method: 'POST',
+          body: JSON.stringify(alert),
+          headers: { 'Content-Type': 'application/json' },
+          keepalive: true
+        }).catch(() => {});
       }
-    } catch(e) { /* silent */ }
+
+      // סנכרון התראות רדאר ל-Firebase
+      try {
+        if (typeof firebase !== 'undefined' && firebase.database && alerts) {
+          firebase.database().ref('radar_alerts').set(alerts);
+        }
+      } catch(e) { /* silent */ }
+    }, 0);
   }
 
   /** Read all pending alerts (for teacher dashboard — Phase B) */

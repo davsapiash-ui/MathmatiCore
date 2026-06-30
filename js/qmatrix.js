@@ -29,15 +29,15 @@ const QMatrix = (() => {
     {
       id:           'task1_zero_placeholder',
       type:         'place_value_zero',
-      titleHe:      'מגלים את האפס',
-      instructionHe: 'בנו את המספר המופיע למטה בתוך לוח הקוביות, ואז בחרו את התשובה הנכונה:',
+      titleHe:      'שומר המקום',
+      instructionHe: 'בנו את המספר המופיע למטה בטבלת ערך המקום, ואז בחרו את התשובה הנכונה:',
       number:       304,
       asdNumber:    70,
       /* Three closed-choice options (always in this order) */
       choices: [
-        { id: 'A', textHe: 'האפס משמש כ"שומר מקום" - הוא מראה שאין לנו אף עשרת במספר הזה.' },
-        { id: 'B', textHe: 'האפס לא באמת חשוב, זה בדיוק כמו המספר 34.' },
-        { id: 'C', textHe: 'האפס נמצא שם רק ליופי, ואפשר פשוט למחוק אותו.' }
+        { id: 'A', textHe: 'האפס שומר על טור העשרות, ומראה שאין עשרות במספר זה.' },
+        { id: 'B', textHe: 'האפס לא באמת משנה, המספר הוא בדיוק כמו 34.' },
+        { id: 'C', textHe: 'האפס רק מקשט את המספר, ואפשר למחוק אותו.' }
       ],
       correctChoice: 'A',
       /* What to check in the block placement */
@@ -50,8 +50,8 @@ const QMatrix = (() => {
         asdSubtaskNumber: 30,
         subtaskInstructionHe: 'בואו נבדוק על מספר קטן יותר: מה עושה האפס במספר?',
         subtaskChoices: [
-          { id: 'A', textHe: 'הוא שומר מקום - ומראה שאין לנו יחידות (טור היחידות ריק).' },
-          { id: 'B', textHe: 'האפס מיותר לחלוטין.' }
+          { id: 'A', textHe: 'הוא שומר על המקום של טור היחידות, ומראה שאין לנו יחידות כלל.' },
+          { id: 'B', textHe: 'האפס מיותר לחלוטין ואפשר למחוק אותו.' }
         ],
         correctChoice: 'A'
       }
@@ -60,7 +60,7 @@ const QMatrix = (() => {
       id:           'task2_estimation_error_margin',
       type:         'number_line',
       titleHe:      'מסע על ישר המספרים',
-      instructionHe: 'היכן לדעתכם נמצא המספר 750 על ישר המספרים? הזיזו את החץ למקום המתאים ביותר.',
+      instructionHe: 'היכן לדעתכם ממוקם המספר 750 על ישר המספרים? גררו את החץ למקום המתאים.',
       number:       750,
       range:        [0, 1000],
       asdNumber:    35,
@@ -74,7 +74,7 @@ const QMatrix = (() => {
         subtaskRange:  [0, 100],
         asdSubtaskNumber: 15,
         asdSubtaskRange:  [0, 50],
-        subtaskInstructionHe: 'בואו ננסה על קו קצר יותר: איפה נשים את המספר?',
+        subtaskInstructionHe: 'בואו ננסה על ישר קצר יותר: איפה נמקם את המספר?',
         /* ASD: glowing anchor ticks at 10, 20, 30, ... */
         asdAnchors: [10, 20, 30, 40, 50, 60, 70, 80, 90]
       }
@@ -83,7 +83,7 @@ const QMatrix = (() => {
       id:           'task3_flexible_regrouping',
       type:         'flexible_decomp',
       titleHe:      'פירוק והרכבה גמישים',
-      instructionHe: 'בנו את המספר 240 בלוח, ולחצו "הוסף ייצוג". לאחר מכן, מצאו דרך אחרת לגמרי לבנות את אותו המספר, ולחצו שוב! (רמז: נסו להשתמש בפריטה של עשרות או מאות).',
+      instructionHe: 'בנו את המספר 240 בטבלת ערך המקום, ולחצו "הוסף ייצוג". לאחר מכן, מצאו דרך נוספת לייצג את אותו המספר ולחצו שוב! (רמז: נסו להיעזר בפריטה).',
       number:       240,
       asdNumber:    34,
       /* Two valid representations */
@@ -100,7 +100,7 @@ const QMatrix = (() => {
       ],
       backwardDiagnosis: {
         triggerOn:    'only_canonical',   /* student only shows the standard form */
-        subtaskInstructionHe: 'הנה הדגמה קטנה: ראו כיצד אפשר לפרק עשרת אחת ל-10 יחידות בודדות כדי לבנות את אותו המספר בדרך אחרת.',
+        subtaskInstructionHe: 'הנה הדגמה: ראו כיצד ניתן לבצע פריטה של עשרת אחת ל-10 יחידות, וכך להציג את אותו המספר בדרך נוספת.',
         showAutoUngroup: true              /* show animated ungrouping demonstration */
       }
     },
@@ -108,7 +108,7 @@ const QMatrix = (() => {
       id:           'task4_basic_addition_fluency',
       type:         'vertical_addition',
       titleHe:      'חיבור במאונך',
-      instructionHe: 'פתרו את תרגיל החיבור בעזרת הקוביות בלוח, ורשמו את התשובה הסופית בתיבה.',
+      instructionHe: 'פתרו את תרגיל החיבור בטבלת ערך המקום, ורשמו את התוצאה בתיבות התשובה.',
       numberA:      126,
       numberB:      235,
       asdNumberA:   26,
@@ -121,7 +121,7 @@ const QMatrix = (() => {
         probeA:       4,
         probeB:       3,
         probeAnswer:  7,
-        probeInstructionHe: 'בואו ננסה תרגיל קטן יותר כדי להתחמם: כמה זה 4 ועוד 3?',
+        probeInstructionHe: 'בואו ננסה תרגיל קטן יותר כדי להתחמם: כמה הם 4 ועוד 3?',
         graphicOrganizerASD: true   /* ASD: show as graphic organizer */
       }
     },
@@ -131,10 +131,10 @@ const QMatrix = (() => {
       titleHe:      'השינוי הקטן — אומדן',
       instructionHe: 'הביטו בתרגיל שפתרנו עבורכם. נסו לענות על השאלה הבאה בלי לחשב מחדש, רק בעזרת חשיבה והיגיון!',
       givenHe:      '45 + 10 = 55',
-      questionHe:   'כמה שווה 45 + 9?',
+      questionHe:   'כמה הם 45 + 9?',
       choices: [
-        { id: 'A', textHe: '54 — כי חיברנו 9 במקום 10, ולכן התשובה קטנה ב-1.' },
-        { id: 'B', textHe: '55 — הסכום תמיד נשאר אותו הדבר.' },
+        { id: 'A', textHe: '54 — כי חיברנו 9 במקום 10, ולכן הסכום קטן ב-1.' },
+        { id: 'B', textHe: '55 — הסכום תמיד נשאר זהה.' },
         { id: 'C', textHe: '56 — כי הוספנו עוד יחידה אחת.' },
         { id: 'D', textHe: 'חייבים לחשב הכול מחדש בשביל לדעת.' }
       ],
@@ -144,7 +144,7 @@ const QMatrix = (() => {
       backwardDiagnosis: {
         triggerOn:    'flexibility_trap',
         visualHint:   true,   /* show animated cube removal */
-        hintHe:       'רמז: אם מחברים 9 במקום 10, אנחנו בעצם מוסיפים קובייה אחת פחות. איך זה משפיע על התשובה הסופית?'
+        hintHe:       'רמז: אם נוסיף 9 במקום 10, אנחנו בעצם מוסיפים יחידה אחת פחות. איך זה משפיע על סכום התרגיל?'
       }
     }
   ];

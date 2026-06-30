@@ -39,7 +39,7 @@ const StudentLogger = (() => {
     logEvent('session_start', { sessionNum, timestamp: Date.now() });
 
     /* Start rrweb recording if rrweb is loaded, BUT NOT if impersonating! */
-    if (SessionManager.isImpersonating && SessionManager.isImpersonating()) {
+    if (typeof SessionManager !== 'undefined' && SessionManager.isImpersonating && SessionManager.isImpersonating()) {
       console.warn('Admin impersonation active. Session replay recording and logging are DISABLED.');
       return;
     }
@@ -80,7 +80,7 @@ const StudentLogger = (() => {
    * @param {object} detail - key-value pairs of details
    */
   function logEvent(eventType, detail = {}) {
-    if (SessionManager.isImpersonating && SessionManager.isImpersonating()) return;
+    if (typeof SessionManager !== 'undefined' && SessionManager.isImpersonating && SessionManager.isImpersonating()) return;
     
     const activeTask = (typeof QMatrix !== 'undefined' && QMatrix.getCurrentTask) 
       ? QMatrix.getCurrentTask() 

@@ -159,24 +159,24 @@ input[type=number] {
 }
 
 /* ── Task Instruction Card (Exercise Area 60%) ── */
-.task-card { height: 100%;
+.task-card { 
+  height: 100%;
   flex: 1;
   min-width: 50%;
   margin: 0;
-  
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(30px);
-  -webkit-backdrop-filter: blur(30px);
-  border-radius: var(--radius-2xl);
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border-radius: var(--radius-3xl, 32px);
   padding: var(--space-8);
-  box-shadow: 0 20px 40px rgba(0,0,0,0.06);
-  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 24px 48px rgba(0,0,0,0.08), inset 0 1px 2px rgba(255,255,255,0.9);
+  border: 1px solid rgba(255, 255, 255, 0.5);
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
   overflow-y: auto;
   position: relative;
-  transition: all var(--transition-base);
+  transition: all var(--transition-spring);
 }
 
 #task-body {
@@ -207,30 +207,8 @@ input[type=number] {
   box-shadow: 0 4px 10px rgba(91,79,255,0.2);
 }
 
-.task-title {
-  font-size: 2.2rem;
-  font-weight: 900;
-  color: var(--color-text);
-  margin-bottom: var(--space-4);
-  line-height: 1.2;
-}
+/* NOTE: .task-title, .task-instruction, .task-number-display defined below after .task-session-label */
 
-.task-instruction {
-  font-size: 1.3rem;
-  line-height: 1.6;
-  color: var(--color-text-secondary);
-  font-weight: 500;
-  margin-bottom: var(--space-6);
-}
-
-.task-number-display {
-  font-size: 4rem;
-  font-weight: 900;
-  color: var(--color-primary-dark);
-  text-align: center;
-  margin: var(--space-6) 0;
-  text-shadow: 0 4px 10px rgba(91,79,255,0.2);
-}
 
 .drawer-toggle-btn {
   position: absolute;
@@ -304,8 +282,8 @@ input[type=number] {
 }
 
 .place-value-structure.open {
-  flex: 0 0 45%;
-  width: 45%;
+  flex: 0 0 50%;
+  width: 50%;
   opacity: 1;
   padding: var(--space-6);
 }
@@ -497,33 +475,33 @@ input[type=number] {
 
 /* יחידה — unit cube (amber) */
 .math-block--unit {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   background: var(--block-unit);
-  border-radius: 4px;
-  box-shadow: 0 4px 0 var(--block-unit-dark), 0 4px 6px rgba(0,0,0,0.2);
-  margin-bottom: 4px; /* Space for the 3D shadow */
+  border-radius: 2px;
+  box-shadow: 0 3px 0 var(--block-unit-dark), 0 3px 6px rgba(0,0,0,0.2);
+  margin-bottom: 3px; /* Space for the 3D shadow */
 }
 
 /* עשרת — ten-rod (emerald) */
 .math-block--ten {
-  width: 80px;
-  height: 16px;
+  width: 14px;
+  height: 140px;
   background: var(--block-ten);
-  border-radius: 4px;
-  box-shadow: 0 4px 0 var(--block-ten-dark), 0 4px 6px rgba(0,0,0,0.2);
-  margin-bottom: 4px;
-  background-image: repeating-linear-gradient(90deg, transparent, transparent calc(10% - 1px), rgba(0,0,0,0.15) calc(10% - 1px), rgba(0,0,0,0.15) 10%);
+  border-radius: 2px;
+  box-shadow: 0 3px 0 var(--block-ten-dark), 0 3px 6px rgba(0,0,0,0.2);
+  margin-bottom: 3px;
+  background-image: repeating-linear-gradient(0deg, transparent, transparent calc(10% - 1px), rgba(0,0,0,0.15) calc(10% - 1px), rgba(0,0,0,0.15) 10%);
 }
 
 /* מאה — hundred-flat (blue) */
 .math-block--hundred {
-  width: 64px;
-  height: 64px;
+  width: 140px;
+  height: 140px;
   background: var(--block-hundred);
-  border-radius: 4px;
-  box-shadow: 0 4px 0 var(--block-hundred-dark), 0 4px 6px rgba(0,0,0,0.2);
-  margin-bottom: 4px;
+  border-radius: 2px;
+  box-shadow: 0 3px 0 var(--block-hundred-dark), 0 3px 6px rgba(0,0,0,0.2);
+  margin-bottom: 3px;
   background-image:
     repeating-linear-gradient(0deg, transparent, transparent calc(10% - 1px), rgba(0,0,0,0.15) calc(10% - 1px), rgba(0,0,0,0.15) 10%),
     repeating-linear-gradient(90deg, transparent, transparent calc(10% - 1px), rgba(0,0,0,0.15) calc(10% - 1px), rgba(0,0,0,0.15) 10%);
@@ -531,17 +509,17 @@ input[type=number] {
 
 /* אלף — thousand-cube (red) */
 .math-block--thousand {
-  width: 64px;
-  height: 64px;
+  width: 140px;
+  height: 140px;
   background: var(--block-thousand);
-  border-radius: 4px;
+  border-radius: 2px;
   box-shadow: 
-    -3px 3px 0 rgba(220,38,38,0.9),
-    -6px 6px 0 rgba(220,38,38,0.7),
-    -9px 9px 0 rgba(220,38,38,0.5),
-    -12px 12px 15px rgba(0,0,0,0.3);
-  margin-bottom: 12px;
-  margin-left: 12px;
+    -2px 2px 0 rgba(220,38,38,0.9),
+    -4px 4px 0 rgba(220,38,38,0.7),
+    -6px 6px 0 rgba(220,38,38,0.5),
+    -8px 8px 10px rgba(0,0,0,0.3);
+  margin-bottom: 8px;
+  margin-left: 8px;
   background-image:
     repeating-linear-gradient(0deg, transparent, transparent calc(10% - 1px), rgba(0,0,0,0.15) calc(10% - 1px), rgba(0,0,0,0.15) 10%),
     repeating-linear-gradient(90deg, transparent, transparent calc(10% - 1px), rgba(0,0,0,0.15) calc(10% - 1px), rgba(0,0,0,0.15) 10%);
@@ -580,19 +558,19 @@ input[type=number] {
 
 /* ── Block Palette ── */
 .block-palette {
-  background: rgba(255, 255, 255, 0.4);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
   border-radius: var(--radius-2xl);
   padding: var(--space-4) var(--space-5);
-  box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+  box-shadow: 0 16px 40px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8);
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
   position: relative; /* Docked */
   width: 100%;
   flex-shrink: 0;
-  border: 1px solid rgba(255,255,255,0.8);
+  border: 1px solid rgba(255,255,255,0.6);
   margin-top: auto; /* Push to bottom inside flex container */
   transition: all var(--transition-base);
 }
@@ -604,8 +582,8 @@ input[type=number] {
   width: max-content;
   z-index: 9999;
   margin-top: 0;
-  background: rgba(255, 255, 255, 0.85);
-  box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 24px 48px rgba(0,0,0,0.15);
 }
 
 .palette-drag-handle {
@@ -695,7 +673,7 @@ input[type=number] {
   align-items: center;
   justify-content: flex-end;
   gap: var(--space-2);
-  min-height: 85px; /* Fits the 150px block scaled by 0.5 */
+  min-height: 145px; /* Fits the 140px block */
 }
 
 .palette-item-label {

@@ -507,7 +507,7 @@ body.admin-page {
     width: 100%; 
     height: auto; 
     border-left: none; 
-    border-bottom: 1px solid var(--admin-border);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
     padding: var(--space-3);
   }
   .admin-logo { margin-bottom: var(--space-2); }

@@ -286,6 +286,10 @@ const ManipulativeRenderer = (() => {
 
     el.setAttribute('draggable', 'true');
     el.addEventListener('dragstart', (e) => {
+      if (el.classList.contains('regrouping-out') || el.classList.contains('ungrouping-out')) {
+        e.preventDefault();
+        return;
+      }
       e.dataTransfer.effectAllowed = 'move';
       e.dataTransfer.setData('text/plain', place);
       e.dataTransfer.setData('source', 'column');
@@ -296,6 +300,9 @@ const ManipulativeRenderer = (() => {
     });
     el.addEventListener('dragend', () => {
       el.style.opacity = '';
+      if (typeof DragController !== 'undefined' && DragController.clearDraggedInfo) {
+        DragController.clearDraggedInfo();
+      }
     });
 
     if (typeof DragController !== 'undefined' && DragController.bindTouchEvents) {
@@ -313,30 +320,40 @@ const ManipulativeRenderer = (() => {
   /**
    * Animate a grouping event (10 blocks merge into 1).
    */
-  function animateGrouping(fromPlace, toPlace, containerEl, onComplete) {
+  function animateGrouping(fromPlace, toPlace, groups, containerEl, onComplete) {
     const fromCol  = containerEl.querySelector(`[data-place="${fromPlace}"] .pv-drop-zone`);
     const toCol    = containerEl.querySelector(`[data-place="${toPlace}"] .pv-drop-zone`);
-    const blocks   = fromCol ? fromCol.querySelectorAll('.math-block') : [];
+    let blocks     = fromCol ? Array.from(fromCol.querySelectorAll('.math-block')) : [];
 
-    if (typeof gsap !== 'undefined' && blocks.length > 0) {
+    const totalToAnimate = groups * 10;
+    let blocksToAnimate = blocks.slice(-totalToAnimate);
+
+    const missing = totalToAnimate - blocksToAnimate.length;
+    for (let i = 0; i < missing; i++) {
+        const temp = createBlockElement(fromPlace);
+        if (fromCol) fromCol.appendChild(temp);
+        blocksToAnimate.push(temp);
+    }
+
+    if (typeof gsap !== 'undefined' && blocksToAnimate.length > 0) {
       /* GSAP Grouping Animation */
-      gsap.to(blocks, {
+      gsap.to(blocksToAnimate, {
         scale: 0, opacity: 0, rotation: 180, duration: 0.4, stagger: 0.03, ease: "back.in(1.7)",
         onComplete: () => {
           if (onComplete) onComplete();
-          const newBlock = toCol ? toCol.querySelector('.math-block:last-child') : null;
-          if (newBlock) {
-            gsap.fromTo(newBlock, { scale: 0.2, opacity: 0 }, { scale: 1.2, opacity: 1, duration: 0.3, yoyo: true, repeat: 1, ease: "power2.out" });
+          const newBlocks = toCol ? Array.from(toCol.querySelectorAll('.math-block')).slice(-groups) : [];
+          if (newBlocks.length > 0) {
+            gsap.fromTo(newBlocks, { scale: 0.2, opacity: 0 }, { scale: 1.2, opacity: 1, duration: 0.3, yoyo: true, repeat: 1, ease: "power2.out", stagger: 0.1 });
           }
         }
       });
     } else {
       /* Fallback if GSAP is missing */
-      blocks.forEach(b => b.classList.add('regrouping-out'));
+      blocksToAnimate.forEach(b => b.classList.add('regrouping-out'));
       setTimeout(() => {
         if (onComplete) onComplete();
-        const newBlock = toCol ? toCol.querySelector('.math-block:last-child') : null;
-        if (newBlock) newBlock.classList.add('regrouping-in');
+        const newBlocks = toCol ? Array.from(toCol.querySelectorAll('.math-block')).slice(-groups) : [];
+        newBlocks.forEach(b => b.classList.add('regrouping-in'));
       }, 420);
     }
   }
@@ -540,6 +557,8 @@ const DragController = (() => {
       });
       block.addEventListener('dragend', () => {
         block.style.opacity = '';
+        draggedPlace = null;
+        draggedSource = null;
       });
     });
   }
@@ -571,6 +590,7 @@ const DragController = (() => {
         if (dz) dz.classList.remove('drag-over');
         const sourcePlace = e.dataTransfer.getData('text/plain') || draggedPlace;
         const source = e.dataTransfer.getData('source') || draggedSource;
+        if (!sourcePlace || !source) return;
         handleDrop(sourcePlace, targetPlace, source);
       });
     });
@@ -595,8 +615,9 @@ const DragController = (() => {
       e.preventDefault();
       trashZone.classList.remove('drag-over');
       const source = e.dataTransfer.getData('source') || draggedSource;
+      const sourcePlace = e.dataTransfer.getData('text/plain') || draggedPlace;
+      if (!sourcePlace || !source) return;
       if (source === 'column') {
-        const sourcePlace = e.dataTransfer.getData('text/plain') || draggedPlace;
         handleBlockRemove(sourcePlace);
       }
     });
@@ -739,9 +760,11 @@ const DragController = (() => {
       });
     } else if (regroupEvents && regroupEvents.length > 0) {
       /* אנימציית המרה (10 בלוקים מתאגדים) */
+      let pending = regroupEvents.length;
       regroupEvents.forEach(evt => {
-        ManipulativeRenderer.animateGrouping(evt.from, evt.to, containerEl, () => {
-          rerenderAll();
+        ManipulativeRenderer.animateGrouping(evt.from, evt.to, evt.groups, containerEl, () => {
+          pending--;
+          if (pending === 0) rerenderAll();
         });
       });
     } else {
@@ -798,9 +821,10 @@ const DragController = (() => {
 
   return { 
     init, 
-    refresh, 
+    refresh,
     handleBlockRemove,
     setDraggedInfo: (place, source) => { draggedPlace = place; draggedSource = source; },
+    clearDraggedInfo: () => { draggedPlace = null; draggedSource = null; },
     bindTouchEvents: (el) => {
       el.addEventListener('touchstart', handleTouchStart, { passive: true });
       el.addEventListener('touchend',   handleTouchEnd,   { passive: false });
