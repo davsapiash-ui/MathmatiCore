@@ -207,7 +207,7 @@ const App = (() => {
     dom.supportPalette    = document.getElementById('support-palette');
     dom.supportClose      = document.getElementById('support-palette-close');
     dom.feedbackOverlay   = document.getElementById('feedback-overlay');
-    dom.btnToggleInstructions = document.getElementById('btn-toggle-instructions');
+    /* btn-toggle-instructions removed — element does not exist in workspace.html */
 
     /* Show student name */
     if (dom.studentNameBadge) {
@@ -256,6 +256,7 @@ const App = (() => {
         if (isSession2) {
           const task = QMatrix.getCurrentTask();
           if (task) QMatrix.recordResult(task.id, true, getTaskTraceData());
+          QMatrix.advanceToNextTask();
           if (QMatrix.isComplete()) {
             showFeedback(true, 'כל הכבוד! מפגש 2 הושלם בהצלחה! 🎉', 'עוברים כעת אוטומטית למפגש 3...');
             setTimeout(() => {
@@ -928,6 +929,15 @@ const App = (() => {
     dom.sessionLabel.textContent = 'בואו ננסה יחד...';
   }
 
+  /** Build trace data for Q-Matrix recording (per Technical Annex §2). */
+  function getTaskTraceData() {
+    return {
+      hesitation_events: (typeof SilentRadar !== 'undefined' && SilentRadar.getHesitationCount)
+        ? SilentRadar.getHesitationCount() : 0,
+      undo_clicks: SessionManager.getUndoCount ? SessionManager.getUndoCount() : 0
+    };
+  }
+
   /**
    * Scaffold Fading (Responsive Fading / דעיכת פיגומים)
    * After each correct answer, the visual scaffolding of the place-value
@@ -987,7 +997,7 @@ const App = (() => {
         return;
       }
       // Correct! Show feedback and advance
-      showFeedback(true, 'נכון מאוד! 🌟', 'הערך נשאר זהה לחלוטין (10) כי לא שינינו את הכמות הכוללת.');
+      showFeedback(true, 'נכון מאוד! 🌟', 'הערך נשאר זהה לחלוטין (100) כי לא שינינו את הכמות הכוללת.');
       awaitingNextTask = true;
       setTimeout(() => {
         hideFeedback();
@@ -1384,16 +1394,59 @@ const App = (() => {
     if (e.key === 'z' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); handleUndo(); }
   }
 
+  /* ── Task trace data helper (for dev skip logging) ── */
+  function getTaskTraceData() {
+    return {
+      hesitationEvents: SilentRadar.getHesitationCount?.() ?? 0,
+      undoClicks: SessionManager.state?.undoCount ?? 0,
+      timestamp: Date.now()
+    };
+  }
+
   /* ── Dev Skip ── */
   function devSkipTask() {
+    if (typeof Swal !== 'undefined') Swal.close();
+
     if (isSession2) {
-      if (QMatrix.getCurrentTask() && QMatrix.getCurrentTask().type !== 'backward_diagnosis') {
-        const t = QMatrix.getCurrentTask();
-        QMatrix.recordResult(t.id, true); // Dev skip counts as correct for Q-Matrix progression
+      const task = QMatrix.getCurrentTask();
+      if (task) QMatrix.recordResult(task.id, true);
+      QMatrix.advanceToNextTask();
+      if (QMatrix.isComplete()) {
+        showFeedback(true, 'כל הכבוד! מפגש 2 הושלם בהצלחה! 🎉', 'עוברים כעת אוטומטית למפגש 3...');
+        setTimeout(() => {
+          hideFeedback();
+          const student = safeJSONParse(sessionStorage.getItem('mathematicor_student'), {});
+          student.session = 3;
+          student.taskIndex = 0;
+          sessionStorage.setItem('mathematicor_student', JSON.stringify(student));
+          sessionStorage.removeItem('mathematicor_state');
+          window.location.reload();
+        }, 2500);
+      } else {
+        renderQTask();
       }
-      advanceSession2();
     } else {
-      advanceSession1();
+      currentTaskIdx++;
+      if (currentTaskIdx >= currentSessionTasks.length) {
+        let nextSess = activeSession === 1 ? 2 : (activeSession === 3 ? 4 : null);
+        if (nextSess) {
+          showFeedback(true, `כל הכבוד! מפגש ${activeSession} הושלם בהצלחה! 🎉`, `עוברים כעת אוטומטית למפגש ${nextSess}...`);
+          setTimeout(() => {
+            hideFeedback();
+            const student = safeJSONParse(sessionStorage.getItem('mathematicor_student'), {});
+            student.session = nextSess;
+            student.taskIndex = 0;
+            sessionStorage.setItem('mathematicor_student', JSON.stringify(student));
+            sessionStorage.removeItem('mathematicor_state');
+            window.location.reload();
+          }, 2500);
+        } else {
+          showFeedback(true, 'כל הכבוד! סיימתם את כל המפגשים! 🎉', '');
+          setTimeout(() => { window.location.href = '../index.html'; }, 2500);
+        }
+      } else {
+        renderStandardTask();
+      }
     }
   }
 

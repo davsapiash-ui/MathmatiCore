@@ -549,6 +549,7 @@ const QMatrix = (() => {
     incrementRepCount,
     getRepCount,
     getTaskById,
-    getCurrentPhase
+    getCurrentPhase,
+    recordResult
   };
 })();

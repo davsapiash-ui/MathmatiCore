@@ -8,31 +8,18 @@
 
 /* ── CSS Custom Properties ── */
 :root {
-  /* Brand Colors */
-  --color-primary:        #5B4FFF;
-  --color-primary-dark:   #3D35D4;
-  --color-primary-light:  #EDE9FF;
-  --color-accent:         #FF6B35;
-  --color-accent-dark:    #E55520;
-  --color-success:        #10B981;
-  --color-success-light:  #D1FAE5;
-  --color-warning:        #F59E0B;
-  --color-danger:         #EF4444;
-
-  /* ── IMPORTANT: Place Value Block Colors ──
-     These color the VISUAL REPRESENTATION of mathematical blocks.
-     They do NOT represent UI component types.
-     יחידות / עשרות / מאות / אלפים are mathematical place values. */
-  /* (moved below — deduplicated) */
   /* Ultra-Premium Color Palette (HSL based for vibrancy) */
   --color-primary:       #6366F1; /* Indigo 500 */
   --color-primary-light: #EEF2FF; /* Indigo 50 */
   --color-primary-dark:  #4338CA; /* Indigo 700 */
-  
+
+  --color-accent:        #FF6B35; /* Orange accent */
+  --color-accent-dark:   #E55520;
   --color-success:       #10B981; /* Emerald 500 */
+  --color-success-light: #D1FAE5;
   --color-danger:        #EF4444; /* Red 500 */
   --color-warning:       #F59E0B; /* Amber 500 */
-  
+
   --color-bg:            #F8FAFC; /* Slate 50 */
   --color-surface:       #FFFFFF;
   --color-surface-2:     #F1F5F9; /* Slate 100 — subtle bg */
@@ -42,8 +29,6 @@
   --color-text-light:    #94A3B8; /* Slate 400 */
   --color-border:        #E2E8F0; /* Slate 200 */
   --color-border-light:  #F1F5F9; /* Slate 100 */
-  --color-accent:        #FF6B35; /* Orange accent */
-  --color-accent-dark:   #E55520;
 
   /* Pedagogical Block Colors (Vibrant, accessible) */
   --block-unit:          #F59E0B; /* Amber */

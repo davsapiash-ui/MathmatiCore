@@ -55,7 +55,6 @@ body.dashboard-page {
 
 .teacher-logo-role {
   font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
   background: var(--color-primary-light);
   color: var(--color-primary-dark);
   padding: 2px 8px;

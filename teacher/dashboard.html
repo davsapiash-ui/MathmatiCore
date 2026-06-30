@@ -731,6 +731,7 @@
     }
 
     function _translateCol(place) {
+      if (!place) return '?';
       const m = { units: 'יחידות', tens: 'עשרות', hundreds: 'מאות', thousands: 'אלפים' };
       return m[place] ?? place;
     }

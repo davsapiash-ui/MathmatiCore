@@ -268,14 +268,14 @@
 
         if (l.event === 'task_correct') { typeClass = 'type-correct'; eventText = `✅ משימה נפתרה נכון: ${l.taskId}`; }
         else if (l.event === 'task_incorrect') { typeClass = 'type-incorrect'; eventText = `❌ שגיאה במשימה: ${l.taskId}`; }
-        else if (l.event === 'block_add') { typeClass = 'type-hint'; eventText = `➕ הוספת בלוק ב${_translateCol(l.detail.place)}`; }
-        else if (l.event === 'block_remove') { typeClass = 'type-incorrect'; eventText = `➖ הסרת בלוק מ${_translateCol(l.detail.place)}`; }
-        else if (l.event === 'block_ungroup') { typeClass = 'type-hint'; eventText = `💥 פריטה: ${l.detail.from} ל-${l.detail.to}`; }
+        else if (l.event === 'block_add') { typeClass = 'type-hint'; eventText = `➕ הוספת בלוק ב${_translateCol(l.detail && l.detail.place)}`; }
+        else if (l.event === 'block_remove') { typeClass = 'type-incorrect'; eventText = `➖ הסרת בלוק מ${_translateCol(l.detail && l.detail.place)}`; }
+        else if (l.event === 'block_ungroup') { typeClass = 'type-hint'; eventText = `💥 פריטה: ${_translateCol(l.detail && l.detail.from)} ל-${_translateCol(l.detail && l.detail.to)}`; }
         else if (l.event === 'block_regroup') { typeClass = 'type-correct'; eventText = `📦 המרה אוטומטית`; }
         else if (l.event === 'undo') { typeClass = 'type-hint'; eventText = `↩ לחץ בטל (Undo)`; }
         else if (l.event === 'hint_requested') { typeClass = 'type-radar'; eventText = `💡 ביקש עזרה מה-AI`; }
-        else if (l.event === 'hint_choice_selected') { typeClass = 'type-radar'; eventText = `🔍 בחר עזרה: ${l.detail.choiceType}`; }
-        else if (l.event === 'hesitation_alert') { typeClass = 'type-radar'; eventText = `⏸️ רדאר: היסוס קוגניטיבי (${Math.round(l.detail.durationMs/1000)} ש׳)`; }
+        else if (l.event === 'hint_choice_selected') { typeClass = 'type-radar'; eventText = `🔍 בחר עזרה: ${l.detail && l.detail.choiceType || ''}`; }
+        else if (l.event === 'hesitation_alert') { typeClass = 'type-radar'; eventText = `⏸️ רדאר: היסוס קוגניטיבי (${l.detail ? Math.round((l.detail.durationMs || 0)/1000) : '?'} ש׳)`; }
         else if (l.event === 'session_completed') { typeClass = 'type-correct'; eventText = `🏁 המפגש הושלם בהצלחה`; }
 
         /* Get the timestamp offset if replayer is ready */
@@ -554,6 +554,7 @@
     }
 
     function _translateCol(place) {
+      if (!place) return '?';
       const m = { units: 'יחידות', tens: 'עשרות', hundreds: 'מאות', thousands: 'אלפים' };
       return m[place] ?? place;
     }
