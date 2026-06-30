@@ -51,14 +51,18 @@ const App = (() => {
         { id: 'ב', textHe: 'המספר גדל, כי עכשיו יש לנו 10 עשרות במקום מאה אחת.' },
         { id: 'ג', textHe: 'המספר קטן לאפס, כי המאה נעלמה.' }
       ],
-      correctAnswer: 'א'
+      correctAnswer: 'א',
+      scaffoldLevel: 0
     },
     {
       id:   's1_t1',
       type: 'addition_simple',
       numberA: 12, numberB: 24, correctAnswer: 36,
       titleHe:       'חיבור בטבלת ערך המקום',
-      instructionHe: 'בואו נחבר: 12 + 24. תחילה בנו את המספר 12, ואז הוסיפו את המספר 24. כמה קיבלנו סך הכול?'
+      instructionHe: 'בואו נחבר: 12 + 24. תחילה בנו את המספר 12, ואז הוסיפו את המספר 24. כמה קיבלנו סך הכול?',
+      asdNumberA: 12, asdNumberB: 14,
+      hintHe: 'בוא נחבר קודם את היחידות ואז את העשרות.',
+      scaffoldLevel: 1
     },
     {
       id:   's1_t2',
@@ -72,29 +76,39 @@ const App = (() => {
         { id: 'C', textHe: 'האפס רק מקשט את המספר, ואפשר למחוק אותו.' }
       ],
       correctAnswer: 'A',
-      expectedBlocks: { hundreds: 2, tens: 0, units: 5 }
+      expectedBlocks: { hundreds: 2, tens: 0, units: 5 },
+      scaffoldLevel: 1
     },
     {
       id:   's1_t3',
       type: 'flexible_decomp',
-      titleHe:      'ייצוגים שונים לאותו המספר',
-      instructionHe: 'בנו את המספר 234 בטבלה. האם תצליחו לייצג את אותו המספר בדרך נוספת? (רמז: נסו להיעזר בפריטה של עשרת ליחידות).',
-      number:       234
+      titleHe:      'פירוק גמיש',
+      descriptionHe: 'איזה ייצוג שווה ל-34?',
+      choices: [
+        { id: 'c1', textHe: '2 עשרות ו-14 יחידות', correct: true },
+        { id: 'c2', textHe: '3 עשרות ו-40 יחידות' },
+        { id: 'c3', textHe: '4 עשרות ו-3 יחידות' }
+      ],
+      scaffoldLevel: 2
     },
     {
       id:   's1_t4',
       type: 'number_line',
-      titleHe:      'היכן אני ממוקם?',
-      instructionHe: 'הביטו על ישר המספרים. היכן לדעתכם ממוקם המספר 60? גררו את החץ למקום המתאים.',
-      number:       60,
-      range:        [0, 100]
+      titleHe:      'היכן ממוקם 60?',
+      descriptionHe: 'גרור את הסמן למיקום המוערך על הישר.',
+      targetValue: 60,
+      range:        [0, 100],
+      scaffoldLevel: 2
     },
     {
       id:   's1_t5',
       type: 'addition_simple',
       numberA: 524, numberB: 322, isSubtraction: true, correctAnswer: 202,
       titleHe:       'חיסור בטבלת ערך המקום',
-      instructionHe: 'בואו נפתור: 524 - 322. בנו את המספר 524 בטבלה, ואז הסירו ממנו את המספר 322. מה קיבלנו?'
+      instructionHe: 'בואו נפתור: 524 - 322. בנו את המספר 524 בטבלה, ואז הסירו ממנו את המספר 322. מה קיבלנו?',
+      asdNumberA: 52, asdNumberB: 31,
+      hintHe: 'שים לב לסימן התרגיל - זהו חיסור!',
+      scaffoldLevel: 2
     }
   ];
 
@@ -351,6 +365,11 @@ const App = (() => {
     
     dom.taskTitle.textContent    = task.titleHe;
     dom.taskInstruction.textContent = task.instructionHe;
+    
+    if (typeof DragController !== 'undefined') {
+       const level = task.scaffoldLevel || 1;
+       DragController.setScaffoldLevel(level);
+    }
 
     /* Show/hide number display */
     if (task.number !== undefined) {
@@ -377,6 +396,13 @@ const App = (() => {
       dom.taskBody.innerHTML = renderVerticalAdditionHTML(task.numberA, task.numberB, op);
       const inputs = Array.from(dom.taskBody.querySelectorAll('.v-add-answer-input'));
       inputs.forEach(input => {
+        input.addEventListener('focus', () => {
+           const p = input.getAttribute('data-place');
+           if (typeof ManipulativeRenderer !== 'undefined' && p) ManipulativeRenderer.focusColumn(p);
+        });
+        input.addEventListener('blur', () => {
+           if (typeof ManipulativeRenderer !== 'undefined') ManipulativeRenderer.focusColumn(null);
+        });
         input.addEventListener('input', () => {
           hasInteracted = true;
           updateProceedButton();
@@ -455,6 +481,13 @@ const App = (() => {
         dom.taskBody.innerHTML = renderVerticalAdditionHTML(a, b);
         const addInputs = Array.from(dom.taskBody.querySelectorAll('.v-add-answer-input'));
         addInputs.forEach((input, idx) => {
+          input.addEventListener('focus', () => {
+             const p = input.getAttribute('data-place');
+             if (typeof ManipulativeRenderer !== 'undefined' && p) ManipulativeRenderer.focusColumn(p);
+          });
+          input.addEventListener('blur', () => {
+             if (typeof ManipulativeRenderer !== 'undefined') ManipulativeRenderer.focusColumn(null);
+          });
           input.addEventListener('input', () => {
             hasInteracted = true;
             updateProceedButton();
@@ -568,9 +601,12 @@ const App = (() => {
 
     let answerHTML = '<div class="v-add-grid-row">';
     answerHTML += '<div class="v-add-grid-cell operator-cell"></div>';
+    const places = ['units', 'tens', 'hundreds', 'thousands'];
     for (let i = 0; i < len; i++) {
+      const pIdx = len - 1 - i;
+      const placeAttr = places[pIdx] || 'thousands';
       answerHTML += `<div class="v-add-grid-cell">
-        <input class="v-add-answer-input" type="text" pattern="[0-9]*" inputmode="numeric" maxlength="1" autocomplete="off" aria-label="ספרת תשובה">
+        <input class="v-add-answer-input" type="text" pattern="[0-9]*" inputmode="numeric" maxlength="1" autocomplete="off" aria-label="ספרת תשובה" data-place="${placeAttr}">
       </div>`;
     }
     answerHTML += '</div>';

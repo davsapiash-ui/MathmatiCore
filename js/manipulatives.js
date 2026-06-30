@@ -421,6 +421,28 @@ const ManipulativeRenderer = (() => {
     }, { once: true });
   }
 
+  /**
+   * Focus a specific column (ASD feature: Visual Decomposition).
+   * Dims all other columns if ASD mode is active.
+   * @param {string} targetPlace - The place value to focus (e.g., 'units'), or null to reset.
+   */
+  function focusColumn(targetPlace) {
+    if (typeof SessionManager === 'undefined' || !SessionManager.state.isASDMode) return;
+    
+    const containerEl = document.getElementById('pv-columns-row');
+    if (!containerEl) return;
+
+    const columns = containerEl.querySelectorAll('.pv-column');
+    columns.forEach(col => {
+      const place = col.getAttribute('data-place');
+      if (targetPlace && place !== targetPlace) {
+        col.classList.add('dimmed');
+      } else {
+        col.classList.remove('dimmed');
+      }
+    });
+  }
+
   return {
     render,
     renderColumn,
@@ -428,7 +450,8 @@ const ManipulativeRenderer = (() => {
     animateGrouping,
     animateUngrouping,
     updateValueDisplay,
-    singularMap
+    singularMap,
+    focusColumn
   };
 })();
 
@@ -447,6 +470,18 @@ const DragController = (() => {
   let valueDisplayEl  = null;
   let onChangeCallback = null;
   let asdMode         = false;
+  let currentScaffoldLevel = 1;
+
+  function setScaffoldLevel(level) {
+    currentScaffoldLevel = level;
+    if (paletteEl) {
+      if (level >= 3) {
+        paletteEl.style.display = 'none';
+      } else {
+        paletteEl.style.display = 'flex';
+      }
+    }
+  }
 
   /**
    * Initialize drag-drop system.
@@ -681,7 +716,8 @@ const DragController = (() => {
 
     if (source === 'palette') {
       if (sourcePlace === targetPlace) {
-        const result = PlaceValueModel.addBlock(targetPlace, false);
+        const autoGroup = (currentScaffoldLevel < 2);
+        const result = PlaceValueModel.addBlock(targetPlace, autoGroup);
         if (result && result.regroup && result.regroup.length > 0) {
           regroupEvents = result.regroup;
         }
@@ -723,7 +759,8 @@ const DragController = (() => {
           for (let i = 0; i < 10; i++) {
             PlaceValueModel.removeBlock(sourcePlace);
           }
-          const addResult = PlaceValueModel.addBlock(targetPlace, false);
+          const autoGroup = (currentScaffoldLevel < 2);
+          const addResult = PlaceValueModel.addBlock(targetPlace, autoGroup);
           regroupEvents = [{ from: sourcePlace, to: targetPlace, groups: 1 }];
           if (addResult && addResult.regroup && addResult.regroup.length > 0) {
             regroupEvents = regroupEvents.concat(addResult.regroup);
@@ -825,6 +862,7 @@ const DragController = (() => {
   return { 
     init, 
     refresh,
+    setScaffoldLevel,
     handleBlockRemove,
     setDraggedInfo: (place, source) => { draggedPlace = place; draggedSource = source; },
     clearDraggedInfo: () => { draggedPlace = null; draggedSource = null; },

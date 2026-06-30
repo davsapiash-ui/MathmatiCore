@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <title>פרויקט 'מתמטיקאור' (Mathemat-Or)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/reset.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/reveal.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/theme/simple.min.css" id="theme">
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    .reveal h1, .reveal h2, .reveal h3 {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      text-transform: none;
+      font-weight: 800;
+      color: #2c3e50;
+    }
+    .reveal h2 { font-size: 1.6em; margin-bottom: 30px; }
+    .reveal p, .reveal li {
+      font-size: 0.85em;
+      line-height: 1.5;
+      text-align: right;
+      margin-bottom: 15px;
+    }
+    .reveal ul {
+      display: block;
+      padding-right: 40px;
+      margin-bottom: 20px;
+    }
+    .dict-box {
+      background: #f8f9fa;
+      border-right: 6px solid #3498db;
+      padding: 15px 25px;
+      margin-top: 25px;
+      font-size: 0.75em;
+      text-align: right;
+      border-radius: 4px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .dict-box h4 {
+      margin-top: 0;
+      color: #2980b9;
+      font-size: 1.1em;
+      margin-bottom: 10px;
+    }
+    .dict-box ul { margin-bottom: 0; }
+    .reveal strong { color: #2c3e50; font-weight: 700; }
+    .bib-slide li { font-size: 0.55em; line-height: 1.2; text-align: left; direction: ltr; margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+      <!-- Slide 1 -->
+      <section>
+        <h2>פרויקט 'מתמטיקאור' (Mathemat-Or)</h2>
+        <h4 style="color: #7f8c8d; font-size: 1.2em; font-weight: normal;">מעבר מלמידה טכנית-פסיבית לתובנה מספרית – מסע פדגוגי-טכנולוגי</h4>
+        <br/>
+        <p style="text-align: center; font-size: 1em;"><strong>מגישים:</strong> דוד ספיאשוילי ולבנה קדשאי</p>
+        <p style="text-align: center; font-size: 0.8em; color: #7f8c8d;">החוג למדעי הלמידה וההוראה, התוכנית לתואר שני בטכנולוגיות בחינוך<br/>אוניברסיטת חיפה</p>
+        
+        <div class="dict-box">
+          <h4>מילון אקדמי:</h4>
+          <ul>
+            <li><strong>תובנה מספרית (Number Sense):</strong> היכולת לחשוב בצורה גמישה, עצמאית ואינטואיטיבית על מספרים, על דרכי ייצוגם ועל היחסים המתמטיים ביניהם.</li>
+            <li><strong>מחקר עיצובי (Design Research):</strong> שיטת מחקר יישומית המשלבת פיתוח סביבות למידה חדשניות עם חקר תהליכי הלמידה המתחוללים בהן, במטרה לבסס עקרונות עיצוב ותיאוריות פדגוגיות.</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- Slide 2 -->
+      <section>
+        <h2>האתגר המרכזי בלמידת מתמטיקה</h2>
+        <ul>
+          <li><strong>צמצום דפוס ה'למידה הטכנית-פסיבית':</strong> מענה לנטייה הקוגניטיבית של תלמידים להישען על שינון פרוצדורלי מכני ללא הבנה מושגית, בפרט סביב משברי המעבר של כיתה ג'.</li>
+          <li><strong>מניעת 'חוסר אונים נרכש' (Learned Helplessness):</strong> קטיעת מעגל התסכול והחרדה שנוצר בעקבות כישלונות חוזרים, המוביל לקריסה מוטיבציונית ולקושי מתמטי מתמשך (Miranda & Bringula, 2025).</li>
+          <li><strong>התאמה לחינוך המיוחד:</strong> תלמידים על הרצף האוטיסטי (ASD) פגיעים במיוחד להצפה חושית ועומס מוטורי, וזקוקים לסביבה מובנית המקנה תחושת שליטה, גבולות ברורים ויכולת בקרה עצמית (Bouck et al., 2017; Root et al., 2017).</li>
+          <li><strong>מטרת-העל:</strong> טיפוח תובנה מספרית גמישה ועצמאית המאפשרת פתרון בעיות אותנטי מתוך הבנה מעמיקה.</li>
+        </ul>
+        <div class="dict-box">
+          <h4>מילון אקדמי:</h4>
+          <ul>
+            <li><strong>למידה טכנית-פסיבית (Compliance):</strong> למידה המכוונת למילוי דרישות חיצוניות ולביצוע פרוצדורות מכניות ללא הבנה מעמיקה.</li>
+            <li><strong>חוסר אונים נרכש (Learned Helplessness):</strong> מצב פסיכולוגי שבו הלומד מפתח תפיסה כי אין לו שליטה על הצלחתו (Miranda & Bringula, 2025).</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- Slide 3 -->
+      <section>
+        <h2>תשתית מחקרית (סקירת ספרות)</h2>
+        <ul>
+          <li><strong>עזרים וירטואליים (VRA) מול עזרים פיזיים (CRA):</strong> שימוש בעזרים פיזיים עלול לייצר עומס קוגניטיבי ומוטורי המעודד הסחות דעת, בעוד שעזרים דיגיטליים מנטרלים רעשי רקע ומפנים את זיכרון העבודה של התלמיד (Dueker & Desai, 2022; Sweller et al., 1998).</li>
+          <li><strong>סוכנות הלומד (Agency) וסכנת ה'פיגום העודף':</strong> מתן רמזים ישירים ומיידיים מייצר אשליית מומחיות ותלות. פיתוח עצמאות דורש עיצוב של 'חיכוך מטא-קוגניטיבי יצרני' (Agustin, 2026).</li>
+          <li><strong>האפקט המשווה (Equalizing Effect) של לוחות מחוונים:</strong> משוב מסורתי ממוקד בציון הסופי. מערכת מבוססת נתונים מעבירה את המוקד להערכה תהליכית שוויונית החושפת פערי חשיבה היסטוריים (Knoop-van Campen et al., 2023).</li>
+        </ul>
+        <div class="dict-box">
+          <h4>מילון אקדמי:</h4>
+          <ul>
+            <li><strong>עזרים וירטואליים (VRA):</strong> ייצוגים דיגיטליים המאפשרים ללומד לבצע מניפולציות קוגניטיביות (Dueker & Desai, 2022).</li>
+            <li><strong>סוכנות הלומד (Learner Agency):</strong> יכולתו האקטיבית של הלומד לנקוט יוזמה, לכוון את למידתו ולקחת אחריות (Agustin, 2026).</li>
+            <li><strong>חיכוך מטא-קוגניטיבי יצרני:</strong> עיצוב מכוון של אתגרים קוגניטיביים עדינים המאלצים את הלומד לחשוב (Agustin, 2026).</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- Slide 4 -->
+      <section>
+        <h2>הפתרון המוצע: ארכיטקטורה תלת-שכבתית</h2>
+        <ul>
+          <li><strong>ממשק מוגן (חונכות סוקרטית סגורה):</strong> השכבה העליונה מציעה סביבת למידה ממוקדת ללא צ'אט חופשי (למניעת חרדה), המציעה אפשרויות בחירה מובנות באקלים בטוח לטעויות (Safe Failure) (Agustin, 2026).</li>
+          <li><strong>'הרדאר השקט' (ניטור מטא-קוגניטיבי):</strong> השכבה האמצעית מפעילה אלגוריתם רקע העוקב אחר מיקרו-פעולות כגון זמני השהיה ומחיקות כדי לזהות קושי סמוי בזמן אמת (Miranda & Bringula, 2025).</li>
+          <li><strong>אבחון פדגוגי (Explainable AI):</strong> השכבה התחתונה משתמשת במודל Q-Matrix לתרגום הנתונים לקשיי למידה קונקרטיים, המאפשר למורה לאתר פערי ידע היסטוריים (Nazaretsky et al., 2022).</li>
+        </ul>
+        <div class="dict-box">
+          <h4>מילון אקדמי:</h4>
+          <ul>
+            <li><strong>בינה מלאכותית מסבירה (XAI):</strong> AI המציג את הלוגיקה והנימוקים מאחורי אבחוניו באופן בהיר ופדגוגי (Nazaretsky et al., 2022).</li>
+            <li><strong>מודל Q-Matrix:</strong> מטריצה המקשרת בין פריטי הערכה לבין המיומנויות הנדרשות לפתרונם, המשמשת לאבחון פערי ידע (Nazaretsky et al., 2022).</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- Slide 5 -->
+      <section>
+        <h2>מסע הלמידה האדפטיבי</h2>
+        <ul>
+          <li><strong>שלב התשתית (מפגשים 1-2):</strong> ביסוס הביטחון של הלומד בסביבה הדיגיטלית. המערכת מספקת תמיכה חזותית גבוהה ואוטומציה של פעולות מכניות (המרה ופריטה) כדי להפחית עומס (Bouck et al., 2017).</li>
+          <li><strong>פיגום דועך ותיווך אקטיבי (מפגשים 3-7):</strong> הפחתה הדרגתית של התמיכה (Scaffold Fading) (Agustin, 2026). המערכת משהה סיוע כדי לייצר חיכוך יצרני, תהליך המגיע לשיאו ב"מבדק השקט".</li>
+          <li><strong>אדפטציה ופיצול (מפגש 8):</strong> החלטה פדגוגית מבוססת נתונים: המשך לחקר מתקדם, או פרוטוקול אבחון לאחור לסגירת פערי עבר (Nazaretsky et al., 2022).</li>
+        </ul>
+        <div class="dict-box">
+          <h4>מילון אקדמי:</h4>
+          <ul>
+            <li><strong>דעיכת פיגומים (Scaffold Fading):</strong> הפחתה הדרגתית של התמיכה ככל שהלומד מפתח מומחיות.</li>
+            <li><strong>אבחון לאחור (Backward Diagnostics):</strong> זיהוי מקור הקושי הנוכחי באמצעות איתור פערים ביסודות קודמים.</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- Slide 6 -->
+      <section>
+        <h2>נגישות, עיצוב אוניברסלי ללמידה (UDL) וחינוך מיוחד</h2>
+        <ul>
+          <li><strong>ממשק ביניים בתהליך פיתוח:</strong> הממשק הנוכחי הוא שלב ביניים; הארכיטקטורה הלוגית מפותחת במסגרת מחקר עיצובי בשדה.</li>
+          <li><strong>עקרונות UDL:</strong> הנגשת תכנים באמצעות דרכי ייצוג, מעורבות וביטוי מגוונות לטיפוח לומדים בעלי הכוונה עצמית (Dueker & Desai, 2022).</li>
+          <li><strong>התאמות חושיות מודולריות לתלמידי ASD:</strong> שילוב רכיבים כגון 'דקומפוזיציה חזותית' (עמעום אזורי מסך שאינם רלוונטיים) להפחתת הצפה חושית והסחות דעת, באופן נשלט על ידי המורה (Root et al., 2017).</li>
+        </ul>
+        <div class="dict-box">
+          <h4>מילון אקדמי:</h4>
+          <ul>
+            <li><strong>עיצוב אוניברסלי ללמידה (UDL):</strong> תכנון סביבות נגישות מראש על ידי מתן אפשרויות בחירה (Dueker & Desai, 2022).</li>
+            <li><strong>דקומפוזיציה חזותית:</strong> פירוק חזותי של הממשק ועמעום מסיחים סביבתיים כדי להגן על קשב הלומד (Root et al., 2017).</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- Slide 7 -->
+      <section>
+        <h2>דילמות ושאלות פתוחות בחזית המחקר</h2>
+        <ul>
+          <li><strong>דינמיקת נסיגת התמיכה:</strong> כיצד מגדירים את נקודת המעבר שבה הפיגום הופך לנטל המעכב מומחיות (Expertise Reversal Effect) (Sweller et al., 1998; Agustin, 2026)?</li>
+          <li><strong>אוטומציה מול סוכנות הלומד:</strong> כיצד מבטיחים שהתמיכה אינה מייצרת "מיקור חוץ" של החשיבה, ומשמרת חיכוך מטא-קוגניטיבי (Agustin, 2026)?</li>
+          <li><strong>עומס קוגניטיבי על המורה (Explainable Analytics):</strong> כיצד מתרגמים "עקבות דיגיטליים" לתובנות פעולה בהירות (Actionable Insights) מבלי להציף את המורה בנתונים (Knoop-van Campen et al., 2023)?</li>
+        </ul>
+        <div class="dict-box">
+          <h4>מילון אקדמי:</h4>
+          <ul>
+            <li><strong>אפקט היפוך המומחיות:</strong> תופעה שבה תמיכות פוגעות בביצועיהם של לומדים שפיתחו מומחיות (Sweller et al., 1998).</li>
+            <li><strong>תובנות פעולה (Actionable Insights):</strong> נתונים מעובדים המוצגים באופן המאפשר לנקוט פעולה פדגוגית מיידית (Nazaretsky et al., 2022).</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- Slide 8: Bibliography -->
+      <section class="bib-slide">
+        <h2 style="text-align: right; margin-bottom: 20px;">רשימה ביבליוגרפית (References)</h2>
+        <ul style="direction: ltr; padding-left: 20px;">
+          <li>Agustin, M. (2026). The AI as a co-regulator to strengthen learner agency. <em>Frontiers in Education</em>, <em>11</em>, Article 1761602. https://doi.org/10.3389/feduc.2026.1761602</li>
+          <li>Barzilai, S., Kali, Y., & Ben-Zvi, D. (2016). <em>Information architecture in learning environments</em>. Department of Learning and Instructional Sciences, University of Haifa.</li>
+          <li>Bouck, E. C., Chamberlain, C., & Park, J. (2017). Concrete and app-based manipulatives to support students with disabilities with subtraction. <em>Journal of Special Education Technology</em>, <em>32</em>(4), 187–198. https://doi.org/10.1177/0162643417714773</li>
+          <li>Dueker, S., & Desai, A. (2022). Explicit instruction and virtual manipulatives in online learning for students with disabilities. <em>Journal of Special Education Technology</em>, <em>37</em>(2), 245–256.</li>
+          <li>Knoop-van Campen, C. A. N., Wise, A., & Molenaar, I. (2023). The equalizing effect of teacher dashboards on feedback in K-12 classrooms. <em>Interactive Learning Environments</em>, <em>31</em>(6), 3447–3463. https://doi.org/10.1080/10494820.2021.1931346</li>
+          <li>Miranda, P. B., & Bringula, R. (2025). Classifying learned helplessness in mathematics learning using artificial intelligence. <em>Journal of Technology and Science Education</em>, <em>15</em>(1), 843–856. https://doi.org/10.3926/jotse.3765</li>
+          <li>Nazaretsky, T., Bar, C., Walter, M., & Alexandron, G. (2022). Empowering teachers with AI: Co-designing a learning analytics tool for personalized instruction in the science classroom. In <em>LAK22: 12th International Learning Analytics and Knowledge Conference</em> (pp. 1–12). ACM. https://doi.org/10.1145/3506860.3506861</li>
+          <li>Root, J. R., Browder, D. M., Saunders, A. F., & Lo, Y. (2017). Schema-based instruction with concrete and virtual manipulatives to teach problem solving to students with autism. <em>Focus on Autism and Other Developmental Disabilities</em>, <em>32</em>(1), 42–52. https://doi.org/10.1177/1088357615611110</li>
+          <li>Sweller, J., van Merrienboer, J. J., & Paas, F. G. (1998). Cognitive architecture and instructional design. <em>Educational Psychology Review</em>, <em>10</em>(3), 251–296.</li>
+        </ul>
+      </section>
+
+    </div>
+  </div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/reveal.min.js"></script>
+  <script>
+    Reveal.initialize({
+      rtl: true,
+      hash: true,
+      slideNumber: true,
+      transition: 'fade',
+      controls: true,
+      progress: true
+    });
+  </script>
+</body>
+</html>
