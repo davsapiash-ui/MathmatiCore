@@ -93,11 +93,14 @@
     /* Demo credentials for development/demonstration.
        In production, authentication is server-side. */
     const DEMO_USERS = {
-      'talmid1': { password: '1234', name: 'תלמיד דמו', session: 1, classMode: 'regular' },
-      'talmid2': { password: '1234', name: 'רחל כהן',   session: 2, classMode: 'regular' },
-      'talmid3': { password: 'asd1', name: 'דנה לוי',   session: 1, classMode: 'asd'     },
-      'talmid4': { password: '1234', name: 'יוסי כץ',   session: 3, classMode: 'regular' },
-      'talmid5': { password: '1234', name: 'שירה ים',   session: 4, classMode: 'regular' }
+      'user1': { password: '10203040', name: 'משתמש 1', session: 1, classMode: 'regular' },
+      'user2': { password: '10203040', name: 'משתמש 2', session: 1, classMode: 'regular' },
+      'user3': { password: '10203040', name: 'משתמש 3', session: 1, classMode: 'regular' },
+      'user4': { password: '10203040', name: 'משתמש 4', session: 1, classMode: 'regular' },
+      'user5': { password: '10203040', name: 'משתמש 5', session: 1, classMode: 'regular' },
+      'user6': { password: '10203040', name: 'משתמש 6', session: 1, classMode: 'regular' },
+      'user7': { password: '10203040', name: 'משתמש 7', session: 1, classMode: 'regular' },
+      'user8': { password: '10203040', name: 'משתמש 8', session: 1, classMode: 'regular' }
     };
 
     let selectedRole = null;
@@ -130,21 +133,32 @@
 
     /* Mock SSO Execution based on Role Routing (No passwords needed) */
     function executeMockSSO() {
+      if (selectedRole === 'student') {
+        const username = prompt("אנא הזן שם משתמש (לדוגמה: user1):");
+        const password = prompt("אנא הזן קוד סודי:");
+        
+        if (DEMO_USERS[username] && DEMO_USERS[username].password === password) {
+          const user = DEMO_USERS[username];
+          sessionStorage.setItem('mathematicor_student', JSON.stringify({
+            name:       user.name,
+            username:   username,
+            session:    user.session,
+            classMode:  user.classMode,
+            loginTime:  Date.now(),
+            taskIndex:  0
+          }));
+        } else {
+          alert("שם המשתמש או הסיסמה שגויים.");
+          return;
+        }
+      }
+
       const btn = document.getElementById('sso-login-btn');
       btn.textContent = 'מתחבר בצורה שקופה...';
       btn.style.opacity = '0.7';
 
       setTimeout(() => {
         if (selectedRole === 'student') {
-          // Mock transparent login for a student (Session 3 for prototype demo)
-          sessionStorage.setItem('mathematicor_student', JSON.stringify({
-            name:       'יואב כהן',
-            username:   'talmid1',
-            session:    1,
-            classMode:  'regular',
-            loginTime:  Date.now(),
-            taskIndex:  0
-          }));
           window.location.href = 'student/workspace.html';
         } else if (selectedRole === 'teacher') {
           window.location.href = 'teacher/dashboard.html';

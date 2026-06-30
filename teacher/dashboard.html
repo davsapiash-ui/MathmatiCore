@@ -53,7 +53,7 @@
         <button class="timer-btn timer-btn--reset" onclick="if(confirm('למחוק את כל נתוני המערכת ולהקים כיתה חדשה?')){ localStorage.clear(); sessionStorage.clear(); window.location.reload(); }" style="background:var(--color-danger); color:white; border:none; margin-right:8px;">הקם כיתה חדשה (איפוס)</button>
       </div>
       <div class="session-timer-display" id="session-timer">20:00</div>
-      <div class="teacher-name-badge" id="teacher-name">המורה דוד</div>
+      <div class="teacher-name-badge" id="teacher-name">המורה לבנה</div>
     </div>
   </header>
 
@@ -213,26 +213,19 @@
         <div class="classroom-list-panel">
           <div class="panel-section-title">
             מרחבים פעילים
-            <button class="add-classroom-btn" title="ניתן לפתוח עד 3 כיתות למורה">+ הוסף מרחב (2/3)</button>
+            <button class="add-classroom-btn" title="ניתן לפתוח עד 3 כיתות למורה">+ הוסף מרחב (1/3)</button>
           </div>
           <div class="classroom-item selected">
             <div class="classroom-item-icon">🏫</div>
             <div style="flex:1;">
-              <div class="classroom-item-name">כיתה ג׳ 1 - כללי</div>
-              <div class="classroom-item-count">32 תלמידים</div>
-            </div>
-          </div>
-          <div class="classroom-item">
-            <div class="classroom-item-icon">🧩</div>
-            <div style="flex:1;">
-              <div class="classroom-item-name">כיתה ג׳ 2 - חינוך מיוחד</div>
-              <div class="classroom-item-count">8 תלמידים (ASD)</div>
+              <div class="classroom-item-name">כיתה 1 - המורה לבנה</div>
+              <div class="classroom-item-count">8 תלמידים</div>
             </div>
           </div>
         </div>
 
         <div class="classroom-detail-panel">
-          <div class="panel-section-title">הגדרות כיתה ג׳ 1</div>
+          <div class="panel-section-title">הגדרות כיתה 1</div>
           
           <div class="asd-mode-toggle">
             <div style="font-size:1.5rem;">🧩</div>
@@ -265,21 +258,51 @@
             <tbody id="student-list-tbody">
               <!-- Demo data -->
               <tr>
-                <td>יואב כהן</td>
-                <td><span class="cred-badge">talmid1</span></td>
-                <td><span class="cred-badge">1234</span></td>
+                <td>משתמש 1</td>
+                <td><span class="cred-badge">user1</span></td>
+                <td><span class="cred-badge">10203040</span></td>
                 <td><button class="card-action-btn card-action-btn--hint" style="padding:2px 8px;">איפוס</button></td>
               </tr>
               <tr>
-                <td>דנה לוי</td>
-                <td><span class="cred-badge">talmid2</span></td>
-                <td><span class="cred-badge">1234</span></td>
+                <td>משתמש 2</td>
+                <td><span class="cred-badge">user2</span></td>
+                <td><span class="cred-badge">10203040</span></td>
                 <td><button class="card-action-btn card-action-btn--hint" style="padding:2px 8px;">איפוס</button></td>
               </tr>
               <tr>
-                <td>איתי בר</td>
-                <td><span class="cred-badge">talmid3</span></td>
-                <td><span class="cred-badge">asd1</span></td>
+                <td>משתמש 3</td>
+                <td><span class="cred-badge">user3</span></td>
+                <td><span class="cred-badge">10203040</span></td>
+                <td><button class="card-action-btn card-action-btn--hint" style="padding:2px 8px;">איפוס</button></td>
+              </tr>
+              <tr>
+                <td>משתמש 4</td>
+                <td><span class="cred-badge">user4</span></td>
+                <td><span class="cred-badge">10203040</span></td>
+                <td><button class="card-action-btn card-action-btn--hint" style="padding:2px 8px;">איפוס</button></td>
+              </tr>
+              <tr>
+                <td>משתמש 5</td>
+                <td><span class="cred-badge">user5</span></td>
+                <td><span class="cred-badge">10203040</span></td>
+                <td><button class="card-action-btn card-action-btn--hint" style="padding:2px 8px;">איפוס</button></td>
+              </tr>
+              <tr>
+                <td>משתמש 6</td>
+                <td><span class="cred-badge">user6</span></td>
+                <td><span class="cred-badge">10203040</span></td>
+                <td><button class="card-action-btn card-action-btn--hint" style="padding:2px 8px;">איפוס</button></td>
+              </tr>
+              <tr>
+                <td>משתמש 7</td>
+                <td><span class="cred-badge">user7</span></td>
+                <td><span class="cred-badge">10203040</span></td>
+                <td><button class="card-action-btn card-action-btn--hint" style="padding:2px 8px;">איפוס</button></td>
+              </tr>
+              <tr>
+                <td>משתמש 8</td>
+                <td><span class="cred-badge">user8</span></td>
+                <td><span class="cred-badge">10203040</span></td>
                 <td><button class="card-action-btn card-action-btn--hint" style="padding:2px 8px;">איפוס</button></td>
               </tr>
             </tbody>
