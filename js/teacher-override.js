@@ -36,7 +36,18 @@ const TeacherOverride = (() => {
   function sendHint(studentUsername, hintType) {
     _logOverride('SEND_HINT', studentUsername, { hintType });
     
-    // Simulate placing a hint in student's inbox
+    // Write to Firebase
+    try {
+      if (typeof firebase !== 'undefined' && firebase.database) {
+        firebase.database().ref(`students/${studentUsername}/teacher_action`).push({
+          type: 'hint',
+          hintType: hintType,
+          timestamp: Date.now()
+        });
+      }
+    } catch(e) { console.error('Failed to send hint via firebase', e); }
+
+    // Fallback to localStorage inbox
     const key = `inbox_${studentUsername}`;
     try {
       const inbox = JSON.parse(localStorage.getItem(key) || '[]');
@@ -51,7 +62,17 @@ const TeacherOverride = (() => {
   function stopSession(studentUsername) {
     _logOverride('STOP_SESSION', studentUsername, {});
     
-    // Simulate placing a stop command
+    // Write to Firebase
+    try {
+      if (typeof firebase !== 'undefined' && firebase.database) {
+        firebase.database().ref(`students/${studentUsername}/teacher_action`).push({
+          type: 'stop',
+          timestamp: Date.now()
+        });
+      }
+    } catch(e) { console.error('Failed to send stop via firebase', e); }
+
+    // Fallback to localStorage inbox
     const key = `inbox_${studentUsername}`;
     try {
       const inbox = JSON.parse(localStorage.getItem(key) || '[]');

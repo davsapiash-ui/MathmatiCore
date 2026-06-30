@@ -207,6 +207,18 @@ const SessionManager = (() => {
     return true;
   }
 
+  function logout() {
+    sessionStorage.clear();
+    localStorage.removeItem('mathematicor_state');
+    // If we want to clear everything:
+    // localStorage.clear();
+    if (window.location.pathname.includes('/student/') || window.location.pathname.includes('/teacher/') || window.location.pathname.includes('/admin/')) {
+       window.location.href = '../index.html';
+    } else {
+       window.location.reload();
+    }
+  }
+
   /* ── Public API ── */
   return {
     state,
@@ -223,7 +235,8 @@ const SessionManager = (() => {
     isASDMode,
     saveToStorage,
     requireStudentSession,
-    isImpersonating: () => isImpersonating
+    isImpersonating: () => isImpersonating,
+    logout
   };
 
 })();

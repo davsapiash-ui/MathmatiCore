@@ -79,6 +79,25 @@ const StudentLogger = (() => {
         saveAll();
       }
     });
+
+    /* Listen for Teacher Overrides from Firebase */
+    try {
+      if (typeof firebase !== 'undefined' && firebase.database) {
+        const ref = firebase.database().ref(`students/${username}/teacher_action`);
+        ref.on('child_added', (snapshot) => {
+          const action = snapshot.val();
+          if (!action) return;
+          if (action.type === 'hint') {
+            if (typeof showFeedback !== 'undefined') {
+              showFeedback(false, 'חונך סוקרטי (התערבות מורה)', 'שים לב: המורה שלח לך הכוונה.');
+            }
+          } else if (action.type === 'stop') {
+             alert('המורה עצר את המפגש שלך.');
+             if (typeof SessionManager !== 'undefined') SessionManager.logout();
+          }
+        });
+      }
+    } catch(e) { console.warn('Failed to listen for teacher actions', e); }
   }
 
   /**

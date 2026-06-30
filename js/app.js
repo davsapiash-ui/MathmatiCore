@@ -557,10 +557,18 @@ const App = (() => {
   }
 
   function renderFlexDecompHTML() {
+    let target = '';
+    if (typeof isSession2 !== 'undefined' && isSession2) {
+      const qTask = QMatrix.getCurrentTask();
+      if (qTask) target = QMatrix.getEffectiveNumber(qTask);
+    } else {
+      const task = currentSessionTasks[currentTaskIdx];
+      if (task) target = task.number;
+    }
     return `
       <div class="d-flex flex-column align-items-center gap-4 mt-3">
         <p class="fs-4 text-secondary text-center lh-lg fw-medium">
-          הציגו את המספר בדרכים שונות בטבלה ולחצו <strong>הוסף ייצוג</strong> אחרי כל אחת.
+          הציגו את המספר <strong class="fs-2 text-primary mx-2">${target}</strong> בדרכים שונות בטבלה ולחצו <strong>הוסף ייצוג</strong> אחרי כל אחת.
         </p>
         <div id="q3-rep-status" class="d-flex flex-wrap gap-2 justify-content-center w-100"></div>
         <button class="btn btn-lg btn-outline-primary fw-bold rounded-pill px-5 py-3 shadow-sm transition-all" id="btn-add-rep" onclick="App.addQ3Representation()">
@@ -805,7 +813,12 @@ const App = (() => {
 
     if (target !== null && value !== target) {
       if (typeof StudentLogger !== 'undefined') StudentLogger.logEvent('task_incorrect', { detail: 'wrong_sum' });
-      showFeedback(false, 'הסכום לא מתאים למספר. נסו שוב!', '');
+      
+      let hint = 'הסכום לא מתאים למספר. נסו שוב!';
+      if (typeof isSession2 !== 'undefined' && isSession2) {
+        hint = `אני רואה ששמת ${counts.hundreds || 0} מאיות, ${counts.tens || 0} עשרות ו-${counts.units || 0} יחידות (סך הכל ${value}). איך נוכל לשנות כדי להגיע בדיוק ל-${target}?`;
+      }
+      showFeedback(false, 'חונך סוקרטי', hint);
       return;
     }
 
