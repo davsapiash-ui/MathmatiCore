@@ -11,10 +11,11 @@
 body.workspace-page {
   background: var(--color-bg);
   min-height: 100vh;
-  max-height: 100vh;
   display: flex;
   flex-direction: column;
-  overflow: hidden; /* No scrollbars per technical annex */
+  overflow-x: hidden;
+  overflow-y: auto;
+  font-family: 'Heebo', sans-serif;
 }
 
 
@@ -473,44 +474,44 @@ input[type=number] {
   box-shadow: 0 4px 8px rgba(0,0,0,0.1); 
 }
 
-/* יחידה — unit cube (amber) */
+/* יחידה — unit cube (yellow) */
 .math-block--unit {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   background: var(--block-unit);
   border-radius: 2px;
   box-shadow: 0 3px 0 var(--block-unit-dark), 0 3px 6px rgba(0,0,0,0.2);
-  margin-bottom: 3px; /* Space for the 3D shadow */
+  margin-bottom: 4px;
 }
 
 /* עשרת — ten-rod (emerald) */
 .math-block--ten {
-  width: 140px;
-  height: 14px;
+  width: 160px;
+  height: 16px;
   background: var(--block-ten);
   border-radius: 2px;
   box-shadow: 0 3px 0 var(--block-ten-dark), 0 3px 6px rgba(0,0,0,0.2);
-  margin-bottom: 3px;
-  background-image: repeating-linear-gradient(90deg, transparent, transparent calc(10% - 1px), rgba(0,0,0,0.15) calc(10% - 1px), rgba(0,0,0,0.15) 10%);
+  margin-bottom: 4px;
+  background-image: repeating-linear-gradient(90deg, transparent, transparent 15px, rgba(0,0,0,0.2) 15px, rgba(0,0,0,0.2) 16px);
 }
 
 /* מאה — hundred-flat (blue) */
 .math-block--hundred {
-  width: 140px;
-  height: 140px;
+  width: 160px;
+  height: 160px;
   background: var(--block-hundred);
   border-radius: 2px;
   box-shadow: 0 3px 0 var(--block-hundred-dark), 0 3px 6px rgba(0,0,0,0.2);
-  margin-bottom: 3px;
+  margin-bottom: 4px;
   background-image:
-    repeating-linear-gradient(0deg, transparent, transparent calc(10% - 1px), rgba(0,0,0,0.15) calc(10% - 1px), rgba(0,0,0,0.15) 10%),
-    repeating-linear-gradient(90deg, transparent, transparent calc(10% - 1px), rgba(0,0,0,0.15) calc(10% - 1px), rgba(0,0,0,0.15) 10%);
+    repeating-linear-gradient(0deg, transparent, transparent 15px, rgba(0,0,0,0.2) 15px, rgba(0,0,0,0.2) 16px),
+    repeating-linear-gradient(90deg, transparent, transparent 15px, rgba(0,0,0,0.2) 15px, rgba(0,0,0,0.2) 16px);
 }
 
 /* אלף — thousand-cube (red) */
 .math-block--thousand {
-  width: 140px;
-  height: 140px;
+  width: 160px;
+  height: 160px;
   background: var(--block-thousand);
   border-radius: 2px;
   box-shadow: 
@@ -521,8 +522,8 @@ input[type=number] {
   margin-bottom: 8px;
   margin-left: 8px;
   background-image:
-    repeating-linear-gradient(0deg, transparent, transparent calc(10% - 1px), rgba(0,0,0,0.15) calc(10% - 1px), rgba(0,0,0,0.15) 10%),
-    repeating-linear-gradient(90deg, transparent, transparent calc(10% - 1px), rgba(0,0,0,0.15) calc(10% - 1px), rgba(0,0,0,0.15) 10%);
+    repeating-linear-gradient(0deg, transparent, transparent 15px, rgba(0,0,0,0.2) 15px, rgba(0,0,0,0.2) 16px),
+    repeating-linear-gradient(90deg, transparent, transparent 15px, rgba(0,0,0,0.2) 15px, rgba(0,0,0,0.2) 16px);
 }
 
 /* Block inside palette (source) vs placed (in column) */

@@ -233,8 +233,14 @@
         if (typeof firebase !== 'undefined' && firebase.database) {
           const logsSnap = await firebase.database().ref(`students/${username}/logs`).once('value');
           const eventsSnap = await firebase.database().ref(`students/${username}/replay`).once('value');
-          if (logsSnap.val()) logs = logsSnap.val();
-          if (eventsSnap.val()) events = eventsSnap.val();
+          if (logsSnap.val()) {
+            const val = logsSnap.val();
+            logs = Array.isArray(val) ? val : Object.values(val);
+          }
+          if (eventsSnap.val()) {
+            const val = eventsSnap.val();
+            events = Array.isArray(val) ? val : Object.values(val);
+          }
         }
       } catch(e) {
         console.warn('Firebase read failed, falling back to localStorage:', e);
