@@ -681,7 +681,7 @@ const DragController = (() => {
 
     if (source === 'palette') {
       if (sourcePlace === targetPlace) {
-        const result = PlaceValueModel.addBlock(targetPlace, true);
+        const result = PlaceValueModel.addBlock(targetPlace, false);
         if (result && result.regroup && result.regroup.length > 0) {
           regroupEvents = result.regroup;
         }
@@ -723,7 +723,7 @@ const DragController = (() => {
           for (let i = 0; i < 10; i++) {
             PlaceValueModel.removeBlock(sourcePlace);
           }
-          const addResult = PlaceValueModel.addBlock(targetPlace, true);
+          const addResult = PlaceValueModel.addBlock(targetPlace, false);
           regroupEvents = [{ from: sourcePlace, to: targetPlace, groups: 1 }];
           if (addResult && addResult.regroup && addResult.regroup.length > 0) {
             regroupEvents = regroupEvents.concat(addResult.regroup);
