@@ -1,0 +1,14 @@
+{
+  "rules": {
+    "students": {
+      "$username": {
+        ".read": true,
+        ".write": true
+      }
+    },
+    "radar_alerts": {
+      ".read": true,
+      ".write": true
+    }
+  }
+}
