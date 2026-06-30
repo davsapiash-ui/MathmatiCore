@@ -900,9 +900,14 @@
       if (!container) return;
 
       const students = [
-        { username: 'talmid1', name: 'יואב כהן', class: 'ג׳ 1' },
-        { username: 'talmid2', name: 'דנה לוי', class: 'ג׳ 1' },
-        { username: 'talmid3', name: 'איתי בר', class: 'ג׳ 2 (ASD)' }
+        { username: 'user1', name: 'משתמש 1', class: 'כיתת פיילוט' },
+        { username: 'user2', name: 'משתמש 2', class: 'כיתת פיילוט' },
+        { username: 'user3', name: 'משתמש 3', class: 'כיתת פיילוט' },
+        { username: 'user4', name: 'משתמש 4', class: 'כיתת פיילוט' },
+        { username: 'user5', name: 'משתמש 5', class: 'כיתת פיילוט' },
+        { username: 'user6', name: 'משתמש 6', class: 'כיתת פיילוט' },
+        { username: 'user7', name: 'משתמש 7', class: 'כיתת פיילוט' },
+        { username: 'user8', name: 'משתמש 8', class: 'כיתת פיילוט' }
       ];
 
       const tasks = [
@@ -916,14 +921,14 @@
       if (currentTreeViewMode === 'class') {
         container.innerHTML = `
           <div style="padding:15px; background:var(--color-surface-2); border-radius:12px; border:1px solid var(--color-border); margin-bottom:15px;">
-            <div style="font-weight:900; font-size:1.1rem; color:var(--color-primary-dark); margin-bottom:10px; text-align:right;">👤 מורה: דוד ספיאשוילי</div>
+            <div style="font-weight:900; font-size:1.1rem; color:var(--color-primary-dark); margin-bottom:10px; text-align:right;">👤 מורה: לבנה קדשאי</div>
             <div style="margin-right:20px; display:flex; flex-direction:column; gap:12px; text-align:right;">
               
               <!-- Class 1 -->
               <details open style="background:white; border:1px solid var(--color-border); padding:10px; border-radius:8px;">
-                <summary style="font-weight:800; cursor:pointer; color:var(--color-text);">🏫 כיתה ג׳ 1 (רמת השרון)</summary>
+                <summary style="font-weight:800; cursor:pointer; color:var(--color-text);">🏫 כיתת פיילוט (הטכנופדגוגייים האמיצים)</summary>
                 <div style="margin-right:20px; margin-top:10px; display:flex; flex-direction:column; gap:8px;">
-                  ${students.filter(s => s.class === 'ג׳ 1').map(s => {
+                  ${students.filter(s => s.class === 'כיתת פיילוט').map(s => {
                     const logs = JSON.parse(localStorage.getItem(`mathematicor_student_logs_${s.username}`) || '[]');
                     const replay = JSON.parse(localStorage.getItem(`mathematicor_student_replay_${s.username}`) || '[]');
                     const hasReplay = replay.length > 0;
