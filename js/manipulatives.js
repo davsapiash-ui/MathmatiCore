@@ -547,23 +547,28 @@ const DragController = (() => {
   /* ── Column Drop Zones ── */
   function setupColumnDropZones() {
     if (!containerEl) return;
-    const dropZones = containerEl.querySelectorAll('.pv-drop-zone');
+    const dropZones = containerEl.querySelectorAll('.pv-column');
     dropZones.forEach(zone => {
-      const targetPlace = zone.closest('[data-place]').getAttribute('data-place');
+      const targetPlace = zone.getAttribute('data-place');
 
       zone.addEventListener('dragover', (e) => {
         e.preventDefault();
         e.dataTransfer.dropEffect = (draggedSource === 'column') ? 'move' : 'copy';
-        zone.classList.add('drag-over');
+        const dz = zone.querySelector('.pv-drop-zone');
+        if (dz) dz.classList.add('drag-over');
       });
 
-      zone.addEventListener('dragleave', () => {
-        zone.classList.remove('drag-over');
+      zone.addEventListener('dragleave', (e) => {
+        if (!zone.contains(e.relatedTarget)) {
+          const dz = zone.querySelector('.pv-drop-zone');
+          if (dz) dz.classList.remove('drag-over');
+        }
       });
 
       zone.addEventListener('drop', (e) => {
         e.preventDefault();
-        zone.classList.remove('drag-over');
+        const dz = zone.querySelector('.pv-drop-zone');
+        if (dz) dz.classList.remove('drag-over');
         const sourcePlace = e.dataTransfer.getData('text/plain') || draggedPlace;
         const source = e.dataTransfer.getData('source') || draggedSource;
         handleDrop(sourcePlace, targetPlace, source);

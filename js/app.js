@@ -11,7 +11,7 @@
 
 'use strict';
 
-/* global Swal, QMatrix, DragController, PlaceValueModel, SessionManager, StudentLogger, SESSION1_TASKS, SESSION3_TASKS, SESSION4_TASKS, SilentRadar, confetti */
+/* global Swal, QMatrix, DragController, PlaceValueModel, SessionManager, StudentLogger, SilentRadar, confetti */
 
 const App = (() => {
 
@@ -448,7 +448,7 @@ const App = (() => {
         q3Reps = [];
         dom.taskBody.innerHTML = renderFlexDecompHTML();
         break;
-      case 'vertical_addition':
+      case 'vertical_addition': {
         const a = SessionManager.isASDMode() ? task.asdNumberA : task.numberA;
         const b = SessionManager.isASDMode() ? task.asdNumberB : task.numberB;
         dom.taskBody.innerHTML = renderVerticalAdditionHTML(a, b);
@@ -468,6 +468,7 @@ const App = (() => {
           addInputs[addInputs.length - 1].focus();
         }
         break;
+      }
       case 'small_change':
         dom.taskBody.innerHTML = renderSmallChangeHTML(task);
         setupChoiceListeners();

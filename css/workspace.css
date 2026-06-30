@@ -374,7 +374,6 @@ input[type=number] {
 .pv-drop-zone {
   flex: 1;
   width: 100%;
-  min-height: 120px;
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
@@ -461,7 +460,6 @@ input[type=number] {
               opacity var(--transition-fast);
   user-select: none;
   position: relative;
-  animation: blockDrop 0.3s var(--transition-spring) forwards;
 }
 
 /* Premium Glossy 3D Bevel effect */
