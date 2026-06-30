@@ -624,10 +624,12 @@
           if (logsSnap.val()) {
             const val = logsSnap.val();
             logs = Array.isArray(val) ? val : Object.values(val);
+            logs.sort((a,b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
           }
           if (eventsSnap.val()) {
             const val = eventsSnap.val();
             events = Array.isArray(val) ? val : Object.values(val);
+            events.sort((a,b) => (a.timestamp || 0) - (b.timestamp || 0));
           }
         }
       } catch(e) {
@@ -896,7 +898,7 @@
         return;
       }
 
-      const firstEventTime = (events && events.length > 0) ? events[0].timestamp : logs[0].timestamp;
+      const firstEventTime = (events && events.length > 0) ? new Date(events[0].timestamp).getTime() : new Date(logs[0].timestamp).getTime();
       let insightsHTML = '';
       
       let recentRemoves = [];
