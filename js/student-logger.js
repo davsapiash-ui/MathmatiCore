@@ -125,21 +125,22 @@ const StudentLogger = (() => {
 
   function saveReplayData() {
     if (!isRecording) return;
-    try {
-      localStorage.setItem(`mathematicor_student_replay_${username}`, JSON.stringify(rrwebEvents));
-    } catch (e) {
-      /* If localStorage is full, stop recording to prevent snapshot corruption */
-      if (e.name === 'QuotaExceededError') {
-        isRecording = false;
-        console.warn('LocalStorage quota exceeded. Stopped rrweb recording to preserve initial snapshot.');
-      }
-    }
-    // סנכרון הקלטת rrweb ל-Firebase
+    
+    // 1. סנכרון הקלטת rrweb ל-Firebase (חשוב יותר)
     try {
       if (typeof firebase !== 'undefined' && firebase.database) {
         firebase.database().ref(`students/${username}/replay`).set(rrwebEvents);
       }
     } catch(e) { console.warn('Firebase replay save failed:', e); }
+
+    // 2. גיבוי מקומי
+    try {
+      localStorage.setItem(`mathematicor_student_replay_${username}`, JSON.stringify(rrwebEvents));
+    } catch (e) {
+      if (e.name === 'QuotaExceededError') {
+        console.warn('LocalStorage quota exceeded. Not stopping rrweb, continuing Firebase stream.');
+      }
+    }
   }
 
   function saveAll() {

@@ -485,13 +485,13 @@ input[type=number] {
 
 /* עשרת — ten-rod (emerald) */
 .math-block--ten {
-  width: 14px;
-  height: 140px;
+  width: 140px;
+  height: 14px;
   background: var(--block-ten);
   border-radius: 2px;
   box-shadow: 0 3px 0 var(--block-ten-dark), 0 3px 6px rgba(0,0,0,0.2);
   margin-bottom: 3px;
-  background-image: repeating-linear-gradient(0deg, transparent, transparent calc(10% - 1px), rgba(0,0,0,0.15) calc(10% - 1px), rgba(0,0,0,0.15) 10%);
+  background-image: repeating-linear-gradient(90deg, transparent, transparent calc(10% - 1px), rgba(0,0,0,0.15) calc(10% - 1px), rgba(0,0,0,0.15) 10%);
 }
 
 /* מאה — hundred-flat (blue) */
