@@ -247,7 +247,10 @@
         </div>
 
         <div class="classroom-detail-panel">
-          <div class="panel-section-title">הגדרות כיתת פיילוט</div>
+          <div class="panel-section-title" style="display:flex; justify-content:space-between; align-items:center;">
+            <span>הגדרות כיתת פיילוט</span>
+            <button onclick="if(confirm('למחוק נתוני עבר ולרענן?')){ localStorage.clear(); sessionStorage.clear(); window.location.reload(); }" style="background:var(--color-danger); color:white; border:none; padding:6px 12px; border-radius:var(--radius-sm); cursor:pointer; font-size:12px; font-weight:bold;">🗑️ נקה נתוני כיתה ורענן</button>
+          </div>
           
 
           <table class="students-table" style="margin-top:var(--space-6);">
@@ -260,67 +263,7 @@
               </tr>
             </thead>
             <tbody id="student-list-tbody">
-              <!-- Demo data -->
-              <tr>
-                <td>משתמש 1</td>
-                <td><span class="cred-badge">user1</span></td>
-                <td><span class="cred-badge">10203040</span></td>
-                <td><button class="card-action-btn card-action-btn--hint" style="padding:2px 8px;">איפוס</button></td>
-              </tr>
-              <tr>
-                <td>משתמש 2</td>
-                <td><span class="cred-badge">user2</span></td>
-                <td><span class="cred-badge">10203040</span></td>
-                <td><button class="card-action-btn card-action-btn--hint" style="padding:2px 8px;">איפוס</button></td>
-              </tr>
-              <tr>
-                <td>משתמש 3</td>
-                <td><span class="cred-badge">user3</span></td>
-                <td><span class="cred-badge">10203040</span></td>
-                <td><button class="card-action-btn card-action-btn--hint" style="padding:2px 8px;">איפוס</button></td>
-              </tr>
-              <tr>
-                <td>משתמש 4</td>
-                <td><span class="cred-badge">user4</span></td>
-                <td><span class="cred-badge">10203040</span></td>
-                <td><button class="card-action-btn card-action-btn--hint" style="padding:2px 8px;">איפוס</button></td>
-              </tr>
-              <tr>
-                <td>משתמש 5</td>
-                <td><span class="cred-badge">user5</span></td>
-                <td><span class="cred-badge">10203040</span></td>
-                <td><button class="card-action-btn card-action-btn--hint" style="padding:2px 8px;">איפוס</button></td>
-              </tr>
-              <tr>
-                <td>משתמש 6</td>
-                <td><span class="cred-badge">user6</span></td>
-                <td><span class="cred-badge">10203040</span></td>
-                <td><button class="card-action-btn card-action-btn--hint" style="padding:2px 8px;">איפוס</button></td>
-              </tr>
-              <tr>
-                <td>משתמש 7</td>
-                <td><span class="cred-badge">user7</span></td>
-                <td><span class="cred-badge">10203040</span></td>
-                <td><button class="card-action-btn card-action-btn--hint" style="padding:2px 8px;">איפוס</button></td>
-              </tr>
-              <tr>
-                <td>משתמש 8</td>
-                <td><span class="cred-badge">user8</span></td>
-                <td><span class="cred-badge">10203040</span></td>
-                <td><button class="card-action-btn card-action-btn--hint" style="padding:2px 8px;">איפוס</button></td>
-              </tr>
-              <tr>
-                <td>פיילוט תלמיד</td>
-                <td><span class="cred-badge">pilot</span></td>
-                <td><span class="cred-badge">10203040</span></td>
-                <td><button class="card-action-btn card-action-btn--hint" style="padding:2px 8px;">איפוס</button></td>
-              </tr>
-              <tr>
-                <td>פיילוט תלמיד 2</td>
-                <td><span class="cred-badge">pilot2</span></td>
-                <td><span class="cred-badge">10203040</span></td>
-                <td><button class="card-action-btn card-action-btn--hint" style="padding:2px 8px;">איפוס</button></td>
-              </tr>
+              <!-- Injected dynamically by renderClassManagementTable -->
             </tbody>
           </table>
           <div style="text-align:left; margin-top:var(--space-4);">
@@ -448,6 +391,32 @@
   <script>
     /* global TeacherRadarReader, TeacherClustering, TeacherOverride, renderSmartTree, toggleTreeView, renderLiveGrid, renderRadar, renderClusters, openReplayDrawer, closeReplayDrawer, togglePlayReplay, changeReplaySpeed, expandReplayToNewWindow, seekReplayer, generateDrawerChapters, analyzeDrawerPedagogicalLogs, localStorage, sessionStorage, bootstrap, Chart */
     /* ── Dashboard App Logic ── */
+
+    window.GLOBAL_STUDENTS = [
+      { username: 'user1', name: 'משתמש 1', class: 'כיתת פיילוט' },
+      { username: 'user2', name: 'משתמש 2', class: 'כיתת פיילוט' },
+      { username: 'user3', name: 'משתמש 3', class: 'כיתת פיילוט' },
+      { username: 'user4', name: 'משתמש 4', class: 'כיתת פיילוט' },
+      { username: 'user5', name: 'משתמש 5', class: 'כיתת פיילוט' },
+      { username: 'user6', name: 'משתמש 6', class: 'כיתת פיילוט' },
+      { username: 'user7', name: 'משתמש 7', class: 'כיתת פיילוט' },
+      { username: 'user8', name: 'משתמש 8', class: 'כיתת פיילוט' },
+      { username: 'pilot', name: 'פיילוט תלמיד', class: 'כיתת פיילוט' },
+      { username: 'pilot2', name: 'פיילוט תלמיד 2', class: 'כיתת פיילוט' }
+    ];
+
+    function renderClassManagementTable() {
+      const tbody = document.getElementById('student-list-tbody');
+      if (!tbody) return;
+      tbody.innerHTML = window.GLOBAL_STUDENTS.map(s => `
+        <tr>
+          <td>${s.name}</td>
+          <td><span class="cred-badge">${s.username}</span></td>
+          <td><span class="cred-badge">10203040</span></td>
+          <td><button class="card-action-btn card-action-btn--hint" style="padding:2px 8px;" onclick="alert('איפוס סיסמה בוצע')">איפוס</button></td>
+        </tr>
+      `).join('');
+    }
     
     // Tab switching
     document.querySelectorAll('.teacher-tab-btn').forEach(btn => {
@@ -640,7 +609,7 @@
       renderReplayTimeline(logs, events);
       setupReplayPlayer(events);
       generateDrawerChapters(logs, events);
-      analyzeDrawerPedagogicalLogs(logs);
+      analyzeDrawerPedagogicalLogs(logs, events);
     };
 
     window.closeReplayDrawer = function() {
@@ -842,38 +811,88 @@
       return m[taskId] ?? taskId;
     }
 
-    function analyzeDrawerPedagogicalLogs(logs) {
+    function analyzeDrawerPedagogicalLogs(logs, events) {
       const container = document.getElementById('replay-ai-insights');
       if (!container) return;
 
-      let hesitationCount = 0;
-      let undoCount = 0;
-      let errorsCount = 0;
-      let wrongAnswers = [];
+      if (!logs || logs.length === 0) {
+        container.innerHTML = '<div style="color:var(--color-text-muted); font-size:12px;">אין נתונים לניתוח AI</div>';
+        return;
+      }
+
+      const firstTime = (events && events.length > 0) ? events[0].timestamp : logs[0].timestamp;
+      let insightsHTML = '';
+      
+      // Narrative tracking variables
+      let recentRemoves = [];
+      let recentHesitations = [];
+      let lastTaskIncorrect = null;
 
       logs.forEach(l => {
-        if (l.event === 'hesitation_alert') hesitationCount++;
-        if (l.event === 'undo') undoCount++;
+        const offset = Math.max(0, new Date(l.timestamp).getTime() - firstTime);
+        const timeBtn = events && events.length > 0 
+          ? `<button onclick="seekReplayer(${offset})" style="background:var(--color-primary); color:white; border:none; border-radius:4px; padding:2px 6px; font-size:10px; cursor:pointer; margin-right:6px;">▶ קפוץ לוידאו</button>` 
+          : '';
+
+        // Check for Passive Drifting (rapid deletes)
+        if (l.event === 'block_remove' || l.event === 'undo') {
+          recentRemoves.push(l.timestamp);
+          if (recentRemoves.length >= 4) {
+            const timeDiff = recentRemoves[recentRemoves.length - 1] - recentRemoves[0];
+            if (timeDiff < 15000) { // 4 deletes in 15 seconds
+              insightsHTML += `
+                <div style="background:var(--color-surface-2); padding:8px; border-radius:6px; border-right:3px solid var(--color-warning); margin-bottom:8px;">
+                  <div style="font-size:12px; font-weight:800; color:var(--color-warning);">⚠️ שיוט פסיבי (Passive Drifting) ${timeBtn}</div>
+                  <div style="font-size:11px; color:var(--color-text-secondary); margin-top:4px;">התלמיד ביצע פעולות מחיקה / ביטול מהירות ברצף. נראה שהוא פועל מתוך תסכול ולא מתוך אסטרטגיה סדורה. מומלץ לעצור אותו ולשאול: "מה אנחנו מנסים לפתור עכשיו?"</div>
+                </div>
+              `;
+              recentRemoves = []; // reset
+            } else {
+              recentRemoves.shift(); // keep sliding window
+            }
+          }
+        }
+
+        // Check for Hesitation
+        if (l.event === 'hesitation_alert') {
+          recentHesitations.push(l);
+        }
+
+        // Check for Productive Struggle (Hesitation followed by Correct)
+        if (l.event === 'task_correct' && recentHesitations.length > 0) {
+          insightsHTML += `
+            <div style="background:var(--color-surface-2); padding:8px; border-radius:6px; border-right:3px solid var(--color-success); margin-bottom:8px;">
+              <div style="font-size:12px; font-weight:800; color:var(--color-success);">💡 מאבק פורה (Productive Struggle) ${timeBtn}</div>
+              <div style="font-size:11px; color:var(--color-text-secondary); margin-top:4px;">התלמיד חווה ${recentHesitations.length} רגעי היסוס קוגניטיבי, אך הצליח לפתור את המשימה בעצמו ללא בקשת רמז! זוהי אינדיקציה מעולה למסוגלות עצמית.</div>
+            </div>
+          `;
+          recentHesitations = [];
+        }
+
+        // Check for Errors
         if (l.event === 'task_incorrect') {
-          errorsCount++;
-          wrongAnswers.push(l.taskId);
+          lastTaskIncorrect = l;
+        }
+
+        // Unresolved struggle
+        if (l.event === 'hint_requested' && lastTaskIncorrect && (l.timestamp - lastTaskIncorrect.timestamp < 30000)) {
+           insightsHTML += `
+            <div style="background:var(--color-surface-2); padding:8px; border-radius:6px; border-right:3px solid var(--color-danger); margin-bottom:8px;">
+              <div style="font-size:12px; font-weight:800; color:var(--color-danger);">🚨 קושי תפיסתי - בקשת עזרה לאחר שגיאה ${timeBtn}</div>
+              <div style="font-size:11px; color:var(--color-text-secondary); margin-top:4px;">התלמיד שגה ומיד ביקש רמז בלי לנסות לתקן. מומלץ לגשת אליו ולספק רמז מטא-קוגניטיבי (למשל: "האם בדקת שלכל ספרה יש מקום משלה בבית המספרים?").</div>
+            </div>
+          `;
+          lastTaskIncorrect = null;
         }
       });
 
-      let coreStruggle = 'ללא קושי מהותי';
-      if (wrongAnswers.includes('q1')) coreStruggle = 'ערך המקום והאפס';
-      else if (wrongAnswers.includes('q2')) coreStruggle = 'מיקום על ישר המספרים';
-      else if (wrongAnswers.includes('q3')) coreStruggle = 'פירוק והרכבה (גמישות)';
-      else if (wrongAnswers.includes('q4')) coreStruggle = 'חיבור מאונך והמרה';
+      if (insightsHTML === '') {
+        insightsHTML = '<div style="font-size:12px; color:var(--color-text-muted); text-align:center;">ה-AI מנתח את הפעולות... לא זוהו דפוסים חריגים.</div>';
+      }
 
       container.innerHTML = `
-        <div style="background:var(--color-primary-light); padding:10px; border-radius:var(--radius-md); border-right:3px solid var(--color-primary); direction:rtl; text-align:right;">
-          <div style="font-size:12px; font-weight:700; color:var(--color-primary-dark); margin-bottom:2px;">🤖 אבחון AI מהיר:</div>
-          <div style="font-size:13px; font-weight:800; color:var(--color-text); margin-top:2px;">מוקד קושי: ${coreStruggle}</div>
-          <div style="font-size:11px; color:var(--color-text-secondary); margin-top:4px;">
-            בטלים: ${undoCount} | היסוסים: ${hesitationCount} | שגיאות: ${errorsCount}
-          </div>
-        </div>
+        <div style="font-size:13px; font-weight:800; color:var(--color-primary-dark); margin-bottom:8px; border-bottom:1px solid var(--color-border); padding-bottom:4px;">🤖 תובנות מנוע פדגוגי (AI):</div>
+        ${insightsHTML}
       `;
     }
 
@@ -904,18 +923,7 @@
       const container = document.getElementById('tree-explorer-container');
       if (!container) return;
 
-      const students = [
-        { username: 'user1', name: 'משתמש 1', class: 'כיתת פיילוט' },
-        { username: 'user2', name: 'משתמש 2', class: 'כיתת פיילוט' },
-        { username: 'user3', name: 'משתמש 3', class: 'כיתת פיילוט' },
-        { username: 'user4', name: 'משתמש 4', class: 'כיתת פיילוט' },
-        { username: 'user5', name: 'משתמש 5', class: 'כיתת פיילוט' },
-        { username: 'user6', name: 'משתמש 6', class: 'כיתת פיילוט' },
-        { username: 'user7', name: 'משתמש 7', class: 'כיתת פיילוט' },
-        { username: 'user8', name: 'משתמש 8', class: 'כיתת פיילוט' },
-        { username: 'pilot', name: 'פיילוט תלמיד', class: 'כיתת פיילוט' },
-        { username: 'pilot2', name: 'פיילוט תלמיד 2', class: 'כיתת פיילוט' }
-      ];
+      const students = window.GLOBAL_STUDENTS;
 
       const tasks = [
         { id: 'q1', title: 'משימה 1: ערך המקום והאפס' },
@@ -1025,6 +1033,7 @@
 
     // Start Polling Loop
     TeacherRadarReader.startPolling((alerts, statuses) => {
+      renderClassManagementTable();
       renderLiveGrid(statuses);
       renderRadar(alerts);
       renderClusters(); // In real app, only updates on results change

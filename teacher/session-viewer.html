@@ -398,100 +398,88 @@
         return;
       }
 
-      let hesitationCount = 0;
+      let insightsHTML = '';
+      let recentRemoves = [];
+      let recentHesitations = [];
+      let lastTaskIncorrect = null;
+
       let undoCount = 0;
+      let hesitationCount = 0;
       let errorsCount = 0;
-      let hintsCount = 0;
-      let wrongAnswers = [];
-      let finalState = 'active';
 
       logs.forEach(l => {
-        if (l.event === 'hesitation_alert') hesitationCount++;
+        const offset = Math.max(0, new Date(l.timestamp).getTime() - firstEventTime);
+        const timeBtn = `<button onclick="seekReplayer(${offset})" style="background:#1e293b; color:#38bdf8; border:1px solid #38bdf8; border-radius:4px; padding:2px 6px; font-size:10px; cursor:pointer; margin-right:6px;">▶ קפוץ לוידאו</button>`;
+
         if (l.event === 'undo') undoCount++;
-        if (l.event === 'task_incorrect') {
-          errorsCount++;
-          wrongAnswers.push(l.taskId);
+        if (l.event === 'task_incorrect') errorsCount++;
+
+        // Passive Drifting
+        if (l.event === 'block_remove' || l.event === 'undo') {
+          recentRemoves.push(l.timestamp);
+          if (recentRemoves.length >= 4) {
+            const timeDiff = recentRemoves[recentRemoves.length - 1] - recentRemoves[0];
+            if (timeDiff < 15000) {
+              insightsHTML += `
+                <div style="background:#334155; padding:12px; border-radius:8px; border-right:4px solid #f59e0b; margin-bottom:12px;">
+                  <div style="font-size:13px; font-weight:800; color:#f59e0b;">⚠️ שיוט פסיבי (Passive Drifting) ${timeBtn}</div>
+                  <div style="font-size:12px; color:#cbd5e1; margin-top:6px;">ביצוע פעולות מחיקה וביטול מהירות ברצף. פועל מתוך תסכול ללא אסטרטגיה ברורה. מומלץ תיווך: "מה אנחנו מנסים לפתור עכשיו?"</div>
+                </div>
+              `;
+              recentRemoves = [];
+            } else {
+              recentRemoves.shift();
+            }
+          }
         }
-        if (l.event === 'hint_requested') hintsCount++;
-        if (l.event === 'session_completed') finalState = 'completed';
+
+        // Hesitation
+        if (l.event === 'hesitation_alert') {
+          hesitationCount++;
+          recentHesitations.push(l);
+        }
+
+        // Productive Struggle
+        if (l.event === 'task_correct' && recentHesitations.length > 0) {
+          insightsHTML += `
+            <div style="background:#334155; padding:12px; border-radius:8px; border-right:4px solid #10b981; margin-bottom:12px;">
+              <div style="font-size:13px; font-weight:800; color:#10b981;">💡 מאבק פורה (Productive Struggle) ${timeBtn}</div>
+              <div style="font-size:12px; color:#cbd5e1; margin-top:6px;">התלמיד חווה ${recentHesitations.length} רגעי היסוס קוגניטיבי, אך הצליח לפתור בעצמו. אינדיקציה מעולה למסוגלות עצמית גבוהה.</div>
+            </div>
+          `;
+          recentHesitations = [];
+        }
+
+        // Errors & Struggle
+        if (l.event === 'task_incorrect') {
+          lastTaskIncorrect = l;
+        }
+
+        if (l.event === 'hint_requested' && lastTaskIncorrect && (l.timestamp - lastTaskIncorrect.timestamp < 30000)) {
+           insightsHTML += `
+            <div style="background:#334155; padding:12px; border-radius:8px; border-right:4px solid #ef4444; margin-bottom:12px;">
+              <div style="font-size:13px; font-weight:800; color:#ef4444;">🚨 קושי תפיסתי מהותי ${timeBtn}</div>
+              <div style="font-size:12px; color:#cbd5e1; margin-top:6px;">התלמיד שגה ומיד ביקש רמז בלי לנסות לתקן או להתעמק בבדידים. ספק רמז מטא-קוגניטיבי המעודד חשיבה.</div>
+            </div>
+          `;
+          lastTaskIncorrect = null;
+        }
       });
 
-      /* Diagnose core struggle category */
-      let coreStruggle = 'ללא קושי מהותי';
-      let diagnosticDetail = 'התלמיד ביצע את המשימות ללא עומס קוגניטיבי חריג.';
-      
-      if (wrongAnswers.includes('q1')) {
-        coreStruggle = 'ערך המקום והאפס';
-        diagnosticDetail = 'הלומד מראה קושי מהותי בהתייחסות לאפס כשומר מקום במספר דו-ספרתי או תלת-ספרתי, ונוטה להשמיט אותו.';
-      } else if (wrongAnswers.includes('q2')) {
-        coreStruggle = 'מיקום על ישר המספרים';
-        diagnosticDetail = 'ניכר קושי באומדן ובקשר הוויזואלי-כמותי בין מספר ספרתי למיקומו המרחבי על גבי ציר המספרים.';
-      } else if (wrongAnswers.includes('q3')) {
-        coreStruggle = 'פירוק והרכבה (גמישות ייצוגית)';
-        diagnosticDetail = 'הלומד מתקשה לבצע פירוק גמיש של עשרות בודדות ומעדיף את המבנה הפורמלי הקבוע.';
-      } else if (wrongAnswers.includes('q4')) {
-        coreStruggle = 'חיבור מאונך והמרה';
-        diagnosticDetail = 'זוהה קושי בביצוע המרה (מעבר של 10 יחידות לעשרת אחת) במהלך חיבור של מספרים רב-ספרתיים.';
-      }
-
-      /* Determine behavior patterns */
-      let behavioralPattern = 'פעיל וממוקד';
-      if (undoCount > 5) {
-        behavioralPattern = 'ויסות עצמי גבוה (ניסוי וטעייה בריאים)';
-      }
-      if (hesitationCount > 2) {
-        behavioralPattern = 'מאבק קוגניטיבי בריא (התעמקות ממושכת)';
-      }
-      if (undoCount > 6 && errorsCount > 3) {
-        behavioralPattern = 'קושי בבקרת איכות ותנועתיות יתר';
-      }
-
-      /* Recommendations */
-      let recommendationsHTML = '';
-      if (coreStruggle === 'ערך המקום והאפס') {
-        recommendationsHTML = `
-          <li style="font-size:12px; line-height:1.5; color:#cbd5e1;">🎯 מומלץ להנחות את התלמיד להוסיף 0 בטור היחידות כדי לחוש שהמקום נשמר.</li>
-          <li style="font-size:12px; line-height:1.5; color:#cbd5e1;">🎯 מנע התערבות ישירה; אפשר לפיגום החזותי של המארגן (Graphic Organizer) לפעול.</li>
-        `;
-      } else if (coreStruggle === 'חיבור מאונך והמרה') {
-        recommendationsHTML = `
-          <li style="font-size:12px; line-height:1.5; color:#cbd5e1;">🎯 הנחה את התלמיד לבצע פריטה והמרה דרך בלוקי העשרת שמתפוצצים כדי לראות את השינוי הכמותי.</li>
-          <li style="font-size:12px; line-height:1.5; color:#cbd5e1;">🎯 שים לב אם הילד משתמש בבטלים (Undo) כדי לתקן את עצמו.</li>
-        `;
-      } else {
-        recommendationsHTML = `
-          <li style="font-size:12px; line-height:1.5; color:#cbd5e1;">🎯 המשך תרגול רגיל.</li>
-          <li style="font-size:12px; line-height:1.5; color:#cbd5e1;">🎯 התלמיד משתמש נכון במשאבי הלמידה.</li>
-        `;
+      if (insightsHTML === '') {
+        insightsHTML = '<div style="font-size:13px; color:#94a3b8; text-align:center;">לא זוהו דפוסים פדגוגיים חריגים בהקלטה זו.</div>';
       }
 
       container.innerHTML = `
-        <!-- Core struggle metric -->
-        <div style="background:#334155; padding:12px; border-radius:8px; border-right:4px solid #10b981;">
-          <div style="font-size:12px; color:#94a3b8; font-weight:700;">מוקד קושי מאובחן:</div>
-          <div style="font-size:15px; font-weight:900; color:#10b981; margin-top:4px;">${coreStruggle}</div>
-          <div style="font-size:12px; color:#cbd5e1; margin-top:6px; line-height:1.5;">${diagnosticDetail}</div>
-        </div>
-
-        <!-- Silent Signals metrics -->
-        <div style="background:#334155; padding:12px; border-radius:8px; border-right:4px solid #38bdf8;">
-          <div style="font-size:12px; color:#94a3b8; font-weight:700;">דפוס התנהגותי (Silent Trace Data):</div>
-          <div style="font-size:14px; font-weight:800; color:#38bdf8; margin-top:4px;">${behavioralPattern}</div>
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:10px; font-size:11px;">
-            <div style="background:#1e293b; padding:4px 8px; border-radius:4px;">🔄 בטלים (Undo): <strong>${undoCount}</strong></div>
-            <div style="background:#1e293b; padding:4px 8px; border-radius:4px;">⏸️ היסוסים: <strong>${hesitationCount}</strong></div>
-            <div style="background:#1e293b; padding:4px 8px; border-radius:4px;">❌ שגיאות: <strong>${errorsCount}</strong></div>
-            <div style="background:#1e293b; padding:4px 8px; border-radius:4px;">💡 רמזים: <strong>${hintsCount}</strong></div>
+        <div style="background:#1e293b; padding:12px; border-radius:8px; border-bottom:2px solid #334155; margin-bottom:16px;">
+          <div style="font-size:12px; color:#94a3b8; font-weight:700;">סיכום יבש:</div>
+          <div style="display:flex; gap:12px; margin-top:6px; font-size:11px;">
+            <div style="background:#0f172a; padding:4px 8px; border-radius:4px;">🔄 בטלים: <strong style="color:#f1f5f9;">${undoCount}</strong></div>
+            <div style="background:#0f172a; padding:4px 8px; border-radius:4px;">⏸️ היסוסים: <strong style="color:#f1f5f9;">${hesitationCount}</strong></div>
+            <div style="background:#0f172a; padding:4px 8px; border-radius:4px;">❌ שגיאות: <strong style="color:#ef4444;">${errorsCount}</strong></div>
           </div>
         </div>
-
-        <!-- Strategy recommendation -->
-        <div style="background:#334155; padding:12px; border-radius:8px; border-right:4px solid #f59e0b;">
-          <div style="font-size:12px; color:#94a3b8; font-weight:700;">המלצה מותאמת אישית למורה:</div>
-          <ul style="margin:8px 0 0 0; padding-right:16px; display:flex; flex-direction:column; gap:6px;">
-            ${recommendationsHTML}
-          </ul>
-        </div>
+        ${insightsHTML}
       `;
     }
 
