@@ -131,50 +131,6 @@
     /* Mock SSO Execution based on Role Routing (No passwords needed) */
     function executeMockSSO() {
       const btn = document.getElementById('sso-login-btn');
-      
-      // Admin specific check - Real Firebase Google Auth
-      if (selectedRole === 'admin') {
-        if (!window.auth || !window.signInWithPopup) {
-           alert("שגיאה: מודולי האבטחה טרם נטענו. נסה שוב בעוד רגע.");
-           return;
-        }
-        
-        btn.textContent = 'מתחבר ל-Google...';
-        btn.style.opacity = '0.7';
-
-        window.signInWithPopup(window.auth, window.provider)
-          .then((result) => {
-            const email = result.user.email;
-            const AUTHORIZED_ADMIN_EMAILS = [
-              "davidsep@edu-haifa.org.il",
-              "1002220159@edu-haifa.org.il"
-            ];
-            
-            if (!AUTHORIZED_ADMIN_EMAILS.includes(email)) {
-              alert("גישה נדחתה: כתובת הדוא״ל " + email + " אינה מורשית להתחבר כמנהל מערכת.");
-              window.auth.signOut();
-              btn.textContent = 'התחברות מהירה (Mock SSO)';
-              btn.style.opacity = '1';
-              return;
-            }
-            
-            // אם המייל תקין, נשמור טוקן מדומה ונעבור לעמוד מנהל
-            sessionStorage.setItem('mathematicor_admin_auth', 'true');
-            window.location.href = 'admin/index.html';
-          })
-          .catch((error) => {
-            console.error("Auth error", error);
-            if(error.code !== 'auth/popup-closed-by-user') {
-               alert("שגיאה בהתחברות (בדוק שאיפשרת אימות Google בפיירבייס): " + error.message);
-            }
-            btn.textContent = 'התחברות מהירה (Mock SSO)';
-            btn.style.opacity = '1';
-          });
-          
-        return; // Stop here, the promise handles the rest
-      }
-
-      // ── MOCK FLOW FOR STUDENT / TEACHER ──
       btn.textContent = 'מתחבר בצורה שקופה...';
       btn.style.opacity = '0.7';
 
@@ -192,11 +148,9 @@
           window.location.href = 'student/workspace.html';
         } else if (selectedRole === 'teacher') {
           window.location.href = 'teacher/dashboard.html';
+        } else if (selectedRole === 'admin') {
+          window.location.href = 'admin/index.html';
         }
-        
-        // Reset button state in case they navigate back
-        btn.textContent = 'התחברות מהירה (Mock SSO)';
-        btn.style.opacity = '1';
       }, 600);
     }
 
@@ -204,31 +158,6 @@
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') showRoleSelection();
     });
-  </script>
-
-  <!-- Firebase SDK Setup for Admin Auth -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getAuth, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-
-    const firebaseConfig = {
-      projectId: "mathimaticore",
-      appId: "1:589828360805:web:b5e882cf4d3253107bd48c",
-      storageBucket: "mathimaticore.firebasestorage.app",
-      apiKey: "AIzaSyDupqh8inn1tZ1p-KIzV3RIMst7IdpUYPw",
-      authDomain: "mathimaticore.firebaseapp.com",
-      messagingSenderId: "589828360805",
-      measurementId: "G-3GR3S7J9M1"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const provider = new GoogleAuthProvider();
-
-    // Expose for the executeMockSSO function
-    window.auth = auth;
-    window.provider = provider;
-    window.signInWithPopup = signInWithPopup;
   </script>
 </body>
 </html>
