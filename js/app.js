@@ -1394,15 +1394,6 @@ const App = (() => {
     if (e.key === 'z' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); handleUndo(); }
   }
 
-  /* ── Task trace data helper (for dev skip logging) ── */
-  function getTaskTraceData() {
-    return {
-      hesitationEvents: SilentRadar.getHesitationCount?.() ?? 0,
-      undoClicks: SessionManager.state?.undoCount ?? 0,
-      timestamp: Date.now()
-    };
-  }
-
   /* ── Dev Skip ── */
   function devSkipTask() {
     if (typeof Swal !== 'undefined') Swal.close();
