@@ -768,6 +768,7 @@ const App = (() => {
     }
 
     if (target !== null && value !== target) {
+      if (typeof StudentLogger !== 'undefined') StudentLogger.logEvent('task_incorrect', { detail: 'wrong_sum' });
       showFeedback(false, 'הסכום לא מתאים למספר. נסו שוב!', '');
       return;
     }
@@ -819,6 +820,7 @@ const App = (() => {
       StudentLogger.logEvent('task_completed_callback', {
         taskId, correct, detail, phase: QMatrix.getCurrentPhase()
       });
+      StudentLogger.logEvent(correct ? 'task_correct' : 'task_incorrect', { taskId, detail });
     }
 
     if (detail === 'primary_done') {
@@ -931,10 +933,16 @@ const App = (() => {
 
   /** Build trace data for Q-Matrix recording (per Technical Annex §2). */
   function getTaskTraceData() {
+    let hesitations = 0;
+    try {
+      const radarAlerts = JSON.parse(localStorage.getItem('mathematicor_radar_alerts') || '[]');
+      const username = SessionManager.state.username;
+      hesitations = radarAlerts.filter(a => a.student === username && a.type === 'HESITATION').length;
+    } catch(e) {}
+    
     return {
-      hesitation_events: (typeof SilentRadar !== 'undefined' && SilentRadar.getHesitationCount)
-        ? SilentRadar.getHesitationCount() : 0,
-      undo_clicks: SessionManager.getUndoCount ? SessionManager.getUndoCount() : 0
+      hesitation_events: hesitations,
+      undo_clicks: SessionManager.state.persistence.undoCount || 0
     };
   }
 
@@ -992,11 +1000,13 @@ const App = (() => {
         return;
       }
       if (selectedChoiceId !== task.correctAnswer) {
+        if (typeof StudentLogger !== 'undefined') StudentLogger.logEvent('task_incorrect', { detail: 'wrong_choice' });
         showFeedback(false, 'בואו נחשוב שוב 🤔', 'האם הוספנו או גרענו קוביות כלשהן מבית המספרים?');
         setTimeout(hideFeedback, 2800);
         return;
       }
       // Correct! Show feedback and advance
+      if (typeof StudentLogger !== 'undefined') StudentLogger.logEvent('task_correct', { taskId: task.id });
       showFeedback(true, 'נכון מאוד! 🌟', 'הערך נשאר זהה לחלוטין (100) כי לא שינינו את הכמות הכוללת.');
       awaitingNextTask = true;
       setTimeout(() => {
@@ -1017,6 +1027,7 @@ const App = (() => {
 
       // 1. Force manipulative representation
       if (value !== task.correctAnswer) {
+        if (typeof StudentLogger !== 'undefined') StudentLogger.logEvent('task_incorrect', { detail: 'wrong_blocks' });
         showFeedback(false, 'בואו נייצג את התרגיל בבית המספרים! 🧊', `הניחו קוביות בטורים כך שסכומן הכולל יהיה בדיוק ${task.correctAnswer}.`);
         setTimeout(hideFeedback, 2800);
         return;
@@ -1024,6 +1035,7 @@ const App = (() => {
 
       // 2. Validate numeric input
       if (ansVal !== task.correctAnswer) {
+        if (typeof StudentLogger !== 'undefined') StudentLogger.logEvent('task_incorrect', { detail: 'wrong_numeric' });
         showFeedback(false, 'בדקו את התשובה הכתובה שלכם ✏️', `הקלידו את התוצאה הנכונה בתיבת התשובה.`);
         setTimeout(hideFeedback, 2500);
         return;
@@ -1031,6 +1043,7 @@ const App = (() => {
     } else if (task && task.type === 'place_value_zero') {
       if (!selectedChoiceId) return;
       if (selectedChoiceId !== task.correctAnswer) {
+        if (typeof StudentLogger !== 'undefined') StudentLogger.logEvent('task_incorrect', { detail: 'wrong_choice' });
         showFeedback(false, 'תשובה שגויה 🤔', 'נסו לבדוק שוב את בחירתכם.');
         setTimeout(hideFeedback, 2500);
         return;
@@ -1039,6 +1052,7 @@ const App = (() => {
       if (numberLineValue === null) return;
       const target = task.number;
       if (Math.abs(numberLineValue - target) > 5) {
+        if (typeof StudentLogger !== 'undefined') StudentLogger.logEvent('task_incorrect', { detail: 'wrong_number_line' });
         showFeedback(false, 'לא מדויק 🤔', 'נסו למקם את החץ קרוב יותר לערך הנכון.');
         setTimeout(hideFeedback, 2500);
         return;
@@ -1050,6 +1064,8 @@ const App = (() => {
         return;
       }
     }
+
+    if (typeof StudentLogger !== 'undefined') StudentLogger.logEvent('task_correct', { taskId: task.id });
 
     currentTaskIdx++;
     if (currentTaskIdx >= currentSessionTasks.length) {

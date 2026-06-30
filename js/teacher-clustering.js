@@ -78,25 +78,29 @@ const TeacherClustering = (() => {
 
     /* Priority logic for clustering based on the lowest foundational gap */
     qMatrixResults.forEach(res => {
+      const qm = res.qMatrixResults || {};
       const student = { 
-        username: res.student, 
-        name: res.studentName || res.student, 
-        task1: res.task1_zero_placeholder, 
-        task2: res.task2_estimation_error_margin, 
-        task3: res.task3_flexible_regrouping, 
-        task4: res.task4_basic_addition_fluency, 
-        q5: res.q5_small_change 
+        username: res.studentId, 
+        name: res.studentName || res.studentId, 
+        task1: qm.task1_zero_placeholder, 
+        task2: qm.task2_estimation_error_margin, 
+        task3: qm.task3_flexible_regrouping, 
+        task4: qm.task4_basic_addition_fluency, 
+        q5: qm.q5_small_change,
+        traceData: res.traceData || { hesitation_events: 0, undo_clicks: 0 }
       };
       
-      if (res.task1_zero_placeholder === false) {
+      // Foundational gap checking in order: task1 -> task3 -> task4 -> task2 -> q5
+      if (qm.task1_zero_placeholder === false) {
         clustersMap.zero_placeholder.push(student);
-      } else if (res.task3_flexible_regrouping === false) {
+      } else if (qm.task3_flexible_regrouping === false) {
         clustersMap.flexibility.push(student);
-      } else if (res.task4_basic_addition_fluency === false) {
+      } else if (qm.task4_basic_addition_fluency === false) {
         clustersMap.basic_facts.push(student);
-      } else if (res.task2_estimation_error_margin === false) {
+      } else if (qm.task2_estimation_error_margin !== undefined && qm.task2_estimation_error_margin > 0.07) { 
+        // 0.07 (7%) is the errorMarginPct defined in qmatrix.js
         clustersMap.number_line.push(student);
-      } else if (res.q5_small_change === false) {
+      } else if (qm.q5_small_change === false) {
         clustersMap.estimation.push(student);
       } else {
         clustersMap.proficient.push(student);
