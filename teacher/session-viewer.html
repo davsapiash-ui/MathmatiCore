@@ -438,12 +438,20 @@
       let hesitationCount = 0;
       let errorsCount = 0;
 
+      // Socratic Hints count
+      let hintCount = 0;
+      let lastHintType = '';
+
       logs.forEach(l => {
         const offset = Math.max(0, new Date(l.timestamp).getTime() - firstEventTime);
         const timeBtn = `<button onclick="seekReplayer(${offset})" style="background:#1e293b; color:#38bdf8; border:1px solid #38bdf8; border-radius:4px; padding:2px 6px; font-size:10px; cursor:pointer; margin-right:6px;">▶ קפוץ לוידאו</button>`;
 
         if (l.event === 'undo') undoCount++;
         if (l.event === 'task_incorrect') errorsCount++;
+        if (l.event === 'hint_choice_selected') {
+          hintCount++;
+          lastHintType = l.detail.choiceType || '';
+        }
 
         // Passive Drifting
         if (l.event === 'block_remove' || l.event === 'undo') {
@@ -486,7 +494,7 @@
           lastTaskIncorrect = l;
         }
 
-        if (l.event === 'hint_requested' && lastTaskIncorrect && (l.timestamp - lastTaskIncorrect.timestamp < 30000)) {
+        if (l.event === 'hint_requested' && lastTaskIncorrect && (new Date(l.timestamp) - new Date(lastTaskIncorrect.timestamp) < 30000)) {
            insightsHTML += `
             <div style="background:#334155; padding:12px; border-radius:8px; border-right:4px solid #ef4444; margin-bottom:12px;">
               <div style="font-size:13px; font-weight:800; color:#ef4444;">🚨 קושי תפיסתי מהותי ${timeBtn}</div>
@@ -501,13 +509,39 @@
         insightsHTML = '<div style="font-size:13px; color:#94a3b8; text-align:center;">לא זוהו דפוסים פדגוגיים חריגים בהקלטה זו.</div>';
       }
 
+      /* Generate Written AI Summary */
+      let aiSummaryText = "התלמיד השלים את המשימות בהצלחה וללא קשיים חריגים. ניכרת הבנה טובה של החומר.";
+      if (hesitationCount > 2 && errorsCount > 2) {
+        aiSummaryText = "התלמיד חווה מאבק קוגניטיבי משמעותי, שהתבטא במספר היסוסים ושגיאות רצופות. ";
+        if (hintCount > 0) {
+          aiSummaryText += "ניכר ניסיון להיעזר בכלים הסוקרטיים, מה שמעיד על מודעות למצב הלמידה, אך ייתכן שיש פער בהבנת המרות בסיסיות הדורש התערבות מורה לחשיבה משותפת.";
+        } else {
+          aiSummaryText += "התלמיד נמנע מלבקש עזרה למרות הקושי, מה שעשוי להעיד על תסכול שקט (שיוט פסיבי). מומלץ לגשת לתלמיד, לעצור את המשימה ולבקש ממנו לתאר את הבעיה במילותיו.";
+        }
+      } else if (hesitationCount > 0 && errorsCount === 0) {
+        aiSummaryText = "התלמיד חווה רגעי היסוס קלים אך פתר את המשימות נכונה (מאבק פורה). זוהי אינדיקציה למסוגלות עצמית גבוהה - אין צורך בהתערבות מיידית.";
+      } else if (hintCount > 2) {
+        aiSummaryText = "התלמיד מרבה להשתמש ברמזים (" + lastHintType + "). ייתכן שמדובר בתלות בעזרה חיצונים (Hint Driven Behavior). כדאי לאתגר אותו לנסות פתרון עצמאי תחילה.";
+      }
+
       container.innerHTML = `
+        <div style="background: linear-gradient(135deg, #1e1b4b, #312e81); padding:16px; border-radius:12px; border: 1px solid #4338ca; margin-bottom:16px; box-shadow: 0 4px 15px rgba(67, 56, 202, 0.3);">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+            <div style="background: #4f46e5; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px;">🤖</div>
+            <div style="font-size:14px; color:#e0e7ff; font-weight:800; font-family: 'Outfit', sans-serif;">אבחון פדגוגי מסכם (AI)</div>
+          </div>
+          <p style="font-size:13px; color:#c7d2fe; line-height:1.6; margin:0;">
+            ${aiSummaryText}
+          </p>
+        </div>
+
         <div style="background:#1e293b; padding:12px; border-radius:8px; border-bottom:2px solid #334155; margin-bottom:16px;">
-          <div style="font-size:12px; color:#94a3b8; font-weight:700;">סיכום יבש:</div>
+          <div style="font-size:12px; color:#94a3b8; font-weight:700;">נתוני עקבות דיגיטליים (Trace Data):</div>
           <div style="display:flex; gap:12px; margin-top:6px; font-size:11px;">
             <div style="background:#0f172a; padding:4px 8px; border-radius:4px;">🔄 בטלים: <strong style="color:#f1f5f9;">${undoCount}</strong></div>
             <div style="background:#0f172a; padding:4px 8px; border-radius:4px;">⏸️ היסוסים: <strong style="color:#f1f5f9;">${hesitationCount}</strong></div>
             <div style="background:#0f172a; padding:4px 8px; border-radius:4px;">❌ שגיאות: <strong style="color:#ef4444;">${errorsCount}</strong></div>
+            <div style="background:#0f172a; padding:4px 8px; border-radius:4px;">💡 רמזים: <strong style="color:#10b981;">${hintCount}</strong></div>
           </div>
         </div>
         ${insightsHTML}

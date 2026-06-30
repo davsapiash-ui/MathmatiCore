@@ -896,30 +896,35 @@
         return;
       }
 
-      const firstTime = (events && events.length > 0) ? events[0].timestamp : logs[0].timestamp;
+      const firstEventTime = (events && events.length > 0) ? events[0].timestamp : logs[0].timestamp;
       let insightsHTML = '';
       
-      // Narrative tracking variables
       let recentRemoves = [];
       let recentHesitations = [];
       let lastTaskIncorrect = null;
+      let undoCount = 0;
+      let errorsCount = 0;
+      let hesitationCount = 0;
+      let hintCount = 0;
+      let lastHintType = '';
 
       logs.forEach(l => {
-        const offset = Math.max(0, new Date(l.timestamp).getTime() - firstTime);
-        const timeBtn = events && events.length > 0 
-          ? `<button onclick="seekReplayer(${offset})" style="background:var(--color-primary); color:white; border:none; border-radius:4px; padding:2px 6px; font-size:10px; cursor:pointer; margin-right:6px;">▶ קפוץ לוידאו</button>` 
-          : '';
+        const offset = Math.max(0, new Date(l.timestamp).getTime() - firstEventTime);
+        const timeBtn = `<button onclick="seekReplayer(${offset})" style="background:#1e293b; color:#38bdf8; border:1px solid #38bdf8; border-radius:4px; padding:2px 6px; font-size:10px; cursor:pointer; margin-right:6px;">▶ קפוץ לוידאו</button>`;
 
-        // Check for Passive Drifting (rapid deletes)
+        if (l.event === 'undo') undoCount++;
+        if (l.event === 'task_incorrect') errorsCount++;
+        if (l.event === 'hint_choice_selected') {
+          hintCount++;
+          lastHintType = l.detail.choiceType || '';
+        }
+
         if (l.event === 'block_remove' || l.event === 'undo') {
           recentRemoves.push(l.timestamp);
           if (recentRemoves.length >= 4) {
             const timeDiff = recentRemoves[recentRemoves.length - 1] - recentRemoves[0];
-            if (timeDiff < 15000) { // 4 deletes in 15 seconds
+            if (timeDiff < 15000) {
               insightsHTML += `
-                <div style="background:var(--color-surface-2); padding:8px; border-radius:6px; border-right:3px solid var(--color-warning); margin-bottom:8px;">
-                  <div style="font-size:12px; font-weight:800; color:var(--color-warning);">⚠️ שיוט פסיבי (Passive Drifting) ${timeBtn}</div>
-                  <div style="font-size:11px; color:var(--color-text-secondary); margin-top:4px;">התלמיד ביצע פעולות מחיקה / ביטול מהירות ברצף. נראה שהוא פועל מתוך תסכול ולא מתוך אסטרטגיה סדורה. מומלץ לעצור אותו ולשאול: "מה אנחנו מנסים לפתור עכשיו?"</div>
                 </div>
               `;
               recentRemoves = []; // reset
