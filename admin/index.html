@@ -179,8 +179,17 @@
             </button>
             <button class="admin-btn" onclick="toggleTeacherCreds('creds-moreh2')" title="הצג פרטי כניסה">🔑</button>
           </div>
-          <div id="creds-moreh2" style="display:none;background:var(--color-surface-2);border-radius:8px;padding:10px;font-size:13px;">
-            <span class="cred-badge">moreh2</span> / <span class="cred-badge">levana123</span>
+          <div style="display:flex;gap:8px;margin-top:4px;">
+            <button class="admin-btn" style="flex:1; background: var(--color-surface-2); color: var(--color-text);" onclick="enterAsStudent('pilot')" >
+              👁️ כנס כתלמיד פיילוט (קריאה בלבד)
+            </button>
+            <button class="admin-btn" onclick="toggleTeacherCreds('creds-pilot')" title="הצג פרטי כניסה תלמיד">🔑</button>
+          </div>
+          <div id="creds-moreh2" style="display:none;background:var(--color-surface-2);border-radius:8px;padding:10px;font-size:13px; margin-top:4px;">
+            מורה: <span class="cred-badge">moreh2</span> / <span class="cred-badge">levana123</span>
+          </div>
+          <div id="creds-pilot" style="display:none;background:var(--color-surface-2);border-radius:8px;padding:10px;font-size:13px; margin-top:4px;">
+            תלמיד: <span class="cred-badge">pilot</span> / <span class="cred-badge">10203040</span>
           </div>
         </div>
 
@@ -253,6 +262,27 @@
 
       /* ניגוד לדשבורד המורה באותו חלון */
       window.location.href = '../teacher/dashboard.html';
+    }
+
+    const STUDENT_DATA = {
+      'pilot': { name: 'פיילוט תלמיד', school: 'הטכנופדגוגייים האמיצים' }
+    };
+
+    function enterAsStudent(username) {
+      const student = STUDENT_DATA[username];
+      if (!student) return;
+
+      sessionStorage.setItem('mathematicor_admin_student_impersonation', JSON.stringify({
+        active: true,
+        name: student.name,
+        username: username,
+        session: 1,
+        classMode: 'regular',
+        school: student.school,
+        returnUrl: window.location.href
+      }));
+
+      window.location.href = '../student/workspace.html';
     }
 
     function toggleTeacherCreds(id) {

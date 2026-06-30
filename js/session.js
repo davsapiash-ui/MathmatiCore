@@ -15,8 +15,15 @@
 const SessionManager = (() => {
 
   /* ── Load from sessionStorage (set on login) ── */
+  let isImpersonating = false;
+
   function loadStudentData() {
     try {
+      const adminRaw = sessionStorage.getItem('mathematicor_admin_student_impersonation');
+      if (adminRaw) {
+        isImpersonating = true;
+        return JSON.parse(adminRaw);
+      }
       const raw = sessionStorage.getItem('mathematicor_student');
       return raw ? JSON.parse(raw) : null;
     } catch {
@@ -162,6 +169,7 @@ const SessionManager = (() => {
 
   /* ── Storage Persistence (between pages) ── */
   function saveToStorage() {
+    if (isImpersonating) return; /* Prevent altering real student data while admin is viewing */
     try {
       sessionStorage.setItem('mathematicor_state', JSON.stringify({
         taskIndex:      state.taskIndex,
@@ -209,7 +217,8 @@ const SessionManager = (() => {
     computePersistenceIndex,
     isASDMode,
     saveToStorage,
-    requireStudentSession
+    requireStudentSession,
+    isImpersonating: () => isImpersonating
   };
 
 })();
