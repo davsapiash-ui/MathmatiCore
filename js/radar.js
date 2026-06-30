@@ -17,7 +17,7 @@
 const SilentRadar = (() => {
 
   /* Configuration constants */
-  const HESITATION_THRESHOLD_MS = 15000;   /* 15 seconds of inactivity = cognitive hesitation (per pedagogical spec) */
+  const HESITATION_THRESHOLD_MS = 30000;   /* 30 seconds of inactivity = cognitive hesitation (per pedagogical spec) */
   const RADAR_STORAGE_KEY       = 'mathematicor_radar_alerts';
   const MAX_STORED_ALERTS       = 50;
 
