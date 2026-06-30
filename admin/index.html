@@ -313,6 +313,13 @@
 
   <script>
     /* global localStorage, sessionStorage */
+    
+    // Auth Check: Prevent direct access without the email check
+    if (sessionStorage.getItem('mathematicor_admin_auth') !== 'true') {
+      alert("שגיאת הרשאות: אין לך גישה לממשק מנהל המערכת. אנא התחבר דרך המסך הראשי.");
+      window.location.href = '../index.html';
+    }
+
     // Sidebar Tabs
     document.querySelectorAll('.sidebar-nav-item[data-target]').forEach(btn => {
       btn.addEventListener('click', () => {

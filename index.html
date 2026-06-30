@@ -130,6 +130,20 @@
 
     /* Mock SSO Execution based on Role Routing (No passwords needed) */
     function executeMockSSO() {
+      // Admin specific check before visual loading
+      if (selectedRole === 'admin') {
+        const email = prompt("אימות נדרש: אנא הזן כתובת דוא״ל של מנהל מערכת:");
+        // ניתן לשנות את המייל כאן למייל המבוקש
+        const AUTHORIZED_ADMIN_EMAIL = "admin@mathematicore.com"; 
+        
+        if (email !== AUTHORIZED_ADMIN_EMAIL) {
+          alert("גישה נדחתה: כתובת הדוא״ל אינה מורשית להתחבר כמנהל מערכת.");
+          return;
+        }
+        // אם המייל תקין, נשמור טוקן מדומה
+        sessionStorage.setItem('mathematicor_admin_auth', 'true');
+      }
+
       const btn = document.getElementById('sso-login-btn');
       btn.textContent = 'מתחבר בצורה שקופה...';
       btn.style.opacity = '0.7';
@@ -151,6 +165,10 @@
         } else if (selectedRole === 'admin') {
           window.location.href = 'admin/index.html';
         }
+        
+        // Reset button state in case they navigate back
+        btn.textContent = 'התחברות מהירה (Mock SSO)';
+        btn.style.opacity = '1';
       }, 600);
     }
 
