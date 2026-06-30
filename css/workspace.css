@@ -795,21 +795,21 @@ input[type=number] {
   position: absolute;
   top: 50%;
   transform: translate(-50%, -50%);
-  width: 28px;
+  width: 12px;
   height: 28px;
   background: var(--color-primary);
-  border: 3px solid #fff;
-  border-radius: 50% 50% 50% 0;
-  rotate: -45deg;
-  box-shadow: 0 3px 12px rgba(91,79,255,0.5);
+  border: 2px solid #fff;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(91,79,255,0.5);
   cursor: grab;
   z-index: 10;
-  transition: box-shadow var(--transition-fast);
+  transition: box-shadow var(--transition-fast), background var(--transition-fast);
   left: 0%;
 }
 
 .number-line-marker:hover {
-  box-shadow: 0 5px 18px rgba(91,79,255,0.65);
+  box-shadow: 0 4px 12px rgba(91,79,255,0.65);
+  background: var(--color-primary-dark);
 }
 
 .number-line-marker:active { cursor: grabbing; }
