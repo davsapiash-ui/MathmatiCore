@@ -298,6 +298,10 @@ const ManipulativeRenderer = (() => {
       el.style.opacity = '';
     });
 
+    if (typeof DragController !== 'undefined' && DragController.bindTouchEvents) {
+      DragController.bindTouchEvents(el);
+    }
+
     return el;
   }
 
@@ -544,7 +548,7 @@ const DragController = (() => {
 
       zone.addEventListener('dragover', (e) => {
         e.preventDefault();
-        e.dataTransfer.dropEffect = 'copy';
+        e.dataTransfer.dropEffect = (draggedSource === 'column') ? 'move' : 'copy';
         zone.classList.add('drag-over');
       });
 
@@ -619,10 +623,11 @@ const DragController = (() => {
       handleBlockRemove(touchPlace);
     } else if (zone) {
       const targetPlace = zone.closest('[data-place]').getAttribute('data-place');
-      // Defaulting touch drag to palette source for now
-      handleDrop(touchPlace, targetPlace, 'palette');
+      const source = touchDragEl.classList.contains('in-palette') ? 'palette' : 'column';
+      handleDrop(touchPlace, targetPlace, source);
     }
     touchPlace = null;
+    touchDragEl = null;
   }
 
   /**
@@ -779,6 +784,10 @@ const DragController = (() => {
     init, 
     refresh, 
     handleBlockRemove,
-    setDraggedInfo: (place, source) => { draggedPlace = place; draggedSource = source; }
+    setDraggedInfo: (place, source) => { draggedPlace = place; draggedSource = source; },
+    bindTouchEvents: (el) => {
+      el.addEventListener('touchstart', handleTouchStart, { passive: true });
+      el.addEventListener('touchend',   handleTouchEnd,   { passive: false });
+    }
   };
 })();

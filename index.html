@@ -135,10 +135,12 @@
     function executeMockSSO() {
       if (selectedRole === 'student') {
         const username = prompt("אנא הזן שם משתמש (לדוגמה: user1):");
+        if (!username) return;
         const password = prompt("אנא הזן קוד סודי:");
+        if (!password) return;
         
-        if (DEMO_USERS[username] && DEMO_USERS[username].password === password) {
-          const user = DEMO_USERS[username];
+        const user = DEMO_USERS[username];
+        if (user && user.password === password) {
           sessionStorage.setItem('mathematicor_student', JSON.stringify({
             name:       user.name,
             username:   username,
