@@ -158,13 +158,16 @@ const StudentLogger = (() => {
 })();
 
 /* Auto-initialize on student space when DOM is ready */
-if (typeof window !== 'undefined' && window.location.pathname.includes('/student/')) {
+if (typeof window !== 'undefined') {
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-      /* Wait briefly for other modules to load */
-      setTimeout(StudentLogger.init, 100);
+      if (document.body.classList.contains('workspace-page')) {
+        setTimeout(StudentLogger.init, 100);
+      }
     });
   } else {
-    setTimeout(StudentLogger.init, 100);
+    if (document.body.classList.contains('workspace-page')) {
+      setTimeout(StudentLogger.init, 100);
+    }
   }
 }

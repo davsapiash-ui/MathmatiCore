@@ -7,9 +7,11 @@
 /* ── Page Base ── */
 body.dashboard-page {
   background: #F0F4F8;
-  min-height: 100vh;
+  height: 100vh;
+  margin: 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   font-family: var(--font-family);
   direction: rtl;
 }
@@ -177,6 +179,11 @@ body.dashboard-page {
   max-width: 1280px;
   width: 100%;
   margin: 0 auto;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.teacher-content::-webkit-scrollbar {
+  display: none;
 }
 
 .tab-panel {

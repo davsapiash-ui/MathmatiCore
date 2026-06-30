@@ -1239,7 +1239,7 @@ const App = (() => {
           <p style="font-size:1.2rem; font-weight:bold; color:var(--color-primary-dark);">נסו לבדוק את עצמכם רגע:</p>
           <ul style="text-align:right; font-size:1.1rem; color:var(--color-text); line-height: 1.8;">
             <li>האם המספר שבנינו בקוביות מתאים למספרים שבתרגיל?</li>
-            <li>האם יש לנו טור אחד שיש בו יותר מ-9 קוביות? אם כן, זכרו שאפשר להעביר דירה! (להמיר)</li>
+            <li>האם יש לנו טור אחד שיש בו יותר מ-9 קוביות? אם כן, זכרו שאפשר לבצע המרה לטור הבא!</li>
           </ul>
         </div>`;
     } else if (type === 'socratic') {
@@ -1282,11 +1282,11 @@ const App = (() => {
     const hints = {
       q1: 'מה קורה כשטור ריק — כמה יחידות יש שם?',
       q2: 'היכן בערך נמצא האמצע של הישר?',
-      q3: 'האם אפשר להמיר מאה לעשרות?',
+      q3: 'האם אפשר לפרוט מאה לעשרות?',
       q4: 'מה הספרה בטור היחידות בכל מספר?',
       q5: 'אם מחסירים 1 מ-10, מה קורה לתוצאה?'
     };
-    return hints[taskId] ?? 'תחשוב בקול — מה אתה יודע על המספר הזה?';
+    return hints[taskId] ?? 'בואו נחשוב יחד — מה אנחנו יודעים על המספר הזה?';
   }
 
   /* ── Feedback Overlay (Ultra Premium with SweetAlert2 & Confetti) ── */
