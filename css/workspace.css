@@ -749,9 +749,22 @@ input[type=number] {
 
 .tick-mark {
   width: 2px;
-  height: 14px;
+  height: 8px;
   background: var(--color-text-muted);
   border-radius: 1px;
+}
+
+.tick-mark.minor {
+  height: 6px;
+  width: 1px;
+  opacity: 0.6;
+}
+
+.tick-mark.medium {
+  height: 12px;
+  width: 2px;
+  background: var(--color-text-secondary);
+  opacity: 0.8;
 }
 
 .tick-mark.major {

@@ -651,39 +651,78 @@ const App = (() => {
     const [min, max] = range;
 
     /* Add tick marks */
-    const step = (max - min) / 10;
-    for (let i = 0; i <= 10; i++) {
-      const val   = min + step * i;
-      const pct   = (i / 10) * 100;
+    const rangeSize = max - min;
+    let minorStep, mediumStep, majorStep;
+
+    if (rangeSize === 1000) {
+      majorStep = 100;
+      mediumStep = 50;
+      minorStep = 10;
+    } else if (rangeSize === 100) {
+      majorStep = 10;
+      mediumStep = 5;
+      minorStep = 1;
+    } else {
+      majorStep = rangeSize / 10;
+      mediumStep = majorStep / 2;
+      minorStep = majorStep / 10;
+    }
+
+    for (let val = min; val <= max; val += minorStep) {
+      const pct   = ((val - min) / rangeSize) * 100;
       const tick  = document.createElement('div');
       tick.className = `number-line-tick`;
       tick.style.left = `${pct}%`;
+      
       const mark = document.createElement('div');
-      mark.className = `tick-mark major`;
+      let isMajor = (val % majorStep === 0);
+      let isMedium = (!isMajor && val % mediumStep === 0);
 
-      /* ASD: glowing anchor at every anchor point */
-      const asdConfigNL = safeJSONParse(localStorage.getItem('mathematicor_asd_config'), {anchors:true});
-      if ((SessionManager.isASDMode() || asdConfigNL.anchors) && task.backwardDiagnosis?.asdAnchors?.includes(val)) {
-        mark.classList.add('asd-anchor');
+      if (isMajor) {
+        mark.className = `tick-mark major`;
+        
+        /* ASD: glowing anchor at every anchor point */
+        const asdConfigNL = safeJSONParse(localStorage.getItem('mathematicor_asd_config'), {anchors:true});
+        if ((SessionManager.isASDMode() || asdConfigNL.anchors) && task.backwardDiagnosis?.asdAnchors?.includes(val)) {
+          mark.classList.add('asd-anchor');
+        }
+
+        const label = document.createElement('span');
+        label.className = 'tick-label';
+        label.textContent = val;
+        tick.appendChild(label);
+      } else if (isMedium) {
+        mark.className = `tick-mark medium`;
+      } else {
+        mark.className = `tick-mark minor`;
       }
 
-      const label = document.createElement('span');
-      label.className = 'tick-label';
-      label.textContent = val;
-
-      tick.appendChild(mark);
-      tick.appendChild(label);
+      tick.prepend(mark);
       track.appendChild(tick);
+    }
+
+    /* Hide display in Session 2 (Estimation) */
+    if (activeSession === 2) {
+      display.style.visibility = 'hidden';
+    } else {
+      display.style.visibility = 'visible';
     }
 
     /* Drag logic */
     function updateMarkerFromX(clientX) {
       const rect = track.getBoundingClientRect();
       const pct  = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-      numberLineValue = Math.round(min + pct * (max - min));
-      marker.style.left = `${pct * 100}%`;
-      fill.style.width   = `${pct * 100}%`;
-      display.textContent = numberLineValue;
+      // Snap to nearest minor step
+      const rawValue = min + pct * rangeSize;
+      numberLineValue = Math.round(rawValue / minorStep) * minorStep;
+      
+      const snappedPct = (numberLineValue - min) / rangeSize;
+      marker.style.left = `${snappedPct * 100}%`;
+      fill.style.width   = `${snappedPct * 100}%`;
+      
+      if (activeSession !== 2) {
+        display.textContent = numberLineValue;
+      }
       marker.setAttribute('aria-valuenow', numberLineValue);
       hasInteracted = true;
       SilentRadar.recordStudentAction();
