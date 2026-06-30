@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
   <meta charset="UTF-8">
@@ -68,6 +68,25 @@
 
   <!-- ── Admin Impersonation: Silent Audit Log (no visible UI) ── -->
   <script>
+    function getStudentLogs(username) {
+      if (window._firebaseStudentCache && window._firebaseStudentCache[username] && window._firebaseStudentCache[username].logs) {
+         let fbLogs = window._firebaseStudentCache[username].logs;
+         fbLogs = Array.isArray(fbLogs) ? fbLogs : Object.values(fbLogs);
+         fbLogs.sort((a,b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+         return fbLogs;
+      }
+      return JSON.parse(localStorage.getItem('mathematicor_student_logs_' + username) || '[]');
+    }
+
+    function getStudentReplay(username) {
+      if (window._firebaseStudentCache && window._firebaseStudentCache[username] && window._firebaseStudentCache[username].replay) {
+         let evts = window._firebaseStudentCache[username].replay;
+         evts = Array.isArray(evts) ? evts : Object.values(evts);
+         evts.sort((a,b) => (a.timestamp || 0) - (b.timestamp || 0));
+         return evts;
+      }
+      return JSON.parse(localStorage.getItem('mathematicor_student_replay_' + username) || '[]');
+    }
     /* Admin impersonation detection — SILENT.
        No visible banner, no teacher notification.
        The only record is a tamper-evident audit log in localStorage.
@@ -191,7 +210,7 @@
             פאנל המלצות משוב (Process Feedback)
             <button onclick="showPanelInfo('feedback')" style="background:none; border:none; cursor:pointer; font-size:1.2rem; color:var(--color-primary);" title="מידע פדגוגי על לוח זה">ℹ️</button>
           </h1>
-          <p class="panel-subtitle">משוב מכוון אסטרטגיה המעודד ויסות עצמי.</p>
+          <p class="panel-subtitle">מפגש 1, כיתת פיילוט (הטכנופדגוגיים האמיצים)</p>
         </div>
       </div>
       <div class="admin-card" style="display:grid; grid-template-columns: 1fr 1fr; gap:var(--space-6);">
@@ -398,6 +417,25 @@
   <script src="../js/teacher-clustering.js"></script>
   <script src="../js/teacher-override.js"></script>
   <script>
+    function getStudentLogs(username) {
+      if (window._firebaseStudentCache && window._firebaseStudentCache[username] && window._firebaseStudentCache[username].logs) {
+         let fbLogs = window._firebaseStudentCache[username].logs;
+         fbLogs = Array.isArray(fbLogs) ? fbLogs : Object.values(fbLogs);
+         fbLogs.sort((a,b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+         return fbLogs;
+      }
+      return JSON.parse(localStorage.getItem('mathematicor_student_logs_' + username) || '[]');
+    }
+
+    function getStudentReplay(username) {
+      if (window._firebaseStudentCache && window._firebaseStudentCache[username] && window._firebaseStudentCache[username].replay) {
+         let evts = window._firebaseStudentCache[username].replay;
+         evts = Array.isArray(evts) ? evts : Object.values(evts);
+         evts.sort((a,b) => (a.timestamp || 0) - (b.timestamp || 0));
+         return evts;
+      }
+      return JSON.parse(localStorage.getItem('mathematicor_student_replay_' + username) || '[]');
+    }
     /* global TeacherRadarReader, TeacherClustering, TeacherOverride, renderSmartTree, toggleTreeView, renderLiveGrid, renderRadar, renderClusters, openReplayDrawer, closeReplayDrawer, togglePlayReplay, changeReplaySpeed, expandReplayToNewWindow, seekReplayer, generateDrawerChapters, analyzeDrawerPedagogicalLogs, localStorage, sessionStorage, bootstrap, Chart */
     /* ── Dashboard App Logic ── */
 
@@ -638,10 +676,10 @@
 
       // Fallback ל-localStorage אם Firebase לא החזיר נתונים
       if (logs.length === 0) {
-        logs = JSON.parse(localStorage.getItem(`mathematicor_student_logs_${username}`) || '[]');
+        logs = getStudentLogs(username);
       }
       if (events.length === 0) {
-        events = JSON.parse(localStorage.getItem(`mathematicor_student_replay_${username}`) || '[]');
+        events = getStudentReplay(username);
       }
 
       renderReplayTimeline(logs, events);
@@ -1054,8 +1092,8 @@
                 <summary style="font-weight:800; cursor:pointer; color:var(--color-text);">🏫 כיתת פיילוט (הטכנופדגוגייים האמיצים)</summary>
                 <div style="margin-right:20px; margin-top:10px; display:flex; flex-direction:column; gap:8px;">
                   ${students.filter(s => s.class === 'כיתת פיילוט').map(s => {
-                    const logs = JSON.parse(localStorage.getItem(`mathematicor_student_logs_${s.username}`) || '[]');
-                    const replay = JSON.parse(localStorage.getItem(`mathematicor_student_replay_${s.username}`) || '[]');
+                    const logs = getStudentLogs(s.username);
+                    const replay = getStudentReplay(s.username);
                     const hasReplay = replay.length > 0;
                     return `
                       <div style="padding:10px; background:var(--color-surface-2); border-radius:6px; display:flex; justify-content:space-between; align-items:center;">
@@ -1071,27 +1109,6 @@
                 </div>
               </details>
 
-              <!-- Class 2 -->
-              <details style="background:white; border:1px solid var(--color-border); padding:10px; border-radius:8px;">
-                <summary style="font-weight:800; cursor:pointer; color:var(--color-text);">🧩 כיתה ג׳ 2 - שילוב מיוחד (ASD)</summary>
-                <div style="margin-right:20px; margin-top:10px; display:flex; flex-direction:column; gap:8px;">
-                  ${students.filter(s => s.class.includes('ASD')).map(s => {
-                    const logs = JSON.parse(localStorage.getItem(`mathematicor_student_logs_${s.username}`) || '[]');
-                    const replay = JSON.parse(localStorage.getItem(`mathematicor_student_replay_${s.username}`) || '[]');
-                    const hasReplay = replay.length > 0;
-                    return `
-                      <div style="padding:10px; background:var(--color-surface-2); border-radius:6px; display:flex; justify-content:space-between; align-items:center;">
-                        <span style="font-weight:700;">👤 ${s.name}</span>
-                        <div>
-                          ${hasReplay 
-                            ? `<button class="admin-btn admin-btn--primary" style="font-size:11px; padding:4px 10px;" onclick="openReplayDrawer('${s.username}', '${s.name}')">📹 הקלטה פתוחה (${logs.length} פעולות)</button>` 
-                            : `<span style="font-size:11px; color:var(--color-text-muted);">טרם הוקלט פעילות</span>`}
-                        </div>
-                      </div>
-                    `;
-                  }).join('')}
-                </div>
-              </details>
 
             </div>
           </div>
@@ -1101,7 +1118,7 @@
           <div style="display:flex; flex-direction:column; gap:16px;">
             ${tasks.map(t => {
               const attemptedStudents = students.map(s => {
-                const logs = JSON.parse(localStorage.getItem(`mathematicor_student_logs_${s.username}`) || '[]');
+                const logs = getStudentLogs(s.username);
                 const taskLoaded = logs.find(l => l.event === 'task_loaded' && l.taskId === t.id);
                 if (taskLoaded) {
                   return { student: s, timestamp: taskLoaded.timestamp };
@@ -1116,7 +1133,7 @@
                     ${attemptedStudents.length === 0 
                       ? '<span style="font-size:12px; color:var(--color-text-muted); padding:4px; text-align:right;">אין פתרונות מתועדים למשימה זו</span>'
                       : attemptedStudents.map(as => {
-                          const replay = JSON.parse(localStorage.getItem(`mathematicor_student_replay_${as.student.username}`) || '[]');
+                          const replay = getStudentReplay(as.student.username);
                           const firstTime = replay.length > 0 ? replay[0].timestamp : 0;
                           const offset = firstTime ? new Date(as.timestamp).getTime() - firstTime : 0;
 
@@ -1154,6 +1171,13 @@
       window._firebaseStudentCache = {};
       firebase.database().ref('students').on('value', (snap) => {
         window._firebaseStudentCache = snap.val() || {};
+      firebase.database().ref('radar_alerts').on('value', (snap) => {
+        window._firebaseRadarCache = [];
+        snap.forEach(child => { window._firebaseRadarCache.push(child.val()); });
+      });
+      firebase.database().ref('qmatrix_results').on('value', (snap) => {
+        window._firebaseQMatrixCache = snap.val() || [];
+      });
         // עדכון חי של הרשת התלמידים
         const statuses = TeacherRadarReader.getStudentStatuses();
         renderLiveGrid(statuses);
@@ -1197,3 +1221,5 @@
   </script>
 </body>
 </html>
+
+

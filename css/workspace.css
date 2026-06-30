@@ -203,15 +203,6 @@ input[type=number] {
   font-weight: 800;
   color: var(--color-text);
 }
-.vertical-addition input {
-  font-family: inherit;
-  font-size: 2.5rem;
-  font-weight: 900;
-  text-align: center;
-  border: 2px solid var(--color-primary);
-  border-radius: var(--radius-md);
-  box-shadow: 0 4px 10px rgba(91,79,255,0.2);
-}
 
 /* NOTE: .task-title, .task-instruction, .task-number-display defined below after .task-session-label */
 
@@ -1291,3 +1282,13 @@ input[type=number] {
 .socratic-modal.open { display: flex; }
 .socratic-modal-content { background: var(--color-surface); padding: var(--space-6); border-radius: var(--radius-xl); width: 90%; max-width: 500px; text-align: center; }
 .socratic-visual-container { margin-top: var(--space-4); display: flex; gap: var(--space-4); justify-content: center; align-items: center; }
+@media (max-width: 768px) {
+  .v-add-answer-input {
+    width: 45px;
+    height: 60px;
+    font-size: 2rem;
+  }
+  .vertical-addition {
+    padding: var(--space-2);
+  }
+}

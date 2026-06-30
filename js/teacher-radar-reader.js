@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    מתמטיקאור — Teacher Radar Reader (js/teacher-radar-reader.js)
 
    Reads the silent radar buffer written by radar.js and
@@ -285,3 +285,4 @@ const TeacherRadarReader = (() => {
   };
 
 })();
+

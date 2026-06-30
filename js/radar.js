@@ -197,8 +197,8 @@ const SilentRadar = (() => {
 
       // סנכרון התראות רדאר ל-Firebase
       try {
-        if (typeof firebase !== 'undefined' && firebase.database && alerts) {
-          firebase.database().ref('radar_alerts').set(alerts);
+        if (typeof firebase !== 'undefined' && firebase.database) {
+          firebase.database().ref('radar_alerts').push(alert);
         }
       } catch(e) { /* silent */ }
     }, 0);

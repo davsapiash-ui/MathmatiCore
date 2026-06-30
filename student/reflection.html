@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
   <meta charset="UTF-8">
@@ -247,7 +247,12 @@
         const key      = 'mathematicor_reflections';
         const existing = JSON.parse(localStorage.getItem(key) || '[]');
         existing.push(reflection);
-        localStorage.setItem(key, JSON.stringify(existing));
+                localStorage.setItem(key, JSON.stringify(existing));
+        try {
+          if (typeof firebase !== 'undefined' && firebase.database) {
+             firebase.database().ref('reflections').push(reflection);
+          }
+        } catch(e) {}
 
         /* Sync Q-Matrix results to localStorage for teacher dashboard clustering */
         const stateObj = JSON.parse(sessionStorage.getItem('mathematicor_state') || '{}');
@@ -287,7 +292,12 @@
             }
           });
           
-          localStorage.setItem(resultsKey, JSON.stringify(filtered));
+                    localStorage.setItem(resultsKey, JSON.stringify(filtered));
+          try {
+            if (typeof firebase !== 'undefined' && firebase.database) {
+               firebase.database().ref('qmatrix_results').set(filtered);
+            }
+          } catch(e) {}
         }
       } catch (e) {
         console.error(e);
@@ -310,5 +320,10 @@
       }
     }
   </script>
+  <!-- Firebase Realtime Database -->
+  <script src="/__/firebase/10.12.2/firebase-app-compat.js"></script>
+  <script src="/__/firebase/10.12.2/firebase-database-compat.js"></script>
+  <script src="/__/firebase/init.js"></script>
 </body>
 </html>
+
