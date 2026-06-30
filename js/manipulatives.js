@@ -343,7 +343,10 @@ const ManipulativeRenderer = (() => {
           if (onComplete) onComplete();
           const newBlocks = toCol ? Array.from(toCol.querySelectorAll('.math-block')).slice(-groups) : [];
           if (newBlocks.length > 0) {
-            gsap.fromTo(newBlocks, { scale: 0.2, opacity: 0 }, { scale: 1.2, opacity: 1, duration: 0.3, yoyo: true, repeat: 1, ease: "power2.out", stagger: 0.1 });
+            gsap.fromTo(newBlocks, 
+              { scale: 0, opacity: 0 }, 
+              { scale: 1, opacity: 1, duration: 0.5, stagger: 0.1, ease: "back.out(1.7)", clearProps: "all" }
+            );
           }
         }
       });
