@@ -483,10 +483,12 @@
         if(s.status === 'hesitant') hes++;
         if(s.status === 'stuck') stu++;
         if(s.status === 'done') dn++;
+        const realStudent = GLOBAL_STUDENTS.find(g => g.username === s.username);
+        const displayName = realStudent ? realStudent.name : (s.studentName || s.username || 'תלמיד אנונימי');
         return `
           <div class="student-card status-${s.status}">
             <div class="student-card-header">
-              <span class="student-name">${s.studentName}</span>
+              <span class="student-name">${displayName}</span>
               <div class="student-status-dot status-dot--${s.status}" title="${s.status}"></div>
             </div>
             <div class="student-task-progress">

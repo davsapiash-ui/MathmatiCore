@@ -160,7 +160,9 @@ const SilentRadar = (() => {
       id:            `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       type,          /* 'HESITATION' | 'PASSIVE_DRIFTING' | 'HINT_REQUESTED' | 'TASK_ERROR' */
       student:       studentUsername,
-      timestamp:     new Date().toISOString(),
+      username:      studentUsername,
+      studentName:   typeof SessionManager !== 'undefined' ? SessionManager.state.studentName : studentUsername,
+      timestamp:     Date.now(),
       unread:        true,
       ...data
     };

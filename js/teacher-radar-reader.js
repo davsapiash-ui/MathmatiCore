@@ -97,6 +97,10 @@ const TeacherRadarReader = (() => {
       actionLabel: 'עיין'
     };
 
+    // Fallback for old alerts
+    raw.studentName = raw.studentName || raw.username || raw.student || 'תלמיד אנונימי';
+    raw.username = raw.username || raw.student;
+
     const enriched = {
       ...raw,
       taskLabel:   _taskLabel(raw.taskId),
