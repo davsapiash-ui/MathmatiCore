@@ -238,24 +238,6 @@
         <div class="classroom-detail-panel">
           <div class="panel-section-title">הגדרות כיתת פיילוט</div>
           
-          <div class="asd-mode-toggle">
-            <div style="font-size:1.5rem;">🧩</div>
-            <div style="flex:1;">
-              <div class="toggle-label">מצב התאמת נגישות (ASD Collective Mode)</div>
-              <div class="toggle-desc">מחיל הפחתת עומס חזותי ופיגומים רגשיים לכלל תלמידי המרחב בצורה שוויונית למניעת תיוג (לפי פרק 5 במסמך האפיון).</div>
-            </div>
-            <label class="toggle-switch">
-              <input type="checkbox" id="asd-toggle" onchange="localStorage.setItem('mathematicor_asd_global', this.checked); alert('מצב ASD עודכן בהצלחה');">
-              <span class="toggle-slider"></span>
-            </label>
-            <a href="asd-configurator.html" style="font-size:12px; font-weight:700; color:var(--color-primary); margin-right:8px; text-decoration:none;">הגדרות מתקדמות</a>
-            <script>
-              document.addEventListener('DOMContentLoaded', () => {
-                const asdToggle = document.getElementById('asd-toggle');
-                if(asdToggle) asdToggle.checked = localStorage.getItem('mathematicor_asd_global') === 'true';
-              });
-            </script>
-          </div>
 
           <table class="students-table" style="margin-top:var(--space-6);">
             <thead>
