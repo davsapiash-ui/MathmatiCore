@@ -96,10 +96,8 @@ const SilentRadar = (() => {
     if (typeof StudentLogger !== 'undefined') {
       StudentLogger.logEvent('hesitation_alert', { durationMs: Date.now() - lastActionTime });
     }
-    /* Restart timer in case student remains idle */
-    hesitationTimer = setTimeout(() => {
-      fireHesitationAlert();
-    }, HESITATION_THRESHOLD_MS);
+    /* Do not restart the timer automatically. Wait for student action to reset it. */
+    hesitationTimer = null;
   }
 
   /* ── Rapid Delete Detection ──────────────────────────────────
