@@ -9,6 +9,12 @@
   <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../css/main.css">
   <link rel="stylesheet" href="../css/dashboard.css">
+
+  <!-- Firebase Realtime Database (auto-init, ללא מפתחות מוטמעים) -->
+  <script src="/__/firebase/10.12.2/firebase-app-compat.js"></script>
+  <script src="/__/firebase/10.12.2/firebase-database-compat.js"></script>
+  <script src="/__/firebase/init.js"></script>
+
   <script src="https://cdn.jsdelivr.net/npm/rrweb@latest/dist/rrweb.min.js"></script>
 </head>
 <body class="dashboard-page">
@@ -598,15 +604,34 @@
     let replayStudentUsername = '';
     let replayStudentName = '';
 
-    window.openReplayDrawer = function(username, studentName) {
+    window.openReplayDrawer = async function(username, studentName) {
       replayStudentUsername = username;
       replayStudentName = studentName;
       document.getElementById('replay-student-name').textContent = studentName;
       document.getElementById('replay-drawer').classList.add('open');
 
-      // Load logs and rrweb events
-      const logs = JSON.parse(localStorage.getItem(`mathematicor_student_logs_${username}`) || '[]');
-      const events = JSON.parse(localStorage.getItem(`mathematicor_student_replay_${username}`) || '[]');
+      let logs = [];
+      let events = [];
+
+      // נסה לקרוא מ-Firebase תחילה
+      try {
+        if (typeof firebase !== 'undefined' && firebase.database) {
+          const logsSnap = await firebase.database().ref(`students/${username}/logs`).once('value');
+          const eventsSnap = await firebase.database().ref(`students/${username}/replay`).once('value');
+          if (logsSnap.val()) logs = logsSnap.val();
+          if (eventsSnap.val()) events = eventsSnap.val();
+        }
+      } catch(e) {
+        console.warn('Firebase read failed, falling back to localStorage:', e);
+      }
+
+      // Fallback ל-localStorage אם Firebase לא החזיר נתונים
+      if (logs.length === 0) {
+        logs = JSON.parse(localStorage.getItem(`mathematicor_student_logs_${username}`) || '[]');
+      }
+      if (events.length === 0) {
+        events = JSON.parse(localStorage.getItem(`mathematicor_student_replay_${username}`) || '[]');
+      }
 
       renderReplayTimeline(logs, events);
       setupReplayPlayer(events);
@@ -627,39 +652,78 @@
     function renderReplayTimeline(logs, replayEvents) {
       const container = document.getElementById('replay-timeline-list');
       if (logs.length === 0) {
-        container.innerHTML = '<div style="font-size:12px;color:var(--color-text-muted);text-align:center;padding:12px;">אין לוגים מוקלטים</div>';
+        container.innerHTML = '<div style="font-size:12px;color:var(--color-text-muted);text-align:center;padding:12px;">אין לוגים מתועדים למפגש זה</div>';
         return;
       }
 
       const firstTime = replayEvents.length > 0 ? replayEvents[0].timestamp : 0;
 
-      container.innerHTML = logs.map(l => {
-        let typeClass = '';
-        let text = l.event;
-        let timeStr = new Date(l.timestamp).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      /* ── Event-to-Hebrew label map ── */
+      const EVENT_LABELS = {
+        'session_start':        { icon: '🟢', text: 'המפגש התחיל', cls: 'type-correct' },
+        'session_completed':    { icon: '🏁', text: 'המפגש הושלם', cls: 'type-correct' },
+        'task_loaded':          { icon: '📖', textFn: (l) => `עבר למשימה: ${_translateTaskName(l.taskId)}`, cls: 'type-chapter' },
+        'task_correct':         { icon: '✅', textFn: (l) => `פתר נכון: ${_translateTaskName(l.taskId)}`, cls: 'type-correct' },
+        'task_incorrect':       { icon: '❌', textFn: (l) => `טעה: ${_translateTaskName(l.taskId)}`, cls: 'type-incorrect' },
+        'answer_submitted':     { icon: '📝', textFn: (l) => `הגיש תשובה${l.detail && l.detail.correct ? ' (נכון)' : l.detail && l.detail.correct === false ? ' (שגוי)' : ''}`, cls: '' },
+        'block_add':            { icon: '➕', textFn: (l) => `הוסיף בלוק ל${_translateCol(l.detail && l.detail.place)}`, cls: 'type-hint' },
+        'block_remove':         { icon: '➖', textFn: (l) => `הסיר בלוק מ${_translateCol(l.detail && l.detail.place)}`, cls: 'type-incorrect' },
+        'block_drop':           { icon: '🎯', textFn: (l) => `גרר בלוק ל${_translateCol(l.detail && l.detail.place)}`, cls: 'type-hint' },
+        'block_ungroup':        { icon: '💥', textFn: (l) => `פריטה: ${_translateCol(l.detail && l.detail.from)} → ${_translateCol(l.detail && l.detail.to)}`, cls: 'type-hint' },
+        'block_regroup':        { icon: '📦', text: 'המרה (קיבוץ 10 → עשרת)', cls: 'type-correct' },
+        'undo':                 { icon: '↩️', text: 'לחץ בטל (Undo)', cls: 'type-hint' },
+        'hint_requested':       { icon: '💡', text: 'ביקש עזרה (מנורה)', cls: 'type-radar' },
+        'hint_choice_selected': { icon: '🔍', textFn: (l) => `בחר סוג עזרה: ${_translateHint(l.detail && l.detail.choiceType)}`, cls: 'type-radar' },
+        'hesitation_alert':     { icon: '⏸️', textFn: (l) => `רדאר שקט: היסוס קוגניטיבי (${l.detail ? Math.round((l.detail.durationMs || 0)/1000) : '?'} שנ׳)`, cls: 'type-radar' },
+        'passive_drifting':     { icon: '⚠️', text: 'רדאר שקט: שיוט פסיבי', cls: 'type-radar' },
+        'estimation_placed':    { icon: '📍', textFn: (l) => `הציב אומדן על ציר המספרים${l.detail && l.detail.value ? ': ' + l.detail.value : ''}`, cls: 'type-hint' },
+        'estimation_submitted': { icon: '🎯', textFn: (l) => `שלח אומדן${l.detail && l.detail.error !== undefined ? ' (שגיאה: ' + l.detail.error + ')' : ''}`, cls: '' },
+        'choice_selected':      { icon: '🅰️', textFn: (l) => `בחר תשובה${l.detail && l.detail.choice ? ': ' + l.detail.choice : ''}`, cls: '' },
+        'proceed_clicked':      { icon: '▶️', text: 'לחץ "התקדם"', cls: '' },
+        'reflection_submitted': { icon: '💭', text: 'השלים רפלקציה', cls: 'type-correct' },
+        'number_line_interaction': { icon: '📏', text: 'פעולה על ציר המספרים', cls: 'type-hint' },
+      };
 
-        if (l.event === 'task_correct') { typeClass = 'type-correct'; text = `✅ פתר נכון: ${l.taskId}`; }
-        else if (l.event === 'task_incorrect') { typeClass = 'type-incorrect'; text = `❌ שגיאה: ${l.taskId}`; }
-        else if (l.event === 'block_add') { typeClass = 'type-hint'; text = `➕ הוסיף ל${_translateCol(l.detail.place)}`; }
-        else if (l.event === 'block_remove') { typeClass = 'type-incorrect'; text = `➖ הסיר מ${_translateCol(l.detail.place)}`; }
-        else if (l.event === 'block_ungroup') { typeClass = 'type-hint'; text = `💥 פריטה: ${l.detail.from} ל-${l.detail.to}`; }
-        else if (l.event === 'block_regroup') { typeClass = 'type-correct'; text = `📦 המרה אוטומטית`; }
-        else if (l.event === 'undo') { typeClass = 'type-hint'; text = `↩ לחץ בטל (Undo)`; }
-        else if (l.event === 'hint_requested') { typeClass = 'type-radar'; text = `💡 ביקש עזרה`; }
-        else if (l.event === 'hint_choice_selected') { typeClass = 'type-radar'; text = `🔍 בחר עזרה: ${l.detail.choiceType}`; }
-        else if (l.event === 'hesitation_alert') { typeClass = 'type-radar'; text = `⏸️ רדאר: היסוס קוגניטיבי (${Math.round(l.detail.durationMs/1000)} ש׳)`; }
-        else if (l.event === 'session_completed') { typeClass = 'type-correct'; text = `🏁 המפגש הושלם`; }
+      function _translateHint(type) {
+        const m = { visual: 'חזותי', verbal: 'מילולי', decomposition: 'פירוק', example: 'דוגמה', strategy: 'אסטרטגיה' };
+        return m[type] || type || '';
+      }
+
+      container.innerHTML = logs.map(l => {
+        const timeStr = new Date(l.timestamp).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const meta = EVENT_LABELS[l.event];
+        let icon, text, typeClass;
+
+        if (meta) {
+          icon = meta.icon;
+          text = meta.textFn ? meta.textFn(l) : meta.text;
+          typeClass = meta.cls;
+        } else {
+          icon = '📌';
+          text = l.event.replace(/_/g, ' ');
+          typeClass = '';
+        }
 
         let seekClick = '';
         if (firstTime && new Date(l.timestamp).getTime() >= firstTime) {
           const offset = new Date(l.timestamp).getTime() - firstTime;
-          seekClick = `onclick="seekReplayer(${offset})"`
+          seekClick = `onclick="seekReplayer(${offset})"`;
+        }
+
+        /* Chapter divider for task_loaded */
+        const chapterDiv = l.event === 'task_loaded'
+          ? `<div style="border-top:2px solid var(--color-primary); margin:8px 0 4px; padding-top:6px; font-size:11px; font-weight:800; color:var(--color-primary);">${icon} ${text}</div>`
+          : '';
+
+        if (l.event === 'task_loaded') {
+          return chapterDiv;
         }
 
         return `
-          <div class="timeline-event-item ${typeClass}" ${seekClick} style="cursor:pointer; padding:6px 10px; font-size:12px;">
-            <span class="timeline-event-text">${text}</span>
-            <span class="timeline-event-time">${timeStr}</span>
+          ${chapterDiv}
+          <div class="timeline-event-item ${typeClass}" ${seekClick} style="cursor:pointer; padding:5px 10px; font-size:12px; display:flex; justify-content:space-between; align-items:center; gap:8px;">
+            <span class="timeline-event-text">${icon} ${text}</span>
+            <span class="timeline-event-time" style="white-space:nowrap; font-size:11px; color:var(--color-text-muted);">${timeStr}</span>
           </div>
         `;
       }).join('');
@@ -1040,6 +1104,17 @@
       renderRadar(alerts);
       renderClusters(); // In real app, only updates on results change
     }, 2000);
+
+    // סנכרון Firebase בזמן אמת — מאזין לנתוני תלמידים ממכשירים אחרים
+    if (typeof firebase !== 'undefined' && firebase.database) {
+      window._firebaseStudentCache = {};
+      firebase.database().ref('students').on('value', (snap) => {
+        window._firebaseStudentCache = snap.val() || {};
+        // עדכון חי של הרשת התלמידים
+        const statuses = TeacherRadarReader.getStudentStatuses();
+        renderLiveGrid(statuses);
+      });
+    }
 
     // --- Pedagogical Info Modals ---
     window.showPanelInfo = function(panelId) {

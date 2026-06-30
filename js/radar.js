@@ -170,6 +170,7 @@ const SilentRadar = (() => {
 
   /* ── localStorage Alert Queue (teacher dashboard reads this) ── */
   function storeAlert(alert) {
+    let alerts;
     try {
       const key = RADAR_STORAGE_KEY;
       const existing = JSON.parse(localStorage.getItem(key) || '[]');
@@ -179,9 +180,16 @@ const SilentRadar = (() => {
         existing.splice(0, existing.length - MAX_STORED_ALERTS);
       }
       localStorage.setItem(key, JSON.stringify(existing));
+      alerts = existing;
     } catch {
       /* Silent fail — storage might be unavailable */
     }
+    // סנכרון התראות רדאר ל-Firebase
+    try {
+      if (typeof firebase !== 'undefined' && firebase.database && alerts) {
+        firebase.database().ref('radar_alerts').set(alerts);
+      }
+    } catch(e) { /* silent */ }
   }
 
   /** Read all pending alerts (for teacher dashboard — Phase B) */

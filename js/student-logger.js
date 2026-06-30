@@ -115,6 +115,12 @@ const StudentLogger = (() => {
     } catch (e) {
       console.error('Error saving structured logs:', e);
     }
+    // סנכרון ל-Firebase Realtime Database
+    try {
+      if (typeof firebase !== 'undefined' && firebase.database) {
+        firebase.database().ref(`students/${username}/logs`).set(structuredLogs);
+      }
+    } catch(e) { console.warn('Firebase log save failed:', e); }
   }
 
   function saveReplayData() {
@@ -128,6 +134,12 @@ const StudentLogger = (() => {
         console.warn('LocalStorage quota exceeded. Stopped rrweb recording to preserve initial snapshot.');
       }
     }
+    // סנכרון הקלטת rrweb ל-Firebase
+    try {
+      if (typeof firebase !== 'undefined' && firebase.database) {
+        firebase.database().ref(`students/${username}/replay`).set(rrwebEvents);
+      }
+    } catch(e) { console.warn('Firebase replay save failed:', e); }
   }
 
   function saveAll() {

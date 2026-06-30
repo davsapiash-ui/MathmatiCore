@@ -213,6 +213,23 @@ const TeacherRadarReader = (() => {
       }
     }
 
+    /* מיזוג נתוני תלמידים מ-Firebase (מכשירים אחרים) */
+    if (window._firebaseStudentCache) {
+      for (const [un, data] of Object.entries(window._firebaseStudentCache)) {
+        if (un === 'undefined') continue;
+        if (data.logs && data.logs.length > 0 && !map[un]) {
+          const lastLog = data.logs[data.logs.length - 1];
+          map[un] = {
+            username: un,
+            studentName: un,
+            status: lastLog.event === 'session_completed' ? 'done' : 'active',
+            lastActivity: new Date(lastLog.timestamp).getTime() || lastLog.timestamp,
+            taskId: lastLog.taskId || 'ממתין'
+          };
+        }
+      }
+    }
+
     /* Students idle for >30s from last activity → hesitant (unless they are done/stuck) */
     for (const s of Object.values(map)) {
       if ((now - s.lastActivity) > 30000 && s.status === 'active') {
