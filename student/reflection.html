@@ -255,18 +255,36 @@
           const resultsKey = 'mathematicor_qmatrix_results';
           const existingResults = JSON.parse(localStorage.getItem(resultsKey) || '[]');
           
+          const radarAlerts = JSON.parse(localStorage.getItem('mathematicor_radar_alerts') || '[]');
+          const hesitation_events = radarAlerts.filter(a => a.student === studentObj.username && a.type === 'HESITATION').length;
+          const undo_clicks = stateObj.persistence ? stateObj.persistence.undoCount : 0;
+          
+          const getPct = (task) => {
+             if (task && task.deviationPct !== undefined) return task.deviationPct;
+             if (task && task.detail && task.detail.includes('deviation_')) {
+                const match = task.detail.match(/deviation_(\d+)pct/);
+                if (match) return parseInt(match[1], 10) / 100;
+             }
+             return 0;
+          };
+          
           // Remove existing entry for this student if present, then add new one
-          const filtered = existingResults.filter(r => r.student !== studentObj.username);
+          const filtered = existingResults.filter(r => r.studentId !== studentObj.username && r.student !== studentObj.username);
           
           filtered.push({
-            student: studentObj.username,
+            studentId: studentObj.username,
             studentName: studentObj.name,
-            q1: stateObj.qmatrixResults.q1 ? stateObj.qmatrixResults.q1.correct : null,
-            q2: stateObj.qmatrixResults.q2 ? stateObj.qmatrixResults.q2.correct : null,
-            q3: stateObj.qmatrixResults.q3 ? stateObj.qmatrixResults.q3.correct : null,
-            q4: stateObj.qmatrixResults.q4 ? stateObj.qmatrixResults.q4.correct : null,
-            q5: stateObj.qmatrixResults.q5 ? stateObj.qmatrixResults.q5.correct : null,
-            q4_backward_diag: stateObj.qmatrixResults.q4 ? stateObj.qmatrixResults.q4.q4_backward_diag : null
+            qMatrixResults: {
+               task1_zero_placeholder: stateObj.qmatrixResults.task1_zero_placeholder ? stateObj.qmatrixResults.task1_zero_placeholder.correct : false,
+               task2_estimation_error_margin: stateObj.qmatrixResults.task2_estimation_error_margin ? getPct(stateObj.qmatrixResults.task2_estimation_error_margin) : 0,
+               task3_flexible_regrouping: stateObj.qmatrixResults.task3_flexible_regrouping ? stateObj.qmatrixResults.task3_flexible_regrouping.correct : false,
+               task4_basic_addition_fluency: stateObj.qmatrixResults.task4_basic_addition_fluency ? stateObj.qmatrixResults.task4_basic_addition_fluency.correct : false,
+               q5_small_change: stateObj.qmatrixResults.q5_small_change ? stateObj.qmatrixResults.q5_small_change.correct : false
+            },
+            traceData: {
+               hesitation_events: hesitation_events,
+               undo_clicks: undo_clicks
+            }
           });
           
           localStorage.setItem(resultsKey, JSON.stringify(filtered));

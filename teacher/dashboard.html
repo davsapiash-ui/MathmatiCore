@@ -925,6 +925,9 @@
             const timeDiff = recentRemoves[recentRemoves.length - 1] - recentRemoves[0];
             if (timeDiff < 15000) {
               insightsHTML += `
+                <div style="background:var(--color-surface-2); padding:8px; border-radius:6px; border-right:3px solid var(--color-warning); margin-bottom:8px;">
+                  <div style="font-size:12px; font-weight:800; color:var(--color-warning);">⚠️ שיוט פסיבי (Passive Drifting) ${timeBtn}</div>
+                  <div style="font-size:11px; color:var(--color-text-secondary); margin-top:4px;">ביצוע פעולות מחיקה וביטול מהירות ברצף. פועל מתוך תסכול ללא אסטרטגיה ברורה. מומלץ תיווך: "מה אנחנו מנסים לפתור עכשיו?"</div>
                 </div>
               `;
               recentRemoves = []; // reset
@@ -936,6 +939,7 @@
 
         // Check for Hesitation
         if (l.event === 'hesitation_alert') {
+          hesitationCount++;
           recentHesitations.push(l);
         }
 
@@ -967,12 +971,35 @@
         }
       });
 
+      let aiSummaryText = "התלמיד השלים את המשימות בהצלחה וללא קשיים חריגים. ניכרת הבנה טובה של החומר.";
+      if (hesitationCount > 2 && errorsCount > 2) {
+        aiSummaryText = "התלמיד חווה מאבק קוגניטיבי משמעותי, שהתבטא במספר היסוסים ושגיאות רצופות. ";
+        if (hintCount > 0) {
+          aiSummaryText += "ניכר ניסיון להיעזר בכלים הסוקרטיים, מה שמעיד על מודעות למצב הלמידה, אך ייתכן שיש פער בהבנת המרות בסיסיות הדורש התערבות מורה לחשיבה משותפת.";
+        } else {
+          aiSummaryText += "התלמיד נמנע מלבקש עזרה למרות הקושי, מה שעשוי להעיד על תסכול שקט (שיוט פסיבי). מומלץ לגשת לתלמיד, לעצור את המשימה ולבקש ממנו לתאר את הבעיה במילותיו.";
+        }
+      } else if (hesitationCount > 0 && errorsCount === 0) {
+        aiSummaryText = "התלמיד חווה רגעי היסוס קלים אך פתר את המשימות נכונה (מאבק פורה). זוהי אינדיקציה למסוגלות עצמית גבוהה - אין צורך בהתערבות מיידית.";
+      } else if (hintCount > 2) {
+        aiSummaryText = "התלמיד מרבה להשתמש ברמזים (" + lastHintType + "). ייתכן שמדובר בתלות בעזרה חיצונים (Hint Driven Behavior). כדאי לאתגר אותו לנסות פתרון עצמאי תחילה.";
+      }
+
       if (insightsHTML === '') {
         insightsHTML = '<div style="font-size:12px; color:var(--color-text-muted); text-align:center;">ה-AI מנתח את הפעולות... לא זוהו דפוסים חריגים.</div>';
       }
 
       container.innerHTML = `
-        <div style="font-size:13px; font-weight:800; color:var(--color-primary-dark); margin-bottom:8px; border-bottom:1px solid var(--color-border); padding-bottom:4px;">🤖 תובנות מנוע פדגוגי (AI):</div>
+        <div style="background:var(--color-surface-2); padding:10px; border-radius:8px; border: 1px solid var(--color-primary-light); margin-bottom:12px;">
+          <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+            <div style="font-size: 14px;">🤖</div>
+            <div style="font-size:13px; color:var(--color-primary-dark); font-weight:800;">אבחון פדגוגי מסכם (AI)</div>
+          </div>
+          <p style="font-size:12px; color:var(--color-text); line-height:1.5; margin:0;">
+            ${aiSummaryText}
+          </p>
+        </div>
+        <div style="font-size:13px; font-weight:800; color:var(--color-primary-dark); margin-bottom:8px; border-bottom:1px solid var(--color-border); padding-bottom:4px;">🔍 אירועים חריגים:</div>
         ${insightsHTML}
       `;
     }

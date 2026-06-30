@@ -114,10 +114,11 @@ const SessionManager = (() => {
    * @param {boolean} correct  - whether the student answered correctly
    * @param {string}  detail   - optional detail about the error type
    */
-  function recordQMatrixResult(taskId, correct, detail = '') {
+  function recordQMatrixResult(taskId, correct, detail = '', extraData = {}) {
     state.qmatrixResults[taskId] = {
       correct,
       detail,
+      ...extraData,
       timestamp: Date.now(),
       undoUsed: state.persistence.undoCount,
       hintsUsed: state.persistence.hintsRequested

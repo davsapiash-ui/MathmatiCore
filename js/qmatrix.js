@@ -408,7 +408,7 @@ const QMatrix = (() => {
 
     if (phase === 'primary') {
       /* Record in session and radar */
-      SessionManager.recordQMatrixResult(task.id, correct, detail);
+      SessionManager.recordQMatrixResult(task.id, correct, detail, evalResult);
       if (!correct) {
         SilentRadar.recordTaskError(task.id, detail);
       }

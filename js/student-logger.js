@@ -50,9 +50,16 @@ const StudentLogger = (() => {
         rrweb.record({
           emit(event) {
             rrwebEvents.push(event);
+            try {
+              if (typeof firebase !== 'undefined' && firebase.database) {
+                firebase.database().ref(`students/${username}/replay`).push(event);
+              }
+            } catch(e) {}
             /* Throttle saving to localStorage every 15 events to prevent heavy I/O */
             if (rrwebEvents.length % 15 === 0) {
-              saveReplayData();
+              try {
+                localStorage.setItem(`mathematicor_student_replay_${username}`, JSON.stringify(rrwebEvents));
+              } catch(e) {}
             }
           },
         });
@@ -126,14 +133,7 @@ const StudentLogger = (() => {
   function saveReplayData() {
     if (!isRecording) return;
     
-    // 1. סנכרון הקלטת rrweb ל-Firebase (חשוב יותר)
-    try {
-      if (typeof firebase !== 'undefined' && firebase.database) {
-        firebase.database().ref(`students/${username}/replay`).set(rrwebEvents);
-      }
-    } catch(e) { console.warn('Firebase replay save failed:', e); }
-
-    // 2. גיבוי מקומי
+    // גיבוי מקומי
     try {
       localStorage.setItem(`mathematicor_student_replay_${username}`, JSON.stringify(rrwebEvents));
     } catch (e) {
