@@ -156,16 +156,14 @@ const TeacherRadarReader = (() => {
     localStorage.setItem(HANDLED_KEY, JSON.stringify([...handled]));
   }
 
-  /**
-   * Returns latest status per student.
-   * Status: 'active' | 'hesitant' | 'stuck' | 'done'
-   */
   function getStudentStatuses() {
     const alerts = getAlerts();
     const now    = Date.now();
     const map    = {};
 
     for (const alert of alerts) {
+      if (!alert.username || alert.username === 'undefined') continue;
+      
       const un = alert.username;
       if (!map[un]) map[un] = { username: un, studentName: alert.studentName, status: 'active', lastActivity: 0, taskId: alert.taskId };
 
@@ -179,7 +177,43 @@ const TeacherRadarReader = (() => {
       else if (alert.type === 'HESITATION'  && !alert.handled && map[un].status !== 'stuck') map[un].status = 'hesitant';
     }
 
-    /* Students idle for >30s from last radar event → stuck */
+    /* Include students who have logs but no alerts! */
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('mathematicor_student_logs_')) {
+        const un = key.replace('mathematicor_student_logs_', '');
+        if (un === 'undefined') continue;
+        
+        try {
+          const logs = JSON.parse(localStorage.getItem(key));
+          if (logs && logs.length > 0) {
+            const lastLog = logs[logs.length - 1];
+            
+            if (!map[un]) {
+              map[un] = {
+                username: un,
+                studentName: un, 
+                status: 'active',
+                lastActivity: lastLog.timestamp,
+                taskId: lastLog.taskId || 'ממתין'
+              };
+            } else {
+               if (lastLog.timestamp > map[un].lastActivity) {
+                 map[un].lastActivity = lastLog.timestamp;
+                 map[un].taskId = lastLog.taskId || map[un].taskId;
+               }
+            }
+            
+            /* If the last event is completion, they are done */
+            if (lastLog.event === 'session_completed') {
+              map[un].status = 'done';
+            }
+          }
+        } catch(e) {}
+      }
+    }
+
+    /* Students idle for >30s from last activity → hesitant (unless they are done/stuck) */
     for (const s of Object.values(map)) {
       if ((now - s.lastActivity) > 30000 && s.status === 'active') {
         s.status = 'hesitant';
