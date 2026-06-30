@@ -86,7 +86,6 @@
         if (log.length > 200) log.splice(0, log.length - 200);
         localStorage.setItem(AUDIT_KEY, JSON.stringify(log));
 
-        /* No visible changes to UI — teacher dashboard renders exactly as the teacher sees it */
         /* VISIBLE RETURN BUTTON FOR ADMIN IMPERSONATION (OVERRIDING SILENT POLICY AS REQUESTED BY USER) */
         document.addEventListener('DOMContentLoaded', () => {
           const btn = document.createElement('button');
@@ -110,7 +109,10 @@
     <div class="tab-panel active" id="panel-live" role="tabpanel">
       <div class="panel-header" style="display:flex; justify-content:space-between; align-items:flex-start;">
         <div>
-          <h1 class="panel-title">לוח בקרה כיתתי</h1>
+          <h1 class="panel-title" style="display:flex; align-items:center; gap:8px;">
+            לוח בקרה כיתתי
+            <button onclick="showPanelInfo('live')" style="background:none; border:none; cursor:pointer; font-size:1.2rem; color:var(--color-primary);" title="מידע פדגוגי על לוח זה">ℹ️</button>
+          </h1>
           <p class="panel-subtitle">ניטור שקט של זמן עבודה והתראות רדאר פדגוגי.</p>
         </div>
         <button class="admin-btn admin-btn--primary" onclick="const r = document.getElementById('radar-feed-container'); r.style.display = r.style.display === 'none' ? 'block' : 'none';">
@@ -152,7 +154,10 @@
     <div class="tab-panel" id="panel-clustering" role="tabpanel">
       <div class="panel-header">
         <div>
-          <h1 class="panel-title">ניתוח קבוצות למידה</h1>
+          <h1 class="panel-title" style="display:flex; align-items:center; gap:8px;">
+            ניתוח קבוצות למידה
+            <button onclick="showPanelInfo('clustering')" style="background:none; border:none; cursor:pointer; font-size:1.2rem; color:var(--color-primary);" title="מידע פדגוגי על לוח זה">ℹ️</button>
+          </h1>
           <p class="panel-subtitle">מיפוי לפי שורש הטעות ההיסטורי מה-Q-Matrix (The Equalizing Effect).</p>
         </div>
       </div>
@@ -173,7 +178,10 @@
     <div class="tab-panel" id="panel-feedback" role="tabpanel">
       <div class="panel-header">
         <div>
-          <h1 class="panel-title">פאנל המלצות משוב (Process Feedback)</h1>
+          <h1 class="panel-title" style="display:flex; align-items:center; gap:8px;">
+            פאנל המלצות משוב (Process Feedback)
+            <button onclick="showPanelInfo('feedback')" style="background:none; border:none; cursor:pointer; font-size:1.2rem; color:var(--color-primary);" title="מידע פדגוגי על לוח זה">ℹ️</button>
+          </h1>
           <p class="panel-subtitle">משוב מכוון אסטרטגיה המעודד ויסות עצמי.</p>
         </div>
       </div>
@@ -215,7 +223,10 @@
     <div class="tab-panel" id="panel-manager" role="tabpanel">
       <div class="panel-header">
         <div>
-          <h1 class="panel-title">ניהול כיתות ומרחבים</h1>
+          <h1 class="panel-title" style="display:flex; align-items:center; gap:8px;">
+            ניהול כיתות ומרחבים
+            <button onclick="showPanelInfo('manager')" style="background:none; border:none; cursor:pointer; font-size:1.2rem; color:var(--color-primary);" title="מידע פדגוגי על לוח זה">ℹ️</button>
+          </h1>
           <p class="panel-subtitle">הגדרת מרחבים, איפוס סיסמאות, והגדרות התאמת נגישות (ASD)</p>
         </div>
       </div>
