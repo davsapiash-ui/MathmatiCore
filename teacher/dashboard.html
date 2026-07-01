@@ -833,7 +833,15 @@
       container.innerHTML = ''; // clear
 
       if (events.length === 0) {
-        container.innerHTML = '<div style="height:100%; display:flex; align-items:center; justify-content:center; color:white; font-size:12px;">אין הקלטת מסך</div>';
+        container.innerHTML = '<div style="height:100%; display:flex; align-items:center; justify-content:center; color:white; font-size:12px;">אין נתוני וידאו להצגה</div>';
+        return;
+      }
+
+      // rrweb requires at least one Meta (4) and one FullSnapshot (2) to play successfully
+      const hasMeta = events.some(e => e.type === 4);
+      const hasFullSnapshot = events.some(e => e.type === 2);
+      if (!hasMeta || !hasFullSnapshot) {
+        container.innerHTML = '<div style="height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#ffb4b4; font-size:14px; text-align:center; padding:20px;"><i class="fa-solid fa-video-slash" style="font-size:24px; margin-bottom:10px;"></i><span>הקלטת המסך פגומה</span><span style="font-size:11px; opacity:0.7; margin-top:5px;">(נוצר מהקלטה בגרסה קודמת. אנא אפסו נתונים או רעננו את מסך התלמיד)</span></div>';
         return;
       }
 
