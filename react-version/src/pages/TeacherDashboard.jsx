@@ -3,9 +3,9 @@ import { Card, Title, Text, Grid, Metric, Flex, ProgressBar } from '@tremor/reac
 import { useReactTable, getCoreRowModel, flexRender } from '@tanstack/react-table';
 import { ResponsiveHeatMap } from '@nivo/heatmap';
 import { ResponsiveRadar } from '@nivo/radar';
-import SessionReplayViewer from '../components/Teacher/SessionReplayViewer';
-import AIAuditPanel from '../components/Teacher/AIAuditPanel';
-import MicroScaffoldingPanel from '../components/Teacher/MicroScaffoldingPanel';
+import SessionReplayViewer from '../components/teacher/SessionReplayViewer';
+import AIAuditPanel from '../components/teacher/AIAuditPanel';
+import MicroScaffoldingPanel from '../components/teacher/MicroScaffoldingPanel';
 
 const HEATMAP_DATA = [
   {
