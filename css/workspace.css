@@ -350,7 +350,7 @@ input[type=number] {
 
 /* Drop zone — the area where blocks land */
 .pv-drop-zone {
-  flex: 1;
+  flex: 1 1 0;
   width: 100%;
   display: flex;
   flex-direction: row;
@@ -361,7 +361,7 @@ input[type=number] {
   padding: var(--space-2);
   gap: 4px;
   box-sizing: border-box;
-  min-height: 150px;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
   transition: background var(--transition-fast);
@@ -438,6 +438,7 @@ input[type=number] {
               opacity var(--transition-fast);
   user-select: none;
   position: relative;
+  max-width: 100%;
 }
 
 /* Premium Glossy 3D Bevel effect */
@@ -485,14 +486,14 @@ input[type=number] {
 
 /* עשרת — ten-rod (emerald) */
 .math-block--ten {
-  width: 140px;
-  height: 14px;
+  width: 14px;
+  height: 140px;
   background: var(--block-ten);
   border-radius: 2px;
-  box-shadow: 0 3px 0 var(--block-ten-dark), 0 3px 6px rgba(0,0,0,0.2);
+  box-shadow: 3px 0 0 var(--block-ten-dark), 6px 0 6px rgba(0,0,0,0.2);
   margin-bottom: 4px;
-  background-size: 10% 100%;
-  background-image: linear-gradient(90deg, transparent 90%, rgba(0,0,0,0.2) 90%);
+  background-size: 100% 10%;
+  background-image: linear-gradient(0deg, transparent 90%, rgba(0,0,0,0.2) 90%);
 }
 
 /* מאה — hundred-flat (blue) */
@@ -536,8 +537,8 @@ input[type=number] {
   box-shadow: 0 4px 10px rgba(0,0,0,0.15);
 }
 .math-block.in-palette.math-block--ten {
-  width: 128px;
-  height: 13px;
+  width: 13px;
+  height: 128px;
 }
 .math-block.in-palette.math-block--hundred {
   width: 128px;
@@ -674,10 +675,20 @@ input[type=number] {
 .palette-blocks {
   display: flex;
   align-items: flex-end;
-  justify-content: center;
+  justify-content: flex-start;
   gap: var(--space-8);
   direction: rtl;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.palette-blocks::-webkit-scrollbar {
+  height: 6px;
+}
+.palette-blocks::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: var(--radius-full);
 }
 
 .palette-item {
