@@ -52,7 +52,8 @@ const StudentLogger = (() => {
             rrwebEvents.push(event);
             try {
               if (typeof firebase !== 'undefined' && firebase.database) {
-                firebase.database().ref(`students/${username}/replay`).push(event);
+                // Firebase rejects objects with undefined or empty arrays. Stringify ensures robust saving.
+                firebase.database().ref(`students/${username}/replay`).push(JSON.stringify(event));
               }
             } catch(e) {}
             /* Throttle saving to localStorage every 15 events to prevent heavy I/O */
