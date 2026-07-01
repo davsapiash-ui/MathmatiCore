@@ -99,9 +99,11 @@ const QMatrix = (() => {
         { tens: 1, units: 24 }
       ],
       backwardDiagnosis: {
-        triggerOn:    'only_canonical',   /* student only shows the standard form */
-        subtaskInstructionHe: 'הנה הדגמה: ראו כיצד ניתן לבצע פריטה של עשרת אחת ל-10 יחידות, וכך להציג את אותו המספר בדרך נוספת.',
-        showAutoUngroup: true              /* show animated ungrouping demonstration */
+        triggerOn:    'only_canonical',
+        subtaskInstructionHe: 'הדגמה מודרכת: לחץ פעמיים על עמודת עשרת אחת כדי לפרק אותה ל-10 יחידות, ואז הוסף את הייצוג החדש בטבלה.',
+        showAutoUngroup: true,
+        subtaskNumber: 34,
+        asdSubtaskNumber: 34
       }
     },
     {
@@ -313,7 +315,14 @@ const QMatrix = (() => {
    */
   function evaluateQ3(representations) {
     const task    = TASKS[2];
-    const validArray = isASD ? task.asdValidRepresentations : task.validRepresentations;
+    let validArray;
+
+    if (phase === 'correction' && correctionSubphase === 'subtask') {
+       validArray = isASD ? [{ tens: 1, units: 4 }, { tens: 0, units: 14 }] 
+                          : [{ tens: 3, units: 4 }, { tens: 2, units: 14 }, { tens: 1, units: 24 }];
+    } else {
+       validArray = isASD ? task.asdValidRepresentations : task.validRepresentations;
+    }
 
     /* Check: values match one of the predefined valid representations */
     const validatedReps = representations.filter(rep => {
@@ -324,6 +333,17 @@ const QMatrix = (() => {
                (rep.thousands ?? 0) === (validRep.thousands ?? 0);
       });
     });
+
+    if (phase === 'correction' && correctionSubphase === 'subtask') {
+      if (validatedReps.length < 2) return { correct: false, detail: 'insufficient_reps', triggerBackward: false };
+      const r1 = validatedReps[0];
+      const r2 = validatedReps[1];
+      const different = (r1.units ?? 0) !== (r2.units ?? 0) ||
+                        (r1.tens ?? 0) !== (r2.tens ?? 0) ||
+                        (r1.hundreds ?? 0) !== (r2.hundreds ?? 0) ||
+                        (r1.thousands ?? 0) !== (r2.thousands ?? 0);
+      return { correct: different, detail: different ? '' : 'only_canonical', triggerBackward: false };
+    }
 
     if (validatedReps.length < 2) {
       return { correct: false, detail: 'insufficient_reps', triggerBackward: true };
@@ -381,6 +401,11 @@ const QMatrix = (() => {
     const task              = TASKS[4];
     const correct           = selectedChoice === task.correctChoice;
     const isFlexibilityTrap = selectedChoice === task.flexibilityTrapChoice;
+    
+    if (phase === 'correction' && correctionSubphase === 'subtask') {
+        return { correct, isFlexibilityTrap, detail: correct ? '' : 'wrong_subtask_choice', triggerBackward: false };
+    }
+
     return {
       correct,
       isFlexibilityTrap,

@@ -879,6 +879,7 @@ const App = (() => {
       showFeedback(false, 'סבב תיקונים 🔍', 'בואו נעבור יחד על כמה דברים...');
       setTimeout(() => {
         hideFeedback();
+        q3Reps = [];
         renderBackwardDiagnosis(taskId, backwardDiag);
         awaitingNextTask = false;
       }, 1800);
@@ -922,6 +923,10 @@ const App = (() => {
   /* ── Backward Diagnosis Rendering ── */
   function renderBackwardDiagnosis(taskId, diagSpec) {
     if (!diagSpec) return;
+    
+    PlaceValueModel.reset();
+    DragController.refresh();
+
     dom.taskInstruction.textContent = diagSpec.subtaskInstructionHe ?? dom.taskInstruction.textContent;
 
     if (diagSpec.subtaskNumber !== undefined) {
@@ -947,17 +952,22 @@ const App = (() => {
     }
 
     const asdConfig = safeJSONParse(localStorage.getItem('mathematicor_asd_config'), {organizer:true});
-    if (diagSpec.graphicOrganizerASD && asdConfig.organizer) {
-      dom.taskBody.innerHTML = `
-        <div class="graphic-organizer" style="background:var(--color-surface);border:2px dashed var(--color-primary);padding:var(--space-4);border-radius:var(--radius-lg);margin-top:var(--space-4);text-align:center;">
-           <h3 style="color:var(--color-primary-dark);margin:0 0 var(--space-2) 0;">מארגן חזותי</h3>
-           <p style="font-weight:600;">${escapeHTML(diagSpec.probeInstructionHe)}</p>
-           <div style="font-size:var(--font-size-2xl);font-weight:900;margin:var(--space-3) 0;color:var(--color-text);">
-              ${escapeHTML(diagSpec.probeA)} + ${escapeHTML(diagSpec.probeB)} = ?
-           </div>
-           <input class="v-add-answer-input" type="text" pattern="[0-9]*" inputmode="numeric" id="add-answer-input" style="width:80px;text-align:center;margin:0 auto;" placeholder="?">
-        </div>
-      `;
+    if (diagSpec.probeA !== undefined && diagSpec.probeB !== undefined) {
+      if (diagSpec.graphicOrganizerASD && asdConfig.organizer) {
+        dom.taskBody.innerHTML = `
+          <div class="graphic-organizer" style="background:var(--color-surface);border:2px dashed var(--color-primary);padding:var(--space-4);border-radius:var(--radius-lg);margin-top:var(--space-4);text-align:center;">
+             <h3 style="color:var(--color-primary-dark);margin:0 0 var(--space-2) 0;">מארגן חזותי</h3>
+             <p style="font-weight:600;">${escapeHTML(diagSpec.probeInstructionHe || '')}</p>
+             <div style="font-size:var(--font-size-2xl);font-weight:900;margin:var(--space-3) 0;color:var(--color-text);">
+                ${escapeHTML(diagSpec.probeA)} + ${escapeHTML(diagSpec.probeB)} = ?
+             </div>
+             <input class="v-add-answer-input" type="text" pattern="[0-9]*" inputmode="numeric" id="add-answer-input" style="width:80px;text-align:center;margin:0 auto;" placeholder="?">
+          </div>
+        `;
+      } else {
+        dom.taskBody.innerHTML = renderVerticalAdditionHTML(diagSpec.probeA, diagSpec.probeB);
+      }
+      dom.taskInstruction.textContent = diagSpec.subtaskInstructionHe || diagSpec.probeInstructionHe || dom.taskInstruction.textContent;
     }
 
     if (diagSpec.visualHint) {
@@ -1174,7 +1184,7 @@ const App = (() => {
         break;
 
       case 'vertical_addition':
-        if (QMatrix.getCurrentPhase() === 'backward_diagnosis') {
+        if (QMatrix.getCurrentPhase() === 'correction') {
           const inp = document.getElementById('add-answer-input');
           if (!inp || !inp.value) return;
           evalResult = QMatrix.evaluateQ4(parseInt(inp.value, 10));
