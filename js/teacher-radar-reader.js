@@ -275,10 +275,15 @@ const TeacherRadarReader = (() => {
   function getReflections() {
     let results = [];
     const BLOCKED_USERS = ['undefined', 'guest', 'student_sso', 'talmid1'];
-    try {
-      results = JSON.parse(localStorage.getItem('mathematicor_reflections') || '[]');
-    } catch {
-      results = [];
+    
+    if (typeof window !== 'undefined' && window._firebaseReflectionsCache && window._firebaseReflectionsCache.length > 0) {
+      results = window._firebaseReflectionsCache;
+    } else {
+      try {
+        results = JSON.parse(localStorage.getItem('mathematicor_reflections') || '[]');
+      } catch {
+        results = [];
+      }
     }
     return results.filter(r => r.username && !BLOCKED_USERS.includes(r.username));
   }

@@ -1221,19 +1221,30 @@
     // סנכרון Firebase בזמן אמת — מאזין לנתוני תלמידים ממכשירים אחרים
     if (typeof firebase !== 'undefined' && firebase.database) {
       window._firebaseStudentCache = {};
+      window._firebaseRadarCache = [];
+      window._firebaseQMatrixCache = [];
+      window._firebaseReflectionsCache = [];
+
       firebase.database().ref('students').on('value', (snap) => {
         window._firebaseStudentCache = snap.val() || {};
+        // עדכון חי של הרשת התלמידים
+        const statuses = TeacherRadarReader.getStudentStatuses();
+        renderLiveGrid(statuses);
+      });
+
       firebase.database().ref('radar_alerts').on('value', (snap) => {
         window._firebaseRadarCache = [];
         snap.forEach(child => { window._firebaseRadarCache.push(child.val()); });
       });
-        firebase.database().ref('qMatrixResults').on('value', (snap) => {
-          window._firebaseQMatrixCache = [];
-          snap.forEach(child => { window._firebaseQMatrixCache.push(child.val()); });
-        });
-        // עדכון חי של הרשת התלמידים
-        const statuses = TeacherRadarReader.getStudentStatuses();
-        renderLiveGrid(statuses);
+
+      firebase.database().ref('qMatrixResults').on('value', (snap) => {
+        window._firebaseQMatrixCache = [];
+        snap.forEach(child => { window._firebaseQMatrixCache.push(child.val()); });
+      });
+
+      firebase.database().ref('reflections').on('value', (snap) => {
+        window._firebaseReflectionsCache = [];
+        snap.forEach(child => { window._firebaseReflectionsCache.push(child.val()); });
       });
     }
 
