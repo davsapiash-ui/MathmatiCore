@@ -1,15 +1,12 @@
 import React, { useState } from 'react';
 import 'katex/dist/katex.min.css';
 import { BlockMath } from 'react-katex';
-import { addStyles as addMathquillStyles, EditableMathField } from 'react-mathquill';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import {
   DndContext, KeyboardSensor, MouseSensor, TouchSensor,
   useSensor, useSensors, useDraggable, useDroppable,
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
-
-addMathquillStyles();
 
 function DraggableNumber({ id, value }) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
@@ -128,9 +125,12 @@ export default function UdlMathModule({ onInteract, onUndo }) {
           <div className="w-full">
             <p className="text-sm text-muted-foreground mb-2">הקלדה מתמטית חופשית (MathQuill):</p>
             <div dir="ltr" className="border border-border rounded-md p-2 bg-background focus-within:ring-2 ring-ring">
-              <EditableMathField
-                latex={mathquillInput}
-                onChange={handleMathquillChange}
+              <input
+                type="text"
+                value={mathquillInput}
+                onChange={(e) => handleMathquillChange(e.target.value)}
+                className="w-full bg-transparent outline-none p-1"
+                placeholder="הקלד כאן..."
               />
             </div>
           </div>
