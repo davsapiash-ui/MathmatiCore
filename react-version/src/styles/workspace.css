@@ -1319,3 +1319,12 @@ input[type=number] {
   pointer-events: none;
   filter: grayscale(80%);
 }
+  
+/* HUGE SCREENS (Projectors, Smartboards, 4K TVs) */  
+@media (min-width: 1600px) {  
+  .workspace-container { padding: clamp(2rem, 4vw, 5rem); }  
+  .pv-columns-row { height: clamp(600px, 70vh, 1400px); gap: clamp(30px, 3vw, 80px); }  
+  .math-block--unit { width: clamp(40px, 3vw, 80px); height: clamp(40px, 3vw, 80px); }  
+  .math-block--ten { width: clamp(40px, 3vw, 80px); height: clamp(100px, 8vw, 200px); }  
+  .pv-col-title { font-size: clamp(20px, 2vw, 40px); }  
+} 
