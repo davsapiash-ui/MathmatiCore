@@ -6,33 +6,27 @@ permissions:
   pull-requests: write
 
 jobs:
-  deploy:
+  build_and_preview:
     if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js (for Firebase CLI)
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Install Firebase CLI
-        run: npm install -g firebase-tools
-
-      - name: Build React App
+      - name: Install dependencies and build
         working-directory: ./react-version
         run: |
           npm install --legacy-peer-deps
           npm run build
 
       - name: Deploy to Firebase
-        env:
-          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MATHIMATICORE }}
-        run: |
-          echo "$FIREBASE_SERVICE_ACCOUNT" > firebase-key.json
-          export GOOGLE_APPLICATION_CREDENTIALS="$(pwd)/firebase-key.json"
-          # Since this is a PR, we deploy to a preview channel based on the PR number
-          firebase hosting:channel:deploy pr-${{ github.event.pull_request.number }} --project mathimaticore --non-interactive
-          rm firebase-key.json
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MATHIMATICORE }}
+          projectId: mathimaticore
