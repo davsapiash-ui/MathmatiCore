@@ -24,20 +24,20 @@ export default function StudentPedagogicalModal({ student, onClose }) {
               <div className="trace-card">
                 <Activity size={24} color="#F59E0B" style={{ marginBottom: '8px' }} />
                 <h4>אירועי היסוס (Hesitations)</h4>
-                <div className="val" style={{ color: student.traceData.hesitation_events > 3 ? '#F59E0B' : '#6EE7B7' }}>
-                  {student.traceData.hesitation_events}
+                <div className="val" style={{ color: (student?.traceData?.hesitation_events ?? 0) > 3 ? '#F59E0B' : '#6EE7B7' }}>
+                  {student?.traceData?.hesitation_events ?? 0}
                 </div>
-                {student.traceData.hesitation_events > 3 && (
+                {(student?.traceData?.hesitation_events ?? 0) > 3 && (
                   <p style={{ fontSize: '11px', color: '#FCD34D', marginTop: '8px' }}>מאבק קוגניטיבי יצרני. שקול לתווך בעזרת שאלה.</p>
                 )}
               </div>
               <div className="trace-card">
                 <RotateCcw size={24} color="#38BDF8" style={{ marginBottom: '8px' }} />
                 <h4>פעולות ביטול (Undo Clicks)</h4>
-                <div className="val" style={{ color: student.traceData.undo_clicks > 5 ? '#EF4444' : '#6EE7B7' }}>
-                  {student.traceData.undo_clicks}
+                <div className="val" style={{ color: (student?.traceData?.undo_clicks ?? 0) > 5 ? '#EF4444' : '#6EE7B7' }}>
+                  {student?.traceData?.undo_clicks ?? 0}
                 </div>
-                {student.traceData.undo_clicks > 5 && (
+                {(student?.traceData?.undo_clicks ?? 0) > 5 && (
                   <p style={{ fontSize: '11px', color: '#FCA5A5', marginTop: '8px' }}>ריבוי ביטולים עשוי להעיד על "ניסוי וטעייה" במקום אסטרטגיה.</p>
                 )}
               </div>
@@ -58,32 +58,32 @@ export default function StudentPedagogicalModal({ student, onClose }) {
                   <tr>
                     <td>שומר מקום לאפס (Zero Placeholder)</td>
                     <td>
-                      {student.qMatrixResults.task1_zero_placeholder ? 
+                      {student?.qMatrixResults?.task1_zero_placeholder ? 
                         <span className="status-badge status-badge--active">נרכשה בהצלחה</span> : 
                         <span className="status-badge status-badge--expired">דורשת חיזוק</span>
                       }
-                      {!student.qMatrixResults.task1_zero_placeholder && student.traceData.hesitation_events === 0 && (
+                      {!(student?.qMatrixResults?.task1_zero_placeholder) && (student?.traceData?.hesitation_events ?? 0) === 0 && (
                         <div style={{ fontSize: '11px', color: '#FCA5A5', marginTop: '4px' }}>⚠️ שיוט חסר מחשבה (Impulsivity)</div>
                       )}
                     </td>
                   </tr>
                   <tr>
                     <td>מרווח שגיאת אומדן (Estimation Error Margin)</td>
-                    <td style={{ fontWeight: 700, color: student.qMatrixResults.task2_estimation_error_margin <= 15 ? '#6EE7B7' : '#FCA5A5' }}>
-                      {student.qMatrixResults.task2_estimation_error_margin}% חריגה
+                    <td style={{ fontWeight: 700, color: (student?.qMatrixResults?.task2_estimation_error_margin ?? 0) <= 15 ? '#6EE7B7' : '#FCA5A5' }}>
+                      {student?.qMatrixResults?.task2_estimation_error_margin ?? 0}% חריגה
                       <span style={{ fontSize: '11px', display: 'block', fontWeight: 'normal', marginTop: '2px' }}>
-                        {student.qMatrixResults.task2_estimation_error_margin <= 15 ? 'אומדן סביר ותקין' : 'חריגה משמעותית - דורש תיווך'}
+                        {(student?.qMatrixResults?.task2_estimation_error_margin ?? 0) <= 15 ? 'אומדן סביר ותקין' : 'חריגה משמעותית - דורש תיווך'}
                       </span>
                     </td>
                   </tr>
                   <tr>
                     <td>המרות והרכבות גמישות (Flexible Regrouping)</td>
                     <td>
-                      {student.qMatrixResults.task3_flexible_regrouping ? 
+                      {student?.qMatrixResults?.task3_flexible_regrouping ? 
                         <span className="status-badge status-badge--active">נרכשה בהצלחה</span> : 
                         <span className="status-badge status-badge--expired">דורשת חיזוק</span>
                       }
-                      {student.qMatrixResults.task3_flexible_regrouping && student.traceData.undo_clicks > 3 && (
+                      {student?.qMatrixResults?.task3_flexible_regrouping && (student?.traceData?.undo_clicks ?? 0) > 3 && (
                         <div style={{ fontSize: '11px', color: '#FCD34D', marginTop: '4px' }}>💡 הצלחה תוך מאמץ (High-Effort)</div>
                       )}
                     </td>
@@ -91,7 +91,7 @@ export default function StudentPedagogicalModal({ student, onClose }) {
                   <tr>
                     <td>שטף חיבור בסיסי (Basic Addition Fluency)</td>
                     <td>
-                      {student.qMatrixResults.task4_basic_addition_fluency ? 
+                      {student?.qMatrixResults?.task4_basic_addition_fluency ? 
                         <span className="status-badge status-badge--active">נרכשה בהצלחה</span> : 
                         <span className="status-badge status-badge--expired">דורשת חיזוק</span>
                       }

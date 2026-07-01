@@ -73,7 +73,7 @@ export default function AdminPanel() {
   const [selectedStudent, setSelectedStudent] = useState(null);
 
   useEffect(() => {
-    if (!adminUser) {
+    if (!adminUser || adminUser.role === 'Student') {
       navigate('/', { replace: true });
     }
   }, [adminUser, navigate]);
@@ -105,7 +105,7 @@ export default function AdminPanel() {
         {selectedTeacher && !selectedClass && (
           <TeacherClassesView 
             teacher={selectedTeacher}
-            onBack={() => setSelectedTeacher(null)}
+            onBack={() => { setSelectedTeacher(null); setSelectedClass(null); setSelectedStudent(null); }}
             onSelectClass={(c) => setSelectedClass(c)}
           />
         )}
@@ -114,8 +114,8 @@ export default function AdminPanel() {
           <ClassStudentsView 
             cls={selectedClass}
             teacherName={selectedTeacher.name}
-            onBackToTeachers={() => { setSelectedClass(null); setSelectedTeacher(null); }}
-            onBackToClasses={() => setSelectedClass(null)}
+            onBackToTeachers={() => { setSelectedTeacher(null); setSelectedClass(null); setSelectedStudent(null); }}
+            onBackToClasses={() => { setSelectedClass(null); setSelectedStudent(null); }}
             onSelectStudent={(s) => setSelectedStudent(s)}
           />
         )}

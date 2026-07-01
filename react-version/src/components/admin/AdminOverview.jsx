@@ -5,13 +5,13 @@ import { Users, GraduationCap, AlertTriangle, TrendingUp } from 'lucide-react';
 export default function AdminOverview({ mockData, onSelectTeacher }) {
   // Calculate global stats
   const totalTeachers = mockData.length;
-  const totalClasses = mockData.reduce((acc, t) => acc + t.classes.length, 0);
-  const totalStudents = mockData.reduce((acc, t) => acc + t.classes.reduce((cAcc, c) => cAcc + c.students.length, 0), 0);
+  const totalClasses = mockData.reduce((acc, t) => acc + (t.classes || []).length, 0);
+  const totalStudents = mockData.reduce((acc, t) => acc + (t.classes || []).reduce((cAcc, c) => cAcc + (c.students || []).length, 0), 0);
   
   // Example global chart data
   const chartData = mockData.map(t => ({
     name: t.name,
-    students: t.classes.reduce((acc, c) => acc + c.students.length, 0),
+    students: (t.classes || []).reduce((acc, c) => acc + (c.students || []).length, 0),
     avgScore: 85 // Mocked average
   }));
 
@@ -87,8 +87,8 @@ export default function AdminOverview({ mockData, onSelectTeacher }) {
               </span>
             </div>
             <div className="entity-meta">
-              <span>{teacher.classes.length} כיתות משויכות</span>
-              <span>{teacher.classes.reduce((a,c) => a + c.students.length, 0)} תלמידים</span>
+              <span>{(teacher.classes || []).length} כיתות משויכות</span>
+              <span>{(teacher.classes || []).reduce((a,c) => a + (c.students || []).length, 0)} תלמידים</span>
             </div>
           </div>
         ))}

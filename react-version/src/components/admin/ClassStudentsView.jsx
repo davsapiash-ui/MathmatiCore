@@ -21,8 +21,11 @@ export default function ClassStudentsView({ cls, teacherName, onBackToTeachers, 
 
       <h3 className="admin-section-title">רשימת תלמידים</h3>
       <div className="admin-grid">
-        {cls.students.map(student => {
-          const needsIntervention = student.traceData.hesitation_events > 3 || !student.qMatrixResults.task4_basic_addition_fluency;
+        {(cls.students || []).map(student => {
+          const hesitations = student?.traceData?.hesitation_events ?? 0;
+          const undoClicks = student?.traceData?.undo_clicks ?? 0;
+          const fluency = student?.qMatrixResults?.task4_basic_addition_fluency ?? false;
+          const needsIntervention = hesitations > 3 || !fluency;
           
           return (
             <div key={student.id} className="entity-card" onClick={() => onSelectStudent(student)} style={{ borderColor: needsIntervention ? 'rgba(239, 68, 68, 0.4)' : 'rgba(255,255,255,0.06)' }}>
@@ -38,8 +41,8 @@ export default function ClassStudentsView({ cls, teacherName, onBackToTeachers, 
                 )}
               </div>
               <div className="entity-meta">
-                <span>אירועי היסוס: {student.traceData.hesitation_events}</span>
-                <span>מחיקות: {student.traceData.undo_clicks}</span>
+                <span>אירועי היסוס: {hesitations}</span>
+                <span>מחיקות: {undoClicks}</span>
               </div>
             </div>
           );
