@@ -60,7 +60,7 @@
         <button class="timer-btn timer-btn--start" id="timer-toggle">הפעל זמן מפגש</button>
         <button class="timer-btn timer-btn--reset" id="timer-reset">איפוס זמן</button>
         <button class="timer-btn timer-btn--reset" onclick="if(confirm('למחוק את כל נתוני המערכת ולהקים כיתה חדשה?')){ localStorage.clear(); sessionStorage.clear(); window.location.reload(); }" style="background:var(--color-danger); color:white; border:none; margin-right:8px;">הקם כיתה חדשה (איפוס)</button>
-        <button class="timer-btn timer-btn--reset" onclick="SessionManager.logout()" style="background:#555; color:white; border:none; margin-right:8px;">התנתק</button>
+        <button class="timer-btn timer-btn--reset" onclick="sessionStorage.clear(); localStorage.removeItem('mathematicor_state'); window.location.href='../index.html'" style="background:#555; color:white; border:none; margin-right:8px;">התנתק</button>
       </div>
       <div class="session-timer-display" id="session-timer">20:00</div>
       <div class="teacher-name-badge" id="teacher-name">המורה לבנה</div>
