@@ -884,12 +884,34 @@
           syncDrawerActiveChapter(currentTime);
         });
 
+        function scaleReplayer() {
+          if (!currentReplayer) return;
+          const wrapper = container.querySelector('.replayer-wrapper');
+          if (!wrapper) return;
+          const iframe = wrapper.querySelector('iframe');
+          if (!iframe) return;
+
+          const recordedW = parseInt(iframe.getAttribute('width'));
+          const recordedH = parseInt(iframe.getAttribute('height'));
+          if (!recordedW || !recordedH) return;
+
+          const containerW = container.clientWidth;
+          const containerH = container.clientHeight;
+
+          const scale = Math.min(containerW / recordedW, containerH / recordedH, 1);
+          wrapper.style.transform = `scale(${scale})`;
+          wrapper.style.transformOrigin = 'center center';
+        }
+
         // Force render of the first frame by pausing at 0 after a short delay
         setTimeout(() => {
           if (currentReplayer) {
             currentReplayer.pause(0);
+            scaleReplayer();
           }
         }, 100);
+
+        window.addEventListener('resize', scaleReplayer);
       } catch (err) {
         console.warn('Replayer init error:', err);
       }
