@@ -89,15 +89,27 @@ const StudentLogger = (() => {
           if (!action) return;
           if (action.type === 'hint') {
             if (typeof showFeedback !== 'undefined') {
-              showFeedback(false, 'חונך סוקרטי (התערבות מורה)', 'שים לב: המורה שלח לך הכוונה.');
+              showFeedback(false, 'רמז מורה מרחוק (התערבות סמויה)', 'שימו לב: המורה חושב שאתם בכיוון הנכון.');
             }
           } else if (action.type === 'stop') {
-             alert('המורה עצר את המפגש שלך.');
+             alert('המורה עצר את התרגיל כרגע.');
              if (typeof SessionManager !== 'undefined') SessionManager.logout();
           }
         });
+
+        // Listen for Global Resets
+        firebase.database().ref('system_control/last_reset').on('value', (snapshot) => {
+          const resetTime = snapshot.val();
+          if (resetTime && typeof SessionManager !== 'undefined') {
+            const loginTime = SessionManager.state.loginTime || 0;
+            if (resetTime > loginTime) {
+              alert('המערכת אופסה על ידי מנהל/מורה. מנתק אותך כעת.');
+              SessionManager.logout();
+            }
+          }
+        });
       }
-    } catch(e) { console.warn('Failed to listen for teacher actions', e); }
+    } catch(e) { console.warn('Failed to listen for firebase actions', e); }
   }
 
   /**

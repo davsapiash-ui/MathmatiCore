@@ -209,11 +209,23 @@ const SessionManager = (() => {
 
   function logout() {
     sessionStorage.clear();
-    localStorage.removeItem('mathematicor_state');
-    // If we want to clear everything:
-    // localStorage.clear();
+    // Clear all mathematicor-related keys from localStorage
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('mathematicor_')) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+    
+    // Attempt to disconnect Firebase if available
+    if (typeof firebase !== 'undefined' && firebase.database) {
+      try { firebase.database().goOffline(); } catch(e) {}
+    }
+
     if (window.location.pathname.includes('/student/') || window.location.pathname.includes('/teacher/') || window.location.pathname.includes('/admin/')) {
-       window.location.href = '../index.html';
+       window.location.replace('../index.html');
     } else {
        window.location.reload();
     }

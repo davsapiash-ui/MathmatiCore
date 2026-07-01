@@ -15,6 +15,11 @@
       window.location.replace('../index.html');
     }
   </script>
+
+  <!-- Firebase Realtime Database -->
+  <script src="/__/firebase/10.12.2/firebase-app-compat.js"></script>
+  <script src="/__/firebase/10.12.2/firebase-database-compat.js"></script>
+  <script src="/__/firebase/init.js"></script>
 </head>
 <body class="admin-page">
 
@@ -213,12 +218,12 @@
           <h1 class="admin-panel-title">🔐 לוג ביקורת גישה — סמוי</h1>
           <p class="admin-panel-subtitle">רישום אוטומטי של כל פעם שמנהל נכנס לצפות בנתוני מורה. המורה אינו מודע לכך. המידע נשמר מקומית בדפדפן זה בלבד (בגרסת פיילוט).</p>
         </div>
-        <button class="admin-btn" onclick="clearAuditLog()" style="color:#FCA5A5;border-color:#FCA5A5;">🗑️ נקה לוג</button>
       </div>
       <div class="admin-card">
         <div class="admin-card-header">
-          <div class="admin-card-title">כניסות אחרונות</div>
-          <button class="admin-btn" onclick="refreshAuditLog()">🔄 רענן</button>
+          <div class="admin-card-title">ניהול יומני ביקורת (Audit Logs)</div>
+          <button class="admin-btn" onclick="clearAuditLog()" style="color:#FCA5A5;border-color:#FCA5A5;">נקה יומן</button>
+          <button class="admin-btn" onclick="globalSystemReset()" style="background:#EF4444;color:white;border-color:#EF4444;margin-right:10px;">מחיקה וניתוק גלובלי (איפוס מערכת)</button>
         </div>
         <table class="admin-table" id="audit-log-table">
           <thead>
@@ -239,7 +244,7 @@
   </main>
 
   <script>
-    /* global localStorage, sessionStorage */
+    /* global localStorage, sessionStorage, firebase */
     // Sidebar Tabs
     document.querySelectorAll('.sidebar-nav-item[data-target]').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -304,17 +309,31 @@
 
     /* ── Audit Log Reader (Admin only) ── */
     function refreshAuditLog() {
-      const AUDIT_KEY = 'mathematicor_admin_audit_log';
-      const log = JSON.parse(localStorage.getItem(AUDIT_KEY) || '[]');
       const tbody = document.getElementById('audit-log-body');
       if (!tbody) return;
 
-      if (log.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--color-text-muted);padding:24px;">אין רישומים עדיין</td></tr>';
-        return;
+      if (typeof firebase !== 'undefined' && firebase.database) {
+        firebase.database().ref('audit_logs').once('value').then(snapshot => {
+          const logsObj = snapshot.val();
+          if (!logsObj) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--color-text-muted);padding:24px;">אין תיעוד במערכת</td></tr>';
+            return;
+          }
+          const log = Object.values(logsObj).sort((a,b) => a.timestamp - b.timestamp);
+          renderLogs(log, tbody);
+        });
+      } else {
+        const AUDIT_KEY = 'mathematicor_admin_audit_log';
+        const log = JSON.parse(localStorage.getItem(AUDIT_KEY) || '[]');
+        if (log.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--color-text-muted);padding:24px;">אין תיעוד במערכת</td></tr>';
+          return;
+        }
+        renderLogs(log, tbody);
       }
+    }
 
-      /* Show newest first */
+    function renderLogs(log, tbody) {
       const rows = [...log].reverse().map(entry => {
         const dt = new Date(entry.timestamp);
         const dateStr = dt.toLocaleDateString('he-IL') + ' ' + dt.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -330,9 +349,29 @@
     }
 
     function clearAuditLog() {
-      if (!confirm('האם אתה בטוח שברצונך למחוק את כל רישומי הביקורת?')) return;
-      localStorage.removeItem('mathematicor_admin_audit_log');
-      refreshAuditLog();
+      if (!confirm('האם אתה בטוח שברצונך לנקות את תיעוד הלוגים? פעולה זו אינה הפיכה!')) return;
+      if (typeof firebase !== 'undefined' && firebase.database) {
+        firebase.database().ref('audit_logs').remove().then(() => refreshAuditLog());
+      } else {
+        localStorage.removeItem('mathematicor_admin_audit_log');
+        refreshAuditLog();
+      }
+    }
+
+    function globalSystemReset() {
+      if (!confirm('אזהרה חמורה: מחיקה גלובלית!\nהאם אתה בטוח שברצונך לאפס את כל המערכת כולה?\nכל הנתונים (תלמידים, מורים, לוגים) יימחקו, וכל המשתמשים ינותקו מיד!')) return;
+      if (typeof firebase !== 'undefined' && firebase.database) {
+        const now = Date.now();
+        Promise.all([
+          firebase.database().ref('students').remove(),
+          firebase.database().ref('radar_alerts').remove(),
+          firebase.database().ref('audit_logs').remove(),
+          firebase.database().ref('system_control/last_reset').set(now)
+        ]).then(() => {
+          alert('המערכת אופסה בהצלחה. כל המשתמשים מנותקים כעת.');
+          refreshAuditLog();
+        });
+      }
     }
 
     /* Load audit log when panel is opened */
