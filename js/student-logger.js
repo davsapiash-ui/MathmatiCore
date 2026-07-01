@@ -108,9 +108,9 @@ const StudentLogger = (() => {
   function logEvent(eventType, detail = {}) {
     if (typeof SessionManager !== 'undefined' && SessionManager.isImpersonating && SessionManager.isImpersonating()) return;
     
-    const activeTask = (typeof QMatrix !== 'undefined' && QMatrix.getCurrentTask) 
-      ? QMatrix.getCurrentTask() 
-      : null;
+    const activeTask = (typeof App !== 'undefined' && App.getCurrentTask) 
+      ? App.getCurrentTask() 
+      : ((typeof QMatrix !== 'undefined' && QMatrix.getCurrentTask) ? QMatrix.getCurrentTask() : null);
     
     const pvState = (typeof PlaceValueModel !== 'undefined') 
       ? PlaceValueModel.getAllCounts() 

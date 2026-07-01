@@ -1511,8 +1511,13 @@ const App = (() => {
   }
 
   /* ── Public API ── */
+  function getCurrentTask() {
+    return isSession2 ? (typeof QMatrix !== 'undefined' ? QMatrix.getCurrentTask() : null) : currentSessionTasks[currentTaskIdx];
+  }
+
   return {
     init,
+    getCurrentTask,
     addQ3Representation,
     handleUndo,
     handleProceed,
