@@ -1,3 +1,5 @@
+/* eslint-disable react-refresh/only-export-components */
+/* eslint-disable react/only-export-components */
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -89,6 +91,40 @@ export function SessionProvider({ children }) {
     navigate('/', { replace: true });
   }, [navigate]);
 
+  const loginStudent = useCallback((school, teacher, username, password) => {
+    // Mock Validation: password must be 10203040 and username starts with user
+    if (password === '10203040' && username.startsWith('user')) {
+      const user = {
+        id: `s_${Date.now()}`,
+        name: `תלמיד ${username.replace('user', '')}`,
+        role: 'Student',
+        school,
+        teacher,
+        taskIndex: 0
+      };
+      setStudentUser(user);
+      navigate('/student', { replace: true });
+      return true;
+    }
+    return false;
+  }, [navigate, setStudentUser]);
+
+  const loginTeacher = useCallback((tz, birthYear) => {
+    // Mock Validation: simple truthy check for now
+    if (tz && birthYear) {
+      const user = {
+        id: `t_${tz}`,
+        name: `מורה (${tz})`,
+        role: 'Teacher',
+        school: 'בי"ס כללי',
+      };
+      setTeacherUser(user);
+      navigate('/teacher', { replace: true });
+      return true;
+    }
+    return false;
+  }, [navigate, setTeacherUser]);
+
   const value = useMemo(() => ({
     studentUser,
     teacherUser,
@@ -97,8 +133,10 @@ export function SessionProvider({ children }) {
     setStudentUser,
     setTeacherUser,
     setAdminUser,
-    logout
-  }), [studentUser, teacherUser, adminUser, adminImpersonating, setStudentUser, setTeacherUser, setAdminUser, logout]);
+    logout,
+    loginStudent,
+    loginTeacher
+  }), [studentUser, teacherUser, adminUser, adminImpersonating, setStudentUser, setTeacherUser, setAdminUser, logout, loginStudent, loginTeacher]);
 
   return (
     <SessionContext.Provider value={value}>

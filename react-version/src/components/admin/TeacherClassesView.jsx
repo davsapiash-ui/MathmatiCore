@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, BookOpen, Users } from 'lucide-react';
+import { BookOpen, Users } from 'lucide-react';
 
 export default function TeacherClassesView({ teacher, onBack, onSelectClass }) {
   if (!teacher) return null;

@@ -1,13 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSession } from '../contexts/SessionContext';
-import { LogOut } from 'lucide-react';
 import '../styles/admin.css';
 
+import AdminSidebar from '../components/admin/AdminSidebar';
 import AdminOverview from '../components/admin/AdminOverview';
 import TeacherClassesView from '../components/admin/TeacherClassesView';
 import ClassStudentsView from '../components/admin/ClassStudentsView';
 import StudentPedagogicalModal from '../components/admin/StudentPedagogicalModal';
+import AdminSchoolsView from '../components/admin/AdminSchoolsView';
+import AdminLicensesView from '../components/admin/AdminLicensesView';
+import AdminAuditLog from '../components/admin/AdminAuditLog';
+import AdminSettingsView from '../components/admin/AdminSettingsView';
 
 // --- MOCK DATA ---
 const MOCK_DATA = [
@@ -67,7 +71,10 @@ export default function AdminPanel() {
   const { adminUser, logout } = useSession();
   const navigate = useNavigate();
 
-  // Drill-down State
+  // Primary routing state (sidebar selection)
+  const [activeView, setActiveView] = useState('teachers');
+
+  // Drill-down State (for teachers view)
   const [selectedTeacher, setSelectedTeacher] = useState(null);
   const [selectedClass, setSelectedClass] = useState(null);
   const [selectedStudent, setSelectedStudent] = useState(null);
@@ -82,44 +89,64 @@ export default function AdminPanel() {
 
   return (
     <div className="admin-layout" dir="rtl">
-      <header className="admin-header">
-        <div className="admin-header-title">
-          <div className="admin-header-icon">⚙️</div>
-          פאנל ניהול - {adminUser.name}
-        </div>
-        <div className="admin-header-actions">
-          <button className="admin-logout-btn" onClick={logout}>
-            <LogOut size={16} /> התנתק
-          </button>
-        </div>
-      </header>
+      
+      <AdminSidebar 
+        activeView={activeView} 
+        setActiveView={(view) => {
+          setActiveView(view);
+          if (view !== 'teachers') {
+            setSelectedTeacher(null);
+            setSelectedClass(null);
+            setSelectedStudent(null);
+          }
+        }} 
+        onLogout={logout} 
+      />
 
-      <main className="admin-main">
-        {!selectedTeacher && (
-          <AdminOverview 
-            mockData={MOCK_DATA} 
-            onSelectTeacher={(t) => setSelectedTeacher(t)} 
-          />
-        )}
-        
-        {selectedTeacher && !selectedClass && (
-          <TeacherClassesView 
-            teacher={selectedTeacher}
-            onBack={() => { setSelectedTeacher(null); setSelectedClass(null); setSelectedStudent(null); }}
-            onSelectClass={(c) => setSelectedClass(c)}
-          />
-        )}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <header className="admin-header">
+          <div className="admin-header-title">
+            <div className="admin-header-icon">⚙️</div>
+            פאנל ניהול
+          </div>
+        </header>
 
-        {selectedTeacher && selectedClass && (
-          <ClassStudentsView 
-            cls={selectedClass}
-            teacherName={selectedTeacher.name}
-            onBackToTeachers={() => { setSelectedTeacher(null); setSelectedClass(null); setSelectedStudent(null); }}
-            onBackToClasses={() => { setSelectedClass(null); setSelectedStudent(null); }}
-            onSelectStudent={(s) => setSelectedStudent(s)}
-          />
-        )}
-      </main>
+        <main className="admin-main" style={{ overflowY: 'auto' }}>
+          {activeView === 'schools' && <AdminSchoolsView />}
+          {activeView === 'licenses' && <AdminLicensesView />}
+          {activeView === 'audit' && <AdminAuditLog />}
+          {activeView === 'settings' && <AdminSettingsView />}
+          
+          {activeView === 'teachers' && (
+            <>
+              {!selectedTeacher && (
+                <AdminOverview 
+                  mockData={MOCK_DATA} 
+                  onSelectTeacher={(t) => setSelectedTeacher(t)} 
+                />
+              )}
+              
+              {selectedTeacher && !selectedClass && (
+                <TeacherClassesView 
+                  teacher={selectedTeacher}
+                  onBack={() => { setSelectedTeacher(null); setSelectedClass(null); setSelectedStudent(null); }}
+                  onSelectClass={(c) => setSelectedClass(c)}
+                />
+              )}
+
+              {selectedTeacher && selectedClass && (
+                <ClassStudentsView 
+                  cls={selectedClass}
+                  teacherName={selectedTeacher.name}
+                  onBackToTeachers={() => { setSelectedTeacher(null); setSelectedClass(null); setSelectedStudent(null); }}
+                  onBackToClasses={() => { setSelectedClass(null); setSelectedStudent(null); }}
+                  onSelectStudent={(s) => setSelectedStudent(s)}
+                />
+              )}
+            </>
+          )}
+        </main>
+      </div>
 
       {/* Student Modal */}
       {selectedStudent && (
