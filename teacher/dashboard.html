@@ -300,7 +300,7 @@
         <div class="classroom-detail-panel">
           <div class="panel-section-title" style="display:flex; justify-content:space-between; align-items:center;">
             <span>הגדרות כיתת פיילוט</span>
-            <button onclick="if(confirm('פעולה זו תמחק את כל נתוני התלמידים, ההתראות והשחזורים מהענן לצמיתות! האם אתה בטוח?')){ firebase.database().ref('students').remove().then(() => firebase.database().ref('radar_alerts').remove()).then(() => { localStorage.clear(); sessionStorage.clear(); window.location.reload(); }); }" style="background:var(--color-danger); color:white; border:none; padding:6px 12px; border-radius:var(--radius-sm); cursor:pointer; font-size:12px; font-weight:bold;">🗑️ נקה נתוני כיתה ורענן</button>
+            <button onclick="if(confirm('פעולה זו תמחק את כל נתוני התלמידים, ההתראות והשחזורים מהענן לצמיתות! האם אתה בטוח?')){ firebase.database().ref('students').remove().then(() => firebase.database().ref('radar_alerts').remove()).then(() => firebase.database().ref('system_control/last_reset').set(Date.now())).then(() => { localStorage.clear(); sessionStorage.clear(); window.location.reload(); }); }" style="background:var(--color-danger); color:white; border:none; padding:6px 12px; border-radius:var(--radius-sm); cursor:pointer; font-size:12px; font-weight:bold;">🗑️ נקה נתוני כיתה ורענן</button>
           </div>
           
 
