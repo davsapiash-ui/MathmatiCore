@@ -166,9 +166,11 @@ const TeacherRadarReader = (() => {
     const alerts = getAlerts();
     const now    = Date.now();
     const map    = {};
+    
+    const BLOCKED_USERS = ['undefined', 'guest', 'student_sso', 'talmid1'];
 
     for (const alert of alerts) {
-      if (!alert.username || alert.username === 'undefined') continue;
+      if (!alert.username || BLOCKED_USERS.includes(alert.username)) continue;
       
       const un = alert.username;
       if (!map[un]) map[un] = { username: un, studentName: alert.studentName, status: 'active', lastActivity: 0, taskId: alert.taskId };
@@ -188,7 +190,7 @@ const TeacherRadarReader = (() => {
       const key = localStorage.key(i);
       if (key && key.startsWith('mathematicor_student_logs_')) {
         const un = key.replace('mathematicor_student_logs_', '');
-        if (un === 'undefined') continue;
+        if (BLOCKED_USERS.includes(un)) continue;
         
         try {
           const logs = JSON.parse(localStorage.getItem(key));
@@ -247,25 +249,38 @@ const TeacherRadarReader = (() => {
   }
 
   /**
-   * Returns session Q-Matrix results per student (for clustering).
+   * Returns the aggregated Q-Matrix results.
    */
   function getQMatrixResults() {
-    try {
-      return JSON.parse(localStorage.getItem('mathematicor_qmatrix_results') || '[]');
-    } catch {
-      return [];
+    let results = [];
+    const BLOCKED_USERS = ['undefined', 'guest', 'student_sso', 'talmid1'];
+
+    if (typeof window !== 'undefined' && window._firebaseQMatrixCache && window._firebaseQMatrixCache.length > 0) {
+      results = window._firebaseQMatrixCache;
+    } else {
+      try {
+        results = JSON.parse(localStorage.getItem('mathematicor_qmatrix_results') || '[]');
+      } catch {
+        results = [];
+      }
     }
+    
+    // Filter out invalid students
+    return results.filter(r => r.studentId && !BLOCKED_USERS.includes(r.studentId));
   }
 
   /**
    * Returns session reflections (for classroom manager).
    */
   function getReflections() {
+    let results = [];
+    const BLOCKED_USERS = ['undefined', 'guest', 'student_sso', 'talmid1'];
     try {
-      return JSON.parse(localStorage.getItem('mathematicor_reflections') || '[]');
+      results = JSON.parse(localStorage.getItem('mathematicor_reflections') || '[]');
     } catch {
-      return [];
+      results = [];
     }
+    return results.filter(r => r.username && !BLOCKED_USERS.includes(r.username));
   }
 
   /**
