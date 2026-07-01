@@ -52,9 +52,20 @@ export default function Login() {
         loginTime: Date.now()
       }));
     } else if (selectedRole === 'admin') {
+      const username = prompt("אנא הזן שם משתמש מנהל:");
+      if (username !== 'davsapiash') {
+        alert("שם משתמש שגוי.");
+        return;
+      }
+      const password = prompt("אנא הזן סיסמת מנהל:");
+      if (password !== 'carlibach') {
+        alert("סיסמה שגויה.");
+        return;
+      }
+
       localStorage.setItem('mathematicor_admin', JSON.stringify({
-        name:      'מנהל מערכת (Mock SSO)',
-        username:  'admin_demo',
+        name:      'מנהל מערכת',
+        username:  'davsapiash',
         role:      'admin',
         loginTime: Date.now()
       }));
