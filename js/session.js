@@ -36,13 +36,18 @@ const SessionManager = (() => {
 
   const ALLOWED_STUDENTS = ['user1', 'user2', 'user3', 'user4', 'user5', 'user6', 'user7', 'user8', 'pilot', 'pilot2'];
 
-  if (!student || !student.username || !ALLOWED_STUDENTS.includes(student.username)) {
-    console.warn("Unauthorized access blocked. Redirecting to login.");
-    window.location.replace('../index.html');
-    throw new Error("Unauthorized access. Script execution halted.");
+  const isTeacher = !!localStorage.getItem('mathematicor_teacher');
+  const isAdminImpersonating = !!sessionStorage.getItem('mathematicor_admin_impersonation');
+
+  if (!isTeacher && !isAdminImpersonating) {
+    if (!student || !student.username || !ALLOWED_STUDENTS.includes(student.username)) {
+      console.warn("Unauthorized access blocked. Redirecting to login.");
+      window.location.replace('../index.html');
+      throw new Error("Unauthorized access. Script execution halted.");
+    }
   }
 
-  const state = {
+  const state = student ? {
     studentName:   student.name,
     username:      student.username,
     sessionNumber: student.session || 1,
@@ -75,7 +80,7 @@ const SessionManager = (() => {
       hintsRequested:    0,    /* support palette uses */
       totalTimeMs:       0     /* cumulative active time */
     }
-  };
+  } : {};
 
   /* ── Undo Stack ─────────────────────────────────────────────
      Each entry is a deep-snapshot of the PlaceValue model state.
