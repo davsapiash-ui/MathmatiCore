@@ -47,17 +47,31 @@ const StudentLogger = (() => {
     if (typeof rrweb !== 'undefined') {
       try {
         rrwebEvents = [];
+        let pendingFirebaseEvents = [];
+        let batchTimeout = null;
+        let lastLocalSave = Date.now();
+
         rrweb.record({
           emit(event) {
             rrwebEvents.push(event);
-            try {
-              if (typeof firebase !== 'undefined' && firebase.database) {
-                // Firebase rejects objects with undefined or empty arrays. Stringify ensures robust saving.
-                firebase.database().ref(`students/${username}/replay`).push(JSON.stringify(event));
-              }
-            } catch(e) {}
-            /* Throttle saving to localStorage every 15 events to prevent heavy I/O */
-            if (rrwebEvents.length % 15 === 0) {
+            pendingFirebaseEvents.push(event);
+
+            if (!batchTimeout) {
+              batchTimeout = setTimeout(() => {
+                try {
+                  if (typeof firebase !== 'undefined' && firebase.database && pendingFirebaseEvents.length > 0) {
+                    firebase.database().ref(`students/${username}/replay`).push(JSON.stringify(pendingFirebaseEvents));
+                    pendingFirebaseEvents = [];
+                  }
+                } catch(e) {}
+                batchTimeout = null;
+              }, 4000); // Send to Firebase every 4 seconds
+            }
+
+            /* Throttle saving to localStorage every 10 seconds to prevent heavy I/O thread freezing */
+            const now = Date.now();
+            if (now - lastLocalSave > 10000) {
+              lastLocalSave = now;
               try {
                 localStorage.setItem(`mathematicor_student_replay_${username}`, JSON.stringify(rrwebEvents));
               } catch(e) {}

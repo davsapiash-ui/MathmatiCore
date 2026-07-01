@@ -104,7 +104,7 @@
       if (window._firebaseStudentCache && window._firebaseStudentCache[username] && window._firebaseStudentCache[username].replay) {
          let evts = window._firebaseStudentCache[username].replay;
          let rawEvents = Array.isArray(evts) ? evts : Object.values(evts);
-         evts = rawEvents.map(e => typeof e === 'string' ? JSON.parse(e) : e);
+         evts = rawEvents.map(e => typeof e === 'string' ? JSON.parse(e) : e).flat();
          evts.sort((a,b) => (a.timestamp || 0) - (b.timestamp || 0));
          return evts;
       }
@@ -455,7 +455,7 @@
       if (window._firebaseStudentCache && window._firebaseStudentCache[username] && window._firebaseStudentCache[username].replay) {
          let evts = window._firebaseStudentCache[username].replay;
          let rawEvents = Array.isArray(evts) ? evts : Object.values(evts);
-         evts = rawEvents.map(e => typeof e === 'string' ? JSON.parse(e) : e);
+         evts = rawEvents.map(e => typeof e === 'string' ? JSON.parse(e) : e).flat();
          evts.sort((a,b) => (a.timestamp || 0) - (b.timestamp || 0));
          return evts;
       }
@@ -710,7 +710,7 @@
           if (eventsSnap.val()) {
             const val = eventsSnap.val();
             let rawEvents = Array.isArray(val) ? val : Object.values(val);
-            events = rawEvents.map(e => typeof e === 'string' ? JSON.parse(e) : e);
+            events = rawEvents.map(e => typeof e === 'string' ? JSON.parse(e) : e).flat();
             events.sort((a,b) => (a.timestamp || 0) - (b.timestamp || 0));
           }
         }
