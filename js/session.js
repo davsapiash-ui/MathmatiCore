@@ -34,12 +34,20 @@ const SessionManager = (() => {
   /* ── Current Session State ── */
   const student = loadStudentData();
 
+  const ALLOWED_STUDENTS = ['user1', 'user2', 'user3', 'user4', 'user5', 'user6', 'user7', 'user8', 'pilot', 'pilot2'];
+
+  if (!student || !student.username || !ALLOWED_STUDENTS.includes(student.username)) {
+    console.warn("Unauthorized access blocked. Redirecting to login.");
+    window.location.replace('../index.html');
+    throw new Error("Unauthorized access. Script execution halted.");
+  }
+
   const state = {
-    studentName:   student ? student.name      : 'תלמיד',
-    username:      student ? student.username   : '',
-    sessionNumber: student ? student.session    : 1,
-    classMode:     student ? student.classMode  : 'regular',   // 'regular' | 'asd'
-    loginTime:     student ? student.loginTime  : Date.now(),
+    studentName:   student.name,
+    username:      student.username,
+    sessionNumber: student.session || 1,
+    classMode:     student.classMode || 'regular',
+    loginTime:     student.loginTime || Date.now(),
 
     /* Current task within the session (0-indexed) */
     taskIndex: 0,

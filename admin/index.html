@@ -367,6 +367,14 @@
     // Modals
     function openModal(id) { document.getElementById(id).classList.add('open'); }
     function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+    // --- Authorization Check ---
+    const adminData = sessionStorage.getItem('mathematicor_admin');
+    if (!adminData) {
+      console.warn("Unauthorized access blocked. Redirecting to login.");
+      window.location.replace('../index.html');
+      throw new Error("Unauthorized access. Script execution halted.");
+    }
   </script>
 </body>
 </html>

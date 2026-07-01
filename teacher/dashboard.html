@@ -1236,6 +1236,14 @@
       }
     };
 
+    // --- Authorization Check ---
+    const teacherData = sessionStorage.getItem('mathematicor_teacher');
+    if (!teacherData) {
+      console.warn("Unauthorized access blocked. Redirecting to login.");
+      window.location.replace('../index.html');
+      throw new Error("Unauthorized access. Script execution halted.");
+    }
+
     // Start Polling Loop
     TeacherRadarReader.startPolling((alerts, statuses) => {
       renderClassManagementTable();
