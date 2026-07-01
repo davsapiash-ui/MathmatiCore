@@ -415,10 +415,7 @@ const QMatrix = (() => {
     };
   }
 
-  /* Dev skip result recorder */
-  function recordResult(taskId, correct, traceData = {}) {
-    SessionManager.recordQMatrixResult(taskId, correct, 'dev_skip');
-  }
+
 
   /* ── Task Completion Handler ── */
   /**
@@ -575,7 +572,6 @@ const QMatrix = (() => {
     incrementRepCount,
     getRepCount,
     getTaskById,
-    getCurrentPhase,
-    recordResult
+    getCurrentPhase
   };
 })();

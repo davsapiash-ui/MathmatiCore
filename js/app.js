@@ -255,55 +255,7 @@ const App = (() => {
     dom.helpBtn?.addEventListener('click', openSupportPalette);
     dom.supportClose?.addEventListener('click', closeSupportPalette);
 
-    /* Dev Skip Button */
-    const devSkipBtn = document.getElementById('btn-dev-skip');
-    if (devSkipBtn) {
-      devSkipBtn.addEventListener('click', () => {
-        if (typeof Swal !== 'undefined') Swal.close(); // Close any active alerts
-        
-        if (isSession2) {
-          const task = QMatrix.getCurrentTask();
-          if (task) QMatrix.recordResult(task.id, true, getTaskTraceData());
-          QMatrix.advanceToNextTask();
-          if (QMatrix.isComplete()) {
-            showFeedback(true, 'כל הכבוד! מפגש 2 הושלם בהצלחה! 🎉', 'עוברים כעת אוטומטית למפגש 3...');
-            setTimeout(() => {
-              hideFeedback();
-              const student = safeJSONParse(sessionStorage.getItem('mathematicor_student'), {});
-              student.session = 3;
-              student.taskIndex = 0;
-              sessionStorage.setItem('mathematicor_student', JSON.stringify(student));
-              sessionStorage.removeItem('mathematicor_state');
-              window.location.reload();
-            }, 2500);
-          } else {
-            renderQTask();
-          }
-        } else {
-          currentTaskIdx++;
-          if (currentTaskIdx >= currentSessionTasks.length) {
-            let nextSess = activeSession === 1 ? 2 : (activeSession === 3 ? 4 : null);
-            if (nextSess) {
-              showFeedback(true, `כל הכבוד! מפגש ${activeSession} הושלם בהצלחה! 🎉`, `עוברים כעת אוטומטית למפגש ${nextSess}...`);
-              setTimeout(() => {
-                hideFeedback();
-                const student = safeJSONParse(sessionStorage.getItem('mathematicor_student'), {});
-                student.session = nextSess;
-                student.taskIndex = 0;
-                sessionStorage.setItem('mathematicor_student', JSON.stringify(student));
-                sessionStorage.removeItem('mathematicor_state');
-                window.location.reload();
-              }, 2500);
-            } else {
-              showFeedback(true, 'כל הכבוד! סיימתם את כל המפגשים! 🎉', '');
-              setTimeout(() => { window.location.href = '../index.html'; }, 2500);
-            }
-          } else {
-            renderStandardTask();
-          }
-        }
-      });
-    }
+
 
     /* Wire drawer toggle */
     dom.btnToggleBoard = document.getElementById('btn-toggle-board');
@@ -1463,52 +1415,7 @@ const App = (() => {
     if (e.key === 'z' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); handleUndo(); }
   }
 
-  /* ── Dev Skip ── */
-  function devSkipTask() {
-    if (typeof Swal !== 'undefined') Swal.close();
 
-    if (isSession2) {
-      const task = QMatrix.getCurrentTask();
-      if (task) QMatrix.recordResult(task.id, true);
-      QMatrix.advanceToNextTask();
-      if (QMatrix.isComplete()) {
-        showFeedback(true, 'כל הכבוד! מפגש 2 הושלם בהצלחה! 🎉', 'עוברים כעת אוטומטית למפגש 3...');
-        setTimeout(() => {
-          hideFeedback();
-          const student = safeJSONParse(sessionStorage.getItem('mathematicor_student'), {});
-          student.session = 3;
-          student.taskIndex = 0;
-          sessionStorage.setItem('mathematicor_student', JSON.stringify(student));
-          sessionStorage.removeItem('mathematicor_state');
-          window.location.reload();
-        }, 2500);
-      } else {
-        renderQTask();
-      }
-    } else {
-      currentTaskIdx++;
-      if (currentTaskIdx >= currentSessionTasks.length) {
-        let nextSess = activeSession === 1 ? 2 : (activeSession === 3 ? 4 : null);
-        if (nextSess) {
-          showFeedback(true, `כל הכבוד! מפגש ${activeSession} הושלם בהצלחה! 🎉`, `עוברים כעת אוטומטית למפגש ${nextSess}...`);
-          setTimeout(() => {
-            hideFeedback();
-            const student = safeJSONParse(sessionStorage.getItem('mathematicor_student'), {});
-            student.session = nextSess;
-            student.taskIndex = 0;
-            sessionStorage.setItem('mathematicor_student', JSON.stringify(student));
-            sessionStorage.removeItem('mathematicor_state');
-            window.location.reload();
-          }, 2500);
-        } else {
-          showFeedback(true, 'כל הכבוד! סיימתם את כל המפגשים! 🎉', '');
-          setTimeout(() => { window.location.href = '../index.html'; }, 2500);
-        }
-      } else {
-        renderStandardTask();
-      }
-    }
-  }
 
   /* ── Public API ── */
   function getCurrentTask() {
@@ -1522,8 +1429,7 @@ const App = (() => {
     handleUndo,
     handleProceed,
     openSupportPalette,
-    triggerAutoUngroup,
-    devSkipTask
+    triggerAutoUngroup
   };
 
 })();

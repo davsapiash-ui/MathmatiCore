@@ -93,7 +93,12 @@ const StudentLogger = (() => {
             }
           } else if (action.type === 'stop') {
              alert('המורה עצר את התרגיל כרגע.');
-             if (typeof SessionManager !== 'undefined') SessionManager.logout();
+             if (typeof SessionManager !== 'undefined') {
+                 SessionManager.logout();
+             } else {
+                 sessionStorage.clear();
+                 window.location.replace('../index.html');
+             }
           }
           // Remove the action so it doesn't persist across sessions/refreshes
           snapshot.ref.remove().catch(e => console.warn('Failed to remove teacher action', e));
@@ -118,9 +123,12 @@ const StudentLogger = (() => {
           // Change check (for both live updates and post-refresh checks)
           knownReset = sessionStorage.getItem('mathematicor_known_reset');
           if (resetTime && String(resetTime) !== String(knownReset)) {
+             alert('המערכת אופסה על ידי מנהל/מורה. מנתק אותך כעת.');
              if (typeof SessionManager !== 'undefined') {
-                 alert('המערכת אופסה על ידי מנהל/מורה. מנתק אותך כעת.');
                  SessionManager.logout();
+             } else {
+                 sessionStorage.clear();
+                 window.location.replace('../index.html');
              }
           }
         });

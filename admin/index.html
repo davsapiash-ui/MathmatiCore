@@ -223,7 +223,6 @@
         <div class="admin-card-header">
           <div class="admin-card-title">ניהול יומני ביקורת (Audit Logs)</div>
           <button class="admin-btn" onclick="clearAuditLog()" style="color:#FCA5A5;border-color:#FCA5A5;">נקה יומן</button>
-          <button class="admin-btn" onclick="globalSystemReset()" style="background:#EF4444;color:white;border-color:#EF4444;margin-right:10px;">מחיקה וניתוק גלובלי (איפוס מערכת)</button>
         </div>
         <table class="admin-table" id="audit-log-table">
           <thead>
@@ -358,21 +357,7 @@
       }
     }
 
-    function globalSystemReset() {
-      if (!confirm('אזהרה חמורה: מחיקה גלובלית!\nהאם אתה בטוח שברצונך לאפס את כל המערכת כולה?\nכל הנתונים (תלמידים, מורים, לוגים) יימחקו, וכל המשתמשים ינותקו מיד!')) return;
-      if (typeof firebase !== 'undefined' && firebase.database) {
-        const resetId = Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-        Promise.all([
-          firebase.database().ref('students').remove(),
-          firebase.database().ref('radar_alerts').remove(),
-          firebase.database().ref('audit_logs').remove(),
-          firebase.database().ref('system_control/last_reset').set(resetId)
-        ]).then(() => {
-          alert('המערכת אופסה בהצלחה. כל המשתמשים מנותקים כעת.');
-          refreshAuditLog();
-        });
-      }
-    }
+
 
     /* Load audit log when panel is opened */
     document.querySelectorAll('.sidebar-nav-item[data-target="panel-audit"]').forEach(btn => {

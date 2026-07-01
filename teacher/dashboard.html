@@ -66,7 +66,7 @@
       <div class="timer-controls">
         <button class="timer-btn timer-btn--start" id="timer-toggle">הפעל זמן מפגש</button>
         <button class="timer-btn timer-btn--reset" id="timer-reset">איפוס זמן</button>
-        <button class="timer-btn timer-btn--reset" onclick="teacherResetClass()" style="background:var(--color-danger); color:white; border:none; margin-right:8px;">הקם כיתה חדשה (איפוס נתונים)</button>
+
         <button class="timer-btn timer-btn--reset" onclick="teacherLogout()" style="background:#555; color:white; border:none; margin-right:8px;">התנתק</button>
       </div>
       <div class="session-timer-display" id="session-timer">20:00</div>
@@ -87,34 +87,7 @@
       }
     }
 
-    function teacherResetClass() {
-      if(!confirm('פעולה זו תאפס את כל הנתונים ותנתק את כל התלמידים בכיתה. הפעולה אינה הפיכה. האם להמשיך?')) return;
-      
-      document.body.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;font-size:24px;font-weight:bold;color:#EF4444;">מאפס נתונים ומנתק תלמידים...</div>';
 
-      const resetId = Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-      if(typeof firebase !== 'undefined' && firebase.database) {
-        Promise.all([
-          firebase.database().ref('students').remove(),
-          firebase.database().ref('radar_alerts').remove(),
-          firebase.database().ref('system_control/last_reset').set(resetId)
-        ]).then(() => {
-          if (typeof SessionManager !== 'undefined') {
-            SessionManager.logout();
-          } else {
-            sessionStorage.clear();
-            window.location.replace('../index.html');
-          }
-        });
-      } else {
-        if (typeof SessionManager !== 'undefined') {
-          SessionManager.logout();
-        } else {
-          sessionStorage.clear();
-          window.location.replace('../index.html');
-        }
-      }
-    }
 
     function getStudentLogs(username) {
       if (window._firebaseStudentCache && window._firebaseStudentCache[username] && window._firebaseStudentCache[username].logs) {
