@@ -138,9 +138,14 @@ const TeacherRadarReader = (() => {
   function getAlerts({ sessionId = null } = {}) {
     const raw     = _readRawAlerts();
     const handled = _readHandled();
+    const BLOCKED_USERS = ['undefined', 'guest', 'student_sso', 'talmid1'];
 
     return raw
       .filter(a => !sessionId || a.sessionId === sessionId)
+      .filter(a => {
+        const un = a.username || a.student;
+        return !BLOCKED_USERS.includes(un);
+      })
       .map(a => ({ ..._enrich(a), handled: handled.has(a.id) }))
       .sort((a, b) => b.timestamp - a.timestamp);
   }
