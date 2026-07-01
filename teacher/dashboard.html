@@ -164,8 +164,8 @@
           </h1>
           <p class="panel-subtitle">ניטור שקט של זמן עבודה והתראות רדאר פדגוגי.</p>
         </div>
-        <button class="admin-btn admin-btn--primary" onclick="const r = document.getElementById('radar-feed-container'); r.style.display = r.style.display === 'none' ? 'block' : 'none';">
-          הצג רדאר סמוי <span class="tab-badge" id="badge-radar" style="position:static; margin-right:8px;">0</span>
+        <button class="admin-btn admin-btn--primary" id="radar-toggle-btn" onclick="const r = document.getElementById('radar-feed-container'); const isOpen = r.style.display !== 'none'; r.style.display = isOpen ? 'none' : 'block'; document.getElementById('radar-toggle-text').innerText = isOpen ? 'הצג רדאר סמוי' : 'הסתר רדאר סמוי';">
+          <span id="radar-toggle-text">הצג רדאר סמוי</span> <span class="tab-badge" id="badge-radar" style="position:static; margin-right:8px;">0</span>
         </button>
       </div>
 
@@ -298,7 +298,7 @@
         <div class="classroom-detail-panel">
           <div class="panel-section-title" style="display:flex; justify-content:space-between; align-items:center;">
             <span>הגדרות כיתת פיילוט</span>
-            <button onclick="if(confirm('למחוק נתוני עבר ולרענן?')){ localStorage.clear(); sessionStorage.clear(); window.location.reload(); }" style="background:var(--color-danger); color:white; border:none; padding:6px 12px; border-radius:var(--radius-sm); cursor:pointer; font-size:12px; font-weight:bold;">🗑️ נקה נתוני כיתה ורענן</button>
+            <button onclick="if(confirm('פעולה זו תמחק את כל נתוני התלמידים, ההתראות והשחזורים מהענן לצמיתות! האם אתה בטוח?')){ firebase.database().ref('students').remove().then(() => firebase.database().ref('radar_alerts').remove()).then(() => { localStorage.clear(); sessionStorage.clear(); window.location.reload(); }); }" style="background:var(--color-danger); color:white; border:none; padding:6px 12px; border-radius:var(--radius-sm); cursor:pointer; font-size:12px; font-weight:bold;">🗑️ נקה נתוני כיתה ורענן</button>
           </div>
           
 
