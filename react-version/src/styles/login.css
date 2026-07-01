@@ -1,0 +1,327 @@
+/* ============================================================
+   מתמטיקאור — Login Page Styles
+   ============================================================ */
+
+/* ── Page Background ── */
+body.login-page {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Animated background orbs (purely decorative) */
+.bg-orb {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.18;
+  pointer-events: none;
+  z-index: 0;
+  animation: orbFloat 12s ease-in-out infinite;
+}
+.bg-orb-1 {
+  width: 500px; height: 500px;
+  background: radial-gradient(circle, #5B4FFF, #3D35D4);
+  top: -150px; left: -100px;
+  animation-delay: 0s;
+}
+.bg-orb-2 {
+  width: 380px; height: 380px;
+  background: radial-gradient(circle, #FF6B35, #FF4500);
+  bottom: -120px; right: -80px;
+  animation-delay: -4s;
+}
+.bg-orb-3 {
+  width: 280px; height: 280px;
+  background: radial-gradient(circle, #10B981, #059669);
+  top: 40%; right: 15%;
+  animation-delay: -8s;
+}
+
+/* ── Main Container ── */
+.login-container {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-8);
+  width: 100%;
+  max-width: 460px;
+  padding: var(--space-6);
+}
+
+/* ── Logo Area ── */
+.logo-area {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  animation: fadeIn 0.6s ease forwards;
+}
+
+.logo-icon {
+  width: 64px;
+  height: 64px;
+  background: linear-gradient(135deg, var(--color-primary), #9B5CFF);
+  border-radius: var(--radius-xl);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 30px rgba(91,79,255,0.5);
+  animation: float 4s ease-in-out infinite;
+}
+
+.logo-symbol {
+  font-size: 2.2rem;
+  font-weight: 900;
+  color: #fff;
+  line-height: 1;
+}
+
+.logo-text {
+  text-align: right;
+}
+
+.app-name {
+  font-size: var(--font-size-3xl);
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: -0.5px;
+  line-height: 1.1;
+}
+
+.app-tagline {
+  font-size: var(--font-size-sm);
+  color: rgba(255,255,255,0.55);
+  font-weight: 400;
+  margin-top: 2px;
+}
+
+/* ── Card (Glassmorphism) ── */
+.login-card {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: var(--radius-2xl);
+  padding: var(--space-8) var(--space-8);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.35),
+              inset 0 1px 0 rgba(255,255,255,0.15);
+  animation: slideUp 0.5s ease forwards;
+}
+
+.card-title {
+  font-size: var(--font-size-xl);
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: var(--space-2);
+}
+
+.card-subtitle {
+  font-size: var(--font-size-sm);
+  color: rgba(255,255,255,0.55);
+  margin-bottom: var(--space-6);
+}
+
+/* ── Role Buttons ── */
+.role-buttons {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: center;
+}
+
+.role-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-5) var(--space-3);
+  background: rgba(255,255,255,0.06);
+  border: 1.5px solid rgba(255,255,255,0.12);
+  border-radius: var(--radius-lg);
+  color: rgba(255,255,255,0.85);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  transition: all var(--transition-base);
+  cursor: pointer;
+}
+
+.role-btn:hover {
+  background: rgba(255,255,255,0.14);
+  border-color: rgba(255,255,255,0.3);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+
+.role-btn--student:hover {
+  border-color: var(--color-success);
+  color: #fff;
+  background: rgba(16,185,129,0.15);
+}
+
+.role-btn--teacher:hover {
+  border-color: var(--color-primary);
+  color: #fff;
+  background: rgba(91,79,255,0.15);
+}
+
+.role-btn--admin:hover {
+  border-color: var(--color-warning);
+  color: #fff;
+  background: rgba(245,158,11,0.12);
+}
+
+.role-icon {
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+.role-label {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}
+
+/* ── Login Form Card ── */
+.login-form-card {
+  position: relative;
+}
+
+.form-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+}
+
+.form-role-icon {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.back-btn {
+  position: absolute;
+  top: var(--space-4);
+  left: var(--space-4);
+  background: transparent;
+  color: rgba(255,255,255,0.5);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  transition: color var(--transition-fast);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
+.back-btn:hover {
+  color: rgba(255,255,255,0.9);
+  background: rgba(255,255,255,0.07);
+}
+
+/* ── Form Elements ── */
+.form-group {
+  margin-bottom: var(--space-5);
+}
+
+.form-label {
+  display: block;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: rgba(255,255,255,0.75);
+  margin-bottom: var(--space-2);
+}
+
+.form-input {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  background: rgba(255,255,255,0.07);
+  border: 1.5px solid rgba(255,255,255,0.15);
+  border-radius: var(--radius-md);
+  color: #fff;
+  font-size: var(--font-size-base);
+  font-weight: 500;
+  transition: border-color var(--transition-fast),
+              background var(--transition-fast),
+              box-shadow var(--transition-fast);
+  outline: none;
+}
+
+.form-input::placeholder {
+  color: rgba(255,255,255,0.3);
+}
+
+.form-input:focus {
+  border-color: var(--color-primary);
+  background: rgba(91,79,255,0.1);
+  box-shadow: 0 0 0 3px rgba(91,79,255,0.25);
+}
+
+/* ── Submit Button ── */
+.submit-btn {
+  width: 100%;
+  padding: var(--space-4);
+  background: linear-gradient(135deg, var(--color-primary) 0%, #9B5CFF 100%);
+  color: #fff;
+  font-size: var(--font-size-md);
+  font-weight: 800;
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 20px rgba(91,79,255,0.45);
+  transition: all var(--transition-base);
+  margin-top: var(--space-2);
+}
+
+.submit-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px rgba(91,79,255,0.55);
+}
+
+.submit-btn:active {
+  transform: translateY(0);
+}
+
+.submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ── Helper Text ── */
+.login-help-text {
+  text-align: center;
+  font-size: var(--font-size-xs);
+  color: rgba(255,255,255,0.35);
+  margin-top: var(--space-4);
+}
+
+/* ── Error Message ── */
+.form-error {
+  background: rgba(239,68,68,0.18);
+  border: 1px solid rgba(239,68,68,0.4);
+  border-radius: var(--radius-sm);
+  color: #FCA5A5;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  padding: var(--space-2) var(--space-4);
+  margin-top: var(--space-4);
+  text-align: center;
+}
+
+/* ── Responsive ── */
+@media (max-width: 480px) {
+  .login-container {
+    padding: var(--space-4);
+  }
+  .login-card {
+    padding: var(--space-6);
+  }
+  .app-name {
+    font-size: var(--font-size-2xl);
+  }
+  .role-buttons {
+    flex-direction: column;
+  }
+}
