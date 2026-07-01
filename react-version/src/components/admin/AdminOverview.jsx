@@ -20,28 +20,28 @@ export default function AdminOverview({ mockData, onSelectTeacher }) {
       <div className="admin-stats-row">
         <div className="admin-stat-card">
           <div className="admin-stat-header">
-            <span className="admin-stat-label">סה"כ מורים</span>
+            <span className="admin-stat-label">סך הכל מורים</span>
             <Users className="admin-stat-icon" size={20} color="#A78BFF" />
           </div>
           <div className="admin-stat-number">{totalTeachers}</div>
         </div>
         <div className="admin-stat-card">
           <div className="admin-stat-header">
-            <span className="admin-stat-label">סה"כ כיתות</span>
+            <span className="admin-stat-label">סך הכל כיתות</span>
             <GraduationCap className="admin-stat-icon" size={20} color="#38BDF8" />
           </div>
           <div className="admin-stat-number">{totalClasses}</div>
         </div>
         <div className="admin-stat-card">
           <div className="admin-stat-header">
-            <span className="admin-stat-label">סה"כ תלמידים פעילים</span>
+            <span className="admin-stat-label">סך הכל תלמידים פעילים</span>
             <TrendingUp className="admin-stat-icon" size={20} color="#10B981" />
           </div>
           <div className="admin-stat-number">{totalStudents}</div>
         </div>
         <div className="admin-stat-card" style={{ borderColor: 'rgba(239, 68, 68, 0.3)' }}>
           <div className="admin-stat-header">
-            <span className="admin-stat-label">התראות (דורש התערבות)</span>
+            <span className="admin-stat-label">התראות (דורשות התערבות)</span>
             <AlertTriangle className="admin-stat-icon" size={20} color="#EF4444" />
           </div>
           <div className="admin-stat-number" style={{ color: '#FCA5A5' }}>4</div>
