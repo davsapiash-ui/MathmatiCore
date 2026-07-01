@@ -64,8 +64,8 @@
     <!-- Session Timer (Teacher Only) -->
     <div class="teacher-session-controls">
       <div class="timer-controls">
-        <button class="timer-btn timer-btn--start" id="timer-toggle">הפעל זמן מפגש</button>
-        <button class="timer-btn timer-btn--reset" id="timer-reset">איפוס זמן</button>
+        <button class="timer-btn timer-btn--start" id="timer-toggle">הפעל טיימר אישי (למורה בלבד)</button>
+        <button class="timer-btn timer-btn--reset" id="timer-reset">אפס טיימר אישי</button>
 
         <button class="timer-btn timer-btn--reset" onclick="teacherLogout()" style="background:#555; color:white; border:none; margin-right:8px;">התנתק</button>
       </div>
@@ -522,10 +522,10 @@
       if (timerInterval) {
         clearInterval(timerInterval);
         timerInterval = null;
-        timerBtn.textContent = 'המשך זמן';
+        timerBtn.textContent = 'המשך טיימר אישי';
         timerBtn.className = 'timer-btn timer-btn--start';
       } else {
-        timerBtn.textContent = 'השהה';
+        timerBtn.textContent = 'השהה טיימר אישי';
         timerBtn.className = 'timer-btn timer-btn--pause';
         timerInterval = setInterval(() => {
           secondsLeft--;
@@ -539,7 +539,7 @@
       timerInterval = null;
       secondsLeft = 20 * 60;
       updateTimerUI();
-      timerBtn.textContent = 'הפעל זמן מפגש';
+      timerBtn.textContent = 'הפעל טיימר אישי (למורה בלבד)';
       timerBtn.className = 'timer-btn timer-btn--start';
     });
 
@@ -569,9 +569,9 @@
             </div>
             <div class="student-card-meta">${s.taskId || 'ממתין'} | עודכן: ${new Date(s.lastActivity).toLocaleTimeString('he-IL')}</div>
             <div class="student-card-actions">
-              <button class="card-action-btn card-action-btn--hint" onclick="TeacherOverride.sendHint('${s.username}', 'socratic')">רמז סוקרטי</button>
-              <button class="card-action-btn card-action-btn--stop" onclick="TeacherOverride.stopSession('${s.username}')">השהה</button>
-              <button class="card-action-btn" onclick="openReplayDrawer('${s.username}', '${s.studentName}')" style="background:var(--color-primary); color:white; font-size:11px; padding:4px 8px; border-radius:var(--radius-sm); border:none; cursor:pointer; flex: 1;">📹 הקלטה</button>
+              <button class="card-action-btn card-action-btn--hint" onclick="TeacherOverride.sendHint('${s.username}', 'socratic')">שלח רמז למסך התלמיד</button>
+              <button class="card-action-btn card-action-btn--stop" onclick="TeacherOverride.stopSession('${s.username}')">הקפא מסך תלמיד</button>
+              <button class="card-action-btn" onclick="openReplayDrawer('${s.username}', '${s.studentName}')" style="background:var(--color-primary); color:white; font-size:11px; padding:4px 8px; border-radius:var(--radius-sm); border:none; cursor:pointer; flex: 1;">📹 צפה בשחזור מסך</button>
             </div>
           </div>
         `;
