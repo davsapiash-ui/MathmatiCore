@@ -56,6 +56,11 @@ const StudentLogger = (() => {
             rrwebEvents.push(event);
             pendingFirebaseEvents.push(event);
 
+            // Limit local memory size to prevent QuotaExceededError and Out-Of-Memory crashes
+            if (rrwebEvents.length > 3000) {
+              rrwebEvents = rrwebEvents.slice(rrwebEvents.length - 3000);
+            }
+
             if (!batchTimeout) {
               batchTimeout = setTimeout(() => {
                 try {

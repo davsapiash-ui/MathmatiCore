@@ -10,6 +10,37 @@
   <link rel="stylesheet" href="../css/main.css">
   <link rel="stylesheet" href="../css/dashboard.css">
 
+  <!-- Global Error Boundary & Resilience -->
+  <script>
+    (function() {
+      function showResilienceBanner(msg) {
+        let b = document.getElementById('resilience-banner-teacher');
+        if (!b) {
+          b = document.createElement('div');
+          b.id = 'resilience-banner-teacher';
+          b.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#FCA5A5;color:#991B1B;padding:10px 20px;border-radius:30px;font-size:14px;font-weight:800;z-index:99999;box-shadow:0 4px 10px rgba(0,0,0,0.2);transition:opacity 0.3s;pointer-events:none;';
+          document.body.appendChild(b);
+        }
+        b.innerHTML = '⚠️ ' + msg;
+        b.style.opacity = '1';
+        setTimeout(() => { b.style.opacity = '0'; }, 6000);
+      }
+      
+      window.addEventListener('error', function(e) {
+        console.error("Global Error Caught:", e);
+      });
+      window.addEventListener('unhandledrejection', function(e) {
+        console.error("Unhandled Promise Rejection:", e);
+      });
+      window.addEventListener('offline', function() {
+        showResilienceBanner('החיבור לרשת נותק. המערכת תסתנכרן כשהחיבור יחזור.');
+      });
+      window.addEventListener('online', function() {
+        showResilienceBanner('חיבור האינטרנט חזר! מסנכרן נתונים חיים...');
+      });
+    })();
+  </script>
+
   <!-- Route Protection -->
   <script>
     if (!localStorage.getItem('mathematicor_teacher') && !sessionStorage.getItem('mathematicor_admin_impersonation')) {
