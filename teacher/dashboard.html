@@ -12,7 +12,7 @@
 
   <!-- Route Protection -->
   <script>
-    if (!sessionStorage.getItem('mathematicor_teacher') && !sessionStorage.getItem('mathematicor_admin_impersonation')) {
+    if (!localStorage.getItem('mathematicor_teacher') && !sessionStorage.getItem('mathematicor_admin_impersonation')) {
       window.location.replace('../index.html');
     }
   </script>
@@ -83,6 +83,7 @@
         SessionManager.logout();
       } else {
         sessionStorage.clear();
+        localStorage.removeItem('mathematicor_teacher');
         localStorage.removeItem('mathematicor_state');
         window.location.replace('../index.html');
       }
@@ -1253,7 +1254,7 @@
     };
 
     // --- Authorization Check ---
-    const teacherData = sessionStorage.getItem('mathematicor_teacher');
+    const teacherData = localStorage.getItem('mathematicor_teacher');
     const adminData = sessionStorage.getItem('mathematicor_admin_impersonation');
     if (!teacherData && !adminData) {
       console.warn("Unauthorized access blocked. Redirecting to login.");

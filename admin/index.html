@@ -11,7 +11,7 @@
 
   <!-- Route Protection -->
   <script>
-    if (!sessionStorage.getItem('mathematicor_admin')) {
+    if (!localStorage.getItem('mathematicor_admin')) {
       window.location.replace('../index.html');
     }
   </script>
@@ -59,7 +59,7 @@
           <div class="admin-user-role">Super Admin</div>
         </div>
       </div>
-      <button class="sidebar-nav-item" style="color:#FCA5A5;" onclick="sessionStorage.clear(); localStorage.removeItem('mathematicor_state'); window.location.href='../index.html'">
+      <button class="sidebar-nav-item" style="color:#FCA5A5;" onclick="sessionStorage.clear(); localStorage.removeItem('mathematicor_admin'); localStorage.removeItem('mathematicor_state'); window.location.href='../index.html'">
         <span class="nav-icon">🚪</span> התנתק
       </button>
     </div>
@@ -368,8 +368,8 @@
     function openModal(id) { document.getElementById(id).classList.add('open'); }
     function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
-    // --- Authorization Check ---
-    const adminData = sessionStorage.getItem('mathematicor_admin');
+    // --- Initial Setup ---
+    const adminData = localStorage.getItem('mathematicor_admin');
     if (!adminData) {
       console.warn("Unauthorized access blocked. Redirecting to login.");
       window.location.replace('../index.html');

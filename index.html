@@ -161,7 +161,7 @@
         }
       } else if (selectedRole === 'teacher') {
         /* Mock teacher session — in production this comes from OAuth */
-        sessionStorage.setItem('mathematicor_teacher', JSON.stringify({
+        localStorage.setItem('mathematicor_teacher', JSON.stringify({
           name:      'מורה (Mock SSO)',
           username:  'teacher_demo',
           role:      'teacher',
@@ -169,7 +169,7 @@
         }));
       } else if (selectedRole === 'admin') {
         /* Mock admin session — in production this comes from OAuth */
-        sessionStorage.setItem('mathematicor_admin', JSON.stringify({
+        localStorage.setItem('mathematicor_admin', JSON.stringify({
           name:      'מנהל מערכת (Mock SSO)',
           username:  'admin_demo',
           role:      'admin',
