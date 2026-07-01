@@ -1,0 +1,860 @@
+﻿
+Line                                                                                                                   
+----                                                                                                                   
+  <title>מתמטיקאור — ניהול מערכת (Admin)</title>                                                                       
+      <div class="admin-logo-mark">מ</div>                                                                             
+        <div class="admin-logo-text">מתמטיקאור</div>                                                                   
+        <div class="sidebar-group-label">ניהול מערכת אדמיניסטרטיבי</div>                                               
+          <span class="nav-icon">🏢</span> מוסדות חינוך                                                                
+          <span class="nav-icon">🔑</span> הקצאת רישיונות                                                              
+          <span class="nav-icon">👨‍🏫</span> הקמת מורים (1/3)                                                         
+          <span class="nav-icon">🔐</span> לוג ביקורת (סמוי)                                                           
+        <div class="admin-avatar">ד</div>                                                                              
+          <div class="admin-user-name">דוד ספיאשוילי</div>                                                             
+        <span class="nav-icon">🚪</span> התנתק                                                                         
+          <h1 class="admin-panel-title">ניהול מוסדות ובתי ספר</h1>                                                     
+          <p class="admin-panel-subtitle">הקמה, עריכה ומעקב אחר בתי הספר המחוברים לסביבת מתמטיקאור.</p>                
+        <button class="admin-btn admin-btn--primary">+ רישום בית ספר חדש</button>                                      
+          <div class="admin-card-title">מוסדות רשומים</div>                                                            
+          <input type="text" class="admin-input" placeholder="חיפוש מוסד (למשל: סמל מוסד)..." style="width:250px; pa...
+              <th>סמל מוסד</th>                                                                                        
+              <th>שם בית הספר</th>                                                                                     
+              <th>מחוז</th>                                                                                            
+              <th>רישיונות פעילים</th>                                                                                 
+              <th>סטטוס</th>                                                                                           
+              <td style="font-weight:700;">הטכנופדגוגייים האמיצים</td>                                                 
+              <td>צפון</td>                                                                                            
+              <td><span class="status-badge status-badge--active">פעיל</span></td>                                     
+          <h1 class="admin-panel-title">הקצאת רישיונות</h1>                                                            
+          <p class="admin-panel-subtitle">ניהול חבילות רישוי ותוקפן עבור המוסדות הרשומים.</p>                          
+          <div class="admin-card-title">ניהול חבילות רישוי</div>                                                       
+          <button class="admin-btn admin-btn--primary">+ הקצה חבילה חדשה</button>                                      
+              <th>שם בית הספר</th>                                                                                     
+              <th>חבילת רישוי</th>                                                                                     
+              <th>תוקף רישיון</th>                                                                                     
+              <th>כמות נוצלה</th>                                                                                      
+              <th>סטטוס</th>                                                                                           
+              <th>פעולות</th>                                                                                          
+              <td style="font-weight:700;">הטכנופדגוגייים האמיצים</td>                                                 
+              <td>רישוי בית ספרי (100 תלמידים)</td>                                                                    
+              <td><span class="status-badge status-badge--active">פעיל</span></td>                                     
+              <td><button class="admin-btn">עדכן מכסה</button></td>                                                    
+          <h1 class="admin-panel-title">הקמה ומעקב — מורי הפיילוט</h1>                                                 
+          <p class="admin-panel-subtitle">ניהול הרשאות, צפייה בנתוני מורה, וכניסה לדשבורד שלו (עד 3 מורים בפיילוט).</p>
+        <button class="admin-btn admin-btn--primary" title="ניתן להוסיף עוד 2 מורים.">+ הוסף מורה (1/3)</button>       
+            <div style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#10B981,#059669);...
+              <div style="font-weight:800;font-size:1.05rem;">לבנה קדשאי</div>                                         
+              <div style="font-size:13px;color:var(--color-text-muted);">הטכנופדגוגייים האמיצים</div>                  
+              <span class="status-badge status-badge--active">פעיל</span>                                              
+              <div style="font-size:11px;color:var(--color-text-muted);">כיתות פעילות</div>                            
+              <div style="font-size:11px;color:var(--color-text-muted);">תלמידים פעילים</div>                          
+              <div style="font-size:11px;color:var(--color-text-muted);">התראות רדאר</div>                             
+              <div style="font-size:1.5rem;font-weight:900;color:var(--color-text-secondary);">מ1</div>                
+              <div style="font-size:11px;color:var(--color-text-muted);">מפגש נוכחי</div>                              
+              👁️ כנס כמורה לבנה                                                                                       
+            <button class="admin-btn" onclick="toggleTeacherCreds('creds-moreh2')" title="הצג פרטי כניסה">🔑</button>  
+              👁️ כנס כפיילוט 1                                                                                        
+              👁️ כנס כפיילוט 2                                                                                        
+            <button class="admin-btn" onclick="toggleTeacherCreds('creds-pilot')" title="הצג פרטי כניסה תלמידים">🔑<...
+            מורה: <span class="cred-badge">moreh2</span> / <span class="cred-badge">levana123</span>                   
+            תלמידים: <span class="cred-badge">pilot</span> / <span class="cred-badge">pilot2</span> | סיסמה: <span c...
+          <h1 class="admin-panel-title">🔐 לוג ביקורת גישה — סמוי</h1>                                                 
+          <p class="admin-panel-subtitle">רישום אוטומטי של כל פעם שמנהל נכנס לצפות בנתוני מורה. המורה אינו מודע לכך....
+          <div class="admin-card-title">ניהול יומני ביקורת (Audit Logs)</div>                                          
+          <button class="admin-btn" onclick="clearAuditLog()" style="color:#FCA5A5;border-color:#FCA5A5;">נקה יומן</...
+          <button class="admin-btn" onclick="globalSystemReset()" style="background:#EF4444;color:white;border-color...
+              <th>תאריך ושעה</th>                                                                                      
+              <th>מנהל</th>                                                                                            
+              <th>צפה בלוח הבקרה של</th>                                                                               
+              <th>בית ספר</th>                                                                                         
+            <tr><td colspan="5" style="text-align:center;color:var(--color-text-muted);padding:24px;">אין רישומים עד...
+    /* כניסה כמורה (Admin Impersonation)                                                                               
+       מגדיר סשן שמאפשר לדשבורד לזהות את המשתמש כמנהל צופה */                                                          
+      'moreh2': { name: 'לבנה קדשאי',    school: 'הטכנופדגוגייים האמיצים' }                                            
+      /* שמירת התחזות ב-sessionStorage — הדשבורד יזהה את זה ויציג באנר מנהל */                                         
+        adminName:   'מנהל מערכת',                                                                                     
+      /* ניגוד לדשבורד המורה באותו חלון */                                                                             
+      'pilot': { name: 'פיילוט תלמיד', school: 'הטכנופדגוגייים האמיצים' },                                             
+      'pilot2': { name: 'פיילוט תלמיד 2', school: 'הטכנופדגוגייים האמיצים' }                                           
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--color-text-muted);padding:24...
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--color-text-muted);padding:24px...
+      if (!confirm('האם אתה בטוח שברצונך לנקות את תיעוד הלוגים? פעולה זו אינה הפיכה!')) return;                        
+      if (!confirm('אזהרה חמורה: מחיקה גלובלית!\nהאם אתה בטוח שברצונך לאפס את כל המערכת כולה?\nכל הנתונים (תלמידים, ...
+          alert('המערכת אופסה בהצלחה. כל המשתמשים מנותקים כעת.');                                                      
+   מתמטיקאור — Application Controller (app.js)                                                                         
+   - Only "הבא" (Proceed) and "בטל" (Undo) buttons.                                                                    
+      titleHe:       'ברוכים הבאים לטבלת ערך המקום! 🎉',                                                               
+      instructionHe: 'נסו לגרור קוביות קטנות (יחידות) או עמודות (עשרות) אל הלוח וראו איך המספר מתעדכן. אחר כך, נסו ל...
+      thoughtQuestionHe: 'אם נגרור עשרת אחת (10) לטור היחידות והיא תתפרק ל-10 יחידות, האם הערך הכולל של המספר בטבלה ...
+        { id: 'א', textHe: 'הכמות נשארה בדיוק אותו הדבר (10). לא הוספנו ולא הורדנו קוביות מהלוח, הן פשוט נראות אחרת!...
+        { id: 'ב', textHe: 'הכמות גדלה ל-20, כי עכשיו יש לנו הרבה קוביות קטנות בלוח במקום עמודה אחת.' },               
+        { id: 'ג', textHe: 'הכמות קטנה והפכה לאפס, כי עמודת העשרת נעלמה לגמרי.' }                                      
+      correctAnswer: 'א',                                                                                              
+      titleHe:       'חיבור פשוט - תרגיל 1',                                                                           
+      instructionHe: 'פתרו את התרגיל על ידי גרירת הקוביות לכל טור, וכתבו את התשובה שלכם בתיבה.',                       
+      hintHe: 'נסו לבדוק את עצמכם רגע: האם המספר שבנינו בקוביות מתאים למספרים שבתרגיל?',                               
+      titleHe:       'חיבור פשוט - תרגיל 2',                                                                           
+      instructionHe: 'פתרו את התרגיל על ידי גרירת הקוביות לכל טור, וכתבו את התשובה שלכם בתיבה.',                       
+      hintHe: 'האם יש לנו טור אחד שיש בו יותר מ-9 קוביות? אם כן, זכרו שאפשר להעביר דירה! (להמיר)',                     
+      titleHe:       'חיבור פשוט - תרגיל 3',                                                                           
+      instructionHe: 'פתרו את התרגיל על ידי גרירת הקוביות לכל טור, וכתבו את התשובה שלכם בתיבה.',                       
+      hintHe: 'מה קורה לכמות הקוביות כשאנחנו פורטים או ממירים? האם הוספנו או הורדנו קוביות מהלוח, או שרק שינינו את ה...
+      titleHe:       'חיבור פשוט - תרגיל 4',                                                                           
+      instructionHe: 'ייצגו את המספרים בטבלה ורשמו את התשובה הכתובה.',                                                 
+      hintHe: 'תראו! המספר 12 הוא בדיוק אותו הדבר כמו עשרת אחת (10) ועוד שתי יחידות (2). הכמות תמיד נשארת!',           
+      titleHe:       'חיבור פשוט - תרגיל 5',                                                                           
+      instructionHe: 'ייצגו את המספרים בטבלה ורשמו את התשובה הכתובה.',                                                 
+      hintHe: 'נסו לבדוק את עצמכם רגע: האם המספר שבנינו מתאים לתרגיל?',                                                
+      titleHe:       'חיבור עם המרה - מתחילים!',                                                                       
+      instructionHe: 'בואו נחבר: 146 + 235. זכרו: כאשר נאספים 10 פריטים בטור אחד, אנו מבצעים המרה לטור הבא משמאל!'     
+      titleHe:       'חיבור עם המרה - תרגיל 2',                                                                        
+      instructionHe: 'בואו נחבר: 257 + 124. בנו את המספרים בטבלה, ובצעו המרה אם נאספו 10 פריטים או יותר בטור אחד.'     
+      titleHe:       'המרה מיחידות לעשרות',                                                                            
+      instructionHe: 'פתרו: 138 + 245. מה קורה כשיש לנו 8 יחידות ועוד 5 יחידות? בצעו המרה של 10 יחידות לעשרת אחת.'     
+      titleHe:       'המרה מעשרות למאות',                                                                              
+      instructionHe: 'פתרו: 356 + 182. מה קורה כשמחברים 5 עשרות עם 8 עשרות? בצעו המרה של 10 עשרות למאה אחת.'           
+      titleHe:       'המרה כפולה - גם וגם!',                                                                           
+      instructionHe: 'תרגיל אתגר: 489 + 175. כאן תבצעו המרה גם בטור היחידות וגם בטור העשרות. בהצלחה!'                  
+      titleHe:       'חיסור עם פריטה - מתחילים!',                                                                      
+      instructionHe: 'בואו נפתור: 342 - 125. מה עושים כשאין מספיק יחידות בטור היחידות כדי לחסר? מבצעים פריטה של עשרת...
+      titleHe:       'חיסור עם פריטה - תרגיל 2',                                                                       
+      instructionHe: 'פתרו: 524 - 216. זכרו לבצע פריטה במידת הצורך.'                                                   
+      titleHe:       'פריטה מעשרת ליחידות',                                                                            
+      instructionHe: 'פתרו: 425 - 118. כדי שנוכל לחסר 8 יחידות מתוך 5 יחידות, נבצע פריטה של עשרת אחת ל-10 יחידות.'     
+      titleHe:       'פריטה ממאה לעשרות',                                                                              
+      instructionHe: 'פתרו: 632 - 271. כדי שנוכל לחסר 7 עשרות מתוך 3 עשרות, נבצע פריטה של מאה אחת ל-10 עשרות.'         
+      titleHe:       'פריטה כפולה - גם וגם!',                                                                          
+      instructionHe: 'תרגיל אתגר: 513 - 285. כאן תבצעו פריטה גם ממאה לעשרות וגם מעשרת ליחידות. בהצלחה!'                
+            showFeedback(true, 'כל הכבוד! מפגש 2 הושלם בהצלחה! 🎉', 'עוברים כעת אוטומטית למפגש 3...');                 
+              showFeedback(true, `כל הכבוד! מפגש ${activeSession} הושלם בהצלחה! 🎉`, `עוברים כעת אוטומטית למפגש ${ne...
+              showFeedback(true, 'כל הכבוד! סיימתם את כל המפגשים! 🎉', '');                                            
+            ? '<i class="fa-solid fa-xmark"></i> סגור טבלת ערך מקום'                                                   
+            : '<i class="fa-solid fa-table"></i> פתח טבלת ערך מקום';                                                   
+    let sessionName = 'היכרות ותפעול';                                                                                 
+    if (activeSession === 3) sessionName = 'חיבור עם המרה';                                                            
+    if (activeSession === 4) sessionName = 'חיסור עם פריטה';                                                           
+    dom.sessionLabel.textContent = `מפגש ${activeSession} — ${sessionName}`;                                           
+            🤔 שאלת חשיבה: ${escapeHTML(task.thoughtQuestionHe || '')}                                                 
+    dom.sessionLabel.textContent = 'מפגש 2 — מיפוי יכולות אישי';                                                       
+        גרור את החץ אל המיקום הנכון                                                                                    
+          הציגו את המספר <strong class="fs-2 text-primary mx-2">${target}</strong> בדרכים שונות בטבלה ולחצו <strong>...
+          <i class="fa-solid fa-plus me-2"></i> הוסף ייצוג (1/2)                                                       
+      carriesHTML += `<div class="v-add-grid-cell"><input class="v-add-carry" type="text" maxlength="1" autocomplete...
+        <input class="v-add-answer-input" type="text" pattern="[0-9]*" inputmode="numeric" maxlength="1" autocomplet...
+        <p style="font-size:var(--font-size-xs);color:var(--color-text-muted);margin-bottom:4px;">תרגיל נתון:</p>      
+      let hint = 'הסכום לא מתאים למספר. נסו שוב!';                                                                     
+        hint = `אני רואה ששמת ${counts.hundreds || 0} מאיות, ${counts.tens || 0} עשרות ו-${counts.units || 0} יחידות...
+      showFeedback(false, 'חונך סוקרטי', hint);                                                                        
+      badge.innerHTML = `<i class="fa-solid fa-check me-2"></i> ייצוג ${escapeHTML(q3Reps.length)}: ${escapeHTML(val...
+        addBtn.innerHTML = '<i class="fa-solid fa-check-double me-2"></i> שני ייצוגים נרשמו';                          
+        addBtn.innerHTML = `<i class="fa-solid fa-plus me-2"></i> הוסף ייצוג (${nextNum}/2)`;                          
+      showFeedback(true, 'התשובה התקבלה! 👍', 'עוברים למשימה הבאה...');                                                
+      showFeedback(false, 'סבב תיקונים 🔍', 'בואו נעבור יחד על כמה דברים...');                                         
+      showFeedback(correct, correct ? 'מצוין! 🟢' : 'הבנתי, נמשיך... 🟡', '');                                         
+      showFeedback(true, 'מנסים שוב! 🔄', 'הנה המשימה המקורית. נסו לפתור אותה כעת:');                                  
+      showFeedback(correct, correct ? 'מעולה, הצלחתם! 🎉' : 'התשובה נשמרה. 👍', '');                                   
+    showFeedback(true, 'סיימתם! 🎉', 'כל הכבוד על העבודה הטובה!');                                                     
+            💡 עשרת אחת = 10 יחידות בודדות                                                                             
+          <button class="btn-primary" onclick="App.triggerAutoUngroup()" style="margin-top:8px;">הדגם פריטה</button>   
+             <h3 style="color:var(--color-primary-dark);margin:0 0 var(--space-2) 0;">מארגן חזותי</h3>                 
+    dom.sessionLabel.textContent = 'בואו ננסה יחד...';                                                                 
+   * Scaffold Fading (Responsive Fading / דעיכת פיגומים)                                                               
+       showFeedback(false, 'אין עשרות לפרוט', '');                                                                     
+        showFeedback(false, 'ענו על שאלת החשיבה 🤔', 'בחרו אחת מהאפשרויות כדי להמשיך.');                               
+        showFeedback(false, 'בואו נחשוב שוב 🤔', 'האם הוספנו או גרענו קוביות כלשהן מבית המספרים?');                    
+      showFeedback(true, 'נכון מאוד! 🌟', 'הערך נשאר זהה לחלוטין (100) כי לא שינינו את הכמות הכוללת.');                
+        showFeedback(false, 'בואו נייצג את התרגיל בבית המספרים! 🧊', `הניחו קוביות בטורים כך שסכומן הכולל יהיה בדיוק...
+        showFeedback(false, 'בדקו את התשובה הכתובה שלכם ✏️', `הקלידו את התוצאה הנכונה בתיבת התשובה.`);                 
+        showFeedback(false, 'תשובה שגויה 🤔', 'נסו לבדוק שוב את בחירתכם.');                                            
+        showFeedback(false, 'לא מדויק 🤔', 'נסו למקם את החץ קרוב יותר לערך הנכון.');                                   
+        showFeedback(false, 'נדרשים שני ייצוגים שונים', 'הוסיפו ייצוג שני!');                                          
+        showFeedback(true, 'כל הכבוד! מפגש 1 הושלם בהצלחה! 🎉', 'עוברים כעת אוטומטית למפגש 2...');                     
+        showFeedback(true, 'כל הכבוד! מפגש 3 הושלם בהצלחה! 🎉', 'עוברים כעת אוטומטית למפגש 4...');                     
+        showFeedback(true, 'כל הכבוד! 🎉', 'עבודה מצוינת במפגש זה!');                                                  
+          showFeedback(false, 'נדרשים שני ייצוגים שונים', 'הוסיפו ייצוג שני!');                                        
+  /* ── Undo (בטל) ── */                                                                                               
+  /* ── Support Palette (חלון עזרה) ── */                                                                              
+          בוא נחשוב רגע יחד...                                                                                         
+          לפני שאני עוזר לך — האם ניסית לשים בצד את מה שאתה כבר יודע על המספר הזה?                                     
+        <div class="hint-loading">⏳ מכין רמז מותאם אישית...</div>                                                      
+      title.textContent = 'בואו נחשוב יחד 💡';                                                                         
+          <p style="font-size:1.2rem; font-weight:bold; color:var(--color-primary-dark);">נסו לבדוק את עצמכם רגע:</p>  
+            <li>האם המספר שבנינו בקוביות מתאים למספרים שבתרגיל?</li>                                                   
+            <li>האם יש לנו טור אחד שיש בו יותר מ-9 קוביות? אם כן, זכרו שאפשר לבצע המרה לטור הבא!</li>                  
+      title.textContent = 'שאלה למחשבה 💭';                                                                            
+            מה קורה לכמות הקוביות כשאנחנו פורטים או ממירים? <br>                                                       
+            <span style="color:var(--color-primary-dark);">האם הוספנו או הורדנו קוביות מהלוח, או שרק שינינו את הצורה...
+      title.textContent = 'בואו נראה דוגמה 👀';                                                                        
+              <div style="font-size:1rem; margin-bottom:5px;">שלב 1</div>                                              
+              <div style="font-size:1rem; margin-bottom:5px;">שלב 2</div>                                              
+              <div style="width:100%; padding:0 10px; height:50px; background:var(--color-primary-light); border:2px...
+          <p style="font-size:1rem; color:var(--color-text-secondary);">תראו! המספר 12 הוא בדיוק אותו הדבר כמו עשרת ...
+      q1: 'מה קורה כשטור ריק — כמה יחידות יש שם?',                                                                     
+      q2: 'היכן בערך נמצא האמצע של הישר?',                                                                             
+      q3: 'האם אפשר לפרוט מאה לעשרות?',                                                                                
+      q4: 'מה הספרה בטור היחידות בכל מספר?',                                                                           
+      q5: 'אם מחסירים 1 מ-10, מה קורה לתוצאה?'                                                                         
+    return hints[taskId] ?? 'בואו נחשוב יחד — מה אנחנו יודעים על המספר הזה?';                                          
+        showFeedback(true, 'כל הכבוד! מפגש 2 הושלם בהצלחה! 🎉', 'עוברים כעת אוטומטית למפגש 3...');                     
+          showFeedback(true, `כל הכבוד! מפגש ${activeSession} הושלם בהצלחה! 🎉`, `עוברים כעת אוטומטית למפגש ${nextSe...
+          showFeedback(true, 'כל הכבוד! סיימתם את כל המפגשים! 🎉', '');                                                
+   מתמטיקאור — Virtual Manipulatives Engine                                                                            
+   - "בית המספרים" = the mathematical place-value structure                                                            
+   - "כרטיסיות כוח עשר" = Power-of-Ten visual teaching aids — NOT UI cards                                             
+   - "יחידה" = unit cube (mathematical object, qty = 1)                                                                
+   - "עשרת" = ten-rod (mathematical object, qty = 10)                                                                  
+   - "מאה" = hundred-flat (mathematical object, qty = 100)                                                             
+   - "אלף" = thousand-cube (mathematical object, qty = 1000)                                                           
+   Represents the decimal place-value structure בית המספרים.                                                           
+    units:     0,   /* יחידות */                                                                                       
+    tens:      0,   /* עשרות  */                                                                                       
+    hundreds:  0,   /* מאות   */                                                                                       
+    thousands: 0    /* אלפים  */                                                                                       
+    units: 'יחידות', tens: 'עשרות', hundreds: 'מאות', thousands: 'אלפים'                                               
+   * Auto-grouping (המרה אוטומטית):                                                                                    
+   * Ungrouping / פריטה (breaking higher block into 10 lower):                                                         
+    el.setAttribute('aria-label', `הסר ${PlaceValueModel.PLACE_NAMES_HE[place]}`);                                     
+      /* אנימציית פירוק (התפוצצות) */                                                                                  
+      /* אנימציית המרה (10 בלוקים מתאגדים) */                                                                          
+   מתמטיקאור — Q-Matrix Diagnostic Engine (Session 2)                                                                  
+   Implements the 5 adaptive mapping tasks (מפגש 2 — מיפוי יכולות).                                                    
+   On error, "Backward Diagnosis" (מעוף הדבורה) activates.                                                             
+      titleHe:      'שומר המקום',                                                                                      
+      instructionHe: 'בנו את המספר המופיע למטה בטבלת ערך המקום, ואז בחרו את התשובה הנכונה:',                           
+        { id: 'A', textHe: 'האפס שומר על טור העשרות, ומראה שאין עשרות במספר זה.' },                                    
+        { id: 'B', textHe: 'האפס לא באמת משנה, המספר הוא בדיוק כמו 34.' },                                             
+        { id: 'C', textHe: 'האפס רק מקשט את המספר, ואפשר למחוק אותו.' }                                                
+        subtaskInstructionHe: 'בואו נבדוק על מספר קטן יותר: מה עושה האפס במספר?',                                      
+          { id: 'A', textHe: 'הוא שומר על המקום של טור היחידות, ומראה שאין לנו יחידות כלל.' },                         
+          { id: 'B', textHe: 'האפס מיותר לחלוטין ואפשר למחוק אותו.' }                                                  
+      titleHe:      'מסע על ישר המספרים',                                                                              
+      instructionHe: 'היכן לדעתכם ממוקם המספר 750 על ישר המספרים? גררו את החץ למקום המתאים.',                          
+        subtaskInstructionHe: 'בואו ננסה על ישר קצר יותר: איפה נמקם את המספר?',                                        
+      titleHe:      'פירוק והרכבה גמישים',                                                                             
+      instructionHe: 'בנו את המספר 240 בטבלת ערך המקום, ולחצו "הוסף ייצוג". לאחר מכן, מצאו דרך נוספת לייצג את אותו ה...
+        { hundreds: 2, tens: 4, units: 0 },             /* 2 מאות + 4 עשרות */                                         
+        { hundreds: 1, tens: 14, units: 0 },             /* 1 מאה + 14 עשרות */                                        
+        { hundreds: 2, tens: 3,  units: 10 },            /* 2 מאות + 3 עשרות + 10 יחידות */                            
+        { hundreds: 0, tens: 24, units: 0 }              /* 24 עשרות */                                                
+        subtaskInstructionHe: 'הדגמה מודרכת: לחץ פעמיים על עמודת עשרת אחת כדי לפרק אותה ל-10 יחידות, ואז הוסף את היי...
+      titleHe:      'חיבור במאונך',                                                                                    
+      instructionHe: 'פתרו את תרגיל החיבור בטבלת ערך המקום, ורשמו את התוצאה בתיבות התשובה.',                           
+        probeInstructionHe: 'בואו ננסה תרגיל קטן יותר כדי להתחמם: כמה הם 4 ועוד 3?',                                   
+      titleHe:      'השינוי הקטן — אומדן',                                                                             
+      instructionHe: 'הביטו בתרגיל שפתרנו עבורכם. נסו לענות על השאלה הבאה בלי לחשב מחדש, רק בעזרת חשיבה והיגיון!',     
+      questionHe:   'כמה הם 45 + 9?',                                                                                  
+        { id: 'A', textHe: '54 — כי חיברנו 9 במקום 10, ולכן הסכום קטן ב-1.' },                                         
+        { id: 'B', textHe: '55 — הסכום תמיד נשאר זהה.' },                                                              
+        { id: 'C', textHe: '56 — כי הוספנו עוד יחידה אחת.' },                                                          
+        { id: 'D', textHe: 'חייבים לחשב הכול מחדש בשביל לדעת.' }                                                       
+        hintHe:       'רמז: אם נוסיף 9 במקום 10, אנחנו בעצם מוסיפים יחידה אחת פחות. איך זה משפיע על סכום התרגיל?'      
+   מתמטיקאור — Silent Pedagogical Radar                                                                                
+      // סנכרון התראות רדאר ל-Firebase                                                                                 
+   מתמטיקאור — Session State Manager + Undo Stack                                                                      
+    studentName:   student ? student.name      : 'תלמיד',                                                              
+      q1: null,  /* ערך המקום והאפס */                                                                                 
+      q2: null,  /* ישר המספרים */                                                                                     
+      q3: null,  /* פירוק והרכבה */                                                                                    
+      q4: null,  /* אבחון לאחור */                                                                                     
+      q5: null   /* השינוי הקטן */                                                                                     
+   מתמטיקאור — Student Activity Logger & Session Recorder                                                              
+              showFeedback(false, 'רמז מורה מרחוק (התערבות סמויה)', 'שימו לב: המורה חושב שאתם בכיוון הנכון.');         
+             alert('המורה עצר את התרגיל כרגע.');                                                                       
+              alert('המערכת אופסה על ידי מנהל/מורה. מנתק אותך כעת.');                                                  
+    // סנכרון ל-Firebase Realtime Database                                                                             
+    // גיבוי מקומי                                                                                                     
+   מתמטיקאור — Teacher Clustering Logic (js/teacher-clustering.js)                                                     
+      title: 'קושי ב"אפס" כשומר מקום',                                                                                 
+      desc: 'תלמידים המתקשים להבין כי טור ריק מייצג אפס, ואינו משנה את ערך המאות.',                                    
+      pfRecommendation: 'הציגו את המספר 70 לצד 7. בקשו מהם להסביר מה קורה כשאין יחידות בודדות, ואיך האפס שומר על העש...
+      title: 'היסוס באומדן ישר המספרים',                                                                               
+      desc: 'תלמידים שסטו באופן משמעותי ממיקום המספר, מעיד על תפיסת גודל יחסי חלשה.',                                  
+      pfRecommendation: 'הנחו אותם לחפש עוגנים. "איפה האמצע? איפה יהיה 500?" בקשו מהם להשתמש בכפתור ה-Undo ולנסות שו...
+      title: 'חוסר גמישות ייצוגית',                                                                                    
+      desc: 'תלמידים המתקשים לפרק מספר תלת-ספרתי ביותר מדרך אחת (הכרחי לפריטה).',                                      
+      pfRecommendation: 'הדגימו פיזית המרה של עשרת ליחידות. שאלו: "האם הכמות הכללית השתנתה?" עודדו אותם להשתמש ב"בית...
+      title: 'חוסר שליטה בעובדות יסוד',                                                                                
+      desc: 'קושי בשורש ההיסטורי (כיתה א׳) בחיבור/חיסור בסיסי בתחום העשרת הראשונה.',                                   
+      pfRecommendation: 'מנעו תרגול רבבה בשלב זה. הפנו למשחקי שליטה בעובדות היסוד, והדגישו כי עצירה לחישוב אצבעות מע...
+      title: 'אוטומציית יתר (למידה פרוצדורלית)',                                                                       
+      desc: 'תלמידים שחישבו מחדש במקום להשתמש באומדן במשימת "השינוי הקטן".',                                           
+      pfRecommendation: 'חזקו חשיבה ולא מכניות. שאלו: "האם היית צריך לפתור הכל מההתחלה? מה השתנה מהתרגיל הקודם?" (עי...
+      title: 'הבנה מושגית יציבה',                                                                                      
+      desc: 'שלטו בכל המיומנויות ללא צורך באבחון לאחור.',                                                              
+      pfRecommendation: 'אתגרו עם פירוק גמיש עמוק (למשל 14 עשרות ו-20 יחידות). עודדו אותם להסביר את האסטרטגיה שלהם ל...
+   מתמטיקאור — Teacher Override Logic (js/teacher-override.js)                                                         
+   מתמטיקאור — Teacher Radar Reader (js/teacher-radar-reader.js)                                                       
+      titleFn:  (a) => `${a.studentName} — היסוס קוגניטיבי ב-${a.taskLabel}`,                                          
+      detailFn: (a) => `לא בוצעה פעולה במשך ${a.durationSec} שניות`,                                                   
+      actionLabel: 'שלח רמז שקט'                                                                                       
+      titleFn:  (a) => `${a.studentName} — שיוט פסיבי ב-${a.taskLabel}`,                                               
+      detailFn: (a) => `${a.deleteCount} מחיקות ברצף ללא התקדמות (${a.durationSec}s)`,                                 
+      actionLabel: 'גש אליו עכשיו'                                                                                     
+      titleFn:  (a) => `${a.studentName} — ביקש עזרה ב-${a.taskLabel}`,                                                
+      detailFn: (a) => `סוג עזרה שנבחר: ${_translateHintType(a.hintType)} (פעם ${a.hintCount})`,                       
+      actionLabel: 'עקוב'                                                                                              
+      titleFn:  (a) => `${a.studentName} — שגיאה ב-${a.taskLabel}`,                                                    
+      detailFn: (a) => `תשובה שגויה${a.detail ? ': ' + a.detail : ''}. מופעל אבחון לאחור.`,                            
+      actionLabel: 'ספק משוב תהליך'                                                                                    
+    const m = { metacognitive: 'רמז מטא-קוגניטיבי', socratic: 'שאלה מנחה', worked_example: 'דוגמה פתורה' };            
+      q1: 'ערך המקום והאפס',                                                                                           
+      q2: 'ישר המספרים',                                                                                               
+      q3: 'פירוק גמיש',                                                                                                
+      q4: 'חיבור במאונך',                                                                                              
+      q5: 'השינוי הקטן',                                                                                               
+      's1_t0': 'מפגש 1 — היכרות',                                                                                      
+      's1_t1': 'תרגיל 1',                                                                                              
+      's1_t2': 'תרגיל 2',                                                                                              
+      's1_t3': 'תרגיל 3'                                                                                               
+      actionLabel: 'עיין'                                                                                              
+    raw.studentName = raw.studentName || raw.username || raw.student || 'תלמיד אנונימי';                               
+    if (diffMin < 1)  return 'לפני רגע';                                                                               
+    if (diffMin < 60) return `לפני ${diffMin} ד׳`;                                                                     
+    return `לפני ${Math.floor(diffMin / 60)} ש׳`;                                                                      
+                taskId: lastLog.taskId || 'ממתין'                                                                      
+    /* מיזוג נתוני תלמידים מ-Firebase (מכשירים אחרים) */                                                               
+            taskId: lastLog.taskId || 'ממתין'                                                                          
+  <title>מתמטיקאור — רפלקציה עצמית</title>                                                                             
+  <meta name="description" content="מסך סיכום ורפלקציה — מתמטיקאור">                                                   
+    <h1 class="reflection-title">עשיתם עבודה נהדרת!</h1>                                                               
+      קחו רגע לחשוב על הפעילות שלכם היום.<br>                                                                          
+      אין תשובות נכונות או לא נכונות — רק מחשבות שלכם.                                                                 
+    <!-- ── Section 1: Effort Rating (מדד מאמץ חזותי) ──                                                               
+      <h2 class="section-title" id="effort-heading">כמה השתדלתם היום?</h2>                                             
+      <p class="section-subtitle">בחרו את האייקון שמתאר הכי טוב את המאמץ שהשקעתם</p>                                   
+                aria-label="התאמצתי מעט" id="effort-1">                                                                
+          <span class="effort-icon-label">מעט</span>                                                                   
+                aria-label="התאמצתי בינוני" id="effort-2">                                                             
+          <span class="effort-icon-label">בינוני</span>                                                                
+                aria-label="התאמצתי הרבה" id="effort-3">                                                               
+          <span class="effort-icon-label">הרבה</span>                                                                  
+                aria-label="התאמצתי מאוד מאוד" id="effort-4">                                                          
+          <span class="effort-icon-label">מאוד!</span>                                                                 
+    <!-- ── Section 2: Strategy Selection (בחירת אסטרטגיה מוצלחת) ──                                                   
+      <h2 class="section-title" id="strategy-heading">מה עזר לך להצליח היום?</h2>                                      
+      <p class="section-subtitle">בחרו אפשרות אחת שמתאימה לכם</p>                                                      
+        <!-- Strategy 1: Using virtual block manipulatives (בית המספרים) -->                                           
+            <span class="strategy-name">השתמשתי בקוביות של טבלת הטורים</span>                                          
+            <span class="strategy-desc">גררתי קוביות ועשרות לטבלה כדי לחשוב</span>                                     
+            <span class="strategy-name">ביקשתי עזרה מהחונך הדיגיטלי</span>                                             
+            <span class="strategy-desc">לחצתי על כפתור העזרה כשלא הצלחתי לבד</span>                                    
+            <span class="strategy-name">עצרתי ובדקתי את עצמי</span>                                                    
+            <span class="strategy-desc">לחצתי על "בטל" כדי לנסות שוב בצורה אחרת</span>                                 
+        הכוח שלכם הוא בהתמדה ובניסיון שוב ושוב!                                                                        
+        כל פעם שניסיתם שוב — הדמיון שלכם גדל. זה המתמטיקאי הטוב ביותר שיכול להיות.                                     
+      ✓ סיימתי — יאללה להמשיך!                                                                                         
+          if (title) title.textContent = `כל הכבוד, ${s.name}! 🎉`;                                                    
+          text:  'טוב שבאת ונסית!',                                                                                    
+          sub:   'כל יום שמנסים — הוא יום שלומדים. בפגישה הבאה נמשיך ביחד.'                                            
+          text:  'הייתה עבודה טובה היום!',                                                                             
+          sub:   'כל פעם שחשבתם — המוח שלכם התחזק. כך לומדים!'                                                         
+          text:  'התאמצתם מאוד — זה ניכר!',                                                                            
+          sub:   'הכוח שלכם הוא בהתמדה ובניסיון חוזר. המשיכו כך!'                                                      
+          text:  'עבודה מדהימה! אתם מתמטיקאים אמיתיים!',                                                               
+          sub:   'מאמץ כזה בונה הבנה עמוקה. אנחנו גאים בכם!'                                                           
+      doneBtn.textContent = '✓ נשמר! תודה רבה!';                                                                       
+          <h1 class="reflection-title" style="color:var(--color-success);">מעולה! עבודה נהדרת!</h1>                    
+          <p class="reflection-subtitle">המורה שלך יראה את הדוח שלכם. נתראה בפגישה הבאה!</p>                           
+  <title>מתמטיקאור — מרחב הפעילות</title>                                                                              
+  <meta name="description" content="מרחב הפעילות הדיגיטלי של מתמטיקאור — מפגש לימודי">                                 
+      <div class="topbar-logo-mark">מ</div>                                                                            
+      <span class="topbar-app-name">מתמטיקאור</span>                                                                   
+    <div class="task-progress-dots mx-auto" id="task-progress-dots" role="progressbar" aria-label="התקדמות במשימות" ...
+      <button class="btn btn-outline-danger btn-sm rounded-pill px-3" onclick="SessionManager.logout()" aria-label="...
+        <i class="fa-solid fa-arrow-right-from-bracket"></i> התנתק                                                     
+        <i class="fa-solid fa-xmark"></i> סגור טבלה                                                                    
+      <button class="btn-undo" id="btn-undo" disabled aria-label="בטל פעולה אחרונה">                                   
+        <i class="fa-solid fa-rotate-left"></i> בטל                                                                    
+      <button class="help-request-btn" id="help-request-btn" aria-label="בקש עזרה" title="לחץ לעזרה">                  
+      <button class="btn-proceed" id="btn-proceed" aria-label="עבור למשימה הבאה">                                      
+        הבא <i class="fa-solid fa-arrow-left ms-2"></i>                                                                
+        <i class="fa-solid fa-forward-step"></i> דלג                                                                   
+          <i class="fa-solid fa-user-graduate text-primary ms-1"></i> תלמיד                                            
+      <p class="task-session-label text-primary fw-bold text-uppercase mb-2" style="font-size: 1rem; letter-spacing:...
+      <h1 class="task-title display-6 fw-bolder text-dark mb-3" id="task-title">טוענים...</h1>                         
+    <!-- ── Place Value Mathematical Structure (בית המספרים) ──                                                        
+         Column order (RTL): יחידות (right) → אלפים (left)                                                             
+    <div class="place-value-structure open" id="place-value-structure" aria-label="טבלת ערך המקום">                    
+      <p class="place-value-structure-label">טבלת ערך המקום</p>                                                        
+      <div class="pv-columns-row" id="pv-columns-row" role="group" aria-label="טורי ערך המקום">                        
+        <!-- יחידות column (rightmost in RTL) -->                                                                      
+        <div class="pv-column" data-place="units" aria-label="טור יחידות">                                             
+            יחידות                                                                                                     
+               role="group" aria-label="אזור גרירה — יחידות">                                                          
+        <!-- עשרות column -->                                                                                          
+        <div class="pv-column" data-place="tens" aria-label="טור עשרות">                                               
+            עשרות                                                                                                      
+               role="group" aria-label="אזור גרירה — עשרות">                                                           
+        <!-- מאות column -->                                                                                           
+        <div class="pv-column" data-place="hundreds" aria-label="טור מאות">                                            
+            מאות                                                                                                       
+               role="group" aria-label="אזור גרירה — מאות">                                                            
+        <!-- אלפים column (leftmost in RTL) -->                                                                        
+        <div class="pv-column" data-place="thousands" aria-label="טור אלפים">                                          
+            אלפים                                                                                                      
+               role="group" aria-label="אזור גרירה — אלפים">                                                           
+           aria-live="polite" aria-label="ערך כולל">                                                                   
+      <div class="block-palette" id="block-palette" role="toolbar" aria-label="מחסן אביזרים — גרור לטבלה">             
+          <span class="d-flex align-items-center gap-2"><i class="fa-solid fa-grip-lines"></i> מחסן אביזרים</span>     
+          <button id="btn-detach-palette" class="btn btn-sm btn-outline-secondary rounded-circle" style="width:28px;...
+        <!-- יחידה — unit cube representation -->                                                                      
+               aria-label="גרור יחידה אחת לטבלה">                                                                      
+          <span class="palette-item-label">יחידה (1)</span>                                                            
+        <!-- עשרת — ten-rod representation -->                                                                         
+               aria-label="גרור עשרת לטבלה">                                                                           
+          <span class="palette-item-label">עשרת (10)</span>                                                            
+        <!-- מאה — hundred-flat representation -->                                                                     
+               aria-label="גרור מאה לטבלה">                                                                            
+          <span class="palette-item-label">מאה (100)</span>                                                            
+        <!-- אלף — thousand-cube representation -->                                                                    
+               aria-label="גרור אלף לטבלה">                                                                            
+          <span class="palette-item-label">אלף (1000)</span>                                                           
+        <div class="trash-zone" id="trash-zone" role="button" aria-label="גרור לכאן כדי למחוק">                        
+  <!-- ── Support Palette (חלון עזרה — activated on request or hesitation alert) ──                                    
+       role="dialog" aria-modal="true" aria-label="חלון עזרה"                                                          
+      <h2 class="support-palette-title">איך תרצה לקבל עזרה?</h2>                                                       
+              aria-label="סגור חלון עזרה">✕</button>                                                                   
+    <div class="support-options" role="group" aria-label="אפשרויות עזרה">                                              
+        <span class="support-option-title">רמז לחשיבה</span>                                                           
+        <span class="support-option-desc">שאלה שתעזור לי לבדוק את עצמי</span>                                          
+        <span class="support-option-title">שאלה מנחה</span>                                                            
+        <span class="support-option-desc">שאלה שתפרק את הבעיה לשלבים</span>                                            
+        <span class="support-option-title">דוגמה פתורה</span>                                                          
+        <span class="support-option-desc">דוגמה של תרגיל דומה עם הסבר</span>                                           
+      <h2 id="socratic-modal-title">חונך דיגיטלי</h2>                                                                  
+      <button class="btn-proceed" style="margin-top:20px;" onclick="document.getElementById('socratic-modal').classL...
+    ⏭ דלג (מפתח)                                                                                                       
+  <!-- Firebase Realtime Database (auto-init, ללא מפתחות מוטמעים) -->                                                  
+  <title>מתמטיקאור — התאמות נגישות (ASD)</title>                                                                       
+    <a href="dashboard.html" class="back-link">← חזרה ללוח הבקרה</a>                                                   
+      <h1 class="config-title">התאמות נגישות (ASD) - כיתה ג׳ 2</h1>                                                    
+      <p class="config-desc">כיוונון המעטפת הויזואלית והקוגניטיבית. שינויים אלו יחולו באופן קולקטיבי ושוויוני על כלל...
+        <div class="config-item-title">דימינג אוטומטי של טורים לא פעילים</div>                                         
+        <div class="config-item-desc">עמעום צבעוני של טורים ב"בית המספרים" שאינם במוקד החישוב הנוכחי, למניעת הצפה חז...
+        <div class="config-item-title">המרה אוטומטית (Auto-Ungrouping)</div>                                           
+        <div class="config-item-desc">גרירת בלוק עשרת לטור היחידות תבצע פריטה אוטומטית ל-10 יחידות, ללא צורך בהקלקה ...
+        <div class="config-item-title">שנתות עוגן זוהרות (Glowing Anchors)</div>                                       
+        <div class="config-item-desc">סימון בולט וקבוע של אמצע ישר המספרים (למשל 50 בישר 0-100) כדי לספק עוגן חזותי ...
+        <div class="config-item-title">מארגן גרפי לתשאול רפלקטיבי</div>                                                
+        <div class="config-item-desc">הצגת שאלות מטא-קוגניטיביות ("מה השתנה?", "איך ידעת?") בתוך מבנה חזותי סגור ומו...
+    <button class="save-btn" onclick="saveAsdConfig()">שמור הגדרות מרחב</button>                                       
+      alert('הגדרות ההתאמה (ASD) נשמרו בהצלחה ויוחלו על כל התלמידים במרחב באופן שקוף.');                               
+  <title>מתמטיקאור — לוח בקרת מורה</title>                                                                             
+  <meta name="description" content="לוח בקרה כיתתי (Teacher Dashboard) - תצוגת נתונים חיה, התראות קוגניטיביות ומשוב ...
+  <!-- Firebase Realtime Database (auto-init, ללא מפתחות מוטמעים) -->                                                  
+      <div class="teacher-logo-mark">מ</div>                                                                           
+        <div class="teacher-logo-name">מתמטיקאור</div>                                                                 
+        <div class="teacher-logo-role">סביבת מורה</div>                                                                
+        <span>🏠</span> לוח בקרה כיתתי                                                                                 
+        <span>👥</span> ניתוח קבוצות למידה                                                                             
+        <span>💬</span> פאנל המלצות משוב                                                                               
+        <span>📁</span> ניהול כיתות ומרחבים                                                                            
+        <span>🌳</span> עץ תיעוד חכם                                                                                   
+        <span>📚</span> מדריכים פדגוגיים                                                                               
+        <button class="timer-btn timer-btn--start" id="timer-toggle">הפעל זמן מפגש</button>                            
+        <button class="timer-btn timer-btn--reset" id="timer-reset">איפוס זמן</button>                                 
+        <button class="timer-btn timer-btn--reset" onclick="teacherResetClass()" style="background:var(--color-dange...
+        <button class="timer-btn timer-btn--reset" onclick="teacherLogout()" style="background:#555; color:white; bo...
+      <div class="teacher-name-badge" id="teacher-name">המורה הודגם</div>                                              
+      document.body.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;fon...
+      if(!confirm('פעולה זו תאפס את כל הנתונים ותנתק את כל התלמידים בכיתה. הפעולה אינה הפיכה. האם להמשיך?')) return;   
+      document.body.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;fon...
+          btn.innerHTML = '🔙 חזור למסך ניהול מוסדות (Admin)';                                                         
+            לוח בקרה כיתתי                                                                                             
+            <button onclick="showPanelInfo('live')" style="background:none; border:none; cursor:pointer; font-size:1...
+          <p class="panel-subtitle">ניטור שקט של זמן עבודה והתראות רדאר פדגוגי.</p>                                    
+          הצג רדאר סמוי <span class="tab-badge" id="badge-radar" style="position:static; margin-right:8px;">0</span>   
+          <div class="stat-card-label">פעילים עכשיו</div>                                                              
+          <div class="stat-card-label">בהיסוס קוגניטיבי</div>                                                          
+          <div class="stat-card-label">זקוקים להתערבות</div>                                                           
+          <div class="stat-card-label">סיימו מפגש</div>                                                                
+            ניתוח קבוצות למידה                                                                                         
+            <button onclick="showPanelInfo('clustering')" style="background:none; border:none; cursor:pointer; font-...
+          <p class="panel-subtitle">מיפוי לפי שורש הטעות ההיסטורי מה-Q-Matrix (The Equalizing Effect).</p>             
+          <strong>האפקט המשווה (Equalizing Effect):</strong> השתמש בהמלצות המשוב המופיעות בלוחות כדי לספק משוב תהליכ...
+            פאנל המלצות משוב (Process Feedback)                                                                        
+            <button onclick="showPanelInfo('feedback')" style="background:none; border:none; cursor:pointer; font-si...
+          <p class="panel-subtitle">מפגש 1, כיתת פיילוט (הטכנופדגוגיים האמיצים)</p>                                    
+            <span style="font-size:1.5rem;">0️⃣</span> ערך המקום והאפס                                                 
+          <p style="font-size:14px; margin-bottom:var(--space-4);">שורש טעות נפוץ: התעלמות מהאפס כשומר מקום במספר דו...
+              <strong>רמז מטא-קוגניטיבי:</strong> "האם בדקת שלכל ספרה יש מקום משלה בבית המספרים?"                      
+              <strong>שאלה סוקרטית:</strong> "מה קורה למספר כשאנחנו מוחקים את האפס? האם הוא שומר על הערך שלו?"         
+            <span style="font-size:1.5rem;">🔄</span> חיבור עם המרה                                                    
+          <p style="font-size:14px; margin-bottom:var(--space-4);">שורש טעות נפוץ: חיבור היחידות לעשרות ללא ביצוע המ...
+              <strong>רמז מטא-קוגניטיבי:</strong> "עצור רגע - האם יש לנו יותר מ-9 יחידות בטור?"                        
+              <strong>שאלה סוקרטית:</strong> "מה עושים כש'כרטיסיית כוח העשר' מתמלאת? לאן היחידות עוברות?"              
+            ניהול כיתות ומרחבים                                                                                        
+            <button onclick="showPanelInfo('manager')" style="background:none; border:none; cursor:pointer; font-siz...
+          <p class="panel-subtitle">הגדרת מרחבים, איפוס סיסמאות, והגדרות התאמת נגישות (ASD)</p>                        
+            מרחבים פעילים                                                                                              
+            <button class="add-classroom-btn" title="ניתן לפתוח עד 3 כיתות למורה">+ הוסף מרחב (1/3)</button>           
+              <div class="classroom-item-name">כיתת פיילוט</div>                                                       
+              <div class="classroom-item-count">8 תלמידים</div>                                                        
+            <span>הגדרות כיתת פיילוט</span>                                                                            
+            <button onclick="if(confirm('למחוק נתוני עבר ולרענן?')){ localStorage.clear(); sessionStorage.clear(); w...
+                <th>שם תלמיד</th>                                                                                      
+                <th>שם משתמש</th>                                                                                      
+                <th>קוד כניסה (סיסמה)</th>                                                                             
+                <th>פעולות</th>                                                                                        
+          <h1 class="panel-title">🌳 עץ תיעוד פדגוגי חכם</h1>                                                          
+          <p class="panel-subtitle">גישה ישירה להקלטות ולוגים לפי סינון מורה-כיתה או לפי סוג משימה.</p>                
+          <button class="admin-btn" id="tree-toggle-class" onclick="toggleTreeView('class')" style="background:var(-...
+          <button class="admin-btn" id="tree-toggle-task" onclick="toggleTreeView('task')" style="background:transpa...
+          <h1 class="panel-title">מדריכים פדגוגיים</h1>                                                                
+          <p class="panel-subtitle">הסברים ומדריכי הפעלה לעקרונות הפדגוגיים של מתמטיקאור.</p>                          
+          <summary style="font-weight:700; font-size:1.1rem; cursor:pointer; color:var(--color-text);">תובנה מספרית ...
+            הבנה אינטואיטיבית רחבה של מושג המספר וערכו הכמותי. במתמטיקאור, אנו מעודדים תובנה זו דרך שימוש מוחשי בייצ...
+          <summary style="font-weight:700; font-size:1.1rem; cursor:pointer; color:var(--color-text);">למידה מכוונת ...
+            תהליך שבו הלומד מציב יעדים, מנטר את ביצועיו ומבצע התאמות באופן פעיל. התוכנה מעודדת מיומנות זו באמצעות כפ...
+          <summary style="font-weight:700; font-size:1.1rem; cursor:pointer; color:var(--color-text);">חיכוך מטא-קוג...
+            עיכוב מכוון בממשק המשתמש המאלץ את הלומד לעצור ולבצע בקרה עצמית לפני קבלת החלטה. במקום תהליכים אוטומטיים ...
+          <summary style="font-weight:700; font-size:1.1rem; cursor:pointer; color:var(--color-text);">בחירה מכווננת...
+            מנגנון תמיכה המפחית בהדרגה את עוצמת הפיגומים הדיגיטליים בהתאם לעלייה בשטף הביצוע של התלמיד, אך מאפשר לו ...
+      <h2 class="replay-drawer-title">📹 הקלטת מפגש ותיעוד לוגים</h2>                                                  
+        תלמיד: <span id="replay-student-name" style="color:var(--color-primary-dark);">—</span>                        
+      <div class="chapters-progress-bar" id="replay-chapters-bar" style="margin-top: 10px;" title="ניווט מהיר לפי מש...
+          🖥️ חלון חדש                                                                                                 
+        <div class="timeline-title">📋 ציר זמן של שלבי הפתרון (לוגים)</div>                                            
+      { username: 'user1', name: 'משתמש 1', class: 'כיתת פיילוט' },                                                    
+      { username: 'user2', name: 'משתמש 2', class: 'כיתת פיילוט' },                                                    
+      { username: 'user3', name: 'משתמש 3', class: 'כיתת פיילוט' },                                                    
+      { username: 'user4', name: 'משתמש 4', class: 'כיתת פיילוט' },                                                    
+      { username: 'user5', name: 'משתמש 5', class: 'כיתת פיילוט' },                                                    
+      { username: 'user6', name: 'משתמש 6', class: 'כיתת פיילוט' },                                                    
+      { username: 'user7', name: 'משתמש 7', class: 'כיתת פיילוט' },                                                    
+      { username: 'user8', name: 'משתמש 8', class: 'כיתת פיילוט' },                                                    
+      { username: 'pilot', name: 'פיילוט תלמיד', class: 'כיתת פיילוט' },                                               
+      { username: 'pilot2', name: 'פיילוט תלמיד 2', class: 'כיתת פיילוט' }                                             
+          <td><button class="card-action-btn card-action-btn--hint" style="padding:2px 8px;" onclick="alert('איפוס ס...
+        timerBtn.textContent = 'המשך זמן';                                                                             
+        timerBtn.textContent = 'השהה';                                                                                 
+      timerBtn.textContent = 'הפעל זמן מפגש';                                                                          
+        const displayName = realStudent ? realStudent.name : (s.studentName || s.username || 'תלמיד אנונימי');         
+            <div class="student-card-meta">${s.taskId || 'ממתין'} | עודכן: ${new Date(s.lastActivity).toLocaleTimeSt...
+              <button class="card-action-btn card-action-btn--hint" onclick="TeacherOverride.sendHint('${s.username}...
+              <button class="card-action-btn card-action-btn--stop" onclick="TeacherOverride.stopSession('${s.userna...
+              <button class="card-action-btn" onclick="openReplayDrawer('${s.username}', '${s.studentName}')" style=...
+          <div class="empty-text">אין התראות רדאר כרגע</div>                                                           
+          <div style="font-size:12px;margin-top:8px;">הכיתה עובדת בצורה חלקה.</div>                                    
+            ${!a.handled ? `<button class="alert-action-btn alert-action-btn--primary" onclick="markAlertHandled('${...
+        container.innerHTML = '<p style="color:var(--color-text-muted);">אין מספיק נתונים לקיבוץ. הקיבוץ יתעדכן לאחר...
+            <div class="pf-label">המלצת משוב תהליך (Process Feedback):</div>                                           
+            ${c.students.map(s => `<span class="student-chip" title="שם משתמש: ${s.username}">${s.name}</span>`).joi...
+            <button class="cluster-action-btn cluster-action-btn--feedback">הפעל משימת ביסוס קבוצתית</button>          
+            <button class="cluster-action-btn cluster-action-btn--override" title="Override">הזז תלמידים ידונית</but...
+      // נסה לקרוא מ-Firebase תחילה                                                                                    
+      // Fallback ל-localStorage אם Firebase לא החזיר נתונים                                                           
+        container.innerHTML = '<div style="font-size:12px;color:var(--color-text-muted);text-align:center;padding:12...
+        'session_start':        { icon: '🟢', text: 'המפגש התחיל', cls: 'type-correct' },                              
+        'session_completed':    { icon: '🏁', text: 'המפגש הושלם', cls: 'type-correct' },                              
+        'task_loaded':          { icon: '📖', textFn: (l) => `עבר למשימה: ${_translateTaskName(l.taskId)}`, cls: 'ty...
+        'task_correct':         { icon: '✅', textFn: (l) => `פתר נכון: ${_translateTaskName(l.taskId)}`, cls: 'type-...
+        'task_incorrect':       { icon: '❌', textFn: (l) => `טעה: ${_translateTaskName(l.taskId)}`, cls: 'type-incor...
+        'answer_submitted':     { icon: '📝', textFn: (l) => `הגיש תשובה${l.detail && l.detail.correct ? ' (נכון)' :...
+        'block_add':            { icon: '➕', textFn: (l) => `הוסיף בלוק ל${_translateCol(l.detail && l.detail.place)...
+        'block_remove':         { icon: '➖', textFn: (l) => `הסיר בלוק מ${_translateCol(l.detail && l.detail.place)}...
+        'block_drop':           { icon: '🎯', textFn: (l) => `גרר בלוק ל${_translateCol(l.detail && l.detail.place)}...
+        'block_ungroup':        { icon: '💥', textFn: (l) => `פריטה: ${_translateCol(l.detail && l.detail.from)} → $...
+        'block_regroup':        { icon: '📦', text: 'המרה (קיבוץ 10 → עשרת)', cls: 'type-correct' },                   
+        'undo':                 { icon: '↩️', text: 'לחץ בטל (Undo)', cls: 'type-hint' },                              
+        'hint_requested':       { icon: '💡', text: 'ביקש עזרה (מנורה)', cls: 'type-radar' },                          
+        'hint_choice_selected': { icon: '🔍', textFn: (l) => `בחר סוג עזרה: ${_translateHint(l.detail && l.detail.ch...
+        'hesitation_alert':     { icon: '⏸️', textFn: (l) => `רדאר שקט: היסוס קוגניטיבי (${l.detail ? Math.round((l....
+        'passive_drifting':     { icon: '⚠️', text: 'רדאר שקט: שיוט פסיבי', cls: 'type-radar' },                       
+        'estimation_placed':    { icon: '📍', textFn: (l) => `הציב אומדן על ציר המספרים${l.detail && l.detail.value ...
+        'estimation_submitted': { icon: '🎯', textFn: (l) => `שלח אומדן${l.detail && l.detail.error !== undefined ? ...
+        'choice_selected':      { icon: '🅰️', textFn: (l) => `בחר תשובה${l.detail && l.detail.choice ? ': ' + l.det...
+        'proceed_clicked':      { icon: '▶️', text: 'לחץ "התקדם"', cls: '' },                                          
+        'reflection_submitted': { icon: '💭', text: 'השלים רפלקציה', cls: 'type-correct' },                            
+        'number_line_interaction': { icon: '📏', text: 'פעולה על ציר המספרים', cls: 'type-hint' },                     
+        const m = { visual: 'חזותי', verbal: 'מילולי', decomposition: 'פירוק', example: 'דוגמה', strategy: 'אסטרטגיה...
+      const m = { units: 'יחידות', tens: 'עשרות', hundreds: 'מאות', thousands: 'אלפים' };                              
+        container.innerHTML = '<div style="height:100%; display:flex; align-items:center; justify-content:center; co...
+        bar.innerHTML = `<div class="chapter-segment" style="width: 100%;"><div class="chapter-segment-fill"></div>מ...
+        segment.title = `${_translateTaskName(currentLog.taskId)} (קליק לניווט)`;                                      
+        q1: 'משימה 1 (האפס)',                                                                                          
+        q2: 'משימה 2 (הישר)',                                                                                          
+        q3: 'משימה 3 (פירוק גמיש)',                                                                                    
+        q4: 'משימה 4 (חיבור במאונך)',                                                                                  
+        q5: 'משימה 5 (השינוי הקטן)',                                                                                   
+        s1_welcome: 'היכרות',                                                                                          
+        s1_t1: 'חיבור פשוט 1',                                                                                         
+        s1_t2: 'חיבור פשוט 2',                                                                                         
+        s1_t3: 'חיבור פשוט 3'                                                                                          
+        container.innerHTML = '<div style="color:var(--color-text-muted); font-size:12px;">אין נתונים לניתוח AI</div>';
+        const timeBtn = `<button onclick="seekReplayer(${offset})" style="background:#1e293b; color:#38bdf8; border:...
+                  <div style="font-size:12px; font-weight:800; color:var(--color-warning);">⚠️ שיוט פסיבי (Passive D...
+                  <div style="font-size:11px; color:var(--color-text-secondary); margin-top:4px;">ביצוע פעולות מחיקה...
+              <div style="font-size:12px; font-weight:800; color:var(--color-success);">💡 מאבק פורה (Productive Str...
+              <div style="font-size:11px; color:var(--color-text-secondary); margin-top:4px;">התלמיד חווה ${recentHe...
+              <div style="font-size:12px; font-weight:800; color:var(--color-danger);">🚨 קושי תפיסתי - בקשת עזרה לא...
+              <div style="font-size:11px; color:var(--color-text-secondary); margin-top:4px;">התלמיד שגה ומיד ביקש ר...
+      let aiSummaryText = "התלמיד השלים את המשימות בהצלחה וללא קשיים חריגים. ניכרת הבנה טובה של החומר.";               
+        aiSummaryText = "התלמיד חווה מאבק קוגניטיבי משמעותי, שהתבטא במספר היסוסים ושגיאות רצופות. ";                   
+          aiSummaryText += "ניכר ניסיון להיעזר בכלים הסוקרטיים, מה שמעיד על מודעות למצב הלמידה, אך ייתכן שיש פער בהב...
+          aiSummaryText += "התלמיד נמנע מלבקש עזרה למרות הקושי, מה שעשוי להעיד על תסכול שקט (שיוט פסיבי). מומלץ לגשת...
+        aiSummaryText = "התלמיד חווה רגעי היסוס קלים אך פתר את המשימות נכונה (מאבק פורה). זוהי אינדיקציה למסוגלות עצ...
+        aiSummaryText = "התלמיד מרבה להשתמש ברמזים (" + lastHintType + "). ייתכן שמדובר בתלות בעזרה חיצונים (Hint Dr...
+        insightsHTML = '<div style="font-size:12px; color:var(--color-text-muted); text-align:center;">ה-AI מנתח את ...
+            <div style="font-size:13px; color:var(--color-primary-dark); font-weight:800;">אבחון פדגוגי מסכם (AI)</div>
+        <div style="font-size:13px; font-weight:800; color:var(--color-primary-dark); margin-bottom:8px; border-bott...
+        { id: 'q1', title: 'משימה 1: ערך המקום והאפס' },                                                               
+        { id: 'q2', title: 'משימה 2: ישר המספרים' },                                                                   
+        { id: 'q3', title: 'משימה 3: פירוק והרכבה גמיש' },                                                             
+        { id: 'q4', title: 'משימה 4: חיבור במאונך והמרה' },                                                            
+        { id: 'q5', title: 'משימה 5: השינוי הקטן' }                                                                    
+            <div style="font-weight:900; font-size:1.1rem; color:var(--color-primary-dark); margin-bottom:10px; text...
+                <summary style="font-weight:800; cursor:pointer; color:var(--color-text);">🏫 כיתת פיילוט (הטכנופדגו...
+                  ${students.filter(s => s.class === 'כיתת פיילוט').map(s => {                                         
+                            ? `<button class="admin-btn admin-btn--primary" style="font-size:11px; padding:4px 10px;...
+                            : `<span style="font-size:11px; color:var(--color-text-muted);">טרם הוקלט פעילות</span>`}  
+                  <summary style="font-weight:800; cursor:pointer; color:var(--color-primary-dark); font-size:14px; ...
+                      ? '<span style="font-size:12px; color:var(--color-text-muted); padding:4px; text-align:right;"...
+                              <span style="font-weight:700; font-size:13px;">👤 ${as.student.name} (כיתה ${as.studen...
+                                  📹 דלג ישר למשימה זו בהקלטה                                                          
+    // סנכרון Firebase בזמן אמת — מאזין לנתוני תלמידים ממכשירים אחרים                                                  
+        // עדכון חי של הרשת התלמידים                                                                                   
+          title = 'לוח בקרה כיתתי - הרדאר השקט';                                                                       
+          text = '<div style="text-align:right;">הלוח הזה מציג לך את כלל התלמידים בזמן אמת. <b>הרדאר השקט (Silent Ra...
+          title = 'ניתוח קבוצות למידה (The Equalizing Effect)';                                                        
+          text = '<div style="text-align:right;">מסך זה מציג את תוצאות <b>מטריצת ה-Q-Matrix</b> לאחר שהתלמידים סיימו...
+          title = 'פאנל המלצות משוב';                                                                                  
+          text = '<div style="text-align:right;">פאנל זה קופץ ונוצר <b>עבור המורה</b>. לאחר זיהוי סוג השגיאה של התלמ...
+          title = 'ניהול כיתות ומרחבים';                                                                               
+          text = '<div style="text-align:right;">כאן תוכל לנהל את נתוני התלמידים, לאפס סיסמאות ולפתוח כיתות. בעתיד, ...
+        confirmButtonText: 'הבנתי',                                                                                    
+  <title>מתמטיקאור — נגן הקלטות מפגש (מלא)</title>                                                                     
+  <!-- Firebase Realtime Database (auto-init, ללא מפתחות מוטמעים) -->                                                  
+        <h1 style="font-size:1.25rem; font-weight:900; margin:0;">נגן הקלטות מלא — מתמטיקאור</h1>                      
+        <p style="font-size:13px; color:#94a3b8; margin:0;">צפייה בשלבי פתרון ובביצועי תלמיד</p>                       
+      תלמיד: <span id="student-name-badge" style="color:var(--color-primary-light);">—</span>                          
+    <button class="admin-btn" style="background:#e2e8f0; color:#0f172a;" onclick="window.close()">🗙 סגור נגן</button> 
+      <h2 style="font-size:15px; font-weight:800; color:#38bdf8; margin:0 0 16px 0; border-bottom:1px solid #334155;...
+      <div class="chapters-progress-bar" id="chapters-bar" title="ניווט מהיר לפי משימות (כמו ביוטיוב)">                
+        <div style="font-size:13px; color:#94a3b8;" id="status-display">ממתין להפעלה...</div>                          
+      <h2 style="font-size:15px; font-weight:800; color:#10b981; margin:0 0 16px 0; border-bottom:1px solid #334155;...
+        alert('לא נבחר תלמיד לצפייה.');                                                                                
+      /* נסה לקרוא מ-Firebase תחילה */                                                                                 
+      /* Fallback ל-localStorage אם Firebase לא החזיר נתונים */                                                        
+        list.innerHTML = '<div style="text-align:center; color:#94a3b8; padding:20px;">אין לוגים מתועדים למפגש זה</d...
+        if (l.event === 'task_correct') { typeClass = 'type-correct'; eventText = `✅ משימה נפתרה נכון: ${l.taskId}`; } 
+        else if (l.event === 'task_incorrect') { typeClass = 'type-incorrect'; eventText = `❌ שגיאה במשימה: ${l.task...
+        else if (l.event === 'block_add') { typeClass = 'type-hint'; eventText = `➕ הוספת בלוק ב${_translateCol(l.de...
+        else if (l.event === 'block_remove') { typeClass = 'type-incorrect'; eventText = `➖ הסרת בלוק מ${_translateC...
+        else if (l.event === 'block_ungroup') { typeClass = 'type-hint'; eventText = `💥 פריטה: ${_translateCol(l.de...
+        else if (l.event === 'block_regroup') { typeClass = 'type-correct'; eventText = `📦 המרה אוטומטית`; }          
+        else if (l.event === 'undo') { typeClass = 'type-hint'; eventText = `↩ לחץ בטל (Undo)`; }                      
+        else if (l.event === 'hint_requested') { typeClass = 'type-radar'; eventText = `💡 ביקש עזרה מה-AI`; }         
+        else if (l.event === 'hint_choice_selected') { typeClass = 'type-radar'; eventText = `🔍 בחר עזרה: ${l.detai...
+        else if (l.event === 'hesitation_alert') { typeClass = 'type-radar'; eventText = `⏸️ רדאר: היסוס קוגניטיבי (...
+        else if (l.event === 'session_completed') { typeClass = 'type-correct'; eventText = `🏁 המפגש הושלם בהצלחה`; } 
+            ${l.pvState ? `<div style="font-size:11px; opacity:0.8; font-family:Courier New, monospace;">מצב: י:${l....
+        container.innerHTML = '<div style="height:100%; display:flex; align-items:center; justify-content:center; co...
+        document.getElementById('status-display').textContent = 'אין הקלטה';                                           
+          document.getElementById('status-display').textContent = 'מנגן...';                                           
+          document.getElementById('status-display').textContent = 'מושהה';                                             
+          document.getElementById('status-display').textContent = 'ההקלטה הסתיימה';                                    
+        document.getElementById('status-display').textContent = 'הקלטה נטענה. לחץ Play';                               
+          מפגש למידה פעיל                                                                                              
+             title="${c.title} (לחץ לניווט)">                                                                          
+        container.innerHTML = '<div style="color:#94a3b8; font-size:13px; text-align:center;">ממתין ללוגים לניתוח......
+        const timeBtn = `<button onclick="seekReplayer(${offset})" style="background:#1e293b; color:#38bdf8; border:...
+                  <div style="font-size:13px; font-weight:800; color:#f59e0b;">⚠️ שיוט פסיבי (Passive Drifting) ${ti...
+                  <div style="font-size:12px; color:#cbd5e1; margin-top:6px;">ביצוע פעולות מחיקה וביטול מהירות ברצף....
+              <div style="font-size:13px; font-weight:800; color:#10b981;">💡 מאבק פורה (Productive Struggle) ${time...
+              <div style="font-size:12px; color:#cbd5e1; margin-top:6px;">התלמיד חווה ${recentHesitations.length} רג...
+              <div style="font-size:13px; font-weight:800; color:#ef4444;">🚨 קושי תפיסתי מהותי ${timeBtn}</div>       
+              <div style="font-size:12px; color:#cbd5e1; margin-top:6px;">התלמיד שגה ומיד ביקש רמז בלי לנסות לתקן או...
+        insightsHTML = '<div style="font-size:13px; color:#94a3b8; text-align:center;">לא זוהו דפוסים פדגוגיים חריגי...
+      let aiSummaryText = "התלמיד השלים את המשימות בהצלחה וללא קשיים חריגים. ניכרת הבנה טובה של החומר.";               
+        aiSummaryText = "התלמיד חווה מאבק קוגניטיבי משמעותי, שהתבטא במספר היסוסים ושגיאות רצופות. ";                   
+          aiSummaryText += "ניכר ניסיון להיעזר בכלים הסוקרטיים, מה שמעיד על מודעות למצב הלמידה, אך ייתכן שיש פער בהב...
+          aiSummaryText += "התלמיד נמנע מלבקש עזרה למרות הקושי, מה שעשוי להעיד על תסכול שקט (שיוט פסיבי). מומלץ לגשת...
+        aiSummaryText = "התלמיד חווה רגעי היסוס קלים אך פתר את המשימות נכונה (מאבק פורה). זוהי אינדיקציה למסוגלות עצ...
+        aiSummaryText = "התלמיד מרבה להשתמש ברמזים (" + lastHintType + "). ייתכן שמדובר בתלות בעזרה חיצונים (Hint Dr...
+            <div style="font-size:14px; color:#e0e7ff; font-weight:800; font-family: 'Outfit', sans-serif;">אבחון פד...
+          <div style="font-size:12px; color:#94a3b8; font-weight:700;">נתוני עקבות דיגיטליים (Trace Data):</div>       
+            <div style="background:#0f172a; padding:4px 8px; border-radius:4px;">🔄 בטלים: <strong style="color:#f1f...
+            <div style="background:#0f172a; padding:4px 8px; border-radius:4px;">⏸️ היסוסים: <strong style="color:#f...
+            <div style="background:#0f172a; padding:4px 8px; border-radius:4px;">❌ שגיאות: <strong style="color:#ef4...
+            <div style="background:#0f172a; padding:4px 8px; border-radius:4px;">💡 רמזים: <strong style="color:#10b...
+        q1: 'משימה 1 (האפס)',                                                                                          
+        q2: 'משימה 2 (הישר)',                                                                                          
+        q3: 'משימה 3 (פירוק גמיש)',                                                                                    
+        q4: 'משימה 4 (חיבור במאונך)',                                                                                  
+        q5: 'משימה 5 (השינוי הקטן)',                                                                                   
+        s1_welcome: 'היכרות',                                                                                          
+        s1_t1: 'חיבור פשוט 1',                                                                                         
+        s1_t2: 'חיבור פשוט 2',                                                                                         
+        s1_t3: 'חיבור פשוט 3'                                                                                          
+      document.getElementById('status-display').textContent = `מהירות: ${speed}x`;                                     
+      const m = { units: 'יחידות', tens: 'עשרות', hundreds: 'מאות', thousands: 'אלפים' };                              
+  <title>מתמטיקאור — כניסה למערכת</title>                                                                              
+  <meta name="description" content="סביבת הלמידה מתמטיקאור — כניסה מאובטחת לתלמידים, מורים ומנהלי מערכת">              
+        <span class="logo-symbol">מ</span>                                                                             
+        <h1 class="app-name">מתמטיקאור</h1>                                                                            
+        <p class="app-tagline">סביבת למידה מוגברת טכנולוגיה</p>                                                        
+    <div class="login-card" id="role-selection" role="region" aria-label="בחירת סוג כניסה">                            
+      <h2 class="card-title">כניסה למערכת</h2>                                                                         
+      <p class="card-subtitle">בחר את סוג הכניסה שלך</p>                                                               
+      <div class="role-buttons" role="group" aria-label="בחר תפקיד">                                                   
+                aria-label="כניסת תלמיד">                                                                              
+          <span class="role-label">תלמיד</span>                                                                        
+                aria-label="כניסת מורה">                                                                               
+          <span class="role-label">מורה</span>                                                                         
+                aria-label="כניסת מנהל מערכת">                                                                         
+          <span class="role-label">מנהל מערכת</span>                                                                   
+         aria-label="התחברות שקופה">                                                                                   
+      <button class="back-btn" onclick="showRoleSelection()" aria-label="חזרה לבחירת תפקיד">                           
+        ← חזרה                                                                                                         
+        <h2 class="card-title" id="sso-role-title">הזדהות שקופה מול Google Workspace</h2>                              
+        <p style="margin-bottom:20px; font-size:14px; color:rgba(255,255,255,0.7);">מערכת ה-SSO מזהה אותך אוטומטית ל...
+          התחברות מהירה (Mock SSO)                                                                                     
+      'user1': { password: '10203040', name: 'משתמש 1', session: 1, classMode: 'regular' },                            
+      'user2': { password: '10203040', name: 'משתמש 2', session: 1, classMode: 'regular' },                            
+      'user3': { password: '10203040', name: 'משתמש 3', session: 1, classMode: 'regular' },                            
+      'user4': { password: '10203040', name: 'משתמש 4', session: 1, classMode: 'regular' },                            
+      'user5': { password: '10203040', name: 'משתמש 5', session: 1, classMode: 'regular' },                            
+      'user6': { password: '10203040', name: 'משתמש 6', session: 1, classMode: 'regular' },                            
+      'user7': { password: '10203040', name: 'משתמש 7', session: 1, classMode: 'regular' },                            
+      'user8': { password: '10203040', name: 'משתמש 8', session: 1, classMode: 'regular' },                            
+      'pilot': { password: '10203040', name: 'פיילוט תלמיד', session: 1, classMode: 'regular' },                       
+      'pilot2': { password: '10203040', name: 'פיילוט תלמיד 2', session: 1, classMode: 'regular' }                     
+      let title = 'הזדהות שקופה מול Google Workspace';                                                                 
+      if(role === 'student') title = 'כניסת תלמיד - זיהוי אוטומטי';                                                    
+      if(role === 'teacher') title = 'כניסת מורה - זיהוי אוטומטי';                                                     
+      if(role === 'admin') title = 'כניסת מנהל - זיהוי אוטומטי';                                                       
+      btn.innerHTML = `<svg viewBox="0 0 24 24" width="24" height="24" xmlns="http://www.w3.org/2000/svg"><g transfo...
+        const username = prompt("אנא הזן שם משתמש (לדוגמה: user1):");                                                  
+        const password = prompt("אנא הזן קוד סודי:");                                                                  
+          alert("שם המשתמש או הסיסמה שגויים.");                                                                        
+          name:      'מורה (Mock SSO)',                                                                                
+          name:      'מנהל מערכת (Mock SSO)',                                                                          
+      btn.textContent = 'מתחבר בצורה שקופה...';                                                                        
+  <title>פרויקט 'מתמטיקאור' (Mathemat-Or)</title>                                                                      
+        <h2>פרויקט 'מתמטיקאור' (Mathemat-Or)</h2>                                                                      
+        <h4 style="color: #7f8c8d; font-size: 1.2em; font-weight: normal;">מעבר מלמידה טכנית-פסיבית לתובנה מספרית – ...
+        <p style="text-align: center; font-size: 1em;"><strong>מגישים:</strong> דוד ספיאשוילי ולבנה קדשאי</p>          
+        <p style="text-align: center; font-size: 0.8em; color: #7f8c8d;">החוג למדעי הלמידה וההוראה, התוכנית לתואר שנ...
+          <h4>מילון אקדמי:</h4>                                                                                        
+            <li><strong>תובנה מספרית (Number Sense):</strong> היכולת לחשוב בצורה גמישה, עצמאית ואינטואיטיבית על מספר...
+            <li><strong>מחקר עיצובי (Design Research):</strong> שיטת מחקר יישומית המשלבת פיתוח סביבות למידה חדשניות ...
+        <h2>האתגר המרכזי בלמידת מתמטיקה</h2>                                                                           
+          <li><strong>צמצום דפוס ה'למידה הטכנית-פסיבית':</strong> מענה לנטייה הקוגניטיבית של תלמידים להישען על שינון...
+          <li><strong>מניעת 'חוסר אונים נרכש' (Learned Helplessness):</strong> קטיעת מעגל התסכול והחרדה שנוצר בעקבות...
+          <li><strong>התאמה לחינוך המיוחד:</strong> תלמידים על הרצף האוטיסטי (ASD) פגיעים במיוחד להצפה חושית ועומס מ...
+          <li><strong>מטרת-העל:</strong> טיפוח תובנה מספרית גמישה ועצמאית המאפשרת פתרון בעיות אותנטי מתוך הבנה מעמיק...
+          <h4>מילון אקדמי:</h4>                                                                                        
+            <li><strong>למידה טכנית-פסיבית (Compliance):</strong> למידה המכוונת למילוי דרישות חיצוניות ולביצוע פרוצד...
+            <li><strong>חוסר אונים נרכש (Learned Helplessness):</strong> מצב פסיכולוגי שבו הלומד מפתח תפיסה כי אין ל...
+        <h2>תשתית מחקרית (סקירת ספרות)</h2>                                                                            
+          <li><strong>עזרים וירטואליים (VRA) מול עזרים פיזיים (CRA):</strong> שימוש בעזרים פיזיים עלול לייצר עומס קו...
+          <li><strong>סוכנות הלומד (Agency) וסכנת ה'פיגום העודף':</strong> מתן רמזים ישירים ומיידיים מייצר אשליית מו...
+          <li><strong>האפקט המשווה (Equalizing Effect) של לוחות מחוונים:</strong> משוב מסורתי ממוקד בציון הסופי. מער...
+          <h4>מילון אקדמי:</h4>                                                                                        
+            <li><strong>עזרים וירטואליים (VRA):</strong> ייצוגים דיגיטליים המאפשרים ללומד לבצע מניפולציות קוגניטיביו...
+            <li><strong>סוכנות הלומד (Learner Agency):</strong> יכולתו האקטיבית של הלומד לנקוט יוזמה, לכוון את למידת...
+            <li><strong>חיכוך מטא-קוגניטיבי יצרני:</strong> עיצוב מכוון של אתגרים קוגניטיביים עדינים המאלצים את הלומ...
+        <h2>הפתרון המוצע: ארכיטקטורה תלת-שכבתית</h2>                                                                   
+          <li><strong>ממשק מוגן (חונכות סוקרטית סגורה):</strong> השכבה העליונה מציעה סביבת למידה ממוקדת ללא צ'אט חופ...
+          <li><strong>'הרדאר השקט' (ניטור מטא-קוגניטיבי):</strong> השכבה האמצעית מפעילה אלגוריתם רקע העוקב אחר מיקרו...
+          <li><strong>אבחון פדגוגי (Explainable AI):</strong> השכבה התחתונה משתמשת במודל Q-Matrix לתרגום הנתונים לקש...
+          <h4>מילון אקדמי:</h4>                                                                                        
+            <li><strong>בינה מלאכותית מסבירה (XAI):</strong> AI המציג את הלוגיקה והנימוקים מאחורי אבחוניו באופן בהיר...
+            <li><strong>מודל Q-Matrix:</strong> מטריצה המקשרת בין פריטי הערכה לבין המיומנויות הנדרשות לפתרונם, המשמש...
+        <h2>מסע הלמידה האדפטיבי</h2>                                                                                   
+          <li><strong>שלב התשתית (מפגשים 1-2):</strong> ביסוס הביטחון של הלומד בסביבה הדיגיטלית. המערכת מספקת תמיכה ...
+          <li><strong>פיגום דועך ותיווך אקטיבי (מפגשים 3-7):</strong> הפחתה הדרגתית של התמיכה (Scaffold Fading) (Agu...
+          <li><strong>אדפטציה ופיצול (מפגש 8):</strong> החלטה פדגוגית מבוססת נתונים: המשך לחקר מתקדם, או פרוטוקול אב...
+          <h4>מילון אקדמי:</h4>                                                                                        
+            <li><strong>דעיכת פיגומים (Scaffold Fading):</strong> הפחתה הדרגתית של התמיכה ככל שהלומד מפתח מומחיות.</li>
+            <li><strong>אבחון לאחור (Backward Diagnostics):</strong> זיהוי מקור הקושי הנוכחי באמצעות איתור פערים ביס...
+        <h2>נגישות, עיצוב אוניברסלי ללמידה (UDL) וחינוך מיוחד</h2>                                                     
+          <li><strong>ממשק ביניים בתהליך פיתוח:</strong> הממשק הנוכחי הוא שלב ביניים; הארכיטקטורה הלוגית מפותחת במסג...
+          <li><strong>עקרונות UDL:</strong> הנגשת תכנים באמצעות דרכי ייצוג, מעורבות וביטוי מגוונות לטיפוח לומדים בעל...
+          <li><strong>התאמות חושיות מודולריות לתלמידי ASD:</strong> שילוב רכיבים כגון 'דקומפוזיציה חזותית' (עמעום אז...
+          <h4>מילון אקדמי:</h4>                                                                                        
+            <li><strong>עיצוב אוניברסלי ללמידה (UDL):</strong> תכנון סביבות נגישות מראש על ידי מתן אפשרויות בחירה (D...
+            <li><strong>דקומפוזיציה חזותית:</strong> פירוק חזותי של הממשק ועמעום מסיחים סביבתיים כדי להגן על קשב הלו...
+        <h2>דילמות ושאלות פתוחות בחזית המחקר</h2>                                                                      
+          <li><strong>דינמיקת נסיגת התמיכה:</strong> כיצד מגדירים את נקודת המעבר שבה הפיגום הופך לנטל המעכב מומחיות ...
+          <li><strong>אוטומציה מול סוכנות הלומד:</strong> כיצד מבטיחים שהתמיכה אינה מייצרת "מיקור חוץ" של החשיבה, ומ...
+          <li><strong>עומס קוגניטיבי על המורה (Explainable Analytics):</strong> כיצד מתרגמים "עקבות דיגיטליים" לתובנ...
+          <h4>מילון אקדמי:</h4>                                                                                        
+            <li><strong>אפקט היפוך המומחיות:</strong> תופעה שבה תמיכות פוגעות בביצועיהם של לומדים שפיתחו מומחיות (Sw...
+            <li><strong>תובנות פעולה (Actionable Insights):</strong> נתונים מעובדים המוצגים באופן המאפשר לנקוט פעולה...
+        <h2 style="text-align: right; margin-bottom: 20px;">רשימה ביבליוגרפית (References)</h2>                        
+  <title>דו"ח משימות - מתמטיקאור</title>                                                                               
+  <h1>מתמטיקאור - ריכוז משימות שלב 1 ושלב 2</h1>                                                                       
+  <p style="text-align: center;">העתק מדויק מהקוד (app.js ו-qmatrix.js). מיועד להגהה ואיסוף תיקונים.</p>               
+  <h2>שלב 1 (Session 1) - מתוך קובץ app.js</h2>                                                                        
+  <h3>1. משימת פתיחה (s1_welcome)</h3>                                                                                 
+    <li><strong>כותרת המשימה:</strong> בואו נשחק ונכיר את הלוח! 🎉</li>                                                
+    <li><strong>הוראה:</strong> נסו לגרור קוביות קטנות (יחידות) או עמודות (עשרות) אל טבלת ערך המקום וראו איך המספר מ...
+    <li><strong>אפשרויות בחירה:</strong>                                                                               
+        <li><strong>א:</strong> הכמות נשארה בדיוק אותו הדבר (10). לא הוספנו ולא הורדנו קוביות מהטבלה, פשוט פרטנו את ...
+        <li><strong>ב:</strong> הכמות גדלה ל-20, כי עכשיו יש לנו הרבה קוביות קטנות בטבלה במקום עמודה אחת.</li>         
+        <li><strong>ג:</strong> הכמות קטנה והפכה לאפס, כי עמודת העשרת נעלמה לגמרי.</li>                                
+  <h3>2. תרגיל 1 (s1_t1) - חיבור פשוט</h3>                                                                             
+    <li><strong>כותרת המשימה:</strong> חיבור פשוט - תרגיל 1</li>                                                       
+    <li><strong>הוראה:</strong> פתרו את התרגיל על ידי גרירת הקוביות לכל טור, וכתבו את הסכום בתיבת התשובה.</li>         
+    <li><strong>תרגיל:</strong> 12 + 24 (תשובה מצופה: 36)</li>                                                         
+  <h3>3. תרגיל 2 (s1_t2) - היכרות עם האפס</h3>                                                                         
+    <li><strong>כותרת המשימה:</strong> היכרות עם ערך המקום והאפס</li>                                                  
+    <li><strong>הוראה:</strong> הביטו במספר שמופיע למטה. גררו את הקוביות לטבלה כדי לייצג אותו, ואז בחרו את התשובה הנ...
+    <li><strong>מספר מטרה:</strong> 205</li>                                                                           
+    <li><strong>אפשרויות בחירה:</strong>                                                                               
+        <li><strong>A:</strong> האפס שומר על המקום של העשרות — יש 0 עשרות במספר הזה <span class="correct">(תשובה נכו...
+        <li><strong>B:</strong> האפס לא משנה כלום — המספר הוא בעצם 25</li>                                             
+        <li><strong>C:</strong> האפס הוא רק קישוט ואפשר להשמיט אותו</li>                                               
+  <h3>4. תרגיל 3 (s1_t3) - גמישות</h3>                                                                                 
+    <li><strong>כותרת המשימה:</strong> גמישות והמרה</li>                                                               
+    <li><strong>הוראה:</strong> ייצגו את המספר שמופיע למטה בבית המספרים. האם תוכלו למצוא דרך נוספת לייצג אותו (למשל,...
+    <li><strong>מספר מטרה:</strong> 234</li>                                                                           
+  <h3>5. תרגיל 4 (s1_t4) - ישר המספרים</h3>                                                                            
+    <li><strong>כותרת המשימה:</strong> ישר המספרים</li>                                                                
+    <li><strong>הוראה:</strong> גרור את החץ אל המיקום המשוער של המספר על ישר המספרים.</li>                             
+    <li><strong>מספר מטרה:</strong> 60 (מתוך 100)</li>                                                                 
+  <h3>6. תרגיל 5 (s1_t5) - התנסות במאונך</h3>                                                                          
+    <li><strong>כותרת המשימה:</strong> התנסות בחיסור במאונך</li>                                                       
+    <li><strong>הוראה:</strong> התנסו בפתרון התרגיל באמצעות בית המספרים. כתבו כל ספרה של התשובה במקום המתאים לה.</li>  
+    <li><strong>תרגיל:</strong> 524 - 322 (תשובה מצופה: 202)</li>                                                      
+  <h2>שלב 2 (Session 2) - מתוך קובץ qmatrix.js</h2>                                                                    
+  <p class="note">לשלב זה מוגדרת לוגיקת "רדאר סמוי" לאחור במקרה של שגיאה.</p>                                          
+  <h3>1. שאלה 1 (q1)</h3>                                                                                              
+    <li><strong>כותרת המשימה:</strong> ערך המקום והאפס</li>                                                            
+    <li><strong>הוראה:</strong> הביטו במספר שמופיע למטה. גררו את הקוביות לטבלה כדי לייצג אותו, ואז בחרו את התשובה הנ...
+    <li><strong>מספר מטרה:</strong> 304 (או 70 ב-ASD)</li>                                                             
+    <li><strong>אפשרויות:</strong>                                                                                     
+        <li><strong>A:</strong> האפס שומר על המקום של העשרות — יש 0 עשרות במספר הזה <span class="correct">(תשובה נכו...
+        <li><strong>B:</strong> האפס לא משנה כלום — המספר הוא בעצם 34</li>                                             
+        <li><strong>C:</strong> האפס הוא רק קישוט ואפשר להשמיט אותו</li>                                               
+    <li style="background:#fff3cd;"><strong>שאלה מסייעת (במקרה של טעות):</strong> בואו נבדוק: מה מייצג האפס במספר 70...
+  <h3>2. שאלה 2 (q2)</h3>                                                                                              
+    <li><strong>כותרת המשימה:</strong> ישר המספרים</li>                                                                
+    <li><strong>הוראה:</strong> גרור את החץ אל המיקום המשוער של המספר על ישר המספרים.</li>                             
+    <li><strong>מספר מטרה:</strong> 750 מתוך 1000</li>                                                                 
+    <li style="background:#fff3cd;"><strong>שאלה מסייעת:</strong> בואו ננסה בישר קצר יותר: היכן נמצא המספר 35 (מתוך ...
+  <h3>3. שאלה 3 (q3)</h3>                                                                                              
+    <li><strong>כותרת המשימה:</strong> פירוק והרכבה גמישים</li>                                                        
+    <li><strong>הוראה:</strong> ייצגו את המספר בשתי דרכים שונות בטבלת ערך המקום. כדאי לחשוב: איך אפשר להשתמש בפריטה ...
+    <li><strong>מספר מטרה:</strong> 240</li>                                                                           
+    <li style="background:#fff3cd;"><strong>מסייע:</strong> (מופעלת אנימציית הדגמה של פריטת עשרת) הנה הדגמה: ראו כיצ...
+  <h3>4. שאלה 4 (q4)</h3>                                                                                              
+    <li><strong>כותרת המשימה:</strong> חיבור במאונך</li>                                                               
+    <li><strong>הוראה:</strong> פתרו את תרגיל החיבור וכתבו את הסכום בתיבה.</li>                                        
+    <li><strong>תרגיל:</strong> 124 + 231</li>                                                                         
+    <li style="background:#fff3cd;"><strong>שאלה מסייעת (במקרה של טעות):</strong> בואו ננסה תרגיל קטן יותר: כמה שווה...
+  <h3>5. שאלה 5 (q5)</h3>                                                                                              
+    <li><strong>כותרת המשימה:</strong> השינוי הקטן — אומדן</li>                                                        
+    <li><strong>הוראה:</strong> הביטו בתרגיל הפתור. עכשיו ענו בלי לחשב בכתב.</li>                                      
+    <li><strong>נתון קודם:</strong> 45 + 10 = 55</li>                                                                  
+    <li><strong>השאלה:</strong> כמה שווה 45 + 9?</li>                                                                  
+    <li><strong>אפשרויות:</strong>                                                                                     
+        <li><strong>A:</strong> 54 — כי חיסרנו יחידה אחת מהסכום <span class="correct">(תשובה נכונה)</span></li>        
+        <li><strong>B:</strong> 55 — זה אותו הסכום</li>                                                                
+        <li><strong>C:</strong> 56 — כי הוספנו עוד יחידה אחת</li>                                                      
+        <li><strong>D:</strong> צריך לחשב מחדש</li>                                                                    
+    <li style="background:#fff3cd;"><strong>שאלה מסייעת:</strong> (מופעל רמז ויזואלי של הסרת קובייה) אם לקחנו קובייה...
+
+

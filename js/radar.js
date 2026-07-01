@@ -96,6 +96,9 @@ const SilentRadar = (() => {
     if (typeof StudentLogger !== 'undefined') {
       StudentLogger.logEvent('hesitation_alert', { durationMs: Date.now() - lastActionTime });
     }
+    if (typeof SessionManager !== 'undefined' && SessionManager.state.traceData) {
+      SessionManager.state.traceData.hesitation_events++;
+    }
     /* Do not restart the timer automatically. Wait for student action to reset it. */
     hesitationTimer = null;
   }

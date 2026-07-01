@@ -82,6 +82,7 @@ const QMatrix = (() => {
     {
       id:           'task3_flexible_regrouping',
       type:         'flexible_decomp',
+      scaffoldLevel: 2,
       titleHe:      'פירוק והרכבה גמישים',
       instructionHe: 'בנו את המספר 240 בטבלת ערך המקום, ולחצו "הוסף ייצוג". לאחר מכן, מצאו דרך נוספת לייצג את אותו המספר ולחצו שוב! (רמז: נסו להיעזר בפריטה).',
       number:       240,

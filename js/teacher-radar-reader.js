@@ -1,4 +1,4 @@
-﻿/* ============================================================
+/* ============================================================
    מתמטיקאור — Teacher Radar Reader (js/teacher-radar-reader.js)
 
    Reads the silent radar buffer written by radar.js and
@@ -73,9 +73,15 @@ const TeacherRadarReader = (() => {
   /* ── Read raw alerts from localStorage ── */
   function _readRawAlerts() {
     try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+      const localAlerts = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+      const remoteAlerts = window._firebaseRadarCache || [];
+      // Combine and deduplicate by ID
+      const map = new Map();
+      localAlerts.forEach(a => map.set(a.id, a));
+      remoteAlerts.forEach(a => map.set(a.id, a));
+      return Array.from(map.values());
     } catch {
-      return [];
+      return window._firebaseRadarCache || [];
     }
   }
 

@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
   <meta charset="UTF-8">
@@ -292,10 +292,14 @@
             }
           });
           
-                    localStorage.setItem(resultsKey, JSON.stringify(filtered));
+          localStorage.setItem(resultsKey, JSON.stringify(filtered));
           try {
             if (typeof firebase !== 'undefined' && firebase.database) {
-               firebase.database().ref('qmatrix_results').set(filtered);
+               const studentId = studentObj.username || 'unknown_student';
+               const resultObj = filtered.find(f => f.studentId === studentId);
+               if (resultObj) {
+                 firebase.database().ref(`qMatrixResults/${studentId}`).set(resultObj);
+               }
             }
           } catch(e) {}
         }

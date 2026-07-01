@@ -1,5 +1,7 @@
 {
   "rules": {
+    ".read": true,
+    ".write": true,
     "students": {
       "$username": {
         ".read": true,
@@ -31,6 +33,14 @@
         ".read": true,
         ".write": true
       }
+    },
+    "system_control": {
+      ".read": true,
+      ".write": true
+    },
+    "audit_logs": {
+      ".read": true,
+      ".write": true
     }
   }
 }

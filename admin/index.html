@@ -361,12 +361,12 @@
     function globalSystemReset() {
       if (!confirm('אזהרה חמורה: מחיקה גלובלית!\nהאם אתה בטוח שברצונך לאפס את כל המערכת כולה?\nכל הנתונים (תלמידים, מורים, לוגים) יימחקו, וכל המשתמשים ינותקו מיד!')) return;
       if (typeof firebase !== 'undefined' && firebase.database) {
-        const now = Date.now();
+        const resetId = Date.now() + '_' + Math.random().toString(36).substr(2, 9);
         Promise.all([
           firebase.database().ref('students').remove(),
           firebase.database().ref('radar_alerts').remove(),
           firebase.database().ref('audit_logs').remove(),
-          firebase.database().ref('system_control/last_reset').set(now)
+          firebase.database().ref('system_control/last_reset').set(resetId)
         ]).then(() => {
           alert('המערכת אופסה בהצלחה. כל המשתמשים מנותקים כעת.');
           refreshAuditLog();

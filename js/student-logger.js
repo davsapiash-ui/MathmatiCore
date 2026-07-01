@@ -95,17 +95,33 @@ const StudentLogger = (() => {
              alert('המורה עצר את התרגיל כרגע.');
              if (typeof SessionManager !== 'undefined') SessionManager.logout();
           }
+          // Remove the action so it doesn't persist across sessions/refreshes
+          snapshot.ref.remove().catch(e => console.warn('Failed to remove teacher action', e));
         });
 
         // Listen for Global Resets
+        let isFirstLoad = true;
         firebase.database().ref('system_control/last_reset').on('value', (snapshot) => {
           const resetTime = snapshot.val();
-          if (resetTime && typeof SessionManager !== 'undefined') {
-            const loginTime = SessionManager.state.loginTime || 0;
-            if (resetTime > loginTime) {
-              alert('המערכת אופסה על ידי מנהל/מורה. מנתק אותך כעת.');
-              SessionManager.logout();
-            }
+          let knownReset = sessionStorage.getItem('mathematicor_known_reset');
+          
+          if (isFirstLoad) {
+             isFirstLoad = false;
+             if (!knownReset) {
+                 // Fresh login. Store the baseline.
+                 sessionStorage.setItem('mathematicor_known_reset', resetTime || 'NONE');
+                 return;
+             }
+             // Otherwise, it's a page refresh. Fall through to the change check.
+          }
+          
+          // Change check (for both live updates and post-refresh checks)
+          knownReset = sessionStorage.getItem('mathematicor_known_reset');
+          if (resetTime && String(resetTime) !== String(knownReset)) {
+             if (typeof SessionManager !== 'undefined') {
+                 alert('המערכת אופסה על ידי מנהל/מורה. מנתק אותך כעת.');
+                 SessionManager.logout();
+             }
           }
         });
       }

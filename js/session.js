@@ -46,11 +46,17 @@ const SessionManager = (() => {
 
     /* Q-Matrix results — filled during session 2 */
     qmatrixResults: {
-      q1: null,  /* ערך המקום והאפס */
-      q2: null,  /* ישר המספרים */
-      q3: null,  /* פירוק והרכבה */
-      q4: null,  /* אבחון לאחור */
-      q5: null   /* השינוי הקטן */
+      task1_zero_placeholder: null,
+      task2_estimation_error_margin: null,
+      task3_flexible_regrouping: null,
+      task4_basic_addition_fluency: null,
+      q5_small_change: null
+    },
+
+    /* Trace data for pedagogical tracking */
+    traceData: {
+      hesitation_events: 0,
+      undo_clicks: 0
     },
 
     /* Persistence Index components (measured silently) */
@@ -93,6 +99,7 @@ const SessionManager = (() => {
     if (undoStack.length === 0) return null;
     if (!isPenalty) {
       state.persistence.undoCount++;
+      if (state.traceData) state.traceData.undo_clicks++;
     }
     return undoStack.pop();
   }
@@ -179,6 +186,7 @@ const SessionManager = (() => {
       sessionStorage.setItem('mathematicor_state', JSON.stringify({
         taskIndex:      state.taskIndex,
         qmatrixResults: state.qmatrixResults,
+        traceData:      state.traceData,
         persistence:    state.persistence
       }));
     } catch { /* silent fail */ }
@@ -191,6 +199,7 @@ const SessionManager = (() => {
       const saved = JSON.parse(raw);
       state.taskIndex      = saved.taskIndex      ?? 0;
       state.qmatrixResults = saved.qmatrixResults ?? state.qmatrixResults;
+      state.traceData      = saved.traceData      ?? state.traceData;
       state.persistence    = saved.persistence    ?? state.persistence;
     } catch { /* silent fail */ }
   }

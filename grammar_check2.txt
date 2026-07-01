@@ -1,0 +1,7 @@
+﻿
+Path                                                        LineNumber Line                                            
+----                                                        ---------- ----                                            
+C:\Users\david\Projects\MathmatiCore\teacher\dashboard.html       1252           text = '<div style="text-align:righ...
+C:\Users\david\Projects\MathmatiCore\presentation.html              77           <li><strong>מניעת 'חוסר אונים נרכש'...
+
+
