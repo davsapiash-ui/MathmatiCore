@@ -12,7 +12,7 @@
 
   <!-- Route Protection -->
   <script>
-    if (!sessionStorage.getItem('mathematicor_teacher')) {
+    if (!sessionStorage.getItem('mathematicor_teacher') && !sessionStorage.getItem('mathematicor_admin_impersonation')) {
       window.location.replace('../index.html');
     }
   </script>
@@ -1254,7 +1254,8 @@
 
     // --- Authorization Check ---
     const teacherData = sessionStorage.getItem('mathematicor_teacher');
-    if (!teacherData) {
+    const adminData = sessionStorage.getItem('mathematicor_admin_impersonation');
+    if (!teacherData && !adminData) {
       console.warn("Unauthorized access blocked. Redirecting to login.");
       window.location.replace('../index.html');
       throw new Error("Unauthorized access. Script execution halted.");
