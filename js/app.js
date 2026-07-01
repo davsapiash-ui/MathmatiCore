@@ -44,12 +44,12 @@ const App = (() => {
       id:   's1_welcome',
       type: 'session1_intro',
       titleHe:       'ברוכים הבאים לטבלת ערך המקום! 🎉',
-      instructionHe: 'קחו מאה אחת והניחו אותה בטור המאות. איזה מספר קיבלנו? עכשיו, "פרטו" את המאה על ידי גרירתה לטור העשרות.',
-      thoughtQuestionHe: 'האם הערך של המספר השתנה כשהעברנו את המאה לעשרות?',
+      instructionHe: 'נסו לגרור קוביות קטנות (יחידות) או עמודות (עשרות) אל הלוח וראו איך המספר מתעדכן. אחר כך, נסו לגרור עמודה אחת של עשרת אל טור היחידות, וחשבו על השאלה למטה:',
+      thoughtQuestionHe: 'אם נגרור עשרת אחת (10) לטור היחידות והיא תתפרק ל-10 יחידות, האם הערך הכולל של המספר בטבלה השתנה?',
       choices: [
-        { id: 'א', textHe: 'לא! הערך נשאר 100. המאה עברה פריטה ל-10 עשרות, ולכן הסך הכול לא השתנה.' },
-        { id: 'ב', textHe: 'המספר גדל, כי עכשיו יש לנו 10 עשרות במקום מאה אחת.' },
-        { id: 'ג', textHe: 'המספר קטן לאפס, כי המאה נעלמה.' }
+        { id: 'א', textHe: 'הכמות נשארה בדיוק אותו הדבר (10). לא הוספנו ולא הורדנו קוביות מהלוח, הן פשוט נראות אחרת!', correct: true },
+        { id: 'ב', textHe: 'הכמות גדלה ל-20, כי עכשיו יש לנו הרבה קוביות קטנות בלוח במקום עמודה אחת.' },
+        { id: 'ג', textHe: 'הכמות קטנה והפכה לאפס, כי עמודת העשרת נעלמה לגמרי.' }
       ],
       correctAnswer: 'א',
       scaffoldLevel: 0
@@ -58,56 +58,50 @@ const App = (() => {
       id:   's1_t1',
       type: 'addition_simple',
       numberA: 12, numberB: 24, correctAnswer: 36,
-      titleHe:       'חיבור בטבלת ערך המקום',
-      instructionHe: 'בואו נחבר: 12 + 24. תחילה בנו את המספר 12, ואז הוסיפו את המספר 24. כמה קיבלנו סך הכול?',
+      titleHe:       'חיבור פשוט - תרגיל 1',
+      instructionHe: 'פתרו את התרגיל על ידי גרירת הקוביות לכל טור, וכתבו את התשובה שלכם בתיבה.',
       asdNumberA: 12, asdNumberB: 14,
-      hintHe: 'בוא נחבר קודם את היחידות ואז את העשרות.',
+      hintHe: 'נסו לבדוק את עצמכם רגע: האם המספר שבנינו בקוביות מתאים למספרים שבתרגיל?',
       scaffoldLevel: 1
     },
     {
       id:   's1_t2',
-      type: 'place_value_zero',
-      titleHe:      'מה תפקידו של האפס?',
-      instructionHe: 'בנו את המספר 205 בטבלת ערך המקום, ואז ענו: מדוע אנו כותבים אפס (0) במספר 205?',
-      number:       205,
-      choices: [
-        { id: 'A', textHe: 'האפס שומר על המקום של טור העשרות, ומראה שאין עשרות במספר זה.' },
-        { id: 'B', textHe: 'האפס לא באמת משנה, המספר הוא בדיוק כמו 25.' },
-        { id: 'C', textHe: 'האפס רק מקשט את המספר, ואפשר למחוק אותו.' }
-      ],
-      correctAnswer: 'A',
-      expectedBlocks: { hundreds: 2, tens: 0, units: 5 },
+      type: 'addition_simple',
+      numberA: 35, numberB: 14, correctAnswer: 49,
+      titleHe:       'חיבור פשוט - תרגיל 2',
+      instructionHe: 'פתרו את התרגיל על ידי גרירת הקוביות לכל טור, וכתבו את התשובה שלכם בתיבה.',
+      asdNumberA: 35, asdNumberB: 12,
+      hintHe: 'האם יש לנו טור אחד שיש בו יותר מ-9 קוביות? אם כן, זכרו שאפשר להעביר דירה! (להמיר)',
       scaffoldLevel: 1
     },
     {
       id:   's1_t3',
-      type: 'flexible_decomp',
-      titleHe:      'פירוק גמיש',
-      descriptionHe: 'איזה ייצוג שווה ל-34?',
-      choices: [
-        { id: 'c1', textHe: '2 עשרות ו-14 יחידות', correct: true },
-        { id: 'c2', textHe: '3 עשרות ו-40 יחידות' },
-        { id: 'c3', textHe: '4 עשרות ו-3 יחידות' }
-      ],
-      scaffoldLevel: 2
+      type: 'addition_simple',
+      numberA: 41, numberB: 15, correctAnswer: 56,
+      titleHe:       'חיבור פשוט - תרגיל 3',
+      instructionHe: 'פתרו את התרגיל על ידי גרירת הקוביות לכל טור, וכתבו את התשובה שלכם בתיבה.',
+      asdNumberA: 41, asdNumberB: 15,
+      hintHe: 'מה קורה לכמות הקוביות כשאנחנו פורטים או ממירים? האם הוספנו או הורדנו קוביות מהלוח, או שרק שינינו את הצורה שלהן?',
+      scaffoldLevel: 1
     },
     {
       id:   's1_t4',
-      type: 'number_line',
-      titleHe:      'היכן ממוקם 60?',
-      descriptionHe: 'גרור את הסמן למיקום המוערך על הישר.',
-      targetValue: 60,
-      range:        [0, 100],
+      type: 'addition_simple',
+      numberA: 23, numberB: 31, correctAnswer: 54,
+      titleHe:       'חיבור פשוט - תרגיל 4',
+      instructionHe: 'ייצגו את המספרים בטבלה ורשמו את התשובה הכתובה.',
+      asdNumberA: 23, asdNumberB: 31,
+      hintHe: 'תראו! המספר 12 הוא בדיוק אותו הדבר כמו עשרת אחת (10) ועוד שתי יחידות (2). הכמות תמיד נשארת!',
       scaffoldLevel: 2
     },
     {
       id:   's1_t5',
       type: 'addition_simple',
-      numberA: 524, numberB: 322, isSubtraction: true, correctAnswer: 202,
-      titleHe:       'חיסור בטבלת ערך המקום',
-      instructionHe: 'בואו נפתור: 524 - 322. בנו את המספר 524 בטבלה, ואז הסירו ממנו את המספר 322. מה קיבלנו?',
-      asdNumberA: 52, asdNumberB: 31,
-      hintHe: 'שים לב לסימן התרגיל - זהו חיסור!',
+      numberA: 15, numberB: 42, correctAnswer: 57,
+      titleHe:       'חיבור פשוט - תרגיל 5',
+      instructionHe: 'ייצגו את המספרים בטבלה ורשמו את התשובה הכתובה.',
+      asdNumberA: 15, asdNumberB: 42,
+      hintHe: 'נסו לבדוק את עצמכם רגע: האם המספר שבנינו מתאים לתרגיל?',
       scaffoldLevel: 2
     }
   ];
