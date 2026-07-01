@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSession } from '../contexts/SessionContext';
 
 const DEMO_USERS = {
   'user1': { password: '10203040', name: 'משתמש 1', session: 1, classMode: 'regular' },
@@ -18,6 +19,7 @@ export default function Login() {
   const [selectedRole, setSelectedRole] = useState(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { setStudentUser, setTeacherUser, setAdminUser } = useSession();
 
   const handleRoleSelect = (role) => {
     setSelectedRole(role);
@@ -32,25 +34,25 @@ export default function Login() {
       
       const user = DEMO_USERS[username];
       if (user && user.password === password) {
-        sessionStorage.setItem('mathematicor_student', JSON.stringify({
+        setStudentUser({
           name:       user.name,
           username:   username,
           session:    user.session,
           classMode:  user.classMode,
           loginTime:  Date.now(),
           taskIndex:  0
-        }));
+        });
       } else {
         alert("שם המשתמש או הסיסמה שגויים.");
         return;
       }
     } else if (selectedRole === 'teacher') {
-      localStorage.setItem('mathematicor_teacher', JSON.stringify({
+      setTeacherUser({
         name:      'מורה (Mock SSO)',
         username:  'teacher_demo',
         role:      'teacher',
         loginTime: Date.now()
-      }));
+      });
     } else if (selectedRole === 'admin') {
       const username = prompt("אנא הזן שם משתמש מנהל:");
       if (username !== 'davsapiash') {
@@ -63,12 +65,12 @@ export default function Login() {
         return;
       }
 
-      localStorage.setItem('mathematicor_admin', JSON.stringify({
+      setAdminUser({
         name:      'מנהל מערכת',
         username:  'davsapiash',
         role:      'admin',
         loginTime: Date.now()
-      }));
+      });
     }
 
     setLoading(true);

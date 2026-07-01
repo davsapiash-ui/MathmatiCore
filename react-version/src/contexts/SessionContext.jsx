@@ -46,6 +46,24 @@ export function SessionProvider({ children }) {
     }
   }, []);
 
+  const setTeacherUser = useCallback((user) => {
+    _setTeacherUser(user);
+    if (user) {
+      localStorage.setItem('mathematicor_teacher', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('mathematicor_teacher');
+    }
+  }, []);
+
+  const setAdminUser = useCallback((user) => {
+    _setAdminUser(user);
+    if (user) {
+      localStorage.setItem('mathematicor_admin', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('mathematicor_admin');
+    }
+  }, []);
+
   // Listen for cross-tab localStorage changes
   useEffect(() => {
     const handleStorage = (e) => {
@@ -77,8 +95,10 @@ export function SessionProvider({ children }) {
     adminUser,
     adminImpersonating,
     setStudentUser,
+    setTeacherUser,
+    setAdminUser,
     logout
-  }), [studentUser, teacherUser, adminUser, adminImpersonating, setStudentUser, logout]);
+  }), [studentUser, teacherUser, adminUser, adminImpersonating, setStudentUser, setTeacherUser, setAdminUser, logout]);
 
   return (
     <SessionContext.Provider value={value}>
