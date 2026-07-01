@@ -224,7 +224,7 @@ const TeacherRadarReader = (() => {
     /* מיזוג נתוני תלמידים מ-Firebase (מכשירים אחרים) */
     if (window._firebaseStudentCache) {
       for (const [un, data] of Object.entries(window._firebaseStudentCache)) {
-        if (un === 'undefined') continue;
+        if (!un || BLOCKED_USERS.includes(un)) continue;
         if (data.logs && data.logs.length > 0 && !map[un]) {
           const lastLog = data.logs[data.logs.length - 1];
           map[un] = {

@@ -709,9 +709,21 @@
           }
           if (eventsSnap.val()) {
             const val = eventsSnap.val();
-            let rawEvents = Array.isArray(val) ? val : Object.values(val);
+            let rawEvents = [];
+            // Sort by push ID key just in case to preserve true batch order
+            const keys = Object.keys(val).sort();
+            keys.forEach(k => rawEvents.push(val[k]));
             events = rawEvents.map(e => typeof e === 'string' ? JSON.parse(e) : e).flat();
-            events.sort((a,b) => (a.timestamp || 0) - (b.timestamp || 0));
+            
+            // Sort by timestamp, but if equal, ensure Meta (4) is before FullSnapshot (2)
+            events.sort((a,b) => {
+              if (a.timestamp === b.timestamp) {
+                if (a.type === 4 && b.type === 2) return -1;
+                if (a.type === 2 && b.type === 4) return 1;
+                return 0;
+              }
+              return (a.timestamp || 0) - (b.timestamp || 0);
+            });
           }
         }
       } catch(e) {
@@ -848,7 +860,8 @@
       try {
         currentReplayer = new rrweb.Replayer(events, {
           root: container,
-          mouseTail: true
+          mouseTail: true,
+          UNSAFE_replayCanvas: true
         });
 
         currentReplayer.on('play', () => {
@@ -870,6 +883,19 @@
           const currentTime = events[0].timestamp + (progress * currentReplayer.getMetaData().totalTime);
           syncDrawerActiveChapter(currentTime);
         });
+
+        // Force render of the first frame by pausing at 0 after a short delay
+        setTimeout(() => {
+          if (currentReplayer) {
+            // Check if there's an iframe that needs explicit scaling for safety
+            const iframe = container.querySelector('iframe');
+            if (iframe) {
+              iframe.style.width = '100%';
+              iframe.style.height = '100%';
+            }
+            currentReplayer.pause(0);
+          }
+        }, 100);
       } catch (err) {
         console.warn('Replayer init error:', err);
       }
