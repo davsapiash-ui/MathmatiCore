@@ -887,12 +887,6 @@
         // Force render of the first frame by pausing at 0 after a short delay
         setTimeout(() => {
           if (currentReplayer) {
-            // Check if there's an iframe that needs explicit scaling for safety
-            const iframe = container.querySelector('iframe');
-            if (iframe) {
-              iframe.style.width = '100%';
-              iframe.style.height = '100%';
-            }
             currentReplayer.pause(0);
           }
         }, 100);

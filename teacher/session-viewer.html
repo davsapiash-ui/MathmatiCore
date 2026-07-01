@@ -351,11 +351,6 @@
         // Force render of the first frame by pausing at 0 after a short delay
         setTimeout(() => {
           if (replayer) {
-            const iframe = container.querySelector('iframe');
-            if (iframe) {
-              iframe.style.width = '100%';
-              iframe.style.height = '100%';
-            }
             replayer.pause(0);
           }
         }, 100);
