@@ -95,10 +95,38 @@ const TeacherOverride = (() => {
     } catch(e) {}
   }
 
+  /**
+   * Send a specific group task to a cluster of students.
+   */
+  async function sendGroupTask(studentUsernames, clusterId) {
+    _logOverride('SEND_GROUP_TASK', 'multiple', { clusterId, count: studentUsernames.length });
+    
+    // Write to Firebase for each student
+    const promises = [];
+    if (typeof firebase !== 'undefined' && firebase.database) {
+      studentUsernames.forEach(username => {
+        promises.push(
+          firebase.database().ref(`students/${username}/teacher_action`).push({
+            type: 'group_task',
+            clusterId: clusterId,
+            timestamp: Date.now()
+          })
+        );
+      });
+    }
+    
+    try {
+      await Promise.all(promises);
+    } catch(e) {
+      console.error('Failed to send group tasks', e);
+    }
+  }
+
   return {
     sendHint,
     stopSession,
-    reassignCluster
+    reassignCluster,
+    sendGroupTask
   };
 
 })();

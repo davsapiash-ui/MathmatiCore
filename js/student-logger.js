@@ -99,6 +99,13 @@ const StudentLogger = (() => {
                  sessionStorage.clear();
                  window.location.replace('../index.html');
              }
+          } else if (action.type === 'group_task') {
+             alert('התקבלה משימת ביסוס קבוצתית מהמורה! לוח המשימות מתעדכן...');
+             // Logic to force student to specific task or refresh
+             if(typeof SessionManager !== 'undefined') {
+               // Update state to load specific task logic. For now just reload to demonstrate.
+               window.location.reload();
+             }
           }
           // Remove the action so it doesn't persist across sessions/refreshes
           snapshot.ref.remove().catch(e => console.warn('Failed to remove teacher action', e));

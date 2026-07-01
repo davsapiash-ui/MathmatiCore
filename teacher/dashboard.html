@@ -626,6 +626,24 @@
       renderRadar(TeacherRadarReader.getAlerts());
     }
 
+    // Group Task Action
+    window.triggerGroupTask = function(clusterId, studentsStr) {
+      if(!confirm('האם לשלוח משימת ביסוס קבוצתית לתלמידים אלו?')) return;
+      try {
+        const students = JSON.parse(decodeURIComponent(studentsStr));
+        const studentIds = students.map(s => s.username);
+        if(typeof TeacherOverride !== 'undefined' && TeacherOverride.sendGroupTask) {
+          TeacherOverride.sendGroupTask(studentIds, clusterId).then(() => {
+            alert('המשימה נשלחה בהצלחה למסכי התלמידים!');
+          });
+        } else {
+          alert('שגיאה: מנגנון השליטה של המורה אינו זמין.');
+        }
+      } catch(e) {
+        console.error('Error parsing students', e);
+      }
+    }
+
     // Render Clusters
     function renderClusters() {
       const results = TeacherRadarReader.getQMatrixResults();
@@ -655,7 +673,7 @@
           </div>
           
           <div class="cluster-card-footer">
-            <button class="cluster-action-btn cluster-action-btn--feedback">הפעל משימת ביסוס קבוצתית</button>
+            <button class="cluster-action-btn cluster-action-btn--feedback" onclick="triggerGroupTask('${c.id}', '${encodeURIComponent(JSON.stringify(c.students))}')">הפעל משימת ביסוס קבוצתית</button>
             <button class="cluster-action-btn cluster-action-btn--override" title="Override">הזז תלמידים ידונית</button>
           </div>
         </div>
