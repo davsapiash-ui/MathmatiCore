@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
-import { DndContext, DragEndEvent, DragStartEvent, useSensor, useSensors, PointerSensor } from "@dnd-kit/core";
+import { DndContext, useSensor, useSensors, PointerSensor } from "@dnd-kit/core";
+import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 import { DroppableColumn } from "@/presentation/components/student/DroppableColumn";
 import { UdlButton } from "@/presentation/design-system/UdlButton";
 import { AccessibleCard } from "@/presentation/design-system/AccessibleCard";
-import { useStudentSessionStore } from "@/application/useStudentSessionStore";
+import { useAuthStore } from "@/application/useAuthStore";
 import { useSessionHeartbeat } from "@/hooks/useSessionHeartbeat";
 import { telemetryTracker } from "@/infrastructure/TelemetryTracker";
-import { QMatrixEvaluator, TASKS, QMatrixTask } from "@/core/QMatrix";
+import { TASKS } from "@/core/QMatrix";
+import type { QMatrixTask } from "@/core/QMatrix";
 
 type BlockType = "units" | "tens" | "hundreds" | "thousands";
 
@@ -16,7 +18,10 @@ interface Block {
 }
 
 export function StudentWorkspace() {
-  const { currentModule, studentName, studentId } = useStudentSessionStore();
+  const { user } = useAuthStore();
+  const studentName = user?.displayName || "תלמיד";
+  const studentId = user?.uid || "unknown";
+  
   const { isOffline } = useSessionHeartbeat();
   
   const [blocks, setBlocks] = useState<{ [key in BlockType]: Block[] }>({
@@ -26,7 +31,7 @@ export function StudentWorkspace() {
     units: [],
   });
 
-  const [activeTask, setActiveTask] = useState<QMatrixTask>(TASKS[0]);
+  const [activeTask] = useState<QMatrixTask>(TASKS[0]);
 
   // Start radar tracking
   useEffect(() => {
@@ -154,14 +159,19 @@ export function StudentWorkspace() {
           <AccessibleCard className="p-4 flex flex-col gap-4 shadow-md bg-white dark:bg-slate-950">
             <h2 className="font-semibold text-lg border-b pb-2">קופסת קוביות</h2>
             <div className="flex gap-2">
-              <UdlButton semanticColor="accent" variant="outline" className="flex-1 text-2xl" onClick={() => handleAddBlock("units")}>
+              <UdlButton semanticColor="primary" className="flex-1 text-2xl" onClick={() => handleAddBlock("units")}>
                 + 1
               </UdlButton>
-              <UdlButton semanticColor="success" variant="outline" className="flex-1 text-2xl" onClick={() => handleAddBlock("tens")}>
+              <UdlButton semanticColor="success" className="flex-1 text-2xl" onClick={() => handleAddBlock("tens")}>
                 + 10
               </UdlButton>
-              <UdlButton semanticColor="danger" variant="outline" className="flex-1 text-2xl" onClick={() => handleAddBlock("hundreds")}>
+              <UdlButton semanticColor="danger" className="flex-1 text-2xl" onClick={() => handleAddBlock("hundreds")}>
                 + 100
+              </UdlButton>
+            </div>
+            <div className="flex gap-2 mt-4">
+              <UdlButton semanticColor="neutral" className="flex-1" onClick={() => telemetryTracker.recordDeleteAction()}>
+                ⟲ ביטול פעולה
               </UdlButton>
             </div>
             <p className="text-sm text-slate-500 mt-2">
@@ -181,8 +191,8 @@ export function StudentWorkspace() {
             )}
           </AccessibleCard>
 
-          <UdlButton size="lg" className="w-full text-xl py-6 shadow-lg">
-            בדוק תשובה!
+          <UdlButton semanticColor="primary" className="text-xl px-12 py-6 rounded-2xl shadow-lg border-b-4 border-blue-800">
+            בדוק תשובה
           </UdlButton>
         </div>
 

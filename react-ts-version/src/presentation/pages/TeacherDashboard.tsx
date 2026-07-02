@@ -89,7 +89,7 @@ export function TeacherDashboard() {
               <h3 className="text-xl font-bold mb-4">קבוצה 1: זקוקים לחיזוק בעובדות יסוד (כיתה א')</h3>
               <p className="text-slate-600 mb-4">תלמידים שטעו במשימה 4 ולא צלחו את משימת האבחון לאחור (השלמת 10).</p>
               <DataGrid 
-                columns={[{ key: "name", title: "שם תלמיד" }, { key: "errors", title: "טעות נפוצה" }]}
+                columns={[{ key: "name", header: "שם תלמיד" }, { key: "errors", header: "טעות נפוצה" }]}
                 data={[
                   { id: "1", name: "נועה כהן", errors: "טעות פרוצדורלית" },
                   { id: "2", name: "עידו לוי", errors: "שליפה אוטומטית לקויה" }
@@ -101,7 +101,7 @@ export function TeacherDashboard() {
               <h3 className="text-xl font-bold mb-4">קבוצה 2: פיתוח גמישות מחשבתית</h3>
               <p className="text-slate-600 mb-4">תלמידים שהצליחו לפרק רק בצורה הקנונית (משימה 3) ונפלו ב"מלכודת הגמישות" (משימה 5).</p>
               <DataGrid 
-                columns={[{ key: "name", title: "שם תלמיד" }, { key: "reps", title: "ייצוגים שהופקו" }]}
+                columns={[{ key: "name", header: "שם תלמיד" }, { key: "reps", header: "ייצוגים שהופקו" }]}
                 data={[
                   { id: "3", name: "רוני שחר", reps: "1 מתוך 4" }
                 ]}

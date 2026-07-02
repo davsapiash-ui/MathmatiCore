@@ -1,0 +1,1321 @@
+/* ============================================================
+   מתמטיקאור — Workspace Styles (Student Activity Space)
+   
+   IMPORTANT DESIGN VOCABULARY:
+   - "בית המספרים" = mathematical place-value structure, NOT a CSS grid layout
+   - "כרטיסיות כוח עשר" = Power-of-Ten visual teaching aids, NOT UI card components
+   - "עמודות" (columns) here = mathematical place-value columns (units/tens/hundreds/thousands)
+   ============================================================ */
+
+/* ── Workspace Page ── */
+body.workspace-page {
+  background: var(--color-bg);
+  height: 100vh;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: var(--font-family, 'Heebo', sans-serif);
+  direction: rtl;
+  overscroll-behavior: none;
+}
+
+
+
+.topbar-actions .help-request-btn {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  background: var(--color-surface);
+  border-radius: 50%;
+  color: var(--color-primary);
+  border: 2px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+  cursor: pointer;
+  transition: all var(--transition-spring);
+}
+
+.topbar-actions .help-request-btn:hover {
+  transform: translateY(-2px);
+  border-color: var(--color-primary);
+  color: white;
+  background: var(--color-primary);
+  box-shadow: 0 8px 15px rgba(91,79,255,0.3);
+}
+
+.topbar-actions .btn-proceed {
+  font-size: var(--font-size-md);
+  padding: 0 var(--space-6);
+  height: 44px;
+  background: var(--color-text);
+  color: white;
+  border: none;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+  transition: all var(--transition-spring);
+  font-weight: 700;
+}
+
+.topbar-actions .btn-proceed:hover:not(:disabled) {
+  transform: translateY(-2px);
+  background: #000;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+}
+
+.topbar-actions .btn-proceed:disabled {
+  background: var(--color-border);
+  box-shadow: none;
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+  transform: none;
+}
+
+.topbar-logo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.topbar-logo-mark {
+  width: 32px; height: 32px;
+  background: linear-gradient(135deg, var(--color-primary), #9B5CFF);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 1.2rem;
+  font-weight: 900;
+}
+
+.topbar-app-name {
+  font-size: var(--font-size-lg);
+  font-weight: 800;
+  color: var(--color-text);
+  letter-spacing: -0.5px;
+}
+
+.topbar-student-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.student-name-badge {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  padding: var(--space-1) var(--space-4);
+}
+
+/* Progress dots (task progress, session 2) — no numbers shown */
+.task-progress-dots {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  direction: ltr;
+}
+
+.progress-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--color-border);
+  transition: all var(--transition-base);
+}
+.progress-dot.done      { background: var(--color-success); }
+.progress-dot.active    { background: var(--color-primary); transform: scale(1.3); }
+
+/* Hide Spinners in Chrome, Safari, Edge, Opera */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Hide Spinners in Firefox */
+input[type=number] {
+  -moz-appearance: textfield;
+}
+
+/* ── Main Content Area (Open Canvas) ── */
+.workspace-content {
+  display: flex;
+  flex-direction: row; /* Right to Left standard */
+  gap: var(--space-6);
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 0 var(--space-6) var(--space-6);
+  box-sizing: border-box;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ── Task Instruction Card (Exercise Area 60%) ── */
+.task-card { 
+  height: 100%;
+  flex: 1;
+  min-width: 50%;
+  margin: 0;
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border-radius: var(--radius-3xl, 32px);
+  padding: var(--space-8);
+  box-shadow: 0 24px 48px rgba(0,0,0,0.08), inset 0 1px 2px rgba(255,255,255,0.9);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  overflow-y: auto;
+  position: relative;
+  transition: all var(--transition-spring);
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.task-card::-webkit-scrollbar {
+  display: none;
+}
+
+#task-body {
+  font-size: 1.6rem;
+  line-height: 1.5;
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+/* Vertical addition styling inside task-body */
+.vertical-addition {
+  background: var(--color-surface-2);
+  padding: var(--space-6);
+  border-radius: var(--radius-xl);
+  box-shadow: inset 0 2px 10px rgba(0,0,0,0.02);
+  font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+  font-size: 2.5rem;
+  letter-spacing: 0.5rem;
+  font-weight: 800;
+  color: var(--color-text);
+}
+
+/* NOTE: .task-title, .task-instruction, .task-number-display defined below after .task-session-label */
+
+
+.drawer-toggle-btn {
+  position: absolute;
+  right: -24px; /* Position it outside the board when collapsed, wait no... */
+  /* Actually, let's put the toggle button on the left edge of the screen or on the place value structure */
+  display: none; /* Let's rethink the toggle button. We will put a toggle in the top bar! */
+}
+
+.drawer-toggle-btn:hover {
+  background: var(--color-primary-light);
+}
+
+.task-card.collapsed .drawer-toggle-icon {
+  transform: scaleX(-1); /* Flip the arrow when collapsed */
+}
+
+.task-session-label {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--color-primary);
+  margin-bottom: var(--space-2);
+}
+
+.task-title {
+  font-size: 2rem;
+  font-weight: 900;
+  color: var(--color-text);
+  margin-bottom: var(--space-4);
+  line-height: 1.3;
+}
+
+.task-instruction {
+  font-size: 1.25rem;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  line-height: 1.6;
+}
+
+.task-number-display {
+  display: inline-block;
+  font-size: var(--font-size-4xl);
+  font-weight: 900;
+  color: var(--color-primary);
+  background: var(--color-primary-light);
+  border-radius: var(--radius-lg);
+  padding: var(--space-2) var(--space-6);
+  margin: var(--space-3) 0;
+  letter-spacing: 4px;
+}
+
+/* ── Place Value Structure (Responsive Panel from Left) ── */
+.place-value-structure { height: 100%;
+  flex: 0 0 0;
+  width: 0;
+  opacity: 0;
+  
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(32px) saturate(150%);
+  -webkit-backdrop-filter: blur(32px) saturate(150%);
+  border-radius: var(--radius-2xl);
+  padding: 0;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.04);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  overflow: hidden;
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.place-value-structure.open {
+  flex: 0 0 50%;
+  width: 50%;
+  opacity: 1;
+  padding: var(--space-6);
+}
+
+.place-value-structure-label {
+  text-align: center;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-4);
+  letter-spacing: 0.5px;
+}
+
+/* The four mathematical columns (אלפים | מאות | עשרות | יחידות) */
+.pv-columns-row {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-3);
+  direction: rtl;   /* units on right, thousands on left — standard Hebrew notation */
+  align-items: stretch;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Each mathematical column container */
+.pv-column {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  background: rgba(255,255,255,0.5);
+  border: 1px solid rgba(0,0,0,0.03);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.02);
+  transition: all var(--transition-base);
+}
+
+/* Column header — shows the Hebrew place-value name */
+.pv-column-header {
+  width: 100%;
+  padding: var(--space-3) var(--space-2);
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--color-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+  white-space: nowrap;
+  background: transparent;
+  border-bottom: 2px solid rgba(0,0,0,0.05);
+  z-index: 2;
+}
+
+/* Stunning subtle headers */
+.pv-column[data-place="units"]     .pv-column-header { color: #D97706; border-bottom-color: rgba(245,158,11,0.2); }
+.pv-column[data-place="tens"]      .pv-column-header { color: #059669; border-bottom-color: rgba(16,185,129,0.2); }
+.pv-column[data-place="hundreds"]  .pv-column-header { color: #2563EB; border-bottom-color: rgba(59,130,246,0.2); }
+.pv-column[data-place="thousands"] .pv-column-header { color: #DC2626; border-bottom-color: rgba(239,68,68,0.2); }
+
+/* Drop zone — the area where blocks land */
+.pv-drop-zone {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  justify-content: center;
+  align-items: flex-start;
+  padding: var(--space-2);
+  gap: 4px;
+  box-sizing: border-box;
+  min-height: 150px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  transition: background var(--transition-fast);
+  position: relative;
+  cursor: pointer;
+}
+
+.pv-column[data-place="units"]     .pv-drop-zone { background: rgba(245,158,11,0.08); }
+.pv-column[data-place="tens"]      .pv-drop-zone { background: rgba(16,185,129,0.08); }
+.pv-column[data-place="hundreds"]  .pv-drop-zone { background: rgba(59,130,246,0.08); }
+.pv-column[data-place="thousands"] .pv-drop-zone { background: rgba(239,68,68,0.08); }
+
+/* Drop zone: drag-over state */
+.pv-drop-zone.drag-over {
+  background: rgba(91,79,255,0.12);
+  border: 2px dashed var(--color-primary);
+  border-radius: var(--radius-md);
+}
+
+/* Drop zone: constraint violation (invalid drop) */
+.pv-drop-zone.constraint-error {
+  animation: shake 0.4s ease;
+  background: rgba(239,68,68,0.12);
+}
+
+/* Column count badge (inline with header) */
+.pv-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  font-size: 11px;
+  font-weight: 900;
+  color: var(--color-primary-dark);
+  background: rgba(255,255,255,0.95);
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  pointer-events: none;
+  opacity: 0;
+  transform: scale(0.8);
+  transition: opacity 0.2s, transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.pv-count-badge.visible { 
+  opacity: 1; 
+  transform: scale(1);
+}
+
+/* ASD mode: inactive columns are dimmed */
+.pv-column.asd-dimmed {
+  opacity: 0.22;
+  pointer-events: none;
+  filter: grayscale(0.6);
+  transition: opacity 0.5s ease, filter 0.5s ease;
+}
+.pv-column.asd-active {
+  animation: colGlow 2s ease-in-out infinite;
+}
+
+/* ── Mathematical Block Visual Representations ──
+   These are representations of mathematical objects:
+   יחידה (unit) / עשרת (ten-rod) / מאה (hundred-flat) / אלף (thousand-cube)
+   They are NOT UI components. They encode mathematical quantity. ── */
+
+.math-block {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  cursor: grab;
+  box-shadow: var(--shadow-block);
+  transition: transform var(--transition-fast),
+              box-shadow var(--transition-fast),
+              opacity var(--transition-fast);
+  user-select: none;
+  position: relative;
+}
+
+/* Premium Glossy 3D Bevel effect */
+.math-block::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 2px 4px rgba(255,255,255,0.8), inset 0 -4px 6px rgba(0,0,0,0.15);
+  pointer-events: none;
+  z-index: 5;
+}
+
+.math-block::after {
+  content: '';
+  position: absolute;
+  top: 1px; left: 1px; right: 1px;
+  height: 40%;
+  background: linear-gradient(to bottom, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0) 100%);
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.math-block:hover  { 
+  transform: scale(1.05) translateY(-4px); 
+  box-shadow: 0 12px 24px rgba(0,0,0,0.15), 0 4px 8px rgba(0,0,0,0.1); 
+  z-index: 50;
+}
+.math-block:active { 
+  cursor: grabbing; 
+  transform: scale(0.98) translateY(2px); 
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1); 
+}
+
+/* יחידה — unit cube (yellow) */
+.math-block--unit {
+  width: 16px;
+  height: 16px;
+  background: var(--block-unit);
+  border-radius: 2px;
+  box-shadow: 0 3px 0 var(--block-unit-dark), 0 3px 6px rgba(0,0,0,0.2);
+  margin-bottom: 4px;
+}
+
+/* עשרת — ten-rod (emerald) */
+.math-block--ten {
+  width: 140px;
+  height: 14px;
+  background: var(--block-ten);
+  border-radius: 2px;
+  box-shadow: 0 3px 0 var(--block-ten-dark), 0 3px 6px rgba(0,0,0,0.2);
+  margin-bottom: 4px;
+  background-size: 10% 100%;
+  background-image: linear-gradient(90deg, transparent 90%, rgba(0,0,0,0.2) 90%);
+}
+
+/* מאה — hundred-flat (blue) */
+.math-block--hundred {
+  width: 90px;
+  height: 90px;
+  background: var(--block-hundred);
+  border-radius: 2px;
+  box-shadow: 0 3px 0 var(--block-hundred-dark), 0 3px 6px rgba(0,0,0,0.2);
+  margin-bottom: 4px;
+  background-size: 10% 10%;
+  background-image:
+    linear-gradient(0deg, transparent 90%, rgba(0,0,0,0.2) 90%),
+    linear-gradient(90deg, transparent 90%, rgba(0,0,0,0.2) 90%);
+}
+
+/* אלף — thousand-cube (red) */
+.math-block--thousand {
+  width: 100px;
+  height: 100px;
+  background: var(--block-thousand);
+  border-radius: 2px;
+  box-shadow: 
+    -2px 2px 0 rgba(220,38,38,0.9),
+    -4px 4px 0 rgba(220,38,38,0.7),
+    -6px 6px 0 rgba(220,38,38,0.5),
+    -8px 8px 10px rgba(0,0,0,0.3);
+  margin-bottom: 8px;
+  margin-left: 8px;
+  background-size: 10% 10%;
+  background-image:
+    linear-gradient(0deg, transparent 90%, rgba(0,0,0,0.2) 90%),
+    linear-gradient(90deg, transparent 90%, rgba(0,0,0,0.2) 90%);
+}
+
+/* Block inside palette (source) vs placed (in column) */
+/* INSTEAD of transform scale which breaks layout, we use actual sizes for palette blocks */
+.math-block.in-palette {
+  animation: none;
+  margin: 0;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+}
+.math-block.in-palette.math-block--ten {
+  width: 128px;
+  height: 13px;
+}
+.math-block.in-palette.math-block--hundred {
+  width: 128px;
+  height: 128px;
+}
+.math-block.in-palette.math-block--thousand {
+  margin-left: 0;
+  width: 136px;
+  height: 136px;
+}
+.math-block.in-palette:hover {
+  transform: translateY(-4px) scale(1.05);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+}
+
+/* Regroup animation: blocks that are about to merge */
+.math-block.regrouping-out {
+  animation: regroupMerge 0.45s ease forwards;
+}
+.math-block.regrouping-in {
+  animation: regroupAppear 0.45s ease forwards;
+}
+
+/* UDL: Ungrouping animation — "explosion" for ALL students */
+.math-block.ungrouping-out {
+  animation: ungroupOut 0.35s ease forwards;
+}
+.math-block.ungrouping-in {
+  animation: ungroupIn 0.4s ease both;
+}
+
+/* ── Block Palette ── */
+.block-palette {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  border-radius: var(--radius-2xl);
+  padding: var(--space-4) var(--space-5);
+  box-shadow: 0 16px 40px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  position: relative; /* Docked */
+  width: 100%;
+  flex-shrink: 0;
+  border: 1px solid rgba(255,255,255,0.6);
+  margin-top: auto; /* Push to bottom inside flex container */
+  transition: all var(--transition-base);
+}
+
+.block-palette.floating {
+  position: fixed;
+  bottom: 80px;
+  right: 20px;
+  width: max-content;
+  z-index: 9999;
+  margin-top: 0;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 24px 48px rgba(0,0,0,0.15);
+}
+
+.palette-drag-handle {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--color-text-light);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0;
+  padding: 8px 12px;
+  background: rgba(0,0,0,0.05);
+  border-radius: 8px;
+  user-select: none;
+  transition: background var(--transition-fast);
+}
+
+.block-palette.floating .palette-drag-handle {
+  cursor: grab;
+}
+.block-palette.floating .palette-drag-handle:active {
+  cursor: grabbing;
+}
+
+
+
+.palette-label {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  color: var(--color-text-muted);
+  text-align: center;
+  margin-bottom: var(--space-3);
+  letter-spacing: 0.5px;
+}
+
+/* Trash Zone */
+.trash-zone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--color-danger);
+  font-size: 1.5rem;
+  transition: all var(--transition-spring);
+  margin: 0 auto;
+}
+
+.trash-zone.drag-over {
+  background: var(--color-danger);
+  color: white;
+  transform: scale(1.15) rotate(15deg);
+  box-shadow: 0 10px 25px rgba(239, 68, 68, 0.4);
+}
+
+/* ── SweetAlert Premium UI ── */
+.swal-premium-popup {
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border-radius: var(--radius-2xl) !important;
+  box-shadow: var(--shadow-xl) !important;
+  border: 1px solid rgba(255, 255, 255, 0.8) !important;
+  font-family: var(--font-family) !important;
+}
+
+.swal-premium-title {
+  color: var(--color-primary-dark) !important;
+  font-weight: 800 !important;
+  font-size: var(--font-size-2xl) !important;
+}
+
+.palette-blocks {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: var(--space-8);
+  direction: rtl;
+  flex-wrap: wrap;
+}
+
+.palette-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  min-height: 145px; /* Fits the 140px block */
+}
+
+.palette-item-label {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  color: var(--color-text-secondary);
+}
+
+/* ── Number Line Visual (Task 2: ישר המספרים) ──
+   This is a MATHEMATICAL number line, not a UI slider/range input ── */
+.number-line-container {
+  width: 100%;
+  padding: var(--space-8) var(--space-4) var(--space-6);
+  background: var(--color-surface);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+  position: relative;
+}
+
+.number-line-track {
+  position: relative;
+  height: 6px;
+  background: var(--color-border);
+  border-radius: var(--radius-full);
+  margin: var(--space-12) var(--space-10) var(--space-6);
+  cursor: pointer;
+}
+
+.number-line-fill {
+  position: absolute;
+  right: 0;
+  top: 0;
+  
+  background: linear-gradient(to left, var(--color-primary), var(--color-primary-light));
+  border-radius: var(--radius-full);
+  width: 0%;
+  transition: width var(--transition-base);
+}
+
+/* Major tick marks at anchor points (0, 100, 200, …, 1000) */
+.number-line-tick {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.tick-mark {
+  width: 2px;
+  height: 8px;
+  background: var(--color-text-muted);
+  border-radius: 1px;
+}
+
+.tick-mark.minor {
+  height: 6px;
+  width: 1px;
+  opacity: 0.6;
+}
+
+.tick-mark.medium {
+  height: 12px;
+  width: 2px;
+  background: var(--color-text-secondary);
+  opacity: 0.8;
+}
+
+.tick-mark.major {
+  height: 20px;
+  background: var(--color-text-secondary);
+  width: 3px;
+}
+
+/* ASD mode: glowing anchor ticks */
+.tick-mark.asd-anchor {
+  background: var(--color-primary);
+  height: 20px;
+  width: 3px;
+  box-shadow: 0 0 6px rgba(91,79,255,0.6);
+}
+
+.tick-label {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  position: absolute;
+  top: 18px;
+}
+
+/* Draggable marker (the arrow the student drags) */
+.number-line-marker {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 12px;
+  height: 28px;
+  background: var(--color-primary);
+  border: 2px solid #fff;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(91,79,255,0.5);
+  cursor: grab;
+  z-index: 10;
+  transition: box-shadow var(--transition-fast), background var(--transition-fast);
+  left: 0%;
+}
+
+.number-line-marker:hover {
+  box-shadow: 0 4px 12px rgba(91,79,255,0.65);
+  background: var(--color-primary-dark);
+}
+
+.number-line-marker:active { cursor: grabbing; }
+
+.number-line-value-display {
+  text-align: center;
+  margin-top: var(--space-3);
+  font-size: var(--font-size-2xl);
+  font-weight: 900;
+  color: var(--color-primary);
+  min-height: 2em;
+  transition: all var(--transition-base);
+}
+
+/* ── Multiple Choice Options (Tasks 1, 5) ── */
+.choice-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: 100%;
+  margin-top: var(--space-4);
+}
+
+.workspace-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-6);
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.03), inset 0 -1px 0 rgba(0,0,0,0.05);
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  height: 72px;
+  width: 100%;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  background: rgba(248, 250, 252, 0.6);
+  padding: 6px 8px;
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(0,0,0,0.03);
+}
+
+.topbar-actions button {
+  font-family: inherit;
+  font-weight: 700;
+  border-radius: var(--radius-full);
+  padding: 8px 16px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  border: 1px solid transparent;
+}
+
+#btn-toggle-board {
+  background: white;
+  color: var(--color-primary-dark);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+#btn-toggle-board:hover {
+  background: var(--color-primary-light);
+  transform: translateY(-1px);
+}
+
+.btn-proceed {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
+  color: white;
+  box-shadow: 0 4px 12px rgba(91, 79, 255, 0.3);
+}
+.btn-proceed:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(91, 79, 255, 0.4);
+}
+.btn-proceed:disabled {
+  background: #cbd5e1;
+  color: #94a3b8;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+.choice-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  font-size: 1.1rem; /* Hardcoded to fix inheritance issue */
+  line-height: 1.4;
+  font-weight: 600;
+  color: var(--color-text);
+  transition: all var(--transition-base);
+  text-align: right;
+  min-height: 60px;
+}
+
+.choice-option:hover {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+  transform: translateX(4px);
+}
+
+.choice-option.selected {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+  color: var(--color-primary-dark);
+  font-weight: 700;
+}
+
+.choice-option.correct {
+  border-color: var(--color-success);
+  background: var(--color-success-light);
+  color: #065F46;
+}
+
+.choice-option.incorrect {
+  border-color: var(--color-danger);
+  background: rgba(239,68,68,0.08);
+  color: #991B1B;
+}
+
+.choice-option-letter {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--color-border-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: var(--font-size-sm);
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+}
+
+.choice-option.selected .choice-option-letter {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+/* ── Vertical Addition Grid Display ── */
+.vertical-addition-grid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background-color: white;
+  background-image: 
+    linear-gradient(#e2e8f0 1px, transparent 1px),
+    linear-gradient(90deg, #e2e8f0 1px, transparent 1px);
+  background-size: 64px 64px;
+  background-position: center top;
+  border-radius: var(--radius-lg);
+  padding: 32px 64px 64px 64px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+  width: fit-content;
+  min-width: 380px;
+  margin: 0 auto;
+  direction: ltr;
+}
+
+.v-add-grid-row {
+  display: flex;
+  width: 100%;
+  justify-content: flex-end;
+}
+
+.v-add-grid-cell {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.operator-cell {
+  width: 40px;
+}
+
+.digit-cell {
+  font-size: 3rem;
+  font-weight: 800;
+  color: #1e293b;
+}
+
+.v-add-grid-divider {
+  width: 100%;
+  height: 6px;
+  background: #1e293b;
+  border-radius: 3px;
+  margin: 12px 0;
+}
+
+.v-add-operator {
+  color: #1e293b;
+  font-size: 3rem;
+  font-weight: 800;
+}
+
+.v-add-carry {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 2px solid #e2e8f0;
+  text-align: center;
+  font-size: 1.2rem;
+  font-weight: 800;
+  background: white;
+  color: #64748b;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+.v-add-carry:focus {
+  border-color: rgba(245, 158, 11, 0.4);
+  color: #d97706;
+  border-radius: 8px;
+}
+
+.v-add-answer-input {
+  width: 60px;
+  height: 80px;
+  border-radius: 16px;
+  border: 3px solid #cbd5e1;
+  text-align: center;
+  font-size: 3rem;
+  font-weight: 800;
+  color: #1e293b;
+  background: white;
+  outline: none;
+  transition: all 0.2s;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.06), 0 4px 10px rgba(56, 189, 248, 0.1);
+  backdrop-filter: blur(8px);
+}
+
+.v-add-answer-input:hover, .v-add-carry:hover {
+  background: rgba(255, 255, 255, 1);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(56, 189, 248, 0.2);
+}
+
+.v-add-answer-input:focus, .v-add-carry:focus {
+  outline: none;
+  background: #ffffff;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.3), inset 0 2px 4px rgba(0,0,0,0.02);
+  transform: translateY(-2px) scale(1.02);
+}
+
+.v-add-carry-spacer {
+  width: 48px;
+}
+
+/* ── Support Palette (חלון עזרה) ──
+   Appears only when student requests help or radar detects hesitation ── */
+.support-palette {
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  left: 0;
+  background: var(--color-surface);
+  border-top: 2px solid var(--color-border);
+  border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
+  padding: var(--space-6) var(--space-6) var(--space-8);
+  box-shadow: 0 -8px 40px rgba(0,0,0,0.15);
+  transform: translateY(100%);
+  transition: transform var(--transition-slow);
+  z-index: 200;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.support-palette.open {
+  transform: translateY(0);
+}
+
+.support-palette-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-4);
+}
+
+.support-palette-title {
+  font-size: var(--font-size-md);
+  font-weight: 800;
+  color: var(--color-text);
+}
+
+.support-palette-close {
+  width: 32px; height: 32px;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  font-size: var(--font-size-md);
+  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.support-palette-close:hover {
+  background: var(--color-danger);
+  color: #fff;
+  border-color: var(--color-danger);
+}
+
+.support-options {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.support-option {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-5) var(--space-3);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  cursor: pointer;
+  text-align: center;
+  transition: all var(--transition-base);
+  background: var(--color-surface-2);
+}
+
+.support-option:hover {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+}
+
+.support-option-icon {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.support-option-title {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.support-option-desc {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  line-height: 1.4;
+}
+
+/* ── Help Request Button (Integrated into floating nav) ── */
+.help-request-btn {
+  position: relative;
+  width: 56px; height: 56px;
+  background: linear-gradient(135deg, #9B5CFF, var(--color-primary));
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  box-shadow: 0 4px 15px rgba(155,92,255,0.4);
+  cursor: pointer;
+  z-index: 150;
+  transition: all var(--transition-spring);
+  animation: pulse 3s ease-in-out infinite;
+  border: 3px solid #fff;
+  flex-shrink: 0;
+}
+
+.help-request-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 20px rgba(155,92,255,0.5);
+}
+
+/* ── Feedback Overlay (correct / incorrect) ── */
+.feedback-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--transition-base);
+}
+
+.feedback-overlay.show {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.feedback-bubble {
+  background: var(--color-surface);
+  border-radius: var(--radius-2xl);
+  padding: var(--space-8) var(--space-12);
+  text-align: center;
+  box-shadow: var(--shadow-xl);
+  animation: fadeInScale 0.35s var(--transition-spring) forwards;
+}
+
+.feedback-icon { font-size: 3.5rem; margin-bottom: var(--space-3); }
+.feedback-message {
+  font-size: var(--font-size-xl);
+  font-weight: 800;
+  color: var(--color-text);
+}
+.feedback-sub {
+  font-size: var(--font-size-base);
+  color: var(--color-text-secondary);
+  margin-top: var(--space-2);
+}
+
+/* ── Responsive & UX Polish ── */
+@media (max-width: 900px) {
+  .pv-columns-row { gap: var(--space-3); }
+  .pv-column { max-width: 120px; }
+  .math-block--hundred { width: 50px; height: 50px; }
+  .math-block--thousand { width: 60px; height: 60px; }
+  .palette-blocks { gap: var(--space-5); }
+}
+
+@media (max-width: 600px) {
+  .workspace-topbar { padding: var(--space-3) var(--space-4); }
+  .topbar-app-name { display: none; } /* Simplify topbar on mobile */
+  
+  .pv-columns-row { gap: var(--space-1); }
+  .pv-column { max-width: 75px; min-height: 160px; }
+  .pv-column-header { font-size: 11px; padding: 4px; }
+  
+  /* Scale down mathematical blocks for mobile so they fit in columns */
+  .math-block--unit { width: 22px; height: 22px; }
+  .math-block--ten { width: 22px; height: 56px; }
+  .math-block--hundred { width: 44px; height: 44px; background-size: 14px 14px; }
+  .math-block--thousand { width: 52px; height: 52px; font-size: 10px; }
+  
+  .palette-blocks { gap: var(--space-3); justify-content: space-evenly; }
+  .palette-item-label { font-size: 10px; }
+  
+  .support-options { flex-direction: column; }
+  .workspace-content { padding: var(--space-4) var(--space-2) 96px; }
+  
+  .task-card { height: 100%; padding: var(--space-4); border-radius: var(--radius-lg); }
+  .task-title { font-size: var(--font-size-lg); }
+  .task-instruction { font-size: var(--font-size-sm); }
+  .task-number-display { font-size: var(--font-size-2xl); letter-spacing: 2px; }
+  
+  .choice-option { padding: var(--space-3) var(--space-3); font-size: var(--font-size-sm); }
+  
+  .vertical-addition { font-size: var(--font-size-2xl); padding: var(--space-4) var(--space-5); }
+  .v-add-answer-input { font-size: var(--font-size-2xl); width: 100px; }
+  
+  .help-request-btn { width: 48px; height: 48px; font-size: 1.3rem; }
+  
+  .workspace-nav { 
+    bottom: var(--space-4); 
+    width: 90%; 
+    justify-content: space-between; 
+    padding: var(--space-2) var(--space-3);
+  }
+  .workspace-nav .btn-proceed { min-width: 100px; font-size: var(--font-size-sm); padding: var(--space-2) var(--space-4); }
+  .workspace-nav .btn-undo { font-size: var(--font-size-xs); padding: var(--space-2) var(--space-4); }
+}
+
+@media (max-width: 768px) {
+  .workspace-content {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    overflow-y: auto;
+    padding: var(--space-4) var(--space-3) 80px;
+    scrollbar-width: none;
+  }
+  .workspace-content::-webkit-scrollbar {
+    display: none;
+  }
+  .task-card { height: 100%;
+    height: auto;
+    overflow-y: visible;
+  }
+  .place-value-structure { height: 100%;
+    height: auto;
+    overflow: visible;
+  }
+}
+
+.socratic-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 1000; }
+.socratic-modal.open { display: flex; }
+.socratic-modal-content { background: var(--color-surface); padding: var(--space-6); border-radius: var(--radius-xl); width: 90%; max-width: 500px; text-align: center; }
+.socratic-visual-container { margin-top: var(--space-4); display: flex; gap: var(--space-4); justify-content: center; align-items: center; }
+@media (max-width: 768px) {
+  .v-add-answer-input {
+    width: 45px;
+    height: 60px;
+    font-size: 2rem;
+  }
+  .vertical-addition {
+    padding: var(--space-2);
+  }
+}
+
+/* ASD Visual Decomposition: Dimmed Column */
+.pv-column {
+  transition: opacity 0.3s ease, filter 0.3s ease;
+}
+
+.pv-column.dimmed {
+  opacity: 0.3;
+  pointer-events: none;
+  filter: grayscale(80%);
+}

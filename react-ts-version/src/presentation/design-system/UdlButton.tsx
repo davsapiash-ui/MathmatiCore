@@ -1,8 +1,9 @@
 import * as React from "react"
-import { Button, ButtonProps } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
+import { type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
-export interface UdlButtonProps extends ButtonProps {
+export interface UdlButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> {
   semanticColor?: "primary" | "secondary" | "success" | "danger" | "warning" | "neutral";
   isAriaDescribed?: boolean;
   tooltipText?: string;
@@ -31,6 +32,7 @@ export const UdlButton = React.forwardRef<HTMLButtonElement, UdlButtonProps>(
       <Button
         ref={ref}
         variant={variant}
+        size={props.size}
         className={cn(
           "transition-all duration-200 active:scale-95", 
           colorClass, 

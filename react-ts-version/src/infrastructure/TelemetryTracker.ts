@@ -1,4 +1,4 @@
-import { ref, push, set } from "firebase/database";
+import { ref, push } from "firebase/database";
 import { database } from "./firebase";
 
 export interface TelemetryEvent {
@@ -21,7 +21,6 @@ export interface RadarAlert {
 export class TelemetryTracker {
   private static instance: TelemetryTracker;
   private pendingEvents: TelemetryEvent[] = [];
-  private flushIntervalId: any = null;
   
   private hesitationTimer: any = null;
   private lastActionTime: number = Date.now();
@@ -143,7 +142,7 @@ export class TelemetryTracker {
 
   private startFlusher() {
     // Flush every 10 seconds to prevent OOM
-    this.flushIntervalId = setInterval(() => {
+    setInterval(() => {
       this.flushEvents();
     }, 10000);
   }

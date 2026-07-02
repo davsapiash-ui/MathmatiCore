@@ -3,7 +3,13 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-route
 import { Login } from "@/presentation/pages/Login";
 import { StudentWorkspace } from "@/presentation/pages/StudentWorkspace";
 import { TeacherDashboard } from "@/presentation/pages/TeacherDashboard";
-import { AdminPanel } from "@/presentation/pages/AdminPanel";
+
+import { AdminLayout } from "@/presentation/pages/AdminLayout";
+import { AdminOverview } from "@/presentation/pages/admin/AdminOverview";
+import { AdminSchoolsView } from "@/presentation/pages/admin/AdminSchoolsView";
+import { AdminCurriculumView } from "@/presentation/pages/admin/AdminCurriculumView";
+import { AdminSecurityView } from "@/presentation/pages/admin/AdminSecurityView";
+import { AdminSettingsView } from "@/presentation/pages/admin/AdminSettingsView";
 import { useAuthStore } from "@/application/useAuthStore";
 import { useSettingsStore } from "@/application/useSettingsStore";
 
@@ -69,9 +75,15 @@ function App() {
         
         <Route path="/admin" element={
           <AuthGuard allowedRoles={["admin"]}>
-            <AdminPanel />
+            <AdminLayout />
           </AuthGuard>
-        } />
+        }>
+          <Route index element={<AdminOverview />} />
+          <Route path="schools" element={<AdminSchoolsView />} />
+          <Route path="curriculum" element={<AdminCurriculumView />} />
+          <Route path="security" element={<AdminSecurityView />} />
+          <Route path="settings" element={<AdminSettingsView />} />
+        </Route>
 
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>

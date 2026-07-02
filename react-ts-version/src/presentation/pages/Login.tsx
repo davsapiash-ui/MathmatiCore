@@ -4,7 +4,7 @@ import { UdlButton } from "@/presentation/design-system/UdlButton";
 import { AccessibleCard } from "@/presentation/design-system/AccessibleCard";
 
 export function Login() {
-  const { login } = useAuthStore();
+  const { setUser } = useAuthStore();
   const [role, setRole] = useState<"student" | "teacher" | "admin">("student");
   const [username, setUsername] = useState("");
 
@@ -13,11 +13,11 @@ export function Login() {
     if (!username.trim()) return;
     
     // Simulate login based on role
-    login({
+    setUser({
       uid: `${role}_${Date.now()}`,
       role: role,
       displayName: username,
-    });
+    }, role);
   };
 
   return (
