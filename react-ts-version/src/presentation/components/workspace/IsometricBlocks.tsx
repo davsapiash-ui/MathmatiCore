@@ -25,9 +25,10 @@ interface BlockProps {
   h?: number; // height in Z
   type: 'one' | 'ten' | 'hundred' | 'thousand';
   className?: string;
+  scale?: number;
 }
 
-export function IsoBlock({ w = 1, d = 1, h = 1, type, className = '' }: BlockProps) {
+export function IsoBlock({ w = 1, d = 1, h = 1, type, className = '', scale = 1.2 }: BlockProps) {
   const colors = COLORS[type];
   const uX = 7;
   const uY = 3.5;
@@ -44,7 +45,7 @@ export function IsoBlock({ w = 1, d = 1, h = 1, type, className = '' }: BlockPro
   const vY = { x: uX, y: uY };
   const vZ = { x: 0, y: uZ };
   
-  const add = (p: Point, v: Point, scale = 1): Point => ({ x: p.x + v.x * scale, y: p.y + v.y * scale });
+  const add = (p: Point, v: Point, s = 1): Point => ({ x: p.x + v.x * s, y: p.y + v.y * s });
   
   const P_left = add(O, vX, w);
   const P_right = add(O, vY, d);
@@ -67,7 +68,7 @@ export function IsoBlock({ w = 1, d = 1, h = 1, type, className = '' }: BlockPro
       width={svgWidth} 
       height={svgHeight} 
       viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-      style={{ width: `${svgWidth * 1.5}px`, height: `${svgHeight * 1.5}px` }}
+      style={{ width: `${svgWidth * scale}px`, height: `${svgHeight * scale}px` }}
     >
       <path d={pathStr([O, P_left, P_front, P_right])} fill={colors.top} stroke={gridColor} strokeWidth="1" strokeLinejoin="round"/>
       <path d={pathStr([P_left, P_front, P_front_b, P_left_b])} fill={colors.side} stroke={gridColor} strokeWidth="1" strokeLinejoin="round"/>
@@ -88,8 +89,8 @@ export function IsoBlock({ w = 1, d = 1, h = 1, type, className = '' }: BlockPro
   );
 }
 
-export const BlockOne = ({ className }: { className?: string }) => <IsoBlock w={1} d={1} h={1} type="one" className={className} />;
-export const BlockTen = ({ className }: { className?: string }) => <IsoBlock w={1} d={1} h={10} type="ten" className={className} />;
-export const BlockHundred = ({ className }: { className?: string }) => <IsoBlock w={10} d={10} h={1} type="hundred" className={className} />;
-export const BlockThousand = ({ className }: { className?: string }) => <IsoBlock w={10} d={10} h={10} type="thousand" className={className} />;
+export const BlockOne = ({ className, scale = 1.5 }: { className?: string; scale?: number }) => <IsoBlock w={1} d={1} h={1} type="one" className={className} scale={scale} />;
+export const BlockTen = ({ className, scale = 1.2 }: { className?: string; scale?: number }) => <IsoBlock w={10} d={1} h={1} type="ten" className={className} scale={scale} />;
+export const BlockHundred = ({ className, scale = 1.0 }: { className?: string; scale?: number }) => <IsoBlock w={10} d={10} h={1} type="hundred" className={className} scale={scale} />;
+export const BlockThousand = ({ className, scale = 0.9 }: { className?: string; scale?: number }) => <IsoBlock w={10} d={10} h={10} type="thousand" className={className} scale={scale} />;
 

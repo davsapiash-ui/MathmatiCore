@@ -4,6 +4,7 @@ import { DndContext, DragOverlay, closestCenter } from '@dnd-kit/core';
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import { MathBoard } from '@/presentation/components/workspace/MathBoard';
 import { MathBlock } from '@/presentation/components/workspace/MathBlock';
+import { BlockOne, BlockTen, BlockHundred, BlockThousand } from '@/presentation/components/workspace/IsometricBlocks';
 import { useSilentRadar } from '@/application/useSilentRadar';
 import { UdlButton } from '@/presentation/design-system/UdlButton';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
@@ -174,24 +175,24 @@ export function StudentWorkspace() {
           </div>
           
           <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-4 items-center">
-            <button onClick={() => addBlock('thousand')} className="w-full aspect-square bg-orange-50 hover:bg-orange-100 dark:bg-orange-900/20 dark:hover:bg-orange-900/40 rounded-xl flex flex-col items-center justify-center gap-2 transition-transform hover:scale-105 active:scale-95 border border-orange-100 dark:border-orange-800/50">
-               <div className="text-3xl">🧊</div>
-               <span className="text-xs font-black text-orange-600 dark:text-orange-400">1000</span>
+            <button onClick={() => addBlock('thousand')} className="w-full aspect-square bg-[#FFF8EE] hover:bg-[#FFF0DF] dark:bg-orange-900/20 dark:hover:bg-orange-900/40 rounded-2xl flex flex-col items-center justify-center gap-2 transition-transform hover:scale-105 active:scale-95 shadow-sm">
+               <div className="h-14 flex items-center justify-center mt-2"><BlockThousand scale={0.4} /></div>
+               <span className="text-sm font-black text-slate-700 dark:text-slate-400">1000</span>
             </button>
 
-            <button onClick={() => addBlock('hundred')} className="w-full aspect-square bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/40 rounded-xl flex flex-col items-center justify-center gap-2 transition-transform hover:scale-105 active:scale-95 border border-blue-100 dark:border-blue-800/50">
-               <div className="text-3xl">🔲</div>
-               <span className="text-xs font-black text-blue-600 dark:text-blue-400">100</span>
+            <button onClick={() => addBlock('hundred')} className="w-full aspect-square bg-[#F4F7FB] hover:bg-[#E8EDF4] dark:bg-blue-900/20 dark:hover:bg-blue-900/40 rounded-2xl flex flex-col items-center justify-center gap-2 transition-transform hover:scale-105 active:scale-95 shadow-sm">
+               <div className="h-14 flex items-center justify-center mt-2"><BlockHundred scale={0.65} /></div>
+               <span className="text-sm font-black text-slate-700 dark:text-slate-400">100</span>
             </button>
 
-            <button onClick={() => addBlock('ten')} className="w-full aspect-square bg-green-50 hover:bg-green-100 dark:bg-green-900/20 dark:hover:bg-green-900/40 rounded-xl flex flex-col items-center justify-center gap-2 transition-transform hover:scale-105 active:scale-95 border border-green-100 dark:border-green-800/50">
-               <div className="text-3xl">📏</div>
-               <span className="text-xs font-black text-green-600 dark:text-green-400">10</span>
+            <button onClick={() => addBlock('ten')} className="w-full aspect-square bg-[#F2FCF5] hover:bg-[#E4F8EA] dark:bg-green-900/20 dark:hover:bg-green-900/40 rounded-2xl flex flex-col items-center justify-center gap-2 transition-transform hover:scale-105 active:scale-95 shadow-sm">
+               <div className="h-14 flex items-center justify-center mt-2"><BlockTen scale={0.8} /></div>
+               <span className="text-sm font-black text-slate-700 dark:text-slate-400">10</span>
             </button>
 
-            <button onClick={() => addBlock('one')} className="w-full aspect-square bg-[#F5F5DC]/50 hover:bg-[#F5F5DC] dark:bg-yellow-900/20 dark:hover:bg-yellow-900/40 rounded-xl flex flex-col items-center justify-center gap-2 transition-transform hover:scale-105 active:scale-95 border border-yellow-200 dark:border-yellow-800/50">
-               <div className="text-3xl">▫️</div>
-               <span className="text-xs font-black text-yellow-700 dark:text-yellow-500">1</span>
+            <button onClick={() => addBlock('one')} className="w-full aspect-square bg-[#FCFAF5] hover:bg-[#F8F3E6] dark:bg-yellow-900/20 dark:hover:bg-yellow-900/40 rounded-2xl flex flex-col items-center justify-center gap-2 transition-transform hover:scale-105 active:scale-95 shadow-sm">
+               <div className="h-14 flex items-center justify-center mt-2"><BlockOne scale={1.2} /></div>
+               <span className="text-sm font-black text-slate-700 dark:text-slate-400">1</span>
             </button>
           </div>
         </aside>
