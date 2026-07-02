@@ -1,6 +1,7 @@
 import { Play, Trophy, Star, Sparkles, ChevronLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { motion, Variants } from 'framer-motion';
+import { motion } from 'framer-motion';
+import type { Variants } from 'framer-motion';
 import '../styles/main.css';
 
 const meetings = [
