@@ -77,7 +77,7 @@ export function AdminSchoolsView() {
         </div>
         <UdlButton 
           semanticColor="primary" 
-          className="gap-2 shadow-[0_0_15px_rgba(99,102,241,0.5)] hover:shadow-[0_0_25px_rgba(99,102,241,0.7)] transition-all bg-indigo-600 hover:bg-indigo-500 text-white rounded-full px-6"
+          className="gap-2 shadow-[0_4px_15px_rgba(99,102,241,0.2)] dark:shadow-[0_0_15px_rgba(99,102,241,0.5)] hover:shadow-lg transition-all rounded-full px-6"
           onClick={() => setIsAddingSchool(true)}
         >
           <Plus className="w-5 h-5" />
@@ -86,14 +86,14 @@ export function AdminSchoolsView() {
       </header>
 
       {/* Global Class Limit */}
-      <div className="bg-slate-900/50 backdrop-blur-md border border-slate-800 p-6 rounded-2xl mb-8 flex flex-col md:flex-row justify-between items-center shadow-lg">
+      <div className="bg-white/80 dark:bg-slate-900/50 backdrop-blur-md border border-slate-200 dark:border-slate-800 p-6 rounded-2xl mb-8 flex flex-col md:flex-row justify-between items-center shadow-lg">
         <div className="flex items-center gap-4 mb-4 md:mb-0">
-          <div className="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center border border-blue-500/30">
-            <Settings className="w-6 h-6 text-blue-400" />
+          <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-500/20 flex items-center justify-center border border-blue-200 dark:border-blue-500/30">
+            <Settings className="w-6 h-6 text-blue-600 dark:text-blue-400" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-slate-100">מגבלת תפוסה גלובלית</h2>
-            <p className="text-sm text-slate-400">מספר המקסימום המותר לרישום תלמידים בכל כיתה רגילה ברחבי המערכת.</p>
+            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">מגבלת תפוסה גלובלית</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400">מספר המקסימום המותר לרישום תלמידים בכל כיתה רגילה ברחבי המערכת.</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -101,31 +101,31 @@ export function AdminSchoolsView() {
             type="number" 
             value={limitInput}
             onChange={(e) => setLimitInput(e.target.value)}
-            className="w-24 text-center bg-slate-950 border border-slate-700 text-slate-100 rounded-lg p-3 font-bold focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all shadow-inner" 
+            className="w-24 text-center bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-lg p-3 font-bold focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all shadow-inner" 
           />
-          <UdlButton semanticColor="neutral" className="border border-slate-600 hover:bg-slate-800" onClick={handleSaveLimit}>עדכן</UdlButton>
+          <UdlButton semanticColor="neutral" className="border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800" onClick={handleSaveLimit}>עדכן</UdlButton>
         </div>
       </div>
 
       {/* Add School Inline Form */}
       {isAddingSchool && (
-        <div className="bg-indigo-950/40 backdrop-blur-md border border-indigo-500/30 p-6 rounded-2xl mb-8 shadow-[0_0_20px_rgba(99,102,241,0.1)] flex flex-col md:flex-row gap-4 items-end animate-in slide-in-from-top-4 fade-in duration-300">
+        <div className="bg-indigo-50/80 dark:bg-indigo-950/40 backdrop-blur-md border border-indigo-200 dark:border-indigo-500/30 p-6 rounded-2xl mb-8 shadow-md flex flex-col md:flex-row gap-4 items-end animate-in slide-in-from-top-4 fade-in duration-300">
           <div className="flex-1 w-full">
-            <label className="block text-sm font-medium text-indigo-300 mb-2">שם המוסד החדש</label>
+            <label className="block text-sm font-medium text-indigo-700 dark:text-indigo-300 mb-2">שם המוסד החדש</label>
             <input 
               type="text" 
               autoFocus
               placeholder="לדוגמה: בית ספר אלונים"
               value={newSchoolName}
               onChange={(e) => setNewSchoolName(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-700 text-slate-100 rounded-lg p-3 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
+              className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-lg p-3 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
             />
           </div>
           <div className="flex gap-2 w-full md:w-auto">
-            <UdlButton semanticColor="primary" className="flex-1 bg-indigo-600 hover:bg-indigo-500" onClick={handleCreateSchool}>
+            <UdlButton semanticColor="primary" className="flex-1 shadow-md shadow-indigo-500/20" onClick={handleCreateSchool}>
               הקם מוסד
             </UdlButton>
-            <UdlButton semanticColor="neutral" onClick={() => setIsAddingSchool(false)}>
+            <UdlButton semanticColor="neutral" className="bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700" onClick={() => setIsAddingSchool(false)}>
               ביטול
             </UdlButton>
           </div>
@@ -147,21 +147,21 @@ export function AdminSchoolsView() {
           const schoolClasses = classes.filter(c => c.schoolId === school.id);
 
           return (
-            <div key={school.id} className="relative group rounded-2xl overflow-hidden bg-slate-900 border border-slate-800 hover:border-indigo-500/50 transition-all duration-300 shadow-xl flex flex-col">
+            <div key={school.id} className="relative group rounded-2xl overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-500/50 transition-all duration-300 shadow-xl flex flex-col">
               {/* Card Header */}
-              <div className="bg-slate-950 p-6 flex justify-between items-center border-b border-slate-800">
+              <div className="bg-slate-50 dark:bg-slate-950 p-6 flex justify-between items-center border-b border-slate-200 dark:border-slate-800">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 flex items-center justify-center border border-indigo-500/30">
-                    <Building className="w-6 h-6 text-indigo-400" />
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-500/20 dark:to-purple-500/20 flex items-center justify-center border border-indigo-200 dark:border-indigo-500/30">
+                    <Building className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
                   </div>
                   <div>
-                    <h3 className="text-2xl font-bold text-slate-100">{school.name}</h3>
+                    <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-100">{school.name}</h3>
                     <p className="text-slate-500 text-xs font-mono mt-1 opacity-70">ID: {school.id}</p>
                   </div>
                 </div>
                 <button 
                   onClick={() => { if(window.confirm('מחיקת המוסד תמחק גם את כל המורים והכיתות המשויכים אליו. האם להמשיך?')) deleteSchool(school.id); }}
-                  className="text-slate-600 hover:text-red-500 hover:bg-red-500/10 transition-colors p-3 rounded-full"
+                  className="text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors p-3 rounded-full"
                   title="מחק מוסד"
                 >
                   <Trash2 className="w-5 h-5" />
@@ -171,19 +171,19 @@ export function AdminSchoolsView() {
               <div className="p-6 flex-1 flex flex-col">
                 {/* Stats */}
                 <div className="grid grid-cols-2 gap-4 mb-8">
-                  <div className="bg-slate-950 border border-slate-800 p-4 rounded-xl flex items-center justify-between">
+                  <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-4 rounded-xl flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-slate-400 mb-1">סגל הוראה</p>
-                      <p className="text-3xl font-black text-indigo-400">{schoolTeachers.length}</p>
+                      <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">סגל הוראה</p>
+                      <p className="text-3xl font-black text-indigo-600 dark:text-indigo-400">{schoolTeachers.length}</p>
                     </div>
-                    <Users className="w-8 h-8 text-indigo-900" />
+                    <Users className="w-8 h-8 text-indigo-200 dark:text-indigo-900" />
                   </div>
-                  <div className="bg-slate-950 border border-slate-800 p-4 rounded-xl flex items-center justify-between">
+                  <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-4 rounded-xl flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-slate-400 mb-1">כיתות לימוד</p>
-                      <p className="text-3xl font-black text-cyan-400">{schoolClasses.length}</p>
+                      <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">כיתות לימוד</p>
+                      <p className="text-3xl font-black text-cyan-600 dark:text-cyan-400">{schoolClasses.length}</p>
                     </div>
-                    <ShieldCheck className="w-8 h-8 text-cyan-900" />
+                    <ShieldCheck className="w-8 h-8 text-cyan-200 dark:text-cyan-900" />
                   </div>
                 </div>
 
@@ -191,18 +191,18 @@ export function AdminSchoolsView() {
                 <div className="space-y-6 flex-1">
                   {/* Teachers */}
                   <div>
-                    <h4 className="font-bold text-sm text-slate-400 mb-3 border-b border-slate-800 pb-2">מורים פעילים:</h4>
+                    <h4 className="font-bold text-sm text-slate-500 dark:text-slate-400 mb-3 border-b border-slate-200 dark:border-slate-800 pb-2">מורים פעילים:</h4>
                     {schoolTeachers.length === 0 ? (
-                      <p className="text-sm text-slate-600 italic">אין מורים במוסד זה.</p>
+                      <p className="text-sm text-slate-500 dark:text-slate-600 italic">אין מורים במוסד זה.</p>
                     ) : (
                       <div className="space-y-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
                         {schoolTeachers.map(t => (
-                          <div key={t.id} className="flex justify-between items-center bg-slate-950 border border-slate-800 hover:border-slate-700 p-3 rounded-lg text-sm transition-colors group/item">
+                          <div key={t.id} className="flex justify-between items-center bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 p-3 rounded-lg text-sm transition-colors group/item">
                             <div>
-                              <div className="font-bold text-slate-200">{t.name}</div>
+                              <div className="font-bold text-slate-800 dark:text-slate-200">{t.name}</div>
                               <div className="text-slate-500 text-xs mt-1">ת"ז (שם משתמש): {t.taz} | סיסמה: {t.dob}</div>
                             </div>
-                            <button onClick={() => deleteTeacher(t.id)} className="text-slate-600 hover:text-red-400 opacity-0 group-hover/item:opacity-100 transition-opacity p-2">
+                            <button onClick={() => deleteTeacher(t.id)} className="text-slate-400 hover:text-red-500 dark:text-slate-600 dark:hover:text-red-400 opacity-0 group-hover/item:opacity-100 transition-opacity p-2">
                               <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
@@ -213,15 +213,15 @@ export function AdminSchoolsView() {
 
                   {/* Classes */}
                   <div>
-                    <h4 className="font-bold text-sm text-slate-400 mb-3 border-b border-slate-800 pb-2">כיתות מוגדרות:</h4>
+                    <h4 className="font-bold text-sm text-slate-500 dark:text-slate-400 mb-3 border-b border-slate-200 dark:border-slate-800 pb-2">כיתות מוגדרות:</h4>
                     {schoolClasses.length === 0 ? (
-                      <p className="text-sm text-slate-600 italic">אין כיתות במוסד זה.</p>
+                      <p className="text-sm text-slate-500 dark:text-slate-600 italic">אין כיתות במוסד זה.</p>
                     ) : (
                       <div className="space-y-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
                         {schoolClasses.map(c => (
-                          <div key={c.id} className="flex justify-between items-center bg-slate-950 border border-slate-800 hover:border-slate-700 p-3 rounded-lg text-sm transition-colors group/item">
-                            <span className="font-bold text-slate-200">{c.name}</span>
-                            <button onClick={() => deleteClassRoom(c.id)} className="text-slate-600 hover:text-red-400 opacity-0 group-hover/item:opacity-100 transition-opacity p-2">
+                          <div key={c.id} className="flex justify-between items-center bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 p-3 rounded-lg text-sm transition-colors group/item">
+                            <span className="font-bold text-slate-800 dark:text-slate-200">{c.name}</span>
+                            <button onClick={() => deleteClassRoom(c.id)} className="text-slate-400 hover:text-red-500 dark:text-slate-600 dark:hover:text-red-400 opacity-0 group-hover/item:opacity-100 transition-opacity p-2">
                               <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
@@ -232,10 +232,10 @@ export function AdminSchoolsView() {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex gap-3 mt-8 pt-6 border-t border-slate-800">
+                <div className="flex gap-3 mt-8 pt-6 border-t border-slate-200 dark:border-slate-800">
                   <UdlButton 
                     semanticColor="neutral" 
-                    className="flex-1 gap-2 text-sm bg-slate-800 hover:bg-indigo-600 hover:text-white border-0 transition-colors" 
+                    className="flex-1 gap-2 text-sm bg-slate-100 dark:bg-slate-800 hover:bg-indigo-600 hover:text-white border-0 transition-colors" 
                     onClick={() => setAddingTeacherTo(school.id)}
                   >
                     <Users className="w-4 h-4" />
@@ -243,7 +243,7 @@ export function AdminSchoolsView() {
                   </UdlButton>
                   <UdlButton 
                     semanticColor="neutral" 
-                    className="flex-1 gap-2 text-sm bg-slate-800 hover:bg-cyan-600 hover:text-white border-0 transition-colors" 
+                    className="flex-1 gap-2 text-sm bg-slate-100 dark:bg-slate-800 hover:bg-cyan-600 hover:text-white border-0 transition-colors" 
                     onClick={() => setAddingClassTo(school.id)}
                   >
                     <Plus className="w-4 h-4" />
@@ -254,25 +254,25 @@ export function AdminSchoolsView() {
 
               {/* Add Teacher Overlay */}
               {addingTeacherTo === school.id && (
-                <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-sm z-10 p-6 flex flex-col justify-center animate-in zoom-in-95 duration-200">
-                  <button onClick={() => setAddingTeacherTo(null)} className="absolute top-4 left-4 text-slate-400 hover:text-white">
+                <div className="absolute inset-0 bg-white/95 dark:bg-slate-950/90 backdrop-blur-sm z-10 p-6 flex flex-col justify-center animate-in zoom-in-95 duration-200">
+                  <button onClick={() => setAddingTeacherTo(null)} className="absolute top-4 left-4 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white">
                     <X className="w-6 h-6" />
                   </button>
-                  <h3 className="text-xl font-bold text-white mb-6 text-center">רישום מורה חדש</h3>
+                  <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-6 text-center">רישום מורה חדש</h3>
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm text-slate-400 mb-1">שם מלא</label>
-                      <input type="text" value={teacherForm.name} onChange={e => setTeacherForm({...teacherForm, name: e.target.value})} className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg p-3" placeholder="ישראל ישראלי" />
+                      <label className="block text-sm text-slate-600 dark:text-slate-400 mb-1">שם מלא</label>
+                      <input type="text" value={teacherForm.name} onChange={e => setTeacherForm({...teacherForm, name: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-lg p-3" placeholder="ישראל ישראלי" />
                     </div>
                     <div>
-                      <label className="block text-sm text-slate-400 mb-1">תעודת זהות (9 ספרות)</label>
-                      <input type="text" maxLength={9} value={teacherForm.taz} onChange={e => setTeacherForm({...teacherForm, taz: e.target.value})} className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg p-3" placeholder="123456789" />
+                      <label className="block text-sm text-slate-600 dark:text-slate-400 mb-1">תעודת זהות (9 ספרות)</label>
+                      <input type="text" maxLength={9} value={teacherForm.taz} onChange={e => setTeacherForm({...teacherForm, taz: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-lg p-3" placeholder="123456789" />
                     </div>
                     <div>
-                      <label className="block text-sm text-slate-400 mb-1">תאריך לידה (6 ספרות - סיסמה)</label>
-                      <input type="text" maxLength={6} value={teacherForm.dob} onChange={e => setTeacherForm({...teacherForm, dob: e.target.value})} className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg p-3" placeholder="DDMMYY" />
+                      <label className="block text-sm text-slate-600 dark:text-slate-400 mb-1">תאריך לידה (6 ספרות - סיסמה)</label>
+                      <input type="text" maxLength={6} value={teacherForm.dob} onChange={e => setTeacherForm({...teacherForm, dob: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-lg p-3" placeholder="DDMMYY" />
                     </div>
-                    <UdlButton semanticColor="primary" className="w-full bg-indigo-600 mt-4" onClick={() => handleCreateTeacher(school.id)}>
+                    <UdlButton semanticColor="primary" className="w-full bg-indigo-600 mt-4 shadow-md" onClick={() => handleCreateTeacher(school.id)}>
                       שמור במערכת
                     </UdlButton>
                   </div>
@@ -281,20 +281,20 @@ export function AdminSchoolsView() {
 
               {/* Add Class Overlay */}
               {addingClassTo === school.id && (
-                <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-sm z-10 p-6 flex flex-col justify-center animate-in zoom-in-95 duration-200">
-                  <button onClick={() => setAddingClassTo(null)} className="absolute top-4 left-4 text-slate-400 hover:text-white">
+                <div className="absolute inset-0 bg-white/95 dark:bg-slate-950/90 backdrop-blur-sm z-10 p-6 flex flex-col justify-center animate-in zoom-in-95 duration-200">
+                  <button onClick={() => setAddingClassTo(null)} className="absolute top-4 left-4 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white">
                     <X className="w-6 h-6" />
                   </button>
-                  <h3 className="text-xl font-bold text-white mb-6 text-center">הקמת כיתת לימוד</h3>
+                  <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-6 text-center">הקמת כיתת לימוד</h3>
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm text-slate-400 mb-1">שם הכיתה</label>
-                      <input type="text" value={classNameInput} onChange={e => setClassNameInput(e.target.value)} className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg p-3" placeholder="לדוגמה: ה'3" />
+                      <label className="block text-sm text-slate-600 dark:text-slate-400 mb-1">שם הכיתה</label>
+                      <input type="text" value={classNameInput} onChange={e => setClassNameInput(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-lg p-3" placeholder="לדוגמה: ה'3" />
                     </div>
-                    <p className="text-xs text-slate-400 text-center bg-slate-900 p-3 rounded-lg border border-slate-800">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 text-center bg-slate-50 dark:bg-slate-900 p-3 rounded-lg border border-slate-200 dark:border-slate-800">
                       הכיתה תשויך אוטומטית למורה הראשון ברשימה. בעתיד יתווסף ממשק שיוך דינמי.
                     </p>
-                    <UdlButton semanticColor="primary" className="w-full bg-cyan-600 hover:bg-cyan-500 mt-4" onClick={() => handleCreateClass(school.id)}>
+                    <UdlButton semanticColor="primary" className="w-full bg-cyan-600 hover:bg-cyan-500 mt-4 shadow-md" onClick={() => handleCreateClass(school.id)}>
                       הקם כיתה
                     </UdlButton>
                   </div>
