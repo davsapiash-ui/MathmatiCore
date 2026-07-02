@@ -174,16 +174,36 @@ export function StudentWorkspace() {
                {currentTask.instructionHe}
              </p>
 
-             <div className="mt-auto mb-auto flex justify-center">
-               <div className="bg-slate-100/80 dark:bg-slate-800/80 p-8 rounded-3xl shadow-inner font-mono text-6xl font-black text-slate-800 dark:text-slate-100 tracking-[0.5rem] text-right min-w-[200px]" dir="ltr">
-                  <div className="text-right">{currentTask.numberA}</div>
-                  <div className="flex items-center gap-4">
-                  <div className="border-b-4 border-slate-800 dark:border-slate-100 pb-2 mb-2 flex justify-between w-full">
-                    <span className="text-indigo-500 mr-4">+</span>
-                    <span className="text-right">{currentTask.numberB}</span>
-                  </div>
+             {/* Dynamic Task Content Rendering */}
+             <div className="mt-auto mb-auto flex flex-col justify-center">
+               {(currentTask.type === 'addition_simple' || currentTask.type === 'vertical_addition') && currentTask.numberA !== undefined && currentTask.numberB !== undefined && (
+                 <div className="bg-slate-100/80 dark:bg-slate-800/80 p-8 rounded-3xl shadow-inner font-mono text-6xl font-black text-slate-800 dark:text-slate-100 tracking-[0.5rem] text-right min-w-[200px] self-center" dir="ltr">
+                    <div className="text-right">{currentTask.numberA}</div>
+                    <div className="flex items-center gap-4">
+                    <div className="border-b-4 border-slate-800 dark:border-slate-100 pb-2 mb-2 flex justify-between w-full">
+                      <span className="text-indigo-500 mr-4">{currentTask.isSubtraction ? '-' : '+'}</span>
+                      <span className="text-right">{currentTask.numberB}</span>
+                    </div>
+                   </div>
                  </div>
-               </div>
+               )}
+
+               {(currentTask.type === 'place_value_zero' || currentTask.type === 'flexible_decomp') && currentTask.number !== undefined && (
+                 <div className="bg-indigo-50 dark:bg-indigo-900/30 p-8 rounded-3xl border border-indigo-100 dark:border-indigo-800 text-center self-center">
+                    <span className="text-7xl font-black text-indigo-600 dark:text-indigo-400 font-mono tracking-widest">{currentTask.number}</span>
+                 </div>
+               )}
+
+               {currentTask.choices && (
+                 <div className="flex flex-col gap-3 mt-8">
+                   <p className="font-bold text-slate-700 dark:text-slate-300 mb-2">{currentTask.thoughtQuestionHe || 'בחרו את התשובה הנכונה:'}</p>
+                   {currentTask.choices.map(choice => (
+                     <button key={choice.id} className="text-right p-4 rounded-xl border-2 border-slate-200 dark:border-slate-700 hover:border-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all font-medium">
+                       <span className="font-bold text-indigo-600 ml-2">{choice.id}.</span> {choice.textHe}
+                     </button>
+                   ))}
+                 </div>
+               )}
              </div>
              
              <div className="absolute bottom-6 left-6">
