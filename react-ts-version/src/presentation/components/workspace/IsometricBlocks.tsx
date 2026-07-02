@@ -89,8 +89,7 @@ export function IsoBlock({ w = 1, d = 1, h = 1, type, className = '', scale = 1.
   );
 }
 
-export const BlockOne = ({ className, scale = 1.5 }: { className?: string; scale?: number }) => <IsoBlock w={1} d={1} h={1} type="one" className={className} scale={scale} />;
-export const BlockTen = ({ className, scale = 1.2 }: { className?: string; scale?: number }) => <IsoBlock w={10} d={1} h={1} type="ten" className={className} scale={scale} />;
-export const BlockHundred = ({ className, scale = 1.0 }: { className?: string; scale?: number }) => <IsoBlock w={10} d={10} h={1} type="hundred" className={className} scale={scale} />;
-export const BlockThousand = ({ className, scale = 0.9 }: { className?: string; scale?: number }) => <IsoBlock w={10} d={10} h={10} type="thousand" className={className} scale={scale} />;
-
+export const BlockOne = ({ className, scale = 1.2 }: { className?: string; scale?: number }) => <IsoBlock w={1} d={1} h={1} type="one" className={className} scale={scale} />;
+export const BlockTen = ({ className, scale = 0.8 }: { className?: string; scale?: number }) => <IsoBlock w={10} d={1} h={1} type="ten" className={className} scale={scale} />;
+export const BlockHundred = ({ className, scale = 0.6 }: { className?: string; scale?: number }) => <IsoBlock w={10} d={10} h={1} type="hundred" className={className} scale={scale} />;
+export const BlockThousand = ({ className, scale = 0.45 }: { className?: string; scale?: number }) => <IsoBlock w={10} d={10} h={10} type="thousand" className={className} scale={scale} />;
