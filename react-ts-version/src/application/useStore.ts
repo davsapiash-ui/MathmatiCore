@@ -31,6 +31,7 @@ interface AppState {
   // Trace Data Actions
   incrementHesitation: (studentId: string) => void;
   incrementUndo: (studentId: string) => void;
+  resetTraceData: (studentId: string) => void;
   
   // Q-Matrix Actions
   updateQMatrix: (studentId: string, updates: Partial<QMatrix>) => void;
@@ -137,6 +138,19 @@ export const useStore = create<AppState>((set) => ({
             ...state.students[studentId].traceData,
             undo_clicks: state.students[studentId].traceData.undo_clicks + 1
           }
+        }
+      }
+    };
+  }),
+
+  resetTraceData: (studentId) => set((state) => {
+    if (!state.students[studentId]) return state;
+    return {
+      students: {
+        ...state.students,
+        [studentId]: {
+          ...state.students[studentId],
+          traceData: { hesitation_events: 0, undo_clicks: 0 }
         }
       }
     };

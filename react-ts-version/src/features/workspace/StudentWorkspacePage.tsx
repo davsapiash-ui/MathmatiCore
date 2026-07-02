@@ -59,11 +59,11 @@ export function StudentWorkspacePage() {
               const state = useWorkspaceStore.getState();
               // Q-Matrix (assuming all false for now, or based on qflow data if populated)
               const qData = {
-                task1_zero_placeholder: state.qflow.taskMap['task1'] !== false,
+                task1_zero_placeholder: state.qflow.results['task1']?.correct ?? true,
                 task2_estimation_error_margin: 0,
-                task3_flexible_regrouping: state.qflow.taskMap['task3'] !== false,
-                task4_basic_addition_fluency: state.qflow.taskMap['task4'] !== false,
-                task5_basic_subtraction_fluency: state.qflow.taskMap['task5'] !== false
+                task3_flexible_regrouping: state.qflow.results['task3']?.correct ?? true,
+                task4_basic_addition_fluency: state.qflow.results['task4']?.correct ?? true,
+                task5_basic_subtraction_fluency: state.qflow.results['task5']?.correct ?? true
               };
               const traceData = {
                 hesitation_events: 0, // Should be populated by radar, but schema requires numbers

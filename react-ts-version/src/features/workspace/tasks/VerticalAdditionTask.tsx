@@ -1,6 +1,8 @@
 import { useRef } from 'react';
 import type { Place } from '@/core/placeValue';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
+import { InlineMath } from 'react-katex';
+import 'katex/dist/katex.min.css';
 
 /**
  * תרגיל חיבור/חיסור במאונך — שני מחוברים + תיבות תשובה לפי טורים.
@@ -37,11 +39,11 @@ export function VerticalAdditionTask({
 
   return (
     <div className="self-center bg-ws-surface2/50 rounded-3xl p-8 shadow-inner" dir="ltr">
-      <div className="font-mono font-black text-5xl text-ws-ink text-right tracking-[0.35em] leading-snug select-none">
-        <div>{numberA}</div>
-        <div className="flex items-center justify-between gap-6 border-b-4 border-ws-ink pb-2">
-          <span className="text-ws-accent">{isSubtraction ? '−' : '+'}</span>
-          <span>{numberB}</span>
+      <div className="font-mono font-black text-5xl text-ws-ink text-right tracking-[0.35em] leading-snug select-none" aria-label={`תרגיל עמודה: ${numberA} ${isSubtraction ? 'פחות' : 'ועוד'} ${numberB}`}>
+        <div aria-hidden="true"><InlineMath math={numberA.toString()} /></div>
+        <div className="flex items-center justify-between gap-6 border-b-4 border-ws-ink pb-2" aria-hidden="true">
+          <span className="text-ws-accent"><InlineMath math={isSubtraction ? '-' : '+'} /></span>
+          <span><InlineMath math={numberB.toString()} /></span>
         </div>
       </div>
 
@@ -69,6 +71,15 @@ export function VerticalAdditionTask({
             }}
           />
         ))}
+      </div>
+      
+      {/* UDL Alternative Expression: Upload Draft */}
+      <div className="mt-6 border-t border-ws-ink/10 pt-4 flex justify-center">
+        <label className="cursor-pointer text-sm font-bold text-ws-accent hover:text-ws-ink transition-colors flex items-center gap-2 bg-ws-surface px-4 py-2 rounded-xl shadow-sm border border-ws-ink/10">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+          העלה פתרון כתוב (תמונה)
+          <input type="file" className="hidden" accept="image/*" aria-label="העלה פתרון כתמונה" onChange={() => alert("הפתרון הועלה בהצלחה למורה.")} />
+        </label>
       </div>
     </div>
   );

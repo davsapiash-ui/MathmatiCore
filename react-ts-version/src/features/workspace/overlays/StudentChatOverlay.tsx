@@ -36,7 +36,7 @@ export function StudentChatOverlay() {
 
   const handleSend = () => {
     if (!text.trim()) return;
-    sendMessage(user.id, 'teacher_1', text);
+    sendMessage(user.id, user.displayName || user.email?.split('@')[0] || 'תלמיד', 'teacher_1', text);
     setText('');
   };
 
