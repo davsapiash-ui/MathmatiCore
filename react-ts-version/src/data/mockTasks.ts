@@ -1,4 +1,4 @@
-import { MathTask } from '../domain/entities/Task';
+import type { MathTask } from '../domain/entities/Task';
 
 export const SESSION1_TASKS: MathTask[] = [
   {

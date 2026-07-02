@@ -1,19 +1,10 @@
 
 
-// Isometric Grid Configuration
-const DX = 7;
-const DY = -3.5;
-const DZ = -8;
+
 
 interface Point { x: number; y: number; }
 
-const getPoint = (x: number, y: number, z: number): Point => ({
-  x: x * DX + y * -DX,
-  y: x * DY + y * DY + z * DZ,
-});
 
-const formatPolygon = (p1: Point, p2: Point, p3: Point, p4: Point) => 
-  `${p1.x},${p1.y} ${p2.x},${p2.y} ${p3.x},${p3.y} ${p4.x},${p4.y}`;
 
 interface BlockColors {
   top: string;
@@ -38,65 +29,61 @@ interface BlockProps {
 
 export function IsoBlock({ w = 1, d = 1, h = 1, type, className = '' }: BlockProps) {
   const colors = COLORS[type];
-
-  // Vertices
-  const p0 = getPoint(0, 0, 0); // Bottom Front
-  const pX = getPoint(w, 0, 0); // Bottom Right
-  const pY = getPoint(0, d, 0); // Bottom Left
-
-  const pZ = getPoint(0, 0, h); // Top Front
-  const pXZ = getPoint(w, 0, h); // Top Right
-  const pYZ = getPoint(0, d, h); // Top Left
-  const pXYZ = getPoint(w, d, h); // Top Back
-
-  const leftFace = formatPolygon(p0, pY, pYZ, pZ);
-  const rightFace = formatPolygon(p0, pX, pXZ, pZ);
-  const topFace = formatPolygon(pZ, pXZ, pXYZ, pYZ);
-
-  const minX = pYZ.x - 2; 
-  const maxX = pXZ.x + 2;
-  const minY = pXYZ.y - 2;
-  const maxY = p0.y + 2;
+  const uX = 7;
+  const uY = 3.5;
+  const uZ = 8;
+  const pad = 2;
   
-  const width = maxX - minX;
-  const height = maxY - minY;
-
-  // Grid Lines
-  const gridLines = [];
+  const width = (w + d) * uX;
+  const height = (w + d) * uY + h * uZ;
+  const svgWidth = width + pad * 2;
+  const svgHeight = height + pad * 2;
   
-  if (type === 'ten' && h === 10) {
-    for (let i = 1; i < 10; i++) {
-      const zLine = getPoint(0, 0, i);
-      const zLineLeft = getPoint(0, 1, i);
-      const zLineRight = getPoint(1, 0, i);
-      
-      gridLines.push(<line key={`l1-${i}`} x1={zLine.x} y1={zLine.y} x2={zLineLeft.x} y2={zLineLeft.y} stroke="rgba(255,255,255,0.4)" strokeWidth="0.75" />);
-      gridLines.push(<line key={`l2-${i}`} x1={zLine.x} y1={zLine.y} x2={zLineRight.x} y2={zLineRight.y} stroke="rgba(255,255,255,0.4)" strokeWidth="0.75" />);
-    }
-  }
+  const O = { x: w * uX + pad, y: pad }; 
+  const vX = { x: -uX, y: uY };
+  const vY = { x: uX, y: uY };
+  const vZ = { x: 0, y: uZ };
+  
+  const add = (p: Point, v: Point, scale = 1): Point => ({ x: p.x + v.x * scale, y: p.y + v.y * scale });
+  
+  const P_left = add(O, vX, w);
+  const P_right = add(O, vY, d);
+  const P_front = add(P_left, vY, d); 
+  const P_left_b = add(P_left, vZ, h);
+  const P_right_b = add(P_right, vZ, h);
+  const P_front_b = add(P_front, vZ, h);
+  
+  const pathStr = (points: Point[]) => `M ${points.map(p => `${p.x},${p.y}`).join(' L ')} Z`;
 
-  if (type === 'hundred' && w === 10 && d === 10) {
-    for (let i = 1; i < 10; i++) {
-      const p1X = getPoint(i, 0, 1);
-      const p2X = getPoint(i, 10, 1);
-      gridLines.push(<line key={`hx-${i}`} x1={p1X.x} y1={p1X.y} x2={p2X.x} y2={p2X.y} stroke="rgba(255,255,255,0.3)" strokeWidth="0.75" />);
-      
-      const p1Y = getPoint(0, i, 1);
-      const p2Y = getPoint(10, i, 1);
-      gridLines.push(<line key={`hy-${i}`} x1={p1Y.x} y1={p1Y.y} x2={p2Y.x} y2={p2Y.y} stroke="rgba(255,255,255,0.3)" strokeWidth="0.75" />);
-    }
-  }
+  // Determine grid line color based on type
+  let gridColor = 'rgba(0,0,0,0.15)';
+  if (type === 'ten') gridColor = 'rgba(0,0,0,0.2)';
+  if (type === 'hundred') gridColor = 'rgba(255,255,255,0.25)';
+  if (type === 'thousand') gridColor = 'rgba(0,0,0,0.25)';
 
   return (
     <svg 
       className={`overflow-visible drop-shadow-md ${className}`} 
-      viewBox={`${minX} ${minY} ${width} ${height}`}
-      style={{ width: `${width * 2}px`, height: `${height * 2}px` }}
+      width={svgWidth} 
+      height={svgHeight} 
+      viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+      style={{ width: `${svgWidth * 1.5}px`, height: `${svgHeight * 1.5}px` }}
     >
-      <polygon points={leftFace} fill={colors.side} />
-      <polygon points={rightFace} fill={colors.front} />
-      <polygon points={topFace} fill={colors.top} />
-      {gridLines}
+      <path d={pathStr([O, P_left, P_front, P_right])} fill={colors.top} stroke={gridColor} strokeWidth="1" strokeLinejoin="round"/>
+      <path d={pathStr([P_left, P_front, P_front_b, P_left_b])} fill={colors.side} stroke={gridColor} strokeWidth="1" strokeLinejoin="round"/>
+      <path d={pathStr([P_front, P_right, P_right_b, P_front_b])} fill={colors.front} stroke={gridColor} strokeWidth="1" strokeLinejoin="round"/>
+      
+      <g stroke={gridColor} strokeWidth="0.75" strokeLinecap="round">
+        {/* Top Face Lines */}
+        {[...Array(Math.max(0, w - 1))].map((_, i) => { const start = add(O, vX, i+1); const end = add(start, vY, d); return <line key={`tx-${i}`} x1={start.x} y1={start.y} x2={end.x} y2={end.y} />; })}
+        {[...Array(Math.max(0, d - 1))].map((_, i) => { const start = add(O, vY, i+1); const end = add(start, vX, w); return <line key={`ty-${i}`} x1={start.x} y1={start.y} x2={end.x} y2={end.y} />; })}
+        {/* Left Face Lines */}
+        {[...Array(Math.max(0, d - 1))].map((_, i) => { const start = add(P_left, vY, i+1); const end = add(start, vZ, h); return <line key={`lx-${i}`} x1={start.x} y1={start.y} x2={end.x} y2={end.y} />; })}
+        {[...Array(Math.max(0, h - 1))].map((_, i) => { const start = add(P_left, vZ, i+1); const end = add(start, vY, d); return <line key={`lz-${i}`} x1={start.x} y1={start.y} x2={end.x} y2={end.y} />; })}
+        {/* Right Face Lines */}
+        {[...Array(Math.max(0, w - 1))].map((_, i) => { const start = add(P_right, vX, i+1); const end = add(start, vZ, h); return <line key={`rx-${i}`} x1={start.x} y1={start.y} x2={end.x} y2={end.y} />; })}
+        {[...Array(Math.max(0, h - 1))].map((_, i) => { const start = add(P_front, vZ, i+1); const end = add(P_right, vZ, i+1); return <line key={`rz-${i}`} x1={start.x} y1={start.y} x2={end.x} y2={end.y} />; })}
+      </g>
     </svg>
   );
 }
@@ -105,3 +92,4 @@ export const BlockOne = ({ className }: { className?: string }) => <IsoBlock w={
 export const BlockTen = ({ className }: { className?: string }) => <IsoBlock w={1} d={1} h={10} type="ten" className={className} />;
 export const BlockHundred = ({ className }: { className?: string }) => <IsoBlock w={10} d={10} h={1} type="hundred" className={className} />;
 export const BlockThousand = ({ className }: { className?: string }) => <IsoBlock w={10} d={10} h={10} type="thousand" className={className} />;
+

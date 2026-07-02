@@ -203,9 +203,16 @@ export function StudentWorkspace() {
           <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
           {currentTask.numberA !== undefined && currentTask.numberB !== undefined && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-white dark:bg-slate-900 px-8 py-4 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800">
-               <div className="text-5xl font-black text-slate-800 dark:text-slate-100 tracking-wider font-mono">
-                 {currentTask.numberA} {currentTask.isSubtraction ? '-' : '+'} {currentTask.numberB}
+            <div className="absolute top-8 left-8 z-10 bg-white dark:bg-slate-900 px-8 py-6 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800">
+               <div className="flex flex-col items-end text-5xl font-black text-slate-800 dark:text-slate-100 tracking-widest font-mono">
+                 <div className="mr-8">{currentTask.numberA}</div>
+                 <div className="flex items-center gap-4">
+                   <span className="text-4xl text-slate-500">{currentTask.isSubtraction ? '-' : '+'}</span>
+                   <span>{currentTask.numberB}</span>
+                 </div>
+                 <div className="w-full h-1 bg-slate-800 dark:bg-slate-100 mt-2 mb-2"></div>
+                 {/* Empty space for the student to write the answer, or show it if solved */}
+                 <div className="h-12 w-full text-center text-indigo-600"></div>
                </div>
             </div>
           )}
