@@ -18,7 +18,7 @@ jobs:
           node-version: '20'
 
       - name: Install dependencies and build
-        working-directory: ./react-version
+        working-directory: ./react-ts-version
         run: |
           npm install --legacy-peer-deps
           CI=false npm run build
