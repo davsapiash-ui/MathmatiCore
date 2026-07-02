@@ -50,7 +50,35 @@ export function StudentWorkspacePage() {
 
   // Session done (meeting 4 end) → back to the hub.
   useEffect(() => {
-    if (flowStatus === 'sessionDone') navigate('/hub');
+    if (flowStatus === 'sessionDone') {
+      import('@/application/useAuthStore').then(({ useAuthStore }) => {
+        const uid = useAuthStore.getState().user?.id;
+        if (uid) {
+          import('firebase/database').then(({ ref, update }) => {
+            import('@/infrastructure/firebase').then(({ database }) => {
+              const state = useWorkspaceStore.getState();
+              // Q-Matrix (assuming all false for now, or based on qflow data if populated)
+              const qData = {
+                task1_zero_placeholder: state.qflow.taskMap['task1'] !== false,
+                task2_estimation_error_margin: 0,
+                task3_flexible_regrouping: state.qflow.taskMap['task3'] !== false,
+                task4_basic_addition_fluency: state.qflow.taskMap['task4'] !== false,
+                task5_basic_subtraction_fluency: state.qflow.taskMap['task5'] !== false
+              };
+              const traceData = {
+                hesitation_events: 0, // Should be populated by radar, but schema requires numbers
+                undo_clicks: state.undoCount || 0
+              };
+              update(ref(database), {
+                [`qMatrixResults/${uid}`]: qData,
+                [`traceData/${uid}`]: traceData
+              });
+            });
+          });
+        }
+      });
+      navigate('/hub');
+    }
   }, [flowStatus, navigate]);
 
   // Keyboard: Enter = proceed (outside inputs), Ctrl/Cmd+Z = undo (vanilla app.js 1412–1416).

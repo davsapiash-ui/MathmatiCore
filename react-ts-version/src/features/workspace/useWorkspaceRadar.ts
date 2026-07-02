@@ -6,12 +6,12 @@ import { registerRadar, unregisterRadar } from './radarBus';
 
 /**
  * הרדאר הפדגוגי השקט — port of vanilla_audit/js/radar.js, spec-corrected.
- * מנטר בסתר: היסוס (15 שניות לפי האפיון — לא 30 כמו בקבוע הוונילי הישן),
+ * מנטר בסתר: היסוס (30 שניות לפי האפיון),
  * מחיקות מהירות (3 בתוך 3 שניות), בקשות עזרה, וטעויות במשימות.
  * לעולם, בשום מצב, לא מציג דבר לתלמיד. התראות נשלחות לדשבורד המורה בלבד.
  */
 
-const HESITATION_THRESHOLD_MS = 15000; // per spec (מסמך רצף הפעילויות, מפגש 2)
+const HESITATION_THRESHOLD_MS = 30000; // per spec (מסמך רצף הפעילויות, מפגש 2)
 const RAPID_DELETE_THRESHOLD = 3;
 const RAPID_DELETE_WINDOW_MS = 3000;
 

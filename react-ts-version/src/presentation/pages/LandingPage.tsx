@@ -1,4 +1,6 @@
 import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
+import { useAuthStore } from "@/application/useAuthStore";
 import { motion } from "framer-motion";
 import { Blocks, MessageCircleQuestion, LayoutDashboard, ArrowLeft } from "lucide-react";
 
@@ -22,6 +24,14 @@ const FEATURES = [
 
 export function LandingPage() {
   const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user);
+
+  useEffect(() => {
+    if (user) {
+      if (user.role === 'student') navigate('/hub', { replace: true });
+      else if (user.role === 'teacher' || user.role === 'admin') navigate('/dashboard', { replace: true });
+    }
+  }, [user, navigate]);
 
   return (
     <div dir="rtl" className="min-h-screen bg-ws-bg font-body text-ws-ink">

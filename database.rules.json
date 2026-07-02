@@ -12,23 +12,25 @@
 
     "radar_alerts": {
       ".read": "auth != null && (auth.token.role === 'teacher' || auth.token.role === 'admin')",
-      ".write": "auth != null",
       "$alertId": {
-        ".validate": "newData.hasChildren(['type', 'student', 'timestamp'])"
+        ".write": "auth != null",
+        ".validate": "newData.hasChildren(['type', 'studentId', 'timestamp']) && newData.child('studentId').val() === auth.uid"
       }
     },
 
     "qMatrixResults": {
       "$studentId": {
         ".read": "auth != null && (auth.uid === $studentId || auth.token.role === 'teacher' || auth.token.role === 'admin')",
-        ".write": "auth != null && (auth.uid === $studentId || auth.token.role === 'teacher' || auth.token.role === 'admin')"
+        ".write": "auth != null && (auth.uid === $studentId || auth.token.role === 'teacher' || auth.token.role === 'admin')",
+        ".validate": "newData.hasChildren(['task1_zero_placeholder', 'task2_estimation_error_margin', 'task3_flexible_regrouping', 'task4_basic_addition_fluency', 'task5_basic_subtraction_fluency'])"
       }
     },
 
     "traceData": {
       "$studentId": {
         ".read": "auth != null && (auth.uid === $studentId || auth.token.role === 'teacher' || auth.token.role === 'admin')",
-        ".write": "auth != null && (auth.uid === $studentId || auth.token.role === 'teacher' || auth.token.role === 'admin')"
+        ".write": "auth != null && (auth.uid === $studentId || auth.token.role === 'teacher' || auth.token.role === 'admin')",
+        ".validate": "newData.hasChildren(['hesitation_events', 'undo_clicks']) && newData.child('hesitation_events').isNumber() && newData.child('undo_clicks').isNumber()"
       }
     },
 
