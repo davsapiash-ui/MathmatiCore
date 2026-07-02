@@ -4,10 +4,8 @@ import puppeteer from 'puppeteer';
   const browser = await puppeteer.launch();
   const page = await browser.newPage();
   
-  page.on('console', msg => console.log('PAGE LOG:', msg.text()));
-  page.on('pageerror', err => console.log('PAGE ERROR:', err.message));
-  
   await page.goto('http://localhost:4174', {waitUntil: 'networkidle0'}).catch(e => console.error(e));
+  await page.screenshot({ path: 'screenshot.png', fullPage: true });
   await browser.close();
   process.exit(0);
 })();

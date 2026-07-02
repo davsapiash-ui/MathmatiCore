@@ -1,0 +1,76 @@
+/* ============================================================
+   מתמטיקאור — Login Page Styles
+   ============================================================ */
+
+/* ── Page Background ── */
+.login-page-bg {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Animated background orbs (purely decorative) */
+.bg-orb {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.18;
+  pointer-events: none;
+  z-index: 0;
+  animation: orbFloat 12s ease-in-out infinite;
+}
+.bg-orb-1 {
+  width: 500px; height: 500px;
+  background: radial-gradient(circle, #5B4FFF, #3D35D4);
+  top: -150px; left: -100px;
+  animation-delay: 0s;
+}
+.bg-orb-2 {
+  width: 380px; height: 380px;
+  background: radial-gradient(circle, #FF6B35, #FF4500);
+  bottom: -120px; right: -80px;
+  animation-delay: -4s;
+}
+.bg-orb-3 {
+  width: 280px; height: 280px;
+  background: radial-gradient(circle, #10B981, #059669);
+  top: 40%; right: 15%;
+  animation-delay: -8s;
+}
+
+@keyframes orbFloat {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-20px) scale(1.05); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.logo-icon-anim {
+  animation: float 4s ease-in-out infinite;
+}
+
+/* ── Role Buttons ── */
+.role-btn-student:hover {
+  border-color: #10b981 !important;
+  color: #fff !important;
+  background: rgba(16,185,129,0.15) !important;
+}
+
+.role-btn-teacher:hover {
+  border-color: #5B4FFF !important;
+  color: #fff !important;
+  background: rgba(91,79,255,0.15) !important;
+}
+
+.role-btn-admin:hover {
+  border-color: #f59e0b !important;
+  color: #fff !important;
+  background: rgba(245,158,11,0.12) !important;
+}
