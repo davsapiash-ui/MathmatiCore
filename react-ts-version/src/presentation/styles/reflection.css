@@ -1,0 +1,289 @@
+/* ============================================================
+   מתמטיקאור — Session Reflection Screen Styles
+   Triggered automatically after completing all 5 Q-Matrix tasks
+   NO score numbers, NO timers — effort icons + strategy choice
+   ============================================================ */
+
+body.reflection-page {
+  background: linear-gradient(160deg, #F0F4FF 0%, #EDE9FF 50%, #F5F7FA 100%);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+}
+
+/* ── Celebration Header ── */
+.reflection-hero {
+  text-align: center;
+  margin-bottom: var(--space-8);
+  animation: slideUp 0.5s ease forwards;
+}
+
+.reflection-stars {
+  font-size: 3rem;
+  margin-bottom: var(--space-3);
+  animation: float 3s ease-in-out infinite;
+}
+
+.reflection-title {
+  font-size: var(--font-size-3xl);
+  font-weight: 900;
+  color: var(--color-text);
+  margin-bottom: var(--space-2);
+}
+
+.reflection-subtitle {
+  font-size: var(--font-size-md);
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  max-width: 400px;
+}
+
+/* ── Main Reflection Card ── */
+.reflection-card {
+  width: 100%;
+  max-width: 560px;
+  background: var(--color-surface);
+  border-radius: var(--radius-2xl);
+  padding: var(--space-8);
+  box-shadow: var(--shadow-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  animation: slideUp 0.55s 0.1s ease both;
+}
+
+/* ── Section: Effort Rating (מדד מאמץ חזותי) ──
+   Visual icons only — no numeric scores.
+   This is a COGNITIVE EFFORT metric, not a grade. ── */
+.effort-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.section-title {
+  font-size: var(--font-size-lg);
+  font-weight: 800;
+  color: var(--color-text);
+}
+
+.section-subtitle {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  margin-top: calc(-1 * var(--space-2));
+}
+
+.effort-icons-row {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: center;
+}
+
+.effort-icon-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-5);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface-2);
+  cursor: pointer;
+  transition: all var(--transition-spring);
+  flex: 1;
+}
+
+.effort-icon-btn:hover {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+  transform: translateY(-4px) scale(1.04);
+  box-shadow: var(--shadow-md);
+}
+
+.effort-icon-btn.selected {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+  box-shadow: 0 0 0 3px rgba(91,79,255,0.2);
+  transform: scale(1.06);
+}
+
+.effort-icon-visual {
+  font-size: 2.2rem;
+  line-height: 1;
+  transition: transform var(--transition-fast);
+}
+
+.effort-icon-btn:hover .effort-icon-visual,
+.effort-icon-btn.selected .effort-icon-visual {
+  transform: scale(1.15);
+}
+
+.effort-icon-label {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+/* ── Section: Strategy Selection (בחירת אסטרטגיה מוצלחת) ──
+   Illustrated closed options — student reflects on what helped them.
+   These are METACOGNITIVE illustrations, not generic UI options. ── */
+.strategy-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.strategy-question {
+  font-size: var(--font-size-base);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.strategy-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.strategy-option-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-2);
+  cursor: pointer;
+  text-align: right;
+  transition: all var(--transition-base);
+}
+
+.strategy-option-btn:hover {
+  border-color: var(--color-success);
+  background: var(--color-success-light);
+  transform: translateX(4px);
+}
+
+.strategy-option-btn.selected {
+  border-color: var(--color-success);
+  background: var(--color-success-light);
+  font-weight: 700;
+}
+
+.strategy-icon {
+  font-size: 1.8rem;
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  background: white;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-xs);
+}
+
+.strategy-text {
+  flex: 1;
+}
+
+.strategy-name {
+  font-size: var(--font-size-base);
+  font-weight: 700;
+  color: var(--color-text);
+  display: block;
+}
+
+.strategy-desc {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+
+/* Selected checkmark */
+.strategy-check {
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  border: 2px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+}
+
+.strategy-option-btn.selected .strategy-check {
+  background: var(--color-success);
+  border-color: var(--color-success);
+  color: white;
+}
+
+/* ── Process Feedback Message (not a score — encourages persistence) ── */
+.process-feedback {
+  background: linear-gradient(135deg, var(--color-primary-light), #EDE9FF);
+  border: 2px solid rgba(91,79,255,0.2);
+  border-radius: var(--radius-xl);
+  padding: var(--space-6);
+  text-align: center;
+  animation: pulse 0.5s ease;
+}
+
+.feedback-emoji {
+  font-size: 2.5rem;
+  margin-bottom: var(--space-3);
+}
+
+.feedback-text {
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  color: var(--color-primary-dark);
+  line-height: 1.5;
+}
+
+.feedback-sub-text {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin-top: var(--space-2);
+  line-height: 1.6;
+}
+
+/* ── Done Button ── */
+.reflection-done-btn {
+  width: 100%;
+  padding: var(--space-5);
+  background: linear-gradient(135deg, var(--color-success), #059669);
+  color: #fff;
+  font-size: var(--font-size-lg);
+  font-weight: 800;
+  border-radius: var(--radius-xl);
+  box-shadow: 0 4px 20px rgba(16,185,129,0.4);
+  transition: all var(--transition-base);
+  text-align: center;
+  cursor: pointer;
+}
+
+.reflection-done-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 28px rgba(16,185,129,0.5);
+}
+
+.reflection-done-btn:disabled {
+  background: var(--color-text-muted);
+  box-shadow: none;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ── Responsive ── */
+@media (max-width: 480px) {
+  .reflection-card { padding: var(--space-5); }
+  .effort-icons-row { gap: var(--space-2); }
+  .effort-icon-btn { padding: var(--space-3); }
+  .effort-icon-visual { font-size: 1.8rem; }
+  .reflection-title { font-size: var(--font-size-2xl); }
+}

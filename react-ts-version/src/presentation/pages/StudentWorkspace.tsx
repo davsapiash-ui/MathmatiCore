@@ -8,8 +8,14 @@ import { MathBlock } from '@/presentation/components/workspace/MathBlock';
 import { useSilentRadar } from '@/application/useSilentRadar';
 import { UdlButton } from '@/presentation/design-system/UdlButton';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { Meeting2Mapping } from './StudentWorkspace/Meeting2Mapping';
 
 export function StudentWorkspace() {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const meetingId = searchParams.get('meeting') || '1';
+
   const [ones, setOnes] = useState(Array.from({ length: 4 }).map((_, i) => ({ id: `one-${i}` })));
   const [tens, setTens] = useState(Array.from({ length: 2 }).map((_, i) => ({ id: `ten-${i}` })));
   const [hundreds, setHundreds] = useState(Array.from({ length: 1 }).map((_, i) => ({ id: `hundred-${i}` })));
@@ -109,39 +115,106 @@ export function StudentWorkspace() {
       </div>
 
       {/* Main Workspace Area */}
-      <main className="flex-1 relative flex flex-col items-center justify-center p-8">
+      <main className="flex-1 relative flex flex-col items-center justify-center p-8 overflow-y-auto">
         
-        {/* Ambient Lights */}
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        {meetingId === '2' && <Meeting2Mapping />}
         
-        <div className="mb-12 text-center z-10 flex flex-col items-center">
-          <div className="text-4xl font-black text-slate-800 dark:text-slate-100 mb-4 tracking-tight" aria-label="תרגיל: אלף מאה עשרים וארבע ועוד שמונה עשרה">
-            <BlockMath math="1124 + 18 = ?" />
-          </div>
-          <div className="flex items-center gap-4 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md px-6 py-3 rounded-full border border-slate-200 dark:border-slate-800 shadow-sm">
-            <p className="text-slate-700 dark:text-slate-300 text-lg font-medium">
-              היעזר בבדידים כדי לפתור את התרגיל. גרור עשרת ליחידות כדי לפרוט, או 10 יחידות לעשרות כדי לקבץ.
-            </p>
-            <UdlSpeechButton text="היעזר בבדידים כדי לפתור את התרגיל. גרור עשרת ליחידות כדי לפרוט, או 10 יחידות לעשרות כדי לקבץ." />
-          </div>
-        </div>
+        {['3', '4', '5', '6', '7'].includes(meetingId) && <MeetingAdaptiveTrack meetingId={meetingId} />}
+        
+        {meetingId === '8' && <Meeting8Reflection />}
 
-        <DndContext 
-          collisionDetection={closestCenter}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-        >
-          <MathBoard ones={ones} tens={tens} hundreds={hundreds} thousands={thousands} />
+        {/* Meeting 1 (Default Free Play) */}
+        {meetingId === '1' && (
+          <>
+            <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
+            <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
+            
+            <div className="mb-12 text-center z-10 flex flex-col items-center">
+              <div className="text-4xl font-black text-slate-800 dark:text-slate-100 mb-4 tracking-tight" aria-label="תרגיל: אלף מאה עשרים וארבע ועוד שמונה עשרה">
+                <BlockMath math="1124 + 18 = ?" />
+              </div>
+              <div className="flex items-center gap-4 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md px-6 py-3 rounded-full border border-slate-200 dark:border-slate-800 shadow-sm">
+                <p className="text-slate-700 dark:text-slate-300 text-lg font-medium">
+                  היעזר בבדידים כדי לפתור את התרגיל. גרור עשרת ליחידות כדי לפרוט, או 10 יחידות לעשרות כדי לקבץ.
+                </p>
+                <UdlSpeechButton text="היעזר בבדידים כדי לפתור את התרגיל. גרור עשרת ליחידות כדי לפרוט, או 10 יחידות לעשרות כדי לקבץ." />
+              </div>
+            </div>
 
-          <DragOverlay>
-            {activeId && activeType ? (
-              <MathBlock id={activeId} type={activeType} isOverlay={true} />
-            ) : null}
-          </DragOverlay>
-        </DndContext>
-        
+            <DndContext 
+              collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+            >
+              <MathBoard ones={ones} tens={tens} hundreds={hundreds} thousands={thousands} />
+
+              <DragOverlay>
+                {activeId && activeType ? (
+                  <MathBlock id={activeId} type={activeType} isOverlay={true} />
+                ) : null}
+              </DragOverlay>
+            </DndContext>
+          </>
+        )}
       </main>
+    </div>
+  );
+}
+
+function MeetingAdaptiveTrack({ meetingId }: { meetingId: string }) {
+  const { registerInteraction } = useSilentRadar({ taskId: `adaptive-track-${meetingId}` });
+  
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center p-8 animate-in zoom-in-95 duration-700">
+      <h2 className="text-4xl font-black text-slate-800 dark:text-slate-100 mb-4 text-center">
+        מסלול אדפטיבי - מפגש {meetingId}
+      </h2>
+      <p className="text-xl text-slate-600 dark:text-slate-400 mb-12 text-center max-w-2xl">
+        כאן מיושם המסלול האדפטיבי (מעוף הדבורה לאחור) המזהה את הקשיים במדויק ומציג תרגילים מדורגים בהתאם ליכולותיך (חיבור וחיסור עם המרה ופריטה).
+      </p>
+      <div className="w-full max-w-3xl bg-white dark:bg-slate-900 rounded-3xl p-8 shadow-xl border border-slate-200 dark:border-slate-800 text-center">
+        <div className="text-5xl mb-6">📈</div>
+        <h3 className="text-2xl font-bold mb-4">תחנה במסלול הלמידה המותאם</h3>
+        <p className="text-slate-500 mb-8">
+          מנגנון התאמת הרמה והקפצת הרמזים פועל ברקע...
+        </p>
+        <UdlButton semanticColor="primary" className="px-12 font-bold" onClick={() => window.location.href = '/hub'}>
+          חזור ללוח הראשי
+        </UdlButton>
+      </div>
+    </div>
+  );
+}
+
+function Meeting8Reflection() {
+  const { registerInteraction } = useSilentRadar({ taskId: 'reflection-meeting-8' });
+  
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center p-8 animate-in zoom-in-95 duration-700">
+      <div className="w-24 h-24 bg-gradient-to-tr from-amber-400 to-orange-500 rounded-full flex items-center justify-center text-5xl shadow-2xl shadow-orange-500/40 mb-8">
+        🏆
+      </div>
+      <h2 className="text-4xl font-black text-slate-800 dark:text-slate-100 mb-4 text-center">
+        מפגש 8: סיכום ורפלקציה
+      </h2>
+      <p className="text-xl text-slate-600 dark:text-slate-400 mb-12 text-center max-w-2xl">
+        סיימת את תהליך הלמידה במערכת מתמטיקאור! כל הכבוד על ההשקעה. כעת הזמן להסיק מסקנות.
+      </p>
+
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 rounded-3xl shadow-xl w-full max-w-2xl">
+        <h3 className="text-2xl font-bold mb-6 text-center">במה הכי השתפרת לאורך המפגשים?</h3>
+        <div className="flex flex-col gap-4 mb-8">
+          <UdlButton variant="outline" className="text-lg py-4">הבנתי איך עובדת פעולת ההמרה עשר יחידות לעשרת</UdlButton>
+          <UdlButton variant="outline" className="text-lg py-4">השתפרתי בחיסור עם פריטה כולל מעבר על אפסים</UdlButton>
+          <UdlButton variant="outline" className="text-lg py-4">אני מצליח לפתור תרגילים מהר יותר בראש בלי להיבהל</UdlButton>
+        </div>
+        
+        <div className="mt-8 pt-8 border-t border-slate-100 dark:border-slate-800 text-center">
+           <UdlButton semanticColor="primary" className="px-12 font-bold shadow-lg shadow-indigo-500/20" onClick={() => window.location.href = '/hub'}>
+             חזור ללוח הראשי וסיים
+           </UdlButton>
+        </div>
+      </div>
     </div>
   );
 }
