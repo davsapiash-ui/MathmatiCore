@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { Login } from "@/presentation/pages/Login";
+import { LandingPage } from "@/presentation/pages/LandingPage";
 import { StudentWorkspace } from "@/presentation/pages/StudentWorkspace";
 import { TeacherDashboard } from "@/presentation/pages/TeacherDashboard";
 
@@ -64,6 +65,7 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<RoleRouter />} />
         
         <Route path="/workspace" element={
@@ -91,7 +93,7 @@ function App() {
           <Route path="chat" element={<AdminChatView />} />
         </Route>
 
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );

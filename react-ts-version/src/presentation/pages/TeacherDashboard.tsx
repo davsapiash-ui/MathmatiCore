@@ -12,11 +12,11 @@ import { Logo } from "@/presentation/components/ui/Logo";
 import { LogoutButton } from "@/presentation/components/ui/LogoutButton";
 
 const qMatrixData = [
-  { name: 'חיבור בסיסי', success: 85, struggle: 15 },
-  { name: 'חיסור בסיסי', success: 70, struggle: 30 },
-  { name: 'המרת עשרות', success: 45, struggle: 55 },
-  { name: 'גמישות מחשבתית', success: 60, struggle: 40 },
-  { name: 'אומדן', success: 80, struggle: 20 },
+  { name: 'חיבור בסיסי', success: 0, struggle: 0 },
+  { name: 'חיסור בסיסי', success: 0, struggle: 0 },
+  { name: 'המרת עשרות', success: 0, struggle: 0 },
+  { name: 'גמישות מחשבתית', success: 0, struggle: 0 },
+  { name: 'אומדן', success: 0, struggle: 0 },
 ];
 
 export function TeacherDashboard() {
@@ -44,11 +44,7 @@ export function TeacherDashboard() {
   }, [messages, user]);
 
   // For Student Chat (Mock list of students for now)
-  const mockStudents = [
-    { id: "student1", name: "נועה כהן" },
-    { id: "student2", name: "עידו לוי" },
-    { id: "student3", name: "רוני שחר" }
-  ];
+  const mockStudents: any[] = [];
 
   const studentMessages = useMemo(() => {
     if (!user || !selectedStudentId) return [];
@@ -209,10 +205,7 @@ export function TeacherDashboard() {
                 <div className="relative z-10 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-inner">
                   <DataGrid 
                     columns={[{ key: "name", header: "שם תלמיד" }, { key: "errors", header: "טעות נפוצה" }]}
-                    data={[
-                      { id: "1", name: "נועה כהן", errors: "טעות פרוצדורלית" },
-                      { id: "2", name: "עידו לוי", errors: "שליפה אוטומטית לקויה" }
-                    ]}
+                    data={[]}
                   />
                 </div>
                 <UdlButton size="sm" semanticColor="primary" className="mt-6 w-full shadow-lg shadow-indigo-500/20 relative z-10 font-bold tracking-wide">הקצה תרגול מותאם</UdlButton>
@@ -226,9 +219,7 @@ export function TeacherDashboard() {
                 <div className="relative z-10 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-inner">
                   <DataGrid 
                     columns={[{ key: "name", header: "שם תלמיד" }, { key: "reps", header: "ייצוגים שהופקו" }]}
-                    data={[
-                      { id: "3", name: "רוני שחר", reps: "1 מתוך 4" }
-                    ]}
+                    data={[]}
                   />
                 </div>
                 <UdlButton size="sm" semanticColor="primary" className="mt-6 w-full shadow-lg shadow-indigo-500/20 relative z-10 font-bold tracking-wide">הקצה סדנת חקר</UdlButton>
