@@ -6,32 +6,18 @@ import { BlockOne, BlockTen, BlockHundred, BlockThousand } from './IsometricBloc
 interface MathBlockProps {
   id: string;
   type: 'one' | 'ten' | 'hundred' | 'thousand';
-  x?: number;
-  y?: number;
-  isSpreading?: boolean;
-  targetX?: number;
-  targetY?: number;
   isOverlay?: boolean;
-  onDoubleClick?: (id: string, type: 'one' | 'ten' | 'hundred' | 'thousand') => void;
 }
 
-export function MathBlock({ id, type, x = 0, y = 0, isSpreading, targetX, targetY, isOverlay, onDoubleClick }: MathBlockProps) {
+export function MathBlock({ id, type, isOverlay }: MathBlockProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: id,
     data: { type },
   });
 
-  // Position is absolute (0,0) and we use Framer Motion 'x' and 'y' properties to place it,
-  // plus dnd-kit transform if dragging.
-  const style = {
-    position: 'absolute' as const,
-    left: 0,
-    top: 0,
-    ...(transform && !isOverlay ? {
-      transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-      zIndex: 999,
-    } : {}),
-  };
+  const style = transform && !isOverlay ? {
+    transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+  } : undefined;
 
   let tooltipText = "יחידה";
   let ariaLabel = "בדיד יחידה";
@@ -39,29 +25,27 @@ export function MathBlock({ id, type, x = 0, y = 0, isSpreading, targetX, target
 
   if (type === 'ten') {
     BlockComponent = BlockTen;
-    tooltipText = "עשרת (לחיצה כפולה לפריטה ליחידות)";
+    tooltipText = "עשרת (ניתן לפרוט ליחידות או לחבר למאה)";
     ariaLabel = "בדיד עשרת";
   } else if (type === 'hundred') {
     BlockComponent = BlockHundred;
-    tooltipText = "מאה (לחיצה כפולה לפריטה לעשרות)";
+    tooltipText = "מאה (ניתן לפרוט לעשרות או לחבר לאלף)";
     ariaLabel = "בדיד מאה";
   } else if (type === 'thousand') {
     BlockComponent = BlockThousand;
-    tooltipText = "אלף (לחיצה כפולה לפריטה למאות)";
+    tooltipText = "אלף (ניתן לפרוט למאות)";
     ariaLabel = "בדיד אלף";
   }
 
+  // Kinematics & UI Physics (Micro-interactions)
   const motionState = isOverlay || isDragging ? 'dragging' : 'idle';
   
-  const currentX = isSpreading && targetX !== undefined ? targetX : x;
-  const currentY = isSpreading && targetY !== undefined ? targetY : y;
-
   const variants = {
-    initial: { scale: 0, opacity: 0, x: x, y: y },
-    idle: { scale: 1, opacity: 1, x: currentX, y: currentY, filter: 'drop-shadow(0px 4px 6px rgba(0,0,0,0.1))' },
-    hover: { scale: 1.05, opacity: 1, x: currentX, y: currentY, filter: 'drop-shadow(0px 8px 12px rgba(0,0,0,0.15))' },
-    dragging: { scale: 1.1, opacity: 1, filter: 'drop-shadow(0px 15px 25px rgba(0,0,0,0.3))' },
-    exit: { scale: 0, opacity: 0, filter: 'blur(5px)', transition: { duration: 0.2 } }
+    initial: { scale: 0, opacity: 0, zIndex: 1 },
+    idle: { scale: 1, opacity: 1, zIndex: 1, filter: 'drop-shadow(0px 4px 6px rgba(0,0,0,0.1))' },
+    hover: { scale: 1.05, opacity: 1, zIndex: 10, filter: 'drop-shadow(0px 8px 12px rgba(0,0,0,0.15))' },
+    dragging: { scale: 1.1, opacity: 1, zIndex: 999, filter: 'drop-shadow(0px 15px 25px rgba(0,0,0,0.3))' },
+    exit: { scale: 0, opacity: 0, zIndex: 0, filter: 'blur(5px)', transition: { duration: 0.2 } }
   };
 
   return (
@@ -71,17 +55,16 @@ export function MathBlock({ id, type, x = 0, y = 0, isSpreading, targetX, target
         style={style} 
         {...(isOverlay ? {} : listeners)} 
         {...(isOverlay ? {} : attributes)} 
-        className={isOverlay ? "" : "cursor-grab active:cursor-grabbing outline-none touch-none"}
-        onDoubleClick={() => onDoubleClick && onDoubleClick(id, type)}
+        className={isOverlay ? "" : "cursor-grab active:cursor-grabbing outline-none"}
       >
         <motion.div
-          layout={false} // Disable layout since we manually handle x/y
+          layout={!isOverlay}
           variants={variants}
           initial={isOverlay ? "dragging" : "initial"}
           animate={motionState}
           exit="exit"
           whileHover={motionState === 'idle' ? 'hover' : undefined}
-          transition={isSpreading ? { type: 'spring', stiffness: 200, damping: 20 } : { type: 'spring', stiffness: 400, damping: 25 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 25 }}
           className={`flex items-center justify-center origin-center ${isDragging && !isOverlay ? 'opacity-30' : 'opacity-100'}`}
           aria-label={ariaLabel}
         >
