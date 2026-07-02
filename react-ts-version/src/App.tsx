@@ -3,7 +3,9 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-route
 import { Login } from "@/presentation/pages/Login";
 import { LandingPage } from "@/presentation/pages/LandingPage";
 import { StudentWorkspace } from "@/presentation/pages/StudentWorkspace";
+import { StudentHub } from "@/presentation/pages/StudentHub";
 import { TeacherDashboard } from "@/presentation/pages/TeacherDashboard";
+import { AppShell } from "@/presentation/components/layout/AppShell";
 
 import { AdminLayout } from "@/presentation/pages/AdminLayout";
 import { AdminOverview } from "@/presentation/pages/admin/AdminOverview";
@@ -28,7 +30,7 @@ function AuthGuard({ allowedRoles, children }: { allowedRoles: string[]; childre
   
   if (!allowedRoles.includes(user.role)) {
     // Redirect based on role if they try to access unauthorized path
-    if (user.role === "student") return <Navigate to="/workspace" replace />;
+    if (user.role === "student") return <Navigate to="/hub" replace />;
     if (user.role === "teacher") return <Navigate to="/dashboard" replace />;
     if (user.role === "admin") return <Navigate to="/admin" replace />;
   }
@@ -42,7 +44,7 @@ function RoleRouter() {
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      if (user.role === "student") navigate("/workspace", { replace: true });
+      if (user.role === "student") navigate("/hub", { replace: true });
       else if (user.role === "teacher") navigate("/dashboard", { replace: true });
       else if (user.role === "admin") navigate("/admin", { replace: true });
     }
@@ -68,17 +70,26 @@ function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<RoleRouter />} />
         
-        <Route path="/workspace" element={
-          <AuthGuard allowedRoles={["student", "admin"]}>
-            <StudentWorkspace />
-          </AuthGuard>
-        } />
-        
-        <Route path="/dashboard" element={
-          <AuthGuard allowedRoles={["teacher", "admin"]}>
-            <TeacherDashboard />
-          </AuthGuard>
-        } />
+        {/* App Shell wraps authenticated routes */}
+        <Route element={<AppShell />}>
+          <Route path="/hub" element={
+            <AuthGuard allowedRoles={["student", "admin"]}>
+              <StudentHub />
+            </AuthGuard>
+          } />
+          
+          <Route path="/workspace" element={
+            <AuthGuard allowedRoles={["student", "admin"]}>
+              <StudentWorkspace />
+            </AuthGuard>
+          } />
+          
+          <Route path="/dashboard" element={
+            <AuthGuard allowedRoles={["teacher", "admin"]}>
+              <TeacherDashboard />
+            </AuthGuard>
+          } />
+        </Route>
         
         <Route path="/admin" element={
           <AuthGuard allowedRoles={["admin"]}>

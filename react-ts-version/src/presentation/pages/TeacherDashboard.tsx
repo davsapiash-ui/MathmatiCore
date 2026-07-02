@@ -10,7 +10,9 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import { Send, MessageCircle, ShieldAlert } from "lucide-react";
 import { Logo } from "@/presentation/components/ui/Logo";
 import { LogoutButton } from "@/presentation/components/ui/LogoutButton";
-
+import { ReplayViewer } from "@/presentation/components/ReplayViewer";
+import { MOCK_RRWEB_EVENTS } from "@/infrastructure/mockRrwebEvents";
+import { ClassManagement } from "./TeacherDashboard/ClassManagement";
 const qMatrixData = [
   { name: 'חיבור בסיסי', success: 0, struggle: 0 },
   { name: 'חיסור בסיסי', success: 0, struggle: 0 },
@@ -23,13 +25,13 @@ export function TeacherDashboard() {
   const { user } = useAuthStore();
   const { messages, sendMessage, markAsRead } = useChatStore();
   
-  const [activeTab, setActiveTab] = useState<"clustering" | "alerts" | "replays" | "chat_admin" | "chat_students">("clustering");
+  const [activeTab, setActiveTab] = useState<"clustering" | "alerts" | "replays" | "chat_admin" | "chat_students" | "class_management">("clustering");
   const [alerts, setAlerts] = useState<any[]>([]);
 
   const [inputText, setInputText] = useState("");
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
 
-  const handleTabChange = (tab: "clustering" | "alerts" | "replays" | "chat_admin" | "chat_students") => {
+  const handleTabChange = (tab: "clustering" | "alerts" | "replays" | "chat_admin" | "chat_students" | "class_management") => {
     setActiveTab(tab);
     setInputText("");
   };
@@ -135,6 +137,12 @@ export function TeacherDashboard() {
             className={`w-full text-right px-4 py-3 rounded-xl transition-all ${activeTab === "replays" ? "bg-purple-50 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400 font-bold shadow-sm" : "hover:bg-slate-100 dark:hover:bg-slate-800/50 text-slate-600 dark:text-slate-400"}`}
           >
             הקלטות וידאו (Replays)
+          </button>
+          <button 
+            onClick={() => handleTabChange("class_management")}
+            className={`w-full text-right px-4 py-3 rounded-xl transition-all ${activeTab === "class_management" ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 font-bold shadow-sm" : "hover:bg-slate-100 dark:hover:bg-slate-800/50 text-slate-600 dark:text-slate-400"}`}
+          >
+            ניהול כיתה ותלמידים
           </button>
 
           <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 mb-2 mt-6 px-2 uppercase tracking-widest">תקשורת וצ'אט</div>
@@ -277,15 +285,18 @@ export function TeacherDashboard() {
               <h1 className="text-4xl font-black bg-gradient-to-l from-slate-900 to-slate-600 dark:from-white dark:to-slate-400 bg-clip-text text-transparent tracking-tight">שחזור סשנים מוקלטים</h1>
               <p className="text-slate-500 dark:text-slate-400 mt-3 text-lg">צפייה בתהליכי הלמידה של התלמידים.</p>
             </header>
-            <AccessibleCard className="p-16 text-center bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border-2 border-dashed border-slate-300 dark:border-slate-700 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] rounded-3xl relative overflow-hidden group">
-              <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-              <div className="w-24 h-24 mx-auto mb-6 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center shadow-inner relative z-10">
-                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400 dark:text-slate-500"><polygon points="6 3 20 12 6 21 6 3"/></svg>
-              </div>
-              <h3 className="text-3xl font-bold text-slate-800 dark:text-slate-100 mb-4 relative z-10">רכיב צפייה בהקלטות</h3>
-              <p className="text-slate-500 dark:text-slate-400 text-lg relative z-10 max-w-lg mx-auto">כאן יוטמע רכיב rrweb-player שינגן את הקלטות התלמידים מ-Firebase, ויאפשר ניתוח פדגוגי מעמיק של תהליך הפתרון.</p>
+            <AccessibleCard className="p-8 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border border-slate-200 dark:border-slate-800 shadow-xl rounded-3xl relative overflow-hidden group">
+              <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-6 flex items-center gap-3">
+                <span className="w-3 h-3 rounded-full bg-red-500 animate-pulse"></span>
+                צפייה בהקלטת סשן (הדגמה)
+              </h3>
+              <ReplayViewer events={MOCK_RRWEB_EVENTS} />
             </AccessibleCard>
           </div>
+        )}
+
+        {activeTab === "class_management" && (
+          <ClassManagement />
         )}
 
         {/* ADMIN CHAT */}
