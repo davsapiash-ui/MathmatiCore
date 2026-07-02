@@ -59,8 +59,17 @@ export function AdminLayout() {
 
                 <SidebarMenuItem>
                   <SidebarMenuButton>
-                    <NavLink to="/admin/settings" className={({isActive}) => isActive ? "bg-blue-50 text-blue-700 dark:bg-blue-900/50 dark:text-blue-200" : ""}>
+                    <NavLink to="/admin/chat" className={({isActive}) => isActive ? "bg-blue-50 text-blue-700 dark:bg-blue-900/50 dark:text-blue-200" : ""}>
                       <Users className="w-5 h-5 ml-2" /> 
+                      <span className="font-medium text-lg">צ'אט הודעות</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+                <SidebarMenuItem>
+                  <SidebarMenuButton>
+                    <NavLink to="/admin/settings" className={({isActive}) => isActive ? "bg-blue-50 text-blue-700 dark:bg-blue-900/50 dark:text-blue-200" : ""}>
+                      <Settings className="w-5 h-5 ml-2" /> 
                       <span className="font-medium text-lg">מערכת ונגישות (UDL)</span>
                     </NavLink>
                   </SidebarMenuButton>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { DndContext, useSensor, useSensors, PointerSensor } from "@dnd-kit/core";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 import { DroppableColumn } from "@/presentation/components/student/DroppableColumn";
@@ -9,6 +9,8 @@ import { useSessionHeartbeat } from "@/hooks/useSessionHeartbeat";
 import { telemetryTracker } from "@/infrastructure/TelemetryTracker";
 import { TASKS } from "@/core/QMatrix";
 import type { QMatrixTask } from "@/core/QMatrix";
+import { useChatStore } from "@/application/useChatStore";
+import { MessageCircle, Send, X } from "lucide-react";
 
 type BlockType = "units" | "tens" | "hundreds" | "thousands";
 
@@ -32,8 +34,39 @@ export function StudentWorkspace() {
   });
 
   const [activeTask] = useState<QMatrixTask>(TASKS[0]);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [inputText, setInputText] = useState("");
 
-  // Start radar tracking
+  const { messages, sendMessage, markAsRead } = useChatStore();
+
+  // Assuming teacherId is known or mapped. We'll use a generic "teacher" ID for now.
+  const teacherId = "teacher123"; 
+
+  const conversationMessages = useMemo(() => {
+    if (!studentId) return [];
+    return messages.filter(m => 
+      (m.senderId === studentId && m.receiverId === teacherId) ||
+      (m.senderId === teacherId && m.receiverId === studentId)
+    ).sort((a, b) => a.timestamp - b.timestamp);
+  }, [messages, studentId, teacherId]);
+
+  const unreadCount = useMemo(() => {
+    if (!studentId) return 0;
+    return messages.filter(m => m.senderId === teacherId && m.receiverId === studentId && !m.read).length;
+  }, [messages, studentId, teacherId]);
+
+  useEffect(() => {
+    if (isChatOpen && studentId) {
+      markAsRead(studentId, teacherId);
+    }
+  }, [isChatOpen, studentId, messages, markAsRead, teacherId]);
+
+  const handleSendMessage = () => {
+    if (!inputText.trim() || !studentId) return;
+    sendMessage(studentId, studentName, teacherId, inputText.trim());
+    setInputText("");
+  };
+
   useEffect(() => {
     if (studentId) {
       telemetryTracker.startSession(studentId);
@@ -60,7 +93,6 @@ export function StudentWorkspace() {
     const { active, over } = event;
 
     if (!over) {
-      // Handle block deletion by dropping outside
       telemetryTracker.logEvent("BLOCK_DELETED", { blockId: active.id });
       telemetryTracker.recordDeleteAction();
       setBlocks((prev) => {
@@ -78,7 +110,7 @@ export function StudentWorkspace() {
 
     if (sourceCol === targetCol) {
       telemetryTracker.logEvent("BLOCK_MOVED_SAME_COL", { blockId: active.id });
-      return; // Same column, no structural change
+      return; 
     }
 
     telemetryTracker.logEvent("BLOCK_MOVED", { 
@@ -87,32 +119,21 @@ export function StudentWorkspace() {
       to: targetCol 
     });
 
-    // Check for grouping/ungrouping
     setBlocks((prev) => {
       const next = { ...prev };
       
-      // Remove from source
       const blockToMove = next[sourceCol].find(b => b.id === active.id)!;
       next[sourceCol] = next[sourceCol].filter(b => b.id !== active.id);
 
-      // Regrouping logic (simplified for DND move without explicit group/ungroup button)
-      // Standard behavior: if dropped in a different column, transform type and count
-      // E.g. moving a ten to units -> creates 10 units.
       if (sourceCol === "tens" && targetCol === "units") {
         for (let i = 0; i < 10; i++) {
           next.units.push({ id: `${Date.now()}_u_${i}`, type: "units" });
         }
         telemetryTracker.logEvent("BLOCKS_UNGROUPED", { from: "tens", to: "units" });
-      } 
-      // Moving 10 units to a ten is normally done by grouping, but if dragged directly:
-      else {
-         // Default just add it to target as its original type for visual feedback, 
-         // but strict LMS might restrict cross-column drop without transformation.
-         // Let's enforce strict columns for now: blocks map to their column
+      } else {
          next[targetCol].push({ ...blockToMove, type: targetCol });
       }
 
-      // Check auto-compose (10 units -> 1 ten)
       if (next.units.length >= 10) {
         next.units = next.units.slice(0, next.units.length - 10);
         next.tens.push({ id: `auto_${Date.now()}`, type: "tens" });
@@ -138,18 +159,33 @@ export function StudentWorkspace() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-slate-50 dark:bg-slate-900 overflow-hidden" dir="rtl">
+    <div className="flex flex-col h-screen bg-slate-50 dark:bg-slate-900 overflow-hidden relative" dir="rtl">
       {/* Header */}
       <header className="bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 p-4 flex justify-between items-center shadow-sm z-10">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">שלום {studentName}</h1>
           <p className="text-slate-500 dark:text-slate-400">משימה נוכחית: {activeTask.titleHe}</p>
         </div>
-        {isOffline && (
-          <div className="bg-red-100 text-red-800 px-4 py-2 rounded-full font-semibold animate-pulse">
-            אין חיבור לאינטרנט - ממתין לחידוש...
-          </div>
-        )}
+        <div className="flex gap-4 items-center">
+          {isOffline && (
+            <div className="bg-red-100 text-red-800 px-4 py-2 rounded-full font-semibold animate-pulse">
+              אין חיבור לאינטרנט - ממתין לחידוש...
+            </div>
+          )}
+          <UdlButton 
+            onClick={() => setIsChatOpen(true)} 
+            semanticColor="neutral" 
+            className="rounded-full px-6 flex items-center gap-2 relative shadow-sm"
+          >
+            <MessageCircle className="w-5 h-5" />
+            <span className="font-bold">צ'אט עם המורה</span>
+            {unreadCount > 0 && !isChatOpen && (
+              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full animate-bounce">
+                {unreadCount}
+              </span>
+            )}
+          </UdlButton>
+        </div>
       </header>
 
       {/* Main Workspace */}
@@ -207,6 +243,62 @@ export function StudentWorkspace() {
           </DndContext>
         </div>
       </main>
+
+      {/* Chat Sidebar Overlay */}
+      {isChatOpen && (
+        <div className="absolute top-0 right-0 h-full w-96 bg-white dark:bg-slate-950 shadow-2xl flex flex-col z-50 border-l border-slate-200 dark:border-slate-800 transition-transform transform translate-x-0">
+          <div className="p-4 bg-emerald-600 text-white flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <MessageCircle className="w-6 h-6" />
+              <h2 className="font-bold text-lg">צ'אט עם המורה</h2>
+            </div>
+            <button onClick={() => setIsChatOpen(false)} className="p-1 hover:bg-emerald-700 rounded-full transition-colors">
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+          
+          <div className="flex-1 p-4 overflow-y-auto flex flex-col gap-3 bg-slate-50 dark:bg-slate-900">
+            {conversationMessages.length === 0 ? (
+              <div className="m-auto text-slate-400 text-sm text-center">
+                <p>שלום {studentName}!</p>
+                <p>כאן תוכל להתכתב עם המורה שלך.</p>
+              </div>
+            ) : (
+              conversationMessages.map(msg => {
+                const isMe = msg.senderId === studentId;
+                return (
+                  <div key={msg.id} className={`flex flex-col max-w-[80%] ${isMe ? 'self-end items-end' : 'self-start items-start'}`}>
+                    <div className={`px-4 py-2 rounded-2xl ${isMe ? 'bg-emerald-600 text-white rounded-tl-sm' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-tr-sm'}`}>
+                      {msg.text}
+                    </div>
+                    <span className="text-[10px] text-slate-400 mt-1 px-1">
+                      {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <div className="p-4 bg-white dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 flex gap-2 items-center">
+            <input
+              type="text"
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+              placeholder="כתוב הודעה למורה..."
+              className="flex-1 bg-slate-100 dark:bg-slate-900 border-none rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-slate-800 dark:text-slate-100"
+            />
+            <UdlButton 
+              onClick={handleSendMessage} 
+              disabled={!inputText.trim()} 
+              className="rounded-full w-10 h-10 p-0 flex items-center justify-center bg-emerald-600 hover:bg-emerald-700 text-white transition-all disabled:opacity-50"
+            >
+              <Send className="w-4 h-4 -ml-1" />
+            </UdlButton>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

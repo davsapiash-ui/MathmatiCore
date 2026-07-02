@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAuthStore } from "@/application/useAuthStore";
+import { useAdminStore } from "@/application/useAdminStore";
 import { useNavigate } from "react-router-dom";
 import "./Login.css";
 
@@ -12,12 +13,13 @@ const DEMO_USERS: Record<string, any> = {
 
 export function Login() {
   const { setUser } = useAuthStore();
+  const { teachers } = useAdminStore();
   const navigate = useNavigate();
   
   const [selectedRole, setSelectedRole] = useState<"student" | "teacher" | "admin" | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  const handleMockSSO = () => {
+  const handleLogin = () => {
     if (!selectedRole) return;
 
     if (selectedRole === "student") {
@@ -41,32 +43,55 @@ export function Login() {
         alert("שם המשתמש או הסיסמה שגויים.");
       }
     } else if (selectedRole === "teacher") {
-      setIsLoggingIn(true);
-      setTimeout(() => {
-        setUser({
-          uid: `teacher_${Date.now()}`,
-          role: "teacher",
-          displayName: "מורה (Mock SSO)",
-        }, "teacher");
-        navigate("/dashboard", { replace: true });
-      }, 600);
+      const taz = window.prompt("אנא הזן תעודת זהות:");
+      if (!taz) return;
+      const dob = window.prompt("אנא הזן תאריך לידה (6 ספרות - DDMMYY):");
+      if (!dob) return;
+
+      const teacher = teachers.find(t => t.taz === taz && t.dob === dob);
+      if (teacher) {
+        if (!teacher.licenseActive) {
+          alert("הרישיון שלך אינו פעיל. פנה למנהל המערכת.");
+          return;
+        }
+        setIsLoggingIn(true);
+        setTimeout(() => {
+          setUser({
+            uid: teacher.id,
+            role: "teacher",
+            displayName: teacher.name,
+          }, "teacher");
+          navigate("/dashboard", { replace: true });
+        }, 600);
+      } else {
+        alert("תעודת זהות או תאריך לידה שגויים.");
+      }
     } else if (selectedRole === "admin") {
-      setIsLoggingIn(true);
-      setTimeout(() => {
-        setUser({
-          uid: `admin_${Date.now()}`,
-          role: "admin",
-          displayName: "מנהל מערכת (Mock SSO)",
-        }, "admin");
-        navigate("/admin", { replace: true });
-      }, 600);
+      const username = window.prompt("שם משתמש מנהל:");
+      if (!username) return;
+      const password = window.prompt("סיסמת מנהל:");
+      if (!password) return;
+
+      if (username === "davsapiash" && password === "carlibach") {
+        setIsLoggingIn(true);
+        setTimeout(() => {
+          setUser({
+            uid: `admin_${Date.now()}`,
+            role: "admin",
+            displayName: "מנהל מערכת ראשי",
+          }, "admin");
+          navigate("/admin", { replace: true });
+        }, 600);
+      } else {
+        alert("פרטי מנהל שגויים.");
+      }
     }
   };
 
   const roleTitle = 
     selectedRole === "student" ? "כניסת תלמיד - זיהוי אוטומטי" :
-    selectedRole === "teacher" ? "כניסת מורה - זיהוי אוטומטי" :
-    selectedRole === "admin" ? "כניסת מנהל - זיהוי אוטומטי" : "";
+    selectedRole === "teacher" ? "כניסת מורה - הקלדת פרטים מזהים" :
+    selectedRole === "admin" ? "כניסת מנהל - גישה מאובטחת" : "";
 
   return (
     <div className="login-page-bg text-white" dir="rtl">
@@ -122,7 +147,7 @@ export function Login() {
               </div>
             </div>
           ) : (
-            /* Mock SSO Form */
+            /* Authentication Form */
             <div className="relative animate-in slide-in-from-right-4 fade-in duration-300">
               <button 
                 onClick={() => setSelectedRole(null)}
@@ -137,14 +162,16 @@ export function Login() {
               
               <div className="text-center p-4">
                 <p className="mb-6 text-sm text-white/70">
-                  מערכת ה-SSO מזהה אותך אוטומטית לפי חשבון הגוגל הבית-ספרי שלך. אין צורך בסיסמה.
+                  {selectedRole === "student" && "מערכת ה-SSO מזהה אותך אוטומטית לפי חשבון הגוגל הבית-ספרי שלך. בגרסת הדמו יש להזין שם משתמש."}
+                  {selectedRole === "teacher" && "הכניסה למורים דורשת הקלדת תעודת זהות ותאריך לידה (6 ספרות)."}
+                  {selectedRole === "admin" && "הכניסה למנהלים מוגנת ומחייבת הזנת פרטי הזדהות מורשים בלבד."}
                 </p>
                 <button 
-                  onClick={handleMockSSO}
+                  onClick={handleLogin}
                   disabled={isLoggingIn}
                   className="w-full flex items-center justify-center gap-3 p-4 bg-white text-slate-800 text-base font-bold rounded-md transition-all hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-70 disabled:transform-none"
                 >
-                  {isLoggingIn ? "מתחבר בצורה שקופה..." : (
+                  {isLoggingIn ? "מתחבר..." : (
                     <>
                       <svg viewBox="0 0 24 24" width="24" height="24" xmlns="http://www.w3.org/2000/svg">
                         <g transform="matrix(1, 0, 0, 1, 27.009001, -39.238998)">
@@ -154,7 +181,7 @@ export function Login() {
                           <path fill="#EA4335" d="M -14.754 43.989 C -12.984 43.989 -11.404 44.599 -10.154 45.789 L -6.734 42.369 C -8.804 40.429 -11.514 39.239 -14.754 39.239 C -19.444 39.239 -23.494 41.939 -25.464 45.859 L -21.484 48.949 C -20.534 46.109 -17.884 43.989 -14.754 43.989 Z"/>
                         </g>
                       </svg>
-                      התחברות מהירה (Mock SSO)
+                      {selectedRole === "student" ? "התחברות שקופה" : "התחבר למערכת"}
                     </>
                   )}
                 </button>

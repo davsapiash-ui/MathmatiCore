@@ -10,6 +10,7 @@ import { AdminSchoolsView } from "@/presentation/pages/admin/AdminSchoolsView";
 import { AdminCurriculumView } from "@/presentation/pages/admin/AdminCurriculumView";
 import { AdminSecurityView } from "@/presentation/pages/admin/AdminSecurityView";
 import { AdminSettingsView } from "@/presentation/pages/admin/AdminSettingsView";
+import { AdminChatView } from "@/presentation/pages/admin/AdminChatView";
 import { useAuthStore } from "@/application/useAuthStore";
 import { useSettingsStore } from "@/application/useSettingsStore";
 
@@ -83,6 +84,7 @@ function App() {
           <Route path="curriculum" element={<AdminCurriculumView />} />
           <Route path="security" element={<AdminSecurityView />} />
           <Route path="settings" element={<AdminSettingsView />} />
+          <Route path="chat" element={<AdminChatView />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/login" replace />} />
