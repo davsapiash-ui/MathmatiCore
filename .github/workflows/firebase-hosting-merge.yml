@@ -30,3 +30,12 @@ jobs:
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MATHIMATICORE }}
           channelId: live
           projectId: mathimaticore
+
+      - name: Deploy Realtime Database rules
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MATHIMATICORE }}
+        run: |
+          echo "$GOOGLE_APPLICATION_CREDENTIALS_JSON" > "$RUNNER_TEMP/firebase-sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/firebase-sa.json"
+          npx firebase-tools deploy --only database --project mathimaticore --non-interactive
+          rm -f "$RUNNER_TEMP/firebase-sa.json"

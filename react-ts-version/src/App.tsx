@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { Login } from "@/presentation/pages/Login";
 import { LandingPage } from "@/presentation/pages/LandingPage";
-import { StudentWorkspace } from "@/presentation/pages/StudentWorkspace";
+import { StudentWorkspacePage } from "@/features/workspace/StudentWorkspacePage";
 import { StudentHub } from "@/presentation/pages/StudentHub";
 import { TeacherDashboard } from "@/presentation/pages/TeacherDashboard";
 import { AppShell } from "@/presentation/components/layout/AppShell";
@@ -77,19 +77,20 @@ function App() {
               <StudentHub />
             </AuthGuard>
           } />
-          
-          <Route path="/workspace" element={
-            <AuthGuard allowedRoles={["student", "admin"]}>
-              <StudentWorkspace />
-            </AuthGuard>
-          } />
-          
+
           <Route path="/dashboard" element={
             <AuthGuard allowedRoles={["teacher", "admin"]}>
               <TeacherDashboard />
             </AuthGuard>
           } />
         </Route>
+
+        {/* Student workspace: standalone fullscreen experience (100vh, single chrome, per spec) */}
+        <Route path="/workspace" element={
+          <AuthGuard allowedRoles={["student", "admin"]}>
+            <StudentWorkspacePage />
+          </AuthGuard>
+        } />
         
         <Route path="/admin" element={
           <AuthGuard allowedRoles={["admin"]}>

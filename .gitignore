@@ -2,4 +2,14 @@ node_modules/
 .firebase/
 firebase-debug.log
 .env
+.env.local
+.env.*.local
 .DS_Store
+
+# Build artifacts & debug leftovers
+dist/
+*.log
+build_output*
+dev_output*
+full_build_output*
+screenshot.png
