@@ -11,6 +11,8 @@ import { TASKS } from "@/core/QMatrix";
 import type { QMatrixTask } from "@/core/QMatrix";
 import { useChatStore } from "@/application/useChatStore";
 import { useSettingsStore } from "@/application/useSettingsStore";
+import { Logo } from "@/presentation/components/ui/Logo";
+import { LogoutButton } from "@/presentation/components/ui/LogoutButton";
 import { useStudentSessionStore } from "@/application/useStudentSessionStore";
 import { MessageCircle, Send, X } from "lucide-react";
 
@@ -178,13 +180,25 @@ export function StudentWorkspace() {
     }));
   };
 
+  useEffect(() => {
+    // Auto-save logic on browser close or refresh
+    const handleBeforeUnload = () => {
+      telemetryTracker.recordStudentAction();
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [telemetryTracker]);
+
   return (
     <div className="flex flex-col h-screen bg-slate-50 dark:bg-slate-900 overflow-hidden relative" dir="rtl">
       {/* Header */}
-      <header className="bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 p-4 flex justify-between items-center shadow-sm z-10">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">שלום {studentName}</h1>
-          <p className="text-slate-500 dark:text-slate-400">המשימה שלנו: {activeTask.titleHe}</p>
+      <header className="bg-white/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 p-4 flex justify-between items-center shadow-sm z-10 sticky top-0">
+        <div className="flex items-center gap-6">
+          <Logo className="ml-4" textClassName="bg-gradient-to-l from-blue-600 to-indigo-600 bg-clip-text text-transparent drop-shadow-sm hover:opacity-80" />
+          <div className="border-r-2 border-slate-200 dark:border-slate-700 pr-6">
+            <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100">שלום {studentName}</h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">המשימה שלנו: {activeTask.titleHe}</p>
+          </div>
         </div>
         <div className="flex gap-4 items-center">
           {isOffline && (
@@ -205,6 +219,7 @@ export function StudentWorkspace() {
               </span>
             )}
           </UdlButton>
+          <LogoutButton />
         </div>
       </header>
 

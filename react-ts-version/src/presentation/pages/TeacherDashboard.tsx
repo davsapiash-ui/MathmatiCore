@@ -8,6 +8,8 @@ import { ref, onValue } from "firebase/database";
 import { database } from "@/infrastructure/firebase";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Send, UserCircle2, MessageCircle, ShieldAlert } from "lucide-react";
+import { Logo } from "@/presentation/components/ui/Logo";
+import { LogoutButton } from "@/presentation/components/ui/LogoutButton";
 
 const qMatrixData = [
   { name: 'חיבור בסיסי', success: 85, struggle: 15 },
@@ -101,7 +103,7 @@ export function TeacherDashboard() {
       {/* Sidebar */}
       <aside className="w-full md:w-64 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md border-b md:border-b-0 md:border-l border-slate-200 dark:border-slate-800 flex flex-col shadow-sm z-10 transition-all overflow-y-auto max-h-screen">
         <div className="p-6 border-b border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-950/50 backdrop-blur-sm">
-          <h2 className="text-2xl font-black text-slate-800 dark:text-slate-100">מתמטיקאור</h2>
+          <Logo textClassName="bg-gradient-to-l from-blue-600 to-indigo-600 bg-clip-text text-transparent drop-shadow-sm hover:opacity-80" />
           <p className="text-sm text-slate-500">לוח בקרה למורה</p>
           <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
             <UserCircle2 className="w-6 h-6 text-slate-400" />
@@ -153,6 +155,9 @@ export function TeacherDashboard() {
               </span>
             )}
           </button>
+          <div className="mt-auto pt-4 flex justify-center pb-2">
+            <LogoutButton className="w-full justify-center" />
+          </div>
         </nav>
       </aside>
 

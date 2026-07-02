@@ -2,19 +2,21 @@ import { Outlet, NavLink } from "react-router-dom";
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarGroup, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
 import { Settings, Shield, Users, Layers, GraduationCap } from "lucide-react";
 import { useAuthStore } from "@/application/useAuthStore";
+import { Logo } from "@/presentation/components/ui/Logo";
+import { LogoutButton } from "@/presentation/components/ui/LogoutButton";
 
 export function AdminLayout() {
-  const { user, logout } = useAuthStore();
+  const { user } = useAuthStore();
 
   return (
     <SidebarProvider>
       <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950 w-full font-sans" dir="rtl">
         <Sidebar variant="sidebar" collapsible="none" className="border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 w-64 flex-shrink-0">
           <SidebarHeader className="p-6 border-b border-slate-200 dark:border-slate-800">
-            <h1 className="text-2xl font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
-              <Shield className="text-blue-600 w-6 h-6" />
-              MathmatiCore
-            </h1>
+            <div className="flex items-center gap-2 mb-1">
+              <Shield className="text-blue-600 w-6 h-6 flex-shrink-0" />
+              <Logo textClassName="bg-gradient-to-l from-blue-600 to-indigo-600 bg-clip-text text-transparent drop-shadow-sm hover:opacity-80" />
+            </div>
             <p className="text-sm text-slate-500 mt-1">ממשק מנהל מערכת</p>
           </SidebarHeader>
 
@@ -89,12 +91,7 @@ export function AdminLayout() {
                 <div className="text-xs text-slate-500">Super Administrator</div>
               </div>
             </div>
-            <button 
-              onClick={logout}
-              className="w-full py-2 bg-red-50 hover:bg-red-100 text-red-600 font-medium rounded-lg transition-colors dark:bg-red-900/20 dark:hover:bg-red-900/40"
-            >
-              התנתק
-            </button>
+            <LogoutButton className="w-full justify-center" />
           </div>
         </Sidebar>
 

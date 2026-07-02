@@ -13,9 +13,13 @@ import { AdminSettingsView } from "@/presentation/pages/admin/AdminSettingsView"
 import { AdminChatView } from "@/presentation/pages/admin/AdminChatView";
 import { useAuthStore } from "@/application/useAuthStore";
 import { useSettingsStore } from "@/application/useSettingsStore";
+import { useIdleTimeout } from "@/application/useIdleTimeout";
 
 function AuthGuard({ allowedRoles, children }: { allowedRoles: string[]; children: React.ReactNode }) {
   const { user, isAuthenticated } = useAuthStore();
+  
+  // Enforce idle timeout for authenticated users
+  useIdleTimeout();
   
   if (!isAuthenticated || !user) {
     return <Navigate to="/login" replace />;
