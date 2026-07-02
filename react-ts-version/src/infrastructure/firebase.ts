@@ -20,7 +20,7 @@ export const database = getDatabase(app);
 let authInstance;
 try {
   authInstance = getAuth(app);
-} catch (e) {
+} catch {
   console.warn("Firebase Auth init failed (likely missing real API key). Using mock auth.");
   authInstance = {} as any;
 }
