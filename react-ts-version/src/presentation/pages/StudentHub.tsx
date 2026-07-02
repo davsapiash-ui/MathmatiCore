@@ -5,14 +5,14 @@ import type { Variants } from 'framer-motion';
 import '../styles/main.css';
 
 const meetings = [
-  { id: 1, title: 'מפגש 1: היכרות ותפעול', desc: 'התנסות חופשית במרחב העבודה הווירטואלי.', icon: '👋', color: 'var(--color-primary)' },
-  { id: 2, title: 'מפגש 2: אבחון אישי', desc: 'מבדק קצר כדי להכיר את הרמה שלכם במתמטיקה.', icon: '🎯', color: 'var(--color-accent)' },
-  { id: 3, title: 'מפגש 3: מסלול אדפטיבי', desc: 'מתחילים לפתור תרגילים מיוחדים שמותאמים בדיוק לכם!', icon: '📈', color: 'var(--color-success)' },
-  { id: 4, title: 'מפגש 4: חוקרים ומגלים', desc: 'תרגולי פריטה וקיבוץ - מתרגלים יחד ומצליחים.', icon: '📈', color: 'var(--color-success)' },
-  { id: 5, title: 'מפגש 5: חוקרים ומגלים', desc: 'ממשיכים לתרגל ולגלות שיטות חדשות לפתרון.', icon: '📈', color: 'var(--color-success)' },
-  { id: 6, title: 'מפגש 6: אלופי החשבון', desc: 'תרגילים מתקדמים שמותאמים לקצב שלכם.', icon: '📈', color: 'var(--color-success)' },
-  { id: 7, title: 'מפגש 7: אלופי החשבון', desc: 'לקראת סיום - תרגולים מאתגרים לחיזוק הלמידה.', icon: '📈', color: 'var(--color-success)' },
-  { id: 8, title: 'מפגש 8: סיכום ורפלקציה', desc: 'מסכמים את התהליך ורואים כמה התקדמנו!', icon: '🏆', color: 'var(--color-warning)' },
+  { id: 1, title: 'מפגש 1: היכרות ותפעול', desc: 'התנסות חופשית במרחב העבודה הווירטואלי.', icon: '👋', color: 'var(--color-primary)', isLocked: false },
+  { id: 2, title: 'מפגש 2: אבחון אישי', desc: 'מבדק קצר כדי להכיר את הרמה שלכם במתמטיקה.', icon: '🎯', color: 'var(--color-accent)', isLocked: false },
+  { id: 3, title: 'מפגש 3: מסלול אדפטיבי', desc: 'מתחילים לפתור תרגילים מיוחדים שמותאמים בדיוק לכם!', icon: '🔒', color: '#94a3b8', isLocked: true },
+  { id: 4, title: 'מפגש 4: חוקרים ומגלים', desc: 'תרגולי פריטה וקיבוץ - מתרגלים יחד ומצליחים.', icon: '🔒', color: '#94a3b8', isLocked: true },
+  { id: 5, title: 'מפגש 5: חוקרים ומגלים', desc: 'ממשיכים לתרגל ולגלות שיטות חדשות לפתרון.', icon: '🔒', color: '#94a3b8', isLocked: true },
+  { id: 6, title: 'מפגש 6: אלופי החשבון', desc: 'תרגילים מתקדמים שמותאמים לקצב שלכם.', icon: '🔒', color: '#94a3b8', isLocked: true },
+  { id: 7, title: 'מפגש 7: אלופי החשבון', desc: 'לקראת סיום - תרגולים מאתגרים לחיזוק הלמידה.', icon: '🔒', color: '#94a3b8', isLocked: true },
+  { id: 8, title: 'מפגש 8: סיכום ורפלקציה', desc: 'מסכמים את התהליך ורואים כמה התקדמנו!', icon: '🔒', color: '#94a3b8', isLocked: true },
 ];
 
 const containerVariants: Variants = {
@@ -103,12 +103,16 @@ export function StudentHub() {
                   key={meeting.id}
                   variants={itemVariants}
                   whileHover={{ y: -4, boxShadow: '0 15px 30px -10px rgba(0,0,0,0.1)' }}
-                  className="flex flex-col sm:flex-row gap-5 items-center p-5 rounded-2xl border transition-all cursor-pointer group"
+                  className={`flex flex-col sm:flex-row gap-5 items-center p-5 rounded-2xl border transition-all ${meeting.isLocked ? 'cursor-not-allowed opacity-60' : 'cursor-pointer group'}`}
                   style={{ 
                     backgroundColor: 'var(--color-surface)', 
                     borderColor: 'var(--color-border)',
                   }}
-                  onClick={() => navigate(`/workspace?meeting=${meeting.id}`)}
+                  onClick={() => {
+                    if (!meeting.isLocked) {
+                      navigate(`/workspace?meeting=${meeting.id}`);
+                    }
+                  }}
                 >
                   <div className="w-16 h-16 flex items-center justify-center text-3xl shrink-0 rounded-2xl relative overflow-hidden group-hover:scale-105 transition-transform" 
                        style={{ backgroundColor: 'var(--color-surface-2)' }}>
