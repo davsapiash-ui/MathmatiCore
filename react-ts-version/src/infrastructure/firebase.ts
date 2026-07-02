@@ -9,9 +9,20 @@ import { getAuth } from "firebase/auth";
 // Temporary fallback config for Vite dev mode
 const firebaseConfig = {
   projectId: "mathimaticore",
-  // In production, Firebase Hosting auto-populates __/firebase/init.json
+  apiKey: "dummy-key-to-prevent-crash", // Required by getAuth even if not used yet
+  appId: "1:1234567890:web:abcdef"
 };
 
 const app = initializeApp(firebaseConfig);
 export const database = getDatabase(app);
-export const auth = getAuth(app);
+
+// getAuth throws if apiKey is completely missing or empty
+let authInstance;
+try {
+  authInstance = getAuth(app);
+} catch (e) {
+  console.warn("Firebase Auth init failed (likely missing real API key). Using mock auth.");
+  authInstance = {} as any;
+}
+
+export const auth = authInstance;
