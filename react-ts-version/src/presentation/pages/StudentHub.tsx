@@ -24,8 +24,6 @@ export function StudentHub() {
             המשך מאיפה שעצרת
           </button>
         </div>
-        
-        </div>
       </section>
 
       {/* Grid Layout for Modules & Progress */}
