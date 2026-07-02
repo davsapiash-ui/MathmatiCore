@@ -10,9 +10,9 @@ export function AdminLayout() {
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen bg-slate-100 dark:bg-slate-950 w-full font-sans text-slate-800 dark:text-slate-100 selection:bg-indigo-500/30" dir="rtl">
-        <Sidebar variant="sidebar" collapsible="none" className="border-l border-slate-200/50 dark:border-slate-800/50 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl shadow-[4px_0_24px_rgba(0,0,0,0.02)] dark:shadow-[4px_0_24px_rgba(0,0,0,0.2)] w-64 flex-shrink-0 z-20">
-          <SidebarHeader className="p-6 border-b border-slate-200/50 dark:border-slate-800/50">
+      <div className="flex min-h-screen bg-slate-50/50 dark:bg-slate-950/50 w-full font-sans text-slate-800 dark:text-slate-100 selection:bg-indigo-500/30 overflow-hidden" dir="rtl">
+        <Sidebar variant="sidebar" collapsible="none" className="m-4 rounded-[2rem] border border-white/40 dark:border-white/10 bg-white/60 dark:bg-slate-900/40 backdrop-blur-2xl shadow-[0_8px_32px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4)] w-72 flex-shrink-0 z-20 h-[calc(100vh-2rem)] flex flex-col overflow-hidden transition-all duration-500">
+          <SidebarHeader className="p-8 border-b border-white/20 dark:border-white/5 bg-white/20 dark:bg-black/10">
             <div className="flex items-center gap-3 mb-1">
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
                 <Shield className="text-white w-4 h-4 flex-shrink-0" />
@@ -27,8 +27,8 @@ export function AdminLayout() {
               <SidebarMenu className="gap-2">
                 <SidebarMenuItem>
                   <SidebarMenuButton>
-                    <NavLink to="/admin" end className={({isActive}) => isActive ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400 font-bold rounded-lg shadow-sm" : "hover:bg-slate-100 dark:hover:bg-slate-800/50 text-slate-600 dark:text-slate-400 transition-all rounded-lg"}>
-                      <Settings className="w-5 h-5 ml-3 opacity-70" /> 
+                    <NavLink to="/admin" end className={({isActive}) => isActive ? "bg-white/80 dark:bg-white/10 text-indigo-700 dark:text-indigo-400 font-bold rounded-2xl shadow-sm border border-white/50 dark:border-white/5" : "hover:bg-white/50 dark:hover:bg-white/5 text-slate-600 dark:text-slate-400 transition-all duration-300 rounded-2xl"}>
+                      <Settings className="w-5 h-5 ml-3 opacity-80" /> 
                       <span className="text-base tracking-wide">סקירה כללית</span>
                     </NavLink>
                   </SidebarMenuButton>
@@ -36,8 +36,8 @@ export function AdminLayout() {
 
                 <SidebarMenuItem>
                   <SidebarMenuButton>
-                    <NavLink to="/admin/schools" className={({isActive}) => isActive ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400 font-bold rounded-lg shadow-sm" : "hover:bg-slate-100 dark:hover:bg-slate-800/50 text-slate-600 dark:text-slate-400 transition-all rounded-lg"}>
-                      <GraduationCap className="w-5 h-5 ml-3 opacity-70" /> 
+                    <NavLink to="/admin/schools" className={({isActive}) => isActive ? "bg-white/80 dark:bg-white/10 text-indigo-700 dark:text-indigo-400 font-bold rounded-2xl shadow-sm border border-white/50 dark:border-white/5" : "hover:bg-white/50 dark:hover:bg-white/5 text-slate-600 dark:text-slate-400 transition-all duration-300 rounded-2xl"}>
+                      <GraduationCap className="w-5 h-5 ml-3 opacity-80" /> 
                       <span className="text-base tracking-wide">מוסדות ומורים</span>
                     </NavLink>
                   </SidebarMenuButton>
@@ -45,8 +45,8 @@ export function AdminLayout() {
 
                 <SidebarMenuItem>
                   <SidebarMenuButton>
-                    <NavLink to="/admin/curriculum" className={({isActive}) => isActive ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400 font-bold rounded-lg shadow-sm" : "hover:bg-slate-100 dark:hover:bg-slate-800/50 text-slate-600 dark:text-slate-400 transition-all rounded-lg"}>
-                      <Layers className="w-5 h-5 ml-3 opacity-70" /> 
+                    <NavLink to="/admin/curriculum" className={({isActive}) => isActive ? "bg-white/80 dark:bg-white/10 text-indigo-700 dark:text-indigo-400 font-bold rounded-2xl shadow-sm border border-white/50 dark:border-white/5" : "hover:bg-white/50 dark:hover:bg-white/5 text-slate-600 dark:text-slate-400 transition-all duration-300 rounded-2xl"}>
+                      <Layers className="w-5 h-5 ml-3 opacity-80" /> 
                       <span className="text-base tracking-wide">הגדרות פדגוגיה</span>
                     </NavLink>
                   </SidebarMenuButton>
@@ -54,8 +54,8 @@ export function AdminLayout() {
 
                 <SidebarMenuItem>
                   <SidebarMenuButton>
-                    <NavLink to="/admin/security" className={({isActive}) => isActive ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400 font-bold rounded-lg shadow-sm" : "hover:bg-slate-100 dark:hover:bg-slate-800/50 text-slate-600 dark:text-slate-400 transition-all rounded-lg"}>
-                      <Shield className="w-5 h-5 ml-3 opacity-70" /> 
+                    <NavLink to="/admin/security" className={({isActive}) => isActive ? "bg-white/80 dark:bg-white/10 text-indigo-700 dark:text-indigo-400 font-bold rounded-2xl shadow-sm border border-white/50 dark:border-white/5" : "hover:bg-white/50 dark:hover:bg-white/5 text-slate-600 dark:text-slate-400 transition-all duration-300 rounded-2xl"}>
+                      <Shield className="w-5 h-5 ml-3 opacity-80" /> 
                       <span className="text-base tracking-wide">אבטחה והרשאות</span>
                     </NavLink>
                   </SidebarMenuButton>
@@ -63,8 +63,8 @@ export function AdminLayout() {
 
                 <SidebarMenuItem>
                   <SidebarMenuButton>
-                    <NavLink to="/admin/chat" className={({isActive}) => isActive ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400 font-bold rounded-lg shadow-sm" : "hover:bg-slate-100 dark:hover:bg-slate-800/50 text-slate-600 dark:text-slate-400 transition-all rounded-lg"}>
-                      <Users className="w-5 h-5 ml-3 opacity-70" /> 
+                    <NavLink to="/admin/chat" className={({isActive}) => isActive ? "bg-white/80 dark:bg-white/10 text-indigo-700 dark:text-indigo-400 font-bold rounded-2xl shadow-sm border border-white/50 dark:border-white/5" : "hover:bg-white/50 dark:hover:bg-white/5 text-slate-600 dark:text-slate-400 transition-all duration-300 rounded-2xl"}>
+                      <Users className="w-5 h-5 ml-3 opacity-80" /> 
                       <span className="text-base tracking-wide">צ'אט הודעות</span>
                     </NavLink>
                   </SidebarMenuButton>
@@ -72,8 +72,8 @@ export function AdminLayout() {
 
                 <SidebarMenuItem>
                   <SidebarMenuButton>
-                    <NavLink to="/admin/settings" className={({isActive}) => isActive ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400 font-bold rounded-lg shadow-sm" : "hover:bg-slate-100 dark:hover:bg-slate-800/50 text-slate-600 dark:text-slate-400 transition-all rounded-lg"}>
-                      <Settings className="w-5 h-5 ml-3 opacity-70" /> 
+                    <NavLink to="/admin/settings" className={({isActive}) => isActive ? "bg-white/80 dark:bg-white/10 text-indigo-700 dark:text-indigo-400 font-bold rounded-2xl shadow-sm border border-white/50 dark:border-white/5" : "hover:bg-white/50 dark:hover:bg-white/5 text-slate-600 dark:text-slate-400 transition-all duration-300 rounded-2xl"}>
+                      <Settings className="w-5 h-5 ml-3 opacity-80" /> 
                       <span className="text-base tracking-wide">מערכת ונגישות (UDL)</span>
                     </NavLink>
                   </SidebarMenuButton>
@@ -83,25 +83,28 @@ export function AdminLayout() {
             </SidebarGroup>
           </SidebarContent>
 
-          <div className="p-4 border-t border-slate-200/50 dark:border-slate-800/50 mt-auto bg-slate-50/50 dark:bg-slate-900/50 backdrop-blur-md">
-            <div className="flex items-center gap-3 mb-4 p-2 rounded-xl bg-white dark:bg-slate-950 shadow-sm border border-slate-200 dark:border-slate-800">
-              <div className="w-10 h-10 rounded-lg bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center font-bold text-white shadow-inner">
+          <div className="p-6 border-t border-white/20 dark:border-white/5 mt-auto bg-white/20 dark:bg-black/10">
+            <div className="flex items-center gap-4 mb-4 p-3 rounded-2xl bg-white/50 dark:bg-slate-900/50 shadow-inner border border-white/40 dark:border-white/5">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-500/30">
                 {user?.displayName?.[0] || "A"}
               </div>
               <div className="flex-1 overflow-hidden">
-                <div className="font-bold text-sm truncate">{user?.displayName || "System Admin"}</div>
+                <div className="font-bold text-base truncate">{user?.displayName || "System Admin"}</div>
                 <div className="text-[10px] text-slate-500 dark:text-slate-400 tracking-wider uppercase font-semibold">Root Access</div>
               </div>
             </div>
-            <LogoutButton className="w-full justify-center border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400 transition-all" />
+            <LogoutButton className="w-full justify-center rounded-2xl border-0 shadow-md bg-white dark:bg-slate-800 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/40 dark:hover:text-red-400 transition-all duration-300" />
           </div>
         </Sidebar>
 
-        <main className="flex-1 overflow-y-auto relative">
-          {/* Subtle background glow effect */}
-          <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-br from-indigo-500/5 via-transparent to-transparent pointer-events-none -z-10"></div>
-          <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-gradient-to-tl from-cyan-500/5 via-transparent to-transparent pointer-events-none -z-10 rounded-full blur-3xl"></div>
-          <Outlet />
+        <main className="flex-1 overflow-y-auto relative p-4 pl-0">
+          {/* Ambient Glows */}
+          <div className="fixed top-0 left-1/4 w-[800px] h-[800px] bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-transparent rounded-full blur-[100px] pointer-events-none -z-10 mix-blend-screen dark:mix-blend-lighten animate-in fade-in duration-1000"></div>
+          <div className="fixed bottom-0 right-1/4 w-[600px] h-[600px] bg-gradient-to-tl from-cyan-500/10 via-blue-500/5 to-transparent rounded-full blur-[80px] pointer-events-none -z-10 mix-blend-screen dark:mix-blend-lighten animate-in fade-in duration-1000 delay-300"></div>
+          
+          <div className="h-full rounded-[2rem] border border-white/20 dark:border-white/5 bg-white/40 dark:bg-slate-900/20 backdrop-blur-3xl shadow-xl overflow-hidden relative z-0">
+            <Outlet />
+          </div>
         </main>
       </div>
     </SidebarProvider>

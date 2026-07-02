@@ -10,12 +10,12 @@ export interface UdlButtonProps extends React.ButtonHTMLAttributes<HTMLButtonEle
 }
 
 const semanticColorStyles = {
-  primary: "bg-blue-600 text-white hover:bg-blue-700",
-  secondary: "bg-purple-600 text-white hover:bg-purple-700",
-  success: "bg-green-600 text-white hover:bg-green-700",
-  danger: "bg-red-600 text-white hover:bg-red-700",
-  warning: "bg-yellow-500 text-black hover:bg-yellow-600",
-  neutral: "bg-slate-200 text-slate-900 hover:bg-slate-300 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700",
+  primary: "bg-primary text-primary-foreground shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)] shadow-primary/30 hover:shadow-primary/50 hover:bg-primary/90 border border-primary/20",
+  secondary: "bg-secondary text-secondary-foreground shadow-[inset_0_1px_1px_rgba(255,255,255,0.5)] shadow-sm hover:bg-secondary/80 border border-white/20 dark:border-white/5",
+  success: "bg-success text-success-foreground shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)] shadow-success/30 hover:shadow-success/50 hover:bg-success/90 border border-success/20",
+  danger: "bg-destructive text-destructive-foreground shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)] shadow-destructive/30 hover:shadow-destructive/50 hover:bg-destructive/90 border border-destructive/20",
+  warning: "bg-warning text-warning-foreground shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)] shadow-warning/20 hover:shadow-warning/40 hover:bg-warning/90 border border-warning/20",
+  neutral: "bg-white/80 dark:bg-white/5 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-white/10 shadow-sm backdrop-blur-md hover:bg-white dark:hover:bg-white/10 transition-all",
 }
 
 export const UdlButton = React.forwardRef<HTMLButtonElement, UdlButtonProps>(
@@ -34,7 +34,7 @@ export const UdlButton = React.forwardRef<HTMLButtonElement, UdlButtonProps>(
         variant={variant}
         size={props.size}
         className={cn(
-          "transition-all duration-200 active:scale-95", 
+          "transition-all duration-300 ease-out active:scale-95", 
           colorClass, 
           focusClass, 
           className
