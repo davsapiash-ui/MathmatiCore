@@ -8,12 +8,11 @@ import { MathBlock } from '@/presentation/components/workspace/MathBlock';
 import { useSilentRadar } from '@/application/useSilentRadar';
 import { UdlButton } from '@/presentation/design-system/UdlButton';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { Meeting2Mapping } from './StudentWorkspace/Meeting2Mapping';
 
 export function StudentWorkspace() {
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
   const meetingId = searchParams.get('meeting') || '1';
 
   const [ones, setOnes] = useState(Array.from({ length: 4 }).map((_, i) => ({ id: `one-${i}` })));
@@ -178,7 +177,7 @@ function MeetingAdaptiveTrack({ meetingId }: { meetingId: string }) {
         <p className="text-slate-500 mb-8">
           מנגנון התאמת הרמה והקפצת הרמזים פועל ברקע...
         </p>
-        <UdlButton semanticColor="primary" className="px-12 font-bold" onClick={() => window.location.href = '/hub'}>
+        <UdlButton semanticColor="primary" className="px-12 font-bold" onClick={() => { registerInteraction(); window.location.href = '/hub'; }}>
           חזור ללוח הראשי
         </UdlButton>
       </div>
@@ -210,7 +209,7 @@ function Meeting8Reflection() {
         </div>
         
         <div className="mt-8 pt-8 border-t border-slate-100 dark:border-slate-800 text-center">
-           <UdlButton semanticColor="primary" className="px-12 font-bold shadow-lg shadow-indigo-500/20" onClick={() => window.location.href = '/hub'}>
+           <UdlButton semanticColor="primary" className="px-12 font-bold shadow-lg shadow-indigo-500/20" onClick={() => { registerInteraction(); window.location.href = '/hub'; }}>
              חזור ללוח הראשי וסיים
            </UdlButton>
         </div>

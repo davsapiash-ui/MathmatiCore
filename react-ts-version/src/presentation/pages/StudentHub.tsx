@@ -1,5 +1,4 @@
-import { UdlButton } from '../design-system/UdlButton';
-import { Play, Trophy, Star, BookOpen } from 'lucide-react';
+import { Play, Trophy, Star } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import '../styles/main.css';
 
