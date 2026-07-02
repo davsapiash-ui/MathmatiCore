@@ -4,12 +4,12 @@ import { useAdminStore } from "@/application/useAdminStore";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const mockGrowthData = [
-  { month: 'ינואר', students: 1200, activity: 4000 },
-  { month: 'פברואר', students: 1800, activity: 5500 },
-  { month: 'מרץ', students: 2200, activity: 6800 },
-  { month: 'אפריל', students: 2800, activity: 8200 },
-  { month: 'מאי', students: 3100, activity: 9500 },
-  { month: 'יוני', students: 3420, activity: 11200 },
+  { month: 'ינואר', students: 0, activity: 0 },
+  { month: 'פברואר', students: 0, activity: 0 },
+  { month: 'מרץ', students: 0, activity: 0 },
+  { month: 'אפריל', students: 0, activity: 0 },
+  { month: 'מאי', students: 0, activity: 0 },
+  { month: 'יוני', students: 0, activity: 0 },
 ];
 
 export function AdminOverview() {
@@ -51,7 +51,7 @@ export function AdminOverview() {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-sm text-slate-500 font-medium">תלמידים במערכת (הערכה)</p>
-              <h3 className="text-3xl font-black mt-1">{totalStudents > 0 ? totalStudents : 3420}</h3>
+              <h3 className="text-3xl font-black mt-1">{totalStudents}</h3>
             </div>
             <Activity className="w-8 h-8 text-purple-500 opacity-80" />
           </div>
