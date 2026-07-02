@@ -1,9 +1,9 @@
 import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "@/application/useAuthStore";
 import { useAdminStore } from "@/application/useAdminStore";
 import { useStore } from "@/application/useStore";
 import { useNavigate } from "react-router-dom";
-import "./Login.css";
 
 const DEMO_USERS: Record<string, any> = {
   'user1': { password: '10203040', name: 'משתמש 1', session: 1, classMode: 'regular' },
@@ -12,12 +12,21 @@ const DEMO_USERS: Record<string, any> = {
   'pilot': { password: '10203040', name: 'פיילוט תלמיד', session: 1, classMode: 'regular' },
 };
 
+const ROLES = [
+  { id: "student" as const, icon: "🎓", label: "תלמיד" },
+  { id: "teacher" as const, icon: "📊", label: "מורה" },
+  { id: "admin" as const, icon: "⚙️", label: "מנהל מערכת" },
+];
+
+const inputClass =
+  "w-full bg-ws-bg border-2 border-ws-surface2 rounded-2xl p-3.5 text-ws-ink placeholder-ws-soft/70 font-body focus:outline-none focus:border-ws-accent transition-colors";
+
 export function Login() {
   const { setUser } = useAuthStore();
   const { teachers } = useAdminStore();
   const { login } = useStore();
   const navigate = useNavigate();
-  
+
   const [selectedRole, setSelectedRole] = useState<"student" | "teacher" | "admin" | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
@@ -40,7 +49,7 @@ export function Login() {
       }
       const normalizedUsername = username.trim().toLowerCase();
       const user = DEMO_USERS[normalizedUsername];
-      
+
       if (user && user.password === password) {
         setIsLoggingIn(true);
         setTimeout(() => {
@@ -50,8 +59,8 @@ export function Login() {
             role: "student",
             displayName: user.name,
           }, "student");
-          login("student", newUid); 
-          navigate("/hub", { replace: true }); 
+          login("student", newUid);
+          navigate("/hub", { replace: true });
         }, 600);
       } else {
         setErrorMsg("שם המשתמש או הסיסמה שגויים.");
@@ -103,156 +112,154 @@ export function Login() {
     }
   };
 
-  const roleTitle = 
+  const roleTitle =
     selectedRole === "student" ? "כניסת תלמיד - זיהוי אוטומטי" :
     selectedRole === "teacher" ? "כניסת מורה - הקלדת פרטים מזהים" :
     selectedRole === "admin" ? "כניסת מנהל - גישה מאובטחת" : "";
 
   return (
-    <div className="login-page-bg text-white" dir="rtl">
-      {/* Decorative animated background orbs */}
-      <div className="bg-orb bg-orb-1" aria-hidden="true"></div>
-      <div className="bg-orb bg-orb-2" aria-hidden="true"></div>
-      <div className="bg-orb bg-orb-3" aria-hidden="true"></div>
-
-      <main className="relative z-10 flex flex-col items-center gap-8 w-full max-w-[460px] p-6">
-        
+    <div
+      dir="rtl"
+      className="min-h-screen bg-ws-bg font-body text-ws-ink flex items-center justify-center p-6"
+    >
+      <main className="flex flex-col items-center gap-8 w-full max-w-[480px]">
         {/* Logo Area */}
-        <div className="flex items-center gap-4 animate-[fadeIn_0.6s_ease_forwards]">
-          <div className="w-16 h-16 rounded-2xl flex items-center justify-center logo-icon-anim shadow-[0_8px_30px_rgba(91,79,255,0.5)]" style={{background: 'linear-gradient(135deg, #3b82f6, #9B5CFF)'}}>
-            <span className="text-[2.2rem] font-black text-white leading-none">מ</span>
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45 }}
+          className="flex items-center gap-4"
+        >
+          <div className="w-16 h-16 rounded-3xl bg-ws-accent flex items-center justify-center shadow-lg">
+            <span className="text-[2.2rem] font-black text-white leading-none font-display">מ</span>
           </div>
           <div className="text-right">
-            <h1 className="text-3xl font-black text-white tracking-tight leading-tight">מתמטיקאור</h1>
-            <p className="text-sm text-white/55 font-normal mt-0.5">סביבת למידה מוגברת טכנולוגיה</p>
+            <h1 className="font-display font-black text-3xl text-ws-ink tracking-tight leading-tight">מתמטיקאור</h1>
+            <p className="text-sm text-ws-soft mt-0.5">סביבת למידה מוגברת טכנולוגיה</p>
           </div>
-        </div>
+        </motion.div>
 
         {/* Card */}
-        <div className="w-full bg-white/10 backdrop-blur-xl border border-white/15 rounded-2xl p-8 shadow-[0_20px_60px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.15)]">
-          
-          {!selectedRole ? (
-            /* Role Selection */
-            <div className="animate-in fade-in zoom-in duration-300">
-              <h2 className="text-xl font-extrabold text-white mb-1">כניסה למערכת</h2>
-              <p className="text-sm text-white/55 mb-6">בחר את סוג הכניסה שלך</p>
-
-              <div className="flex gap-3 justify-center flex-col sm:flex-row">
-                <button 
-                  onClick={() => { setSelectedRole("student"); }}
-                  className="role-btn-student flex-1 flex flex-col items-center gap-2 p-5 sm:p-3 bg-white/5 border-[1.5px] border-white/10 rounded-lg text-white/85 text-sm font-semibold transition-all hover:-translate-y-1 hover:shadow-[0_8px_24px_rgba(0,0,0,0.3)]"
-                >
-                  <span className="text-3xl leading-none">🎓</span>
-                  <span>תלמיד</span>
-                </button>
-                <button 
-                  onClick={() => { setSelectedRole("teacher"); }}
-                  className="role-btn-teacher flex-1 flex flex-col items-center gap-2 p-5 sm:p-3 bg-white/5 border-[1.5px] border-white/10 rounded-lg text-white/85 text-sm font-semibold transition-all hover:-translate-y-1 hover:shadow-[0_8px_24px_rgba(0,0,0,0.3)]"
-                >
-                  <span className="text-3xl leading-none">📊</span>
-                  <span>מורה</span>
-                </button>
-                <button 
-                  onClick={() => { setSelectedRole("admin"); }}
-                  className="role-btn-admin flex-1 flex flex-col items-center gap-2 p-5 sm:p-3 bg-white/5 border-[1.5px] border-white/10 rounded-lg text-white/85 text-sm font-semibold transition-all hover:-translate-y-1 hover:shadow-[0_8px_24px_rgba(0,0,0,0.3)]"
-                >
-                  <span className="text-3xl leading-none">⚙️</span>
-                  <span>מנהל מערכת</span>
-                </button>
-              </div>
-            </div>
-          ) : (
-            /* Authentication Form */
-            <div className="relative animate-in slide-in-from-right-4 fade-in duration-300">
-              <button 
-                onClick={() => { setSelectedRole(null); setErrorMsg(""); }}
-                className="absolute -top-4 -left-4 bg-transparent text-white/50 text-sm font-semibold px-2 py-1 rounded transition-colors hover:text-white/90 hover:bg-white/5"
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, delay: 0.08 }}
+          className="w-full bg-ws-surface rounded-3xl shadow-lg border border-ws-surface2 p-8"
+        >
+          <AnimatePresence mode="wait" initial={false}>
+            {!selectedRole ? (
+              /* Role Selection */
+              <motion.div
+                key="roles"
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                transition={{ duration: 0.2 }}
               >
-                חזרה ➔
-              </button>
-              
-              <div className="flex items-center gap-3 mb-6 mt-4">
-                <h2 className="text-xl font-extrabold text-white">{roleTitle}</h2>
-              </div>
-              
-              <form onSubmit={handleLogin} className="text-center p-4">
-                <p className="mb-6 text-sm text-white/70">
-                  {selectedRole === "student" && "התחבר באמצעות שם המשתמש והסיסמה שקיבלת מהמורה."}
-                  {selectedRole === "teacher" && "הכניסה למורים דורשת הקלדת תעודת זהות ותאריך לידה (6 ספרות)."}
-                  {selectedRole === "admin" && "הכניסה למנהלים מוגנת ומחייבת הזנת פרטי הזדהות מורשים בלבד."}
-                </p>
+                <h2 className="font-display font-extrabold text-2xl text-ws-ink mb-1">שלום! מי נכנס היום?</h2>
+                <p className="text-sm text-ws-soft mb-6">בחר את סוג הכניסה שלך</p>
 
-                {errorMsg && (
-                  <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-200 text-sm font-medium">
-                    {errorMsg}
-                  </div>
-                )}
-
-                <div className="flex flex-col gap-4 mb-6">
-                  {(selectedRole === "student" || selectedRole === "admin") && (
-                    <>
-                      <input 
-                        type="text" 
-                        placeholder="שם משתמש" 
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                        className="w-full bg-white/10 border border-white/20 rounded-lg p-3 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/50"
-                        autoFocus
-                      />
-                      <input 
-                        type="password" 
-                        placeholder="סיסמה" 
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="w-full bg-white/10 border border-white/20 rounded-lg p-3 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/50"
-                      />
-                    </>
-                  )}
-                  {selectedRole === "teacher" && (
-                    <>
-                      <input 
-                        type="text" 
-                        placeholder="תעודת זהות" 
-                        value={taz}
-                        onChange={(e) => setTaz(e.target.value)}
-                        className="w-full bg-white/10 border border-white/20 rounded-lg p-3 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/50"
-                        autoFocus
-                      />
-                      <input 
-                        type="password" 
-                        placeholder="תאריך לידה (6 ספרות, במבנה יום-חודש-שנה)" 
-                        value={dob}
-                        onChange={(e) => setDob(e.target.value)}
-                        className="w-full bg-white/10 border border-white/20 rounded-lg p-3 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/50"
-                      />
-                    </>
-                  )}
+                <div className="flex gap-3 justify-center flex-col sm:flex-row">
+                  {ROLES.map((role) => (
+                    <button
+                      key={role.id}
+                      onClick={() => { setSelectedRole(role.id); }}
+                      className="flex-1 flex flex-col items-center gap-2 p-5 sm:p-4 bg-ws-bg border-2 border-ws-surface2 rounded-2xl text-ws-ink font-display font-bold transition-all hover:border-ws-accent hover:bg-ws-accentSoft hover:-translate-y-1 hover:shadow-md active:scale-[0.98]"
+                    >
+                      <span className="text-4xl leading-none" aria-hidden="true">{role.icon}</span>
+                      <span>{role.label}</span>
+                    </button>
+                  ))}
                 </div>
-
-                <button 
-                  type="submit"
-                  disabled={isLoggingIn}
-                  className="w-full flex items-center justify-center gap-3 p-4 bg-white text-slate-800 text-base font-bold rounded-md transition-all hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-70 disabled:transform-none"
+              </motion.div>
+            ) : (
+              /* Authentication Form */
+              <motion.div
+                key="form"
+                initial={{ opacity: 0, x: 16 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -16 }}
+                transition={{ duration: 0.2 }}
+              >
+                <button
+                  type="button"
+                  onClick={() => { setSelectedRole(null); setErrorMsg(""); }}
+                  className="text-sm font-display font-bold text-ws-soft px-2 py-1 rounded-lg transition-colors hover:text-ws-accent hover:bg-ws-accentSoft mb-3 -mr-2"
                 >
-                  {isLoggingIn ? "מתחבר..." : (
-                    <>
-                      <svg viewBox="0 0 24 24" width="24" height="24" xmlns="http://www.w3.org/2000/svg">
-                        <g transform="matrix(1, 0, 0, 1, 27.009001, -39.238998)">
-                          <path fill="#4285F4" d="M -3.264 51.509 C -3.264 50.719 -3.334 49.969 -3.454 49.239 L -14.754 49.239 L -14.754 53.749 L -8.284 53.749 C -8.574 55.229 -9.424 56.479 -10.684 57.329 L -10.684 60.329 L -6.824 60.329 C -4.564 58.239 -3.264 55.159 -3.264 51.509 Z"/>
-                          <path fill="#34A853" d="M -14.754 63.239 C -11.514 63.239 -8.804 62.159 -6.824 60.329 L -10.684 57.329 C -11.764 58.049 -13.134 58.489 -14.754 58.489 C -17.884 58.489 -20.534 56.369 -21.484 53.529 L -25.464 53.529 L -25.464 56.619 C -23.494 60.539 -19.444 63.239 -14.754 63.239 Z"/>
-                          <path fill="#FBBC05" d="M -21.484 53.529 C -21.734 52.809 -21.864 52.039 -21.864 51.239 C -21.864 50.439 -21.724 49.669 -21.484 48.949 L -21.484 45.859 L -25.464 45.859 C -26.284 47.479 -26.754 49.299 -26.754 51.239 C -26.754 53.179 -26.284 54.999 -25.464 56.619 L -21.484 53.529 Z"/>
-                          <path fill="#EA4335" d="M -14.754 43.989 C -12.984 43.989 -11.404 44.599 -10.154 45.789 L -6.734 42.369 C -8.804 40.429 -11.514 39.239 -14.754 39.239 C -19.444 39.239 -23.494 41.939 -25.464 45.859 L -21.484 48.949 C -20.534 46.109 -17.884 43.989 -14.754 43.989 Z"/>
-                        </g>
-                      </svg>
-                      {selectedRole === "student" ? "כניסה מהירה" : "התחבר למערכת"}
-                    </>
-                  )}
+                  ➔ חזרה
                 </button>
-              </form>
-            </div>
-          )}
 
-        </div>
+                <h2 className="font-display font-extrabold text-xl text-ws-ink mb-5">{roleTitle}</h2>
+
+                <form onSubmit={handleLogin}>
+                  <p className="mb-6 text-sm text-ws-soft leading-relaxed">
+                    {selectedRole === "student" && "התחבר באמצעות שם המשתמש והסיסמה שקיבלת מהמורה."}
+                    {selectedRole === "teacher" && "הכניסה למורים דורשת הקלדת תעודת זהות ותאריך לידה (6 ספרות)."}
+                    {selectedRole === "admin" && "הכניסה למנהלים מוגנת ומחייבת הזנת פרטי הזדהות מורשים בלבד."}
+                  </p>
+
+                  {errorMsg && (
+                    <div
+                      role="alert"
+                      className="mb-4 p-3 bg-ws-danger/10 border border-ws-danger/40 rounded-2xl text-ws-danger text-sm font-bold"
+                    >
+                      {errorMsg}
+                    </div>
+                  )}
+
+                  <div className="flex flex-col gap-4 mb-6">
+                    {(selectedRole === "student" || selectedRole === "admin") && (
+                      <>
+                        <input
+                          type="text"
+                          placeholder="שם משתמש"
+                          value={username}
+                          onChange={(e) => setUsername(e.target.value)}
+                          className={inputClass}
+                          autoFocus
+                        />
+                        <input
+                          type="password"
+                          placeholder="סיסמה"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          className={inputClass}
+                        />
+                      </>
+                    )}
+                    {selectedRole === "teacher" && (
+                      <>
+                        <input
+                          type="text"
+                          placeholder="תעודת זהות"
+                          value={taz}
+                          onChange={(e) => setTaz(e.target.value)}
+                          className={inputClass}
+                          autoFocus
+                        />
+                        <input
+                          type="password"
+                          placeholder="תאריך לידה (6 ספרות, במבנה יום-חודש-שנה)"
+                          value={dob}
+                          onChange={(e) => setDob(e.target.value)}
+                          className={inputClass}
+                        />
+                      </>
+                    )}
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isLoggingIn}
+                    className="w-full flex items-center justify-center gap-2 p-4 rounded-full font-display font-extrabold text-lg text-white bg-ws-accent shadow-md transition-all hover:brightness-105 hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-60 disabled:transform-none"
+                  >
+                    {isLoggingIn ? "מתחבר..." : (selectedRole === "student" ? "יאללה, נכנסים! ✨" : "התחבר למערכת")}
+                  </button>
+                </form>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
       </main>
     </div>
   );

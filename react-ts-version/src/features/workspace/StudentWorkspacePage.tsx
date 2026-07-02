@@ -24,6 +24,7 @@ import { FeedbackToast } from './overlays/FeedbackToast';
 import { HelpOverlays } from './overlays/HelpOverlays';
 import { ReflectionScreen } from './ReflectionScreen';
 import { useWorkspaceRadar } from './useWorkspaceRadar';
+import { StudentChatOverlay } from './overlays/StudentChatOverlay';
 
 /**
  * מרחב הפעילות של התלמיד — חוויית מסך מלא ממוקדת (100vh, ללא גלילה, ללא טיימרים).
@@ -122,6 +123,7 @@ export function StudentWorkspacePage() {
 
         <FeedbackToast />
         <HelpOverlays />
+        <StudentChatOverlay />
       </div>
 
       <DragOverlay dropAnimation={{ duration: 250, easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)' }}>

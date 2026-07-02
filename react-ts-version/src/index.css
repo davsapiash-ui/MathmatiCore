@@ -161,15 +161,21 @@
   input[type='number'].no-spinner { -moz-appearance: textfield; appearance: textfield; }
 
   /* ASD Mode Global Toggles (Reduce Motion & Visual Noise) */
+  body.asd-mode-active {
+    --ws-ink: 215 16% 47%;
+    --ws-ink-soft: 215 16% 47%;
+    --foreground: 215 16% 47%;
+  }
+
   body.asd-mode-active * {
     /* Dim highly contrasting borders */
     border-color: rgba(150, 150, 150, 0.2) !important;
-    /* Soften all text contrast slightly to avoid pure black on pure white */
-    color: #475569;
   }
   
-  body.asd-mode-active .dark * {
-    color: #94a3b8;
+  body.asd-mode-active.dark {
+    --ws-ink: 215 20% 65%;
+    --ws-ink-soft: 215 20% 65%;
+    --foreground: 215 20% 65%;
   }
 
   body.asd-mode-active *,

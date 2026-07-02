@@ -4,16 +4,16 @@ import { Topbar } from './Topbar';
 
 export function AppShell() {
   return (
-    <div className="flex h-screen w-full bg-slate-50 dark:bg-slate-950 overflow-hidden font-sans" dir="rtl">
+    <div className="flex h-screen w-full bg-ws-bg font-body text-ws-ink overflow-hidden" dir="rtl">
       {/* Sidebar */}
       <Sidebar />
-      
+
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
         <Topbar />
-        
+
         {/* Page Content */}
-        <main className="flex-1 overflow-auto bg-slate-50/50 dark:bg-slate-950/50 relative">
+        <main className="flex-1 overflow-auto bg-ws-bg relative">
           {/* Outlet renders the nested child routes */}
           <Outlet />
         </main>

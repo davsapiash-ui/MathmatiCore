@@ -91,6 +91,13 @@ export function WorkspaceTopbar() {
           הבא ←
         </button>
 
+        <button
+          onClick={() => document.dispatchEvent(new CustomEvent('toggle-chat'))}
+          className="h-10 px-4 rounded-full text-sm font-bold text-ws-ink bg-emerald-100 hover:bg-emerald-200 border border-emerald-200 transition-colors"
+        >
+          💬 צ'אט
+        </button>
+
         <div className="w-px h-6 bg-ws-surface2 mx-1" />
         <span className="text-sm font-bold text-ws-soft whitespace-nowrap">🎓 {studentName}</span>
       </div>
