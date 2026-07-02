@@ -3,7 +3,7 @@ import 'katex/dist/katex.min.css';
 import { DndContext, DragOverlay, closestCenter } from '@dnd-kit/core';
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import { MathBoard } from '@/presentation/components/workspace/MathBoard';
-import { BlockOne, BlockTen, BlockHundred, BlockThousand } from '@/presentation/components/workspace/IsometricBlocks';
+import { MathBlock } from '@/presentation/components/workspace/MathBlock';
 import { useSilentRadar } from '@/application/useSilentRadar';
 import { UdlButton } from '@/presentation/design-system/UdlButton';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
@@ -209,19 +209,19 @@ export function StudentWorkspace() {
                 <div className="w-px h-12 bg-slate-200 dark:bg-slate-700"></div>
 
                 <button onClick={() => addBlock('thousand')} className="flex flex-col items-center gap-2 hover:scale-110 active:scale-95 transition-transform">
-                   <div className="h-10 flex items-end justify-center"><BlockThousand scale={0.25} /></div>
+                   <div className="h-10 flex items-end justify-center transform scale-[0.4] origin-bottom"><MathBlock id="btn-1000" type="thousand" isOverlay /></div>
                    <span className="text-xs font-black text-slate-500">אלף (1000)</span>
                 </button>
                 <button onClick={() => addBlock('hundred')} className="flex flex-col items-center gap-2 hover:scale-110 active:scale-95 transition-transform">
-                   <div className="h-10 flex items-end justify-center"><BlockHundred scale={0.4} /></div>
+                   <div className="h-10 flex items-end justify-center transform scale-[0.5] origin-bottom"><MathBlock id="btn-100" type="hundred" isOverlay /></div>
                    <span className="text-xs font-black text-slate-500">מאה (100)</span>
                 </button>
                 <button onClick={() => addBlock('ten')} className="flex flex-col items-center gap-2 hover:scale-110 active:scale-95 transition-transform">
-                   <div className="h-10 flex items-end justify-center"><BlockTen scale={0.5} /></div>
+                   <div className="h-10 flex items-end justify-center transform scale-[0.8] origin-bottom"><MathBlock id="btn-10" type="ten" isOverlay /></div>
                    <span className="text-xs font-black text-slate-500">עשרת (10)</span>
                 </button>
                 <button onClick={() => addBlock('one')} className="flex flex-col items-center gap-2 hover:scale-110 active:scale-95 transition-transform">
-                   <div className="h-10 flex items-end justify-center"><BlockOne scale={1} /></div>
+                   <div className="h-10 flex items-end justify-center"><MathBlock id="btn-1" type="one" isOverlay /></div>
                    <span className="text-xs font-black text-slate-500">יחידה (1)</span>
                 </button>
              </div>
@@ -232,10 +232,7 @@ export function StudentWorkspace() {
       <DragOverlay dropAnimation={{ duration: 300, easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)' }}>
         {activeId ? (
           <div className="scale-110 rotate-3 opacity-90 drop-shadow-2xl">
-             {activeType === 'one' && <BlockOne scale={1.2} />}
-             {activeType === 'ten' && <BlockTen scale={0.8} />}
-             {activeType === 'hundred' && <BlockHundred scale={0.65} />}
-             {activeType === 'thousand' && <BlockThousand scale={0.4} />}
+             <MathBlock id={`overlay-${activeId}`} type={activeType!} isOverlay />
           </div>
         ) : null}
       </DragOverlay>

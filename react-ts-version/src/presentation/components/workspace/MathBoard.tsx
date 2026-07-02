@@ -35,7 +35,7 @@ export function MathBoard({ ones, tens, hundreds, thousands }: MathBoardProps) {
       {/* Thousands Column */}
       <div 
         ref={setThousandsRef}
-        className={`flex-[1.5] rounded-2xl border-2 border-dashed transition-all p-4 flex flex-wrap content-start gap-4 
+        className={`flex-1 rounded-2xl border-2 border-dashed transition-all p-4 flex flex-wrap content-start gap-4 
           ${isOverThousands ? 'bg-rose-50/50 dark:bg-rose-900/20 border-rose-400 scale-[1.02]' : 'border-slate-300 dark:border-slate-700'}`}
       >
         <h2 className="w-full text-center text-2xl font-black text-rose-500/30 select-none mb-2">אלפים</h2>
@@ -52,7 +52,7 @@ export function MathBoard({ ones, tens, hundreds, thousands }: MathBoardProps) {
       {/* Hundreds Column */}
       <div 
         ref={setHundredsRef}
-        className={`flex-[1.5] rounded-2xl border-2 border-dashed transition-all p-4 flex flex-wrap content-start gap-4 
+        className={`flex-1 rounded-2xl border-2 border-dashed transition-all p-4 flex flex-wrap content-start gap-4 
           ${isOverHundreds ? 'bg-emerald-50/50 dark:bg-emerald-900/20 border-emerald-400 scale-[1.02]' : 'border-slate-300 dark:border-slate-700'}`}
       >
         <h2 className="w-full text-center text-2xl font-black text-emerald-500/30 select-none mb-2">מאות</h2>
