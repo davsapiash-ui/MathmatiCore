@@ -1,6 +1,6 @@
 import { Play, Trophy, Star, Sparkles, ChevronLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, Variants } from 'framer-motion';
 import '../styles/main.css';
 
 const meetings = [
@@ -14,7 +14,7 @@ const meetings = [
   { id: 8, title: 'מפגש 8: סיכום ורפלקציה', desc: 'רפלקציה על התהליך, הסקת מסקנות והערכה עצמית.', icon: '🏆', color: 'var(--color-warning)' },
 ];
 
-const containerVariants = {
+const containerVariants: Variants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
@@ -22,7 +22,7 @@ const containerVariants = {
   }
 };
 
-const itemVariants = {
+const itemVariants: Variants = {
   hidden: { y: 20, opacity: 0 },
   visible: { y: 0, opacity: 1, transition: { type: "spring", stiffness: 300, damping: 24 } }
 };
