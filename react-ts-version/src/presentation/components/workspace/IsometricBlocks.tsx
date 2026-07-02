@@ -22,7 +22,7 @@ interface BlockColors {
 }
 
 const COLORS: Record<string, BlockColors> = {
-  one: { top: '#FFFFFF', front: '#FFFDD0', side: '#E6E4BB' },
+  one: { top: '#FFFFFF', front: '#F5F5DC', side: '#EAEAD2' }, // Off-white more beige
   ten: { top: '#81C784', front: '#4CAF50', side: '#388E3C' },
   hundred: { top: '#3949AB', front: '#1A237E', side: '#000050' }, 
   thousand: { top: '#FFB74D', front: '#FF9800', side: '#F57C00' },

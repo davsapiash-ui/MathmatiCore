@@ -5,14 +5,14 @@ import type { Variants } from 'framer-motion';
 import '../styles/main.css';
 
 const meetings = [
-  { id: 1, title: 'מפגש 1: היכרות ותפעול', desc: 'התנסות חופשית במרחב העבודה הווירטואלי ותרגול ראשוני.', icon: '👋', color: 'var(--color-primary)' },
-  { id: 2, title: 'מפגש 2: מיפוי יכולות אישי', desc: 'אבחון אדפטיבי (מעוף הדבורה לאחור) וזיהוי חוזקות.', icon: '🎯', color: 'var(--color-accent)' },
-  { id: 3, title: 'מפגש 3: מסלול אדפטיבי', desc: 'בניית ידע ראשונית - תרגול חיבור מותאם אישית.', icon: '📈', color: 'var(--color-success)' },
-  { id: 4, title: 'מפגש 4: מסלול אדפטיבי', desc: 'ביסוס ידע ודעיכת פיגומים - תרגול חיסור.', icon: '📈', color: 'var(--color-success)' },
-  { id: 5, title: 'מפגש 5: מסלול אדפטיבי', desc: 'המשך מסלול הלמידה המותאם אדפטיבית לביצועיך.', icon: '📈', color: 'var(--color-success)' },
-  { id: 6, title: 'מפגש 6: מסלול אדפטיבי', desc: 'המשך מסלול הלמידה המותאם אדפטיבית לביצועיך.', icon: '📈', color: 'var(--color-success)' },
-  { id: 7, title: 'מפגש 7: מסלול אדפטיבי', desc: 'המשך מסלול הלמידה המותאם אדפטיבית לביצועיך.', icon: '📈', color: 'var(--color-success)' },
-  { id: 8, title: 'מפגש 8: סיכום ורפלקציה', desc: 'רפלקציה על התהליך, הסקת מסקנות והערכה עצמית.', icon: '🏆', color: 'var(--color-warning)' },
+  { id: 1, title: 'מפגש 1: היכרות ותפעול', desc: 'התנסות חופשית במרחב העבודה הווירטואלי.', icon: '👋', color: 'var(--color-primary)' },
+  { id: 2, title: 'מפגש 2: אבחון אישי', desc: 'מבדק קצר כדי להכיר את הרמה שלכם במתמטיקה.', icon: '🎯', color: 'var(--color-accent)' },
+  { id: 3, title: 'מפגש 3: מסלול אדפטיבי', desc: 'מתחילים לפתור תרגילים מיוחדים שמותאמים בדיוק לכם!', icon: '📈', color: 'var(--color-success)' },
+  { id: 4, title: 'מפגש 4: חוקרים ומגלים', desc: 'תרגולי פריטה וקיבוץ - מתרגלים יחד ומצליחים.', icon: '📈', color: 'var(--color-success)' },
+  { id: 5, title: 'מפגש 5: חוקרים ומגלים', desc: 'ממשיכים לתרגל ולגלות שיטות חדשות לפתרון.', icon: '📈', color: 'var(--color-success)' },
+  { id: 6, title: 'מפגש 6: אלופי החשבון', desc: 'תרגילים מתקדמים שמותאמים לקצב שלכם.', icon: '📈', color: 'var(--color-success)' },
+  { id: 7, title: 'מפגש 7: אלופי החשבון', desc: 'לקראת סיום - תרגולים מאתגרים לחיזוק הלמידה.', icon: '📈', color: 'var(--color-success)' },
+  { id: 8, title: 'מפגש 8: סיכום ורפלקציה', desc: 'מסכמים את התהליך ורואים כמה התקדמנו!', icon: '🏆', color: 'var(--color-warning)' },
 ];
 
 const containerVariants: Variants = {
@@ -60,10 +60,10 @@ export function StudentHub() {
               <Sparkles className="w-4 h-4" /> סביבת הלמידה האישית שלך
             </div>
             <h1 className="text-5xl md:text-6xl font-black tracking-tight leading-tight mt-2" style={{ color: 'var(--color-text)' }}>
-              ברוך שובך, תלמיד!
+              ברוכים השבים!
             </h1>
             <p className="text-xl leading-relaxed mt-2 font-medium" style={{ color: 'var(--color-text-secondary)' }}>
-              המשך במסע הלמידה שלך. משימת חיבור וחיסור מחכה לך, בוא נראה מה אתה יודע והיכן ניתן להשתפר.
+              המשיכו במסע הלמידה שלכם. תרגילים מאתגרים מחכים לכם, בואו נראה מה אתם יודעים!
             </p>
             
             <motion.button 
@@ -77,7 +77,7 @@ export function StudentHub() {
               onClick={() => navigate('/workspace')}
             >
               <Play className="w-5 h-5 fill-current" />
-              המשך מאיפה שעצרת
+              להמשך התרגול
             </motion.button>
           </div>
         </motion.section>
@@ -155,7 +155,7 @@ export function StudentHub() {
                 </div>
                 <div>
                   <div className="text-3xl font-black" style={{ color: 'var(--color-text)' }}>1,250</div>
-                  <div className="text-sm font-bold uppercase tracking-wider mt-1" style={{ color: 'var(--color-text-secondary)' }}>נקודות ניסיון</div>
+                  <div className="text-sm font-bold uppercase tracking-wider mt-1" style={{ color: 'var(--color-text-secondary)' }}>כוכבים</div>
                 </div>
               </div>
 

@@ -21,40 +21,50 @@ export function Login() {
   const [selectedRole, setSelectedRole] = useState<"student" | "teacher" | "admin" | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  const handleLogin = () => {
+  // Form State
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [taz, setTaz] = useState("");
+  const [dob, setDob] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const handleLogin = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!selectedRole) return;
+    setErrorMsg("");
 
     if (selectedRole === "student") {
-      const username = window.prompt("אנא הזן שם משתמש (לדוגמה: user1):");
-      if (!username) return;
-      const password = window.prompt("אנא הזן קוד סודי (10203040):");
-      if (!password) return;
-
-      const user = DEMO_USERS[username];
+      if (!username || !password) {
+        setErrorMsg("אנא הזן שם משתמש וסיסמה.");
+        return;
+      }
+      const normalizedUsername = username.trim().toLowerCase();
+      const user = DEMO_USERS[normalizedUsername];
+      
       if (user && user.password === password) {
         setIsLoggingIn(true);
         setTimeout(() => {
+          const newUid = `student_${normalizedUsername}`;
           setUser({
-            uid: `student_${Date.now()}`,
+            uid: newUid,
             role: "student",
             displayName: user.name,
           }, "student");
-          login("student", "student-2"); // Force mock to the specific student for testing Meeting 2
-          navigate("/hub", { replace: true }); // Students go to hub first!
+          login("student", newUid); 
+          navigate("/hub", { replace: true }); 
         }, 600);
       } else {
-        alert("שם המשתמש או הסיסמה שגויים.");
+        setErrorMsg("שם המשתמש או הסיסמה שגויים.");
       }
     } else if (selectedRole === "teacher") {
-      const taz = window.prompt("אנא הזן תעודת זהות:");
-      if (!taz) return;
-      const dob = window.prompt("אנא הזן תאריך לידה (6 ספרות - DDMMYY):");
-      if (!dob) return;
-
+      if (!taz || !dob) {
+        setErrorMsg("אנא הזן תעודת זהות ותאריך לידה.");
+        return;
+      }
       const teacher = teachers.find(t => t.taz === taz && t.dob === dob);
       if (teacher) {
         if (!teacher.licenseActive) {
-          alert("הרישיון שלך אינו פעיל. פנה למנהל המערכת.");
+          setErrorMsg("הרישיון שלך אינו פעיל. פנה למנהל המערכת.");
           return;
         }
         setIsLoggingIn(true);
@@ -68,13 +78,13 @@ export function Login() {
           navigate("/dashboard", { replace: true });
         }, 600);
       } else {
-        alert("תעודת זהות או תאריך לידה שגויים.");
+        setErrorMsg("תעודת זהות או תאריך לידה שגויים.");
       }
     } else if (selectedRole === "admin") {
-      const username = window.prompt("שם משתמש מנהל:");
-      if (!username) return;
-      const password = window.prompt("סיסמת מנהל:");
-      if (!password) return;
+      if (!username || !password) {
+        setErrorMsg("אנא הזן שם משתמש וסיסמה.");
+        return;
+      }
 
       if (username === "davsapiash" && password === "carlibach") {
         setIsLoggingIn(true);
@@ -88,7 +98,7 @@ export function Login() {
           navigate("/admin", { replace: true });
         }, 600);
       } else {
-        alert("פרטי מנהל שגויים.");
+        setErrorMsg("פרטי מנהל שגויים.");
       }
     }
   };
@@ -129,21 +139,21 @@ export function Login() {
 
               <div className="flex gap-3 justify-center flex-col sm:flex-row">
                 <button 
-                  onClick={() => setSelectedRole("student")}
+                  onClick={() => { setSelectedRole("student"); }}
                   className="role-btn-student flex-1 flex flex-col items-center gap-2 p-5 sm:p-3 bg-white/5 border-[1.5px] border-white/10 rounded-lg text-white/85 text-sm font-semibold transition-all hover:-translate-y-1 hover:shadow-[0_8px_24px_rgba(0,0,0,0.3)]"
                 >
                   <span className="text-3xl leading-none">🎓</span>
                   <span>תלמיד</span>
                 </button>
                 <button 
-                  onClick={() => setSelectedRole("teacher")}
+                  onClick={() => { setSelectedRole("teacher"); }}
                   className="role-btn-teacher flex-1 flex flex-col items-center gap-2 p-5 sm:p-3 bg-white/5 border-[1.5px] border-white/10 rounded-lg text-white/85 text-sm font-semibold transition-all hover:-translate-y-1 hover:shadow-[0_8px_24px_rgba(0,0,0,0.3)]"
                 >
                   <span className="text-3xl leading-none">📊</span>
                   <span>מורה</span>
                 </button>
                 <button 
-                  onClick={() => setSelectedRole("admin")}
+                  onClick={() => { setSelectedRole("admin"); }}
                   className="role-btn-admin flex-1 flex flex-col items-center gap-2 p-5 sm:p-3 bg-white/5 border-[1.5px] border-white/10 rounded-lg text-white/85 text-sm font-semibold transition-all hover:-translate-y-1 hover:shadow-[0_8px_24px_rgba(0,0,0,0.3)]"
                 >
                   <span className="text-3xl leading-none">⚙️</span>
@@ -155,24 +165,72 @@ export function Login() {
             /* Authentication Form */
             <div className="relative animate-in slide-in-from-right-4 fade-in duration-300">
               <button 
-                onClick={() => setSelectedRole(null)}
+                onClick={() => { setSelectedRole(null); setErrorMsg(""); }}
                 className="absolute -top-4 -left-4 bg-transparent text-white/50 text-sm font-semibold px-2 py-1 rounded transition-colors hover:text-white/90 hover:bg-white/5"
               >
-                ← חזרה
+                חזרה ➔
               </button>
               
               <div className="flex items-center gap-3 mb-6 mt-4">
                 <h2 className="text-xl font-extrabold text-white">{roleTitle}</h2>
               </div>
               
-              <div className="text-center p-4">
+              <form onSubmit={handleLogin} className="text-center p-4">
                 <p className="mb-6 text-sm text-white/70">
-                  {selectedRole === "student" && "מערכת ה-SSO מזהה אותך אוטומטית לפי חשבון הגוגל הבית-ספרי שלך. בגרסת הדמו יש להזין שם משתמש."}
+                  {selectedRole === "student" && "התחבר באמצעות שם המשתמש והסיסמה שקיבלת מהמורה."}
                   {selectedRole === "teacher" && "הכניסה למורים דורשת הקלדת תעודת זהות ותאריך לידה (6 ספרות)."}
                   {selectedRole === "admin" && "הכניסה למנהלים מוגנת ומחייבת הזנת פרטי הזדהות מורשים בלבד."}
                 </p>
+
+                {errorMsg && (
+                  <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-200 text-sm font-medium">
+                    {errorMsg}
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-4 mb-6">
+                  {(selectedRole === "student" || selectedRole === "admin") && (
+                    <>
+                      <input 
+                        type="text" 
+                        placeholder="שם משתמש" 
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        className="w-full bg-white/10 border border-white/20 rounded-lg p-3 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/50"
+                        autoFocus
+                      />
+                      <input 
+                        type="password" 
+                        placeholder="סיסמה" 
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full bg-white/10 border border-white/20 rounded-lg p-3 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/50"
+                      />
+                    </>
+                  )}
+                  {selectedRole === "teacher" && (
+                    <>
+                      <input 
+                        type="text" 
+                        placeholder="תעודת זהות" 
+                        value={taz}
+                        onChange={(e) => setTaz(e.target.value)}
+                        className="w-full bg-white/10 border border-white/20 rounded-lg p-3 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/50"
+                        autoFocus
+                      />
+                      <input 
+                        type="password" 
+                        placeholder="תאריך לידה (6 ספרות, במבנה יום-חודש-שנה)" 
+                        value={dob}
+                        onChange={(e) => setDob(e.target.value)}
+                        className="w-full bg-white/10 border border-white/20 rounded-lg p-3 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/50"
+                      />
+                    </>
+                  )}
+                </div>
+
                 <button 
-                  onClick={handleLogin}
+                  type="submit"
                   disabled={isLoggingIn}
                   className="w-full flex items-center justify-center gap-3 p-4 bg-white text-slate-800 text-base font-bold rounded-md transition-all hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-70 disabled:transform-none"
                 >
@@ -186,11 +244,11 @@ export function Login() {
                           <path fill="#EA4335" d="M -14.754 43.989 C -12.984 43.989 -11.404 44.599 -10.154 45.789 L -6.734 42.369 C -8.804 40.429 -11.514 39.239 -14.754 39.239 C -19.444 39.239 -23.494 41.939 -25.464 45.859 L -21.484 48.949 C -20.534 46.109 -17.884 43.989 -14.754 43.989 Z"/>
                         </g>
                       </svg>
-                      {selectedRole === "student" ? "התחברות שקופה" : "התחבר למערכת"}
+                      {selectedRole === "student" ? "כניסה מהירה" : "התחבר למערכת"}
                     </>
                   )}
                 </button>
-              </div>
+              </form>
             </div>
           )}
 

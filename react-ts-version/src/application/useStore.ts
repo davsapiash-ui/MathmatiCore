@@ -85,55 +85,89 @@ export const useStore = create<AppState>((set) => ({
   currentUserId: null,
   students: initialStudents,
 
-  login: (role, id) => set({ currentUserRole: role, currentUserId: id }),
+  login: (role, id) => set((state) => {
+    const newState: Partial<AppState> = { currentUserRole: role, currentUserId: id };
+    if (role === 'student' && !state.students[id]) {
+      // Auto-initialize new student
+      newState.students = {
+        ...state.students,
+        [id]: {
+          studentId: id,
+          name: id.replace('student_', ''),
+          completedMeeting2: false,
+          qMatrixResults: {
+            task1_zero_placeholder: null,
+            task2_estimation_error_margin: null,
+            task3_flexible_regrouping: null,
+            task4_basic_addition_fluency: null,
+            task5_basic_subtraction_fluency: null,
+          },
+          traceData: { hesitation_events: 0, undo_clicks: 0 }
+        }
+      };
+    }
+    return newState;
+  }),
   logout: () => set({ currentUserRole: null, currentUserId: null }),
 
-  incrementHesitation: (studentId) => set((state) => ({
-    students: {
-      ...state.students,
-      [studentId]: {
-        ...state.students[studentId],
-        traceData: {
-          ...state.students[studentId].traceData,
-          hesitation_events: state.students[studentId].traceData.hesitation_events + 1
+  incrementHesitation: (studentId) => set((state) => {
+    if (!state.students[studentId]) return state;
+    return {
+      students: {
+        ...state.students,
+        [studentId]: {
+          ...state.students[studentId],
+          traceData: {
+            ...state.students[studentId].traceData,
+            hesitation_events: state.students[studentId].traceData.hesitation_events + 1
+          }
         }
       }
-    }
-  })),
+    };
+  }),
 
-  incrementUndo: (studentId) => set((state) => ({
-    students: {
-      ...state.students,
-      [studentId]: {
-        ...state.students[studentId],
-        traceData: {
-          ...state.students[studentId].traceData,
-          undo_clicks: state.students[studentId].traceData.undo_clicks + 1
+  incrementUndo: (studentId) => set((state) => {
+    if (!state.students[studentId]) return state;
+    return {
+      students: {
+        ...state.students,
+        [studentId]: {
+          ...state.students[studentId],
+          traceData: {
+            ...state.students[studentId].traceData,
+            undo_clicks: state.students[studentId].traceData.undo_clicks + 1
+          }
         }
       }
-    }
-  })),
+    };
+  }),
 
-  updateQMatrix: (studentId, updates) => set((state) => ({
-    students: {
-      ...state.students,
-      [studentId]: {
-        ...state.students[studentId],
-        qMatrixResults: {
-          ...state.students[studentId].qMatrixResults,
-          ...updates
+  updateQMatrix: (studentId, updates) => set((state) => {
+    if (!state.students[studentId]) return state;
+    return {
+      students: {
+        ...state.students,
+        [studentId]: {
+          ...state.students[studentId],
+          qMatrixResults: {
+            ...state.students[studentId].qMatrixResults,
+            ...updates
+          }
         }
       }
-    }
-  })),
+    };
+  }),
   
-  markMeeting2Complete: (studentId) => set((state) => ({
-    students: {
-      ...state.students,
-      [studentId]: {
-        ...state.students[studentId],
-        completedMeeting2: true
+  markMeeting2Complete: (studentId) => set((state) => {
+    if (!state.students[studentId]) return state;
+    return {
+      students: {
+        ...state.students,
+        [studentId]: {
+          ...state.students[studentId],
+          completedMeeting2: true
+        }
       }
-    }
-  }))
+    };
+  })
 }));

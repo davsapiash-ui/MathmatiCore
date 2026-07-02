@@ -1,6 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import 'katex/dist/katex.min.css';
-import { BlockMath } from 'react-katex';
 import { DndContext, DragOverlay, closestCenter } from '@dnd-kit/core';
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import { MathBoard } from '@/presentation/components/workspace/MathBoard';
@@ -8,24 +7,39 @@ import { MathBlock } from '@/presentation/components/workspace/MathBlock';
 import { useSilentRadar } from '@/application/useSilentRadar';
 import { UdlButton } from '@/presentation/design-system/UdlButton';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
-import { useSearchParams } from 'react-router-dom';
-import { Meeting2Mapping } from './StudentWorkspace/Meeting2Mapping';
+import { allTasks } from '@/data/mockTasks';
 
 export function StudentWorkspace() {
-  const [searchParams] = useSearchParams();
-  const meetingId = searchParams.get('meeting') || '1';
+  const [currentTaskIdx, setCurrentTaskIdx] = useState(0);
+  const currentTask = allTasks[currentTaskIdx];
 
-  const [ones, setOnes] = useState(Array.from({ length: 4 }).map((_, i) => ({ id: `one-${i}` })));
-  const [tens, setTens] = useState(Array.from({ length: 2 }).map((_, i) => ({ id: `ten-${i}` })));
-  const [hundreds, setHundreds] = useState(Array.from({ length: 1 }).map((_, i) => ({ id: `hundred-${i}` })));
-  const [thousands, setThousands] = useState(Array.from({ length: 1 }).map((_, i) => ({ id: `thousand-${i}` })));
+  const [ones, setOnes] = useState<{id: string}[]>([]);
+  const [tens, setTens] = useState<{id: string}[]>([]);
+  const [hundreds, setHundreds] = useState<{id: string}[]>([]);
+  const [thousands, setThousands] = useState<{id: string}[]>([]);
   
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeType, setActiveType] = useState<'one' | 'ten' | 'hundred' | 'thousand' | null>(null);
   const [hasInteracted, setHasInteracted] = useState(false);
 
   // Initialize Silent Radar
-  const { registerInteraction, registerUndo } = useSilentRadar({ taskId: 'regrouping-demo-1' });
+  const { registerInteraction, registerUndo } = useSilentRadar({ taskId: currentTask.id });
+
+  // Load initial blocks when task changes
+  useEffect(() => {
+    if (currentTask.initialBlocks) {
+      setOnes(Array.from({ length: currentTask.initialBlocks.ones }).map((_, i) => ({ id: `one-init-${i}` })));
+      setTens(Array.from({ length: currentTask.initialBlocks.tens }).map((_, i) => ({ id: `ten-init-${i}` })));
+      setHundreds(Array.from({ length: currentTask.initialBlocks.hundreds }).map((_, i) => ({ id: `hundred-init-${i}` })));
+      setThousands(Array.from({ length: currentTask.initialBlocks.thousands }).map((_, i) => ({ id: `thousand-init-${i}` })));
+    } else {
+      setOnes([]);
+      setTens([]);
+      setHundreds([]);
+      setThousands([]);
+    }
+    setHasInteracted(false);
+  }, [currentTask]);
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);
@@ -93,126 +107,124 @@ export function StudentWorkspace() {
 
   const handleUndo = () => {
     registerUndo();
-    // In a real app we'd pop state from a history stack. For now, just register the undo click.
+  };
+
+  const addBlock = (type: 'one' | 'ten' | 'hundred' | 'thousand') => {
+    setHasInteracted(true);
+    registerInteraction();
+    switch (type) {
+      case 'one': setOnes(prev => [...prev, { id: `one-manual-${Date.now()}` }]); break;
+      case 'ten': setTens(prev => [...prev, { id: `ten-manual-${Date.now()}` }]); break;
+      case 'hundred': setHundreds(prev => [...prev, { id: `hundred-manual-${Date.now()}` }]); break;
+      case 'thousand': setThousands(prev => [...prev, { id: `thousand-manual-${Date.now()}` }]); break;
+    }
+  };
+
+  const nextTask = () => {
+    if (currentTaskIdx < allTasks.length - 1) {
+      setCurrentTaskIdx(prev => prev + 1);
+    }
+  };
+
+  const prevTask = () => {
+    if (currentTaskIdx > 0) {
+      setCurrentTaskIdx(prev => prev - 1);
+    }
   };
 
   return (
-    <div className="flex flex-col h-full w-full bg-slate-50 dark:bg-slate-950 font-sans relative">
+    <div className="flex flex-col h-full w-full bg-slate-50 dark:bg-slate-950 font-sans relative overflow-hidden">
       
-      {/* Workspace Actions */}
-      <div className="absolute top-4 left-8 flex gap-4 z-20">
-        <UdlButton variant="outline" onClick={handleUndo} className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md">
-          בטל פעולה האחרונה
-        </UdlButton>
-        <UdlButton 
-          semanticColor="primary" 
-          disabled={!hasInteracted}
-          className="shadow-lg shadow-indigo-500/20 font-bold"
-        >
-          סיימתי, בדוק אותי
-        </UdlButton>
-      </div>
+      {/* ZONE 1: Instructions & Exercises (Top Bar) */}
+      <header className="w-full bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm z-30 flex items-center justify-between px-6 py-4">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-black text-slate-800 dark:text-slate-100">{currentTask.titleHe}</h1>
+            <span className="bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-1 rounded-full">משימה {currentTaskIdx + 1} מתוך {allTasks.length}</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <p className="text-slate-600 dark:text-slate-300 text-base max-w-3xl">
+              {currentTask.instructionHe}
+            </p>
+            <UdlSpeechButton text={currentTask.instructionHe} />
+          </div>
+        </div>
 
-      {/* Main Workspace Area */}
-      <main className="flex-1 relative flex flex-col items-center justify-center p-8 overflow-y-auto">
-        
-        {meetingId === '2' && <Meeting2Mapping />}
-        
-        {['3', '4', '5', '6', '7'].includes(meetingId) && <MeetingAdaptiveTrack meetingId={meetingId} />}
-        
-        {meetingId === '8' && <Meeting8Reflection />}
+        <div className="flex gap-2 items-center">
+          <UdlButton variant="outline" onClick={handleUndo} className="bg-white hover:bg-slate-50">
+            בטל פעולה
+          </UdlButton>
+          <div className="flex gap-1 ml-4 border-l pl-4 border-slate-200">
+             <UdlButton variant="secondary" onClick={prevTask} disabled={currentTaskIdx === 0}>
+               הקודם
+             </UdlButton>
+             <UdlButton semanticColor="primary" onClick={nextTask} disabled={!hasInteracted && currentTaskIdx < allTasks.length - 1}>
+               סיימתי, המשך
+             </UdlButton>
+          </div>
+        </div>
+      </header>
 
-        {/* Meeting 1 (Default Free Play) */}
-        {meetingId === '1' && (
-          <>
-            <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
-            <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
-            
-            <div className="mb-12 text-center z-10 flex flex-col items-center">
-              <div className="text-4xl font-black text-slate-800 dark:text-slate-100 mb-4 tracking-tight" aria-label="תרגיל: אלף מאה עשרים וארבע ועוד שמונה עשרה">
-                <BlockMath math="1124 + 18 = ?" />
-              </div>
-              <div className="flex items-center gap-4 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md px-6 py-3 rounded-full border border-slate-200 dark:border-slate-800 shadow-sm">
-                <p className="text-slate-700 dark:text-slate-300 text-lg font-medium">
-                  היעזר בבדידים כדי לפתור את התרגיל. גרור עשרת ליחידות כדי לפרוט, או 10 יחידות לעשרות כדי לקבץ.
-                </p>
-                <UdlSpeechButton text="היעזר בבדידים כדי לפתור את התרגיל. גרור עשרת ליחידות כדי לפרוט, או 10 יחידות לעשרות כדי לקבץ." />
-              </div>
+      <div className="flex flex-1 overflow-hidden relative">
+        
+        {/* ZONE 2: Warehouse (Right Sidebar) */}
+        <aside className="w-24 md:w-32 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-[4px_0_15px_rgba(0,0,0,0.05)] flex flex-col z-20 select-none">
+          <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 flex flex-col items-center">
+            <h2 className="text-xs md:text-sm font-black text-slate-700 dark:text-slate-300 text-center">מחסן</h2>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-4 items-center">
+            <button onClick={() => addBlock('thousand')} className="w-full aspect-square bg-orange-50 hover:bg-orange-100 dark:bg-orange-900/20 dark:hover:bg-orange-900/40 rounded-xl flex flex-col items-center justify-center gap-2 transition-transform hover:scale-105 active:scale-95 border border-orange-100 dark:border-orange-800/50">
+               <div className="text-3xl">🧊</div>
+               <span className="text-xs font-black text-orange-600 dark:text-orange-400">1000</span>
+            </button>
+
+            <button onClick={() => addBlock('hundred')} className="w-full aspect-square bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/40 rounded-xl flex flex-col items-center justify-center gap-2 transition-transform hover:scale-105 active:scale-95 border border-blue-100 dark:border-blue-800/50">
+               <div className="text-3xl">🔲</div>
+               <span className="text-xs font-black text-blue-600 dark:text-blue-400">100</span>
+            </button>
+
+            <button onClick={() => addBlock('ten')} className="w-full aspect-square bg-green-50 hover:bg-green-100 dark:bg-green-900/20 dark:hover:bg-green-900/40 rounded-xl flex flex-col items-center justify-center gap-2 transition-transform hover:scale-105 active:scale-95 border border-green-100 dark:border-green-800/50">
+               <div className="text-3xl">📏</div>
+               <span className="text-xs font-black text-green-600 dark:text-green-400">10</span>
+            </button>
+
+            <button onClick={() => addBlock('one')} className="w-full aspect-square bg-[#F5F5DC]/50 hover:bg-[#F5F5DC] dark:bg-yellow-900/20 dark:hover:bg-yellow-900/40 rounded-xl flex flex-col items-center justify-center gap-2 transition-transform hover:scale-105 active:scale-95 border border-yellow-200 dark:border-yellow-800/50">
+               <div className="text-3xl">▫️</div>
+               <span className="text-xs font-black text-yellow-700 dark:text-yellow-500">1</span>
+            </button>
+          </div>
+        </aside>
+
+        {/* ZONE 3: MathBoard (Center) */}
+        <main className="flex-1 relative flex flex-col items-center justify-center p-4 md:p-8 overflow-hidden bg-slate-50/50 dark:bg-slate-950/50">
+          {/* Ambient Lights */}
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
+          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+          {currentTask.numberA !== undefined && currentTask.numberB !== undefined && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-white dark:bg-slate-900 px-8 py-4 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800">
+               <div className="text-5xl font-black text-slate-800 dark:text-slate-100 tracking-wider font-mono">
+                 {currentTask.numberA} {currentTask.isSubtraction ? '-' : '+'} {currentTask.numberB}
+               </div>
             </div>
+          )}
 
-            <DndContext 
-              collisionDetection={closestCenter}
-              onDragStart={handleDragStart}
-              onDragEnd={handleDragEnd}
-            >
-              <MathBoard ones={ones} tens={tens} hundreds={hundreds} thousands={thousands} />
+          <DndContext 
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          >
+            <MathBoard ones={ones} tens={tens} hundreds={hundreds} thousands={thousands} />
 
-              <DragOverlay>
-                {activeId && activeType ? (
-                  <MathBlock id={activeId} type={activeType} isOverlay={true} />
-                ) : null}
-              </DragOverlay>
-            </DndContext>
-          </>
-        )}
-      </main>
-    </div>
-  );
-}
-
-function MeetingAdaptiveTrack({ meetingId }: { meetingId: string }) {
-  const { registerInteraction } = useSilentRadar({ taskId: `adaptive-track-${meetingId}` });
-  
-  return (
-    <div className="flex-1 flex flex-col items-center justify-center p-8 animate-in zoom-in-95 duration-700">
-      <h2 className="text-4xl font-black text-slate-800 dark:text-slate-100 mb-4 text-center">
-        מסלול אדפטיבי - מפגש {meetingId}
-      </h2>
-      <p className="text-xl text-slate-600 dark:text-slate-400 mb-12 text-center max-w-2xl">
-        כאן מיושם המסלול האדפטיבי (מעוף הדבורה לאחור) המזהה את הקשיים במדויק ומציג תרגילים מדורגים בהתאם ליכולותיך (חיבור וחיסור עם המרה ופריטה).
-      </p>
-      <div className="w-full max-w-3xl bg-white dark:bg-slate-900 rounded-3xl p-8 shadow-xl border border-slate-200 dark:border-slate-800 text-center">
-        <div className="text-5xl mb-6">📈</div>
-        <h3 className="text-2xl font-bold mb-4">תחנה במסלול הלמידה המותאם</h3>
-        <p className="text-slate-500 mb-8">
-          מנגנון התאמת הרמה והקפצת הרמזים פועל ברקע...
-        </p>
-        <UdlButton semanticColor="primary" className="px-12 font-bold" onClick={() => { registerInteraction(); window.location.href = '/hub'; }}>
-          חזור ללוח הראשי
-        </UdlButton>
-      </div>
-    </div>
-  );
-}
-
-function Meeting8Reflection() {
-  const { registerInteraction } = useSilentRadar({ taskId: 'reflection-meeting-8' });
-  
-  return (
-    <div className="flex-1 flex flex-col items-center justify-center p-8 animate-in zoom-in-95 duration-700">
-      <div className="w-24 h-24 bg-gradient-to-tr from-amber-400 to-orange-500 rounded-full flex items-center justify-center text-5xl shadow-2xl shadow-orange-500/40 mb-8">
-        🏆
-      </div>
-      <h2 className="text-4xl font-black text-slate-800 dark:text-slate-100 mb-4 text-center">
-        מפגש 8: סיכום ורפלקציה
-      </h2>
-      <p className="text-xl text-slate-600 dark:text-slate-400 mb-12 text-center max-w-2xl">
-        סיימת את תהליך הלמידה במערכת מתמטיקאור! כל הכבוד על ההשקעה. כעת הזמן להסיק מסקנות.
-      </p>
-
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 rounded-3xl shadow-xl w-full max-w-2xl">
-        <h3 className="text-2xl font-bold mb-6 text-center">במה הכי השתפרת לאורך המפגשים?</h3>
-        <div className="flex flex-col gap-4 mb-8">
-          <UdlButton variant="outline" className="text-lg py-4">הבנתי איך עובדת פעולת ההמרה עשר יחידות לעשרת</UdlButton>
-          <UdlButton variant="outline" className="text-lg py-4">השתפרתי בחיסור עם פריטה כולל מעבר על אפסים</UdlButton>
-          <UdlButton variant="outline" className="text-lg py-4">אני מצליח לפתור תרגילים מהר יותר בראש בלי להיבהל</UdlButton>
-        </div>
+            <DragOverlay>
+              {activeId && activeType ? (
+                <MathBlock id={activeId} type={activeType} isOverlay={true} />
+              ) : null}
+            </DragOverlay>
+          </DndContext>
+        </main>
         
-        <div className="mt-8 pt-8 border-t border-slate-100 dark:border-slate-800 text-center">
-           <UdlButton semanticColor="primary" className="px-12 font-bold shadow-lg shadow-indigo-500/20" onClick={() => { registerInteraction(); window.location.href = '/hub'; }}>
-             חזור ללוח הראשי וסיים
-           </UdlButton>
-        </div>
       </div>
     </div>
   );

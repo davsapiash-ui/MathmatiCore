@@ -101,8 +101,8 @@ export function TeacherDashboard() {
     ).sort((a, b) => a.timestamp - b.timestamp);
   }, [messages, user]);
 
-  // For Student Chat (Mock list of students for now)
-  const mockStudents: any[] = [];
+  // For Student Chat
+  const chatStudents = Object.values(students);
 
   const studentMessages = useMemo(() => {
     if (!user || !selectedStudentId) return [];
@@ -235,7 +235,7 @@ export function TeacherDashboard() {
                   <BarChart data={qMatrixData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" className="text-slate-200 dark:text-slate-800 opacity-50" />
                     <XAxis dataKey="name" fontSize={13} tickLine={false} axisLine={false} tick={{fill: 'currentColor', className: 'text-slate-600 dark:text-slate-400'}} dy={10} />
-                    <YAxis fontSize={13} tickLine={false} axisLine={false} tick={{fill: 'currentColor', className: 'text-slate-600 dark:text-slate-400'}} dx={-10} />
+                    <YAxis orientation="right" fontSize={13} tickLine={false} axisLine={false} tick={{fill: 'currentColor', className: 'text-slate-600 dark:text-slate-400'}} dx={-10} />
                     <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(15, 23, 42, 0.9)', color: 'white', backdropFilter: 'blur(12px)', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.2)' }} cursor={{fill: 'rgba(99, 102, 241, 0.05)'}} />
                     <Legend wrapperStyle={{ paddingTop: '20px' }} />
                     <Bar dataKey="success" name="שליטה במיומנות (%)" stackId="a" fill="#3b82f6" radius={[0, 0, 6, 6]} />
@@ -414,19 +414,19 @@ export function TeacherDashboard() {
                 <p className="text-xs text-slate-500 mt-1 font-medium">בחר תלמיד לתחילת צ'אט אישי</p>
               </div>
               <div className="flex-1 overflow-y-auto p-3 space-y-2">
-                {mockStudents.map(student => {
-                  const unreadCount = messages.filter(m => m.senderId === student.id && m.receiverId === user?.uid && !m.read).length;
+                {chatStudents.map(student => {
+                  const unreadCount = messages.filter(m => m.senderId === student.studentId && m.receiverId === user?.uid && !m.read).length;
                   return (
                     <button
-                      key={student.id}
-                      onClick={() => { setSelectedStudentId(student.id); setInputText(""); }}
-                      className={`w-full text-right p-4 rounded-xl flex items-center justify-between transition-all ${selectedStudentId === student.id ? 'bg-cyan-50 dark:bg-cyan-500/10 shadow-sm border border-cyan-200/50 dark:border-cyan-800/50' : 'hover:bg-slate-100/80 dark:hover:bg-slate-800/80 border border-transparent'}`}
+                      key={student.studentId}
+                      onClick={() => { setSelectedStudentId(student.studentId); setInputText(""); }}
+                      className={`w-full text-right p-4 rounded-xl flex items-center justify-between transition-all ${selectedStudentId === student.studentId ? 'bg-cyan-50 dark:bg-cyan-500/10 shadow-sm border border-cyan-200/50 dark:border-cyan-800/50' : 'hover:bg-slate-100/80 dark:hover:bg-slate-800/80 border border-transparent'}`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white shadow-inner ${selectedStudentId === student.id ? 'bg-gradient-to-tr from-cyan-500 to-blue-500' : 'bg-slate-300 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white shadow-inner ${selectedStudentId === student.studentId ? 'bg-gradient-to-tr from-cyan-500 to-blue-500' : 'bg-slate-300 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>
                           {student.name[0]}
                         </div>
-                        <span className={`font-bold text-base ${selectedStudentId === student.id ? 'text-cyan-800 dark:text-cyan-200' : 'text-slate-700 dark:text-slate-300'}`}>
+                        <span className={`font-bold text-base ${selectedStudentId === student.studentId ? 'text-cyan-800 dark:text-cyan-200' : 'text-slate-700 dark:text-slate-300'}`}>
                           {student.name}
                         </span>
                       </div>
@@ -453,10 +453,10 @@ export function TeacherDashboard() {
                       &rarr;
                     </button>
                     <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-500 flex items-center justify-center font-bold text-white shadow-lg shadow-cyan-500/20 text-xl">
-                      {mockStudents.find(s => s.id === selectedStudentId)?.name[0]}
+                      {chatStudents.find(s => s.studentId === selectedStudentId)?.name[0]}
                     </div>
                     <div>
-                      <h3 className="font-bold text-xl text-slate-800 dark:text-slate-100">{mockStudents.find(s => s.id === selectedStudentId)?.name}</h3>
+                      <h3 className="font-bold text-xl text-slate-800 dark:text-slate-100">{chatStudents.find(s => s.studentId === selectedStudentId)?.name}</h3>
                       <div className="flex items-center gap-2 mt-1">
                         <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
                         <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">מחובר</span>

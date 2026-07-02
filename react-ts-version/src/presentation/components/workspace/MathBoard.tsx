@@ -1,6 +1,5 @@
 import { useDroppable } from '@dnd-kit/core';
 import { MathBlock } from './MathBlock';
-import { AnimatePresence } from 'framer-motion';
 
 interface MathBoardProps {
   ones: Array<{ id: string }>;
@@ -36,17 +35,15 @@ export function MathBoard({ ones, tens, hundreds, thousands }: MathBoardProps) {
       {/* Thousands Column */}
       <div 
         ref={setThousandsRef}
-        className={`flex-[1.5] rounded-2xl border-2 border-dashed transition-all p-4 grid grid-cols-2 gap-4 place-content-start
+        className={`flex-[1.5] rounded-2xl border-2 border-dashed transition-all p-4 flex flex-wrap content-start gap-4 
           ${isOverThousands ? 'bg-rose-50/50 dark:bg-rose-900/20 border-rose-400 scale-[1.02]' : 'border-slate-300 dark:border-slate-700'}`}
       >
-        <h2 className="col-span-full text-center text-2xl font-black text-rose-500/30 select-none mb-2">אלפים</h2>
-        <AnimatePresence>
-          {thousands.map((t) => (
-            <MathBlock key={t.id} id={t.id} type="thousand" />
-          ))}
-        </AnimatePresence>
+        <h2 className="w-full text-center text-2xl font-black text-rose-500/30 select-none mb-2">אלפים</h2>
+        {thousands.map((t) => (
+          <MathBlock key={t.id} id={t.id} type="thousand" />
+        ))}
         {thousands.length === 0 && !isOverThousands && (
-          <div className="col-span-full text-center text-slate-400 mt-20 font-medium text-sm px-2">גרור 10 מאות לכאן כדי לחבר לאלף</div>
+          <div className="w-full text-center text-slate-400 mt-20 font-medium text-sm px-2">גרור 10 מאות לכאן כדי לחבר לאלף</div>
         )}
       </div>
 
@@ -55,17 +52,15 @@ export function MathBoard({ ones, tens, hundreds, thousands }: MathBoardProps) {
       {/* Hundreds Column */}
       <div 
         ref={setHundredsRef}
-        className={`flex-[1.5] rounded-2xl border-2 border-dashed transition-all p-4 grid grid-cols-2 gap-4 place-content-start
+        className={`flex-[1.5] rounded-2xl border-2 border-dashed transition-all p-4 flex flex-wrap content-start gap-4 
           ${isOverHundreds ? 'bg-emerald-50/50 dark:bg-emerald-900/20 border-emerald-400 scale-[1.02]' : 'border-slate-300 dark:border-slate-700'}`}
       >
-        <h2 className="col-span-full text-center text-2xl font-black text-emerald-500/30 select-none mb-2">מאות</h2>
-        <AnimatePresence>
-          {hundreds.map((h) => (
-            <MathBlock key={h.id} id={h.id} type="hundred" />
-          ))}
-        </AnimatePresence>
+        <h2 className="w-full text-center text-2xl font-black text-emerald-500/30 select-none mb-2">מאות</h2>
+        {hundreds.map((h) => (
+          <MathBlock key={h.id} id={h.id} type="hundred" />
+        ))}
         {hundreds.length === 0 && !isOverHundreds && (
-          <div className="col-span-full text-center text-slate-400 mt-20 font-medium text-sm px-2">גרור 10 עשרות לכאן כדי לחבר למאה</div>
+          <div className="w-full text-center text-slate-400 mt-20 font-medium text-sm px-2">גרור 10 עשרות לכאן כדי לחבר למאה</div>
         )}
       </div>
 
@@ -74,17 +69,15 @@ export function MathBoard({ ones, tens, hundreds, thousands }: MathBoardProps) {
       {/* Tens Column */}
       <div 
         ref={setTensRef}
-        className={`flex-1 rounded-2xl border-2 border-dashed transition-all p-4 grid grid-cols-5 gap-2 place-content-start
+        className={`flex-1 rounded-2xl border-2 border-dashed transition-all p-4 flex flex-wrap content-start gap-2 
           ${isOverTens ? 'bg-indigo-50/50 dark:bg-indigo-900/20 border-indigo-400 scale-[1.02]' : 'border-slate-300 dark:border-slate-700'}`}
       >
-        <h2 className="col-span-full text-center text-2xl font-black text-indigo-500/30 select-none mb-2">עשרות</h2>
-        <AnimatePresence>
-          {tens.map((t) => (
-            <MathBlock key={t.id} id={t.id} type="ten" />
-          ))}
-        </AnimatePresence>
+        <h2 className="w-full text-center text-2xl font-black text-indigo-500/30 select-none mb-2">עשרות</h2>
+        {tens.map((t) => (
+          <MathBlock key={t.id} id={t.id} type="ten" />
+        ))}
         {tens.length === 0 && !isOverTens && (
-          <div className="col-span-full text-center text-slate-400 mt-20 font-medium text-sm px-2">גרור 10 יחידות לכאן כדי לחבר לעשרת</div>
+          <div className="w-full text-center text-slate-400 mt-20 font-medium text-sm px-2">גרור 10 יחידות לכאן כדי לחבר לעשרת</div>
         )}
       </div>
 
@@ -94,17 +87,15 @@ export function MathBoard({ ones, tens, hundreds, thousands }: MathBoardProps) {
       {/* Ones Column */}
       <div 
         ref={setOnesRef}
-        className={`flex-1 rounded-2xl border-2 border-dashed transition-all p-4 grid grid-cols-2 gap-x-2 gap-y-4 place-content-start
+        className={`flex-1 rounded-2xl border-2 border-dashed transition-all p-4 flex flex-wrap content-start gap-2 
           ${isOverOnes ? 'bg-amber-50/50 dark:bg-amber-900/20 border-amber-400 scale-[1.02]' : 'border-slate-300 dark:border-slate-700'}`}
       >
-        <h2 className="col-span-full text-center text-2xl font-black text-amber-500/30 select-none mb-2">יחידות</h2>
-        <AnimatePresence>
-          {ones.map((o) => (
-            <MathBlock key={o.id} id={o.id} type="one" />
-          ))}
-        </AnimatePresence>
+        <h2 className="w-full text-center text-2xl font-black text-amber-500/30 select-none mb-2">יחידות</h2>
+        {ones.map((o) => (
+          <MathBlock key={o.id} id={o.id} type="one" />
+        ))}
         {ones.length === 0 && !isOverOnes && (
-          <div className="col-span-full text-center text-slate-400 mt-20 font-medium text-sm px-2">גרור עשרת לכאן כדי לפרוט ליחידות</div>
+          <div className="w-full text-center text-slate-400 mt-20 font-medium text-sm px-2">גרור עשרת לכאן כדי לפרוט ליחידות</div>
         )}
         
         {/* Helper visual: Show how close to 10 we are */}
