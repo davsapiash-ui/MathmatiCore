@@ -10,6 +10,8 @@ import { telemetryTracker } from "@/infrastructure/TelemetryTracker";
 import { TASKS } from "@/core/QMatrix";
 import type { QMatrixTask } from "@/core/QMatrix";
 import { useChatStore } from "@/application/useChatStore";
+import { useSettingsStore } from "@/application/useSettingsStore";
+import { useStudentSessionStore } from "@/application/useStudentSessionStore";
 import { MessageCircle, Send, X } from "lucide-react";
 
 type BlockType = "units" | "tens" | "hundreds" | "thousands";
@@ -23,8 +25,11 @@ export function StudentWorkspace() {
   const { user } = useAuthStore();
   const studentName = user?.displayName || "תלמיד";
   const studentId = user?.uid || "unknown";
+  const isAdmin = user?.role === "admin";
   
   const { isOffline } = useSessionHeartbeat();
+  const { isASDMode } = useSettingsStore();
+  const { logUndo } = useStudentSessionStore();
   
   const [blocks, setBlocks] = useState<{ [key in BlockType]: Block[] }>({
     thousands: [],
@@ -39,7 +44,6 @@ export function StudentWorkspace() {
 
   const { messages, sendMessage, markAsRead } = useChatStore();
 
-  // Assuming teacherId is known or mapped. We'll use a generic "teacher" ID for now.
   const teacherId = "teacher123"; 
 
   const conversationMessages = useMemo(() => {
@@ -68,12 +72,21 @@ export function StudentWorkspace() {
   };
 
   useEffect(() => {
-    if (studentId) {
+    if (isAdmin) {
+      telemetryTracker.setImpersonating(true);
+    } else if (studentId) {
       telemetryTracker.startSession(studentId);
       telemetryTracker.setTask(activeTask.id);
     }
-    return () => telemetryTracker.endSession();
-  }, [studentId, activeTask.id]);
+    return () => {
+      if (!isAdmin) telemetryTracker.endSession();
+    };
+  }, [studentId, activeTask.id, isAdmin]);
+
+  const handleUndoAction = () => {
+    telemetryTracker.recordDeleteAction();
+    logUndo();
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -130,8 +143,15 @@ export function StudentWorkspace() {
           next.units.push({ id: `${Date.now()}_u_${i}`, type: "units" });
         }
         telemetryTracker.logEvent("BLOCKS_UNGROUPED", { from: "tens", to: "units" });
+      } else if (sourceCol === "hundreds" && targetCol === "tens") {
+        for (let i = 0; i < 10; i++) {
+          next.tens.push({ id: `${Date.now()}_t_${i}`, type: "tens" });
+        }
+        telemetryTracker.logEvent("BLOCKS_UNGROUPED", { from: "hundreds", to: "tens" });
       } else {
-         next[targetCol].push({ ...blockToMove, type: targetCol });
+         // Invalid pedagogical move (e.g. 1 unit dragged to tens). 
+         // Reject it by putting it back in the source column.
+         next[sourceCol].push(blockToMove);
       }
 
       if (next.units.length >= 10) {
@@ -164,7 +184,7 @@ export function StudentWorkspace() {
       <header className="bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 p-4 flex justify-between items-center shadow-sm z-10">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">שלום {studentName}</h1>
-          <p className="text-slate-500 dark:text-slate-400">משימה נוכחית: {activeTask.titleHe}</p>
+          <p className="text-slate-500 dark:text-slate-400">המשימה שלנו: {activeTask.titleHe}</p>
         </div>
         <div className="flex gap-4 items-center">
           {isOffline && (
@@ -189,11 +209,11 @@ export function StudentWorkspace() {
       </header>
 
       {/* Main Workspace */}
-      <main className="flex-1 flex gap-4 p-6 overflow-hidden">
+      <main className="flex-1 flex flex-col md:flex-row gap-4 p-4 md:p-6 overflow-hidden">
         {/* Tools Panel */}
-        <div className="w-64 flex flex-col gap-4">
+        <div className="w-full md:w-64 flex flex-col gap-4 overflow-y-auto md:overflow-visible">
           <AccessibleCard className="p-4 flex flex-col gap-4 shadow-md bg-white dark:bg-slate-950">
-            <h2 className="font-semibold text-lg border-b pb-2">קופסת קוביות</h2>
+            <h2 className="font-semibold text-lg border-b pb-2">קופסת הקוביות שלי 🧊</h2>
             <div className="flex gap-2">
               <UdlButton semanticColor="primary" className="flex-1 text-2xl" onClick={() => handleAddBlock("units")}>
                 + 1
@@ -206,17 +226,17 @@ export function StudentWorkspace() {
               </UdlButton>
             </div>
             <div className="flex gap-2 mt-4">
-              <UdlButton semanticColor="neutral" className="flex-1" onClick={() => telemetryTracker.recordDeleteAction()}>
+              <UdlButton semanticColor="neutral" className="flex-1" onClick={handleUndoAction}>
                 ⟲ ביטול פעולה
               </UdlButton>
             </div>
             <p className="text-sm text-slate-500 mt-2">
-              לחץ כדי להוסיף קוביות, או גרור אותן בין הטורים. גרירה אל מחוץ לטורים תמחק אותן.
+              אפשר ללחוץ כדי להוסיף קוביות, או לגרור אותן בין הטורים! אם רוצים למחוק קוביה, פשוט גוררים אותה החוצה.
             </p>
           </AccessibleCard>
 
           <AccessibleCard className="p-4 shadow-md bg-white dark:bg-slate-950 flex-1">
-            <h2 className="font-semibold text-lg border-b pb-2 mb-4">הוראות</h2>
+            <h2 className="font-semibold text-lg border-b pb-2 mb-4">מה עושים עכשיו? 🎯</h2>
             <p className="text-slate-700 dark:text-slate-300 text-lg leading-relaxed">
               {activeTask.instructionHe}
             </p>
@@ -228,12 +248,12 @@ export function StudentWorkspace() {
           </AccessibleCard>
 
           <UdlButton semanticColor="primary" className="text-xl px-12 py-6 rounded-2xl shadow-lg border-b-4 border-blue-800">
-            בדוק תשובה
+            אני מוכן לבדיקה! ✨
           </UdlButton>
         </div>
 
         {/* DND Columns */}
-        <div className="flex-1 rounded-xl bg-white dark:bg-slate-950 shadow-inner border border-slate-200 dark:border-slate-800 p-6">
+        <div className={`flex-1 rounded-xl bg-white dark:bg-slate-950 shadow-inner border border-slate-200 dark:border-slate-800 p-6 transition-opacity ${isASDMode ? 'opacity-90 grayscale-[0.2]' : ''}`}>
           <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
             <div className="grid grid-cols-3 gap-6 h-full">
               <DroppableColumn id="hundreds" title="מאות (100)" blocks={blocks.hundreds} />
@@ -260,8 +280,8 @@ export function StudentWorkspace() {
           <div className="flex-1 p-4 overflow-y-auto flex flex-col gap-3 bg-slate-50 dark:bg-slate-900">
             {conversationMessages.length === 0 ? (
               <div className="m-auto text-slate-400 text-sm text-center">
-                <p>שלום {studentName}!</p>
-                <p>כאן תוכל להתכתב עם המורה שלך.</p>
+                <p>איזה כיף שבאת, {studentName}!</p>
+                <p>כאן אפשר לכתוב הודעות למורה.</p>
               </div>
             ) : (
               conversationMessages.map(msg => {
@@ -280,22 +300,30 @@ export function StudentWorkspace() {
             )}
           </div>
 
-          <div className="p-4 bg-white dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 flex gap-2 items-center">
-            <input
-              type="text"
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-              placeholder="כתוב הודעה למורה..."
-              className="flex-1 bg-slate-100 dark:bg-slate-900 border-none rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-slate-800 dark:text-slate-100"
-            />
-            <UdlButton 
-              onClick={handleSendMessage} 
-              disabled={!inputText.trim()} 
-              className="rounded-full w-10 h-10 p-0 flex items-center justify-center bg-emerald-600 hover:bg-emerald-700 text-white transition-all disabled:opacity-50"
-            >
-              <Send className="w-4 h-4 -ml-1" />
-            </UdlButton>
+          <div className="p-4 bg-white dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 flex flex-col gap-2">
+            <div className="flex gap-2 items-center">
+              <UdlButton semanticColor="neutral" className="rounded-full w-10 h-10 p-0 flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-600 transition-all">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-mic"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+              </UdlButton>
+              <UdlButton semanticColor="neutral" className="rounded-full w-10 h-10 p-0 flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-600 transition-all">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-image"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+              </UdlButton>
+              <input
+                type="text"
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                placeholder="כתוב הודעה למורה..."
+                className="flex-1 bg-slate-100 dark:bg-slate-900 border-none rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-slate-800 dark:text-slate-100"
+              />
+              <UdlButton 
+                onClick={handleSendMessage} 
+                disabled={!inputText.trim()} 
+                className="rounded-full w-10 h-10 p-0 flex items-center justify-center bg-emerald-600 hover:bg-emerald-700 text-white transition-all disabled:opacity-50"
+              >
+                <Send className="w-4 h-4 -ml-1" />
+              </UdlButton>
+            </div>
           </div>
         </div>
       )}

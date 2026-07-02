@@ -18,7 +18,7 @@ export function AdminOverview() {
   const totalStudents = classes.length * 30; // Mock calculation based on classes
 
   return (
-    <div className="p-8 pb-20">
+    <div className="p-8 pb-20" dir="rtl">
       <header className="mb-8 flex justify-between items-end">
         <div>
           <h1 className="text-3xl font-black text-slate-800 dark:text-slate-100">סקירה כללית</h1>

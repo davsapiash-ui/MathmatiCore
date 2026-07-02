@@ -27,6 +27,7 @@ export class TelemetryTracker {
   private isRadarActive: boolean = false;
   private currentStudentId: string = "";
   private currentTaskId: string = "";
+  private impersonating: boolean = false;
   
   private recentDeleteTimes: number[] = [];
   private readonly HESITATION_THRESHOLD_MS = 30000;
@@ -44,7 +45,12 @@ export class TelemetryTracker {
     return TelemetryTracker.instance;
   }
 
+  public setImpersonating(val: boolean) {
+    this.impersonating = val;
+  }
+
   public startSession(studentId: string) {
+    if (this.impersonating) return;
     this.currentStudentId = studentId;
     this.isRadarActive = true;
     this.lastActionTime = Date.now();
