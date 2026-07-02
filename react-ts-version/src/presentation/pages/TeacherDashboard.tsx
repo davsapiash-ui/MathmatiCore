@@ -4,8 +4,7 @@ import { AccessibleCard } from "@/presentation/design-system/AccessibleCard";
 import { DataGrid } from "@/presentation/design-system/DataGrid";
 import { useAuthStore } from "@/application/useAuthStore";
 import { useChatStore } from "@/application/useChatStore";
-import { ref, onValue } from "firebase/database";
-import { database } from "@/infrastructure/firebase";
+import { useStore } from "@/application/useStore";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Send, MessageCircle, ShieldAlert } from "lucide-react";
 import { Logo } from "@/presentation/components/ui/Logo";
@@ -13,23 +12,80 @@ import { LogoutButton } from "@/presentation/components/ui/LogoutButton";
 import { ReplayViewer } from "@/presentation/components/ReplayViewer";
 import { MOCK_RRWEB_EVENTS } from "@/infrastructure/mockRrwebEvents";
 import { ClassManagement } from "./TeacherDashboard/ClassManagement";
-const qMatrixData = [
-  { name: 'חיבור בסיסי', success: 0, struggle: 0 },
-  { name: 'חיסור בסיסי', success: 0, struggle: 0 },
-  { name: 'המרת עשרות', success: 0, struggle: 0 },
-  { name: 'גמישות מחשבתית', success: 0, struggle: 0 },
-  { name: 'אומדן', success: 0, struggle: 0 },
-];
+
 
 export function TeacherDashboard() {
   const { user } = useAuthStore();
   const { messages, sendMessage, markAsRead } = useChatStore();
+  const { students } = useStore();
   
   const [activeTab, setActiveTab] = useState<"clustering" | "alerts" | "replays" | "chat_admin" | "chat_students" | "class_management">("clustering");
-  const [alerts, setAlerts] = useState<any[]>([]);
-
+  
   const [inputText, setInputText] = useState("");
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+
+  // Clustering Logic based on Q-Matrix
+  const allStudents = Object.values(students);
+  
+  const basicAdditionGroup = allStudents.filter(s => s.qMatrixResults.task4_basic_addition_fluency === false);
+  const flexibilityGroup = allStudents.filter(s => s.qMatrixResults.task3_flexible_regrouping === false);
+  
+  // Aggregate data for Chart
+  const qMatrixData = useMemo(() => {
+    let t1s=0, t1f=0, t2s=0, t2f=0, t3s=0, t3f=0, t4s=0, t4f=0, t5s=0, t5f=0;
+    allStudents.forEach(s => {
+      if (s.qMatrixResults.task1_zero_placeholder === true) t1s++;
+      else if (s.qMatrixResults.task1_zero_placeholder === false) t1f++;
+      
+      if (s.qMatrixResults.task2_estimation_error_margin !== null && s.qMatrixResults.task2_estimation_error_margin < 0.2) t2s++;
+      else if (s.qMatrixResults.task2_estimation_error_margin !== null) t2f++;
+
+      if (s.qMatrixResults.task3_flexible_regrouping === true) t3s++;
+      else if (s.qMatrixResults.task3_flexible_regrouping === false) t3f++;
+
+      if (s.qMatrixResults.task4_basic_addition_fluency === true) t4s++;
+      else if (s.qMatrixResults.task4_basic_addition_fluency === false) t4f++;
+
+      if (s.qMatrixResults.task5_basic_subtraction_fluency === true) t5s++;
+      else if (s.qMatrixResults.task5_basic_subtraction_fluency === false) t5f++;
+    });
+
+    return [
+      { name: 'חיבור בסיסי', success: t4s, struggle: t4f },
+      { name: 'חיסור בסיסי', success: t5s, struggle: t5f },
+      { name: 'המרת עשרות', success: t1s, struggle: t1f },
+      { name: 'גמישות מחשבתית', success: t3s, struggle: t3f },
+      { name: 'אומדן', success: t2s, struggle: t2f },
+    ];
+  }, [allStudents]);
+
+  // Generate trace data alerts
+  const alerts = useMemo(() => {
+    const list: any[] = [];
+    allStudents.forEach(s => {
+      if (s.traceData.hesitation_events > 0) {
+        list.push({
+          firebaseKey: `hesitation-${s.studentId}`,
+          studentId: s.name,
+          type: 'HESITATION',
+          taskId: 'משימה פעילה',
+          timestamp: Date.now(),
+          unread: true
+        });
+      }
+      if (s.traceData.undo_clicks > 5) {
+        list.push({
+          firebaseKey: `undo-${s.studentId}`,
+          studentId: s.name,
+          type: 'UNDO_SPAM',
+          taskId: 'משימה פעילה',
+          timestamp: Date.now(),
+          unread: true
+        });
+      }
+    });
+    return list;
+  }, [allStudents]);
 
   const handleTabChange = (tab: "clustering" | "alerts" | "replays" | "chat_admin" | "chat_students" | "class_management") => {
     setActiveTab(tab);
@@ -56,22 +112,7 @@ export function TeacherDashboard() {
     ).sort((a, b) => a.timestamp - b.timestamp);
   }, [messages, user, selectedStudentId]);
 
-  useEffect(() => {
-    const alertsRef = ref(database, 'radar_alerts');
-    const unsub = onValue(alertsRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        const parsed = Object.keys(data).map(key => ({
-          ...data[key],
-          firebaseKey: key
-        })).reverse();
-        setAlerts(parsed);
-      } else {
-        setAlerts([]);
-      }
-    });
-    return () => unsub();
-  }, []);
+
 
   useEffect(() => {
     if (activeTab === "chat_admin" && user) {
@@ -213,7 +254,7 @@ export function TeacherDashboard() {
                 <div className="relative z-10 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-inner">
                   <DataGrid 
                     columns={[{ key: "name", header: "שם תלמיד" }, { key: "errors", header: "טעות נפוצה" }]}
-                    data={[]}
+                    data={basicAdditionGroup.map(s => ({ id: s.studentId, name: s.name, errors: "טעות השלמת 10" }))}
                   />
                 </div>
                 <UdlButton size="sm" semanticColor="primary" className="mt-6 w-full shadow-lg shadow-indigo-500/20 relative z-10 font-bold tracking-wide">הקצה תרגול מותאם</UdlButton>
@@ -227,7 +268,7 @@ export function TeacherDashboard() {
                 <div className="relative z-10 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-inner">
                   <DataGrid 
                     columns={[{ key: "name", header: "שם תלמיד" }, { key: "reps", header: "ייצוגים שהופקו" }]}
-                    data={[]}
+                    data={flexibilityGroup.map(s => ({ id: s.studentId, name: s.name, reps: "ייצוג קנוני בלבד" }))}
                   />
                 </div>
                 <UdlButton size="sm" semanticColor="primary" className="mt-6 w-full shadow-lg shadow-indigo-500/20 relative z-10 font-bold tracking-wide">הקצה סדנת חקר</UdlButton>

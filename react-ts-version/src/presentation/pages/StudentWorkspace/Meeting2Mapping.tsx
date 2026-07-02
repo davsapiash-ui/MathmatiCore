@@ -2,33 +2,43 @@ import { useState } from 'react';
 import { UdlButton } from '@/presentation/design-system/UdlButton';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 import { useSilentRadar } from '@/application/useSilentRadar';
-import { useAuthStore } from '@/application/useAuthStore';
-import { database } from '@/infrastructure/firebase';
-import { ref, update } from 'firebase/database';
+import { useStore } from '@/application/useStore';
 import { BlockMath } from 'react-katex';
+import { useNavigate } from 'react-router-dom';
 
 export function Meeting2Mapping() {
   const [taskIndex, setTaskIndex] = useState(0);
   const { registerInteraction } = useSilentRadar({ taskId: `mapping-task-${taskIndex + 1}` });
-  const { user } = useAuthStore();
   
-  const [answers, setAnswers] = useState<Record<string, boolean>>({});
+  const { currentUserId, updateQMatrix, markMeeting2Complete } = useStore();
+  const navigate = useNavigate();
 
-  const handleNext = async (isCorrect: boolean) => {
+  const handleNext = (isCorrect: boolean) => {
     registerInteraction();
-    const newAnswers = { ...answers, [`task${taskIndex + 1}`]: isCorrect };
-    setAnswers(newAnswers);
+    
+    // Map task index to Q-Matrix key
+    const qMatrixKeys = [
+      'task1_zero_placeholder',
+      'task2_estimation_error_margin',
+      'task3_flexible_regrouping',
+      'task4_basic_addition_fluency',
+      'task5_basic_subtraction_fluency'
+    ];
+    
+    if (currentUserId && taskIndex < 5) {
+      updateQMatrix(currentUserId, { [qMatrixKeys[taskIndex]]: isCorrect });
+    }
 
     if (taskIndex < 5) {
       setTaskIndex(taskIndex + 1);
     }
+  };
 
-    // Save results to Firebase if this was the last task (or just update as we go)
-    if (user) {
-      await update(ref(database, `students/${user.uid}/qMatrixResults`), {
-        [`task${taskIndex + 1}`]: isCorrect
-      });
+  const finishMeeting = () => {
+    if (currentUserId) {
+      markMeeting2Complete(currentUserId);
     }
+    navigate('/hub');
   };
 
   if (taskIndex === 0) {
@@ -70,7 +80,6 @@ export function Meeting2Mapping() {
             <div className="absolute left-0 -bottom-8 font-bold text-slate-500">0</div>
             <div className="absolute right-0 -bottom-8 font-bold text-slate-500">1,000</div>
             
-            {/* Interactive draggable arrow would go here. For the prototype we mock the interaction */}
             <div className="absolute top-1/2 left-[75%] -translate-y-1/2 -translate-x-1/2 w-6 h-6 bg-indigo-500 rounded-full border-4 border-white shadow-lg cursor-pointer hover:scale-125 transition-transform" />
           </div>
         </div>
@@ -183,7 +192,7 @@ export function Meeting2Mapping() {
         </div>
         
         <div className="mt-8 pt-8 border-t border-slate-100 dark:border-slate-800 text-center">
-           <UdlButton semanticColor="primary" className="px-12 font-bold shadow-lg shadow-indigo-500/20" onClick={() => window.location.href = '/hub'}>
+           <UdlButton semanticColor="primary" className="px-12 font-bold shadow-lg shadow-indigo-500/20" onClick={finishMeeting}>
              חזור ללוח הראשי
            </UdlButton>
         </div>

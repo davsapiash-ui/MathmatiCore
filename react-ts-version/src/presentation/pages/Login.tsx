@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuthStore } from "@/application/useAuthStore";
 import { useAdminStore } from "@/application/useAdminStore";
+import { useStore } from "@/application/useStore";
 import { useNavigate } from "react-router-dom";
 import "./Login.css";
 
@@ -14,6 +15,7 @@ const DEMO_USERS: Record<string, any> = {
 export function Login() {
   const { setUser } = useAuthStore();
   const { teachers } = useAdminStore();
+  const { login } = useStore();
   const navigate = useNavigate();
   
   const [selectedRole, setSelectedRole] = useState<"student" | "teacher" | "admin" | null>(null);
@@ -37,7 +39,8 @@ export function Login() {
             role: "student",
             displayName: user.name,
           }, "student");
-          navigate("/workspace", { replace: true });
+          login("student", "student-2"); // Force mock to the specific student for testing Meeting 2
+          navigate("/hub", { replace: true }); // Students go to hub first!
         }, 600);
       } else {
         alert("שם המשתמש או הסיסמה שגויים.");
@@ -61,6 +64,7 @@ export function Login() {
             role: "teacher",
             displayName: teacher.name,
           }, "teacher");
+          login("teacher", teacher.id);
           navigate("/dashboard", { replace: true });
         }, 600);
       } else {
@@ -80,6 +84,7 @@ export function Login() {
             role: "admin",
             displayName: "מנהל מערכת ראשי",
           }, "admin");
+          login("admin", "admin-1");
           navigate("/admin", { replace: true });
         }, 600);
       } else {
