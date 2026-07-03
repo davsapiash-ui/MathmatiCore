@@ -28,6 +28,9 @@ import {
   type QFlowEvent,
   type QMatrixFlowState,
 } from '@/core/qmatrixFlow';
+import { useStore } from '@/application/useStore';
+import { useAuthStore } from '@/application/useAuthStore';
+import { CurriculumRouter } from '@/core/CurriculumRouter';
 import { QMatrixEvaluator } from '@/core/QMatrix';
 import { getSessionTasks, type SessionTask } from '@/data/sessionTasks';
 import { radar } from '@/features/workspace/radarBus';
@@ -279,6 +282,17 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       case 'all_complete':
         showFeedback({ correct: true, title: 'סִיַּמְתֶּם! 🎉', sub: 'כָּל הַכָּבוֹד עַל הָעֲבוֹדָה הַטּוֹבָה!' }, 2200, () => {
           set({ flowStatus: 'reflection', awaitingNext: false });
+          // Curriculum Router trigger
+          const studentId = useAuthStore.getState().user?.id;
+          if (studentId) {
+            const store = useStore.getState();
+            store.markMeeting2Complete(studentId);
+            const student = store.students[studentId];
+            if (student) {
+              const route = CurriculumRouter.evaluateRoute(student);
+              store.setRouteRecommendation(studentId, route);
+            }
+          }
         });
         break;
     }

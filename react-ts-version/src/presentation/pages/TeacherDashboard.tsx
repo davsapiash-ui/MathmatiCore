@@ -100,6 +100,12 @@ export function TeacherDashboard() {
     (s) => s.qMatrixResults.task5_basic_subtraction_fluency === false,
   );
 
+  const pendingRouteStudents = allStudents.filter(
+    (s) => s.routeStatus === 'PENDING',
+  );
+
+  const approveRoute = useStore((s) => s.approveRoute);
+
   // Aggregate data for Chart
   const qMatrixData = useMemo(() => {
     let t1s = 0,
@@ -936,20 +942,20 @@ export function TeacherDashboard() {
             </header>
             
             <div className="flex flex-col gap-6">
-              {pendingApprovals.length === 0 ? (
+              {pendingRouteStudents.length === 0 ? (
                 <div className="text-center py-20 text-ws-soft bg-ws-surface/50 backdrop-blur-md rounded-2xl border-2 border-dashed border-ws-surface2 shadow-sm">
                   <div className="w-16 h-16 mx-auto mb-4 bg-ws-bg rounded-full flex items-center justify-center">
                     <ShieldAlert className="w-8 h-8 text-ws-soft" />
                   </div>
-                  <p className="text-xl font-bold">אין משימות הממתינות לאישור.</p>
+                  <p className="text-xl font-bold">אין תלמידים הממתינים לאישור מסלול.</p>
                 </div>
               ) : (
-                pendingApprovals.map(approval => (
-                  <AccessibleCard key={approval.id} className="p-8 bg-ws-surface border border-ws-surface2 shadow-lg rounded-3xl">
+                pendingRouteStudents.map(student => (
+                  <AccessibleCard key={student.studentId} className="p-8 bg-ws-surface border border-ws-surface2 shadow-lg rounded-3xl">
                     <div className="flex justify-between items-start mb-6">
                       <div>
-                        <h3 className="text-2xl font-bold text-ws-ink">{approval.studentName}</h3>
-                        <p className="text-sm text-ws-soft mt-1">מזהה: {approval.studentId} | נוצר: {new Date(approval.timestamp).toLocaleString('he-IL')}</p>
+                        <h3 className="text-2xl font-bold text-ws-ink">{student.name}</h3>
+                        <p className="text-sm text-ws-soft mt-1">מזהה: {student.studentId} | סיום מפגש 2</p>
                       </div>
                       <div className="flex gap-3">
                         <UdlButton 
@@ -957,9 +963,7 @@ export function TeacherDashboard() {
                           size="sm" 
                           className="font-bold shadow-md shadow-ws-accent/20"
                           onClick={() => {
-                            SocraticEngine.approveTasks(TEACHER_ID, approval.id, approval.studentId, approval.tasks).then(() => {
-                              setPendingApprovals(prev => prev.filter(a => a.id !== approval.id));
-                            });
+                            approveRoute(student.studentId);
                           }}
                         >
                           אישור מסלול
@@ -968,9 +972,8 @@ export function TeacherDashboard() {
                           variant="outline" 
                           size="sm"
                           onClick={() => {
-                            SocraticEngine.rejectTasks(TEACHER_ID, approval.id).then(() => {
-                              setPendingApprovals(prev => prev.filter(a => a.id !== approval.id));
-                            });
+                            // Can be expanded to edit route
+                            alert("אפשרות זו תאפשר עריכת מסלול ידנית בעתיד.");
                           }}
                         >
                           דחייה / עריכה
@@ -981,24 +984,34 @@ export function TeacherDashboard() {
                     <div className="bg-ws-accentSoft/30 p-5 rounded-2xl border border-ws-accent/10 mb-6">
                       <h4 className="font-bold text-ws-accent mb-2 flex items-center gap-2">
                         <MessageCircle className="w-5 h-5" />
-                        המלצת המערכת (רציונל פדגוגי):
+                        המלצת נתב הלמידה (Curriculum Router):
                       </h4>
-                      <p className="text-ws-ink font-medium leading-relaxed">{approval.teacherRationaleHe}</p>
+                      <p className="text-ws-ink font-medium leading-relaxed">
+                        מערכת הניתוב ממליצה על שיבוץ התלמיד ל<strong>{student.routeRecommendation === 'YELLOW' ? 'מסלול צהוב (מבוסס תמיכה)' : 'מסלול ירוק (אתגר מתקדם)'}</strong>.<br/>
+                        {student.routeRecommendation === 'YELLOW' 
+                          ? 'המלצה זו מבוססת על זיהוי פערי ליבה (כגון חוסר שליטה בעובדות יסוד או היסוסים מרובים) במהלך מפגש האבחון. התלמיד יקבל פיגומים (Scaffolding) מותאמים במפגש 3.' 
+                          : 'התלמיד הפגין שליטה טובה במיומנויות הבסיס וללא סימני מאבק קוגניטיבי מהותיים. מפגש 3 יאתגר אותו בבעיות מתקדמות ללא פיגומים מיותרים.'}
+                      </p>
                     </div>
 
-                    <h4 className="font-bold text-lg mb-3">רצף המשימות שנוצר:</h4>
+                    <h4 className="font-bold text-lg mb-3">מדדי אבחון קריטיים (Q-Matrix):</h4>
                     <div className="grid gap-3">
-                      {approval.tasks.map((task, idx) => (
-                        <div key={idx} className="bg-ws-bg p-4 rounded-xl flex items-center justify-between border border-ws-surface2">
+                        <div className="bg-ws-bg p-4 rounded-xl flex items-center justify-between border border-ws-surface2">
                           <div>
-                            <span className="font-bold text-ws-accent ml-2">#{idx + 1}</span>
-                            <span className="font-semibold">{task.titleHe}</span>
+                            <span className="font-semibold">מאבק קוגניטיבי סמוי</span>
                           </div>
-                          <div className="text-sm text-ws-soft font-mono" dir="ltr">
-                            {task.numberA} {task.isSubtraction ? '-' : '+'} {task.numberB} = {task.correctAnswer}
+                          <div className="text-sm font-bold text-ws-soft">
+                            {student.traceData.hesitation_events} היסוסים, {student.traceData.undo_clicks} חזרות
                           </div>
                         </div>
-                      ))}
+                        <div className="bg-ws-bg p-4 rounded-xl flex items-center justify-between border border-ws-surface2">
+                          <div>
+                            <span className="font-semibold">בסיס עשרוני וחיבור</span>
+                          </div>
+                          <div className={`text-sm font-bold ${student.qMatrixResults.task4_basic_addition_fluency === false ? 'text-red-500' : 'text-green-500'}`}>
+                            {student.qMatrixResults.task4_basic_addition_fluency === false ? 'נכשל' : 'תקין'}
+                          </div>
+                        </div>
                     </div>
                   </AccessibleCard>
                 ))

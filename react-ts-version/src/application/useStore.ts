@@ -14,6 +14,9 @@ export interface TraceData {
   undo_clicks: number;
 }
 
+export type RoutePath = 'GREEN' | 'YELLOW';
+export type RouteStatus = 'PENDING' | 'APPROVED';
+
 export interface StudentData {
   studentId: string;
   classId: string;
@@ -21,6 +24,8 @@ export interface StudentData {
   qMatrixResults: QMatrix;
   traceData: TraceData;
   completedMeeting2: boolean;
+  routeRecommendation: RoutePath | null;
+  routeStatus: RouteStatus | null;
 }
 
 interface AppState {
@@ -38,6 +43,10 @@ interface AppState {
   // Q-Matrix Actions
   updateQMatrix: (studentId: string, updates: Partial<QMatrix>) => void;
   markMeeting2Complete: (studentId: string) => void;
+
+  // Routing Actions
+  setRouteRecommendation: (studentId: string, route: RoutePath) => void;
+  approveRoute: (studentId: string) => void;
 }
 
 // Generate 30 users for Audit (ביקורת) environment
@@ -57,7 +66,9 @@ const generateInitialStudents = (): Record<string, StudentData> => {
         task4_basic_addition_fluency: null,
         task5_basic_subtraction_fluency: null,
       },
-      traceData: { hesitation_events: 0, undo_clicks: 0 }
+      traceData: { hesitation_events: 0, undo_clicks: 0 },
+      routeRecommendation: null,
+      routeStatus: null
     };
   }
   
@@ -65,6 +76,9 @@ const generateInitialStudents = (): Record<string, StudentData> => {
   if (students['student_user1']) {
     students['student_user1'].qMatrixResults.task4_basic_addition_fluency = false;
     students['student_user1'].traceData.hesitation_events = 5;
+    students['student_user1'].completedMeeting2 = true;
+    students['student_user1'].routeRecommendation = 'YELLOW';
+    students['student_user1'].routeStatus = 'PENDING';
   }
   if (students['student_user2']) {
     students['student_user2'].qMatrixResults.task3_flexible_regrouping = false;
@@ -104,7 +118,9 @@ export const useStore = create<AppState>()(
                 task4_basic_addition_fluency: null,
                 task5_basic_subtraction_fluency: null,
               },
-              traceData: { hesitation_events: 0, undo_clicks: 0 }
+              traceData: { hesitation_events: 0, undo_clicks: 0 },
+              routeRecommendation: null,
+              routeStatus: null
             }
           };
         }
@@ -187,6 +203,35 @@ export const useStore = create<AppState>()(
             [studentId]: {
               ...student,
               completedMeeting2: true
+            }
+          }
+        };
+      }),
+
+      setRouteRecommendation: (studentId, route) => set((state) => {
+        const student = state.students[studentId];
+        if (!student) return state;
+        return {
+          students: {
+            ...state.students,
+            [studentId]: {
+              ...student,
+              routeRecommendation: route,
+              routeStatus: 'PENDING'
+            }
+          }
+        };
+      }),
+
+      approveRoute: (studentId) => set((state) => {
+        const student = state.students[studentId];
+        if (!student) return state;
+        return {
+          students: {
+            ...state.students,
+            [studentId]: {
+              ...student,
+              routeStatus: 'APPROVED'
             }
           }
         };

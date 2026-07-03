@@ -1,7 +1,9 @@
-import { Play, Lock, ChevronLeft, Sun } from 'lucide-react';
+import { Play, Lock, ChevronLeft, Sun, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import type { Variants } from 'framer-motion';
+import { useStore } from '@/application/useStore';
+import { useAuthStore } from '@/application/useAuthStore';
 
 interface Meeting {
   id: number;
@@ -9,18 +11,8 @@ interface Meeting {
   desc: string;
   icon: string;
   isLocked: boolean;
+  pendingApproval?: boolean;
 }
-
-const meetings: Meeting[] = [
-  { id: 1, title: 'מפגש 1: היכרות ותפעול', desc: 'התנסות חופשית במרחב העבודה הווירטואלי.', icon: '👋', isLocked: false },
-  { id: 2, title: 'מפגש 2: אבחון אישי', desc: 'משימות קצרות כדי להכיר איך אתם חושבים במתמטיקה.', icon: '🎯', isLocked: false },
-  { id: 3, title: 'מפגש 3: מסלול אדפטיבי', desc: 'מתחילים לפתור תרגילים מיוחדים שמותאמים בדיוק לכם!', icon: '🧭', isLocked: true },
-  { id: 4, title: 'מפגש 4: חוקרים ומגלים', desc: 'תרגולי פריטה וקיבוץ — מתרגלים יחד ומצליחים.', icon: '🔍', isLocked: true },
-  { id: 5, title: 'מפגש 5: חוקרים ומגלים', desc: 'ממשיכים לתרגל ולגלות שיטות חדשות לפתרון.', icon: '💡', isLocked: true },
-  { id: 6, title: 'מפגש 6: אלופי החשבון', desc: 'תרגילים מתקדמים שמותאמים לקצב שלכם.', icon: '🏗️', isLocked: true },
-  { id: 7, title: 'מפגש 7: אלופי החשבון', desc: 'לקראת סיום — תרגולים מאתגרים לחיזוק הלמידה.', icon: '⛰️', isLocked: true },
-  { id: 8, title: 'מפגש 8: סיכום ורפלקציה', desc: 'מסכמים את התהליך ורואים כמה התקדמנו!', icon: '🌱', isLocked: true },
-];
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -37,6 +29,30 @@ const itemVariants: Variants = {
 
 export function StudentHub() {
   const navigate = useNavigate();
+  const user = useAuthStore(s => s.user);
+  const students = useStore(s => s.students);
+  
+  const currentStudent = user ? students[user.id] : null;
+  const isPending = currentStudent?.routeStatus === 'PENDING';
+  const isApproved = currentStudent?.routeStatus === 'APPROVED';
+
+  const meetings: Meeting[] = [
+    { id: 1, title: 'מפגש 1: היכרות ותפעול', desc: 'התנסות חופשית במרחב העבודה הווירטואלי.', icon: '👋', isLocked: false },
+    { id: 2, title: 'מפגש 2: אבחון אישי', desc: 'משימות קצרות כדי להכיר איך אתם חושבים במתמטיקה.', icon: '🎯', isLocked: false },
+    { 
+      id: 3, 
+      title: 'מפגש 3: מסלול מותאם', 
+      desc: isPending ? 'הנתונים נבדקים, ממתין לאישור המורה...' : 'מתחילים לפתור תרגילים מיוחדים שמותאמים בדיוק לכם!', 
+      icon: '🧭', 
+      isLocked: !isApproved,
+      pendingApproval: isPending
+    },
+    { id: 4, title: 'מפגש 4: חוקרים ומגלים', desc: 'תרגולי פריטה וקיבוץ — מתרגלים יחד ומצליחים.', icon: '🔍', isLocked: true },
+    { id: 5, title: 'מפגש 5: חוקרים ומגלים', desc: 'ממשיכים לתרגל ולגלות שיטות חדשות לפתרון.', icon: '💡', isLocked: true },
+    { id: 6, title: 'מפגש 6: אלופי החשבון', desc: 'תרגילים מתקדמים שמותאמים לקצב שלכם.', icon: '🏗️', isLocked: true },
+    { id: 7, title: 'מפגש 7: אלופי החשבון', desc: 'לקראת סיום — תרגולים מאתגרים לחיזוק הלמידה.', icon: '⛰️', isLocked: true },
+    { id: 8, title: 'מפגש 8: סיכום ורפלקציה', desc: 'מסכמים את התהליך ורואים כמה התקדמנו!', icon: '🌱', isLocked: true },
+  ];
 
   return (
     <div dir="rtl" className="relative min-h-full w-full bg-ws-bg font-body text-ws-ink overflow-hidden">
@@ -118,7 +134,11 @@ export function StudentHub() {
                     meeting.isLocked ? 'bg-ws-surface2' : 'bg-[hsl(var(--ws-blue-soft))] group-hover:scale-105'
                   }`}
                 >
-                  <span aria-hidden="true">{meeting.isLocked ? <Lock className="w-7 h-7 text-ws-soft" /> : meeting.icon}</span>
+                  <span aria-hidden="true">
+                    {meeting.isLocked 
+                      ? (meeting.pendingApproval ? <Clock className="w-7 h-7 text-ws-blue animate-pulse" /> : <Lock className="w-7 h-7 text-ws-soft" />) 
+                      : meeting.icon}
+                  </span>
                 </div>
 
                 <div className="flex-1 text-center sm:text-right">
@@ -136,7 +156,9 @@ export function StudentHub() {
                 </div>
 
                 {meeting.isLocked ? (
-                  <span className="px-4 py-1.5 rounded-full text-sm font-bold bg-ws-surface2 text-ws-soft shrink-0">בקרוב</span>
+                  <span className={`px-4 py-1.5 rounded-full text-sm font-bold shrink-0 ${meeting.pendingApproval ? 'bg-ws-blue-soft text-ws-blue' : 'bg-ws-surface2 text-ws-soft'}`}>
+                    {meeting.pendingApproval ? 'ממתין לאישור' : 'בקרוב'}
+                  </span>
                 ) : (
                   <span className="ws-btn-primary flex items-center gap-1.5 px-6 py-2.5 rounded-full font-display font-extrabold transition-all shrink-0">
                     התחל
