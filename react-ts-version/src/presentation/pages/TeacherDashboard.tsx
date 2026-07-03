@@ -306,7 +306,7 @@ export function TeacherDashboard() {
             onClick={() => handleTabChange("clustering")}
             className={`w-full text-right px-4 py-3 rounded-xl transition-all ${activeTab === "clustering" ? "bg-ws-accentSoft text-ws-accent Soft0/10  font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
           >
-            מיפוי כיתתי (Q-Matrix)
+            מיפוי כיתתי (<span dir="ltr">Q-Matrix</span>)
           </button>
           <button
             onClick={() => handleTabChange("alerts")}
@@ -323,13 +323,13 @@ export function TeacherDashboard() {
             onClick={() => handleTabChange("replays")}
             className={`w-full text-right px-4 py-3 rounded-xl transition-all ${activeTab === "replays" ? "bg-ws-accentSoft text-ws-accent Soft0/10  font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
           >
-            הקלטות וידאו (Replays)
+            הקלטות וידאו (<span dir="ltr">Replays</span>)
           </button>
           <button
             onClick={() => handleTabChange("approvals")}
             className={`w-full flex justify-between items-center text-right px-4 py-3 rounded-xl transition-all ${activeTab === "approvals" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg text-ws-soft "}`}
           >
-            <span>אישור משימות AI</span>
+            <span>אישור משימות <span dir="ltr">AI</span></span>
             {pendingApprovals.length > 0 && (
               <span className="bg-ws-accent text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg">
                 {pendingApprovals.length}
@@ -383,7 +383,7 @@ export function TeacherDashboard() {
                 קיבוץ תלמידים לפי פערי למידה
               </h1>
               <p className="text-ws-soft  mt-3 text-lg">
-                המערכת מקבצת תלמידים באופן אוטומטי על בסיס מודל ה-Q-Matrix.
+                המערכת מקבצת תלמידים באופן אוטומטי על בסיס מודל ה-<span dir="ltr">Q-Matrix</span>.
               </p>
             </header>
 
@@ -745,7 +745,7 @@ export function TeacherDashboard() {
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <header className="mb-10">
               <h1 className="text-4xl font-black bg-gradient-to-l from-slate-900 to-slate-600 dark:from-white dark:to-slate-400 bg-clip-text text-transparent tracking-tight">
-                אישור משימות AI (Socratic Engine)
+                אישור משימות <span dir="ltr">AI</span> (<span dir="ltr">Socratic Engine</span>)
               </h1>
               <p className="text-ws-soft  mt-3 text-lg">
                 אישור ותיקוף מסלולי למידה אדפטיביים שנוצרו על ידי המערכת.

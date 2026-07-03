@@ -129,7 +129,7 @@ export function AdminOverview() {
                 <ShieldAlert className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
               </div>
               <div>
-                <h4 className="font-bold text-slate-800 dark:text-slate-200">הצפנת נתונים (At Rest)</h4>
+                <h4 className="font-bold text-slate-800 dark:text-slate-200">הצפנת נתונים (<span dir="ltr">At Rest</span>)</h4>
                 <p className="text-sm text-slate-500">פעיל ותקין</p>
               </div>
             </div>
@@ -139,7 +139,7 @@ export function AdminOverview() {
                 <Users className="w-6 h-6 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
-                <h4 className="font-bold text-slate-800 dark:text-slate-200">עמידה בתקן COPPA</h4>
+                <h4 className="font-bold text-slate-800 dark:text-slate-200">עמידה בתקן <span dir="ltr">COPPA</span></h4>
                 <p className="text-sm text-slate-500">מאושר (ילדים מתחת לגיל 13)</p>
               </div>
             </div>
@@ -158,7 +158,7 @@ export function AdminOverview() {
       </div>
       <div className="grid gap-8 mb-8">
         <AccessibleCard className="p-6 bg-white dark:bg-slate-900 shadow-sm">
-          <h2 className="text-xl font-bold border-b pb-2 mb-4">יומן אירועים (Audit Log)</h2>
+          <h2 className="text-xl font-bold border-b pb-2 mb-4">יומן אירועים (<span dir="ltr">Audit Log</span>)</h2>
           <div className="space-y-4">
             {auditLogs.length > 0 ? auditLogs.map((log) => (
               <div key={log.id} className="flex justify-between items-center text-sm border-b border-slate-100 dark:border-slate-800 pb-2">

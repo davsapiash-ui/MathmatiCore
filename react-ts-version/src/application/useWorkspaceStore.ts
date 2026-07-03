@@ -222,7 +222,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     const s = get();
     switch (event.type) {
       case 'primary_done':
-        showFeedback({ correct: true, title: 'התשובה התקבלה! 👍', sub: 'עוברים למשימה הבאה...' }, 1500, () => {
+        showFeedback({ correct: true, title: 'הַתְּשׁוּבָה הִתְקַבְּלָה! 👍', sub: 'עוֹבְרִים לַמְּשִׂימָה הַבָּאָה...' }, 1500, () => {
           const { state, event: next } = advance(get().qflow);
           set({ qflow: state });
           // awaitingNext stays true through the whole transition chain — released only
@@ -235,14 +235,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         });
         break;
       case 'start_correction':
-        showFeedback({ correct: false, title: 'סבב תיקונים 🔍', sub: 'בואו נעבור יחד על כמה דברים...' }, 1800, () => {
+        showFeedback({ correct: false, title: 'סֶבֶב תִּקּוּנִים 🔍', sub: 'בּוֹאוּ נַעֲבֹר יַחַד עַל כַּמָּה דְּבָרִים...' }, 1800, () => {
           startTask(event.taskId);
           set({ awaitingNext: false });
         });
         break;
       case 'subtask_done':
         showFeedback(
-          { correct: event.correct, title: event.correct ? 'מצוין! 🟢' : 'הבנתי, נמשיך... 🟡' },
+          { correct: event.correct, title: event.correct ? 'מְצֻיָּן! 🟢' : 'הֵבַנְתִּי, נַמְשִׁיךְ... 🟡' },
           1500,
           () => {
             const { state, event: next } = advance(get().qflow);
@@ -253,14 +253,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         );
         break;
       case 'start_retry':
-        showFeedback({ correct: true, title: 'מנסים שוב! 🔄', sub: 'הנה המשימה המקורית. נסו לפתור אותה כעת:' }, 1800, () => {
+        showFeedback({ correct: true, title: 'מְנַסִּים שׁוּב! 🔄', sub: 'הִנֵּה הַמְּשִׂימָה הַמְּקוֹרִית. נַסּוּ לִפְתֹּר אוֹתָהּ כָּעֵת:' }, 1800, () => {
           startTask(event.taskId);
           set({ awaitingNext: false });
         });
         break;
       case 'retry_done':
         showFeedback(
-          { correct: event.correct, title: event.correct ? 'מעולה, הצלחתם! 🎉' : 'התשובה נשמרה. 👍' },
+          { correct: event.correct, title: event.correct ? 'מְעֻלֶּה, הִצְלַחְתֶּם! 🎉' : 'הַתְּשׁוּבָה נִשְׁמְרָה. 👍' },
           1500,
           () => {
             const { state, event: next } = advance(get().qflow);
@@ -274,7 +274,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         );
         break;
       case 'all_complete':
-        showFeedback({ correct: true, title: 'סיימתם! 🎉', sub: 'כל הכבוד על העבודה הטובה!' }, 2200, () => {
+        showFeedback({ correct: true, title: 'סִיַּמְתֶּם! 🎉', sub: 'כָּל הַכָּבוֹד עַל הָעֲבוֹדָה הַטּוֹבָה!' }, 2200, () => {
           set({ flowStatus: 'reflection', awaitingNext: false });
         });
         break;
@@ -291,17 +291,17 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     if (task.type === 'session1_intro') {
       if (!s.selectedChoiceId) {
-        showFeedback({ correct: false, title: 'ענו על שאלת החשיבה 🤔', sub: 'בחרו אחת מהאפשרויות כדי להמשיך.' }, 2500);
+        showFeedback({ correct: false, title: 'עֲנוּ עַל שְׁאֵלַת הַחֲשִׁיבָה 🤔', sub: 'בַּחֲרוּ אַחַת מֵהָאֶפְשָׁרֻיּוֹת כְּדֵי לְהַמְשִׁיךְ.' }, 2500);
         return;
       }
       if (s.selectedChoiceId !== task.correctAnswer) {
         radar.recordTaskError(task.id, 'wrong_choice');
-        showFeedback({ correct: false, title: 'בואו נחשוב שוב 🤔', sub: 'האם הוספנו או גרענו קוביות כלשהן מבית המספרים?' }, 2800);
+        showFeedback({ correct: false, title: 'בּוֹאוּ נַחְשֹׁב שׁוּב 🤔', sub: 'הַאִם הוֹסַפְנוּ אוֹ גָּרַעְנוּ קֻבִּיּוֹת כָּלְשֵׁהֵן מִבֵּית הַמִּסְפָּרִים?' }, 2800);
         return;
       }
       // Correct — vanilla text carried a "(100)" copy bug; ported without the number.
       set({ awaitingNext: true });
-      showFeedback({ correct: true, title: 'נכון מאוד! 🌟', sub: 'הערך נשאר זהה לחלוטין כי לא שינינו את הכמות הכוללת.' }, 2500, () => {
+      showFeedback({ correct: true, title: 'נָכוֹן מְאוֹד! 🌟', sub: 'הָעֵרֶךְ נִשְׁאַר זֶהֶה לַחֲלוּטִין כִּי לֹא שִׁנִּינוּ אֶת הַכַּמּוּת הַכּוֹלֶלֶת.' }, 2500, () => {
         advanceStandard();
       });
       return;
@@ -315,7 +315,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       if (selectBoardValue(s) !== target) {
         radar.recordTaskError(task.id, 'wrong_blocks');
         showFeedback(
-          { correct: false, title: 'בואו נייצג את התרגיל בבית המספרים! 🧊', sub: `הניחו קוביות בטורים כך שסכומן הכולל יהיה בדיוק ${target}.` },
+          { correct: false, title: 'בּוֹאוּ נְיַצֵּג אֶת הַתַּרְגִּיל בְּבֵית הַמִּסְפָּרִים! 🧊', sub: `הַנִּיחוּ קֻבִּיּוֹת בַּטּוּרִים כָּךְ שֶׁסְּכוּמָן הַכּוֹלֵל יִהְיֶה בְּדִיּוּק ${target}.` },
           2800
         );
         return;
@@ -324,7 +324,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const ansVal = answerDigitsToNumber(s.answerDigits);
       if (ansVal !== target) {
         radar.recordTaskError(task.id, 'wrong_numeric');
-        showFeedback({ correct: false, title: 'בדקו את התשובה הכתובה שלכם ✏️', sub: 'הקלידו את התוצאה הנכונה בתיבת התשובה.' }, 2500);
+        showFeedback({ correct: false, title: 'בִּדְקוּ אֶת הַתְּשׁוּבָה הַכְּתוּבָה שֶׁלָּכֶם ✏️', sub: 'הַקְלִידוּ אֶת הַתּוֹצָאָה הַנְּכוֹנָה בְּתֵבַת הַתְּשׁוּבָה.' }, 2500);
         return;
       }
     }
@@ -350,17 +350,17 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     // Session complete (vanilla auto-chains 1→2 and 3→4).
     if (s.sessionNumber === 1) {
       set({ awaitingNext: true });
-      showFeedback({ correct: true, title: 'כל הכבוד! מפגש 1 הושלם בהצלחה! 🎉', sub: 'עוברים כעת אוטומטית למפגש 2...' }, 2500, () => {
+      showFeedback({ correct: true, title: 'כָּל הַכָּבוֹד! מִפְגָּשׁ 1 הוּשְׁלַם בְּהַצְלָחָה! 🎉', sub: 'עוֹבְרִים כָּעֵת אוֹטוֹמָטִית לְמִפְגָּשׁ 2...' }, 2500, () => {
         get().initSession(2, get().isASD);
       });
     } else if (s.sessionNumber === 3) {
       set({ awaitingNext: true });
-      showFeedback({ correct: true, title: 'כל הכבוד! מפגש 3 הושלם בהצלחה! 🎉', sub: 'עוברים כעת אוטומטית למפגש 4...' }, 2500, () => {
+      showFeedback({ correct: true, title: 'כָּל הַכָּבוֹד! מִפְגָּשׁ 3 הוּשְׁלַם בְּהַצְלָחָה! 🎉', sub: 'עוֹבְרִים כָּעֵת אוֹטוֹמָטִית לְמִפְגָּשׁ 4...' }, 2500, () => {
         get().initSession(4, get().isASD);
       });
     } else {
       set({ awaitingNext: true });
-      showFeedback({ correct: true, title: 'כל הכבוד! 🎉', sub: 'עבודה מצוינת במפגש זה!' }, 2500, () => {
+      showFeedback({ correct: true, title: 'כָּל הַכָּבוֹד! 🎉', sub: 'עֲבוֹדָה מְצֻיֶּנֶת בְּמִפְגָּשׁ זֶה!' }, 2500, () => {
         set({ flowStatus: 'sessionDone', awaitingNext: false });
       });
     }
@@ -390,7 +390,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       }
       case 'flexible_decomp': {
         if (s.q3Reps.length < 2) {
-          showFeedback({ correct: false, title: 'נדרשים שני ייצוגים שונים', sub: 'הוסיפו ייצוג שני!' }, 1800);
+          showFeedback({ correct: false, title: 'נִדְרָשִׁים שְׁנֵי יִצּוּגִים שׁוֹנִים', sub: 'הוֹסִיפוּ יִצּוּג שֵׁנִי!' }, 1800);
           return;
         }
         const r = QMatrixEvaluator.evaluateQ3(task, s.q3Reps, s.qflow.phase, s.qflow.subphase, s.isASD);
@@ -551,9 +551,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         radar.recordTaskError('q3', 'wrong_sum');
         const hint =
           s.sessionNumber === 2
-            ? `אני רואה ששמת ${s.counts.hundreds} מאיות, ${s.counts.tens} עשרות ו-${s.counts.units} יחידות (סך הכל ${value}). איך נוכל לשנות כדי להגיע בדיוק ל-${target}?`
-            : 'הסכום לא מתאים למספר. נסו שוב!';
-        showFeedback({ correct: false, title: 'חונך סוקרטי', sub: hint }, 3200);
+            ? `אֲנִי רוֹאֶה שֶׁשַּׂמְתֶּם ${s.counts.hundreds} מֵאוֹת, ${s.counts.tens} עֲשָׂרוֹת וְ-${s.counts.units} יְחִידוֹת (סַךְ הַכֹּל ${value}). אֵיךְ נוּכַל לְשַׁנּוֹת כְּדֵי לְהַגִּיעַ בְּדִיּוּק לְ-${target}?`
+            : 'הַסְּכוּם לֹא מַתְאִים לַמִּסְפָּר. נַסּוּ שׁוּב!';
+        showFeedback({ correct: false, title: 'חוֹנֵךְ סוֹקְרָטִי', sub: hint }, 3200);
         return;
       }
 
