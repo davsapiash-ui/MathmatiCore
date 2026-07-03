@@ -11,7 +11,7 @@ const PALETTE_ITEMS: { place: Place; labelHe: string; scale: number }[] = [
 ];
 
 /**
- * מחסן אביזרים — draggable source blocks + trash.
+ * מחסן הכלים — draggable source blocks + trash.
  * Hidden entirely at scaffoldLevel >= 3 (vanilla setScaffoldLevel).
  */
 export function BlockPalette({ scaffoldLevel }: { scaffoldLevel: number }) {
@@ -21,13 +21,13 @@ export function BlockPalette({ scaffoldLevel }: { scaffoldLevel: number }) {
     <div
       id="tour-block-palette"
       role="toolbar"
-      aria-label="מחסן אביזרים — גרור לטבלה"
+      aria-label="מחסן הכלים — גרור לטבלה"
       className="shrink-0 ws-card !rounded-2xl px-4 py-2.5 flex items-center justify-center gap-3"
     >
       <span className="text-xs font-display font-extrabold text-ws-soft leading-tight text-center shrink-0">
         מחסן
         <br />
-        אביזרים
+        הכלים
       </span>
       <div className="w-px h-14 bg-ws-surface2" />
 

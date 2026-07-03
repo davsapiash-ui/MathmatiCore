@@ -33,7 +33,7 @@ export function useWorkspaceTour() {
         {
           element: '#tour-block-palette',
           popover: {
-            title: 'קופסת הכלים',
+            title: 'מחסן הכלים',
             description: 'מכאן תוכל לגרור יחידות, עשרות, מאות ואלפים לתוך לוח המספרים.',
             side: 'top',
             align: 'center'

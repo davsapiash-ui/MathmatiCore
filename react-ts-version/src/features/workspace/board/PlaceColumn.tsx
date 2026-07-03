@@ -24,7 +24,7 @@ export function PlaceColumn({ place }: { place: Place }) {
   const packageBlocks = useWorkspaceStore((s) => s.packageBlocks);
   
   const placeIdx = PLACE_ORDER.indexOf(place);
-  const higherPlace = placeIdx > 0 ? PLACE_ORDER[placeIdx - 1] : null;
+  const higherPlace = placeIdx < PLACE_ORDER.length - 1 ? PLACE_ORDER[placeIdx + 1] : null;
 
   const { setNodeRef, isOver } = useDroppable({
     id: `column-${place}`,
