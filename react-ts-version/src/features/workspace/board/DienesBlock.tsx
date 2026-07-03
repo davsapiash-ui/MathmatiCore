@@ -1,70 +1,126 @@
 import { useDraggable } from '@dnd-kit/core';
 import { motion } from 'framer-motion';
-import type { Place } from '@/core/placeValue';
-import type { DragSource } from '@/core/placeValue';
+import type { Place, DragSource } from '@/core/placeValue';
 
 /**
- * בלוק דיינס (בדיד) — proportions are pedagogy, from the vanilla source of truth
- * (workspace.css 477–529): unit 16×16, ten 140×14, hundred 90×90, thousand 100×100.
- * The internal hatch lines show the "חלוקה" (10 sub-parts / 10×10 grid).
+ * בלוק דיינס (בדיד) - Isometric 3D SVG Implementation
+ * Responsive sizes driven by CSS variables in index.css.
+ * SVG Viewboxes ensure aspect ratio is maintained perfectly without forcing scrollbars.
  */
 
 export interface DienesBlockProps {
   id: string;
   place: Place;
   source: DragSource;
-  /** Static render (drag overlay / palette icon) — no dnd wiring. */
   isOverlay?: boolean;
-  /** Click/Enter/Space deletes (column blocks only). */
   onRemove?: () => void;
-  /** Skip the entrance animation (initial render of many blocks). */
   noEnter?: boolean;
 }
 
-const BLOCK_VISUALS: Record<Place, { className: string; style?: React.CSSProperties; labelHe: string }> = {
+// ----------------------------------------------------------------------
+// SVG Components for each Isometric Block
+// ----------------------------------------------------------------------
+
+const UnitSVG = () => {
+  return (
+    <svg viewBox="0 0 200 200" className="w-full h-full drop-shadow-md">
+      <polygon points="100,0 200,50 100,100 0,50" fill="#FEF08A" stroke="#CA8A04" strokeWidth="6" strokeLinejoin="round" />
+      <polygon points="100,100 200,50 200,150 100,200" fill="#FDE047" stroke="#CA8A04" strokeWidth="6" strokeLinejoin="round" />
+      <polygon points="0,50 100,100 100,200 0,150" fill="#EAB308" stroke="#CA8A04" strokeWidth="6" strokeLinejoin="round" />
+    </svg>
+  );
+};
+
+const TenSVG = () => {
+  const renderLines = () => {
+    const lines = [];
+    for (let i = 1; i <= 9; i++) {
+      lines.push(<line key={`rt-${i}`} x1={100} y1={100 + i * 100} x2={200} y2={50 + i * 100} stroke="#15803D" strokeWidth="8" strokeLinecap="round" />);
+      lines.push(<line key={`lt-${i}`} x1={0} y1={50 + i * 100} x2={100} y2={100 + i * 100} stroke="#15803D" strokeWidth="8" strokeLinecap="round" />);
+    }
+    return lines;
+  };
+
+  return (
+    <svg viewBox="0 0 200 1100" className="w-full h-full drop-shadow-md">
+      <polygon points="100,0 200,50 100,100 0,50" fill="#86EFAC" stroke="#15803D" strokeWidth="8" strokeLinejoin="round" />
+      <polygon points="100,100 200,50 200,1050 100,1100" fill="#4ADE80" stroke="#15803D" strokeWidth="8" strokeLinejoin="round" />
+      <polygon points="0,50 100,100 100,1100 0,1050" fill="#22C55E" stroke="#15803D" strokeWidth="8" strokeLinejoin="round" />
+      {renderLines()}
+    </svg>
+  );
+};
+
+const HundredSVG = () => {
+  const renderLines = () => {
+    const lines = [];
+    for (let i = 1; i <= 9; i++) {
+      lines.push(<line key={`tt1-${i}`} x1={1000 - i * 100} y1={i * 50} x2={2000 - i * 100} y2={500 + i * 50} stroke="#1E40AF" strokeWidth="12" strokeLinecap="round" />);
+      lines.push(<line key={`tt2-${i}`} x1={1000 + i * 100} y1={i * 50} x2={i * 100} y2={500 + i * 50} stroke="#1E40AF" strokeWidth="12" strokeLinecap="round" />);
+      lines.push(<line key={`rt-${i}`} x1={1000 + i * 100} y1={1000 - i * 50} x2={1000 + i * 100} y2={1100 - i * 50} stroke="#1E40AF" strokeWidth="12" strokeLinecap="round" />);
+      lines.push(<line key={`lt-${i}`} x1={i * 100} y1={500 + i * 50} x2={i * 100} y2={600 + i * 50} stroke="#1E40AF" strokeWidth="12" strokeLinecap="round" />);
+    }
+    return lines;
+  };
+
+  return (
+    <svg viewBox="0 0 2000 1100" className="w-full h-full drop-shadow-md">
+      <polygon points="1000,0 2000,500 1000,1000 0,500" fill="#93C5FD" stroke="#1E40AF" strokeWidth="16" strokeLinejoin="round" />
+      <polygon points="1000,1000 2000,500 2000,600 1000,1100" fill="#60A5FA" stroke="#1E40AF" strokeWidth="16" strokeLinejoin="round" />
+      <polygon points="0,500 1000,1000 1000,1100 0,600" fill="#3B82F6" stroke="#1E40AF" strokeWidth="16" strokeLinejoin="round" />
+      {renderLines()}
+    </svg>
+  );
+};
+
+const ThousandSVG = () => {
+  const renderLines = () => {
+    const lines = [];
+    for (let i = 1; i <= 9; i++) {
+      lines.push(<line key={`tt1-${i}`} x1={1000 - i * 100} y1={i * 50} x2={2000 - i * 100} y2={500 + i * 50} stroke="#9A3412" strokeWidth="12" strokeLinecap="round" />);
+      lines.push(<line key={`tt2-${i}`} x1={1000 + i * 100} y1={i * 50} x2={i * 100} y2={500 + i * 50} stroke="#9A3412" strokeWidth="12" strokeLinecap="round" />);
+      lines.push(<line key={`rtv-${i}`} x1={1000 + i * 100} y1={1000 - i * 50} x2={1000 + i * 100} y2={2000 - i * 50} stroke="#9A3412" strokeWidth="12" strokeLinecap="round" />);
+      lines.push(<line key={`rth-${i}`} x1={1000} y1={1000 + i * 100} x2={2000} y2={500 + i * 100} stroke="#9A3412" strokeWidth="12" strokeLinecap="round" />);
+      lines.push(<line key={`ltv-${i}`} x1={i * 100} y1={500 + i * 50} x2={i * 100} y2={1500 + i * 50} stroke="#9A3412" strokeWidth="12" strokeLinecap="round" />);
+      lines.push(<line key={`lth-${i}`} x1={0} y1={500 + i * 100} x2={1000} y2={1000 + i * 100} stroke="#9A3412" strokeWidth="12" strokeLinecap="round" />);
+    }
+    return lines;
+  };
+
+  return (
+    <svg viewBox="0 0 2000 2000" className="w-full h-full drop-shadow-xl">
+      <polygon points="1000,0 2000,500 1000,1000 0,500" fill="#FDBA74" stroke="#9A3412" strokeWidth="16" strokeLinejoin="round" />
+      <polygon points="1000,1000 2000,500 2000,1500 1000,2000" fill="#F97316" stroke="#9A3412" strokeWidth="16" strokeLinejoin="round" />
+      <polygon points="0,500 1000,1000 1000,2000 0,1500" fill="#EA580C" stroke="#9A3412" strokeWidth="16" strokeLinejoin="round" />
+      {renderLines()}
+    </svg>
+  );
+};
+
+// ----------------------------------------------------------------------
+// Main Component
+// ----------------------------------------------------------------------
+
+const BLOCK_VISUALS: Record<Place, { style?: React.CSSProperties; labelHe: string; Component: React.FC }> = {
   units: {
-    className: 'rounded-[2px] shrink-0',
-    style: {
-      width: 'var(--blk-unit)', height: 'var(--blk-unit)',
-      backgroundColor: 'var(--block-unit)', boxShadow: '0 3px 0 var(--block-unit-dark), 0 3px 6px rgba(0,0,0,0.2)',
-    },
+    style: { width: 'var(--blk-unit)', height: 'var(--blk-unit)' },
     labelHe: 'יחידה',
+    Component: UnitSVG,
   },
   tens: {
-    className: 'rounded-[2px] shrink-0',
-    style: {
-      width: 'var(--blk-ten-w)', height: 'var(--blk-ten-h)',
-      backgroundColor: 'var(--block-ten)',
-      boxShadow: '0 3px 0 var(--block-ten-dark), 0 3px 6px rgba(0,0,0,0.2)',
-      backgroundSize: '10% 100%',
-      backgroundImage: 'linear-gradient(90deg, transparent 90%, rgba(0,0,0,0.22) 90%)',
-    },
+    style: { height: 'var(--blk-ten-w)' }, // In isometric, width is smaller, driven by height and aspect ratio
     labelHe: 'עשרת — ניתן לפרוט ליחידות או להמיר למאה',
+    Component: TenSVG,
   },
   hundreds: {
-    className: 'rounded-[2px] shrink-0',
-    style: {
-      width: 'var(--blk-hundred)', height: 'var(--blk-hundred)',
-      backgroundColor: 'var(--block-hundred)',
-      boxShadow: '0 3px 0 var(--block-hundred-dark), 0 3px 6px rgba(0,0,0,0.2)',
-      backgroundSize: '10% 10%',
-      backgroundImage:
-        'linear-gradient(0deg, transparent 90%, rgba(0,0,0,0.22) 90%), linear-gradient(90deg, transparent 90%, rgba(0,0,0,0.22) 90%)',
-    },
+    style: { width: 'var(--blk-hundred)' }, // Height is determined by SVG ratio
     labelHe: 'מאה — ניתן לפרוט לעשרות או להמיר לאלף',
+    Component: HundredSVG,
   },
   thousands: {
-    className: 'rounded-[2px] shrink-0 ml-2',
-    style: {
-      width: 'var(--blk-thousand)', height: 'var(--blk-thousand)',
-      backgroundColor: 'var(--block-thousand)',
-      boxShadow:
-        '-2px 2px 0 rgba(220,38,38,0.9), -4px 4px 0 rgba(220,38,38,0.7), -6px 6px 0 rgba(220,38,38,0.5), -8px 8px 10px rgba(0,0,0,0.3)',
-      backgroundSize: '10% 10%',
-      backgroundImage:
-        'linear-gradient(0deg, transparent 90%, rgba(0,0,0,0.22) 90%), linear-gradient(90deg, transparent 90%, rgba(0,0,0,0.22) 90%)',
-    },
+    style: { width: 'var(--blk-thousand)' }, // Width and height are equal in isometric
     labelHe: 'אלף — ניתן לפרוט למאות',
+    Component: ThousandSVG,
   },
 };
 
@@ -76,25 +132,22 @@ export function DienesBlock({ id, place, source, isOverlay, onRemove, noEnter }:
   });
 
   const visual = BLOCK_VISUALS[place];
+  const SvgElement = visual.Component;
 
   const inner = (
     <motion.div
       initial={noEnter || isOverlay ? false : { scale: 0.1, y: -12 }}
       animate={{ scale: 1, y: 0 }}
       transition={{ type: 'spring', stiffness: 500, damping: 22 }}
-      className={`${visual.className} relative select-none`}
+      className={`relative select-none shrink-0 inline-flex items-end justify-center`}
       style={visual.style}
     >
-      {/* Glossy bevel (kept from the improved React blocks) */}
-      <div className="absolute inset-0 rounded-[inherit] shadow-[inset_0_2px_3px_rgba(255,255,255,0.65),inset_0_-3px_5px_rgba(0,0,0,0.15)] pointer-events-none" />
-      <div className="absolute top-[1px] left-[1px] right-[1px] h-[35%] bg-gradient-to-b from-white/50 to-transparent rounded-[inherit] pointer-events-none" />
+      <SvgElement />
     </motion.div>
   );
 
   if (isOverlay) return inner;
 
-  // Units are visually 16px (pedagogical 1:10:100 proportion — must not change), but a
-  // 16px touch/drag target is too small for young fingers. Pad the HIT AREA only.
   const hitPadding = place === 'units' ? 'p-2 -m-1' : '';
 
   return (
@@ -105,7 +158,7 @@ export function DienesBlock({ id, place, source, isOverlay, onRemove, noEnter }:
       role="button"
       tabIndex={0}
       aria-label={visual.labelHe}
-      className={`cursor-grab active:cursor-grabbing outline-none focus-visible:ring-2 focus-visible:ring-ws-accent rounded-[3px] transition-transform hover:scale-105 hover:-translate-y-0.5 ${hitPadding} ${isDragging ? 'opacity-30' : ''}`}
+      className={`cursor-grab active:cursor-grabbing outline-none focus-visible:ring-2 focus-visible:ring-ws-accent rounded-[3px] transition-transform hover:scale-105 hover:-translate-y-1 ${hitPadding} ${isDragging ? 'opacity-30' : ''}`}
       onClick={onRemove}
       onKeyDown={(e) => {
         if (onRemove && (e.key === 'Enter' || e.key === ' ')) {

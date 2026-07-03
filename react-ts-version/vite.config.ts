@@ -13,10 +13,11 @@ export default defineConfig({
     chunkSizeWarningLimit: 2000,
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom', 'firebase/app', 'firebase/database'],
-          recharts: ['recharts'],
-          rrweb: ['rrweb', 'rrweb-player']
+        manualChunks(id) {
+          if (id.includes('node_modules/rrweb')) return 'rrweb';
+          if (id.includes('node_modules/recharts')) return 'recharts';
+          if (id.includes('node_modules/firebase')) return 'firebase';
+          if (id.includes('node_modules')) return 'vendor';
         }
       }
     }
