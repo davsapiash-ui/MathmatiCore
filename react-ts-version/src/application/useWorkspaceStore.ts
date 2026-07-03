@@ -56,7 +56,8 @@ interface WorkspaceState {
 
   // board
   counts: PlaceCounts;
-  undoStack: PlaceCounts[];
+  packagedBlocks: PlaceCounts;
+  undoStack: { counts: PlaceCounts; packagedBlocks: PlaceCounts }[];
   undoCount: number;
   boardOpen: boolean;
   scaffoldFadeLevel: number;
@@ -84,6 +85,7 @@ interface WorkspaceState {
   initSession: (meeting: SessionNumber, isASD: boolean, aiTasks?: SessionTask[] | null) => void;
   applyDrop: (input: DropInput) => void;
   removeBlockClick: (place: Place) => void;
+  packageBlocks: (place: Place) => void;
   undo: () => void;
   toggleBoard: () => void;
   setFocusedPlace: (place: Place | null) => void;
@@ -108,7 +110,8 @@ interface WorkspaceState {
 function resetTaskInteraction() {
   return {
     counts: { ...EMPTY_COUNTS },
-    undoStack: [] as PlaceCounts[],
+    packagedBlocks: { ...EMPTY_COUNTS },
+    undoStack: [] as { counts: PlaceCounts; packagedBlocks: PlaceCounts }[],
     hasInteracted: false,
     selectedChoiceId: null as string | null,
     numberLineValue: null as number | null,
@@ -197,8 +200,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     }, ms);
   }
 
-  function pushSnapshot(prev: PlaceCounts) {
-    const stack = [...get().undoStack, { ...prev }];
+  function pushSnapshot(counts: PlaceCounts, packagedBlocks: PlaceCounts) {
+    const stack = [...get().undoStack, { counts: { ...counts }, packagedBlocks: { ...packagedBlocks } }];
     if (stack.length > UNDO_STACK_CAP) stack.shift();
     set({ undoStack: stack });
   }
@@ -430,6 +433,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     awaitingNext: false,
 
     counts: { ...EMPTY_COUNTS },
+    packagedBlocks: { ...EMPTY_COUNTS },
     undoStack: [],
     undoCount: 0,
     boardOpen: true,
@@ -477,14 +481,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     applyDrop: (input) => {
       const s = get();
       radar.recordAction();
-      const result = resolveDrop(s.counts, input, selectScaffoldLevel(s));
+      const result = resolveDrop(s.counts, s.packagedBlocks, input, selectScaffoldLevel(s));
       if (!result.ok) {
         if (result.reason === 'constraint') flagConstraintError(result.place);
         return;
       }
-      pushSnapshot(s.counts);
-      set({ counts: result.counts, hasInteracted: true });
-      if (result.removed) radar.recordDelete();
+      pushSnapshot(s.counts, s.packagedBlocks);
+      set({ counts: result.counts, packagedBlocks: result.packagedBlocks, hasInteracted: true });
+      if (result.removed || result.packagedRemoved) radar.recordDelete();
     },
 
     removeBlockClick: (place) => {
@@ -495,9 +499,21 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         flagConstraintError(place);
         return;
       }
-      pushSnapshot(s.counts);
+      pushSnapshot(s.counts, s.packagedBlocks);
       set({ counts: next, hasInteracted: true });
       radar.recordDelete();
+    },
+
+    packageBlocks: (place) => {
+      const s = get();
+      if (s.counts[place] < 10) return;
+      radar.recordAction();
+      pushSnapshot(s.counts, s.packagedBlocks);
+      set({
+        counts: { ...s.counts, [place]: s.counts[place] - 10 },
+        packagedBlocks: { ...s.packagedBlocks, [place]: s.packagedBlocks[place] + 1 },
+        hasInteracted: true,
+      });
     },
 
     undo: () => {
@@ -505,7 +521,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const stack = [...s.undoStack];
       const snapshot = stack.pop();
       if (!snapshot) return;
-      set({ counts: snapshot, undoStack: stack, undoCount: s.undoCount + 1 });
+      set({ counts: snapshot.counts, packagedBlocks: snapshot.packagedBlocks, undoStack: stack, undoCount: s.undoCount + 1 });
       radar.recordUndo();
       radar.recordAction();
     },
@@ -576,10 +592,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     demoUngroup: () => {
       const s = get();
       radar.recordAction();
-      const result = resolveDrop(s.counts, { source: 'column', sourcePlace: 'tens', target: { kind: 'column', place: 'units' } }, selectScaffoldLevel(s));
+      const result = resolveDrop(s.counts, s.packagedBlocks, { source: 'column', sourcePlace: 'tens', target: { kind: 'column', place: 'units' } }, selectScaffoldLevel(s));
       if (result.ok) {
-        pushSnapshot(s.counts);
-        set({ counts: result.counts, hasInteracted: true });
+        pushSnapshot(s.counts, s.packagedBlocks);
+        set({ counts: result.counts, packagedBlocks: result.packagedBlocks, hasInteracted: true });
       }
     },
 

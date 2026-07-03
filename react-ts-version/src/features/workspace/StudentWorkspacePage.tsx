@@ -43,7 +43,7 @@ export function StudentWorkspacePage() {
   const flowStatus = useWorkspaceStore((s) => s.flowStatus);
   const qflow = useWorkspaceStore((s) => s.qflow);
 
-  const [activeDrag, setActiveDrag] = useState<{ place: Place; source: DragSource } | null>(null);
+  const [activeDrag, setActiveDrag] = useState<{ place: Place; source: DragSource; renderPlace?: Place } | null>(null);
 
   // הרדאר השקט — covert monitoring for the teacher dashboard; nothing student-visible.
   useWorkspaceRadar(sessionNumber);
@@ -180,8 +180,8 @@ export function StudentWorkspacePage() {
   );
 
   const handleDragStart = (event: DragStartEvent) => {
-    const data = event.active.data.current as { source: DragSource; place: Place } | undefined;
-    if (data) setActiveDrag({ place: data.place, source: data.source });
+    const data = event.active.data.current as { source: DragSource; place: Place; renderPlace?: Place } | undefined;
+    if (data) setActiveDrag({ place: data.place, source: data.source, renderPlace: data.renderPlace });
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -264,7 +264,7 @@ export function StudentWorkspacePage() {
         {activeDrag ? (
           // 15% smaller than the old 1.10 per user request — the dragged block must not dwarf the board
           <div className="scale-[0.93] rotate-2 opacity-90 drop-shadow-2xl">
-            <DienesBlock id="drag-overlay" place={activeDrag.place} source={activeDrag.source} isOverlay />
+            <DienesBlock id="drag-overlay" place={activeDrag.renderPlace ?? activeDrag.place} source={activeDrag.source} isOverlay />
           </div>
         ) : null}
       </DragOverlay>

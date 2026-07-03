@@ -12,6 +12,7 @@ export interface DienesBlockProps {
   id: string;
   place: Place;
   source: DragSource;
+  sourcePlace?: Place;
   isOverlay?: boolean;
   onRemove?: () => void;
   noEnter?: boolean;
@@ -124,10 +125,10 @@ const BLOCK_VISUALS: Record<Place, { style?: React.CSSProperties; labelHe: strin
   },
 };
 
-export function DienesBlock({ id, place, source, isOverlay, onRemove, noEnter }: DienesBlockProps) {
+export function DienesBlock({ id, place, source, sourcePlace, isOverlay, onRemove, noEnter }: DienesBlockProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id,
-    data: { source, place },
+    data: { source, place: sourcePlace ?? place, renderPlace: place },
     disabled: isOverlay,
   });
 

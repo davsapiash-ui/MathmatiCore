@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { motion, useAnimationControls } from 'framer-motion';
-import { MAX_VISIBLE_BLOCKS, PLACE_NAMES_HE, type Place } from '@/core/placeValue';
+import { MAX_VISIBLE_BLOCKS, PLACE_NAMES_HE, type Place, PLACE_ORDER } from '@/core/placeValue';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { DienesBlock } from './DienesBlock';
 
@@ -20,6 +20,11 @@ export function PlaceColumn({ place }: { place: Place }) {
   const focusedPlace = useWorkspaceStore((s) => s.focusedPlace);
   const isASD = useWorkspaceStore((s) => s.isASD);
   const removeBlockClick = useWorkspaceStore((s) => s.removeBlockClick);
+  const packagedCount = useWorkspaceStore((s) => s.packagedBlocks[place]);
+  const packageBlocks = useWorkspaceStore((s) => s.packageBlocks);
+  
+  const placeIdx = PLACE_ORDER.indexOf(place);
+  const higherPlace = placeIdx > 0 ? PLACE_ORDER[placeIdx - 1] : null;
 
   const { setNodeRef, isOver } = useDroppable({
     id: `column-${place}`,
@@ -75,6 +80,30 @@ export function PlaceColumn({ place }: { place: Place }) {
         aria-label={`אזור גרירה — ${PLACE_NAMES_HE[place]}`}
         className="flex-1 flex flex-row flex-wrap content-start justify-center items-start gap-1 p-2 min-h-[150px] overflow-y-auto"
       >
+        {count >= 10 && higherPlace && (
+          <div className="w-full flex justify-center mb-3">
+            <motion.button
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              onClick={() => packageBlocks(place)}
+              className="px-4 py-2 bg-ws-accent text-white font-bold rounded-xl shadow-md hover:brightness-110 active:scale-95 transition-all text-sm w-full border-b-4 border-ws-accent/50"
+            >
+              ארוז 10 ל{PLACE_NAMES_HE[higherPlace]}
+            </motion.button>
+          </div>
+        )}
+
+        {higherPlace && Array.from({ length: packagedCount }).map((_, i) => (
+          <div key={`pkg-${place}-${i}`} className="relative transition-all mb-2 ring-2 ring-ws-blue rounded-lg bg-ws-blue/10 p-0.5">
+            <DienesBlock
+              id={`pkg-${place}-${i}`}
+              place={higherPlace}
+              source="packaged"
+              sourcePlace={place}
+            />
+          </div>
+        ))}
+
         {Array.from({ length: renderCount }).map((_, i) => {
           let overlapStyle: React.CSSProperties = { zIndex: i };
           if (i > 0) {

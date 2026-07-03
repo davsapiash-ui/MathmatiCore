@@ -96,7 +96,7 @@ export function addUngroupedFromPalette(counts: PlaceCounts, fromPlace: Place): 
 
 // ── Drop resolution (the whole vanilla DragController.handleDrop rule table) ──
 
-export type DragSource = 'palette' | 'column';
+export type DragSource = 'palette' | 'column' | 'packaged';
 
 export interface DropInput {
   source: DragSource;
@@ -105,11 +105,11 @@ export interface DropInput {
 }
 
 export type DropResult =
-  | { ok: true; counts: PlaceCounts; regroupEvents: RegroupEvent[]; ungroupEvent?: UngroupEvent; removed?: Place }
+  | { ok: true; counts: PlaceCounts; packagedBlocks: PlaceCounts; regroupEvents: RegroupEvent[]; ungroupEvent?: UngroupEvent; removed?: Place; packagedRemoved?: Place }
   | { ok: false; reason: 'silent' }
   | { ok: false; reason: 'constraint'; place: Place };
 
-export function resolveDrop(counts: PlaceCounts, input: DropInput, scaffoldLevel: number): DropResult {
+export function resolveDrop(counts: PlaceCounts, packagedBlocks: PlaceCounts, input: DropInput, scaffoldLevel: number): DropResult {
   void scaffoldLevel; // Silence TS unused var error
   // Pedagogical update: Disable automatic grouping entirely for now, as requested by the user.
   // Grouping will be strictly manual (dragging >=10 to the adjacent higher place).
@@ -117,10 +117,15 @@ export function resolveDrop(counts: PlaceCounts, input: DropInput, scaffoldLevel
 
   // Trash: only blocks taken from a column may be deleted (palette drags are copies).
   if (input.target.kind === 'trash') {
+    if (input.source === 'packaged') {
+      const nextPackaged = removeBlock(packagedBlocks, input.sourcePlace);
+      if (!nextPackaged) return { ok: false, reason: 'constraint', place: input.sourcePlace };
+      return { ok: true, counts, packagedBlocks: nextPackaged, regroupEvents: [], packagedRemoved: input.sourcePlace };
+    }
     if (input.source !== 'column') return { ok: false, reason: 'silent' };
     const next = removeBlock(counts, input.sourcePlace);
     if (!next) return { ok: false, reason: 'constraint', place: input.sourcePlace };
-    return { ok: true, counts: next, regroupEvents: [], removed: input.sourcePlace };
+    return { ok: true, counts: next, packagedBlocks, regroupEvents: [], removed: input.sourcePlace };
   }
 
   const srcIdx = PLACE_ORDER.indexOf(input.sourcePlace);
@@ -131,13 +136,31 @@ export function resolveDrop(counts: PlaceCounts, input: DropInput, scaffoldLevel
     // Same place: plain add (scaffold-conditional auto-group, chained).
     if (srcIdx === tgtIdx) {
       const { counts: next, events } = addBlock(counts, targetPlace, autoGroup);
-      return { ok: true, counts: next, regroupEvents: events };
+      return { ok: true, counts: next, packagedBlocks, regroupEvents: events };
     }
     // Adjacent lower: instant decomposition of a fresh palette block (+10 low).
     if (srcIdx - tgtIdx === 1) {
       const res = addUngroupedFromPalette(counts, input.sourcePlace);
       if (!res) return { ok: false, reason: 'silent' };
-      return { ok: true, counts: res.counts, regroupEvents: [], ungroupEvent: res.event };
+      return { ok: true, counts: res.counts, packagedBlocks, regroupEvents: [], ungroupEvent: res.event };
+    }
+    return { ok: false, reason: 'silent' };
+  }
+
+  if (input.source === 'packaged') {
+    // Packaged block from units dragged to tens
+    if (tgtIdx - srcIdx === 1) {
+      const nextPackaged = removeBlock(packagedBlocks, input.sourcePlace);
+      if (!nextPackaged) return { ok: false, reason: 'constraint', place: input.sourcePlace };
+      
+      const { counts: next, events } = addBlock(counts, targetPlace, autoGroup);
+      return {
+        ok: true,
+        counts: next,
+        packagedBlocks: nextPackaged,
+        regroupEvents: [{ from: input.sourcePlace, to: targetPlace, groups: 1 }, ...events],
+        packagedRemoved: input.sourcePlace,
+      };
     }
     return { ok: false, reason: 'silent' };
   }
@@ -149,22 +172,14 @@ export function resolveDrop(counts: PlaceCounts, input: DropInput, scaffoldLevel
   if (srcIdx - tgtIdx === 1) {
     const res = ungroupBlock(counts, input.sourcePlace);
     if (!res) return { ok: false, reason: 'silent' };
-    return { ok: true, counts: res.counts, regroupEvents: [], ungroupEvent: res.event };
+    return { ok: true, counts: res.counts, packagedBlocks, regroupEvents: [], ungroupEvent: res.event };
   }
 
-  // הקפצה ידנית: adjacent higher only, requires ≥10 in source.
+  // הקפצה ידנית: adjacent higher only, requires >=10 in source.
+  // Pedagogical update: Removed grouping by dragging a single block, as it destroys number sense.
+  // Grouping will be an explicit button action.
   if (tgtIdx - srcIdx === 1) {
-    if (counts[input.sourcePlace] < 10) {
-      return { ok: false, reason: 'constraint', place: input.sourcePlace };
-    }
-    let next = { ...counts, [input.sourcePlace]: counts[input.sourcePlace] - 10 };
-    const { counts: after, events } = addBlock(next, targetPlace, autoGroup);
-    next = after;
-    return {
-      ok: true,
-      counts: next,
-      regroupEvents: [{ from: input.sourcePlace, to: targetPlace, groups: 1 }, ...events],
-    };
+    return { ok: false, reason: 'constraint', place: input.sourcePlace };
   }
 
   // Non-adjacent: silently rejected (adjacent-step pedagogy).
