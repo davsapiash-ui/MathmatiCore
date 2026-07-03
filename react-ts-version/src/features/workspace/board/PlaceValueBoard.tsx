@@ -27,8 +27,12 @@ export function PlaceValueBoard({ hideValueDisplay }: { hideValueDisplay?: boole
           style={{ flexGrow: 0, flexShrink: 0 }}
           aria-label="טבלת ערך המקום"
         >
-          <div className="flex-1 bg-ws-surface rounded-3xl shadow-lg border border-ws-surface2 p-4 flex flex-col gap-3 overflow-hidden">
-            <p className="text-center text-sm font-bold text-ws-soft tracking-wide shrink-0">טבלת ערך המקום</p>
+          <div className="flex-1 ws-card p-4 flex flex-col gap-3 overflow-hidden">
+            <p className="text-center shrink-0">
+              <span className="inline-flex items-center gap-1.5 text-sm font-display font-extrabold text-ws-soft bg-ws-bg rounded-full px-4 py-1 border border-ws-surface2">
+                <span aria-hidden="true">🏠</span> בית המספרים
+              </span>
+            </p>
 
             {/* Scaffold fade applies to the columns only — the palette stays crisp */}
             <div dir="rtl" className={`flex-1 flex flex-row gap-2 min-h-0 scaffold-level-${scaffoldFadeLevel}`} role="group" aria-label="טורי ערך המקום">

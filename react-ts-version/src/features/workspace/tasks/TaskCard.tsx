@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { useWorkspaceStore, selectStandardTask } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, selectStandardTask, effectiveArithmetic } from '@/application/useWorkspaceStore';
 import { getCurrentQTask, getEffectiveChoices, getEffectiveNumber, getEffectiveRange, isSubtaskActive } from '@/core/qmatrixFlow';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 import { IntroTask } from './IntroTask';
@@ -29,14 +29,22 @@ export function TaskCard() {
   const taskKey = `${sessionNumber}-${qTask?.id ?? standardTask?.id ?? ''}-${subtask ? 'sub' : qflow.subphase}-${standardTaskIdx}`;
 
   return (
-    <section className="flex-1 min-w-0 bg-ws-surface rounded-3xl shadow-lg border border-ws-surface2 p-8 overflow-y-auto relative">
-      <motion.div key={taskKey} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-        <p className="text-xs font-bold text-ws-accent uppercase tracking-widest mb-2">מפגש {sessionNumber}</p>
-        <h1 className="font-display font-black text-3xl text-ws-ink mb-3 leading-snug">{title}</h1>
+    <section className="flex-1 min-w-0 ws-card p-8 overflow-y-auto relative">
+      {/* Soft decorative corner glow — warmth without noise */}
+      <div
+        aria-hidden="true"
+        className="absolute top-0 left-0 w-56 h-56 pointer-events-none rounded-full opacity-60"
+        style={{ background: 'radial-gradient(closest-side, hsl(var(--ws-accent-soft)), transparent)' }}
+      />
+      <motion.div key={taskKey} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="relative">
+        <span className="inline-flex items-center gap-1.5 text-sm font-display font-extrabold text-ws-accent bg-ws-accentSoft rounded-full px-3.5 py-1.5 mb-3 shadow-[0_2px_6px_-2px_hsl(var(--ws-accent)/0.35)]">
+          <span aria-hidden="true">✦</span> מפגש {sessionNumber}
+        </span>
+        <h1 className="font-display font-black text-[2.15rem] text-ws-ink mb-4 leading-[1.15]">{title}</h1>
 
         {instruction && (
-          <div className="flex items-start gap-2 mb-4">
-            <p className="text-xl text-ws-soft font-medium leading-relaxed flex-1">{instruction}</p>
+          <div className="flex items-start gap-3 mb-6 bg-ws-bg/70 rounded-2xl p-4 pr-5 border-r-4 border-ws-accent/60">
+            <p className="text-xl text-ws-ink/85 font-medium leading-relaxed flex-1">{instruction}</p>
             <UdlSpeechButton text={instruction} />
           </div>
         )}
@@ -45,14 +53,18 @@ export function TaskCard() {
         {sessionNumber !== 2 && standardTask && (
           <>
             {standardTask.type === 'session1_intro' && <IntroTask task={standardTask} />}
-            {(standardTask.type === 'addition_simple' || standardTask.type === 'vertical_addition') && (
-              <VerticalAdditionTask
-                numberA={(isASD && standardTask.asdNumberA) || standardTask.numberA!}
-                numberB={(isASD && standardTask.asdNumberB) || standardTask.numberB!}
-                isSubtraction={standardTask.isSubtraction}
-                answerLength={String(standardTask.correctAnswer).length}
-              />
-            )}
+            {(standardTask.type === 'addition_simple' || standardTask.type === 'vertical_addition') &&
+              (() => {
+                const { a, b, target } = effectiveArithmetic(standardTask, isASD);
+                return (
+                  <VerticalAdditionTask
+                    numberA={a}
+                    numberB={b}
+                    isSubtraction={standardTask.isSubtraction}
+                    answerLength={String(Math.abs(target)).length}
+                  />
+                );
+              })()}
           </>
         )}
 
@@ -91,13 +103,11 @@ export function TaskCard() {
                   <FlexibleDecompTask targetNumber={getEffectiveNumber(qTask, qflow, isASD) ?? 0} />
                 )}
 
-                {qTask.type === 'vertical_addition' && (
-                  <VerticalAdditionTask
-                    numberA={(isASD && qTask.asdNumberA) || qTask.numberA!}
-                    numberB={(isASD && qTask.asdNumberB) || qTask.numberB!}
-                    answerLength={String(isASD && qTask.asdCorrectAnswer !== undefined ? qTask.asdCorrectAnswer : qTask.correctAnswer).length}
-                  />
-                )}
+                {qTask.type === 'vertical_addition' &&
+                  (() => {
+                    const { a, b, target } = effectiveArithmetic(qTask, isASD);
+                    return <VerticalAdditionTask numberA={a} numberB={b} answerLength={String(Math.abs(target)).length} />;
+                  })()}
 
                 {qTask.type === 'small_change' && (
                   <SmallChangeTask givenHe={qTask.givenHe ?? ''} questionHe={qTask.questionHe ?? ''} choices={qTask.choices ?? []} />

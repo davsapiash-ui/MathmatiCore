@@ -9,8 +9,8 @@ export function TrashZone() {
       ref={setNodeRef}
       role="button"
       aria-label="גרור לכאן כדי למחוק"
-      className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl border-2 border-dashed transition-all duration-200 select-none ${
-        isOver ? 'scale-115 rotate-12 border-ws-danger bg-red-50' : 'border-ws-surface2 bg-ws-surface'
+      className={`w-16 h-16 rounded-2xl flex items-center justify-center text-2xl border-2 border-dashed transition-all duration-200 select-none ${
+        isOver ? 'scale-110 rotate-12 border-ws-danger bg-red-50 shadow-[0_6px_16px_-6px_rgba(220,60,60,0.5)]' : 'border-ws-surface2 bg-ws-bg/70 hover:border-ws-danger/40'
       }`}
     >
       🗑️

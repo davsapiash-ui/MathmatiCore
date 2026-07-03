@@ -6,11 +6,11 @@ import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { DienesBlock } from './DienesBlock';
 
 /** Per-place functional colors (vanilla workspace.css 346–375). */
-const COLUMN_COLORS: Record<Place, { header: string; border: string; tint: string }> = {
-  units: { header: 'var(--block-unit-dark)', border: 'var(--block-unit)', tint: 'rgba(245,158,11,0.08)' },
-  tens: { header: 'var(--block-ten-dark)', border: 'var(--block-ten)', tint: 'rgba(16,185,129,0.08)' },
-  hundreds: { header: 'var(--block-hundred-dark)', border: 'var(--block-hundred)', tint: 'rgba(59,130,246,0.08)' },
-  thousands: { header: 'var(--block-thousand-dark)', border: 'var(--block-thousand)', tint: 'rgba(239,68,68,0.08)' },
+const COLUMN_COLORS: Record<Place, { header: string; border: string; tint: string; headerBg: string }> = {
+  units: { header: 'var(--block-unit-dark)', border: 'var(--block-unit)', tint: 'rgba(245,158,11,0.08)', headerBg: 'rgba(245,158,11,0.14)' },
+  tens: { header: 'var(--block-ten-dark)', border: 'var(--block-ten)', tint: 'rgba(16,185,129,0.08)', headerBg: 'rgba(16,185,129,0.14)' },
+  hundreds: { header: 'var(--block-hundred-dark)', border: 'var(--block-hundred)', tint: 'rgba(59,130,246,0.08)', headerBg: 'rgba(59,130,246,0.14)' },
+  thousands: { header: 'var(--block-thousand-dark)', border: 'var(--block-thousand)', tint: 'rgba(239,68,68,0.08)', headerBg: 'rgba(239,68,68,0.14)' },
 };
 
 export function PlaceColumn({ place }: { place: Place }) {
@@ -43,19 +43,19 @@ export function PlaceColumn({ place }: { place: Place }) {
   return (
     <motion.div
       animate={shakeControls}
-      className={`flex-1 min-w-0 flex flex-col rounded-2xl border transition-all duration-300 ${
+      className={`flex-1 min-w-0 flex flex-col rounded-2xl border overflow-hidden transition-all duration-300 ${
         isDimmed ? 'opacity-30 grayscale pointer-events-none' : ''
       }`}
       style={{
         borderColor: isOver ? colors.border : 'hsl(var(--ws-surface-2))',
         backgroundColor: isOver || isError ? colors.tint : 'hsl(var(--ws-surface))',
-        boxShadow: isOver ? `0 0 0 2px ${colors.border}` : '0 1px 3px rgba(0,0,0,0.05)',
+        boxShadow: isOver ? `0 0 0 3px ${colors.border}` : '0 4px 14px -6px rgba(120,80,20,0.12)',
       }}
       aria-label={`טור ${PLACE_NAMES_HE[place]}`}
     >
       <div
-        className="flex items-center justify-center gap-2 py-2 font-display font-extrabold text-lg border-b"
-        style={{ color: colors.header, borderColor: 'hsl(var(--ws-surface-2))' }}
+        className="flex items-center justify-center gap-2 py-2.5 font-display font-extrabold text-lg"
+        style={{ color: colors.header, backgroundColor: colors.headerBg }}
       >
         {PLACE_NAMES_HE[place]}
         <span

@@ -101,8 +101,39 @@ export function StudentWorkspacePage() {
   const qTask = sessionNumber === 2 ? getCurrentQTask(qflow) : null;
   const hideValueDisplay = qTask?.type === 'number_line' && !isSubtaskActive(qflow);
 
+  const [isInitializing, setIsInitializing] = useState(meeting === 3);
+  const [pendingApproval, setPendingApproval] = useState(false);
+
   useEffect(() => {
-    initSession(meeting, isASDMode);
+    if (meeting === 3) {
+      setIsInitializing(true);
+      import('@/infrastructure/services/SocraticEngine').then(({ SocraticEngine }) => {
+        import('@/application/useAuthStore').then(({ useAuthStore }) => {
+          const username = useAuthStore.getState().user?.username;
+          if (username) {
+            SocraticEngine.getApprovedTasks(username).then((tasks) => {
+              if (tasks) {
+                initSession(meeting, isASDMode, tasks);
+              } else {
+                // If tasks are null, it means they are pending approval or haven't been generated.
+                // We'll set a special flowStatus or handle it with a local state.
+                setPendingApproval(true);
+              }
+              setIsInitializing(false);
+            }).catch(() => {
+              initSession(meeting, isASDMode);
+              setIsInitializing(false);
+            });
+          } else {
+            initSession(meeting, isASDMode);
+            setIsInitializing(false);
+          }
+        });
+      });
+    } else {
+      initSession(meeting, isASDMode);
+      setIsInitializing(false);
+    }
     // isASDMode intentionally not a dependency: mid-session toggling must not reset the student's work.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [meeting, initSession]);
@@ -135,9 +166,42 @@ export function StudentWorkspacePage() {
     return <ReflectionScreen />;
   }
 
+  if (isInitializing) {
+    return (
+      <div dir="rtl" className="h-screen w-full flex flex-col items-center justify-center bg-ws-bg text-ws-ink font-body">
+        <div className="animate-spin text-4xl mb-4">⏳</div>
+        <h2 className="text-xl font-bold">טוען את המשימות המותאמות שלך...</h2>
+      </div>
+    );
+  }
+
+  if (pendingApproval) {
+    return (
+      <div dir="rtl" className="h-screen w-full flex flex-col items-center justify-center bg-ws-bg text-ws-ink font-body p-6">
+        <div className="bg-ws-surface p-10 rounded-3xl shadow-xl max-w-md text-center border border-ws-surface2">
+          <div className="text-5xl mb-6">🧑‍🏫</div>
+          <h2 className="text-2xl font-bold mb-4 text-ws-ink">המורה בודק את המסלול שלך</h2>
+          <p className="text-ws-soft mb-8">
+            סיימת את שלב האבחון בהצלחה! כעת, המורה עובר על התוצאות ומאשר את המשימות המותאמות במיוחד עבורך. אפשר לחזור מאוחר יותר.
+          </p>
+          <button 
+            onClick={() => navigate('/hub')}
+            className="w-full py-4 bg-ws-accent text-white font-bold rounded-2xl hover:brightness-105 transition-all"
+          >
+            חזרה לעמוד הראשי
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-      <div dir="rtl" className="h-screen w-full overflow-hidden bg-ws-bg font-body text-ws-ink flex flex-col">
+      <div
+        dir="rtl"
+        className="h-screen w-full overflow-hidden font-body text-ws-ink flex flex-col"
+        style={{ background: 'radial-gradient(1100px 520px at 50% -8%, #FFF9EE 0%, hsl(var(--ws-bg)) 60%)' }}
+      >
         <WorkspaceTopbar />
 
         {/* Main 50/50 workspace */}

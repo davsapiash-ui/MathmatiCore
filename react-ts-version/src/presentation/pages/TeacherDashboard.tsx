@@ -20,6 +20,7 @@ import { LogoutButton } from "@/presentation/components/ui/LogoutButton";
 import { ReplayViewer } from "@/presentation/components/ReplayViewer";
 import { MOCK_RRWEB_EVENTS } from "@/infrastructure/mockRrwebEvents";
 import { ClassManagement } from "./TeacherDashboard/ClassManagement";
+import { SocraticEngine, type PendingAIApproval } from "@/infrastructure/services/SocraticEngine";
 
 export function TeacherDashboard() {
   const { user } = useAuthStore();
@@ -33,12 +34,22 @@ export function TeacherDashboard() {
     | "chat_admin"
     | "chat_students"
     | "class_management"
+    | "approvals"
   >("clustering");
 
   const [inputText, setInputText] = useState("");
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(
     null,
   );
+  
+  const [pendingApprovals, setPendingApprovals] = useState<PendingAIApproval[]>([]);
+  
+  // Hardcoding teacher id for demo
+  const TEACHER_ID = "teacher-1";
+
+  useEffect(() => {
+    SocraticEngine.getPendingApprovals(TEACHER_ID).then(setPendingApprovals);
+  }, []);
 
   const handleHintClick = (studentId: string) => {
     setSelectedStudentId(studentId);
@@ -146,7 +157,8 @@ export function TeacherDashboard() {
       | "replays"
       | "chat_admin"
       | "chat_students"
-      | "class_management",
+      | "class_management"
+      | "approvals",
   ) => {
     setActiveTab(tab);
     setInputText("");
@@ -265,6 +277,17 @@ export function TeacherDashboard() {
             className={`w-full text-right px-4 py-3 rounded-xl transition-all ${activeTab === "replays" ? "bg-ws-accentSoft text-ws-accent Soft0/10  font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
           >
             הקלטות וידאו (Replays)
+          </button>
+          <button
+            onClick={() => handleTabChange("approvals")}
+            className={`w-full flex justify-between items-center text-right px-4 py-3 rounded-xl transition-all ${activeTab === "approvals" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg text-ws-soft "}`}
+          >
+            <span>אישור משימות AI</span>
+            {pendingApprovals.length > 0 && (
+              <span className="bg-ws-accent text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg">
+                {pendingApprovals.length}
+              </span>
+            )}
           </button>
           <button
             onClick={() => handleTabChange("class_management")}
@@ -651,6 +674,89 @@ export function TeacherDashboard() {
               </h3>
               <ReplayViewer events={MOCK_RRWEB_EVENTS} />
             </AccessibleCard>
+          </div>
+        )}
+
+        {activeTab === "approvals" && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <header className="mb-10">
+              <h1 className="text-4xl font-black bg-gradient-to-l from-slate-900 to-slate-600 dark:from-white dark:to-slate-400 bg-clip-text text-transparent tracking-tight">
+                אישור משימות AI (Socratic Engine)
+              </h1>
+              <p className="text-ws-soft  mt-3 text-lg">
+                אישור ותיקוף מסלולי למידה אדפטיביים שנוצרו על ידי המערכת.
+              </p>
+            </header>
+            
+            <div className="flex flex-col gap-6">
+              {pendingApprovals.length === 0 ? (
+                <div className="text-center py-20 text-ws-soft bg-ws-surface/50 backdrop-blur-md rounded-2xl border-2 border-dashed border-ws-surface2 shadow-sm">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-ws-bg rounded-full flex items-center justify-center">
+                    <ShieldAlert className="w-8 h-8 text-ws-soft" />
+                  </div>
+                  <p className="text-xl font-bold">אין משימות הממתינות לאישור.</p>
+                </div>
+              ) : (
+                pendingApprovals.map(approval => (
+                  <AccessibleCard key={approval.id} className="p-8 bg-ws-surface border border-ws-surface2 shadow-lg rounded-3xl">
+                    <div className="flex justify-between items-start mb-6">
+                      <div>
+                        <h3 className="text-2xl font-bold text-ws-ink">{approval.studentName}</h3>
+                        <p className="text-sm text-ws-soft mt-1">מזהה: {approval.studentId} | נוצר: {new Date(approval.timestamp).toLocaleString('he-IL')}</p>
+                      </div>
+                      <div className="flex gap-3">
+                        <UdlButton 
+                          semanticColor="primary" 
+                          size="sm" 
+                          className="font-bold shadow-md shadow-ws-accent/20"
+                          onClick={() => {
+                            SocraticEngine.approveTasks(TEACHER_ID, approval.id, approval.studentId, approval.tasks).then(() => {
+                              setPendingApprovals(prev => prev.filter(a => a.id !== approval.id));
+                            });
+                          }}
+                        >
+                          אישור מסלול
+                        </UdlButton>
+                        <UdlButton 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {
+                            SocraticEngine.rejectTasks(TEACHER_ID, approval.id).then(() => {
+                              setPendingApprovals(prev => prev.filter(a => a.id !== approval.id));
+                            });
+                          }}
+                        >
+                          דחייה / עריכה
+                        </UdlButton>
+                      </div>
+                    </div>
+                    
+                    <div className="bg-ws-accentSoft/30 p-5 rounded-2xl border border-ws-accent/10 mb-6">
+                      <h4 className="font-bold text-ws-accent mb-2 flex items-center gap-2">
+                        <MessageCircle className="w-5 h-5" />
+                        המלצת המערכת (רציונל פדגוגי):
+                      </h4>
+                      <p className="text-ws-ink font-medium leading-relaxed">{approval.teacherRationaleHe}</p>
+                    </div>
+
+                    <h4 className="font-bold text-lg mb-3">רצף המשימות שנוצר:</h4>
+                    <div className="grid gap-3">
+                      {approval.tasks.map((task, idx) => (
+                        <div key={idx} className="bg-ws-bg p-4 rounded-xl flex items-center justify-between border border-ws-surface2">
+                          <div>
+                            <span className="font-bold text-ws-accent ml-2">#{idx + 1}</span>
+                            <span className="font-semibold">{task.titleHe}</span>
+                          </div>
+                          <div className="text-sm text-ws-soft font-mono" dir="ltr">
+                            {task.numberA} {task.isSubtraction ? '-' : '+'} {task.numberB} = {task.correctAnswer}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </AccessibleCard>
+                ))
+              )}
+            </div>
           </div>
         )}
 

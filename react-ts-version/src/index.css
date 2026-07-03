@@ -43,15 +43,17 @@
     --warning-foreground: 40 92% 10%;
 
     /* ── Workspace design tokens ("חם ומזמין, נקי") ── */
-    --ws-bg: 36 45% 96%;            /* warm cream */
-    --ws-surface: 0 0% 100%;
-    --ws-surface-2: 36 35% 92%;
-    --ws-ink: 25 25% 16%;           /* warm near-black */
+    --ws-bg: 38 56% 95%;            /* warm cream */
+    --ws-surface: 40 40% 99%;
+    --ws-surface-2: 36 40% 90%;
+    --ws-ink: 25 30% 15%;           /* warm near-black */
     --ws-ink-soft: 25 15% 38%;
-    --ws-accent: 24 90% 55%;        /* warm orange — proceed/focus */
-    --ws-accent-soft: 28 95% 92%;
+    --ws-accent: 24 92% 54%;        /* warm orange — proceed/focus */
+    --ws-accent-2: 33 96% 60%;      /* gradient partner */
+    --ws-accent-soft: 30 100% 93%;
     --ws-success: 150 65% 38%;
     --ws-danger: 4 78% 55%;
+    --ws-shadow-warm: 28 60% 45%;   /* base hue for warm shadows */
 
     /* Place-value semantic colors (vanilla source of truth) */
     --block-unit: #F59E0B;      --block-unit-dark: #D97706;
@@ -141,6 +143,36 @@
   /* Modern Glassmorphism Utils */
   .glass-card {
     @apply bg-white/70 dark:bg-slate-900/40 backdrop-blur-2xl border border-white/20 dark:border-white/5 shadow-xl shadow-slate-200/50 dark:shadow-black/50;
+  }
+
+  /* ── Workspace design language utilities ── */
+  .ws-card {
+    background-color: hsl(var(--ws-surface));
+    border: 1px solid hsl(var(--ws-surface-2));
+    border-radius: 28px;
+    box-shadow:
+      0 1px 2px hsl(var(--ws-shadow-warm) / 0.06),
+      0 10px 28px -10px hsl(var(--ws-shadow-warm) / 0.22);
+  }
+  .ws-btn-primary {
+    background-image: linear-gradient(135deg, hsl(var(--ws-accent-2)), hsl(var(--ws-accent)));
+    color: #fff;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.35),
+      0 6px 16px -6px hsl(var(--ws-accent) / 0.55);
+  }
+  .ws-btn-primary:hover:not(:disabled) { filter: brightness(1.06); transform: translateY(-1px); }
+  .ws-btn-primary:active:not(:disabled) { transform: scale(0.97); }
+  .ws-chip {
+    background-color: hsl(var(--ws-surface));
+    border: 1.5px solid hsl(var(--ws-surface-2));
+    color: hsl(var(--ws-ink-soft));
+    box-shadow: 0 2px 6px -2px hsl(var(--ws-shadow-warm) / 0.15);
+  }
+  .ws-chip:hover:not(:disabled) {
+    border-color: hsl(var(--ws-accent) / 0.45);
+    color: hsl(var(--ws-ink));
+    transform: translateY(-1px);
   }
 
   /* Scaffold fading (UDL) — never fully invisible */

@@ -1,6 +1,9 @@
 export type TaskPhase = "primary" | "correction";
 export type CorrectionSubphase = "subtask" | "retry";
 
+/** Per-task diagnostic outcome map pushed to Firebase (taskId → correct / metric). */
+export type QMatrixResults = Record<string, boolean | number | undefined>;
+
 export interface BackwardDiagnosis {
   triggerOn: string;
   subtaskNumber?: number;
@@ -242,7 +245,9 @@ export class QMatrixEvaluator {
   ) {
     let validArray = isASD ? task.asdValidRepresentations || [] : task.validRepresentations || [];
     if (phase === "correction" && subphase === "subtask") {
-      validArray = isASD ? [{ tens: 1, units: 4 }, { tens: 0, units: 14 }] : [{ tens: 3, units: 4 }, { tens: 2, units: 14 }, { tens: 1, units: 24 }];
+      // ASD subtask target is 34 (asdSubtaskNumber), so its valid decompositions must equal 34 —
+      // not 14. (Both non-ASD and ASD subtask numbers are 34 here.)
+      validArray = isASD ? [{ tens: 3, units: 4 }, { tens: 2, units: 14 }] : [{ tens: 3, units: 4 }, { tens: 2, units: 14 }, { tens: 1, units: 24 }];
     }
     
     const validatedReps = representations.filter((rep) =>

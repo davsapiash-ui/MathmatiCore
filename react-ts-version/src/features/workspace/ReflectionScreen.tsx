@@ -68,19 +68,28 @@ export function ReflectionScreen() {
       });
 
       const r = qflow.results;
-      set(ref(database, `qMatrixResults/${username}`), {
-        studentId: username,
-        studentName,
-        qMatrixResults: {
+      const qMatrix = {
           task1_zero_placeholder: r['task1_zero_placeholder']?.correct ?? false,
           task2_estimation_error_margin: getDeviationPct(r['task2_estimation_error_margin']),
           task3_flexible_regrouping: r['task3_flexible_regrouping']?.correct ?? false,
           task4_basic_addition_fluency: r['task4_basic_addition_fluency']?.correct ?? false,
           q5_small_change: r['q5_small_change']?.correct ?? false,
-        },
+      };
+
+      set(ref(database, `qMatrixResults/${username}`), {
+        studentId: username,
+        studentName,
+        qMatrixResults: qMatrix,
         traceData: {
           undo_clicks: undoCount,
         },
+      });
+
+      // AI Generation: generate tasks 3-7 based on diagnostic and queue for teacher approval
+      import('@/infrastructure/services/SocraticEngine').then(({ SocraticEngine }) => {
+        // Here we pass a generic teacher id for demo purposes. 
+        // In a full implementation this would be linked to the student's actual class teacher.
+        SocraticEngine.generateAndQueueTasks(username, studentName, "teacher-1", qMatrix);
       });
     } catch {
       /* dev config has no live Firebase — silent, never blocks the student */

@@ -77,8 +77,11 @@ interface WorkspaceState {
   feedbackNonce: number;
   helpState: HelpState;
 
+  /** Teacher-approved AI-generated task list (Socratic Engine); overrides session tasks when set. */
+  aiTasks: SessionTask[] | null;
+
   // actions
-  initSession: (meeting: SessionNumber, isASD: boolean) => void;
+  initSession: (meeting: SessionNumber, isASD: boolean, aiTasks?: SessionTask[] | null) => void;
   applyDrop: (input: DropInput) => void;
   removeBlockClick: (place: Place) => void;
   undo: () => void;
@@ -95,6 +98,7 @@ interface WorkspaceState {
   helpFrictionDone: () => void;
   chooseSupport: (type: SupportType) => void;
   closeHelp: () => void;
+  setAITasks: (tasks: SessionTask[] | null) => void;
 }
 
 /* ── Pure helpers ── */
@@ -113,6 +117,21 @@ function resetTaskInteraction() {
   };
 }
 
+/**
+ * Effective operands + result for an arithmetic task, ASD-aware.
+ * The result is DERIVED from the displayed operands so the shown exercise and the
+ * validated answer can never diverge (the ASD 12+14 vs 36 bug).
+ */
+export function effectiveArithmetic(
+  task: { numberA?: number; numberB?: number; asdNumberA?: number; asdNumberB?: number; isSubtraction?: boolean },
+  isASD: boolean
+): { a: number; b: number; target: number } {
+  const a = isASD && task.asdNumberA !== undefined ? task.asdNumberA : task.numberA ?? 0;
+  const b = isASD && task.asdNumberB !== undefined ? task.asdNumberB : task.numberB ?? 0;
+  const target = task.isSubtraction ? a - b : a + b;
+  return { a, b, target };
+}
+
 /** Concatenated per-place answer digits → number (vanilla joins input values in DOM order). */
 export function answerDigitsToNumber(digits: Partial<Record<Place, string>>): number | null {
   const order: Place[] = ['thousands', 'hundreds', 'tens', 'units'];
@@ -128,13 +147,18 @@ export function selectScaffoldLevel(s: WorkspaceState): number {
     if (isSubtaskActive(s.qflow)) return 1;
     return getCurrentQTask(s.qflow)?.scaffoldLevel ?? 1;
   }
-  const task = getSessionTasks(s.sessionNumber as 1 | 3 | 4)[s.standardTaskIdx];
+  const task = getActiveTasks(s)[s.standardTaskIdx];
   return task?.scaffoldLevel ?? 1;
+}
+
+export function getActiveTasks(s: WorkspaceState): SessionTask[] {
+  if (s.sessionNumber === 3 && s.aiTasks) return s.aiTasks;
+  return getSessionTasks(s.sessionNumber as 1 | 3 | 4);
 }
 
 export function selectStandardTask(s: WorkspaceState): SessionTask | null {
   if (s.sessionNumber === 2) return null;
-  return getSessionTasks(s.sessionNumber as 1 | 3 | 4)[s.standardTaskIdx] ?? null;
+  return getActiveTasks(s)[s.standardTaskIdx] ?? null;
 }
 
 export function selectBoardValue(s: WorkspaceState): number {
@@ -257,7 +281,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
   /** Sessions 1/3/4 proceed (vanilla handleSession1Proceed, app.js 999–1110). */
   function proceedStandard() {
     const s = get();
-    const tasks = getSessionTasks(s.sessionNumber as 1 | 3 | 4);
+    const tasks = getActiveTasks(s);
     const task = tasks[s.standardTaskIdx];
     if (!task) return;
 
@@ -280,7 +304,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     }
 
     if (task.type === 'addition_simple' || task.type === 'vertical_addition') {
-      const target = typeof task.correctAnswer === 'number' ? task.correctAnswer : NaN;
+      // Target derived from the DISPLAYED (ASD-aware) operands — never from a hardcoded
+      // correctAnswer that could mismatch the shown exercise.
+      const { target } = effectiveArithmetic(task, s.isASD);
       // Gate 1: the blocks must represent the result (forced manipulative representation).
       if (selectBoardValue(s) !== target) {
         radar.recordTaskError(task.id, 'wrong_blocks');
@@ -308,7 +334,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
   function advanceStandard() {
     const s = get();
-    const tasks = getSessionTasks(s.sessionNumber as 1 | 3 | 4);
+    const tasks = getActiveTasks(s);
     const nextIdx = s.standardTaskIdx + 1;
 
     if (nextIdx < tasks.length) {
@@ -418,12 +444,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     feedback: null,
     feedbackNonce: 0,
     helpState: 'closed',
+    aiTasks: null,
 
-    initSession: (meeting, isASD) => {
+    setAITasks: (tasks) => set({ aiTasks: tasks }),
+
+    initSession: (meeting, isASD, initialAITasks) => {
       const qflow = initQFlow();
       set({
         sessionNumber: meeting,
         isASD,
+        aiTasks: initialAITasks ?? null,
         standardTaskIdx: 0,
         qflow,
         flowStatus: 'task',
@@ -436,7 +466,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         helpState: 'closed',
         ...resetTaskInteraction(),
       });
-      const firstId = meeting === 2 ? getCurrentQTask(qflow)?.id ?? '' : getSessionTasks(meeting as 1 | 3 | 4)[0]?.id ?? '';
+      const firstId = meeting === 2 ? getCurrentQTask(qflow)?.id ?? '' : (initialAITasks ?? getSessionTasks(meeting as 1 | 3 | 4))[0]?.id ?? '';
       radar.setTask(firstId);
     },
 

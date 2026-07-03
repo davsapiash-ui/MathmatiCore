@@ -70,7 +70,16 @@ export function VerticalAdditionTask({
   );
 
   return (
-    <div className="self-center inline-block bg-ws-surface rounded-3xl p-7 shadow-sm border border-ws-surface2">
+    <div
+      className="self-center inline-block rounded-3xl p-7 border border-ws-surface2 shadow-[0_8px_24px_-10px_hsl(var(--ws-shadow-warm)/0.25)]"
+      style={{
+        // Math-notebook grid paper — familiar, warm, pedagogically "at home"
+        backgroundColor: '#FFFDF8',
+        backgroundImage:
+          'linear-gradient(rgba(120,140,190,0.10) 1px, transparent 1px), linear-gradient(90deg, rgba(120,140,190,0.10) 1px, transparent 1px)',
+        backgroundSize: '22px 22px',
+      }}
+    >
       <div
         aria-label={`תרגיל במאונך: ${numberA} ${isSubtraction ? 'פחות' : 'ועוד'} ${numberB}`}
         role="group"

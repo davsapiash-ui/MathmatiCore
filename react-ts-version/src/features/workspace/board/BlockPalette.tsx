@@ -21,17 +21,20 @@ export function BlockPalette({ scaffoldLevel }: { scaffoldLevel: number }) {
     <div
       role="toolbar"
       aria-label="מחסן אביזרים — גרור לטבלה"
-      className="shrink-0 bg-ws-surface border border-ws-surface2 rounded-2xl shadow-md px-4 py-3 flex items-center justify-center gap-6"
+      className="shrink-0 ws-card !rounded-2xl px-4 py-2.5 flex items-center justify-center gap-3"
     >
-      <span className="text-xs font-bold text-ws-soft leading-tight text-center">
+      <span className="text-xs font-display font-extrabold text-ws-soft leading-tight text-center shrink-0">
         מחסן
         <br />
         אביזרים
       </span>
-      <div className="w-px h-12 bg-ws-surface2" />
+      <div className="w-px h-14 bg-ws-surface2" />
 
       {PALETTE_ITEMS.map(({ place, labelHe, scale }) => (
-        <div key={place} className="flex flex-col items-center gap-1.5">
+        <div
+          key={place}
+          className="flex flex-col items-center gap-1 rounded-2xl px-3 pt-2 pb-1.5 bg-ws-bg/70 border border-ws-surface2 hover:border-ws-accent/40 hover:bg-ws-accentSoft/40 hover:-translate-y-0.5 transition-all"
+        >
           <div className="h-12 flex items-end justify-center" style={{ transform: `scale(${scale})`, transformOrigin: 'bottom center' }}>
             <DienesBlock
               id={`palette-${place}`}
@@ -47,7 +50,7 @@ export function BlockPalette({ scaffoldLevel }: { scaffoldLevel: number }) {
         </div>
       ))}
 
-      <div className="w-px h-12 bg-ws-surface2" />
+      <div className="w-px h-14 bg-ws-surface2" />
       <TrashZone />
     </div>
   );

@@ -32,50 +32,65 @@ export function WorkspaceTopbar() {
   const studentName: string = user?.displayName || user?.username || 'תלמיד';
 
   return (
-    <nav className="h-16 shrink-0 bg-ws-surface border-b border-ws-surface2 shadow-sm flex items-center justify-between px-5 gap-4 z-20">
-      {/* Brand */}
+    <nav className="h-[72px] shrink-0 bg-ws-surface/90 backdrop-saturate-150 border-b border-ws-surface2 shadow-[0_4px_20px_-8px_hsl(var(--ws-shadow-warm)/0.25)] flex items-center justify-between px-5 gap-4 z-20">
+      {/* Brand + student */}
       <div className="flex items-center gap-3 shrink-0">
-        <div className="w-9 h-9 rounded-xl bg-ws-accent flex items-center justify-center text-white font-display font-black text-lg">מ</div>
-        <span className="text-lg font-display font-extrabold tracking-tight hidden sm:inline">מתמטיקאור</span>
+        <div className="w-11 h-11 rounded-2xl ws-btn-primary flex items-center justify-center font-display font-black text-xl rotate-[-4deg]">
+          מ
+        </div>
+        <div className="hidden sm:flex flex-col leading-tight">
+          <span className="text-lg font-display font-extrabold tracking-tight text-ws-ink">מתמטיקאור</span>
+          <span className="text-xs font-bold text-ws-soft">היי {studentName} 👋</span>
+        </div>
       </div>
 
       {/* Progress */}
-      <div className="mx-auto" role="progressbar" aria-label="התקדמות במשימות">
+      <div className="mx-auto bg-ws-bg rounded-full px-4 py-2 border border-ws-surface2" role="progressbar" aria-label="התקדמות במשימות">
         <ProgressDots total={totalTasks} current={currentIdx} />
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-2.5 shrink-0">
+      <div className="flex items-center gap-2 shrink-0">
         <button
           onClick={() => {
             logout();
             navigate('/login');
           }}
-          className="h-9 px-3 rounded-full text-sm font-bold text-ws-danger border border-ws-danger/40 hover:bg-red-50 transition-colors"
+          className="h-10 px-3 rounded-2xl text-sm font-bold text-ws-soft hover:text-ws-danger hover:bg-red-50 transition-all"
           aria-label="התנתק"
         >
-          התנתק
+          יציאה
         </button>
+
+        <div className="w-px h-7 bg-ws-surface2" />
 
         <button
           onClick={toggleBoard}
-          className="h-9 px-3 rounded-full text-sm font-bold text-ws-soft border border-ws-surface2 hover:bg-ws-surface2/60 transition-colors"
+          className="ws-chip h-11 px-4 rounded-2xl text-sm font-bold transition-all flex items-center gap-1.5"
         >
-          {boardOpen ? 'סגור טבלה' : 'פתח טבלה'}
+          <span aria-hidden="true">🧮</span>
+          {boardOpen ? 'הסתר לוח' : 'הצג לוח'}
         </button>
 
         <button
           onClick={undo}
           disabled={!canUndo}
-          className="h-9 px-3 rounded-full text-sm font-bold text-ws-soft border border-ws-surface2 hover:bg-ws-surface2/60 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="ws-chip h-11 px-4 rounded-2xl text-sm font-bold transition-all flex items-center gap-1.5 disabled:opacity-35 disabled:cursor-not-allowed disabled:transform-none"
           aria-label="בטל פעולה אחרונה"
         >
-          ↩ בטל
+          <span aria-hidden="true">↩</span> בטל
+        </button>
+
+        <button
+          onClick={() => document.dispatchEvent(new CustomEvent('toggle-chat'))}
+          className="ws-chip h-11 px-4 rounded-2xl text-sm font-bold transition-all flex items-center gap-1.5"
+        >
+          <span aria-hidden="true">💬</span> צ'אט
         </button>
 
         <button
           onClick={requestHelp}
-          className="h-10 w-10 rounded-full text-lg bg-ws-accentSoft border border-ws-accent/40 hover:scale-105 transition-transform"
+          className="h-11 w-11 rounded-2xl text-xl bg-ws-accentSoft border-[1.5px] border-ws-accent/40 hover:scale-110 hover:rotate-6 active:scale-95 transition-transform shadow-[0_2px_8px_-2px_hsl(var(--ws-accent)/0.4)]"
           aria-label="בקש עזרה"
           title="לחץ לעזרה"
         >
@@ -85,21 +100,12 @@ export function WorkspaceTopbar() {
         <button
           onClick={proceed}
           disabled={!canProceed}
-          className="h-10 px-5 rounded-full text-base font-display font-extrabold text-white bg-ws-accent shadow-md hover:brightness-105 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          className="ws-btn-primary h-12 pr-6 pl-5 rounded-2xl text-lg font-display font-extrabold transition-all flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none disabled:filter-none"
           aria-label="עבור למשימה הבאה"
         >
-          הבא ←
+          הבא
+          <span aria-hidden="true" className="text-xl leading-none">←</span>
         </button>
-
-        <button
-          onClick={() => document.dispatchEvent(new CustomEvent('toggle-chat'))}
-          className="h-10 px-4 rounded-full text-sm font-bold text-ws-ink bg-emerald-100 hover:bg-emerald-200 border border-emerald-200 transition-colors"
-        >
-          💬 צ'אט
-        </button>
-
-        <div className="w-px h-6 bg-ws-surface2 mx-1" />
-        <span className="text-sm font-bold text-ws-soft whitespace-nowrap">🎓 {studentName}</span>
       </div>
     </nav>
   );
