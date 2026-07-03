@@ -104,22 +104,22 @@ const ThousandSVG = () => {
 
 const BLOCK_VISUALS: Record<Place, { style?: React.CSSProperties; labelHe: string; Component: React.FC }> = {
   units: {
-    style: { width: 'var(--blk-unit)', height: 'var(--blk-unit)' },
+    style: { width: 'var(--blk-unit)', height: 'var(--blk-unit)', maxWidth: '100%' },
     labelHe: 'יחידה',
     Component: UnitSVG,
   },
   tens: {
-    style: { width: 'calc(var(--blk-unit) * 4.5)' }, // Shrink the visual width of Tens slightly
+    style: { width: 'calc(var(--blk-unit) * 4.5)', maxWidth: '100%' }, // Shrink the visual width of Tens slightly
     labelHe: 'עשרת — ניתן לפרוט ליחידות או להמיר למאה',
     Component: TenSVG,
   },
   hundreds: {
-    style: { width: 'var(--blk-hundred)' }, // Height is determined by SVG ratio
+    style: { width: 'var(--blk-hundred)', maxWidth: '100%' }, // Height is determined by SVG ratio
     labelHe: 'מאה — ניתן לפרוט לעשרות או להמיר לאלף',
     Component: HundredSVG,
   },
   thousands: {
-    style: { width: 'var(--blk-thousand)' }, // Width and height are equal in isometric
+    style: { width: 'var(--blk-thousand)', maxWidth: '100%' }, // Width and height are equal in isometric
     labelHe: 'אלף — ניתן לפרוט למאות',
     Component: ThousandSVG,
   },

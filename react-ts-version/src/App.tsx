@@ -5,6 +5,7 @@ import { LandingPage } from "@/presentation/pages/LandingPage";
 import { StudentWorkspacePage } from "@/features/workspace/StudentWorkspacePage";
 import { StudentHub } from "@/presentation/pages/StudentHub";
 import { TeacherDashboard } from "@/presentation/pages/TeacherDashboard";
+import { ProjectorSandboxPage } from "@/presentation/pages/ProjectorSandboxPage";
 import { AppShell } from "@/presentation/components/layout/AppShell";
 
 import { AdminLayout } from "@/presentation/pages/AdminLayout";
@@ -92,6 +93,13 @@ function App() {
           </AuthGuard>
         } />
         
+        {/* Projector Sandbox for Teacher (no recording, clean slate) */}
+        <Route path="/projector" element={
+          <AuthGuard allowedRoles={["teacher", "admin"]}>
+            <ProjectorSandboxPage />
+          </AuthGuard>
+        } />
+
         <Route path="/admin" element={
           <AuthGuard allowedRoles={["admin"]}>
             <AdminLayout />

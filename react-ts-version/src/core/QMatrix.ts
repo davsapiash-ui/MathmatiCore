@@ -19,6 +19,9 @@ export interface BackwardDiagnosis {
   probeA?: number;
   probeB?: number;
   probeAnswer?: number;
+  asdProbeA?: number;
+  asdProbeB?: number;
+  asdProbeAnswer?: number;
   probeInstructionHe?: string;
   graphicOrganizerASD?: boolean;
   visualHint?: boolean;
@@ -28,6 +31,7 @@ export interface BackwardDiagnosis {
 export interface QMatrixTask {
   id: string;
   type: "place_value_zero" | "number_line" | "flexible_decomp" | "vertical_addition" | "small_change";
+  isSubtraction?: boolean;
   titleHe: string;
   instructionHe: string;
   number?: number;
@@ -171,6 +175,30 @@ export const TASKS: QMatrixTask[] = [
       hintHe: "רמז: אם נוסיף 9 במקום 10, אנחנו בעצם מוסיפים יחידה אחת פחות. איך זה משפיע על סכום התרגיל?",
     },
   },
+  {
+    id: "task6_subtraction_regrouping",
+    type: "vertical_addition",
+    isSubtraction: true,
+    titleHe: "חיסור עם פריטה",
+    instructionHe: "פתרו את תרגיל החיסור בטבלת ערך המקום, ורשמו את התוצאה בתיבות התשובה.",
+    numberA: 52,
+    numberB: 18,
+    asdNumberA: 22,
+    asdNumberB: 8,
+    correctAnswer: 34,
+    asdCorrectAnswer: 14,
+    backwardDiagnosis: {
+      triggerOn: "wrong_answer",
+      probeA: 55,
+      probeB: 12,
+      asdProbeA: 15,
+      asdProbeB: 4,
+      probeAnswer: 43,
+      asdProbeAnswer: 11,
+      probeInstructionHe: "בואו ננסה תרגיל חיסור ללא פריטה: כמה הם 55 פחות 12?",
+      graphicOrganizerASD: true,
+    },
+  },
 ];
 
 export class QMatrixEvaluator {
@@ -281,7 +309,10 @@ export class QMatrixEvaluator {
     isASD: boolean
   ) {
     if (phase === "correction" && subphase === "subtask") {
-      const correct = studentAnswer === task.backwardDiagnosis?.probeAnswer;
+      const expectedProbe = isASD && task.backwardDiagnosis?.asdProbeAnswer !== undefined
+        ? task.backwardDiagnosis.asdProbeAnswer
+        : task.backwardDiagnosis?.probeAnswer;
+      const correct = studentAnswer === expectedProbe;
       return { correct, detail: correct ? "" : "wrong_subtask_answer", triggerBackward: false };
     }
     const correct = isASD ? studentAnswer === task.asdCorrectAnswer : studentAnswer === task.correctAnswer;

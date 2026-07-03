@@ -30,6 +30,8 @@ export function useWorkspaceRadar(sessionNumber: number) {
   useEffect(() => {
     function sendAlert(type: AlertType, data: Record<string, unknown> = {}) {
       const u = userRef.current;
+      if (u?.role === 'teacher') return; // Do not send alerts in Projector Sandbox Mode
+
       const alert = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         type,

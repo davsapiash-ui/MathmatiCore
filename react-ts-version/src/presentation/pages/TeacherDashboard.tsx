@@ -20,7 +20,6 @@ import {
 import { Send, MessageCircle, ShieldAlert } from "lucide-react";
 import { LogoutButton } from "@/presentation/components/ui/LogoutButton";
 import { ReplayViewer } from "@/presentation/components/ReplayViewer";
-import { MOCK_RRWEB_EVENTS } from "@/infrastructure/mockRrwebEvents";
 import { ClassManagement } from "./TeacherDashboard/ClassManagement";
 import { SocraticEngine, type PendingAIApproval } from "@/infrastructure/services/SocraticEngine";
 
@@ -32,7 +31,7 @@ export function TeacherDashboard() {
   const [activeTab, setActiveTab] = useState<
     | "clustering"
     | "alerts"
-    | "replays"
+    | "diagnostic_reports"
     | "chat_admin"
     | "chat_students"
     | "class_management"
@@ -201,7 +200,7 @@ export function TeacherDashboard() {
     tab:
       | "clustering"
       | "alerts"
-      | "replays"
+      | "diagnostic_reports"
       | "chat_admin"
       | "chat_students"
       | "class_management"
@@ -296,6 +295,16 @@ export function TeacherDashboard() {
               </div>
             </div>
           </div>
+          
+          <div className="mt-4">
+            <button
+              onClick={() => window.open('/projector', '_blank')}
+              className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-3 rounded-xl transition-all shadow-md font-bold text-sm"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>
+              <span>ארגז חול למקרן</span>
+            </button>
+          </div>
         </div>
 
         <nav className="flex-1 p-4 flex flex-col gap-2">
@@ -320,10 +329,10 @@ export function TeacherDashboard() {
             )}
           </button>
           <button
-            onClick={() => handleTabChange("replays")}
-            className={`w-full text-right px-4 py-3 rounded-xl transition-all ${activeTab === "replays" ? "bg-ws-accentSoft text-ws-accent Soft0/10  font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
+            onClick={() => handleTabChange("diagnostic_reports")}
+            className={`w-full text-right px-4 py-3 rounded-xl transition-all ${activeTab === "diagnostic_reports" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg text-ws-soft "}`}
           >
-            הקלטות וידאו (<span dir="ltr">Replays</span>)
+            דו"חות אבחון אישיים
           </button>
           <button
             onClick={() => handleTabChange("approvals")}
@@ -704,40 +713,214 @@ export function TeacherDashboard() {
           </div>
         )}
 
-        {activeTab === "replays" && (
+        {activeTab === "diagnostic_reports" && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <header className="mb-10">
               <h1 className="text-4xl font-black bg-gradient-to-l from-slate-900 to-slate-600 dark:from-white dark:to-slate-400 bg-clip-text text-transparent tracking-tight">
-                שחזור סשנים מוקלטים
+                דו"חות אבחון אישיים
               </h1>
-              <p className="text-ws-soft  mt-3 text-lg">
-                צפייה בתהליכי הלמידה של התלמידים.
+              <p className="text-ws-soft mt-3 text-lg">
+                תצוגה חכמה המשלבת וידאו, נתוני רדאר, פירוט מיומנויות (Q-Matrix) ותוכנית עבודה מומלצת.
               </p>
             </header>
-            <AccessibleCard className="p-8 bg-white/50  backdrop-blur-md border border-ws-surface2  shadow-xl rounded-3xl relative overflow-hidden group">
-              <h3 className="text-2xl font-bold text-ws-ink  mb-6 flex items-center gap-3">
-                <span className="w-3 h-3 rounded-full bg-red-500 animate-pulse"></span>
-                צפייה בהקלטת סשן אמיתית
-              </h3>
-              
-              <div className="mb-6 flex gap-4 items-center">
-                <select 
-                  className="px-4 py-2 rounded-xl border border-ws-surface2 bg-white"
-                  value={selectedReplayStudentId || ''}
-                  onChange={(e) => setSelectedReplayStudentId(e.target.value || null)}
-                >
-                  <option value="">-- בחר תלמיד --</option>
-                  {allStudents.map(s => (
-                    <option key={s.studentId} value={s.studentId}>{s.name}</option>
-                  ))}
-                </select>
-                <span className="text-sm text-ws-soft">
-                  {liveReplayEvents.length > 0 ? `נמצאו ${liveReplayEvents.length} אירועי הקלטה.` : 'אין הקלטה זמינה.'}
-                </span>
+
+            <div className="flex gap-6">
+              {/* Sidebar: Student List */}
+              <AccessibleCard className="w-64 shrink-0 p-4 bg-ws-surface/80 backdrop-blur-xl border border-ws-surface2 shadow-sm rounded-2xl h-fit max-h-[80vh] overflow-y-auto">
+                <h3 className="font-bold text-ws-ink mb-4 px-2">תלמידי הכיתה</h3>
+                <div className="flex flex-col gap-1">
+                  {allStudents.map(s => {
+                    const isCompleted = s.completedMeeting2;
+                    return (
+                      <button
+                        key={s.studentId}
+                        onClick={() => setSelectedReplayStudentId(s.studentId)}
+                        className={`w-full text-right px-3 py-2 rounded-lg transition-all text-sm flex items-center justify-between ${
+                          selectedReplayStudentId === s.studentId 
+                            ? "bg-ws-accent text-white font-bold shadow-md" 
+                            : "hover:bg-ws-bg text-ws-ink"
+                        }`}
+                      >
+                        <span>{s.name}</span>
+                        {isCompleted && <span className={`w-2 h-2 rounded-full ${selectedReplayStudentId === s.studentId ? 'bg-white' : 'bg-green-500'}`} title="מוכן לאבחון (סיים מפגש 2)"></span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </AccessibleCard>
+
+              {/* Main Profile Area */}
+              <div className="flex-1 flex flex-col gap-6">
+                {!selectedReplayStudentId ? (
+                  <div className="flex-1 flex flex-col items-center justify-center p-12 text-center bg-ws-surface/30 rounded-3xl border-2 border-dashed border-ws-surface2">
+                    <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm mb-4">
+                      <span className="text-2xl">🎓</span>
+                    </div>
+                    <h3 className="text-xl font-bold text-ws-ink mb-2">בחר תלמיד להצגת דו"ח האבחון</h3>
+                    <p className="text-ws-soft max-w-md">
+                      הדו"ח מציג שילוב של סרטון סשן הלמידה, תוצאות ה-Q-Matrix של התלמיד, וההמלצות הפדגוגיות שנוצרו על ידי מנוע ה-AI.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    {(() => {
+                      const s = students[selectedReplayStudentId];
+                      if (!s) return null;
+                      const hasRecording = liveReplayEvents.length > 2;
+                      const socraticApproval = pendingApprovals.find(a => a.studentId === selectedReplayStudentId);
+
+                      return (
+                        <div className="animate-in fade-in zoom-in-95 duration-300">
+                          {/* Top Row: Q-Matrix & Traces */}
+                          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
+                            {/* Q-Matrix Report */}
+                            <AccessibleCard className="p-6 bg-white border border-ws-surface2 shadow-md rounded-2xl">
+                              <h3 className="text-xl font-bold text-ws-ink mb-4 flex items-center gap-2">
+                                <span className="text-ws-accent">📊</span>
+                                תוצאות ה-Q-Matrix
+                              </h3>
+                              <div className="grid grid-cols-2 gap-3 text-sm">
+                                <div className="bg-ws-bg p-3 rounded-xl border border-ws-surface2">
+                                  <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">שומר מקום (אפס)</span>
+                                  <span className={`font-semibold ${s.qMatrixResults.task1_zero_placeholder === false ? 'text-red-500' : s.qMatrixResults.task1_zero_placeholder === true ? 'text-green-600' : 'text-slate-400'}`}>
+                                    {s.qMatrixResults.task1_zero_placeholder === null ? 'טרם נבדק' : s.qMatrixResults.task1_zero_placeholder ? 'שולט' : 'דרוש חיזוק'}
+                                  </span>
+                                </div>
+                                <div className="bg-ws-bg p-3 rounded-xl border border-ws-surface2">
+                                  <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">גמישות מחשבתית</span>
+                                  <span className={`font-semibold ${s.qMatrixResults.task3_flexible_regrouping === false ? 'text-red-500' : s.qMatrixResults.task3_flexible_regrouping === true ? 'text-green-600' : 'text-slate-400'}`}>
+                                    {s.qMatrixResults.task3_flexible_regrouping === null ? 'טרם נבדק' : s.qMatrixResults.task3_flexible_regrouping ? 'שולט' : 'דרוש חיזוק'}
+                                  </span>
+                                </div>
+                                <div className="bg-ws-bg p-3 rounded-xl border border-ws-surface2">
+                                  <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">אומדן שגיאה</span>
+                                  <span className={`font-semibold ${s.qMatrixResults.task2_estimation_error_margin !== null && s.qMatrixResults.task2_estimation_error_margin > 0.2 ? 'text-red-500' : s.qMatrixResults.task2_estimation_error_margin !== null ? 'text-green-600' : 'text-slate-400'}`}>
+                                    {s.qMatrixResults.task2_estimation_error_margin === null ? 'טרם נבדק' : s.qMatrixResults.task2_estimation_error_margin > 0.2 ? `חריגה (${(s.qMatrixResults.task2_estimation_error_margin * 100).toFixed(0)}%)` : 'בטווח המותר'}
+                                  </span>
+                                </div>
+                                <div className="bg-ws-bg p-3 rounded-xl border border-ws-surface2">
+                                  <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">חיבור וחיסור</span>
+                                  <span className={`font-semibold ${s.qMatrixResults.task4_basic_addition_fluency === false || s.qMatrixResults.task5_basic_subtraction_fluency === false ? 'text-red-500' : (s.qMatrixResults.task4_basic_addition_fluency === true && s.qMatrixResults.task5_basic_subtraction_fluency === true) ? 'text-green-600' : 'text-slate-400'}`}>
+                                    {(s.qMatrixResults.task4_basic_addition_fluency === null && s.qMatrixResults.task5_basic_subtraction_fluency === null) ? 'טרם נבדק' : (s.qMatrixResults.task4_basic_addition_fluency === false || s.qMatrixResults.task5_basic_subtraction_fluency === false) ? 'פער בעובדות יסוד' : 'שולט'}
+                                  </span>
+                                </div>
+                              </div>
+                            </AccessibleCard>
+
+                            {/* Trace Data & AI Plan */}
+                            <AccessibleCard className={`p-6 border shadow-md rounded-2xl flex flex-col ${socraticApproval ? 'bg-indigo-50/50 border-indigo-100' : 'bg-white border-ws-surface2'}`}>
+                              <h3 className="text-xl font-bold text-ws-ink mb-4 flex items-center gap-2">
+                                <span className="text-ws-accent">🤖</span>
+                                {socraticApproval ? 'המלצת Socratic Engine וסיכום אבחון' : 'מדדי למידה סמויים'}
+                              </h3>
+                              
+                              <div className="flex-1 flex flex-col gap-4">
+                                {/* Trace Logs Summary */}
+                                <div className="flex gap-4">
+                                  <div className="flex-1 flex items-center justify-between p-3 bg-ws-bg rounded-xl border border-ws-surface2">
+                                    <div className="flex items-center gap-3">
+                                      <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 text-sm">⏱️</div>
+                                      <span className="font-semibold text-sm">אירועי היסוס (חשיבה ארוכה)</span>
+                                    </div>
+                                    <span className="text-xl font-black text-orange-600">{s.traceData.hesitation_events}</span>
+                                  </div>
+                                  <div className="flex-1 flex items-center justify-between p-3 bg-ws-bg rounded-xl border border-ws-surface2">
+                                    <div className="flex items-center gap-3">
+                                      <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-600 text-sm">↩️</div>
+                                      <span className="font-semibold text-sm">ביטולי פעולה (מחיקה/חזרה)</span>
+                                    </div>
+                                    <span className="text-xl font-black text-red-600">{s.traceData.undo_clicks}</span>
+                                  </div>
+                                </div>
+
+                                {/* Analytical Report */}
+                                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                                  <h4 className="font-bold text-slate-800 mb-3 text-lg flex items-center gap-2">
+                                    <span className="text-ws-accent">📋</span>
+                                    מצב נוכחי (ניתוח אוטומטי):
+                                  </h4>
+                                  <p className="text-sm text-slate-700 leading-relaxed mb-4">
+                                    התלמיד חווה <strong className="text-orange-600">{s.traceData.hesitation_events}</strong> אירועי היסוס המעידים על מאבק קוגניטיבי, וביצע <strong className="text-red-600">{s.traceData.undo_clicks}</strong> מחיקות או חזרות. 
+                                    ניתוח הפעולות בוידאו יחד עם מטריצת המיומנויות (Q-Matrix) מצביע על כך ש
+                                    {s.qMatrixResults.task3_flexible_regrouping === false ? ' קיים פער מהותי בגמישות מחשבתית ובפירוק שאינו קנוני.' : ' קיימת הבנה טובה של גמישות מחשבתית.'}
+                                    {s.qMatrixResults.task1_zero_placeholder === false ? ' כמו כן, נצפה חוסר הבנה בתפקיד האפס כשומר מקום.' : ''}
+                                  </p>
+                                </div>
+
+                                {socraticApproval && (
+                                  <div className="bg-indigo-50 p-5 rounded-xl border border-indigo-100 shadow-sm mt-2">
+                                    <h4 className="font-bold text-indigo-900 mb-3 text-lg flex items-center gap-2">
+                                      <span className="text-indigo-600">🎯</span>
+                                      המלצות ומסלול אדפטיבי למפגשים 3, 4, 5, 6, ו-7:
+                                    </h4>
+                                    <p className="text-sm text-indigo-800 leading-relaxed mb-5 bg-white p-4 rounded-lg border border-indigo-100/50">
+                                      <strong className="block mb-1 text-indigo-900">רציונל בניית המסלול:</strong>
+                                      {socraticApproval.teacherRationaleHe}
+                                    </p>
+                                    
+                                    <h5 className="font-bold text-sm text-indigo-900 mb-3">תרגילים רצויים שנוצרו עבור התלמיד:</h5>
+                                    <div className="grid gap-2 mb-5">
+                                      {socraticApproval.tasks.map((task, idx) => (
+                                        <div key={idx} className="bg-white p-3 rounded-lg flex items-center justify-between border border-indigo-100 shadow-sm">
+                                          <div className="flex items-center gap-3">
+                                            <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-bold">{idx + 1}</span>
+                                            <span className="font-semibold text-sm text-indigo-900">{task.titleHe}</span>
+                                          </div>
+                                          <div className="text-sm font-bold text-indigo-700 bg-indigo-50 px-3 py-1 rounded-md" dir="ltr">
+                                            {task.numberA} {task.isSubtraction ? '-' : '+'} {task.numberB} = ?
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+
+                                    <UdlButton 
+                                      size="sm" 
+                                      semanticColor="primary"
+                                      className="w-full font-bold shadow-md shadow-indigo-500/20"
+                                      onClick={() => {
+                                        handleTabChange("approvals");
+                                      }}
+                                    >
+                                      עבור למסך האישורים להחלת התוכנית על התלמיד
+                                    </UdlButton>
+                                  </div>
+                                )}
+                              </div>
+                            </AccessibleCard>
+                          </div>
+
+                          {/* Video Replay */}
+                          <AccessibleCard className="p-6 bg-white border border-ws-surface2 shadow-xl rounded-2xl overflow-hidden relative">
+                            <div className="flex items-center justify-between mb-4">
+                              <h3 className="text-xl font-bold text-ws-ink flex items-center gap-3">
+                                <span className={`w-3 h-3 rounded-full ${hasRecording ? 'bg-red-500 animate-pulse' : 'bg-slate-300'}`}></span>
+                                צפייה בהקלטת סשן הלמידה
+                              </h3>
+                              <div className="text-sm font-medium text-ws-soft">
+                                {hasRecording ? `נמצאו ${liveReplayEvents.length} פריימים לניתוח` : 'לא נמצאה הקלטה לסשן זה'}
+                              </div>
+                            </div>
+                            
+                            <div className="bg-slate-50 border border-ws-surface2 rounded-xl overflow-x-auto relative flex justify-center py-4">
+                              {hasRecording ? (
+                                <div className="w-fit flex justify-center items-center shadow-lg rounded-xl overflow-hidden border border-slate-200">
+                                  <ReplayViewer events={liveReplayEvents} />
+                                </div>
+                              ) : (
+                                <div className="flex flex-col items-center justify-center text-ws-soft py-20">
+                                  <span className="text-4xl mb-3">🎥</span>
+                                  <p>התלמיד טרם ביצע פעולות שנקלטו ברדאר</p>
+                                </div>
+                              )}
+                            </div>
+                          </AccessibleCard>
+                        </div>
+                      );
+                    })()}
+                  </>
+                )}
               </div>
-              
-              <ReplayViewer events={liveReplayEvents.length > 2 ? liveReplayEvents : MOCK_RRWEB_EVENTS} />
-            </AccessibleCard>
+            </div>
           </div>
         )}
 

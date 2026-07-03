@@ -68,6 +68,17 @@ export function TaskCard() {
                   />
                 );
               })()}
+            {standardTask.type === 'flexible_decomp' && (
+              <FlexibleDecompTask targetNumber={standardTask.numberA ?? 0} />
+            )}
+            {standardTask.type === 'number_line' && (
+              <div className="flex flex-col gap-2">
+                <NumberLineTask
+                  range={[0, 100]}
+                  showMarkerValue={false}
+                />
+              </div>
+            )}
           </>
         )}
 

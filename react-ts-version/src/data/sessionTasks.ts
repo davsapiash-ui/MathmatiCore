@@ -61,70 +61,117 @@ export interface SessionTask {
 /* ── Session 1 — app.js lines 42–107 (מפגש 1: היכרות ותפעול, חיבור ללא המרה בתחום המאה) ── */
 
 export const SESSION1_TASKS: SessionTask[] = [
+  // 1. Sandbox Free Play
   {
-    id: 's1_welcome',
+    id: 's1_sandbox',
     type: 'session1_intro',
-    titleHe: 'ברוכים הבאים לטבלת ערך המקום! 🎉',
-    // User-approved wording change (03.07.2026): "עשרת" instead of "עמודה של עשרת".
-    instructionHe: 'נסו לגרור קוביות קטנות (יחידות) או עשרות אל הלוח וראו איך המספר מתעדכן. אחר כך, נסו לגרור עשרת אחת אל טור היחידות, וחשבו על השאלה למטה:',
-    thoughtQuestionHe: 'אם נגרור עשרת אחת (10) לטור היחידות והיא תתפרק ל-10 יחידות, האם הערך הכולל של המספר בטבלה השתנה?',
+    titleHe: 'ברוכים הבאים למעבדה! 🔬',
+    instructionHe: 'קחו כמה דקות לשחק. נסו לבנות את הגיל שלכם, את מספר הבית שלכם, או סתם לראות לאיזה מספר הכי גבוה תצליחו להגיע. כשסיימתם לחקור, לחצו על "התקדם".',
+    correctAnswer: 'proceed_any',
+    scaffoldLevel: 0,
+  },
+  // 2. Drag and Input
+  {
+    id: 's1_t1',
+    type: 'addition_simple',
+    numberA: 34, numberB: 0, correctAnswer: 34,
+    titleHe: 'רישיון למעבדה - בנייה והקלדה',
+    instructionHe: 'בנו בטבלה את המספר 34 בעזרת הקוביות. לאחר מכן, הקלידו את המספר בתיבת התשובה שלמטה.',
+    hintHe: 'ודאו שיש 3 עשרות ו-4 יחידות, ואז הקלידו 34.',
+    scaffoldLevel: 1,
+  },
+  // 3. Multiple Choice
+  {
+    id: 's1_t2',
+    type: 'session1_intro',
+    titleHe: 'רישיון למעבדה - שאלת חשיבה',
+    instructionHe: 'בנו את המספר 15 בטבלה. אחר כך ענו על השאלה למטה:',
+    thoughtQuestionHe: 'כמה עשרות יש במספר הזה?',
     choices: [
-      { id: 'א', textHe: 'הכמות נשארה בדיוק אותו הדבר (10). לא הוספנו ולא הורדנו קוביות מהלוח, הן פשוט נראות אחרת!', correct: true },
-      { id: 'ב', textHe: 'הכמות גדלה ל-20, כי עכשיו יש לנו הרבה קוביות קטנות בלוח במקום עשרת אחת.' },
-      { id: 'ג', textHe: 'הכמות קטנה והפכה לאפס, כי העשרת נעלמה לגמרי.' },
+      { id: 'א', textHe: 'עשרת אחת', correct: true },
+      { id: 'ב', textHe: '5 עשרות' },
+      { id: 'ג', textHe: '15 עשרות' },
     ],
     correctAnswer: 'א',
     scaffoldLevel: 0,
   },
-  {
-    id: 's1_t1',
-    type: 'addition_simple',
-    numberA: 12, numberB: 24, correctAnswer: 36,
-    titleHe: 'חיבור פשוט - תרגיל 1',
-    instructionHe: 'פתרו את התרגיל על ידי גרירת הקוביות לכל טור, וכתבו את התשובה שלכם בתיבה.',
-    asdNumberA: 12, asdNumberB: 14,
-    hintHe: 'נסו לבדוק את עצמכם רגע: האם המספר שבנינו בקוביות מתאים למספרים שבתרגיל?',
-    scaffoldLevel: 1,
-  },
-  {
-    id: 's1_t2',
-    type: 'addition_simple',
-    numberA: 35, numberB: 14, correctAnswer: 49,
-    titleHe: 'חיבור פשוט - תרגיל 2',
-    instructionHe: 'פתרו את התרגיל על ידי גרירת הקוביות לכל טור, וכתבו את התשובה שלכם בתיבה.',
-    asdNumberA: 35, asdNumberB: 12,
-    hintHe: 'האם יש לנו טור אחד שיש בו יותר מ-9 קוביות? אם כן, זכרו שאפשר לבצע המרה לטור הבא!',
-    scaffoldLevel: 1,
-  },
+  // 4. Undo / Delete
   {
     id: 's1_t3',
-    type: 'addition_simple',
-    numberA: 41, numberB: 15, correctAnswer: 56,
-    titleHe: 'חיבור פשוט - תרגיל 3',
-    instructionHe: 'פתרו את התרגיל על ידי גרירת הקוביות לכל טור, וכתבו את התשובה שלכם בתיבה.',
-    asdNumberA: 41, asdNumberB: 15,
-    hintHe: 'מה קורה לכמות הקוביות כשאנחנו פורטים או ממירים? האם הוספנו או הורדנו קוביות מהלוח, או שרק שינינו את הצורה שלהן?',
-    scaffoldLevel: 1,
+    type: 'session1_intro',
+    titleHe: 'רישיון למעבדה - מחיקה וביטול',
+    instructionHe: 'בנו את המספר 50. עכשיו זרקו עשרת אחת לפח (מחוץ ללוח). התחרטתם? לחצו על כפתור ה"ביטול" כדי להחזיר אותה, ואז לחצו על בדיקה!',
+    correctAnswer: 'proceed_any',
+    scaffoldLevel: 0,
   },
+  // 5. Add representation
   {
     id: 's1_t4',
-    type: 'addition_simple',
-    numberA: 23, numberB: 31, correctAnswer: 54,
-    titleHe: 'חיבור פשוט - תרגיל 4',
-    instructionHe: 'ייצגו את המספרים בטבלה ורשמו את התשובה הכתובה.',
-    asdNumberA: 23, asdNumberB: 31,
-    hintHe: 'תראו! המספר 12 הוא בדיוק אותו הדבר כמו עשרת אחת (10) ועוד שתי יחידות (2). הכמות תמיד נשארת!',
-    scaffoldLevel: 2,
+    type: 'flexible_decomp',
+    titleHe: 'רישיון למעבדה - הוספת ייצוג',
+    instructionHe: 'בנו את המספר 20 מ-2 עשרות, ולחצו "הוסף ייצוג". עכשיו, בנו את אותו מספר רק מקוביות קטנות (20 יחידות), ולחצו שוב "הוסף ייצוג"!',
+    numberA: 20,
+    scaffoldLevel: 0,
   },
+  // 6. Double Click Ungroup
   {
     id: 's1_t5',
+    type: 'session1_intro',
+    titleHe: 'רישיון למעבדה - סוד הפריטה',
+    instructionHe: 'בנו את המספר 40. עכשיו, לחצו לחיצה כפולה על אחת העשרות. מה קרה לה? לחצו על כפתור הבדיקה כדי להמשיך.',
+    correctAnswer: 'proceed_any',
+    scaffoldLevel: 0,
+  },
+  // 7. Number Line
+  {
+    id: 's1_t6',
+    type: 'number_line',
+    titleHe: 'רישיון למעבדה - ישר המספרים',
+    instructionHe: 'גררו את החץ למקום שבו נמצא המספר 60 על הקו.',
+    numberA: 60, // target
+    scaffoldLevel: 0,
+  },
+  // 8. Math Refresh 1
+  {
+    id: 's1_t7',
     type: 'addition_simple',
-    numberA: 15, numberB: 42, correctAnswer: 57,
-    titleHe: 'חיבור פשוט - תרגיל 5',
-    instructionHe: 'ייצגו את המספרים בטבלה ורשמו את התשובה הכתובה.',
-    asdNumberA: 15, asdNumberB: 42,
-    hintHe: 'נסו לבדוק את עצמכם רגע: האם המספר שבנינו מתאים לתרגיל?',
-    scaffoldLevel: 2,
+    numberA: 24, numberB: 13, correctAnswer: 37,
+    titleHe: 'ריענון למוח - תרגיל 1',
+    instructionHe: 'השתמשו בקוביות כדי לפתור את התרגיל הבא:',
+    hintHe: 'חברו את היחידות ליחידות ואת העשרות לעשרות.',
+    scaffoldLevel: 1,
+  },
+  // 9. Math Refresh 2
+  {
+    id: 's1_t8',
+    type: 'addition_simple',
+    numberA: 38, numberB: 15, correctAnswer: 53,
+    titleHe: 'ריענון למוח - תרגיל 2',
+    instructionHe: 'שימו לב מה קורה כשאתם אוספים 10 יחידות ביחד!',
+    hintHe: 'אם יש לכם יותר מ-9 יחידות, אפשר ליצור מהן עשרת חדשה.',
+    scaffoldLevel: 1,
+  },
+  // 10. Math Refresh 3
+  {
+    id: 's1_t9',
+    type: 'vertical_addition',
+    isSubtraction: true,
+    numberA: 47, numberB: 25, correctAnswer: 22,
+    titleHe: 'ריענון למוח - תרגיל 3',
+    instructionHe: 'נסו כעת לפתור תרגיל חיסור בעזרת הקוביות שבטבלה:',
+    hintHe: 'בחיסור אנחנו רק מוציאים קוביות מהמספר הראשון.',
+    scaffoldLevel: 1,
+  },
+  // 11. Math Refresh 4
+  {
+    id: 's1_t10',
+    type: 'vertical_addition',
+    isSubtraction: true,
+    numberA: 42, numberB: 16, correctAnswer: 26,
+    titleHe: 'ריענון למוח - תרגיל 4',
+    instructionHe: 'איך נחסר 6 יחידות אם יש לנו רק 2? היעזרו בסוד הפריטה שלמדנו!',
+    hintHe: 'ללחוץ לחיצה כפולה על אחת העשרות ייתן לכם 10 יחידות נוספות להשתמש בהן.',
+    scaffoldLevel: 1,
   },
 ];
 

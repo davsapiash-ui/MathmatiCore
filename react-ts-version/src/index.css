@@ -197,6 +197,15 @@
     transition: opacity 600ms ease;
   }
 
+  /* Hide scrollbars but allow scrolling */
+  .no-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
   /* Hide number-input spinners (student answer boxes) */
   input[type='number'].no-spinner::-webkit-outer-spin-button,
   input[type='number'].no-spinner::-webkit-inner-spin-button {

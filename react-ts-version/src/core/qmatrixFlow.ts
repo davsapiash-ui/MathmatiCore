@@ -17,6 +17,8 @@ export interface QTaskResult {
   secondAttemptDetail?: string;
   /** Q4 root-cause tag (vanilla qmatrix.js 449–451). */
   q4_backward_diag?: 'procedural_error' | 'basic_facts_error';
+  /** Q6 root-cause tag */
+  q6_backward_diag?: 'regrouping_anxiety' | 'subtraction_operation_deficit';
 }
 
 export interface QMatrixFlowState {
@@ -62,17 +64,19 @@ export function recordResult(
   }
 
   const prev: QTaskResult = results[task.id] ?? { correct: false, detail: '' };
-  if (state.subphase === 'subtask') {
-    const updated: QTaskResult = { ...prev, subtaskCorrect: evalResult.correct, subtaskDetail: evalResult.detail };
-    if (task.id === 'task4_basic_addition_fluency') {
-      updated.q4_backward_diag = evalResult.correct ? 'procedural_error' : 'basic_facts_error';
+    if (state.subphase === 'subtask') {
+      const updated: QTaskResult = { ...prev, subtaskCorrect: evalResult.correct, subtaskDetail: evalResult.detail };
+      if (task.id === 'task4_basic_addition_fluency') {
+        updated.q4_backward_diag = evalResult.correct ? 'procedural_error' : 'basic_facts_error';
+      } else if (task.id === 'task6_subtraction_regrouping') {
+        updated.q6_backward_diag = evalResult.correct ? 'regrouping_anxiety' : 'subtraction_operation_deficit';
+      }
+      results[task.id] = updated;
+      return {
+        state: { ...state, results },
+        event: { type: 'subtask_done', taskId: task.id, correct: evalResult.correct },
+      };
     }
-    results[task.id] = updated;
-    return {
-      state: { ...state, results },
-      event: { type: 'subtask_done', taskId: task.id, correct: evalResult.correct },
-    };
-  }
 
   results[task.id] = { ...prev, secondAttemptCorrect: evalResult.correct, secondAttemptDetail: evalResult.detail };
   return {

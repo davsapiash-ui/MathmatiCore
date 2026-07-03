@@ -20,10 +20,11 @@ export function ReplayViewer({ events }: ReplayViewerProps) {
           target: playerRef.current,
           props: {
             events,
-            width: 800,
-            height: 500,
+            width: 900,
+            height: 600,
             autoPlay: false,
             showController: true,
+            mouseTail: false, // Disable the red line trails
           },
         });
       } catch (err) {
