@@ -49,7 +49,7 @@ export function LandingPage() {
             <span className="text-2xl font-black leading-none font-display">מ</span>
           </div>
           <span className="text-2xl font-display font-black text-ws-ink tracking-tight">
-            מתמטיקאור
+            מתמטיקאור &copy;
           </span>
         </div>
         <div className="flex items-center gap-3">
@@ -137,7 +137,7 @@ export function LandingPage() {
 
       {/* Footer */}
       <footer className="relative border-t border-ws-surface2 py-8 text-center text-sm text-ws-soft">
-        מתמטיקאור — סביבת למידה פדגוגית לערך המקום
+        מתמטיקאור &copy; — סביבת למידה פדגוגית לערך המקום
       </footer>
     </div>
   );

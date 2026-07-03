@@ -39,7 +39,7 @@ export function WorkspaceTopbar() {
           מ
         </div>
         <div className="hidden sm:flex flex-col leading-tight">
-          <span className="text-lg font-display font-extrabold tracking-tight text-ws-ink">מתמטיקאור</span>
+          <span className="text-lg font-display font-extrabold tracking-tight text-ws-ink">מתמטיקאור &copy;</span>
           <span className="text-xs font-bold text-ws-soft">היי {studentName} 👋</span>
         </div>
       </div>

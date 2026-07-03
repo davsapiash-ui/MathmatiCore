@@ -141,7 +141,7 @@ export function Login() {
             <span className="text-[2.2rem] font-black leading-none font-display">מ</span>
           </div>
           <div className="text-right">
-            <h1 className="font-display font-black text-3xl text-ws-ink tracking-tight leading-tight">מתמטיקאור</h1>
+            <h1 className="font-display font-black text-3xl text-ws-ink tracking-tight leading-tight">מתמטיקאור &copy;</h1>
             <p className="text-sm text-ws-soft mt-0.5">סביבת למידה מוגברת טכנולוגיה</p>
           </div>
         </motion.div>
