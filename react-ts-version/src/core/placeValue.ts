@@ -148,20 +148,6 @@ export function resolveDrop(counts: PlaceCounts, packagedBlocks: PlaceCounts, in
   }
 
   if (input.source === 'packaged') {
-    // Packaged block from units dragged to tens
-    if (tgtIdx - srcIdx === 1) {
-      const nextPackaged = removeBlock(packagedBlocks, input.sourcePlace);
-      if (!nextPackaged) return { ok: false, reason: 'constraint', place: input.sourcePlace };
-      
-      const { counts: next, events } = addBlock(counts, targetPlace, autoGroup);
-      return {
-        ok: true,
-        counts: next,
-        packagedBlocks: nextPackaged,
-        regroupEvents: [{ from: input.sourcePlace, to: targetPlace, groups: 1 }, ...events],
-        packagedRemoved: input.sourcePlace,
-      };
-    }
     return { ok: false, reason: 'silent' };
   }
 
@@ -175,10 +161,19 @@ export function resolveDrop(counts: PlaceCounts, packagedBlocks: PlaceCounts, in
     return { ok: true, counts: res.counts, packagedBlocks, regroupEvents: [], ungroupEvent: res.event };
   }
 
-  // הקפצה ידנית: adjacent higher only, requires >=10 in source.
-  // Pedagogical update: Removed grouping by dragging a single block, as it destroys number sense.
-  // Grouping will be an explicit button action.
+  // הקפצה ע"י גרירה: adjacent higher only, requires >=10 in source.
   if (tgtIdx - srcIdx === 1) {
+    if (counts[input.sourcePlace] >= 10) {
+      const nextCounts = { ...counts, [input.sourcePlace]: counts[input.sourcePlace] - 10 };
+      const { counts: finalCounts, events } = addBlock(nextCounts, targetPlace, autoGroup);
+      return {
+        ok: true,
+        counts: finalCounts,
+        packagedBlocks,
+        regroupEvents: [{ from: input.sourcePlace, to: targetPlace, groups: 1 }, ...events],
+        removed: input.sourcePlace,
+      };
+    }
     return { ok: false, reason: 'constraint', place: input.sourcePlace };
   }
 
