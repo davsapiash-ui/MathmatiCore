@@ -50,23 +50,23 @@ export function WorkspaceTopbar() {
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="flex items-center gap-3 shrink-0 bg-white/50 p-1.5 rounded-full border border-ws-surface2 shadow-sm">
         <button
           onClick={() => {
             logout();
             navigate('/login');
           }}
-          className="h-10 px-3 rounded-2xl text-sm font-bold text-ws-soft hover:text-ws-danger hover:bg-red-50 transition-all"
+          className="h-10 px-4 rounded-full text-sm font-bold text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors"
           aria-label="התנתק"
         >
           יציאה
         </button>
 
-        <div className="w-px h-7 bg-ws-surface2" />
+        <div className="w-px h-6 bg-slate-200" />
 
         <button
           onClick={toggleBoard}
-          className="ws-chip h-11 px-4 rounded-2xl text-sm font-bold transition-all flex items-center gap-1.5"
+          className="h-10 px-5 rounded-full text-sm font-bold text-ws-blue bg-ws-blue-soft/50 hover:bg-ws-blue hover:text-white transition-all flex items-center gap-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)]"
         >
           <span aria-hidden="true">🧮</span>
           {boardOpen ? 'הסתר לוח' : 'הצג לוח'}
@@ -75,7 +75,7 @@ export function WorkspaceTopbar() {
         <button
           onClick={undo}
           disabled={!canUndo}
-          className="ws-chip h-11 px-4 rounded-2xl text-sm font-bold transition-all flex items-center gap-1.5 disabled:opacity-35 disabled:cursor-not-allowed disabled:transform-none"
+          className="h-10 px-4 rounded-full text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-all flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
           aria-label="בטל פעולה אחרונה"
         >
           <span aria-hidden="true">↩</span> בטל
@@ -83,14 +83,14 @@ export function WorkspaceTopbar() {
 
         <button
           onClick={() => document.dispatchEvent(new CustomEvent('toggle-chat'))}
-          className="ws-chip h-11 px-4 rounded-2xl text-sm font-bold transition-all flex items-center gap-1.5"
+          className="h-10 px-4 rounded-full text-sm font-bold text-ws-blue bg-white border border-ws-blue/20 hover:border-ws-blue/50 hover:shadow-md transition-all flex items-center gap-1.5"
         >
           <span aria-hidden="true">💬</span> צ'אט
         </button>
 
         <button
           onClick={requestHelp}
-          className="h-11 w-11 rounded-2xl text-xl bg-ws-accentSoft border-[1.5px] border-ws-accent/40 hover:scale-110 hover:rotate-6 active:scale-95 transition-transform shadow-[0_2px_8px_-2px_hsl(var(--ws-accent)/0.4)]"
+          className="h-10 w-10 rounded-full text-lg bg-gradient-to-b from-amber-100 to-amber-200 border border-amber-300 text-amber-700 hover:scale-110 active:scale-95 transition-transform shadow-sm flex items-center justify-center"
           aria-label="בקש עזרה"
           title="לחץ לעזרה"
         >
@@ -100,11 +100,11 @@ export function WorkspaceTopbar() {
         <button
           onClick={proceed}
           disabled={!canProceed}
-          className="ws-btn-primary h-12 pr-6 pl-5 rounded-2xl text-lg font-display font-extrabold transition-all flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none disabled:filter-none"
+          className="h-10 px-6 rounded-full text-base font-display font-extrabold text-white bg-gradient-to-r from-ws-blue-2 to-ws-blue hover:brightness-110 shadow-md hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed"
           aria-label="עבור למשימה הבאה"
         >
           הבא
-          <span aria-hidden="true" className="text-xl leading-none">←</span>
+          <span aria-hidden="true" className="text-lg leading-none">←</span>
         </button>
       </div>
     </nav>

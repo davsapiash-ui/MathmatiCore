@@ -30,8 +30,8 @@ export function PlaceValueBoard({ hideValueDisplay }: { hideValueDisplay?: boole
         >
           <div className="flex-1 ws-card p-4 flex flex-col gap-3 overflow-hidden">
             <div className="flex items-center justify-center gap-2 shrink-0">
-              <span className="inline-flex items-center gap-1.5 text-sm font-display font-extrabold text-ws-soft bg-ws-bg rounded-full px-4 py-1 border border-ws-surface2">
-                <span aria-hidden="true">🏠</span> בית המספרים
+              <span className="inline-flex items-center gap-2 text-lg font-display font-black text-ws-ink bg-ws-blue-soft/50 rounded-full px-6 py-1.5 border-2 border-ws-blue/20 shadow-sm">
+                <span aria-hidden="true" className="text-xl">🏠</span> בית המספרים
               </span>
               {/* "החזרת עזרים" — spec-mandated bidirectional scaffold fading (appears only when faded) */}
               {scaffoldFadeLevel > 0 && (

@@ -15,7 +15,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 220 30% 12%;
 
-    --primary: 250 84% 54%; /* Vibrant Indigo */
+    --primary: 221 83% 53%; /* Logo Blue */
     --primary-foreground: 0 0% 100%;
 
     --secondary: 220 14% 94%;
@@ -24,15 +24,15 @@
     --muted: 220 14% 94%;
     --muted-foreground: 220 15% 45%;
 
-    --accent: 250 84% 96%;
-    --accent-foreground: 250 84% 34%;
+    --accent: 221 83% 96%;
+    --accent-foreground: 221 83% 34%;
 
     --destructive: 350 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
     --border: 220 13% 90%;
     --input: 220 13% 90%;
-    --ring: 250 84% 54%;
+    --ring: 221 83% 53%;
 
     --radius: 1.25rem; /* Smoother, larger radius */
 
@@ -49,10 +49,10 @@
     --ws-surface-2: 214 40% 90%;
     --ws-ink: 221 45% 17%;          /* deep navy ink */
     --ws-ink-soft: 218 22% 42%;
-    --ws-accent: 27 100% 51%;       /* energetic orange — CTA / selection / progress */
-    --ws-accent-2: 38 100% 57%;     /* gradient partner */
-    --ws-accent-soft: 33 100% 93%;
-    --ws-blue: 221 80% 51%;         /* brand blue — identity, chrome, instruction anchors */
+    --ws-accent: 221 83% 53%;       /* Logo Blue — CTA / selection / progress */
+    --ws-accent-2: 208 90% 60%;     /* gradient partner */
+    --ws-accent-soft: 214 95% 94%;
+    --ws-blue: 221 83% 53%;         /* brand blue */
     --ws-blue-2: 208 90% 60%;       /* gradient partner */
     --ws-blue-soft: 214 95% 94%;
     --ws-teal: 174 65% 41%;         /* playful pop — sparingly */

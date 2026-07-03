@@ -13,8 +13,8 @@
   --color-primary-light: #EEF2FF; /* Indigo 50 */
   --color-primary-dark:  #4338CA; /* Indigo 700 */
 
-  --color-accent:        #FF6B35; /* Orange accent */
-  --color-accent-dark:   #E55520;
+  --color-accent:        #2563EB; /* Logo Blue (was orange) */
+  --color-accent-dark:   #1D4ED8;
   --color-success:       #10B981; /* Emerald 500 */
   --color-success-light: #D1FAE5;
   --color-danger:        #EF4444; /* Red 500 */

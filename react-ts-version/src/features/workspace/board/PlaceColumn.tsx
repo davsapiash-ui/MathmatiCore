@@ -54,13 +54,13 @@ export function PlaceColumn({ place }: { place: Place }) {
       aria-label={`טור ${PLACE_NAMES_HE[place]}`}
     >
       <div
-        className="flex items-center justify-center gap-2 py-2.5 font-display font-extrabold text-lg"
-        style={{ color: colors.header, backgroundColor: colors.headerBg }}
+        className="relative flex items-center justify-center py-2.5 font-display font-extrabold text-lg border-b-[3px]"
+        style={{ color: colors.header, backgroundColor: colors.headerBg, borderColor: colors.header }}
       >
-        {PLACE_NAMES_HE[place]}
+        <span>{PLACE_NAMES_HE[place]}</span>
         <span
           aria-live="polite"
-          className={`min-w-[22px] h-[22px] px-1 rounded-full text-xs font-black text-white inline-flex items-center justify-center transition-all ${
+          className={`absolute left-3 min-w-[22px] h-[22px] px-1 rounded-full text-xs font-black text-white inline-flex items-center justify-center transition-all ${
             count > 0 ? 'opacity-100 scale-100' : 'opacity-0 scale-50'
           }`}
           style={{ backgroundColor: colors.header }}
