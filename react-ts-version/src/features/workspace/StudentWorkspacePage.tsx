@@ -226,7 +226,8 @@ export function StudentWorkspacePage() {
 
       <DragOverlay dropAnimation={{ duration: 250, easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)' }}>
         {activeDrag ? (
-          <div className="scale-110 rotate-2 opacity-90 drop-shadow-2xl">
+          // 15% smaller than the old 1.10 per user request — the dragged block must not dwarf the board
+          <div className="scale-[0.93] rotate-2 opacity-90 drop-shadow-2xl">
             <DienesBlock id="drag-overlay" place={activeDrag.place} source={activeDrag.source} isOverlay />
           </div>
         ) : null}
