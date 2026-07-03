@@ -110,7 +110,10 @@ export type DropResult =
   | { ok: false; reason: 'constraint'; place: Place };
 
 export function resolveDrop(counts: PlaceCounts, input: DropInput, scaffoldLevel: number): DropResult {
-  const autoGroup = scaffoldLevel < 2;
+  void scaffoldLevel; // Silence TS unused var error
+  // Pedagogical update: Disable automatic grouping entirely for now, as requested by the user.
+  // Grouping will be strictly manual (dragging >=10 to the adjacent higher place).
+  const autoGroup = false;
 
   // Trash: only blocks taken from a column may be deleted (palette drags are copies).
   if (input.target.kind === 'trash') {
