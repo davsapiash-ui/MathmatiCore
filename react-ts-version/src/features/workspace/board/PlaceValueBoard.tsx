@@ -24,11 +24,11 @@ export function PlaceValueBoard({ hideValueDisplay }: { hideValueDisplay?: boole
           animate={{ flexBasis: '50%', opacity: 1 }}
           exit={{ flexBasis: 0, opacity: 0 }}
           transition={{ duration: 0.35, ease: 'easeInOut' }}
-          className="flex flex-col gap-3 overflow-hidden"
+          className="flex flex-col gap-3 overflow-visible"
           style={{ flexGrow: 0, flexShrink: 0 }}
           aria-label="טבלת ערך המקום"
         >
-          <div className="flex-1 ws-card p-4 flex flex-col gap-3 overflow-hidden">
+          <div className="flex-1 ws-card p-4 flex flex-col gap-3">
             <div className="flex items-center justify-center gap-2 shrink-0">
               <span className="inline-flex items-center gap-2 text-lg font-display font-black text-ws-ink bg-ws-blue-soft/50 rounded-full px-6 py-1.5 border-2 border-ws-blue/20 shadow-sm">
                 <span aria-hidden="true" className="text-xl">🏠</span> בית המספרים

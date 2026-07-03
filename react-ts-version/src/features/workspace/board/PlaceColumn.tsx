@@ -48,7 +48,7 @@ export function PlaceColumn({ place }: { place: Place }) {
   return (
     <motion.div
       animate={shakeControls}
-      className={`flex-1 min-w-0 flex flex-col rounded-2xl border overflow-hidden transition-all duration-300 ${
+      className={`flex-1 min-w-0 flex flex-col rounded-2xl border transition-all duration-300 ${
         isDimmed ? 'opacity-30 grayscale pointer-events-none' : ''
       }`}
       style={{
@@ -59,7 +59,7 @@ export function PlaceColumn({ place }: { place: Place }) {
       aria-label={`טור ${PLACE_NAMES_HE[place]}`}
     >
       <div
-        className="relative flex items-center justify-center py-2.5 font-display font-extrabold text-lg border-b-[3px]"
+        className="relative flex items-center justify-center py-2.5 font-display font-extrabold text-lg border-b-[3px] rounded-t-[14px]"
         style={{ color: colors.header, backgroundColor: colors.headerBg, borderColor: colors.header }}
       >
         <span>{PLACE_NAMES_HE[place]}</span>
@@ -78,7 +78,7 @@ export function PlaceColumn({ place }: { place: Place }) {
         ref={setNodeRef}
         role="group"
         aria-label={`אזור גרירה — ${PLACE_NAMES_HE[place]}`}
-        className="flex-1 flex flex-row flex-wrap content-start justify-center items-start gap-1 p-2 min-h-[150px] overflow-y-auto"
+        className="flex-1 flex flex-row flex-wrap content-start justify-center items-start gap-1 p-2 min-h-[150px] overflow-visible"
       >
         {count >= 10 && higherPlace && (
           <div className="w-full flex justify-center mb-3">
