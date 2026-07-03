@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { driver } from 'driver.js';
 import 'driver.js/dist/driver.css';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
@@ -7,7 +7,7 @@ const HAS_SEEN_TOUR_KEY = 'mathmaticore_has_seen_tour';
 
 export function useWorkspaceTour() {
   const driverObj = useRef<any>(null);
-  const meeting = useWorkspaceStore((s) => s.meeting);
+  const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
 
   useEffect(() => {
     driverObj.current = driver({
@@ -78,7 +78,7 @@ export function useWorkspaceTour() {
 
   // Auto-start on meeting 1 if not seen
   useEffect(() => {
-    if (meeting === 1) {
+    if (sessionNumber === 1) {
       const hasSeen = localStorage.getItem(HAS_SEEN_TOUR_KEY);
       if (!hasSeen) {
         // Small delay to ensure UI is mounted and blocks are rendered
@@ -89,7 +89,7 @@ export function useWorkspaceTour() {
         return () => clearTimeout(timer);
       }
     }
-  }, [meeting]);
+  }, [sessionNumber]);
 
   return { startTour };
 }
