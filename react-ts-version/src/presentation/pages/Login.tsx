@@ -120,7 +120,7 @@ export function Login() {
   return (
     <div
       dir="rtl"
-      className="min-h-screen bg-ws-bg font-body text-ws-ink flex items-center justify-center p-6"
+      className="min-h-screen bg-ws-bg bg-gradient-to-br from-ws-bg to-ws-surface2 font-body text-ws-ink flex items-center justify-center p-6"
     >
       <main className="flex flex-col items-center gap-8 w-full max-w-[480px]">
         {/* Logo Area */}
