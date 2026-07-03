@@ -2,6 +2,10 @@ import { AccessibleCard } from "@/presentation/design-system/AccessibleCard";
 import { Activity, Users, GraduationCap, ShieldAlert } from "lucide-react";
 import { useAdminStore } from "@/application/useAdminStore";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { useEffect, useState } from 'react';
+import { ref, onValue, query, orderByChild, limitToLast } from 'firebase/database';
+import { database } from '@/infrastructure/firebase';
+import type { AuditLogEvent } from '@/infrastructure/services/AuditLogger';
 
 const mockGrowthData = [
   { month: 'ינואר', students: 0, activity: 0 },
@@ -14,6 +18,25 @@ const mockGrowthData = [
 
 export function AdminOverview() {
   const { schools, teachers, classes } = useAdminStore();
+  const [auditLogs, setAuditLogs] = useState<AuditLogEvent[]>([]);
+
+  useEffect(() => {
+    const logsRef = query(ref(database, 'audit_logs'), orderByChild('timestamp'), limitToLast(20));
+    const unsubscribe = onValue(logsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const logsArray: AuditLogEvent[] = Object.keys(data).map(key => ({
+          id: key,
+          ...data[key]
+        }));
+        // Reverse to show newest first
+        setAuditLogs(logsArray.reverse());
+      } else {
+        setAuditLogs([]);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
 
   const totalStudents = classes.length * 30; // Mock calculation based on classes
 
@@ -137,18 +160,18 @@ export function AdminOverview() {
         <AccessibleCard className="p-6 bg-white dark:bg-slate-900 shadow-sm">
           <h2 className="text-xl font-bold border-b pb-2 mb-4">יומן אירועים (Audit Log)</h2>
           <div className="space-y-4">
-            <div className="flex justify-between items-center text-sm border-b border-slate-100 dark:border-slate-800 pb-2">
-              <span className="text-slate-600 dark:text-slate-400">10:42 02/07/2026</span>
-              <span className="font-medium text-slate-800 dark:text-slate-200">Admin_David יצר מוסד חדש "ביה״ס הדרים"</span>
-            </div>
-            <div className="flex justify-between items-center text-sm border-b border-slate-100 dark:border-slate-800 pb-2">
-              <span className="text-slate-600 dark:text-slate-400">09:15 02/07/2026</span>
-              <span className="font-medium text-slate-800 dark:text-slate-200">System Backup הושלם בהצלחה</span>
-            </div>
-            <div className="flex justify-between items-center text-sm border-b border-slate-100 dark:border-slate-800 pb-2">
-              <span className="text-slate-600 dark:text-slate-400">08:00 02/07/2026</span>
-              <span className="font-medium text-slate-800 dark:text-slate-200">מחיקת נתונים אוטומטית (GDPR) בוצעה</span>
-            </div>
+            {auditLogs.length > 0 ? auditLogs.map((log) => (
+              <div key={log.id} className="flex justify-between items-center text-sm border-b border-slate-100 dark:border-slate-800 pb-2">
+                <span className="text-slate-600 dark:text-slate-400">
+                  {log.timestamp ? new Date(log.timestamp).toLocaleString('he-IL') : 'לא ידוע'}
+                </span>
+                <span className="font-medium text-slate-800 dark:text-slate-200">
+                  {log.user_id} - {log.details || log.action}
+                </span>
+              </div>
+            )) : (
+              <div className="text-sm text-slate-500">אין אירועים להצגה.</div>
+            )}
           </div>
         </AccessibleCard>
       </div>

@@ -39,18 +39,25 @@ export function StudentHub() {
   const navigate = useNavigate();
 
   return (
-    <div dir="rtl" className="min-h-full w-full bg-ws-bg font-body text-ws-ink">
-      <div className="p-6 md:p-10 max-w-5xl mx-auto w-full flex flex-col gap-10">
+    <div dir="rtl" className="relative min-h-full w-full bg-ws-bg font-body text-ws-ink overflow-hidden">
+      {/* Flat vector background shapes — playful world energy, zero visual noise */}
+      <div aria-hidden="true" className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute -top-24 -left-24 w-[420px] h-[420px] rounded-full" style={{ backgroundColor: 'hsl(var(--ws-blue) / 0.05)' }} />
+        <div className="absolute -bottom-32 -right-20 w-[380px] h-[380px] rounded-full" style={{ backgroundColor: 'hsl(var(--ws-teal) / 0.06)' }} />
+        <div className="absolute top-[35%] left-[12%] w-16 h-16 rounded-2xl rotate-12" style={{ backgroundColor: 'hsl(var(--ws-accent) / 0.05)' }} />
+      </div>
+
+      <div className="relative p-6 md:p-10 max-w-5xl mx-auto w-full flex flex-col gap-10">
 
         {/* Warm welcome — process-oriented, no scores or fake metrics */}
         <motion.section
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-          className="bg-ws-surface rounded-3xl shadow-lg border border-ws-surface2 p-8 md:p-12"
+          className="ws-card p-8 md:p-12"
         >
           <div className="max-w-2xl flex flex-col items-start gap-4">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold bg-ws-accentSoft text-ws-accent">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold bg-[hsl(var(--ws-blue-soft))] text-[hsl(var(--ws-blue))]">
               <Sun className="w-4 h-4" aria-hidden="true" />
               סביבת הלמידה האישית שלך
             </div>
@@ -64,7 +71,7 @@ export function StudentHub() {
             <motion.button
               whileHover={{ scale: 1.03, y: -2 }}
               whileTap={{ scale: 0.97 }}
-              className="mt-4 flex items-center justify-center gap-3 px-8 py-4 rounded-full text-white font-display font-extrabold text-lg bg-ws-accent shadow-md hover:brightness-105 transition-all"
+              className="ws-brand mt-4 flex items-center justify-center gap-3 px-8 py-4 rounded-full font-display font-extrabold text-lg transition-all hover:brightness-105"
               onClick={() => navigate('/workspace?meeting=1')}
             >
               <Play className="w-5 h-5 fill-current" aria-hidden="true" />
@@ -97,8 +104,10 @@ export function StudentHub() {
                     navigate(`/workspace?meeting=${meeting.id}`);
                   }
                 }}
-                className={`flex flex-col sm:flex-row gap-5 items-center p-5 rounded-3xl bg-ws-surface border border-ws-surface2 transition-shadow ${
-                  meeting.isLocked ? 'opacity-60' : 'cursor-pointer group shadow-sm hover:shadow-lg'
+                className={`flex flex-col sm:flex-row gap-5 items-center p-5 ws-card transition-all ${
+                  meeting.isLocked
+                    ? 'opacity-60'
+                    : 'cursor-pointer group hover:border-[hsl(var(--ws-blue)/0.45)] hover:shadow-lg'
                 }`}
                 onClick={() => {
                   if (!meeting.isLocked) navigate(`/workspace?meeting=${meeting.id}`);
@@ -106,7 +115,7 @@ export function StudentHub() {
               >
                 <div
                   className={`w-16 h-16 flex items-center justify-center text-3xl shrink-0 rounded-2xl transition-transform ${
-                    meeting.isLocked ? 'bg-ws-surface2' : 'bg-ws-accentSoft group-hover:scale-105'
+                    meeting.isLocked ? 'bg-ws-surface2' : 'bg-[hsl(var(--ws-blue-soft))] group-hover:scale-105'
                   }`}
                 >
                   <span aria-hidden="true">{meeting.isLocked ? <Lock className="w-7 h-7 text-ws-soft" /> : meeting.icon}</span>
@@ -116,7 +125,7 @@ export function StudentHub() {
                   <div className="flex items-center justify-center sm:justify-start gap-3 mb-1">
                     <div
                       className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                        meeting.isLocked ? 'bg-ws-surface2 text-ws-soft' : 'bg-ws-accent text-white'
+                        meeting.isLocked ? 'bg-ws-surface2 text-ws-soft' : 'bg-[hsl(var(--ws-blue))] text-white'
                       }`}
                     >
                       {meeting.id}
@@ -129,9 +138,10 @@ export function StudentHub() {
                 {meeting.isLocked ? (
                   <span className="px-4 py-1.5 rounded-full text-sm font-bold bg-ws-surface2 text-ws-soft shrink-0">בקרוב</span>
                 ) : (
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center bg-ws-surface2 text-ws-soft group-hover:bg-ws-accentSoft group-hover:text-ws-accent transition-colors shrink-0">
+                  <span className="ws-btn-primary flex items-center gap-1.5 px-6 py-2.5 rounded-full font-display font-extrabold transition-all shrink-0">
+                    התחל
                     <ChevronLeft className="w-5 h-5" aria-hidden="true" />
-                  </div>
+                  </span>
                 )}
               </motion.div>
             ))}

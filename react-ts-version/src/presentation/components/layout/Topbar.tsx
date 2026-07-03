@@ -29,12 +29,12 @@ export function Topbar() {
         </UdlButton>
 
         {/* User Profile */}
-        <div className="flex items-center gap-3 bg-ws-surface2 rounded-full py-1.5 px-1.5 pr-4 shadow-sm border border-ws-surface2">
+        <div className="flex items-center gap-3 bg-ws-surface rounded-full py-1.5 px-1.5 pr-4 shadow-sm border border-ws-surface2">
           <div className="flex flex-col items-end leading-tight">
             <span className="text-sm font-bold text-ws-ink">{user?.displayName || 'אורח'}</span>
             <span className="text-xs text-ws-soft">{user?.role === 'student' ? 'תלמיד' : 'מורה'}</span>
           </div>
-          <div className="w-9 h-9 rounded-full bg-ws-accent flex items-center justify-center text-white shadow-inner">
+          <div className="w-9 h-9 rounded-full ws-brand flex items-center justify-center">
             <UserCircle className="w-6 h-6" />
           </div>
         </div>

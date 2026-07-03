@@ -91,6 +91,8 @@ interface WorkspaceState {
   setNumberLineValue: (v: number) => void;
   setAnswerDigit: (place: Place, v: string) => void;
   setProbeAnswer: (v: string) => void;
+  /** "החזרת עזרים" — bidirectional scaffold fading per spec: temporarily restore faded aids. */
+  restoreScaffolds: () => void;
   addRepresentation: () => void;
   demoUngroup: () => void;
   proceed: () => void;
@@ -561,6 +563,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       if (q3Reps.length < 2) {
         set({ counts: { ...EMPTY_COUNTS }, undoStack: [] });
       }
+    },
+
+    /** "החזרת עזרים" (spec M4, Responsive Fading): the student may temporarily bring
+        faded scaffolds back to full visibility when hitting a new difficulty. */
+    restoreScaffolds: () => {
+      radar.recordAction();
+      set({ scaffoldFadeLevel: 0 });
     },
 
     /** Q3 backward-diagnosis guided demo: decompose one ten into 10 units. */

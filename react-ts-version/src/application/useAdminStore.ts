@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { AuditLogger } from "@/infrastructure/services/AuditLogger";
 
 export interface School {
   id: string;
@@ -55,49 +56,69 @@ export const useAdminStore = create<AdminState>()(
 
       setGlobalStudentLimit: (limit) => set({ globalStudentLimit: limit }),
 
-      addSchool: (name) => set((state) => ({
-        schools: [...state.schools, { id: `school_${Date.now()}`, name, createdAt: Date.now() }]
-      })),
+      addSchool: (name) => set((state) => {
+        AuditLogger.log("יצירת מוסד", "admin", `מוסד חדש: ${name}`);
+        return {
+          schools: [...state.schools, { id: `school_${Date.now()}`, name, createdAt: Date.now() }]
+        };
+      }),
 
-      deleteSchool: (id) => set((state) => ({
-        schools: state.schools.filter(s => s.id !== id),
-        // Cascade delete
-        teachers: state.teachers.filter(t => t.schoolId !== id),
-        classes: state.classes.filter(c => c.schoolId !== id)
-      })),
+      deleteSchool: (id) => set((state) => {
+        const school = state.schools.find(s => s.id === id);
+        if (school) AuditLogger.log("מחיקת מוסד", "admin", `מוסד נמחק: ${school.name}`);
+        return {
+          schools: state.schools.filter(s => s.id !== id),
+          // Cascade delete
+          teachers: state.teachers.filter(t => t.schoolId !== id),
+          classes: state.classes.filter(c => c.schoolId !== id)
+        };
+      }),
 
-      addTeacher: (schoolId, name, taz, dob) => set((state) => ({
-        teachers: [...state.teachers, { 
-          id: `teacher_${Date.now()}`, 
-          schoolId, 
-          name, 
-          taz, 
-          dob, 
-          licenseActive: true,
-          createdAt: Date.now() 
-        }]
-      })),
+      addTeacher: (schoolId, name, taz, dob) => set((state) => {
+        AuditLogger.log("יצירת מורה", "admin", `מורה חדש: ${name}`);
+        return {
+          teachers: [...state.teachers, { 
+            id: `teacher_${Date.now()}`, 
+            schoolId, 
+            name, 
+            taz, 
+            dob, 
+            licenseActive: true,
+            createdAt: Date.now() 
+          }]
+        };
+      }),
 
-      deleteTeacher: (id) => set((state) => ({
-        teachers: state.teachers.filter(t => t.id !== id),
-        // Note: Classes assigned to this teacher might need reassignment, but for now we just keep them or delete them
-        classes: state.classes.filter(c => c.teacherId !== id)
-      })),
+      deleteTeacher: (id) => set((state) => {
+        const teacher = state.teachers.find(t => t.id === id);
+        if (teacher) AuditLogger.log("מחיקת מורה", "admin", `מורה נמחק: ${teacher.name}`);
+        return {
+          teachers: state.teachers.filter(t => t.id !== id),
+          classes: state.classes.filter(c => c.teacherId !== id)
+        };
+      }),
 
-      addClassRoom: (schoolId, teacherId, name) => set((state) => ({
-        classes: [...state.classes, { 
-          id: `class_${Date.now()}`, 
-          schoolId, 
-          teacherId, 
-          name, 
-          studentLimit: state.globalStudentLimit,
-          createdAt: Date.now() 
-        }]
-      })),
+      addClassRoom: (schoolId, teacherId, name) => set((state) => {
+        AuditLogger.log("יצירת כיתה", "admin", `כיתה חדשה: ${name}`);
+        return {
+          classes: [...state.classes, { 
+            id: `class_${Date.now()}`, 
+            schoolId, 
+            teacherId, 
+            name, 
+            studentLimit: state.globalStudentLimit,
+            createdAt: Date.now() 
+          }]
+        };
+      }),
 
-      deleteClassRoom: (id) => set((state) => ({
-        classes: state.classes.filter(c => c.id !== id)
-      })),
+      deleteClassRoom: (id) => set((state) => {
+        const classRoom = state.classes.find(c => c.id === id);
+        if (classRoom) AuditLogger.log("מחיקת כיתה", "admin", `כיתה נמחקה: ${classRoom.name}`);
+        return {
+          classes: state.classes.filter(c => c.id !== id)
+        };
+      }),
     }),
     {
       name: "admin-storage",

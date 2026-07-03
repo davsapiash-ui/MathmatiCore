@@ -4,6 +4,7 @@ import type { QMatrixFlowState } from '@/core/qmatrixFlow';
 import { getEffectiveChoices, getEffectiveNumber, getEffectiveRange } from '@/core/qmatrixFlow';
 import { ChoiceList } from './ChoiceList';
 import { NumberLineTask } from './NumberLineTask';
+import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 import { InlineMath } from 'react-katex';
 import 'katex/dist/katex.min.css';
 
@@ -27,7 +28,13 @@ export function BackwardDiagnosisView({ task, qflow, isASD }: { task: QMatrixTas
 
   return (
     <div className="flex flex-col gap-4 mt-2">
-      {instruction && <p className="text-lg font-bold text-ws-ink leading-relaxed">{instruction}</p>}
+      {instruction && (
+        <div className="flex items-start gap-3">
+          <p className="text-lg font-bold text-ws-ink leading-relaxed flex-1">{instruction}</p>
+          {/* UDL: the subtask blanks the top instruction, so audio must live here */}
+          <UdlSpeechButton text={instruction} />
+        </div>
+      )}
 
       {/* Choice-based subtask (task1: zero as place-holder) */}
       {diag.subtaskChoices && task.type === 'place_value_zero' && (

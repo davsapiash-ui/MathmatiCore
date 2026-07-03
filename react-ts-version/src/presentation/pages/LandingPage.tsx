@@ -34,12 +34,19 @@ export function LandingPage() {
   }, [user, navigate]);
 
   return (
-    <div dir="rtl" className="min-h-screen bg-ws-bg font-body text-ws-ink">
+    <div dir="rtl" className="relative min-h-screen bg-ws-bg font-body text-ws-ink overflow-hidden">
+      {/* Flat vector background shapes — playful world energy, zero visual noise */}
+      <div aria-hidden="true" className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute -top-24 -left-24 w-[420px] h-[420px] rounded-full" style={{ backgroundColor: 'hsl(var(--ws-blue) / 0.05)' }} />
+        <div className="absolute -bottom-32 -right-20 w-[380px] h-[380px] rounded-full" style={{ backgroundColor: 'hsl(var(--ws-teal) / 0.06)' }} />
+        <div className="absolute top-[26%] right-[14%] w-16 h-16 rounded-2xl rotate-12" style={{ backgroundColor: 'hsl(var(--ws-accent) / 0.05)' }} />
+      </div>
+
       {/* Navbar */}
-      <nav className="w-full max-w-6xl mx-auto flex justify-between items-center px-6 py-5">
+      <nav className="relative w-full max-w-6xl mx-auto flex justify-between items-center px-6 py-5">
         <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-2xl bg-ws-accent flex items-center justify-center shadow-md">
-            <span className="text-2xl font-black text-white leading-none font-display">מ</span>
+          <div className="w-11 h-11 rounded-2xl ws-brand flex items-center justify-center rotate-[-4deg]">
+            <span className="text-2xl font-black leading-none font-display">מ</span>
           </div>
           <span className="text-2xl font-display font-black text-ws-ink tracking-tight">
             מתמטיקאור
@@ -48,13 +55,13 @@ export function LandingPage() {
         <div className="flex items-center gap-3">
           <button
             onClick={() => window.open("https://github.com/MathmatiCore", "_blank")}
-            className="hidden md:inline-flex items-center px-5 py-2.5 rounded-full font-display font-bold text-ws-soft bg-ws-surface border border-ws-surface2 hover:text-ws-ink hover:border-ws-accent/40 transition-colors"
+            className="ws-chip hidden md:inline-flex items-center px-5 py-2.5 rounded-full font-display font-bold transition-all"
           >
             אודות המערכת
           </button>
           <button
             onClick={() => navigate("/login")}
-            className="inline-flex items-center px-5 py-2.5 rounded-full font-display font-bold text-white bg-ws-accent shadow-md hover:brightness-105 active:scale-[0.98] transition-all"
+            className="ws-brand inline-flex items-center px-5 py-2.5 rounded-full font-display font-bold hover:brightness-105 active:scale-[0.98] transition-all"
           >
             התחברות למערכת
           </button>
@@ -62,12 +69,12 @@ export function LandingPage() {
       </nav>
 
       {/* Hero */}
-      <main className="max-w-6xl mx-auto px-6 pt-16 pb-24 flex flex-col items-center text-center">
+      <main className="relative max-w-6xl mx-auto px-6 pt-16 pb-24 flex flex-col items-center text-center">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-ws-accentSoft text-ws-accent font-display font-bold text-sm mb-8 border border-ws-accent/25"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[hsl(var(--ws-blue-soft))] text-[hsl(var(--ws-blue))] font-display font-bold text-sm mb-8 border border-[hsl(var(--ws-blue)/0.25)]"
         >
           מערכת למידה מותאמת אישית (UDL)
         </motion.div>
@@ -80,7 +87,7 @@ export function LandingPage() {
         >
           ללמוד מתמטיקה
           <br />
-          <span className="text-ws-accent">עם הידיים ועם הלב</span>
+          <span className="text-[hsl(var(--ws-blue))]">עם הידיים ועם הלב</span>
         </motion.h1>
 
         <motion.p
@@ -100,7 +107,7 @@ export function LandingPage() {
         >
           <button
             onClick={() => navigate("/login")}
-            className="inline-flex items-center gap-3 px-9 py-4 rounded-full font-display font-extrabold text-lg text-white bg-ws-accent shadow-lg hover:brightness-105 hover:-translate-y-0.5 active:scale-[0.98] transition-all"
+            className="ws-btn-primary inline-flex items-center gap-3 px-9 py-4 rounded-full font-display font-extrabold text-lg transition-all"
           >
             מתחילים ללמוד
             <ArrowLeft className="w-5 h-5" />
@@ -116,10 +123,10 @@ export function LandingPage() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-40px" }}
               transition={{ duration: 0.45, delay: i * 0.1 }}
-              className="bg-ws-surface rounded-3xl shadow-lg border border-ws-surface2 p-8 hover:-translate-y-1 hover:shadow-xl transition-all"
+              className="ws-card p-8 hover:-translate-y-1 hover:shadow-xl transition-all"
             >
-              <div className="w-14 h-14 rounded-2xl bg-ws-accentSoft flex items-center justify-center mb-6">
-                <f.icon className="w-7 h-7 text-ws-accent" />
+              <div className="w-14 h-14 rounded-2xl bg-[hsl(var(--ws-blue-soft))] flex items-center justify-center mb-6">
+                <f.icon className="w-7 h-7 text-[hsl(var(--ws-blue))]" />
               </div>
               <h3 className="font-display font-extrabold text-xl mb-2 text-ws-ink">{f.title}</h3>
               <p className="text-ws-soft leading-relaxed">{f.desc}</p>
@@ -129,7 +136,7 @@ export function LandingPage() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-ws-surface2 py-8 text-center text-sm text-ws-soft">
+      <footer className="relative border-t border-ws-surface2 py-8 text-center text-sm text-ws-soft">
         מתמטיקאור — סביבת למידה פדגוגית לערך המקום
       </footer>
     </div>

@@ -96,6 +96,42 @@ export function StudentWorkspacePage() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
+  // RRWeb recording with batching
+  useEffect(() => {
+    let stopRecording: (() => void) | undefined;
+    let eventsQueue: any[] = [];
+    let flushInterval: any;
+
+    import('@/application/useAuthStore').then(({ useAuthStore }) => {
+      const uid = useAuthStore.getState().user?.id || 'anonymous_student';
+      import('firebase/database').then(({ ref, push }) => {
+        import('@/infrastructure/firebase').then(({ database }) => {
+          import('rrweb').then((rrweb) => {
+            stopRecording = rrweb.record({
+              emit(event) {
+                eventsQueue.push(event);
+              },
+            });
+            
+            flushInterval = setInterval(() => {
+              if (eventsQueue.length > 0) {
+                const batch = [...eventsQueue];
+                eventsQueue = [];
+                // Push each event to maintain a flat list in Firebase
+                batch.forEach(evt => push(ref(database, `replays/${uid}`), evt));
+              }
+            }, 5000);
+          });
+        });
+      });
+    });
+
+    return () => {
+      if (stopRecording) stopRecording();
+      if (flushInterval) clearInterval(flushInterval);
+    };
+  }, []);
+
   // Session-2 estimation: hide the live value display during the number-line task
   // (the point is estimating magnitude, not reading a number).
   const qTask = sessionNumber === 2 ? getCurrentQTask(qflow) : null;

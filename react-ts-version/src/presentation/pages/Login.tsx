@@ -19,7 +19,7 @@ const ROLES = [
 ];
 
 const inputClass =
-  "w-full bg-ws-bg border-2 border-ws-surface2 rounded-2xl p-3.5 text-ws-ink placeholder-ws-soft/70 font-body focus:outline-none focus:border-ws-accent transition-colors";
+  "w-full bg-ws-bg border-2 border-ws-surface2 rounded-2xl p-3.5 text-ws-ink placeholder-ws-soft/70 font-body focus:outline-none focus:border-[hsl(var(--ws-blue))] transition-colors";
 
 export function Login() {
   const { setUser } = useAuthStore();
@@ -120,9 +120,16 @@ export function Login() {
   return (
     <div
       dir="rtl"
-      className="min-h-screen bg-ws-bg bg-gradient-to-br from-ws-bg to-ws-surface2 font-body text-ws-ink flex items-center justify-center p-6"
+      className="relative min-h-screen bg-ws-bg font-body text-ws-ink flex items-center justify-center p-6 overflow-hidden"
     >
-      <main className="flex flex-col items-center gap-8 w-full max-w-[480px]">
+      {/* Flat vector background shapes — playful world energy, zero visual noise */}
+      <div aria-hidden="true" className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute -top-24 -left-24 w-[420px] h-[420px] rounded-full" style={{ backgroundColor: 'hsl(var(--ws-blue) / 0.05)' }} />
+        <div className="absolute -bottom-32 -right-20 w-[380px] h-[380px] rounded-full" style={{ backgroundColor: 'hsl(var(--ws-teal) / 0.06)' }} />
+        <div className="absolute top-[18%] right-[16%] w-16 h-16 rounded-2xl rotate-12" style={{ backgroundColor: 'hsl(var(--ws-accent) / 0.05)' }} />
+      </div>
+
+      <main className="relative flex flex-col items-center gap-8 w-full max-w-[480px]">
         {/* Logo Area */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
@@ -130,8 +137,8 @@ export function Login() {
           transition={{ duration: 0.45 }}
           className="flex items-center gap-4"
         >
-          <div className="w-16 h-16 rounded-3xl bg-ws-accent flex items-center justify-center shadow-lg">
-            <span className="text-[2.2rem] font-black text-white leading-none font-display">מ</span>
+          <div className="w-16 h-16 rounded-3xl ws-brand flex items-center justify-center rotate-[-4deg]">
+            <span className="text-[2.2rem] font-black leading-none font-display">מ</span>
           </div>
           <div className="text-right">
             <h1 className="font-display font-black text-3xl text-ws-ink tracking-tight leading-tight">מתמטיקאור</h1>
@@ -144,7 +151,7 @@ export function Login() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, delay: 0.08 }}
-          className="w-full bg-ws-surface rounded-3xl shadow-lg border border-ws-surface2 p-8"
+          className="w-full ws-card p-8"
         >
           <AnimatePresence mode="wait" initial={false}>
             {!selectedRole ? (
@@ -164,7 +171,7 @@ export function Login() {
                     <button
                       key={role.id}
                       onClick={() => { setSelectedRole(role.id); }}
-                      className="flex-1 flex flex-col items-center gap-2 p-5 sm:p-4 bg-ws-bg border-2 border-ws-surface2 rounded-2xl text-ws-ink font-display font-bold transition-all hover:border-ws-accent hover:bg-ws-accentSoft hover:-translate-y-1 hover:shadow-md active:scale-[0.98]"
+                      className="flex-1 flex flex-col items-center gap-2 p-5 sm:p-4 bg-ws-bg border-2 border-ws-surface2 rounded-2xl text-ws-ink font-display font-bold transition-all hover:border-[hsl(var(--ws-blue)/0.5)] hover:bg-[hsl(var(--ws-blue-soft)/0.5)] hover:-translate-y-1 hover:shadow-md active:scale-[0.98]"
                     >
                       <span className="text-4xl leading-none" aria-hidden="true">{role.icon}</span>
                       <span>{role.label}</span>
@@ -184,7 +191,7 @@ export function Login() {
                 <button
                   type="button"
                   onClick={() => { setSelectedRole(null); setErrorMsg(""); }}
-                  className="text-sm font-display font-bold text-ws-soft px-2 py-1 rounded-lg transition-colors hover:text-ws-accent hover:bg-ws-accentSoft mb-3 -mr-2"
+                  className="text-sm font-display font-bold text-ws-soft px-2 py-1 rounded-lg transition-colors hover:text-[hsl(var(--ws-blue))] hover:bg-[hsl(var(--ws-blue-soft))] mb-3 -mr-2"
                 >
                   ➔ חזרה
                 </button>
@@ -192,7 +199,10 @@ export function Login() {
                 <h2 className="font-display font-extrabold text-xl text-ws-ink mb-5">{roleTitle}</h2>
 
                 <form onSubmit={handleLogin}>
-                  <p className="mb-6 text-sm text-ws-soft leading-relaxed">
+                  <p
+                    className="mb-6 text-sm leading-relaxed rounded-2xl p-3.5 pr-4 border-r-4 text-ws-ink/80 font-medium"
+                    style={{ backgroundColor: 'hsl(var(--ws-blue-soft) / 0.55)', borderColor: 'hsl(var(--ws-blue) / 0.55)' }}
+                  >
                     {selectedRole === "student" && "התחבר באמצעות שם המשתמש והסיסמה שקיבלת מהמורה."}
                     {selectedRole === "teacher" && "הכניסה למורים דורשת הקלדת תעודת זהות ותאריך לידה (6 ספרות)."}
                     {selectedRole === "admin" && "הכניסה למנהלים מוגנת ומחייבת הזנת פרטי הזדהות מורשים בלבד."}
@@ -251,7 +261,7 @@ export function Login() {
                   <button
                     type="submit"
                     disabled={isLoggingIn}
-                    className="w-full flex items-center justify-center gap-2 p-4 rounded-full font-display font-extrabold text-lg text-white bg-ws-accent shadow-md transition-all hover:brightness-105 hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-60 disabled:transform-none"
+                    className="ws-btn-primary w-full flex items-center justify-center gap-2 p-4 rounded-full font-display font-extrabold text-lg transition-all disabled:opacity-60 disabled:transform-none disabled:filter-none"
                   >
                     {isLoggingIn ? "מתחבר..." : (selectedRole === "student" ? "יאללה, נכנסים! ✨" : "התחבר למערכת")}
                   </button>

@@ -14,6 +14,7 @@ export function PlaceValueBoard({ hideValueDisplay }: { hideValueDisplay?: boole
   const boardOpen = useWorkspaceStore((s) => s.boardOpen);
   const scaffoldFadeLevel = useWorkspaceStore((s) => s.scaffoldFadeLevel);
   const scaffoldLevel = useWorkspaceStore(selectScaffoldLevel);
+  const restoreScaffolds = useWorkspaceStore((s) => s.restoreScaffolds);
 
   return (
     <AnimatePresence initial={false}>
@@ -28,11 +29,26 @@ export function PlaceValueBoard({ hideValueDisplay }: { hideValueDisplay?: boole
           aria-label="טבלת ערך המקום"
         >
           <div className="flex-1 ws-card p-4 flex flex-col gap-3 overflow-hidden">
-            <p className="text-center shrink-0">
+            <div className="flex items-center justify-center gap-2 shrink-0">
               <span className="inline-flex items-center gap-1.5 text-sm font-display font-extrabold text-ws-soft bg-ws-bg rounded-full px-4 py-1 border border-ws-surface2">
                 <span aria-hidden="true">🏠</span> בית המספרים
               </span>
-            </p>
+              {/* "החזרת עזרים" — spec-mandated bidirectional scaffold fading (appears only when faded) */}
+              {scaffoldFadeLevel > 0 && (
+                <button
+                  onClick={restoreScaffolds}
+                  className="inline-flex items-center gap-1 text-xs font-bold rounded-full px-3 py-1 border transition-all hover:scale-105 active:scale-95"
+                  style={{
+                    color: 'hsl(var(--ws-blue))',
+                    borderColor: 'hsl(var(--ws-blue) / 0.4)',
+                    backgroundColor: 'hsl(var(--ws-blue-soft) / 0.6)',
+                  }}
+                  aria-label="החזרת עזרים — הצג שוב את הקוביות בבירור"
+                >
+                  <span aria-hidden="true">👁</span> החזרת עזרים
+                </button>
+              )}
+            </div>
 
             {/* Scaffold fade applies to the columns only — the palette stays crisp */}
             <div dir="rtl" className={`flex-1 flex flex-row gap-2 min-h-0 scaffold-level-${scaffoldFadeLevel}`} role="group" aria-label="טורי ערך המקום">
