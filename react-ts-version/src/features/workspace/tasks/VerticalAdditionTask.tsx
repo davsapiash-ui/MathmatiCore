@@ -3,9 +3,10 @@ import { PLACE_ORDER, type Place } from '@/core/placeValue';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 
 /**
- * תרגיל חיבור/חיסור במאונך — כתיב מחברת אמיתי:
- * רשת משבצות צמודות, ספרה אחת בכל משבצת, ספרות מיושרות לפי טורי ערך-מקום,
- * הסימן משמאל לשורה התחתונה, קו תוצאה עבה, ותיבות התשובה באותן משבצות בדיוק.
+ * תרגיל חיבור/חיסור במאונך — דף מחברת אמיתי:
+ * רקע משבצות שהספרות יושבות בתוך המשבצות שלו (יישור מושלם: רוחב עמודה = משבצת),
+ * בלי מסגרות סביב ספרות. סימן משמאל לשורה התחתונה, קו תוצאה עבה,
+ * ותיבות התשובה באותן משבצות בדיוק — יחידות מתחת ליחידות.
  * Two-gate validation happens in the store's proceed(); this renders the exercise + inputs.
  */
 
@@ -22,7 +23,7 @@ const PLACE_TINT: Record<Place, string> = {
   thousands: 'var(--block-thousand-dark)',
 };
 
-const CELL = 56; // px — one notebook square per digit
+const CELL = 64; // px — one notebook square; grid columns AND paper background share this size
 
 export function VerticalAdditionTask({
   numberA,
@@ -58,73 +59,57 @@ export function VerticalAdditionTask({
   const digitsB = padDigits(bStr);
   const firstAnswerCol = cols - answerLength;
 
-  const gridLine = '1.5px solid rgba(110,130,180,0.28)'; // notebook-square blue
+  const digitCell = (d: string | null, key: string, extra?: React.CSSProperties) => (
+    <div
+      key={key}
+      aria-hidden="true"
+      className="flex items-center justify-center font-mono font-black text-ws-ink leading-none"
+      style={{ fontSize: CELL * 0.6, ...extra }}
+    >
+      {d}
+    </div>
+  );
 
   return (
-    <div
-      className="self-center inline-block rounded-3xl px-8 py-7 border border-ws-surface2 shadow-[0_8px_24px_-10px_hsl(var(--ws-shadow-warm)/0.25)]"
-      style={{ backgroundColor: '#FFFDF8' }}
-    >
+    <div className="self-center w-full max-w-md flex flex-col items-center gap-4 bg-ws-surface rounded-3xl border border-ws-surface2 shadow-[0_10px_28px_-14px_hsl(var(--ws-shadow-warm)/0.3)] p-6">
+      {/* Notebook paper: background squares EXACTLY the size of a grid column,
+          so every digit sits inside a real square — like a math notebook. */}
       <div
         dir="ltr"
         role="group"
         aria-label={`תרגיל במאונך: ${numberA} ${isSubtraction ? 'פחות' : 'ועוד'} ${numberB}`}
-        className="grid"
+        className="grid rounded-xl overflow-hidden"
         style={{
-          gridTemplateColumns: `${CELL * 0.8}px repeat(${cols}, ${CELL}px)`,
-          gridTemplateRows: `${CELL}px ${CELL}px ${CELL + 12}px`,
+          gridTemplateColumns: `${CELL}px repeat(${cols}, ${CELL}px)`,
+          gridTemplateRows: `${CELL}px ${CELL}px ${CELL}px`,
+          backgroundColor: '#FFFFFF',
+          backgroundImage:
+            'linear-gradient(rgba(96,130,190,0.18) 1px, transparent 1px), linear-gradient(90deg, rgba(96,130,190,0.18) 1px, transparent 1px)',
+          backgroundSize: `${CELL}px ${CELL}px`,
+          border: '1px solid rgba(96,130,190,0.30)',
         }}
       >
-        {/* Row 1 — first operand */}
-        <div /> {/* operator gutter (empty on row 1) */}
-        {digitsA.map((d, j) => (
-          <div
-            key={`a${j}`}
-            aria-hidden="true"
-            className="flex items-center justify-center font-mono font-black text-ws-ink"
-            style={{
-              fontSize: CELL * 0.62,
-              borderLeft: gridLine,
-              borderTop: gridLine,
-              borderRight: j === cols - 1 ? gridLine : undefined,
-            }}
-          >
-            {d}
-          </div>
-        ))}
+        {/* Row 1 — first operand (operator gutter empty) */}
+        <div aria-hidden="true" />
+        {digitsA.map((d, j) => digitCell(d, `a${j}`))}
 
-        {/* Row 2 — operator + second operand, thick result line below */}
+        {/* Row 2 — operator + second operand; thick result line under the digits */}
         <div
           aria-hidden="true"
-          className="flex items-center justify-center font-mono font-black text-ws-accent"
-          style={{ fontSize: CELL * 0.58 }}
+          className="flex items-center justify-center font-mono font-black leading-none"
+          style={{ fontSize: CELL * 0.55, color: 'hsl(var(--ws-accent))' }}
         >
           {isSubtraction ? '−' : '+'}
         </div>
-        {digitsB.map((d, j) => (
-          <div
-            key={`b${j}`}
-            aria-hidden="true"
-            className="flex items-center justify-center font-mono font-black text-ws-ink"
-            style={{
-              fontSize: CELL * 0.62,
-              borderLeft: gridLine,
-              borderTop: gridLine,
-              borderRight: j === cols - 1 ? gridLine : undefined,
-              borderBottom: '4px solid hsl(var(--ws-ink))',
-            }}
-          >
-            {d}
-          </div>
-        ))}
+        {digitsB.map((d, j) => digitCell(d, `b${j}`, { borderBottom: '4px solid hsl(var(--ws-ink))' }))}
 
-        {/* Row 3 — answer cells, same squares, colored per place value */}
-        <div />
+        {/* Row 3 — answer inputs inside the same squares (units under units) */}
+        <div aria-hidden="true" />
         {colPlaces.map((place, j) => {
           if (j < firstAnswerCol) return <div key={`e${j}`} aria-hidden="true" />;
           const ansIdx = j - firstAnswerCol;
           return (
-            <div key={`ans${j}`} className="flex flex-col items-center pt-2 gap-1">
+            <div key={`ans${j}`} className="flex items-center justify-center">
               <input
                 ref={(el) => {
                   inputsRef.current[ansIdx] = el;
@@ -134,8 +119,8 @@ export function VerticalAdditionTask({
                 maxLength={1}
                 value={answerDigits[place] ?? ''}
                 aria-label={`ספרת ה${PLACE_LABEL_HE[place]} בתשובה`}
-                className="rounded-xl border-2 text-center font-mono font-black bg-ws-surface text-ws-ink focus:outline-none focus:ring-2 focus:ring-ws-accent transition-shadow"
-                style={{ width: CELL - 8, height: CELL - 8, fontSize: CELL * 0.5, borderColor: PLACE_TINT[place] }}
+                className="rounded-lg border-2 text-center font-mono font-black bg-white text-ws-ink focus:outline-none focus:ring-2 focus:ring-ws-accent transition-shadow"
+                style={{ width: CELL - 12, height: CELL - 12, fontSize: CELL * 0.48, borderColor: PLACE_TINT[place] }}
                 onFocus={() => setFocusedPlace(place)}
                 onBlur={() => setFocusedPlace(null)}
                 onChange={(e) => {
@@ -145,26 +130,35 @@ export function VerticalAdditionTask({
                   if (v && ansIdx > 0) inputsRef.current[ansIdx - 1]?.focus();
                 }}
               />
-              <span className="text-[10px] font-bold" style={{ color: PLACE_TINT[place] }}>
-                {PLACE_LABEL_HE[place]}
-              </span>
             </div>
           );
         })}
       </div>
 
-      {/* UDL Alternative Expression: upload a written solution photo */}
-      <div className="mt-5 border-t border-ws-ink/10 pt-4 flex justify-center">
-        <label className="cursor-pointer flex items-center gap-2 px-4 py-2 bg-ws-accent text-white rounded-xl text-sm font-bold shadow-md hover:brightness-105 active:scale-95 transition-all">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="17 8 12 3 7 8"/>
-            <line x1="12" y1="3" x2="12" y2="15"/>
-          </svg>
-          העלה פתרון כתוב (תמונה)
-          <input type="file" className="hidden" accept="image/*" aria-label="העלה פתרון כתמונה" onChange={() => alert('הפתרון הועלה בהצלחה למורה.')} />
-        </label>
+      {/* Place labels under the paper, aligned to the answer columns */}
+      <div dir="ltr" className="grid" style={{ gridTemplateColumns: `${CELL}px repeat(${cols}, ${CELL}px)` }}>
+        <div aria-hidden="true" />
+        {colPlaces.map((place, j) =>
+          j < firstAnswerCol ? (
+            <div key={`l${j}`} aria-hidden="true" />
+          ) : (
+            <span key={`l${j}`} className="text-center text-[11px] font-bold" style={{ color: PLACE_TINT[place] }}>
+              {PLACE_LABEL_HE[place]}
+            </span>
+          )
+        )}
       </div>
+
+      {/* UDL Alternative Expression: upload a written solution photo — quiet secondary action */}
+      <label className="cursor-pointer flex items-center gap-1.5 text-xs font-bold text-ws-soft hover:text-ws-ink transition-colors">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        אפשר גם להעלות פתרון כתוב (תמונה)
+        <input type="file" className="hidden" accept="image/*" aria-label="העלה פתרון כתמונה" onChange={() => alert('הפתרון הועלה בהצלחה למורה.')} />
+      </label>
     </div>
   );
 }
