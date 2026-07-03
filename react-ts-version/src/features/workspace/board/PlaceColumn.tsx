@@ -75,16 +75,32 @@ export function PlaceColumn({ place }: { place: Place }) {
         aria-label={`אזור גרירה — ${PLACE_NAMES_HE[place]}`}
         className="flex-1 flex flex-row flex-wrap content-start justify-center items-start gap-1 p-2 min-h-[150px] overflow-y-auto"
       >
-        {Array.from({ length: renderCount }).map((_, i) => (
-          <DienesBlock
-            key={`${place}-${i}`}
-            id={`col-${place}-${i}`}
-            place={place}
-            source="column"
-            onRemove={() => removeBlockClick(place)}
-            noEnter={i < renderCount - 1}
-          />
-        ))}
+        {Array.from({ length: renderCount }).map((_, i) => {
+          let overlapStyle: React.CSSProperties = { zIndex: i };
+          if (i > 0) {
+            if (place === 'hundreds') {
+              overlapStyle.marginRight = '-100px';
+              overlapStyle.marginTop = '-30px';
+            } else if (place === 'thousands') {
+              overlapStyle.marginRight = '-110px';
+              overlapStyle.marginTop = '-50px';
+            } else if (place === 'tens') {
+              overlapStyle.marginTop = '-10px';
+            }
+          }
+
+          return (
+            <div key={`${place}-${i}`} style={overlapStyle} className="relative transition-all">
+              <DienesBlock
+                id={`col-${place}-${i}`}
+                place={place}
+                source="column"
+                onRemove={() => removeBlockClick(place)}
+                noEnter={i < renderCount - 1}
+              />
+            </div>
+          );
+        })}
       </div>
     </motion.div>
   );
