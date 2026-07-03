@@ -79,13 +79,14 @@ export function PlaceColumn({ place }: { place: Place }) {
           let overlapStyle: React.CSSProperties = { zIndex: i };
           if (i > 0) {
             if (place === 'hundreds') {
-              overlapStyle.marginRight = '-100px';
-              overlapStyle.marginTop = '-30px';
+              overlapStyle.marginRight = '-30px';
+              overlapStyle.marginTop = '-5px';
             } else if (place === 'thousands') {
-              overlapStyle.marginRight = '-110px';
-              overlapStyle.marginTop = '-50px';
-            } else if (place === 'tens') {
+              overlapStyle.marginRight = '-40px';
               overlapStyle.marginTop = '-10px';
+            } else if (place === 'tens') {
+              overlapStyle.marginRight = '-15px';
+              overlapStyle.marginTop = '0px';
             }
           }
 

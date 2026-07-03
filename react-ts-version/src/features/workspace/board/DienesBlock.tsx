@@ -24,9 +24,9 @@ export interface DienesBlockProps {
 const UnitSVG = () => {
   return (
     <svg viewBox="-5 -5 210 210" className="w-full h-full drop-shadow-md overflow-visible">
-      <polygon points="100,0 200,50 100,100 0,50" fill="#FEF08A" stroke="#CA8A04" strokeWidth="1.5" vectorEffect="nonScalingStroke" strokeLinejoin="round" />
-      <polygon points="100,100 200,50 200,150 100,200" fill="#FDE047" stroke="#CA8A04" strokeWidth="1.5" vectorEffect="nonScalingStroke" strokeLinejoin="round" />
-      <polygon points="0,50 100,100 100,200 0,150" fill="#EAB308" stroke="#CA8A04" strokeWidth="1.5" vectorEffect="nonScalingStroke" strokeLinejoin="round" />
+      <polygon points="100,0 200,50 100,100 0,50" fill="#FEF08A" stroke="#CA8A04" strokeWidth="3" vectorEffect="nonScalingStroke" strokeLinejoin="round" />
+      <polygon points="100,100 200,50 200,150 100,200" fill="#FDE047" stroke="#CA8A04" strokeWidth="3" vectorEffect="nonScalingStroke" strokeLinejoin="round" />
+      <polygon points="0,50 100,100 100,200 0,150" fill="#EAB308" stroke="#CA8A04" strokeWidth="3" vectorEffect="nonScalingStroke" strokeLinejoin="round" />
     </svg>
   );
 };
@@ -35,17 +35,17 @@ const TenSVG = () => {
   const renderLines = () => {
     const lines = [];
     for (let i = 1; i <= 9; i++) {
-      lines.push(<line key={`t-${i}`} x1={100 + i * 100} y1={i * 50} x2={i * 100} y2={50 + i * 50} stroke="#15803D" strokeWidth="1" vectorEffect="nonScalingStroke" strokeLinecap="round" />);
-      lines.push(<line key={`l-${i}`} x1={i * 100} y1={50 + i * 50} x2={i * 100} y2={150 + i * 50} stroke="#15803D" strokeWidth="1" vectorEffect="nonScalingStroke" strokeLinecap="round" />);
+      lines.push(<line key={`t-${i}`} x1={100 + i * 100} y1={i * 50} x2={i * 100} y2={50 + i * 50} stroke="#15803D" strokeWidth="1.5" vectorEffect="nonScalingStroke" strokeLinecap="round" />);
+      lines.push(<line key={`l-${i}`} x1={i * 100} y1={50 + i * 50} x2={i * 100} y2={150 + i * 50} stroke="#15803D" strokeWidth="1.5" vectorEffect="nonScalingStroke" strokeLinecap="round" />);
     }
     return lines;
   };
 
   return (
     <svg viewBox="-5 -5 1110 660" className="w-full h-full drop-shadow-md overflow-visible">
-      <polygon points="100,0 1100,500 1000,550 0,50" fill="#86EFAC" stroke="#15803D" strokeWidth="1.5" vectorEffect="nonScalingStroke" strokeLinejoin="round" />
-      <polygon points="1100,500 1000,550 1000,650 1100,600" fill="#4ADE80" stroke="#15803D" strokeWidth="1.5" vectorEffect="nonScalingStroke" strokeLinejoin="round" />
-      <polygon points="0,50 1000,550 1000,650 0,150" fill="#22C55E" stroke="#15803D" strokeWidth="1.5" vectorEffect="nonScalingStroke" strokeLinejoin="round" />
+      <polygon points="100,0 1100,500 1000,550 0,50" fill="#86EFAC" stroke="#15803D" strokeWidth="3" vectorEffect="nonScalingStroke" strokeLinejoin="round" />
+      <polygon points="1100,500 1000,550 1000,650 1100,600" fill="#4ADE80" stroke="#15803D" strokeWidth="3" vectorEffect="nonScalingStroke" strokeLinejoin="round" />
+      <polygon points="0,50 1000,550 1000,650 0,150" fill="#22C55E" stroke="#15803D" strokeWidth="3" vectorEffect="nonScalingStroke" strokeLinejoin="round" />
       {renderLines()}
     </svg>
   );
@@ -55,19 +55,19 @@ const HundredSVG = () => {
   const renderLines = () => {
     const lines = [];
     for (let i = 1; i <= 9; i++) {
-      lines.push(<line key={`tt1-${i}`} x1={1000 - i * 100} y1={i * 50} x2={2000 - i * 100} y2={500 + i * 50} stroke="#1E40AF" strokeWidth="1" vectorEffect="nonScalingStroke" strokeLinecap="round" />);
-      lines.push(<line key={`tt2-${i}`} x1={1000 + i * 100} y1={i * 50} x2={i * 100} y2={500 + i * 50} stroke="#1E40AF" strokeWidth="1" vectorEffect="nonScalingStroke" strokeLinecap="round" />);
-      lines.push(<line key={`rt-${i}`} x1={1000 + i * 100} y1={1000 - i * 50} x2={1000 + i * 100} y2={1100 - i * 50} stroke="#1E40AF" strokeWidth="1" vectorEffect="nonScalingStroke" strokeLinecap="round" />);
-      lines.push(<line key={`lt-${i}`} x1={i * 100} y1={500 + i * 50} x2={i * 100} y2={600 + i * 50} stroke="#1E40AF" strokeWidth="1" vectorEffect="nonScalingStroke" strokeLinecap="round" />);
+      lines.push(<line key={`tt1-${i}`} x1={1000 - i * 100} y1={i * 50} x2={2000 - i * 100} y2={500 + i * 50} stroke="#1E40AF" strokeWidth="1.5" vectorEffect="nonScalingStroke" strokeLinecap="round" />);
+      lines.push(<line key={`tt2-${i}`} x1={1000 + i * 100} y1={i * 50} x2={i * 100} y2={500 + i * 50} stroke="#1E40AF" strokeWidth="1.5" vectorEffect="nonScalingStroke" strokeLinecap="round" />);
+      lines.push(<line key={`rt-${i}`} x1={1000 + i * 100} y1={1000 - i * 50} x2={1000 + i * 100} y2={1100 - i * 50} stroke="#1E40AF" strokeWidth="1.5" vectorEffect="nonScalingStroke" strokeLinecap="round" />);
+      lines.push(<line key={`lt-${i}`} x1={i * 100} y1={500 + i * 50} x2={i * 100} y2={600 + i * 50} stroke="#1E40AF" strokeWidth="1.5" vectorEffect="nonScalingStroke" strokeLinecap="round" />);
     }
     return lines;
   };
 
   return (
     <svg viewBox="-5 -5 2010 1110" className="w-full h-full drop-shadow-md overflow-visible">
-      <polygon points="1000,0 2000,500 1000,1000 0,500" fill="#93C5FD" stroke="#1E40AF" strokeWidth="1.5" vectorEffect="nonScalingStroke" strokeLinejoin="round" />
-      <polygon points="1000,1000 2000,500 2000,600 1000,1100" fill="#60A5FA" stroke="#1E40AF" strokeWidth="1.5" vectorEffect="nonScalingStroke" strokeLinejoin="round" />
-      <polygon points="0,500 1000,1000 1000,1100 0,600" fill="#3B82F6" stroke="#1E40AF" strokeWidth="1.5" vectorEffect="nonScalingStroke" strokeLinejoin="round" />
+      <polygon points="1000,0 2000,500 1000,1000 0,500" fill="#93C5FD" stroke="#1E40AF" strokeWidth="3" vectorEffect="nonScalingStroke" strokeLinejoin="round" />
+      <polygon points="1000,1000 2000,500 2000,600 1000,1100" fill="#60A5FA" stroke="#1E40AF" strokeWidth="3" vectorEffect="nonScalingStroke" strokeLinejoin="round" />
+      <polygon points="0,500 1000,1000 1000,1100 0,600" fill="#3B82F6" stroke="#1E40AF" strokeWidth="3" vectorEffect="nonScalingStroke" strokeLinejoin="round" />
       {renderLines()}
     </svg>
   );
@@ -77,21 +77,21 @@ const ThousandSVG = () => {
   const renderLines = () => {
     const lines = [];
     for (let i = 1; i <= 9; i++) {
-      lines.push(<line key={`tt1-${i}`} x1={1000 - i * 100} y1={i * 50} x2={2000 - i * 100} y2={500 + i * 50} stroke="#9A3412" strokeWidth="1" vectorEffect="nonScalingStroke" strokeLinecap="round" />);
-      lines.push(<line key={`tt2-${i}`} x1={1000 + i * 100} y1={i * 50} x2={i * 100} y2={500 + i * 50} stroke="#9A3412" strokeWidth="1" vectorEffect="nonScalingStroke" strokeLinecap="round" />);
-      lines.push(<line key={`rtv-${i}`} x1={1000 + i * 100} y1={1000 - i * 50} x2={1000 + i * 100} y2={2000 - i * 50} stroke="#9A3412" strokeWidth="1" vectorEffect="nonScalingStroke" strokeLinecap="round" />);
-      lines.push(<line key={`rth-${i}`} x1={1000} y1={1000 + i * 100} x2={2000} y2={500 + i * 100} stroke="#9A3412" strokeWidth="1" vectorEffect="nonScalingStroke" strokeLinecap="round" />);
-      lines.push(<line key={`ltv-${i}`} x1={i * 100} y1={500 + i * 50} x2={i * 100} y2={1500 + i * 50} stroke="#9A3412" strokeWidth="1" vectorEffect="nonScalingStroke" strokeLinecap="round" />);
-      lines.push(<line key={`lth-${i}`} x1={0} y1={500 + i * 100} x2={1000} y2={1000 + i * 100} stroke="#9A3412" strokeWidth="1" vectorEffect="nonScalingStroke" strokeLinecap="round" />);
+      lines.push(<line key={`tt1-${i}`} x1={1000 - i * 100} y1={i * 50} x2={2000 - i * 100} y2={500 + i * 50} stroke="#9A3412" strokeWidth="1.5" vectorEffect="nonScalingStroke" strokeLinecap="round" />);
+      lines.push(<line key={`tt2-${i}`} x1={1000 + i * 100} y1={i * 50} x2={i * 100} y2={500 + i * 50} stroke="#9A3412" strokeWidth="1.5" vectorEffect="nonScalingStroke" strokeLinecap="round" />);
+      lines.push(<line key={`rtv-${i}`} x1={1000 + i * 100} y1={1000 - i * 50} x2={1000 + i * 100} y2={2000 - i * 50} stroke="#9A3412" strokeWidth="1.5" vectorEffect="nonScalingStroke" strokeLinecap="round" />);
+      lines.push(<line key={`rth-${i}`} x1={1000} y1={1000 + i * 100} x2={2000} y2={500 + i * 100} stroke="#9A3412" strokeWidth="1.5" vectorEffect="nonScalingStroke" strokeLinecap="round" />);
+      lines.push(<line key={`ltv-${i}`} x1={i * 100} y1={500 + i * 50} x2={i * 100} y2={1500 + i * 50} stroke="#9A3412" strokeWidth="1.5" vectorEffect="nonScalingStroke" strokeLinecap="round" />);
+      lines.push(<line key={`lth-${i}`} x1={0} y1={500 + i * 100} x2={1000} y2={1000 + i * 100} stroke="#9A3412" strokeWidth="1.5" vectorEffect="nonScalingStroke" strokeLinecap="round" />);
     }
     return lines;
   };
 
   return (
     <svg viewBox="-5 -5 2010 2010" className="w-full h-full drop-shadow-xl overflow-visible">
-      <polygon points="1000,0 2000,500 1000,1000 0,500" fill="#FDBA74" stroke="#9A3412" strokeWidth="1.5" vectorEffect="nonScalingStroke" strokeLinejoin="round" />
-      <polygon points="1000,1000 2000,500 2000,1500 1000,2000" fill="#F97316" stroke="#9A3412" strokeWidth="1.5" vectorEffect="nonScalingStroke" strokeLinejoin="round" />
-      <polygon points="0,500 1000,1000 1000,2000 0,1500" fill="#EA580C" stroke="#9A3412" strokeWidth="1.5" vectorEffect="nonScalingStroke" strokeLinejoin="round" />
+      <polygon points="1000,0 2000,500 1000,1000 0,500" fill="#FDBA74" stroke="#9A3412" strokeWidth="3" vectorEffect="nonScalingStroke" strokeLinejoin="round" />
+      <polygon points="1000,1000 2000,500 2000,1500 1000,2000" fill="#F97316" stroke="#9A3412" strokeWidth="3" vectorEffect="nonScalingStroke" strokeLinejoin="round" />
+      <polygon points="0,500 1000,1000 1000,2000 0,1500" fill="#EA580C" stroke="#9A3412" strokeWidth="3" vectorEffect="nonScalingStroke" strokeLinejoin="round" />
       {renderLines()}
     </svg>
   );

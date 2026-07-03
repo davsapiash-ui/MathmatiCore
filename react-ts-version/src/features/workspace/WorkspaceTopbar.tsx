@@ -83,7 +83,7 @@ export function WorkspaceTopbar() {
 
         <button
           onClick={() => document.dispatchEvent(new CustomEvent('toggle-chat'))}
-          className="h-10 px-4 rounded-full text-sm font-bold text-ws-blue bg-white border border-ws-blue/20 hover:border-ws-blue/50 hover:shadow-md transition-all flex items-center gap-1.5"
+          className="h-10 px-4 rounded-full text-sm font-bold text-ws-accent bg-white border border-ws-accent/20 hover:border-ws-accent/50 hover:shadow-md transition-all flex items-center gap-1.5"
         >
           <span aria-hidden="true">💬</span> צ'אט
         </button>
@@ -100,7 +100,7 @@ export function WorkspaceTopbar() {
         <button
           onClick={proceed}
           disabled={!canProceed}
-          className="h-10 px-6 rounded-full text-base font-display font-extrabold text-white bg-gradient-to-r from-ws-blue-2 to-ws-blue hover:brightness-110 shadow-md hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed"
+          className="h-10 px-6 rounded-full text-base font-display font-extrabold text-white bg-ws-accent hover:brightness-110 shadow-md hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed"
           aria-label="עבור למשימה הבאה"
         >
           הבא
