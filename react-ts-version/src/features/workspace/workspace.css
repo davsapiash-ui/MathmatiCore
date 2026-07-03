@@ -1,0 +1,30 @@
+﻿
+/* Driver.js RTL & Theming */
+.ws-tour-popover {
+  direction: rtl;
+  text-align: right;
+  border-radius: 16px;
+  border: 2px solid hsl(var(--ws-blue));
+  box-shadow: 0 10px 25px -5px rgba(0,0,0,0.2) !important;
+}
+.driver-popover-title {
+  font-size: 1.25rem !important;
+  font-weight: 900 !important;
+  color: hsl(var(--ws-ink)) !important;
+  margin-bottom: 0.5rem !important;
+}
+.driver-popover-description {
+  font-size: 1rem !important;
+  color: hsl(var(--ws-ink) / 0.8) !important;
+}
+.driver-popover-footer button {
+  font-family: inherit !important;
+  font-weight: 600 !important;
+  border-radius: 8px !important;
+}
+.driver-popover-next-btn {
+  background-color: hsl(var(--ws-accent)) !important;
+  color: white !important;
+  text-shadow: none !important;
+  border: none !important;
+}

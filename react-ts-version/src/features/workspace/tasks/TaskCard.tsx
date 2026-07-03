@@ -29,7 +29,7 @@ export function TaskCard() {
   const taskKey = `${sessionNumber}-${qTask?.id ?? standardTask?.id ?? ''}-${subtask ? 'sub' : qflow.subphase}-${standardTaskIdx}`;
 
   return (
-    <section className="flex-1 min-w-0 ws-card p-8 overflow-y-auto relative">
+    <section id="tour-task-card" className="flex-1 min-w-0 ws-card p-8 overflow-y-auto relative">
       {/* Soft decorative corner glow — warmth without noise */}
       <div
         aria-hidden="true"

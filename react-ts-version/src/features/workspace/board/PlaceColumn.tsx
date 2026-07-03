@@ -47,6 +47,7 @@ export function PlaceColumn({ place }: { place: Place }) {
 
   return (
     <motion.div
+      id={place === 'units' ? 'tour-column-units' : undefined}
       animate={shakeControls}
       className={`flex-1 min-w-0 flex flex-col rounded-2xl border transition-all duration-300 ${
         isDimmed ? 'opacity-30 grayscale pointer-events-none' : ''

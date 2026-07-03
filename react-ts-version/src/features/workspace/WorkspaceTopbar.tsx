@@ -4,6 +4,7 @@ import { useWorkspaceStore, selectCanProceed } from '@/application/useWorkspaceS
 import { getCurrentQTask } from '@/core/qmatrixFlow';
 import { getSessionTasks } from '@/data/sessionTasks';
 import { ProgressDots } from './ProgressDots';
+import { useWorkspaceTour } from './useWorkspaceTour';
 
 /**
  * הסרגל העליון של מרחב הפעילות — ניווט לינארי בלבד (הבא/בטל), ללא תפריטים.
@@ -24,6 +25,7 @@ export function WorkspaceTopbar() {
   const proceed = useWorkspaceStore((s) => s.proceed);
   const toggleBoard = useWorkspaceStore((s) => s.toggleBoard);
   const requestHelp = useWorkspaceStore((s) => s.requestHelp);
+  const { startTour } = useWorkspaceTour();
 
   const totalTasks = sessionNumber === 2 ? 5 : getSessionTasks(sessionNumber as 1 | 3 | 4).length;
   const currentIdx = sessionNumber === 2 ? Math.min(qflow.taskIdx, 4) : standardTaskIdx;
@@ -50,7 +52,7 @@ export function WorkspaceTopbar() {
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-3 shrink-0 bg-white/50 p-1.5 rounded-full border border-ws-surface2 shadow-sm">
+      <div id="tour-action-buttons" className="flex items-center gap-3 shrink-0 bg-white/50 p-1.5 rounded-full border border-ws-surface2 shadow-sm">
         <button
           onClick={() => {
             logout();
@@ -95,6 +97,15 @@ export function WorkspaceTopbar() {
           title="לחץ לעזרה"
         >
           💡
+        </button>
+
+        <button
+          onClick={startTour}
+          className="h-10 w-10 rounded-full text-lg bg-gradient-to-b from-blue-100 to-blue-200 border border-blue-300 text-blue-700 hover:scale-110 active:scale-95 transition-transform shadow-sm flex items-center justify-center"
+          aria-label="הפעל הדרכה מחדש"
+          title="הדרכה"
+        >
+          🧭
         </button>
 
         <button
