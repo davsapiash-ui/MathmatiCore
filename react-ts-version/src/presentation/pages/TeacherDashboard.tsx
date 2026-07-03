@@ -5,6 +5,8 @@ import { DataGrid } from "@/presentation/design-system/DataGrid";
 import { useAuthStore } from "@/application/useAuthStore";
 import { useChatStore } from "@/application/useChatStore";
 import { useStore } from "@/application/useStore";
+import { ref, onValue } from "firebase/database";
+import { database } from "@/infrastructure/firebase";
 import {
   BarChart,
   Bar,
@@ -150,6 +152,29 @@ export function TeacherDashboard() {
     return list;
   }, [allStudents]);
 
+  const [firebaseAlerts, setFirebaseAlerts] = useState<any[]>([]);
+
+  useEffect(() => {
+    const alertsRef = ref(database, 'radar_alerts');
+    const unsub = onValue(alertsRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const parsed = Object.keys(data).map(key => ({
+          ...data[key],
+          firebaseKey: key
+        })).reverse();
+        setFirebaseAlerts(parsed);
+      } else {
+        setFirebaseAlerts([]);
+      }
+    });
+    return () => unsub();
+  }, []);
+
+  const allAlerts = useMemo(() => {
+    return [...alerts, ...firebaseAlerts].sort((a, b) => b.timestamp - a.timestamp);
+  }, [alerts, firebaseAlerts]);
+
   const handleTabChange = (
     tab:
       | "clustering"
@@ -266,9 +291,9 @@ export function TeacherDashboard() {
             className={`w-full flex justify-between items-center text-right px-4 py-3 rounded-xl transition-all ${activeTab === "alerts" ? "bg-red-50 text-red-700   font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
           >
             <span>רדאר סמוי</span>
-            {alerts.filter((a) => a.unread).length > 0 && (
+            {allAlerts.filter((a) => a.unread).length > 0 && (
               <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg shadow-red-500/30 animate-pulse">
-                {alerts.filter((a) => a.unread).length}
+                {allAlerts.filter((a) => a.unread).length}
               </span>
             )}
           </button>
@@ -587,7 +612,7 @@ export function TeacherDashboard() {
               </p>
             </header>
             <div className="grid gap-6">
-              {alerts.length === 0 ? (
+              {allAlerts.length === 0 ? (
                 <div className="text-center py-20 text-ws-soft  bg-white/50  backdrop-blur-md rounded-2xl border-2 border-dashed border-slate-300  shadow-sm">
                   <div className="w-16 h-16 mx-auto mb-4 bg-ws-bg  rounded-full flex items-center justify-center">
                     <ShieldAlert className="w-8 h-8 text-slate-300 " />
@@ -597,7 +622,7 @@ export function TeacherDashboard() {
                   </p>
                 </div>
               ) : (
-                alerts.map((alert) => (
+                allAlerts.map((alert) => (
                   <div
                     key={alert.firebaseKey}
                     className={`p-6 rounded-2xl border flex flex-col md:flex-row justify-between md:items-center gap-4 shadow-[0_4px_20px_rgb(0,0,0,0.03)] dark:shadow-[0_4px_20px_rgb(0,0,0,0.1)] backdrop-blur-md transition-all hover:scale-[1.01] ${alert.type === "HESITATION" ? "bg-ws-accentSoft/80  border-amber-200 " : "bg-red-50/80  border-red-200 "}`}

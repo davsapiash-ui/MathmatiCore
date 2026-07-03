@@ -35,7 +35,7 @@ export function WorkspaceTopbar() {
     <nav className="h-[72px] shrink-0 bg-ws-surface/90 backdrop-saturate-150 border-b border-ws-surface2 shadow-[0_4px_20px_-8px_hsl(var(--ws-shadow-warm)/0.25)] flex items-center justify-between px-5 gap-4 z-20">
       {/* Brand + student */}
       <div className="flex items-center gap-3 shrink-0">
-        <div className="w-11 h-11 rounded-2xl ws-btn-primary flex items-center justify-center font-display font-black text-xl rotate-[-4deg]">
+        <div className="w-11 h-11 rounded-2xl ws-brand flex items-center justify-center font-display font-black text-xl rotate-[-4deg]">
           מ
         </div>
         <div className="hidden sm:flex flex-col leading-tight">

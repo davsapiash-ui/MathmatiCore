@@ -133,6 +133,25 @@ export function AdminOverview() {
           </div>
         </AccessibleCard>
       </div>
+      <div className="grid gap-8 mb-8">
+        <AccessibleCard className="p-6 bg-white dark:bg-slate-900 shadow-sm">
+          <h2 className="text-xl font-bold border-b pb-2 mb-4">יומן אירועים (Audit Log)</h2>
+          <div className="space-y-4">
+            <div className="flex justify-between items-center text-sm border-b border-slate-100 dark:border-slate-800 pb-2">
+              <span className="text-slate-600 dark:text-slate-400">10:42 02/07/2026</span>
+              <span className="font-medium text-slate-800 dark:text-slate-200">Admin_David יצר מוסד חדש "ביה״ס הדרים"</span>
+            </div>
+            <div className="flex justify-between items-center text-sm border-b border-slate-100 dark:border-slate-800 pb-2">
+              <span className="text-slate-600 dark:text-slate-400">09:15 02/07/2026</span>
+              <span className="font-medium text-slate-800 dark:text-slate-200">System Backup הושלם בהצלחה</span>
+            </div>
+            <div className="flex justify-between items-center text-sm border-b border-slate-100 dark:border-slate-800 pb-2">
+              <span className="text-slate-600 dark:text-slate-400">08:00 02/07/2026</span>
+              <span className="font-medium text-slate-800 dark:text-slate-200">מחיקת נתונים אוטומטית (GDPR) בוצעה</span>
+            </div>
+          </div>
+        </AccessibleCard>
+      </div>
     </div>
   );
 }

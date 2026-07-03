@@ -33,8 +33,8 @@ export function TaskCard() {
       {/* Soft decorative corner glow — warmth without noise */}
       <div
         aria-hidden="true"
-        className="absolute top-0 left-0 w-56 h-56 pointer-events-none rounded-full opacity-60"
-        style={{ background: 'radial-gradient(closest-side, hsl(var(--ws-accent-soft)), transparent)' }}
+        className="absolute top-0 left-0 w-56 h-56 pointer-events-none rounded-full opacity-70"
+        style={{ background: 'radial-gradient(closest-side, hsl(var(--ws-blue-soft)), transparent)' }}
       />
       <motion.div key={taskKey} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="relative">
         <span className="inline-flex items-center gap-1.5 text-sm font-display font-extrabold text-ws-accent bg-ws-accentSoft rounded-full px-3.5 py-1.5 mb-3 shadow-[0_2px_6px_-2px_hsl(var(--ws-accent)/0.35)]">
@@ -43,7 +43,10 @@ export function TaskCard() {
         <h1 className="font-display font-black text-[2.15rem] text-ws-ink mb-4 leading-[1.15]">{title}</h1>
 
         {instruction && (
-          <div className="flex items-start gap-3 mb-6 bg-ws-bg/70 rounded-2xl p-4 pr-5 border-r-4 border-ws-accent/60">
+          <div
+            className="flex items-start gap-3 mb-6 rounded-2xl p-4 pr-5 border-r-4"
+            style={{ backgroundColor: 'hsl(var(--ws-blue-soft) / 0.55)', borderColor: 'hsl(var(--ws-blue) / 0.55)' }}
+          >
             <p className="text-xl text-ws-ink/85 font-medium leading-relaxed flex-1">{instruction}</p>
             <UdlSpeechButton text={instruction} />
           </div>

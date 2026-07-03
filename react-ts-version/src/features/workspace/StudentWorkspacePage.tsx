@@ -199,9 +199,15 @@ export function StudentWorkspacePage() {
     <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div
         dir="rtl"
-        className="h-screen w-full overflow-hidden font-body text-ws-ink flex flex-col"
-        style={{ background: 'radial-gradient(1100px 520px at 50% -8%, #FFF9EE 0%, hsl(var(--ws-bg)) 60%)' }}
+        className="h-screen w-full overflow-hidden font-body text-ws-ink flex flex-col relative bg-ws-bg"
       >
+        {/* Flat vector background shapes — playful world energy, zero visual noise */}
+        <div aria-hidden="true" className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute -top-24 -left-24 w-[420px] h-[420px] rounded-full" style={{ backgroundColor: 'hsl(var(--ws-blue) / 0.05)' }} />
+          <div className="absolute -bottom-32 -right-20 w-[380px] h-[380px] rounded-full" style={{ backgroundColor: 'hsl(var(--ws-teal) / 0.06)' }} />
+          <div className="absolute top-[30%] right-[42%] w-16 h-16 rounded-2xl rotate-12" style={{ backgroundColor: 'hsl(var(--ws-accent) / 0.05)' }} />
+        </div>
+
         <WorkspaceTopbar />
 
         {/* Main 50/50 workspace */}
