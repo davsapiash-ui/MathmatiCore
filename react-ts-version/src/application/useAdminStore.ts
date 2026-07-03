@@ -48,8 +48,16 @@ interface AdminState {
 export const useAdminStore = create<AdminState>()(
   persist(
     (set) => ({
-      schools: [],
-      teachers: [],
+      schools: [{ id: "school_1", name: "בית ספר הדגמה", createdAt: Date.now() }],
+      teachers: [{
+        id: "teacher_demo",
+        schoolId: "school_1",
+        taz: "123456789",
+        dob: "010180",
+        name: "מורה הדגמה",
+        licenseActive: true,
+        createdAt: Date.now()
+      }],
       classes: [],
       globalStudentLimit: 35,
 

@@ -177,7 +177,9 @@ export function selectCanProceed(s: WorkspaceState): boolean {
   }
   const task = selectStandardTask(s);
   if (!task) return false;
-  if (task.type === 'session1_intro') return true;
+  if (task.type === 'session1_intro') {
+    return s.selectedChoiceId !== null;
+  }
   if (!s.hasInteracted) return false;
   return true;
 }
