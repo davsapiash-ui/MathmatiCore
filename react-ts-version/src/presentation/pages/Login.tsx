@@ -5,12 +5,9 @@ import { useAdminStore } from "@/application/useAdminStore";
 import { useStore } from "@/application/useStore";
 import { useNavigate } from "react-router-dom";
 
-const DEMO_USERS: Record<string, any> = {
-  'user1': { password: '10203040', name: 'משתמש 1', session: 1, classMode: 'regular' },
-  'user2': { password: '10203040', name: 'משתמש 2', session: 1, classMode: 'regular' },
-  'user3': { password: '10203040', name: 'משתמש 3', session: 1, classMode: 'regular' },
-  'pilot': { password: '10203040', name: 'פיילוט תלמיד', session: 1, classMode: 'regular' },
-};
+// DEMO_USERS removed
+
+// Removed hardcoded SCHOOLS and CLASSES
 
 const ROLES = [
   { id: "student" as const, icon: "🎓", label: "תלמיד" },
@@ -23,8 +20,8 @@ const inputClass =
 
 export function Login() {
   const { setUser } = useAuthStore();
-  const { teachers } = useAdminStore();
-  const { login } = useStore();
+  const { teachers, schools, classes } = useAdminStore();
+  const { login, students } = useStore();
   const navigate = useNavigate();
 
   const [selectedRole, setSelectedRole] = useState<"student" | "teacher" | "admin" | null>(null);
@@ -33,6 +30,8 @@ export function Login() {
   // Form State
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [school, setSchool] = useState("");
+  const [classroom, setClassroom] = useState("");
   const [taz, setTaz] = useState("");
   const [dob, setDob] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
@@ -43,23 +42,25 @@ export function Login() {
     setErrorMsg("");
 
     if (selectedRole === "student") {
-      if (!username || !password) {
-        setErrorMsg("אנא הזן שם משתמש וסיסמה.");
+      if (!school || !classroom || !username || !password) {
+        setErrorMsg("אנא בחר בית ספר וכיתה והזן שם משתמש וסיסמה.");
         return;
       }
       const normalizedUsername = username.trim().toLowerCase();
-      const user = DEMO_USERS[normalizedUsername];
+      
+      // Look up student by generated ID structure
+      const studentId = `student_${normalizedUsername}`;
+      const user = students[studentId];
 
-      if (user && user.password === password) {
+      if (user && password === "10203040") {
         setIsLoggingIn(true);
         setTimeout(() => {
-          const newUid = `student_${normalizedUsername}`;
           setUser({
-            uid: newUid,
+            uid: studentId,
             role: "student",
             displayName: user.name,
           }, "student");
-          login("student", newUid);
+          login("student", studentId);
           navigate("/hub", { replace: true });
         }, 600);
       } else {
@@ -218,7 +219,45 @@ export function Login() {
                   )}
 
                   <div className="flex flex-col gap-4 mb-6">
-                    {(selectedRole === "student" || selectedRole === "admin") && (
+                    {selectedRole === "student" && (
+                      <>
+                        <select
+                          value={school}
+                          onChange={(e) => {
+                            setSchool(e.target.value);
+                            setClassroom(""); // Reset class when school changes
+                          }}
+                          className={inputClass}
+                        >
+                          <option value="" disabled>בחר בית ספר</option>
+                          {schools.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        </select>
+                        <select
+                          value={classroom}
+                          onChange={(e) => setClassroom(e.target.value)}
+                          className={inputClass}
+                          disabled={!school}
+                        >
+                          <option value="" disabled>בחר כיתה</option>
+                          {classes.filter(c => c.schoolId === school).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                        <input
+                          type="text"
+                          placeholder="שם משתמש"
+                          value={username}
+                          onChange={(e) => setUsername(e.target.value)}
+                          className={inputClass}
+                        />
+                        <input
+                          type="password"
+                          placeholder="סיסמה"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          className={inputClass}
+                        />
+                      </>
+                    )}
+                    {selectedRole === "admin" && (
                       <>
                         <input
                           type="text"

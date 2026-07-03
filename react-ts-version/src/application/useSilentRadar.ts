@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { database } from '@/infrastructure/firebase';
 import { ref, push } from 'firebase/database';
 import { useAuthStore } from './useAuthStore';
+import { useStore } from './useStore';
 
 interface RadarOptions {
   taskId: string;
@@ -10,30 +11,32 @@ interface RadarOptions {
 
 export function useSilentRadar({ taskId, idleThresholdMs = 30000 }: RadarOptions) {
   const { user } = useAuthStore();
+  const { incrementHesitation, incrementUndo } = useStore();
   const [undoCount, setUndoCount] = useState(0);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const studentId = user?.uid || 'anonymous-student';
 
   const reportHesitation = useCallback(() => {
-    // In the future this can write to Firebase
-    console.log(`[Silent Radar] Hesitation detected for ${studentId} on task ${taskId}. Reporting to Firebase...`);
+    // Write to local global store for the teacher dashboard
+    incrementHesitation(studentId);
+
+    console.log(`[Silent Radar] Hesitation detected for ${studentId} on task ${taskId}. Reporting to Firebase & LocalStore...`);
     
-    // Example payload for the dashboard
+    // Payload for remote logging if needed
     const payload = {
       type: 'HESITATION',
       studentId: user?.displayName || studentId,
       taskId,
-      timestamp: Date.now(), // Use serverTimestamp() in real app
+      timestamp: Date.now(), 
       unread: true
     };
     
-    // Try reporting if database is connected, else just log
     try {
       push(ref(database, 'radar_alerts'), payload);
     } catch (err) {
       console.warn("Could not write to Firebase, radar alert logged locally.", err);
     }
-  }, [studentId, taskId, user?.displayName]);
+  }, [studentId, taskId, user?.displayName, incrementHesitation]);
 
   const resetTimer = useCallback(() => {
     if (timeoutRef.current) {
@@ -58,6 +61,7 @@ export function useSilentRadar({ taskId, idleThresholdMs = 30000 }: RadarOptions
 
   const registerUndo = useCallback(() => {
     setUndoCount(prev => prev + 1);
+    incrementUndo(studentId);
     resetTimer();
     
     // Also track excessive undos as "Passive Cruising"
