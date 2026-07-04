@@ -62,6 +62,8 @@ interface WorkspaceState {
   packagedBlocks: PlaceCounts;
   undoStack: { counts: PlaceCounts; packagedBlocks: PlaceCounts }[];
   undoCount: number;
+  /** Covert hesitation counter (radar) — mirrored to traceData at reflection. */
+  hesitationCount: number;
   boardOpen: boolean;
   scaffoldFadeLevel: number;
   errorPlace: Place | null;
@@ -282,8 +284,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       case 'all_complete':
         showFeedback({ correct: true, title: 'סִיַּמְתֶּם! 🎉', sub: 'כָּל הַכָּבוֹד עַל הָעֲבוֹדָה הַטּוֹבָה!' }, 2200, () => {
           set({ flowStatus: 'reflection', awaitingNext: false });
-          // Curriculum Router trigger
-          const studentId = useAuthStore.getState().user?.id;
+          // Curriculum Router trigger (uid is the ONE canonical identity field)
+          const studentId = useAuthStore.getState().user?.uid;
           if (studentId) {
             const store = useStore.getState();
             store.markMeeting2Complete(studentId);
@@ -450,6 +452,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     packagedBlocks: { ...EMPTY_COUNTS },
     undoStack: [],
     undoCount: 0,
+    hesitationCount: 0,
     boardOpen: true,
     scaffoldFadeLevel: 0,
     errorPlace: null,
@@ -481,6 +484,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         flowStatus: 'task',
         awaitingNext: false,
         undoCount: 0,
+        hesitationCount: 0,
         boardOpen: true,
         scaffoldFadeLevel: 0,
         errorPlace: null,

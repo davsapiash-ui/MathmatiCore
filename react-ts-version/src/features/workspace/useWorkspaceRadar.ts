@@ -32,12 +32,13 @@ export function useWorkspaceRadar(sessionNumber: number) {
       const u = userRef.current;
       if (u?.role === 'teacher') return; // Do not send alerts in Projector Sandbox Mode
 
+      // uid is the ONE canonical identity field (Login stores {uid, role, displayName}).
       const alert = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         type,
-        student: u?.username ?? 'unknown',
-        username: u?.username ?? 'unknown',
-        studentName: u?.displayName ?? u?.username ?? 'תלמיד',
+        student: u?.uid ?? 'unknown',
+        username: u?.uid ?? 'unknown',
+        studentName: u?.displayName ?? 'תלמיד',
         taskId: taskIdRef.current,
         sessionNumber,
         timestamp: Date.now(),
@@ -68,6 +69,10 @@ export function useWorkspaceRadar(sessionNumber: number) {
           return;
         }
         sendAlert('HESITATION', { idleMs: HESITATION_THRESHOLD_MS });
+        // Mirror into the workspace store so traceData reaches the teacher at reflection.
+        import('@/application/useWorkspaceStore').then(({ useWorkspaceStore }) => {
+          useWorkspaceStore.setState((s) => ({ hesitationCount: s.hesitationCount + 1 }));
+        });
         // Fire once; do not re-arm until the next student action (vanilla behavior).
         hesitationArmed.current = false;
       }, HESITATION_THRESHOLD_MS);

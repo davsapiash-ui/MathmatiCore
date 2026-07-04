@@ -32,7 +32,7 @@ export function StudentHub() {
   const user = useAuthStore(s => s.user);
   const students = useStore(s => s.students);
   
-  const currentStudent = user ? students[user.id] : null;
+  const currentStudent = user?.uid ? students[user.uid] : null;
   const isPending = currentStudent?.routeStatus === 'PENDING';
   const isApproved = currentStudent?.routeStatus === 'APPROVED';
 

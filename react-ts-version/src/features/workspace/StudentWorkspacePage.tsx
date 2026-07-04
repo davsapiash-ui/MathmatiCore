@@ -50,34 +50,11 @@ export function StudentWorkspacePage() {
   useWorkspaceRadar(sessionNumber);
 
   // Session done (meeting 4 end) → back to the hub.
+  // NOTE: qMatrixResults/traceData are written ONCE, at the right moment — the
+  // ReflectionScreen at the end of meeting 2. A second write here used wrong result
+  // keys with correct=true defaults and silently overwrote real diagnostics — removed.
   useEffect(() => {
     if (flowStatus === 'sessionDone') {
-      import('@/application/useAuthStore').then(({ useAuthStore }) => {
-        const uid = useAuthStore.getState().user?.id;
-        if (uid) {
-          import('firebase/database').then(({ ref, update }) => {
-            import('@/infrastructure/firebase').then(({ database }) => {
-              const state = useWorkspaceStore.getState();
-              // Q-Matrix (assuming all false for now, or based on qflow data if populated)
-              const qData = {
-                task1_zero_placeholder: state.qflow.results['task1']?.correct ?? true,
-                task2_estimation_error_margin: 0,
-                task3_flexible_regrouping: state.qflow.results['task3']?.correct ?? true,
-                task4_basic_addition_fluency: state.qflow.results['task4']?.correct ?? true,
-                task5_basic_subtraction_fluency: state.qflow.results['task5']?.correct ?? true
-              };
-              const traceData = {
-                hesitation_events: 0, // Should be populated by radar, but schema requires numbers
-                undo_clicks: state.undoCount || 0
-              };
-              update(ref(database), {
-                [`qMatrixResults/${uid}`]: qData,
-                [`traceData/${uid}`]: traceData
-              });
-            });
-          });
-        }
-      });
       navigate('/hub');
     }
   }, [flowStatus, navigate]);
@@ -104,7 +81,11 @@ export function StudentWorkspacePage() {
     let flushInterval: any;
 
     import('@/application/useAuthStore').then(({ useAuthStore }) => {
-      const uid = useAuthStore.getState().user?.uid || 'anonymous_student';
+      const uid = useAuthStore.getState().user?.uid;
+      // No identified student → no recording. Mixing everyone under one anonymous
+      // key made replays useless and unbounded.
+      if (!uid) return;
+      const sessionKey = `${uid}/${Date.now()}`; // segment per workspace visit
       import('firebase/database').then(({ ref, push }) => {
         import('@/infrastructure/firebase').then(({ database }) => {
           import('rrweb').then((rrweb) => {
@@ -113,13 +94,16 @@ export function StudentWorkspacePage() {
                 eventsQueue.push(event);
               },
             });
-            
+
             flushInterval = setInterval(() => {
               if (eventsQueue.length > 0) {
                 const batch = [...eventsQueue];
                 eventsQueue = [];
-                // Push each event to maintain a flat list in Firebase
-                batch.forEach(evt => push(ref(database, `replays/${uid}`), evt));
+                try {
+                  batch.forEach((evt) => push(ref(database, `replays/${sessionKey}`), evt));
+                } catch {
+                  /* offline/no-auth — drop silently, never disturb the student */
+                }
               }
             }, 5000);
           });
@@ -153,7 +137,7 @@ export function StudentWorkspacePage() {
       setIsInitializing(true);
       import('@/infrastructure/services/SocraticEngine').then(({ SocraticEngine }) => {
         import('@/application/useAuthStore').then(({ useAuthStore }) => {
-          const username = useAuthStore.getState().user?.username;
+          const username = useAuthStore.getState().user?.uid;
           if (username) {
             SocraticEngine.getApprovedTasks(username).then((tasks) => {
               if (tasks) {

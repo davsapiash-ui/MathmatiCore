@@ -49,8 +49,10 @@ export function ReflectionScreen() {
   const [strategy, setStrategy] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
-  const studentName: string = user?.displayName || user?.username || 'תלמיד';
-  const username: string = user?.username || 'unknown_student';
+  const studentName: string = user?.displayName || 'תלמיד';
+  // uid is the ONE canonical identity field (Login stores {uid, role, displayName}).
+  // The old user.username read was always undefined → every student wrote to 'unknown_student'.
+  const username: string = user?.uid || 'unknown_student';
   const feedback = effort !== null ? EFFORT_FEEDBACK[effort] : null;
   const canComplete = effort !== null && strategy !== null;
 
@@ -81,6 +83,7 @@ export function ReflectionScreen() {
         studentName,
         qMatrixResults: qMatrix,
         traceData: {
+          hesitation_events: useWorkspaceStore.getState().hesitationCount,
           undo_clicks: undoCount,
         },
       });

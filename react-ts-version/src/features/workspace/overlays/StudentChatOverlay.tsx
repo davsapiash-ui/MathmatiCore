@@ -14,7 +14,7 @@ export function StudentChatOverlay() {
   const students = useStore(s => s.students);
   const classes = useAdminStore(s => s.classes);
   
-  const studentData = user?.id ? students[user.id] : null;
+  const studentData = user?.uid ? students[user.uid] : null;
   const studentClass = classes.find(c => c.id === studentData?.classId);
   // Default to teacher_levana if no class found (fallback)
   const targetTeacherId = studentClass?.teacherId || 'teacher_levana';
@@ -26,8 +26,8 @@ export function StudentChatOverlay() {
   }, []);
 
   useEffect(() => {
-    if (isOpen && user?.id) {
-      markAsRead(user.id, targetTeacherId); 
+    if (isOpen && user?.uid) {
+      markAsRead(user.uid, targetTeacherId); 
     }
   }, [isOpen, messages, user, markAsRead, targetTeacherId]);
 
@@ -40,13 +40,13 @@ export function StudentChatOverlay() {
   if (!isOpen || !user) return null;
 
   const myMessages = messages.filter(m => 
-    (m.senderId === user.id && m.receiverId === targetTeacherId) || 
-    (m.senderId === targetTeacherId && m.receiverId === user.id)
+    (m.senderId === user.uid && m.receiverId === targetTeacherId) || 
+    (m.senderId === targetTeacherId && m.receiverId === user.uid)
   );
 
   const handleSend = () => {
     if (!text.trim()) return;
-    sendMessage(user.id, user.displayName || user.email?.split('@')[0] || 'תלמיד', targetTeacherId, text);
+    sendMessage(user.uid, user.displayName || user.email?.split('@')[0] || 'תלמיד', targetTeacherId, text);
     setText('');
   };
 
@@ -64,8 +64,8 @@ export function StudentChatOverlay() {
           <p className="text-center text-ws-soft text-sm mt-10">אין הודעות. כתבו למורה כדי להתחיל.</p>
         ) : (
           myMessages.map(m => (
-            <div key={m.id} className={`flex flex-col max-w-[80%] ${m.senderId === user.id ? 'self-end items-end' : 'self-start items-start'}`}>
-              <div className={`p-3 rounded-2xl ${m.senderId === user.id ? 'bg-ws-accent text-white rounded-tr-sm' : 'bg-ws-surface2 text-ws-ink rounded-tl-sm'}`}>
+            <div key={m.id} className={`flex flex-col max-w-[80%] ${m.senderId === user.uid ? 'self-end items-end' : 'self-start items-start'}`}>
+              <div className={`p-3 rounded-2xl ${m.senderId === user.uid ? 'bg-ws-accent text-white rounded-tr-sm' : 'bg-ws-surface2 text-ws-ink rounded-tl-sm'}`}>
                 {m.text}
               </div>
               <span className="text-xs text-ws-soft mt-1">
