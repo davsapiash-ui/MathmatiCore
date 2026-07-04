@@ -99,6 +99,12 @@ export function StudentWorkspacePage() {
               emit(event) {
                 eventsQueue.push(event);
               },
+              sampling: {
+                mousemove: false,
+                mouseInteraction: true,
+                scroll: 150,
+                input: 'last',
+              }
             });
 
             flushInterval = setInterval(() => {
@@ -107,9 +113,8 @@ export function StudentWorkspacePage() {
                 eventsQueue = [];
                 // push() rejects ASYNC on permission-denied — a sync try/catch never
                 // catches it; attach .catch so monitoring can never surface errors.
-                batch.forEach((evt) => {
-                  push(ref(database, `replays/${sessionKey}`), evt).catch(() => {});
-                });
+                // We stringify the batch to save thousands of individual db nodes per second.
+                push(ref(database, `replays/${sessionKey}`), JSON.stringify(batch)).catch(() => {});
               }
             }, 5000);
           });

@@ -70,12 +70,20 @@ export function ReflectionScreen() {
       }).catch(() => {});
 
       const r = qflow.results;
-      const qMatrix = {
-          task1_zero_placeholder: r['task1_zero_placeholder']?.correct ?? false,
-          task2_estimation_error_margin: getDeviationPct(r['task2_estimation_error_margin']),
-          task3_flexible_regrouping: r['task3_flexible_regrouping']?.correct ?? false,
-          task4_basic_addition_fluency: r['task4_basic_addition_fluency']?.correct ?? false,
-          q5_small_change: r['q5_small_change']?.correct ?? false,
+      const getTag = (taskResult: any) => {
+        if (!taskResult) return null;
+        if (taskResult.tag) return taskResult.tag;
+        if (taskResult.correct) return 'success';
+        return null;
+      };
+
+      const qMatrix: any = {
+          task1_zero_placeholder: getTag(r['task1_zero_placeholder']),
+          task2_estimation_error_margin: getTag(r['task2_estimation_error_margin']),
+          task3_flexible_regrouping: getTag(r['task3_flexible_regrouping']),
+          task4_basic_addition_fluency: getTag(r['task4_basic_addition_fluency']),
+          task5_small_change: getTag(r['q5_small_change']),
+          task6_subtraction_regrouping: getTag(r['task6_subtraction_regrouping']),
       };
 
       set(ref(database, `qMatrixResults/${username}`), {

@@ -60,7 +60,17 @@ export function TeacherDashboard() {
               .flatMap((sessionKey) => {
                 const session = data[sessionKey];
                 if (!session || typeof session !== 'object') return [];
-                return Object.keys(session).sort().map((k) => session[k]);
+                return Object.keys(session).sort().flatMap((k) => {
+                  const item = session[k];
+                  if (typeof item === 'string') {
+                    try {
+                      return JSON.parse(item);
+                    } catch {
+                      return [];
+                    }
+                  }
+                  return [item];
+                });
               })
               .filter((e) => e && typeof e === 'object' && 'type' in e);
             setLiveReplayEvents(events);
@@ -113,21 +123,21 @@ export function TeacherDashboard() {
   const traceAlertsBornAt = useRef(Date.now()).current;
 
   const basicAdditionGroup = allStudents.filter(
-    (s) => s.qMatrixResults.task4_basic_addition_fluency === false,
+    (s) => s.qMatrixResults.task4_basic_addition_fluency && s.qMatrixResults.task4_basic_addition_fluency !== 'success',
   );
   const flexibilityGroup = allStudents.filter(
-    (s) => s.qMatrixResults.task3_flexible_regrouping === false,
+    (s) => s.qMatrixResults.task3_flexible_regrouping && s.qMatrixResults.task3_flexible_regrouping !== 'success',
   );
   const zeroPlaceholderGroup = allStudents.filter(
-    (s) => s.qMatrixResults.task1_zero_placeholder === false,
+    (s) => s.qMatrixResults.task1_zero_placeholder && s.qMatrixResults.task1_zero_placeholder !== 'success',
   );
   const estimationGroup = allStudents.filter(
     (s) =>
-      s.qMatrixResults.task2_estimation_error_margin !== null &&
-      s.qMatrixResults.task2_estimation_error_margin > 0.2,
+      s.qMatrixResults.task2_estimation_error_margin &&
+      s.qMatrixResults.task2_estimation_error_margin !== 'success',
   );
   const basicSubtractionGroup = allStudents.filter(
-    (s) => s.qMatrixResults.task5_basic_subtraction_fluency === false,
+    (s) => s.qMatrixResults.task6_subtraction_regrouping && s.qMatrixResults.task6_subtraction_regrouping !== 'success',
   );
 
   const pendingRouteStudents = allStudents.filter(
@@ -148,25 +158,22 @@ export function TeacherDashboard() {
       t4f = 0,
       t5s = 0,
       t5f = 0;
+    
     allStudents.forEach((s) => {
-      if (s.qMatrixResults.task1_zero_placeholder === true) t1s++;
-      else if (s.qMatrixResults.task1_zero_placeholder === false) t1f++;
+      if (s.qMatrixResults.task1_zero_placeholder === 'success') t1s++;
+      else if (s.qMatrixResults.task1_zero_placeholder) t1f++;
 
-      if (
-        s.qMatrixResults.task2_estimation_error_margin !== null &&
-        s.qMatrixResults.task2_estimation_error_margin < 0.2
-      )
-        t2s++;
-      else if (s.qMatrixResults.task2_estimation_error_margin !== null) t2f++;
+      if (s.qMatrixResults.task2_estimation_error_margin === 'success') t2s++;
+      else if (s.qMatrixResults.task2_estimation_error_margin) t2f++;
 
-      if (s.qMatrixResults.task3_flexible_regrouping === true) t3s++;
-      else if (s.qMatrixResults.task3_flexible_regrouping === false) t3f++;
+      if (s.qMatrixResults.task3_flexible_regrouping === 'success') t3s++;
+      else if (s.qMatrixResults.task3_flexible_regrouping) t3f++;
 
-      if (s.qMatrixResults.task4_basic_addition_fluency === true) t4s++;
-      else if (s.qMatrixResults.task4_basic_addition_fluency === false) t4f++;
+      if (s.qMatrixResults.task4_basic_addition_fluency === 'success') t4s++;
+      else if (s.qMatrixResults.task4_basic_addition_fluency) t4f++;
 
-      if (s.qMatrixResults.task5_basic_subtraction_fluency === true) t5s++;
-      else if (s.qMatrixResults.task5_basic_subtraction_fluency === false)
+      if (s.qMatrixResults.task6_subtraction_regrouping === 'success') t5s++;
+      else if (s.qMatrixResults.task6_subtraction_regrouping)
         t5f++;
     });
 
@@ -839,26 +846,26 @@ export function TeacherDashboard() {
                               <div className="grid grid-cols-2 gap-3 text-sm">
                                 <div className="bg-ws-bg p-3 rounded-xl border border-ws-surface2">
                                   <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">שומר מקום (אפס)</span>
-                                  <span className={`font-semibold ${s.qMatrixResults.task1_zero_placeholder === false ? 'text-red-500' : s.qMatrixResults.task1_zero_placeholder === true ? 'text-green-600' : 'text-slate-400'}`}>
-                                    {s.qMatrixResults.task1_zero_placeholder === null ? 'טרם נבדק' : s.qMatrixResults.task1_zero_placeholder ? 'שולט' : 'דרוש חיזוק'}
+                                  <span className={`font-semibold ${s.qMatrixResults.task1_zero_placeholder && s.qMatrixResults.task1_zero_placeholder !== 'success' ? 'text-red-500' : s.qMatrixResults.task1_zero_placeholder === 'success' ? 'text-green-600' : 'text-slate-400'}`}>
+                                    {s.qMatrixResults.task1_zero_placeholder === null ? 'טרם נבדק' : s.qMatrixResults.task1_zero_placeholder === 'success' ? 'שולט' : 'דרוש חיזוק'}
                                   </span>
                                 </div>
                                 <div className="bg-ws-bg p-3 rounded-xl border border-ws-surface2">
                                   <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">גמישות מחשבתית</span>
-                                  <span className={`font-semibold ${s.qMatrixResults.task3_flexible_regrouping === false ? 'text-red-500' : s.qMatrixResults.task3_flexible_regrouping === true ? 'text-green-600' : 'text-slate-400'}`}>
-                                    {s.qMatrixResults.task3_flexible_regrouping === null ? 'טרם נבדק' : s.qMatrixResults.task3_flexible_regrouping ? 'שולט' : 'דרוש חיזוק'}
+                                  <span className={`font-semibold ${s.qMatrixResults.task3_flexible_regrouping && s.qMatrixResults.task3_flexible_regrouping !== 'success' ? 'text-red-500' : s.qMatrixResults.task3_flexible_regrouping === 'success' ? 'text-green-600' : 'text-slate-400'}`}>
+                                    {s.qMatrixResults.task3_flexible_regrouping === null ? 'טרם נבדק' : s.qMatrixResults.task3_flexible_regrouping === 'success' ? 'שולט' : 'דרוש חיזוק'}
                                   </span>
                                 </div>
                                 <div className="bg-ws-bg p-3 rounded-xl border border-ws-surface2">
                                   <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">אומדן שגיאה</span>
-                                  <span className={`font-semibold ${s.qMatrixResults.task2_estimation_error_margin !== null && s.qMatrixResults.task2_estimation_error_margin > 0.2 ? 'text-red-500' : s.qMatrixResults.task2_estimation_error_margin !== null ? 'text-green-600' : 'text-slate-400'}`}>
-                                    {s.qMatrixResults.task2_estimation_error_margin === null ? 'טרם נבדק' : s.qMatrixResults.task2_estimation_error_margin > 0.2 ? `חריגה (${(s.qMatrixResults.task2_estimation_error_margin * 100).toFixed(0)}%)` : 'בטווח המותר'}
+                                  <span className={`font-semibold ${s.qMatrixResults.task2_estimation_error_margin && s.qMatrixResults.task2_estimation_error_margin !== 'success' ? 'text-red-500' : s.qMatrixResults.task2_estimation_error_margin === 'success' ? 'text-green-600' : 'text-slate-400'}`}>
+                                    {s.qMatrixResults.task2_estimation_error_margin === null ? 'טרם נבדק' : s.qMatrixResults.task2_estimation_error_margin !== 'success' ? `חריגה (מעל 20%)` : 'בטווח המותר'}
                                   </span>
                                 </div>
                                 <div className="bg-ws-bg p-3 rounded-xl border border-ws-surface2">
                                   <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">חיבור וחיסור</span>
-                                  <span className={`font-semibold ${s.qMatrixResults.task4_basic_addition_fluency === false || s.qMatrixResults.task5_basic_subtraction_fluency === false ? 'text-red-500' : (s.qMatrixResults.task4_basic_addition_fluency === true && s.qMatrixResults.task5_basic_subtraction_fluency === true) ? 'text-green-600' : 'text-slate-400'}`}>
-                                    {(s.qMatrixResults.task4_basic_addition_fluency === null && s.qMatrixResults.task5_basic_subtraction_fluency === null) ? 'טרם נבדק' : (s.qMatrixResults.task4_basic_addition_fluency === false || s.qMatrixResults.task5_basic_subtraction_fluency === false) ? 'פער בעובדות יסוד' : 'שולט'}
+                                  <span className={`font-semibold ${(s.qMatrixResults.task4_basic_addition_fluency && s.qMatrixResults.task4_basic_addition_fluency !== 'success') || (s.qMatrixResults.task6_subtraction_regrouping && s.qMatrixResults.task6_subtraction_regrouping !== 'success') ? 'text-red-500' : (s.qMatrixResults.task4_basic_addition_fluency === 'success' && s.qMatrixResults.task6_subtraction_regrouping === 'success') ? 'text-green-600' : 'text-slate-400'}`}>
+                                    {(s.qMatrixResults.task4_basic_addition_fluency === null && s.qMatrixResults.task6_subtraction_regrouping === null) ? 'טרם נבדק' : ((s.qMatrixResults.task4_basic_addition_fluency && s.qMatrixResults.task4_basic_addition_fluency !== 'success') || (s.qMatrixResults.task6_subtraction_regrouping && s.qMatrixResults.task6_subtraction_regrouping !== 'success')) ? 'פער בעובדות יסוד' : 'שולט'}
                                   </span>
                                 </div>
                               </div>
@@ -899,8 +906,8 @@ export function TeacherDashboard() {
                                   <p className="text-sm text-slate-700 leading-relaxed mb-4">
                                     התלמיד חווה <strong className="text-orange-600">{s.traceData.hesitation_events}</strong> אירועי היסוס המעידים על מאבק קוגניטיבי, וביצע <strong className="text-red-600">{s.traceData.undo_clicks}</strong> מחיקות או חזרות. 
                                     ניתוח הפעולות בוידאו יחד עם מטריצת המיומנויות (Q-Matrix) מצביע על כך ש
-                                    {s.qMatrixResults.task3_flexible_regrouping === false ? ' קיים פער מהותי בגמישות מחשבתית ובפירוק שאינו קנוני.' : s.qMatrixResults.task3_flexible_regrouping === true ? ' קיימת הבנה טובה של גמישות מחשבתית.' : ' טרם נאספו מספיק נתונים לקביעת רמת הגמישות המחשבתית.'}
-                                    {s.qMatrixResults.task1_zero_placeholder === false ? ' כמו כן, נצפה חוסר הבנה בתפקיד האפס כשומר מקום.' : s.qMatrixResults.task1_zero_placeholder === true ? ' התלמיד שולט בתפקיד האפס במערכת העשרונית.' : ''}
+                                    {s.qMatrixResults.task3_flexible_regrouping === 'canonical_fixation' ? ' נראה כי קיים קושי מסוים בגמישות מחשבתית ובפירוק שאינו קנוני.' : s.qMatrixResults.task3_flexible_regrouping === 'success' ? ' קיימת הבנה טובה של גמישות מחשבתית.' : ' טרם נאספו מספיק נתונים לקביעת רמת הגמישות המחשבתית.'}
+                                    {s.qMatrixResults.task1_zero_placeholder === 'zero_placeholder_global_error' ? ' ייתכן קושי מהותי בהבנת תפקיד האפס כשומר מקום.' : s.qMatrixResults.task1_zero_placeholder === 'zero_placeholder_hundreds_error' ? ' נראה קושי ספציפי בשימוש באפס במאות בלבד.' : s.qMatrixResults.task1_zero_placeholder === 'success' ? ' נראה כי התלמיד שולט בתפקיד האפס.' : ''}
                                   </p>
                                 </div>
 
@@ -911,8 +918,12 @@ export function TeacherDashboard() {
                                       המלצות ומסלול אדפטיבי למפגשים 3, 4, 5, 6, ו-7:
                                     </h4>
                                     <p className="text-sm text-indigo-800 leading-relaxed mb-5 bg-white p-4 rounded-lg border border-indigo-100/50">
-                                      <strong className="block mb-1 text-indigo-900">רציונל בניית המסלול:</strong>
-                                      {socraticApproval.teacherRationaleHe}
+                                      <strong className="block mb-1 text-indigo-900">אבחון קליני:</strong>
+                                      {socraticApproval.clinicalDiagnosisHe || "לא נרשמו תובנות מהאבחון."}
+                                    </p>
+                                    <p className="text-sm text-indigo-800 leading-relaxed mb-5 bg-white p-4 rounded-lg border border-indigo-100/50">
+                                      <strong className="block mb-1 text-indigo-900">תוכנית פעולה מוצעת:</strong>
+                                      {socraticApproval.actionPlanHe || "לא נקבעה תוכנית."}
                                     </p>
                                     
                                     <h5 className="font-bold text-sm text-indigo-900 mb-3">תרגילים רצויים שנוצרו עבור התלמיד:</h5>

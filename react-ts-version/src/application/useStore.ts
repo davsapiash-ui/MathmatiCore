@@ -2,11 +2,12 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 export interface QMatrix {
-  task1_zero_placeholder: boolean | null;
-  task2_estimation_error_margin: number | null;
-  task3_flexible_regrouping: boolean | null;
-  task4_basic_addition_fluency: boolean | null;
-  task5_basic_subtraction_fluency: boolean | null;
+  task1_zero_placeholder: string | null;
+  task2_estimation_error_margin: string | null;
+  task3_flexible_regrouping: string | null;
+  task4_basic_addition_fluency: string | null;
+  task5_small_change: string | null;
+  task6_subtraction_regrouping: string | null;
 }
 
 export interface TraceData {
@@ -64,7 +65,8 @@ const generateInitialStudents = (): Record<string, StudentData> => {
         task2_estimation_error_margin: null,
         task3_flexible_regrouping: null,
         task4_basic_addition_fluency: null,
-        task5_basic_subtraction_fluency: null,
+        task5_small_change: null,
+        task6_subtraction_regrouping: null,
       },
       traceData: { hesitation_events: 0, undo_clicks: 0 },
       routeRecommendation: null,
@@ -99,7 +101,8 @@ export const useStore = create<AppState>()(
                 task2_estimation_error_margin: null,
                 task3_flexible_regrouping: null,
                 task4_basic_addition_fluency: null,
-                task5_basic_subtraction_fluency: null,
+                task5_small_change: null,
+                task6_subtraction_regrouping: null,
               },
               traceData: { hesitation_events: 0, undo_clicks: 0 },
               routeRecommendation: null,

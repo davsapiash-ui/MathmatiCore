@@ -9,7 +9,8 @@ export interface PendingAIApproval {
   studentName: string;
   timestamp: number;
   tasks: SessionTask[];
-  teacherRationaleHe: string; // Explanation for the teacher
+  clinicalDiagnosisHe: string; // Detailed pedagogical analysis
+  actionPlanHe: string; // Recommended action for the teacher
 }
 
 /**
@@ -23,36 +24,63 @@ export class SocraticEngine {
    */
   static async generateAndQueueTasks(studentId: string, studentName: string, teacherId: string, qMatrix: QMatrixResults): Promise<void> {
     const tasks: SessionTask[] = [];
-    let rationale = "על בסיס האבחון, התלמיד הראה שליטה טובה ברוב התחומים.";
+    
+    const diagnosisParts: string[] = [];
+    const actionParts: string[] = [];
+    let isYellowPath = false;
 
-    // Logic based on Q-Matrix
-    if (qMatrix.task4_basic_addition_fluency === false) {
-      rationale = "התלמיד מתקשה בעובדות יסוד של חיבור. נמליץ על סדרת תרגילי חיבור פשוטים בטווח ה-20 לביסוס העובדות.";
+    if (qMatrix.task1_zero_placeholder === 'zero_placeholder_hundreds_error') {
+      diagnosisParts.push("ניכר קושי נקודתי בהבנת שומר המקום במיקום המאות. נראה כי התלמיד מבין את הרעיון הכללי אך זקוק לחידוד במעברים גדולים.");
+      actionParts.push("חיזוק הבנת המאות כערך עצמאי.");
+      isYellowPath = true;
+    } else if (qMatrix.task1_zero_placeholder === 'zero_placeholder_global_error') {
+      diagnosisParts.push("ייתכן פער משמעותי בהבנת תפקיד האפס כ'שומר מקום' במערכת העשרונית, מה שעשוי להעיד על חסר בהפנמת הערך המקומי.");
+      actionParts.push("עבודה על ערך המקום והבנת האפס באופן הדרגתי.");
+      isYellowPath = true;
+    }
+
+    if (qMatrix.task4_basic_addition_fluency === 'procedural_error') {
+      diagnosisParts.push("התלמיד שלט בעובדות היסוד במשימת העזר, ולכן השגיאה בחיבור הארוך נובעת ככל הנראה מבלבול פרוצדורלי (סדר הפעולות).");
+      actionParts.push("תרגול מובנה של חיבור במאונך, ללא חשש לשליטה בסיסית.");
+      isYellowPath = true;
+    } else if (qMatrix.task4_basic_addition_fluency === 'basic_facts_deficit') {
+      diagnosisParts.push("נראה כי קיימת חולשה משמעותית בשליטה בעובדות יסוד בסיסיות (כגון 4+3). זהו חסם קריטי שעלול להקשות על התקדמות באלגוריתם.");
+      actionParts.push("יש לעצור ולבסס עובדות יסוד באפס מאמץ קוגניטיבי לפני מעבר לחישובים מורכבים.");
+      isYellowPath = true;
+    }
+
+    if (qMatrix.task3_flexible_regrouping === 'canonical_fixation') {
+      diagnosisParts.push("התלמיד נוטה ל'קיבעון קנוני', ומתקשה למצוא חלופות לייצוג המספר, על אף שהוא מכיר את המערכת. ייתכן קושי בגמישות מחשבתית.");
+      actionParts.push("משחקי פריטה והמרה שמעודדים חשיבה פתוחה ומרובת תשובות.");
+      isYellowPath = true;
+    }
+
+    if (qMatrix.task6_subtraction_regrouping === 'regrouping_anxiety') {
+      diagnosisParts.push("התלמיד הפגין שליטה בחיסור בסיסי, אך נרתע או קפא כאשר נדרש לפרוט עשרת. דפוס זה עשוי להעיד על 'חרדת המרה'.");
+      actionParts.push("יש לעבוד על פריטה מחוץ לתרגיל חיסור, באופן מוחשי, כדי להוריד את מפלס החרדה.");
+      isYellowPath = true;
+    } else if (qMatrix.task6_subtraction_regrouping === 'subtraction_operation_deficit') {
+      diagnosisParts.push("התלמיד התקשה גם בתרגיל החיסור ללא הפריטה. דבר זה מחייב תשומת לב, שכן נראה שמשמעות פעולת החיסור עצמה טרם בוססה.");
+      actionParts.push("חזרה לפעולת החיסור ברמה התפיסתית (לקחת, להפריד) באמצעות מניפולטיבים.");
+      isYellowPath = true;
+    }
+
+    let clinicalDiagnosisHe = "טרם נאספו מספיק אינדיקציות קליניות.";
+    let actionPlanHe = "מומלץ להמשיך בתהליך הלימודים כסדרו.";
+
+    if (isYellowPath && diagnosisParts.length > 0) {
+      clinicalDiagnosisHe = "על בסיס המבדק, עולים הדפוסים הבאים: " + diagnosisParts.join(" ");
+      actionPlanHe = "תוכנית פעולה מוצעת: " + actionParts.join(" | ");
       tasks.push(
-        { id: 'gen_t3', type: 'addition_simple', titleHe: 'חיזוק עובדות חיבור 1', instructionHe: 'פתרו את תרגיל החיבור הבא:', numberA: 7, numberB: 5, correctAnswer: 12 },
-        { id: 'gen_t4', type: 'addition_simple', titleHe: 'חיזוק עובדות חיבור 2', instructionHe: 'פתרו את תרגיל החיבור הבא:', numberA: 8, numberB: 6, correctAnswer: 14 },
-        { id: 'gen_t5', type: 'addition_simple', titleHe: 'חיזוק עובדות חיבור 3', instructionHe: 'פתרו את תרגיל החיבור הבא:', numberA: 9, numberB: 4, correctAnswer: 13 },
-        { id: 'gen_t6', type: 'vertical_addition', titleHe: 'חיבור במאונך 1', instructionHe: 'חברו את המספרים במאונך:', numberA: 15, numberB: 7, correctAnswer: 22 },
-        { id: 'gen_t7', type: 'vertical_addition', titleHe: 'חיבור במאונך 2', instructionHe: 'חברו את המספרים במאונך:', numberA: 18, numberB: 9, correctAnswer: 27 }
-      );
-    } else if (qMatrix.task3_flexible_regrouping === false) {
-      rationale = "התלמיד מראה קושי בהמרה (קיבוץ ופריטה). המשימות מתמקדות בחיבור במאונך שדורש המרה קלאסית של עשרות.";
-      tasks.push(
-        { id: 'gen_t3', type: 'vertical_addition', titleHe: 'תרגול המרה 1', instructionHe: 'פתרו את התרגיל הבא - שימו לב להמרה.', numberA: 25, numberB: 17, correctAnswer: 42 },
-        { id: 'gen_t4', type: 'vertical_addition', titleHe: 'תרגול המרה 2', instructionHe: 'פתרו את התרגיל הבא - שימו לב להמרה.', numberA: 36, numberB: 28, correctAnswer: 64 },
-        { id: 'gen_t5', type: 'vertical_addition', titleHe: 'תרגול המרה 3', instructionHe: 'פתרו את התרגיל הבא - שימו לב להמרה.', numberA: 47, numberB: 15, correctAnswer: 62 },
-        { id: 'gen_t6', type: 'vertical_addition', titleHe: 'תרגול המרה מתקדם', instructionHe: 'פתרו את התרגיל הבא - שימו לב להמרה.', numberA: 59, numberB: 33, correctAnswer: 92 },
-        { id: 'gen_t7', type: 'vertical_addition', titleHe: 'תרגול מסכם', instructionHe: 'פתרו את התרגיל המסכם:', numberA: 68, numberB: 24, correctAnswer: 92 }
+        { id: 'gen_t1', type: 'vertical_addition', titleHe: 'תרגול תומך 1', instructionHe: 'חיבור במאונך עם עזרים.', numberA: 25, numberB: 17, correctAnswer: 42 },
+        { id: 'gen_t2', type: 'vertical_addition', titleHe: 'תרגול תומך 2', instructionHe: 'נסו לפתור במאונך.', numberA: 36, numberB: 28, correctAnswer: 64 }
       );
     } else {
-      // Default challenge tasks
-      rationale = "התלמיד שולט היטב בחומר. מומלץ לאתגר אותו עם תרגילי חיבור תלת-ספרתיים קלים.";
+      clinicalDiagnosisHe = "התלמיד הפגין ביצועים תקינים וללא שגיאות קריטיות לאורך משימות הליבה. לא ניכרו כשלים בולטים בעובדות יסוד או בגמישות המחשבתית.";
+      actionPlanHe = "מעבר ישיר למסלול 'הירוק' - התקדמות לחקר מתקדם ולאתגרים.";
       tasks.push(
-        { id: 'gen_t3', type: 'vertical_addition', titleHe: 'אתגר 1', instructionHe: 'נסו לפתור תרגיל מאתגר יותר:', numberA: 125, numberB: 134, correctAnswer: 259 },
-        { id: 'gen_t4', type: 'vertical_addition', titleHe: 'אתגר 2', instructionHe: 'נסו לפתור תרגיל מאתגר יותר:', numberA: 245, numberB: 136, correctAnswer: 381 },
-        { id: 'gen_t5', type: 'vertical_addition', titleHe: 'אתגר 3', instructionHe: 'נסו לפתור תרגיל מאתגר יותר:', numberA: 158, numberB: 23, correctAnswer: 181 },
-        { id: 'gen_t6', type: 'vertical_addition', titleHe: 'אתגר 4', instructionHe: 'נסו לפתור תרגיל מאתגר יותר:', numberA: 312, numberB: 189, correctAnswer: 501 },
-        { id: 'gen_t7', type: 'vertical_addition', titleHe: 'אתגר סופי', instructionHe: 'כל הכבוד! נסו לפתור תרגיל זה:', numberA: 450, numberB: 260, correctAnswer: 710 }
+        { id: 'gen_c1', type: 'vertical_addition', titleHe: 'אתגר 1', instructionHe: 'נסו לפתור תרגיל מאתגר יותר:', numberA: 125, numberB: 134, correctAnswer: 259 },
+        { id: 'gen_c2', type: 'vertical_addition', titleHe: 'אתגר 2', instructionHe: 'נסו לפתור תרגיל מאתגר יותר:', numberA: 245, numberB: 136, correctAnswer: 381 }
       );
     }
 
@@ -63,7 +91,8 @@ export class SocraticEngine {
       studentName,
       timestamp: serverTimestamp(),
       tasks,
-      teacherRationaleHe: rationale
+      clinicalDiagnosisHe,
+      actionPlanHe
     });
   }
 

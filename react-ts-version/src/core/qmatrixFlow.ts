@@ -15,10 +15,7 @@ export interface QTaskResult {
   subtaskDetail?: string;
   secondAttemptCorrect?: boolean;
   secondAttemptDetail?: string;
-  /** Q4 root-cause tag (vanilla qmatrix.js 449–451). */
-  q4_backward_diag?: 'procedural_error' | 'basic_facts_error';
-  /** Q6 root-cause tag */
-  q6_backward_diag?: 'regrouping_anxiety' | 'subtraction_operation_deficit';
+  tag?: string;
 }
 
 export interface QMatrixFlowState {
@@ -66,10 +63,18 @@ export function recordResult(
   const prev: QTaskResult = results[task.id] ?? { correct: false, detail: '' };
     if (state.subphase === 'subtask') {
       const updated: QTaskResult = { ...prev, subtaskCorrect: evalResult.correct, subtaskDetail: evalResult.detail };
-      if (task.id === 'task4_basic_addition_fluency') {
-        updated.q4_backward_diag = evalResult.correct ? 'procedural_error' : 'basic_facts_error';
+      if (task.id === 'task1_zero_placeholder') {
+        updated.tag = evalResult.correct ? 'zero_placeholder_hundreds_error' : 'zero_placeholder_global_error';
+      } else if (task.id === 'task2_estimation_error_margin') {
+        updated.tag = evalResult.correct ? 'estimation_large_numbers_anxiety' : 'estimation_global_deficit';
+      } else if (task.id === 'task3_flexible_regrouping') {
+        updated.tag = evalResult.correct ? 'canonical_fixation' : 'regrouping_deficit';
+      } else if (task.id === 'task4_basic_addition_fluency') {
+        updated.tag = evalResult.correct ? 'procedural_error' : 'basic_facts_deficit';
+      } else if (task.id === 'q5_small_change') {
+        updated.tag = 'flexibility_trap';
       } else if (task.id === 'task6_subtraction_regrouping') {
-        updated.q6_backward_diag = evalResult.correct ? 'regrouping_anxiety' : 'subtraction_operation_deficit';
+        updated.tag = evalResult.correct ? 'regrouping_anxiety' : 'subtraction_operation_deficit';
       }
       results[task.id] = updated;
       return {

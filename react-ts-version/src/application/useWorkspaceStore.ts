@@ -298,17 +298,20 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
               // qMatrixResults/traceData are never written by live code, so routing
               // from them made every student 'GREEN' regardless of performance.
               const r = get().qflow.results;
-              const devMatch = /deviation_(\d+)pct/.exec(r['task2_estimation_error_margin']?.detail ?? '');
+              const getTag = (taskResult: any) => {
+                if (!taskResult) return null;
+                if (taskResult.tag) return taskResult.tag;
+                if (taskResult.correct) return 'success';
+                return null;
+              };
+              
               const realQMatrix = {
-                task1_zero_placeholder: r['task1_zero_placeholder']?.correct ?? null,
-                task2_estimation_error_margin: r['task2_estimation_error_margin']
-                  ? devMatch
-                    ? Number(devMatch[1]) / 100
-                    : 0
-                  : null,
-                task3_flexible_regrouping: r['task3_flexible_regrouping']?.correct ?? null,
-                task4_basic_addition_fluency: r['task4_basic_addition_fluency']?.correct ?? null,
-                task5_basic_subtraction_fluency: r['task6_subtraction_regrouping']?.correct ?? null,
+                task1_zero_placeholder: getTag(r['task1_zero_placeholder']),
+                task2_estimation_error_margin: getTag(r['task2_estimation_error_margin']),
+                task3_flexible_regrouping: getTag(r['task3_flexible_regrouping']),
+                task4_basic_addition_fluency: getTag(r['task4_basic_addition_fluency']),
+                task5_small_change: getTag(r['q5_small_change']),
+                task6_subtraction_regrouping: getTag(r['task6_subtraction_regrouping']),
               };
               // Persist truth so the dashboard clustering reflects this student too.
               store.updateQMatrix(studentId, realQMatrix);
