@@ -79,8 +79,13 @@ export function StudentWorkspacePage() {
     let stopRecording: (() => void) | undefined;
     let eventsQueue: any[] = [];
     let flushInterval: any;
+    // Cancellation flag: cleanup can run BEFORE the dynamic imports resolve
+    // (React StrictMode double-mounts) — without it the first mount's recorder
+    // and interval leaked forever.
+    let cancelled = false;
 
     import('@/application/useAuthStore').then(({ useAuthStore }) => {
+      if (cancelled) return;
       const uid = useAuthStore.getState().user?.uid;
       // No identified student → no recording. Mixing everyone under one anonymous
       // key made replays useless and unbounded.
@@ -89,6 +94,7 @@ export function StudentWorkspacePage() {
       import('firebase/database').then(({ ref, push }) => {
         import('@/infrastructure/firebase').then(({ database }) => {
           import('rrweb').then((rrweb) => {
+            if (cancelled) return;
             stopRecording = rrweb.record({
               emit(event) {
                 eventsQueue.push(event);
@@ -99,11 +105,11 @@ export function StudentWorkspacePage() {
               if (eventsQueue.length > 0) {
                 const batch = [...eventsQueue];
                 eventsQueue = [];
-                try {
-                  batch.forEach((evt) => push(ref(database, `replays/${sessionKey}`), evt));
-                } catch {
-                  /* offline/no-auth — drop silently, never disturb the student */
-                }
+                // push() rejects ASYNC on permission-denied — a sync try/catch never
+                // catches it; attach .catch so monitoring can never surface errors.
+                batch.forEach((evt) => {
+                  push(ref(database, `replays/${sessionKey}`), evt).catch(() => {});
+                });
               }
             }, 5000);
           });
@@ -112,6 +118,7 @@ export function StudentWorkspacePage() {
     });
 
     return () => {
+      cancelled = true;
       if (stopRecording) stopRecording();
       if (flushInterval) clearInterval(flushInterval);
     };
@@ -133,35 +140,44 @@ export function StudentWorkspacePage() {
   });
 
   useEffect(() => {
+    let cancelled = false;
     if (meeting === 3) {
       setIsInitializing(true);
-      import('@/infrastructure/services/SocraticEngine').then(({ SocraticEngine }) => {
-        import('@/application/useAuthStore').then(({ useAuthStore }) => {
-          const username = useAuthStore.getState().user?.uid;
-          if (username) {
-            SocraticEngine.getApprovedTasks(username).then((tasks) => {
-              if (tasks) {
-                initSession(meeting, isASDMode, tasks);
-              } else {
-                // If tasks are null, it means they are pending approval or haven't been generated.
-                // We'll set a special flowStatus or handle it with a local state.
-                setPendingApproval(true);
-              }
-              setIsInitializing(false);
-            }).catch(() => {
-              initSession(meeting, isASDMode);
-              setIsInitializing(false);
-            });
-          } else {
-            initSession(meeting, isASDMode);
-            setIsInitializing(false);
-          }
-        });
+      // Any failure in this async chain must NOT strand the student on the loading
+      // screen — the outer .catch falls back to the standard session tasks.
+      (async () => {
+        const [{ SocraticEngine }, { useAuthStore }] = await Promise.all([
+          import('@/infrastructure/services/SocraticEngine'),
+          import('@/application/useAuthStore'),
+        ]);
+        if (cancelled) return;
+        const username = useAuthStore.getState().user?.uid;
+        if (!username) {
+          initSession(meeting, isASDMode);
+          setIsInitializing(false);
+          return;
+        }
+        const tasks = await SocraticEngine.getApprovedTasks(username);
+        if (cancelled) return;
+        if (tasks) {
+          initSession(meeting, isASDMode, tasks);
+        } else {
+          // Pending teacher approval — blocking screen with a way back to the hub.
+          setPendingApproval(true);
+        }
+        setIsInitializing(false);
+      })().catch(() => {
+        if (cancelled) return;
+        initSession(meeting, isASDMode);
+        setIsInitializing(false);
       });
     } else {
       initSession(meeting, isASDMode);
       setIsInitializing(false);
     }
+    return () => {
+      cancelled = true;
+    };
     // isASDMode intentionally not a dependency: mid-session toggling must not reset the student's work.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [meeting, initSession]);

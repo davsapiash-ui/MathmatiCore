@@ -67,7 +67,7 @@ export function ReflectionScreen() {
         strategy,
         timestamp: Date.now(),
         student: username,
-      });
+      }).catch(() => {});
 
       const r = qflow.results;
       const qMatrix = {
@@ -86,7 +86,7 @@ export function ReflectionScreen() {
           hesitation_events: useWorkspaceStore.getState().hesitationCount,
           undo_clicks: undoCount,
         },
-      });
+      }).catch(() => {});
 
       // AI Generation: generate tasks 3-7 based on diagnostic and queue for teacher approval
       import('@/infrastructure/services/SocraticEngine').then(({ SocraticEngine }) => {

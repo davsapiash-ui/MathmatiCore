@@ -3,7 +3,7 @@ import { Activity, Users, GraduationCap, ShieldAlert } from "lucide-react";
 import { useAdminStore } from "@/application/useAdminStore";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useEffect, useState } from 'react';
-import { ref, onValue, query, orderByChild, limitToLast } from 'firebase/database';
+import { ref, onValue, query, orderByChild, limitToLast, get, update } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
 import type { AuditLogEvent } from '@/infrastructure/services/AuditLogger';
 
@@ -39,6 +39,48 @@ export function AdminOverview() {
   }, []);
 
   const totalStudents = classes.length * 30; // Mock calculation based on classes
+
+  const [isCleaning, setIsCleaning] = useState(false);
+
+  const handleDataCleanup = async () => {
+    if (!window.confirm("האם אתה בטוח שברצונך למחוק הקלטות וידאו ישנות (מעל 30 יום)? פעולה זו נדרשת לתקן COPPA ולא ניתנת לביטול.")) return;
+    try {
+      setIsCleaning(true);
+      const replaysRef = ref(database, 'replays');
+      const snapshot = await get(replaysRef);
+      if (snapshot.exists()) {
+        const replays = snapshot.val();
+        const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
+        const now = Date.now();
+        const updates: any = {};
+        let deletedCount = 0;
+        
+        Object.keys(replays).forEach(uid => {
+          Object.keys(replays[uid]).forEach(timestampStr => {
+            const timestamp = parseInt(timestampStr, 10);
+            if (!isNaN(timestamp) && now - timestamp > THIRTY_DAYS) {
+              updates[`${uid}/${timestampStr}`] = null;
+              deletedCount++;
+            }
+          });
+        });
+        
+        if (deletedCount > 0) {
+          await update(replaysRef, updates);
+          alert(`נוקו בהצלחה ${deletedCount} סשנים ישנים של הקלטות בהתאם לתקן COPPA.`);
+        } else {
+          alert('לא נמצאו סשנים ישנים (מעל 30 יום) לניקוי.');
+        }
+      } else {
+        alert('אין נתוני הקלטות במערכת.');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('שגיאה בניקוי נתונים. ודא שיש לך הרשאות ניהול.');
+    } finally {
+      setIsCleaning(false);
+    }
+  };
 
   return (
     <div className="p-8 pb-20" dir="rtl">
@@ -141,6 +183,13 @@ export function AdminOverview() {
               <div>
                 <h4 className="font-bold text-slate-800 dark:text-slate-200">עמידה בתקן <span dir="ltr">COPPA</span></h4>
                 <p className="text-sm text-slate-500">מאושר (ילדים מתחת לגיל 13)</p>
+                <button 
+                  onClick={handleDataCleanup}
+                  disabled={isCleaning}
+                  className="mt-2 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded-md transition-colors disabled:opacity-50"
+                >
+                  {isCleaning ? 'מנקה...' : 'הרץ ניקוי היסטוריית הקלטות (COPPA)'}
+                </button>
               </div>
             </div>
 

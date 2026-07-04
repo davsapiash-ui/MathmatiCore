@@ -120,7 +120,15 @@ export function TaskCard() {
                 {qTask.type === 'vertical_addition' &&
                   (() => {
                     const { a, b, target } = effectiveArithmetic(qTask, isASD);
-                    return <VerticalAdditionTask numberA={a} numberB={b} answerLength={String(Math.abs(target)).length} />;
+                    // isSubtraction must flow through — task6 (52−18) rendered "+" without it.
+                    return (
+                      <VerticalAdditionTask
+                        numberA={a}
+                        numberB={b}
+                        isSubtraction={qTask.isSubtraction}
+                        answerLength={String(Math.abs(target)).length}
+                      />
+                    );
                   })()}
 
                 {qTask.type === 'small_change' && (

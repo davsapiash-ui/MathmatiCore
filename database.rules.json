@@ -5,13 +5,13 @@
 
     "students": {
       "$uid": {
-        ".read": "auth != null && (auth.uid === $uid || auth.token.role === 'teacher' || auth.token.role === 'admin')",
-        ".write": "auth != null && (auth.uid === $uid || auth.token.role === 'teacher' || auth.token.role === 'admin')"
+        ".read": "auth != null && (auth.uid === $uid || root.child('teachers').child(auth.uid).exists() || root.child('system_control/admins').child(auth.uid).exists())",
+        ".write": "auth != null && (auth.uid === $uid || root.child('teachers').child(auth.uid).exists() || root.child('system_control/admins').child(auth.uid).exists())"
       }
     },
 
     "radar_alerts": {
-      ".read": "auth != null && (auth.token.role === 'teacher' || auth.token.role === 'admin')",
+      ".read": "auth != null && (root.child('teachers').child(auth.uid).exists() || root.child('system_control/admins').child(auth.uid).exists())",
       "$alertId": {
         ".write": "auth != null",
         ".validate": "newData.hasChildren(['type', 'studentId', 'timestamp']) && newData.child('studentId').val() === auth.uid"
@@ -20,22 +20,22 @@
 
     "qMatrixResults": {
       "$studentId": {
-        ".read": "auth != null && (auth.uid === $studentId || auth.token.role === 'teacher' || auth.token.role === 'admin')",
-        ".write": "auth != null && (auth.uid === $studentId || auth.token.role === 'teacher' || auth.token.role === 'admin')",
+        ".read": "auth != null && (auth.uid === $studentId || root.child('teachers').child(auth.uid).exists() || root.child('system_control/admins').child(auth.uid).exists())",
+        ".write": "auth != null && (auth.uid === $studentId || root.child('teachers').child(auth.uid).exists() || root.child('system_control/admins').child(auth.uid).exists())",
         ".validate": "newData.hasChildren(['task1_zero_placeholder', 'task2_estimation_error_margin', 'task3_flexible_regrouping', 'task4_basic_addition_fluency', 'task5_basic_subtraction_fluency'])"
       }
     },
 
     "traceData": {
       "$studentId": {
-        ".read": "auth != null && (auth.uid === $studentId || auth.token.role === 'teacher' || auth.token.role === 'admin')",
-        ".write": "auth != null && (auth.uid === $studentId || auth.token.role === 'teacher' || auth.token.role === 'admin')",
+        ".read": "auth != null && (auth.uid === $studentId || root.child('teachers').child(auth.uid).exists() || root.child('system_control/admins').child(auth.uid).exists())",
+        ".write": "auth != null && (auth.uid === $studentId || root.child('teachers').child(auth.uid).exists() || root.child('system_control/admins').child(auth.uid).exists())",
         ".validate": "newData.hasChildren(['hesitation_events', 'undo_clicks']) && newData.child('hesitation_events').isNumber() && newData.child('undo_clicks').isNumber()"
       }
     },
 
     "reflections": {
-      ".read": "auth != null && (auth.token.role === 'teacher' || auth.token.role === 'admin')",
+      ".read": "auth != null && (root.child('teachers').child(auth.uid).exists() || root.child('system_control/admins').child(auth.uid).exists())",
       ".write": "auth != null",
       "$reflectionId": {
         ".validate": "newData.hasChildren(['effort', 'strategy', 'timestamp', 'student'])"
@@ -43,25 +43,39 @@
     },
 
     "sessions": {
-      ".read": "auth != null && (auth.token.role === 'teacher' || auth.token.role === 'admin')",
+      ".read": "auth != null && (root.child('teachers').child(auth.uid).exists() || root.child('system_control/admins').child(auth.uid).exists())",
       ".write": "auth != null"
+    },
+
+    "replays": {
+      "$sessionKey": {
+        ".read": "auth != null && (root.child('teachers').child(auth.uid).exists() || root.child('system_control/admins').child(auth.uid).exists())",
+        ".write": "auth != null"
+      }
+    },
+
+    "chat": {
+      "$roomId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
     },
 
     "teachers": {
       "$teacherId": {
-        ".read": "auth != null && (auth.uid === $teacherId || auth.token.role === 'admin')",
-        ".write": "auth != null && auth.token.role === 'admin'"
+        ".read": "auth != null && (auth.uid === $teacherId || root.child('system_control/admins').child(auth.uid).exists())",
+        ".write": "auth != null && root.child('system_control/admins').child(auth.uid).exists()"
       }
     },
 
     "system_control": {
-      ".read": "auth != null && auth.token.role === 'admin'",
-      ".write": "auth != null && auth.token.role === 'admin'"
+      ".read": "auth != null && root.child('system_control/admins').child(auth.uid).exists()",
+      ".write": "auth != null && root.child('system_control/admins').child(auth.uid).exists()"
     },
 
     "audit_logs": {
-      ".read": "auth != null && auth.token.role === 'admin'",
-      ".write": "auth != null && auth.token.role === 'admin'"
+      ".read": "auth != null && root.child('system_control/admins').child(auth.uid).exists()",
+      ".write": "auth != null && root.child('system_control/admins').child(auth.uid).exists()"
     }
   }
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { UdlButton } from "@/presentation/design-system/UdlButton";
 import { AccessibleCard } from "@/presentation/design-system/AccessibleCard";
 import { DataGrid } from "@/presentation/design-system/DataGrid";
@@ -52,8 +52,17 @@ export function TeacherDashboard() {
       const unsubscribe = onValue(replayRef, (snapshot) => {
          if (snapshot.exists()) {
             const data = snapshot.val();
-            // Map the object to a flat array sorted by keys (which are chronological push IDs)
-            const events = Object.keys(data).sort().map(key => data[key]);
+            // Structure is replays/{uid}/{sessionTimestamp}/{pushId} — flatten TWO levels
+            // (a single-level flatten produced session-objects instead of rrweb events,
+            // which crashed the player). Sessions and events sort chronologically by key.
+            const events = Object.keys(data)
+              .sort()
+              .flatMap((sessionKey) => {
+                const session = data[sessionKey];
+                if (!session || typeof session !== 'object') return [];
+                return Object.keys(session).sort().map((k) => session[k]);
+              })
+              .filter((e) => e && typeof e === 'object' && 'type' in e);
             setLiveReplayEvents(events);
          } else {
             setLiveReplayEvents([]);
@@ -71,7 +80,21 @@ export function TeacherDashboard() {
   const TEACHER_ID = "teacher-1";
 
   useEffect(() => {
-    SocraticEngine.getPendingApprovals(TEACHER_ID).then(setPendingApprovals);
+    // Live subscription (a one-time get() left the badge stale until full reload).
+    try {
+      const pendingRef = ref(database, `ai_pending_approvals/${TEACHER_ID}`);
+      const unsubscribe = onValue(
+        pendingRef,
+        (snapshot) => {
+          const data = snapshot.val();
+          setPendingApprovals(data ? Object.keys(data).map((key) => ({ id: key, ...data[key] })) : []);
+        },
+        () => setPendingApprovals([])
+      );
+      return () => unsubscribe();
+    } catch {
+      SocraticEngine.getPendingApprovals(TEACHER_ID).then(setPendingApprovals).catch(() => {});
+    }
   }, []);
 
   const handleHintClick = (studentId: string) => {
@@ -80,7 +103,14 @@ export function TeacherDashboard() {
   };
 
   // Clustering Logic based on Q-Matrix
-  const allStudents = Object.values(students);
+  // Memoized: a fresh array identity every render made downstream useMemos
+  // (incl. the alerts list) recompute on every keystroke.
+  const allStudents = useMemo(() => Object.values(students), [students]);
+
+  // Stable timestamp for trace-derived mock alerts — Date.now() at render time
+  // re-stamped them every render, so they showed the current clock and always
+  // sorted above genuinely newer live alerts.
+  const traceAlertsBornAt = useRef(Date.now()).current;
 
   const basicAdditionGroup = allStudents.filter(
     (s) => s.qMatrixResults.task4_basic_addition_fluency === false,
@@ -160,7 +190,7 @@ export function TeacherDashboard() {
           rawStudentId: s.studentId,
           type: "HESITATION",
           taskId: "פעילות נוכחית",
-          timestamp: Date.now(),
+          timestamp: traceAlertsBornAt,
           unread: true,
         });
       }
@@ -171,7 +201,7 @@ export function TeacherDashboard() {
           rawStudentId: s.studentId,
           type: "UNDO_SPAM",
           taskId: "פעילות נוכחית",
-          timestamp: Date.now(),
+          timestamp: traceAlertsBornAt,
           unread: true,
         });
       }
@@ -188,7 +218,11 @@ export function TeacherDashboard() {
       if (data) {
         const parsed = Object.keys(data).map(key => ({
           ...data[key],
-          firebaseKey: key
+          firebaseKey: key,
+          // Live radar alerts carry student/studentName/username (no studentId) —
+          // normalize so the UI shows the student's name instead of a generic 'תלמיד'.
+          studentId: data[key].studentId ?? data[key].studentName ?? data[key].student ?? 'תלמיד',
+          rawStudentId: data[key].rawStudentId ?? data[key].student ?? data[key].username,
         })).reverse();
         setFirebaseAlerts(parsed);
       } else {
@@ -979,8 +1013,19 @@ export function TeacherDashboard() {
                           semanticColor="primary" 
                           size="sm" 
                           className="font-bold shadow-md shadow-ws-accent/20"
-                          onClick={() => {
+                          onClick={async () => {
+                            // Local state for this browser's UI…
                             approveRoute(student.studentId);
+                            // …AND the Firebase write the student's browser actually waits on
+                            // (approved_tasks/{studentId}) — without it meeting 3 stays locked forever.
+                            const approval = pendingApprovals.find((a) => a.studentId === student.studentId);
+                            if (approval) {
+                              try {
+                                await SocraticEngine.approveTasks(TEACHER_ID, approval.id, approval.studentId, approval.tasks);
+                              } catch {
+                                /* offline — local approval still recorded; Firebase retry on next click */
+                              }
+                            }
                           }}
                         >
                           אישור מסלול

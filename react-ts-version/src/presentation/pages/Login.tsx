@@ -4,6 +4,8 @@ import { useAuthStore } from "@/application/useAuthStore";
 import { useAdminStore } from "@/application/useAdminStore";
 import { useStore } from "@/application/useStore";
 import { useNavigate } from "react-router-dom";
+import { auth } from "@/infrastructure/firebase";
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
 
 // DEMO_USERS removed
 
@@ -36,10 +38,22 @@ export function Login() {
   const [dob, setDob] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
 
-  const handleLogin = (e?: React.FormEvent) => {
+  const handleLogin = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!selectedRole) return;
     setErrorMsg("");
+
+    const performFirebaseAuth = async (virtualEmail: string, virtualPass: string) => {
+      try {
+        await signInWithEmailAndPassword(auth, virtualEmail, virtualPass);
+      } catch (err: any) {
+        if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential' || err.code === 'auth/invalid-login-credentials') {
+          await createUserWithEmailAndPassword(auth, virtualEmail, virtualPass);
+        } else {
+          throw err;
+        }
+      }
+    };
 
     if (selectedRole === "student") {
       if (!school || !classroom || !username || !password) {
@@ -54,7 +68,8 @@ export function Login() {
 
       if (user && password === "10203040") {
         setIsLoggingIn(true);
-        setTimeout(() => {
+        try {
+          await performFirebaseAuth(`${studentId}@mathmaticore.local`, password);
           setUser({
             uid: studentId,
             role: "student",
@@ -62,7 +77,10 @@ export function Login() {
           }, "student");
           login("student", studentId);
           navigate("/hub", { replace: true });
-        }, 600);
+        } catch (err) {
+          setErrorMsg("שגיאת התחברות למסד הנתונים.");
+          setIsLoggingIn(false);
+        }
       } else {
         setErrorMsg("שם המשתמש או הסיסמה שגויים.");
       }
@@ -92,7 +110,9 @@ export function Login() {
           return;
         }
         setIsLoggingIn(true);
-        setTimeout(() => {
+        try {
+          // teacher password must be > 6 chars, so we combine dob+taz
+          await performFirebaseAuth(`${teacher.id}@mathmaticore.local`, dob + taz);
           setUser({
             uid: teacher.id,
             role: "teacher",
@@ -100,7 +120,10 @@ export function Login() {
           }, "teacher");
           login("teacher", teacher.id);
           navigate("/dashboard", { replace: true });
-        }, 600);
+        } catch (err) {
+          setErrorMsg("שגיאת התחברות למסד הנתונים.");
+          setIsLoggingIn(false);
+        }
       } else {
         setErrorMsg("תעודת זהות או תאריך לידה שגויים.");
       }
@@ -112,15 +135,20 @@ export function Login() {
 
       if (username === "davsapiash" && password === "carlibach") {
         setIsLoggingIn(true);
-        setTimeout(() => {
+        try {
+          const adminId = `admin_${Date.now()}`;
+          await performFirebaseAuth(`admin@mathmaticore.local`, password);
           setUser({
-            uid: `admin_${Date.now()}`,
+            uid: adminId,
             role: "admin",
             displayName: "מנהל מערכת ראשי",
           }, "admin");
           login("admin", "admin-1");
           navigate("/admin", { replace: true });
-        }, 600);
+        } catch (err) {
+          setErrorMsg("שגיאת התחברות למסד הנתונים.");
+          setIsLoggingIn(false);
+        }
       } else {
         setErrorMsg("פרטי מנהל שגויים.");
       }

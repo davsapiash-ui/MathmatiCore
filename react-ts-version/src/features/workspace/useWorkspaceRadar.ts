@@ -46,8 +46,10 @@ export function useWorkspaceRadar(sessionNumber: number) {
         ...data,
       };
       // Fire-and-forget: monitoring must never block or surface to the student.
+      // push() rejects ASYNC (e.g. permission-denied) — the sync try/catch alone
+      // let rejections escape as unhandled; .catch keeps them truly silent.
       try {
-        push(ref(database, 'radar_alerts'), alert);
+        push(ref(database, 'radar_alerts'), alert).catch(() => {});
       } catch {
         /* dev config without live Firebase — silently drop */
       }

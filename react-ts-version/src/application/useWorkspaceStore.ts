@@ -188,6 +188,9 @@ export function selectCanProceed(s: WorkspaceState): boolean {
   const task = selectStandardTask(s);
   if (!task) return false;
   if (task.type === 'session1_intro') {
+    // Choiceless exploration tasks (correctAnswer 'proceed_any') pass on any interaction;
+    // question intros still require a selected choice.
+    if (task.correctAnswer === 'proceed_any' || !task.choices?.length) return s.hasInteracted;
     return s.selectedChoiceId !== null;
   }
   if (!s.hasInteracted) return false;
@@ -291,7 +294,29 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
             store.markMeeting2Complete(studentId);
             const student = store.students[studentId];
             if (student) {
-              const route = CurriculumRouter.evaluateRoute(student);
+              // Route from the REAL diagnostics of this run — useStore's seeded
+              // qMatrixResults/traceData are never written by live code, so routing
+              // from them made every student 'GREEN' regardless of performance.
+              const r = get().qflow.results;
+              const devMatch = /deviation_(\d+)pct/.exec(r['task2_estimation_error_margin']?.detail ?? '');
+              const realQMatrix = {
+                task1_zero_placeholder: r['task1_zero_placeholder']?.correct ?? null,
+                task2_estimation_error_margin: r['task2_estimation_error_margin']
+                  ? devMatch
+                    ? Number(devMatch[1]) / 100
+                    : 0
+                  : null,
+                task3_flexible_regrouping: r['task3_flexible_regrouping']?.correct ?? null,
+                task4_basic_addition_fluency: r['task4_basic_addition_fluency']?.correct ?? null,
+                task5_basic_subtraction_fluency: r['task6_subtraction_regrouping']?.correct ?? null,
+              };
+              // Persist truth so the dashboard clustering reflects this student too.
+              store.updateQMatrix(studentId, realQMatrix);
+              const route = CurriculumRouter.evaluateRoute({
+                ...student,
+                qMatrixResults: { ...student.qMatrixResults, ...realQMatrix },
+                traceData: { hesitation_events: get().hesitationCount, undo_clicks: get().undoCount },
+              });
               store.setRouteRecommendation(studentId, route);
             }
           }
@@ -309,6 +334,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     if (!task) return;
 
     if (task.type === 'session1_intro') {
+      // Choiceless exploration tasks ('proceed_any'): any interaction passes — no question to answer.
+      if (task.correctAnswer === 'proceed_any' || !task.choices?.length) {
+        set({ awaitingNext: true });
+        showFeedback({ correct: true, title: 'מעולה! 🌟', sub: 'ממשיכים הלאה.' }, 1500, () => {
+          advanceStandard();
+        });
+        return;
+      }
       if (!s.selectedChoiceId) {
         showFeedback({ correct: false, title: 'עֲנוּ עַל שְׁאֵלַת הַחֲשִׁיבָה 🤔', sub: 'בַּחֲרוּ אַחַת מֵהָאֶפְשָׁרֻיּוֹת כְּדֵי לְהַמְשִׁיךְ.' }, 2500);
         return;
@@ -506,7 +539,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       }
       pushSnapshot(s.counts, s.packagedBlocks);
       set({ counts: result.counts, packagedBlocks: result.packagedBlocks, hasInteracted: true });
-      if (result.removed || result.packagedRemoved) radar.recordDelete();
+      // Only a TRASH drop is a delete. Manual regrouping also sets `removed` (blocks leave
+      // the source column) — counting it fired false PASSIVE_DRIFTING radar alerts after
+      // three quick regroups, flagging exactly the students doing the RIGHT thing.
+      if ((result.removed || result.packagedRemoved) && input.target.kind === 'trash') radar.recordDelete();
     },
 
     removeBlockClick: (place) => {
