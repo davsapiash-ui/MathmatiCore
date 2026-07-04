@@ -10,11 +10,14 @@ import { getDatabase } from 'firebase/database';
 import { getAuth, type Auth } from 'firebase/auth';
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY ?? 'dev-placeholder-key',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN ?? 'mathimaticore.firebaseapp.com',
-  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID ?? 'mathimaticore',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID ?? '1:000000000000:web:dev',
+  apiKey: "AIzaSyDupqh8inn1tZ1p-KIzV3RIMst7IdpUYPw",
+  authDomain: "mathimaticore.firebaseapp.com",
+  databaseURL: "https://mathimaticore-default-rtdb.firebaseio.com",
+  projectId: "mathimaticore",
+  storageBucket: "mathimaticore.firebasestorage.app",
+  messagingSenderId: "589828360805",
+  appId: "1:589828360805:web:b5e882cf4d3253107bd48c",
+  measurementId: "G-3GR3S7J9M1"
 };
 
 const app = initializeApp(firebaseConfig);
