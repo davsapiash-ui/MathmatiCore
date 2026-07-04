@@ -139,6 +139,9 @@ export function TeacherDashboard() {
   const basicSubtractionGroup = allStudents.filter(
     (s) => s.qMatrixResults.task6_subtraction_regrouping && s.qMatrixResults.task6_subtraction_regrouping !== 'success',
   );
+  const missingSubtrahendGroup = allStudents.filter(
+    (s) => s.qMatrixResults.task7_missing_subtrahend && s.qMatrixResults.task7_missing_subtrahend !== 'success',
+  );
 
   const pendingRouteStudents = allStudents.filter(
     (s) => s.routeStatus === 'PENDING',
@@ -148,16 +151,12 @@ export function TeacherDashboard() {
 
   // Aggregate data for Chart
   const qMatrixData = useMemo(() => {
-    let t1s = 0,
-      t1f = 0,
-      t2s = 0,
-      t2f = 0,
-      t3s = 0,
-      t3f = 0,
-      t4s = 0,
-      t4f = 0,
-      t5s = 0,
-      t5f = 0;
+    let t1s = 0, t1f = 0,
+        t2s = 0, t2f = 0,
+        t3s = 0, t3f = 0,
+        t4s = 0, t4f = 0,
+        t5s = 0, t5f = 0,
+        t7s = 0, t7f = 0;
     
     allStudents.forEach((s) => {
       if (s.qMatrixResults.task1_zero_placeholder === 'success') t1s++;
@@ -173,8 +172,10 @@ export function TeacherDashboard() {
       else if (s.qMatrixResults.task4_basic_addition_fluency) t4f++;
 
       if (s.qMatrixResults.task6_subtraction_regrouping === 'success') t5s++;
-      else if (s.qMatrixResults.task6_subtraction_regrouping)
-        t5f++;
+      else if (s.qMatrixResults.task6_subtraction_regrouping) t5f++;
+
+      if (s.qMatrixResults.task7_missing_subtrahend === 'success') t7s++;
+      else if (s.qMatrixResults.task7_missing_subtrahend) t7f++;
     });
 
     return [
@@ -183,6 +184,7 @@ export function TeacherDashboard() {
       { name: "המרת עשרות", success: t1s, struggle: t1f },
       { name: "גמישות מחשבתית", success: t3s, struggle: t3f },
       { name: "אומדן", success: t2s, struggle: t2f },
+      { name: "משוואות", success: t7s, struggle: t7f },
     ];
   }, [allStudents]);
 
@@ -656,7 +658,7 @@ export function TeacherDashboard() {
                 </UdlButton>
               </AccessibleCard>
 
-              <AccessibleCard className="p-8 bg-ws-surface/80  backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] border border-ws-surface2  rounded-2xl relative overflow-hidden group md:col-span-2">
+              <AccessibleCard className="p-8 bg-ws-surface/80  backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] border border-ws-surface2  rounded-2xl relative overflow-hidden group">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-rose-500 to-pink-500"></div>
                 <div className="absolute inset-0 bg-gradient-to-br from-rose-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                 <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink ">
@@ -681,9 +683,40 @@ export function TeacherDashboard() {
                 <UdlButton
                   size="sm"
                   semanticColor="primary"
-                  className="mt-6 w-full md:w-auto px-10 shadow-lg shadow-rose-500/20 relative z-10 font-bold tracking-wide"
+                  className="mt-6 w-full shadow-lg shadow-rose-500/20 relative z-10 font-bold tracking-wide"
                 >
                   הקצה תרגול מותאם
+                </UdlButton>
+              </AccessibleCard>
+
+              <AccessibleCard className="p-8 bg-ws-surface/80  backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] border border-ws-surface2  rounded-2xl relative overflow-hidden group">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-500 to-orange-500"></div>
+                <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink ">
+                  הבנת מבנה המשוואה (מציאת נעלם)
+                </h3>
+                <p className="text-ws-soft  mb-6 text-base leading-relaxed relative z-10">
+                  תלמידים שהתקשו במציאת איבר חסר (מחסר או מחובר) (משימה 7).
+                </p>
+                <div className="relative z-10 rounded-xl overflow-hidden border border-ws-surface2  shadow-inner">
+                  <DataGrid
+                    columns={[
+                      { key: "name", header: "שם תלמיד" },
+                      { key: "errors", header: "סוג קושי" },
+                    ]}
+                    data={missingSubtrahendGroup.map((s) => ({
+                      id: s.studentId,
+                      name: s.name,
+                      errors: "קושי במציאת נעלם",
+                    }))}
+                  />
+                </div>
+                <UdlButton
+                  size="sm"
+                  semanticColor="primary"
+                  className="mt-6 w-full shadow-lg shadow-amber-500/20 relative z-10 font-bold tracking-wide"
+                >
+                  הקצה מודל מאזניים
                 </UdlButton>
               </AccessibleCard>
             </div>
@@ -866,6 +899,12 @@ export function TeacherDashboard() {
                                   <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">חיבור וחיסור</span>
                                   <span className={`font-semibold ${(s.qMatrixResults.task4_basic_addition_fluency && s.qMatrixResults.task4_basic_addition_fluency !== 'success') || (s.qMatrixResults.task6_subtraction_regrouping && s.qMatrixResults.task6_subtraction_regrouping !== 'success') ? 'text-red-500' : (s.qMatrixResults.task4_basic_addition_fluency === 'success' && s.qMatrixResults.task6_subtraction_regrouping === 'success') ? 'text-green-600' : 'text-slate-400'}`}>
                                     {(s.qMatrixResults.task4_basic_addition_fluency === null && s.qMatrixResults.task6_subtraction_regrouping === null) ? 'טרם נבדק' : ((s.qMatrixResults.task4_basic_addition_fluency && s.qMatrixResults.task4_basic_addition_fluency !== 'success') || (s.qMatrixResults.task6_subtraction_regrouping && s.qMatrixResults.task6_subtraction_regrouping !== 'success')) ? 'פער בעובדות יסוד' : 'שולט'}
+                                  </span>
+                                </div>
+                                <div className="bg-ws-bg p-3 rounded-xl border border-ws-surface2">
+                                  <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">חשיבה אלגברית</span>
+                                  <span className={`font-semibold ${s.qMatrixResults.task7_missing_subtrahend && s.qMatrixResults.task7_missing_subtrahend !== 'success' ? 'text-red-500' : s.qMatrixResults.task7_missing_subtrahend === 'success' ? 'text-green-600' : 'text-slate-400'}`}>
+                                    {s.qMatrixResults.task7_missing_subtrahend === null ? 'טרם נבדק' : s.qMatrixResults.task7_missing_subtrahend === 'success' ? 'שולט' : 'דרוש חיזוק'}
                                   </span>
                                 </div>
                               </div>
@@ -1081,8 +1120,8 @@ export function TeacherDashboard() {
                           <div>
                             <span className="font-semibold">בסיס עשרוני וחיבור</span>
                           </div>
-                          <div className={`text-sm font-bold ${student.qMatrixResults.task4_basic_addition_fluency === false ? 'text-red-500' : 'text-green-500'}`}>
-                            {student.qMatrixResults.task4_basic_addition_fluency === false ? 'נכשל' : 'תקין'}
+                          <div className={`text-sm font-bold ${(student.qMatrixResults.task4_basic_addition_fluency && student.qMatrixResults.task4_basic_addition_fluency !== 'success') ? 'text-red-500' : 'text-green-500'}`}>
+                            {(student.qMatrixResults.task4_basic_addition_fluency && student.qMatrixResults.task4_basic_addition_fluency !== 'success') ? 'נכשל' : 'תקין'}
                           </div>
                         </div>
                     </div>

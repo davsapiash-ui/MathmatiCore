@@ -2,7 +2,7 @@ export type TaskPhase = "primary" | "correction";
 export type CorrectionSubphase = "subtask" | "retry";
 
 /** Per-task diagnostic outcome map pushed to Firebase (taskId → correct / metric). */
-export type QMatrixResults = Record<string, boolean | number | undefined>;
+export type QMatrixResults = Record<string, string | null>;
 
 export interface BackwardDiagnosis {
   triggerOn: string;
@@ -30,7 +30,7 @@ export interface BackwardDiagnosis {
 
 export interface QMatrixTask {
   id: string;
-  type: "place_value_zero" | "number_line" | "flexible_decomp" | "vertical_addition" | "small_change";
+  type: "place_value_zero" | "number_line" | "flexible_decomp" | "vertical_addition" | "small_change" | "missing_element";
   isSubtraction?: boolean;
   titleHe: string;
   instructionHe: string;
@@ -199,6 +199,29 @@ export const TASKS: QMatrixTask[] = [
       graphicOrganizerASD: true,
     },
   },
+  {
+    id: "task7_missing_subtrahend",
+    type: "missing_element",
+    isSubtraction: true,
+    titleHe: "מציאת המחסר",
+    instructionHe: "השלימו את המספר החסר במשוואה כדי שהיא תהיה נכונה.",
+    numberA: 52,
+    correctAnswer: 18,
+    numberB: 34,
+    asdNumberA: 20,
+    asdCorrectAnswer: 6,
+    asdNumberB: 14,
+    backwardDiagnosis: {
+      triggerOn: "wrong_answer",
+      probeA: 10,
+      probeAnswer: 3,
+      probeB: 7,
+      asdProbeA: 5,
+      asdProbeAnswer: 2,
+      asdProbeB: 3,
+      probeInstructionHe: "בואו ננסה משוואה קטנה יותר: כמה צריך לחסר מ-10 כדי לקבל 7?",
+    }
+  }
 ];
 
 export class QMatrixEvaluator {
@@ -331,5 +354,22 @@ export class QMatrixEvaluator {
       return { correct, isFlexibilityTrap, detail: correct ? "" : "wrong_subtask_choice", triggerBackward: false };
     }
     return { correct, isFlexibilityTrap, detail: correct ? "" : isFlexibilityTrap ? "flexibility_trap" : "wrong_choice", triggerBackward: !correct };
+  }
+
+  static evaluateQ7(
+    task: QMatrixTask,
+    inputValue: number,
+    phase: TaskPhase,
+    subphase: CorrectionSubphase,
+    isASD: boolean
+  ) {
+    if (phase === "correction" && subphase === "subtask") {
+      const correctTarget = isASD ? task.backwardDiagnosis?.asdProbeAnswer : task.backwardDiagnosis?.probeAnswer;
+      const correct = inputValue === correctTarget;
+      return { correct, detail: correct ? "" : "wrong_subtask_answer", triggerBackward: false };
+    }
+    const correctTarget = isASD ? task.asdCorrectAnswer : task.correctAnswer;
+    const correct = inputValue === correctTarget;
+    return { correct, detail: correct ? "" : "wrong_answer", triggerBackward: !correct };
   }
 }

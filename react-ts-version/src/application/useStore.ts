@@ -8,6 +8,7 @@ export interface QMatrix {
   task4_basic_addition_fluency: string | null;
   task5_small_change: string | null;
   task6_subtraction_regrouping: string | null;
+  task7_missing_subtrahend: string | null;
 }
 
 export interface TraceData {
@@ -67,6 +68,7 @@ const generateInitialStudents = (): Record<string, StudentData> => {
         task4_basic_addition_fluency: null,
         task5_small_change: null,
         task6_subtraction_regrouping: null,
+        task7_missing_subtrahend: null,
       },
       traceData: { hesitation_events: 0, undo_clicks: 0 },
       routeRecommendation: null,
@@ -103,6 +105,7 @@ export const useStore = create<AppState>()(
                 task4_basic_addition_fluency: null,
                 task5_small_change: null,
                 task6_subtraction_regrouping: null,
+                task7_missing_subtrahend: null,
               },
               traceData: { hesitation_events: 0, undo_clicks: 0 },
               routeRecommendation: null,

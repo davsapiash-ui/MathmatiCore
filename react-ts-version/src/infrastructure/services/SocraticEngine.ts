@@ -65,6 +65,16 @@ export class SocraticEngine {
       isYellowPath = true;
     }
 
+    if (qMatrix.task7_missing_subtrahend === 'algebraic_concept_deficit') {
+      diagnosisParts.push("חולשה מהותית בתפיסה האלגברית ובהבנת משוואות כמאזניים (חסר הבנה של 'מציאת המחסר').");
+      actionParts.push("שימוש במאזניים מוחשיים ותרגול מציאת נעלם פשוט בתחום ה-10.");
+      isYellowPath = true;
+    } else if (qMatrix.task7_missing_subtrahend === 'computational_fluency_deficit') {
+      diagnosisParts.push("התלמיד מבין את קונספט המשוואה במעוף הדבורה, אך השגיאה בתרגיל הראשוני נובעת מקשיי פריטה או שטף חישובי.");
+      actionParts.push("תרגול משוואות במספרים שאינם דורשים פריטה, בשילוב תרגול חיסור עם פריטה בנפרד.");
+      isYellowPath = true;
+    }
+
     let clinicalDiagnosisHe = "טרם נאספו מספיק אינדיקציות קליניות.";
     let actionPlanHe = "מומלץ להמשיך בתהליך הלימודים כסדרו.";
 

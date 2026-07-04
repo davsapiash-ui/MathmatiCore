@@ -33,12 +33,6 @@ const EFFORT_FEEDBACK: Record<number, { emoji: string; text: string; sub: string
   4: { emoji: '🚀', text: 'עבודה מדהימה! אתם מתמטיקאים אמיתיים!', sub: 'מאמץ כזה בונה הבנה עמוקה. אנחנו גאים בכם!' },
 };
 
-/** deviationPct extraction for q2 (vanilla getPct in reflection.html). */
-function getDeviationPct(result: { detail?: string } | undefined): number {
-  const match = result?.detail?.match(/deviation_(\d+)pct/);
-  return match ? parseInt(match[1], 10) / 100 : 0;
-}
-
 export function ReflectionScreen() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
@@ -84,6 +78,7 @@ export function ReflectionScreen() {
           task4_basic_addition_fluency: getTag(r['task4_basic_addition_fluency']),
           task5_small_change: getTag(r['q5_small_change']),
           task6_subtraction_regrouping: getTag(r['task6_subtraction_regrouping']),
+          task7_missing_subtrahend: getTag(r['task7_missing_subtrahend']),
       };
 
       set(ref(database, `qMatrixResults/${username}`), {

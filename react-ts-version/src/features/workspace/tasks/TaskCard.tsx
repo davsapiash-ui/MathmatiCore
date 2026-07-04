@@ -5,6 +5,7 @@ import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 import { IntroTask } from './IntroTask';
 import { ChoiceList } from './ChoiceList';
 import { VerticalAdditionTask } from './VerticalAdditionTask';
+import { MissingElementTask } from './MissingElementTask';
 import { NumberLineTask } from './NumberLineTask';
 import { FlexibleDecompTask } from './FlexibleDecompTask';
 import { SmallChangeTask } from './SmallChangeTask';
@@ -133,6 +134,15 @@ export function TaskCard() {
 
                 {qTask.type === 'small_change' && (
                   <SmallChangeTask givenHe={qTask.givenHe ?? ''} questionHe={qTask.questionHe ?? ''} choices={qTask.choices ?? []} />
+                )}
+
+                {qTask.type === 'missing_element' && (
+                  <MissingElementTask
+                    instructionHe={qTask.instructionHe}
+                    numberA={isASD && qTask.asdNumberA !== undefined ? qTask.asdNumberA : qTask.numberA!}
+                    numberB={isASD && qTask.asdNumberB !== undefined ? qTask.asdNumberB : qTask.numberB!}
+                    isSubtraction={qTask.isSubtraction}
+                  />
                 )}
               </>
             )}
