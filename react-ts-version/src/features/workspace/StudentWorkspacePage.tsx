@@ -17,6 +17,7 @@ import { useWorkspaceStore, type SessionNumber } from '@/application/useWorkspac
 import { useSettingsStore } from '@/application/useSettingsStore';
 import { getCurrentQTask, isSubtaskActive } from '@/core/qmatrixFlow';
 import { PlaceValueBoard } from './board/PlaceValueBoard';
+import { VideoIntroModal } from './overlays/VideoIntroModal';
 import { DienesBlock } from './board/DienesBlock';
 import { WorkspaceTopbar } from './WorkspaceTopbar';
 import { TaskCard } from './tasks/TaskCard';
@@ -103,7 +104,7 @@ export function StudentWorkspacePage() {
     let flushInterval: any;
 
     import('@/application/useAuthStore').then(({ useAuthStore }) => {
-      const uid = useAuthStore.getState().user?.id || 'anonymous_student';
+      const uid = useAuthStore.getState().user?.uid || 'anonymous_student';
       import('firebase/database').then(({ ref, push }) => {
         import('@/infrastructure/firebase').then(({ database }) => {
           import('rrweb').then((rrweb) => {
@@ -139,6 +140,13 @@ export function StudentWorkspacePage() {
 
   const [isInitializing, setIsInitializing] = useState(meeting === 3);
   const [pendingApproval, setPendingApproval] = useState(false);
+
+  const [isVideoIntroOpen, setIsVideoIntroOpen] = useState(() => {
+    if (sessionNumber === 1) {
+      return !localStorage.getItem('hide_sandbox_intro_video');
+    }
+    return false;
+  });
 
   useEffect(() => {
     if (meeting === 3) {
@@ -234,10 +242,15 @@ export function StudentWorkspacePage() {
   return (
     <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div
-        dir="rtl"
-        className="h-screen w-full overflow-hidden font-body text-ws-ink flex flex-col relative bg-ws-bg"
-      >
-        {/* Flat vector background shapes — playful world energy, zero visual noise */}
+      dir="rtl"
+      className="h-screen w-full overflow-hidden font-body text-ws-ink flex flex-col relative bg-ws-bg"
+    >
+      <VideoIntroModal
+        isOpen={isVideoIntroOpen}
+        onClose={() => setIsVideoIntroOpen(false)}
+      />
+
+      {/* Flat vector background shapes — playful world energy, zero visual noise */}
         <div aria-hidden="true" className="absolute inset-0 pointer-events-none overflow-hidden">
           <div className="absolute -top-24 -left-24 w-[420px] h-[420px] rounded-full" style={{ backgroundColor: 'hsl(var(--ws-blue) / 0.05)' }} />
           <div className="absolute -bottom-32 -right-20 w-[380px] h-[380px] rounded-full" style={{ backgroundColor: 'hsl(var(--ws-teal) / 0.06)' }} />

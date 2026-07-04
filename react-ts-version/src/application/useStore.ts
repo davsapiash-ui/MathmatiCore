@@ -57,7 +57,7 @@ const generateInitialStudents = (): Record<string, StudentData> => {
     students[id] = {
       studentId: id,
       classId: 'class_1',
-      name: `משתמש ${i}`,
+      name: `user${i}`,
       completedMeeting2: false, // Default
       qMatrixResults: {
         task1_zero_placeholder: null,
@@ -72,18 +72,7 @@ const generateInitialStudents = (): Record<string, StudentData> => {
     };
   }
   
-  // Give some random mock problems to user1 and user2 so the teacher dashboard is populated initially
-  if (students['student_user1']) {
-    students['student_user1'].qMatrixResults.task4_basic_addition_fluency = false;
-    students['student_user1'].traceData.hesitation_events = 5;
-    students['student_user1'].completedMeeting2 = true;
-    students['student_user1'].routeRecommendation = 'YELLOW';
-    students['student_user1'].routeStatus = 'PENDING';
-  }
-  if (students['student_user2']) {
-    students['student_user2'].qMatrixResults.task3_flexible_regrouping = false;
-    students['student_user2'].traceData.undo_clicks = 8;
-  }
+  // Give some random mock problems to user3 so the teacher dashboard is populated initially (but no trace data for radar)
   if (students['student_user3']) {
     students['student_user3'].qMatrixResults.task1_zero_placeholder = false;
   }
@@ -238,7 +227,7 @@ export const useStore = create<AppState>()(
       })
     }),
     {
-      name: 'main-store-v3',
+      name: 'main-store-v6',
       merge: (persistedState: any, currentState) => {
         if (!persistedState) return currentState;
         

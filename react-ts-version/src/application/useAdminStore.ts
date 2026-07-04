@@ -47,7 +47,6 @@ interface AdminState {
 }
 
 const INITIAL_SCHOOL_ID = 'school_bikorot';
-const INITIAL_TEACHER_ID = 'teacher_levana';
 const INITIAL_CLASS_ID = 'class_1';
 
 export const useAdminStore = create<AdminState>()(
@@ -57,15 +56,6 @@ export const useAdminStore = create<AdminState>()(
         { id: INITIAL_SCHOOL_ID, name: 'ביקורת', createdAt: Date.now() }
       ],
       teachers: [
-        { 
-          id: INITIAL_TEACHER_ID, 
-          schoolId: INITIAL_SCHOOL_ID, 
-          name: 'לבנה', 
-          taz: '123456789', 
-          dob: '010180', 
-          licenseActive: true, 
-          createdAt: Date.now() 
-        },
         { 
           id: 'teacher_david', 
           schoolId: INITIAL_SCHOOL_ID, 
@@ -80,7 +70,7 @@ export const useAdminStore = create<AdminState>()(
         { 
           id: INITIAL_CLASS_ID, 
           schoolId: INITIAL_SCHOOL_ID, 
-          teacherId: INITIAL_TEACHER_ID, 
+          teacherId: 'teacher_david', 
           name: 'כיתה 1', 
           studentLimit: 35, 
           createdAt: Date.now() 
@@ -155,7 +145,7 @@ export const useAdminStore = create<AdminState>()(
       }),
     }),
     {
-      name: "admin-storage-v3",
+      name: "admin-storage-v4",
       merge: (persistedState: any, currentState) => {
         if (!persistedState) return currentState;
         

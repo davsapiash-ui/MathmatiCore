@@ -1,75 +1,48 @@
+import { useStore } from '@/application/useStore';
+import { useAdminStore } from '@/application/useAdminStore';
+import { ShieldCheck, Users, Search } from 'lucide-react';
 import { useState } from 'react';
-import { UdlButton } from '@/presentation/design-system/UdlButton';
-import { Users, UserPlus, MoreVertical, Search } from 'lucide-react';
 
 export function ClassManagement() {
-  const [students, setStudents] = useState([
-    { id: '1', name: 'אבי כהן', username: 'avi.c', level: 'מתקדם', lastActive: 'לפני שעתיים' },
-    { id: '2', name: 'שירה לוי', username: 'shira.l', level: 'בינוני', lastActive: 'אתמול' },
-  ]);
+  const students = useStore(s => s.students);
+  const classes = useAdminStore(s => s.classes);
+  const schools = useAdminStore(s => s.schools);
+  
+  // We're working with a single default school & class based on the strict hierarchy
+  const currentClass = classes[0];
+  const currentSchool = schools.find(s => s.id === currentClass?.schoolId);
+  
+  const allStudents = Object.values(students);
+  const [search, setSearch] = useState('');
 
-  const [isAdding, setIsAdding] = useState(false);
-  const [newStudentName, setNewStudentName] = useState('');
-
-  const handleAddStudent = () => {
-    if (!newStudentName.trim()) return;
-    
-    const newStudent = {
-      id: Date.now().toString(),
-      name: newStudentName,
-      username: newStudentName.toLowerCase().replace(' ', '.'),
-      level: 'מתחיל',
-      lastActive: 'טרם התחבר'
-    };
-    
-    setStudents([...students, newStudent]);
-    setNewStudentName('');
-    setIsAdding(false);
-  };
+  const filteredStudents = allStudents.filter(s => s.name.toLowerCase().includes(search.toLowerCase()));
 
   return (
     <div className="p-8 max-w-6xl mx-auto w-full animate-in fade-in duration-500">
       
       {/* Header */}
-      <div className="flex justify-between items-end mb-8">
-        <div>
-          <h1 className="text-3xl font-black text-slate-800 dark:text-slate-100 flex items-center gap-3 mb-2">
-            <Users className="w-8 h-8 text-indigo-500" />
-            ניהול כיתה
-          </h1>
-          <p className="text-slate-500 dark:text-slate-400">
-            כאן תוכל להקים תלמידים חדשים, לנהל את הסיסמאות שלהם ולעקוב אחרי החיבור האחרון.
-          </p>
+      <div className="mb-8">
+        <h1 className="text-3xl font-black text-slate-800 dark:text-slate-100 flex items-center gap-3 mb-2">
+          <Users className="w-8 h-8 text-indigo-500" />
+          ניהול כיתה
+        </h1>
+        <div className="flex items-center gap-2 text-slate-600 font-medium">
+          <span className="bg-slate-200 px-3 py-1 rounded-md">{currentSchool?.name || 'ביקורת'}</span>
+          <span>&gt;</span>
+          <span className="bg-slate-200 px-3 py-1 rounded-md">{currentClass?.name || 'כיתה 1'}</span>
         </div>
-        
-        <UdlButton 
-          semanticColor="primary" 
-          className="gap-2 font-bold shadow-lg shadow-indigo-500/20"
-          onClick={() => setIsAdding(true)}
-        >
-          <UserPlus className="w-5 h-5" />
-          הקמת תלמיד חדש
-        </UdlButton>
       </div>
 
-      {/* Add Student Quick Form */}
-      {isAdding && (
-        <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-2xl p-6 mb-8 flex gap-4 items-end animate-in slide-in-from-top-4">
-          <div className="flex-1">
-            <label className="block text-sm font-bold text-indigo-900 dark:text-indigo-200 mb-2">שם התלמיד המלא</label>
-            <input 
-              type="text" 
-              value={newStudentName}
-              onChange={(e) => setNewStudentName(e.target.value)}
-              className="w-full bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              placeholder="לדוגמה: דניאל שלום"
-              autoFocus
-            />
-          </div>
-          <UdlButton onClick={handleAddStudent} semanticColor="primary" className="h-12 px-8">שמור תלמיד</UdlButton>
-          <UdlButton onClick={() => setIsAdding(false)} variant="outline" className="h-12 border-indigo-200 text-indigo-700 hover:bg-indigo-100 dark:border-indigo-700 dark:text-indigo-300">ביטול</UdlButton>
+      <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl mb-6 flex gap-4 items-start shadow-sm">
+        <ShieldCheck className="text-amber-600 w-6 h-6 shrink-0 mt-1" />
+        <div>
+          <h3 className="font-bold text-amber-900">הנחיית פרטיות ואבטחת מידע</h3>
+          <p className="text-sm text-amber-800 mt-1">
+            מטעמי פרטיות והנחיות המערכת, שמות התלמידים מיוצגים במערכת באופן אנונימי כ-<code>user1</code> עד <code>user30</code>.
+            שיוך הזיהוי האנונימי לשם התלמיד האמיתי ייעשה אך ורק באמצעות הקובץ השמי המאובטח (Secure List) המנוהל חיצונית על ידי המורה ומנהל המערכת.
+          </p>
         </div>
-      )}
+      </div>
 
       {/* Roster Table */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-sm overflow-hidden">
@@ -80,55 +53,60 @@ export function ClassManagement() {
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
             <input 
               type="text" 
-              placeholder="חיפוש תלמיד..." 
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="חיפוש לפי קוד משתמש (לדוגמה: user5)" 
               className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl pr-10 pl-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
+          <div className="flex items-center px-4 bg-indigo-50 text-indigo-700 font-bold rounded-xl text-sm border border-indigo-100">
+            סה"כ תלמידים: {allStudents.length}
+          </div>
         </div>
 
-        <table className="w-full text-right">
-          <thead>
-            <tr className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 text-sm">
-              <th className="py-4 px-6 font-medium">שם התלמיד</th>
-              <th className="py-4 px-6 font-medium">שם משתמש (להתחברות)</th>
-              <th className="py-4 px-6 font-medium">רמה פדגוגית</th>
-              <th className="py-4 px-6 font-medium">חיבור אחרון</th>
-              <th className="py-4 px-6 font-medium w-16"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-            {students.map(student => (
-              <tr key={student.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/30 transition-colors">
-                <td className="py-4 px-6 font-bold text-slate-800 dark:text-slate-200">
-                  {student.name}
-                </td>
-                <td className="py-4 px-6 font-mono text-sm text-slate-600 dark:text-slate-400">
-                  {student.username}
-                </td>
-                <td className="py-4 px-6">
-                  <span className="bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 text-xs font-bold px-3 py-1 rounded-full">
-                    {student.level}
-                  </span>
-                </td>
-                <td className="py-4 px-6 text-sm text-slate-500 dark:text-slate-500">
-                  {student.lastActive}
-                </td>
-                <td className="py-4 px-6 text-center">
-                  <button className="text-slate-400 hover:text-indigo-600 transition-colors">
-                    <MoreVertical className="w-5 h-5" />
-                  </button>
-                </td>
+        <div className="max-h-[60vh] overflow-y-auto">
+          <table className="w-full text-right relative">
+            <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800/90 backdrop-blur-md z-10 shadow-sm">
+              <tr className="text-slate-500 dark:text-slate-400 text-sm">
+                <th className="py-4 px-6 font-medium">קוד זיהוי (מערכת)</th>
+                <th className="py-4 px-6 font-medium">סטטוס שלב ב' (אבחון)</th>
+                <th className="py-4 px-6 font-medium">המלצת מסלול אדפטיבי</th>
               </tr>
-            ))}
-            {students.length === 0 && (
-              <tr>
-                <td colSpan={5} className="py-12 text-center text-slate-500">
-                  אין תלמידים בכיתה עדיין. לחץ על "הקמת תלמיד חדש".
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {filteredStudents.map(student => (
+                <tr key={student.studentId} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/30 transition-colors">
+                  <td className="py-4 px-6 font-bold text-slate-800 dark:text-slate-200 text-lg font-mono">
+                    {student.name}
+                  </td>
+                  <td className="py-4 px-6">
+                    {student.completedMeeting2 ? (
+                      <span className="bg-green-100 text-green-700 text-xs font-bold px-3 py-1 rounded-full">סיים מפגש 2</span>
+                    ) : (
+                      <span className="bg-slate-100 text-slate-500 text-xs font-bold px-3 py-1 rounded-full">טרם סיים</span>
+                    )}
+                  </td>
+                  <td className="py-4 px-6 text-sm">
+                    {student.routeStatus === 'APPROVED' ? (
+                      <span className="text-indigo-600 font-bold bg-indigo-50 px-3 py-1 rounded-full">אושר: {student.routeRecommendation}</span>
+                    ) : student.routeStatus === 'PENDING' ? (
+                      <span className="text-amber-600 font-bold bg-amber-50 px-3 py-1 rounded-full">ממתין לאישור מורה</span>
+                    ) : (
+                      <span className="text-slate-400">אין המלצה</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {filteredStudents.length === 0 && (
+                <tr>
+                  <td colSpan={3} className="py-12 text-center text-slate-500">
+                    לא נמצאו תלמידים.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
     </div>

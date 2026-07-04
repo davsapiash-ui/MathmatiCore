@@ -49,7 +49,7 @@ export const useChatStore = create<ChatState>()(
       },
     }),
     {
-      name: "chat-storage-v2",
+      name: "chat-storage-v3",
     }
   )
 );

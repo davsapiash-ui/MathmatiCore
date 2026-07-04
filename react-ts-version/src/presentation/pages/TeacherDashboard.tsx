@@ -5,7 +5,7 @@ import { DataGrid } from "@/presentation/design-system/DataGrid";
 import { useAuthStore } from "@/application/useAuthStore";
 import { useChatStore } from "@/application/useChatStore";
 import { useStore } from "@/application/useStore";
-import { ref, onValue } from "firebase/database";
+import { ref, onValue, remove } from "firebase/database";
 import { database } from "@/infrastructure/firebase";
 import {
   BarChart,
@@ -159,7 +159,7 @@ export function TeacherDashboard() {
           studentId: s.name,
           rawStudentId: s.studentId,
           type: "HESITATION",
-          taskId: "משימה פעילה",
+          taskId: "פעילות נוכחית",
           timestamp: Date.now(),
           unread: true,
         });
@@ -170,7 +170,7 @@ export function TeacherDashboard() {
           studentId: s.name,
           rawStudentId: s.studentId,
           type: "UNDO_SPAM",
-          taskId: "משימה פעילה",
+          taskId: "פעילות נוכחית",
           timestamp: Date.now(),
           unread: true,
         });
@@ -199,8 +199,19 @@ export function TeacherDashboard() {
   }, []);
 
   const allAlerts = useMemo(() => {
-    return [...alerts, ...firebaseAlerts].sort((a, b) => b.timestamp - a.timestamp);
+    // Only show firebase alerts from the last 12 hours
+    const twelveHoursAgo = Date.now() - 12 * 60 * 60 * 1000;
+    const recentFirebaseAlerts = firebaseAlerts.filter(a => a.timestamp > twelveHoursAgo);
+    return [...alerts, ...recentFirebaseAlerts].sort((a, b) => b.timestamp - a.timestamp);
   }, [alerts, firebaseAlerts]);
+
+  const handleMarkAsRead = (alert: any) => {
+    if (alert.firebaseKey?.startsWith('hesitation-') || alert.firebaseKey?.startsWith('undo-')) {
+      resetTraceData(alert.rawStudentId);
+    } else if (alert.firebaseKey) {
+      remove(ref(database, `radar_alerts/${alert.firebaseKey}`));
+    }
+  };
 
   const handleTabChange = (
     tab:
@@ -707,7 +718,7 @@ export function TeacherDashboard() {
                         size="sm"
                         variant="outline"
                         className="bg-white/50  backdrop-blur-sm border-ws-surface2  hover:bg-ws-bg "
-                        onClick={() => resetTraceData(alert.rawStudentId)}
+                        onClick={() => handleMarkAsRead(alert)}
                       >
                         סמן כנקרא
                       </UdlButton>
@@ -716,6 +727,12 @@ export function TeacherDashboard() {
                 ))
               )}
             </div>
+          </div>
+        )}
+
+        {activeTab === "class_management" && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <ClassManagement />
           </div>
         )}
 

@@ -28,7 +28,7 @@ export const useAuthStore = create<AuthState>()(
       }),
     }),
     {
-      name: "auth-storage-v2", // name of item in the storage (must be unique)
+      name: "auth-storage-v3", // name of item in the storage (must be unique)
     }
   )
 );
