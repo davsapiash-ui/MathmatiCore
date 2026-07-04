@@ -71,12 +71,6 @@ const generateInitialStudents = (): Record<string, StudentData> => {
       routeStatus: null
     };
   }
-  
-  // Give some random mock problems to user3 so the teacher dashboard is populated initially (but no trace data for radar)
-  if (students['student_user3']) {
-    students['student_user3'].qMatrixResults.task1_zero_placeholder = false;
-  }
-
   return students;
 };
 
@@ -227,7 +221,7 @@ export const useStore = create<AppState>()(
       })
     }),
     {
-      name: 'main-store-v6',
+      name: 'main-store-v7',
       merge: (persistedState: any, currentState) => {
         if (!persistedState) return currentState;
         
