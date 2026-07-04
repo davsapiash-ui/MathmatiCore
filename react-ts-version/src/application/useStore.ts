@@ -238,7 +238,7 @@ export const useStore = create<AppState>()(
       })
     }),
     {
-      name: 'main-store-v2',
+      name: 'main-store-v3',
       merge: (persistedState: any, currentState) => {
         if (!persistedState) return currentState;
         

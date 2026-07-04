@@ -1,6 +1,8 @@
 import { useEffect, useState, useRef } from 'react';
 import { useChatStore } from '@/application/useChatStore';
 import { useAuthStore } from '@/application/useAuthStore';
+import { useStore } from '@/application/useStore';
+import { useAdminStore } from '@/application/useAdminStore';
 
 export function StudentChatOverlay() {
   const [isOpen, setIsOpen] = useState(false);
@@ -8,6 +10,14 @@ export function StudentChatOverlay() {
   const { messages, sendMessage, markAsRead } = useChatStore();
   const user = useAuthStore(s => s.user);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const students = useStore(s => s.students);
+  const classes = useAdminStore(s => s.classes);
+  
+  const studentData = user?.id ? students[user.id] : null;
+  const studentClass = classes.find(c => c.id === studentData?.classId);
+  // Default to teacher_levana if no class found (fallback)
+  const targetTeacherId = studentClass?.teacherId || 'teacher_levana';
 
   useEffect(() => {
     const handler = () => setIsOpen(open => !open);
@@ -17,9 +27,9 @@ export function StudentChatOverlay() {
 
   useEffect(() => {
     if (isOpen && user?.id) {
-      markAsRead(user.id, 'teacher_1'); // MOCK teacher ID
+      markAsRead(user.id, targetTeacherId); 
     }
-  }, [isOpen, messages, user, markAsRead]);
+  }, [isOpen, messages, user, markAsRead, targetTeacherId]);
 
   useEffect(() => {
     if (isOpen) {
@@ -30,13 +40,13 @@ export function StudentChatOverlay() {
   if (!isOpen || !user) return null;
 
   const myMessages = messages.filter(m => 
-    (m.senderId === user.id && m.receiverId === 'teacher_1') || 
-    (m.senderId === 'teacher_1' && m.receiverId === user.id)
+    (m.senderId === user.id && m.receiverId === targetTeacherId) || 
+    (m.senderId === targetTeacherId && m.receiverId === user.id)
   );
 
   const handleSend = () => {
     if (!text.trim()) return;
-    sendMessage(user.id, user.displayName || user.email?.split('@')[0] || 'תלמיד', 'teacher_1', text);
+    sendMessage(user.id, user.displayName || user.email?.split('@')[0] || 'תלמיד', targetTeacherId, text);
     setText('');
   };
 

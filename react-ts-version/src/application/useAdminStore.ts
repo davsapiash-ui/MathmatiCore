@@ -155,7 +155,7 @@ export const useAdminStore = create<AdminState>()(
       }),
     }),
     {
-      name: "admin-storage-v2",
+      name: "admin-storage-v3",
       merge: (persistedState: any, currentState) => {
         if (!persistedState) return currentState;
         
