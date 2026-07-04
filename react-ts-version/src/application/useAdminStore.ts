@@ -65,6 +65,15 @@ export const useAdminStore = create<AdminState>()(
           dob: '010180', 
           licenseActive: true, 
           createdAt: Date.now() 
+        },
+        { 
+          id: 'teacher_david', 
+          schoolId: INITIAL_SCHOOL_ID, 
+          name: 'דוד', 
+          taz: '039604483', 
+          dob: '290984', 
+          licenseActive: true, 
+          createdAt: Date.now() 
         }
       ],
       classes: [
@@ -147,6 +156,32 @@ export const useAdminStore = create<AdminState>()(
     }),
     {
       name: "admin-storage-v2",
+      merge: (persistedState: any, currentState) => {
+        if (!persistedState) return currentState;
+        
+        // Deep merge to ensure our code-defined default teachers always exist,
+        // even if the user has an old local storage without them.
+        const mergedTeachers = [...(persistedState.teachers || [])];
+        currentState.teachers.forEach(defaultTeacher => {
+          if (!mergedTeachers.find(t => t.id === defaultTeacher.id)) {
+            mergedTeachers.push(defaultTeacher);
+          }
+        });
+
+        const mergedSchools = [...(persistedState.schools || [])];
+        currentState.schools.forEach(defaultSchool => {
+          if (!mergedSchools.find(s => s.id === defaultSchool.id)) {
+            mergedSchools.push(defaultSchool);
+          }
+        });
+
+        return {
+          ...currentState,
+          ...persistedState,
+          teachers: mergedTeachers,
+          schools: mergedSchools
+        };
+      }
     }
   )
 );
