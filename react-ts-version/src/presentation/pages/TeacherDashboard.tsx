@@ -899,8 +899,8 @@ export function TeacherDashboard() {
                                   <p className="text-sm text-slate-700 leading-relaxed mb-4">
                                     התלמיד חווה <strong className="text-orange-600">{s.traceData.hesitation_events}</strong> אירועי היסוס המעידים על מאבק קוגניטיבי, וביצע <strong className="text-red-600">{s.traceData.undo_clicks}</strong> מחיקות או חזרות. 
                                     ניתוח הפעולות בוידאו יחד עם מטריצת המיומנויות (Q-Matrix) מצביע על כך ש
-                                    {s.qMatrixResults.task3_flexible_regrouping === false ? ' קיים פער מהותי בגמישות מחשבתית ובפירוק שאינו קנוני.' : ' קיימת הבנה טובה של גמישות מחשבתית.'}
-                                    {s.qMatrixResults.task1_zero_placeholder === false ? ' כמו כן, נצפה חוסר הבנה בתפקיד האפס כשומר מקום.' : ''}
+                                    {s.qMatrixResults.task3_flexible_regrouping === false ? ' קיים פער מהותי בגמישות מחשבתית ובפירוק שאינו קנוני.' : s.qMatrixResults.task3_flexible_regrouping === true ? ' קיימת הבנה טובה של גמישות מחשבתית.' : ' טרם נאספו מספיק נתונים לקביעת רמת הגמישות המחשבתית.'}
+                                    {s.qMatrixResults.task1_zero_placeholder === false ? ' כמו כן, נצפה חוסר הבנה בתפקיד האפס כשומר מקום.' : s.qMatrixResults.task1_zero_placeholder === true ? ' התלמיד שולט בתפקיד האפס במערכת העשרונית.' : ''}
                                   </p>
                                 </div>
 
