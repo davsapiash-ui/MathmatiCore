@@ -48,7 +48,16 @@ export function Login() {
         await signInWithEmailAndPassword(auth, virtualEmail, virtualPass);
       } catch (err: any) {
         if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential' || err.code === 'auth/invalid-login-credentials') {
-          await createUserWithEmailAndPassword(auth, virtualEmail, virtualPass);
+          try {
+            await createUserWithEmailAndPassword(auth, virtualEmail, virtualPass);
+          } catch (createErr: any) {
+            if (createErr.code === 'auth/email-already-in-use') {
+              // Should not happen if signIn failed with user-not-found, but just in case
+              await signInWithEmailAndPassword(auth, virtualEmail, virtualPass);
+            } else {
+              throw createErr;
+            }
+          }
         } else {
           throw err;
         }
@@ -77,8 +86,8 @@ export function Login() {
           }, "student");
           login("student", studentId);
           navigate("/hub", { replace: true });
-        } catch (err) {
-          setErrorMsg("שגיאת התחברות למסד הנתונים.");
+        } catch (err: any) {
+          setErrorMsg(`שגיאה: ${err.message || err.code || "שגיאת התחברות למסד הנתונים."}`);
           setIsLoggingIn(false);
         }
       } else {
@@ -120,8 +129,8 @@ export function Login() {
           }, "teacher");
           login("teacher", teacher.id);
           navigate("/dashboard", { replace: true });
-        } catch (err) {
-          setErrorMsg("שגיאת התחברות למסד הנתונים.");
+        } catch (err: any) {
+          setErrorMsg(`שגיאה: ${err.message || err.code || "שגיאת התחברות למסד הנתונים."}`);
           setIsLoggingIn(false);
         }
       } else {
