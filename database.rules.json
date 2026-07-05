@@ -16,7 +16,7 @@
         "routeStatus": { ".validate": "newData.isString() || !newData.exists()" },
         
         "qMatrixResults": {
-          ".validate": "newData.hasChildren(['task1_zero_placeholder', 'task2_estimation_error_margin', 'task3_flexible_regrouping', 'task4_basic_addition_fluency', 'task5_small_change', 'task6_subtraction_regrouping', 'task7_missing_subtrahend', 'task8_missing_addend'])"
+          "$taskName": { ".validate": "newData.isString()" }
         },
         
         "traceData": {

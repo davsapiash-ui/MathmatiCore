@@ -80,9 +80,10 @@ export function ReflectionScreen() {
           task2_estimation_error_margin: getTag(r['task2_estimation_error_margin']),
           task3_flexible_regrouping: getTag(r['task3_flexible_regrouping']),
           task4_basic_addition_fluency: getTag(r['task4_basic_addition_fluency']),
-          task5_small_change: getTag(r['q5_small_change']),
+          task5_small_change: getTag(r['q5_small_change']) || getTag(r['task5_small_change']),
           task6_subtraction_regrouping: getTag(r['task6_subtraction_regrouping']),
           task7_missing_subtrahend: getTag(r['task7_missing_subtrahend']),
+          task8_missing_addend: getTag(r['task8_missing_addend']),
       };
 
       update(ref(database, `users/students/${username}`), {
