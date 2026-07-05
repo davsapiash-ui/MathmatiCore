@@ -1,10 +1,11 @@
-import { useStore } from '@/application/useStore';
 import { useAdminStore } from '@/application/useAdminStore';
-import { ShieldCheck, Users, Search } from 'lucide-react';
+import { ShieldCheck, Users, Search, RotateCcw } from 'lucide-react';
 import { useState } from 'react';
+import type { StudentData } from '@/application/useStore';
+import { database } from '@/infrastructure/firebase';
+import { ref, remove } from 'firebase/database';
 
-export function ClassManagement() {
-  const students = useStore(s => s.students);
+export function ClassManagement({ allStudents }: { allStudents: StudentData[] }) {
   const classes = useAdminStore(s => s.classes);
   const schools = useAdminStore(s => s.schools);
   
@@ -12,10 +13,23 @@ export function ClassManagement() {
   const currentClass = classes[0];
   const currentSchool = schools.find(s => s.id === currentClass?.schoolId);
   
-  const allStudents = Object.values(students);
   const [search, setSearch] = useState('');
 
   const filteredStudents = allStudents.filter(s => s.name.toLowerCase().includes(search.toLowerCase()));
+
+  const handleResetStudent = async (studentId: string) => {
+    if (!window.confirm(`האם אתה בטוח שברצונך לאפס את כל ההתקדמות והנתונים של תלמיד ${studentId}? לא ניתן לבטל פעולה זו.`)) return;
+    
+    try {
+      await remove(ref(database, `workspaceState/${studentId}`));
+      await remove(ref(database, `qMatrixResults/${studentId}`));
+      await remove(ref(database, `replays/${studentId}`)); // optional
+      alert('הנתונים אופסו בהצלחה.');
+    } catch (err) {
+      console.error(err);
+      alert('שגיאה באיפוס נתונים.');
+    }
+  };
 
   return (
     <div className="p-8 max-w-6xl mx-auto w-full animate-in fade-in duration-500">
@@ -71,6 +85,7 @@ export function ClassManagement() {
                 <th className="py-4 px-6 font-medium">קוד זיהוי (מערכת)</th>
                 <th className="py-4 px-6 font-medium">סטטוס שלב ב' (אבחון)</th>
                 <th className="py-4 px-6 font-medium">המלצת מסלול אדפטיבי</th>
+                <th className="py-4 px-6 font-medium text-left">פעולות</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -95,11 +110,21 @@ export function ClassManagement() {
                       <span className="text-slate-400">אין המלצה</span>
                     )}
                   </td>
+                  <td className="py-4 px-6 text-left">
+                    <button
+                      onClick={() => handleResetStudent(student.studentId)}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 text-xs font-bold rounded-md transition-colors border border-red-100"
+                      title="איפוס כל נתוני התלמיד והתחלה מחדש"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      איפוס
+                    </button>
+                  </td>
                 </tr>
               ))}
               {filteredStudents.length === 0 && (
                 <tr>
-                  <td colSpan={3} className="py-12 text-center text-slate-500">
+                  <td colSpan={4} className="py-12 text-center text-slate-500">
                     לא נמצאו תלמידים.
                   </td>
                 </tr>

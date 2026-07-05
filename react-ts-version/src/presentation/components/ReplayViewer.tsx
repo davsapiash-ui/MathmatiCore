@@ -32,10 +32,11 @@ export function ReplayViewer({ events }: ReplayViewerProps) {
       }
     }
 
+    const el = playerRef.current;
     return () => {
       // Cleanup
-      if (playerRef.current) {
-        playerRef.current.innerHTML = "";
+      if (el) {
+        el.innerHTML = "";
       }
     };
   }, [events]);

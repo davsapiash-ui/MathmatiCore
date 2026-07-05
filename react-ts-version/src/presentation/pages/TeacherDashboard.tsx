@@ -990,7 +990,7 @@ export function TeacherDashboard() {
 
         {activeTab === "class_management" && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <ClassManagement />
+            <ClassManagement allStudents={allStudents} />
           </div>
         )}
 
@@ -1322,7 +1322,7 @@ export function TeacherDashboard() {
           </div>
         )}
 
-        {activeTab === "class_management" && <ClassManagement />}
+        {activeTab === "class_management" && <ClassManagement allStudents={allStudents} />}
 
         {/* ADMIN CHAT */}
         {activeTab === "chat_admin" && (

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { useAuthStore } from './useAuthStore';
 import { useNavigate } from 'react-router-dom';
 
@@ -9,7 +9,7 @@ export function useIdleTimeout() {
   const navigate = useNavigate();
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const resetTimeout = () => {
+  const resetTimeout = useCallback(() => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
@@ -21,7 +21,7 @@ export function useIdleTimeout() {
         // Optional: show a toast or alert that they were logged out due to inactivity
       }
     }, IDLE_TIMEOUT_MS);
-  };
+  }, [isAuthenticated, logout, navigate]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -48,5 +48,5 @@ export function useIdleTimeout() {
         window.removeEventListener(event, handleActivity);
       });
     };
-  }, [isAuthenticated, logout, navigate]);
+  }, [isAuthenticated, logout, navigate, resetTimeout]);
 }

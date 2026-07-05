@@ -155,7 +155,7 @@ export function Login() {
           }, "admin");
           login("admin", "admin-1");
           navigate("/admin", { replace: true });
-        } catch (err) {
+        } catch {
           setErrorMsg("שגיאת התחברות למסד הנתונים.");
           setIsLoggingIn(false);
         }

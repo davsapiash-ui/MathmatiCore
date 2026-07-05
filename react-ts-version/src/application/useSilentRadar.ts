@@ -75,11 +75,11 @@ export function useSilentRadar({ taskId, idleThresholdMs = 30000 }: RadarOptions
           timestamp: Date.now(),
           unread: true
         });
-      } catch (err) {
+      } catch {
         console.warn("Could not write passive cruising to Firebase.");
       }
     }
-  }, [resetTimer, studentId, taskId, undoCount, user?.displayName]);
+  }, [resetTimer, studentId, taskId, undoCount, user?.displayName, incrementUndo]);
 
   return {
     undoCount,
