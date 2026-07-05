@@ -28,21 +28,13 @@ jobs:
         working-directory: react-ts-version
         run: npm run build
 
-      - name: Verify dist exists
-        run: ls -la react-ts-version/dist/
-
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MATHIMATICORE }}
 
       - name: Deploy Hosting to Firebase
-        run: npx --yes firebase-tools@13 deploy --only hosting --project mathimaticore --non-interactive --debug 2>&1 | tail -50
-        continue-on-error: true
+        run: npx --yes firebase-tools@13 deploy --only hosting --project mathimaticore --non-interactive
 
       - name: Deploy Database Rules to Firebase
-        run: npx --yes firebase-tools@13 deploy --only database --project mathimaticore --non-interactive --debug 2>&1 | tail -50
-        continue-on-error: true
-
-      - name: Final deploy (fail on error)
-        run: npx --yes firebase-tools@13 deploy --only hosting,database --project mathimaticore --non-interactive
+        run: npx --yes firebase-tools@13 deploy --only database --project mathimaticore --non-interactive
