@@ -4,9 +4,30 @@
     ".write": false,
 
     "students": {
-      "$uid": {
+      "$studentId": {
         ".read": "auth != null",
-        ".write": "auth != null"
+        ".write": "auth != null",
+        
+        "studentId": { ".validate": "newData.isString()" },
+        "name": { ".validate": "newData.isString()" },
+        "classId": { ".validate": "newData.isString()" },
+        "completedMeeting2": { ".validate": "newData.isBoolean()" },
+        "routeRecommendation": { ".validate": "newData.isString() || !newData.exists()" },
+        "routeStatus": { ".validate": "newData.isString() || !newData.exists()" },
+        
+        "qMatrixResults": {
+          ".validate": "newData.hasChildren(['task1_zero_placeholder', 'task2_estimation_error_margin', 'task3_flexible_regrouping', 'task4_basic_addition_fluency', 'task5_small_change', 'task6_subtraction_regrouping', 'task7_missing_subtrahend', 'task8_missing_addend'])"
+        },
+        
+        "traceData": {
+          ".validate": "newData.hasChildren(['hesitation_events', 'undo_clicks']) && newData.child('hesitation_events').isNumber() && newData.child('undo_clicks').isNumber()"
+        },
+        
+        "telemetry_chunks": {
+           "$chunkId": {
+             ".validate": "newData.hasChildren()"
+           }
+        }
       }
     },
 
@@ -20,22 +41,6 @@
       "$alertId": {
         ".write": "auth != null",
         ".validate": "newData.hasChildren(['type', 'timestamp'])"
-      }
-    },
-
-    "qMatrixResults": {
-      "$studentId": {
-        ".read": "auth != null",
-        ".write": "auth != null",
-        ".validate": "newData.hasChildren(['studentId', 'qMatrixResults'])"
-      }
-    },
-
-    "traceData": {
-      "$studentId": {
-        ".read": "auth != null",
-        ".write": "auth != null",
-        ".validate": "newData.hasChildren(['hesitation_events', 'undo_clicks']) && newData.child('hesitation_events').isNumber() && newData.child('undo_clicks').isNumber()"
       }
     },
 
