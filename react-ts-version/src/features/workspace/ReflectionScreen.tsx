@@ -85,9 +85,7 @@ export function ReflectionScreen() {
           task7_missing_subtrahend: getTag(r['task7_missing_subtrahend']),
       };
 
-      set(ref(database, `qMatrixResults/${username}`), {
-        studentId: username,
-        studentName,
+      update(ref(database, `users/students/${username}`), {
         qMatrixResults: qMatrix,
         traceData: {
           hesitation_events: useWorkspaceStore.getState().hesitationCount,

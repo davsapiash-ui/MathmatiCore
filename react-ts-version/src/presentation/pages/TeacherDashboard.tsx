@@ -162,7 +162,7 @@ export function TeacherDashboard() {
   const [liveStudents, setLiveStudents] = useState<Record<string, StudentData>>({});
   useEffect(() => {
     try {
-      const qRef = ref(database, 'qMatrixResults');
+      const qRef = ref(database, 'users/students');
       const unsub = onValue(
         qRef,
         (snapshot) => {
@@ -170,10 +170,12 @@ export function TeacherDashboard() {
           const mapped: Record<string, StudentData> = {};
           Object.keys(data).forEach((uid) => {
             const row = data[uid] ?? {};
+            if (!row.qMatrixResults) return; // Only map students who have completed the diagnostic
+            
             mapped[uid] = {
               studentId: uid,
               classId: row.classId ?? 'live',
-              name: row.studentName ?? uid,
+              name: row.profile?.displayName ?? row.studentName ?? uid,
               qMatrixResults: {
                 task1_zero_placeholder: null,
                 task2_estimation_error_margin: null,
