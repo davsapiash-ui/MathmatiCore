@@ -65,21 +65,18 @@ export function VideoIntroModal({ isOpen, onClose }: VideoIntroModalProps) {
           </button>
         </div>
 
-        {/* Video Placeholder */}
+        {/* Video Embed */}
         <div className="p-6 bg-slate-50">
           <div className="aspect-video w-full bg-slate-800 rounded-2xl flex items-center justify-center relative overflow-hidden shadow-inner group">
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent z-10" />
-            
-            {/* Play Button */}
-            <button className="z-20 w-20 h-20 rounded-full bg-white/10 backdrop-blur-md border-2 border-white/20 flex items-center justify-center text-white hover:bg-cyan-500 hover:border-cyan-400 hover:scale-110 transition-all duration-300 shadow-[0_0_40px_rgba(6,182,212,0.3)]">
-              <PlayCircle className="w-10 h-10 ml-1" />
-            </button>
-            
-            <div className="absolute bottom-6 left-0 right-0 text-center z-20">
-              <p className="text-white font-medium tracking-wide">
-                סרטון הדמיה והכרות עם פונקציות ארגז החול
-              </p>
-            </div>
+            <iframe 
+              width="100%" 
+              height="100%" 
+              src="https://www.youtube.com/embed/a4FXd4nlqQA?rel=0" 
+              title="סרטון הכרות לארגז החול - MathmatiCore" 
+              frameBorder="0" 
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+              allowFullScreen
+            ></iframe>
           </div>
         </div>
 

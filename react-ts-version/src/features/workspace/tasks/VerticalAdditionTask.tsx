@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { PLACE_ORDER, type Place } from '@/core/placeValue';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 
@@ -40,6 +40,7 @@ export function VerticalAdditionTask({
   const setAnswerDigit = useWorkspaceStore((s) => s.setAnswerDigit);
   const setFocusedPlace = useWorkspaceStore((s) => s.setFocusedPlace);
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
+  const [carryDigits, setCarryDigits] = useState<Record<string, string>>({});
 
   const aStr = String(numberA);
   const bStr = String(numberB);
@@ -81,7 +82,7 @@ export function VerticalAdditionTask({
         className="grid rounded-xl overflow-hidden"
         style={{
           gridTemplateColumns: `${CELL}px repeat(${cols}, ${CELL}px)`,
-          gridTemplateRows: `${CELL}px ${CELL}px ${CELL}px`,
+          gridTemplateRows: `${CELL}px ${CELL}px ${CELL}px ${CELL}px`,
           backgroundColor: '#FFFFFF',
           backgroundImage:
             'linear-gradient(rgba(96,130,190,0.18) 1px, transparent 1px), linear-gradient(90deg, rgba(96,130,190,0.18) 1px, transparent 1px)',
@@ -89,6 +90,29 @@ export function VerticalAdditionTask({
           border: '1px solid rgba(96,130,190,0.30)',
         }}
       >
+        {/* Row 0 — Carry/Borrow inputs */}
+        <div aria-hidden="true" />
+        {colPlaces.map((place, j) => {
+          if (j === cols - 1) return <div key={`c${j}`} aria-hidden="true" />; // No carry above units usually, but let's allow it just in case, wait no, let's allow all except rightmost if we want, or just all columns. Let's render an input for all columns.
+          return (
+            <div key={`carry${j}`} className="flex items-end justify-center pb-1">
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={1}
+                value={carryDigits[place] ?? ''}
+                aria-label={`חלונית המרה ל${PLACE_LABEL_HE[place]}`}
+                className="rounded-md border-2 border-slate-200 text-center font-mono font-bold bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-ws-accent transition-shadow"
+                style={{ width: CELL * 0.6, height: CELL * 0.6, fontSize: CELL * 0.4 }}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/[^0-9]/g, '').slice(-1);
+                  setCarryDigits(prev => ({ ...prev, [place]: v }));
+                }}
+              />
+            </div>
+          );
+        })}
+
         {/* Row 1 — first operand (operator gutter empty) */}
         <div aria-hidden="true" />
         {digitsA.map((d, j) => digitCell(d, `a${j}`))}
