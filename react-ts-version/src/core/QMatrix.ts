@@ -221,6 +221,29 @@ export const TASKS: QMatrixTask[] = [
       asdProbeB: 3,
       probeInstructionHe: "בואו ננסה משוואה קטנה יותר: כמה צריך לחסר מ-10 כדי לקבל 7?",
     }
+  },
+  {
+    id: "task8_missing_addend",
+    type: "missing_element",
+    isSubtraction: false,
+    titleHe: "מציאת המחבר",
+    instructionHe: "השלימו את המספר החסר במשוואה כדי שהיא תהיה נכונה.",
+    numberA: 34,
+    correctAnswer: 18,
+    numberB: 52,
+    asdNumberA: 14,
+    asdCorrectAnswer: 6,
+    asdNumberB: 20,
+    backwardDiagnosis: {
+      triggerOn: "wrong_answer",
+      probeA: 7,
+      probeAnswer: 3,
+      probeB: 10,
+      asdProbeA: 3,
+      asdProbeAnswer: 2,
+      asdProbeB: 5,
+      probeInstructionHe: "בואו ננסה משוואה קטנה יותר: כמה צריך לחבר ל-7 כדי לקבל 10?",
+    }
   }
 ];
 

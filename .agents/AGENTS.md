@@ -28,11 +28,14 @@
 {
   "studentId": "string",
   "qMatrixResults": {
-     "task1_zero_placeholder": "boolean",
-     "task2_estimation_error_margin": "number",
-     "task3_flexible_regrouping": "boolean",
-     "task4_basic_addition_fluency": "boolean",
-     "task5_basic_subtraction_fluency": "boolean"
+     "task1_zero_placeholder": "string",
+     "task2_estimation_error_margin": "string",
+     "task3_flexible_regrouping": "string",
+     "task4_basic_addition_fluency": "string",
+     "task5_small_change": "string",
+     "task6_subtraction_regrouping": "string",
+     "task7_missing_subtrahend": "string",
+     "task8_missing_addend": "string"
   },
   "traceData": {
      "hesitation_events": "number",
@@ -49,6 +52,7 @@
 * **בקרת הרשאות וניתוב (RBAC & Routing):** המערכת תנתב את המשתמש מיד לאחר ההזדהות לפי ה-Role:
 * `Role: Student` מנותב ל-`/hub` (מסך בית המציג קורסים, התקדמות אישית ומשימות), ומשם נכנס למרחב העבודה ב-`/workspace`. המערכת תכלול מעטפת ניווט מלאה (App Shell) עם Sidebar ו-Topbar.
 * `Role: Teacher` מנותב ל-`/dashboard` (דשבורד מתקדם המציג נתונים ורשימות תלמידים בתוך אותה מעטפת LMS).
+* `Role: Admin` מנותב ל-`/admin` (מסך ניהול מערכת המציג נתוני שרתים, אבטחה, הגדרות בית ספר ומורשים).
 * **איסור טיימרים צד לקוח:** יש להורות במפורש למחולל הקוד שאין לרנדר אף רכיב `<Timer />` או להציג State של זמן שחולף ב-`/workspace`.
 
 ### 5. עיצוב הממשק (UI/UX Restrictions)

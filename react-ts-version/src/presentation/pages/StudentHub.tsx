@@ -1,9 +1,10 @@
-import { Play, Lock, ChevronLeft, Sun, Clock } from 'lucide-react';
+import { Play, Lock, ChevronLeft, Sun, Clock, MessageSquare, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import type { Variants } from 'framer-motion';
 import { useStore } from '@/application/useStore';
 import { useAuthStore } from '@/application/useAuthStore';
+import { useState } from 'react';
 
 interface Meeting {
   id: number;
@@ -31,6 +32,8 @@ export function StudentHub() {
   const navigate = useNavigate();
   const user = useAuthStore(s => s.user);
   const students = useStore(s => s.students);
+  const globalChatEnabled = useStore(s => s.globalChatEnabled);
+  const [isChatOpen, setIsChatOpen] = useState(false);
   
   const currentStudent = user?.uid ? students[user.uid] : null;
   const isPending = currentStudent?.routeStatus === 'PENDING';
@@ -170,6 +173,48 @@ export function StudentHub() {
           </motion.div>
         </section>
       </div>
+      {/* Teacher Direct Chat */}
+      {globalChatEnabled && (
+        <div className="fixed bottom-6 right-6 z-50">
+        {isChatOpen ? (
+          <div className="bg-ws-surface rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-ws-surface2 w-80 overflow-hidden flex flex-col h-96 animate-in slide-in-from-bottom-2 fade-in duration-200">
+            <div className="bg-ws-surface2 px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]"></div>
+                <h4 className="font-bold text-ws-ink">צ'אט אישי - מורה</h4>
+              </div>
+              <button 
+                onClick={() => setIsChatOpen(false)}
+                className="text-ws-soft hover:text-ws-ink hover:bg-black/5 dark:hover:bg-white/10 p-1 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 p-4 bg-ws-bg/50 overflow-y-auto flex flex-col gap-3">
+              <div className="bg-white dark:bg-slate-800 text-ws-ink p-3 rounded-2xl rounded-tr-none shadow-sm text-sm ml-8 border border-ws-surface2">
+                היי! אני כאן אם משהו לא ברור במשימה. אל תהסס לכתוב לי 😊
+              </div>
+            </div>
+            <div className="p-3 border-t border-ws-surface2 bg-ws-surface">
+              <div className="relative">
+                <input 
+                  type="text" 
+                  placeholder="הקלד הודעה למורה..." 
+                  className="w-full bg-ws-bg text-ws-ink placeholder:text-ws-soft text-sm rounded-full pl-4 pr-10 py-2.5 outline-none border border-ws-surface2 focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                />
+              </div>
+            </div>
+          </div>
+        ) : (
+          <button 
+            onClick={() => setIsChatOpen(true)}
+            className="w-14 h-14 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full shadow-lg hover:shadow-indigo-500/25 flex items-center justify-center transition-all hover:scale-105 active:scale-95 group"
+          >
+            <MessageSquare className="w-6 h-6 group-hover:scale-110 transition-transform" />
+          </button>
+        )}
+        </div>
+      )}
     </div>
   );
 }

@@ -9,11 +9,13 @@ export interface QMatrix {
   task5_small_change: string | null;
   task6_subtraction_regrouping: string | null;
   task7_missing_subtrahend: string | null;
+  task8_missing_addend: string | null;
 }
 
 export interface TraceData {
   hesitation_events: number;
   undo_clicks: number;
+  lastUpdate?: number;
 }
 
 export type RoutePath = 'GREEN' | 'YELLOW';
@@ -36,6 +38,8 @@ interface AppState {
   students: Record<string, StudentData>;
   login: (role: 'student' | 'teacher' | 'admin', id: string) => void;
   logout: () => void;
+  globalChatEnabled: boolean;
+  toggleGlobalChat: () => void;
   
   // Trace Data Actions
   incrementHesitation: (studentId: string) => void;
@@ -69,6 +73,7 @@ const generateInitialStudents = (): Record<string, StudentData> => {
         task5_small_change: null,
         task6_subtraction_regrouping: null,
         task7_missing_subtrahend: null,
+        task8_missing_addend: null,
       },
       traceData: { hesitation_events: 0, undo_clicks: 0 },
       routeRecommendation: null,
@@ -86,6 +91,9 @@ export const useStore = create<AppState>()(
       currentUserRole: null,
       currentUserId: null,
       students: initialStudents,
+      globalChatEnabled: true,
+      
+      toggleGlobalChat: () => set((state) => ({ globalChatEnabled: !state.globalChatEnabled })),
 
       login: (role, id) => set((state) => {
         const newState: Partial<AppState> = { currentUserRole: role, currentUserId: id };
@@ -106,6 +114,7 @@ export const useStore = create<AppState>()(
                 task5_small_change: null,
                 task6_subtraction_regrouping: null,
                 task7_missing_subtrahend: null,
+                task8_missing_addend: null,
               },
               traceData: { hesitation_events: 0, undo_clicks: 0 },
               routeRecommendation: null,

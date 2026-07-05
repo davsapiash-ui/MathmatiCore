@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { UdlButton } from "@/presentation/design-system/UdlButton";
 import { AccessibleCard } from "@/presentation/design-system/AccessibleCard";
 import { DataGrid } from "@/presentation/design-system/DataGrid";
@@ -26,7 +26,7 @@ import { SocraticEngine, type PendingAIApproval } from "@/infrastructure/service
 export function TeacherDashboard() {
   const { user } = useAuthStore();
   const { messages, sendMessage, markAsRead } = useChatStore();
-  const { students, resetTraceData } = useStore();
+  const { students, resetTraceData, globalChatEnabled, toggleGlobalChat } = useStore();
 
   const [activeTab, setActiveTab] = useState<
     | "clustering"
@@ -117,10 +117,6 @@ export function TeacherDashboard() {
   // (incl. the alerts list) recompute on every keystroke.
   const allStudents = useMemo(() => Object.values(students), [students]);
 
-  // Stable timestamp for trace-derived mock alerts — Date.now() at render time
-  // re-stamped them every render, so they showed the current clock and always
-  // sorted above genuinely newer live alerts.
-  const traceAlertsBornAt = useRef(Date.now()).current;
 
   const basicAdditionGroup = allStudents.filter(
     (s) => s.qMatrixResults.task4_basic_addition_fluency && s.qMatrixResults.task4_basic_addition_fluency !== 'success',
@@ -142,6 +138,32 @@ export function TeacherDashboard() {
   const missingSubtrahendGroup = allStudents.filter(
     (s) => s.qMatrixResults.task7_missing_subtrahend && s.qMatrixResults.task7_missing_subtrahend !== 'success',
   );
+  const missingAddendGroup = allStudents.filter(
+    (s) => s.qMatrixResults.task8_missing_addend && s.qMatrixResults.task8_missing_addend !== 'success',
+  );
+  const smallChangeGroup = allStudents.filter(
+    (s) => s.qMatrixResults.task5_small_change && s.qMatrixResults.task5_small_change !== 'success',
+  );
+
+  const translateRootCause = (tag: string | null | undefined) => {
+    if (!tag) return "לא נבדק";
+    const map: Record<string, string> = {
+      'procedural_error': 'שגיאה באלגוריתם',
+      'basic_facts_deficit': 'קושי בעובדות יסוד',
+      'canonical_fixation': 'קיבעון קנוני',
+      'regrouping_requires_prompting': 'דורש תיווך לפריטה',
+      'zero_placeholder_hundreds_error': 'השמטת אפס (מאות)',
+      'zero_placeholder_global_error': 'אי-הבנת שומר מקום',
+      'estimation_large_numbers_anxiety': 'חשש ממספרים גדולים',
+      'spatial_number_sense_deficit': 'קושי בתחושת מרחב/מספר',
+      'regrouping_anxiety': 'חשש מפריטה (חוסר הבנה מוחשית)',
+      'subtraction_operation_deficit': 'קושי בחיסור בסיסי',
+      'flexibility_trap': 'נוקשות מתמטית',
+      'algebraic_concept_deficit': 'קושי בהבנת מאזניים (אלגברה)',
+      'computational_fluency_deficit': 'חוסר שטף חישובי',
+    };
+    return map[tag] || tag;
+  };
 
   const pendingRouteStudents = allStudents.filter(
     (s) => s.routeStatus === 'PENDING',
@@ -156,7 +178,9 @@ export function TeacherDashboard() {
         t3s = 0, t3f = 0,
         t4s = 0, t4f = 0,
         t5s = 0, t5f = 0,
-        t7s = 0, t7f = 0;
+        t6s = 0, t6f = 0,
+        t7s = 0, t7f = 0,
+        t8s = 0, t8f = 0;
     
     allStudents.forEach((s) => {
       if (s.qMatrixResults.task1_zero_placeholder === 'success') t1s++;
@@ -171,20 +195,28 @@ export function TeacherDashboard() {
       if (s.qMatrixResults.task4_basic_addition_fluency === 'success') t4s++;
       else if (s.qMatrixResults.task4_basic_addition_fluency) t4f++;
 
-      if (s.qMatrixResults.task6_subtraction_regrouping === 'success') t5s++;
-      else if (s.qMatrixResults.task6_subtraction_regrouping) t5f++;
+      if (s.qMatrixResults.task5_small_change === 'success') t5s++;
+      else if (s.qMatrixResults.task5_small_change) t5f++;
+
+      if (s.qMatrixResults.task6_subtraction_regrouping === 'success') t6s++;
+      else if (s.qMatrixResults.task6_subtraction_regrouping) t6f++;
 
       if (s.qMatrixResults.task7_missing_subtrahend === 'success') t7s++;
       else if (s.qMatrixResults.task7_missing_subtrahend) t7f++;
+
+      if (s.qMatrixResults.task8_missing_addend === 'success') t8s++;
+      else if (s.qMatrixResults.task8_missing_addend) t8f++;
     });
 
     return [
       { name: "חיבור בסיסי", success: t4s, struggle: t4f },
-      { name: "חיסור בסיסי", success: t5s, struggle: t5f },
-      { name: "המרת עשרות", success: t1s, struggle: t1f },
+      { name: "תחושת מספר", success: t5s, struggle: t5f },
+      { name: "חיסור עם פריטה", success: t6s, struggle: t6f },
+      { name: "שומר מקום (אפס)", success: t1s, struggle: t1f },
       { name: "גמישות מחשבתית", success: t3s, struggle: t3f },
       { name: "אומדן", success: t2s, struggle: t2f },
-      { name: "משוואות", success: t7s, struggle: t7f },
+      { name: "מציאת מחסר", success: t7s, struggle: t7f },
+      { name: "מציאת מחובר", success: t8s, struggle: t8f },
     ];
   }, [allStudents]);
 
@@ -199,18 +231,18 @@ export function TeacherDashboard() {
           rawStudentId: s.studentId,
           type: "HESITATION",
           taskId: "פעילות נוכחית",
-          timestamp: traceAlertsBornAt,
+          timestamp: s.traceData.lastUpdate || Date.now(),
           unread: true,
         });
       }
-      if (s.traceData.undo_clicks > 5) {
+      if (s.traceData.undo_clicks > 3) {
         list.push({
           firebaseKey: `undo-${s.studentId}`,
           studentId: s.name,
           rawStudentId: s.studentId,
           type: "UNDO_SPAM",
           taskId: "פעילות נוכחית",
-          timestamp: traceAlertsBornAt,
+          timestamp: s.traceData.lastUpdate || Date.now(),
           unread: true,
         });
       }
@@ -527,30 +559,26 @@ export function TeacherDashboard() {
               </div>
             </AccessibleCard>
 
-            <div className="grid gap-8 md:grid-cols-2">
-              <AccessibleCard className="p-8 bg-ws-surface/80  backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] border border-ws-surface2  rounded-2xl relative overflow-hidden group">
+            <div className="flex gap-6 pb-6 overflow-x-auto snap-x snap-mandatory hide-scrollbar" style={{ scrollbarWidth: 'none' }}>
+              <AccessibleCard className="min-w-[400px] snap-center p-8 bg-ws-surface/80  backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] border border-ws-surface2  rounded-2xl relative overflow-hidden group flex-shrink-0">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 to-rose-500"></div>
                 <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                 <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink ">
-                  זקוקים לחיזוק בעובדות יסוד{" "}
-                  <span className="text-slate-400 font-normal text-lg">
-                    (כיתה א')
-                  </span>
+                  חיזוק עובדות יסוד בחיבור (משימה 4)
                 </h3>
                 <p className="text-ws-soft  mb-6 text-base leading-relaxed relative z-10">
-                  תלמידים שטעו במשימה 4 ולא צלחו את משימת האבחון לאחור (השלמת
-                  10).
+                  תלמידים שהתקשו בפעולות חיבור בסיסיות ללא המרה.
                 </p>
                 <div className="relative z-10 rounded-xl overflow-hidden border border-ws-surface2  shadow-inner">
                   <DataGrid
                     columns={[
                       { key: "name", header: "שם תלמיד" },
-                      { key: "errors", header: "טעות נפוצה" },
+                      { key: "errors", header: "זיהוי כשל" },
                     ]}
                     data={basicAdditionGroup.map((s) => ({
                       id: s.studentId,
                       name: s.name,
-                      errors: "טעות השלמת 10",
+                      errors: translateRootCause(s.qMatrixResults.task4_basic_addition_fluency),
                     }))}
                   />
                 </div>
@@ -563,26 +591,25 @@ export function TeacherDashboard() {
                 </UdlButton>
               </AccessibleCard>
 
-              <AccessibleCard className="p-8 bg-ws-surface/80  backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] border border-ws-surface2  rounded-2xl relative overflow-hidden group">
+              <AccessibleCard className="min-w-[400px] snap-center p-8 bg-ws-surface/80  backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] border border-ws-surface2  rounded-2xl relative overflow-hidden group flex-shrink-0">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-indigo-500"></div>
                 <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                 <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink ">
-                  פיתוח גמישות מחשבתית
+                  פיתוח גמישות מחשבתית (משימה 3)
                 </h3>
                 <p className="text-ws-soft  mb-6 text-base leading-relaxed relative z-10">
-                  תלמידים שהצליחו לפרק רק בצורה הקנונית (משימה 3) ונפלו ב"מלכודת
-                  הגמישות" (משימה 5).
+                  תלמידים שהצליחו לפרק רק בצורה הקנונית וזקוקים לתרגול גמישות בהמרה.
                 </p>
                 <div className="relative z-10 rounded-xl overflow-hidden border border-ws-surface2  shadow-inner">
                   <DataGrid
                     columns={[
                       { key: "name", header: "שם תלמיד" },
-                      { key: "reps", header: "ייצוגים שהופקו" },
+                      { key: "reps", header: "זיהוי כשל" },
                     ]}
                     data={flexibilityGroup.map((s) => ({
                       id: s.studentId,
                       name: s.name,
-                      reps: "ייצוג קנוני בלבד",
+                      reps: translateRootCause(s.qMatrixResults.task3_flexible_regrouping),
                     }))}
                   />
                 </div>
@@ -595,26 +622,25 @@ export function TeacherDashboard() {
                 </UdlButton>
               </AccessibleCard>
 
-              <AccessibleCard className="p-8 bg-ws-surface/80  backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] border border-ws-surface2  rounded-2xl relative overflow-hidden group">
+              <AccessibleCard className="min-w-[400px] snap-center p-8 bg-ws-surface/80  backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] border border-ws-surface2  rounded-2xl relative overflow-hidden group flex-shrink-0">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-cyan-500"></div>
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                 <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink ">
-                  תפקיד האפס (שומר מקום)
+                  תפקיד האפס ושומר מקום (משימה 1)
                 </h3>
                 <p className="text-ws-soft  mb-6 text-base leading-relaxed relative z-10">
-                  תלמידים שהתקשו בהבנת האפס כשומר מקום במערכת העשרונית (משימה
-                  1).
+                  תלמידים שהתקשו בהבנת האפס כשומר מקום במערכת העשרונית.
                 </p>
                 <div className="relative z-10 rounded-xl overflow-hidden border border-ws-surface2  shadow-inner">
                   <DataGrid
                     columns={[
                       { key: "name", header: "שם תלמיד" },
-                      { key: "errors", header: "סוג קושי" },
+                      { key: "errors", header: "זיהוי כשל" },
                     ]}
                     data={zeroPlaceholderGroup.map((s) => ({
                       id: s.studentId,
                       name: s.name,
-                      errors: "השמטת אפס",
+                      errors: translateRootCause(s.qMatrixResults.task1_zero_placeholder),
                     }))}
                   />
                 </div>
@@ -627,25 +653,25 @@ export function TeacherDashboard() {
                 </UdlButton>
               </AccessibleCard>
 
-              <AccessibleCard className="p-8 bg-ws-surface/80  backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] border border-ws-surface2  rounded-2xl relative overflow-hidden group">
+              <AccessibleCard className="min-w-[400px] snap-center p-8 bg-ws-surface/80  backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] border border-ws-surface2  rounded-2xl relative overflow-hidden group flex-shrink-0">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
                 <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                 <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink ">
-                  אומדן והערכת גודל
+                  אומדן והערכת גודל (משימה 2)
                 </h3>
                 <p className="text-ws-soft  mb-6 text-base leading-relaxed relative z-10">
-                  תלמידים שחרגו מטווח הטעות המותר בהערכת הכמויות (משימה 2).
+                  תלמידים שחרגו מטווח הטעות המותר בהערכת הכמויות.
                 </p>
                 <div className="relative z-10 rounded-xl overflow-hidden border border-ws-surface2  shadow-inner">
                   <DataGrid
                     columns={[
                       { key: "name", header: "שם תלמיד" },
-                      { key: "margin", header: "פער חריגה" },
+                      { key: "margin", header: "זיהוי כשל" },
                     ]}
                     data={estimationGroup.map((s) => ({
                       id: s.studentId,
                       name: s.name,
-                      margin: "> 20%",
+                      margin: translateRootCause(s.qMatrixResults.task2_estimation_error_margin),
                     }))}
                   />
                 </div>
@@ -658,56 +684,56 @@ export function TeacherDashboard() {
                 </UdlButton>
               </AccessibleCard>
 
-              <AccessibleCard className="p-8 bg-ws-surface/80  backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] border border-ws-surface2  rounded-2xl relative overflow-hidden group">
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-rose-500 to-pink-500"></div>
-                <div className="absolute inset-0 bg-gradient-to-br from-rose-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+              <AccessibleCard className="min-w-[400px] snap-center p-8 bg-ws-surface/80  backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] border border-ws-surface2  rounded-2xl relative overflow-hidden group flex-shrink-0">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-pink-500 to-fuchsia-500"></div>
+                <div className="absolute inset-0 bg-gradient-to-br from-pink-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                 <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink ">
-                  זקוקים לחיזוק בעובדות יסוד (חיסור)
+                  חיסור עם פריטה מוחשית (משימה 6)
                 </h3>
                 <p className="text-ws-soft  mb-6 text-base leading-relaxed relative z-10">
-                  תלמידים שהתקשו בפעולות חיסור בסיסיות (משימה 5).
+                  תלמידים שהתקשו בתהליך הפריטה (חרדת פריטה) או שחסרות להם עובדות יסוד בחיסור.
                 </p>
                 <div className="relative z-10 rounded-xl overflow-hidden border border-ws-surface2  shadow-inner">
                   <DataGrid
                     columns={[
                       { key: "name", header: "שם תלמיד" },
-                      { key: "errors", header: "טעות נפוצה" },
+                      { key: "errors", header: "זיהוי כשל" },
                     ]}
                     data={basicSubtractionGroup.map((s) => ({
                       id: s.studentId,
                       name: s.name,
-                      errors: "שגיאת חיסור בסיסית",
+                      errors: translateRootCause(s.qMatrixResults.task6_subtraction_regrouping),
                     }))}
                   />
                 </div>
                 <UdlButton
                   size="sm"
                   semanticColor="primary"
-                  className="mt-6 w-full shadow-lg shadow-rose-500/20 relative z-10 font-bold tracking-wide"
+                  className="mt-6 w-full shadow-lg shadow-pink-500/20 relative z-10 font-bold tracking-wide"
                 >
-                  הקצה תרגול מותאם
+                  הקצה בלוקים ווירטואליים
                 </UdlButton>
               </AccessibleCard>
 
-              <AccessibleCard className="p-8 bg-ws-surface/80  backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] border border-ws-surface2  rounded-2xl relative overflow-hidden group">
+              <AccessibleCard className="min-w-[400px] snap-center p-8 bg-ws-surface/80  backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] border border-ws-surface2  rounded-2xl relative overflow-hidden group flex-shrink-0">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-500 to-orange-500"></div>
                 <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                 <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink ">
-                  הבנת מבנה המשוואה (מציאת נעלם)
+                  מציאת מחסר (משימה 7)
                 </h3>
                 <p className="text-ws-soft  mb-6 text-base leading-relaxed relative z-10">
-                  תלמידים שהתקשו במציאת איבר חסר (מחסר או מחובר) (משימה 7).
+                  תלמידים שהתקשו במציאת איבר חסר באמצע המשוואה.
                 </p>
                 <div className="relative z-10 rounded-xl overflow-hidden border border-ws-surface2  shadow-inner">
                   <DataGrid
                     columns={[
                       { key: "name", header: "שם תלמיד" },
-                      { key: "errors", header: "סוג קושי" },
+                      { key: "errors", header: "זיהוי כשל" },
                     ]}
                     data={missingSubtrahendGroup.map((s) => ({
                       id: s.studentId,
                       name: s.name,
-                      errors: "קושי במציאת נעלם",
+                      errors: translateRootCause(s.qMatrixResults.task7_missing_subtrahend),
                     }))}
                   />
                 </div>
@@ -717,6 +743,68 @@ export function TeacherDashboard() {
                   className="mt-6 w-full shadow-lg shadow-amber-500/20 relative z-10 font-bold tracking-wide"
                 >
                   הקצה מודל מאזניים
+                </UdlButton>
+              </AccessibleCard>
+
+              <AccessibleCard className="min-w-[400px] snap-center p-8 bg-ws-surface/80  backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] border border-ws-surface2  rounded-2xl relative overflow-hidden group flex-shrink-0">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-yellow-500 to-amber-500"></div>
+                <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink ">
+                  מציאת מחובר (משימה 8)
+                </h3>
+                <p className="text-ws-soft  mb-6 text-base leading-relaxed relative z-10">
+                  תלמידים שהתקשו בהבנת חשיבה אלגברית והקשר בין חיבור לחיסור.
+                </p>
+                <div className="relative z-10 rounded-xl overflow-hidden border border-ws-surface2  shadow-inner">
+                  <DataGrid
+                    columns={[
+                      { key: "name", header: "שם תלמיד" },
+                      { key: "errors", header: "זיהוי כשל" },
+                    ]}
+                    data={missingAddendGroup.map((s) => ({
+                      id: s.studentId,
+                      name: s.name,
+                      errors: translateRootCause(s.qMatrixResults.task8_missing_addend),
+                    }))}
+                  />
+                </div>
+                <UdlButton
+                  size="sm"
+                  semanticColor="primary"
+                  className="mt-6 w-full shadow-lg shadow-yellow-500/20 relative z-10 font-bold tracking-wide"
+                >
+                  הקצה מודל מאזניים
+                </UdlButton>
+              </AccessibleCard>
+
+              <AccessibleCard className="min-w-[400px] snap-center p-8 bg-ws-surface/80  backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] border border-ws-surface2  rounded-2xl relative overflow-hidden group flex-shrink-0">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-slate-500 to-gray-500"></div>
+                <div className="absolute inset-0 bg-gradient-to-br from-slate-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink ">
+                  תחושת מספר וגמישות (משימה 5)
+                </h3>
+                <p className="text-ws-soft  mb-6 text-base leading-relaxed relative z-10">
+                  תלמידים שנפלו במלכודת הגמישות ולא זיהו את השינוי הקטן.
+                </p>
+                <div className="relative z-10 rounded-xl overflow-hidden border border-ws-surface2  shadow-inner">
+                  <DataGrid
+                    columns={[
+                      { key: "name", header: "שם תלמיד" },
+                      { key: "errors", header: "זיהוי כשל" },
+                    ]}
+                    data={smallChangeGroup.map((s) => ({
+                      id: s.studentId,
+                      name: s.name,
+                      errors: translateRootCause(s.qMatrixResults.task5_small_change),
+                    }))}
+                  />
+                </div>
+                <UdlButton
+                  size="sm"
+                  semanticColor="primary"
+                  className="mt-6 w-full shadow-lg shadow-slate-500/20 relative z-10 font-bold tracking-wide"
+                >
+                  הקצה חקר יחסים
                 </UdlButton>
               </AccessibleCard>
             </div>
@@ -902,9 +990,15 @@ export function TeacherDashboard() {
                                   </span>
                                 </div>
                                 <div className="bg-ws-bg p-3 rounded-xl border border-ws-surface2">
-                                  <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">חשיבה אלגברית</span>
+                                  <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">מציאת מחסר</span>
                                   <span className={`font-semibold ${s.qMatrixResults.task7_missing_subtrahend && s.qMatrixResults.task7_missing_subtrahend !== 'success' ? 'text-red-500' : s.qMatrixResults.task7_missing_subtrahend === 'success' ? 'text-green-600' : 'text-slate-400'}`}>
                                     {s.qMatrixResults.task7_missing_subtrahend === null ? 'טרם נבדק' : s.qMatrixResults.task7_missing_subtrahend === 'success' ? 'שולט' : 'דרוש חיזוק'}
+                                  </span>
+                                </div>
+                                <div className="bg-ws-bg p-3 rounded-xl border border-ws-surface2">
+                                  <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">מציאת מחבר</span>
+                                  <span className={`font-semibold ${s.qMatrixResults.task8_missing_addend && s.qMatrixResults.task8_missing_addend !== 'success' ? 'text-red-500' : s.qMatrixResults.task8_missing_addend === 'success' ? 'text-green-600' : 'text-slate-400'}`}>
+                                    {s.qMatrixResults.task8_missing_addend === null ? 'טרם נבדק' : s.qMatrixResults.task8_missing_addend === 'success' ? 'שולט' : 'דרוש חיזוק'}
                                   </span>
                                 </div>
                               </div>
@@ -945,8 +1039,8 @@ export function TeacherDashboard() {
                                   <p className="text-sm text-slate-700 leading-relaxed mb-4">
                                     התלמיד חווה <strong className="text-orange-600">{s.traceData.hesitation_events}</strong> אירועי היסוס המעידים על מאבק קוגניטיבי, וביצע <strong className="text-red-600">{s.traceData.undo_clicks}</strong> מחיקות או חזרות. 
                                     ניתוח הפעולות בוידאו יחד עם מטריצת המיומנויות (Q-Matrix) מצביע על כך ש
-                                    {s.qMatrixResults.task3_flexible_regrouping === 'canonical_fixation' ? ' נראה כי קיים קושי מסוים בגמישות מחשבתית ובפירוק שאינו קנוני.' : s.qMatrixResults.task3_flexible_regrouping === 'success' ? ' קיימת הבנה טובה של גמישות מחשבתית.' : ' טרם נאספו מספיק נתונים לקביעת רמת הגמישות המחשבתית.'}
-                                    {s.qMatrixResults.task1_zero_placeholder === 'zero_placeholder_global_error' ? ' ייתכן קושי מהותי בהבנת תפקיד האפס כשומר מקום.' : s.qMatrixResults.task1_zero_placeholder === 'zero_placeholder_hundreds_error' ? ' נראה קושי ספציפי בשימוש באפס במאות בלבד.' : s.qMatrixResults.task1_zero_placeholder === 'success' ? ' נראה כי התלמיד שולט בתפקיד האפס.' : ''}
+                                    {s.qMatrixResults.task3_flexible_regrouping === 'canonical_fixation' ? ' נראה כי קיים קושי בגמישות מחשבתית וצורך בהמחשה מוחשית (באמצעות בלוקים) של פעולת הפריטה לפני תרגול במאונך.' : s.qMatrixResults.task3_flexible_regrouping === 'success' ? ' קיימת הבנה מוחשית וכמותית טובה של פריטה והמרה.' : ' טרם נאספו מספיק נתונים לקביעת הבנה מוחשית של המרות.'}
+                                    {(s.qMatrixResults.task7_missing_subtrahend === 'algebraic_concept_deficit' || s.qMatrixResults.task8_missing_addend === 'algebraic_concept_deficit') ? ' ניכר קושי מהותי בחשיבה אלגברית והבנת משמעות סימן השוויון כמאזניים.' : (s.qMatrixResults.task7_missing_subtrahend === 'success' || s.qMatrixResults.task8_missing_addend === 'success') ? ' ניכרת יכולת טובה מאוד בחשיבה אלגברית ומציאת נעלם.' : ''}
                                   </p>
                                 </div>
 
@@ -1259,13 +1353,32 @@ export function TeacherDashboard() {
             <div
               className={`${selectedStudentId ? "hidden md:flex" : "flex"} w-full md:w-72 bg-white/80  backdrop-blur-xl border-b md:border-b-0 md:border-l border-ws-surface2  flex-col h-full z-10 shadow-[4px_0_24px_rgba(0,0,0,0.02)] dark:shadow-[4px_0_24px_rgba(0,0,0,0.2)]`}
             >
-              <div className="p-6 border-b border-ws-surface2 ">
-                <h3 className="font-bold text-xl text-ws-ink ">
-                  שיחות עם תלמידים
-                </h3>
-                <p className="text-xs text-ws-soft mt-1 font-medium">
-                  בחר תלמיד לתחילת צ'אט אישי
-                </p>
+              <div className="p-6 border-b border-ws-surface2 flex flex-col gap-3">
+                <div>
+                  <h3 className="font-bold text-xl text-ws-ink ">
+                    שיחות עם תלמידים
+                  </h3>
+                  <p className="text-xs text-ws-soft mt-1 font-medium">
+                    בחר תלמיד לתחילת צ'אט אישי
+                  </p>
+                </div>
+                
+                <div className="flex items-center justify-between p-3 bg-slate-100 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                  <div>
+                    <div className="font-bold text-sm text-slate-800 dark:text-slate-200">
+                      אפשר צ'אט לתלמידים
+                    </div>
+                    <div className="text-xs text-slate-500">
+                      {globalChatEnabled ? "התלמידים יכולים לשלוח לך הודעות" : "הצ'אט כרגע חסום לתלמידים"}
+                    </div>
+                  </div>
+                  <button 
+                    onClick={toggleGlobalChat}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${globalChatEnabled ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${globalChatEnabled ? '-translate-x-1' : '-translate-x-6'}`} />
+                  </button>
+                </div>
               </div>
               <div className="flex-1 overflow-y-auto p-3 space-y-2">
                 {chatStudents.map((student) => {
