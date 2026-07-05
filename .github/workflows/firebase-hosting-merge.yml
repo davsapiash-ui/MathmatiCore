@@ -19,12 +19,13 @@ jobs:
           cache-dependency-path: react-ts-version/package-lock.json
       - name: Install dependencies and build
         run: cd react-ts-version && npm ci --legacy-peer-deps && npm run build
-      - uses: FirebaseExtended/action-hosting-deploy@v1
+      - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MATHIMATICORE }}
           channelId: live
           projectId: mathimaticore
+          entryPoint: .
 
       # Deploy Realtime Database security rules (hosting action above covers hosting only —
       # without this step rule changes in the repo never reach the live database).
