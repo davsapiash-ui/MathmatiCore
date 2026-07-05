@@ -116,18 +116,11 @@ class FirebaseSyncService {
     return snapshot.val();
   }
 
-  public async authenticateTeacher(taz: string, dob: string) {
-    const teachersRef = ref(database, 'users/teachers');
-    const snapshot = await get(teachersRef);
+  public async authenticateTeacher(taz: string) {
+    const teacherRef = ref(database, `users/teachers/${taz}`);
+    const snapshot = await get(teacherRef);
     if (!snapshot.exists()) return null;
-    
-    const teachers = snapshot.val();
-    for (const key in teachers) {
-      if (teachers[key].taz === taz && teachers[key].dob === dob) {
-        return teachers[key];
-      }
-    }
-    return null;
+    return snapshot.val();
   }
 
   public async registerTeacher(teacherData: any) {

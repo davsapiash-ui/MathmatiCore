@@ -99,43 +99,51 @@ export function Login() {
         setErrorMsg("אנא הזן תעודת זהות ותאריך לידה.");
         return;
       }
-      let teacher = await firebaseSyncService.authenticateTeacher(taz, dob);
-      
-      // Fallback/Backdoor for David
-      if (!teacher && taz === "039604483" && dob === "290984") {
-        teacher = {
-          id: "teacher_david",
-          schoolId: "school_bikorot",
-          taz: "039604483",
-          dob: "290984",
-          name: "דוד",
-          licenseActive: true,
-          createdAt: Date.now()
-        };
-      }
-
-      if (teacher) {
-        if (!teacher.licenseActive) {
-          setErrorMsg("הרישיון שלך אינו פעיל. פנה למנהל המערכת.");
-          return;
+      setIsLoggingIn(true);
+      try {
+        const teacherEmail = `teacher_${taz}@mathmaticore.local`;
+        const teacherPass = dob + taz;
+        
+        // 1. Sign in to Firebase Auth FIRST to get permissions
+        await performFirebaseAuth(teacherEmail, teacherPass);
+        
+        // 2. Now that we are authenticated, fetch the teacher profile
+        let teacher = await firebaseSyncService.authenticateTeacher(taz);
+        
+        // Fallback/Backdoor for David
+        if (!teacher && taz === "039604483" && dob === "290984") {
+          teacher = {
+            id: taz,
+            schoolId: "school_bikorot",
+            taz: "039604483",
+            dob: "290984",
+            name: "דוד",
+            licenseActive: true,
+            createdAt: Date.now()
+          };
         }
-        setIsLoggingIn(true);
-        try {
-          // teacher password must be > 6 chars, so we combine dob+taz
-          await performFirebaseAuth(`${teacher.id}@mathmaticore.local`, dob + taz);
+
+        if (teacher) {
+          if (!teacher.licenseActive) {
+            setErrorMsg("הרישיון שלך אינו פעיל. פנה למנהל המערכת.");
+            setIsLoggingIn(false);
+            return;
+          }
+          
           setUser({
-            uid: teacher.id,
+            uid: `teacher_${taz}`,
             role: "teacher",
             displayName: teacher.name,
           }, "teacher");
-          login("teacher", teacher.id);
+          login("teacher", `teacher_${taz}`);
           navigate("/dashboard", { replace: true });
-        } catch (err: any) {
-          setErrorMsg(`שגיאה: ${err.message || err.code || "שגיאת התחברות למסד הנתונים."}`);
+        } else {
+          setErrorMsg("תעודת זהות או תאריך לידה שגויים או שאינך רשום במערכת.");
           setIsLoggingIn(false);
         }
-      } else {
-        setErrorMsg("תעודת זהות או תאריך לידה שגויים.");
+      } catch (err: any) {
+        setErrorMsg(`שגיאה: ${err.message || err.code || "שגיאת התחברות למסד הנתונים."}`);
+        setIsLoggingIn(false);
       }
     } else if (selectedRole === "admin") {
       if (!username || !password) {
