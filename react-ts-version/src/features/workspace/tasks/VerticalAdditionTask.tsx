@@ -93,7 +93,6 @@ export function VerticalAdditionTask({
         {/* Row 0 — Carry/Borrow inputs */}
         <div aria-hidden="true" />
         {colPlaces.map((place, j) => {
-          if (j === cols - 1) return <div key={`c${j}`} aria-hidden="true" />; // No carry above units usually, but let's allow it just in case, wait no, let's allow all except rightmost if we want, or just all columns. Let's render an input for all columns.
           return (
             <div key={`carry${j}`} className="flex items-end justify-center pb-1">
               <input

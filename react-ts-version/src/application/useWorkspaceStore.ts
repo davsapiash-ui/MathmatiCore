@@ -11,7 +11,6 @@ import {
   EMPTY_COUNTS,
   getValue,
   removeBlock,
-  ungroupBlock,
   resolveDrop,
   type DropInput,
   type Place,
@@ -103,6 +102,7 @@ interface WorkspaceState {
   restoreScaffolds: () => void;
   addRepresentation: () => void;
   demoUngroup: () => void;
+  skipTutorial: () => void;
   proceed: () => void;
   requestHelp: () => void;
   helpFrictionDone: () => void;
@@ -552,26 +552,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     removeBlockClick: (place) => {
       const s = get();
       radar.recordAction();
-      
-      // Attempt to decompose (ungroup) the block first (e.g., Ten -> 10 Units)
-      const ungroupResult = ungroupBlock(s.counts, place);
-      
-      if (ungroupResult) {
-        // Successful decomposition
-        pushSnapshot(s.counts, s.packagedBlocks);
-        set({ counts: ungroupResult.counts, hasInteracted: true });
-        radar.recordAction(); // Not a delete, just a decomposition
-      } else {
-        // If it cannot be decomposed (e.g., it's a Unit), just remove it (delete)
-        const next = removeBlock(s.counts, place);
-        if (!next) {
-          flagConstraintError(place);
-          return;
-        }
-        pushSnapshot(s.counts, s.packagedBlocks);
-        set({ counts: next, hasInteracted: true });
-        radar.recordDelete();
+      const next = removeBlock(s.counts, place);
+      if (!next) {
+        flagConstraintError(place);
+        return;
       }
+      pushSnapshot(s.counts, s.packagedBlocks);
+      set({ counts: next, hasInteracted: true });
+      radar.recordDelete();
     },
 
     packageBlocks: (place) => {
@@ -675,6 +663,17 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       radar.recordAction();
       if (s.sessionNumber === 2) proceedQ();
       else proceedStandard();
+    },
+
+    skipTutorial: () => {
+      const s = get();
+      if (s.sessionNumber !== 1) return;
+      
+      set({ awaitingNext: true });
+      showFeedback({ correct: true, title: 'הדרכה הופסקה', sub: 'עוברים למשימות...' }, 1500, () => {
+        set({ standardTaskIdx: 6, awaitingNext: false });
+        startTask(getSessionTasks(1)[6].id);
+      });
     },
 
     /** Help flow: lightbulb → 3s "productive metacognitive friction" → calibrated choice. */
