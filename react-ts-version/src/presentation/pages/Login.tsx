@@ -23,7 +23,7 @@ const inputClass =
 
 export function Login() {
   const { setUser } = useAuthStore();
-  const { teachers, schools, classes } = useAdminStore();
+  const { schools, classes } = useAdminStore();
   const { login, students } = useStore();
   const navigate = useNavigate();
 

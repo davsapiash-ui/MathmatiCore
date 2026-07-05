@@ -1,5 +1,6 @@
 import { AccessibleCard } from "@/presentation/design-system/AccessibleCard";
 import { Activity, Users, GraduationCap, ShieldAlert } from "lucide-react";
+import { UdlButton } from "@/presentation/design-system/UdlButton";
 import { useAdminStore } from "@/application/useAdminStore";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useEffect, useState } from 'react';

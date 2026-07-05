@@ -110,9 +110,10 @@ export type DropResult =
   | { ok: false; reason: 'constraint'; place: Place };
 
 export function resolveDrop(counts: PlaceCounts, packagedBlocks: PlaceCounts, input: DropInput, scaffoldLevel: number): DropResult {
-  void scaffoldLevel; // Silence TS unused var error
-  // Pedagogical update: The spec requires automatic grouping when a column reaches 10 items.
-  const autoGroup = true;
+  // Spec-precise (רצף פעילויות מפגש 3 + vanilla source of truth): auto-regroup is the
+  // default scaffold and FADES — automatic at levels 0–1, manual from level 2 so the
+  // responsibility transfers to the student (tasks s1_t4/s1_t5 depend on this).
+  const autoGroup = scaffoldLevel < 2;
 
   // Trash: only blocks taken from a column may be deleted (palette drags are copies).
   if (input.target.kind === 'trash') {
