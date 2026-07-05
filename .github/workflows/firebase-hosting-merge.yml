@@ -37,4 +37,7 @@ jobs:
         run: npx --yes firebase-tools@13 deploy --only hosting --project mathimaticore --non-interactive
 
       - name: Deploy Database Rules to Firebase
-        run: npx --yes firebase-tools@13 deploy --only database --project mathimaticore --non-interactive
+        run: |
+          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_MATHIMATICORE }}' > /tmp/sa.json
+          GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json npx --yes firebase-tools@13 deploy --only database --project mathimaticore --non-interactive
+          rm -f /tmp/sa.json
