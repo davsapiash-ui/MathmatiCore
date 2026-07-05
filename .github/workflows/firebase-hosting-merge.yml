@@ -11,27 +11,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'npm'
           cache-dependency-path: react-ts-version/package-lock.json
-      - name: Install dependencies and build
-        run: cd react-ts-version && npm ci --legacy-peer-deps && npm run build
-      - uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MATHIMATICORE }}
-          channelId: live
-          projectId: mathimaticore
-          entryPoint: .
 
-      # Deploy Realtime Database security rules (hosting action above covers hosting only —
-      # without this step rule changes in the repo never reach the live database).
-      - name: Deploy database rules
+      - name: Install dependencies
+        run: cd react-ts-version && npm ci --legacy-peer-deps
+
+      - name: Build
+        run: cd react-ts-version && npm run build
+
+      - name: Deploy to Firebase Hosting + Database
         run: |
           echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_MATHIMATICORE }}' > "$RUNNER_TEMP/sa.json"
           export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
-          npx --yes firebase-tools deploy --only database --project mathimaticore --non-interactive
+          npx --yes firebase-tools deploy --only hosting,database --project mathimaticore --non-interactive
           rm -f "$RUNNER_TEMP/sa.json"
