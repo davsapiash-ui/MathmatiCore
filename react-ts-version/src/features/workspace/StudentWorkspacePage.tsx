@@ -92,7 +92,11 @@ export function StudentWorkspacePage() {
       if (!uid) return;
       const sessionKey = `${uid}/${Date.now()}`; // segment per workspace visit
       import('firebase/database').then(({ ref, push }) => {
-        import('@/infrastructure/firebase').then(({ database }) => {
+        import('@/infrastructure/firebase').then(({ database, authReady }) => {
+          // Recording starts only once an authenticated session exists — pre-auth
+          // pushes are rejected by the locked rules and were silently lost.
+          authReady.then((authOk) => {
+          if (!authOk || cancelled) return;
           import('rrweb').then((rrweb) => {
             if (cancelled) return;
             stopRecording = rrweb.record({
@@ -120,6 +124,7 @@ export function StudentWorkspacePage() {
           });
         });
       });
+    });
     });
 
     return () => {

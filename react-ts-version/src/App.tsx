@@ -1,5 +1,6 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import { authReady } from "@/infrastructure/firebase";
 import { Login } from "@/presentation/pages/Login";
 import { LandingPage } from "@/presentation/pages/LandingPage";
 import { StudentWorkspacePage } from "@/features/workspace/StudentWorkspacePage";
@@ -18,6 +19,33 @@ import { AdminChatView } from "@/presentation/pages/admin/AdminChatView";
 import { useAuthStore } from "@/application/useAuthStore";
 import { useSettingsStore } from "@/application/useSettingsStore";
 import { useIdleTimeout } from "@/application/useIdleTimeout";
+
+/**
+ * Mount-gate on the Firebase session: children (and ALL their onValue listeners /
+ * writes) mount only after sign-in completes. Listeners attached pre-auth are
+ * cancelled with permission-denied and never retry — this is the single systemic
+ * fix for that startup race, resilient to any future subscriptions added inside.
+ */
+function FirebaseGate({ children }: { children: React.ReactNode }) {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    authReady.then(() => {
+      if (!cancelled) setReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  if (!ready) {
+    return (
+      <div dir="rtl" className="flex h-screen items-center justify-center bg-ws-bg text-ws-soft font-bold">
+        מתחבר…
+      </div>
+    );
+  }
+  return <>{children}</>;
+}
 
 function AuthGuard({ allowedRoles, children }: { allowedRoles: string[]; children: React.ReactNode }) {
   const { user, isAuthenticated } = useAuthStore();
@@ -81,7 +109,9 @@ function App() {
 
           <Route path="/dashboard" element={
             <AuthGuard allowedRoles={["teacher", "admin"]}>
+              <FirebaseGate>
               <TeacherDashboard />
+              </FirebaseGate>
             </AuthGuard>
           } />
         </Route>
@@ -89,7 +119,9 @@ function App() {
         {/* Student workspace: standalone fullscreen experience (100vh, single chrome, per spec) */}
         <Route path="/workspace" element={
           <AuthGuard allowedRoles={["student", "admin"]}>
-            <StudentWorkspacePage />
+            <FirebaseGate>
+              <StudentWorkspacePage />
+            </FirebaseGate>
           </AuthGuard>
         } />
         
@@ -102,7 +134,9 @@ function App() {
 
         <Route path="/admin" element={
           <AuthGuard allowedRoles={["admin"]}>
-            <AdminLayout />
+            <FirebaseGate>
+              <AdminLayout />
+            </FirebaseGate>
           </AuthGuard>
         }>
           <Route index element={<AdminOverview />} />

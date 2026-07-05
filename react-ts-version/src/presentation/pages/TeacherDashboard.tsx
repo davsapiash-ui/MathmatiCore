@@ -6,7 +6,7 @@ import { useAuthStore } from "@/application/useAuthStore";
 import { useChatStore } from "@/application/useChatStore";
 import { useStore, type StudentData } from "@/application/useStore";
 import { ref, onValue, remove } from "firebase/database";
-import { database } from "@/infrastructure/firebase";
+import { database, authReady } from "@/infrastructure/firebase";
 import {
   BarChart,
   Bar,
@@ -49,8 +49,14 @@ export function TeacherDashboard() {
 
   useEffect(() => {
     if (selectedReplayStudentId) {
+      // Attach only after the auth session exists — listeners attached pre-auth
+      // are cancelled with permission-denied and never retry.
+      let unsubscribe: (() => void) | undefined;
+      let cancelled = false;
+      authReady.then(() => {
+      if (cancelled) return;
       const replayRef = ref(database, `replays/${selectedReplayStudentId}`);
-      const unsubscribe = onValue(replayRef, (snapshot) => {
+      unsubscribe = onValue(replayRef, (snapshot) => {
          if (snapshot.exists()) {
             const data = snapshot.val();
             // Structure is replays/{uid}/{sessionTimestamp}/{pushId} — flatten TWO levels
@@ -79,7 +85,11 @@ export function TeacherDashboard() {
             setLiveReplayEvents([]);
          }
       });
-      return () => unsubscribe();
+      });
+      return () => {
+        cancelled = true;
+        unsubscribe?.();
+      };
     } else {
       setLiveReplayEvents([]);
     }

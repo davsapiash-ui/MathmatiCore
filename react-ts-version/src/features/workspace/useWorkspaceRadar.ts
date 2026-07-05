@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { ref, push } from 'firebase/database';
-import { database } from '@/infrastructure/firebase';
+import { database, authReady } from '@/infrastructure/firebase';
 import { useAuthStore } from '@/application/useAuthStore';
 import { registerRadar, unregisterRadar } from './radarBus';
 
@@ -46,13 +46,14 @@ export function useWorkspaceRadar(sessionNumber: number) {
         ...data,
       };
       // Fire-and-forget: monitoring must never block or surface to the student.
-      // push() rejects ASYNC (e.g. permission-denied) — the sync try/catch alone
-      // let rejections escape as unhandled; .catch keeps them truly silent.
-      try {
-        push(ref(database, 'radar_alerts'), alert).catch(() => {});
-      } catch {
-        /* dev config without live Firebase — silently drop */
-      }
+      // Waits for the auth session first — pre-auth pushes are rejected by the
+      // locked rules; async rejections stay silenced with .catch.
+      authReady
+        .then((ok) => {
+          if (!ok) return;
+          push(ref(database, 'radar_alerts'), alert).catch(() => {});
+        })
+        .catch(() => {});
     }
 
     function clearHesitationTimer() {

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ref, push, set } from 'firebase/database';
-import { database } from '@/infrastructure/firebase';
+import { database, authReady } from '@/infrastructure/firebase';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { TASKS } from '@/core/QMatrix';
@@ -55,6 +55,10 @@ export function ReflectionScreen() {
     setDone(true);
 
     // Silent persistence for the teacher dashboard (best-effort; vanilla completeReflection).
+    // Gated on authReady: writes fired before the sign-in completes are rejected
+    // by the locked rules — this race silently swallowed real diagnostics.
+    authReady.then((ok) => {
+    if (!ok) return;
     try {
       push(ref(database, 'reflections'), {
         effort,
@@ -100,6 +104,7 @@ export function ReflectionScreen() {
     } catch {
       /* dev config has no live Firebase — silent, never blocks the student */
     }
+    }).catch(() => {});
     void TASKS;
 
     window.setTimeout(() => navigate('/hub'), 900);

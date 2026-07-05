@@ -1,7 +1,16 @@
 import { ref, push, set, get, remove, serverTimestamp } from "firebase/database";
-import { database } from "@/infrastructure/firebase";
+import { database, authReady } from "@/infrastructure/firebase";
 import type { SessionTask } from "@/data/sessionTasks";
 import type { QMatrixResults } from "@/core/QMatrix";
+
+/**
+ * All engine I/O waits for an authenticated session first — the locked rules
+ * reject anything sent before sign-in completes (a startup race that silently
+ * dropped writes and made reads return permission-denied).
+ */
+async function ready(): Promise<void> {
+  await authReady;
+}
 
 export interface PendingAIApproval {
   id: string; // The generated approval ID
@@ -23,6 +32,7 @@ export class SocraticEngine {
    * Generates tasks based on QMatrix errors and queues them for teacher approval.
    */
   static async generateAndQueueTasks(studentId: string, studentName: string, teacherId: string, qMatrix: QMatrixResults): Promise<void> {
+    await ready();
     const tasks: SessionTask[] = [];
     
     const diagnosisParts: string[] = [];
@@ -110,6 +120,7 @@ export class SocraticEngine {
    * Fetches pending tasks for a teacher.
    */
   static async getPendingApprovals(teacherId: string): Promise<PendingAIApproval[]> {
+    await ready();
     const pendingRef = ref(database, `ai_pending_approvals/${teacherId}`);
     const snapshot = await get(pendingRef);
     if (!snapshot.exists()) return [];
@@ -125,6 +136,7 @@ export class SocraticEngine {
    * Approves a pending task sequence and assigns it to the student.
    */
   static async approveTasks(teacherId: string, approvalId: string, studentId: string, tasks: SessionTask[]): Promise<void> {
+    await ready();
     // 1. Move to approved_tasks
     const approvedRef = ref(database, `approved_tasks/${studentId}`);
     await set(approvedRef, tasks);
@@ -138,6 +150,7 @@ export class SocraticEngine {
    * Deletes a pending approval (rejection).
    */
   static async rejectTasks(teacherId: string, approvalId: string): Promise<void> {
+    await ready();
     const pendingRef = ref(database, `ai_pending_approvals/${teacherId}/${approvalId}`);
     await remove(pendingRef);
   }
@@ -146,6 +159,7 @@ export class SocraticEngine {
    * Fetches approved tasks for a student. Returns null if none found.
    */
   static async getApprovedTasks(studentId: string): Promise<SessionTask[] | null> {
+    await ready();
     const approvedRef = ref(database, `approved_tasks/${studentId}`);
     const snapshot = await get(approvedRef);
     if (!snapshot.exists()) return null;

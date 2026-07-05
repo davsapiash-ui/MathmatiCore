@@ -10,6 +10,11 @@
       }
     },
 
+    "users": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+
     "radar_alerts": {
       ".read": "auth != null",
       "$alertId": {
