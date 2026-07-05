@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "site": "mathimaticore",
     "public": "react-ts-version/dist",
     "ignore": [
       "firebase.json",
