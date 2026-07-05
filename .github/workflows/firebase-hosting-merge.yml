@@ -13,23 +13,36 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js 22
+      - name: Setup Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
           cache: 'npm'
           cache-dependency-path: react-ts-version/package-lock.json
 
       - name: Install dependencies
-        run: cd react-ts-version && npm ci --legacy-peer-deps
+        working-directory: react-ts-version
+        run: npm ci --legacy-peer-deps
 
       - name: Build
-        run: cd react-ts-version && npm run build
+        working-directory: react-ts-version
+        run: npm run build
+
+      - name: Verify dist exists
+        run: ls -la react-ts-version/dist/
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MATHIMATICORE }}
 
-      - name: Deploy to Firebase
+      - name: Deploy Hosting to Firebase
+        run: npx --yes firebase-tools@13 deploy --only hosting --project mathimaticore --non-interactive --debug 2>&1 | tail -50
+        continue-on-error: true
+
+      - name: Deploy Database Rules to Firebase
+        run: npx --yes firebase-tools@13 deploy --only database --project mathimaticore --non-interactive --debug 2>&1 | tail -50
+        continue-on-error: true
+
+      - name: Final deploy (fail on error)
         run: npx --yes firebase-tools@13 deploy --only hosting,database --project mathimaticore --non-interactive
