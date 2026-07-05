@@ -163,8 +163,11 @@ export function selectScaffoldLevel(s: WorkspaceState): number {
 }
 
 export function getActiveTasks(s: WorkspaceState): SessionTask[] {
+  // Session 2 runs through the Q-Matrix flow — it has no standard task list.
+  // (Calling getSessionTasks(2) returned undefined and crashed the topbar.)
+  if (s.sessionNumber === 2) return [];
   if (s.sessionNumber === 3 && s.aiTasks) return s.aiTasks;
-  return getSessionTasks(s.sessionNumber as 1 | 3 | 4);
+  return getSessionTasks(s.sessionNumber as 1 | 3 | 4) ?? [];
 }
 
 export function selectStandardTask(s: WorkspaceState): SessionTask | null {
