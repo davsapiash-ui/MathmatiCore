@@ -8,7 +8,6 @@ export class TTSService {
   private static instance: TTSService;
   private voices: SpeechSynthesisVoice[] = [];
   private isLoaded = false;
-  private currentUtterance: SpeechSynthesisUtterance | null = null;
 
   private constructor() {
     this.initVoices();
@@ -69,16 +68,13 @@ export class TTSService {
     }
 
     utterance.onend = () => {
-      this.currentUtterance = null;
       if (onEnd) onEnd();
     };
 
     utterance.onerror = (e) => {
-      this.currentUtterance = null;
       if (onError) onError(e);
     };
 
-    this.currentUtterance = utterance;
     window.speechSynthesis.speak(utterance);
   }
 
@@ -86,7 +82,6 @@ export class TTSService {
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
-    this.currentUtterance = null;
   }
 }
 
