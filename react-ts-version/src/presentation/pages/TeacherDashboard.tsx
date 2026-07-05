@@ -660,7 +660,7 @@ export function TeacherDashboard() {
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 to-rose-500"></div>
                 <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                 <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink ">
-                  חיזוק עובדות יסוד בחיבור (משימה 4)
+                  חיבור במאונך של מספרים (משימה 4)
                 </h3>
                 <p className="text-ws-soft  mb-6 text-base leading-relaxed relative z-10">
                   תלמידים שהתקשו בפעולות חיבור בסיסיות ללא המרה.
@@ -691,7 +691,7 @@ export function TeacherDashboard() {
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-indigo-500"></div>
                 <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                 <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink ">
-                  פיתוח גמישות מחשבתית (משימה 3)
+                  פירוק והרכבה לפי המבנה העשרוני (משימה 3)
                 </h3>
                 <p className="text-ws-soft  mb-6 text-base leading-relaxed relative z-10">
                   תלמידים שהצליחו לפרק רק בצורה הקנונית וזקוקים לתרגול גמישות בהמרה.
@@ -722,7 +722,7 @@ export function TeacherDashboard() {
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-cyan-500"></div>
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                 <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink ">
-                  תפקיד האפס ושומר מקום (משימה 1)
+                  המבנה העשרוני והמושג ספרה (משימה 1)
                 </h3>
                 <p className="text-ws-soft  mb-6 text-base leading-relaxed relative z-10">
                   תלמידים שהתקשו בהבנת האפס כשומר מקום במערכת העשרונית.
@@ -753,7 +753,7 @@ export function TeacherDashboard() {
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
                 <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                 <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink ">
-                  אומדן והערכת גודל (משימה 2)
+                  רצף וסדר על ישר המספרים (משימה 2)
                 </h3>
                 <p className="text-ws-soft  mb-6 text-base leading-relaxed relative z-10">
                   תלמידים שחרגו מטווח הטעות המותר בהערכת הכמויות.

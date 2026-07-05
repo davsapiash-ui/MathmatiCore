@@ -40,22 +40,22 @@ export class SocraticEngine {
     let isYellowPath = false;
 
     if (qMatrix.task1_zero_placeholder === 'zero_placeholder_hundreds_error') {
-      diagnosisParts.push("ניכר קושי נקודתי בהבנת שומר המקום במיקום המאות. נראה כי התלמיד מבין את הרעיון הכללי אך זקוק לחידוד במעברים גדולים.");
-      actionParts.push("חיזוק הבנת המאות כערך עצמאי.");
+      diagnosisParts.push("ניכר קושי נקודתי בהבנת המבנה העשרוני והאפס כשומר מקום. נראה כי התלמיד מבין את הרעיון הכללי אך זקוק לחידוד במעברים גדולים.");
+      actionParts.push("חיזוק הבנת המבנה העשרוני של המספרים עד 1000.");
       isYellowPath = true;
     } else if (qMatrix.task1_zero_placeholder === 'zero_placeholder_global_error') {
-      diagnosisParts.push("ייתכן פער משמעותי בהבנת תפקיד האפס כ'שומר מקום' במערכת העשרונית, מה שעשוי להעיד על חסר בהפנמת הערך המקומי.");
-      actionParts.push("עבודה על ערך המקום והבנת האפס באופן הדרגתי.");
+      diagnosisParts.push("ייתכן פער משמעותי בהבנת תפקיד האפס כ'שומר מקום' במבנה העשרוני, מה שעשוי להעיד על חסר בהפנמת הערך המקומי בסיס 10.");
+      actionParts.push("עבודה על המבנה העשרוני והבנת האפס באופן הדרגתי.");
       isYellowPath = true;
     }
 
     if (qMatrix.task4_basic_addition_fluency === 'procedural_error') {
-      diagnosisParts.push("התלמיד שלט בעובדות היסוד במשימת העזר, ולכן השגיאה בחיבור הארוך נובעת ככל הנראה מבלבול פרוצדורלי (סדר הפעולות).");
+      diagnosisParts.push("התלמיד שלט בעובדות היסוד במשימת העזר, ולכן השגיאה נובעת מקושי בהבנת המהות של פעולות חיבור במאונך בתחום ה-100 וה-1000.");
       actionParts.push("תרגול מובנה של חיבור במאונך, ללא חשש לשליטה בסיסית.");
       isYellowPath = true;
     } else if (qMatrix.task4_basic_addition_fluency === 'basic_facts_deficit') {
-      diagnosisParts.push("נראה כי קיימת חולשה משמעותית בשליטה בעובדות יסוד בסיסיות (כגון 4+3). זהו חסם קריטי שעלול להקשות על התקדמות באלגוריתם.");
-      actionParts.push("יש לעצור ולבסס עובדות יסוד באפס מאמץ קוגניטיבי לפני מעבר לחישובים מורכבים.");
+      diagnosisParts.push("נראה כי קיימת חולשה משמעותית בשליטה בעובדות יסוד בסיסיות של חיבור וחיסור, שהיא בסיס הכרחי לפני פעולות במאונך.");
+      actionParts.push("יש לעצור ולבסס עובדות יסוד של חיבור במאמץ קוגניטיבי נמוך לפני מעבר לחישובים מורכבים במאונך.");
       isYellowPath = true;
     }
 

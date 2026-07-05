@@ -62,7 +62,7 @@ export const TASKS: QMatrixTask[] = [
   {
     id: "task1_zero_placeholder",
     type: "place_value_zero",
-    titleHe: "שומר המקום",
+    titleHe: "המבנה העשרוני (שומר מקום)",
     instructionHe: "בנו את המספר המופיע למטה בטבלת ערך המקום, ואז בחרו את התשובה הנכונה:",
     number: 304,
     asdNumber: 70,
@@ -89,8 +89,8 @@ export const TASKS: QMatrixTask[] = [
   {
     id: "task2_estimation_error_margin",
     type: "number_line",
-    titleHe: "מסע על ישר המספרים",
-    instructionHe: "היכן לדעתכם ממוקם המספר 750 על ישר המספרים? גררו את החץ למקום המתאים.",
+    titleHe: "רצף וסדר על ישר המספרים",
+    instructionHe: "היכן לדעתכם ממוקם המספר 750 על ישר המספרים? גררו את החץ למיקום מקורב.",
     number: 750,
     range: [0, 1000],
     asdNumber: 35,
@@ -111,7 +111,7 @@ export const TASKS: QMatrixTask[] = [
     id: "task3_flexible_regrouping",
     type: "flexible_decomp",
     scaffoldLevel: 2,
-    titleHe: "פירוק והרכבה גמישים",
+    titleHe: "פירוק והרכבה לפי המבנה העשרוני",
     instructionHe: "בנו את המספר 240 בטבלת ערך המקום, ולחצו \"הוסף ייצוג\". לאחר מכן, מצאו דרך נוספת לייצג את אותו המספר ולחצו שוב! (רמז: נסו להיעזר בפריטה).",
     number: 240,
     asdNumber: 34,
@@ -137,7 +137,7 @@ export const TASKS: QMatrixTask[] = [
   {
     id: "task4_basic_addition_fluency",
     type: "vertical_addition",
-    titleHe: "חיבור במאונך",
+    titleHe: "חיבור במאונך של מספרים",
     instructionHe: "פתרו את תרגיל החיבור בטבלת ערך המקום, ורשמו את התוצאה בתיבות התשובה.",
     numberA: 126,
     numberB: 235,
