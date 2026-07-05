@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { AuditLogger } from "@/infrastructure/services/AuditLogger";
+import { firebaseSyncService } from "@/infrastructure/services/FirebaseSyncService";
 
 export interface School {
   id: string;
@@ -99,17 +100,15 @@ export const useAdminStore = create<AdminState>()(
       }),
 
       addTeacher: (schoolId, name, taz, dob) => set((state) => {
-        AuditLogger.log("יצירת מורה", "admin", `מורה חדש: ${name}`);
+        const id = `teacher_${Date.now()}`;
+        AuditLogger.log("יצירת מורה", "admin", `מורה חדש: ${name} (ת"ז: ${taz})`);
+        const newTeacher = { id, schoolId, name, taz, dob, licenseActive: true, createdAt: Date.now() };
+        
+        // Sync to cloud
+        firebaseSyncService.registerTeacher(newTeacher).catch(err => console.error("Failed to sync teacher to cloud", err));
+
         return {
-          teachers: [...state.teachers, { 
-            id: `teacher_${Date.now()}`, 
-            schoolId, 
-            name, 
-            taz, 
-            dob, 
-            licenseActive: true,
-            createdAt: Date.now() 
-          }]
+          teachers: [...state.teachers, newTeacher]
         };
       }),
 

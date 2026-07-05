@@ -18,3 +18,12 @@ jobs:
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MATHIMATICORE }}
           channelId: live
           projectId: mathimaticore
+
+      # Deploy Realtime Database security rules (hosting action above covers hosting only —
+      # without this step rule changes in the repo never reach the live database).
+      - name: Deploy database rules
+        run: |
+          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_MATHIMATICORE }}' > "$RUNNER_TEMP/sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
+          npx --yes firebase-tools deploy --only database --project mathimaticore --non-interactive
+          rm -f "$RUNNER_TEMP/sa.json"

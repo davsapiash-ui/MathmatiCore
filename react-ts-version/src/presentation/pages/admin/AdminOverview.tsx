@@ -43,7 +43,7 @@ export function AdminOverview() {
   const [isCleaning, setIsCleaning] = useState(false);
 
   const handleDataCleanup = async () => {
-    if (!window.confirm("האם אתה בטוח שברצונך למחוק הקלטות וידאו ישנות (מעל 30 יום)? פעולה זו נדרשת לתקן COPPA ולא ניתנת לביטול.")) return;
+    if (!window.confirm("האם אתה בטוח שברצונך למחוק הקלטות וידאו ישנות (מעל 30 יום)? פעולה זו מומלצת כהכנה לתקני פרטיות ילדים ולא ניתנת לביטול.")) return;
     try {
       setIsCleaning(true);
       const replaysRef = ref(database, 'replays');
@@ -67,7 +67,7 @@ export function AdminOverview() {
         
         if (deletedCount > 0) {
           await update(replaysRef, updates);
-          alert(`נוקו בהצלחה ${deletedCount} סשנים ישנים של הקלטות בהתאם לתקן COPPA.`);
+          alert(`נוקו בהצלחה ${deletedCount} סשנים ישנים של הקלטות לשמירה על פרטיות ילדים.`);
         } else {
           alert('לא נמצאו סשנים ישנים (מעל 30 יום) לניקוי.');
         }
@@ -181,15 +181,18 @@ export function AdminOverview() {
                 <Users className="w-6 h-6 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
-                <h4 className="font-bold text-slate-800 dark:text-slate-200">עמידה בתקן <span dir="ltr">COPPA</span></h4>
-                <p className="text-sm text-slate-500">מאושר (ילדים מתחת לגיל 13)</p>
-                <button 
+                <h4 className="font-bold text-slate-800 dark:text-slate-200">הכנה לתקני פרטיות ילדים <span dir="ltr">(COPPA)</span></h4>
+                <p className="text-sm text-slate-500 mt-1">מחיקת נתוני וידאו וקול של קטינים בני יותר מ-30 יום.</p>
+                <UdlButton 
+                  semanticColor="danger" 
+                  variant="outline"
+                  size="sm"
                   onClick={handleDataCleanup}
                   disabled={isCleaning}
-                  className="mt-2 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded-md transition-colors disabled:opacity-50"
+                  className="w-full justify-center mt-4"
                 >
-                  {isCleaning ? 'מנקה...' : 'הרץ ניקוי היסטוריית הקלטות (COPPA)'}
-                </button>
+                  {isCleaning ? 'מנקה...' : 'הרץ ניקוי היסטוריית הקלטות (לשמירת פרטיות)'}
+                </UdlButton>
               </div>
             </div>
 

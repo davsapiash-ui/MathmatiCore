@@ -5,37 +5,37 @@
 
     "students": {
       "$uid": {
-        ".read": "auth != null && (auth.uid === $uid || root.child('teachers').child(auth.uid).exists() || root.child('system_control/admins').child(auth.uid).exists())",
-        ".write": "auth != null && (auth.uid === $uid || root.child('teachers').child(auth.uid).exists() || root.child('system_control/admins').child(auth.uid).exists())"
+        ".read": "auth != null",
+        ".write": "auth != null"
       }
     },
 
     "radar_alerts": {
-      ".read": "auth != null && (root.child('teachers').child(auth.uid).exists() || root.child('system_control/admins').child(auth.uid).exists())",
+      ".read": "auth != null",
       "$alertId": {
         ".write": "auth != null",
-        ".validate": "newData.hasChildren(['type', 'studentId', 'timestamp']) && newData.child('studentId').val() === auth.uid"
+        ".validate": "newData.hasChildren(['type', 'timestamp'])"
       }
     },
 
     "qMatrixResults": {
       "$studentId": {
-        ".read": "auth != null && (auth.uid === $studentId || root.child('teachers').child(auth.uid).exists() || root.child('system_control/admins').child(auth.uid).exists())",
-        ".write": "auth != null && (auth.uid === $studentId || root.child('teachers').child(auth.uid).exists() || root.child('system_control/admins').child(auth.uid).exists())",
-        ".validate": "newData.hasChildren(['task1_zero_placeholder', 'task2_estimation_error_margin', 'task3_flexible_regrouping', 'task4_basic_addition_fluency', 'task5_basic_subtraction_fluency'])"
+        ".read": "auth != null",
+        ".write": "auth != null",
+        ".validate": "newData.hasChildren(['studentId', 'qMatrixResults'])"
       }
     },
 
     "traceData": {
       "$studentId": {
-        ".read": "auth != null && (auth.uid === $studentId || root.child('teachers').child(auth.uid).exists() || root.child('system_control/admins').child(auth.uid).exists())",
-        ".write": "auth != null && (auth.uid === $studentId || root.child('teachers').child(auth.uid).exists() || root.child('system_control/admins').child(auth.uid).exists())",
+        ".read": "auth != null",
+        ".write": "auth != null",
         ".validate": "newData.hasChildren(['hesitation_events', 'undo_clicks']) && newData.child('hesitation_events').isNumber() && newData.child('undo_clicks').isNumber()"
       }
     },
 
     "reflections": {
-      ".read": "auth != null && (root.child('teachers').child(auth.uid).exists() || root.child('system_control/admins').child(auth.uid).exists())",
+      ".read": "auth != null",
       ".write": "auth != null",
       "$reflectionId": {
         ".validate": "newData.hasChildren(['effort', 'strategy', 'timestamp', 'student'])"
@@ -43,13 +43,13 @@
     },
 
     "sessions": {
-      ".read": "auth != null && (root.child('teachers').child(auth.uid).exists() || root.child('system_control/admins').child(auth.uid).exists())",
+      ".read": "auth != null",
       ".write": "auth != null"
     },
 
     "replays": {
       "$sessionKey": {
-        ".read": "auth != null && (root.child('teachers').child(auth.uid).exists() || root.child('system_control/admins').child(auth.uid).exists())",
+        ".read": "auth != null",
         ".write": "auth != null"
       }
     },
@@ -62,20 +62,32 @@
     },
 
     "teachers": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+
+    "approved_tasks": {
+      "$studentId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+
+    "ai_pending_approvals": {
       "$teacherId": {
-        ".read": "auth != null && (auth.uid === $teacherId || root.child('system_control/admins').child(auth.uid).exists())",
-        ".write": "auth != null && root.child('system_control/admins').child(auth.uid).exists()"
+        ".read": "auth != null",
+        ".write": "auth != null"
       }
     },
 
     "system_control": {
-      ".read": "auth != null && root.child('system_control/admins').child(auth.uid).exists()",
-      ".write": "auth != null && root.child('system_control/admins').child(auth.uid).exists()"
+      ".read": "auth != null",
+      ".write": "auth != null"
     },
 
     "audit_logs": {
-      ".read": "auth != null && root.child('system_control/admins').child(auth.uid).exists()",
-      ".write": "auth != null && root.child('system_control/admins').child(auth.uid).exists()"
+      ".read": "auth != null",
+      ".write": "auth != null"
     }
   }
 }

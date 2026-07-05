@@ -7,7 +7,7 @@
 
 import { initializeApp } from 'firebase/app';
 import { getDatabase } from 'firebase/database';
-import { getAuth, type Auth } from 'firebase/auth';
+import { getAuth, signInAnonymously, onAuthStateChanged, type Auth } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: "AIzaSyDupqh8inn1tZ1p-KIzV3RIMst7IdpUYPw",
@@ -32,3 +32,35 @@ try {
 }
 
 export const auth = authInstance;
+
+/**
+ * Silent anonymous sign-in (COPPA-friendly: no child PII reaches the identity provider).
+ * The locked security rules require auth != null — without a session every read/write
+ * is rejected. Resolves true once a session exists; if the Anonymous provider is
+ * disabled in the console, resolves false and the app keeps working offline-style.
+ */
+export const authReady: Promise<boolean> = new Promise((resolve) => {
+  if (!('onAuthStateChanged' in authInstance)) {
+    resolve(false);
+    return;
+  }
+  let settled = false;
+  const settle = (ok: boolean) => {
+    if (!settled) {
+      settled = true;
+      resolve(ok);
+    }
+  };
+  onAuthStateChanged(authInstance, (user) => {
+    if (user) {
+      settle(true);
+      return;
+    }
+    signInAnonymously(authInstance)
+      .then(() => settle(true))
+      .catch((e) => {
+        console.warn('Anonymous sign-in unavailable:', e?.code ?? e);
+        settle(false);
+      });
+  });
+});

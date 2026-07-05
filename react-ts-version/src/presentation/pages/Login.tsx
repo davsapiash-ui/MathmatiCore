@@ -6,6 +6,7 @@ import { useStore } from "@/application/useStore";
 import { useNavigate } from "react-router-dom";
 import { auth } from "@/infrastructure/firebase";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
+import { firebaseSyncService } from "@/infrastructure/services/FirebaseSyncService";
 
 // DEMO_USERS removed
 
@@ -98,7 +99,7 @@ export function Login() {
         setErrorMsg("אנא הזן תעודת זהות ותאריך לידה.");
         return;
       }
-      let teacher = teachers.find(t => t.taz === taz && t.dob === dob);
+      let teacher = await firebaseSyncService.authenticateTeacher(taz, dob);
       
       // Fallback/Backdoor for David
       if (!teacher && taz === "039604483" && dob === "290984") {

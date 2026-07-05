@@ -4,7 +4,7 @@ import { AccessibleCard } from "@/presentation/design-system/AccessibleCard";
 import { DataGrid } from "@/presentation/design-system/DataGrid";
 import { useAuthStore } from "@/application/useAuthStore";
 import { useChatStore } from "@/application/useChatStore";
-import { useStore } from "@/application/useStore";
+import { useStore, type StudentData } from "@/application/useStore";
 import { ref, onValue, remove } from "firebase/database";
 import { database } from "@/infrastructure/firebase";
 import {
@@ -26,7 +26,8 @@ import { SocraticEngine, type PendingAIApproval } from "@/infrastructure/service
 export function TeacherDashboard() {
   const { user } = useAuthStore();
   const { messages, sendMessage, markAsRead } = useChatStore();
-  const { students, resetTraceData, globalChatEnabled, toggleGlobalChat } = useStore();
+  const { resetTraceData, globalChatEnabled, toggleGlobalChat } = useStore();
+  const [students, setStudents] = useState<Record<string, any>>({});
 
   const [activeTab, setActiveTab] = useState<
     | "clustering"
@@ -90,6 +91,38 @@ export function TeacherDashboard() {
   const TEACHER_ID = "teacher-1";
 
   useEffect(() => {
+    const studentsRef = ref(database, 'users/students');
+    const unsubscribe = onValue(studentsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        // Transform data slightly to match what TeacherDashboard expects, if needed
+        const formattedStudents: Record<string, any> = {};
+        for (const [id, s] of Object.entries<any>(data)) {
+          formattedStudents[id] = {
+            id,
+            name: s.profile?.displayName || s.profile?.name || id,
+            currentTask: s.workspaceState?.standardTaskIdx || 0,
+            sessionNum: s.workspaceState?.sessionNumber || 1,
+            radar: {
+              hesitations: s.workspaceState?.hesitationCount || 0,
+              deletions: s.workspaceState?.undoCount || 0,
+            },
+            traceData: {
+              hesitation_events: s.workspaceState?.hesitationCount || 0,
+              undo_clicks: s.workspaceState?.undoCount || 0,
+            },
+            qMatrixResults: s.workspaceState?.qflow?.results || {},
+          };
+        }
+        setStudents(formattedStudents);
+      } else {
+        setStudents({});
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
     // Live subscription (a one-time get() left the badge stale until full reload).
     try {
       const pendingRef = ref(database, `ai_pending_approvals/${TEACHER_ID}`);
@@ -112,10 +145,63 @@ export function TeacherDashboard() {
     setActiveTab("chat_students");
   };
 
+  // ── LIVE students from Firebase ─────────────────────────────────────────
+  // The core disconnect: students write diagnostics to Firebase, but clustering
+  // read only the browser-local demo store — so real students were invisible.
+  // Subscribe to qMatrixResults and materialize each entry as a StudentData row.
+  const [liveStudents, setLiveStudents] = useState<Record<string, StudentData>>({});
+  useEffect(() => {
+    try {
+      const qRef = ref(database, 'qMatrixResults');
+      const unsub = onValue(
+        qRef,
+        (snapshot) => {
+          const data = snapshot.val() ?? {};
+          const mapped: Record<string, StudentData> = {};
+          Object.keys(data).forEach((uid) => {
+            const row = data[uid] ?? {};
+            mapped[uid] = {
+              studentId: uid,
+              classId: row.classId ?? 'live',
+              name: row.studentName ?? uid,
+              qMatrixResults: {
+                task1_zero_placeholder: null,
+                task2_estimation_error_margin: null,
+                task3_flexible_regrouping: null,
+                task4_basic_addition_fluency: null,
+                task5_small_change: null,
+                task6_subtraction_regrouping: null,
+                task7_missing_subtrahend: null,
+                task8_missing_addend: null,
+                ...(row.qMatrixResults ?? {}),
+              },
+              traceData: {
+                hesitation_events: row.traceData?.hesitation_events ?? 0,
+                undo_clicks: row.traceData?.undo_clicks ?? 0,
+              },
+              completedMeeting2: true,
+              routeRecommendation: null,
+              routeStatus: null,
+            };
+          });
+          setLiveStudents(mapped);
+        },
+        () => setLiveStudents({})
+      );
+      return () => unsub();
+    } catch {
+      /* offline dev — demo students only */
+    }
+  }, []);
+
   // Clustering Logic based on Q-Matrix
   // Memoized: a fresh array identity every render made downstream useMemos
   // (incl. the alerts list) recompute on every keystroke.
-  const allStudents = useMemo(() => Object.values(students), [students]);
+  // Live cloud students override local demo entries with the same id.
+  const allStudents = useMemo(
+    () => Object.values({ ...students, ...liveStudents }),
+    [students, liveStudents]
+  );
 
 
   const basicAdditionGroup = allStudents.filter(
