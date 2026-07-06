@@ -346,34 +346,6 @@ export function TeacherDashboard() {
   }, [allStudents]);
 
   // Generate trace data alerts
-  const alerts = useMemo(() => {
-    const list: any[] = [];
-    allStudents.forEach((s) => {
-      if (s.traceData.hesitation_events > 0) {
-        list.push({
-          firebaseKey: `hesitation-${s.studentId}`,
-          studentId: s.name,
-          rawStudentId: s.studentId,
-          type: "HESITATION",
-          taskId: "פעילות נוכחית",
-          timestamp: s.traceData.lastUpdate || Date.now(),
-          unread: true,
-        });
-      }
-      if (s.traceData.undo_clicks > 3) {
-        list.push({
-          firebaseKey: `undo-${s.studentId}`,
-          studentId: s.name,
-          rawStudentId: s.studentId,
-          type: "UNDO_SPAM",
-          taskId: "פעילות נוכחית",
-          timestamp: s.traceData.lastUpdate || Date.now(),
-          unread: true,
-        });
-      }
-    });
-    return list;
-  }, [allStudents]);
 
   const [firebaseAlerts, setFirebaseAlerts] = useState<any[]>([]);
 
@@ -382,14 +354,19 @@ export function TeacherDashboard() {
     const unsub = onValue(alertsRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        const parsed = Object.keys(data).map(key => ({
-          ...data[key],
-          firebaseKey: key,
-          // Live radar alerts carry student/studentName/username (no studentId) —
-          // normalize so the UI shows the student's name instead of a generic 'תלמיד'.
-          studentId: data[key].studentId ?? data[key].studentName ?? data[key].student ?? 'תלמיד',
-          rawStudentId: data[key].rawStudentId ?? data[key].student ?? data[key].username,
-        })).reverse();
+        const parsed = Object.keys(data).map(key => {
+          const rawId = data[key].rawStudentId ?? data[key].student ?? data[key].username;
+          // Look up the actual name from the formatted students list (handles 'user1', 'user2' etc)
+          const actualStudent = useStore.getState().students[rawId] || Object.values(useStore.getState().students).find((s: any) => s.studentId === rawId || s.name === rawId);
+          
+          return {
+            ...data[key],
+            firebaseKey: key,
+            // Prioritize the actual known name from the store, fallback to whatever was saved, then rawId
+            studentId: actualStudent?.name ?? data[key].studentId ?? data[key].studentName ?? rawId ?? 'תלמיד',
+            rawStudentId: rawId,
+          };
+        }).reverse();
         setFirebaseAlerts(parsed);
       } else {
         setFirebaseAlerts([]);
@@ -401,9 +378,10 @@ export function TeacherDashboard() {
   const allAlerts = useMemo(() => {
     // Only show firebase alerts from the last 12 hours
     const twelveHoursAgo = Date.now() - 12 * 60 * 60 * 1000;
-    const recentFirebaseAlerts = firebaseAlerts.filter(a => a.timestamp > twelveHoursAgo);
-    return [...alerts, ...recentFirebaseAlerts].sort((a, b) => b.timestamp - a.timestamp);
-  }, [alerts, firebaseAlerts]);
+    return firebaseAlerts
+      .filter(a => a.timestamp > twelveHoursAgo)
+      .sort((a, b) => b.timestamp - a.timestamp);
+  }, [firebaseAlerts]);
 
   const handleMarkAsRead = (alert: any) => {
     if (alert.firebaseKey?.startsWith('hesitation-') || alert.firebaseKey?.startsWith('undo-')) {

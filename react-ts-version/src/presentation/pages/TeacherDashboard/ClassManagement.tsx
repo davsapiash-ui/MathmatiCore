@@ -56,10 +56,23 @@ export function ClassManagement({ allStudents }: { allStudents: StudentData[] })
         remove(ref(database, `students/${studentId}/telemetry_chunks`)),
         remove(ref(database, `approved_tasks/${studentId}`)),
         remove(ref(database, `replays/${studentId}`)),
-        // BUGFIX: Target the specific student ID under the teacher queue!
         remove(ref(database, `ai_pending_approvals/039604483/${studentId}`)).catch(() => {}),
         remove(ref(database, `ai_pending_approvals/teacher-1/${studentId}`)).catch(() => {}),
       ]);
+
+      // 4. Clean up any orphaned radar alerts for this student
+      try {
+        const alertsSnap = await get(ref(database, 'radar_alerts'));
+        const alertsData = alertsSnap.val();
+        if (alertsData) {
+          const deletePromises = Object.keys(alertsData)
+            .filter(key => alertsData[key].student === studentId || alertsData[key].rawStudentId === studentId || alertsData[key].username === studentId)
+            .map(key => remove(ref(database, `radar_alerts/${key}`)));
+          await Promise.all(deletePromises);
+        }
+      } catch (err) {
+        console.warn('Failed to clean up radar alerts:', err);
+      }
 
       alert('✅ הנתונים אופסו בהצלחה. התלמיד מוכן להתחיל מחדש.');
       setSelectedStudent(null);
