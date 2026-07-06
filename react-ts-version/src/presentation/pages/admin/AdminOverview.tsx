@@ -212,19 +212,43 @@ export function AdminOverview() {
       <div className="grid gap-8 mb-8">
         <AccessibleCard className="p-6 bg-white dark:bg-slate-900 shadow-sm">
           <h2 className="text-xl font-bold border-b pb-2 mb-4">יומן אירועים (<span dir="ltr">Audit Log</span>)</h2>
-          <div className="space-y-4">
-            {auditLogs.length > 0 ? auditLogs.map((log) => (
-              <div key={log.id} className="flex justify-between items-center text-sm border-b border-slate-100 dark:border-slate-800 pb-2">
-                <span className="text-slate-600 dark:text-slate-400">
-                  {log.timestamp ? new Date(log.timestamp).toLocaleString('he-IL') : 'לא ידוע'}
-                </span>
-                <span className="font-medium text-slate-800 dark:text-slate-200">
-                  {log.user_id} - {log.details || log.action}
-                </span>
-              </div>
-            )) : (
-              <div className="text-sm text-slate-500">אין אירועים להצגה.</div>
-            )}
+          <div className="overflow-x-auto">
+            <table className="w-full text-right border-collapse">
+              <thead>
+                <tr className="border-b border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-400 uppercase">
+                  <th className="py-3 px-4">זמן</th>
+                  <th className="py-3 px-4">פעולה</th>
+                  <th className="py-3 px-4">משתמש</th>
+                  <th className="py-3 px-4">פרטים</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-sm">
+                {auditLogs.length > 0 ? (
+                  auditLogs.map((log) => (
+                    <tr key={log.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                      <td className="py-3 px-4 text-slate-600 dark:text-slate-400 whitespace-nowrap">
+                        {log.timestamp ? new Date(log.timestamp).toLocaleString('he-IL') : 'לא ידוע'}
+                      </td>
+                      <td className="py-3 px-4 font-semibold text-slate-800 dark:text-slate-200">
+                        {log.action}
+                      </td>
+                      <td className="py-3 px-4 text-slate-700 dark:text-slate-300">
+                        {log.user_id}
+                      </td>
+                      <td className="py-3 px-4 text-slate-500 max-w-xs truncate" title={log.details}>
+                        {log.details || '-'}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={4} className="py-8 text-center text-slate-500">
+                      אין אירועים להצגה.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </AccessibleCard>
       </div>

@@ -1,20 +1,21 @@
-# Project: MathmatiCore LMS Audit Fixes
+# Project: MathmatiCore LMS Audit Fixes & Quality Pass
 
 ## Architecture
 - React TypeScript frontend with Firebase Realtime Database.
 - SocraticEngine evaluates student performance and publishes clinical diagnoses/action plans under `ai_pending_approvals/{teacherId}`.
 - TeacherDashboard displays student routing and clinical suggestions.
 - StudentWorkspacePage displays learning content and tracks engagement/hesitation.
-- Admin Dashboard provides chat support and system operations utilities.
+- Admin Dashboard provides chat support, audit logs, and system operations utilities.
 
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
-| 1 | Socratic Engine & Dead Code | Fix SocraticEngine to handle tasks 2, 5, 8 and delete unused mockRrwebEvents.ts | None | PLANNED |
-| 2 | Teacher Dashboard approvals | Render clinicalDiagnosisHe and actionPlanHe in TeacherDashboard approvals | None | PLANNED |
-| 3 | Silent Radar integration | Wire useSilentRadar in StudentWorkspacePage to update hesitation to Firebase | None | PLANNED |
-| 4 | Admin Chat & Log Viewer | Wire AdminChatView image upload and implement live Audit Log Viewer in Admin dashboard | None | PLANNED |
-| 5 | Build & Integration Verification | Ensure production build compiles with zero errors and matches design requirements | M1, M2, M3, M4 | PLANNED |
+| 1 | Socratic Engine & Flow Controls | Complete task 2, 5, 8 logic; fix tag mapping in qmatrixFlow.ts; support missing_element in proceedQ | None | IN_PROGRESS |
+| 2 | UI/UX & Dashboard Integrations | Show clinical diagnosis in approvals tab; restore and wire useSilentRadar; audit alignments, animations, UDL RTL Hebrew requirements | M1 | PLANNED |
+| 3 | Admin Dashboard & Chat Fixes | Wire Image/Mic in admin chat; implement Audit Log table in AdminOverview.tsx | M2 | PLANNED |
+| 4 | Security & Rules Audit | Review firebase.json, database.rules.json, firebase.ts initialization; fix permissions & secure boundaries | None | PLANNED |
+| 5 | Clean Code & Quality | Delete mockRrwebEvents.ts; fix any unused imports; ensure TS strict checks & clean console.logs | M1, M2, M3 | PLANNED |
+| 6 | Build & Verification | Run npm run build, tsc --noEmit, and npm run lint with zero errors | M5 | PLANNED |
 
 ## Interface Contracts
 ### SocraticEngine ↔ Firebase

@@ -128,7 +128,15 @@ export function AdminChatView() {
                   return (
                     <div key={msg.id} className={`flex flex-col max-w-[85%] md:max-w-[70%] ${isAdmin ? 'self-end items-end' : 'self-start items-start'}`}>
                       <div className={`px-4 py-2 rounded-2xl shadow-sm ${isAdmin ? 'bg-blue-600 text-white rounded-tl-sm' : 'bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-tr-sm'}`}>
-                        {msg.text}
+                        {msg.text && <span>{msg.text}</span>}
+                        {msg.imageUrl && (
+                          <img
+                            src={msg.imageUrl}
+                            alt="תמונה"
+                            className="max-w-[220px] max-h-[220px] rounded-xl mt-1 object-cover cursor-pointer block"
+                            onClick={() => window.open(msg.imageUrl, '_blank')}
+                          />
+                        )}
                       </div>
                       <span className="text-[10px] text-slate-400 mt-1 px-1">
                         {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -149,6 +157,29 @@ export function AdminChatView() {
                 onChange={handleAdminImageSelect}
               />
               <div className="flex gap-2 items-center">
+                <button
+                  type="button"
+                  onClick={() => alert("הקלטת שמע אינה זמינה כעת.")}
+                  className="hidden md:flex rounded-full w-12 h-12 p-0 items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-600 transition-all shadow-sm"
+                  title="הקלטת שמע"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="lucide lucide-mic"
+                  >
+                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                    <line x1="12" x2="12" y1="19" y2="22" />
+                  </svg>
+                </button>
                 <button
                   type="button"
                   onClick={() => adminFileInputRef.current?.click()}

@@ -29,6 +29,7 @@ export function TeacherDashboard() {
   const { messages, sendMessage, sendImageMessage, markAsRead } = useChatStore();
   const { resetTraceData } = useStore();
   const teacherFileInputRef = useRef<HTMLInputElement>(null);
+  const adminFileInputRef = useRef<HTMLInputElement>(null);
   const [sendingImage, setSendingImage] = useState(false);
   const [students, setStudents] = useState<Record<string, any>>(() => {
     const allSt = useStore.getState().students;
@@ -489,6 +490,18 @@ export function TeacherDashboard() {
     } finally {
       setSendingImage(false);
       if (teacherFileInputRef.current) teacherFileInputRef.current.value = '';
+    }
+  };
+
+  const handleAdminImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    setSendingImage(true);
+    try {
+      await sendImageMessage(user.uid, user.displayName || 'מורה', 'admin', file);
+    } finally {
+      setSendingImage(false);
+      if (adminFileInputRef.current) adminFileInputRef.current.value = '';
     }
   };
 
@@ -1314,6 +1327,19 @@ export function TeacherDashboard() {
                       </div>
                     </div>
                     
+                    <div className="bg-ws-accentSoft/30 p-5 rounded-2xl border border-ws-accent/10 mb-6">
+                      <h4 className="font-bold text-ws-accent mb-2 flex items-center gap-2">
+                        <MessageCircle className="w-5 h-5" />
+                        המלצת נתב הלמידה (Curriculum Router):
+                      </h4>
+                      <p className="text-ws-ink font-medium leading-relaxed">
+                        מערכת הניתוב ממליצה על שיבוץ התלמיד ל<strong>{student.routeRecommendation === 'YELLOW' ? 'מסלול צהוב (מבוסס תמיכה)' : 'מסלול ירוק (אתגר מתקדם)'}</strong>.<br/>
+                        {student.routeRecommendation === 'YELLOW' 
+                          ? 'המלצה זו מבוססת על זיהוי פערי ליבה (כגון חוסר שליטה בעובדות יסוד או היסוסים מרובים) במהלך מפגש האבחון. התלמיד יקבל פיגומים (Scaffolding) מותאמים במפגש 3.' 
+                          : 'התלמיד הפגין שליטה טובה במיומנויות הבסיס וללא סימני מאבק קוגניטיבי מהותיים. מפגש 3 יאתגר אותו בבעיות מתקדמות ללא פיגומים מיותרים.'}
+                      </p>
+                    </div>
+
                     {/* AI Socratic Engine Diagnosis */}
                     {(() => {
                       const approval = pendingApprovals.find(a => a.studentId === student.studentId);
@@ -1330,18 +1356,6 @@ export function TeacherDashboard() {
                         </div>
                       );
                     })()}
-                    <div className="bg-ws-accentSoft/30 p-5 rounded-2xl border border-ws-accent/10 mb-6">
-                      <h4 className="font-bold text-ws-accent mb-2 flex items-center gap-2">
-                        <MessageCircle className="w-5 h-5" />
-                        המלצת נתב הלמידה (Curriculum Router):
-                      </h4>
-                      <p className="text-ws-ink font-medium leading-relaxed">
-                        מערכת הניתוב ממליצה על שיבוץ התלמיד ל<strong>{student.routeRecommendation === 'YELLOW' ? 'מסלול צהוב (מבוסס תמיכה)' : 'מסלול ירוק (אתגר מתקדם)'}</strong>.<br/>
-                        {student.routeRecommendation === 'YELLOW' 
-                          ? 'המלצה זו מבוססת על זיהוי פערי ליבה (כגון חוסר שליטה בעובדות יסוד או היסוסים מרובים) במהלך מפגש האבחון. התלמיד יקבל פיגומים (Scaffolding) מותאמים במפגש 3.' 
-                          : 'התלמיד הפגין שליטה טובה במיומנויות הבסיס וללא סימני מאבק קוגניטיבי מהותיים. מפגש 3 יאתגר אותו בבעיות מתקדמות ללא פיגומים מיותרים.'}
-                      </p>
-                    </div>
 
                     <h4 className="font-bold text-lg mb-3">מדדי אבחון קריטיים (Q-Matrix):</h4>
                     <div className="grid gap-3">
@@ -1409,7 +1423,15 @@ export function TeacherDashboard() {
                       <div
                         className={`px-5 py-3 rounded-2xl shadow-md ${isMe ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-tl-sm" : "bg-white/90  backdrop-blur-md border border-ws-surface2  text-ws-ink  rounded-tr-sm"}`}
                       >
-                        {msg.text}
+                        {msg.text && <span>{msg.text}</span>}
+                        {msg.imageUrl && (
+                          <img
+                            src={msg.imageUrl}
+                            alt="תמונה"
+                            className="max-w-[220px] max-h-[220px] rounded-xl mt-1 object-cover cursor-pointer block"
+                            onClick={() => window.open(msg.imageUrl, '_blank')}
+                          />
+                        )}
                       </div>
                       <span className="text-[10px] font-medium text-slate-400  mt-2 px-2 tracking-wider">
                         {new Date(msg.timestamp).toLocaleTimeString([], {
@@ -1424,10 +1446,19 @@ export function TeacherDashboard() {
             </div>
 
             <div className="p-4 bg-white/80  backdrop-blur-xl border-t border-ws-surface2 ">
+              <input
+                ref={adminFileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleAdminImageSelect}
+              />
               <div className="flex gap-3 items-center">
-                <UdlButton
-                  semanticColor="neutral"
-                  className="hidden md:flex rounded-full w-12 h-12 p-0 items-center justify-center bg-ws-bg/80  hover:bg-slate-200  text-ws-soft  transition-all shadow-sm"
+                <button
+                  type="button"
+                  onClick={() => alert("הקלטת שמע אינה זמינה כעת.")}
+                  className="hidden md:flex rounded-full w-12 h-12 p-0 items-center justify-center bg-ws-bg/80 hover:bg-slate-200 text-ws-soft transition-all shadow-sm"
+                  title="הקלטת שמע"
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -1445,28 +1476,35 @@ export function TeacherDashboard() {
                     <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
                     <line x1="12" x2="12" y1="19" y2="22" />
                   </svg>
-                </UdlButton>
-                <UdlButton
-                  semanticColor="neutral"
-                  className="hidden md:flex rounded-full w-12 h-12 p-0 items-center justify-center bg-ws-bg/80  hover:bg-slate-200  text-ws-soft  transition-all shadow-sm"
+                </button>
+                <button
+                  type="button"
+                  onClick={() => adminFileInputRef.current?.click()}
+                  disabled={sendingImage}
+                  className="hidden md:flex rounded-full w-12 h-12 p-0 items-center justify-center bg-ws-bg/80 hover:bg-slate-200 text-ws-soft transition-all shadow-sm disabled:opacity-40"
+                  title="שלח תמונה"
                 >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="lucide lucide-image"
-                  >
-                    <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
-                    <circle cx="9" cy="9" r="2" />
-                    <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-                  </svg>
-                </UdlButton>
+                  {sendingImage ? (
+                    <span className="w-5 h-5 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="lucide lucide-image"
+                    >
+                      <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+                      <circle cx="9" cy="9" r="2" />
+                      <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+                    </svg>
+                  )}
+                </button>
                 <input
                   type="text"
                   value={inputText}

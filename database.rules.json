@@ -125,7 +125,7 @@
 
     "audit_logs": {
       ".read": "auth != null && auth.token.email === 'admin@mathmaticore.local'",
-      ".write": "auth != null && auth.token.email === 'admin@mathmaticore.local'"
+      ".write": "auth != null"
     }
   }
 }

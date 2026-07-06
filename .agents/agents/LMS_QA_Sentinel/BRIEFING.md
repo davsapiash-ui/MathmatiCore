@@ -1,7 +1,7 @@
 # BRIEFING — 2026-07-06T12:09:24+03:00
 
 ## Mission
-Coordinate and monitor the fixing of all outstanding audit issues in the MathmatiCore LMS codebase.
+Coordinate and monitor the fixing of all outstanding audit issues and a comprehensive zero-tolerance audit/fix pass in the MathmatiCore LMS codebase.
 
 ## 🔒 My Identity
 - Archetype: sentinel
@@ -15,7 +15,7 @@ Coordinate and monitor the fixing of all outstanding audit issues in the Mathmat
 - Wrap all responses to the user in a Hebrew RTL div block as per global rules.
 
 ## User Context
-- **Last user request**: Fix outstanding audit issues (Socratic engine tasks, approvals diagnosis, silent radar integration, admin chat image, audit log viewer, dead code removal)
+- **Last user request**: Fix outstanding audit issues AND perform a comprehensive zero-tolerance audit/fix pass (Security, QA, UX/UI, Architecture/Code Quality).
 - **Pending clarifications**: none
 - **Delivered results**: none
 

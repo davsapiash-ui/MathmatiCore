@@ -317,6 +317,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
                 task4_basic_addition_fluency: getTag(r['task4_basic_addition_fluency']),
                 task5_small_change: getTag(r['q5_small_change']),
                 task6_subtraction_regrouping: getTag(r['task6_subtraction_regrouping']),
+                task7_missing_subtrahend: getTag(r['task7_missing_subtrahend']),
+                task8_missing_addend: getTag(r['task8_missing_addend']),
               };
               // Persist truth so the dashboard clustering reflects this student too.
               store.updateQMatrix(studentId, realQMatrix);
@@ -467,6 +469,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       case 'small_change': {
         if (!s.selectedChoiceId) return;
         const r = QMatrixEvaluator.evaluateQ5(task, s.selectedChoiceId, s.qflow.phase, s.qflow.subphase);
+        evalResult = { correct: r.correct, detail: r.detail };
+        break;
+      }
+      case 'missing_element': {
+        const answer = s.probeAnswer ? parseInt(s.probeAnswer, 10) : null;
+        if (answer === null || Number.isNaN(answer)) return;
+        const r = QMatrixEvaluator.evaluateQ7(task, answer, s.qflow.phase, s.qflow.subphase, s.isASD);
         evalResult = { correct: r.correct, detail: r.detail };
         break;
       }

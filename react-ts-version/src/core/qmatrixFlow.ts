@@ -66,15 +66,19 @@ export function recordResult(
       if (task.id === 'task1_zero_placeholder') {
         updated.tag = evalResult.correct ? 'zero_placeholder_hundreds_error' : 'zero_placeholder_global_error';
       } else if (task.id === 'task2_estimation_error_margin') {
-        updated.tag = evalResult.correct ? 'estimation_large_numbers_anxiety' : 'estimation_global_deficit';
+        updated.tag = evalResult.correct ? 'estimation_precision_fixation' : 'estimation_range_error';
       } else if (task.id === 'task3_flexible_regrouping') {
         updated.tag = evalResult.correct ? 'canonical_fixation' : 'regrouping_deficit';
       } else if (task.id === 'task4_basic_addition_fluency') {
         updated.tag = evalResult.correct ? 'procedural_error' : 'basic_facts_deficit';
       } else if (task.id === 'q5_small_change') {
-        updated.tag = 'flexibility_trap';
+        updated.tag = evalResult.correct ? 'small_change_confusion' : 'directional_error';
       } else if (task.id === 'task6_subtraction_regrouping') {
         updated.tag = evalResult.correct ? 'regrouping_anxiety' : 'subtraction_operation_deficit';
+      } else if (task.id === 'task7_missing_subtrahend') {
+        updated.tag = evalResult.correct ? 'computational_fluency_deficit' : 'algebraic_concept_deficit';
+      } else if (task.id === 'task8_missing_addend') {
+        updated.tag = evalResult.correct ? 'inverse_operation_gap' : 'missing_addend_deficit';
       }
       results[task.id] = updated;
       return {
