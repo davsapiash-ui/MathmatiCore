@@ -58,7 +58,7 @@ export const useAdminStore = create<AdminState>()(
       ],
       teachers: [
         { 
-          id: 'teacher_david', 
+          id: '039604483', 
           schoolId: INITIAL_SCHOOL_ID, 
           name: 'דוד', 
           taz: '039604483', 
@@ -71,7 +71,7 @@ export const useAdminStore = create<AdminState>()(
         { 
           id: INITIAL_CLASS_ID, 
           schoolId: INITIAL_SCHOOL_ID, 
-          teacherId: 'teacher_david', 
+          teacherId: '039604483', 
           name: 'כיתה 1', 
           studentLimit: 35, 
           createdAt: Date.now() 

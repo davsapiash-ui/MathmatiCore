@@ -62,7 +62,8 @@
 
 ### 6. חוקי התנהגות (Behavioral Rules)
 
-* **Deployment Obedience:** כאשר המשתמש מורה בפירוש לעדכן את גיטהאב/האתר הפעיל (לדוגמה: "I want you to commit and push the code to github and make sure that the cicd to firebase runs"), חובה על הסוכן לציית באופן מיידי ולבצע את פעולות ה-Commit וה-Push ללא שאלות או צורך באישור נוסף.
+* **Deployment Obedience & Autonomous CI/CD (Strict Rule):** For every code update, automatically commit and push the changes to GitHub and verify that the Firebase CI/CD workflow completes successfully. If the deployment fails or an error is detected, do not stop. You must autonomously debug, fix the issue, and re-push until the update is fully deployed.
+* **Sequential Task Processing:** Process all tasks strictly sequentially. Do not interrupt an ongoing task to handle a new one. If the user sends a new request, queue it and begin only after the current task is fully complete. The only exception is if the user explicitly commands you to "STOP", in which case you will halt the current task and move to the next.
 * **עדכון מסמכי אפיון (Spec Updates):** כל פעם שמתבצע שינוי או חידוד להגדרות המערכת במהלך השיחה (כמו שינוי לוגיקה, הגדרות AI וכד'), יש לשאול את מנהל המערכת האם לעדכן זאת במסמכי האפיון. במידה ואישר, הסוכן יאגור 10 עדכונים כאלו, או ימתין חצי שעה מאז השיחה עליהם, ורק אז ייצר גרסה מעודכנת של מסמך האפיון וימחק את הישנה. כל זאת בזהירות כדי לא ליצור מוצר חדש או לשבור הגדרות קיימות, ותוך עדכון המשתמש.
 
 ### 7. התאמה לעקרונות העיצוב האוניברסלי ללמידה (UDL)
