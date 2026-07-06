@@ -6,6 +6,7 @@ test.describe('Silent Radar', () => {
 
     try {
       // Find a block to drop and undo
+      await page.waitForSelector('[id^="palette-units"]', { timeout: 5000 });
       const sourceUnit = page.locator('[id^="palette-units"]').first();
       const targetColumn = page.locator('[id="column-units"]');
       
