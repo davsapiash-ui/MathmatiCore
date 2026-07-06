@@ -54,6 +54,24 @@ export function useTeacherTour() {
             side: 'left',
             align: 'start'
           }
+        },
+        {
+          element: '#tour-tab-approvals',
+          popover: {
+            title: 'אישור משימות AI',
+            description: 'משימות שנבדקו על ידי מנוע ה-AI ימתינו לאישורך כאן לפני שהתלמיד יוכל להמשיך.',
+            side: 'left',
+            align: 'start'
+          }
+        },
+        {
+          element: '#tour-tab-class_management',
+          popover: {
+            title: 'ניהול כיתה',
+            description: 'צפייה בסטטוס ההתקדמות של התלמידים, נתוני אבחון ואפשרויות איפוס במידת הצורך.',
+            side: 'left',
+            align: 'start'
+          }
         }
       ]
     });

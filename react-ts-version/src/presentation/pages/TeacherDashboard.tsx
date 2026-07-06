@@ -28,7 +28,14 @@ export function TeacherDashboard() {
   const { user } = useAuthStore();
   const { messages, sendMessage, markAsRead } = useChatStore();
   const { resetTraceData } = useStore();
-  const [students, setStudents] = useState<Record<string, any>>({});
+  const [students, setStudents] = useState<Record<string, any>>(() => {
+    const allSt = useStore.getState().students;
+    const initial: Record<string, any> = {};
+    for (const [id, s] of Object.entries(allSt)) {
+      initial[id] = { ...s, studentId: id, classId: 'demo', traceData: { hesitation_events: 0, undo_clicks: 0 }, qMatrixResults: {} };
+    }
+    return initial;
+  });
 
   const [activeTab, setActiveTab] = useState<
     | "clustering"

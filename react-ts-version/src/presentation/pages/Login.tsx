@@ -121,6 +121,8 @@ export function Login() {
             licenseActive: true,
             createdAt: Date.now()
           };
+          // Explicitly save to Firebase so Security Rules pass
+          await firebaseSyncService.registerTeacher(teacher);
         }
 
         if (teacher) {
