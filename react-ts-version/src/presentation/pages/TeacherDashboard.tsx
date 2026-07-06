@@ -5,7 +5,7 @@ import { DataGrid } from "@/presentation/design-system/DataGrid";
 import { useAuthStore } from "@/application/useAuthStore";
 import { useChatStore } from "@/application/useChatStore";
 import { useStore, type StudentData } from "@/application/useStore";
-import { ref, onValue, remove } from "firebase/database";
+import { ref, onValue, remove, set } from "firebase/database";
 import { database, authReady } from "@/infrastructure/firebase";
 import {
   BarChart,
@@ -208,7 +208,7 @@ export function TeacherDashboard() {
       // 2. Switch to chat so the teacher can follow up manually
       setSelectedStudentId(studentId);
       setActiveTab("chat_students");
-    }).catch(err => {
+    }).catch((err: any) => {
       console.error("Failed to send hint:", err);
       alert("שגיאה בשליחת הרמז לתלמיד.");
     });

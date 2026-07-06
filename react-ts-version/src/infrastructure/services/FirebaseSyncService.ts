@@ -1,7 +1,8 @@
-import { ref, set, get, update, serverTimestamp } from 'firebase/database';
+import { ref, set, get, update, serverTimestamp, onValue } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
+import { useStore } from '@/application/useStore';
 
 class FirebaseSyncService {
   private static instance: FirebaseSyncService;
@@ -43,7 +44,7 @@ class FirebaseSyncService {
     this.isInitialLoad = true;
 
     // Load initial state from Firebase and keep it synced LIVE
-    onValue(studentRef, (snapshot) => {
+    onValue(studentRef, (snapshot: any) => {
       if (snapshot.exists()) {
         const data = snapshot.val();
         if (data.workspaceState) {

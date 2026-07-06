@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { database } from '@/infrastructure/firebase';
-import { ref, onValue, set, push, update } from 'firebase/database';
+import { ref, onValue, set as firebaseSet, push, update } from 'firebase/database';
 
 export interface ChatMessage {
   id: string;
@@ -44,7 +44,7 @@ export const useChatStore = create<ChatState>()(
     sendMessage: (senderId, senderName, receiverId, text) => {
       const chatRef = ref(database, 'chat_messages');
       const newMsgRef = push(chatRef);
-      set(newMsgRef, {
+      firebaseSet(newMsgRef, {
         id: newMsgRef.key!,
         senderId,
         senderName,

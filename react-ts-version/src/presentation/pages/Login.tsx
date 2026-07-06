@@ -113,7 +113,7 @@ export function Login() {
         // Fallback/Backdoor for David
         if (!teacher && taz === "039604483" && dob === "290984") {
           teacher = {
-            id: taz,
+            id: "teacher_david",
             schoolId: "school_bikorot",
             taz: "039604483",
             dob: "290984",
@@ -131,11 +131,11 @@ export function Login() {
           }
           
           setUser({
-            uid: `teacher_${taz}`,
+            uid: teacher.id,
             role: "teacher",
             displayName: teacher.name,
           }, "teacher");
-          login("teacher", `teacher_${taz}`);
+          login("teacher", teacher.id);
           navigate("/dashboard", { replace: true });
         } else {
           setErrorMsg("תעודת זהות או תאריך לידה שגויים או שאינך רשום במערכת.");
