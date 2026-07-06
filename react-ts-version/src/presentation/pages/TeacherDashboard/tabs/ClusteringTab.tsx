@@ -195,8 +195,8 @@ export function ClusteringTab({ allStudents }: ClusteringTabProps) {
         </div>
       </AccessibleCard>
 
-      <div className="flex gap-6 pb-6 overflow-x-auto snap-x snap-mandatory hide-scrollbar" style={{ scrollbarWidth: 'none' }}>
-        <AccessibleCard className="min-w-[400px] snap-center p-8 bg-ws-surface/80 backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] border border-ws-surface2 rounded-2xl relative overflow-hidden group flex-shrink-0">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-6">
+        <AccessibleCard className="p-8 bg-ws-surface/80 backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] border border-ws-surface2 rounded-2xl relative overflow-hidden group flex flex-col">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 to-rose-500"></div>
           <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
           <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink">
@@ -205,7 +205,7 @@ export function ClusteringTab({ allStudents }: ClusteringTabProps) {
           <p className="text-ws-soft mb-6 text-base leading-relaxed relative z-10">
             תלמידים שהתקשו בפעולות חיבור בסיסיות ללא המרה.
           </p>
-          <div className="relative z-10 rounded-xl overflow-hidden border border-ws-surface2 shadow-inner">
+          <div className="relative z-10 rounded-xl overflow-hidden border border-ws-surface2 shadow-inner flex-1">
             <DataGrid
               columns={[
                 { key: "name", header: "שם תלמיד" },
@@ -221,13 +221,13 @@ export function ClusteringTab({ allStudents }: ClusteringTabProps) {
           <UdlButton
             size="sm"
             semanticColor="primary"
-            className="mt-6 w-full shadow-lg shadow-indigo-500/20 relative z-10 font-bold tracking-wide"
+            className="mt-6 w-full shadow-lg shadow-indigo-500/20 relative z-10 font-bold tracking-wide mt-auto"
           >
             הקצה תרגול מותאם
           </UdlButton>
         </AccessibleCard>
 
-        <AccessibleCard className="min-w-[400px] snap-center p-8 bg-ws-surface/80 backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] border border-ws-surface2 rounded-2xl relative overflow-hidden group flex-shrink-0">
+        <AccessibleCard className="p-8 bg-ws-surface/80 backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] border border-ws-surface2 rounded-2xl relative overflow-hidden group flex flex-col">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-indigo-500"></div>
           <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
           <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink">
@@ -236,7 +236,7 @@ export function ClusteringTab({ allStudents }: ClusteringTabProps) {
           <p className="text-ws-soft mb-6 text-base leading-relaxed relative z-10">
             תלמידים שהצליחו לפרק רק בצורה הקנונית וזקוקים לתרגול גמישות בהמרה.
           </p>
-          <div className="relative z-10 rounded-xl overflow-hidden border border-ws-surface2 shadow-inner">
+          <div className="relative z-10 rounded-xl overflow-hidden border border-ws-surface2 shadow-inner flex-1">
             <DataGrid
               columns={[
                 { key: "name", header: "שם תלמיד" },
@@ -252,13 +252,13 @@ export function ClusteringTab({ allStudents }: ClusteringTabProps) {
           <UdlButton
             size="sm"
             semanticColor="primary"
-            className="mt-6 w-full shadow-lg shadow-indigo-500/20 relative z-10 font-bold tracking-wide"
+            className="mt-6 w-full shadow-lg shadow-indigo-500/20 relative z-10 font-bold tracking-wide mt-auto"
           >
             הקצה סדנת חקר
           </UdlButton>
         </AccessibleCard>
 
-        <AccessibleCard className="min-w-[400px] snap-center p-8 bg-ws-surface/80 backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] border border-ws-surface2 rounded-2xl relative overflow-hidden group flex-shrink-0">
+        <AccessibleCard className="p-8 bg-ws-surface/80 backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] border border-ws-surface2 rounded-2xl relative overflow-hidden group flex flex-col">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-cyan-500"></div>
           <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
           <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink">
@@ -267,7 +267,7 @@ export function ClusteringTab({ allStudents }: ClusteringTabProps) {
           <p className="text-ws-soft mb-6 text-base leading-relaxed relative z-10">
             תלמידים שהתקשו בהבנת האפס כשומר מקום במערכת העשרונית.
           </p>
-          <div className="relative z-10 rounded-xl overflow-hidden border border-ws-surface2 shadow-inner">
+          <div className="relative z-10 rounded-xl overflow-hidden border border-ws-surface2 shadow-inner flex-1">
             <DataGrid
               columns={[
                 { key: "name", header: "שם תלמיד" },
@@ -289,7 +289,7 @@ export function ClusteringTab({ allStudents }: ClusteringTabProps) {
           </UdlButton>
         </AccessibleCard>
 
-        <AccessibleCard className="min-w-[400px] snap-center p-8 bg-ws-surface/80 backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] border border-ws-surface2 rounded-2xl relative overflow-hidden group flex-shrink-0">
+        <AccessibleCard className="p-8 bg-ws-surface/80 backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] border border-ws-surface2 rounded-2xl relative overflow-hidden group flex flex-col">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
           <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
           <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink">
@@ -298,7 +298,7 @@ export function ClusteringTab({ allStudents }: ClusteringTabProps) {
           <p className="text-ws-soft mb-6 text-base leading-relaxed relative z-10">
             תלמידים שחרגו מטווח הטעות המותר בהערכת הכמויות.
           </p>
-          <div className="relative z-10 rounded-xl overflow-hidden border border-ws-surface2 shadow-inner">
+          <div className="relative z-10 rounded-xl overflow-hidden border border-ws-surface2 shadow-inner flex-1">
             <DataGrid
               columns={[
                 { key: "name", header: "שם תלמיד" },
@@ -320,7 +320,7 @@ export function ClusteringTab({ allStudents }: ClusteringTabProps) {
           </UdlButton>
         </AccessibleCard>
 
-        <AccessibleCard className="min-w-[400px] snap-center p-8 bg-ws-surface/80 backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] border border-ws-surface2 rounded-2xl relative overflow-hidden group flex-shrink-0">
+        <AccessibleCard className="p-8 bg-ws-surface/80 backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] border border-ws-surface2 rounded-2xl relative overflow-hidden group flex flex-col">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-pink-500 to-fuchsia-500"></div>
           <div className="absolute inset-0 bg-gradient-to-br from-pink-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
           <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink">
@@ -329,7 +329,7 @@ export function ClusteringTab({ allStudents }: ClusteringTabProps) {
           <p className="text-ws-soft mb-6 text-base leading-relaxed relative z-10">
             תלמידים שהתקשו בתהליך הפריטה (חרדת פריטה) או שחסרות להם עובדות יסוד בחיסור.
           </p>
-          <div className="relative z-10 rounded-xl overflow-hidden border border-ws-surface2 shadow-inner">
+          <div className="relative z-10 rounded-xl overflow-hidden border border-ws-surface2 shadow-inner flex-1">
             <DataGrid
               columns={[
                 { key: "name", header: "שם תלמיד" },
@@ -351,7 +351,7 @@ export function ClusteringTab({ allStudents }: ClusteringTabProps) {
           </UdlButton>
         </AccessibleCard>
 
-        <AccessibleCard className="min-w-[400px] snap-center p-8 bg-ws-surface/80 backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] border border-ws-surface2 rounded-2xl relative overflow-hidden group flex-shrink-0">
+        <AccessibleCard className="p-8 bg-ws-surface/80 backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] border border-ws-surface2 rounded-2xl relative overflow-hidden group flex flex-col">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-500 to-orange-500"></div>
           <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
           <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink">
@@ -360,7 +360,7 @@ export function ClusteringTab({ allStudents }: ClusteringTabProps) {
           <p className="text-ws-soft mb-6 text-base leading-relaxed relative z-10">
             תלמידים שהתקשו במציאת איבר חסר באמצע המשוואה.
           </p>
-          <div className="relative z-10 rounded-xl overflow-hidden border border-ws-surface2 shadow-inner">
+          <div className="relative z-10 rounded-xl overflow-hidden border border-ws-surface2 shadow-inner flex-1">
             <DataGrid
               columns={[
                 { key: "name", header: "שם תלמיד" },
@@ -382,7 +382,7 @@ export function ClusteringTab({ allStudents }: ClusteringTabProps) {
           </UdlButton>
         </AccessibleCard>
 
-        <AccessibleCard className="min-w-[400px] snap-center p-8 bg-ws-surface/80 backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] border border-ws-surface2 rounded-2xl relative overflow-hidden group flex-shrink-0">
+        <AccessibleCard className="p-8 bg-ws-surface/80 backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] border border-ws-surface2 rounded-2xl relative overflow-hidden group flex flex-col">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-yellow-500 to-amber-500"></div>
           <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
           <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink">
@@ -391,7 +391,7 @@ export function ClusteringTab({ allStudents }: ClusteringTabProps) {
           <p className="text-ws-soft mb-6 text-base leading-relaxed relative z-10">
             תלמידים שהתקשו בהבנת חשיבה אלגברית והקשר בין חיבור לחיסור.
           </p>
-          <div className="relative z-10 rounded-xl overflow-hidden border border-ws-surface2 shadow-inner">
+          <div className="relative z-10 rounded-xl overflow-hidden border border-ws-surface2 shadow-inner flex-1">
             <DataGrid
               columns={[
                 { key: "name", header: "שם תלמיד" },
@@ -413,7 +413,7 @@ export function ClusteringTab({ allStudents }: ClusteringTabProps) {
           </UdlButton>
         </AccessibleCard>
 
-        <AccessibleCard className="min-w-[400px] snap-center p-8 bg-ws-surface/80 backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] border border-ws-surface2 rounded-2xl relative overflow-hidden group flex-shrink-0">
+        <AccessibleCard className="p-8 bg-ws-surface/80 backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] border border-ws-surface2 rounded-2xl relative overflow-hidden group flex flex-col">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-slate-500 to-gray-500"></div>
           <div className="absolute inset-0 bg-gradient-to-br from-slate-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
           <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink">
@@ -422,7 +422,7 @@ export function ClusteringTab({ allStudents }: ClusteringTabProps) {
           <p className="text-ws-soft mb-6 text-base leading-relaxed relative z-10">
             תלמידים שנפלו במלכודת הגמישות ולא זיהו את השינוי הקטן.
           </p>
-          <div className="relative z-10 rounded-xl overflow-hidden border border-ws-surface2 shadow-inner">
+          <div className="relative z-10 rounded-xl overflow-hidden border border-ws-surface2 shadow-inner flex-1">
             <DataGrid
               columns={[
                 { key: "name", header: "שם תלמיד" },
