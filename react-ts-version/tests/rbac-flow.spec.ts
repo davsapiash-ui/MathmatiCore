@@ -15,15 +15,17 @@ test.describe('Role-Based Workspaces & Cross-Integration Tests', () => {
 
     // Admin login
     await adminPage.goto(`${BASE_URL}/login`);
-    await adminPage.fill('input[type="text"], input[name="username"]', 'admin_sys');
-    await adminPage.fill('input[type="password"]', 'AdminPass123!');
-    await adminPage.click('button[type="submit"], button:has-text("Login")');
+    await adminPage.click('button:has-text("מנהל מערכת")');
+    await adminPage.fill('input[placeholder="שם משתמש"]', 'davsapiash');
+    await adminPage.fill('input[placeholder="סיסמה"]', 'carlibach');
+    await adminPage.click('button[type="submit"]');
     
     // Teacher login
     await teacherPage.goto(`${BASE_URL}/login`);
-    await teacherPage.fill('input[type="text"], input[name="userId"]', 'teacher_123');
-    await teacherPage.fill('input[type="password"]', '1980');
-    await teacherPage.click('button[type="submit"], button:has-text("Login")');
+    await teacherPage.click('button:has-text("מורה")');
+    await teacherPage.fill('input[placeholder="תעודת זהות"]', '039604483');
+    await teacherPage.fill('input[placeholder="תאריך לידה (6 ספרות, במבנה יום-חודש-שנה)"]', '290984');
+    await teacherPage.click('button[type="submit"]');
 
     // We only wait for login to resolve for now to see what we get
     await adminPage.waitForLoadState('networkidle');
