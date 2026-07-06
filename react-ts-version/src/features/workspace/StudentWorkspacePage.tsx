@@ -29,6 +29,7 @@ import { HelpOverlays } from './overlays/HelpOverlays';
 import { ReflectionScreen } from './ReflectionScreen';
 import { useWorkspaceRadar } from './useWorkspaceRadar';
 import { StudentChatOverlay } from './overlays/StudentChatOverlay';
+import { telemetryTracker } from '@/infrastructure/TelemetryTracker';
 
 /**
  * מרחב הפעילות של התלמיד — חוויית מסך מלא ממוקדת (100vh, ללא גלילה, ללא טיימרים).
@@ -47,6 +48,15 @@ export function StudentWorkspacePage() {
   const flowStatus = useWorkspaceStore((s) => s.flowStatus);
   const qflow = useWorkspaceStore((s) => s.qflow);
   const user = useAuthStore((s) => s.user);
+
+  // Start telemetry session so the radar tracker is active
+  useEffect(() => {
+    if (!user?.uid) return;
+    telemetryTracker.startSession(user.uid);
+    return () => {
+      telemetryTracker.endSession();
+    };
+  }, [user?.uid]);
 
   useEffect(() => {
     if (!user?.uid) return;
