@@ -156,22 +156,23 @@ export function DienesBlock({ id, place, source, sourcePlace, isOverlay, onRemov
     <div
       ref={setNodeRef}
       {...attributes}
+      {...listeners}
       role="button"
       tabIndex={0}
       aria-label={visual.labelHe}
       className={`touch-none cursor-grab active:cursor-grabbing outline-none focus-visible:ring-2 focus-visible:ring-ws-accent rounded-[3px] transition-transform hover:scale-105 hover:-translate-y-1 ${hitPadding} ${isDragging ? 'opacity-30' : ''}`}
-      onClick={onRemove}
-      {...listeners}
-      onPointerDown={(e) => {
-        radar.recordAction();
-        if (listeners?.onPointerDown) listeners.onPointerDown(e as any);
+      onClick={() => {
+        if (onRemove) {
+          radar.recordAction();
+          onRemove();
+        }
       }}
       onKeyDown={(e) => {
         if (onRemove && (e.key === 'Enter' || e.key === ' ')) {
           e.preventDefault();
+          radar.recordAction();
           onRemove();
         }
-        if (listeners?.onKeyDown) listeners.onKeyDown(e as any);
       }}
     >
       {inner}

@@ -214,11 +214,13 @@ export function StudentWorkspacePage() {
   );
 
   const handleDragStart = (event: DragStartEvent) => {
+    import('./radarBus').then(({ radar }) => radar.recordAction());
     const data = event.active.data.current as { source: DragSource; place: Place; renderPlace?: Place } | undefined;
     if (data) setActiveDrag({ place: data.place, source: data.source, renderPlace: data.renderPlace });
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
+    import('./radarBus').then(({ radar }) => radar.recordAction());
     setActiveDrag(null);
     const data = event.active.data.current as { source: DragSource; place: Place } | undefined;
     const over = event.over?.data.current as { kind: 'column'; place: Place } | { kind: 'trash' } | undefined;
