@@ -144,6 +144,10 @@ export class SocraticEngine {
     // 2. Remove from pending queue
     const pendingRef = ref(database, `ai_pending_approvals/${teacherId}/${approvalId}`);
     await remove(pendingRef);
+
+    // 3. Update student routeStatus to APPROVED
+    const statusRef = ref(database, `users/students/${studentId}/routeStatus`);
+    await set(statusRef, "APPROVED");
   }
   
   /**

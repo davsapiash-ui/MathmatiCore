@@ -109,6 +109,7 @@ interface WorkspaceState {
   chooseSupport: (type: SupportType) => void;
   closeHelp: () => void;
   setAITasks: (tasks: SessionTask[] | null) => void;
+  showFeedback: (feedback: FeedbackState, ms: number, then?: () => void) => void;
 }
 
 /* ── Pure helpers ── */
@@ -693,6 +694,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     chooseSupport: (type) => set({ helpState: type }),
     closeHelp: () => set({ helpState: 'closed' }),
+    showFeedback,
   };
 });
 

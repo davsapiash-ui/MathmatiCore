@@ -1,9 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useWorkspaceStore, selectCanProceed, getActiveTasks } from '@/application/useWorkspaceStore';
-import { getCurrentQTask } from '@/core/qmatrixFlow';
 import { TASKS } from '@/core/QMatrix';
-import { getSessionTasks } from '@/data/sessionTasks';
 import { ProgressDots } from './ProgressDots';
 import { useWorkspaceTour } from './useWorkspaceTour';
 
@@ -33,9 +31,6 @@ export function WorkspaceTopbar() {
   const activeTaskCount = useWorkspaceStore((s) => getActiveTasks(s).length);
   const totalTasks = sessionNumber === 2 ? TASKS.length : activeTaskCount;
   const currentIdx = sessionNumber === 2 ? Math.min(qflow.taskIdx, TASKS.length - 1) : standardTaskIdx;
-  void getCurrentQTask;
-  void getSessionTasks;
-
   const studentName: string = user?.displayName || 'תלמיד';
 
   return (

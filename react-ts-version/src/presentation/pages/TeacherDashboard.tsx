@@ -27,7 +27,7 @@ export function TeacherDashboard() {
   useTeacherTour();
   const { user } = useAuthStore();
   const { messages, sendMessage, markAsRead } = useChatStore();
-  const { resetTraceData, globalChatEnabled, toggleGlobalChat } = useStore();
+  const { resetTraceData } = useStore();
   const [students, setStudents] = useState<Record<string, any>>({});
 
   const [activeTab, setActiveTab] = useState<
@@ -104,58 +104,68 @@ export function TeacherDashboard() {
   useEffect(() => {
     const studentsRef = ref(database, 'users/students');
     const unsubscribe = onValue(studentsRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.val();
-        // Merge with local mock students so the full roster is visible
-        const allStudents = useStore.getState().students;
-        const formattedStudents: Record<string, any> = {};
-        
-        // Add all base students
-        for (const [id, s] of Object.entries(allStudents)) {
-           formattedStudents[id] = {
-             id,
-             name: s.name,
-             currentTask: 0,
-             sessionNum: 1,
-             radar: { hesitations: 0, deletions: 0 },
-             traceData: { hesitation_events: 0, undo_clicks: 0 },
-             qMatrixResults: {},
-           };
-        }
+      const data = snapshot.val() ?? {};
+      const allStudents = useStore.getState().students;
+      const formattedStudents: Record<string, StudentData> = {};
 
-        if (data) {
-          for (const [id, s] of Object.entries<any>(data)) {
-            formattedStudents[id] = {
-              ...formattedStudents[id],
-              id,
-              name: s.profile?.displayName || s.profile?.name || formattedStudents[id]?.name || id,
-              currentTask: s.workspaceState?.standardTaskIdx || 0,
-              sessionNum: s.workspaceState?.sessionNumber || 1,
-              radar: {
-                hesitations: s.workspaceState?.hesitationCount || 0,
-                deletions: s.workspaceState?.undoCount || 0,
-              },
-              traceData: {
-                hesitation_events: s.workspaceState?.hesitationCount || 0,
-                undo_clicks: s.workspaceState?.undoCount || 0,
-              },
-              qMatrixResults: s.workspaceState?.qflow?.results || s.qMatrixResults || {},
-            };
-          }
-        }
-        setStudents(formattedStudents);
-      } else {
-        // Fallback to local store
-        const allStudents = useStore.getState().students;
-        const formattedStudents: Record<string, any> = {};
-        for (const [id, s] of Object.entries(allStudents)) {
-           formattedStudents[id] = {
-             id, name: s.name, currentTask: 0, sessionNum: 1,
-             radar: { hesitations: 0, deletions: 0 }, traceData: { hesitation_events: 0, undo_clicks: 0 }, qMatrixResults: {},
-           };
-        }
-        setStudents(formattedStudents);
+      // 1. Add base demo students first
+      for (const [id, s] of Object.entries(allStudents)) {
+        formattedStudents[id] = {
+          studentId: id,
+          classId: 'demo',
+          name: s.name,
+          qMatrixResults: {
+            task1_zero_placeholder: null,
+            task2_estimation_error_margin: null,
+            task3_flexible_regrouping: null,
+            task4_basic_addition_fluency: null,
+            task5_small_change: null,
+            task6_subtraction_regrouping: null,
+            task7_missing_subtrahend: null,
+            task8_missing_addend: null,
+          },
+          traceData: { hesitation_events: 0, undo_clicks: 0 },
+          completedMeeting2: false,
+          routeRecommendation: null,
+          routeStatus: null,
+        } as any; // Using base structure
       }
+
+      // 2. Override with live cloud data
+      Object.keys(data).forEach((uid) => {
+        const row = data[uid] ?? {};
+        formattedStudents[uid] = {
+          studentId: uid,
+          classId: row.classId ?? 'live',
+          name: row.profile?.displayName ?? row.studentName ?? formattedStudents[uid]?.name ?? uid,
+          qMatrixResults: {
+            task1_zero_placeholder: null,
+            task2_estimation_error_margin: null,
+            task3_flexible_regrouping: null,
+            task4_basic_addition_fluency: null,
+            task5_small_change: null,
+            task6_subtraction_regrouping: null,
+            task7_missing_subtrahend: null,
+            task8_missing_addend: null,
+            ...(row.qMatrixResults ?? {}),
+          },
+          traceData: {
+            hesitation_events: row.traceData?.hesitation_events ?? row.workspaceState?.hesitationCount ?? 0,
+            undo_clicks: row.traceData?.undo_clicks ?? row.workspaceState?.undoCount ?? 0,
+          },
+          completedMeeting2: row.completedMeeting2 ?? true,
+          routeRecommendation: row.routeRecommendation ?? null,
+          routeStatus: row.routeStatus ?? null,
+          // Support legacy props expected by some components
+          currentTask: row.workspaceState?.standardTaskIdx || 0,
+          sessionNum: row.workspaceState?.sessionNumber || 1,
+          radar: {
+            hesitations: row.workspaceState?.hesitationCount || 0,
+            deletions: row.workspaceState?.undoCount || 0,
+          },
+        } as any;
+      });
+      setStudents(formattedStudents);
     });
     return () => unsubscribe();
   }, []);
@@ -213,62 +223,13 @@ export function TeacherDashboard() {
     });
   };
 
-  // ── LIVE students from Firebase ─────────────────────────────────────────
-  // The core disconnect: students write diagnostics to Firebase, but clustering
-  // read only the browser-local demo store — so real students were invisible.
-  // Subscribe to qMatrixResults and materialize each entry as a StudentData row.
-  const [liveStudents, setLiveStudents] = useState<Record<string, StudentData>>({});
-  useEffect(() => {
-    try {
-      const qRef = ref(database, 'users/students');
-      const unsub = onValue(
-        qRef,
-        (snapshot) => {
-          const data = snapshot.val() ?? {};
-          const mapped: Record<string, StudentData> = {};
-          Object.keys(data).forEach((uid) => {
-            const row = data[uid] ?? {};
-            mapped[uid] = {
-              studentId: uid,
-              classId: row.classId ?? 'live',
-              name: row.profile?.displayName ?? row.studentName ?? uid,
-              qMatrixResults: {
-                task1_zero_placeholder: null,
-                task2_estimation_error_margin: null,
-                task3_flexible_regrouping: null,
-                task4_basic_addition_fluency: null,
-                task5_small_change: null,
-                task6_subtraction_regrouping: null,
-                task7_missing_subtrahend: null,
-                task8_missing_addend: null,
-                ...(row.qMatrixResults ?? {}),
-              },
-              traceData: {
-                hesitation_events: row.traceData?.hesitation_events ?? 0,
-                undo_clicks: row.traceData?.undo_clicks ?? 0,
-              },
-              completedMeeting2: true,
-              routeRecommendation: null,
-              routeStatus: null,
-            };
-          });
-          setLiveStudents(mapped);
-        },
-        () => setLiveStudents({})
-      );
-      return () => unsub();
-    } catch {
-      /* offline dev — demo students only */
-    }
-  }, []);
-
   // Clustering Logic based on Q-Matrix
   // Memoized: a fresh array identity every render made downstream useMemos
   // (incl. the alerts list) recompute on every keystroke.
   // Live cloud students override local demo entries with the same id.
   const allStudents = useMemo(
-    () => Object.values({ ...students, ...liveStudents }),
-    [students, liveStudents]
+    () => Object.values(students),
+    [students]
   );
 
 
@@ -1500,23 +1461,6 @@ export function TeacherDashboard() {
                   <p className="text-xs text-ws-soft mt-1 font-medium">
                     בחר תלמיד לתחילת צ'אט אישי
                   </p>
-                </div>
-                
-                <div className="flex items-center justify-between p-3 bg-slate-100 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
-                  <div>
-                    <div className="font-bold text-sm text-slate-800 dark:text-slate-200">
-                      אפשר צ'אט לתלמידים
-                    </div>
-                    <div className="text-xs text-slate-500">
-                      {globalChatEnabled ? "התלמידים יכולים לשלוח לך הודעות" : "הצ'אט כרגע חסום לתלמידים"}
-                    </div>
-                  </div>
-                  <button 
-                    onClick={toggleGlobalChat}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${globalChatEnabled ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`}
-                  >
-                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${globalChatEnabled ? '-translate-x-1' : '-translate-x-6'}`} />
-                  </button>
                 </div>
               </div>
               <div className="flex-1 overflow-y-auto p-3 space-y-2">

@@ -55,8 +55,8 @@ export function StudentWorkspacePage() {
       if (snap.exists()) {
         const hintData = snap.val();
         if (hintData && hintData.message) {
-          // Display the hint
-          alert(hintData.message);
+          // Display the hint using the non-blocking toast
+          useWorkspaceStore.getState().showFeedback({ correct: false, title: 'הודעה מהמורה', sub: hintData.message }, 5000);
           // Clear the hint so it doesn't fire again on reload
           remove(hintRef);
         }

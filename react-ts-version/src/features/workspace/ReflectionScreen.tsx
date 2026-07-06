@@ -5,7 +5,6 @@ import { ref, push, update } from 'firebase/database';
 import { database, authReady } from '@/infrastructure/firebase';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
-import { TASKS } from '@/core/QMatrix';
 
 /**
  * מסך רפלקציה (מפגש 2) — port of vanilla_audit/student/reflection.html.
@@ -89,6 +88,7 @@ export function ReflectionScreen() {
       update(ref(database, `users/students/${username}`), {
         qMatrixResults: qMatrix,
         completedMeeting2: true,
+        routeStatus: 'PENDING',
         traceData: {
           hesitation_events: useWorkspaceStore.getState().hesitationCount,
           undo_clicks: undoCount,
@@ -106,8 +106,6 @@ export function ReflectionScreen() {
       console.error("Failed to save reflection:", e);
     }
     }).catch(e => console.error("authReady error:", e));
-    void TASKS;
-
     window.setTimeout(() => navigate('/hub'), 900);
   };
 

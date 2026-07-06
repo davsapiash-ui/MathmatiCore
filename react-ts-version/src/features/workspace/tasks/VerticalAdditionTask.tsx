@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { PLACE_ORDER, type Place } from '@/core/placeValue';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
+import { radar } from '@/features/workspace/radarBus';
 
 /**
  * תרגיל חיבור/חיסור במאונך — דף מחברת אמיתי:
@@ -104,6 +105,7 @@ export function VerticalAdditionTask({
                 className="rounded-md border-2 border-slate-200 text-center font-mono font-bold bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-ws-accent transition-shadow"
                 style={{ width: CELL * 0.6, height: CELL * 0.6, fontSize: CELL * 0.4 }}
                 onChange={(e) => {
+                  radar.recordAction();
                   const v = e.target.value.replace(/[^0-9]/g, '').slice(-1);
                   setCarryDigits(prev => ({ ...prev, [place]: v }));
                 }}
@@ -147,6 +149,7 @@ export function VerticalAdditionTask({
                 onFocus={() => setFocusedPlace(place)}
                 onBlur={() => setFocusedPlace(null)}
                 onChange={(e) => {
+                  radar.recordAction();
                   const v = e.target.value.replace(/[^0-9]/g, '').slice(-1);
                   setAnswerDigit(place, v);
                   // Advance leftward to the next-higher place (natural carrying direction).
@@ -180,7 +183,7 @@ export function VerticalAdditionTask({
           <line x1="12" y1="3" x2="12" y2="15"/>
         </svg>
         אפשר גם להעלות פתרון כתוב (תמונה)
-        <input type="file" className="hidden" accept="image/*" aria-label="העלה פתרון כתמונה" onChange={() => alert('הפתרון הועלה בהצלחה למורה.')} />
+        <input type="file" className="hidden" accept="image/*" aria-label="העלה פתרון כתמונה" onChange={() => useWorkspaceStore.getState().showFeedback({ correct: true, title: 'מעולה!', sub: 'הפתרון הועלה בהצלחה למורה.' }, 2500)} />
       </label>
     </div>
   );
