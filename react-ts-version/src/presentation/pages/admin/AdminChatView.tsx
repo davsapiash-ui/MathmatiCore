@@ -1,17 +1,33 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useAdminStore } from "@/application/useAdminStore";
 import { useChatStore } from "@/application/useChatStore";
 import { UdlButton } from "@/presentation/design-system/UdlButton";
-import { Send, UserCircle2, Users } from "lucide-react";
+import { Send, UserCircle2, Users, ImageIcon } from "lucide-react";
 import { useAuthStore } from "@/application/useAuthStore";
 
 export function AdminChatView() {
   const { teachers } = useAdminStore();
-  const { messages, sendMessage, markAsRead } = useChatStore();
+  const { messages, sendMessage, sendImageMessage, markAsRead } = useChatStore();
   const { user } = useAuthStore();
   
   const [selectedTeacherId, setSelectedTeacherId] = useState<string | null>(null);
   const [inputText, setInputText] = useState("");
+  const [sendingImage, setSendingImage] = useState(false);
+  const adminFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAdminImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedTeacherId) return;
+    setSendingImage(true);
+    try {
+      await sendImageMessage("admin", user?.displayName || "מנהל מערכת", selectedTeacherId, file);
+    } catch (err) {
+      console.error("Failed to send image:", err);
+    } finally {
+      setSendingImage(false);
+      if (adminFileInputRef.current) adminFileInputRef.current.value = "";
+    }
+  };
 
   const selectedTeacher = useMemo(() => 
     teachers.find(t => t.id === selectedTeacherId), 
@@ -125,13 +141,27 @@ export function AdminChatView() {
 
             {/* Input */}
             <div className="p-4 bg-white/90 dark:bg-slate-950/90 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 flex flex-col gap-2">
+              <input
+                ref={adminFileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleAdminImageSelect}
+              />
               <div className="flex gap-2 items-center">
-                <UdlButton semanticColor="neutral" className="hidden md:flex rounded-full w-12 h-12 p-0 items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-600 transition-all shadow-sm">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-mic"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
-                </UdlButton>
-                <UdlButton semanticColor="neutral" className="hidden md:flex rounded-full w-12 h-12 p-0 items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-600 transition-all shadow-sm">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-image"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
-                </UdlButton>
+                <button
+                  type="button"
+                  onClick={() => adminFileInputRef.current?.click()}
+                  disabled={sendingImage || !selectedTeacherId}
+                  title="שלח תמונה"
+                  className="hidden md:flex rounded-full w-12 h-12 p-0 items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-600 transition-all shadow-sm disabled:opacity-40"
+                >
+                  {sendingImage ? (
+                    <span className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <ImageIcon className="w-5 h-5" />
+                  )}
+                </button>
                 <input
                   type="text"
                   value={inputText}

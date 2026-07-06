@@ -15,11 +15,8 @@ class AuditLoggerService {
    */
   async log(action: string, userId: string, details?: string) {
     try {
-      const { useAuthStore } = await import('@/application/useAuthStore');
-      const user = useAuthStore.getState().user;
-      if (user?.role !== 'admin') {
-        return; // Only admins have write access to /audit_logs
-      }
+      // All authenticated roles can write to audit_logs.
+      // (Previous admin-only guard silently dropped all teacher/student events.)
 
       const logsRef = ref(database, 'audit_logs');
       await push(logsRef, {

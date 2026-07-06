@@ -1297,9 +1297,16 @@ export function TeacherDashboard() {
                         <UdlButton 
                           variant="outline" 
                           size="sm"
-                          onClick={() => {
-                            // Can be expanded to edit route
-                            alert("אפשרות זו תאפשר עריכת מסלול ידנית בעתיד.");
+                          onClick={async () => {
+                            const approval = pendingApprovals.find((a) => a.studentId === student.studentId);
+                            if (approval) {
+                              try {
+                                await SocraticEngine.rejectTasks(TEACHER_ID, approval.id);
+                                setPendingApprovals(prev => prev.filter(a => a.id !== approval.id));
+                              } catch {
+                                /* offline */
+                              }
+                            }
                           }}
                         >
                           דחייה / עריכה
@@ -1307,6 +1314,22 @@ export function TeacherDashboard() {
                       </div>
                     </div>
                     
+                    {/* AI Socratic Engine Diagnosis */}
+                    {(() => {
+                      const approval = pendingApprovals.find(a => a.studentId === student.studentId);
+                      if (!approval || !approval.clinicalDiagnosisHe) return null;
+                      return (
+                        <div className="bg-amber-50/80 border border-amber-200 rounded-2xl p-5 mb-4">
+                          <h4 className="font-bold text-amber-800 mb-2 flex items-center gap-2 text-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                            אבחון קליני (Socratic AI Engine):
+                          </h4>
+                          <p className="text-amber-900 text-sm leading-relaxed mb-3">{approval.clinicalDiagnosisHe}</p>
+                          <h5 className="font-bold text-amber-800 text-sm mb-1">תוכנית פעולה מוצעת:</h5>
+                          <p className="text-amber-900 text-sm leading-relaxed">{approval.actionPlanHe}</p>
+                        </div>
+                      );
+                    })()}
                     <div className="bg-ws-accentSoft/30 p-5 rounded-2xl border border-ws-accent/10 mb-6">
                       <h4 className="font-bold text-ws-accent mb-2 flex items-center gap-2">
                         <MessageCircle className="w-5 h-5" />

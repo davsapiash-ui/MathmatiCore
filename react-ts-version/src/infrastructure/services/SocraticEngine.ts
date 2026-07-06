@@ -65,6 +65,26 @@ export class SocraticEngine {
       isYellowPath = true;
     }
 
+    if (qMatrix.task2_estimation_error_margin === 'estimation_range_error') {
+      diagnosisParts.push("התלמיד מתקשה להעריך גדלים בתוך טווח סביר — אומדנים חורגים מהמציאות. ייתכן קושי בתחושת המספר (number sense) ובאינטואיציה לסדרי גודל.");
+      actionParts.push("פעילויות אמידה עם חפצים מוחשיים ומחויות גוף — כמות צעדים, גובה, אורך — לפני אמידה מספרית.");
+      isYellowPath = true;
+    } else if (qMatrix.task2_estimation_error_margin === 'estimation_precision_fixation') {
+      diagnosisParts.push("התלמיד מנסה לדייק יתר על המידה באמידה ואינו מסתפק בטווח. עשוי להעיד על חשיבה פרפקציוניסטית שמקשה על גמישות מחשבתית.");
+      actionParts.push("תרגול מכוון על 'טווח סביר' ולא תשובה מדויקת — להדגיש שכמה תשובות יכולות להיות נכונות.");
+      isYellowPath = true;
+    }
+
+    if (qMatrix.task5_small_change === 'small_change_confusion') {
+      diagnosisParts.push("התלמיד מתבלבל בין פעולות כאשר השינוי קטן (כמו +1 או -1) ועלול לפעול בכיוון ההפוך. דפוס זה עשוי להעיד על חוסר ביסוס המושג 'עוד אחד / פחות אחד' ברמה העשרונית.");
+      actionParts.push("תרגול על ציר מספרים עם קפיצות של 1: מה לפני? מה אחרי? תוך שימוש בדימויי גוף ותנועה.");
+      isYellowPath = true;
+    } else if (qMatrix.task5_small_change === 'directional_error') {
+      diagnosisParts.push("התלמיד מבצע פעולה בכיוון שגוי בעקביות (חיבור במקום חיסור ולהיפך). ייתכן בלבול בסימנים או בהבנת מה הפעולה דורשת.");
+      actionParts.push("הדגשת כוון הפעולה באמצעות חיצים ויזואליים על ציר המספרים — שמאלה = חיסור, ימינה = חיבור.");
+      isYellowPath = true;
+    }
+
     if (qMatrix.task6_subtraction_regrouping === 'regrouping_anxiety') {
       diagnosisParts.push("התלמיד הפגין שליטה בחיסור בסיסי, אך נרתע או קפא כאשר נדרש לפרוט עשרת. דפוס זה עשוי להעיד על 'חרדת המרה'.");
       actionParts.push("יש לעבוד על פריטה מחוץ לתרגיל חיסור, באופן מוחשי, כדי להוריד את מפלס החרדה.");
@@ -82,6 +102,16 @@ export class SocraticEngine {
     } else if (qMatrix.task7_missing_subtrahend === 'computational_fluency_deficit') {
       diagnosisParts.push("התלמיד מבין את קונספט המשוואה במעוף הדבורה, אך השגיאה בתרגיל הראשוני נובעת מקשיי פריטה או שטף חישובי.");
       actionParts.push("תרגול משוואות במספרים שאינם דורשים פריטה, בשילוב תרגול חיסור עם פריטה בנפרד.");
+      isYellowPath = true;
+    }
+
+    if (qMatrix.task8_missing_addend === 'missing_addend_deficit') {
+      diagnosisParts.push("התלמיד מתקשה במציאת נעלם בחיבור (□ + 5 = 12). ייתכן שהוא טרם הפנים את הרעיון שחיבור וחיסור הם פעולות הפוכות המשלימות זו את זו.");
+      actionParts.push("עבודה על אסטרטגיות 'ספור קדימה' ו'ספור אחורה' לפתרון חיבורים עם נעלם, תוך שימוש בציר המספרים.");
+      isYellowPath = true;
+    } else if (qMatrix.task8_missing_addend === 'inverse_operation_gap') {
+      diagnosisParts.push("התלמיד אינו מזהה שניתן להשתמש בחיסור כדי למצוא נעלם בחיבור — חסר קישור בין הפעולות.");
+      actionParts.push("הדגמת 'משפחות עובדות' (fact families): 3+5=8, 5+3=8, 8-3=5, 8-5=3 — לבניית הקישור הפנימי.");
       isYellowPath = true;
     }
 
