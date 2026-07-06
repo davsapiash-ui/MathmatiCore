@@ -61,16 +61,23 @@ export function VerticalAdditionTask({
   const digitsB = padDigits(bStr);
   const firstAnswerCol = cols - answerLength;
 
-  const digitCell = (d: string | null, key: string, extra?: React.CSSProperties) => (
-    <div
-      key={key}
-      aria-hidden="true"
-      className="flex items-center justify-center font-mono font-black text-ws-ink leading-none"
-      style={{ fontSize: CELL * 0.6, ...extra }}
-    >
-      {d}
-    </div>
-  );
+  const digitCell = (d: string | null, key: string, place?: Place, extra?: React.CSSProperties) => {
+    const isStriked = isSubtraction && place && carryDigits[place];
+    
+    return (
+      <div
+        key={key}
+        aria-hidden="true"
+        className="relative flex items-center justify-center font-mono font-black text-ws-ink leading-none"
+        style={{ fontSize: CELL * 0.6, ...extra }}
+      >
+        {d}
+        {isStriked && d && (
+          <div className="absolute w-[80%] h-1 bg-red-500 rotate-[-20deg] rounded-full opacity-80 pointer-events-none" />
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="self-center w-full max-w-md flex flex-col items-center gap-4 bg-ws-surface rounded-3xl border border-ws-surface2 shadow-[0_10px_28px_-14px_hsl(var(--ws-shadow-warm)/0.3)] p-6">
@@ -116,7 +123,7 @@ export function VerticalAdditionTask({
 
         {/* Row 1 — first operand (operator gutter empty) */}
         <div aria-hidden="true" />
-        {digitsA.map((d, j) => digitCell(d, `a${j}`))}
+        {digitsA.map((d, j) => digitCell(d, `a${j}`, colPlaces[j]))}
 
         {/* Row 2 — operator + second operand; thick result line under the digits */}
         <div
@@ -126,7 +133,7 @@ export function VerticalAdditionTask({
         >
           {isSubtraction ? '−' : '+'}
         </div>
-        {digitsB.map((d, j) => digitCell(d, `b${j}`, { borderBottom: '4px solid hsl(var(--ws-ink))' }))}
+        {digitsB.map((d, j) => digitCell(d, `b${j}`, undefined, { borderBottom: '4px solid hsl(var(--ws-ink))' }))}
 
         {/* Row 3 — answer inputs inside the same squares (units under units) */}
         <div aria-hidden="true" />

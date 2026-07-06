@@ -83,7 +83,7 @@ export const SESSION1_TASKS: SessionTask[] = [
     numberA: 34, numberB: 0, correctAnswer: 34,
     titleHe: 'רישיון למעבדה - בנייה והקלדה',
     instructionHe: 'בנו בטבלה את המספר 34 בעזרת הקוביות. לאחר מכן, הקלידו את המספר בתיבת התשובה שלמטה.',
-    hintHe: 'ודאו שיש 3 עשרות ו-4 יחידות, ואז הקלידו 34.',
+    hintHe: 'שימו לב: כמה עשרות דרושות כדי לבנות 30? וכמה יחידות? נסו לספור את הבלוקים שבניתם לפני שתקלידו את התשובה.',
     scaffoldLevel: 1,
   },
   // 3. Multiple Choice
