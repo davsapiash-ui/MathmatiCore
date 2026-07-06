@@ -105,28 +105,55 @@ export function TeacherDashboard() {
     const unsubscribe = onValue(studentsRef, (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.val();
-        // Transform data slightly to match what TeacherDashboard expects, if needed
+        // Merge with local mock students so the full roster is visible
+        const allStudents = useStore.getState().students;
         const formattedStudents: Record<string, any> = {};
-        for (const [id, s] of Object.entries<any>(data)) {
-          formattedStudents[id] = {
-            id,
-            name: s.profile?.displayName || s.profile?.name || id,
-            currentTask: s.workspaceState?.standardTaskIdx || 0,
-            sessionNum: s.workspaceState?.sessionNumber || 1,
-            radar: {
-              hesitations: s.workspaceState?.hesitationCount || 0,
-              deletions: s.workspaceState?.undoCount || 0,
-            },
-            traceData: {
-              hesitation_events: s.workspaceState?.hesitationCount || 0,
-              undo_clicks: s.workspaceState?.undoCount || 0,
-            },
-            qMatrixResults: s.workspaceState?.qflow?.results || {},
-          };
+        
+        // Add all base students
+        for (const [id, s] of Object.entries(allStudents)) {
+           formattedStudents[id] = {
+             id,
+             name: s.name,
+             currentTask: 0,
+             sessionNum: 1,
+             radar: { hesitations: 0, deletions: 0 },
+             traceData: { hesitation_events: 0, undo_clicks: 0 },
+             qMatrixResults: {},
+           };
+        }
+
+        if (data) {
+          for (const [id, s] of Object.entries<any>(data)) {
+            formattedStudents[id] = {
+              ...formattedStudents[id],
+              id,
+              name: s.profile?.displayName || s.profile?.name || formattedStudents[id]?.name || id,
+              currentTask: s.workspaceState?.standardTaskIdx || 0,
+              sessionNum: s.workspaceState?.sessionNumber || 1,
+              radar: {
+                hesitations: s.workspaceState?.hesitationCount || 0,
+                deletions: s.workspaceState?.undoCount || 0,
+              },
+              traceData: {
+                hesitation_events: s.workspaceState?.hesitationCount || 0,
+                undo_clicks: s.workspaceState?.undoCount || 0,
+              },
+              qMatrixResults: s.workspaceState?.qflow?.results || s.qMatrixResults || {},
+            };
+          }
         }
         setStudents(formattedStudents);
       } else {
-        setStudents({});
+        // Fallback to local store
+        const allStudents = useStore.getState().students;
+        const formattedStudents: Record<string, any> = {};
+        for (const [id, s] of Object.entries(allStudents)) {
+           formattedStudents[id] = {
+             id, name: s.name, currentTask: 0, sessionNum: 1,
+             radar: { hesitations: 0, deletions: 0 }, traceData: { hesitation_events: 0, undo_clicks: 0 }, qMatrixResults: {},
+           };
+        }
+        setStudents(formattedStudents);
       }
     });
     return () => unsubscribe();
@@ -171,8 +198,18 @@ export function TeacherDashboard() {
   }, [TEACHER_ID]);
 
   const handleHintClick = (studentId: string) => {
-    setSelectedStudentId(studentId);
-    setActiveTab("chat_students");
+    // 1. Write the hint flag to Firebase so the student gets an actual popup
+    set(ref(database, `users/students/${studentId}/teacher_hint`), {
+      timestamp: Date.now(),
+      message: "המורה שלח לך רמז: נסה להשתמש בלוח העשרות כדי לפרוט."
+    }).then(() => {
+      // 2. Switch to chat so the teacher can follow up manually
+      setSelectedStudentId(studentId);
+      setActiveTab("chat_students");
+    }).catch(err => {
+      console.error("Failed to send hint:", err);
+      alert("שגיאה בשליחת הרמז לתלמיד.");
+    });
   };
 
   // ── LIVE students from Firebase ─────────────────────────────────────────

@@ -88,6 +88,7 @@ export function ReflectionScreen() {
 
       update(ref(database, `users/students/${username}`), {
         qMatrixResults: qMatrix,
+        completedMeeting2: true,
         traceData: {
           hesitation_events: useWorkspaceStore.getState().hesitationCount,
           undo_clicks: undoCount,

@@ -21,9 +21,9 @@ export function ClassManagement({ allStudents }: { allStudents: StudentData[] })
     if (!window.confirm(`האם אתה בטוח שברצונך לאפס את כל ההתקדמות והנתונים של תלמיד ${studentId}? לא ניתן לבטל פעולה זו.`)) return;
     
     try {
-      await remove(ref(database, `workspaceState/${studentId}`));
-      await remove(ref(database, `qMatrixResults/${studentId}`));
-      await remove(ref(database, `replays/${studentId}`)); // optional
+      await remove(ref(database, `users/students/${studentId}`));
+      // Remove any specific local traces or replay storage if they exist
+      await remove(ref(database, `replays/${studentId}`));
       alert('הנתונים אופסו בהצלחה.');
     } catch (err) {
       console.error(err);

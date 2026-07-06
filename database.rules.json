@@ -63,6 +63,11 @@
       }
     },
 
+    "chat_messages": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+
     "sessions": {
       ".read": "auth != null && (root.child('users/teachers/' + auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '')).exists() || auth.token.email === 'admin@mathmaticore.local')",
       ".write": "auth != null && auth.token.email === 'admin@mathmaticore.local'"

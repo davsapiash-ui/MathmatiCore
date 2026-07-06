@@ -42,19 +42,33 @@ class FirebaseSyncService {
     
     this.isInitialLoad = true;
 
-    // Load initial state from Firebase
-    get(studentRef).then((snapshot) => {
+    // Load initial state from Firebase and keep it synced LIVE
+    onValue(studentRef, (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.val();
         if (data.workspaceState) {
           useWorkspaceStore.setState(data.workspaceState);
         }
+        // Update the top-level useStore so StudentHub knows about route approvals
+        const currentStudents = useStore.getState().students;
+        useStore.setState({
+          students: {
+            ...currentStudents,
+            [studentId]: {
+              ...(currentStudents[studentId] || {}),
+              ...data,
+              // Merge Firebase data overriding local mock data
+            }
+          }
+        });
       } else {
         // Initialize user in Firebase
         set(studentRef, {
           profile: userData,
           workspaceState: this.getSyncableWorkspaceState(),
-          lastActive: serverTimestamp()
+          lastActive: serverTimestamp(),
+          completedMeeting2: false,
+          routeStatus: null
         });
       }
       this.isInitialLoad = false;

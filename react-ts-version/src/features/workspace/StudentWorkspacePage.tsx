@@ -15,6 +15,9 @@ import { useNavigate } from 'react-router-dom';
 import type { DragSource, Place } from '@/core/placeValue';
 import { useWorkspaceStore, type SessionNumber } from '@/application/useWorkspaceStore';
 import { useSettingsStore } from '@/application/useSettingsStore';
+import { useAuthStore } from '@/application/useAuthStore';
+import { database } from '@/infrastructure/firebase';
+import { ref, onValue, remove } from 'firebase/database';
 import { getCurrentQTask, isSubtaskActive } from '@/core/qmatrixFlow';
 import { PlaceValueBoard } from './board/PlaceValueBoard';
 import { VideoIntroModal } from './overlays/VideoIntroModal';
@@ -43,6 +46,24 @@ export function StudentWorkspacePage() {
   const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
   const flowStatus = useWorkspaceStore((s) => s.flowStatus);
   const qflow = useWorkspaceStore((s) => s.qflow);
+  const user = useAuthStore((s) => s.user);
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    const hintRef = ref(database, `users/students/${user.uid}/teacher_hint`);
+    const unsub = onValue(hintRef, (snap) => {
+      if (snap.exists()) {
+        const hintData = snap.val();
+        if (hintData && hintData.message) {
+          // Display the hint
+          alert(hintData.message);
+          // Clear the hint so it doesn't fire again on reload
+          remove(hintRef);
+        }
+      }
+    });
+    return () => unsub();
+  }, [user?.uid]);
 
   const [activeDrag, setActiveDrag] = useState<{ place: Place; source: DragSource; renderPlace?: Place } | null>(null);
 

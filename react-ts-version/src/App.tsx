@@ -19,6 +19,7 @@ import { AdminChatView } from "@/presentation/pages/admin/AdminChatView";
 import { useAuthStore } from "@/application/useAuthStore";
 import { useSettingsStore } from "@/application/useSettingsStore";
 import { useIdleTimeout } from "@/application/useIdleTimeout";
+import { useChatStore } from "@/application/useChatStore";
 
 /**
  * Mount-gate on the Firebase session: children (and ALL their onValue listeners /
@@ -31,7 +32,10 @@ function FirebaseGate({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     authReady.then(() => {
-      if (!cancelled) setReady(true);
+      if (!cancelled) {
+        setReady(true);
+        useChatStore.getState().initSync();
+      }
     });
     return () => {
       cancelled = true;
