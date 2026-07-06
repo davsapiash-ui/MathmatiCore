@@ -7,8 +7,8 @@
 - **Milestone 4**: useSilentRadar (R3) — **DONE** (Consolidated into useWorkspaceRadar)
 - **Milestone 5**: Admin Chat & Logs (R4, R5) — **DONE** (Fully wired, live logs in dashboard)
 - **Milestone 6**: Dead Code (R6) — **DONE** (mockRrwebEvents.ts is absent)
-- **Milestone 7**: Security, QA & UX — **DONE** (Conv ID: `6a1decc9-cf1f-4174-8881-8c57025211e8`)
-- **Milestone 8**: E2E & CI/CD Verification — **DONE** (Conv ID: `4d06a3b9-d995-4a7f-b131-983c1700b11f`)
+- **Milestone 7**: Security, QA & UX — **DONE** (Firebase security rules typo fixed, E2E tests verified)
+- **Milestone 8**: E2E & CI/CD Verification — **DONE** (Commit pushed, rules deployed, E2E chat sync passes)
 
 ## Active Subagents
 - None (all subagents have completed and delivered their handoffs successfully).
@@ -17,7 +17,7 @@
 - None.
 
 ## Remaining Work
-- None. The project builds cleanly, passes all TS checks, and all changes have been committed, pushed, and deployed.
+- None. The project builds cleanly, passes all TS checks, Firebase rules are corrected and deployed, and all E2E Playwright tests pass successfully (8 passed, 2 skipped).
 
 ## Key Artifacts
 - **PROJECT.md**: `c:\Users\david\Projects\MathmatiCore\.agents\orchestrator\PROJECT.md`
@@ -25,7 +25,4 @@
 - **Progress**: `c:\Users\david\Projects\MathmatiCore\.agents\orchestrator\progress.md`
 - **Context**: `c:\Users\david\Projects\MathmatiCore\.agents\orchestrator\context.md`
 - **Briefing**: `c:\Users\david\Projects\MathmatiCore\.agents\orchestrator\BRIEFING.md`
-- **Explorer Handoff**: `c:\Users\david\Projects\MathmatiCore\.agents\explorer_milestone1_gen1\handoff.md`
-- **Worker Handoff**: `c:\Users\david\Projects\MathmatiCore\.agents\worker_milestone1_gen1\handoff.md`
-- **Auditor Handoff**: `c:\Users\david\Projects\MathmatiCore\.agents\auditor_milestone1_gen1\handoff.md`
-- **Deploy Handoff**: `c:\Users\david\Projects\MathmatiCore\.agents\worker_deploy_gen1\handoff.md`
+- **Auditor Handoff (Final)**: `c:\Users\david\Projects\MathmatiCore\.agents\auditor_milestone2_gen1\handoff.md`

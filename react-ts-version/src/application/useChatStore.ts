@@ -118,7 +118,11 @@ export const useChatStore = create<ChatState>()(
       if (unreadMsgs.length > 0) {
         const updates: Record<string, any> = {};
         const { role } = useAuthStore.getState();
-        const roomId = role === 'student' ? receiverId : senderId;
+        let roomId = role === 'student' ? receiverId : senderId;
+        if (role !== 'student' && senderId === 'admin') {
+          roomId = receiverId; // Admin messages to teacher are stored in teacher's room
+        }
+        
         unreadMsgs.forEach(msg => {
           updates[`chat_messages/${roomId}/${msg.id}/read`] = true;
         });

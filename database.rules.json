@@ -169,7 +169,7 @@
 
     "ai_pending_approvals": {
       "$teacherId": {
-        ".read": "auth != null && (auth.token.email === 'teacher_' + 'teacher_' + $teacherId + '@mathmaticore.local' || auth.token.email.replace('@mathmaticore.local','') === $teacherId || auth.token.email === 'admin@mathmaticore.local')",
+        ".read": "auth != null && (auth.token.email === 'teacher_' + $teacherId + '@mathmaticore.local' || auth.token.email.replace('@mathmaticore.local','') === $teacherId || auth.token.email === 'admin@mathmaticore.local')",
         ".write": "auth != null && (auth.token.email.matches(/.*@mathmaticore\\.local$/) || auth.token.email === 'admin@mathmaticore.local')"
       }
     },
