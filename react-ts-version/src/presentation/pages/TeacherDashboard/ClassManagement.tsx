@@ -167,7 +167,7 @@ export function ClassManagement({ allStudents }: { allStudents: StudentData[] })
               {filteredStudents.map(student => (
                 <tr key={student.studentId} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/30 transition-colors">
                   <td className="py-4 px-6 font-bold text-slate-800 dark:text-slate-200 text-lg font-mono">
-                    {student.name || student.studentId || 'תלמיד חדש'}
+                    {student.name || (student.studentId ? student.studentId.replace(/^student_/, '') : 'תלמיד חדש')}
                   </td>
                   <td className="py-4 px-6">
                     {student.completedMeeting2 ? (

@@ -544,18 +544,6 @@ export function TeacherDashboard() {
             מיפוי כיתתי (<span dir="ltr">Q-Matrix</span>)
           </button>
           <button
-            id="tour-tab-alerts"
-            onClick={() => handleTabChange("alerts")}
-            className={`w-full flex justify-between items-center text-right px-4 py-3 rounded-xl transition-all ${activeTab === "alerts" ? "bg-red-50 text-red-700   font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
-          >
-            <span>רדאר סמוי</span>
-            {allAlerts.filter((a) => a.unread).length > 0 && (
-              <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg shadow-red-500/30 animate-pulse">
-                {allAlerts.filter((a) => a.unread).length}
-              </span>
-            )}
-          </button>
-          <button
             id="tour-tab-reports"
             onClick={() => handleTabChange("diagnostic_reports")}
             className={`w-full text-right px-4 py-3 rounded-xl transition-all ${activeTab === "diagnostic_reports" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg text-ws-soft "}`}
