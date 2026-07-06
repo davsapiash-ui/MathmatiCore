@@ -18,7 +18,6 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { Send, MessageCircle, ShieldAlert } from "lucide-react";
-import { LogoutButton } from "@/presentation/components/ui/LogoutButton";
 import { ReplayViewer } from "@/presentation/components/ReplayViewer";
 import { ClassManagement } from "./TeacherDashboard/ClassManagement";
 import { SocraticEngine, type PendingAIApproval } from "@/infrastructure/services/SocraticEngine";
@@ -229,8 +228,6 @@ export function TeacherDashboard() {
           const mapped: Record<string, StudentData> = {};
           Object.keys(data).forEach((uid) => {
             const row = data[uid] ?? {};
-            if (!row.qMatrixResults) return; // Only map students who have completed the diagnostic
-            
             mapped[uid] = {
               studentId: uid,
               classId: row.classId ?? 'live',
@@ -529,21 +526,8 @@ export function TeacherDashboard() {
       <aside className="w-full md:w-64 bg-ws-surface/80  backdrop-blur-xl border-b md:border-b-0 md:border-l border-ws-surface2  flex flex-col shadow-[4px_0_24px_rgba(0,0,0,0.02)] dark:shadow-[4px_0_24px_rgba(0,0,0,0.2)] z-20 transition-all overflow-y-auto max-h-screen">
         <div className="p-6 border-b border-ws-surface2">
           <h2 className="font-display font-black text-2xl text-ws-ink tracking-tight mb-2">
-            ניהול נתונים
+            תחנת עבודה מורה
           </h2>
-          <p className="text-xs text-ws-soft mt-2 tracking-widest uppercase font-semibold">
-            תחנת עבודה - מורה
-          </p>
-          <div className="mt-4 pt-4 border-t border-ws-surface2 text-sm font-medium flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-ws-accent flex items-center justify-center font-bold text-white shadow-inner">
-              {user?.displayName?.[0] || "T"}
-            </div>
-            <div className="flex-1 overflow-hidden">
-              <div className="font-bold text-sm truncate">
-                {user?.displayName || "מורה"}
-              </div>
-            </div>
-          </div>
           
           <div className="mt-4">
             <button
@@ -625,10 +609,6 @@ export function TeacherDashboard() {
               </span>
             )}
           </button>
-
-          <div className="mt-auto pt-4 flex justify-center pb-2 border-t border-ws-surface2 ">
-            <LogoutButton className="w-full justify-center border border-ws-surface2  bg-white  hover:bg-red-50 hover:text-red-600   transition-all rounded-xl" />
-          </div>
         </nav>
       </aside>
 
@@ -1386,8 +1366,6 @@ export function TeacherDashboard() {
             </div>
           </div>
         )}
-
-        {activeTab === "class_management" && <ClassManagement allStudents={allStudents} />}
 
         {/* ADMIN CHAT */}
         {activeTab === "chat_admin" && (
