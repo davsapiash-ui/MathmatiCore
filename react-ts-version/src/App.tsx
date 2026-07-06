@@ -19,7 +19,6 @@ import { AdminChatView } from "@/presentation/pages/admin/AdminChatView";
 import { useAuthStore } from "@/application/useAuthStore";
 import { useSettingsStore } from "@/application/useSettingsStore";
 import { useIdleTimeout } from "@/application/useIdleTimeout";
-import { useChatStore } from "@/application/useChatStore";
 
 /**
  * Mount-gate on the Firebase session: children (and ALL their onValue listeners /
