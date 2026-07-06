@@ -70,7 +70,7 @@ export function ProjectorSandboxPage() {
   };
 
   return (
-    <div className="h-screen w-screen bg-ws-bg text-ws-ink font-sans flex flex-col overflow-hidden selection:bg-ws-accent/20">
+    <div dir="rtl" className="h-screen w-screen bg-ws-bg text-ws-ink font-sans flex flex-col overflow-hidden selection:bg-ws-accent/20">
       <WorkspaceTopbar />
 
       <main className="flex-1 flex overflow-hidden p-6 gap-6">

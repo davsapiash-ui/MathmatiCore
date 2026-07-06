@@ -159,6 +159,12 @@ class FirebaseSyncService {
     await update(qMatrixRef, qMatrixUpdates);
   }
 
+  public async syncTraceData(studentId: string, traceDataUpdates: any) {
+    if (!studentId) return;
+    const traceRef = ref(database, `users/students/${studentId}/traceData`);
+    await update(traceRef, traceDataUpdates);
+  }
+
   public async syncRouteRecommendation(studentId: string, route: string) {
     if (!studentId) return;
     const routeRef = ref(database, `users/students/${studentId}`);

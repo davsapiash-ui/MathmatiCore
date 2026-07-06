@@ -113,6 +113,23 @@
     --success-foreground: 0 0% 100%;
     --warning: 40 90% 50%;
     --warning-foreground: 40 90% 10%;
+
+    /* Workspace dark mode tokens */
+    --ws-bg: 240 20% 6%;
+    --ws-surface: 240 20% 10%;
+    --ws-surface-2: 240 20% 15%;
+    --ws-ink: 220 20% 95%;
+    --ws-ink-soft: 220 15% 70%;
+    --ws-accent: 250 80% 65%;
+    --ws-accent-2: 250 80% 75%;
+    --ws-accent-soft: 250 40% 15%;
+    --ws-blue: 221 83% 65%;
+    --ws-blue-2: 221 83% 75%;
+    --ws-blue-soft: 221 40% 15%;
+    --ws-teal: 174 65% 50%;
+    --ws-success: 150 65% 45%;
+    --ws-danger: 4 78% 65%;
+    --ws-shadow-warm: 240 20% 2%;
   }
 }
 

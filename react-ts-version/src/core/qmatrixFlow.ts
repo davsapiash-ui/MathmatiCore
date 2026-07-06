@@ -71,7 +71,7 @@ export function recordResult(
         updated.tag = evalResult.correct ? 'canonical_fixation' : 'regrouping_deficit';
       } else if (task.id === 'task4_basic_addition_fluency') {
         updated.tag = evalResult.correct ? 'procedural_error' : 'basic_facts_deficit';
-      } else if (task.id === 'q5_small_change') {
+      } else if (task.id === 'task5_small_change') {
         updated.tag = evalResult.correct ? 'small_change_confusion' : 'directional_error';
       } else if (task.id === 'task6_subtraction_regrouping') {
         updated.tag = evalResult.correct ? 'regrouping_anxiety' : 'subtraction_operation_deficit';

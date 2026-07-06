@@ -92,7 +92,7 @@ export function WorkspaceTopbar() {
 
         <button
           onClick={requestHelp}
-          className="h-10 w-10 rounded-full text-lg bg-gradient-to-b from-amber-100 to-amber-200 border border-amber-300 text-amber-700 hover:scale-110 active:scale-95 transition-transform shadow-sm flex items-center justify-center"
+          className="h-10 w-10 rounded-full text-lg bg-amber-100/50 dark:bg-amber-500/20 border border-amber-300/50 dark:border-amber-500/30 text-amber-600 dark:text-amber-400 hover:scale-110 active:scale-95 transition-transform shadow-sm flex items-center justify-center"
           aria-label="בקש עזרה"
           title="לחץ לעזרה"
         >
@@ -101,7 +101,7 @@ export function WorkspaceTopbar() {
 
         <button
           onClick={startTour}
-          className="h-10 w-10 rounded-full text-lg bg-gradient-to-b from-blue-100 to-blue-200 border border-blue-300 text-blue-700 hover:scale-110 active:scale-95 transition-transform shadow-sm flex items-center justify-center"
+          className="h-10 w-10 rounded-full text-lg bg-ws-blue-soft/50 border border-ws-blue/30 text-ws-blue hover:scale-110 active:scale-95 transition-transform shadow-sm flex items-center justify-center"
           aria-label="הפעל הדרכה מחדש"
           title="הדרכה"
         >

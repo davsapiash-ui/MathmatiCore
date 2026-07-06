@@ -49,6 +49,7 @@ interface AppState {
   
   // Q-Matrix Actions
   updateQMatrix: (studentId: string, updates: Partial<QMatrix>) => void;
+  updateTraceData: (studentId: string, updates: Partial<TraceData>) => void;
   markMeeting2Complete: (studentId: string) => void;
 
   // Routing Actions
@@ -165,12 +166,14 @@ export const useStore = create<AppState>()(
       resetTraceData: (studentId) => set((state) => {
         const student = state.students[studentId];
         if (!student) return state;
+        const newTraceData = { hesitation_events: 0, undo_clicks: 0 };
+        firebaseSyncService.syncTraceData(studentId, newTraceData).catch(console.error);
         return {
           students: {
             ...state.students,
             [studentId]: {
               ...student,
-              traceData: { hesitation_events: 0, undo_clicks: 0 }
+              traceData: newTraceData
             }
           }
         };
@@ -182,6 +185,16 @@ export const useStore = create<AppState>()(
           const newQMatrix = { ...students[studentId].qMatrixResults, ...updates };
           students[studentId] = { ...students[studentId], qMatrixResults: newQMatrix };
           firebaseSyncService.syncQMatrix(studentId, updates).catch(console.error);
+        }
+        return { students };
+      }),
+
+      updateTraceData: (studentId, updates) => set((state) => {
+        const students = { ...state.students };
+        if (students[studentId]) {
+          const newTraceData = { ...students[studentId].traceData, ...updates };
+          students[studentId] = { ...students[studentId], traceData: newTraceData };
+          firebaseSyncService.syncTraceData(studentId, updates).catch(console.error);
         }
         return { students };
       }),

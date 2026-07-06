@@ -74,9 +74,9 @@ export function StudentChatOverlay() {
 
   return (
     <div className="absolute top-0 right-0 h-full w-96 bg-ws-surface shadow-2xl flex flex-col z-50 border-l border-ws-surface2">
-      <div className="p-4 bg-emerald-600 text-white flex justify-between items-center shrink-0">
+      <div className="p-4 bg-ws-accent text-white flex justify-between items-center shrink-0">
         <h2 className="font-bold text-lg">צ'אט עם המורה</h2>
-        <button onClick={() => setIsOpen(false)} className="p-1 hover:bg-emerald-700 rounded-full transition-colors">
+        <button onClick={() => setIsOpen(false)} className="p-1 hover:bg-white/20 rounded-full transition-colors">
           ✕
         </button>
       </div>

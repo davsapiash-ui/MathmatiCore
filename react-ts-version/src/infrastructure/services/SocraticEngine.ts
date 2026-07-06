@@ -63,6 +63,10 @@ export class SocraticEngine {
       diagnosisParts.push("התלמיד נוטה ל'קיבעון קנוני', ומתקשה למצוא חלופות לייצוג המספר, על אף שהוא מכיר את המערכת. ייתכן קושי בגמישות מחשבתית.");
       actionParts.push("משחקי פריטה והמרה שמעודדים חשיבה פתוחה ומרובת תשובות.");
       isYellowPath = true;
+    } else if (qMatrix.task3_flexible_regrouping === 'regrouping_deficit') {
+      diagnosisParts.push("התלמיד מתקשה מהותית בפעולת הפריטה ובהבנת שקילות במבנה העשרוני, גם עם תיווך.");
+      actionParts.push("תרגול בסיסי של המרות 10 יחידות לעשרת אחת ולהפך, עם עצמים מוחשיים (בדידים).");
+      isYellowPath = true;
     }
 
     if (qMatrix.task2_estimation_error_margin === 'estimation_range_error') {

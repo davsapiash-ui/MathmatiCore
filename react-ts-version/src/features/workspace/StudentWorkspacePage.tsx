@@ -32,6 +32,8 @@ import { useWorkspaceRadar } from './useWorkspaceRadar';
 import { StudentChatOverlay } from './overlays/StudentChatOverlay';
 import { telemetryTracker } from '@/infrastructure/TelemetryTracker';
 
+import { SocraticEngine } from '@/infrastructure/services/SocraticEngine';
+
 /**
  * מרחב הפעילות של התלמיד — חוויית מסך מלא ממוקדת (100vh, ללא גלילה, ללא טיימרים).
  * פריסה לפי מקור האמת הוונילי: כרטיס משימה (ימין) / טבלת ערך המקום (שמאל), 50/50.
@@ -111,53 +113,45 @@ export function StudentWorkspacePage() {
     let stopRecording: (() => void) | undefined;
     let eventsQueue: any[] = [];
     let flushInterval: any;
-    // Cancellation flag: cleanup can run BEFORE the dynamic imports resolve
-    // (React StrictMode double-mounts) — without it the first mount's recorder
-    // and interval leaked forever.
     let cancelled = false;
 
-    import('@/application/useAuthStore').then(({ useAuthStore }) => {
-      if (cancelled) return;
-      const uid = useAuthStore.getState().user?.uid;
-      // No identified student → no recording. Mixing everyone under one anonymous
-      // key made replays useless and unbounded.
-      if (!uid) return;
-      const sessionKey = `${uid}/${Date.now()}`; // segment per workspace visit
-      import('firebase/database').then(({ ref, push }) => {
-        import('@/infrastructure/firebase').then(({ database, authReady }) => {
-          // Recording starts only once an authenticated session exists — pre-auth
-          // pushes are rejected by the locked rules and were silently lost.
-          authReady.then((authOk) => {
-          if (!authOk || cancelled) return;
-          import('rrweb').then((rrweb) => {
-            if (cancelled) return;
-            stopRecording = rrweb.record({
-              emit(event) {
-                eventsQueue.push(event);
-              },
-              sampling: {
-                mousemove: false,
-                mouseInteraction: true,
-                scroll: 150,
-                input: 'last',
-              }
-            });
+    const uid = useAuthStore.getState().user?.uid;
+    if (!uid) return;
+    const sessionKey = `${uid}/${Date.now()}`;
 
-            flushInterval = setInterval(() => {
-              if (eventsQueue.length > 0) {
-                const batch = [...eventsQueue];
-                eventsQueue = [];
-                // push() rejects ASYNC on permission-denied — a sync try/catch never
-                // catches it; attach .catch so monitoring can never surface errors.
-                // We stringify the batch to save thousands of individual db nodes per second.
-                push(ref(database, `replays/${sessionKey}`), JSON.stringify(batch)).catch(() => {});
-              }
-            }, 5000);
-          });
-        });
+    // Load rrweb asynchronously
+    (async () => {
+      const [{ ref, push }, { database, authReady }, rrweb] = await Promise.all([
+        import('firebase/database'),
+        import('@/infrastructure/firebase'),
+        import('rrweb')
+      ]);
+
+      if (cancelled) return;
+
+      const authOk = await authReady;
+      if (!authOk || cancelled) return;
+
+      stopRecording = rrweb.record({
+        emit(event) {
+          eventsQueue.push(event);
+        },
+        sampling: {
+          mousemove: false,
+          mouseInteraction: true,
+          scroll: 150,
+          input: 'last',
+        }
       });
-    });
-    });
+
+      flushInterval = setInterval(() => {
+        if (eventsQueue.length > 0) {
+          const batch = [...eventsQueue];
+          eventsQueue = [];
+          push(ref(database, `replays/${sessionKey}`), JSON.stringify(batch)).catch(() => {});
+        }
+      }, 5000);
+    })();
 
     return () => {
       cancelled = true;
@@ -184,10 +178,6 @@ export function StudentWorkspacePage() {
       // Any failure in this async chain must NOT strand the student on the loading
       // screen — the outer .catch falls back to the standard session tasks.
       (async () => {
-        const [{ SocraticEngine }, { useAuthStore }] = await Promise.all([
-          import('@/infrastructure/services/SocraticEngine'),
-          import('@/application/useAuthStore'),
-        ]);
         if (cancelled) return;
         const username = useAuthStore.getState().user?.uid;
         if (!username) {

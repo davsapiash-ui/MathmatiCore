@@ -315,17 +315,19 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
                 task2_estimation_error_margin: getTag(r['task2_estimation_error_margin']),
                 task3_flexible_regrouping: getTag(r['task3_flexible_regrouping']),
                 task4_basic_addition_fluency: getTag(r['task4_basic_addition_fluency']),
-                task5_small_change: getTag(r['q5_small_change']),
+                task5_small_change: getTag(r['task5_small_change']),
                 task6_subtraction_regrouping: getTag(r['task6_subtraction_regrouping']),
                 task7_missing_subtrahend: getTag(r['task7_missing_subtrahend']),
                 task8_missing_addend: getTag(r['task8_missing_addend']),
               };
               // Persist truth so the dashboard clustering reflects this student too.
               store.updateQMatrix(studentId, realQMatrix);
+              const realTraceData = { hesitation_events: get().hesitationCount, undo_clicks: get().undoCount };
+              store.updateTraceData(studentId, realTraceData);
               const route = CurriculumRouter.evaluateRoute({
                 ...student,
                 qMatrixResults: { ...student.qMatrixResults, ...realQMatrix },
-                traceData: { hesitation_events: get().hesitationCount, undo_clicks: get().undoCount },
+                traceData: realTraceData,
               });
               store.setRouteRecommendation(studentId, route);
             }

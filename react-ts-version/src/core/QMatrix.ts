@@ -155,7 +155,7 @@ export const TASKS: QMatrixTask[] = [
     },
   },
   {
-    id: "q5_small_change",
+    id: "task5_small_change",
     type: "small_change",
     titleHe: "השינוי הקטן — אומדן",
     instructionHe: "הביטו בתרגיל שפתרנו עבורכם. נסו לענות על השאלה הבאה בלי לחשב מחדש, רק בעזרת חשיבה והיגיון!",

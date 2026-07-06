@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ref, push, update, get } from 'firebase/database';
+import { ref, push, get } from 'firebase/database';
 import { database, authReady } from '@/infrastructure/firebase';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
-
+import { SocraticEngine } from '@/infrastructure/services/SocraticEngine';
 /**
  * מסך רפלקציה (מפגש 2) — port of vanilla_audit/student/reflection.html.
  * דירוג מאמץ באייקונים בלבד (ללא ציונים מספריים!), בחירת אסטרטגיה מאוירת,
@@ -36,7 +36,6 @@ export function ReflectionScreen() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const qflow = useWorkspaceStore((s) => s.qflow);
-  const undoCount = useWorkspaceStore((s) => s.undoCount);
 
   const [effort, setEffort] = useState<number | null>(null);
   const [strategy, setStrategy] = useState<string | null>(null);
@@ -81,27 +80,20 @@ export function ReflectionScreen() {
         task2_estimation_error_margin: getTag(r['task2_estimation_error_margin']),
         task3_flexible_regrouping: getTag(r['task3_flexible_regrouping']),
         task4_basic_addition_fluency: getTag(r['task4_basic_addition_fluency']),
-        task5_small_change: getTag(r['q5_small_change']) || getTag(r['task5_small_change']),
+        task5_small_change: getTag(r['task5_small_change']),
         task6_subtraction_regrouping: getTag(r['task6_subtraction_regrouping']),
         task7_missing_subtrahend: getTag(r['task7_missing_subtrahend']),
         task8_missing_addend: getTag(r['task8_missing_addend']),
       };
 
-      await update(ref(database, `users/students/${username}`), {
-        qMatrixResults: qMatrix,
-        completedMeeting2: true,
-        routeStatus: 'PENDING',
-        traceData: {
-          hesitation_events: useWorkspaceStore.getState().hesitationCount,
-          undo_clicks: undoCount,
-        },
-      });
+      // State persistence is already handled by useWorkspaceStore.ts (via useStore and FirebaseSyncService)
+      // right before transitioning to the reflection screen.
 
       // AI Generation: generate tasks 3-7 based on diagnostic and queue for teacher approval.
       // Only run if the student actually completed the Q-Matrix tasks (has non-null results).
       const hasRealQMatrixData = Object.values(qMatrix).some(v => v !== null && v !== undefined);
       if (hasRealQMatrixData) {
-        const { SocraticEngine } = await import('@/infrastructure/services/SocraticEngine');
+
         let resolvedTeacherId = '039604483'; // Safe fallback — the known teacher
         try {
           // 1. Read the student's classId from Firebase (source of truth)

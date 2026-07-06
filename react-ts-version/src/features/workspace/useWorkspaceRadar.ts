@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { ref, push } from 'firebase/database';
 import { database, authReady } from '@/infrastructure/firebase';
 import { useAuthStore } from '@/application/useAuthStore';
+import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { registerRadar, unregisterRadar } from './radarBus';
 
 /**
@@ -73,9 +74,7 @@ export function useWorkspaceRadar(sessionNumber: number) {
         }
         sendAlert('HESITATION', { idleMs: HESITATION_THRESHOLD_MS });
         // Mirror into the workspace store so traceData reaches the teacher at reflection.
-        import('@/application/useWorkspaceStore').then(({ useWorkspaceStore }) => {
-          useWorkspaceStore.setState((s) => ({ hesitationCount: s.hesitationCount + 1 }));
-        });
+        useWorkspaceStore.setState((s) => ({ hesitationCount: s.hesitationCount + 1 }));
         // Fire once; do not re-arm until the next student action (vanilla behavior).
         hesitationArmed.current = false;
       }, HESITATION_THRESHOLD_MS);
