@@ -27,7 +27,10 @@ export function StudentChatOverlay() {
 
   useEffect(() => {
     if (isOpen && user?.uid) {
-      markAsRead(user.uid, targetTeacherId); 
+      // Find the last teacher who sent a message to the student
+      const lastReceivedMsg = [...messages].reverse().find(m => m.receiverId === user.uid && m.senderId !== user.uid);
+      const activeTeacher = lastReceivedMsg ? lastReceivedMsg.senderId : targetTeacherId;
+      markAsRead(user.uid, activeTeacher); 
     }
   }, [isOpen, messages, user, markAsRead, targetTeacherId]);
 
@@ -40,13 +43,15 @@ export function StudentChatOverlay() {
   if (!isOpen || !user) return null;
 
   const myMessages = messages.filter(m => 
-    (m.senderId === user.uid && m.receiverId === targetTeacherId) || 
-    (m.senderId === targetTeacherId && m.receiverId === user.uid)
+    m.receiverId === user.uid || m.senderId === user.uid
   );
 
   const handleSend = () => {
     if (!text.trim()) return;
-    sendMessage(user.uid, user.displayName || user.email?.split('@')[0] || 'תלמיד', targetTeacherId, text);
+    // Find the last teacher who sent a message to the student to reply to them
+    const lastReceivedMsg = [...messages].reverse().find(m => m.receiverId === user.uid && m.senderId !== user.uid);
+    const activeTeacher = lastReceivedMsg ? lastReceivedMsg.senderId : targetTeacherId;
+    sendMessage(user.uid, user.displayName || user.email?.split('@')[0] || 'תלמיד', activeTeacher, text);
     setText('');
   };
 

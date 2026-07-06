@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
 
 export interface QMatrix {
   task1_zero_placeholder: string | null;
@@ -176,49 +177,35 @@ export const useStore = create<AppState>()(
       }),
 
       updateQMatrix: (studentId, updates) => set((state) => {
-        const student = state.students[studentId];
-        if (!student) return state;
-        return {
-          students: {
-            ...state.students,
-            [studentId]: {
-              ...student,
-              qMatrixResults: {
-                ...student.qMatrixResults,
-                ...updates
-              }
-            }
-          }
-        };
+        const students = { ...state.students };
+        if (students[studentId]) {
+          const newQMatrix = { ...students[studentId].qMatrixResults, ...updates };
+          students[studentId] = { ...students[studentId], qMatrixResults: newQMatrix };
+          firebaseSyncService.syncQMatrix(studentId, updates).catch(console.error);
+        }
+        return { students };
       }),
 
       markMeeting2Complete: (studentId) => set((state) => {
-        const student = state.students[studentId];
-        if (!student) return state;
-        return {
-          students: {
-            ...state.students,
-            [studentId]: {
-              ...student,
-              completedMeeting2: true
-            }
-          }
-        };
+        const students = { ...state.students };
+        if (students[studentId]) {
+          students[studentId] = { ...students[studentId], completedMeeting2: true };
+          firebaseSyncService.syncMeeting2Complete(studentId).catch(console.error);
+        }
+        return { students };
       }),
 
       setRouteRecommendation: (studentId, route) => set((state) => {
-        const student = state.students[studentId];
-        if (!student) return state;
-        return {
-          students: {
-            ...state.students,
-            [studentId]: {
-              ...student,
-              routeRecommendation: route,
-              routeStatus: 'PENDING'
-            }
-          }
-        };
+        const students = { ...state.students };
+        if (students[studentId]) {
+          students[studentId] = { 
+            ...students[studentId], 
+            routeRecommendation: route,
+            routeStatus: 'PENDING'
+          };
+          firebaseSyncService.syncRouteRecommendation(studentId, route).catch(console.error);
+        }
+        return { students };
       }),
 
       approveRoute: (studentId) => set((state) => {

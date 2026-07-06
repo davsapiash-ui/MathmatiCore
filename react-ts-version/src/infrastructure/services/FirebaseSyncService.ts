@@ -142,6 +142,25 @@ class FirebaseSyncService {
     const teacherRef = ref(database, `users/teachers/${teacherData.id}`);
     await set(teacherRef, teacherData);
   }
+
+  // --- NEW: Sync specific fields to Firebase directly ---
+  public async syncQMatrix(studentId: string, qMatrixUpdates: any) {
+    if (!studentId) return;
+    const qMatrixRef = ref(database, `users/students/${studentId}/qMatrixResults`);
+    await update(qMatrixRef, qMatrixUpdates);
+  }
+
+  public async syncRouteRecommendation(studentId: string, route: string) {
+    if (!studentId) return;
+    const routeRef = ref(database, `users/students/${studentId}`);
+    await update(routeRef, { routeRecommendation: route, routeStatus: 'PENDING' });
+  }
+
+  public async syncMeeting2Complete(studentId: string) {
+    if (!studentId) return;
+    const refPath = ref(database, `users/students/${studentId}`);
+    await update(refPath, { completedMeeting2: true });
+  }
 }
 
 export const firebaseSyncService = FirebaseSyncService.getInstance();

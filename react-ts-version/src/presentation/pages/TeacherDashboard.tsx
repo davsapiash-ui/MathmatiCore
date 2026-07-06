@@ -441,13 +441,10 @@ export function TeacherDashboard() {
 
   const studentMessages = useMemo(() => {
     if (!user || !selectedStudentId) return [];
-    return messages
-      .filter(
-        (m) =>
-          (m.senderId === user.uid && m.receiverId === selectedStudentId) ||
-          (m.senderId === selectedStudentId && m.receiverId === user.uid),
-      )
-      .sort((a, b) => a.timestamp - b.timestamp);
+    const chatMessages = messages.filter(
+      (m) => m.senderId === selectedStudentId || m.receiverId === selectedStudentId
+    );
+    return chatMessages.sort((a, b) => a.timestamp - b.timestamp);
   }, [messages, user, selectedStudentId]);
 
   useEffect(() => {
@@ -1475,7 +1472,6 @@ export function TeacherDashboard() {
                   const unreadCount = messages.filter(
                     (m) =>
                       m.senderId === student.studentId &&
-                      m.receiverId === user?.uid &&
                       !m.read,
                   ).length;
                   return (
