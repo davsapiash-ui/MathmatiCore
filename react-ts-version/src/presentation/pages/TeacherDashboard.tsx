@@ -73,24 +73,30 @@ export function TeacherDashboard() {
             // Structure is replays/{uid}/{sessionTimestamp}/{pushId} — flatten TWO levels
             // (a single-level flatten produced session-objects instead of rrweb events,
             // which crashed the player). Sessions and events sort chronologically by key.
-            const events = Object.keys(data)
-              .sort()
-              .flatMap((sessionKey) => {
-                const session = data[sessionKey];
-                if (!session || typeof session !== 'object') return [];
-                return Object.keys(session).sort().flatMap((k) => {
-                  const item = session[k];
-                  if (typeof item === 'string') {
-                    try {
-                      return JSON.parse(item);
-                    } catch {
-                      return [];
-                    }
-                  }
-                  return [item];
-                });
-              })
-              .filter((e) => e && typeof e === 'object' && 'type' in e);
+            const sessionKeys = Object.keys(data).sort();
+            const latestSessionKey = sessionKeys[sessionKeys.length - 1];
+            if (!latestSessionKey) {
+              setLiveReplayEvents([]);
+              return;
+            }
+
+            const session = data[latestSessionKey];
+            if (!session || typeof session !== 'object') {
+              setLiveReplayEvents([]);
+              return;
+            }
+
+            const events = Object.keys(session).sort().flatMap((k) => {
+              const item = session[k];
+              if (typeof item === 'string') {
+                try {
+                  return JSON.parse(item);
+                } catch {
+                  return [];
+                }
+              }
+              return [item];
+            }).filter((e) => e && typeof e === 'object' && 'type' in e);
             setLiveReplayEvents(events);
          } else {
             setLiveReplayEvents([]);
