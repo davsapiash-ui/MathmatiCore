@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
+import { Logo } from "@/presentation/components/ui/Logo";
+import { LogoutButton } from "@/presentation/components/ui/LogoutButton";
 import { UdlButton } from "@/presentation/design-system/UdlButton";
 import { AccessibleCard } from "@/presentation/design-system/AccessibleCard";
 import { DataGrid } from "@/presentation/design-system/DataGrid";
@@ -520,8 +522,15 @@ export function TeacherDashboard() {
     >
       {/* Sidebar */}
       <aside className="w-full md:w-64 bg-ws-surface/80 backdrop-blur-xl border-b md:border-b-0 md:border-l border-ws-surface2 flex flex-col shadow-[4px_0_24px_rgba(0,0,0,0.02)] dark:shadow-[4px_0_24px_rgba(0,0,0,0.2)] z-20 transition-all overflow-y-auto max-h-full no-scrollbar">
+        <div className="h-20 flex items-center gap-3 px-6 border-b border-ws-surface2 bg-white/40 dark:bg-slate-800/40 shrink-0">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-display font-black text-lg rotate-[-4deg] shrink-0 shadow-lg shadow-indigo-500/25">
+            M
+          </div>
+          <Logo textClassName="font-display text-ws-ink" />
+        </div>
+        
         <div className="p-6 border-b border-ws-surface2">
-          <h2 className="font-display font-black text-2xl text-ws-ink tracking-tight mb-2">
+          <h2 className="font-display font-black text-xl text-ws-ink tracking-tight mb-2">
             תחנת עבודה מורה
           </h2>
           
@@ -599,6 +608,10 @@ export function TeacherDashboard() {
             )}
           </button>
         </nav>
+        
+        <div className="p-4 border-t border-ws-surface2 bg-white/40 dark:bg-slate-800/40 mt-auto shrink-0">
+          <LogoutButton className="w-full justify-start gap-3 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 transition-colors rounded-xl px-4 py-3" />
+        </div>
       </aside>
 
       {/* Main Content */}
