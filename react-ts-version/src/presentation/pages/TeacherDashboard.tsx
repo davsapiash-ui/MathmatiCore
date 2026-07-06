@@ -114,6 +114,7 @@ export function TeacherDashboard() {
   
   const [teacherApprovals, setTeacherApprovals] = useState<PendingAIApproval[]>([]);
   const [fallbackApprovals, setFallbackApprovals] = useState<PendingAIApproval[]>([]);
+  const [seekToTime, setSeekToTime] = useState<number | undefined>();
 
   const pendingApprovals = useMemo(() => {
     const map = new Map<string, PendingAIApproval>();
@@ -1238,12 +1239,12 @@ export function TeacherDashboard() {
                               {/* Logs Sidebar */}
                               <div className="w-full xl:w-80 bg-white border-b xl:border-b-0 xl:border-l border-ws-surface2 overflow-y-auto p-4 flex flex-col gap-3">
                                 <h4 className="font-bold text-ws-ink mb-2">ציר זמן אירועים</h4>
-                                {alerts.filter(a => a.student === selectedReplayStudentId).length === 0 ? (
+                                {allAlerts.filter((a: any) => a.student === selectedReplayStudentId).length === 0 ? (
                                   <p className="text-sm text-ws-soft">אין אירועי מעקב לתלמיד זה.</p>
                                 ) : (
-                                  alerts.filter(a => a.student === selectedReplayStudentId)
-                                    .sort((a,b) => a.timestamp - b.timestamp)
-                                    .map(alert => (
+                                  allAlerts.filter((a: any) => a.student === selectedReplayStudentId)
+                                    .sort((a: any, b: any) => a.timestamp - b.timestamp)
+                                    .map((alert: any) => (
                                     <button
                                       key={alert.id}
                                       onClick={() => setSeekToTime(alert.timestamp)}
