@@ -51,7 +51,9 @@ export const useChatStore = create<ChatState>()(
             // For teacher/admin, data is nested: { studentId: { msgId: message } }
             const { students } = useStore.getState();
             Object.keys(data).forEach((roomId: string) => {
-              if (students[roomId]) { // Filter out phantom messages from deleted/ghost students
+              // Filter out phantom messages, but allow rooms belonging to actual students, 
+              // the teacher's own room (for admin messages), or the admin room.
+              if (students[roomId] || roomId === user.uid || roomId === 'admin') { 
                 const roomData = data[roomId];
                 if (roomData && typeof roomData === 'object') {
                   msgs.push(...(Object.values(roomData) as ChatMessage[]));
