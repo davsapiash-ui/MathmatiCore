@@ -4,8 +4,10 @@ import { Settings, Shield, Users, Layers, GraduationCap } from "lucide-react";
 import { useAuthStore } from "@/application/useAuthStore";
 import { Logo } from "@/presentation/components/ui/Logo";
 import { LogoutButton } from "@/presentation/components/ui/LogoutButton";
+import { useAdminTour } from "./admin/useAdminTour";
 
 export function AdminLayout() {
+  useAdminTour();
   const { user } = useAuthStore();
 
   return (
@@ -27,7 +29,7 @@ export function AdminLayout() {
               <SidebarMenu className="gap-2">
                 <SidebarMenuItem>
                   <SidebarMenuButton>
-                    <NavLink to="/admin" end className={({isActive}) => isActive ? "bg-ws-surface2 text-ws-ink font-bold rounded-2xl shadow-sm border border-ws-surface2" : "hover:bg-ws-surface/50 text-ws-soft transition-all duration-300 rounded-2xl"}>
+                    <NavLink id="tour-admin-overview" to="/admin" end className={({isActive}) => isActive ? "bg-ws-surface2 text-ws-ink font-bold rounded-2xl shadow-sm border border-ws-surface2" : "hover:bg-ws-surface/50 text-ws-soft transition-all duration-300 rounded-2xl"}>
                       <Settings className="w-5 h-5 ml-3 opacity-80" /> 
                       <span className="text-base tracking-wide">סקירה כללית</span>
                     </NavLink>
@@ -36,7 +38,7 @@ export function AdminLayout() {
 
                 <SidebarMenuItem>
                   <SidebarMenuButton>
-                    <NavLink to="/admin/schools" className={({isActive}) => isActive ? "bg-ws-surface2 text-ws-ink font-bold rounded-2xl shadow-sm border border-ws-surface2" : "hover:bg-ws-surface/50 text-ws-soft transition-all duration-300 rounded-2xl"}>
+                    <NavLink id="tour-admin-schools" to="/admin/schools" className={({isActive}) => isActive ? "bg-ws-surface2 text-ws-ink font-bold rounded-2xl shadow-sm border border-ws-surface2" : "hover:bg-ws-surface/50 text-ws-soft transition-all duration-300 rounded-2xl"}>
                       <GraduationCap className="w-5 h-5 ml-3 opacity-80" /> 
                       <span className="text-base tracking-wide">מוסדות ומורים</span>
                     </NavLink>
@@ -45,7 +47,7 @@ export function AdminLayout() {
 
                 <SidebarMenuItem>
                   <SidebarMenuButton>
-                    <NavLink to="/admin/curriculum" className={({isActive}) => isActive ? "bg-ws-surface2 text-ws-ink font-bold rounded-2xl shadow-sm border border-ws-surface2" : "hover:bg-ws-surface/50 text-ws-soft transition-all duration-300 rounded-2xl"}>
+                    <NavLink id="tour-admin-curriculum" to="/admin/curriculum" className={({isActive}) => isActive ? "bg-ws-surface2 text-ws-ink font-bold rounded-2xl shadow-sm border border-ws-surface2" : "hover:bg-ws-surface/50 text-ws-soft transition-all duration-300 rounded-2xl"}>
                       <Layers className="w-5 h-5 ml-3 opacity-80" /> 
                       <span className="text-base tracking-wide">הגדרות פדגוגיה</span>
                     </NavLink>
@@ -54,7 +56,7 @@ export function AdminLayout() {
 
                 <SidebarMenuItem>
                   <SidebarMenuButton>
-                    <NavLink to="/admin/security" className={({isActive}) => isActive ? "bg-ws-surface2 text-ws-ink font-bold rounded-2xl shadow-sm border border-ws-surface2" : "hover:bg-ws-surface/50 text-ws-soft transition-all duration-300 rounded-2xl"}>
+                    <NavLink id="tour-admin-security" to="/admin/security" className={({isActive}) => isActive ? "bg-ws-surface2 text-ws-ink font-bold rounded-2xl shadow-sm border border-ws-surface2" : "hover:bg-ws-surface/50 text-ws-soft transition-all duration-300 rounded-2xl"}>
                       <Shield className="w-5 h-5 ml-3 opacity-80" /> 
                       <span className="text-base tracking-wide">אבטחה והרשאות</span>
                     </NavLink>
@@ -63,7 +65,7 @@ export function AdminLayout() {
 
                 <SidebarMenuItem>
                   <SidebarMenuButton>
-                    <NavLink to="/admin/chat" className={({isActive}) => isActive ? "bg-ws-surface2 text-ws-ink font-bold rounded-2xl shadow-sm border border-ws-surface2" : "hover:bg-ws-surface/50 text-ws-soft transition-all duration-300 rounded-2xl"}>
+                    <NavLink id="tour-admin-chat" to="/admin/chat" className={({isActive}) => isActive ? "bg-ws-surface2 text-ws-ink font-bold rounded-2xl shadow-sm border border-ws-surface2" : "hover:bg-ws-surface/50 text-ws-soft transition-all duration-300 rounded-2xl"}>
                       <Users className="w-5 h-5 ml-3 opacity-80" /> 
                       <span className="text-base tracking-wide">צ'אט הודעות</span>
                     </NavLink>
@@ -81,7 +83,7 @@ export function AdminLayout() {
 
                 <SidebarMenuItem>
                   <SidebarMenuButton>
-                    <NavLink to="/admin/settings" className={({isActive}) => isActive ? "bg-ws-surface2 text-ws-ink font-bold rounded-2xl shadow-sm border border-ws-surface2" : "hover:bg-ws-surface/50 text-ws-soft transition-all duration-300 rounded-2xl"}>
+                    <NavLink id="tour-admin-settings" to="/admin/settings" className={({isActive}) => isActive ? "bg-ws-surface2 text-ws-ink font-bold rounded-2xl shadow-sm border border-ws-surface2" : "hover:bg-ws-surface/50 text-ws-soft transition-all duration-300 rounded-2xl"}>
                       <Settings className="w-5 h-5 ml-3 opacity-80" /> 
                       <span className="text-base tracking-wide">מערכת ונגישות (UDL)</span>
                     </NavLink>
