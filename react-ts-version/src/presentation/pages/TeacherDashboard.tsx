@@ -509,6 +509,10 @@ export function TeacherDashboard() {
     (m) => m.senderId === "admin" && m.receiverId === user?.uid && !m.read,
   ).length;
 
+  const unreadStudentsCount = messages.filter(
+    (m) => m.senderId !== "admin" && m.senderId !== user?.uid && !m.read,
+  ).length;
+
   return (
     <div
       className="flex flex-col md:flex-row h-full min-h-full bg-ws-bg overflow-hidden font-sans text-ws-ink selection:bg-ws-accentSoft0/30"
@@ -574,9 +578,14 @@ export function TeacherDashboard() {
           <button
             id="tour-tab-chat"
             onClick={() => handleTabChange("chat_students")}
-            className={`w-full text-right px-4 py-3 rounded-xl transition-all ${activeTab === "chat_students" ? "bg-ws-accentSoft text-ws-accent Soft0/10  font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
+            className={`w-full flex justify-between items-center text-right px-4 py-3 rounded-xl transition-all ${activeTab === "chat_students" ? "bg-ws-accentSoft text-ws-accent Soft0/10  font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
           >
-            צ'אט עם תלמידים
+            <span>צ'אט עם תלמידים</span>
+            {unreadStudentsCount > 0 && (
+              <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg shadow-red-500/30 animate-pulse">
+                {unreadStudentsCount}
+              </span>
+            )}
           </button>
           <button
             onClick={() => handleTabChange("chat_admin")}

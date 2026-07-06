@@ -1,28 +1,28 @@
 {
-  "total_count": 276,
+  "total_count": 279,
   "workflow_runs": [
     {
-      "id": 28807661935,
+      "id": 28809732781,
       "name": "Deploy to Firebase Hosting on merge",
-      "node_id": "WFR_kwLOTJvcdM8AAAAGtRIJbw",
+      "node_id": "WFR_kwLOTJvcdM8AAAAGtTGirQ",
       "head_branch": "main",
-      "head_sha": "664dfb075b67a13c219daeb28d069ffda86d73e6",
+      "head_sha": "62152f19f0983953f741f85035fc48f7be7c6d16",
       "path": ".github/workflows/firebase-hosting-merge.yml",
-      "display_title": " Auto-deploy: Force fresh Firebase deploy to clear cache",
-      "run_number": 276,
+      "display_title": " Auto-deploy: Fix Firebase caching rules to apply to root path",
+      "run_number": 279,
       "event": "push",
-      "status": "in_progress",
-      "conclusion": null,
+      "status": "completed",
+      "conclusion": "success",
       "workflow_id": 304845060,
-      "check_suite_id": 77862695807,
-      "check_suite_node_id": "CS_kwDOTJvcdM8AAAASIPpzfw",
-      "url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28807661935",
-      "html_url": "https://github.com/davsapiash-ui/MathmatiCore/actions/runs/28807661935",
+      "check_suite_id": 77869140445,
+      "check_suite_node_id": "CS_kwDOTJvcdM8AAAASIVzJ3Q",
+      "url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28809732781",
+      "html_url": "https://github.com/davsapiash-ui/MathmatiCore/actions/runs/28809732781",
       "pull_requests": [
 
       ],
-      "created_at": "2026-07-06T16:41:15Z",
-      "updated_at": "2026-07-06T16:41:18Z",
+      "created_at": "2026-07-06T17:15:36Z",
+      "updated_at": "2026-07-06T17:18:12Z",
       "actor": {
         "login": "davsapiash-ui",
         "id": 298367239,
@@ -48,7 +48,7 @@
       "referenced_workflows": [
 
       ],
-      "run_started_at": "2026-07-06T16:41:15Z",
+      "run_started_at": "2026-07-06T17:15:36Z",
       "triggering_actor": {
         "login": "davsapiash-ui",
         "id": 298367239,
@@ -70,19 +70,19 @@
         "user_view_type": "public",
         "site_admin": false
       },
-      "jobs_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28807661935/jobs",
-      "logs_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28807661935/logs",
-      "check_suite_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/check-suites/77862695807",
-      "artifacts_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28807661935/artifacts",
-      "cancel_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28807661935/cancel",
-      "rerun_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28807661935/rerun",
+      "jobs_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28809732781/jobs",
+      "logs_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28809732781/logs",
+      "check_suite_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/check-suites/77869140445",
+      "artifacts_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28809732781/artifacts",
+      "cancel_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28809732781/cancel",
+      "rerun_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28809732781/rerun",
       "previous_attempt_url": null,
       "workflow_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/workflows/304845060",
       "head_commit": {
-        "id": "664dfb075b67a13c219daeb28d069ffda86d73e6",
-        "tree_id": "22048997d80ce1481ac78793235799c162177bd8",
-        "message": " Auto-deploy: Force fresh Firebase deploy to clear cache",
-        "timestamp": "2026-07-06T16:41:09Z",
+        "id": "62152f19f0983953f741f85035fc48f7be7c6d16",
+        "tree_id": "5757e61e14944e3ea73d2432ea96ed201078dcf2",
+        "message": " Auto-deploy: Fix Firebase caching rules to apply to root path",
+        "timestamp": "2026-07-06T17:15:31Z",
         "author": {
           "name": "David",
           "email": "david@example.com"
