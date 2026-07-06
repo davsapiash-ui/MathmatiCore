@@ -15,14 +15,6 @@
         "routeRecommendation": { ".validate": "newData.isString() || !newData.exists()" },
         "routeStatus": { ".validate": "newData.isString() || !newData.exists()" },
         
-        "qMatrixResults": {
-          "$taskName": { ".validate": "newData.isString()" }
-        },
-        
-        "traceData": {
-          ".validate": "newData.hasChildren(['hesitation_events', 'undo_clicks']) && newData.child('hesitation_events').isNumber() && newData.child('undo_clicks').isNumber()"
-        },
-        
         "telemetry_chunks": {
            "$chunkId": {
              ".validate": "newData.hasChildren()"
@@ -36,7 +28,15 @@
         ".read": "auth != null && (root.child('users/teachers/' + auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '')).exists() || auth.token.email === 'admin@mathmaticore.local')",
         "$studentId": {
           ".read": "auth != null && (auth.token.email === $studentId + '@mathmaticore.local' || root.child('users/teachers/' + auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '')).exists() || auth.token.email === 'admin@mathmaticore.local')",
-          ".write": "auth != null && (auth.token.email === $studentId + '@mathmaticore.local' || auth.token.email === 'admin@mathmaticore.local')"
+          ".write": "auth != null && (auth.token.email === $studentId + '@mathmaticore.local' || auth.token.email === 'admin@mathmaticore.local')",
+          
+          "qMatrixResults": {
+            "$taskName": { ".validate": "newData.isString()" }
+          },
+          
+          "traceData": {
+            ".validate": "newData.hasChildren(['hesitation_events', 'undo_clicks']) && newData.child('hesitation_events').isNumber() && newData.child('undo_clicks').isNumber()"
+          }
         }
       },
       "teachers": {
@@ -92,7 +92,7 @@
     "ai_pending_approvals": {
       "$teacherId": {
         ".read": "auth != null && (auth.token.email === 'teacher_' + $teacherId + '@mathmaticore.local' || auth.token.email === 'admin@mathmaticore.local')",
-        ".write": "auth != null && auth.token.email === 'admin@mathmaticore.local'"
+        ".write": "auth != null && (auth.token.email.matches(/.*@mathmaticore\\.local$/) || auth.token.email === 'admin@mathmaticore.local')"
       }
     },
 

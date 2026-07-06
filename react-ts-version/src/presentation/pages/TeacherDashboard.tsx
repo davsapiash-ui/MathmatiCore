@@ -97,8 +97,8 @@ export function TeacherDashboard() {
   
   const [pendingApprovals, setPendingApprovals] = useState<PendingAIApproval[]>([]);
   
-  // Hardcoding teacher id for demo
-  const TEACHER_ID = "teacher-1";
+  // Extract dynamic teacher ID from the logged-in user (format is usually "teacher_12345" or just ID)
+  const TEACHER_ID = user?.uid?.replace("teacher_", "") || "teacher-1";
 
   useEffect(() => {
     const studentsRef = ref(database, 'users/students');
@@ -148,7 +148,7 @@ export function TeacherDashboard() {
     } catch {
       SocraticEngine.getPendingApprovals(TEACHER_ID).then(setPendingApprovals).catch(() => {});
     }
-  }, []);
+  }, [TEACHER_ID]);
 
   const handleHintClick = (studentId: string) => {
     setSelectedStudentId(studentId);

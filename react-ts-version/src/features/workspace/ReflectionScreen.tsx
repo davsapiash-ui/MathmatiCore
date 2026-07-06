@@ -92,18 +92,19 @@ export function ReflectionScreen() {
           hesitation_events: useWorkspaceStore.getState().hesitationCount,
           undo_clicks: undoCount,
         },
-      }).catch(() => {});
+      });
 
       // AI Generation: generate tasks 3-7 based on diagnostic and queue for teacher approval
       import('@/infrastructure/services/SocraticEngine').then(({ SocraticEngine }) => {
-        // Here we pass a generic teacher id for demo purposes. 
-        // In a full implementation this would be linked to the student's actual class teacher.
-        SocraticEngine.generateAndQueueTasks(username, studentName, "teacher-1", qMatrix);
+        // We pass the student's actual classId as the teacherId to route it correctly
+        const classId = user?.classId || "live";
+        const targetTeacherId = classId === "live" ? "teacher-1" : classId;
+        SocraticEngine.generateAndQueueTasks(username, studentName, targetTeacherId, qMatrix);
       });
-    } catch {
-      /* dev config has no live Firebase — silent, never blocks the student */
+    } catch (e) {
+      console.error("Failed to save reflection:", e);
     }
-    }).catch(() => {});
+    }).catch(e => console.error("authReady error:", e));
     void TASKS;
 
     window.setTimeout(() => navigate('/hub'), 900);
