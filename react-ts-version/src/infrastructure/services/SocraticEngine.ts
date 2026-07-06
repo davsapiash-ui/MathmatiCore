@@ -44,17 +44,17 @@ export class SocraticEngine {
       actionParts.push("חיזוק הבנת המבנה העשרוני של המספרים עד 1000.");
       isYellowPath = true;
     } else if (qMatrix.task1_zero_placeholder === 'zero_placeholder_global_error') {
-      diagnosisParts.push("ייתכן פער משמעותי בהבנת תפקיד האפס כ'שומר מקום' במבנה העשרוני, מה שעשוי להעיד על חסר בהפנמת הערך המקומי בסיס 10.");
+      diagnosisParts.push("ייתכן פער משמעותי בהבנת תפקיד האפס כ'שומר מקום' במבנה העשרוני, מה שעשוי להעיד על חסר בהפנמת הערך המקומי בבסיס 10.");
       actionParts.push("עבודה על המבנה העשרוני והבנת האפס באופן הדרגתי.");
       isYellowPath = true;
     }
 
     if (qMatrix.task4_basic_addition_fluency === 'procedural_error') {
       diagnosisParts.push("התלמיד שלט בעובדות היסוד במשימת העזר, ולכן השגיאה נובעת מקושי בהבנת המהות של פעולות חיבור במאונך בתחום ה-100 וה-1000.");
-      actionParts.push("תרגול מובנה של חיבור במאונך, ללא חשש לשליטה בסיסית.");
+      actionParts.push("תרגול מובנה של חיבור במאונך, מתוך הישענות על השליטה הקיימת בעובדות היסוד.");
       isYellowPath = true;
     } else if (qMatrix.task4_basic_addition_fluency === 'basic_facts_deficit') {
-      diagnosisParts.push("נראה כי קיימת חולשה משמעותית בשליטה בעובדות יסוד בסיסיות של חיבור וחיסור, שהיא בסיס הכרחי לפני פעולות במאונך.");
+      diagnosisParts.push("נראה כי קיימת חולשה משמעותית בשליטה בעובדות היסוד של חיבור וחיסור, שהיא בסיס הכרחי לפני פעולות במאונך.");
       actionParts.push("יש לעצור ולבסס עובדות יסוד של חיבור במאמץ קוגניטיבי נמוך לפני מעבר לחישובים מורכבים במאונך.");
       isYellowPath = true;
     }
@@ -67,7 +67,7 @@ export class SocraticEngine {
 
     if (qMatrix.task2_estimation_error_margin === 'estimation_range_error') {
       diagnosisParts.push("התלמיד מתקשה להעריך גדלים בתוך טווח סביר — אומדנים חורגים מהמציאות. ייתכן קושי בתחושת המספר (number sense) ובאינטואיציה לסדרי גודל.");
-      actionParts.push("פעילויות אמידה עם חפצים מוחשיים ומחויות גוף — כמות צעדים, גובה, אורך — לפני אמידה מספרית.");
+      actionParts.push("פעילויות אמידה עם חפצים מוחשיים ומחוויות גוף — כמות צעדים, גובה, אורך — לפני אמידה מספרית.");
       isYellowPath = true;
     } else if (qMatrix.task2_estimation_error_margin === 'estimation_precision_fixation') {
       diagnosisParts.push("התלמיד מנסה לדייק יתר על המידה באמידה ואינו מסתפק בטווח. עשוי להעיד על חשיבה פרפקציוניסטית שמקשה על גמישות מחשבתית.");
@@ -81,7 +81,7 @@ export class SocraticEngine {
       isYellowPath = true;
     } else if (qMatrix.task5_small_change === 'directional_error') {
       diagnosisParts.push("התלמיד מבצע פעולה בכיוון שגוי בעקביות (חיבור במקום חיסור ולהיפך). ייתכן בלבול בסימנים או בהבנת מה הפעולה דורשת.");
-      actionParts.push("הדגשת כוון הפעולה באמצעות חיצים ויזואליים על ציר המספרים — שמאלה = חיסור, ימינה = חיבור.");
+      actionParts.push("הדגשת כיוון הפעולה באמצעות חיצים ויזואליים על ציר המספרים — שמאלה = חיסור, ימינה = חיבור.");
       isYellowPath = true;
     }
 
@@ -100,7 +100,7 @@ export class SocraticEngine {
       actionParts.push("שימוש במאזניים מוחשיים ותרגול מציאת נעלם פשוט בתחום ה-10.");
       isYellowPath = true;
     } else if (qMatrix.task7_missing_subtrahend === 'computational_fluency_deficit') {
-      diagnosisParts.push("התלמיד מבין את קונספט המשוואה במעוף הדבורה, אך השגיאה בתרגיל הראשוני נובעת מקשיי פריטה או שטף חישובי.");
+      diagnosisParts.push("התלמיד מבין את קונספט המשוואה ברמה המושגית, אך השגיאה בתרגיל הראשוני נובעת מקשיי פריטה או שטף חישובי.");
       actionParts.push("תרגול משוואות במספרים שאינם דורשים פריטה, בשילוב תרגול חיסור עם פריטה בנפרד.");
       isYellowPath = true;
     }
@@ -111,7 +111,7 @@ export class SocraticEngine {
       isYellowPath = true;
     } else if (qMatrix.task8_missing_addend === 'inverse_operation_gap') {
       diagnosisParts.push("התלמיד אינו מזהה שניתן להשתמש בחיסור כדי למצוא נעלם בחיבור — חסר קישור בין הפעולות.");
-      actionParts.push("הדגמת 'משפחות עובדות' (fact families): 3+5=8, 5+3=8, 8-3=5, 8-5=3 — לבניית הקישור הפנימי.");
+      actionParts.push("הדגמת קשרים בעזרת שלשות של מספרים (למשל: 3+5=8, 8-3=5) — לבניית הקישור הפנימי.");
       isYellowPath = true;
     }
 

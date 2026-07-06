@@ -52,18 +52,21 @@ Perform a comprehensive, zero-tolerance audit and fix pass across the entire Mat
 | Agent | Type | Work Item | Status | Conv ID |
 |-------|------|-----------|--------|---------|
 | explorer_comprehensive | teamwork_preview_explorer | Perform comprehensive audit of 4 areas | completed | 404ac1b7-dfb1-45d8-8d10-7d8f08832a60 |
-| worker_comprehensive | teamwork_preview_worker | Implement all security, sync loop, memory leak and UI fixes | in-progress | 36bc46c2-d1d3-48c5-a92f-adf995649b3f |
+| worker_comprehensive | teamwork_preview_worker | Implement all security, sync loop, memory leak and UI fixes | completed | 36bc46c2-d1d3-48c5-a92f-adf995649b3f |
+| auditor_comprehensive | teamwork_preview_auditor | Perform forensic audit of workspace | in-progress | f25b47be-4e88-4018-8b1d-4bfe9cb6a4c1 |
+| explorer_audit | teamwork_preview_explorer | Investigate codebase for all audit tasks | completed | b4a9d05f-51f9-4deb-bac1-170791053b6b |
+| worker_audit | teamwork_preview_worker | Apply Socratic, UI/UX, rules and cleanups | pending | 86878afc-e3e7-4dbc-8424-3519a3a4f765 |
 
 ## Succession Status
 - Succession required: no
-- Spawn count: 3 / 16
-- Pending subagents: 36bc46c2-d1d3-48c5-a92f-adf995649b3f
+- Spawn count: 6 / 16
+- Pending subagents: f25b47be-4e88-4018-8b1d-4bfe9cb6a4c1, 86878afc-e3e7-4dbc-8424-3519a3a4f765
 - Predecessor: none
 - Successor: not yet spawned
 
 ## Active Timers
 - Heartbeat cron: 416ad3d6-deb5-461a-99a4-a1cbe3567fa0/task-37
-- Safety timer: f99981c8-4422-4902-b78d-a05deeaaea5c/task-203
+- Safety timer: 416ad3d6-deb5-461a-99a4-a1cbe3567fa0/task-133
 
 ## Artifact Index
 - c:\Users\david\Projects\MathmatiCore\.agents\orchestrator_fix_audits\PROJECT.md — Global index, architecture, milestones, interfaces.

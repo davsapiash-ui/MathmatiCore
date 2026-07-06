@@ -20,13 +20,13 @@ const EFFORT_OPTIONS = [
 ] as const;
 
 const STRATEGY_OPTIONS = [
-  { id: 'blocks', icon: '🟨', nameHe: 'השתמשתי בקוביות של טבלת הטורים', descHe: 'גררתי קוביות ועשרות לטבלה כדי לחשוב' },
+  { id: 'blocks', icon: '🟨', nameHe: 'השתמשתי בקוביות של טבלת הטורים', descHe: 'גררתי יחידות ועשרות לטבלה כדי לחשוב' },
   { id: 'hints', icon: '💡', nameHe: 'ביקשתי עזרה מהחונך הדיגיטלי', descHe: 'לחצתי על כפתור העזרה כשלא הצלחתי לבד' },
   { id: 'undo', icon: '↩️', nameHe: 'עצרתי ובדקתי את עצמי', descHe: 'לחצתי על "בטל" כדי לנסות שוב בצורה אחרת' },
 ] as const;
 
 const EFFORT_FEEDBACK: Record<number, { emoji: string; text: string; sub: string }> = {
-  1: { emoji: '💛', text: 'טוב שבאת ונסית!', sub: 'כל יום שמנסים — הוא יום שלומדים. בפגישה הבאה נמשיך ביחד.' },
+  1: { emoji: '💛', text: 'טוב שבאתם וניסיתם!', sub: 'כל יום שמנסים — הוא יום שלומדים. בפגישה הבאה נמשיך ביחד.' },
   2: { emoji: '⭐', text: 'הייתה עבודה טובה היום!', sub: 'כל פעם שחשבתם — המוח שלכם התחזק. כך לומדים!' },
   3: { emoji: '🌟', text: 'התאמצתם מאוד — זה ניכר!', sub: 'הכוח שלכם הוא בהתמדה ובניסיון חוזר. המשיכו כך!' },
   4: { emoji: '🚀', text: 'עבודה מדהימה! אתם מתמטיקאים אמיתיים!', sub: 'מאמץ כזה בונה הבנה עמוקה. אנחנו גאים בכם!' },
@@ -161,7 +161,7 @@ export function ReflectionScreen() {
 
         {/* Strategy selection — illustrated choices */}
         <section aria-labelledby="strategy-heading" className="mb-7">
-          <h2 id="strategy-heading" className="font-display font-extrabold text-xl mb-3">מה עזר לך להצליח היום?</h2>
+          <h2 id="strategy-heading" className="font-display font-extrabold text-xl mb-3">מה עזר לכם להצליח היום?</h2>
           <div role="radiogroup" aria-required="true" className="flex flex-col gap-3">
             {STRATEGY_OPTIONS.map((opt) => (
               <button
