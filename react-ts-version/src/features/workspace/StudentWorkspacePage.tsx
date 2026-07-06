@@ -20,7 +20,7 @@ import { database } from '@/infrastructure/firebase';
 import { ref, onValue, remove } from 'firebase/database';
 import { getCurrentQTask, isSubtaskActive } from '@/core/qmatrixFlow';
 import { PlaceValueBoard } from './board/PlaceValueBoard';
-import { VideoIntroModal } from './overlays/VideoIntroModal';
+
 import { DienesBlock } from './board/DienesBlock';
 import { WorkspaceTopbar } from './WorkspaceTopbar';
 import { TaskCard } from './tasks/TaskCard';
@@ -163,13 +163,6 @@ export function StudentWorkspacePage() {
   const [isInitializing, setIsInitializing] = useState(meeting === 3);
   const [pendingApproval, setPendingApproval] = useState(false);
 
-  const [isVideoIntroOpen, setIsVideoIntroOpen] = useState(() => {
-    if (sessionNumber === 1) {
-      return !localStorage.getItem('hide_sandbox_intro_video');
-    }
-    return false;
-  });
-
   useEffect(() => {
     let cancelled = false;
     if (meeting === 3) {
@@ -276,11 +269,6 @@ export function StudentWorkspacePage() {
       dir="rtl"
       className="h-screen w-full overflow-hidden font-body text-ws-ink flex flex-col relative bg-ws-bg"
     >
-      <VideoIntroModal
-        isOpen={isVideoIntroOpen}
-        onClose={() => setIsVideoIntroOpen(false)}
-      />
-
       {/* Flat vector background shapes — playful world energy, zero visual noise */}
         <div aria-hidden="true" className="absolute inset-0 pointer-events-none overflow-hidden">
           <div className="absolute -top-24 -left-24 w-[420px] h-[420px] rounded-full" style={{ backgroundColor: 'hsl(var(--ws-blue) / 0.05)' }} />

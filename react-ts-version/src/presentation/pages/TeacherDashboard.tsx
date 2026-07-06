@@ -22,8 +22,10 @@ import { LogoutButton } from "@/presentation/components/ui/LogoutButton";
 import { ReplayViewer } from "@/presentation/components/ReplayViewer";
 import { ClassManagement } from "./TeacherDashboard/ClassManagement";
 import { SocraticEngine, type PendingAIApproval } from "@/infrastructure/services/SocraticEngine";
+import { useTeacherTour } from "./TeacherDashboard/useTeacherTour";
 
 export function TeacherDashboard() {
+  useTeacherTour();
   const { user } = useAuthStore();
   const { messages, sendMessage, markAsRead } = useChatStore();
   const { resetTraceData, globalChatEnabled, toggleGlobalChat } = useStore();
@@ -559,12 +561,14 @@ export function TeacherDashboard() {
             פדגוגיה ומעקב
           </div>
           <button
+            id="tour-tab-clustering"
             onClick={() => handleTabChange("clustering")}
             className={`w-full text-right px-4 py-3 rounded-xl transition-all ${activeTab === "clustering" ? "bg-ws-accentSoft text-ws-accent Soft0/10  font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
           >
             מיפוי כיתתי (<span dir="ltr">Q-Matrix</span>)
           </button>
           <button
+            id="tour-tab-alerts"
             onClick={() => handleTabChange("alerts")}
             className={`w-full flex justify-between items-center text-right px-4 py-3 rounded-xl transition-all ${activeTab === "alerts" ? "bg-red-50 text-red-700   font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
           >
@@ -576,6 +580,7 @@ export function TeacherDashboard() {
             )}
           </button>
           <button
+            id="tour-tab-reports"
             onClick={() => handleTabChange("diagnostic_reports")}
             className={`w-full text-right px-4 py-3 rounded-xl transition-all ${activeTab === "diagnostic_reports" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg text-ws-soft "}`}
           >
@@ -603,6 +608,7 @@ export function TeacherDashboard() {
             תקשורת וצ'אט
           </div>
           <button
+            id="tour-tab-chat"
             onClick={() => handleTabChange("chat_students")}
             className={`w-full text-right px-4 py-3 rounded-xl transition-all ${activeTab === "chat_students" ? "bg-ws-accentSoft text-ws-accent Soft0/10  font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
           >
