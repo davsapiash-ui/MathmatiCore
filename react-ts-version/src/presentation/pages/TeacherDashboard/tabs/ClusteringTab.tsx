@@ -195,6 +195,17 @@ export function ClusteringTab({ allStudents }: ClusteringTabProps) {
         </div>
       </AccessibleCard>
 
+      
+      <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800/30 rounded-2xl p-6 mb-8 text-indigo-900 dark:text-indigo-200">
+        <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
+          <span>📌</span> איך לקרוא את המסך הזה?
+        </h3>
+        <p className="opacity-90 leading-relaxed">
+          המערכת מנתחת את התשובות של התלמידים מ"המיפוי הכיתתי" (Q-Matrix), ומחלקת אותם אוטומטית לקבוצות עבודה לפי הקושי המדויק שלהם.<br/>
+          כרטיסיות יופיעו כאן <strong>רק</strong> אם יש תלמידים שזקוקים לחיזוק באותו נושא ספציפי. לחיצה על כפתורי ההקצאה תאפשר לך בעתיד לשלוח להם תרגול מותאם בלחיצה אחת.
+        </p>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-6">
         <AccessibleCard className="p-8 bg-ws-surface/80 backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] border border-ws-surface2 rounded-2xl relative overflow-hidden group flex flex-col">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 to-rose-500"></div>
@@ -222,7 +233,7 @@ export function ClusteringTab({ allStudents }: ClusteringTabProps) {
             size="sm"
             semanticColor="primary"
             className="mt-6 w-full shadow-lg shadow-indigo-500/20 relative z-10 font-bold tracking-wide mt-auto"
-          >
+           onClick={() => alert("הקצאת התרגול נמצאת בפיתוח ותאפשר לשלוח משימות לכל הקבוצה בקליק אחד.")}>
             הקצה תרגול מותאם
           </UdlButton>
         </AccessibleCard>
@@ -253,7 +264,7 @@ export function ClusteringTab({ allStudents }: ClusteringTabProps) {
             size="sm"
             semanticColor="primary"
             className="mt-6 w-full shadow-lg shadow-indigo-500/20 relative z-10 font-bold tracking-wide mt-auto"
-          >
+           onClick={() => alert("הקצאת התרגול נמצאת בפיתוח ותאפשר לשלוח משימות לכל הקבוצה בקליק אחד.")}>
             הקצה סדנת חקר
           </UdlButton>
         </AccessibleCard>
@@ -284,7 +295,7 @@ export function ClusteringTab({ allStudents }: ClusteringTabProps) {
             size="sm"
             semanticColor="primary"
             className="mt-6 w-full shadow-lg shadow-blue-500/20 relative z-10 font-bold tracking-wide"
-          >
+           onClick={() => alert("הקצאת התרגול נמצאת בפיתוח ותאפשר לשלוח משימות לכל הקבוצה בקליק אחד.")}>
             הקצה תרגול מותאם
           </UdlButton>
         </AccessibleCard>
@@ -315,7 +326,7 @@ export function ClusteringTab({ allStudents }: ClusteringTabProps) {
             size="sm"
             semanticColor="primary"
             className="mt-6 w-full shadow-lg shadow-emerald-500/20 relative z-10 font-bold tracking-wide"
-          >
+           onClick={() => alert("הקצאת התרגול נמצאת בפיתוח ותאפשר לשלוח משימות לכל הקבוצה בקליק אחד.")}>
             הקצה המחשה חזותית
           </UdlButton>
         </AccessibleCard>
@@ -346,7 +357,7 @@ export function ClusteringTab({ allStudents }: ClusteringTabProps) {
             size="sm"
             semanticColor="primary"
             className="mt-6 w-full shadow-lg shadow-pink-500/20 relative z-10 font-bold tracking-wide"
-          >
+           onClick={() => alert("הקצאת התרגול נמצאת בפיתוח ותאפשר לשלוח משימות לכל הקבוצה בקליק אחד.")}>
             הקצה בלוקים ווירטואליים
           </UdlButton>
         </AccessibleCard>
@@ -377,7 +388,7 @@ export function ClusteringTab({ allStudents }: ClusteringTabProps) {
             size="sm"
             semanticColor="primary"
             className="mt-6 w-full shadow-lg shadow-amber-500/20 relative z-10 font-bold tracking-wide"
-          >
+           onClick={() => alert("הקצאת התרגול נמצאת בפיתוח ותאפשר לשלוח משימות לכל הקבוצה בקליק אחד.")}>
             הקצה מודל מאזניים
           </UdlButton>
         </AccessibleCard>
@@ -408,7 +419,7 @@ export function ClusteringTab({ allStudents }: ClusteringTabProps) {
             size="sm"
             semanticColor="primary"
             className="mt-6 w-full shadow-lg shadow-yellow-500/20 relative z-10 font-bold tracking-wide"
-          >
+           onClick={() => alert("הקצאת התרגול נמצאת בפיתוח ותאפשר לשלוח משימות לכל הקבוצה בקליק אחד.")}>
             הקצה מודל מאזניים
           </UdlButton>
         </AccessibleCard>
@@ -439,7 +450,7 @@ export function ClusteringTab({ allStudents }: ClusteringTabProps) {
             size="sm"
             semanticColor="primary"
             className="mt-6 w-full shadow-lg shadow-slate-500/20 relative z-10 font-bold tracking-wide"
-          >
+           onClick={() => alert("הקצאת התרגול נמצאת בפיתוח ותאפשר לשלוח משימות לכל הקבוצה בקליק אחד.")}>
             הקצה חקר יחסים
           </UdlButton>
         </AccessibleCard>
