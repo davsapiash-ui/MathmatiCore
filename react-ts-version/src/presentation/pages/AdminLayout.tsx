@@ -72,6 +72,15 @@ export function AdminLayout() {
 
                 <SidebarMenuItem>
                   <SidebarMenuButton>
+                    <NavLink to="/admin/teacher-view" className={({isActive}) => isActive ? "bg-ws-surface2 text-ws-ink font-bold rounded-2xl shadow-sm border border-ws-surface2" : "hover:bg-ws-surface/50 text-ws-soft transition-all duration-300 rounded-2xl"}>
+                      <Layers className="w-5 h-5 ml-3 opacity-80" /> 
+                      <span className="text-base tracking-wide">תצוגת מורה</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+                <SidebarMenuItem>
+                  <SidebarMenuButton>
                     <NavLink to="/admin/settings" className={({isActive}) => isActive ? "bg-ws-surface2 text-ws-ink font-bold rounded-2xl shadow-sm border border-ws-surface2" : "hover:bg-ws-surface/50 text-ws-soft transition-all duration-300 rounded-2xl"}>
                       <Settings className="w-5 h-5 ml-3 opacity-80" /> 
                       <span className="text-base tracking-wide">מערכת ונגישות (UDL)</span>

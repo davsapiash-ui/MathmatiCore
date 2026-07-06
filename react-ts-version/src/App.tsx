@@ -145,6 +145,7 @@ function App() {
           <Route path="security" element={<AdminSecurityView />} />
           <Route path="settings" element={<AdminSettingsView />} />
           <Route path="chat" element={<AdminChatView />} />
+          <Route path="teacher-view" element={<TeacherDashboard />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />
