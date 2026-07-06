@@ -1,28 +1,28 @@
 {
-  "total_count": 281,
+  "total_count": 283,
   "workflow_runs": [
     {
-      "id": 28810598246,
+      "id": 28811433877,
       "name": "Deploy to Firebase Hosting on merge",
-      "node_id": "WFR_kwLOTJvcdM8AAAAGtT7XZg",
+      "node_id": "WFR_kwLOTJvcdM8AAAAGtUuXlQ",
       "head_branch": "main",
-      "head_sha": "fc70aefbec269ba29dbe18c33b2bbb7f029ed19c",
+      "head_sha": "1374f73eff75361700afe6ebe78a43934480b77e",
       "path": ".github/workflows/firebase-hosting-merge.yml",
-      "display_title": " Auto-deploy: Consolidate double sidebars into a single unified Teach…",
-      "run_number": 281,
+      "display_title": " Auto-deploy: Conditionally hide empty student clusters and add expla…",
+      "run_number": 283,
       "event": "push",
       "status": "completed",
       "conclusion": "success",
       "workflow_id": 304845060,
-      "check_suite_id": 77871809599,
-      "check_suite_node_id": "CS_kwDOTJvcdM8AAAASIYWEPw",
-      "url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28810598246",
-      "html_url": "https://github.com/davsapiash-ui/MathmatiCore/actions/runs/28810598246",
+      "check_suite_id": 77874463874,
+      "check_suite_node_id": "CS_kwDOTJvcdM8AAAASIa4Egg",
+      "url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28811433877",
+      "html_url": "https://github.com/davsapiash-ui/MathmatiCore/actions/runs/28811433877",
       "pull_requests": [
 
       ],
-      "created_at": "2026-07-06T17:30:11Z",
-      "updated_at": "2026-07-06T17:32:27Z",
+      "created_at": "2026-07-06T17:44:13Z",
+      "updated_at": "2026-07-06T17:46:32Z",
       "actor": {
         "login": "davsapiash-ui",
         "id": 298367239,
@@ -48,7 +48,7 @@
       "referenced_workflows": [
 
       ],
-      "run_started_at": "2026-07-06T17:30:11Z",
+      "run_started_at": "2026-07-06T17:44:13Z",
       "triggering_actor": {
         "login": "davsapiash-ui",
         "id": 298367239,
@@ -70,19 +70,19 @@
         "user_view_type": "public",
         "site_admin": false
       },
-      "jobs_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28810598246/jobs",
-      "logs_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28810598246/logs",
-      "check_suite_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/check-suites/77871809599",
-      "artifacts_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28810598246/artifacts",
-      "cancel_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28810598246/cancel",
-      "rerun_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28810598246/rerun",
+      "jobs_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28811433877/jobs",
+      "logs_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28811433877/logs",
+      "check_suite_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/check-suites/77874463874",
+      "artifacts_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28811433877/artifacts",
+      "cancel_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28811433877/cancel",
+      "rerun_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28811433877/rerun",
       "previous_attempt_url": null,
       "workflow_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/workflows/304845060",
       "head_commit": {
-        "id": "fc70aefbec269ba29dbe18c33b2bbb7f029ed19c",
-        "tree_id": "2f59e28c651b8a2624b0434a2b420308e5c87ee4",
-        "message": " Auto-deploy: Consolidate double sidebars into a single unified Teacher Dashboard sidebar",
-        "timestamp": "2026-07-06T17:30:05Z",
+        "id": "1374f73eff75361700afe6ebe78a43934480b77e",
+        "tree_id": "d788f1bf0199b9d15becbe60e8518c795f394af5",
+        "message": " Auto-deploy: Conditionally hide empty student clusters and add explainer banner to ClusteringTab",
+        "timestamp": "2026-07-06T17:44:08Z",
         "author": {
           "name": "David",
           "email": "david@example.com"

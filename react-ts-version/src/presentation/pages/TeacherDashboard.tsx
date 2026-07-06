@@ -512,7 +512,7 @@ export function TeacherDashboard() {
   ).length;
 
   const unreadStudentsCount = messages.filter(
-    (m) => m.senderId !== "admin" && m.senderId !== user?.uid && !m.read,
+    (m) => m.senderId !== "admin" && m.senderId !== user?.uid && m.receiverId === user?.uid && !m.read,
   ).length;
 
   return (
