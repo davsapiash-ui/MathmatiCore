@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { database } from '@/infrastructure/firebase';
 import { ref, onValue, set as firebaseSet, push, update } from 'firebase/database';
 import { useAuthStore } from "@/application/useAuthStore";
+import { useStore } from "@/application/useStore";
 
 export interface ChatMessage {
   id: string;
@@ -48,9 +49,13 @@ export const useChatStore = create<ChatState>()(
             msgs = Object.values(data) as ChatMessage[];
           } else {
             // For teacher/admin, data is nested: { studentId: { msgId: message } }
-            Object.values(data).forEach((roomData: any) => {
-              if (roomData && typeof roomData === 'object') {
-                msgs.push(...(Object.values(roomData) as ChatMessage[]));
+            const { students } = useStore.getState();
+            Object.keys(data).forEach((roomId: string) => {
+              if (students[roomId]) { // Filter out phantom messages from deleted/ghost students
+                const roomData = data[roomId];
+                if (roomData && typeof roomData === 'object') {
+                  msgs.push(...(Object.values(roomData) as ChatMessage[]));
+                }
               }
             });
           }
