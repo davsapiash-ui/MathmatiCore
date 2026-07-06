@@ -150,29 +150,58 @@
     @apply bg-white/70 dark:bg-slate-900/40 backdrop-blur-2xl border border-white/20 dark:border-white/5 shadow-xl shadow-slate-200/50 dark:shadow-black/50;
   }
 
-  /* ── Workspace design language utilities ── */
+  /* 🟢 Workspace design language utilities 🟢 */
   .ws-card {
-    background-color: hsl(var(--ws-surface));
-    border: 1px solid hsl(var(--ws-surface-2));
+    background: linear-gradient(145deg, rgba(255,255,255,0.9), rgba(255,255,255,0.6));
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
     border-radius: 28px;
     box-shadow:
-      0 1px 2px hsl(var(--ws-shadow-warm) / 0.06),
-      0 10px 28px -10px hsl(var(--ws-shadow-warm) / 0.22);
+      0 4px 6px -1px rgba(0, 0, 0, 0.05),
+      0 10px 15px -3px rgba(0, 0, 0, 0.05),
+      inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
+  .dark .ws-card {
+    background: linear-gradient(145deg, rgba(30,41,59,0.7), rgba(15,23,42,0.8));
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 10px 28px -10px rgba(0,0,0,0.5);
+  }
+  .ws-card:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      0 10px 25px -5px rgba(0, 0, 0, 0.1),
+      0 8px 10px -6px rgba(0, 0, 0, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  }
+  .dark .ws-card:hover {
+    box-shadow: 0 15px 30px -10px rgba(0,0,0,0.6);
+  }
+
   .ws-btn-primary {
     background-image: linear-gradient(135deg, hsl(var(--ws-accent-2)), hsl(var(--ws-accent)));
     color: #fff;
     box-shadow:
       inset 0 1px 0 rgba(255,255,255,0.35),
       0 6px 16px -6px hsl(var(--ws-accent) / 0.55);
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
-  .ws-btn-primary:hover:not(:disabled) { filter: brightness(1.06); transform: translateY(-1px); }
-  .ws-btn-primary:active:not(:disabled) { transform: scale(0.97); }
+  .ws-btn-primary:hover:not(:disabled) { 
+    filter: brightness(1.1); 
+    transform: translateY(-2px) scale(1.02); 
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.4),
+      0 10px 20px -5px hsl(var(--ws-accent) / 0.6);
+  }
+  .ws-btn-primary:active:not(:disabled) { transform: scale(0.97) translateY(0); }
+  
   .ws-chip {
     background-color: hsl(var(--ws-surface));
     border: 1.5px solid hsl(var(--ws-surface-2));
     color: hsl(var(--ws-ink-soft));
     box-shadow: 0 2px 6px -2px hsl(var(--ws-shadow-warm) / 0.15);
+    transition: all 0.2s ease;
   }
   .ws-chip:hover:not(:disabled) {
     border-color: hsl(var(--ws-blue) / 0.45);
@@ -180,12 +209,20 @@
     color: hsl(var(--ws-ink));
     transform: translateY(-1px);
   }
+  
   .ws-brand {
     background-image: linear-gradient(135deg, hsl(var(--ws-blue-2)), hsl(var(--ws-blue)));
     color: #fff;
     box-shadow:
       inset 0 1px 0 rgba(255,255,255,0.3),
       0 6px 16px -6px hsl(var(--ws-blue) / 0.5);
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .ws-brand:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.4),
+      0 12px 24px -8px hsl(var(--ws-blue) / 0.6);
   }
 
   /* Scaffold fading (UDL) — never fully invisible */

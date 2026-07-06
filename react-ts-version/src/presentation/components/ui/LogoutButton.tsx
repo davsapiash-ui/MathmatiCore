@@ -31,24 +31,27 @@ export function LogoutButton({ className = "", showIconOnly = false }: LogoutBut
       </button>
 
       {showConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200" dir="rtl">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl max-w-sm w-full p-6 animate-in zoom-in-95 duration-200">
-            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2 text-right">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300" dir="rtl">
+          <div className="glass-card rounded-3xl shadow-2xl max-w-sm w-full p-8 animate-in zoom-in-95 duration-300 border border-white/20">
+            <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-4">
+              <LogOut className="w-6 h-6 text-red-600 dark:text-red-400" />
+            </div>
+            <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-3 text-right">
               התנתקות מהמערכת
             </h3>
-            <p className="text-slate-600 dark:text-slate-300 mb-6 text-right">
-              האם אתה בטוח שברצונך להתנתק? כל השינויים שלך נשמרו בהצלחה.
+            <p className="text-slate-600 dark:text-slate-300 mb-8 text-right leading-relaxed">
+              האם אתה בטוח שברצונך להתנתק? כל הנתונים שלך שמורים בענן.
             </p>
-            <div className="flex flex-row-reverse justify-start gap-3">
+            <div className="flex gap-3">
               <button
                 onClick={handleLogout}
-                className="px-5 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors font-medium shadow-sm hover:shadow-md"
+                className="flex-1 px-5 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 active:scale-95 transition-all font-bold shadow-lg shadow-red-600/20"
               >
                 כן, התנתק
               </button>
               <button
                 onClick={() => setShowConfirm(false)}
-                className="px-5 py-2.5 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors font-medium"
+                className="flex-1 px-5 py-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 transition-all font-bold"
               >
                 ביטול
               </button>

@@ -43,15 +43,23 @@ export function ReplayViewer({ events }: ReplayViewerProps) {
 
   if (!events || events.length < 2) {
     return (
-      <div className="flex items-center justify-center h-[500px] bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
-        <p className="text-slate-500 dark:text-slate-400">אין מספיק נתוני הקלטה להצגה (נדרשים לפחות 2 אירועים).</p>
+      <div className="flex items-center justify-center h-[500px] glass-card rounded-3xl overflow-hidden w-full">
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+            <svg className="w-8 h-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <p className="text-ws-soft font-medium text-lg">אין מספיק נתוני הקלטה כדי להציג את השחזור</p>
+          <p className="text-ws-soft/70 text-sm">(נדרשים לפחות 2 אירועים מוקלטים)</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex justify-center bg-white dark:bg-slate-900 p-4 rounded-xl shadow-inner overflow-hidden border border-slate-200 dark:border-slate-700" dir="ltr">
-      <div ref={playerRef} className="rrweb-player-container"></div>
+    <div className="flex justify-center glass-card p-6 rounded-3xl overflow-hidden w-full" dir="ltr">
+      <div ref={playerRef} className="rrweb-player-container rounded-2xl overflow-hidden shadow-2xl"></div>
     </div>
   );
 }
