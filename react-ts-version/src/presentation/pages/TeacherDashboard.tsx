@@ -1310,7 +1310,7 @@ export function TeacherDashboard() {
                   <AccessibleCard key={student.studentId} className="p-8 bg-ws-surface border border-ws-surface2 shadow-lg rounded-3xl">
                     <div className="flex justify-between items-start mb-6">
                       <div>
-                        <h3 className="text-2xl font-bold text-ws-ink">{student.name}</h3>
+                        <h3 className="text-2xl font-bold text-ws-ink">{student.name || student.studentId}</h3>
                         <p className="text-sm text-ws-soft mt-1">מזהה: {student.studentId} | סיום מפגש 2</p>
                       </div>
                       <div className="flex gap-3">
@@ -1562,7 +1562,7 @@ export function TeacherDashboard() {
                         <div
                           className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white shadow-inner relative ${selectedStudentId === student.studentId ? "bg-gradient-to-tr from-cyan-500 to-blue-500" : "bg-slate-300  text-ws-soft "}`}
                         >
-                          {student.name[0]}
+                          {(student.name || student.studentId || 'U')[0]}
                           {student.traceData?.hesitation_events > 0 && (
                             <div
                               className="absolute -top-1 -right-1 bg-ws-accentSoft0 rounded-full p-0.5 shadow-md"
@@ -1575,7 +1575,7 @@ export function TeacherDashboard() {
                         <span
                           className={`font-bold text-base ${selectedStudentId === student.studentId ? "text-cyan-800 " : "text-slate-700 "}`}
                         >
-                          {student.name}
+                          {student.name || student.studentId}
                         </span>
                       </div>
                       {unreadCount > 0 && (
@@ -1604,17 +1604,13 @@ export function TeacherDashboard() {
                     </button>
                     <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-500 flex items-center justify-center font-bold text-white shadow-lg shadow-cyan-500/20 text-xl">
                       {
-                        chatStudents.find(
-                          (s) => s.studentId === selectedStudentId,
-                        )?.name[0]
+                        (chatStudents.find((s) => s.studentId === selectedStudentId)?.name || selectedStudentId || 'U')[0]
                       }
                     </div>
                     <div>
                       <h3 className="font-bold text-xl text-ws-ink ">
                         {
-                          chatStudents.find(
-                            (s) => s.studentId === selectedStudentId,
-                          )?.name
+                          chatStudents.find((s) => s.studentId === selectedStudentId)?.name || selectedStudentId
                         }
                       </h3>
                       <div className="flex items-center gap-2 mt-1">

@@ -15,7 +15,7 @@ export function ClassManagement({ allStudents }: { allStudents: StudentData[] })
   
   const [search, setSearch] = useState('');
 
-  const filteredStudents = allStudents.filter(s => s.name.toLowerCase().includes(search.toLowerCase()));
+  const filteredStudents = allStudents.filter(s => (s.name || s.studentId || '').toLowerCase().includes(search.toLowerCase()));
 
   const handleResetStudent = async (studentId: string) => {
     if (!window.confirm(`האם אתה בטוח שברצונך לאפס את כל ההתקדמות והנתונים של תלמיד ${studentId}? לא ניתן לבטל פעולה זו.`)) return;
@@ -92,7 +92,7 @@ export function ClassManagement({ allStudents }: { allStudents: StudentData[] })
               {filteredStudents.map(student => (
                 <tr key={student.studentId} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/30 transition-colors">
                   <td className="py-4 px-6 font-bold text-slate-800 dark:text-slate-200 text-lg font-mono">
-                    {student.name}
+                    {student.name || student.studentId || 'תלמיד חדש'}
                   </td>
                   <td className="py-4 px-6">
                     {student.completedMeeting2 ? (
