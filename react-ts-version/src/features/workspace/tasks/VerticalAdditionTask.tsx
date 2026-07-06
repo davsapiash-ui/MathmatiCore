@@ -106,14 +106,14 @@ export function VerticalAdditionTask({
               <input
                 type="text"
                 inputMode="numeric"
-                maxLength={1}
+                maxLength={2}
                 value={carryDigits[place] ?? ''}
                 aria-label={`חלונית המרה ל${PLACE_LABEL_HE[place]}`}
                 className="rounded-md border-2 border-ws-surface2 text-center font-mono font-bold bg-ws-surface text-ws-ink focus:outline-none focus:ring-2 focus:ring-ws-accent transition-shadow"
-                style={{ width: CELL * 0.6, height: CELL * 0.6, fontSize: CELL * 0.4 }}
+                style={{ width: CELL * 0.6, height: CELL * 0.6, fontSize: CELL * 0.35 }}
                 onChange={(e) => {
                   radar.recordAction();
-                  const v = e.target.value.replace(/[^0-9]/g, '').slice(-1);
+                  const v = e.target.value.replace(/[^0-9]/g, '').slice(-2);
                   setCarryDigits(prev => ({ ...prev, [place]: v }));
                 }}
               />

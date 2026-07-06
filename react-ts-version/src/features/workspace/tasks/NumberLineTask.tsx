@@ -74,22 +74,25 @@ export function NumberLineTask({
       >
         {/* Track */}
         <div className="absolute top-1/2 left-0 right-0 h-2 -translate-y-1/2 rounded-full bg-ws-surface2" />
-        {/* Fill */}
-        {pct !== null && (
-          <div className="absolute top-1/2 left-0 h-2 -translate-y-1/2 rounded-full bg-ws-accent/60" style={{ width: `${pct}%` }} />
-        )}
 
-        {/* Medium ticks */}
-        {Array.from({ length: Math.floor(span / mediumStep) + 1 }).map((_, i) => {
-          const t = min + i * mediumStep;
+
+        {/* All ticks */}
+        {Array.from({ length: Math.floor(span / minorStep) + 1 }).map((_, i) => {
+          const t = min + i * minorStep;
           const p = ((t - min) / span) * 100;
           const isMajor = t % majorStep === 0;
+          const isMedium = t % mediumStep === 0;
           const isAnchor = asdAnchors?.includes(t);
+          
+          let heightClass = 'h-2 bg-ws-surface2'; // minor
+          if (isMajor) heightClass = 'h-5 bg-ws-soft';
+          else if (isMedium) heightClass = 'h-3.5 bg-ws-soft opacity-70';
+
           return (
             <div
               key={t}
-              className={`absolute top-1/2 -translate-y-1/2 w-0.5 rounded ${isMajor ? 'h-5 bg-ws-soft' : 'h-3 bg-ws-surface2'} ${
-                isAnchor ? 'h-6 bg-ws-accent shadow-[0_0_8px_2px_rgba(249,115,22,0.5)]' : ''
+              className={`absolute top-1/2 -translate-y-1/2 w-0.5 rounded ${heightClass} ${
+                isAnchor ? '!h-6 bg-ws-accent shadow-[0_0_8px_2px_rgba(249,115,22,0.5)]' : ''
               }`}
               style={{ left: `${p}%` }}
             />
