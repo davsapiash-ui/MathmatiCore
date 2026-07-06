@@ -1,12 +1,16 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { UdlButton } from "@/presentation/design-system/UdlButton";
-import { AccessibleCard } from "@/presentation/design-system/AccessibleCard";
-import { DataGrid } from "@/presentation/design-system/DataGrid";
 import { useAuthStore } from "@/application/useAuthStore";
 import { useChatStore } from "@/application/useChatStore";
 import { useStore, type StudentData } from "@/application/useStore";
 import { ref, onValue, remove, set } from "firebase/database";
 import { database, authReady } from "@/infrastructure/firebase";
+import { ClassManagement } from "./TeacherDashboard/ClassManagement";
+import { SocraticEngine, type PendingAIApproval } from "@/infrastructure/services/SocraticEngine";
+import { useTeacherTour } from "./TeacherDashboard/useTeacherTour";
+
+import { UdlButton } from "@/presentation/design-system/UdlButton";
+import { AccessibleCard } from "@/presentation/design-system/AccessibleCard";
+import { DataGrid } from "@/presentation/design-system/DataGrid";
 import {
   BarChart,
   Bar,
@@ -19,9 +23,6 @@ import {
 } from "recharts";
 import { Send, MessageCircle, ShieldAlert } from "lucide-react";
 import { ReplayViewer } from "@/presentation/components/ReplayViewer";
-import { ClassManagement } from "./TeacherDashboard/ClassManagement";
-import { SocraticEngine, type PendingAIApproval } from "@/infrastructure/services/SocraticEngine";
-import { useTeacherTour } from "./TeacherDashboard/useTeacherTour";
 
 export function TeacherDashboard() {
   useTeacherTour();
@@ -240,33 +241,6 @@ export function TeacherDashboard() {
   );
 
 
-  const basicAdditionGroup = allStudents.filter(
-    (s) => s.qMatrixResults.task4_basic_addition_fluency && s.qMatrixResults.task4_basic_addition_fluency !== 'success',
-  );
-  const flexibilityGroup = allStudents.filter(
-    (s) => s.qMatrixResults.task3_flexible_regrouping && s.qMatrixResults.task3_flexible_regrouping !== 'success',
-  );
-  const zeroPlaceholderGroup = allStudents.filter(
-    (s) => s.qMatrixResults.task1_zero_placeholder && s.qMatrixResults.task1_zero_placeholder !== 'success',
-  );
-  const estimationGroup = allStudents.filter(
-    (s) =>
-      s.qMatrixResults.task2_estimation_error_margin &&
-      s.qMatrixResults.task2_estimation_error_margin !== 'success',
-  );
-  const basicSubtractionGroup = allStudents.filter(
-    (s) => s.qMatrixResults.task6_subtraction_regrouping && s.qMatrixResults.task6_subtraction_regrouping !== 'success',
-  );
-  const missingSubtrahendGroup = allStudents.filter(
-    (s) => s.qMatrixResults.task7_missing_subtrahend && s.qMatrixResults.task7_missing_subtrahend !== 'success',
-  );
-  const missingAddendGroup = allStudents.filter(
-    (s) => s.qMatrixResults.task8_missing_addend && s.qMatrixResults.task8_missing_addend !== 'success',
-  );
-  const smallChangeGroup = allStudents.filter(
-    (s) => s.qMatrixResults.task5_small_change && s.qMatrixResults.task5_small_change !== 'success',
-  );
-
   const translateRootCause = (tag: string | null | undefined) => {
     if (!tag) return "לא נבדק";
     const map: Record<string, string> = {
@@ -297,53 +271,6 @@ export function TeacherDashboard() {
   const approveRoute = useStore((s) => s.approveRoute);
 
   // Aggregate data for Chart
-  const qMatrixData = useMemo(() => {
-    let t1s = 0, t1f = 0,
-        t2s = 0, t2f = 0,
-        t3s = 0, t3f = 0,
-        t4s = 0, t4f = 0,
-        t5s = 0, t5f = 0,
-        t6s = 0, t6f = 0,
-        t7s = 0, t7f = 0,
-        t8s = 0, t8f = 0;
-    
-    allStudents.forEach((s) => {
-      if (s.qMatrixResults.task1_zero_placeholder === 'success') t1s++;
-      else if (s.qMatrixResults.task1_zero_placeholder) t1f++;
-
-      if (s.qMatrixResults.task2_estimation_error_margin === 'success') t2s++;
-      else if (s.qMatrixResults.task2_estimation_error_margin) t2f++;
-
-      if (s.qMatrixResults.task3_flexible_regrouping === 'success') t3s++;
-      else if (s.qMatrixResults.task3_flexible_regrouping) t3f++;
-
-      if (s.qMatrixResults.task4_basic_addition_fluency === 'success') t4s++;
-      else if (s.qMatrixResults.task4_basic_addition_fluency) t4f++;
-
-      if (s.qMatrixResults.task5_small_change === 'success') t5s++;
-      else if (s.qMatrixResults.task5_small_change) t5f++;
-
-      if (s.qMatrixResults.task6_subtraction_regrouping === 'success') t6s++;
-      else if (s.qMatrixResults.task6_subtraction_regrouping) t6f++;
-
-      if (s.qMatrixResults.task7_missing_subtrahend === 'success') t7s++;
-      else if (s.qMatrixResults.task7_missing_subtrahend) t7f++;
-
-      if (s.qMatrixResults.task8_missing_addend === 'success') t8s++;
-      else if (s.qMatrixResults.task8_missing_addend) t8f++;
-    });
-
-    return [
-      { name: "חיבור בסיסי", success: t4s, struggle: t4f },
-      { name: "תחושת מספר", success: t5s, struggle: t5f },
-      { name: "חיסור עם פריטה", success: t6s, struggle: t6f },
-      { name: "שומר מקום (אפס)", success: t1s, struggle: t1f },
-      { name: "גמישות מחשבתית", success: t3s, struggle: t3f },
-      { name: "אומדן", success: t2s, struggle: t2f },
-      { name: "מציאת מחסר", success: t7s, struggle: t7f },
-      { name: "מציאת מחובר", success: t8s, struggle: t8f },
-    ];
-  }, [allStudents]);
 
   // Generate trace data alerts
   const alerts = useMemo(() => {
@@ -1636,103 +1563,95 @@ export function TeacherDashboard() {
                     ) : (
                       studentMessages.map((msg) => {
                         const isMe = msg.senderId === user?.uid;
-                        return (
-                          <div
-                            key={msg.id}
-                            className={`flex flex-col max-w-[85%] md:max-w-[70%] ${isMe ? "self-end items-end" : "self-start items-start"}`}
-                          >
-                            <div
-                              className={`px-5 py-3 rounded-2xl shadow-md ${
-                                isMe
-                                  ? "bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-tl-sm"
-                                  : "bg-white/90 backdrop-blur-md border border-ws-surface2 text-ws-ink rounded-tr-sm"
-                              }`}
-                            >
-                              {msg.text && <span>{msg.text}</span>}
-                              {msg.imageUrl && (
-                                <img
-                                  src={msg.imageUrl}
-                                  alt="תמונה"
-                                  className="max-w-[220px] max-h-[220px] rounded-xl mt-1 object-cover cursor-pointer block"
-                                  onClick={() => window.open(msg.imageUrl, '_blank')}
-                                />
-                              )}
-                            </div>
-                            <span className="text-[10px] font-medium text-slate-400  mt-2 px-2 tracking-wider">
-                              {new Date(msg.timestamp).toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                            </span>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
+  return (
+    <div
+      className="flex flex-col md:flex-row h-full min-h-full bg-ws-bg overflow-hidden font-sans text-ws-ink selection:bg-ws-accentSoft0/30"
+      dir="rtl"
+    >
+      <TeacherSidebar
+        activeTab={activeTab}
+        handleTabChange={handleTabChange}
+        allAlerts={allAlerts}
+        pendingRouteStudents={pendingRouteStudents}
+        unreadAdminCount={unreadAdminCount}
+      />
 
-                  <div className="p-4 bg-white/80 backdrop-blur-xl border-t border-ws-surface2">
-                    <input
-                      ref={teacherFileInputRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleTeacherImageSelect}
-                    />
-                    <div className="flex gap-3 items-center">
-                      <button
-                        type="button"
-                        onClick={() => teacherFileInputRef.current?.click()}
-                        disabled={sendingImage || !selectedStudentId}
-                        title="שלח תמונה"
-                        className="flex rounded-full w-12 h-12 p-0 items-center justify-center bg-ws-bg/80 hover:bg-slate-200 text-ws-soft transition-all shadow-sm disabled:opacity-40"
-                      >
-                        {sendingImage ? (
-                          <span className="w-5 h-5 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
-                            <circle cx="9" cy="9" r="2" />
-                            <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-                          </svg>
-                        )}
-                      </button>
-                       <input
-                        type="text"
-                        value={inputText}
-                        onChange={(e) => setInputText(e.target.value)}
-                        onKeyDown={(e) =>
-                          e.key === "Enter" && handleSendStudent()
-                        }
-                        placeholder="הקלד הודעה לתלמיד..."
-                        className="flex-1 bg-ws-bg/80 /80 border border-ws-surface2  rounded-full px-6 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all text-ws-ink  shadow-inner"
-                      />
-                      <UdlButton
-                        onClick={handleSendStudent}
-                        disabled={!inputText.trim()}
-                        className="rounded-full w-12 h-12 p-0 flex items-center justify-center bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white transition-all disabled:opacity-50 shadow-lg shadow-cyan-500/30"
-                      >
-                        <Send className="w-5 h-5 -ml-1" />
-                      </UdlButton>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div className="flex-1 flex items-center justify-center flex-col text-slate-400 gap-6">
-                  <div className="w-32 h-32 rounded-full bg-ws-bg/50  border-2 border-dashed border-ws-surface2  flex items-center justify-center">
-                    <MessageCircle className="w-12 h-12 opacity-30" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-ws-soft ">
-                    בחר תלמיד להתחלת שיחה
-                  </h3>
-                  <p className="text-ws-soft max-w-sm text-center">
-                    תוכל לתת משוב אישי, לשלוח רמזים, או לעזור בזמן אמת.
-                  </p>
-                </div>
-              )}
-            </div>
+      <main className="flex-1 overflow-y-auto p-4 md:p-8 relative">
+        <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-br from-indigo-500/5 via-transparent to-transparent pointer-events-none -z-10"></div>
+        <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-gradient-to-tl from-cyan-500/5 via-transparent to-transparent pointer-events-none -z-10 rounded-full blur-3xl"></div>
+
+        {activeTab === "clustering" && <ClusteringTab allStudents={allStudents} />}
+
+        {activeTab === "alerts" && (
+          <AlertsTab
+            allAlerts={allAlerts}
+            handleHintClick={handleHintClick}
+            handleMarkAsRead={handleMarkAsRead}
+          />
+        )}
+
+        {activeTab === "class_management" && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <ClassManagement allStudents={allStudents} />
           </div>
+        )}
+
+        {activeTab === "diagnostic_reports" && (
+          <DiagnosticReportsTab
+            allStudents={allStudents}
+            students={students}
+            selectedReplayStudentId={selectedReplayStudentId}
+            setSelectedReplayStudentId={setSelectedReplayStudentId}
+            liveReplayEvents={liveReplayEvents}
+            pendingApprovals={pendingApprovals}
+            handleTabChange={handleTabChange}
+          />
+        )}
+
+        {activeTab === "approvals" && (
+          <ApprovalsTab
+            pendingRouteStudents={pendingRouteStudents}
+            pendingApprovals={pendingApprovals}
+            teacherApprovals={teacherApprovals}
+            fallbackApprovals={fallbackApprovals}
+            setTeacherApprovals={setTeacherApprovals}
+            setFallbackApprovals={setFallbackApprovals}
+            TEACHER_ID={TEACHER_ID}
+            approveRoute={approveRoute}
+          />
+        )}
+
+        {activeTab === "chat_admin" && (
+          <ChatAdminTab
+            user={user}
+            adminMessages={adminMessages}
+            inputText={inputText}
+            setInputText={setInputText}
+            handleSendAdmin={handleSendAdmin}
+            adminFileInputRef={adminFileInputRef}
+            handleAdminImageSelect={handleAdminImageSelect}
+            sendingImage={sendingImage}
+          />
+        )}
+
+        {activeTab === "chat_students" && (
+          <ChatStudentsTab
+            chatStudents={chatStudents}
+            selectedStudentId={selectedStudentId}
+            setSelectedStudentId={setSelectedStudentId}
+            messages={messages}
+            studentMessages={studentMessages}
+            user={user}
+            teacherFileInputRef={teacherFileInputRef}
+            handleTeacherImageSelect={handleTeacherImageSelect}
+            sendingImage={sendingImage}
+            inputText={inputText}
+            setInputText={setInputText}
+            handleSendStudent={handleSendStudent}
+          />
         )}
       </main>
     </div>
   );
+}
 }
