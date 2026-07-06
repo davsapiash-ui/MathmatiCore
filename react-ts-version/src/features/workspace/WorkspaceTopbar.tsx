@@ -52,7 +52,7 @@ export function WorkspaceTopbar() {
       </div>
 
       {/* Actions */}
-      <div id="tour-action-buttons" className="flex items-center gap-3 shrink-0 bg-ws-surface/50 p-1.5 rounded-full border border-ws-surface2 shadow-sm">
+      <div id="tour-action-buttons" className="flex items-center gap-2 sm:gap-3 shrink-0 bg-ws-surface/50 p-1.5 rounded-full border border-ws-surface2 shadow-sm max-w-full overflow-x-auto no-scrollbar">
         <button
           onClick={() => {
             logout();
@@ -68,26 +68,26 @@ export function WorkspaceTopbar() {
 
         <button
           onClick={toggleBoard}
-          className="h-10 px-5 rounded-full text-sm font-bold text-ws-blue bg-ws-blue-soft/50 hover:bg-ws-blue hover:text-white transition-all flex items-center gap-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)]"
+          className="h-10 px-4 sm:px-5 rounded-full text-sm font-bold text-ws-blue bg-ws-blueSoft/50 hover:bg-ws-blue hover:text-white transition-all flex items-center gap-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)]"
         >
           <span aria-hidden="true">🧮</span>
-          {boardOpen ? 'הסתר לוח' : 'הצג לוח'}
+          <span className="hidden sm:inline">{boardOpen ? 'הסתר לוח' : 'הצג לוח'}</span>
         </button>
 
         <button
           onClick={undo}
           disabled={!canUndo}
-          className="h-10 px-4 rounded-full text-sm font-bold text-ws-ink bg-ws-surface2 hover:bg-ws-surface2/80 transition-all flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+          className="h-10 px-3 sm:px-4 rounded-full text-sm font-bold text-ws-ink bg-ws-surface2 hover:bg-ws-surface2/80 transition-all flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
           aria-label="בטל פעולה אחרונה"
         >
-          <span aria-hidden="true">↩</span> בטל
+          <span aria-hidden="true">↩</span> <span className="hidden sm:inline">בטל</span>
         </button>
 
         <button
           onClick={() => document.dispatchEvent(new CustomEvent('toggle-chat'))}
-          className="h-10 px-4 rounded-full text-sm font-bold text-ws-accent bg-ws-surface border border-ws-accent/20 hover:border-ws-accent/50 hover:shadow-md transition-all flex items-center gap-1.5"
+          className="h-10 px-3 sm:px-4 rounded-full text-sm font-bold text-ws-accent bg-ws-surface border border-ws-accent/20 hover:border-ws-accent/50 hover:shadow-md transition-all flex items-center gap-1.5"
         >
-          <span aria-hidden="true">💬</span> צ'אט
+          <span aria-hidden="true">💬</span> <span className="hidden sm:inline">צ'אט</span>
         </button>
 
         <button

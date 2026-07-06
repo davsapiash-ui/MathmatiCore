@@ -81,7 +81,7 @@ export function StudentChatOverlay() {
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+      <div className="flex-1 overflow-y-auto no-scrollbar p-4 flex flex-col gap-3">
         {myMessages.length === 0 ? (
           <p className="text-center text-ws-soft text-sm mt-10">אין הודעות. כתבו למורה כדי להתחיל.</p>
         ) : (

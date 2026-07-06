@@ -16,8 +16,8 @@ import type { DragSource, Place } from '@/core/placeValue';
 import { useWorkspaceStore, type SessionNumber } from '@/application/useWorkspaceStore';
 import { useSettingsStore } from '@/application/useSettingsStore';
 import { useAuthStore } from '@/application/useAuthStore';
-import { database } from '@/infrastructure/firebase';
-import { ref, onValue, remove } from 'firebase/database';
+import { database, authReady } from '@/infrastructure/firebase';
+import { ref, onValue, remove, push } from 'firebase/database';
 import { getCurrentQTask, isSubtaskActive } from '@/core/qmatrixFlow';
 import { PlaceValueBoard } from './board/PlaceValueBoard';
 
@@ -121,9 +121,7 @@ export function StudentWorkspacePage() {
 
     // Load rrweb asynchronously
     (async () => {
-      const [{ ref, push }, { database, authReady }, rrweb] = await Promise.all([
-        import('firebase/database'),
-        import('@/infrastructure/firebase'),
+      const [rrweb] = await Promise.all([
         import('rrweb')
       ]);
 

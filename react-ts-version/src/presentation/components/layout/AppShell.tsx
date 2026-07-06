@@ -13,7 +13,7 @@ export function AppShell() {
         <Topbar />
 
         {/* Page Content */}
-        <main className="flex-1 overflow-auto bg-ws-bg relative">
+        <main className="flex-1 overflow-auto no-scrollbar bg-ws-bg relative">
           {/* Outlet renders the nested child routes */}
           <Outlet />
         </main>

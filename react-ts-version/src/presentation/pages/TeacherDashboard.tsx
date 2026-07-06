@@ -511,11 +511,11 @@ export function TeacherDashboard() {
 
   return (
     <div
-      className="flex flex-col md:flex-row h-screen bg-ws-bg  overflow-hidden font-sans text-ws-ink  selection:bg-ws-accentSoft0/30"
+      className="flex flex-col md:flex-row h-full min-h-full bg-ws-bg overflow-hidden font-sans text-ws-ink selection:bg-ws-accentSoft0/30"
       dir="rtl"
     >
       {/* Sidebar */}
-      <aside className="w-full md:w-64 bg-ws-surface/80  backdrop-blur-xl border-b md:border-b-0 md:border-l border-ws-surface2  flex flex-col shadow-[4px_0_24px_rgba(0,0,0,0.02)] dark:shadow-[4px_0_24px_rgba(0,0,0,0.2)] z-20 transition-all overflow-y-auto max-h-screen">
+      <aside className="w-full md:w-64 bg-ws-surface/80 backdrop-blur-xl border-b md:border-b-0 md:border-l border-ws-surface2 flex flex-col shadow-[4px_0_24px_rgba(0,0,0,0.02)] dark:shadow-[4px_0_24px_rgba(0,0,0,0.2)] z-20 transition-all overflow-y-auto max-h-full no-scrollbar">
         <div className="p-6 border-b border-ws-surface2">
           <h2 className="font-display font-black text-2xl text-ws-ink tracking-tight mb-2">
             תחנת עבודה מורה

@@ -22,7 +22,7 @@ export function BlockPalette({ scaffoldLevel }: { scaffoldLevel: number }) {
       id="tour-block-palette"
       role="toolbar"
       aria-label="מחסן הכלים — גרור לטבלה"
-      className="shrink-0 ws-card !rounded-2xl px-4 py-2.5 flex items-center justify-center gap-3"
+      className="shrink-0 ws-card !rounded-2xl px-4 py-2.5 flex items-center justify-start sm:justify-center gap-3 max-w-full overflow-x-auto no-scrollbar"
     >
       <span className="text-xs font-display font-extrabold text-ws-soft leading-tight text-center shrink-0">
         מחסן
