@@ -7,17 +7,17 @@ test.describe('Chat Synchronization', () => {
     const teacherPage = await context.newPage();
 
     // Login Admin
-    await adminPage.goto('/');
-    await adminPage.getByText('מנהל מערכת').click();
+    await adminPage.goto('/login');
+    await adminPage.getByRole('button', { name: 'מנהל מערכת' }).click();
     await adminPage.getByPlaceholder('שם משתמש').fill('davsapiash');
     await adminPage.getByPlaceholder('סיסמה').fill('carlibach');
     await adminPage.getByRole('button', { name: 'התחבר למערכת' }).click();
 
     // Login Teacher
-    await teacherPage.goto('/');
-    await teacherPage.getByText('מורה').click();
+    await teacherPage.goto('/login');
+    await teacherPage.getByRole('button', { name: 'מורה' }).click();
     await teacherPage.getByPlaceholder('תעודת זהות').fill('039604483');
-    await teacherPage.getByPlaceholder('תאריך לידה (DDMMYY)').fill('290984');
+    await teacherPage.getByPlaceholder('תאריך לידה (6 ספרות, במבנה יום-חודש-שנה)').fill('290984');
     await teacherPage.getByRole('button', { name: 'התחבר למערכת' }).click();
 
     // Teacher: Navigate to Class Management to ensure Dashboard is fully loaded

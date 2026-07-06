@@ -2,10 +2,10 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Student Workspace Layout', () => {
   test('Workspace has proper height constraints to prevent dual scrollbars', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/login');
     
     // Select Student Role
-    await page.getByText('תלמיד').click();
+    await page.getByRole('button', { name: 'תלמיד' }).click();
     await page.getByRole('button', { name: 'יאללה, נכנסים! ✨' }).click();
 
     // Verify workspace layout doesn't overflow `100vh`
