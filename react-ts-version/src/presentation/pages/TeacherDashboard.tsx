@@ -413,7 +413,7 @@ export function TeacherDashboard() {
   }, [messages, user]);
 
   // For Student Chat
-  const chatStudents = Object.values(students);
+  const chatStudents = allStudents;
 
   const studentMessages = useMemo(() => {
     if (!user || !selectedStudentId) return [];
