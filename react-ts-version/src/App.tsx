@@ -34,7 +34,6 @@ function FirebaseGate({ children }: { children: React.ReactNode }) {
     authReady.then(() => {
       if (!cancelled) {
         setReady(true);
-        useChatStore.getState().initSync();
       }
     });
     return () => {

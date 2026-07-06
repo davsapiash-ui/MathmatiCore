@@ -1,10 +1,23 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Chat Synchronization', () => {
-  test('Admin to Teacher real-time message delivery', async ({ context }) => {
-    // Create two separate pages for two different roles
-    const adminPage = await context.newPage();
-    const teacherPage = await context.newPage();
+  test('Admin to Teacher real-time message delivery', async ({ browser }) => {
+    // We need two isolated browser contexts to simulate two different users
+    const adminContext = await browser.newContext();
+    const teacherContext = await browser.newContext();
+
+    // Disable driver.js tours for both contexts
+    await adminContext.addInitScript(() => {
+      window.localStorage.setItem('mathmaticore_has_seen_admin_tour', 'true');
+      window.localStorage.setItem('mathmaticore_has_seen_teacher_tour', 'true');
+    });
+    await teacherContext.addInitScript(() => {
+      window.localStorage.setItem('mathmaticore_has_seen_admin_tour', 'true');
+      window.localStorage.setItem('mathmaticore_has_seen_teacher_tour', 'true');
+    });
+
+    const adminPage = await adminContext.newPage();
+    const teacherPage = await teacherContext.newPage();
 
     // Login Admin
     await adminPage.goto('/login');
@@ -24,7 +37,7 @@ test.describe('Chat Synchronization', () => {
     await expect(teacherPage.getByText('ניהול כיתה').first()).toBeVisible();
 
     // Admin: Navigate to chat tab
-    await adminPage.getByText('תקשורת וצ\'אט').click();
+    await adminPage.getByText('צ\'אט הודעות').click();
     
     // Admin: Select "דוד" (teacher_david)
     await adminPage.getByText('דוד').first().click();
@@ -32,10 +45,11 @@ test.describe('Chat Synchronization', () => {
     // Admin: Send a message
     const testMessage = `Test Message ${Date.now()}`;
     await adminPage.getByPlaceholder('הקלד הודעה...').fill(testMessage);
-    await adminPage.getByRole('button', { name: /Send|שלח/i }).click();
+    await adminPage.getByPlaceholder('הקלד הודעה...').press('Enter');
 
     // Teacher: Verify notification badge or message directly in the UI
-    await teacherPage.getByText('צ\'אט והודעות').click();
+    await teacherPage.getByText('תקשורת וצ\'אט').click();
+    await teacherPage.getByText('צ\'אט הנהלה').click();
 
     // Teacher: Look for the message from Admin
     // Since this is real-time via Firebase, it should appear quickly

@@ -143,6 +143,7 @@ export function AdminChatView() {
                 <UdlButton 
                   onClick={handleSend} 
                   disabled={!inputText.trim()}
+                  aria-label="שלח"
                   className="rounded-full w-12 h-12 p-0 flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white transition-all disabled:opacity-50 shadow-md"
                 >
                   <Send className="w-5 h-5 -ml-1" />

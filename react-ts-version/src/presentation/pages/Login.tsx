@@ -261,18 +261,17 @@ export function Login() {
 
                 <form onSubmit={handleLogin}>
                   <p
-                    className="mb-6 text-sm leading-relaxed rounded-2xl p-3.5 pr-4 border-r-4 text-ws-ink/80 font-medium"
-                    style={{ backgroundColor: 'hsl(var(--ws-blue-soft) / 0.55)', borderColor: 'hsl(var(--ws-blue) / 0.55)' }}
+                    className="mb-6 text-sm leading-relaxed rounded-2xl p-3.5 pr-4 border-r-4 text-ws-ink/80 font-medium bg-[hsl(var(--ws-blue-soft)/0.55)] border-[hsl(var(--ws-blue)/0.55)]"
                   >
-                    {selectedRole === "student" && "התחבר באמצעות שם המשתמש והסיסמה שקיבלת מהמורה."}
-                    {selectedRole === "teacher" && "הכניסה למורים דורשת הקלדת תעודת זהות ותאריך לידה (6 ספרות)."}
-                    {selectedRole === "admin" && "הכניסה למנהלים מוגנת ומחייבת הזנת פרטי הזדהות מורשים בלבד."}
+                    {selectedRole === "student" && "ברוך הבא! אנא בחר בית ספר, כיתה, והזן את שם המשתמש והסיסמה שלך כדי להיכנס."}
+                    {selectedRole === "teacher" && "ברוך הבא מורה! אנא הזן תעודת זהות ותאריך לידה (6 ספרות)."}
+                    {selectedRole === "admin" && "ברוך הבא מנהל. אנא הזן שם משתמש וסיסמה לכניסה למערכת."}
                   </p>
 
                   {errorMsg && (
                     <div
                       role="alert"
-                      className="mb-4 p-3 bg-ws-danger/10 border border-ws-danger/40 rounded-2xl text-ws-danger text-sm font-bold"
+                      className="mb-4 p-3 bg-[hsl(var(--ws-danger)/0.1)] border border-[hsl(var(--ws-danger)/0.4)] rounded-2xl text-[hsl(var(--ws-danger))] text-sm font-bold"
                     >
                       {errorMsg}
                     </div>

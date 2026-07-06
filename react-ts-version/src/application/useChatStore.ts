@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { database } from '@/infrastructure/firebase';
 import { ref, onValue, set as firebaseSet, push, update } from 'firebase/database';
+import { useAuthStore } from "@/application/useAuthStore";
 
 export interface ChatMessage {
   id: string;
@@ -26,6 +27,8 @@ export const useChatStore = create<ChatState>()(
     messages: [],
     
     initSync: () => {
+      const { user } = useAuthStore.getState();
+      if (!user) return; // Only sync if authenticated
       if (isSynced) return;
       isSynced = true;
       const chatRef = ref(database, 'chat_messages');
@@ -38,6 +41,9 @@ export const useChatStore = create<ChatState>()(
         } else {
           set({ messages: [] });
         }
+      }, (error) => {
+        console.error("Chat sync permission denied:", error);
+        isSynced = false; // Allow retrying if permission denied
       });
     },
 
@@ -68,3 +74,13 @@ export const useChatStore = create<ChatState>()(
     },
   })
 );
+
+// Subscribe to auth changes to start chat sync safely
+useAuthStore.subscribe((authState) => {
+  if (authState.isAuthenticated && authState.user) {
+    useChatStore.getState().initSync();
+  } else {
+    isSynced = false;
+    useChatStore.setState({ messages: [] });
+  }
+});

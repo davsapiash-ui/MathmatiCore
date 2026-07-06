@@ -13,15 +13,15 @@ export function AdminLayout() {
   return (
     <SidebarProvider>
       <div className="flex min-h-screen bg-ws-bg w-full font-sans text-ws-ink selection:bg-indigo-500/30 overflow-hidden" dir="rtl">
-        <Sidebar variant="sidebar" collapsible="none" className="m-4 rounded-[2rem] border border-ws-surface2 bg-ws-surface/80 backdrop-blur-2xl shadow-[0_8px_32px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4)] w-72 flex-shrink-0 z-20 h-[calc(100vh-2rem)] flex flex-col overflow-hidden transition-all duration-500">
-          <SidebarHeader className="p-8 border-b border-white/20 dark:border-white/5 bg-white/20 dark:bg-black/10">
+        <Sidebar variant="sidebar" collapsible="none" className="m-4 rounded-[2rem] border border-ws-surface2 bg-white/40 dark:bg-slate-900/40 backdrop-blur-3xl shadow-[0_8px_32px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4)] w-72 flex-shrink-0 z-20 h-[calc(100vh-2rem)] flex flex-col overflow-hidden transition-all duration-500">
+          <SidebarHeader className="p-8 border-b border-ws-surface2/50 bg-white/30 dark:bg-black/20">
             <div className="flex items-center gap-3 mb-1">
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
                 <Shield className="text-white w-4 h-4 flex-shrink-0" />
               </div>
               <Logo textClassName="bg-gradient-to-l from-indigo-600 to-cyan-500 bg-clip-text text-transparent font-black tracking-tight drop-shadow-sm hover:opacity-80 transition-opacity" />
             </div>
-            <p className="text-xs text-ws-soft mt-2 tracking-widest uppercase font-semibold">ממשק ניהול מרכזי</p>
+            <p className="text-xs text-ws-soft mt-2 tracking-widest uppercase font-semibold">פורטל מנהל מערכת</p>
           </SidebarHeader>
 
           <SidebarContent className="p-4">

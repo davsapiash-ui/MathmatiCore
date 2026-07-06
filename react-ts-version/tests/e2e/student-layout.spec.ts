@@ -6,10 +6,20 @@ test.describe('Student Workspace Layout', () => {
     
     // Select Student Role
     await page.getByRole('button', { name: 'תלמיד' }).click();
+    
+    // Fill student credentials
+    await page.locator('select').first().selectOption({ index: 1 });
+    await page.locator('select').nth(1).selectOption({ index: 1 });
+    await page.getByPlaceholder('שם משתמש').fill('user1');
+    await page.getByPlaceholder('סיסמה').fill('10203040');
+    
     await page.getByRole('button', { name: 'יאללה, נכנסים! ✨' }).click();
 
+    // Navigate to workspace from hub
+    await page.getByRole('button', { name: 'להמשך התרגול' }).click();
+
     // Verify workspace layout doesn't overflow `100vh`
-    await page.waitForURL('**/workspace');
+    await page.waitForURL('**/workspace*');
     
     // Evaluate if the document body or HTML has hidden scrollbars (or 100vh)
     const bodyHeight = await page.evaluate(() => document.body.scrollHeight);
@@ -20,6 +30,6 @@ test.describe('Student Workspace Layout', () => {
     expect(bodyHeight).toBeLessThanOrEqual(windowHeight + 100); 
 
     // Verify main components exist
-    await expect(page.getByText('משימה')).first().toBeVisible();
+    await expect(page.getByText('משימה').first()).toBeVisible();
   });
 });
