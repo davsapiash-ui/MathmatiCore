@@ -1,28 +1,28 @@
 {
-  "total_count": 267,
+  "total_count": 268,
   "workflow_runs": [
     {
-      "id": 28787105274,
+      "id": 28801602741,
       "name": "Deploy to Firebase Hosting on merge",
-      "node_id": "WFR_kwLOTJvcdM8AAAAGs9hd-g",
+      "node_id": "WFR_kwLOTJvcdM8AAAAGtLWUtQ",
       "head_branch": "main",
-      "head_sha": "9823c88ba6d127c2b79bd5a705f65daa19d92d1d",
+      "head_sha": "bfa0d6b543eff7ccb75d5f3563ec6594ffc0ef94",
       "path": ".github/workflows/firebase-hosting-merge.yml",
-      "display_title": " fix: resolve reset bugs and add teacher control panel",
-      "run_number": 267,
+      "display_title": " Auto-deploy: Fix radar alerts flooding wipe radar on reset and corre…",
+      "run_number": 268,
       "event": "push",
-      "status": "completed",
-      "conclusion": "success",
+      "status": "in_progress",
+      "conclusion": null,
       "workflow_id": 304845060,
-      "check_suite_id": 77799077858,
-      "check_suite_node_id": "CS_kwDOTJvcdM8AAAASHS-34g",
-      "url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28787105274",
-      "html_url": "https://github.com/davsapiash-ui/MathmatiCore/actions/runs/28787105274",
+      "check_suite_id": 77843723351,
+      "check_suite_node_id": "CS_kwDOTJvcdM8AAAASH9j0Vw",
+      "url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28801602741",
+      "html_url": "https://github.com/davsapiash-ui/MathmatiCore/actions/runs/28801602741",
       "pull_requests": [
 
       ],
-      "created_at": "2026-07-06T11:07:38Z",
-      "updated_at": "2026-07-06T11:10:14Z",
+      "created_at": "2026-07-06T15:06:29Z",
+      "updated_at": "2026-07-06T15:06:33Z",
       "actor": {
         "login": "davsapiash-ui",
         "id": 298367239,
@@ -48,7 +48,7 @@
       "referenced_workflows": [
 
       ],
-      "run_started_at": "2026-07-06T11:07:38Z",
+      "run_started_at": "2026-07-06T15:06:29Z",
       "triggering_actor": {
         "login": "davsapiash-ui",
         "id": 298367239,
@@ -70,19 +70,19 @@
         "user_view_type": "public",
         "site_admin": false
       },
-      "jobs_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28787105274/jobs",
-      "logs_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28787105274/logs",
-      "check_suite_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/check-suites/77799077858",
-      "artifacts_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28787105274/artifacts",
-      "cancel_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28787105274/cancel",
-      "rerun_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28787105274/rerun",
+      "jobs_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28801602741/jobs",
+      "logs_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28801602741/logs",
+      "check_suite_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/check-suites/77843723351",
+      "artifacts_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28801602741/artifacts",
+      "cancel_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28801602741/cancel",
+      "rerun_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28801602741/rerun",
       "previous_attempt_url": null,
       "workflow_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/workflows/304845060",
       "head_commit": {
-        "id": "9823c88ba6d127c2b79bd5a705f65daa19d92d1d",
-        "tree_id": "61f3d0e11431f56df12dd0c3b6b8aa311c5a14b6",
-        "message": " fix: resolve reset bugs and add teacher control panel",
-        "timestamp": "2026-07-06T11:07:34Z",
+        "id": "bfa0d6b543eff7ccb75d5f3563ec6594ffc0ef94",
+        "tree_id": "0ad4c1f3515ec9eadee8d6ce47f261b5c6d011bc",
+        "message": " Auto-deploy: Fix radar alerts flooding wipe radar on reset and correct USER1 radar display names",
+        "timestamp": "2026-07-06T15:06:24Z",
         "author": {
           "name": "David",
           "email": "david@example.com"

@@ -152,10 +152,15 @@ export function TeacherDashboard() {
       // 2. Override with live cloud data
       Object.keys(data).forEach((uid) => {
         const row = data[uid] ?? {};
+        let cleanName = row.name ?? row.profile?.displayName ?? row.studentName ?? formattedStudents[uid]?.name ?? uid.replace('student_','');
+        if (cleanName === 'student' || cleanName === 'student_user1' || cleanName.toLowerCase().startsWith('student_')) {
+            cleanName = uid.replace('student_', ''); // Force 'user1'
+        }
+
         formattedStudents[uid] = {
           studentId: uid,
           classId: row.classId ?? 'live',
-          name: row.name ?? row.profile?.displayName ?? row.studentName ?? formattedStudents[uid]?.name ?? uid.replace('student_',''),
+          name: cleanName,
           qMatrixResults: {
             task1_zero_placeholder: null,
             task2_estimation_error_margin: null,
@@ -982,8 +987,8 @@ export function TeacherDashboard() {
                             משימה: {alert.taskId}
                           </span>
                           <span className="bg-white/50 /50 px-3 py-1 rounded-md">
-                            זמן:{" "}
-                            {new Date(alert.timestamp).toLocaleTimeString()}
+                            שעת האירוע:{" "}
+                            {new Date(alert.timestamp).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
                           </span>
                         </div>
                       </div>

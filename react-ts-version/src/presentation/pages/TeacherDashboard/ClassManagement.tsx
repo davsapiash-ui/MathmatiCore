@@ -26,10 +26,15 @@ export function ClassManagement({ allStudents }: { allStudents: StudentData[] })
       const existingSnap = await get(ref(database, `users/students/${studentId}`));
       const existing = existingSnap.val() || {};
 
+      let cleanName = existing.name || studentId;
+      if (cleanName === 'student' || cleanName === 'student_user1' || cleanName.toLowerCase().startsWith('student_')) {
+          cleanName = studentId.replace('student_', '');
+      }
+
       // 2. Write a clean slate — preserve only identity, wipe all progress
       await set(ref(database, `users/students/${studentId}`), {
         studentId,
-        name: existing.name || studentId,
+        name: cleanName,
         classId: existing.classId || 'class_1',
         completedMeeting2: false,
         routeStatus: null,
