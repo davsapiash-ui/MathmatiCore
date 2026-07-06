@@ -188,6 +188,7 @@ export function TeacherDashboard() {
           completedMeeting2: row.completedMeeting2 ?? false,
           routeRecommendation: row.routeRecommendation ?? null,
           routeStatus: row.routeStatus ?? null,
+          diagnosticReport: row.diagnosticReport ?? null,
           // Support legacy props expected by some components
           currentTask: row.workspaceState?.standardTaskIdx || 0,
           sessionNum: row.workspaceState?.sessionNumber || 1,
@@ -1095,7 +1096,7 @@ export function TeacherDashboard() {
                       const s = students[selectedReplayStudentId];
                       if (!s) return null;
                       const hasRecording = liveReplayEvents.length > 2;
-                      const socraticApproval = pendingApprovals.find(a => a.studentId === selectedReplayStudentId);
+                      const socraticApproval = s.diagnosticReport || pendingApprovals.find(a => a.studentId === selectedReplayStudentId);
 
                       return (
                         <div className="animate-in fade-in zoom-in-95 duration-300">
@@ -1204,7 +1205,7 @@ export function TeacherDashboard() {
                                     
                                     <h5 className="font-bold text-sm text-indigo-900 mb-3">תרגילים רצויים שנוצרו עבור התלמיד:</h5>
                                     <div className="grid gap-2 mb-5">
-                                      {socraticApproval.tasks.map((task, idx) => (
+                                      {socraticApproval.tasks.map((task: any, idx: number) => (
                                         <div key={idx} className="bg-white p-3 rounded-lg flex items-center justify-between border border-indigo-100 shadow-sm">
                                           <div className="flex items-center gap-3">
                                             <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-bold">{idx + 1}</span>

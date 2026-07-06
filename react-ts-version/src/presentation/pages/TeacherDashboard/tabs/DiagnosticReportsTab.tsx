@@ -75,7 +75,7 @@ export function DiagnosticReportsTab({
                 const s = students[selectedReplayStudentId];
                 if (!s) return null;
                 const hasRecording = liveReplayEvents.length > 2;
-                const socraticApproval = pendingApprovals.find(a => a.studentId === selectedReplayStudentId);
+                const socraticApproval = s.diagnosticReport || pendingApprovals.find(a => a.studentId === selectedReplayStudentId);
 
                 return (
                   <div className="animate-in fade-in zoom-in-95 duration-300">

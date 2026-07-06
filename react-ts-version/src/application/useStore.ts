@@ -22,6 +22,19 @@ export interface TraceData {
 export type RoutePath = 'GREEN' | 'YELLOW';
 export type RouteStatus = 'PENDING' | 'APPROVED';
 
+export interface DiagnosticReport {
+  studentId: string;
+  studentName: string;
+  timestamp: number;
+  clinicalDiagnosisHe: string;
+  actionPlanHe: string;
+  tasks: any[];
+  qMatrixResults: QMatrix;
+  traceData: TraceData;
+  effort: number | null;
+  strategy: string | null;
+}
+
 export interface StudentData {
   studentId: string;
   classId: string;
@@ -31,6 +44,7 @@ export interface StudentData {
   completedMeeting2: boolean;
   routeRecommendation: RoutePath | null;
   routeStatus: RouteStatus | null;
+  diagnosticReport?: DiagnosticReport | null;
 }
 
 interface AppState {

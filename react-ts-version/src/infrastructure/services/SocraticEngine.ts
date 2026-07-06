@@ -2,6 +2,7 @@ import { ref, push, set, get, remove, serverTimestamp } from "firebase/database"
 import { database, authReady } from "@/infrastructure/firebase";
 import type { SessionTask } from "@/data/sessionTasks";
 import type { QMatrixResults } from "@/core/QMatrix";
+import { AuditLogger } from "@/infrastructure/services/AuditLogger";
 
 /**
  * All engine I/O waits for an authenticated session first — the locked rules
@@ -31,7 +32,15 @@ export class SocraticEngine {
   /**
    * Generates tasks based on QMatrix errors and queues them for teacher approval.
    */
-  static async generateAndQueueTasks(studentId: string, studentName: string, teacherId: string, qMatrix: QMatrixResults): Promise<void> {
+  static async generateAndQueueTasks(
+    studentId: string,
+    studentName: string,
+    teacherId: string,
+    qMatrix: QMatrixResults,
+    traceData?: { hesitation_events: number; undo_clicks: number },
+    effort?: number | null,
+    strategy?: string | null
+  ): Promise<void> {
     await ready();
     const tasks: SessionTask[] = [];
     
@@ -190,6 +199,26 @@ export class SocraticEngine {
       clinicalDiagnosisHe,
       actionPlanHe
     });
+
+    const reportRef = ref(database, `users/students/${studentId}/diagnosticReport`);
+    await set(reportRef, {
+      studentId,
+      studentName,
+      timestamp: Date.now(),
+      clinicalDiagnosisHe,
+      actionPlanHe,
+      tasks,
+      qMatrixResults: qMatrix,
+      traceData: traceData || { hesitation_events: 0, undo_clicks: 0 },
+      effort: effort !== undefined ? effort : null,
+      strategy: strategy !== undefined ? strategy : null
+    });
+
+    await AuditLogger.log(
+      "COMPLETED_MAPPING_PHASE", 
+      studentId, 
+      `Student completed meeting 2 diagnostic mapping phase. Route: ${isYellowPath ? 'YELLOW' : 'GREEN'}.`
+    );
   }
 
   /**

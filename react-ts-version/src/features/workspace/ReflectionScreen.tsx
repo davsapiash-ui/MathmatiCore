@@ -6,6 +6,7 @@ import { database, authReady } from '@/infrastructure/firebase';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { SocraticEngine } from '@/infrastructure/services/SocraticEngine';
+import { useStore } from '@/application/useStore';
 /**
  * מסך רפלקציה (מפגש 2) — port of vanilla_audit/student/reflection.html.
  * דירוג מאמץ באייקונים בלבד (ללא ציונים מספריים!), בחירת אסטרטגיה מאוירת,
@@ -108,7 +109,9 @@ export function ReflectionScreen() {
         } catch {
           // Fallback already set above — safe to continue
         }
-        await SocraticEngine.generateAndQueueTasks(username, studentName, resolvedTeacherId, qMatrix);
+        const store = useStore.getState();
+        const studentTraceData = store.students[username]?.traceData || { hesitation_events: 0, undo_clicks: 0 };
+        await SocraticEngine.generateAndQueueTasks(username, studentName, resolvedTeacherId, qMatrix, studentTraceData, effort, strategy);
       }
     } catch (e) {
       console.error("Failed to save reflection:", e);

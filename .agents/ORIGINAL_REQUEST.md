@@ -156,3 +156,36 @@ Identify and remove any remaining dead code, unused imports, console.logs, or ov
 ## SPECIAL DIRECTIVE FROM USER:
 "I want you to check EVERYTHING from every direction in DB, Firebase, GitHub, the code itself, live site... I want you to check everything from everything. Thoroughly!!!!"
 You must act as an orchestrator and launch multiple agents (QA, Security, UX) to accomplish this perfectly. Do not stop until every single stone is turned.
+
+## Follow-up — 2026-07-06T17:57:54Z
+
+Comprehensive QA pass and bug fixing for the MathmatiCore LMS system. The team must autonomously identify, reproduce, and fix remaining bugs in the application UI, data flow, and styling, leaving no "stupid bugs" behind.
+
+Working directory: c:/Users/david/Projects/MathmatiCore
+Integrity mode: development
+
+## Requirements
+
+### R1. Full Codebase Audit & UI/UX Polish
+The team must identify and resolve UI glitches, overflow issues, masked scrollbars, layout breaks, and responsiveness issues across all modules (Teacher Dashboard, Student Hub, Workspace).
+
+### R2. Logic and Data Flow Verification
+Trace all data flows from Firebase to the UI. Ensure data is correctly filtered and scoped (e.g., counting only relevant teacher data). Ensure components conditionally render based on actual data rather than rendering empty placeholders. Fix any logic that leads to "phantom" data or notifications.
+
+### R3. Holistic Root-Cause Debugging
+Adhere strictly to the `AGENTS.md` rules. Do not apply superficial "band-aids" or mock data fixes. You must trace data flows to the root cause (Store -> Firebase -> Component) and fix the underlying architecture.
+
+### R4. Autonomous CI/CD Deployment
+After fixes are applied, the team must commit, push, and monitor the GitHub/Firebase CI deployment to verify it completes successfully without regression.
+
+## Acceptance Criteria
+
+### Reliability and Correctness
+- [ ] The app builds locally (`npm run build`) with zero TypeScript or Vite compilation errors.
+- [ ] No empty UI cards or meaningless notifications are rendered to the user.
+- [ ] Data correctly reflects the specific logged-in teacher or student.
+
+### Process and Verification
+- [ ] The team maintains an artifact log detailing the exact root cause and solution for every bug fixed.
+- [ ] The team autonomously verifies the CI deployment success on GitHub before concluding the task.
+
