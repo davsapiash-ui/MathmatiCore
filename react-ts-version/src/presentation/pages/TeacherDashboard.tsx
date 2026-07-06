@@ -1222,9 +1222,9 @@ export function TeacherDashboard() {
                             </AccessibleCard>
                           </div>
 
-                          {/* Video Replay */}
-                          <AccessibleCard className="p-6 bg-white border border-ws-surface2 shadow-xl rounded-2xl overflow-hidden relative">
-                            <div className="flex items-center justify-between mb-4">
+                          {/* Video Replay & Logs Dashboard */}
+                          <AccessibleCard className="p-0 bg-white border border-ws-surface2 shadow-xl rounded-2xl overflow-hidden relative">
+                            <div className="p-6 border-b border-ws-surface2 flex items-center justify-between">
                               <h3 className="text-xl font-bold text-ws-ink flex items-center gap-3">
                                 <span className={`w-3 h-3 rounded-full ${hasRecording ? 'bg-red-500 animate-pulse' : 'bg-slate-300'}`}></span>
                                 צפייה בהקלטת סשן הלמידה
@@ -1234,17 +1234,50 @@ export function TeacherDashboard() {
                               </div>
                             </div>
                             
-                            <div className="bg-slate-50 border border-ws-surface2 rounded-xl overflow-x-auto relative flex justify-center py-4">
-                              {hasRecording ? (
-                                <div className="w-fit flex justify-center items-center shadow-lg rounded-xl overflow-hidden border border-slate-200">
-                                  <ReplayViewer events={liveReplayEvents} />
-                                </div>
-                              ) : (
-                                <div className="flex flex-col items-center justify-center text-ws-soft py-20">
-                                  <span className="text-4xl mb-3">🎥</span>
-                                  <p>התלמיד טרם ביצע פעולות שנקלטו ברדאר</p>
-                                </div>
-                              )}
+                            <div className="flex flex-col xl:flex-row min-h-[600px] bg-slate-50">
+                              {/* Logs Sidebar */}
+                              <div className="w-full xl:w-80 bg-white border-b xl:border-b-0 xl:border-l border-ws-surface2 overflow-y-auto p-4 flex flex-col gap-3">
+                                <h4 className="font-bold text-ws-ink mb-2">ציר זמן אירועים</h4>
+                                {alerts.filter(a => a.student === selectedReplayStudentId).length === 0 ? (
+                                  <p className="text-sm text-ws-soft">אין אירועי מעקב לתלמיד זה.</p>
+                                ) : (
+                                  alerts.filter(a => a.student === selectedReplayStudentId)
+                                    .sort((a,b) => a.timestamp - b.timestamp)
+                                    .map(alert => (
+                                    <button
+                                      key={alert.id}
+                                      onClick={() => setSeekToTime(alert.timestamp)}
+                                      className="text-right p-3 rounded-lg border border-ws-surface2 bg-ws-bg hover:bg-ws-surface hover:border-ws-accent/50 transition-all flex flex-col gap-1 w-full"
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-lg">
+                                          {alert.type === 'HESITATION' ? '⏱️' : alert.type === 'PASSIVE_DRIFTING' ? '↩️' : alert.type === 'TASK_ERROR' ? '❌' : '⚠️'}
+                                        </span>
+                                        <span className="font-bold text-sm text-ws-ink">
+                                          {alert.type === 'HESITATION' ? 'היסוס ממושך' : alert.type === 'PASSIVE_DRIFTING' ? 'מחיקות מרובות' : alert.type === 'TASK_ERROR' ? 'שגיאה במשימה' : alert.type}
+                                        </span>
+                                      </div>
+                                      <div className="text-xs text-ws-soft font-mono">
+                                        {new Date(alert.timestamp).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                      </div>
+                                    </button>
+                                  ))
+                                )}
+                              </div>
+                              
+                              {/* Player Container */}
+                              <div className="flex-1 relative flex items-center justify-center p-6 bg-slate-100/50">
+                                {hasRecording ? (
+                                  <div className="w-full flex items-center justify-center rounded-xl overflow-hidden shadow-lg border border-slate-200 bg-white">
+                                    <ReplayViewer events={liveReplayEvents} seekToTime={seekToTime} />
+                                  </div>
+                                ) : (
+                                  <div className="flex flex-col items-center justify-center text-ws-soft py-20 w-full h-full">
+                                    <span className="text-4xl mb-3">🎥</span>
+                                    <p>התלמיד טרם ביצע פעולות שנקלטו ברדאר</p>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           </AccessibleCard>
                         </div>

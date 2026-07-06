@@ -4,9 +4,10 @@ import "rrweb-player/dist/style.css";
 
 interface ReplayViewerProps {
   events: any[];
+  seekToTime?: number;
 }
 
-export function ReplayViewer({ events }: ReplayViewerProps) {
+export function ReplayViewer({ events, seekToTime }: ReplayViewerProps) {
   const playerRef = useRef<HTMLDivElement>(null);
   const instanceRef = useRef<any>(null);
 
@@ -59,6 +60,19 @@ export function ReplayViewer({ events }: ReplayViewerProps) {
       }
     };
   }, [events]);
+
+  useEffect(() => {
+    if (seekToTime && instanceRef.current && events && events.length > 0) {
+      const firstEventTime = events[0].timestamp;
+      // Seek slightly before the event (e.g. 2 seconds before) to give context
+      const offset = Math.max(0, seekToTime - firstEventTime - 2000);
+      try {
+        instanceRef.current.goto(offset, true);
+      } catch (e) {
+        console.warn("Failed to seek rrweb player", e);
+      }
+    }
+  }, [seekToTime, events]);
 
   if (!events || events.length < 2) {
     return (
