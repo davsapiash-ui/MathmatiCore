@@ -1,5 +1,5 @@
 import { useAdminStore } from '@/application/useAdminStore';
-import { ShieldCheck, Users, Search, RotateCcw } from 'lucide-react';
+import { ShieldCheck, Users, Search, RotateCcw, Settings, X, ArrowRight } from 'lucide-react';
 import { useState } from 'react';
 import type { StudentData } from '@/application/useStore';
 import { database } from '@/infrastructure/firebase';
@@ -14,6 +14,7 @@ export function ClassManagement({ allStudents }: { allStudents: StudentData[] })
   const currentSchool = schools.find(s => s.id === currentClass?.schoolId);
   
   const [search, setSearch] = useState('');
+  const [selectedStudent, setSelectedStudent] = useState<StudentData | null>(null);
 
   const filteredStudents = allStudents.filter(s => (s.name || s.studentId || '').toLowerCase().includes(search.toLowerCase()));
 
@@ -55,15 +56,31 @@ export function ClassManagement({ allStudents }: { allStudents: StudentData[] })
         remove(ref(database, `students/${studentId}/telemetry_chunks`)),
         remove(ref(database, `approved_tasks/${studentId}`)),
         remove(ref(database, `replays/${studentId}`)),
-        // Clear AI pending approvals for all known teacher IDs
-        remove(ref(database, `ai_pending_approvals/039604483`)).catch(() => {}),
-        remove(ref(database, `ai_pending_approvals/teacher-1`)).catch(() => {}),
+        // BUGFIX: Target the specific student ID under the teacher queue!
+        remove(ref(database, `ai_pending_approvals/039604483/${studentId}`)).catch(() => {}),
+        remove(ref(database, `ai_pending_approvals/teacher-1/${studentId}`)).catch(() => {}),
       ]);
 
       alert('✅ הנתונים אופסו בהצלחה. התלמיד מוכן להתחיל מחדש.');
+      setSelectedStudent(null);
     } catch (err: any) {
       console.error('Reset failed:', err);
       alert(`שגיאה באיפוס נתונים: ${err?.message || err}`);
+    }
+  };
+
+  const handleChangeSession = async (studentId: string, newSession: number) => {
+    if (!window.confirm(`להעביר את התלמיד/ה למפגש ${newSession}?`)) return;
+    try {
+      await set(ref(database, `users/students/${studentId}/workspaceState/sessionNumber`), newSession);
+      await set(ref(database, `users/students/${studentId}/workspaceState/flowStatus`), 'IDLE');
+      if (newSession > 2) {
+        await set(ref(database, `users/students/${studentId}/completedMeeting2`), true);
+      }
+      alert(`✅ הועבר למפגש ${newSession}.`);
+      setSelectedStudent(null);
+    } catch (err: any) {
+      alert(`שגיאה: ${err.message}`);
     }
   };
 
@@ -148,12 +165,12 @@ export function ClassManagement({ allStudents }: { allStudents: StudentData[] })
                   </td>
                   <td className="py-4 px-6 text-left">
                     <button
-                      onClick={() => handleResetStudent(student.studentId)}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 text-xs font-bold rounded-md transition-colors border border-red-100"
-                      title="איפוס כל נתוני התלמיד והתחלה מחדש"
+                      onClick={() => setSelectedStudent(student)}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-lg transition-colors border border-indigo-100"
+                      title="ניהול תלמיד ושליטה על תהליך הלמידה"
                     >
-                      <RotateCcw className="w-3.5 h-3.5" />
-                      איפוס
+                      <Settings className="w-4 h-4" />
+                      ניהול ובקרה
                     </button>
                   </td>
                 </tr>
@@ -170,6 +187,63 @@ export function ClassManagement({ allStudents }: { allStudents: StudentData[] })
         </div>
       </div>
 
+      {/* Control Panel Modal */}
+      {selectedStudent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-900">
+              <h2 className="text-xl font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                <Settings className="text-indigo-500 w-5 h-5" />
+                לוח בקרה: {selectedStudent.name}
+              </h2>
+              <button 
+                onClick={() => setSelectedStudent(null)}
+                className="text-slate-400 hover:text-slate-600 p-2 rounded-full hover:bg-slate-200 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 flex flex-col gap-6">
+              
+              <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-5">
+                <h3 className="font-bold text-blue-900 mb-3 text-sm flex items-center gap-2">
+                  <ArrowRight className="w-4 h-4 text-blue-500" />
+                  הקפצה והעברת שלבים
+                </h3>
+                <p className="text-xs text-blue-700 mb-4">במידה והתלמיד נתקע, ניתן להעביר אותו ידנית למפגש הבא או להחזיר אותו אחורה. יש לרענן את מסך התלמיד לאחר מכן.</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {[1, 2, 3, 4].map(session => (
+                    <button
+                      key={session}
+                      onClick={() => handleChangeSession(selectedStudent.studentId, session)}
+                      className="bg-white hover:bg-blue-50 text-blue-700 border border-blue-200 font-bold py-2 px-4 rounded-xl transition-colors shadow-sm text-sm"
+                    >
+                      העבר למפגש {session}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-red-50/50 border border-red-100 rounded-2xl p-5">
+                <h3 className="font-bold text-red-900 mb-3 text-sm flex items-center gap-2">
+                  <RotateCcw className="w-4 h-4 text-red-500" />
+                  איפוס נתונים מלא (סכנת מחיקה)
+                </h3>
+                <p className="text-xs text-red-700 mb-4">מוחק את כל ההקלטות, פערים שאובחנו ומשימות AI שהוקצו לתלמיד. מחזיר את המערכת למצב חלק לחלוטין כמו ביום הראשון.</p>
+                <button
+                  onClick={() => handleResetStudent(selectedStudent.studentId)}
+                  className="w-full bg-red-100 hover:bg-red-200 text-red-700 font-bold py-3 px-4 rounded-xl transition-colors shadow-sm text-sm flex justify-center items-center gap-2"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  אפס את התלמיד והתחל מחדש
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -407,6 +407,16 @@ export function TeacherDashboard() {
 
   const handleMarkAsRead = (alert: any) => {
     if (alert.firebaseKey?.startsWith('hesitation-') || alert.firebaseKey?.startsWith('undo-')) {
+      // Actually reset the counters in Firebase so the alert clears globally
+      if (alert.rawStudentId) {
+        set(ref(database, `users/students/${alert.rawStudentId}/traceData`), { 
+          hesitation_events: 0, 
+          undo_clicks: 0, 
+          lastUpdate: Date.now() 
+        });
+        set(ref(database, `users/students/${alert.rawStudentId}/workspaceState/hesitationCount`), 0);
+        set(ref(database, `users/students/${alert.rawStudentId}/workspaceState/undoCount`), 0);
+      }
       resetTraceData(alert.rawStudentId);
     } else if (alert.firebaseKey) {
       remove(ref(database, `radar_alerts/${alert.firebaseKey}`));
