@@ -54,7 +54,7 @@
       "teachers": {
         "$teacherId": {
           ".read": "auth != null && (auth.token.email === 'teacher_' + $teacherId + '@mathmaticore.local' || auth.token.email === 'admin@mathmaticore.local')",
-          ".write": "auth != null && auth.token.email === 'admin@mathmaticore.local'"
+          ".write": "auth != null && (auth.token.email === 'admin@mathmaticore.local' || (auth.token.email === 'teacher_' + $teacherId + '@mathmaticore.local' && !data.exists()))"
         }
       }
     },

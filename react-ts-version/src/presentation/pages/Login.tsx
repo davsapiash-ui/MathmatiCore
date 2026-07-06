@@ -113,7 +113,7 @@ export function Login() {
         // Fallback/Backdoor for David
         if (!teacher && taz === "039604483" && dob === "290984") {
           teacher = {
-            id: "teacher_david",
+            id: "039604483",
             schoolId: "school_bikorot",
             taz: "039604483",
             dob: "290984",
