@@ -7,8 +7,9 @@ export interface ChatMessage {
   id: string;
   senderId: string;
   senderName: string;
-  receiverId: string; // "admin" or specific teacherId
+  receiverId: string;
   text: string;
+  imageUrl?: string; // optional: base64 data URL or Firebase Storage URL
   timestamp: number;
   read: boolean;
 }
@@ -16,6 +17,7 @@ export interface ChatMessage {
 interface ChatState {
   messages: ChatMessage[];
   sendMessage: (senderId: string, senderName: string, receiverId: string, text: string) => void;
+  sendImageMessage: (senderId: string, senderName: string, receiverId: string, file: File) => Promise<void>;
   markAsRead: (receiverId: string, senderId: string) => void;
   initSync: () => void;
 }
@@ -56,6 +58,28 @@ export const useChatStore = create<ChatState>()(
         senderName,
         receiverId,
         text,
+        timestamp: Date.now(),
+        read: false
+      });
+    },
+
+    sendImageMessage: async (senderId, senderName, receiverId, file) => {
+      // Convert to base64 data URL (no Storage SDK needed — stored inline in DB)
+      const reader = new FileReader();
+      const dataUrl: string = await new Promise((resolve, reject) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const chatRef = ref(database, 'chat_messages');
+      const newMsgRef = push(chatRef);
+      firebaseSet(newMsgRef, {
+        id: newMsgRef.key!,
+        senderId,
+        senderName,
+        receiverId,
+        text: '',
+        imageUrl: dataUrl,
         timestamp: Date.now(),
         read: false
       });

@@ -1,0 +1,25 @@
+{
+  "studentId": "student_user1",
+  "studentName": "user1",
+  "timestamp": 1783325400000,
+  "clinicalDiagnosisHe": "סימולציה: התלמיד הציג קשיים בהבנת ערך מקום ובפעולות חיבור במאונך. ניכר קושי בהמרה בין עשרות ליחידות.",
+  "actionPlanHe": "מומלץ להתחיל במסלול חיזוק ערך מקום עם בלוקי דיינס ווירטואליים לפני מעבר לחישובים אלגוריתמיים.",
+  "tasks": [
+    {
+      "id": "s3_regroup_1",
+      "type": "regroup",
+      "session": 3,
+      "prompt": "הצג את המספר 43 בעמודות.",
+      "expectedAnswer": 43,
+      "supportLevel": "scaffolded"
+    },
+    {
+      "id": "s3_add_1",
+      "type": "addition",
+      "session": 3,
+      "prompt": "חשב: 27 + 35",
+      "expectedAnswer": 62,
+      "supportLevel": "scaffolded"
+    }
+  ]
+}

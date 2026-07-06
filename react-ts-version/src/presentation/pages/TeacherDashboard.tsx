@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { UdlButton } from "@/presentation/design-system/UdlButton";
 import { AccessibleCard } from "@/presentation/design-system/AccessibleCard";
 import { DataGrid } from "@/presentation/design-system/DataGrid";
@@ -26,8 +26,10 @@ import { useTeacherTour } from "./TeacherDashboard/useTeacherTour";
 export function TeacherDashboard() {
   useTeacherTour();
   const { user } = useAuthStore();
-  const { messages, sendMessage, markAsRead } = useChatStore();
+  const { messages, sendMessage, sendImageMessage, markAsRead } = useChatStore();
   const { resetTraceData } = useStore();
+  const teacherFileInputRef = useRef<HTMLInputElement>(null);
+  const [sendingImage, setSendingImage] = useState(false);
   const [students, setStudents] = useState<Record<string, any>>(() => {
     const allSt = useStore.getState().students;
     const initial: Record<string, any> = {};
@@ -476,6 +478,18 @@ export function TeacherDashboard() {
       inputText.trim(),
     );
     setInputText("");
+  };
+
+  const handleTeacherImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user || !selectedStudentId) return;
+    setSendingImage(true);
+    try {
+      await sendImageMessage(user.uid, user.displayName || 'מורה', selectedStudentId, file);
+    } finally {
+      setSendingImage(false);
+      if (teacherFileInputRef.current) teacherFileInputRef.current.value = '';
+    }
   };
 
   const unreadAdminCount = messages.filter(
@@ -1565,9 +1579,21 @@ export function TeacherDashboard() {
                             className={`flex flex-col max-w-[85%] md:max-w-[70%] ${isMe ? "self-end items-end" : "self-start items-start"}`}
                           >
                             <div
-                              className={`px-5 py-3 rounded-2xl shadow-md ${isMe ? "bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-tl-sm" : "bg-white/90  backdrop-blur-md border border-ws-surface2  text-ws-ink  rounded-tr-sm"}`}
+                              className={`px-5 py-3 rounded-2xl shadow-md ${
+                                isMe
+                                  ? "bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-tl-sm"
+                                  : "bg-white/90 backdrop-blur-md border border-ws-surface2 text-ws-ink rounded-tr-sm"
+                              }`}
                             >
-                              {msg.text}
+                              {msg.text && <span>{msg.text}</span>}
+                              {msg.imageUrl && (
+                                <img
+                                  src={msg.imageUrl}
+                                  alt="תמונה"
+                                  className="max-w-[220px] max-h-[220px] rounded-xl mt-1 object-cover cursor-pointer block"
+                                  onClick={() => window.open(msg.imageUrl, '_blank')}
+                                />
+                              )}
                             </div>
                             <span className="text-[10px] font-medium text-slate-400  mt-2 px-2 tracking-wider">
                               {new Date(msg.timestamp).toLocaleTimeString([], {
@@ -1581,58 +1607,33 @@ export function TeacherDashboard() {
                     )}
                   </div>
 
-                  <div className="p-4 bg-white/80  backdrop-blur-xl border-t border-ws-surface2 ">
+                  <div className="p-4 bg-white/80 backdrop-blur-xl border-t border-ws-surface2">
+                    <input
+                      ref={teacherFileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleTeacherImageSelect}
+                    />
                     <div className="flex gap-3 items-center">
-                      <UdlButton
-                        semanticColor="neutral"
-                        className="hidden md:flex rounded-full w-12 h-12 p-0 items-center justify-center bg-ws-bg/80  hover:bg-slate-200  text-ws-soft  transition-all shadow-sm"
+                      <button
+                        type="button"
+                        onClick={() => teacherFileInputRef.current?.click()}
+                        disabled={sendingImage || !selectedStudentId}
+                        title="שלח תמונה"
+                        className="hidden md:flex rounded-full w-12 h-12 p-0 items-center justify-center bg-ws-bg/80 hover:bg-slate-200 text-ws-soft transition-all shadow-sm disabled:opacity-40"
                       >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="20"
-                          height="20"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="lucide lucide-mic"
-                        >
-                          <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
-                          <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                          <line x1="12" x2="12" y1="19" y2="22" />
-                        </svg>
-                      </UdlButton>
-                      <UdlButton
-                        semanticColor="neutral"
-                        className="hidden md:flex rounded-full w-12 h-12 p-0 items-center justify-center bg-ws-bg/80  hover:bg-slate-200  text-ws-soft  transition-all shadow-sm"
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="20"
-                          height="20"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="lucide lucide-image"
-                        >
-                          <rect
-                            width="18"
-                            height="18"
-                            x="3"
-                            y="3"
-                            rx="2"
-                            ry="2"
-                          />
-                          <circle cx="9" cy="9" r="2" />
-                          <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-                        </svg>
-                      </UdlButton>
-                      <input
+                        {sendingImage ? (
+                          <span className="w-5 h-5 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+                            <circle cx="9" cy="9" r="2" />
+                            <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+                          </svg>
+                        )}
+                      </button>
+                       <input
                         type="text"
                         value={inputText}
                         onChange={(e) => setInputText(e.target.value)}
