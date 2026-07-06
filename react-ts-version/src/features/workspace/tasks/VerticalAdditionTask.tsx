@@ -84,11 +84,11 @@ export function VerticalAdditionTask({
         style={{
           gridTemplateColumns: `${CELL}px repeat(${cols}, ${CELL}px)`,
           gridTemplateRows: `${CELL}px ${CELL}px ${CELL}px ${CELL}px`,
-          backgroundColor: '#FFFFFF',
+          backgroundColor: 'var(--ws-surface)',
           backgroundImage:
             'linear-gradient(rgba(96,130,190,0.18) 1px, transparent 1px), linear-gradient(90deg, rgba(96,130,190,0.18) 1px, transparent 1px)',
           backgroundSize: `${CELL}px ${CELL}px`,
-          border: '1px solid rgba(96,130,190,0.30)',
+          border: '1px solid var(--ws-surface2)',
         }}
       >
         {/* Row 0 — Carry/Borrow inputs */}
@@ -102,7 +102,7 @@ export function VerticalAdditionTask({
                 maxLength={1}
                 value={carryDigits[place] ?? ''}
                 aria-label={`חלונית המרה ל${PLACE_LABEL_HE[place]}`}
-                className="rounded-md border-2 border-slate-200 text-center font-mono font-bold bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-ws-accent transition-shadow"
+                className="rounded-md border-2 border-ws-surface2 text-center font-mono font-bold bg-ws-surface text-ws-ink focus:outline-none focus:ring-2 focus:ring-ws-accent transition-shadow"
                 style={{ width: CELL * 0.6, height: CELL * 0.6, fontSize: CELL * 0.4 }}
                 onChange={(e) => {
                   radar.recordAction();
@@ -144,7 +144,7 @@ export function VerticalAdditionTask({
                 maxLength={1}
                 value={answerDigits[place] ?? ''}
                 aria-label={`ספרת ה${PLACE_LABEL_HE[place]} בתשובה`}
-                className="rounded-lg border-2 text-center font-mono font-black bg-white text-ws-ink focus:outline-none focus:ring-2 focus:ring-ws-accent transition-shadow"
+                className="rounded-lg border-2 text-center font-mono font-black bg-ws-surface text-ws-ink focus:outline-none focus:ring-2 focus:ring-ws-accent transition-shadow"
                 style={{ width: CELL - 12, height: CELL - 12, fontSize: CELL * 0.48, borderColor: PLACE_TINT[place] }}
                 onFocus={() => setFocusedPlace(place)}
                 onBlur={() => setFocusedPlace(null)}

@@ -23,6 +23,7 @@ interface ChatState {
 }
 
 let isSynced = false;
+let chatUnsubscribe: (() => void) | null = null;
 
 export const useChatStore = create<ChatState>()(
   (set, get) => ({
@@ -34,7 +35,10 @@ export const useChatStore = create<ChatState>()(
       if (isSynced) return;
       isSynced = true;
       const chatRef = ref(database, 'chat_messages');
-      onValue(chatRef, (snapshot) => {
+      if (chatUnsubscribe) {
+        chatUnsubscribe();
+      }
+      chatUnsubscribe = onValue(chatRef, (snapshot) => {
         if (snapshot.exists()) {
           const data = snapshot.val();
           const msgs = Object.values(data) as ChatMessage[];
@@ -105,6 +109,10 @@ useAuthStore.subscribe((authState) => {
     useChatStore.getState().initSync();
   } else {
     isSynced = false;
+    if (chatUnsubscribe) {
+      chatUnsubscribe();
+      chatUnsubscribe = null;
+    }
     useChatStore.setState({ messages: [] });
   }
 });

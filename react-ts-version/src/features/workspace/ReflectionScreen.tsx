@@ -49,22 +49,24 @@ export function ReflectionScreen() {
   const feedback = effort !== null ? EFFORT_FEEDBACK[effort] : null;
   const canComplete = effort !== null && strategy !== null;
 
-  const complete = () => {
+  const handleProceed = async () => {
     if (!canComplete || done) return;
     setDone(true);
 
-    // Silent persistence for the teacher dashboard (best-effort; vanilla completeReflection).
-    // Gated on authReady: writes fired before the sign-in completes are rejected
-    // by the locked rules — this race silently swallowed real diagnostics.
-    authReady.then((ok) => {
-    if (!ok) return;
     try {
-      push(ref(database, 'reflections'), {
+      const ok = await authReady;
+      if (!ok) {
+        navigate('/hub');
+        return;
+      }
+
+      // Silent persistence for the teacher dashboard (best-effort; vanilla completeReflection).
+      await push(ref(database, 'reflections'), {
         effort,
         strategy,
         timestamp: Date.now(),
         student: username,
-      }).catch(() => {});
+      });
 
       const r = qflow.results;
       const getTag = (taskResult: any) => {
@@ -75,17 +77,17 @@ export function ReflectionScreen() {
       };
 
       const qMatrix: any = {
-          task1_zero_placeholder: getTag(r['task1_zero_placeholder']),
-          task2_estimation_error_margin: getTag(r['task2_estimation_error_margin']),
-          task3_flexible_regrouping: getTag(r['task3_flexible_regrouping']),
-          task4_basic_addition_fluency: getTag(r['task4_basic_addition_fluency']),
-          task5_small_change: getTag(r['q5_small_change']) || getTag(r['task5_small_change']),
-          task6_subtraction_regrouping: getTag(r['task6_subtraction_regrouping']),
-          task7_missing_subtrahend: getTag(r['task7_missing_subtrahend']),
-          task8_missing_addend: getTag(r['task8_missing_addend']),
+        task1_zero_placeholder: getTag(r['task1_zero_placeholder']),
+        task2_estimation_error_margin: getTag(r['task2_estimation_error_margin']),
+        task3_flexible_regrouping: getTag(r['task3_flexible_regrouping']),
+        task4_basic_addition_fluency: getTag(r['task4_basic_addition_fluency']),
+        task5_small_change: getTag(r['q5_small_change']) || getTag(r['task5_small_change']),
+        task6_subtraction_regrouping: getTag(r['task6_subtraction_regrouping']),
+        task7_missing_subtrahend: getTag(r['task7_missing_subtrahend']),
+        task8_missing_addend: getTag(r['task8_missing_addend']),
       };
 
-      update(ref(database, `users/students/${username}`), {
+      await update(ref(database, `users/students/${username}`), {
         qMatrixResults: qMatrix,
         completedMeeting2: true,
         routeStatus: 'PENDING',
@@ -99,29 +101,28 @@ export function ReflectionScreen() {
       // Only run if the student actually completed the Q-Matrix tasks (has non-null results).
       const hasRealQMatrixData = Object.values(qMatrix).some(v => v !== null && v !== undefined);
       if (hasRealQMatrixData) {
-        import('@/infrastructure/services/SocraticEngine').then(async ({ SocraticEngine }) => {
-          let resolvedTeacherId = '039604483'; // Safe fallback — the known teacher
-          try {
-            // 1. Read the student's classId from Firebase (source of truth)
-            const studentSnap = await get(ref(database, `users/students/${username}`));
-            const classId = studentSnap.val()?.classId;
-            // 2. Read the class's teacherId from Firebase
-            if (classId) {
-              const classSnap = await get(ref(database, `classes/${classId}`));
-              const fbTeacherId = classSnap.val()?.teacherId;
-              if (fbTeacherId) resolvedTeacherId = fbTeacherId;
-            }
-          } catch {
-            // Fallback already set above — safe to continue
+        const { SocraticEngine } = await import('@/infrastructure/services/SocraticEngine');
+        let resolvedTeacherId = '039604483'; // Safe fallback — the known teacher
+        try {
+          // 1. Read the student's classId from Firebase (source of truth)
+          const studentSnap = await get(ref(database, `users/students/${username}`));
+          const classId = studentSnap.val()?.classId;
+          // 2. Read the class's teacherId from Firebase
+          if (classId) {
+            const classSnap = await get(ref(database, `classes/${classId}`));
+            const fbTeacherId = classSnap.val()?.teacherId;
+            if (fbTeacherId) resolvedTeacherId = fbTeacherId;
           }
-          SocraticEngine.generateAndQueueTasks(username, studentName, resolvedTeacherId, qMatrix);
-        });
+        } catch {
+          // Fallback already set above — safe to continue
+        }
+        await SocraticEngine.generateAndQueueTasks(username, studentName, resolvedTeacherId, qMatrix);
       }
     } catch (e) {
       console.error("Failed to save reflection:", e);
     }
-    }).catch(e => console.error("authReady error:", e));
-    window.setTimeout(() => navigate('/hub'), 900);
+    
+    navigate('/hub');
   };
 
   return (
@@ -193,7 +194,7 @@ export function ReflectionScreen() {
         </section>
 
         <button
-          onClick={complete}
+          onClick={handleProceed}
           disabled={!canComplete || done}
           className="w-full h-13 py-3.5 rounded-full font-display font-extrabold text-lg text-white bg-ws-accent shadow-md hover:brightness-105 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
         >

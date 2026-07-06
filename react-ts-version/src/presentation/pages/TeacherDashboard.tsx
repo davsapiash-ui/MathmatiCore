@@ -106,7 +106,15 @@ export function TeacherDashboard() {
     }
   }, [selectedReplayStudentId]);
   
-  const [pendingApprovals, setPendingApprovals] = useState<PendingAIApproval[]>([]);
+  const [teacherApprovals, setTeacherApprovals] = useState<PendingAIApproval[]>([]);
+  const [fallbackApprovals, setFallbackApprovals] = useState<PendingAIApproval[]>([]);
+
+  const pendingApprovals = useMemo(() => {
+    const map = new Map<string, PendingAIApproval>();
+    teacherApprovals.forEach(a => map.set(a.id, a));
+    fallbackApprovals.forEach(a => map.set(a.id, a));
+    return Array.from(map.values());
+  }, [teacherApprovals, fallbackApprovals]);
   
   // Extract dynamic teacher ID from the logged-in user (format is usually "teacher_12345" or just ID)
   const TEACHER_ID = user?.uid?.replace("teacher_", "") || "teacher-1";
@@ -194,27 +202,16 @@ export function TeacherDashboard() {
       };
 
       const unsubscribe1 = onValue(pendingRef, (snap) => {
-        setPendingApprovals(prev => {
-           const current = handleData(snap);
-           // Merge without duplicates
-           const map = new Map(prev.map(p => [p.id, p]));
-           current.forEach(c => map.set(c.id, c));
-           return Array.from(map.values());
-        });
+        setTeacherApprovals(handleData(snap));
       });
       
       const unsubscribe2 = onValue(fallbackRef, (snap) => {
-        setPendingApprovals(prev => {
-           const current = handleData(snap);
-           const map = new Map(prev.map(p => [p.id, p]));
-           current.forEach(c => map.set(c.id, c));
-           return Array.from(map.values());
-        });
+        setFallbackApprovals(handleData(snap));
       });
 
       return () => { unsubscribe1(); unsubscribe2(); };
     } catch {
-      SocraticEngine.getPendingApprovals(TEACHER_ID).then(setPendingApprovals).catch(() => {});
+      SocraticEngine.getPendingApprovals(TEACHER_ID).then(setTeacherApprovals).catch(() => {});
     }
   }, [TEACHER_ID]);
 
@@ -1311,11 +1308,13 @@ export function TeacherDashboard() {
                           variant="outline" 
                           size="sm"
                           onClick={async () => {
-                            const approval = pendingApprovals.find((a) => a.studentId === student.studentId);
+                            const allPending = [...teacherApprovals, ...fallbackApprovals];
+                            const approval = allPending.find((a) => a.studentId === student.studentId);
                             if (approval) {
                               try {
                                 await SocraticEngine.rejectTasks(TEACHER_ID, approval.id);
-                                setPendingApprovals(prev => prev.filter(a => a.id !== approval.id));
+                                setTeacherApprovals(prev => prev.filter(a => a.id !== approval.id));
+                                setFallbackApprovals(prev => prev.filter(a => a.id !== approval.id));
                               } catch {
                                 /* offline */
                               }

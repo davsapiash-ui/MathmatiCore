@@ -10,14 +10,14 @@ import { getDatabase } from 'firebase/database';
 import { getAuth, signInAnonymously, onAuthStateChanged, type Auth } from 'firebase/auth';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDupqh8inn1tZ1p-KIzV3RIMst7IdpUYPw",
-  authDomain: "mathimaticore.firebaseapp.com",
-  databaseURL: "https://mathimaticore-default-rtdb.firebaseio.com",
-  projectId: "mathimaticore",
-  storageBucket: "mathimaticore.firebasestorage.app",
-  messagingSenderId: "589828360805",
-  appId: "1:589828360805:web:b5e882cf4d3253107bd48c",
-  measurementId: "G-3GR3S7J9M1"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyDupqh8inn1tZ1p-KIzV3RIMst7IdpUYPw",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "mathimaticore.firebaseapp.com",
+  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL || "https://mathimaticore-default-rtdb.firebaseio.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "mathimaticore",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "mathimaticore.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "589828360805",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:589828360805:web:b5e882cf4d3253107bd48c",
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-3GR3S7J9M1"
 };
 
 const app = initializeApp(firebaseConfig);

@@ -7,6 +7,7 @@ import { useStore } from '@/application/useStore';
 class FirebaseSyncService {
   private static instance: FirebaseSyncService;
   private unsubscribeWorkspace: (() => void) | null = null;
+  private unsubscribeFirebase: (() => void) | null = null;
   private currentUserId: string | null = null;
   private isInitialLoad = false;
 
@@ -44,11 +45,15 @@ class FirebaseSyncService {
     this.isInitialLoad = true;
 
     // Load initial state from Firebase and keep it synced LIVE
-    onValue(studentRef, (snapshot: any) => {
+    this.unsubscribeFirebase = onValue(studentRef, (snapshot: any) => {
       if (snapshot.exists()) {
         const data = snapshot.val();
         if (data.workspaceState) {
-          useWorkspaceStore.setState(data.workspaceState);
+          if (JSON.stringify(data.workspaceState) !== JSON.stringify(this.getSyncableWorkspaceState())) {
+            this.isInitialLoad = true;
+            useWorkspaceStore.setState(data.workspaceState);
+            this.isInitialLoad = false;
+          }
         }
         // Update the top-level useStore so StudentHub knows about route approvals
         const currentStudents = useStore.getState().students;
@@ -122,6 +127,10 @@ class FirebaseSyncService {
     if (this.unsubscribeWorkspace) {
       this.unsubscribeWorkspace();
       this.unsubscribeWorkspace = null;
+    }
+    if (this.unsubscribeFirebase) {
+      this.unsubscribeFirebase();
+      this.unsubscribeFirebase = null;
     }
   }
 

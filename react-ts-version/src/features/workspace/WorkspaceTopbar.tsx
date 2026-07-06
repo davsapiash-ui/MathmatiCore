@@ -52,19 +52,19 @@ export function WorkspaceTopbar() {
       </div>
 
       {/* Actions */}
-      <div id="tour-action-buttons" className="flex items-center gap-3 shrink-0 bg-white/50 p-1.5 rounded-full border border-ws-surface2 shadow-sm">
+      <div id="tour-action-buttons" className="flex items-center gap-3 shrink-0 bg-ws-surface/50 p-1.5 rounded-full border border-ws-surface2 shadow-sm">
         <button
           onClick={() => {
             logout();
             navigate('/login');
           }}
-          className="h-10 px-4 rounded-full text-sm font-bold text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors"
+          className="h-10 px-4 rounded-full text-sm font-bold text-ws-soft hover:text-red-600 hover:bg-red-50 transition-colors"
           aria-label="התנתק"
         >
           יציאה
         </button>
 
-        <div className="w-px h-6 bg-slate-200" />
+        <div className="w-px h-6 bg-ws-surface2" />
 
         <button
           onClick={toggleBoard}
@@ -77,7 +77,7 @@ export function WorkspaceTopbar() {
         <button
           onClick={undo}
           disabled={!canUndo}
-          className="h-10 px-4 rounded-full text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-all flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+          className="h-10 px-4 rounded-full text-sm font-bold text-ws-ink bg-ws-surface2 hover:bg-ws-surface2/80 transition-all flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
           aria-label="בטל פעולה אחרונה"
         >
           <span aria-hidden="true">↩</span> בטל
@@ -85,7 +85,7 @@ export function WorkspaceTopbar() {
 
         <button
           onClick={() => document.dispatchEvent(new CustomEvent('toggle-chat'))}
-          className="h-10 px-4 rounded-full text-sm font-bold text-ws-accent bg-white border border-ws-accent/20 hover:border-ws-accent/50 hover:shadow-md transition-all flex items-center gap-1.5"
+          className="h-10 px-4 rounded-full text-sm font-bold text-ws-accent bg-ws-surface border border-ws-accent/20 hover:border-ws-accent/50 hover:shadow-md transition-all flex items-center gap-1.5"
         >
           <span aria-hidden="true">💬</span> צ'אט
         </button>
@@ -111,7 +111,7 @@ export function WorkspaceTopbar() {
         {sessionNumber === 1 && standardTaskIdx < 6 && (
           <button
             onClick={() => useWorkspaceStore.getState().skipTutorial()}
-            className="h-10 px-4 rounded-full text-sm font-bold text-slate-600 bg-slate-100 border border-slate-200 hover:bg-slate-200 hover:text-slate-800 transition-all flex items-center"
+            className="h-10 px-4 rounded-full text-sm font-bold text-ws-ink bg-ws-surface border border-ws-surface2 hover:bg-ws-surface2 hover:text-ws-ink transition-all flex items-center"
             aria-label="דלג על הדרכה"
           >
             דלג על הדרכה
