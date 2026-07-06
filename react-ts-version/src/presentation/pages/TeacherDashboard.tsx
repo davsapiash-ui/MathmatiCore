@@ -1,27 +1,21 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { UdlButton } from "@/presentation/design-system/UdlButton";
-import { AccessibleCard } from "@/presentation/design-system/AccessibleCard";
-import { DataGrid } from "@/presentation/design-system/DataGrid";
 import { useAuthStore } from "@/application/useAuthStore";
 import { useChatStore } from "@/application/useChatStore";
 import { useStore, type StudentData } from "@/application/useStore";
 import { ref, onValue, remove, set } from "firebase/database";
 import { database, authReady } from "@/infrastructure/firebase";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
-import { Send, MessageCircle, ShieldAlert } from "lucide-react";
-import { ReplayViewer } from "@/presentation/components/ReplayViewer";
 import { ClassManagement } from "./TeacherDashboard/ClassManagement";
 import { SocraticEngine, type PendingAIApproval } from "@/infrastructure/services/SocraticEngine";
 import { useTeacherTour } from "./TeacherDashboard/useTeacherTour";
+
+// Extracted Components
+import { TeacherSidebar } from "./TeacherDashboard/components/TeacherSidebar";
+import { ClusteringTab } from "./TeacherDashboard/tabs/ClusteringTab";
+import { AlertsTab } from "./TeacherDashboard/tabs/AlertsTab";
+import { DiagnosticReportsTab } from "./TeacherDashboard/tabs/DiagnosticReportsTab";
+import { ApprovalsTab } from "./TeacherDashboard/tabs/ApprovalsTab";
+import { ChatAdminTab } from "./TeacherDashboard/tabs/ChatAdminTab";
+import { ChatStudentsTab } from "./TeacherDashboard/tabs/ChatStudentsTab";
 
 export function TeacherDashboard() {
   useTeacherTour();
