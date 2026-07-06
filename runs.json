@@ -1,28 +1,28 @@
 {
-  "total_count": 283,
+  "total_count": 284,
   "workflow_runs": [
     {
-      "id": 28811433877,
+      "id": 28812052320,
       "name": "Deploy to Firebase Hosting on merge",
-      "node_id": "WFR_kwLOTJvcdM8AAAAGtUuXlQ",
+      "node_id": "WFR_kwLOTJvcdM8AAAAGtVUHYA",
       "head_branch": "main",
-      "head_sha": "1374f73eff75361700afe6ebe78a43934480b77e",
+      "head_sha": "209b8839a714b33f95698f8f918ea33d5a4ca8d4",
       "path": ".github/workflows/firebase-hosting-merge.yml",
-      "display_title": " Auto-deploy: Conditionally hide empty student clusters and add expla…",
-      "run_number": 283,
+      "display_title": " Auto-deploy: Fix unread students count to only include messages mean…",
+      "run_number": 284,
       "event": "push",
-      "status": "completed",
-      "conclusion": "success",
+      "status": "in_progress",
+      "conclusion": null,
       "workflow_id": 304845060,
-      "check_suite_id": 77874463874,
-      "check_suite_node_id": "CS_kwDOTJvcdM8AAAASIa4Egg",
-      "url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28811433877",
-      "html_url": "https://github.com/davsapiash-ui/MathmatiCore/actions/runs/28811433877",
+      "check_suite_id": 77876420885,
+      "check_suite_node_id": "CS_kwDOTJvcdM8AAAASIcvhFQ",
+      "url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28812052320",
+      "html_url": "https://github.com/davsapiash-ui/MathmatiCore/actions/runs/28812052320",
       "pull_requests": [
 
       ],
-      "created_at": "2026-07-06T17:44:13Z",
-      "updated_at": "2026-07-06T17:46:32Z",
+      "created_at": "2026-07-06T17:54:33Z",
+      "updated_at": "2026-07-06T17:54:35Z",
       "actor": {
         "login": "davsapiash-ui",
         "id": 298367239,
@@ -48,7 +48,7 @@
       "referenced_workflows": [
 
       ],
-      "run_started_at": "2026-07-06T17:44:13Z",
+      "run_started_at": "2026-07-06T17:54:33Z",
       "triggering_actor": {
         "login": "davsapiash-ui",
         "id": 298367239,
@@ -70,19 +70,19 @@
         "user_view_type": "public",
         "site_admin": false
       },
-      "jobs_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28811433877/jobs",
-      "logs_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28811433877/logs",
-      "check_suite_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/check-suites/77874463874",
-      "artifacts_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28811433877/artifacts",
-      "cancel_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28811433877/cancel",
-      "rerun_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28811433877/rerun",
+      "jobs_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28812052320/jobs",
+      "logs_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28812052320/logs",
+      "check_suite_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/check-suites/77876420885",
+      "artifacts_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28812052320/artifacts",
+      "cancel_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28812052320/cancel",
+      "rerun_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/runs/28812052320/rerun",
       "previous_attempt_url": null,
       "workflow_url": "https://api.github.com/repos/davsapiash-ui/MathmatiCore/actions/workflows/304845060",
       "head_commit": {
-        "id": "1374f73eff75361700afe6ebe78a43934480b77e",
-        "tree_id": "d788f1bf0199b9d15becbe60e8518c795f394af5",
-        "message": " Auto-deploy: Conditionally hide empty student clusters and add explainer banner to ClusteringTab",
-        "timestamp": "2026-07-06T17:44:08Z",
+        "id": "209b8839a714b33f95698f8f918ea33d5a4ca8d4",
+        "tree_id": "0df7f63f1ba020547ced2e83e52a2a17d0257135",
+        "message": " Auto-deploy: Fix unread students count to only include messages meant for the current teacher",
+        "timestamp": "2026-07-06T17:54:28Z",
         "author": {
           "name": "David",
           "email": "david@example.com"

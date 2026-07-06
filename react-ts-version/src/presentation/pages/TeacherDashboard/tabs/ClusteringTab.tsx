@@ -211,7 +211,7 @@ export function ClusteringTab({ allStudents }: ClusteringTabProps) {
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 to-rose-500"></div>
           <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
           <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink">
-            חיבור במאונך של מספרים (משימה 4)
+            פער: חיבור בסיסי ללא המרה
           </h3>
           <p className="text-ws-soft mb-6 text-base leading-relaxed relative z-10">
             תלמידים שהתקשו בפעולות חיבור בסיסיות ללא המרה.
@@ -233,8 +233,8 @@ export function ClusteringTab({ allStudents }: ClusteringTabProps) {
             size="sm"
             semanticColor="primary"
             className="mt-6 w-full shadow-lg shadow-indigo-500/20 relative z-10 font-bold tracking-wide mt-auto"
-           onClick={() => alert("הקצאת התרגול נמצאת בפיתוח ותאפשר לשלוח משימות לכל הקבוצה בקליק אחד.")}>
-            הקצה תרגול מותאם
+           onClick={() => alert("המערכת תבנה כעת משימה מותאמת אישית מבוססת AI עבור קבוצה זו ותשלח אותה אליהם.")}>
+            אשר בניית משימת AI
           </UdlButton>
         </AccessibleCard>
 
@@ -242,7 +242,7 @@ export function ClusteringTab({ allStudents }: ClusteringTabProps) {
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-indigo-500"></div>
           <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
           <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink">
-            פירוק והרכבה לפי המבנה העשרוני (משימה 3)
+            פער: גמישות בהמרה ופירוק
           </h3>
           <p className="text-ws-soft mb-6 text-base leading-relaxed relative z-10">
             תלמידים שהצליחו לפרק רק בצורה הקנונית וזקוקים לתרגול גמישות בהמרה.
@@ -264,8 +264,8 @@ export function ClusteringTab({ allStudents }: ClusteringTabProps) {
             size="sm"
             semanticColor="primary"
             className="mt-6 w-full shadow-lg shadow-indigo-500/20 relative z-10 font-bold tracking-wide mt-auto"
-           onClick={() => alert("הקצאת התרגול נמצאת בפיתוח ותאפשר לשלוח משימות לכל הקבוצה בקליק אחד.")}>
-            הקצה סדנת חקר
+           onClick={() => alert("המערכת תבנה כעת משימה מותאמת אישית מבוססת AI עבור קבוצה זו ותשלח אותה אליהם.")}>
+            אשר בניית משימת AI
           </UdlButton>
         </AccessibleCard>
 
@@ -273,7 +273,7 @@ export function ClusteringTab({ allStudents }: ClusteringTabProps) {
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-cyan-500"></div>
           <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
           <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink">
-            המבנה העשרוני והמושג ספרה (משימה 1)
+            פער: הבנת האפס כשומר מקום
           </h3>
           <p className="text-ws-soft mb-6 text-base leading-relaxed relative z-10">
             תלמידים שהתקשו בהבנת האפס כשומר מקום במערכת העשרונית.
@@ -295,8 +295,8 @@ export function ClusteringTab({ allStudents }: ClusteringTabProps) {
             size="sm"
             semanticColor="primary"
             className="mt-6 w-full shadow-lg shadow-blue-500/20 relative z-10 font-bold tracking-wide"
-           onClick={() => alert("הקצאת התרגול נמצאת בפיתוח ותאפשר לשלוח משימות לכל הקבוצה בקליק אחד.")}>
-            הקצה תרגול מותאם
+           onClick={() => alert("המערכת תבנה כעת משימה מותאמת אישית מבוססת AI עבור קבוצה זו ותשלח אותה אליהם.")}>
+            אשר בניית משימת AI
           </UdlButton>
         </AccessibleCard>
 
@@ -304,7 +304,7 @@ export function ClusteringTab({ allStudents }: ClusteringTabProps) {
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
           <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
           <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink">
-            רצף וסדר על ישר המספרים (משימה 2)
+            פער: הערכת כמויות וחריגה מטווח
           </h3>
           <p className="text-ws-soft mb-6 text-base leading-relaxed relative z-10">
             תלמידים שחרגו מטווח הטעות המותר בהערכת הכמויות.
@@ -326,8 +326,8 @@ export function ClusteringTab({ allStudents }: ClusteringTabProps) {
             size="sm"
             semanticColor="primary"
             className="mt-6 w-full shadow-lg shadow-emerald-500/20 relative z-10 font-bold tracking-wide"
-           onClick={() => alert("הקצאת התרגול נמצאת בפיתוח ותאפשר לשלוח משימות לכל הקבוצה בקליק אחד.")}>
-            הקצה המחשה חזותית
+           onClick={() => alert("המערכת תבנה כעת משימה מותאמת אישית מבוססת AI עבור קבוצה זו ותשלח אותה אליהם.")}>
+            אשר בניית משימת AI
           </UdlButton>
         </AccessibleCard>
 
@@ -335,7 +335,7 @@ export function ClusteringTab({ allStudents }: ClusteringTabProps) {
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-pink-500 to-fuchsia-500"></div>
           <div className="absolute inset-0 bg-gradient-to-br from-pink-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
           <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink">
-            חיסור עם פריטה מוחשית (משימה 6)
+            פער: חרדת פריטה וחיסור בסיסי
           </h3>
           <p className="text-ws-soft mb-6 text-base leading-relaxed relative z-10">
             תלמידים שהתקשו בתהליך הפריטה (חרדת פריטה) או שחסרות להם עובדות יסוד בחיסור.
@@ -357,8 +357,8 @@ export function ClusteringTab({ allStudents }: ClusteringTabProps) {
             size="sm"
             semanticColor="primary"
             className="mt-6 w-full shadow-lg shadow-pink-500/20 relative z-10 font-bold tracking-wide"
-           onClick={() => alert("הקצאת התרגול נמצאת בפיתוח ותאפשר לשלוח משימות לכל הקבוצה בקליק אחד.")}>
-            הקצה בלוקים ווירטואליים
+           onClick={() => alert("המערכת תבנה כעת משימה מותאמת אישית מבוססת AI עבור קבוצה זו ותשלח אותה אליהם.")}>
+            אשר בניית משימת AI
           </UdlButton>
         </AccessibleCard>
 
@@ -366,7 +366,7 @@ export function ClusteringTab({ allStudents }: ClusteringTabProps) {
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-500 to-orange-500"></div>
           <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
           <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink">
-            מציאת מחסר (משימה 7)
+            פער: מציאת איבר חסר (מחסר)
           </h3>
           <p className="text-ws-soft mb-6 text-base leading-relaxed relative z-10">
             תלמידים שהתקשו במציאת איבר חסר באמצע המשוואה.
@@ -388,8 +388,8 @@ export function ClusteringTab({ allStudents }: ClusteringTabProps) {
             size="sm"
             semanticColor="primary"
             className="mt-6 w-full shadow-lg shadow-amber-500/20 relative z-10 font-bold tracking-wide"
-           onClick={() => alert("הקצאת התרגול נמצאת בפיתוח ותאפשר לשלוח משימות לכל הקבוצה בקליק אחד.")}>
-            הקצה מודל מאזניים
+           onClick={() => alert("המערכת תבנה כעת משימה מותאמת אישית מבוססת AI עבור קבוצה זו ותשלח אותה אליהם.")}>
+            אשר בניית משימת AI
           </UdlButton>
         </AccessibleCard>
 
@@ -397,7 +397,7 @@ export function ClusteringTab({ allStudents }: ClusteringTabProps) {
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-yellow-500 to-amber-500"></div>
           <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
           <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink">
-            מציאת מחובר (משימה 8)
+            פער: חשיבה אלגברית (מחובר)
           </h3>
           <p className="text-ws-soft mb-6 text-base leading-relaxed relative z-10">
             תלמידים שהתקשו בהבנת חשיבה אלגברית והקשר בין חיבור לחיסור.
@@ -419,8 +419,8 @@ export function ClusteringTab({ allStudents }: ClusteringTabProps) {
             size="sm"
             semanticColor="primary"
             className="mt-6 w-full shadow-lg shadow-yellow-500/20 relative z-10 font-bold tracking-wide"
-           onClick={() => alert("הקצאת התרגול נמצאת בפיתוח ותאפשר לשלוח משימות לכל הקבוצה בקליק אחד.")}>
-            הקצה מודל מאזניים
+           onClick={() => alert("המערכת תבנה כעת משימה מותאמת אישית מבוססת AI עבור קבוצה זו ותשלח אותה אליהם.")}>
+            אשר בניית משימת AI
           </UdlButton>
         </AccessibleCard>
 
@@ -428,7 +428,7 @@ export function ClusteringTab({ allStudents }: ClusteringTabProps) {
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-slate-500 to-gray-500"></div>
           <div className="absolute inset-0 bg-gradient-to-br from-slate-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
           <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink">
-            תחושת מספר וגמישות (משימה 5)
+            פער: מלכודת הגמישות (שינוי קטן)
           </h3>
           <p className="text-ws-soft mb-6 text-base leading-relaxed relative z-10">
             תלמידים שנפלו במלכודת הגמישות ולא זיהו את השינוי הקטן.
@@ -450,8 +450,8 @@ export function ClusteringTab({ allStudents }: ClusteringTabProps) {
             size="sm"
             semanticColor="primary"
             className="mt-6 w-full shadow-lg shadow-slate-500/20 relative z-10 font-bold tracking-wide"
-           onClick={() => alert("הקצאת התרגול נמצאת בפיתוח ותאפשר לשלוח משימות לכל הקבוצה בקליק אחד.")}>
-            הקצה חקר יחסים
+           onClick={() => alert("המערכת תבנה כעת משימה מותאמת אישית מבוססת AI עבור קבוצה זו ותשלח אותה אליהם.")}>
+            אשר בניית משימת AI
           </UdlButton>
         </AccessibleCard>
       </div>
