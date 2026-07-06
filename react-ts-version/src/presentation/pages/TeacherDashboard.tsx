@@ -135,16 +135,36 @@ export function TeacherDashboard() {
   useEffect(() => {
     // Live subscription (a one-time get() left the badge stale until full reload).
     try {
+      // Listen to both the actual teacher ID and the fallback "teacher-1" queue 
+      // used by students who aren't explicitly linked to a teacher yet
       const pendingRef = ref(database, `ai_pending_approvals/${TEACHER_ID}`);
-      const unsubscribe = onValue(
-        pendingRef,
-        (snapshot) => {
-          const data = snapshot.val();
-          setPendingApprovals(data ? Object.keys(data).map((key) => ({ id: key, ...data[key] })) : []);
-        },
-        () => setPendingApprovals([])
-      );
-      return () => unsubscribe();
+      const fallbackRef = ref(database, `ai_pending_approvals/teacher-1`);
+
+      const handleData = (snapshot: any) => {
+        const data = snapshot.val();
+        return data ? Object.keys(data).map((key) => ({ id: key, ...data[key] })) : [];
+      };
+
+      const unsubscribe1 = onValue(pendingRef, (snap) => {
+        setPendingApprovals(prev => {
+           const current = handleData(snap);
+           // Merge without duplicates
+           const map = new Map(prev.map(p => [p.id, p]));
+           current.forEach(c => map.set(c.id, c));
+           return Array.from(map.values());
+        });
+      });
+      
+      const unsubscribe2 = onValue(fallbackRef, (snap) => {
+        setPendingApprovals(prev => {
+           const current = handleData(snap);
+           const map = new Map(prev.map(p => [p.id, p]));
+           current.forEach(c => map.set(c.id, c));
+           return Array.from(map.values());
+        });
+      });
+
+      return () => { unsubscribe1(); unsubscribe2(); };
     } catch {
       SocraticEngine.getPendingApprovals(TEACHER_ID).then(setPendingApprovals).catch(() => {});
     }
