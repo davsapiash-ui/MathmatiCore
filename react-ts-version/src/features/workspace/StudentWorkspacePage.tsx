@@ -28,7 +28,7 @@ import { FeedbackToast } from './overlays/FeedbackToast';
 import { HelpOverlays } from './overlays/HelpOverlays';
 import { ReflectionScreen } from './ReflectionScreen';
 import { useWorkspaceRadar } from './useWorkspaceRadar';
-import { useSilentRadar } from '@/application/useSilentRadar';
+
 import { StudentChatOverlay } from './overlays/StudentChatOverlay';
 import { telemetryTracker } from '@/infrastructure/TelemetryTracker';
 
@@ -171,14 +171,8 @@ export function StudentWorkspacePage() {
   const qTask = sessionNumber === 2 ? getCurrentQTask(qflow) : null;
   const hideValueDisplay = qTask?.type === 'number_line' && !isSubtaskActive(qflow);
 
-  const undoCount = useWorkspaceStore((s) => s.undoCount);
-  const { registerUndo } = useSilentRadar({ taskId: qTask?.id ?? 'workspace' });
-
-  useEffect(() => {
-    if (undoCount > 0) {
-      registerUndo();
-    }
-  }, [undoCount, registerUndo]);
+  // Redundant useSilentRadar removed here to prevent ghost alerts for non-students.
+  // useWorkspaceRadar already handles radar tracking safely and globally.
 
   const [isInitializing, setIsInitializing] = useState(meeting === 3);
   const [pendingApproval, setPendingApproval] = useState(false);

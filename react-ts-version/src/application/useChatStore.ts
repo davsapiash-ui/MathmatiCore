@@ -30,18 +30,30 @@ export const useChatStore = create<ChatState>()(
     messages: [],
     
     initSync: () => {
-      const { user } = useAuthStore.getState();
+      const { user, role } = useAuthStore.getState();
       if (!user) return; // Only sync if authenticated
       if (isSynced) return;
       isSynced = true;
-      const chatRef = ref(database, 'chat_messages');
+      const chatRef = role === 'student' 
+        ? ref(database, `chat_messages/${user.uid}`) 
+        : ref(database, 'chat_messages');
       if (chatUnsubscribe) {
         chatUnsubscribe();
       }
       chatUnsubscribe = onValue(chatRef, (snapshot) => {
         if (snapshot.exists()) {
           const data = snapshot.val();
-          const msgs = Object.values(data) as ChatMessage[];
+          let msgs: ChatMessage[] = [];
+          if (role === 'student') {
+            msgs = Object.values(data) as ChatMessage[];
+          } else {
+            // For teacher/admin, data is nested: { studentId: { msgId: message } }
+            Object.values(data).forEach((roomData: any) => {
+              if (roomData && typeof roomData === 'object') {
+                msgs.push(...(Object.values(roomData) as ChatMessage[]));
+              }
+            });
+          }
           msgs.sort((a, b) => a.timestamp - b.timestamp);
           set({ messages: msgs });
         } else {
@@ -54,7 +66,9 @@ export const useChatStore = create<ChatState>()(
     },
 
     sendMessage: (senderId, senderName, receiverId, text) => {
-      const chatRef = ref(database, 'chat_messages');
+      const { role } = useAuthStore.getState();
+      const roomId = role === 'student' ? senderId : receiverId;
+      const chatRef = ref(database, `chat_messages/${roomId}`);
       const newMsgRef = push(chatRef);
       firebaseSet(newMsgRef, {
         id: newMsgRef.key!,
@@ -75,7 +89,9 @@ export const useChatStore = create<ChatState>()(
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
-      const chatRef = ref(database, 'chat_messages');
+      const { role } = useAuthStore.getState();
+      const roomId = role === 'student' ? senderId : receiverId;
+      const chatRef = ref(database, `chat_messages/${roomId}`);
       const newMsgRef = push(chatRef);
       firebaseSet(newMsgRef, {
         id: newMsgRef.key!,
@@ -94,8 +110,10 @@ export const useChatStore = create<ChatState>()(
       const unreadMsgs = messages.filter(msg => msg.receiverId === receiverId && msg.senderId === senderId && !msg.read);
       if (unreadMsgs.length > 0) {
         const updates: Record<string, any> = {};
+        const { role } = useAuthStore.getState();
+        const roomId = role === 'student' ? receiverId : senderId;
         unreadMsgs.forEach(msg => {
-          updates[`chat_messages/${msg.id}/read`] = true;
+          updates[`chat_messages/${roomId}/${msg.id}/read`] = true;
         });
         update(ref(database), updates).catch(console.error);
       }

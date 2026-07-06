@@ -391,6 +391,40 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       }
     }
 
+    if (task.type === 'number_line') {
+      if (s.numberLineValue === null) return;
+      const target = task.numberA ?? 0;
+      const range = task.range ?? [0, 100];
+      const rangeSize = range[1] - range[0];
+      const deviation = Math.abs(s.numberLineValue - target);
+      const deviationPct = deviation / rangeSize;
+      const correct = deviationPct <= 0.07;
+      if (!correct) {
+        radar.recordTaskError(task.id, `deviation_${Math.round(deviationPct * 100)}pct`);
+        showFeedback({ correct: false, title: 'נסו שוב 🤔', sub: 'החץ רחוק מדי מהמיקום המבוקש.' }, 2500);
+        return;
+      }
+    }
+
+    if (task.type === 'small_change') {
+      if (!s.selectedChoiceId) return;
+      if (s.selectedChoiceId !== task.correctAnswer) {
+        radar.recordTaskError(task.id, 'wrong_choice');
+        showFeedback({ correct: false, title: 'נסו שוב 🤔', sub: 'התשובה שבחרתם אינה נכונה.' }, 2500);
+        return;
+      }
+    }
+
+    if (task.type === 'missing_element') {
+      const answer = s.probeAnswer ? parseInt(s.probeAnswer, 10) : null;
+      if (answer === null || Number.isNaN(answer)) return;
+      if (answer !== task.correctAnswer) {
+        radar.recordTaskError(task.id, 'wrong_answer');
+        showFeedback({ correct: false, title: 'נסו שוב 🤔', sub: 'המספר שהזנתם אינו נכון.' }, 2500);
+        return;
+      }
+    }
+
     // Scaffold fading (UDL): fade a step on success for scaffolded tasks; capped at 2 by design decision.
     if ((task.scaffoldLevel ?? 0) >= 1) {
       set({ scaffoldFadeLevel: Math.min(2, get().scaffoldFadeLevel + 1) });

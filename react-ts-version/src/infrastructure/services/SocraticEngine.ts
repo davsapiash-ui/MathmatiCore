@@ -121,10 +121,52 @@ export class SocraticEngine {
     if (isYellowPath && diagnosisParts.length > 0) {
       clinicalDiagnosisHe = "על בסיס המבדק, עולים הדפוסים הבאים: " + diagnosisParts.join(" ");
       actionPlanHe = "תוכנית פעולה מוצעת: " + actionParts.join(" | ");
-      tasks.push(
-        { id: 'gen_t1', type: 'vertical_addition', titleHe: 'תרגול תומך 1', instructionHe: 'חיבור במאונך עם עזרים.', numberA: 25, numberB: 17, correctAnswer: 42 },
-        { id: 'gen_t2', type: 'vertical_addition', titleHe: 'תרגול תומך 2', instructionHe: 'נסו לפתור במאונך.', numberA: 36, numberB: 28, correctAnswer: 64 }
-      );
+
+      if (qMatrix.task2_estimation_error_margin && qMatrix.task2_estimation_error_margin !== 'success') {
+        tasks.push({
+          id: 'gen_t_est',
+          type: 'number_line',
+          titleHe: 'תרגול תומך באומדן',
+          instructionHe: 'מקמו את המספר 50 על הישר.',
+          numberA: 50,
+          range: [0, 100],
+          correctAnswer: 50
+        });
+      }
+      if (qMatrix.task5_small_change && qMatrix.task5_small_change !== 'success') {
+        tasks.push({
+          id: 'gen_t_sc',
+          type: 'small_change',
+          titleHe: 'תרגול תומך בשינוי קטן',
+          instructionHe: 'אם 45 + 10 = 55, כמה הם 45 + 9?',
+          givenHe: '45 + 10 = 55',
+          questionHe: 'כמה הם 45 + 9?',
+          choices: [
+            { id: 'A', textHe: '54 — קטן ב-1' },
+            { id: 'B', textHe: '56 — גדול ב-1' }
+          ],
+          correctAnswer: 'A'
+        });
+      }
+      if (qMatrix.task8_missing_addend && qMatrix.task8_missing_addend !== 'success') {
+        tasks.push({
+          id: 'gen_t_ma',
+          type: 'missing_element',
+          titleHe: 'תרגול תומך במציאת נעלם',
+          instructionHe: 'השלימו את המספר החסר במשוואה: □ + 8 = 10',
+          numberA: 8,
+          correctAnswer: 2,
+          numberB: 10,
+          isSubtraction: false
+        });
+      }
+
+      if (tasks.length === 0) {
+        tasks.push(
+          { id: 'gen_t1', type: 'vertical_addition', titleHe: 'תרגול תומך 1', instructionHe: 'חיבור במאונך עם עזרים.', numberA: 25, numberB: 17, correctAnswer: 42 },
+          { id: 'gen_t2', type: 'vertical_addition', titleHe: 'תרגול תומך 2', instructionHe: 'נסו לפתור במאונך.', numberA: 36, numberB: 28, correctAnswer: 64 }
+        );
+      }
     } else {
       clinicalDiagnosisHe = "התלמיד הפגין ביצועים תקינים וללא שגיאות קריטיות לאורך משימות הליבה. לא ניכרו כשלים בולטים בעובדות יסוד או בגמישות המחשבתית.";
       actionPlanHe = "מעבר ישיר למסלול 'הירוק' - התקדמות לחקר מתקדם ולאתגרים.";

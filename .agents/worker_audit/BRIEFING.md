@@ -26,20 +26,30 @@ Implement recommended security, QA, UX/UI, and architecture fixes in the Mathmat
 - **Code layout**: c:\Users\david\Projects\MathmatiCore\react-ts-version
 
 ## Change Tracker
-- **Files modified**: None
-- **Build status**: TBD
-- **Pending issues**: TBD
+- **Files modified**:
+  - `database.rules.json` — Secured routes, replays, and chat rooms.
+  - `react-ts-version/src/data/sessionTasks.ts` — Added missing types and range tuple support.
+  - `react-ts-version/src/application/useChatStore.ts` — Transformed to a room-based schema.
+  - `react-ts-version/src/features/workspace/tasks/TaskCard.tsx` — Standard task rendering for new types.
+  - `react-ts-version/src/infrastructure/services/SocraticEngine.ts` — Dynamic, adaptive yellow path tasks.
+  - `react-ts-version/src/application/useWorkspaceStore.ts` — Added validation gates in proceedStandard.
+  - `react-ts-version/src/presentation/pages/admin/AdminChatView.tsx` — Responsive mobile layout for chat buttons.
+  - `react-ts-version/src/presentation/pages/TeacherDashboard.tsx` — Responsive mobile layout for chat buttons.
+  - `react-ts-version/tests/rbac-flow.spec.ts` — Removed unused import.
+- **Build status**: Pass
+- **Pending issues**: None
 
 ## Quality Status
-- **Build/test result**: TBD
-- **Lint status**: TBD
-- **Tests added/modified**: TBD
+- **Build/test result**: Build compiles successfully with `tsc -b && vite build`.
+- **Lint status**: 0 warnings and 0 errors from `oxlint`.
+- **Tests added/modified**: Unused import cleaned up.
 
 ## Loaded Skills
 - None
 
 ## Key Decisions Made
-- Will check existing project configuration and files first.
+- Used the student UID as the room ID for the room-based chat model under `chat_messages/$roomId`, allowing students to sync only their own room, while teachers/admins sync the whole tree or nested rooms.
+- Used tuple type `[number, number]` for task `range` to enforce strict type checking and avoid compilation errors during build.
 
 ## Artifact Index
 - c:\Users\david\Projects\MathmatiCore\.agents\worker_audit\progress.md — Heartbeat progress file

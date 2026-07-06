@@ -74,11 +74,31 @@ export function TaskCard() {
             )}
             {standardTask.type === 'number_line' && (
               <div className="flex flex-col gap-2">
+                <div className="self-center bg-ws-accentSoft rounded-2xl px-8 py-3 border border-ws-accent/30">
+                  <span className="font-display font-black text-5xl text-ws-accent tabular-nums">
+                    {standardTask.numberA ?? 50}
+                  </span>
+                </div>
                 <NumberLineTask
-                  range={[0, 100]}
+                  range={standardTask.range ?? [0, 100]}
                   showMarkerValue={false}
                 />
               </div>
+            )}
+            {standardTask.type === 'small_change' && (
+              <SmallChangeTask
+                givenHe={standardTask.givenHe ?? ''}
+                questionHe={standardTask.questionHe ?? ''}
+                choices={standardTask.choices ?? []}
+              />
+            )}
+            {standardTask.type === 'missing_element' && (
+              <MissingElementTask
+                instructionHe={standardTask.instructionHe}
+                numberA={isASD && standardTask.asdNumberA !== undefined ? standardTask.asdNumberA : standardTask.numberA!}
+                numberB={isASD && standardTask.asdNumberB !== undefined ? standardTask.asdNumberB : standardTask.numberB!}
+                isSubtraction={standardTask.isSubtraction}
+              />
             )}
           </>
         )}

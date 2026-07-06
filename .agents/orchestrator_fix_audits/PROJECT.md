@@ -10,12 +10,12 @@
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
-| 1 | Socratic Engine & Flow Controls | Complete task 2, 5, 8 logic; fix tag mapping in qmatrixFlow.ts; support missing_element in proceedQ | None | IN_PROGRESS |
-| 2 | UI/UX & Dashboard Integrations | Show clinical diagnosis in approvals tab; restore and wire useSilentRadar; audit alignments, animations, UDL RTL Hebrew requirements | M1 | PLANNED |
-| 3 | Admin Dashboard & Chat Fixes | Wire Image/Mic in admin chat; implement Audit Log table in AdminOverview.tsx | M2 | PLANNED |
-| 4 | Security & Rules Audit | Review firebase.json, database.rules.json, firebase.ts initialization; fix permissions & secure boundaries | None | PLANNED |
-| 5 | Clean Code & Quality | Delete mockRrwebEvents.ts; fix any unused imports; ensure TS strict checks & clean console.logs | M1, M2, M3 | PLANNED |
-| 6 | Build & Verification | Run npm run build, tsc --noEmit, and npm run lint with zero errors | M5 | PLANNED |
+| 1 | Socratic Engine & Flow Controls | Complete task 2, 5, 8 logic; fix tag mapping in qmatrixFlow.ts; support missing_element in proceedQ | None | DONE |
+| 2 | UI/UX & Dashboard Integrations | Show clinical diagnosis in approvals tab; restore and wire useSilentRadar; audit alignments, animations, UDL RTL Hebrew requirements | M1 | DONE |
+| 3 | Admin Dashboard & Chat Fixes | Wire Image/Mic in admin chat; implement Audit Log table in AdminOverview.tsx | M2 | DONE |
+| 4 | Security & Rules Audit | Review firebase.json, database.rules.json, firebase.ts initialization; fix permissions & secure boundaries | None | DONE |
+| 5 | Clean Code & Quality | Delete mockRrwebEvents.ts; fix any unused imports; ensure TS strict checks & clean console.logs | M1, M2, M3 | DONE |
+| 6 | Build & Verification | Run npm run build, tsc --noEmit, and npm run lint with zero errors | M5 | DONE |
 
 ## Interface Contracts
 ### SocraticEngine ↔ Firebase

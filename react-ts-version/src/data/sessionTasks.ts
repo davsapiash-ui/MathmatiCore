@@ -26,7 +26,8 @@ export type TaskType =
   | 'number_line'
   | 'flexible_decomp'
   | 'vertical_addition'
-  | 'small_change';
+  | 'small_change'
+  | 'missing_element';
 
 export interface TaskChoice {
   id: string;
@@ -56,6 +57,11 @@ export interface SessionTask {
   /* Scaffolding & hints */
   hintHe?: string;
   scaffoldLevel?: number;
+
+  /* Dynamic/adaptive tasks properties */
+  range?: [number, number];
+  givenHe?: string;
+  questionHe?: string;
 }
 
 /* ── Session 1 — app.js lines 42–107 (מפגש 1: היכרות ותפעול, חיבור ללא המרה בתחום המאה) ── */

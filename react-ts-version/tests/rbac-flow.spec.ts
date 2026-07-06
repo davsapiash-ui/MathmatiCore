@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test } from '@playwright/test';
 
 // Base URL points to the live Firebase app (or local dev server). 
 // Update this if the production URL is different.

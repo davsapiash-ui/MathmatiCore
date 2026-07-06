@@ -160,7 +160,7 @@ export function AdminChatView() {
                 <button
                   type="button"
                   onClick={() => alert("הקלטת שמע אינה זמינה כעת.")}
-                  className="hidden md:flex rounded-full w-12 h-12 p-0 items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-600 transition-all shadow-sm"
+                  className="flex rounded-full w-12 h-12 p-0 items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-600 transition-all shadow-sm"
                   title="הקלטת שמע"
                 >
                   <svg
@@ -185,7 +185,7 @@ export function AdminChatView() {
                   onClick={() => adminFileInputRef.current?.click()}
                   disabled={sendingImage || !selectedTeacherId}
                   title="שלח תמונה"
-                  className="hidden md:flex rounded-full w-12 h-12 p-0 items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-600 transition-all shadow-sm disabled:opacity-40"
+                  className="flex rounded-full w-12 h-12 p-0 items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-600 transition-all shadow-sm disabled:opacity-40"
                 >
                   {sendingImage ? (
                     <span className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />

@@ -564,9 +564,9 @@ export function TeacherDashboard() {
             className={`w-full flex justify-between items-center text-right px-4 py-3 rounded-xl transition-all ${activeTab === "approvals" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg text-ws-soft "}`}
           >
             <span>אישור משימות <span dir="ltr">AI</span></span>
-            {pendingApprovals.length > 0 && (
+            {pendingRouteStudents.length > 0 && (
               <span className="bg-ws-accent text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg">
-                {pendingApprovals.length}
+                {pendingRouteStudents.length}
               </span>
             )}
           </button>
@@ -1456,7 +1456,7 @@ export function TeacherDashboard() {
                 <button
                   type="button"
                   onClick={() => alert("הקלטת שמע אינה זמינה כעת.")}
-                  className="hidden md:flex rounded-full w-12 h-12 p-0 items-center justify-center bg-ws-bg/80 hover:bg-slate-200 text-ws-soft transition-all shadow-sm"
+                  className="flex rounded-full w-12 h-12 p-0 items-center justify-center bg-ws-bg/80 hover:bg-slate-200 text-ws-soft transition-all shadow-sm"
                   title="הקלטת שמע"
                 >
                   <svg
@@ -1480,7 +1480,7 @@ export function TeacherDashboard() {
                   type="button"
                   onClick={() => adminFileInputRef.current?.click()}
                   disabled={sendingImage}
-                  className="hidden md:flex rounded-full w-12 h-12 p-0 items-center justify-center bg-ws-bg/80 hover:bg-slate-200 text-ws-soft transition-all shadow-sm disabled:opacity-40"
+                  className="flex rounded-full w-12 h-12 p-0 items-center justify-center bg-ws-bg/80 hover:bg-slate-200 text-ws-soft transition-all shadow-sm disabled:opacity-40"
                   title="שלח תמונה"
                 >
                   {sendingImage ? (
@@ -1681,7 +1681,7 @@ export function TeacherDashboard() {
                         onClick={() => teacherFileInputRef.current?.click()}
                         disabled={sendingImage || !selectedStudentId}
                         title="שלח תמונה"
-                        className="hidden md:flex rounded-full w-12 h-12 p-0 items-center justify-center bg-ws-bg/80 hover:bg-slate-200 text-ws-soft transition-all shadow-sm disabled:opacity-40"
+                        className="flex rounded-full w-12 h-12 p-0 items-center justify-center bg-ws-bg/80 hover:bg-slate-200 text-ws-soft transition-all shadow-sm disabled:opacity-40"
                       >
                         {sendingImage ? (
                           <span className="w-5 h-5 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
