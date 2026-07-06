@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ref, push, update } from 'firebase/database';
+import { ref, push, update, get } from 'firebase/database';
 import { database, authReady } from '@/infrastructure/firebase';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
@@ -95,12 +95,24 @@ export function ReflectionScreen() {
         },
       });
 
-      // AI Generation: generate tasks 3-7 based on diagnostic and queue for teacher approval
-      import('@/infrastructure/services/SocraticEngine').then(({ SocraticEngine }) => {
-        // We pass the student's actual classId as the teacherId to route it correctly
-        const classId = user?.classId || "live";
-        const targetTeacherId = classId === "live" ? "teacher-1" : classId;
-        SocraticEngine.generateAndQueueTasks(username, studentName, targetTeacherId, qMatrix);
+      // AI Generation: generate tasks 3-7 based on diagnostic and queue for teacher approval.
+      // We look up the student's actual classId and then find the teacher via Firebase.
+      import('@/infrastructure/services/SocraticEngine').then(async ({ SocraticEngine }) => {
+        let resolvedTeacherId = '039604483'; // Safe fallback — the known teacher
+        try {
+          // 1. Read the student's classId from Firebase (source of truth)
+          const studentSnap = await get(ref(database, `users/students/${username}`));
+          const classId = studentSnap.val()?.classId;
+          // 2. Read the class's teacherId from Firebase
+          if (classId) {
+            const classSnap = await get(ref(database, `classes/${classId}`));
+            const fbTeacherId = classSnap.val()?.teacherId;
+            if (fbTeacherId) resolvedTeacherId = fbTeacherId;
+          }
+        } catch {
+          // Fallback already set above — safe to continue
+        }
+        SocraticEngine.generateAndQueueTasks(username, studentName, resolvedTeacherId, qMatrix);
       });
     } catch (e) {
       console.error("Failed to save reflection:", e);

@@ -3,7 +3,7 @@ import { ShieldCheck, Users, Search, RotateCcw } from 'lucide-react';
 import { useState } from 'react';
 import type { StudentData } from '@/application/useStore';
 import { database } from '@/infrastructure/firebase';
-import { ref, remove } from 'firebase/database';
+import { ref, set, remove, get } from 'firebase/database';
 
 export function ClassManagement({ allStudents }: { allStudents: StudentData[] }) {
   const classes = useAdminStore(s => s.classes);
@@ -18,16 +18,52 @@ export function ClassManagement({ allStudents }: { allStudents: StudentData[] })
   const filteredStudents = allStudents.filter(s => (s.name || s.studentId || '').toLowerCase().includes(search.toLowerCase()));
 
   const handleResetStudent = async (studentId: string) => {
-    if (!window.confirm(`האם אתה בטוח שברצונך לאפס את כל ההתקדמות והנתונים של תלמיד ${studentId}? לא ניתן לבטל פעולה זו.`)) return;
+    if (!window.confirm(`האם אתה בטוח שברצונך לאפס את כל ההתקדמות והנתונים של תלמיד ${studentId}?\nהפעולה תמחק: לוגים, הקלטות, אבחונים, משימות AI, ולא ניתן לבטל.`)) return;
     
     try {
-      await remove(ref(database, `users/students/${studentId}`));
-      // Remove any specific local traces or replay storage if they exist
-      await remove(ref(database, `replays/${studentId}`));
-      alert('הנתונים אופסו בהצלחה.');
-    } catch (err) {
-      console.error(err);
-      alert('שגיאה באיפוס נתונים.');
+      // 1. Fetch existing record to keep identity fields (name, classId)
+      const existingSnap = await get(ref(database, `users/students/${studentId}`));
+      const existing = existingSnap.val() || {};
+
+      // 2. Write a clean slate — preserve only identity, wipe all progress
+      await set(ref(database, `users/students/${studentId}`), {
+        studentId,
+        name: existing.name || studentId,
+        classId: existing.classId || 'class_1',
+        completedMeeting2: false,
+        routeStatus: null,
+        routeRecommendation: null,
+        qMatrixResults: null,
+        traceData: { hesitation_events: 0, undo_clicks: 0 },
+        workspaceState: {
+          sessionNumber: 1,
+          isASD: false,
+          standardTaskIdx: 0,
+          qflow: { step: 0, results: {} },
+          flowStatus: 'IDLE',
+          counts: { single: 0, ten: 0 },
+          packagedBlocks: [],
+          undoCount: 0,
+          hesitationCount: 0,
+          hasInteracted: false,
+          aiTasks: []
+        }
+      });
+
+      // 3. Clear all related Firebase paths
+      await Promise.all([
+        remove(ref(database, `students/${studentId}/telemetry_chunks`)),
+        remove(ref(database, `approved_tasks/${studentId}`)),
+        remove(ref(database, `replays/${studentId}`)),
+        // Clear AI pending approvals for all known teacher IDs
+        remove(ref(database, `ai_pending_approvals/039604483`)).catch(() => {}),
+        remove(ref(database, `ai_pending_approvals/teacher-1`)).catch(() => {}),
+      ]);
+
+      alert('✅ הנתונים אופסו בהצלחה. התלמיד מוכן להתחיל מחדש.');
+    } catch (err: any) {
+      console.error('Reset failed:', err);
+      alert(`שגיאה באיפוס נתונים: ${err?.message || err}`);
     }
   };
 

@@ -144,7 +144,7 @@ export function TeacherDashboard() {
         formattedStudents[uid] = {
           studentId: uid,
           classId: row.classId ?? 'live',
-          name: row.profile?.displayName ?? row.studentName ?? formattedStudents[uid]?.name ?? uid,
+          name: row.name ?? row.profile?.displayName ?? row.studentName ?? formattedStudents[uid]?.name ?? uid.replace('student_',''),
           qMatrixResults: {
             task1_zero_placeholder: null,
             task2_estimation_error_margin: null,
@@ -160,7 +160,7 @@ export function TeacherDashboard() {
             hesitation_events: row.traceData?.hesitation_events ?? row.workspaceState?.hesitationCount ?? 0,
             undo_clicks: row.traceData?.undo_clicks ?? row.workspaceState?.undoCount ?? 0,
           },
-          completedMeeting2: row.completedMeeting2 ?? true,
+          completedMeeting2: row.completedMeeting2 ?? false,
           routeRecommendation: row.routeRecommendation ?? null,
           routeStatus: row.routeStatus ?? null,
           // Support legacy props expected by some components

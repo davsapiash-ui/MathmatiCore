@@ -16,8 +16,9 @@ export function StudentChatOverlay() {
   
   const studentData = user?.uid ? students[user.uid] : null;
   const studentClass = classes.find(c => c.id === studentData?.classId);
-  // Default to teacher_levana if no class found (fallback)
-  const targetTeacherId = studentClass?.teacherId || 'teacher_levana';
+  // Find the teacher of the class this student belongs to.
+  // Default to '039604483' (the known teacher) if no class found.
+  const targetTeacherId = studentClass?.teacherId || '039604483';
 
   useEffect(() => {
     const handler = () => setIsOpen(open => !open);
