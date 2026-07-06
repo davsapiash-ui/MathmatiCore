@@ -70,8 +70,12 @@ export function ClassManagement({ allStudents }: { allStudents: StudentData[] })
         const alertsSnap = await get(ref(database, 'radar_alerts'));
         const alertsData = alertsSnap.val();
         if (alertsData) {
+          const rawId = studentId.replace('student_', '');
           const deletePromises = Object.keys(alertsData)
-            .filter(key => alertsData[key].student === studentId || alertsData[key].rawStudentId === studentId || alertsData[key].username === studentId)
+            .filter(key => {
+              const a = alertsData[key];
+              return a.student === studentId || a.student === rawId || a.rawStudentId === studentId || a.username === studentId || a.username === rawId;
+            })
             .map(key => remove(ref(database, `radar_alerts/${key}`)));
           await Promise.all(deletePromises);
         }
