@@ -164,8 +164,9 @@ export function TeacherDashboard() {
       Object.keys(data).forEach((uid) => {
         const row = data[uid] ?? {};
         
+        const isAdmin = user?.role === 'admin';
         // Multi-tenant filtering: Only load students belonging to this teacher (or unassigned/demo)
-        if (row.teacherId && row.teacherId !== TEACHER_ID && row.teacherId !== "teacher-1") {
+        if (!isAdmin && row.teacherId && row.teacherId !== TEACHER_ID && row.teacherId !== "teacher-1") {
           return; // Skip students from other teachers
         }
 
