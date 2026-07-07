@@ -117,10 +117,10 @@ export function ApprovalsTab({
                         { sessionNumber: 6, goals: 'מעבר לגמישות מחשבתית: פתרון משוואות עם נעלם (Addend חסר) באמצעות המחשות חלקיות.' },
                         { sessionNumber: 7, goals: 'הסרת פיגומים מוחלטת: יישום האלגוריתם הסטנדרטי עם תמיכה סוקרטית בלבד במידת הצורך.' }
                       ],
-                      tasks: [
-                        { id: 's3_y_1', title: 'חיבור דו-ספרתי', instruction: 'פתור: 27 + 15. היעזר בלוח המוחשי לבצע את ההמרה.' },
-                        { id: 's3_y_2', title: 'חיבור עשרות', instruction: 'פתור: 48 + 24. שים לב מה קורה כשיש יותר מ-10 יחידות.' },
-                        { id: 's3_y_3', title: 'אתגר חיבור', instruction: 'פתור: 36 + 25. נסה לפתור קודם בראש ואז לבדוק עם הבדידים.' }
+                      phases: [
+                        { phaseNumber: 1, title: 'הקניה מודרכת (צפייה וחקירה)', durationMinutes: 7, description: 'סרטון קצר המדגים המרה של 10 יחידות לעשרת אחת, ולאחריו חקר מונחה עם בדידים.', exercisesCount: 2 },
+                        { phaseNumber: 2, title: 'תרגול מבוסס כלי (Scaffolded Practice)', durationMinutes: 10, description: 'תרגול אינטנסיבי של חיבור עם המרה (למשל 27+15) תוך חובה להשתמש בבדידים על הלוח ללא קיצורי דרך.', exercisesCount: 5 },
+                        { phaseNumber: 3, title: 'אתגר סיכום', durationMinutes: 3, description: 'תרגיל אחד ללא בדידים לבחינת ההפנמה. במידה ויש שגיאה הלוח קופץ חזרה.', exercisesCount: 1 }
                       ]
                     } : {
                       sessions: [
@@ -130,12 +130,14 @@ export function ApprovalsTab({
                         { sessionNumber: 6, goals: 'אסטרטגיות חישוב מתקדמות: שימוש בקיזוז (Compensation) לפתרון מהיר.' },
                         { sessionNumber: 7, goals: 'העברה (Transfer): יישום אסטרטגיות אלו בסביבת בעיות שבר/עשרוני (הכנה להמשך).' }
                       ],
-                      tasks: [
-                        { id: 's3_g_1', title: 'מחובר חסר', instruction: 'השלם את המספר החסר: 34 + ___ = 61.' },
-                        { id: 's3_g_2', title: 'מחובר חסר - אתגר', instruction: 'השלם: ___ + 28 = 75.' },
-                        { id: 's3_g_3', title: 'חיסור גמיש', instruction: 'פתור 82 - 37 באמצעות חישוב בראש והסבר את דרך הפעולה.' }
+                      phases: [
+                        { phaseNumber: 1, title: 'חקר אסטרטגיות חישוב בראש', durationMinutes: 5, description: 'הצגת דרכי פעולה שונות לפתרון משוואות עם מחובר חסר, והתנסות בקריאת תרשים "שלם וחלקים".', exercisesCount: 2 },
+                        { phaseNumber: 2, title: 'תרגול עצמאי - גמישות (Independent Practice)', durationMinutes: 10, description: 'תרגול מציאת מחוברים חסרים (למשל 34 + ___ = 61) ללא עזרים דיגיטליים מעכבים, דגש על מהירות ודיוק.', exercisesCount: 8 },
+                        { phaseNumber: 3, title: 'אתגר המחשבה (Extension)', durationMinutes: 5, description: 'השלמת שרשרת חישובים שדורשת תכנון של שני צעדים קדימה.', exercisesCount: 2 }
                       ]
                     };
+
+                  const totalTime = routeMeta.phases.reduce((acc, p) => acc + p.durationMinutes, 0);
 
                   return (
                     <div className="mt-4 bg-white/80 rounded-xl p-4 border border-slate-200">
@@ -150,16 +152,26 @@ export function ApprovalsTab({
                       </ul>
 
                       <h5 className="font-bold text-slate-800 mb-3 border-b pb-2 flex justify-between items-center">
-                        <span>תוכנית עבודה מיידית (מפגש 3)</span>
-                        <UdlButton size="sm" variant="outline" className="text-xs" onClick={() => alert('ממשק עריכת תרגילים ייפתח כעת... (Mock)')}>
-                          ✏️ ערוך תרגילים
+                        <span>תוכנית עבודה מיידית (מפגש 3) - {totalTime} דקות</span>
+                        <UdlButton size="sm" variant="outline" className="text-xs" onClick={() => alert('ממשק עריכת שלבים ייפתח כעת... (Mock)')}>
+                          ✏️ ערוך שלבים
                         </UdlButton>
                       </h5>
-                      <div className="grid md:grid-cols-3 gap-3">
-                        {routeMeta.tasks.map(t => (
-                          <div key={t.id} className="bg-slate-50 border border-slate-100 p-3 rounded-lg">
-                            <strong className="block text-xs text-slate-800 mb-1">{t.title}</strong>
-                            <p className="text-xs text-slate-600">{t.instruction}</p>
+                      <div className="flex flex-col gap-3">
+                        {routeMeta.phases.map(p => (
+                          <div key={p.phaseNumber} className="bg-slate-50 border border-slate-100 p-3 rounded-lg flex flex-col md:flex-row gap-4 items-start md:items-center">
+                            <div className="w-16 h-16 shrink-0 bg-indigo-100 text-indigo-700 rounded-full flex flex-col items-center justify-center border-2 border-indigo-200">
+                              <span className="text-xs font-bold uppercase tracking-wider">שלב {p.phaseNumber}</span>
+                              <span className="text-lg font-black">{p.durationMinutes}</span>
+                              <span className="text-[10px] font-bold">דק'</span>
+                            </div>
+                            <div className="flex-1">
+                              <strong className="block text-sm text-slate-800 mb-1">{p.title}</strong>
+                              <p className="text-xs text-slate-600 leading-relaxed mb-1">{p.description}</p>
+                              <span className="inline-block px-2 py-0.5 bg-slate-200 text-slate-700 text-[10px] rounded-md font-medium">
+                                סך תרגילים/פעילויות: {p.exercisesCount}
+                              </span>
+                            </div>
                           </div>
                         ))}
                       </div>

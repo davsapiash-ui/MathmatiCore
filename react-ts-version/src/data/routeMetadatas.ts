@@ -1,3 +1,11 @@
+export interface RoutePhasePreview {
+  phaseNumber: number;
+  title: string;
+  durationMinutes: number;
+  description: string;
+  exercisesCount?: number;
+}
+
 export interface RouteSessionMetadata {
   sessionNumber: number;
   goals: string;
@@ -8,7 +16,7 @@ export interface RouteMetadata {
   name: string;
   description: string;
   sessions: RouteSessionMetadata[];
-  session3TasksPreview: { id: string, title: string, instruction: string }[];
+  session3PhasesPreview: RoutePhasePreview[];
 }
 
 export const ROUTE_METADATA: Record<string, RouteMetadata> = {
@@ -23,10 +31,10 @@ export const ROUTE_METADATA: Record<string, RouteMetadata> = {
       { sessionNumber: 6, goals: 'מעבר לגמישות מחשבתית: פתרון משוואות עם נעלם (Addend חסר) באמצעות המחשות חלקיות.' },
       { sessionNumber: 7, goals: 'הסרת פיגומים מוחלטת: יישום האלגוריתם הסטנדרטי עם תמיכה סוקרטית בלבד במידת הצורך.' }
     ],
-    session3TasksPreview: [
-      { id: 's3_y_1', title: 'חיבור דו-ספרתי', instruction: 'פתור: 27 + 15. היעזר בלוח המוחשי לבצע את ההמרה.' },
-      { id: 's3_y_2', title: 'חיבור עשרות', instruction: 'פתור: 48 + 24. שים לב מה קורה כשיש יותר מ-10 יחידות.' },
-      { id: 's3_y_3', title: 'אתגר חיבור', instruction: 'פתור: 36 + 25. נסה לפתור קודם בראש ואז לבדוק עם הבדידים.' }
+    session3PhasesPreview: [
+      { phaseNumber: 1, title: 'הקניה מודרכת (צפייה וחקירה)', durationMinutes: 7, description: 'סרטון קצר המדגים המרה של 10 יחידות לעשרת אחת, ולאחריו חקר מונחה עם בדידים.', exercisesCount: 2 },
+      { phaseNumber: 2, title: 'תרגול מבוסס כלי (Scaffolded Practice)', durationMinutes: 10, description: 'תרגול אינטנסיבי של חיבור עם המרה (למשל 27+15) תוך חובה להשתמש בבדידים על הלוח ללא קיצורי דרך.', exercisesCount: 5 },
+      { phaseNumber: 3, title: 'אתגר סיכום', durationMinutes: 3, description: 'תרגיל אחד ללא בדידים לבחינת ההפנמה. במידה ויש שגיאה הלוח קופץ חזרה.', exercisesCount: 1 }
     ]
   },
   'GREEN': {
@@ -40,10 +48,10 @@ export const ROUTE_METADATA: Record<string, RouteMetadata> = {
       { sessionNumber: 6, goals: 'אסטרטגיות חישוב מתקדמות: שימוש בקיזוז (Compensation) לפתרון מהיר.' },
       { sessionNumber: 7, goals: 'העברה (Transfer): יישום אסטרטגיות אלו בסביבת בעיות שבר/עשרוני (הכנה להמשך).' }
     ],
-    session3TasksPreview: [
-      { id: 's3_g_1', title: 'מחובר חסר', instruction: 'השלם את המספר החסר: 34 + ___ = 61.' },
-      { id: 's3_g_2', title: 'מחובר חסר - אתגר', instruction: 'השלם: ___ + 28 = 75.' },
-      { id: 's3_g_3', title: 'חיסור גמיש', instruction: 'פתור 82 - 37 באמצעות חישוב בראש והסבר את דרך הפעולה.' }
+    session3PhasesPreview: [
+      { phaseNumber: 1, title: 'חקר אסטרטגיות חישוב בראש', durationMinutes: 5, description: 'הצגת דרכי פעולה שונות לפתרון משוואות עם מחובר חסר, והתנסות בקריאת תרשים "שלם וחלקים".', exercisesCount: 2 },
+      { phaseNumber: 2, title: 'תרגול עצמאי - גמישות (Independent Practice)', durationMinutes: 10, description: 'תרגול מציאת מחוברים חסרים (למשל 34 + ___ = 61) ללא עזרים דיגיטליים מעכבים, דגש על מהירות ודיוק.', exercisesCount: 8 },
+      { phaseNumber: 3, title: 'אתגר המחשבה (Extension)', durationMinutes: 5, description: 'השלמת שרשרת חישובים שדורשת תכנון של שני צעדים קדימה.', exercisesCount: 2 }
     ]
   }
 };
