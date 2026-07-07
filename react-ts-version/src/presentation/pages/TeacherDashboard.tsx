@@ -402,8 +402,15 @@ export function TeacherDashboard() {
     const twelveHoursAgo = Date.now() - 12 * 60 * 60 * 1000;
     return firebaseAlerts
       .filter(a => a.timestamp > twelveHoursAgo)
+      .map(a => {
+        const actualStudent = students[a.rawStudentId] || Object.values(students).find((s: any) => s.studentId === a.rawStudentId || s.name === a.rawStudentId);
+        return {
+          ...a,
+          studentId: actualStudent?.name ?? a.studentId,
+        };
+      })
       .sort((a, b) => b.timestamp - a.timestamp);
-  }, [firebaseAlerts]);
+  }, [firebaseAlerts, students]);
 
   const handleAlertResponse = (alert: any, responseType: string, responseText: string) => {
     // 1. Record the intervention in the student's trace data
