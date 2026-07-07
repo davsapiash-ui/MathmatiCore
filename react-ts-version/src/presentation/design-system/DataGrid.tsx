@@ -25,7 +25,7 @@ export interface DataGridProps<T> {
 export function DataGrid<T extends { id?: string | number }>({ 
   data, 
   columns, 
-  emptyMessage = "No data available.",
+  emptyMessage = "אין נתונים להצגה",
   onRowClick
 }: DataGridProps<T>) {
   return (

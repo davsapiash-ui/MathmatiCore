@@ -46,38 +46,44 @@ class FirebaseSyncService {
 
     // Load initial state from Firebase and keep it synced LIVE
     this.unsubscribeFirebase = onValue(studentRef, (snapshot: any) => {
-      if (snapshot.exists()) {
-        const data = snapshot.val();
-        if (data.workspaceState) {
-          if (JSON.stringify(data.workspaceState) !== JSON.stringify(this.getSyncableWorkspaceState())) {
-            this.isInitialLoad = true;
-            useWorkspaceStore.setState(data.workspaceState);
-            this.isInitialLoad = false;
-          }
-        }
-        // Update the top-level useStore so StudentHub knows about route approvals
-        const currentStudents = useStore.getState().students;
-        useStore.setState({
-          students: {
-            ...currentStudents,
-            [studentId]: {
-              ...(currentStudents[studentId] || {}),
-              ...data,
-              // Merge Firebase data overriding local mock data
+      try {
+        if (snapshot.exists()) {
+          const rawData = snapshot.val();
+          const data = (rawData && typeof rawData === 'object') ? rawData : {};
+          if (data.workspaceState) {
+            if (JSON.stringify(data.workspaceState) !== JSON.stringify(this.getSyncableWorkspaceState())) {
+              this.isInitialLoad = true;
+              useWorkspaceStore.setState(data.workspaceState);
+              this.isInitialLoad = false;
             }
           }
-        });
-      } else {
-        // Initialize user in Firebase
-        set(studentRef, {
-          profile: userData,
-          workspaceState: this.getSyncableWorkspaceState(),
-          lastActive: serverTimestamp(),
-          completedMeeting2: false,
-          routeStatus: null
-        });
+          // Update the top-level useStore so StudentHub knows about route approvals
+          const currentStudents = useStore.getState().students;
+          useStore.setState({
+            students: {
+              ...currentStudents,
+              [studentId]: {
+                ...(currentStudents[studentId] || {}),
+                ...data,
+                // Merge Firebase data overriding local mock data
+              }
+            }
+          });
+        } else {
+          // Initialize user in Firebase
+          set(studentRef, {
+            profile: userData,
+            workspaceState: this.getSyncableWorkspaceState(),
+            lastActive: serverTimestamp(),
+            completedMeeting2: false,
+            routeStatus: null
+          });
+        }
+      } catch (e) {
+        console.error("Firebase sync error:", e);
+      } finally {
+        this.isInitialLoad = false;
       }
-      this.isInitialLoad = false;
     });
 
     // Subscribe to local Workspace changes and push to Firebase

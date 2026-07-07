@@ -24,22 +24,54 @@ export function AdminOverview() {
   useEffect(() => {
     const logsRef = query(ref(database, 'audit_logs'), orderByChild('timestamp'), limitToLast(20));
     const unsubscribe = onValue(logsRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.val();
-        const logsArray: AuditLogEvent[] = Object.keys(data).map(key => ({
-          id: key,
-          ...data[key]
-        }));
-        // Reverse to show newest first
-        setAuditLogs(logsArray.reverse());
-      } else {
+      try {
+        if (snapshot.exists()) {
+          const rawData = snapshot.val();
+          const data = (rawData && typeof rawData === 'object') ? rawData : {};
+          const logsArray: AuditLogEvent[] = Object.keys(data).map(key => ({
+            id: key,
+            ...data[key]
+          }));
+          // Reverse to show newest first
+          setAuditLogs(logsArray.reverse());
+        } else {
+          setAuditLogs([]);
+        }
+      } catch (e) {
+        console.error("Error processing audit logs:", e);
         setAuditLogs([]);
       }
     });
     return () => unsubscribe();
   }, []);
 
-  const totalStudents = classes.length * 30; // Mock calculation based on classes
+  const [totalStudents, setTotalStudents] = useState<number>(0);
+  const [alertsCount, setAlertsCount] = useState<number>(0);
+
+  useEffect(() => {
+    const studentsRef = ref(database, 'users/students');
+    const unsubStudents = onValue(studentsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setTotalStudents(Object.keys(snapshot.val()).length);
+      } else {
+        setTotalStudents(0);
+      }
+    });
+
+    const alertsRef = ref(database, 'radar_alerts');
+    const unsubAlerts = onValue(alertsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setAlertsCount(Object.keys(snapshot.val()).length);
+      } else {
+        setAlertsCount(0);
+      }
+    });
+
+    return () => {
+      unsubStudents();
+      unsubAlerts();
+    };
+  }, []);
 
   const [isCleaning, setIsCleaning] = useState(false);
 
@@ -127,7 +159,7 @@ export function AdminOverview() {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-sm text-slate-500 font-medium">התראות מערכת</p>
-              <h3 className="text-3xl font-black mt-1">0</h3>
+              <h3 className="text-3xl font-black mt-1">{alertsCount}</h3>
             </div>
             <ShieldAlert className="w-8 h-8 text-amber-500 opacity-80" />
           </div>

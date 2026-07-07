@@ -70,30 +70,36 @@ export function TeacherDashboard() {
       if (cancelled) return;
       const replayRef = ref(database, `students/${selectedReplayStudentId}/telemetry_chunks`);
       unsubscribe = onValue(replayRef, (snapshot) => {
-         if (snapshot.exists()) {
-            const data = snapshot.val();
-            const keys = Object.keys(data).sort(); // Push IDs sort chronologically
-            let allEvents: any[] = [];
-            
-            for (const key of keys) {
-              const chunk = data[key];
-              if (Array.isArray(chunk)) {
-                allEvents = allEvents.concat(chunk);
-              } else if (chunk && typeof chunk === 'object') {
-                allEvents = allEvents.concat(Object.values(chunk));
+         try {
+           if (snapshot.exists()) {
+              const rawData = snapshot.val();
+              const data = (rawData && typeof rawData === 'object') ? rawData : {};
+              const keys = Object.keys(data).sort(); // Push IDs sort chronologically
+              let allEvents: any[] = [];
+              
+              for (const key of keys) {
+                const chunk = data[key as keyof typeof data];
+                if (Array.isArray(chunk)) {
+                  allEvents = allEvents.concat(chunk);
+                } else if (chunk && typeof chunk === 'object') {
+                  allEvents = allEvents.concat(Object.values(chunk));
+                }
               }
-            }
-            
-            const validEvents = allEvents.map((e) => {
-              if (typeof e === 'string') {
-                try { return JSON.parse(e); } catch { return null; }
-              }
-              return e;
-            }).filter((e) => e && typeof e === 'object' && 'type' in e);
-            
-            setLiveReplayEvents(validEvents);
-         } else {
-            setLiveReplayEvents([]);
+              
+              const validEvents = allEvents.map((e) => {
+                if (typeof e === 'string') {
+                  try { return JSON.parse(e); } catch { return null; }
+                }
+                return e;
+              }).filter((e) => e && typeof e === 'object' && 'type' in e);
+              
+              setLiveReplayEvents(validEvents);
+           } else {
+              setLiveReplayEvents([]);
+           }
+         } catch (e) {
+           console.error("Error processing replay events:", e);
+           setLiveReplayEvents([]);
          }
       });
       });
@@ -123,7 +129,8 @@ export function TeacherDashboard() {
   useEffect(() => {
     const studentsRef = ref(database, 'users/students');
     const unsubscribe = onValue(studentsRef, (snapshot) => {
-      const data = snapshot.val() ?? {};
+      const rawData = snapshot.val();
+      const data = (rawData && typeof rawData === 'object') ? rawData : {};
       const allStudents = useStore.getState().students;
       const formattedStudents: Record<string, StudentData> = {};
 
@@ -204,8 +211,9 @@ export function TeacherDashboard() {
       const fallbackRef = ref(database, `ai_pending_approvals/teacher-1`);
 
       const handleData = (snapshot: any) => {
-        const data = snapshot.val();
-        return data ? Object.keys(data).map((key) => ({ id: key, ...data[key] })) : [];
+        const rawData = snapshot.val();
+        const data = (rawData && typeof rawData === 'object') ? rawData : {};
+        return Object.keys(data).map((key) => ({ id: key, ...data[key as keyof typeof data] }));
       };
 
       const unsubscribe1 = onValue(pendingRef, (snap) => {
@@ -359,23 +367,30 @@ export function TeacherDashboard() {
   useEffect(() => {
     const alertsRef = ref(database, 'radar_alerts');
     const unsub = onValue(alertsRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        const parsed = Object.keys(data).map(key => {
-          const rawId = data[key].rawStudentId ?? data[key].student ?? data[key].username;
-          // Look up the actual name from the formatted students list (handles 'user1', 'user2' etc)
-          const actualStudent = useStore.getState().students[rawId] || Object.values(useStore.getState().students).find((s: any) => s.studentId === rawId || s.name === rawId);
-          
-          return {
-            ...data[key],
-            firebaseKey: key,
-            // Prioritize the actual known name from the store, fallback to whatever was saved, then rawId
-            studentId: actualStudent?.name ?? data[key].studentId ?? data[key].studentName ?? rawId ?? 'תלמיד',
-            rawStudentId: rawId,
-          };
-        }).reverse();
-        setFirebaseAlerts(parsed);
-      } else {
+      try {
+        const rawData = snapshot.val();
+        const data = (rawData && typeof rawData === 'object') ? rawData : null;
+        if (data) {
+          const parsed = Object.keys(data).map(key => {
+            const row = data[key as keyof typeof data];
+            const rawId = row.rawStudentId ?? row.student ?? row.username;
+            // Look up the actual name from the formatted students list (handles 'user1', 'user2' etc)
+            const actualStudent = useStore.getState().students[rawId] || Object.values(useStore.getState().students).find((s: any) => s.studentId === rawId || s.name === rawId);
+            
+            return {
+              ...row,
+              firebaseKey: key,
+              // Prioritize the actual known name from the store, fallback to whatever was saved, then rawId
+              studentId: actualStudent?.name ?? row.studentId ?? row.studentName ?? rawId ?? 'תלמיד',
+              rawStudentId: rawId,
+            };
+          }).reverse();
+          setFirebaseAlerts(parsed);
+        } else {
+          setFirebaseAlerts([]);
+        }
+      } catch (e) {
+        console.error("Error parsing radar alerts:", e);
         setFirebaseAlerts([]);
       }
     });
@@ -577,6 +592,17 @@ export function TeacherDashboard() {
             דו"חות אבחון אישיים
           </button>
           <button
+            onClick={() => handleTabChange("alerts")}
+            className={`w-full flex justify-between items-center text-right px-4 py-3 rounded-xl transition-all ${activeTab === "alerts" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg text-ws-soft "}`}
+          >
+            <span>התראות זמן אמת (רדאר)</span>
+            {allAlerts.length > 0 && (
+              <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg shadow-red-500/30 animate-pulse">
+                {allAlerts.length}
+              </span>
+            )}
+          </button>
+          <button
             onClick={() => handleTabChange("approvals")}
             className={`w-full flex justify-between items-center text-right px-4 py-3 rounded-xl transition-all ${activeTab === "approvals" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg text-ws-soft "}`}
           >
@@ -651,67 +677,75 @@ export function TeacherDashboard() {
                 התפלגות שליטה במיומנויות (כיתה שלמה)
               </h2>
               <div className="h-[350px] w-full relative z-10" dir="ltr">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={qMatrixData}
-                    margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
-                  >
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      vertical={false}
-                      stroke="currentColor"
-                      className="text-slate-200  opacity-50"
-                    />
-                    <XAxis
-                      dataKey="name"
-                      fontSize={13}
-                      tickLine={false}
-                      axisLine={false}
-                      tick={{
-                        fill: "currentColor",
-                        className: "text-ws-soft ",
-                      }}
-                      dy={10}
-                    />
-                    <YAxis
-                      orientation="right"
-                      fontSize={13}
-                      tickLine={false}
-                      axisLine={false}
-                      tick={{
-                        fill: "currentColor",
-                        className: "text-ws-soft ",
-                      }}
-                      dx={-10}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        borderRadius: "12px",
-                        border: "1px solid rgba(255,255,255,0.1)",
-                        background: "rgba(15, 23, 42, 0.9)",
-                        color: "white",
-                        backdropFilter: "blur(12px)",
-                        boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.2)",
-                      }}
-                      cursor={{ fill: "rgba(99, 102, 241, 0.05)" }}
-                    />
-                    <Legend wrapperStyle={{ paddingTop: "20px" }} />
-                    <Bar
-                      dataKey="success"
-                      name="שליטה במיומנות (%)"
-                      stackId="a"
-                      fill="#3b82f6"
-                      radius={[0, 0, 6, 6]}
-                    />
-                    <Bar
-                      dataKey="struggle"
-                      name="מאבק / פער (%)"
-                      stackId="a"
-                      fill="#f43f5e"
-                      radius={[6, 6, 0, 0]}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
+                {qMatrixData.every(d => d.success === 0 && d.struggle === 0) ? (
+                  <div className="h-full flex flex-col items-center justify-center text-slate-500 bg-slate-50/50 dark:bg-slate-800/20 rounded-xl border border-slate-100 dark:border-slate-800">
+                    <span className="text-5xl mb-4 opacity-40">📊</span>
+                    <p className="font-bold text-lg text-slate-600 dark:text-slate-300">אין עדיין נתונים מהתלמידים</p>
+                    <p className="text-sm opacity-80 mt-1">התפלגות השליטה תוצג כאן לאחר סיום שלב האבחון</p>
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={qMatrixData}
+                      margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+                    >
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        vertical={false}
+                        stroke="currentColor"
+                        className="text-slate-200  opacity-50"
+                      />
+                      <XAxis
+                        dataKey="name"
+                        fontSize={13}
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{
+                          fill: "currentColor",
+                          className: "text-ws-soft ",
+                        }}
+                        dy={10}
+                      />
+                      <YAxis
+                        orientation="right"
+                        fontSize={13}
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{
+                          fill: "currentColor",
+                          className: "text-ws-soft ",
+                        }}
+                        dx={-10}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          borderRadius: "12px",
+                          border: "1px solid rgba(255,255,255,0.1)",
+                          background: "rgba(15, 23, 42, 0.9)",
+                          color: "white",
+                          backdropFilter: "blur(12px)",
+                          boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.2)",
+                        }}
+                        cursor={{ fill: "rgba(99, 102, 241, 0.05)" }}
+                      />
+                      <Legend wrapperStyle={{ paddingTop: "20px" }} />
+                      <Bar
+                        dataKey="success"
+                        name="שליטה במיומנות (%)"
+                        stackId="a"
+                        fill="#3b82f6"
+                        radius={[0, 0, 6, 6]}
+                      />
+                      <Bar
+                        dataKey="struggle"
+                        name="מאבק / פער (%)"
+                        stackId="a"
+                        fill="#f43f5e"
+                        radius={[6, 6, 0, 0]}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
               </div>
             </AccessibleCard>
 

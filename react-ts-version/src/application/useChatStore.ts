@@ -42,28 +42,34 @@ export const useChatStore = create<ChatState>()(
         chatUnsubscribe();
       }
       chatUnsubscribe = onValue(chatRef, (snapshot) => {
-        if (snapshot.exists()) {
-          const data = snapshot.val();
-          let msgs: ChatMessage[] = [];
-          if (role === 'student') {
-            msgs = Object.values(data) as ChatMessage[];
-          } else {
-            // For teacher/admin, data is nested: { studentId: { msgId: message } }
-            const { students } = useStore.getState();
-            Object.keys(data).forEach((roomId: string) => {
-              // Filter out phantom messages, but allow rooms belonging to actual students, 
-              // the teacher's own room (for admin messages), or the admin room.
-              if (students[roomId] || roomId === user.uid || roomId === 'admin') { 
-                const roomData = data[roomId];
-                if (roomData && typeof roomData === 'object') {
-                  msgs.push(...(Object.values(roomData) as ChatMessage[]));
+        try {
+          if (snapshot.exists()) {
+            const rawData = snapshot.val();
+            const data = (rawData && typeof rawData === 'object') ? rawData : {};
+            let msgs: ChatMessage[] = [];
+            if (role === 'student') {
+              msgs = Object.values(data) as ChatMessage[];
+            } else {
+              // For teacher/admin, data is nested: { studentId: { msgId: message } }
+              const { students } = useStore.getState();
+              Object.keys(data).forEach((roomId: string) => {
+                // Filter out phantom messages, but allow rooms belonging to actual students, 
+                // the teacher's own room (for admin messages), or the admin room.
+                if (students[roomId] || roomId === user.uid || roomId === 'admin') { 
+                  const roomData = data[roomId as keyof typeof data];
+                  if (roomData && typeof roomData === 'object') {
+                    msgs.push(...(Object.values(roomData) as ChatMessage[]));
+                  }
                 }
-              }
-            });
+              });
+            }
+            msgs.sort((a, b) => a.timestamp - b.timestamp);
+            set({ messages: msgs });
+          } else {
+            set({ messages: [] });
           }
-          msgs.sort((a, b) => a.timestamp - b.timestamp);
-          set({ messages: msgs });
-        } else {
+        } catch (e) {
+          console.error("Error parsing chat messages:", e);
           set({ messages: [] });
         }
       }, (error) => {
