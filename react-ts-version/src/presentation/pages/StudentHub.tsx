@@ -38,21 +38,21 @@ export function StudentHub() {
   const isApproved = currentStudent?.routeStatus === 'APPROVED';
 
   const meetings: Meeting[] = [
-    { id: 1, title: 'מפגש 1: היכרות ותפעול', desc: 'התנסות חופשית במרחב העבודה הווירטואלי.', icon: '👋', isLocked: false },
-    { id: 2, title: 'מפגש 2: אבחון אישי', desc: 'משימות קצרות כדי להכיר איך אתם חושבים במתמטיקה.', icon: '🎯', isLocked: false },
+    { id: 1, title: 'שיעור 1: הכשרת חוקרים', desc: 'היכרות עם כלי המעבדה השונים במרחב החקר הווירטואלי.', icon: '🧪', isLocked: false },
+    { id: 2, title: 'שיעור 2: סריקת רדאר', desc: 'משימות חקר קצרות כדי שהמערכת תלמד את סגנון החשיבה הייחודי שלכם.', icon: '📡', isLocked: false },
     { 
       id: 3, 
-      title: 'מפגש 3: מסלול מותאם', 
-      desc: isPending ? 'הנתונים נבדקים, ממתין לאישור המורה...' : 'מתחילים לפתור תרגילים מיוחדים שמותאמים בדיוק לכם!', 
-      icon: '🧭', 
+      title: 'שיעור 3: מחקר אישי', 
+      desc: isPending ? 'הנתונים נסרקים במערכת, ממתין לאישור מנהל מעבדה...' : 'מתחילים במשימות מחקר שמותאמות בדיוק עבורכם!', 
+      icon: '🔬', 
       isLocked: !isApproved,
       pendingApproval: isPending
     },
-    { id: 4, title: 'מפגש 4: חוקרים ומגלים', desc: 'תרגולי פריטה וקיבוץ — מתרגלים יחד ומצליחים.', icon: '🔍', isLocked: true },
-    { id: 5, title: 'מפגש 5: חוקרים ומגלים', desc: 'ממשיכים לתרגל ולגלות שיטות חדשות לפתרון.', icon: '💡', isLocked: true },
-    { id: 6, title: 'מפגש 6: אלופי החשבון', desc: 'תרגילים מתקדמים שמותאמים לקצב שלכם.', icon: '🏗️', isLocked: true },
-    { id: 7, title: 'מפגש 7: אלופי החשבון', desc: 'לקראת סיום — תרגולים מאתגרים לחיזוק הלמידה.', icon: '⛰️', isLocked: true },
-    { id: 8, title: 'מפגש 8: סיכום ורפלקציה', desc: 'מסכמים את התהליך ורואים כמה התקדמנו!', icon: '🌱', isLocked: true },
+    { id: 4, title: 'שיעור 4: חוקרים ומגלים', desc: 'ניסויי פריטה וקיבוץ — חוקרים יחד ומצליחים.', icon: '🔍', isLocked: true },
+    { id: 5, title: 'שיעור 5: חוקרים ומגלים', desc: 'ממשיכים לתכנן ניסויים ולגלות שיטות חשיבה חדשות.', icon: '💡', isLocked: true },
+    { id: 6, title: 'שיעור 6: מחקר מתקדם', desc: 'אתגרים מחשבתיים שמותאמים לקצב הגילוי שלכם.', icon: '🧬', isLocked: true },
+    { id: 7, title: 'שיעור 7: מחקר מתקדם', desc: 'לקראת סיום — ניסויים מאתגרים לחיזוק הלמידה.', icon: '🚀', isLocked: true },
+    { id: 8, title: 'שיעור 8: סיכום ותגליות', desc: 'מסכמים את המחקר ורואים אילו תגליות גילינו!', icon: '🏆', isLocked: true },
   ];
 
   return (
@@ -79,10 +79,10 @@ export function StudentHub() {
               סביבת הלמידה האישית שלך
             </div>
             <h1 className="font-display font-black text-4xl md:text-5xl tracking-tight leading-tight text-ws-ink">
-              ברוכים השבים!
+              ברוכים הבאים למעבדת החשיבה 🔬
             </h1>
             <p className="text-lg md:text-xl leading-relaxed font-medium text-ws-soft">
-              כל מפגש הוא הזדמנות לחשוב, לנסות ולגלות. קחו את הזמן שלכם — הדרך חשובה יותר מהמהירות.
+              כאן אנחנו לא רק פותרים תרגילים, אלא חוקרים איך מספרים עובדים. הכלים במעבדה יעזרו לכם לגלות שיטות חשיבה חדשות.
             </p>
 
             {isPending ? (

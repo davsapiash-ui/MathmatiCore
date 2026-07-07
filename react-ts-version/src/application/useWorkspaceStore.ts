@@ -421,7 +421,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       if (selectBoardValue(s) !== target) {
         radar.recordTaskError(task.id, 'wrong_blocks');
         showFeedback(
-          { correct: false, title: 'חונך סוקרטי 🤔', sub: 'בואו נבדוק שוב את הלוח. האם הכמות של הקוביות שהנחתם תואמת בדיוק למה שמופיע בתרגיל?' },
+          { correct: false, title: 'מערכת המעבדה 🤔', sub: 'בואו נבדוק שוב את הלוח. האם הכמות של הקוביות שהנחתם תואמת בדיוק למה שמופיע בניסוי?' },
           3500
         );
         return;
@@ -436,12 +436,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // Gate 3: pedagogical progression compliance (grouping/ungrouping actions)
       if (task.requiresGrouping && !s.hasGrouped) {
         radar.recordTaskError(task.id, 'missed_grouping');
-        showFeedback({ correct: false, title: 'חונך סוקרטי 🤔', sub: 'יש לנו כאן יותר מ-10 יחידות. איך נוכל לארגן אותן בלוח בצורה מסודרת יותר מבלי לשנות את הכמות הכוללת? המשימה דורשת קיבוץ.' }, 4500);
+        showFeedback({ correct: false, title: 'מערכת המעבדה 🤔', sub: 'יש לנו כאן יותר מ-10 יחידות. איך נוכל לארגן אותן בלוח בצורה יעילה יותר מבלי לשנות את הכמות הכוללת? הניסוי דורש קיבוץ.' }, 4500);
         return;
       }
       if (task.requiresUngrouping && !s.hasUngrouped) {
         radar.recordTaskError(task.id, 'missed_ungrouping');
-        showFeedback({ correct: false, title: 'חונך סוקרטי 🤔', sub: 'אין מספיק יחידות כדי לחסר. מאיפה נוכל לארגן עוד יחידות בלוח מבלי לשנות את הכמות הכוללת? נסו לפרוט.' }, 4500);
+        showFeedback({ correct: false, title: 'מערכת המעבדה 🤔', sub: 'אין מספיק יחידות כדי לחסר. מאיפה נוכל לארגן עוד יחידות בלוח מבלי לשנות את הכמות הכוללת? נסו לפרוט.' }, 4500);
         return;
       }
 
@@ -785,9 +785,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         radar.recordTaskError('q3', 'wrong_sum');
         const hint =
           s.sessionNumber === 2
-            ? `אֲנִי רוֹאֶה שֶׁשַּׂמְתֶּם ${s.counts.hundreds} מֵאוֹת, ${s.counts.tens} עֲשָׂרוֹת וְ-${s.counts.units} יְחִידוֹת (סַךְ הַכֹּל ${value}). אֵיךְ נוּכַל לְשַׁנּוֹת כְּדֵי לְהַגִּיעַ בְּדִיּוּק לְ-${target}?`
-            : 'הַסְּכוּם לֹא מַתְאִים לַמִּסְפָּר. נַסּוּ שׁוּב!';
-        showFeedback({ correct: false, title: 'חוֹנֵךְ סוֹקְרָטִי', sub: hint }, 3200);
+            ? 'סריקת הרדאר מזהה שכמות הבלוקים בלוח אינה תואמת למבוקש. איך נוכל לשנות זאת כדי להגיע לכמות המדויקת?'
+            : 'הסכום הנוכחי אינו תואם לערך היעד של הניסוי. נסו שוב!';
+        showFeedback({ correct: false, title: 'מערכת המעבדה 🤔', sub: hint }, 3200);
         return;
       }
       
