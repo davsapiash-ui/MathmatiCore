@@ -62,6 +62,9 @@ export interface SessionTask {
   range?: [number, number];
   givenHe?: string;
   questionHe?: string;
+  /* Progression Requirements */
+  requiresGrouping?: boolean;
+  requiresUngrouping?: boolean;
 }
 
 /* ── Session 1 — (מפגש 1: היכרות ותפעול, רישיון מעבדה מורחב) ── */
@@ -123,6 +126,7 @@ export const SESSION1_TASKS: SessionTask[] = [
     instructionHe: 'בנו את המספרים 38 ו-15 בעזרת הקוביות ופתרו את תרגיל החיבור. שימו לב מה קורה כשאתם אוספים 10 יחידות ביחד!',
     hintHe: 'אם יש לכם יותר מ-9 יחידות, אפשר ליצור מהן עשרת חדשה.',
     scaffoldLevel: 1,
+    requiresGrouping: true,
   },
   // 10. Math Refresh 3
   {
@@ -145,6 +149,7 @@ export const SESSION1_TASKS: SessionTask[] = [
     instructionHe: 'איך נחסר 6 יחידות אם יש לנו רק 2? היעזרו בסוד הפריטה שלמדנו!',
     hintHe: 'ללחוץ לחיצה כפולה על אחת העשרות ייתן לכם 10 יחידות נוספות להשתמש בהן.',
     scaffoldLevel: 1,
+    requiresUngrouping: true,
   },
 ];
 
@@ -161,6 +166,7 @@ export const SESSION3_TASKS: SessionTask[] = [
     numberA: 146, numberB: 235, correctAnswer: 381,
     titleHe: 'חיבור עם המרה - מתחילים!',
     instructionHe: 'בואו נחבר: 146 + 235. זכרו: כאשר נאספים 10 פריטים בטור אחד, אנו מבצעים המרה לטור הבא משמאל!',
+    requiresGrouping: true,
   },
   {
     id: 's3_t2',
@@ -168,6 +174,7 @@ export const SESSION3_TASKS: SessionTask[] = [
     numberA: 257, numberB: 124, correctAnswer: 381,
     titleHe: 'חיבור עם המרה - תרגיל 2',
     instructionHe: 'בואו נחבר: 257 + 124. בנו את המספרים בטבלה, ובצעו המרה אם נאספו 10 פריטים או יותר בטור אחד.',
+    requiresGrouping: true,
   },
   {
     id: 's3_t3',
@@ -175,6 +182,7 @@ export const SESSION3_TASKS: SessionTask[] = [
     numberA: 138, numberB: 245, correctAnswer: 383,
     titleHe: 'המרה מיחידות לעשרות',
     instructionHe: 'פתרו: 138 + 245. מה קורה כשיש לנו 8 יחידות ועוד 5 יחידות? בצעו המרה של 10 יחידות לעשרת אחת.',
+    requiresGrouping: true,
   },
   {
     id: 's3_t4',
@@ -182,6 +190,7 @@ export const SESSION3_TASKS: SessionTask[] = [
     numberA: 356, numberB: 182, correctAnswer: 538,
     titleHe: 'המרה מעשרות למאות',
     instructionHe: 'פתרו: 356 + 182. מה קורה כשמחברים 5 עשרות עם 8 עשרות? בצעו המרה של 10 עשרות למאה אחת.',
+    requiresGrouping: true,
   },
   {
     id: 's3_t5',
@@ -189,6 +198,7 @@ export const SESSION3_TASKS: SessionTask[] = [
     numberA: 489, numberB: 175, correctAnswer: 664,
     titleHe: 'המרה כפולה - גם וגם!',
     instructionHe: 'תרגיל אתגר: 489 + 175. כאן תבצעו המרה גם בטור היחידות וגם בטור העשרות. בהצלחה!',
+    requiresGrouping: true,
   },
 ];
 
@@ -201,6 +211,7 @@ export const SESSION4_TASKS: SessionTask[] = [
     numberA: 342, numberB: 125, correctAnswer: 217, isSubtraction: true,
     titleHe: 'חיסור עם פריטה - מתחילים!',
     instructionHe: 'בואו נפתור: 342 - 125. מה עושים כשאין מספיק יחידות בטור היחידות כדי לחסר? מבצעים פריטה של עשרת אחת ל-10 יחידות!',
+    requiresUngrouping: true,
   },
   {
     id: 's4_t2',
@@ -208,6 +219,7 @@ export const SESSION4_TASKS: SessionTask[] = [
     numberA: 524, numberB: 216, correctAnswer: 308, isSubtraction: true,
     titleHe: 'חיסור עם פריטה - תרגיל 2',
     instructionHe: 'פתרו: 524 - 216. זכרו לבצע פריטה במידת הצורך.',
+    requiresUngrouping: true,
   },
   {
     id: 's4_t3',
@@ -215,6 +227,7 @@ export const SESSION4_TASKS: SessionTask[] = [
     numberA: 425, numberB: 118, correctAnswer: 307, isSubtraction: true,
     titleHe: 'פריטה מעשרת ליחידות',
     instructionHe: 'פתרו: 425 - 118. כדי שנוכל לחסר 8 יחידות מתוך 5 יחידות, נבצע פריטה של עשרת אחת ל-10 יחידות.',
+    requiresUngrouping: true,
   },
   {
     id: 's4_t4',
@@ -222,6 +235,7 @@ export const SESSION4_TASKS: SessionTask[] = [
     numberA: 632, numberB: 271, correctAnswer: 361, isSubtraction: true,
     titleHe: 'פריטה ממאה לעשרות',
     instructionHe: 'פתרו: 632 - 271. כדי שנוכל לחסר 7 עשרות מתוך 3 עשרות, נבצע פריטה של מאה אחת ל-10 עשרות.',
+    requiresUngrouping: true,
   },
   {
     id: 's4_t5',
@@ -229,6 +243,7 @@ export const SESSION4_TASKS: SessionTask[] = [
     numberA: 513, numberB: 285, correctAnswer: 228, isSubtraction: true,
     titleHe: 'פריטה כפולה - גם וגם!',
     instructionHe: 'תרגיל אתגר: 513 - 285. כאן תבצעו פריטה גם ממאה לעשרות וגם מעשרת ליחידות. בהצלחה!',
+    requiresUngrouping: true,
   },
 ];
 

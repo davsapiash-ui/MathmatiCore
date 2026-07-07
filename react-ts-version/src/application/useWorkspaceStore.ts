@@ -95,6 +95,7 @@ interface WorkspaceState {
   applyDrop: (input: DropInput) => void;
   removeBlockClick: (place: Place) => void;
   packageBlocks: (place: Place) => void;
+  unpackBlock: (place: Place) => void;
   undo: () => void;
   toggleBoard: () => void;
   setFocusedPlace: (place: Place | null) => void;
@@ -378,13 +379,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       if (task.correctAnswer === 'proceed_any' || !task.choices?.length) {
         
         // Strict verification for specific tutorial tasks to ensure pedagogical compliance
-        if (task.id === 's1_t3' && selectBoardValue(s) !== 50) {
-          showFeedback({ correct: false, title: 'רגע, עדיין אין פה 50', sub: 'אנא ודאו שבניתם בדיוק 50 באמצעות הקוביות לפני שתמשיכו.' }, 3000);
-          return;
-        }
-        if (task.id === 's1_t5' && selectBoardValue(s) !== 40) {
-          showFeedback({ correct: false, title: 'היזהרו לא לאבד ערך', sub: 'אנא ודאו שבניתם בדיוק 40 (גם לאחר הפריטה) לפני שתמשיכו.' }, 3000);
-          return;
+        if (task.id === 's1_sandbox_controlled') {
+          if (!s.hasDeletedBlock) {
+            showFeedback({ correct: false, title: 'עוד לא סיימנו', sub: 'אנא ודאו שגררתם בלוקים ומחקתם לפחות בלוק אחד בעזרת פח המחזור.' }, 3000);
+            return;
+          }
         }
 
         set({ awaitingNext: true });
@@ -427,23 +426,27 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const ansVal = answerDigitsToNumber(s.answerDigits);
       if (ansVal !== target) {
         radar.recordTaskError(task.id, 'wrong_numeric');
-        showFeedback({ correct: false, title: 'בִּדְקוּ אֶת הַתְּשׁוּבָה הַכְּתוּבָה שֶׁלָּכֶם ✏️', sub: 'הַקְלִידוּ אֶת הַתּוֹצָאָה הַנְּכוֹנָה בְּתֵבַת הַתְּשׁוּבָה.' }, 2500);
+        showFeedback({ correct: false, title: 'כִּמְעַט... 🧐', sub: 'הַתְּשׁוּבָה שֶׁכְּתַבְתֶּם אֵינָהּ זֵהָה לְסַךְ הַקֻּבִּיּוֹת בַּטַּבְלָה. בִּדְקוּ שׁוּב!' }, 2800);
+        return;
+      }
+      // Gate 3: pedagogical progression compliance (grouping/ungrouping actions)
+      if (task.requiresGrouping && !s.hasGrouped) {
+        radar.recordTaskError(task.id, 'missed_grouping');
+        showFeedback({ correct: false, title: 'חונך סוקרטי 🤔', sub: 'יש לנו כאן יותר מ-10 יחידות. איך נוכל לארגן אותן בלוח בצורה מסודרת יותר מבלי לשנות את הכמות הכוללת? המשימה דורשת קיבוץ.' }, 4500);
+        return;
+      }
+      if (task.requiresUngrouping && !s.hasUngrouped) {
+        radar.recordTaskError(task.id, 'missed_ungrouping');
+        showFeedback({ correct: false, title: 'חונך סוקרטי 🤔', sub: 'אין מספיק יחידות כדי לחסר. מאיפה נוכל לארגן עוד יחידות בלוח מבלי לשנות את הכמות הכוללת? נסו לפרוט.' }, 4500);
         return;
       }
 
-      // Gate 3: Behavioral Pedagogical Locks (Session 1 Tutorial)
-      if (s.sessionNumber === 1) {
-        if (task.id === 's1_t8' && !s.hasGrouped) {
-          radar.recordTaskError(task.id, 'missed_grouping');
-          showFeedback({ correct: false, title: 'חונך סוקרטי 🤔', sub: 'יש לנו כאן יותר מ-10 יחידות. איך נוכל לארגן אותן בלוח בצורה מסודרת יותר מבלי לשנות את הכמות הכוללת?' }, 4500);
-          return;
-        }
-        if (task.id === 's1_t10' && !s.hasUngrouped) {
-          radar.recordTaskError(task.id, 'missed_ungrouping');
-          showFeedback({ correct: false, title: 'חונך סוקרטי 🤔', sub: 'אין מספיק יחידות בטור כדי לחסר. מאיפה נוכל לארגן עוד יחידות בלוח מבלי לשנות את הכמות הכוללת?' }, 4500);
-          return;
-        }
-      }
+      // All gates passed.
+      set({ awaitingNext: true });
+      showFeedback({ correct: true, title: 'כָּל הַכָּבוֹד! 🌟', sub: 'פְּתַרְתֶּם נָכוֹן וְיִצַּגְתֶּם זֹאת מְצֻיָּן בְּבֵית הַמִּסְפָּרִים.' }, 2500, () => {
+        advanceStandard();
+      });
+      return;
     }
 
     if (task.type === 'number_line') {
@@ -710,6 +713,20 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         hasGrouped: true,
       });
     },
+
+    unpackBlock: (place) => {
+      const s = get();
+      if (s.packagedBlocks[place] < 1) return;
+      radar.recordAction();
+      pushSnapshot(s.counts, s.packagedBlocks);
+      set({
+        counts: { ...s.counts, [place]: s.counts[place] + 10 },
+        packagedBlocks: { ...s.packagedBlocks, [place]: s.packagedBlocks[place] - 1 },
+        hasInteracted: true,
+        hasUngrouped: true,
+      });
+    },
+
 
     undo: () => {
       const s = get();

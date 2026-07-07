@@ -4,6 +4,8 @@ import { motion, useAnimationControls } from 'framer-motion';
 import { MAX_VISIBLE_BLOCKS, PLACE_NAMES_HE, type Place } from '@/core/placeValue';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { DienesBlock } from './DienesBlock';
+import { PackagedBlock } from './PackagedBlock';
+import { PackagePlus } from 'lucide-react';
 
 /** Per-place functional colors (vanilla workspace.css 346–375). */
 const COLUMN_COLORS: Record<Place, { header: string; border: string; tint: string; headerBg: string }> = {
@@ -20,6 +22,8 @@ export function PlaceColumn({ place }: { place: Place }) {
   const focusedPlace = useWorkspaceStore((s) => s.focusedPlace);
   const isASD = useWorkspaceStore((s) => s.isASD);
   const removeBlockClick = useWorkspaceStore((s) => s.removeBlockClick);
+  const packageBlocks = useWorkspaceStore((s) => s.packageBlocks);
+  const numPackaged = useWorkspaceStore((s) => s.packagedBlocks[place]);
 
   const { setNodeRef, isOver } = useDroppable({
     id: `column-${place}`,
@@ -68,6 +72,15 @@ export function PlaceColumn({ place }: { place: Place }) {
         >
           {count > 0 ? count : ''}
         </span>
+        {count >= 10 && (
+          <button
+            onClick={() => packageBlocks(place)}
+            className="absolute right-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full p-1 shadow-md transition-transform hover:scale-110 active:scale-95 flex items-center justify-center group/btn"
+            title="קיבוץ ל-10 (Group)"
+          >
+            <PackagePlus className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
       <div
@@ -76,7 +89,14 @@ export function PlaceColumn({ place }: { place: Place }) {
         aria-label={`אזור גרירה — ${PLACE_NAMES_HE[place]}`}
         className="flex-1 flex flex-row flex-wrap content-start justify-center items-start gap-1 p-2 min-h-[150px] overflow-y-auto overflow-x-hidden no-scrollbar"
       >
-
+        {/* Render Packaged Blocks first */}
+        {Array.from({ length: numPackaged }).map((_, i) => (
+          <PackagedBlock
+            key={`packaged-${place}-${i}`}
+            id={`pkg-${place}-${i}`}
+            place={place}
+          />
+        ))}
 
         {Array.from({ length: renderCount }).map((_, i) => {
           let overlapStyle: React.CSSProperties = { zIndex: i };
