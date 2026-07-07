@@ -75,7 +75,7 @@ export function TeacherDashboard() {
       let cancelled = false;
       authReady.then(() => {
       if (cancelled) return;
-      const replayRef = ref(database, `students/${selectedReplayStudentId}/telemetry_chunks`);
+      const replayRef = ref(database, `users/students/${selectedReplayStudentId}/telemetry_chunks`);
       unsubscribe = onValue(replayRef, (snapshot) => {
          try {
            if (snapshot.exists()) {

@@ -158,9 +158,8 @@ export class TelemetryTracker {
     this.pendingEvents = []; // Clear local array to save memory immediately
 
     try {
-      // Background flush to Firebase
-      // Store under students/{id}/logs
-      const logsRef = ref(database, `students/${this.currentStudentId}/telemetry_chunks`);
+      // Background flush to Firebase — path matches database.rules.json: users/students/$studentId/telemetry_chunks
+      const logsRef = ref(database, `users/students/${this.currentStudentId}/telemetry_chunks`);
       await push(logsRef, chunk);
     } catch (error) {
       console.warn("Failed to flush telemetry chunk, re-queueing", error);

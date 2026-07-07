@@ -145,7 +145,7 @@ export function StudentWorkspacePage() {
         if (eventsQueue.length > 0) {
           const batch = [...eventsQueue];
           eventsQueue = [];
-          push(ref(database, `students/${uid}/telemetry_chunks`), JSON.stringify(batch)).catch(() => {});
+          push(ref(database, `users/students/${uid}/telemetry_chunks`), JSON.stringify(batch)).catch(() => {});
         }
       }, 5000);
     })();
