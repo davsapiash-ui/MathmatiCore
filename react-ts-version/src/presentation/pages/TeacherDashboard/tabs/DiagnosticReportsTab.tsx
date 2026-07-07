@@ -153,7 +153,7 @@ export function DiagnosticReportsTab({
                           </div>
                           
                           <UdlButton 
-                            size="md" 
+                            size="default" 
                             semanticColor="primary"
                             className="w-full mt-2 font-black shadow-lg shadow-indigo-200"
                             onClick={() => handleTabChange("approvals")}
