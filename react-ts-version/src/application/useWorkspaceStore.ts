@@ -74,6 +74,7 @@ interface WorkspaceState {
   hasInteracted: boolean;
   hasDeletedBlock: boolean;
   hasUngrouped: boolean;
+  hasGrouped: boolean;
   selectedChoiceId: string | null;
   numberLineValue: number | null;
   answerDigits: Partial<Record<Place, string>>;
@@ -124,6 +125,7 @@ function resetTaskInteraction() {
     hasInteracted: false,
     hasDeletedBlock: false,
     hasUngrouped: false,
+    hasGrouped: false,
     selectedChoiceId: null as string | null,
     numberLineValue: null as number | null,
     answerDigits: {} as Partial<Record<Place, string>>,
@@ -420,6 +422,20 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         showFeedback({ correct: false, title: 'בִּדְקוּ אֶת הַתְּשׁוּבָה הַכְּתוּבָה שֶׁלָּכֶם ✏️', sub: 'הַקְלִידוּ אֶת הַתּוֹצָאָה הַנְּכוֹנָה בְּתֵבַת הַתְּשׁוּבָה.' }, 2500);
         return;
       }
+
+      // Gate 3: Behavioral Pedagogical Locks (Session 1 Tutorial)
+      if (s.sessionNumber === 1) {
+        if (task.id === 's1_t8' && !s.hasGrouped) {
+          radar.recordTaskError(task.id, 'missed_grouping');
+          showFeedback({ correct: false, title: 'לא ביצעתם המרה 🤔', sub: 'שימו לב: כשיש 10 יחידות ומעלה, נוצרת המרה. נסו לבנות שוב את 38 ו-15 על הלוח כדי לראות זאת.' }, 4500);
+          return;
+        }
+        if (task.id === 's1_t10' && !s.hasUngrouped) {
+          radar.recordTaskError(task.id, 'missed_ungrouping');
+          showFeedback({ correct: false, title: 'לא ביצעתם פריטה 🤔', sub: 'איך חיסרתם 6 מתוך 2 מבלי לפרוט עשרת? נסו לבצע את המשימה בעזרת פריטת עשרת ליחידות.' }, 4500);
+          return;
+        }
+      }
     }
 
     if (task.type === 'number_line') {
@@ -592,6 +608,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     hasInteracted: false,
     hasDeletedBlock: false,
     hasUngrouped: false,
+    hasGrouped: false,
     selectedChoiceId: null,
     numberLineValue: null,
     answerDigits: {},
@@ -639,13 +656,15 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       pushSnapshot(s.counts, s.packagedBlocks);
       const isDelete = (result.removed || result.packagedRemoved) && input.target.kind === 'trash';
       const isUngroup = !!result.ungroupEvent;
+      const isGroup = result.regroupEvents && result.regroupEvents.length > 0;
       
       set({ 
         counts: result.counts, 
         packagedBlocks: result.packagedBlocks, 
         hasInteracted: true,
         ...(isDelete ? { hasDeletedBlock: true } : {}),
-        ...(isUngroup ? { hasUngrouped: true } : {})
+        ...(isUngroup ? { hasUngrouped: true } : {}),
+        ...(isGroup ? { hasGrouped: true } : {})
       });
       
       // Only a TRASH drop is a delete. Manual regrouping also sets `removed` (blocks leave
@@ -676,6 +695,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         counts: { ...s.counts, [place]: s.counts[place] - 10 },
         packagedBlocks: { ...s.packagedBlocks, [place]: s.packagedBlocks[place] + 1 },
         hasInteracted: true,
+        hasGrouped: true,
       });
     },
 
