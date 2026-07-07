@@ -228,6 +228,10 @@ export function selectCanProceed(s: WorkspaceState): boolean {
     return s.q3Reps.length >= 2;
   }
   if (!s.hasInteracted) return false;
+  // Spec §1: "No Auto-Regrouping" — tasks that require manual grouping/ungrouping
+  // must be gated: the Proceed button stays disabled until the student performs the action.
+  if (task.requiresGrouping && !s.hasGrouped) return false;
+  if (task.requiresUngrouping && !s.hasUngrouped) return false;
   return true;
 }
 
