@@ -667,7 +667,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const task = getCurrentQTask(s.qflow);
         target = task ? getEffectiveNumber(task, s.qflow, s.isASD) : undefined;
       } else {
-        target = undefined;
+        const task = s.sessionTasks[s.currentTaskIndex];
+        target = task?.numberA;
       }
 
       if (target !== undefined && value !== target) {

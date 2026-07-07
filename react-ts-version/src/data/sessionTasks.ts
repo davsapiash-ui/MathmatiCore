@@ -124,7 +124,7 @@ export const SESSION1_TASKS: SessionTask[] = [
     id: 's1_t5',
     type: 'session1_intro',
     titleHe: 'רישיון למעבדה - סוד הפריטה',
-    instructionHe: 'בנו את המספר 40. עכשיו, לחצו לחיצה כפולה על אחת העשרות. מה קרה לה? לחצו על כפתור הבדיקה כדי להמשיך.',
+    instructionHe: 'בנו את המספר 40 באמצעות עשרות. נסו ללחוץ לחיצה כפולה על אחת העשרות כדי לפרט אותה ליחידות. לאחר שתתנסו בכך, לחצו על כפתור התקדם.',
     correctAnswer: 'proceed_any',
     scaffoldLevel: 0,
   },

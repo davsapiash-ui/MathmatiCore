@@ -75,31 +75,36 @@ export function TeacherDashboard() {
             // Structure is replays/{uid}/{sessionTimestamp}/{pushId} — flatten TWO levels
             // (a single-level flatten produced session-objects instead of rrweb events,
             // which crashed the player). Sessions and events sort chronologically by key.
-            const sessionKeys = Object.keys(data).sort();
-            const latestSessionKey = sessionKeys[sessionKeys.length - 1];
-            if (!latestSessionKey) {
-              setLiveReplayEvents([]);
-              return;
-            }
-
-            const session = data[latestSessionKey];
-            if (!session || typeof session !== 'object') {
-              setLiveReplayEvents([]);
-              return;
-            }
-
-            const events = Object.keys(session).sort().flatMap((k) => {
-              const item = session[k];
-              if (typeof item === 'string') {
-                try {
-                  return JSON.parse(item);
-                } catch {
-                  return [];
+            // Find the latest session that actually has events
+            const sessionKeys = Object.keys(data).sort().reverse();
+            let validEvents: any[] = [];
+            
+            for (const key of sessionKeys) {
+              const session = data[key];
+              if (!session || typeof session !== 'object') continue;
+              
+              const events = Object.keys(session).sort().flatMap((k) => {
+                const item = session[k];
+                if (typeof item === 'string') {
+                  try {
+                    return JSON.parse(item);
+                  } catch {
+                    return [];
+                  }
                 }
+                return [item];
+              }).filter((e) => e && typeof e === 'object' && 'type' in e);
+              
+              if (events.length > 2) {
+                validEvents = events;
+                break;
+              } else if (validEvents.length === 0) {
+                // Keep the small events array as fallback if we don't find any good session
+                validEvents = events;
               }
-              return [item];
-            }).filter((e) => e && typeof e === 'object' && 'type' in e);
-            setLiveReplayEvents(events);
+            }
+            
+            setLiveReplayEvents(validEvents);
          } else {
             setLiveReplayEvents([]);
          }
