@@ -110,9 +110,11 @@ export class TelemetryTracker {
     clearTimeout(this.hesitationTimer);
     if (!this.isRadarActive) return;
     this.lastActionTime = Date.now();
-    this.hesitationTimer = setTimeout(() => {
-      this.fireAlert("HESITATION", { durationMs: Date.now() - this.lastActionTime });
-    }, this.HESITATION_THRESHOLD_MS);
+    // Disabled dual-engine hesitation timer. 
+    // The useWorkspaceRadar hook now accurately handles hesitation alerts.
+    // this.hesitationTimer = setTimeout(() => {
+    //   this.fireAlert("HESITATION", { durationMs: Date.now() - this.lastActionTime });
+    // }, this.HESITATION_THRESHOLD_MS);
   }
 
   private fireAlert(type: RadarAlert["type"], data: any = {}) {

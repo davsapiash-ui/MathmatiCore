@@ -25,6 +25,7 @@ export function useWorkspaceRadar(sessionNumber: number) {
   const hesitationTimer = useRef<number | null>(null);
   const hesitationArmed = useRef(true);
   const deleteTimestamps = useRef<number[]>([]);
+  const passiveDriftingLocked = useRef(false);
   const userRef = useRef(user);
   userRef.current = user;
 
@@ -88,8 +89,9 @@ export function useWorkspaceRadar(sessionNumber: number) {
       recordDelete: () => {
         const now = Date.now();
         deleteTimestamps.current = [...deleteTimestamps.current.filter((t) => now - t < RAPID_DELETE_WINDOW_MS), now];
-        if (deleteTimestamps.current.length === RAPID_DELETE_THRESHOLD) {
+        if (deleteTimestamps.current.length >= RAPID_DELETE_THRESHOLD && !passiveDriftingLocked.current) {
           sendAlert('PASSIVE_DRIFTING', { deleteCount: deleteTimestamps.current.length });
+          passiveDriftingLocked.current = true;
         }
       },
       recordUndo: () => {
@@ -107,6 +109,7 @@ export function useWorkspaceRadar(sessionNumber: number) {
       setTask: (taskId) => {
         taskIdRef.current = taskId;
         deleteTimestamps.current = [];
+        passiveDriftingLocked.current = false;
         hesitationArmed.current = true;
         armHesitationTimer();
       },
