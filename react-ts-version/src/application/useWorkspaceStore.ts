@@ -421,8 +421,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       if (selectBoardValue(s) !== target) {
         radar.recordTaskError(task.id, 'wrong_blocks');
         showFeedback(
-          { correct: false, title: 'בּוֹאוּ נְיַצֵּג אֶת הַתַּרְגִּיל בְּבֵית הַמִּסְפָּרִים! 🧊', sub: `הַנִּיחוּ קֻבִּיּוֹת בַּטּוּרִים כָּךְ שֶׁסְּכוּמָן הַכּוֹלֵל יִהְיֶה בְּדִיּוּק ${target}.` },
-          2800
+          { correct: false, title: 'חונך סוקרטי 🤔', sub: 'בואו נבדוק שוב את הלוח. האם הכמות של הקוביות שהנחתם תואמת בדיוק למה שמופיע בתרגיל?' },
+          3500
         );
         return;
       }
