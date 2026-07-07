@@ -68,41 +68,28 @@ export function TeacherDashboard() {
       let cancelled = false;
       authReady.then(() => {
       if (cancelled) return;
-      const replayRef = ref(database, `replays/${selectedReplayStudentId}`);
+      const replayRef = ref(database, `students/${selectedReplayStudentId}/telemetry_chunks`);
       unsubscribe = onValue(replayRef, (snapshot) => {
          if (snapshot.exists()) {
             const data = snapshot.val();
-            // Structure is replays/{uid}/{sessionTimestamp}/{pushId} — flatten TWO levels
-            // (a single-level flatten produced session-objects instead of rrweb events,
-            // which crashed the player). Sessions and events sort chronologically by key.
-            // Find the latest session that actually has events
-            const sessionKeys = Object.keys(data).sort().reverse();
-            let validEvents: any[] = [];
+            const keys = Object.keys(data).sort(); // Push IDs sort chronologically
+            let allEvents: any[] = [];
             
-            for (const key of sessionKeys) {
-              const session = data[key];
-              if (!session || typeof session !== 'object') continue;
-              
-              const events = Object.keys(session).sort().flatMap((k) => {
-                const item = session[k];
-                if (typeof item === 'string') {
-                  try {
-                    return JSON.parse(item);
-                  } catch {
-                    return [];
-                  }
-                }
-                return [item];
-              }).filter((e) => e && typeof e === 'object' && 'type' in e);
-              
-              if (events.length > 2) {
-                validEvents = events;
-                break;
-              } else if (validEvents.length === 0) {
-                // Keep the small events array as fallback if we don't find any good session
-                validEvents = events;
+            for (const key of keys) {
+              const chunk = data[key];
+              if (Array.isArray(chunk)) {
+                allEvents = allEvents.concat(chunk);
+              } else if (chunk && typeof chunk === 'object') {
+                allEvents = allEvents.concat(Object.values(chunk));
               }
             }
+            
+            const validEvents = allEvents.map((e) => {
+              if (typeof e === 'string') {
+                try { return JSON.parse(e); } catch { return null; }
+              }
+              return e;
+            }).filter((e) => e && typeof e === 'object' && 'type' in e);
             
             setLiveReplayEvents(validEvents);
          } else {
