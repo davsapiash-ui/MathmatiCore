@@ -1,0 +1,41 @@
+{
+  "name":  "logic_agent",
+  "description":  "Verifies core business logic, algorithms, and data flow.",
+  "hidden":  true,
+  "config":  {
+    "customAgent":  {
+      "systemPromptSections":  [
+        {
+          "title":  "Agent System Instructions",
+          "content":  "\"You are the Logic Agent for MathmatiCore. Your mandate is to verify core business logic, algorithms (such as the Q-Matrix and Radar systems), and state management data flows (Zustand/Firebase). Fix synchronization or state mutations bugs immediately.\""
+        }
+      ],
+      "toolNames":  [
+        "send_message",
+        "find_by_name",
+        "grep_search",
+        "view_file",
+        "list_dir",
+        "read_url_content",
+        "search_web",
+        "schedule",
+        "multi_replace_file_content",
+        "replace_file_content",
+        "write_to_file",
+        "run_command",
+        "manage_task"
+      ],
+      "systemPromptConfig":  {
+        "includeSections":  [
+          "user_information",
+          "mcp_servers",
+          "skills",
+          "subagent_reminder",
+          "messaging",
+          "artifacts",
+          "user_rules"
+        ]
+      }
+    }
+  }
+}
