@@ -102,6 +102,12 @@
           "traceData": {
             ".write": "auth != null && (auth.token.email === $studentId + '@mathmaticore.local' || root.child('users/teachers/' + auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '')).exists() || auth.token.email === 'admin@mathmaticore.local')",
             ".validate": "newData.hasChildren(['hesitation_events', 'undo_clicks']) && newData.child('hesitation_events').isNumber() && newData.child('undo_clicks').isNumber()"
+          },
+          "diagnosticReport": {
+            ".write": "auth != null && (auth.token.email === $studentId + '@mathmaticore.local' || root.child('users/teachers/' + auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '')).exists() || auth.token.email === 'admin@mathmaticore.local')"
+          },
+          "teacherId": {
+            ".write": "auth != null && (root.child('users/teachers/' + auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '')).exists() || auth.token.email === 'admin@mathmaticore.local')"
           }
         }
       },
