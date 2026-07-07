@@ -766,7 +766,7 @@ export function TeacherDashboard() {
                 <p className="text-ws-soft  mb-6 text-base leading-relaxed relative z-10">
                   תלמידים שהתקשו בפעולות חיבור בסיסיות ללא המרה.
                 </p>
-                <div className="relative z-10 rounded-xl overflow-hidden border border-ws-surface2  shadow-inner">
+                <div className="relative z-10 rounded-xl overflow-y-auto max-h-[300px] border border-ws-surface2 shadow-inner">
                   <DataGrid
                     columns={[
                       { key: "name", header: "שם תלמיד" },
@@ -797,7 +797,7 @@ export function TeacherDashboard() {
                 <p className="text-ws-soft  mb-6 text-base leading-relaxed relative z-10">
                   תלמידים שהצליחו לפרק רק בצורה הקנונית וזקוקים לתרגול גמישות בהמרה.
                 </p>
-                <div className="relative z-10 rounded-xl overflow-hidden border border-ws-surface2  shadow-inner">
+                <div className="relative z-10 rounded-xl overflow-y-auto max-h-[300px] border border-ws-surface2 shadow-inner">
                   <DataGrid
                     columns={[
                       { key: "name", header: "שם תלמיד" },
@@ -828,7 +828,7 @@ export function TeacherDashboard() {
                 <p className="text-ws-soft  mb-6 text-base leading-relaxed relative z-10">
                   תלמידים שהתקשו בהבנת האפס כשומר מקום במערכת העשרונית.
                 </p>
-                <div className="relative z-10 rounded-xl overflow-hidden border border-ws-surface2  shadow-inner">
+                <div className="relative z-10 rounded-xl overflow-y-auto max-h-[300px] border border-ws-surface2 shadow-inner">
                   <DataGrid
                     columns={[
                       { key: "name", header: "שם תלמיד" },
@@ -859,7 +859,7 @@ export function TeacherDashboard() {
                 <p className="text-ws-soft  mb-6 text-base leading-relaxed relative z-10">
                   תלמידים שחרגו מטווח הטעות המותר בהערכת הכמויות.
                 </p>
-                <div className="relative z-10 rounded-xl overflow-hidden border border-ws-surface2  shadow-inner">
+                <div className="relative z-10 rounded-xl overflow-y-auto max-h-[300px] border border-ws-surface2 shadow-inner">
                   <DataGrid
                     columns={[
                       { key: "name", header: "שם תלמיד" },
@@ -890,7 +890,7 @@ export function TeacherDashboard() {
                 <p className="text-ws-soft  mb-6 text-base leading-relaxed relative z-10">
                   תלמידים שהתקשו בתהליך הפריטה (חרדת פריטה) או שחסרות להם עובדות יסוד בחיסור.
                 </p>
-                <div className="relative z-10 rounded-xl overflow-hidden border border-ws-surface2  shadow-inner">
+                <div className="relative z-10 rounded-xl overflow-y-auto max-h-[300px] border border-ws-surface2 shadow-inner">
                   <DataGrid
                     columns={[
                       { key: "name", header: "שם תלמיד" },
@@ -921,7 +921,7 @@ export function TeacherDashboard() {
                 <p className="text-ws-soft  mb-6 text-base leading-relaxed relative z-10">
                   תלמידים שהתקשו במציאת איבר חסר באמצע המשוואה.
                 </p>
-                <div className="relative z-10 rounded-xl overflow-hidden border border-ws-surface2  shadow-inner">
+                <div className="relative z-10 rounded-xl overflow-y-auto max-h-[300px] border border-ws-surface2 shadow-inner">
                   <DataGrid
                     columns={[
                       { key: "name", header: "שם תלמיד" },
@@ -952,7 +952,7 @@ export function TeacherDashboard() {
                 <p className="text-ws-soft  mb-6 text-base leading-relaxed relative z-10">
                   תלמידים שהתקשו בהבנת חשיבה אלגברית והקשר בין חיבור לחיסור.
                 </p>
-                <div className="relative z-10 rounded-xl overflow-hidden border border-ws-surface2  shadow-inner">
+                <div className="relative z-10 rounded-xl overflow-y-auto max-h-[300px] border border-ws-surface2 shadow-inner">
                   <DataGrid
                     columns={[
                       { key: "name", header: "שם תלמיד" },
@@ -983,7 +983,7 @@ export function TeacherDashboard() {
                 <p className="text-ws-soft  mb-6 text-base leading-relaxed relative z-10">
                   תלמידים שנפלו במלכודת הגמישות ולא זיהו את השינוי הקטן.
                 </p>
-                <div className="relative z-10 rounded-xl overflow-hidden border border-ws-surface2  shadow-inner">
+                <div className="relative z-10 rounded-xl overflow-y-auto max-h-[300px] border border-ws-surface2 shadow-inner">
                   <DataGrid
                     columns={[
                       { key: "name", header: "שם תלמיד" },

@@ -124,7 +124,7 @@ export function WorkspaceTopbar() {
           className="h-10 px-6 rounded-full text-base font-display font-extrabold text-white bg-ws-accent hover:brightness-110 shadow-md hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed"
           aria-label="עבור למשימה הבאה"
         >
-          הבא
+          התקדם
           <span aria-hidden="true" className="text-lg leading-none">←</span>
         </button>
       </div>

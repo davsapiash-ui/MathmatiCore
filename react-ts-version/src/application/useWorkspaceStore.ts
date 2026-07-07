@@ -427,6 +427,21 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       }
     }
 
+    if (task.type === 'flexible_decomp') {
+      if (s.q3Reps.length < 2) {
+        showFeedback({ correct: false, title: 'נִדְרָשִׁים שְׁנֵי יִצּוּגִים שׁוֹנִים', sub: 'הוֹסִיפוּ יִצּוּג שֵׁנִי!' }, 1800);
+        return;
+      }
+      const [r1, r2] = s.q3Reps;
+      const isIdentical = (['units', 'tens', 'hundreds', 'thousands'] as Place[]).every((p) => r1[p] === r2[p]);
+      if (isIdentical) {
+        radar.recordTaskError(task.id, 'canonical_fixation');
+        showFeedback({ correct: false, title: 'הַיִּצּוּגִים זֵהִים 🤔', sub: 'נַסּוּ לִיצֹר אֶת אוֹתוֹ מִסְפָּר בְּדֶרֶךְ אַחֶרֶת (לְמָשָׁל עַל יְדֵי פְּרִיטַת עֲשֶׂרֶת).' }, 2800);
+        set({ q3Reps: [] });
+        return;
+      }
+    }
+
     // Scaffold fading (UDL): fade a step on success for scaffolded tasks; capped at 2 by design decision.
     if ((task.scaffoldLevel ?? 0) >= 1) {
       set({ scaffoldFadeLevel: Math.min(2, get().scaffoldFadeLevel + 1) });

@@ -60,7 +60,7 @@ export function AdminChatView() {
   }, [selectedTeacherId, messages, markAsRead]);
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] md:h-screen bg-slate-50/50 dark:bg-slate-900/50 overflow-hidden backdrop-blur-xl" dir="rtl">
+    <div className="flex h-full bg-slate-50/50 dark:bg-slate-900/50 overflow-hidden backdrop-blur-xl" dir="rtl">
       {/* Teachers List Sidebar */}
       <div className={`${selectedTeacher ? 'hidden md:flex' : 'flex'} w-full md:w-80 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md border-l border-slate-200 dark:border-slate-800 flex-col transition-all`}>
         <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">

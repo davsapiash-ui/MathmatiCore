@@ -108,7 +108,7 @@ export function AdminLayout() {
           </div>
         </Sidebar>
 
-        <main className="flex-1 overflow-y-auto relative p-4 pl-0">
+        <main className="flex-1 overflow-hidden relative p-4 pl-0">
           {/* Ambient Glows */}
           <div className="fixed top-0 left-1/4 w-[800px] h-[800px] bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-transparent rounded-full blur-[100px] pointer-events-none -z-10 mix-blend-screen dark:mix-blend-lighten animate-in fade-in duration-1000"></div>
           <div className="fixed bottom-0 right-1/4 w-[600px] h-[600px] bg-gradient-to-tl from-cyan-500/10 via-blue-500/5 to-transparent rounded-full blur-[80px] pointer-events-none -z-10 mix-blend-screen dark:mix-blend-lighten animate-in fade-in duration-1000 delay-300"></div>

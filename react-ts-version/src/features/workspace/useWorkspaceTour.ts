@@ -15,7 +15,7 @@ export function useWorkspaceTour() {
       animate: true,
       allowClose: false,
       overlayColor: 'rgba(15, 23, 42, 0.75)',
-      nextBtnText: 'הבא',
+      nextBtnText: 'התקדם',
       prevBtnText: 'הקודם',
       doneBtnText: 'הבנתי, בוא נתחיל!',
       progressText: '{{current}} מתוך {{total}}',
