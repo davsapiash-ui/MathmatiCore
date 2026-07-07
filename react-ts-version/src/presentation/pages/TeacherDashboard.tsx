@@ -404,7 +404,7 @@ export function TeacherDashboard() {
   }, [firebaseAlerts]);
 
   const handleMarkAsRead = (alert: any) => {
-    if (alert.firebaseKey?.startsWith('hesitation-') || alert.firebaseKey?.startsWith('undo-')) {
+    if (alert.type === 'HESITATION' || alert.type === 'PASSIVE_CRUISING' || alert.firebaseKey?.startsWith('hesitation-') || alert.firebaseKey?.startsWith('undo-')) {
       // Actually reset the counters in Firebase so the alert clears globally
       if (alert.rawStudentId) {
         set(ref(database, `users/students/${alert.rawStudentId}/traceData`), { 
@@ -415,8 +415,12 @@ export function TeacherDashboard() {
         set(ref(database, `users/students/${alert.rawStudentId}/workspaceState/hesitationCount`), 0);
         set(ref(database, `users/students/${alert.rawStudentId}/workspaceState/undoCount`), 0);
       }
-      resetTraceData(alert.rawStudentId);
-    } else if (alert.firebaseKey) {
+      if (alert.rawStudentId) {
+        resetTraceData(alert.rawStudentId);
+      }
+    }
+    
+    if (alert.firebaseKey) {
       remove(ref(database, `radar_alerts/${alert.firebaseKey}`));
     }
   };
@@ -1359,10 +1363,13 @@ export function TeacherDashboard() {
                             approveRoute(student.studentId);
                             // …AND the Firebase write the student's browser actually waits on
                             // (approved_tasks/{studentId}) — without it meeting 3 stays locked forever.
-                            const approval = pendingApprovals.find((a) => a.studentId === student.studentId);
+                            const allPending = [...teacherApprovals, ...fallbackApprovals];
+                            const approval = allPending.find((a) => a.studentId === student.studentId);
                             if (approval) {
                               try {
-                                await SocraticEngine.approveTasks(TEACHER_ID, approval.id, approval.studentId, approval.tasks);
+                                const isFallback = fallbackApprovals.some(a => a.id === approval.id);
+                                const targetTeacherId = isFallback ? "teacher-1" : TEACHER_ID;
+                                await SocraticEngine.approveTasks(targetTeacherId, approval.id, approval.studentId, approval.tasks);
                               } catch {
                                 /* offline — local approval still recorded; Firebase retry on next click */
                               }
@@ -1379,7 +1386,9 @@ export function TeacherDashboard() {
                             const approval = allPending.find((a) => a.studentId === student.studentId);
                             if (approval) {
                               try {
-                                await SocraticEngine.rejectTasks(TEACHER_ID, approval.id);
+                                const isFallback = fallbackApprovals.some(a => a.id === approval.id);
+                                const targetTeacherId = isFallback ? "teacher-1" : TEACHER_ID;
+                                await SocraticEngine.rejectTasks(targetTeacherId, approval.id);
                                 setTeacherApprovals(prev => prev.filter(a => a.id !== approval.id));
                                 setFallbackApprovals(prev => prev.filter(a => a.id !== approval.id));
                               } catch {
