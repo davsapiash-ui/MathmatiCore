@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { AccessibleCard } from "@/presentation/design-system/AccessibleCard";
 import { UdlButton } from "@/presentation/design-system/UdlButton";
-import { ShieldAlert, MessageCircle } from "lucide-react";
+import { ShieldAlert, MessageCircle, Bot, Sparkles, Send } from "lucide-react";
 import { SocraticEngine } from "@/infrastructure/services/SocraticEngine";
 
 interface ApprovalsTabProps {
@@ -24,6 +25,67 @@ export function ApprovalsTab({
   TEACHER_ID,
   approveRoute,
 }: ApprovalsTabProps) {
+  const [copilotState, setCopilotState] = useState<Record<string, {
+    isOpen: boolean;
+    chatText: string;
+    messages: {role: 'teacher' | 'ai', text: string}[];
+    isThinking: boolean;
+    routeOverride: 'YELLOW' | 'GREEN' | null;
+  }>>({});
+
+  const toggleCopilot = (studentId: string) => {
+    setCopilotState(prev => ({
+      ...prev,
+      [studentId]: prev[studentId] ? { ...prev[studentId], isOpen: !prev[studentId].isOpen } : {
+        isOpen: true, chatText: '', messages: [{ role: 'ai', text: 'שלום! אני ה-Copilot שלך. כיצד תרצה שאדייק את המסלול עבור תלמיד זה?' }], isThinking: false, routeOverride: null
+      }
+    }));
+  };
+
+  const handleCopilotSend = (studentId: string) => {
+    const state = copilotState[studentId];
+    if (!state || !state.chatText.trim()) return;
+
+    setCopilotState(prev => ({
+      ...prev,
+      [studentId]: {
+        ...prev[studentId],
+        chatText: '',
+        isThinking: true,
+        messages: [...prev[studentId].messages, { role: 'teacher', text: state.chatText }]
+      }
+    }));
+
+    setTimeout(() => {
+      setCopilotState(prev => ({
+        ...prev,
+        [studentId]: {
+          ...prev[studentId],
+          isThinking: false,
+          routeOverride: state.chatText.includes('ירוק') || state.chatText.includes('אתגר') ? 'GREEN' : 'YELLOW',
+          messages: [...prev[studentId].messages, { 
+            role: 'ai', 
+            text: 'הבנתי. עדכנתי את המסלול בהתאם להנחיותיך (המוצג כעת למטה). אם הכל נראה תקין, לחץ על "אישור מסלול" למעלה.'
+          }]
+        }
+      }));
+    }, 1500);
+  };
+
+  const handleQuickOverride = (studentId: string, newRoute: 'YELLOW' | 'GREEN') => {
+    setCopilotState(prev => {
+      const existing = prev[studentId] || { isOpen: true, chatText: '', messages: [{ role: 'ai', text: 'שלום!' }] };
+      return {
+        ...prev,
+        [studentId]: {
+          ...existing,
+          isOpen: true,
+          routeOverride: newRoute,
+          messages: [...existing.messages, { role: 'ai', text: `עדכנתי למסלול ${newRoute === 'GREEN' ? 'ירוק' : 'צהוב'} לבקשתך המהירה.` }]
+        }
+      };
+    });
+  };
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
       <header className="mb-10">
@@ -106,9 +168,10 @@ export function ApprovalsTab({
 
                 {/* --- ROUTE DEEP DIVE --- */}
                 {(() => {
-                  const metadata = import('@/data/routeMetadatas').then(m => m.ROUTE_METADATA);
-                  // Dynamic import workaround for now: We'll hardcode the display logic based on routeRecommendation to guarantee it works without async issues in render
-                  const routeMeta = student.routeRecommendation === 'YELLOW' ? 
+                  const state = copilotState[student.studentId] || { isOpen: false, routeOverride: null };
+                  const activeRoute = state.routeOverride || student.routeRecommendation;
+
+                  const routeMeta = activeRoute === 'YELLOW' ? 
                     {
                       sessions: [
                         { sessionNumber: 3, goals: 'בניית ביטחון בעשרות ויחידות: חיבור מספרים דו-ספרתיים עם המרה ברורה תוך שימוש חובה בלוח מוחשי.' },
@@ -118,9 +181,9 @@ export function ApprovalsTab({
                         { sessionNumber: 7, goals: 'הסרת פיגומים מוחלטת: יישום האלגוריתם הסטנדרטי עם תמיכה סוקרטית בלבד במידת הצורך.' }
                       ],
                       phases: [
-                        { phaseNumber: 1, title: 'הקניה מודרכת (צפייה וחקירה)', durationMinutes: 7, description: 'סרטון קצר המדגים המרה של 10 יחידות לעשרת אחת, ולאחריו חקר מונחה עם בדידים.', exercisesCount: 2 },
+                        { phaseNumber: 1, title: 'הקניה מודרכת (צפייה וחקירה)', durationMinutes: 10, description: 'סרטון קצר המדגים המרה של 10 יחידות לעשרת אחת, ולאחריו חקר מונחה עם בדידים.', exercisesCount: 2 },
                         { phaseNumber: 2, title: 'תרגול מבוסס כלי (Scaffolded Practice)', durationMinutes: 10, description: 'תרגול אינטנסיבי של חיבור עם המרה (למשל 27+15) תוך חובה להשתמש בבדידים על הלוח ללא קיצורי דרך.', exercisesCount: 5 },
-                        { phaseNumber: 3, title: 'אתגר סיכום', durationMinutes: 3, description: 'תרגיל אחד ללא בדידים לבחינת ההפנמה. במידה ויש שגיאה הלוח קופץ חזרה.', exercisesCount: 1 }
+                        { phaseNumber: 3, title: 'אתגר סיכום', durationMinutes: 5, description: 'תרגיל אחד ללא בדידים לבחינת ההפנמה. במידה ויש שגיאה הלוח קופץ חזרה.', exercisesCount: 1 }
                       ]
                     } : {
                       sessions: [
@@ -131,7 +194,7 @@ export function ApprovalsTab({
                         { sessionNumber: 7, goals: 'העברה (Transfer): יישום אסטרטגיות אלו בסביבת בעיות שבר/עשרוני (הכנה להמשך).' }
                       ],
                       phases: [
-                        { phaseNumber: 1, title: 'חקר אסטרטגיות חישוב בראש', durationMinutes: 5, description: 'הצגת דרכי פעולה שונות לפתרון משוואות עם מחובר חסר, והתנסות בקריאת תרשים "שלם וחלקים".', exercisesCount: 2 },
+                        { phaseNumber: 1, title: 'חקר אסטרטגיות חישוב בראש', durationMinutes: 10, description: 'הצגת דרכי פעולה שונות לפתרון משוואות עם מחובר חסר, והתנסות בקריאת תרשים "שלם וחלקים".', exercisesCount: 3 },
                         { phaseNumber: 2, title: 'תרגול עצמאי - גמישות (Independent Practice)', durationMinutes: 10, description: 'תרגול מציאת מחוברים חסרים (למשל 34 + ___ = 61) ללא עזרים דיגיטליים מעכבים, דגש על מהירות ודיוק.', exercisesCount: 8 },
                         { phaseNumber: 3, title: 'אתגר המחשבה (Extension)', durationMinutes: 5, description: 'השלמת שרשרת חישובים שדורשת תכנון של שני צעדים קדימה.', exercisesCount: 2 }
                       ]
@@ -153,8 +216,8 @@ export function ApprovalsTab({
 
                       <h5 className="font-bold text-slate-800 mb-3 border-b pb-2 flex justify-between items-center">
                         <span>תוכנית עבודה מיידית (מפגש 3) - {totalTime} דקות</span>
-                        <UdlButton size="sm" variant="outline" className="text-xs" onClick={() => alert('ממשק עריכת שלבים ייפתח כעת... (Mock)')}>
-                          ✏️ ערוך שלבים
+                        <UdlButton size="sm" variant="outline" className={`text-xs ${state.isOpen ? 'bg-indigo-50 border-indigo-200' : ''}`} onClick={() => toggleCopilot(student.studentId)}>
+                          <Sparkles className="w-3 h-3 mr-1" /> עוזר הוראה (Co-Pilot)
                         </UdlButton>
                       </h5>
                       <div className="flex flex-col gap-3">
@@ -175,6 +238,63 @@ export function ApprovalsTab({
                           </div>
                         ))}
                       </div>
+
+                      {/* COPILOT UI */}
+                      {state.isOpen && (
+                        <div className="mt-6 bg-indigo-50/50 border border-indigo-100 rounded-2xl overflow-hidden shadow-inner">
+                          <div className="bg-indigo-100/50 p-3 border-b border-indigo-100 flex items-center justify-between">
+                            <h6 className="font-bold text-indigo-900 flex items-center gap-2 text-sm">
+                              <Bot className="w-4 h-4 text-indigo-600" />
+                              עוזר הוראה קליני (AI Co-Pilot)
+                            </h6>
+                            <div className="flex gap-2">
+                              <button onClick={() => handleQuickOverride(student.studentId, 'GREEN')} className="text-[10px] bg-white border border-indigo-200 text-indigo-700 px-2 py-1 rounded hover:bg-indigo-50 font-bold transition-colors">
+                                ⚡ שנה למסלול ירוק
+                              </button>
+                              <button onClick={() => handleQuickOverride(student.studentId, 'YELLOW')} className="text-[10px] bg-white border border-indigo-200 text-indigo-700 px-2 py-1 rounded hover:bg-indigo-50 font-bold transition-colors">
+                                ⚡ שנה למסלול צהוב
+                              </button>
+                            </div>
+                          </div>
+                          
+                          <div className="p-4 flex flex-col gap-3 max-h-60 overflow-y-auto">
+                            {state.messages.map((m, i) => (
+                              <div key={i} className={`flex ${m.role === 'teacher' ? 'justify-end' : 'justify-start'}`}>
+                                <div className={`max-w-[80%] p-3 rounded-2xl text-sm ${
+                                  m.role === 'teacher' 
+                                    ? 'bg-indigo-600 text-white rounded-tr-sm' 
+                                    : 'bg-white border border-indigo-100 text-slate-700 rounded-tl-sm'
+                                }`}>
+                                  {m.text}
+                                </div>
+                              </div>
+                            ))}
+                            {state.isThinking && (
+                              <div className="flex justify-start">
+                                <div className="bg-white border border-indigo-100 text-slate-400 p-3 rounded-2xl rounded-tl-sm text-sm flex items-center gap-2">
+                                  <div className="w-2 h-2 bg-indigo-300 rounded-full animate-bounce" />
+                                  <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style={{animationDelay: '150ms'}} />
+                                  <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style={{animationDelay: '300ms'}} />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                          
+                          <div className="p-3 bg-white border-t border-indigo-100 flex gap-2">
+                            <input 
+                              type="text" 
+                              className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                              placeholder="הקלד הנחיה לשינוי המסלול או בקש הסבר..."
+                              value={state.chatText}
+                              onChange={(e) => setCopilotState(prev => ({...prev, [student.studentId]: {...prev[student.studentId], chatText: e.target.value}}))}
+                              onKeyDown={(e) => e.key === 'Enter' && handleCopilotSend(student.studentId)}
+                            />
+                            <UdlButton size="sm" onClick={() => handleCopilotSend(student.studentId)}>
+                              <Send className="w-4 h-4 rtl:rotate-180" />
+                            </UdlButton>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })()}
