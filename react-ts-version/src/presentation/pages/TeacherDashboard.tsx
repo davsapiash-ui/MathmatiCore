@@ -587,7 +587,7 @@ export function TeacherDashboard() {
           <button
             id="tour-tab-clustering"
             onClick={() => handleTabChange("clustering")}
-            className={`w-full text-right px-4 py-3 rounded-xl transition-all ${activeTab === "clustering" ? "bg-ws-accentSoft text-ws-accent Soft0/10  font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
+            className={`w-full text-right px-4 py-3 rounded-xl transition-all ${activeTab === "clustering" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
           >
             מיפוי כיתתי (<span dir="ltr">Q-Matrix</span>)
           </button>
@@ -622,7 +622,7 @@ export function TeacherDashboard() {
           </button>
           <button
             onClick={() => handleTabChange("class_management")}
-            className={`w-full text-right px-4 py-3 rounded-xl transition-all ${activeTab === "class_management" ? "bg-ws-accentSoft text-ws-accent Soft0/10  font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
+            className={`w-full text-right px-4 py-3 rounded-xl transition-all ${activeTab === "class_management" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
           >
             ניהול כיתה ותלמידים
           </button>
@@ -633,7 +633,7 @@ export function TeacherDashboard() {
           <button
             id="tour-tab-chat"
             onClick={() => handleTabChange("chat_students")}
-            className={`w-full flex justify-between items-center text-right px-4 py-3 rounded-xl transition-all ${activeTab === "chat_students" ? "bg-ws-accentSoft text-ws-accent Soft0/10  font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
+            className={`w-full flex justify-between items-center text-right px-4 py-3 rounded-xl transition-all ${activeTab === "chat_students" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
           >
             <span>צ'אט עם תלמידים</span>
             {unreadStudentsCount > 0 && (
@@ -644,7 +644,7 @@ export function TeacherDashboard() {
           </button>
           <button
             onClick={() => handleTabChange("chat_admin")}
-            className={`w-full flex justify-between items-center text-right px-4 py-3 rounded-xl transition-all ${activeTab === "chat_admin" ? "bg-ws-accentSoft text-ws-accent Soft0/10  font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
+            className={`w-full flex justify-between items-center text-right px-4 py-3 rounded-xl transition-all ${activeTab === "chat_admin" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
           >
             <span>צ'אט הנהלה</span>
             {unreadAdminCount > 0 && (
@@ -1668,7 +1668,7 @@ export function TeacherDashboard() {
                         setSelectedStudentId(student.studentId);
                         setInputText("");
                       }}
-                      className={`w-full text-right p-4 rounded-xl flex items-center justify-between transition-all ${selectedStudentId === student.studentId ? "bg-ws-accentSoft Soft0/10 shadow-sm border border-cyan-200/50 " : "hover:bg-ws-bg/80  border border-transparent"}`}
+                      className={`w-full text-right p-4 rounded-xl flex items-center justify-between transition-all ${selectedStudentId === student.studentId ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm border border-cyan-200/50 " : "hover:bg-ws-bg/80  border border-transparent"}`}
                     >
                       <div className="flex items-center gap-3">
                         <div
