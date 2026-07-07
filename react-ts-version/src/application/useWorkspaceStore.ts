@@ -435,12 +435,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       if (s.sessionNumber === 1) {
         if (task.id === 's1_t8' && !s.hasGrouped) {
           radar.recordTaskError(task.id, 'missed_grouping');
-          showFeedback({ correct: false, title: 'לא ביצעתם המרה 🤔', sub: 'שימו לב: כשיש 10 יחידות ומעלה, נוצרת המרה. נסו לבנות שוב את 38 ו-15 על הלוח כדי לראות זאת.' }, 4500);
+          showFeedback({ correct: false, title: 'חונך סוקרטי 🤔', sub: 'יש לנו כאן יותר מ-10 יחידות. איך נוכל לארגן אותן בלוח בצורה מסודרת יותר מבלי לשנות את הכמות הכוללת?' }, 4500);
           return;
         }
         if (task.id === 's1_t10' && !s.hasUngrouped) {
           radar.recordTaskError(task.id, 'missed_ungrouping');
-          showFeedback({ correct: false, title: 'לא ביצעתם פריטה 🤔', sub: 'איך חיסרתם 6 מתוך 2 מבלי לפרוט עשרת? נסו לבצע את המשימה בעזרת פריטת עשרת ליחידות.' }, 4500);
+          showFeedback({ correct: false, title: 'חונך סוקרטי 🤔', sub: 'אין מספיק יחידות בטור כדי לחסר. מאיפה נוכל לארגן עוד יחידות בלוח מבלי לשנות את הכמות הכוללת?' }, 4500);
           return;
         }
       }
