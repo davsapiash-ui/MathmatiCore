@@ -453,12 +453,27 @@ export function TeacherDashboard() {
     return chatMessages.sort((a, b) => a.timestamp - b.timestamp);
   }, [messages, user, selectedStudentId]);
 
+  const processedMessages = useRef<Set<string>>(new Set());
+
   useEffect(() => {
-    if (activeTab === "chat_admin" && user) {
-      markAsRead(user.uid, "admin");
+    if (!user) return;
+    
+    // Process admin messages
+    if (activeTab === "chat_admin") {
+      const unreadAdmin = messages.filter(m => m.senderId === "admin" && m.receiverId === user.uid && !m.read && !processedMessages.current.has(m.id));
+      if (unreadAdmin.length > 0) {
+        unreadAdmin.forEach(m => processedMessages.current.add(m.id));
+        markAsRead(user.uid, "admin");
+      }
     }
-    if (activeTab === "chat_students" && user && selectedStudentId) {
-      markAsRead(user.uid, selectedStudentId);
+    
+    // Process student messages
+    if (activeTab === "chat_students" && selectedStudentId) {
+      const unreadStudent = messages.filter(m => m.senderId === selectedStudentId && m.receiverId === user.uid && !m.read && !processedMessages.current.has(m.id));
+      if (unreadStudent.length > 0) {
+        unreadStudent.forEach(m => processedMessages.current.add(m.id));
+        markAsRead(user.uid, selectedStudentId);
+      }
     }
   }, [activeTab, selectedStudentId, messages, user, markAsRead]);
 
