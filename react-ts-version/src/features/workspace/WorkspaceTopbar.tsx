@@ -31,7 +31,7 @@ export function WorkspaceTopbar() {
   const activeTaskCount = useWorkspaceStore((s) => getActiveTasks(s).length);
   const totalTasks = sessionNumber === 2 ? TASKS.length : activeTaskCount;
   const currentIdx = sessionNumber === 2 ? Math.min(qflow.taskIdx, TASKS.length - 1) : standardTaskIdx;
-  const studentName: string = user?.displayName || 'תלמיד';
+  const studentName: string = (user?.displayName as string) || 'תלמיד';
 
   return (
     <nav className="h-[72px] shrink-0 bg-ws-surface/90 backdrop-saturate-150 border-b border-ws-surface2 shadow-[0_4px_20px_-8px_hsl(var(--ws-shadow-warm)/0.25)] flex items-center justify-between px-5 gap-4 z-20">

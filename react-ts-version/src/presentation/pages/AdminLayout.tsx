@@ -97,10 +97,10 @@ export function AdminLayout() {
           <div className="p-6 border-t border-white/20 dark:border-white/5 mt-auto bg-white/20 dark:bg-black/10">
             <div className="flex items-center gap-4 mb-4 p-3 rounded-2xl bg-white/50 dark:bg-slate-900/50 shadow-inner border border-white/40 dark:border-white/5">
               <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-500/30">
-                {user?.displayName?.[0] || "A"}
+                {(user?.displayName as string)?.[0] || "A"}
               </div>
               <div className="flex-1 overflow-hidden">
-                <div className="font-bold text-base truncate">{user?.displayName || "System Admin"}</div>
+                <div className="font-bold text-base truncate">{(user?.displayName as string) || "System Admin"}</div>
                 <div className="text-[10px] text-slate-500 dark:text-slate-400 tracking-wider uppercase font-semibold">Root Access</div>
               </div>
             </div>

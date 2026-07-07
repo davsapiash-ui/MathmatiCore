@@ -27,6 +27,7 @@ class FirebaseSyncService {
     useAuthStore.subscribe((authState) => {
       if (authState.isAuthenticated && authState.user && authState.role === 'student') {
         const newUserId = authState.user.uid || authState.user.id || authState.user.email?.split('@')[0];
+        if (!newUserId) return;
         if (newUserId !== this.currentUserId) {
           this.currentUserId = newUserId;
           this.startSync(newUserId, authState.user);

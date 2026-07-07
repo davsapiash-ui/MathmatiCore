@@ -78,7 +78,10 @@ export function TeacherDashboard() {
               let allEvents: any[] = [];
               
               for (const key of keys) {
-                const chunk = data[key as keyof typeof data];
+                let chunk = data[key as keyof typeof data];
+                if (typeof chunk === 'string') {
+                  try { chunk = JSON.parse(chunk); } catch { chunk = []; }
+                }
                 if (Array.isArray(chunk)) {
                   allEvents = allEvents.concat(chunk);
                 } else if (chunk && typeof chunk === 'object') {
@@ -482,7 +485,7 @@ export function TeacherDashboard() {
       const unreadAdmin = messages.filter(m => m.senderId === "admin" && m.receiverId === user.uid && !m.read && !processedMessages.current.has(m.id));
       if (unreadAdmin.length > 0) {
         unreadAdmin.forEach(m => processedMessages.current.add(m.id));
-        markAsRead(user.uid, "admin");
+        markAsRead(user.uid as string, "admin");
       }
     }
     
@@ -491,7 +494,7 @@ export function TeacherDashboard() {
       const unreadStudent = messages.filter(m => m.senderId === selectedStudentId && m.receiverId === user.uid && !m.read && !processedMessages.current.has(m.id));
       if (unreadStudent.length > 0) {
         unreadStudent.forEach(m => processedMessages.current.add(m.id));
-        markAsRead(user.uid, selectedStudentId);
+        markAsRead(user.uid as string, selectedStudentId);
       }
     }
   }, [activeTab, selectedStudentId, messages, user, markAsRead]);
@@ -499,8 +502,8 @@ export function TeacherDashboard() {
   const handleSendAdmin = () => {
     if (!inputText.trim() || !user) return;
     sendMessage(
-      user.uid,
-      user.displayName || "מורה",
+      user.uid as string,
+      (user.displayName as string) || "מורה",
       "admin",
       inputText.trim(),
     );
@@ -510,8 +513,8 @@ export function TeacherDashboard() {
   const handleSendStudent = () => {
     if (!inputText.trim() || !user || !selectedStudentId) return;
     sendMessage(
-      user.uid,
-      user.displayName || "מורה",
+      user.uid as string,
+      (user.displayName as string) || "מורה",
       selectedStudentId,
       inputText.trim(),
     );
@@ -523,7 +526,7 @@ export function TeacherDashboard() {
     if (!file || !user || !selectedStudentId) return;
     setSendingImage(true);
     try {
-      await sendImageMessage(user.uid, user.displayName || 'מורה', selectedStudentId, file);
+      await sendImageMessage(user.uid as string, (user.displayName as string) || 'מורה', selectedStudentId, file);
     } finally {
       setSendingImage(false);
       if (teacherFileInputRef.current) teacherFileInputRef.current.value = '';
@@ -535,7 +538,7 @@ export function TeacherDashboard() {
     if (!file || !user) return;
     setSendingImage(true);
     try {
-      await sendImageMessage(user.uid, user.displayName || 'מורה', 'admin', file);
+      await sendImageMessage(user.uid as string, (user.displayName as string) || 'מורה', 'admin', file);
     } finally {
       setSendingImage(false);
       if (adminFileInputRef.current) adminFileInputRef.current.value = '';

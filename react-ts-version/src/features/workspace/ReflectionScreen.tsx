@@ -44,7 +44,7 @@ export function ReflectionScreen() {
   const [strategies, setStrategies] = useState<string[]>([]);
   const [done, setDone] = useState(false);
 
-  const studentName: string = user?.displayName || 'תלמיד';
+  const studentName: string = (user?.displayName as string) || 'תלמיד';
   // uid is the ONE canonical identity field (Login stores {uid, role, displayName}).
   // The old user.username read was always undefined → every student wrote to 'unknown_student'.
   const username: string = user?.uid || 'unknown_student';

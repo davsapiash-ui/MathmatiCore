@@ -80,30 +80,35 @@ export function useWorkspaceRadar(sessionNumber: number) {
       }, HESITATION_THRESHOLD_MS);
     }
 
+    function handleDriftAction() {
+      hesitationArmed.current = true;
+      armHesitationTimer();
+      const now = Date.now();
+      deleteTimestamps.current = [...deleteTimestamps.current.filter((t) => now - t < RAPID_DELETE_WINDOW_MS), now];
+      if (deleteTimestamps.current.length >= RAPID_DELETE_THRESHOLD) {
+        // משיג את התיעוד הכולל מה-Store של המרחב
+        const totalDeletions = useWorkspaceStore.getState().undoCount || 0;
+        
+        sendAlert('PASSIVE_DRIFTING', { 
+          recentDeletions: deleteTimestamps.current.length,
+          totalDeletionsFromStart: totalDeletions
+        });
+        
+        // איפוס חלון הזמן המקומי בלבד כדי לדרוש רצף מחיקות *חדש* להתראה נוספת
+        deleteTimestamps.current = [];
+      }
+    }
+
     registerRadar({
       recordAction: () => {
         hesitationArmed.current = true;
         armHesitationTimer();
       },
       recordDelete: () => {
-        const now = Date.now();
-        deleteTimestamps.current = [...deleteTimestamps.current.filter((t) => now - t < RAPID_DELETE_WINDOW_MS), now];
-        if (deleteTimestamps.current.length >= RAPID_DELETE_THRESHOLD) {
-          // משיג את התיעוד הכולל מה-Store של המרחב
-          const totalDeletions = useWorkspaceStore.getState().undoCount || 0;
-          
-          sendAlert('PASSIVE_DRIFTING', { 
-            recentDeletions: deleteTimestamps.current.length,
-            totalDeletionsFromStart: totalDeletions
-          });
-          
-          // איפוס חלון הזמן המקומי בלבד כדי לדרוש רצף מחיקות *חדש* להתראה נוספת
-          deleteTimestamps.current = [];
-        }
+        handleDriftAction();
       },
       recordUndo: () => {
-        hesitationArmed.current = true;
-        armHesitationTimer();
+        handleDriftAction();
       },
       recordHintRequest: () => {
         sendAlert('HINT_REQUESTED');

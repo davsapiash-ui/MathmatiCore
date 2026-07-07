@@ -117,8 +117,6 @@ export function StudentWorkspacePage() {
 
     const uid = useAuthStore.getState().user?.uid;
     if (!uid) return;
-    const sessionKey = `${uid}/${Date.now()}`;
-
     // Load rrweb asynchronously
     (async () => {
       const [rrweb] = await Promise.all([
@@ -146,7 +144,7 @@ export function StudentWorkspacePage() {
         if (eventsQueue.length > 0) {
           const batch = [...eventsQueue];
           eventsQueue = [];
-          push(ref(database, `replays/${sessionKey}`), JSON.stringify(batch)).catch(() => {});
+          push(ref(database, `students/${uid}/telemetry_chunks`), JSON.stringify(batch)).catch(() => {});
         }
       }, 5000);
     })();

@@ -43,7 +43,7 @@ export function Topbar() {
           className="flex items-center gap-3 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md rounded-full py-1.5 px-1.5 pr-4 shadow-sm border border-slate-200/50 dark:border-slate-700/50 cursor-pointer transition-all"
         >
           <div className="flex flex-col items-end leading-tight">
-            <span className="text-sm font-bold text-ws-ink">{user?.displayName || 'אורח'}</span>
+            <span className="text-sm font-bold text-ws-ink">{(user?.displayName as string) || 'אורח'}</span>
             <span className="text-xs font-medium text-ws-soft">{user?.role === 'student' ? 'תלמיד' : 'מורה'}</span>
           </div>
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-md">

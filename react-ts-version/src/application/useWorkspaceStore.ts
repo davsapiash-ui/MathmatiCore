@@ -188,6 +188,13 @@ export function selectCanProceed(s: WorkspaceState): boolean {
     if (!task) return false;
     if (!s.hasInteracted) return false;
     if ((task.type === 'place_value_zero' || task.type === 'small_change') && !s.selectedChoiceId) return false;
+    if (task.type === 'number_line' && s.numberLineValue === null) return false;
+    if (task.type === 'missing_element' && !s.probeAnswer) return false;
+    if (task.type === 'vertical_addition') {
+      const subtask = isSubtaskActive(s.qflow);
+      if (subtask && !s.probeAnswer) return false;
+      if (!subtask && answerDigitsToNumber(s.answerDigits) === null) return false;
+    }
     return true;
   }
   const task = selectStandardTask(s);

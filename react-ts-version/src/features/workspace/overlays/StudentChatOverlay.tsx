@@ -51,10 +51,10 @@ export function StudentChatOverlay() {
   );
 
   const handleSend = () => {
-    if (!text.trim()) return;
+    if (!text.trim() || !user.uid) return;
     const lastReceivedMsg = [...messages].reverse().find(m => m.receiverId === user.uid && m.senderId !== user.uid);
     const activeTeacher = lastReceivedMsg ? lastReceivedMsg.senderId : targetTeacherId;
-    sendMessage(user.uid, user.displayName || user.email?.split('@')[0] || 'תלמיד', activeTeacher, text);
+    sendMessage(user.uid as string, String(user.displayName || user.email?.split('@')[0] || 'תלמיד'), activeTeacher as string, text);
     setText('');
   };
 
@@ -65,7 +65,7 @@ export function StudentChatOverlay() {
     try {
       const lastReceivedMsg = [...messages].reverse().find(m => m.receiverId === user.uid && m.senderId !== user.uid);
       const activeTeacher = lastReceivedMsg ? lastReceivedMsg.senderId : targetTeacherId;
-      await sendImageMessage(user.uid, user.displayName || 'תלמיד', activeTeacher, file);
+      await sendImageMessage(user.uid as string, String(user.displayName || 'תלמיד'), activeTeacher as string, file);
     } finally {
       setSendingImage(false);
       if (fileInputRef.current) fileInputRef.current.value = '';

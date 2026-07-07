@@ -20,7 +20,7 @@ export function AdminChatView() {
     if (!file || !selectedTeacherId) return;
     setSendingImage(true);
     try {
-      await sendImageMessage("admin", user?.displayName || "מנהל מערכת", selectedTeacherId, file);
+      await sendImageMessage("admin", (user?.displayName as string) || "מנהל מערכת", selectedTeacherId, file);
     } catch (err) {
       console.error("Failed to send image:", err);
     } finally {
@@ -43,7 +43,7 @@ export function AdminChatView() {
 
   const handleSend = () => {
     if (!inputText.trim() || !selectedTeacherId) return;
-    sendMessage("admin", user?.displayName || "מנהל מערכת", selectedTeacherId, inputText.trim());
+    sendMessage("admin", (user?.displayName as string) || "מנהל מערכת", selectedTeacherId, inputText.trim());
     setInputText("");
   };
 
