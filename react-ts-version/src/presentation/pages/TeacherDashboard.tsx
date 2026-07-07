@@ -390,23 +390,24 @@ export function TeacherDashboard() {
       .sort((a, b) => b.timestamp - a.timestamp);
   }, [firebaseAlerts]);
 
-  const handleMarkAsRead = (alert: any) => {
-    if (alert.type === 'HESITATION' || alert.type === 'PASSIVE_CRUISING' || alert.firebaseKey?.startsWith('hesitation-') || alert.firebaseKey?.startsWith('undo-')) {
-      // Actually reset the counters in Firebase so the alert clears globally
-      if (alert.rawStudentId) {
-        set(ref(database, `users/students/${alert.rawStudentId}/traceData`), { 
-          hesitation_events: 0, 
-          undo_clicks: 0, 
-          lastUpdate: Date.now() 
-        });
-        set(ref(database, `users/students/${alert.rawStudentId}/workspaceState/hesitationCount`), 0);
-        set(ref(database, `users/students/${alert.rawStudentId}/workspaceState/undoCount`), 0);
-      }
-      if (alert.rawStudentId) {
-        resetTraceData(alert.rawStudentId);
-      }
+  const handleAlertResponse = (alert: any, responseType: string, responseText: string) => {
+    // 1. Record the intervention in the student's trace data
+    if (alert.rawStudentId) {
+      const interventionId = Date.now().toString();
+      set(ref(database, `users/students/${alert.rawStudentId}/traceData/interventions/${interventionId}`), {
+        timestamp: Date.now(),
+        alertType: alert.type || 'UNKNOWN',
+        responseType,
+        responseText
+      });
     }
-    
+
+    // 2. Execute any specific logic for the response
+    if (responseType === 'HINT') {
+      handleHintClick(alert.rawStudentId);
+    }
+
+    // 3. Dismiss the alert from the radar queue (without resetting the overall traceData)
     if (alert.firebaseKey) {
       remove(ref(database, `radar_alerts/${alert.firebaseKey}`));
     }
@@ -1027,15 +1028,23 @@ export function TeacherDashboard() {
                         size="sm"
                         semanticColor="primary"
                         className="shadow-lg shadow-blue-500/20 font-bold"
-                        onClick={() => handleHintClick(alert.rawStudentId)}
+                        onClick={() => handleAlertResponse(alert, 'HINT', 'נשלח רמז אישי')}
                       >
                         שלח רמז אישי
                       </UdlButton>
                       <UdlButton
                         size="sm"
+                        semanticColor="secondary"
+                        className="bg-purple-100 hover:bg-purple-200 text-purple-700 font-bold shadow-sm"
+                        onClick={() => handleAlertResponse(alert, 'PHYSICAL', 'ניגשתי פיזית לתלמיד')}
+                      >
+                        ניגשתי פיזית
+                      </UdlButton>
+                      <UdlButton
+                        size="sm"
                         variant="outline"
                         className="bg-white/50  backdrop-blur-sm border-ws-surface2  hover:bg-ws-bg "
-                        onClick={() => handleMarkAsRead(alert)}
+                        onClick={() => handleAlertResponse(alert, 'ACKNOWLEDGED', 'סומן כנקרא (ללא התערבות)')}
                       >
                         סמן כנקרא
                       </UdlButton>
