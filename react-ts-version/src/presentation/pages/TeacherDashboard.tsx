@@ -1035,7 +1035,7 @@ export function TeacherDashboard() {
                 allAlerts.map((alert) => (
                   <div
                     key={alert.firebaseKey}
-                    className={`p-6 rounded-2xl border flex flex-col md:flex-row justify-between md:items-center gap-4 shadow-[0_4px_20px_rgb(0,0,0,0.03)] dark:shadow-[0_4px_20px_rgb(0,0,0,0.1)] backdrop-blur-md transition-all hover:scale-[1.01] ${alert.type === "HESITATION" ? "bg-ws-accentSoft/80  border-amber-200 " : "bg-red-50/80  border-red-200 "}`}
+                    className={`p-6 rounded-2xl border flex flex-col md:flex-row justify-between md:items-center gap-4 shadow-[0_4px_20px_rgb(0,0,0,0.03)] dark:shadow-[0_4px_20px_rgb(0,0,0,0.1)] backdrop-blur-md transition-all hover:scale-[1.01] ${alert.type === "HESITATION" ? "bg-ws-accentSoft/80  border-amber-200 " : alert.type === "TAB_ESCAPE" ? "bg-red-100 border-red-500 animate-pulse ring-4 ring-red-500/20" : "bg-red-50/80  border-red-200 "}`}
                   >
                     <div className="flex items-start gap-4">
                       <div
@@ -1053,7 +1053,9 @@ export function TeacherDashboard() {
                           >
                             {alert.type === "HESITATION"
                               ? " עצירה ממושכת (מאבק קוגניטיבי)"
-                              : " מחיקות רבות (שיוט פסיבי)"}
+                              : alert.type === "TAB_ESCAPE"
+                                ? " בריחה לטאב אחר (חוסר מיקוד מסוכן!)"
+                                : " מחיקות רבות (שיוט פסיבי)"}
                           </span>
                         </div>
                         <div className="text-sm font-medium text-ws-soft  mt-2 flex items-center gap-4">
@@ -1327,10 +1329,10 @@ export function TeacherDashboard() {
                                     >
                                       <div className="flex items-center gap-2">
                                         <span className="text-lg">
-                                          {alert.type === 'HESITATION' ? '⏱️' : alert.type === 'PASSIVE_DRIFTING' ? '↩️' : alert.type === 'TASK_ERROR' ? '❌' : '⚠️'}
+                                          {alert.type === 'HESITATION' ? '⏱️' : alert.type === 'PASSIVE_DRIFTING' ? '↩️' : alert.type === 'TAB_ESCAPE' ? '⚠️' : alert.type === 'TASK_ERROR' ? '❌' : '⚠️'}
                                         </span>
                                         <span className="font-bold text-sm text-ws-ink">
-                                          {alert.type === 'HESITATION' ? 'היסוס ממושך' : alert.type === 'PASSIVE_DRIFTING' ? 'מחיקות מרובות' : alert.type === 'TASK_ERROR' ? 'שגיאה במשימה' : alert.type}
+                                          {alert.type === 'HESITATION' ? 'היסוס ממושך' : alert.type === 'PASSIVE_DRIFTING' ? 'מחיקות מרובות' : alert.type === 'TAB_ESCAPE' ? 'בריחה לטאב אחר' : alert.type === 'TASK_ERROR' ? 'שגיאה במשימה' : alert.type}
                                         </span>
                                       </div>
                                       <div className="text-xs text-ws-soft font-mono">

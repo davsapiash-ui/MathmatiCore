@@ -16,7 +16,7 @@ const HESITATION_THRESHOLD_MS = 30000; // per spec (מסמך רצף הפעילו
 const RAPID_DELETE_THRESHOLD = 3;
 const RAPID_DELETE_WINDOW_MS = 3000;
 
-type AlertType = 'HESITATION' | 'PASSIVE_DRIFTING' | 'HINT_REQUESTED' | 'TASK_ERROR';
+type AlertType = 'HESITATION' | 'PASSIVE_DRIFTING' | 'HINT_REQUESTED' | 'TASK_ERROR' | 'TAB_ESCAPE';
 
 export function useWorkspaceRadar(sessionNumber: number) {
   const user = useAuthStore((s) => s.user);
@@ -67,11 +67,6 @@ export function useWorkspaceRadar(sessionNumber: number) {
     function armHesitationTimer() {
       clearHesitationTimer();
       hesitationTimer.current = window.setTimeout(() => {
-        // Tab hidden = the student isn't struggling, they're away; re-arm silently.
-        if (document.hidden) {
-          armHesitationTimer();
-          return;
-        }
         sendAlert('HESITATION', { idleMs: HESITATION_THRESHOLD_MS });
         // Mirror into the workspace store so traceData reaches the teacher at reflection.
         useWorkspaceStore.setState((s) => ({ hesitationCount: s.hesitationCount + 1 }));
@@ -126,10 +121,18 @@ export function useWorkspaceRadar(sessionNumber: number) {
       },
     });
 
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        sendAlert('TAB_ESCAPE', { reason: 'Student switched tabs or minimized browser' });
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     armHesitationTimer();
 
     return () => {
       clearHesitationTimer();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       unregisterRadar();
     };
   }, [sessionNumber]);
