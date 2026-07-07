@@ -29,7 +29,7 @@ export function TeacherDashboard() {
   useTeacherTour();
   const { user } = useAuthStore();
   const { messages, sendMessage, sendImageMessage, markAsRead } = useChatStore();
-  const { resetTraceData } = useStore();
+
   const teacherFileInputRef = useRef<HTMLInputElement>(null);
   const adminFileInputRef = useRef<HTMLInputElement>(null);
   const [sendingImage, setSendingImage] = useState(false);

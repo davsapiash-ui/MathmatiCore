@@ -23,14 +23,12 @@ export class TelemetryTracker {
   private pendingEvents: TelemetryEvent[] = [];
   
   private hesitationTimer: any = null;
-  private lastActionTime: number = Date.now();
   private isRadarActive: boolean = false;
   private currentStudentId: string = "";
   private currentTaskId: string = "";
   private impersonating: boolean = false;
   
   private recentDeleteTimes: number[] = [];
-  private readonly HESITATION_THRESHOLD_MS = 30000;
   private readonly RAPID_DELETE_WINDOW_MS = 3000;
   private readonly RAPID_DELETE_THRESHOLD = 3;
 
@@ -53,7 +51,6 @@ export class TelemetryTracker {
     if (this.impersonating) return;
     this.currentStudentId = studentId;
     this.isRadarActive = true;
-    this.lastActionTime = Date.now();
     this.pendingEvents = [];
     this.recentDeleteTimes = [];
     this.resetHesitationTimer();
@@ -109,7 +106,6 @@ export class TelemetryTracker {
   private resetHesitationTimer() {
     clearTimeout(this.hesitationTimer);
     if (!this.isRadarActive) return;
-    this.lastActionTime = Date.now();
     // Disabled dual-engine hesitation timer. 
     // The useWorkspaceRadar hook now accurately handles hesitation alerts.
     // this.hesitationTimer = setTimeout(() => {
