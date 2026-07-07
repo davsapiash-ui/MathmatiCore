@@ -202,8 +202,15 @@ export function selectCanProceed(s: WorkspaceState): boolean {
   if (task.type === 'session1_intro') {
     // Choiceless exploration tasks (correctAnswer 'proceed_any') pass on any interaction;
     // question intros still require a selected choice.
-    if (task.correctAnswer === 'proceed_any' || !task.choices?.length) return s.hasInteracted;
+    if (task.correctAnswer === 'proceed_any' || !task.choices?.length) {
+      if (task.id === 's1_t3' && selectBoardValue(s) !== 50) return false;
+      if (task.id === 's1_t5' && selectBoardValue(s) !== 40) return false;
+      return s.hasInteracted;
+    }
     return s.selectedChoiceId !== null;
+  }
+  if (task.type === 'flexible_decomp') {
+    return s.q3Reps.length >= 2;
   }
   if (!s.hasInteracted) return false;
   return true;

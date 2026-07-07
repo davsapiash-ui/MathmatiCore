@@ -71,7 +71,7 @@ export function WorkspaceTopbar() {
           className="h-10 px-4 sm:px-5 rounded-full text-sm font-bold text-ws-blue bg-ws-blueSoft/50 hover:bg-ws-blue hover:text-white transition-all flex items-center gap-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)]"
         >
           <span aria-hidden="true">🧮</span>
-          <span className="hidden sm:inline">{boardOpen ? 'הסתר לוח' : 'הצג לוח'}</span>
+          <span className="hidden sm:inline">{boardOpen ? 'הסתר לוח מוחשי' : 'הצג לוח מוחשי'}</span>
         </button>
 
         <button

@@ -43,9 +43,9 @@ export function PlaceValueBoard({ hideValueDisplay }: { hideValueDisplay?: boole
                     borderColor: 'hsl(var(--ws-blue) / 0.4)',
                     backgroundColor: 'hsl(var(--ws-blue-soft) / 0.6)',
                   }}
-                  aria-label="החזרת עזרים — הצג שוב את הקוביות בבירור"
+                  aria-label="הדגשת קווי עזר — הצג שוב את הקוביות בבירור"
                 >
-                  <span aria-hidden="true">👁</span> החזרת עזרים
+                  <span aria-hidden="true">👁</span> הדגש קווי עזר
                 </button>
               )}
             </div>
