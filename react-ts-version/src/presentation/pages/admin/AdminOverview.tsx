@@ -18,7 +18,7 @@ const mockGrowthData = [
 ];
 
 export function AdminOverview() {
-  const { schools, teachers, classes } = useAdminStore();
+  const { schools, teachers } = useAdminStore();
   const [auditLogs, setAuditLogs] = useState<AuditLogEvent[]>([]);
 
   useEffect(() => {

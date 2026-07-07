@@ -107,7 +107,7 @@ export function ClassManagement({ allStudents }: { allStudents: StudentData[] })
   };
 
   return (
-    <div className="p-8 max-w-6xl mx-auto w-full animate-in fade-in duration-500">
+    <div className="p-8 max-w-6xl mx-auto w-full h-full flex flex-col animate-in fade-in duration-500">
       
       {/* Header */}
       <div className="mb-8">
@@ -134,7 +134,7 @@ export function ClassManagement({ allStudents }: { allStudents: StudentData[] })
       </div>
 
       {/* Roster Table */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-sm overflow-hidden flex flex-col flex-1 min-h-0">
         
         {/* Toolbar */}
         <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex gap-4 bg-slate-50/50 dark:bg-slate-800/50">
@@ -153,7 +153,7 @@ export function ClassManagement({ allStudents }: { allStudents: StudentData[] })
           </div>
         </div>
 
-        <div className="max-h-[60vh] overflow-y-auto">
+        <div className="flex-1 overflow-y-auto">
           <table className="w-full text-right relative">
             <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800/90 backdrop-blur-md z-10 shadow-sm">
               <tr className="text-slate-500 dark:text-slate-400 text-sm">

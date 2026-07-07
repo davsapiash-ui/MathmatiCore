@@ -113,7 +113,7 @@ export function AdminLayout() {
           <div className="fixed top-0 left-1/4 w-[800px] h-[800px] bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-transparent rounded-full blur-[100px] pointer-events-none -z-10 mix-blend-screen dark:mix-blend-lighten animate-in fade-in duration-1000"></div>
           <div className="fixed bottom-0 right-1/4 w-[600px] h-[600px] bg-gradient-to-tl from-cyan-500/10 via-blue-500/5 to-transparent rounded-full blur-[80px] pointer-events-none -z-10 mix-blend-screen dark:mix-blend-lighten animate-in fade-in duration-1000 delay-300"></div>
           
-          <div className="h-full rounded-[2rem] border border-white/20 dark:border-white/5 bg-white/40 dark:bg-slate-900/20 backdrop-blur-3xl shadow-xl overflow-hidden relative z-0">
+          <div className="h-full rounded-[2rem] border border-white/20 dark:border-white/5 bg-white/40 dark:bg-slate-900/20 backdrop-blur-3xl shadow-xl overflow-y-auto relative z-0">
             <Outlet />
           </div>
         </main>
