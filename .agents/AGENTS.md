@@ -39,7 +39,15 @@
   },
   "traceData": {
      "hesitation_events": "number",
-     "undo_clicks": "number"
+     "undo_clicks": "number",
+     "interventions": {
+        "timestamp_id": {
+           "timestamp": "number",
+           "alertType": "string",
+           "responseType": "string",
+           "responseText": "string"
+        }
+     }
   }
 }
 ```
