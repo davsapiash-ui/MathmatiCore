@@ -2,11 +2,19 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { AuditLogger } from "@/infrastructure/services/AuditLogger";
 
+export interface AuthUser {
+  uid?: string;
+  id?: string;
+  name?: string;
+  email?: string;
+  [key: string]: unknown;
+}
+
 interface AuthState {
-  user: any | null; // Replace with proper Firebase User type if needed
+  user: AuthUser | null;
   role: "student" | "teacher" | "admin" | null;
   isAuthenticated: boolean;
-  setUser: (user: any, role: "student" | "teacher" | "admin") => void;
+  setUser: (user: AuthUser, role: "student" | "teacher" | "admin") => void;
   logout: () => void;
 }
 

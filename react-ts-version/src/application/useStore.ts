@@ -28,7 +28,7 @@ export interface DiagnosticReport {
   timestamp: number;
   clinicalDiagnosisHe: string;
   actionPlanHe: string;
-  tasks: any[];
+  tasks: unknown[];
   qMatrixResults: QMatrix;
   traceData: TraceData;
   effort: number | null;
@@ -251,10 +251,10 @@ export const useStore = create<AppState>()(
     }),
     {
       name: 'main-store-v7',
-      merge: (persistedState: any, currentState) => {
+      merge: (persistedState: unknown, currentState) => {
         if (!persistedState) return currentState;
-        
-        const mergedStudents = { ...currentState.students, ...(persistedState.students || {}) };
+        const persisted = persistedState as Partial<AppState>;
+        const mergedStudents = { ...currentState.students, ...(persisted.students || {}) };
         
         // Deep merge each student to make sure new fields are present
         Object.keys(mergedStudents).forEach(key => {

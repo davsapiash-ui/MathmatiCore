@@ -375,7 +375,7 @@ export function TeacherDashboard() {
             const row = data[key as keyof typeof data];
             const rawId = row.rawStudentId ?? row.student ?? row.username;
             // Look up the actual name from the formatted students list (handles 'user1', 'user2' etc)
-            const actualStudent = useStore.getState().students[rawId] || Object.values(useStore.getState().students).find((s: any) => s.studentId === rawId || s.name === rawId);
+            const actualStudent = useStore.getState().students[rawId] || Object.values(useStore.getState().students).find((s: StudentData) => s.studentId === rawId || s.name === rawId);
             
             return {
               ...row,

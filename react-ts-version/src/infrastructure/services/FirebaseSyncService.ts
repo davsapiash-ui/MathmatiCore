@@ -1,8 +1,8 @@
-import { ref, set, get, update, serverTimestamp, onValue } from 'firebase/database';
+import { ref, set, get, update, serverTimestamp, onValue, type DataSnapshot } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
-import { useStore } from '@/application/useStore';
+import { useStore, type QMatrix, type TraceData } from '@/application/useStore';
 
 class FirebaseSyncService {
   private static instance: FirebaseSyncService;
@@ -37,7 +37,7 @@ class FirebaseSyncService {
     });
   }
 
-  private startSync(studentId: string, userData: any) {
+  private startSync(studentId: string, userData: Record<string, unknown>) {
     this.stopSync();
 
     const studentRef = ref(database, `users/students/${studentId}`);
@@ -45,7 +45,7 @@ class FirebaseSyncService {
     this.isInitialLoad = true;
 
     // Load initial state from Firebase and keep it synced LIVE
-    this.unsubscribeFirebase = onValue(studentRef, (snapshot: any) => {
+    this.unsubscribeFirebase = onValue(studentRef, (snapshot: DataSnapshot) => {
       try {
         if (snapshot.exists()) {
           const rawData = snapshot.val();
@@ -153,19 +153,19 @@ class FirebaseSyncService {
     return snapshot.val();
   }
 
-  public async registerTeacher(teacherData: any) {
+  public async registerTeacher(teacherData: Record<string, unknown>) {
     const teacherRef = ref(database, `users/teachers/${teacherData.id}`);
     await set(teacherRef, teacherData);
   }
 
   // --- NEW: Sync specific fields to Firebase directly ---
-  public async syncQMatrix(studentId: string, qMatrixUpdates: any) {
+  public async syncQMatrix(studentId: string, qMatrixUpdates: Partial<QMatrix>) {
     if (!studentId) return;
     const qMatrixRef = ref(database, `users/students/${studentId}/qMatrixResults`);
     await update(qMatrixRef, qMatrixUpdates);
   }
 
-  public async syncTraceData(studentId: string, traceDataUpdates: any) {
+  public async syncTraceData(studentId: string, traceDataUpdates: Partial<TraceData>) {
     if (!studentId) return;
     const traceRef = ref(database, `users/students/${studentId}/traceData`);
     await update(traceRef, traceDataUpdates);
