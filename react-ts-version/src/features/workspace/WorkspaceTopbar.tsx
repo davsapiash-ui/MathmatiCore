@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useWorkspaceStore, selectCanProceed, getActiveTasks } from '@/application/useWorkspaceStore';
+import { useStore } from '@/application/useStore';
 import { TASKS } from '@/core/QMatrix';
 import { ProgressDots } from './ProgressDots';
 import { useWorkspaceTour } from './useWorkspaceTour';
@@ -25,6 +26,7 @@ export function WorkspaceTopbar() {
   const toggleBoard = useWorkspaceStore((s) => s.toggleBoard);
   const requestHelp = useWorkspaceStore((s) => s.requestHelp);
   const { startTour } = useWorkspaceTour();
+  const globalChatEnabled = useStore((s) => s.globalChatEnabled);
 
   // Derived from the REAL task lists — a hardcoded 5 broke when task6 joined session 2,
   // and ignored teacher-approved AI task lists in session 3.
@@ -83,12 +85,14 @@ export function WorkspaceTopbar() {
           <span aria-hidden="true">↩</span> <span className="hidden sm:inline">בטל</span>
         </button>
 
-        <button
-          onClick={() => document.dispatchEvent(new CustomEvent('toggle-chat'))}
-          className="h-10 px-3 sm:px-4 rounded-full text-sm font-bold text-ws-accent bg-ws-surface border border-ws-accent/20 hover:border-ws-accent/50 hover:shadow-md transition-all flex items-center gap-1.5"
-        >
-          <span aria-hidden="true">💬</span> <span className="hidden sm:inline">צ'אט</span>
-        </button>
+        {globalChatEnabled && (
+          <button
+            onClick={() => document.dispatchEvent(new CustomEvent('toggle-chat'))}
+            className="h-10 px-3 sm:px-4 rounded-full text-sm font-bold text-ws-accent bg-ws-surface border border-ws-accent/20 hover:border-ws-accent/50 hover:shadow-md transition-all flex items-center gap-1.5"
+          >
+            <span aria-hidden="true">💬</span> <span className="hidden sm:inline">צ'אט</span>
+          </button>
+        )}
 
         <button
           onClick={requestHelp}
