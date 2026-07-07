@@ -21,9 +21,11 @@ const EFFORT_OPTIONS = [
 ] as const;
 
 const STRATEGY_OPTIONS = [
-  { id: 'blocks', icon: '🟨', nameHe: 'השתמשתי בקוביות של טבלת הטורים', descHe: 'גררתי יחידות ועשרות לטבלה כדי לחשוב' },
-  { id: 'hints', icon: '💡', nameHe: 'ביקשתי עזרה מהחונך הדיגיטלי', descHe: 'לחצתי על כפתור העזרה כשלא הצלחתי לבד' },
-  { id: 'undo', icon: '↩️', nameHe: 'עצרתי ובדקתי את עצמי', descHe: 'לחצתי על "בטל" כדי לנסות שוב בצורה אחרת' },
+  { id: 'blocks', icon: '🟨', nameHe: 'השתמשתי בקוביות להמחשה', descHe: 'גררתי עשרות ויחידות לטבלה כדי להבין את הכמויות טוב יותר' },
+  { id: 'hints', icon: '💡', nameHe: 'היעזרתי בתמיכה', descHe: 'לחצתי על "בדוק אותי" או ביקשתי עזרה כשהרגשתי תקוע' },
+  { id: 'undo', icon: '↩️', nameHe: 'בדיקה עצמית ותיקון', descHe: 'עצרתי לבדוק את עצמי, לחצתי על "בטל" וניסיתי דרך אחרת' },
+  { id: 'mental', icon: '🧠', nameHe: 'חישוב בראש', descHe: 'פתרתי את רוב התרגילים בעזרת חשיבה והבנה ללא עזרים' },
+  { id: 'paper', icon: '📝', nameHe: 'עבודה בצד', descHe: 'עזר לי מאוד לכתוב ולפתור על דף טיוטה לפני שהקלדתי' },
 ] as const;
 
 const EFFORT_FEEDBACK: Record<number, { emoji: string; text: string; sub: string }> = {
@@ -39,7 +41,7 @@ export function ReflectionScreen() {
   const qflow = useWorkspaceStore((s) => s.qflow);
 
   const [effort, setEffort] = useState<number | null>(null);
-  const [strategy, setStrategy] = useState<string | null>(null);
+  const [strategies, setStrategies] = useState<string[]>([]);
   const [done, setDone] = useState(false);
 
   const studentName: string = user?.displayName || 'תלמיד';
@@ -47,7 +49,13 @@ export function ReflectionScreen() {
   // The old user.username read was always undefined → every student wrote to 'unknown_student'.
   const username: string = user?.uid || 'unknown_student';
   const feedback = effort !== null ? EFFORT_FEEDBACK[effort] : null;
-  const canComplete = effort !== null && strategy !== null;
+  const canComplete = effort !== null && strategies.length > 0;
+
+  const toggleStrategy = (id: string) => {
+    setStrategies(prev => 
+      prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
+    );
+  };
 
   const handleProceed = async () => {
     if (!canComplete || done) return;
@@ -63,7 +71,7 @@ export function ReflectionScreen() {
       // Silent persistence for the teacher dashboard (best-effort; vanilla completeReflection).
       await push(ref(database, 'reflections'), {
         effort,
-        strategy,
+        strategies,
         timestamp: Date.now(),
         student: username,
       });
@@ -111,7 +119,8 @@ export function ReflectionScreen() {
         }
         const store = useStore.getState();
         const studentTraceData = store.students[username]?.traceData || { hesitation_events: 0, undo_clicks: 0 };
-        await SocraticEngine.generateAndQueueTasks(username, studentName, resolvedTeacherId, qMatrix, studentTraceData, effort, strategy);
+        const combinedStrategyString = strategies.map(id => STRATEGY_OPTIONS.find(o => o.id === id)?.nameHe).join(', ');
+        await SocraticEngine.generateAndQueueTasks(username, studentName, resolvedTeacherId, qMatrix, studentTraceData, effort, combinedStrategyString);
       }
     } catch (e) {
       console.error("Failed to save reflection:", e);
@@ -156,26 +165,32 @@ export function ReflectionScreen() {
 
         {/* Strategy selection — illustrated choices */}
         <section aria-labelledby="strategy-heading" className="mb-7">
-          <h2 id="strategy-heading" className="font-display font-extrabold text-xl mb-3">מה עזר לכם להצליח היום?</h2>
-          <div role="radiogroup" aria-required="true" className="flex flex-col gap-3">
-            {STRATEGY_OPTIONS.map((opt) => (
-              <button
-                key={opt.id}
-                role="radio"
-                aria-checked={strategy === opt.id}
-                onClick={() => setStrategy(opt.id)}
-                className={`flex items-center gap-4 p-4 rounded-2xl border-2 text-right transition-all ${
-                  strategy === opt.id ? 'border-ws-accent bg-ws-accentSoft shadow-md' : 'border-ws-surface2 hover:border-ws-accent/50'
-                }`}
-              >
-                <span className="text-3xl shrink-0" aria-hidden="true">{opt.icon}</span>
-                <span className="flex flex-col">
-                  <span className="font-bold text-ws-ink">{opt.nameHe}</span>
-                  <span className="text-sm text-ws-soft">{opt.descHe}</span>
-                </span>
-                {strategy === opt.id && <span className="mr-auto text-ws-accent font-black text-xl" aria-hidden="true">✓</span>}
-              </button>
-            ))}
+          <h2 id="strategy-heading" className="font-display font-extrabold text-xl mb-1">מה עזר לכם להצליח היום?</h2>
+          <p className="text-sm text-ws-soft mb-3">אפשר לסמן יותר מאפשרות אחת</p>
+          <div role="group" aria-label="בחירת אסטרטגיות" className="flex flex-col gap-3">
+            {STRATEGY_OPTIONS.map((opt) => {
+              const isSelected = strategies.includes(opt.id);
+              return (
+                <button
+                  key={opt.id}
+                  role="checkbox"
+                  aria-checked={isSelected}
+                  onClick={() => toggleStrategy(opt.id)}
+                  className={`flex items-center gap-4 p-4 rounded-2xl border-2 text-right transition-all ${
+                    isSelected ? 'border-ws-accent bg-ws-accentSoft shadow-md' : 'border-ws-surface2 hover:border-ws-accent/50'
+                  }`}
+                >
+                  <span className="text-3xl shrink-0" aria-hidden="true">{opt.icon}</span>
+                  <span className="flex flex-col">
+                    <span className="font-bold text-ws-ink">{opt.nameHe}</span>
+                    <span className="text-sm text-ws-soft">{opt.descHe}</span>
+                  </span>
+                  <div className={`mr-auto w-6 h-6 rounded-md flex items-center justify-center border-2 transition-colors ${isSelected ? 'border-ws-accent bg-ws-accent' : 'border-ws-surface2 bg-white'}`}>
+                    {isSelected && <span className="text-white text-sm font-black" aria-hidden="true">✓</span>}
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </section>
 
