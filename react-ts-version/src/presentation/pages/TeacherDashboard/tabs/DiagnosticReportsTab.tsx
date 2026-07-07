@@ -124,35 +124,41 @@ export function DiagnosticReportsTab({
                   </div>
 
                   {/* AI Diagnostic Summary */}
-                  <div className={`p-5 rounded-3xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] shrink-0 ${socraticApproval ? 'bg-indigo-50/50' : 'bg-white'}`}>
-                    <h3 className="text-xs font-bold text-slate-400 mb-4 uppercase tracking-wider">
-                      {socraticApproval ? 'תובנות מבוססות AI' : 'ניתוח פדגוגי חי'}
+                  <div className={`p-6 rounded-3xl shadow-lg shrink-0 border ${socraticApproval ? 'bg-gradient-to-br from-indigo-50 to-white border-indigo-100' : 'bg-white border-slate-100'}`}>
+                    <h3 className="text-sm font-black text-indigo-900 mb-5 flex items-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-600"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                      {socraticApproval ? 'תובנות קליניות מבוססות AI' : 'ניתוח פדגוגי חי'}
                     </h3>
                     
-                    <div className="text-sm text-slate-600 leading-relaxed">
+                    <div className="text-sm text-slate-700 leading-relaxed">
                       {!socraticApproval ? (
-                        <p>
+                        <p className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-slate-600">
                           ניתוח פעולות התלמיד בוידאו יחד עם מטריצת המיומנויות מעלה כי 
                           {s.qMatrixResults.task3_flexible_regrouping === 'canonical_fixation' ? ' קיים קושי בגמישות מחשבתית וצורך בהמחשה מוחשית של פעולת הפריטה.' : s.qMatrixResults.task3_flexible_regrouping === 'success' ? ' קיימת הבנה טובה של פריטה והמרה.' : ' טרם נאספו מספיק נתונים לקביעה מוחלטת.'}
                         </p>
                       ) : (
-                        <div className="space-y-4">
-                          <div>
-                            <strong className="block text-indigo-900 mb-1 text-xs uppercase">אבחון:</strong>
-                            <p className="text-slate-700">{socraticApproval.clinicalDiagnosisHe || "לא נרשמו תובנות."}</p>
+                        <div className="space-y-5">
+                          <div className="bg-white p-4 rounded-2xl shadow-sm border border-indigo-50">
+                            <strong className="block text-indigo-800 mb-2 text-xs uppercase tracking-wider font-black">אבחון התנהגותי וקוגניטיבי:</strong>
+                            <p className="text-slate-700 font-medium">{socraticApproval.clinicalDiagnosisHe || "לא נרשמו תובנות."}</p>
+                            
+                            <div className="mt-3 pt-3 border-t border-indigo-50 flex items-center gap-2 text-xs text-indigo-600/80 font-medium">
+                              <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 bg-orange-400 rounded-full"></span> מבוסס על {s.traceData.hesitation_events} היסוסים שאותרו בוידאו</span>
+                            </div>
                           </div>
-                          <div>
-                            <strong className="block text-indigo-900 mb-1 text-xs uppercase">פעולה מומלצת:</strong>
-                            <p className="text-slate-700">{socraticApproval.actionPlanHe || "לא נקבעה תוכנית."}</p>
+
+                          <div className="bg-white p-4 rounded-2xl shadow-sm border border-indigo-50">
+                            <strong className="block text-indigo-800 mb-2 text-xs uppercase tracking-wider font-black">תוכנית התערבות מומלצת:</strong>
+                            <p className="text-slate-700 font-medium">{socraticApproval.actionPlanHe || "לא נקבעה תוכנית."}</p>
                           </div>
                           
                           <UdlButton 
-                            size="sm" 
+                            size="md" 
                             semanticColor="primary"
-                            className="w-full mt-4 font-bold shadow-md"
+                            className="w-full mt-2 font-black shadow-lg shadow-indigo-200"
                             onClick={() => handleTabChange("approvals")}
                           >
-                            החל תוכנית התערבות
+                            עבור לאישור מסלול ובניית תוכנית
                           </UdlButton>
                         </div>
                       )}
