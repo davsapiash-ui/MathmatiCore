@@ -97,12 +97,75 @@ export function ApprovalsTab({
                   <MessageCircle className="w-5 h-5" />
                   המלצת נתב הלמידה (Curriculum Router):
                 </h4>
-                <p className="text-ws-ink font-medium leading-relaxed">
+                <p className="text-ws-ink font-medium leading-relaxed mb-4">
                   מערכת הניתוב ממליצה על שיבוץ התלמיד ל<strong>{student.routeRecommendation === 'YELLOW' ? 'מסלול צהוב (מבוסס תמיכה)' : 'מסלול ירוק (אתגר מתקדם)'}</strong>.<br/>
                   {student.routeRecommendation === 'YELLOW' 
                     ? 'המלצה זו מבוססת על זיהוי פערי ליבה (כגון חוסר שליטה בעובדות יסוד או היסוסים מרובים) במהלך מפגש האבחון. התלמיד יקבל פיגומים (Scaffolding) מותאמים במפגש 3.' 
                     : 'התלמיד הפגין שליטה טובה במיומנויות הבסיס וללא סימני מאבק קוגניטיבי מהותיים. מפגש 3 יאתגר אותו בבעיות מתקדמות ללא פיגומים מיותרים.'}
                 </p>
+
+                {/* --- ROUTE DEEP DIVE --- */}
+                {(() => {
+                  const metadata = import('@/data/routeMetadatas').then(m => m.ROUTE_METADATA);
+                  // Dynamic import workaround for now: We'll hardcode the display logic based on routeRecommendation to guarantee it works without async issues in render
+                  const routeMeta = student.routeRecommendation === 'YELLOW' ? 
+                    {
+                      sessions: [
+                        { sessionNumber: 3, goals: 'בניית ביטחון בעשרות ויחידות: חיבור מספרים דו-ספרתיים עם המרה ברורה תוך שימוש חובה בלוח מוחשי.' },
+                        { sessionNumber: 4, goals: 'הפחתת תלות במוחשי: תרגילי חיסור עם פריטה תוך הצגת הלוח אך ללא חובת גרירה מלאה.' },
+                        { sessionNumber: 5, goals: 'ביסוס תובנת המספר (Number Sense): אומדן תוצאות לפני פתרון מדויק.' },
+                        { sessionNumber: 6, goals: 'מעבר לגמישות מחשבתית: פתרון משוואות עם נעלם (Addend חסר) באמצעות המחשות חלקיות.' },
+                        { sessionNumber: 7, goals: 'הסרת פיגומים מוחלטת: יישום האלגוריתם הסטנדרטי עם תמיכה סוקרטית בלבד במידת הצורך.' }
+                      ],
+                      tasks: [
+                        { id: 's3_y_1', title: 'חיבור דו-ספרתי', instruction: 'פתור: 27 + 15. היעזר בלוח המוחשי לבצע את ההמרה.' },
+                        { id: 's3_y_2', title: 'חיבור עשרות', instruction: 'פתור: 48 + 24. שים לב מה קורה כשיש יותר מ-10 יחידות.' },
+                        { id: 's3_y_3', title: 'אתגר חיבור', instruction: 'פתור: 36 + 25. נסה לפתור קודם בראש ואז לבדוק עם הבדידים.' }
+                      ]
+                    } : {
+                      sessions: [
+                        { sessionNumber: 3, goals: 'חשיבה אלגברית התחלתית: מציאת מחוברים חסרים במשוואות חיבור (למשל 45 + _ = 72).' },
+                        { sessionNumber: 4, goals: 'אומדן ודיוק: חיסור מספרים רב-ספרתיים עם פריטה כפולה תוך ביצוע אומדן מהיר.' },
+                        { sessionNumber: 5, goals: 'בעיות מילוליות מורכבות: ניתוח מצבים נתונים והפיכתם למשוואה מתמטית ללא עזרים ויזואליים.' },
+                        { sessionNumber: 6, goals: 'אסטרטגיות חישוב מתקדמות: שימוש בקיזוז (Compensation) לפתרון מהיר.' },
+                        { sessionNumber: 7, goals: 'העברה (Transfer): יישום אסטרטגיות אלו בסביבת בעיות שבר/עשרוני (הכנה להמשך).' }
+                      ],
+                      tasks: [
+                        { id: 's3_g_1', title: 'מחובר חסר', instruction: 'השלם את המספר החסר: 34 + ___ = 61.' },
+                        { id: 's3_g_2', title: 'מחובר חסר - אתגר', instruction: 'השלם: ___ + 28 = 75.' },
+                        { id: 's3_g_3', title: 'חיסור גמיש', instruction: 'פתור 82 - 37 באמצעות חישוב בראש והסבר את דרך הפעולה.' }
+                      ]
+                    };
+
+                  return (
+                    <div className="mt-4 bg-white/80 rounded-xl p-4 border border-slate-200">
+                      <h5 className="font-bold text-slate-800 mb-3 border-b pb-2">יעדים פדגוגיים להמשך המסלול (מפגשים 3-7):</h5>
+                      <ul className="space-y-2 mb-5">
+                        {routeMeta.sessions.map(s => (
+                          <li key={s.sessionNumber} className="text-sm flex gap-2">
+                            <span className="font-bold text-slate-700 min-w-[60px]">מפגש {s.sessionNumber}:</span>
+                            <span className="text-slate-600">{s.goals}</span>
+                          </li>
+                        ))}
+                      </ul>
+
+                      <h5 className="font-bold text-slate-800 mb-3 border-b pb-2 flex justify-between items-center">
+                        <span>תוכנית עבודה מיידית (מפגש 3)</span>
+                        <UdlButton size="sm" variant="outline" className="text-xs" onClick={() => alert('ממשק עריכת תרגילים ייפתח כעת... (Mock)')}>
+                          ✏️ ערוך תרגילים
+                        </UdlButton>
+                      </h5>
+                      <div className="grid md:grid-cols-3 gap-3">
+                        {routeMeta.tasks.map(t => (
+                          <div key={t.id} className="bg-slate-50 border border-slate-100 p-3 rounded-lg">
+                            <strong className="block text-xs text-slate-800 mb-1">{t.title}</strong>
+                            <p className="text-xs text-slate-600">{t.instruction}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* AI Socratic Engine Diagnosis */}
