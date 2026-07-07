@@ -27,7 +27,7 @@ export function DiagnosticReportsTab({
   const [seekToTime, setSeekToTime] = useState<number | undefined>();
 
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 h-[calc(100vh-140px)] flex flex-col gap-4 overflow-hidden pb-4">
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 h-[calc(100vh-140px)] flex flex-col gap-4 overflow-y-auto xl:overflow-hidden pb-4">
       {/* Top Bar: Student Selection */}
       <div className="flex items-center gap-4 bg-ws-surface/80 backdrop-blur-xl border border-ws-surface2 p-3 rounded-2xl shadow-sm shrink-0">
         <h2 className="font-bold text-ws-ink shrink-0 mr-2 flex items-center gap-2">
@@ -83,7 +83,7 @@ export function DiagnosticReportsTab({
             const studentAlerts = allAlerts.filter((a: any) => a.student === selectedReplayStudentId).sort((a: any, b: any) => a.timestamp - b.timestamp);
 
             return (
-              <div className="absolute inset-0 grid grid-cols-12 gap-4 animate-in fade-in zoom-in-95 duration-300">
+              <div className="grid grid-cols-12 gap-4 animate-in fade-in zoom-in-95 duration-300">
                 {/* Right Column: Q-Matrix & AI Insights (Col span 4) */}
                 <div className="col-span-12 xl:col-span-4 flex flex-col gap-4 h-full">
                   {/* Trace Data Summary (Mini) */}
@@ -224,7 +224,7 @@ export function DiagnosticReportsTab({
                   </AccessibleCard>
 
                   {/* Video Player */}
-                  <AccessibleCard className="flex-1 p-0 bg-white border border-ws-surface2 shadow-md rounded-2xl overflow-hidden flex flex-col h-full">
+                  <AccessibleCard className="flex-1 p-0 bg-white border border-ws-surface2 shadow-md rounded-2xl overflow-hidden flex flex-col min-h-[400px] xl:min-h-0 h-full">
                     <div className="p-3 border-b border-ws-surface2 flex items-center justify-between bg-slate-50/50 shrink-0">
                       <h3 className="text-sm font-bold text-ws-ink flex items-center gap-2">
                         <span className={`w-2.5 h-2.5 rounded-full shadow-sm ${hasRecording ? 'bg-red-500 animate-pulse' : 'bg-slate-300'}`}></span>

@@ -130,11 +130,11 @@ export function ReflectionScreen() {
   };
 
   return (
-    <div dir="rtl" className="h-screen w-full overflow-y-auto bg-ws-bg font-body text-ws-ink flex items-start justify-center p-6">
+    <div dir="rtl" className="min-h-screen w-full overflow-y-auto bg-ws-bg font-body text-ws-ink flex items-start justify-center p-6">
       <motion.article
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-ws-surface rounded-3xl shadow-xl border border-ws-surface2 max-w-2xl w-full p-8 my-auto"
+        className="bg-ws-surface rounded-3xl shadow-xl border border-ws-surface2 max-w-2xl w-full p-8 my-10"
         aria-label="רפלקציה על המפגש"
       >
         <h1 className="font-display font-black text-3xl text-ws-ink mb-1">כל הכבוד, {studentName}! 🎉</h1>

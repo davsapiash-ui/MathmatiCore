@@ -56,7 +56,7 @@ export function StudentHub() {
   ];
 
   return (
-    <div dir="rtl" className="relative min-h-full w-full bg-ws-bg font-body text-ws-ink overflow-hidden">
+    <div dir="rtl" className="relative min-h-screen overflow-x-hidden overflow-y-auto bg-ws-bg font-body text-ws-ink">
       {/* Flat vector background shapes — playful world energy, zero visual noise */}
       <div aria-hidden="true" className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-24 -left-24 w-[420px] h-[420px] rounded-full" style={{ backgroundColor: 'hsl(var(--ws-blue) / 0.05)' }} />

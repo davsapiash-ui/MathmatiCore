@@ -285,10 +285,14 @@ export function StudentWorkspacePage() {
         {/* Main 50/50 workspace */}
         <main className="flex flex-1 overflow-hidden p-5 gap-5 max-w-[1600px] mx-auto w-full box-border">
           {/* Task card (right in RTL) */}
-          <TaskCard />
+          <div className="flex-1 min-h-0">
+            <TaskCard />
+          </div>
 
           {/* Place-value board (left in RTL) */}
-          <PlaceValueBoard hideValueDisplay={hideValueDisplay} />
+          <div className="flex-1 min-h-0">
+            <PlaceValueBoard hideValueDisplay={hideValueDisplay} />
+          </div>
         </main>
 
         <FeedbackToast />
