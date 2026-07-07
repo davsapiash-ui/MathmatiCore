@@ -25,7 +25,6 @@ export function useWorkspaceRadar(sessionNumber: number) {
   const hesitationTimer = useRef<number | null>(null);
   const hesitationArmed = useRef(true);
   const deleteTimestamps = useRef<number[]>([]);
-  const passiveDriftingLocked = useRef(false);
   const userRef = useRef(user);
   userRef.current = user;
 
@@ -89,9 +88,17 @@ export function useWorkspaceRadar(sessionNumber: number) {
       recordDelete: () => {
         const now = Date.now();
         deleteTimestamps.current = [...deleteTimestamps.current.filter((t) => now - t < RAPID_DELETE_WINDOW_MS), now];
-        if (deleteTimestamps.current.length >= RAPID_DELETE_THRESHOLD && !passiveDriftingLocked.current) {
-          sendAlert('PASSIVE_DRIFTING', { deleteCount: deleteTimestamps.current.length });
-          passiveDriftingLocked.current = true;
+        if (deleteTimestamps.current.length >= RAPID_DELETE_THRESHOLD) {
+          // משיג את התיעוד הכולל מה-Store של המרחב
+          const totalDeletions = useWorkspaceStore.getState().undoCount || 0;
+          
+          sendAlert('PASSIVE_DRIFTING', { 
+            recentDeletions: deleteTimestamps.current.length,
+            totalDeletionsFromStart: totalDeletions
+          });
+          
+          // איפוס חלון הזמן המקומי בלבד כדי לדרוש רצף מחיקות *חדש* להתראה נוספת
+          deleteTimestamps.current = [];
         }
       },
       recordUndo: () => {
@@ -109,7 +116,6 @@ export function useWorkspaceRadar(sessionNumber: number) {
       setTask: (taskId) => {
         taskIdRef.current = taskId;
         deleteTimestamps.current = [];
-        passiveDriftingLocked.current = false;
         hesitationArmed.current = true;
         armHesitationTimer();
       },
