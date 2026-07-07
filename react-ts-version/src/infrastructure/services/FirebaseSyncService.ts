@@ -51,22 +51,24 @@ class FirebaseSyncService {
         if (snapshot.exists()) {
           const rawData = snapshot.val();
           const data = (rawData && typeof rawData === 'object') ? rawData : {};
-          if (data.workspaceState) {
-            if (JSON.stringify(data.workspaceState) !== JSON.stringify(this.getSyncableWorkspaceState())) {
-              this.isInitialLoad = true;
-              useWorkspaceStore.setState(data.workspaceState);
-              this.isInitialLoad = false;
-            }
-          }
-          // Update the top-level useStore so StudentHub knows about route approvals
+          // NOTE: We deliberately do NOT restore workspaceState from Firebase here.
+          // StudentWorkspacePage.initSession() is the single source of truth for
+          // session state. Overwriting it from Firebase mid-session causes race conditions
+          // and could reset a live student's work.
+          
+          // Update the top-level useStore so StudentHub knows about route approvals and Q-Matrix
           const currentStudents = useStore.getState().students;
           useStore.setState({
             students: {
               ...currentStudents,
               [studentId]: {
                 ...(currentStudents[studentId] || {}),
-                ...data,
-                // Merge Firebase data overriding local mock data
+                // Merge Firebase data: qMatrixResults, traceData, route info
+                ...(data.qMatrixResults && { qMatrixResults: data.qMatrixResults }),
+                ...(data.traceData && { traceData: data.traceData }),
+                ...(data.completedMeeting2 !== undefined && { completedMeeting2: data.completedMeeting2 }),
+                ...(data.routeRecommendation !== undefined && { routeRecommendation: data.routeRecommendation }),
+                ...(data.routeStatus !== undefined && { routeStatus: data.routeStatus }),
               }
             }
           });
@@ -86,6 +88,7 @@ class FirebaseSyncService {
         this.isInitialLoad = false;
       }
     });
+
 
     // Subscribe to local Workspace changes and push to Firebase
     this.unsubscribeWorkspace = useWorkspaceStore.subscribe((state) => {

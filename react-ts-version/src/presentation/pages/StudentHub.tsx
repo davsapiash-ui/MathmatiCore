@@ -85,15 +85,26 @@ export function StudentHub() {
               כל מפגש הוא הזדמנות לחשוב, לנסות ולגלות. קחו את הזמן שלכם — הדרך חשובה יותר מהמהירות.
             </p>
 
-            <motion.button
-              whileHover={{ scale: 1.03, y: -2 }}
-              whileTap={{ scale: 0.97 }}
-              className="ws-brand mt-4 flex items-center justify-center gap-3 px-8 py-4 rounded-full font-display font-extrabold text-lg transition-all hover:brightness-105"
-              onClick={() => navigate('/workspace?meeting=1')}
-            >
-              <Play className="w-5 h-5 fill-current" aria-hidden="true" />
-              להמשך התרגול
-            </motion.button>
+            {isPending ? (
+              <div className="mt-4 flex items-center gap-3 px-6 py-3 rounded-full bg-[hsl(var(--ws-blue-soft))] border border-[hsl(var(--ws-blue)/0.3)] text-[hsl(var(--ws-blue))] font-bold">
+                <Clock className="w-5 h-5 animate-pulse" aria-hidden="true" />
+                ממתינים לאישור המורה למשימה הבאה...
+              </div>
+            ) : (
+              <motion.button
+                whileHover={{ scale: 1.03, y: -2 }}
+                whileTap={{ scale: 0.97 }}
+                className="ws-brand mt-4 flex items-center justify-center gap-3 px-8 py-4 rounded-full font-display font-extrabold text-lg transition-all hover:brightness-105"
+                onClick={() => {
+                  // Smart routing: go to the next unlocked meeting
+                  const nextMeeting = currentStudent?.completedMeeting2 && isApproved ? 3 : currentStudent?.completedMeeting2 ? 2 : 1;
+                  navigate(`/workspace?meeting=${Math.min(nextMeeting, 4)}`);
+                }}
+              >
+                <Play className="w-5 h-5 fill-current" aria-hidden="true" />
+                להמשך התרגול
+              </motion.button>
+            )}
           </div>
         </motion.section>
 

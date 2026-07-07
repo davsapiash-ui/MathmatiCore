@@ -75,10 +75,12 @@ export function PlaceColumn({ place }: { place: Place }) {
         {count >= 10 && (
           <button
             onClick={() => packageBlocks(place)}
-            className="absolute right-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full p-1 shadow-md transition-transform hover:scale-110 active:scale-95 flex items-center justify-center group/btn"
-            title="קיבוץ ל-10 (Group)"
+            className="absolute right-2 flex items-center gap-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full px-2 py-1 shadow-md transition-all hover:scale-110 active:scale-95 group/btn animate-pulse hover:animate-none"
+            title="יש כאן 10 בלוקים! ניתן לקבץ אותם לבלוק אחד של הספרה הבאה. לחץ לקיבוץ."
+            aria-label={`קיבוץ 10 ${PLACE_NAMES_HE[place]} לאחד`}
           >
-            <PackagePlus className="w-4 h-4" />
+            <PackagePlus className="w-3.5 h-3.5" />
+            <span className="text-[10px] font-bold leading-none hidden group-hover/btn:inline">קיבוץ!</span>
           </button>
         )}
       </div>

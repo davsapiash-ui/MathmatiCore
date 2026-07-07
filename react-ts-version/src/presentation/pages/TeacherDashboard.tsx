@@ -37,7 +37,14 @@ export function TeacherDashboard() {
     const allSt = useStore.getState().students;
     const initial: Record<string, any> = {};
     for (const [id, s] of Object.entries(allSt)) {
-      initial[id] = { ...s, studentId: id, classId: 'demo', traceData: { hesitation_events: 0, undo_clicks: 0 }, qMatrixResults: {} };
+      // Preserve real qMatrixResults and traceData already in the store — do NOT zero them out.
+      initial[id] = {
+        ...s,
+        studentId: id,
+        classId: 'demo',
+        traceData: s.traceData ?? { hesitation_events: 0, undo_clicks: 0 },
+        qMatrixResults: s.qMatrixResults ?? {},
+      };
     }
     return initial;
   });
@@ -137,13 +144,14 @@ export function TeacherDashboard() {
       const allStudents = useStore.getState().students;
       const formattedStudents: Record<string, StudentData> = {};
 
-      // 1. Add base demo students first
+      // 1. Add base demo students first — preserve their real qMatrixResults from the store
       for (const [id, s] of Object.entries(allStudents)) {
         formattedStudents[id] = {
           studentId: id,
           classId: 'demo',
           name: s.name,
-          qMatrixResults: {
+          // Use real data from useStore (written by session 2 at completion via updateQMatrix)
+          qMatrixResults: s.qMatrixResults ?? {
             task1_zero_placeholder: null,
             task2_estimation_error_margin: null,
             task3_flexible_regrouping: null,
@@ -153,12 +161,13 @@ export function TeacherDashboard() {
             task7_missing_subtrahend: null,
             task8_missing_addend: null,
           },
-          traceData: { hesitation_events: 0, undo_clicks: 0 },
-          completedMeeting2: false,
-          routeRecommendation: null,
-          routeStatus: null,
-        } as any; // Using base structure
+          traceData: s.traceData ?? { hesitation_events: 0, undo_clicks: 0 },
+          completedMeeting2: s.completedMeeting2 ?? false,
+          routeRecommendation: s.routeRecommendation ?? null,
+          routeStatus: s.routeStatus ?? null,
+        } as any;
       }
+
 
       // 2. Override with live cloud data
       Object.keys(data).forEach((uid) => {
