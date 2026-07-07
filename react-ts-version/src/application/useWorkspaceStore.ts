@@ -348,6 +348,17 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     if (task.type === 'session1_intro') {
       // Choiceless exploration tasks ('proceed_any'): any interaction passes — no question to answer.
       if (task.correctAnswer === 'proceed_any' || !task.choices?.length) {
+        
+        // Strict verification for specific tutorial tasks to ensure pedagogical compliance
+        if (task.id === 's1_t3' && selectBoardValue(s) !== 50) {
+          showFeedback({ correct: false, title: 'רגע, עדיין אין פה 50', sub: 'אנא ודאו שבניתם בדיוק 50 באמצעות הקוביות לפני שתמשיכו.' }, 3000);
+          return;
+        }
+        if (task.id === 's1_t5' && selectBoardValue(s) !== 40) {
+          showFeedback({ correct: false, title: 'היזהרו לא לאבד ערך', sub: 'אנא ודאו שבניתם בדיוק 40 (גם לאחר הפריטה) לפני שתמשיכו.' }, 3000);
+          return;
+        }
+
         set({ awaitingNext: true });
         showFeedback({ correct: true, title: 'מעולה! 🌟', sub: 'ממשיכים הלאה.' }, 1500, () => {
           advanceStandard();
