@@ -72,6 +72,8 @@ interface WorkspaceState {
 
   // per-task interaction
   hasInteracted: boolean;
+  hasDeletedBlock: boolean;
+  hasUngrouped: boolean;
   selectedChoiceId: string | null;
   numberLineValue: number | null;
   answerDigits: Partial<Record<Place, string>>;
@@ -120,6 +122,8 @@ function resetTaskInteraction() {
     packagedBlocks: { ...EMPTY_COUNTS },
     undoStack: [] as { counts: PlaceCounts; packagedBlocks: PlaceCounts }[],
     hasInteracted: false,
+    hasDeletedBlock: false,
+    hasUngrouped: false,
     selectedChoiceId: null as string | null,
     numberLineValue: null as number | null,
     answerDigits: {} as Partial<Record<Place, string>>,
@@ -203,8 +207,8 @@ export function selectCanProceed(s: WorkspaceState): boolean {
     // Choiceless exploration tasks (correctAnswer 'proceed_any') pass on any interaction;
     // question intros still require a selected choice.
     if (task.correctAnswer === 'proceed_any' || !task.choices?.length) {
-      if (task.id === 's1_t3' && selectBoardValue(s) !== 50) return false;
-      if (task.id === 's1_t5' && selectBoardValue(s) !== 40) return false;
+      if (task.id === 's1_t3' && (!s.hasDeletedBlock || selectBoardValue(s) !== 50)) return false;
+      if (task.id === 's1_t5' && (!s.hasUngrouped || selectBoardValue(s) !== 40)) return false;
       return s.hasInteracted;
     }
     return s.selectedChoiceId !== null;
@@ -586,6 +590,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     focusedPlace: null,
 
     hasInteracted: false,
+    hasDeletedBlock: false,
+    hasUngrouped: false,
     selectedChoiceId: null,
     numberLineValue: null,
     answerDigits: {},
@@ -631,11 +637,21 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         return;
       }
       pushSnapshot(s.counts, s.packagedBlocks);
-      set({ counts: result.counts, packagedBlocks: result.packagedBlocks, hasInteracted: true });
+      const isDelete = (result.removed || result.packagedRemoved) && input.target.kind === 'trash';
+      const isUngroup = !!result.ungroupEvent;
+      
+      set({ 
+        counts: result.counts, 
+        packagedBlocks: result.packagedBlocks, 
+        hasInteracted: true,
+        ...(isDelete ? { hasDeletedBlock: true } : {}),
+        ...(isUngroup ? { hasUngrouped: true } : {})
+      });
+      
       // Only a TRASH drop is a delete. Manual regrouping also sets `removed` (blocks leave
       // the source column) — counting it fired false PASSIVE_DRIFTING radar alerts after
       // three quick regroups, flagging exactly the students doing the RIGHT thing.
-      if ((result.removed || result.packagedRemoved) && input.target.kind === 'trash') radar.recordDelete();
+      if (isDelete) radar.recordDelete();
     },
 
     removeBlockClick: (place) => {
@@ -647,7 +663,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         return;
       }
       pushSnapshot(s.counts, s.packagedBlocks);
-      set({ counts: next, hasInteracted: true });
+      set({ counts: next, hasInteracted: true, hasDeletedBlock: true });
       radar.recordDelete();
     },
 
@@ -721,6 +737,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         showFeedback({ correct: false, title: 'חוֹנֵךְ סוֹקְרָטִי', sub: hint }, 3200);
         return;
       }
+      
+      // Strict structural validation for the tutorial task s1_t4 (2 tens, or 20 units)
+      if (s.sessionNumber === 1 && target === 20) {
+        const is2Tens = s.counts.tens === 2 && s.counts.units === 0 && s.counts.hundreds === 0 && s.counts.thousands === 0;
+        const is20Units = s.counts.units === 20 && s.counts.tens === 0 && s.counts.hundreds === 0 && s.counts.thousands === 0;
+        if (!is2Tens && !is20Units) {
+          showFeedback({ correct: false, title: 'לֹא לְפִי הַהוֹרָאוֹת', sub: 'עֲלֵיכֶם לִבְנוֹת אֶת הַמִּסְפָּר 20 מִ-2 עֲשָׂרוֹת בִּלְבַד, אוֹ מִ-20 יְחִידוֹת בִּלְבַד.' }, 3500);
+          return;
+        }
+      }
 
       const q3Reps = [...s.q3Reps, { ...s.counts }];
       set({ q3Reps, hasInteracted: true });
@@ -744,7 +770,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const result = resolveDrop(s.counts, s.packagedBlocks, { source: 'column', sourcePlace: 'tens', target: { kind: 'column', place: 'units' } }, selectScaffoldLevel(s));
       if (result.ok) {
         pushSnapshot(s.counts, s.packagedBlocks);
-        set({ counts: result.counts, packagedBlocks: result.packagedBlocks, hasInteracted: true });
+        set({ counts: result.counts, packagedBlocks: result.packagedBlocks, hasInteracted: true, hasUngrouped: true });
       }
     },
 
