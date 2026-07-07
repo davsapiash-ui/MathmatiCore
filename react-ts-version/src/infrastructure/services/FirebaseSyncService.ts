@@ -186,6 +186,12 @@ class FirebaseSyncService {
     const refPath = ref(database, `users/students/${studentId}`);
     await update(refPath, { completedMeeting2: true });
   }
+
+  public async syncApproveRoute(studentId: string) {
+    if (!studentId) return;
+    const refPath = ref(database, `users/students/${studentId}`);
+    await update(refPath, { routeStatus: 'APPROVED' });
+  }
 }
 
 export const firebaseSyncService = FirebaseSyncService.getInstance();

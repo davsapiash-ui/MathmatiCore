@@ -238,6 +238,8 @@ export const useStore = create<AppState>()(
       approveRoute: (studentId) => set((state) => {
         const student = state.students[studentId];
         if (!student) return state;
+        // Also write to Firebase so the student's device is notified via the onValue listener
+        firebaseSyncService.syncApproveRoute(studentId).catch(console.error);
         return {
           students: {
             ...state.students,
