@@ -109,11 +109,10 @@ export type DropResult =
   | { ok: false; reason: 'silent' }
   | { ok: false; reason: 'constraint'; place: Place };
 
-export function resolveDrop(counts: PlaceCounts, packagedBlocks: PlaceCounts, input: DropInput, scaffoldLevel: number): DropResult {
-  // Spec-precise (רצף פעילויות מפגש 3 + vanilla source of truth): auto-regroup is the
-  // default scaffold and FADES — automatic at levels 0–1, manual from level 2 so the
-  // responsibility transfers to the student (tasks s1_t4/s1_t5 depend on this).
-  const autoGroup = scaffoldLevel < 2;
+export function resolveDrop(counts: PlaceCounts, packagedBlocks: PlaceCounts, input: DropInput, _scaffoldLevel: number): DropResult {
+  // בעקבות אפיון פדגוגי מחמיר: הפיזיקה של בית המספרים לא עושה "קסמים". 
+  // ביטול מוחלט של הקפצה אוטומטית (autoGroup = false) כדי לאפשר פריטה אמינה בשלבי חיסור מאוחרים.
+  const autoGroup = false;
 
   // Trash: only blocks taken from a column may be deleted (palette drags are copies).
   if (input.target.kind === 'trash') {

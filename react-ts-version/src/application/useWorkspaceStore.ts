@@ -73,6 +73,7 @@ interface WorkspaceState {
   // per-task interaction
   hasInteracted: boolean;
   hasDeletedBlock: boolean;
+  blocksAddedCount: number; // Added to enforce the 5 block rule in Sandbox
   hasUngrouped: boolean;
   hasGrouped: boolean;
   selectedChoiceId: string | null;
@@ -124,6 +125,7 @@ function resetTaskInteraction() {
     undoStack: [] as { counts: PlaceCounts; packagedBlocks: PlaceCounts }[],
     hasInteracted: false,
     hasDeletedBlock: false,
+    blocksAddedCount: 0,
     hasUngrouped: false,
     hasGrouped: false,
     selectedChoiceId: null as string | null,
@@ -209,6 +211,12 @@ export function selectCanProceed(s: WorkspaceState): boolean {
     // Choiceless exploration tasks (correctAnswer 'proceed_any') pass on any interaction;
     // question intros still require a selected choice.
     if (task.correctAnswer === 'proceed_any' || !task.choices?.length) {
+      // Logic for new Sandbox
+      if (task.id === 's1_sandbox_controlled') {
+        return s.blocksAddedCount >= 5 && s.hasDeletedBlock;
+      }
+      if (task.id === 's1_guided_tour') return true; // Handled by Tutorial skip auto-proceed
+      
       if (task.id === 's1_t3' && (!s.hasDeletedBlock || selectBoardValue(s) !== 50)) return false;
       if (task.id === 's1_t5' && (!s.hasUngrouped || selectBoardValue(s) !== 40)) return false;
       return s.hasInteracted;
@@ -607,6 +615,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     hasInteracted: false,
     hasDeletedBlock: false,
+    blocksAddedCount: 0,
     hasUngrouped: false,
     hasGrouped: false,
     selectedChoiceId: null,
@@ -657,11 +666,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const isDelete = (result.removed || result.packagedRemoved) && input.target.kind === 'trash';
       const isUngroup = !!result.ungroupEvent;
       const isGroup = result.regroupEvents && result.regroupEvents.length > 0;
-      
+      const isFromStore = input.source === 'palette';
+      const addedCount = isFromStore ? (s.blocksAddedCount + 1) : s.blocksAddedCount;
+
       set({ 
         counts: result.counts, 
         packagedBlocks: result.packagedBlocks, 
         hasInteracted: true,
+        blocksAddedCount: addedCount,
         ...(isDelete ? { hasDeletedBlock: true } : {}),
         ...(isUngroup ? { hasUngrouped: true } : {}),
         ...(isGroup ? { hasGrouped: true } : {})

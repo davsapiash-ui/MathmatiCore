@@ -13,7 +13,7 @@ import {
 } from '@dnd-kit/core';
 import { useNavigate } from 'react-router-dom';
 import type { DragSource, Place } from '@/core/placeValue';
-import { useWorkspaceStore, type SessionNumber } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, type SessionNumber, selectStandardTask } from '@/application/useWorkspaceStore';
 import { useSettingsStore } from '@/application/useSettingsStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { database, authReady } from '@/infrastructure/firebase';
@@ -24,6 +24,7 @@ import { PlaceValueBoard } from './board/PlaceValueBoard';
 import { DienesBlock } from './board/DienesBlock';
 import { WorkspaceTopbar } from './WorkspaceTopbar';
 import { TaskCard } from './tasks/TaskCard';
+import { InteractiveTutorialPointer } from './components/InteractiveTutorialPointer';
 import { FeedbackToast } from './overlays/FeedbackToast';
 import { HelpOverlays } from './overlays/HelpOverlays';
 import { ReflectionScreen } from './ReflectionScreen';
@@ -245,6 +246,12 @@ export function StudentWorkspacePage() {
     );
   }
 
+  const currentTask = selectStandardTask(useWorkspaceStore.getState());
+  const handleSkipTutorial = () => {
+    useWorkspaceStore.getState().skipTutorial();
+  };
+  const isTutorialActive = currentTask?.id === 's1_guided_tour';
+
   if (pendingApproval) {
     return (
       <div dir="rtl" className="h-screen w-full flex flex-col items-center justify-center bg-ws-bg text-ws-ink font-body p-6">
@@ -267,6 +274,10 @@ export function StudentWorkspacePage() {
 
   return (
     <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <InteractiveTutorialPointer 
+        isActive={isTutorialActive} 
+        onSkip={handleSkipTutorial} 
+      />
       <div
       dir="rtl"
       className="h-[100dvh] w-full overflow-hidden font-body text-ws-ink flex flex-col relative bg-ws-bg"
