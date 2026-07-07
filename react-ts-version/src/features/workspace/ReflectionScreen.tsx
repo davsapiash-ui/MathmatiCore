@@ -130,7 +130,7 @@ export function ReflectionScreen() {
   };
 
   return (
-    <div dir="rtl" className="min-h-screen w-full overflow-y-auto bg-ws-bg font-body text-ws-ink flex items-start justify-center p-6">
+    <div dir="rtl" className="h-full w-full overflow-y-auto bg-ws-bg font-body text-ws-ink flex items-start justify-center p-6">
       <motion.article
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

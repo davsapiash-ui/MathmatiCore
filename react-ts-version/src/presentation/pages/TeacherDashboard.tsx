@@ -163,6 +163,12 @@ export function TeacherDashboard() {
       // 2. Override with live cloud data
       Object.keys(data).forEach((uid) => {
         const row = data[uid] ?? {};
+        
+        // Multi-tenant filtering: Only load students belonging to this teacher (or unassigned/demo)
+        if (row.teacherId && row.teacherId !== TEACHER_ID && row.teacherId !== "teacher-1") {
+          return; // Skip students from other teachers
+        }
+
         let cleanName = row.name ?? row.profile?.displayName ?? row.studentName ?? formattedStudents[uid]?.name ?? uid.replace('student_','');
         if (cleanName === 'student' || cleanName === 'student_user1' || cleanName.toLowerCase().startsWith('student_')) {
             cleanName = uid.replace('student_', ''); // Force 'user1'
