@@ -54,7 +54,7 @@
     },
 
     "classes": {
-      ".read": "auth != null",
+      ".read": "auth != null && (root.child('users/teachers/' + auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '')).exists() || auth.token.email === 'admin@mathmaticore.local')",
       ".write": "auth != null && auth.token.email === 'admin@mathmaticore.local'"
     },
 
@@ -123,7 +123,7 @@
       ".read": "auth != null && (root.child('users/teachers/' + auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '')).exists() || auth.token.email === 'admin@mathmaticore.local')",
       "$alertId": {
         ".write": "auth != null && (auth.token.email.matches(/.*@mathmaticore\\.local$/) || auth.token.email === 'admin@mathmaticore.local')",
-        ".validate": "newData.hasChildren(['type', 'timestamp'])"
+        ".validate": "newData.hasChildren(['type', 'timestamp', 'studentId']) && (newData.child('studentId').val() === auth.token.email.replace('@mathmaticore.local', '') || root.child('users/teachers/' + auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '')).exists() || auth.token.email === 'admin@mathmaticore.local')"
       }
     },
 
@@ -131,7 +131,7 @@
       ".read": "auth != null && (root.child('users/teachers/' + auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '')).exists() || auth.token.email === 'admin@mathmaticore.local')",
       ".write": "auth != null && (auth.token.email.matches(/.*@mathmaticore\\.local$/) || auth.token.email === 'admin@mathmaticore.local')",
       "$reflectionId": {
-        ".validate": "newData.hasChildren(['effort', 'strategy', 'timestamp', 'student'])"
+        ".validate": "newData.hasChildren(['effort', 'strategy', 'timestamp', 'student']) && (newData.child('student/id').val() === auth.token.email.replace('@mathmaticore.local', '') || root.child('users/teachers/' + auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '')).exists() || auth.token.email === 'admin@mathmaticore.local')"
       }
     },
 
@@ -151,6 +151,7 @@
     },
 
     "replays": {
+      ".read": "auth != null && auth.token.email === 'admin@mathmaticore.local'",
       "$sessionKey": {
         ".read": "auth != null && (root.child('users/teachers/' + auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '')).exists() || auth.token.email === 'admin@mathmaticore.local')",
         ".write": "auth != null && (auth.token.email === $sessionKey + '@mathmaticore.local' || root.child('users/teachers/' + auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '')).exists() || auth.token.email === 'admin@mathmaticore.local')",
@@ -160,9 +161,9 @@
 
     "chat": {
       "$roomId": {
-        ".read": "auth != null",
+        ".read": "auth != null && (auth.uid === $roomId || root.child('users/teachers/' + auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '')).exists() || auth.token.email === 'admin@mathmaticore.local')",
         "$messageId": {
-          ".write": "auth != null && (auth.uid === newData.child('senderId').val() || auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '') === newData.child('senderId').val() || auth.token.email === 'admin@mathmaticore.local' || auth.token.email === newData.child('senderId').val())"
+          ".write": "auth != null && (auth.uid === newData.child('senderId').val() || auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '') === newData.child('senderId').val() || auth.token.email === 'admin@mathmaticore.local')"
         }
       }
     },

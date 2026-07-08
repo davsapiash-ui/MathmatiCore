@@ -131,6 +131,8 @@ function resetTaskInteraction() {
     probeAnswer: '',
     q3Reps: [] as PlaceCounts[],
     focusedPlace: null as Place | null,
+    undoCount: 0,
+    hesitationCount: 0,
   };
 }
 
@@ -653,8 +655,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         qflow,
         flowStatus: 'task',
         awaitingNext: false,
-        undoCount: 0,
-        hesitationCount: 0,
         boardOpen: true,
         scaffoldFadeLevel: 0,
         errorPlace: null,
@@ -685,6 +685,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         counts: result.counts, 
         hasInteracted: true,
         blocksAddedCount: addedCount,
+        undoCount: isDelete ? s.undoCount + 1 : s.undoCount,
         ...(isDelete ? { hasDeletedBlock: true } : {}),
         ...(isUngroup ? { hasUngrouped: true } : {}),
         ...(isGroup ? { hasGrouped: true } : {})
@@ -705,7 +706,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         return;
       }
       pushSnapshot(s.counts);
-      set({ counts: next, hasInteracted: true, hasDeletedBlock: true });
+      set({ counts: next, hasInteracted: true, hasDeletedBlock: true, undoCount: s.undoCount + 1 });
       radar.recordDelete();
     },
 

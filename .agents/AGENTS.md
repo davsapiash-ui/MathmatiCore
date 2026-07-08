@@ -27,6 +27,7 @@
 ```json
 {
   "studentId": "string",
+  "forceReload": "number",
   "qMatrixResults": {
      "task1_zero_placeholder": "string",
      "task2_estimation_error_margin": "string",
@@ -52,7 +53,7 @@
 }
 ```
 
-* **לוגיקת הקיבוץ בדשבורד:** אלגוריתם צד השרת יקבץ תלמידים לפי ערכי שקר (`false`) ב-`qMatrixResults`. לדוגמה: קבוצת תלמידים שבהם `task4_basic_addition_fluency === false` תוגדר כקבוצה הזקוקה לחיזוק עובדות יסוד (כיתה א').
+* **לוגיקת הקיבוץ בדשבורד:** אלגוריתם צד השרת יקבץ תלמידים לפי ערכים שאינם הצלחה (`!== 'success'`) ב-`qMatrixResults`. לדוגמה: קבוצת תלמידים שבהם `task4_basic_addition_fluency !== 'success'` תוגדר כקבוצה הזקוקה לחיזוק עובדות יסוד (כיתה א').
 
 ### 4. אינטגרציה, הזדהות ואבטחה
 
