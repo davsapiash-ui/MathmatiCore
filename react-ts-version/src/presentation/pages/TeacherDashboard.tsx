@@ -822,7 +822,7 @@ export function TeacherDashboard() {
                   semanticColor="primary"
                   className="mt-6 w-full shadow-lg shadow-indigo-500/20 relative z-10 font-bold tracking-wide"
                 >
-                  הקצה תרגול מותאם
+                  הקצאת תרגול מותאם
                 </UdlButton>
               </AccessibleCard>
 
@@ -853,7 +853,7 @@ export function TeacherDashboard() {
                   semanticColor="primary"
                   className="mt-6 w-full shadow-lg shadow-indigo-500/20 relative z-10 font-bold tracking-wide"
                 >
-                  הקצה סדנת חקר
+                  הקצאת סדנת חקר
                 </UdlButton>
               </AccessibleCard>
 
@@ -884,7 +884,7 @@ export function TeacherDashboard() {
                   semanticColor="primary"
                   className="mt-6 w-full shadow-lg shadow-blue-500/20 relative z-10 font-bold tracking-wide"
                 >
-                  הקצה תרגול מותאם
+                  הקצאת תרגול מותאם
                 </UdlButton>
               </AccessibleCard>
 
@@ -915,7 +915,7 @@ export function TeacherDashboard() {
                   semanticColor="primary"
                   className="mt-6 w-full shadow-lg shadow-emerald-500/20 relative z-10 font-bold tracking-wide"
                 >
-                  הקצה המחשה חזותית
+                  הקצאת המחשה חזותית
                 </UdlButton>
               </AccessibleCard>
 
@@ -946,7 +946,7 @@ export function TeacherDashboard() {
                   semanticColor="primary"
                   className="mt-6 w-full shadow-lg shadow-pink-500/20 relative z-10 font-bold tracking-wide"
                 >
-                  הקצה בלוקים ווירטואליים
+                  הקצאת בלוקים ווירטואליים
                 </UdlButton>
               </AccessibleCard>
 
@@ -977,7 +977,7 @@ export function TeacherDashboard() {
                   semanticColor="primary"
                   className="mt-6 w-full shadow-lg shadow-amber-500/20 relative z-10 font-bold tracking-wide"
                 >
-                  הקצה מודל מאזניים
+                  הקצאת מודל מאזניים
                 </UdlButton>
               </AccessibleCard>
 
@@ -1008,7 +1008,7 @@ export function TeacherDashboard() {
                   semanticColor="primary"
                   className="mt-6 w-full shadow-lg shadow-yellow-500/20 relative z-10 font-bold tracking-wide"
                 >
-                  הקצה מודל מאזניים
+                  הקצאת מודל מאזניים
                 </UdlButton>
               </AccessibleCard>
 
