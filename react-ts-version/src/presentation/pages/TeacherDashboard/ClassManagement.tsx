@@ -235,7 +235,7 @@ export function ClassManagement({ allStudents }: { allStudents: StudentData[] })
                 </h3>
                 <p className="text-xs text-blue-700 mb-4">במידה והתלמיד נתקע, ניתן להעביר אותו ידנית למפגש הבא או להחזיר אותו אחורה. יש לרענן את מסך התלמיד לאחר מכן.</p>
                 <div className="grid grid-cols-2 gap-3">
-                  {[1, 2, 3, 4].map(session => (
+                  {[1, 2].map(session => (
                     <button
                       key={session}
                       onClick={() => handleChangeSession(selectedStudent.studentId, session)}
