@@ -252,32 +252,19 @@ export const useStore = create<AppState>()(
       })
     }),
     {
-      name: 'main-store-v7',
+      name: 'main-store-v8',
+      partialize: (state) => Object.fromEntries(
+        Object.entries(state).filter(([key]) => !['students'].includes(key))
+      ),
       merge: (persistedState: unknown, currentState) => {
         if (!persistedState) return currentState;
         const persisted = persistedState as Partial<AppState>;
-        const mergedStudents = { ...currentState.students, ...(persisted.students || {}) };
         
-        // Deep merge each student to make sure new fields are present
-        Object.keys(mergedStudents).forEach(key => {
-          mergedStudents[key] = {
-            ...currentState.students[key], // Code defaults if this is an initial student
-            ...mergedStudents[key], // Persisted data overwrites
-          };
-          
-          // Schema migration for old students that didn't have route Recommendation/Status
-          if (mergedStudents[key].routeRecommendation === undefined) {
-            mergedStudents[key].routeRecommendation = null;
-          }
-          if (mergedStudents[key].routeStatus === undefined) {
-            mergedStudents[key].routeStatus = null;
-          }
-        });
-
+        // Return current state's students (from generateInitialStudents) intact, 
+        // merge other persisted top-level keys
         return {
           ...currentState,
-          ...persistedState,
-          students: mergedStudents
+          ...persisted
         };
       }
     }

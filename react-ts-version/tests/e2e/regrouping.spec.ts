@@ -33,7 +33,7 @@ test.describe('Regrouping State Mechanics', () => {
       expect(unitsInside).toBeLessThan(10);
       expect(tensInside + packagedTensInside).toBeGreaterThanOrEqual(1);
 
-    } catch (e) {
+    } catch {
       console.log('Test requires active session or auth setup. Test skipped for unauthenticated run.');
       test.skip();
     }

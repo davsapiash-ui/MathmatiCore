@@ -142,7 +142,6 @@ const newReturn = `  return (
 
 const returnStartIndex = content.lastIndexOf('  return (\n    <div\n      className="flex flex-col md:flex-row h-screen');
 if (returnStartIndex !== -1) {
-    const endBrace = content.lastIndexOf('}');
     content = content.substring(0, returnStartIndex) + newReturn + '\n}\n';
 } else {
     console.error("Could not find main return block!");

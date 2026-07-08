@@ -225,7 +225,7 @@ export function TeacherDashboard() {
       setIsLoading(false);
     });
     return () => unsubscribe();
-  }, []);
+  }, [TEACHER_ID, user?.role]);
 
   useEffect(() => {
     // Live subscription (a one-time get() left the badge stale until full reload).

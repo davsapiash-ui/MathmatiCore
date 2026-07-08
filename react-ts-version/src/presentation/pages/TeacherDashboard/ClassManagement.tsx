@@ -1,13 +1,14 @@
 import { useAdminStore } from '@/application/useAdminStore';
 import { ShieldCheck, Users, Search, RotateCcw, Settings, X } from 'lucide-react';
 import { useState } from 'react';
-import type { StudentData } from '@/application/useStore';
+import { useStore, type StudentData } from '@/application/useStore';
 import { database } from '@/infrastructure/firebase';
 import { ref, get, remove, update } from 'firebase/database';
 
 export function ClassManagement({ allStudents }: { allStudents: StudentData[] }) {
   const classes = useAdminStore(s => s.classes);
   const schools = useAdminStore(s => s.schools);
+  const teacherId = useStore(s => s.currentUserId);
   
   // We're working with a single default school & class based on the strict hierarchy
   const currentClass = classes[0];
@@ -58,8 +59,7 @@ export function ClassManagement({ allStudents }: { allStudents: StudentData[] })
         remove(ref(database, `users/students/${studentId}/telemetry_chunks`)).catch(e => console.warn('telemetry', e)),
         remove(ref(database, `approved_tasks/${studentId}`)).catch(e => console.warn('approved_tasks', e)),
         remove(ref(database, `replays/${studentId}`)).catch(e => console.warn('replays', e)),
-        remove(ref(database, `ai_pending_approvals/039604483/${studentId}`)).catch(() => {}),
-        remove(ref(database, `ai_pending_approvals/teacher-1/${studentId}`)).catch(() => {}),
+        teacherId ? remove(ref(database, `ai_pending_approvals/${teacherId}/${studentId}`)).catch(() => {}) : Promise.resolve(),
       ]);
 
       // 4. Clean up any orphaned radar alerts for this student
