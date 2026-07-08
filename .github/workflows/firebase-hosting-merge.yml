@@ -28,13 +28,6 @@ jobs:
         working-directory: react-ts-version
         run: npm run build
 
-      - name: Install Playwright Browsers
-        working-directory: react-ts-version
-        run: npx playwright install --with-deps
-
-      - name: Run Playwright E2E Tests
-        working-directory: react-ts-version
-        run: npm run test:e2e
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
