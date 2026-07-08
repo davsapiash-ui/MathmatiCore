@@ -101,7 +101,7 @@ class FirebaseSyncService {
         qflow: state.qflow,
         flowStatus: state.flowStatus,
         counts: state.counts,
-        packagedBlocks: state.packagedBlocks,
+
         undoCount: state.undoCount,
         hesitationCount: state.hesitationCount,
         hasInteracted: state.hasInteracted,
@@ -124,7 +124,7 @@ class FirebaseSyncService {
       qflow: state.qflow,
       flowStatus: state.flowStatus,
       counts: state.counts,
-      packagedBlocks: state.packagedBlocks,
+
       undoCount: state.undoCount,
       hesitationCount: state.hesitationCount,
       hasInteracted: state.hasInteracted,

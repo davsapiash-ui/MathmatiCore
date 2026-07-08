@@ -33,7 +33,6 @@ export function Topbar() {
         {/* Notifications */}
         <UdlButton variant="ghost" size="icon" className="relative text-ws-soft hover:text-ws-ink rounded-full transition-transform hover:scale-105 active:scale-95">
           <Bell className="w-5 h-5" />
-          <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-ws-danger rounded-full border-2 border-white dark:border-slate-900 shadow-sm animate-pulse"></span>
         </UdlButton>
 
         {/* User Profile */}

@@ -2,10 +2,8 @@ import { useEffect } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { motion, useAnimationControls } from 'framer-motion';
 import { MAX_VISIBLE_BLOCKS, PLACE_NAMES_HE, type Place } from '@/core/placeValue';
-import { useWorkspaceStore, selectStandardTask } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { DienesBlock } from './DienesBlock';
-import { PackagedBlock } from './PackagedBlock';
-import { PackagePlus, PackageOpen } from 'lucide-react';
 
 /** Per-place functional colors (vanilla workspace.css 346–375). */
 const COLUMN_COLORS: Record<Place, { header: string; border: string; tint: string; headerBg: string }> = {
@@ -22,13 +20,6 @@ export function PlaceColumn({ place }: { place: Place }) {
   const focusedPlace = useWorkspaceStore((s) => s.focusedPlace);
   const isASD = useWorkspaceStore((s) => s.isASD);
   const removeBlockClick = useWorkspaceStore((s) => s.removeBlockClick);
-  const packageBlocks = useWorkspaceStore((s) => s.packageBlocks);
-  const numPackaged = useWorkspaceStore((s) => s.packagedBlocks[place]);
-  const unpackBlock = useWorkspaceStore((s) => s.unpackBlock);
-  const currentTask = useWorkspaceStore(selectStandardTask);
-  const hasUngrouped = useWorkspaceStore((s) => s.hasUngrouped);
-  // Show ungrouping hint only when the task requires it, there are packaged blocks, and student hasn't ungrouped yet
-  const showUngroupHint = !!(currentTask?.requiresUngrouping && numPackaged > 0 && !hasUngrouped);
 
   const { setNodeRef, isOver } = useDroppable({
     id: `column-${place}`,
@@ -77,28 +68,6 @@ export function PlaceColumn({ place }: { place: Place }) {
         >
           {count > 0 ? count : ''}
         </span>
-        {count >= 10 && (
-          <button
-            onClick={() => packageBlocks(place)}
-            className="absolute right-2 flex items-center gap-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full px-2 py-1 shadow-md transition-all hover:scale-110 active:scale-95 group/btn animate-pulse hover:animate-none"
-            title="יש כאן 10 בלוקים! ניתן לקבץ אותם לבלוק אחד של הספרה הבאה. לחץ לקיבוץ."
-            aria-label={`קיבוץ 10 ${PLACE_NAMES_HE[place]} לאחד`}
-          >
-            <PackagePlus className="w-3.5 h-3.5" />
-            <span className="text-[10px] font-bold leading-none hidden group-hover/btn:inline">קיבוץ!</span>
-          </button>
-        )}
-        {showUngroupHint && place !== 'units' && (
-          <button
-            onClick={() => unpackBlock(place)}
-            className="absolute right-2 flex items-center gap-1 bg-amber-500 hover:bg-amber-400 text-white rounded-full px-2 py-1 shadow-md transition-all hover:scale-110 active:scale-95 group/btn animate-pulse hover:animate-none"
-            title="יש כאן בלוק ארוז! לחץ לפריטה — תקבלי 10 בלוקים קטנים יותר."
-            aria-label={`פרוט בלוק ${PLACE_NAMES_HE[place]} ל-10 ${PLACE_NAMES_HE[place === 'tens' ? 'units' : 'tens']}`}
-          >
-            <PackageOpen className="w-3.5 h-3.5" />
-            <span className="text-[10px] font-bold leading-none hidden group-hover/btn:inline">פרוט!</span>
-          </button>
-        )}
       </div>
 
       <div
@@ -107,14 +76,6 @@ export function PlaceColumn({ place }: { place: Place }) {
         aria-label={`אזור גרירה — ${PLACE_NAMES_HE[place]}`}
         className="flex-1 flex flex-row flex-wrap content-start justify-center items-start gap-1 p-2 min-h-[150px] overflow-y-auto overflow-x-hidden no-scrollbar"
       >
-        {/* Render Packaged Blocks first */}
-        {Array.from({ length: numPackaged }).map((_, i) => (
-          <PackagedBlock
-            key={`packaged-${place}-${i}`}
-            id={`pkg-${place}-${i}`}
-            place={place}
-          />
-        ))}
 
         {Array.from({ length: renderCount }).map((_, i) => {
           let overlapStyle: React.CSSProperties = { zIndex: i };

@@ -59,8 +59,7 @@ interface WorkspaceState {
 
   // board
   counts: PlaceCounts;
-  packagedBlocks: PlaceCounts;
-  undoStack: { counts: PlaceCounts; packagedBlocks: PlaceCounts }[];
+  undoStack: { counts: PlaceCounts }[];
   undoCount: number;
   /** Covert hesitation counter (radar) — mirrored to traceData at reflection. */
   hesitationCount: number;
@@ -94,8 +93,6 @@ interface WorkspaceState {
   initSession: (meeting: SessionNumber, isASD: boolean, aiTasks?: SessionTask[] | null) => void;
   applyDrop: (input: DropInput) => void;
   removeBlockClick: (place: Place) => void;
-  packageBlocks: (place: Place) => void;
-  unpackBlock: (place: Place) => void;
   undo: () => void;
   toggleBoard: () => void;
   setFocusedPlace: (place: Place | null) => void;
@@ -122,8 +119,7 @@ interface WorkspaceState {
 function resetTaskInteraction() {
   return {
     counts: { ...EMPTY_COUNTS },
-    packagedBlocks: { ...EMPTY_COUNTS },
-    undoStack: [] as { counts: PlaceCounts; packagedBlocks: PlaceCounts }[],
+    undoStack: [] as { counts: PlaceCounts }[],
     hasInteracted: false,
     hasDeletedBlock: false,
     blocksAddedCount: 0,
@@ -246,8 +242,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     }, ms);
   }
 
-  function pushSnapshot(counts: PlaceCounts, packagedBlocks: PlaceCounts) {
-    const stack = [...get().undoStack, { counts: { ...counts }, packagedBlocks: { ...packagedBlocks } }];
+  function pushSnapshot(counts: PlaceCounts) {
+    const stack = [...get().undoStack, { counts: { ...counts } }];
     if (stack.length > UNDO_STACK_CAP) stack.shift();
     set({ undoStack: stack });
   }
@@ -620,7 +616,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     awaitingNext: false,
 
     counts: { ...EMPTY_COUNTS },
-    packagedBlocks: { ...EMPTY_COUNTS },
     undoStack: [],
     undoCount: 0,
     hesitationCount: 0,
@@ -674,13 +669,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     applyDrop: (input) => {
       const s = get();
       radar.recordAction();
-      const result = resolveDrop(s.counts, s.packagedBlocks, input, selectScaffoldLevel(s));
+      const result = resolveDrop(s.counts, input, selectScaffoldLevel(s));
       if (!result.ok) {
         if (result.reason === 'constraint') flagConstraintError(result.place);
         return;
       }
-      pushSnapshot(s.counts, s.packagedBlocks);
-      const isDelete = (result.removed || result.packagedRemoved) && input.target.kind === 'trash';
+      pushSnapshot(s.counts);
+      const isDelete = result.removed && input.target.kind === 'trash';
       const isUngroup = !!result.ungroupEvent;
       const isGroup = result.regroupEvents && result.regroupEvents.length > 0;
       const isFromStore = input.source === 'palette';
@@ -688,7 +683,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
       set({ 
         counts: result.counts, 
-        packagedBlocks: result.packagedBlocks, 
         hasInteracted: true,
         blocksAddedCount: addedCount,
         ...(isDelete ? { hasDeletedBlock: true } : {}),
@@ -710,36 +704,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         flagConstraintError(place);
         return;
       }
-      pushSnapshot(s.counts, s.packagedBlocks);
+      pushSnapshot(s.counts);
       set({ counts: next, hasInteracted: true, hasDeletedBlock: true });
       radar.recordDelete();
     },
 
-    packageBlocks: (place) => {
-      const s = get();
-      if (s.counts[place] < 10) return;
-      radar.recordAction();
-      pushSnapshot(s.counts, s.packagedBlocks);
-      set({
-        counts: { ...s.counts, [place]: s.counts[place] - 10 },
-        packagedBlocks: { ...s.packagedBlocks, [place]: s.packagedBlocks[place] + 1 },
-        hasInteracted: true,
-        hasGrouped: true,
-      });
-    },
 
-    unpackBlock: (place) => {
-      const s = get();
-      if (s.packagedBlocks[place] < 1) return;
-      radar.recordAction();
-      pushSnapshot(s.counts, s.packagedBlocks);
-      set({
-        counts: { ...s.counts, [place]: s.counts[place] + 10 },
-        packagedBlocks: { ...s.packagedBlocks, [place]: s.packagedBlocks[place] - 1 },
-        hasInteracted: true,
-        hasUngrouped: true,
-      });
-    },
 
 
     undo: () => {
@@ -747,7 +717,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const stack = [...s.undoStack];
       const snapshot = stack.pop();
       if (!snapshot) return;
-      set({ counts: snapshot.counts, packagedBlocks: snapshot.packagedBlocks, undoStack: stack, undoCount: s.undoCount + 1 });
+      set({ counts: snapshot.counts, undoStack: stack, undoCount: s.undoCount + 1 });
       radar.recordUndo();
       radar.recordAction();
     },
@@ -830,10 +800,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     demoUngroup: () => {
       const s = get();
       radar.recordAction();
-      const result = resolveDrop(s.counts, s.packagedBlocks, { source: 'column', sourcePlace: 'tens', target: { kind: 'column', place: 'units' } }, selectScaffoldLevel(s));
+      const result = resolveDrop(s.counts, { source: 'column', sourcePlace: 'tens', target: { kind: 'column', place: 'units' } }, selectScaffoldLevel(s));
       if (result.ok) {
-        pushSnapshot(s.counts, s.packagedBlocks);
-        set({ counts: result.counts, packagedBlocks: result.packagedBlocks, hasInteracted: true, hasUngrouped: true });
+        pushSnapshot(s.counts);
+        set({ counts: result.counts, hasInteracted: true, hasUngrouped: true });
       }
     },
 

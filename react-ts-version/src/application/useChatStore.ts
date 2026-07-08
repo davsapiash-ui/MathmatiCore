@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { database } from '@/infrastructure/firebase';
 import { ref, onValue, set as firebaseSet, push, update } from 'firebase/database';
 import { useAuthStore } from "@/application/useAuthStore";
-import { useStore } from "@/application/useStore";
+
 
 export interface ChatMessage {
   id: string;
@@ -51,15 +51,11 @@ export const useChatStore = create<ChatState>()(
               msgs = Object.values(data) as ChatMessage[];
             } else {
               // For teacher/admin, data is nested: { studentId: { msgId: message } }
-              const { students } = useStore.getState();
+
               Object.keys(data).forEach((roomId: string) => {
-                // Filter out phantom messages, but allow rooms belonging to actual students, 
-                // the teacher's own room (for admin messages), or the admin room.
-                if (students[roomId] || roomId === user.uid || roomId === 'admin') { 
-                  const roomData = data[roomId as keyof typeof data];
-                  if (roomData && typeof roomData === 'object') {
-                    msgs.push(...(Object.values(roomData) as ChatMessage[]));
-                  }
+                const roomData = data[roomId as keyof typeof data];
+                if (roomData && typeof roomData === 'object') {
+                  msgs.push(...(Object.values(roomData) as ChatMessage[]));
                 }
               });
             }

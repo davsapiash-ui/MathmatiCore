@@ -3,7 +3,7 @@ import { ShieldCheck, Users, Search, RotateCcw, Settings, X, ArrowRight } from '
 import { useState } from 'react';
 import type { StudentData } from '@/application/useStore';
 import { database } from '@/infrastructure/firebase';
-import { ref, set, remove, get } from 'firebase/database';
+import { ref, set, update, remove, get } from 'firebase/database';
 
 export function ClassManagement({ allStudents }: { allStudents: StudentData[] }) {
   const classes = useAdminStore(s => s.classes);
@@ -32,7 +32,7 @@ export function ClassManagement({ allStudents }: { allStudents: StudentData[] })
       }
 
       // 2. Write a clean slate — preserve only identity, wipe all progress
-      await set(ref(database, `users/students/${studentId}`), {
+      await update(ref(database, `users/students/${studentId}`), {
         studentId,
         name: cleanName,
         classId: existing.classId || 'class_1',
