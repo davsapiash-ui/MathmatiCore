@@ -90,7 +90,7 @@ export const TASKS: QMatrixTask[] = [
     id: "task2_estimation_error_margin",
     type: "number_line",
     titleHe: "רצף וסדר על ישר המספרים",
-    instructionHe: "בואו נבדוק השערה: היכן לדעתכם ימוקם המספר 750 על ציר המעבדה? גררו את הסמן למיקום מקורב.",
+    instructionHe: "בואו נבדוק השערה: היכן לדעתכם ימוקם המספר {{number}} על ציר המעבדה? גררו את הסמן למיקום מקורב.",
     number: 750,
     range: [0, 1000],
     asdNumber: 35,
@@ -112,7 +112,7 @@ export const TASKS: QMatrixTask[] = [
     type: "flexible_decomp",
     scaffoldLevel: 2,
     titleHe: "פירוק והרכבה לפי המבנה העשרוני",
-    instructionHe: "בנו את המספר 240 בלוח המחקר, ולחצו \"הוסף ייצוג\". לאחר מכן, חקרו ומצאו דרך נוספת לייצג את אותו המספר ולחצו שוב! (רמז: נסו להיעזר בפריטה).",
+    instructionHe: "בנו את המספר {{number}} בלוח המחקר, ולחצו \"הוסף ייצוג\". לאחר מכן, חקרו ומצאו דרך נוספת לייצג את אותו המספר ולחצו שוב! (רמז: נסו להיעזר בפריטה).",
     number: 240,
     asdNumber: 34,
     validRepresentations: [

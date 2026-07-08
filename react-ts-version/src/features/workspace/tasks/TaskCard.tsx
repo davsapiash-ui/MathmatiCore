@@ -26,7 +26,15 @@ export function TaskCard() {
   const subtask = sessionNumber === 2 && isSubtaskActive(qflow);
 
   const title = qTask ? qTask.titleHe : standardTask?.titleHe ?? '';
-  const instruction = subtask ? '' : qTask ? qTask.instructionHe : standardTask?.instructionHe ?? '';
+  let instruction = subtask ? '' : qTask ? qTask.instructionHe : standardTask?.instructionHe ?? '';
+  
+  if (instruction.includes('{{number}}')) {
+    const effNum = qTask ? getEffectiveNumber(qTask, qflow, isASD) : (isASD && standardTask?.asdNumberA !== undefined ? standardTask.asdNumberA : standardTask?.numberA);
+    if (effNum !== undefined) {
+      instruction = instruction.replace('{{number}}', effNum.toString());
+    }
+  }
+
   const taskKey = `${sessionNumber}-${qTask?.id ?? standardTask?.id ?? ''}-${subtask ? 'sub' : qflow.subphase}-${standardTaskIdx}`;
 
   return (
