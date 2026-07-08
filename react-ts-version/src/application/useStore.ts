@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
-import type { MasteryProfile } from '@/core/qMatrix';
+import type { MasteryProfile } from '@/core/QMatrix';
 
 export interface QMatrix {
   task1_zero_placeholder: string | null;

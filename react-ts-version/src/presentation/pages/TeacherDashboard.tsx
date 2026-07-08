@@ -25,7 +25,7 @@ import { ClassManagement } from "./TeacherDashboard/ClassManagement";
 import { SocraticEngine, type PendingAIApproval } from "@/infrastructure/services/SocraticEngine";
 import { useTeacherTour } from "./TeacherDashboard/useTeacherTour";
 import type { RadarAlert } from "@/types/dashboard";
-import { CONCEPT_LABELS_HE, type CognitiveConcept } from "@/core/qMatrix";
+import { CONCEPT_LABELS_HE } from "@/core/QMatrix";
 
 export function TeacherDashboard() {
   useTeacherTour();
@@ -300,28 +300,7 @@ export function TeacherDashboard() {
     (s) => s.conceptMastery && s.conceptMastery.algebraic_reasoning < 0.8
   );
 
-  const translateRootCause = (tag: string | null | undefined) => {
-    if (!tag) return "לא נבדק";
-    const map: Record<string, string> = {
-      'procedural_error': 'שגיאה באלגוריתם',
-      'basic_facts_deficit': 'קושי בעובדות יסוד',
-      'canonical_fixation': 'קיבעון קנוני',
-      'regrouping_deficit': 'קושי מהותי בפריטה/המרה',
-      'zero_placeholder_hundreds_error': 'השמטת אפס (מאות)',
-      'zero_placeholder_global_error': 'אי-הבנת שומר מקום',
-      'estimation_range_error': 'חריגה משמעותית בטווח האומדן',
-      'estimation_precision_fixation': 'ניסיון לדייק במקום לאמוד',
-      'small_change_confusion': 'בלבול בהשפעת שינוי קטן',
-      'directional_error': 'בלבול בכיוון הפעולה (חיבור/חיסור)',
-      'regrouping_anxiety': 'חשש מפריטה (חוסר הבנה מוחשית)',
-      'subtraction_operation_deficit': 'קושי בחיסור בסיסי',
-      'algebraic_concept_deficit': 'קושי בהבנת מאזניים (אלגברה)',
-      'computational_fluency_deficit': 'חוסר שטף חישובי',
-      'missing_addend_deficit': 'קושי במציאת מחבר',
-      'inverse_operation_gap': 'פער בקשר חיבור-חיסור',
-    };
-    return map[tag] || tag;
-  };
+
 
   const pendingRouteStudents = allStudents.filter(
     (s) => s.routeStatus === 'PENDING',
