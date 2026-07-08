@@ -3,7 +3,7 @@ import { ShieldCheck, Users, Search, RotateCcw, Settings, X } from 'lucide-react
 import { useState } from 'react';
 import type { StudentData } from '@/application/useStore';
 import { database } from '@/infrastructure/firebase';
-import { ref, set, remove, get } from 'firebase/database';
+import { ref, get, remove, update } from 'firebase/database';
 
 export function ClassManagement({ allStudents }: { allStudents: StudentData[] }) {
   const classes = useAdminStore(s => s.classes);
@@ -31,11 +31,8 @@ export function ClassManagement({ allStudents }: { allStudents: StudentData[] })
           cleanName = studentId.replace('student_', '');
       }
 
-      // 2. Write a clean slate — preserve only identity, wipe all progress
-      await set(ref(database, `users/students/${studentId}`), {
-        studentId,
-        name: cleanName,
-        classId: existing.classId || 'class_1',
+      // 2. Write a clean slate — preserve identity, wipe progress
+      await update(ref(database, `users/students/${studentId}`), {
         completedMeeting2: false,
         routeStatus: null,
         routeRecommendation: null,
