@@ -17,23 +17,10 @@ export function ClassManagement({ allStudents }: { allStudents: StudentData[] })
   const [search, setSearch] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<StudentData | null>(null);
 
-  // Reset Modal State
-  const [resetModalOptions, setResetModalOptions] = useState<{
-    show: boolean;
-    studentId: string;
-    options: {
-      progress: boolean;
-      diagnostics: boolean;
-      recordings: boolean;
-      teacherHints: boolean;
-      chat: boolean;
-      reflections: boolean;
-    };
-  } | null>(null);
+  const filteredStudents = allStudents.filter(s => (s.name || s.studentId || '').toLowerCase().includes(search.toLowerCase()));
 
-  const handleResetStudent = async () => {
-    if (!resetModalOptions) return;
-    const { studentId, options } = resetModalOptions;
+  const handleResetStudent = async (studentId: string) => {
+    if (!window.confirm(`האם אתה בטוח שברצונך לאפס את כל ההתקדמות והנתונים של תלמיד ${studentId}?\nהפעולה תמחק: לוגים, הקלטות, אבחונים, משימות AI, צ'אט ורפלקציות, ולא ניתן לבטל.`)) return;
     
     try {
       // 1. Fetch existing record to keep identity fields (name, classId)
@@ -46,11 +33,14 @@ export function ClassManagement({ allStudents }: { allStudents: StudentData[] })
       }
 
       // 2. Write a clean slate — preserve identity, wipe progress
-      const updatePayload: any = { forceReload: Date.now() };
-      
-      if (options.progress) {
-        updatePayload.completedMeeting2 = false;
-        updatePayload.workspaceState = {
+      await update(ref(database, `users/students/${studentId}`), {
+        completedMeeting2: false,
+        routeStatus: null,
+        routeRecommendation: null,
+        qMatrixResults: null,
+        traceData: { hesitation_events: 0, undo_clicks: 0 },
+        forceReload: Date.now(),
+        workspaceState: {
           sessionNumber: 1,
           isASD: false,
           standardTaskIdx: 0,
@@ -61,85 +51,61 @@ export function ClassManagement({ allStudents }: { allStudents: StudentData[] })
           hesitationCount: 0,
           hasInteracted: false,
           aiTasks: []
-        };
-      }
-      
-      if (options.diagnostics) {
-        updatePayload.routeStatus = null;
-        updatePayload.routeRecommendation = null;
-        updatePayload.qMatrixResults = null;
-        updatePayload.traceData = { hesitation_events: 0, undo_clicks: 0 };
-      }
-
-      await update(ref(database, `users/students/${studentId}`), updatePayload);
-
-      // 3. Clear all related Firebase paths based on options
-      const pathsToDelete = [];
-      
-      if (options.recordings) {
-        pathsToDelete.push(`users/students/${studentId}/telemetry_chunks`);
-        pathsToDelete.push(`replays/${studentId}`);
-      }
-      
-      if (options.teacherHints) {
-        pathsToDelete.push(`users/students/${studentId}/teacher_hint`);
-      }
-      
-      if (options.progress) {
-        pathsToDelete.push(`approved_tasks/${studentId}`);
-        if (teacherId) pathsToDelete.push(`ai_pending_approvals/${teacherId}/${studentId}`);
-      }
-
-      await Promise.all(pathsToDelete.map(path => remove(ref(database, path)).catch(e => console.warn(path, e))));
-
-      // 4. Clean up any orphaned radar alerts for this student (tied to diagnostics/progress)
-      if (options.progress || options.diagnostics) {
-        try {
-          const alertsSnap = await get(ref(database, 'radar_alerts'));
-          const alertsData = alertsSnap.val();
-          if (alertsData) {
-            const rawId = studentId.replace('student_', '');
-            const deletePromises = Object.keys(alertsData)
-              .filter(key => {
-                const a = alertsData[key];
-                return a.student === studentId || a.student === rawId || a.rawStudentId === studentId || a.username === studentId || a.username === rawId;
-              })
-              .map(key => remove(ref(database, `radar_alerts/${key}`)));
-            await Promise.all(deletePromises);
-          }
-        } catch (err) {
-          console.warn('Failed to clean up radar alerts:', err);
         }
+      });
+
+      // 3. Clear all related Firebase paths
+      await Promise.all([
+        remove(ref(database, `users/students/${studentId}/telemetry_chunks`)).catch(e => console.warn('telemetry', e)),
+        remove(ref(database, `users/students/${studentId}/teacher_hint`)).catch(e => console.warn('teacher_hint', e)),
+        remove(ref(database, `approved_tasks/${studentId}`)).catch(e => console.warn('approved_tasks', e)),
+        remove(ref(database, `replays/${studentId}`)).catch(e => console.warn('replays', e)),
+        teacherId ? remove(ref(database, `ai_pending_approvals/${teacherId}/${studentId}`)).catch(() => {}) : Promise.resolve(),
+      ]);
+
+      // 4. Clean up any orphaned radar alerts for this student
+      try {
+        const alertsSnap = await get(ref(database, 'radar_alerts'));
+        const alertsData = alertsSnap.val();
+        if (alertsData) {
+          const rawId = studentId.replace('student_', '');
+          const deletePromises = Object.keys(alertsData)
+            .filter(key => {
+              const a = alertsData[key];
+              return a.student === studentId || a.student === rawId || a.rawStudentId === studentId || a.username === studentId || a.username === rawId;
+            })
+            .map(key => remove(ref(database, `radar_alerts/${key}`)));
+          await Promise.all(deletePromises);
+        }
+      } catch (err) {
+        console.warn('Failed to clean up radar alerts:', err);
       }
       
       // 5. Clean up chat history
-      if (options.chat && teacherId) {
+      if (teacherId) {
         const roomId = `${teacherId}_${studentId}`;
         await remove(ref(database, `chat_messages/${roomId}`)).catch(e => console.warn('chat', e));
       }
 
       // 6. Clean up reflections
-      if (options.reflections) {
-        try {
-          const reflectionsSnap = await get(ref(database, 'reflections'));
-          const reflectionsData = reflectionsSnap.val();
-          if (reflectionsData) {
-            const rawId = studentId.replace('student_', '');
-            const deletePromises = Object.keys(reflectionsData)
-              .filter(key => {
-                const r = reflectionsData[key];
-                return r?.student?.id === studentId || r?.student?.id === rawId;
-              })
-              .map(key => remove(ref(database, `reflections/${key}`)));
-            await Promise.all(deletePromises);
-          }
-        } catch (err) {
-          console.warn('Failed to clean up reflections:', err);
+      try {
+        const reflectionsSnap = await get(ref(database, 'reflections'));
+        const reflectionsData = reflectionsSnap.val();
+        if (reflectionsData) {
+          const rawId = studentId.replace('student_', '');
+          const deletePromises = Object.keys(reflectionsData)
+            .filter(key => {
+              const r = reflectionsData[key];
+              return r?.student?.id === studentId || r?.student?.id === rawId;
+            })
+            .map(key => remove(ref(database, `reflections/${key}`)));
+          await Promise.all(deletePromises);
         }
+      } catch (err) {
+        console.warn('Failed to clean up reflections:', err);
       }
 
-      alert('✅ הנתונים אופסו בהצלחה. התלמיד יכול להתחיל מחדש.');
-      setResetModalOptions(null);
+      alert('✅ הנתונים אופסו בהצלחה. התלמיד מוכן להתחיל מחדש.');
       setSelectedStudent(null);
     } catch (err: unknown) {
       console.error('Reset failed:', err);
@@ -278,91 +244,14 @@ export function ClassManagement({ allStudents }: { allStudents: StudentData[] })
                 </h3>
                 <p className="text-xs text-red-700 mb-4">בחר איזה נתונים ברצונך למחוק לאפס עבור תלמיד זה.</p>
                 <button
-                  onClick={() => setResetModalOptions({
-                    show: true,
-                    studentId: selectedStudent.studentId,
-                    options: {
-                      progress: true,
-                      diagnostics: true,
-                      recordings: true,
-                      teacherHints: true,
-                      chat: true,
-                      reflections: true
-                    }
-                  })}
+                  onClick={() => handleResetStudent(selectedStudent.studentId)}
                   className="w-full bg-red-100 hover:bg-red-200 text-red-700 font-bold py-3 px-4 rounded-xl transition-colors shadow-sm text-sm flex justify-center items-center gap-2"
                 >
                   <RotateCcw className="w-4 h-4" />
-                  אפשרויות איפוס נתונים...
+                  אפס את התלמיד והתחל מחדש
                 </button>
               </div>
 
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Reset Options Modal */}
-      {resetModalOptions && resetModalOptions.show && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95 duration-200">
-            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-red-50 dark:bg-red-900/20">
-              <h2 className="text-xl font-black text-red-800 dark:text-red-400 flex items-center gap-2">
-                <RotateCcw className="w-5 h-5" />
-                איפוס נתונים - בחירת רכיבים
-              </h2>
-              <button 
-                onClick={() => setResetModalOptions(null)}
-                className="text-slate-400 hover:text-slate-600 p-2 rounded-full hover:bg-slate-200 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            
-            <div className="p-6 flex flex-col gap-4">
-              <div className="text-sm text-slate-600 mb-2">
-                סמן אילו נתונים של התלמיד יאופסו ויימחקו לצמיתות:
-              </div>
-
-              {[
-                { key: 'progress', label: 'התקדמות במשימות וסטטוס במרחב העבודה' },
-                { key: 'diagnostics', label: 'תוצאות אבחון ורדאר פדגוגי' },
-                { key: 'recordings', label: 'הקלטות מסך (Telemetry)' },
-                { key: 'teacherHints', label: 'רמזים פתוחים מהמורה' },
-                { key: 'chat', label: 'היסטוריית הצ\'אט הישיר' },
-                { key: 'reflections', label: 'משובים ורפלקציות' },
-              ].map((opt) => (
-                <label key={opt.key} className="flex items-center gap-3 cursor-pointer p-2 hover:bg-slate-50 rounded-lg">
-                  <input
-                    type="checkbox"
-                    className="w-5 h-5 accent-red-500 rounded"
-                    checked={(resetModalOptions.options as any)[opt.key]}
-                    onChange={(e) => setResetModalOptions({
-                      ...resetModalOptions,
-                      options: {
-                        ...resetModalOptions.options,
-                        [opt.key]: e.target.checked
-                      }
-                    })}
-                  />
-                  <span className="text-slate-800 font-medium">{opt.label}</span>
-                </label>
-              ))}
-
-              <div className="mt-4 pt-4 border-t border-slate-100 flex gap-3">
-                <button
-                  onClick={handleResetStudent}
-                  className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-xl transition-all shadow-sm shadow-red-200"
-                >
-                  בצע איפוס
-                </button>
-                <button
-                  onClick={() => setResetModalOptions(null)}
-                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-xl transition-colors"
-                >
-                  ביטול
-                </button>
-              </div>
             </div>
           </div>
         </div>
