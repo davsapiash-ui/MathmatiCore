@@ -264,6 +264,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
   function startTask(taskId: string) {
     set(resetTaskInteraction());
     radar.setTask(taskId);
+
+    // Auto-close the board if the incoming task is a number_line task
+    const s = get();
+    let isNumberLine = false;
+    if (s.sessionNumber === 2) {
+      isNumberLine = getCurrentQTask(s.qflow)?.type === 'number_line';
+    } else {
+      isNumberLine = selectStandardTask(s)?.type === 'number_line';
+    }
+    set({ boardOpen: !isNumberLine });
   }
 
   /** Session-2 transition script (vanilla onQTaskComplete, app.js 813–873). */

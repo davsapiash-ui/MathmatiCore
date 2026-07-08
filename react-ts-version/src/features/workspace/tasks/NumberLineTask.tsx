@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useEffect } from 'react';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 
 /**
@@ -26,7 +26,15 @@ export function NumberLineTask({
   const mediumStep = span >= 1000 ? 50 : 5;
   const majorStep = span >= 1000 ? 100 : 10;
 
-  const pct = value === null ? null : ((value - min) / span) * 100;
+  // Initialize value to min if null, so the arrow is always visible at 0
+  useEffect(() => {
+    if (value === null) {
+      setNumberLineValue(min);
+    }
+  }, [value, min, setNumberLineValue]);
+
+  const displayValue = value ?? min;
+  const pct = ((displayValue - min) / span) * 100;
 
   const updateFromClientX = useCallback(
     (clientX: number) => {
@@ -61,13 +69,13 @@ export function NumberLineTask({
         aria-label="ישר המספרים — גררו את החץ"
         aria-valuemin={min}
         aria-valuemax={max}
-        aria-valuenow={value ?? undefined}
+        aria-valuenow={displayValue}
         tabIndex={0}
         className="relative h-20 cursor-pointer touch-none"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onKeyDown={(e) => {
-          const cur = value ?? min;
+          const cur = displayValue;
           if (e.key === 'ArrowRight') setNumberLineValue(Math.min(max, cur + minorStep));
           if (e.key === 'ArrowLeft') setNumberLineValue(Math.max(min, cur - minorStep));
         }}
@@ -75,6 +83,11 @@ export function NumberLineTask({
         {/* Track */}
         <div className="absolute top-1/2 left-0 right-0 h-2 -translate-y-1/2 rounded-full bg-ws-surface2" />
 
+        {/* Progress Fill (פס צבירה) */}
+        <div 
+          className="absolute top-1/2 left-0 h-2 -translate-y-1/2 rounded-full bg-ws-accent pointer-events-none transition-all duration-75"
+          style={{ width: `${pct}%` }} 
+        />
 
         {/* All ticks */}
         {Array.from({ length: Math.floor(span / minorStep) + 1 }).map((_, i) => {
@@ -111,19 +124,15 @@ export function NumberLineTask({
         ))}
 
         {/* Marker arrow */}
-        {pct !== null && (
-          <div className="absolute -top-1 -translate-x-1/2 flex flex-col items-center pointer-events-none" style={{ left: `${pct}%` }}>
-            {showMarkerValue && (
-              <span className="mb-0.5 px-2 py-0.5 rounded-lg bg-ws-accent text-white text-sm font-black tabular-nums shadow">
-                {value!.toLocaleString('he-IL')}
-              </span>
-            )}
-            <span className="text-2xl leading-none text-ws-accent drop-shadow">▼</span>
-          </div>
-        )}
+        <div className="absolute -top-1 -translate-x-1/2 flex flex-col items-center pointer-events-none transition-all duration-75" style={{ left: `${pct}%` }}>
+          {showMarkerValue && (
+            <span className="mb-0.5 px-2 py-0.5 rounded-lg bg-ws-accent text-white text-sm font-black tabular-nums shadow">
+              {displayValue.toLocaleString('he-IL')}
+            </span>
+          )}
+          <span className="text-2xl leading-none text-ws-accent drop-shadow">▼</span>
+        </div>
       </div>
-
-      {value === null && <p className="text-center text-sm text-ws-soft mt-2">לחצו או גררו על הישר כדי למקם את החץ</p>}
     </div>
   );
 }

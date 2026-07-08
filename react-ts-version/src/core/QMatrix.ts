@@ -67,11 +67,11 @@ export const TASKS: QMatrixTask[] = [
     number: 304,
     asdNumber: 70,
     choices: [
-      { id: "A", textHe: "האפס שומר על טור העשרות, ומראה שאין עשרות במספר זה." },
-      { id: "B", textHe: "האפס לא באמת משנה, המספר הוא בדיוק כמו 34." },
-      { id: "C", textHe: "האפס רק מקשט את המספר, ואפשר למחוק אותו." },
+      { id: "א", textHe: "האפס שומר על טור העשרות, ומראה שאין עשרות במספר זה." },
+      { id: "ב", textHe: "האפס לא באמת משנה, המספר הוא בדיוק כמו 34." },
+      { id: "ג", textHe: "האפס רק מקשט את המספר, ואפשר למחוק אותו." },
     ],
-    correctChoice: "A",
+    correctChoice: "א",
     expectedBlocks: { hundreds: 3, tens: 0, units: 4 },
     asdExpectedBlocks: { tens: 7, units: 0 },
     backwardDiagnosis: {
@@ -80,10 +80,10 @@ export const TASKS: QMatrixTask[] = [
       asdSubtaskNumber: 30,
       subtaskInstructionHe: "בואו נקטין את המספר במיקרוסקופ ונבדוק שוב: מה עושה האפס במספר?",
       subtaskChoices: [
-        { id: "A", textHe: "הוא שומר על המקום של טור היחידות, ומראה שאין לנו יחידות כלל." },
-        { id: "B", textHe: "האפס מיותר לחלוטין ואפשר למחוק אותו." },
+        { id: "א", textHe: "הוא שומר על המקום של טור היחידות, ומראה שאין לנו יחידות כלל." },
+        { id: "ב", textHe: "האפס מיותר לחלוטין ואפשר למחוק אותו." },
       ],
-      correctChoice: "A",
+      correctChoice: "א",
     },
   },
   {
@@ -162,13 +162,13 @@ export const TASKS: QMatrixTask[] = [
     givenHe: "45 + 10 = 55",
     questionHe: "כמה הם 45 + 9?",
     choices: [
-      { id: "A", textHe: "54 — כי חיברנו 9 במקום 10, ולכן הסכום קטן ב-1." },
-      { id: "B", textHe: "55 — הסכום תמיד נשאר זהה." },
-      { id: "C", textHe: "56 — כי הוספנו עוד יחידה אחת." },
-      { id: "D", textHe: "חייבים לחשב הכול מחדש בשביל לדעת." },
+      { id: "א", textHe: "54 — כי חיברנו 9 במקום 10, ולכן הסכום קטן ב-1." },
+      { id: "ב", textHe: "55 — הסכום תמיד נשאר זהה." },
+      { id: "ג", textHe: "56 — כי הוספנו עוד יחידה אחת." },
+      { id: "ד", textHe: "חייבים לחשב הכול מחדש בשביל לדעת." },
     ],
-    correctChoice: "A",
-    flexibilityTrapChoice: "D",
+    correctChoice: "א",
+    flexibilityTrapChoice: "ד",
     backwardDiagnosis: {
       triggerOn: "flexibility_trap",
       visualHint: true,
@@ -278,11 +278,16 @@ export class QMatrixEvaluator {
         (blockCounts.tens || 0) === (expected.tens || 0) &&
         (blockCounts.units || 0) === (expected.units || 0);
     }
-    const correct = choiceCorrect && blockCorrect;
+    
+    // Pedagogical Rule: Do not force concrete manipulative usage in the primary phase if abstract mastery (choice) is shown.
+    // However, in the correction retry round, we enforce building the blocks to prove understanding.
+    const enforceBlocks = phase === "correction" && subphase === "retry";
+    const correct = choiceCorrect && (!enforceBlocks || blockCorrect);
+    
     return {
       correct,
       detail: correct ? "" : choiceCorrect ? "wrong_blocks" : "wrong_choice",
-      triggerBackward: !correct,
+      triggerBackward: !correct, // If they failed, trigger backward diagnosis
     };
   }
 
