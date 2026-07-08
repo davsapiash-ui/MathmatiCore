@@ -123,6 +123,8 @@ export const useChatStore = create<ChatState>()(
         let roomId = role === 'student' ? receiverId : senderId;
         if (role !== 'student' && senderId === 'admin') {
           roomId = receiverId; // Admin messages to teacher are stored in teacher's room
+        } else if (receiverId === 'admin') {
+          roomId = 'admin'; // Messages sent to admin are stored in admin's room
         }
         
         unreadMsgs.forEach(msg => {

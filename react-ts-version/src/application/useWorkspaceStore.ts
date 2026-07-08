@@ -78,6 +78,7 @@ interface WorkspaceState {
   selectedChoiceId: string | null;
   numberLineValue: number | null;
   answerDigits: Partial<Record<Place, string>>;
+  carryDigits: Partial<Record<Place, string>>;
   probeAnswer: string;
   q3Reps: PlaceCounts[];
 
@@ -98,7 +99,8 @@ interface WorkspaceState {
   setFocusedPlace: (place: Place | null) => void;
   selectChoice: (id: string) => void;
   setNumberLineValue: (v: number) => void;
-  setAnswerDigit: (place: Place, v: string) => void;
+  setAnswerDigit: (place: Place, val: string) => void;
+  setCarryDigit: (place: Place, val: string) => void;
   setProbeAnswer: (v: string) => void;
   /** "החזרת עזרים" — bidirectional scaffold fading per spec: temporarily restore faded aids. */
   restoreScaffolds: () => void;
@@ -128,6 +130,7 @@ function resetTaskInteraction() {
     selectedChoiceId: null as string | null,
     numberLineValue: null as number | null,
     answerDigits: {} as Partial<Record<Place, string>>,
+    carryDigits: {} as Partial<Record<Place, string>>,
     probeAnswer: '',
     q3Reps: [] as PlaceCounts[],
     focusedPlace: null as Place | null,
@@ -635,6 +638,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     selectedChoiceId: null,
     numberLineValue: null,
     answerDigits: {},
+    carryDigits: {},
     probeAnswer: '',
     q3Reps: [],
 
@@ -736,9 +740,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       radar.recordAction();
     },
 
-    setAnswerDigit: (place, v) => {
-      set((s) => ({ answerDigits: { ...s.answerDigits, [place]: v }, hasInteracted: true }));
+    setAnswerDigit: (place, val) => {
       radar.recordAction();
+      set((s) => ({ answerDigits: { ...s.answerDigits, [place]: val }, hasInteracted: true }));
+    },
+
+    setCarryDigit: (place, val) => {
+      radar.recordAction();
+      set((s) => ({ carryDigits: { ...s.carryDigits, [place]: val }, hasInteracted: true }));
     },
 
     setProbeAnswer: (v) => {

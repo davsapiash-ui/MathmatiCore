@@ -76,8 +76,14 @@ export function NumberLineTask({
         onPointerMove={handlePointerMove}
         onKeyDown={(e) => {
           const cur = displayValue;
-          if (e.key === 'ArrowRight') setNumberLineValue(Math.min(max, cur + minorStep));
-          if (e.key === 'ArrowLeft') setNumberLineValue(Math.max(min, cur - minorStep));
+          if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            setNumberLineValue(Math.min(max, cur + minorStep));
+          }
+          if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            setNumberLineValue(Math.max(min, cur - minorStep));
+          }
         }}
       >
         {/* Track */}

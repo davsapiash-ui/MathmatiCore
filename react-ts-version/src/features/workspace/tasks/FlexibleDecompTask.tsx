@@ -40,7 +40,7 @@ export function FlexibleDecompTask({ targetNumber }: { targetNumber: number }) {
             : 'bg-ws-accent text-white hover:brightness-105 active:scale-95'
         }`}
       >
-        {done ? '✓✓ שני ייצוגים נרשמו' : `+ הוסף ייצוג (${q3Reps.length + 1}/2)`}
+        {done ? '✓✓ שני ייצוגים נרשמו' : `+ הוספת ייצוג (${q3Reps.length + 1}/2)`}
       </button>
     </div>
   );

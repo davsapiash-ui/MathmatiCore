@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import { PLACE_ORDER, type Place } from '@/core/placeValue';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { radar } from '@/features/workspace/radarBus';
@@ -39,9 +39,10 @@ export function VerticalAdditionTask({
 }) {
   const answerDigits = useWorkspaceStore((s) => s.answerDigits);
   const setAnswerDigit = useWorkspaceStore((s) => s.setAnswerDigit);
+  const carryDigits = useWorkspaceStore((s) => s.carryDigits);
+  const setCarryDigit = useWorkspaceStore((s) => s.setCarryDigit);
   const setFocusedPlace = useWorkspaceStore((s) => s.setFocusedPlace);
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
-  const [carryDigits, setCarryDigits] = useState<Record<string, string>>({});
 
   const aStr = String(numberA);
   const bStr = String(numberB);
@@ -116,7 +117,7 @@ export function VerticalAdditionTask({
                 onChange={(e) => {
                   radar.recordAction();
                   const v = e.target.value.replace(/[^0-9]/g, '').slice(-2);
-                  setCarryDigits(prev => ({ ...prev, [place]: v }));
+                  setCarryDigit(place, v);
                 }}
               />
             </div>
