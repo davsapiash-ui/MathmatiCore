@@ -48,7 +48,7 @@ export function ClassManagement({ allStudents }: { allStudents: StudentData[] })
           qflow: { step: 0, results: {} },
           flowStatus: 'IDLE',
           counts: { single: 0, ten: 0 },
-          packagedBlocks: [],
+
           undoCount: 0,
           hesitationCount: 0,
           hasInteracted: false,

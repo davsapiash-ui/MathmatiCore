@@ -37,6 +37,7 @@ export function useWorkspaceRadar(sessionNumber: number) {
       const alert = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         type,
+        studentId: u?.uid ?? 'unknown',
         student: u?.uid ?? 'unknown',
         username: u?.uid ?? 'unknown',
         studentName: u?.displayName ?? 'תלמיד',
