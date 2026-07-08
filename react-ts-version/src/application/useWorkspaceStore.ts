@@ -107,7 +107,6 @@ interface WorkspaceState {
   restoreScaffolds: () => void;
   addRepresentation: () => void;
   demoUngroup: () => void;
-  skipTutorial: () => void;
   proceed: () => void;
   requestHelp: () => void;
   helpFrictionDone: () => void;
@@ -214,12 +213,10 @@ export function selectCanProceed(s: WorkspaceState): boolean {
     // Choiceless exploration tasks (correctAnswer 'proceed_any') pass on any interaction;
     // question intros still require a selected choice.
     if (task.correctAnswer === 'proceed_any' || !task.choices?.length) {
-      // Logic for new Sandbox
+      // Standard progress logic
       if (task.id === 's1_sandbox_controlled') {
-        return s.blocksAddedCount >= 5 && s.hasDeletedBlock;
+        return s.hasInteracted && s.hasDeletedBlock;
       }
-      if (task.id === 's1_guided_tour') return true; // Handled by Tutorial skip auto-proceed
-      
       if (task.id === 's1_t3' && (!s.hasDeletedBlock || selectBoardValue(s) !== 50)) return false;
       if (task.id === 's1_t5' && (!s.hasUngrouped || selectBoardValue(s) !== 40)) return false;
       return s.hasInteracted;
@@ -720,9 +717,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       radar.recordDelete();
     },
 
-
-
-
     undo: () => {
       const s = get();
       const stack = [...s.undoStack];
@@ -823,23 +817,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       }
     },
 
+    markInteracted: () => set(() => ({ hasInteracted: true })),
+
     proceed: () => {
       const s = get();
       if (s.awaitingNext || s.flowStatus !== 'task' || !selectCanProceed(s)) return;
       radar.recordAction();
       if (s.sessionNumber === 2) proceedQ();
       else proceedStandard();
-    },
-
-    skipTutorial: () => {
-      const s = get();
-      if (s.sessionNumber !== 1) return;
-      
-      set({ awaitingNext: true });
-      showFeedback({ correct: true, title: 'הדרכה הופסקה', sub: 'עוברים למשימות...' }, 1500, () => {
-        set({ standardTaskIdx: 6, awaitingNext: false });
-        startTask(getSessionTasks(1)[6].id);
-      });
     },
 
     /** Help flow: lightbulb → 3s "productive metacognitive friction" → calibrated choice. */

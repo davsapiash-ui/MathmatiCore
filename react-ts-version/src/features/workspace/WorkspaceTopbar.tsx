@@ -112,16 +112,6 @@ export function WorkspaceTopbar() {
           🧭
         </button>
 
-        {sessionNumber === 1 && standardTaskIdx < 6 && (
-          <button
-            onClick={() => useWorkspaceStore.getState().skipTutorial()}
-            className="h-10 px-4 rounded-full text-sm font-bold text-ws-ink bg-ws-surface border border-ws-surface2 hover:bg-ws-surface2 hover:text-ws-ink transition-all flex items-center"
-            aria-label="דלג על הדרכה"
-          >
-            דלג על הדרכה
-          </button>
-        )}
-
         <button
           onClick={proceed}
           disabled={!canProceed}

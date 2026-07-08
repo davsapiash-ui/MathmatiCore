@@ -78,12 +78,20 @@ export function TeacherDashboard() {
       let cancelled = false;
       authReady.then(() => {
       if (cancelled) return;
-      const replayRef = ref(database, `users/students/${selectedReplayStudentId}/telemetry_chunks`);
+      const replayRef = ref(database, `users/students/${selectedReplayStudentId}/telemetry_sessions`);
       unsubscribe = onValue(replayRef, (snapshot) => {
          try {
            if (snapshot.exists()) {
-              const rawData = snapshot.val();
-              const data = (rawData && typeof rawData === 'object') ? rawData : {};
+              const sessionsData = snapshot.val();
+              const sessionIds = Object.keys(sessionsData).sort(); // chronological sort
+              const latestSessionId = sessionIds[sessionIds.length - 1]; // get the most recent session
+              
+              if (!latestSessionId) {
+                setLiveReplayEvents([]);
+                return;
+              }
+
+              const data = sessionsData[latestSessionId];
               const keys = Object.keys(data).sort(); // Push IDs sort chronologically
               let allEvents: any[] = [];
               

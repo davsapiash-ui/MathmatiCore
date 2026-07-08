@@ -70,15 +70,7 @@ export interface SessionTask {
 /* ── Session 1 — (מפגש 1: היכרות ותפעול, רישיון מעבדה מורחב) ── */
 
 export const SESSION1_TASKS: SessionTask[] = [
-  // 1. Guided Tour (Interactive Pointer)
-  {
-    id: 's1_guided_tour',
-    type: 'session1_intro',
-    titleHe: 'תדריך מעבדה: הכרת ציוד החקר',
-    instructionHe: 'צפו בהדגמה על המסך. סמן המעבדה יראה לכם כיצד לגרור פריטים, כיצד **לקבץ** (למשל לאגד 10 יחידות לעשרת אחת), כיצד **לפרוט** (לפרק עשרת ל-10 יחידות), וכיצד לזרוק לפח המחזור. ניתן לדלג על התדריך בעזרת הכפתור למעלה.',
-    correctAnswer: 'proceed_any',
-    scaffoldLevel: 0,
-  },
+
   // 2. Controlled Sandbox (Friction built-in)
   {
     id: 's1_sandbox_controlled',
@@ -92,10 +84,10 @@ export const SESSION1_TASKS: SessionTask[] = [
   {
     id: 's1_license_test',
     type: 'addition_simple',
-    numberA: 42, numberB: 0, correctAnswer: 42,
+    numberA: 420, numberB: 0, correctAnswer: 420,
     titleHe: 'בדיקת רישיון: בנייה מדוייקת',
-    instructionHe: 'בנו בלוח המחקר את המספר 42 במדויק. לאחר מכן, הזינו את המספר בתיבת התוצאה למטה ולחצו על בדיקה.',
-    hintHe: 'שימו לב לטורים: עשרות בטור העשרות ויחידות בטור היחידות.',
+    instructionHe: 'בנו בלוח המחקר את המספר 420 במדויק. לאחר מכן, הזינו את המספר בתיבת התוצאה למטה ולחצו על בדיקה.',
+    hintHe: 'שימו לב לטורים: מאות בטור המאות, עשרות בעשרות ויחידות ביחידות.',
     scaffoldLevel: 1,
   },
   // 4. Number Line Tool Practice
@@ -103,28 +95,29 @@ export const SESSION1_TASKS: SessionTask[] = [
     id: 's1_t6',
     type: 'number_line',
     titleHe: 'רישיון חוקר: כיול ישר המספרים',
-    instructionHe: 'כלי נוסף במעבדה הוא ישר המספרים. גררו את הסמן למקום שבו נמצא המספר 60 על הקו ולחצו בדיקה.',
-    numberA: 60, // target
+    instructionHe: 'כלי נוסף במעבדה הוא ישר המספרים. גררו את הסמן למקום שבו נמצא המספר 650 על הקו ולחצו בדיקה.',
+    numberA: 650, // target
+    range: [0, 1000],
     scaffoldLevel: 0,
   },
   // 8. Math Refresh 1
   {
     id: 's1_t7',
     type: 'addition_simple',
-    numberA: 24, numberB: 13, correctAnswer: 37,
+    numberA: 240, numberB: 135, correctAnswer: 375,
     titleHe: 'חימום ציוד - ניסוי 1',
     instructionHe: 'השתמשו בקוביות כדי לפתור את התרגיל הבא:',
-    hintHe: 'חברו את היחידות ליחידות ואת העשרות לעשרות.',
+    hintHe: 'חברו יחידות ליחידות, עשרות לעשרות, ומאות למאות.',
     scaffoldLevel: 1,
   },
   // 9. Math Refresh 2
   {
     id: 's1_t8',
     type: 'addition_simple',
-    numberA: 38, numberB: 15, correctAnswer: 53,
+    numberA: 385, numberB: 152, correctAnswer: 537,
     titleHe: 'חימום ציוד - ניסוי 2',
-    instructionHe: 'בנו את המספרים 38 ו-15 בעזרת הקוביות ופתרו את תרגיל החיבור. שימו לב מה קורה כשאתם אוספים 10 יחידות ביחד!',
-    hintHe: 'אם יש לכם יותר מ-9 יחידות, אפשר ליצור מהן עשרת חדשה.',
+    instructionHe: 'בנו את המספרים 385 ו-152 בעזרת הקוביות ופתרו את תרגיל החיבור. שימו לב מה קורה כשאתם אוספים 10 קוביות ביחד!',
+    hintHe: 'אם יש לכם יותר מ-9 בטור מסוים, אפשר ליצור מהן קבוצה חדשה גדולה יותר.',
     scaffoldLevel: 1,
     requiresGrouping: true,
   },
@@ -133,7 +126,7 @@ export const SESSION1_TASKS: SessionTask[] = [
     id: 's1_t9',
     type: 'vertical_addition',
     isSubtraction: true,
-    numberA: 47, numberB: 25, correctAnswer: 22,
+    numberA: 470, numberB: 250, correctAnswer: 220,
     titleHe: 'חימום ציוד - ניסוי 3',
     instructionHe: 'נסו כעת לפתור תרגיל חיסור בעזרת הקוביות שבטבלה:',
     hintHe: 'בחיסור אנחנו רק מוציאים קוביות מהמספר הראשון.',
@@ -144,10 +137,10 @@ export const SESSION1_TASKS: SessionTask[] = [
     id: 's1_t10',
     type: 'vertical_addition',
     isSubtraction: true,
-    numberA: 42, numberB: 16, correctAnswer: 26,
+    numberA: 425, numberB: 162, correctAnswer: 263,
     titleHe: 'חימום ציוד - ניסוי 4',
-    instructionHe: 'איך נחסר 6 יחידות אם יש לנו רק 2? היעזרו בסוד הפריטה שלמדנו!',
-    hintHe: 'ללחוץ לחיצה כפולה על אחת העשרות ייתן לכם 10 יחידות נוספות להשתמש בהן.',
+    instructionHe: 'איך נחסר במקרה הזה אם אין לנו מספיק? היעזרו בסוד הפריטה שלמדנו!',
+    hintHe: 'ללחוץ לחיצה כפולה על קוביה גדולה יותר יפרק אותה ל-10 קטנות שאפשר להשתמש בהן.',
     scaffoldLevel: 1,
     requiresUngrouping: true,
   },
