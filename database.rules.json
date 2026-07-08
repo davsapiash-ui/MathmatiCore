@@ -153,7 +153,8 @@
     "replays": {
       "$sessionKey": {
         ".read": "auth != null && (root.child('users/teachers/' + auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '')).exists() || auth.token.email === 'admin@mathmaticore.local')",
-        ".write": "auth != null && (auth.token.email === $sessionKey + '@mathmaticore.local' || root.child('users/teachers/' + auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '')).exists() || auth.token.email === 'admin@mathmaticore.local')"
+        ".write": "auth != null && (auth.token.email === $sessionKey + '@mathmaticore.local' || root.child('users/teachers/' + auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '')).exists() || auth.token.email === 'admin@mathmaticore.local')",
+        ".validate": "newData.hasChildren() || !newData.exists()"
       }
     },
 
@@ -169,14 +170,18 @@
     "approved_tasks": {
       "$studentId": {
         ".read": "auth != null && (auth.token.email === $studentId + '@mathmaticore.local' || root.child('users/teachers/' + auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '')).exists() || auth.token.email === 'admin@mathmaticore.local')",
-        ".write": "auth != null && (root.child('users/teachers/' + auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '')).exists() || auth.token.email === 'admin@mathmaticore.local')"
+        ".write": "auth != null && (root.child('users/teachers/' + auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '')).exists() || auth.token.email === 'admin@mathmaticore.local')",
+        ".validate": "newData.hasChildren() || !newData.exists()"
       }
     },
 
     "ai_pending_approvals": {
       "$teacherId": {
         ".read": "auth != null && (auth.token.email === 'teacher_' + $teacherId + '@mathmaticore.local' || auth.token.email.replace('@mathmaticore.local','') === $teacherId || auth.token.email === 'admin@mathmaticore.local')",
-        ".write": "auth != null && (auth.token.email.matches(/.*@mathmaticore\\.local$/) || auth.token.email === 'admin@mathmaticore.local')"
+        ".write": "auth != null && (auth.token.email.matches(/.*@mathmaticore\\.local$/) || auth.token.email === 'admin@mathmaticore.local')",
+        "$approvalId": {
+          ".validate": "newData.hasChildren(['studentId', 'tasks']) || !newData.exists()"
+        }
       }
     },
 

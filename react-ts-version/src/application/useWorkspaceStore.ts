@@ -809,7 +809,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     proceed: () => {
       const s = get();
-      if (s.awaitingNext || s.flowStatus !== 'task') return;
+      if (s.awaitingNext || s.flowStatus !== 'task' || !selectCanProceed(s)) return;
       radar.recordAction();
       if (s.sessionNumber === 2) proceedQ();
       else proceedStandard();

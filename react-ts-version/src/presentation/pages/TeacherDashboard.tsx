@@ -24,6 +24,7 @@ import { ReplayViewer } from "@/presentation/components/ReplayViewer";
 import { ClassManagement } from "./TeacherDashboard/ClassManagement";
 import { SocraticEngine, type PendingAIApproval } from "@/infrastructure/services/SocraticEngine";
 import { useTeacherTour } from "./TeacherDashboard/useTeacherTour";
+import type { RadarAlert } from "@/types/dashboard";
 
 export function TeacherDashboard() {
   useTeacherTour();
@@ -33,9 +34,9 @@ export function TeacherDashboard() {
   const teacherFileInputRef = useRef<HTMLInputElement>(null);
   const adminFileInputRef = useRef<HTMLInputElement>(null);
   const [sendingImage, setSendingImage] = useState(false);
-  const [students, setStudents] = useState<Record<string, any>>(() => {
+  const [students, setStudents] = useState<Record<string, StudentData>>(() => {
     const allSt = useStore.getState().students;
-    const initial: Record<string, any> = {};
+    const initial: Record<string, StudentData> = {};
     for (const [id, s] of Object.entries(allSt)) {
       // Preserve real qMatrixResults and traceData already in the store — do NOT zero them out.
       initial[id] = {
@@ -64,6 +65,7 @@ export function TeacherDashboard() {
     null,
   );
   
+  const [isLoading, setIsLoading] = useState(true);
   const [selectedReplayStudentId, setSelectedReplayStudentId] = useState<string | null>(null);
   const [liveReplayEvents, setLiveReplayEvents] = useState<any[]>([]);
 
@@ -217,6 +219,10 @@ export function TeacherDashboard() {
         } as any;
       });
       setStudents(formattedStudents);
+      setIsLoading(false);
+    }, (error) => {
+      console.error("Firebase permission denied or network error on users/students:", error);
+      setIsLoading(false);
     });
     return () => unsubscribe();
   }, []);
@@ -381,7 +387,7 @@ export function TeacherDashboard() {
 
   // Generate trace data alerts
 
-  const [firebaseAlerts, setFirebaseAlerts] = useState<any[]>([]);
+  const [firebaseAlerts, setFirebaseAlerts] = useState<RadarAlert[]>([]);
 
   useEffect(() => {
     const alertsRef = ref(database, 'radar_alerts');
@@ -422,7 +428,7 @@ export function TeacherDashboard() {
     return firebaseAlerts
       .filter(a => a.timestamp > twelveHoursAgo)
       .map(a => {
-        const actualStudent = students[a.rawStudentId] || Object.values(students).find((s: any) => s.studentId === a.rawStudentId || s.name === a.rawStudentId);
+        const actualStudent = students[a.rawStudentId] || Object.values(students).find((s: StudentData) => s.studentId === a.rawStudentId || s.name === a.rawStudentId);
         return {
           ...a,
           studentId: actualStudent?.name ?? a.studentId,
@@ -431,13 +437,13 @@ export function TeacherDashboard() {
       .filter(a => {
         // Only show alerts for students in this teacher's class (who are in the filtered 'students' state)
         // We also allow demo students (student_user*) as a fallback for testing
-        const isMyStudent = !!students[a.rawStudentId] || Object.values(students).some((s: any) => s.studentId === a.rawStudentId || s.name === a.rawStudentId);
+        const isMyStudent = !!students[a.rawStudentId] || Object.values(students).some((s: StudentData) => s.studentId === a.rawStudentId || s.name === a.rawStudentId);
         return isMyStudent || (a.rawStudentId && a.rawStudentId.startsWith('student_user'));
       })
       .sort((a, b) => b.timestamp - a.timestamp);
   }, [firebaseAlerts, students]);
 
-  const handleAlertResponse = (alert: any, responseType: string, responseText: string) => {
+  const handleAlertResponse = (alert: RadarAlert, responseType: string, responseText: string) => {
     // 1. Record the intervention in the student's trace data
     if (alert.rawStudentId) {
       const interventionId = Date.now().toString();
@@ -574,6 +580,17 @@ export function TeacherDashboard() {
   const unreadStudentsCount = messages.filter(
     (m) => m.senderId !== "admin" && m.senderId !== user?.uid && m.receiverId === user?.uid && !m.read,
   ).length;
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-slate-50 dark:bg-slate-900">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+          <p className="text-slate-600 dark:text-slate-400 font-medium">טוען נתוני תלמידים...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

@@ -85,9 +85,10 @@ export function ClassManagement({ allStudents }: { allStudents: StudentData[] })
 
       alert('✅ הנתונים אופסו בהצלחה. התלמיד מוכן להתחיל מחדש.');
       setSelectedStudent(null);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Reset failed:', err);
-      alert(`שגיאה באיפוס נתונים: ${err?.message || err}`);
+      const e = err as Error;
+      alert(`שגיאה באיפוס נתונים: ${e?.message || 'Unknown error'}`);
     }
   };
 
@@ -101,8 +102,9 @@ export function ClassManagement({ allStudents }: { allStudents: StudentData[] })
       }
       alert(`✅ הועבר למפגש ${newSession}.`);
       setSelectedStudent(null);
-    } catch (err: any) {
-      alert(`שגיאה: ${err.message}`);
+    } catch (err: unknown) {
+      const e = err as Error;
+      alert(`שגיאה: ${e.message}`);
     }
   };
 
