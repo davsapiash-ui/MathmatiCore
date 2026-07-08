@@ -87,14 +87,16 @@ export function VerticalAdditionTask({
         dir="ltr"
         role="group"
         aria-label={`תרגיל במאונך: ${numberA} ${isSubtraction ? 'פחות' : 'ועוד'} ${numberB}`}
-        className="grid rounded-xl overflow-hidden"
+        className="grid rounded-2xl shadow-sm"
         style={{
           gridTemplateColumns: `${CELL}px repeat(${cols}, ${CELL}px)`,
           gridTemplateRows: `${CELL}px ${CELL}px ${CELL}px ${CELL}px`,
+          padding: `${CELL * 0.75}px ${CELL}px`, // 0.75 top/bottom, 1 full square left/right
           backgroundColor: 'var(--ws-surface)',
           backgroundImage:
-            'linear-gradient(rgba(96,130,190,0.18) 1px, transparent 1px), linear-gradient(90deg, rgba(96,130,190,0.18) 1px, transparent 1px)',
+            'linear-gradient(rgba(96,130,190,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(96,130,190,0.15) 1px, transparent 1px)',
           backgroundSize: `${CELL}px ${CELL}px`,
+          backgroundPosition: `0 ${CELL * 0.75}px`, // Shift vertical pattern to align with top padding
           border: '1px solid var(--ws-surface2)',
         }}
       >
@@ -182,16 +184,7 @@ export function VerticalAdditionTask({
         )}
       </div>
 
-      {/* UDL Alternative Expression: upload a written solution photo — quiet secondary action */}
-      <label className="cursor-pointer flex items-center gap-1.5 text-xs font-bold text-ws-soft hover:text-ws-ink transition-colors">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-          <polyline points="17 8 12 3 7 8"/>
-          <line x1="12" y1="3" x2="12" y2="15"/>
-        </svg>
-        אפשר גם להעלות פתרון כתוב (תמונה)
-        <input type="file" className="hidden" accept="image/*" aria-label="העלה פתרון כתמונה" onChange={() => useWorkspaceStore.getState().showFeedback({ correct: true, title: 'מעולה!', sub: 'הפתרון הועלה בהצלחה למורה.' }, 2500)} />
-      </label>
+
     </div>
   );
 }
