@@ -56,6 +56,12 @@ class FirebaseSyncService {
           // session state. Overwriting it from Firebase mid-session causes race conditions
           // and could reset a live student's work.
           
+          if (data.forceReload) {
+            // Teacher initiated a deep reset. Reload the browser to clear local memory.
+            window.location.reload();
+            return;
+          }
+
           // Update the top-level useStore so StudentHub knows about route approvals and Q-Matrix
           const currentStudents = useStore.getState().students;
           useStore.setState({

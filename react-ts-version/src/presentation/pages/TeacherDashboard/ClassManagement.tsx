@@ -1,9 +1,9 @@
 import { useAdminStore } from '@/application/useAdminStore';
-import { ShieldCheck, Users, Search, RotateCcw, Settings, X, ArrowRight } from 'lucide-react';
+import { ShieldCheck, Users, Search, RotateCcw, Settings, X } from 'lucide-react';
 import { useState } from 'react';
 import type { StudentData } from '@/application/useStore';
 import { database } from '@/infrastructure/firebase';
-import { ref, set, update, remove, get } from 'firebase/database';
+import { ref, set, remove, get } from 'firebase/database';
 
 export function ClassManagement({ allStudents }: { allStudents: StudentData[] }) {
   const classes = useAdminStore(s => s.classes);
@@ -32,7 +32,7 @@ export function ClassManagement({ allStudents }: { allStudents: StudentData[] })
       }
 
       // 2. Write a clean slate — preserve only identity, wipe all progress
-      await update(ref(database, `users/students/${studentId}`), {
+      await set(ref(database, `users/students/${studentId}`), {
         studentId,
         name: cleanName,
         classId: existing.classId || 'class_1',
@@ -41,6 +41,7 @@ export function ClassManagement({ allStudents }: { allStudents: StudentData[] })
         routeRecommendation: null,
         qMatrixResults: null,
         traceData: { hesitation_events: 0, undo_clicks: 0 },
+        forceReload: Date.now(),
         workspaceState: {
           sessionNumber: 1,
           isASD: false,
@@ -48,7 +49,6 @@ export function ClassManagement({ allStudents }: { allStudents: StudentData[] })
           qflow: { step: 0, results: {} },
           flowStatus: 'IDLE',
           counts: { single: 0, ten: 0 },
-
           undoCount: 0,
           hesitationCount: 0,
           hasInteracted: false,
@@ -92,21 +92,6 @@ export function ClassManagement({ allStudents }: { allStudents: StudentData[] })
     }
   };
 
-  const handleChangeSession = async (studentId: string, newSession: number) => {
-    if (!window.confirm(`להעביר את התלמיד/ה למפגש ${newSession}?`)) return;
-    try {
-      await set(ref(database, `users/students/${studentId}/workspaceState/sessionNumber`), newSession);
-      await set(ref(database, `users/students/${studentId}/workspaceState/flowStatus`), 'IDLE');
-      if (newSession > 2) {
-        await set(ref(database, `users/students/${studentId}/completedMeeting2`), true);
-      }
-      alert(`✅ הועבר למפגש ${newSession}.`);
-      setSelectedStudent(null);
-    } catch (err: unknown) {
-      const e = err as Error;
-      alert(`שגיאה: ${e.message}`);
-    }
-  };
 
   return (
     <div className="p-8 max-w-6xl mx-auto w-full h-full flex flex-col animate-in fade-in duration-500">
@@ -230,25 +215,6 @@ export function ClassManagement({ allStudents }: { allStudents: StudentData[] })
             
             <div className="p-6 flex flex-col gap-6">
               
-              <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-5">
-                <h3 className="font-bold text-blue-900 mb-3 text-sm flex items-center gap-2">
-                  <ArrowRight className="w-4 h-4 text-blue-500" />
-                  הקפצה והעברת שלבים
-                </h3>
-                <p className="text-xs text-blue-700 mb-4">במידה והתלמיד נתקע, ניתן להעביר אותו ידנית למפגש הבא או להחזיר אותו אחורה. יש לרענן את מסך התלמיד לאחר מכן.</p>
-                <div className="grid grid-cols-2 gap-3">
-                  {[1, 2].map(session => (
-                    <button
-                      key={session}
-                      onClick={() => handleChangeSession(selectedStudent.studentId, session)}
-                      className="bg-white hover:bg-blue-50 text-blue-700 border border-blue-200 font-bold py-2 px-4 rounded-xl transition-colors shadow-sm text-sm"
-                    >
-                      העבר למפגש {session}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               <div className="bg-red-50/50 border border-red-100 rounded-2xl p-5">
                 <h3 className="font-bold text-red-900 mb-3 text-sm flex items-center gap-2">
                   <RotateCcw className="w-4 h-4 text-red-500" />

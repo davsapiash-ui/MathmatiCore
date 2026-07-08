@@ -1,4 +1,4 @@
-import { ref, push, set, get, remove, serverTimestamp } from "firebase/database";
+import { ref, push, set, get, remove, serverTimestamp, update } from "firebase/database";
 import { database, authReady } from "@/infrastructure/firebase";
 import type { SessionTask } from "@/data/sessionTasks";
 import type { QMatrixResults } from "@/core/QMatrix";
@@ -212,6 +212,12 @@ export class SocraticEngine {
       traceData: traceData || { hesitation_events: 0, undo_clicks: 0 },
       effort: effort !== undefined ? effort : null,
       strategy: strategy !== undefined ? strategy : null
+    });
+
+    // Also update the root student node to match the expected schema for the clustering dashboard
+    await update(ref(database, `users/students/${studentId}`), {
+      qMatrixResults: qMatrix,
+      traceData: traceData || { hesitation_events: 0, undo_clicks: 0 }
     });
 
     await AuditLogger.log(

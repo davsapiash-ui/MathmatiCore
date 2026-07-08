@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { Bell, UserCircle } from 'lucide-react';
 import { UdlButton } from '@/presentation/design-system/UdlButton';
 import { motion } from 'framer-motion';
+import { useChatStore } from '@/application/useChatStore';
 
 /** כותרת פשוטה שנגזרת מהנתיב הנוכחי — במקום פירורי לחם מזויפים. */
 function titleForPath(pathname: string): string {
@@ -16,6 +17,9 @@ export function Topbar() {
   const { user } = useAuthStore();
   const { pathname } = useLocation();
   const title = titleForPath(pathname);
+  
+  const { messages } = useChatStore();
+  const unreadCount = messages.filter(m => m.receiverId === user?.uid && !m.read).length;
 
   return (
     <header className="h-20 bg-white/70 dark:bg-slate-900/40 backdrop-blur-xl border-b border-white/20 dark:border-white/5 flex items-center justify-between px-8 z-10 sticky top-0 shadow-sm transition-colors duration-300">
@@ -33,6 +37,9 @@ export function Topbar() {
         {/* Notifications */}
         <UdlButton variant="ghost" size="icon" className="relative text-ws-soft hover:text-ws-ink rounded-full transition-transform hover:scale-105 active:scale-95">
           <Bell className="w-5 h-5" />
+          {unreadCount > 0 && (
+            <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 border-2 border-white dark:border-slate-900 rounded-full" />
+          )}
         </UdlButton>
 
         {/* User Profile */}
