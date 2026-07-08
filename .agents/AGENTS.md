@@ -30,15 +30,13 @@
 {
   "studentId": "string",
   "forceReload": "number",
-  "qMatrixResults": {
-     "task1_zero_placeholder": "string",
-     "task2_estimation_error_margin": "string",
-     "task3_flexible_regrouping": "string",
-     "task4_basic_addition_fluency": "string",
-     "task5_small_change": "string",
-     "task6_subtraction_regrouping": "string",
-     "task7_missing_subtrahend": "string",
-     "task8_missing_addend": "string"
+  "conceptMastery": {
+     "decimal_structure": "number",
+     "number_magnitude": "number",
+     "regrouping_fluency": "number",
+     "procedural_fluency": "number",
+     "relational_thinking": "number",
+     "algebraic_reasoning": "number"
   },
   "traceData": {
      "hesitation_events": "number",
@@ -55,7 +53,7 @@
 }
 ```
 
-* **לוגיקת הקיבוץ בדשבורד:** אלגוריתם צד השרת יקבץ תלמידים לפי ערכים שאינם הצלחה (`!== 'success'`) ב-`qMatrixResults`. לדוגמה: קבוצת תלמידים שבהם `task4_basic_addition_fluency !== 'success'` תוגדר כקבוצה הזקוקה לחיזוק עובדות יסוד (כיתה א').
+* **לוגיקת הקיבוץ בדשבורד:** התלמידים מקובצים לפי מושגים קוגניטיביים (Cognitive Concepts). אלגוריתם צד הלקוח/שרת יקבץ תלמידים יחד כאשר אחוז השליטה שלהם במושג מסוים נמוך מ-80% (`< 80`) ב-`conceptMastery`. לדוגמה: קבוצת תלמידים שבהם `regrouping_fluency < 80` תוגדר כקבוצה הזקוקה לחיזוק בהמרות וקיבוץ. `useStore` ו-`FirebaseSyncService` אחראים לסנכרון נתוני ה-`conceptMastery` ל-Firebase.
 
 ### 4. אינטגרציה, הזדהות ואבטחה
 
