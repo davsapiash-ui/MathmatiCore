@@ -57,6 +57,7 @@ export function ClassManagement({ allStudents }: { allStudents: StudentData[] })
       // 3. Clear all related Firebase paths
       await Promise.all([
         remove(ref(database, `users/students/${studentId}/telemetry_chunks`)).catch(e => console.warn('telemetry', e)),
+        remove(ref(database, `users/students/${studentId}/teacher_hint`)).catch(e => console.warn('teacher_hint', e)),
         remove(ref(database, `approved_tasks/${studentId}`)).catch(e => console.warn('approved_tasks', e)),
         remove(ref(database, `replays/${studentId}`)).catch(e => console.warn('replays', e)),
         teacherId ? remove(ref(database, `ai_pending_approvals/${teacherId}/${studentId}`)).catch(() => {}) : Promise.resolve(),
