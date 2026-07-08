@@ -17,7 +17,9 @@ import { useWorkspaceStore, type SessionNumber, selectStandardTask } from '@/app
 import { useSettingsStore } from '@/application/useSettingsStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { database, authReady } from '@/infrastructure/firebase';
-import { ref, onValue, remove, push } from 'firebase/database';
+import { ref, onValue, remove, push, get } from 'firebase/database';
+import { useChatStore } from '@/application/useChatStore';
+import { motion, AnimatePresence } from 'framer-motion';
 import { getCurrentQTask, isSubtaskActive } from '@/core/qmatrixFlow';
 import { PlaceValueBoard } from './board/PlaceValueBoard';
 
@@ -62,6 +64,8 @@ export function StudentWorkspacePage() {
     };
   }, [user?.uid]);
 
+  const [teacherHint, setTeacherHint] = useState<string | null>(null);
+
   useEffect(() => {
     if (!user?.uid) return;
     const hintRef = ref(database, `users/students/${user.uid}/teacher_hint`);
@@ -69,15 +73,36 @@ export function StudentWorkspacePage() {
       if (snap.exists()) {
         const hintData = snap.val();
         if (hintData && hintData.message) {
-          // Display the hint using the non-blocking toast
-          useWorkspaceStore.getState().showFeedback({ correct: false, title: 'הודעה מהמורה', sub: hintData.message }, 5000);
-          // Clear the hint so it doesn't fire again on reload
-          remove(hintRef);
+          setTeacherHint(hintData.message);
         }
       }
     });
     return () => unsub();
   }, [user?.uid]);
+
+  const handleAcknowledgeHint = async () => {
+    if (!user?.uid) return;
+    const hintRef = ref(database, `users/students/${user.uid}/teacher_hint`);
+    await remove(hintRef);
+
+    let resolvedTeacherId: string = '039604483'; // default fallback
+    try {
+      const studentSnap = await get(ref(database, `users/students/${user.uid}`));
+      const classId = studentSnap.val()?.classId;
+      if (classId) {
+        const classSnap = await get(ref(database, `classes/${classId}`));
+        const fbTeacherId = classSnap.val()?.teacherId;
+        if (fbTeacherId && typeof fbTeacherId === 'string') resolvedTeacherId = fbTeacherId;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+
+    const chatStore = useChatStore.getState();
+    chatStore.sendMessage(user.uid as string, (user as any).name || (user as any).displayName || 'תלמיד', resolvedTeacherId, `ראיתי את הרמז ("${teacherHint}"). תודה!`);
+    
+    setTeacherHint(null);
+  };
 
   const [activeDrag, setActiveDrag] = useState<{ place: Place; source: DragSource; renderPlace?: Place } | null>(null);
 
@@ -301,6 +326,31 @@ export function StudentWorkspacePage() {
           {/* Place-value board (left in RTL) */}
           <PlaceValueBoard hideValueDisplay={hideValueDisplay} />
         </main>
+
+        <AnimatePresence>
+          {teacherHint && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl border-4 border-ws-accent text-center"
+              >
+                <div className="text-5xl mb-4">👨‍🏫</div>
+                <h2 className="text-2xl font-black font-display text-ws-ink mb-4">הודעה מהמורה</h2>
+                <p className="text-xl text-ws-ink font-medium mb-8 bg-blue-50 p-6 rounded-2xl leading-relaxed">
+                  "{teacherHint}"
+                </p>
+                <button
+                  onClick={handleAcknowledgeHint}
+                  className="w-full h-14 rounded-2xl bg-ws-accent text-white font-black text-xl shadow-lg hover:bg-blue-600 hover:scale-[1.02] active:scale-95 transition-all"
+                >
+                  ראיתי, תודה!
+                </button>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
 
         <FeedbackToast />
         <HelpOverlays />
