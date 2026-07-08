@@ -24,7 +24,7 @@ export function PlaceValueBoard({ hideValueDisplay }: { hideValueDisplay?: boole
           animate={{ flexBasis: '50%', opacity: 1 }}
           exit={{ flexBasis: 0, opacity: 0 }}
           transition={{ duration: 0.35, ease: 'easeInOut' }}
-          className="flex flex-col gap-3 overflow-visible"
+          className="flex flex-col gap-3 overflow-visible h-full"
           style={{ flexGrow: 0, flexShrink: 0 }}
           aria-label="טבלת ערך המקום"
         >
