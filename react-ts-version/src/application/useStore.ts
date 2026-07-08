@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
+import type { MasteryProfile } from '@/core/qMatrix';
 
 export interface QMatrix {
   task1_zero_placeholder: string | null;
@@ -33,6 +34,7 @@ export interface DiagnosticReport {
   traceData: TraceData;
   effort: number | null;
   strategy: string | null;
+  conceptMastery?: MasteryProfile;
 }
 
 export interface StudentData {
@@ -45,6 +47,7 @@ export interface StudentData {
   routeRecommendation: RoutePath | null;
   routeStatus: RouteStatus | null;
   diagnosticReport?: DiagnosticReport | null;
+  conceptMastery?: MasteryProfile;
 }
 
 interface AppState {
@@ -64,6 +67,7 @@ interface AppState {
   // Q-Matrix Actions
   updateQMatrix: (studentId: string, updates: Partial<QMatrix>) => void;
   updateTraceData: (studentId: string, updates: Partial<TraceData>) => void;
+  updateConceptMastery: (studentId: string, updates: MasteryProfile) => void;
   markMeeting2Complete: (studentId: string) => void;
 
   // Routing Actions
@@ -209,6 +213,15 @@ export const useStore = create<AppState>()(
           const newTraceData = { ...students[studentId].traceData, ...updates };
           students[studentId] = { ...students[studentId], traceData: newTraceData };
           firebaseSyncService.syncTraceData(studentId, updates).catch(console.error);
+        }
+        return { students };
+      }),
+
+      updateConceptMastery: (studentId, updates) => set((state) => {
+        const students = { ...state.students };
+        if (students[studentId]) {
+          students[studentId] = { ...students[studentId], conceptMastery: updates };
+          firebaseSyncService.syncConceptMastery(studentId, updates).catch(console.error);
         }
         return { students };
       }),

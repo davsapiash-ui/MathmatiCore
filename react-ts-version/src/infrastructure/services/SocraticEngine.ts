@@ -37,6 +37,7 @@ export class SocraticEngine {
     studentName: string,
     teacherId: string,
     qMatrix: QMatrixResults,
+    conceptMastery: Record<string, number>,
     traceData?: { hesitation_events: number; undo_clicks: number },
     effort?: number | null,
     strategy?: string | null
@@ -48,83 +49,46 @@ export class SocraticEngine {
     const actionParts: string[] = [];
     let isYellowPath = false;
 
-    if (qMatrix.task1_zero_placeholder === 'zero_placeholder_hundreds_error') {
-      diagnosisParts.push("ניכר קושי נקודתי בהבנת המבנה העשרוני והאפס כשומר מקום. נראה כי התלמיד מבין את הרעיון הכללי אך זקוק לחידוד במעברים גדולים.");
-      actionParts.push("חיזוק הבנת המבנה העשרוני של המספרים עד 1000.");
-      isYellowPath = true;
-    } else if (qMatrix.task1_zero_placeholder === 'zero_placeholder_global_error') {
-      diagnosisParts.push("ייתכן פער משמעותי בהבנת תפקיד האפס כ'שומר מקום' במבנה העשרוני, מה שעשוי להעיד על חסר בהפנמת הערך המקומי בבסיס 10.");
-      actionParts.push("עבודה על המבנה העשרוני והבנת האפס באופן הדרגתי.");
+    if (conceptMastery.decimal_structure < 0.8) {
+      diagnosisParts.push("ניכר קושי בהבנת המבנה העשרוני והאפס כשומר מקום.");
+      actionParts.push("חיזוק המבנה העשרוני של המספרים עד 1000.");
       isYellowPath = true;
     }
 
-    if (qMatrix.task4_basic_addition_fluency === 'procedural_error') {
-      diagnosisParts.push("התלמיד שלט בעובדות היסוד במשימת העזר, ולכן השגיאה נובעת מקושי בהבנת המהות של פעולות חיבור במאונך בתחום ה-100 וה-1000.");
-      actionParts.push("תרגול מובנה של חיבור במאונך, מתוך הישענות על השליטה הקיימת בעובדות היסוד.");
-      isYellowPath = true;
-    } else if (qMatrix.task4_basic_addition_fluency === 'basic_facts_deficit') {
-      diagnosisParts.push("נראה כי קיימת חולשה משמעותית בשליטה בעובדות היסוד של חיבור וחיסור, שהיא בסיס הכרחי לפני פעולות במאונך.");
-      actionParts.push("יש לעצור ולבסס עובדות יסוד של חיבור במאמץ קוגניטיבי נמוך לפני מעבר לחישובים מורכבים במאונך.");
+    if (conceptMastery.number_magnitude < 0.8) {
+      diagnosisParts.push("התלמיד מתקשה להעריך גדלים בתוך טווח סביר, ייתכן קושי בתחושת גודל (number sense).");
+      actionParts.push("פעילויות אמידה עם ייצוגים על ישר המספרים.");
       isYellowPath = true;
     }
 
-    if (qMatrix.task3_flexible_regrouping === 'canonical_fixation') {
-      diagnosisParts.push("התלמיד נוטה ל'קיבעון קנוני', ומתקשה למצוא חלופות לייצוג המספר, על אף שהוא מכיר את המערכת. ייתכן קושי בגמישות מחשבתית.");
-      actionParts.push("משחקי פריטה והמרה שמעודדים חשיבה פתוחה ומרובת תשובות.");
-      isYellowPath = true;
-    } else if (qMatrix.task3_flexible_regrouping === 'regrouping_deficit') {
-      diagnosisParts.push("התלמיד מתקשה מהותית בפעולת הפריטה ובהבנת שקילות במבנה העשרוני, גם עם תיווך.");
-      actionParts.push("תרגול בסיסי של המרות 10 יחידות לעשרת אחת ולהפך, עם עצמים מוחשיים (בדידים).");
+    if (conceptMastery.regrouping_fluency < 0.8) {
+      diagnosisParts.push("התלמיד מתקשה מהותית בפעולת ההמרה והפריטה.");
+      actionParts.push("תרגול בסיסי של המרות (10 יחידות לעשרת אחת ולהפך) עם בדידים מוחשיים.");
       isYellowPath = true;
     }
 
-    if (qMatrix.task2_estimation_error_margin === 'estimation_range_error') {
-      diagnosisParts.push("התלמיד מתקשה להעריך גדלים בתוך טווח סביר — אומדנים חורגים מהמציאות. ייתכן קושי בתחושת המספר (number sense) ובאינטואיציה לסדרי גודל.");
-      actionParts.push("פעילויות אמידה עם חפצים מוחשיים ומחוויות גוף — כמות צעדים, גובה, אורך — לפני אמידה מספרית.");
-      isYellowPath = true;
-    } else if (qMatrix.task2_estimation_error_margin === 'estimation_precision_fixation') {
-      diagnosisParts.push("התלמיד מנסה לדייק יתר על המידה באמידה ואינו מסתפק בטווח. עשוי להעיד על חשיבה פרפקציוניסטית שמקשה על גמישות מחשבתית.");
-      actionParts.push("תרגול מכוון על 'טווח סביר' ולא תשובה מדויקת — להדגיש שכמה תשובות יכולות להיות נכונות.");
+    if (conceptMastery.procedural_fluency < 0.8) {
+      diagnosisParts.push("חולשה בשליטה בעובדות היסוד או בפעולות חיבור וחיסור במאונך.");
+      actionParts.push("ביסוס עובדות יסוד לפני מעבר לחישובים מורכבים במאונך.");
       isYellowPath = true;
     }
 
-    if (qMatrix.task5_small_change === 'small_change_confusion') {
-      diagnosisParts.push("התלמיד מתבלבל בין פעולות כאשר השינוי קטן (כמו +1 או -1) ועלול לפעול בכיוון ההפוך. דפוס זה עשוי להעיד על חוסר ביסוס המושג 'עוד אחד / פחות אחד' ברמה העשרונית.");
-      actionParts.push("תרגול על ציר מספרים עם קפיצות של 1: מה לפני? מה אחרי? תוך שימוש בדימויי גוף ותנועה.");
-      isYellowPath = true;
-    } else if (qMatrix.task5_small_change === 'directional_error') {
-      diagnosisParts.push("התלמיד מבצע פעולה בכיוון שגוי בעקביות (חיבור במקום חיסור ולהיפך). ייתכן בלבול בסימנים או בהבנת מה הפעולה דורשת.");
-      actionParts.push("הדגשת כיוון הפעולה באמצעות חיצים ויזואליים על ציר המספרים — שמאלה = חיסור, ימינה = חיבור.");
+    if (conceptMastery.relational_thinking < 0.8) {
+      diagnosisParts.push("קושי בהבנת הקשר בין פעולות שונות (חיבור לחיסור).");
+      actionParts.push("עבודה על קישור הפעולות באמצעות מודלים של שלמים וחלקים.");
       isYellowPath = true;
     }
 
-    if (qMatrix.task6_subtraction_regrouping === 'regrouping_anxiety') {
-      diagnosisParts.push("התלמיד הפגין שליטה בחיסור בסיסי, אך נרתע או קפא כאשר נדרש לפרוט עשרת. דפוס זה עשוי להעיד על 'חרדת המרה'.");
-      actionParts.push("יש לעבוד על פריטה מחוץ לתרגיל חיסור, באופן מוחשי, כדי להוריד את מפלס החרדה.");
-      isYellowPath = true;
-    } else if (qMatrix.task6_subtraction_regrouping === 'subtraction_operation_deficit') {
-      diagnosisParts.push("התלמיד התקשה גם בתרגיל החיסור ללא הפריטה. דבר זה מחייב תשומת לב, שכן נראה שמשמעות פעולת החיסור עצמה טרם בוססה.");
-      actionParts.push("חזרה לפעולת החיסור ברמה התפיסתית (לקחת, להפריד) באמצעות מניפולטיבים.");
+    if (conceptMastery.algebraic_reasoning < 0.8) {
+      diagnosisParts.push("חולשה בתפיסה האלגברית ובהבנת מציאת נעלם.");
+      actionParts.push("שימוש במאזניים ותרגול משוואות כאיזון.");
       isYellowPath = true;
     }
 
-    if (qMatrix.task7_missing_subtrahend === 'algebraic_concept_deficit') {
-      diagnosisParts.push("חולשה מהותית בתפיסה האלגברית ובהבנת משוואות כמאזניים (חסר הבנה של 'מציאת המחסר').");
-      actionParts.push("שימוש במאזניים מוחשיים ותרגול מציאת נעלם פשוט בתחום ה-10.");
-      isYellowPath = true;
-    } else if (qMatrix.task7_missing_subtrahend === 'computational_fluency_deficit') {
-      diagnosisParts.push("התלמיד מבין את קונספט המשוואה ברמה המושגית, אך השגיאה בתרגיל הראשוני נובעת מקשיי פריטה או שטף חישובי.");
-      actionParts.push("תרגול משוואות במספרים שאינם דורשים פריטה, בשילוב תרגול חיסור עם פריטה בנפרד.");
-      isYellowPath = true;
-    }
-
-    if (qMatrix.task8_missing_addend === 'missing_addend_deficit') {
-      diagnosisParts.push("התלמיד מתקשה במציאת נעלם בחיבור (□ + 5 = 12). ייתכן שהוא טרם הפנים את הרעיון שחיבור וחיסור הם פעולות הפוכות המשלימות זו את זו.");
-      actionParts.push("עבודה על אסטרטגיות 'ספור קדימה' ו'ספור אחורה' לפתרון חיבורים עם נעלם, תוך שימוש בציר המספרים.");
-      isYellowPath = true;
-    } else if (qMatrix.task8_missing_addend === 'inverse_operation_gap') {
-      diagnosisParts.push("התלמיד אינו מזהה שניתן להשתמש בחיסור כדי למצוא נעלם בחיבור — חסר קישור בין הפעולות.");
-      actionParts.push("הדגמת קשרים בעזרת שלשות של מספרים (למשל: 3+5=8, 8-3=5) — לבניית הקישור הפנימי.");
+    // Trace Data Analysis
+    if (traceData && (traceData.hesitation_events >= 3 || traceData.undo_clicks >= 5)) {
+      diagnosisParts.push("רדאר המערכת מזהה רמה גבוהה של היסוסים או מחיקות, עדות אפשרית לחוסר ביטחון, עומס קוגניטיבי או 'חרדת מתמטיקה'.");
+      actionParts.push("הפעלת פיגומים ויזואליים (UDL) לשלב הבא באופן מוגבר כדי להפחית חרדה ולספק משענת.");
       isYellowPath = true;
     }
 
@@ -135,7 +99,8 @@ export class SocraticEngine {
       clinicalDiagnosisHe = "על בסיס המבדק, עולים הדפוסים הבאים: " + diagnosisParts.join(" ");
       actionPlanHe = "תוכנית פעולה מוצעת: " + actionParts.join(" | ");
 
-      if (qMatrix.task2_estimation_error_margin && qMatrix.task2_estimation_error_margin !== 'success') {
+      // Generate supportive tasks for Stage 3 based on specific weaknesses
+      if (conceptMastery.number_magnitude < 0.8) {
         tasks.push({
           id: 'gen_t_est',
           type: 'number_line',
@@ -146,11 +111,11 @@ export class SocraticEngine {
           correctAnswer: 50
         });
       }
-      if (qMatrix.task5_small_change && qMatrix.task5_small_change !== 'success') {
+      if (conceptMastery.relational_thinking < 0.8) {
         tasks.push({
           id: 'gen_t_sc',
           type: 'small_change',
-          titleHe: 'תרגול תומך בשינוי קטן',
+          titleHe: 'תרגול חשיבה יחסית',
           instructionHe: 'אם 45 + 10 = 55, כמה הם 45 + 9?',
           givenHe: '45 + 10 = 55',
           questionHe: 'כמה הם 45 + 9?',
@@ -161,11 +126,11 @@ export class SocraticEngine {
           correctAnswer: 'A'
         });
       }
-      if (qMatrix.task8_missing_addend && qMatrix.task8_missing_addend !== 'success') {
+      if (conceptMastery.algebraic_reasoning < 0.8) {
         tasks.push({
           id: 'gen_t_ma',
           type: 'missing_element',
-          titleHe: 'תרגול תומך במציאת נעלם',
+          titleHe: 'תרגול למציאת נעלם',
           instructionHe: 'השלימו את המספר החסר במשוואה: □ + 8 = 10',
           numberA: 8,
           correctAnswer: 2,
@@ -174,14 +139,21 @@ export class SocraticEngine {
         });
       }
 
+      // If no specific tasks were added from the above, add general support
       if (tasks.length === 0) {
         tasks.push(
           { id: 'gen_t1', type: 'vertical_addition', titleHe: 'תרגול תומך 1', instructionHe: 'חיבור במאונך עם עזרים.', numberA: 25, numberB: 17, correctAnswer: 42 },
           { id: 'gen_t2', type: 'vertical_addition', titleHe: 'תרגול תומך 2', instructionHe: 'נסו לפתור במאונך.', numberA: 36, numberB: 28, correctAnswer: 64 }
         );
       }
+      
+      // If trace data showed anxiety, force scaffolding on generated tasks
+      if (traceData && (traceData.hesitation_events >= 3 || traceData.undo_clicks >= 5)) {
+        tasks.forEach(t => { t.scaffoldLevel = 2; });
+      }
+
     } else {
-      clinicalDiagnosisHe = "התלמיד הפגין ביצועים תקינים וללא שגיאות קריטיות לאורך משימות הליבה. לא ניכרו כשלים בולטים בעובדות יסוד או בגמישות המחשבתית.";
+      clinicalDiagnosisHe = "התלמיד הפגין שליטה מלאה (מעל 80%) בכל המיומנויות הקוגניטיביות, ללא מדדי היסוס או חרדה חריגים.";
       actionPlanHe = "מעבר ישיר למסלול 'הירוק' - התקדמות לחקר מתקדם ולאתגרים.";
       tasks.push(
         { id: 'gen_c1', type: 'vertical_addition', titleHe: 'אתגר 1', instructionHe: 'נסו לפתור תרגיל מאתגר יותר:', numberA: 125, numberB: 134, correctAnswer: 259 },
@@ -209,6 +181,7 @@ export class SocraticEngine {
       actionPlanHe,
       tasks,
       qMatrixResults: qMatrix,
+      conceptMastery,
       traceData: traceData || { hesitation_events: 0, undo_clicks: 0 },
       effort: effort !== undefined ? effort : null,
       strategy: strategy !== undefined ? strategy : null
@@ -217,6 +190,7 @@ export class SocraticEngine {
     // Also update the root student node to match the expected schema for the clustering dashboard
     await update(ref(database, `users/students/${studentId}`), {
       qMatrixResults: qMatrix,
+      conceptMastery,
       traceData: traceData || { hesitation_events: 0, undo_clicks: 0 }
     });
 

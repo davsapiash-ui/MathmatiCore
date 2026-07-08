@@ -181,6 +181,12 @@ class FirebaseSyncService {
     await update(traceRef, traceDataUpdates);
   }
 
+  public async syncConceptMastery(studentId: string, masteryUpdates: any) {
+    if (!studentId) return;
+    const masteryRef = ref(database, `users/students/${studentId}/conceptMastery`);
+    await update(masteryRef, masteryUpdates);
+  }
+
   public async syncRouteRecommendation(studentId: string, route: string) {
     if (!studentId) return;
     const routeRef = ref(database, `users/students/${studentId}`);

@@ -118,9 +118,19 @@ export function ReflectionScreen() {
           // Fallback already set above — safe to continue
         }
         const store = useStore.getState();
-        const studentTraceData = store.students[username]?.traceData || { hesitation_events: 0, undo_clicks: 0 };
+        const studentData = store.students[username];
+        const studentTraceData = studentData?.traceData || { hesitation_events: 0, undo_clicks: 0 };
+        const conceptMastery = studentData?.conceptMastery || {
+          decimal_structure: 1,
+          number_magnitude: 1,
+          regrouping_fluency: 1,
+          procedural_fluency: 1,
+          relational_thinking: 1,
+          algebraic_reasoning: 1
+        };
+
         const combinedStrategyString = strategies.map(id => STRATEGY_OPTIONS.find(o => o.id === id)?.nameHe).join(', ');
-        await SocraticEngine.generateAndQueueTasks(username, studentName, resolvedTeacherId, qMatrix, studentTraceData, effort, combinedStrategyString);
+        await SocraticEngine.generateAndQueueTasks(username, studentName, resolvedTeacherId, qMatrix, conceptMastery, studentTraceData, effort, combinedStrategyString);
       }
     } catch (e) {
       console.error("Failed to save reflection:", e);

@@ -401,3 +401,84 @@ export class QMatrixEvaluator {
     return { correct, detail: correct ? "" : "wrong_answer", triggerBackward: !correct };
   }
 }
+
+export type CognitiveConcept = 
+  | 'decimal_structure'
+  | 'number_magnitude'
+  | 'regrouping_fluency'
+  | 'procedural_fluency'
+  | 'relational_thinking'
+  | 'algebraic_reasoning';
+
+export const CONCEPT_LABELS_HE: Record<CognitiveConcept, string> = {
+  decimal_structure: 'הבנת המבנה העשרוני ושומר מקום',
+  number_magnitude: 'תחושת גודל ואומדן',
+  regrouping_fluency: 'גמישות בהמרה ופריטה',
+  procedural_fluency: 'שליטה בפרוצדורות ובעובדות',
+  relational_thinking: 'חשיבה יחסית',
+  algebraic_reasoning: 'חשיבה אלגברית ומציאת נעלם'
+};
+
+/**
+ * The True Q-Matrix: Maps each task to the cognitive concepts it requires.
+ */
+export const Q_MATRIX_MAPPING: Record<string, CognitiveConcept[]> = {
+  task1_zero_placeholder: ['decimal_structure'],
+  task2_estimation_error_margin: ['number_magnitude'],
+  task3_flexible_regrouping: ['decimal_structure', 'regrouping_fluency'],
+  task4_basic_addition_fluency: ['procedural_fluency', 'regrouping_fluency'],
+  task5_small_change: ['relational_thinking'],
+  task6_subtraction_regrouping: ['procedural_fluency', 'regrouping_fluency'],
+  task7_missing_subtrahend: ['algebraic_reasoning', 'procedural_fluency'],
+  task8_missing_addend: ['algebraic_reasoning', 'procedural_fluency']
+};
+
+export type MasteryProfile = Record<CognitiveConcept, number>;
+
+/**
+ * Computes the mastery percentage (0.0 to 1.0) for each cognitive concept based on binary task results.
+ * @param results A mapping from TaskId to string tags, where 'success' means successful completion.
+ */
+export function computeCognitiveMastery(results: Record<string, string | null>): MasteryProfile {
+  const conceptAttempts: Record<CognitiveConcept, number> = {
+    decimal_structure: 0,
+    number_magnitude: 0,
+    regrouping_fluency: 0,
+    procedural_fluency: 0,
+    relational_thinking: 0,
+    algebraic_reasoning: 0
+  };
+  
+  const conceptSuccesses: Record<CognitiveConcept, number> = {
+    decimal_structure: 0,
+    number_magnitude: 0,
+    regrouping_fluency: 0,
+    procedural_fluency: 0,
+    relational_thinking: 0,
+    algebraic_reasoning: 0
+  };
+
+  for (const [taskId, tag] of Object.entries(results)) {
+    const requiredConcepts = Q_MATRIX_MAPPING[taskId];
+    if (!requiredConcepts) continue;
+
+    for (const concept of requiredConcepts) {
+      conceptAttempts[concept]++;
+      if (tag === 'success') {
+        conceptSuccesses[concept]++;
+      }
+    }
+  }
+
+  const mastery: Partial<MasteryProfile> = {};
+  for (const [conceptStr, attempts] of Object.entries(conceptAttempts)) {
+    const concept = conceptStr as CognitiveConcept;
+    if (attempts === 0) {
+      mastery[concept] = 1.0; 
+    } else {
+      mastery[concept] = conceptSuccesses[concept] / attempts;
+    }
+  }
+
+  return mastery as MasteryProfile;
+}

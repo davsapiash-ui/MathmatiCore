@@ -28,6 +28,7 @@ import {
   type QFlowEvent,
   type QMatrixFlowState,
 } from '@/core/qmatrixFlow';
+import { computeCognitiveMastery } from '@/core/QMatrix';
 import { useStore } from '@/application/useStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { CurriculumRouter } from '@/core/CurriculumRouter';
@@ -366,11 +367,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
               };
               // Persist truth so the dashboard clustering reflects this student too.
               store.updateQMatrix(studentId, realQMatrix);
+              
+              const mastery = computeCognitiveMastery(realQMatrix);
+              store.updateConceptMastery(studentId, mastery);
+
               const realTraceData = { hesitation_events: get().hesitationCount, undo_clicks: get().undoCount };
               store.updateTraceData(studentId, realTraceData);
               const route = CurriculumRouter.evaluateRoute({
                 ...student,
                 qMatrixResults: { ...student.qMatrixResults, ...realQMatrix },
+                conceptMastery: mastery,
                 traceData: realTraceData,
               });
               store.setRouteRecommendation(studentId, route);
