@@ -71,9 +71,9 @@ export function ReflectionScreen() {
       // Silent persistence for the teacher dashboard (best-effort; vanilla completeReflection).
       await push(ref(database, 'reflections'), {
         effort,
-        strategies,
+        strategy: strategies.join(', '),
         timestamp: Date.now(),
-        student: username,
+        student: { id: username },
       });
 
       const r = qflow.results;
