@@ -55,7 +55,7 @@ export function StudentReplayAndLogs({ studentId }: { studentId: string }) {
               return e;
             }).filter((e) => e && typeof e === 'object' && 'type' in e);
             
-            validEvents.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+            // validEvents.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
             setLiveReplayEvents(validEvents);
           } else {
             setLiveReplayEvents([]);
