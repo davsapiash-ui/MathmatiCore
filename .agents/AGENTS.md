@@ -137,3 +137,24 @@
   ]
   ```
 * **אחריות רכיבי ה-UI (Workspace):** על כל רכיב אינטראקטיבי (כגון `DienesBlock`, `VerticalAdditionTask`) מוטלת החובה לשדר את האירועים הללו בזמן אמת ל-`useStore` או ל-`RadarBus`. חל איסור להסתפק רק בספירה של אירועים (כגון מחיקה או היסוס), אלא חובה לתעד את הפעולה המדויקת וההקשר הגיאוגרפי/קוגניטיבי שלה על המסך.
+
+### 18. בניית תוכנית עבודה אג'ילית לשיעור 3 (Agile Session Blueprint) ו-AI Co-Pilot
+על מנת להבטיח ששיעורים 3-7 תפורים אישית למצב הקוגניטיבי של הלומד ולא רק "משייכים למסלול צהוב" גנרי, ה-AI חייב להפיק אובייקט `AgileSessionBlueprint` במסגרת אבחון הרדאר שלו (המוגש בשער המורה).
+* **מבנה הנתונים (JSON Schema) להמלצת ה-AI:**
+  ```json
+  "curriculum_recommendation": {
+    "session_3_blueprint": {
+      "focus_concept": "string (e.g., zero_placeholder, regrouping_fluency)",
+      "scaffold_level": "string (high, medium, low)",
+      "exercises": [
+        {
+          "id": "string",
+          "equation": "string (e.g., '405+17')",
+          "rationale": "string (e.g., 'Warm-up with a zero in the tens place')"
+        }
+      ],
+      "socratic_rule": "string (Custom instruction for the AI tutor during this session)"
+    }
+  }
+  ```
+* **אחריות ה-Teacher-AI Co-Pilot:** בשער אישור המורה (Teacher Gate), המורה יכול לערוך את האובייקט הזה ידנית (לשנות מספרים) או להתכתב עם סוכן ה-AI בתוך הממשק בבקשה לשנות את התוכנית (למשל: "הוסף תרגיל עם פריטה כפולה בסוף"). ה-AI יעדכן את ה-JSON בזמן אמת והממשק יתעדכן בהתאם לפני שהמורה מאשר ונועל את השיעור עבור התלמיד.
