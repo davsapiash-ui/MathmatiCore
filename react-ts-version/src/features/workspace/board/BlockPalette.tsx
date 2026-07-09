@@ -1,4 +1,5 @@
 import { PLACE_VALUES, PLACE_NAMES_HE, type Place } from '@/core/placeValue';
+import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { DienesBlock } from './DienesBlock';
 import { TrashZone } from './TrashZone';
 
@@ -16,7 +17,12 @@ const PALETTE_ITEMS: { place: Place; labelHe: string; scale: number }[] = [
 export function BlockPalette({ scaffoldLevel }: { scaffoldLevel: number }) {
   if (scaffoldLevel >= 3) return null;
 
-  const paletteItemsToRender = PALETTE_ITEMS;
+  const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
+  
+  // Hide thousands in sessions 1 and 2 (pedagogical progression)
+  const paletteItemsToRender = sessionNumber <= 2
+    ? PALETTE_ITEMS.filter(item => item.place !== 'thousands')
+    : PALETTE_ITEMS;
 
   return (
     <div

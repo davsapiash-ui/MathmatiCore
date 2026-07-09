@@ -15,8 +15,12 @@ export function PlaceValueBoard({ hideValueDisplay }: { hideValueDisplay?: boole
   const scaffoldFadeLevel = useWorkspaceStore((s) => s.scaffoldFadeLevel);
   const scaffoldLevel = useWorkspaceStore(selectScaffoldLevel);
   const restoreScaffolds = useWorkspaceStore((s) => s.restoreScaffolds);
+  const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
 
-  const placesToRender = PLACE_ORDER;
+  // Hide thousands in sessions 1 and 2 (pedagogical progression)
+  const placesToRender = sessionNumber <= 2 
+    ? PLACE_ORDER.filter(p => p !== 'thousands')
+    : PLACE_ORDER;
 
   return (
     <AnimatePresence initial={false}>

@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Thousands Column Visibility', () => {
-  test('verify thousands column is present at all times', async ({ browser }) => {
+  test('verify thousands column is dynamically hidden or shown based on pedagogical rule', async ({ browser }) => {
     // 1. Student Context
     const studentContext = await browser.newContext();
     const studentPage = await studentContext.newPage();
@@ -32,15 +32,18 @@ test.describe('Thousands Column Visibility', () => {
     // Check Session 1
     await studentPage.goto('/workspace?meeting=1');
     await studentPage.waitForSelector('[id^="palette-units"]', { timeout: 5000 });
-    // Verify Thousands column is visible on the board
-    await expect(studentPage.locator('#column-thousands')).toBeVisible();
-    await expect(studentPage.getByText('אלפים', { exact: true }).first()).toBeVisible();
+    // Verify Thousands column is NOT visible on the board (Grade 2 limitation)
+    await expect(studentPage.locator('#column-thousands')).not.toBeVisible();
+    await expect(studentPage.getByText('אלפים', { exact: true }).first()).not.toBeVisible();
 
     // Check Session 2
     await studentPage.goto('/workspace?meeting=2');
     await studentPage.waitForSelector('[id^="palette-units"]', { timeout: 5000 });
-    // Verify Thousands column is visible
-    await expect(studentPage.locator('#column-thousands')).toBeVisible();
+    // Verify Thousands column is NOT visible
+    await expect(studentPage.locator('#column-thousands')).not.toBeVisible();
+
+    // Note: Session 3 cannot be directly navigated if Teacher Approval Gate is locked,
+    // so we test the 10,000 range visibility via the Teacher Projector.
 
     await studentContext.close();
 
@@ -69,14 +72,14 @@ test.describe('Thousands Column Visibility', () => {
     await teacherPage.goto('/projector');
     await teacherPage.waitForSelector('[id^="palette-units"]', { timeout: 5000 });
 
-    // Verify Thousands column is visible under default range (1,000)
-    await expect(teacherPage.locator('#column-thousands')).toBeVisible();
+    // Verify Thousands column is NOT visible under default range (1,000)
+    await expect(teacherPage.locator('#column-thousands')).not.toBeVisible();
 
     // Switch range to 10,000 (Sessions 3-8)
     await teacherPage.getByRole('button', { name: 'תחום ה-10,000 (מפגשים 3-8)' }).click();
     await teacherPage.waitForTimeout(500);
 
-    // Verify Thousands column is still visible
+    // Verify Thousands column IS visible now
     await expect(teacherPage.locator('#column-thousands')).toBeVisible();
 
     await teacherContext.close();
