@@ -19,8 +19,9 @@ export interface PendingAIApproval {
   studentName: string;
   timestamp: number;
   tasks: SessionTask[];
-  clinicalDiagnosisHe: string; // Detailed pedagogical analysis
-  actionPlanHe: string; // Recommended action for the teacher
+  macroBlueprintHe: string; // Bird's eye view for sessions 3-7
+  microBlueprintHe: string; // Ant's work for the immediate next session
+  targetSession: string; // The session this gate unlocks (e.g., '3', '4')
 }
 
 /**
@@ -92,12 +93,13 @@ export class SocraticEngine {
       isYellowPath = true;
     }
 
-    let clinicalDiagnosisHe = "טרם נאספו מספיק אינדיקציות קליניות.";
-    let actionPlanHe = "מומלץ להמשיך בתהליך הלימודים כסדרו.";
+    let macroBlueprintHe = "תחזית למפגשים 3-7: טרם נאספו מספיק אינדיקציות קליניות ברורות.";
+    let microBlueprintHe = "עבודת נמלה לשיעור הקרוב: מומלץ להמשיך בתהליך הלימודים כסדרו.";
+    const targetSession = "3"; // By default, mapping happens before session 3
 
     if (isYellowPath && diagnosisParts.length > 0) {
-      clinicalDiagnosisHe = "על בסיס המבדק, עולים הדפוסים הבאים: " + diagnosisParts.join(" ");
-      actionPlanHe = "תוכנית פעולה מוצעת: " + actionParts.join(" | ");
+      macroBlueprintHe = "מאקרו (מעוף הציפור למפגשים 3-7): על בסיס המבדק, התלמיד יצטרך פיגומים בנושאים הבאים - " + diagnosisParts.join(" ");
+      microBlueprintHe = "מיקרו (ה-Blueprint לשיעור הקרוב): " + actionParts.join(" | ");
 
       // Generate supportive tasks for Stage 3 based on specific weaknesses
       if (conceptMastery.number_magnitude < 0.8) {
@@ -153,8 +155,8 @@ export class SocraticEngine {
       }
 
     } else {
-      clinicalDiagnosisHe = "התלמיד הפגין שליטה מלאה (מעל 80%) בכל המיומנויות הקוגניטיביות, ללא מדדי היסוס או חרדה חריגים.";
-      actionPlanHe = "מעבר ישיר למסלול 'הירוק' - התקדמות לחקר מתקדם ולאתגרים.";
+      macroBlueprintHe = "מאקרו (מעוף הציפור למפגשים 3-7): התלמיד הפגין שליטה מלאה (מעל 80%) בכל המיומנויות הקוגניטיביות. צפויה התקדמות מהירה במסלול הירוק.";
+      microBlueprintHe = "מיקרו (ה-Blueprint לשיעור הקרוב): מעבר ישיר לחקר מתקדם ואתגרים (ללא פיגומים).";
       tasks.push(
         { id: 'gen_c1', type: 'vertical_addition', titleHe: 'אתגר 1', instructionHe: 'נסו לפתור תרגיל מאתגר יותר:', numberA: 4500, numberB: 3700, correctAnswer: 8200 },
         { id: 'gen_c2', type: 'vertical_addition', titleHe: 'אתגר 2', instructionHe: 'נסו לפתור תרגיל מאתגר יותר:', numberA: 6250, numberB: 1850, correctAnswer: 8100 }
@@ -168,8 +170,9 @@ export class SocraticEngine {
       studentName,
       timestamp: serverTimestamp(),
       tasks,
-      clinicalDiagnosisHe,
-      actionPlanHe
+      macroBlueprintHe,
+      microBlueprintHe,
+      targetSession
     });
 
     const reportRef = ref(database, `users/students/${studentId}/diagnosticReport`);
@@ -177,8 +180,9 @@ export class SocraticEngine {
       studentId,
       studentName,
       timestamp: Date.now(),
-      clinicalDiagnosisHe,
-      actionPlanHe,
+      macroBlueprintHe,
+      microBlueprintHe,
+      targetSession,
       tasks,
       qMatrixResults: qMatrix,
       conceptMastery,

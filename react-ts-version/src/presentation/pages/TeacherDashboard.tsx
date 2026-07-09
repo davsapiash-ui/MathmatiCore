@@ -1186,10 +1186,10 @@ export function TeacherDashboard() {
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <header className="mb-10">
               <h1 className="text-4xl font-black bg-gradient-to-l from-slate-900 to-slate-600 dark:from-white dark:to-slate-400 bg-clip-text text-transparent tracking-tight">
-                אישור משימות <span dir="ltr">AI</span> (<span dir="ltr">Socratic Engine</span>)
+                שער אישור מחזורי (<span dir="ltr">Recurring Teacher Gate</span>)
               </h1>
               <p className="text-ws-soft  mt-3 text-lg">
-                אישור ותיקוף מסלולי למידה אדפטיביים שנוצרו על ידי המערכת.
+                אישור הפלט הדיאגנוסטי של ה-AI (מאקרו ומיקרו) כדי להתיר (Unlock) את שיעורי ההמשך (3-7).
               </p>
             </header>
             
@@ -1233,7 +1233,11 @@ export function TeacherDashboard() {
                             }
                           }}
                         >
-                          אישור מסלול
+                          {(() => {
+                            const allPending = [...teacherApprovals, ...fallbackApprovals];
+                            const approval = allPending.find((a) => a.studentId === student.studentId) as any;
+                            return `אישור ופתיחת שיעור ${approval?.targetSession || '3'}`;
+                          })()}
                         </UdlButton>
                         <UdlButton 
                           variant="outline" 
@@ -1273,19 +1277,45 @@ export function TeacherDashboard() {
                       </p>
                     </div>
 
-                    {/* AI Socratic Engine Diagnosis */}
+                    {/* AI Socratic Engine Diagnosis: Macro and Micro */}
                     {(() => {
-                      const approval = pendingApprovals.find(a => a.studentId === student.studentId);
-                      if (!approval || !approval.clinicalDiagnosisHe) return null;
+                      const approval = pendingApprovals.find(a => a.studentId === student.studentId) as any;
+                      // Support both legacy (clinicalDiagnosisHe) and new (macroBlueprintHe)
+                      if (!approval || (!approval.macroBlueprintHe && !approval.clinicalDiagnosisHe)) return null;
+                      
+                      const macroText = approval.macroBlueprintHe || approval.clinicalDiagnosisHe;
+                      const microText = approval.microBlueprintHe || approval.actionPlanHe;
+
                       return (
-                        <div className="bg-amber-50/80 border border-amber-200 rounded-2xl p-5 mb-4">
-                          <h4 className="font-bold text-amber-800 mb-2 flex items-center gap-2 text-sm">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-                            אבחון קליני (Socratic AI Engine):
-                          </h4>
-                          <p className="text-amber-900 text-sm leading-relaxed mb-3">{approval.clinicalDiagnosisHe}</p>
-                          <h5 className="font-bold text-amber-800 text-sm mb-1">תוכנית פעולה מוצעת:</h5>
-                          <p className="text-amber-900 text-sm leading-relaxed">{approval.actionPlanHe}</p>
+                        <div className="flex flex-col gap-3 mb-5">
+                          {/* MACRO VIEW */}
+                          <div className="bg-blue-50/80 border border-blue-200 rounded-2xl p-5">
+                            <h4 className="font-bold text-blue-900 mb-2 flex items-center gap-2 text-sm">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                              תחזית מאקרו (מעוף הציפור למפגשים 3-7):
+                            </h4>
+                            <p className="text-blue-900 text-sm leading-relaxed">{macroText}</p>
+                          </div>
+                          
+                          {/* MICRO VIEW */}
+                          <div className="bg-emerald-50/80 border border-emerald-200 rounded-2xl p-5">
+                            <h4 className="font-bold text-emerald-900 mb-2 flex items-center gap-2 text-sm">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                              תוכנית מיקרו (עבודת נמלה לשיעור הקרוב):
+                            </h4>
+                            <p className="text-emerald-900 text-sm leading-relaxed">{microText}</p>
+                          </div>
+                          
+                          {/* VIDEO BOOKMARKS PLACEHOLDER */}
+                          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex items-center gap-3">
+                            <div className="bg-slate-200 p-2 rounded-full">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-600"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                            </div>
+                            <div className="text-sm">
+                              <strong className="text-slate-700 block">סימניות וידאו (Semantic Bookmarks)</strong>
+                              <span className="text-slate-500">ה-AI סימן אירועי היסוס קריטיים במפגש הקודם (זמינים בלשונית ה-Replays לבחינה).</span>
+                            </div>
+                          </div>
                         </div>
                       );
                     })()}
