@@ -16,10 +16,10 @@
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
-| 1 | Exploration | Deep evaluation of telemetry, logs, Q-matrix, and rrweb replay structure in MathmatiCore | None | IN_PROGRESS (1e88d793-9e29-4340-a481-0f2d432742d3) |
-| 2 | Gap Mapping | Map cognitive mapping gaps (blind spots) and design analysis criteria | M1 | PLANNED |
-| 3 | PoC Implementation | Implement mock data generator and pedagogical AI analyzer script in `C:\Users\david\teamwork_projects\pedagogical_ai_evaluation` | M2 | PLANNED |
-| 4 | Verification & Reporting | Run the analyzer on mock logs, verify logic, write the final Markdown report | M3 | PLANNED |
+| 1 | Exploration | Deep evaluation of telemetry, logs, Q-matrix, and rrweb replay structure in MathmatiCore | None | DONE (1e88d793-9e29-4340-a481-0f2d432742d3) |
+| 2 | Gap Mapping | Map cognitive mapping gaps (blind spots) and design analysis criteria | M1 | DONE |
+| 3 | PoC Implementation | Implement mock data generator and pedagogical AI analyzer script in `C:\Users\david\teamwork_projects\pedagogical_ai_evaluation` | M2 | DONE |
+| 4 | Verification & Reporting | Run the analyzer on mock logs, verify logic, write the final Markdown report | M3 | DONE (68cd189a-05a1-46e7-afa5-6a1ad51241bf) |
 
 ## Code Layout
 - Deliverables Directory: `C:\Users\david\teamwork_projects\pedagogical_ai_evaluation`

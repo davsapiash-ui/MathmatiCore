@@ -118,3 +118,20 @@
   * **שער אישור מורה (Teacher Approval Gate) -** לאחר מפגש 2, המערכת תינעל. המורה חייב לקרוא את האבחון מבוסס ה-AI, לבחון את הקלטות השחזור (replays/Recordings), ולבדוק את יומני הרישום (Logs) לפני מתן אישור ידני להתקדמות התלמיד.
   * **מפגשים 3-7: מפגשים אדפטיביים (Adaptive Sessions) -** ייווצרו/ייבנו אך ורק לאחר קבלת אישור המורה בשער האישור. במפגשים אלו טווח המספרים מורחב לעד 10,000.
   * **מפגש 8: אבחון וניתוח מסכם (Diagnostic Analysis) -** ניתוח אבחוני מקיף נוסף (בדומה לזה שבוצע לפני מפגש 3).
+
+### 17. זרם אירועים סמנטי (Semantic Event Stream) לזיהוי כוונות תלמיד
+על מנת לאפשר למנוע ה-AI לנתח את ההתנהגות המטא-קוגניטיבית של התלמיד, יש לאסוף בנוסף לרשומות ה-rrweb סדרת לוגים סמנטיים-מילוליים (Semantic Trace).
+* **מבנה הנתונים (JSON Schema):** יש להרחיב את ה-`traceData` כך שיכלול מערך `semantic_trace`.
+  ```json
+  "semantic_trace": [
+    {
+      "time": "number (timestamp)",
+      "action": "string (e.g., drag_started, drop_invalid, hesitation, undo)",
+      "element": "string (e.g., tens_block)",
+      "target": "string (e.g., units_column)",
+      "duration_sec": "number (optional)",
+      "context": "string (optional explanation)"
+    }
+  ]
+  ```
+* **אחריות רכיבי ה-UI (Workspace):** על כל רכיב אינטראקטיבי (כגון `DienesBlock`, `VerticalAdditionTask`) מוטלת החובה לשדר את האירועים הללו בזמן אמת ל-`useStore` או ל-`RadarBus`. חל איסור להסתפק רק בספירה של אירועים (כגון מחיקה או היסוס), אלא חובה לתעד את הפעולה המדויקת וההקשר הגיאוגרפי/קוגניטיבי שלה על המסך.
