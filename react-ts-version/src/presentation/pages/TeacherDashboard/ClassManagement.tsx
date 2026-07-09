@@ -198,7 +198,7 @@ export function ClassManagement({ allStudents }: { allStudents: StudentData[] })
                     {student.name || (student.studentId ? student.studentId.replace(/^student_/, '') : 'תלמיד חדש')}
                   </td>
                   <td className="py-4 px-6">
-                    {student.completedMeeting2 ? (
+                    {(student.completedMeeting2 || student.routeStatus === 'PENDING' || student.routeStatus === 'APPROVED') ? (
                       <span className="bg-green-100 text-green-700 text-xs font-bold px-3 py-1 rounded-full">סיים מפגש 2</span>
                     ) : (
                       <span className="bg-slate-100 text-slate-500 text-xs font-bold px-3 py-1 rounded-full">טרם סיים</span>

@@ -192,7 +192,8 @@ export class SocraticEngine {
       qMatrixResults: qMatrix,
       conceptMastery,
       traceData: traceData || { hesitation_events: 0, undo_clicks: 0 },
-      routeStatus: 'PENDING'
+      routeStatus: 'PENDING',
+      completedMeeting2: true
     });
 
     await AuditLogger.log(
