@@ -1276,9 +1276,9 @@ export function TeacherDashboard() {
                               </div>
                             </div>
                             
-                            <div className="flex flex-col xl:flex-row min-h-[600px] bg-slate-50">
+                            <div className="flex flex-row h-[600px] bg-slate-50">
                               {/* Logs Sidebar */}
-                              <div className="w-full xl:w-80 bg-white border-b xl:border-b-0 xl:border-l border-ws-surface2 overflow-y-auto p-4 flex flex-col gap-3">
+                              <div className="w-80 shrink-0 bg-white border-l border-ws-surface2 overflow-y-auto p-4 flex flex-col gap-3">
                                 <h4 className="font-bold text-ws-ink mb-2">ציר זמן אירועים</h4>
                                 {studentRadarHistory.length === 0 ? (
                                   <p className="text-sm text-ws-soft">אין אירועי מעקב לתלמיד זה.</p>
