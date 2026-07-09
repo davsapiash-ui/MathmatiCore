@@ -128,7 +128,7 @@ export const TASKS: QMatrixTask[] = [
     ],
     backwardDiagnosis: {
       triggerOn: "only_canonical",
-      subtaskInstructionHe: "ניסוי מודרך: לחיצה כפולה על עשרת אחת תפרק אותה ל-10 יחידות. נסו זאת ואז הוסיפו את הייצוג החדש.",
+      subtaskInstructionHe: "ניסוי מודרך: לחצו על כפתור 'הדגם פריטה' או גררו עשרת אחת לטור היחידות כדי לפרוט אותה. נסו זאת ואז הוסיפו את הייצוג החדש.",
       showAutoUngroup: true,
       subtaskNumber: 34,
       asdSubtaskNumber: 34,

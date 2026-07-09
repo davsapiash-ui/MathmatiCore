@@ -155,6 +155,7 @@ export function DienesBlock({ id, place, source, sourcePlace, isOverlay, onRemov
   return (
     <div
       ref={setNodeRef}
+      id={id}
       {...attributes}
       {...listeners}
       role="button"

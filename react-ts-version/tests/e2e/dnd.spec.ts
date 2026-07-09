@@ -1,32 +1,64 @@
 import { test, expect } from '@playwright/test';
 
+async function dragAndDrop(page, sourceSelector, targetSelector) {
+  const source = page.locator(sourceSelector).first();
+  const target = page.locator(targetSelector);
+  
+  const sourceBox = await source.boundingBox();
+  const targetBox = await target.boundingBox();
+  
+  if (!sourceBox || !targetBox) {
+    throw new Error('Source or target bounding box not found');
+  }
+  
+  const startX = sourceBox.x + sourceBox.width / 2;
+  const startY = sourceBox.y + sourceBox.height / 2;
+  const endX = targetBox.x + targetBox.width / 2;
+  // Drag to 25px from the top of the column to avoid hitting stacked blocks
+  const endY = targetBox.y + 25;
+  
+  await page.mouse.move(startX, startY);
+  await page.waitForTimeout(100);
+  await page.mouse.down();
+  await page.waitForTimeout(200);
+  await page.mouse.move(endX, endY, { steps: 10 });
+  await page.waitForTimeout(200);
+  await page.mouse.up();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(100);
+}
+
 test.describe('Drag and Drop Mechanics', () => {
-  test('student can drag a unit block from the palette to the units column', async ({ page }) => {
-    // Navigate to the app (Student Workspace is typically at /hub or /workspace, 
-    // but we can test the workspace directly if route allows, or we just mock a session)
-    // For MathmatiCore, the workspace is at /workspace
-    await page.goto('/workspace');
+  test('student can drag a unit block from the palette to the units column', async ({ context, page }) => {
+    // Disable driver.js tours
+    await context.addInitScript(() => {
+      window.localStorage.setItem('mathmaticore_has_seen_tour', 'true');
+      window.localStorage.setItem('mathmaticore_has_seen_admin_tour', 'true');
+      window.localStorage.setItem('mathmaticore_has_seen_teacher_tour', 'true');
+    });
 
-    // Assuming the app has a fallback or we need to bypass auth for E2E:
-    // We will wait for the palette to appear
-    try {
-      await page.waitForSelector('[id^="palette-units"]', { timeout: 5000 });
-      
-      const sourceUnit = page.locator('[id^="palette-units"]').first();
-      const targetColumn = page.locator('[id="column-units"]');
+    // Login Student
+    await page.goto('/login');
+    await page.getByRole('button', { name: 'תלמיד' }).click();
 
-      // Ensure both elements are visible
-      await expect(sourceUnit).toBeVisible();
-      await expect(targetColumn).toBeVisible();
+    // Fill student credentials
+    await page.locator('select').first().selectOption({ index: 1 });
+    await page.locator('select').nth(1).selectOption({ index: 1 });
+    await page.getByPlaceholder('שם משתמש').fill('user1');
+    await page.getByPlaceholder('סיסמה').fill('10203040');
+    await page.getByRole('button', { name: 'יאללה, נכנסים! ✨' }).click();
 
-      // Perform the drag and drop using Playwright's built in dragTo
-      await sourceUnit.dragTo(targetColumn);
+    // Wait for hub to load and navigate via Lesson 1 card
+    await expect(page.getByText('שיעור 1: הכשרת חוקרים').first()).toBeVisible({ timeout: 10000 });
+    await page.getByText('שיעור 1: הכשרת חוקרים').first().click();
+    await page.waitForURL('**/workspace*');
 
-      // Verify the drop registered (e.g. the column count updated or a block appeared inside)
-      // Since the column count updates the DOM, we can check if a block with id starting with col-units exists
-      await expect(page.locator('[id^="col-units-"]').first()).toBeVisible({ timeout: 2000 });
-    } catch {
-      console.log('Test requires active session or auth setup. Test skipped for unauthenticated run.');
-    }
+    await page.waitForSelector('[id^="palette-units"]', { timeout: 5000 });
+    
+    // Perform the drag and drop using custom helper
+    await dragAndDrop(page, '[id^="palette-units"]', '#column-units');
+
+    // Verify the drop registered (e.g. the column count updated or a block appeared inside)
+    await expect(page.locator('#column-units [id^="col-units-"]').first()).toBeVisible({ timeout: 5000 });
   });
 });

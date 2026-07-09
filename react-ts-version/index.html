@@ -5,6 +5,15 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>מתמטיקאור | מאירים את הדרך להצלחה</title>
+    <script>
+      // Force cache flush once for the user to avoid incognito tricks
+      if (!localStorage.getItem('mc_cache_flush_v3')) {
+        localStorage.clear();
+        sessionStorage.clear();
+        localStorage.setItem('mc_cache_flush_v3', 'true');
+        window.location.reload(true);
+      }
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;900&family=Rubik:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">

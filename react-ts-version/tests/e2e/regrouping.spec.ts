@@ -1,41 +1,89 @@
 import { test, expect } from '@playwright/test';
 
+async function dragAndDrop(page, sourceSelector, targetSelector) {
+  const source = page.locator(sourceSelector).first();
+  const target = page.locator(targetSelector);
+  
+  const sourceBox = await source.boundingBox();
+  const targetBox = await target.boundingBox();
+  
+  if (!sourceBox || !targetBox) {
+    throw new Error('Source or target bounding box not found');
+  }
+  
+  const startX = sourceBox.x + sourceBox.width / 2;
+  const startY = sourceBox.y + sourceBox.height / 2;
+  const endX = targetBox.x + targetBox.width / 2;
+  // Drag to 25px from the top of the column to avoid hitting stacked blocks
+  const endY = targetBox.y + 25;
+  
+  await page.mouse.move(startX, startY);
+  await page.waitForTimeout(100);
+  await page.mouse.down();
+  await page.waitForTimeout(200);
+  await page.mouse.move(endX, endY, { steps: 10 });
+  await page.waitForTimeout(200);
+  await page.mouse.up();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(100);
+}
+
 test.describe('Regrouping State Mechanics', () => {
-  test('student can regroup 10 units into 1 ten automatically when scaffold level is low', async ({ page }) => {
-    // Navigate to student hub and start a session to load workspace
-    // Assuming unauthenticated direct navigation or mocked auth works
-    await page.goto('/workspace');
+  test('verify no auto-regrouping and verify manual regrouping', async ({ context, page }) => {
+    // Disable driver.js tours
+    await context.addInitScript(() => {
+      window.localStorage.setItem('mathmaticore_has_seen_tour', 'true');
+      window.localStorage.setItem('mathmaticore_has_seen_admin_tour', 'true');
+      window.localStorage.setItem('mathmaticore_has_seen_teacher_tour', 'true');
+    });
 
-    try {
-      await page.waitForSelector('[id^="palette-units"]', { timeout: 5000 });
-      
-      const sourceUnit = page.locator('[id^="palette-units"]').first();
-      const targetColumn = page.locator('[id="column-units"]');
+    // Login Student
+    await page.goto('/login');
+    await page.getByRole('button', { name: 'תלמיד' }).click();
 
-      // Drag 10 units to the units column
-      for (let i = 0; i < 10; i++) {
-        await sourceUnit.dragTo(targetColumn);
+    // Fill student credentials
+    await page.locator('select').first().selectOption({ index: 1 });
+    await page.locator('select').nth(1).selectOption({ index: 1 });
+    await page.getByPlaceholder('שם משתמש').fill('user1');
+    await page.getByPlaceholder('סיסמה').fill('10203040');
+    await page.getByRole('button', { name: 'יאללה, נכנסים! ✨' }).click();
+
+    // Wait for hub to load and navigate via Lesson 1 card
+    await expect(page.getByText('שיעור 1: הכשרת חוקרים').first()).toBeVisible({ timeout: 10000 });
+    await page.getByText('שיעור 1: הכשרת חוקרים').first().click();
+    await page.waitForURL('**/workspace*');
+
+    // Wait for the workspace to load
+    await page.waitForSelector('[id^="palette-units"]', { timeout: 5000 });
+
+    // Place 10 units blocks via the store directly
+    await page.evaluate(() => {
+      const store = (window as any).__wsStore;
+      if (!store) {
+        throw new Error('Workspace store not found on window');
       }
+      for (let i = 0; i < 10; i++) {
+        store.getState().applyDrop({
+          source: 'palette',
+          sourcePlace: 'units',
+          target: { kind: 'column', place: 'units' }
+        });
+      }
+    });
 
-      // After 10 units, with low scaffold level, auto-regrouping should occur
-      // The units column should be cleared or reduced, and a ten should appear.
-      // Wait a moment for animation or state update
-      await page.waitForTimeout(500);
-      
-      // Verify units count is reset (0) and tens count is 1.
-      // Easiest is to check the data attributes or rendered blocks in the column
-      // We assume data-count or the number of children inside col-units is 0
-      const unitsInside = await page.locator('[id="column-units"] [id^="col-units-"]').count();
-      const tensInside = await page.locator('[id="column-tens"] [id^="col-tens-"]').count();
-      const packagedTensInside = await page.locator('[id="column-tens"] [id^="packaged-tens-"]').count();
+    // Verify auto-regrouping does NOT happen: units count is exactly 10 in the DOM
+    const unitsColumnBlocks = page.locator('#column-units [id^="col-units-"]');
+    await expect(unitsColumnBlocks).toHaveCount(10, { timeout: 5000 });
 
-      // Either a packaged ten or normal ten block
-      expect(unitsInside).toBeLessThan(10);
-      expect(tensInside + packagedTensInside).toBeGreaterThanOrEqual(1);
+    // Verify tens column is empty
+    const tensCountBeforeRegroup = await page.locator('#column-tens [id^="col-tens-"]').count();
+    expect(tensCountBeforeRegroup).toBe(0);
 
-    } catch {
-      console.log('Test requires active session or auth setup. Test skipped for unauthenticated run.');
-      test.skip();
-    }
+    // Drag one unit block from units column to tens column to trigger manual regrouping
+    await dragAndDrop(page, '#column-units [id^="col-units-"]', '#column-tens');
+
+    // Wait for the units count to reset to 0 in the DOM and tens to become 1
+    await expect(page.locator('#column-units [id^="col-units-"]')).toHaveCount(0, { timeout: 5000 });
+    await expect(page.locator('#column-tens [id^="col-tens-"]')).toHaveCount(1, { timeout: 5000 });
   });
 });

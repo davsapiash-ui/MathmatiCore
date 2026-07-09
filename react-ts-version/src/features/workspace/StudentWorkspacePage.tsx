@@ -4,6 +4,7 @@ import {
   DndContext,
   DragOverlay,
   PointerSensor,
+  MouseSensor,
   TouchSensor,
   pointerWithin,
   useSensor,
@@ -143,6 +144,15 @@ export function StudentWorkspacePage() {
 
     const uid = useAuthStore.getState().user?.uid;
     if (!uid) return;
+    const flushTelemetry = () => {
+      if (eventsQueue.length > 0) {
+        const batch = [...eventsQueue];
+        eventsQueue = [];
+        push(ref(database, `users/students/${uid}/telemetry_sessions/${sessionId}`), JSON.stringify(batch))
+          .catch(err => console.error('Telemetry push failed:', err));
+      }
+    };
+
     // Load rrweb asynchronously
     (async () => {
       const [rrweb] = await Promise.all([
@@ -154,8 +164,15 @@ export function StudentWorkspacePage() {
       const authOk = await authReady;
       if (!authOk || cancelled) return;
 
-      stopRecording = rrweb.record({
-        emit(event) {
+      const rrwebAny = rrweb as any;
+      const recordFn = rrweb.record || (rrwebAny.default && rrwebAny.default.record) || rrwebAny;
+      if (typeof recordFn !== 'function') {
+        console.error('rrweb.record is not a function:', rrweb);
+        return;
+      }
+
+      stopRecording = recordFn({
+        emit(event: any) {
           eventsQueue.push(event);
         },
         sampling: {
@@ -166,20 +183,16 @@ export function StudentWorkspacePage() {
         }
       });
 
-      flushInterval = setInterval(() => {
-        if (eventsQueue.length > 0) {
-          const batch = [...eventsQueue];
-          eventsQueue = [];
-          push(ref(database, `users/students/${uid}/telemetry_sessions/${sessionId}`), JSON.stringify(batch))
-            .catch(err => console.error('Telemetry push failed:', err));
-        }
-      }, 5000);
+      flushInterval = setInterval(flushTelemetry, 2000);
+      window.addEventListener('beforeunload', flushTelemetry);
     })();
 
     return () => {
       cancelled = true;
       if (stopRecording) stopRecording();
       if (flushInterval) clearInterval(flushInterval);
+      window.removeEventListener('beforeunload', flushTelemetry);
+      flushTelemetry();
     };
   }, []);
 
@@ -235,6 +248,7 @@ export function StudentWorkspacePage() {
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } })
   );
 

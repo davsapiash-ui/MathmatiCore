@@ -25,6 +25,7 @@ export function useWorkspaceRadar(sessionNumber: number) {
   const hesitationTimer = useRef<number | null>(null);
   const hesitationArmed = useRef(true);
   const deleteTimestamps = useRef<number[]>([]);
+  const lastDriftAlertTime = useRef<number>(0);
   const userRef = useRef(user);
   userRef.current = user;
 
@@ -47,6 +48,10 @@ export function useWorkspaceRadar(sessionNumber: number) {
         unread: true,
         ...data,
       };
+
+      if (typeof window !== 'undefined' && (window as any).__onRadarAlert) {
+        (window as any).__onRadarAlert(alert);
+      }
       // Fire-and-forget: monitoring must never block or surface to the student.
       // Waits for the auth session first — pre-auth pushes are rejected by the
       // locked rules; async rejections stay silenced with .catch.
@@ -82,15 +87,14 @@ export function useWorkspaceRadar(sessionNumber: number) {
       const now = Date.now();
       deleteTimestamps.current = [...deleteTimestamps.current.filter((t) => now - t < RAPID_DELETE_WINDOW_MS), now];
       if (deleteTimestamps.current.length >= RAPID_DELETE_THRESHOLD) {
-        // משיג את התיעוד הכולל מה-Store של המרחב
-        const totalDeletions = useWorkspaceStore.getState().undoCount || 0;
-        
-        sendAlert('PASSIVE_DRIFTING', { 
-          recentDeletions: deleteTimestamps.current.length,
-          totalDeletionsFromStart: totalDeletions
-        });
-        
-        // איפוס חלון הזמן המקומי בלבד כדי לדרוש רצף מחיקות *חדש* להתראה נוספת
+        if (now - lastDriftAlertTime.current > 15000) {
+          const totalDeletions = useWorkspaceStore.getState().undoCount || 0;
+          sendAlert('PASSIVE_DRIFTING', { 
+            recentDeletions: deleteTimestamps.current.length,
+            totalDeletionsFromStart: totalDeletions
+          });
+          lastDriftAlertTime.current = now;
+        }
         deleteTimestamps.current = [];
       }
     }

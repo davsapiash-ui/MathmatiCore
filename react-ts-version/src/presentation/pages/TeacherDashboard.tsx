@@ -392,9 +392,8 @@ export function TeacherDashboard() {
       })
       .filter(a => {
         // Only show alerts for students in this teacher's class (who are in the filtered 'students' state)
-        // We also allow demo students (student_user*) as a fallback for testing
         const isMyStudent = !!students[a.rawStudentId] || Object.values(students).some((s: StudentData) => s.studentId === a.rawStudentId || s.name === a.rawStudentId);
-        return isMyStudent || (a.rawStudentId && a.rawStudentId.startsWith('student_user'));
+        return isMyStudent;
       })
       .sort((a, b) => b.timestamp - a.timestamp);
   }, [firebaseAlerts, students]);

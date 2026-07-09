@@ -1,32 +1,38 @@
-# BRIEFING — 2026-07-06T17:57:54Z
+# BRIEFING — 2026-07-09T15:11:03+03:00
 
 ## Mission
-Comprehensive QA pass and bug fixing for the MathmatiCore LMS system.
+Systemic, holistic audit and repair of the MathmatiCore LMS project (UI, mechanics, state, and radar synchronization).
 
 ## 🔒 My Identity
 - Archetype: sentinel
 - Working directory: c:\Users\david\Projects\MathmatiCore\.agents
-- Orchestrator: b0c199af-5d8f-4a4b-abb0-613220aa313f
-- Victory Auditor: 20ac8150-dc51-41cc-a321-6562f2dd4934
+- Orchestrator: 85d3acb1-4aa2-44b9-b1d5-fe4c4f865621
+- Victory Auditor: TBD
 
 ## 🔒 Key Constraints
 - No technical decisions — relay only
 - Victory Audit is MANDATORY before reporting completion
 - Hebrew Chat Alignment: Always wrap your entire text response to the user in a `<div dir="rtl" align="right">` ... `</div>` block.
 - FREEZE all work and routing logic on Stage 3 tracks. Focus entirely on making Stage 2 completion 100% proper and perfect.
+- Sessions 1-2 numbers must be up to 1000 in everything (no thousands column on PlaceValueBoard in Sessions 1-2, no task numbers > 1000 in SESSION1_TASKS/SESSION2_TASKS).
+- Do not overwrite user's manual hook fix in `useWorkspaceRadar.ts` (`lastDriftAlertTime = useRef(0)` at top level).
+- Curriculum Scaling Rule: Document that 2nd Grade (Sessions 1-2) goes up to 1,000, and 3rd Grade adaptivity scales up to 10,000 in both the specs and AGENTS.md.
+- Ensure the curriculum scaling rule is implemented in Q-Matrix (`src/core/QMatrix.ts`) and task definitions (`src/data/sessionTasks.ts`).
+- Conduct exhaustive system-wide audit of UI, State, Logic, Mechanics, Data Flow, Security, Firebase, CI/CD.
+- Ensure the 'thousands' column is visible and functional in Sessions 3 and 4, while remaining hidden/restricted in Sessions 1 and 2.
 
 ## User Context
-- **Last user request**: Freeze Stage 3 development completely. Focus entirely on ensuring Stage 2 (diagnostic/mapping phase) is 100% proper and perfect, focusing on the final report, trace data aggregation, and system discourse at the end of Stage 2.
+- **Last user request**: Critical Directive: Exhaustive audit of UI, State, Logic, Mechanics, Data Flow, Security, Firebase, CI/CD. Confirmed that the "thousands" column must be visible/functional in Sessions 3 & 4 (which have tasks in the thousands), but restricted in Sessions 1 & 2.
 - **Pending clarifications**: none
-- **Delivered results**: Complete QA and bug-fixing pass for MathmatiCore, with Stage 2 robustly verified, E2E tests passing green, local builds succeeding, and Victory Auditor confirmation.
+- **Delivered results**: none for this run
 
 ## Project Status
-- **Phase**: complete
+- **Phase**: in progress
 
 ## Victory Audit Status
-- **Triggered**: yes
-- **Verdict**: VICTORY CONFIRMED
-- **Retry count**: 1
+- **Triggered**: no
+- **Verdict**: pending
+- **Retry count**: 0
 
 ## Artifact Index
 - c:\Users\david\Projects\MathmatiCore\ORIGINAL_REQUEST.md — Original request track

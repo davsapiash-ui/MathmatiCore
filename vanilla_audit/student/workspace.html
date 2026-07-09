@@ -38,9 +38,18 @@
         <i class="fa-solid fa-arrow-right-from-bracket"></i> התנתק
       </button>
 
-      <button id="btn-toggle-board" class="d-flex align-items-center gap-2">
+      <button id="btn-toggle-board" class="d-flex align-items-center gap-2" style="display:none;">
         <i class="fa-solid fa-xmark"></i> סגור טבלה
       </button>
+
+      <!-- Mode Toggle: Place Value vs Cuisenaire -->
+      <div class="btn-group me-3" role="group" aria-label="בחירת כלי עבודה">
+        <input type="radio" class="btn-check" name="workspaceMode" id="mode-placevalue" autocomplete="off" checked>
+        <label class="btn btn-outline-primary btn-sm px-3" for="mode-placevalue">בית המספרים</label>
+
+        <input type="radio" class="btn-check" name="workspaceMode" id="mode-cuisenaire" autocomplete="off">
+        <label class="btn btn-outline-primary btn-sm px-3" for="mode-cuisenaire">פסי מספרים</label>
+      </div>
 
       <button class="btn-undo" id="btn-undo" disabled aria-label="בטל פעולה אחרונה">
         <i class="fa-solid fa-rotate-left"></i> בטל
@@ -217,6 +226,54 @@
     </div>
   </div>
 
+  <!-- ── Cuisenaire Workspace (Hidden by Default) ── -->
+  <div class="cuisenaire-structure" id="cuisenaire-structure" style="display: none;" aria-label="לוח פסי המספרים">
+    <p class="place-value-structure-label">לוח פסי מספרים (קוויזנר)</p>
+
+    <!-- The Box of Blocks -->
+    <div class="block-palette mb-4" id="cuisenaire-palette" role="toolbar" aria-label="ארגז פסי מספרים">
+      <div class="palette-drag-handle">
+        <span class="d-flex align-items-center gap-2"><i class="fa-solid fa-box-open"></i> ארגז קוביות (גרור למסילה)</span>
+      </div>
+      <div class="palette-blocks" id="cuisenaire-blocks-container" style="justify-content: flex-start; gap: 8px;">
+        <!-- Blocks 1-10 will be dynamically inserted here -->
+      </div>
+    </div>
+
+    <!-- The Lanes (Trains) -->
+    <div class="cuisenaire-lanes mt-3" style="flex:1; display:flex; flex-direction:column; gap:24px;">
+      
+      <!-- Lane 1 -->
+      <div class="cuisenaire-lane-wrapper">
+        <div class="lane-header">רכבת 1 <span class="lane-total" id="cuisenaire-total-1">(0)</span></div>
+        <div class="cuisenaire-lane drop-zone" id="cuisenaire-lane-1" data-lane="1">
+          <span class="empty-lane-text">גררו קוביות לכאן</span>
+        </div>
+      </div>
+
+      <!-- Equality Indicator -->
+      <div class="cuisenaire-equality text-center" id="cuisenaire-equality" style="opacity: 0;">
+        <span class="badge rounded-pill bg-success px-4 py-2 fs-5 shadow-sm">שווה בדיוק! =</span>
+      </div>
+
+      <!-- Lane 2 -->
+      <div class="cuisenaire-lane-wrapper">
+        <div class="lane-header">רכבת 2 <span class="lane-total" id="cuisenaire-total-2">(0)</span></div>
+        <div class="cuisenaire-lane drop-zone" id="cuisenaire-lane-2" data-lane="2">
+          <span class="empty-lane-text">גררו קוביות לכאן</span>
+        </div>
+      </div>
+
+      <!-- Clear Button -->
+      <div class="text-start mt-2">
+        <button id="btn-clear-cuisenaire" class="btn btn-sm btn-outline-danger px-3">
+          <i class="fa-solid fa-trash-can"></i> נקה מסילות
+        </button>
+      </div>
+
+    </div>
+  </div>
+
   </main>
 
   <!-- ── Support Palette (חלון עזרה — activated on request or hesitation alert) ──
@@ -298,6 +355,7 @@
   <script src="../js/student-logger.js?v=4"></script>
   <script src="../js/radar.js"></script>
   <script src="../js/manipulatives.js"></script>
+  <script src="../js/cuisenaire.js"></script>
   <script src="../js/qmatrix.js"></script>
   <script src="../js/app.js"></script>
 

@@ -15,6 +15,11 @@ export function PlaceValueBoard({ hideValueDisplay }: { hideValueDisplay?: boole
   const scaffoldFadeLevel = useWorkspaceStore((s) => s.scaffoldFadeLevel);
   const scaffoldLevel = useWorkspaceStore(selectScaffoldLevel);
   const restoreScaffolds = useWorkspaceStore((s) => s.restoreScaffolds);
+  const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
+
+  const placesToRender = sessionNumber <= 2
+    ? PLACE_ORDER.filter((p) => p !== 'thousands')
+    : PLACE_ORDER;
 
   return (
     <AnimatePresence initial={false}>
@@ -52,7 +57,7 @@ export function PlaceValueBoard({ hideValueDisplay }: { hideValueDisplay?: boole
 
             {/* Scaffold fade applies to the columns only — the palette stays crisp */}
             <div dir="rtl" className={`flex-1 flex flex-row gap-2 min-h-0 scaffold-level-${scaffoldFadeLevel}`} role="group" aria-label="טורי ערך המקום">
-              {PLACE_ORDER.map((place) => (
+              {placesToRender.map((place) => (
                 <PlaceColumn key={place} place={place} />
               ))}
             </div>

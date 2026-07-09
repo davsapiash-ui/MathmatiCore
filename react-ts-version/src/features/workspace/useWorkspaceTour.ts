@@ -52,7 +52,7 @@ export function useWorkspaceTour() {
           element: '#tour-column-units',
           popover: {
             title: 'המרה ואריזה',
-            description: 'זכור: אם תאסוף 10 יחידות בטור אחד, יופיע כפתור שיאפשר לך לארוז אותן לעשרת אחת שלמה!',
+            description: 'זכור: אם תאסוף 10 יחידות או יותר בטור אחד, תוכל לגרור אחת מהן לטור הבא כדי לקבץ אותן לעשרת שלמה!',
             side: 'left',
             align: 'center'
           }

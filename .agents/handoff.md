@@ -1,28 +1,23 @@
-# Handoff Report — Sentinel Agent (Completion)
+# Handoff Report — Sentinel Agent (Exhaustive System Audit & Session 3-4 Scope)
 
 ## Observation
-The Project Orchestrator has completed the fixes, resolved the Firebase rules typo, and verified that E2E chat synchronization tests pass. The independent Victory Auditor 2 has audited the changes and issued a `VICTORY CONFIRMED` verdict.
+A critical directive was received:
+1. Conduct an exhaustive, system-wide audit of UI, State, Logic, Mechanics, Data Flow, Security, Firebase, CI/CD.
+2. The user has manually edited `src/data/sessionTasks.ts` to add tasks in the thousands for Sessions 3 & 4.
+3. The "thousands" column on the PlaceValueBoard must be visible and functional in Sessions 3 and 4, but restricted/hidden in Sessions 1 and 2.
 
 ## Logic Chain
-1. The Orchestrator submitted completion.
-2. An independent Victory Auditor was spawned under `c:\Users\david\Projects\MathmatiCore\.agents\victory_auditor_qa_pass_2`.
-3. The Auditor verified:
-   - Timeline and implementation steps (`PASS`).
-   - Security rule typo fix under `users/teachers/$teacherId` (`PASS`).
-   - Compilation and local build `npm run build` succeeds (`PASS`).
-   - Playwright E2E tests (`npm run test:e2e`) pass cleanly (`PASS`).
-   - Stage 3 remains frozen (`PASS`).
-4. The Auditor noted a minor remaining typo (`'teacher_' + 'teacher_'`) under `ai_pending_approvals` read rule (line 172 of `database.rules.json`) which was not blocking but should be addressed in future maintenance.
-5. The Auditor confirmed victory.
+1. Recorded these follow-ups in both ORIGINAL_REQUEST.md files.
+2. Updated Key Constraints in BRIEFING.md.
+3. Forwarded these instructions directly to the Project Orchestrator (ID `85d3acb1-4aa2-44b9-b1d5-fe4c4f865621`).
 
 ## Caveats
-- Stage 3 remains frozen.
-- Note the minor duplicate prefix in the read rule under `ai_pending_approvals` in Firebase rules (line 172).
+- Ensure PlaceValueBoard handles the dynamic visibility of the "thousands" column based on the active session number (Session 1-2: hidden; Session 3-4: visible).
+- Validate that the whole system compiles and works under these conditions.
 
 ## Conclusion
-The project requirements are fully met, verified by E2E tests, and confirmed by independent victory audit. The project is marked as `complete`.
+The orchestrator has been notified to execute a comprehensive audit and ensure dynamic "thousands" column behavior for the board.
 
 ## Verification Method
-The independent Victory Audit report is available at:
-`c:\Users\david\Projects\MathmatiCore\.agents\victory_auditor_qa_pass_2\handoff.md`
-Local tests run and pass successfully.
+Orchestrator conversation: `85d3acb1-4aa2-44b9-b1d5-fe4c4f865621`.
+Documents updated and ready for review.

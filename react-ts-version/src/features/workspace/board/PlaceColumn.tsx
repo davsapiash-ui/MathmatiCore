@@ -72,6 +72,7 @@ export function PlaceColumn({ place }: { place: Place }) {
 
       <div
         ref={setNodeRef}
+        id={`column-${place}`}
         role="group"
         aria-label={`אזור גרירה — ${PLACE_NAMES_HE[place]}`}
         className="flex-1 flex flex-row flex-wrap content-start justify-center items-start gap-1 p-2 min-h-[150px] overflow-y-auto overflow-x-hidden no-scrollbar"

@@ -272,6 +272,29 @@ const App = (() => {
       });
     }
 
+    /* Wire Workspace Mode Toggle */
+    const modePlaceValue = document.getElementById('mode-placevalue');
+    const modeCuisenaire = document.getElementById('mode-cuisenaire');
+    if (modePlaceValue && modeCuisenaire) {
+      modePlaceValue.addEventListener('change', () => {
+        if (modePlaceValue.checked) {
+          document.getElementById('place-value-structure').style.display = '';
+          document.getElementById('cuisenaire-structure').style.display = 'none';
+        }
+      });
+      modeCuisenaire.addEventListener('change', () => {
+        if (modeCuisenaire.checked) {
+          document.getElementById('place-value-structure').style.display = 'none';
+          document.getElementById('cuisenaire-structure').style.display = 'flex';
+          
+          // Initialize Cuisenaire if not already
+          if (typeof CuisenaireController !== 'undefined' && !CuisenaireController.isInitialized) {
+            CuisenaireController.init();
+          }
+        }
+      });
+    }
+
     /* Wire support options */
     document.querySelectorAll('.support-option[data-support]').forEach(btn => {
       btn.addEventListener('click', () => {
