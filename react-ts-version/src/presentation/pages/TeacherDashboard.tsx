@@ -243,8 +243,8 @@ export function TeacherDashboard() {
             ...(row.qMatrixResults ?? {}),
           },
           traceData: {
-            hesitation_events: row.traceData?.hesitation_events ?? row.workspaceState?.hesitationCount ?? 0,
-            undo_clicks: row.traceData?.undo_clicks ?? row.workspaceState?.undoCount ?? 0,
+            hesitation_events: Math.max(row.traceData?.hesitation_events || 0, row.workspaceState?.hesitationCount || 0),
+            undo_clicks: Math.max(row.traceData?.undo_clicks || 0, row.workspaceState?.undoCount || 0),
           },
           completedMeeting2: row.completedMeeting2 ?? false,
           routeRecommendation: row.routeRecommendation ?? null,
@@ -390,7 +390,7 @@ export function TeacherDashboard() {
         if (data) {
           const parsed = Object.keys(data).map(key => {
             const row = data[key as keyof typeof data];
-            const rawId = row.rawStudentId ?? row.student ?? row.username;
+            const rawId = row.studentId ?? row.rawStudentId ?? row.student ?? row.username;
             return {
               ...row,
               firebaseKey: key,

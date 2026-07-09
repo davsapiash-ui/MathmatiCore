@@ -158,8 +158,8 @@ export class TelemetryTracker {
     this.pendingEvents = []; // Clear local array to save memory immediately
 
     try {
-      // Background flush to Firebase — path matches database.rules.json: users/students/$studentId/telemetry_sessions
-      const logsRef = ref(database, `users/students/${this.currentStudentId}/telemetry_sessions`);
+      // Background flush to Firebase — separated from rrweb's telemetry_sessions to avoid breaking ReplayViewer
+      const logsRef = ref(database, `users/students/${this.currentStudentId}/interaction_logs`);
       await push(logsRef, chunk);
     } catch (error) {
       console.warn("Failed to flush telemetry chunk, re-queueing", error);
