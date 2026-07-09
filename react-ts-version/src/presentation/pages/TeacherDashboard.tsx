@@ -1086,8 +1086,8 @@ export function TeacherDashboard() {
                             {/* Trace Data & AI Plan */}
                             <AccessibleCard className={`p-6 border shadow-md rounded-2xl flex flex-col h-full ${socraticApproval ? 'bg-indigo-50/50 border-indigo-100' : 'bg-white border-ws-surface2'}`}>
                               <h3 className="text-xl font-bold text-ws-ink mb-4 flex items-center gap-2">
-                                <span className="text-ws-accent">נ₪–</span>
-                                {socraticApproval ? '׳”׳׳׳¦׳× Socratic Engine ׳•׳¡׳™׳›׳•׳ ׳׳‘׳—׳•׳' : '׳׳“׳“׳™ ׳׳׳™׳“׳” ׳¡׳׳•׳™׳™׳'}
+                                <span className="text-ws-accent">נŸ₪–</span>
+                                {socraticApproval ? '׳”׳ž׳œ׳¦׳× Socratic Engine ׳•׳¡׳™׳›׳•׳  ׳ ׳‘׳—׳•׳Ÿ' : '׳ž׳“׳“׳™ ׳œ׳ž׳™׳“׳” ׳¡׳ž׳•׳™׳™׳ '}
                               </h3>
                               
                               <div className="flex-1 flex flex-col gap-4">
@@ -1095,15 +1095,15 @@ export function TeacherDashboard() {
                                 <div className="flex gap-4">
                                   <div className="flex-1 flex items-center justify-between p-3 bg-ws-bg rounded-xl border border-ws-surface2">
                                     <div className="flex items-center gap-3">
-                                      <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 text-sm">ג±ן¸</div>
-                                      <span className="font-semibold text-sm">׳׳™׳¨׳•׳¢׳™ ׳”׳™׳¡׳•׳¡ (׳—׳©׳™׳‘׳” ׳׳¨׳•׳›׳”)</span>
+                                      <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 text-sm">ג ±ן¸ </div>
+                                      <span className="font-semibold text-sm">׳ ׳™׳¨׳•׳¢׳™ ׳”׳™׳¡׳•׳¡ (׳—׳©׳™׳‘׳” ׳ ׳¨׳•׳›׳”)</span>
                                     </div>
                                     <span className="text-xl font-black text-orange-600">{s.traceData.hesitation_events}</span>
                                   </div>
                                   <div className="flex-1 flex items-center justify-between p-3 bg-ws-bg rounded-xl border border-ws-surface2">
                                     <div className="flex items-center gap-3">
-                                      <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-600 text-sm">ג†©ן¸</div>
-                                      <span className="font-semibold text-sm">׳‘׳™׳˜׳•׳׳™ ׳₪׳¢׳•׳׳” (׳׳—׳™׳§׳”/׳—׳–׳¨׳”)</span>
+                                      <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-600 text-sm">ג†©ן¸ </div>
+                                      <span className="font-semibold text-sm">׳‘׳™׳˜׳•׳œ׳™ ׳₪׳¢׳•׳œ׳” (׳ž׳—׳™׳§׳”/׳—׳–׳¨׳”)</span>
                                     </div>
                                     <span className="text-xl font-black text-red-600">{s.traceData.undo_clicks}</span>
                                   </div>
@@ -1112,33 +1112,33 @@ export function TeacherDashboard() {
                                 {/* Analytical Report */}
                                 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
                                   <h4 className="font-bold text-slate-800 mb-3 text-lg flex items-center gap-2">
-                                    <span className="text-ws-accent">נ“‹</span>
-                                    ׳׳¦׳‘ ׳ ׳•׳›׳—׳™ (׳ ׳™׳×׳•׳— ׳׳•׳˜׳•׳׳˜׳™):
+                                    <span className="text-ws-accent">נŸ“‹</span>
+                                    ׳ž׳¦׳‘ ׳ ׳•׳›׳—׳™ (׳ ׳™׳×׳•׳— ׳ ׳•׳˜׳•׳ž׳˜׳™):
                                   </h4>
                                   <p className="text-sm text-slate-700 leading-relaxed mb-4">
-                                    ׳”׳×׳׳׳™׳“ ׳—׳•׳•׳” <strong className="text-orange-600">{s.traceData.hesitation_events}</strong> ׳׳™׳¨׳•׳¢׳™ ׳”׳™׳¡׳•׳¡ ׳”׳׳¢׳™׳“׳™׳ ׳¢׳ ׳׳׳‘׳§ ׳§׳•׳’׳ ׳™׳˜׳™׳‘׳™, ׳•׳‘׳™׳¦׳¢ <strong className="text-red-600">{s.traceData.undo_clicks}</strong> ׳׳—׳™׳§׳•׳× ׳׳• ׳—׳–׳¨׳•׳×. 
-                                    ׳ ׳™׳×׳•׳— ׳”׳₪׳¢׳•׳׳•׳× ׳‘׳•׳™׳“׳׳• ׳™׳—׳“ ׳¢׳ ׳׳˜׳¨׳™׳¦׳× ׳”׳׳™׳•׳׳ ׳•׳™׳•׳× (Q-Matrix) ׳׳¦׳‘׳™׳¢ ׳¢׳ ׳›׳ ׳©
-                                    {s.qMatrixResults.task3_flexible_regrouping === 'canonical_fixation' ? ' ׳ ׳¨׳׳” ׳›׳™ ׳§׳™׳™׳ ׳§׳•׳©׳™ ׳‘׳’׳׳™׳©׳•׳× ׳׳—׳©׳‘׳×׳™׳× ׳•׳¦׳•׳¨׳ ׳‘׳”׳׳—׳©׳” ׳׳•׳—׳©׳™׳× (׳‘׳׳׳¦׳¢׳•׳× ׳‘׳׳•׳§׳™׳) ׳©׳ ׳₪׳¢׳•׳׳× ׳”׳₪׳¨׳™׳˜׳” ׳׳₪׳ ׳™ ׳×׳¨׳’׳•׳ ׳‘׳׳׳•׳ ׳.' : s.qMatrixResults.task3_flexible_regrouping === 'success' ? ' ׳§׳™׳™׳׳× ׳”׳‘׳ ׳” ׳׳•׳—׳©׳™׳× ׳•׳›׳׳•׳×׳™׳× ׳˜׳•׳‘׳” ׳©׳ ׳₪׳¨׳™׳˜׳” ׳•׳”׳׳¨׳”.' : ' ׳˜׳¨׳ ׳ ׳׳¡׳₪׳• ׳׳¡׳₪׳™׳§ ׳ ׳×׳•׳ ׳™׳ ׳׳§׳‘׳™׳¢׳× ׳”׳‘׳ ׳” ׳׳•׳—׳©׳™׳× ׳©׳ ׳”׳׳¨׳•׳×.'}
-                                    {(s.qMatrixResults.task7_missing_subtrahend === 'algebraic_concept_deficit' || s.qMatrixResults.task8_missing_addend === 'algebraic_concept_deficit') ? ' ׳ ׳™׳›׳¨ ׳§׳•׳©׳™ ׳׳”׳•׳×׳™ ׳‘׳—׳©׳™׳‘׳” ׳׳׳’׳‘׳¨׳™׳× ׳•׳”׳‘׳ ׳× ׳׳©׳׳¢׳•׳× ׳¡׳™׳׳ ׳”׳©׳•׳•׳™׳•׳ ׳›׳׳׳–׳ ׳™׳™׳.' : (s.qMatrixResults.task7_missing_subtrahend === 'success' || s.qMatrixResults.task8_missing_addend === 'success') ? ' ׳ ׳™׳›׳¨׳× ׳™׳›׳•׳׳× ׳˜׳•׳‘׳” ׳׳׳•׳“ ׳‘׳—׳©׳™׳‘׳” ׳׳׳’׳‘׳¨׳™׳× ׳•׳׳¦׳™׳׳× ׳ ׳¢׳׳.' : ''}
+                                    ׳”׳×׳œ׳ž׳™׳“ ׳—׳•׳•׳” <strong className="text-orange-600">{s.traceData.hesitation_events}</strong> ׳ ׳™׳¨׳•׳¢׳™ ׳”׳™׳¡׳•׳¡ ׳”׳ž׳¢׳™׳“׳™׳  ׳¢׳œ ׳ž׳ ׳‘׳§ ׳§׳•׳’׳ ׳™׳˜׳™׳‘׳™, ׳•׳‘׳™׳¦׳¢ <strong className="text-red-600">{s.traceData.undo_clicks}</strong> ׳ž׳—׳™׳§׳•׳× ׳ ׳• ׳—׳–׳¨׳•׳×. 
+                                    ׳ ׳™׳×׳•׳— ׳”׳₪׳¢׳•׳œ׳•׳× ׳‘׳•׳™׳“׳ ׳• ׳™׳—׳“ ׳¢׳  ׳ž׳˜׳¨׳™׳¦׳× ׳”׳ž׳™׳•׳ž׳ ׳•׳™׳•׳× (Q-Matrix) ׳ž׳¦׳‘׳™׳¢ ׳¢׳œ ׳›׳š ׳©
+                                    {s.qMatrixResults.task3_flexible_regrouping === 'canonical_fixation' ? ' ׳ ׳¨׳ ׳” ׳›׳™ ׳§׳™׳™׳  ׳§׳•׳©׳™ ׳‘׳’׳ž׳™׳©׳•׳× ׳ž׳—׳©׳‘׳×׳™׳× ׳•׳¦׳•׳¨׳š ׳‘׳”׳ž׳—׳©׳” ׳ž׳•׳—׳©׳™׳× (׳‘׳ ׳ž׳¦׳¢׳•׳× ׳‘׳œ׳•׳§׳™׳ ) ׳©׳œ ׳₪׳¢׳•׳œ׳× ׳”׳₪׳¨׳™׳˜׳” ׳œ׳₪׳ ׳™ ׳×׳¨׳’׳•׳œ ׳‘׳ž׳ ׳•׳ ׳š.' : s.qMatrixResults.task3_flexible_regrouping === 'success' ? ' ׳§׳™׳™׳ž׳× ׳”׳‘׳ ׳” ׳ž׳•׳—׳©׳™׳× ׳•׳›׳ž׳•׳×׳™׳× ׳˜׳•׳‘׳” ׳©׳œ ׳₪׳¨׳™׳˜׳” ׳•׳”׳ž׳¨׳”.' : ' ׳˜׳¨׳  ׳ ׳ ׳¡׳₪׳• ׳ž׳¡׳₪׳™׳§ ׳ ׳×׳•׳ ׳™׳  ׳œ׳§׳‘׳™׳¢׳× ׳”׳‘׳ ׳” ׳ž׳•׳—׳©׳™׳× ׳©׳œ ׳”׳ž׳¨׳•׳×.'}
+                                    {(s.qMatrixResults.task7_missing_subtrahend === 'algebraic_concept_deficit' || s.qMatrixResults.task8_missing_addend === 'algebraic_concept_deficit') ? ' ׳ ׳™׳›׳¨ ׳§׳•׳©׳™ ׳ž׳”׳•׳×׳™ ׳‘׳—׳©׳™׳‘׳” ׳ ׳œ׳’׳‘׳¨׳™׳× ׳•׳”׳‘׳ ׳× ׳ž׳©׳ž׳¢׳•׳× ׳¡׳™׳ž׳Ÿ ׳”׳©׳•׳•׳™׳•׳Ÿ ׳›׳ž׳ ׳–׳ ׳™׳™׳ .' : (s.qMatrixResults.task7_missing_subtrahend === 'success' || s.qMatrixResults.task8_missing_addend === 'success') ? ' ׳ ׳™׳›׳¨׳× ׳™׳›׳•׳œ׳× ׳˜׳•׳‘׳” ׳ž׳ ׳•׳“ ׳‘׳—׳©׳™׳‘׳” ׳ ׳œ׳’׳‘׳¨׳™׳× ׳•׳ž׳¦׳™׳ ׳× ׳ ׳¢׳œ׳ .' : ''}
                                   </p>
                                 </div>
 
                                 {socraticApproval && (
                                   <div className="bg-indigo-50 p-5 rounded-xl border border-indigo-100 shadow-sm mt-2">
                                     <h4 className="font-bold text-indigo-900 mb-3 text-lg flex items-center gap-2">
-                                      <span className="text-indigo-600">נ¯</span>
-                                      ׳”׳׳׳¦׳•׳× ׳•׳׳¡׳׳•׳ ׳׳“׳₪׳˜׳™׳‘׳™ ׳׳׳₪׳’׳©׳™׳ 3, 4, 5, 6, ׳•-7:
+                                      <span className="text-indigo-600">נŸŽ¯</span>
+                                      ׳”׳ž׳œ׳¦׳•׳× ׳•׳ž׳¡׳œ׳•׳œ ׳ ׳“׳₪׳˜׳™׳‘׳™ ׳œ׳ž׳₪׳’׳©׳™׳  3, 4, 5, 6, ׳•-7:
                                     </h4>
                                     <p className="text-sm text-indigo-800 leading-relaxed mb-5 bg-white p-4 rounded-lg border border-indigo-100/50">
-                                      <strong className="block mb-1 text-indigo-900">׳׳‘׳—׳•׳ ׳§׳׳™׳ ׳™:</strong>
-                                      {socraticApproval.clinicalDiagnosisHe || "׳׳ ׳ ׳¨׳©׳׳• ׳×׳•׳‘׳ ׳•׳× ׳׳”׳׳‘׳—׳•׳."}
+                                      <strong className="block mb-1 text-indigo-900">׳ ׳‘׳—׳•׳Ÿ ׳§׳œ׳™׳ ׳™:</strong>
+                                      {(socraticApproval as any).clinicalDiagnosisHe || "׳œ׳  ׳ ׳¨׳©׳ž׳• ׳×׳•׳‘׳ ׳•׳× ׳ž׳”׳ ׳‘׳—׳•׳Ÿ."}
                                     </p>
                                     <p className="text-sm text-indigo-800 leading-relaxed mb-5 bg-white p-4 rounded-lg border border-indigo-100/50">
-                                      <strong className="block mb-1 text-indigo-900">׳×׳•׳›׳ ׳™׳× ׳₪׳¢׳•׳׳” ׳׳•׳¦׳¢׳×:</strong>
-                                      {socraticApproval.actionPlanHe || "׳׳ ׳ ׳§׳‘׳¢׳” ׳×׳•׳›׳ ׳™׳×."}
+                                      <strong className="block mb-1 text-indigo-900">׳×׳•׳›׳ ׳™׳× ׳₪׳¢׳•׳œ׳” ׳ž׳•׳¦׳¢׳×:</strong>
+                                      {(socraticApproval as any).actionPlanHe || "׳œ׳  ׳ ׳§׳‘׳¢׳” ׳×׳•׳›׳ ׳™׳×."}
                                     </p>
                                     
-                                    <h5 className="font-bold text-sm text-indigo-900 mb-3">׳×׳¨׳’׳™׳׳™׳ ׳¨׳¦׳•׳™׳™׳ ׳©׳ ׳•׳¦׳¨׳• ׳¢׳‘׳•׳¨ ׳”׳×׳׳׳™׳“:</h5>
+                                    <h5 className="font-bold text-sm text-indigo-900 mb-3">׳×׳¨׳’׳™׳œ׳™׳  ׳¨׳¦׳•׳™׳™׳  ׳©׳ ׳•׳¦׳¨׳• ׳¢׳‘׳•׳¨ ׳”׳×׳œ׳ž׳™׳“:</h5>
                                     <div className="grid gap-2 mb-5">
                                       {socraticApproval.tasks.map((task: any, idx: number) => (
                                         <div key={idx} className="bg-white p-3 rounded-lg flex items-center justify-between border border-indigo-100 shadow-sm">
