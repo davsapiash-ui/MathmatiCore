@@ -37,22 +37,24 @@ export function StudentHub() {
   const isPending = currentStudent?.routeStatus === 'PENDING';
   const isApproved = currentStudent?.routeStatus === 'APPROVED';
 
+  const highestCompleted = currentStudent?.highestCompletedMeeting ?? (currentStudent?.completedMeeting2 ? 2 : 0);
+
   const meetings: Meeting[] = [
     { id: 1, title: 'שיעור 1: הכשרת חוקרים', desc: 'היכרות עם כלי המעבדה השונים במרחב החקר הווירטואלי.', icon: '🧪', isLocked: false },
-    { id: 2, title: 'שיעור 2: סריקת רדאר', desc: 'משימות חקר קצרות כדי שהמערכת תלמד את סגנון החשיבה הייחודי שלכם.', icon: '📡', isLocked: false },
+    { id: 2, title: 'שיעור 2: סריקת רדאר', desc: 'משימות חקר קצרות כדי שהמערכת תלמד את סגנון החשיבה הייחודי שלכם.', icon: '📡', isLocked: highestCompleted < 1 },
     { 
       id: 3, 
       title: 'שיעור 3: מחקר אישי', 
       desc: isPending ? 'הנתונים נסרקים במערכת, ממתין לאישור מנהל מעבדה...' : 'מתחילים במשימות מחקר שמותאמות בדיוק עבורכם!', 
       icon: '🔬', 
-      isLocked: !isApproved,
+      isLocked: (highestCompleted < 2) || !isApproved,
       pendingApproval: isPending
     },
-    { id: 4, title: 'שיעור 4: חוקרים ומגלים', desc: 'ניסויי פריטה וקיבוץ — חוקרים יחד ומצליחים.', icon: '🔍', isLocked: true },
-    { id: 5, title: 'שיעור 5: חוקרים ומגלים', desc: 'ממשיכים לתכנן ניסויים ולגלות שיטות חשיבה חדשות.', icon: '💡', isLocked: true },
-    { id: 6, title: 'שיעור 6: מחקר מתקדם', desc: 'אתגרים מחשבתיים שמותאמים לקצב הגילוי שלכם.', icon: '🧬', isLocked: true },
-    { id: 7, title: 'שיעור 7: מחקר מתקדם', desc: 'לקראת סיום — ניסויים מאתגרים לחיזוק הלמידה.', icon: '🚀', isLocked: true },
-    { id: 8, title: 'שיעור 8: סיכום ותגליות', desc: 'מסכמים את המחקר ורואים אילו תגליות גילינו!', icon: '🏆', isLocked: true },
+    { id: 4, title: 'שיעור 4: חוקרים ומגלים', desc: 'ניסויי פריטה וקיבוץ — חוקרים יחד ומצליחים.', icon: '🔍', isLocked: highestCompleted < 3 },
+    { id: 5, title: 'שיעור 5: חוקרים ומגלים', desc: 'ממשיכים לתכנן ניסויים ולגלות שיטות חשיבה חדשות.', icon: '💡', isLocked: highestCompleted < 4 },
+    { id: 6, title: 'שיעור 6: מחקר מתקדם', desc: 'אתגרים מחשבתיים שמותאמים לקצב הגילוי שלכם.', icon: '🧬', isLocked: highestCompleted < 5 },
+    { id: 7, title: 'שיעור 7: מחקר מתקדם', desc: 'לקראת סיום — ניסויים מאתגרים לחיזוק הלמידה.', icon: '🚀', isLocked: highestCompleted < 6 },
+    { id: 8, title: 'שיעור 8: סיכום ותגליות', desc: 'מסכמים את המחקר ורואים אילו תגליות גילינו!', icon: '🏆', isLocked: highestCompleted < 7 },
   ];
 
   return (
@@ -97,8 +99,17 @@ export function StudentHub() {
                 className="ws-brand mt-4 flex items-center justify-center gap-3 px-8 py-4 rounded-full font-display font-extrabold text-lg transition-all hover:brightness-105"
                 onClick={() => {
                   // Smart routing: go to the next unlocked meeting
-                  const nextMeeting = currentStudent?.completedMeeting2 && isApproved ? 3 : currentStudent?.completedMeeting2 ? 2 : 1;
-                  navigate(`/workspace?meeting=${Math.min(nextMeeting, 4)}`);
+                  let nextMeeting = 1;
+                  if (highestCompleted === 0) {
+                    nextMeeting = 1;
+                  } else if (highestCompleted === 1) {
+                    nextMeeting = 2;
+                  } else if (highestCompleted === 2) {
+                    nextMeeting = isApproved ? 3 : 2;
+                  } else {
+                    nextMeeting = Math.min(highestCompleted + 1, 8);
+                  }
+                  navigate(`/workspace?meeting=${nextMeeting}`);
                 }}
               >
                 <Play className="w-5 h-5 fill-current" aria-hidden="true" />

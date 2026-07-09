@@ -76,7 +76,7 @@ export const SESSION1_TASKS: SessionTask[] = [
     id: 's1_sandbox_controlled',
     type: 'session1_intro',
     titleHe: 'ארגז חול: אימון טכני',
-    instructionHe: 'כדי לקבל את רישיון החוקר שלכם, הראו שאתם שולטים בציוד המעבדה: גררו לפחות 5 פריטים ללוח, ולאחר מכן מחקו לפחות פריט אחד (על ידי גרירה החוצה או לחיצה על פח המחזור). מערכת "התקדם" תופעל רק לאחר מכן.',
+    instructionHe: 'כדי לקבל את רישיון החוקר שלכם, הראו שאתם שולטים בציוד המעבדה:\n1. גררו לפחות 5 פריטים ללוח.\n2. מחקו לפחות פריט אחד (גרירה החוצה או פח מחזור).\nמערכת "התקדם" תופעל לאחר מכן.',
     correctAnswer: 'proceed_any',
     scaffoldLevel: 0,
   },
@@ -304,14 +304,145 @@ export const SUPPORT_CONTENT: Record<SupportType, SupportContent> = {
   },
 };
 
+/* ── Session 5 — (מפגש 5: חיבור אלפים פשוט המרה מעשרות המאות) ── */
+export const SESSION5_TASKS: SessionTask[] = [
+  {
+    id: 's5_t1',
+    type: 'addition_simple',
+    numberA: 4500, numberB: 1200, correctAnswer: 5700,
+    titleHe: 'חיבור אלפים פשוט',
+    instructionHe: 'פתרו את התרגיל הבא: 4,500 ועוד 1,200.',
+    scaffoldLevel: 1,
+  },
+  {
+    id: 's5_t2',
+    type: 'addition_simple',
+    numberA: 3800, numberB: 2400, correctAnswer: 6200,
+    titleHe: 'חיבור אלפים עם המרה',
+    instructionHe: 'בנו את המספרים 3,800 ו-2,400 בלוח המחקר. חברו אותם ובצעו המרה מעשרות המאות לאלפים במידת הצורך.',
+    requiresGrouping: true,
+    scaffoldLevel: 1,
+  },
+  {
+    id: 's5_t3',
+    type: 'number_line',
+    numberA: 7500,
+    range: [0, 10000],
+    titleHe: 'ישר המספרים בתחום ה-10,000',
+    instructionHe: 'גררו את הסמן למקום שבו נמצא המספר 7,500 על ישר המספרים.',
+    scaffoldLevel: 0,
+  },
+];
+
+/* ── Session 6 — (מפגש 6: חיסור אלפים עם פריטה) ── */
+export const SESSION6_TASKS: SessionTask[] = [
+  {
+    id: 's6_t1',
+    type: 'vertical_addition',
+    isSubtraction: true,
+    numberA: 6200, numberB: 3500, correctAnswer: 2700,
+    titleHe: 'חיסור אלפים עם פריטה',
+    instructionHe: 'בנו בלוח את המספר 6,200 והחסירו ממנו 3,500. תצטרכו לפרוק אלף אחד למאות!',
+    requiresUngrouping: true,
+    scaffoldLevel: 1,
+  },
+  {
+    id: 's6_t2',
+    type: 'vertical_addition',
+    isSubtraction: true,
+    numberA: 5000, numberB: 1800, correctAnswer: 3200,
+    titleHe: 'פריטה מאלפים למאות',
+    instructionHe: 'בנו את המספר 5,000 בלוח והחסירו 1,800. פירקו אלף אחד ל-10 מאות כדי שתוכלו להחסיר.',
+    requiresUngrouping: true,
+    scaffoldLevel: 1,
+  },
+  {
+    id: 's6_t3',
+    type: 'addition_simple',
+    numberA: 2750, numberB: 3450, correctAnswer: 6200,
+    titleHe: 'חיבור אלפים עם המרה כפולה',
+    instructionHe: 'פתרו את התרגיל הבא: 2,750 ועוד 3,450. בצעו המרות כנדרש בלוח.',
+    requiresGrouping: true,
+    scaffoldLevel: 1,
+  },
+];
+
+/* ── Session 7 — (מפגש 7: חיבור וחיסור אתגר אלפים) ── */
+export const SESSION7_TASKS: SessionTask[] = [
+  {
+    id: 's7_t1',
+    type: 'addition_simple',
+    numberA: 7890, numberB: 1250, correctAnswer: 9140,
+    titleHe: 'חיבור אתגר בתחום ה-10,000',
+    instructionHe: 'פתרו את התרגיל הבא: 7,890 ועוד 1,250. שימו לב להמרות הנדרשות.',
+    requiresGrouping: true,
+    scaffoldLevel: 1,
+  },
+  {
+    id: 's7_t2',
+    type: 'vertical_addition',
+    isSubtraction: true,
+    numberA: 8120, numberB: 4560, correctAnswer: 3560,
+    titleHe: 'חיסור אתגר בתחום ה-10,000',
+    instructionHe: 'בנו 8,120 והחסירו 4,560. תצטרכו לבצע פריטה כפולה!',
+    requiresUngrouping: true,
+    scaffoldLevel: 1,
+  },
+  {
+    id: 's7_t3',
+    type: 'number_line',
+    numberA: 3250,
+    range: [0, 10000],
+    titleHe: 'מיקום מדויק בתחום ה-10,000',
+    instructionHe: 'מקמו את הסמן על ישר המספרים בנקודה המייצגת את המספר 3,250.',
+    scaffoldLevel: 0,
+  },
+];
+
+/* ── Session 8 — (מפגש 8: אבחון מסכם אלפים) ── */
+export const SESSION8_TASKS: SessionTask[] = [
+  {
+    id: 's8_t1',
+    type: 'addition_simple',
+    numberA: 6400, numberB: 2700, correctAnswer: 9100,
+    titleHe: 'אבחון מסכם: חיבור אלפים',
+    instructionHe: 'בנו וחברו: 6,400 + 2,700. רשמו את התוצאה הסופית.',
+    requiresGrouping: true,
+    scaffoldLevel: 1,
+  },
+  {
+    id: 's8_t2',
+    type: 'vertical_addition',
+    isSubtraction: true,
+    numberA: 9000, numberB: 4300, correctAnswer: 4700,
+    titleHe: 'אבחון מסכם: חיסור אלפים',
+    instructionHe: 'בנו והחסירו: 9,000 - 4,300. רשמו את התוצאה הסופית.',
+    requiresUngrouping: true,
+    scaffoldLevel: 1,
+  },
+  {
+    id: 's8_t3',
+    type: 'number_line',
+    numberA: 8750,
+    range: [0, 10000],
+    titleHe: 'אבחון מסכם: ישר המספרים',
+    instructionHe: 'גררו את הסמן לנקודה 8,750 על ישר המספרים.',
+    scaffoldLevel: 0,
+  },
+];
+
 /* ── Sessions map: meeting number → task list (session 2 flows through qmatrixFlow) ── */
 
-export const SESSIONS: Record<1 | 3 | 4, SessionTask[]> = {
+export const SESSIONS: Record<1 | 3 | 4 | 5 | 6 | 7 | 8, SessionTask[]> = {
   1: SESSION1_TASKS,
   3: SESSION3_TASKS,
   4: SESSION4_TASKS,
+  5: SESSION5_TASKS,
+  6: SESSION6_TASKS,
+  7: SESSION7_TASKS,
+  8: SESSION8_TASKS,
 };
 
-export function getSessionTasks(meeting: 1 | 3 | 4): SessionTask[] {
+export function getSessionTasks(meeting: 1 | 3 | 4 | 5 | 6 | 7 | 8): SessionTask[] {
   return SESSIONS[meeting];
 }

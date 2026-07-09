@@ -58,7 +58,12 @@ class FirebaseSyncService {
           
           if (data.forceReload) {
             // Teacher initiated a deep reset. Reload the browser to clear local memory.
-            window.location.reload();
+            update(studentRef, { forceReload: null }).then(() => {
+              window.location.reload();
+            }).catch((err) => {
+              console.error("Failed to clear forceReload flag:", err);
+              window.location.reload();
+            });
             return;
           }
 
@@ -73,6 +78,7 @@ class FirebaseSyncService {
                 ...(data.qMatrixResults && { qMatrixResults: data.qMatrixResults }),
                 ...(data.traceData && { traceData: data.traceData }),
                 ...(data.completedMeeting2 !== undefined && { completedMeeting2: data.completedMeeting2 }),
+                ...(data.highestCompletedMeeting !== undefined && { highestCompletedMeeting: data.highestCompletedMeeting }),
                 ...(data.routeRecommendation !== undefined && { routeRecommendation: data.routeRecommendation }),
                 ...(data.routeStatus !== undefined && { routeStatus: data.routeStatus }),
               }
@@ -85,6 +91,7 @@ class FirebaseSyncService {
             workspaceState: this.getSyncableWorkspaceState(),
             lastActive: serverTimestamp(),
             completedMeeting2: false,
+            highestCompletedMeeting: 0,
             routeStatus: null
           });
         }
@@ -197,6 +204,12 @@ class FirebaseSyncService {
     if (!studentId) return;
     const refPath = ref(database, `users/students/${studentId}`);
     await update(refPath, { completedMeeting2: true });
+  }
+
+  public async syncHighestCompletedMeeting(studentId: string, meeting: number) {
+    if (!studentId) return;
+    const refPath = ref(database, `users/students/${studentId}`);
+    await update(refPath, { highestCompletedMeeting: meeting });
   }
 
   public async syncApproveRoute(studentId: string) {

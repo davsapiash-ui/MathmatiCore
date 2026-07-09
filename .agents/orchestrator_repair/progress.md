@@ -12,5 +12,5 @@ Current iteration: 1 / 32
 - [x] Update specification documents and AGENTS.md (Curriculum Scaling Rule)
 - [x] Repair telemetry pipeline (rrweb player & trace logs)
 - [x] Update specification documents and AGENTS.md (Session Architecture Flow)
-- [/] Run verification tests and Forensic Audit
-- [ ] Final push / CI/CD deploy verification
+- [x] Run verification tests and Forensic Audit
+- [x] Final push / CI/CD deploy verification

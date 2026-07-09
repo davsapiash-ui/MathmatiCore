@@ -11,8 +11,39 @@ export function ReplayViewer({ events, seekToTime }: ReplayViewerProps) {
   const playerRef = useRef<HTMLDivElement>(null);
   const instanceRef = useRef<any>(null);
 
+  const eventsLengthRef = useRef<number>(0);
+  const firstEventTimestampRef = useRef<number | null>(null);
+
   useEffect(() => {
-    if (playerRef.current && events && events.length > 1) {
+    if (!events || events.length <= 1) {
+      eventsLengthRef.current = 0;
+      firstEventTimestampRef.current = null;
+      if (playerRef.current) {
+        playerRef.current.innerHTML = "";
+      }
+      instanceRef.current = null;
+      return;
+    }
+
+    const firstTimestamp = events[0].timestamp;
+    const isSameSession = firstEventTimestampRef.current === firstTimestamp;
+
+    if (isSameSession && instanceRef.current) {
+      const prevLength = eventsLengthRef.current;
+      if (events.length > prevLength) {
+        for (let i = prevLength; i < events.length; i++) {
+          try {
+            instanceRef.current.addEvent(events[i]);
+          } catch (e) {
+            console.error("Failed to append event to rrweb-player:", e);
+          }
+        }
+      }
+      eventsLengthRef.current = events.length;
+      return;
+    }
+
+    if (playerRef.current) {
       playerRef.current.innerHTML = "";
       
       try {
@@ -50,23 +81,28 @@ export function ReplayViewer({ events, seekToTime }: ReplayViewerProps) {
           playerRef.current.style.justifyContent = 'center';
         }
 
+        firstEventTimestampRef.current = firstTimestamp;
+        eventsLengthRef.current = events.length;
       } catch (err) {
         console.error("Failed to initialize rrweb-player:", err);
       }
     }
-
-    const el = playerRef.current;
-    return () => {
-      // Cleanup
-      if (el) {
-        el.innerHTML = "";
-      }
-    };
   }, [events]);
 
   useEffect(() => {
-    if (seekToTime && instanceRef.current && events && events.length > 0) {
-      const firstEventTime = events[0].timestamp;
+    return () => {
+      if (playerRef.current) {
+        playerRef.current.innerHTML = "";
+      }
+      instanceRef.current = null;
+      eventsLengthRef.current = 0;
+      firstEventTimestampRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (seekToTime && instanceRef.current && firstEventTimestampRef.current) {
+      const firstEventTime = firstEventTimestampRef.current;
       // Seek slightly before the event (e.g. 2 seconds before) to give context
       const offset = Math.max(0, seekToTime - firstEventTime - 2000);
       try {
@@ -75,7 +111,7 @@ export function ReplayViewer({ events, seekToTime }: ReplayViewerProps) {
         console.warn("Failed to seek rrweb player", e);
       }
     }
-  }, [seekToTime, events]);
+  }, [seekToTime]);
 
   if (!events || events.length < 2) {
     return (

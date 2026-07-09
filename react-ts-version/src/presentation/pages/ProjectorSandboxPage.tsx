@@ -29,6 +29,7 @@ export function ProjectorSandboxPage() {
   const initSession = useWorkspaceStore((s) => s.initSession);
   
   const [activeDrag, setActiveDrag] = useState<{ place: Place; source: DragSource; renderPlace?: Place } | null>(null);
+  const [selectedRange, setSelectedRange] = useState<'1000' | '10000'>('1000');
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 3 } }),
@@ -36,9 +37,10 @@ export function ProjectorSandboxPage() {
   );
 
   useEffect(() => {
+    const targetSession = selectedRange === '1000' ? 1 : 3;
     // אתחול סשן נקי ללוח
-    initSession(1, false);
-  }, [initSession]);
+    initSession(targetSession, false);
+  }, [selectedRange, initSession]);
 
   if (user?.role !== 'teacher' && user?.role !== 'admin') {
     return <Navigate to="/" replace />;
@@ -83,12 +85,31 @@ export function ProjectorSandboxPage() {
           {/* הלוח תופס את כל המסך כדי לאפשר הדגמה גדולה */}
           <section className="flex-1 relative flex flex-col items-center justify-center">
              <div className="w-full max-w-5xl h-full flex flex-col gap-8">
+                {/* Selector UI */}
+                <div className="bg-white rounded-3xl p-4 shadow-sm border border-ws-blue-soft/20 flex-shrink-0 flex items-center justify-between">
+                  <span className="font-bold text-lg text-ws-ink">טווח הדגמה במעבדה:</span>
+                  <div className="flex gap-4">
+                    <button
+                      onClick={() => setSelectedRange('1000')}
+                      className={`px-4 py-2 rounded-xl font-bold transition-all ${selectedRange === '1000' ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                    >
+                      תחום ה-1,000 (מפגשים 1 ו-2)
+                    </button>
+                    <button
+                      onClick={() => setSelectedRange('10000')}
+                      className={`px-4 py-2 rounded-xl font-bold transition-all ${selectedRange === '10000' ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                    >
+                      תחום ה-10,000 (מפגשים 3-8)
+                    </button>
+                  </div>
+                </div>
+
                 <PlaceValueBoard />
                 
                 {/* נוסיף ציר מספרים להדגמה קלה */}
                 <div className="bg-white rounded-3xl p-6 shadow-sm border border-ws-blue-soft/20 flex-shrink-0">
                   <h2 className="text-xl font-bold text-center mb-6 text-ws-blue">ישר המספרים (להדגמה)</h2>
-                  <NumberLineTask range={[0, 1000]} showMarkerValue={true} />
+                  <NumberLineTask range={selectedRange === '1000' ? [0, 1000] : [0, 10000]} showMarkerValue={true} />
                 </div>
              </div>
           </section>

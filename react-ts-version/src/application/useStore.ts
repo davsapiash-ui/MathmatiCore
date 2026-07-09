@@ -44,6 +44,7 @@ export interface StudentData {
   qMatrixResults: QMatrix;
   traceData: TraceData;
   completedMeeting2: boolean;
+  highestCompletedMeeting?: number;
   routeRecommendation: RoutePath | null;
   routeStatus: RouteStatus | null;
   diagnosticReport?: DiagnosticReport | null;
@@ -69,6 +70,7 @@ interface AppState {
   updateTraceData: (studentId: string, updates: Partial<TraceData>) => void;
   updateConceptMastery: (studentId: string, updates: MasteryProfile) => void;
   markMeeting2Complete: (studentId: string) => void;
+  updateHighestCompletedMeeting: (studentId: string, meeting: number) => void;
 
   // Routing Actions
   setRouteRecommendation: (studentId: string, route: RoutePath) => void;
@@ -85,6 +87,7 @@ const generateInitialStudents = (): Record<string, StudentData> => {
       classId: 'class_1',
       name: `user${i}`,
       completedMeeting2: false, // Default
+      highestCompletedMeeting: 0,
       qMatrixResults: {
         task1_zero_placeholder: null,
         task2_estimation_error_margin: null,
@@ -126,6 +129,7 @@ export const useStore = create<AppState>()(
               classId: 'unknown_class',
               name: id.replace('student_', ''),
               completedMeeting2: false,
+              highestCompletedMeeting: 0,
               qMatrixResults: {
                 task1_zero_placeholder: null,
                 task2_estimation_error_margin: null,
@@ -229,8 +233,26 @@ export const useStore = create<AppState>()(
       markMeeting2Complete: (studentId) => set((state) => {
         const students = { ...state.students };
         if (students[studentId]) {
-          students[studentId] = { ...students[studentId], completedMeeting2: true };
+          const currentHighest = students[studentId].highestCompletedMeeting || 0;
+          students[studentId] = { 
+            ...students[studentId], 
+            completedMeeting2: true,
+            highestCompletedMeeting: Math.max(currentHighest, 2)
+          };
           firebaseSyncService.syncMeeting2Complete(studentId).catch(console.error);
+          firebaseSyncService.syncHighestCompletedMeeting(studentId, Math.max(currentHighest, 2)).catch(console.error);
+        }
+        return { students };
+      }),
+
+      updateHighestCompletedMeeting: (studentId, meeting) => set((state) => {
+        const students = { ...state.students };
+        if (students[studentId]) {
+          const currentHighest = students[studentId].highestCompletedMeeting || 0;
+          if (meeting > currentHighest) {
+            students[studentId] = { ...students[studentId], highestCompletedMeeting: meeting };
+            firebaseSyncService.syncHighestCompletedMeeting(studentId, meeting).catch(console.error);
+          }
         }
         return { students };
       }),

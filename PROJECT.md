@@ -12,9 +12,9 @@ MathmatiCore is an LMS application built with React, TypeScript, Tailwind CSS, Z
 | # | Name | Scope | Dependencies | Status |
 |---|---|---|---|---|
 | M1 | Assessment | Explore codebase to find file locations and logic mappings | None | DONE |
-| M2 | UI & Mechanics Repair (R1) | Enforce manual regrouping, update instructions, hide thousands in Sessions 1&2, verify tasks numbers <= 1000 | M1 | IN_PROGRESS (worker_2: b96feded-3f37-4c2f-82ae-e4be91f5b289) |
-| M3 | State & Radar Synchronization (R2) | Implement 3s sliding window/15s cooldown for PASSIVE_DRIFTING, prevent teacher dashboard leakage, preserve radar hooks fix, fix telemetry/replays | M2 | IN_PROGRESS (worker_2: b96feded-3f37-4c2f-82ae-e4be91f5b289) |
-| M4 | Verification & CI/CD Deployment | Run test suite, simulate trace verification, audit integrity, deploy to Firebase | M3 | PLANNED |
+| M2 | UI & Mechanics Repair (R1) | Enforce manual regrouping, update instructions, hide thousands in Sessions 1&2, verify tasks numbers <= 1000 | M1 | DONE |
+| M3 | State & Radar Synchronization (R2) | Implement 3s sliding window/15s cooldown for PASSIVE_DRIFTING, prevent teacher dashboard leakage, preserve radar hooks fix, fix telemetry/replays | M2 | DONE |
+| M4 | Verification & CI/CD Deployment | Run test suite, simulate trace verification, audit integrity, deploy to Firebase | M3 | DONE |
 
 ## Interface Contracts
 ### Workspace state ↔ Firebase Sync

@@ -107,3 +107,13 @@ Do not stop until you are 100% certain the entire system is flawless.
 <USER_REQUEST>
 FYI: The user just manually edited `database.rules.json` to add top-level `.write` permissions for the admin on `radar_alerts` and `chat_messages`. This is crucial for allowing the admin to programmatically clear out old traces without Permission Denied errors. Please ensure your subagents include these rules in their final deployment sweeps.
 </USER_REQUEST>
+
+## Follow-up — 2026-07-09T13:07:37Z
+
+<USER_REQUEST>
+CRITICAL WARNING FROM USER REGARDING VICTORY AUDITOR:
+The user explicitly warned: "Make sure he doesn't develop too much independence and create a different product for me!" 
+
+You must IMMEDIATELY instruct the Victory Auditor (`502a9b72-4f15-4401-a24e-3e0ee9bf3e34`) to strictly adhere to its read-only auditing mandate. 
+It must NOT rewrite working code, it must NOT alter the UI design, and it must NOT introduce new architectural features. Its ONLY job is to verify that the existing codebase exactly matches the requirements specified in `AGENTS.md` and the `מסמכי אפיון` folder. Prevent any scope creep or unprompted refactoring!
+</USER_REQUEST>

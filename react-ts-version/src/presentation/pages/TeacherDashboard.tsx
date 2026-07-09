@@ -69,6 +69,7 @@ export function TeacherDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedReplayStudentId, setSelectedReplayStudentId] = useState<string | null>(null);
   const [liveReplayEvents, setLiveReplayEvents] = useState<any[]>([]);
+  const [studentRadarHistory, setStudentRadarHistory] = useState<any[]>([]);
 
   useEffect(() => {
     if (selectedReplayStudentId) {
@@ -130,6 +131,37 @@ export function TeacherDashboard() {
       };
     } else {
       setLiveReplayEvents([]);
+    }
+  }, [selectedReplayStudentId]);
+
+  useEffect(() => {
+    if (selectedReplayStudentId) {
+      let unsubscribeRadar: (() => void) | undefined;
+      let cancelled = false;
+      authReady.then(() => {
+        if (cancelled) return;
+        const radarHistoryRef = ref(database, `users/students/${selectedReplayStudentId}/radar_history`);
+        unsubscribeRadar = onValue(radarHistoryRef, (snapshot) => {
+          try {
+            if (snapshot.exists()) {
+              const historyVal = snapshot.val();
+              const historyList = historyVal ? Object.values(historyVal) : [];
+              setStudentRadarHistory(historyList);
+            } else {
+              setStudentRadarHistory([]);
+            }
+          } catch (e) {
+            console.error("Error processing student radar history:", e);
+            setStudentRadarHistory([]);
+          }
+        });
+      });
+      return () => {
+        cancelled = true;
+        unsubscribeRadar?.();
+      };
+    } else {
+      setStudentRadarHistory([]);
     }
   }, [selectedReplayStudentId]);
   
@@ -1248,10 +1280,11 @@ export function TeacherDashboard() {
                               {/* Logs Sidebar */}
                               <div className="w-full xl:w-80 bg-white border-b xl:border-b-0 xl:border-l border-ws-surface2 overflow-y-auto p-4 flex flex-col gap-3">
                                 <h4 className="font-bold text-ws-ink mb-2">ציר זמן אירועים</h4>
-                                {allAlerts.filter((a: any) => a.rawStudentId === selectedReplayStudentId).length === 0 ? (
+                                {studentRadarHistory.length === 0 ? (
                                   <p className="text-sm text-ws-soft">אין אירועי מעקב לתלמיד זה.</p>
                                 ) : (
-                                  allAlerts.filter((a: any) => a.rawStudentId === selectedReplayStudentId)
+                                  studentRadarHistory
+                                    .slice()
                                     .sort((a: any, b: any) => a.timestamp - b.timestamp)
                                     .map((alert: any) => (
                                     <button

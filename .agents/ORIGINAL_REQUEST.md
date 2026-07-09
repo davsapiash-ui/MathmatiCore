@@ -296,3 +296,60 @@ Do not stop until you are 100% certain the entire system is flawless.
 <USER_REQUEST>
 FYI: The user just manually edited `database.rules.json` to add top-level `.write` permissions for the admin on `radar_alerts` and `chat_messages`. This is crucial for allowing the admin to programmatically clear out old traces without Permission Denied errors. Please ensure your subagents include these rules in their final deployment sweeps.
 </USER_REQUEST>
+
+## Follow-up — 2026-07-09T13:07:37Z
+
+<USER_REQUEST>
+CRITICAL WARNING FROM USER REGARDING VICTORY AUDITOR:
+The user explicitly warned: "Make sure he doesn't develop too much independence and create a different product for me!" 
+
+You must IMMEDIATELY instruct the Victory Auditor (`502a9b72-4f15-4401-a24e-3e0ee9bf3e34`) to strictly adhere to its read-only auditing mandate. 
+It must NOT rewrite working code, it must NOT alter the UI design, and it must NOT introduce new architectural features. Its ONLY job is to verify that the existing codebase exactly matches the requirements specified in `AGENTS.md` and the `מסמכי אפיון` folder. Prevent any scope creep or unprompted refactoring!
+</USER_REQUEST>
+
+## Follow-up — 2026-07-09T13:49:31Z
+
+<USER_REQUEST>
+# Teamwork Project Prompt — Draft
+
+> Status: Launched — Phase 3 (Goal-Driven Final Audit)
+> Goal: Exhaustive holistic system audit until perfection
+
+A goal-driven, relentless holistic audit of the MathmatiCore LMS project. The system must be checked from every conceivable angle (UI, State, Logic, Mechanics, Data Flow, Security, Firebase, CI/CD). If any remaining bug, inconsistency, or mismatch is found, fix it immediately and ensure the `AGENTS.md` and spec documents remain updated.
+
+Working directory: C:/Users/david/Projects/MathmatiCore
+Integrity mode: benchmark
+
+## Requirements
+
+### R1. Persistent Holistic System Audit
+Scour the entire React app, Zustand stores, Firebase rules, and Telemetry pipeline. Do not stop until you have programmatically verified that absolutely no bugs remain. If anything is broken, fix it.
+
+### R2. Strict Pedagogical Alignment
+Verify and enforce the exact agreed-upon pedagogical flow across all files (`sessionTasks.ts`, `QMatrix.ts`, `PlaceValueBoard.tsx`, etc.):
+- **Session 1 & 2:** Restricted to numbers up to 1,000. Thousands column MUST be dynamically hidden.
+- **Teacher Approval Gate:** Replays (`rrweb`) and Logs must be fully accessible and readable by the teacher.
+- **Sessions 3-7 (Adaptive):** Expands to 10,000. Thousands column is visible and functional. No auto-regrouping allowed anywhere.
+
+## Acceptance Criteria
+
+### Verification & Stability
+- [ ] Programmatic E2E Playwright tests explicitly verify the presence/absence of the Thousands column in corresponding sessions.
+- [ ] Telemetry pipeline (ReplayViewer + TeacherDashboard) has 100% test coverage and zero silent failures during rendering.
+- [ ] `AGENTS.md` and `מסמכי אפיון` perfectly mirror the final state of the codebase.
+</USER_REQUEST>
+
+## Follow-up — 2026-07-09T14:15:39Z
+
+<USER_REQUEST>
+CRITICAL USER CORRECTION:
+The user explicitly wants the "Thousands" (אלפים) column to be VISIBLE at all times, even in Sessions 1 and 2! 
+
+The user's rule "Sessions 1-2 must be up to 1000" means the EXERCISE VALUES should not exceed 1000. It does NOT mean we should hide the thousands column from the UI. The UI must always have 4 columns (Units, Tens, Hundreds, Thousands).
+
+Your task:
+1. Immediately remove the logic that hides the thousands column in `PlaceValueBoard.tsx` and `BlockPalette.tsx` for Sessions 1 & 2.
+2. The UI must always render 4 columns.
+3. Also fix the Sandbox task logic in `useWorkspaceStore.ts` so that it doesn't just check `s.hasDeletedBlock`, but handles the "5 blocks" dragging validation gracefully.
+</USER_REQUEST>
+

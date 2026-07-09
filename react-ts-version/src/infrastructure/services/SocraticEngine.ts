@@ -105,10 +105,10 @@ export class SocraticEngine {
           id: 'gen_t_est',
           type: 'number_line',
           titleHe: 'תרגול תומך באומדן',
-          instructionHe: 'מקמו את המספר 50 על הישר.',
-          numberA: 50,
-          range: [0, 100],
-          correctAnswer: 50
+          instructionHe: 'מקמו את המספר 5,500 על הישר.',
+          numberA: 5500,
+          range: [0, 10000],
+          correctAnswer: 5500
         });
       }
       if (conceptMastery.relational_thinking < 0.8) {
@@ -116,12 +116,12 @@ export class SocraticEngine {
           id: 'gen_t_sc',
           type: 'small_change',
           titleHe: 'תרגול חשיבה יחסית',
-          instructionHe: 'אם 45 + 10 = 55, כמה הם 45 + 9?',
-          givenHe: '45 + 10 = 55',
-          questionHe: 'כמה הם 45 + 9?',
+          instructionHe: 'אם 4,500 + 1,000 = 5,500, כמה הם 4,500 + 999?',
+          givenHe: '4,500 + 1,000 = 5,500',
+          questionHe: 'כמה הם 4,500 + 999?',
           choices: [
-            { id: 'A', textHe: '54 — קטן ב-1' },
-            { id: 'B', textHe: '56 — גדול ב-1' }
+            { id: 'A', textHe: '5,499 — קטן ב-1' },
+            { id: 'B', textHe: '5,501 — גדול ב-1' }
           ],
           correctAnswer: 'A'
         });
@@ -131,10 +131,10 @@ export class SocraticEngine {
           id: 'gen_t_ma',
           type: 'missing_element',
           titleHe: 'תרגול למציאת נעלם',
-          instructionHe: 'השלימו את המספר החסר במשוואה: □ + 8 = 10',
-          numberA: 8,
-          correctAnswer: 2,
-          numberB: 10,
+          instructionHe: 'השלימו את המספר החסר במשוואה: □ + 800 = 1,000',
+          numberA: 800,
+          correctAnswer: 200,
+          numberB: 1000,
           isSubtraction: false
         });
       }
@@ -142,8 +142,8 @@ export class SocraticEngine {
       // If no specific tasks were added from the above, add general support
       if (tasks.length === 0) {
         tasks.push(
-          { id: 'gen_t1', type: 'vertical_addition', titleHe: 'תרגול תומך 1', instructionHe: 'חיבור במאונך עם עזרים.', numberA: 25, numberB: 17, correctAnswer: 42 },
-          { id: 'gen_t2', type: 'vertical_addition', titleHe: 'תרגול תומך 2', instructionHe: 'נסו לפתור במאונך.', numberA: 36, numberB: 28, correctAnswer: 64 }
+          { id: 'gen_t1', type: 'vertical_addition', titleHe: 'תרגול תומך 1', instructionHe: 'חיבור במאונך בלוח המעבדה.', numberA: 2500, numberB: 1700, correctAnswer: 4200 },
+          { id: 'gen_t2', type: 'vertical_addition', titleHe: 'תרגול תומך 2', instructionHe: 'נסו לפתור במאונך.', numberA: 3600, numberB: 2800, correctAnswer: 6400 }
         );
       }
       
@@ -156,8 +156,8 @@ export class SocraticEngine {
       clinicalDiagnosisHe = "התלמיד הפגין שליטה מלאה (מעל 80%) בכל המיומנויות הקוגניטיביות, ללא מדדי היסוס או חרדה חריגים.";
       actionPlanHe = "מעבר ישיר למסלול 'הירוק' - התקדמות לחקר מתקדם ולאתגרים.";
       tasks.push(
-        { id: 'gen_c1', type: 'vertical_addition', titleHe: 'אתגר 1', instructionHe: 'נסו לפתור תרגיל מאתגר יותר:', numberA: 125, numberB: 134, correctAnswer: 259 },
-        { id: 'gen_c2', type: 'vertical_addition', titleHe: 'אתגר 2', instructionHe: 'נסו לפתור תרגיל מאתגר יותר:', numberA: 245, numberB: 136, correctAnswer: 381 }
+        { id: 'gen_c1', type: 'vertical_addition', titleHe: 'אתגר 1', instructionHe: 'נסו לפתור תרגיל מאתגר יותר:', numberA: 4500, numberB: 3700, correctAnswer: 8200 },
+        { id: 'gen_c2', type: 'vertical_addition', titleHe: 'אתגר 2', instructionHe: 'נסו לפתור תרגיל מאתגר יותר:', numberA: 6250, numberB: 1850, correctAnswer: 8100 }
       );
     }
 

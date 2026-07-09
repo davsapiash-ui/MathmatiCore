@@ -46,8 +46,9 @@ export function VerticalAdditionTask({
 
   const aStr = String(numberA);
   const bStr = String(numberB);
-  // One column per place value; wide enough for the longest operand and the answer.
-  const cols = Math.max(aStr.length, bStr.length, answerLength);
+
+  // One column per place value; wide enough for the longest operand, the answer, and at least 4 places.
+  const cols = Math.max(aStr.length, bStr.length, answerLength, 4);
   // Column places, left→right = high→low (thousands … units).
   const colPlaces: Place[] = PLACE_ORDER.slice(0, cols).reverse();
 

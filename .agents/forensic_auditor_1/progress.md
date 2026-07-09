@@ -1,6 +1,6 @@
 # Progress Tracker
 
-Last visited: 2026-07-09T12:51:45Z
+Last visited: 2026-07-09T13:06:00Z
 
 - [x] Inspect git changes and code difference for hardcoding or facade implementations.
 - [x] Inspect Drag & Drop manual regrouping state logic.
@@ -9,5 +9,5 @@ Last visited: 2026-07-09T12:51:45Z
 - [x] Inspect cross-teacher data leakage prevention filters in the teacher dashboard.
 - [x] Inspect replay, ESM resolution, and recording initialization on auth change.
 - [x] Verify Firebase rules layout.
-- [/] Run build and test suite under `react-ts-version`. (Build succeeded, E2E tests running)
-- [ ] Formulate audit findings and write `handoff.md`.
+- [x] Run build and test suite under `react-ts-version`.
+- [x] Formulate audit findings and write `handoff.md`.

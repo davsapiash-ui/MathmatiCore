@@ -1,8 +1,7 @@
 import { PLACE_VALUES, type Place } from '@/core/placeValue';
-import { PLACE_NAMES_HE } from '@/core/placeValue';
+import { CSSProperties } from 'react';
 import { DienesBlock } from './DienesBlock';
 import { TrashZone } from './TrashZone';
-import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 
 const PALETTE_ITEMS: { place: Place; labelHe: string; scale: number }[] = [
   { place: 'units', labelHe: 'יחידה (1)', scale: 1 },
@@ -16,12 +15,9 @@ const PALETTE_ITEMS: { place: Place; labelHe: string; scale: number }[] = [
  * Hidden entirely at scaffoldLevel >= 3 (vanilla setScaffoldLevel).
  */
 export function BlockPalette({ scaffoldLevel }: { scaffoldLevel: number }) {
-  const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
   if (scaffoldLevel >= 3) return null;
 
-  const paletteItemsToRender = sessionNumber <= 2
-    ? PALETTE_ITEMS.filter(item => item.place !== 'thousands')
-    : PALETTE_ITEMS;
+  const paletteItemsToRender = PALETTE_ITEMS;
 
   return (
     <div

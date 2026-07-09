@@ -34,13 +34,15 @@ export function useWorkspaceRadar(sessionNumber: number) {
       const u = userRef.current;
       if (u?.role === 'teacher') return; // Do not send alerts in Projector Sandbox Mode
 
+      const uid = u?.uid ?? 'unknown';
+
       // uid is the ONE canonical identity field (Login stores {uid, role, displayName}).
       const alert = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         type,
-        studentId: u?.uid ?? 'unknown',
-        student: u?.uid ?? 'unknown',
-        username: u?.uid ?? 'unknown',
+        studentId: uid,
+        student: uid,
+        username: uid,
         studentName: u?.displayName ?? 'תלמיד',
         taskId: taskIdRef.current,
         sessionNumber,
@@ -59,6 +61,9 @@ export function useWorkspaceRadar(sessionNumber: number) {
         .then((ok) => {
           if (!ok) return;
           push(ref(database, 'radar_alerts'), alert).catch(() => {});
+          if (uid && uid !== 'unknown') {
+            push(ref(database, `users/students/${uid}/radar_history`), alert).catch(() => {});
+          }
         })
         .catch(() => {});
     }

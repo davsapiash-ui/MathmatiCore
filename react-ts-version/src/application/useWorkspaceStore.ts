@@ -38,7 +38,7 @@ import { radar } from '@/features/workspace/radarBus';
 
 const UNDO_STACK_CAP = 50;
 
-export type SessionNumber = 1 | 2 | 3 | 4;
+export type SessionNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 export type SupportType = 'metacognitive' | 'socratic' | 'worked_example';
 export type HelpState = 'closed' | 'friction' | 'palette' | SupportType;
 export type FlowStatus = 'task' | 'reflection' | 'sessionDone';
@@ -175,10 +175,9 @@ export function selectScaffoldLevel(s: WorkspaceState): number {
 
 export function getActiveTasks(s: WorkspaceState): SessionTask[] {
   // Session 2 runs through the Q-Matrix flow — it has no standard task list.
-  // (Calling getSessionTasks(2) returned undefined and crashed the topbar.)
   if (s.sessionNumber === 2) return [];
   if (s.sessionNumber === 3 && s.aiTasks) return s.aiTasks;
-  return getSessionTasks(s.sessionNumber as 1 | 3 | 4) ?? [];
+  return getSessionTasks(s.sessionNumber as any) ?? [];
 }
 
 export function selectStandardTask(s: WorkspaceState): SessionTask | null {
@@ -215,7 +214,7 @@ export function selectCanProceed(s: WorkspaceState): boolean {
     if (task.correctAnswer === 'proceed_any' || !task.choices?.length) {
       // Standard progress logic
       if (task.id === 's1_sandbox_controlled') {
-        return s.hasInteracted && s.hasDeletedBlock;
+        return s.blocksAddedCount >= 5 && s.hasDeletedBlock;
       }
       if (task.id === 's1_t3' && (!s.hasDeletedBlock || selectBoardValue(s) !== 50)) return false;
       if (task.id === 's1_t5' && (!s.hasUngrouped || selectBoardValue(s) !== 40)) return false;
@@ -535,6 +534,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     }
 
     // Session complete (vanilla auto-chains 1→2 and 3→4).
+    const studentId = useAuthStore.getState().user?.uid;
+    if (studentId) {
+      useStore.getState().updateHighestCompletedMeeting(studentId, s.sessionNumber);
+    }
+
     if (s.sessionNumber === 1) {
       set({ awaitingNext: true });
       showFeedback({ correct: true, title: 'כָּל הַכָּבוֹד! מִפְגָּשׁ 1 הוּשְׁלַם בְּהַצְלָחָה! 🎉', sub: 'עוֹבְרִים כָּעֵת אוֹטוֹמָטִית לְמִפְגָּשׁ 2...' }, 2500, () => {
@@ -669,7 +673,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         helpState: 'closed',
         ...resetTaskInteraction(),
       });
-      const firstId = meeting === 2 ? getCurrentQTask(qflow)?.id ?? '' : (initialAITasks ?? getSessionTasks(meeting as 1 | 3 | 4))[0]?.id ?? '';
+      const firstId = meeting === 2 ? getCurrentQTask(qflow)?.id ?? '' : (initialAITasks ?? getSessionTasks(meeting as any))[0]?.id ?? '';
       radar.setTask(firstId);
     },
 
