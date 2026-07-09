@@ -1093,7 +1093,7 @@ export function TeacherDashboard() {
                     {(() => {
                       const s = students[selectedReplayStudentId];
                       if (!s) return null;
-                      const hasRecording = liveReplayEvents.length > 2;
+                      const hasRecording = liveReplayEvents.length >= 2;
                       const socraticApproval = s.diagnosticReport || pendingApprovals.find(a => a.studentId === selectedReplayStudentId);
 
                       return (
@@ -1248,10 +1248,10 @@ export function TeacherDashboard() {
                               {/* Logs Sidebar */}
                               <div className="w-full xl:w-80 bg-white border-b xl:border-b-0 xl:border-l border-ws-surface2 overflow-y-auto p-4 flex flex-col gap-3">
                                 <h4 className="font-bold text-ws-ink mb-2">ציר זמן אירועים</h4>
-                                {allAlerts.filter((a: any) => a.student === selectedReplayStudentId).length === 0 ? (
+                                {allAlerts.filter((a: any) => a.rawStudentId === selectedReplayStudentId).length === 0 ? (
                                   <p className="text-sm text-ws-soft">אין אירועי מעקב לתלמיד זה.</p>
                                 ) : (
-                                  allAlerts.filter((a: any) => a.student === selectedReplayStudentId)
+                                  allAlerts.filter((a: any) => a.rawStudentId === selectedReplayStudentId)
                                     .sort((a: any, b: any) => a.timestamp - b.timestamp)
                                     .map((alert: any) => (
                                     <button

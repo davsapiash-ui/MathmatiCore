@@ -1,23 +1,26 @@
-# Handoff Report — Sentinel Agent (Exhaustive System Audit & Session 3-4 Scope)
+# Handoff Report — Sentinel Agent (Final Sweep Wave Initialized)
 
 ## Observation
-A critical directive was received:
-1. Conduct an exhaustive, system-wide audit of UI, State, Logic, Mechanics, Data Flow, Security, Firebase, CI/CD.
-2. The user has manually edited `src/data/sessionTasks.ts` to add tasks in the thousands for Sessions 3 & 4.
-3. The "thousands" column on the PlaceValueBoard must be visible and functional in Sessions 3 and 4, but restricted/hidden in Sessions 1 and 2.
+The user requested a new wave of testing agents to verify:
+1. That the `telemetry_chunks` Firebase rule actually works on the live deployment.
+2. That there are no remaining bugs in the teacher dashboard replay viewer.
+3. That the Session 3 and 4 tasks perfectly render the "Thousands" column without breaking the board.
+4. Final cleanup of any lingering trace bugs.
 
 ## Logic Chain
-1. Recorded these follow-ups in both ORIGINAL_REQUEST.md files.
-2. Updated Key Constraints in BRIEFING.md.
-3. Forwarded these instructions directly to the Project Orchestrator (ID `85d3acb1-4aa2-44b9-b1d5-fe4c4f865621`).
+1. Recorded the user's latest request in `ORIGINAL_REQUEST.md` (root and agent directories).
+2. Initialized `.agents/orchestrator_final_sweep/progress.md`.
+3. Invoked the `teamwork_preview_orchestrator` subagent (`bab441df-5787-4df9-9a83-c9452775f4c8`) to manage the sweep.
+4. Set Cron 1 (Progress Reporting, every 8 mins) and Cron 2 (Liveness Check, every 10 mins).
+5. Updated `BRIEFING.md` with the new mission, constraints, and orchestrator ID.
 
 ## Caveats
-- Ensure PlaceValueBoard handles the dynamic visibility of the "thousands" column based on the active session number (Session 1-2: hidden; Session 3-4: visible).
-- Validate that the whole system compiles and works under these conditions.
+- Need to monitor orchestrator progress.md regularly via the scheduled cron.
+- The victory_auditor will need to be spawned once the orchestrator claims completion.
 
 ## Conclusion
-The orchestrator has been notified to execute a comprehensive audit and ensure dynamic "thousands" column behavior for the board.
+The final sweep orchestrator is running and under active monitoring by the scheduled crons.
 
 ## Verification Method
-Orchestrator conversation: `85d3acb1-4aa2-44b9-b1d5-fe4c4f865621`.
-Documents updated and ready for review.
+Subagent ID: `bab441df-5787-4df9-9a83-c9452775f4c8`
+Progress file: `.agents/orchestrator_final_sweep/progress.md`

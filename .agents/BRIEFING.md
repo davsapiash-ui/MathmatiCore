@@ -1,12 +1,12 @@
-# BRIEFING — 2026-07-09T15:11:03+03:00
+# BRIEFING — 2026-07-09T15:53:26+03:00
 
 ## Mission
-Systemic, holistic audit and repair of the MathmatiCore LMS project (UI, mechanics, state, and radar synchronization).
+Launch and supervise a new wave of testing/verification (Orchestrator final sweep) to ensure Firebase telemetry, replay viewer, thousands column, and trace logs are flawless.
 
 ## 🔒 My Identity
 - Archetype: sentinel
 - Working directory: c:\Users\david\Projects\MathmatiCore\.agents
-- Orchestrator: 85d3acb1-4aa2-44b9-b1d5-fe4c4f865621
+- Orchestrator: bab441df-5787-4df9-9a83-c9452775f4c8
 - Victory Auditor: TBD
 
 ## 🔒 Key Constraints
@@ -20,9 +20,17 @@ Systemic, holistic audit and repair of the MathmatiCore LMS project (UI, mechani
 - Ensure the curriculum scaling rule is implemented in Q-Matrix (`src/core/QMatrix.ts`) and task definitions (`src/data/sessionTasks.ts`).
 - Conduct exhaustive system-wide audit of UI, State, Logic, Mechanics, Data Flow, Security, Firebase, CI/CD.
 - Ensure the 'thousands' column is visible and functional in Sessions 3 and 4, while remaining hidden/restricted in Sessions 1 and 2.
+- Prioritize fixing the telemetry/recording pipeline IMMEDIATELY. Replays & Logs on Teacher Dashboard must work perfectly.
+- Implement the exact Session Flow: Session 1 (Sandbox <= 1,000), Session 2 (Diagnostic <= 1,000), Teacher Approval Gate (after Session 2, requiring checking AI diagnosis, recordings, logs), Sessions 3-7 (Adaptive <= 10,000, built only after approval), Session 8 (Diagnostic). Document this in AGENTS.md and master spec docs.
+- Protect and deploy the user's manual Firebase rules update adding read/write permissions for the `telemetry_chunks` node.
+- Verify that the `telemetry_chunks` Firebase rule actually works on the live deployment.
+- Verify that there are no remaining bugs in the teacher dashboard replay viewer.
+- Verify that Session 3 and 4 tasks perfectly render the "Thousands" column without breaking the board.
+- Final cleanup of any lingering trace bugs.
+- Protect and deploy the user's manual Firebase rules update adding top-level `.write` permissions for the admin on `radar_alerts` and `chat_messages`.
 
 ## User Context
-- **Last user request**: Critical Directive: Exhaustive audit of UI, State, Logic, Mechanics, Data Flow, Security, Firebase, CI/CD. Confirmed that the "thousands" column must be visible/functional in Sessions 3 & 4 (which have tasks in the thousands), but restricted in Sessions 1 & 2.
+- **Last user request**: Run an exhaustive final sweep verifying telemetry_chunks Firebase rules on live deployment, teacher dashboard replay viewer bugs, Session 3-4 thousands column rendering, and lingering trace bugs.
 - **Pending clarifications**: none
 - **Delivered results**: none for this run
 

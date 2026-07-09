@@ -1,4 +1,4 @@
-# BRIEFING — 2026-07-09T12:30:00Z
+# BRIEFING — 2026-07-09T13:00:00Z
 
 ## Mission
 Systemic, holistic audit and repair of the MathmatiCore LMS project, resolving architectural mismatches (UI, rules, tracing, Firebase).
@@ -45,13 +45,16 @@ Systemic, holistic audit and repair of the MathmatiCore LMS project, resolving a
 | Agent | Type | Work Item | Status | Conv ID |
 |-------|------|-----------|--------|---------|
 | explorer_1 | teamwork_preview_explorer | Investigate codebase | COMPLETED | 76c2547b-40c1-4f36-a622-c456967295ee |
-| worker_1 | teamwork_preview_worker | Repair codebase and add E2E tests | IN_PROGRESS | 36bcb53c-cb56-4a86-8451-992943f57a17 |
+| worker_1 | teamwork_preview_worker | Repair codebase and add E2E tests | COMPLETED | 36bcb53c-cb56-4a86-8451-992943f57a17 |
 | spec_updater_1 | teamwork_preview_worker | Update specifications and AGENTS.md | COMPLETED | dc1cb3f1-1526-4bf5-b4ed-e236d74cbbc0 |
+| spec_updater_2 | teamwork_preview_worker | Update specifications for session flow | COMPLETED | 6ccc8843-bf3a-4bd7-a452-cf38236921ee |
+| worker_2 | teamwork_preview_worker | Repair telemetry pipeline and replays | COMPLETED | b96feded-3f37-4c2f-82ae-e4be91f5b289 |
+| forensic_auditor_1 | teamwork_preview_auditor | Perform forensic integrity audit | IN_PROGRESS | 1e1fb437-c669-4c9f-89e7-d706e872de2d |
 
 ## Succession Status
 - Succession required: no
-- Spawn count: 3 / 16
-- Pending subagents: [36bcb53c-cb56-4a86-8451-992943f57a17]
+- Spawn count: 6 / 16
+- Pending subagents: [1e1fb437-c669-4c9f-89e7-d706e872de2d]
 - Predecessor: none
 - Successor: not yet spawned
 

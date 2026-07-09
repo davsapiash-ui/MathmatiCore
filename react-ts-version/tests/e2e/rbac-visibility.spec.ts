@@ -30,7 +30,7 @@ test.describe('RBAC Visibility Tests', () => {
     await page.getByRole('button', { name: 'התחבר למערכת' }).click();
 
     // Verify Teacher elements exist
-    await expect(page.getByText('מיפוי כיתתי')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'מיפוי כיתתי (Q-Matrix)' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'ניהול כיתה ותלמידים' })).toBeVisible();
     
     // Verify Admin elements are missing

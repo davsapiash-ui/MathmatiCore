@@ -24,7 +24,8 @@ export function ReplayViewer({ events, seekToTime }: ReplayViewerProps) {
         const targetWidth = 900;
         const scale = targetWidth / originalWidth;
 
-        instanceRef.current = new rrwebPlayer({
+        const Player = (rrwebPlayer as any).default || rrwebPlayer;
+        instanceRef.current = new Player({
           target: playerRef.current,
           props: {
             events,
@@ -43,6 +44,8 @@ export function ReplayViewer({ events, seekToTime }: ReplayViewerProps) {
           rrwebWrapper.style.transformOrigin = 'top center';
           // Adjust the container height so it doesn't leave huge empty space
           playerRef.current.style.height = `${originalHeight * scale}px`;
+          playerRef.current.style.width = `${originalWidth * scale}px`;
+          playerRef.current.style.overflow = 'hidden';
           playerRef.current.style.display = 'flex';
           playerRef.current.style.justifyContent = 'center';
         }

@@ -142,7 +142,7 @@ export function StudentWorkspacePage() {
     let cancelled = false;
     const sessionId = Date.now().toString();
 
-    const uid = useAuthStore.getState().user?.uid;
+    const uid = user?.uid;
     if (!uid) return;
     const flushTelemetry = () => {
       if (eventsQueue.length > 0) {
@@ -194,7 +194,7 @@ export function StudentWorkspacePage() {
       window.removeEventListener('beforeunload', flushTelemetry);
       flushTelemetry();
     };
-  }, []);
+  }, [user?.uid]);
 
   // Session-2 estimation: hide the live value display during the number-line task
   // (the point is estimating magnitude, not reading a number).

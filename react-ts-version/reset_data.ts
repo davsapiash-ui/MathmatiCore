@@ -19,7 +19,7 @@ const database = getDatabase(app);
 async function resetAll() {
   console.log("Logging in as admin...");
   try {
-    await signInWithEmailAndPassword(auth, "admin@mathmaticore.local", "123456");
+    await signInWithEmailAndPassword(auth, "admin@mathmaticore.local", "carlibach");
     console.log("Logged in!");
   } catch (e) {
     console.error("Login failed:", e);
@@ -69,6 +69,7 @@ async function resetAll() {
 
       await Promise.all([
         remove(ref(database, `users/students/${studentId}/telemetry_chunks`)),
+        remove(ref(database, `users/students/${studentId}/telemetry_sessions`)),
         remove(ref(database, `approved_tasks/${studentId}`)),
         remove(ref(database, `replays/${studentId}`)),
         remove(ref(database, `ai_pending_approvals/039604483/${studentId}`)).catch(() => {}),

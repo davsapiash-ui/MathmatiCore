@@ -60,7 +60,8 @@ export const authReady: Promise<boolean> = new Promise((resolve) => {
       .then(() => settle(true))
       .catch((e) => {
         console.warn('Anonymous sign-in unavailable:', e?.code ?? e);
-        settle(false);
+        // Delay settling to false to allow subsequent email/password logins to resolve to true
+        setTimeout(() => settle(false), 8000);
       });
   });
 });

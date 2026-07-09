@@ -256,5 +256,43 @@ Exhaustive, no-holds-barred audit of the ENTIRE SYSTEM from EVERY possible aspec
 Additionally, Session 3 and Session 4 tasks in `src/data/sessionTasks.ts` have been manually updated to the thousands (e.g. `s3_t5` uses 4890 + 1750, `s4_t5` uses 5130 - 2850). The "thousands" column MUST be visible and functional in Sessions 3 and 4, while remaining hidden/restricted in Sessions 1 and 2. Make the entire system bulletproof across all these constraints, and finish the job.
 </USER_REQUEST>
 
+## Follow-up — 2026-07-09T12:36:25Z
 
+<USER_REQUEST>
+URGENT ARCHITECTURAL & BUG REPORT:
+1. Replays & Logs are BROKEN: The Teacher Dashboard must be able to view `rrweb` replays and trace logs perfectly. Prioritize fixing the telemetry/recording pipeline IMMEDIATELY.
+2. Session Architecture:
+   - Session 1: Sandbox (up to 1,000).
+   - Session 2: Diagnostic (up to 1,000).
+   - Teacher Approval Gate: After Session 2, the teacher must read the AI diagnosis, check the Recordings (replays), and check the Logs before approving the student to continue.
+   - Sessions 3-7: Adaptive sessions (up to 10,000) generated/built ONLY AFTER the teacher's approval.
+   - Session 8: Another major diagnostic analysis (similar to the one before Session 3).
 
+Instruct the `spec_updater_1` to update `AGENTS.md` and the master spec docs with this exact session flow. Instruct the `worker_1` to drop everything and ensure the Replays/Recordings functionality actually works for the teacher!
+</USER_REQUEST>
+
+## Follow-up — 2026-07-09T12:48:39Z
+
+<USER_REQUEST>
+CRITICAL UPDATE:
+The user manually fixed the Firebase rules (`database.rules.json`) by adding read/write permissions for the `telemetry_chunks` node. Ensure `worker_2` utilizes this fix and deploys it to the Firebase Realtime Database so the replays can actually be written and read.
+</USER_REQUEST>
+
+## Follow-up — 2026-07-09T12:53:26Z
+
+<USER_REQUEST>
+Teamwork תפעיל אותם עוד (Activate Teamwork more). 
+Please run an exhaustive final sweep. The previous Teamwork Orchestrator handled UI mechanics, Radar cooldowns, Q-Matrix up to 1000 rules, and the `telemetry_chunks` Firebase rules fix. 
+Your job is to launch a new wave of testing agents to verify:
+1. That the `telemetry_chunks` Firebase rule actually works on the live deployment.
+2. That there are no remaining bugs in the teacher dashboard replay viewer.
+3. That the Session 3 and 4 tasks (which the user manually updated to the thousands) perfectly render the "Thousands" column without breaking the board.
+4. Final cleanup of any lingering trace bugs.
+Do not stop until you are 100% certain the entire system is flawless.
+</USER_REQUEST>
+
+## Follow-up — 2026-07-09T12:54:36Z
+
+<USER_REQUEST>
+FYI: The user just manually edited `database.rules.json` to add top-level `.write` permissions for the admin on `radar_alerts` and `chat_messages`. This is crucial for allowing the admin to programmatically clear out old traces without Permission Denied errors. Please ensure your subagents include these rules in their final deployment sweeps.
+</USER_REQUEST>
