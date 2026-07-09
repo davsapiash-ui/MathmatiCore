@@ -58,12 +58,14 @@ Conduct a goal-driven final audit of the entire MathmatiCore LMS project to veri
 | subagent_1 | teamwork_preview_explorer | Explore codebase for gaps & bugs | completed | 71bfd9ff-2582-43ab-b407-d847acbfdc0e |
 | subagent_2 | teamwork_preview_worker | Implement fixes & E2E tests | completed | 6de70b3f-7c47-40b8-abff-8b3c75b3af49 |
 | subagent_3 | teamwork_preview_auditor | Perform forensic integrity audit | failed | 01b774db-a457-4d55-ad78-4e1b8ef87676 |
-| subagent_4 | teamwork_preview_worker | Remediation & test directory fix | in-progress | b8eaee14-e4de-41eb-bb53-128fd612c613 |
+| subagent_4 | teamwork_preview_worker | Remediation & test directory fix | completed | b8eaee14-e4de-41eb-bb53-128fd612c613 |
+| subagent_5 | teamwork_preview_auditor | Perform forensic integrity audit gen 2 | completed | d842e468-da74-4650-b005-a0c6f6a86754 |
+| subagent_6 | teamwork_preview_worker | Sync documentation in Hebrew | in-progress | 490c38eb-3eec-4176-9275-032d40c8e41a |
 
 ## Succession Status
 - Succession required: no
-- Spawn count: 4 / 16
-- Pending subagents: b8eaee14-e4de-41eb-bb53-128fd612c613
+- Spawn count: 6 / 16
+- Pending subagents: 490c38eb-3eec-4176-9275-032d40c8e41a
 - Predecessor: none
 - Successor: not yet spawned
 
