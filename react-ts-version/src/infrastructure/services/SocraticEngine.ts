@@ -191,7 +191,8 @@ export class SocraticEngine {
     await update(ref(database, `users/students/${studentId}`), {
       qMatrixResults: qMatrix,
       conceptMastery,
-      traceData: traceData || { hesitation_events: 0, undo_clicks: 0 }
+      traceData: traceData || { hesitation_events: 0, undo_clicks: 0 },
+      routeStatus: 'PENDING'
     });
 
     await AuditLogger.log(
