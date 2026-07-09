@@ -134,6 +134,9 @@ export function ReflectionScreen() {
       }
     } catch (e) {
       console.error("Failed to save reflection:", e);
+      alert("אירעה שגיאה בשמירת הרפלקציה והכנת המשימות הבאות. אנא נסה שוב.");
+      setDone(false);
+      return;
     }
     
     navigate('/hub');

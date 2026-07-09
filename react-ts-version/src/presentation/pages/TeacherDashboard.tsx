@@ -1377,8 +1377,9 @@ export function TeacherDashboard() {
                                 const isFallback = fallbackApprovals.some(a => a.id === approval.id);
                                 const targetTeacherId = isFallback ? "teacher-1" : TEACHER_ID;
                                 await SocraticEngine.approveTasks(targetTeacherId, approval.id, approval.studentId, approval.tasks);
-                              } catch {
-                                /* offline — local approval still recorded; Firebase retry on next click */
+                              } catch (err) {
+                                console.error('Firebase task approval failed:', err);
+                                alert('שגיאה באישור המשימות ב-Firebase.');
                               }
                             }
                           }}
@@ -1398,8 +1399,9 @@ export function TeacherDashboard() {
                                 await SocraticEngine.rejectTasks(targetTeacherId, approval.id);
                                 setTeacherApprovals(prev => prev.filter(a => a.id !== approval.id));
                                 setFallbackApprovals(prev => prev.filter(a => a.id !== approval.id));
-                              } catch {
-                                /* offline */
+                              } catch (err) {
+                                console.error('Firebase task rejection failed:', err);
+                                alert('שגיאה בדחיית המשימות ב-Firebase.');
                               }
                             }
                           }}

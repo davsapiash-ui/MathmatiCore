@@ -87,6 +87,9 @@ export const useChatStore = create<ChatState>()(
         text,
         timestamp: Date.now(),
         read: false
+      }).catch((err) => {
+        console.error("Error sending message:", err);
+        alert("שגיאה בשליחת ההודעה. אנא נסה שוב.");
       });
     },
 
@@ -111,6 +114,9 @@ export const useChatStore = create<ChatState>()(
         imageUrl: dataUrl,
         timestamp: Date.now(),
         read: false
+      }).catch((err) => {
+        console.error("Error sending image message:", err);
+        alert("שגיאה בשליחת ההודעה. אנא נסה שוב.");
       });
     },
 

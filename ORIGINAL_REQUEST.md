@@ -116,4 +116,39 @@ The user explicitly warned: "Make sure he doesn't develop too much independence 
 
 You must IMMEDIATELY instruct the Victory Auditor (`502a9b72-4f15-4401-a24e-3e0ee9bf3e34`) to strictly adhere to its read-only auditing mandate. 
 It must NOT rewrite working code, it must NOT alter the UI design, and it must NOT introduce new architectural features. Its ONLY job is to verify that the existing codebase exactly matches the requirements specified in `AGENTS.md` and the `מסמכי אפיון` folder. Prevent any scope creep or unprompted refactoring!
+
+## Follow-up — 2026-07-09T21:03:47Z
+
+# Teamwork Project Prompt — Draft
+
+> Status: Launched — Phase 3 (Goal-Driven Final Audit)
+> Goal: Exhaustive holistic system audit until perfection
+
+An exhaustive holistic audit of the MathmatiCore LMS project focusing on Firebase Realtime Database Security Rules and Data Flow. The system must be checked to ensure no front-end data schemas conflict with Firebase validation rules, preventing silent write failures.
+
+Working directory: C:/Users/david/Projects/MathmatiCore
+Integrity mode: benchmark
+
+## Requirements
+
+### R1. Complete Firebase Rules vs. Codebase Audit
+Scan every `push`, `set`, `update`, and `remove` operation across the entire React codebase (`react-ts-version/src`). For each operation, cross-reference the data payload structure against the `.validate` and `.write` rules in `database.rules.json`. Identify any mismatches where the frontend sends strings instead of objects, uses wrong keys, or lacks proper authentication context.
+
+### R2. Silent Failure Elimination
+Identify any `try/catch` blocks surrounding Firebase operations that log to console but fail to notify the user or the application state (e.g., bypassing critical engine triggers). Fix these to ensure robust error handling and UI feedback.
+
+### R3. Safe Resolution
+Fix any identified mismatches by either updating the frontend data schema to match the rules, or safely relaxing the rules if they are overly restrictive, without compromising cross-tenant security. DO NOT break existing working components.
+
+### R4. Spec Synchronization
+Update `AGENTS.md` and `מסמכי אפיון` to reflect any new data schemas or architectural changes made during this audit.
+
+## Acceptance Criteria
+
+### Security & Data Integrity
+- [ ] Every Firebase write operation in the codebase is documented and proven to match its corresponding validation rule.
+- [ ] No `permission_denied` errors occur during core user flows (Student login -> Meeting 1/2 -> Reflection -> Teacher Dashboard).
+- [ ] The `ai_pending_approvals` node is successfully written to by a normal student account.
+- [ ] `AGENTS.md` is updated with the exact data schemas expected by Firebase rules.
+
 </USER_REQUEST>

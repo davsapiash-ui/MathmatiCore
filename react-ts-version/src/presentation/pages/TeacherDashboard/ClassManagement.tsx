@@ -60,8 +60,27 @@ export function ClassManagement({ allStudents }: { allStudents: StudentData[] })
         remove(ref(database, `users/students/${studentId}/teacher_hint`)).catch(e => console.warn('teacher_hint', e)),
         remove(ref(database, `approved_tasks/${studentId}`)).catch(e => console.warn('approved_tasks', e)),
         remove(ref(database, `replays/${studentId}`)).catch(e => console.warn('replays', e)),
-        teacherId ? remove(ref(database, `ai_pending_approvals/${teacherId}/${studentId}`)).catch(() => {}) : Promise.resolve(),
       ]);
+
+      // 3.5. Clean up AI pending approvals
+      if (teacherId) {
+        try {
+          const approvalsSnap = await get(ref(database, `ai_pending_approvals/${teacherId}`));
+          const approvalsData = approvalsSnap.val();
+          if (approvalsData) {
+            const rawId = studentId.replace('student_', '');
+            const deletePromises = Object.keys(approvalsData)
+              .filter(key => {
+                const appr = approvalsData[key];
+                return appr?.studentId === studentId || appr?.studentId === rawId;
+              })
+              .map(key => remove(ref(database, `ai_pending_approvals/${teacherId}/${key}`)));
+            await Promise.all(deletePromises);
+          }
+        } catch (err) {
+          console.warn('Failed to clean up AI pending approvals:', err);
+        }
+      }
 
       // 4. Clean up any orphaned radar alerts for this student
       try {

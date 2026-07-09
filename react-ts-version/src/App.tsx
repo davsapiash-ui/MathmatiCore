@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
-import { authReady } from "@/infrastructure/firebase";
+import { authReady, auth } from "@/infrastructure/firebase";
 import { Login } from "@/presentation/pages/Login";
 import { LandingPage } from "@/presentation/pages/LandingPage";
 import { StudentWorkspacePage } from "@/features/workspace/StudentWorkspacePage";
@@ -17,6 +17,16 @@ import { AdminSecurityView } from "@/presentation/pages/admin/AdminSecurityView"
 import { AdminSettingsView } from "@/presentation/pages/admin/AdminSettingsView";
 import { AdminChatView } from "@/presentation/pages/admin/AdminChatView";
 import { useAuthStore } from "@/application/useAuthStore";
+import { SocraticEngine } from "./infrastructure/services/SocraticEngine";
+
+import { useStore } from "@/application/useStore";
+
+// Expose SocraticEngine and Auth for E2E proof testing
+if (typeof window !== 'undefined') {
+  (window as any).SocraticEngine = SocraticEngine;
+  (window as any).firebaseAuth = auth;
+  (window as any).useStore = useStore;
+}
 import { useSettingsStore } from "@/application/useSettingsStore";
 import { useIdleTimeout } from "@/application/useIdleTimeout";
 

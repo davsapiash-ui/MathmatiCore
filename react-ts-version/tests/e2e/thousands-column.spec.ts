@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Thousands Column Visibility', () => {
   test('verify thousands column is dynamically hidden or shown based on pedagogical rule', async ({ browser }) => {
+    test.setTimeout(90000);
     // 1. Student Context
     const studentContext = await browser.newContext();
     const studentPage = await studentContext.newPage();

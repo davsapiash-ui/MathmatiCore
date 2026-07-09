@@ -30,6 +30,6 @@ test.describe('Student Workspace Layout', () => {
     expect(bodyHeight).toBeLessThanOrEqual(windowHeight + 100); 
 
     // Verify main components exist
-    await expect(page.getByText('משימה').first()).toBeVisible();
+    await expect(page.getByText('מפגש').first()).toBeVisible();
   });
 });

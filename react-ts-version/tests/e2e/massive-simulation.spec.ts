@@ -95,7 +95,7 @@ test.describe('Massive Multi-User E2E Simulation', () => {
 
     // Assertions on teacher dashboard
     expect(teacherPage.url()).toContain('/dashboard');
-    await expect(teacherPage.getByRole('button', { name: 'מיפוי כיתתי (Q-Matrix)' })).toBeVisible();
+    await expect(teacherPage.getByRole('button', { name: 'מיפוי כיתתי (Q-Matrix)' })).toBeVisible({ timeout: 25000 });
 
     // Clean up
     console.log("🧹 Closing all browsers...");

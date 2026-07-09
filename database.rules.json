@@ -14,6 +14,7 @@
         ".read": "auth != null && (root.child('users/teachers/' + auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '')).exists() || auth.token.email === 'admin@mathmaticore.local')",
         "$studentId": {
           ".read": "auth != null && (auth.token.email === $studentId + '@mathmaticore.local' || root.child('users/teachers/' + auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '')).exists() || auth.token.email === 'admin@mathmaticore.local')",
+          ".write": "auth != null && (auth.token.email === $studentId + '@mathmaticore.local' || root.child('users/teachers/' + auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '')).exists() || auth.token.email === 'admin@mathmaticore.local')",
           "name": {
             ".write": "auth != null && (auth.token.email === $studentId + '@mathmaticore.local' || root.child('users/teachers/' + auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '')).exists() || auth.token.email === 'admin@mathmaticore.local')"
           },
@@ -35,9 +36,12 @@
           "profile": {
             ".write": "auth != null && (auth.token.email === $studentId + '@mathmaticore.local' || root.child('users/teachers/' + auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '')).exists() || auth.token.email === 'admin@mathmaticore.local')"
           },
-          "qMatrixResults": {
+           "qMatrixResults": {
             ".write": "auth != null && (auth.token.email === $studentId + '@mathmaticore.local' || root.child('users/teachers/' + auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '')).exists() || auth.token.email === 'admin@mathmaticore.local')",
-            "$taskName": { ".validate": "newData.isString()" }
+            "$taskName": { ".validate": "newData.isString() || (newData.hasChildren(['correct', 'tag']) && newData.child('correct').isBoolean() && newData.child('tag').isString()) || !newData.exists()" }
+          },
+          "conceptMastery": {
+            ".write": "auth != null && (auth.token.email === $studentId + '@mathmaticore.local' || root.child('users/teachers/' + auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '')).exists() || auth.token.email === 'admin@mathmaticore.local')"
           },
           "routeRecommendation": { 
             ".write": "auth != null && (root.child('users/teachers/' + auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '')).exists() || auth.token.email === 'admin@mathmaticore.local')",
@@ -108,7 +112,7 @@
       ".read": "auth != null && (root.child('users/teachers/' + auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '')).exists() || auth.token.email === 'admin@mathmaticore.local')",
       ".write": "auth != null && (auth.token.email.matches(/.*@mathmaticore\\.local$/) || auth.token.email === 'admin@mathmaticore.local')",
       "$reflectionId": {
-        ".validate": "newData.hasChildren(['effort', 'strategy', 'timestamp', 'student']) && (newData.child('student/id').val() === auth.token.email.replace('@mathmaticore.local', '') || root.child('users/teachers/' + auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '')).exists() || auth.token.email === 'admin@mathmaticore.local')"
+        ".validate": "newData.hasChildren(['effort', 'timestamp', 'student']) && (newData.child('student/id').val() === auth.token.email.replace('@mathmaticore.local', '') || root.child('users/teachers/' + auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '')).exists() || auth.token.email === 'admin@mathmaticore.local')"
       }
     },
 
@@ -117,6 +121,7 @@
       ".write": "auth != null && auth.token.email === 'admin@mathmaticore.local'",
       "$roomId": {
         ".read": "auth != null && (auth.token.email === $roomId + '@mathmaticore.local' || root.child('users/teachers/' + auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '')).exists() || auth.token.email === 'admin@mathmaticore.local')",
+        ".write": "auth != null && (auth.token.email === $roomId + '@mathmaticore.local' || root.child('users/teachers/' + auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '')).exists() || auth.token.email === 'admin@mathmaticore.local') && !newData.exists()",
         "$messageId": {
           ".write": "auth != null && (auth.token.email === $roomId + '@mathmaticore.local' || root.child('users/teachers/' + auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '')).exists() || auth.token.email === 'admin@mathmaticore.local') && (auth.uid === newData.child('senderId').val() || auth.uid === newData.child('receiverId').val() || auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '') === newData.child('senderId').val() || auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '') === newData.child('receiverId').val() || auth.token.email === 'admin@mathmaticore.local' || auth.token.email === newData.child('senderId').val() || auth.token.email === newData.child('receiverId').val() || !newData.exists() || (newData.hasChildren(['read']) && !newData.hasChildren(['senderId', 'receiverId', 'text', 'timestamp'])))"
         }
