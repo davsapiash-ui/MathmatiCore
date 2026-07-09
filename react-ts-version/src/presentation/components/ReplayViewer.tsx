@@ -34,21 +34,38 @@ export function ReplayViewer({ events, seekToTime }: ReplayViewerProps) {
         mouseTail: false
       });
 
-      // Scale the iframe wrapper internally created by rrweb
-      setTimeout(() => {
-        const iframeWrapper = containerRef.current?.querySelector('.replayer-wrapper') as HTMLElement || containerRef.current?.querySelector('iframe')?.parentElement;
-        if (iframeWrapper) {
-          iframeWrapper.style.transform = `scale(${scale})`;
-          iframeWrapper.style.transformOrigin = 'top center';
-          containerRef.current!.style.height = `${originalHeight * scale}px`;
-          containerRef.current!.style.width = `${targetWidth}px`;
-          containerRef.current!.style.overflow = 'hidden';
-        }
-      }, 50);
-
       // Start playing immediately
       replayerRef.current.play();
       setIsPlaying(true);
+
+      const applyScale = () => {
+        if (!containerRef.current) return;
+        
+        // Measure the actual available width from the parent container
+        const currentWidth = containerRef.current.parentElement?.clientWidth || 900;
+        const scale = currentWidth / originalWidth;
+
+        const iframeWrapper = containerRef.current.querySelector('.replayer-wrapper') as HTMLElement || containerRef.current.querySelector('iframe')?.parentElement;
+        if (iframeWrapper) {
+          iframeWrapper.style.transform = `scale(${scale})`;
+          iframeWrapper.style.transformOrigin = 'top left';
+          iframeWrapper.style.position = 'absolute';
+          iframeWrapper.style.left = '0';
+          iframeWrapper.style.top = '0';
+          
+          containerRef.current.style.height = `${originalHeight * scale}px`;
+          containerRef.current.style.width = `${currentWidth}px`;
+        }
+      };
+
+      // Apply scale after the iframe has been injected
+      setTimeout(applyScale, 50);
+
+      // Make it responsive to window resizes
+      window.addEventListener('resize', applyScale);
+      
+      // Store the listener so we can clean it up
+      (containerRef.current as any)._resizeListener = applyScale;
 
     } catch (err: any) {
       console.error("rrweb Replayer failed:", err);
@@ -62,6 +79,9 @@ export function ReplayViewer({ events, seekToTime }: ReplayViewerProps) {
         try { replayerRef.current.pause(); } catch(e){}
       }
       if (containerRef.current) {
+        if ((containerRef.current as any)._resizeListener) {
+          window.removeEventListener('resize', (containerRef.current as any)._resizeListener);
+        }
         containerRef.current.innerHTML = "";
       }
     };
