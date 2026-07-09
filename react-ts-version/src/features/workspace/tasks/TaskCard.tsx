@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { useWorkspaceStore, selectStandardTask, effectiveArithmetic } from '@/application/useWorkspaceStore';
 import { getCurrentQTask, getEffectiveChoices, getEffectiveNumber, getEffectiveRange, isSubtaskActive } from '@/core/qmatrixFlow';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
+import { AccessibleCard } from '@/presentation/design-system/AccessibleCard';
 import { IntroTask } from './IntroTask';
 import { ChoiceList } from './ChoiceList';
 import { VerticalAdditionTask } from './VerticalAdditionTask';
@@ -38,7 +39,7 @@ export function TaskCard() {
   const taskKey = `${sessionNumber}-${qTask?.id ?? standardTask?.id ?? ''}-${subtask ? 'sub' : qflow.subphase}-${standardTaskIdx}`;
 
   return (
-    <section id="tour-task-card" className="flex-1 min-w-0 ws-card p-8 overflow-y-auto no-scrollbar relative">
+    <AccessibleCard id="tour-task-card" className="flex-1 min-w-0 p-8 overflow-y-auto no-scrollbar relative border-none rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-white/95">
       {/* Soft decorative corner glow — warmth without noise */}
       <div
         aria-hidden="true"
@@ -177,6 +178,6 @@ export function TaskCard() {
           </>
         )}
       </motion.div>
-    </section>
+    </AccessibleCard>
   );
 }

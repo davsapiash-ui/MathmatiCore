@@ -34,34 +34,34 @@ export function LandingPage() {
   }, [user, navigate]);
 
   return (
-    <div dir="rtl" className="relative min-h-screen bg-ws-bg font-body text-ws-ink overflow-hidden">
-      {/* Flat vector background shapes — playful world energy, zero visual noise */}
+    <div dir="rtl" className="relative min-h-screen bg-gradient-to-br from-ws-bg via-ws-bg to-[hsl(var(--ws-blue-soft)/0.4)] font-body text-ws-ink overflow-hidden selection:bg-[hsl(var(--ws-blue-soft))] selection:text-[hsl(var(--ws-blue))]">
+      {/* Soft gradient orbs for background — minimal visual noise, pleasant aesthetics */}
       <div aria-hidden="true" className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-24 -left-24 w-[420px] h-[420px] rounded-full" style={{ backgroundColor: 'hsl(var(--ws-blue) / 0.05)' }} />
-        <div className="absolute -bottom-32 -right-20 w-[380px] h-[380px] rounded-full" style={{ backgroundColor: 'hsl(var(--ws-teal) / 0.06)' }} />
-        <div className="absolute top-[26%] right-[14%] w-16 h-16 rounded-2xl rotate-12" style={{ backgroundColor: 'hsl(var(--ws-accent) / 0.05)' }} />
+        <div className="absolute -top-40 -left-40 w-[600px] h-[600px] rounded-full bg-gradient-to-tr from-[hsl(var(--ws-blue)/0.12)] to-transparent blur-3xl" />
+        <div className="absolute top-[20%] right-[5%] w-[400px] h-[400px] rounded-full bg-gradient-to-bl from-[hsl(var(--ws-accent)/0.08)] to-transparent blur-3xl" />
+        <div className="absolute -bottom-40 -right-20 w-[500px] h-[500px] rounded-full bg-gradient-to-bl from-[hsl(var(--ws-teal)/0.12)] to-transparent blur-3xl" />
       </div>
 
-      {/* Navbar */}
-      <nav className="relative w-full max-w-6xl mx-auto flex justify-between items-center px-6 py-5">
-        <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-2xl ws-brand flex items-center justify-center rotate-[-4deg]">
-            <span className="text-2xl font-black leading-none font-display">מ</span>
+      {/* Navbar - Glassmorphic */}
+      <nav className="relative z-10 w-full max-w-6xl mx-auto flex justify-between items-center px-6 py-4 mt-6 rounded-3xl bg-[hsl(var(--ws-surface)/0.6)] backdrop-blur-xl border border-[hsl(var(--ws-surface-2)/0.5)] shadow-[0_4px_30px_rgba(0,0,0,0.03)]">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[hsl(var(--ws-blue))] to-[hsl(var(--ws-teal))] flex items-center justify-center rotate-[-4deg] shadow-md shadow-[hsl(var(--ws-blue)/0.2)]">
+            <span className="text-2xl font-black leading-none font-display text-white">מ</span>
           </div>
           <span className="text-2xl font-display font-black text-ws-ink tracking-tight">
             מתמטיקאור &copy;
           </span>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           <button
             onClick={() => window.open("https://github.com/MathmatiCore", "_blank")}
-            className="ws-chip hidden md:inline-flex items-center px-5 py-2.5 rounded-full font-display font-bold transition-all"
+            className="hidden md:inline-flex items-center px-6 py-2.5 rounded-full font-display font-bold text-ws-soft hover:text-ws-ink hover:bg-[hsl(var(--ws-surface-2)/0.6)] transition-all duration-300"
           >
             אודות המערכת
           </button>
           <button
             onClick={() => navigate("/login")}
-            className="ws-brand inline-flex items-center px-5 py-2.5 rounded-full font-display font-bold hover:brightness-105 active:scale-[0.98] transition-all"
+            className="inline-flex items-center px-7 py-2.5 rounded-full font-display font-bold text-white bg-gradient-to-r from-[hsl(var(--ws-blue))] to-[hsl(var(--ws-teal))] shadow-lg shadow-[hsl(var(--ws-blue)/0.25)] hover:shadow-[hsl(var(--ws-blue)/0.4)] hover:brightness-105 active:scale-[0.98] transition-all duration-300"
           >
             התחברות למערכת
           </button>
@@ -69,12 +69,12 @@ export function LandingPage() {
       </nav>
 
       {/* Hero */}
-      <main className="relative max-w-6xl mx-auto px-6 pt-16 pb-24 flex flex-col items-center text-center">
+      <main className="relative z-10 w-full max-w-6xl mx-auto px-6 pt-24 pb-32 flex flex-col items-center text-center">
         <motion.div
-          initial={{ opacity: 0, y: 16 }}
+          initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[hsl(var(--ws-blue-soft))] text-[hsl(var(--ws-blue))] font-display font-bold text-sm mb-8 border border-[hsl(var(--ws-blue)/0.25)]"
+          transition={{ duration: 0.6, ease: "easeOut" }}
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[hsl(var(--ws-surface)/0.8)] backdrop-blur-md text-[hsl(var(--ws-blue))] font-display font-bold text-sm mb-10 border border-[hsl(var(--ws-blue)/0.15)] shadow-sm"
         >
           מערכת למידה מותאמת אישית (UDL)
         </motion.div>
@@ -82,19 +82,21 @@ export function LandingPage() {
         <motion.h1
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, delay: 0.08 }}
-          className="font-display font-black text-5xl md:text-7xl tracking-tight leading-tight mb-6"
+          transition={{ duration: 0.6, ease: "easeOut", delay: 0.1 }}
+          className="font-display font-black text-5xl md:text-7xl lg:text-[5rem] tracking-tight leading-[1.1] mb-8 text-ws-ink"
         >
           ללמוד מתמטיקה
           <br />
-          <span className="text-[hsl(var(--ws-blue))]">עם הידיים ועם הלב</span>
+          <span className="text-transparent bg-clip-text bg-gradient-to-l from-[hsl(var(--ws-blue))] to-[hsl(var(--ws-teal))]">
+            עם הידיים ועם הלב
+          </span>
         </motion.h1>
 
         <motion.p
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, delay: 0.16 }}
-          className="text-lg md:text-2xl text-ws-soft max-w-2xl mb-10 leading-relaxed"
+          transition={{ duration: 0.6, ease: "easeOut", delay: 0.2 }}
+          className="text-xl md:text-2xl text-ws-soft max-w-2xl mb-12 leading-relaxed"
         >
           סביבה פדגוגית חמה ומזמינה שבה תלמידים בונים הבנה של ערך המקום צעד אחר
           צעד — בקצב שלהם, בלי טיימרים ובלי לחץ.
@@ -103,40 +105,42 @@ export function LandingPage() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, delay: 0.24 }}
+          transition={{ duration: 0.6, ease: "easeOut", delay: 0.3 }}
         >
           <button
             onClick={() => navigate("/login")}
-            className="ws-btn-primary inline-flex items-center gap-3 px-9 py-4 rounded-full font-display font-extrabold text-lg transition-all"
+            className="group relative inline-flex items-center justify-center gap-3 px-10 py-5 rounded-full font-display font-extrabold text-xl text-white overflow-hidden shadow-xl shadow-[hsl(var(--ws-blue)/0.3)] hover:shadow-[hsl(var(--ws-blue)/0.5)] hover:-translate-y-1 active:translate-y-0 transition-all duration-300"
           >
-            מתחילים ללמוד
-            <ArrowLeft className="w-5 h-5" />
+            {/* Button Gradient Background */}
+            <div className="absolute inset-0 bg-gradient-to-r from-[hsl(var(--ws-blue))] via-[hsl(var(--ws-teal))] to-[hsl(var(--ws-blue))] bg-[length:200%_auto] group-hover:bg-[position:100%_center] transition-all duration-500" />
+            <span className="relative z-10">מתחילים ללמוד</span>
+            <ArrowLeft className="relative z-10 w-6 h-6 group-hover:-translate-x-1 transition-transform duration-300" />
           </button>
         </motion.div>
 
-        {/* Feature cards */}
-        <div className="grid md:grid-cols-3 gap-6 mt-24 w-full text-right">
+        {/* Feature cards - Glassmorphic */}
+        <div className="grid md:grid-cols-3 gap-8 mt-32 w-full text-right">
           {FEATURES.map((f, i) => (
             <motion.div
               key={f.title}
               initial={{ opacity: 0, y: 24 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-40px" }}
-              transition={{ duration: 0.45, delay: i * 0.1 }}
-              className="ws-card p-8 hover:-translate-y-1 hover:shadow-xl transition-all"
+              transition={{ duration: 0.5, ease: "easeOut", delay: i * 0.15 }}
+              className="relative p-10 rounded-3xl bg-[hsl(var(--ws-surface)/0.6)] backdrop-blur-xl border border-[hsl(var(--ws-surface-2)/0.6)] shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(0,0,0,0.08)] transition-all duration-500 group"
             >
-              <div className="w-14 h-14 rounded-2xl bg-[hsl(var(--ws-blue-soft))] flex items-center justify-center mb-6">
-                <f.icon className="w-7 h-7 text-[hsl(var(--ws-blue))]" />
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[hsl(var(--ws-blue)/0.15)] to-[hsl(var(--ws-teal)/0.15)] flex items-center justify-center mb-8 border border-[hsl(var(--ws-blue)/0.1)] group-hover:scale-110 group-hover:rotate-3 transition-transform duration-500">
+                <f.icon className="w-8 h-8 text-[hsl(var(--ws-blue))]" />
               </div>
-              <h3 className="font-display font-extrabold text-xl mb-2 text-ws-ink">{f.title}</h3>
-              <p className="text-ws-soft leading-relaxed">{f.desc}</p>
+              <h3 className="font-display font-extrabold text-2xl mb-4 text-ws-ink tracking-tight">{f.title}</h3>
+              <p className="text-ws-soft text-lg leading-relaxed">{f.desc}</p>
             </motion.div>
           ))}
         </div>
       </main>
 
       {/* Footer */}
-      <footer className="relative border-t border-ws-surface2 py-8 text-center text-sm text-ws-soft">
+      <footer className="relative z-10 border-t border-[hsl(var(--ws-surface-2)/0.5)] bg-[hsl(var(--ws-surface)/0.4)] backdrop-blur-sm py-10 mt-auto text-center text-sm md:text-base font-medium text-ws-soft">
         מתמטיקאור &copy; — סביבת למידה פדגוגית לערך המקום
       </footer>
     </div>

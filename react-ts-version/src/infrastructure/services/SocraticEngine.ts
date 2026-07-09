@@ -22,6 +22,10 @@ export interface PendingAIApproval {
   macroBlueprintHe: string; // Bird's eye view for sessions 3-7
   microBlueprintHe: string; // Ant's work for the immediate next session
   targetSession: string; // The session this gate unlocks (e.g., '3', '4')
+  
+  // Legacy fields
+  clinicalDiagnosisHe?: string;
+  actionPlanHe?: string;
 }
 
 /**

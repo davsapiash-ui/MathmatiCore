@@ -44,13 +44,13 @@ export function PlaceColumn({ place }: { place: Place }) {
     <motion.div
       id={place === 'units' ? 'tour-column-units' : undefined}
       animate={shakeControls}
-      className={`flex-1 min-w-0 flex flex-col rounded-2xl border transition-all duration-300 ${
+      className={`flex-1 min-w-0 flex flex-col rounded-2xl border-2 border-dashed transition-all duration-300 ${
         isDimmed ? 'opacity-30 grayscale pointer-events-none' : ''
-      }`}
+      } ${isOver ? 'animate-[pulse_1.5s_ease-in-out_infinite]' : ''}`}
       style={{
-        borderColor: isOver ? colors.border : 'hsl(var(--ws-surface-2))',
+        borderColor: isOver ? colors.border : 'hsl(var(--ws-surface-2) / 0.8)',
         backgroundColor: isOver || isError ? colors.tint : 'hsl(var(--ws-surface))',
-        boxShadow: isOver ? `0 0 0 3px ${colors.border}` : '0 4px 14px -6px rgba(120,80,20,0.12)',
+        boxShadow: isOver ? `0 0 0 4px ${colors.tint}` : '0 4px 14px -6px rgba(120,80,20,0.12)',
       }}
       aria-label={`טור ${PLACE_NAMES_HE[place]}`}
     >

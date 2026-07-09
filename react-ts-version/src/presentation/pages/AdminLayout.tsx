@@ -108,7 +108,13 @@ export function AdminLayout() {
           </div>
         </Sidebar>
 
-        <main className="flex-1 overflow-hidden relative p-4 pl-0">
+        <main className="flex-1 overflow-hidden relative p-4 pl-0 flex flex-col">
+          {/* Ghost Mode Indicator */}
+          <div className="bg-amber-500/10 border border-amber-500/50 text-amber-700 dark:text-amber-400 rounded-2xl px-4 py-2.5 mb-4 flex items-center justify-center gap-3 text-sm font-bold shadow-sm backdrop-blur-md z-10 shrink-0 mx-4">
+            <span className="text-xl">👻</span>
+            <span>מצב רפאים (Ghost Mode) פעיל: הפעולות שלך אינן נרשמות ואינן נראות למשתמשים אחרים.</span>
+          </div>
+
           {/* Ambient Glows */}
           <div className="fixed top-0 left-1/4 w-[800px] h-[800px] bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-transparent rounded-full blur-[100px] pointer-events-none -z-10 mix-blend-screen dark:mix-blend-lighten animate-in fade-in duration-1000"></div>
           <div className="fixed bottom-0 right-1/4 w-[600px] h-[600px] bg-gradient-to-tl from-cyan-500/10 via-blue-500/5 to-transparent rounded-full blur-[80px] pointer-events-none -z-10 mix-blend-screen dark:mix-blend-lighten animate-in fade-in duration-1000 delay-300"></div>

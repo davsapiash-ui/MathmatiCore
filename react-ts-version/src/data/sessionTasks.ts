@@ -61,7 +61,6 @@ export interface SessionTask {
 
   /* Scaffolding & hints */
   hintHe?: string;
-  scaffoldLevel?: number;
 
   /* Dynamic/adaptive tasks properties */
   range?: [number, number];

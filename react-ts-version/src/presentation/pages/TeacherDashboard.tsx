@@ -498,7 +498,7 @@ export function TeacherDashboard() {
       dir="rtl"
     >
       {/* Sidebar */}
-      <aside className="w-full md:w-64 bg-ws-surface/80 backdrop-blur-xl border-b md:border-b-0 md:border-l border-ws-surface2 flex flex-col shadow-[4px_0_24px_rgba(0,0,0,0.02)] dark:shadow-[4px_0_24px_rgba(0,0,0,0.2)] z-20 transition-all overflow-y-auto max-h-full no-scrollbar">
+      <aside className="sticky top-0 w-full md:w-64 bg-ws-surface/80 backdrop-blur-xl border-b md:border-b-0 md:border-l border-ws-surface2 flex flex-col shadow-[4px_0_24px_rgba(0,0,0,0.02)] dark:shadow-[4px_0_24px_rgba(0,0,0,0.2)] z-20 transition-all overflow-y-auto max-h-[100dvh] no-scrollbar shrink-0">
         <div className="h-20 flex items-center gap-3 px-6 border-b border-ws-surface2 bg-white/40 dark:bg-slate-800/40 shrink-0">
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-display font-black text-lg rotate-[-4deg] shrink-0 shadow-lg shadow-indigo-500/25">
             M
@@ -698,8 +698,8 @@ export function TeacherDashboard() {
               </div>
             </AccessibleCard>
 
-            <div className="flex gap-6 pb-6 overflow-x-auto snap-x snap-mandatory hide-scrollbar" style={{ scrollbarWidth: 'none' }}>
-              <AccessibleCard className="min-w-[400px] snap-center p-8 bg-ws-surface/80  backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-ws-surface2  rounded-2xl relative overflow-hidden group flex-shrink-0">
+            <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-6 pb-6">
+              <AccessibleCard className="flex flex-col h-full p-8 bg-ws-surface/80  backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-ws-surface2  rounded-2xl relative overflow-hidden group">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-cyan-500"></div>
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                 <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink ">
@@ -724,13 +724,13 @@ export function TeacherDashboard() {
                 <UdlButton
                   size="sm"
                   semanticColor="primary"
-                  className="mt-6 w-full shadow-lg shadow-blue-500/20 relative z-10 font-bold tracking-wide"
+                  className="mt-auto pt-6 w-full shadow-lg shadow-blue-500/20 relative z-10 font-bold tracking-wide"
                 >
                   ׳”׳§׳¦׳׳× ׳×׳¨׳’׳•׳ ׳׳•׳×׳׳
                 </UdlButton>
               </AccessibleCard>
 
-              <AccessibleCard className="min-w-[400px] snap-center p-8 bg-ws-surface/80  backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-ws-surface2  rounded-2xl relative overflow-hidden group flex-shrink-0">
+              <AccessibleCard className="flex flex-col h-full p-8 bg-ws-surface/80  backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-ws-surface2  rounded-2xl relative overflow-hidden group">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
                 <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                 <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink ">
@@ -755,13 +755,13 @@ export function TeacherDashboard() {
                 <UdlButton
                   size="sm"
                   semanticColor="primary"
-                  className="mt-6 w-full shadow-lg shadow-emerald-500/20 relative z-10 font-bold tracking-wide"
+                  className="mt-auto pt-6 w-full shadow-lg shadow-emerald-500/20 relative z-10 font-bold tracking-wide"
                 >
                   ׳”׳§׳¦׳׳× ׳”׳׳—׳©׳” ׳—׳–׳•׳×׳™׳×
                 </UdlButton>
               </AccessibleCard>
 
-              <AccessibleCard className="min-w-[400px] snap-center p-8 bg-ws-surface/80  backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-ws-surface2  rounded-2xl relative overflow-hidden group flex-shrink-0">
+              <AccessibleCard className="flex flex-col h-full p-8 bg-ws-surface/80  backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-ws-surface2  rounded-2xl relative overflow-hidden group">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-indigo-500"></div>
                 <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                 <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink ">
@@ -786,13 +786,13 @@ export function TeacherDashboard() {
                 <UdlButton
                   size="sm"
                   semanticColor="primary"
-                  className="mt-6 w-full shadow-lg shadow-indigo-500/20 relative z-10 font-bold tracking-wide"
+                  className="mt-auto pt-6 w-full shadow-lg shadow-indigo-500/20 relative z-10 font-bold tracking-wide"
                 >
                   ׳”׳§׳¦׳׳× ׳¡׳“׳ ׳× ׳—׳§׳¨
                 </UdlButton>
               </AccessibleCard>
 
-              <AccessibleCard className="min-w-[400px] snap-center p-8 bg-ws-surface/80  backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-ws-surface2  rounded-2xl relative overflow-hidden group flex-shrink-0">
+              <AccessibleCard className="flex flex-col h-full p-8 bg-ws-surface/80  backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-ws-surface2  rounded-2xl relative overflow-hidden group">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 to-rose-500"></div>
                 <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                 <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink ">
@@ -817,13 +817,13 @@ export function TeacherDashboard() {
                 <UdlButton
                   size="sm"
                   semanticColor="primary"
-                  className="mt-6 w-full shadow-lg shadow-red-500/20 relative z-10 font-bold tracking-wide"
+                  className="mt-auto pt-6 w-full shadow-lg shadow-red-500/20 relative z-10 font-bold tracking-wide"
                 >
                   ׳”׳§׳¦׳׳× ׳×׳¨׳’׳•׳ ׳׳•׳×׳׳
                 </UdlButton>
               </AccessibleCard>
 
-              <AccessibleCard className="min-w-[400px] snap-center p-8 bg-ws-surface/80  backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-ws-surface2  rounded-2xl relative overflow-hidden group flex-shrink-0">
+              <AccessibleCard className="flex flex-col h-full p-8 bg-ws-surface/80  backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-ws-surface2  rounded-2xl relative overflow-hidden group">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-slate-500 to-gray-500"></div>
                 <div className="absolute inset-0 bg-gradient-to-br from-slate-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                 <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink ">
@@ -848,13 +848,13 @@ export function TeacherDashboard() {
                 <UdlButton
                   size="sm"
                   semanticColor="primary"
-                  className="mt-6 w-full shadow-lg shadow-slate-500/20 relative z-10 font-bold tracking-wide"
+                  className="mt-auto pt-6 w-full shadow-lg shadow-slate-500/20 relative z-10 font-bold tracking-wide"
                 >
                   ׳”׳§׳¦׳” ׳—׳§׳¨ ׳™׳—׳¡׳™׳
                 </UdlButton>
               </AccessibleCard>
 
-              <AccessibleCard className="min-w-[400px] snap-center p-8 bg-ws-surface/80  backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-ws-surface2  rounded-2xl relative overflow-hidden group flex-shrink-0">
+              <AccessibleCard className="flex flex-col h-full p-8 bg-ws-surface/80  backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-ws-surface2  rounded-2xl relative overflow-hidden group">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-500 to-orange-500"></div>
                 <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                 <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink ">
@@ -879,7 +879,7 @@ export function TeacherDashboard() {
                 <UdlButton
                   size="sm"
                   semanticColor="primary"
-                  className="mt-6 w-full shadow-lg shadow-amber-500/20 relative z-10 font-bold tracking-wide"
+                  className="mt-auto pt-6 w-full shadow-lg shadow-amber-500/20 relative z-10 font-bold tracking-wide"
                 >
                   ׳”׳§׳¦׳׳× ׳׳•׳“׳ ׳׳׳–׳ ׳™׳™׳
                 </UdlButton>
