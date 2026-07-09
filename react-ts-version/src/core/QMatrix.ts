@@ -63,7 +63,7 @@ export const TASKS: QMatrixTask[] = [
     id: "task1_zero_placeholder",
     type: "place_value_zero",
     titleHe: "המבנה העשרוני (שומר מקום)",
-    instructionHe: "בנו את המספר המופיע למטה בלוח המחקר, ואז בחרו את המסקנה הנכונה:",
+    instructionHe: "בנו את המספר המופיע למטה בבית המספרים, ואז בחרו את המסקנה הנכונה:",
     number: 805,
     asdNumber: 70,
     choices: [
@@ -112,7 +112,7 @@ export const TASKS: QMatrixTask[] = [
     type: "flexible_decomp",
     scaffoldLevel: 2,
     titleHe: "פירוק והרכבה לפי המבנה העשרוני",
-    instructionHe: "בנו את המספר {{number}} בלוח המחקר, ולחצו \"הוסף ייצוג\". לאחר מכן, חקרו ומצאו דרך נוספת לייצג את אותו המספר ולחצו שוב! (רמז: נסו להיעזר בפריטה).",
+    instructionHe: "בנו את המספר {{number}} בבית המספרים, ולחצו \"הוסף ייצוג\". לאחר מכן, חקרו ומצאו דרך נוספת לייצג את אותו המספר ולחצו שוב! (רמז: נסו להיעזר בפריטה).",
     number: 520,
     asdNumber: 34,
     validRepresentations: [

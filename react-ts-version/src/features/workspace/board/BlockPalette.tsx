@@ -1,5 +1,4 @@
-import { PLACE_VALUES, type Place } from '@/core/placeValue';
-import { CSSProperties } from 'react';
+import { PLACE_VALUES, PLACE_NAMES_HE, type Place } from '@/core/placeValue';
 import { DienesBlock } from './DienesBlock';
 import { TrashZone } from './TrashZone';
 
