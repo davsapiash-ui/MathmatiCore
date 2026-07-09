@@ -1034,10 +1034,15 @@ export function TeacherDashboard() {
 
                       return (
                         <div className="animate-in fade-in zoom-in-95 duration-300">
-                          {/* Top Row: Q-Matrix & Traces */}
+                          {/* Video Replay & Logs Summary Banner */}
+                          <div className="mb-6">
+                            <StudentReplayAndLogs studentId={selectedReplayStudentId} />
+                          </div>
+
+                          {/* Main Content Row: Q-Matrix & Traces */}
                           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
                             {/* Q-Matrix Report */}
-                            <AccessibleCard className="p-6 bg-white border border-ws-surface2 shadow-md rounded-2xl">
+                            <AccessibleCard className="p-6 bg-white border border-ws-surface2 shadow-md rounded-2xl h-full">
                               <h3 className="text-xl font-bold text-ws-ink mb-4 flex items-center gap-2">
                                 <span className="text-ws-accent">📊</span>
                                 תוצאות ה-Q-Matrix
@@ -1083,7 +1088,7 @@ export function TeacherDashboard() {
                             </AccessibleCard>
 
                             {/* Trace Data & AI Plan */}
-                            <AccessibleCard className={`p-6 border shadow-md rounded-2xl flex flex-col ${socraticApproval ? 'bg-indigo-50/50 border-indigo-100' : 'bg-white border-ws-surface2'}`}>
+                            <AccessibleCard className={`p-6 border shadow-md rounded-2xl flex flex-col h-full ${socraticApproval ? 'bg-indigo-50/50 border-indigo-100' : 'bg-white border-ws-surface2'}`}>
                               <h3 className="text-xl font-bold text-ws-ink mb-4 flex items-center gap-2">
                                 <span className="text-ws-accent">🤖</span>
                                 {socraticApproval ? 'המלצת Socratic Engine וסיכום אבחון' : 'מדדי למידה סמויים'}
@@ -1167,9 +1172,6 @@ export function TeacherDashboard() {
                               </div>
                             </AccessibleCard>
                           </div>
-
-                          {/* Video Replay & Logs Dashboard */}
-                          <StudentReplayAndLogs studentId={selectedReplayStudentId} />
                         </div>
                       );
                     })()}

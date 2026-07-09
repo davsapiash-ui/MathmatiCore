@@ -12,6 +12,8 @@ export function ReplayViewer({ events, seekToTime }: ReplayViewerProps) {
   const replayerRef = useRef<any>(null);
   const [isPlaying, setIsPlaying] = useState(true);
 
+  const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
+
   useEffect(() => {
     if (!events || events.length < 2 || !containerRef.current) {
       if (containerRef.current) containerRef.current.innerHTML = "";
@@ -28,7 +30,8 @@ export function ReplayViewer({ events, seekToTime }: ReplayViewerProps) {
       // Initialize raw rrweb Replayer
       replayerRef.current = new Replayer(events, {
         root: containerRef.current,
-        mouseTail: false
+        mouseTail: false,
+        speed: playbackSpeed
       });
 
       // Start playing immediately
@@ -106,6 +109,17 @@ export function ReplayViewer({ events, seekToTime }: ReplayViewerProps) {
     }
   }, [seekToTime, events]);
 
+  // Handle Speed Change
+  const changeSpeed = (speed: number) => {
+    setPlaybackSpeed(speed);
+    if (replayerRef.current) {
+      replayerRef.current.setConfig({ speed });
+      if (isPlaying) {
+        // According to rrweb docs, after setting speed you might need to play again to apply it if it's already playing, or it just applies.
+      }
+    }
+  };
+
   const togglePlay = () => {
     if (replayerRef.current) {
       if (isPlaying) {
@@ -134,29 +148,44 @@ export function ReplayViewer({ events, seekToTime }: ReplayViewerProps) {
   }
 
   return (
-    <div className="flex flex-col items-center w-full mx-auto bg-slate-50 border border-slate-200 shadow-sm overflow-hidden relative">
+    <div className="flex flex-col items-center w-full mx-auto bg-slate-50 border border-slate-200 shadow-sm overflow-hidden relative h-full">
       {/* Custom Timeline Controller */}
-      <div className="w-full bg-slate-800 p-3 flex items-center justify-between z-10 text-white shadow-md" dir="rtl">
+      <div className="w-full bg-slate-800 p-3 flex flex-wrap items-center justify-between z-10 text-white shadow-md gap-4" dir="rtl">
         <div className="flex items-center gap-4">
           <button 
             onClick={togglePlay}
-            className="px-6 py-1.5 bg-indigo-500 hover:bg-indigo-600 active:bg-indigo-700 rounded-md text-sm font-medium transition-colors shadow-sm"
+            className="px-6 py-2 bg-indigo-500 hover:bg-indigo-600 active:bg-indigo-700 rounded-md text-sm font-bold transition-colors shadow-sm"
           >
             {isPlaying ? 'השהה ⏸' : 'נגן ▶️'}
           </button>
-          <div className="text-sm font-medium text-slate-300">
-            תצוגת רדאר פדגוגי 
+          
+          {/* Speed Controls */}
+          <div className="flex items-center bg-slate-700 rounded-lg p-1">
+            {[0.5, 1, 2, 4].map((speed) => (
+              <button
+                key={speed}
+                onClick={() => changeSpeed(speed)}
+                className={`px-3 py-1 text-xs font-bold rounded-md transition-colors ${playbackSpeed === speed ? 'bg-indigo-500 text-white' : 'text-slate-300 hover:bg-slate-600 hover:text-white'}`}
+              >
+                x{speed}
+              </button>
+            ))}
           </div>
         </div>
-        <div className="text-xs text-slate-400 font-mono" dir="ltr">
-          {events.length} frames
+        <div className="flex items-center gap-4">
+          <div className="text-sm font-medium text-slate-300">
+            תצוגת וידאו מוקלט
+          </div>
+          <div className="text-xs text-slate-400 font-mono bg-slate-900 px-3 py-1 rounded-full" dir="ltr">
+            {events.length} frames
+          </div>
         </div>
       </div>
       
       {/* Replayer Container */}
       <div 
         ref={containerRef} 
-        className="w-full relative flex items-start justify-center bg-[#F0F4F8]"
+        className="w-full relative flex items-start justify-center bg-[#F0F4F8] flex-1 overflow-auto"
         style={{ minHeight: '400px' }}
       />
     </div>
