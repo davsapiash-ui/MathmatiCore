@@ -48,9 +48,11 @@ export function ReplayViewer({ events, seekToTime }: ReplayViewerProps) {
         const iframeWrapper = containerRef.current.querySelector('.replayer-wrapper') as HTMLElement || containerRef.current.querySelector('iframe')?.parentElement;
         if (iframeWrapper) {
           iframeWrapper.style.transform = `scale(${scale})`;
-          iframeWrapper.style.transformOrigin = 'top left';
+          // Anchor scaling to the top-right for correct RTL scaling
+          iframeWrapper.style.transformOrigin = 'top right';
           iframeWrapper.style.position = 'absolute';
-          iframeWrapper.style.left = '0';
+          iframeWrapper.style.right = '0';
+          iframeWrapper.style.left = 'auto';
           iframeWrapper.style.top = '0';
           
           containerRef.current.style.height = `${originalHeight * scale}px`;
@@ -129,7 +131,7 @@ export function ReplayViewer({ events, seekToTime }: ReplayViewerProps) {
   }
 
   return (
-    <div className="flex flex-col items-center w-full max-w-[900px] mx-auto bg-slate-50 border border-slate-200 shadow-sm overflow-hidden relative">
+    <div className="flex flex-col items-center w-full mx-auto bg-slate-50 border border-slate-200 shadow-sm overflow-hidden relative">
       {/* Custom Timeline Controller */}
       <div className="w-full bg-slate-800 p-3 flex items-center justify-between z-10 text-white shadow-md" dir="rtl">
         <div className="flex items-center gap-4">
