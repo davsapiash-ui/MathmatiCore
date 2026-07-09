@@ -24,9 +24,6 @@ export function ReplayViewer({ events, seekToTime }: ReplayViewerProps) {
       const metaEvent = events.find((e: any) => e.type === 4);
       const originalWidth = metaEvent?.data?.width || 1280;
       const originalHeight = metaEvent?.data?.height || 720;
-      
-      const targetWidth = 900;
-      const scale = targetWidth / originalWidth;
 
       // Initialize raw rrweb Replayer
       replayerRef.current = new Replayer(events, {
