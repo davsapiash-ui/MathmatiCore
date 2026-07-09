@@ -2,13 +2,25 @@ import { test } from '@playwright/test';
 
 // Base URL points to the live Firebase app (or local dev server). 
 // Update this if the production URL is different.
-const BASE_URL = 'https://mathimaticore.web.app'; 
+const BASE_URL = 'http://localhost:5173'; 
 
 test.describe('Role-Based Workspaces & Cross-Integration Tests', () => {
 
   test('Scenario 1: Admin to Teacher Flow - Admin adds a student and Teacher sees it immediately', async ({ browser }) => {
     const adminContext = await browser.newContext();
     const teacherContext = await browser.newContext();
+
+    // Disable tours
+    await adminContext.addInitScript(() => {
+      window.localStorage.setItem('mathmaticore_has_seen_tour', 'true');
+      window.localStorage.setItem('mathmaticore_has_seen_admin_tour', 'true');
+      window.localStorage.setItem('mathmaticore_has_seen_teacher_tour', 'true');
+    });
+    await teacherContext.addInitScript(() => {
+      window.localStorage.setItem('mathmaticore_has_seen_tour', 'true');
+      window.localStorage.setItem('mathmaticore_has_seen_admin_tour', 'true');
+      window.localStorage.setItem('mathmaticore_has_seen_teacher_tour', 'true');
+    });
     
     const adminPage = await adminContext.newPage();
     const teacherPage = await teacherContext.newPage();
@@ -27,9 +39,9 @@ test.describe('Role-Based Workspaces & Cross-Integration Tests', () => {
     await teacherPage.fill('input[placeholder="תאריך לידה (6 ספרות, במבנה יום-חודש-שנה)"]', '290984');
     await teacherPage.click('button[type="submit"]');
 
-    // We only wait for login to resolve for now to see what we get
-    await adminPage.waitForLoadState('networkidle');
-    await teacherPage.waitForLoadState('networkidle');
+    // Wait for the login and redirection to complete successfully
+    await adminPage.waitForURL(/.*\/admin/, { timeout: 15000 });
+    await teacherPage.waitForURL(/.*\/dashboard/, { timeout: 15000 });
     
     // Check titles or URLs to see if we reached the right place
     const adminUrl = adminPage.url();

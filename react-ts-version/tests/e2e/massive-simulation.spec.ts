@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-const BASE_URL = 'https://mathimaticore.web.app';
+const BASE_URL = 'http://localhost:5173';
 
 test.describe('Massive Multi-User E2E Simulation', () => {
 
@@ -9,6 +9,12 @@ test.describe('Massive Multi-User E2E Simulation', () => {
 
     // Create 6 isolated browser contexts
     const teacherContext = await browser.newContext();
+    await teacherContext.addInitScript(() => {
+      window.localStorage.setItem('mathmaticore_has_seen_tour', 'true');
+      window.localStorage.setItem('mathmaticore_has_seen_admin_tour', 'true');
+      window.localStorage.setItem('mathmaticore_has_seen_teacher_tour', 'true');
+    });
+
     const studentContexts = await Promise.all([
       browser.newContext(),
       browser.newContext(),
@@ -16,6 +22,14 @@ test.describe('Massive Multi-User E2E Simulation', () => {
       browser.newContext(),
       browser.newContext(),
     ]);
+
+    for (const ctx of studentContexts) {
+      await ctx.addInitScript(() => {
+        window.localStorage.setItem('mathmaticore_has_seen_tour', 'true');
+        window.localStorage.setItem('mathmaticore_has_seen_admin_tour', 'true');
+        window.localStorage.setItem('mathmaticore_has_seen_teacher_tour', 'true');
+      });
+    }
 
     const teacherPage = await teacherContext.newPage();
     const studentPages = await Promise.all(studentContexts.map(c => c.newPage()));
