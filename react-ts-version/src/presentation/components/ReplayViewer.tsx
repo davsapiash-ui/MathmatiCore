@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Replayer } from "rrweb";
-import "rrweb/dist/rrweb.min.css";
+import "rrweb-player/dist/style.css";
 
 interface ReplayViewerProps {
   events: any[];
