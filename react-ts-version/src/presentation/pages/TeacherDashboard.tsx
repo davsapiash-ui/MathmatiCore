@@ -1242,7 +1242,7 @@ export function TeacherDashboard() {
                                             <span className="font-semibold text-sm text-indigo-900">{task.titleHe}</span>
                                           </div>
                                           <div className="text-sm font-bold text-indigo-700 bg-indigo-50 px-3 py-1 rounded-md" dir="ltr">
-                                            {task.numberA} {task.isSubtraction ? '-' : '+'} {task.numberB} = ?
+                                            {task.numberA} {task.isSubtraction ? '-' : '﬩'} {task.numberB} = ?
                                           </div>
                                         </div>
                                       ))}

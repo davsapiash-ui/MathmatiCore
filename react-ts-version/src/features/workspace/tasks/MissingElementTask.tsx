@@ -24,7 +24,7 @@ export function MissingElementTask({
   const user = useAuthStore((s) => s.user);
   const sendImageMessage = useChatStore((s) => s.sendImageMessage);
 
-  const sign = isSubtraction ? '-' : '+';
+  const sign = isSubtraction ? '-' : '﬩';
   const speechText = isSubtraction 
     ? `${instructionHe}. כמה צריך לחסר מ-${numberA} כדי להגיע ל-${numberB}?`
     : `${instructionHe}. כמה צריך להוסיף ל-${numberA} כדי להגיע ל-${numberB}?`;

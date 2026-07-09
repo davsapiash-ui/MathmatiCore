@@ -136,7 +136,7 @@ export function VerticalAdditionTask({
           className="flex items-center justify-center font-mono font-black leading-none"
           style={{ fontSize: CELL * 0.55, color: 'hsl(var(--ws-accent))' }}
         >
-          {isSubtraction ? '−' : '+'}
+          {isSubtraction ? '−' : '﬩'}
         </div>
 
         {/* Row 3 — answer inputs inside the same squares (units under units) */}
