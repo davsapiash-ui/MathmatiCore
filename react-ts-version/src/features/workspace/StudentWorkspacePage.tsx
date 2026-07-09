@@ -18,7 +18,7 @@ import { useWorkspaceStore, type SessionNumber } from '@/application/useWorkspac
 import { useSettingsStore } from '@/application/useSettingsStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { database, authReady } from '@/infrastructure/firebase';
-import { ref, onValue, remove, push, get } from 'firebase/database';
+import { ref, push, onValue, remove, get } from 'firebase/database';
 import { useChatStore } from '@/application/useChatStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getCurrentQTask, isSubtaskActive } from '@/core/qmatrixFlow';
