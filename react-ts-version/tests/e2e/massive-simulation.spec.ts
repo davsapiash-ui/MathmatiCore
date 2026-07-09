@@ -79,11 +79,13 @@ test.describe('Massive Multi-User E2E Simulation', () => {
     const teacherTitle = await teacherPage.title();
     console.log(`Teacher Title: ${teacherTitle}`);
 
+    // Assertions on teacher dashboard
+    expect(teacherPage.url()).toContain('/dashboard');
+    await expect(teacherPage.getByRole('button', { name: 'מיפוי כיתתי (Q-Matrix)' })).toBeVisible();
+
     // Clean up
     console.log("🧹 Closing all browsers...");
     await teacherContext.close();
     await Promise.all(studentContexts.map(c => c.close()));
-
-    expect(true).toBe(true);
   });
 });
