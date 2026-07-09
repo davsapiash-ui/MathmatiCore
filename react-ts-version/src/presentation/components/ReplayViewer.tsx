@@ -1,6 +1,6 @@
-import { useEffect, useRef } from "react";
-import rrwebPlayer from "rrweb-player";
-import "rrweb-player/dist/style.css";
+import { useEffect, useRef, useState } from "react";
+import { Replayer } from "rrweb";
+import "rrweb/dist/rrweb.min.css";
 
 interface ReplayViewerProps {
   events: any[];
@@ -8,90 +8,89 @@ interface ReplayViewerProps {
 }
 
 export function ReplayViewer({ events, seekToTime }: ReplayViewerProps) {
-  const playerRef = useRef<HTMLDivElement>(null);
-  const instanceRef = useRef<any>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const replayerRef = useRef<any>(null);
+  const [isPlaying, setIsPlaying] = useState(true);
 
   useEffect(() => {
-    if (!events || events.length <= 1) {
-      if (playerRef.current) {
-        playerRef.current.innerHTML = "";
-      }
-      if (instanceRef.current && typeof instanceRef.current.$destroy === 'function') {
-        try { instanceRef.current.$destroy(); } catch(e){}
-      }
-      instanceRef.current = null;
+    if (!events || events.length < 2 || !containerRef.current) {
+      if (containerRef.current) containerRef.current.innerHTML = "";
       return;
     }
 
-    if (playerRef.current) {
-      // Cleanup previous instance before recreating
-      if (instanceRef.current && typeof instanceRef.current.$destroy === 'function') {
-        try { instanceRef.current.$destroy(); } catch(e){}
-      }
-      playerRef.current.innerHTML = "";
+    containerRef.current.innerHTML = "";
+
+    try {
+      const metaEvent = events.find((e: any) => e.type === 4);
+      const originalWidth = metaEvent?.data?.width || 1280;
+      const originalHeight = metaEvent?.data?.height || 720;
       
-      try {
-        const metaEvent = events.find((e: any) => e.type === 4);
-        const originalWidth = metaEvent?.data?.width || 1280;
-        const originalHeight = metaEvent?.data?.height || 720;
-        
-        // Target width for the dashboard player container
-        const targetWidth = 900;
-        const scale = targetWidth / originalWidth;
+      const targetWidth = 900;
+      const scale = targetWidth / originalWidth;
 
-        const Player = (rrwebPlayer as any).default || rrwebPlayer;
-        if (typeof Player !== 'function') {
-           throw new Error("Player constructor is not a function. rrwebPlayer is: " + typeof rrwebPlayer);
+      // Initialize raw rrweb Replayer
+      replayerRef.current = new Replayer(events, {
+        root: containerRef.current,
+        mouseTail: false
+      });
+
+      // Scale the iframe wrapper internally created by rrweb
+      setTimeout(() => {
+        const iframeWrapper = containerRef.current?.querySelector('.replayer-wrapper') as HTMLElement || containerRef.current?.querySelector('iframe')?.parentElement;
+        if (iframeWrapper) {
+          iframeWrapper.style.transform = `scale(${scale})`;
+          iframeWrapper.style.transformOrigin = 'top center';
+          containerRef.current!.style.height = `${originalHeight * scale}px`;
+          containerRef.current!.style.width = `${targetWidth}px`;
+          containerRef.current!.style.overflow = 'hidden';
         }
+      }, 50);
 
-        instanceRef.current = new Player({
-          target: playerRef.current,
-          props: {
-            events,
-            width: targetWidth,
-            height: originalHeight * scale,
-            autoPlay: true,
-            showController: true,
-            mouseTail: false,
-          },
-        });
+      // Start playing immediately
+      replayerRef.current.play();
+      setIsPlaying(true);
 
-      } catch (err: any) {
-        console.error("Failed to initialize rrweb-player:", err);
-        if (playerRef.current) {
-          playerRef.current.innerHTML = `<div class="p-4 bg-red-50 text-red-600 rounded-lg">שגיאה בטעינת נגן ההקלטות: ${err.message || 'Unknown error'}</div>`;
-        }
+    } catch (err: any) {
+      console.error("rrweb Replayer failed:", err);
+      if (containerRef.current) {
+        containerRef.current.innerHTML = `<div class="p-4 bg-red-50 text-red-600 rounded-lg m-4">שגיאה בטעינת נגן ההקלטות: ${err.message || 'Unknown error'}</div>`;
       }
     }
 
     return () => {
-      if (instanceRef.current && typeof instanceRef.current.$destroy === 'function') {
-        try { instanceRef.current.$destroy(); } catch(e){}
+      if (replayerRef.current) {
+        try { replayerRef.current.pause(); } catch(e){}
       }
-      if (playerRef.current) {
-        playerRef.current.innerHTML = "";
+      if (containerRef.current) {
+        containerRef.current.innerHTML = "";
       }
-      instanceRef.current = null;
     };
   }, [events]);
 
+  // Handle seeking to specific time from teacher alerts
   useEffect(() => {
-    if (seekToTime && instanceRef.current && events && events.length > 0) {
+    if (seekToTime && replayerRef.current && events.length > 0) {
       const firstEventTime = events[0].timestamp;
-      // Seek slightly before the event (e.g. 2 seconds before) to give context
       const offset = Math.max(0, seekToTime - firstEventTime - 2000);
       try {
-        if (typeof instanceRef.current.goto === 'function') {
-          instanceRef.current.goto(offset, true);
-        } else if (instanceRef.current.play) {
-          // Playback might need to be triggered if goto isn't available
-          instanceRef.current.play();
-        }
-      } catch (e) {
-        console.warn("Failed to seek rrweb player", e);
+        replayerRef.current.play(offset);
+        setIsPlaying(true);
+      } catch (err) {
+        console.warn("Could not seek player:", err);
       }
     }
   }, [seekToTime, events]);
+
+  const togglePlay = () => {
+    if (replayerRef.current) {
+      if (isPlaying) {
+        replayerRef.current.pause();
+      } else {
+        replayerRef.current.play();
+      }
+      setIsPlaying(!isPlaying);
+    }
+  };
 
   if (!events || events.length < 2) {
     return (
@@ -110,8 +109,31 @@ export function ReplayViewer({ events, seekToTime }: ReplayViewerProps) {
   }
 
   return (
-    <div className="flex justify-center glass-card p-6 rounded-3xl overflow-hidden w-full" dir="ltr">
-      <div ref={playerRef} className="rrweb-player-container rounded-2xl overflow-hidden shadow-2xl bg-white w-full flex justify-center"></div>
+    <div className="flex flex-col items-center w-full max-w-[900px] mx-auto bg-slate-50 border border-slate-200 shadow-sm overflow-hidden relative">
+      {/* Custom Timeline Controller */}
+      <div className="w-full bg-slate-800 p-3 flex items-center justify-between z-10 text-white shadow-md" dir="rtl">
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={togglePlay}
+            className="px-6 py-1.5 bg-indigo-500 hover:bg-indigo-600 active:bg-indigo-700 rounded-md text-sm font-medium transition-colors shadow-sm"
+          >
+            {isPlaying ? 'השהה ⏸' : 'נגן ▶️'}
+          </button>
+          <div className="text-sm font-medium text-slate-300">
+            תצוגת רדאר פדגוגי 
+          </div>
+        </div>
+        <div className="text-xs text-slate-400 font-mono" dir="ltr">
+          {events.length} frames
+        </div>
+      </div>
+      
+      {/* Replayer Container */}
+      <div 
+        ref={containerRef} 
+        className="w-full relative flex items-start justify-center bg-[#F0F4F8]"
+        style={{ minHeight: '400px' }}
+      />
     </div>
   );
 }

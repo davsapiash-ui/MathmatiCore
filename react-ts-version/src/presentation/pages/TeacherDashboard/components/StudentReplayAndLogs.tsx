@@ -48,14 +48,11 @@ export function StudentReplayAndLogs({ studentId }: { studentId: string }) {
               }
             }
             
-            const validEvents = allEvents.map((e) => {
-              if (typeof e === 'string') {
-                try { return JSON.parse(e); } catch { return null; }
-              }
-              return e;
-            }).filter((e) => e && typeof e === 'object' && 'type' in e);
+            // Filter and ensure they are sorted by timestamp (rrweb-player fails silently if not)
+            const validEvents = allEvents
+              .filter(e => e && typeof e === 'object' && 'type' in e && e.timestamp)
+              .sort((a, b) => a.timestamp - b.timestamp);
             
-            // validEvents.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
             setLiveReplayEvents(validEvents);
           } else {
             setLiveReplayEvents([]);
