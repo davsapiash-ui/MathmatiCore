@@ -40,6 +40,10 @@ export function ReplayViewer({ events, seekToTime }: ReplayViewerProps) {
         const scale = targetWidth / originalWidth;
 
         const Player = (rrwebPlayer as any).default || rrwebPlayer;
+        if (typeof Player !== 'function') {
+           throw new Error("Player constructor is not a function. rrwebPlayer is: " + typeof rrwebPlayer);
+        }
+
         instanceRef.current = new Player({
           target: playerRef.current,
           props: {
@@ -65,9 +69,12 @@ export function ReplayViewer({ events, seekToTime }: ReplayViewerProps) {
               playerRef.current.style.display = 'flex';
               playerRef.current.style.justifyContent = 'center';
             }
-        }, 10);
-      } catch (err) {
+        }, 100); // Increased timeout to ensure DOM is ready
+      } catch (err: any) {
         console.error("Failed to initialize rrweb-player:", err);
+        if (playerRef.current) {
+          playerRef.current.innerHTML = `<div class="p-4 bg-red-50 text-red-600 rounded-lg">שגיאה בטעינת נגן ההקלטות: ${err.message || 'Unknown error'}</div>`;
+        }
       }
     }
 

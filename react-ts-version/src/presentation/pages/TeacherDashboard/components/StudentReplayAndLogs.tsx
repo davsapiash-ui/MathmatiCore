@@ -140,7 +140,11 @@ export function StudentReplayAndLogs({ studentId }: { studentId: string }) {
         {/* Player Container */}
         <div className="flex-1 relative flex items-center justify-center p-6 bg-slate-100/50">
           {hasRecording ? (
-            <div className="w-full flex items-center justify-center rounded-xl overflow-hidden shadow-lg border border-slate-200 bg-white">
+            <div className="w-full flex flex-col items-center justify-center rounded-xl overflow-hidden shadow-lg border border-slate-200 bg-white">
+              {/* DEBUG INFO FOR DIAGNOSING RRWEB PLAYER */}
+              <div className="w-full bg-red-100 text-red-900 p-2 text-xs font-mono break-all border-b border-red-200">
+                DEBUG: Events: {liveReplayEvents.length}, First Event Type: {liveReplayEvents[0]?.type}, Second: {liveReplayEvents[1]?.type}.
+              </div>
               <ReplayViewer events={liveReplayEvents} seekToTime={seekToTime} />
             </div>
           ) : (
