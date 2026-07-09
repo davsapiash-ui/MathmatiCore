@@ -7,6 +7,7 @@ import { NumberLineTask } from './NumberLineTask';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 import { InlineMath } from 'react-katex';
 import 'katex/dist/katex.min.css';
+import { getValue } from '@/core/placeValue';
 
 /**
  * "מעוף הדבורה" — תת-משימת אבחון לאחור: גרסה פשוטה יותר של המשימה שנכשלה.
@@ -18,6 +19,9 @@ export function BackwardDiagnosisView({ task, qflow, isASD }: { task: QMatrixTas
   const demoUngroup = useWorkspaceStore((s) => s.demoUngroup);
   const probeAnswer = useWorkspaceStore((s) => s.probeAnswer);
   const setProbeAnswer = useWorkspaceStore((s) => s.setProbeAnswer);
+  const q3Reps = useWorkspaceStore((s) => s.q3Reps);
+  const addRepresentation = useWorkspaceStore((s) => s.addRepresentation);
+  const done = q3Reps.length >= 2;
 
   if (!diag) return null;
 
@@ -68,6 +72,31 @@ export function BackwardDiagnosisView({ task, qflow, isASD }: { task: QMatrixTas
             הדגם פריטה: עשרת ← 10 יחידות
           </button>
           <p className="text-sm text-ws-soft">אחרי ההדגמה, בנו את המספר בדרך חדשה ולחצו "הוסף ייצוג".</p>
+
+          {q3Reps.length > 0 && (
+            <div className="flex flex-wrap gap-2 justify-center" aria-live="polite">
+              {q3Reps.map((rep, i) => (
+                <span
+                  key={i}
+                  className="px-4 py-2 rounded-full bg-green-50 border border-ws-success text-ws-success font-bold text-sm"
+                >
+                  ✓ ייצוג {i + 1}: {getValue(rep).toLocaleString('he-IL')}
+                </span>
+              ))}
+            </div>
+          )}
+
+          <button
+            onClick={addRepresentation}
+            disabled={done}
+            className={`h-12 px-8 rounded-full font-display font-extrabold text-lg shadow-md transition-all ${
+              done
+                ? 'bg-ws-success text-white cursor-default'
+                : 'bg-ws-accent text-white hover:brightness-105 active:scale-95'
+            }`}
+          >
+            {done ? '✓✓ שני ייצוגים נרשמו' : `+ הוספת ייצוג (${q3Reps.length + 1}/2)`}
+          </button>
         </div>
       )}
 
