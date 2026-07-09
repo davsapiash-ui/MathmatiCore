@@ -296,3 +296,56 @@
     scroll-behavior: auto !important;
   }
 }
+
+@layer utilities {
+  .animate-breathe {
+    animation: slow-breathe 15s ease-in-out infinite alternate;
+  }
+
+  .animate-soft-heartbeat {
+    animation: soft-heartbeat 3s ease-in-out infinite;
+  }
+
+  .transition-math-snap {
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), 
+                opacity 0.3s ease;
+  }
+
+  .mathlight-glow {
+    filter: drop-shadow(0 0 8px hsl(var(--ws-accent) / 0.6));
+    transition: filter 0.3s ease;
+  }
+
+  .card-entrance {
+    animation: fade-slide-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  }
+  .card-entrance:nth-child(1) { animation-delay: 0.1s; }
+  .card-entrance:nth-child(2) { animation-delay: 0.2s; }
+  .card-entrance:nth-child(3) { animation-delay: 0.3s; }
+  .card-entrance:nth-child(4) { animation-delay: 0.4s; }
+}
+
+@keyframes slow-breathe {
+  0% { transform: scale(1) translate(0, 0); }
+  100% { transform: scale(1.03) translate(1%, -1%); }
+}
+
+@keyframes soft-heartbeat {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.3); }
+  50% { transform: scale(1.05); box-shadow: 0 0 0 8px rgba(244, 63, 94, 0); }
+}
+
+@keyframes fade-slide-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-breathe,
+  .animate-soft-heartbeat,
+  .card-entrance,
+  .transition-math-snap {
+    animation: none !important;
+    transition: none !important;
+  }
+}

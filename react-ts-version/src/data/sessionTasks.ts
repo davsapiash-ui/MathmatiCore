@@ -40,6 +40,11 @@ export interface SessionTask {
   type: TaskType;
   titleHe: string;
   instructionHe: string;
+  
+  /** The specific Q-Matrix node this task evaluates for the Micro-Agility Engine */
+  targetNode?: string;
+  /** Scaffold degradation level for Decoupled Vector Scaling (0 = full, 1 = mid, 2 = low) */
+  scaffoldLevel?: number;
 
   /* Two-operand arithmetic (addition_simple / vertical_addition) */
   numberA?: number;

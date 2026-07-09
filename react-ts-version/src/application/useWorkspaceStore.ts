@@ -90,8 +90,13 @@ interface WorkspaceState {
 
   /** Teacher-approved AI-generated task list (Socratic Engine); overrides session tasks when set. */
   aiTasks: SessionTask[] | null;
+  /** Dynamically injected tasks for the current session (Micro-Agility engine). Takes precedence if length > 0. */
+  dynamicTasks: SessionTask[] | null;
+  nodeStrikes: Record<string, number>;
+  successStreak: number;
 
   // actions
+  injectTask: (task: SessionTask, position: 'next' | 'end') => void;
   initSession: (meeting: SessionNumber, isASD: boolean, aiTasks?: SessionTask[] | null) => void;
   applyDrop: (input: DropInput) => void;
   removeBlockClick: (place: Place) => void;
@@ -176,7 +181,8 @@ export function selectScaffoldLevel(s: WorkspaceState): number {
 export function getActiveTasks(s: WorkspaceState): SessionTask[] {
   // Session 2 runs through the Q-Matrix flow — it has no standard task list.
   if (s.sessionNumber === 2) return [];
-  if (s.sessionNumber === 3 && s.aiTasks) return s.aiTasks;
+  if (s.dynamicTasks) return s.dynamicTasks;
+  if (s.sessionNumber >= 3 && s.aiTasks) return s.aiTasks;
   return getSessionTasks(s.sessionNumber as any) ?? [];
 }
 
@@ -391,6 +397,66 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     const task = tasks[s.standardTaskIdx];
     if (!task) return;
 
+    const handleFailure = (detail: string, feedbackTitle: string, feedbackSub: string, feedbackMs: number) => {
+      radar.recordTaskError(task.id, detail);
+      if (task.targetNode && s.sessionNumber >= 3) {
+        const strikes = (s.nodeStrikes[task.targetNode] || 0) + 1;
+        set({ nodeStrikes: { ...s.nodeStrikes, [task.targetNode]: strikes }, successStreak: 0 });
+        
+        if (strikes === 1) {
+          // Micro-Agility: Socratic Buffer
+          set({ helpState: 'friction' });
+        } else if (strikes >= 2) {
+          // Micro-Agility: Decoupled Vector Scaling
+          get().injectTask({
+            id: `scaffold_${task.id}_${Date.now()}`,
+            type: task.type,
+            titleHe: 'תרגיל חיזוק (הזרקה)',
+            instructionHe: 'בואו ננסה תרגיל נוסף כדי לחזק את ההבנה, במספרים קטנים יותר:',
+            targetNode: task.targetNode,
+            scaffoldLevel: 1,
+            numberA: task.numberA ? Math.floor(task.numberA / 2) : undefined,
+            numberB: task.numberB ? Math.floor(task.numberB / 2) : undefined,
+            isSubtraction: task.isSubtraction,
+            requiresGrouping: task.requiresGrouping,
+            requiresUngrouping: task.requiresUngrouping,
+          }, 'next');
+        }
+      }
+      showFeedback({ correct: false, title: feedbackTitle, sub: feedbackSub }, feedbackMs);
+    };
+
+    const handleSuccess = (feedbackTitle: string, feedbackSub: string, feedbackMs: number) => {
+      set({ awaitingNext: true });
+      if (task.targetNode && s.sessionNumber >= 3) {
+        set({ nodeStrikes: { ...s.nodeStrikes, [task.targetNode]: 0 }, successStreak: s.successStreak + 1 });
+        if (s.successStreak + 1 >= 3) {
+          // Micro-Agility: Cognitive Acceleration
+          get().injectTask({
+            id: `challenge_${task.id}_${Date.now()}`,
+            type: task.type,
+            titleHe: 'אתגר מצוינות (הזרקה)',
+            instructionHe: 'מעולה! בואו נראה איך אתם מתמודדים עם אתגר במספרים מורכבים יותר:',
+            targetNode: task.targetNode,
+            numberA: task.numberA ? task.numberA * 10 : undefined,
+            numberB: task.numberB ? task.numberB * 10 : undefined,
+            isSubtraction: task.isSubtraction,
+            requiresGrouping: task.requiresGrouping,
+            requiresUngrouping: task.requiresUngrouping,
+          }, 'next');
+        }
+      }
+      
+      // Scaffold fading (UDL): fade a step on success for scaffolded tasks; capped at 2 by design decision.
+      if ((task.scaffoldLevel ?? 0) >= 1) {
+        set({ scaffoldFadeLevel: Math.min(2, get().scaffoldFadeLevel + 1) });
+      }
+      
+      showFeedback({ correct: true, title: feedbackTitle, sub: feedbackSub }, feedbackMs, () => {
+        advanceStandard();
+      });
+    };
+
     if (task.type === 'session1_intro') {
       // Choiceless exploration tasks ('proceed_any'): any interaction passes — no question to answer.
       if (task.correctAnswer === 'proceed_any' || !task.choices?.length) {
@@ -403,26 +469,19 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           }
         }
 
-        set({ awaitingNext: true });
-        showFeedback({ correct: true, title: 'מעולה! 🌟', sub: 'ממשיכים הלאה.' }, 1500, () => {
-          advanceStandard();
-        });
+        handleSuccess('מעולה! 🌟', 'ממשיכים הלאה.', 1500);
         return;
       }
       if (!s.selectedChoiceId) {
-        showFeedback({ correct: false, title: 'עֲנוּ עַל שְׁאֵלַת הַחֲשִׁיבָה 🤔', sub: 'בַּחֲרוּ אַחַת מֵהָאֶפְשָׁרֻיּוֹת כְּדֵי לְהַמְשִׁיךְ.' }, 2500);
+        handleFailure('no_choice', 'עֲנוּ עַל שְׁאֵלַת הַחֲשִׁיבָה 🤔', 'בַּחֲרוּ אַחַת מֵהָאֶפְשָׁרֻיּוֹת כְּדֵי לְהַמְשִׁיךְ.', 2500);
         return;
       }
       if (s.selectedChoiceId !== task.correctAnswer) {
-        radar.recordTaskError(task.id, 'wrong_choice');
-        showFeedback({ correct: false, title: 'בּוֹאוּ נַחְשֹׁב שׁוּב 🤔', sub: 'הַאִם הוֹסַפְנוּ אוֹ גָּרַעְנוּ קֻבִּיּוֹת כָּלְשֵׁהֵן מִבֵּית הַמִּסְפָּרִים?' }, 2800);
+        handleFailure('wrong_choice', 'בּוֹאוּ נַחְשֹׁב שׁוּב 🤔', 'הַאִם הוֹסַפְנוּ אוֹ גָּרַעְנוּ קֻבִּיּוֹת כָּלְשֵׁהֵן מִבֵּית הַמִּסְפָּרִים?', 2800);
         return;
       }
       // Correct — vanilla text carried a "(100)" copy bug; ported without the number.
-      set({ awaitingNext: true });
-      showFeedback({ correct: true, title: 'נָכוֹן מְאוֹד! 🌟', sub: 'הָעֵרֶךְ נִשְׁאַר זֶהֶה לַחֲלוּטִין כִּי לֹא שִׁנִּינוּ אֶת הַכַּמּוּת הַכּוֹלֶלֶת.' }, 2500, () => {
-        advanceStandard();
-      });
+      handleSuccess('נָכוֹן מְאוֹד! 🌟', 'הָעֵרֶךְ נִשְׁאַר זֶהֶה לַחֲלוּטִין כִּי לֹא שִׁנִּינוּ אֶת הַכַּמּוּת הַכּוֹלֶלֶת.', 2500);
       return;
     }
 
@@ -432,37 +491,27 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const { target } = effectiveArithmetic(task, s.isASD);
       // Gate 1: the blocks must represent the result (forced manipulative representation).
       if (selectBoardValue(s) !== target) {
-        radar.recordTaskError(task.id, 'wrong_blocks');
-        showFeedback(
-          { correct: false, title: 'מערכת המעבדה 🤔', sub: 'בואו נבדוק שוב את הלוח. האם הכמות של הקוביות שהנחתם תואמת בדיוק למה שמופיע בניסוי?' },
-          3500
-        );
+        handleFailure('wrong_blocks', 'מערכת המעבדה 🤔', 'בואו נבדוק שוב את הלוח. האם הכמות של הקוביות שהנחתם תואמת בדיוק למה שמופיע בניסוי?', 3500);
         return;
       }
       // Gate 2: the written answer must match.
       const ansVal = answerDigitsToNumber(s.answerDigits);
       if (ansVal !== target) {
-        radar.recordTaskError(task.id, 'wrong_numeric');
-        showFeedback({ correct: false, title: 'כִּמְעַט... 🧐', sub: 'הַתְּשׁוּבָה שֶׁכְּתַבְתֶּם אֵינָהּ זֵהָה לְסַךְ הַקֻּבִּיּוֹת בַּטַּבְלָה. בִּדְקוּ שׁוּב!' }, 2800);
+        handleFailure('wrong_numeric', 'כִּמְעַט... 🧐', 'הַתְּשׁוּבָה שֶׁכְּתַבְתֶּם אֵינָהּ זֵהָה לְסַךְ הַקֻּבִּיּוֹת בַּטַּבְלָה. בִּדְקוּ שׁוּב!', 2800);
         return;
       }
       // Gate 3: pedagogical progression compliance (grouping/ungrouping actions)
       if (task.requiresGrouping && !s.hasGrouped) {
-        radar.recordTaskError(task.id, 'missed_grouping');
-        showFeedback({ correct: false, title: 'מערכת המעבדה 🤔', sub: 'יש לנו כאן יותר מ-10 יחידות. איך נוכל לארגן אותן בלוח בצורה יעילה יותר מבלי לשנות את הכמות הכוללת? הניסוי דורש קיבוץ.' }, 4500);
+        handleFailure('missed_grouping', 'מערכת המעבדה 🤔', 'יש לנו כאן יותר מ-10 יחידות. איך נוכל לארגן אותן בלוח בצורה יעילה יותר מבלי לשנות את הכמות הכוללת? הניסוי דורש קיבוץ.', 4500);
         return;
       }
       if (task.requiresUngrouping && !s.hasUngrouped) {
-        radar.recordTaskError(task.id, 'missed_ungrouping');
-        showFeedback({ correct: false, title: 'מערכת המעבדה 🤔', sub: 'אין מספיק יחידות כדי לחסר. מאיפה נוכל לארגן עוד יחידות בלוח מבלי לשנות את הכמות הכוללת? נסו לפרוט.' }, 4500);
+        handleFailure('missed_ungrouping', 'מערכת המעבדה 🤔', 'אין מספיק יחידות כדי לחסר. מאיפה נוכל לארגן עוד יחידות בלוח מבלי לשנות את הכמות הכוללת? נסו לפרוט.', 4500);
         return;
       }
 
       // All gates passed.
-      set({ awaitingNext: true });
-      showFeedback({ correct: true, title: 'כָּל הַכָּבוֹד! 🌟', sub: 'פְּתַרְתֶּם נָכוֹן וְיִצַּגְתֶּם זֹאת מְצֻיָּן בְּבֵית הַמִּסְפָּרִים.' }, 2500, () => {
-        advanceStandard();
-      });
+      handleSuccess('כָּל הַכָּבוֹד! 🌟', 'פְּתַרְתֶּם נָכוֹן וְיִצַּגְתֶּם זֹאת מְצֻיָּן בְּבֵית הַמִּסְפָּרִים.', 2500);
       return;
     }
 
@@ -475,29 +524,32 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const deviationPct = deviation / rangeSize;
       const correct = deviationPct <= 0.07;
       if (!correct) {
-        radar.recordTaskError(task.id, `deviation_${Math.round(deviationPct * 100)}pct`);
-        showFeedback({ correct: false, title: 'נסו שוב 🤔', sub: 'החץ רחוק מדי מהמיקום המבוקש.' }, 2500);
+        handleFailure(`deviation_${Math.round(deviationPct * 100)}pct`, 'נסו שוב 🤔', 'החץ רחוק מדי מהמיקום המבוקש.', 2500);
         return;
       }
+      handleSuccess('מְעֻלֶּה! 🌟', 'מִקַּמְתֶּם אֶת הַחֵץ בַּמָּקוֹם הַנָּכוֹן.', 2500);
+      return;
     }
 
     if (task.type === 'small_change') {
       if (!s.selectedChoiceId) return;
       if (s.selectedChoiceId !== task.correctAnswer) {
-        radar.recordTaskError(task.id, 'wrong_choice');
-        showFeedback({ correct: false, title: 'נסו שוב 🤔', sub: 'התשובה שבחרתם אינה נכונה.' }, 2500);
+        handleFailure('wrong_choice', 'נסו שוב 🤔', 'התשובה שבחרתם אינה נכונה.', 2500);
         return;
       }
+      handleSuccess('כָּל הַכָּבוֹד! 🌟', 'תשובה נכונה.', 2500);
+      return;
     }
 
     if (task.type === 'missing_element') {
       const answer = s.probeAnswer ? parseInt(s.probeAnswer, 10) : null;
       if (answer === null || Number.isNaN(answer)) return;
       if (answer !== task.correctAnswer) {
-        radar.recordTaskError(task.id, 'wrong_answer');
-        showFeedback({ correct: false, title: 'נסו שוב 🤔', sub: 'המספר שהזנתם אינו נכון.' }, 2500);
+        handleFailure('wrong_answer', 'נסו שוב 🤔', 'המספר שהזנתם אינו נכון.', 2500);
         return;
       }
+      handleSuccess('כָּל הַכָּבוֹד! 🌟', 'תשובה נכונה.', 2500);
+      return;
     }
 
     if (task.type === 'flexible_decomp') {
@@ -508,18 +560,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const [r1, r2] = s.q3Reps;
       const isIdentical = (['units', 'tens', 'hundreds', 'thousands'] as Place[]).every((p) => r1[p] === r2[p]);
       if (isIdentical) {
-        radar.recordTaskError(task.id, 'canonical_fixation');
-        showFeedback({ correct: false, title: 'הַיִּצּוּגִים זֵהִים 🤔', sub: 'נַסּוּ לִיצֹר אֶת אוֹתוֹ מִסְפָּר בְּדֶרֶךְ אַחֶרֶת (לְמָשָׁל עַל יְדֵי פְּרִיטַת עֲשֶׂרֶת).' }, 2800);
+        handleFailure('canonical_fixation', 'הַיִּצּוּגִים זֵהִים 🤔', 'נַסּוּ לִיצֹר אֶת אוֹתוֹ מִסְפָּר בְּדֶרֶךְ אַחֶרֶת (לְמָשָׁל עַל יְדֵי פְּרִיטַת עֲשֶׂרֶת).', 2800);
         set({ q3Reps: [] });
         return;
       }
+      handleSuccess('כָּל הַכָּבוֹד! 🌟', 'הצלחתם להציג שני ייצוגים שונים.', 2500);
+      return;
     }
 
-    // Scaffold fading (UDL): fade a step on success for scaffolded tasks; capped at 2 by design decision.
-    if ((task.scaffoldLevel ?? 0) >= 1) {
-      set({ scaffoldFadeLevel: Math.min(2, get().scaffoldFadeLevel + 1) });
-    }
-    advanceStandard();
+    // Fallback if none matched
+    handleSuccess('כָּל הַכָּבוֹד! 🌟', 'המשך לשלב הבא.', 2500);
   }
 
   function advanceStandard() {
@@ -653,6 +703,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     feedbackNonce: 0,
     helpState: 'closed',
     aiTasks: null,
+    dynamicTasks: null,
+    nodeStrikes: {},
+    successStreak: 0,
 
     setAITasks: (tasks) => set({ aiTasks: tasks }),
 
@@ -662,6 +715,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         sessionNumber: meeting,
         isASD,
         aiTasks: initialAITasks ?? null,
+        dynamicTasks: null,
+        nodeStrikes: {},
+        successStreak: 0,
         standardTaskIdx: 0,
         qflow,
         flowStatus: 'task',
@@ -675,6 +731,22 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       });
       const firstId = meeting === 2 ? getCurrentQTask(qflow)?.id ?? '' : (initialAITasks ?? getSessionTasks(meeting as any))[0]?.id ?? '';
       radar.setTask(firstId);
+    },
+
+    injectTask: (task, position) => {
+      const s = get();
+      if (s.sessionNumber === 2) return; // Q-Matrix engine handles its own flow
+
+      // Initialize dynamicTasks from current active tasks if null
+      const currentTasks = s.dynamicTasks ? [...s.dynamicTasks] : [...getActiveTasks(s)];
+      
+      if (position === 'next') {
+        currentTasks.splice(s.standardTaskIdx + 1, 0, task);
+      } else {
+        currentTasks.push(task);
+      }
+      
+      set({ dynamicTasks: currentTasks });
     },
 
     applyDrop: (input) => {

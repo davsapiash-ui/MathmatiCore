@@ -313,7 +313,7 @@ export function StudentWorkspacePage() {
       className="h-[100dvh] w-full overflow-hidden font-body text-ws-ink flex flex-col relative bg-ws-bg"
     >
       {/* Flat vector background shapes — playful world energy, zero visual noise */}
-        <div aria-hidden="true" className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div aria-hidden="true" className="absolute inset-0 pointer-events-none overflow-hidden animate-breathe">
           <div className="absolute -top-24 -left-24 w-[420px] h-[420px] rounded-full bg-indigo-500/5 mix-blend-multiply dark:mix-blend-screen" />
           <div className="absolute -bottom-32 -right-20 w-[380px] h-[380px] rounded-full bg-teal-500/5 mix-blend-multiply dark:mix-blend-screen" />
           <div className="absolute top-[30%] right-[42%] w-16 h-16 rounded-2xl rotate-12 bg-blue-500/5 mix-blend-multiply dark:mix-blend-screen" />

@@ -240,6 +240,15 @@ export class SocraticEngine {
     const statusRef = ref(database, `users/students/${studentId}/routeStatus`);
     await set(statusRef, "APPROVED");
   }
+
+  /**
+   * Updates the tasks in a pending approval (used by the Blueprint Editor).
+   */
+  static async updatePendingTasks(teacherId: string, approvalId: string, updatedTasks: SessionTask[]): Promise<void> {
+    await ready();
+    const pendingRef = ref(database, `ai_pending_approvals/${teacherId}/${approvalId}/tasks`);
+    await set(pendingRef, updatedTasks);
+  }
   
   /**
    * Deletes a pending approval (rejection).
