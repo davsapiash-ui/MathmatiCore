@@ -130,7 +130,9 @@
       "element": "string (e.g., tens_block)",
       "target": "string (e.g., units_column)",
       "duration_sec": "number (optional)",
-      "context": "string (optional explanation)"
+      "context": "string (optional explanation)",
+      "state_snapshot": "string (e.g., 'Equation: 45-27, Board: 4 Tens, 5 Units')",
+      "q_matrix_node": "string (e.g., 'regrouping_fluency')"
     }
   ]
   ```

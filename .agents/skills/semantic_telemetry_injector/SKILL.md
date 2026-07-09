@@ -28,7 +28,9 @@ When asked to build or update a student-facing interactive component (like `Dien
     action: 'drag_started', // e.g., 'drag_started', 'drop_invalid', 'hesitation', 'undo'
     element: 'tens_block',  // The specific UI element the user interacted with
     target: 'units_column', // Where the action was directed (if applicable)
-    context: 'Attempting to regroup manually' // Human-readable explanation of intent
+    context: 'Attempting to regroup manually', // Human-readable explanation of intent
+    state_snapshot: 'Equation: 45-27, Board: 4 Tens, 5 Units', // Crucial: Mathematical state at the exact moment
+    q_matrix_node: 'regrouping_fluency' // Crucial: Which Q-Matrix node this action tests/reflects
   };
   ```
 
