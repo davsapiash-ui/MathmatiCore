@@ -50,7 +50,7 @@ export function ReplayViewer({ events, seekToTime }: ReplayViewerProps) {
             events,
             width: originalWidth,
             height: originalHeight,
-            autoPlay: false,
+            autoPlay: true,
             showController: true,
             mouseTail: false,
           },
