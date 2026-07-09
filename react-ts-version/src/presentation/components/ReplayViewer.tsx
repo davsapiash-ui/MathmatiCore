@@ -95,8 +95,14 @@ export function ReplayViewer({ events, seekToTime }: ReplayViewerProps) {
       const firstEventTime = events[0].timestamp;
       const offset = Math.max(0, seekToTime - firstEventTime - 2000);
       try {
-        replayerRef.current.play(offset);
-        setIsPlaying(true);
+        replayerRef.current.pause();
+        // Give it a tiny delay to ensure pause registers before seeking
+        setTimeout(() => {
+          if (replayerRef.current) {
+            replayerRef.current.play(offset);
+            setIsPlaying(true);
+          }
+        }, 10);
       } catch (err) {
         console.warn("Could not seek player:", err);
       }
