@@ -27,30 +27,9 @@ async function dragAndDrop(page, sourceSelector, targetSelector) {
   await page.waitForTimeout(100);
 }
 
-async function clearWorkspaceState(page, studentId) {
-  console.log(`Clearing workspaceState for ${studentId}...`);
-  await page.goto('/login');
-  await page.getByRole('button', { name: 'מנהל' }).click();
-  await page.getByPlaceholder('שם משתמש').fill('davsapiash');
-  await page.getByPlaceholder('סיסמה').fill('carlibach');
-  await page.getByRole('button', { name: 'התחבר למערכת' }).click();
-  await page.waitForURL('**/admin');
-  await page.evaluate(async (id) => {
-    const { getDatabase, ref, set } = await import('firebase/database');
-    const db = getDatabase();
-    await set(ref(db, `users/students/${id}/workspaceState`), null);
-  }, studentId);
-  await page.evaluate(() => {
-    localStorage.clear();
-    sessionStorage.clear();
-  });
-}
-
 test.describe('Telemetry & Replay Pipeline', () => {
   test('verify student telemetry is recorded and replay loads in Teacher Dashboard', async ({ context, page }) => {
-    test.setTimeout(90000); // increase timeout for clearWorkspaceState step
-    // Clear any previous workspaceState that might have NaN
-    await clearWorkspaceState(page, 'student_user7');
+    test.setTimeout(90000);
 
     // Disable driver.js tours
     await context.addInitScript(() => {
@@ -76,6 +55,18 @@ test.describe('Telemetry & Replay Pipeline', () => {
 
     // 2. Perform actions to trigger rrweb events (drag a block and undo it)
     await page.waitForSelector('[id^="palette-units"]', { timeout: 5000 });
+
+    // Clean start: clear out any persistent counts from Firebase
+    await page.evaluate(() => {
+      const store = (window as any).__wsStore;
+      if (store) {
+        store.setState({
+          counts: { units: 0, tens: 0, hundreds: 0, thousands: 0 },
+          undoStack: []
+        });
+      }
+    });
+
     await dragAndDrop(page, '[id^="palette-units"]', '#column-units');
     await expect(page.locator('#column-units [id^="col-units-"]')).toHaveCount(1, { timeout: 5000 });
 

@@ -213,6 +213,12 @@ class FirebaseSyncService {
     await update(masteryRef, masteryUpdates);
   }
 
+  public async syncLiveSessionMetrics(studentId: string, metricsUpdates: any) {
+    if (!studentId) return;
+    const metricsRef = ref(database, `users/students/${studentId}/live_session_metrics`);
+    await update(metricsRef, metricsUpdates);
+  }
+
   public async syncRouteRecommendation(studentId: string, route: string) {
     if (!studentId) return;
     const routeRef = ref(database, `users/students/${studentId}`);

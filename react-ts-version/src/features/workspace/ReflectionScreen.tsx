@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ref, push, get } from 'firebase/database';
+import { ref, push, update } from 'firebase/database';
 import { database, authReady } from '@/infrastructure/firebase';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
-import { SocraticEngine } from '@/infrastructure/services/SocraticEngine';
-import { useStore } from '@/application/useStore';
+
 /**
  * מסך רפלקציה (מפגש 2) — port of vanilla_audit/student/reflection.html.
  * דירוג מאמץ באייקונים בלבד (ללא ציונים מספריים!), בחירת אסטרטגיה מאוירת,
@@ -98,43 +97,17 @@ export function ReflectionScreen() {
       // State persistence is already handled by useWorkspaceStore.ts (via useStore and FirebaseSyncService)
       // right before transitioning to the reflection screen.
 
-      // AI Generation: generate tasks 3-7 based on diagnostic and queue for teacher approval.
-      // Only run if the student actually completed the Q-Matrix tasks (has non-null results).
-      const hasRealQMatrixData = Object.values(qMatrix).some(v => v !== null && v !== undefined);
-      if (hasRealQMatrixData) {
-
-        let resolvedTeacherId = '039604483'; // Safe fallback — the known teacher
-        try {
-          // 1. Read the student's classId from Firebase (source of truth)
-          const studentSnap = await get(ref(database, `users/students/${username}`));
-          const classId = studentSnap.val()?.classId;
-          // 2. Read the class's teacherId from Firebase
-          if (classId) {
-            const classSnap = await get(ref(database, `classes/${classId}`));
-            const fbTeacherId = classSnap.val()?.teacherId;
-            if (fbTeacherId) resolvedTeacherId = fbTeacherId;
-          }
-        } catch {
-          // Fallback already set above — safe to continue
-        }
-        const store = useStore.getState();
-        const studentData = store.students[username];
-        const studentTraceData = studentData?.traceData || { hesitation_events: 0, undo_clicks: 0 };
-        const conceptMastery = studentData?.conceptMastery || {
-          decimal_structure: 1,
-          number_magnitude: 1,
-          regrouping_fluency: 1,
-          procedural_fluency: 1,
-          relational_thinking: 1,
-          algebraic_reasoning: 1
-        };
-
-        const combinedStrategyString = strategies.map(id => STRATEGY_OPTIONS.find(o => o.id === id)?.nameHe).join(', ');
-        await SocraticEngine.generateAndQueueTasks(username, studentName, resolvedTeacherId, qMatrix, conceptMastery, studentTraceData, effort, combinedStrategyString);
-      }
+      // Update student status to wait for teacher approval. The backend will asynchronously
+      // generate the AgileSessionBlueprint tasks based on this status and Q-Matrix results.
+      await update(ref(database, `users/students/${username}`), {
+        routeStatus: 'PENDING_TEACHER_APPROVAL',
+        qMatrixResults: qMatrix,
+        effort: effort,
+        strategy: strategies.join(', ')
+      });
     } catch (e) {
       console.error("Failed to save reflection:", e);
-      alert("אירעה שגיאה בשמירת הרפלקציה והכנת המשימות הבאות. אנא נסה שוב.");
+      alert("אירעה שגיאה בשמירת הרפלקציה. אנא נסה שוב.");
       setDone(false);
       return;
     }

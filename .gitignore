@@ -13,3 +13,8 @@ build_output*
 dev_output*
 full_build_output*
 screenshot.png
+
+# Agent and temporary files
+.agents/
+scratch/
+temp_*

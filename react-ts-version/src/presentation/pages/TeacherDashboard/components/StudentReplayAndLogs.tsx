@@ -1,67 +1,88 @@
 import { useState, useEffect } from "react";
-import { ref, onValue } from "firebase/database";
-import { database, authReady } from "@/infrastructure/firebase";
+import { ref, onValue, get } from "firebase/database";
+import { database, authReady, auth } from "@/infrastructure/firebase";
 import { ReplayViewer } from "@/presentation/components/ReplayViewer";
 
 export function StudentReplayAndLogs({ studentId }: { studentId: string }) {
   const [liveReplayEvents, setLiveReplayEvents] = useState<any[]>([]);
   const [studentRadarHistory, setStudentRadarHistory] = useState<any[]>([]);
   const [seekToTime, setSeekToTime] = useState<number | undefined>();
+  const [chunkKeys, setChunkKeys] = useState<string[]>([]);
+  const [latestSession, setLatestSession] = useState<string | null>(null);
+
+  const fetchChunk = async (sessionId: string, chunkKey: string) => {
+    try {
+      const chunkRef = ref(database, `users/students/${studentId}/telemetry_sessions/${sessionId}/${chunkKey}`);
+      const snap = await get(chunkRef);
+      if (snap.exists()) {
+        let chunk = snap.val();
+        if (typeof chunk === 'string') {
+          try { chunk = JSON.parse(chunk); } catch { chunk = []; }
+        }
+        let events = Array.isArray(chunk) ? chunk : Object.values(chunk || {});
+        
+        const validEvents = events
+          .filter((e: any) => e && typeof e === 'object' && 'type' in e && e.timestamp)
+          .sort((a: any, b: any) => a.timestamp - b.timestamp);
+          
+        setLiveReplayEvents(validEvents);
+      }
+    } catch (err) {
+      console.error("Error fetching chunk", err);
+    }
+  };
+  
 
   useEffect(() => {
     if (!studentId) return;
 
-    let unsubscribeReplay: (() => void) | undefined;
+    let unsubscribeSession: (() => void) | undefined;
+    let unsubscribeMetadata: (() => void) | undefined;
     let unsubscribeRadar: (() => void) | undefined;
     let cancelled = false;
 
     authReady.then(() => {
       if (cancelled) return;
-      
-      // Fetch telemetry sessions (Replay)
-      const replayRef = ref(database, `users/students/${studentId}/telemetry_sessions`);
-      unsubscribeReplay = onValue(replayRef, (snapshot) => {
-        try {
-          if (snapshot.exists()) {
-            const sessionsData = snapshot.val();
-            const sessionIds = Object.keys(sessionsData).sort();
-            const latestSessionId = sessionIds[sessionIds.length - 1];
-            
-            if (!latestSessionId) {
-              setLiveReplayEvents([]);
-              return;
-            }
 
-            const data = sessionsData[latestSessionId];
-            const keys = Object.keys(data).sort();
-            let allEvents: any[] = [];
-            
-            for (const key of keys) {
-              let chunk = data[key as keyof typeof data];
-              if (typeof chunk === 'string') {
-                try { chunk = JSON.parse(chunk); } catch { chunk = []; }
-              }
-              if (Array.isArray(chunk)) {
-                allEvents = allEvents.concat(chunk);
-              } else if (chunk && typeof chunk === 'object') {
-                allEvents = allEvents.concat(Object.values(chunk));
-              }
-            }
-            
-            // Filter and ensure they are sorted by timestamp (rrweb-player fails silently if not)
-            const validEvents = allEvents
-              .filter(e => e && typeof e === 'object' && 'type' in e && e.timestamp)
-              .sort((a, b) => a.timestamp - b.timestamp);
-            
-            setLiveReplayEvents(validEvents);
-          } else {
+      // Fetch telemetry sessions metadata using REST API (shallow=true) to prevent OOM
+      const fetchMetadata = async () => {
+        try {
+          const dbUrl = database.app.options.databaseURL;
+          const token = await auth.currentUser?.getIdToken();
+          const authParam = token ? `&auth=${token}` : '';
+          
+          const sessionsUrl = `${dbUrl}/users/students/${studentId}/telemetry_sessions.json?shallow=true${authParam}`;
+          const sessionsRes = await fetch(sessionsUrl);
+          const sessionsData = await sessionsRes.json();
+          
+          if (!sessionsData) {
             setLiveReplayEvents([]);
+            return;
+          }
+          
+          const sessionIds = Object.keys(sessionsData).sort();
+          const latestSessionId = sessionIds[sessionIds.length - 1];
+          setLatestSession(latestSessionId);
+          
+          if (!latestSessionId) return;
+
+          const chunksUrl = `${dbUrl}/users/students/${studentId}/telemetry_sessions/${latestSessionId}.json?shallow=true${authParam}`;
+          const chunksRes = await fetch(chunksUrl);
+          const chunksData = await chunksRes.json();
+          
+          if (!chunksData) return;
+          const keys = Object.keys(chunksData).sort();
+          setChunkKeys(keys);
+          
+          if (keys.length > 0) {
+            fetchChunk(latestSessionId, keys[0]);
           }
         } catch (e) {
-          console.error("Error processing replay events:", e);
-          setLiveReplayEvents([]);
+          console.error("Error fetching replay metadata:", e);
         }
-      });
+      };
+
+      fetchMetadata();
 
       // Fetch radar history (Logs)
       const radarHistoryRef = ref(database, `users/students/${studentId}/radar_history`);
@@ -83,12 +104,15 @@ export function StudentReplayAndLogs({ studentId }: { studentId: string }) {
 
     return () => {
       cancelled = true;
-      if (unsubscribeReplay) unsubscribeReplay();
+      if (unsubscribeSession) unsubscribeSession();
+      if (unsubscribeMetadata) unsubscribeMetadata();
       if (unsubscribeRadar) unsubscribeRadar();
     };
   }, [studentId]);
 
-  const hasRecording = liveReplayEvents.length >= 2;
+
+
+  const hasRecording = chunkKeys.length > 0;
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   return (
@@ -110,7 +134,7 @@ export function StudentReplayAndLogs({ studentId }: { studentId: string }) {
           </p>
           <div className="flex items-center gap-4 text-sm text-ws-soft">
             <span className="flex items-center gap-1">
-              <span>📹</span> פריימים מוקלטים: {liveReplayEvents.length}
+              <span>📹</span> מקטעי וידאו זמינים: {chunkKeys.length}
             </span>
             <span className="flex items-center gap-1">
               <span>⚠️</span> אירועי רדאר: {studentRadarHistory.length}
@@ -157,7 +181,14 @@ export function StudentReplayAndLogs({ studentId }: { studentId: string }) {
                     .map((alert: any, index: number) => (
                     <button
                       key={alert.id || index}
-                      onClick={() => setSeekToTime(alert.timestamp)}
+                      onClick={() => {
+                        setSeekToTime(alert.timestamp);
+                        if (chunkKeys.length > 0 && latestSession) {
+                          // Find the chunk that likely contains this timestamp (or closest before)
+                          const targetKey = [...chunkKeys].reverse().find(k => Number(k) <= alert.timestamp) || chunkKeys[0];
+                          fetchChunk(latestSession, targetKey);
+                        }
+                      }}
                       className="text-right p-3 rounded-lg border border-slate-200 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-200 transition-all flex flex-col gap-1 w-full"
                     >
                       <div className="flex items-center gap-2">
@@ -189,3 +220,4 @@ export function StudentReplayAndLogs({ studentId }: { studentId: string }) {
     </div>
   );
 }
+

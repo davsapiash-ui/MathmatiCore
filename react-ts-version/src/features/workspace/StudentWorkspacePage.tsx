@@ -18,7 +18,7 @@ import { useWorkspaceStore, type SessionNumber } from '@/application/useWorkspac
 import { useSettingsStore } from '@/application/useSettingsStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { database, authReady } from '@/infrastructure/firebase';
-import { ref, push, onValue, remove, get } from 'firebase/database';
+import { ref, push, onValue, remove, get, set, update } from 'firebase/database';
 import { useChatStore } from '@/application/useChatStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getCurrentQTask, isSubtaskActive } from '@/core/qmatrixFlow';
@@ -146,12 +146,26 @@ export function StudentWorkspacePage() {
 
     const uid = user?.uid;
     if (!uid) return;
+
+    // Save this session ID so the dashboard knows what to fetch without OOM
+    update(ref(database, `users/students/${uid}`), { latestTelemetrySessionId: sessionId }).catch(console.error);
+
     const flushTelemetry = () => {
       if (eventsQueue.length > 0) {
         const batch = [...eventsQueue];
         eventsQueue = [];
-        push(ref(database, `users/students/${uid}/telemetry_sessions/${sessionId}`), JSON.stringify(batch))
-          .catch(err => console.error('Telemetry push failed:', err));
+        const newChunkRef = push(ref(database, `users/students/${uid}/telemetry_sessions/${sessionId}/chunks`));
+        const chunkKey = newChunkRef.key;
+        if (chunkKey) {
+          set(newChunkRef, JSON.stringify(batch)).catch(err => console.error('Telemetry push failed:', err));
+          
+          update(ref(database, `users/students/${uid}/telemetry_sessions/${sessionId}/metadata`), {
+            [chunkKey]: {
+              startTime: batch[0].timestamp,
+              endTime: batch[batch.length - 1].timestamp
+            }
+          });
+        }
       }
     };
 

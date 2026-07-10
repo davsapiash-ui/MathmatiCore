@@ -33,7 +33,7 @@ export interface TraceData {
 }
 
 export type RoutePath = 'GREEN' | 'YELLOW';
-export type RouteStatus = 'PENDING' | 'APPROVED';
+export type RouteStatus = 'PENDING' | 'APPROVED' | 'PENDING_TEACHER_APPROVAL';
 
 export interface DiagnosticReport {
   studentId: string;
@@ -66,6 +66,7 @@ export interface StudentData {
     sessionNumber: number;
     standardTaskIdx: number;
   };
+  liveSessionMetrics?: Record<string, any> | null;
 }
 
 interface AppState {
@@ -86,10 +87,15 @@ interface AppState {
   // Q-Matrix Actions
   updateQMatrix: (studentId: string, updates: Partial<QMatrix>) => void;
   updateTraceData: (studentId: string, updates: Partial<TraceData>) => void;
+  // NOTE: updateConceptMastery should ONLY be called exactly once at the end of Session 2 
+  // (e.g. inside completeDiagnosticMapping or similar) to prevent partial/broken DB writes.
   updateConceptMastery: (studentId: string, updates: MasteryProfile) => void;
   logSemanticEvent: (studentId: string, event: Omit<SemanticEvent, 'time'>) => void;
   markMeeting2Complete: (studentId: string) => void;
   updateHighestCompletedMeeting: (studentId: string, meeting: number) => void;
+
+  // Live Metrics
+  updateLiveSessionMetrics: (studentId: string, metrics: any) => void;
 
   // Routing Actions
   setRouteRecommendation: (studentId: string, route: RoutePath) => void;
@@ -119,7 +125,8 @@ const generateInitialStudents = (): Record<string, StudentData> => {
       },
       traceData: { hesitation_events: 0, undo_clicks: 0 },
       routeRecommendation: null,
-      routeStatus: null
+      routeStatus: null,
+      liveSessionMetrics: null
     };
   }
   return students;
@@ -162,7 +169,8 @@ export const useStore = create<AppState>()(
               },
               traceData: { hesitation_events: 0, undo_clicks: 0 },
               routeRecommendation: null,
-              routeStatus: null
+              routeStatus: null,
+              liveSessionMetrics: null
             }
           };
         }
@@ -267,6 +275,16 @@ export const useStore = create<AppState>()(
         if (students[studentId]) {
           students[studentId] = { ...students[studentId], conceptMastery: updates };
           firebaseSyncService.syncConceptMastery(studentId, updates).catch(console.error);
+        }
+        return { students };
+      }),
+
+      updateLiveSessionMetrics: (studentId, metrics) => set((state) => {
+        const students = { ...state.students };
+        if (students[studentId]) {
+          const updatedMetrics = { ...students[studentId].liveSessionMetrics, ...metrics };
+          students[studentId] = { ...students[studentId], liveSessionMetrics: updatedMetrics };
+          firebaseSyncService.syncLiveSessionMetrics(studentId, updatedMetrics).catch(console.error);
         }
         return { students };
       }),

@@ -35,7 +35,7 @@ export function StudentHub() {
   const students = useStore(s => s.students);
   const globalChatEnabled = useStore(s => s.globalChatEnabled);
   const currentStudent = user?.uid ? students[user.uid] : null;
-  const isPending = currentStudent?.routeStatus === 'PENDING';
+  const isPending = currentStudent?.routeStatus === 'PENDING' || currentStudent?.routeStatus === 'PENDING_TEACHER_APPROVAL';
   const isApproved = currentStudent?.routeStatus === 'APPROVED';
 
   const highestCompleted = currentStudent?.highestCompletedMeeting ?? (currentStudent?.completedMeeting2 ? 2 : 0);

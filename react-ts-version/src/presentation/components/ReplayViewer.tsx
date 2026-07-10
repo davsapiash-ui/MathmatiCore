@@ -5,9 +5,10 @@ import "rrweb-player/dist/style.css";
 interface ReplayViewerProps {
   events: any[];
   seekToTime?: number;
+  onEnd?: () => void;
 }
 
-export function ReplayViewer({ events, seekToTime }: ReplayViewerProps) {
+export function ReplayViewer({ events, seekToTime, onEnd }: ReplayViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const replayerRef = useRef<any>(null);
   const [isPlaying, setIsPlaying] = useState(true);
@@ -37,6 +38,10 @@ export function ReplayViewer({ events, seekToTime }: ReplayViewerProps) {
       // Start playing immediately
       replayerRef.current.play();
       setIsPlaying(true);
+      
+      if (onEnd) {
+        replayerRef.current.on('finish', onEnd);
+      }
 
       const applyScale = () => {
         if (!containerRef.current) return;
