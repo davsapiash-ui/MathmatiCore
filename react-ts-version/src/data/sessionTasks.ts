@@ -164,6 +164,7 @@ export const SESSION3_TASKS: SessionTask[] = [
     titleHe: 'חיבור עם המרה - מתחילים!',
     instructionHe: 'בואו נחבר: 146 + 235. זכרו: כאשר נאספים 10 פריטים בטור אחד, אנו מבצעים המרה לטור הבא משמאל!',
     requiresGrouping: true,
+    targetNode: 'regrouping_fluency',
   },
   {
     id: 's3_t2',
@@ -172,6 +173,7 @@ export const SESSION3_TASKS: SessionTask[] = [
     titleHe: 'חיבור עם המרה - תרגיל 2',
     instructionHe: 'בואו נחבר: 257 + 124. בנו את המספרים בטבלה, ובצעו המרה אם נאספו 10 פריטים או יותר בטור אחד.',
     requiresGrouping: true,
+    targetNode: 'regrouping_fluency',
   },
   {
     id: 's3_t3',
@@ -180,6 +182,7 @@ export const SESSION3_TASKS: SessionTask[] = [
     titleHe: 'המרה מיחידות לעשרות',
     instructionHe: 'פתרו: 138 + 245. מה קורה כשיש לנו 8 יחידות ועוד 5 יחידות? בצעו המרה של 10 יחידות לעשרת אחת.',
     requiresGrouping: true,
+    targetNode: 'regrouping_fluency',
   },
   {
     id: 's3_t4',
@@ -188,6 +191,7 @@ export const SESSION3_TASKS: SessionTask[] = [
     titleHe: 'המרה מעשרות למאות',
     instructionHe: 'פתרו: 356 + 182. מה קורה כשמחברים 5 עשרות עם 8 עשרות? בצעו המרה של 10 עשרות למאה אחת.',
     requiresGrouping: true,
+    targetNode: 'regrouping_fluency',
   },
   {
     id: 's3_t5',
@@ -196,6 +200,7 @@ export const SESSION3_TASKS: SessionTask[] = [
     titleHe: 'המרה כפולה - גם וגם!',
     instructionHe: 'תרגיל אתגר: 4890 + 1750. כאן תבצעו המרה גם בטור היחידות וגם בטור העשרות. בהצלחה!',
     requiresGrouping: true,
+    targetNode: 'regrouping_fluency',
   },
 ];
 
@@ -209,6 +214,7 @@ export const SESSION4_TASKS: SessionTask[] = [
     titleHe: 'חיסור עם פריטה - מתחילים!',
     instructionHe: 'בואו נפתור: 342 - 125. מה עושים כשאין מספיק יחידות בטור היחידות כדי לחסר? מבצעים פריטה של עשרת אחת ל-10 יחידות!',
     requiresUngrouping: true,
+    targetNode: 'regrouping_fluency',
   },
   {
     id: 's4_t2',
@@ -217,6 +223,7 @@ export const SESSION4_TASKS: SessionTask[] = [
     titleHe: 'חיסור עם פריטה - תרגיל 2',
     instructionHe: 'פתרו: 524 - 216. זכרו לבצע פריטה במידת הצורך.',
     requiresUngrouping: true,
+    targetNode: 'regrouping_fluency',
   },
   {
     id: 's4_t3',
@@ -225,6 +232,7 @@ export const SESSION4_TASKS: SessionTask[] = [
     titleHe: 'פריטה מעשרת ליחידות',
     instructionHe: 'פתרו: 425 - 118. כדי שנוכל לחסר 8 יחידות מתוך 5 יחידות, נבצע פריטה של עשרת אחת ל-10 יחידות.',
     requiresUngrouping: true,
+    targetNode: 'regrouping_fluency',
   },
   {
     id: 's4_t4',
@@ -233,6 +241,7 @@ export const SESSION4_TASKS: SessionTask[] = [
     titleHe: 'פריטה ממאה לעשרות',
     instructionHe: 'פתרו: 632 - 271. כדי שנוכל לחסר 7 עשרות מתוך 3 עשרות, נבצע פריטה של מאה אחת ל-10 עשרות.',
     requiresUngrouping: true,
+    targetNode: 'regrouping_fluency',
   },
   {
     id: 's4_t5',
@@ -241,6 +250,7 @@ export const SESSION4_TASKS: SessionTask[] = [
     titleHe: 'פריטה כפולה - גם וגם!',
     instructionHe: 'תרגיל אתגר: 5130 - 2850. כאן תבצעו פריטה גם ממאה לעשרות וגם מעשרת ליחידות. בהצלחה!',
     requiresUngrouping: true,
+    targetNode: 'regrouping_fluency',
   },
 ];
 
@@ -251,20 +261,20 @@ export const SESSION4_TASKS: SessionTask[] = [
    fallen back to DEFAULT_SOCRATIC_HINT. Preserved as-is. */
 
 export const SOCRATIC_HINTS: Record<string, string> = {
-  task1_zero_placeholder: 'מה קורה כשטור מתרוקן לחלוטין? האם אפשר פשוט לדלג עליו כשכותבים את המספר?',
-  task2_estimation_error_margin: 'בואו נבדוק – האם המספר קרוב יותר להתחלת הישר, לאמצע שלו, או לסוף שלו?',
-  task3_flexible_regrouping: 'האם יש רק דרך אחת לייצג את המספר הזה? נסו לבצע פריטה כדי למצוא דרך נוספת.',
-  task4_basic_addition_fluency: 'האם התשובה שלכם מסתדרת עם מה שאתם כבר יודעים על המספרים? נסו לחשב רק את היחידות קודם.',
-  task5_small_change: 'אם משנים רק את ספרת היחידות באחד, מה קורה למספר כולו?',
-  task6_subtraction_regrouping: 'אין מספיק יחידות כדי לחסר. מאיפה נוכל לארגן עוד יחידות בלוח מבלי לשנות את הכמות הכוללת?',
-  task7_missing_subtrahend: 'אם נדע כמה נשאר בסוף, מה נוכל לעשות כדי לגלות כמה חסר באמצע?',
-  task8_missing_addend: 'חיבור וחיסור הן פעולות הפוכות. האם נוכל להשתמש בזה כדי למצוא את המספר החסר?',
+  zero_placeholder: 'מה קורה כשטור מתרוקן לחלוטין? האם אפשר פשוט לדלג עליו כשכותבים את המספר?',
+  number_magnitude: 'בואו נבדוק – האם המספר קרוב יותר להתחלת הישר, לאמצע שלו, או לסוף שלו?',
+  flexible_regrouping: 'האם יש רק דרך אחת לייצג את המספר הזה? נסו לבצע פריטה כדי למצוא דרך נוספת.',
+  procedural_fluency: 'האם התשובה שלכם מסתדרת עם מה שאתם כבר יודעים על המספרים? נסו לחשב רק את היחידות קודם.',
+  relational_thinking: 'אם משנים רק את ספרת היחידות באחד, מה קורה למספר כולו?',
+  regrouping_fluency: 'אין מספיק יחידות כדי לחסר. מאיפה נוכל לארגן עוד יחידות בלוח מבלי לשנות את הכמות הכוללת?',
+  missing_subtrahend: 'אם נדע כמה נשאר בסוף, מה נוכל לעשות כדי לגלות כמה חסר באמצע?',
+  missing_addend: 'חיבור וחיסור הן פעולות הפוכות. האם נוכל להשתמש בזה כדי למצוא את המספר החסר?',
 };
 
 export const DEFAULT_SOCRATIC_HINT = 'בואו נחשוב יחד — מה אנחנו יודעים על המספר הזה?';
 
-export function getSocraticHint(taskId: string): string {
-  return SOCRATIC_HINTS[taskId] ?? DEFAULT_SOCRATIC_HINT;
+export function getSocraticHint(targetNode: string): string {
+  return SOCRATIC_HINTS[targetNode] ?? DEFAULT_SOCRATIC_HINT;
 }
 
 /* ── Support-palette content — app.js handleSupportChoice (lines 1255–1299) ──
