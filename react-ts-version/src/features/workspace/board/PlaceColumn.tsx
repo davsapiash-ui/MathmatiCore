@@ -26,6 +26,8 @@ export function PlaceColumn({ place }: { place: Place }) {
     data: { kind: 'column', place },
   });
 
+  const scaffoldFadeLevel = useWorkspaceStore((s) => s.scaffoldFadeLevel);
+
   const colors = COLUMN_COLORS[place];
   const renderCount = Math.min(count, MAX_VISIBLE_BLOCKS);
   const isError = errorPlace === place;
@@ -40,17 +42,29 @@ export function PlaceColumn({ place }: { place: Place }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [errorNonce]);
 
+  const isHighlighted = scaffoldFadeLevel === 0;
+
   return (
     <motion.div
       id={place === 'units' ? 'tour-column-units' : undefined}
       animate={shakeControls}
-      className={`flex-1 min-w-0 flex flex-col rounded-2xl border-2 border-dashed transition-all duration-300 ${
+      className={`flex-1 min-w-0 flex flex-col rounded-2xl border-2 transition-all duration-300 ${
+        isHighlighted ? 'border-solid' : 'border-dashed'
+      } ${
         isDimmed ? 'opacity-30 grayscale pointer-events-none' : ''
       } ${isOver ? 'animate-[pulse_1.5s_ease-in-out_infinite]' : ''}`}
       style={{
-        borderColor: isOver ? colors.border : 'hsl(var(--ws-surface-2) / 0.8)',
+        borderColor: isOver 
+          ? colors.border 
+          : isHighlighted 
+            ? 'hsl(var(--ws-ink) / 0.22)' 
+            : 'hsl(var(--ws-surface-2) / 0.75)',
         backgroundColor: isOver || isError ? colors.tint : 'hsl(var(--ws-surface))',
-        boxShadow: isOver ? `0 0 0 4px ${colors.tint}` : '0 4px 14px -6px rgba(120,80,20,0.12)',
+        boxShadow: isOver 
+          ? `0 0 0 4px ${colors.tint}` 
+          : isHighlighted 
+            ? '0 4px 14px -6px rgba(0,0,0,0.06)' 
+            : '0 2px 8px -6px rgba(0,0,0,0.02)',
       }}
       aria-label={`טור ${PLACE_NAMES_HE[place]}`}
     >
