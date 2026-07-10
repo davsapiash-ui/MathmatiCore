@@ -34,7 +34,7 @@ export function PlaceValueBoard({ hideValueDisplay }: { hideValueDisplay?: boole
           style={{ flexGrow: 0, flexShrink: 0 }}
           aria-label="טבלת ערך המקום"
         >
-          <div id="tour-place-value-board" className="flex-1 ws-card p-4 flex flex-col gap-3">
+          <div id="tour-place-value-board" className="flex-1 ws-card p-4 flex flex-col gap-3 hover:translate-y-0">
             <div className="flex items-center justify-center gap-2 shrink-0">
               <span className="inline-flex items-center gap-2 text-lg font-display font-black text-ws-ink bg-ws-blue-soft/50 rounded-full px-6 py-1.5 border-2 border-ws-blue/20 shadow-sm">
                 <span aria-hidden="true" className="text-xl">🏠</span> בית המספרים

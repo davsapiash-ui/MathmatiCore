@@ -277,6 +277,55 @@ export function getSocraticHint(targetNode: string): string {
   return SOCRATIC_HINTS[targetNode] ?? DEFAULT_SOCRATIC_HINT;
 }
 
+export function getDynamicSocraticHint(
+  targetNode: string,
+  counts: { units: number; tens: number; hundreds: number; thousands: number },
+  task: any,
+  answerDigits: Record<string, string>,
+  carryDigits: Record<string, string>
+): string {
+  if (targetNode === 'regrouping_fluency' || targetNode === 'flexible_regrouping') {
+    if (counts.units >= 10) {
+      return `ספרתם ${counts.units} יחידות בטור היחידות. האם נוכל לאסוף 10 מהן ולקבץ אותן לעשרת אחת? איך זה ישפיע על הסדר בלוח?`;
+    }
+    if (counts.tens >= 10) {
+      return `יש לכם ${counts.tens} עשרות בטור העשרות. האם נוכל לקחת 10 מהן ולהמיר אותן למאה אחת?`;
+    }
+    if (task?.isSubtraction && task.numberA && task.numberB) {
+      const unitsA = task.numberA % 10;
+      const unitsB = task.numberB % 10;
+      if (unitsA < unitsB && counts.units < unitsB) {
+        return `אנחנו צריכים להחסיר ${unitsB} יחידות, אבל יש לנו רק ${counts.units} יחידות בלוח. מאיפה נוכל לקחת עשרת ולפרוט אותה כדי שיהיו לנו מספיק יחידות?`;
+      }
+    }
+  }
+
+  if (targetNode === 'zero_placeholder') {
+    if (task?.numberA && String(task.numberA).includes('0')) {
+      const numStr = String(task.numberA);
+      const zeroIdx = numStr.indexOf('0');
+      const placeName = numStr.length - 1 - zeroIdx === 1 ? 'עשרות' : 'מאות';
+      if (counts.tens === 0 && placeName === 'עשרות') {
+        return `שימו לב שאין לנו בלוקים בטור העשרות. כשנרשום את המספר, איך נסמן שהמקום הזה ריק מבלי שהספרות האחרות יזוזו שמאלה?`;
+      }
+    }
+  }
+
+  if (targetNode === 'number_magnitude' && task?.type === 'number_line') {
+    return `הסתכלו על המספר המבוקש (${task.numberA}). האם הוא קרוב יותר ל-${task.range?.[0] ?? 0} או ל-${task.range?.[1] ?? 1000}? נסו למקם את עצמכם קודם כל ביחס לחצי הדרך.`;
+  }
+
+  if (targetNode === 'procedural_fluency') {
+    const hasAnswer = Object.keys(answerDigits).length > 0;
+    const hasCarry = Object.keys(carryDigits).length > 0;
+    if (hasAnswer && !hasCarry) {
+      return `רשמתם ספרה בתשובה, אך האם ביצעתם המרה כלשהי? אם כן, איפה עלינו לרשום את ה-Carry (השארית) בראש התרגיל כדי לא לשכוח אותה?`;
+    }
+  }
+
+  return SOCRATIC_HINTS[targetNode] ?? DEFAULT_SOCRATIC_HINT;
+}
+
 /* ── Support-palette content — app.js handleSupportChoice (lines 1255–1299) ──
    The 3 calibrated-choice help levels (בחירה מכוילת). Static per type, verbatim. */
 

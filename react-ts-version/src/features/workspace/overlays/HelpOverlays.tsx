@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useWorkspaceStore, type SupportType, getActiveTasks } from '@/application/useWorkspaceStore';
-import { SUPPORT_CONTENT, getSocraticHint } from '@/data/sessionTasks';
+import { SUPPORT_CONTENT, getDynamicSocraticHint } from '@/data/sessionTasks';
 
 /**
  * זרימת העזרה — "חיכוך מטא-קוגניטיבי יצרני":
@@ -35,7 +35,7 @@ export function HelpOverlays() {
     const s = useWorkspaceStore.getState();
     const task = getActiveTasks(s)[s.standardTaskIdx];
     if (task?.targetNode) {
-      content.lines = [getSocraticHint(task.targetNode)];
+      content.lines = [getDynamicSocraticHint(task.targetNode, s.counts, task, s.answerDigits, s.carryDigits)];
     }
   }
 

@@ -41,8 +41,10 @@ export function NumberLineTask({
       const track = trackRef.current;
       if (!track) return;
       const rect = track.getBoundingClientRect();
-      // dir=ltr track: left edge = min
-      const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+      // Ticks are inset by left-4 right-4 (16px on each side)
+      const insetLeft = rect.left + 16;
+      const insetWidth = rect.width - 32;
+      const ratio = Math.min(1, Math.max(0, (clientX - insetLeft) / insetWidth));
       const raw = min + ratio * span;
       const snapped = Math.round(raw / minorStep) * minorStep;
       setNumberLineValue(Math.min(max, Math.max(min, snapped)));
@@ -101,26 +103,26 @@ export function NumberLineTask({
           border-r-[8px] border-r-ws-ink" 
         />
 
-        {/* Progress Fill (פס צבירה) */}
-        <div 
-          ref={containerRef}
-          className="absolute top-1/2 -translate-y-1/2 left-4 right-4 h-12 cursor-pointer z-10"
-          onClick={handleTrackClick}
-        />
-
         <div className="absolute top-0 bottom-0 left-4 right-4 pointer-events-none">
           {/* Ticks */}
-          {allTicks.map((t) => {
-            const isMajor = t % majorStep === 0;
-            const isAnchor = asdAnchors?.includes(t);
+          {Array.from({ length: Math.floor(span / minorStep) + 1 }).map((_, i) => {
+            const t = min + i * minorStep;
             const p = ((t - min) / span) * 100;
-            const heightClass = isMajor ? 'h-4 bg-ws-ink' : 'h-2 bg-ws-ink/60';
+            const isMajor = t % majorStep === 0;
+            const isMedium = t % mediumStep === 0;
+            const isAnchor = asdAnchors?.includes(t);
+            
+            let heightClass = 'h-3 bg-ws-ink/40'; // minor
+            if (isMajor) heightClass = 'h-5 bg-ws-ink'; // major
+            else if (isMedium) heightClass = 'h-4 bg-ws-ink/70'; // medium
+
             const widthClass = isMajor ? 'w-[2px]' : 'w-[1px]';
+
             return (
               <div
                 key={t}
                 className={`absolute top-1/2 -translate-y-1/2 ${widthClass} ${heightClass} ${
-                  isAnchor ? '!h-6 bg-ws-accent shadow-[0_0_8px_2px_rgba(249,115,22,0.5)]' : ''
+                  isAnchor ? '!h-7 bg-ws-accent shadow-[0_0_8px_2px_rgba(249,115,22,0.5)]' : ''
                 }`}
                 style={{ left: `${p}%` }}
               />

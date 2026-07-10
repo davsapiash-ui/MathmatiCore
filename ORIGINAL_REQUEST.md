@@ -173,7 +173,36 @@ Integrity mode: development
 
 ### וידוא אוטומטי ואובייקטיבי
 - [ ] ייכתב סקריפט אוטומטי שמייצר נתוני לוגים "מדומים" (Mock) של תלמיד עם טעות קוגניטיבית מורכבת (למשל: הקפצה לא נכונה בחיבור ארוך). הסקריפט יוכיח שהלוגיקה המוצעת של ה-AI מצליחה לזהות את הטעות הספציפית מתוך הנתונים בלבד.
-- [ ] הצוות יגיש קובץ Markdown המסכם את המסקנות: האם הנתונים (Q-Matrix, Logs, Replays) מספיקים, ומהם שלושת השיפורים הטכניים הנדרשים כדי לשפר את איכות הניתוח.
 </USER_REQUEST>
 
+## Follow-up — 2026-07-10T09:26:07Z
+
+<USER_REQUEST>
+# Teamwork Project Prompt
+
+Verify recent deployments to Firebase and GitHub, ensure all expected UI updates are live, and identify/fix any lingering UI/UX issues.
+
+Working directory: c:\Users\david\Projects\MathmatiCore
+
+## Requirements
+
+### R1. Verify Deployment Status
+Check the git log and the Firebase hosting deployment status to ensure that the latest commits (including the CI/CD pipeline fix and Number Line redesign) are successfully pushed and deployed.
+
+### R2. UI/UX Verification and Fixing
+Review the React application's UI components, particularly the Workspace, Topbar, and interactive tasks (like the Number Line and Vertical Addition). Identify any visual regressions, clipping, or usability issues.
+
+### R3. Autonomous Resolution
+If any UI issues or deployment blockers are found, autonomously debug, fix the code, commit the changes, and ensure the automated deployment pipeline succeeds.
+
+## Acceptance Criteria
+
+### Verification Checks
+- [ ] Git log confirms that the local `main` branch is synced with the remote repository.
+- [ ] No TypeScript build errors exist (`npm run build` passes).
+
+### UI Quality Bar
+- [ ] The number line component renders correctly without visual glitches.
+- [ ] The "לוח מוחשי" (tangible board) toggle button is correctly positioned and functional.
+- [ ] Math operators (plus/minus) in tasks are correctly aligned.
 </USER_REQUEST>

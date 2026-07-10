@@ -87,6 +87,7 @@ interface WorkspaceState {
   feedback: FeedbackState | null;
   feedbackNonce: number;
   helpState: HelpState;
+  frictionTriggerSource: 'lightbulb' | 'mistake' | null;
 
   /** Teacher-approved AI-generated task list (Socratic Engine); overrides session tasks when set. */
   aiTasks: SessionTask[] | null;
@@ -404,7 +405,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         
         if (strikes === 1) {
           // Micro-Agility: Socratic Buffer
-          set({ helpState: 'friction' });
+          set({ helpState: 'friction', frictionTriggerSource: 'mistake' });
         } else if (strikes >= 2) {
           // Micro-Agility: Decoupled Vector Scaling
           get().injectTask({
@@ -690,6 +691,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     feedback: null,
     feedbackNonce: 0,
     helpState: 'closed',
+    frictionTriggerSource: null,
     aiTasks: null,
     dynamicTasks: null,
     nodeStrikes: {},
@@ -715,6 +717,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         errorPlace: null,
         feedback: null,
         helpState: 'closed',
+        frictionTriggerSource: null,
         ...resetTaskInteraction(),
       });
       const firstId = meeting === 2 ? getCurrentQTask(qflow)?.id ?? '' : (initialAITasks ?? getSessionTasks(meeting as any))[startingTaskIdx ?? 0]?.id ?? '';
@@ -942,11 +945,18 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const s = get();
       if (s.helpState !== 'closed') return;
       radar.recordHintRequest();
-      set({ helpState: 'friction' });
+      set({ helpState: 'friction', frictionTriggerSource: 'lightbulb' });
     },
 
     helpFrictionDone: () => {
-      if (get().helpState === 'friction') set({ helpState: 'palette' });
+      const s = get();
+      if (s.helpState === 'friction') {
+        if (s.frictionTriggerSource === 'mistake') {
+          set({ helpState: 'socratic' });
+        } else {
+          set({ helpState: 'palette' });
+        }
+      }
     },
 
     chooseSupport: (type) => set({ helpState: type }),
