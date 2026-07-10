@@ -81,6 +81,7 @@ class FirebaseSyncService {
                 ...(data.highestCompletedMeeting !== undefined && { highestCompletedMeeting: data.highestCompletedMeeting }),
                 ...(data.routeRecommendation !== undefined && { routeRecommendation: data.routeRecommendation }),
                 ...(data.routeStatus !== undefined && { routeStatus: data.routeStatus }),
+                ...(data.workspaceState && { workspaceState: data.workspaceState }),
               }
             }
           });

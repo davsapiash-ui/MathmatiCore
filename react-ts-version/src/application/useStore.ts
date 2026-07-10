@@ -14,10 +14,22 @@ export interface QMatrix {
   task8_missing_addend: string | null;
 }
 
+export interface SemanticEvent {
+  time: number;
+  action: string;
+  element: string;
+  target?: string;
+  duration_sec?: number;
+  context?: string;
+  state_snapshot?: string;
+  q_matrix_node?: string;
+}
+
 export interface TraceData {
   hesitation_events: number;
   undo_clicks: number;
   lastUpdate?: number;
+  semantic_trace?: SemanticEvent[];
 }
 
 export type RoutePath = 'GREEN' | 'YELLOW';
@@ -49,6 +61,10 @@ export interface StudentData {
   routeStatus: RouteStatus | null;
   diagnosticReport?: DiagnosticReport | null;
   conceptMastery?: MasteryProfile;
+  workspaceState?: {
+    sessionNumber: number;
+    standardTaskIdx: number;
+  };
 }
 
 interface AppState {
@@ -69,6 +85,7 @@ interface AppState {
   updateQMatrix: (studentId: string, updates: Partial<QMatrix>) => void;
   updateTraceData: (studentId: string, updates: Partial<TraceData>) => void;
   updateConceptMastery: (studentId: string, updates: MasteryProfile) => void;
+  logSemanticEvent: (studentId: string, event: Omit<SemanticEvent, 'time'>) => void;
   markMeeting2Complete: (studentId: string) => void;
   updateHighestCompletedMeeting: (studentId: string, meeting: number) => void;
 
@@ -217,6 +234,21 @@ export const useStore = create<AppState>()(
           const newTraceData = { ...students[studentId].traceData, ...updates };
           students[studentId] = { ...students[studentId], traceData: newTraceData };
           firebaseSyncService.syncTraceData(studentId, updates).catch(console.error);
+        }
+        return { students };
+      }),
+
+      logSemanticEvent: (studentId, event) => set((state) => {
+        const students = { ...state.students };
+        if (students[studentId]) {
+          const currentTrace = students[studentId].traceData.semantic_trace || [];
+          const newEvent: SemanticEvent = { ...event, time: Date.now() };
+          const newTraceData = {
+            ...students[studentId].traceData,
+            semantic_trace: [...currentTrace, newEvent]
+          };
+          students[studentId] = { ...students[studentId], traceData: newTraceData };
+          firebaseSyncService.syncTraceData(studentId, { semantic_trace: newTraceData.semantic_trace }).catch(console.error);
         }
         return { students };
       }),

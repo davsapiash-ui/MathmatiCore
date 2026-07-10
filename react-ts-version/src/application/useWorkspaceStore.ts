@@ -97,7 +97,7 @@ interface WorkspaceState {
 
   // actions
   injectTask: (task: SessionTask, position: 'next' | 'end') => void;
-  initSession: (meeting: SessionNumber, isASD: boolean, aiTasks?: SessionTask[] | null) => void;
+  initSession: (meeting: SessionNumber, isASD: boolean, aiTasks?: SessionTask[] | null, startingTaskIdx?: number) => void;
   applyDrop: (input: DropInput) => void;
   removeBlockClick: (place: Place) => void;
   undo: () => void;
@@ -697,7 +697,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     setAITasks: (tasks) => set({ aiTasks: tasks }),
 
-    initSession: (meeting, isASD, initialAITasks) => {
+    initSession: (meeting, isASD, initialAITasks, startingTaskIdx) => {
       const qflow = initQFlow();
       set({
         sessionNumber: meeting,
@@ -706,7 +706,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         dynamicTasks: null,
         nodeStrikes: {},
         successStreak: 0,
-        standardTaskIdx: 0,
+        standardTaskIdx: startingTaskIdx ?? 0,
         qflow,
         flowStatus: 'task',
         awaitingNext: false,
@@ -717,7 +717,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         helpState: 'closed',
         ...resetTaskInteraction(),
       });
-      const firstId = meeting === 2 ? getCurrentQTask(qflow)?.id ?? '' : (initialAITasks ?? getSessionTasks(meeting as any))[0]?.id ?? '';
+      const firstId = meeting === 2 ? getCurrentQTask(qflow)?.id ?? '' : (initialAITasks ?? getSessionTasks(meeting as any))[startingTaskIdx ?? 0]?.id ?? '';
       radar.setTask(firstId);
     },
 
@@ -743,6 +743,20 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const result = resolveDrop(s.counts, input, selectScaffoldLevel(s));
       if (!result.ok) {
         if (result.reason === 'constraint') flagConstraintError(result.place);
+        
+        // Log semantic event for invalid drop
+        const studentId = useAuthStore.getState().user?.uid;
+        if (studentId) {
+          const task = getActiveTasks(s)[s.standardTaskIdx] || null;
+          useStore.getState().logSemanticEvent(studentId, {
+            action: 'drop_invalid',
+            element: input.source === 'palette' ? `palette_block` : `${input.sourcePlace}_block`,
+            target: input.target.kind === 'column' ? `${input.target.place}_column` : 'trash',
+            context: `Failed due to ${result.reason}`,
+            q_matrix_node: task?.targetNode,
+            state_snapshot: `Units: ${s.counts.units}, Tens: ${s.counts.tens}, Hundreds: ${s.counts.hundreds}, Thousands: ${s.counts.thousands}`
+          });
+        }
         return;
       }
       pushSnapshot(s.counts);
@@ -766,6 +780,26 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // the source column) — counting it fired false PASSIVE_DRIFTING radar alerts after
       // three quick regroups, flagging exactly the students doing the RIGHT thing.
       if (isDelete) radar.recordDelete();
+
+      // Log semantic event for valid drop
+      const studentId = useAuthStore.getState().user?.uid;
+      if (studentId) {
+        const task = getActiveTasks(s)[s.standardTaskIdx] || null;
+        let action = 'drag_moved';
+        if (isDelete) action = 'drag_deleted';
+        else if (isFromStore) action = 'drag_added';
+        else if (isGroup) action = 'drag_grouped';
+        else if (isUngroup) action = 'drag_ungrouped';
+        
+        useStore.getState().logSemanticEvent(studentId, {
+          action,
+          element: isFromStore ? `palette_block` : `${input.sourcePlace}_block`,
+          target: input.target.kind === 'column' ? `${input.target.place}_column` : 'trash',
+          context: action,
+          q_matrix_node: task?.targetNode,
+          state_snapshot: `Units: ${result.counts.units}, Tens: ${result.counts.tens}, Hundreds: ${result.counts.hundreds}, Thousands: ${result.counts.thousands}`
+        });
+      }
     },
 
     removeBlockClick: (place) => {
@@ -789,6 +823,18 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       set({ counts: snapshot.counts, undoStack: stack, undoCount: s.undoCount + 1 });
       radar.recordUndo();
       radar.recordAction();
+
+      const studentId = useAuthStore.getState().user?.uid;
+      if (studentId) {
+        const task = getActiveTasks(s)[s.standardTaskIdx] || null;
+        useStore.getState().logSemanticEvent(studentId, {
+          action: 'undo',
+          element: 'undo_button',
+          context: 'User clicked undo',
+          q_matrix_node: task?.targetNode,
+          state_snapshot: `Units: ${snapshot.counts.units}, Tens: ${snapshot.counts.tens}, Hundreds: ${snapshot.counts.hundreds}, Thousands: ${snapshot.counts.thousands}`
+        });
+      }
     },
 
     toggleBoard: () => set((s) => ({ boardOpen: !s.boardOpen })),

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useWorkspaceStore, type SupportType, getCurrentStandardTask } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, type SupportType, getActiveTasks } from '@/application/useWorkspaceStore';
 import { SUPPORT_CONTENT, getSocraticHint } from '@/data/sessionTasks';
 
 /**
@@ -32,7 +32,8 @@ export function HelpOverlays() {
   
   let content = isModal ? { ...SUPPORT_CONTENT[helpState as SupportType] } : null;
   if (content && helpState === 'socratic') {
-    const task = getCurrentStandardTask(useWorkspaceStore.getState());
+    const s = useWorkspaceStore.getState();
+    const task = getActiveTasks(s)[s.standardTaskIdx];
     if (task?.targetNode) {
       content.lines = [getSocraticHint(task.targetNode)];
     }

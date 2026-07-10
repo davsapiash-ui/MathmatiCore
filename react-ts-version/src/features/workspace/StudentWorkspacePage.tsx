@@ -30,6 +30,7 @@ import { TaskCard } from './tasks/TaskCard';
 import { FeedbackToast } from './overlays/FeedbackToast';
 import { HelpOverlays } from './overlays/HelpOverlays';
 import { ReflectionScreen } from './ReflectionScreen';
+import { useStore } from '@/application/useStore';
 import { useWorkspaceRadar } from './useWorkspaceRadar';
 
 import { StudentChatOverlay } from './overlays/StudentChatOverlay';
@@ -207,6 +208,11 @@ export function StudentWorkspacePage() {
   const [isInitializing, setIsInitializing] = useState(meeting === 3);
   const [pendingApproval, setPendingApproval] = useState(false);
 
+  // Retrieve saved progress from Firebase (synced into useStore)
+  const students = useStore((s) => s.students);
+  const myData = user?.uid ? students[user.uid] : null;
+  const startingTaskIdx = (myData?.workspaceState?.sessionNumber === meeting) ? (myData.workspaceState.standardTaskIdx || 0) : 0;
+
   useEffect(() => {
     let cancelled = false;
     if (meeting === 3) {
@@ -217,14 +223,14 @@ export function StudentWorkspacePage() {
         if (cancelled) return;
         const username = useAuthStore.getState().user?.uid;
         if (!username) {
-          initSession(meeting, isASDMode);
+          initSession(meeting, isASDMode, null, startingTaskIdx);
           setIsInitializing(false);
           return;
         }
         const tasks = await SocraticEngine.getApprovedTasks(username);
         if (cancelled) return;
         if (tasks) {
-          initSession(meeting, isASDMode, tasks);
+          initSession(meeting, isASDMode, tasks, startingTaskIdx);
         } else {
           // Pending teacher approval — blocking screen with a way back to the hub.
           setPendingApproval(true);
@@ -232,11 +238,11 @@ export function StudentWorkspacePage() {
         setIsInitializing(false);
       })().catch(() => {
         if (cancelled) return;
-        initSession(meeting, isASDMode);
+        initSession(meeting, isASDMode, null, startingTaskIdx);
         setIsInitializing(false);
       });
     } else {
-      initSession(meeting, isASDMode);
+      initSession(meeting, isASDMode, null, startingTaskIdx);
       setIsInitializing(false);
     }
     return () => {
