@@ -14,7 +14,7 @@ import {
 } from '@dnd-kit/core';
 import { useNavigate } from 'react-router-dom';
 import type { DragSource, Place } from '@/core/placeValue';
-import { useWorkspaceStore, type SessionNumber } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, getActiveTasks, type SessionNumber } from '@/application/useWorkspaceStore';
 import { useSettingsStore } from '@/application/useSettingsStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { database, authReady } from '@/infrastructure/firebase';
@@ -301,6 +301,20 @@ export function StudentWorkspacePage() {
     import('./radarBus').then(({ radar }) => radar.recordAction());
     const data = event.active.data.current as { source: DragSource; place: Place; renderPlace?: Place } | undefined;
     if (data) setActiveDrag({ place: data.place, source: data.source, renderPlace: data.renderPlace });
+
+    // Semantic Event Injection
+    const studentId = useAuthStore.getState().user?.uid;
+    if (studentId && data) {
+      const s = useWorkspaceStore.getState();
+      const task = getActiveTasks(s)[s.standardTaskIdx] || null;
+      useStore.getState().logSemanticEvent(studentId, {
+        action: 'drag_started',
+        element: data.source === 'palette' ? 'palette_block' : `${data.place}_block`,
+        context: 'User picked up a block',
+        ...(task?.targetNode ? { q_matrix_node: task.targetNode } : {}),
+        state_snapshot: `Units: ${s.counts.units}, Tens: ${s.counts.tens}, Hundreds: ${s.counts.hundreds}, Thousands: ${s.counts.thousands}`
+      });
+    }
   };
 
   const handleDragEnd = (event: DragEndEvent) => {

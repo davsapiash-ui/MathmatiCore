@@ -234,9 +234,10 @@ export function selectCanProceed(s: WorkspaceState): boolean {
     return s.q3Reps.length >= 2;
   }
   if (!s.hasInteracted) return false;
-  // Spec §1: "No Auto-Regrouping" — tasks that require manual grouping/ungrouping
-  // were previously gated here. UDL principles dictate we shouldn't hard-lock the UI.
-  // The Radar will silently monitor if they bypassed it.
+  // Phase 1: Progression Locks
+  if (task.requiresGrouping && !s.hasGrouped) return false;
+  if (task.requiresUngrouping && !s.hasUngrouped) return false;
+
   return true;
 }
 
@@ -864,6 +865,18 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       pushSnapshot(s.counts);
       set({ counts: next, hasInteracted: true, hasDeletedBlock: true, undoCount: s.undoCount + 1 });
       radar.recordDelete();
+
+      const studentId = useAuthStore.getState().user?.uid;
+      if (studentId) {
+        const task = getActiveTasks(s)[s.standardTaskIdx] || null;
+        useStore.getState().logSemanticEvent(studentId, {
+          action: 'block_clicked_to_remove',
+          element: `${place}_block`,
+          context: `Removed a block from ${place}`,
+          ...(task?.targetNode ? { q_matrix_node: task.targetNode } : {}),
+          state_snapshot: `Units: ${next.units}, Tens: ${next.tens}, Hundreds: ${next.hundreds}, Thousands: ${next.thousands}`
+        });
+      }
     },
 
     undo: () => {
