@@ -88,11 +88,19 @@ test.describe('Telemetry & Replay Pipeline', () => {
     await studentBtn.click();
 
     // Verify the replay viewer starts to load and the replay viewer title is visible
-    await expect(page.getByText('צפייה בהקלטת סשן הלמידה')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('רדאר סשן והקלטות')).toBeVisible({ timeout: 5000 });
 
-    // Since rrweb-player needs special default-import resolution, checking that there are no JS crashes is done
-    // by checking that either the player container or the no-replay-placeholder is rendered (no white-screen/crash).
-    const playerContainer = page.locator('.rrweb-player-container, .glass-card:has-text("אין מספיק נתוני הקלטה")');
+    // Open the modal by clicking the watch button
+    const watchBtn = page.getByRole('button', { name: 'צפה בוידאו ובלוגים' });
+    await expect(watchBtn).toBeVisible({ timeout: 5000 });
+    await watchBtn.click();
+
+    // Verify modal header is visible
+    await expect(page.getByText('ניתוח קוגניטיבי מבוסס וידאו')).toBeVisible({ timeout: 5000 });
+
+    // Since raw rrweb is used with custom timeline controls, checking that there are no JS crashes is done
+    // by checking that either the custom player controls or the no-replay-placeholder is rendered.
+    const playerContainer = page.locator('button:has-text("השהה"), button:has-text("נגן"), .glass-card:has-text("אין מספיק נתוני הקלטה")');
     await expect(playerContainer.first()).toBeVisible({ timeout: 5000 });
   });
 });

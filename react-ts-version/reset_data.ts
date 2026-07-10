@@ -57,7 +57,7 @@ async function resetAll() {
           standardTaskIdx: 0,
           qflow: { step: 0, results: {} },
           flowStatus: 'IDLE',
-          counts: { single: 0, ten: 0 },
+          counts: { units: 0, tens: 0, hundreds: 0, thousands: 0 },
           undoCount: 0,
           hesitationCount: 0,
           hasInteracted: false,
