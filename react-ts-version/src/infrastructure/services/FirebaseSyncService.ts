@@ -1,4 +1,4 @@
-import { ref, set, get, update, serverTimestamp, onValue, type DataSnapshot } from 'firebase/database';
+import { ref, set, get, update, serverTimestamp, onValue, onDisconnect, type DataSnapshot } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
@@ -53,6 +53,11 @@ class FirebaseSyncService {
 
     const studentRef = ref(database, `users/students/${studentId}`);
     
+    // Set online presence
+    const statusRef = ref(database, `users/students/${studentId}/isOnline`);
+    set(statusRef, true);
+    onDisconnect(statusRef).set(false);
+    
     this.isInitialLoad = true;
 
     // Load initial state from Firebase and keep it synced LIVE
@@ -91,6 +96,7 @@ class FirebaseSyncService {
                 ...(data.highestCompletedMeeting !== undefined && { highestCompletedMeeting: data.highestCompletedMeeting }),
                 ...(data.routeRecommendation !== undefined && { routeRecommendation: data.routeRecommendation }),
                 ...(data.routeStatus !== undefined && { routeStatus: data.routeStatus }),
+                ...(data.isOnline !== undefined && { isOnline: data.isOnline }),
                 ...(data.workspaceState && { workspaceState: data.workspaceState }),
               }
             },

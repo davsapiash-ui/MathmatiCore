@@ -61,6 +61,7 @@ export interface StudentData {
   routeStatus: RouteStatus | null;
   diagnosticReport?: DiagnosticReport | null;
   conceptMastery?: MasteryProfile;
+  isOnline?: boolean;
   workspaceState?: {
     sessionNumber: number;
     standardTaskIdx: number;

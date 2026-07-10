@@ -38,6 +38,7 @@ export function ClassManagement({ allStudents }: { allStudents: StudentData[] })
         routeStatus: null,
         routeRecommendation: null,
         qMatrixResults: null,
+        conceptMastery: null,
         traceData: { hesitation_events: 0, undo_clicks: 0 },
         forceReload: Date.now(),
         workspaceState: {
@@ -57,6 +58,7 @@ export function ClassManagement({ allStudents }: { allStudents: StudentData[] })
       // 3. Clear all related Firebase paths
       await Promise.all([
         remove(ref(database, `users/students/${studentId}/telemetry_sessions`)).catch(e => console.warn('telemetry', e)),
+        remove(ref(database, `users/students/${studentId}/interaction_logs`)).catch(e => console.warn('interaction_logs', e)),
         remove(ref(database, `users/students/${studentId}/teacher_hint`)).catch(e => console.warn('teacher_hint', e)),
         remove(ref(database, `approved_tasks/${studentId}`)).catch(e => console.warn('approved_tasks', e)),
         remove(ref(database, `replays/${studentId}`)).catch(e => console.warn('replays', e)),

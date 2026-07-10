@@ -324,10 +324,10 @@ export function TeacherDashboard() {
   }, []);
 
   const allAlerts = useMemo(() => {
-    // Only show firebase alerts from the last 12 hours
-    const twelveHoursAgo = Date.now() - 12 * 60 * 60 * 1000;
+    // Only show firebase alerts from the last 90 minutes for real-time relevance
+    const ninetyMinsAgo = Date.now() - 90 * 60 * 1000;
     return firebaseAlerts
-      .filter(a => a.timestamp > twelveHoursAgo)
+      .filter(a => a.timestamp > ninetyMinsAgo)
       .map(a => {
         const actualStudent = students[a.rawStudentId] || Object.values(students).find((s: StudentData) => s.studentId === a.rawStudentId || s.name === a.rawStudentId);
         return {
@@ -336,9 +336,13 @@ export function TeacherDashboard() {
         };
       })
       .filter(a => {
+        const actualStudent = students[a.rawStudentId] || Object.values(students).find((s: StudentData) => s.studentId === a.rawStudentId || s.name === a.rawStudentId);
         // Only show alerts for students in this teacher's class (who are in the filtered 'students' state)
-        const isMyStudent = !!students[a.rawStudentId] || Object.values(students).some((s: StudentData) => s.studentId === a.rawStudentId || s.name === a.rawStudentId);
-        return isMyStudent;
+        const isMyStudent = !!actualStudent;
+        // Filter out disconnected students
+        const isOnline = actualStudent?.isOnline !== false;
+        
+        return isMyStudent && isOnline;
       })
       .sort((a, b) => b.timestamp - a.timestamp);
   }, [firebaseAlerts, students]);
