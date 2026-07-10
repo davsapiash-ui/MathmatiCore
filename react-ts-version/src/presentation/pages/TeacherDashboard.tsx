@@ -337,15 +337,19 @@ export function TeacherDashboard() {
       })
       .filter(a => {
         const actualStudent = students[a.rawStudentId] || Object.values(students).find((s: StudentData) => s.studentId === a.rawStudentId || s.name === a.rawStudentId);
-        // Only show alerts for students in this teacher's class (who are in the filtered 'students' state)
+        // Only show alerts for students in this teacher's class
         const isMyStudent = !!actualStudent;
         // Filter out disconnected students
         const isOnline = actualStudent?.isOnline !== false;
         
-        return isMyStudent && isOnline;
+        // Anti-leakage: must belong to this teacher (fallback to true for legacy alerts without teacherId, but reset will clean them)
+        const aAny = a as any;
+        const isMyTeacher = aAny.teacherId ? aAny.teacherId === TEACHER_ID : true;
+        
+        return isMyStudent && isOnline && isMyTeacher;
       })
       .sort((a, b) => b.timestamp - a.timestamp);
-  }, [firebaseAlerts, students]);
+  }, [firebaseAlerts, students, TEACHER_ID]);
 
   const handleAlertResponse = (alert: RadarAlert, responseType: string, responseText: string) => {
     // 1. Record the intervention in the student's trace data

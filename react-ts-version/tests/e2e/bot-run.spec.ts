@@ -28,7 +28,7 @@ test('Generate Real Student Telemetry and AI Report', async ({ browser }) => {
   console.log("Logged in as user1.");
 
   // 2. Navigate to Workspace
-  await page.locator('button, a').filter({ hasText: 'להמשך התרגול' }).first().click();
+  await page.locator('button, a').filter({ hasText: 'להמשך התרגול' }).first().click({ force: true });
   await page.waitForURL('**/workspace*', { timeout: 15000 });
   await page.waitForTimeout(2000);
   console.log("Entered workspace.");

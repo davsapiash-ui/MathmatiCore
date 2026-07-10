@@ -30,6 +30,17 @@ test.describe('Passive Drifting Radar Alerts', () => {
     // Wait for the workspace to render (e.g. palette units)
     await page.waitForSelector('[id^="palette-units"]', { timeout: 5000 });
 
+    // Clean start: clear out any persistent counts from Firebase
+    await page.evaluate(() => {
+      const store = (window as any).__wsStore;
+      if (store) {
+        store.setState({
+          counts: { units: 0, tens: 0, hundreds: 0, thousands: 0 },
+          undoStack: []
+        });
+      }
+    });
+
     // Set up a spy on window.__onRadarAlert to collect triggered alerts
     await page.evaluate(() => {
       (window as any).triggeredAlerts = [];

@@ -62,6 +62,11 @@ test.describe('Regrouping State Mechanics', () => {
       if (!store) {
         throw new Error('Workspace store not found on window');
       }
+      // Clean start: clear out any persistent counts from Firebase
+      store.setState({
+        counts: { units: 0, tens: 0, hundreds: 0, thousands: 0 },
+        undoStack: []
+      });
       for (let i = 0; i < 10; i++) {
         store.getState().applyDrop({
           source: 'palette',

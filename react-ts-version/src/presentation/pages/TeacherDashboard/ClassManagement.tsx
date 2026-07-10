@@ -23,17 +23,18 @@ export function ClassManagement({ allStudents }: { allStudents: StudentData[] })
     if (!window.confirm(`האם אתה בטוח שברצונך לאפס את כל ההתקדמות והנתונים של תלמיד ${studentId}?\nהפעולה תמחק: לוגים, הקלטות, אבחונים, משימות AI, צ'אט ורפלקציות, ולא ניתן לבטל.`)) return;
     
     try {
-      // 1. Fetch existing record to keep identity fields (name, classId)
+      // 1. Resolve Identity
       const existingSnap = await get(ref(database, `users/students/${studentId}`));
       const existing = existingSnap.val() || {};
-
       let cleanName = existing.name || studentId;
+      const rawId = studentId.replace('student_', '');
+      const fullId = `student_${rawId}`;
       if (cleanName === 'student' || cleanName === 'student_user1' || cleanName.toLowerCase().startsWith('student_')) {
-          cleanName = studentId.replace('student_', '');
+          cleanName = rawId;
       }
 
       // 2. Write a clean slate — preserve identity, wipe progress
-      await update(ref(database, `users/students/${studentId}`), {
+      const resetPayload = {
         completedMeeting2: false,
         routeStatus: null,
         routeRecommendation: null,
@@ -53,16 +54,33 @@ export function ClassManagement({ allStudents }: { allStudents: StudentData[] })
           hasInteracted: false,
           aiTasks: []
         }
-      });
+      };
 
-      // 3. Clear all related Firebase paths
-      await Promise.all([
-        remove(ref(database, `users/students/${studentId}/telemetry_sessions`)).catch(e => console.warn('telemetry', e)),
-        remove(ref(database, `users/students/${studentId}/interaction_logs`)).catch(e => console.warn('interaction_logs', e)),
-        remove(ref(database, `users/students/${studentId}/teacher_hint`)).catch(e => console.warn('teacher_hint', e)),
-        remove(ref(database, `approved_tasks/${studentId}`)).catch(e => console.warn('approved_tasks', e)),
-        remove(ref(database, `replays/${studentId}`)).catch(e => console.warn('replays', e)),
-      ]);
+      await update(ref(database, `users/students/${studentId}`), resetPayload);
+      if (studentId !== fullId) {
+        await update(ref(database, `users/students/${fullId}`), resetPayload);
+      }
+      if (studentId !== rawId) {
+        await update(ref(database, `users/students/${rawId}`), resetPayload);
+      }
+
+      // 3. Clear all related Firebase paths for both ID variations
+      const pathsToDelete = [
+        `users/students/${rawId}/telemetry_sessions`,
+        `users/students/${rawId}/interaction_logs`,
+        `users/students/${rawId}/radar_history`,
+        `users/students/${rawId}/teacher_hint`,
+        `approved_tasks/${rawId}`,
+        `replays/${rawId}`,
+        `users/students/${fullId}/telemetry_sessions`,
+        `users/students/${fullId}/interaction_logs`,
+        `users/students/${fullId}/radar_history`,
+        `users/students/${fullId}/teacher_hint`,
+        `approved_tasks/${fullId}`,
+        `replays/${fullId}`
+      ];
+
+      await Promise.all(pathsToDelete.map(path => remove(ref(database, path)).catch(e => console.warn(path, e))));
 
       // 3.5. Clean up AI pending approvals
       if (teacherId) {
@@ -93,7 +111,11 @@ export function ClassManagement({ allStudents }: { allStudents: StudentData[] })
           const deletePromises = Object.keys(alertsData)
             .filter(key => {
               const a = alertsData[key];
-              return a.student === studentId || a.student === rawId || a.rawStudentId === studentId || a.username === studentId || a.username === rawId;
+              if (!a) return false;
+              return a.student === studentId || a.student === rawId || 
+                     a.studentId === studentId || a.studentId === rawId ||
+                     a.rawStudentId === studentId || a.rawStudentId === rawId ||
+                     a.username === studentId || a.username === rawId;
             })
             .map(key => remove(ref(database, `radar_alerts/${key}`)));
           await Promise.all(deletePromises);

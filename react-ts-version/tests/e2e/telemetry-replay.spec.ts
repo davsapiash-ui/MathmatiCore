@@ -27,8 +27,31 @@ async function dragAndDrop(page, sourceSelector, targetSelector) {
   await page.waitForTimeout(100);
 }
 
+async function clearWorkspaceState(page, studentId) {
+  console.log(`Clearing workspaceState for ${studentId}...`);
+  await page.goto('/login');
+  await page.getByRole('button', { name: 'מנהל' }).click();
+  await page.getByPlaceholder('שם משתמש').fill('davsapiash');
+  await page.getByPlaceholder('סיסמה').fill('carlibach');
+  await page.getByRole('button', { name: 'התחבר למערכת' }).click();
+  await page.waitForURL('**/admin');
+  await page.evaluate(async (id) => {
+    const { getDatabase, ref, set } = await import('firebase/database');
+    const db = getDatabase();
+    await set(ref(db, `users/students/${id}/workspaceState`), null);
+  }, studentId);
+  await page.evaluate(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+  });
+}
+
 test.describe('Telemetry & Replay Pipeline', () => {
   test('verify student telemetry is recorded and replay loads in Teacher Dashboard', async ({ context, page }) => {
+    test.setTimeout(90000); // increase timeout for clearWorkspaceState step
+    // Clear any previous workspaceState that might have NaN
+    await clearWorkspaceState(page, 'student_user7');
+
     // Disable driver.js tours
     await context.addInitScript(() => {
       window.localStorage.setItem('mathmaticore_has_seen_tour', 'true');

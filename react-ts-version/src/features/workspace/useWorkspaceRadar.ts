@@ -45,6 +45,7 @@ export function useWorkspaceRadar(sessionNumber: number) {
         student: uid,
         username: uid,
         studentName: u?.displayName ?? 'תלמיד',
+        teacherId: u?.teacherId ?? 'unknown',
         taskId: taskIdRef.current,
         sessionNumber,
         timestamp: Date.now(),
