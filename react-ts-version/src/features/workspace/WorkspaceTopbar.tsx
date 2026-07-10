@@ -75,10 +75,10 @@ export function WorkspaceTopbar() {
               ? 'text-ws-blue border-ws-blue bg-white hover:bg-ws-blue/10'
               : 'text-white bg-ws-blue border-ws-blue hover:brightness-110'
           }`}
-          aria-label={boardOpen ? 'הסתר ארגז בלוקים' : 'פתח ארגז בלוקים'}
+          aria-label={boardOpen ? 'הסתר לוח מוחשי' : 'פתח לוח מוחשי'}
         >
-          <span aria-hidden="true">🧊</span>
-          <span className="hidden sm:inline">{boardOpen ? 'הסתר בלוקים' : 'ארגז בלוקים'}</span>
+          <span aria-hidden="true">🧩</span>
+          <span className="hidden sm:inline">{boardOpen ? 'הסתר לוח' : 'לוח מוחשי'}</span>
         </button>
 
         <button

@@ -91,7 +91,7 @@ export function VerticalAdditionTask({
         aria-label={`תרגיל במאונך: ${numberA} ${isSubtraction ? 'פחות' : 'ועוד'} ${numberB}`}
         className="grid rounded-2xl shadow-sm"
         style={{
-          gridTemplateColumns: `${CELL}px repeat(${cols}, ${CELL}px)`,
+          gridTemplateColumns: `repeat(${cols}, ${CELL}px) ${CELL}px`,
           gridTemplateRows: `${CELL}px ${CELL}px ${CELL}px ${CELL}px`,
           padding: `${CELL * 0.75}px ${CELL}px`, // 0.75 top/bottom, 1 full square left/right
           backgroundColor: 'var(--ws-surface)',
@@ -103,7 +103,6 @@ export function VerticalAdditionTask({
         }}
       >
         {/* Row 0 — Carry/Borrow inputs */}
-        <div aria-hidden="true" />
         {colPlaces.map((place, j) => {
           return (
             <div key={`carry${j}`} className="flex items-end justify-center pb-1">
@@ -124,12 +123,14 @@ export function VerticalAdditionTask({
             </div>
           );
         })}
+        <div aria-hidden="true" />
 
         {/* Row 1 — first operand */}
-        <div aria-hidden="true" />
         {digitsA.map((d, j) => digitCell(d, `a${j}`, colPlaces[j]))}
+        <div aria-hidden="true" />
 
-        {/* Row 2 — operator + second operand; thick result line under both */}
+        {/* Row 2 — second operand + operator; thick result line under both */}
+        {digitsB.map((d, j) => digitCell(d, `b${j}`, undefined, { borderBottom: '4px solid hsl(var(--ws-ink))' }))}
         <div
           aria-hidden="true"
           className="flex items-center justify-center font-mono font-black leading-none"
@@ -137,10 +138,8 @@ export function VerticalAdditionTask({
         >
           {isSubtraction ? '−' : '+'}
         </div>
-        {digitsB.map((d, j) => digitCell(d, `b${j}`, undefined, { borderBottom: '4px solid hsl(var(--ws-ink))' }))}
 
         {/* Row 3 — answer inputs inside the same squares (units under units) */}
-        <div aria-hidden="true" />
         {colPlaces.map((place, j) => {
           if (j < firstAnswerCol) return <div key={`e${j}`} aria-hidden="true" />;
           const ansIdx = j - firstAnswerCol;
@@ -170,20 +169,25 @@ export function VerticalAdditionTask({
             </div>
           );
         })}
+        <div aria-hidden="true" />
       </div>
 
       {/* Place labels under the paper, aligned to the answer columns */}
-      <div dir="ltr" className="grid" style={{ gridTemplateColumns: `${CELL}px repeat(${cols}, ${CELL}px)` }}>
-        <div aria-hidden="true" />
+      <div dir="ltr" className="grid" style={{ gridTemplateColumns: `repeat(${cols}, ${CELL}px) ${CELL}px` }}>
         {colPlaces.map((place, j) =>
           j < firstAnswerCol ? (
             <div key={`l${j}`} aria-hidden="true" />
           ) : (
-            <span key={`l${j}`} className="text-center text-[11px] font-bold" style={{ color: PLACE_TINT[place] }}>
+            <div
+              key={`l${j}`}
+              className="text-center font-bold"
+              style={{ width: CELL, fontSize: CELL * 0.22, color: PLACE_TINT[place] }}
+            >
               {PLACE_LABEL_HE[place]}
-            </span>
+            </div>
           )
         )}
+        <div aria-hidden="true" />
       </div>
 
 

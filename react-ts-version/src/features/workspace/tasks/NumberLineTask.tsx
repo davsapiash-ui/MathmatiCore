@@ -86,57 +86,67 @@ export function NumberLineTask({
           }
         }}
       >
-        {/* Track */}
-        <div className="absolute top-1/2 left-0 right-0 h-2 -translate-y-1/2 rounded-full bg-ws-surface2" />
+        {/* Main Axis Line */}
+        <div className="absolute top-1/2 left-0 right-0 h-[2px] -translate-y-1/2 bg-ws-ink" />
+        {/* Arrow at the right end */}
+        <div className="absolute top-1/2 -translate-y-1/2 right-0 w-0 h-0 
+          border-t-[5px] border-t-transparent 
+          border-b-[5px] border-b-transparent 
+          border-l-[8px] border-l-ws-ink" 
+        />
+        {/* Arrow at the left end */}
+        <div className="absolute top-1/2 -translate-y-1/2 left-0 w-0 h-0 
+          border-t-[5px] border-t-transparent 
+          border-b-[5px] border-b-transparent 
+          border-r-[8px] border-r-ws-ink" 
+        />
 
         {/* Progress Fill (פס צבירה) */}
         <div 
-          className="absolute top-1/2 left-0 h-2 -translate-y-1/2 rounded-full bg-ws-accent pointer-events-none transition-all duration-75"
-          style={{ width: `${pct}%` }} 
+          ref={containerRef}
+          className="absolute top-1/2 -translate-y-1/2 left-4 right-4 h-12 cursor-pointer z-10"
+          onClick={handleTrackClick}
         />
 
-        {/* All ticks */}
-        {Array.from({ length: Math.floor(span / minorStep) + 1 }).map((_, i) => {
-          const t = min + i * minorStep;
-          const p = ((t - min) / span) * 100;
-          const isMajor = t % majorStep === 0;
-          const isMedium = t % mediumStep === 0;
-          const isAnchor = asdAnchors?.includes(t);
-          
-          let heightClass = 'h-3.5 bg-ws-ink/40'; // minor (tens)
-          if (isMajor) heightClass = 'h-6 bg-ws-ink/80'; // major (hundreds)
-          else if (isMedium) heightClass = 'h-4.5 bg-ws-ink/60'; // medium (fifties)
+        <div className="absolute top-0 bottom-0 left-4 right-4 pointer-events-none">
+          {/* Ticks */}
+          {allTicks.map((t) => {
+            const isMajor = t % majorStep === 0;
+            const isAnchor = asdAnchors?.includes(t);
+            const p = ((t - min) / span) * 100;
+            const heightClass = isMajor ? 'h-4 bg-ws-ink' : 'h-2 bg-ws-ink/60';
+            const widthClass = isMajor ? 'w-[2px]' : 'w-[1px]';
+            return (
+              <div
+                key={t}
+                className={`absolute top-1/2 -translate-y-1/2 ${widthClass} ${heightClass} ${
+                  isAnchor ? '!h-6 bg-ws-accent shadow-[0_0_8px_2px_rgba(249,115,22,0.5)]' : ''
+                }`}
+                style={{ left: `${p}%` }}
+              />
+            );
+          })}
 
-          return (
-            <div
+          {/* Major labels */}
+          {majorTicks.map((t) => (
+            <span
               key={t}
-              className={`absolute top-1/2 -translate-y-1/2 w-0.5 rounded ${heightClass} ${
-                isAnchor ? '!h-6 bg-ws-accent shadow-[0_0_8px_2px_rgba(249,115,22,0.5)]' : ''
-              }`}
-              style={{ left: `${p}%` }}
-            />
-          );
-        })}
-
-        {/* Major labels */}
-        {majorTicks.map((t) => (
-          <span
-            key={t}
-            className="absolute top-[72%] -translate-x-1/2 text-xs font-bold text-ws-soft tabular-nums"
-            style={{ left: `${((t - min) / span) * 100}%` }}
-          >
-            {t.toLocaleString('he-IL')}
-          </span>
-        ))}
-
-        {/* Marker arrow */}
-        <div className="absolute -top-1 -translate-x-1/2 flex flex-col items-center pointer-events-none transition-all duration-75" style={{ left: `${pct}%` }}>
-          {showMarkerValue && (
-            <span className="mb-0.5 px-2 py-0.5 rounded-lg bg-ws-accent text-white text-sm font-black tabular-nums shadow">
-              {displayValue.toLocaleString('he-IL')}
+              className="absolute top-[calc(50%+12px)] -translate-x-1/2 text-sm font-semibold text-ws-ink tabular-nums"
+              style={{ left: `${((t - min) / span) * 100}%` }}
+            >
+              {t.toLocaleString('he-IL')}
             </span>
-          )}
-          <span className="text-2xl leading-none text-ws-accent drop-shadow">▼</span>
+          ))}
+
+          {/* Marker arrow */}
+          <div className="absolute top-0 -translate-x-1/2 flex flex-col items-center pointer-events-none transition-all duration-75 z-20" style={{ left: `${pct}%` }}>
+            {showMarkerValue && (
+              <span className="mb-0.5 px-2 py-0.5 rounded border border-ws-accent/30 bg-white text-ws-accent text-sm font-black tabular-nums shadow-sm">
+                {displayValue.toLocaleString('he-IL')}
+              </span>
+            )}
+            <span className="text-xl leading-none text-ws-accent drop-shadow-sm">▼</span>
+          </div>
         </div>
       </div>
     </div>
