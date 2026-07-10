@@ -150,11 +150,12 @@ export function VerticalAdditionTask({
                 >
                   <div
                     aria-hidden="true"
-                    className="absolute inset-0 flex items-center justify-center font-mono font-black leading-none"
+                    className="absolute inset-0 flex items-center justify-end font-mono font-black leading-none"
                     style={{ 
                       fontSize: CELL * 0.6, 
                       color: 'hsl(var(--ws-accent))',
                       transform: 'translateY(-32px)',
+                      paddingRight: '8px',
                       height: CELL,
                       zIndex: 10
                     }}
@@ -180,11 +181,12 @@ export function VerticalAdditionTask({
                     >
                       <div
                         aria-hidden="true"
-                        className="absolute inset-0 flex items-center justify-center font-mono font-black leading-none"
+                        className="absolute inset-0 flex items-center justify-end font-mono font-black leading-none"
                         style={{ 
                           fontSize: CELL * 0.6, 
                           color: 'hsl(var(--ws-accent))',
                           transform: 'translateY(-32px)',
+                          paddingRight: '8px',
                           height: CELL,
                           zIndex: 10
                         }}
