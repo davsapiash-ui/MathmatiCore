@@ -130,8 +130,8 @@ export function VerticalAdditionTask({
 
         {/* Row 2 — second operand + operator; thick result line under both */}
         {(() => {
-          const firstNonEmptyB = digitsB.findIndex((d) => d !== null);
-          const operatorIndex = firstNonEmptyB - 1;
+          const firstNonEmptyA = digitsA.findIndex((d) => d !== null);
+          const operatorIndex = firstNonEmptyA - 1;
           const operatorChar = isSubtraction ? '−' : '﬩';
           
           return (
@@ -139,11 +139,23 @@ export function VerticalAdditionTask({
               {/* Gutter column */}
               {operatorIndex < 0 ? (
                 <div
-                  aria-hidden="true"
-                  className="flex items-center justify-center font-mono font-black leading-none"
-                  style={{ fontSize: CELL * 0.6, color: 'hsl(var(--ws-accent))', borderBottom: '4px solid hsl(var(--ws-ink))' }}
+                  key="operator-gutter"
+                  className="relative"
+                  style={{ borderBottom: '4px solid hsl(var(--ws-ink))' }}
                 >
-                  {operatorChar}
+                  <div
+                    aria-hidden="true"
+                    className="absolute inset-0 flex items-center justify-center font-mono font-black leading-none"
+                    style={{ 
+                      fontSize: CELL * 0.6, 
+                      color: 'hsl(var(--ws-accent))',
+                      transform: 'translateY(-32px)',
+                      height: CELL,
+                      zIndex: 10
+                    }}
+                  >
+                    {operatorChar}
+                  </div>
                 </div>
               ) : (
                 <div
@@ -155,10 +167,27 @@ export function VerticalAdditionTask({
               {/* Digits and middle operator */}
               {digitsB.map((d, j) => {
                 if (j === operatorIndex) {
-                  return digitCell(operatorChar, `operator-${j}`, undefined, {
-                    borderBottom: '4px solid hsl(var(--ws-ink))',
-                    color: 'hsl(var(--ws-accent))'
-                  });
+                  return (
+                    <div 
+                      key={`operator-container-${j}`}
+                      className="relative"
+                      style={{ borderBottom: '4px solid hsl(var(--ws-ink))' }}
+                    >
+                      <div
+                        aria-hidden="true"
+                        className="absolute inset-0 flex items-center justify-center font-mono font-black leading-none"
+                        style={{ 
+                          fontSize: CELL * 0.6, 
+                          color: 'hsl(var(--ws-accent))',
+                          transform: 'translateY(-32px)',
+                          height: CELL,
+                          zIndex: 10
+                        }}
+                      >
+                        {operatorChar}
+                      </div>
+                    </div>
+                  );
                 }
                 return digitCell(d, `b${j}`, undefined, { borderBottom: '4px solid hsl(var(--ws-ink))' });
               })}

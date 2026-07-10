@@ -31,11 +31,12 @@ export function BlockPalette({ scaffoldLevel }: { scaffoldLevel: number }) {
       aria-label="מחסן הכלים — גרור לטבלה"
       className="shrink-0 ws-card !rounded-2xl px-4 py-2.5 flex items-center justify-start sm:justify-center gap-3 max-w-full overflow-x-auto no-scrollbar"
     >
-      <span className="text-xs font-display font-extrabold text-ws-soft leading-tight text-center shrink-0">
-        <span aria-hidden="true" className="text-xl">🧰</span>
-        <br />
-        ארגז כלים
-      </span>
+      <div className="flex flex-col items-center gap-1 rounded-2xl px-4 pt-2 pb-1.5 bg-ws-accentSoft/35 border border-ws-accent/25 shrink-0 select-none">
+        <span aria-hidden="true" className="text-3xl leading-none h-12 flex items-center justify-center">🧰</span>
+        <span className="text-[11px] font-black text-ws-accent">
+          ארגז כלים
+        </span>
+      </div>
       <div className="w-px h-14 bg-ws-surface2" />
 
       {paletteItemsToRender.map(({ place, labelHe, scale }) => (
