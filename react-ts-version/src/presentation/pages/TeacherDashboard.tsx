@@ -1147,7 +1147,7 @@ export function TeacherDashboard() {
                                             <span className="font-semibold text-sm text-indigo-900">{task.titleHe}</span>
                                           </div>
                                           <div className="text-sm font-bold text-indigo-700 bg-indigo-50 px-3 py-1 rounded-md" dir="ltr">
-                                            {task.numberA} {task.isSubtraction ? '-' : 'ן¬©'} {task.numberB} = ?
+                                            {task.numberA} {task.isSubtraction ? '-' : '﬩'} {task.numberB} = ?
                                           </div>
                                         </div>
                                       ))}
@@ -1703,7 +1703,7 @@ export function TeacherDashboard() {
                   onClick={() => { setEditingApproval(null); setEditedTasks(null); }}
                   className="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors"
                 >
-                  ג•
+                  ✖
                 </button>
               </div>
 
