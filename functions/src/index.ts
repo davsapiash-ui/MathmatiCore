@@ -3,9 +3,6 @@ import * as logger from "firebase-functions/logger";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export const generateSocraticHint = onCall(
-  {
-    secrets: ["GEMINI_API_KEY"],
-  },
   async (request) => {
     // 1. Verify authentication
     if (!request.auth) {
