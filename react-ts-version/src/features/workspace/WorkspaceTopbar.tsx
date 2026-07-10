@@ -77,7 +77,7 @@ export function WorkspaceTopbar() {
           }`}
           aria-label={boardOpen ? 'הסתר בית המספרים' : 'פתח בית המספרים'}
         >
-          <span aria-hidden="true">🧩</span>
+          <span aria-hidden="true">🏠</span>
           <span className="hidden sm:inline">{boardOpen ? 'הסתר' : 'בית המספרים'}</span>
         </button>
 
