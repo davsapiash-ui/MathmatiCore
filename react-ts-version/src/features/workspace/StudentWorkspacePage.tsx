@@ -50,6 +50,7 @@ export function StudentWorkspacePage() {
   const navigate = useNavigate();
   const { isASDMode } = useSettingsStore();
   const initSession = useWorkspaceStore((s) => s.initSession);
+  const restoreSession = useWorkspaceStore((s) => s.restoreSession);
   const applyDrop = useWorkspaceStore((s) => s.applyDrop);
   const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
   const flowStatus = useWorkspaceStore((s) => s.flowStatus);
@@ -207,14 +208,22 @@ export function StudentWorkspacePage() {
 
   const [isInitializing, setIsInitializing] = useState(meeting === 3);
   const [pendingApproval, setPendingApproval] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Reset initialization when meeting changes
+  useEffect(() => {
+    setIsInitialized(false);
+  }, [meeting]);
 
   // Retrieve saved progress from Firebase (synced into useStore)
   const students = useStore((s) => s.students);
+  const firebaseLoaded = useStore((s) => s.firebaseLoaded);
   const myData = user?.uid ? students[user.uid] : null;
-  const startingTaskIdx = (myData?.workspaceState?.sessionNumber === meeting) ? (myData.workspaceState.standardTaskIdx || 0) : 0;
 
   useEffect(() => {
+    if (!firebaseLoaded || isInitialized) return;
     let cancelled = false;
+
     if (meeting === 3) {
       setIsInitializing(true);
       // Any failure in this async chain must NOT strand the student on the loading
@@ -223,26 +232,42 @@ export function StudentWorkspacePage() {
         if (cancelled) return;
         const username = useAuthStore.getState().user?.uid;
         if (!username) {
-          initSession(meeting, isASDMode, null, startingTaskIdx);
+          initSession(meeting, isASDMode, null, 0);
+          setIsInitialized(true);
           setIsInitializing(false);
           return;
         }
         const tasks = await SocraticEngine.getApprovedTasks(username);
         if (cancelled) return;
         if (tasks) {
-          initSession(meeting, isASDMode, tasks, startingTaskIdx);
+          if (myData?.workspaceState?.sessionNumber === meeting) {
+            restoreSession(myData.workspaceState);
+          } else {
+            initSession(meeting, isASDMode, tasks, 0);
+          }
         } else {
           // Pending teacher approval — blocking screen with a way back to the hub.
           setPendingApproval(true);
         }
+        setIsInitialized(true);
         setIsInitializing(false);
       })().catch(() => {
         if (cancelled) return;
-        initSession(meeting, isASDMode, null, startingTaskIdx);
+        if (myData?.workspaceState?.sessionNumber === meeting) {
+          restoreSession(myData.workspaceState);
+        } else {
+          initSession(meeting, isASDMode, null, 0);
+        }
+        setIsInitialized(true);
         setIsInitializing(false);
       });
     } else {
-      initSession(meeting, isASDMode, null, startingTaskIdx);
+      if (myData?.workspaceState?.sessionNumber === meeting) {
+        restoreSession(myData.workspaceState);
+      } else {
+        initSession(meeting, isASDMode, null, 0);
+      }
+      setIsInitialized(true);
       setIsInitializing(false);
     }
     return () => {
@@ -250,7 +275,7 @@ export function StudentWorkspacePage() {
     };
     // isASDMode intentionally not a dependency: mid-session toggling must not reset the student's work.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [meeting, initSession]);
+  }, [meeting, firebaseLoaded, isInitialized, myData, initSession, restoreSession]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),

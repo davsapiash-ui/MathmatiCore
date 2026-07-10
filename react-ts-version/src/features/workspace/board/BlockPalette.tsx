@@ -15,9 +15,9 @@ const PALETTE_ITEMS: { place: Place; labelHe: string; scale: number }[] = [
  * Hidden entirely at scaffoldLevel >= 3 (vanilla setScaffoldLevel).
  */
 export function BlockPalette({ scaffoldLevel }: { scaffoldLevel: number }) {
-  if (scaffoldLevel >= 3) return null;
-
   const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
+
+  if (scaffoldLevel >= 3) return null;
   
   // Hide thousands in sessions 1 and 2 (pedagogical progression)
   const paletteItemsToRender = sessionNumber <= 2

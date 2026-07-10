@@ -134,7 +134,7 @@ export function VerticalAdditionTask({
           className="flex items-center justify-center font-mono font-black leading-none"
           style={{ fontSize: CELL * 0.6, color: 'hsl(var(--ws-accent))', borderBottom: '4px solid hsl(var(--ws-ink))' }}
         >
-          {isSubtraction ? '−' : '+'}
+          {isSubtraction ? '−' : '﬩'}
         </div>
         {digitsB.map((d, j) => digitCell(d, `b${j}`, undefined, { borderBottom: '4px solid hsl(var(--ws-ink))' }))}
 

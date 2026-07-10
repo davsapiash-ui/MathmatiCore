@@ -83,7 +83,8 @@ class FirebaseSyncService {
                 ...(data.routeStatus !== undefined && { routeStatus: data.routeStatus }),
                 ...(data.workspaceState && { workspaceState: data.workspaceState }),
               }
-            }
+            },
+            firebaseLoaded: true
           });
         } else {
           // Initialize user in Firebase
@@ -95,6 +96,7 @@ class FirebaseSyncService {
             highestCompletedMeeting: 0,
             routeStatus: null
           });
+          useStore.setState({ firebaseLoaded: true });
         }
       } catch (e) {
         console.error("Firebase sync error:", e);

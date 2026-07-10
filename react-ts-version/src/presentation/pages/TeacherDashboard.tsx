@@ -77,7 +77,7 @@ export function TeacherDashboard() {
   const [editingApproval, setEditingApproval] = useState<PendingAIApproval | null>(null);
   const [editedTasks, setEditedTasks] = useState<any[] | null>(null);
   const [coPilotChat, setCoPilotChat] = useState<{ role: 'ai' | 'teacher', text: string }[]>([
-    { role: 'ai', text: '׳©׳׳•׳! ׳׳ ׳™ ׳¡׳•׳›׳ ׳”-AI. ׳”׳×׳•׳›׳ ׳™׳× ׳׳׳₪׳’׳© ׳”׳§׳¨׳•׳‘ ׳׳•׳›׳ ׳”. ׳×׳•׳›׳ ׳׳׳©׳¨ ׳׳•׳×׳”, ׳׳¢׳¨׳•׳ ׳׳•׳×׳” ׳›׳׳, ׳׳• ׳׳‘׳§׳© ׳׳׳ ׳™ ׳׳©׳ ׳•׳× ׳׳©׳”׳• (׳׳׳©׳: "׳”׳•׳¨׳“ ׳׳× ׳¨׳׳× ׳”׳§׳•׳©׳™ ׳©׳ ׳×׳¨׳’׳™׳ 1").' }
+    { role: 'ai', text: 'שלום! אני סוכן ה-AI. התוכנית למפגש הקרוב מוכנה. תוכל לאשר אותה, לערוך אותה כאן, או לבקש ממני לשנות משהו (למשל: "הורד את רמת הקושי של תרגיל 1").' }
   ]);
   const [coPilotInput, setCoPilotInput] = useState('');
 
@@ -213,14 +213,14 @@ export function TeacherDashboard() {
     // 1. Write the hint flag to Firebase so the student gets an actual popup
     set(ref(database, `users/students/${studentId}/teacher_hint`), {
       timestamp: Date.now(),
-      message: "׳”׳׳•׳¨׳” ׳©׳׳— ׳׳ ׳¨׳׳–: ׳ ׳¡׳” ׳׳”׳©׳×׳׳© ׳‘׳׳•׳— ׳”׳¢׳©׳¨׳•׳× ׳›׳“׳™ ׳׳₪׳¨׳•׳˜."
+      message: "המורה שלח לך רמז: נסה להשתמש בלוח העשרות כדי לפרוט."
     }).then(() => {
       // 2. Switch to chat so the teacher can follow up manually
       setSelectedStudentId(studentId);
       setActiveTab("chat_students");
     }).catch((err: any) => {
       console.error("Failed to send hint:", err);
-      alert("׳©׳’׳™׳׳” ׳‘׳©׳׳™׳—׳× ׳”׳¨׳׳– ׳׳×׳׳׳™׳“.");
+      alert("שגיאה בשליחת הרמז לתלמיד.");
     });
   };
 
@@ -307,7 +307,7 @@ export function TeacherDashboard() {
             return {
               ...row,
               firebaseKey: key,
-              studentId: row.studentId ?? row.studentName ?? rawId ?? '׳×׳׳׳™׳“',
+              studentId: row.studentId ?? row.studentName ?? rawId ?? 'תלמיד',
               rawStudentId: rawId,
             };
           }).reverse();
@@ -431,7 +431,7 @@ export function TeacherDashboard() {
     if (!inputText.trim() || !user) return;
     sendMessage(
       user.uid as string,
-      (user.displayName as string) || "׳׳•׳¨׳”",
+      (user.displayName as string) || "מורה",
       "admin",
       inputText.trim(),
     );
@@ -442,7 +442,7 @@ export function TeacherDashboard() {
     if (!inputText.trim() || !user || !selectedStudentId) return;
     sendMessage(
       user.uid as string,
-      (user.displayName as string) || "׳׳•׳¨׳”",
+      (user.displayName as string) || "מורה",
       selectedStudentId,
       inputText.trim(),
     );
@@ -454,7 +454,7 @@ export function TeacherDashboard() {
     if (!file || !user || !selectedStudentId) return;
     setSendingImage(true);
     try {
-      await sendImageMessage(user.uid as string, (user.displayName as string) || '׳׳•׳¨׳”', selectedStudentId, file);
+      await sendImageMessage(user.uid as string, (user.displayName as string) || 'מורה', selectedStudentId, file);
     } finally {
       setSendingImage(false);
       if (teacherFileInputRef.current) teacherFileInputRef.current.value = '';
@@ -466,7 +466,7 @@ export function TeacherDashboard() {
     if (!file || !user) return;
     setSendingImage(true);
     try {
-      await sendImageMessage(user.uid as string, (user.displayName as string) || '׳׳•׳¨׳”', 'admin', file);
+      await sendImageMessage(user.uid as string, (user.displayName as string) || 'מורה', 'admin', file);
     } finally {
       setSendingImage(false);
       if (adminFileInputRef.current) adminFileInputRef.current.value = '';
@@ -486,7 +486,7 @@ export function TeacherDashboard() {
       <div className="flex items-center justify-center h-screen bg-slate-50 dark:bg-slate-900">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-          <p className="text-slate-600 dark:text-slate-400 font-medium">׳˜׳•׳¢׳ ׳ ׳×׳•׳ ׳™ ׳×׳׳׳™׳“׳™׳...</p>
+          <p className="text-slate-600 dark:text-slate-400 font-medium">טוען נתוני תלמידים...</p>
         </div>
       </div>
     );
@@ -508,7 +508,7 @@ export function TeacherDashboard() {
         
         <div className="p-6 border-b border-ws-surface2">
           <h2 className="font-display font-black text-xl text-ws-ink tracking-tight mb-2">
-            ׳×׳—׳ ׳× ׳¢׳‘׳•׳“׳” ׳׳•׳¨׳”
+            תחנת עבודה מורה
           </h2>
           
           <div className="mt-4">
@@ -517,34 +517,34 @@ export function TeacherDashboard() {
               className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 shadow-md font-bold text-sm"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>
-              <span>׳׳¨׳’׳– ׳—׳•׳ ׳׳׳§׳¨׳</span>
+              <span>ארגז חול למקרן</span>
             </button>
           </div>
         </div>
 
         <nav className="flex-1 p-4 flex flex-col gap-2">
           <div className="text-[10px] font-bold text-slate-400  mb-2 mt-2 px-2 uppercase tracking-widest">
-            ׳₪׳“׳’׳•׳’׳™׳” ׳•׳׳¢׳§׳‘
+            פדגוגיה ומעקב
           </div>
           <button
             id="tour-tab-clustering"
             onClick={() => handleTabChange("clustering")}
             className={`w-full text-right px-4 py-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "clustering" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
           >
-            ׳׳™׳₪׳•׳™ ׳›׳™׳×׳×׳™ (<span dir="ltr">Q-Matrix</span>)
+            מיפוי כיתתי (<span dir="ltr">Q-Matrix</span>)
           </button>
           <button
             id="tour-tab-reports"
             onClick={() => handleTabChange("diagnostic_reports")}
             className={`w-full text-right px-4 py-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "diagnostic_reports" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg text-ws-soft "}`}
           >
-            ׳“׳•"׳—׳•׳× ׳׳‘׳—׳•׳ ׳׳™׳©׳™׳™׳
+            דו"חות אבחון אישיים
           </button>
           <button
             onClick={() => handleTabChange("alerts")}
             className={`w-full flex justify-between items-center text-right px-4 py-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "alerts" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg text-ws-soft "}`}
           >
-            <span>׳”׳×׳¨׳׳•׳× ׳–׳׳ ׳׳׳× (׳¨׳“׳׳¨)</span>
+            <span>התראות זמן אמת (רדאר)</span>
             {allAlerts.length > 0 && (
               <span className="bg-rose-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg shadow-rose-500/30 badge-alert animate-soft-heartbeat">
                 {allAlerts.length}
@@ -555,7 +555,7 @@ export function TeacherDashboard() {
             onClick={() => handleTabChange("approvals")}
             className={`w-full flex justify-between items-center text-right px-4 py-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "approvals" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg text-ws-soft "}`}
           >
-            <span>׳׳™׳©׳•׳¨ ׳׳©׳™׳׳•׳× <span dir="ltr">AI</span></span>
+            <span>אישור משימות <span dir="ltr">AI</span></span>
             {pendingRouteStudents.length > 0 && (
               <span className="bg-ws-accent text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg">
                 {pendingRouteStudents.length}
@@ -566,18 +566,18 @@ export function TeacherDashboard() {
             onClick={() => handleTabChange("class_management")}
             className={`w-full text-right px-4 py-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "class_management" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
           >
-            ׳ ׳™׳”׳•׳ ׳›׳™׳×׳” ׳•׳×׳׳׳™׳“׳™׳
+            ניהול כיתה ותלמידים
           </button>
 
           <div className="text-[10px] font-bold text-slate-400  mb-2 mt-6 px-2 uppercase tracking-widest">
-            ׳×׳§׳©׳•׳¨׳× ׳•׳¦'׳׳˜
+            תקשורת וצ'אט
           </div>
           <button
             id="tour-tab-chat"
             onClick={() => handleTabChange("chat_students")}
             className={`w-full flex justify-between items-center text-right px-4 py-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "chat_students" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
           >
-            <span>׳¦'׳׳˜ ׳¢׳ ׳×׳׳׳™׳“׳™׳</span>
+            <span>צ'אט עם תלמידים</span>
             {unreadStudentsCount > 0 && (
               <span className="bg-rose-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg shadow-rose-500/30 badge-alert animate-soft-heartbeat">
                 {unreadStudentsCount}
@@ -588,7 +588,7 @@ export function TeacherDashboard() {
             onClick={() => handleTabChange("chat_admin")}
             className={`w-full flex justify-between items-center text-right px-4 py-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "chat_admin" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
           >
-            <span>׳¦'׳׳˜ ׳”׳ ׳”׳׳”</span>
+            <span>צ'אט הנהלה</span>
             {unreadAdminCount > 0 && (
               <span className="bg-ws-accentSoft0 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg shadow-amber-500/30 animate-bounce">
                 {unreadAdminCount}
@@ -612,10 +612,10 @@ export function TeacherDashboard() {
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <header className="mb-10">
               <h1 className="text-4xl font-black bg-gradient-to-l from-slate-900 to-slate-600 dark:from-white dark:to-slate-400 bg-clip-text text-transparent tracking-tight">
-                ׳§׳™׳‘׳•׳¥ ׳×׳׳׳™׳“׳™׳ ׳׳₪׳™ ׳₪׳¢׳¨׳™ ׳׳׳™׳“׳”
+                קיבוץ תלמידים לפי פערי למידה
               </h1>
               <p className="text-ws-soft  mt-3 text-lg">
-                ׳”׳׳¢׳¨׳›׳× ׳׳§׳‘׳¦׳× ׳×׳׳׳™׳“׳™׳ ׳‘׳׳•׳₪׳ ׳׳•׳˜׳•׳׳˜׳™ ׳¢׳ ׳‘׳¡׳™׳¡ ׳׳•׳“׳ ׳”-<span dir="ltr">Q-Matrix</span>.
+                המערכת מקבצת תלמידים באופן אוטומטי על בסיס מודל ה-<span dir="ltr">Q-Matrix</span>.
               </p>
             </header>
 
@@ -623,14 +623,14 @@ export function TeacherDashboard() {
               <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
               <h2 className="text-2xl font-bold mb-8 flex items-center gap-3">
                 <span className="w-1.5 h-6 bg-ws-accentSoft0 rounded-full"></span>
-                ׳”׳×׳₪׳׳’׳•׳× ׳©׳׳™׳˜׳” ׳‘׳׳™׳•׳׳ ׳•׳™׳•׳× (׳›׳™׳×׳” ׳©׳׳׳”)
+                התפלגות שליטה במיומנויות (כיתה שלמה)
               </h2>
               <div className="h-[350px] w-full relative z-10" dir="ltr">
                 {qMatrixData.every(d => d.success === 0 && d.struggle === 0) ? (
                   <div className="h-full flex flex-col items-center justify-center text-slate-500 bg-slate-50/50 dark:bg-slate-800/20 rounded-xl border border-slate-100 dark:border-slate-800">
                     <span className="text-5xl mb-4 opacity-40 animate-pulse">נ“</span>
-                    <p className="font-bold text-lg text-slate-600 dark:text-slate-300">׳׳™׳ ׳¢׳“׳™׳™׳ ׳ ׳×׳•׳ ׳™׳ ׳׳”׳×׳׳׳™׳“׳™׳</p>
-                    <p className="text-sm opacity-80 mt-1">׳”׳×׳₪׳׳’׳•׳× ׳”׳©׳׳™׳˜׳” ׳×׳•׳¦׳’ ׳›׳׳ ׳׳׳—׳¨ ׳¡׳™׳•׳ ׳©׳׳‘ ׳”׳׳‘׳—׳•׳</p>
+                    <p className="font-bold text-lg text-slate-600 dark:text-slate-300">אין עדיין נתונים מהתלמידים</p>
+                    <p className="text-sm opacity-80 mt-1">התפלגות השליטה תוצג כאן לאחר סיום שלב האבחון</p>
                   </div>
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
@@ -680,14 +680,14 @@ export function TeacherDashboard() {
                       <Legend wrapperStyle={{ paddingTop: "20px" }} />
                       <Bar
                         dataKey="success"
-                        name="׳©׳׳™׳˜׳” ׳‘׳׳™׳•׳׳ ׳•׳× (%)"
+                        name="שליטה במיומנות (%)"
                         stackId="a"
                         fill="#3b82f6"
                         radius={[0, 0, 6, 6]}
                       />
                       <Bar
                         dataKey="struggle"
-                        name="׳׳׳‘׳§ / ׳₪׳¢׳¨ (%)"
+                        name="מאבק / פער (%)"
                         stackId="a"
                         fill="#f43f5e"
                         radius={[6, 6, 0, 0]}
@@ -703,21 +703,21 @@ export function TeacherDashboard() {
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-cyan-500"></div>
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                 <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink ">
-                  ׳”׳‘׳ ׳× ׳”׳׳‘׳ ׳” ׳”׳¢׳©׳¨׳•׳ ׳™ ׳•׳©׳•׳׳¨ ׳׳§׳•׳
+                  הבנת המבנה העשרוני ושומר מקום
                 </h3>
                 <p className="text-ws-soft  mb-6 text-base leading-relaxed relative z-10">
-                  ׳×׳׳׳™׳“׳™׳ ׳©׳”׳×׳§׳©׳• ׳‘׳”׳‘׳ ׳× ׳”׳׳₪׳¡ ׳›׳©׳•׳׳¨ ׳׳§׳•׳ ׳׳• ׳–׳™׳”׳•׳™ ׳¢׳¨׳ ׳”׳׳§׳•׳ ׳‘׳׳¢׳¨׳›׳× ׳”׳¢׳©׳¨׳•׳ ׳™׳×.
+                  תלמידים שהתקשו בהבנת האפס כשומר מקום או זיהוי ערך המקום במערכת העשרונית.
                 </p>
                 <div className="relative z-10 rounded-xl overflow-y-auto max-h-[300px] border border-ws-surface2 shadow-inner">
                   <DataGrid
                     columns={[
-                      { key: "name", header: "׳©׳ ׳×׳׳׳™׳“" },
-                      { key: "mastery", header: "׳¨׳׳× ׳©׳׳™׳˜׳”" },
+                      { key: "name", header: "שם תלמיד" },
+                      { key: "mastery", header: "רמת שליטה" },
                     ]}
                     data={decimalStructureGroup.map((s) => ({
                       id: s.studentId,
                       name: s.name,
-                      mastery: s.conceptMastery ? `${Math.round(s.conceptMastery.decimal_structure * 100)}%` : "׳—׳¡׳¨ ׳׳™׳“׳¢",
+                      mastery: s.conceptMastery ? `${Math.round(s.conceptMastery.decimal_structure * 100)}%` : "חסר מידע",
                     }))}
                   />
                 </div>
@@ -726,7 +726,7 @@ export function TeacherDashboard() {
                   semanticColor="primary"
                   className="mt-auto pt-6 w-full shadow-lg shadow-blue-500/20 relative z-10 font-bold tracking-wide"
                 >
-                  ׳”׳§׳¦׳׳× ׳×׳¨׳’׳•׳ ׳׳•׳×׳׳
+                  הקצאת תרגול מותאם
                 </UdlButton>
               </AccessibleCard>
 
@@ -734,21 +734,21 @@ export function TeacherDashboard() {
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
                 <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                 <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink ">
-                  ׳×׳—׳•׳©׳× ׳’׳•׳“׳ ׳•׳׳•׳׳“׳
+                  תחושת גודל ואומדן
                 </h3>
                 <p className="text-ws-soft  mb-6 text-base leading-relaxed relative z-10">
-                  ׳×׳׳׳™׳“׳™׳ ׳©׳׳×׳§׳©׳™׳ ׳׳”׳¢׳¨׳™׳ ׳•׳׳׳§׳ ׳׳¡׳₪׳¨׳™׳ ׳¢׳ ׳”׳¨׳¦׳£.
+                  תלמידים שמתקשים להעריך ולמקם מספרים על הרצף.
                 </p>
                 <div className="relative z-10 rounded-xl overflow-y-auto max-h-[300px] border border-ws-surface2 shadow-inner">
                   <DataGrid
                     columns={[
-                      { key: "name", header: "׳©׳ ׳×׳׳׳™׳“" },
-                      { key: "mastery", header: "׳¨׳׳× ׳©׳׳™׳˜׳”" },
+                      { key: "name", header: "שם תלמיד" },
+                      { key: "mastery", header: "רמת שליטה" },
                     ]}
                     data={numberMagnitudeGroup.map((s) => ({
                       id: s.studentId,
                       name: s.name,
-                      mastery: s.conceptMastery ? `${Math.round(s.conceptMastery.number_magnitude * 100)}%` : "׳—׳¡׳¨ ׳׳™׳“׳¢",
+                      mastery: s.conceptMastery ? `${Math.round(s.conceptMastery.number_magnitude * 100)}%` : "חסר מידע",
                     }))}
                   />
                 </div>
@@ -757,7 +757,7 @@ export function TeacherDashboard() {
                   semanticColor="primary"
                   className="mt-auto pt-6 w-full shadow-lg shadow-emerald-500/20 relative z-10 font-bold tracking-wide"
                 >
-                  ׳”׳§׳¦׳׳× ׳”׳׳—׳©׳” ׳—׳–׳•׳×׳™׳×
+                  הקצאת המחשה חזותית
                 </UdlButton>
               </AccessibleCard>
 
@@ -765,21 +765,21 @@ export function TeacherDashboard() {
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-indigo-500"></div>
                 <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                 <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink ">
-                  ׳’׳׳™׳©׳•׳× ׳‘׳”׳׳¨׳” ׳•׳₪׳¨׳™׳˜׳”
+                  גמישות בהמרה ופריטה
                 </h3>
                 <p className="text-ws-soft  mb-6 text-base leading-relaxed relative z-10">
-                  ׳×׳׳׳™׳“׳™׳ ׳”׳׳§׳•׳‘׳¢׳™׳ ׳׳™׳™׳¦׳•׳’ ׳”׳§׳ ׳•׳ ׳™ ׳•׳׳×׳§׳©׳™׳ ׳׳₪׳¨׳•׳˜ ׳¢׳©׳¨׳•׳× ׳׳™׳—׳™׳“׳•׳×.
+                  תלמידים המקובעים לייצוג הקנוני ומתקשים לפרוט עשרות ליחידות.
                 </p>
                 <div className="relative z-10 rounded-xl overflow-y-auto max-h-[300px] border border-ws-surface2 shadow-inner">
                   <DataGrid
                     columns={[
-                      { key: "name", header: "׳©׳ ׳×׳׳׳™׳“" },
-                      { key: "mastery", header: "׳¨׳׳× ׳©׳׳™׳˜׳”" },
+                      { key: "name", header: "שם תלמיד" },
+                      { key: "mastery", header: "רמת שליטה" },
                     ]}
                     data={regroupingFluencyGroup.map((s) => ({
                       id: s.studentId,
                       name: s.name,
-                      mastery: s.conceptMastery ? `${Math.round(s.conceptMastery.regrouping_fluency * 100)}%` : "׳—׳¡׳¨ ׳׳™׳“׳¢",
+                      mastery: s.conceptMastery ? `${Math.round(s.conceptMastery.regrouping_fluency * 100)}%` : "חסר מידע",
                     }))}
                   />
                 </div>
@@ -788,7 +788,7 @@ export function TeacherDashboard() {
                   semanticColor="primary"
                   className="mt-auto pt-6 w-full shadow-lg shadow-indigo-500/20 relative z-10 font-bold tracking-wide"
                 >
-                  ׳”׳§׳¦׳׳× ׳¡׳“׳ ׳× ׳—׳§׳¨
+                  הקצאת סדנת חקר
                 </UdlButton>
               </AccessibleCard>
 
@@ -796,21 +796,21 @@ export function TeacherDashboard() {
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 to-rose-500"></div>
                 <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                 <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink ">
-                  ׳©׳׳™׳˜׳” ׳‘׳₪׳¨׳•׳¦׳“׳•׳¨׳•׳× ׳•׳‘׳¢׳•׳‘׳“׳•׳×
+                  שליטה בפרוצדורות ובעובדות
                 </h3>
                 <p className="text-ws-soft  mb-6 text-base leading-relaxed relative z-10">
-                  ׳×׳׳׳™׳“׳™׳ ׳©׳–׳§׳•׳§׳™׳ ׳׳—׳™׳–׳•׳§ ׳”׳׳׳’׳•׳¨׳™׳×׳ ׳”׳׳¡׳•׳¨׳×׳™ ׳‘׳—׳™׳‘׳•׳¨ ׳•׳—׳™׳¡׳•׳¨.
+                  תלמידים שזקוקים לחיזוק האלגוריתם המסורתי בחיבור וחיסור.
                 </p>
                 <div className="relative z-10 rounded-xl overflow-y-auto max-h-[300px] border border-ws-surface2 shadow-inner">
                   <DataGrid
                     columns={[
-                      { key: "name", header: "׳©׳ ׳×׳׳׳™׳“" },
-                      { key: "mastery", header: "׳¨׳׳× ׳©׳׳™׳˜׳”" },
+                      { key: "name", header: "שם תלמיד" },
+                      { key: "mastery", header: "רמת שליטה" },
                     ]}
                     data={proceduralFluencyGroup.map((s) => ({
                       id: s.studentId,
                       name: s.name,
-                      mastery: s.conceptMastery ? `${Math.round(s.conceptMastery.procedural_fluency * 100)}%` : "׳—׳¡׳¨ ׳׳™׳“׳¢",
+                      mastery: s.conceptMastery ? `${Math.round(s.conceptMastery.procedural_fluency * 100)}%` : "חסר מידע",
                     }))}
                   />
                 </div>
@@ -819,7 +819,7 @@ export function TeacherDashboard() {
                   semanticColor="primary"
                   className="mt-auto pt-6 w-full shadow-lg shadow-red-500/20 relative z-10 font-bold tracking-wide"
                 >
-                  ׳”׳§׳¦׳׳× ׳×׳¨׳’׳•׳ ׳׳•׳×׳׳
+                  הקצאת תרגול מותאם
                 </UdlButton>
               </AccessibleCard>
 
@@ -827,21 +827,21 @@ export function TeacherDashboard() {
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-slate-500 to-gray-500"></div>
                 <div className="absolute inset-0 bg-gradient-to-br from-slate-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                 <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink ">
-                  ׳—׳©׳™׳‘׳” ׳™׳—׳¡׳™׳× (Relational Thinking)
+                  חשיבה יחסית (Relational Thinking)
                 </h3>
                 <p className="text-ws-soft  mb-6 text-base leading-relaxed relative z-10">
-                  ׳×׳׳׳™׳“׳™׳ ׳©׳׳×׳§׳©׳™׳ ׳׳’׳–׳•׳¨ ׳¢׳•׳‘׳“׳” ׳—׳“׳©׳” ׳׳×׳•׳ ׳¢׳•׳‘׳“׳” ׳™׳“׳•׳¢׳” ׳׳׳ ׳—׳™׳©׳•׳‘ ׳׳—׳“׳©.
+                  תלמידים שמתקשים לגזור עובדה חדשה מתוך עובדה ידועה ללא חישוב מחדש.
                 </p>
                 <div className="relative z-10 rounded-xl overflow-y-auto max-h-[300px] border border-ws-surface2 shadow-inner">
                   <DataGrid
                     columns={[
-                      { key: "name", header: "׳©׳ ׳×׳׳׳™׳“" },
-                      { key: "mastery", header: "׳¨׳׳× ׳©׳׳™׳˜׳”" },
+                      { key: "name", header: "שם תלמיד" },
+                      { key: "mastery", header: "רמת שליטה" },
                     ]}
                     data={relationalThinkingGroup.map((s) => ({
                       id: s.studentId,
                       name: s.name,
-                      mastery: s.conceptMastery ? `${Math.round(s.conceptMastery.relational_thinking * 100)}%` : "׳—׳¡׳¨ ׳׳™׳“׳¢",
+                      mastery: s.conceptMastery ? `${Math.round(s.conceptMastery.relational_thinking * 100)}%` : "חסר מידע",
                     }))}
                   />
                 </div>
@@ -850,7 +850,7 @@ export function TeacherDashboard() {
                   semanticColor="primary"
                   className="mt-auto pt-6 w-full shadow-lg shadow-slate-500/20 relative z-10 font-bold tracking-wide"
                 >
-                  ׳”׳§׳¦׳” ׳—׳§׳¨ ׳™׳—׳¡׳™׳
+                  הקצה חקר יחסים
                 </UdlButton>
               </AccessibleCard>
 
@@ -858,21 +858,21 @@ export function TeacherDashboard() {
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-500 to-orange-500"></div>
                 <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                 <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink ">
-                  ׳—׳©׳™׳‘׳” ׳׳׳’׳‘׳¨׳™׳× ׳•׳׳¦׳™׳׳× ׳ ׳¢׳׳
+                  חשיבה אלגברית ומציאת נעלם
                 </h3>
                 <p className="text-ws-soft  mb-6 text-base leading-relaxed relative z-10">
-                  ׳×׳׳׳™׳“׳™׳ ׳”׳׳×׳§׳©׳™׳ ׳׳”׳‘׳™׳ ׳׳× ׳¡׳™׳׳ ׳”׳©׳•׳•׳™׳•׳ ׳›׳׳׳–׳ ׳™׳™׳ ׳•׳׳× ׳”׳“׳™׳ ׳׳™׳§׳” ׳©׳ ׳׳©׳•׳•׳׳”.
+                  תלמידים המתקשים להבין את סימן השוויון כמאזניים ואת הדינמיקה של משוואה.
                 </p>
                 <div className="relative z-10 rounded-xl overflow-y-auto max-h-[300px] border border-ws-surface2 shadow-inner">
                   <DataGrid
                     columns={[
-                      { key: "name", header: "׳©׳ ׳×׳׳׳™׳“" },
-                      { key: "mastery", header: "׳¨׳׳× ׳©׳׳™׳˜׳”" },
+                      { key: "name", header: "שם תלמיד" },
+                      { key: "mastery", header: "רמת שליטה" },
                     ]}
                     data={algebraicReasoningGroup.map((s) => ({
                       id: s.studentId,
                       name: s.name,
-                      mastery: s.conceptMastery ? `${Math.round(s.conceptMastery.algebraic_reasoning * 100)}%` : "׳—׳¡׳¨ ׳׳™׳“׳¢",
+                      mastery: s.conceptMastery ? `${Math.round(s.conceptMastery.algebraic_reasoning * 100)}%` : "חסר מידע",
                     }))}
                   />
                 </div>
@@ -881,7 +881,7 @@ export function TeacherDashboard() {
                   semanticColor="primary"
                   className="mt-auto pt-6 w-full shadow-lg shadow-amber-500/20 relative z-10 font-bold tracking-wide"
                 >
-                  ׳”׳§׳¦׳׳× ׳׳•׳“׳ ׳׳׳–׳ ׳™׳™׳
+                  הקצאת מודל מאזניים
                 </UdlButton>
               </AccessibleCard>
             </div>
@@ -892,10 +892,10 @@ export function TeacherDashboard() {
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <header className="mb-10">
               <h1 className="text-4xl font-black bg-gradient-to-l from-slate-900 to-slate-600 dark:from-white dark:to-slate-400 bg-clip-text text-transparent tracking-tight">
-                ׳”׳×׳¨׳׳•׳× ׳–׳׳ ׳׳׳× (׳¨׳“׳׳¨)
+                התראות זמן אמת (רדאר)
               </h1>
               <p className="text-ws-soft  mt-3 text-lg">
-                ׳–׳™׳”׳•׳™ ׳׳׳‘׳§׳™׳ ׳§׳•׳’׳ ׳™׳˜׳™׳‘׳™׳™׳ ׳•׳©׳™׳•׳˜ ׳₪׳¡׳™׳‘׳™ ׳׳׳ ׳”׳₪׳¨׳¢׳” ׳׳×׳׳׳™׳“.
+                זיהוי מאבקים קוגניטיביים ושיוט פסיבי ללא הפרעה לתלמיד.
               </p>
             </header>
             <div className="grid gap-6">
@@ -905,13 +905,13 @@ export function TeacherDashboard() {
                     <ShieldAlert className="w-8 h-8 text-slate-300" />
                   </div>
                   <p className="text-xl font-bold text-slate-400">
-                    ׳׳™׳ ׳”׳×׳¨׳׳•׳× ׳—׳“׳©׳•׳×. ׳”׳›׳™׳×׳” ׳¢׳•׳‘׳“׳× ׳׳¦׳•׳™׳!
+                    אין התראות חדשות. הכיתה עובדת מצוין!
                   </p>
                 </div>
               ) : (
                 (() => {
                   const groupedAlerts = allAlerts.reduce((acc, alert) => {
-                    const sId = alert.studentId || "׳×׳׳׳™׳“ ׳׳ ׳•׳ ׳™׳׳™";
+                    const sId = alert.studentId || "תלמיד אנונימי";
                     if (!acc[sId]) acc[sId] = { studentId: sId, alerts: [] };
                     acc[sId].alerts.push(alert);
                     return acc;
@@ -929,11 +929,11 @@ export function TeacherDashboard() {
                                 <div className={`w-3 h-3 rounded-full animate-ping ${isRed ? 'bg-red-500' : 'bg-amber-500'}`}></div>
                                 <div>
                                   <h3 className="font-bold text-xl text-slate-800">{group.studentId}</h3>
-                                  <p className="text-sm text-slate-500">{group.alerts.length} ׳׳™׳¨׳•׳¢׳™׳ ׳ ׳¨׳©׳׳• ׳׳׳—׳¨׳•׳ ׳”</p>
+                                  <p className="text-sm text-slate-500">{group.alerts.length} אירועים נרשמו לאחרונה</p>
                                 </div>
                               </div>
                               <span className={`px-3 py-1 rounded-full text-xs font-bold ${isRed ? 'bg-red-200 text-red-800' : 'bg-amber-200 text-amber-800'}`}>
-                                {isRed ? 'SOS ׳§׳•׳’׳ ׳™׳˜׳™׳‘׳™ / ׳—׳•׳¡׳¨ ׳׳™׳§׳•׳“' : '׳”׳×׳¨׳׳× ׳׳•׳˜׳•׳׳¦׳™׳” / ׳₪׳™׳’׳•׳ ׳׳•׳–׳¨׳§'}
+                                {isRed ? 'SOS קוגניטיבי / חוסר מיקוד' : 'התראת אוטומציה / פיגום מוזרק'}
                               </span>
                             </div>
                             
@@ -942,19 +942,19 @@ export function TeacherDashboard() {
                                 <div key={i} className="text-sm text-slate-600 bg-white/70 p-3 rounded-lg border border-white/50 flex justify-between items-center">
                                   <div>
                                     <span className="font-bold text-slate-800 ml-2">{new Date(a.timestamp).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span>
-                                    {a.type === "HESITATION" ? "׳׳׳‘׳§ ׳§׳•׳’׳ ׳™׳˜׳™׳‘׳™ (׳¢׳¦׳™׳¨׳”)" : a.type === "TAB_ESCAPE" ? "׳ ׳˜׳™׳©׳× ׳—׳׳•׳" : a.type === "PASSIVE_DRIFTING" ? "׳©׳™׳•׳˜ ׳₪׳¡׳™׳‘׳™ (׳׳—׳™׳§׳•׳×)" : a.type}
+                                    {a.type === "HESITATION" ? "מאבק קוגניטיבי (עצירה)" : a.type === "TAB_ESCAPE" ? "נטישת חלון" : a.type === "PASSIVE_DRIFTING" ? "שיוט פסיבי (מחיקות)" : a.type}
                                   </div>
-                                  <span className="text-xs bg-slate-100 px-2 py-1 rounded text-slate-500">׳׳©׳™׳׳”: {a.taskId || "?"}</span>
+                                  <span className="text-xs bg-slate-100 px-2 py-1 rounded text-slate-500">משימה: {a.taskId || "?"}</span>
                                 </div>
                               ))}
                             </div>
                             
                             <div className="flex gap-2">
-                              <UdlButton size="sm" semanticColor="primary" className="flex-1 shadow-md shadow-blue-500/20" onClick={() => handleAlertResponse(group.alerts[0], 'HINT', '׳ ׳©׳׳— ׳¨׳׳– ׳׳™׳©׳™')}>׳©׳׳— ׳¨׳׳– ׳׳™׳©׳™</UdlButton>
-                              <UdlButton size="sm" semanticColor="secondary" className="flex-1 bg-purple-100 hover:bg-purple-200 text-purple-700 shadow-sm" onClick={() => handleAlertResponse(group.alerts[0], 'PHYSICAL', '׳ ׳™׳’׳©׳×׳™ ׳₪׳™׳–׳™׳× ׳׳×׳׳׳™׳“')}>׳ ׳™׳’׳©׳×׳™ ׳₪׳™׳–׳™׳×</UdlButton>
+                              <UdlButton size="sm" semanticColor="primary" className="flex-1 shadow-md shadow-blue-500/20" onClick={() => handleAlertResponse(group.alerts[0], 'HINT', 'נשלח רמז אישי')}>שלח רמז אישי</UdlButton>
+                              <UdlButton size="sm" semanticColor="secondary" className="flex-1 bg-purple-100 hover:bg-purple-200 text-purple-700 shadow-sm" onClick={() => handleAlertResponse(group.alerts[0], 'PHYSICAL', 'ניגשתי פיזית לתלמיד')}>ניגשתי פיזית</UdlButton>
                               <UdlButton size="sm" variant="outline" className="flex-1 bg-white/50" onClick={() => {
-                                group.alerts.forEach(a => handleAlertResponse(a, 'ACKNOWLEDGED', '׳¡׳•׳׳ ׳›׳ ׳§׳¨׳ (׳׳׳ ׳”׳×׳¢׳¨׳‘׳•׳×)'));
-                              }}>׳¡׳׳ ׳”׳›׳ ׳›׳ ׳§׳¨׳</UdlButton>
+                                group.alerts.forEach(a => handleAlertResponse(a, 'ACKNOWLEDGED', 'סומן כנקרא (ללא התערבות)'));
+                              }}>סמן הכל כנקרא</UdlButton>
                             </div>
                           </div>
                         );
@@ -977,17 +977,17 @@ export function TeacherDashboard() {
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <header className="mb-10">
               <h1 className="text-4xl font-black bg-gradient-to-l from-slate-900 to-slate-600 dark:from-white dark:to-slate-400 bg-clip-text text-transparent tracking-tight">
-                ׳“׳•"׳—׳•׳× ׳׳‘׳—׳•׳ ׳׳™׳©׳™׳™׳
+                דו"חות אבחון אישיים
               </h1>
               <p className="text-ws-soft mt-3 text-lg">
-                ׳×׳¦׳•׳’׳” ׳—׳›׳׳” ׳”׳׳©׳׳‘׳× ׳•׳™׳“׳׳•, ׳ ׳×׳•׳ ׳™ ׳¨׳“׳׳¨, ׳₪׳™׳¨׳•׳˜ ׳׳™׳•׳׳ ׳•׳™׳•׳× (Q-Matrix) ׳•׳×׳•׳›׳ ׳™׳× ׳¢׳‘׳•׳“׳” ׳׳•׳׳׳¦׳×.
+                תצוגה חכמה המשלבת וידאו, נתוני רדאר, פירוט מיומנויות (Q-Matrix) ותוכנית עבודה מומלצת.
               </p>
             </header>
 
             <div className="flex gap-6">
               {/* Sidebar: Student List */}
               <AccessibleCard className="w-64 shrink-0 p-4 bg-ws-surface/80 backdrop-blur-xl border border-ws-surface2 shadow-sm rounded-2xl h-fit max-h-[80vh] overflow-y-auto">
-                <h3 className="font-bold text-ws-ink mb-4 px-2">׳×׳׳׳™׳“׳™ ׳”׳›׳™׳×׳”</h3>
+                <h3 className="font-bold text-ws-ink mb-4 px-2">תלמידי הכיתה</h3>
                 <div className="flex flex-col gap-1">
                   {allStudents.map(s => {
                     const isCompleted = s.completedMeeting2;
@@ -1002,7 +1002,7 @@ export function TeacherDashboard() {
                         }`}
                       >
                         <span>{s.name}</span>
-                        {isCompleted && <span className={`w-2 h-2 rounded-full ${selectedReplayStudentId === s.studentId ? 'bg-white' : 'bg-green-500'}`} title="׳׳•׳›׳ ׳׳׳‘׳—׳•׳ (׳¡׳™׳™׳ ׳׳₪׳’׳© 2)"></span>}
+                        {isCompleted && <span className={`w-2 h-2 rounded-full ${selectedReplayStudentId === s.studentId ? 'bg-white' : 'bg-green-500'}`} title="מוכן לאבחון (סיים מפגש 2)"></span>}
                       </button>
                     );
                   })}
@@ -1016,9 +1016,9 @@ export function TeacherDashboard() {
                     <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm mb-4">
                       <span className="text-2xl">נ“</span>
                     </div>
-                    <h3 className="text-xl font-bold text-ws-ink mb-2">׳‘׳—׳¨ ׳×׳׳׳™׳“ ׳׳”׳¦׳’׳× ׳“׳•"׳— ׳”׳׳‘׳—׳•׳</h3>
+                    <h3 className="text-xl font-bold text-ws-ink mb-2">בחר תלמיד להצגת דו"ח האבחון</h3>
                     <p className="text-ws-soft max-w-md">
-                      ׳”׳“׳•"׳— ׳׳¦׳™׳’ ׳©׳™׳׳•׳‘ ׳©׳ ׳¡׳¨׳˜׳•׳ ׳¡׳©׳ ׳”׳׳׳™׳“׳”, ׳×׳•׳¦׳׳•׳× ׳”-Q-Matrix ׳©׳ ׳”׳×׳׳׳™׳“, ׳•׳”׳”׳׳׳¦׳•׳× ׳”׳₪׳“׳’׳•׳’׳™׳•׳× ׳©׳ ׳•׳¦׳¨׳• ׳¢׳ ׳™׳“׳™ ׳׳ ׳•׳¢ ׳”-AI.
+                      הדו"ח מציג שילוב של סרטון סשן הלמידה, תוצאות ה-Q-Matrix של התלמיד, וההמלצות הפדגוגיות שנוצרו על ידי מנוע ה-AI.
                     </p>
                   </div>
                 ) : (
@@ -1041,43 +1041,43 @@ export function TeacherDashboard() {
                             <AccessibleCard className="p-6 bg-white border border-ws-surface2 shadow-md rounded-2xl h-full">
                               <h3 className="text-xl font-bold text-ws-ink mb-4 flex items-center gap-2">
                                 <span className="text-ws-accent">נ“</span>
-                                ׳×׳•׳¦׳׳•׳× ׳”-Q-Matrix
+                                תוצאות ה-Q-Matrix
                               </h3>
                               <div className="grid grid-cols-2 gap-3 text-sm">
                                 <div className="bg-ws-bg p-3 rounded-xl border border-ws-surface2">
-                                  <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">׳©׳•׳׳¨ ׳׳§׳•׳ (׳׳₪׳¡)</span>
+                                  <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">שומר מקום (אפס)</span>
                                   <span className={`font-semibold ${s.qMatrixResults.task1_zero_placeholder && s.qMatrixResults.task1_zero_placeholder !== 'success' ? 'text-red-500' : s.qMatrixResults.task1_zero_placeholder === 'success' ? 'text-green-600' : 'text-slate-400'}`}>
-                                    {s.qMatrixResults.task1_zero_placeholder === null ? '׳˜׳¨׳ ׳ ׳‘׳“׳§' : s.qMatrixResults.task1_zero_placeholder === 'success' ? '׳©׳•׳׳˜' : '׳“׳¨׳•׳© ׳—׳™׳–׳•׳§'}
+                                    {s.qMatrixResults.task1_zero_placeholder === null ? 'טרם נבדק' : s.qMatrixResults.task1_zero_placeholder === 'success' ? 'שולט' : 'דרוש חיזוק'}
                                   </span>
                                 </div>
                                 <div className="bg-ws-bg p-3 rounded-xl border border-ws-surface2">
-                                  <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">׳’׳׳™׳©׳•׳× ׳׳—׳©׳‘׳×׳™׳×</span>
+                                  <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">גמישות מחשבתית</span>
                                   <span className={`font-semibold ${s.qMatrixResults.task3_flexible_regrouping && s.qMatrixResults.task3_flexible_regrouping !== 'success' ? 'text-red-500' : s.qMatrixResults.task3_flexible_regrouping === 'success' ? 'text-green-600' : 'text-slate-400'}`}>
-                                    {s.qMatrixResults.task3_flexible_regrouping === null ? '׳˜׳¨׳ ׳ ׳‘׳“׳§' : s.qMatrixResults.task3_flexible_regrouping === 'success' ? '׳©׳•׳׳˜' : '׳“׳¨׳•׳© ׳—׳™׳–׳•׳§'}
+                                    {s.qMatrixResults.task3_flexible_regrouping === null ? 'טרם נבדק' : s.qMatrixResults.task3_flexible_regrouping === 'success' ? 'שולט' : 'דרוש חיזוק'}
                                   </span>
                                 </div>
                                 <div className="bg-ws-bg p-3 rounded-xl border border-ws-surface2">
-                                  <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">׳׳•׳׳“׳ ׳©׳’׳™׳׳”</span>
+                                  <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">אומדן שגיאה</span>
                                   <span className={`font-semibold ${s.qMatrixResults.task2_estimation_error_margin && s.qMatrixResults.task2_estimation_error_margin !== 'success' ? 'text-red-500' : s.qMatrixResults.task2_estimation_error_margin === 'success' ? 'text-green-600' : 'text-slate-400'}`}>
-                                    {s.qMatrixResults.task2_estimation_error_margin === null ? '׳˜׳¨׳ ׳ ׳‘׳“׳§' : s.qMatrixResults.task2_estimation_error_margin !== 'success' ? `׳—׳¨׳™׳’׳” (׳׳¢׳ 20%)` : '׳‘׳˜׳•׳•׳— ׳”׳׳•׳×׳¨'}
+                                    {s.qMatrixResults.task2_estimation_error_margin === null ? 'טרם נבדק' : s.qMatrixResults.task2_estimation_error_margin !== 'success' ? `חריגה (מעל 20%)` : 'בטווח המותר'}
                                   </span>
                                 </div>
                                 <div className="bg-ws-bg p-3 rounded-xl border border-ws-surface2">
-                                  <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">׳—׳™׳‘׳•׳¨ ׳•׳—׳™׳¡׳•׳¨</span>
+                                  <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">חיבור וחיסור</span>
                                   <span className={`font-semibold ${(s.qMatrixResults.task4_basic_addition_fluency && s.qMatrixResults.task4_basic_addition_fluency !== 'success') || (s.qMatrixResults.task6_subtraction_regrouping && s.qMatrixResults.task6_subtraction_regrouping !== 'success') ? 'text-red-500' : (s.qMatrixResults.task4_basic_addition_fluency === 'success' && s.qMatrixResults.task6_subtraction_regrouping === 'success') ? 'text-green-600' : 'text-slate-400'}`}>
-                                    {(s.qMatrixResults.task4_basic_addition_fluency === null && s.qMatrixResults.task6_subtraction_regrouping === null) ? '׳˜׳¨׳ ׳ ׳‘׳“׳§' : ((s.qMatrixResults.task4_basic_addition_fluency && s.qMatrixResults.task4_basic_addition_fluency !== 'success') || (s.qMatrixResults.task6_subtraction_regrouping && s.qMatrixResults.task6_subtraction_regrouping !== 'success')) ? '׳₪׳¢׳¨ ׳‘׳¢׳•׳‘׳“׳•׳× ׳™׳¡׳•׳“' : '׳©׳•׳׳˜'}
+                                    {(s.qMatrixResults.task4_basic_addition_fluency === null && s.qMatrixResults.task6_subtraction_regrouping === null) ? 'טרם נבדק' : ((s.qMatrixResults.task4_basic_addition_fluency && s.qMatrixResults.task4_basic_addition_fluency !== 'success') || (s.qMatrixResults.task6_subtraction_regrouping && s.qMatrixResults.task6_subtraction_regrouping !== 'success')) ? 'פער בעובדות יסוד' : 'שולט'}
                                   </span>
                                 </div>
                                 <div className="bg-ws-bg p-3 rounded-xl border border-ws-surface2">
-                                  <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">׳׳¦׳™׳׳× ׳׳—׳¡׳¨</span>
+                                  <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">מציאת מחסר</span>
                                   <span className={`font-semibold ${s.qMatrixResults.task7_missing_subtrahend && s.qMatrixResults.task7_missing_subtrahend !== 'success' ? 'text-red-500' : s.qMatrixResults.task7_missing_subtrahend === 'success' ? 'text-green-600' : 'text-slate-400'}`}>
-                                    {s.qMatrixResults.task7_missing_subtrahend === null ? '׳˜׳¨׳ ׳ ׳‘׳“׳§' : s.qMatrixResults.task7_missing_subtrahend === 'success' ? '׳©׳•׳׳˜' : '׳“׳¨׳•׳© ׳—׳™׳–׳•׳§'}
+                                    {s.qMatrixResults.task7_missing_subtrahend === null ? 'טרם נבדק' : s.qMatrixResults.task7_missing_subtrahend === 'success' ? 'שולט' : 'דרוש חיזוק'}
                                   </span>
                                 </div>
                                 <div className="bg-ws-bg p-3 rounded-xl border border-ws-surface2">
-                                  <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">׳׳¦׳™׳׳× ׳׳—׳‘׳¨</span>
+                                  <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">מציאת מחבר</span>
                                   <span className={`font-semibold ${s.qMatrixResults.task8_missing_addend && s.qMatrixResults.task8_missing_addend !== 'success' ? 'text-red-500' : s.qMatrixResults.task8_missing_addend === 'success' ? 'text-green-600' : 'text-slate-400'}`}>
-                                    {s.qMatrixResults.task8_missing_addend === null ? '׳˜׳¨׳ ׳ ׳‘׳“׳§' : s.qMatrixResults.task8_missing_addend === 'success' ? '׳©׳•׳׳˜' : '׳“׳¨׳•׳© ׳—׳™׳–׳•׳§'}
+                                    {s.qMatrixResults.task8_missing_addend === null ? 'טרם נבדק' : s.qMatrixResults.task8_missing_addend === 'success' ? 'שולט' : 'דרוש חיזוק'}
                                   </span>
                                 </div>
                               </div>
@@ -1087,7 +1087,7 @@ export function TeacherDashboard() {
                             <AccessibleCard className={`p-6 border shadow-md rounded-2xl flex flex-col h-full ${socraticApproval ? 'bg-indigo-50/50 border-indigo-100' : 'bg-white border-ws-surface2'}`}>
                               <h3 className="text-xl font-bold text-ws-ink mb-4 flex items-center gap-2">
                                 <span className="text-ws-accent">נŸ₪–</span>
-                                {socraticApproval ? '׳”׳ž׳œ׳¦׳× Socratic Engine ׳•׳¡׳™׳›׳•׳  ׳ ׳‘׳—׳•׳Ÿ' : '׳ž׳“׳“׳™ ׳œ׳ž׳™׳“׳” ׳¡׳ž׳•׳™׳™׳ '}
+                                {socraticApproval ? 'המלצת Socratic Engine וסיכו׳  ׳ בחון' : 'מדדי למידה סמויי׳ '}
                               </h3>
                               
                               <div className="flex-1 flex flex-col gap-4">
@@ -1096,14 +1096,14 @@ export function TeacherDashboard() {
                                   <div className="flex-1 flex items-center justify-between p-3 bg-ws-bg rounded-xl border border-ws-surface2">
                                     <div className="flex items-center gap-3">
                                       <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 text-sm">ג ±ן¸ </div>
-                                      <span className="font-semibold text-sm">׳ ׳™׳¨׳•׳¢׳™ ׳”׳™׳¡׳•׳¡ (׳—׳©׳™׳‘׳” ׳ ׳¨׳•׳›׳”)</span>
+                                      <span className="font-semibold text-sm">׳ ירועי היסוס (חשיבה ׳ רוכה)</span>
                                     </div>
                                     <span className="text-xl font-black text-orange-600">{s.traceData.hesitation_events}</span>
                                   </div>
                                   <div className="flex-1 flex items-center justify-between p-3 bg-ws-bg rounded-xl border border-ws-surface2">
                                     <div className="flex items-center gap-3">
                                       <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-600 text-sm">ג†©ן¸ </div>
-                                      <span className="font-semibold text-sm">׳‘׳™׳˜׳•׳œ׳™ ׳₪׳¢׳•׳œ׳” (׳ž׳—׳™׳§׳”/׳—׳–׳¨׳”)</span>
+                                      <span className="font-semibold text-sm">ביטולי פעולה (מחיקה/חזרה)</span>
                                     </div>
                                     <span className="text-xl font-black text-red-600">{s.traceData.undo_clicks}</span>
                                   </div>
@@ -1113,13 +1113,13 @@ export function TeacherDashboard() {
                                 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
                                   <h4 className="font-bold text-slate-800 mb-3 text-lg flex items-center gap-2">
                                     <span className="text-ws-accent">נŸ“‹</span>
-                                    ׳ž׳¦׳‘ ׳ ׳•׳›׳—׳™ (׳ ׳™׳×׳•׳— ׳ ׳•׳˜׳•׳ž׳˜׳™):
+                                    מצב נוכחי (ניתוח ׳ וטומטי):
                                   </h4>
                                   <p className="text-sm text-slate-700 leading-relaxed mb-4">
-                                    ׳”׳×׳œ׳ž׳™׳“ ׳—׳•׳•׳” <strong className="text-orange-600">{s.traceData.hesitation_events}</strong> ׳ ׳™׳¨׳•׳¢׳™ ׳”׳™׳¡׳•׳¡ ׳”׳ž׳¢׳™׳“׳™׳  ׳¢׳œ ׳ž׳ ׳‘׳§ ׳§׳•׳’׳ ׳™׳˜׳™׳‘׳™, ׳•׳‘׳™׳¦׳¢ <strong className="text-red-600">{s.traceData.undo_clicks}</strong> ׳ž׳—׳™׳§׳•׳× ׳ ׳• ׳—׳–׳¨׳•׳×. 
-                                    ׳ ׳™׳×׳•׳— ׳”׳₪׳¢׳•׳œ׳•׳× ׳‘׳•׳™׳“׳ ׳• ׳™׳—׳“ ׳¢׳  ׳ž׳˜׳¨׳™׳¦׳× ׳”׳ž׳™׳•׳ž׳ ׳•׳™׳•׳× (Q-Matrix) ׳ž׳¦׳‘׳™׳¢ ׳¢׳œ ׳›׳š ׳©
-                                    {s.qMatrixResults.task3_flexible_regrouping === 'canonical_fixation' ? ' ׳ ׳¨׳ ׳” ׳›׳™ ׳§׳™׳™׳  ׳§׳•׳©׳™ ׳‘׳’׳ž׳™׳©׳•׳× ׳ž׳—׳©׳‘׳×׳™׳× ׳•׳¦׳•׳¨׳š ׳‘׳”׳ž׳—׳©׳” ׳ž׳•׳—׳©׳™׳× (׳‘׳ ׳ž׳¦׳¢׳•׳× ׳‘׳œ׳•׳§׳™׳ ) ׳©׳œ ׳₪׳¢׳•׳œ׳× ׳”׳₪׳¨׳™׳˜׳” ׳œ׳₪׳ ׳™ ׳×׳¨׳’׳•׳œ ׳‘׳ž׳ ׳•׳ ׳š.' : s.qMatrixResults.task3_flexible_regrouping === 'success' ? ' ׳§׳™׳™׳ž׳× ׳”׳‘׳ ׳” ׳ž׳•׳—׳©׳™׳× ׳•׳›׳ž׳•׳×׳™׳× ׳˜׳•׳‘׳” ׳©׳œ ׳₪׳¨׳™׳˜׳” ׳•׳”׳ž׳¨׳”.' : ' ׳˜׳¨׳  ׳ ׳ ׳¡׳₪׳• ׳ž׳¡׳₪׳™׳§ ׳ ׳×׳•׳ ׳™׳  ׳œ׳§׳‘׳™׳¢׳× ׳”׳‘׳ ׳” ׳ž׳•׳—׳©׳™׳× ׳©׳œ ׳”׳ž׳¨׳•׳×.'}
-                                    {(s.qMatrixResults.task7_missing_subtrahend === 'algebraic_concept_deficit' || s.qMatrixResults.task8_missing_addend === 'algebraic_concept_deficit') ? ' ׳ ׳™׳›׳¨ ׳§׳•׳©׳™ ׳ž׳”׳•׳×׳™ ׳‘׳—׳©׳™׳‘׳” ׳ ׳œ׳’׳‘׳¨׳™׳× ׳•׳”׳‘׳ ׳× ׳ž׳©׳ž׳¢׳•׳× ׳¡׳™׳ž׳Ÿ ׳”׳©׳•׳•׳™׳•׳Ÿ ׳›׳ž׳ ׳–׳ ׳™׳™׳ .' : (s.qMatrixResults.task7_missing_subtrahend === 'success' || s.qMatrixResults.task8_missing_addend === 'success') ? ' ׳ ׳™׳›׳¨׳× ׳™׳›׳•׳œ׳× ׳˜׳•׳‘׳” ׳ž׳ ׳•׳“ ׳‘׳—׳©׳™׳‘׳” ׳ ׳œ׳’׳‘׳¨׳™׳× ׳•׳ž׳¦׳™׳ ׳× ׳ ׳¢׳œ׳ .' : ''}
+                                    התלמיד חווה <strong className="text-orange-600">{s.traceData.hesitation_events}</strong> ׳ ירועי היסוס המעידי׳  על מ׳ בק קוגניטיבי, וביצע <strong className="text-red-600">{s.traceData.undo_clicks}</strong> מחיקות ׳ ו חזרות. 
+                                    ניתוח הפעולות בויד׳ ו יחד ע׳  מטריצת המיומנויות (Q-Matrix) מצביע על כך ש
+                                    {s.qMatrixResults.task3_flexible_regrouping === 'canonical_fixation' ? ' נר׳ ה כי קיי׳  קושי בגמישות מחשבתית וצורך בהמחשה מוחשית (ב׳ מצעות בלוקי׳ ) של פעולת הפריטה לפני תרגול במ׳ ונך.' : s.qMatrixResults.task3_flexible_regrouping === 'success' ? ' קיימת הבנה מוחשית וכמותית טובה של פריטה והמרה.' : ' טר׳  נ׳ ספו מספיק נתוני׳  לקביעת הבנה מוחשית של המרות.'}
+                                    {(s.qMatrixResults.task7_missing_subtrahend === 'algebraic_concept_deficit' || s.qMatrixResults.task8_missing_addend === 'algebraic_concept_deficit') ? ' ניכר קושי מהותי בחשיבה ׳ לגברית והבנת משמעות סימן השוויון כמ׳ זניי׳ .' : (s.qMatrixResults.task7_missing_subtrahend === 'success' || s.qMatrixResults.task8_missing_addend === 'success') ? ' ניכרת יכולת טובה מ׳ וד בחשיבה ׳ לגברית ומצי׳ ת נעל׳ .' : ''}
                                   </p>
                                 </div>
 
@@ -1127,18 +1127,18 @@ export function TeacherDashboard() {
                                   <div className="bg-indigo-50 p-5 rounded-xl border border-indigo-100 shadow-sm mt-2">
                                     <h4 className="font-bold text-indigo-900 mb-3 text-lg flex items-center gap-2">
                                       <span className="text-indigo-600">נŸŽ¯</span>
-                                      ׳”׳ž׳œ׳¦׳•׳× ׳•׳ž׳¡׳œ׳•׳œ ׳ ׳“׳₪׳˜׳™׳‘׳™ ׳œ׳ž׳₪׳’׳©׳™׳  3, 4, 5, 6, ׳•-7:
+                                      המלצות ומסלול ׳ דפטיבי למפגשי׳  3, 4, 5, 6, ו-7:
                                     </h4>
                                     <p className="text-sm text-indigo-800 leading-relaxed mb-5 bg-white p-4 rounded-lg border border-indigo-100/50">
-                                      <strong className="block mb-1 text-indigo-900">׳ ׳‘׳—׳•׳Ÿ ׳§׳œ׳™׳ ׳™:</strong>
-                                      {(socraticApproval as any).clinicalDiagnosisHe || "׳œ׳  ׳ ׳¨׳©׳ž׳• ׳×׳•׳‘׳ ׳•׳× ׳ž׳”׳ ׳‘׳—׳•׳Ÿ."}
+                                      <strong className="block mb-1 text-indigo-900">׳ בחון קליני:</strong>
+                                      {(socraticApproval as any).clinicalDiagnosisHe || "ל׳  נרשמו תובנות מה׳ בחון."}
                                     </p>
                                     <p className="text-sm text-indigo-800 leading-relaxed mb-5 bg-white p-4 rounded-lg border border-indigo-100/50">
-                                      <strong className="block mb-1 text-indigo-900">׳×׳•׳›׳ ׳™׳× ׳₪׳¢׳•׳œ׳” ׳ž׳•׳¦׳¢׳×:</strong>
-                                      {(socraticApproval as any).actionPlanHe || "׳œ׳  ׳ ׳§׳‘׳¢׳” ׳×׳•׳›׳ ׳™׳×."}
+                                      <strong className="block mb-1 text-indigo-900">תוכנית פעולה מוצעת:</strong>
+                                      {(socraticApproval as any).actionPlanHe || "ל׳  נקבעה תוכנית."}
                                     </p>
                                     
-                                    <h5 className="font-bold text-sm text-indigo-900 mb-3">׳×׳¨׳’׳™׳œ׳™׳  ׳¨׳¦׳•׳™׳™׳  ׳©׳ ׳•׳¦׳¨׳• ׳¢׳‘׳•׳¨ ׳”׳×׳œ׳ž׳™׳“:</h5>
+                                    <h5 className="font-bold text-sm text-indigo-900 mb-3">תרגילי׳  רצויי׳  שנוצרו עבור התלמיד:</h5>
                                     <div className="grid gap-2 mb-5">
                                       {socraticApproval.tasks.map((task: any, idx: number) => (
                                         <div key={idx} className="bg-white p-3 rounded-lg flex items-center justify-between border border-indigo-100 shadow-sm">
@@ -1161,7 +1161,7 @@ export function TeacherDashboard() {
                                         handleTabChange("approvals");
                                       }}
                                     >
-                                      ׳¢׳‘׳•׳¨ ׳׳׳¡׳ ׳”׳׳™׳©׳•׳¨׳™׳ ׳׳”׳—׳׳× ׳”׳×׳•׳›׳ ׳™׳× ׳¢׳ ׳”׳×׳׳׳™׳“
+                                      עבור למסך האישורים להחלת התוכנית על התלמיד
                                     </UdlButton>
                                   </div>
                                 )}
@@ -1182,10 +1182,10 @@ export function TeacherDashboard() {
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <header className="mb-10">
               <h1 className="text-4xl font-black bg-gradient-to-l from-slate-900 to-slate-600 dark:from-white dark:to-slate-400 bg-clip-text text-transparent tracking-tight">
-                ׳©׳¢׳¨ ׳׳™׳©׳•׳¨ ׳׳—׳–׳•׳¨׳™ (<span dir="ltr">Recurring Teacher Gate</span>)
+                שער אישור מחזורי (<span dir="ltr">Recurring Teacher Gate</span>)
               </h1>
               <p className="text-ws-soft  mt-3 text-lg">
-                ׳׳™׳©׳•׳¨ ׳”׳₪׳׳˜ ׳”׳“׳™׳׳’׳ ׳•׳¡׳˜׳™ ׳©׳ ׳”-AI (׳׳׳§׳¨׳• ׳•׳׳™׳§׳¨׳•) ׳›׳“׳™ ׳׳”׳×׳™׳¨ (Unlock) ׳׳× ׳©׳™׳¢׳•׳¨׳™ ׳”׳”׳׳©׳ (3-7).
+                אישור הפלט הדיאגנוסטי של ה-AI (מאקרו ומיקרו) כדי להתיר (Unlock) את שיעורי ההמשך (3-7).
               </p>
             </header>
             
@@ -1195,7 +1195,7 @@ export function TeacherDashboard() {
                   <div className="w-16 h-16 mx-auto mb-4 bg-ws-bg rounded-full flex items-center justify-center">
                     <ShieldAlert className="w-8 h-8 text-ws-soft" />
                   </div>
-                  <p className="text-xl font-bold">׳׳™׳ ׳×׳׳׳™׳“׳™׳ ׳”׳׳׳×׳™׳ ׳™׳ ׳׳׳™׳©׳•׳¨ ׳׳¡׳׳•׳.</p>
+                  <p className="text-xl font-bold">אין תלמידים הממתינים לאישור מסלול.</p>
                 </div>
               ) : (
                 pendingRouteStudents.map(student => (
@@ -1203,7 +1203,7 @@ export function TeacherDashboard() {
                     <div className="flex justify-between items-start mb-6">
                       <div>
                         <h3 className="text-2xl font-bold text-ws-ink">{student.name || student.studentId}</h3>
-                        <p className="text-sm text-ws-soft mt-1">׳׳–׳”׳”: {student.studentId} | ׳¡׳™׳•׳ ׳׳₪׳’׳© 2</p>
+                        <p className="text-sm text-ws-soft mt-1">מזהה: {student.studentId} | סיום מפגש 2</p>
                       </div>
                       <div className="flex gap-3">
                         <UdlButton 
@@ -1224,7 +1224,7 @@ export function TeacherDashboard() {
                                 await SocraticEngine.approveTasks(targetTeacherId, approval.id, approval.studentId, approval.tasks);
                               } catch (err) {
                                 console.error('Firebase task approval failed:', err);
-                                alert('׳©׳’׳™׳׳” ׳‘׳׳™׳©׳•׳¨ ׳”׳׳©׳™׳׳•׳× ׳‘-Firebase.');
+                                alert('שגיאה באישור המשימות ב-Firebase.');
                               }
                             }
                           }}
@@ -1232,7 +1232,7 @@ export function TeacherDashboard() {
                           {(() => {
                             const allPending = [...teacherApprovals, ...fallbackApprovals];
                             const approval = allPending.find((a) => a.studentId === student.studentId) as any;
-                            return `׳׳™׳©׳•׳¨ ׳•׳₪׳×׳™׳—׳× ׳©׳™׳¢׳•׳¨ ${approval?.targetSession || '3'}`;
+                            return `אישור ופתיחת שיעור ${approval?.targetSession || '3'}`;
                           })()}
                         </UdlButton>
                         <UdlButton 
@@ -1245,12 +1245,12 @@ export function TeacherDashboard() {
                               setEditingApproval(approval);
                               setEditedTasks([...approval.tasks]);
                               setCoPilotChat([
-                                { role: 'ai', text: `׳©׳׳•׳! ׳׳ ׳™ ׳¡׳•׳›׳ ׳”-AI. ׳”׳×׳•׳›׳ ׳™׳× ׳׳׳₪׳’׳© ${approval.targetSession || '3'} ׳¢׳‘׳•׳¨ ${student.name} ׳׳•׳›׳ ׳”. ׳×׳•׳›׳ ׳׳¢׳¨׳•׳ ׳׳•׳×׳” ׳›׳׳, ׳׳• ׳׳‘׳§׳© ׳׳׳ ׳™ ׳׳©׳ ׳•׳× ׳׳©׳”׳•.` }
+                                { role: 'ai', text: `שלום! אני סוכן ה-AI. התוכנית למפגש ${approval.targetSession || '3'} עבור ${student.name} מוכנה. תוכל לערוך אותה כאן, או לבקש ממני לשנות משהו.` }
                               ]);
                             }
                           }}
                         >
-                          ׳“׳—׳™׳™׳” / ׳¢׳¨׳™׳›׳”
+                          דחייה / עריכה
                         </UdlButton>
                       </div>
                     </div>
@@ -1258,13 +1258,13 @@ export function TeacherDashboard() {
                     <div className="bg-ws-accentSoft/30 p-5 rounded-2xl border border-ws-accent/10 mb-6">
                       <h4 className="font-bold text-ws-accent mb-2 flex items-center gap-2">
                         <MessageCircle className="w-5 h-5" />
-                        ׳”׳׳׳¦׳× ׳ ׳×׳‘ ׳”׳׳׳™׳“׳” (Curriculum Router):
+                        המלצת נתב הלמידה (Curriculum Router):
                       </h4>
                       <p className="text-ws-ink font-medium leading-relaxed">
-                        ׳׳¢׳¨׳›׳× ׳”׳ ׳™׳×׳•׳‘ ׳׳׳׳™׳¦׳” ׳¢׳ ׳©׳™׳‘׳•׳¥ ׳”׳×׳׳׳™׳“ ׳<strong>{student.routeRecommendation === 'YELLOW' ? '׳׳¡׳׳•׳ ׳¦׳”׳•׳‘ (׳׳‘׳•׳¡׳¡ ׳×׳׳™׳›׳”)' : '׳׳¡׳׳•׳ ׳™׳¨׳•׳§ (׳׳×׳’׳¨ ׳׳×׳§׳“׳)'}</strong>.<br/>
+                        מערכת הניתוב ממליצה על שיבוץ התלמיד ל<strong>{student.routeRecommendation === 'YELLOW' ? 'מסלול צהוב (מבוסס תמיכה)' : 'מסלול ירוק (אתגר מתקדם)'}</strong>.<br/>
                         {student.routeRecommendation === 'YELLOW' 
-                          ? '׳”׳׳׳¦׳” ׳–׳• ׳׳‘׳•׳¡׳¡׳× ׳¢׳ ׳–׳™׳”׳•׳™ ׳₪׳¢׳¨׳™ ׳׳™׳‘׳” (׳›׳’׳•׳ ׳—׳•׳¡׳¨ ׳©׳׳™׳˜׳” ׳‘׳¢׳•׳‘׳“׳•׳× ׳™׳¡׳•׳“ ׳׳• ׳”׳™׳¡׳•׳¡׳™׳ ׳׳¨׳•׳‘׳™׳) ׳‘׳׳”׳׳ ׳׳₪׳’׳© ׳”׳׳‘׳—׳•׳. ׳”׳×׳׳׳™׳“ ׳™׳§׳‘׳ ׳₪׳™׳’׳•׳׳™׳ (Scaffolding) ׳׳•׳×׳׳׳™׳ ׳‘׳׳₪׳’׳© 3.' 
-                          : '׳”׳×׳׳׳™׳“ ׳”׳₪׳’׳™׳ ׳©׳׳™׳˜׳” ׳˜׳•׳‘׳” ׳‘׳׳™׳•׳׳ ׳•׳™׳•׳× ׳”׳‘׳¡׳™׳¡ ׳•׳׳׳ ׳¡׳™׳׳ ׳™ ׳׳׳‘׳§ ׳§׳•׳’׳ ׳™׳˜׳™׳‘׳™ ׳׳”׳•׳×׳™׳™׳. ׳׳₪׳’׳© 3 ׳™׳׳×׳’׳¨ ׳׳•׳×׳• ׳‘׳‘׳¢׳™׳•׳× ׳׳×׳§׳“׳׳•׳× ׳׳׳ ׳₪׳™׳’׳•׳׳™׳ ׳׳™׳•׳×׳¨׳™׳.'}
+                          ? 'המלצה זו מבוססת על זיהוי פערי ליבה (כגון חוסר שליטה בעובדות יסוד או היסוסים מרובים) במהלך מפגש האבחון. התלמיד יקבל פיגומים (Scaffolding) מותאמים במפגש 3.' 
+                          : 'התלמיד הפגין שליטה טובה במיומנויות הבסיס וללא סימני מאבק קוגניטיבי מהותיים. מפגש 3 יאתגר אותו בבעיות מתקדמות ללא פיגומים מיותרים.'}
                       </p>
                     </div>
 
@@ -1283,7 +1283,7 @@ export function TeacherDashboard() {
                           <div className="bg-blue-50/80 border border-blue-200 rounded-2xl p-5">
                             <h4 className="font-bold text-blue-900 mb-2 flex items-center gap-2 text-sm">
                               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-                              ׳×׳—׳–׳™׳× ׳׳׳§׳¨׳• (׳׳¢׳•׳£ ׳”׳¦׳™׳₪׳•׳¨ ׳׳׳₪׳’׳©׳™׳ 3-7):
+                              תחזית מאקרו (מעוף הציפור למפגשים 3-7):
                             </h4>
                             <p className="text-blue-900 text-sm leading-relaxed">{macroText}</p>
                           </div>
@@ -1292,7 +1292,7 @@ export function TeacherDashboard() {
                           <div className="bg-emerald-50/80 border border-emerald-200 rounded-2xl p-5">
                             <h4 className="font-bold text-emerald-900 mb-2 flex items-center gap-2 text-sm">
                               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-                              ׳×׳•׳›׳ ׳™׳× ׳׳™׳§׳¨׳• (׳¢׳‘׳•׳“׳× ׳ ׳׳׳” ׳׳©׳™׳¢׳•׳¨ ׳”׳§׳¨׳•׳‘):
+                              תוכנית מיקרו (עבודת נמלה לשיעור הקרוב):
                             </h4>
                             <p className="text-emerald-900 text-sm leading-relaxed">{microText}</p>
                           </div>
@@ -1303,30 +1303,30 @@ export function TeacherDashboard() {
                               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-600"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
                             </div>
                             <div className="text-sm">
-                              <strong className="text-slate-700 block">׳¡׳™׳׳ ׳™׳•׳× ׳•׳™׳“׳׳• (Semantic Bookmarks)</strong>
-                              <span className="text-slate-500">׳”-AI ׳¡׳™׳׳ ׳׳™׳¨׳•׳¢׳™ ׳”׳™׳¡׳•׳¡ ׳§׳¨׳™׳˜׳™׳™׳ ׳‘׳׳₪׳’׳© ׳”׳§׳•׳“׳ (׳–׳׳™׳ ׳™׳ ׳‘׳׳©׳•׳ ׳™׳× ׳”-Replays ׳׳‘׳—׳™׳ ׳”).</span>
+                              <strong className="text-slate-700 block">סימניות וידאו (Semantic Bookmarks)</strong>
+                              <span className="text-slate-500">ה-AI סימן אירועי היסוס קריטיים במפגש הקודם (זמינים בלשונית ה-Replays לבחינה).</span>
                             </div>
                           </div>
                         </div>
                       );
                     })()}
 
-                    <h4 className="font-bold text-lg mb-3">׳׳“׳“׳™ ׳׳‘׳—׳•׳ ׳§׳¨׳™׳˜׳™׳™׳ (Q-Matrix):</h4>
+                    <h4 className="font-bold text-lg mb-3">מדדי אבחון קריטיים (Q-Matrix):</h4>
                     <div className="grid gap-3">
                         <div className="bg-ws-bg p-4 rounded-xl flex items-center justify-between border border-ws-surface2">
                           <div>
-                            <span className="font-semibold">׳׳׳‘׳§ ׳§׳•׳’׳ ׳™׳˜׳™׳‘׳™ ׳¡׳׳•׳™</span>
+                            <span className="font-semibold">מאבק קוגניטיבי סמוי</span>
                           </div>
                           <div className="text-sm font-bold text-ws-soft">
-                            {student.traceData.hesitation_events} ׳”׳™׳¡׳•׳¡׳™׳, {student.traceData.undo_clicks} ׳—׳–׳¨׳•׳×
+                            {student.traceData.hesitation_events} היסוסים, {student.traceData.undo_clicks} חזרות
                           </div>
                         </div>
                         <div className="bg-ws-bg p-4 rounded-xl flex items-center justify-between border border-ws-surface2">
                           <div>
-                            <span className="font-semibold">׳‘׳¡׳™׳¡ ׳¢׳©׳¨׳•׳ ׳™ ׳•׳—׳™׳‘׳•׳¨</span>
+                            <span className="font-semibold">בסיס עשרוני וחיבור</span>
                           </div>
                           <div className={`text-sm font-bold ${(student.qMatrixResults.task4_basic_addition_fluency && student.qMatrixResults.task4_basic_addition_fluency !== 'success') ? 'text-red-500' : 'text-green-500'}`}>
-                            {(student.qMatrixResults.task4_basic_addition_fluency && student.qMatrixResults.task4_basic_addition_fluency !== 'success') ? '׳ ׳›׳©׳' : '׳×׳§׳™׳'}
+                            {(student.qMatrixResults.task4_basic_addition_fluency && student.qMatrixResults.task4_basic_addition_fluency !== 'success') ? 'נכשל' : 'תקין'}
                           </div>
                         </div>
                     </div>
@@ -1346,12 +1346,12 @@ export function TeacherDashboard() {
               </div>
               <div>
                 <h3 className="font-bold text-xl text-ws-ink ">
-                  ׳”׳ ׳”׳׳” ׳•׳×׳׳™׳›׳” ׳˜׳›׳ ׳™׳×
+                  הנהלה ותמיכה טכנית
                 </h3>
                 <div className="flex items-center gap-2 mt-1">
                   <span className="w-2 h-2 rounded-full bg-ws-accentSoft0 animate-pulse"></span>
                   <span className="text-xs text-ws-soft  font-medium">
-                    ׳–׳׳™׳ ׳›׳¢׳× ׳׳©׳™׳—׳”
+                    זמין כעת לשיחה
                   </span>
                 </div>
               </div>
@@ -1363,7 +1363,7 @@ export function TeacherDashboard() {
                 <div className="m-auto text-center flex flex-col items-center justify-center text-slate-400">
                   <MessageCircle className="w-16 h-16 mb-4 opacity-20" />
                   <p className="font-medium text-lg">
-                    ׳׳™׳ ׳”׳•׳“׳¢׳•׳×. ׳©׳׳— ׳”׳•׳“׳¢׳” ׳׳׳ ׳”׳ ׳”׳׳¢׳¨׳›׳×.
+                    אין הודעות. שלח הודעה למנהל המערכת.
                   </p>
                 </div>
               ) : (
@@ -1381,7 +1381,7 @@ export function TeacherDashboard() {
                         {msg.imageUrl && (
                           <img
                             src={msg.imageUrl}
-                            alt="׳×׳׳•׳ ׳”"
+                            alt="תמונה"
                             className="max-w-[220px] max-h-[220px] rounded-xl mt-1 object-cover cursor-pointer block"
                             onClick={() => window.open(msg.imageUrl, '_blank')}
                           />
@@ -1410,9 +1410,9 @@ export function TeacherDashboard() {
               <div className="flex gap-3 items-center">
                 <button
                   type="button"
-                  onClick={() => alert("׳”׳§׳׳˜׳× ׳©׳׳¢ ׳׳™׳ ׳” ׳–׳׳™׳ ׳” ׳›׳¢׳×.")}
+                  onClick={() => alert("הקלטת שמע אינה זמינה כעת.")}
                   className="flex rounded-full w-12 h-12 p-0 items-center justify-center bg-ws-bg/80 hover:bg-slate-200 text-ws-soft transition-all shadow-sm"
-                  title="׳”׳§׳׳˜׳× ׳©׳׳¢"
+                  title="הקלטת שמע"
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -1436,7 +1436,7 @@ export function TeacherDashboard() {
                   onClick={() => adminFileInputRef.current?.click()}
                   disabled={sendingImage}
                   className="flex rounded-full w-12 h-12 p-0 items-center justify-center bg-ws-bg/80 hover:bg-slate-200 text-ws-soft transition-all shadow-sm disabled:opacity-40"
-                  title="׳©׳׳— ׳×׳׳•׳ ׳”"
+                  title="שלח תמונה"
                 >
                   {sendingImage ? (
                     <span className="w-5 h-5 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
@@ -1464,7 +1464,7 @@ export function TeacherDashboard() {
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleSendAdmin()}
-                  placeholder="׳”׳§׳׳“ ׳”׳•׳“׳¢׳” ׳׳׳ ׳”׳ ׳”׳׳¢׳¨׳›׳×..."
+                  placeholder="הקלד הודעה למנהל המערכת..."
                   className="flex-1 bg-ws-bg/80 /80 border border-ws-surface2  rounded-full px-6 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-ws-ink  shadow-inner"
                 />
                 <UdlButton
@@ -1489,10 +1489,10 @@ export function TeacherDashboard() {
               <div className="p-6 border-b border-ws-surface2 flex flex-col gap-3">
                 <div>
                   <h3 className="font-bold text-xl text-ws-ink ">
-                    ׳©׳™׳—׳•׳× ׳¢׳ ׳×׳׳׳™׳“׳™׳
+                    שיחות עם תלמידים
                   </h3>
                   <p className="text-xs text-ws-soft mt-1 font-medium">
-                    ׳‘׳—׳¨ ׳×׳׳׳™׳“ ׳׳×׳—׳™׳׳× ׳¦'׳׳˜ ׳׳™׳©׳™
+                    בחר תלמיד לתחילת צ'אט אישי
                   </p>
                 </div>
               </div>
@@ -1520,7 +1520,7 @@ export function TeacherDashboard() {
                           {student.traceData?.hesitation_events > 0 && (
                             <div
                               className="absolute -top-1 -right-1 bg-ws-accentSoft0 rounded-full p-0.5 shadow-md"
-                              title="׳׳׳‘׳§ ׳§׳•׳’׳ ׳™׳˜׳™׳‘׳™"
+                              title="מאבק קוגניטיבי"
                             >
                               <ShieldAlert className="w-3 h-3 text-white" />
                             </div>
@@ -1570,7 +1570,7 @@ export function TeacherDashboard() {
                       <div className="flex items-center gap-2 mt-1">
                         <span className="w-2 h-2 rounded-full bg-ws-accentSoft0"></span>
                         <span className="text-xs text-ws-soft  font-medium">
-                          ׳׳—׳•׳‘׳¨
+                          מחובר
                         </span>
                       </div>
                     </div>
@@ -1582,7 +1582,7 @@ export function TeacherDashboard() {
                       <div className="m-auto text-center flex flex-col items-center justify-center text-slate-400">
                         <MessageCircle className="w-16 h-16 mb-4 opacity-20" />
                         <p className="font-medium text-lg">
-                          ׳׳™׳ ׳”׳•׳“׳¢׳•׳×. ׳”׳×׳—׳ ׳©׳™׳—׳” ׳—׳“׳©׳”.
+                          אין הודעות. התחל שיחה חדשה.
                         </p>
                       </div>
                     ) : (
@@ -1604,7 +1604,7 @@ export function TeacherDashboard() {
                               {msg.imageUrl && (
                                 <img
                                   src={msg.imageUrl}
-                                  alt="׳×׳׳•׳ ׳”"
+                                  alt="תמונה"
                                   className="max-w-[220px] max-h-[220px] rounded-xl mt-1 object-cover cursor-pointer block"
                                   onClick={() => window.open(msg.imageUrl, '_blank')}
                                 />
@@ -1635,7 +1635,7 @@ export function TeacherDashboard() {
                         type="button"
                         onClick={() => teacherFileInputRef.current?.click()}
                         disabled={sendingImage || !selectedStudentId}
-                        title="׳©׳׳— ׳×׳׳•׳ ׳”"
+                        title="שלח תמונה"
                         className="flex rounded-full w-12 h-12 p-0 items-center justify-center bg-ws-bg/80 hover:bg-slate-200 text-ws-soft transition-all shadow-sm disabled:opacity-40"
                       >
                         {sendingImage ? (
@@ -1655,7 +1655,7 @@ export function TeacherDashboard() {
                         onKeyDown={(e) =>
                           e.key === "Enter" && handleSendStudent()
                         }
-                        placeholder="׳”׳§׳׳“ ׳”׳•׳“׳¢׳” ׳׳×׳׳׳™׳“..."
+                        placeholder="הקלד הודעה לתלמיד..."
                         className="flex-1 bg-ws-bg/80 /80 border border-ws-surface2  rounded-full px-6 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all text-ws-ink  shadow-inner"
                       />
                       <UdlButton
@@ -1674,10 +1674,10 @@ export function TeacherDashboard() {
                     <MessageCircle className="w-12 h-12 opacity-30" />
                   </div>
                   <h3 className="text-2xl font-bold text-ws-soft ">
-                    ׳‘׳—׳¨ ׳×׳׳׳™׳“ ׳׳”׳×׳—׳׳× ׳©׳™׳—׳”
+                    בחר תלמיד להתחלת שיחה
                   </h3>
                   <p className="text-ws-soft max-w-sm text-center">
-                    ׳×׳•׳›׳ ׳׳×׳× ׳׳©׳•׳‘ ׳׳™׳©׳™, ׳׳©׳׳•׳— ׳¨׳׳–׳™׳, ׳׳• ׳׳¢׳–׳•׳¨ ׳‘׳–׳׳ ׳׳׳×.
+                    תוכל לתת משוב אישי, לשלוח רמזים, או לעזור בזמן אמת.
                   </p>
                 </div>
               )}
@@ -1696,7 +1696,7 @@ export function TeacherDashboard() {
                     Teacher-AI Co-Pilot
                   </h2>
                   <p className="text-indigo-200 text-sm mt-1">
-                    ׳¢׳¨׳™׳›׳× ׳”׳×׳•׳›׳ ׳™׳× ׳׳׳₪׳’׳© ׳”׳‘׳ ׳¢׳‘׳•׳¨ {editingApproval.studentName}
+                    עריכת התוכנית למפגש הבא עבור {editingApproval.studentName}
                   </p>
                 </div>
                 <button 
@@ -1711,15 +1711,15 @@ export function TeacherDashboard() {
                 {/* Right side: Blueprint Editor (Tasks) */}
                 <div className="flex-1 bg-slate-50 border-l border-slate-200 overflow-y-auto p-6">
                   <div className="flex justify-between items-center mb-6">
-                    <h3 className="font-bold text-xl text-slate-800">׳¢׳•׳¨׳ ׳×׳•׳›׳ ׳™׳× ׳”׳׳׳™׳“׳” (Blueprint)</h3>
+                    <h3 className="font-bold text-xl text-slate-800">עורך תוכנית הלמידה (Blueprint)</h3>
                     <UdlButton 
                       size="sm"
                       onClick={() => {
                         const newTask = {
                           id: `custom_${Date.now()}`,
                           type: 'vertical_addition',
-                          titleHe: '׳×׳¨׳’׳™׳ ׳׳•׳×׳׳ ׳׳™׳©׳™׳×',
-                          instructionHe: '׳₪׳×׳¨׳• ׳׳× ׳”׳×׳¨׳’׳™׳:',
+                          titleHe: 'תרגיל מותאם אישית',
+                          instructionHe: 'פתרו את התרגיל:',
                           numberA: 1000,
                           numberB: 1000,
                           correctAnswer: 2000
@@ -1727,7 +1727,7 @@ export function TeacherDashboard() {
                         setEditedTasks([...editedTasks, newTask]);
                       }}
                     >
-                      + ׳”׳•׳¡׳£ ׳×׳¨׳’׳™׳
+                      + הוסף תרגיל
                     </UdlButton>
                   </div>
                   
@@ -1735,7 +1735,7 @@ export function TeacherDashboard() {
                     {editedTasks.map((task, idx) => (
                       <div key={task.id || idx} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-3">
                         <div className="flex justify-between items-center">
-                          <span className="font-bold text-indigo-700 bg-indigo-50 px-2 py-1 rounded">׳©׳׳‘ {idx + 1}: {task.type}</span>
+                          <span className="font-bold text-indigo-700 bg-indigo-50 px-2 py-1 rounded">שלב {idx + 1}: {task.type}</span>
                           <button 
                             onClick={() => {
                               const newTasks = [...editedTasks];
@@ -1744,12 +1744,12 @@ export function TeacherDashboard() {
                             }}
                             className="text-red-500 hover:text-red-700 text-sm font-bold"
                           >
-                            ׳׳—׳§
+                            מחק
                           </button>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-1">׳›׳•׳×׳¨׳× ׳”׳׳©׳™׳׳”</label>
+                            <label className="block text-xs font-bold text-slate-500 mb-1">כותרת המשימה</label>
                             <input 
                               type="text" 
                               className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm"
@@ -1762,7 +1762,7 @@ export function TeacherDashboard() {
                             />
                           </div>
                           <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-1">׳”׳•׳¨׳׳” ׳׳×׳׳׳™׳“</label>
+                            <label className="block text-xs font-bold text-slate-500 mb-1">הוראה לתלמיד</label>
                             <input 
                               type="text" 
                               className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm"
@@ -1777,7 +1777,7 @@ export function TeacherDashboard() {
                         </div>
                         <div className="grid grid-cols-3 gap-4">
                           <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-1">׳׳¡׳₪׳¨ ׳'</label>
+                            <label className="block text-xs font-bold text-slate-500 mb-1">מספר א'</label>
                             <input 
                               type="number" 
                               className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm"
@@ -1790,7 +1790,7 @@ export function TeacherDashboard() {
                             />
                           </div>
                           <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-1">׳׳¡׳₪׳¨ ׳‘'</label>
+                            <label className="block text-xs font-bold text-slate-500 mb-1">מספר ב'</label>
                             <input 
                               type="number" 
                               className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm"
@@ -1803,7 +1803,7 @@ export function TeacherDashboard() {
                             />
                           </div>
                           <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-1">׳¨׳׳× ׳₪׳™׳’׳•׳ (Scaffold)</label>
+                            <label className="block text-xs font-bold text-slate-500 mb-1">רמת פיגום (Scaffold)</label>
                             <select 
                               className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm"
                               value={task.scaffoldLevel || 0}
@@ -1813,9 +1813,9 @@ export function TeacherDashboard() {
                                 setEditedTasks(newTasks);
                               }}
                             >
-                              <option value={0}>׳׳׳ ׳₪׳™׳’׳•׳ (0)</option>
-                              <option value={1}>׳₪׳™׳’׳•׳ ׳—׳׳§׳™ (1)</option>
-                              <option value={2}>׳₪׳™׳’׳•׳ ׳׳׳ (2)</option>
+                              <option value={0}>ללא פיגום (0)</option>
+                              <option value={1}>פיגום חלקי (1)</option>
+                              <option value={2}>פיגום מלא (2)</option>
                             </select>
                           </div>
                         </div>
@@ -1833,7 +1833,7 @@ export function TeacherDashboard() {
                           {msg.text}
                         </div>
                         <span className="text-[10px] text-slate-400 mt-1 px-1 font-bold">
-                          {msg.role === 'teacher' ? '׳׳×/׳”' : 'Co-Pilot AI'}
+                          {msg.role === 'teacher' ? 'את/ה' : 'Co-Pilot AI'}
                         </span>
                       </div>
                     ))}
@@ -1851,14 +1851,14 @@ export function TeacherDashboard() {
                         
                         // Fake AI response for now
                         setTimeout(() => {
-                          setCoPilotChat(prev => [...prev, { role: 'ai', text: '׳׳¦׳•׳™׳, ׳¢׳“׳›׳ ׳×׳™ ׳׳× ׳”׳×׳•׳›׳ ׳™׳× ׳‘׳”׳×׳׳ ׳׳‘׳§׳©׳×׳. ׳×׳•׳›׳ ׳׳¨׳׳•׳× ׳׳× ׳”׳©׳™׳ ׳•׳™׳™׳ ׳‘׳¢׳•׳¨׳ ׳”׳×׳•׳›׳ ׳™׳× ׳׳™׳׳™׳.' }]);
+                          setCoPilotChat(prev => [...prev, { role: 'ai', text: 'מצוין, עדכנתי את התוכנית בהתאם לבקשתך. תוכל לראות את השינויים בעורך התוכנית מימין.' }]);
                         }, 1000);
                       }}
                     >
                       <input 
                         type="text"
                         className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-                        placeholder="׳‘׳§׳© ׳׳”-AI ׳׳©׳ ׳•׳× ׳׳©׳”׳•..."
+                        placeholder="בקש מה-AI לשנות משהו..."
                         value={coPilotInput}
                         onChange={(e) => setCoPilotInput(e.target.value)}
                       />
@@ -1884,11 +1884,11 @@ export function TeacherDashboard() {
                       setEditedTasks(null);
                     } catch (err) {
                       console.error(err);
-                      alert('׳©׳’׳™׳׳” ׳‘׳“׳—׳™׳™׳× ׳”׳׳©׳™׳׳•׳×');
+                      alert('שגיאה בדחיית המשימות');
                     }
                   }}
                 >
-                  ׳“׳—׳” ׳•׳׳—׳§ ׳׳—׳׳•׳˜׳™׳
+                  דחה ומחק לחלוטין
                 </button>
                 <div className="flex gap-3">
                   <UdlButton 
@@ -1898,16 +1898,16 @@ export function TeacherDashboard() {
                       const targetTeacherId = isFallback ? "teacher-1" : TEACHER_ID;
                       try {
                         await SocraticEngine.updatePendingTasks(targetTeacherId, editingApproval.id, editedTasks);
-                        alert('׳˜׳™׳•׳˜׳” ׳ ׳©׳׳¨׳” ׳‘׳”׳¦׳׳—׳”. ׳×׳•׳›׳ ׳׳”׳׳©׳™׳ ׳׳¢׳¨׳•׳ ׳׳•׳×׳” ׳׳׳•׳—׳¨ ׳™׳•׳×׳¨.');
+                        alert('טיוטה נשמרה בהצלחה. תוכל להמשיך לערוך אותה מאוחר יותר.');
                         setEditingApproval(null);
                         setEditedTasks(null);
                       } catch (err) {
                         console.error(err);
-                        alert('׳©׳’׳™׳׳” ׳‘׳©׳׳™׳¨׳× ׳”׳˜׳™׳•׳˜׳”');
+                        alert('שגיאה בשמירת הטיוטה');
                       }
                     }}
                   >
-                    ׳©׳׳•׳¨ ׳˜׳™׳•׳˜׳” (Save Draft)
+                    שמור טיוטה (Save Draft)
                   </UdlButton>
                   <UdlButton 
                     semanticColor="primary"
@@ -1920,11 +1920,11 @@ export function TeacherDashboard() {
                         setEditedTasks(null);
                       } catch (err) {
                         console.error('Firebase task approval failed:', err);
-                        alert('׳©׳’׳™׳׳” ׳‘׳׳™׳©׳•׳¨ ׳”׳׳©׳™׳׳•׳× ׳‘-Firebase.');
+                        alert('שגיאה באישור המשימות ב-Firebase.');
                       }
                     }}
                   >
-                    ׳׳©׳¨ ׳•׳”׳₪׳¢׳ ׳×׳•׳›׳ ׳™׳×
+                    אשר והפעל תוכנית
                   </UdlButton>
                 </div>
               </div>

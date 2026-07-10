@@ -99,6 +99,7 @@ interface WorkspaceState {
   // actions
   injectTask: (task: SessionTask, position: 'next' | 'end') => void;
   initSession: (meeting: SessionNumber, isASD: boolean, aiTasks?: SessionTask[] | null, startingTaskIdx?: number) => void;
+  restoreSession: (savedState: any) => void;
   applyDrop: (input: DropInput) => void;
   removeBlockClick: (place: Place) => void;
   undo: () => void;
@@ -494,6 +495,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         handleFailure('wrong_blocks', 'מערכת המעבדה 🤔', 'בואו נבדוק שוב את הלוח. האם הכמות של הקוביות שהנחתם תואמת בדיוק למה שמופיע בניסוי?', 3500);
         return;
       }
+      // Gate 1.5: the representation must be canonical (properly grouped) at submission.
+      const hasOvercrowded = s.counts.units >= 10 || s.counts.tens >= 10 || s.counts.hundreds >= 10;
+      if (hasOvercrowded) {
+        handleFailure('overcrowded_columns', 'לוח לא תקין 🧐', 'בסיום הבנייה, כל טור בלוח המוחשי יכול להכיל לכל היותר 9 בלוקים. בצעו המרה/קיבוץ כדי לסדר את הלוח!', 3800);
+        return;
+      }
       // Gate 2: the written answer must match.
       const ansVal = answerDigitsToNumber(s.answerDigits);
       if (ansVal !== target) {
@@ -721,6 +728,43 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         ...resetTaskInteraction(),
       });
       const firstId = meeting === 2 ? getCurrentQTask(qflow)?.id ?? '' : (initialAITasks ?? getSessionTasks(meeting as any))[startingTaskIdx ?? 0]?.id ?? '';
+      radar.setTask(firstId);
+    },
+
+    restoreSession: (saved) => {
+      if (!saved) return;
+      set({
+        sessionNumber: saved.sessionNumber ?? 1,
+        isASD: saved.isASD ?? false,
+        standardTaskIdx: saved.standardTaskIdx ?? 0,
+        qflow: saved.qflow ?? initQFlow(),
+        flowStatus: saved.flowStatus ?? 'task',
+        counts: saved.counts ?? { ...EMPTY_COUNTS },
+        undoCount: saved.undoCount ?? 0,
+        hesitationCount: saved.hesitationCount ?? 0,
+        hasInteracted: saved.hasInteracted ?? false,
+        aiTasks: saved.aiTasks ?? null,
+        dynamicTasks: null,
+        nodeStrikes: {},
+        successStreak: 0,
+        awaitingNext: false,
+        boardOpen: true,
+        scaffoldFadeLevel: 0,
+        errorPlace: null,
+        feedback: null,
+        helpState: 'closed',
+        frictionTriggerSource: null,
+        selectedChoiceId: null,
+        numberLineValue: null,
+        answerDigits: {},
+        carryDigits: {},
+        probeAnswer: '',
+        q3Reps: [],
+        focusedPlace: null,
+        undoStack: [],
+      });
+      const s = get();
+      const firstId = s.sessionNumber === 2 ? getCurrentQTask(s.qflow)?.id ?? '' : (s.aiTasks ?? getSessionTasks(s.sessionNumber as any))[s.standardTaskIdx ?? 0]?.id ?? '';
       radar.setTask(firstId);
     },
 

@@ -71,6 +71,7 @@ interface AppState {
   currentUserRole: 'student' | 'teacher' | 'admin' | null;
   currentUserId: string | null;
   students: Record<string, StudentData>;
+  firebaseLoaded: boolean;
   login: (role: 'student' | 'teacher' | 'admin', id: string) => void;
   logout: () => void;
   globalChatEnabled: boolean;
@@ -132,11 +133,12 @@ export const useStore = create<AppState>()(
       currentUserId: null,
       students: initialStudents,
       globalChatEnabled: true,
+      firebaseLoaded: false,
       
       toggleGlobalChat: () => set((state) => ({ globalChatEnabled: !state.globalChatEnabled })),
 
       login: (role, id) => set((state) => {
-        const newState: Partial<AppState> = { currentUserRole: role, currentUserId: id };
+        const newState: Partial<AppState> = { currentUserRole: role, currentUserId: id, firebaseLoaded: false };
         if (role === 'student' && !state.students[id]) {
           // Auto-initialize new student (fallback)
           newState.students = {
@@ -166,7 +168,7 @@ export const useStore = create<AppState>()(
         return newState;
       }),
       
-      logout: () => set({ currentUserRole: null, currentUserId: null }),
+      logout: () => set({ currentUserRole: null, currentUserId: null, firebaseLoaded: false }),
 
       incrementHesitation: (studentId) => set((state) => {
         const student = state.students[studentId];
