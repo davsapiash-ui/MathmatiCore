@@ -496,9 +496,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         return;
       }
       // Gate 1.5: the representation must be canonical (properly grouped) at submission.
-      const hasOvercrowded = s.counts.units >= 10 || s.counts.tens >= 10 || s.counts.hundreds >= 10;
+      const hasOvercrowded = s.counts.units >= 10 || s.counts.tens >= 10;
       if (hasOvercrowded) {
-        handleFailure('overcrowded_columns', 'לוח לא תקין 🧐', 'בסיום הבנייה, כל טור בלוח המוחשי יכול להכיל לכל היותר 9 בלוקים. בצעו המרה/קיבוץ כדי לסדר את הלוח!', 3800);
+        const title = 'לוח לא תקין 🧐';
+        const msg = task.isSubtraction
+          ? 'נראה שיש מעל 9 יחידות או עשרות בעמודה. בתרגילי חיסור, האם שכחתם לבצע פריטה או להחסיר קוביות כדי להגיע לתוצאה הסופית?'
+          : 'נראה שיש מעל 9 יחידות או עשרות בעמודה. בתרגילי חיבור, יש לבצע המרה/קיבוץ כדי לסדר את הלוח בצורה תקנית!';
+        handleFailure('overcrowded_columns', title, msg, 4000);
         return;
       }
       // Gate 2: the written answer must match.
