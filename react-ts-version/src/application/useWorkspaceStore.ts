@@ -804,7 +804,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
             element: input.source === 'palette' ? `palette_block` : `${input.sourcePlace}_block`,
             target: input.target.kind === 'column' ? `${input.target.place}_column` : 'trash',
             context: `Failed due to ${result.reason}`,
-            q_matrix_node: task?.targetNode,
+            ...(task?.targetNode ? { q_matrix_node: task.targetNode } : {}),
             state_snapshot: `Units: ${s.counts.units}, Tens: ${s.counts.tens}, Hundreds: ${s.counts.hundreds}, Thousands: ${s.counts.thousands}`
           });
         }
@@ -847,7 +847,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           element: isFromStore ? `palette_block` : `${input.sourcePlace}_block`,
           target: input.target.kind === 'column' ? `${input.target.place}_column` : 'trash',
           context: action,
-          q_matrix_node: task?.targetNode,
+          ...(task?.targetNode ? { q_matrix_node: task.targetNode } : {}),
           state_snapshot: `Units: ${result.counts.units}, Tens: ${result.counts.tens}, Hundreds: ${result.counts.hundreds}, Thousands: ${result.counts.thousands}`
         });
       }
@@ -882,7 +882,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           action: 'undo',
           element: 'undo_button',
           context: 'User clicked undo',
-          q_matrix_node: task?.targetNode,
+          ...(task?.targetNode ? { q_matrix_node: task.targetNode } : {}),
           state_snapshot: `Units: ${snapshot.counts.units}, Tens: ${snapshot.counts.tens}, Hundreds: ${snapshot.counts.hundreds}, Thousands: ${snapshot.counts.thousands}`
         });
       }

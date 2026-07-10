@@ -1,117 +1,83 @@
-# Forensic Audit Report & Handoff
+## Forensic Audit Report
 
-**Work Product**: PoC files in `C:\Users\david\teamwork_projects\pedagogical_ai_evaluation`
+**Work Product**: NumberLineTask.tsx, PlaceValueBoard.tsx, VerticalAdditionTask.tsx
 **Profile**: General Project
 **Verdict**: CLEAN
 
 ---
 
-## 1. Observation
+### 1. Observation
 
-Direct observations made during the forensic audit of the following files:
-* `C:\Users\david\teamwork_projects\pedagogical_ai_evaluation\generate_mock_logs.js`
-* `C:\Users\david\teamwork_projects\pedagogical_ai_evaluation\analyze_pedagogical_state.js`
-* `C:\Users\david\teamwork_projects\pedagogical_ai_evaluation\run_poc.js`
+- **NumberLineTask.tsx**: Redesigned to resemble a real math axis. Inset by 16px to align ticks and arrow indicators. The tick marks render dynamically according to the range span (range 1000 has ticks every 10/50/100; range 100 has ticks every 1/5/10). Snapping is computed dynamically:
+  ```typescript
+  const ratio = Math.min(1, Math.max(0, (clientX - insetLeft) / insetWidth));
+  const raw = min + ratio * span;
+  const snapped = Math.round(raw / minorStep) * minorStep;
+  setNumberLineValue(Math.min(max, Math.max(min, snapped)));
+  ```
+  It has no hardcoded values or fake success markers.
 
-### Verification Execution Output
-Running `node run_poc.js` in `C:\Users\david\teamwork_projects\pedagogical_ai_evaluation`:
-```
---- E2E Step 1: Running Mock Telemetry Log Generator ---
-Successfully generated raw telemetry mock logs at: C:\Users\david\teamwork_projects\pedagogical_ai_evaluation\student_telemetry_raw.json
---- E2E Step 2: Running Pedagogical Analyzer ---
+- **PlaceValueBoard.tsx**: Correctly hides the thousands column in sessions 1 & 2 (`PLACE_ORDER.filter(p => p !== 'thousands')`) and exposes it in session 3. Implements UDL bidirectional scaffold fading (controlled via `scaffoldFadeLevel`) and allows restoring scaffolds. It contains no hardcoded bypasses.
 
-Generated Analysis Result:
-{
-  "cognitiveError": {
-    "detected": true,
-    "name": "Incorrect regrouping/carrying (הקפצה לא נכונה בחיבור ארוך)",
-    "confidence": 0.95,
-    "evidence": [
-      "Student inputted an incorrect column-sum answer ('33') for the addition of 28 + 15.",
-      "Q-Matrix indicates low regrouping fluency: 30% (< 80%).",
-      "No regrouping or base-10 conversion events were detected in the log."
-    ]
-  },
-  "cognitiveStruggle": {
-    "detected": true,
-    "evidence": [
-      "Idle gap of 35.0 seconds between 'block_drag' and 'hesitation_trigger'.",
-      "Idle gap of 40.0 seconds between 'delete' and 'hesitation_trigger'.",
-      "traceData reports 2 hesitation events."
-    ]
-  },
-  "passiveDrifting": {
-    "detected": true,
-    "evidence": [
-      "Student performed 3 rapid undo/delete actions in a window of 2s (at timestamps: 1690000098000, 1690000099000, 1690000100000)."
-    ]
-  },
-  "pedagogicalInsights": "התלמיד הדגים קושי קוגניטיבי קלאסי בהבנת מבנה העשרוני ומנגנון ההמרה (הקפצה). הוא הצליח לייצג את המספרים 28 ו-15 בעזרת בדידים, אך בשלב החיבור לא ביצע המרה של 10 יחידות לעשרת אחת. התלמיד רשם 3 בעמודת היחידות אך שכח להוסיף את העשרת לעמודת העשרות, מה שהוביל לתשובה 33 במקום 43. ההיסוסים המרובים והביטולים החוזרים מעידים על מאבק קוגניטיבי (Cognitive Struggle) וחוסר ביטחון בתהליך ההמרה.",
-  "socraticQuestions": [
-    "אני רואה שקיבלנו 13 יחידות בעמודת היחידות. האם מותר להשאיר מספר דו-ספרתי בעמודה של היחידות, או שצריך לעשות משהו עם עשר מהן?",
-    "אם ניקח 10 יחידות ונאחד אותן לעשרת אחת חדשה - לאן העשרת הזו צריכה לעבור?",
-    "היו לנו 2 עשרות מהמספר 28, ועוד עשרת אחת מהמספר 15. אם נוסיף להן את העשרת החדשה שיצרנו, כמה עשרות יהיו לנו בסך הכל?"
-  ]
-}
+- **VerticalAdditionTask.tsx**: Implements vertical arithmetic aligned to notebook grids. The operator has been placed in the rightmost column of the LTR grid (using `repeat(${cols}, ${CELL}px) ${CELL}px`) and the rendering order has been updated to align the operator on the correct side in RTL reading. State updates (`setAnswerDigit`, `setCarryDigit`) call `radar.recordAction()` to keep track of user interactions.
 
---- E2E Step 3: Running Pedagogical Assertions ---
+- **Lint / Build Errors**:
+  Running `npm run verify-component` yields:
+  ```
+  x react-hooks(rules-of-hooks): React Hook "useWorkspaceStore" is called conditionally. React Hooks must be called in the exact same order in every component render.
+    ,-[src/features/workspace/board/BlockPalette.tsx:20:25]
+    20 |   const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
+  ```
+  *(Note: This error is in `BlockPalette.tsx`, which is outside our direct audit scope but must be noted as a build failure).*
 
-[SUCCESS] E2E Verification Passed: All pedagogical telemetry states correctly analyzed and verified!
-```
+- **Playwright Test Execution**:
+  Playwright tests failed with 12 failures (out of 22 tests).
+  Many E2E tests timed out waiting for sidebar elements (e.g. `getByText('ניהול כיתה')` or `getByRole('button', { name: /אבחון אישיים/ })`).
+  Upon inspection of `TeacherDashboard.tsx`, the Hebrew button text is completely corrupted/garbled in the source file, which explains why Playwright locators searching for Hebrew characters failed to match:
+  - Line 569 is `׳ ׳™׳”׳•׳œ ׳›׳™׳×׳” ׳•׳×׳œ׳ž׳™׳“׳™׳ ` instead of `ניהול כיתה ותלמידים`.
+  - Line 538 is `׳“׳•"׳—׳•׳× ׳ ׳‘׳—׳•׳Ÿ ׳ ׳™׳©׳™׳™׳ ` instead of `דו"חות אבחון אישיים`.
 
-### Dynamic Input Test
-Running the analyzer with cleared `interaction_logs` and `traceData`:
-`node -e "const { analyzeTelemetry } = require('./analyze_pedagogical_state.js'); const fs = require('fs'); const data = JSON.parse(fs.readFileSync('student_telemetry_raw.json', 'utf8')); data.interaction_logs = []; data.traceData = { hesitation_events: 0, undo_clicks: 0, interventions: {} }; console.log(JSON.stringify(analyzeTelemetry(data), null, 2));"`
-Output:
-```json
-{
-  "cognitiveError": {
-    "detected": false,
-    "name": "Incorrect regrouping/carrying (הקפצה לא נכונה בחיבור ארוך)",
-    "confidence": 0,
-    "evidence": [
-      "Q-Matrix indicates low regrouping fluency: 30% (< 80%).",
-      "No regrouping or base-10 conversion events were detected in the log."
-    ]
-  },
-  "cognitiveStruggle": {
-    "detected": false,
-    "evidence": []
-  },
-  "passiveDrifting": {
-    "detected": false,
-    "evidence": []
-  },
-  "pedagogicalInsights": "לא זוהה קושי ספציפי בהמרה עשרונית.",
-  "socraticQuestions": []
-}
-```
+- **Semantic Telemetry Stream (Rule 17)**:
+  `PlaceValueBoard.tsx` handles drag-and-drop actions, which are logged inside `useWorkspaceStore.ts` via `logSemanticEvent` (producing detailed action objects in `semantic_trace`). However, `NumberLineTask.tsx` and `VerticalAdditionTask.tsx` only call `radar.recordAction()` to reset the idle timer and trigger standard radar alerts; they do not generate specific `semantic_trace` entries for slider adjustments or carry/answer typing.
 
 ---
 
-## 2. Logic Chain
+### 2. Logic Chain
 
-1. **Assertion Verification**: Running the PoC script `run_poc.js` successfully triggers mock telemetry log generation, parses the resulting file, runs the analyzer, and passes all pedagogical telemetry assertions.
-2. **Behavior Verification & Facade/Cheating Check**: By feeding modified mock input (empty logs and trace data) into the analyzer, the output changed dynamically and correctly matched the altered state (e.g. `cognitiveError.detected` flipped from `true` to `false`). This verifies that the code contains genuine, functional logic that dynamically inspects the properties of input data, rather than return values being hardcoded to bypass tests.
-3. **Dependency and Delegation Check**: Source code analysis shows only standard library Node.js module imports (`fs`, `path`, `assert`). No third-party or pre-compiled binaries are used to delegate the work.
-4. **General & Benchmark Integrity Compliance**: The PoC targets specific pedagogical analysis tasks (28 + 15). The pedagogical insights and Socratic questions are indeed hardcoded for this specific addition problem (which is acceptable for a specific PoC implementation), but the analyzer mechanics (time gaps detection, rapid undos sequence detection, Q-Matrix mastery checking) represent real and reusable algorithmic logic.
+1. **No Integrity Violations in Codebase**:
+   - The math logic inside `QMatrix.ts` evaluates student answers dynamically against task configurations, range boundaries, and deviation percentages (e.g., `deviationPct <= (task.errorMarginPct || 0.07)`).
+   - The target files (`NumberLineTask.tsx`, `PlaceValueBoard.tsx`, `VerticalAdditionTask.tsx`) use React state and Zustand workspace store actions rather than hardcoded mock outputs.
+   - Therefore, the codebase implementations are genuine, and no integrity bypasses exist in these components.
 
----
-
-## 3. Caveats
-
-* The scope of the pedagogical insights and Socratic questions is tailored specifically to the `28 + 15` addition exercise. If telemetry data from a different addition exercise (e.g., `45 + 18`) were to be evaluated, the feedback texts generated by `analyzeTelemetry` would remain hardcoded to references of `28 + 15` and `33` instead of adapting dynamically to different numbers. This is a known design choice for the PoC, not an integrity violation.
-
----
-
-## 4. Conclusion
-
-The implementation of the pedagogical AI evaluation PoC is **CLEAN** and authentic. There are no integrity violations, facade bypasses, or fabricated outputs to cheat verification tests.
+2. **Test Failures Root Cause**:
+   - Playwright test log failures consistently occur when searching for Hebrew texts on the Teacher Dashboard (such as `"ניהול כיתה"`, `"אבחון אישיים"`).
+   - In `TeacherDashboard.tsx`, the Hebrew strings are encoded as garbled ASCII characters (e.g., `׳ ׳™׳”׳•׳œ...`).
+   - Consequently, the element locators fail to match, leading to test timeouts.
+   - The test failures are due to encoding/localization bugs in `TeacherDashboard.tsx` and not functional failures of the workspace components.
 
 ---
 
-## 5. Verification Method
+### 3. Caveats
 
-To independently verify the audit:
-1. Run `node run_poc.js` in `C:\Users\david\teamwork_projects\pedagogical_ai_evaluation`. It must print `[SUCCESS] E2E Verification Passed`.
-2. Inspect the source file `C:\Users\david\teamwork_projects\pedagogical_ai_evaluation\analyze_pedagogical_state.js` to ensure the algorithms for detecting idle gaps (`diffSeconds > 30`) and passive drifting (3 rapid undos/deletes in 3 seconds) remain functional.
+- We only audited the changes in the three requested files: `NumberLineTask.tsx`, `PlaceValueBoard.tsx`, and `VerticalAdditionTask.tsx`, plus related evaluation code in `QMatrix.ts`.
+- We assumed the garbled Hebrew text in `TeacherDashboard.tsx` was not a deliberate cheat but a source encoding corrupt issue (it blocks the tests and the teacher UI rather than bypassing them).
+- We noted that the lack of detailed `semantic_trace` entries for `NumberLineTask` and `VerticalAdditionTask` is a coverage limitation of the current telemetry stream rather than a workaround.
+
+---
+
+### 4. Conclusion
+
+The implementation of `NumberLineTask.tsx`, `PlaceValueBoard.tsx`, and `VerticalAdditionTask.tsx` is **clean** of any integrity violations, hardcoded results, or facade workarounds. The changes genuinely implement the intended UI requirements.
+However, there are two key issues in the workspace that must be reported to the development team:
+1. **React Hook Violation** in `BlockPalette.tsx:20` causes type check / lint failures.
+2. **Garbled Hebrew characters** in `TeacherDashboard.tsx` prevent the Teacher UI tabs from displaying readable Hebrew and cause Playwright E2E tests to fail.
+
+---
+
+### 5. Verification Method
+
+To verify these findings, run the following:
+1. Run component verification:
+   `cmd.exe /c "npm run verify-component"` inside `react-ts-version` to reproduce the React Hook lint error.
+2. Review the file contents of `TeacherDashboard.tsx` lines 500-600 to see the corrupted text encoding.
+3. Review `QMatrix.ts` and `useWorkspaceStore.ts` to confirm that evaluations are fully dynamic.

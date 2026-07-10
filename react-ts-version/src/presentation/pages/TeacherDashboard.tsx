@@ -1087,7 +1087,7 @@ export function TeacherDashboard() {
                             <AccessibleCard className={`p-6 border shadow-md rounded-2xl flex flex-col h-full ${socraticApproval ? 'bg-indigo-50/50 border-indigo-100' : 'bg-white border-ws-surface2'}`}>
                               <h3 className="text-xl font-bold text-ws-ink mb-4 flex items-center gap-2">
                                 <span className="text-ws-accent">נŸ₪–</span>
-                                {socraticApproval ? 'המלצת Socratic Engine וסיכו׳  ׳ בחון' : 'מדדי למידה סמויי׳ '}
+                                {socraticApproval ? 'המלצת Socratic Engine וסיכום אבחון' : 'מדדי למידה סמויים'}
                               </h3>
                               
                               <div className="flex-1 flex flex-col gap-4">
@@ -1096,7 +1096,7 @@ export function TeacherDashboard() {
                                   <div className="flex-1 flex items-center justify-between p-3 bg-ws-bg rounded-xl border border-ws-surface2">
                                     <div className="flex items-center gap-3">
                                       <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 text-sm">ג ±ן¸ </div>
-                                      <span className="font-semibold text-sm">׳ ירועי היסוס (חשיבה ׳ רוכה)</span>
+                                      <span className="font-semibold text-sm">אירועי היסוס (חשיבה ארוכה)</span>
                                     </div>
                                     <span className="text-xl font-black text-orange-600">{s.traceData.hesitation_events}</span>
                                   </div>
@@ -1113,13 +1113,13 @@ export function TeacherDashboard() {
                                 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
                                   <h4 className="font-bold text-slate-800 mb-3 text-lg flex items-center gap-2">
                                     <span className="text-ws-accent">נŸ“‹</span>
-                                    מצב נוכחי (ניתוח ׳ וטומטי):
+                                    מצב נוכחי (ניתוח אוטומטי):
                                   </h4>
                                   <p className="text-sm text-slate-700 leading-relaxed mb-4">
-                                    התלמיד חווה <strong className="text-orange-600">{s.traceData.hesitation_events}</strong> ׳ ירועי היסוס המעידי׳  על מ׳ בק קוגניטיבי, וביצע <strong className="text-red-600">{s.traceData.undo_clicks}</strong> מחיקות ׳ ו חזרות. 
-                                    ניתוח הפעולות בויד׳ ו יחד ע׳  מטריצת המיומנויות (Q-Matrix) מצביע על כך ש
-                                    {s.qMatrixResults.task3_flexible_regrouping === 'canonical_fixation' ? ' נר׳ ה כי קיי׳  קושי בגמישות מחשבתית וצורך בהמחשה מוחשית (ב׳ מצעות בלוקי׳ ) של פעולת הפריטה לפני תרגול במ׳ ונך.' : s.qMatrixResults.task3_flexible_regrouping === 'success' ? ' קיימת הבנה מוחשית וכמותית טובה של פריטה והמרה.' : ' טר׳  נ׳ ספו מספיק נתוני׳  לקביעת הבנה מוחשית של המרות.'}
-                                    {(s.qMatrixResults.task7_missing_subtrahend === 'algebraic_concept_deficit' || s.qMatrixResults.task8_missing_addend === 'algebraic_concept_deficit') ? ' ניכר קושי מהותי בחשיבה ׳ לגברית והבנת משמעות סימן השוויון כמ׳ זניי׳ .' : (s.qMatrixResults.task7_missing_subtrahend === 'success' || s.qMatrixResults.task8_missing_addend === 'success') ? ' ניכרת יכולת טובה מ׳ וד בחשיבה ׳ לגברית ומצי׳ ת נעל׳ .' : ''}
+                                    התלמיד חווה <strong className="text-orange-600">{s.traceData.hesitation_events}</strong> אירועי היסוס המעידים על מאבק קוגניטיבי, וביצע <strong className="text-red-600">{s.traceData.undo_clicks}</strong> מחיקות או חזרות. 
+                                    ניתוח הפעולות בווידאו יחד עם מטריצת המיומנויות (Q-Matrix) מצביע על כך ש
+                                    {s.qMatrixResults.task3_flexible_regrouping === 'canonical_fixation' ? ' נראה כי קיים קושי בגמישות מחשבתית וצורך בהמחשה מוחשית (באמצעות בלוקים) של פעולת הפריטה לפני תרגול במאונך.' : s.qMatrixResults.task3_flexible_regrouping === 'success' ? ' קיימת הבנה מוחשית וכמותית טובה של פריטה והמרה.' : ' טרם נאספו מספיק נתונים לקביעת הבנה מוחשית של המרות.'}
+                                    {(s.qMatrixResults.task7_missing_subtrahend === 'algebraic_concept_deficit' || s.qMatrixResults.task8_missing_addend === 'algebraic_concept_deficit') ? ' ניכר קושי מהותי בחשיבה אלגברית והבנת משמעות סימן השוויון כמאזניים.' : (s.qMatrixResults.task7_missing_subtrahend === 'success' || s.qMatrixResults.task8_missing_addend === 'success') ? ' ניכרת יכולת טובה מאוד בחשיבה אלגברית ומציאת נעלם.' : ''}
                                   </p>
                                 </div>
 
@@ -1127,18 +1127,18 @@ export function TeacherDashboard() {
                                   <div className="bg-indigo-50 p-5 rounded-xl border border-indigo-100 shadow-sm mt-2">
                                     <h4 className="font-bold text-indigo-900 mb-3 text-lg flex items-center gap-2">
                                       <span className="text-indigo-600">נŸŽ¯</span>
-                                      המלצות ומסלול ׳ דפטיבי למפגשי׳  3, 4, 5, 6, ו-7:
+                                      המלצות ומסלול אדפטיבי למפגשים 3, 4, 5, 6, ו-7:
                                     </h4>
                                     <p className="text-sm text-indigo-800 leading-relaxed mb-5 bg-white p-4 rounded-lg border border-indigo-100/50">
-                                      <strong className="block mb-1 text-indigo-900">׳ בחון קליני:</strong>
-                                      {(socraticApproval as any).clinicalDiagnosisHe || "ל׳  נרשמו תובנות מה׳ בחון."}
+                                      <strong className="block mb-1 text-indigo-900">אבחון קליני:</strong>
+                                      {(socraticApproval as any).clinicalDiagnosisHe || "לא נרשמו תובנות מהאבחון."}
                                     </p>
                                     <p className="text-sm text-indigo-800 leading-relaxed mb-5 bg-white p-4 rounded-lg border border-indigo-100/50">
                                       <strong className="block mb-1 text-indigo-900">תוכנית פעולה מוצעת:</strong>
-                                      {(socraticApproval as any).actionPlanHe || "ל׳  נקבעה תוכנית."}
+                                      {(socraticApproval as any).actionPlanHe || "לא נקבעה תוכנית."}
                                     </p>
                                     
-                                    <h5 className="font-bold text-sm text-indigo-900 mb-3">תרגילי׳  רצויי׳  שנוצרו עבור התלמיד:</h5>
+                                    <h5 className="font-bold text-sm text-indigo-900 mb-3">תרגילים רצויים שנוצרו עבור התלמיד:</h5>
                                     <div className="grid gap-2 mb-5">
                                       {socraticApproval.tasks.map((task: any, idx: number) => (
                                         <div key={idx} className="bg-white p-3 rounded-lg flex items-center justify-between border border-indigo-100 shadow-sm">

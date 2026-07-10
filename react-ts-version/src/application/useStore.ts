@@ -245,6 +245,12 @@ export const useStore = create<AppState>()(
         if (students[studentId]) {
           const currentTrace = students[studentId].traceData.semantic_trace || [];
           const newEvent: SemanticEvent = { ...event, time: Date.now() };
+          Object.keys(newEvent).forEach((key) => {
+            const k = key as keyof SemanticEvent;
+            if (newEvent[k] === undefined) {
+              delete newEvent[k];
+            }
+          });
           const newTraceData = {
             ...students[studentId].traceData,
             semantic_trace: [...currentTrace, newEvent]

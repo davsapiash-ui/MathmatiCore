@@ -1,0 +1,259 @@
+# Instructions
+
+- Following Playwright test failed.
+- Explain why, be concise, respect Playwright best practices.
+- Provide a snippet of code with the fix, if possible.
+
+# Test info
+
+- Name: e2e\chat-sync.spec.ts >> Chat Synchronization >> Admin to Teacher real-time message delivery
+- Location: tests\e2e\chat-sync.spec.ts:4:3
+
+# Error details
+
+```
+Test timeout of 30000ms exceeded.
+```
+
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - generic [ref=e7]:
+          - img [ref=e9]
+          - link "מתמטיקאור ©" [ref=e11] [cursor=pointer]:
+            - /url: /
+        - paragraph [ref=e12]: פורטל מנהל מערכת
+      - list [ref=e15]:
+        - listitem [ref=e16]:
+          - button "סקירה כללית" [ref=e17] [cursor=pointer]:
+            - link "סקירה כללית" [ref=e18]:
+              - /url: /admin
+              - img [ref=e19]
+              - text: סקירה כללית
+        - listitem [ref=e22]:
+          - button "מוסדות ומורים" [ref=e23] [cursor=pointer]:
+            - link "מוסדות ומורים" [ref=e24]:
+              - /url: /admin/schools
+              - img [ref=e25]
+              - text: מוסדות ומורים
+        - listitem [ref=e28]:
+          - button "הגדרות פדגוגיה" [ref=e29] [cursor=pointer]:
+            - link "הגדרות פדגוגיה" [ref=e30]:
+              - /url: /admin/curriculum
+              - img [ref=e31]
+              - text: הגדרות פדגוגיה
+        - listitem [ref=e35]:
+          - button "אבטחה והרשאות" [ref=e36] [cursor=pointer]:
+            - link "אבטחה והרשאות" [ref=e37]:
+              - /url: /admin/security
+              - img [ref=e38]
+              - text: אבטחה והרשאות
+        - listitem [ref=e40]:
+          - button "צ'אט הודעות" [ref=e41] [cursor=pointer]:
+            - link "צ'אט הודעות" [ref=e42]:
+              - /url: /admin/chat
+              - img [ref=e43]
+              - text: צ'אט הודעות
+        - listitem [ref=e48]:
+          - button "תצוגת מורה" [ref=e49] [cursor=pointer]:
+            - link "תצוגת מורה" [ref=e50]:
+              - /url: /admin/teacher-view
+              - img [ref=e51]
+              - text: תצוגת מורה
+        - listitem [ref=e55]:
+          - button "מערכת ונגישות (UDL)" [ref=e56] [cursor=pointer]:
+            - link "מערכת ונגישות (UDL)" [ref=e57]:
+              - /url: /admin/settings
+              - img [ref=e58]
+              - text: מערכת ונגישות (UDL)
+      - generic [ref=e61]:
+        - generic [ref=e62]:
+          - generic [ref=e63]: מ
+          - generic [ref=e64]:
+            - generic [ref=e65]: מנהל מערכת ראשי
+            - generic [ref=e66]: Root Access
+        - button "התנתק" [ref=e67] [cursor=pointer]:
+          - img [ref=e68]
+          - generic [ref=e71]: התנתק
+    - main [ref=e72]:
+      - generic [ref=e73]:
+        - generic [ref=e74]: 👻
+        - generic [ref=e75]: "מצב רפאים (Ghost Mode) פעיל: הפעולות שלך אינן נרשמות ואינן נראות למשתמשים אחרים."
+      - generic [ref=e77]:
+        - generic [ref=e79]:
+          - heading "סקירה כללית" [level=1] [ref=e80]
+          - paragraph [ref=e81]: מצב המערכת, צמיחה, ונתוני ציות בזמן אמת
+        - generic [ref=e82]:
+          - generic [ref=e84]:
+            - generic [ref=e85]:
+              - paragraph [ref=e86]: מוסדות פעילים
+              - heading "1" [level=3] [ref=e87]
+            - img [ref=e88]
+          - generic [ref=e92]:
+            - generic [ref=e93]:
+              - paragraph [ref=e94]: מורים רשומים
+              - heading "1" [level=3] [ref=e95]
+            - img [ref=e96]
+          - generic [ref=e102]:
+            - generic [ref=e103]:
+              - paragraph [ref=e104]: תלמידים במערכת (הערכה)
+              - heading "12" [level=3] [ref=e105]
+            - img [ref=e106]
+          - generic [ref=e109]:
+            - generic [ref=e110]:
+              - paragraph [ref=e111]: התראות מערכת
+              - heading "81" [level=3] [ref=e112]
+            - img [ref=e113]
+        - generic [ref=e115]:
+          - generic [ref=e116]:
+            - heading "צמיחת המערכת (תלמידים מול נפח פעילות)" [level=2] [ref=e117]
+            - application [ref=e121]:
+              - generic [ref=e125]:
+                - generic [ref=e126]:
+                  - generic [ref=e128]: ינואר
+                  - generic [ref=e130]: פברואר
+                  - generic [ref=e132]: מרץ
+                  - generic [ref=e134]: אפריל
+                  - generic [ref=e136]: מאי
+                  - generic [ref=e138]: יוני
+                - generic [ref=e139]:
+                  - generic [ref=e141]: "0"
+                  - generic [ref=e143]: "1"
+                  - generic [ref=e145]: "2"
+                  - generic [ref=e147]: "3"
+                  - generic [ref=e149]: "4"
+          - generic [ref=e150]:
+            - heading "תאימות והגנת פרטיות" [level=2] [ref=e151]
+            - generic [ref=e152]:
+              - generic [ref=e153]:
+                - img [ref=e155]
+                - generic [ref=e157]:
+                  - heading "הצפנת נתונים (At Rest)" [level=4] [ref=e158]
+                  - paragraph [ref=e159]: פעיל ותקין
+              - generic [ref=e160]:
+                - img [ref=e162]
+                - generic [ref=e167]:
+                  - heading "הכנה לתקני פרטיות ילדים (COPPA)" [level=4] [ref=e168]
+                  - paragraph [ref=e169]: מחיקת נתוני וידאו וקול של קטינים בני יותר מ-30 יום.
+                  - button "הרץ ניקוי היסטוריית הקלטות (לשמירת פרטיות)" [ref=e170] [cursor=pointer]
+              - generic [ref=e171]:
+                - img [ref=e173]
+                - generic [ref=e175]:
+                  - heading "אנונימיזציה אוטומטית" [level=4] [ref=e176]
+                  - paragraph [ref=e177]: המידע מותמם בהצלחה למחקר
+        - generic [ref=e179]:
+          - heading "יומן אירועים (Audit Log)" [level=2] [ref=e180]
+          - table [ref=e182]:
+            - rowgroup [ref=e183]:
+              - row "זמן פעולה משתמש פרטים" [ref=e184]:
+                - columnheader "זמן" [ref=e185]
+                - columnheader "פעולה" [ref=e186]
+                - columnheader "משתמש" [ref=e187]
+                - columnheader "פרטים" [ref=e188]
+            - rowgroup [ref=e189]:
+              - 'row "10.7.2026, 12:56:16 COMPLETED_MAPPING_PHASE student_user1 Student completed meeting 2 diagnostic mapping phase. Route: YELLOW." [ref=e190]':
+                - cell "10.7.2026, 12:56:16" [ref=e191]
+                - cell "COMPLETED_MAPPING_PHASE" [ref=e192]
+                - cell "student_user1" [ref=e193]
+                - 'cell "Student completed meeting 2 diagnostic mapping phase. Route: YELLOW." [ref=e194]'
+              - 'row "10.7.2026, 12:56:09 התחברות student משתמש התחבר: Unknown" [ref=e195]':
+                - cell "10.7.2026, 12:56:09" [ref=e196]
+                - cell "התחברות" [ref=e197]
+                - cell "student" [ref=e198]
+                - 'cell "משתמש התחבר: Unknown" [ref=e199]'
+              - 'row "10.7.2026, 12:56:03 התחברות admin משתמש התחבר: Unknown" [ref=e200]':
+                - cell "10.7.2026, 12:56:03" [ref=e201]
+                - cell "התחברות" [ref=e202]
+                - cell "admin" [ref=e203]
+                - 'cell "משתמש התחבר: Unknown" [ref=e204]'
+              - 'row "10.7.2026, 12:56:02 התחברות student משתמש התחבר: Unknown" [ref=e205]':
+                - cell "10.7.2026, 12:56:02" [ref=e206]
+                - cell "התחברות" [ref=e207]
+                - cell "student" [ref=e208]
+                - 'cell "משתמש התחבר: Unknown" [ref=e209]'
+              - 'row "10.7.2026, 12:55:59 התחברות teacher משתמש התחבר: Unknown" [ref=e210]':
+                - cell "10.7.2026, 12:55:59" [ref=e211]
+                - cell "התחברות" [ref=e212]
+                - cell "teacher" [ref=e213]
+                - 'cell "משתמש התחבר: Unknown" [ref=e214]'
+              - 'row "10.7.2026, 12:56:02 התחברות admin משתמש התחבר: Unknown" [ref=e215]':
+                - cell "10.7.2026, 12:56:02" [ref=e216]
+                - cell "התחברות" [ref=e217]
+                - cell "admin" [ref=e218]
+                - 'cell "משתמש התחבר: Unknown" [ref=e219]'
+              - 'row "10.7.2026, 12:56:00 התחברות student משתמש התחבר: Unknown" [ref=e220]':
+                - cell "10.7.2026, 12:56:00" [ref=e221]
+                - cell "התחברות" [ref=e222]
+                - cell "student" [ref=e223]
+                - 'cell "משתמש התחבר: Unknown" [ref=e224]'
+              - 'row "10.7.2026, 12:55:59 התחברות student משתמש התחבר: Unknown" [ref=e225]':
+                - cell "10.7.2026, 12:55:59" [ref=e226]
+                - cell "התחברות" [ref=e227]
+                - cell "student" [ref=e228]
+                - 'cell "משתמש התחבר: Unknown" [ref=e229]'
+              - 'row "10.7.2026, 12:55:53 התחברות student משתמש התחבר: Unknown" [ref=e230]':
+                - cell "10.7.2026, 12:55:53" [ref=e231]
+                - cell "התחברות" [ref=e232]
+                - cell "student" [ref=e233]
+                - 'cell "משתמש התחבר: Unknown" [ref=e234]'
+              - 'row "10.7.2026, 12:52:07 התחברות student משתמש התחבר: Unknown" [ref=e235]':
+                - cell "10.7.2026, 12:52:07" [ref=e236]
+                - cell "התחברות" [ref=e237]
+                - cell "student" [ref=e238]
+                - 'cell "משתמש התחבר: Unknown" [ref=e239]'
+              - 'row "10.7.2026, 12:51:25 התחברות teacher משתמש התחבר: Unknown" [ref=e240]':
+                - cell "10.7.2026, 12:51:25" [ref=e241]
+                - cell "התחברות" [ref=e242]
+                - cell "teacher" [ref=e243]
+                - 'cell "משתמש התחבר: Unknown" [ref=e244]'
+              - 'row "10.7.2026, 12:51:16 התחברות student משתמש התחבר: Unknown" [ref=e245]':
+                - cell "10.7.2026, 12:51:16" [ref=e246]
+                - cell "התחברות" [ref=e247]
+                - cell "student" [ref=e248]
+                - 'cell "משתמש התחבר: Unknown" [ref=e249]'
+              - 'row "10.7.2026, 12:50:41 התחברות student משתמש התחבר: Unknown" [ref=e250]':
+                - cell "10.7.2026, 12:50:41" [ref=e251]
+                - cell "התחברות" [ref=e252]
+                - cell "student" [ref=e253]
+                - 'cell "משתמש התחבר: Unknown" [ref=e254]'
+              - 'row "10.7.2026, 12:49:33 התחברות student משתמש התחבר: Unknown" [ref=e255]':
+                - cell "10.7.2026, 12:49:33" [ref=e256]
+                - cell "התחברות" [ref=e257]
+                - cell "student" [ref=e258]
+                - 'cell "משתמש התחבר: Unknown" [ref=e259]'
+              - 'row "10.7.2026, 12:49:15 התחברות teacher משתמש התחבר: Unknown" [ref=e260]':
+                - cell "10.7.2026, 12:49:15" [ref=e261]
+                - cell "התחברות" [ref=e262]
+                - cell "teacher" [ref=e263]
+                - 'cell "משתמש התחבר: Unknown" [ref=e264]'
+              - 'row "10.7.2026, 12:49:13 COMPLETED_MAPPING_PHASE student_user1 Student completed meeting 2 diagnostic mapping phase. Route: GREEN." [ref=e265]':
+                - cell "10.7.2026, 12:49:13" [ref=e266]
+                - cell "COMPLETED_MAPPING_PHASE" [ref=e267]
+                - cell "student_user1" [ref=e268]
+                - 'cell "Student completed meeting 2 diagnostic mapping phase. Route: GREEN." [ref=e269]'
+              - 'row "10.7.2026, 12:48:11 התחברות teacher משתמש התחבר: Unknown" [ref=e270]':
+                - cell "10.7.2026, 12:48:11" [ref=e271]
+                - cell "התחברות" [ref=e272]
+                - cell "teacher" [ref=e273]
+                - 'cell "משתמש התחבר: Unknown" [ref=e274]'
+              - 'row "10.7.2026, 12:48:08 COMPLETED_MAPPING_PHASE student_user3 Student completed meeting 2 diagnostic mapping phase. Route: GREEN." [ref=e275]':
+                - cell "10.7.2026, 12:48:08" [ref=e276]
+                - cell "COMPLETED_MAPPING_PHASE" [ref=e277]
+                - cell "student_user3" [ref=e278]
+                - 'cell "Student completed meeting 2 diagnostic mapping phase. Route: GREEN." [ref=e279]'
+              - 'row "10.7.2026, 12:47:56 התחברות teacher משתמש התחבר: Unknown" [ref=e280]':
+                - cell "10.7.2026, 12:47:56" [ref=e281]
+                - cell "התחברות" [ref=e282]
+                - cell "teacher" [ref=e283]
+                - 'cell "משתמש התחבר: Unknown" [ref=e284]'
+              - 'row "10.7.2026, 12:47:54 COMPLETED_MAPPING_PHASE student_user1 Student completed meeting 2 diagnostic mapping phase. Route: GREEN." [ref=e285]':
+                - cell "10.7.2026, 12:47:54" [ref=e286]
+                - cell "COMPLETED_MAPPING_PHASE" [ref=e287]
+                - cell "student_user1" [ref=e288]
+                - 'cell "Student completed meeting 2 diagnostic mapping phase. Route: GREEN." [ref=e289]'
+  - generic [ref=e290]: "0"
+```

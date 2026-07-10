@@ -20,7 +20,7 @@ Git verification, apply UI bug/compilation fixes, verify build passes, and auto_
 
 ## Current Parent
 - Conversation ID: 3980cf7d-ec28-4902-9773-b8814f8e732f
-- Updated: not yet
+- Updated: 2026-07-10T09:32:15Z
 
 ## Task Summary
 - **What to build**: JSX rewrites, TypeScript fixes, math computation correction, CSS styles adjustment.
@@ -29,19 +29,21 @@ Git verification, apply UI bug/compilation fixes, verify build passes, and auto_
 - **Code layout**: react-ts-version
 
 ## Key Decisions Made
-- Setup local copies of skills.
+- Adjusted pointer math and wrapped ticks/labels/marker in left-4 right-4 absolute container in NumberLineTask.tsx.
+- Added hover:translate-y-0 to the PlaceValueBoard container to prevent translateY(-2px) shift on hover.
+- Validated that the patch from teamwork_preview_explorer_verification_1 had already been clean-committed and contains standard JSX tags, meaning no further edits were needed in VerticalAdditionTask.tsx.
 
 ## Artifact Index
 - ORIGINAL_REQUEST.md - Saved copy of the initial instruction.
 
 ## Change Tracker
-- **Files modified**: None
-- **Build status**: Unknown
-- **Pending issues**: Git verification first.
+- **Files modified**: react-ts-version/src/features/workspace/tasks/NumberLineTask.tsx, react-ts-version/src/features/workspace/board/PlaceValueBoard.tsx
+- **Build status**: PASS
+- **Pending issues**: None.
 
 ## Quality Status
-- **Build/test result**: Unknown
-- **Lint status**: Unknown
+- **Build/test result**: PASS (npm run build succeeded)
+- **Lint status**: 0 errors
 - **Tests added/modified**: None
 
 ## Loaded Skills
