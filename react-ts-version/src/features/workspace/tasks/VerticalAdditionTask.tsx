@@ -131,7 +131,12 @@ export function VerticalAdditionTask({
         {/* Row 2 — second operand + operator; thick result line under both */}
         {(() => {
           const firstNonEmptyA = digitsA.findIndex((d) => d !== null);
-          const operatorIndex = firstNonEmptyA - 1;
+          const firstNonEmptyB = digitsB.findIndex((d) => d !== null);
+          const firstNonEmptyBoth = Math.min(
+            firstNonEmptyA === -1 ? Infinity : firstNonEmptyA,
+            firstNonEmptyB === -1 ? Infinity : firstNonEmptyB
+          );
+          const operatorIndex = firstNonEmptyBoth === Infinity ? -1 : firstNonEmptyBoth - 1;
           const operatorChar = isSubtraction ? '−' : '﬩';
           
           return (
