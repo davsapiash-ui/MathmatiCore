@@ -49,9 +49,9 @@ export function PlaceValueBoard({ hideValueDisplay }: { hideValueDisplay?: boole
                     borderColor: 'hsl(var(--ws-blue) / 0.4)',
                     backgroundColor: 'hsl(var(--ws-blue-soft) / 0.6)',
                   }}
-                  aria-label="הדגשת קווי עזר — הצג שוב את הקוביות בבירור"
+                  aria-label="הדגשת גבולות טורי הלוח — הצג שוב את גבולות הטורים בבירור"
                 >
-                  <span aria-hidden="true">👁</span> הדגש קווי עזר
+                  <span aria-hidden="true">👁</span> הדגש גבולות טורים
                 </button>
               )}
             </div>
