@@ -42,7 +42,7 @@ test.describe('Telemetry & Replay Pipeline', () => {
 
     await page.locator('select').first().selectOption({ index: 1 });
     await page.locator('select').nth(1).selectOption({ index: 1 });
-    await page.getByPlaceholder('שם משתמש').fill('user3');
+    await page.getByPlaceholder('שם משתמש').fill('user7');
     await page.getByPlaceholder('סיסמה').fill('10203040');
     await page.getByRole('button', { name: 'יאללה, נכנסים! ✨' }).click();
 
@@ -82,8 +82,8 @@ test.describe('Telemetry & Replay Pipeline', () => {
     // Click on "דו"חות אבחון אישיים" tab
     await page.locator('#tour-tab-reports').click();
 
-    // Click on Student 'user3' (normalized id is student_user3, displaying as user3 or similar)
-    const studentBtn = page.locator('button:has-text("user3"), button:has-text("student_user3")').first();
+    // Click on Student 'user7' (normalized id is student_user7, displaying as user7 or similar)
+    const studentBtn = page.locator('button:has-text("user7"), button:has-text("student_user7")').first();
     await expect(studentBtn).toBeVisible({ timeout: 5000 });
     await studentBtn.click();
 

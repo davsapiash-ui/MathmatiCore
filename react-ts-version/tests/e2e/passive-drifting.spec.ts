@@ -18,7 +18,7 @@ test.describe('Passive Drifting Radar Alerts', () => {
     // Fill student credentials
     await page.locator('select').first().selectOption({ index: 1 });
     await page.locator('select').nth(1).selectOption({ index: 1 });
-    await page.getByPlaceholder('שם משתמש').fill('user1');
+    await page.getByPlaceholder('שם משתמש').fill('user10');
     await page.getByPlaceholder('סיסמה').fill('10203040');
     await page.getByRole('button', { name: 'יאללה, נכנסים! ✨' }).click();
 

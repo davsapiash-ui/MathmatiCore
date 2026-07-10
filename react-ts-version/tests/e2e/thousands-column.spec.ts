@@ -23,7 +23,7 @@ test.describe('Thousands Column Visibility', () => {
     await studentPage.waitForTimeout(1000); // Give select options time to populate
     await studentPage.locator('select').first().selectOption({ index: 1 });
     await studentPage.locator('select').nth(1).selectOption({ index: 1 });
-    await studentPage.getByPlaceholder('שם משתמש').fill('user1');
+    await studentPage.getByPlaceholder('שם משתמש').fill('user9');
     await studentPage.getByPlaceholder('סיסמה').fill('10203040');
     await studentPage.getByRole('button', { name: 'יאללה, נכנסים! ✨' }).click();
 

@@ -40,7 +40,7 @@ export function TeacherDashboard() {
     const allSt = useStore.getState().students;
     const initial: Record<string, StudentData> = {};
     for (const [id, s] of Object.entries(allSt)) {
-      // Preserve real qMatrixResults and traceData already in the store ג€” do NOT zero them out.
+      // Preserve real qMatrixResults and traceData already in the store — do NOT zero them out.
       initial[id] = {
         ...s,
         studentId: id,
@@ -100,7 +100,7 @@ export function TeacherDashboard() {
       const allStudents = useStore.getState().students;
       const formattedStudents: Record<string, StudentData> = {};
 
-      // 1. Add base demo students first ג€” preserve their real qMatrixResults from the store
+      // 1. Add base demo students first — preserve their real qMatrixResults from the store
       for (const [id, s] of Object.entries(allStudents)) {
         formattedStudents[id] = {
           studentId: id,
@@ -628,7 +628,7 @@ export function TeacherDashboard() {
               <div className="h-[350px] w-full relative z-10" dir="ltr">
                 {qMatrixData.every(d => d.success === 0 && d.struggle === 0) ? (
                   <div className="h-full flex flex-col items-center justify-center text-slate-500 bg-slate-50/50 dark:bg-slate-800/20 rounded-xl border border-slate-100 dark:border-slate-800">
-                    <span className="text-5xl mb-4 opacity-40 animate-pulse">נ“</span>
+                    <span className="text-5xl mb-4 opacity-40 animate-pulse">📊</span>
                     <p className="font-bold text-lg text-slate-600 dark:text-slate-300">אין עדיין נתונים מהתלמידים</p>
                     <p className="text-sm opacity-80 mt-1">התפלגות השליטה תוצג כאן לאחר סיום שלב האבחון</p>
                   </div>
@@ -1014,7 +1014,7 @@ export function TeacherDashboard() {
                 {!selectedReplayStudentId ? (
                   <div className="flex-1 flex flex-col items-center justify-center p-12 text-center bg-ws-surface/30 rounded-3xl border-2 border-dashed border-ws-surface2">
                     <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm mb-4">
-                      <span className="text-2xl">נ“</span>
+                      <span className="text-2xl">🎓</span>
                     </div>
                     <h3 className="text-xl font-bold text-ws-ink mb-2">בחר תלמיד להצגת דו"ח האבחון</h3>
                     <p className="text-ws-soft max-w-md">
@@ -1040,7 +1040,7 @@ export function TeacherDashboard() {
                             {/* Q-Matrix Report */}
                             <AccessibleCard className="p-6 bg-white border border-ws-surface2 shadow-md rounded-2xl h-full">
                               <h3 className="text-xl font-bold text-ws-ink mb-4 flex items-center gap-2">
-                                <span className="text-ws-accent">נ“</span>
+                                <span className="text-ws-accent">📊</span>
                                 תוצאות ה-Q-Matrix
                               </h3>
                               <div className="grid grid-cols-2 gap-3 text-sm">
@@ -1086,7 +1086,7 @@ export function TeacherDashboard() {
                             {/* Trace Data & AI Plan */}
                             <AccessibleCard className={`p-6 border shadow-md rounded-2xl flex flex-col h-full ${socraticApproval ? 'bg-indigo-50/50 border-indigo-100' : 'bg-white border-ws-surface2'}`}>
                               <h3 className="text-xl font-bold text-ws-ink mb-4 flex items-center gap-2">
-                                <span className="text-ws-accent">נŸ₪–</span>
+                                <span className="text-ws-accent">🤖</span>
                                 {socraticApproval ? 'המלצת Socratic Engine וסיכום אבחון' : 'מדדי למידה סמויים'}
                               </h3>
                               
@@ -1095,14 +1095,14 @@ export function TeacherDashboard() {
                                 <div className="flex gap-4">
                                   <div className="flex-1 flex items-center justify-between p-3 bg-ws-bg rounded-xl border border-ws-surface2">
                                     <div className="flex items-center gap-3">
-                                      <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 text-sm">ג ±ן¸ </div>
+                                      <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 text-sm">⏱️</div>
                                       <span className="font-semibold text-sm">אירועי היסוס (חשיבה ארוכה)</span>
                                     </div>
                                     <span className="text-xl font-black text-orange-600">{s.traceData.hesitation_events}</span>
                                   </div>
                                   <div className="flex-1 flex items-center justify-between p-3 bg-ws-bg rounded-xl border border-ws-surface2">
                                     <div className="flex items-center gap-3">
-                                      <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-600 text-sm">ג†©ן¸ </div>
+                                      <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-600 text-sm">↩️</div>
                                       <span className="font-semibold text-sm">ביטולי פעולה (מחיקה/חזרה)</span>
                                     </div>
                                     <span className="text-xl font-black text-red-600">{s.traceData.undo_clicks}</span>
@@ -1112,7 +1112,7 @@ export function TeacherDashboard() {
                                 {/* Analytical Report */}
                                 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
                                   <h4 className="font-bold text-slate-800 mb-3 text-lg flex items-center gap-2">
-                                    <span className="text-ws-accent">נŸ“‹</span>
+                                    <span className="text-ws-accent">📋</span>
                                     מצב נוכחי (ניתוח אוטומטי):
                                   </h4>
                                   <p className="text-sm text-slate-700 leading-relaxed mb-4">
@@ -1126,7 +1126,7 @@ export function TeacherDashboard() {
                                 {socraticApproval && (
                                   <div className="bg-indigo-50 p-5 rounded-xl border border-indigo-100 shadow-sm mt-2">
                                     <h4 className="font-bold text-indigo-900 mb-3 text-lg flex items-center gap-2">
-                                      <span className="text-indigo-600">נŸŽ¯</span>
+                                      <span className="text-indigo-600">🎯</span>
                                       המלצות ומסלול אדפטיבי למפגשים 3, 4, 5, 6, ו-7:
                                     </h4>
                                     <p className="text-sm text-indigo-800 leading-relaxed mb-5 bg-white p-4 rounded-lg border border-indigo-100/50">
@@ -1211,10 +1211,10 @@ export function TeacherDashboard() {
                           size="sm" 
                           className="font-bold shadow-md shadow-ws-accent/20"
                           onClick={async () => {
-                            // Local state for this browser's UIג€¦
+                            // Local state for this browser's UI…
                             approveRoute(student.studentId);
-                            // ג€¦AND the Firebase write the student's browser actually waits on
-                            // (approved_tasks/{studentId}) ג€” without it meeting 3 stays locked forever.
+                            // …AND the Firebase write the student's browser actually waits on
+                            // (approved_tasks/{studentId}) — without it meeting 3 stays locked forever.
                             const allPending = [...teacherApprovals, ...fallbackApprovals];
                             const approval = allPending.find((a) => a.studentId === student.studentId);
                             if (approval) {
