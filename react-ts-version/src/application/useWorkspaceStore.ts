@@ -587,11 +587,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       showFeedback({ correct: true, title: 'כָּל הַכָּבוֹד! מִפְגָּשׁ 1 הוּשְׁלַם בְּהַצְלָחָה! 🎉', sub: 'עוֹבְרִים כָּעֵת אוֹטוֹמָטִית לְמִפְגָּשׁ 2...' }, 2500, () => {
         get().initSession(2, get().isASD);
       });
-    } else if (s.sessionNumber === 3) {
-      set({ awaitingNext: true });
-      showFeedback({ correct: true, title: 'כָּל הַכָּבוֹד! מִפְגָּשׁ 3 הוּשְׁלַם בְּהַצְלָחָה! 🎉', sub: 'עוֹבְרִים כָּעֵת אוֹטוֹמָטִית לְמִפְגָּשׁ 4...' }, 2500, () => {
-        get().initSession(4, get().isASD);
-      });
     } else {
       set({ awaitingNext: true });
       showFeedback({ correct: true, title: 'כָּל הַכָּבוֹד! 🎉', sub: 'הִצְלַחְתֶּם בַּמְּשִׂימָה! נַעֲבֹר לַמְּשִׂימָה הַבָּאָה...' }, 2500, () => {

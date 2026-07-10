@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useWorkspaceStore, type SupportType } from '@/application/useWorkspaceStore';
-import { SUPPORT_CONTENT } from '@/data/sessionTasks';
+import { useWorkspaceStore, type SupportType, getCurrentStandardTask } from '@/application/useWorkspaceStore';
+import { SUPPORT_CONTENT, getSocraticHint } from '@/data/sessionTasks';
 
 /**
  * זרימת העזרה — "חיכוך מטא-קוגניטיבי יצרני":
@@ -29,7 +29,14 @@ export function HelpOverlays() {
   }, [helpState, helpFrictionDone]);
 
   const isModal = helpState === 'metacognitive' || helpState === 'socratic' || helpState === 'worked_example';
-  const content = isModal ? SUPPORT_CONTENT[helpState as SupportType] : null;
+  
+  let content = isModal ? { ...SUPPORT_CONTENT[helpState as SupportType] } : null;
+  if (content && helpState === 'socratic') {
+    const task = getCurrentStandardTask(useWorkspaceStore.getState());
+    if (task?.targetNode) {
+      content.lines = [getSocraticHint(task.targetNode)];
+    }
+  }
 
   return (
     <>

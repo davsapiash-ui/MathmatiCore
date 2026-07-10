@@ -19,7 +19,6 @@ export function useWorkspaceTour() {
       nextBtnText: 'התקדם',
       prevBtnText: 'הקודם',
       doneBtnText: 'הבנתי, בוא נתחיל!',
-      closeBtnText: 'סגור אשף',
       progressText: '{{current}} מתוך {{total}}',
       popoverClass: 'ws-tour-popover font-display',
       steps: [
