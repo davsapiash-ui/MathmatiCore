@@ -34,7 +34,11 @@ export function HelpOverlays() {
   if (content && helpState === 'socratic') {
     const s = useWorkspaceStore.getState();
     const task = getActiveTasks(s)[s.standardTaskIdx];
-    if (task?.targetNode) {
+    
+    // Strict Fallback: Use LLM hint if available, else static dynamic hint
+    if (s.aiSocraticHint) {
+      content.lines = [s.aiSocraticHint];
+    } else if (task?.targetNode) {
       content.lines = [getDynamicSocraticHint(task.targetNode, s.counts, task, s.answerDigits, s.carryDigits)];
     }
   }

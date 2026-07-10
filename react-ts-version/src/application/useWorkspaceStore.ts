@@ -82,6 +82,7 @@ interface WorkspaceState {
   carryDigits: Partial<Record<Place, string>>;
   probeAnswer: string;
   q3Reps: PlaceCounts[];
+  aiSocraticHint: string | null;
 
   // overlays
   feedback: FeedbackState | null;
@@ -121,6 +122,7 @@ interface WorkspaceState {
   closeHelp: () => void;
   setAITasks: (tasks: SessionTask[] | null) => void;
   showFeedback: (feedback: FeedbackState, ms: number, then?: () => void) => void;
+  fetchSocraticHint: () => Promise<void>;
 }
 
 /* ── Pure helpers ── */
@@ -704,6 +706,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     feedbackNonce: 0,
     helpState: 'closed',
     frictionTriggerSource: null,
+    aiSocraticHint: null,
     aiTasks: null,
     dynamicTasks: null,
     nodeStrikes: {},
@@ -1066,12 +1069,50 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       else proceedStandard();
     },
 
+    fetchSocraticHint: async () => {
+      const s = get();
+      if (s.aiSocraticHint !== null) return; // Already fetched
+      
+      const currentTask = getActiveTasks(s)[s.standardTaskIdx];
+      if (!currentTask || !currentTask.targetNode) return;
+      
+      try {
+        const { httpsCallable } = await import('firebase/functions');
+        const { functions } = await import('@/infrastructure/firebase');
+        
+        const generateHint = httpsCallable(functions, 'generateSocraticHint');
+        const traceData = {
+          undo_clicks: s.undoCount,
+          hesitation_events: s.hesitationCount,
+        };
+        
+        // Timeout using Promise.race (since httpsCallable itself doesn't take an abort signal trivially)
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('timeout')), 5000)
+        );
+        
+        const callPromise = generateHint({
+          counts: s.counts,
+          currentTask,
+          targetNode: currentTask.targetNode,
+          traceData
+        });
+        
+        const result = await Promise.race([callPromise, timeoutPromise]) as any;
+        set({ aiSocraticHint: result.data.hint });
+      } catch (error) {
+        console.error("LLM Socratic Hint failed or timed out. Falling back to static hints.", error);
+        set({ aiSocraticHint: null });
+      }
+    },
+
     /** Help flow: lightbulb → 3s "productive metacognitive friction" → calibrated choice. */
     requestHelp: () => {
       const s = get();
       if (s.helpState !== 'closed') return;
       radar.recordHintRequest();
-      set({ helpState: 'friction', frictionTriggerSource: 'lightbulb' });
+      set({ helpState: 'friction', frictionTriggerSource: 'lightbulb', aiSocraticHint: null });
+      get().fetchSocraticHint();
     },
 
     helpFrictionDone: () => {

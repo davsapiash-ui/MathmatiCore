@@ -20,8 +20,11 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-3GR3S7J9M1"
 };
 
+import { getFunctions } from 'firebase/functions';
+
 const app = initializeApp(firebaseConfig);
 export const database = getDatabase(app);
+export const functions = getFunctions(app);
 
 let authInstance: Auth;
 try {
