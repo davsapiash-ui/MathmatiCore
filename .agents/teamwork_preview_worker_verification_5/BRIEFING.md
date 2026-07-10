@@ -31,14 +31,14 @@ Fix Mojibake characters in TeacherDashboard.tsx, verify build/tests, and auto-de
 - **lms_stability_guard**: `c:\Users\david\Projects\MathmatiCore\.agents\skills\lms_stability_guard\SKILL.md` — Enforces architectural stability, strict types, no `any`, proper listener cleanup, verify with `npx tsc --noEmit`.
 
 ## Change Tracker
-- **Files modified**: [TBD]
-- **Build status**: [TBD]
-- **Pending issues**: [TBD]
+- **Files modified**: `react-ts-version/src/presentation/pages/TeacherDashboard.tsx` - replaced Mojibake characters `ן¬©` and `גœ•` with `﬩` and `✖`
+- **Build status**: pass
+- **Pending issues**: none
 
 ## Quality Status
-- **Build/test result**: [TBD]
-- **Lint status**: [TBD]
-- **Tests added/modified**: [TBD]
+- **Build/test result**: pass (Vite build, tsc, and 22 Playwright E2E tests all pass)
+- **Lint status**: 0 issues
+- **Tests added/modified**: verified existing 22 E2E tests, all passing successfully
 
 ## Artifact Index
 - `progress.md` — Current step-by-step progress tracking

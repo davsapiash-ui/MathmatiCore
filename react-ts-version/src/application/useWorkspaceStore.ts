@@ -894,26 +894,91 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     selectChoice: (id) => {
       set({ selectedChoiceId: id, hasInteracted: true });
       radar.recordAction();
+      
+      const studentId = useAuthStore.getState().user?.uid;
+      if (studentId) {
+        const s = get();
+        const task = getActiveTasks(s)[s.standardTaskIdx] || null;
+        useStore.getState().logSemanticEvent(studentId, {
+          action: 'choice_selected',
+          element: 'multiple_choice_option',
+          context: `Selected option: ${id}`,
+          ...(task?.targetNode ? { q_matrix_node: task.targetNode } : {}),
+          state_snapshot: `Board Value: ${selectBoardValue(s)}`
+        });
+      }
     },
 
     setNumberLineValue: (v) => {
       set({ numberLineValue: v, hasInteracted: true });
       radar.recordAction();
+
+      const studentId = useAuthStore.getState().user?.uid;
+      if (studentId) {
+        const s = get();
+        const task = getActiveTasks(s)[s.standardTaskIdx] || null;
+        useStore.getState().logSemanticEvent(studentId, {
+          action: 'number_line_drag',
+          element: 'number_line_thumb',
+          context: `Value: ${v}`,
+          ...(task?.targetNode ? { q_matrix_node: task.targetNode } : {}),
+          state_snapshot: `NumberLine Value: ${v}`
+        });
+      }
     },
 
     setAnswerDigit: (place, val) => {
       radar.recordAction();
       set((s) => ({ answerDigits: { ...s.answerDigits, [place]: val }, hasInteracted: true }));
+      
+      const studentId = useAuthStore.getState().user?.uid;
+      if (studentId) {
+        const s = get();
+        const task = getActiveTasks(s)[s.standardTaskIdx] || null;
+        useStore.getState().logSemanticEvent(studentId, {
+          action: 'input_changed',
+          element: `answer_digit_${place}`,
+          context: val ? `Typed ${val} in ${place}` : `Cleared ${place}`,
+          ...(task?.targetNode ? { q_matrix_node: task.targetNode } : {}),
+          state_snapshot: `Current digits: ${JSON.stringify(s.answerDigits)}, Board Value: ${selectBoardValue(s)}`
+        });
+      }
     },
 
     setCarryDigit: (place, val) => {
       radar.recordAction();
       set((s) => ({ carryDigits: { ...s.carryDigits, [place]: val }, hasInteracted: true }));
+
+      const studentId = useAuthStore.getState().user?.uid;
+      if (studentId) {
+        const s = get();
+        const task = getActiveTasks(s)[s.standardTaskIdx] || null;
+        useStore.getState().logSemanticEvent(studentId, {
+          action: 'carry_changed',
+          element: `carry_digit_${place}`,
+          context: val ? `Typed carry ${val} in ${place}` : `Cleared carry in ${place}`,
+          ...(task?.targetNode ? { q_matrix_node: task.targetNode } : {}),
+          state_snapshot: `Current carries: ${JSON.stringify(s.carryDigits)}, Board Value: ${selectBoardValue(s)}`
+        });
+      }
     },
 
     setProbeAnswer: (v) => {
       set({ probeAnswer: v, hasInteracted: true });
       radar.recordAction();
+
+      const studentId = useAuthStore.getState().user?.uid;
+      if (studentId) {
+        const s = get();
+        const task = getActiveTasks(s)[s.standardTaskIdx] || null;
+        useStore.getState().logSemanticEvent(studentId, {
+          action: 'input_changed',
+          element: `probe_input`,
+          context: v ? `Typed answer ${v}` : `Cleared answer`,
+          ...(task?.targetNode ? { q_matrix_node: task.targetNode } : {}),
+          state_snapshot: `Probe answer: ${v}, Board Value: ${selectBoardValue(s)}`
+        });
+      }
     },
 
     /** Q3 "הוסף ייצוג" (vanilla addQ3Representation, app.js 747–810). */

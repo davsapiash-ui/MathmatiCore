@@ -8,9 +8,13 @@
   - `cmd.exe /c "npx tsc --noEmit"`
   - `cmd.exe /c "npm run build"`
 - Database reset executed via:
-  - `cmd.exe /c "npx tsx reset_data.ts"`
+  - `cmd.exe /c "npx tsx reset_data.ts"` (Successfully reset 13 student workspaces)
 - Playwright tests executed via:
-  - `cmd.exe /c "npx playwright test"`
+  - `cmd.exe /c "npx playwright test"` (All 22 tests successfully passed)
+- Auto-deploy executed via:
+  - `git add .`
+  - `git commit -m "Auto-deploy: Fix remaining Mojibake characters in TeacherDashboard.tsx and verify build/tests"`
+  - `git push` (Successfully pushed commit 2cd0e08 to github.com/davsapiash-ui/MathmatiCore.git)
 
 ## 2. Logic Chain
 - Checking the source file `TeacherDashboard.tsx` confirmed the presence of `ן¬©` at line 1150 and `גœ•` at line 1706.
