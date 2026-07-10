@@ -1,9 +1,10 @@
 import { useAdminStore } from '@/application/useAdminStore';
-import { ShieldCheck, Users, Search, RotateCcw, Settings, X } from 'lucide-react';
+import { ShieldCheck, Users, Search, Settings } from 'lucide-react';
 import { useState } from 'react';
 import { useStore, type StudentData } from '@/application/useStore';
 import { database } from '@/infrastructure/firebase';
 import { ref, get, remove, update } from 'firebase/database';
+import { TeacherCoPilotModal } from './components/TeacherCoPilotModal';
 
 export function ClassManagement({ allStudents }: { allStudents: StudentData[] }) {
   const classes = useAdminStore(s => s.classes);
@@ -263,41 +264,11 @@ export function ClassManagement({ allStudents }: { allStudents: StudentData[] })
 
       {/* Control Panel Modal */}
       {selectedStudent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95 duration-200">
-            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-900">
-              <h2 className="text-xl font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                <Settings className="text-indigo-500 w-5 h-5" />
-                לוח בקרה: {selectedStudent.name}
-              </h2>
-              <button 
-                onClick={() => setSelectedStudent(null)}
-                className="text-slate-400 hover:text-slate-600 p-2 rounded-full hover:bg-slate-200 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            
-            <div className="p-6 flex flex-col gap-6">
-              
-              <div className="bg-red-50/50 border border-red-100 rounded-2xl p-5">
-                <h3 className="font-bold text-red-900 mb-3 text-sm flex items-center gap-2">
-                  <RotateCcw className="w-4 h-4 text-red-500" />
-                  איפוס נתונים
-                </h3>
-                <p className="text-xs text-red-700 mb-4">בחר איזה נתונים ברצונך למחוק לאפס עבור תלמיד זה.</p>
-                <button
-                  onClick={() => handleResetStudent(selectedStudent.studentId)}
-                  className="w-full bg-red-100 hover:bg-red-200 text-red-700 font-bold py-3 px-4 rounded-xl transition-colors shadow-sm text-sm flex justify-center items-center gap-2"
-                >
-                  <RotateCcw className="w-4 h-4" />
-                  אפס את התלמיד והתחל מחדש
-                </button>
-              </div>
-
-            </div>
-          </div>
-        </div>
+        <TeacherCoPilotModal 
+          student={selectedStudent} 
+          onClose={() => setSelectedStudent(null)} 
+          onReset={() => handleResetStudent(selectedStudent.studentId)} 
+        />
       )}
     </div>
   );
