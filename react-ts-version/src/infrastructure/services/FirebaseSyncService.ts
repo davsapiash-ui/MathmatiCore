@@ -23,6 +23,16 @@ class FirebaseSyncService {
   }
 
   private init() {
+    // Check initial auth state (for page refresh when already logged in)
+    const initialAuth = useAuthStore.getState();
+    if (initialAuth.isAuthenticated && initialAuth.user && initialAuth.role === 'student') {
+      const userId = initialAuth.user.uid || initialAuth.user.id || initialAuth.user.email?.split('@')[0];
+      if (userId) {
+        this.currentUserId = userId;
+        this.startSync(userId, initialAuth.user);
+      }
+    }
+
     // Subscribe to auth changes
     useAuthStore.subscribe((authState) => {
       if (authState.isAuthenticated && authState.user && authState.role === 'student') {

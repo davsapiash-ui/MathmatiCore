@@ -329,7 +329,7 @@ export const useStore = create<AppState>()(
     {
       name: 'main-store-v8',
       partialize: (state) => Object.fromEntries(
-        Object.entries(state).filter(([key]) => !['students'].includes(key))
+        Object.entries(state).filter(([key]) => !['students', 'firebaseLoaded'].includes(key))
       ),
       merge: (persistedState: unknown, currentState) => {
         if (!persistedState) return currentState;
