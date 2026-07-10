@@ -30,6 +30,9 @@ export function BackwardDiagnosisView({ task, qflow, isASD }: { task: QMatrixTas
   const effRange = getEffectiveRange(task, qflow, isASD);
   const choices = getEffectiveChoices(task, qflow);
 
+  const effProbeA = isASD && diag.asdProbeA !== undefined ? diag.asdProbeA : diag.probeA;
+  const effProbeB = isASD && diag.asdProbeB !== undefined ? diag.asdProbeB : diag.probeB;
+
   return (
     <div className="flex flex-col gap-4 mt-2">
       {instruction && (
@@ -100,28 +103,32 @@ export function BackwardDiagnosisView({ task, qflow, isASD }: { task: QMatrixTas
         </div>
       )}
 
-      {/* Fact-vs-procedure probe (task4) */}
-      {diag.probeA !== undefined && task.type === 'vertical_addition' && (
+      {/* Fact-vs-procedure probe (task4) and missing_element probe (tasks 7 & 8) */}
+      {effProbeA !== undefined && (task.type === 'vertical_addition' || task.type === 'missing_element') && (
         <div className="flex flex-col items-center gap-4">
           {isASD && diag.graphicOrganizerASD ? (
             /* ASD: graphic organizer instead of long text — cubes row */
-            <div className="flex items-center gap-4 bg-ws-surface2/50 rounded-2xl p-5" dir="ltr" aria-label={`${diag.probeA} ועוד ${diag.probeB}`}>
+            <div className="flex items-center gap-4 bg-ws-surface2/50 rounded-2xl p-5" dir="ltr" aria-label={`${effProbeA} ${task.isSubtraction ? 'פחות' : 'ועוד'} ${effProbeB}`}>
               <div className="flex gap-1">
-                {Array.from({ length: diag.probeA }).map((_, i) => (
+                {Array.from({ length: effProbeA }).map((_, i) => (
                   <span key={i} className="w-6 h-6 rounded bg-block-unit inline-block" />
                 ))}
               </div>
-              <span className="font-display font-black text-3xl text-ws-ink">+</span>
+              <span className="font-display font-black text-3xl text-ws-ink">{task.isSubtraction ? '-' : '+'}</span>
               <div className="flex gap-1">
-                {Array.from({ length: diag.probeB ?? 0 }).map((_, i) => (
+                {Array.from({ length: effProbeB ?? 0 }).map((_, i) => (
                   <span key={i} className="w-6 h-6 rounded bg-block-hundred inline-block" />
                 ))}
               </div>
             </div>
           ) : (
             <div className="bg-ws-surface2/50 rounded-2xl px-8 py-4">
-              <span className="font-mono font-black text-4xl text-ws-ink tabular-nums" dir="ltr" aria-label={`תרגיל: ${diag.probeA} פלוס ${diag.probeB} שווה כמה`}>
-                <InlineMath math={`${diag.probeA} + ${diag.probeB} = ?`} />
+              <span className="font-mono font-black text-4xl text-ws-ink tabular-nums" dir="ltr" aria-label={`תרגיל: ${effProbeA} ${task.isSubtraction ? 'פחות' : 'פלוס'} ${task.type === 'missing_element' ? 'כמה' : effProbeB} שווה ${task.type === 'missing_element' ? effProbeB : 'כמה'}`}>
+                <InlineMath math={
+                  task.type === 'missing_element' 
+                    ? `${effProbeA} ${task.isSubtraction ? '-' : '+'} \\text{?} = ${effProbeB}`
+                    : `${effProbeA} ${task.isSubtraction ? '-' : '+'} ${effProbeB} = \\text{?}`
+                } />
               </span>
             </div>
           )}
