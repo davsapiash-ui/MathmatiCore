@@ -233,9 +233,8 @@ export function selectCanProceed(s: WorkspaceState): boolean {
   }
   if (!s.hasInteracted) return false;
   // Spec §1: "No Auto-Regrouping" — tasks that require manual grouping/ungrouping
-  // must be gated: the Proceed button stays disabled until the student performs the action.
-  if (task.requiresGrouping && !s.hasGrouped) return false;
-  if (task.requiresUngrouping && !s.hasUngrouped) return false;
+  // were previously gated here. UDL principles dictate we shouldn't hard-lock the UI.
+  // The Radar will silently monitor if they bypassed it.
   return true;
 }
 
@@ -501,14 +500,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         return;
       }
       // Gate 3: pedagogical progression compliance (grouping/ungrouping actions)
-      if (task.requiresGrouping && !s.hasGrouped) {
-        handleFailure('missed_grouping', 'מערכת המעבדה 🤔', 'יש לנו כאן יותר מ-10 יחידות. איך נוכל לארגן אותן בלוח בצורה יעילה יותר מבלי לשנות את הכמות הכוללת? הניסוי דורש קיבוץ.', 4500);
-        return;
-      }
-      if (task.requiresUngrouping && !s.hasUngrouped) {
-        handleFailure('missed_ungrouping', 'מערכת המעבדה 🤔', 'אין מספיק יחידות כדי לחסר. מאיפה נוכל לארגן עוד יחידות בלוח מבלי לשנות את הכמות הכוללת? נסו לפרוט.', 4500);
-        return;
-      }
+      // Removed hard-blocks: UDL dictates we shouldn't force the concrete action if they got the right answer.
+      // The AI and radar will analyze `s.hasGrouped` in the trace data to assess procedural fluency.
 
       // All gates passed.
       handleSuccess('כָּל הַכָּבוֹד! 🌟', 'פְּתַרְתֶּם נָכוֹן וְיִצַּגְתֶּם זֹאת מְצֻיָּן בְּבֵית הַמִּסְפָּרִים.', 2500);

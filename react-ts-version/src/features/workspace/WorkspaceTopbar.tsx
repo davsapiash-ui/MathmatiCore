@@ -70,10 +70,15 @@ export function WorkspaceTopbar() {
 
         <button
           onClick={toggleBoard}
-          className="h-10 px-4 sm:px-5 rounded-full text-sm font-bold text-ws-blue bg-ws-blueSoft/50 hover:bg-ws-blue hover:text-white transition-all flex items-center gap-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)]"
+          className={`h-10 px-4 sm:px-5 rounded-full text-sm font-bold border-2 transition-all flex items-center gap-2 shadow-sm ${
+            boardOpen 
+              ? 'text-ws-blue border-ws-blue bg-white hover:bg-ws-blue/10'
+              : 'text-white bg-ws-blue border-ws-blue hover:brightness-110'
+          }`}
+          aria-label={boardOpen ? 'הסתר ארגז בלוקים' : 'פתח ארגז בלוקים'}
         >
-          <span aria-hidden="true">🧮</span>
-          <span className="hidden sm:inline">{boardOpen ? 'הסתר לוח מוחשי' : 'הצג לוח מוחשי'}</span>
+          <span aria-hidden="true">🧊</span>
+          <span className="hidden sm:inline">{boardOpen ? 'הסתר בלוקים' : 'ארגז בלוקים'}</span>
         </button>
 
         <button

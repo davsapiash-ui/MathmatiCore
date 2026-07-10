@@ -88,10 +88,10 @@ export const SESSION1_TASKS: SessionTask[] = [
   {
     id: 's1_license_test',
     type: 'addition_simple',
-    numberA: 420, numberB: 0, correctAnswer: 420,
-    titleHe: 'בדיקת רישיון: בנייה מדוייקת',
-    instructionHe: 'בנו בבית המספרים את המספר 420 במדויק. לאחר מכן, הזינו את המספר בתיבת התוצאה למטה ולחצו על בדיקה.',
-    hintHe: 'שימו לב לטורים: מאות בטור המאות, עשרות בעשרות ויחידות ביחידות.',
+    numberA: 400, numberB: 20, correctAnswer: 420,
+    titleHe: 'בדיקת רישיון: חיבור מוחשי',
+    instructionHe: 'בנו בבית המספרים את המספר 400, ולאחר מכן הוסיפו עוד 20. מה התוצאה? הזינו אותה בתיבת התשובה.',
+    hintHe: 'הניחו מאות בטור המאות ועשרות בטור העשרות כדי לראות את התוצאה ברור.',
     scaffoldLevel: 1,
   },
   // 4. Number Line Tool Practice

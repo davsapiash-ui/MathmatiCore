@@ -103,9 +103,9 @@ export function NumberLineTask({
           const isMedium = t % mediumStep === 0;
           const isAnchor = asdAnchors?.includes(t);
           
-          let heightClass = 'h-2 bg-ws-surface2'; // minor
-          if (isMajor) heightClass = 'h-5 bg-ws-soft';
-          else if (isMedium) heightClass = 'h-3.5 bg-ws-soft opacity-70';
+          let heightClass = 'h-3.5 bg-ws-ink/40'; // minor (tens)
+          if (isMajor) heightClass = 'h-6 bg-ws-ink/80'; // major (hundreds)
+          else if (isMedium) heightClass = 'h-4.5 bg-ws-ink/60'; // medium (fifties)
 
           return (
             <div

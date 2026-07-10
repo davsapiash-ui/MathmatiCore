@@ -91,7 +91,7 @@ export function VerticalAdditionTask({
         aria-label={`תרגיל במאונך: ${numberA} ${isSubtraction ? 'פחות' : 'ועוד'} ${numberB}`}
         className="grid rounded-2xl shadow-sm"
         style={{
-          gridTemplateColumns: `repeat(${cols}, ${CELL}px) ${CELL}px`,
+          gridTemplateColumns: `${CELL}px repeat(${cols}, ${CELL}px)`,
           gridTemplateRows: `${CELL}px ${CELL}px ${CELL}px ${CELL}px`,
           padding: `${CELL * 0.75}px ${CELL}px`, // 0.75 top/bottom, 1 full square left/right
           backgroundColor: 'var(--ws-surface)',
@@ -103,6 +103,7 @@ export function VerticalAdditionTask({
         }}
       >
         {/* Row 0 — Carry/Borrow inputs */}
+        <div aria-hidden="true" />
         {colPlaces.map((place, j) => {
           return (
             <div key={`carry${j}`} className="flex items-end justify-center pb-1">
@@ -123,23 +124,23 @@ export function VerticalAdditionTask({
             </div>
           );
         })}
-        <div aria-hidden="true" />
 
-        {/* Row 1 — first operand (operator gutter empty) */}
+        {/* Row 1 — first operand */}
+        <div aria-hidden="true" />
         {digitsA.map((d, j) => digitCell(d, `a${j}`, colPlaces[j]))}
-        <div aria-hidden="true" />
 
-        {/* Row 2 — second operand + operator; thick result line under the digits */}
-        {digitsB.map((d, j) => digitCell(d, `b${j}`, undefined, { borderBottom: '4px solid hsl(var(--ws-ink))' }))}
+        {/* Row 2 — operator + second operand; thick result line under both */}
         <div
           aria-hidden="true"
           className="flex items-center justify-center font-mono font-black leading-none"
-          style={{ fontSize: CELL * 0.55, color: 'hsl(var(--ws-accent))' }}
+          style={{ fontSize: CELL * 0.6, color: 'hsl(var(--ws-accent))', borderBottom: '4px solid hsl(var(--ws-ink))' }}
         >
-          {isSubtraction ? '−' : '﬩'}
+          {isSubtraction ? '−' : '+'}
         </div>
+        {digitsB.map((d, j) => digitCell(d, `b${j}`, undefined, { borderBottom: '4px solid hsl(var(--ws-ink))' }))}
 
         {/* Row 3 — answer inputs inside the same squares (units under units) */}
+        <div aria-hidden="true" />
         {colPlaces.map((place, j) => {
           if (j < firstAnswerCol) return <div key={`e${j}`} aria-hidden="true" />;
           const ansIdx = j - firstAnswerCol;
@@ -169,11 +170,11 @@ export function VerticalAdditionTask({
             </div>
           );
         })}
-        <div aria-hidden="true" />
       </div>
 
       {/* Place labels under the paper, aligned to the answer columns */}
-      <div dir="ltr" className="grid" style={{ gridTemplateColumns: `repeat(${cols}, ${CELL}px) ${CELL}px` }}>
+      <div dir="ltr" className="grid" style={{ gridTemplateColumns: `${CELL}px repeat(${cols}, ${CELL}px)` }}>
+        <div aria-hidden="true" />
         {colPlaces.map((place, j) =>
           j < firstAnswerCol ? (
             <div key={`l${j}`} aria-hidden="true" />
@@ -183,7 +184,6 @@ export function VerticalAdditionTask({
             </span>
           )
         )}
-        <div aria-hidden="true" />
       </div>
 
 

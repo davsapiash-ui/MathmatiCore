@@ -13,11 +13,13 @@ export function useWorkspaceTour() {
     driverObj.current = driver({
       showProgress: true,
       animate: true,
-      allowClose: false,
+      allowClose: true,
+      showButtons: ['next', 'previous', 'close'],
       overlayColor: 'rgba(15, 23, 42, 0.75)',
       nextBtnText: 'התקדם',
       prevBtnText: 'הקודם',
       doneBtnText: 'הבנתי, בוא נתחיל!',
+      closeBtnText: 'סגור אשף',
       progressText: '{{current}} מתוך {{total}}',
       popoverClass: 'ws-tour-popover font-display',
       steps: [
