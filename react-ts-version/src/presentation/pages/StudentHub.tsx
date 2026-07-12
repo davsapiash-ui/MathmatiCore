@@ -39,6 +39,7 @@ export function StudentHub() {
   const isApproved = currentStudent?.routeStatus === 'APPROVED';
 
   const highestCompleted = currentStudent?.highestCompletedMeeting ?? (currentStudent?.completedMeeting2 ? 2 : 0);
+  const isPendingLesson3 = isPending && highestCompleted >= 2;
 
   const meetings: Meeting[] = [
     { id: 1, title: 'שיעור 1: הכשרת חוקרים', desc: 'היכרות עם כלי המעבדה השונים במרחב החקר הווירטואלי.', icon: '🧪', isLocked: false },
@@ -46,10 +47,10 @@ export function StudentHub() {
     { 
       id: 3, 
       title: 'שיעור 3: מחקר אישי', 
-      desc: isPending ? 'הנתונים נסרקים במערכת, ממתין לאישור מנהל מעבדה...' : 'מתחילים במשימות מחקר שמותאמות בדיוק עבורכם!', 
+      desc: isPendingLesson3 ? 'הנתונים נסרקים במערכת, ממתין לאישור מנהל מעבדה...' : 'מתחילים במשימות מחקר שמותאמות בדיוק עבורכם!', 
       icon: '🔬', 
       isLocked: (highestCompleted < 2) || !isApproved,
-      pendingApproval: isPending
+      pendingApproval: isPendingLesson3
     },
     { id: 4, title: 'שיעור 4: חוקרים ומגלים', desc: 'ניסויי פריטה וקיבוץ — חוקרים יחד ומצליחים.', icon: '🔍', isLocked: highestCompleted < 3 },
     { id: 5, title: 'שיעור 5: חוקרים ומגלים', desc: 'ממשיכים לתכנן ניסויים ולגלות שיטות חשיבה חדשות.', icon: '💡', isLocked: highestCompleted < 4 },

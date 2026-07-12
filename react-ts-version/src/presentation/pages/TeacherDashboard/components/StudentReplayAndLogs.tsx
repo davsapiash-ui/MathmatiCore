@@ -9,10 +9,12 @@ export function StudentReplayAndLogs({ studentId }: { studentId: string }) {
   const [seekToTime, setSeekToTime] = useState<number | undefined>();
   const [chunkKeys, setChunkKeys] = useState<string[]>([]);
   const [latestSession, setLatestSession] = useState<string | null>(null);
+  const [chunkMetadata, setChunkMetadata] = useState<Record<string, {startTime: number, endTime: number}>>({});
+  const [currentChunkIndex, setCurrentChunkIndex] = useState<number>(0);
 
   const fetchChunk = async (sessionId: string, chunkKey: string) => {
     try {
-      const chunkRef = ref(database, `users/students/${studentId}/telemetry_sessions/${sessionId}/${chunkKey}`);
+      const chunkRef = ref(database, `users/students/${studentId}/telemetry_sessions/${sessionId}/chunks/${chunkKey}`);
       const snap = await get(chunkRef);
       if (snap.exists()) {
         let chunk = snap.val();
@@ -26,6 +28,10 @@ export function StudentReplayAndLogs({ studentId }: { studentId: string }) {
           .sort((a: any, b: any) => a.timestamp - b.timestamp);
           
         setLiveReplayEvents(validEvents);
+        
+        // Update current index
+        const idx = chunkKeys.indexOf(chunkKey);
+        if (idx !== -1) setCurrentChunkIndex(idx);
       }
     } catch (err) {
       console.error("Error fetching chunk", err);
@@ -66,12 +72,15 @@ export function StudentReplayAndLogs({ studentId }: { studentId: string }) {
           
           if (!latestSessionId) return;
 
-          const chunksUrl = `${dbUrl}/users/students/${studentId}/telemetry_sessions/${latestSessionId}.json?shallow=true${authParam}`;
-          const chunksRes = await fetch(chunksUrl);
-          const chunksData = await chunksRes.json();
+          const tokenParam = token ? `?auth=${token}` : '';
+          const metadataUrl = `${dbUrl}/users/students/${studentId}/telemetry_sessions/${latestSessionId}/metadata.json${tokenParam}`;
+          const metadataRes = await fetch(metadataUrl);
+          const metadataData = await metadataRes.json();
           
-          if (!chunksData) return;
-          const keys = Object.keys(chunksData).sort();
+          if (!metadataData) return;
+          setChunkMetadata(metadataData);
+          
+          const keys = Object.keys(metadataData).sort((a, b) => metadataData[a].startTime - metadataData[b].startTime);
           setChunkKeys(keys);
           
           if (keys.length > 0) {
@@ -184,8 +193,13 @@ export function StudentReplayAndLogs({ studentId }: { studentId: string }) {
                       onClick={() => {
                         setSeekToTime(alert.timestamp);
                         if (chunkKeys.length > 0 && latestSession) {
-                          // Find the chunk that likely contains this timestamp (or closest before)
-                          const targetKey = [...chunkKeys].reverse().find(k => Number(k) <= alert.timestamp) || chunkKeys[0];
+                          // Find the chunk that contains this timestamp
+                          const targetKey = chunkKeys.find(k => 
+                            chunkMetadata[k] && 
+                            alert.timestamp >= chunkMetadata[k].startTime && 
+                            alert.timestamp <= chunkMetadata[k].endTime
+                          ) || chunkKeys.reverse().find(k => chunkMetadata[k] && alert.timestamp >= chunkMetadata[k].endTime) || chunkKeys[0];
+                          
                           fetchChunk(latestSession, targetKey);
                         }
                       }}
@@ -210,7 +224,16 @@ export function StudentReplayAndLogs({ studentId }: { studentId: string }) {
               {/* Player Container inside Modal */}
               <div className="flex-1 relative flex items-center justify-center p-0 sm:p-6 bg-slate-100/50 overflow-hidden">
                 <div className="w-full h-full flex items-center justify-center rounded-xl overflow-hidden shadow-lg border border-slate-200 bg-white relative">
-                  <ReplayViewer events={liveReplayEvents} seekToTime={seekToTime} />
+                  <ReplayViewer 
+                    events={liveReplayEvents} 
+                    seekToTime={seekToTime}
+                    onEnd={() => {
+                      // Fetch next chunk automatically for continuous playback
+                      if (latestSession && chunkKeys.length > currentChunkIndex + 1) {
+                        fetchChunk(latestSession, chunkKeys[currentChunkIndex + 1]);
+                      }
+                    }} 
+                  />
                 </div>
               </div>
             </div>

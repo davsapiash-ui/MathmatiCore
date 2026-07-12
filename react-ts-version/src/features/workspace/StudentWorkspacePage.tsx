@@ -192,7 +192,7 @@ export function StudentWorkspacePage() {
           eventsQueue.push(event);
         },
         sampling: {
-          mousemove: false,
+          mousemove: true,
           mouseInteraction: true,
           scroll: 150,
           input: 'last',
