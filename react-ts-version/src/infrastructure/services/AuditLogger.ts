@@ -1,9 +1,12 @@
 import { ref, push, serverTimestamp } from "firebase/database";
 import { database } from "@/infrastructure/firebase";
 
+export type ErrorCategory = 'FACTUAL_ERROR' | 'PROCEDURAL_ERROR' | 'STRATEGIC_ERROR';
+export type AuditAction = ErrorCategory | 'TASK_ERROR' | string;
+
 export interface AuditLogEvent {
   id?: string;
-  action: string;
+  action: AuditAction;
   user_id: string;
   details?: string;
   timestamp?: number | any;
@@ -13,7 +16,7 @@ class AuditLoggerService {
   /**
    * Log an event to the `audit_logs` Firebase node.
    */
-  async log(action: string, userId: string, details?: string) {
+  async log(action: AuditAction, userId: string, details?: string) {
     try {
       // All authenticated roles can write to audit_logs.
       // (Previous admin-only guard silently dropped all teacher/student events.)

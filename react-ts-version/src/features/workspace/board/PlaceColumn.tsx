@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useDroppable } from '@dnd-kit/core';
+import { useDroppable, useDndContext } from '@dnd-kit/core';
 import { motion, useAnimationControls, AnimatePresence } from 'framer-motion';
 import { MAX_VISIBLE_BLOCKS, PLACE_NAMES_HE, type Place } from '@/core/placeValue';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
@@ -25,6 +25,12 @@ export function PlaceColumn({ place }: { place: Place }) {
     id: `column-${place}`,
     data: { kind: 'column', place },
   });
+
+  const { active } = useDndContext();
+  const activePlace = active?.data.current?.place as Place | undefined;
+  
+  // Show preview of 10 units when dragging a tens rod over the units column
+  const isPreviewingDecomp = isOver && place === 'units' && activePlace === 'tens';
 
   const scaffoldFadeLevel = useWorkspaceStore((s) => s.scaffoldFadeLevel);
 
@@ -125,6 +131,24 @@ export function PlaceColumn({ place }: { place: Place }) {
             </motion.div>
           );
         })}
+
+        {isPreviewingDecomp && Array.from({ length: 10 }).map((_, i) => (
+          <motion.div
+            key={`preview-units-${i}`}
+            initial={{ opacity: 0, scale: 0.5 }}
+            animate={{ opacity: 0.5, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.5 }}
+            className="relative transition-all pointer-events-none"
+            style={{ zIndex: renderCount + i }}
+          >
+            <DienesBlock
+              id={`preview-units-${i}`}
+              place="units"
+              source="column"
+              noEnter={true}
+            />
+          </motion.div>
+        ))}
         </AnimatePresence>
       </div>
     </motion.div>

@@ -34,6 +34,7 @@ import { useAuthStore } from '@/application/useAuthStore';
 import { CurriculumRouter } from '@/core/CurriculumRouter';
 import { QMatrixEvaluator } from '@/core/QMatrix';
 import { getSessionTasks, type SessionTask } from '@/data/sessionTasks';
+import { AuditLogger } from '@/infrastructure/services/AuditLogger';
 
 const UNDO_STACK_CAP = 50;
 
@@ -70,6 +71,7 @@ interface WorkspaceState {
   focusedPlace: Place | null;
 
   // per-task interaction
+  taskStartTime: number;
   consecutiveUndos: number;
   isBoardLocked: boolean;
   hasRequestedBasicHelp: boolean;
@@ -150,6 +152,7 @@ function resetTaskInteraction() {
     consecutiveUndos: 0,
     isBoardLocked: false,
     hasRequestedBasicHelp: false,
+    taskStartTime: Date.now(),
   };
 }
 
@@ -406,6 +409,17 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     if (!task) return;
 
     const handleFailure = (detail: string, feedbackTitle: string, feedbackSub: string, feedbackMs: number) => {
+      const studentId = useAuthStore.getState().user?.uid;
+      if (studentId) {
+        let errorCategory: 'FACTUAL_ERROR' | 'PROCEDURAL_ERROR' | 'STRATEGIC_ERROR' = 'FACTUAL_ERROR';
+        if (detail.includes('overcrowded_columns') || detail.includes('wrong_blocks')) {
+          errorCategory = 'PROCEDURAL_ERROR';
+        } else if (detail.includes('no_choice') || detail.includes('canonical_fixation')) {
+          errorCategory = 'STRATEGIC_ERROR';
+        }
+        AuditLogger.log(errorCategory, studentId, `Task: ${task.id}, Detail: ${detail}`);
+      }
+
       if (task.targetNode && s.sessionNumber >= 3) {
         const strikes = (s.nodeStrikes[task.targetNode] || 0) + 1;
         set({ nodeStrikes: { ...s.nodeStrikes, [task.targetNode]: strikes }, successStreak: 0 });
@@ -667,6 +681,19 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     }
 
     if (evalResult) {
+      if (!evalResult.correct) {
+        const studentId = useAuthStore.getState().user?.uid;
+        if (studentId) {
+          let errorCategory: 'FACTUAL_ERROR' | 'PROCEDURAL_ERROR' | 'STRATEGIC_ERROR' = 'FACTUAL_ERROR';
+          const d = evalResult.detail;
+          if (d.includes('overcrowded_columns') || d.includes('wrong_blocks')) {
+            errorCategory = 'PROCEDURAL_ERROR';
+          } else if (d.includes('no_choice') || d.includes('canonical_fixation')) {
+            errorCategory = 'STRATEGIC_ERROR';
+          }
+          AuditLogger.log(errorCategory, studentId, `QTask: ${task.id}, Detail: ${d}`);
+        }
+      }
       set({ awaitingNext: true });
       const { state, event } = recordResult(s.qflow, evalResult);
       set({ qflow: state });
@@ -696,6 +723,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     consecutiveUndos: 0,
     isBoardLocked: false,
     hasRequestedBasicHelp: false,
+    taskStartTime: Date.now(),
     hasDeletedBlock: false,
     blocksAddedCount: 0,
     hasUngrouped: false,
@@ -755,6 +783,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         undoCount: saved.undoCount ?? 0,
         hesitationCount: saved.hesitationCount ?? 0,
         hasInteracted: saved.hasInteracted ?? false,
+        taskStartTime: saved.taskStartTime ?? Date.now(),
         aiTasks: saved.aiTasks ?? null,
         dynamicTasks: null,
         nodeStrikes: {},
@@ -1128,6 +1157,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     requestHelp: () => {
       const s = get();
       if (s.helpState !== 'closed') return;
+      if (Date.now() - s.taskStartTime < 10000) return; // 10s delay before help is available
       set({ helpState: 'friction', frictionTriggerSource: 'lightbulb', aiSocraticHint: null });
       get().fetchSocraticHint();
     },
@@ -1145,6 +1175,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     chooseSupport: (type) => {
       const s = get();
+      if (Date.now() - s.taskStartTime < 10000) return;
       if (type === 'worked_example' && (!s.hasRequestedBasicHelp || !s.hasInteracted)) {
         return;
       }

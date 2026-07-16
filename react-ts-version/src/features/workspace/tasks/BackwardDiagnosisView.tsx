@@ -9,6 +9,7 @@ import { InlineMath } from 'react-katex';
 import 'katex/dist/katex.min.css';
 import { getValue } from '@/core/placeValue';
 import { motion } from 'framer-motion';
+import { VisualGraphicOrganizer } from './VisualGraphicOrganizer';
 
 /**
  * "מעוף הדבורה" — תת-משימת אבחון לאחור: גרסה פשוטה יותר של המשימה שנכשלה.
@@ -123,17 +124,20 @@ export function BackwardDiagnosisView({ task, qflow, isASD }: { task: QMatrixTas
         <div className="flex flex-col items-center gap-4">
           {isASD && diag.graphicOrganizerASD ? (
             /* ASD: graphic organizer instead of long text — cubes row */
-            <div className="flex items-center gap-4 bg-ws-surface2/50 rounded-2xl p-5" dir="ltr" aria-label={`${effProbeA} ${task.isSubtraction ? 'פחות' : 'ועוד'} ${effProbeB}`}>
-              <div className="flex gap-1">
-                {Array.from({ length: effProbeA }).map((_, i) => (
-                  <span key={i} className="w-6 h-6 rounded bg-block-unit inline-block" />
-                ))}
-              </div>
-              <span className="font-display font-black text-3xl text-ws-ink">{task.isSubtraction ? '-' : '+'}</span>
-              <div className="flex gap-1">
-                {Array.from({ length: effProbeB ?? 0 }).map((_, i) => (
-                  <span key={i} className="w-6 h-6 rounded bg-block-hundred inline-block" />
-                ))}
+            <div className="flex flex-col gap-3 w-full">
+              <VisualGraphicOrganizer isSubtraction={task.isSubtraction} />
+              <div className="flex justify-center items-center gap-4 bg-ws-surface2/50 rounded-2xl p-5" dir="ltr" aria-label={`${effProbeA} ${task.isSubtraction ? 'פחות' : 'ועוד'} ${effProbeB}`}>
+                <div className="flex gap-1">
+                  {Array.from({ length: effProbeA }).map((_, i) => (
+                    <span key={i} className="w-6 h-6 rounded bg-block-unit inline-block" />
+                  ))}
+                </div>
+                <span className="font-display font-black text-3xl text-ws-ink">{task.isSubtraction ? '-' : '+'}</span>
+                <div className="flex gap-1">
+                  {Array.from({ length: effProbeB ?? 0 }).map((_, i) => (
+                    <span key={i} className="w-6 h-6 rounded bg-block-hundred inline-block" />
+                  ))}
+                </div>
               </div>
             </div>
           ) : (
