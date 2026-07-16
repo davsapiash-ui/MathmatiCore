@@ -70,6 +70,9 @@ interface WorkspaceState {
   focusedPlace: Place | null;
 
   // per-task interaction
+  consecutiveUndos: number;
+  isBoardLocked: boolean;
+  hasRequestedBasicHelp: boolean;
   hasInteracted: boolean;
   hasDeletedBlock: boolean;
   blocksAddedCount: number; // Added to enforce the 5 block rule in Sandbox
@@ -144,6 +147,9 @@ function resetTaskInteraction() {
     focusedPlace: null as Place | null,
     undoCount: 0,
     hesitationCount: 0,
+    consecutiveUndos: 0,
+    isBoardLocked: false,
+    hasRequestedBasicHelp: false,
   };
 }
 
@@ -687,6 +693,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     focusedPlace: null,
 
     hasInteracted: false,
+    consecutiveUndos: 0,
+    isBoardLocked: false,
+    hasRequestedBasicHelp: false,
     hasDeletedBlock: false,
     blocksAddedCount: 0,
     hasUngrouped: false,
@@ -788,6 +797,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     applyDrop: (input) => {
       const s = get();
+      if (s.isBoardLocked) return;
       const result = resolveDrop(s.counts, input, selectScaffoldLevel(s));
       if (!result.ok) {
         if (result.reason === 'constraint') flagConstraintError(result.place);
@@ -817,6 +827,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       set({ 
         counts: result.counts, 
         hasInteracted: true,
+        consecutiveUndos: 0,
         blocksAddedCount: addedCount,
         undoCount: isDelete ? s.undoCount + 1 : s.undoCount,
         ...(isDelete ? { hasDeletedBlock: true } : {}),
@@ -851,13 +862,20 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     removeBlockClick: (place) => {
       const s = get();
+      if (s.isBoardLocked) return;
       const next = removeBlock(s.counts, place);
       if (!next) {
         flagConstraintError(place);
         return;
       }
       pushSnapshot(s.counts);
-      set({ counts: next, hasInteracted: true, hasDeletedBlock: true, undoCount: s.undoCount + 1 });
+      set({ 
+        counts: next, 
+        hasInteracted: true, 
+        hasDeletedBlock: true, 
+        undoCount: s.undoCount + 1,
+        consecutiveUndos: 0 
+      });
 
       const studentId = useAuthStore.getState().user?.uid;
       if (studentId) {
@@ -874,10 +892,32 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     undo: () => {
       const s = get();
+      if (s.isBoardLocked) return;
+
+      const newConsecutiveUndos = s.consecutiveUndos + 1;
+      
+      if (newConsecutiveUndos >= 3) {
+        set({ isBoardLocked: true, consecutiveUndos: newConsecutiveUndos });
+        s.showFeedback({ 
+          correct: false, 
+          title: 'בואו נעצור לרגע...', 
+          sub: 'נראה שאתם צריכים עזרה. נסו לבקש רמז!' 
+        }, 5000, () => {
+          set({ isBoardLocked: false, consecutiveUndos: 0 });
+        });
+        return;
+      }
+
       const stack = [...s.undoStack];
       const snapshot = stack.pop();
       if (!snapshot) return;
-      set({ counts: snapshot.counts, undoStack: stack, undoCount: s.undoCount + 1 });
+      
+      set({ 
+        counts: snapshot.counts, 
+        undoStack: stack, 
+        undoCount: s.undoCount + 1,
+        consecutiveUndos: newConsecutiveUndos 
+      });
 
       const studentId = useAuthStore.getState().user?.uid;
       if (studentId) {
@@ -1103,7 +1143,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       }
     },
 
-    chooseSupport: (type) => set({ helpState: type }),
+    chooseSupport: (type) => {
+      const s = get();
+      if (type === 'worked_example' && (!s.hasRequestedBasicHelp || !s.hasInteracted)) {
+        return;
+      }
+      set({ 
+        helpState: type,
+        ...((type as string) !== 'worked_example' && (type as string) !== 'closed' ? { hasRequestedBasicHelp: true } : {})
+      });
+    },
     closeHelp: () => set({ helpState: 'closed' }),
     showFeedback,
   };

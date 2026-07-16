@@ -183,3 +183,30 @@ export function getExpectedBlocks(
   if (isASD && task.asdExpectedBlocks) return task.asdExpectedBlocks;
   return task.expectedBlocks ?? null;
 }
+
+export type RoutePath = 'RED' | 'YELLOW' | 'GREEN';
+
+/**
+ * Evaluates the 3 adaptive paths starting Session 3 based on Q-Matrix results.
+ * RED: Needs intensive intervention (e.g. multiple core tasks failed or high hesitation)
+ * YELLOW: Needs scaffolding (e.g. minor struggles or some tasks failed)
+ * GREEN: Advanced / Challenge ready (passed cleanly)
+ */
+export function determineAdaptivePath(
+  state: QMatrixFlowState,
+  hesitationCount: number = 0,
+  undoCount: number = 0
+): RoutePath {
+  const failedTasks = Object.values(state.results).filter(r => !r.correct);
+  const failedCount = failedTasks.length;
+
+  if (failedCount >= 3 || hesitationCount >= 10 || undoCount >= 20) {
+    return 'RED';
+  }
+  
+  if (failedCount > 0 || hesitationCount >= 5 || undoCount >= 10) {
+    return 'YELLOW';
+  }
+
+  return 'GREEN';
+}

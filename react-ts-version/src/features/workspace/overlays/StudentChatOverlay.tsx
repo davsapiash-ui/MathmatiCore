@@ -3,7 +3,7 @@ import { useChatStore } from '@/application/useChatStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useStore } from '@/application/useStore';
 import { useAdminStore } from '@/application/useAdminStore';
-import { ImageIcon } from 'lucide-react';
+import { ImageIcon, BellRing } from 'lucide-react';
 
 export function StudentChatOverlay() {
   const [isOpen, setIsOpen] = useState(false);
@@ -72,6 +72,13 @@ export function StudentChatOverlay() {
     }
   };
 
+  const handleCallTeacher = () => {
+    if (!user?.uid) return;
+    const lastReceivedMsg = [...messages].reverse().find(m => m.receiverId === user.uid && m.senderId !== user.uid);
+    const activeTeacher = lastReceivedMsg ? lastReceivedMsg.senderId : targetTeacherId;
+    sendMessage(user.uid as string, String(user.displayName || user.email?.split('@')[0] || 'תלמיד'), activeTeacher as string, "🚨 המורה, אני זקוק/ה לעזרה!");
+  };
+
   return (
     <div className="absolute top-0 right-0 h-full w-96 bg-ws-surface shadow-2xl flex flex-col z-50 border-l border-ws-surface2">
       <div className="p-4 bg-ws-accent text-white flex justify-between items-center shrink-0">
@@ -116,6 +123,13 @@ export function StudentChatOverlay() {
           onChange={handleImageSelect}
         />
         <div className="flex gap-2 items-center">
+          <button
+            onClick={handleCallTeacher}
+            title="קרא למורה"
+            className="p-2 rounded-full hover:bg-red-500/10 transition-colors text-ws-soft hover:text-red-500"
+          >
+            <BellRing className="w-5 h-5" />
+          </button>
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={sendingImage}

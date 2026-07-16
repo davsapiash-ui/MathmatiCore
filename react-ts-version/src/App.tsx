@@ -8,6 +8,7 @@ import { StudentHub } from "@/presentation/pages/StudentHub";
 import { TeacherDashboard } from "@/presentation/pages/TeacherDashboard";
 import { ProjectorSandboxPage } from "@/presentation/pages/ProjectorSandboxPage";
 import { AppShell } from "@/presentation/components/layout/AppShell";
+import { ActivityWorkspace } from "@/presentation/components/student/ActivityWorkspace";
 
 import { AdminLayout } from "@/presentation/pages/AdminLayout";
 import { AdminOverview } from "@/presentation/pages/admin/AdminOverview";
@@ -136,7 +137,7 @@ function App() {
             </FirebaseGate>
           </AuthGuard>
         } />
-        
+
         {/* Projector Sandbox for Teacher (no recording, clean slate) */}
         <Route path="/projector" element={
           <AuthGuard allowedRoles={["teacher", "admin"]}>

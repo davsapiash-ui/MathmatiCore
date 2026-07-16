@@ -47,10 +47,14 @@ export function TaskCard() {
         style={{ background: 'radial-gradient(closest-side, hsl(var(--ws-blue-soft)), transparent)' }}
       />
       <motion.div key={taskKey} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="relative">
-        <span className="inline-flex items-center gap-1.5 text-sm font-display font-extrabold text-ws-accent bg-ws-accentSoft rounded-full px-3.5 py-1.5 mb-3 shadow-[0_2px_6px_-2px_hsl(var(--ws-accent)/0.35)]">
-          <span aria-hidden="true">✦</span> מפגש {sessionNumber}
-        </span>
-        <h1 className="font-display font-black text-[2.15rem] text-ws-ink mb-4 leading-[1.15]">{title}</h1>
+        {qflow.phase !== 'correction' && (
+          <span className="inline-flex items-center gap-1.5 text-sm font-display font-extrabold text-ws-accent bg-ws-accentSoft rounded-full px-3.5 py-1.5 mb-3 shadow-[0_2px_6px_-2px_hsl(var(--ws-accent)/0.35)]">
+            <span aria-hidden="true">✦</span> מפגש {sessionNumber}
+          </span>
+        )}
+        <h1 className="font-display font-black text-[2.15rem] text-ws-ink mb-4 leading-[1.15]">
+          {qflow.phase === 'correction' ? 'משימת צד' : title}
+        </h1>
 
         {instruction && (
           <div

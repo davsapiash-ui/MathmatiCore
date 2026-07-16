@@ -8,6 +8,7 @@ import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 import { InlineMath } from 'react-katex';
 import 'katex/dist/katex.min.css';
 import { getValue } from '@/core/placeValue';
+import { motion } from 'framer-motion';
 
 /**
  * "מעוף הדבורה" — תת-משימת אבחון לאחור: גרסה פשוטה יותר של המשימה שנכשלה.
@@ -34,11 +35,25 @@ export function BackwardDiagnosisView({ task, qflow, isASD }: { task: QMatrixTas
   const effProbeB = isASD && diag.asdProbeB !== undefined ? diag.asdProbeB : diag.probeB;
 
   return (
-    <div className="flex flex-col gap-4 mt-2">
+    <motion.div 
+      initial={{ scale: 0.9, opacity: 0, y: 20 }}
+      animate={{ scale: 1, opacity: 1, y: 0 }}
+      transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+      className="flex flex-col gap-4 mt-2 bg-yellow-50/80 p-6 rounded-[2rem] border-4 border-yellow-200/50 shadow-inner"
+    >
+      <div className="flex items-center gap-4 mb-2">
+        <div className="w-16 h-16 rounded-full bg-white shadow-md flex items-center justify-center text-4xl animate-bounce">
+          🤖
+        </div>
+        <div className="flex-1">
+          <h2 className="text-2xl font-display font-black text-amber-600">אוי, בוט הסתבך!</h2>
+          <p className="text-amber-800/80 font-medium">בואו נעזור לרובוט שלנו לפתור את השלב הזה כדי שיוכל להמשיך...</p>
+        </div>
+      </div>
+
       {instruction && (
-        <div className="flex items-start gap-3">
+        <div className="flex items-start gap-3 bg-white/70 p-4 rounded-2xl">
           <p className="text-lg font-bold text-ws-ink leading-relaxed flex-1">{instruction}</p>
-          {/* UDL: the subtask blanks the top instruction, so audio must live here */}
           <UdlSpeechButton text={instruction} />
         </div>
       )}
@@ -145,8 +160,8 @@ export function BackwardDiagnosisView({ task, qflow, isASD }: { task: QMatrixTas
           <div className="mt-2 flex justify-center w-full">
             <label className="cursor-pointer text-sm font-bold text-ws-accent hover:text-ws-ink transition-colors flex items-center gap-2 bg-ws-surface px-4 py-2 rounded-xl shadow-sm border border-ws-ink/10">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
-              העלה פתרון כתוב (תמונה)
-              <input type="file" className="hidden" accept="image/*" aria-label="העלה פתרון כתמונה" onChange={() => alert("הפתרון הועלה בהצלחה למורה.")} />
+              העלו פתרון כתוב (תמונה)
+              <input type="file" className="hidden" accept="image/*" aria-label="העלו פתרון כתמונה" onChange={() => alert("הפתרון הועלה בהצלחה למורה.")} />
             </label>
           </div>
         </div>
@@ -167,6 +182,6 @@ export function BackwardDiagnosisView({ task, qflow, isASD }: { task: QMatrixTas
           <ChoiceList choices={task.choices ?? []} />
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useDroppable } from '@dnd-kit/core';
-import { motion, useAnimationControls } from 'framer-motion';
+import { motion, useAnimationControls, AnimatePresence } from 'framer-motion';
 import { MAX_VISIBLE_BLOCKS, PLACE_NAMES_HE, type Place } from '@/core/placeValue';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { DienesBlock } from './DienesBlock';
@@ -51,7 +51,7 @@ export function PlaceColumn({ place }: { place: Place }) {
       className={`flex-1 min-w-0 flex flex-col rounded-2xl border-2 transition-all duration-300 ${
         isHighlighted ? 'border-solid' : 'border-dashed'
       } ${
-        isDimmed ? 'opacity-30 grayscale pointer-events-none' : ''
+        isDimmed ? 'opacity-30 blur-sm grayscale pointer-events-none' : ''
       } ${isOver ? 'animate-[pulse_1.5s_ease-in-out_infinite]' : ''}`}
       style={{
         borderColor: isOver 
@@ -92,6 +92,7 @@ export function PlaceColumn({ place }: { place: Place }) {
         className="flex-1 flex flex-row flex-wrap content-start justify-center items-start gap-1 p-2 min-h-[150px] overflow-y-auto overflow-x-hidden no-scrollbar"
       >
 
+        <AnimatePresence>
         {Array.from({ length: renderCount }).map((_, i) => {
           let overlapStyle: React.CSSProperties = { zIndex: i };
           if (i > 0) {
@@ -108,7 +109,12 @@ export function PlaceColumn({ place }: { place: Place }) {
           }
 
           return (
-            <div key={`${place}-${i}`} style={overlapStyle} className="relative transition-all">
+            <motion.div 
+              key={`${place}-${i}`} 
+              style={overlapStyle} 
+              className="relative transition-all"
+              exit={{ opacity: 0, scale: 1.3, y: -10, transition: { duration: 0.25 } }}
+            >
               <DienesBlock
                 id={`col-${place}-${i}`}
                 place={place}
@@ -116,9 +122,10 @@ export function PlaceColumn({ place }: { place: Place }) {
                 onRemove={() => removeBlockClick(place)}
                 noEnter={i < renderCount - 1}
               />
-            </div>
+            </motion.div>
           );
         })}
+        </AnimatePresence>
       </div>
     </motion.div>
   );
