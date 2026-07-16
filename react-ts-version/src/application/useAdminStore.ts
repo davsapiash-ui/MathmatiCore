@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
 import { AuditLogger } from "@/infrastructure/services/AuditLogger";
 import { firebaseSyncService } from "@/infrastructure/services/FirebaseSyncService";
 
@@ -50,127 +49,47 @@ interface AdminState {
 const INITIAL_SCHOOL_ID = 'school_bikorot';
 const INITIAL_CLASS_ID = 'class_1';
 
-export const useAdminStore = create<AdminState>()(
-  persist(
-    (set) => ({
-      schools: [
-        { id: INITIAL_SCHOOL_ID, name: 'ביקורת', createdAt: Date.now() }
-      ],
-      teachers: [
-        { 
-          id: '039604483', 
-          schoolId: INITIAL_SCHOOL_ID, 
-          name: 'דוד', 
-          taz: '039604483', 
-          dob: '290984', 
-          licenseActive: true, 
-          createdAt: Date.now() 
-        }
-      ],
-      classes: [
-        { 
-          id: INITIAL_CLASS_ID, 
-          schoolId: INITIAL_SCHOOL_ID, 
-          teacherId: '039604483', 
-          name: 'כיתה 1', 
-          studentLimit: 35, 
-          createdAt: Date.now() 
-        }
-      ],
-      globalStudentLimit: 35,
+export const useAdminStore = create<AdminState>()((set) => ({
+  schools: [],
+  teachers: [],
+  classes: [],
+  globalStudentLimit: 35,
 
-      setGlobalStudentLimit: (limit) => set({ globalStudentLimit: limit }),
+  setGlobalStudentLimit: (limit) => {
+    AuditLogger.log("עדכון מגבלת תלמידים", "admin", `מגבלה גלובלית חדשה: ${limit}`);
+    firebaseSyncService.setGlobalStudentLimit(limit).catch(err => console.error("Failed to set global student limit in Firebase", err));
+  },
 
-      addSchool: (name) => set((state) => {
-        AuditLogger.log("יצירת מוסד", "admin", `מוסד חדש: ${name}`);
-        return {
-          schools: [...state.schools, { id: `school_${Date.now()}`, name, createdAt: Date.now() }]
-        };
-      }),
+  addSchool: (name) => {
+    AuditLogger.log("יצירת מוסד", "admin", `מוסד חדש: ${name}`);
+    firebaseSyncService.addSchool(name).catch(err => console.error("Failed to add school to Firebase", err));
+  },
 
-      deleteSchool: (id) => set((state) => {
-        const school = state.schools.find(s => s.id === id);
-        if (school) AuditLogger.log("מחיקת מוסד", "admin", `מוסד נמחק: ${school.name}`);
-        return {
-          schools: state.schools.filter(s => s.id !== id),
-          // Cascade delete
-          teachers: state.teachers.filter(t => t.schoolId !== id),
-          classes: state.classes.filter(c => c.schoolId !== id)
-        };
-      }),
+  deleteSchool: (id) => {
+    const school = useAdminStore.getState().schools.find(s => s.id === id);
+    if (school) AuditLogger.log("מחיקת מוסד", "admin", `מוסד נמחק: ${school.name}`);
+    firebaseSyncService.deleteSchool(id).catch(err => console.error("Failed to delete school from Firebase", err));
+  },
 
-      addTeacher: (schoolId, name, taz, dob) => set((state) => {
-        const id = `teacher_${Date.now()}`;
-        AuditLogger.log("יצירת מורה", "admin", `מורה חדש: ${name} (ת"ז: ${taz})`);
-        const newTeacher = { id, schoolId, name, taz, dob, licenseActive: true, createdAt: Date.now() };
-        
-        // Sync to cloud
-        firebaseSyncService.registerTeacher(newTeacher).catch(err => console.error("Failed to sync teacher to cloud", err));
+  addTeacher: (schoolId, name, taz, dob) => {
+    AuditLogger.log("יצירת מורה", "admin", `מורה חדש: ${name} (ת"ז: ${taz})`);
+    firebaseSyncService.addTeacher(schoolId, name, taz, dob).catch(err => console.error("Failed to add teacher to Firebase", err));
+  },
 
-        return {
-          teachers: [...state.teachers, newTeacher]
-        };
-      }),
+  deleteTeacher: (id) => {
+    const teacher = useAdminStore.getState().teachers.find(t => t.id === id);
+    if (teacher) AuditLogger.log("מחיקת מורה", "admin", `מורה נמחק: ${teacher.name}`);
+    firebaseSyncService.deleteTeacher(id).catch(err => console.error("Failed to delete teacher from Firebase", err));
+  },
 
-      deleteTeacher: (id) => set((state) => {
-        const teacher = state.teachers.find(t => t.id === id);
-        if (teacher) AuditLogger.log("מחיקת מורה", "admin", `מורה נמחק: ${teacher.name}`);
-        return {
-          teachers: state.teachers.filter(t => t.id !== id),
-          classes: state.classes.filter(c => c.teacherId !== id)
-        };
-      }),
+  addClassRoom: (schoolId, teacherId, name) => {
+    AuditLogger.log("יצירת כיתה", "admin", `כיתה חדשה: ${name}`);
+    firebaseSyncService.addClassRoom(schoolId, teacherId, name).catch(err => console.error("Failed to add class to Firebase", err));
+  },
 
-      addClassRoom: (schoolId, teacherId, name) => set((state) => {
-        AuditLogger.log("יצירת כיתה", "admin", `כיתה חדשה: ${name}`);
-        return {
-          classes: [...state.classes, { 
-            id: `class_${Date.now()}`, 
-            schoolId, 
-            teacherId, 
-            name, 
-            studentLimit: state.globalStudentLimit,
-            createdAt: Date.now() 
-          }]
-        };
-      }),
-
-      deleteClassRoom: (id) => set((state) => {
-        const classRoom = state.classes.find(c => c.id === id);
-        if (classRoom) AuditLogger.log("מחיקת כיתה", "admin", `כיתה נמחקה: ${classRoom.name}`);
-        return {
-          classes: state.classes.filter(c => c.id !== id)
-        };
-      }),
-    }),
-    {
-      name: "admin-storage-v4",
-      merge: (persistedState: any, currentState) => {
-        if (!persistedState) return currentState;
-        
-        // Deep merge to ensure our code-defined default teachers always exist,
-        // even if the user has an old local storage without them.
-        const mergedTeachers = [...(persistedState.teachers || [])];
-        currentState.teachers.forEach(defaultTeacher => {
-          if (!mergedTeachers.find(t => t.id === defaultTeacher.id)) {
-            mergedTeachers.push(defaultTeacher);
-          }
-        });
-
-        const mergedSchools = [...(persistedState.schools || [])];
-        currentState.schools.forEach(defaultSchool => {
-          if (!mergedSchools.find(s => s.id === defaultSchool.id)) {
-            mergedSchools.push(defaultSchool);
-          }
-        });
-
-        return {
-          ...currentState,
-          ...persistedState,
-          teachers: mergedTeachers,
-          schools: mergedSchools
-        };
-      }
-    }
-  )
-);
+  deleteClassRoom: (id) => {
+    const classRoom = useAdminStore.getState().classes.find(c => c.id === id);
+    if (classRoom) AuditLogger.log("מחיקת כיתה", "admin", `כיתה נמחקה: ${classRoom.name}`);
+    firebaseSyncService.deleteClassRoom(id).catch(err => console.error("Failed to delete class from Firebase", err));
+  }
+}));

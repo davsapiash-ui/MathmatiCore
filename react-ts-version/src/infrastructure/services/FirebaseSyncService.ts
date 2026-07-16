@@ -1,8 +1,9 @@
-import { ref, set, get, update, serverTimestamp, onValue, onDisconnect, type DataSnapshot } from 'firebase/database';
+import { ref, set, get, update, serverTimestamp, onValue, onDisconnect, push, type DataSnapshot } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { useStore, type QMatrix, type TraceData } from '@/application/useStore';
+import { useAdminStore, type School, type Teacher, type ClassRoom } from '@/application/useAdminStore';
 
 class FirebaseSyncService {
   private static instance: FirebaseSyncService;
@@ -10,9 +11,15 @@ class FirebaseSyncService {
   private unsubscribeFirebase: (() => void) | null = null;
   private currentUserId: string | null = null;
   private isInitialLoad = false;
+  private unsubscribeSchools: (() => void) | null = null;
+  private unsubscribeClasses: (() => void) | null = null;
+  private unsubscribePublicClasses: (() => void) | null = null;
+  private unsubscribeTeachers: (() => void) | null = null;
+  private unsubscribeGlobalStudentLimit: (() => void) | null = null;
 
   private constructor() {
-    this.init();
+    // Delay initialization to avoid circular dependency with stores
+    setTimeout(() => this.init(), 0);
   }
 
   public static getInstance(): FirebaseSyncService {
@@ -23,27 +30,40 @@ class FirebaseSyncService {
   }
 
   private init() {
-    // Check initial auth state (for page refresh when already logged in)
+    // Check initial auth state
     const initialAuth = useAuthStore.getState();
-    if (initialAuth.isAuthenticated && initialAuth.user && initialAuth.role === 'student') {
-      const userId = initialAuth.user.uid || initialAuth.user.id || initialAuth.user.email?.split('@')[0];
-      if (userId) {
-        this.currentUserId = userId;
-        this.startSync(userId, initialAuth.user);
+    this.syncSharedListeners(initialAuth.isAuthenticated);
+
+    if (initialAuth.isAuthenticated && initialAuth.user) {
+      if (initialAuth.role === 'student') {
+        const userId = initialAuth.user.uid || initialAuth.user.id || initialAuth.user.email?.split('@')[0];
+        if (userId) {
+          this.currentUserId = userId;
+          this.startSync(userId, initialAuth.user);
+        }
+      } else if (initialAuth.role === 'admin') {
+        this.startAdminSync();
       }
     }
 
     // Subscribe to auth changes
     useAuthStore.subscribe((authState) => {
+      this.syncSharedListeners(authState.isAuthenticated);
+
       if (authState.isAuthenticated && authState.user && authState.role === 'student') {
         const newUserId = authState.user.uid || authState.user.id || authState.user.email?.split('@')[0];
-        if (!newUserId) return;
-        if (newUserId !== this.currentUserId) {
+        if (newUserId && newUserId !== this.currentUserId) {
           this.currentUserId = newUserId;
           this.startSync(newUserId, authState.user);
         }
       } else {
         this.stopSync();
+      }
+
+      if (authState.isAuthenticated && authState.role === 'admin') {
+        this.startAdminSync();
+      } else {
+        this.stopAdminSync();
       }
     });
   }
@@ -165,7 +185,13 @@ class FirebaseSyncService {
   }
 
   private stopSync() {
-    this.currentUserId = null;
+    if (this.currentUserId) {
+      const statusRef = ref(database, `users/students/${this.currentUserId}/isOnline`);
+      set(statusRef, false).catch((err) => {
+        console.error("Failed to set student offline during logout:", err);
+      });
+      this.currentUserId = null;
+    }
     if (this.unsubscribeWorkspace) {
       this.unsubscribeWorkspace();
       this.unsubscribeWorkspace = null;
@@ -241,6 +267,236 @@ class FirebaseSyncService {
     if (!studentId) return;
     const refPath = ref(database, `users/students/${studentId}`);
     await update(refPath, { routeStatus: 'APPROVED' });
+  }
+
+  // --- NEW: Public and Admin Listeners ---
+  private syncSharedListeners(isAuthenticated: boolean) {
+    if (!this.unsubscribeSchools) {
+      const schoolsRef = ref(database, 'schools');
+      this.unsubscribeSchools = onValue(schoolsRef, (snapshot) => {
+        if (snapshot.exists()) {
+          const schoolsVal = snapshot.val();
+          const schools = schoolsVal ? Object.values(schoolsVal) as School[] : [];
+          useAdminStore.setState({ schools });
+        } else {
+          useAdminStore.setState({ schools: [] });
+        }
+      }, (error) => {
+        console.error("Schools listener error:", error);
+      });
+    }
+
+    if (isAuthenticated) {
+      if (this.unsubscribePublicClasses) {
+        this.unsubscribePublicClasses();
+        this.unsubscribePublicClasses = null;
+      }
+      if (!this.unsubscribeClasses) {
+        const classesRef = ref(database, 'classes');
+        this.unsubscribeClasses = onValue(classesRef, (snapshot) => {
+          const classesVal = snapshot.val();
+          const classes = classesVal ? Object.values(classesVal) as ClassRoom[] : [];
+          useAdminStore.setState({ classes });
+        }, (error) => {
+          console.error("Classes listener error:", error);
+        });
+      }
+    } else {
+      if (this.unsubscribeClasses) {
+        this.unsubscribeClasses();
+        this.unsubscribeClasses = null;
+      }
+      if (!this.unsubscribePublicClasses) {
+        const publicClassesRef = ref(database, 'public_classes');
+        this.unsubscribePublicClasses = onValue(publicClassesRef, (snapshot) => {
+          const classesVal = snapshot.val();
+          const classes = classesVal ? Object.values(classesVal) as ClassRoom[] : [];
+          useAdminStore.setState({ classes });
+        }, (error) => {
+          console.error("Public classes listener error:", error);
+        });
+      }
+    }
+  }
+
+  private async seedDefaultData() {
+    const timestamp = Date.now();
+    const initialSchool = { id: 'school_bikorot', name: 'ביקורת', createdAt: timestamp };
+    const initialTeacher = { 
+      id: '039604483', 
+      schoolId: 'school_bikorot', 
+      name: 'דוד', 
+      taz: '039604483', 
+      dob: '290984', 
+      licenseActive: true, 
+      createdAt: timestamp 
+    };
+    const initialClass = { 
+      id: 'class_1', 
+      schoolId: 'school_bikorot', 
+      teacherId: '039604483', 
+      name: 'כיתה 1', 
+      studentLimit: 35, 
+      createdAt: timestamp 
+    };
+    const initialPublicClass = {
+      id: 'class_1',
+      name: 'כיתה 1',
+      schoolId: 'school_bikorot'
+    };
+
+    try {
+      const updates: Record<string, any> = {};
+      updates[`schools/school_bikorot`] = initialSchool;
+      updates[`users/teachers/039604483`] = initialTeacher;
+      updates[`classes/class_1`] = initialClass;
+      updates[`public_classes/class_1`] = initialPublicClass;
+      updates[`system_control/globalStudentLimit`] = 35;
+      
+      await update(ref(database), updates);
+      console.log("Auto-seeding completed successfully.");
+    } catch (err) {
+      console.error("Auto-seeding failed:", err);
+    }
+  }
+
+  private async startAdminSync() {
+    this.stopAdminSync();
+
+    try {
+      const schoolsSnapshot = await get(ref(database, 'schools'));
+      if (!schoolsSnapshot.exists() || !schoolsSnapshot.val()) {
+        await this.seedDefaultData();
+      }
+    } catch (err) {
+      console.error("Error checking schools for seeding:", err);
+    }
+
+    const teachersRef = ref(database, 'users/teachers');
+    this.unsubscribeTeachers = onValue(teachersRef, (snapshot) => {
+      const teachersVal = snapshot.val();
+      const teachers = teachersVal ? Object.values(teachersVal) as Teacher[] : [];
+      useAdminStore.setState({ teachers });
+    });
+
+    const limitRef = ref(database, 'system_control/globalStudentLimit');
+    this.unsubscribeGlobalStudentLimit = onValue(limitRef, (snapshot) => {
+      const limitVal = snapshot.val();
+      const globalStudentLimit = limitVal !== null ? Number(limitVal) : 35;
+      useAdminStore.setState({ globalStudentLimit });
+    });
+  }
+
+  private stopAdminSync() {
+    if (this.unsubscribeTeachers) {
+      this.unsubscribeTeachers();
+      this.unsubscribeTeachers = null;
+    }
+    if (this.unsubscribeGlobalStudentLimit) {
+      this.unsubscribeGlobalStudentLimit();
+      this.unsubscribeGlobalStudentLimit = null;
+    }
+    useAdminStore.setState({ teachers: [], globalStudentLimit: 35 });
+  }
+
+  // --- Admin actions syncing to Firebase ---
+  public async addSchool(name: string) {
+    const id = push(ref(database, 'schools')).key;
+    if (!id) throw new Error("Failed to generate school ID");
+    const school: School = { id, name, createdAt: Date.now() };
+    await set(ref(database, `schools/${id}`), school);
+  }
+
+  public async deleteSchool(schoolId: string) {
+    // Fetch the latest teachers/classes list from Firebase via get()
+    const teachersSnapshot = await get(ref(database, 'users/teachers'));
+    const classesSnapshot = await get(ref(database, 'classes'));
+
+    const teachersVal = teachersSnapshot.val() || {};
+    const classesVal = classesSnapshot.val() || {};
+
+    const teachers = Object.values(teachersVal) as Teacher[];
+    const classes = Object.values(classesVal) as ClassRoom[];
+
+    const updates: Record<string, null> = {};
+    updates[`schools/${schoolId}`] = null;
+
+    // Cascade delete teachers in this school
+    const schoolTeachers = teachers.filter(t => t.schoolId === schoolId);
+    schoolTeachers.forEach(t => {
+      updates[`users/teachers/${t.id}`] = null;
+    });
+
+    // Cascade delete classes in this school (from both classes and public_classes)
+    const schoolClasses = classes.filter(c => c.schoolId === schoolId);
+    schoolClasses.forEach(c => {
+      updates[`classes/${c.id}`] = null;
+      updates[`public_classes/${c.id}`] = null;
+    });
+
+    await update(ref(database), updates);
+  }
+
+  public async addTeacher(schoolId: string, name: string, taz: string, dob: string) {
+    const id = taz; // Use taz as ID to align with auth and security rules
+    const newTeacher: Teacher = {
+      id,
+      schoolId,
+      name,
+      taz,
+      dob,
+      licenseActive: true,
+      createdAt: Date.now()
+    };
+    await set(ref(database, `users/teachers/${id}`), newTeacher);
+  }
+
+  public async deleteTeacher(teacherId: string) {
+    // Fetch the latest classes list from Firebase via get()
+    const classesSnapshot = await get(ref(database, 'classes'));
+    const classesVal = classesSnapshot.val() || {};
+    const classes = Object.values(classesVal) as ClassRoom[];
+
+    const updates: Record<string, null> = {};
+    updates[`users/teachers/${teacherId}`] = null;
+
+    // Cascade delete classes belonging to this teacher (from both classes and public_classes)
+    const teacherClasses = classes.filter(c => c.teacherId === teacherId);
+    teacherClasses.forEach(c => {
+      updates[`classes/${c.id}`] = null;
+      updates[`public_classes/${c.id}`] = null;
+    });
+
+    await update(ref(database), updates);
+  }
+
+  public async addClassRoom(schoolId: string, teacherId: string, name: string) {
+    const id = push(ref(database, 'classes')).key;
+    if (!id) throw new Error("Failed to generate class ID");
+    const limit = useAdminStore.getState().globalStudentLimit;
+    const newClass: ClassRoom = {
+      id,
+      schoolId,
+      teacherId,
+      name,
+      studentLimit: limit,
+      createdAt: Date.now()
+    };
+    const updates: Record<string, any> = {};
+    updates[`classes/${id}`] = newClass;
+    updates[`public_classes/${id}`] = { id, name, schoolId };
+    await update(ref(database), updates);
+  }
+
+  public async deleteClassRoom(id: string) {
+    const updates: Record<string, null> = {};
+    updates[`classes/${id}`] = null;
+    updates[`public_classes/${id}`] = null;
+    await update(ref(database), updates);
+  }
+
+  public async setGlobalStudentLimit(limit: number) {
+    await set(ref(database, 'system_control/globalStudentLimit'), limit);
   }
 }
 
