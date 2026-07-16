@@ -1,7 +1,6 @@
 import { useRef } from 'react';
 import { PLACE_ORDER, type Place } from '@/core/placeValue';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
-import { radar } from '@/features/workspace/radarBus';
 
 /**
  * תרגיל חיבור/חיסור במאונך — דף מחברת אמיתי:
@@ -115,7 +114,6 @@ export function VerticalAdditionTask({
                 className="rounded-md border-2 border-ws-surface2 text-center font-mono font-bold bg-ws-surface text-ws-ink focus:outline-none focus:ring-2 focus:ring-ws-accent transition-shadow"
                 style={{ width: CELL * 0.6, height: CELL * 0.6, fontSize: CELL * 0.35 }}
                 onChange={(e) => {
-                  radar.recordAction();
                   const v = e.target.value.replace(/[^0-9]/g, '').slice(-2);
                   setCarryDigit(place, v);
                 }}
@@ -223,7 +221,6 @@ export function VerticalAdditionTask({
                 onFocus={() => setFocusedPlace(place)}
                 onBlur={() => setFocusedPlace(null)}
                 onChange={(e) => {
-                  radar.recordAction();
                   const v = e.target.value.replace(/[^0-9]/g, '').slice(-1);
                   setAnswerDigit(place, v);
                   // Advance leftward to the next-higher place (natural carrying direction).

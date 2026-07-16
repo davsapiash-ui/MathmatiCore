@@ -34,7 +34,6 @@ import { useAuthStore } from '@/application/useAuthStore';
 import { CurriculumRouter } from '@/core/CurriculumRouter';
 import { QMatrixEvaluator } from '@/core/QMatrix';
 import { getSessionTasks, type SessionTask } from '@/data/sessionTasks';
-import { radar } from '@/features/workspace/radarBus';
 
 const UNDO_STACK_CAP = 50;
 
@@ -271,7 +270,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
   function startTask(taskId: string) {
     set(resetTaskInteraction());
-    radar.setTask(taskId);
 
     // Auto-close the board if the incoming task is a number_line task
     const s = get();
@@ -402,7 +400,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     if (!task) return;
 
     const handleFailure = (detail: string, feedbackTitle: string, feedbackSub: string, feedbackMs: number) => {
-      radar.recordTaskError(task.id, detail);
       if (task.targetNode && s.sessionNumber >= 3) {
         const strikes = (s.nodeStrikes[task.targetNode] || 0) + 1;
         set({ nodeStrikes: { ...s.nodeStrikes, [task.targetNode]: strikes }, successStreak: 0 });
@@ -664,7 +661,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     }
 
     if (evalResult) {
-      if (!evalResult.correct) radar.recordTaskError(task.id, evalResult.detail);
       set({ awaitingNext: true });
       const { state, event } = recordResult(s.qflow, evalResult);
       set({ qflow: state });
@@ -736,7 +732,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         ...resetTaskInteraction(),
       });
       const firstId = meeting === 2 ? getCurrentQTask(qflow)?.id ?? '' : (initialAITasks ?? getSessionTasks(meeting as any))[startingTaskIdx ?? 0]?.id ?? '';
-      radar.setTask(firstId);
     },
 
     restoreSession: (saved) => {
@@ -773,7 +768,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       });
       const s = get();
       const firstId = s.sessionNumber === 2 ? getCurrentQTask(s.qflow)?.id ?? '' : (s.aiTasks ?? getSessionTasks(s.sessionNumber as any))[s.standardTaskIdx ?? 0]?.id ?? '';
-      radar.setTask(firstId);
     },
 
     injectTask: (task, position) => {
@@ -794,7 +788,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     applyDrop: (input) => {
       const s = get();
-      radar.recordAction();
       const result = resolveDrop(s.counts, input, selectScaffoldLevel(s));
       if (!result.ok) {
         if (result.reason === 'constraint') flagConstraintError(result.place);
@@ -834,7 +827,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // Only a TRASH drop is a delete. Manual regrouping also sets `removed` (blocks leave
       // the source column) — counting it fired false PASSIVE_DRIFTING radar alerts after
       // three quick regroups, flagging exactly the students doing the RIGHT thing.
-      if (isDelete) radar.recordDelete();
 
       // Log semantic event for valid drop
       const studentId = useAuthStore.getState().user?.uid;
@@ -859,7 +851,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     removeBlockClick: (place) => {
       const s = get();
-      radar.recordAction();
       const next = removeBlock(s.counts, place);
       if (!next) {
         flagConstraintError(place);
@@ -867,7 +858,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       }
       pushSnapshot(s.counts);
       set({ counts: next, hasInteracted: true, hasDeletedBlock: true, undoCount: s.undoCount + 1 });
-      radar.recordDelete();
 
       const studentId = useAuthStore.getState().user?.uid;
       if (studentId) {
@@ -888,8 +878,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const snapshot = stack.pop();
       if (!snapshot) return;
       set({ counts: snapshot.counts, undoStack: stack, undoCount: s.undoCount + 1 });
-      radar.recordUndo();
-      radar.recordAction();
 
       const studentId = useAuthStore.getState().user?.uid;
       if (studentId) {
@@ -909,7 +897,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     selectChoice: (id) => {
       set({ selectedChoiceId: id, hasInteracted: true });
-      radar.recordAction();
       
       const studentId = useAuthStore.getState().user?.uid;
       if (studentId) {
@@ -927,7 +914,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     setNumberLineValue: (v) => {
       set({ numberLineValue: v, hasInteracted: true });
-      radar.recordAction();
 
       const studentId = useAuthStore.getState().user?.uid;
       if (studentId) {
@@ -944,7 +930,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     },
 
     setAnswerDigit: (place, val) => {
-      radar.recordAction();
       set((s) => ({ answerDigits: { ...s.answerDigits, [place]: val }, hasInteracted: true }));
       
       const studentId = useAuthStore.getState().user?.uid;
@@ -962,7 +947,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     },
 
     setCarryDigit: (place, val) => {
-      radar.recordAction();
       set((s) => ({ carryDigits: { ...s.carryDigits, [place]: val }, hasInteracted: true }));
 
       const studentId = useAuthStore.getState().user?.uid;
@@ -981,7 +965,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     setProbeAnswer: (v) => {
       set({ probeAnswer: v, hasInteracted: true });
-      radar.recordAction();
 
       const studentId = useAuthStore.getState().user?.uid;
       if (studentId) {
@@ -1000,7 +983,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     /** Q3 "הוסף ייצוג" (vanilla addQ3Representation, app.js 747–810). */
     addRepresentation: () => {
       const s = get();
-      radar.recordAction();
       const value = selectBoardValue(s);
 
       let target: number | undefined;
@@ -1014,7 +996,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       }
 
       if (target !== undefined && value !== target) {
-        radar.recordTaskError('q3', 'wrong_sum');
         const hint =
           s.sessionNumber === 2
             ? 'סריקת הרדאר מזהה שכמות הבלוקים בלוח אינה תואמת למבוקש. איך נוכל לשנות זאת כדי להגיע לכמות המדויקת?'
@@ -1044,14 +1025,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     /** "החזרת עזרים" (spec M4, Responsive Fading): the student may temporarily bring
         faded scaffolds back to full visibility when hitting a new difficulty. */
     restoreScaffolds: () => {
-      radar.recordAction();
       set({ scaffoldFadeLevel: 0 });
     },
 
     /** Q3 backward-diagnosis guided demo: decompose one ten into 10 units. */
     demoUngroup: () => {
       const s = get();
-      radar.recordAction();
       const result = resolveDrop(s.counts, { source: 'column', sourcePlace: 'tens', target: { kind: 'column', place: 'units' } }, selectScaffoldLevel(s));
       if (result.ok) {
         pushSnapshot(s.counts);
@@ -1064,7 +1043,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     proceed: () => {
       const s = get();
       if (s.awaitingNext || s.flowStatus !== 'task' || !selectCanProceed(s)) return;
-      radar.recordAction();
       if (s.sessionNumber === 2) proceedQ();
       else proceedStandard();
     },
@@ -1110,7 +1088,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     requestHelp: () => {
       const s = get();
       if (s.helpState !== 'closed') return;
-      radar.recordHintRequest();
       set({ helpState: 'friction', frictionTriggerSource: 'lightbulb', aiSocraticHint: null });
       get().fetchSocraticHint();
     },

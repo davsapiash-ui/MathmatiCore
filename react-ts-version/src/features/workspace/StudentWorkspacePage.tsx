@@ -31,10 +31,8 @@ import { FeedbackToast } from './overlays/FeedbackToast';
 import { HelpOverlays } from './overlays/HelpOverlays';
 import { ReflectionScreen } from './ReflectionScreen';
 import { useStore } from '@/application/useStore';
-import { useWorkspaceRadar } from './useWorkspaceRadar';
 
 import { StudentChatOverlay } from './overlays/StudentChatOverlay';
-import { telemetryTracker } from '@/infrastructure/TelemetryTracker';
 
 import { SocraticEngine } from '@/infrastructure/services/SocraticEngine';
 
@@ -60,9 +58,7 @@ export function StudentWorkspacePage() {
   // Start telemetry session so the radar tracker is active
   useEffect(() => {
     if (!user?.uid) return;
-    telemetryTracker.startSession(user.uid);
     return () => {
-      telemetryTracker.endSession();
     };
   }, [user?.uid]);
 
@@ -109,7 +105,6 @@ export function StudentWorkspacePage() {
   const [activeDrag, setActiveDrag] = useState<{ place: Place; source: DragSource; renderPlace?: Place } | null>(null);
 
   // הרדאר השקט — covert monitoring for the teacher dashboard; nothing student-visible.
-  useWorkspaceRadar(sessionNumber);
 
   // Session done (meeting 4 end) → back to the hub.
   // NOTE: qMatrixResults/traceData are written ONCE, at the right moment — the
@@ -218,7 +213,6 @@ export function StudentWorkspacePage() {
   const hideValueDisplay = qTask?.type === 'number_line' && !isSubtaskActive(qflow);
 
   // Redundant useSilentRadar removed here to prevent ghost alerts for non-students.
-  // useWorkspaceRadar already handles radar tracking safely and globally.
 
   const [isInitializing, setIsInitializing] = useState(meeting === 3);
   const [pendingApproval, setPendingApproval] = useState(false);
@@ -298,7 +292,6 @@ export function StudentWorkspacePage() {
   );
 
   const handleDragStart = (event: DragStartEvent) => {
-    import('./radarBus').then(({ radar }) => radar.recordAction());
     const data = event.active.data.current as { source: DragSource; place: Place; renderPlace?: Place } | undefined;
     if (data) setActiveDrag({ place: data.place, source: data.source, renderPlace: data.renderPlace });
 
@@ -318,7 +311,6 @@ export function StudentWorkspacePage() {
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
-    import('./radarBus').then(({ radar }) => radar.recordAction());
     setActiveDrag(null);
     const data = event.active.data.current as { source: DragSource; place: Place } | undefined;
     const over = event.over?.data.current as { kind: 'column'; place: Place } | { kind: 'trash' } | undefined;
