@@ -68,27 +68,31 @@ export function WorkspaceTopbar() {
 
         <div className="w-px h-6 bg-ws-surface2" />
 
-        <button
-          onClick={toggleBoard}
-          className={`h-10 px-4 sm:px-5 rounded-full text-sm font-bold border-2 transition-all flex items-center gap-2 shadow-sm ${
-            boardOpen 
-              ? 'text-ws-blue border-ws-blue bg-white hover:bg-ws-blue/10'
-              : 'text-white bg-ws-blue border-ws-blue hover:brightness-110'
-          }`}
-          aria-label={boardOpen ? 'הסתר בית המספרים' : 'פתח בית המספרים'}
-        >
-          <span aria-hidden="true">🏠</span>
-          <span className="hidden sm:inline">{boardOpen ? 'הסתר' : 'בית המספרים'}</span>
-        </button>
+        {sessionNumber !== 8 && (
+          <>
+            <button
+              onClick={toggleBoard}
+              className={`h-10 px-4 sm:px-5 rounded-full text-sm font-bold border-2 transition-all flex items-center gap-2 shadow-sm ${
+                boardOpen 
+                  ? 'text-ws-blue border-ws-blue bg-white hover:bg-ws-blue/10'
+                  : 'text-white bg-ws-blue border-ws-blue hover:brightness-110'
+              }`}
+              aria-label={boardOpen ? 'הסתר בית המספרים' : 'פתח בית המספרים'}
+            >
+              <span aria-hidden="true">🏠</span>
+              <span className="hidden sm:inline">{boardOpen ? 'הסתר' : 'בית המספרים'}</span>
+            </button>
 
-        <button
-          onClick={undo}
-          disabled={!canUndo}
-          className="h-10 px-3 sm:px-4 rounded-full text-sm font-bold text-ws-ink bg-ws-surface2 hover:bg-ws-surface2/80 transition-all flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
-          aria-label="בטל פעולה אחרונה"
-        >
-          <span aria-hidden="true">↩</span> <span className="hidden sm:inline">בטל</span>
-        </button>
+            <button
+              onClick={undo}
+              disabled={!canUndo}
+              className="h-10 px-3 sm:px-4 rounded-full text-sm font-bold text-ws-ink bg-ws-surface2 hover:bg-ws-surface2/80 transition-all flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+              aria-label="בטל פעולה אחרונה"
+            >
+              <span aria-hidden="true">↩</span> <span className="hidden sm:inline">בטל</span>
+            </button>
+          </>
+        )}
 
         {globalChatEnabled && (
           <button

@@ -5,7 +5,7 @@ import { UdlButton } from "@/presentation/design-system/UdlButton";
 import { AccessibleCard } from "@/presentation/design-system/AccessibleCard";
 import { DataGrid } from "@/presentation/design-system/DataGrid";
 import { useAuthStore } from "@/application/useAuthStore";
-import { useChatStore } from "@/application/useChatStore";
+import { useChatStore, type ChatMessage } from "@/application/useChatStore";
 import { useStore, type StudentData } from "@/application/useStore";
 import { ref, onValue, remove, set } from "firebase/database";
 import { database } from "@/infrastructure/firebase";
@@ -27,6 +27,46 @@ import { SocraticEngine, type PendingAIApproval } from "@/infrastructure/service
 import { useTeacherTour } from "./TeacherDashboard/useTeacherTour";
 import type { RadarAlert } from "@/types/dashboard";
 import { CONCEPT_LABELS_HE } from "@/core/QMatrix";
+
+const getStudentKPIs = (student: StudentData, messages: ChatMessage[]) => {
+  // 1. Persistence
+  const undo = student.traceData?.undo_clicks || 0;
+  const hesitation = student.traceData?.hesitation_events || 0;
+  const persistenceScore = 70 + Math.min(20, undo * 3) + Math.min(15, hesitation * 1.5);
+  const persistence = Math.round(Math.min(100, persistenceScore));
+
+  // 2. Efficiency
+  const meeting2Bonus = student.completedMeeting2 ? 10 : 0;
+  const efficiencyScore = 90 - 2.5 * (undo + hesitation) + meeting2Bonus;
+  const efficiency = Math.round(Math.max(0, Math.min(100, efficiencyScore)));
+
+  // 3. Estimation Accuracy
+  const margin = student.qMatrixResults?.task2_estimation_error_margin;
+  let estimationAccuracy = 80;
+  if (margin === 'success') {
+    estimationAccuracy = 94;
+  } else if (margin !== null && margin !== undefined) {
+    estimationAccuracy = 68;
+  }
+
+  // 4. Dialogue Quality
+  const teacherMsgs = messages.filter(msg => msg.receiverId === student.studentId && msg.senderId !== student.studentId);
+  let dialogueQuality = 85;
+  if (teacherMsgs.length > 0) {
+    const keywords = ["איך", "כיצד", "למה", "מדוע", "אסטרטגיה", "שלב", "דרך", "מחשבה", "פריטה", "קיבוץ", "המרה"];
+    const matchingMsgs = teacherMsgs.filter(msg => 
+      keywords.some(keyword => msg.text.includes(keyword))
+    );
+    dialogueQuality = Math.round((matchingMsgs.length / teacherMsgs.length) * 100);
+  }
+
+  return {
+    persistence,
+    efficiency,
+    estimationAccuracy,
+    dialogueQuality
+  };
+};
 
 export function TeacherDashboard() {
   useTeacherTour();
@@ -121,6 +161,7 @@ export function TeacherDashboard() {
           completedMeeting2: s.completedMeeting2 ?? false,
           routeRecommendation: s.routeRecommendation ?? null,
           routeStatus: s.routeStatus ?? null,
+          additionBoardEnabled: s.additionBoardEnabled ?? false,
         } as any;
       }
 
@@ -163,6 +204,7 @@ export function TeacherDashboard() {
           routeRecommendation: row.routeRecommendation ?? null,
           routeStatus: row.routeStatus ?? null,
           diagnosticReport: row.diagnosticReport ?? null,
+          additionBoardEnabled: row.additionBoardEnabled ?? false,
           // Support legacy props expected by some components
           currentTask: row.workspaceState?.standardTaskIdx || 0,
           sessionNum: row.workspaceState?.sessionNumber || 1,
@@ -1117,6 +1159,54 @@ export function TeacherDashboard() {
                                   </div>
                                 </div>
 
+                                {/* Quantitative KPIs */}
+                                {(() => {
+                                  const kpis = getStudentKPIs(s, messages);
+                                  return (
+                                    <div className="bg-slate-50 dark:bg-slate-800/40 p-4 rounded-xl border border-slate-150 dark:border-slate-800">
+                                      <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200 mb-3">מדדי ביצוע כמותיים (KPIs):</h4>
+                                      <div className="grid grid-cols-2 gap-3 text-xs">
+                                        <div className="bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-slate-200 shadow-sm">
+                                          <div className="flex justify-between font-bold mb-1">
+                                            <span>מדד התמדה:</span>
+                                            <span className="text-blue-600">{kpis.persistence}%</span>
+                                          </div>
+                                          <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                                            <div className="bg-blue-500 h-full rounded-full" style={{ width: `${kpis.persistence}%` }}></div>
+                                          </div>
+                                        </div>
+                                        <div className="bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-slate-200 shadow-sm">
+                                          <div className="flex justify-between font-bold mb-1">
+                                            <span>יעילות:</span>
+                                            <span className="text-emerald-600">{kpis.efficiency}%</span>
+                                          </div>
+                                          <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                                            <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${kpis.efficiency}%` }}></div>
+                                          </div>
+                                        </div>
+                                        <div className="bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-slate-200 shadow-sm">
+                                          <div className="flex justify-between font-bold mb-1">
+                                            <span>דיוק אומדן:</span>
+                                            <span className="text-amber-600">{kpis.estimationAccuracy}%</span>
+                                          </div>
+                                          <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                                            <div className="bg-amber-500 h-full rounded-full" style={{ width: `${kpis.estimationAccuracy}%` }}></div>
+                                          </div>
+                                        </div>
+                                        <div className="bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-slate-200 shadow-sm">
+                                          <div className="flex justify-between font-bold mb-1">
+                                            <span>איכות דיאלוג:</span>
+                                            <span className="text-purple-600">{kpis.dialogueQuality}%</span>
+                                          </div>
+                                          <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                                            <div className="bg-purple-500 h-full rounded-full" style={{ width: `${kpis.dialogueQuality}%` }}></div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })()}
+
                                 {/* Analytical Report */}
                                 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
                                   <h4 className="font-bold text-slate-800 mb-3 text-lg flex items-center gap-2">
@@ -1275,6 +1365,57 @@ export function TeacherDashboard() {
                           : 'התלמיד הפגין שליטה טובה במיומנויות הבסיס וללא סימני מאבק קוגניטיבי מהותיים. מפגש 3 יאתגר אותו בבעיות מתקדמות ללא פיגומים מיותרים.'}
                       </p>
                     </div>
+
+                    {/* Quantitative KPIs */}
+                    {(() => {
+                      const kpis = getStudentKPIs(student, messages);
+                      return (
+                        <div className="mb-6 bg-slate-50 dark:bg-slate-800/40 p-5 rounded-2xl border border-slate-100 dark:border-slate-850">
+                          <h4 className="font-bold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
+                            <span>📈</span>
+                            מדדי ביצוע כמותיים (KPIs):
+                          </h4>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200/60 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+                              <span className="text-xs text-ws-soft block mb-1">מדד התמדה (Persistence)</span>
+                              <div className="flex items-baseline gap-2">
+                                <span className="text-2xl font-black text-slate-900 dark:text-white">{kpis.persistence}%</span>
+                              </div>
+                              <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full mt-2 overflow-hidden">
+                                <div className="bg-blue-500 h-full rounded-full" style={{ width: `${kpis.persistence}%` }}></div>
+                              </div>
+                            </div>
+                            <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200/60 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+                              <span className="text-xs text-ws-soft block mb-1">יעילות (Efficiency)</span>
+                              <div className="flex items-baseline gap-2">
+                                <span className="text-2xl font-black text-slate-900 dark:text-white">{kpis.efficiency}%</span>
+                              </div>
+                              <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full mt-2 overflow-hidden">
+                                <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${kpis.efficiency}%` }}></div>
+                              </div>
+                            </div>
+                            <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200/60 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+                              <span className="text-xs text-ws-soft block mb-1">דיוק אומדן (Estimation)</span>
+                              <div className="flex items-baseline gap-2">
+                                <span className="text-2xl font-black text-slate-900 dark:text-white">{kpis.estimationAccuracy}%</span>
+                              </div>
+                              <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full mt-2 overflow-hidden">
+                                <div className="bg-amber-500 h-full rounded-full" style={{ width: `${kpis.estimationAccuracy}%` }}></div>
+                              </div>
+                            </div>
+                            <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200/60 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+                              <span className="text-xs text-ws-soft block mb-1">איכות דיאלוג (Dialogue)</span>
+                              <div className="flex items-baseline gap-2">
+                                <span className="text-2xl font-black text-slate-900 dark:text-white">{kpis.dialogueQuality}%</span>
+                              </div>
+                              <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full mt-2 overflow-hidden">
+                                <div className="bg-purple-500 h-full rounded-full" style={{ width: `${kpis.dialogueQuality}%` }}></div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
 
                     {/* AI Socratic Engine Diagnosis: Macro and Micro */}
                     {(() => {

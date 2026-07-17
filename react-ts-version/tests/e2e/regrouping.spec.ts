@@ -81,8 +81,7 @@ test.describe('Regrouping State Mechanics', () => {
     await expect(unitsColumnBlocks).toHaveCount(10, { timeout: 5000 });
 
     // Verify tens column is empty
-    const tensCountBeforeRegroup = await page.locator('#column-tens [id^="col-tens-"]').count();
-    expect(tensCountBeforeRegroup).toBe(0);
+    await expect(page.locator('#column-tens [id^="col-tens-"]')).toHaveCount(0, { timeout: 5000 });
 
     // Drag one unit block from units column to tens column to trigger manual regrouping
     await dragAndDrop(page, '#column-units [id^="col-units-"]', '#column-tens');

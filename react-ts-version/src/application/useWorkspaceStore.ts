@@ -210,6 +210,17 @@ export function selectBoardValue(s: WorkspaceState): number {
 /** Vanilla updateProceedButton: interaction required (intro exempt); choice tasks need a selection. */
 export function selectCanProceed(s: WorkspaceState): boolean {
   if (s.awaitingNext || s.flowStatus !== 'task') return false;
+  if (s.sessionNumber === 8) {
+    const task = selectStandardTask(s);
+    if (!task) return false;
+    if (task.type === 'number_line') {
+      return s.numberLineValue !== null;
+    }
+    if (task.type === 'addition_simple' || task.type === 'vertical_addition') {
+      return answerDigitsToNumber(s.answerDigits) !== null;
+    }
+    return s.hasInteracted;
+  }
   if (s.sessionNumber === 2) {
     const task = getCurrentQTask(s.qflow);
     if (!task) return false;
@@ -505,25 +516,26 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       handleSuccess('נָכוֹן מְאוֹד! 🌟', 'הָעֵרֶךְ נִשְׁאַר זֶהֶה לַחֲלוּטִין כִּי לֹא שִׁנִּינוּ אֶת הַכַּמּוּת הַכּוֹלֶלֶת.', 2500);
       return;
     }
-
     if (task.type === 'addition_simple' || task.type === 'vertical_addition') {
       // Target derived from the DISPLAYED (ASD-aware) operands — never from a hardcoded
       // correctAnswer that could mismatch the shown exercise.
       const { target } = effectiveArithmetic(task, s.isASD);
       // Gate 1: the blocks must represent the result (forced manipulative representation).
-      if (selectBoardValue(s) !== target) {
-        handleFailure('wrong_blocks', 'מערכת המעבדה 🤔', 'בואו נבדוק שוב את הלוח. האם הכמות של הקוביות שהנחתם תואמת בדיוק למה שמופיע בניסוי?', 3500);
-        return;
-      }
-      // Gate 1.5: the representation must be canonical (properly grouped) at submission.
-      const hasOvercrowded = s.counts.units >= 10 || s.counts.tens >= 10;
-      if (hasOvercrowded) {
-        const title = 'לוח לא תקין 🧐';
-        const msg = task.isSubtraction
-          ? 'נראה שיש מעל 9 יחידות או עשרות בעמודה. בתרגילי חיסור, האם שכחתם לבצע פריטה או להחסיר קוביות כדי להגיע לתוצאה הסופית?'
-          : 'נראה שיש מעל 9 יחידות או עשרות בעמודה. בתרגילי חיבור, יש לבצע המרה/קיבוץ כדי לסדר את הלוח בצורה תקנית!';
-        handleFailure('overcrowded_columns', title, msg, 4000);
-        return;
+      if (s.sessionNumber !== 8) {
+        if (selectBoardValue(s) !== target) {
+          handleFailure('wrong_blocks', 'מערכת המעבדה 🤔', 'בואו נבדוק שוב את הלוח. האם הכמות של הקוביות שהנחתם תואמת בדיוק למה שמופיע בניסוי?', 3500);
+          return;
+        }
+        // Gate 1.5: the representation must be canonical (properly grouped) at submission.
+        const hasOvercrowded = s.counts.units >= 10 || s.counts.tens >= 10;
+        if (hasOvercrowded) {
+          const title = 'לוח לא תקין 🧐';
+          const msg = task.isSubtraction
+            ? 'נראה שיש מעל 9 יחידות או עשרות בעמודה. בתרגילי חיסור, האם שכחתם לבצע פריטה או להחסיר קוביות כדי להגיע לתוצאה הסופית?'
+            : 'נראה שיש מעל 9 יחידות או עשרות בעמודה. בתרגילי חיבור, יש לבצע המרה/קיבוץ כדי לסדר את הלוח בצורה תקנית!';
+          handleFailure('overcrowded_columns', title, msg, 4000);
+          return;
+        }
       }
       // Gate 2: the written answer must match.
       const ansVal = answerDigitsToNumber(s.answerDigits);
@@ -543,6 +555,15 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     if (task.type === 'number_line') {
       if (s.numberLineValue === null) return;
       const target = task.numberA ?? 0;
+      if (s.sessionNumber === 8) {
+        const correct = s.numberLineValue === target;
+        if (!correct) {
+          handleFailure('wrong_answer', 'נסו שוב 🤔', 'התשובה שהזנתם אינה נכונה.', 2500);
+          return;
+        }
+        handleSuccess('מְעֻלֶּה! 🌟', 'פתרתם נכון.', 2500);
+        return;
+      }
       const range = task.range ?? [0, 100];
       const rangeSize = range[1] - range[0];
       const deviation = Math.abs(s.numberLineValue - target);
@@ -939,7 +960,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
       const stack = [...s.undoStack];
       const snapshot = stack.pop();
-      if (!snapshot) return;
+      if (!snapshot) {
+        set({ consecutiveUndos: newConsecutiveUndos });
+        return;
+      }
       
       set({ 
         counts: snapshot.counts, 

@@ -118,6 +118,7 @@ class FirebaseSyncService {
                 ...(data.routeStatus !== undefined && { routeStatus: data.routeStatus }),
                 ...(data.isOnline !== undefined && { isOnline: data.isOnline }),
                 ...(data.workspaceState && { workspaceState: data.workspaceState }),
+                ...(data.additionBoardEnabled !== undefined && { additionBoardEnabled: data.additionBoardEnabled }),
               }
             },
             firebaseLoaded: true
@@ -130,7 +131,8 @@ class FirebaseSyncService {
             lastActive: serverTimestamp(),
             completedMeeting2: false,
             highestCompletedMeeting: 0,
-            routeStatus: null
+            routeStatus: null,
+            additionBoardEnabled: false
           });
           useStore.setState({ firebaseLoaded: true });
         }
@@ -160,9 +162,12 @@ class FirebaseSyncService {
         aiTasks: state.aiTasks
       };
 
+      const additionBoardEnabled = useStore.getState().students[studentId]?.additionBoardEnabled;
+
       update(studentRef, {
         workspaceState: syncableData,
-        lastActive: serverTimestamp()
+        lastActive: serverTimestamp(),
+        ...(additionBoardEnabled !== undefined && { additionBoardEnabled })
       });
     });
   }

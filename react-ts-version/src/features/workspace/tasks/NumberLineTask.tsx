@@ -18,8 +18,13 @@ export function NumberLineTask({
   asdAnchors?: number[];
   activeRange?: [number, number];
 }) {
+  const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
   const value = useWorkspaceStore((s) => s.numberLineValue);
   const setNumberLineValue = useWorkspaceStore((s) => s.setNumberLineValue);
+
+  if (sessionNumber === 8) {
+    return null;
+  }
   const trackRef = useRef<HTMLDivElement>(null);
 
   const [min, max] = range;

@@ -33,6 +33,7 @@ import { ReflectionScreen } from './ReflectionScreen';
 import { useStore } from '@/application/useStore';
 
 import { StudentChatOverlay } from './overlays/StudentChatOverlay';
+import { AdditionHelper } from './board/AdditionHelper';
 
 import { SocraticEngine } from '@/infrastructure/services/SocraticEngine';
 
@@ -43,7 +44,7 @@ import { SocraticEngine } from '@/infrastructure/services/SocraticEngine';
 export function StudentWorkspacePage() {
   const [searchParams] = useSearchParams();
   const meetingRaw = parseInt(searchParams.get('meeting') ?? '1', 10);
-  const meeting = (Number.isNaN(meetingRaw) ? 1 : Math.min(4, Math.max(1, meetingRaw))) as SessionNumber;
+  const meeting = (Number.isNaN(meetingRaw) ? 1 : Math.min(8, Math.max(1, meetingRaw))) as SessionNumber;
 
   const navigate = useNavigate();
   const { isASDMode } = useSettingsStore();
@@ -217,6 +218,7 @@ export function StudentWorkspacePage() {
   const [isInitializing, setIsInitializing] = useState(meeting === 3);
   const [pendingApproval, setPendingApproval] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [isAdditionHelperOpen, setIsAdditionHelperOpen] = useState(false);
 
   // Reset initialization when meeting changes
   useEffect(() => {
@@ -227,6 +229,7 @@ export function StudentWorkspacePage() {
   const students = useStore((s) => s.students);
   const firebaseLoaded = useStore((s) => s.firebaseLoaded);
   const myData = user?.uid ? students[user.uid] : null;
+  const isAdditionBoardEnabled = myData?.additionBoardEnabled ?? false;
 
   useEffect(() => {
     if (!firebaseLoaded || isInitialized) return;
@@ -411,6 +414,30 @@ export function StudentWorkspacePage() {
         <FeedbackToast />
         <HelpOverlays />
         <StudentChatOverlay />
+
+        {isAdditionBoardEnabled && (
+          <div className="fixed bottom-20 left-4 z-50 flex flex-col items-end gap-2" dir="rtl">
+            <AnimatePresence>
+              {isAdditionHelperOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 20, scale: 0.95 }}
+                  className="mb-2 shadow-2xl"
+                >
+                  <AdditionHelper />
+                </motion.div>
+              )}
+            </AnimatePresence>
+            <button
+              onClick={() => setIsAdditionHelperOpen(!isAdditionHelperOpen)}
+              className="bg-ws-accent text-white font-bold px-4 py-3 rounded-full shadow-lg hover:bg-ws-accent/90 transition-all flex items-center gap-2 border border-ws-accent/20"
+            >
+              <span>🧮</span>
+              <span>לוח עזר לחיבור</span>
+            </button>
+          </div>
+        )}
       </div>
 
       <DragOverlay dropAnimation={{ duration: 250, easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)' }}>

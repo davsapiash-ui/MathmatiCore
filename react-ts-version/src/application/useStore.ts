@@ -67,6 +67,7 @@ export interface StudentData {
     standardTaskIdx: number;
   };
   liveSessionMetrics?: Record<string, any> | null;
+  additionBoardEnabled?: boolean;
 }
 
 interface AppState {

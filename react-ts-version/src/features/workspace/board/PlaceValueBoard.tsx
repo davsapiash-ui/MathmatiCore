@@ -17,6 +17,10 @@ export function PlaceValueBoard({ hideValueDisplay }: { hideValueDisplay?: boole
   const restoreScaffolds = useWorkspaceStore((s) => s.restoreScaffolds);
   const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
 
+  if (sessionNumber === 8) {
+    return null;
+  }
+
   // Hide thousands in sessions 1 and 2 (pedagogical progression)
   const placesToRender = sessionNumber <= 2 
     ? PLACE_ORDER.filter(p => p !== 'thousands')

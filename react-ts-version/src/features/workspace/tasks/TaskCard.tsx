@@ -22,6 +22,7 @@ export function TaskCard() {
   const qflow = useWorkspaceStore((s) => s.qflow);
   const standardTask = useWorkspaceStore(selectStandardTask);
   const standardTaskIdx = useWorkspaceStore((s) => s.standardTaskIdx);
+  const numberLineValue = useWorkspaceStore((s) => s.numberLineValue);
 
   const qTask = sessionNumber === 2 ? getCurrentQTask(qflow) : null;
   const subtask = sessionNumber === 2 && isSubtaskActive(qflow);
@@ -85,6 +86,7 @@ export function TaskCard() {
             {standardTask.type === 'flexible_decomp' && (
               <FlexibleDecompTask targetNumber={standardTask.numberA ?? 0} />
             )}
+
             {standardTask.type === 'number_line' && (
               <div className="flex flex-col gap-2">
                 <div className="self-center bg-ws-accentSoft rounded-2xl px-8 py-3 border border-ws-accent/30">
@@ -92,12 +94,31 @@ export function TaskCard() {
                     {standardTask.numberA ?? 50}
                   </span>
                 </div>
-                <NumberLineTask
-                  range={standardTask.range ?? [0, 100]}
-                  showMarkerValue={false}
-                />
+                {sessionNumber === 8 ? (
+                  <div className="flex flex-col items-center gap-3 mt-4 bg-slate-50 dark:bg-slate-800/40 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+                    <label className="text-lg font-bold text-slate-700 dark:text-slate-300">
+                      הקלידו את תשובתכם:
+                    </label>
+                    <input
+                      type="number"
+                      value={numberLineValue ?? ''}
+                      onChange={(e) => {
+                        const val = e.target.value === '' ? null : parseInt(e.target.value, 10);
+                        useWorkspaceStore.setState({ numberLineValue: val, hasInteracted: true });
+                      }}
+                      placeholder="הקלידו מספר..."
+                      className="w-48 text-center border-2 border-indigo-500 rounded-xl px-4 py-2 font-display text-2xl font-black focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:bg-slate-900 dark:text-white"
+                    />
+                  </div>
+                ) : (
+                  <NumberLineTask
+                    range={standardTask.range ?? [0, 100]}
+                    showMarkerValue={false}
+                  />
+                )}
               </div>
             )}
+
             {standardTask.type === 'small_change' && (
               <SmallChangeTask
                 givenHe={standardTask.givenHe ?? ''}

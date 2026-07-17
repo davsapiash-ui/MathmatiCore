@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { type StudentData, useStore } from '@/application/useStore';
 import { X, CheckCircle, Sparkles, Send, RotateCcw, PenSquare } from 'lucide-react';
+import { ref, update } from 'firebase/database';
+import { database } from '@/infrastructure/firebase';
 
 interface Props {
   student: StudentData;
@@ -26,6 +28,17 @@ export function TeacherCoPilotModal({ student, onClose, onReset }: Props) {
   
   const [blueprintTasks, setBlueprintTasks] = useState<any[]>(defaultBlueprint as any[]);
   const [isApproving, setIsApproving] = useState(false);
+  const [additionBoardEnabled, setAdditionBoardEnabled] = useState(student.additionBoardEnabled ?? false);
+
+  const handleToggleAdditionBoard = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const checked = e.target.checked;
+    setAdditionBoardEnabled(checked);
+    try {
+      await update(ref(database, 'users/students/' + student.studentId), { additionBoardEnabled: checked });
+    } catch (err) {
+      console.error("Failed to update additionBoardEnabled:", err);
+    }
+  };
 
   const handleSendMessage = () => {
     if (!chatInput.trim()) return;
@@ -129,6 +142,26 @@ export function TeacherCoPilotModal({ student, onClose, onReset }: Props) {
                   </div>
                 </div>
               ))}
+            </div>
+
+            {/* Accessibility Adjustments */}
+            <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-750 rounded-2xl p-5 mb-6">
+              <h3 className="font-bold text-slate-800 dark:text-slate-200 mb-3 text-base flex items-center gap-2">
+                <span className="text-indigo-500">♿</span>
+                התאמות נגישות (Accessibility Adjustments)
+              </h3>
+              <label className="flex items-center gap-3 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={additionBoardEnabled}
+                  onChange={handleToggleAdditionBoard}
+                  className="w-5 h-5 rounded border-slate-300 text-indigo-650 focus:ring-indigo-500"
+                />
+                <div className="text-sm">
+                  <span className="font-bold text-slate-800 dark:text-slate-200 block">לוח חיבור דיגיטלי (Addition Helper)</span>
+                  <span className="text-slate-500 text-xs">הצג לוח לחיפוש עובדות חיבור (0-9) לתמיכה בתלמיד במהלך העבודה.</span>
+                </div>
+              </label>
             </div>
 
             {/* Approval Gate */}
