@@ -412,3 +412,74 @@ Integrity mode: development
 - [ ] הצוות יגיש קובץ Markdown המסochem את המסקנות: האם הנתונים (Q-Matrix, Logs, Replays) מספיקים, ומהם שלושת השיפורים הטכניים הנדרשים כדי לשפר את איכות הניתוח.
 </USER_REQUEST>
 </USER_REQUEST>
+
+## Follow-up — 2026-07-16T20:39:35Z
+
+<USER_REQUEST>
+# Teamwork Project Prompt — Draft
+
+> Status: Ready for launch — awaiting user approval
+> Goal: Get user approval → delegate to teamwork_preview
+
+Refactoring the Admin Management Interface (מנהל מערכת) in the MathmatiCore platform to use Firebase for complete cloud sync of Schools, Classes, and Quotas, replacing the current local-only `persist` state. Authentication logic remains unchanged.
+
+Working directory: `c:\Users\david\Projects\MathmatiCore\react-ts-version`
+Integrity mode: development
+
+## Requirements
+
+### R1. Cloud Sync for Infrastructure (Schools & Classes)
+Migrate `addSchool`, `deleteSchool`, `addClassRoom`, and `deleteClassRoom` in `useAdminStore.ts` to sync with Firebase Realtime Database (e.g., via `FirebaseSyncService.ts`) instead of relying solely on local Zustand `persist`.
+
+### R2. Global Limit Sync
+Ensure the `globalStudentLimit` is stored and updated in Firebase, allowing all Admin users on different computers to see the same license quota limit.
+
+### R3. Cloud Cascade Deletion
+When `deleteSchool` or `deleteTeacher` is triggered, the data must be deleted from the Firebase Realtime Database, not just the local state array.
+
+## Acceptance Criteria
+
+### Infrastructure Sync
+- [ ] Agent-as-Judge verification: An independent check of the code confirms that calling `addSchool` results in a direct Firebase Realtime Database `set` or `update` call.
+- [ ] Agent-as-Judge verification: The global student limit is fetched from Firebase on load, and updated to Firebase when changed.
+
+### Deletion Integrity
+- [ ] Agent-as-Judge verification: `deleteTeacher` explicitly calls `remove()` or `set(ref, null)` in Firebase.
+</USER_REQUEST>
+
+## Follow-up — 2026-07-16T21:03:32Z
+
+<USER_REQUEST>
+# מסמך הנחיות לצוות הפיתוח (Teamwork)
+
+> **סטטוס:** שוגר לעבודה (Launched)
+> **יעד:** ביצוע כל המשימות ללא התערבות עד להשלמת האפיון
+
+תיקון והטמעת 3 הפערים האחרונים מתוך מסמך האפיון (PRD) של MathmatiCore: מדדי הצלחה כמותיים (KPIs), לוח חיבור דיגיטלי ל-ASD, ומבחן נטול פיגומים במפגש 8.
+
+**תיקיית עבודה:** `c:\Users\david\Projects\MathmatiCore\react-ts-version`
+**מוד אבטחה (Integrity Mode):** פיתוח (development)
+
+## דרישות (Requirements)
+
+### דרישה 1. מדדי הצלחה כמותיים (KPIs)
+חישוב 4 המדדים כמוגדר בסעיף 7 לאפיון (מדד התמדה, יעילות, דיוק אומדן, איכות דיאלוג). יש לשלב את תצוגת המדדים האלו ישירות לתוך כרטיסיות התלמידים בדשבורד המורה (`TeacherDashboard.tsx`).
+
+### דרישה 2. לוח חיבור דיגיטלי ל-ASD
+יצירת רכיב אופציונלי של לוח חיבור דיגיטלי על המסך כדי לאפשר לעקוף קשיי שליפה מזיכרון העבודה (לפי סעיף 6 באפיון). יש להוסיף מתג (Toggle) בדשבורד המורה המאפשר להדליק/לכבות עזר זה עבור תלמיד ספציפי.
+
+### דרישה 3. מבחן מסכם נטול פיגומים (מפגש 8)
+עדכון לוגיקת הראוטינג או המשימות כך שברגע שמגיעים למפגש 8, כל עזרי הלמידה החזותיים (בלוקים, ישר מספרים) יכובו אוטומטית כדי לבחון עצמאות מתמטית אמיתית (לפי סעיף 5 באפיון).
+
+## קריטריוני קבלה (Acceptance Criteria)
+
+### שילוב מדדי הצלחה (KPIs)
+- [ ] סוכן-מבקר (Agent-as-Judge) מוודא שהקוד מחשב את 4 המדדים (התמדה, יעילות, דיוק אומדן, דיאלוג) ושהם מוצגים ויזואלית ב-`TeacherDashboard.tsx`.
+
+### מתג לוח חיבור
+- [ ] סוכן-מבקר מוודא שנוצר רכיב חדש ללוח החיבור, ושיש למורה אפשרות להפעיל/לכבות אותו בדשבורד.
+
+### עצמאות במפגש 8
+- [ ] סוכן-מבקר מוודא שב-`CurriculumRouter.ts` או ברכיבי המשימה קיימת לוגיקה שמסתירה סממנים ויזואליים כשהמפגש שווה ל-8.
+</USER_REQUEST>
+

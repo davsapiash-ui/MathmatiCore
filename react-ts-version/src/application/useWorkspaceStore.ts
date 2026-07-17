@@ -111,7 +111,7 @@ interface WorkspaceState {
   toggleBoard: () => void;
   setFocusedPlace: (place: Place | null) => void;
   selectChoice: (id: string) => void;
-  setNumberLineValue: (v: number) => void;
+  setNumberLineValue: (v: number | null) => void;
   setAnswerDigit: (place: Place, val: string) => void;
   setCarryDigit: (place: Place, val: string) => void;
   setProbeAnswer: (v: string) => void;
@@ -540,7 +540,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // Gate 2: the written answer must match.
       const ansVal = answerDigitsToNumber(s.answerDigits);
       if (ansVal !== target) {
-        handleFailure('wrong_numeric', 'כִּמְעַט... 🧐', 'הַתְּשׁוּבָה שֶׁכְּתַבְתֶּם אֵינָהּ זֵהָה לְסַךְ הַקֻּבִּיּוֹת בַּטַּבְלָה. בִּדְקוּ שׁוּב!', 2800);
+        if (s.sessionNumber === 8) {
+          handleFailure('wrong_numeric', 'נסו שוב 🤔', 'התשובה שהזנתם אינה נכונה. בדקו שוב!', 2800);
+        } else {
+          handleFailure('wrong_numeric', 'כִּמְעַט... 🧐', 'הַתְּשׁוּבָה שֶׁכְּתַבְתֶּם אֵינָהּ זֵהָה לְסַךְ הַקֻּבִּיּוֹת בַּטַּבְלָה. בִּדְקוּ שׁוּב!', 2800);
+        }
         return;
       }
       // Gate 3: pedagogical progression compliance (grouping/ungrouping actions)

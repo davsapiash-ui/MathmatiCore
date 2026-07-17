@@ -56,15 +56,20 @@ test.describe('Silent Radar', () => {
     // Find a block to drop and undo
     await page.waitForSelector('[id^="palette-units"]', { timeout: 5000 });
     
+    const initialCount = await page.locator('#column-units [id^="col-units-"]').count();
+    
     await dragAndDrop(page, '[id^="palette-units"]', '#column-units');
 
     // Wait for the drop to register in the DOM
-    await expect(page.locator('#column-units [id^="col-units-"]')).toHaveCount(1, { timeout: 5000 });
+    await expect(page.locator('#column-units [id^="col-units-"]')).toHaveCount(initialCount + 1, { timeout: 5000 });
 
     // Now click undo
     const undoBtn = page.locator('button[aria-label*="בטל"], button[title*="בטל"], [id="undo-btn"]').first();
     await expect(undoBtn).toBeVisible({ timeout: 5000 });
     await undoBtn.click();
+
+    // Verify the count goes back to the initial count after undo
+    await expect(page.locator('#column-units [id^="col-units-"]')).toHaveCount(initialCount, { timeout: 5000 });
     
     // We can expose the store to the window in DEV mode to check its state
     const undoCount = await page.evaluate(() => {

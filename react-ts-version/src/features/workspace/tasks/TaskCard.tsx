@@ -23,6 +23,7 @@ export function TaskCard() {
   const standardTask = useWorkspaceStore(selectStandardTask);
   const standardTaskIdx = useWorkspaceStore((s) => s.standardTaskIdx);
   const numberLineValue = useWorkspaceStore((s) => s.numberLineValue);
+  const setNumberLineValue = useWorkspaceStore((s) => s.setNumberLineValue);
 
   const qTask = sessionNumber === 2 ? getCurrentQTask(qflow) : null;
   const subtask = sessionNumber === 2 && isSubtaskActive(qflow);
@@ -104,7 +105,7 @@ export function TaskCard() {
                       value={numberLineValue ?? ''}
                       onChange={(e) => {
                         const val = e.target.value === '' ? null : parseInt(e.target.value, 10);
-                        useWorkspaceStore.setState({ numberLineValue: val, hasInteracted: true });
+                        setNumberLineValue(val);
                       }}
                       placeholder="הקלידו מספר..."
                       className="w-48 text-center border-2 border-indigo-500 rounded-xl px-4 py-2 font-display text-2xl font-black focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:bg-slate-900 dark:text-white"

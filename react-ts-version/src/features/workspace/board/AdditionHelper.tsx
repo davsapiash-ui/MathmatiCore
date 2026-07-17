@@ -19,7 +19,7 @@ export function AdditionHelper() {
             {activeRow} + {activeCol} = {activeRow + activeCol}
           </div>
         ) : (
-          <div className="text-slate-455 dark:text-slate-600 text-sm">עבור עם העכבר או לחץ על תא</div>
+          <div className="text-slate-400 dark:text-slate-600 text-sm">עבור עם העכבר או לחץ על תא</div>
         )}
       </div>
 

@@ -1,7 +1,10 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import * as dotenv from "dotenv";
 
+// Load local .env file explicitly to guarantee key loading in emulator
+dotenv.config();
 export const generateSocraticHint = onCall(
   async (request) => {
     // 1. Verify authentication
@@ -71,3 +74,76 @@ Recent Trace Data: Undos=${traceData?.undo_clicks || 0}, Hesitations=${traceData
     }
   }
 );
+
+export const generateSocraticMapping = onCall(
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "User must be authenticated");
+    }
+
+    const { studentId, studentName, teacherId, qMatrix, conceptMastery, traceData } = request.data;
+    if (!studentId || !teacherId || !qMatrix || !conceptMastery) {
+      throw new HttpsError("invalid-argument", "Missing required fields");
+    }
+
+    try {
+      const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+      const model = ai.getGenerativeModel({
+        model: 'gemini-3.5-flash',
+        generationConfig: {
+          temperature: 0.4,
+          responseMimeType: "application/json"
+        },
+        systemInstruction: `You are a strict, pedagogical Socratic Math Tutor evaluating a 3rd-grade student's diagnostic test.
+Your task is to analyze the student's Q-Matrix errors and Concept Mastery scores to generate a personalized learning pathway.
+CRITICAL RULES:
+1. Always output VALID JSON matching the specified schema exactly.
+2. All textual responses must be in high-quality Hebrew.
+3. The generated 'tasks' array should provide 1 to 3 targeted math tasks based on their specific weaknesses.
+JSON SCHEMA:
+{
+  "macroBlueprintHe": "string (A bird's-eye view analysis of their performance and what sessions 3-7 will look like)",
+  "microBlueprintHe": "string (Specific actionable focus for the next immediate session)",
+  "isYellowPath": "boolean (true if mastery < 0.8 in core areas, false otherwise)",
+  "tasks": [
+    {
+      "id": "string (unique id like gen_t1)",
+      "type": "string ('vertical_addition', 'number_line', 'small_change', or 'missing_element')",
+      "titleHe": "string",
+      "instructionHe": "string",
+      "numberA": "number",
+      "numberB": "number (optional depending on task type)",
+      "correctAnswer": "number or string",
+      "scaffoldLevel": "number (1 for normal, 2 for high anxiety)"
+    }
+  ]
+}`
+      });
+
+      const userPrompt = `
+Student Name: ${studentName}
+Concept Mastery Scores: ${JSON.stringify(conceptMastery)}
+Trace Data (Hesitations/Undos): ${JSON.stringify(traceData)}
+
+Generate the pedagogical mapping JSON.`;
+
+      const response = await model.generateContent(userPrompt);
+      const textResponse = response.response.text();
+      
+      let parsedResponse;
+      try {
+        parsedResponse = JSON.parse(textResponse);
+      } catch (e) {
+        throw new Error("LLM did not return valid JSON");
+      }
+
+      logger.info(`Generated Socratic Mapping for student ${studentId}`);
+      return parsedResponse;
+
+    } catch (error) {
+      logger.error("Error generating Socratic mapping", error);
+      throw new HttpsError("internal", "Failed to generate mapping.");
+    }
+  }
+);
+

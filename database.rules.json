@@ -4,8 +4,18 @@
     ".write": false,
 
 
+    "schools": {
+      ".read": true,
+      ".write": "auth != null && auth.token.email === 'admin@mathmaticore.local'"
+    },
+
+    "public_classes": {
+      ".read": true,
+      ".write": "auth != null && auth.token.email === 'admin@mathmaticore.local'"
+    },
+
     "classes": {
-      ".read": "auth != null && (root.child('users/teachers/' + auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '')).exists() || auth.token.email === 'admin@mathmaticore.local')",
+      ".read": "auth != null",
       ".write": "auth != null && auth.token.email === 'admin@mathmaticore.local'"
     },
 
@@ -92,9 +102,11 @@
         }
       },
       "teachers": {
+        ".read": "auth != null && auth.token.email === 'admin@mathmaticore.local'",
         "$teacherId": {
           ".read": "auth != null && (auth.token.email === 'teacher_' + $teacherId + '@mathmaticore.local' || auth.token.email === 'admin@mathmaticore.local')",
-          ".write": "auth != null && (auth.token.email === 'admin@mathmaticore.local' || (auth.token.email === 'teacher_' + $teacherId + '@mathmaticore.local' && !data.exists()))"
+          ".write": "auth != null && (auth.token.email === 'admin@mathmaticore.local' || (auth.token.email === 'teacher_' + $teacherId + '@mathmaticore.local' && !data.exists()))",
+          ".validate": "newData.hasChildren(['licenseActive']) && (auth.token.email === 'admin@mathmaticore.local' || newData.child('licenseActive').val() === false)"
         }
       }
     },

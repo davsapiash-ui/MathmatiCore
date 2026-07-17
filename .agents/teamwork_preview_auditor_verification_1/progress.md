@@ -1,24 +1,25 @@
 # Progress Tracker — teamwork_preview_auditor_verification_1
 
-Last visited: 2026-07-10T12:39:00+03:00
+Last visited: 2026-07-17T09:56:00+03:00
 
 ## Active Phase
-- Reporting: Compiling forensic findings for `NumberLineTask.tsx`, `PlaceValueBoard.tsx`, and `VerticalAdditionTask.tsx`, and detailing the Playwright test failure.
+- Investigating & Verifying: Auditing KPIs (TeacherDashboard.tsx), ASD Addition Board (AdditionHelper.tsx), and Session 8 Scaffold-Free Test (useWorkspaceStore.ts, PlaceValueBoard.tsx, NumberLineTask.tsx, TaskCard.tsx).
 
 ## Completed Tasks
-- [x] Create original request file (`ORIGINAL_REQUEST.md`)
-- [x] Create briefing file (`BRIEFING.md`)
-- [x] Load and dump domain skill `semantic-telemetry-injector`
-- [x] Source code analysis of `NumberLineTask.tsx`
-- [x] Source code analysis of `PlaceValueBoard.tsx`
-- [x] Source code analysis of `VerticalAdditionTask.tsx`
-- [x] Run Playwright test suite (detected 12 failures due to Hebrew localization/encoding mismatches in `TeacherDashboard.tsx`)
-- [x] Check for bypasses, facades, or hardcoded expected results (none found; implementation is genuine)
+- [x] Append new user request to `ORIGINAL_REQUEST.md`
+- [x] Update briefing file (`BRIEFING.md`)
+- [x] Perform source code analysis on KPIs implementation
+- [x] Perform source code analysis on ASD Addition Board implementation
+- [x] Perform source code analysis on Session 8 Scaffold-Free Test implementation
+- [x] Run lint checks (detected hook lint error in `NumberLineTask.tsx`)
+- [x] Run production build (`npm run build` - successful)
 
 ## In-Progress Tasks
+- [ ] Wait for Playwright E2E tests to complete
 - [ ] Compile forensic findings report in `handoff.md`
 - [ ] Send handoff message to parent orchestrator
 
 ## Next Steps
+- [ ] Verify test results
 - [ ] Write `handoff.md`
 - [ ] Send handoff message

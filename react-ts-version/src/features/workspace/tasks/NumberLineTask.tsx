@@ -22,9 +22,6 @@ export function NumberLineTask({
   const value = useWorkspaceStore((s) => s.numberLineValue);
   const setNumberLineValue = useWorkspaceStore((s) => s.setNumberLineValue);
 
-  if (sessionNumber === 8) {
-    return null;
-  }
   const trackRef = useRef<HTMLDivElement>(null);
 
   const [min, max] = range;
@@ -35,10 +32,11 @@ export function NumberLineTask({
 
   // Initialize value to min if null, so the arrow is always visible at 0
   useEffect(() => {
+    if (sessionNumber === 8) return;
     if (value === null) {
       setNumberLineValue(min);
     }
-  }, [value, min, setNumberLineValue]);
+  }, [value, min, setNumberLineValue, sessionNumber]);
 
   const displayValue = value ?? min;
   const pct = ((displayValue - min) / span) * 100;
@@ -69,6 +67,10 @@ export function NumberLineTask({
 
   const majorTicks: number[] = [];
   for (let t = min; t <= max; t += majorStep) majorTicks.push(t);
+
+  if (sessionNumber === 8) {
+    return null;
+  }
 
   return (
     <div className="mt-6 select-none" dir="ltr">

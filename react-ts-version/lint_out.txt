@@ -1,0 +1,414 @@
+
+  x react-hooks(rules-of-hooks): React Hook "useRef" is called conditionally. React Hooks must be called in the exact same order in every component render.
+    ,-[src/features/workspace/tasks/NumberLineTask.tsx:28:20]
+ 27 |   }
+ 28 |   const trackRef = useRef<HTMLDivElement>(null);
+    :                    ^^^^^^^^^^^^^^|^^^^^^^^^^^^^
+    :                                  `-- This Hook call is not reachable on every render path.
+ 29 | 
+    `----
+  help: Move the Hook call before the condition, or call it unconditionally and branch inside the Hook/effect instead.
+
+  x react-hooks(rules-of-hooks): React Hook "useEffect" is called conditionally. React Hooks must be called in the exact same order in every component render.
+    ,-[src/features/workspace/tasks/NumberLineTask.tsx:37:3]
+ 36 |       // Initialize value to min if null, so the arrow is always visible at 0
+ 37 | ,->   useEffect(() => {
+ 38 | |       if (value === null) {
+ 39 | |         setNumberLineValue(min);
+ 40 | |       }
+ 41 | |->   }, [value, min, setNumberLineValue]);
+    : `---- This Hook call is not reachable on every render path.
+ 42 |     
+    `----
+  help: Move the Hook call before the condition, or call it unconditionally and branch inside the Hook/effect instead.
+
+  x react-hooks(rules-of-hooks): React Hook "useCallback" is called conditionally. React Hooks must be called in the exact same order in every component render.
+    ,-[src/features/workspace/tasks/NumberLineTask.tsx:46:29]
+ 45 |     
+ 46 | ,->   const updateFromClientX = useCallback(
+ 47 | |       (clientX: number) => {
+ 48 | |         const track = trackRef.current;
+ 49 | |         if (!track) return;
+ 50 | |         const rect = track.getBoundingClientRect();
+ 51 | |         // Ticks are inset by left-4 right-4 (16px on each side)
+ 52 | |         const insetLeft = rect.left + 16;
+ 53 | |         const insetWidth = rect.width - 32;
+ 54 | |         const ratio = Math.min(1, Math.max(0, (clientX - insetLeft) / insetWidth));
+ 55 | |         const raw = min + ratio * span;
+ 56 | |         const snapped = Math.round(raw / minorStep) * minorStep;
+ 57 | |         setNumberLineValue(Math.min(max, Math.max(min, snapped)));
+ 58 | |       },
+ 59 | |       [min, max, span, minorStep, setNumberLineValue]
+ 60 | |->   );
+    : `---- This Hook call is not reachable on every render path.
+ 61 |     
+    `----
+  help: Move the Hook call before the condition, or call it unconditionally and branch inside the Hook/effect instead.
+
+  ! eslint(no-unused-vars): Parameter 'taskId' is declared but never used. Unused parameters should start with a '_'.
+     ,-[src/application/useWorkspaceStore.ts:291:22]
+ 290 | 
+ 291 |   function startTask(taskId: string) {
+     :                      ^^^|^^
+     :                         `-- 'taskId' is declared here
+ 292 |     set(resetTaskInteraction());
+     `----
+  help: Consider removing this parameter.
+
+  ! eslint(no-unused-vars): Variable 'firstId' is declared but never used. Unused variables should start with a '_'.
+     ,-[src/application/useWorkspaceStore.ts:792:13]
+ 791 |       });
+ 792 |       const firstId = meeting === 2 ? getCurrentQTask(qflow)?.id ?? '' : (initialAITasks ?? getSessionTasks(meeting as any))[startingTaskIdx ?? 0]?.id ?? '';
+     :             ^^^|^^^
+     :                `-- 'firstId' is declared here
+ 793 |     },
+     `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Variable 'firstId' is declared but never used. Unused variables should start with a '_'.
+     ,-[src/application/useWorkspaceStore.ts:829:13]
+ 828 |       const s = get();
+ 829 |       const firstId = s.sessionNumber === 2 ? getCurrentQTask(s.qflow)?.id ?? '' : (s.aiTasks ?? getSessionTasks(s.sessionNumber as any))[s.standardTaskIdx ?? 0]?.id ?? '';
+     :             ^^^|^^^
+     :                `-- 'firstId' is declared here
+ 830 |     },
+     `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Identifier 'expect' is imported but never used.
+   ,-[tests/e2e/prove-it-v2.spec.ts:1:16]
+ 1 | import { test, expect } from '@playwright/test';
+   :                ^^^|^^
+   :                   `-- 'expect' is imported here
+ 2 | 
+   `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Variable 'path' is declared but never used. Unused variables should start with a '_'.
+   ,-[screenshot_teacher.cjs:2:7]
+ 1 | const { chromium } = require('playwright');
+ 2 | const path = require('path');
+   :       ^^|^
+   :         `-- 'path' is declared here
+ 3 | 
+   `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Catch parameter 'e' is caught but never used.
+    ,-[test_telemetry.js:32:50]
+ 31 |       if(typeof chunk === 'string') {
+ 32 |         try { chunk = JSON.parse(chunk); } catch(e) {}
+    :                                                  |
+    :                                                  `-- 'e' is declared here
+ 33 |       }
+    `----
+  help: Consider handling this error.
+
+  ! eslint(no-constant-condition): Unexpected constant condition
+    ,-[src/application/useCognitiveHesitationRadar.ts:45:11]
+ 44 |       // but we leave the optional callback in case it's needed for state logging later.
+ 45 |       if (onHesitationDetected && false) {
+    :           ^^^^^^^^^^^^^^|^^^^^^^^^^^^^^
+    :                         `-- this expression will always evaluate to the same value
+ 46 |         onHesitationDetected?.();
+    `----
+  help: Update the condition to not be constant, or remove the condition entirely
+
+  ! eslint(no-unused-vars): Variable 'initializeApp' is declared but never used. Unused variables should start with a '_'.
+   ,-[test_telemetry.cjs:1:9]
+ 1 | const { initializeApp } = require("firebase/app");
+   :         ^^^^^^|^^^^^^
+   :               `-- 'initializeApp' is declared here
+ 2 | const { getAuth, signInWithEmailAndPassword } = require("firebase/auth");
+   `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Variable 'getAuth' is declared but never used. Unused variables should start with a '_'.
+   ,-[test_telemetry.cjs:2:9]
+ 1 | const { initializeApp } = require("firebase/app");
+ 2 | const { getAuth, signInWithEmailAndPassword } = require("firebase/auth");
+   :         ^^^|^^^
+   :            `-- 'getAuth' is declared here
+ 3 | const { getDatabase, ref, get } = require("firebase/database");
+   `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Variable 'signInWithEmailAndPassword' is declared but never used. Unused variables should start with a '_'.
+   ,-[test_telemetry.cjs:2:18]
+ 1 | const { initializeApp } = require("firebase/app");
+ 2 | const { getAuth, signInWithEmailAndPassword } = require("firebase/auth");
+   :                  ^^^^^^^^^^^^^|^^^^^^^^^^^^
+   :                               `-- 'signInWithEmailAndPassword' is declared here
+ 3 | const { getDatabase, ref, get } = require("firebase/database");
+   `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Variable 'getDatabase' is declared but never used. Unused variables should start with a '_'.
+   ,-[test_telemetry.cjs:3:9]
+ 2 | const { getAuth, signInWithEmailAndPassword } = require("firebase/auth");
+ 3 | const { getDatabase, ref, get } = require("firebase/database");
+   :         ^^^^^|^^^^^
+   :              `-- 'getDatabase' is declared here
+ 4 | 
+   `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Variable 'ref' is declared but never used. Unused variables should start with a '_'.
+   ,-[test_telemetry.cjs:3:22]
+ 2 | const { getAuth, signInWithEmailAndPassword } = require("firebase/auth");
+ 3 | const { getDatabase, ref, get } = require("firebase/database");
+   :                      ^|^
+   :                       `-- 'ref' is declared here
+ 4 | 
+   `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Variable 'get' is declared but never used. Unused variables should start with a '_'.
+   ,-[test_telemetry.cjs:3:27]
+ 2 | const { getAuth, signInWithEmailAndPassword } = require("firebase/auth");
+ 3 | const { getDatabase, ref, get } = require("firebase/database");
+   :                           ^|^
+   :                            `-- 'get' is declared here
+ 4 | 
+   `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Variable 'firebaseConfig' is declared but never used. Unused variables should start with a '_'.
+   ,-[test_telemetry.cjs:5:7]
+ 4 | 
+ 5 | const firebaseConfig = {
+   :       ^^^^^^^|^^^^^^
+   :              `-- 'firebaseConfig' is declared here
+ 6 |   apiKey: "AIzaSyMathmatiCoreAPIKeyPlaceholder", // Wait, I don't know the API key. Let me check the .env file!
+   `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Identifier 'expect' is imported but never used.
+   ,-[tests/e2e/bot-run.spec.ts:1:16]
+ 1 | import { test, expect } from '@playwright/test';
+   :                ^^^|^^
+   :                   `-- 'expect' is imported here
+ 2 | 
+   `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'expect' is imported but never used.
+   ,-[tests/e2e/bot-run-struggling.spec.ts:1:16]
+ 1 | import { test, expect } from '@playwright/test';
+   :                ^^^|^^
+   :                   `-- 'expect' is imported here
+ 2 | 
+   `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'expect' is imported but never used.
+   ,-[tests/e2e/bot-run-average.spec.ts:1:16]
+ 1 | import { test, expect } from '@playwright/test';
+   :                ^^^|^^
+   :                   `-- 'expect' is imported here
+ 2 | 
+   `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Catch parameter 'e' is caught but never used.
+    ,-[src/presentation/components/ReplayViewer.tsx:86:52]
+ 85 |       if (replayerRef.current) {
+ 86 |         try { replayerRef.current.pause(); } catch(e){}
+    :                                                    |
+    :                                                    `-- 'e' is declared here
+ 87 |       }
+    `----
+  help: Consider handling this error.
+
+  ! react-hooks(exhaustive-deps): The ref's value `.current` is accessed directly in the effect cleanup function.
+    ,-[src/presentation/components/ReplayViewer.tsx:88:11]
+ 87 |       }
+ 88 |       if (containerRef.current) {
+    :           ^^^^^^^^^^^^^^^^^^^^
+ 89 |         if ((containerRef.current as any)._resizeListener) {
+    `----
+  help: The ref value will likely have changed by the time this effect cleanup function runs. If this ref points to a node rendered by react, copy it to a variable inside the effect and use that variable in the cleanup function.
+
+  ! react-hooks(exhaustive-deps): The ref's value `.current` is accessed directly in the effect cleanup function.
+    ,-[src/presentation/components/ReplayViewer.tsx:89:14]
+ 88 |       if (containerRef.current) {
+ 89 |         if ((containerRef.current as any)._resizeListener) {
+    :              ^^^^^^^^^^^^^^^^^^^^
+ 90 |           window.removeEventListener('resize', (containerRef.current as any)._resizeListener);
+    `----
+  help: The ref value will likely have changed by the time this effect cleanup function runs. If this ref points to a node rendered by react, copy it to a variable inside the effect and use that variable in the cleanup function.
+
+  ! react-hooks(exhaustive-deps): The ref's value `.current` is accessed directly in the effect cleanup function.
+    ,-[src/presentation/components/ReplayViewer.tsx:90:49]
+ 89 |         if ((containerRef.current as any)._resizeListener) {
+ 90 |           window.removeEventListener('resize', (containerRef.current as any)._resizeListener);
+    :                                                 ^^^^^^^^^^^^^^^^^^^^
+ 91 |         }
+    `----
+  help: The ref value will likely have changed by the time this effect cleanup function runs. If this ref points to a node rendered by react, copy it to a variable inside the effect and use that variable in the cleanup function.
+
+  ! react-hooks(exhaustive-deps): The ref's value `.current` is accessed directly in the effect cleanup function.
+    ,-[src/presentation/components/ReplayViewer.tsx:92:9]
+ 91 |         }
+ 92 |         containerRef.current.innerHTML = "";
+    :         ^^^^^^^^^^^^^^^^^^^^
+ 93 |       }
+    `----
+  help: The ref value will likely have changed by the time this effect cleanup function runs. If this ref points to a node rendered by react, copy it to a variable inside the effect and use that variable in the cleanup function.
+
+  ! react-hooks(exhaustive-deps): React Hook useEffect has missing dependencies: 'playbackSpeed', and 'onEnd'
+    ,-[src/presentation/components/ReplayViewer.tsx:35:16]
+ 34 |         mouseTail: false,
+ 35 |         speed: playbackSpeed
+    :                ^^^^^^^^^^^^^
+ 36 |       });
+ 37 | 
+ 38 |       // Start playing immediately
+ 39 |       replayerRef.current.play();
+ 40 |       setIsPlaying(true);
+ 41 |       
+ 42 |       if (onEnd) {
+    :           ^^^^^
+ 43 |         replayerRef.current.on('finish', onEnd);
+    `----
+    ,-[src/presentation/components/ReplayViewer.tsx:95:6]
+ 94 |     };
+ 95 |   }, [events]);
+    :      ^^^^^^^^
+ 96 | 
+    `----
+  help: Either include it or remove the dependency array.
+
+  ! eslint(no-unused-vars): Identifier 'ActivityWorkspace' is imported but never used.
+    ,-[src/App.tsx:11:10]
+ 10 | import { AppShell } from "@/presentation/components/layout/AppShell";
+ 11 | import { ActivityWorkspace } from "@/presentation/components/student/ActivityWorkspace";
+    :          ^^^^^^^^|^^^^^^^^
+    :                  `-- 'ActivityWorkspace' is imported here
+ 12 | 
+    `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'expect' is imported but never used.
+   ,-[tests/e2e/prove-it.spec.ts:1:16]
+ 1 | import { test, expect } from '@playwright/test';
+   :                ^^^|^^
+   :                   `-- 'expect' is imported here
+ 2 | 
+   `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Variable 'selected' is declared but never used. Unused variables should start with a '_'.
+    ,-[src/presentation/components/student/SessionReflection.tsx:9:10]
+  8 | export function SessionReflection({ onComplete }: SessionReflectionProps) {
+  9 |   const [selected, setSelected] = useState<number | null>(null);
+    :          ^^^^|^^^
+    :              `-- 'selected' is declared here
+ 10 |   const [isSubmitting, setIsSubmitting] = useState(false);
+    `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Variable 'setActiveColumn' is declared but never used. Unused variables should start with a '_'.
+    ,-[src/presentation/components/student/EquationBoard.tsx:54:24]
+ 53 |   // In a real implementation, activeColumn would be managed by a global store
+ 54 |   const [activeColumn, setActiveColumn] = useState<string>('units');
+    :                        ^^^^^^^|^^^^^^^
+    :                               `-- 'setActiveColumn' is declared here
+ 55 |   // In a real implementation, ASD mode is toggleable per user profile
+    `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Variable 'INITIAL_SCHOOL_ID' is declared but never used. Unused variables should start with a '_'.
+    ,-[src/application/useAdminStore.ts:49:7]
+ 48 | 
+ 49 | const INITIAL_SCHOOL_ID = 'school_bikorot';
+    :       ^^^^^^^^|^^^^^^^^
+    :               `-- 'INITIAL_SCHOOL_ID' is declared here
+ 50 | const INITIAL_CLASS_ID = 'class_1';
+    `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Variable 'INITIAL_CLASS_ID' is declared but never used. Unused variables should start with a '_'.
+    ,-[src/application/useAdminStore.ts:50:7]
+ 49 | const INITIAL_SCHOOL_ID = 'school_bikorot';
+ 50 | const INITIAL_CLASS_ID = 'class_1';
+    :       ^^^^^^^^|^^^^^^^
+    :               `-- 'INITIAL_CLASS_ID' is declared here
+ 51 | 
+    `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Parameter 'set' is declared but never used. Unused parameters should start with a '_'.
+    ,-[src/application/useAdminStore.ts:52:52]
+ 51 | 
+ 52 | export const useAdminStore = create<AdminState>()((set) => ({
+    :                                                    ^|^
+    :                                                     `-- 'set' is declared here
+ 53 |   schools: [],
+    `----
+  help: Consider removing this parameter.
+
+  ! react-hooks(exhaustive-deps): React Hook useEffect has a missing dependency: 'fetchChunk'
+     ,-[src/presentation/pages/TeacherDashboard/components/StudentReplayAndLogs.tsx:120:6]
+  86 |           if (keys.length > 0) {
+  87 |             fetchChunk(latestSessionId, keys[0]);
+     :             ^^^^^|^^^^
+     :                  `-- useEffect uses `fetchChunk` here
+  88 |           }
+  89 |         } catch (e) {
+  90 |           console.error("Error fetching replay metadata:", e);
+  91 |         }
+  92 |       };
+  93 | 
+  94 |       fetchMetadata();
+  95 | 
+  96 |       // Fetch radar history (Logs)
+  97 |       const radarHistoryRef = ref(database, `users/students/${studentId}/radar_history`);
+  98 |       unsubscribeRadar = onValue(radarHistoryRef, (snapshot) => {
+  99 |         try {
+ 100 |           if (snapshot.exists()) {
+ 101 |             const historyVal = snapshot.val();
+ 102 |             const historyList = historyVal ? Object.values(historyVal) : [];
+ 103 |             setStudentRadarHistory(historyList);
+ 104 |           } else {
+ 105 |             setStudentRadarHistory([]);
+ 106 |           }
+ 107 |         } catch (e) {
+ 108 |           console.error("Error processing student radar history:", e);
+ 109 |           setStudentRadarHistory([]);
+ 110 |         }
+ 111 |       });
+ 112 |     });
+ 113 | 
+ 114 |     return () => {
+ 115 |       cancelled = true;
+ 116 |       if (unsubscribeSession) unsubscribeSession();
+ 117 |       if (unsubscribeMetadata) unsubscribeMetadata();
+ 118 |       if (unsubscribeRadar) unsubscribeRadar();
+ 119 |     };
+ 120 |   }, [studentId]);
+     :      ^^^^^^^^^^^
+ 121 | 
+     `----
+  help: Either include it or remove the dependency array.
+
+  ! eslint(no-unassigned-vars): 'unsubscribeSession' is always 'undefined' because it's never assigned.
+    ,-[src/presentation/pages/TeacherDashboard/components/StudentReplayAndLogs.tsx:45:9]
+ 44 | 
+ 45 |     let unsubscribeSession: (() => void) | undefined;
+    :         ^^^^^^^^^^^^^^^^^^
+ 46 |     let unsubscribeMetadata: (() => void) | undefined;
+    `----
+  help: Variable declared without assignment. Either assign a value or remove the declaration.
+
+  ! eslint(no-unassigned-vars): 'unsubscribeMetadata' is always 'undefined' because it's never assigned.
+    ,-[src/presentation/pages/TeacherDashboard/components/StudentReplayAndLogs.tsx:46:9]
+ 45 |     let unsubscribeSession: (() => void) | undefined;
+ 46 |     let unsubscribeMetadata: (() => void) | undefined;
+    :         ^^^^^^^^^^^^^^^^^^^
+ 47 |     let unsubscribeRadar: (() => void) | undefined;
+    `----
+  help: Variable declared without assignment. Either assign a value or remove the declaration.
+
+Found 33 warnings and 3 errors.
+Finished in 49ms on 145 files with 103 rules using 18 threads.

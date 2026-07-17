@@ -1,0 +1,154 @@
+\ufeff<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" width="100%" height="100%" style="background-color: #f8f9fa; font-family: system-ui, -apple-system, sans-serif;">
+  <defs>
+    <!-- Arrow marker for RTL flow -->
+    <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 10 1 L 0 5 L 10 9 z" fill="#495057" />
+    </marker>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="2" dy="4" stdDeviation="4" flood-opacity="0.12" />
+    </filter>
+  </defs>
+
+  <!-- Title -->
+  <text x="600" y="45" text-anchor="middle" font-size="24" font-weight="bold" fill="#1a1d20">מתמטיקאור (MathematicOr) - מפת אתר חזותית וארכיטקטורת מידע (RTL)</text>
+
+  <!-- ==================== CONNECTIONS / LINES (RTL) ==================== -->
+  <!-- Gateway to Logins (RTL - Flow goes from top to branches) -->
+  <path d="M 600,130 L 600,150 L 950,150 L 950,180" fill="none" stroke="#495057" stroke-width="2" marker-end="url(#arrow)" />
+  <path d="M 600,130 L 600,180" fill="none" stroke="#495057" stroke-width="2" marker-end="url(#arrow)" />
+  <path d="M 600,130 L 600,150 L 150,150 L 150,180" fill="none" stroke="#495057" stroke-width="2" marker-end="url(#arrow)" />
+
+  <!-- Student Flow (Right Side - Blue) -->
+  <path d="M 950,240 L 950,290" fill="none" stroke="#1c7ed6" stroke-width="2" marker-end="url(#arrow)" />
+  <path d="M 950,350 L 950,370 L 1080,370 L 1080,410" fill="none" stroke="#1c7ed6" stroke-width="2" marker-end="url(#arrow)" />
+  <path d="M 950,350 L 950,370 L 860,370 L 860,410" fill="none" stroke="#1c7ed6" stroke-width="2" marker-end="url(#arrow)" />
+  
+  <!-- Dashed bidirectional line between Workspace and Help -->
+  <path d="M 1080,410 L 1080,390 L 960,390" fill="none" stroke="#74c0fc" stroke-width="1.5" stroke-dasharray="4" />
+
+  <!-- Teacher Flow (Center - Teal) -->
+  <path d="M 600,240 L 600,290" fill="none" stroke="#0ca678" stroke-width="2" marker-end="url(#arrow)" />
+  <path d="M 600,350 L 600,370 L 620,370 L 620,410" fill="none" stroke="#0ca678" stroke-width="2" marker-end="url(#arrow)" />
+  <path d="M 600,350 L 600,370 L 380,370 L 380,410" fill="none" stroke="#0ca678" stroke-width="2" marker-end="url(#arrow)" />
+  
+  <path d="M 620,470 L 620,530" fill="none" stroke="#0ca678" stroke-width="2" marker-end="url(#arrow)" />
+  <path d="M 380,470 L 380,530" fill="none" stroke="#0ca678" stroke-width="2" marker-end="url(#arrow)" />
+
+  <!-- Admin Flow (Left Side - Orange) -->
+  <path d="M 150,240 L 150,290" fill="none" stroke="#f76707" stroke-width="2" marker-end="url(#arrow)" />
+
+
+  <!-- ==================== NODES / CARD DESIGN ==================== -->
+  
+  <!-- MAIN GATEWAY -->
+  <g filter="url(#shadow)">
+    <rect x="490" y="70" width="220" height="60" rx="12" fill="#1a1d20" />
+    <text x="600" y="95" text-anchor="middle" fill="#ffffff" font-size="16" font-weight="bold">דף שער כניסה</text>
+    <text x="600" y="115" text-anchor="middle" fill="#adb5bd" font-size="12">Gateway Login</text>
+  </g>
+
+  <!-- ==================== 1. STUDENT SPACE (RIGHT SIDE - BLUE) ==================== -->
+  <!-- Student Login -->
+  <g filter="url(#shadow)">
+    <rect x="840" y="180" width="220" height="60" rx="10" fill="#e7f5ff" stroke="#228be6" stroke-width="2.5" />
+    <text x="950" y="205" text-anchor="middle" fill="#1c7ed6" font-size="15" font-weight="bold">כניסת תלמיד</text>
+    <text x="950" y="225" text-anchor="middle" fill="#495057" font-size="11">הזדהות פשוטה מ-Classroom</text>
+  </g>
+
+  <!-- Activity Workspace -->
+  <g filter="url(#shadow)">
+    <rect x="840" y="290" width="220" height="60" rx="10" fill="#1c7ed6" />
+    <text x="950" y="315" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="bold">מרחב הפעילות הדיגיטלי</text>
+    <text x="950" y="335" text-anchor="middle" fill="#d0ebff" font-size="11">Activity Workspace</text>
+  </g>
+
+  <!-- Support Palette -->
+  <g filter="url(#shadow)">
+    <rect x="980" y="410" width="200" height="60" rx="8" fill="#e7f5ff" stroke="#228be6" stroke-width="1.5" />
+    <text x="1080" y="435" text-anchor="middle" fill="#1c7ed6" font-size="14" font-weight="bold">חלון העזרה הדינמי</text>
+    <text x="1080" y="455" text-anchor="middle" fill="#495057" font-size="11">Support Palette (בקושי בלבד)</text>
+  </g>
+
+  <!-- Session Reflection -->
+  <g filter="url(#shadow)">
+    <rect x="760" y="410" width="200" height="60" rx="8" fill="#e7f5ff" stroke="#228be6" stroke-width="1.5" />
+    <text x="860" y="435" text-anchor="middle" fill="#1c7ed6" font-size="14" font-weight="bold">מסך סיכום ורפלקציה</text>
+    <text x="860" y="455" text-anchor="middle" fill="#495057" font-size="11">Session Reflection (אוטומטי)</text>
+  </g>
+
+  <!-- ==================== 2. TEACHER SPACE (CENTER - TEAL) ==================== -->
+  <!-- Teacher Login -->
+  <g filter="url(#shadow)">
+    <rect x="490" y="180" width="220" height="60" rx="10" fill="#e6fcf5" stroke="#0ca678" stroke-width="2.5" />
+    <text x="600" y="205" text-anchor="middle" fill="#099268" font-size="15" font-weight="bold">כניסת מורה</text>
+    <text x="600" y="225" text-anchor="middle" fill="#495057" font-size="11">הזדהות מאובטחת מונפקת</text>
+  </g>
+
+  <!-- Teacher Dashboard -->
+  <g filter="url(#shadow)">
+    <rect x="490" y="290" width="220" height="60" rx="10" fill="#0ca678" />
+    <text x="600" y="315" text-anchor="middle" fill="#ffffff" font-size="15" font-weight="bold">לוח בקרה כיתתי</text>
+    <text x="600" y="335" text-anchor="middle" fill="#c3fae8" font-size="12">Teacher Dashboard</text>
+  </g>
+
+  <!-- Classroom Manager -->
+  <g filter="url(#shadow)">
+    <rect x="520" y="410" width="200" height="60" rx="8" fill="#e6fcf5" stroke="#0ca678" stroke-width="1.5" />
+    <text x="620" y="435" text-anchor="middle" fill="#099268" font-size="14" font-weight="bold">ניהול כיתות ומרחבים</text>
+    <text x="620" y="455" text-anchor="middle" fill="#495057" font-size="11">Classroom Manager</text>
+  </g>
+
+  <!-- ASD Space Configurator -->
+  <g filter="url(#shadow)">
+    <rect x="520" y="530" width="200" height="60" rx="8" fill="#e6fcf5" stroke="#0ca678" stroke-width="1.5" />
+    <text x="620" y="555" text-anchor="middle" fill="#099268" font-size="14" font-weight="bold">הקמת מרחב ASD ונגישות</text>
+    <text x="620" y="575" text-anchor="middle" fill="#495057" font-size="11">ASD Space Configurator</text>
+  </g>
+
+  <!-- Clustering View -->
+  <g filter="url(#shadow)">
+    <rect x="280" y="410" width="200" height="60" rx="8" fill="#e6fcf5" stroke="#0ca678" stroke-width="1.5" />
+    <text x="380" y="435" text-anchor="middle" fill="#099268" font-size="14" font-weight="bold">ניתוח קבוצות למידה</text>
+    <text x="380" y="455" text-anchor="middle" fill="#495057" font-size="11">Clustering View (קיבוץ דינמי)</text>
+  </g>
+
+  <!-- Process Feedback Panel -->
+  <g filter="url(#shadow)">
+    <rect x="280" y="530" width="200" height="60" rx="8" fill="#e6fcf5" stroke="#0ca678" stroke-width="1.5" />
+    <text x="380" y="555" text-anchor="middle" fill="#099268" font-size="14" font-weight="bold">פאנל המלצות משוב</text>
+    <text x="380" y="575" text-anchor="middle" fill="#495057" font-size="11">Process Feedback Panel</text>
+  </g>
+
+  <!-- ==================== 3. ADMIN SPACE (LEFT SIDE - ORANGE) ==================== -->
+  <!-- Admin Login -->
+  <g filter="url(#shadow)">
+    <rect x="40" y="180" width="220" height="60" rx="10" fill="#fff4e6" stroke="#f76707" stroke-width="2.5" />
+    <text x="150" y="205" text-anchor="middle" fill="#d9480f" font-size="15" font-weight="bold">כניסת אדמין</text>
+    <text x="150" y="225" text-anchor="middle" fill="#495057" font-size="12">הזדהות מנהלית קפדנית</text>
+  </g>
+
+  <!-- School System Manager -->
+  <g filter="url(#shadow)">
+    <rect x="40" y="290" width="220" height="60" rx="10" fill="#f76707" />
+    <text x="150" y="315" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="bold">ניהול מוסדות ומשתמשים</text>
+    <text x="150" y="335" text-anchor="middle" fill="#ffe8cc" font-size="12">School System Manager</text>
+  </g>
+
+  <!-- ==================== LEGEND / FOOTER PANEL (RTL) ==================== -->
+  <g filter="url(#shadow)">
+    <rect x="110" y="650" width="980" height="110" rx="10" fill="#ffffff" stroke="#dee2e6" stroke-width="1.5" />
+    <text x="1070" y="678" text-anchor="end" font-size="15" font-weight="bold" fill="#212529">מקרא ומסלולי ניווט (מימין לשמאל):</text>
+    
+    <!-- Student Legend -->
+    <rect x="1058" y="694" width="12" height="12" rx="2" fill="#1c7ed6" />
+    <text x="1040" y="705" text-anchor="end" font-size="13" fill="#495057">מרחב תלמיד (מימין): ניווט ליניארי סגור ללא תפריטים חיצוניים למניעת הצפה קוגניטיבית.</text>
+    
+    <!-- Teacher Legend -->
+    <rect x="1058" y="716" width="12" height="12" rx="2" fill="#0ca678" />
+    <text x="1040" y="727" text-anchor="end" font-size="13" fill="#495057">מרחב מורה (מרכז): ניווט גמיש מבוסס תפריט עליון קבוע ופירורי לחם לניהול מהיר בכיתה.</text>
+    
+    <!-- Admin Legend -->
+    <rect x="1058" y="738" width="12" height="12" rx="2" fill="#f76707" />
+    <text x="1040" y="749" text-anchor="end" font-size="13" fill="#495057">מרחב אדמין (משמאל): ניווט צידי קבוע לניהול משתמשי מורים והרשאות רוחביות.</text>
+  </g>
+</svg>

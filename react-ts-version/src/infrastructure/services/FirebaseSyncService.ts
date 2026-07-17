@@ -162,12 +162,9 @@ class FirebaseSyncService {
         aiTasks: state.aiTasks
       };
 
-      const additionBoardEnabled = useStore.getState().students[studentId]?.additionBoardEnabled;
-
       update(studentRef, {
         workspaceState: syncableData,
-        lastActive: serverTimestamp(),
-        ...(additionBoardEnabled !== undefined && { additionBoardEnabled })
+        lastActive: serverTimestamp()
       });
     });
   }

@@ -215,7 +215,7 @@ export function StudentWorkspacePage() {
 
   // Redundant useSilentRadar removed here to prevent ghost alerts for non-students.
 
-  const [isInitializing, setIsInitializing] = useState(meeting === 3);
+  const [isInitializing, setIsInitializing] = useState(true);
   const [pendingApproval, setPendingApproval] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isAdditionHelperOpen, setIsAdditionHelperOpen] = useState(false);

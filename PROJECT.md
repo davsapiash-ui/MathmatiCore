@@ -1,26 +1,29 @@
-# Project: MathmatiCore LMS Audit & Repair
+# Project: Admin Management Interface Refactoring
 
 ## Architecture
-MathmatiCore is an LMS application built with React, TypeScript, Tailwind CSS, Zustand for state management, and Firebase for real-time synchronization.
-- **UI Components**: Located in `react-ts-version/src/components` (e.g., `DienesBlock`, `PlaceValueBoard`, `LmsCanvas`).
-- **State Management**: Zustand stores in `react-ts-version/src/application` (e.g., `useStore.ts`, `useWorkspaceStore.ts`, `useWorkspaceRadar.ts`).
-- **Firebase integration**: Sync service in `react-ts-version/src/application/FirebaseSyncService.ts` or similar.
-- **Pedagogical Rules**: "No auto-regrouping", manual grouping by dragging blocks, Socratic feedback.
-- **Liveness & Radar Tracking**: Tracks student hesitation and deletion patterns (Silent Radar) and syncs to Teacher Dashboard.
+- Refactor `useAdminStore.ts` to sync schools, classes, teachers, and global limits to Firebase Realtime Database.
+- Live listeners in `useAdminStore.ts` set up to sync changes bidirectionally (Firebase → Zustand store and vice versa).
+- Security rules modified in `database.rules.json` to allow reading/writing the required paths securely.
 
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
-|---|---|---|---|---|
-| M1 | Assessment | Explore codebase to find file locations and logic mappings | None | DONE |
-| M2 | UI & Mechanics Repair (R1) | Enforce manual regrouping, update instructions, hide thousands in Sessions 1&2, verify tasks numbers <= 1000 | M1 | DONE |
-| M3 | State & Radar Synchronization (R2) | Implement 3s sliding window/15s cooldown for PASSIVE_DRIFTING, prevent teacher dashboard leakage, preserve radar hooks fix, fix telemetry/replays | M2 | DONE |
-| M4 | Verification & CI/CD Deployment | Run test suite, simulate trace verification, audit integrity, deploy to Firebase | M3 | DONE |
+|---|------|-------|-------------|--------|
+| 1 | Exploration & Rules Update | Analyze store, update `database.rules.json` for schools and global limit, deploy rules | none | DONE |
+| 2 | Implementation of Cloud Sync | Modify `useAdminStore.ts` actions to push updates to Firebase (including cascade deletion) | M1 | IN_PROGRESS |
+| 3 | Bidirectional Live Sync | Set up real-time Firebase listeners in the frontend to keep the store up-to-date | M2 | IN_PROGRESS |
+| 4 | Verification & Audit | Run tests, build the application, verify with reviewer/challenger/auditor | M3 | PLANNED |
 
 ## Interface Contracts
-### Workspace state ↔ Firebase Sync
-- Zustand store state synced to Firebase Realtime Database.
-- No local storage persistence for student state.
+### useAdminStore ↔ Firebase Realtime Database Paths
+- Schools: `schools/{schoolId}` containing `{ id, name, createdAt }`
+- Classes: `classes/{classId}` containing `{ id, schoolId, teacherId, name, studentLimit, createdAt }` (accessible to authenticated users only)
+- Public Classes: `public_classes/{classId}` containing `{ id, schoolId, name }` (accessible publicly)
+- Teachers: `users/teachers/{teacherId}` containing `{ id, schoolId, taz, dob, name, licenseActive, createdAt }`
+- Global Student Limit: `system_control/globalStudentLimit` (number)
 
-### Student workspace ↔ Silent Radar & Teacher Dashboard
-- Deletion/undo events in workspace store/radar must trigger `PASSIVE_DRIFTING` alerts.
-- Alerts must be filtered by `teacherId` in the dashboard to prevent leakage.
+## Code Layout
+- Zustand Store: `react-ts-version/src/application/useAdminStore.ts`
+- Firebase Rules: `database.rules.json` at project root
+- Firebase Client Setup: `react-ts-version/src/infrastructure/firebase.ts`
+- Login View: `react-ts-version/src/presentation/pages/Login.tsx`
+- Admin View: `react-ts-version/src/presentation/pages/admin/AdminSchoolsView.tsx`

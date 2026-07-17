@@ -1,49 +1,50 @@
-# BRIEFING — 2026-07-10T13:39:20+03:00
+# BRIEFING — 2026-07-16T23:51:30+03:00
 
 ## Mission
-Run compile, test, and code integrity verification for MathmatiCore, review code quality, and stress-test assumptions.
+Verify fixes for security vulnerabilities in useAdminStore.ts, FirebaseSyncService.ts, and database.rules.json, and verify compilation.
 
 ## 🔒 My Identity
-- Archetype: reviewer_and_critic
+- Archetype: Reviewer and Adversarial Critic
 - Roles: reviewer, critic
 - Working directory: c:\Users\david\Projects\MathmatiCore\.agents\teamwork_preview_reviewer_verification_3
-- Original parent: 3980cf7d-ec28-4902-9773-b8814f8e732f
-- Milestone: MathmatiCore Preview Verification
+- Original parent: 91abb941-8f32-4e72-9379-f7646258e259
+- Milestone: Security Fix Verification
 - Instance: 1 of 1
 
 ## 🔒 Key Constraints
-- Review-only — do NOT modify implementation code (report errors, do not fix them yourself)
-- Strict Hebrew encoding check
-- No hardcoded test results or facade implementations
-- Verify git cleanliness, compilation, db reset, and playwright tests
+- Review-only — do NOT modify implementation code
+- Global Rule: Hebrew chat alignment if communicating with user (though we communicate with parent via send_message)
 
 ## Current Parent
-- Conversation ID: 3980cf7d-ec28-4902-9773-b8814f8e732f
-- Updated: 2026-07-10T13:39:20+03:00
+- Conversation ID: 91abb941-8f32-4e72-9379-f7646258e259
+- Updated: 2026-07-16T23:51:30+03:00
 
 ## Review Scope
-- **Files to review**: TeacherDashboard.tsx, useWorkspaceStore.ts, useStore.ts, reset_data.ts, tests/e2e/telemetry-replay.spec.ts
-- **Interface contracts**: Project rules in AGENTS.md
-- **Review criteria**: TypeScript compilation, Git status, E2E tests, code sanity, Hebrew text rendering
+- **Files to review**: useAdminStore.ts, FirebaseSyncService.ts, database.rules.json
+- **Interface contracts**: Firebase Realtime Database rules, Zustand state management, WebSocket connection cleanup
+- **Review criteria**: correctness, security, leak-free connection teardown, successful compilation
 
 ## Key Decisions Made
-- Confirmed that Vite and TypeScript build successfully with zero errors.
-- Discovered that E2E tests fail when run together due to database state contamination on shared student accounts (e.g., user1, user3), but pass perfectly when run individually on a clean database state.
-- Discovered corrupted characters representing emojis, ellipses, and em-dashes in TeacherDashboard.tsx (e.g., ג€”, ג€¦, נŸ“Š) caused by encoding issues. Standard Hebrew strings are otherwise clean.
-- Verified useWorkspaceStore.ts, useStore.ts, and reset_data.ts meet all code requirements.
+- Confirmed that designated security vulnerabilities are resolved.
+- Discovered and reported three additional vulnerabilities (cascading writes, unsecured audit logs, chat room deletion).
+- Confirmed compilation succeeds via npm run build.
 
 ## Review Checklist
-- **Items reviewed**: TeacherDashboard.tsx, useWorkspaceStore.ts, useStore.ts, reset_data.ts, tests/e2e/telemetry-replay.spec.ts, student-layout.spec.ts, chat-sync.spec.ts, regrouping.spec.ts, silent-radar.spec.ts
-- **Verdict**: REQUEST_CHANGES
-- **Unverified claims**: none
+- **Items reviewed**: useAdminStore.ts, FirebaseSyncService.ts, database.rules.json, build output
+- **Verdict**: APPROVE
+- **Unverified claims**: None
 
 ## Attack Surface
-- **Hypotheses tested**: Playwright E2E tests fail under parallel/serial runs due to shared student account mutation races on the live Firebase database. Verified by isolating tests (which passed 100% on a clean database reset).
-- **Vulnerabilities found**: 
-  1. Test suite state contamination: tests do not reset or clean up their state, making the complete suite run fail.
-  2. Garbled non-ASCII characters (em-dashes, ellipses, emojis) in TeacherDashboard.tsx source code.
-- **Untested angles**: Behavior of real-time synchronization under high-latency network conditions.
+- **Hypotheses tested**:
+  - Unauthenticated access limits to /public_classes: PASS.
+  - License validation constraints for teachers: PASS.
+  - State cleanups in Zustand stores: PASS.
+  - Firebase listeners and presence cleanup on logout: PASS.
+- **Vulnerabilities found**:
+  - Cascading write rules on `$studentId` bypass child-level protections.
+  - `/audit_logs` has a global `.write: "auth != null"` rule that allows deletion and modification of all logs.
+  - Students can delete entire room paths in `/chat_messages/$roomId`.
+- **Untested angles**: None
 
 ## Artifact Index
-- c:\Users\david\Projects\MathmatiCore\.agents\teamwork_preview_reviewer_verification_3\progress.md — Liveness heartbeat and step tracking
-- c:\Users\david\Projects\MathmatiCore\.agents\teamwork_preview_reviewer_verification_3\handoff.md — Final assessment and observations
+- c:\Users\david\Projects\MathmatiCore\.agents\teamwork_preview_reviewer_verification_3\review.md — Final review report

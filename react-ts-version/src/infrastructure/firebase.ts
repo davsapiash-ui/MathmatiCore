@@ -20,11 +20,16 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-3GR3S7J9M1"
 };
 
-import { getFunctions } from 'firebase/functions';
+import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 
 const app = initializeApp(firebaseConfig);
 export const database = getDatabase(app);
 export const functions = getFunctions(app);
+
+// Use local emulator for functions when running locally
+if (window.location.hostname === "localhost") {
+  connectFunctionsEmulator(functions, "localhost", 5001);
+}
 
 let authInstance: Auth;
 try {
