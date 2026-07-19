@@ -33,12 +33,6 @@ jobs:
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MATHIMATICORE }}
 
-      - name: Inject Gemini API Key for Cloud Functions
-        run: echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" > functions/.env
+      - name: Deploy to Firebase Hosting
+        run: npx --yes firebase-tools@13 deploy --only hosting --project mathimaticore --non-interactive
 
-      - name: Install Functions dependencies
-        working-directory: functions
-        run: npm ci
-
-      - name: Deploy to Firebase (Hosting + Functions)
-        run: npx --yes firebase-tools@13 deploy --only hosting,functions --project mathimaticore --non-interactive
