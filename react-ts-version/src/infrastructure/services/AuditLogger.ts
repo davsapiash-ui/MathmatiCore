@@ -14,13 +14,19 @@ export interface AuditLogEvent {
 
 class AuditLoggerService {
   /**
-   * Log an event to the `audit_logs` Firebase node.
+   * Log an event to the `audit_logs` Firebase node, AND to the student's personal `radar_history`
+   * so it appears on the teacher dashboard synced with the video replay.
    */
   async log(action: AuditAction, userId: string, details?: string) {
-    try {
-      // All authenticated roles can write to audit_logs.
-      // (Previous admin-only guard silently dropped all teacher/student events.)
+    if (!userId) {
+      console.warn("AuditLogger.log called without userId", { action, details });
+      return;
+    }
 
+    try {
+      const timestamp = Date.now();
+      
+      // Global audit log
       const logsRef = ref(database, 'audit_logs');
       await push(logsRef, {
         action,
@@ -28,8 +34,35 @@ class AuditLoggerService {
         details: details || null,
         timestamp: serverTimestamp(),
       });
+
+      // Student personal radar history (for Teacher Dashboard timeline)
+      // Map actions to radar types: 'TASK_ERROR', 'PASSIVE_DRIFTING', 'HESITATION', etc.
+      let type = action;
+      let errorCategory = null;
+      if (['FACTUAL_ERROR', 'PROCEDURAL_ERROR', 'STRATEGIC_ERROR'].includes(action)) {
+        type = 'TASK_ERROR';
+        errorCategory = action;
+      }
+
+      const radarRef = ref(database, `users/students/${userId}/radar_history`);
+      await push(radarRef, {
+        type,
+        errorCategory,
+        timestamp, // use client timestamp to match rrweb video timeline
+        details: details || null,
+      });
+
+      // Global radar alerts for the live Teacher Dashboard sidebar
+      const alertsRef = ref(database, 'radar_alerts');
+      await push(alertsRef, {
+        type,
+        studentId: userId,
+        timestamp,
+        details: details || null,
+      });
+
     } catch (e) {
-      console.error("Failed to write audit log:", e);
+      console.error("Failed to write audit log or radar history:", e);
     }
   }
 }

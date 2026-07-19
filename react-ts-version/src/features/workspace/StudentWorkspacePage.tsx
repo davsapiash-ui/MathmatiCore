@@ -128,8 +128,25 @@ export function StudentWorkspacePage() {
         useWorkspaceStore.getState().undo();
       }
     };
+    
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        const studentId = useAuthStore.getState().user?.uid;
+        if (studentId) {
+          import('@/infrastructure/services/AuditLogger').then(({ AuditLogger }) => {
+            AuditLogger.log('TAB_ESCAPE', studentId, 'Student switched to another tab or window');
+          });
+        }
+      }
+    };
+
     window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
   }, []);
 
   // RRWeb recording with batching

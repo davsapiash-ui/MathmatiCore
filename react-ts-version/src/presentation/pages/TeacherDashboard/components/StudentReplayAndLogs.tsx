@@ -198,7 +198,7 @@ export function StudentReplayAndLogs({ studentId }: { studentId: string }) {
                             chunkMetadata[k] && 
                             alert.timestamp >= chunkMetadata[k].startTime && 
                             alert.timestamp <= chunkMetadata[k].endTime
-                          ) || chunkKeys.reverse().find(k => chunkMetadata[k] && alert.timestamp >= chunkMetadata[k].endTime) || chunkKeys[0];
+                          ) || [...chunkKeys].reverse().find(k => chunkMetadata[k] && alert.timestamp >= chunkMetadata[k].endTime) || chunkKeys[0];
                           
                           fetchChunk(latestSession, targetKey);
                         }

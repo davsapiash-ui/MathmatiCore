@@ -28,11 +28,17 @@ jobs:
         working-directory: react-ts-version
         run: npm run build
 
-
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MATHIMATICORE }}
 
-      - name: Deploy to Firebase Hosting
-        run: npx --yes firebase-tools@13 deploy --only hosting --project mathimaticore --non-interactive
+      - name: Inject Gemini API Key for Cloud Functions
+        run: echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" > functions/.env
+
+      - name: Install Functions dependencies
+        working-directory: functions
+        run: npm ci
+
+      - name: Deploy to Firebase (Hosting + Functions)
+        run: npx --yes firebase-tools@13 deploy --only hosting,functions --project mathimaticore --non-interactive

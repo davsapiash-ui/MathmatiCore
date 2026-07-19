@@ -197,7 +197,7 @@ export function determineAdaptivePath(
   hesitationCount: number = 0,
   undoCount: number = 0
 ): RoutePath {
-  const failedTasks = Object.values(state.results).filter(r => !r.correct);
+  const failedTasks = Object.values(state.results).filter(r => !r.correct && !r.secondAttemptCorrect);
   const failedCount = failedTasks.length;
 
   if (failedCount >= 3 || hesitationCount >= 10 || undoCount >= 20) {

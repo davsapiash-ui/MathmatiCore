@@ -20,6 +20,9 @@ export function useCognitiveHesitationRadar({
   onHesitationDetected 
 }: UseCognitiveHesitationRadarProps) {
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Store callback in a ref so changes to it don't reset the timer
+  const onHesitationRef = useRef(onHesitationDetected);
+  useEffect(() => { onHesitationRef.current = onHesitationDetected; }, [onHesitationDetected]);
 
   const resetTimeout = useCallback(() => {
     if (timeoutRef.current) {
@@ -31,22 +34,20 @@ export function useCognitiveHesitationRadar({
     timeoutRef.current = setTimeout(() => {
       // Trigger silent dashboard alert payload
       const { user } = useAuthStore.getState();
-      const userId = user?.uid || user?.id || "unknown_student";
+      const userId = user?.uid || user?.id;
       
+      if (!userId) return;
+
       AuditLogger.log(
-        "COGNITIVE_HESITATION_ALERT", 
+        "HESITATION", 
         userId as string, 
         "Student hesitated for >30s without interacting. Silent alert triggered."
       );
       
-      // Deliberately NOT calling onHesitationDetected() by default 
-      // to ensure NO visual indication is shown to the student, 
-      // but we leave the optional callback in case it's needed for state logging later.
-      if (onHesitationDetected && false) {
-        onHesitationDetected?.();
-      }
+      // onHesitationDetected is intentionally NOT called here — no visual shown to student.
+      // The ref is kept for possible future state-logging use.
     }, HESITATION_THRESHOLD_MS);
-  }, [isActive, onHesitationDetected]);
+  }, [isActive]); // ← onHesitationDetected intentionally removed from deps
 
   useEffect(() => {
     if (!isActive) {

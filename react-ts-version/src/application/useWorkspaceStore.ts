@@ -268,8 +268,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     const nonce = get().feedbackNonce + 1;
     set({ feedback, feedbackNonce: nonce });
     window.setTimeout(() => {
-      if (get().feedbackNonce === nonce) set({ feedback: null });
-      then?.();
+      if (get().feedbackNonce === nonce) {
+        set({ feedback: null });
+        then?.();
+      }
     }, ms);
   }
 
@@ -952,6 +954,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       
       if (newConsecutiveUndos >= 3) {
         set({ isBoardLocked: true, consecutiveUndos: newConsecutiveUndos });
+        
+        const studentId = useAuthStore.getState().user?.uid;
+        if (studentId) {
+          AuditLogger.log('PASSIVE_DRIFTING', studentId, '3 consecutive undos detected');
+        }
+
         s.showFeedback({ 
           correct: false, 
           title: 'בואו נעצור לרגע...', 
@@ -1186,6 +1194,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const s = get();
       if (s.helpState !== 'closed') return;
       if (Date.now() - s.taskStartTime < 10000) return; // 10s delay before help is available
+      
+      const studentId = useAuthStore.getState().user?.uid;
+      if (studentId) {
+        AuditLogger.log('HINT_REQUESTED', studentId, 'Student clicked the hint lightbulb');
+      }
+
       set({ helpState: 'friction', frictionTriggerSource: 'lightbulb', aiSocraticHint: null });
       get().fetchSocraticHint();
     },
