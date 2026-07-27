@@ -146,12 +146,14 @@ export function Login() {
         // Verify admin role (assuming admins are managed via Firebase Auth custom claims or specific emails)
         // For now, if authentication succeeds and the email matches admin@mathmaticore.local, we let them in.
         const currentUser = auth.currentUser;
-        if (currentUser && currentUser.email === "admin@mathmaticore.local") {
+        const adminEmails = ["davidsep@edu-haifa.org.il", "1002220159@edu-haifa.org.il", "admin@mathmaticore.local"];
+        
+        if (currentUser && currentUser.email && adminEmails.includes(currentUser.email)) {
           setUser({
             uid: currentUser.uid,
-            role: "admin",
+            role: ["teacher", "admin"],
             displayName: "מנהל מערכת ראשי",
-          }, "admin");
+          }, ["teacher", "admin"]);
           login("admin", currentUser.uid);
           navigate("/admin", { replace: true });
         } else {

@@ -7,14 +7,16 @@ export interface AuthUser {
   id?: string;
   name?: string;
   email?: string;
+  email?: string;
+  role?: string | string[];
   [key: string]: unknown;
 }
 
 interface AuthState {
   user: AuthUser | null;
-  role: "student" | "teacher" | "admin" | null;
+  role: string | string[] | null;
   isAuthenticated: boolean;
-  setUser: (user: AuthUser, role: "student" | "teacher" | "admin") => void;
+  setUser: (user: AuthUser, role: string | string[]) => void;
   logout: () => void;
 }
 

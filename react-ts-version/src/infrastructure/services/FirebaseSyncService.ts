@@ -272,6 +272,31 @@ class FirebaseSyncService {
     await update(refPath, { routeStatus: 'APPROVED' });
   }
 
+  // --- NEW: PRD Section 6 Vector Replay Schema ---
+  public async logVectorReplayEvent(
+    studentId: string, 
+    sessionId: string, 
+    actionType: string, 
+    details: any, 
+    somaticIndicators: { hesitation_detected: boolean, undo_triggered: boolean }
+  ) {
+    if (!studentId) return;
+    const replayEvent = {
+      event_type: "vector_replay",
+      session_id: sessionId,
+      timestamp: Date.now(),
+      interaction_data: {
+        action_type: actionType,
+        details: details
+      },
+      somatic_indicators: somaticIndicators
+    };
+    
+    // Push a small JSON (<50KB) event to the student's trace log for offline replay
+    const replayRef = ref(database, `users/students/${studentId}/vector_replays`);
+    await push(replayRef, replayEvent);
+  }
+
   // --- NEW: Public and Admin Listeners ---
   private syncSharedListeners(isAuthenticated: boolean) {
     if (!this.unsubscribeSchools) {

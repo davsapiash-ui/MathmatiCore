@@ -318,13 +318,19 @@ export const useStore = create<AppState>()(
           // Limit trace length to 40 events to guarantee < 50KB payload budget per PRD 5.2 & 6
           const MAX_VECTOR_TRACE_LENGTH = 40;
           const updatedTrace = [...currentTrace, newEvent].slice(-MAX_VECTOR_TRACE_LENGTH);
-
-          const newTraceData = {
-            ...students[studentId].traceData,
-            semantic_trace: updatedTrace
-          };
+          const newTraceData = { ...students[studentId].traceData, semantic_trace: updatedTrace };
           students[studentId] = { ...students[studentId], traceData: newTraceData };
+          
           firebaseSyncService.syncTraceData(studentId, { semantic_trace: updatedTrace }).catch(console.error);
+          
+          // Also log individually to the vector_replays branch
+          firebaseSyncService.logVectorReplayEvent(
+            studentId,
+            newEvent.session_id || "session_unknown",
+            newEvent.interaction_data.action_type,
+            newEvent.interaction_data.details,
+            newEvent.somatic_indicators
+          ).catch(console.error);
         }
         return { students };
       }),

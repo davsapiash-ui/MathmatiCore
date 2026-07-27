@@ -73,11 +73,14 @@ function AuthGuard({ allowedRoles, children }: { allowedRoles: string[]; childre
     return <Navigate to="/login" replace />;
   }
   
-  if (!allowedRoles.includes(user.role as string)) {
+  const userRoles = Array.isArray(user.role) ? user.role : [user.role as string];
+  const hasAccess = userRoles.some((role: string) => allowedRoles.includes(role));
+
+  if (!hasAccess) {
     // Redirect based on role if they try to access unauthorized path
-    if (user.role === "student") return <Navigate to="/hub" replace />;
-    if (user.role === "teacher") return <Navigate to="/dashboard" replace />;
-    if (user.role === "admin") return <Navigate to="/admin" replace />;
+    if (userRoles.includes("student")) return <Navigate to="/hub" replace />;
+    if (userRoles.includes("teacher")) return <Navigate to="/dashboard" replace />;
+    if (userRoles.includes("admin")) return <Navigate to="/admin" replace />;
   }
 
   return <>{children}</>;
@@ -89,9 +92,10 @@ function RoleRouter() {
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      if (user.role === "student") navigate("/hub", { replace: true });
-      else if (user.role === "teacher") navigate("/dashboard", { replace: true });
-      else if (user.role === "admin") navigate("/admin", { replace: true });
+      const userRoles = Array.isArray(user.role) ? user.role : [user.role as string];
+      if (userRoles.includes("student")) navigate("/hub", { replace: true });
+      else if (userRoles.includes("teacher")) navigate("/dashboard", { replace: true });
+      else if (userRoles.includes("admin")) navigate("/admin", { replace: true });
     }
   }, [isAuthenticated, user, navigate]);
 
@@ -124,6 +128,23 @@ function App() {
           } />
 
           <Route path="/dashboard" element={
+            <AuthGuard allowedRoles={["teacher", "admin"]}>
+              <FirebaseGate>
+              <TeacherDashboard />
+              </FirebaseGate>
+            </AuthGuard>
+          } />
+
+          {/* PRD Section 4.3 Navigation Redundancy for student reports */}
+          <Route path="/reports/student/:id" element={
+            <AuthGuard allowedRoles={["teacher", "admin"]}>
+              <FirebaseGate>
+              <TeacherDashboard />
+              </FirebaseGate>
+            </AuthGuard>
+          } />
+
+          <Route path="/dashboard/student/:id/view" element={
             <AuthGuard allowedRoles={["teacher", "admin"]}>
               <FirebaseGate>
               <TeacherDashboard />

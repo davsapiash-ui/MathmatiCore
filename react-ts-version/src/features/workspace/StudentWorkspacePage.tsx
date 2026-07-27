@@ -30,6 +30,8 @@ import { TaskCard } from './tasks/TaskCard';
 import { FeedbackToast } from './overlays/FeedbackToast';
 import { HelpOverlays } from './overlays/HelpOverlays';
 import { ReflectionScreen } from './ReflectionScreen';
+import { Session8ReflectionScreen } from '@/presentation/components/student/Session8ReflectionScreen';
+import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
 import { useStore } from '@/application/useStore';
 
 import { StudentChatOverlay } from './overlays/StudentChatOverlay';
@@ -348,6 +350,17 @@ export function StudentWorkspacePage() {
   // All 5 diagnostic tasks done → reflection (icons, no numeric grades).
   // After every hook so React's hook order stays stable.
   if (flowStatus === 'reflection') {
+    if (sessionNumber === 8) {
+      return <Session8ReflectionScreen 
+        metrics={{ fastestTaskType: 'כפל פי 10 ו-100', slowestTaskType: 'כפל פי 20 ו-30' }}
+        onComplete={(focusArea) => {
+          if (user?.uid) {
+            firebaseSyncService.syncRouteRecommendation(user.uid, focusArea);
+          }
+          navigate('/hub');
+        }}
+      />;
+    }
     return <ReflectionScreen />;
   }
 
