@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+
 import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
 import type { MasteryProfile } from '@/core/QMatrix';
 
@@ -136,8 +136,7 @@ const generateInitialStudents = (): Record<string, StudentData> => {
 const initialStudents = generateInitialStudents();
 
 export const useStore = create<AppState>()(
-  persist(
-    (set) => ({
+  (set) => ({
       currentUserRole: null,
       currentUserId: null,
       students: initialStudents,
@@ -345,23 +344,5 @@ export const useStore = create<AppState>()(
           }
         };
       })
-    }),
-    {
-      name: 'main-store-v8',
-      partialize: (state) => Object.fromEntries(
-        Object.entries(state).filter(([key]) => !['students', 'firebaseLoaded'].includes(key))
-      ),
-      merge: (persistedState: unknown, currentState) => {
-        if (!persistedState) return currentState;
-        const persisted = persistedState as Partial<AppState>;
-        
-        // Return current state's students (from generateInitialStudents) intact, 
-        // merge other persisted top-level keys
-        return {
-          ...currentState,
-          ...persisted
-        };
-      }
-    }
-  )
+    })
 );

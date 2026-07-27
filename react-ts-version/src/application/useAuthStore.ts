@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+
 import { AuditLogger } from "@/infrastructure/services/AuditLogger";
 
 export interface AuthUser {
@@ -19,24 +19,19 @@ interface AuthState {
 }
 
 export const useAuthStore = create<AuthState>()(
-  persist(
-    (set) => ({
-      user: null,
-      role: null,
-      isAuthenticated: false,
-      setUser: (user, role) => set(() => {
-        const username = user?.name || user?.email || "Unknown";
-        AuditLogger.log("התחברות", user?.uid || "unknown_uid", `משתמש התחבר: ${username}`);
-        return { user, role, isAuthenticated: true };
-      }),
-      logout: () => set((state) => {
-        const username = state.user?.name || state.user?.email || "Unknown";
-        AuditLogger.log("התנתקות", state.user?.uid || "unknown_uid", `משתמש התנתק: ${username}`);
-        return { user: null, role: null, isAuthenticated: false };
-      }),
+  (set) => ({
+    user: null,
+    role: null,
+    isAuthenticated: false,
+    setUser: (user, role) => set(() => {
+      const username = user?.name || user?.email || "Unknown";
+      AuditLogger.log("התחברות", user?.uid || "unknown_uid", `משתמש התחבר: ${username}`);
+      return { user, role, isAuthenticated: true };
     }),
-    {
-      name: "auth-storage-v3", // name of item in the storage (must be unique)
-    }
-  )
+    logout: () => set((state) => {
+      const username = state.user?.name || state.user?.email || "Unknown";
+      AuditLogger.log("התנתקות", state.user?.uid || "unknown_uid", `משתמש התנתק: ${username}`);
+      return { user: null, role: null, isAuthenticated: false };
+    }),
+  })
 );
