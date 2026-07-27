@@ -13,4 +13,4 @@ export interface Exercise {
   target_concrete_state: ConcreteState;
 }
 
-export type KeyboardState = 'LOCKED' | 'UNLOCKED' | 'Socratic Only';
+export type KeyboardState = 'LOCKED' | 'UNLOCKED' | 'SOCRATIC_ONLY' | 'Socratic Only';

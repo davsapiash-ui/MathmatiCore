@@ -18,7 +18,8 @@ export function PhysicalOverrideControl({ student }: Props) {
 
   if (!student) return null;
 
-  const handleSaveOverride = async (enableOverride = true) => {
+  const handleSaveOverride = async (enableOverride: boolean | React.SyntheticEvent = true) => {
+    const activeState = typeof enableOverride === 'boolean' ? enableOverride : true;
     const studentId = student?.studentId || (student as any)?.student?.studentId;
     if (!studentId) return;
 
@@ -31,8 +32,8 @@ export function PhysicalOverrideControl({ student }: Props) {
         routeStatus,
         difficultyRecommendation,
         isASD,
-        physicalOverride: enableOverride,
-        physicalOverrideActive: enableOverride,
+        physicalOverride: activeState,
+        physicalOverrideActive: activeState,
         overrideUpdatedAt,
       };
 
@@ -143,17 +144,27 @@ export function PhysicalOverrideControl({ student }: Props) {
           {saveSuccess && (
             <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
               <Check className="w-4 h-4" />
-              העקיפה הופעלה בהצלחה!
+              העקיפה עודכנה בהצלחה!
             </span>
+          )}
+          {student.physicalOverride && (
+            <button
+              type="button"
+              onClick={() => handleSaveOverride(false)}
+              disabled={isSaving}
+              className="flex items-center gap-2 px-3.5 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-100 font-bold text-xs rounded-lg shadow transition-all active:scale-95 disabled:opacity-50"
+            >
+              <span>בטל / נקה עקיפה פיזית</span>
+            </button>
           )}
           <button
             type="button"
-            onClick={handleSaveOverride}
+            onClick={() => handleSaveOverride(true)}
             disabled={isSaving}
             className="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-lg shadow transition-all active:scale-95 disabled:opacity-50"
           >
             {isSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <ShieldAlert className="w-3.5 h-3.5" />}
-            <span>הפעל עקיפה פיזית</span>
+            <span>{student.physicalOverride ? 'עדכן עקיפה פיזית' : 'הפעל עקיפה פיזית'}</span>
           </button>
         </div>
       </div>

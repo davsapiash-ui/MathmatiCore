@@ -40,16 +40,16 @@ describe('ExerciseValidationEngine', () => {
 
     it('should transition LOCKED -> Socratic Only upon hesitation timeout (hesitation_timer_expire)', () => {
       const nextState = transitionKeyboardState('LOCKED', { hesitation_timer_expire: true });
-      expect(nextState).toBe('Socratic Only');
+      expect(nextState).toBe('SOCRATIC_ONLY');
     });
 
     it('should transition LOCKED -> Socratic Only upon 3 blocked attempts', () => {
       const nextState = transitionKeyboardState('LOCKED', { blocked_attempts_count: 3 });
-      expect(nextState).toBe('Socratic Only');
+      expect(nextState).toBe('SOCRATIC_ONLY');
     });
 
     it('should transition Socratic Only -> UNLOCKED upon Socratic question success', () => {
-      const nextState = transitionKeyboardState('Socratic Only', { socratic_success: true });
+      const nextState = transitionKeyboardState('SOCRATIC_ONLY', { socratic_success: true });
       expect(nextState).toBe('UNLOCKED');
     });
 
@@ -76,7 +76,7 @@ describe('ExerciseValidationEngine', () => {
       const nextState = evaluateKeyboardState(mockExercise, invalidState, 'LOCKED', {
         hesitation_timer_expire: true,
       });
-      expect(nextState).toBe('Socratic Only');
+      expect(nextState).toBe('SOCRATIC_ONLY');
     });
 
     it('should transition UNLOCKED back to LOCKED when undo_click is performed on invalid concrete state', () => {

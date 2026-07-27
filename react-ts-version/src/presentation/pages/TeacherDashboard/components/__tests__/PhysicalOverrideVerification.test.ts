@@ -45,7 +45,7 @@ describe('Physical Override Empirical Verification Suite', () => {
   });
 
   describe('2. Firebase Update Payload & Security Rules Compatibility', () => {
-    it('verifies top-level "students/" path is missing in database.rules.json root', () => {
+    it('verifies top-level "students/" path exists in database.rules.json root', () => {
       const rulesPath = path.resolve('c:/Users/david/Projects/MathmatiCore/database.rules.json');
       const rulesJson = JSON.parse(fs.readFileSync(rulesPath, 'utf8'));
 
@@ -57,35 +57,33 @@ describe('Physical Override Empirical Verification Suite', () => {
       // Top-level "students" rule check
       const hasTopLevelStudentsRule = Object.prototype.hasOwnProperty.call(rootRules, 'students');
       
-      // EMPIRICAL FINDING: database.rules.json does NOT define top-level "students/"
-      expect(hasTopLevelStudentsRule).toBe(false);
+      // Top-level "students/" is defined to support secondary path in multi-path updates
+      expect(hasTopLevelStudentsRule).toBe(true);
     });
 
-    it('verifies field name mismatch between PhysicalOverrideControl payload and app UI consumers', () => {
-      // PhysicalOverrideControl writes physicalOverrideActive: true (line 30)
+    it('verifies field name handling between PhysicalOverrideControl payload and app UI consumers', () => {
+      // PhysicalOverrideControl writes both physicalOverride and physicalOverrideActive
       const controlPayload = {
         routeStatus: 'SANDBOX',
         difficultyRecommendation: 'LEVEL_1',
         isASD: false,
+        physicalOverride: true,
         physicalOverrideActive: true,
         overrideUpdatedAt: 123456,
       };
 
-      // App components (StudentSideDrawer line 40, HeatmapGrid line 100, FirebaseSyncService line 160) read physicalOverride
+      // App components (StudentSideDrawer, HeatmapGrid, FirebaseSyncService) read physicalOverride
       const studentState: any = {
         studentId: 's1',
         ...controlPayload,
       };
 
-      // Badge check: student.physicalOverride
       const isOverrideActiveInUI = Boolean(studentState.physicalOverride);
-
-      // EMPIRICAL FINDING: Control payload sets physicalOverrideActive, UI checks physicalOverride
-      expect(isOverrideActiveInUI).toBe(false);
+      expect(isOverrideActiveInUI).toBe(true);
       expect(studentState.physicalOverrideActive).toBe(true);
     });
 
-    it('verifies multi-path atomic update failure when including missing top-level "students/"', () => {
+    it('verifies multi-path atomic update succeeds with top-level "students/" rule', () => {
       const rulesPath = path.resolve('c:/Users/david/Projects/MathmatiCore/database.rules.json');
       const rulesJson = JSON.parse(fs.readFileSync(rulesPath, 'utf8'));
 
@@ -100,8 +98,7 @@ describe('Physical Override Empirical Verification Suite', () => {
       const backupPathAllowed = Boolean(rootRules['students']);
 
       expect(primaryPathAllowed).toBe(true);
-      expect(backupPathAllowed).toBe(false);
-      // Because backupPathAllowed is false, atomic update(ref(database), updates) is rejected by Firebase Security Rules!
+      expect(backupPathAllowed).toBe(true);
     });
   });
 

@@ -1,4 +1,6 @@
 import type { ConcreteState, Exercise, KeyboardState } from '../domain/entities/Exercise';
+import { stateReducer } from '../machines/craMachine';
+import type { KeyboardState as CraKeyboardState } from '../types';
 
 export interface TransitionEvent {
   block_group_success?: boolean;
@@ -35,31 +37,21 @@ export function transitionKeyboardState(
     Boolean(event.inactivity_timer_expired) ||
     (event.blocked_attempts_count !== undefined && event.blocked_attempts_count >= 3);
 
-  switch (currentState) {
-    case 'LOCKED':
-      if (event.block_group_success) {
-        return 'UNLOCKED';
-      }
-      if (hesitationExpired) {
-        return 'Socratic Only';
-      }
-      return 'LOCKED';
+  const normalizedState: CraKeyboardState = currentState === 'Socratic Only' ? 'SOCRATIC_ONLY' : (currentState as CraKeyboardState);
 
-    case 'Socratic Only':
-      if (event.socratic_success) {
-        return 'UNLOCKED';
-      }
-      return 'Socratic Only';
-
-    case 'UNLOCKED':
-      if (event.undo_click) {
-        return 'LOCKED';
-      }
-      return 'UNLOCKED';
-
-    default:
-      return currentState;
+  if (event.block_group_success) {
+    return stateReducer(normalizedState, { type: 'BLOCK_GROUP_SUCCESS' });
   }
+  if (event.socratic_success) {
+    return stateReducer(normalizedState, { type: 'SOCRATIC_SUCCESS' });
+  }
+  if (event.undo_click) {
+    return stateReducer(normalizedState, { type: 'UNDO_CLICK' });
+  }
+  if (hesitationExpired) {
+    return stateReducer(normalizedState, { type: 'HESITATION_TIMER_EXPIRE' });
+  }
+  return normalizedState;
 }
 
 /**

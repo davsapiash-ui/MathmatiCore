@@ -28,6 +28,7 @@ import {
   type QFlowEvent,
   type QMatrixFlowState,
 } from '@/core/qmatrixFlow';
+import { stateReducer } from '@/machines/craMachine';
 import { computeCognitiveMastery } from '@/core/QMatrix';
 import { useStore } from '@/application/useStore';
 import { useAuthStore } from '@/application/useAuthStore';
@@ -1047,7 +1048,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         undoStack: stack, 
         undoCount: s.undoCount + 1,
         undoTimestamps: newUndoTimestamps,
-        keyboardState: s.isASD ? 'LOCKED' : 'UNLOCKED'
+        keyboardState: stateReducer(s.keyboardState, { type: 'UNDO_CLICK' })
       });
 
       const studentId = useAuthStore.getState().user?.uid;
