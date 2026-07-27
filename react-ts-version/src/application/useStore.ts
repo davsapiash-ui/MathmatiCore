@@ -15,14 +15,17 @@ export interface QMatrix {
 }
 
 export interface SemanticEvent {
-  time: number;
-  action: string;
-  element: string;
-  target?: string;
-  duration_sec?: number;
-  context?: string;
-  state_snapshot?: string;
-  q_matrix_node?: string;
+  event_type: 'vector_replay';
+  session_id?: string;
+  timestamp: number;
+  interaction_data: {
+    action_type: string;
+    details: Record<string, any>;
+  };
+  somatic_indicators: {
+    hesitation_detected: boolean;
+    undo_triggered: boolean;
+  };
 }
 
 export interface TraceData {
@@ -70,6 +73,17 @@ export interface StudentData {
   additionBoardEnabled?: boolean;
 }
 
+export interface SemanticEventLegacy {
+  action: string;
+  element?: string;
+  target?: string;
+  context?: string;
+  state_snapshot?: string;
+  q_matrix_node?: string;
+}
+
+export type LogEventPayload = SemanticEventLegacy | Omit<SemanticEvent, 'timestamp' | 'event_type'>;
+
 interface AppState {
   currentUserRole: 'student' | 'teacher' | 'admin' | null;
   currentUserId: string | null;
@@ -91,7 +105,7 @@ interface AppState {
   // NOTE: updateConceptMastery should ONLY be called exactly once at the end of Session 2 
   // (e.g. inside completeDiagnosticMapping or similar) to prevent partial/broken DB writes.
   updateConceptMastery: (studentId: string, updates: MasteryProfile) => void;
-  logSemanticEvent: (studentId: string, event: Omit<SemanticEvent, 'time'>) => void;
+  logSemanticEvent: (studentId: string, event: LogEventPayload) => void;
   markMeeting2Complete: (studentId: string) => void;
   updateHighestCompletedMeeting: (studentId: string, meeting: number) => void;
 
@@ -253,13 +267,41 @@ export const useStore = create<AppState>()(
         const students = { ...state.students };
         if (students[studentId]) {
           const currentTrace = students[studentId].traceData.semantic_trace || [];
-          const newEvent: SemanticEvent = { ...event, time: Date.now() };
-          Object.keys(newEvent).forEach((key) => {
-            const k = key as keyof SemanticEvent;
-            if (newEvent[k] === undefined) {
-              delete newEvent[k];
-            }
-          });
+          let newEvent: SemanticEvent;
+          
+          if ('interaction_data' in event) {
+            newEvent = { 
+              ...(event as Omit<SemanticEvent, 'timestamp' | 'event_type'>), 
+              event_type: 'vector_replay', 
+              timestamp: Date.now() 
+            } as SemanticEvent;
+          } else {
+            const legacy = event as SemanticEventLegacy;
+            let actionType = legacy.action;
+            if (actionType === 'drag_ungrouped') actionType = 'block_split';
+            if (actionType === 'drag_grouped') actionType = 'block_group_success';
+            if (actionType === 'undo') actionType = 'undo_click';
+            
+            newEvent = {
+              event_type: 'vector_replay',
+              timestamp: Date.now(),
+              interaction_data: {
+                action_type: actionType,
+                details: {
+                  element: legacy.element,
+                  target: legacy.target,
+                  context: legacy.context,
+                  state_snapshot: legacy.state_snapshot,
+                  q_matrix_node: legacy.q_matrix_node
+                }
+              },
+              somatic_indicators: {
+                hesitation_detected: actionType === 'hesitation_timeout',
+                undo_triggered: actionType === 'undo_click'
+              }
+            };
+          }
+
           const newTraceData = {
             ...students[studentId].traceData,
             semantic_trace: [...currentTrace, newEvent]

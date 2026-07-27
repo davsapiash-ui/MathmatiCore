@@ -1,5 +1,6 @@
-import { useCallback, useRef, useEffect } from 'react';
-import { useWorkspaceStore } from '@/application/useWorkspaceStore';
+import { useCallback, useRef, useEffect, useState } from 'react';
+import { useWorkspaceStore, selectScaffoldLevel } from '@/application/useWorkspaceStore';
+import { motion, AnimatePresence } from 'framer-motion';
 
 /**
  * ישר המספרים הדיגיטלי — גרירת חץ למיקום (אומדן ותפיסת גודל יחסי).
@@ -21,6 +22,23 @@ export function NumberLineTask({
   const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
   const value = useWorkspaceStore((s) => s.numberLineValue);
   const setNumberLineValue = useWorkspaceStore((s) => s.setNumberLineValue);
+
+  const scaffoldLevel = useWorkspaceStore(selectScaffoldLevel);
+  const [prevScaffoldLevel, setPrevScaffoldLevel] = useState(scaffoldLevel);
+  const [showBeePreview, setShowBeePreview] = useState(false);
+
+  useEffect(() => {
+    if (scaffoldLevel !== prevScaffoldLevel) {
+      setShowBeePreview(true);
+      const timer = setTimeout(() => {
+        setShowBeePreview(false);
+        setPrevScaffoldLevel(scaffoldLevel);
+      }, 1500); // 1.5s bee flash preview before fading
+      return () => clearTimeout(timer);
+    }
+  }, [scaffoldLevel, prevScaffoldLevel]);
+
+  const effectiveScaffoldLevel = showBeePreview ? prevScaffoldLevel : scaffoldLevel;
 
   const trackRef = useRef<HTMLDivElement>(null);
 
@@ -73,7 +91,21 @@ export function NumberLineTask({
   }
 
   return (
-    <div className="mt-6 select-none" dir="ltr">
+    <div className="mt-6 select-none relative" dir="ltr">
+      <AnimatePresence>
+        {showBeePreview && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.5, y: -20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.5, y: -20 }}
+            className="absolute -top-16 right-4 z-50 text-4xl animate-pulse drop-shadow-lg"
+            title="הדבורה מכינה את המסך לשינוי..."
+          >
+            🐝
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div
         ref={trackRef}
         role="slider"
@@ -142,13 +174,23 @@ export function NumberLineTask({
             else if (isMedium) heightClass = 'h-4 bg-ws-ink/70'; // medium
 
             const widthClass = isMajor ? 'w-[2px]' : 'w-[1px]';
+            
+            // Fading logic based on scaffoldLevel:
+            // 0 = FULL_GRID, 1 = PARTIAL_GRID (anchors only), 2 = EMPTY_LINE
+            const isVisible = effectiveScaffoldLevel === 0 || (effectiveScaffoldLevel === 1 && isAnchor) || isMajor;
+            // Always show major ticks for orientation, but fade the rest?
+            // PRD: EMPTY_LINE, PARTIAL_GRID, FULL_GRID.
+            // Let's assume EMPTY_LINE = no ticks at all except the ends (which are part of the line).
+            const isTickVisible = effectiveScaffoldLevel === 0 || (effectiveScaffoldLevel === 1 && (isAnchor || isMajor));
+            
+            const visibilityClass = isTickVisible ? 'opacity-100' : 'opacity-0';
 
             return (
               <div
                 key={t}
-                className={`absolute top-1/2 -translate-y-1/2 ${widthClass} ${heightClass} ${
+                className={`absolute top-1/2 -translate-y-1/2 transition-opacity duration-[2500ms] ${widthClass} ${heightClass} ${
                   isAnchor ? '!h-7 bg-ws-accent shadow-[0_0_8px_2px_rgba(249,115,22,0.5)]' : ''
-                } ${isOutside ? 'opacity-30' : ''}`}
+                } ${isOutside ? 'opacity-30' : ''} ${visibilityClass}`}
                 style={{ left: `${p}%` }}
               />
             );
@@ -157,10 +199,13 @@ export function NumberLineTask({
           {/* Major labels */}
           {majorTicks.map((t) => {
             const isOutside = activeRange && (t < activeRange[0] || t > activeRange[1]);
+            const isLabelVisible = effectiveScaffoldLevel === 0 || (effectiveScaffoldLevel === 1 && asdAnchors?.includes(t));
+            const visibilityClass = isLabelVisible ? 'opacity-100' : 'opacity-0';
+            
             return (
               <span
                 key={t}
-                className={`absolute top-[calc(50%+12px)] -translate-x-1/2 text-sm font-semibold text-ws-ink tabular-nums ${isOutside ? 'opacity-30' : ''}`}
+                className={`absolute top-[calc(50%+12px)] -translate-x-1/2 transition-opacity duration-[2500ms] text-sm font-semibold text-ws-ink tabular-nums ${isOutside ? 'opacity-30' : ''} ${visibilityClass}`}
                 style={{ left: `${((t - min) / span) * 100}%` }}
               >
                 {t.toLocaleString('he-IL')}

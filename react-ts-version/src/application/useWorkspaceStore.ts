@@ -43,6 +43,7 @@ export type SessionNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 export type SupportType = 'metacognitive' | 'socratic' | 'worked_example';
 export type HelpState = 'closed' | 'friction' | 'palette' | SupportType;
 export type FlowStatus = 'task' | 'reflection' | 'sessionDone';
+export type KeyboardState = 'LOCKED' | 'UNLOCKED' | 'SOCRATIC_ONLY';
 
 export interface FeedbackState {
   correct: boolean;
@@ -73,7 +74,7 @@ interface WorkspaceState {
 
   // per-task interaction
   taskStartTime: number;
-  consecutiveUndos: number;
+  undoTimestamps: number[];
   isBoardLocked: boolean;
   hasRequestedBasicHelp: boolean;
   hasInteracted: boolean;
@@ -101,6 +102,7 @@ interface WorkspaceState {
   dynamicTasks: SessionTask[] | null;
   nodeStrikes: Record<string, number>;
   successStreak: number;
+  keyboardState: KeyboardState;
 
   // actions
   injectTask: (task: SessionTask, position: 'next' | 'end') => void;
@@ -128,6 +130,9 @@ interface WorkspaceState {
   setAITasks: (tasks: SessionTask[] | null) => void;
   showFeedback: (feedback: FeedbackState, ms: number, then?: () => void) => void;
   fetchSocraticHint: () => Promise<void>;
+  unlockKeyboard: () => void;
+  lockKeyboard: () => void;
+  setKeyboardSocratic: () => void;
 }
 
 /* ── Pure helpers ── */
@@ -150,10 +155,11 @@ function resetTaskInteraction() {
     focusedPlace: null as Place | null,
     undoCount: 0,
     hesitationCount: 0,
-    consecutiveUndos: 0,
+    undoTimestamps: [],
     isBoardLocked: false,
     hasRequestedBasicHelp: false,
     taskStartTime: Date.now(),
+    keyboardState: 'UNLOCKED' as KeyboardState,
   };
 }
 
@@ -294,8 +300,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
   function startTask(taskId: string) {
     set(resetTaskInteraction());
 
-    // Auto-close the board if the incoming task is a number_line task
     const s = get();
+    // Strict CRA Bridge: lock keyboard in ASD mode
+    set({ keyboardState: s.isASD ? 'LOCKED' : 'UNLOCKED' });
+
+    // Auto-close the board if the incoming task is a number_line task
     let isNumberLine = false;
     if (s.sessionNumber === 2) {
       isNumberLine = getCurrentQTask(s.qflow)?.type === 'number_line';
@@ -746,6 +755,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     qflow: initQFlow(),
     flowStatus: 'task',
     awaitingNext: false,
+    keyboardState: 'UNLOCKED',
 
     counts: { ...EMPTY_COUNTS },
     undoStack: [],
@@ -798,6 +808,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         qflow,
         flowStatus: 'task',
         awaitingNext: false,
+        keyboardState: isASD ? 'LOCKED' : 'UNLOCKED',
         boardOpen: true,
         scaffoldFadeLevel: 0,
         errorPlace: null,
@@ -828,6 +839,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         successStreak: 0,
         awaitingNext: false,
         boardOpen: true,
+        keyboardState: saved.keyboardState ?? (saved.isASD ? 'LOCKED' : 'UNLOCKED'),
         scaffoldFadeLevel: 0,
         errorPlace: null,
         feedback: null,
@@ -894,12 +906,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       set({ 
         counts: result.counts, 
         hasInteracted: true,
-        consecutiveUndos: 0,
         blocksAddedCount: addedCount,
         undoCount: isDelete ? s.undoCount + 1 : s.undoCount,
+        undoTimestamps: [],
         ...(isDelete ? { hasDeletedBlock: true } : {}),
         ...(isUngroup ? { hasUngrouped: true } : {}),
-        ...(isGroup ? { hasGrouped: true } : {})
+        ...(isGroup ? { hasGrouped: true } : {}),
+        ...((isGroup || isUngroup) && s.keyboardState === 'LOCKED' ? { keyboardState: 'UNLOCKED' as KeyboardState } : {})
       });
       
       // Only a TRASH drop is a delete. Manual regrouping also sets `removed` (blocks leave
@@ -940,8 +953,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         counts: next, 
         hasInteracted: true, 
         hasDeletedBlock: true, 
-        undoCount: s.undoCount + 1,
-        consecutiveUndos: 0 
+        undoCount: s.undoCount + 1
       });
 
       const studentId = useAuthStore.getState().user?.uid;
@@ -961,30 +973,48 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const s = get();
       if (s.isBoardLocked) return;
 
-      const newConsecutiveUndos = s.consecutiveUndos + 1;
+      const now = Date.now();
+      const newUndoTimestamps = [...s.undoTimestamps, now];
       
-      if (newConsecutiveUndos >= 3) {
-        set({ isBoardLocked: true, consecutiveUndos: newConsecutiveUndos });
+      let shouldTriggerSocratic = false;
+      let isSevere = false; // session 8
+
+      if (s.sessionNumber === 6) {
+        // 4 clicks in 15 seconds
+        const recentUndos = newUndoTimestamps.filter(t => now - t <= 15000);
+        if (recentUndos.length >= 4) {
+          shouldTriggerSocratic = true;
+        }
+      } else if (s.sessionNumber === 8) {
+        // 3 clicks in a single task
+        if (newUndoTimestamps.length >= 3) {
+          shouldTriggerSocratic = true;
+          isSevere = true;
+        }
+      } else {
+        // Fallback for other sessions: 3 clicks in 15 seconds
+        const recentUndos = newUndoTimestamps.filter(t => now - t <= 15000);
+        if (recentUndos.length >= 3) {
+          shouldTriggerSocratic = true;
+        }
+      }
+
+      if (shouldTriggerSocratic) {
+        set({ undoTimestamps: [] }); // Reset after triggering
         
         const studentId = useAuthStore.getState().user?.uid;
         if (studentId) {
-          AuditLogger.log('PASSIVE_DRIFTING', studentId, '3 consecutive undos detected');
+          AuditLogger.log('PASSIVE_DRIFTING', studentId, 'Frequent undos detected');
         }
 
-        s.showFeedback({ 
-          correct: false, 
-          title: 'בואו נעצור לרגע...', 
-          sub: 'נראה שאתם צריכים עזרה. נסו לבקש רמז!' 
-        }, 5000, () => {
-          set({ isBoardLocked: false, consecutiveUndos: 0 });
-        });
+        s.setKeyboardSocratic();
         return;
       }
 
       const stack = [...s.undoStack];
       const snapshot = stack.pop();
       if (!snapshot) {
-        set({ consecutiveUndos: newConsecutiveUndos });
+        set({ undoTimestamps: newUndoTimestamps });
         return;
       }
       
@@ -992,7 +1022,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         counts: snapshot.counts, 
         undoStack: stack, 
         undoCount: s.undoCount + 1,
-        consecutiveUndos: newConsecutiveUndos 
+        undoTimestamps: newUndoTimestamps,
+        keyboardState: s.isASD ? 'LOCKED' : 'UNLOCKED'
       });
 
       const studentId = useAuthStore.getState().user?.uid;
@@ -1231,6 +1262,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     },
     closeHelp: () => set({ helpState: 'closed' }),
     showFeedback,
+    unlockKeyboard: () => set({ keyboardState: 'UNLOCKED' }),
+    lockKeyboard: () => set({ keyboardState: 'LOCKED' }),
+    setKeyboardSocratic: () => set({ keyboardState: 'SOCRATIC_ONLY' }),
   };
 });
 

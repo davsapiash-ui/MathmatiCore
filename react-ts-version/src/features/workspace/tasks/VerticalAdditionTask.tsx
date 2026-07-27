@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { PLACE_ORDER, type Place } from '@/core/placeValue';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 
@@ -41,7 +41,44 @@ export function VerticalAdditionTask({
   const carryDigits = useWorkspaceStore((s) => s.carryDigits);
   const setCarryDigit = useWorkspaceStore((s) => s.setCarryDigit);
   const setFocusedPlace = useWorkspaceStore((s) => s.setFocusedPlace);
+  const keyboardState = useWorkspaceStore((s) => s.keyboardState);
+  const setKeyboardSocratic = useWorkspaceStore((s) => s.setKeyboardSocratic);
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
+
+  const [shake, setShake] = useState(false);
+  const [lockedClicks, setLockedClicks] = useState(0);
+
+  useEffect(() => {
+    if (keyboardState === 'UNLOCKED') {
+      setLockedClicks(0);
+    }
+  }, [keyboardState]);
+
+  useEffect(() => {
+    let timer: number;
+    if (keyboardState === 'LOCKED') {
+      timer = window.setTimeout(() => {
+        setKeyboardSocratic();
+      }, 30000);
+    }
+    return () => clearTimeout(timer);
+  }, [keyboardState, setKeyboardSocratic]);
+
+  const handleLockedInteraction = () => {
+    if (keyboardState === 'LOCKED') {
+      setShake(true);
+      setTimeout(() => setShake(false), 400);
+      setLockedClicks((prev) => {
+        const next = prev + 1;
+        if (next >= 3) {
+          setKeyboardSocratic();
+        }
+        return next;
+      });
+    }
+  };
+
+  const isInputDisabled = keyboardState !== 'UNLOCKED';
 
   const aStr = String(numberA);
   const bStr = String(numberB);
@@ -80,8 +117,21 @@ export function VerticalAdditionTask({
     );
   };
 
+  const shakeStyle = shake ? { transform: 'translateX(4px)' } : {};
+
   return (
-    <div className="self-center w-full max-w-md flex flex-col items-center gap-4 bg-ws-surface rounded-3xl border border-ws-surface2 shadow-[0_10px_28px_-14px_hsl(var(--ws-shadow-warm)/0.3)] p-6">
+    <div className="self-center w-full max-w-md flex flex-col items-center gap-4 bg-ws-surface rounded-3xl border border-ws-surface2 shadow-[0_10px_28px_-14px_hsl(var(--ws-shadow-warm)/0.3)] p-6 relative">
+      {/* Visual Indicator for Locked State */}
+      {keyboardState === 'LOCKED' && (
+        <div className="absolute top-4 right-4 flex items-center gap-2 px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-sm font-bold animate-pulse">
+          <span>🔒</span> מקלדת נעולה - פעלו בלוח
+        </div>
+      )}
+      {keyboardState === 'SOCRATIC_ONLY' && (
+        <div className="absolute top-4 right-4 flex items-center gap-2 px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm font-bold">
+          <span>🤔</span> חושבים יחד...
+        </div>
+      )}
       {/* Notebook paper: background squares EXACTLY the size of a grid column,
           so every digit sits inside a real square — like a math notebook. */}
       <div
@@ -110,9 +160,13 @@ export function VerticalAdditionTask({
                 inputMode="numeric"
                 maxLength={2}
                 value={carryDigits[place] ?? ''}
+                readOnly={isInputDisabled}
+                onClick={isInputDisabled ? handleLockedInteraction : undefined}
                 aria-label={`חלונית המרה ל${PLACE_LABEL_HE[place]}`}
-                className="rounded-md border-2 border-ws-surface2 text-center font-mono font-bold bg-ws-surface text-ws-ink focus:outline-none focus:ring-2 focus:ring-ws-accent transition-shadow"
-                style={{ width: CELL * 0.6, height: CELL * 0.6, fontSize: CELL * 0.35 }}
+                className={`rounded-md border-2 border-ws-surface2 text-center font-mono font-bold bg-ws-surface text-ws-ink transition-shadow ${
+                  isInputDisabled ? 'opacity-60 cursor-not-allowed bg-gray-50' : 'focus:outline-none focus:ring-2 focus:ring-ws-accent'
+                }`}
+                style={{ width: CELL * 0.6, height: CELL * 0.6, fontSize: CELL * 0.35, ...shakeStyle }}
                 onChange={(e) => {
                   const v = e.target.value.replace(/[^0-9]/g, '').slice(-2);
                   setCarryDigit(place, v);
@@ -215,9 +269,13 @@ export function VerticalAdditionTask({
                 inputMode="numeric"
                 maxLength={1}
                 value={answerDigits[place] ?? ''}
+                readOnly={isInputDisabled}
+                onClick={isInputDisabled ? handleLockedInteraction : undefined}
                 aria-label={`ספרת ה${PLACE_LABEL_HE[place]} בתשובה`}
-                className="rounded-lg border-2 text-center font-mono font-black bg-ws-surface text-ws-ink focus:outline-none focus:ring-2 focus:ring-ws-accent transition-shadow"
-                style={{ width: CELL - 12, height: CELL - 12, fontSize: CELL * 0.48, borderColor: PLACE_TINT[place] }}
+                className={`rounded-lg border-2 text-center font-mono font-black bg-ws-surface text-ws-ink transition-all ${
+                  isInputDisabled ? 'opacity-60 cursor-not-allowed bg-gray-50' : 'focus:outline-none focus:ring-2 focus:ring-ws-accent'
+                }`}
+                style={{ width: CELL - 12, height: CELL - 12, fontSize: CELL * 0.48, borderColor: PLACE_TINT[place], ...shakeStyle }}
                 onFocus={() => setFocusedPlace(place)}
                 onBlur={() => setFocusedPlace(null)}
                 onChange={(e) => {
