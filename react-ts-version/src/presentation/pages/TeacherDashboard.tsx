@@ -265,7 +265,10 @@ export function TeacherDashboard() {
   }, [teacherApprovals, fallbackApprovals]);
   
   // Extract dynamic teacher ID from the logged-in user (format is usually "teacher_12345" or just ID)
-  const TEACHER_ID = user?.uid?.replace("teacher_", "") || "teacher-1";
+  const TEACHER_ID = useMemo(() => {
+    const rawUid = user?.uid || user?.id || (typeof user?.email === 'string' ? user.email.split('@')[0] : "teacher-1");
+    return String(rawUid).replace(/^teacher_/, "");
+  }, [user]);
 
   useEffect(() => {
     const studentsRef = ref(database, 'users/students');
@@ -300,14 +303,14 @@ export function TeacherDashboard() {
         } as any;
       }
 
-
       // 2. Override with live cloud data
       Object.keys(data).forEach((uid) => {
         const row = data[uid] ?? {};
         
         const isAdmin = user?.role === 'admin';
+        const rowTeacherId = row.teacherId ? String(row.teacherId).replace(/^teacher_/, "") : undefined;
         // Multi-tenant filtering: Only load students belonging to this teacher (or unassigned/demo)
-        if (!isAdmin && row.teacherId && row.teacherId !== TEACHER_ID && row.teacherId !== "teacher-1") {
+        if (!isAdmin && rowTeacherId && rowTeacherId !== TEACHER_ID && rowTeacherId !== "teacher-1") {
           return; // Skip students from other teachers
         }
 
@@ -316,30 +319,26 @@ export function TeacherDashboard() {
             cleanName = uid.replace('student_', ''); // Force 'user1'
         }
 
+        const existingLocal = formattedStudents[uid];
+
         formattedStudents[uid] = {
           studentId: uid,
-          classId: row.classId ?? 'live',
+          classId: row.classId ?? existingLocal?.classId ?? 'live',
           name: cleanName,
-          qMatrixResults: {
-            task1_zero_placeholder: null,
-            task2_estimation_error_margin: null,
-            task3_flexible_regrouping: null,
-            task4_basic_addition_fluency: null,
-            task5_small_change: null,
-            task6_subtraction_regrouping: null,
-            task7_missing_subtrahend: null,
-            task8_missing_addend: null,
-            ...(row.qMatrixResults ?? {}),
-          },
+          qMatrixResults: Object.assign(
+            {},
+            existingLocal?.qMatrixResults || {},
+            row.qMatrixResults || {}
+          ),
           traceData: {
-            hesitation_events: Math.max(row.traceData?.hesitation_events || 0, row.workspaceState?.hesitationCount || 0),
-            undo_clicks: Math.max(row.traceData?.undo_clicks || 0, row.workspaceState?.undoCount || 0),
+            hesitation_events: Math.max(existingLocal?.traceData?.hesitation_events || 0, row.traceData?.hesitation_events || 0, row.workspaceState?.hesitationCount || 0),
+            undo_clicks: Math.max(existingLocal?.traceData?.undo_clicks || 0, row.traceData?.undo_clicks || 0, row.workspaceState?.undoCount || 0),
           },
-          completedMeeting2: row.completedMeeting2 ?? false,
-          routeRecommendation: row.routeRecommendation ?? null,
-          routeStatus: row.routeStatus ?? null,
-          diagnosticReport: row.diagnosticReport ?? null,
-          additionBoardEnabled: row.additionBoardEnabled ?? false,
+          completedMeeting2: row.completedMeeting2 ?? existingLocal?.completedMeeting2 ?? false,
+          routeRecommendation: row.routeRecommendation ?? existingLocal?.routeRecommendation ?? null,
+          routeStatus: row.routeStatus ?? existingLocal?.routeStatus ?? null,
+          diagnosticReport: row.diagnosticReport ?? existingLocal?.diagnosticReport ?? null,
+          additionBoardEnabled: row.additionBoardEnabled ?? existingLocal?.additionBoardEnabled ?? false,
           // Support legacy props expected by some components
           currentTask: row.workspaceState?.standardTaskIdx || 0,
           sessionNum: row.workspaceState?.sessionNumber || 1,
@@ -1181,7 +1180,13 @@ export function TeacherDashboard() {
 
         {activeTab === "class_management" && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <ClassManagement allStudents={allStudents} />
+            <ClassManagement
+              allStudents={allStudents}
+              onDrillDown={(studentId) => {
+                const student = allStudents.find(s => s.studentId === studentId);
+                if (student) setDrawerStudent(student);
+              }}
+            />
           </div>
         )}
 
@@ -1651,15 +1656,15 @@ export function TeacherDashboard() {
                             <span className="font-semibold">מאבק קוגניטיבי סמוי</span>
                           </div>
                           <div className="text-sm font-bold text-ws-soft">
-                            {student.traceData.hesitation_events} היסוסים, {student.traceData.undo_clicks} חזרות
+                            {student.traceData?.hesitation_events || 0} היסוסים, {student.traceData?.undo_clicks || 0} חזרות
                           </div>
                         </div>
                         <div className="bg-ws-bg p-4 rounded-xl flex items-center justify-between border border-ws-surface2">
                           <div>
                             <span className="font-semibold">בסיס עשרוני וחיבור</span>
                           </div>
-                          <div className={`text-sm font-bold ${(student.qMatrixResults.task4_basic_addition_fluency && student.qMatrixResults.task4_basic_addition_fluency !== 'success') ? 'text-red-500' : 'text-green-500'}`}>
-                            {(student.qMatrixResults.task4_basic_addition_fluency && student.qMatrixResults.task4_basic_addition_fluency !== 'success') ? 'נכשל' : 'תקין'}
+                          <div className={`text-sm font-bold ${(student.qMatrixResults?.task4_basic_addition_fluency && student.qMatrixResults.task4_basic_addition_fluency !== 'success') ? 'text-red-500' : 'text-green-500'}`}>
+                            {(student.qMatrixResults?.task4_basic_addition_fluency && student.qMatrixResults.task4_basic_addition_fluency !== 'success') ? 'נכשל' : 'תקין'}
                           </div>
                         </div>
                     </div>

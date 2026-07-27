@@ -684,11 +684,12 @@ export class FirebaseSyncService {
   }
 
   // --- Admin actions syncing to Firebase ---
-  public async addSchool(name: string) {
-    const id = push(ref(database, 'schools')).key;
+  public async addSchool(name: string, preferredId?: string): Promise<School> {
+    const id = preferredId || push(ref(database, 'schools')).key;
     if (!id) throw new Error("Failed to generate school ID");
     const school: School = { id, name, createdAt: Date.now() };
     await set(ref(database, `schools/${id}`), school);
+    return school;
   }
 
   public async deleteSchool(schoolId: string) {
@@ -754,8 +755,8 @@ export class FirebaseSyncService {
     await update(ref(database), updates);
   }
 
-  public async addClassRoom(schoolId: string, teacherId: string, name: string) {
-    const id = push(ref(database, 'classes')).key;
+  public async addClassRoom(schoolId: string, teacherId: string, name: string, preferredId?: string): Promise<ClassRoom> {
+    const id = preferredId || push(ref(database, 'classes')).key;
     if (!id) throw new Error("Failed to generate class ID");
     const limit = useAdminStore.getState().globalStudentLimit;
     const newClass: ClassRoom = {
@@ -770,6 +771,7 @@ export class FirebaseSyncService {
     updates[`classes/${id}`] = newClass;
     updates[`public_classes/${id}`] = { id, name, schoolId };
     await update(ref(database), updates);
+    return newClass;
   }
 
   public async deleteClassRoom(id: string) {

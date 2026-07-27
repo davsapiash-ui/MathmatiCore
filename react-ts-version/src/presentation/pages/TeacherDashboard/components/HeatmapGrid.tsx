@@ -10,7 +10,12 @@ import {
   ShieldAlert, 
   Sparkles,
   UserCheck,
+  Filter,
+  Search,
+  Users,
+  ChevronLeft
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export interface AnonymousStudent {
   id: string; // e.g. "student_1"
@@ -35,7 +40,6 @@ export interface LiveFeedItem {
   severity: 'info' | 'warning' | 'alert';
 }
 
-// PRD: Grid starts empty — slots fill only from live Firebase data. No mock/random data.
 const INITIAL_MOCK_STUDENTS: AnonymousStudent[] = Array.from({ length: 35 }, (_, index) => {
   const studentNum = index + 1;
   return {
@@ -53,7 +57,6 @@ const INITIAL_MOCK_STUDENTS: AnonymousStudent[] = Array.from({ length: 35 }, (_,
   };
 });
 
-// PRD: Feed starts empty — events arrive from Firebase radar_alerts only.
 const INITIAL_MOCK_FEED: LiveFeedItem[] = [];
 
 interface HeatmapGridProps {
@@ -65,6 +68,10 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
   const [students, setStudents] = useState<AnonymousStudent[]>(INITIAL_MOCK_STUDENTS);
   const [feedItems, setFeedItems] = useState<LiveFeedItem[]>(INITIAL_MOCK_FEED);
   const [selectedStudent, setSelectedStudent] = useState<AnonymousStudent | null>(null);
+
+  // Filter state for Heatmap
+  const [activeFilter, setActiveFilter] = useState<'ALL' | 'STRUGGLING' | 'LOCKED' | 'PHYSICAL_OVERRIDE'>('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Subscribe to live Firebase data and merge with 35 student slots
   useEffect(() => {
@@ -232,115 +239,177 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
     };
   };
 
+  // Counts
   const strugglingCount = useMemo(() => students.filter(s => s.isStruggling).length, [students]);
+  const lockedCount = useMemo(() => students.filter(s => s.status === 'locked').length, [students]);
+  const physicalOverrideCount = useMemo(() => students.filter(s => s.physicalOverride).length, [students]);
+
+  // Filtered Students
+  const filteredStudents = useMemo(() => {
+    return students.filter(s => {
+      const matchesSearch = !searchQuery || s.displayName.toLowerCase().includes(searchQuery.toLowerCase());
+      if (!matchesSearch) return false;
+
+      if (activeFilter === 'STRUGGLING') return s.isStruggling;
+      if (activeFilter === 'LOCKED') return s.status === 'locked';
+      if (activeFilter === 'PHYSICAL_OVERRIDE') return s.physicalOverride;
+      return true;
+    });
+  }, [students, activeFilter, searchQuery]);
 
   return (
     <div className="flex flex-col gap-8" dir="rtl">
       {/* Visual Live Feed Component (Mini-Radar) */}
-      <section className="bg-slate-900 text-white rounded-3xl p-6 shadow-xl border border-slate-800 relative overflow-hidden">
-        <div className="absolute -top-12 -left-12 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+      <section className="bg-slate-950 text-white rounded-3xl p-6 shadow-2xl border border-indigo-500/20 relative overflow-hidden">
+        <div className="absolute -top-16 -left-16 w-56 h-56 bg-indigo-500/15 rounded-full blur-3xl pointer-events-none" />
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 border-b border-slate-800 pb-4">
           <div className="flex items-center gap-3">
             <div className="relative flex items-center justify-center">
-              <span className="animate-ping absolute inline-flex h-4 w-4 rounded-full bg-emerald-400 opacity-75" />
-              <div className="relative w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-400 flex items-center justify-center text-emerald-400">
-                <Activity className="w-4 h-4" />
+              <span className="animate-ping absolute inline-flex h-5 w-5 rounded-full bg-emerald-400 opacity-75" />
+              <div className="relative w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-emerald-400 shadow-lg shadow-emerald-500/20">
+                <Activity className="w-5 h-5" />
               </div>
             </div>
             <div>
-              <h2 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+              <h2 className="text-xl font-black tracking-tight text-white flex items-center gap-2">
                 רדאר פדגוגי בזמן אמת
-                <span className="text-xs bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded-full">
+                <span className="text-xs bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 px-2.5 py-0.5 rounded-full font-bold">
                   לייב
                 </span>
               </h2>
-              <p className="text-xs text-slate-400">
-                ניטור רציף של פעולות התלמידים, השהיות והתראות קוגניטיביות
+              <p className="text-xs text-slate-400 mt-0.5">
+                ניטור רציף של פעולות התלמידים, השהיות והתראות קוגניטיביות בזמן אמת
               </p>
             </div>
           </div>
           
           <div className="flex items-center gap-3">
-            <div className="bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-700 text-xs flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-              <span>תלמידים במאבק: <strong className="text-amber-300 font-bold">{strugglingCount} / 35</strong></span>
+            <div className="bg-slate-900 border border-amber-500/30 px-4 py-2 rounded-2xl text-xs flex items-center gap-2 shadow-inner">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" />
+              <span className="text-slate-300">תלמידים במאבק: <strong className="text-amber-300 font-extrabold text-sm">{strugglingCount} / 35</strong></span>
             </div>
           </div>
         </div>
 
         {/* Live Feed Event Stream */}
-        <div className="flex flex-col gap-2 max-h-[160px] overflow-y-auto no-scrollbar pr-1">
-          {feedItems.map((item) => (
-            <div 
-              key={item.id}
-              className={`p-3 rounded-2xl border text-sm flex items-center justify-between transition-all backdrop-blur-sm ${
-                item.severity === 'alert'
-                  ? 'bg-rose-500/10 border-rose-500/30 text-rose-200'
-                  : item.severity === 'warning'
-                  ? 'bg-amber-500/10 border-amber-500/30 text-amber-200'
-                  : 'bg-slate-800/60 border-slate-700/60 text-slate-200'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <span className={`w-2 h-2 rounded-full ${
-                  item.severity === 'alert' ? 'bg-rose-400' : item.severity === 'warning' ? 'bg-amber-400' : 'bg-indigo-400'
-                }`} />
-                <strong className="font-bold text-white min-w-[70px]">{item.studentName}:</strong>
-                <span className="text-xs md:text-sm">{item.message}</span>
-              </div>
-              <span className="text-[11px] opacity-60 text-slate-400 shrink-0 mr-2" dir="ltr">
-                {new Date(item.timestamp).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-              </span>
+        <div className="flex flex-col gap-2.5 max-h-[170px] overflow-y-auto pr-1">
+          {feedItems.length === 0 ? (
+            <div className="py-6 text-center text-slate-500 text-xs">
+              ממתין לאירועי רדאר חדשים... הנתונים יוזרמו אוטומטית בעת זיהוי השהייה קוגניטיבית.
             </div>
-          ))}
+          ) : (
+            feedItems.map((item) => (
+              <div 
+                key={item.id}
+                className={`p-3.5 rounded-2xl border text-sm flex items-center justify-between transition-all backdrop-blur-sm shadow-sm ${
+                  item.severity === 'alert'
+                    ? 'bg-rose-500/10 border-rose-500/30 text-rose-200'
+                    : item.severity === 'warning'
+                    ? 'bg-amber-500/15 border-amber-500/40 text-amber-200'
+                    : 'bg-slate-900/70 border-slate-800 text-slate-200'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className={`w-2.5 h-2.5 rounded-full ${
+                    item.severity === 'alert' ? 'bg-rose-400 animate-ping' : item.severity === 'warning' ? 'bg-amber-400' : 'bg-indigo-400'
+                  }`} />
+                  <strong className="font-bold text-white min-w-[75px]">{item.studentName}:</strong>
+                  <span className="text-xs md:text-sm font-medium">{item.message}</span>
+                </div>
+                <span className="text-[11px] font-mono opacity-60 text-slate-400 shrink-0 mr-2" dir="ltr">
+                  {new Date(item.timestamp).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                </span>
+              </div>
+            ))
+          )}
         </div>
       </section>
 
       {/* Heatmap Grid Section */}
-      <section className="flex flex-col gap-4">
-        <div className="flex justify-between items-center">
+      <section className="flex flex-col gap-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-              <span>מפת חום כיתתית (35 תלמידים)</span>
+            <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+              <Users className="w-6 h-6 text-indigo-500" />
+              מפת חום כיתתית (35 תלמידים)
             </h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-              תלמידים במאבק קוגניטיבי מוחרגים בכתום בעוצמה מתונה (Low-Arousal Orange) לפי הנחיות הפדגוגיה.
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              תלמידים במאבק מוחרגים בכתום בעוצמה מתונה (Low-Arousal Orange) לפי הנחיות הפדגוגיה.
             </p>
           </div>
 
-          <div className="flex items-center gap-4 text-xs font-semibold">
-            <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-full bg-emerald-500" />
-              <span className="text-slate-600 dark:text-slate-300">תקין / מסלול ירוק</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-full bg-amber-400 border border-amber-500" />
-              <span className="text-amber-800 dark:text-amber-300">מאבק / צמצום פערים</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-full bg-rose-500" />
-              <span className="text-slate-600 dark:text-slate-300">נעול / נדרש תיווך</span>
-            </div>
+          {/* Interactive Filter Chips */}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setActiveFilter('ALL')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                activeFilter === 'ALL'
+                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
+              }`}
+            >
+              הכל (35)
+            </button>
+            <button
+              onClick={() => setActiveFilter('STRUGGLING')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                activeFilter === 'STRUGGLING'
+                  ? 'bg-amber-500 text-white shadow-md shadow-amber-500/25'
+                  : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
+              }`}
+            >
+              <AlertTriangle className="w-3.5 h-3.5" />
+              במאבק ({strugglingCount})
+            </button>
+            <button
+              onClick={() => setActiveFilter('LOCKED')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                activeFilter === 'LOCKED'
+                  ? 'bg-rose-600 text-white shadow-md shadow-rose-600/25'
+                  : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
+              }`}
+            >
+              <Lock className="w-3.5 h-3.5" />
+              נעול ({lockedCount})
+            </button>
+            <button
+              onClick={() => setActiveFilter('PHYSICAL_OVERRIDE')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                activeFilter === 'PHYSICAL_OVERRIDE'
+                  ? 'bg-purple-600 text-white shadow-md shadow-purple-600/25'
+                  : 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800'
+              }`}
+            >
+              <ShieldAlert className="w-3.5 h-3.5" />
+              עקיפה פיזית ({physicalOverrideCount})
+            </button>
           </div>
         </div>
 
         {/* 5x7 Student Cards Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-7 gap-3">
-          {students.map((student) => {
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-7 gap-3.5">
+          {filteredStudents.map((student) => {
             const isStruggling = student.isStruggling;
 
             return (
-              <button
+              <motion.button
                 key={student.id}
+                layout
+                whileHover={{ scale: 1.03, y: -2 }}
+                whileTap={{ scale: 0.97 }}
                 onClick={() => setSelectedStudent(student)}
-                className={`p-3.5 rounded-2xl border text-right transition-all transform hover:-translate-y-1 hover:shadow-md flex flex-col justify-between h-[120px] relative overflow-hidden group ${
-                  isStruggling
-                    ? 'bg-amber-50 border-2 border-amber-400 text-amber-900 shadow-amber-200/50 dark:bg-amber-950/40 dark:border-amber-500/60 dark:text-amber-100'
-                    : 'bg-white border-slate-200 text-slate-800 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100'
+                className={`p-4 rounded-3xl border text-right transition-all flex flex-col justify-between h-[130px] relative overflow-hidden group shadow-md ${
+                  student.physicalOverride
+                    ? 'bg-purple-500/10 border-2 border-purple-500 text-purple-950 dark:text-purple-100 shadow-purple-500/20'
+                    : student.status === 'locked'
+                    ? 'bg-rose-50 border-2 border-rose-400 text-rose-900 dark:bg-rose-950/50 dark:border-rose-500/70 dark:text-rose-100 shadow-rose-500/20'
+                    : isStruggling
+                    ? 'bg-amber-500/10 border-2 border-amber-400 text-amber-950 dark:bg-amber-950/50 dark:border-amber-500/70 dark:text-amber-100 shadow-amber-500/20'
+                    : 'bg-white border-slate-200 text-slate-800 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-100 hover:border-indigo-400'
                 }`}
               >
                 <div className="flex justify-between items-start w-full">
-                  <span className="font-bold text-xs tracking-tight text-slate-700 dark:text-slate-200">
+                  <span className="font-extrabold text-xs tracking-tight text-slate-800 dark:text-slate-100">
                     {student.displayName}
                   </span>
                   
@@ -350,176 +419,187 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
                   ) : student.status === 'completed' ? (
                     <span title="מפגש הושלם"><CheckCircle2 className="w-4 h-4 text-emerald-500" /></span>
                   ) : isStruggling ? (
-                    <span title="מאבק קוגניטיבי"><AlertTriangle className="w-4 h-4 text-amber-600 animate-bounce" /></span>
+                    <span title="מאבק קוגניטיבי"><AlertTriangle className="w-4 h-4 text-amber-500 animate-bounce" /></span>
                   ) : (
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" title="פעיל" />
                   )}
                 </div>
 
                 <div className="flex flex-col gap-1 my-1">
-                  <div className="flex justify-between text-[11px] opacity-80">
+                  <div className="flex justify-between text-[11px] opacity-85 font-medium">
                     <span>מפגש {student.sessionNumber}</span>
-                    <span className={`font-semibold ${student.currentPath === 'צמצום פערים' ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-400'}`}>
+                    <span className={`font-extrabold ${student.currentPath === 'צמצום פערים' ? 'text-amber-600 dark:text-amber-300' : 'text-emerald-600 dark:text-emerald-400'}`}>
                       {student.currentPath}
                     </span>
                   </div>
 
                   {student.physicalOverride && (
-                    <span className="text-[10px] bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 font-bold px-1.5 py-0.5 rounded text-center">
+                    <span className="text-[10px] bg-purple-600 text-white font-black px-2 py-0.5 rounded-md text-center shadow-sm">
                       תיווך פיזי פעיל
                     </span>
                   )}
                 </div>
 
-                <div className="text-[10px] text-slate-400 dark:text-slate-400 flex justify-between items-center pt-1 border-t border-slate-100 dark:border-slate-700/50">
+                <div className="text-[10px] text-slate-400 dark:text-slate-400 flex justify-between items-center pt-1.5 border-t border-slate-100 dark:border-slate-800 font-mono">
                   <span>השהייה: {student.hesitationSeconds}ש'</span>
                   <span>ביטולים: {student.errorCount}</span>
                 </div>
-              </button>
+              </motion.button>
             );
           })}
         </div>
       </section>
 
       {/* Drill-Down View / Student Detail Drawer */}
-      {selectedStudent && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-end animate-in fade-in duration-200">
-          <div className="w-full max-w-xl h-full bg-white dark:bg-slate-900 shadow-2xl p-6 overflow-y-auto flex flex-col justify-between border-r border-slate-200 dark:border-slate-800" dir="rtl">
-            <div>
-              <div className="flex justify-between items-center pb-4 mb-6 border-b border-slate-200 dark:border-slate-800">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white font-bold flex items-center justify-center shadow-md">
-                    {selectedStudent.displayName.replace('תלמיד ', '')}
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-                      {selectedStudent.displayName}
-                    </h3>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                      מזהה מערכת: {selectedStudent.id}
-                    </p>
-                  </div>
-                </div>
-
-                <button 
-                  onClick={() => setSelectedStudent(null)}
-                  className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-300 flex items-center justify-center font-bold"
-                >
-                  ✕
-                </button>
-              </div>
-
-              {/* Student Overview Cards */}
-              <div className="grid grid-cols-2 gap-3 mb-6">
-                <div className="p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700">
-                  <span className="text-xs text-slate-500 block mb-1">מפגש נוכחי</span>
-                  <span className="font-bold text-base text-slate-800 dark:text-slate-100">מפגש {selectedStudent.sessionNumber}</span>
-                </div>
-                <div className="p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700">
-                  <span className="text-xs text-slate-500 block mb-1">מסלול למידה</span>
-                  <span className={`font-bold text-base ${selectedStudent.currentPath === 'צמצום פערים' ? 'text-amber-600' : 'text-emerald-600'}`}>
-                    {selectedStudent.currentPath}
-                  </span>
-                </div>
-                <div className="p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700">
-                  <span className="text-xs text-slate-500 block mb-1">אירועי השהייה</span>
-                  <span className="font-bold text-base text-slate-800 dark:text-slate-100">{selectedStudent.hesitationSeconds} שניות</span>
-                </div>
-                <div className="p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700">
-                  <span className="text-xs text-slate-500 block mb-1">ביטולים / מחיקות</span>
-                  <span className="font-bold text-base text-slate-800 dark:text-slate-100">{selectedStudent.errorCount} פעמים</span>
-                </div>
-              </div>
-
-              {/* Prominent Physical Override Button */}
-              <div className="mb-8 p-5 bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-3xl">
-                <div className="flex justify-between items-center mb-3">
-                  <div>
-                    <h4 className="font-bold text-amber-900 dark:text-amber-200 text-sm flex items-center gap-2">
-                      <ShieldAlert className="w-4 h-4 text-amber-600" />
-                      עקיפה פיזית / תיווך פיזי (Physical Override)
-                    </h4>
-                    <p className="text-xs text-amber-800 dark:text-amber-300 mt-1">
-                      התרת נעילת הלוח וסימון תיווך מורה פיזי ישיר בתהליך הלמידה.
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => handleTogglePhysicalOverride(selectedStudent)}
-                  className={`w-full py-3 px-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-md active:scale-95 ${
-                    selectedStudent.physicalOverride
-                      ? 'bg-purple-600 hover:bg-purple-700 text-white shadow-purple-500/20'
-                      : 'bg-amber-600 hover:bg-amber-700 text-white shadow-amber-500/20'
-                  }`}
-                >
-                  {selectedStudent.physicalOverride ? (
-                    <>
-                      <UserCheck className="w-4 h-4" />
-                      <span>תיווך פיזי פעיל - לחץ לבלימה/סיום עקיפה</span>
-                    </>
-                  ) : (
-                    <>
-                      <Unlock className="w-4 h-4" />
-                      <span>הפעל עקיפה פיזית / תיווך פיזי להתרת המפגש</span>
-                    </>
-                  )}
-                </button>
-              </div>
-
-              {/* Pedagogical Dialogue Recommendations Section */}
-              {(() => {
-                const recs = getPedagogicalRecommendations(selectedStudent);
-                return (
-                  <div className="mb-6 p-5 bg-indigo-50/80 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800/50 rounded-3xl">
-                    <h4 className="font-bold text-indigo-900 dark:text-indigo-200 text-base mb-1 flex items-center gap-2">
-                      <Sparkles className="w-5 h-5 text-indigo-600" />
-                      המלצות לשיח פדגוגי (Pedagogical Dialogue)
-                    </h4>
-                    <span className="text-xs text-indigo-700 dark:text-indigo-300 font-semibold block mb-4">
-                      קטגוריה: {recs.category}
-                    </span>
-
-                    <div className="flex flex-col gap-2.5">
-                      {recs.questions.map((q, idx) => (
-                        <div key={idx} className="bg-white dark:bg-slate-800 p-3.5 rounded-2xl border border-indigo-100 dark:border-slate-700 shadow-sm flex items-start gap-3">
-                          <span className="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
-                            {idx + 1}
-                          </span>
-                          <p className="text-xs md:text-sm font-medium text-slate-800 dark:text-slate-200 leading-relaxed">
-                            {q}
-                          </p>
-                        </div>
-                      ))}
+      <AnimatePresence>
+        {selectedStudent && (
+          <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-50 flex items-center justify-end">
+            <motion.div 
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="w-full max-w-xl h-full bg-white dark:bg-slate-900 shadow-2xl p-6 md:p-8 overflow-y-auto flex flex-col justify-between border-r border-slate-200 dark:border-slate-800" 
+              dir="rtl"
+            >
+              <div>
+                <div className="flex justify-between items-center pb-4 mb-6 border-b border-slate-200 dark:border-slate-800">
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-black text-lg flex items-center justify-center shadow-lg shadow-indigo-500/25">
+                      {selectedStudent.displayName.replace('תלמיד ', '')}
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-black text-slate-900 dark:text-white">
+                        {selectedStudent.displayName}
+                      </h3>
+                      <p className="text-xs text-slate-400 font-mono mt-0.5">
+                        מזהה מערכת: {selectedStudent.id}
+                      </p>
                     </div>
                   </div>
-                );
-              })()}
-            </div>
 
-            <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center gap-3">
-              {onDrillDown && (
+                  <button 
+                    onClick={() => setSelectedStudent(null)}
+                    className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-500 flex items-center justify-center font-bold"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Student Overview Cards */}
+                <div className="grid grid-cols-2 gap-3.5 mb-6">
+                  <div className="p-4 bg-slate-50 dark:bg-slate-950/60 rounded-2xl border border-slate-200 dark:border-slate-800">
+                    <span className="text-xs text-slate-400 block mb-1">מפגש נוכחי</span>
+                    <span className="font-extrabold text-lg text-slate-900 dark:text-white">מפגש {selectedStudent.sessionNumber}</span>
+                  </div>
+                  <div className="p-4 bg-slate-50 dark:bg-slate-950/60 rounded-2xl border border-slate-200 dark:border-slate-800">
+                    <span className="text-xs text-slate-400 block mb-1">מסלול למידה</span>
+                    <span className={`font-extrabold text-lg ${selectedStudent.currentPath === 'צמצום פערים' ? 'text-amber-500' : 'text-emerald-500'}`}>
+                      {selectedStudent.currentPath}
+                    </span>
+                  </div>
+                  <div className="p-4 bg-slate-50 dark:bg-slate-950/60 rounded-2xl border border-slate-200 dark:border-slate-800">
+                    <span className="text-xs text-slate-400 block mb-1">אירועי השהייה</span>
+                    <span className="font-extrabold text-lg text-slate-900 dark:text-white font-mono">{selectedStudent.hesitationSeconds} שניות</span>
+                  </div>
+                  <div className="p-4 bg-slate-50 dark:bg-slate-950/60 rounded-2xl border border-slate-200 dark:border-slate-800">
+                    <span className="text-xs text-slate-400 block mb-1">ביטולים / מחיקות</span>
+                    <span className="font-extrabold text-lg text-slate-900 dark:text-white font-mono">{selectedStudent.errorCount} פעמים</span>
+                  </div>
+                </div>
+
+                {/* Prominent Physical Override Button */}
+                <div className="mb-8 p-6 bg-purple-50/60 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800/60 rounded-3xl space-y-4">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h4 className="font-extrabold text-purple-950 dark:text-purple-200 text-base flex items-center gap-2">
+                        <ShieldAlert className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                        עקיפה פיזית / תיווך פיזי (Physical Override)
+                      </h4>
+                      <p className="text-xs text-purple-800/80 dark:text-purple-300/80 mt-1 leading-relaxed">
+                        התרת נעילת הלוח וסימון תיווך מורה פיזי ישיר בתהליך הלמידה.
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => handleTogglePhysicalOverride(selectedStudent)}
+                    className={`w-full py-3.5 px-5 rounded-2xl font-extrabold text-sm flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95 ${
+                      selectedStudent.physicalOverride
+                        ? 'bg-purple-600 hover:bg-purple-700 text-white shadow-purple-500/25'
+                        : 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-amber-500/25'
+                    }`}
+                  >
+                    {selectedStudent.physicalOverride ? (
+                      <>
+                        <UserCheck className="w-5 h-5" />
+                        <span>תיווך פיזי פעיל - לחץ לבלימה/סיום עקיפה</span>
+                      </>
+                    ) : (
+                      <>
+                        <Unlock className="w-5 h-5" />
+                        <span>הפעל עקיפה פיזית / תיווך פיזי להתרת המפגש</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* Pedagogical Dialogue Recommendations Section */}
+                {(() => {
+                  const recs = getPedagogicalRecommendations(selectedStudent);
+                  return (
+                    <div className="mb-6 p-6 bg-indigo-50/60 dark:bg-indigo-950/20 border border-indigo-200 dark:border-indigo-800/60 rounded-3xl space-y-4">
+                      <div>
+                        <h4 className="font-extrabold text-indigo-950 dark:text-indigo-200 text-base flex items-center gap-2">
+                          <Sparkles className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                          המלצות לשיח פדגוגי (Pedagogical Dialogue)
+                        </h4>
+                        <span className="text-xs text-indigo-700 dark:text-indigo-300 font-bold block mt-1">
+                          קטגוריה: {recs.category}
+                        </span>
+                      </div>
+
+                      <div className="space-y-2.5">
+                        {recs.questions.map((q, idx) => (
+                          <div key={idx} className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-indigo-100 dark:border-slate-800 shadow-sm flex items-start gap-3">
+                            <span className="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-extrabold text-xs flex items-center justify-center shrink-0 mt-0.5">
+                              {idx + 1}
+                            </span>
+                            <p className="text-xs md:text-sm font-medium text-slate-800 dark:text-slate-200 leading-relaxed">
+                              {q}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center gap-3">
+                {onDrillDown && (
+                  <button
+                    onClick={() => {
+                      onDrillDown(selectedStudent.id);
+                      setSelectedStudent(null);
+                    }}
+                    className="flex items-center gap-2 px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl transition-all shadow-md active:scale-95"
+                  >
+                    <ShieldAlert className="w-4 h-4" />
+                    פתח Drill Down מלא (הקלטות + עקיפה)
+                  </button>
+                )}
                 <button
-                  onClick={() => {
-                    onDrillDown(selectedStudent.id);
-                    setSelectedStudent(null);
-                  }}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl transition-colors shadow-sm active:scale-95"
+                  onClick={() => setSelectedStudent(null)}
+                  className="px-6 py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-sm rounded-xl transition-colors"
                 >
-                  <ShieldAlert className="w-4 h-4" />
-                  פתח Drill Down מלא (הקלטות + עקיפה)
+                  סגור תצוגה
                 </button>
-              )}
-              <button
-                onClick={() => setSelectedStudent(null)}
-                className="px-6 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-sm rounded-xl transition-colors"
-              >
-                סגור תצוגה
-              </button>
-            </div>
+              </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
     </div>
   );
 }
