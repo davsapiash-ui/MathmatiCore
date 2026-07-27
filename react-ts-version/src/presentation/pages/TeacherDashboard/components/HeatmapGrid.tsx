@@ -398,49 +398,64 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
                 whileHover={{ scale: 1.03, y: -2 }}
                 whileTap={{ scale: 0.97 }}
                 onClick={() => setSelectedStudent(student)}
-                className={`p-4 rounded-3xl border text-right transition-all flex flex-col justify-between h-[130px] relative overflow-hidden group shadow-md ${
+                className={`p-3.5 rounded-2xl border text-right transition-all flex flex-col justify-between h-[135px] relative overflow-hidden group shadow-md ${
                   student.physicalOverride
                     ? 'bg-purple-500/10 border-2 border-purple-500 text-purple-950 dark:text-purple-100 shadow-purple-500/20'
                     : student.status === 'locked'
-                    ? 'bg-rose-50 border-2 border-rose-400 text-rose-900 dark:bg-rose-950/50 dark:border-rose-500/70 dark:text-rose-100 shadow-rose-500/20'
+                    ? 'bg-rose-500/10 border-2 border-rose-500 text-rose-950 dark:text-rose-100 shadow-rose-500/20'
                     : isStruggling
-                    ? 'bg-amber-500/10 border-2 border-amber-400 text-amber-950 dark:bg-amber-950/50 dark:border-amber-500/70 dark:text-amber-100 shadow-amber-500/20'
-                    : 'bg-white border-slate-200 text-slate-800 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-100 hover:border-indigo-400'
+                    ? 'bg-amber-500/15 border-2 border-amber-500 text-amber-950 dark:text-amber-100 shadow-amber-500/20'
+                    : 'bg-emerald-500/10 border-2 border-emerald-500/60 text-slate-900 dark:text-slate-100 hover:border-emerald-500'
                 }`}
               >
+                {/* Top Badge Row */}
                 <div className="flex justify-between items-start w-full">
-                  <span className="font-extrabold text-xs tracking-tight text-slate-800 dark:text-slate-100">
+                  <span className="font-black text-xs tracking-tight text-slate-900 dark:text-slate-100">
                     {student.displayName}
                   </span>
                   
                   {/* Status Icon */}
                   {student.status === 'locked' ? (
-                    <span title="מפגש נעול"><Lock className="w-4 h-4 text-rose-500 animate-pulse" /></span>
+                    <span className="inline-flex items-center gap-1 bg-rose-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="מפגש נעול">
+                      <Lock className="w-3 h-3" />
+                      נעול
+                    </span>
                   ) : student.status === 'completed' ? (
-                    <span title="מפגש הושלם"><CheckCircle2 className="w-4 h-4 text-emerald-500" /></span>
+                    <span className="inline-flex items-center gap-1 bg-emerald-600 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="הושלם בהצלחה">
+                      <CheckCircle2 className="w-3 h-3" />
+                      הושלם
+                    </span>
                   ) : isStruggling ? (
-                    <span title="מאבק קוגניטיבי"><AlertTriangle className="w-4 h-4 text-amber-500 animate-bounce" /></span>
+                    <span className="inline-flex items-center gap-1 bg-amber-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm animate-bounce" title="מאבק קוגניטיבי">
+                      <AlertTriangle className="w-3 h-3" />
+                      מאבק
+                    </span>
                   ) : (
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" title="פעיל" />
+                    <span className="inline-flex items-center gap-1 bg-emerald-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="למידה תקינה">
+                      <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                      פעיל
+                    </span>
                   )}
                 </div>
 
+                {/* Session & Path Info */}
                 <div className="flex flex-col gap-1 my-1">
-                  <div className="flex justify-between text-[11px] opacity-85 font-medium">
+                  <div className="flex justify-between text-[11px] font-bold">
                     <span>מפגש {student.sessionNumber}</span>
-                    <span className={`font-extrabold ${student.currentPath === 'צמצום פערים' ? 'text-amber-600 dark:text-amber-300' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                    <span className={`px-1.5 py-0.5 rounded-md text-[10px] ${student.currentPath === 'צמצום פערים' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200'}`}>
                       {student.currentPath}
                     </span>
                   </div>
 
                   {student.physicalOverride && (
                     <span className="text-[10px] bg-purple-600 text-white font-black px-2 py-0.5 rounded-md text-center shadow-sm">
-                      תיווך פיזי פעיל
+                      תיווך פיזי (Dienes)
                     </span>
                   )}
                 </div>
 
-                <div className="text-[10px] text-slate-400 dark:text-slate-400 flex justify-between items-center pt-1.5 border-t border-slate-100 dark:border-slate-800 font-mono">
+                {/* Real-Time Trace Metrics */}
+                <div className="text-[10px] text-slate-600 dark:text-slate-300 flex justify-between items-center pt-1 border-t border-slate-200/60 dark:border-slate-800 font-mono font-bold">
                   <span>השהייה: {student.hesitationSeconds}ש'</span>
                   <span>ביטולים: {student.errorCount}</span>
                 </div>
