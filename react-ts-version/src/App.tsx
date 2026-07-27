@@ -77,9 +77,15 @@ function AuthGuard({ allowedRoles, children }: { allowedRoles: string[]; childre
 
   if (!hasAccess) {
     // Redirect based on role if they try to access unauthorized path
-    if (userRoles.includes("student")) return <Navigate to="/hub" replace />;
-    if (userRoles.includes("teacher")) return <Navigate to="/dashboard" replace />;
-    if (userRoles.includes("admin")) return <Navigate to="/admin" replace />;
+    if (userRoles.includes("admin")) {
+      return <Navigate to="/admin" replace />;
+    }
+    if (userRoles.includes("teacher")) {
+      return <Navigate to="/dashboard" replace />;
+    }
+    if (userRoles.includes("student")) {
+      return <Navigate to="/hub" replace />;
+    }
   }
 
   return <>{children}</>;

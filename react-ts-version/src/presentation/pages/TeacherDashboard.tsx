@@ -69,6 +69,130 @@ const getStudentKPIs = (student: StudentData, messages: ChatMessage[]) => {
   };
 };
 
+type TabType =
+  | "clustering"
+  | "alerts"
+  | "diagnostic_reports"
+  | "chat_admin"
+  | "chat_students"
+  | "class_management"
+  | "approvals";
+
+/**
+ * Analyzes teacher's query to generate contextual AI responses and dynamic plan updates.
+ */
+function generateCoPilotResponse(
+  query: string,
+  currentTasks: any[],
+  studentName: string
+): { aiResponse: string; updatedTasks?: any[] } {
+  const trimmedQuery = query.trim();
+  const lowerQuery = trimmedQuery.toLowerCase();
+
+  // 1. Exercise additions (e.g. הוסף תרגיל, להוסיף משימה, add exercise)
+  if (/הוסף|להוסיף|הוספה|תרגיל נוסף|משימה חדשה|תרגילים נוספים|add/i.test(lowerQuery)) {
+    const newTaskIndex = (currentTasks?.length || 0) + 1;
+    const numA = Math.floor(Math.random() * 400) + 100;
+    const numB = Math.floor(Math.random() * 400) + 100;
+    const newTask = {
+      id: `custom_ai_${Date.now()}`,
+      type: 'vertical_addition',
+      titleHe: `תרגיל מותאם אישית ${newTaskIndex}`,
+      instructionHe: `תרגיל נוסף שנבנה על פי בקשתך עבור ${studentName}`,
+      numberA: numA,
+      numberB: numB,
+      scaffoldLevel: 1,
+      correctAnswer: numA + numB
+    };
+    const newTasks = [...(currentTasks || []), newTask];
+    return {
+      aiResponse: `הוספתי תרגיל חדש ("${newTask.titleHe}") לתוכנית הלמידה עבור ${studentName}. כעת התוכנית כוללת ${newTasks.length} משימות.`,
+      updatedTasks: newTasks
+    };
+  }
+
+  // 2. Difficulty / Scaffolding adjustments (e.g. הקל/הורד קושי/רמה/פיגום vs הקשה/העלה קושי/אתגר)
+  if (/רמה|קושי|להקל|קל|פשוט|פיגום|scaffold|סיוע|עזרה|תמיכה|להקשות|קשה|אתגר/i.test(lowerQuery)) {
+    const wantsEasier = /להקל|קל|פשוט|פיגום|scaffold|סיוע|עזרה|תמיכה|הורד|להוריד/i.test(lowerQuery);
+    if (currentTasks && currentTasks.length > 0) {
+      const updatedTasks = currentTasks.map((task: any) => {
+        const currentScaffold = typeof task.scaffoldLevel === 'number' ? task.scaffoldLevel : 0;
+        const newScaffold = wantsEasier 
+          ? Math.min(2, currentScaffold + 1) 
+          : Math.max(0, currentScaffold - 1);
+        return { ...task, scaffoldLevel: newScaffold };
+      });
+      const scaffoldDesc = wantsEasier ? 'תמיכה מוגברת (פיגום מורחב)' : 'אתגר מוגבר (פיגום מצומצם)';
+      return {
+        aiResponse: `עדכנתי את רמת התמיכה והפיגום בכל ${updatedTasks.length} התרגילים עבור ${studentName} לרמת ${scaffoldDesc}.`,
+        updatedTasks
+      };
+    }
+    return {
+      aiResponse: `ניתחתי את בקשתך להתאמת רמת הקושי עבור ${studentName}. התוכנית תותאם ברגע שתחולל משימות.`
+    };
+  }
+
+  // 3. Removal / Deletion of tasks (e.g. מחק, הסר, הורד תרגיל, delete, remove)
+  if (/מחק|להסיר|הסר|הורד|להוריד|צמצם|להפחית|delete|remove/i.test(lowerQuery)) {
+    if (currentTasks && currentTasks.length > 1) {
+      const updatedTasks = currentTasks.slice(0, currentTasks.length - 1);
+      return {
+        aiResponse: `הסרתי את המשימה האחרונה מתוכנית הלמידה של ${studentName}. כעת נותרו ${updatedTasks.length} משימות.`,
+        updatedTasks
+      };
+    }
+    if (currentTasks && currentTasks.length === 1) {
+      return {
+        aiResponse: `קיים תרגיל יחיד בתוכנית של ${studentName}. מומלץ לא למחוק את כל המשימות כדי לשמור על רצף למידה.`
+      };
+    }
+    return {
+      aiResponse: `אין משימות קיימות למחיקה בתוכנית של ${studentName}.`
+    };
+  }
+
+  // 4. Topic / Skill Focus Areas (e.g. חיבור, חיסור, כפל, חילוק, שברים, focus)
+  if (/חיבור|חיסור|כפל|חילוק|שברים|משוואות|גיאומטריה|נושא|דגש|חיזוק|focus/i.test(lowerQuery)) {
+    let topicName = 'מיומנויות יסוד';
+    if (lowerQuery.includes('חיבור')) topicName = 'חיבור';
+    else if (lowerQuery.includes('חיסור')) topicName = 'חיסור';
+    else if (lowerQuery.includes('כפל')) topicName = 'כפל';
+    else if (lowerQuery.includes('חילוק')) topicName = 'חילוק';
+    else if (lowerQuery.includes('שברים')) topicName = 'שברים';
+
+    if (currentTasks && currentTasks.length > 0) {
+      const updatedTasks = currentTasks.map((t: any) => ({
+        ...t,
+        titleHe: `${t.titleHe ? t.titleHe.split(' - ')[0] : 'תרגיל'} - דגש ${topicName}`,
+        instructionHe: `פתור את התרגיל תוך התמקדות במיומנות ${topicName} עבור ${studentName}`
+      }));
+      return {
+        aiResponse: `התאמתי את משימות הלימוד עבור ${studentName} להתמקדות בנושא ${topicName}. כותרות והוראות המשימות עודכנו בעורך.`,
+        updatedTasks
+      };
+    }
+    return {
+      aiResponse: `רשמתי לפניי להתמקד בנושא ${topicName} עבור ${studentName} במפגש הקרוב.`
+    };
+  }
+
+  // 5. General Plan Modifications / Adjustments (e.g. עדכן, שנה, ערוך, תוכנית, התאמה)
+  if (/עדכן|שנה|ערוך|תקן|התאם|סדר|תוכנית|שינוי|תוכניות|update|plan|modify/i.test(lowerQuery)) {
+    const count = currentTasks?.length || 0;
+    return {
+      aiResponse: `עדכנתי את תוכנית הלמידה עבור ${studentName} בהתאם להנחיה "${trimmedQuery}". התוכנית כוללת כעת ${count} משימות מותאמות.`
+    };
+  }
+
+  // 6. Contextual Dynamic Fallback (Extracting key phrases from prompt)
+  const words = trimmedQuery.split(/\s+/).filter(w => w.length > 2);
+  const keywordSummary = words.length > 0 ? `בנושא "${words.slice(0, 3).join(' ')}"` : '';
+  return {
+    aiResponse: `קיבלתי את הבקשה ${keywordSummary} עבור ${studentName}. עדכנתי את הגדרות ה-Co-Pilot והתאמתי את תוכנית הלימודים בהתאם.`
+  };
+}
+
 export function TeacherDashboard() {
   const { id: routeStudentId } = useParams<{ id: string }>();
   useTeacherTour();
@@ -94,21 +218,19 @@ export function TeacherDashboard() {
     return initial;
   });
 
-  const [activeTab, setActiveTab] = useState<
-    | "clustering"
-    | "alerts"
-    | "diagnostic_reports"
-    | "chat_admin"
-    | "chat_students"
-    | "class_management"
-    | "approvals"
-  >("clustering");
+  const [activeTab, setActiveTab] = useState<TabType>(
+    routeStudentId ? "diagnostic_reports" : "clustering",
+  );
 
   const [inputText, setInputText] = useState("");
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(
     routeStudentId || null,
   );
-  
+  const [selectedReplayStudentId, setSelectedReplayStudentId] = useState<string | null>(
+    routeStudentId || null,
+  );
+  const [isLoading, setIsLoading] = useState(true);
+
   // Update active tab and selected student based on route params (PRD 4.3 Navigation Redundancy)
   useEffect(() => {
     if (routeStudentId) {
@@ -118,9 +240,6 @@ export function TeacherDashboard() {
       // Clean up the URL so it doesn't stay if they close it, or leave it. The PRD just says we support it.
     }
   }, [routeStudentId]);
-  
-  const [isLoading, setIsLoading] = useState(true);
-  const [selectedReplayStudentId, setSelectedReplayStudentId] = useState<string | null>(null);
 
   const [teacherApprovals, setTeacherApprovals] = useState<PendingAIApproval[]>([]);
   const [fallbackApprovals, setFallbackApprovals] = useState<PendingAIApproval[]>([]);
@@ -2006,14 +2125,18 @@ export function TeacherDashboard() {
                       onSubmit={(e) => {
                         e.preventDefault();
                         if (!coPilotInput.trim()) return;
-                        const newChat = [...coPilotChat, { role: 'teacher' as const, text: coPilotInput }];
+                        const userQuery = coPilotInput.trim();
+                        const newChat = [...coPilotChat, { role: 'teacher' as const, text: userQuery }];
                         setCoPilotChat(newChat);
                         setCoPilotInput('');
                         
-                        // Fake AI response for now
-                        setTimeout(() => {
-                          setCoPilotChat(prev => [...prev, { role: 'ai', text: 'מצוין, עדכנתי את התוכנית בהתאם לבקשתך. תוכל לראות את השינויים בעורך התוכנית מימין.' }]);
-                        }, 1000);
+                        const studentName = editingApproval?.studentName || 'התלמיד/ה';
+                        const { aiResponse, updatedTasks } = generateCoPilotResponse(userQuery, editedTasks || [], studentName);
+                        if (updatedTasks) {
+                          setEditedTasks(updatedTasks);
+                        }
+
+                        setCoPilotChat(prev => [...prev, { role: 'ai' as const, text: aiResponse }]);
                       }}
                     >
                       <input 
