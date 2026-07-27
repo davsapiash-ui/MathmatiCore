@@ -7,7 +7,6 @@ export interface AuthUser {
   id?: string;
   name?: string;
   email?: string;
-  email?: string;
   role?: string | string[];
   [key: string]: unknown;
 }
