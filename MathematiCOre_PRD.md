@@ -191,3 +191,63 @@
 2.  **No PII Validation Guard:** חל איסור מוחלט על ה-Agent לייצר לוגיקת צד לקוח השומרת מידע ב-`localStorage` או ב-`sessionStorage`. כל ה-State מנוהל בזיכרון הריצה זמני של האפליקציה (`Vuex`, `Redux` או `Context API`) ומסונכרן דינמית תחת מזהה אנונימי בלבד.
 3.  **Route Protection Verification:** על הסוכן לוודא כי הניתוב אל `/admin` מוגן בצד השרת באמצעות ה-Route Guard המאמת את ה-Token מול משתני הסביבה החסויים של ה-SSO המוגדרים ב-Firebase, ולא באמצעות בדיקה מקומית בצד הלקוח.
 4.  **Zero-Generation Policy:** הסוכן מוגבל מלחולל טקסט חופשי עבור התלמידים. כל הרמזים, השאלות הסוקרטיות והאפשרויות הסגורות יישלפו אך ורק מתוך מערך נתונים קשיח ומוגדר מראש (Q-Matrix) המובנה בקוד.
+
+---
+
+## 8. השלמות ארכיטקטוניות וטכניות (Technical & Architectural Specifications)
+
+### 8.1. ארכיטקטורת נתונים ומסדי נתונים (Firestore Schema)
+המערכת משתמשת ב-Firebase Firestore. להלן מבנה אוספי הנתונים (Collections):
+*   **`teachers`:** יכיל את פרופיל המורה (על בסיס ה-SSO הלוגי, כמוגדר בסעיף 5.3).
+*   **`classrooms`:** משייך מזהים אנונימיים של תלמידים (למשל `student_01` עד `student_35`) למורה. כאן יישמרו גם מטא-נתונים חסויים כמו פרופיל אקדמי/חרדה (GWA) לכיול ספי רגישות.
+*   **`sessions`:** תיעוד רצף 8 המפגשים. כל מסמך מכיל: `student_id` (אנונימי), `session_number` (1-8), `status` (active/locked/completed), ו-`current_path` (ירוק/צמצום פערים - נקבע בשער האישור).
+*   **`telemetry_events`:** שמירת אירועי ה-Vector Replay. כל מסמך קל משקל ומקושר ל-`session_id`.
+
+### 8.2. מאגר התיווך הסוקרטי (Q-Matrix)
+ה-Q-Matrix מנוהל כקובץ תצורה קשיח (JSON) ללא מחולל טקסט פתוח (Zero-Generation Policy):
+```json
+{
+  "q_id": "SQ_SUB_TENS_01",
+  "trigger_condition": "hesitation_timeout && current_column == 'tens'",
+  "pedagogical_goal": "זיהוי צורך בפריטה",
+  "question_text": "האם יש לנו מספיק עשרות כדי להחסיר?",
+  "options": [
+    { "id": "A", "text": "כן, אפשר להמשיך.", "is_correct": false },
+    { "id": "B", "text": "לא, נצטרך לפרוט מאה אחת לעשרות.", "is_correct": true }
+  ],
+  "visual_cue": "highlight_hundreds_column"
+}
+```
+
+### 8.3. מודל הנתונים של תרגיל (Exercise Entity)
+ייצוג תרגיל במערכת לצורך אימות מול מכונת המצבים של לבני הדינס:
+```typescript
+interface Exercise {
+  id: string;
+  type: 'addition' | 'subtraction';
+  minuend_or_addend1: number; // מחובר ראשון או מחוסר
+  subtrahend_or_addend2: number; // מחובר שני או מחסר
+  requires_regrouping: boolean; // האם דורש המרה/פריטה
+  target_concrete_state: {
+    hundreds: number;
+    tens: number;
+    ones: number;
+  };
+}
+```
+
+### 8.4. ממשק המשתמש של דשבורד המורה (Teacher Dashboard UI/UX)
+*   **תצוגת על (Heatmap Grid):** גריד של כרטיסי תלמידים אנונימיים. כרטיס יזהר בצבע כתום עדין (Low-arousal) בעת זיהוי חוסר אונים נרכש או תקיעות.
+*   **מיני-רדאר חולף (Live Feed):** רשימת עדכונים זורמת (לדוגמה: "תלמיד 4 מנסה לפתור ללא פריטה בטור העשרות").
+*   **כרטיס תלמיד מורחב (Drill Down):** כולל כפתור Physical Override, כפתור Approve Next Session (למעבר ממפגש 2), והמלצות למשוב תהליכי (Pedagogical Dialogue Generator) המציעות למורה משפטי תיווך ממוקדים.
+
+### 8.5. מחסנית טכנולוגית מדויקת (Tech Stack)
+*   **Frontend Framework:** ריאקט (React.js) בשילוב TypeScript לבטיחות סוגים ומניעת שגיאות זמן ריצה במכונות המצבים.
+*   **State Management:** ספריית Zustand לניהול ה-Transient State Sync ביעילות וללא רינדורים מיותרים.
+*   **Styling & Animations:** רכיבי Tailwind CSS לעיצוב, ו-Framer Motion לאנימציות עמעום חלקות (Fade-In/Out) הנדרשות ללומדי ASD.
+*   **Backend & Auth:** פלטפורמת Firebase (Firestore, Functions, Auth).
+
+### 8.6. כללי נגישות ועיצוב אוניברסלי (Accessibility - A11y)
+*   **פלטת צבעים (Color Palette):** צבעי פסטל רגועים. הימנעות מוחלטת מאדום בוהק לסימון שגיאה. שגיאה תסומן באפור-כחול או עמעום, הצלחה בירוק-מרווה.
+*   **טיפוגרפיה:** גופן נטול-תגים (Sans-Serif) קריא ועגול (Assistant/Rubik), גודל מינימלי 18px. איסור על כתב נטוי (Italic).
+*   **מניעת עומס חזותי (Reduced Motion):** כיבוד הגדרת `prefers-reduced-motion` ברמת מערכת ההפעלה, לביטול תנועות שאינן הכרחיות קוגניטיבית.
