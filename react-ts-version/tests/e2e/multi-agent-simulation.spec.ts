@@ -23,7 +23,7 @@ test.describe('Multi-Agent Behavior Simulation (12 Personas)', () => {
     
     await adminPage.goto('/login');
     await adminPage.getByRole('button', { name: 'מנהל מערכת' }).click();
-    await adminPage.getByPlaceholder('שם משתמש').fill('davsapiash');
+    await adminPage.getByPlaceholder('שם משתמש').fill('admin@mathmaticore.local');
     await adminPage.getByPlaceholder('סיסמה').fill('carlibach');
     await adminPage.getByRole('button', { name: 'התחבר למערכת' }).click();
     

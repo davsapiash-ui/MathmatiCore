@@ -17,7 +17,7 @@ test('Prove Diagnostic Reports Generation v2', async ({ browser }) => {
   console.log("Logging in admin via UI...");
   await page.goto('http://localhost:5173/login');
   await page.getByRole('button', { name: 'מנהל' }).click();
-  await page.getByPlaceholder('שם משתמש').fill('davsapiash');
+  await page.getByPlaceholder('שם משתמש').fill('admin@mathmaticore.local');
   await page.getByPlaceholder('סיסמה').fill('carlibach');
   await page.getByRole('button', { name: 'התחבר למערכת' }).click();
   await page.waitForURL('**/admin');

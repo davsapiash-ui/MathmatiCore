@@ -11,7 +11,7 @@ test.describe('RBAC Visibility Tests', () => {
     await page.getByRole('button', { name: 'מנהל מערכת' }).click();
     
     // Fill credentials
-    await page.getByPlaceholder('שם משתמש').fill('davsapiash');
+    await page.getByPlaceholder('שם משתמש').fill('admin@mathmaticore.local');
     await page.getByPlaceholder('סיסמה').fill('carlibach');
     await page.getByRole('button', { name: 'התחבר למערכת' }).click();
 

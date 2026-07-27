@@ -138,24 +138,31 @@ export function Login() {
         return;
       }
 
-      if (username === "davsapiash" && password === "carlibach") {
-        setIsLoggingIn(true);
-        try {
-          const adminId = `admin_${Date.now()}`;
-          await performFirebaseAuth(`admin@mathmaticore.local`, password);
+      setIsLoggingIn(true);
+      try {
+        // Authenticate with Firebase Auth
+        await performFirebaseAuth(username, password);
+        
+        // Verify admin role (assuming admins are managed via Firebase Auth custom claims or specific emails)
+        // For now, if authentication succeeds and the email matches admin@mathmaticore.local, we let them in.
+        const currentUser = auth.currentUser;
+        if (currentUser && currentUser.email === "admin@mathmaticore.local") {
           setUser({
-            uid: adminId,
+            uid: currentUser.uid,
             role: "admin",
             displayName: "מנהל מערכת ראשי",
           }, "admin");
-          login("admin", "admin-1");
+          login("admin", currentUser.uid);
           navigate("/admin", { replace: true });
-        } catch {
-          setErrorMsg("שגיאת התחברות למסד הנתונים.");
+        } else {
+          setErrorMsg("אין לך הרשאות מנהל.");
           setIsLoggingIn(false);
+          // Sign out since they aren't admin
+          await auth.signOut();
         }
-      } else {
-        setErrorMsg("פרטי מנהל שגויים.");
+      } catch (err: any) {
+        setErrorMsg("פרטי מנהל שגויים או שגיאת תקשורת.");
+        setIsLoggingIn(false);
       }
     }
   };
