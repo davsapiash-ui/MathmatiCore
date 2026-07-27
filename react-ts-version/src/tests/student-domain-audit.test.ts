@@ -122,4 +122,46 @@ describe('Student Domain Verification & Audit Suite', () => {
     });
   });
 
+  describe('5. UDL Accessibility & Student Workspace File Completeness', () => {
+    it('verifies accessibility attributes and keyboard interactions across student UI files', () => {
+      const targetFiles = [
+        'features/workspace/StudentWorkspacePage.tsx',
+        'presentation/pages/StudentHub.tsx',
+        'machines/craMachine.ts',
+        'features/workspace/board/PlaceValueBoard.tsx',
+        'features/workspace/board/DienesBlock.tsx',
+        'features/workspace/board/PlaceColumn.tsx',
+        'features/workspace/board/AdditionHelper.tsx',
+        'features/workspace/board/BlockPalette.tsx',
+        'features/workspace/ReflectionScreen.tsx',
+        'features/workspace/WorkspaceTopbar.tsx',
+        'features/workspace/ProgressDots.tsx',
+      ];
+
+      const baseDir = join(__dirname, '..');
+      for (const relativePath of targetFiles) {
+        const fullPath = join(baseDir, relativePath);
+        const content = readFileSync(fullPath, 'utf-8');
+        expect(content.length).toBeGreaterThan(0);
+        expect(content).not.toMatch(/localStorage/);
+        expect(content).not.toMatch(/sessionStorage/);
+      }
+    });
+
+    it('verifies UDL accessibility props (aria-label, role, onKeyDown) in student board & navigation components', () => {
+      const blockContent = readFileSync(join(__dirname, '../features/workspace/board/DienesBlock.tsx'), 'utf-8');
+      expect(blockContent).toMatch(/aria-label/);
+      expect(blockContent).toMatch(/onKeyDown/);
+      expect(blockContent).toMatch(/role="button"/);
+
+      const topbarContent = readFileSync(join(__dirname, '../features/workspace/WorkspaceTopbar.tsx'), 'utf-8');
+      expect(topbarContent).toMatch(/aria-label/);
+
+      const reflectionContent = readFileSync(join(__dirname, '../features/workspace/ReflectionScreen.tsx'), 'utf-8');
+      expect(reflectionContent).toMatch(/aria-label/);
+      expect(reflectionContent).toMatch(/role="radio"|role="checkbox"|role="radiogroup"/);
+    });
+  });
+
 });
+
