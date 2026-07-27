@@ -196,7 +196,7 @@ function generateCoPilotResponse(
   };
 }
 
-export function TeacherDashboard() {
+export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolean }) {
   const { id: routeStudentId } = useParams<{ id: string }>();
   useTeacherTour();
   const { user } = useAuthStore();
@@ -679,11 +679,73 @@ export function TeacherDashboard() {
 
   return (
     <div
-      className="flex flex-col md:flex-row min-h-screen bg-ws-bg font-sans text-ws-ink selection:bg-ws-accentSoft0/30 overflow-x-hidden"
+      className={`flex flex-col ${hideSidebar ? 'w-full' : 'md:flex-row min-h-screen'} bg-ws-bg font-sans text-ws-ink selection:bg-ws-accentSoft0/30 overflow-x-hidden`}
       dir="rtl"
     >
+      {/* Top Sub-Navigation Bar when embedded inside Admin view */}
+      {hideSidebar && (
+        <div className="bg-slate-900 text-white p-4 rounded-2xl mb-6 shadow-xl border border-slate-800 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="w-3 h-3 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="font-extrabold text-sm tracking-tight text-slate-100">תצוגת מורה אדמיניסטרטיבית</span>
+          </div>
+
+          <div className="flex flex-wrap gap-1.5 overflow-x-auto custom-scrollbar py-1">
+            <button
+              onClick={() => handleTabChange("heatmap")}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === "heatmap" ? "bg-indigo-600 text-white shadow-md" : "bg-slate-800 text-slate-300 hover:bg-slate-700"}`}
+            >
+              מפת חום ורדאר
+            </button>
+            <button
+              onClick={() => handleTabChange("clustering")}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === "clustering" ? "bg-indigo-600 text-white shadow-md" : "bg-slate-800 text-slate-300 hover:bg-slate-700"}`}
+            >
+              מיפוי כיתתי (Q-Matrix)
+            </button>
+            <button
+              onClick={() => handleTabChange("diagnostic_reports")}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === "diagnostic_reports" ? "bg-indigo-600 text-white shadow-md" : "bg-slate-800 text-slate-300 hover:bg-slate-700"}`}
+            >
+              דו"חות אבחון אישיים
+            </button>
+            <button
+              onClick={() => handleTabChange("alerts")}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === "alerts" ? "bg-indigo-600 text-white shadow-md" : "bg-slate-800 text-slate-300 hover:bg-slate-700"}`}
+            >
+              התראות זמן אמת ({allAlerts.length})
+            </button>
+            <button
+              onClick={() => handleTabChange("approvals")}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === "approvals" ? "bg-indigo-600 text-white shadow-md" : "bg-slate-800 text-slate-300 hover:bg-slate-700"}`}
+            >
+              אישור משימות AI
+            </button>
+            <button
+              onClick={() => handleTabChange("class_management")}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === "class_management" ? "bg-indigo-600 text-white shadow-md" : "bg-slate-800 text-slate-300 hover:bg-slate-700"}`}
+            >
+              ניהול כיתה ותלמידים
+            </button>
+            <button
+              onClick={() => handleTabChange("chat_students")}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === "chat_students" ? "bg-indigo-600 text-white shadow-md" : "bg-slate-800 text-slate-300 hover:bg-slate-700"}`}
+            >
+              צ'אט תלמידים
+            </button>
+            <button
+              onClick={() => handleTabChange("chat_admin")}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === "chat_admin" ? "bg-indigo-600 text-white shadow-md" : "bg-slate-800 text-slate-300 hover:bg-slate-700"}`}
+            >
+              צ'אט הנהלה
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Sidebar */}
-      <aside className="w-full md:w-64 lg:w-72 bg-ws-surface/80 backdrop-blur-xl border-b md:border-b-0 md:border-l border-ws-surface2 flex flex-col shadow-lg z-20 transition-all shrink-0 md:min-h-screen sticky top-0 md:h-screen overflow-y-auto custom-scrollbar">
+      {!hideSidebar && (
+        <aside className="w-full md:w-64 lg:w-72 bg-ws-surface/80 backdrop-blur-xl border-b md:border-b-0 md:border-l border-ws-surface2 flex flex-col shadow-lg z-20 transition-all shrink-0 md:min-h-screen sticky top-0 md:h-screen overflow-y-auto custom-scrollbar">
         <div className="h-20 flex items-center gap-3 px-6 border-b border-ws-surface2 bg-white/40 dark:bg-slate-800/40 shrink-0">
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-display font-black text-lg rotate-[-4deg] shrink-0 shadow-lg shadow-indigo-500/25">
             M
@@ -793,6 +855,7 @@ export function TeacherDashboard() {
           <LogoutButton className="w-full justify-start gap-3 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 transition-colors rounded-xl px-4 py-3" />
         </div>
       </aside>
+      )}
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto p-4 md:p-8 relative">
