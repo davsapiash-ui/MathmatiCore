@@ -679,11 +679,11 @@ export function TeacherDashboard() {
 
   return (
     <div
-      className="flex flex-col md:flex-row h-[100dvh] bg-ws-bg overflow-hidden font-sans text-ws-ink selection:bg-ws-accentSoft0/30"
+      className="flex flex-col md:flex-row min-h-screen bg-ws-bg font-sans text-ws-ink selection:bg-ws-accentSoft0/30 overflow-x-hidden"
       dir="rtl"
     >
       {/* Sidebar */}
-      <aside className="sticky top-0 w-full md:w-64 bg-ws-surface/80 backdrop-blur-xl border-b md:border-b-0 md:border-l border-ws-surface2 flex flex-col shadow-[4px_0_24px_rgba(0,0,0,0.02)] dark:shadow-[4px_0_24px_rgba(0,0,0,0.2)] z-20 transition-all overflow-y-auto max-h-[100dvh] no-scrollbar shrink-0">
+      <aside className="w-full md:w-64 lg:w-72 bg-ws-surface/80 backdrop-blur-xl border-b md:border-b-0 md:border-l border-ws-surface2 flex flex-col shadow-lg z-20 transition-all shrink-0 md:min-h-screen sticky top-0 md:h-screen overflow-y-auto custom-scrollbar">
         <div className="h-20 flex items-center gap-3 px-6 border-b border-ws-surface2 bg-white/40 dark:bg-slate-800/40 shrink-0">
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-display font-black text-lg rotate-[-4deg] shrink-0 shadow-lg shadow-indigo-500/25">
             M
