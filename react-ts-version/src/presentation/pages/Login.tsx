@@ -385,34 +385,43 @@ export function Login() {
                         </>
                       )}
                       {selectedRole === "admin" && (
-                        <div className="flex flex-col gap-3">
+                        <div className="flex flex-col gap-4">
+                          <button
+                            type="button"
+                            onClick={handleAdminGoogleSSO}
+                            disabled={isLoggingIn}
+                            className="ws-btn-primary w-full flex items-center justify-center gap-3 p-4 rounded-2xl font-display font-extrabold text-base transition-all shadow-md hover:shadow-lg active:scale-98"
+                          >
+                            <span className="text-xl">🌐</span>
+                            <span>{isLoggingIn ? "מתחבר ב-Google SSO..." : "כניסת מנהל ב-Google SSO (@edu-haifa.org.il)"}</span>
+                          </button>
+
+                          <div className="relative my-1 flex items-center justify-center">
+                            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200" /></div>
+                            <span className="relative bg-white px-3 text-xs text-slate-400 font-bold">או כניסה בדוא"ל מורשה</span>
+                          </div>
+
                           <input
                             type="email"
-                            placeholder="הזן דוא&quot;ל מנהל מורשה (@edu-haifa.org.il)"
+                            placeholder="כתובת דוא&quot;ל מנהל (@edu-haifa.org.il)"
                             value={adminEmail}
                             onChange={(e) => setAdminEmail(e.target.value)}
                             className={inputClass}
-                            autoFocus
                           />
                           <input
                             type="password"
-                            placeholder="הזן סיסמה"
+                            placeholder="סיסמה"
                             value={adminPassword}
                             onChange={(e) => setAdminPassword(e.target.value)}
                             className={inputClass}
                           />
 
-                          <div className="relative my-2 flex items-center justify-center">
-                            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200" /></div>
-                            <span className="relative bg-white px-3 text-xs text-slate-400 font-bold">או</span>
-                          </div>
-
                           <button
-                            type="button"
-                            onClick={handleAdminGoogleSSO}
-                            className="w-full p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-sm active:scale-98"
+                            type="submit"
+                            disabled={isLoggingIn}
+                            className="w-full p-3.5 rounded-2xl bg-slate-800 hover:bg-slate-900 text-white font-bold text-sm transition-all shadow-sm active:scale-98 disabled:opacity-60"
                           >
-                            <span>🌐</span> התחברות באמצעות Google SSO
+                            {isLoggingIn ? "מתחבר..." : "כניסת מנהל בדוא\"ל"}
                           </button>
                         </div>
                       )}
@@ -447,7 +456,7 @@ export function Login() {
                             <>
                               <input
                                 type="email"
-                                placeholder="הזן כתובת דוא&quot;ל מורה (@edu-haifa.org.il)"
+                                placeholder="כתובת דוא&quot;ל מורה (@edu-haifa.org.il)"
                                 value={teacherEmail}
                                 onChange={(e) => setTeacherEmail(e.target.value)}
                                 className={inputClass}
@@ -455,17 +464,17 @@ export function Login() {
                               />
                               <input
                                 type="password"
-                                placeholder="הזן סיסמה"
+                                placeholder="סיסמה"
                                 value={teacherPassword}
                                 onChange={(e) => setTeacherPassword(e.target.value)}
                                 className={inputClass}
                               />
                               <button
-                                type="button"
-                                onClick={handleTeacherGoogleSSO}
-                                className="w-full mt-1 p-3 rounded-2xl bg-white border-2 border-slate-200 text-slate-700 font-bold text-sm flex items-center justify-center gap-2 hover:bg-slate-50 transition-all shadow-sm"
+                                type="submit"
+                                disabled={isLoggingIn}
+                                className="ws-btn-primary w-full flex items-center justify-center gap-2 p-4 rounded-full font-display font-extrabold text-base transition-all disabled:opacity-60 shadow-lg mt-1"
                               >
-                                <span>🌐</span> התחברות מהירה באמצעות Google SSO
+                                {isLoggingIn ? "מתחבר..." : "כניסת מורה ב-SSO מחוזי"}
                               </button>
                             </>
                           ) : (
@@ -485,19 +494,18 @@ export function Login() {
                                 onChange={(e) => setDob(e.target.value)}
                                 className={inputClass}
                               />
+                              <button
+                                type="submit"
+                                disabled={isLoggingIn}
+                                className="ws-btn-primary w-full flex items-center justify-center gap-2 p-4 rounded-full font-display font-extrabold text-base transition-all disabled:opacity-60 shadow-lg mt-1"
+                              >
+                                {isLoggingIn ? "מתחבר..." : "כניסת מורה לפי ת\"ז"}
+                              </button>
                             </>
                           )}
                         </div>
                       )}
                     </div>
-
-                    <button
-                      type="submit"
-                      disabled={isLoggingIn}
-                      className="ws-btn-primary w-full flex items-center justify-center gap-2 p-4 rounded-full font-display font-extrabold text-lg transition-all disabled:opacity-60 disabled:transform-none disabled:filter-none shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0"
-                    >
-                      {isLoggingIn ? "מתחבר..." : (selectedRole === "student" ? "יאללה, נכנסים! ✨" : selectedRole === "admin" ? "התחבר למערכת המנהלים" : "התחבר למערכת")}
-                    </button>
                   </form>
                 </motion.div>
               )}
