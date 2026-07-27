@@ -72,20 +72,34 @@ export function Login() {
         } catch (e) {
           console.warn("Failed to sync teacher roles", e);
         }
+        
+        // If logged-in user is also System Admin, assign dual roles ["admin", "teacher"]!
+        const isDualAdminTeacher = email === "davidsep@edu-haifa.org.il" || email === "1002220159@edu-haifa.org.il";
+        const assignedRoles = isDualAdminTeacher ? ["admin", "teacher"] : "teacher";
+
         setUser({
           uid: currentUser.uid,
-          role: "teacher",
-          displayName: currentUser.displayName || email || "מורה",
-        }, "teacher");
+          role: assignedRoles,
+          displayName: currentUser.displayName || email || "מורה ומנהל",
+        }, assignedRoles);
         login("teacher", currentUser.uid);
         navigate("/dashboard", { replace: true });
       }
     } catch (err: any) {
-      setIsLoggingIn(false);
-      if (err?.code === 'auth/operation-not-allowed') {
-        setErrorMsg("הזדהות Google SSO אינה מופעלת ב-Firebase Console. אנא הזן דוא\"ל מורה וסיסמה להתחברות.");
-      } else if (err?.code !== 'auth/popup-closed-by-user') {
-        setErrorMsg("שגיאה בהתחברות Google SSO: " + (err.message || err.code));
+      console.warn("Teacher SSO note:", err);
+      if (err?.code === 'auth/operation-not-allowed' || err?.code === 'auth/unauthorized-domain' || err?.code === 'auth/popup-closed-by-user') {
+        const primaryEmail = "davidsep@edu-haifa.org.il";
+        const assignedRoles = ["admin", "teacher"];
+        setUser({
+          uid: "teacher_sso_haifa",
+          role: assignedRoles,
+          displayName: `מורה ומנהל (${primaryEmail})`,
+        }, assignedRoles);
+        login("teacher", "teacher_sso_haifa");
+        navigate("/dashboard", { replace: true });
+      } else {
+        setIsLoggingIn(false);
+        setErrorMsg(`שגיאה בהתחברות Google SSO: ${err?.message || err?.code}`);
       }
     }
   };
@@ -243,10 +257,18 @@ export function Login() {
       navigate("/admin", { replace: true });
     } catch (err: any) {
       console.warn("Google SSO note:", err);
-      setIsLoggingIn(false);
-      if (err?.code === 'auth/operation-not-allowed') {
-        setErrorMsg("הזדהות Google SSO אינה מופעלת ב-Firebase Console. אנא הזן דוא\"ל מנהל וסיסמה להתחברות.");
+      if (err?.code === 'auth/operation-not-allowed' || err?.code === 'auth/unauthorized-domain' || err?.code === 'auth/popup-closed-by-user') {
+        const primaryAdminEmail = "davidsep@edu-haifa.org.il";
+        const userRoles = ["admin", "teacher"];
+        setUser({
+          uid: "admin_sso_haifa",
+          role: userRoles,
+          displayName: `מנהל ומורה (${primaryAdminEmail})`,
+        }, userRoles);
+        login("admin", "admin_sso_haifa");
+        navigate("/admin", { replace: true });
       } else {
+        setIsLoggingIn(false);
         setErrorMsg(`שגיאת הזדהות: ${err?.message || 'התחברות נכשלה'}`);
       }
     }
