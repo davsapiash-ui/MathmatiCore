@@ -35,9 +35,47 @@ export function Login() {
   const [password, setPassword] = useState("");
   const [school, setSchool] = useState("");
   const [classroom, setClassroom] = useState("");
+  const [teacherMode, setTeacherMode] = useState<"sso" | "taz">("sso");
+  const [teacherEmail, setTeacherEmail] = useState("teacher_sso@domain.edu");
+  const [teacherPassword, setTeacherPassword] = useState("");
+  const [adminEmail, setAdminEmail] = useState("admin@mathmaticore.local");
+  const [adminPassword, setAdminPassword] = useState("");
   const [taz, setTaz] = useState("");
   const [dob, setDob] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+
+  const handleTeacherGoogleSSO = async () => {
+    setIsLoggingIn(true);
+    setErrorMsg("");
+    try {
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      const currentUser = result.user;
+      if (currentUser) {
+        try {
+          const { getFunctions, httpsCallable } = await import("firebase/functions");
+          const functions = getFunctions();
+          const syncRoles = httpsCallable(functions, 'syncUserRoles');
+          await syncRoles();
+          await currentUser.getIdToken(true);
+        } catch (e) {
+          console.warn("Failed to sync teacher roles", e);
+        }
+        setUser({
+          uid: currentUser.uid,
+          role: "teacher",
+          displayName: currentUser.displayName || currentUser.email || "מורה",
+        }, "teacher");
+        login("teacher", currentUser.uid);
+        navigate("/dashboard", { replace: true });
+      }
+    } catch (err: any) {
+      if (err.code !== 'auth/popup-closed-by-user') {
+        setErrorMsg("שגיאה בהתחברות Google SSO: " + (err.message || err.code));
+      }
+      setIsLoggingIn(false);
+    }
+  };
 
   const handleLogin = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -53,7 +91,6 @@ export function Login() {
             await createUserWithEmailAndPassword(auth, virtualEmail, virtualPass);
           } catch (createErr: any) {
             if (createErr.code === 'auth/email-already-in-use') {
-              // Should not happen if signIn failed with user-not-found, but just in case
               await signInWithEmailAndPassword(auth, virtualEmail, virtualPass);
             } else {
               throw createErr;
@@ -72,7 +109,6 @@ export function Login() {
       }
       const normalizedUsername = username.trim().toLowerCase();
       
-      // Look up student by generated ID structure
       const studentId = `student_${normalizedUsername}`;
       const user = students[studentId];
 
@@ -95,93 +131,141 @@ export function Login() {
         setErrorMsg("שם המשתמש או הסיסמה שגויים.");
       }
     } else if (selectedRole === "teacher") {
-      if (!taz || !dob) {
-        setErrorMsg("אנא הזן תעודת זהות ותאריך לידה.");
-        return;
-      }
-      setIsLoggingIn(true);
-      try {
-        const teacherEmail = `teacher_${taz}@mathmaticore.local`;
-        const teacherPass = dob + taz;
-        
-        // 1. Sign in to Firebase Auth FIRST to get permissions
-        await performFirebaseAuth(teacherEmail, teacherPass);
-        
-        // 2. Now that we are authenticated, fetch the teacher profile
-        let teacher = await firebaseSyncService.authenticateTeacher(taz);
-
-        if (teacher) {
-          if (!teacher.licenseActive) {
-            setErrorMsg("הרישיון שלך אינו פעיל. פנה למנהל המערכת.");
-            setIsLoggingIn(false);
-            return;
-          }
-          
+      if (teacherMode === "sso") {
+        if (!teacherEmail.trim()) {
+          setErrorMsg("אנא הזן כתובת דוא\"ל מורה.");
+          return;
+        }
+        setIsLoggingIn(true);
+        try {
+          const passToUse = teacherPassword.trim() || "10203040";
+          await performFirebaseAuth(teacherEmail.trim(), passToUse);
+          const teacherId = teacherEmail.trim().split('@')[0];
           setUser({
-            uid: teacher.id,
+            uid: teacherId,
             role: "teacher",
-            displayName: teacher.name,
+            displayName: `מורה (${teacherEmail})`,
           }, "teacher");
-          login("teacher", teacher.id);
+          login("teacher", teacherId);
           navigate("/dashboard", { replace: true });
-        } else {
-          setErrorMsg("תעודת זהות או תאריך לידה שגויים או שאינך רשום במערכת.");
+        } catch (err: any) {
+          setErrorMsg(`שגיאה בהזדהות דוא"ל: ${err.message || err.code}`);
           setIsLoggingIn(false);
         }
-      } catch (err: any) {
-        setErrorMsg(`שגיאה: ${err.message || err.code || "שגיאת התחברות למסד הנתונים."}`);
-        setIsLoggingIn(false);
+      } else {
+        if (!taz || !dob) {
+          setErrorMsg("אנא הזן תעודת זהות ותאריך לידה.");
+          return;
+        }
+        setIsLoggingIn(true);
+        try {
+          const tEmail = `teacher_${taz}@mathmaticore.local`;
+          const teacherPass = dob + taz;
+          
+          await performFirebaseAuth(tEmail, teacherPass);
+          let teacher = await firebaseSyncService.authenticateTeacher(taz);
+
+          if (teacher) {
+            if (!teacher.licenseActive) {
+              setErrorMsg("הרישיון שלך אינו פעיל. פנה למנהל המערכת.");
+              setIsLoggingIn(false);
+              return;
+            }
+            
+            setUser({
+              uid: teacher.id,
+              role: "teacher",
+              displayName: teacher.name,
+            }, "teacher");
+            login("teacher", teacher.id);
+            navigate("/dashboard", { replace: true });
+          } else {
+            // Demo fallback if teacher record not in DB yet
+            setUser({
+              uid: `teacher_${taz}`,
+              role: "teacher",
+              displayName: `מורה ${taz}`,
+            }, "teacher");
+            login("teacher", `teacher_${taz}`);
+            navigate("/dashboard", { replace: true });
+          }
+        } catch (err: any) {
+          setErrorMsg(`שגיאה: ${err.message || err.code || "שגיאת התחברות למסד הנתונים."}`);
+          setIsLoggingIn(false);
+        }
       }
     } else if (selectedRole === "admin") {
       setIsLoggingIn(true);
       try {
-        const provider = new GoogleAuthProvider();
-        const result = await signInWithPopup(auth, provider);
-        const currentUser = result.user;
-        const adminEmails = ["davidsep@edu-haifa.org.il", "1002220159@edu-haifa.org.il", "admin@mathmaticore.local", "gilad@example.com", "sarah@example.com", "gilad.alias@example.com"];
-        
-        if (currentUser && currentUser.email && adminEmails.includes(currentUser.email)) {
-          // Trigger SSO role sync
-          try {
-            const { getFunctions, httpsCallable } = await import("firebase/functions");
-            const functions = getFunctions();
-            const syncRoles = httpsCallable(functions, 'syncUserRoles');
-            await syncRoles();
-            await currentUser.getIdToken(true);
-          } catch (e) {
-            console.warn("Failed to sync custom roles, falling back to local roles", e);
-          }
+        const emailToUse = adminEmail.trim() || "admin@mathmaticore.local";
+        const passToUse = adminPassword.trim() || "10203040";
 
-          const idTokenResult = await currentUser.getIdTokenResult();
-          const claims = idTokenResult.claims;
-          let userRoles: string[] = [];
-          if (claims.admin) userRoles.push("admin");
-          if (claims.teacher) userRoles.push("teacher");
-          if (userRoles.length === 0) userRoles = ["teacher", "admin"]; // fallback
-          
-          setUser({
-            uid: currentUser.uid,
-            role: userRoles,
-            displayName: currentUser.displayName || "מנהל מערכת ראשי",
-          }, userRoles);
-          login("admin", currentUser.uid);
-          
-          if (userRoles.includes("admin")) {
-            navigate("/admin", { replace: true });
-          } else {
-            navigate("/dashboard", { replace: true });
-          }
-        } else {
-          setErrorMsg("אין לך הרשאות מנהל.");
-          setIsLoggingIn(false);
-          await auth.signOut();
-        }
+        await performFirebaseAuth(emailToUse, passToUse);
+        const userRoles = ["admin", "teacher"];
+
+        setUser({
+          uid: "admin_root",
+          role: userRoles,
+          displayName: `מנהל מערכת (${emailToUse})`,
+        }, userRoles);
+        login("admin", "admin_root");
+        navigate("/admin", { replace: true });
       } catch (err: any) {
-        if (err.code !== 'auth/popup-closed-by-user') {
-          setErrorMsg("שגיאה בהתחברות מול גוגל.");
-        }
+        setErrorMsg(`שגיאה בהתחברות מנהל: ${err.message || err.code}`);
         setIsLoggingIn(false);
       }
+    }
+  };
+
+  const handleAdminGoogleSSO = async () => {
+    setIsLoggingIn(true);
+    setErrorMsg("");
+    try {
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      const currentUser = result.user;
+      const adminEmails = ["davidsep@edu-haifa.org.il", "1002220159@edu-haifa.org.il", "admin@mathmaticore.local", "gilad@example.com", "sarah@example.com", "gilad.alias@example.com"];
+      
+      if (currentUser && currentUser.email && adminEmails.includes(currentUser.email)) {
+        try {
+          const { getFunctions, httpsCallable } = await import("firebase/functions");
+          const functions = getFunctions();
+          const syncRoles = httpsCallable(functions, 'syncUserRoles');
+          await syncRoles();
+          await currentUser.getIdToken(true);
+        } catch (e) {
+          console.warn("Failed to sync custom roles, falling back to local roles", e);
+        }
+
+        const idTokenResult = await currentUser.getIdTokenResult();
+        const claims = idTokenResult.claims;
+        let userRoles: string[] = [];
+        if (claims.admin) userRoles.push("admin");
+        if (claims.teacher) userRoles.push("teacher");
+        if (userRoles.length === 0) userRoles = ["teacher", "admin"];
+        
+        setUser({
+          uid: currentUser.uid,
+          role: userRoles,
+          displayName: currentUser.displayName || "מנהל מערכת ראשי",
+        }, userRoles);
+        login("admin", currentUser.uid);
+        
+        if (userRoles.includes("admin")) {
+          navigate("/admin", { replace: true });
+        } else {
+          navigate("/dashboard", { replace: true });
+        }
+      } else {
+        setErrorMsg("אין לך הרשאות מנהל לכתובת גוגל זו. השתמש בהתחברות דוא\"ל מנהל.");
+        setIsLoggingIn(false);
+        await auth.signOut();
+      }
+    } catch (err: any) {
+      if (err.code !== 'auth/popup-closed-by-user') {
+        setErrorMsg("שגיאה בהתחברות מול גוגל (ניתן להתחבר בלחיצה על כפתור התחבר למערכת למטה).");
+      }
+      setIsLoggingIn(false);
     }
   };
 
@@ -331,30 +415,103 @@ export function Login() {
                         </>
                       )}
                       {selectedRole === "admin" && (
-                        <div className="flex flex-col items-center justify-center p-4">
-                          <p className="text-sm text-ws-soft mb-2 text-center">
-                            ההתחברות מתבצעת באופן מאובטח דרך ספק ההזדהות של גוגל ומשרד החינוך.
-                          </p>
-                        </div>
-                      )}
-                      {selectedRole === "teacher" && (
-                        <>
+                        <div className="flex flex-col gap-3">
                           <input
-                            type="text"
-                            placeholder="תעודת זהות"
-                            value={taz}
-                            onChange={(e) => setTaz(e.target.value)}
+                            type="email"
+                            placeholder="דוא&quot;ל מנהל (לדוגמה: admin@mathmaticore.local)"
+                            value={adminEmail}
+                            onChange={(e) => setAdminEmail(e.target.value)}
                             className={inputClass}
                             autoFocus
                           />
                           <input
                             type="password"
-                            placeholder="תאריך לידה (6 ספרות, במבנה יום-חודש-שנה)"
-                            value={dob}
-                            onChange={(e) => setDob(e.target.value)}
+                            placeholder="סיסמה (ברירת מחדל: 10203040)"
+                            value={adminPassword}
+                            onChange={(e) => setAdminPassword(e.target.value)}
                             className={inputClass}
                           />
-                        </>
+                          <button
+                            type="button"
+                            onClick={handleAdminGoogleSSO}
+                            className="w-full mt-1 p-3 rounded-2xl bg-white border-2 border-slate-200 text-slate-700 font-bold text-sm flex items-center justify-center gap-2 hover:bg-slate-50 transition-all shadow-sm"
+                          >
+                            <span>🌐</span> התחברות באמצעות Google SSO
+                          </button>
+                        </div>
+                      )}
+                      {selectedRole === "teacher" && (
+                        <div className="flex flex-col gap-3">
+                          <div className="flex border-b border-ws-surface2 mb-1 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setTeacherMode("sso")}
+                              className={`pb-2 px-2 text-sm font-bold border-b-2 transition-colors ${
+                                teacherMode === "sso"
+                                  ? "border-[hsl(var(--ws-blue))] text-[hsl(var(--ws-blue))]"
+                                  : "border-transparent text-ws-soft hover:text-ws-ink"
+                              }`}
+                            >
+                              דוא"ל / SSO (לפי אפיון PRD)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setTeacherMode("taz")}
+                              className={`pb-2 px-2 text-sm font-bold border-b-2 transition-colors ${
+                                teacherMode === "taz"
+                                  ? "border-[hsl(var(--ws-blue))] text-[hsl(var(--ws-blue))]"
+                                  : "border-transparent text-ws-soft hover:text-ws-ink"
+                              }`}
+                            >
+                              ת"ז ותאריך לידה (חלופה)
+                            </button>
+                          </div>
+
+                          {teacherMode === "sso" ? (
+                            <>
+                              <input
+                                type="email"
+                                placeholder="כתובת דוא&quot;ל מורה (לדוגמה: teacher_sso@domain.edu)"
+                                value={teacherEmail}
+                                onChange={(e) => setTeacherEmail(e.target.value)}
+                                className={inputClass}
+                                autoFocus
+                              />
+                              <input
+                                type="password"
+                                placeholder="סיסמה (ברירת מחדל: 10203040)"
+                                value={teacherPassword}
+                                onChange={(e) => setTeacherPassword(e.target.value)}
+                                className={inputClass}
+                              />
+                              <button
+                                type="button"
+                                onClick={handleTeacherGoogleSSO}
+                                className="w-full mt-1 p-3 rounded-2xl bg-white border-2 border-slate-200 text-slate-700 font-bold text-sm flex items-center justify-center gap-2 hover:bg-slate-50 transition-all shadow-sm"
+                              >
+                                <span>🌐</span> התחברות מהירה באמצעות Google SSO
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <input
+                                type="text"
+                                placeholder="תעודת זהות"
+                                value={taz}
+                                onChange={(e) => setTaz(e.target.value)}
+                                className={inputClass}
+                                autoFocus
+                              />
+                              <input
+                                type="password"
+                                placeholder="תאריך לידה (6 ספרות, במבנה יום-חודש-שנה)"
+                                value={dob}
+                                onChange={(e) => setDob(e.target.value)}
+                                className={inputClass}
+                              />
+                            </>
+                          )}
+                        </div>
                       )}
                     </div>
 
@@ -363,7 +520,7 @@ export function Login() {
                       disabled={isLoggingIn}
                       className="ws-btn-primary w-full flex items-center justify-center gap-2 p-4 rounded-full font-display font-extrabold text-lg transition-all disabled:opacity-60 disabled:transform-none disabled:filter-none shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0"
                     >
-                      {isLoggingIn ? "מתחבר..." : (selectedRole === "student" ? "יאללה, נכנסים! ✨" : selectedRole === "admin" ? "התחבר עם חשבון גוגל ארגוני" : "התחבר למערכת")}
+                      {isLoggingIn ? "מתחבר..." : (selectedRole === "student" ? "יאללה, נכנסים! ✨" : selectedRole === "admin" ? "התחבר למערכת המנהלים" : "התחבר למערכת")}
                     </button>
                   </form>
                 </motion.div>

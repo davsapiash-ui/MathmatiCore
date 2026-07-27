@@ -43,7 +43,7 @@ export interface TelemetryEvent {
   };
 }
 
-class FirebaseSyncService {
+export class FirebaseSyncService {
   private static instance: FirebaseSyncService;
   private unsubscribeWorkspace: (() => void) | null = null;
   private unsubscribeFirebase: (() => void) | null = null;
@@ -66,6 +66,20 @@ class FirebaseSyncService {
       FirebaseSyncService.instance = new FirebaseSyncService();
     }
     return FirebaseSyncService.instance;
+  }
+
+  public static async syncPhysicalOverride(
+    studentId: string,
+    overrideData: {
+      routeStatus: string;
+      difficultyRecommendation: string;
+      isASD: boolean;
+      physicalOverride: boolean;
+      physicalOverrideActive?: boolean;
+      overrideUpdatedAt: number;
+    }
+  ) {
+    return FirebaseSyncService.getInstance().syncPhysicalOverride(studentId, overrideData);
   }
 
   private init() {
@@ -155,6 +169,10 @@ class FirebaseSyncService {
                 ...(data.highestCompletedMeeting !== undefined && { highestCompletedMeeting: data.highestCompletedMeeting }),
                 ...(data.routeRecommendation !== undefined && { routeRecommendation: data.routeRecommendation }),
                 ...(data.routeStatus !== undefined && { routeStatus: data.routeStatus }),
+                ...(data.difficultyRecommendation !== undefined && { difficultyRecommendation: data.difficultyRecommendation }),
+                ...(data.isASD !== undefined && { isASD: data.isASD }),
+                ...(data.physicalOverride !== undefined && { physicalOverride: data.physicalOverride }),
+                ...(data.overrideUpdatedAt !== undefined && { overrideUpdatedAt: data.overrideUpdatedAt }),
                 ...(data.isOnline !== undefined && { isOnline: data.isOnline }),
                 ...(data.workspaceState && { workspaceState: data.workspaceState }),
                 ...(data.additionBoardEnabled !== undefined && { additionBoardEnabled: data.additionBoardEnabled }),
@@ -202,10 +220,35 @@ class FirebaseSyncService {
         aiTasks: state.aiTasks
       };
 
-      update(studentRef, {
-        workspaceState: syncableData,
-        lastActive: serverTimestamp()
-      });
+      // PRD Section 5.2: Enforce <50KB payload limit for Transient State Sync
+      const MAX_PAYLOAD_BYTES = 50 * 1024; // 50KB
+      const payloadJson = JSON.stringify(syncableData);
+      if (payloadJson.length > MAX_PAYLOAD_BYTES) {
+        console.warn(
+          `[FirebaseSyncService] Payload size ${payloadJson.length} bytes exceeds 50KB limit. Trimming aiTasks and qflow history.`
+        );
+        // Trim large fields to fit within the 50KB budget
+        const trimmed = { ...syncableData };
+        if (trimmed.aiTasks && Array.isArray(trimmed.aiTasks) && trimmed.aiTasks.length > 5) {
+          trimmed.aiTasks = trimmed.aiTasks.slice(-5);
+        }
+        if (trimmed.qflow && typeof trimmed.qflow === 'object' && trimmed.qflow.results) {
+          const keys = Object.keys(trimmed.qflow.results);
+          if (keys.length > 20) {
+            const recentKeys = keys.slice(-20);
+            trimmed.qflow = { ...trimmed.qflow, results: Object.fromEntries(recentKeys.map(k => [k, trimmed.qflow.results[k]])) };
+          }
+        }
+        update(studentRef, {
+          workspaceState: trimmed,
+          lastActive: serverTimestamp()
+        });
+      } else {
+        update(studentRef, {
+          workspaceState: syncableData,
+          lastActive: serverTimestamp()
+        });
+      }
 
       if (this.currentUserId) {
         const isStruggling = (state.hesitationCount || 0) > 6 || (state.undoCount || 0) > 3;
@@ -327,6 +370,40 @@ class FirebaseSyncService {
     if (!studentId) return;
     const refPath = ref(database, `users/students/${studentId}`);
     await update(refPath, { routeStatus: 'APPROVED' });
+  }
+
+  public async syncPhysicalOverride(
+    studentId: string,
+    overrideData: {
+      routeStatus: string;
+      difficultyRecommendation: string;
+      isASD: boolean;
+      physicalOverride: boolean;
+      physicalOverrideActive?: boolean;
+      overrideUpdatedAt: number;
+    }
+  ) {
+    if (!studentId) return;
+    const updates: Record<string, any> = {};
+
+    // 1. Primary path: users/students/${studentId}
+    updates[`users/students/${studentId}/routeStatus`] = overrideData.routeStatus;
+    updates[`users/students/${studentId}/difficultyRecommendation`] = overrideData.difficultyRecommendation;
+    updates[`users/students/${studentId}/isASD`] = overrideData.isASD;
+    updates[`users/students/${studentId}/physicalOverride`] = overrideData.physicalOverride;
+    updates[`users/students/${studentId}/physicalOverrideActive`] = overrideData.physicalOverrideActive ?? overrideData.physicalOverride;
+    updates[`users/students/${studentId}/overrideUpdatedAt`] = overrideData.overrideUpdatedAt;
+    updates[`users/students/${studentId}/workspaceState/isASD`] = overrideData.isASD;
+
+    // 2. Secondary path: students/${studentId} (backup per requirement 3)
+    updates[`students/${studentId}/routeStatus`] = overrideData.routeStatus;
+    updates[`students/${studentId}/difficultyRecommendation`] = overrideData.difficultyRecommendation;
+    updates[`students/${studentId}/isASD`] = overrideData.isASD;
+    updates[`students/${studentId}/physicalOverride`] = overrideData.physicalOverride;
+    updates[`students/${studentId}/physicalOverrideActive`] = overrideData.physicalOverrideActive ?? overrideData.physicalOverride;
+    updates[`students/${studentId}/overrideUpdatedAt`] = overrideData.overrideUpdatedAt;
+
+    await update(ref(database), updates);
   }
 
   // --- NEW: PRD Section 5.2 FIFO In-Memory Network Sync Queue ---
@@ -714,4 +791,8 @@ export const fetchTeacherClassrooms = (teacherId: string) =>
 
 export const fetchClassroomSessions = (classId: string) =>
   firebaseSyncService.fetchClassroomSessions(classId);
+
+export const syncPhysicalOverride = (studentId: string, overrideData: any) =>
+  firebaseSyncService.syncPhysicalOverride(studentId, overrideData);
+
 

@@ -27,7 +27,7 @@ export const database = getDatabase(app);
 export const functions = getFunctions(app);
 
 // Use local emulator for functions when running locally
-if (window.location.hostname === "localhost") {
+if (typeof window !== 'undefined' && window.location?.hostname === "localhost") {
   connectFunctionsEmulator(functions, "localhost", 5001);
 }
 

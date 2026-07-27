@@ -37,7 +37,7 @@ export interface TraceData {
 }
 
 export type RoutePath = 'GREEN' | 'YELLOW';
-export type RouteStatus = 'PENDING' | 'APPROVED' | 'PENDING_TEACHER_APPROVAL';
+export type RouteStatus = 'PENDING' | 'APPROVED' | 'PENDING_TEACHER_APPROVAL' | 'SANDBOX' | 'DIAGNOSTIC' | 'ADAPTIVE';
 
 export interface DiagnosticReport {
   studentId: string;
@@ -62,7 +62,11 @@ export interface StudentData {
   completedMeeting2: boolean;
   highestCompletedMeeting?: number;
   routeRecommendation: RoutePath | null;
-  routeStatus: RouteStatus | null;
+  routeStatus: RouteStatus | string | null;
+  difficultyRecommendation?: string | number | null;
+  isASD?: boolean;
+  physicalOverride?: boolean;
+  overrideUpdatedAt?: number;
   diagnosticReport?: DiagnosticReport | null;
   conceptMastery?: MasteryProfile;
   isOnline?: boolean;
@@ -117,9 +121,21 @@ interface AppState {
   // Live Metrics
   updateLiveSessionMetrics: (studentId: string, metrics: any) => void;
 
-  // Routing Actions
+  // Routing & Override Actions
   setRouteRecommendation: (studentId: string, route: RoutePath) => void;
   approveRoute: (studentId: string) => void;
+  applyPhysicalOverride: (
+    studentId: string,
+    overrideData: {
+      routeStatus: string;
+      difficultyRecommendation: string;
+      isASD: boolean;
+      physicalOverride: boolean;
+      physicalOverrideActive?: boolean;
+      overrideUpdatedAt: number;
+    }
+  ) => void;
+  updateStudent: (studentId: string, updates: Partial<StudentData>) => void;
 }
 
 // Generate 30 users for Audit (ביקורת) environment
@@ -407,6 +423,40 @@ export const useStore = create<AppState>()(
               routeStatus: 'APPROVED'
             }
           }
+        };
+      }),
+
+      applyPhysicalOverride: (studentId, overrideData) => set((state) => {
+        const student = state.students[studentId];
+        if (!student) return state;
+        const updatedStudent: StudentData = {
+          ...student,
+          routeStatus: overrideData.routeStatus as RouteStatus,
+          difficultyRecommendation: overrideData.difficultyRecommendation,
+          isASD: overrideData.isASD,
+          physicalOverride: overrideData.physicalOverride,
+          overrideUpdatedAt: overrideData.overrideUpdatedAt,
+        };
+        firebaseSyncService.syncPhysicalOverride(studentId, overrideData).catch(console.error);
+        return {
+          students: {
+            ...state.students,
+            [studentId]: updatedStudent,
+          },
+        };
+      }),
+
+      updateStudent: (studentId, updates) => set((state) => {
+        const student = state.students[studentId];
+        if (!student) return state;
+        return {
+          students: {
+            ...state.students,
+            [studentId]: {
+              ...student,
+              ...updates,
+            },
+          },
         };
       })
     })

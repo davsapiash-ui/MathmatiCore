@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { type StudentData } from '@/application/useStore';
-import { X, CheckCircle, Video, ListTodo } from 'lucide-react';
+import { X, CheckCircle, Video, ListTodo, Sliders } from 'lucide-react';
 import { StudentReplayAndLogs } from './StudentReplayAndLogs';
 import { BlueprintEditor } from './BlueprintEditor';
+import { PhysicalOverrideControl } from './PhysicalOverrideControl';
 
 interface Props {
   student: StudentData | null;
@@ -12,7 +13,9 @@ interface Props {
 }
 
 export function StudentSideDrawer({ student, onClose, isPendingApproval, onApproveTasks }: Props) {
-  const [activeTab, setActiveTab] = useState<'replays' | 'blueprint'>(isPendingApproval ? 'blueprint' : 'replays');
+  const [activeTab, setActiveTab] = useState<'replays' | 'blueprint' | 'override'>(
+    isPendingApproval ? 'blueprint' : 'replays'
+  );
 
   if (!student) return null;
 
@@ -23,7 +26,7 @@ export function StudentSideDrawer({ student, onClose, isPendingApproval, onAppro
         onClick={onClose}
       />
       
-      <div className="fixed top-0 right-0 w-full sm:w-[600px] h-[100dvh] bg-white dark:bg-slate-900 shadow-2xl z-50 flex flex-col transform transition-transform duration-300 border-l border-slate-200 dark:border-slate-800">
+      <div className="fixed top-0 right-0 w-full sm:w-[600px] h-[100dvh] bg-white dark:bg-slate-900 shadow-2xl z-50 flex flex-col transform transition-transform duration-300 border-l border-slate-200 dark:border-slate-800" dir="rtl">
         <div className="h-16 px-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
           <div className="flex items-center gap-3">
             <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">
@@ -32,6 +35,11 @@ export function StudentSideDrawer({ student, onClose, isPendingApproval, onAppro
             {isPendingApproval && (
               <span className="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-1 rounded-md border border-amber-200">
                 ממתין לאישור
+              </span>
+            )}
+            {student.physicalOverride && (
+              <span className="bg-purple-100 text-purple-700 text-xs font-bold px-2 py-1 rounded-md border border-purple-200">
+                עקיפה פיזית פעילה
               </span>
             )}
           </div>
@@ -43,10 +51,10 @@ export function StudentSideDrawer({ student, onClose, isPendingApproval, onAppro
           </button>
         </div>
 
-        <div className="flex border-b border-slate-200 dark:border-slate-800 px-4 pt-2 bg-slate-50/50 dark:bg-slate-800/20">
+        <div className="flex border-b border-slate-200 dark:border-slate-800 px-4 pt-2 bg-slate-50/50 dark:bg-slate-800/20 overflow-x-auto no-scrollbar">
           <button
             onClick={() => setActiveTab('replays')}
-            className={`flex items-center gap-2 px-6 py-3 font-medium transition-colors border-b-2 ${
+            className={`flex items-center gap-2 px-4 py-3 font-medium transition-colors border-b-2 text-sm whitespace-nowrap ${
               activeTab === 'replays'
                 ? 'border-indigo-500 text-indigo-700 dark:text-indigo-400'
                 : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
@@ -56,8 +64,19 @@ export function StudentSideDrawer({ student, onClose, isPendingApproval, onAppro
             אבחון והקלטות
           </button>
           <button
+            onClick={() => setActiveTab('override')}
+            className={`flex items-center gap-2 px-4 py-3 font-medium transition-colors border-b-2 text-sm whitespace-nowrap ${
+              activeTab === 'override'
+                ? 'border-amber-500 text-amber-700 dark:text-amber-400'
+                : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+            }`}
+          >
+            <Sliders className="w-4 h-4 text-amber-500" />
+            עקיפה פיזית (Physical Override)
+          </button>
+          <button
             onClick={() => setActiveTab('blueprint')}
-            className={`flex items-center gap-2 px-6 py-3 font-medium transition-colors border-b-2 ${
+            className={`flex items-center gap-2 px-4 py-3 font-medium transition-colors border-b-2 text-sm whitespace-nowrap ${
               activeTab === 'blueprint'
                 ? 'border-indigo-500 text-indigo-700 dark:text-indigo-400'
                 : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
@@ -68,24 +87,35 @@ export function StudentSideDrawer({ student, onClose, isPendingApproval, onAppro
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 bg-slate-50/30 dark:bg-slate-900">
+        <div className="flex-1 overflow-y-auto p-6 bg-slate-50/30 dark:bg-slate-900 space-y-6">
           {activeTab === 'replays' && (
-            <div className="animate-in fade-in duration-300">
-              <h3 className="font-bold text-lg mb-4 text-slate-800 dark:text-slate-200">נתוני אבחון AI (Q-Matrix)</h3>
-              <div className="grid grid-cols-2 gap-4 mb-8">
-                {Object.entries(student.conceptMastery || {}).map(([key, val]) => (
-                  <div key={key} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3 rounded-xl flex justify-between items-center shadow-sm">
-                    <span className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                      {key.replace('_', ' ')}
-                    </span>
-                    <span className={`font-bold text-sm ${val < 0.8 ? 'text-rose-500' : 'text-emerald-500'}`}>
-                      {Math.round(val * 100)}%
-                    </span>
-                  </div>
-                ))}
+            <div className="animate-in fade-in duration-300 space-y-6">
+              <div>
+                <h3 className="font-bold text-lg mb-4 text-slate-800 dark:text-slate-200">נתוני אבחון AI (Q-Matrix)</h3>
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  {Object.entries(student.conceptMastery || {}).map(([key, val]) => (
+                    <div key={key} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3 rounded-xl flex justify-between items-center shadow-sm">
+                      <span className="text-sm font-medium text-slate-600 dark:text-slate-400">
+                        {key.replace('_', ' ')}
+                      </span>
+                      <span className={`font-bold text-sm ${val < 0.8 ? 'text-rose-500' : 'text-emerald-500'}`}>
+                        {Math.round(val * 100)}%
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
               
+              {/* Physical Override Controls inside Replay Tab */}
+              <PhysicalOverrideControl student={student} />
+
               <StudentReplayAndLogs studentId={student.studentId} />
+            </div>
+          )}
+
+          {activeTab === 'override' && (
+            <div className="animate-in fade-in duration-300">
+              <PhysicalOverrideControl student={student} />
             </div>
           )}
 

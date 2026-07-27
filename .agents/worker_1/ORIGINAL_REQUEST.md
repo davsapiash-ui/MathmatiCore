@@ -68,3 +68,25 @@ Write your completion report and test results in handoff.md in your working dire
    - For `s3_t5` (addition): change `numberA: 489, numberB: 175, correctAnswer: 664` to `numberA: 4890, numberB: 1750, correctAnswer: 6640`, and update `instructionHe` to reflect the new numbers "4890 + 1750".
    - For `s4_t5` (subtraction): change `numberA: 513, numberB: 285, correctAnswer: 228` to `numberA: 5130, numberB: 2850, correctAnswer: 2280`, and update `instructionHe` to reflect the new numbers "5130 - 2850".
 This will ensure Sessions 3 and beyond expand up to 10,000 and utilize the thousands column.
+
+## 2026-07-27T12:35:27Z
+
+Perform the following tasks:
+1. In `c:\Users\david\Projects\MathmatiCore\react-ts-version\src\infrastructure\services\FirebaseSyncService.ts`:
+   Add export helper at the bottom of the file:
+   ```ts
+   export const syncPhysicalOverride = (studentId: string, overrideData: any) =>
+     firebaseSyncService.syncPhysicalOverride(studentId, overrideData);
+   ```
+
+2. In `c:\Users\david\Projects\MathmatiCore\react-ts-version\src\presentation\pages\TeacherDashboard\components\PhysicalOverrideControl.tsx`:
+   Import `firebaseSyncService` from `@/infrastructure/services/FirebaseSyncService`.
+   Inside `handleSaveOverride`:
+   Call `await firebaseSyncService.syncPhysicalOverride(studentId, updates);`
+
+3. Run `npm run build` in `c:\Users\david\Projects\MathmatiCore\react-ts-version\` using `run_command` and verify exit code 0.
+
+MANDATORY INTEGRITY WARNING:
+DO NOT CHEAT. All implementations must be genuine. DO NOT hardcode test results, create dummy/facade implementations, or circumvent the intended task. A Forensic Auditor will independently verify your work. Integrity violations WILL be detected and your work WILL be rejected.
+
+When finished, write your handoff report to `c:\Users\david\Projects\MathmatiCore\.agents\worker_1\handoff.md` and send a message back to the parent.

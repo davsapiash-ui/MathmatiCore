@@ -35,43 +35,33 @@ export interface LiveFeedItem {
   severity: 'info' | 'warning' | 'alert';
 }
 
+// PRD: Grid starts empty — slots fill only from live Firebase data. No mock/random data.
 const INITIAL_MOCK_STUDENTS: AnonymousStudent[] = Array.from({ length: 35 }, (_, index) => {
   const studentNum = index + 1;
-  const isStrugglingMock = [4, 7, 12, 19, 28].includes(studentNum);
-  const isLockedMock = [7, 28].includes(studentNum);
-  const isCompletedMock = [1, 2, 3].includes(studentNum);
-  const path: 'ירוק' | 'צמצום פערים' = [4, 7, 12, 18, 19, 28, 33].includes(studentNum) ? 'צמצום פערים' : 'ירוק';
-  const sessionNum = (studentNum % 8) + 1;
-
-  let lastAction = 'מבצע תרגיל בחיבור מאונך';
-  if (studentNum === 4) lastAction = 'מנסה לפתור ללא פריטה בטור העשרות';
-  if (studentNum === 12) lastAction = 'השהייה קולית/חזותית מעל 30 שניות';
-  if (studentNum === 7) lastAction = 'ביצע Undo רצוף 3 פעמים';
-
   return {
-    id: `student_${studentNum}`,
-    displayName: `תלמיד ${studentNum}`,
-    sessionNumber: isCompletedMock ? 8 : sessionNum,
-    currentPath: path,
-    status: isCompletedMock ? 'completed' : isLockedMock ? 'locked' : 'active',
-    hesitationSeconds: isStrugglingMock ? 35 + (studentNum * 2) : Math.floor(Math.random() * 15),
-    errorCount: isStrugglingMock ? 3 + (studentNum % 3) : Math.floor(Math.random() * 2),
+    id: `slot_${studentNum}`,
+    displayName: `מושב ${studentNum}`,
+    sessionNumber: 0,
+    currentPath: 'ירוק',
+    status: 'active' as const,
+    hesitationSeconds: 0,
+    errorCount: 0,
     physicalOverride: false,
-    isStruggling: isStrugglingMock,
-    lastAction,
-    isOnline: true,
+    isStruggling: false,
+    lastAction: '',
+    isOnline: false,
   };
 });
 
-const INITIAL_MOCK_FEED: LiveFeedItem[] = [
-  { id: '1', studentId: 'student_4', studentName: 'תלמיד 4', timestamp: Date.now() - 40000, message: 'מנסה לפתור ללא פריטה בטור העשרות', severity: 'alert' },
-  { id: '2', studentId: 'student_12', studentName: 'תלמיד 12', timestamp: Date.now() - 90000, message: 'השהייה קולית/חזותית מעל 30 שניות', severity: 'warning' },
-  { id: '3', studentId: 'student_7', studentName: 'תלמיד 7', timestamp: Date.now() - 150000, message: 'ביצע Undo רצוף 3 פעמים', severity: 'alert' },
-  { id: '4', studentId: 'student_18', studentName: 'תלמיד 18', timestamp: Date.now() - 210000, message: 'הושלמה משימת התאמת ייצוגים בהצלחה', severity: 'info' },
-  { id: '5', studentId: 'student_2', studentName: 'תלמיד 2', timestamp: Date.now() - 300000, message: 'סיום מפגש 2 - מוכן למעבר מסלול', severity: 'info' },
-];
+// PRD: Feed starts empty — events arrive from Firebase radar_alerts only.
+const INITIAL_MOCK_FEED: LiveFeedItem[] = [];
 
-export function HeatmapGrid() {
+interface HeatmapGridProps {
+  /** Called when teacher clicks Drill Down — parent opens full StudentSideDrawer */
+  onDrillDown?: (studentId: string) => void;
+}
+
+export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
   const [students, setStudents] = useState<AnonymousStudent[]>(INITIAL_MOCK_STUDENTS);
   const [feedItems, setFeedItems] = useState<LiveFeedItem[]>(INITIAL_MOCK_FEED);
   const [selectedStudent, setSelectedStudent] = useState<AnonymousStudent | null>(null);
@@ -99,7 +89,7 @@ export function HeatmapGrid() {
           const isYellowPath = data.routeRecommendation === 'YELLOW' || sessionState.current_path === 'gap_reduction';
           const physicalOverride = data.physicalOverride || sessionState.physical_override || false;
 
-          const isStruggling = hesitationSeconds > 30 || isYellowPath || errorCount >= 3 || physicalOverride;
+          const isStruggling = hesitationSeconds > 30 || isYellowPath || errorCount > 2 || physicalOverride;
 
           updated[slotIndex] = {
             id: uid,
@@ -136,7 +126,7 @@ export function HeatmapGrid() {
         setFeedItems((prev) => {
           const combined = [...newItems, ...prev];
           const unique = Array.from(new Map(combined.map(item => [item.id, item])).values());
-          return unique.slice(0, 20);
+          return unique.slice(0, 15);
         });
       }
     });
@@ -159,7 +149,7 @@ export function HeatmapGrid() {
               ...s,
               physicalOverride: newOverrideState,
               status: updatedStatus,
-              isStruggling: newOverrideState || s.hesitationSeconds > 30 || s.errorCount >= 3,
+              isStruggling: newOverrideState || s.hesitationSeconds > 30 || s.errorCount > 2,
             }
           : s
       )
@@ -502,7 +492,19 @@ export function HeatmapGrid() {
               })()}
             </div>
 
-            <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex justify-end">
+            <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center gap-3">
+              {onDrillDown && (
+                <button
+                  onClick={() => {
+                    onDrillDown(selectedStudent.id);
+                    setSelectedStudent(null);
+                  }}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl transition-colors shadow-sm active:scale-95"
+                >
+                  <ShieldAlert className="w-4 h-4" />
+                  פתח Drill Down מלא (הקלטות + עקיפה)
+                </button>
+              )}
               <button
                 onClick={() => setSelectedStudent(null)}
                 className="px-6 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-sm rounded-xl transition-colors"

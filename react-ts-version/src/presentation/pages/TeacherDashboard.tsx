@@ -20,10 +20,11 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { Send, MessageCircle, ShieldAlert } from "lucide-react";
+import { Send, MessageCircle, ShieldAlert, Sliders } from "lucide-react";
 
 import { ClassManagement } from "./TeacherDashboard/ClassManagement";
 import { StudentReplayAndLogs } from "./TeacherDashboard/components/StudentReplayAndLogs";
+import { StudentSideDrawer } from "./TeacherDashboard/components/StudentSideDrawer";
 import { HeatmapGrid } from "./TeacherDashboard/components/HeatmapGrid";
 import { SocraticEngine, type PendingAIApproval } from "@/infrastructure/services/SocraticEngine";
 import { useTeacherTour } from "./TeacherDashboard/useTeacherTour";
@@ -231,6 +232,7 @@ export function TeacherDashboard() {
   const [selectedReplayStudentId, setSelectedReplayStudentId] = useState<string | null>(
     routeStudentId || null,
   );
+  const [drawerStudent, setDrawerStudent] = useState<StudentData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   // Update active tab and selected student based on route params (PRD 4.3 Navigation Redundancy)
@@ -809,7 +811,12 @@ export function TeacherDashboard() {
                 ניטור 35 תלמידים אנונימיים, רדאר פדגוגי בזמן אמת ותיווך פיזי ישיר.
               </p>
             </header>
-            <HeatmapGrid />
+            <HeatmapGrid
+              onDrillDown={(studentId) => {
+                const student = allStudents.find(s => s.studentId === studentId);
+                if (student) setDrawerStudent(student);
+              }}
+            />
           </div>
         )}
 
@@ -1235,6 +1242,28 @@ export function TeacherDashboard() {
 
                       return (
                         <div className="animate-in fade-in zoom-in-95 duration-300">
+                          {/* Top Action Bar: Open Drawer for Physical Override & Full Student Profile */}
+                          <div className="mb-4 flex justify-between items-center bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                            <div className="flex items-center gap-3">
+                              <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">
+                                {s.name || s.studentId}
+                              </h3>
+                              {s.physicalOverride && (
+                                <span className="bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 text-xs font-bold px-2.5 py-1 rounded-full border border-purple-200 dark:border-purple-800">
+                                  עקיפה פיזית פעילה
+                                </span>
+                              )}
+                            </div>
+
+                            <button
+                              onClick={() => setDrawerStudent(s)}
+                              className="flex items-center gap-2 px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-md transition-all active:scale-95"
+                            >
+                              <Sliders className="w-4 h-4" />
+                              <span>פתיחת עקיפה פיזית (Student Side Drawer)</span>
+                            </button>
+                          </div>
+
                           {/* Video Replay & Logs Summary Banner */}
                           <div className="mb-6">
                             <StudentReplayAndLogs studentId={selectedReplayStudentId} />
@@ -2238,6 +2267,18 @@ export function TeacherDashboard() {
               </div>
             </div>
           </div>
+        )}
+
+        {drawerStudent && (
+          <StudentSideDrawer
+            student={drawerStudent}
+            onClose={() => setDrawerStudent(null)}
+            isPendingApproval={drawerStudent.routeStatus === 'PENDING'}
+            onApproveTasks={async (studentId: string) => {
+              approveRoute(studentId);
+              setDrawerStudent(null);
+            }}
+          />
         )}
       </main>
     </div>

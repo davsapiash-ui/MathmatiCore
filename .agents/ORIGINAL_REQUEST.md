@@ -589,3 +589,37 @@ Verification Requirements:
 
 Decompose work into clear milestones, launch specialist subagents (workers/reviewers) to build, test, and verify each milestone, update `.agents/orchestrator/progress.md`, and report completion when all acceptance criteria are fulfilled.
 </USER_REQUEST>
+
+## Follow-up — 2026-07-27T15:25:02+03:00
+
+<USER_REQUEST>
+Implement the missing "Physical Override" feature in the Teacher Dashboard's Student Side Drawer. This allows the teacher to review the system's automated diagnosis (via replays and monitoring logs) and, if they disagree, manually override the student's difficulty profile/route.
+
+Working directory: c:\Users\david\Projects\MathmatiCore\react-ts-version
+Integrity mode: development
+
+## Requirements
+
+### R1. Implement Physical Override Toggle
+Add a physical override mechanism (e.g., explicit override buttons or a toggle switch) within `react-ts-version/src/presentation/pages/TeacherDashboard/components/StudentSideDrawer.tsx` (or its child components). This UI should be positioned where the teacher makes decisions after reviewing the `StudentReplayAndLogs`.
+
+### R2. Firebase Integration
+When the teacher activates the override, it must update the student's record in Firebase Database (`users/students/${studentId}`). The state should forcefully update the student's route status, recommendation, or the `isASD` flag appropriately without requiring a full reset of the student, effectively allowing the teacher's judgment to supersede the AI.
+
+## Acceptance Criteria
+
+### Verification
+- [ ] A physical override control exists in the Student Side Drawer UI.
+- [ ] Changing the override triggers a direct update to the Firebase Realtime Database for the respective `studentId`.
+- [ ] The component compiles successfully with no TypeScript or ESLint warnings (`npm run build` succeeds).
+</USER_REQUEST>
+
+## Follow-up — 2026-07-27T15:33:44+03:00
+
+<USER_REQUEST>
+Target File: `c:\Users\david\Projects\MathmatiCore\react-ts-version\src\presentation\pages\TeacherDashboard\components\PhysicalOverrideControl.tsx`
+
+Update updates object in PhysicalOverrideControl.tsx to set `physicalOverride: true` along with `physicalOverrideActive: true`.
+Execute edit and run `npm run build` in `react-ts-version/`.
+</USER_REQUEST>
+
