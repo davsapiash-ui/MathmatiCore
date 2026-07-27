@@ -5,7 +5,7 @@ import { useAdminStore } from "@/application/useAdminStore";
 import { useStore } from "@/application/useStore";
 import { useNavigate } from "react-router-dom";
 import { auth } from "@/infrastructure/firebase";
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
 import { firebaseSyncService } from "@/infrastructure/services/FirebaseSyncService";
 
 // DEMO_USERS removed
@@ -133,30 +133,37 @@ export function Login() {
         setIsLoggingIn(false);
       }
     } else if (selectedRole === "admin") {
+      if (!username || !password) {
+        setErrorMsg("אנא הזן שם משתמש וסיסמה.");
+        return;
+      }
+
       setIsLoggingIn(true);
       try {
-        const provider = new GoogleAuthProvider();
-        const result = await signInWithPopup(auth, provider);
-        const currentUser = result.user;
+        // Authenticate with Firebase Auth
+        await performFirebaseAuth(username, password);
+        
+        // Verify admin role (assuming admins are managed via Firebase Auth custom claims or specific emails)
+        // For now, if authentication succeeds and the email matches admin@mathmaticore.local, we let them in.
+        const currentUser = auth.currentUser;
         const adminEmails = ["davidsep@edu-haifa.org.il", "1002220159@edu-haifa.org.il", "admin@mathmaticore.local"];
         
         if (currentUser && currentUser.email && adminEmails.includes(currentUser.email)) {
           setUser({
             uid: currentUser.uid,
             role: ["teacher", "admin"],
-            displayName: currentUser.displayName || "מנהל מערכת ראשי",
+            displayName: "מנהל מערכת ראשי",
           }, ["teacher", "admin"]);
           login("admin", currentUser.uid);
           navigate("/admin", { replace: true });
         } else {
           setErrorMsg("אין לך הרשאות מנהל.");
           setIsLoggingIn(false);
+          // Sign out since they aren't admin
           await auth.signOut();
         }
-      } catch (err: any) {
-        if (err.code !== 'auth/popup-closed-by-user') {
-          setErrorMsg("שגיאה בהתחברות מול גוגל.");
-        }
+      } catch {
+        setErrorMsg("פרטי מנהל שגויים או שגיאת תקשורת.");
         setIsLoggingIn(false);
       }
     }
@@ -308,11 +315,23 @@ export function Login() {
                         </>
                       )}
                       {selectedRole === "admin" && (
-                        <div className="flex flex-col items-center justify-center p-4">
-                          <p className="text-sm text-ws-soft mb-2 text-center">
-                            ההתחברות מתבצעת באופן מאובטח דרך ספק ההזדהות של גוגל ומשרד החינוך.
-                          </p>
-                        </div>
+                        <>
+                          <input
+                            type="email"
+                            placeholder="אימייל מנהל"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            className={inputClass}
+                            autoFocus
+                          />
+                          <input
+                            type="password"
+                            placeholder="סיסמה"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            className={inputClass}
+                          />
+                        </>
                       )}
                       {selectedRole === "teacher" && (
                         <>
@@ -340,7 +359,7 @@ export function Login() {
                       disabled={isLoggingIn}
                       className="ws-btn-primary w-full flex items-center justify-center gap-2 p-4 rounded-full font-display font-extrabold text-lg transition-all disabled:opacity-60 disabled:transform-none disabled:filter-none shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0"
                     >
-                      {isLoggingIn ? "מתחבר..." : (selectedRole === "student" ? "יאללה, נכנסים! ✨" : selectedRole === "admin" ? "התחבר עם חשבון גוגל ארגוני" : "התחבר למערכת")}
+                      {isLoggingIn ? "מתחבר..." : (selectedRole === "student" ? "יאללה, נכנסים! ✨" : "התחבר למערכת")}
                     </button>
                   </form>
                 </motion.div>
