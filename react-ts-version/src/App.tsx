@@ -98,9 +98,9 @@ function RoleRouter() {
   useEffect(() => {
     if (isAuthenticated && user) {
       const userRoles = Array.isArray(user.role) ? user.role : [user.role as string];
-      if (userRoles.includes("student")) navigate("/hub", { replace: true });
-      else if (userRoles.includes("admin")) navigate("/admin", { replace: true });
+      if (userRoles.includes("admin")) navigate("/admin", { replace: true });
       else if (userRoles.includes("teacher")) navigate("/dashboard", { replace: true });
+      else if (userRoles.includes("student")) navigate("/hub", { replace: true });
     }
   }, [isAuthenticated, user, navigate]);
 

@@ -46,12 +46,14 @@ export function AdminSchoolsView() {
   };
 
   const handleCreateTeacher = (schoolId: string) => {
-    if (teacherForm.name && teacherForm.taz.length >= 8 && teacherForm.dob.length === 6) {
-      addTeacher(schoolId, teacherForm.name, teacherForm.taz, teacherForm.dob);
+    const isEmail = teacherForm.taz.includes('@');
+    const isValidTaz = teacherForm.taz.trim().length >= 8;
+    if (teacherForm.name.trim() && (isValidTaz || isEmail)) {
+      addTeacher(schoolId, teacherForm.name.trim(), teacherForm.taz.trim(), teacherForm.dob.trim() || "010190");
       setTeacherForm({ name: "", taz: "", dob: "" });
       setAddingTeacherTo(null);
     } else {
-      alert("נא למלא את כל השדות בצורה תקינה (ת\"ז 9 ספרות, תאריך לידה 6 ספרות).");
+      alert("נא למלא את שם המורה ותעודת זהות / דוא\"ל תקינים.");
     }
   };
 

@@ -27,9 +27,11 @@ export function LandingPage() {
   const user = useAuthStore((s) => s.user);
 
   useEffect(() => {
-    if (user) {
-      if (user.role === 'student') navigate('/hub', { replace: true });
-      else if (user.role === 'teacher' || user.role === 'admin') navigate('/dashboard', { replace: true });
+    if (user && user.role) {
+      const roles = Array.isArray(user.role) ? user.role : [user.role as string];
+      if (roles.includes("admin")) navigate("/admin", { replace: true });
+      else if (roles.includes("teacher")) navigate("/dashboard", { replace: true });
+      else if (roles.includes("student")) navigate("/hub", { replace: true });
     }
   }, [user, navigate]);
 
