@@ -46,7 +46,7 @@ export function VerticalAdditionTask({
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
 
   const [shake, setShake] = useState(false);
-  const [lockedClicks, setLockedClicks] = useState(0);
+  const [_lockedClicks, setLockedClicks] = useState(0);
 
   useEffect(() => {
     if (keyboardState === 'UNLOCKED') {

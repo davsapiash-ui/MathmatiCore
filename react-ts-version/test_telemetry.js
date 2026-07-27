@@ -29,7 +29,7 @@ signInWithEmailAndPassword(auth, 'teacher_039604483@mathmaticore.local', '290984
     keys.forEach(k => {
       let chunk = sessionData[k];
       if(typeof chunk === 'string') {
-        try { chunk = JSON.parse(chunk); } catch(e) {}
+        try { chunk = JSON.parse(chunk); } catch {}
       }
       if(Array.isArray(chunk)) events = events.concat(chunk);
       else if(typeof chunk === 'object') events = events.concat(Object.values(chunk));

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test } from '@playwright/test';
 
 test('Prove Diagnostic Reports Generation v2', async ({ browser }) => {
   test.setTimeout(90000);

@@ -41,7 +41,7 @@ try {
 
 // TEST 2: Metrics prop optional string fallback & undefined metrics prop check
 try {
-  const htmlStage1Empty = renderToString(
+  renderToString(
     React.createElement(Session8ReflectionScreen, {
       metrics: {},
       onComplete: () => {}
@@ -63,7 +63,7 @@ try {
       return { fastest, slowest };
     };
     evalMetrics(undefined);
-  } catch (err: any) {
+  } catch {
     threwException = true;
   }
   assert(threwException, 'Accessing metrics.fastestTaskType throws TypeError if metrics prop is undefined/null');
@@ -129,7 +129,7 @@ try {
   let currentStep = 1;
   
   // Simulate handleFeelingSelect
-  const handleFeelingSelect = (id: number) => {
+  const handleFeelingSelect = (_id: number) => {
     // setFeeling(id)
     timerId = setTimeout(() => {
       currentStep = 2;

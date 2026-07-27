@@ -35,7 +35,7 @@ import { CurriculumRouter } from '@/core/CurriculumRouter';
 import { QMatrixEvaluator } from '@/core/QMatrix';
 import { getSessionTasks, type SessionTask } from '@/data/sessionTasks';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
-import type { SocraticHintResponse } from '@/infrastructure/services/SocraticEngine';
+import { SocraticEngine, type SocraticHintResponse } from '@/infrastructure/services/SocraticEngine';
 
 const UNDO_STACK_CAP = 50;
 
@@ -69,6 +69,8 @@ interface WorkspaceState {
   qflow: QMatrixFlowState;
   flowStatus: FlowStatus;
   awaitingNext: boolean;
+  sessionStartTimeMs: number;
+  isTimeExceeded: boolean;
 
   // board
   counts: PlaceCounts;
@@ -128,6 +130,7 @@ interface WorkspaceState {
   setAnswerDigit: (place: Place, val: string) => void;
   setCarryDigit: (place: Place, val: string) => void;
   setProbeAnswer: (v: string) => void;
+  checkTimeExceeded: () => void;
   /** "החזרת עזרים" — bidirectional scaffold fading per spec: temporarily restore faded aids. */
   restoreScaffolds: () => void;
   addRepresentation: () => void;
@@ -307,7 +310,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     }, 500);
   }
 
-  function startTask(taskId: string) {
+  function startTask(_taskId: string) {
     set(resetTaskInteraction());
 
     const s = get();
@@ -541,7 +544,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         return;
       }
       if (s.selectedChoiceId !== task.correctAnswer) {
-        handleFailure('wrong_choice', 'בּוֹאוּ נַחְשֹׁב שׁוּב 🤔', 'הַאִם הוֹסַפְנוּ אוֹ גָּרַעְנוּ קֻבִּיּוֹת כָּלְשֵׁהֵן מִבֵּית הַמִּסְפָּרִים?', 2800);
+        handleFailure('wrong_choice', 'בּוֹאוּ נַחְשֹׁב שׁוּב 🤔', 'הַאִם הוֹסַפְנוּ אוֹ גָּרַעְנוּ קֻבִּיּוֹת כָּלְשֵׁהֵן מִבֵּית הַמְּסִפָּרִים?', 2800);
         return;
       }
       // Correct — vanilla text carried a "(100)" copy bug; ported without the number.
@@ -584,7 +587,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // The AI and radar will analyze `s.hasGrouped` in the trace data to assess procedural fluency.
 
       // All gates passed.
-      handleSuccess('כָּל הַכָּבוֹד! 🌟', 'פְּתַרְתֶּם נָכוֹן וְיִצַּגְתֶּם זֹאת מְצֻיָּן בְּבֵית הַמִּסְפָּרִים.', 2500);
+      handleSuccess('כָּל הַכָּבוֹד! 🌟', 'פְּתַרְתֶּם נָכוֹן וְיִצַּגְתֶּם זֹאת מְצֻיָּן בְּבֵית הַמְּסִפָּרִים.', 2500);
       return;
     }
 
@@ -766,6 +769,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     flowStatus: 'task',
     awaitingNext: false,
     keyboardState: 'UNLOCKED',
+    sessionStartTimeMs: Date.now(),
+    isTimeExceeded: false,
 
     counts: { ...EMPTY_COUNTS },
     undoStack: [],
@@ -824,9 +829,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         feedback: null,
         helpState: 'closed',
         frictionTriggerSource: null,
+        sessionStartTimeMs: Date.now(),
+        isTimeExceeded: false,
         ...resetTaskInteraction(isASD),
       });
-      const firstId = meeting === 2 ? getCurrentQTask(qflow)?.id ?? '' : (initialAITasks ?? getSessionTasks(meeting as any))[startingTaskIdx ?? 0]?.id ?? '';
     },
 
     restoreSession: (saved) => {
@@ -842,6 +848,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         hesitationCount: saved.hesitationCount ?? 0,
         hasInteracted: saved.hasInteracted ?? false,
         taskStartTime: saved.taskStartTime ?? Date.now(),
+        sessionStartTimeMs: saved.sessionStartTimeMs ?? Date.now(),
+        isTimeExceeded: saved.isTimeExceeded ?? false,
         aiTasks: saved.aiTasks ?? null,
         dynamicTasks: null,
         nodeStrikes: {},
@@ -863,8 +871,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         focusedPlace: null,
         undoStack: [],
       });
-      const s = get();
-      const firstId = s.sessionNumber === 2 ? getCurrentQTask(s.qflow)?.id ?? '' : (s.aiTasks ?? getSessionTasks(s.sessionNumber as any))[s.standardTaskIdx ?? 0]?.id ?? '';
     },
 
     injectTask: (task, position) => {
@@ -986,7 +992,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const newUndoTimestamps = [...s.undoTimestamps, now];
       
       let shouldTriggerSocratic = false;
-      let isSevere = false; // session 8
 
       if (s.sessionNumber === 2) {
         shouldTriggerSocratic = false; // PRD: No scaffolding or help in Session 2
@@ -1000,7 +1005,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // 3 clicks in a single task
         if (newUndoTimestamps.length >= 3) {
           shouldTriggerSocratic = true;
-          isSevere = true;
         }
       } else {
         // Fallback for other sessions: 3 clicks in 15 seconds
@@ -1222,8 +1226,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const targetNode = currentTask?.targetNode || 'q_matrix_general';
       
       try {
-        const { SocraticEngine } = await import('@/infrastructure/services/SocraticEngine');
-        
         const traceData = {
           undo_clicks: s.undoCount,
           hesitation_events: s.hesitationCount,
@@ -1297,6 +1299,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         aiSocraticHint: s.aiSocraticHint || DEFAULT_SOCRATIC_HINT
       }));
       get().fetchSocraticHint();
+    },
+    checkTimeExceeded: () => {
+      const { sessionStartTimeMs, isTimeExceeded } = get();
+      if (isTimeExceeded) return;
+      if (Date.now() - sessionStartTimeMs >= 25 * 60 * 1000) {
+        set({ isTimeExceeded: true });
+      }
     },
   };
 });

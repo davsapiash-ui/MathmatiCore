@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test } from '@playwright/test';
 
 test('Generate Average Student Telemetry and AI Report', async ({ browser }) => {
   test.setTimeout(120000); 

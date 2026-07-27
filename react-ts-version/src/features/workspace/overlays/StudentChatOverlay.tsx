@@ -4,6 +4,7 @@ import { useAuthStore } from '@/application/useAuthStore';
 import { useStore } from '@/application/useStore';
 import { useAdminStore } from '@/application/useAdminStore';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
+import { AuditLogger } from '@/infrastructure/services/AuditLogger';
 import { ImageIcon, BellRing } from 'lucide-react';
 
 export function StudentChatOverlay() {
@@ -77,13 +78,11 @@ export function StudentChatOverlay() {
     if (!user?.uid) return;
     
     // Silent alert to teacher dashboard via pedagogical radar
-    import('@/infrastructure/services/AuditLogger').then(({ AuditLogger }) => {
-      AuditLogger.log(
-        "CALL_FOR_HELP", 
-        user.uid as string, 
-        "Student explicitly called for teacher help via the silent button."
-      );
-    });
+    AuditLogger.log(
+      "CALL_FOR_HELP", 
+      user.uid as string, 
+      "Student explicitly called for teacher help via the silent button."
+    );
 
     // Provide immediate local feedback to the student so they know it worked
     useWorkspaceStore.getState().showFeedback({

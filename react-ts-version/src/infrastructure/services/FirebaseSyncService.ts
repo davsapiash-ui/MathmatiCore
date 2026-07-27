@@ -56,6 +56,7 @@ class FirebaseSyncService {
   private unsubscribeGlobalStudentLimit: (() => void) | null = null;
 
   private constructor() {
+    this.setupNetworkListeners();
     // Delay initialization to avoid circular dependency with stores
     setTimeout(() => this.init(), 0);
   }
@@ -328,6 +329,47 @@ class FirebaseSyncService {
     await update(refPath, { routeStatus: 'APPROVED' });
   }
 
+  // --- NEW: PRD Section 5.2 FIFO In-Memory Network Sync Queue ---
+  private offlineTelemetryQueue: Array<{ refPath: string, payload: any }> = [];
+  private isOnline: boolean = typeof navigator !== 'undefined' ? navigator.onLine : true;
+
+  private setupNetworkListeners() {
+    if (typeof window !== 'undefined') {
+      window.addEventListener('online', () => {
+        this.isOnline = true;
+        this.flushOfflineQueue();
+      });
+      window.addEventListener('offline', () => {
+        this.isOnline = false;
+      });
+    }
+  }
+
+  private enqueueOfflineTransaction(refPath: string, payload: any) {
+    this.offlineTelemetryQueue.push({ refPath, payload });
+    // Enforce 10 items max (FIFO: shift oldest item out)
+    if (this.offlineTelemetryQueue.length > 10) {
+      this.offlineTelemetryQueue.shift();
+      console.warn("Offline telemetry queue exceeded 10 items. Dropping oldest transaction.");
+    }
+  }
+
+  private async flushOfflineQueue() {
+    if (this.offlineTelemetryQueue.length === 0) return;
+    console.log(`Flushing ${this.offlineTelemetryQueue.length} transactions from offline queue.`);
+    const queueToFlush = [...this.offlineTelemetryQueue];
+    this.offlineTelemetryQueue = [];
+    
+    for (const transaction of queueToFlush) {
+      try {
+        await push(ref(database, transaction.refPath), transaction.payload);
+      } catch (e) {
+        console.error("Failed to flush transaction, re-queueing:", e);
+        this.enqueueOfflineTransaction(transaction.refPath, transaction.payload);
+      }
+    }
+  }
+
   // --- NEW: PRD Section 6 Vector Replay Schema ---
   public async logVectorReplayEvent(
     studentId: string, 
@@ -348,9 +390,18 @@ class FirebaseSyncService {
       somatic_indicators: somaticIndicators
     };
     
-    // Push a small JSON (<50KB) event to the student's trace log for offline replay
-    const replayRef = ref(database, `users/students/${studentId}/vector_replays`);
-    await push(replayRef, replayEvent);
+    const refPath = `users/students/${studentId}/vector_replays`;
+    
+    if (!this.isOnline) {
+      this.enqueueOfflineTransaction(refPath, replayEvent);
+      return;
+    }
+
+    try {
+      await push(ref(database, refPath), replayEvent);
+    } catch {
+      this.enqueueOfflineTransaction(refPath, replayEvent);
+    }
   }
 
   // --- PRD v4 Task 1 Implementation Functions ---
@@ -364,9 +415,20 @@ class FirebaseSyncService {
 
   public async logTelemetryEvent(studentId: string, event: TelemetryEvent): Promise<void> {
     if (!studentId) return;
-    const telemetryRef = ref(database, `telemetry_events/${studentId}`);
-    await push(telemetryRef, event);
+    const refPath = `telemetry_events/${studentId}`;
+    
+    if (!this.isOnline) {
+      this.enqueueOfflineTransaction(refPath, event);
+      return;
+    }
+
+    try {
+      await push(ref(database, refPath), event);
+    } catch {
+      this.enqueueOfflineTransaction(refPath, event);
+    }
   }
+
 
   public async fetchTeacherClassrooms(teacherId: string): Promise<Classroom[]> {
     const classesSnapshot = await get(ref(database, 'classes'));

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface SessionReflectionProps {
@@ -6,7 +6,7 @@ interface SessionReflectionProps {
 }
 
 export function SessionReflection({ onComplete }: SessionReflectionProps) {
-  const [selected, setSelected] = useState<number | null>(null);
+  const [_selected, setSelected] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const emojis = [

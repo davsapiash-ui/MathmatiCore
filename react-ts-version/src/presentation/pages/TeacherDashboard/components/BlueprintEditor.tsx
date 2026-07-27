@@ -12,24 +12,17 @@ export function BlueprintEditor({ student }: Props) {
     { role: 'ai', text: 'שלום! זוהי תוכנית העבודה המומלצת עבור התלמיד. ניתן לאשר אותה כפי שהיא או לכתוב לי כאן בקשות לשינויים (לדוגמה: "הוסף תרגיל עם אפס בעשרות").' }
   ]);
 
-  // Mock blueprint based on student mastery
-  const mockBlueprint = {
-    focus_concept: student.conceptMastery?.regrouping_fluency && student.conceptMastery.regrouping_fluency < 0.8 ? 'regrouping_fluency' : 'procedural_fluency',
-    exercises: [
-      { id: '1', equation: '45-27', rationale: 'תרגיל חימום עם פריטה פשוטה מהעשרות ליחידות.' },
-      { id: '2', equation: '130-15', rationale: 'בדיקת התמודדות עם אפס בשומר מקום לפני פריטה.' },
-      { id: '3', equation: '405-18', rationale: 'תרגיל אתגר: פריטה כפולה דרך אפס.' },
-    ]
-  };
+  const blueprintTasks = student.diagnosticReport?.tasks || [];
+  const focusConcept = student.conceptMastery?.regrouping_fluency && student.conceptMastery.regrouping_fluency < 0.8 ? 'regrouping_fluency' : 'procedural_fluency';
 
   const handleSendMessage = () => {
     if (!chatInput.trim()) return;
     setChatHistory(prev => [...prev, { role: 'teacher', text: chatInput }]);
     setChatInput('');
     
-    // Mock AI response
+    // Simulate AI response for the chat UI (AI Chat is a separate feature, but we remove the static hardcoded blueprint logic)
     setTimeout(() => {
-      setChatHistory(prev => [...prev, { role: 'ai', text: 'הבנתי. אני מעדכן את התוכנית מיד. הוספתי תרגיל נוסף לפי בקשתך.' }]);
+      setChatHistory(prev => [...prev, { role: 'ai', text: 'הבנתי. העדכון נשלח.' }]);
     }, 1500);
   };
 
@@ -44,29 +37,35 @@ export function BlueprintEditor({ student }: Props) {
         <div className="mb-6">
           <div className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">מוקד קוגניטיבי (Focus)</div>
           <div className="bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 px-3 py-2 rounded-lg font-mono text-sm inline-block">
-            {mockBlueprint.focus_concept}
+            {focusConcept}
           </div>
         </div>
 
         <div className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">תרגילים מתוכננים למפגש הקרוב:</div>
-        <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden">
-          <table className="w-full text-right">
-            <thead className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-sm">
-              <tr>
-                <th className="py-2 px-4 font-medium w-1/4">תרגיל</th>
-                <th className="py-2 px-4 font-medium">הגיון פדגוגי (Rationale)</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-sm">
-              {mockBlueprint.exercises.map(ex => (
-                <tr key={ex.id}>
-                  <td className="py-3 px-4 font-bold font-mono text-lg text-slate-800 dark:text-slate-200" dir="ltr">{ex.equation}</td>
-                  <td className="py-3 px-4 text-slate-600 dark:text-slate-400">{ex.rationale}</td>
+        {blueprintTasks.length > 0 ? (
+          <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden">
+            <table className="w-full text-right">
+              <thead className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-sm">
+                <tr>
+                  <th className="py-2 px-4 font-medium w-1/4">תרגיל</th>
+                  <th className="py-2 px-4 font-medium">הגיון פדגוגי (Rationale)</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-sm">
+                {blueprintTasks.map((ex: any) => (
+                  <tr key={ex.id || ex.equation}>
+                    <td className="py-3 px-4 font-bold font-mono text-lg text-slate-800 dark:text-slate-200" dir="ltr">{ex.equation}</td>
+                    <td className="py-3 px-4 text-slate-600 dark:text-slate-400">{ex.rationale || 'הגיון פדגוגי מהמנוע הסוקרטי.'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="text-center py-10 text-slate-500">
+            אין תרגילים מתוכננים או שהתוכנית לא זמינה כרגע.
+          </div>
+        )}
       </div>
 
       <div className="border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/30 p-4">

@@ -1,4 +1,4 @@
-import { test, expect, BrowserContext, Page } from '@playwright/test';
+import { test, BrowserContext } from '@playwright/test';
 
 test.describe('Multi-Agent Behavior Simulation (12 Personas)', () => {
   test.setTimeout(300000); // 5 minute timeout for massive simulation
@@ -57,7 +57,7 @@ test.describe('Multi-Agent Behavior Simulation (12 Personas)', () => {
       try {
         await tPage.waitForURL('**/dashboard', { timeout: 5000 });
         console.log(`👩‍🏫 [Teacher ${i+1}] Logged in successfully.`);
-      } catch (e) {
+      } catch {
         console.log(`👩‍🏫 [Teacher ${i+1}] Mock login failed (expected if mock DB doesn't have them all), continuing simulation.`);
       }
       await tContext.close();

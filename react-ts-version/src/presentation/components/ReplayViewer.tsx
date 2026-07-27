@@ -16,12 +16,13 @@ export function ReplayViewer({ events, seekToTime, onEnd }: ReplayViewerProps) {
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
 
   useEffect(() => {
-    if (!events || events.length < 2 || !containerRef.current) {
-      if (containerRef.current) containerRef.current.innerHTML = "";
+    const container = containerRef.current;
+    if (!events || events.length < 2 || !container) {
+      if (container) container.innerHTML = "";
       return;
     }
 
-    containerRef.current.innerHTML = "";
+    container.innerHTML = "";
 
     try {
       const metaEvent = events.find((e: any) => e.type === 4);
@@ -30,7 +31,7 @@ export function ReplayViewer({ events, seekToTime, onEnd }: ReplayViewerProps) {
 
       // Initialize raw rrweb Replayer
       replayerRef.current = new Replayer(events, {
-        root: containerRef.current,
+        root: container,
         mouseTail: false,
         speed: playbackSpeed
       });
@@ -44,13 +45,13 @@ export function ReplayViewer({ events, seekToTime, onEnd }: ReplayViewerProps) {
       }
 
       const applyScale = () => {
-        if (!containerRef.current) return;
+        if (!container) return;
         
         // Measure the actual available width from the parent container
-        const currentWidth = containerRef.current.parentElement?.clientWidth || 900;
+        const currentWidth = container.parentElement?.clientWidth || 900;
         const scale = currentWidth / originalWidth;
 
-        const iframeWrapper = containerRef.current.querySelector('.replayer-wrapper') as HTMLElement || containerRef.current.querySelector('iframe')?.parentElement;
+        const iframeWrapper = container.querySelector('.replayer-wrapper') as HTMLElement || container.querySelector('iframe')?.parentElement;
         if (iframeWrapper) {
           iframeWrapper.style.transform = `scale(${scale})`;
           // Anchor scaling to the top-right for correct RTL scaling
@@ -60,8 +61,8 @@ export function ReplayViewer({ events, seekToTime, onEnd }: ReplayViewerProps) {
           iframeWrapper.style.left = 'auto';
           iframeWrapper.style.top = '0';
           
-          containerRef.current.style.height = `${originalHeight * scale}px`;
-          containerRef.current.style.width = `${currentWidth}px`;
+          container.style.height = `${originalHeight * scale}px`;
+          container.style.width = `${currentWidth}px`;
         }
       };
 
@@ -72,27 +73,27 @@ export function ReplayViewer({ events, seekToTime, onEnd }: ReplayViewerProps) {
       window.addEventListener('resize', applyScale);
       
       // Store the listener so we can clean it up
-      (containerRef.current as any)._resizeListener = applyScale;
+      (container as any)._resizeListener = applyScale;
 
     } catch (err: any) {
       console.error("rrweb Replayer failed:", err);
-      if (containerRef.current) {
-        containerRef.current.innerHTML = `<div class="p-4 bg-red-50 text-red-600 rounded-lg m-4">שגיאה בטעינת נגן ההקלטות: ${err.message || 'Unknown error'}</div>`;
+      if (container) {
+        container.innerHTML = `<div class="p-4 bg-red-50 text-red-600 rounded-lg m-4">שגיאה בטעינת נגן ההקלטות: ${err.message || 'Unknown error'}</div>`;
       }
     }
 
     return () => {
       if (replayerRef.current) {
-        try { replayerRef.current.pause(); } catch(e){}
+        try { replayerRef.current.pause(); } catch {}
       }
-      if (containerRef.current) {
-        if ((containerRef.current as any)._resizeListener) {
-          window.removeEventListener('resize', (containerRef.current as any)._resizeListener);
+      if (container) {
+        if ((container as any)._resizeListener) {
+          window.removeEventListener('resize', (container as any)._resizeListener);
         }
-        containerRef.current.innerHTML = "";
+        container.innerHTML = "";
       }
     };
-  }, [events]);
+  }, [events, playbackSpeed, onEnd]);
 
   // Handle seeking to specific time from teacher alerts
   useEffect(() => {

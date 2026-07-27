@@ -1,19 +1,15 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { ref, onValue, update } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
-import { useStore, type StudentData } from '@/application/useStore';
 import { 
   Activity, 
   AlertTriangle, 
   CheckCircle2, 
   Lock, 
   Unlock, 
-  Zap, 
   ShieldAlert, 
-  MessageSquare, 
   Sparkles,
   UserCheck,
-  ChevronRight
 } from 'lucide-react';
 
 export interface AnonymousStudent {

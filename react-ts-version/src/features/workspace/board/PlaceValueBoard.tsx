@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
+import { useState, useEffect } from 'react';
 import { PLACE_ORDER } from '@/core/placeValue';
 import { useWorkspaceStore, selectScaffoldLevel } from '@/application/useWorkspaceStore';
 import { PlaceColumn } from './PlaceColumn';
@@ -16,9 +17,37 @@ export function PlaceValueBoard({ hideValueDisplay }: { hideValueDisplay?: boole
   const scaffoldLevel = useWorkspaceStore(selectScaffoldLevel);
   const restoreScaffolds = useWorkspaceStore((s) => s.restoreScaffolds);
   const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
+  const [showSession8Priming, setShowSession8Priming] = useState(true);
 
-  if (sessionNumber === 8) {
+  useEffect(() => {
+    if (sessionNumber === 8) {
+      const timer = setTimeout(() => setShowSession8Priming(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [sessionNumber]);
+
+  if (sessionNumber === 8 && !showSession8Priming) {
     return null;
+  }
+
+  if (sessionNumber === 8 && showSession8Priming) {
+    return (
+      <AnimatePresence>
+        <motion.section
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          transition={{ duration: 0.5 }}
+          className="flex flex-col items-center justify-center h-full w-full bg-ws-surface rounded-3xl border-2 border-ws-accent/30 shadow-xl p-8"
+          style={{ flexBasis: '50%' }}
+        >
+          <div className="text-6xl animate-bounce mb-4">🐝</div>
+          <h2 className="text-2xl font-bold text-ws-ink text-center">
+            הדבורה מכינה אותך למעבר לבית המספרים המופשט!
+          </h2>
+        </motion.section>
+      </AnimatePresence>
+    );
   }
 
   // Hide thousands in sessions 1 and 2 (pedagogical progression)

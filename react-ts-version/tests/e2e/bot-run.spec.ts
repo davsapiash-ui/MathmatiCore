@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test } from '@playwright/test';
 
 test('Generate Real Student Telemetry and AI Report', async ({ browser }) => {
   test.setTimeout(120000); // 2 minutes to allow full session 2 diagnostic loop

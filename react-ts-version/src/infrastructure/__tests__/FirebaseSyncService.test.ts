@@ -4,7 +4,6 @@ import {
   logTelemetryEvent, 
   fetchTeacherClassrooms, 
   fetchClassroomSessions,
-  firebaseSyncService,
   type SessionState,
   type TelemetryEvent
 } from '../services/FirebaseSyncService';

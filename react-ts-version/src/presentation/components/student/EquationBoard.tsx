@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 
 interface ColumnProps {
@@ -51,7 +51,7 @@ function EquationColumn({ id, title, isActive, isAsdMode, blocksCount, colorClas
 
 export function EquationBoard() {
   // In a real implementation, activeColumn would be managed by a global store
-  const [activeColumn, setActiveColumn] = useState<string>('units');
+  const [activeColumn, _setActiveColumn] = useState<string>('units');
   // In a real implementation, ASD mode is toggleable per user profile
   const [isAsdMode, setIsAsdMode] = useState<boolean>(true);
 

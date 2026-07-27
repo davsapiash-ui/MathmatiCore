@@ -20,6 +20,7 @@ export function PlaceColumn({ place }: { place: Place }) {
   const focusedPlace = useWorkspaceStore((s) => s.focusedPlace);
   const isASD = useWorkspaceStore((s) => s.isASD);
   const removeBlockClick = useWorkspaceStore((s) => s.removeBlockClick);
+  const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
 
   const { setNodeRef, isOver } = useDroppable({
     id: `column-${place}`,
@@ -37,7 +38,7 @@ export function PlaceColumn({ place }: { place: Place }) {
   const colors = COLUMN_COLORS[place];
   const renderCount = Math.min(count, MAX_VISIBLE_BLOCKS);
   const isError = errorPlace === place;
-  const isDimmed = isASD && focusedPlace !== null && focusedPlace !== place;
+  const isDimmed = (isASD || sessionNumber === 6) && focusedPlace !== null && focusedPlace !== place;
 
   // Constraint-error shake (vanilla .constraint-error, 400ms). errorNonce retriggers repeats.
   const shakeControls = useAnimationControls();
@@ -57,7 +58,7 @@ export function PlaceColumn({ place }: { place: Place }) {
       className={`flex-1 min-w-0 flex flex-col rounded-2xl border-2 transition-all duration-300 ${
         isHighlighted ? 'border-solid' : 'border-dashed'
       } ${
-        isDimmed ? 'opacity-30 blur-sm grayscale pointer-events-none' : ''
+        isDimmed ? 'opacity-20 pointer-events-none' : ''
       } ${isOver ? 'animate-[pulse_1.5s_ease-in-out_infinite]' : ''}`}
       style={{
         borderColor: isOver 

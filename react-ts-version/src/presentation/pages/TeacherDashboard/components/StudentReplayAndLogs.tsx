@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { ref, onValue, get } from "firebase/database";
 import { database, authReady, auth } from "@/infrastructure/firebase";
 import { ReplayViewer } from "@/presentation/components/ReplayViewer";
@@ -12,7 +12,7 @@ export function StudentReplayAndLogs({ studentId }: { studentId: string }) {
   const [chunkMetadata, setChunkMetadata] = useState<Record<string, {startTime: number, endTime: number}>>({});
   const [currentChunkIndex, setCurrentChunkIndex] = useState<number>(0);
 
-  const fetchChunk = async (sessionId: string, chunkKey: string) => {
+  const fetchChunk = useCallback(async (sessionId: string, chunkKey: string) => {
     try {
       const chunkRef = ref(database, `users/students/${studentId}/telemetry_sessions/${sessionId}/chunks/${chunkKey}`);
       const snap = await get(chunkRef);
@@ -36,14 +36,12 @@ export function StudentReplayAndLogs({ studentId }: { studentId: string }) {
     } catch (err) {
       console.error("Error fetching chunk", err);
     }
-  };
+  }, [studentId, chunkKeys]);
   
 
   useEffect(() => {
     if (!studentId) return;
 
-    let unsubscribeSession: (() => void) | undefined;
-    let unsubscribeMetadata: (() => void) | undefined;
     let unsubscribeRadar: (() => void) | undefined;
     let cancelled = false;
 
@@ -113,11 +111,9 @@ export function StudentReplayAndLogs({ studentId }: { studentId: string }) {
 
     return () => {
       cancelled = true;
-      if (unsubscribeSession) unsubscribeSession();
-      if (unsubscribeMetadata) unsubscribeMetadata();
       if (unsubscribeRadar) unsubscribeRadar();
     };
-  }, [studentId]);
+  }, [studentId, fetchChunk]);
 
 
 

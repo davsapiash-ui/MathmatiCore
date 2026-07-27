@@ -182,9 +182,6 @@ export function NumberLineTask({
 
             const widthClass = isMajor ? 'w-[2px]' : 'w-[1px]';
             
-            // Fading logic based on scaffoldLevel:
-            // 0 = FULL_GRID, 1 = PARTIAL_GRID (anchors only), 2 = EMPTY_LINE
-            const isVisible = effectiveScaffoldLevel === 0 || (effectiveScaffoldLevel === 1 && isAnchor) || isMajor;
             // Always show major ticks for orientation, but fade the rest?
             // PRD: EMPTY_LINE, PARTIAL_GRID, FULL_GRID.
             // Let's assume EMPTY_LINE = no ticks at all except the ends (which are part of the line).
@@ -195,7 +192,7 @@ export function NumberLineTask({
             return (
               <div
                 key={t}
-                className={`absolute top-1/2 -translate-y-1/2 transition-opacity duration-[2500ms] ${widthClass} ${heightClass} ${
+                className={`absolute top-1/2 -translate-y-1/2 transition-opacity [transition-duration:2500ms] ${widthClass} ${heightClass} ${
                   isAnchor ? '!h-7 bg-ws-accent shadow-[0_0_8px_2px_rgba(249,115,22,0.5)]' : ''
                 } ${isOutside ? 'opacity-30' : ''} ${visibilityClass}`}
                 style={{ left: `${p}%` }}
@@ -212,7 +209,7 @@ export function NumberLineTask({
             return (
               <span
                 key={t}
-                className={`absolute top-[calc(50%+12px)] -translate-x-1/2 transition-opacity duration-[2500ms] text-sm font-semibold text-ws-ink tabular-nums ${isOutside ? 'opacity-30' : ''} ${visibilityClass}`}
+                className={`absolute top-[calc(50%+12px)] -translate-x-1/2 transition-opacity [transition-duration:2500ms] text-sm font-semibold text-ws-ink tabular-nums ${isOutside ? 'opacity-30' : ''} ${visibilityClass}`}
                 style={{ left: `${((t - min) / span) * 100}%` }}
               >
                 {t.toLocaleString('he-IL')}

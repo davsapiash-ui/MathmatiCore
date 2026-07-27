@@ -1,5 +1,4 @@
 const { chromium } = require('playwright');
-const path = require('path');
 
 (async () => {
   const browser = await chromium.launch();

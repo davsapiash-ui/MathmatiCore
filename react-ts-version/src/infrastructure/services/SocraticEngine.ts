@@ -27,10 +27,10 @@ export interface PendingAIApproval {
 
 export class SocraticEngine {
   static async getSocraticHint(
-    currentTask: any,
+    _currentTask: any,
     targetNode: string,
-    counts: { units: number; tens: number; hundreds: number; thousands: number },
-    traceData?: { hesitation_events: number; undo_clicks: number }
+    _counts: { units: number; tens: number; hundreds: number; thousands: number },
+    _traceData?: { hesitation_events: number; undo_clicks: number }
   ): Promise<SocraticHintResponse | null> {
     await ready();
     // Zero-Generation Policy: Fetch from hardcoded Q-Matrix based on targetNode

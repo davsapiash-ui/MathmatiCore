@@ -38,6 +38,7 @@ import { StudentChatOverlay } from './overlays/StudentChatOverlay';
 import { AdditionHelper } from './board/AdditionHelper';
 
 import { SocraticEngine } from '@/infrastructure/services/SocraticEngine';
+import { AuditLogger } from '@/infrastructure/services/AuditLogger';
 import { GraphicOrganizerHint } from './overlays/GraphicOrganizerHint';
 import { useCognitiveHesitationRadar } from '@/application/useCognitiveHesitationRadar';
 
@@ -60,6 +61,17 @@ export function StudentWorkspacePage() {
   const qflow = useWorkspaceStore((s) => s.qflow);
   const aiSocraticHint = useWorkspaceStore((s) => s.aiSocraticHint);
   const user = useAuthStore((s) => s.user);
+
+  const isTimeExceeded = useWorkspaceStore((s) => s.isTimeExceeded);
+  const awaitingNext = useWorkspaceStore((s) => s.awaitingNext);
+
+  // Soft 25-minute Timer Check
+  useEffect(() => {
+    const interval = setInterval(() => {
+      useWorkspaceStore.getState().checkTimeExceeded();
+    }, 10000); // Check every 10 seconds
+    return () => clearInterval(interval);
+  }, []);
 
   // Start telemetry session so the radar tracker is active
   useEffect(() => {
@@ -138,9 +150,7 @@ export function StudentWorkspacePage() {
       if (document.hidden) {
         const studentId = useAuthStore.getState().user?.uid;
         if (studentId) {
-          import('@/infrastructure/services/AuditLogger').then(({ AuditLogger }) => {
-            AuditLogger.log('TAB_ESCAPE', studentId, 'Student switched to another tab or window');
-          });
+          AuditLogger.log('TAB_ESCAPE', studentId, 'Student switched to another tab or window');
         }
       }
     };
@@ -253,6 +263,33 @@ export function StudentWorkspacePage() {
   const myData = user?.uid ? students[user.uid] : null;
   const isAdditionBoardEnabled = myData?.additionBoardEnabled ?? false;
 
+  // --- PRD Section 4.5: Physical Override Teardown Cleanup Pipeline ---
+  useEffect(() => {
+    if (!user?.uid) return;
+    
+    const overrideRef = ref(database, `sessions/${user.uid}/physical_override`);
+    let previousOverrideState = false;
+    
+    const unsubscribe = onValue(overrideRef, (snapshot) => {
+      const isOverrideActive = snapshot.val() === true;
+      
+      // Listen for transition from TRUE to FALSE
+      if (previousOverrideState && !isOverrideActive) {
+        console.log("Physical Override Teardown: Cleanup Pipeline triggered.");
+        const store = useWorkspaceStore.getState();
+        // 1. Restart hesitation timer by toggling keyboard state
+        store.lockKeyboard();
+        // 2. Validate current block state against target state (CRA Bridge).
+        // The proceed() call handles the mathematical comparison.
+        store.proceed(); 
+      }
+      
+      previousOverrideState = isOverrideActive;
+    });
+
+    return () => unsubscribe();
+  }, [user?.uid]);
+
   useEffect(() => {
     if (!firebaseLoaded || isInitialized) return;
     let cancelled = false;
@@ -362,6 +399,34 @@ export function StudentWorkspacePage() {
       />;
     }
     return <ReflectionScreen />;
+  }
+  
+  if (isTimeExceeded && !awaitingNext && flowStatus === 'task') {
+    return (
+      <div dir="rtl" className="h-screen w-full flex flex-col items-center justify-center bg-ws-bg text-ws-ink font-body p-6">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-ws-surface p-12 rounded-3xl shadow-2xl max-w-2xl text-center border border-ws-surface2 flex flex-col items-center"
+        >
+          <div className="text-7xl mb-8 animate-bounce">🐝</div>
+          <h2 className="text-3xl font-black mb-6 text-ws-ink leading-tight">
+            איזו עבודה נפלאה עשית היום!
+            <br />
+            עכשיו זה הזמן להניח את המסך ולדבר עם המורה שרה.
+          </h2>
+          <p className="text-ws-soft text-lg mb-8 font-medium">
+            כל הכבוד על ההתמדה והמאמץ. אנחנו גאים בך!
+          </p>
+          <button 
+            onClick={() => navigate('/hub')}
+            className="px-10 py-4 bg-ws-accent text-white font-bold text-xl rounded-full shadow-md hover:brightness-105 transition-all active:scale-95"
+          >
+            המשך
+          </button>
+        </motion.div>
+      </div>
+    );
   }
 
   if (isInitializing) {

@@ -46,10 +46,7 @@ interface AdminState {
   deleteClassRoom: (id: string) => void;
 }
 
-const INITIAL_SCHOOL_ID = 'school_bikorot';
-const INITIAL_CLASS_ID = 'class_1';
-
-export const useAdminStore = create<AdminState>()((set) => ({
+export const useAdminStore = create<AdminState>()((_set) => ({
   schools: [],
   teachers: [],
   classes: [],
