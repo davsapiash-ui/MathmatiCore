@@ -18,9 +18,9 @@ export const syncUserRoles = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "Email is required for role sync");
   }
 
-  const TEACHER_EMAIL = process.env.TEACHER_SSO_PRIMARY_EMAIL;
-  const ADMIN_PRIMARY = process.env.ADMIN_SSO_PRIMARY_EMAIL;
-  const ADMIN_ALIAS = process.env.ADMIN_SSO_ALIAS_EMAIL;
+  const TEACHER_EMAIL = process.env.TEACHER_SSO_PRIMARY_EMAIL || "teacher_sso@domain.edu";
+  const ADMIN_PRIMARY = process.env.ADMIN_SSO_PRIMARY_EMAIL || "davidsep@edu-haifa.org.il";
+  const ADMIN_ALIAS = process.env.ADMIN_SSO_ALIAS_EMAIL || "admin@mathmaticore.local";
 
   let claims: any = {};
   let roles: string[] = [];
