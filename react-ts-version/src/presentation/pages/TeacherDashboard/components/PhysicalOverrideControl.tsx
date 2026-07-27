@@ -8,8 +8,6 @@ interface Props {
 }
 
 export function PhysicalOverrideControl({ student }: Props) {
-  if (!student) return null;
-
   const [routeStatus, setRouteStatus] = useState<string>(student?.routeStatus || 'SANDBOX');
   const [difficultyRecommendation, setDifficultyRecommendation] = useState<string>(
     String(student?.difficultyRecommendation || 'LEVEL_1')
@@ -18,7 +16,9 @@ export function PhysicalOverrideControl({ student }: Props) {
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
-  const handleSaveOverride = async () => {
+  if (!student) return null;
+
+  const handleSaveOverride = async (enableOverride = true) => {
     const studentId = student?.studentId || (student as any)?.student?.studentId;
     if (!studentId) return;
 
@@ -31,8 +31,8 @@ export function PhysicalOverrideControl({ student }: Props) {
         routeStatus,
         difficultyRecommendation,
         isASD,
-        physicalOverride: true,
-        physicalOverrideActive: true,
+        physicalOverride: enableOverride,
+        physicalOverrideActive: enableOverride,
         overrideUpdatedAt,
       };
 
