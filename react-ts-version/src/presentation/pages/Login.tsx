@@ -315,8 +315,8 @@ export function Login() {
                       {selectedRole === "admin" && (
                         <>
                           <input
-                            type="text"
-                            placeholder="שם משתמש"
+                            type="email"
+                            placeholder="אימייל מנהל"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
                             className={inputClass}
