@@ -38,6 +38,10 @@ export function AdminSchoolsView() {
   };
 
   const handleCreateSchool = () => {
+    if (schools.length >= 5) {
+      alert("המערכת הגיעה למגבלת הפיילוט המרבית של 5 מוסדות חינוך (סעיף 5.6 באפיון).");
+      return;
+    }
     if (newSchoolName.trim()) {
       addSchool(newSchoolName.trim());
       setNewSchoolName("");
@@ -46,6 +50,14 @@ export function AdminSchoolsView() {
   };
 
   const handleCreateTeacher = (schoolId: string) => {
+    if (teachers.length >= 5) {
+      alert("המערכת הגיעה למגבלת הפיילוט המרבית של 5 מורים בסך הכל (סעיף 5.6 באפיון).");
+      return;
+    }
+    const schoolTeachers = teachers.filter(t => t.schoolId === schoolId);
+    if (schoolTeachers.length >= 1) {
+      alert("לפי מפרט הפיילוט (סעיף 5.6), מוגדר מורה מוביל אחד לכל מוסד חינוכי.");
+    }
     const isEmail = teacherForm.taz.includes('@');
     const isValidTaz = teacherForm.taz.trim().length >= 8;
     if (teacherForm.name.trim() && (isValidTaz || isEmail)) {
@@ -63,8 +75,14 @@ export function AdminSchoolsView() {
       alert("יש להוסיף לפחות מורה אחד לפני הקמת כיתה.");
       return;
     }
+    const teacherId = schoolTeachers[0].id;
+    const teacherClasses = classes.filter(c => c.teacherId === teacherId);
+    if (teacherClasses.length >= 5) {
+      alert("מורה זה הגיע למגבלת הפיילוט של 5 כיתות (סעיף 5.6 באפיון).");
+      return;
+    }
     if (classNameInput.trim()) {
-      addClassRoom(schoolId, schoolTeachers[0].id, classNameInput.trim());
+      addClassRoom(schoolId, teacherId, classNameInput.trim());
       setClassNameInput("");
       setAddingClassTo(null);
     }
