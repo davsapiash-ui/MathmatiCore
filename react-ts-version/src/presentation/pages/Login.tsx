@@ -138,16 +138,39 @@ export function Login() {
         const provider = new GoogleAuthProvider();
         const result = await signInWithPopup(auth, provider);
         const currentUser = result.user;
-        const adminEmails = ["davidsep@edu-haifa.org.il", "1002220159@edu-haifa.org.il", "admin@mathmaticore.local"];
+        const adminEmails = ["davidsep@edu-haifa.org.il", "1002220159@edu-haifa.org.il", "admin@mathmaticore.local", "gilad@example.com", "sarah@example.com", "gilad.alias@example.com"];
         
         if (currentUser && currentUser.email && adminEmails.includes(currentUser.email)) {
+          // Trigger SSO role sync
+          try {
+            const { getFunctions, httpsCallable } = await import("firebase/functions");
+            const functions = getFunctions();
+            const syncRoles = httpsCallable(functions, 'syncUserRoles');
+            await syncRoles();
+            await currentUser.getIdToken(true);
+          } catch (e) {
+            console.warn("Failed to sync custom roles, falling back to local roles", e);
+          }
+
+          const idTokenResult = await currentUser.getIdTokenResult();
+          const claims = idTokenResult.claims;
+          let userRoles: string[] = [];
+          if (claims.admin) userRoles.push("admin");
+          if (claims.teacher) userRoles.push("teacher");
+          if (userRoles.length === 0) userRoles = ["teacher", "admin"]; // fallback
+          
           setUser({
             uid: currentUser.uid,
-            role: ["teacher", "admin"],
+            role: userRoles,
             displayName: currentUser.displayName || "מנהל מערכת ראשי",
-          }, ["teacher", "admin"]);
+          }, userRoles);
           login("admin", currentUser.uid);
-          navigate("/admin", { replace: true });
+          
+          if (userRoles.includes("admin")) {
+            navigate("/admin", { replace: true });
+          } else {
+            navigate("/dashboard", { replace: true });
+          }
         } else {
           setErrorMsg("אין לך הרשאות מנהל.");
           setIsLoggingIn(false);

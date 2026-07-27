@@ -24,6 +24,7 @@ import { Send, MessageCircle, ShieldAlert } from "lucide-react";
 
 import { ClassManagement } from "./TeacherDashboard/ClassManagement";
 import { StudentReplayAndLogs } from "./TeacherDashboard/components/StudentReplayAndLogs";
+import { HeatmapGrid } from "./TeacherDashboard/components/HeatmapGrid";
 import { SocraticEngine, type PendingAIApproval } from "@/infrastructure/services/SocraticEngine";
 import { useTeacherTour } from "./TeacherDashboard/useTeacherTour";
 import type { RadarAlert } from "@/types/dashboard";
@@ -70,6 +71,7 @@ const getStudentKPIs = (student: StudentData, messages: ChatMessage[]) => {
 };
 
 type TabType =
+  | "heatmap"
   | "clustering"
   | "alerts"
   | "diagnostic_reports"
@@ -708,6 +710,13 @@ export function TeacherDashboard() {
             פדגוגיה ומעקב
           </div>
           <button
+            id="tour-tab-heatmap"
+            onClick={() => handleTabChange("heatmap")}
+            className={`w-full text-right px-4 py-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "heatmap" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg text-ws-soft "}`}
+          >
+            מפת חום ורדאר (<span dir="ltr">Heatmap & Radar</span>)
+          </button>
+          <button
             id="tour-tab-clustering"
             onClick={() => handleTabChange("clustering")}
             className={`w-full text-right px-4 py-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "clustering" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
@@ -788,6 +797,20 @@ export function TeacherDashboard() {
         {/* Subtle background glow effect */}
         <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-br from-indigo-500/5 via-transparent to-transparent pointer-events-none -z-10"></div>
         <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-gradient-to-tl from-cyan-500/5 via-transparent to-transparent pointer-events-none -z-10 rounded-full blur-3xl"></div>
+
+        {activeTab === "heatmap" && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <header className="mb-6">
+              <h1 className="text-4xl font-black bg-gradient-to-l from-slate-900 to-slate-600 dark:from-white dark:to-slate-400 bg-clip-text text-transparent tracking-tight">
+                לוח בקרה כיתתי ומפת חום בזמן אמת
+              </h1>
+              <p className="text-ws-soft mt-2 text-lg">
+                ניטור 35 תלמידים אנונימיים, רדאר פדגוגי בזמן אמת ותיווך פיזי ישיר.
+              </p>
+            </header>
+            <HeatmapGrid />
+          </div>
+        )}
 
         {activeTab === "clustering" && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">

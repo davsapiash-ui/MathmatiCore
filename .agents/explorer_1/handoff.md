@@ -1,221 +1,113 @@
-# Handoff Report - Codebase Investigation & Analysis
+# Handoff Report — Explorer Subagent (`explorer_1`)
+
+**Date**: 2026-07-27  
+**Working Directory**: `c:\Users\david\Projects\MathmatiCore\.agents\explorer_1`  
+**Target Codebase**: `c:\Users\david\Projects\MathmatiCore\react-ts-version`  
+**Recipient**: Parent Orchestrator (`f87c0881-8fb4-41a4-8fb3-cf6fe06eb5b5`)  
+
+---
 
 ## 1. Observation
 
-### UI Components & Drag-and-Drop Library
-- **Drag-and-Drop Library**: The codebase uses `@dnd-kit/core` for drag-and-drop.
-  - File: `src/features/workspace/board/DienesBlock.tsx` (Lines 1, 130-134):
-    ```typescript
-    import { useDraggable } from '@dnd-kit/core';
-    ...
-    const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-      id,
-      data: { source, place: sourcePlace ?? place, renderPlace: place },
-      disabled: isOverlay,
-    });
-    ```
-  - File: `src/features/workspace/board/PlaceColumn.tsx` (Lines 2, 24-27):
-    ```typescript
-    import { useDroppable } from '@dnd-kit/core';
-    ...
-    const { setNodeRef, isOver } = useDroppable({
-      id: `column-${place}`,
-      data: { kind: 'column', place },
-    });
-    ```
-  - File: `src/features/workspace/board/TrashZone.tsx` (Lines 1, 6):
-    ```typescript
-    import { useDroppable } from '@dnd-kit/core';
-    ...
-    const { setNodeRef, isOver } = useDroppable({ id: 'trash', data: { kind: 'trash' } });
-    ```
-  - File: `src/features/workspace/StudentWorkspacePage.tsx` (Lines 4-13, 308-311, 363-370) manages `DndContext` and `DragOverlay`.
+Direct observations from codebase inspection of `c:\Users\david\Projects\MathmatiCore\react-ts-version`:
 
-### Regrouping and Decomposing Logic
-- **Auto-Regrouping**: Auto-regrouping is **fully disabled** by default.
-  - File: `src/core/placeValue.ts` (Lines 112-115, 131-133, 155-167):
-    ```typescript
-    export function resolveDrop(counts: PlaceCounts, input: DropInput, _scaffoldLevel: number): DropResult {
-      // בעקבות אפיון פדגוגי מחמיר: הפיזיקה של בית המספרים לא עושה "קסמים". 
-      // ביטול מוחלט של הקפצה אוטומטית (autoGroup = false) כדי לאפשר פריטה אמינה בשלבי חיסור מאוחרים.
-      const autoGroup = false;
-      ...
-    ```
-- **Grouping by Dragging**: Done by dragging a block to the adjacent higher column when the source column has at least 10 items.
-  - File: `src/core/placeValue.ts` (Lines 155-167):
-    ```typescript
-      // הקפצה ע"י גרירה: adjacent higher only, requires >=10 in source.
-      if (tgtIdx - srcIdx === 1) {
-        if (counts[input.sourcePlace] >= 10) {
-          const nextCounts = { ...counts, [input.sourcePlace]: counts[input.sourcePlace] - 10 };
-          const { counts: finalCounts, events } = addBlock(nextCounts, targetPlace, autoGroup);
-          return {
-            ok: true,
-            counts: finalCounts,
-            regroupEvents: [{ from: input.sourcePlace, to: targetPlace, groups: 1 }, ...events],
-            removed: input.sourcePlace,
-          };
-        }
-        return { ok: false, reason: 'constraint', place: input.sourcePlace };
-      }
-    ```
-- **Ungrouping (Decomposing) by Dragging**: Done by dragging a block to the adjacent lower column.
-  - File: `src/core/placeValue.ts` (Lines 147-152):
-    ```typescript
-      // פריטה: adjacent lower only.
-      if (srcIdx - tgtIdx === 1) {
-        const res = ungroupBlock(counts, input.sourcePlace);
-        if (!res) return { ok: false, reason: 'silent' };
-        return { ok: true, counts: res.counts, regroupEvents: [], ungroupEvent: res.event };
-      }
-    ```
-- **Double-clicking**: Double-clicking is **not implemented** anywhere in the code. A grep search for case-insensitive `double` inside `src` yielded `No results found`. Clicking on a block on the board simply removes it.
-  - File: `src/features/workspace/board/DienesBlock.tsx` (Lines 164-169):
-    ```typescript
-          onClick={() => {
-            if (onRemove) {
-              radar.recordAction();
-              onRemove();
-            }
-          }}
-    ```
-  - File: `src/features/workspace/board/PlaceColumn.tsx` (Lines 97-103):
-    ```typescript
-                  <DienesBlock
-                    id={`col-${place}-${i}`}
-                    place={place}
-                    source="column"
-                    onRemove={() => removeBlockClick(place)}
-                    noEnter={i < renderCount - 1}
-                  />
-    ```
+### R1. Teacher Dashboard UI/UX
+- **`package.json` Line 23**: `"@nivo/heatmap": "^0.99.0"` is present under `dependencies`.
+- **Grep Search Result**: Searching for `@nivo/heatmap` across `src/` returned `No results found`.
+- **`TeacherDashboard.tsx` Lines 72–79**: Defines `TabType` as `"clustering" | "alerts" | "diagnostic_reports" | "chat_admin" | "chat_students" | "class_management" | "approvals"`.
+- **`TeacherDashboard.tsx` Lines 818–876**: The `clustering` tab renders a Recharts `<BarChart>` and `<DataGrid>` cards for 6 concepts (`decimal_structure`, `number_magnitude`, etc.).
+- **`TeacherDashboard.tsx` Lines 1072–1149**: The `alerts` tab displays a list of live alerts from Firebase RTDB `radar_alerts`. It contains buttons for `"שלח רמז אישי"` and `"ניגשתי פיזית"` (`handleAlertResponse(group.alerts[0], 'PHYSICAL', ...)`).
+- **`StudentSideDrawer.tsx` Lines 72–109**: Shows Q-Matrix mastery percentages, video replays, and `BlueprintEditor` for AI plan approvals.
 
-### State and Radar Tracking
-- **State Properties**: Tracked in Zustand stores `useWorkspaceStore` and `useStore`.
-- **Deletions and Undos**:
-  - File: `src/application/useWorkspaceStore.ts` (Lines 64, 691-699, 707-728):
-    - Tracks total deletions and undos in the current task via `undoCount` in `useWorkspaceStore`.
-    - Drop onto trash: `applyDrop` sets `undoCount: isDelete ? s.undoCount + 1 : s.undoCount` and triggers `radar.recordDelete()`.
-    - Single click block removal: `removeBlockClick` sets `undoCount: s.undoCount + 1` and triggers `radar.recordDelete()`.
-    - Undo action: `undo` sets `undoCount: s.undoCount + 1` and triggers `radar.recordUndo()`.
-- **Silent Radar & PASSIVE_DRIFTING**:
-  - File: `src/features/workspace/useWorkspaceRadar.ts` (Lines 15-17, 79-97):
-    - Defines window thresholds: `RAPID_DELETE_THRESHOLD = 3` and `RAPID_DELETE_WINDOW_MS = 3000` (3 seconds).
-    - Logs timestamps of deletions and undos via `handleDriftAction()`.
-    - Triggers `PASSIVE_DRIFTING` alert when 3 or more deletions/undos occur in a sliding window of 3 seconds:
-      ```typescript
-      function handleDriftAction() {
-        hesitationArmed.current = true;
-        armHesitationTimer();
-        const now = Date.now();
-        deleteTimestamps.current = [...deleteTimestamps.current.filter((t) => now - t < RAPID_DELETE_WINDOW_MS), now];
-        if (deleteTimestamps.current.length >= RAPID_DELETE_THRESHOLD) {
-          if (now - lastDriftAlertTime.current > 15000) {
-            const totalDeletions = useWorkspaceStore.getState().undoCount || 0;
-            sendAlert('PASSIVE_DRIFTING', { 
-              recentDeletions: deleteTimestamps.current.length,
-              totalDeletionsFromStart: totalDeletions
-            });
-            lastDriftAlertTime.current = now;
-          }
-          deleteTimestamps.current = [];
-        }
-      }
-      ```
-    - Alerts are sent silently using `push(ref(database, 'radar_alerts'), alert)`.
-- **Hesitation Tracking**:
-  - File: `useWorkspaceRadar.ts` (Lines 15, 68-77):
-    - Sets an idle timeout of 30 seconds (`HESITATION_THRESHOLD_MS = 30000`).
-    - If no activity (dragging, clicking, undoing, hint requests) resets the timer within 30s, it sends a `HESITATION` alert and increments `hesitationCount` in the store.
-- **Firebase Sync**:
-  - File: `src/infrastructure/services/FirebaseSyncService.ts` subscribes to `useWorkspaceStore` changes and publishes syncable states (like `counts`, `undoCount`, `hesitationCount`, `flowStatus`) to `users/students/${studentId}/workspaceState` on Firebase.
+### R2. Firebase Database Integration & Schema + Transient Sync
+- **`src/infrastructure/firebase.ts` Lines 9–26**: Uses `getDatabase(app)` (Firebase Realtime Database - RTDB). `getFirestore` is **not imported or initialized**.
+- **`FirebaseSyncService.ts` Lines 74–188**: RTDB paths used:
+  - `users/students/${studentId}` (`workspaceState`, `traceData`, `qMatrixResults`, `conceptMastery`, `vector_replays`)
+  - `users/teachers/${teacherId}`
+  - `schools/${schoolId}`
+  - `classes/${classId}` & `public_classes/${classId}`
+  - `ai_pending_approvals/${teacherId}`
+  - `approved_tasks/${studentId}`
+  - `radar_alerts/${alertKey}`
+- **Storage Audit**:
+  - `grep_search` for `localStorage` in `src/` returned `No results found` (only present in `index.html:11` for cache flush `mc_cache_flush_v3`).
+  - `grep_search` for `sessionStorage` in `src/` returned `No results found`.
 
-### Task Instructions Mismatch
-- **Task definitions**: Located in `src/data/sessionTasks.ts` (for Sessions 1, 3, 4) and `src/core/QMatrix.ts` (for Session 2).
-- **Mismatch 1: Double-Click Instruction in QMatrix**:
-  - File: `src/core/QMatrix.ts` (Line 131):
-    ```typescript
-    subtaskInstructionHe: "ניסוי מודרך: לחיצה כפולה על עשרת אחת תפרק אותה ל-10 יחידות. נסו זאת ואז הוסיפו את הייצוג החדש.",
-    ```
-    *Analysis*: The text instructs the student to double click to decompose a ten, but double click is not implemented in the application; single click removes the block, and dragging is the only way to decompose.
-- **Mismatch 2: Double-Click Instruction in InteractiveTutorialPointer**:
-  - File: `src/features/workspace/components/InteractiveTutorialPointer.tsx` (Line 16):
-    ```typescript
-    { text: "פריטה: לחצו לחיצה כפולה על עשרת כדי לפרק אותה ל-10 יחידות.", x: 28, y: 55 },
-    ```
-    *Analysis*: Outdated instruction referencing the double click gesture that does not exist in the code.
-- **Mismatch 3: Auto-Packing Button in Tour**:
-  - File: `src/features/workspace/useWorkspaceTour.ts` (Line 55):
-    ```typescript
-    description: 'זכור: אם תאסוף 10 יחידות בטור אחד, יופיע כפתור שיאפשר לך לארוז אותן לעשרת אחת שלמה!',
-    ```
-    *Analysis*: Outdated tour description. No button appears for packing in `PlaceColumn.tsx` or `PlaceValueBoard.tsx`; grouping must be done manually by dragging.
+### R3. Socratic Q-Matrix (Hardcoded)
+- **`src/core/QMatrix.ts` Lines 61–248**: Defines `TASKS: QMatrixTask[]` with 8 diagnostic tasks (`task1_zero_placeholder` through `task8_missing_addend`) including Hebrew instructions, options, expected block counts, and `backwardDiagnosis`.
+- **`src/core/QMatrix.ts` Lines 425–434**: `Q_MATRIX_MAPPING` maps tasks to 6 cognitive concepts (`decimal_structure`, `number_magnitude`, `regrouping_fluency`, `procedural_fluency`, `relational_thinking`, `algebraic_reasoning`).
+- **`SocraticEngine.ts` Lines 37–65**: `getSocraticHint()` uses hardcoded `Q_MATRIX_HINTS` object following Zero-Generation Policy.
+- **`SocraticEngine.ts` Lines 80–92**: `generateAndQueueTasks()` invokes Firebase Cloud Function `generateSocraticMapping` (Gemini AI) with fallback to local hardcoded tasks (`fallback_task`).
 
-### Tests in the Codebase
-- **Testing Framework**: Playwright E2E tests are configured via `playwright.config.ts` (targeting port `5173` and production URL `https://mathimaticore.web.app`).
-- **Test Files**:
-  - `tests/e2e/regrouping.spec.ts` (Lines 4-40) tests that a student can automatically regroup 10 units into 1 ten when the scaffold level is low.
-    *Analysis*: This test contains a `try-catch` block that catches errors and skips the test (`test.skip()`). Since auto-grouping is disabled in the codebase (`const autoGroup = false;`), this test would fail if executed synchronously without the try-catch safety net.
-  - `tests/e2e/silent-radar.spec.ts` tests if undo counts are recorded correctly in the workspace store.
-  - `tests/e2e/q-matrix.spec.ts` validates that the structure of the schema matches the specs.
-  - `tests/rbac-flow.spec.ts` and `tests/ui-ux-flow.spec.ts` verify RBAC permissions and UI flows against the live app.
-  - Other tests under `tests/e2e/` include `chat-sync.spec.ts`, `class-management-render.spec.ts`, `massive-simulation.spec.ts`, `rbac-visibility.spec.ts`, and `student-layout.spec.ts`.
+### R4. Math Exercise Validation Engine & Testing
+- **`src/domain/entities/Task.ts` Lines 7–38**: Defines `MathTask` interface.
+- **`src/core/placeValue.ts` Lines 10–171**: Place value logic (`units`, `tens`, `hundreds`, `thousands`), `getValue(counts)`, `checkAndGroup`, `ungroupBlock`, `resolveDrop`.
+- **`useWorkspaceStore.ts` Lines 56–57**: `export type KeyboardState = 'LOCKED' | 'UNLOCKED' | 'SOCRATIC_ONLY';`.
+- **`package.json` Lines 6–15 & 62–75**:
+  - Scripts: `"dev"`, `"build"`, `"lint"`, `"preview"`, `"verify-component"`, `"audit-shadcn"`, `"test:e2e"`, `"test:e2e:ui"`.
+  - DevDependencies: `"@playwright/test": "^1.61.1"`, `"@types/jest": "^30.0.0"`.
+  - `vitest` or `jest` test runner is **NOT present** in `package.json`. No `npm test` script exists.
 
 ---
 
 ## 2. Logic Chain
 
-1. **Auto-Regrouping & Interaction Mechanics**:
-   - `placeValue.ts` hardcodes `autoGroup = false`. Therefore, no auto-regrouping (auto conversion of 10 units into a ten) is executed upon block drops.
-   - `DienesBlock.tsx` registers only `onClick` which calls `onRemove`. It has no `onDoubleClick` or `doubleClick` listener.
-   - Consequently, double-clicking is a non-functioning gesture in the actual product. Manual drag-and-drop is the sole method of grouping (dragging 10 items to the adjacent higher column) and ungrouping (dragging a block to the adjacent lower column).
+1. **R1 Analysis**:
+   - Observation: `@nivo/heatmap` is in `package.json`, but `grep_search` in `src/` shows zero usages. Clustering tab renders Recharts `<BarChart>` and `<DataGrid>` tables.
+   - Logic: The Heatmap Grid specified in PRD v4 R1 (anonymous students, struggling students in low-arousal orange) has not been built in `src/presentation/pages/TeacherDashboard.tsx`.
+   - Conclusion: Heatmap Grid and Live Feed Mini-Radar graphic components need to be implemented.
 
-2. **Instructional Mismatches**:
-   - `QMatrix.ts` (Line 131) and `InteractiveTutorialPointer.tsx` (Line 16) explicitly tell the student to double click to decompose a ten.
-   - `useWorkspaceTour.ts` (Line 55) tells the student that a button will appear to package 10 units.
-   - These instructions directly contradict the actual app behavior (since there is no double-click handler and no packaging button). They are likely legacy remnants.
+2. **R2 Analysis**:
+   - Observation: `firebase.ts` initializes `getDatabase(app)` (RTDB) and `FirebaseSyncService.ts` syncs `workspaceState`, `traceData`, `qMatrixResults`, `vector_replays` via RTDB paths. `localStorage` and `sessionStorage` are completely absent in `src/`.
+   - Logic: The application architecture relies entirely on transient Zustand stores synced to Firebase RTDB in real time. Firestore is not used.
+   - Conclusion: Implementation of PRD v4 data requirements should extend the existing RTDB schema (`users/students/${studentId}`) rather than introducing Firestore.
 
-3. **Radar Alerts & Triggering**:
-   - `useWorkspaceRadar.ts` registers handlers via `registerRadar()` for store events (`recordDelete`, `recordUndo`).
-   - Every deletion (drag to trash or click to delete) and undo increments `undoCount` in the Zustand store.
-   - When a deletion or undo occurs, `handleDriftAction` adds the current timestamp to an array.
-   - A sliding window filter removes timestamps older than 3 seconds.
-   - If the window retains $\ge 3$ entries, it pushes a `PASSIVE_DRIFTING` alert payload (containing `recentDeletions` and `totalDeletionsFromStart: undoCount`) to the Firebase database under `/radar_alerts`.
-   - The throttle prevents sending these alerts more than once every 15 seconds.
+3. **R3 Analysis**:
+   - Observation: `src/core/QMatrix.ts` contains `TASKS`, `Q_MATRIX_MAPPING`, `QMatrixEvaluator`, and TypeScript interfaces (`QMatrixTask`, `BackwardDiagnosis`). `SocraticEngine.ts` uses `Q_MATRIX_HINTS` for zero-generation hints.
+   - Logic: The hardcoded Socratic Q-Matrix structure, diagnostic evaluator, and hint rules are fully implemented and typed in TypeScript.
+   - Conclusion: R3 requirements are largely satisfied in `src/core/QMatrix.ts`, but AI queueing in `SocraticEngine.ts` needs verification against Zero-Generation Policy rules.
 
-4. **Test Suite Mechanics**:
-   - `tests/e2e/regrouping.spec.ts` attempts to test auto-regrouping.
-   - Because `autoGroup = false`, the assertion `expect(unitsInside).toBeLessThan(10)` would fail.
-   - However, because the test wraps the execution in a `try-catch` block that falls back to `test.skip()`, the failure is swallowed and the test is marked as skipped, preventing test suite failure during CI/CD.
+4. **R4 Analysis**:
+   - Observation: `Task.ts` entity, `placeValue.ts` manipulatives math model, and `useWorkspaceStore.ts` keyboard states (`LOCKED`, `UNLOCKED`, `SOCRATIC_ONLY`) exist. However, `package.json` contains no unit test runner (only Playwright E2E).
+   - Logic: Domain validation rules and keyboard state mechanics are present, but there is no automated unit test runner to test domain entities or place-value calculations in isolation.
+   - Conclusion: A unit test runner (e.g. Vitest) must be installed and configured in `package.json` with unit tests for `placeValue.ts` and `QMatrixEvaluator`.
 
 ---
 
 ## 3. Caveats
 
-- **No Runtime Verification**: Under the `CODE_ONLY` network constraint and read-only investigation rules, Playwright tests could not be executed locally against a live browser. All findings regarding test behaviors and skips are derived from static analysis of the test code.
-- **Firebase Realtime Database Rules**: The investigation of Firebase synchronization assumes standard Realtime Database behaviors as defined in the client code; actual security rules in the Firebase console were not inspected directly.
+- **Network Mode**: Investigation was performed in `CODE_ONLY` network mode; live Firebase Cloud Function execution (`generateSocraticMapping`) was not executed against remote Firebase servers.
+- **Visual Design Inspection**: Inspection was static code analysis. Visual layout checks (e.g., responsive design of dashboards under different viewports) relied on code inspection of Tailwind CSS classes rather than browser rendering.
 
 ---
 
 ## 4. Conclusion
 
-- **Interactions**: The application strictly enforces manual grouping and ungrouping via drag-and-drop. Auto-regrouping and double-clicking are completely absent in the codebase.
-- **Radar Tracking**: Silent tracking for `PASSIVE_DRIFTING` and `HESITATION` is implemented correctly in `useWorkspaceRadar.ts` and synced dynamically to Firebase, matching the specifications.
-- **Pedagogical Text Bugs**: There are three critical, incorrect instructions in the codebase that mention double-clicking or auto-packing buttons. These must be corrected to guide the student to drag-and-drop instead.
-- **E2E Tests**: The regrouping E2E test is bypassed using `test.skip()` inside a `try-catch` because auto-regrouping is disabled. This test should be rewritten to verify manual drag-and-drop regrouping instead.
+The `react-ts-version` codebase has strong foundations in core place-value mathematics (`src/core/placeValue.ts`), diagnostic flow (`src/core/QMatrix.ts`), Zustand state management (`useWorkspaceStore.ts`), and Firebase RTDB synchronization (`FirebaseSyncService.ts`).
+
+However, to satisfy PRD v4 implementation goals, the following work must be undertaken:
+1. **Teacher Dashboard UI (R1)**: Build Heatmap Grid (anonymous student nodes, low-arousal orange) and Mini-Radar Live Feed graphic. Surface Physical Override button and pedagogical dialogue recommendations in Drill-Down.
+2. **Database & Schema (R2)**: Maintain RTDB integration; preserve transient Zustand store design.
+3. **Socratic Q-Matrix (R3)**: Maintain TypeScript type safety and hardcoded Zero-Generation Policy hints.
+4. **Validation & Testing (R4)**: Install `vitest`, add `"test": "vitest"` script to `package.json`, and add unit tests for core math & evaluation engines.
 
 ---
 
 ## 5. Verification Method
 
-To verify the observations independently:
-1. **Instruction Mismatches**:
-   - Inspect `react-ts-version/src/core/QMatrix.ts` line 131 to confirm the double-click text.
-   - Inspect `react-ts-version/src/features/workspace/components/InteractiveTutorialPointer.tsx` line 16 to confirm the double-click text.
-   - Inspect `react-ts-version/src/features/workspace/useWorkspaceTour.ts` line 55 to confirm the auto-packing button description.
-2. **Missing Gestures**:
-   - Inspect `react-ts-version/src/features/workspace/board/DienesBlock.tsx` lines 164-169 to confirm the lack of `onDoubleClick` handler.
-3. **Radar Logic**:
-   - Inspect `react-ts-version/src/features/workspace/useWorkspaceRadar.ts` lines 81-96 to trace the sliding window alert logic.
-4. **Test Suite**:
-   - Run `npx playwright test` in the `react-ts-version` directory (with the server running) and observe that the regrouping E2E test is skipped.
+To verify these observations independently:
+
+1. **Verify Heatmap Absence**:
+   Run: `grep_search` with Query `@nivo/heatmap` across `c:\Users\david\Projects\MathmatiCore\react-ts-version\src`. (Result: 0 matches).
+
+2. **Verify Storage Absence in `src/`**:
+   Run: `grep_search` with Query `localStorage` across `c:\Users\david\Projects\MathmatiCore\react-ts-version\src`. (Result: 0 matches).
+
+3. **Verify Test Runner Configuration**:
+   Inspect `c:\Users\david\Projects\MathmatiCore\react-ts-version\package.json` under `"scripts"` and `"devDependencies"`. Observe presence of `@playwright/test` and absence of `vitest` / `jest` / `"test"` script.
+
+4. **Verify Build & Typecheck**:
+   Run command in `react-ts-version`:
+   ```bash
+   npm run lint && tsc --noEmit
+   ```

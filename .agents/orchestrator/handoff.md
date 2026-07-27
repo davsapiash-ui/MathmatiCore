@@ -1,28 +1,43 @@
-# Handoff Report — MathmatiCore LMS QA & Fixes Completion
+# Handoff Report — PRD v4 Implementation Complete
 
-## Milestone State
-- **Milestone 1**: Exploration & Diagnosis — **DONE** (Conv ID: `2e7c8d5e-1bee-47ad-b966-bbdf8da5693c`)
-- **Milestone 2**: Socratic Engine (R1) — **DONE** (Conv ID: `46cf13ec-a553-485a-8100-c424af7ae1af`)
-- **Milestone 3**: Teacher Dashboard (R2) — **DONE** (Conv ID: `46cf13ec-a553-485a-8100-c424af7ae1af`)
-- **Milestone 4**: useSilentRadar (R3) — **DONE** (Consolidated into useWorkspaceRadar)
-- **Milestone 5**: Admin Chat & Logs (R4, R5) — **DONE** (Fully wired, live logs in dashboard)
-- **Milestone 6**: Dead Code (R6) — **DONE** (mockRrwebEvents.ts is absent)
-- **Milestone 7**: Security, QA & UX — **DONE** (Firebase security rules typo fixed, E2E tests verified)
-- **Milestone 8**: E2E & CI/CD Verification — **DONE** (Commit pushed, rules deployed, E2E chat sync passes)
+**Date**: 2026-07-27  
+**Orchestrator**: Project Orchestrator (`f87c0881-8fb4-41a4-8fb3-cf6fe06eb5b5`)  
+**Target Codebase**: `c:\Users\david\Projects\MathmatiCore\react-ts-version`  
 
-## Active Subagents
-- None (all subagents have completed and delivered their handoffs successfully).
+---
 
-## Pending Decisions
-- None.
+## 1. Milestone State
 
-## Remaining Work
-- None. The project builds cleanly, passes all TS checks, Firebase rules are corrected and deployed, and all E2E Playwright tests pass successfully (8 passed, 2 skipped).
+| Milestone | Scope | Status | Executed By |
+|-----------|-------|--------|-------------|
+| **M1** | Codebase & Architecture Mapping | **DONE** | `explorer_1` (`349176fd-8bad-49f8-92a6-42b68dc7186c`) |
+| **M2** | Hardcoded Socratic Q-Matrix (R3) | **DONE** | `worker_m2_m3` (`f533d723-ed61-4ce7-bcc8-a3b5784fb877`) |
+| **M3** | Math Exercise Validation Engine & Unit Tests (R4) | **DONE** | `worker_m2_m3` (`f533d723-ed61-4ce7-bcc8-a3b5784fb877`) |
+| **M4** | Firebase Integration, Schema & Transient Sync (R2) | **DONE** | `worker_m4_m5` (`163b347f-84b0-4a07-8221-28eae00851ed`) |
+| **M5** | Teacher Dashboard UI/UX (Heatmap, Mini-Radar Live Feed, Physical Override & Recommendations) (R1) | **DONE** | `worker_m4_m5` (`163b347f-84b0-4a07-8221-28eae00851ed`) |
+| **M6** | Static Verification, Unit Testing & Forensic Integrity Audit | **DONE** | Reviewer: `reviewer_verification_final` (`2a2dc8f4-859c-4ca6-a04d-0536f3c1d05a`), Auditor: `auditor_final` (`484faf25-1c78-417f-81b2-5bf9e0718c7d`) |
 
-## Key Artifacts
-- **PROJECT.md**: `c:\Users\david\Projects\MathmatiCore\.agents\orchestrator\PROJECT.md`
-- **Plan**: `c:\Users\david\Projects\MathmatiCore\.agents\orchestrator\plan.md`
-- **Progress**: `c:\Users\david\Projects\MathmatiCore\.agents\orchestrator\progress.md`
-- **Context**: `c:\Users\david\Projects\MathmatiCore\.agents\orchestrator\context.md`
-- **Briefing**: `c:\Users\david\Projects\MathmatiCore\.agents\orchestrator\BRIEFING.md`
-- **Auditor Handoff (Final)**: `c:\Users\david\Projects\MathmatiCore\.agents\auditor_milestone2_gen1\handoff.md`
+---
+
+## 2. Verification Outcomes
+
+1. **Static Type Verification**: `npx tsc --noEmit` -> **0 TypeScript errors**.
+2. **Automated Unit Testing**: `npm test` -> **19 passed, 0 failed** (across 3 test suites: `ExerciseValidationEngine.test.ts`, `QMatrixConfig.test.ts`, `FirebaseSyncService.test.ts`).
+3. **Storage Security Audit**: 0 calls to `localStorage` or `sessionStorage` in `src/`. All exercise and interaction state is managed in-memory via Zustand and synced transiently to Firebase Realtime Database.
+4. **Forensic Integrity Audit**: Verdict: **CLEAN** (0 hardcoded cheating, 0 fake mocks, 0 integrity violations).
+
+---
+
+## 3. Key Artifacts
+
+- `src/core/QMatrixConfig.ts` — Hardcoded typed Q-Matrix configuration adhering strictly to Zero-Generation Policy.
+- `src/domain/entities/Exercise.ts` & `src/core/ExerciseValidationEngine.ts` — CRA Bridge state machine handling `LOCKED` -> `UNLOCKED` -> `Socratic Only` transitions.
+- `src/infrastructure/services/FirebaseSyncService.ts` — Schemas for `teachers`, `classrooms`, `sessions`, `telemetry_events` and transient sync functions.
+- `src/presentation/pages/TeacherDashboard/components/HeatmapGrid.tsx` — Heatmap Grid (35 anonymous student cards, struggling students in low-arousal orange), Live Feed Mini-Radar graphic header `"רדאר פדגוגי בזמן אמת"`, and Drill-Down drawer with `"עקיפה פיזית / תיווך פיזי"` (Physical Override) toggle button and `"המלצות לשיח פדגוגי"` (Pedagogical Dialogue Recommendations).
+- `src/core/__tests__/ExerciseValidationEngine.test.ts` & `QMatrixConfig.test.ts` & `FirebaseSyncService.test.ts` — Vitest unit test suites.
+
+---
+
+## 4. Pending Decisions & Remaining Work
+
+- All PRD v4 acceptance criteria fulfilled and verified. No remaining work or open decisions.

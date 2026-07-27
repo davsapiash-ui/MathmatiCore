@@ -534,4 +534,58 @@ Fix any static compilation errors, missing imports, or incorrect type definition
 - [ ] Any fixes applied do not alter the expected user flows (SSO mappings, Reflection Screen 3-stage logic, Vector replay JSON payload).
 </USER_REQUEST>
 
+## Follow-up — 2026-07-27T10:10:57Z
 
+<USER_REQUEST>
+Develop the missing frontend and backend components for the MathematiCOre educational platform based on the detailed PRD v4, focusing on the Teacher Dashboard, Firebase integration, the Q-Matrix for Socratic questioning, and the Math Exercise Engine for the CRA Bridge.
+
+Working directory: c:\Users\david\Projects\MathmatiCore\react-ts-version
+Integrity mode: development
+
+## Requirements
+
+### R1. Teacher Dashboard UI/UX
+Implement the Teacher Dashboard component. It must include a Heatmap Grid of anonymous students (highlighting struggling students in low-arousal orange), a Live Feed (mini-radar) of student actions, and a Drill-Down view with a "Physical Override" button and pedagogical dialogue recommendations.
+
+### R2. Firebase Database Integration & Schema
+Set up the Firebase Firestore schema and integration in the codebase. Implement collections for `teachers`, `classrooms`, `sessions`, and `telemetry_events`. Ensure the Transient State Sync logic is implemented using Zustand to sync the exercise state to Firebase without using local storage.
+
+### R3. Socratic Q-Matrix (Hardcoded)
+Implement the Q-Matrix as a hardcoded JSON/TypeScript configuration file. It must define the triggers, pedagogical goals, question texts, multiple-choice options, and visual cues, adhering to the Zero-Generation Policy (no free-text LLM generation for students).
+
+### R4. Math Exercise Validation Engine
+Implement the Exercise data model and validation logic for the Strict CRA Bridge. The engine must check the student's concrete block state (hundreds, tens, ones) against the expected mathematical target state to handle the Keyboard States (LOCKED, UNLOCKED, Socratic Only).
+
+## Acceptance Criteria
+
+### Verification
+- [ ] Automated tests or programmatic checks exist for the Math Exercise Validation Engine, confirming correct state transitions (LOCKED -> UNLOCKED -> Socratic Only).
+- [ ] The Q-Matrix configuration is fully typed in TypeScript and strictly enforces predefined options.
+- [ ] The Teacher Dashboard renders without errors, displaying mock data for the heatmap, live feed, and drill-down views.
+- [ ] Firebase initialization and Zustand state management do not throw errors on load, and there is no usage of `localStorage` or `sessionStorage` in the developed modules.
+</USER_REQUEST>
+
+## Follow-up — 2026-07-27T13:11:18Z
+
+<USER_REQUEST>
+You are the Project Orchestrator for MathmatiCore.
+
+Your mission is to manage and execute the development of the missing frontend and backend components for the MathematiCOre educational platform based on the detailed PRD v4.
+
+User Request & Requirements:
+1. Read the full user request in `c:\Users\david\Projects\MathmatiCore\.agents\ORIGINAL_REQUEST.md`.
+2. Working directory: `c:\Users\david\Projects\MathmatiCore\react-ts-version` (and `c:\Users\david\Projects\MathmatiCore` as needed).
+
+Requirements:
+- R1. Teacher Dashboard UI/UX: Heatmap Grid of anonymous students (struggling students highlighted in low-arousal orange), Live Feed (mini-radar) of student actions, Drill-Down view with a "Physical Override" button and pedagogical dialogue recommendations. Must render cleanly with mock data.
+- R2. Firebase Database Integration & Schema: Set up Firebase Firestore/Realtime schema and integration for `teachers`, `classrooms`, `sessions`, and `telemetry_events`. Implement Transient State Sync logic using Zustand to sync exercise state to Firebase without using `localStorage` or `sessionStorage`.
+- R3. Socratic Q-Matrix (Hardcoded): Implement hardcoded JSON/TypeScript configuration file defining triggers, pedagogical goals, question texts, multiple-choice options, and visual cues, adhering to Zero-Generation Policy (no free-text LLM generation for students). Fully typed in TypeScript.
+- R4. Math Exercise Validation Engine: Exercise data model and validation logic for Strict CRA Bridge. Check student's concrete block state (hundreds, tens, ones) against expected mathematical target state to handle Keyboard States (LOCKED, UNLOCKED, Socratic Only). Create automated tests/programmatic checks confirming correct state transitions (LOCKED -> UNLOCKED -> Socratic Only).
+
+Verification Requirements:
+- `npx tsc --noEmit` must pass without errors.
+- Automated tests or programmatic checks for the Math Exercise Validation Engine.
+- No usage of `localStorage` or `sessionStorage` in developed modules.
+
+Decompose work into clear milestones, launch specialist subagents (workers/reviewers) to build, test, and verify each milestone, update `.agents/orchestrator/progress.md`, and report completion when all acceptance criteria are fulfilled.
+</USER_REQUEST>

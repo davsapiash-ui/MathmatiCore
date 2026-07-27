@@ -73,3 +73,7 @@ export const authReady: Promise<boolean> = new Promise((resolve) => {
       });
   });
 });
+
+export type { TeacherProfile, Classroom, SessionState, TelemetryEvent } from './services/FirebaseSyncService';
+export { syncSessionState, logTelemetryEvent, fetchTeacherClassrooms, fetchClassroomSessions } from './services/FirebaseSyncService';
+

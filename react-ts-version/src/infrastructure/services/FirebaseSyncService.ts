@@ -5,6 +5,44 @@ import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { useStore, type QMatrix, type TraceData } from '@/application/useStore';
 import { useAdminStore, type School, type Teacher, type ClassRoom } from '@/application/useAdminStore';
 
+// --- PRD v4 Schema Interfaces ---
+export interface TeacherProfile {
+  id: string;
+  email: string;
+  name: string;
+  classes: string[];
+}
+
+export interface Classroom {
+  id: string;
+  teacher_id: string;
+  name: string;
+  anonymous_students: string[];
+}
+
+export interface SessionState {
+  student_id: string;
+  session_number: number; // 1-8
+  status: 'active' | 'locked' | 'completed';
+  current_path: 'green_path' | 'gap_reduction';
+  hesitation_seconds?: number;
+  error_count?: number;
+  physical_override?: boolean;
+  last_alert?: string;
+}
+
+export interface TelemetryEvent {
+  event_type: 'vector_replay';
+  session_id: string;
+  timestamp: number;
+  interaction_data: Record<string, any>;
+  somatic_indicators: {
+    hesitation_detected?: boolean;
+    undo_triggered?: boolean;
+    [key: string]: any;
+  };
+}
+
 class FirebaseSyncService {
   private static instance: FirebaseSyncService;
   private unsubscribeWorkspace: (() => void) | null = null;
@@ -167,6 +205,24 @@ class FirebaseSyncService {
         workspaceState: syncableData,
         lastActive: serverTimestamp()
       });
+
+      if (this.currentUserId) {
+        const isStruggling = (state.hesitationCount || 0) > 6 || (state.undoCount || 0) > 3;
+        const currentPath: 'green_path' | 'gap_reduction' = isStruggling ? 'gap_reduction' : 'green_path';
+        const sessionStatus: 'active' | 'locked' | 'completed' = state.flowStatus === 'sessionDone' 
+          ? 'completed' 
+          : state.keyboardState === 'LOCKED' ? 'locked' : 'active';
+
+        const sessionState: SessionState = {
+          student_id: this.currentUserId,
+          session_number: state.sessionNumber,
+          status: sessionStatus,
+          current_path: currentPath,
+          hesitation_seconds: (state.hesitationCount || 0) * 5,
+          error_count: state.undoCount || 0,
+        };
+        this.syncSessionState(this.currentUserId, sessionState).catch(() => {});
+      }
     });
   }
 
@@ -295,6 +351,61 @@ class FirebaseSyncService {
     // Push a small JSON (<50KB) event to the student's trace log for offline replay
     const replayRef = ref(database, `users/students/${studentId}/vector_replays`);
     await push(replayRef, replayEvent);
+  }
+
+  // --- PRD v4 Task 1 Implementation Functions ---
+  public async syncSessionState(studentId: string, sessionState: SessionState): Promise<void> {
+    if (!studentId) return;
+    const updates: Record<string, any> = {};
+    updates[`sessions/${studentId}`] = sessionState;
+    updates[`users/students/${studentId}/sessionState`] = sessionState;
+    await update(ref(database), updates);
+  }
+
+  public async logTelemetryEvent(studentId: string, event: TelemetryEvent): Promise<void> {
+    if (!studentId) return;
+    const telemetryRef = ref(database, `telemetry_events/${studentId}`);
+    await push(telemetryRef, event);
+  }
+
+  public async fetchTeacherClassrooms(teacherId: string): Promise<Classroom[]> {
+    const classesSnapshot = await get(ref(database, 'classes'));
+    if (!classesSnapshot.exists()) return [];
+    const classesVal = classesSnapshot.val() || {};
+    const classrooms: Classroom[] = [];
+    Object.values(classesVal).forEach((c: any) => {
+      if (c.teacherId === teacherId || c.teacher_id === teacherId) {
+        classrooms.push({
+          id: c.id,
+          teacher_id: c.teacher_id || c.teacherId || teacherId,
+          name: c.name || `כיתה ${c.id}`,
+          anonymous_students: c.anonymous_students || c.students || Array.from({ length: 35 }, (_, i) => `student_${i + 1}`)
+        });
+      }
+    });
+    return classrooms;
+  }
+
+  public async fetchClassroomSessions(classId: string): Promise<SessionState[]> {
+    const sessionsSnapshot = await get(ref(database, 'sessions'));
+    if (!sessionsSnapshot.exists()) return [];
+    const sessionsVal = sessionsSnapshot.val() || {};
+    const sessionList: SessionState[] = [];
+    Object.values(sessionsVal).forEach((s: any) => {
+      if (!classId || s.class_id === classId || s.classId === classId) {
+        sessionList.push({
+          student_id: s.student_id || s.studentId || '',
+          session_number: s.session_number || s.sessionNumber || 1,
+          status: s.status || 'active',
+          current_path: s.current_path || s.currentPath || 'green_path',
+          hesitation_seconds: s.hesitation_seconds || 0,
+          error_count: s.error_count || 0,
+          physical_override: s.physical_override || false,
+          last_alert: s.last_alert || undefined
+        });
+      }
+    });
+    return sessionList;
   }
 
   // --- NEW: Public and Admin Listeners ---
@@ -529,3 +640,16 @@ class FirebaseSyncService {
 }
 
 export const firebaseSyncService = FirebaseSyncService.getInstance();
+
+export const syncSessionState = (studentId: string, sessionState: SessionState) =>
+  firebaseSyncService.syncSessionState(studentId, sessionState);
+
+export const logTelemetryEvent = (studentId: string, event: TelemetryEvent) =>
+  firebaseSyncService.logTelemetryEvent(studentId, event);
+
+export const fetchTeacherClassrooms = (teacherId: string) =>
+  firebaseSyncService.fetchTeacherClassrooms(teacherId);
+
+export const fetchClassroomSessions = (classId: string) =>
+  firebaseSyncService.fetchClassroomSessions(classId);
+

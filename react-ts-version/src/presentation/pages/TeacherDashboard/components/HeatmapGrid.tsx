@@ -1,0 +1,522 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { ref, onValue, update } from 'firebase/database';
+import { database } from '@/infrastructure/firebase';
+import { useStore, type StudentData } from '@/application/useStore';
+import { 
+  Activity, 
+  AlertTriangle, 
+  CheckCircle2, 
+  Lock, 
+  Unlock, 
+  Zap, 
+  ShieldAlert, 
+  MessageSquare, 
+  Sparkles,
+  UserCheck,
+  ChevronRight
+} from 'lucide-react';
+
+export interface AnonymousStudent {
+  id: string; // e.g. "student_1"
+  displayName: string; // "תלמיד 1"
+  sessionNumber: number; // 1-8
+  currentPath: 'ירוק' | 'צמצום פערים';
+  status: 'active' | 'locked' | 'completed';
+  hesitationSeconds: number;
+  errorCount: number;
+  physicalOverride: boolean;
+  isStruggling: boolean;
+  lastAction?: string;
+  isOnline?: boolean;
+}
+
+export interface LiveFeedItem {
+  id: string;
+  studentId: string;
+  studentName: string;
+  timestamp: number;
+  message: string;
+  severity: 'info' | 'warning' | 'alert';
+}
+
+const INITIAL_MOCK_STUDENTS: AnonymousStudent[] = Array.from({ length: 35 }, (_, index) => {
+  const studentNum = index + 1;
+  const isStrugglingMock = [4, 7, 12, 19, 28].includes(studentNum);
+  const isLockedMock = [7, 28].includes(studentNum);
+  const isCompletedMock = [1, 2, 3].includes(studentNum);
+  const path: 'ירוק' | 'צמצום פערים' = [4, 7, 12, 18, 19, 28, 33].includes(studentNum) ? 'צמצום פערים' : 'ירוק';
+  const sessionNum = (studentNum % 8) + 1;
+
+  let lastAction = 'מבצע תרגיל בחיבור מאונך';
+  if (studentNum === 4) lastAction = 'מנסה לפתור ללא פריטה בטור העשרות';
+  if (studentNum === 12) lastAction = 'השהייה קולית/חזותית מעל 30 שניות';
+  if (studentNum === 7) lastAction = 'ביצע Undo רצוף 3 פעמים';
+
+  return {
+    id: `student_${studentNum}`,
+    displayName: `תלמיד ${studentNum}`,
+    sessionNumber: isCompletedMock ? 8 : sessionNum,
+    currentPath: path,
+    status: isCompletedMock ? 'completed' : isLockedMock ? 'locked' : 'active',
+    hesitationSeconds: isStrugglingMock ? 35 + (studentNum * 2) : Math.floor(Math.random() * 15),
+    errorCount: isStrugglingMock ? 3 + (studentNum % 3) : Math.floor(Math.random() * 2),
+    physicalOverride: false,
+    isStruggling: isStrugglingMock,
+    lastAction,
+    isOnline: true,
+  };
+});
+
+const INITIAL_MOCK_FEED: LiveFeedItem[] = [
+  { id: '1', studentId: 'student_4', studentName: 'תלמיד 4', timestamp: Date.now() - 40000, message: 'מנסה לפתור ללא פריטה בטור העשרות', severity: 'alert' },
+  { id: '2', studentId: 'student_12', studentName: 'תלמיד 12', timestamp: Date.now() - 90000, message: 'השהייה קולית/חזותית מעל 30 שניות', severity: 'warning' },
+  { id: '3', studentId: 'student_7', studentName: 'תלמיד 7', timestamp: Date.now() - 150000, message: 'ביצע Undo רצוף 3 פעמים', severity: 'alert' },
+  { id: '4', studentId: 'student_18', studentName: 'תלמיד 18', timestamp: Date.now() - 210000, message: 'הושלמה משימת התאמת ייצוגים בהצלחה', severity: 'info' },
+  { id: '5', studentId: 'student_2', studentName: 'תלמיד 2', timestamp: Date.now() - 300000, message: 'סיום מפגש 2 - מוכן למעבר מסלול', severity: 'info' },
+];
+
+export function HeatmapGrid() {
+  const [students, setStudents] = useState<AnonymousStudent[]>(INITIAL_MOCK_STUDENTS);
+  const [feedItems, setFeedItems] = useState<LiveFeedItem[]>(INITIAL_MOCK_FEED);
+  const [selectedStudent, setSelectedStudent] = useState<AnonymousStudent | null>(null);
+
+  // Subscribe to live Firebase data and merge with 35 student slots
+  useEffect(() => {
+    const studentsRef = ref(database, 'users/students');
+    const unsubStudents = onValue(studentsRef, (snapshot) => {
+      if (!snapshot.exists()) return;
+      const rawData = snapshot.val() || {};
+
+      setStudents((prev) => {
+        const updated = [...prev];
+        const entries = Object.entries(rawData);
+
+        entries.forEach(([uid, data]: [string, any], idx) => {
+          if (idx >= 35) return;
+          const slotIndex = idx;
+          const studentNum = slotIndex + 1;
+
+          const wsState = data.workspaceState || {};
+          const sessionState = data.sessionState || {};
+          const hesitationSeconds = wsState.hesitationCount ? wsState.hesitationCount * 5 : (sessionState.hesitation_seconds || 0);
+          const errorCount = wsState.undoCount || sessionState.error_count || 0;
+          const isYellowPath = data.routeRecommendation === 'YELLOW' || sessionState.current_path === 'gap_reduction';
+          const physicalOverride = data.physicalOverride || sessionState.physical_override || false;
+
+          const isStruggling = hesitationSeconds > 30 || isYellowPath || errorCount >= 3 || physicalOverride;
+
+          updated[slotIndex] = {
+            id: uid,
+            displayName: data.name || `תלמיד ${studentNum}`,
+            sessionNumber: wsState.sessionNumber || sessionState.session_number || ((studentNum % 8) + 1),
+            currentPath: isYellowPath ? 'צמצום פערים' : 'ירוק',
+            status: wsState.flowStatus === 'sessionDone' ? 'completed' : (data.isBoardLocked || sessionState.status === 'locked') ? 'locked' : 'active',
+            hesitationSeconds,
+            errorCount,
+            physicalOverride,
+            isStruggling,
+            lastAction: data.lastAction || (isStruggling ? 'מאבק קוגניטיבי נותח על ידי הרדאר' : 'פעיל במשימה נוכחית'),
+            isOnline: data.isOnline !== false,
+          };
+        });
+        return updated;
+      });
+    });
+
+    const alertsRef = ref(database, 'radar_alerts');
+    const unsubAlerts = onValue(alertsRef, (snapshot) => {
+      if (!snapshot.exists()) return;
+      const rawAlerts = snapshot.val() || {};
+      const newItems: LiveFeedItem[] = Object.entries(rawAlerts).map(([key, val]: [string, any]) => ({
+        id: key,
+        studentId: val.studentId || val.rawStudentId || 'student_1',
+        studentName: val.studentName || val.studentId || 'תלמיד',
+        timestamp: val.timestamp || Date.now(),
+        message: val.type === 'HESITATION' ? 'השהייה מעל 30 שניות בלוח העזרים' : val.type === 'PASSIVE_DRIFTING' ? 'ביצע ביטולים מרובים רצופים' : val.message || 'התראת רדאר בזמן אמת',
+        severity: val.type === 'TAB_ESCAPE' || val.type === 'PASSIVE_DRIFTING' ? 'alert' : 'warning',
+      })).reverse();
+
+      if (newItems.length > 0) {
+        setFeedItems((prev) => {
+          const combined = [...newItems, ...prev];
+          const unique = Array.from(new Map(combined.map(item => [item.id, item])).values());
+          return unique.slice(0, 20);
+        });
+      }
+    });
+
+    return () => {
+      unsubStudents();
+      unsubAlerts();
+    };
+  }, []);
+
+  const handleTogglePhysicalOverride = async (student: AnonymousStudent) => {
+    const updatedStatus = student.status === 'locked' ? 'active' : student.status;
+    const newOverrideState = !student.physicalOverride;
+
+    // Update local grid state
+    setStudents((prev) =>
+      prev.map((s) =>
+        s.id === student.id
+          ? {
+              ...s,
+              physicalOverride: newOverrideState,
+              status: updatedStatus,
+              isStruggling: newOverrideState || s.hesitationSeconds > 30 || s.errorCount >= 3,
+            }
+          : s
+      )
+    );
+
+    if (selectedStudent && selectedStudent.id === student.id) {
+      setSelectedStudent({
+        ...selectedStudent,
+        physicalOverride: newOverrideState,
+        status: updatedStatus,
+      });
+    }
+
+    // Persist to Firebase
+    try {
+      const updates: Record<string, any> = {};
+      updates[`users/students/${student.id}/physicalOverride`] = newOverrideState;
+      updates[`users/students/${student.id}/isBoardLocked`] = false;
+      updates[`sessions/${student.id}/physical_override`] = newOverrideState;
+      updates[`sessions/${student.id}/status`] = updatedStatus;
+      await update(ref(database), updates);
+    } catch (e) {
+      console.error('Failed to sync physical override to Firebase:', e);
+    }
+  };
+
+  const getPedagogicalRecommendations = (student: AnonymousStudent) => {
+    if (student.physicalOverride) {
+      return {
+        category: 'תיווך פיזי / עקיפה ידנית פעילה',
+        questions: [
+          'מה הצעד שהתלמיד מנסה לבצע פיזית על הלוח?',
+          'האם נדרשת הכוונה במגע יד או הדגמה ישירה של פעולת הפריטה?',
+          'כיצד אפשר לסייע לתלמיד לחבר בין הייצוג הפיזי על הלוח לרישום המספרי?'
+        ]
+      };
+    }
+    if (student.errorCount >= 3 || student.lastAction?.includes('ללא פריטה')) {
+      return {
+        category: 'קושי בפריטה והמרה עשרונית',
+        questions: [
+          'איך אפשר לייצג את המספר בצורה נוספת באמצעות עשרות ויחידות?',
+          'מה קורה כאשר מגיעים ל-10 יחידות בעמודת היחידות?',
+          'מדוע נדרש לפרוט עשרת אחת לפני שניתן לחסר מתוך עמודת היחידות?'
+        ]
+      };
+    }
+    if (student.hesitationSeconds > 30) {
+      return {
+        category: 'עומס קוגניטיבי / השהייה מתמשכת',
+        questions: [
+          'איזה צעד ראשון שקלת לבצע? מה גורם לך להתלבט?',
+          'איזה כלי חזותי בלוח העזרים יכול לעזור לך להתחיל?',
+          'האם תרצה שנבדוק יחד דוגמה פשוטה יותר במספרים קטנים?'
+        ]
+      };
+    }
+    if (student.currentPath === 'צמצום פערים') {
+      return {
+        category: 'מסלול צמצום פערים - חיזוק תפיסת המבנה',
+        questions: [
+          'מה מייצגת כל ספרה במספר הזה לפי עמודת הערך המקומי שלה?',
+          'מה תפקיד הספרה 0 במספר? מה ישתנה אם נשמיט אותה?',
+          'איך ניתן לבדוק את התוצאה שקיבלת באמצעות חישוב הפוך?'
+        ]
+      };
+    }
+    return {
+      category: 'שיח פדגוגי מעמיק (מסלול ירוק)',
+      questions: [
+        'איזו אסטרטגיה בחרת לפתרון הבעיה ומדוע היא יעילה בעיניך?',
+        'האם קיימת דרך נוספת להגיע לאותה התוצאה?',
+        'איך תוכל להסביר את תהליך הפתרון לחבר בכיתה?'
+      ]
+    };
+  };
+
+  const strugglingCount = useMemo(() => students.filter(s => s.isStruggling).length, [students]);
+
+  return (
+    <div className="flex flex-col gap-8" dir="rtl">
+      {/* Visual Live Feed Component (Mini-Radar) */}
+      <section className="bg-slate-900 text-white rounded-3xl p-6 shadow-xl border border-slate-800 relative overflow-hidden">
+        <div className="absolute -top-12 -left-12 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 border-b border-slate-800 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="relative flex items-center justify-center">
+              <span className="animate-ping absolute inline-flex h-4 w-4 rounded-full bg-emerald-400 opacity-75" />
+              <div className="relative w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-400 flex items-center justify-center text-emerald-400">
+                <Activity className="w-4 h-4" />
+              </div>
+            </div>
+            <div>
+              <h2 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+                רדאר פדגוגי בזמן אמת
+                <span className="text-xs bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded-full">
+                  לייב
+                </span>
+              </h2>
+              <p className="text-xs text-slate-400">
+                ניטור רציף של פעולות התלמידים, השהיות והתראות קוגניטיביות
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <div className="bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-700 text-xs flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+              <span>תלמידים במאבק: <strong className="text-amber-300 font-bold">{strugglingCount} / 35</strong></span>
+            </div>
+          </div>
+        </div>
+
+        {/* Live Feed Event Stream */}
+        <div className="flex flex-col gap-2 max-h-[160px] overflow-y-auto no-scrollbar pr-1">
+          {feedItems.map((item) => (
+            <div 
+              key={item.id}
+              className={`p-3 rounded-2xl border text-sm flex items-center justify-between transition-all backdrop-blur-sm ${
+                item.severity === 'alert'
+                  ? 'bg-rose-500/10 border-rose-500/30 text-rose-200'
+                  : item.severity === 'warning'
+                  ? 'bg-amber-500/10 border-amber-500/30 text-amber-200'
+                  : 'bg-slate-800/60 border-slate-700/60 text-slate-200'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <span className={`w-2 h-2 rounded-full ${
+                  item.severity === 'alert' ? 'bg-rose-400' : item.severity === 'warning' ? 'bg-amber-400' : 'bg-indigo-400'
+                }`} />
+                <strong className="font-bold text-white min-w-[70px]">{item.studentName}:</strong>
+                <span className="text-xs md:text-sm">{item.message}</span>
+              </div>
+              <span className="text-[11px] opacity-60 text-slate-400 shrink-0 mr-2" dir="ltr">
+                {new Date(item.timestamp).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Heatmap Grid Section */}
+      <section className="flex flex-col gap-4">
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+              <span>מפת חום כיתתית (35 תלמידים)</span>
+            </h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+              תלמידים במאבק קוגניטיבי מוחרגים בכתום בעוצמה מתונה (Low-Arousal Orange) לפי הנחיות הפדגוגיה.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-4 text-xs font-semibold">
+            <div className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-full bg-emerald-500" />
+              <span className="text-slate-600 dark:text-slate-300">תקין / מסלול ירוק</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-full bg-amber-400 border border-amber-500" />
+              <span className="text-amber-800 dark:text-amber-300">מאבק / צמצום פערים</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-full bg-rose-500" />
+              <span className="text-slate-600 dark:text-slate-300">נעול / נדרש תיווך</span>
+            </div>
+          </div>
+        </div>
+
+        {/* 5x7 Student Cards Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-7 gap-3">
+          {students.map((student) => {
+            const isStruggling = student.isStruggling;
+
+            return (
+              <button
+                key={student.id}
+                onClick={() => setSelectedStudent(student)}
+                className={`p-3.5 rounded-2xl border text-right transition-all transform hover:-translate-y-1 hover:shadow-md flex flex-col justify-between h-[120px] relative overflow-hidden group ${
+                  isStruggling
+                    ? 'bg-amber-50 border-2 border-amber-400 text-amber-900 shadow-amber-200/50 dark:bg-amber-950/40 dark:border-amber-500/60 dark:text-amber-100'
+                    : 'bg-white border-slate-200 text-slate-800 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100'
+                }`}
+              >
+                <div className="flex justify-between items-start w-full">
+                  <span className="font-bold text-xs tracking-tight text-slate-700 dark:text-slate-200">
+                    {student.displayName}
+                  </span>
+                  
+                  {/* Status Icon */}
+                  {student.status === 'locked' ? (
+                    <Lock className="w-4 h-4 text-rose-500 animate-pulse" title="מפגש נעול" />
+                  ) : student.status === 'completed' ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500" title="מפגש הושלם" />
+                  ) : isStruggling ? (
+                    <AlertTriangle className="w-4 h-4 text-amber-600 animate-bounce" title="מאבק קוגניטיבי" />
+                  ) : (
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" title="פעיל" />
+                  )}
+                </div>
+
+                <div className="flex flex-col gap-1 my-1">
+                  <div className="flex justify-between text-[11px] opacity-80">
+                    <span>מפגש {student.sessionNumber}</span>
+                    <span className={`font-semibold ${student.currentPath === 'צמצום פערים' ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-400'}`}>
+                      {student.currentPath}
+                    </span>
+                  </div>
+
+                  {student.physicalOverride && (
+                    <span className="text-[10px] bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 font-bold px-1.5 py-0.5 rounded text-center">
+                      תיווך פיזי פעיל
+                    </span>
+                  )}
+                </div>
+
+                <div className="text-[10px] text-slate-400 dark:text-slate-400 flex justify-between items-center pt-1 border-t border-slate-100 dark:border-slate-700/50">
+                  <span>השהייה: {student.hesitationSeconds}ש'</span>
+                  <span>ביטולים: {student.errorCount}</span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Drill-Down View / Student Detail Drawer */}
+      {selectedStudent && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-end animate-in fade-in duration-200">
+          <div className="w-full max-w-xl h-full bg-white dark:bg-slate-900 shadow-2xl p-6 overflow-y-auto flex flex-col justify-between border-r border-slate-200 dark:border-slate-800" dir="rtl">
+            <div>
+              <div className="flex justify-between items-center pb-4 mb-6 border-b border-slate-200 dark:border-slate-800">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white font-bold flex items-center justify-center shadow-md">
+                    {selectedStudent.displayName.replace('תלמיד ', '')}
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-white">
+                      {selectedStudent.displayName}
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      מזהה מערכת: {selectedStudent.id}
+                    </p>
+                  </div>
+                </div>
+
+                <button 
+                  onClick={() => setSelectedStudent(null)}
+                  className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-300 flex items-center justify-center font-bold"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Student Overview Cards */}
+              <div className="grid grid-cols-2 gap-3 mb-6">
+                <div className="p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700">
+                  <span className="text-xs text-slate-500 block mb-1">מפגש נוכחי</span>
+                  <span className="font-bold text-base text-slate-800 dark:text-slate-100">מפגש {selectedStudent.sessionNumber}</span>
+                </div>
+                <div className="p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700">
+                  <span className="text-xs text-slate-500 block mb-1">מסלול למידה</span>
+                  <span className={`font-bold text-base ${selectedStudent.currentPath === 'צמצום פערים' ? 'text-amber-600' : 'text-emerald-600'}`}>
+                    {selectedStudent.currentPath}
+                  </span>
+                </div>
+                <div className="p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700">
+                  <span className="text-xs text-slate-500 block mb-1">אירועי השהייה</span>
+                  <span className="font-bold text-base text-slate-800 dark:text-slate-100">{selectedStudent.hesitationSeconds} שניות</span>
+                </div>
+                <div className="p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700">
+                  <span className="text-xs text-slate-500 block mb-1">ביטולים / מחיקות</span>
+                  <span className="font-bold text-base text-slate-800 dark:text-slate-100">{selectedStudent.errorCount} פעמים</span>
+                </div>
+              </div>
+
+              {/* Prominent Physical Override Button */}
+              <div className="mb-8 p-5 bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-3xl">
+                <div className="flex justify-between items-center mb-3">
+                  <div>
+                    <h4 className="font-bold text-amber-900 dark:text-amber-200 text-sm flex items-center gap-2">
+                      <ShieldAlert className="w-4 h-4 text-amber-600" />
+                      עקיפה פיזית / תיווך פיזי (Physical Override)
+                    </h4>
+                    <p className="text-xs text-amber-800 dark:text-amber-300 mt-1">
+                      התרת נעילת הלוח וסימון תיווך מורה פיזי ישיר בתהליך הלמידה.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => handleTogglePhysicalOverride(selectedStudent)}
+                  className={`w-full py-3 px-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-md active:scale-95 ${
+                    selectedStudent.physicalOverride
+                      ? 'bg-purple-600 hover:bg-purple-700 text-white shadow-purple-500/20'
+                      : 'bg-amber-600 hover:bg-amber-700 text-white shadow-amber-500/20'
+                  }`}
+                >
+                  {selectedStudent.physicalOverride ? (
+                    <>
+                      <UserCheck className="w-4 h-4" />
+                      <span>תיווך פיזי פעיל - לחץ לבלימה/סיום עקיפה</span>
+                    </>
+                  ) : (
+                    <>
+                      <Unlock className="w-4 h-4" />
+                      <span>הפעל עקיפה פיזית / תיווך פיזי להתרת המפגש</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Pedagogical Dialogue Recommendations Section */}
+              {(() => {
+                const recs = getPedagogicalRecommendations(selectedStudent);
+                return (
+                  <div className="mb-6 p-5 bg-indigo-50/80 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800/50 rounded-3xl">
+                    <h4 className="font-bold text-indigo-900 dark:text-indigo-200 text-base mb-1 flex items-center gap-2">
+                      <Sparkles className="w-5 h-5 text-indigo-600" />
+                      המלצות לשיח פדגוגי (Pedagogical Dialogue)
+                    </h4>
+                    <span className="text-xs text-indigo-700 dark:text-indigo-300 font-semibold block mb-4">
+                      קטגוריה: {recs.category}
+                    </span>
+
+                    <div className="flex flex-col gap-2.5">
+                      {recs.questions.map((q, idx) => (
+                        <div key={idx} className="bg-white dark:bg-slate-800 p-3.5 rounded-2xl border border-indigo-100 dark:border-slate-700 shadow-sm flex items-start gap-3">
+                          <span className="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
+                            {idx + 1}
+                          </span>
+                          <p className="text-xs md:text-sm font-medium text-slate-800 dark:text-slate-200 leading-relaxed">
+                            {q}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex justify-end">
+              <button
+                onClick={() => setSelectedStudent(null)}
+                className="px-6 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-sm rounded-xl transition-colors"
+              >
+                סגור תצוגה
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

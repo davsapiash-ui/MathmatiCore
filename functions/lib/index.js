@@ -1,10 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.generateSocraticMapping = exports.generateSocraticHint = void 0;
+exports.validateAndStoreTelemetry = exports.callGeminiSocraticProxy = exports.syncUserRoles = exports.generateSocraticMapping = exports.generateSocraticHint = void 0;
 const https_1 = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
 const generative_ai_1 = require("@google/generative-ai");
+const admin = require("firebase-admin");
 const dotenv = require("dotenv");
+admin.initializeApp();
 // Load local .env file explicitly to guarantee key loading in emulator
 dotenv.config();
 /**
@@ -117,10 +119,15 @@ exports.generateSocraticMapping = (0, https_1.onCall)(async (request) => {
     if (!request.auth) {
         throw new https_1.HttpsError("unauthenticated", "User must be authenticated");
     }
-    const { studentId, studentName, teacherId, qMatrix, conceptMastery, traceData } = request.data;
+    const { studentId, teacherId, qMatrix, conceptMastery, traceData } = request.data;
     if (!studentId || !teacherId || !qMatrix || !conceptMastery) {
         throw new https_1.HttpsError("invalid-argument", "Missing required fields");
     }
+    // PRD 5.4: PII Scrubbing Middleware before hitting Gemini
+    const scrubbedName = "[REDACTED_NAME]";
+    const scrubbedTrace = JSON.stringify(traceData)
+        .replace(/\b\d{9}\b/g, "[REDACTED_ID]")
+        .replace(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/g, "[REDACTED_EMAIL]");
     try {
         const ai = new generative_ai_1.GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
         const model = ai.getGenerativeModel({
@@ -155,9 +162,9 @@ JSON SCHEMA:
 }`
         });
         const userPrompt = `
-Student Name: ${studentName}
+Student Name: ${scrubbedName}
 Concept Mastery Scores: ${JSON.stringify(conceptMastery)}
-Trace Data (Hesitations/Undos): ${JSON.stringify(traceData)}
+Trace Data (Hesitations/Undos): ${scrubbedTrace}
 
 Generate the pedagogical mapping JSON.`;
         const response = await model.generateContent(userPrompt);
@@ -177,4 +184,13 @@ Generate the pedagogical mapping JSON.`;
         throw new https_1.HttpsError("internal", "Failed to generate mapping.");
     }
 });
+// Export the Role Synchronization module
+var syncUserRoles_1 = require("./syncUserRoles");
+Object.defineProperty(exports, "syncUserRoles", { enumerable: true, get: function () { return syncUserRoles_1.syncUserRoles; } });
+// Export the Gemini Proxy from the new module
+var geminiProxy_1 = require("./geminiProxy");
+Object.defineProperty(exports, "callGeminiSocraticProxy", { enumerable: true, get: function () { return geminiProxy_1.callGeminiSocraticProxy; } });
+// Export the Transaction Guard module
+var transactionGuard_1 = require("./transactionGuard");
+Object.defineProperty(exports, "validateAndStoreTelemetry", { enumerable: true, get: function () { return transactionGuard_1.validateAndStoreTelemetry; } });
 //# sourceMappingURL=index.js.map

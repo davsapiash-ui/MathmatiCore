@@ -1,7 +1,10 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import * as admin from "firebase-admin";
 import * as dotenv from "dotenv";
+
+admin.initializeApp();
 
 // Load local .env file explicitly to guarantee key loading in emulator
 dotenv.config();
@@ -132,10 +135,16 @@ export const generateSocraticMapping = onCall(
       throw new HttpsError("unauthenticated", "User must be authenticated");
     }
 
-    const { studentId, studentName, teacherId, qMatrix, conceptMastery, traceData } = request.data;
+    const { studentId, teacherId, qMatrix, conceptMastery, traceData } = request.data;
     if (!studentId || !teacherId || !qMatrix || !conceptMastery) {
       throw new HttpsError("invalid-argument", "Missing required fields");
     }
+
+    // PRD 5.4: PII Scrubbing Middleware before hitting Gemini
+    const scrubbedName = "[REDACTED_NAME]";
+    const scrubbedTrace = JSON.stringify(traceData)
+      .replace(/\b\d{9}\b/g, "[REDACTED_ID]")
+      .replace(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/g, "[REDACTED_EMAIL]");
 
     try {
       const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
@@ -172,9 +181,9 @@ JSON SCHEMA:
       });
 
       const userPrompt = `
-Student Name: ${studentName}
+Student Name: ${scrubbedName}
 Concept Mastery Scores: ${JSON.stringify(conceptMastery)}
-Trace Data (Hesitations/Undos): ${JSON.stringify(traceData)}
+Trace Data (Hesitations/Undos): ${scrubbedTrace}
 
 Generate the pedagogical mapping JSON.`;
 
@@ -197,3 +206,12 @@ Generate the pedagogical mapping JSON.`;
     }
   }
 );
+
+// Export the Role Synchronization module
+export { syncUserRoles } from "./syncUserRoles";
+
+// Export the Gemini Proxy from the new module
+export { callGeminiSocraticProxy } from "./geminiProxy";
+
+// Export the Transaction Guard module
+export { validateAndStoreTelemetry } from "./transactionGuard";

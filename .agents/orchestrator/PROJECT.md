@@ -1,43 +1,62 @@
-# Project: MathmatiCore LMS QA & Fixes
+# Project: MathmatiCore PRD v4 Missing Components Development
 
 ## Architecture
 - **Root Directory**: `c:\Users\david\Projects\MathmatiCore`
 - **Application Directory**: `react-ts-version`
-- **Frontend Framework**: React 18, TypeScript, Tailwind CSS, Zustand for local and synchronized state management.
-- **Backend Services**: Firebase Realtime Database for state synchronization, Socratic Engine for diagnostics.
-- **Pedagogical Model**: Q-Matrix with 8 tasks mapping student cognitive errors to adaptive curriculum routing.
+- **Frontend Framework**: React 18, TypeScript, Tailwind CSS, Zustand for local and transient state management.
+- **Backend Services**: Firebase Realtime Database & Firestore for state synchronization, Socratic Engine & Q-Matrix for closed-loop pedagogical guidance.
+- **Pedagogical Model**: Strict CRA Bridge (Concrete-Representational-Abstract) & 4-pillar Q-Matrix with Zero-Generation Policy.
 - **Data Flow**:
-  1. Student interaction in Workspace page -> Zustand stores (`useStore.ts`, `useAuthStore.ts`) -> Realtime Database (`classrooms/.../students/.../workspaceState`).
-  2. Socratic Engine listening to workspace states -> runs heuristic diagnostic rules -> writes diagnoses to `ai_pending_approvals/{teacherId}`.
-  3. Teacher Dashboard views approvals -> approves/rejects -> writes to student routing state.
+  1. Student interaction in CRA Workspace -> Zustand transient state (`useWorkspaceStore.ts`) -> Firebase (`telemetry_events`, `sessions`, `classrooms`). Zero `localStorage`/`sessionStorage`.
+  2. Math Exercise Validation Engine checks concrete block state (hundreds, tens, ones) vs expected mathematical target state -> updates Keyboard State (`LOCKED`, `UNLOCKED`, `Socratic Only`).
+  3. Q-Matrix triggers closed-choice Socratic questioning when `hesitation_timer_expire` or error thresholds hit.
+  4. Teacher Dashboard (`TeacherDashboard.tsx`) listens to Firestore/Realtime state -> renders Heatmap Grid (struggling students in low-arousal orange), Live Feed (mini-radar graphic), Drill-Down view (Physical Override & pedagogical dialogue recommendations).
 
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
-| 1 | Exploration & Diagnosis | Map existing files, types, and logic gaps | none | DONE (Conv: 2e7c8d5e-1bee-47ad-b966-bbdf8da5693c) |
-| 2 | Socratic Engine (R1) | Complete tasks 2, 5, 8 and write results to Firebase | M1 | DONE (Conv: 46cf13ec-a553-485a-8100-c424af7ae1af) |
-| 3 | Teacher Dashboard (R2) | Show clinical diagnoses and action plans in approvals card | M2 | DONE (Conv: 46cf13ec-a553-485a-8100-c424af7ae1af) |
-| 4 | useSilentRadar (R3) | Connect Silent Radar to Workspace telemetry and Firebase | M1 | DONE (Verified: consolidated into useWorkspaceRadar) |
-| 5 | Admin Chat & Logs (R4, R5) | Wire Image Upload to base64, display Audit Logs page | M1 | DONE (Already implemented and functional) |
-| 6 | Dead Code (R6) | Remove unused files and imports, verify build & lint | M2, M3, M4, M5 | DONE (Deleted mockRrwebEvents, typed dashboard callbacks) |
-| 7 | Security, QA & UX | Final verification, Firebase rules audit, responsiveness | M6 | DONE (Conv: 6a1decc9-cf1f-4174-8881-8c57025211e8) |
-| 8 | E2E & CI/CD Verification | Push to GitHub, monitor Firebase deployment | M7 | DONE (Conv: 4d06a3b9-d995-4a7f-b131-983c1700b11f) |
+| 1 | Exploration & Initial Architecture | Map existing react-ts-version state, types, and gaps | none | DONE (Conv: 349176fd-8bad-49f8-92a6-42b68dc7186c) |
+| 2 | Socratic Q-Matrix (R3) | Hardcoded typed TS/JSON config file for closed Socratic triggers/options | M1 | DONE (Conv: f533d723-ed61-4ce7-bcc8-a3b5784fb877) |
+| 3 | Math Exercise Validation Engine (R4) | Exercise model & validation logic for Strict CRA Bridge + automated unit tests | M1 | DONE (Conv: f533d723-ed61-4ce7-bcc8-a3b5784fb877) |
+| 4 | Firebase Integration & Schema + Transient Sync (R2) | Firestore/Realtime schema for teachers, classrooms, sessions, telemetry_events + Zustand sync (Zero localStorage) | M2, M3 | DONE (Conv: 163b347f-84b0-4a07-8221-28eae00851ed) |
+| 5 | Teacher Dashboard UI/UX (R1) | Heatmap Grid (low-arousal orange), Live Feed, Drill-Down view with Physical Override & recommendations | M2, M3, M4 | DONE (Conv: 163b347f-84b0-4a07-8221-28eae00851ed) |
+| 6 | Integration, Verification & Forensic Audit | Verification (`tsc --noEmit`, automated engine tests, zero storage check) + Forensic Auditor | M2, M3, M4, M5 | DONE (Reviewer: 2a2dc8f4-859c-4ca6-a04d-0536f3c1d05a, Auditor: 484faf25-1c78-417f-81b2-5bf9e0718c7d) |
 
 ## Interface Contracts
-### Socratic Engine ↔ Firebase Realtime Database
-- Target Path: `ai_pending_approvals/{teacherId}/{approvalId}`
+### Math Exercise Validation Engine ↔ Keyboard State
+- Data Model:
+  ```typescript
+  interface Exercise {
+    id: string;
+    type: 'addition' | 'subtraction';
+    minuend_or_addend1: number;
+    subtrahend_or_addend2: number;
+    requires_regrouping: boolean;
+    target_concrete_state: {
+      hundreds: number;
+      tens: number;
+      ones: number;
+    };
+  }
+  type KeyboardState = 'LOCKED' | 'UNLOCKED' | 'Socratic Only';
+  ```
+
+### Socratic Q-Matrix Schema
 - Schema:
   ```typescript
-  interface PendingAIApproval {
-    studentId: string;
-    studentName: string;
-    suggestedRoute: string; // e.g. 'green_path', 'yellow_path'
-    clinicalDiagnosisHe: string;
-    actionPlanHe: string;
-    isYellowPath: boolean;
+  interface QMatrixItem {
+    q_id: string;
+    trigger_condition: string;
+    pedagogical_goal: string;
+    question_text: string;
+    options: Array<{ id: string; text: string; is_correct: boolean }>;
+    visual_cue?: string;
   }
   ```
 
-### useSilentRadar ↔ Firebase Realtime Database
-- Telemetry path: `classrooms/{classId}/students/{studentId}/traceData` or `workspaceState/traceData`
-- Fields updated: `hesitation_events` (incremented), `undo_clicks` (incremented).
+### Firebase Schema
+- Paths & Collections:
+  - `teachers`: teacher profiles
+  - `classrooms`: classroom metadata and anonymous student mapping
+  - `sessions`: student 8-session sequence state
+  - `telemetry_events`: vector replay and interaction telemetry

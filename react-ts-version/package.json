@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "verify-component": "npm run lint && tsc --noEmit && echo Component verified!",
     "audit-shadcn": "echo Auditing Shadcn UI components for purity... && git diff --exit-code src/components/ui",
+    "test": "vitest run",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui"
   },
@@ -71,6 +72,7 @@
     "postcss": "^8.5.16",
     "tailwindcss": "^3.4.19",
     "typescript": "~6.0.2",
-    "vite": "^8.1.1"
+    "vite": "^8.1.1",
+    "vitest": "^1.6.0"
   }
 }
