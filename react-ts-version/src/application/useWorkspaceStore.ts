@@ -137,7 +137,7 @@ interface WorkspaceState {
 
 /* ── Pure helpers ── */
 
-function resetTaskInteraction() {
+function resetTaskInteraction(isASD = false) {
   return {
     counts: { ...EMPTY_COUNTS },
     undoStack: [] as { counts: PlaceCounts }[],
@@ -159,7 +159,7 @@ function resetTaskInteraction() {
     isBoardLocked: false,
     hasRequestedBasicHelp: false,
     taskStartTime: Date.now(),
-    keyboardState: 'UNLOCKED' as KeyboardState,
+    keyboardState: (isASD ? 'LOCKED' : 'UNLOCKED') as KeyboardState,
   };
 }
 
@@ -768,7 +768,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     focusedPlace: null,
 
     hasInteracted: false,
-    consecutiveUndos: 0,
+    undoTimestamps: [],
     isBoardLocked: false,
     hasRequestedBasicHelp: false,
     taskStartTime: Date.now(),
@@ -808,14 +808,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         qflow,
         flowStatus: 'task',
         awaitingNext: false,
-        keyboardState: isASD ? 'LOCKED' : 'UNLOCKED',
         boardOpen: true,
         scaffoldFadeLevel: 0,
         errorPlace: null,
         feedback: null,
         helpState: 'closed',
         frictionTriggerSource: null,
-        ...resetTaskInteraction(),
+        ...resetTaskInteraction(isASD),
       });
       const firstId = meeting === 2 ? getCurrentQTask(qflow)?.id ?? '' : (initialAITasks ?? getSessionTasks(meeting as any))[startingTaskIdx ?? 0]?.id ?? '';
     },
