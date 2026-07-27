@@ -8,7 +8,6 @@ import { StudentHub } from "@/presentation/pages/StudentHub";
 import { TeacherDashboard } from "@/presentation/pages/TeacherDashboard";
 import { ProjectorSandboxPage } from "@/presentation/pages/ProjectorSandboxPage";
 import { AppShell } from "@/presentation/components/layout/AppShell";
-import { ActivityWorkspace } from "@/presentation/components/student/ActivityWorkspace";
 
 import { AdminLayout } from "@/presentation/pages/AdminLayout";
 import { AdminOverview } from "@/presentation/pages/admin/AdminOverview";
@@ -94,8 +93,8 @@ function RoleRouter() {
     if (isAuthenticated && user) {
       const userRoles = Array.isArray(user.role) ? user.role : [user.role as string];
       if (userRoles.includes("student")) navigate("/hub", { replace: true });
-      else if (userRoles.includes("teacher")) navigate("/dashboard", { replace: true });
       else if (userRoles.includes("admin")) navigate("/admin", { replace: true });
+      else if (userRoles.includes("teacher")) navigate("/dashboard", { replace: true });
     }
   }, [isAuthenticated, user, navigate]);
 

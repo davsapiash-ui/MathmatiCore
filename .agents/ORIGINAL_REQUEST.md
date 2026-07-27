@@ -510,3 +510,28 @@ Integrity mode: development
 - [ ] מנגנון התיווך הסוקרטי משולב מקצה לקצה בהצלחה ומקיים את הדרישות.
 </USER_REQUEST>
 
+## Follow-up — 2026-07-27T09:33:44Z
+
+<USER_REQUEST>
+Verify the recent PRD feature implementations in the MathmatiCore project (Navigation Redundancy, Dual Auth SSO, Vector Replay logging, and Session 8 Reflection Screen) to ensure they are functioning correctly and are free of static bugs (Type checking and Linting).
+
+Working directory: c:\Users\david\Projects\MathmatiCore\react-ts-version
+Integrity mode: development
+
+## Requirements
+
+### R1. Static Code Verification
+Run TypeScript type-checking and ESLint on the recently modified and created files (`App.tsx`, `useAuthStore.ts`, `useStore.ts`, `FirebaseSyncService.ts`, `Login.tsx`, `TeacherDashboard.tsx`, `Session8ReflectionScreen.tsx`, `StudentWorkspacePage.tsx`).
+
+### R2. Bug Fixing
+Fix any static compilation errors, missing imports, or incorrect type definitions found during the verification process. Do not change the underlying logic unless it is fundamentally broken and preventing compilation.
+
+## Acceptance Criteria
+
+### Static Verification
+- [ ] Running `npx tsc --noEmit` yields zero errors related to the recently changed files.
+- [ ] Running `npx eslint` yields zero errors related to the recently changed files.
+- [ ] Any fixes applied do not alter the expected user flows (SSO mappings, Reflection Screen 3-stage logic, Vector replay JSON payload).
+</USER_REQUEST>
+
+

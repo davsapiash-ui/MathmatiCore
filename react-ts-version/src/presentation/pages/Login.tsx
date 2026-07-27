@@ -162,7 +162,7 @@ export function Login() {
           // Sign out since they aren't admin
           await auth.signOut();
         }
-      } catch (err: any) {
+      } catch (_err: any) {
         setErrorMsg("פרטי מנהל שגויים או שגיאת תקשורת.");
         setIsLoggingIn(false);
       }

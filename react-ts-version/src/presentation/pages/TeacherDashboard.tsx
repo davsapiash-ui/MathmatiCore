@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { Logo } from "@/presentation/components/ui/Logo";
 import { LogoutButton } from "@/presentation/components/ui/LogoutButton";
 import { UdlButton } from "@/presentation/design-system/UdlButton";
@@ -71,7 +71,6 @@ const getStudentKPIs = (student: StudentData, messages: ChatMessage[]) => {
 
 export function TeacherDashboard() {
   const { id: routeStudentId } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   useTeacherTour();
   const { user } = useAuthStore();
   const { messages, sendMessage, sendImageMessage, markAsRead } = useChatStore();
@@ -114,6 +113,7 @@ export function TeacherDashboard() {
   useEffect(() => {
     if (routeStudentId) {
       setSelectedStudentId(routeStudentId);
+      setSelectedReplayStudentId(routeStudentId);
       setActiveTab("diagnostic_reports");
       // Clean up the URL so it doesn't stay if they close it, or leave it. The PRD just says we support it.
     }
