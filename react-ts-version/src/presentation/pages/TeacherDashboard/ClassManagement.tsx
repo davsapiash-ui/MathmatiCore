@@ -5,7 +5,7 @@ import { useStore, type StudentData } from '@/application/useStore';
 import { HeatmapGrid } from './components/HeatmapGrid';
 import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
 
-export function ClassManagement({ allStudents }: { allStudents: StudentData[] }) {
+export function ClassManagement({ allStudents, onDrillDown }: { allStudents: StudentData[]; onDrillDown?: (studentId: string) => void }) {
   const classes = useAdminStore(s => s.classes);
   const schools = useAdminStore(s => s.schools);
   const [appliedOverride, setAppliedOverride] = useState(false);
@@ -100,7 +100,7 @@ export function ClassManagement({ allStudents }: { allStudents: StudentData[] })
       </div>
 
       {/* Heatmap Grid and Live Feed */}
-      <HeatmapGrid />
+      <HeatmapGrid onDrillDown={onDrillDown} />
     </div>
   );
 }

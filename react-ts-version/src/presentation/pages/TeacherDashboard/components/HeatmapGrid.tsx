@@ -84,8 +84,13 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
 
           const wsState = data.workspaceState || {};
           const sessionState = data.sessionState || {};
-          const hesitationSeconds = wsState.hesitationCount ? wsState.hesitationCount * 30 : (sessionState.hesitation_seconds || 0);
-          const errorCount = wsState.undoCount || sessionState.error_count || 0;
+          const hesitationEvents = Math.max(
+            wsState.hesitationCount || 0,
+            data.traceData?.hesitation_events || 0,
+            data.radar?.hesitations || 0
+          );
+          const hesitationSeconds = hesitationEvents ? hesitationEvents * 30 : (sessionState.hesitation_seconds || 0);
+          const errorCount = Math.max(wsState.undoCount || 0, data.traceData?.undo_clicks || 0, sessionState.error_count || 0);
           const isYellowPath = data.routeRecommendation === 'YELLOW' || sessionState.current_path === 'gap_reduction';
           const physicalOverride = data.physicalOverride || sessionState.physical_override || false;
 
