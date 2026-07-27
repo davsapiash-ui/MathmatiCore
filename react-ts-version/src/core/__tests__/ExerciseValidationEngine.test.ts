@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Exercise, ConcreteState } from '../../domain/entities/Exercise';
+import type { Exercise, ConcreteState } from '../../domain/entities/Exercise';
 import {
   validateConcreteState,
   transitionKeyboardState,

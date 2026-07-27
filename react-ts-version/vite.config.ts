@@ -19,7 +19,7 @@ export default defineConfig({
     chunkSizeWarningLimit: 2000,
     rollupOptions: {
       output: {
-        manualChunks(id) {
+        manualChunks(id: string) {
           if (id.includes('node_modules/rrweb')) return 'rrweb';
           if (id.includes('node_modules/recharts')) return 'recharts';
           if (id.includes('node_modules/firebase')) return 'firebase';
@@ -28,4 +28,4 @@ export default defineConfig({
       }
     }
   }
-});
+} as any);

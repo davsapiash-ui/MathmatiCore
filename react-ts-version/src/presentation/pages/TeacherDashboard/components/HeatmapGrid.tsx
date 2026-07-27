@@ -133,7 +133,7 @@ export function HeatmapGrid() {
         studentName: val.studentName || val.studentId || 'תלמיד',
         timestamp: val.timestamp || Date.now(),
         message: val.type === 'HESITATION' ? 'השהייה מעל 30 שניות בלוח העזרים' : val.type === 'PASSIVE_DRIFTING' ? 'ביצע ביטולים מרובים רצופים' : val.message || 'התראת רדאר בזמן אמת',
-        severity: val.type === 'TAB_ESCAPE' || val.type === 'PASSIVE_DRIFTING' ? 'alert' : 'warning',
+        severity: (val.type === 'TAB_ESCAPE' || val.type === 'PASSIVE_DRIFTING' ? 'alert' : 'warning') as "alert" | "warning",
       })).reverse();
 
       if (newItems.length > 0) {
@@ -355,11 +355,11 @@ export function HeatmapGrid() {
                   
                   {/* Status Icon */}
                   {student.status === 'locked' ? (
-                    <Lock className="w-4 h-4 text-rose-500 animate-pulse" title="מפגש נעול" />
+                    <span title="מפגש נעול"><Lock className="w-4 h-4 text-rose-500 animate-pulse" /></span>
                   ) : student.status === 'completed' ? (
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500" title="מפגש הושלם" />
+                    <span title="מפגש הושלם"><CheckCircle2 className="w-4 h-4 text-emerald-500" /></span>
                   ) : isStruggling ? (
-                    <AlertTriangle className="w-4 h-4 text-amber-600 animate-bounce" title="מאבק קוגניטיבי" />
+                    <span title="מאבק קוגניטיבי"><AlertTriangle className="w-4 h-4 text-amber-600 animate-bounce" /></span>
                   ) : (
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" title="פעיל" />
                   )}

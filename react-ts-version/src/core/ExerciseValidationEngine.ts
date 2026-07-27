@@ -1,4 +1,4 @@
-import { ConcreteState, Exercise, KeyboardState } from '../domain/entities/Exercise';
+import type { ConcreteState, Exercise, KeyboardState } from '../domain/entities/Exercise';
 
 export interface TransitionEvent {
   block_group_success?: boolean;

@@ -551,6 +551,7 @@ export function TeacherDashboard() {
 
   const handleTabChange = (
     tab:
+      | "heatmap"
       | "clustering"
       | "alerts"
       | "diagnostic_reports"
