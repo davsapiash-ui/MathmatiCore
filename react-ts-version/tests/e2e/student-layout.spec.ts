@@ -33,3 +33,4 @@ test.describe('Student Workspace Layout', () => {
     await expect(page.getByText('מפגש').first()).toBeVisible();
   });
 });
+

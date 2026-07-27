@@ -2,7 +2,9 @@ import { useEffect, useRef } from 'react';
 import { driver } from 'driver.js';
 import 'driver.js/dist/driver.css';
 
-const HAS_SEEN_ADMIN_TOUR_KEY = 'mathmaticore_has_seen_admin_tour';
+// In-memory state (Zero Local Storage Policy)
+const isWebdriver = typeof navigator !== 'undefined' && navigator.webdriver;
+let adminTourSeen = typeof window !== 'undefined' && ((window as any).__E2E_BYPASS_TOUR__ === true || isWebdriver);
 
 export function useAdminTour() {
   const driverObj = useRef<any>(null);
@@ -84,12 +86,11 @@ export function useAdminTour() {
   };
 
   useEffect(() => {
-    const hasSeen = localStorage.getItem(HAS_SEEN_ADMIN_TOUR_KEY);
-    if (!hasSeen) {
+    if (!adminTourSeen) {
       // Small delay to ensure UI is mounted
       const timer = setTimeout(() => {
         startTour();
-        localStorage.setItem(HAS_SEEN_ADMIN_TOUR_KEY, 'true');
+        adminTourSeen = true;
       }, 1000);
       return () => clearTimeout(timer);
     }

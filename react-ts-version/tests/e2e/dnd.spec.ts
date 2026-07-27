@@ -32,10 +32,8 @@ test.describe('Drag and Drop Mechanics', () => {
   test('student can drag a unit block from the palette to the units column', async ({ context, page }) => {
     // Disable driver.js tours
     await context.addInitScript(() => {
-      window.localStorage.setItem('mathmaticore_has_seen_tour', 'true');
-      window.localStorage.setItem('mathmaticore_has_seen_admin_tour', 'true');
-      window.localStorage.setItem('mathmaticore_has_seen_teacher_tour', 'true');
-    });
+      (window as any).__E2E_BYPASS_TOUR__ = true;
+      });
 
     // Login Student
     await page.goto('/login');
@@ -62,3 +60,4 @@ test.describe('Drag and Drop Mechanics', () => {
     await expect(page.locator('#column-units [id^="col-units-"]').first()).toBeVisible({ timeout: 5000 });
   });
 });
+

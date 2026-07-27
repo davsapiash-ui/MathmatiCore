@@ -32,10 +32,8 @@ test.describe('Silent Radar', () => {
   test('undo counts are recorded correctly in the workspace store', async ({ context, page }) => {
     // Disable driver.js tours
     await context.addInitScript(() => {
-      window.localStorage.setItem('mathmaticore_has_seen_tour', 'true');
-      window.localStorage.setItem('mathmaticore_has_seen_admin_tour', 'true');
-      window.localStorage.setItem('mathmaticore_has_seen_teacher_tour', 'true');
-    });
+      (window as any).__E2E_BYPASS_TOUR__ = true;
+      });
 
     // Login Student
     await page.goto('/login');
@@ -80,3 +78,4 @@ test.describe('Silent Radar', () => {
     expect(undoCount).toBeGreaterThanOrEqual(1);
   });
 });
+

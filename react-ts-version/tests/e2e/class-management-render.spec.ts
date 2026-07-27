@@ -4,8 +4,7 @@ test.describe('Class Management Rendering', () => {
   test('Class management grid renders properly without crashing', async ({ context, page }) => {
     // Disable driver.js tours
     await context.addInitScript(() => {
-      window.localStorage.setItem('mathmaticore_has_seen_admin_tour', 'true');
-      window.localStorage.setItem('mathmaticore_has_seen_teacher_tour', 'true');
+      (window as any).__E2E_BYPASS_TOUR__ = true;
     });
 
     // Login Teacher
@@ -32,3 +31,4 @@ test.describe('Class Management Rendering', () => {
     expect(count).toBeGreaterThanOrEqual(1);
   });
 });
+

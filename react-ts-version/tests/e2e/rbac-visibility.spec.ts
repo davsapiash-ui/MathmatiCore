@@ -3,10 +3,8 @@ import { test, expect } from '@playwright/test';
 test.describe('RBAC Visibility Tests', () => {
   test('Admin has access to System Settings and Institution Management', async ({ context, page }) => {
     await context.addInitScript(() => {
-      window.localStorage.setItem('mathmaticore_has_seen_tour', 'true');
-      window.localStorage.setItem('mathmaticore_has_seen_admin_tour', 'true');
-      window.localStorage.setItem('mathmaticore_has_seen_teacher_tour', 'true');
-    });
+      (window as any).__E2E_BYPASS_TOUR__ = true;
+      });
     await page.goto('/login');
     
     // Select Admin Role
@@ -25,10 +23,8 @@ test.describe('RBAC Visibility Tests', () => {
 
   test('Teacher has access to Class Management but not Institution Management', async ({ context, page }) => {
     await context.addInitScript(() => {
-      window.localStorage.setItem('mathmaticore_has_seen_tour', 'true');
-      window.localStorage.setItem('mathmaticore_has_seen_admin_tour', 'true');
-      window.localStorage.setItem('mathmaticore_has_seen_teacher_tour', 'true');
-    });
+      (window as any).__E2E_BYPASS_TOUR__ = true;
+      });
     await page.goto('/login');
     
     // Select Teacher Role
@@ -50,10 +46,8 @@ test.describe('RBAC Visibility Tests', () => {
 
   test('Student has restricted workspace', async ({ context, page }) => {
     await context.addInitScript(() => {
-      window.localStorage.setItem('mathmaticore_has_seen_tour', 'true');
-      window.localStorage.setItem('mathmaticore_has_seen_admin_tour', 'true');
-      window.localStorage.setItem('mathmaticore_has_seen_teacher_tour', 'true');
-    });
+      (window as any).__E2E_BYPASS_TOUR__ = true;
+      });
     await page.goto('/login');
     
     // Select Student Role
@@ -71,3 +65,4 @@ test.describe('RBAC Visibility Tests', () => {
     await expect(page.getByText('סקירה כללית')).not.toBeVisible();
   });
 });
+

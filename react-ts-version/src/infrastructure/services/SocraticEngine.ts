@@ -81,7 +81,12 @@ export class SocraticEngine {
         macroBlueprintHe: "המערכת לא הצליחה להתחבר למנוע ה-AI. נדרשת התערבות ידנית של המורה.",
         microBlueprintHe: "אנא תכנן את שיעור 3 בעצמך.",
         isYellowPath: true,
-        tasks: []
+        tasks: [{
+          id: "fallback_task",
+          title: "משימה ידנית מומלצת",
+          type: "concept_builder",
+          rationale: "מערכת ה-AI לא היתה זמינה ולכן נדרשת בחירת משימה על ידי המורה."
+        }]
       };
     }
 

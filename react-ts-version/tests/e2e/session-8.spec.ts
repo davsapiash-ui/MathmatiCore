@@ -10,18 +10,14 @@ test.describe('Session 8 (Scaffold-Free E2E)', () => {
 
     // Disable tours
     await context.addInitScript(() => {
-      window.localStorage.setItem('mathmaticore_has_seen_tour', 'true');
-      window.localStorage.setItem('mathmaticore_has_seen_admin_tour', 'true');
-      window.localStorage.setItem('mathmaticore_has_seen_teacher_tour', 'true');
-    });
+      (window as any).__E2E_BYPASS_TOUR__ = true;
+      });
 
     // 1. Reset user15 first via Teacher Dashboard to make it idempotent
     const teacherContext = await browser.newContext();
     await teacherContext.addInitScript(() => {
-      window.localStorage.setItem('mathmaticore_has_seen_tour', 'true');
-      window.localStorage.setItem('mathmaticore_has_seen_admin_tour', 'true');
-      window.localStorage.setItem('mathmaticore_has_seen_teacher_tour', 'true');
-    });
+      (window as any).__E2E_BYPASS_TOUR__ = true;
+      });
     const teacherPage = await teacherContext.newPage();
     teacherPage.on('dialog', async dialog => {
       await dialog.accept();
@@ -178,3 +174,4 @@ test.describe('Session 8 (Scaffold-Free E2E)', () => {
     await expect(page.getByText('מפת המסע שלך')).toBeVisible({ timeout: 5000 });
   });
 });
+

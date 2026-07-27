@@ -10,10 +10,8 @@ test.describe('Massive Multi-User E2E Simulation', () => {
     // Create 6 isolated browser contexts
     const teacherContext = await browser.newContext();
     await teacherContext.addInitScript(() => {
-      window.localStorage.setItem('mathmaticore_has_seen_tour', 'true');
-      window.localStorage.setItem('mathmaticore_has_seen_admin_tour', 'true');
-      window.localStorage.setItem('mathmaticore_has_seen_teacher_tour', 'true');
-    });
+      (window as any).__E2E_BYPASS_TOUR__ = true;
+      });
 
     const studentContexts = await Promise.all([
       browser.newContext(),
@@ -25,49 +23,37 @@ test.describe('Massive Multi-User E2E Simulation', () => {
 
     for (const ctx of studentContexts) {
       await ctx.addInitScript(() => {
-        window.localStorage.setItem('mathmaticore_has_seen_tour', 'true');
-        window.localStorage.setItem('mathmaticore_has_seen_admin_tour', 'true');
-        window.localStorage.setItem('mathmaticore_has_seen_teacher_tour', 'true');
-      });
+        (window as any).__E2E_BYPASS_TOUR__ = true;
+        });
     }
 
     const teacherPage = await teacherContext.newPage();
     const studentPages = await Promise.all(studentContexts.map(c => c.newPage()));
 
-    // Inject Auth for Teacher
+    // Login Teacher via UI
     console.log("👩‍🏫 Logging in Teacher...");
-    await teacherPage.goto(BASE_URL);
-    await teacherPage.evaluate(() => {
-      localStorage.setItem('auth-storage-v3', JSON.stringify({
-        state: {
-          user: { uid: "teacher-test-1", role: "teacher", displayName: "Test Teacher" },
-          role: "teacher",
-          isAuthenticated: true
-        }
-      }));
-    });
-    await teacherPage.goto(`${BASE_URL}/dashboard`);
+    await teacherPage.goto(`${BASE_URL}/login`);
+    await teacherPage.locator('button').filter({ hasText: 'מורה' }).click();
+    await teacherPage.getByPlaceholder('תעודת זהות').fill('039604483');
+    await teacherPage.getByPlaceholder('תאריך לידה (6 ספרות, במבנה יום-חודש-שנה)').fill('290984');
+    await teacherPage.locator('button').filter({ hasText: 'התחבר למערכת' }).click();
+    await teacherPage.waitForURL('**/dashboard');
     await teacherPage.waitForLoadState('networkidle');
 
-    // Inject Auth for 5 Students
+    // Login 5 Students via UI
     console.log("🎓 Logging in 5 Students...");
     for (let i = 0; i < 5; i++) {
-      await studentPages[i].goto(BASE_URL);
-      await studentPages[i].evaluate((index) => {
-        localStorage.setItem('auth-storage-v3', JSON.stringify({
-          state: {
-            user: { 
-              uid: `student-test-${index + 1}`, 
-              role: "student", 
-              name: `Student ${index + 1}`,
-              teacherId: "teacher-test-1"
-            },
-            role: "student",
-            isAuthenticated: true
-          }
-        }));
-      }, i);
-      await studentPages[i].goto(`${BASE_URL}/workspace`);
+      await studentPages[i].goto(`${BASE_URL}/login`);
+      await studentPages[i].locator('button').filter({ hasText: 'תלמיד' }).click();
+      await studentPages[i].locator('select').first().selectOption({ index: 1 }); // Pick first school
+      await studentPages[i].locator('select').nth(1).selectOption({ index: 1 }); // Pick first class
+      await studentPages[i].getByPlaceholder('שם משתמש').fill(`user${i + 1}`);
+      await studentPages[i].getByPlaceholder('סיסמה').fill('10203040');
+      await studentPages[i].locator('button').filter({ hasText: 'יאללה, נכנסים! ✨' }).click();
+      await studentPages[i].waitForURL('**/hub');
+      // Navigate to Workspace
+      await studentPages[i].locator('button, a').filter({ hasText: 'להמשך התרגול' }).first().click({ force: true });
+      await studentPages[i].waitForURL('**/workspace*');
     }
 
     await Promise.all(studentPages.map(p => p.waitForLoadState('networkidle')));
@@ -103,3 +89,4 @@ test.describe('Massive Multi-User E2E Simulation', () => {
     await Promise.all(studentContexts.map(c => c.close()));
   });
 });
+

@@ -23,8 +23,11 @@ import { SocraticEngine } from "./infrastructure/services/SocraticEngine";
 import { useStore } from "@/application/useStore";
 
 // Expose SocraticEngine and Auth for E2E proof testing
-if (typeof window !== 'undefined') {
+if (import.meta.env.MODE === 'development' || import.meta.env.MODE === 'test') {
   (window as any).SocraticEngine = SocraticEngine;
+  import('@/infrastructure/firebase').then(mod => {
+    (window as any).__FIREBASE_AUTH__ = mod.auth;
+  });
   (window as any).firebaseAuth = auth;
   (window as any).useStore = useStore;
 }

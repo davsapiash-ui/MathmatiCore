@@ -10,10 +10,8 @@ test('Prove Diagnostic Reports Generation', async ({ browser }) => {
 
   // Disable driver.js tours
   await context.addInitScript(() => {
-    window.localStorage.setItem('mathmaticore_has_seen_tour', 'true');
-    window.localStorage.setItem('mathmaticore_has_seen_admin_tour', 'true');
-    window.localStorage.setItem('mathmaticore_has_seen_teacher_tour', 'true');
-  });
+    (window as any).__E2E_BYPASS_TOUR__ = true;
+    });
 
   // 1. Log in as student via UI
   console.log("Logging in student via UI...");
@@ -89,3 +87,4 @@ test('Prove Diagnostic Reports Generation', async ({ browser }) => {
   await page.screenshot({ path: 'diagnostic-proof.png', fullPage: true });
   console.log("Done! Screenshot saved as diagnostic-proof.png");
 });
+

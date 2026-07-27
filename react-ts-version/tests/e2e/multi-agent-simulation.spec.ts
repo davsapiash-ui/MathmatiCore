@@ -9,10 +9,8 @@ test.describe('Multi-Agent Behavior Simulation (12 Personas)', () => {
     // Helper to disable tours
     const disableTours = async (context: BrowserContext) => {
       await context.addInitScript(() => {
-        window.localStorage.setItem('mathmaticore_has_seen_tour', 'true');
-        window.localStorage.setItem('mathmaticore_has_seen_admin_tour', 'true');
-        window.localStorage.setItem('mathmaticore_has_seen_teacher_tour', 'true');
-      });
+        (window as any).__E2E_BYPASS_TOUR__ = true;
+        });
     };
 
     // ==========================================
@@ -139,3 +137,4 @@ test.describe('Multi-Agent Behavior Simulation (12 Personas)', () => {
     console.log('🎉 Multi-Agent Simulation Completed Successfully!');
   });
 });
+

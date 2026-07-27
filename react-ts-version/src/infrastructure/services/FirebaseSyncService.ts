@@ -128,6 +128,7 @@ class FirebaseSyncService {
           set(studentRef, {
             profile: userData,
             workspaceState: this.getSyncableWorkspaceState(),
+            traceData: { hesitation_events: 0, undo_clicks: 0 },
             lastActive: serverTimestamp(),
             completedMeeting2: false,
             highestCompletedMeeting: 0,

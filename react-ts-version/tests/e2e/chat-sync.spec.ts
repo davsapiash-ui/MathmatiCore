@@ -8,13 +8,9 @@ test.describe('Chat Synchronization', () => {
 
     // Disable driver.js tours for both contexts
     await adminContext.addInitScript(() => {
-      window.localStorage.setItem('mathmaticore_has_seen_admin_tour', 'true');
-      window.localStorage.setItem('mathmaticore_has_seen_teacher_tour', 'true');
-    });
+      });
     await teacherContext.addInitScript(() => {
-      window.localStorage.setItem('mathmaticore_has_seen_admin_tour', 'true');
-      window.localStorage.setItem('mathmaticore_has_seen_teacher_tour', 'true');
-    });
+      });
 
     const adminPage = await adminContext.newPage();
     const teacherPage = await teacherContext.newPage();
@@ -56,3 +52,4 @@ test.describe('Chat Synchronization', () => {
     await expect(teacherPage.getByText(testMessage)).toBeVisible({ timeout: 10000 });
   });
 });
+

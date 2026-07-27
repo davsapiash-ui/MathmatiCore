@@ -7,10 +7,8 @@ test('Generate Average Student Telemetry and AI Report', async ({ browser }) => 
 
   // Disable driver.js tours
   await context.addInitScript(() => {
-    window.localStorage.setItem('mathmaticore_has_seen_tour', 'true');
-    window.localStorage.setItem('mathmaticore_has_seen_admin_tour', 'true');
-    window.localStorage.setItem('mathmaticore_has_seen_teacher_tour', 'true');
-  });
+    (window as any).__E2E_BYPASS_TOUR__ = true;
+    });
 
   // 1. Login as Student (user3)
   console.log("Logging in as average student (user3)...");
@@ -88,3 +86,4 @@ test('Generate Average Student Telemetry and AI Report', async ({ browser }) => 
   await page.screenshot({ path: 'bot-report-average.png', fullPage: true });
   console.log("Done! Check bot-report-average.png");
 });
+

@@ -1,13 +1,26 @@
 import { useEffect, useRef } from 'react';
 import { driver } from 'driver.js';
 import 'driver.js/dist/driver.css';
+import { create } from 'zustand';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 
-const HAS_SEEN_TOUR_KEY = 'mathmaticore_has_seen_tour';
+interface WorkspaceTourState {
+  hasSeenWorkspaceTour: boolean;
+  completeWorkspaceTour: () => void;
+}
+
+const isWebdriver = typeof navigator !== 'undefined' && navigator.webdriver;
+const e2eBypass = typeof window !== 'undefined' && ((window as any).__E2E_BYPASS_TOUR__ === true || isWebdriver);
+
+export const useWorkspaceTourStore = create<WorkspaceTourState>((set) => ({
+  hasSeenWorkspaceTour: e2eBypass, // In memory only. True bypasses the tour.
+  completeWorkspaceTour: () => set({ hasSeenWorkspaceTour: true }),
+}));
 
 export function useWorkspaceTour() {
   const driverObj = useRef<any>(null);
   const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
+  const { hasSeenWorkspaceTour, completeWorkspaceTour } = useWorkspaceTourStore();
 
   useEffect(() => {
     driverObj.current = driver({
@@ -80,17 +93,16 @@ export function useWorkspaceTour() {
   // Auto-start on meeting 1 if not seen
   useEffect(() => {
     if (sessionNumber === 1) {
-      const hasSeen = localStorage.getItem(HAS_SEEN_TOUR_KEY);
-      if (!hasSeen) {
+      if (!hasSeenWorkspaceTour) {
         // Small delay to ensure UI is mounted and blocks are rendered
         const timer = setTimeout(() => {
           startTour();
-          localStorage.setItem(HAS_SEEN_TOUR_KEY, 'true');
+          completeWorkspaceTour();
         }, 1000);
         return () => clearTimeout(timer);
       }
     }
-  }, [sessionNumber]);
+  }, [sessionNumber, hasSeenWorkspaceTour, completeWorkspaceTour]);
 
   return { startTour };
 }

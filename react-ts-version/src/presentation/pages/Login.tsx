@@ -109,21 +109,6 @@ export function Login() {
         
         // 2. Now that we are authenticated, fetch the teacher profile
         let teacher = await firebaseSyncService.authenticateTeacher(taz);
-        
-        // Fallback/Backdoor for David
-        if (!teacher && taz === "039604483" && dob === "290984") {
-          teacher = {
-            id: "039604483",
-            schoolId: "school_bikorot",
-            taz: "039604483",
-            dob: "290984",
-            name: "דוד",
-            licenseActive: true,
-            createdAt: Date.now()
-          };
-          // Explicitly save to Firebase so Security Rules pass
-          await firebaseSyncService.registerTeacher(teacher);
-        }
 
         if (teacher) {
           if (!teacher.licenseActive) {

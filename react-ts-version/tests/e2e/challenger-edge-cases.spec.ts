@@ -9,10 +9,8 @@ test.describe('Challenger Edge Cases', () => {
     // 1. Create teacher and student contexts in parallel
     const teacherContext = await browser.newContext();
     await teacherContext.addInitScript(() => {
-      window.localStorage.setItem('mathmaticore_has_seen_tour', 'true');
-      window.localStorage.setItem('mathmaticore_has_seen_admin_tour', 'true');
-      window.localStorage.setItem('mathmaticore_has_seen_teacher_tour', 'true');
-    });
+      (window as any).__E2E_BYPASS_TOUR__ = true;
+      });
     const teacherPage = await teacherContext.newPage();
     
     // Accept dialogs on teacher page (e.g. reset alert)
@@ -55,10 +53,8 @@ test.describe('Challenger Edge Cases', () => {
     // 3. Log in Student (user1) in a separate context
     const studentContext = await browser.newContext();
     await studentContext.addInitScript(() => {
-      window.localStorage.setItem('mathmaticore_has_seen_tour', 'true');
-      window.localStorage.setItem('mathmaticore_has_seen_admin_tour', 'true');
-      window.localStorage.setItem('mathmaticore_has_seen_teacher_tour', 'true');
-    });
+      (window as any).__E2E_BYPASS_TOUR__ = true;
+      });
     const studentPage = await studentContext.newPage();
 
     await studentPage.goto(`${BASE_URL}/login`);
@@ -138,10 +134,8 @@ test.describe('Challenger Edge Cases', () => {
     // 1. Reset user15 first via Teacher Dashboard
     const teacherContext = await browser.newContext();
     await teacherContext.addInitScript(() => {
-      window.localStorage.setItem('mathmaticore_has_seen_tour', 'true');
-      window.localStorage.setItem('mathmaticore_has_seen_admin_tour', 'true');
-      window.localStorage.setItem('mathmaticore_has_seen_teacher_tour', 'true');
-    });
+      (window as any).__E2E_BYPASS_TOUR__ = true;
+      });
     const teacherPage = await teacherContext.newPage();
     teacherPage.on('dialog', async dialog => {
       await dialog.accept();
@@ -166,10 +160,8 @@ test.describe('Challenger Edge Cases', () => {
     // 2. Login Student (user15)
     const studentContext = await browser.newContext();
     await studentContext.addInitScript(() => {
-      window.localStorage.setItem('mathmaticore_has_seen_tour', 'true');
-      window.localStorage.setItem('mathmaticore_has_seen_admin_tour', 'true');
-      window.localStorage.setItem('mathmaticore_has_seen_teacher_tour', 'true');
-    });
+      (window as any).__E2E_BYPASS_TOUR__ = true;
+      });
     const studentPage = await studentContext.newPage();
     await studentPage.goto(`${BASE_URL}/login`);
     await studentPage.getByRole('button', { name: 'תלמיד' }).click();
@@ -293,3 +285,4 @@ test.describe('Challenger Edge Cases', () => {
     await studentContext.close();
   });
 });
+

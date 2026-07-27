@@ -8,10 +8,8 @@ test.describe('ASD Addition Board E2E', () => {
     // 1. Create teacher context and page
     const teacherContext = await browser.newContext();
     await teacherContext.addInitScript(() => {
-      window.localStorage.setItem('mathmaticore_has_seen_tour', 'true');
-      window.localStorage.setItem('mathmaticore_has_seen_admin_tour', 'true');
-      window.localStorage.setItem('mathmaticore_has_seen_teacher_tour', 'true');
-    });
+      (window as any).__E2E_BYPASS_TOUR__ = true;
+      });
     const teacherPage = await teacherContext.newPage();
 
     teacherPage.on('console', msg => console.log('TEACHER CONSOLE:', msg.text()));
@@ -65,10 +63,8 @@ test.describe('ASD Addition Board E2E', () => {
     // 6. Create student context and page
     const studentContext = await browser.newContext();
     await studentContext.addInitScript(() => {
-      window.localStorage.setItem('mathmaticore_has_seen_tour', 'true');
-      window.localStorage.setItem('mathmaticore_has_seen_admin_tour', 'true');
-      window.localStorage.setItem('mathmaticore_has_seen_teacher_tour', 'true');
-    });
+      (window as any).__E2E_BYPASS_TOUR__ = true;
+      });
     const studentPage = await studentContext.newPage();
 
     studentPage.on('console', msg => console.log('STUDENT CONSOLE:', msg.text()));
@@ -123,3 +119,4 @@ test.describe('ASD Addition Board E2E', () => {
     await studentContext.close();
   });
 });
+

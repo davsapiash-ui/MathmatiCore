@@ -9,10 +9,8 @@ test.describe('Thousands Column Visibility', () => {
 
     // Disable driver.js tours
     await studentContext.addInitScript(() => {
-      window.localStorage.setItem('mathmaticore_has_seen_tour', 'true');
-      window.localStorage.setItem('mathmaticore_has_seen_admin_tour', 'true');
-      window.localStorage.setItem('mathmaticore_has_seen_teacher_tour', 'true');
-    });
+      (window as any).__E2E_BYPASS_TOUR__ = true;
+      });
 
     // Login Student
     await studentPage.goto('/login');
@@ -54,10 +52,8 @@ test.describe('Thousands Column Visibility', () => {
 
     // Disable driver.js tours
     await teacherContext.addInitScript(() => {
-      window.localStorage.setItem('mathmaticore_has_seen_tour', 'true');
-      window.localStorage.setItem('mathmaticore_has_seen_admin_tour', 'true');
-      window.localStorage.setItem('mathmaticore_has_seen_teacher_tour', 'true');
-    });
+      (window as any).__E2E_BYPASS_TOUR__ = true;
+      });
 
     // Login Teacher
     await teacherPage.goto('/login');
@@ -86,3 +82,4 @@ test.describe('Thousands Column Visibility', () => {
     await teacherContext.close();
   });
 });
+

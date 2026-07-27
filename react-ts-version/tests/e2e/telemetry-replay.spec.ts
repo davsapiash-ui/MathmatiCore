@@ -33,10 +33,8 @@ test.describe('Telemetry & Replay Pipeline', () => {
 
     // Disable driver.js tours
     await context.addInitScript(() => {
-      window.localStorage.setItem('mathmaticore_has_seen_tour', 'true');
-      window.localStorage.setItem('mathmaticore_has_seen_admin_tour', 'true');
-      window.localStorage.setItem('mathmaticore_has_seen_teacher_tour', 'true');
-    });
+      (window as any).__E2E_BYPASS_TOUR__ = true;
+      });
 
     // 1. Log in Student
     await page.goto('/login');
@@ -118,3 +116,4 @@ test.describe('Telemetry & Replay Pipeline', () => {
     await expect(playerContainer.first()).toBeVisible({ timeout: 5000 });
   });
 });
+

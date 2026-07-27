@@ -26,12 +26,12 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       setUser: (user, role) => set(() => {
         const username = user?.name || user?.email || "Unknown";
-        AuditLogger.log("התחברות", role, `משתמש התחבר: ${username}`);
+        AuditLogger.log("התחברות", user?.uid || "unknown_uid", `משתמש התחבר: ${username}`);
         return { user, role, isAuthenticated: true };
       }),
       logout: () => set((state) => {
         const username = state.user?.name || state.user?.email || "Unknown";
-        AuditLogger.log("התנתקות", state.role || "unknown", `משתמש התנתק: ${username}`);
+        AuditLogger.log("התנתקות", state.user?.uid || "unknown_uid", `משתמש התנתק: ${username}`);
         return { user: null, role: null, isAuthenticated: false };
       }),
     }),

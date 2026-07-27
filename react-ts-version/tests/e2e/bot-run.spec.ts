@@ -10,10 +10,8 @@ test('Generate Real Student Telemetry and AI Report', async ({ browser }) => {
 
   // Disable driver.js tours
   await context.addInitScript(() => {
-    window.localStorage.setItem('mathmaticore_has_seen_tour', 'true');
-    window.localStorage.setItem('mathmaticore_has_seen_admin_tour', 'true');
-    window.localStorage.setItem('mathmaticore_has_seen_teacher_tour', 'true');
-  });
+    (window as any).__E2E_BYPASS_TOUR__ = true;
+    });
 
   // 1. Login as Student
   console.log("Logging in as student...");
@@ -91,3 +89,4 @@ test('Generate Real Student Telemetry and AI Report', async ({ browser }) => {
   await page.screenshot({ path: 'bot-report.png', fullPage: true });
   console.log("Done! Check bot-report.png");
 });
+

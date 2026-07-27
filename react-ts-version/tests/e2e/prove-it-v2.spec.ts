@@ -10,10 +10,8 @@ test('Prove Diagnostic Reports Generation v2', async ({ browser }) => {
 
   // Disable driver.js tours
   await context.addInitScript(() => {
-    window.localStorage.setItem('mathmaticore_has_seen_tour', 'true');
-    window.localStorage.setItem('mathmaticore_has_seen_admin_tour', 'true');
-    window.localStorage.setItem('mathmaticore_has_seen_teacher_tour', 'true');
-  });
+    (window as any).__E2E_BYPASS_TOUR__ = true;
+    });
 
   // 1. Login as Admin via UI (admin has absolute permission to write to any path)
   console.log("Logging in admin via UI...");
@@ -29,6 +27,9 @@ test('Prove Diagnostic Reports Generation v2', async ({ browser }) => {
   // 2. Call SocraticEngine directly with student_user1 from the admin page context
   console.log("Triggering SocraticEngine.generateAndQueueTasks as admin...");
   await page.evaluate(async () => {
+    const auth = (window as any).firebaseAuth;
+    console.log("Current Auth User Email in Page Context:", auth?.currentUser?.email);
+
     const qMatrix = {
       task1_zero_placeholder: 'success',
       task2_estimation_error_margin: 'success',
@@ -95,3 +96,4 @@ test('Prove Diagnostic Reports Generation v2', async ({ browser }) => {
   await page.screenshot({ path: 'diagnostic-proof.png', fullPage: true });
   console.log("Screenshot taken: diagnostic-proof.png");
 });
+

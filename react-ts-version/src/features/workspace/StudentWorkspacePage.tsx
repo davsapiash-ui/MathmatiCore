@@ -56,6 +56,7 @@ export function StudentWorkspacePage() {
   const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
   const flowStatus = useWorkspaceStore((s) => s.flowStatus);
   const qflow = useWorkspaceStore((s) => s.qflow);
+  const aiSocraticHint = useWorkspaceStore((s) => s.aiSocraticHint);
   const user = useAuthStore((s) => s.user);
 
   // Start telemetry session so the radar tracker is active
@@ -436,9 +437,9 @@ export function StudentWorkspacePage() {
         <HelpOverlays />
         <StudentChatOverlay />
         
-        {useWorkspaceStore((s) => s.aiSocraticHint) && (
+        {aiSocraticHint && (
           <GraphicOrganizerHint 
-            hint={useWorkspaceStore.getState().aiSocraticHint!} 
+            hint={aiSocraticHint} 
             onClose={() => useWorkspaceStore.setState({ aiSocraticHint: null, helpState: 'closed' })}
           />
         )}
