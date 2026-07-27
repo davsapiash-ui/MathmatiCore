@@ -18,8 +18,8 @@ export function PhysicalOverrideControl({ student }: Props) {
 
   if (!student) return null;
 
-  const handleSaveOverride = async (enableOverride: boolean | React.SyntheticEvent = true) => {
-    const activeState = typeof enableOverride === 'boolean' ? enableOverride : true;
+  const handleSaveOverride = async (enableOverrideArg?: boolean | React.SyntheticEvent) => {
+    const activeState = typeof enableOverrideArg === 'boolean' ? enableOverrideArg : true;
     const studentId = student?.studentId || (student as any)?.student?.studentId;
     if (!studentId) return;
 
