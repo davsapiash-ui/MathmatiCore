@@ -1,4 +1,4 @@
-import { KeyboardState } from '../types';
+import type { KeyboardState } from '../types';
 
 export type SystemEvent = 
   | { type: 'BLOCK_GROUP_SUCCESS' }
