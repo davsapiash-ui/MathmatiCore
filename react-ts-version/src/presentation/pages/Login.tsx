@@ -51,6 +51,17 @@ export function Login() {
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       const currentUser = result.user;
+      const email = (currentUser.email || "").toLowerCase().trim();
+      const domain = email.split('@')[1] || "";
+
+      const isAllowedDomain = domain === "edu-haifa.org.il" || email.endsWith("@mathmaticore.local");
+      if (!isAllowedDomain) {
+        setIsLoggingIn(false);
+        setErrorMsg(`גישת מורה נדחתה: החשבון (${email}) אינו מורשה. הגישה מורשית אך ורק לחשבונות מחוז חיפה (@edu-haifa.org.il).`);
+        await auth.signOut();
+        return;
+      }
+
       if (currentUser) {
         try {
           const { getFunctions, httpsCallable } = await import("firebase/functions");
@@ -64,16 +75,18 @@ export function Login() {
         setUser({
           uid: currentUser.uid,
           role: "teacher",
-          displayName: currentUser.displayName || currentUser.email || "מורה",
+          displayName: currentUser.displayName || email || "מורה",
         }, "teacher");
         login("teacher", currentUser.uid);
         navigate("/dashboard", { replace: true });
       }
     } catch (err: any) {
-      if (err.code !== 'auth/popup-closed-by-user') {
+      setIsLoggingIn(false);
+      if (err?.code === 'auth/operation-not-allowed') {
+        setErrorMsg("הזדהות Google SSO אינה מופעלת ב-Firebase Console. אנא הזן דוא\"ל מורה וסיסמה להתחברות.");
+      } else if (err?.code !== 'auth/popup-closed-by-user') {
         setErrorMsg("שגיאה בהתחברות Google SSO: " + (err.message || err.code));
       }
-      setIsLoggingIn(false);
     }
   };
 
@@ -426,83 +439,44 @@ export function Login() {
                         </div>
                       )}
                       {selectedRole === "teacher" && (
-                        <div className="flex flex-col gap-3">
-                          <div className="flex border-b border-ws-surface2 mb-1 gap-2">
-                            <button
-                              type="button"
-                              onClick={() => setTeacherMode("sso")}
-                              className={`pb-2 px-2 text-sm font-bold border-b-2 transition-colors ${
-                                teacherMode === "sso"
-                                  ? "border-[hsl(var(--ws-blue))] text-[hsl(var(--ws-blue))]"
-                                  : "border-transparent text-ws-soft hover:text-ws-ink"
-                              }`}
-                            >
-                              התחברות SSO מחוזי
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setTeacherMode("taz")}
-                              className={`pb-2 px-2 text-sm font-bold border-b-2 transition-colors ${
-                                teacherMode === "taz"
-                                  ? "border-[hsl(var(--ws-blue))] text-[hsl(var(--ws-blue))]"
-                                  : "border-transparent text-ws-soft hover:text-ws-ink"
-                              }`}
-                            >
-                              ת"ז ותאריך לידה
-                            </button>
+                        <div className="flex flex-col gap-4">
+                          <button
+                            type="button"
+                            onClick={handleTeacherGoogleSSO}
+                            disabled={isLoggingIn}
+                            className="ws-btn-primary w-full flex items-center justify-center gap-3 p-4 rounded-2xl font-display font-extrabold text-base transition-all shadow-md hover:shadow-lg active:scale-98"
+                          >
+                            <span className="text-xl">🌐</span>
+                            <span>{isLoggingIn ? "מתחבר ב-Google SSO..." : "כניסת מורה ב-Google SSO (@edu-haifa.org.il)"}</span>
+                          </button>
+
+                          <div className="relative my-1 flex items-center justify-center">
+                            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200" /></div>
+                            <span className="relative bg-white px-3 text-xs text-slate-400 font-bold">או כניסה בדוא"ל מורשה</span>
                           </div>
 
-                          {teacherMode === "sso" ? (
-                            <>
-                              <input
-                                type="email"
-                                placeholder="כתובת דוא&quot;ל מורה (@edu-haifa.org.il)"
-                                value={teacherEmail}
-                                onChange={(e) => setTeacherEmail(e.target.value)}
-                                className={inputClass}
-                                autoFocus
-                              />
-                              <input
-                                type="password"
-                                placeholder="סיסמה"
-                                value={teacherPassword}
-                                onChange={(e) => setTeacherPassword(e.target.value)}
-                                className={inputClass}
-                              />
-                              <button
-                                type="submit"
-                                disabled={isLoggingIn}
-                                className="ws-btn-primary w-full flex items-center justify-center gap-2 p-4 rounded-full font-display font-extrabold text-base transition-all disabled:opacity-60 shadow-lg mt-1"
-                              >
-                                {isLoggingIn ? "מתחבר..." : "כניסת מורה ב-SSO מחוזי"}
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <input
-                                type="text"
-                                placeholder="תעודת זהות"
-                                value={taz}
-                                onChange={(e) => setTaz(e.target.value)}
-                                className={inputClass}
-                                autoFocus
-                              />
-                              <input
-                                type="password"
-                                placeholder="תאריך לידה (6 ספרות, במבנה יום-חודש-שנה)"
-                                value={dob}
-                                onChange={(e) => setDob(e.target.value)}
-                                className={inputClass}
-                              />
-                              <button
-                                type="submit"
-                                disabled={isLoggingIn}
-                                className="ws-btn-primary w-full flex items-center justify-center gap-2 p-4 rounded-full font-display font-extrabold text-base transition-all disabled:opacity-60 shadow-lg mt-1"
-                              >
-                                {isLoggingIn ? "מתחבר..." : "כניסת מורה לפי ת\"ז"}
-                              </button>
-                            </>
-                          )}
+                          <input
+                            type="email"
+                            placeholder="כתובת דוא&quot;ל מורה (@edu-haifa.org.il)"
+                            value={teacherEmail}
+                            onChange={(e) => setTeacherEmail(e.target.value)}
+                            className={inputClass}
+                          />
+                          <input
+                            type="password"
+                            placeholder="סיסמה"
+                            value={teacherPassword}
+                            onChange={(e) => setTeacherPassword(e.target.value)}
+                            className={inputClass}
+                          />
+
+                          <button
+                            type="submit"
+                            disabled={isLoggingIn}
+                            className="w-full p-3.5 rounded-2xl bg-slate-800 hover:bg-slate-900 text-white font-bold text-sm transition-all shadow-sm active:scale-98 disabled:opacity-60"
+                          >
+                            {isLoggingIn ? "מתחבר..." : "כניסת מורה בדוא\"ל"}
+                          </button>
                         </div>
                       )}
                     </div>
