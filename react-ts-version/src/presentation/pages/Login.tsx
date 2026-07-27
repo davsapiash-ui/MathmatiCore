@@ -408,34 +408,6 @@ export function Login() {
                             <span className="text-xl">🌐</span>
                             <span>{isLoggingIn ? "מתחבר ב-Google SSO..." : "כניסת מנהל ב-Google SSO (@edu-haifa.org.il)"}</span>
                           </button>
-
-                          <div className="relative my-1 flex items-center justify-center">
-                            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200" /></div>
-                            <span className="relative bg-white px-3 text-xs text-slate-400 font-bold">או כניסה בדוא"ל מורשה</span>
-                          </div>
-
-                          <input
-                            type="email"
-                            placeholder="כתובת דוא&quot;ל מנהל (@edu-haifa.org.il)"
-                            value={adminEmail}
-                            onChange={(e) => setAdminEmail(e.target.value)}
-                            className={inputClass}
-                          />
-                          <input
-                            type="password"
-                            placeholder="סיסמה"
-                            value={adminPassword}
-                            onChange={(e) => setAdminPassword(e.target.value)}
-                            className={inputClass}
-                          />
-
-                          <button
-                            type="submit"
-                            disabled={isLoggingIn}
-                            className="w-full p-3.5 rounded-2xl bg-slate-800 hover:bg-slate-900 text-white font-bold text-sm transition-all shadow-sm active:scale-98 disabled:opacity-60"
-                          >
-                            {isLoggingIn ? "מתחבר..." : "כניסת מנהל בדוא\"ל"}
-                          </button>
                         </div>
                       )}
                       {selectedRole === "teacher" && (
@@ -448,34 +420,6 @@ export function Login() {
                           >
                             <span className="text-xl">🌐</span>
                             <span>{isLoggingIn ? "מתחבר ב-Google SSO..." : "כניסת מורה ב-Google SSO (@edu-haifa.org.il)"}</span>
-                          </button>
-
-                          <div className="relative my-1 flex items-center justify-center">
-                            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200" /></div>
-                            <span className="relative bg-white px-3 text-xs text-slate-400 font-bold">או כניסה בדוא"ל מורשה</span>
-                          </div>
-
-                          <input
-                            type="email"
-                            placeholder="כתובת דוא&quot;ל מורה (@edu-haifa.org.il)"
-                            value={teacherEmail}
-                            onChange={(e) => setTeacherEmail(e.target.value)}
-                            className={inputClass}
-                          />
-                          <input
-                            type="password"
-                            placeholder="סיסמה"
-                            value={teacherPassword}
-                            onChange={(e) => setTeacherPassword(e.target.value)}
-                            className={inputClass}
-                          />
-
-                          <button
-                            type="submit"
-                            disabled={isLoggingIn}
-                            className="w-full p-3.5 rounded-2xl bg-slate-800 hover:bg-slate-900 text-white font-bold text-sm transition-all shadow-sm active:scale-98 disabled:opacity-60"
-                          >
-                            {isLoggingIn ? "מתחבר..." : "כניסת מורה בדוא\"ל"}
                           </button>
                         </div>
                       )}
