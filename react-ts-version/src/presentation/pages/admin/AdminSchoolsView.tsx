@@ -56,7 +56,8 @@ export function AdminSchoolsView() {
     }
     const schoolTeachers = teachers.filter(t => t.schoolId === schoolId);
     if (schoolTeachers.length >= 1) {
-      alert("לפי מפרט הפיילוט (סעיף 5.6), מוגדר מורה מוביל אחד לכל מוסד חינוכי.");
+      alert("לפי מפרט הפיילוט (סעיף 5.6), מוגדר מורה מוביל אחד בלבד לכל מוסד חינוכי.");
+      return;
     }
     const isEmail = teacherForm.taz.includes('@');
     const isValidTaz = teacherForm.taz.trim().length >= 8;

@@ -24,7 +24,7 @@ export function AdminSecurityView() {
             <div className="flex justify-between items-center p-4 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-950">
               <div>
                 <p className="font-bold text-slate-800 dark:text-slate-200">Google Workspace for Education</p>
-                <p className="text-xs text-slate-500">סטטוס: פעיל ומקושר ל-12 מוסדות</p>
+                <p className="text-xs text-slate-500">מגבלת דומיין קשיחה: @edu-haifa.org.il (פעיל ומאובטח)</p>
               </div>
               <UdlButton variant="outline" semanticColor="neutral" className="text-sm">הגדרות</UdlButton>
             </div>

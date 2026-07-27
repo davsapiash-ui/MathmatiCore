@@ -129,18 +129,25 @@ export function Login() {
       }
     } else if (selectedRole === "teacher") {
       if (teacherMode === "sso") {
-        if (!teacherEmail.trim()) {
+        const email = teacherEmail.trim().toLowerCase();
+        if (!email) {
           setErrorMsg("אנא הזן כתובת דוא\"ל מורה.");
+          return;
+        }
+        const domain = email.split('@')[1] || "";
+        const isAllowedDomain = domain === "edu-haifa.org.il" || email.endsWith("@mathmaticore.local");
+        if (!isAllowedDomain) {
+          setErrorMsg(`גישת מורה נדחתה: החשבון (${email}) אינו מורשה. הגישה מורשית אך ורק לחשבונות מחוז חיפה (@edu-haifa.org.il).`);
           return;
         }
         setIsLoggingIn(true);
         const passToUse = teacherPassword.trim() || "10203040";
-        await performFirebaseAuth(teacherEmail.trim(), passToUse);
-        const teacherId = teacherEmail.trim().split('@')[0];
+        await performFirebaseAuth(email, passToUse);
+        const teacherId = email.split('@')[0];
         setUser({
           uid: teacherId,
           role: "teacher",
-          displayName: `מורה (${teacherEmail})`,
+          displayName: `מורה (${email})`,
         }, "teacher");
         login("teacher", teacherId);
         navigate("/dashboard", { replace: true });
@@ -199,26 +206,32 @@ export function Login() {
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       const currentUser = result.user;
+      const email = (currentUser.email || "").toLowerCase().trim();
+      const domain = email.split('@')[1] || "";
+
+      // PRD Section 5.3 & 5.6: Domain Constraint & Whitelist Verification
+      const allowedAdminEmails = ["davidsep@edu-haifa.org.il", "1002220159@edu-haifa.org.il", "admin@mathmaticore.local"];
+      const isAllowedAdmin = allowedAdminEmails.includes(email) || domain === "edu-haifa.org.il";
+
+      if (!isAllowedAdmin) {
+        setIsLoggingIn(false);
+        setErrorMsg(`גישת מנהל נדחתה: החשבון (${email}) אינו מורשה כמנהל. הגישה מורשית אך ורק לחשבונות מחוז חיפה (@edu-haifa.org.il).`);
+        await auth.signOut();
+        return;
+      }
       
       const userRoles = ["admin", "teacher"];
       setUser({
         uid: currentUser.uid,
         role: userRoles,
-        displayName: currentUser.displayName || currentUser.email || "מנהל מערכת ראשי",
+        displayName: currentUser.displayName || email || "מנהל מערכת ראשי",
       }, userRoles);
       login("admin", currentUser.uid);
       navigate("/admin", { replace: true });
     } catch (err: any) {
-      console.warn("Google SSO Popup note (falling back to direct admin login):", err);
-      // Fail-safe fallback so Google SSO button also logs in cleanly in demo/dev mode
-      const userRoles = ["admin", "teacher"];
-      setUser({
-        uid: "admin_sso_fallback",
-        role: userRoles,
-        displayName: "מנהל מערכת (Google SSO)",
-      }, userRoles);
-      login("admin", "admin_sso_fallback");
-      navigate("/admin", { replace: true });
+      console.warn("Google SSO note:", err);
+      setIsLoggingIn(false);
+      setErrorMsg(`שגיאת הזדהות ב-Google SSO: ${err?.message || 'התחברות נכשלה'}`);
     }
   };
 
@@ -371,7 +384,7 @@ export function Login() {
                         <div className="flex flex-col gap-3">
                           <input
                             type="email"
-                            placeholder="דוא&quot;ל מנהל (לדוגמה: admin@mathmaticore.local)"
+                            placeholder="הזן דוא&quot;ל מנהל מורשה (@edu-haifa.org.il)"
                             value={adminEmail}
                             onChange={(e) => setAdminEmail(e.target.value)}
                             className={inputClass}
@@ -379,7 +392,7 @@ export function Login() {
                           />
                           <input
                             type="password"
-                            placeholder="סיסמה (ברירת מחדל: 10203040)"
+                            placeholder="הזן סיסמה"
                             value={adminPassword}
                             onChange={(e) => setAdminPassword(e.target.value)}
                             className={inputClass}
@@ -405,7 +418,7 @@ export function Login() {
                                   : "border-transparent text-ws-soft hover:text-ws-ink"
                               }`}
                             >
-                              דוא"ל / SSO (לפי אפיון PRD)
+                              התחברות SSO מחוזי
                             </button>
                             <button
                               type="button"
@@ -416,7 +429,7 @@ export function Login() {
                                   : "border-transparent text-ws-soft hover:text-ws-ink"
                               }`}
                             >
-                              ת"ז ותאריך לידה (חלופה)
+                              ת"ז ותאריך לידה
                             </button>
                           </div>
 
@@ -424,7 +437,7 @@ export function Login() {
                             <>
                               <input
                                 type="email"
-                                placeholder="כתובת דוא&quot;ל מורה (לדוגמה: teacher_sso@domain.edu)"
+                                placeholder="הזן כתובת דוא&quot;ל מורה (@edu-haifa.org.il)"
                                 value={teacherEmail}
                                 onChange={(e) => setTeacherEmail(e.target.value)}
                                 className={inputClass}
@@ -432,7 +445,7 @@ export function Login() {
                               />
                               <input
                                 type="password"
-                                placeholder="סיסמה (ברירת מחדל: 10203040)"
+                                placeholder="הזן סיסמה"
                                 value={teacherPassword}
                                 onChange={(e) => setTeacherPassword(e.target.value)}
                                 className={inputClass}
