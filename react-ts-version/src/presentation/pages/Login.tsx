@@ -36,9 +36,9 @@ export function Login() {
   const [school, setSchool] = useState("");
   const [classroom, setClassroom] = useState("");
   const [teacherMode, setTeacherMode] = useState<"sso" | "taz">("sso");
-  const [teacherEmail, setTeacherEmail] = useState("teacher_sso@domain.edu");
+  const [teacherEmail, setTeacherEmail] = useState("");
   const [teacherPassword, setTeacherPassword] = useState("");
-  const [adminEmail, setAdminEmail] = useState("admin@mathmaticore.local");
+  const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
   const [taz, setTaz] = useState("");
   const [dob, setDob] = useState("");

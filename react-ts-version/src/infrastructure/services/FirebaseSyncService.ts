@@ -88,13 +88,15 @@ export class FirebaseSyncService {
     this.syncSharedListeners(initialAuth.isAuthenticated);
 
     if (initialAuth.isAuthenticated && initialAuth.user) {
-      if (initialAuth.role === 'student') {
+      const initialRoles = Array.isArray(initialAuth.role) ? initialAuth.role : [initialAuth.role];
+      if (initialRoles.includes('student')) {
         const userId = initialAuth.user.uid || initialAuth.user.id || initialAuth.user.email?.split('@')[0];
         if (userId) {
           this.currentUserId = userId;
           this.startSync(userId, initialAuth.user);
         }
-      } else if (initialAuth.role === 'admin') {
+      }
+      if (initialRoles.includes('admin')) {
         this.startAdminSync();
       }
     }
@@ -103,7 +105,11 @@ export class FirebaseSyncService {
     useAuthStore.subscribe((authState) => {
       this.syncSharedListeners(authState.isAuthenticated);
 
-      if (authState.isAuthenticated && authState.user && authState.role === 'student') {
+      const authRoles = Array.isArray(authState.role) ? authState.role : [authState.role];
+      const isStudent = authRoles.includes('student');
+      const isAdmin = authRoles.includes('admin');
+
+      if (authState.isAuthenticated && authState.user && isStudent) {
         const newUserId = authState.user.uid || authState.user.id || authState.user.email?.split('@')[0];
         if (newUserId && newUserId !== this.currentUserId) {
           this.currentUserId = newUserId;
@@ -113,7 +119,7 @@ export class FirebaseSyncService {
         this.stopSync();
       }
 
-      if (authState.isAuthenticated && authState.role === 'admin') {
+      if (authState.isAuthenticated && isAdmin) {
         this.startAdminSync();
       } else {
         this.stopAdminSync();
