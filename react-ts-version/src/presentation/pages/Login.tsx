@@ -231,7 +231,11 @@ export function Login() {
     } catch (err: any) {
       console.warn("Google SSO note:", err);
       setIsLoggingIn(false);
-      setErrorMsg(`שגיאת הזדהות ב-Google SSO: ${err?.message || 'התחברות נכשלה'}`);
+      if (err?.code === 'auth/operation-not-allowed') {
+        setErrorMsg("הזדהות Google SSO אינה מופעלת ב-Firebase Console. אנא הזן דוא\"ל מנהל וסיסמה להתחברות.");
+      } else {
+        setErrorMsg(`שגיאת הזדהות: ${err?.message || 'התחברות נכשלה'}`);
+      }
     }
   };
 
@@ -397,10 +401,16 @@ export function Login() {
                             onChange={(e) => setAdminPassword(e.target.value)}
                             className={inputClass}
                           />
+
+                          <div className="relative my-2 flex items-center justify-center">
+                            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200" /></div>
+                            <span className="relative bg-white px-3 text-xs text-slate-400 font-bold">או</span>
+                          </div>
+
                           <button
                             type="button"
                             onClick={handleAdminGoogleSSO}
-                            className="w-full mt-1 p-3 rounded-2xl bg-white border-2 border-slate-200 text-slate-700 font-bold text-sm flex items-center justify-center gap-2 hover:bg-slate-50 transition-all shadow-sm"
+                            className="w-full p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-sm active:scale-98"
                           >
                             <span>🌐</span> התחברות באמצעות Google SSO
                           </button>
