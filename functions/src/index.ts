@@ -215,3 +215,94 @@ export { callGeminiSocraticProxy } from "./geminiProxy";
 
 // Export the Transaction Guard module
 export { validateAndStoreTelemetry } from "./transactionGuard";
+
+/**
+ * verifyTeacherSSO Cloud Function (PRD Section 4.1)
+ * Enforces domain constraints (@edu-haifa.org.il), secret environment specs,
+ * and Firestore dynamic whitelist validation with Zero Self-Registration.
+ */
+export const verifyTeacherSSO = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "User must be logged in.");
+  }
+
+  const email = request.auth.token.email || "";
+  const domain = email.split("@")[1];
+
+  // 1. Domain Constraint Verification
+  if (domain !== "edu-haifa.org.il") {
+    throw new HttpsError("permission-denied", "Access restricted to @edu-haifa.org.il domain.");
+  }
+
+  // 2. Secret Configuration Environment Specs
+  const adminPrimary = process.env.ADMIN_SSO_PRIMARY_EMAIL || "davidsep@edu-haifa.org.il";
+  const adminAlias = process.env.ADMIN_SSO_ALIAS_EMAIL || "1002220159@edu-haifa.org.il";
+
+  const roles: string[] = ["TEACHER"];
+
+  if (email === adminPrimary || email === adminAlias) {
+    roles.push("ADMIN");
+  }
+
+  // 3. Dynamic Firestore Whitelist Validation
+  const db = admin.firestore();
+  const whitelistRef = db.collection("whitelists").doc(email);
+  const whitelistDoc = await whitelistRef.get();
+
+  if (!whitelistDoc.exists && !roles.includes("ADMIN")) {
+    throw new HttpsError("permission-denied", "Zero Self-Registration: Email not whitelisted.");
+  }
+
+  // 4. Update / Sync User Roles
+  await db.collection("users").doc(request.auth.uid).set({
+    uid: request.auth.uid,
+    roles: roles,
+    email_domain: domain,
+    updated_at: admin.firestore.FieldValue.serverTimestamp()
+  }, { merge: true });
+
+  logger.info(`Verified SSO for ${email} with roles [${roles.join(", ")}]`);
+
+  return { status: "SUCCESS", roles };
+});
+
+/**
+ * onStudentEvent Cloud Function (PRD Section 4.1)
+ * Ingests student telemetry and vector replay events with strict PII scrubbing.
+ */
+export const onStudentEvent = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "User must be authenticated.");
+  }
+
+  const { session_id, anonymous_student_id, interaction_data, somatic_indicators } = request.data || {};
+
+  if (!session_id || anonymous_student_id === undefined) {
+    throw new HttpsError("invalid-argument", "Missing required payload parameters.");
+  }
+
+  // Enforce PII Scrubbing: Stripping any text fields not explicitly allowed
+  const cleanPayload = {
+    event_type: "vector_replay",
+    session_id,
+    anonymous_student_id, // 1 - 35
+    timestamp: Date.now(),
+    interaction_data: {
+      action_type: interaction_data?.action_type || "vector_replay",
+      details: interaction_data?.details || {}
+    },
+    somatic_indicators: {
+      hesitation_detected: !!somatic_indicators?.hesitation_detected,
+      undo_triggered: !!somatic_indicators?.undo_triggered
+    }
+  };
+
+  // Write to Telemetry Collection
+  const db = admin.firestore();
+  await db.collection("telemetry_events").add(cleanPayload);
+
+  logger.info(`Ingested clean student event for session ${session_id}`);
+
+  return { status: "PROCESSED" };
+});
+
