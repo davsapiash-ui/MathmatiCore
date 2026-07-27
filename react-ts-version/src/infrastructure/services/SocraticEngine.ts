@@ -33,19 +33,35 @@ export class SocraticEngine {
     traceData?: { hesitation_events: number; undo_clicks: number }
   ): Promise<SocraticHintResponse | null> {
     await ready();
-    const generateHint = httpsCallable(functions, "generateSocraticHint");
-    try {
-      const result = await generateHint({
-        currentTask,
-        targetNode,
-        counts,
-        traceData
-      });
-      return result.data as SocraticHintResponse;
-    } catch (error) {
-      console.error("Failed to generate Socratic hint", error);
-      return null;
-    }
+    // Zero-Generation Policy: Fetch from hardcoded Q-Matrix based on targetNode
+    const Q_MATRIX_HINTS: Record<string, SocraticHintResponse> = {
+      "q_matrix_general": {
+        questionHe: "שמנו לב שנסית כמה פעמים. מה הצעד הבא שתרצה לבצע?",
+        choices: [
+          { id: "opt_1", textHe: "לפרוט עשרת אחת ל-10 יחידות" },
+          { id: "opt_2", textHe: "לקבץ 10 יחידות לעשרת אחת" },
+          { id: "opt_3", textHe: "לבדוק שוב את החישוב בבית המספרים" }
+        ]
+      },
+      "subtraction_regrouping": {
+        questionHe: "חסרות לנו יחידות בלוח כדי לחסר. מה אפשר לעשות?",
+        choices: [
+          { id: "opt_1", textHe: "לקחת קוביית עשרת ולפרוט אותה ל-10 יחידות" },
+          { id: "opt_2", textHe: "להוסיף קוביות יחידה מהמחסן" },
+          { id: "opt_3", textHe: "לחסר מלמטה למעלה" }
+        ]
+      },
+      "addition_regrouping": {
+        questionHe: "יש לנו יותר מ-9 קוביות באותו טור. מה עושים?",
+        choices: [
+          { id: "opt_1", textHe: "מקריפים (אורזים) 10 קוביות לבלוק גדול יותר" },
+          { id: "opt_2", textHe: "מוחקים את הקוביות המיותרות" },
+          { id: "opt_3", textHe: "מעבירים אותן סתם לטור אחר" }
+        ]
+      }
+    };
+
+    return Q_MATRIX_HINTS[targetNode] || Q_MATRIX_HINTS["q_matrix_general"];
   }
 
   static async generateAndQueueTasks(

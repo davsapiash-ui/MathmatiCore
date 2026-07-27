@@ -86,12 +86,19 @@ export function NumberLineTask({
   const majorTicks: number[] = [];
   for (let t = min; t <= max; t += majorStep) majorTicks.push(t);
 
-  if (sessionNumber === 8) {
+  const isFullScreenFocus = sessionNumber === 7;
+
+  if (sessionNumber === 1 || sessionNumber === 8) {
     return null;
   }
 
   return (
-    <div className="mt-6 select-none relative" dir="ltr">
+    <div className={isFullScreenFocus ? "my-8 p-6 bg-white/95 backdrop-blur rounded-2xl shadow-xl border-2 border-ws-accent/30 min-h-[180px] flex flex-col justify-center select-none relative" : "mt-6 select-none relative"} dir="ltr">
+      {isFullScreenFocus && (
+        <div className="mb-4 text-center font-bold text-ws-ink text-lg" dir="rtl">
+          🎯 אומדן ומיקום על ישר המספרים (מיקוד מסך מלא)
+        </div>
+      )}
       <AnimatePresence>
         {showBeePreview && (
           <motion.div
@@ -114,7 +121,7 @@ export function NumberLineTask({
         aria-valuemax={max}
         aria-valuenow={displayValue}
         tabIndex={0}
-        className="relative h-20 cursor-pointer touch-none"
+        className={isFullScreenFocus ? "relative h-28 cursor-pointer touch-none" : "relative h-20 cursor-pointer touch-none"}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onKeyDown={(e) => {

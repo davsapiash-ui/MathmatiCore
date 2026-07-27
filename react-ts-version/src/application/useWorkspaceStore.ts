@@ -39,6 +39,16 @@ import type { SocraticHintResponse } from '@/infrastructure/services/SocraticEng
 
 const UNDO_STACK_CAP = 50;
 
+const DEFAULT_SOCRATIC_HINT: SocraticHintResponse = {
+  questionHe: 'שמנו לב שנסית כמה פעמים. מה הצעד הבא שתרצה לבצע?',
+  choices: [
+    { id: 'opt_1', textHe: 'לפרוט עשרת אחת ל-10 יחידות' },
+    { id: 'opt_2', textHe: 'לקבץ 10 יחידות לעשרת אחת' },
+    { id: 'opt_3', textHe: 'לבדוק שוב את החישוב בבית המספרים' }
+  ]
+};
+
+
 export type SessionNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 export type SupportType = 'metacognitive' | 'socratic' | 'worked_example';
 export type HelpState = 'closed' | 'friction' | 'palette' | SupportType;
@@ -301,8 +311,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     set(resetTaskInteraction());
 
     const s = get();
-    // Strict CRA Bridge: lock keyboard in ASD mode
-    set({ keyboardState: s.isASD ? 'LOCKED' : 'UNLOCKED' });
+    // Strict CRA Bridge: lock keyboard in ASD mode, UNLESS in Session 2 (pure diagnostic, no scaffolding)
+    set({ keyboardState: s.isASD && s.sessionNumber !== 2 ? 'LOCKED' : 'UNLOCKED' });
 
     // Auto-close the board if the incoming task is a number_line task
     let isNumberLine = false;
@@ -978,7 +988,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       let shouldTriggerSocratic = false;
       let isSevere = false; // session 8
 
-      if (s.sessionNumber === 6) {
+      if (s.sessionNumber === 2) {
+        shouldTriggerSocratic = false; // PRD: No scaffolding or help in Session 2
+      } else if (s.sessionNumber === 6) {
         // 4 clicks in 15 seconds
         const recentUndos = newUndoTimestamps.filter(t => now - t <= 15000);
         if (recentUndos.length >= 4) {
@@ -998,6 +1010,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         }
       }
 
+      const stack = [...s.undoStack];
+      const snapshot = stack.pop();
+
       if (shouldTriggerSocratic) {
         set({ undoTimestamps: [] }); // Reset after triggering
         
@@ -1006,12 +1021,18 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           AuditLogger.log('PASSIVE_DRIFTING', studentId, 'Frequent undos detected');
         }
 
+        if (snapshot) {
+          set({ 
+            counts: snapshot.counts, 
+            undoStack: stack, 
+            undoCount: s.undoCount + 1,
+            undoTimestamps: []
+          });
+        }
         s.setKeyboardSocratic();
         return;
       }
 
-      const stack = [...s.undoStack];
-      const snapshot = stack.pop();
       if (!snapshot) {
         set({ undoTimestamps: newUndoTimestamps });
         return;
@@ -1198,7 +1219,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       if (s.aiSocraticHint !== null) return; // Already fetched
       
       const currentTask = getActiveTasks(s)[s.standardTaskIdx];
-      if (!currentTask || !currentTask.targetNode) return;
+      const targetNode = currentTask?.targetNode || 'q_matrix_general';
       
       try {
         const { SocraticEngine } = await import('@/infrastructure/services/SocraticEngine');
@@ -1209,16 +1230,22 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         };
         
         const hint = await SocraticEngine.getSocraticHint(
-          currentTask,
-          currentTask.targetNode,
+          currentTask || {},
+          targetNode,
           s.counts,
           traceData
         );
         
-        set({ aiSocraticHint: hint });
+        if (hint) {
+          set({ aiSocraticHint: hint });
+        } else if (!get().aiSocraticHint) {
+          set({ aiSocraticHint: DEFAULT_SOCRATIC_HINT });
+        }
       } catch (error) {
         console.error("LLM Socratic Hint failed. Falling back to static hints.", error);
-        set({ aiSocraticHint: null });
+        if (!get().aiSocraticHint) {
+          set({ aiSocraticHint: DEFAULT_SOCRATIC_HINT });
+        }
       }
     },
 
@@ -1226,6 +1253,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     requestHelp: () => {
       const s = get();
       if (s.helpState !== 'closed') return;
+      if (s.sessionNumber === 2) return; // PRD: No help in Session 2
       if (Date.now() - s.taskStartTime < 10000) return; // 10s delay before help is available
       
       const studentId = useAuthStore.getState().user?.uid;
@@ -1263,7 +1291,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     showFeedback,
     unlockKeyboard: () => set({ keyboardState: 'UNLOCKED' }),
     lockKeyboard: () => set({ keyboardState: 'LOCKED' }),
-    setKeyboardSocratic: () => set({ keyboardState: 'SOCRATIC_ONLY' }),
+    setKeyboardSocratic: () => {
+      set((s) => ({
+        keyboardState: 'SOCRATIC_ONLY',
+        aiSocraticHint: s.aiSocraticHint || DEFAULT_SOCRATIC_HINT
+      }));
+      get().fetchSocraticHint();
+    },
   };
 });
 

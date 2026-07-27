@@ -2,6 +2,7 @@ import { create } from 'zustand';
 
 import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
 import type { MasteryProfile } from '@/core/QMatrix';
+import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 
 export interface QMatrix {
   task1_zero_placeholder: string | null;
@@ -16,7 +17,7 @@ export interface QMatrix {
 
 export interface SemanticEvent {
   event_type: 'vector_replay';
-  session_id?: string;
+  session_id: string;
   timestamp: number;
   interaction_data: {
     action_type: string;
@@ -80,6 +81,10 @@ export interface SemanticEventLegacy {
   context?: string;
   state_snapshot?: string;
   q_matrix_node?: string;
+  session_id?: string;
+  coordinates?: { x: number; y: number };
+  block_type?: string;
+  duration_ms?: number;
 }
 
 export type LogEventPayload = SemanticEventLegacy | Omit<SemanticEvent, 'timestamp' | 'event_type'>;
@@ -270,9 +275,11 @@ export const useStore = create<AppState>()(
           let newEvent: SemanticEvent;
           
           if ('interaction_data' in event) {
+            const rawEvent = event as Omit<SemanticEvent, 'timestamp' | 'event_type'> & { session_id?: string };
             newEvent = { 
-              ...(event as Omit<SemanticEvent, 'timestamp' | 'event_type'>), 
+              ...rawEvent, 
               event_type: 'vector_replay', 
+              session_id: rawEvent.session_id || `session_1`,
               timestamp: Date.now() 
             } as SemanticEvent;
           } else {
@@ -282,17 +289,23 @@ export const useStore = create<AppState>()(
             if (actionType === 'drag_grouped') actionType = 'block_group_success';
             if (actionType === 'undo') actionType = 'undo_click';
             
+            const sessionNum = useWorkspaceStore.getState()?.sessionNumber || 1;
+
             newEvent = {
               event_type: 'vector_replay',
+              session_id: legacy.session_id || `session_${sessionNum}`,
               timestamp: Date.now(),
               interaction_data: {
                 action_type: actionType,
                 details: {
-                  element: legacy.element,
-                  target: legacy.target,
-                  context: legacy.context,
-                  state_snapshot: legacy.state_snapshot,
-                  q_matrix_node: legacy.q_matrix_node
+                  element: legacy.element || 'workspace_element',
+                  target: legacy.target || 'target_place',
+                  context: legacy.context || actionType,
+                  state_snapshot: legacy.state_snapshot || '',
+                  q_matrix_node: legacy.q_matrix_node || 'general',
+                  block_type: legacy.block_type || (legacy.element?.includes('hundreds') ? 'hundreds_block' : legacy.element?.includes('tens') ? 'tens_block' : legacy.element?.includes('units') ? 'units_block' : 'dines_block'),
+                  coordinates: legacy.coordinates || { x: 100, y: 200 },
+                  duration_ms: legacy.duration_ms || 350
                 }
               },
               somatic_indicators: {
@@ -302,12 +315,16 @@ export const useStore = create<AppState>()(
             };
           }
 
+          // Limit trace length to 40 events to guarantee < 50KB payload budget per PRD 5.2 & 6
+          const MAX_VECTOR_TRACE_LENGTH = 40;
+          const updatedTrace = [...currentTrace, newEvent].slice(-MAX_VECTOR_TRACE_LENGTH);
+
           const newTraceData = {
             ...students[studentId].traceData,
-            semantic_trace: [...currentTrace, newEvent]
+            semantic_trace: updatedTrace
           };
           students[studentId] = { ...students[studentId], traceData: newTraceData };
-          firebaseSyncService.syncTraceData(studentId, { semantic_trace: newTraceData.semantic_trace }).catch(console.error);
+          firebaseSyncService.syncTraceData(studentId, { semantic_trace: updatedTrace }).catch(console.error);
         }
         return { students };
       }),

@@ -483,3 +483,30 @@ When `deleteSchool` or `deleteTeacher` is triggered, the data must be deleted fr
 - [ ] סוכן-מבקר מוודא שב-`CurriculumRouter.ts` או ברכיבי המשימה קיימת לוגיקה שמסתירה סממנים ויזואליים כשהמפגש שווה ל-8.
 </USER_REQUEST>
 
+## Follow-up — 2026-07-27T01:59:10Z
+
+<USER_REQUEST>
+[בניית צוות סוכנים מקיף לביקורת קוד, הטמעת צד שרת וסוויטת טסטים מלאה ל-MathmatiCore.]
+
+Working directory: c:\Users\david\Projects\MathmatiCore
+Integrity mode: development
+
+## Requirements
+
+### R1. ביקורת קוד (Code Review) ו-QA
+ביצוע בחינה מדוקדקת ללוגיקות החדשות ב-`useWorkspaceStore.ts` (Soft Socratic Undo Thresholds), `NumberLineTask.tsx` (Fading Dynamics), ו-`useStore.ts` (Vector Replay Schema) מול `MathematiCOre_PRD.md`.
+
+### R2. מימוש צד השרת של SocraticEngine ב-Firebase
+כתיבת הפונקציות הנדרשות ב-Firebase (Cloud Functions) למנוע התיווך הסוקרטי בהתבסס על `SocraticEngine.ts` ועל ציפיות האפיון (סעיף 2).
+
+### R3. כתיבת בדיקות אוטומטיות (Automated Tests)
+כתיבת סוויטת בדיקות שמוודאת את פעילות מכונת המצבים החזותית (CRA Bridge), ספי הרגישות (Undo/Hesitation) ויצירת אירועי הטלמטריה במבנה התקין.
+
+## Acceptance Criteria
+
+### Verification
+- [ ] פונקציונליות צד-השרת מתועדת ונמצאת בתיקיית `functions` המוכנה ל-Deploy (או במיקום המתאים בשרת).
+- [ ] קיימים קבצי טסטים ל-`useWorkspaceStore` או בדיקות ספציפיות שבודקות את התנאים והמצבים באפיון.
+- [ ] מנגנון התיווך הסוקרטי משולב מקצה לקצה בהצלחה ומקיים את הדרישות.
+</USER_REQUEST>
+
