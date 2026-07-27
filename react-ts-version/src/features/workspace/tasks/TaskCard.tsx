@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useWorkspaceStore, selectStandardTask, effectiveArithmetic } from '@/application/useWorkspaceStore';
 import { getCurrentQTask, getEffectiveChoices, getEffectiveNumber, getEffectiveRange, isSubtaskActive } from '@/core/qmatrixFlow';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
@@ -139,11 +139,26 @@ export function TaskCard() {
         )}
 
         {sessionNumber === 2 && qTask && (
-          <>
+          <AnimatePresence mode="wait">
             {subtask ? (
-              <BackwardDiagnosisView task={qTask} qflow={qflow} isASD={isASD} />
+              <motion.div
+                key="subtask-view"
+                initial={{ opacity: 0, scale: 0.9, rotateX: 20 }}
+                animate={{ opacity: 1, scale: 1, rotateX: 0 }}
+                exit={{ opacity: 0, scale: 0.9, rotateX: -20 }}
+                transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+                className="bg-amber-50 dark:bg-amber-900/20 border-4 border-amber-300 rounded-[2rem] p-6 shadow-xl"
+              >
+                <BackwardDiagnosisView task={qTask} qflow={qflow} isASD={isASD} />
+              </motion.div>
             ) : (
-              <>
+              <motion.div
+                key="primary-view"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                className="flex flex-col gap-4"
+              >
                 {qTask.type === 'place_value_zero' && (
                   <div className="flex flex-col gap-4">
                     <div className="self-center bg-ws-accentSoft rounded-3xl px-10 py-5 border border-ws-accent/30">
@@ -199,9 +214,9 @@ export function TaskCard() {
                     isSubtraction={qTask.isSubtraction}
                   />
                 )}
-              </>
+              </motion.div>
             )}
-          </>
+          </AnimatePresence>
         )}
       </motion.div>
     </AccessibleCard>

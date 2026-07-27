@@ -36,6 +36,8 @@ import { StudentChatOverlay } from './overlays/StudentChatOverlay';
 import { AdditionHelper } from './board/AdditionHelper';
 
 import { SocraticEngine } from '@/infrastructure/services/SocraticEngine';
+import { GraphicOrganizerHint } from './overlays/GraphicOrganizerHint';
+import { useCognitiveHesitationRadar } from '@/application/useCognitiveHesitationRadar';
 
 /**
  * מרחב הפעילות של התלמיד — חוויית מסך מלא ממוקדת (100vh, ללא גלילה, ללא טיימרים).
@@ -230,8 +232,8 @@ export function StudentWorkspacePage() {
   const qTask = sessionNumber === 2 ? getCurrentQTask(qflow) : null;
   const hideValueDisplay = qTask?.type === 'number_line' && !isSubtaskActive(qflow);
 
-  // Redundant useSilentRadar removed here to prevent ghost alerts for non-students.
-
+  // Pedagogical Radar
+  useCognitiveHesitationRadar({ isActive: true });
   const [isInitializing, setIsInitializing] = useState(true);
   const [pendingApproval, setPendingApproval] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -392,15 +394,17 @@ export function StudentWorkspacePage() {
 
         <WorkspaceTopbar />
 
-        {/* Main 50/50 workspace */}
-        <main className="flex flex-row flex-1 overflow-hidden p-5 gap-5 max-w-[1600px] mx-auto w-full box-border">
-          {/* Task card (right in RTL) */}
-          <div className="flex-1 min-h-0 min-w-0 flex flex-col">
+        {/* Main 50/50 workspace (or centered in Session 8) */}
+        <main className={`flex flex-row flex-1 overflow-hidden p-5 gap-5 max-w-[1600px] mx-auto w-full box-border ${sessionNumber === 8 ? 'justify-center items-center' : ''}`}>
+          {/* Task card */}
+          <div className={`flex-1 min-h-0 min-w-0 flex flex-col ${sessionNumber === 8 ? 'max-w-3xl flex-none h-auto' : ''}`}>
             <TaskCard />
           </div>
 
-          {/* Place-value board (left in RTL) */}
-          <PlaceValueBoard hideValueDisplay={hideValueDisplay} />
+          {/* Place-value board (left in RTL, hidden in Session 8) */}
+          {sessionNumber !== 8 && (
+            <PlaceValueBoard hideValueDisplay={hideValueDisplay} />
+          )}
         </main>
 
         <AnimatePresence>
@@ -431,6 +435,13 @@ export function StudentWorkspacePage() {
         <FeedbackToast />
         <HelpOverlays />
         <StudentChatOverlay />
+        
+        {useWorkspaceStore((s) => s.aiSocraticHint) && (
+          <GraphicOrganizerHint 
+            hint={useWorkspaceStore.getState().aiSocraticHint!} 
+            onClose={() => useWorkspaceStore.setState({ aiSocraticHint: null, helpState: 'closed' })}
+          />
+        )}
 
         {isAdditionBoardEnabled && (
           <div className="fixed bottom-20 left-4 z-50 flex flex-col items-end gap-2" dir="rtl">

@@ -3,6 +3,7 @@ import { useChatStore } from '@/application/useChatStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useStore } from '@/application/useStore';
 import { useAdminStore } from '@/application/useAdminStore';
+import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { ImageIcon, BellRing } from 'lucide-react';
 
 export function StudentChatOverlay() {
@@ -74,9 +75,22 @@ export function StudentChatOverlay() {
 
   const handleCallTeacher = () => {
     if (!user?.uid) return;
-    const lastReceivedMsg = [...messages].reverse().find(m => m.receiverId === user.uid && m.senderId !== user.uid);
-    const activeTeacher = lastReceivedMsg ? lastReceivedMsg.senderId : targetTeacherId;
-    sendMessage(user.uid as string, String(user.displayName || user.email?.split('@')[0] || 'תלמיד'), activeTeacher as string, "🚨 המורה, אני זקוק/ה לעזרה!");
+    
+    // Silent alert to teacher dashboard via pedagogical radar
+    import('@/infrastructure/services/AuditLogger').then(({ AuditLogger }) => {
+      AuditLogger.log(
+        "CALL_FOR_HELP", 
+        user.uid as string, 
+        "Student explicitly called for teacher help via the silent button."
+      );
+    });
+
+    // Provide immediate local feedback to the student so they know it worked
+    useWorkspaceStore.getState().showFeedback({
+      correct: true, // blue/neutral toast
+      title: 'נשלחה קריאה',
+      sub: 'המורה קיבל את הבקשה שלך לעזרה ויגיע בקרוב.',
+    }, 3000);
   };
 
   return (

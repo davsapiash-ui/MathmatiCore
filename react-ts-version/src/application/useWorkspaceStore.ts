@@ -35,6 +35,7 @@ import { CurriculumRouter } from '@/core/CurriculumRouter';
 import { QMatrixEvaluator } from '@/core/QMatrix';
 import { getSessionTasks, type SessionTask } from '@/data/sessionTasks';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
+import type { SocraticHintResponse } from '@/infrastructure/services/SocraticEngine';
 
 const UNDO_STACK_CAP = 50;
 
@@ -86,7 +87,7 @@ interface WorkspaceState {
   carryDigits: Partial<Record<Place, string>>;
   probeAnswer: string;
   q3Reps: PlaceCounts[];
-  aiSocraticHint: string | null;
+  aiSocraticHint: SocraticHintResponse | null;
 
   // overlays
   feedback: FeedbackState | null;
@@ -397,7 +398,17 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
               const mastery = computeCognitiveMastery(realQMatrix);
               store.updateConceptMastery(studentId, mastery);
 
-              const realTraceData = { hesitation_events: get().hesitationCount, undo_clicks: get().undoCount };
+              const hesitations = get().hesitationCount;
+              const undos = get().undoCount;
+              const efficiency = Math.max(0, 100 - (undos * 5) - (hesitations * 10));
+              const persistence = Math.min(100, 50 + (hesitations * 5) + (undos * 2));
+
+              const realTraceData = { 
+                hesitation_events: hesitations, 
+                undo_clicks: undos,
+                efficiency_score: efficiency,
+                persistence_score: persistence
+              };
               store.updateTraceData(studentId, realTraceData);
               const route = CurriculumRouter.evaluateRoute({
                 ...student,
@@ -1160,31 +1171,23 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       if (!currentTask || !currentTask.targetNode) return;
       
       try {
-        const { httpsCallable } = await import('firebase/functions');
-        const { functions } = await import('@/infrastructure/firebase');
+        const { SocraticEngine } = await import('@/infrastructure/services/SocraticEngine');
         
-        const generateHint = httpsCallable(functions, 'generateSocraticHint');
         const traceData = {
           undo_clicks: s.undoCount,
           hesitation_events: s.hesitationCount,
         };
         
-        // Timeout using Promise.race (since httpsCallable itself doesn't take an abort signal trivially)
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('timeout')), 5000)
+        const hint = await SocraticEngine.getSocraticHint(
+          currentTask,
+          currentTask.targetNode,
+          s.counts,
+          traceData
         );
         
-        const callPromise = generateHint({
-          counts: s.counts,
-          currentTask,
-          targetNode: currentTask.targetNode,
-          traceData
-        });
-        
-        const result = await Promise.race([callPromise, timeoutPromise]) as any;
-        set({ aiSocraticHint: result.data.hint });
+        set({ aiSocraticHint: hint });
       } catch (error) {
-        console.error("LLM Socratic Hint failed or timed out. Falling back to static hints.", error);
+        console.error("LLM Socratic Hint failed. Falling back to static hints.", error);
         set({ aiSocraticHint: null });
       }
     },

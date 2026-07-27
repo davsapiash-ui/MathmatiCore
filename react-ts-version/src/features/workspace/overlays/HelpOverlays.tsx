@@ -28,17 +28,16 @@ export function HelpOverlays() {
     return () => window.clearTimeout(t);
   }, [helpState, helpFrictionDone]);
 
-  const isModal = helpState === 'metacognitive' || helpState === 'socratic' || helpState === 'worked_example';
+  const aiSocraticHint = useWorkspaceStore((s) => s.aiSocraticHint);
+  const isModal = helpState === 'metacognitive' || helpState === 'worked_example' || (helpState === 'socratic' && !aiSocraticHint);
   
   let content = isModal ? { ...SUPPORT_CONTENT[helpState as SupportType] } : null;
   if (content && helpState === 'socratic') {
     const s = useWorkspaceStore.getState();
     const task = getActiveTasks(s)[s.standardTaskIdx];
     
-    // Strict Fallback: Use LLM hint if available, else static dynamic hint
-    if (s.aiSocraticHint) {
-      content.lines = [s.aiSocraticHint];
-    } else if (task?.targetNode) {
+    // Strict Fallback: Use static dynamic hint if AI hint is not available
+    if (task?.targetNode) {
       content.lines = [getDynamicSocraticHint(task.targetNode, s.counts, task, s.answerDigits, s.carryDigits)];
     }
   }

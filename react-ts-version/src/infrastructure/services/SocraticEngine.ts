@@ -9,6 +9,11 @@ async function ready(): Promise<void> {
   await authReady;
 }
 
+export interface SocraticHintResponse {
+  questionHe: string;
+  choices: { id: string; textHe: string }[];
+}
+
 export interface PendingAIApproval {
   id: string;
   studentId: string;
@@ -21,6 +26,28 @@ export interface PendingAIApproval {
 }
 
 export class SocraticEngine {
+  static async getSocraticHint(
+    currentTask: any,
+    targetNode: string,
+    counts: { units: number; tens: number; hundreds: number; thousands: number },
+    traceData?: { hesitation_events: number; undo_clicks: number }
+  ): Promise<SocraticHintResponse | null> {
+    await ready();
+    const generateHint = httpsCallable(functions, "generateSocraticHint");
+    try {
+      const result = await generateHint({
+        currentTask,
+        targetNode,
+        counts,
+        traceData
+      });
+      return result.data as SocraticHintResponse;
+    } catch (error) {
+      console.error("Failed to generate Socratic hint", error);
+      return null;
+    }
+  }
+
   static async generateAndQueueTasks(
     studentId: string,
     studentName: string,

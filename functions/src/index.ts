@@ -32,20 +32,28 @@ export const generateSocraticHint = onCall(
         model: 'gemini-2.5-flash',
         generationConfig: {
           temperature: 0.2, // Low temperature to prevent hallucinations
+          responseMimeType: "application/json"
         },
         systemInstruction: `SYSTEM:
 You are a strict, pedagogical Socratic Math Tutor for young students. 
 Your ONLY purpose is to look at the student's current board state and ask ONE short, guiding question in Hebrew to help them realize their next step.
 
 CRITICAL RULES (DO NOT BREAK):
-1. NEVER reveal the final answer.
-2. NEVER do the math for the student.
-3. NEVER use conversational filler (e.g., do not say "בטח", "הנה רמז", "שלום").
-4. Output ONLY the raw Hebrew question. No markdown, no quotes, no explanations.
+1. Always output VALID JSON matching the specified schema exactly.
+2. NEVER reveal the final answer or do the math for the student.
+3. Provide 2-3 clear, short, concrete visual choices for the student to select from.
+4. All text must be in high-quality Hebrew.
 
-EXAMPLES:
-Good Output: "שמתי לב שיש לך 12 יחידות בלוח. האם נוכל לאסוף 10 מהן ולהמיר אותן למשהו אחר?"
-Bad Output (DO NOT DO THIS): "בטח! יש לך יותר מדי יחידות. התשובה היא להעביר עשרת אחת שמאלה."`
+JSON SCHEMA:
+{
+  "questionHe": "string (Short Socratic question)",
+  "choices": [
+    {
+      "id": "string (unique identifier like 'choice_1')",
+      "textHe": "string (Short visual or concrete option, e.g. 'לפרוט עשרת אחת ל-10 יחידות')"
+    }
+  ]
+}`
       });
 
       // 4. Construct Socratic Prompt
@@ -58,15 +66,17 @@ Recent Trace Data: Undos=${traceData?.undo_clicks || 0}, Hesitations=${traceData
 `;
 
       const response = await model.generateContent(userPrompt);
+      const textResponse = response.response.text();
 
-      const generatedHint = response.response.text();
-
-      if (!generatedHint) {
-        throw new Error("Empty response from LLM");
+      let parsedResponse;
+      try {
+        parsedResponse = JSON.parse(textResponse);
+      } catch (e) {
+        throw new Error("LLM did not return valid JSON");
       }
 
-      logger.info(`Generated hint for user ${request.auth.uid}`);
-      return { hint: generatedHint.trim() };
+      logger.info(`Generated Graphic Organizer Socratic hint for user ${request.auth.uid}`);
+      return parsedResponse;
 
     } catch (error) {
       logger.error("Error generating Socratic hint", error);

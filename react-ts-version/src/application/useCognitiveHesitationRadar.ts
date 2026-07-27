@@ -31,7 +31,7 @@ export function useCognitiveHesitationRadar({
     
     if (!isActive) return;
 
-    timeoutRef.current = setTimeout(() => {
+    timeoutRef.current = setTimeout(async () => {
       // Trigger silent dashboard alert payload
       const { user } = useAuthStore.getState();
       const userId = user?.uid || user?.id;
@@ -43,6 +43,9 @@ export function useCognitiveHesitationRadar({
         userId as string, 
         "Student hesitated for >30s without interacting. Silent alert triggered."
       );
+      
+      const { useWorkspaceStore } = await import('@/application/useWorkspaceStore');
+      useWorkspaceStore.setState((s: any) => ({ hesitationCount: s.hesitationCount + 1 }));
       
       // onHesitationDetected is intentionally NOT called here — no visual shown to student.
       // The ref is kept for possible future state-logging use.
