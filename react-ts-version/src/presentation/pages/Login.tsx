@@ -130,10 +130,29 @@ export function Login() {
         setErrorMsg("אנא הזן שם משתמש תלמיד.");
         return;
       }
-      const normalizedUsername = username.trim().toLowerCase();
-      const studentId = `student_${normalizedUsername}`;
-      const user = students[studentId];
-      const displayName = user ? user.name : `תלמיד (${username.trim()})`;
+      if (schools.length > 0 && (!school || !classroom)) {
+        setErrorMsg("אנא בחר בית ספר וכיתה.");
+        return;
+      }
+      const rawInput = username.trim().toLowerCase();
+      const studentKey = rawInput.startsWith("student_") ? rawInput : `student_${rawInput}`;
+      
+      const storeStudents = useStore.getState().students;
+      let matchedStudent = storeStudents[studentKey];
+      if (!matchedStudent) {
+        const match = Object.values(storeStudents).find(
+          (s) => s.name.toLowerCase() === rawInput || s.studentId.toLowerCase() === rawInput
+        );
+        if (match) matchedStudent = match;
+      }
+
+      if (!matchedStudent) {
+        setErrorMsg("שם המשתמש אינו קיים במערכת. אנא ודא שהזנת פרטי תלמיד נכונים.");
+        return;
+      }
+
+      const studentId = matchedStudent.studentId;
+      const displayName = matchedStudent.name || `תלמיד (${username.trim()})`;
 
       setIsLoggingIn(true);
       try {
@@ -146,7 +165,7 @@ export function Login() {
         login("student", studentId);
         navigate("/hub", { replace: true });
       } catch (err: any) {
-        console.warn("Student login fallback:", err);
+        console.warn("Student login auth note:", err);
         setUser({
           uid: studentId,
           role: "student",

@@ -310,7 +310,8 @@ export function StudentWorkspacePage() {
         const tasks = await SocraticEngine.getApprovedTasks(username);
         if (cancelled) return;
         if (tasks) {
-          if (myData?.workspaceState?.sessionNumber === meeting) {
+          const canRestore = myData?.workspaceState?.sessionNumber === meeting && myData?.workspaceState?.flowStatus === 'task';
+          if (canRestore && myData?.workspaceState) {
             restoreSession(myData.workspaceState);
           } else {
             initSession(meeting, isASDMode, tasks, 0);
@@ -323,7 +324,8 @@ export function StudentWorkspacePage() {
         setIsInitializing(false);
       })().catch(() => {
         if (cancelled) return;
-        if (myData?.workspaceState?.sessionNumber === meeting) {
+        const canRestore = myData?.workspaceState?.sessionNumber === meeting && myData?.workspaceState?.flowStatus === 'task';
+        if (canRestore && myData?.workspaceState) {
           restoreSession(myData.workspaceState);
         } else {
           initSession(meeting, isASDMode, null, 0);
@@ -332,7 +334,8 @@ export function StudentWorkspacePage() {
         setIsInitializing(false);
       });
     } else {
-      if (myData?.workspaceState?.sessionNumber === meeting) {
+      const canRestore = myData?.workspaceState?.sessionNumber === meeting && myData?.workspaceState?.flowStatus === 'task';
+      if (canRestore && myData?.workspaceState) {
         restoreSession(myData.workspaceState);
       } else {
         initSession(meeting, isASDMode, null, 0);

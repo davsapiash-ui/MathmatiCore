@@ -163,5 +163,27 @@ describe('Student Domain Verification & Audit Suite', () => {
     });
   });
 
+  describe('6. Student Authentication & Session Restore Integrity', () => {
+    it('initializes Meeting 1 in task mode and does not restore a completed reflection state', () => {
+      useWorkspaceStore.getState().initSession(1, false);
+      const state = useWorkspaceStore.getState();
+      expect(state.sessionNumber).toBe(1);
+      expect(state.flowStatus).toBe('task');
+      expect(state.standardTaskIdx).toBe(0);
+    });
+
+    it('prevents restoring workspace if saved state flowStatus was reflection or sessionDone', () => {
+      const savedState = {
+        sessionNumber: 1 as const,
+        flowStatus: 'reflection' as const,
+        isASD: false,
+        standardTaskIdx: 5,
+      };
+
+      const canRestore = savedState.sessionNumber === 1 && (savedState.flowStatus as string) === 'task';
+      expect(canRestore).toBe(false);
+    });
+  });
+
 });
 

@@ -73,6 +73,7 @@ export interface StudentData {
   workspaceState?: {
     sessionNumber: number;
     standardTaskIdx: number;
+    flowStatus?: string;
   };
   liveSessionMetrics?: Record<string, any> | null;
   additionBoardEnabled?: boolean;

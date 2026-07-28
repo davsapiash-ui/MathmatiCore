@@ -105,6 +105,7 @@ export function ReflectionScreen() {
         effort: effort,
         strategy: strategies.join(', ')
       });
+      useWorkspaceStore.setState({ flowStatus: 'sessionDone' });
     } catch (e) {
       console.error("Failed to save reflection:", e);
       alert("אירעה שגיאה בשמירת הרפלקציה. אנא נסה שוב.");
