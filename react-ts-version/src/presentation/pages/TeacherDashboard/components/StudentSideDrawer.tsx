@@ -27,7 +27,10 @@ export function StudentSideDrawer({ student, onClose, isPendingApproval, onAppro
       />
       
       <div className="fixed top-0 right-0 w-full sm:w-[600px] h-[100dvh] bg-white dark:bg-slate-900 shadow-2xl z-50 flex flex-col transform transition-transform duration-300 border-l border-slate-200 dark:border-slate-800" dir="rtl">
-        <div className="h-16 px-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
+        {/* Mobile Drag Handle Signifier */}
+        <div className="mx-auto my-2 h-1.5 w-12 rounded-full bg-slate-300 dark:bg-slate-700 sm:hidden shrink-0" />
+        
+        <div className="h-16 px-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 shrink-0">
           <div className="flex items-center gap-3">
             <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">
               {student.name || student.studentId}
@@ -45,7 +48,9 @@ export function StudentSideDrawer({ student, onClose, isPendingApproval, onAppro
           </div>
           <button 
             onClick={onClose}
-            className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors text-slate-500"
+            className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors text-slate-500 focus-visible:ring-2 focus-visible:ring-blue-500"
+            aria-label="סגור חלון אבחון"
+            title="סגור חלון אבחון"
           >
             <X className="w-5 h-5" />
           </button>

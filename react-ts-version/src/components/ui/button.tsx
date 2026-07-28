@@ -8,7 +8,12 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/80",
+        default: "bg-primary text-primary-foreground hover:bg-primary/80 shadow-sm",
+        udl: "bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold shadow-md hover:from-blue-700 hover:to-indigo-700 focus-visible:ring-4 focus-visible:ring-offset-2 focus-visible:ring-blue-500/50 active:scale-95 transition-all duration-200 border border-white/20 dark:border-white/10",
+        placeValueUnit: "bg-[#F59E0B] text-white hover:bg-[#D97706] shadow-sm font-bold border border-amber-600/30 active:scale-95 focus-visible:ring-4 focus-visible:ring-amber-500/50",
+        placeValueTen: "bg-[#10B981] text-white hover:bg-[#059669] shadow-sm font-bold border border-emerald-600/30 active:scale-95 focus-visible:ring-4 focus-visible:ring-emerald-500/50",
+        placeValueHundred: "bg-[#3B82F6] text-white hover:bg-[#2563EB] shadow-sm font-bold border border-blue-600/30 active:scale-95 focus-visible:ring-4 focus-visible:ring-blue-500/50",
+        placeValueThousand: "bg-[#EF4444] text-white hover:bg-[#DC2626] shadow-sm font-bold border border-rose-600/30 active:scale-95 focus-visible:ring-4 focus-visible:ring-rose-500/50",
         outline:
           "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
         secondary:

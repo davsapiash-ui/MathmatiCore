@@ -2,8 +2,11 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { useAdminStore } from "@/application/useAdminStore";
 import { useChatStore } from "@/application/useChatStore";
 import { UdlButton } from "@/presentation/design-system/UdlButton";
-import { Send, UserCircle2, Users, ImageIcon } from "lucide-react";
+import { UdlSpeechButton } from "@/presentation/design-system/UdlSpeechButton";
+import { stt } from "@/infrastructure/services/STTService";
+import { Send, UserCircle2, Users, ImageIcon, Mic } from "lucide-react";
 import { useAuthStore } from "@/application/useAuthStore";
+import { toast } from "sonner";
 
 export function AdminChatView() {
   const { teachers } = useAdminStore();
@@ -12,8 +15,38 @@ export function AdminChatView() {
   
   const [selectedTeacherId, setSelectedTeacherId] = useState<string | null>(null);
   const [inputText, setInputText] = useState("");
+  const [isListening, setIsListening] = useState(false);
   const [sendingImage, setSendingImage] = useState(false);
   const adminFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleToggleVoiceInput = () => {
+    if (isListening) {
+      stt.stop();
+      setIsListening(false);
+      return;
+    }
+
+    if (!stt.isSupported()) {
+      toast.error("זיהוי קולי אינו נתמך בדפדפן זה.");
+      return;
+    }
+
+    setIsListening(true);
+    toast.info("מקשיב... דבר עכשיו בעברית");
+    stt.start({
+      lang: "he-IL",
+      onResult: (transcript) => {
+        setInputText(prev => prev ? `${prev} ${transcript}` : transcript);
+      },
+      onError: (err) => {
+        toast.error(`שגיאת קלט קולי: ${err}`);
+        setIsListening(false);
+      },
+      onEnd: () => {
+        setIsListening(false);
+      }
+    });
+  };
 
   const handleAdminImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -231,7 +264,12 @@ export function AdminChatView() {
                   return (
                     <div key={msg.id} className={`flex flex-col max-w-[85%] md:max-w-[70%] ${isAdmin ? 'self-end items-end' : 'self-start items-start'}`}>
                       <div className={`px-4 py-2 rounded-2xl shadow-sm ${isAdmin ? 'bg-blue-600 text-white rounded-tl-sm' : 'bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-tr-sm'}`}>
-                        {msg.text && <span>{msg.text}</span>}
+                        {msg.text && (
+                          <div className="flex items-center gap-2">
+                            <span>{msg.text}</span>
+                            <UdlSpeechButton text={msg.text} className="w-7 h-7 p-0 shrink-0 text-slate-500" />
+                          </div>
+                        )}
                         {msg.imageUrl && (
                           <img
                             src={msg.imageUrl}
@@ -262,26 +300,13 @@ export function AdminChatView() {
               <div className="flex gap-2 items-center">
                 <button
                   type="button"
-                  onClick={() => alert("הקלטת שמע אינה זמינה כעת.")}
-                  className="flex rounded-full w-12 h-12 p-0 items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-600 transition-all shadow-sm"
-                  title="הקלטת שמע"
+                  onClick={handleToggleVoiceInput}
+                  className={`flex rounded-full w-12 h-12 p-0 items-center justify-center transition-all shadow-sm ${
+                    isListening ? 'bg-rose-600 text-white animate-pulse' : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-300'
+                  }`}
+                  title={isListening ? "עצור זיהוי קולי" : "הזן הודעה בדיבור (עברית)"}
                 >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="lucide lucide-mic"
-                  >
-                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
-                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                    <line x1="12" x2="12" y1="19" y2="22" />
-                  </svg>
+                  <Mic className="w-5 h-5" />
                 </button>
                 <button
                   type="button"

@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { auth } from "@/infrastructure/firebase";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { firebaseSyncService } from "@/infrastructure/services/FirebaseSyncService";
+import { Button } from "@/components/ui/button";
 
 // DEMO_USERS removed
 
@@ -417,40 +418,46 @@ export function Login() {
                             onChange={(e) => setPassword(e.target.value)}
                             className={inputClass}
                           />
-                          <button
+                          <Button
                             type="submit"
+                            variant="udl"
+                            size="lg"
                             disabled={isLoggingIn}
-                            className="ws-btn-primary w-full flex items-center justify-center gap-3 p-4 rounded-2xl font-display font-extrabold text-base transition-all shadow-md hover:shadow-lg active:scale-98 bg-gradient-to-r from-blue-600 to-indigo-600 text-white"
+                            className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl font-extrabold text-base transition-all shadow-md hover:shadow-lg active:scale-95"
                           >
                             <span>🚀</span>
                             <span>{isLoggingIn ? "מתחבר..." : "כניסה למרחב הלמידה"}</span>
-                          </button>
+                          </Button>
                         </>
                       )}
                       {selectedRole === "admin" && (
                         <div className="flex flex-col gap-4">
-                          <button
+                          <Button
                             type="button"
+                            variant="udl"
+                            size="lg"
                             onClick={handleAdminGoogleSSO}
                             disabled={isLoggingIn}
-                            className="ws-btn-primary w-full flex items-center justify-center gap-3 p-4 rounded-2xl font-display font-extrabold text-base transition-all shadow-md hover:shadow-lg active:scale-98"
+                            className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl font-extrabold text-base transition-all shadow-md hover:shadow-lg active:scale-95"
                           >
                             <span className="text-xl">🌐</span>
                             <span>{isLoggingIn ? "מתחבר ב-Google SSO..." : "כניסת מנהל ב-Google SSO (@edu-haifa.org.il)"}</span>
-                          </button>
+                          </Button>
                         </div>
                       )}
                       {selectedRole === "teacher" && (
                         <div className="flex flex-col gap-4">
-                          <button
+                          <Button
                             type="button"
+                            variant="udl"
+                            size="lg"
                             onClick={handleTeacherGoogleSSO}
                             disabled={isLoggingIn}
-                            className="ws-btn-primary w-full flex items-center justify-center gap-3 p-4 rounded-2xl font-display font-extrabold text-base transition-all shadow-md hover:shadow-lg active:scale-98"
+                            className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl font-extrabold text-base transition-all shadow-md hover:shadow-lg active:scale-95"
                           >
                             <span className="text-xl">🌐</span>
                             <span>{isLoggingIn ? "מתחבר ב-Google SSO..." : "כניסת מורה ב-Google SSO (@edu-haifa.org.il)"}</span>
-                          </button>
+                          </Button>
                         </div>
                       )}
                     </div>
