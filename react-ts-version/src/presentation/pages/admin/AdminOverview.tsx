@@ -15,9 +15,12 @@ import {
   Zap,
   BarChart3,
   TrendingUp,
-  RefreshCw
+  RefreshCw,
+  FileSpreadsheet,
+  Download
 } from "lucide-react";
 import { UdlButton } from "@/presentation/design-system/UdlButton";
+import { toast } from "sonner";
 import { useAdminStore } from "@/application/useAdminStore";
 import { 
   AreaChart, 
@@ -186,8 +189,61 @@ export function AdminOverview() {
     } catch (e) {
       console.error(e);
       alert('שגיאה בניקוי נתונים. ודא שיש לך הרשאות ניהול.');
-    } fontFinally: {
+    } finally {
       setIsCleaning(false);
+    }
+  };
+
+  const [isExportingReport, setIsExportingReport] = useState(false);
+
+  const handleExportReport = async () => {
+    setIsExportingReport(true);
+    toast.info("מייצר דוח PDF ומעלה למרחב השיתופי ב-Google Drive...");
+    try {
+      const { getFunctions, httpsCallable } = await import("firebase/functions");
+      const functions = getFunctions();
+      const exportDrive = httpsCallable<any, { status: string; fileName: string; fileId: string; webViewLink: string; pdfBase64?: string }>(functions, 'exportAdminReportToDrive');
+
+      const res = await exportDrive({
+        schoolsCount: schools.length,
+        teachersCount: teachers.length,
+        studentsCount: totalStudents,
+        alertsCount: alertsCount,
+      });
+
+      if (res.data && res.data.pdfBase64) {
+        // Trigger instant client-side download as fallback
+        const blob = new Blob([Uint8Array.from(atob(res.data.pdfBase64), c => c.charCodeAt(0))], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = res.data.fileName || `MathmatiCore_Admin_Report_${Date.now()}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+
+      toast.success(
+        <div className="flex flex-col gap-1">
+          <span className="font-bold">הדוח נוצר והועלה בהצלחה ל-Google Drive! 📄</span>
+          <span className="text-xs">Service Account: 1002220159@edu-haifa.org.il</span>
+          <a
+            href={res.data?.webViewLink || "https://drive.google.com/drive/folders/0AMiALsm_TxT5Uk9PVA"}
+            target="_blank"
+            rel="noreferrer"
+            className="text-xs text-blue-500 underline font-bold mt-1"
+          >
+            פתיחת תיקייה ב-Google Drive 🗁
+          </a>
+        </div>,
+        { duration: 8000 }
+      );
+    } catch (err: any) {
+      console.warn("Export report error:", err);
+      toast.error(`שגיאה ביצירת הדוח: ${err?.message || err}`);
+    } finally {
+      setIsExportingReport(false);
     }
   };
 
@@ -239,19 +295,31 @@ export function AdminOverview() {
             </p>
           </div>
 
-          <div className={`flex items-center gap-2.5 backdrop-blur-md border px-4 py-2.5 rounded-2xl text-xs font-bold text-white shadow-md transition-all ${
-            isFirebaseConnected 
-              ? 'bg-emerald-500/20 border-emerald-400/40' 
-              : 'bg-rose-500/30 border-rose-400/50'
-          }`}>
-            <span className={`w-2.5 h-2.5 rounded-full ${
-              isFirebaseConnected ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'
-            }`} />
-            <span>
-              {isFirebaseConnected 
-                ? `סנכרון Realtime DB פעיל${latencyMs !== null ? ` (${latencyMs}ms)` : ''}` 
-                : 'תקשורת Realtime DB מנותקת'}
-            </span>
+          <div className="flex flex-wrap items-center gap-3">
+            <UdlButton
+              semanticColor="success"
+              onClick={handleExportReport}
+              disabled={isExportingReport}
+              className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2.5 rounded-2xl shadow-lg border border-emerald-400/40 active:scale-95 transition-all"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              <span>{isExportingReport ? "מייצר ומעלה..." : "ייצוא דוח PDF ל-Google Drive 📄"}</span>
+            </UdlButton>
+
+            <div className={`flex items-center gap-2.5 backdrop-blur-md border px-4 py-2.5 rounded-2xl text-xs font-bold text-white shadow-md transition-all ${
+              isFirebaseConnected 
+                ? 'bg-emerald-500/20 border-emerald-400/40' 
+                : 'bg-rose-500/30 border-rose-400/50'
+            }`}>
+              <span className={`w-2.5 h-2.5 rounded-full ${
+                isFirebaseConnected ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'
+              }`} />
+              <span>
+                {isFirebaseConnected 
+                  ? `סנכרון Realtime DB פעיל${latencyMs !== null ? ` (${latencyMs}ms)` : ''}` 
+                  : 'תקשורת Realtime DB מנותקת'}
+              </span>
+            </div>
           </div>
         </div>
       </header>

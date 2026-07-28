@@ -216,6 +216,9 @@ export { callGeminiSocraticProxy } from "./geminiProxy";
 // Export the Transaction Guard module
 export { validateAndStoreTelemetry } from "./transactionGuard";
 
+// Export the Google Drive Admin PDF Report module
+export { exportAdminReportToDrive } from "./exportDriveReport";
+
 /**
  * verifyTeacherSSO Cloud Function (PRD Section 4.1)
  * Enforces domain constraints (@edu-haifa.org.il), secret environment specs,

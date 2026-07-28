@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.onStudentEvent = exports.verifyTeacherSSO = exports.validateAndStoreTelemetry = exports.callGeminiSocraticProxy = exports.syncUserRoles = exports.generateSocraticMapping = exports.generateSocraticHint = void 0;
+exports.onStudentEvent = exports.verifyTeacherSSO = exports.exportAdminReportToDrive = exports.validateAndStoreTelemetry = exports.callGeminiSocraticProxy = exports.syncUserRoles = exports.generateSocraticMapping = exports.generateSocraticHint = void 0;
 const https_1 = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
 const generative_ai_1 = require("@google/generative-ai");
@@ -193,6 +193,9 @@ Object.defineProperty(exports, "callGeminiSocraticProxy", { enumerable: true, ge
 // Export the Transaction Guard module
 var transactionGuard_1 = require("./transactionGuard");
 Object.defineProperty(exports, "validateAndStoreTelemetry", { enumerable: true, get: function () { return transactionGuard_1.validateAndStoreTelemetry; } });
+// Export the Google Drive Admin PDF Report module
+var exportDriveReport_1 = require("./exportDriveReport");
+Object.defineProperty(exports, "exportAdminReportToDrive", { enumerable: true, get: function () { return exportDriveReport_1.exportAdminReportToDrive; } });
 /**
  * verifyTeacherSSO Cloud Function (PRD Section 4.1)
  * Enforces domain constraints (@edu-haifa.org.il), secret environment specs,
