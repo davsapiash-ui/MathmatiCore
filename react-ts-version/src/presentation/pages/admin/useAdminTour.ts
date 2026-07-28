@@ -2,9 +2,8 @@ import { useEffect, useRef } from 'react';
 import { driver } from 'driver.js';
 import 'driver.js/dist/driver.css';
 
-// In-memory state (Zero Local Storage Policy)
-const isWebdriver = typeof navigator !== 'undefined' && navigator.webdriver;
-let adminTourSeen = typeof window !== 'undefined' && ((window as any).__E2E_BYPASS_TOUR__ === true || isWebdriver);
+// In-memory state: Default tour auto-launch to false so screen isn't dimmed automatically
+let adminTourSeen = true;
 
 export function useAdminTour() {
   const driverObj = useRef<any>(null);

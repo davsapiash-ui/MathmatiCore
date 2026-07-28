@@ -53,24 +53,24 @@ export function AdminLayout() {
         </nav>
 
         {/* Desktop Sidebar (Hidden on mobile) */}
-        <Sidebar variant="sidebar" collapsible="none" className="hidden md:flex m-4 rounded-[2rem] border border-ws-surface2 bg-white/40 dark:bg-slate-900/40 backdrop-blur-3xl shadow-xl w-64 lg:w-72 flex-shrink-0 z-20 h-[calc(100vh-2rem)] flex-col overflow-hidden sticky top-4">
-          <SidebarHeader className="p-6 lg:p-8 border-b border-ws-surface2/50 bg-white/30 dark:bg-black/20">
+        <Sidebar variant="sidebar" collapsible="none" className="hidden md:flex m-4 rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl w-64 lg:w-72 flex-shrink-0 z-20 h-[calc(100vh-2rem)] flex-col overflow-hidden sticky top-4">
+          <SidebarHeader className="p-6 lg:p-8 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40">
             <div className="flex items-center gap-3 mb-1">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                <Shield className="text-white w-4 h-4 flex-shrink-0" />
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-600/30 font-bold">
+                <Shield className="w-5 h-5 flex-shrink-0" />
               </div>
-              <Logo textClassName="bg-gradient-to-l from-indigo-600 to-cyan-500 bg-clip-text text-transparent font-black tracking-tight drop-shadow-sm hover:opacity-80 transition-opacity" />
+              <Logo textClassName="bg-gradient-to-l from-indigo-600 to-purple-600 bg-clip-text text-transparent font-black text-xl tracking-tight" />
             </div>
-            <p className="text-[10px] text-ws-soft mt-2 tracking-widest uppercase font-semibold">פורטל מנהל מערכת</p>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2 tracking-widest uppercase font-bold">פורטל מנהל מערכת</p>
           </SidebarHeader>
 
-          <SidebarContent className="p-3 lg:p-4">
+          <SidebarContent className="p-4">
             <SidebarGroup>
-              <SidebarMenu className="gap-1.5">
+              <SidebarMenu className="gap-2">
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
-                    <NavLink id="tour-admin-overview" to="/admin" end className={({isActive}) => isActive ? "bg-ws-surface2 text-ws-ink font-bold rounded-2xl shadow-sm border border-ws-surface2" : "hover:bg-ws-surface/50 text-ws-soft transition-all rounded-2xl"}>
-                      <Settings className="w-5 h-5 ml-3 opacity-80" /> 
+                    <NavLink id="tour-admin-overview" to="/admin" end className={({isActive}) => isActive ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-black rounded-2xl shadow-lg shadow-indigo-600/30 border border-indigo-400/30 p-3.5 flex items-center" : "hover:bg-indigo-50 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-200 font-bold transition-all rounded-2xl p-3.5 flex items-center"}>
+                      <Settings className="w-5 h-5 ml-3 opacity-90" /> 
                       <span className="text-sm lg:text-base tracking-wide">סקירה כללית</span>
                     </NavLink>
                   </SidebarMenuButton>
@@ -78,8 +78,8 @@ export function AdminLayout() {
 
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
-                    <NavLink id="tour-admin-schools" to="/admin/schools" className={({isActive}) => isActive ? "bg-ws-surface2 text-ws-ink font-bold rounded-2xl shadow-sm border border-ws-surface2" : "hover:bg-ws-surface/50 text-ws-soft transition-all rounded-2xl"}>
-                      <GraduationCap className="w-5 h-5 ml-3 opacity-80" /> 
+                    <NavLink id="tour-admin-schools" to="/admin/schools" className={({isActive}) => isActive ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-black rounded-2xl shadow-lg shadow-indigo-600/30 border border-indigo-400/30 p-3.5 flex items-center" : "hover:bg-indigo-50 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-200 font-bold transition-all rounded-2xl p-3.5 flex items-center"}>
+                      <GraduationCap className="w-5 h-5 ml-3 opacity-90" /> 
                       <span className="text-sm lg:text-base tracking-wide">מוסדות ומורים</span>
                     </NavLink>
                   </SidebarMenuButton>
@@ -87,8 +87,8 @@ export function AdminLayout() {
 
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
-                    <NavLink id="tour-admin-curriculum" to="/admin/curriculum" className={({isActive}) => isActive ? "bg-ws-surface2 text-ws-ink font-bold rounded-2xl shadow-sm border border-ws-surface2" : "hover:bg-ws-surface/50 text-ws-soft transition-all rounded-2xl"}>
-                      <Layers className="w-5 h-5 ml-3 opacity-80" /> 
+                    <NavLink id="tour-admin-curriculum" to="/admin/curriculum" className={({isActive}) => isActive ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-black rounded-2xl shadow-lg shadow-indigo-600/30 border border-indigo-400/30 p-3.5 flex items-center" : "hover:bg-indigo-50 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-200 font-bold transition-all rounded-2xl p-3.5 flex items-center"}>
+                      <Layers className="w-5 h-5 ml-3 opacity-90" /> 
                       <span className="text-sm lg:text-base tracking-wide">הגדרות פדגוגיה</span>
                     </NavLink>
                   </SidebarMenuButton>
@@ -96,8 +96,8 @@ export function AdminLayout() {
 
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
-                    <NavLink id="tour-admin-security" to="/admin/security" className={({isActive}) => isActive ? "bg-ws-surface2 text-ws-ink font-bold rounded-2xl shadow-sm border border-ws-surface2" : "hover:bg-ws-surface/50 text-ws-soft transition-all rounded-2xl"}>
-                      <Shield className="w-5 h-5 ml-3 opacity-80" /> 
+                    <NavLink id="tour-admin-security" to="/admin/security" className={({isActive}) => isActive ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-black rounded-2xl shadow-lg shadow-indigo-600/30 border border-indigo-400/30 p-3.5 flex items-center" : "hover:bg-indigo-50 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-200 font-bold transition-all rounded-2xl p-3.5 flex items-center"}>
+                      <Shield className="w-5 h-5 ml-3 opacity-90" /> 
                       <span className="text-sm lg:text-base tracking-wide">אבטחה והרשאות</span>
                     </NavLink>
                   </SidebarMenuButton>
@@ -105,8 +105,8 @@ export function AdminLayout() {
 
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
-                    <NavLink id="tour-admin-chat" to="/admin/chat" className={({isActive}) => isActive ? "bg-ws-surface2 text-ws-ink font-bold rounded-2xl shadow-sm border border-ws-surface2" : "hover:bg-ws-surface/50 text-ws-soft transition-all rounded-2xl"}>
-                      <Users className="w-5 h-5 ml-3 opacity-80" /> 
+                    <NavLink id="tour-admin-chat" to="/admin/chat" className={({isActive}) => isActive ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-black rounded-2xl shadow-lg shadow-indigo-600/30 border border-indigo-400/30 p-3.5 flex items-center" : "hover:bg-indigo-50 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-200 font-bold transition-all rounded-2xl p-3.5 flex items-center"}>
+                      <Users className="w-5 h-5 ml-3 opacity-90" /> 
                       <span className="text-sm lg:text-base tracking-wide">צ'אט הודעות</span>
                     </NavLink>
                   </SidebarMenuButton>
@@ -114,8 +114,8 @@ export function AdminLayout() {
 
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
-                    <NavLink to="/admin/teacher-view" className={({isActive}) => isActive ? "bg-ws-surface2 text-ws-ink font-bold rounded-2xl shadow-sm border border-ws-surface2" : "hover:bg-ws-surface/50 text-ws-soft transition-all rounded-2xl"}>
-                      <Layers className="w-5 h-5 ml-3 opacity-80" /> 
+                    <NavLink to="/admin/teacher-view" className={({isActive}) => isActive ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-black rounded-2xl shadow-lg shadow-indigo-600/30 border border-indigo-400/30 p-3.5 flex items-center" : "hover:bg-indigo-50 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-200 font-bold transition-all rounded-2xl p-3.5 flex items-center"}>
+                      <Layers className="w-5 h-5 ml-3 opacity-90" /> 
                       <span className="text-sm lg:text-base tracking-wide">תצוגת מורה</span>
                     </NavLink>
                   </SidebarMenuButton>
@@ -123,8 +123,8 @@ export function AdminLayout() {
 
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
-                    <NavLink id="tour-admin-settings" to="/admin/settings" className={({isActive}) => isActive ? "bg-ws-surface2 text-ws-ink font-bold rounded-2xl shadow-sm border border-ws-surface2" : "hover:bg-ws-surface/50 text-ws-soft transition-all rounded-2xl"}>
-                      <Settings className="w-5 h-5 ml-3 opacity-80" /> 
+                    <NavLink id="tour-admin-settings" to="/admin/settings" className={({isActive}) => isActive ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-black rounded-2xl shadow-lg shadow-indigo-600/30 border border-indigo-400/30 p-3.5 flex items-center" : "hover:bg-indigo-50 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-200 font-bold transition-all rounded-2xl p-3.5 flex items-center"}>
+                      <Settings className="w-5 h-5 ml-3 opacity-90" /> 
                       <span className="text-sm lg:text-base tracking-wide">מערכת ונגישות (UDL)</span>
                     </NavLink>
                   </SidebarMenuButton>

@@ -182,23 +182,23 @@ export function AdminOverview() {
   return (
     <div className="p-6 md:p-10 pb-24 max-w-7xl mx-auto space-y-8" dir="rtl">
       {/* Header Banner */}
-      <header className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-8 text-white shadow-2xl border border-indigo-500/20">
-        <div className="absolute top-0 right-1/4 w-80 h-80 bg-indigo-500/15 rounded-full blur-3xl pointer-events-none" />
+      <header className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-700 p-8 text-white shadow-2xl border border-indigo-400/40">
+        <div className="absolute top-0 right-1/4 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-xs font-semibold">
-              <Zap className="w-3.5 h-3.5" />
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/15 border border-white/25 text-white text-xs font-bold shadow-sm backdrop-blur-md">
+              <Zap className="w-4 h-4 text-amber-300" />
               <span>מרכז שליטה אדמיניסטרטיבי בזמן אמת</span>
             </div>
-            <h1 className="text-3xl md:text-4xl font-black tracking-tight text-white">
+            <h1 className="text-3xl md:text-4xl font-black tracking-tight text-white drop-shadow-sm">
               סקירה כללית ומדדי מערכת
             </h1>
-            <p className="text-slate-300 text-sm md:text-base font-light">
+            <p className="text-indigo-100 text-sm md:text-base font-normal">
               ניטור פעילות פלטפורמת MathmatiCore, נפח למידה, אבטחת מידע ותקני פרטיות.
             </p>
           </div>
 
-          <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md border border-white/10 px-4 py-2 rounded-2xl text-xs font-medium text-indigo-200">
+          <div className="flex items-center gap-2.5 bg-white/20 backdrop-blur-md border border-white/30 px-4 py-2.5 rounded-2xl text-xs font-bold text-white shadow-md">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
             <span>כל השרתים תקינים</span>
           </div>
