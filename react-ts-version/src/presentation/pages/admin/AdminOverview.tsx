@@ -110,6 +110,16 @@ export function AdminOverview() {
     };
   }, []);
 
+  const [isFirebaseConnected, setIsFirebaseConnected] = useState<boolean>(true);
+
+  useEffect(() => {
+    const connectedRef = ref(database, '.info/connected');
+    const unsub = onValue(connectedRef, (snap) => {
+      setIsFirebaseConnected(snap.val() === true);
+    });
+    return () => unsub();
+  }, []);
+
   const handleDataCleanup = async () => {
     if (!window.confirm("האם אתה בטוח שברצונך למחוק הקלטות וידאו ישנות (מעל 30 יום)? פעולה זו מומלצת כהכנה לתקני פרטיות ילדים ולא ניתנת לביטול.")) return;
     try {
@@ -198,9 +208,19 @@ export function AdminOverview() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2.5 bg-white/20 backdrop-blur-md border border-white/30 px-4 py-2.5 rounded-2xl text-xs font-bold text-white shadow-md">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span>כל השרתים תקינים</span>
+          <div className={`flex items-center gap-2.5 backdrop-blur-md border px-4 py-2.5 rounded-2xl text-xs font-bold text-white shadow-md transition-all ${
+            isFirebaseConnected 
+              ? 'bg-emerald-500/20 border-emerald-400/40' 
+              : 'bg-rose-500/30 border-rose-400/50'
+          }`}>
+            <span className={`w-2.5 h-2.5 rounded-full ${
+              isFirebaseConnected ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'
+            }`} />
+            <span>
+              {isFirebaseConnected 
+                ? 'סנכרון Realtime DB פעיל' 
+                : 'תקשורת Realtime DB מנותקת'}
+            </span>
           </div>
         </div>
       </header>
