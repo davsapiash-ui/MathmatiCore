@@ -194,134 +194,11 @@ export function AdminOverview() {
     }
   };
 
-function createClientPDFBlob(data: {
-  schoolsCount: number;
-  teachersCount: number;
-  studentsCount: number;
-  alertsCount: number;
-  timestamp: string;
-}): Blob {
-  const content = `%PDF-1.4
-1 0 obj
-<<
-  /Type /Catalog
-  /Pages 2 0 R
->>
-endobj
-2 0 obj
-<<
-  /Type /Pages
-  /Kids [3 0 R]
-  /Count 1
->>
-endobj
-3 0 obj
-<<
-  /Type /Page
-  /Parent 2 0 R
-  /Resources <<
-    /Font <<
-      /F1 4 0 R
-    >>
-  >>
-  /MediaBox [0 0 612 792]
-  /Contents 5 0 R
->>
-endobj
-4 0 obj
-<<
-  /Type /Font
-  /Subtype /Type1
-  /BaseFont /Helvetica-Bold
->>
-endobj
-5 0 obj
-<< /Length 580 >>
-stream
-BT
-/F1 20 Tf
-50 730 Td
-(MathmatiCore Executive System Report) Tj
-/F1 12 Tf
-0 -30 Td
-(Generated: ${data.timestamp}) Tj
-0 -20 Td
-(Service Account Authorized: 1002220159@edu-haifa.org.il) Tj
-0 -30 Td
-(SYSTEM METRICS SUMMARY:) Tj
-0 -20 Td
-(- Active Schools: ${data.schoolsCount}) Tj
-0 -20 Td
-(- Registered Teachers: ${data.teachersCount}) Tj
-0 -20 Td
-(- Total Students: ${data.studentsCount}) Tj
-0 -20 Td
-(- Active Radar Alerts: ${data.alertsCount}) Tj
-0 -30 Td
-(COMPLIANCE & PRIVACY STATUS:) Tj
-0 -20 Td
-(- PII Scrubbing Engine: ACTIVE \(Zero-PII Compliance\)) Tj
-0 -20 Td
-(- 30-Day Video Retention Policy: ENFORCED) Tj
-0 -20 Td
-(- Firebase Realtime Database: CONNECTED) Tj
-0 -30 Td
-(Google Drive Target Folder ID: 0AMiALsm_TxT5Uk9PVA) Tj
-ET
-endstream
-endobj
-xref
-0 6
-0000000000 65535 f 
-0000000009 00000 n 
-0000000058 00000 n 
-0000000115 00000 n 
-0000000246 00000 n 
-0000000325 00000 n 
-trailer
-<<
-  /Size 6
-  /Root 1 0 R
->>
-startxref
-960
-%%EOF
-`;
-  return new Blob([content], { type: 'application/pdf' });
-}
-
   const [isExportingReport, setIsExportingReport] = useState(false);
 
   const handleExportReport = async () => {
     setIsExportingReport(true);
-    const timestampStr = new Date().toLocaleString('he-IL');
-    const fileName = `MathmatiCore_Admin_Report_${Date.now()}.pdf`;
-
-    // 1. Instant client-side PDF download (0-second browser download)
-    try {
-      const pdfBlob = createClientPDFBlob({
-        schoolsCount: schools.length,
-        teachersCount: teachers.length,
-        studentsCount: totalStudents,
-        alertsCount: alertsCount,
-        timestamp: timestampStr,
-      });
-
-      const url = URL.createObjectURL(pdfBlob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
-      toast.success(`קובץ הדוח ${fileName} יורד למחשב שלך! 📄`);
-    } catch (clientErr) {
-      console.warn("Client PDF download note:", clientErr);
-    }
-
-    // 2. Google Drive Cloud Function upload
+    toast.info("מייצר דוח PDF ומעלה ישירות למרחב השיתופי ב-Google Drive...");
     try {
       const { getFunctions, httpsCallable } = await import("firebase/functions");
       const functions = getFunctions();
@@ -336,7 +213,8 @@ startxref
 
       toast.success(
         <div className="flex flex-col gap-1">
-          <span className="font-bold">הדוח הועלה בהצלחה ל-Google Drive! ☁️</span>
+          <span className="font-bold">הדוח נוצר והועלה בהצלחה ל-Google Drive! ☁️</span>
+          <span className="text-xs">שויך לתיקייה: 0AMiALsm_TxT5Uk9PVA</span>
           <span className="text-xs">Service Account: 1002220159@edu-haifa.org.il</span>
           <a
             href={res.data?.webViewLink || "https://drive.google.com/drive/folders/0AMiALsm_TxT5Uk9PVA"}
@@ -344,27 +222,18 @@ startxref
             rel="noreferrer"
             className="text-xs text-blue-500 underline font-bold mt-1"
           >
-            פתיחת תיקייה ב-Google Drive 🗁
+            לחץ כאן לצפייה בתיקייה ב-Google Drive 🗁
           </a>
         </div>,
-        { duration: 8000 }
+        { duration: 10000 }
       );
     } catch (driveErr: any) {
-      console.warn("Google Drive Cloud Function note:", driveErr);
-      toast.info(
+      console.warn("Google Drive Cloud Function export error:", driveErr);
+      toast.error(
         <div className="flex flex-col gap-1">
-          <span className="font-bold">הדוח הורד בהצלחה למחשב שלך. 📄</span>
-          <span className="text-xs">ניתן לפתוח ולהעלות ידנית לתיקיית Google Drive.</span>
-          <a
-            href="https://drive.google.com/drive/folders/0AMiALsm_TxT5Uk9PVA"
-            target="_blank"
-            rel="noreferrer"
-            className="text-xs text-blue-500 underline font-bold mt-1"
-          >
-            פתיחת תיקייה ב-Google Drive (0AMiALsm_TxT5Uk9PVA) 🗁
-          </a>
-        </div>,
-        { duration: 8000 }
+          <span className="font-bold">שגיאה בהעלאת הדוח ל-Google Drive</span>
+          <span className="text-xs">{driveErr?.message || "נא לוודא חיבור לרשת וגישת אדמין"}</span>
+        </div>
       );
     } finally {
       setIsExportingReport(false);
