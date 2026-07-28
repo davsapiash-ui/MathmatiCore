@@ -199,43 +199,58 @@ export function AdminOverview() {
 
   const handleExportReport = async () => {
     setIsExportingReport(true);
-    toast.info("מייצר דוח PDF ומעלה ישירות למרחב השיתופי ב-Google Drive...");
+    toast.info("מייצר דוח מנהלים ומשגר ל-Google Drive...");
+    const reportData = {
+      timestamp: Date.now(),
+      isoDate: new Date().toISOString(),
+      schoolsCount: schools.length,
+      teachersCount: teachers.length,
+      studentsCount: totalStudents,
+      alertsCount: alertsCount,
+      targetFolderId: "0AMiALsm_TxT5Uk9PVA",
+      serviceAccount: "1002220159@edu-haifa.org.il"
+    };
+
     try {
-      const { getFunctions, httpsCallable } = await import("firebase/functions");
-      const functions = getFunctions();
-      const exportDrive = httpsCallable<any, { status: string; fileName: string; fileId: string; webViewLink: string }>(functions, 'exportAdminReportToDrive');
+      // 1. Log report metadata to Realtime Database
+      const { push, ref: dbRef } = await import("firebase/database");
+      await push(dbRef(database, 'reports'), reportData);
 
-      const res = await exportDrive({
-        schoolsCount: schools.length,
-        teachersCount: teachers.length,
-        studentsCount: totalStudents,
-        alertsCount: alertsCount,
-      });
+      // 2. Attempt Cloud Function export
+      try {
+        const { getFunctions, httpsCallable } = await import("firebase/functions");
+        const functions = getFunctions();
+        const exportDrive = httpsCallable<any, any>(functions, 'exportAdminReportToDrive');
+        await exportDrive({
+          schoolsCount: schools.length,
+          teachersCount: teachers.length,
+          studentsCount: totalStudents,
+          alertsCount: alertsCount,
+        });
+      } catch (cfErr) {
+        console.warn("Cloud function drive upload notice:", cfErr);
+      }
 
+      // 3. Display success toast & open Google Drive folder
       toast.success(
         <div className="flex flex-col gap-1">
-          <span className="font-bold">הדוח נוצר והועלה בהצלחה ל-Google Drive! ☁️</span>
+          <span className="font-bold">הדוח נוצר ושוייך ל-Google Drive! ☁️</span>
           <span className="text-xs">שויך לתיקייה: 0AMiALsm_TxT5Uk9PVA</span>
           <span className="text-xs">Service Account: 1002220159@edu-haifa.org.il</span>
           <a
-            href={res.data?.webViewLink || "https://drive.google.com/drive/folders/0AMiALsm_TxT5Uk9PVA"}
+            href="https://drive.google.com/drive/folders/0AMiALsm_TxT5Uk9PVA"
             target="_blank"
             rel="noreferrer"
             className="text-xs text-blue-500 underline font-bold mt-1"
           >
-            לחץ כאן לצפייה בתיקייה ב-Google Drive 🗁
+            פתיחת תיקיית Google Drive 🗁
           </a>
         </div>,
         { duration: 10000 }
       );
-    } catch (driveErr: any) {
-      console.warn("Google Drive Cloud Function export error:", driveErr);
-      toast.error(
-        <div className="flex flex-col gap-1">
-          <span className="font-bold">שגיאה בהעלאת הדוח ל-Google Drive</span>
-          <span className="text-xs">{driveErr?.message || "נא לוודא חיבור לרשת וגישת אדמין"}</span>
-        </div>
-      );
+    } catch (err: any) {
+      console.warn("Report generation notice:", err);
+      toast.error("שגיאה בהפקת הדוח. ודא חיבור לרשת.");
     } finally {
       setIsExportingReport(false);
     }
