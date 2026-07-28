@@ -884,16 +884,31 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
 
         {activeTab === "clustering" && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <header className="mb-10">
-              <h1 className="text-4xl font-black bg-gradient-to-l from-slate-900 to-slate-600 dark:from-white dark:to-slate-400 bg-clip-text text-transparent tracking-tight">
-                קיבוץ תלמידים לפי פערי למידה
-              </h1>
-              <p className="text-ws-soft  mt-3 text-lg">
-                המערכת מקבצת תלמידים באופן אוטומטי על בסיס מודל ה-<span dir="ltr">Q-Matrix</span>.
-              </p>
+            <header className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div>
+                <h1 className="text-3xl md:text-4xl font-black bg-gradient-to-l from-slate-900 via-indigo-950 to-slate-700 dark:from-white dark:to-slate-400 bg-clip-text text-transparent tracking-tight">
+                  קיבוץ תלמידים לפי פערי למידה (Q-Matrix Clusters)
+                </h1>
+                <p className="text-ws-soft mt-2 text-base md:text-lg">
+                  אבחון וחלוקה אוטומטית של הכיתה ב-6 מיומנויות ליבה במתמטיקה למתן תרגול דיפרנציאלי ומותאם אישית.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => {
+                    window.open(window.location.href, '_blank', 'width=1280,height=900,resizable=yes,scrollbars=yes');
+                  }}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-lg shadow-indigo-600/30 transition-all active:scale-95"
+                  title="פתיחת התצוגה בחלון נפרד לעבודה עם שני מסכים"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                  <span>פתח בחלון נפרד (מסך משני)</span>
+                </button>
+              </div>
             </header>
 
-            <AccessibleCard className="p-8 bg-ws-surface/80  backdrop-blur-xl mb-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-ws-surface2  rounded-2xl relative overflow-hidden group">
+            <AccessibleCard className="p-8 bg-ws-surface/80 backdrop-blur-xl mb-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] hover:shadow-xl transition-all duration-300 border border-ws-surface2 rounded-2xl relative overflow-hidden group">
               <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
               <h2 className="text-2xl font-bold mb-8 flex items-center gap-3">
                 <span className="w-1.5 h-6 bg-ws-accentSoft0 rounded-full"></span>
@@ -916,7 +931,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                         strokeDasharray="3 3"
                         vertical={false}
                         stroke="currentColor"
-                        className="text-slate-200  opacity-50"
+                        className="text-slate-200 opacity-50"
                       />
                       <XAxis
                         dataKey="name"
@@ -925,7 +940,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                         axisLine={false}
                         tick={{
                           fill: "currentColor",
-                          className: "text-ws-soft ",
+                          className: "text-ws-soft",
                         }}
                         dy={10}
                       />
@@ -936,7 +951,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                         axisLine={false}
                         tick={{
                           fill: "currentColor",
-                          className: "text-ws-soft ",
+                          className: "text-ws-soft",
                         }}
                         dx={-10}
                       />
@@ -973,187 +988,187 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
             </AccessibleCard>
 
             <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-6 pb-6">
-              <AccessibleCard className="flex flex-col h-full p-8 bg-ws-surface/80  backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-ws-surface2  rounded-2xl relative overflow-hidden group">
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-cyan-500"></div>
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink ">
-                  הבנת המבנה העשרוני ושומר מקום
-                </h3>
-                <p className="text-ws-soft  mb-6 text-base leading-relaxed relative z-10">
-                  תלמידים שהתקשו בהבנת האפס כשומר מקום או זיהוי ערך המקום במערכת העשרונית.
-                </p>
-                <div className="relative z-10 rounded-xl overflow-y-auto max-h-[300px] border border-ws-surface2 shadow-inner">
-                  <DataGrid
-                    columns={[
-                      { key: "name", header: "שם תלמיד" },
-                      { key: "mastery", header: "רמת שליטה" },
-                    ]}
-                    data={decimalStructureGroup.map((s) => ({
-                      id: s.studentId,
-                      name: s.name,
-                      mastery: s.conceptMastery ? `${Math.round(s.conceptMastery.decimal_structure * 100)}%` : "חסר מידע",
-                    }))}
-                  />
+              <AccessibleCard className="flex flex-col justify-between p-6 bg-ws-surface/80 backdrop-blur-xl shadow-md hover:shadow-xl transition-all duration-300 border border-ws-surface2 rounded-2xl relative overflow-hidden group min-h-[340px]">
+                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-500 to-cyan-500"></div>
+                <div>
+                  <h3 className="text-xl font-bold mb-3 text-ws-ink">
+                    הבנת המבנה העשרוני ושומר מקום
+                  </h3>
+                  <p className="text-ws-soft mb-4 text-sm leading-relaxed">
+                    תלמידים שהתקשו בהבנת האפס כשומר מקום או זיהוי ערך המקום במערכת העשרונית.
+                  </p>
+                  <div className="rounded-xl overflow-y-auto max-h-[160px] border border-ws-surface2 shadow-inner">
+                    <DataGrid
+                      columns={[
+                        { key: "name", header: "שם תלמיד" },
+                        { key: "mastery", header: "רמת שליטה" },
+                      ]}
+                      data={decimalStructureGroup.map((s) => ({
+                        id: s.studentId,
+                        name: s.name,
+                        mastery: s.conceptMastery ? `${Math.round(s.conceptMastery.decimal_structure * 100)}%` : "חסר מידע",
+                      }))}
+                    />
+                  </div>
                 </div>
                 <UdlButton
-                  size="sm"
                   semanticColor="primary"
-                  className="mt-auto pt-6 w-full shadow-lg shadow-blue-500/20 relative z-10 font-bold tracking-wide"
+                  className="mt-4 w-full shadow-md shadow-blue-500/20 font-bold tracking-wide py-2.5"
                 >
                   הקצאת תרגול מותאם
                 </UdlButton>
               </AccessibleCard>
 
-              <AccessibleCard className="flex flex-col h-full p-8 bg-ws-surface/80  backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-ws-surface2  rounded-2xl relative overflow-hidden group">
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
-                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink ">
-                  תחושת גודל ואומדן
-                </h3>
-                <p className="text-ws-soft  mb-6 text-base leading-relaxed relative z-10">
-                  תלמידים שמתקשים להעריך ולמקם מספרים על הרצף.
-                </p>
-                <div className="relative z-10 rounded-xl overflow-y-auto max-h-[300px] border border-ws-surface2 shadow-inner">
-                  <DataGrid
-                    columns={[
-                      { key: "name", header: "שם תלמיד" },
-                      { key: "mastery", header: "רמת שליטה" },
-                    ]}
-                    data={numberMagnitudeGroup.map((s) => ({
-                      id: s.studentId,
-                      name: s.name,
-                      mastery: s.conceptMastery ? `${Math.round(s.conceptMastery.number_magnitude * 100)}%` : "חסר מידע",
-                    }))}
-                  />
+              <AccessibleCard className="flex flex-col justify-between p-6 bg-ws-surface/80 backdrop-blur-xl shadow-md hover:shadow-xl transition-all duration-300 border border-ws-surface2 rounded-2xl relative overflow-hidden group min-h-[340px]">
+                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
+                <div>
+                  <h3 className="text-xl font-bold mb-3 text-ws-ink">
+                    תחושת גודל ואומדן
+                  </h3>
+                  <p className="text-ws-soft mb-4 text-sm leading-relaxed">
+                    תלמידים שמתקשים להעריך ולמקם מספרים על הרצף.
+                  </p>
+                  <div className="rounded-xl overflow-y-auto max-h-[160px] border border-ws-surface2 shadow-inner">
+                    <DataGrid
+                      columns={[
+                        { key: "name", header: "שם תלמיד" },
+                        { key: "mastery", header: "רמת שליטה" },
+                      ]}
+                      data={numberMagnitudeGroup.map((s) => ({
+                        id: s.studentId,
+                        name: s.name,
+                        mastery: s.conceptMastery ? `${Math.round(s.conceptMastery.number_magnitude * 100)}%` : "חסר מידע",
+                      }))}
+                    />
+                  </div>
                 </div>
                 <UdlButton
-                  size="sm"
                   semanticColor="primary"
-                  className="mt-auto pt-6 w-full shadow-lg shadow-emerald-500/20 relative z-10 font-bold tracking-wide"
+                  className="mt-4 w-full shadow-md shadow-emerald-500/20 font-bold tracking-wide py-2.5"
                 >
                   הקצאת המחשה חזותית
                 </UdlButton>
               </AccessibleCard>
 
-              <AccessibleCard className="flex flex-col h-full p-8 bg-ws-surface/80  backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-ws-surface2  rounded-2xl relative overflow-hidden group">
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-indigo-500"></div>
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink ">
-                  גמישות בהמרה ופריטה
-                </h3>
-                <p className="text-ws-soft  mb-6 text-base leading-relaxed relative z-10">
-                  תלמידים המקובעים לייצוג הקנוני ומתקשים לפרוט עשרות ליחידות.
-                </p>
-                <div className="relative z-10 rounded-xl overflow-y-auto max-h-[300px] border border-ws-surface2 shadow-inner">
-                  <DataGrid
-                    columns={[
-                      { key: "name", header: "שם תלמיד" },
-                      { key: "mastery", header: "רמת שליטה" },
-                    ]}
-                    data={regroupingFluencyGroup.map((s) => ({
-                      id: s.studentId,
-                      name: s.name,
-                      mastery: s.conceptMastery ? `${Math.round(s.conceptMastery.regrouping_fluency * 100)}%` : "חסר מידע",
-                    }))}
-                  />
+              <AccessibleCard className="flex flex-col justify-between p-6 bg-ws-surface/80 backdrop-blur-xl shadow-md hover:shadow-xl transition-all duration-300 border border-ws-surface2 rounded-2xl relative overflow-hidden group min-h-[340px]">
+                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-purple-500 to-indigo-500"></div>
+                <div>
+                  <h3 className="text-xl font-bold mb-3 text-ws-ink">
+                    גמישות בהמרה ופריטה
+                  </h3>
+                  <p className="text-ws-soft mb-4 text-sm leading-relaxed">
+                    תלמידים המקובעים לייצוג הקנוני ומתקשים לפרוט עשרות ליחידות.
+                  </p>
+                  <div className="rounded-xl overflow-y-auto max-h-[160px] border border-ws-surface2 shadow-inner">
+                    <DataGrid
+                      columns={[
+                        { key: "name", header: "שם תלמיד" },
+                        { key: "mastery", header: "רמת שליטה" },
+                      ]}
+                      data={regroupingFluencyGroup.map((s) => ({
+                        id: s.studentId,
+                        name: s.name,
+                        mastery: s.conceptMastery ? `${Math.round(s.conceptMastery.regrouping_fluency * 100)}%` : "חסר מידע",
+                      }))}
+                    />
+                  </div>
                 </div>
                 <UdlButton
-                  size="sm"
                   semanticColor="primary"
-                  className="mt-auto pt-6 w-full shadow-lg shadow-indigo-500/20 relative z-10 font-bold tracking-wide"
+                  className="mt-4 w-full shadow-md shadow-purple-500/20 font-bold tracking-wide py-2.5"
                 >
                   הקצאת סדנת חקר
                 </UdlButton>
               </AccessibleCard>
 
-              <AccessibleCard className="flex flex-col h-full p-8 bg-ws-surface/80  backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-ws-surface2  rounded-2xl relative overflow-hidden group">
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 to-rose-500"></div>
-                <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink ">
-                  שליטה בפרוצדורות ובעובדות
-                </h3>
-                <p className="text-ws-soft  mb-6 text-base leading-relaxed relative z-10">
-                  תלמידים שזקוקים לחיזוק האלגוריתם המסורתי בחיבור וחיסור.
-                </p>
-                <div className="relative z-10 rounded-xl overflow-y-auto max-h-[300px] border border-ws-surface2 shadow-inner">
-                  <DataGrid
-                    columns={[
-                      { key: "name", header: "שם תלמיד" },
-                      { key: "mastery", header: "רמת שליטה" },
-                    ]}
-                    data={proceduralFluencyGroup.map((s) => ({
-                      id: s.studentId,
-                      name: s.name,
-                      mastery: s.conceptMastery ? `${Math.round(s.conceptMastery.procedural_fluency * 100)}%` : "חסר מידע",
-                    }))}
-                  />
+              <AccessibleCard className="flex flex-col justify-between p-6 bg-ws-surface/80 backdrop-blur-xl shadow-md hover:shadow-xl transition-all duration-300 border border-ws-surface2 rounded-2xl relative overflow-hidden group min-h-[340px]">
+                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-red-500 to-rose-500"></div>
+                <div>
+                  <h3 className="text-xl font-bold mb-3 text-ws-ink">
+                    שליטה בפרוצדורות ובעובדות
+                  </h3>
+                  <p className="text-ws-soft mb-4 text-sm leading-relaxed">
+                    תלמידים שזקוקים לחיזוק האלגוריתם המסורתי בחיבור וחיסור.
+                  </p>
+                  <div className="rounded-xl overflow-y-auto max-h-[160px] border border-ws-surface2 shadow-inner">
+                    <DataGrid
+                      columns={[
+                        { key: "name", header: "שם תלמיד" },
+                        { key: "mastery", header: "רמת שליטה" },
+                      ]}
+                      data={proceduralFluencyGroup.map((s) => ({
+                        id: s.studentId,
+                        name: s.name,
+                        mastery: s.conceptMastery ? `${Math.round(s.conceptMastery.procedural_fluency * 100)}%` : "חסר מידע",
+                      }))}
+                    />
+                  </div>
                 </div>
                 <UdlButton
-                  size="sm"
                   semanticColor="primary"
-                  className="mt-auto pt-6 w-full shadow-lg shadow-red-500/20 relative z-10 font-bold tracking-wide"
+                  className="mt-4 w-full shadow-md shadow-red-500/20 font-bold tracking-wide py-2.5"
                 >
                   הקצאת תרגול מותאם
                 </UdlButton>
               </AccessibleCard>
 
-              <AccessibleCard className="flex flex-col h-full p-8 bg-ws-surface/80  backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-ws-surface2  rounded-2xl relative overflow-hidden group">
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-slate-500 to-gray-500"></div>
-                <div className="absolute inset-0 bg-gradient-to-br from-slate-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink ">
-                  חשיבה יחסית (Relational Thinking)
-                </h3>
-                <p className="text-ws-soft  mb-6 text-base leading-relaxed relative z-10">
-                  תלמידים שמתקשים לגזור עובדה חדשה מתוך עובדה ידועה ללא חישוב מחדש.
-                </p>
-                <div className="relative z-10 rounded-xl overflow-y-auto max-h-[300px] border border-ws-surface2 shadow-inner">
-                  <DataGrid
-                    columns={[
-                      { key: "name", header: "שם תלמיד" },
-                      { key: "mastery", header: "רמת שליטה" },
-                    ]}
-                    data={relationalThinkingGroup.map((s) => ({
-                      id: s.studentId,
-                      name: s.name,
-                      mastery: s.conceptMastery ? `${Math.round(s.conceptMastery.relational_thinking * 100)}%` : "חסר מידע",
-                    }))}
-                  />
+              <AccessibleCard className="flex flex-col justify-between p-6 bg-ws-surface/80 backdrop-blur-xl shadow-md hover:shadow-xl transition-all duration-300 border border-ws-surface2 rounded-2xl relative overflow-hidden group min-h-[340px]">
+                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-slate-500 to-gray-500"></div>
+                <div>
+                  <h3 className="text-xl font-bold mb-3 text-ws-ink">
+                    חשיבה יחסית (Relational Thinking)
+                  </h3>
+                  <p className="text-ws-soft mb-4 text-sm leading-relaxed">
+                    תלמידים שמתקשים לגזור עובדה חדשה מתוך עובדה ידועה ללא חישוב מחדש.
+                  </p>
+                  <div className="rounded-xl overflow-y-auto max-h-[160px] border border-ws-surface2 shadow-inner">
+                    <DataGrid
+                      columns={[
+                        { key: "name", header: "שם תלמיד" },
+                        { key: "mastery", header: "רמת שליטה" },
+                      ]}
+                      data={relationalThinkingGroup.map((s) => ({
+                        id: s.studentId,
+                        name: s.name,
+                        mastery: s.conceptMastery ? `${Math.round(s.conceptMastery.relational_thinking * 100)}%` : "חסר מידע",
+                      }))}
+                    />
+                  </div>
                 </div>
                 <UdlButton
-                  size="sm"
                   semanticColor="primary"
-                  className="mt-auto pt-6 w-full shadow-lg shadow-slate-500/20 relative z-10 font-bold tracking-wide"
+                  className="mt-4 w-full shadow-md shadow-slate-500/20 font-bold tracking-wide py-2.5"
                 >
                   הקצה חקר יחסים
                 </UdlButton>
               </AccessibleCard>
 
-              <AccessibleCard className="flex flex-col h-full p-8 bg-ws-surface/80  backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-ws-surface2  rounded-2xl relative overflow-hidden group">
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-500 to-orange-500"></div>
-                <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                <h3 className="text-2xl font-bold mb-4 relative z-10 text-ws-ink ">
-                  חשיבה אלגברית ומציאת נעלם
-                </h3>
-                <p className="text-ws-soft  mb-6 text-base leading-relaxed relative z-10">
-                  תלמידים המתקשים להבין את סימן השוויון כמאזניים ואת הדינמיקה של משוואה.
-                </p>
-                <div className="relative z-10 rounded-xl overflow-y-auto max-h-[300px] border border-ws-surface2 shadow-inner">
-                  <DataGrid
-                    columns={[
-                      { key: "name", header: "שם תלמיד" },
-                      { key: "mastery", header: "רמת שליטה" },
-                    ]}
-                    data={algebraicReasoningGroup.map((s) => ({
-                      id: s.studentId,
-                      name: s.name,
-                      mastery: s.conceptMastery ? `${Math.round(s.conceptMastery.algebraic_reasoning * 100)}%` : "חסר מידע",
-                    }))}
-                  />
+              <AccessibleCard className="flex flex-col justify-between p-6 bg-ws-surface/80 backdrop-blur-xl shadow-md hover:shadow-xl transition-all duration-300 border border-ws-surface2 rounded-2xl relative overflow-hidden group min-h-[340px]">
+                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-amber-500 to-orange-500"></div>
+                <div>
+                  <h3 className="text-xl font-bold mb-3 text-ws-ink">
+                    חשיבה אלגברית ומציאת נעלם
+                  </h3>
+                  <p className="text-ws-soft mb-4 text-sm leading-relaxed">
+                    תלמידים המתקשים להבין את סימן השוויון כמאזניים ואת הדינמיקה של משוואה.
+                  </p>
+                  <div className="rounded-xl overflow-y-auto max-h-[160px] border border-ws-surface2 shadow-inner">
+                    <DataGrid
+                      columns={[
+                        { key: "name", header: "שם תלמיד" },
+                        { key: "mastery", header: "רמת שליטה" },
+                      ]}
+                      data={algebraicReasoningGroup.map((s) => ({
+                        id: s.studentId,
+                        name: s.name,
+                        mastery: s.conceptMastery ? `${Math.round(s.conceptMastery.algebraic_reasoning * 100)}%` : "חסר מידע",
+                      }))}
+                    />
+                  </div>
                 </div>
                 <UdlButton
-                  size="sm"
                   semanticColor="primary"
-                  className="mt-auto pt-6 w-full shadow-lg shadow-amber-500/20 relative z-10 font-bold tracking-wide"
+                  className="mt-4 w-full shadow-md shadow-amber-500/20 font-bold tracking-wide py-2.5"
                 >
                   הקצאת מודל מאזניים
                 </UdlButton>
