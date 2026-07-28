@@ -417,6 +417,14 @@ export function Login() {
                             onChange={(e) => setPassword(e.target.value)}
                             className={inputClass}
                           />
+                          <button
+                            type="submit"
+                            disabled={isLoggingIn}
+                            className="ws-btn-primary w-full flex items-center justify-center gap-3 p-4 rounded-2xl font-display font-extrabold text-base transition-all shadow-md hover:shadow-lg active:scale-98 bg-gradient-to-r from-blue-600 to-indigo-600 text-white"
+                          >
+                            <span>🚀</span>
+                            <span>{isLoggingIn ? "מתחבר..." : "כניסה למרחב הלמידה"}</span>
+                          </button>
                         </>
                       )}
                       {selectedRole === "admin" && (
