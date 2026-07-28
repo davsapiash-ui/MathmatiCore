@@ -4,6 +4,7 @@ exports.exportAdminReportToDrive = void 0;
 const https_1 = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
+const google_auth_library_1 = require("google-auth-library");
 const GOOGLE_DRIVE_FOLDER_ID = "0AMiALsm_TxT5Uk9PVA";
 const SERVICE_ACCOUNT_EMAIL = "1002220159@edu-haifa.org.il";
 /**
@@ -127,6 +128,36 @@ ${startXrefOffset}
     return Buffer.from(pdfFull, "utf-8");
 }
 /**
+ * Retrieve Google Drive API Access Token with explicit Drive Scopes.
+ */
+async function getDriveAccessToken() {
+    try {
+        const auth = new google_auth_library_1.GoogleAuth({
+            scopes: [
+                "https://www.googleapis.com/auth/drive",
+                "https://www.googleapis.com/auth/drive.file",
+            ],
+        });
+        const client = await auth.getClient();
+        const tokenResponse = await client.getAccessToken();
+        return tokenResponse.token || null;
+    }
+    catch (err) {
+        logger.warn("GoogleAuth client error, using fallback admin credential:", (err === null || err === void 0 ? void 0 : err.message) || err);
+        try {
+            const credential = admin.app().options.credential;
+            if (credential && "getAccessToken" in credential) {
+                const tokenObj = await credential.getAccessToken();
+                return tokenObj.access_token || null;
+            }
+        }
+        catch (adminErr) {
+            logger.warn("Admin credential token error:", adminErr);
+        }
+    }
+    return null;
+}
+/**
  * Cloud Function: exportAdminReportToDrive
  * Generates an executive PDF report and uploads it directly to Google Drive
  * folder 0AMiALsm_TxT5Uk9PVA authorized for Service Account 1002220159@edu-haifa.org.il.
@@ -151,45 +182,44 @@ exports.exportAdminReportToDrive = (0, https_1.onCall)(async (request) => {
     let driveFileId = `drive_${Date.now()}`;
     let webViewLink = `https://drive.google.com/drive/folders/${GOOGLE_DRIVE_FOLDER_ID}`;
     try {
-        const credential = admin.app().options.credential;
-        if (credential && "getAccessToken" in credential) {
-            const tokenObj = await credential.getAccessToken();
-            const accessToken = tokenObj.access_token;
-            if (accessToken) {
-                const metadata = {
-                    name: fileName,
-                    parents: [GOOGLE_DRIVE_FOLDER_ID],
-                    mimeType: "application/pdf",
-                };
-                const boundary = "mathmaticore_pdf_boundary";
-                const delimiter = `\r\n--${boundary}\r\n`;
-                const closeDelimiter = `\r\n--${boundary}--`;
-                const multipartBody = Buffer.concat([
-                    Buffer.from(`${delimiter}Content-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}`),
-                    Buffer.from(`${delimiter}Content-Type: application/pdf\r\nContent-Transfer-Encoding: base64\r\n\r\n${pdfBuffer.toString("base64")}`),
-                    Buffer.from(closeDelimiter),
-                ]);
-                const response = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true", {
-                    method: "POST",
-                    headers: {
-                        Authorization: `Bearer ${accessToken}`,
-                        "Content-Type": `multipart/related; boundary=${boundary}`,
-                    },
-                    body: multipartBody,
-                });
-                if (response.ok) {
-                    const resData = await response.json();
-                    driveFileId = resData.id || driveFileId;
-                    if (resData.id) {
-                        webViewLink = `https://drive.google.com/file/d/${resData.id}/view`;
-                    }
-                    logger.info(`Successfully uploaded PDF report to Google Drive: ${driveFileId}`);
+        const accessToken = await getDriveAccessToken();
+        if (accessToken) {
+            const metadata = {
+                name: fileName,
+                parents: [GOOGLE_DRIVE_FOLDER_ID],
+                mimeType: "application/pdf",
+            };
+            const boundary = "mathmaticore_pdf_boundary";
+            const delimiter = `\r\n--${boundary}\r\n`;
+            const closeDelimiter = `\r\n--${boundary}--`;
+            const multipartBody = Buffer.concat([
+                Buffer.from(`${delimiter}Content-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}`),
+                Buffer.from(`${delimiter}Content-Type: application/pdf\r\nContent-Transfer-Encoding: base64\r\n\r\n${pdfBuffer.toString("base64")}`),
+                Buffer.from(closeDelimiter),
+            ]);
+            const response = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&supportsTeamDrives=true", {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                    "Content-Type": `multipart/related; boundary=${boundary}`,
+                },
+                body: multipartBody,
+            });
+            if (response.ok) {
+                const resData = await response.json();
+                driveFileId = resData.id || driveFileId;
+                if (resData.id) {
+                    webViewLink = `https://drive.google.com/file/d/${resData.id}/view`;
                 }
-                else {
-                    const errText = await response.text();
-                    logger.warn(`Google Drive API note (${response.status}): ${errText}`);
-                }
+                logger.info(`Successfully uploaded PDF report to Google Drive: ${driveFileId}`);
             }
+            else {
+                const errText = await response.text();
+                logger.warn(`Google Drive API note (${response.status}): ${errText}`);
+            }
+        }
+        else {
+            logger.warn("No Google Drive access token could be acquired.");
         }
     }
     catch (err) {
