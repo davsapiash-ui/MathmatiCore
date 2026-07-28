@@ -29,9 +29,51 @@ export function AdminChatView() {
     }
   };
 
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterTab, setFilterTab] = useState<"ALL" | "UNANSWERED" | "ANSWERED">("ALL");
+
   const selectedTeacher = useMemo(() => 
     teachers.find(t => t.id === selectedTeacherId), 
   [teachers, selectedTeacherId]);
+
+  // Compute teacher chat metadata (unread count, last message, unanswered status)
+  const teacherChatMeta = useMemo(() => {
+    return teachers.map(t => {
+      const teacherMsgs = messages.filter(m => 
+        (m.senderId === "admin" && m.receiverId === t.id) ||
+        (m.senderId === t.id && m.receiverId === "admin")
+      ).sort((a, b) => a.timestamp - b.timestamp);
+
+      const unreadCount = messages.filter(m => m.senderId === t.id && m.receiverId === "admin" && !m.read).length;
+      const lastMsg = teacherMsgs[teacherMsgs.length - 1];
+      const isUnanswered = lastMsg && lastMsg.senderId === t.id && !lastMsg.read;
+
+      return {
+        teacher: t,
+        unreadCount,
+        lastMsg,
+        isUnanswered,
+      };
+    });
+  }, [teachers, messages]);
+
+  const filteredTeachers = useMemo(() => {
+    return teacherChatMeta.filter(({ teacher, isUnanswered, unreadCount }) => {
+      const matchesSearch = !searchQuery.trim() || 
+        teacher.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        teacher.taz.includes(searchQuery);
+
+      if (!matchesSearch) return false;
+
+      if (filterTab === "UNANSWERED") return isUnanswered || unreadCount > 0;
+      if (filterTab === "ANSWERED") return !isUnanswered && unreadCount === 0;
+      return true;
+    });
+  }, [teacherChatMeta, searchQuery, filterTab]);
+
+  const unansweredTotal = useMemo(() => {
+    return teacherChatMeta.filter(m => m.isUnanswered || m.unreadCount > 0).length;
+  }, [teacherChatMeta]);
 
   const conversationMessages = useMemo(() => {
     if (!selectedTeacherId) return [];
@@ -62,33 +104,94 @@ export function AdminChatView() {
   return (
     <div className="flex h-full bg-slate-50/50 dark:bg-slate-900/50 overflow-hidden backdrop-blur-xl" dir="rtl">
       {/* Teachers List Sidebar */}
-      <div className={`${selectedTeacher ? 'hidden md:flex' : 'flex'} w-full md:w-80 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md border-l border-slate-200 dark:border-slate-800 flex-col transition-all`}>
-        <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
-          <h2 className="font-bold text-lg text-slate-800 dark:text-slate-100">צ'אט עם מורים</h2>
+      <div className={`${selectedTeacher ? 'hidden md:flex' : 'flex'} w-full md:w-88 bg-white/90 dark:bg-slate-950/90 backdrop-blur-md border-l border-slate-200 dark:border-slate-800 flex-col transition-all shadow-lg z-10`}>
+        <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/80 space-y-3">
+          <div className="flex justify-between items-center">
+            <h2 className="font-black text-lg text-slate-800 dark:text-slate-100 flex items-center gap-2">
+              <Users className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+              <span>ערוצי תקשורת הנהלה-מורים</span>
+            </h2>
+            {unansweredTotal > 0 && (
+              <span className="bg-rose-500 text-white text-xs font-black px-2.5 py-1 rounded-full shadow-md animate-pulse">
+                {unansweredTotal} שלא נענו
+              </span>
+            )}
+          </div>
+
+          {/* Search Input */}
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder='חפש מורה לפי שם או ת"ז...'
+            className="w-full px-3.5 py-2 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-slate-200 shadow-sm"
+          />
+
+          {/* Filter Chips */}
+          <div className="flex gap-1.5 pt-1">
+            <button
+              onClick={() => setFilterTab("ALL")}
+              className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${filterTab === "ALL" ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-200/60 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'}`}
+            >
+              הכל ({teachers.length})
+            </button>
+            <button
+              onClick={() => setFilterTab("UNANSWERED")}
+              className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${filterTab === "UNANSWERED" ? 'bg-rose-600 text-white shadow-sm' : 'bg-slate-200/60 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'}`}
+            >
+              שלא נענו ({unansweredTotal})
+            </button>
+            <button
+              onClick={() => setFilterTab("ANSWERED")}
+              className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${filterTab === "ANSWERED" ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-200/60 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'}`}
+            >
+              נענו
+            </button>
+          </div>
         </div>
-        <div className="flex-1 overflow-y-auto p-2 space-y-1">
-          {teachers.length === 0 ? (
-            <div className="p-4 text-center text-slate-500 text-sm">לא הוקמו מורים במערכת.</div>
+
+        <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
+          {filteredTeachers.length === 0 ? (
+            <div className="p-8 text-center text-slate-500 text-sm">לא נמצאו מורים תואמים.</div>
           ) : (
-            teachers.map(teacher => {
-              const unreadCount = messages.filter(m => m.senderId === teacher.id && m.receiverId === "admin" && !m.read).length;
+            filteredTeachers.map(({ teacher, unreadCount, lastMsg, isUnanswered }) => {
+              const isSelected = selectedTeacherId === teacher.id;
+
               return (
                 <button
                   key={teacher.id}
                   onClick={() => handleTeacherSelect(teacher.id)}
-                  className={`w-full text-right p-3 rounded-xl flex items-center justify-between transition-all ${selectedTeacherId === teacher.id ? 'bg-blue-100/80 dark:bg-blue-900/50 shadow-sm' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                  className={`w-full text-right p-3.5 rounded-2xl flex items-start justify-between transition-all border ${isSelected ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-500 shadow-md' : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 hover:border-indigo-300'}`}
                 >
-                  <div className="flex items-center gap-3">
-                    <UserCircle2 className="w-8 h-8 text-slate-400" />
+                  <div className="flex items-start gap-3">
+                    <div className="relative">
+                      <UserCircle2 className={`w-10 h-10 ${isSelected ? 'text-indigo-600' : 'text-slate-400'}`} />
+                      {isUnanswered && (
+                        <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-rose-500 ring-2 ring-white animate-ping" />
+                      )}
+                    </div>
                     <div>
-                      <div className={`font-semibold ${selectedTeacherId === teacher.id ? 'text-blue-800 dark:text-blue-200' : 'text-slate-700 dark:text-slate-300'}`}>
-                        {teacher.name}
+                      <div className="flex items-center gap-2">
+                        <span className={`font-black text-sm ${isSelected ? 'text-indigo-900 dark:text-indigo-200' : 'text-slate-800 dark:text-slate-100'}`}>
+                          {teacher.name}
+                        </span>
+                        {isUnanswered && (
+                          <span className="text-[10px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-200 px-1.5 py-0.5 rounded-md">
+                            ממתין למנהל
+                          </span>
+                        )}
                       </div>
-                      <div className="text-xs text-slate-500">ת"ז: {teacher.taz}</div>
+                      <div className="text-xs text-slate-500 font-mono mt-0.5">ת"ז: {teacher.taz}</div>
+                      {lastMsg && (
+                        <div className="text-xs text-slate-400 truncate max-w-[150px] mt-1">
+                          {lastMsg.text || (lastMsg.imageUrl ? '📷 תמונה' : 'הודעה')}
+                        </div>
+                      )}
                     </div>
                   </div>
+
                   {unreadCount > 0 && (
-                    <span className="bg-red-500 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full shadow-md">
+                    <span className="bg-rose-600 text-white text-xs font-black w-6 h-6 flex items-center justify-center rounded-full shadow-md animate-bounce">
                       {unreadCount}
                     </span>
                   )}
