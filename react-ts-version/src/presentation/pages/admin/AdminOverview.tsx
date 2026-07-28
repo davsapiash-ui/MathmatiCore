@@ -17,7 +17,8 @@ import {
   TrendingUp,
   RefreshCw,
   FileSpreadsheet,
-  Download
+  Download,
+  UploadCloud
 } from "lucide-react";
 import { UdlButton } from "@/presentation/design-system/UdlButton";
 import { toast } from "sonner";
@@ -294,9 +295,10 @@ export function AdminOverview() {
               onClick={handleExportReport}
               disabled={isExportingReport}
               className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2.5 rounded-2xl shadow-lg border border-emerald-400/40 active:scale-95 transition-all"
+              title="הפקת דוח PDF והעלאה ישירה למרחב השיתופי ב-Google Drive"
             >
-              <FileSpreadsheet className="w-4 h-4" />
-              <span>{isExportingReport ? "מייצר ומעלה..." : "ייצוא דוח PDF ל-Google Drive 📄"}</span>
+              <UploadCloud className="w-4 h-4" />
+              <span>{isExportingReport ? "מעלה ל-Drive..." : "שליחת דוח ישירות ל-Google Drive ☁️"}</span>
             </UdlButton>
 
             <div className={`flex items-center gap-2.5 backdrop-blur-md border px-4 py-2.5 rounded-2xl text-xs font-bold text-white shadow-md transition-all ${
