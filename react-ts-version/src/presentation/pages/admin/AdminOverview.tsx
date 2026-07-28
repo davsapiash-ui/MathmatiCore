@@ -111,14 +111,45 @@ export function AdminOverview() {
   }, []);
 
   const [isFirebaseConnected, setIsFirebaseConnected] = useState<boolean>(true);
+  const [latencyMs, setLatencyMs] = useState<number | null>(null);
 
   useEffect(() => {
     const connectedRef = ref(database, '.info/connected');
-    const unsub = onValue(connectedRef, (snap) => {
-      setIsFirebaseConnected(snap.val() === true);
+    const unsub = onValue(connectedRef, async (snap) => {
+      const isConn = snap.val() === true;
+      setIsFirebaseConnected(isConn);
+      if (isConn) {
+        const start = performance.now();
+        try {
+          await get(ref(database, '.info/serverTimeOffset'));
+          const duration = Math.round(performance.now() - start);
+          setLatencyMs(duration);
+        } catch {
+          setLatencyMs(null);
+        }
+      } else {
+        setLatencyMs(null);
+      }
     });
-    return () => unsub();
-  }, []);
+
+    const pingInterval = setInterval(async () => {
+      if (isFirebaseConnected) {
+        const start = performance.now();
+        try {
+          await get(ref(database, '.info/serverTimeOffset'));
+          const duration = Math.round(performance.now() - start);
+          setLatencyMs(duration);
+        } catch {
+          setLatencyMs(null);
+        }
+      }
+    }, 10000);
+
+    return () => {
+      unsub();
+      clearInterval(pingInterval);
+    };
+  }, [isFirebaseConnected]);
 
   const handleDataCleanup = async () => {
     if (!window.confirm("האם אתה בטוח שברצונך למחוק הקלטות וידאו ישנות (מעל 30 יום)? פעולה זו מומלצת כהכנה לתקני פרטיות ילדים ולא ניתנת לביטול.")) return;
@@ -218,7 +249,7 @@ export function AdminOverview() {
             }`} />
             <span>
               {isFirebaseConnected 
-                ? 'סנכרון Realtime DB פעיל' 
+                ? `סנכרון Realtime DB פעיל${latencyMs !== null ? ` (${latencyMs}ms)` : ''}` 
                 : 'תקשורת Realtime DB מנותקת'}
             </span>
           </div>
