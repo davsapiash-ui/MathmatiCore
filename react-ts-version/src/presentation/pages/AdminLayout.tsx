@@ -59,7 +59,7 @@ export function AdminLayout() {
               <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-600/30 font-bold">
                 <Shield className="w-5 h-5 flex-shrink-0" />
               </div>
-              <Logo textClassName="bg-gradient-to-l from-indigo-600 to-purple-600 bg-clip-text text-transparent font-black text-xl tracking-tight" />
+              <Logo textClassName="text-slate-900 dark:text-white font-black text-xl tracking-tight" />
             </div>
             <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2 tracking-widest uppercase font-bold">פורטל מנהל מערכת</p>
           </SidebarHeader>
