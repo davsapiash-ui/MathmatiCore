@@ -88,7 +88,7 @@ export function NumberLineTask({
 
   const isFullScreenFocus = sessionNumber === 7;
 
-  if (sessionNumber === 1 || sessionNumber === 8) {
+  if (sessionNumber === 8) {
     return null;
   }
 
