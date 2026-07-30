@@ -203,7 +203,7 @@ export function NumberLineTask({
           {/* Major labels */}
           {majorTicks.map((t) => {
             const isOutside = activeRange && (t < activeRange[0] || t > activeRange[1]);
-            const isLabelVisible = effectiveScaffoldLevel === 0 || (effectiveScaffoldLevel === 1 && (isMajor || asdAnchors?.includes(t))) || t === min || t === max;
+            const isLabelVisible = effectiveScaffoldLevel <= 1 || (asdAnchors && asdAnchors.includes(t)) || t === min || t === max;
             const visibilityClass = isLabelVisible ? 'opacity-100' : 'opacity-0';
             
             return (
