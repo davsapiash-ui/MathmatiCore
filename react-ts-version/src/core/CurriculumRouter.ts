@@ -21,6 +21,10 @@ export class CurriculumRouter {
       (q.task6_subtraction_regrouping !== 'success' && q.task6_subtraction_regrouping !== null)
     );
 
+    // 2. Trace Data Analysis (Silent Radar)
+    // If the student struggled silently (high hesitation or extreme undo usage)
+    const silentStruggle = t.hesitation_events >= 10 || t.undo_clicks >= 15;
+
     if (failedCoreTask || silentStruggle) {
       return 'YELLOW';
     }

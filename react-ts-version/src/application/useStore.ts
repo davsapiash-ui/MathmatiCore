@@ -193,7 +193,6 @@ export const useStore = create<AppState>()(
               highestCompletedMeeting: 0,
               qMatrixResults: {
                 task1_zero_placeholder: null,
-                task2_estimation_error_margin: null,
                 task3_flexible_regrouping: null,
                 task4_basic_addition_fluency: null,
                 task5_small_change: null,

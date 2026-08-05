@@ -59,7 +59,6 @@ const getStudentKPIs = (student: StudentData, messages: ChatMessage[]) => {
   return {
     persistence,
     efficiency,
-    estimationAccuracy,
     dialogueQuality
   };
 };
