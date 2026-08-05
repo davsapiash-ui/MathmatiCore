@@ -2,7 +2,7 @@ import { ChoiceList } from './ChoiceList';
 import type { TaskChoice } from '@/data/sessionTasks';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 
-/** השינוי הקטן — תרגיל פתור נתון + שאלת אומדן בבחירה סגורה (ללא חישוב מחדש). */
+/** השינוי הקטן — תרגיל פתור נתון + שאלת בחירה סגורה (ללא חישוב מחדש). */
 export function SmallChangeTask({
   givenHe,
   questionHe,

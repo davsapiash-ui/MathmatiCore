@@ -28,14 +28,7 @@ const STATIC_QMATRIX_HINTS: Record<string, SocraticHintOption> = {
       { id: "choice_3", textHe: "נרשום 1 בעמודה" }
     ]
   },
-  task2_estimation_error_margin: {
-    questionHe: "הסתכלו על ישר המספרים, בין אילו עשרות או מאות נמצא המספר?",
-    choices: [
-      { id: "choice_1", textHe: "נבדוק את נקודת האמצע ונכוון לפיה" },
-      { id: "choice_2", textHe: "נזיז את החץ לקצה הימני ביותר" },
-      { id: "choice_3", textHe: "נבחר נקודה אקראית" }
-    ]
-  },
+
   task3_flexible_regrouping: {
     questionHe: "איך עוד אפשר לייצג את המספר באמצעות עשרות ויחידות?",
     choices: [
@@ -168,7 +161,7 @@ JSON SCHEMA:
   "tasks": [
     {
       "id": "string (unique id like gen_t1)",
-      "type": "string ('vertical_addition', 'number_line', 'small_change', or 'missing_element')",
+      "type": "string ('vertical_addition', 'small_change', or 'missing_element')",
       "titleHe": "string",
       "instructionHe": "string",
       "numberA": "number",

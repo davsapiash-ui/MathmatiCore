@@ -32,7 +32,6 @@ test('Prove Diagnostic Reports Generation v2', async ({ browser }) => {
 
     const qMatrix = {
       task1_zero_placeholder: 'success',
-      task2_estimation_error_margin: 'success',
       task3_flexible_regrouping: 'canonical_fixation',
       task4_basic_addition_fluency: 'success',
       task5_small_change: 'success',

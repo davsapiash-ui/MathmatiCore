@@ -40,7 +40,6 @@ test('Generate Real Student Telemetry and AI Report', async ({ browser }) => {
         qflow: {
           results: {
             task1_zero_placeholder: { correct: true, tag: 'success' },
-            task2_estimation_error_margin: { correct: true, tag: 'success' },
             task3_flexible_regrouping: { correct: true, tag: 'success' },
             task4_basic_addition_fluency: { correct: true, tag: 'success' },
             task5_small_change: { correct: true, tag: 'success' },

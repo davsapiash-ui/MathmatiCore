@@ -6,7 +6,7 @@ export interface TaskChoice {
 
 export interface MathTask {
   id: string;
-  type: string; // 'session1_intro', 'addition_simple', 'place_value_zero', 'number_line', 'flexible_decomp', 'vertical_addition', 'small_change'
+  type: string; // 'session1_intro', 'addition_simple', 'place_value_zero', 'flexible_decomp', 'vertical_addition', 'small_change'
   titleHe: string;
   instructionHe: string;
   

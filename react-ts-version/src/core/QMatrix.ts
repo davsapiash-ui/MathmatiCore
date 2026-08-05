@@ -30,7 +30,7 @@ export interface BackwardDiagnosis {
 
 export interface QMatrixTask {
   id: string;
-  type: "place_value_zero" | "number_line" | "flexible_decomp" | "vertical_addition" | "small_change" | "missing_element";
+  type: "place_value_zero" | "flexible_decomp" | "vertical_addition" | "small_change" | "missing_element";
   isSubtraction?: boolean;
   titleHe: string;
   instructionHe: string;
@@ -86,27 +86,7 @@ export const TASKS: QMatrixTask[] = [
       correctChoice: "א",
     },
   },
-  {
-    id: "task2_estimation_error_margin",
-    type: "number_line",
-    titleHe: "רצף וסדר על ישר המספרים",
-    instructionHe: "בואו נבדוק השערה: היכן לדעתכם ימוקם המספר {{number}} על ציר המעבדה? גררו את הסמן למיקום מקורב.",
-    number: 480,
-    range: [400, 500],
-    asdNumber: 350,
-    asdRange: [300, 400],
-    errorMarginPct: 0.07,
-    backwardDiagnosis: {
-      triggerOn: "large_deviation",
-      deviationPct: 0.15,
-      subtaskNumber: 35,
-      subtaskRange: [0, 100],
-      asdSubtaskNumber: 15,
-      asdSubtaskRange: [0, 50],
-      subtaskInstructionHe: "בואו ניקח ציר קצר יותר ונדגום שוב: איפה נמקם את המספר?",
-      asdAnchors: [10, 20, 30, 40, 50, 60, 70, 80, 90],
-    },
-  },
+
   {
     id: "task3_flexible_regrouping",
     type: "flexible_decomp",
@@ -157,7 +137,7 @@ export const TASKS: QMatrixTask[] = [
   {
     id: "task5_small_change",
     type: "small_change",
-    titleHe: "השינוי הקטן — אומדן",
+    titleHe: "השינוי הקטן",
     instructionHe: "הביטו בניסוי שביצענו עבורכם. נסו לענות על השאלה הבאה בלי לחשב מחדש, רק בעזרת חשיבה מדעית והיגיון!",
     givenHe: "545 + 10 = 555",
     questionHe: "כמה הם 545 + 9?",
@@ -412,7 +392,7 @@ export type CognitiveConcept =
 
 export const CONCEPT_LABELS_HE: Record<CognitiveConcept, string> = {
   decimal_structure: 'הבנת המבנה העשרוני ושומר מקום',
-  number_magnitude: 'תחושת גודל ואומדן',
+  number_magnitude: 'תחושת גודל המספר',
   regrouping_fluency: 'גמישות בהמרה ופריטה',
   procedural_fluency: 'שליטה בפרוצדורות ובעובדות',
   relational_thinking: 'חשיבה יחסית',
@@ -424,7 +404,7 @@ export const CONCEPT_LABELS_HE: Record<CognitiveConcept, string> = {
  */
 export const Q_MATRIX_MAPPING: Record<string, CognitiveConcept[]> = {
   task1_zero_placeholder: ['decimal_structure'],
-  task2_estimation_error_margin: ['number_magnitude'],
+
   task3_flexible_regrouping: ['decimal_structure', 'regrouping_fluency'],
   task4_basic_addition_fluency: ['procedural_fluency', 'regrouping_fluency'],
   task5_small_change: ['relational_thinking'],

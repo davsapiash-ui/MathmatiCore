@@ -17,7 +17,6 @@ import { DienesBlock } from '@/features/workspace/board/DienesBlock';
 import { WorkspaceTopbar } from '@/features/workspace/WorkspaceTopbar';
 import { useAuthStore } from '@/application/useAuthStore';
 import { Navigate } from 'react-router-dom';
-import { NumberLineTask } from '@/features/workspace/tasks/NumberLineTask';
 
 /**
  * ארגז חול למקרן (מצב מורה)
@@ -106,11 +105,7 @@ export function ProjectorSandboxPage() {
 
                 <PlaceValueBoard />
                 
-                {/* נוסיף ציר מספרים להדגמה קלה */}
-                <div className="bg-white rounded-3xl p-6 shadow-sm border border-ws-blue-soft/20 flex-shrink-0">
-                  <h2 className="text-xl font-bold text-center mb-6 text-ws-blue">ישר המספרים (להדגמה)</h2>
-                  <NumberLineTask range={selectedRange === '1000' ? [0, 1000] : [0, 10000]} showMarkerValue={true} />
-                </div>
+
              </div>
           </section>
 

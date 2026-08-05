@@ -139,36 +139,6 @@ test.describe('Session 8 (Scaffold-Free E2E)', () => {
     await expect(proceedBtn).toBeEnabled({ timeout: 5000 });
     await proceedBtn.click();
 
-    // -- Task 3: 8,750 --
-    console.log('--- TASK 3 START ---');
-    // Wait for task 3 to load by waiting for taskIdx to change to 2
-    await page.waitForFunction(() => {
-      const store = (window as any).__wsStore;
-      return store && store.getState().standardTaskIdx === 2;
-    }, { timeout: 10000 });
-
-    // Verify number line track/slider is not visible
-    await expect(page.locator('[role="slider"]')).not.toBeVisible();
-
-    // Input the numeric answer directly
-    const directInput = page.getByPlaceholder('הקלידו מספר...');
-    await expect(directInput).toBeVisible({ timeout: 5000 });
-    await directInput.fill('8750');
-
-    const state3 = await page.evaluate(() => {
-      const store = (window as any).__wsStore.getState();
-      return {
-        taskIdx: store.standardTaskIdx,
-        numberLineValue: store.numberLineValue,
-        canProceed: !document.querySelector('button[aria-label="עבור למשימה הבאה"]')?.hasAttribute('disabled')
-      };
-    });
-    console.log('Task 3 State:', state3);
-
-    // Click proceed to finish session 8
-    await expect(proceedBtn).toBeEnabled({ timeout: 5000 });
-    await proceedBtn.click();
-
     // Verify redirect back to student hub after completion (sessionDone)
     await page.waitForURL('**/hub', { timeout: 10000 });
     await expect(page.getByText('מפת המסע שלך')).toBeVisible({ timeout: 5000 });

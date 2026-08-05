@@ -45,10 +45,10 @@ export const ROUTE_METADATA: Record<string, RouteMetadata> = {
       },
       {
         sessionNumber: 5,
-        goals: 'ביסוס תובנת המספר (Number Sense): אומדן תוצאות לפני פתרון מדויק.',
+        goals: 'ביסוס תובנת המספר (Number Sense): חישוב מנטלי ופתרון מדויק.',
         phases: [
-          { phaseNumber: 1, title: 'משחקי אומדן (Estimation)', durationMinutes: 10, description: 'תרגילי בחירה מהירה: "האם התוצאה גדולה או קטנה מ-50?"', exercisesCount: 10 },
-          { phaseNumber: 2, title: 'וידוא קונקרטי', durationMinutes: 10, description: 'פתרון מדויק של התרגילים מהשלב הקודם בעזרת הכלים ובדיקת הפער מהאומדן.', exercisesCount: 4 },
+          { phaseNumber: 1, title: 'חישוב מנטלי', durationMinutes: 10, description: 'תרגילי בחירה מהירה: בדיקת סבירות תוצאות.', exercisesCount: 10 },
+          { phaseNumber: 2, title: 'וידוא קונקרטי', durationMinutes: 10, description: 'פתרון מדויק של התרגילים מהשלב הקודם בעזרת הכלים.', exercisesCount: 4 },
           { phaseNumber: 3, title: 'הערכה עצמית', durationMinutes: 5, description: 'שאלון ביטחון עצמי במתמטיקה (Metacognitive Wrap-up).', exercisesCount: 1 }
         ]
       },
@@ -87,9 +87,9 @@ export const ROUTE_METADATA: Record<string, RouteMetadata> = {
       },
       {
         sessionNumber: 4,
-        goals: 'אומדן ודיוק: חיסור מספרים רב-ספרתיים עם פריטה כפולה תוך ביצוע אומדן מהיר.',
+        goals: 'חישוב ודיוק: חיסור מספרים רב-ספרתיים עם פריטה כפולה.',
         phases: [
-          { phaseNumber: 1, title: 'חישוב מנטלי (Mental Math)', durationMinutes: 10, description: 'ביצוע אומדנים למספרים תלת-ספרתיים בראש תוך זמן מוקצב.', exercisesCount: 10 },
+          { phaseNumber: 1, title: 'חישוב מנטלי (Mental Math)', durationMinutes: 10, description: 'חישוב בעל פה למספרים תלת-ספרתיים תוך זמן מוקצב.', exercisesCount: 10 },
           { phaseNumber: 2, title: 'בעיות רב-שלביות', durationMinutes: 10, description: 'פתרון בעיות הדורשות שתי פעולות חיסור עוקבות (פריטה כפולה).', exercisesCount: 4 },
           { phaseNumber: 3, title: 'נימוק מתמטי', durationMinutes: 5, description: 'כתיבת הסבר קצר (הקלדה) לדרך הפתרון של הבעיה המורכבת ביותר.', exercisesCount: 1 }
         ]

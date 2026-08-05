@@ -115,7 +115,6 @@ describe('Physical Override Empirical Verification Suite', () => {
         conceptMastery: { decimal_structure: 0.9, number_magnitude: 0.4, regrouping_fluency: 0.8, procedural_fluency: 0.8, relational_thinking: 0.8, algebraic_reasoning: 0.8 },
         qMatrixResults: {
           task1_zero_placeholder: 'success',
-          task2_estimation_error_margin: null,
           task3_flexible_regrouping: null,
           task4_basic_addition_fluency: null,
           task5_small_change: null,
@@ -160,7 +159,6 @@ describe('Physical Override Empirical Verification Suite', () => {
       expect(updatedStudent.conceptMastery).toEqual({ decimal_structure: 0.9, number_magnitude: 0.4, regrouping_fluency: 0.8, procedural_fluency: 0.8, relational_thinking: 0.8, algebraic_reasoning: 0.8 });
       expect(updatedStudent.qMatrixResults).toEqual({
         task1_zero_placeholder: 'success',
-        task2_estimation_error_margin: null,
         task3_flexible_regrouping: null,
         task4_basic_addition_fluency: null,
         task5_small_change: null,

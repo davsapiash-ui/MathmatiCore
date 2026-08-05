@@ -43,14 +43,7 @@ const getStudentKPIs = (student: StudentData, messages: ChatMessage[]) => {
   const efficiencyScore = 90 - 2.5 * (undo + hesitation) + meeting2Bonus;
   const efficiency = Math.round(Math.max(0, Math.min(100, efficiencyScore)));
 
-  // 3. Estimation Accuracy
-  const margin = student.qMatrixResults?.task2_estimation_error_margin;
-  let estimationAccuracy = 80;
-  if (margin === 'success') {
-    estimationAccuracy = 94;
-  } else if (margin !== null && margin !== undefined) {
-    estimationAccuracy = 68;
-  }
+  // 3. Dialogue Quality
 
   // 4. Dialogue Quality
   const teacherMsgs = messages.filter(msg => msg.receiverId === student.studentId && msg.senderId !== student.studentId);
@@ -287,7 +280,6 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
           // Use real data from useStore (written by session 2 at completion via updateQMatrix)
           qMatrixResults: s.qMatrixResults ?? {
             task1_zero_placeholder: null,
-            task2_estimation_error_margin: null,
             task3_flexible_regrouping: null,
             task4_basic_addition_fluency: null,
             task5_small_change: null,
@@ -1006,36 +998,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                 </UdlButton>
               </AccessibleCard>
 
-              <AccessibleCard className="flex flex-col justify-between p-6 bg-ws-surface/80 backdrop-blur-xl shadow-md hover:shadow-xl transition-all duration-300 border border-ws-surface2 rounded-2xl relative overflow-hidden group min-h-[340px]">
-                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
-                <div>
-                  <h3 className="text-xl font-bold mb-3 text-ws-ink">
-                    תחושת גודל ואומדן
-                  </h3>
-                  <p className="text-ws-soft mb-4 text-sm leading-relaxed">
-                    תלמידים שמתקשים להעריך ולמקם מספרים על הרצף.
-                  </p>
-                  <div className="rounded-xl overflow-y-auto max-h-[160px] border border-ws-surface2 shadow-inner">
-                    <DataGrid
-                      columns={[
-                        { key: "name", header: "שם תלמיד" },
-                        { key: "mastery", header: "רמת שליטה" },
-                      ]}
-                      data={numberMagnitudeGroup.map((s) => ({
-                        id: s.studentId,
-                        name: s.name,
-                        mastery: s.conceptMastery ? `${Math.round(s.conceptMastery.number_magnitude * 100)}%` : "חסר מידע",
-                      }))}
-                    />
-                  </div>
-                </div>
-                <UdlButton
-                  semanticColor="primary"
-                  className="mt-4 w-full shadow-md shadow-emerald-500/20 font-bold tracking-wide py-2.5"
-                >
-                  הקצאת המחשה חזותית
-                </UdlButton>
-              </AccessibleCard>
+
 
               <AccessibleCard className="flex flex-col justify-between p-6 bg-ws-surface/80 backdrop-blur-xl shadow-md hover:shadow-xl transition-all duration-300 border border-ws-surface2 rounded-2xl relative overflow-hidden group min-h-[340px]">
                 <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-purple-500 to-indigo-500"></div>
@@ -1360,12 +1323,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                     {s.qMatrixResults.task3_flexible_regrouping === null ? 'טרם נבדק' : s.qMatrixResults.task3_flexible_regrouping === 'success' ? 'שולט' : 'דרוש חיזוק'}
                                   </span>
                                 </div>
-                                <div className="bg-ws-bg p-3 rounded-xl border border-ws-surface2">
-                                  <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">אומדן שגיאה</span>
-                                  <span className={`font-semibold ${s.qMatrixResults.task2_estimation_error_margin && s.qMatrixResults.task2_estimation_error_margin !== 'success' ? 'text-red-500' : s.qMatrixResults.task2_estimation_error_margin === 'success' ? 'text-green-600' : 'text-slate-400'}`}>
-                                    {s.qMatrixResults.task2_estimation_error_margin === null ? 'טרם נבדק' : s.qMatrixResults.task2_estimation_error_margin !== 'success' ? `חריגה (מעל 20%)` : 'בטווח המותר'}
-                                  </span>
-                                </div>
+
                                 <div className="bg-ws-bg p-3 rounded-xl border border-ws-surface2">
                                   <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">חיבור וחיסור</span>
                                   <span className={`font-semibold ${(s.qMatrixResults.task4_basic_addition_fluency && s.qMatrixResults.task4_basic_addition_fluency !== 'success') || (s.qMatrixResults.task6_subtraction_regrouping && s.qMatrixResults.task6_subtraction_regrouping !== 'success') ? 'text-red-500' : (s.qMatrixResults.task4_basic_addition_fluency === 'success' && s.qMatrixResults.task6_subtraction_regrouping === 'success') ? 'text-green-600' : 'text-slate-400'}`}>
@@ -1438,15 +1396,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                             <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${kpis.efficiency}%` }}></div>
                                           </div>
                                         </div>
-                                        <div className="bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-slate-200 shadow-sm">
-                                          <div className="flex justify-between font-bold mb-1">
-                                            <span>דיוק אומדן:</span>
-                                            <span className="text-amber-600">{kpis.estimationAccuracy}%</span>
-                                          </div>
-                                          <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                                            <div className="bg-amber-500 h-full rounded-full" style={{ width: `${kpis.estimationAccuracy}%` }}></div>
-                                          </div>
-                                        </div>
+
                                         <div className="bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-slate-200 shadow-sm">
                                           <div className="flex justify-between font-bold mb-1">
                                             <span>איכות דיאלוג:</span>
@@ -1648,15 +1598,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                 <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${kpis.efficiency}%` }}></div>
                               </div>
                             </div>
-                            <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200/60 dark:border-slate-800 shadow-sm flex flex-col justify-between">
-                              <span className="text-xs text-ws-soft block mb-1">דיוק אומדן (Estimation)</span>
-                              <div className="flex items-baseline gap-2">
-                                <span className="text-2xl font-black text-slate-900 dark:text-white">{kpis.estimationAccuracy}%</span>
-                              </div>
-                              <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full mt-2 overflow-hidden">
-                                <div className="bg-amber-500 h-full rounded-full" style={{ width: `${kpis.estimationAccuracy}%` }}></div>
-                              </div>
-                            </div>
+
                             <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200/60 dark:border-slate-800 shadow-sm flex flex-col justify-between">
                               <span className="text-xs text-ws-soft block mb-1">איכות דיאלוג (Dialogue)</span>
                               <div className="flex items-baseline gap-2">

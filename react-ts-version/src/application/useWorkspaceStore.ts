@@ -96,7 +96,6 @@ interface WorkspaceState {
   hasUngrouped: boolean;
   hasGrouped: boolean;
   selectedChoiceId: string | null;
-  numberLineValue: number | null;
   answerDigits: Partial<Record<Place, string>>;
   carryDigits: Partial<Record<Place, string>>;
   probeAnswer: string;
@@ -127,7 +126,6 @@ interface WorkspaceState {
   toggleBoard: () => void;
   setFocusedPlace: (place: Place | null) => void;
   selectChoice: (id: string) => void;
-  setNumberLineValue: (v: number | null) => void;
   setAnswerDigit: (place: Place, val: string) => void;
   setCarryDigit: (place: Place, val: string) => void;
   setProbeAnswer: (v: string) => void;
@@ -161,7 +159,6 @@ function resetTaskInteraction(isASD = false) {
     hasUngrouped: false,
     hasGrouped: false,
     selectedChoiceId: null as string | null,
-    numberLineValue: null as number | null,
     answerDigits: {} as Partial<Record<Place, string>>,
     carryDigits: {} as Partial<Record<Place, string>>,
     probeAnswer: '',
@@ -234,9 +231,7 @@ export function selectCanProceed(s: WorkspaceState): boolean {
   if (s.sessionNumber === 8) {
     const task = selectStandardTask(s);
     if (!task) return false;
-    if (task.type === 'number_line') {
-      return s.numberLineValue !== null;
-    }
+
     if (task.type === 'addition_simple' || task.type === 'vertical_addition') {
       return answerDigitsToNumber(s.answerDigits) !== null;
     }
@@ -247,7 +242,6 @@ export function selectCanProceed(s: WorkspaceState): boolean {
     if (!task) return false;
     if (!s.hasInteracted) return false;
     if ((task.type === 'place_value_zero' || task.type === 'small_change') && !s.selectedChoiceId) return false;
-    if (task.type === 'number_line' && s.numberLineValue === null) return false;
     if (task.type === 'missing_element' && !s.probeAnswer) return false;
     if (task.type === 'vertical_addition') {
       const subtask = isSubtaskActive(s.qflow);
@@ -318,14 +312,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     // Strict CRA Bridge: lock keyboard in ASD mode, UNLESS in Session 2 (pure diagnostic, no scaffolding)
     set({ keyboardState: s.isASD && s.sessionNumber !== 2 ? 'LOCKED' : 'UNLOCKED' });
 
-    // Auto-close the board if the incoming task is a number_line task
-    let isNumberLine = false;
-    if (s.sessionNumber === 2) {
-      isNumberLine = getCurrentQTask(s.qflow)?.type === 'number_line';
-    } else {
-      isNumberLine = selectStandardTask(s)?.type === 'number_line';
-    }
-    set({ boardOpen: !isNumberLine });
+
   }
 
   /** Session-2 transition script (vanilla onQTaskComplete, app.js 813–873). */
@@ -407,7 +394,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
               
               const realQMatrix = {
                 task1_zero_placeholder: getTag(r['task1_zero_placeholder']),
-                task2_estimation_error_margin: getTag(r['task2_estimation_error_margin']),
                 task3_flexible_regrouping: getTag(r['task3_flexible_regrouping']),
                 task4_basic_addition_fluency: getTag(r['task4_basic_addition_fluency']),
                 task5_small_change: getTag(r['task5_small_change']),
@@ -592,30 +578,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       return;
     }
 
-    if (task.type === 'number_line') {
-      if (s.numberLineValue === null) return;
-      const target = task.numberA ?? 0;
-      if (s.sessionNumber === 8) {
-        const correct = s.numberLineValue === target;
-        if (!correct) {
-          handleFailure('wrong_answer', 'נסו שוב 🤔', 'התשובה שהזנתם אינה נכונה.', 2500);
-          return;
-        }
-        handleSuccess('מְעֻלֶּה! 🌟', 'פתרתם נכון.', 2500);
-        return;
-      }
-      const range = task.range ?? [0, 100];
-      const rangeSize = range[1] - range[0];
-      const deviation = Math.abs(s.numberLineValue - target);
-      const deviationPct = deviation / rangeSize;
-      const correct = deviationPct <= 0.07;
-      if (!correct) {
-        handleFailure(`deviation_${Math.round(deviationPct * 100)}pct`, 'נסו שוב 🤔', 'החץ רחוק מדי מהמיקום המבוקש.', 2500);
-        return;
-      }
-      handleSuccess('מְעֻלֶּה! 🌟', 'מִקַּמְתֶּם אֶת הַחֵץ בַּמָּקוֹם הַנָּכוֹן.', 2500);
-      return;
-    }
+
 
     if (task.type === 'small_change') {
       if (!s.selectedChoiceId) return;
@@ -704,12 +667,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         evalResult = { correct: r.correct, detail: r.detail };
         break;
       }
-      case 'number_line': {
-        if (s.numberLineValue === null) return;
-        const r = QMatrixEvaluator.evaluateQ2(task, s.numberLineValue, s.qflow.phase, s.qflow.subphase, s.isASD);
-        evalResult = { correct: r.correct, detail: r.detail };
-        break;
-      }
+
       case 'flexible_decomp': {
         if (s.q3Reps.length < 2) {
           showFeedback({ correct: false, title: 'נִדְרָשִׁים שְׁנֵי יִצּוּגִים שׁוֹנִים', sub: 'הוֹסִיפוּ יִצּוּג שֵׁנִי!' }, 1800);
@@ -793,7 +751,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     hasUngrouped: false,
     hasGrouped: false,
     selectedChoiceId: null,
-    numberLineValue: null,
     answerDigits: {},
     carryDigits: {},
     probeAnswer: '',
@@ -864,7 +821,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         helpState: 'closed',
         frictionTriggerSource: null,
         selectedChoiceId: null,
-        numberLineValue: null,
         answerDigits: {},
         carryDigits: {},
         probeAnswer: '',
@@ -1084,22 +1040,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       }
     },
 
-    setNumberLineValue: (v) => {
-      set({ numberLineValue: v, hasInteracted: true });
 
-      const studentId = useAuthStore.getState().user?.uid;
-      if (studentId) {
-        const s = get();
-        const task = getActiveTasks(s)[s.standardTaskIdx] || null;
-        useStore.getState().logSemanticEvent(studentId, {
-          action: 'number_line_drag',
-          element: 'number_line_thumb',
-          context: `Value: ${v}`,
-          ...(task?.targetNode ? { q_matrix_node: task.targetNode } : {}),
-          state_snapshot: `NumberLine Value: ${v}`
-        });
-      }
-    },
 
     setAnswerDigit: (place, val) => {
       set((s) => ({ answerDigits: { ...s.answerDigits, [place]: val }, hasInteracted: true }));

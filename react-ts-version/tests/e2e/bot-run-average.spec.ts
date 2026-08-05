@@ -37,7 +37,6 @@ test('Generate Average Student Telemetry and AI Report', async ({ browser }) => 
         qflow: {
           results: {
             task1_zero_placeholder: { correct: true, tag: 'success' },
-            task2_estimation_error_margin: { correct: true, tag: 'success' },
             task3_flexible_regrouping: { correct: false, tag: 'canonical_fixation' },
             task4_basic_addition_fluency: { correct: true, tag: 'success' },
             task5_small_change: { correct: false, tag: 'relational_failure' },

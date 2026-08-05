@@ -21,15 +21,7 @@ export class CurriculumRouter {
       (q.task6_subtraction_regrouping !== 'success' && q.task6_subtraction_regrouping !== null)
     );
 
-    // 2. Check Estimation (Task 2)
-    // High error margin indicates weak spatial number sense.
-    const weakEstimation = (q.task2_estimation_error_margin !== 'success' && q.task2_estimation_error_margin !== null);
-
-    // 3. Trace Data Analysis (Silent Radar)
-    // If the student struggled silently (high hesitation or extreme undo usage)
-    const silentStruggle = t.hesitation_events >= 10 || t.undo_clicks >= 15;
-
-    if (failedCoreTask || weakEstimation || silentStruggle) {
+    if (failedCoreTask || silentStruggle) {
       return 'YELLOW';
     }
 

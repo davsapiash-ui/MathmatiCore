@@ -76,17 +76,7 @@ export const QMATRIX_ITEMS: QMatrixItem[] = [
     ],
     visual_cue: 'highlight_tens_column',
   },
-  {
-    q_id: 'SQ_TASK2_ESTIMATION',
-    trigger_condition: 'task2_estimation_trigger',
-    pedagogical_goal: 'הערכת מיקום על ישר המספרים',
-    question_text: 'בין אילו מאות נמצא המספר 480?',
-    options: [
-      { id: 'A', text: 'בין 400 ל-500', is_correct: true },
-      { id: 'B', text: 'בין 300 ל-400', is_correct: false },
-    ],
-    visual_cue: 'highlight_number_line',
-  },
+
   {
     q_id: 'SQ_TASK3_FLEXIBLE_DECOMP',
     trigger_condition: 'task3_flexible_decomp_trigger',
@@ -112,7 +102,7 @@ export const QMATRIX_ITEMS: QMatrixItem[] = [
   {
     q_id: 'SQ_TASK5_SMALL_CHANGE',
     trigger_condition: 'task5_small_change_trigger',
-    pedagogical_goal: 'חשיבה יחסית ואומדן',
+    pedagogical_goal: 'חשיבה יחסית',
     question_text: 'אם 545 + 10 = 555, כמה הם 545 + 9?',
     options: [
       { id: 'A', text: '554 — כי 9 קטן ב-1 מ-10.', is_correct: true },

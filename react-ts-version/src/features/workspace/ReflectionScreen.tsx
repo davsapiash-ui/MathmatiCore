@@ -85,7 +85,6 @@ export function ReflectionScreen() {
 
       const qMatrix: any = {
         task1_zero_placeholder: getTag(r['task1_zero_placeholder']),
-        task2_estimation_error_margin: getTag(r['task2_estimation_error_margin']),
         task3_flexible_regrouping: getTag(r['task3_flexible_regrouping']),
         task4_basic_addition_fluency: getTag(r['task4_basic_addition_fluency']),
         task5_small_change: getTag(r['task5_small_change']),

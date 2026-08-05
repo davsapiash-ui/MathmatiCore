@@ -65,8 +65,7 @@ export function recordResult(
       const updated: QTaskResult = { ...prev, subtaskCorrect: evalResult.correct, subtaskDetail: evalResult.detail };
       if (task.id === 'task1_zero_placeholder') {
         updated.tag = evalResult.correct ? 'zero_placeholder_hundreds_error' : 'zero_placeholder_global_error';
-      } else if (task.id === 'task2_estimation_error_margin') {
-        updated.tag = evalResult.correct ? 'estimation_precision_fixation' : 'estimation_range_error';
+
       } else if (task.id === 'task3_flexible_regrouping') {
         updated.tag = evalResult.correct ? 'canonical_fixation' : 'regrouping_deficit';
       } else if (task.id === 'task4_basic_addition_fluency') {

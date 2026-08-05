@@ -23,7 +23,6 @@ export type TaskType =
   | 'session1_intro'
   | 'addition_simple'
   | 'place_value_zero'
-  | 'number_line'
   | 'flexible_decomp'
   | 'vertical_addition'
   | 'small_change'
@@ -94,16 +93,7 @@ export const SESSION1_TASKS: SessionTask[] = [
     hintHe: 'הניחו מאות בטור המאות ועשרות בטור העשרות כדי לראות את התוצאה ברור.',
     scaffoldLevel: 1,
   },
-  // 4. Number Line Tool Practice
-  {
-    id: 's1_t6',
-    type: 'number_line',
-    titleHe: 'רישיון חוקר: כיול ישר המספרים',
-    instructionHe: 'כלי נוסף במעבדה הוא ישר המספרים. גררו את הסמן למקום שבו נמצא המספר 650 על הקו ולחצו בדיקה.',
-    numberA: 650, // target
-    range: [0, 1000],
-    scaffoldLevel: 0,
-  },
+
   // 8. Math Refresh 1
   {
     id: 's1_t7',
@@ -311,9 +301,7 @@ export function getDynamicSocraticHint(
     }
   }
 
-  if (targetNode === 'number_magnitude' && task?.type === 'number_line') {
-    return `הסתכלו על המספר המבוקש (${task.numberA}). האם הוא קרוב יותר ל-${task.range?.[0] ?? 0} או ל-${task.range?.[1] ?? 1000}? נסו למקם את עצמכם קודם כל ביחס לחצי הדרך.`;
-  }
+
 
   if (targetNode === 'procedural_fluency') {
     const hasAnswer = Object.keys(answerDigits).length > 0;
@@ -386,15 +374,7 @@ export const SESSION5_TASKS: SessionTask[] = [
     requiresGrouping: true,
     scaffoldLevel: 1,
   },
-  {
-    id: 's5_t3',
-    type: 'number_line',
-    numberA: 7500,
-    range: [0, 10000],
-    titleHe: 'ישר המספרים בתחום ה-10,000',
-    instructionHe: 'גררו את הסמן למקום שבו נמצא המספר 7,500 על ישר המספרים.',
-    scaffoldLevel: 0,
-  },
+
 ];
 
 /* ── Session 6 — (מפגש 6: חיסור אלפים עם פריטה) ── */
@@ -451,15 +431,7 @@ export const SESSION7_TASKS: SessionTask[] = [
     requiresUngrouping: true,
     scaffoldLevel: 1,
   },
-  {
-    id: 's7_t3',
-    type: 'number_line',
-    numberA: 3250,
-    range: [0, 10000],
-    titleHe: 'מיקום מדויק בתחום ה-10,000',
-    instructionHe: 'מקמו את הסמן על ישר המספרים בנקודה המייצגת את המספר 3,250.',
-    scaffoldLevel: 0,
-  },
+
 ];
 
 /* ── Session 8 — (מפגש 8: אבחון מסכם אלפים) ── */
@@ -483,15 +455,7 @@ export const SESSION8_TASKS: SessionTask[] = [
     requiresUngrouping: true,
     scaffoldLevel: 1,
   },
-  {
-    id: 's8_t3',
-    type: 'number_line',
-    numberA: 8750,
-    range: [0, 10000],
-    titleHe: 'אבחון מסכם: ישר המספרים',
-    instructionHe: 'גררו את הסמן לנקודה 8,750 על ישר המספרים.',
-    scaffoldLevel: 0,
-  },
+
 ];
 
 /* ── Sessions map: meeting number → task list (session 2 flows through qmatrixFlow) ── */

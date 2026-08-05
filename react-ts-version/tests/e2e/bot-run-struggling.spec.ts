@@ -36,8 +36,7 @@ test('Generate Struggling Student Telemetry and AI Report', async ({ browser }) 
         flowStatus: 'reflection',
         qflow: {
           results: {
-            task1_zero_placeholder: { correct: false, tag: 'place_value_confusion' },
-            task2_estimation_error_margin: { correct: false, tag: 'magnitude_distortion' },
+            task1_zero_placeholder: { correct: false, tag: 'place_value_zero_error' },
             task3_flexible_regrouping: { correct: false, tag: 'canonical_fixation' },
             task4_basic_addition_fluency: { correct: false, tag: 'procedural_error' },
             task5_small_change: { correct: false, tag: 'relational_failure' },

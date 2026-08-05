@@ -240,10 +240,7 @@ export function StudentWorkspacePage() {
     };
   }, [user?.uid]);
 
-  // Session-2 estimation: hide the live value display during the number-line task
-  // (the point is estimating magnitude, not reading a number).
-  const qTask = sessionNumber === 2 ? getCurrentQTask(qflow) : null;
-  const hideValueDisplay = qTask?.type === 'number_line' && !isSubtaskActive(qflow);
+
 
   // Pedagogical Radar
   useCognitiveHesitationRadar({ isActive: true });
@@ -485,7 +482,7 @@ export function StudentWorkspacePage() {
 
           {/* Place-value board (left in RTL, hidden in Session 8) */}
           {sessionNumber !== 8 && (
-            <PlaceValueBoard hideValueDisplay={hideValueDisplay} />
+            <PlaceValueBoard />
           )}
         </main>
 
