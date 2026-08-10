@@ -88,19 +88,11 @@ export function Login() {
       }
     } catch (err: any) {
       console.warn("Teacher SSO note:", err);
-      if (err?.code === 'auth/operation-not-allowed' || err?.code === 'auth/unauthorized-domain' || err?.code === 'auth/popup-closed-by-user') {
-        const primaryEmail = "davidsep@edu-haifa.org.il";
-        const assignedRoles = ["admin", "teacher"];
-        setUser({
-          uid: "teacher_sso_haifa",
-          role: assignedRoles,
-          displayName: `מורה ומנהל (${primaryEmail})`,
-        }, assignedRoles);
-        login("teacher", "teacher_sso_haifa");
-        navigate("/dashboard", { replace: true });
+      setIsLoggingIn(false);
+      if (err?.code === 'auth/popup-closed-by-user') {
+        setErrorMsg("התחברות Google בוטלה על ידי המשתמש.");
       } else {
-        setIsLoggingIn(false);
-        setErrorMsg(`שגיאה בהתחברות Google SSO: ${err?.message || err?.code}`);
+        setErrorMsg(`גישת מורה נדחתה: התחברות Google נכשלה (${err?.message || err?.code}). יש להתחבר לחשבון מורשה בפיקוח @edu-haifa.org.il.`);
       }
     }
   };
@@ -277,19 +269,11 @@ export function Login() {
       navigate("/admin", { replace: true });
     } catch (err: any) {
       console.warn("Google SSO note:", err);
-      if (err?.code === 'auth/operation-not-allowed' || err?.code === 'auth/unauthorized-domain' || err?.code === 'auth/popup-closed-by-user') {
-        const primaryAdminEmail = "davidsep@edu-haifa.org.il";
-        const userRoles = ["admin", "teacher"];
-        setUser({
-          uid: "admin_sso_haifa",
-          role: userRoles,
-          displayName: `מנהל ומורה (${primaryAdminEmail})`,
-        }, userRoles);
-        login("admin", "admin_sso_haifa");
-        navigate("/admin", { replace: true });
+      setIsLoggingIn(false);
+      if (err?.code === 'auth/popup-closed-by-user') {
+        setErrorMsg("התחברות Google בוטלה על ידי המשתמש.");
       } else {
-        setIsLoggingIn(false);
-        setErrorMsg(`שגיאת הזדהות: ${err?.message || 'התחברות נכשלה'}`);
+        setErrorMsg(`גישת מנהל נדחתה: התחברות Google נכשלה (${err?.message || err?.code}). יש להתחבר לחשבון מורשה בפיקוח @edu-haifa.org.il.`);
       }
     }
   };
