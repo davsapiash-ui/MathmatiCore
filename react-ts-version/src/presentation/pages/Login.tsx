@@ -167,74 +167,11 @@ export function Login() {
         navigate("/hub", { replace: true });
       }
     } else if (selectedRole === "teacher") {
-      if (teacherMode === "sso") {
-        const email = teacherEmail.trim().toLowerCase();
-        if (!email) {
-          setErrorMsg("אנא הזן כתובת דוא\"ל מורה.");
-          return;
-        }
-        const domain = email.split('@')[1] || "";
-        const isAllowedDomain = domain === "edu-haifa.org.il" || email.endsWith("@mathmaticore.local");
-        if (!isAllowedDomain) {
-          setErrorMsg(`גישת מורה נדחתה: החשבון (${email}) אינו מורשה. הגישה מורשית אך ורק לחשבונות מחוז חיפה (@edu-haifa.org.il).`);
-          return;
-        }
-        setIsLoggingIn(true);
-        const passToUse = teacherPassword.trim() || "10203040";
-        await performFirebaseAuth(email, passToUse);
-        const teacherId = email.split('@')[0];
-        setUser({
-          uid: teacherId,
-          role: "teacher",
-          displayName: `מורה (${email})`,
-        }, "teacher");
-        login("teacher", teacherId);
-        navigate("/dashboard", { replace: true });
-      } else {
-        if (!taz && !teacherEmail) {
-          setErrorMsg("אנא הזן פרטי מורה (תעודת זהות / דוא\"ל).");
-          return;
-        }
-        setIsLoggingIn(true);
-        const effectiveTaz = taz.trim() || "123456789";
-        const tEmail = `teacher_${effectiveTaz}@mathmaticore.local`;
-        const teacherPass = (dob || "010190") + effectiveTaz;
-        
-        await performFirebaseAuth(tEmail, teacherPass);
-        
-        let teacherProfileName = `מורה ${effectiveTaz}`;
-        try {
-          let teacher = await firebaseSyncService.authenticateTeacher(effectiveTaz);
-          if (teacher && teacher.name) {
-            teacherProfileName = teacher.name;
-          }
-        } catch (e) {
-          console.warn("Teacher profile lookup note:", e);
-        }
-
-        setUser({
-          uid: `teacher_${effectiveTaz}`,
-          role: "teacher",
-          displayName: teacherProfileName,
-        }, "teacher");
-        login("teacher", `teacher_${effectiveTaz}`);
-        navigate("/dashboard", { replace: true });
-      }
+      setErrorMsg("כניסת מורה מורשית אך ורק באמצעות לחצן Google SSO עם חשבון מורשה בפיקוח @edu-haifa.org.il.");
+      return;
     } else if (selectedRole === "admin") {
-      setIsLoggingIn(true);
-      const emailToUse = adminEmail.trim() || "admin@mathmaticore.local";
-      const passToUse = adminPassword.trim() || "10203040";
-
-      await performFirebaseAuth(emailToUse, passToUse);
-      const userRoles = ["admin", "teacher"];
-
-      setUser({
-        uid: "admin_root",
-        role: userRoles,
-        displayName: `מנהל מערכת (${emailToUse})`,
-      }, userRoles);
-      login("admin", "admin_root");
-      navigate("/admin", { replace: true });
+      setErrorMsg("כניסת מנהל מורשית אך ורק באמצעות לחצן Google SSO עם חשבון מורשה בפיקוח @edu-haifa.org.il.");
+      return;
     }
   };
 
@@ -371,8 +308,8 @@ export function Login() {
                       className="mb-6 text-sm leading-relaxed rounded-2xl p-3.5 pr-4 border-r-4 text-ws-ink/80 font-medium bg-[hsl(var(--ws-blue-soft)/0.55)] border-[hsl(var(--ws-blue)/0.55)] shadow-sm"
                     >
                       {selectedRole === "student" && "ברוך הבא! אנא בחר בית ספר, כיתה, והזן את שם המשתמש והסיסמה שלך כדי להיכנס."}
-                      {selectedRole === "teacher" && "ברוך הבא מורה! אנא הזן תעודת זהות ותאריך לידה (6 ספרות)."}
-                      {selectedRole === "admin" && "ברוך הבא מנהל. אנא הזן שם משתמש וסיסמה לכניסה למערכת."}
+                      {selectedRole === "teacher" && "ברוכים הבאים! הגישה למרחב הניהול של המורה מורשית אך ורק באמצעות הזדהות Google SSO עם חשבון מחוז חיפה (@edu-haifa.org.il)."}
+                      {selectedRole === "admin" && "ברוכים הבאים! הגישה למרחב מנהל המערכת מורשית אך ורק באמצעות הזדהות Google SSO עם חשבון מורשה (@edu-haifa.org.il)."}
                     </p>
 
                     {errorMsg && (
