@@ -144,7 +144,7 @@ export const SESSION1_TASKS: SessionTask[] = [
 
 export const SESSION2_TASKS: QMatrixTask[] = QMATRIX_TASKS;
 
-/* ── Session 3 — app.js lines 109–145 (מפגש 3: חיבור עם המרה בתחום האלף) ── */
+/* ── Session 3 — מפגש 3: ערך המקום וגמישות ייצוגית (פירוק/הרכבה) — 7 תרגילי חובה ── */
 
 export const SESSION3_TASKS: SessionTask[] = [
   {
@@ -192,63 +192,95 @@ export const SESSION3_TASKS: SessionTask[] = [
     requiresGrouping: true,
     targetNode: 'regrouping_fluency',
   },
+  {
+    id: 's3_t6',
+    type: 'flexible_decomp',
+    numberA: 452, correctAnswer: 452,
+    titleHe: 'גמישות ייצוגית - פירוק מבנה',
+    instructionHe: 'בנו את המספר 452 בשתי דרכים שונות בלוח (למשל: בשימוש 4 מאות או 3 מאות ו-15 עשרות).',
+    requiresUngrouping: true,
+    targetNode: 'flexible_regrouping',
+  },
+  {
+    id: 's3_t7',
+    type: 'addition_simple',
+    numberA: 320, numberB: 480, correctAnswer: 800,
+    titleHe: 'סיכום מפגש 3: השלמה למאות שלמות',
+    instructionHe: 'פתרו: 320 + 480. גררו את הבלוקים ובדקו איזו תוצאה עגולה מתקבלת!',
+    requiresGrouping: true,
+    targetNode: 'regrouping_fluency',
+  },
 ];
 
-/* ── Session 4 — app.js lines 147–183 (מפגש 4: חיסור עם פריטה בתחום האלף) ── */
+/* ── Session 4 — מפגש 4: חיבור במאונך והמרה פשוטה (הקבצה) — 7 תרגילי חובה ── */
 
 export const SESSION4_TASKS: SessionTask[] = [
   {
     id: 's4_t1',
-    type: 'addition_simple',
-    numberA: 342, numberB: 125, correctAnswer: 217, isSubtraction: true,
-    titleHe: 'חיסור עם פריטה - מתחילים!',
-    instructionHe: 'בואו נפתור: 342 - 125. מה עושים כשאין מספיק יחידות בטור היחידות כדי לחסר? מבצעים פריטה של עשרת אחת ל-10 יחידות!',
-    requiresUngrouping: true,
-    targetNode: 'regrouping_fluency',
+    type: 'vertical_addition',
+    numberA: 342, numberB: 125, correctAnswer: 467,
+    titleHe: 'חיבור במאונך פשוט',
+    instructionHe: 'בואו נפתור במאונך: 342 + 125. התחילו מטור היחידות, עברו לעשרות ולמאות.',
+    scaffoldLevel: 0,
+    targetNode: 'procedural_fluency',
   },
   {
     id: 's4_t2',
-    type: 'addition_simple',
-    numberA: 524, numberB: 216, correctAnswer: 308, isSubtraction: true,
-    titleHe: 'חיסור עם פריטה - תרגיל 2',
-    instructionHe: 'פתרו: 524 - 216. זכרו לבצע פריטה במידת הצורך.',
-    requiresUngrouping: true,
-    targetNode: 'regrouping_fluency',
+    type: 'vertical_addition',
+    numberA: 524, numberB: 216, correctAnswer: 740,
+    titleHe: 'חיבור במאונך עם המרה לעשרות',
+    instructionHe: 'פתרו: 524 + 216. 4 יחידות ועוד 6 יחידות הן 10 יחידות – זכרו לרשום 0 ביחידות ולהעביר 1 שארית לעשרות!',
+    requiresGrouping: true,
+    targetNode: 'procedural_fluency',
   },
   {
     id: 's4_t3',
-    type: 'addition_simple',
-    numberA: 425, numberB: 118, correctAnswer: 307, isSubtraction: true,
-    titleHe: 'פריטה מעשרת ליחידות',
-    instructionHe: 'פתרו: 425 - 118. כדי שנוכל לחסר 8 יחידות מתוך 5 יחידות, נבצע פריטה של עשרת אחת ל-10 יחידות.',
-    requiresUngrouping: true,
-    targetNode: 'regrouping_fluency',
+    type: 'vertical_addition',
+    numberA: 425, numberB: 198, correctAnswer: 623,
+    titleHe: 'חיבור במאונך עם המרה כפולה',
+    instructionHe: 'פתרו: 425 + 198. בצעו הקבצה ביחידות ובעשרות ורישמו את השאריות בתיבות העזר העליונות.',
+    requiresGrouping: true,
+    targetNode: 'procedural_fluency',
   },
   {
     id: 's4_t4',
-    type: 'addition_simple',
-    numberA: 632, numberB: 271, correctAnswer: 361, isSubtraction: true,
-    titleHe: 'פריטה ממאה לעשרות',
-    instructionHe: 'פתרו: 632 - 271. כדי שנוכל לחסר 7 עשרות מתוך 3 עשרות, נבצע פריטה של מאה אחת ל-10 עשרות.',
-    requiresUngrouping: true,
-    targetNode: 'regrouping_fluency',
+    type: 'vertical_addition',
+    numberA: 632, numberB: 279, correctAnswer: 911,
+    titleHe: 'חיבור במאונך בתחום ה-1,000',
+    instructionHe: 'פתרו: 632 + 279. הקפידו על הקלדה מדויקת בתיבות התשובה.',
+    requiresGrouping: true,
+    targetNode: 'procedural_fluency',
   },
   {
     id: 's4_t5',
-    type: 'addition_simple',
-    numberA: 5130, numberB: 2850, correctAnswer: 2280, isSubtraction: true,
-    titleHe: 'פריטה כפולה - גם וגם!',
-    instructionHe: 'תרגיל אתגר: 5130 - 2850. כאן תבצעו פריטה גם ממאה לעשרות וגם מעשרת ליחידות. בהצלחה!',
-    requiresUngrouping: true,
-    targetNode: 'regrouping_fluency',
+    type: 'vertical_addition',
+    numberA: 1530, numberB: 2870, correctAnswer: 4400,
+    titleHe: 'חיבור במאונך בתחום האלפים',
+    instructionHe: 'תרגיל אתגר: 1,530 + 2,870. חברו בטורים ושימו לב למעבר מעל ה-1,000.',
+    requiresGrouping: true,
+    targetNode: 'procedural_fluency',
+  },
+  {
+    id: 's4_t6',
+    type: 'vertical_addition',
+    numberA: 3450, numberB: 2680, correctAnswer: 6130,
+    titleHe: 'חיבור אלפים במאונך',
+    instructionHe: 'פתרו במאונך: 3,450 + 2,680. השתמשו בתיבות הזיכרון העליונות במידת הצורך.',
+    requiresGrouping: true,
+    targetNode: 'procedural_fluency',
+  },
+  {
+    id: 's4_t7',
+    type: 'vertical_addition',
+    numberA: 4890, numberB: 3510, correctAnswer: 8400,
+    titleHe: 'סיכום מפגש 4: אתגר החיבור',
+    instructionHe: 'פתרו במאונך: 4,890 + 3,510. הראו שליטה מלאה בשרשרת הקיבוצים!',
+    requiresGrouping: true,
+    targetNode: 'procedural_fluency',
   },
 ];
 
-/* ── Socratic hints — app.js getSocraticHint (lines 1302–1311) ──
-   NOTE (verbatim from vanilla): the map is keyed q1–q5, which do NOT match the
-   Session-2 task ids ('task1_zero_placeholder', ...). In the vanilla code
-   getSocraticHint is defined but never invoked, so the lookup always would have
-   fallen back to DEFAULT_SOCRATIC_HINT. Preserved as-is. */
+/* ── Socratic hints & Support content ── */
 
 export const SOCRATIC_HINTS: Record<string, string> = {
   zero_placeholder: 'מה קורה כשטור מתרוקן לחלוטין? האם אפשר פשוט לדלג עליו כשכותבים את המספר?',
@@ -301,8 +333,6 @@ export function getDynamicSocraticHint(
     }
   }
 
-
-
   if (targetNode === 'procedural_fluency') {
     const hasAnswer = Object.keys(answerDigits).length > 0;
     const hasCarry = Object.keys(carryDigits).length > 0;
@@ -314,14 +344,10 @@ export function getDynamicSocraticHint(
   return SOCRATIC_HINTS[targetNode] ?? DEFAULT_SOCRATIC_HINT;
 }
 
-/* ── Support-palette content — app.js handleSupportChoice (lines 1255–1299) ──
-   The 3 calibrated-choice help levels (בחירה מכוילת). Static per type, verbatim. */
-
 export type SupportType = 'metacognitive' | 'socratic' | 'worked_example';
 
 export interface SupportContent {
   titleHe: string;
-  /** Simple HTML-free content model: heading + bullet/paragraph lines. */
   lines: string[];
   kind: 'checklist' | 'equivalence' | 'worked_example';
 }
@@ -355,29 +381,81 @@ export const SUPPORT_CONTENT: Record<SupportType, SupportContent> = {
   },
 };
 
-/* ── Session 5 — (מפגש 5: חיבור אלפים פשוט המרה מעשרות המאות) ── */
 export const SESSION5_TASKS: SessionTask[] = [
   {
     id: 's5_t1',
-    type: 'addition_simple',
-    numberA: 4500, numberB: 1200, correctAnswer: 5700,
-    titleHe: 'חיבור אלפים פשוט',
-    instructionHe: 'פתרו את התרגיל הבא: 4,500 ועוד 1,200.',
+    type: 'vertical_addition',
+    isSubtraction: true,
+    numberA: 4500, numberB: 1200, correctAnswer: 3300,
+    titleHe: 'חיסור אלפים פשוט',
+    instructionHe: 'פתרו את התרגיל הבא: 4,500 פחות 1,200. השתמשו בכלי הפטיש במידת הצורך.',
     scaffoldLevel: 1,
+    targetNode: 'regrouping_fluency',
   },
   {
     id: 's5_t2',
-    type: 'addition_simple',
-    numberA: 3800, numberB: 2400, correctAnswer: 6200,
-    titleHe: 'חיבור אלפים עם המרה',
-    instructionHe: 'בנו את המספרים 3,800 ו-2,400 בבית המספרים. חברו אותם ובצעו המרה מעשרות המאות לאלפים במידת הצורך.',
-    requiresGrouping: true,
+    type: 'vertical_addition',
+    isSubtraction: true,
+    numberA: 3800, numberB: 2400, correctAnswer: 1400,
+    titleHe: 'חיסור אלפים ללא פריטה',
+    instructionHe: 'בנו את המספר 3,800 והחסירו 2,400. רשמו את התוצאה בטורים.',
     scaffoldLevel: 1,
+    targetNode: 'regrouping_fluency',
   },
-
+  {
+    id: 's5_t3',
+    type: 'vertical_addition',
+    isSubtraction: true,
+    numberA: 5240, numberB: 1800, correctAnswer: 3440,
+    titleHe: 'חיסור אלפים עם פריטת מאות',
+    instructionHe: 'פתרו: 5,240 - 1,800. פירקו אלף אחד ל-10 מאות בעזרת כלי הפטיש או הגרירה.',
+    requiresUngrouping: true,
+    targetNode: 'regrouping_fluency',
+  },
+  {
+    id: 's5_t4',
+    type: 'vertical_addition',
+    isSubtraction: true,
+    numberA: 6350, numberB: 2480, correctAnswer: 3870,
+    titleHe: 'חיסור אלפים עם פריטת עשרות',
+    instructionHe: 'פתרו: 6,350 - 2,480. פירקו מאה אחת ל-10 עשרות כדי לחסר.',
+    requiresUngrouping: true,
+    targetNode: 'regrouping_fluency',
+  },
+  {
+    id: 's5_t5',
+    type: 'vertical_addition',
+    isSubtraction: true,
+    numberA: 4120, numberB: 1950, correctAnswer: 2170,
+    titleHe: 'חיסור אלפים עם פריטה כפולה',
+    instructionHe: 'פתרו: 4,120 - 1,950. בצעו פריטות במידת הצורך בלוח הדינס.',
+    requiresUngrouping: true,
+    targetNode: 'regrouping_fluency',
+  },
+  {
+    id: 's5_t6',
+    type: 'vertical_addition',
+    isSubtraction: true,
+    numberA: 7200, numberB: 3850, correctAnswer: 3350,
+    titleHe: 'חיסור מורכב בתחום הרבבה',
+    instructionHe: 'פתרו: 7,200 - 3,850. שימו לב שלא ניתן להחסיר מספר גדול מקטן בכל טור.',
+    requiresUngrouping: true,
+    targetNode: 'regrouping_fluency',
+  },
+  {
+    id: 's5_t7',
+    type: 'vertical_addition',
+    isSubtraction: true,
+    numberA: 8500, numberB: 4920, correctAnswer: 3580,
+    titleHe: 'סיכום מפגש 5: אתגר הפריטה',
+    instructionHe: 'פתרו: 8,500 - 4,920. השלימו את כל שלבי הפריטה והזינו תשובה סופית.',
+    requiresUngrouping: true,
+    targetNode: 'regrouping_fluency',
+  },
 ];
 
-/* ── Session 6 — (מפגש 6: חיסור אלפים עם פריטה) ── */
+/* ── Session 6 — מפגש 6: אתגר האפס כשומר מקום (המרה כפולה מעל אפסים) — 7 תרגילי חובה ── */
+
 export const SESSION6_TASKS: SessionTask[] = [
   {
     id: 's6_t1',
@@ -387,30 +465,72 @@ export const SESSION6_TASKS: SessionTask[] = [
     titleHe: 'חיסור אלפים עם פריטה',
     instructionHe: 'בנו בלוח את המספר 6,200 והחסירו ממנו 3,500. תצטרכו לפרוק אלף אחד למאות!',
     requiresUngrouping: true,
-    scaffoldLevel: 1,
+    targetNode: 'zero_placeholder',
   },
   {
     id: 's6_t2',
     type: 'vertical_addition',
     isSubtraction: true,
     numberA: 5000, numberB: 1800, correctAnswer: 3200,
-    titleHe: 'פריטה מאלפים למאות',
-    instructionHe: 'בנו את המספר 5,000 בלוח והחסירו 1,800. פירקו אלף אחד ל-10 מאות כדי שתוכלו להחסיר.',
+    titleHe: 'פריטה מאלפים מעל אפסים עוקבים',
+    instructionHe: 'בנו את המספר 5,000 בלוח והחסירו 1,800. פירקו אלף אחד ל-10 מאות, ומאה אחת ל-10 עשרות.',
     requiresUngrouping: true,
-    scaffoldLevel: 1,
+    targetNode: 'zero_placeholder',
   },
   {
     id: 's6_t3',
-    type: 'addition_simple',
-    numberA: 2750, numberB: 3450, correctAnswer: 6200,
-    titleHe: 'חיבור אלפים עם המרה כפולה',
-    instructionHe: 'פתרו את התרגיל הבא: 2,750 ועוד 3,450. בצעו המרות כנדרש בלוח.',
-    requiresGrouping: true,
-    scaffoldLevel: 1,
+    type: 'vertical_addition',
+    isSubtraction: true,
+    numberA: 4005, numberB: 1230, correctAnswer: 2775,
+    titleHe: 'מעקף אפסים עוקבים',
+    instructionHe: 'פתרו: 4,005 - 1,230. שימו לב לשומר המקום אפס בטור המאות והעשרות.',
+    requiresUngrouping: true,
+    targetNode: 'zero_placeholder',
+  },
+  {
+    id: 's6_t4',
+    type: 'vertical_addition',
+    isSubtraction: true,
+    numberA: 7000, numberB: 3450, correctAnswer: 3550,
+    titleHe: 'חיסור מ-7,000 עגול',
+    instructionHe: 'פתרו: 7,000 - 3,450. בצעו פריטה מדורגת מעל האפסים.',
+    requiresUngrouping: true,
+    targetNode: 'zero_placeholder',
+  },
+  {
+    id: 's6_t5',
+    type: 'vertical_addition',
+    isSubtraction: true,
+    numberA: 3040, numberB: 1580, correctAnswer: 1460,
+    titleHe: 'פריטה עם אפס באמצע',
+    instructionHe: 'פתרו: 3,040 - 1,580. הקפידו לשמור על ערך המקום של כל ספרה.',
+    requiresUngrouping: true,
+    targetNode: 'zero_placeholder',
+  },
+  {
+    id: 's6_t6',
+    type: 'vertical_addition',
+    isSubtraction: true,
+    numberA: 8000, numberB: 4260, correctAnswer: 3740,
+    titleHe: 'חיסור מ-8,000 מעל אפסים',
+    instructionHe: 'פתרו: 8,000 - 4,260. השתמשו בחניכה הסוקרטית אם נתקעתם בפריטת האפסים.',
+    requiresUngrouping: true,
+    targetNode: 'zero_placeholder',
+  },
+  {
+    id: 's6_t7',
+    type: 'vertical_addition',
+    isSubtraction: true,
+    numberA: 9005, numberB: 4520, correctAnswer: 4485,
+    titleHe: 'סיכום מפגש 6: מיומנות האפס',
+    instructionHe: 'פתרו: 9,005 - 4,520. הראו שליטה מלאה בפריטה מעל אפסים שומרי מקום!',
+    requiresUngrouping: true,
+    targetNode: 'zero_placeholder',
   },
 ];
 
-/* ── Session 7 — (מפגש 7: חיבור וחיסור אתגר אלפים) ── */
+/* ── Session 7 — מפגש 7: בעיות חקר ואינטגרציה (ספרות חסרות & שימור כמות) — 7 תרגילי חובה ── */
+
 export const SESSION7_TASKS: SessionTask[] = [
   {
     id: 's7_t1',
@@ -419,7 +539,7 @@ export const SESSION7_TASKS: SessionTask[] = [
     titleHe: 'חיבור אתגר בתחום ה-10,000',
     instructionHe: 'פתרו את התרגיל הבא: 7,890 ועוד 1,250. שימו לב להמרות הנדרשות.',
     requiresGrouping: true,
-    scaffoldLevel: 1,
+    targetNode: 'relational_thinking',
   },
   {
     id: 's7_t2',
@@ -429,9 +549,52 @@ export const SESSION7_TASKS: SessionTask[] = [
     titleHe: 'חיסור אתגר בתחום ה-10,000',
     instructionHe: 'בנו 8,120 והחסירו 4,560. תצטרכו לבצע פריטה כפולה!',
     requiresUngrouping: true,
-    scaffoldLevel: 1,
+    targetNode: 'relational_thinking',
   },
-
+  {
+    id: 's7_t3',
+    type: 'missing_element',
+    numberA: 4500, numberB: 1500, correctAnswer: 6000,
+    titleHe: 'בעיית חקר: גילוי הספרה החסרה',
+    instructionHe: 'לפניכם תרגיל עם ספרה חסרה: 4,5__0 + 1,500 = 6,000. גלו מהי הספרה החסרה בטור העשרות!',
+    targetNode: 'relational_thinking',
+  },
+  {
+    id: 's7_t4',
+    type: 'flexible_decomp',
+    numberA: 3400, correctAnswer: 3400,
+    titleHe: 'בעיית חקר: הוכחת שימור כמות בלבנים',
+    instructionHe: 'פרקו 1 מאה ל-10 עשרות בדינס. בדקו: האם הכמות הכוללת בלוח השתנתה או שרק הייצוג השתנה?',
+    requiresUngrouping: true,
+    targetNode: 'relational_thinking',
+  },
+  {
+    id: 's7_t5',
+    type: 'missing_element',
+    numberA: 5200, numberB: 2300, correctAnswer: 2900, isSubtraction: true,
+    titleHe: 'בעיית חקר: ניתוח שגיאה בחיסור',
+    instructionHe: 'תלמיד חישב 5,200 - 2,300 וקיבל 3,100. מצאו היכן נפלה השגיאה ותקנו אותה.',
+    requiresUngrouping: true,
+    targetNode: 'relational_thinking',
+  },
+  {
+    id: 's7_t6',
+    type: 'addition_simple',
+    numberA: 6540, numberB: 2880, correctAnswer: 9420,
+    titleHe: 'אינטגרציית חיבור ופריטה',
+    instructionHe: 'פתרו: 6,540 + 2,880. בדקו את תשובתכם באמצעות פעולה הפוכה.',
+    requiresGrouping: true,
+    targetNode: 'relational_thinking',
+  },
+  {
+    id: 's7_t7',
+    type: 'missing_element',
+    numberA: 9990, numberB: 4440, correctAnswer: 5550, isSubtraction: true,
+    titleHe: 'סיכום מפגש 7: אתגר החוקר הגדול',
+    instructionHe: 'פתרו: 9,990 - 4,440. הוכיחו שייצוג המספר משמר את כמותו המקורית בכל שלב.',
+    requiresUngrouping: true,
+    targetNode: 'relational_thinking',
+  },
 ];
 
 /* ── Session 8 — (מפגש 8: אבחון מסכם אלפים) ── */

@@ -1,19 +1,29 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
-export function AdditionHelper() {
+export function AdditionHelper({ onSelection }: { onSelection?: (sum: number) => void }) {
   const [activeRow, setActiveRow] = useState<number | null>(null);
   const [activeCol, setActiveCol] = useState<number | null>(null);
+  const [isFadingOut, setIsFadingOut] = useState(false);
 
   const digits = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
 
+  useEffect(() => {
+    if (activeRow !== null && activeCol !== null) {
+      // PRD v2.0 Section 3.2: Fade-Out auto 3 seconds after successful input selection
+      const timer = setTimeout(() => {
+        setIsFadingOut(true);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [activeRow, activeCol]);
+
   const handleCellClick = (row: number, col: number) => {
-    // Cognitive step logic: First select row, then column
     if (activeRow === null) {
       setActiveRow(row);
     } else if (activeRow === row && activeCol === null) {
       setActiveCol(col);
+      if (onSelection) onSelection(row + col);
     } else {
-      // Reset if already fully selected or clicking outside active line
       setActiveRow(row);
       setActiveCol(null);
     }
@@ -34,7 +44,11 @@ export function AdditionHelper() {
   };
 
   return (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-xl max-w-md w-full animate-in fade-in zoom-in-95 duration-200" dir="rtl">
+    <div
+      style={{ transitionDuration: '2500ms' }}
+      className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-xl max-w-md w-full transition-all ${isFadingOut ? 'opacity-0 scale-95 pointer-events-none' : 'opacity-100 scale-100'}`}
+      dir="rtl"
+    >
       <div className="flex justify-between items-center mb-3">
         <h3 className="font-bold text-lg text-slate-800 dark:text-slate-200">לוח עזר לחיבור</h3>
         {activeRow !== null && activeCol !== null ? (

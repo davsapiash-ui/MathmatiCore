@@ -112,7 +112,7 @@ export function HelpOverlays() {
         )}
       </AnimatePresence>
 
-      {/* Socratic content modal */}
+      {/* Socratic content modal with 3 closed options & 30s penalty lock */}
       <AnimatePresence>
         {content && (
           <motion.div
@@ -129,7 +129,7 @@ export function HelpOverlays() {
               initial={{ scale: 0.92, y: 16 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.92, y: 16 }}
-              className="bg-ws-surface rounded-3xl shadow-2xl max-w-lg w-full p-8"
+              className="bg-ws-surface rounded-3xl shadow-2xl max-w-lg w-full p-8 relative"
             >
               <h2 className="font-display font-black text-2xl text-ws-ink mb-5">{content.titleHe}</h2>
 
@@ -148,7 +148,7 @@ export function HelpOverlays() {
 
               <ul className="flex flex-col gap-3">
                 {content.lines.map((line, i) => (
-                  <li key={i} className="flex items-start gap-2 text-lg text-ws-ink leading-relaxed">
+                  <li key={i} className="flex items-start gap-2 text-lg text-ws-ink leading-relaxed font-semibold">
                     <span className="text-ws-accent font-black shrink-0 mt-0.5" aria-hidden="true">
                       {content.kind === 'checklist' ? '✔' : content.kind === 'worked_example' ? `${i + 1}.` : '•'}
                     </span>
@@ -157,16 +157,101 @@ export function HelpOverlays() {
                 ))}
               </ul>
 
-              <button
-                onClick={closeHelp}
-                className="mt-7 w-full h-12 rounded-full font-display font-extrabold text-lg text-white bg-ws-accent shadow-md hover:brightness-105 active:scale-95 transition-all"
-              >
-                הבנתי, חזרה לתרגיל
-              </button>
+              {/* 3 Closed Options for Socratic Mentoring */}
+              {helpState === 'socratic' && (
+                <SocraticPenaltyLockOptions onClose={closeHelp} />
+              )}
+
+              {helpState !== 'socratic' && (
+                <button
+                  onClick={closeHelp}
+                  className="mt-7 w-full h-12 rounded-full font-display font-extrabold text-lg text-white bg-ws-accent shadow-md hover:brightness-105 active:scale-95 transition-all"
+                >
+                  הבנתי, חזרה לתרגיל
+                </button>
+              )}
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
     </>
+  );
+}
+
+function SocraticPenaltyLockOptions({ onClose }: { onClose: () => void }) {
+  const [lockSeconds, setLockSeconds] = useState(0);
+  const [selectedOpt, setSelectedOpt] = useState<string | null>(null);
+  const [feedbackHint, setFeedbackHint] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (lockSeconds <= 0) return;
+    const interval = setInterval(() => {
+      setLockSeconds((prev) => prev - 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [lockSeconds]);
+
+  const options = [
+    { id: 'A', text: 'א. נאסוף 10 יחידות מטור היחידות ונמיר אותן לעשרת אחת בטור העשרות.', correct: true, hint: 'תשובה נכונה! כעת בצעו את ההמרה בלוח הדינס.' },
+    { id: 'B', text: 'ב. נמחק 10 יחידות מטור היחידות מבלי להוסיף עשרת.', correct: false, hint: 'רמז: מחיקת בלוקים משנה את ערך המספר! עלינו לשמר את הכמות הכוללת בעזרת המרה.' },
+    { id: 'C', text: 'ג. נעביר קובייה אחת בלבד לטור העשרות.', correct: false, hint: 'רמז: 1 עשרת שווה בדיוק ל-10 יחידות. העברת קובייה אחת בלבד אינה שקולה לעשרת.' },
+  ];
+
+  const handleSelect = (opt: typeof options[0]) => {
+    if (lockSeconds > 0) return;
+    setSelectedOpt(opt.id);
+    setFeedbackHint(opt.hint);
+    if (!opt.correct) {
+      // PRD v2.0 Section 3.4: 30-second penalty lock on wrong distractor
+      setLockSeconds(30);
+    }
+  };
+
+  return (
+    <div className="mt-6 flex flex-col gap-3">
+      <p className="font-extrabold text-sm text-ws-soft">בחרו את הדרך הנכונה להתקדם:</p>
+      {options.map((opt) => (
+        <button
+          key={opt.id}
+          disabled={lockSeconds > 0}
+          onClick={() => handleSelect(opt)}
+          className={`p-3.5 rounded-2xl border-2 text-right font-medium text-sm transition-all ${
+            selectedOpt === opt.id
+              ? opt.correct
+                ? 'border-emerald-500 bg-emerald-50 text-emerald-950 dark:bg-emerald-950/40 dark:text-emerald-100'
+                : 'border-rose-500 bg-rose-50 text-rose-950 dark:bg-rose-950/40 dark:text-rose-100'
+              : lockSeconds > 0
+              ? 'border-ws-surface2 opacity-50 cursor-not-allowed'
+              : 'border-ws-surface2 bg-ws-surface hover:border-ws-accent hover:bg-ws-accentSoft/30'
+          }`}
+        >
+          {opt.text}
+        </button>
+      ))}
+
+      {lockSeconds > 0 && (
+        <div className="bg-amber-500/15 border border-amber-500/40 rounded-2xl p-3.5 text-center text-amber-900 dark:text-amber-200 text-sm font-bold animate-pulse">
+          ⏳ ניחשתם מסיח שגוי. חלון המענה נעול למשך <span className="font-black text-base">{lockSeconds}</span> שניות למניעת ניחושים.
+        </div>
+      )}
+
+      {feedbackHint && (
+        <div className="bg-ws-surface2/60 rounded-2xl p-3.5 text-sm text-ws-ink font-semibold">
+          💡 {feedbackHint}
+        </div>
+      )}
+
+      <button
+        onClick={onClose}
+        disabled={lockSeconds > 0}
+        className={`mt-3 w-full h-12 rounded-full font-display font-extrabold text-base transition-all ${
+          lockSeconds > 0
+            ? 'bg-slate-300 dark:bg-slate-800 text-slate-500 cursor-not-allowed'
+            : 'bg-ws-accent text-white hover:brightness-105 shadow-md'
+        }`}
+      >
+        {lockSeconds > 0 ? `חלונית נעולה (${lockSeconds}ש')` : 'הבנתי, חזרה לתרגיל'}
+      </button>
+    </div>
   );
 }

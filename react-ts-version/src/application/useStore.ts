@@ -54,12 +54,18 @@ export interface DiagnosticReport {
 
 export interface StudentData {
   studentId: string;
+  student_anonymous_id?: number;
+  school_code?: string;
   classId: string;
   name: string;
   qMatrixResults: QMatrix;
   traceData: TraceData;
   completedMeeting2: boolean;
+  session_2_completed?: boolean;
   highestCompletedMeeting?: number;
+  current_session?: number;
+  teacher_gate_approved?: boolean;
+  enhanced_cognitive_support_profile?: boolean;
   routeRecommendation: RoutePath | null;
   routeStatus: RouteStatus | string | null;
   difficultyRecommendation?: string | number | null;
