@@ -65,7 +65,7 @@ function FirebaseGate({ children }: { children: React.ReactNode }) {
 
 
 function AuthGuard({ allowedRoles, children }: { allowedRoles: string[]; children: React.ReactNode }) {
-  const { user, isAuthenticated, logout } = useAuthStore();
+  const { user, role, isAuthenticated, logout } = useAuthStore();
   
   // Enforce idle timeout for authenticated users
   useIdleTimeout();
@@ -74,11 +74,10 @@ function AuthGuard({ allowedRoles, children }: { allowedRoles: string[]; childre
     return <Navigate to="/login" replace />;
   }
   
-  const userRoles = Array.isArray(user.role) ? user.role : [user.role as string];
+  const activeRole = (typeof role === "string" ? role : (user.role as string)) || "teacher";
 
   // Systemic Whitelist Enforcement: Teacher and Admin MUST belong to Whitelist or edu-haifa.org.il
-  const isTeacherOrAdmin = userRoles.includes("teacher") || userRoles.includes("admin");
-  if (isTeacherOrAdmin) {
+  if (activeRole === "teacher" || activeRole === "admin") {
     const email = ((user.email as string) || (auth.currentUser?.email as string) || "").toLowerCase().trim();
     if (!isWhitelistedTeacherEmail(email)) {
       logout();
@@ -86,7 +85,6 @@ function AuthGuard({ allowedRoles, children }: { allowedRoles: string[]; childre
     }
   }
 
-  const activeRole = Array.isArray(user.role) ? user.role[0] : (user.role as string);
   const hasAccess = allowedRoles.includes(activeRole);
 
   if (!hasAccess) {
@@ -105,26 +103,24 @@ function AuthGuard({ allowedRoles, children }: { allowedRoles: string[]; childre
 }
 
 function RoleRouter() {
-  const { user, isAuthenticated, logout } = useAuthStore();
+  const { user, role, isAuthenticated, logout } = useAuthStore();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      const userRoles = Array.isArray(user.role) ? user.role : [user.role as string];
-      const isTeacherOrAdmin = userRoles.includes("teacher") || userRoles.includes("admin");
-      if (isTeacherOrAdmin) {
+      const activeRole = (typeof role === "string" ? role : (user.role as string)) || "teacher";
+      if (activeRole === "teacher" || activeRole === "admin") {
         const email = ((user.email as string) || (auth.currentUser?.email as string) || "").toLowerCase().trim();
         if (!isWhitelistedTeacherEmail(email)) {
           logout();
           return;
         }
       }
-      const activeRole = Array.isArray(user.role) ? user.role[0] : (user.role as string);
       if (activeRole === "admin") navigate("/admin", { replace: true });
       else if (activeRole === "teacher") navigate("/dashboard", { replace: true });
       else if (activeRole === "student") navigate("/hub", { replace: true });
     }
-  }, [isAuthenticated, user, navigate, logout]);
+  }, [isAuthenticated, user, role, navigate, logout]);
 
   return <Login />;
 }

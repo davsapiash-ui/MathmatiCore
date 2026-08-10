@@ -140,7 +140,9 @@ export function AdminLayout() {
               </div>
               <div className="flex-1 overflow-hidden">
                 <div className="font-bold text-sm truncate">{(user?.displayName as string) || "System Admin"}</div>
-                <div className="text-[9px] text-slate-500 dark:text-slate-400 tracking-wider uppercase font-semibold">Root Access</div>
+                <div className="text-[9px] text-slate-500 dark:text-slate-400 tracking-wider uppercase font-semibold">
+                  {user?.role === "admin" ? "Root Access" : "Teacher Mode"}
+                </div>
               </div>
             </div>
             <LogoutButton className="w-full justify-center rounded-xl border-0 shadow-md bg-white dark:bg-slate-800 text-xs py-2" />

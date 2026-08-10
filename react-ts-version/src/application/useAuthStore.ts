@@ -7,15 +7,15 @@ export interface AuthUser {
   id?: string;
   name?: string;
   email?: string;
-  role?: string | string[];
+  role?: string;
   [key: string]: unknown;
 }
 
 interface AuthState {
   user: AuthUser | null;
-  role: string | string[] | null;
+  role: string | null;
   isAuthenticated: boolean;
-  setUser: (user: AuthUser, role: string | string[]) => void;
+  setUser: (user: AuthUser, role: string) => void;
   logout: () => void;
 }
 
@@ -27,9 +27,14 @@ export const useAuthStore = create<AuthState>()(
     role: null,
     isAuthenticated: false,
     setUser: (user, role) => set(() => {
+      const activeRole = Array.isArray(role) ? role[0] : (typeof role === 'string' ? role : 'teacher');
+      const cleanUser: AuthUser = {
+        ...user,
+        role: activeRole,
+      };
       const username = user?.name || user?.email || "Unknown";
-      AuditLogger.log("התחברות", user?.uid || "unknown_uid", `משתמש התחבר: ${username}`);
-      return { user, role, isAuthenticated: true };
+      AuditLogger.log("התחברות", user?.uid || "unknown_uid", `משתמש התחבר במצב ${activeRole}: ${username}`);
+      return { user: user.role ? cleanUser : user, role: activeRole, isAuthenticated: true };
     }),
     logout: () => {
       if (auth && typeof auth.signOut === 'function') {
