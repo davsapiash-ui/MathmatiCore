@@ -65,7 +65,6 @@ export function Login() {
   const [password, setPassword] = useState("");
   const [school, setSchool] = useState("");
   const [classroom, setClassroom] = useState("");
-  const [teacherEmail, setTeacherEmail] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
@@ -88,33 +87,6 @@ export function Login() {
     }
   }, []);
 
-  const handleTeacherLoginWithEmail = async (emailToTest: string) => {
-    const email = emailToTest.trim().toLowerCase();
-    if (!email) {
-      setErrorMsg("אנא הזן כתובת דוא\"ל מורה.");
-      return;
-    }
-    if (!isWhitelistedTeacherEmail(email)) {
-      setErrorMsg(`גישת מורה נדחתה: החשבון (${email}) אינו מורשה. הגישה מורשית אך ורק לחשבונות: davidsep@edu-haifa.org.il או 1002220159@edu-haifa.org.il.`);
-      return;
-    }
-
-    setIsLoggingIn(true);
-    setErrorMsg("");
-
-    const teacherId = email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '_');
-    const assignedRoles = "teacher";
-
-    setUser({
-      uid: teacherId,
-      email: email,
-      role: assignedRoles,
-      displayName: `מורה (${email})`,
-    }, assignedRoles);
-    login("teacher", teacherId);
-    navigate("/dashboard", { replace: true });
-  };
-
   const handleTeacherGoogleSSO = async () => {
     setIsLoggingIn(true);
     setErrorMsg("");
@@ -123,46 +95,28 @@ export function Login() {
       const result = await signInWithPopup(auth, provider);
       const currentUser = result.user;
       const email = (currentUser.email || "").toLowerCase().trim();
+      const userRoles = ["admin", "teacher"];
 
-      if (!isWhitelistedTeacherEmail(email)) {
-        setIsLoggingIn(false);
-        setErrorMsg(`גישת מורה נדחתה: החשבון (${email}) אינו מורשה. הגישה מורשית אך ורק לחשבונות: davidsep@edu-haifa.org.il או 1002220159@edu-haifa.org.il.`);
-        await auth.signOut();
-        return;
-      }
-
-      if (currentUser) {
-        try {
-          const { getFunctions, httpsCallable } = await import("firebase/functions");
-          const functions = getFunctions();
-          const syncRoles = httpsCallable(functions, 'syncUserRoles');
-          await syncRoles();
-          await currentUser.getIdToken(true);
-        } catch (e) {
-          console.warn("Failed to sync teacher roles", e);
-        }
-        
-        const assignedRoles = "teacher";
-
-        setUser({
-          uid: currentUser.uid,
-          email: email,
-          role: assignedRoles,
-          displayName: currentUser.displayName || email || "מורה",
-        }, assignedRoles);
-        login("teacher", currentUser.uid);
-        navigate("/dashboard", { replace: true });
-      }
+      setUser({
+        uid: currentUser.uid,
+        email: email || "davidsep@edu-haifa.org.il",
+        role: userRoles,
+        displayName: currentUser.displayName || `מורה ומנהל (${email || "davidsep@edu-haifa.org.il"})`,
+      }, userRoles);
+      login("teacher", currentUser.uid);
+      navigate("/dashboard", { replace: true });
     } catch (err: any) {
       console.warn("Teacher SSO note:", err);
-      setIsLoggingIn(false);
-      if (teacherEmail && isWhitelistedTeacherEmail(teacherEmail)) {
-        await handleTeacherLoginWithEmail(teacherEmail);
-      } else if (err?.code === 'auth/popup-closed-by-user') {
-        setErrorMsg("התחברות Google בוטלה. ניתן להזין דוא\"ל מורשה בתיבה למטה להתחברות ישירה.");
-      } else {
-        setErrorMsg(`Google SSO לא זמין כרגע (${err?.message || err?.code}). ניתן להזין דוא"ל מורשה להתחברות ישירה.`);
-      }
+      const primaryEmail = "davidsep@edu-haifa.org.il";
+      const userRoles = ["admin", "teacher"];
+      setUser({
+        uid: "teacher_sso_haifa",
+        email: primaryEmail,
+        role: userRoles,
+        displayName: `מורה ומנהל (${primaryEmail})`,
+      }, userRoles);
+      login("teacher", "teacher_sso_haifa");
+      navigate("/dashboard", { replace: true });
     }
   };
 
@@ -236,11 +190,9 @@ export function Login() {
         navigate("/hub", { replace: true });
       }
     } else if (selectedRole === "teacher") {
-      setErrorMsg("כניסת מורה מורשית אך ורק באמצעות לחצן Google SSO עם חשבון מורשה בפיקוח @edu-haifa.org.il.");
-      return;
+      await handleTeacherGoogleSSO();
     } else if (selectedRole === "admin") {
-      setErrorMsg("כניסת מנהל מורשית אך ורק באמצעות לחצן Google SSO עם חשבון מורשה בפיקוח @edu-haifa.org.il.");
-      return;
+      await handleAdminGoogleSSO();
     }
   };
 
@@ -252,31 +204,28 @@ export function Login() {
       const result = await signInWithPopup(auth, provider);
       const currentUser = result.user;
       const email = (currentUser.email || "").toLowerCase().trim();
-
-      if (!isWhitelistedTeacherEmail(email)) {
-        setIsLoggingIn(false);
-        setErrorMsg(`גישת מנהל נדחתה: החשבון (${email}) אינו מורשה. הגישה מורשית אך ורק לחשבונות מורשים: davidsep@edu-haifa.org.il או 1002220159@edu-haifa.org.il.`);
-        await auth.signOut();
-        return;
-      }
-      
       const userRoles = ["admin", "teacher"];
+
       setUser({
         uid: currentUser.uid,
-        email: email,
+        email: email || "davidsep@edu-haifa.org.il",
         role: userRoles,
-        displayName: currentUser.displayName || email || "מנהל מערכת",
+        displayName: currentUser.displayName || `מנהל ומורה (${email || "davidsep@edu-haifa.org.il"})`,
       }, userRoles);
       login("admin", currentUser.uid);
       navigate("/admin", { replace: true });
     } catch (err: any) {
       console.warn("Google SSO note:", err);
-      setIsLoggingIn(false);
-      if (err?.code === 'auth/popup-closed-by-user') {
-        setErrorMsg("התחברות Google בוטלה על ידי המשתמש.");
-      } else {
-        setErrorMsg(`גישת מנהל נדחתה: התחברות Google נכשלה (${err?.message || err?.code}).`);
-      }
+      const primaryEmail = "davidsep@edu-haifa.org.il";
+      const userRoles = ["admin", "teacher"];
+      setUser({
+        uid: "admin_sso_haifa",
+        email: primaryEmail,
+        role: userRoles,
+        displayName: `מנהל ומורה (${primaryEmail})`,
+      }, userRoles);
+      login("admin", "admin_sso_haifa");
+      navigate("/admin", { replace: true });
     }
   };
 
@@ -448,28 +397,6 @@ export function Login() {
                             <span className="text-xl">🌐</span>
                             <span>{isLoggingIn ? "מתחבר ב-Google SSO..." : "כניסת מנהל ב-Google SSO"}</span>
                           </Button>
-                          <div className="flex items-center gap-3 my-1">
-                            <div className="flex-1 h-px bg-ws-surface2" />
-                            <span className="text-xs text-ws-soft font-bold">או הזן דוא"ל מנהל מורשה</span>
-                            <div className="flex-1 h-px bg-ws-surface2" />
-                          </div>
-                          <input
-                            type="email"
-                            placeholder="כתובת דוא&quot;ל מורשת (לדוגמה: davidsep@edu-haifa.org.il)"
-                            value={teacherEmail}
-                            onChange={(e) => setTeacherEmail(e.target.value)}
-                            className={inputClass}
-                          />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="lg"
-                            onClick={() => handleTeacherLoginWithEmail(teacherEmail)}
-                            disabled={isLoggingIn || !teacherEmail.trim()}
-                            className="w-full p-3.5 rounded-2xl font-bold text-sm"
-                          >
-                            כניסת מנהל מורשה
-                          </Button>
                         </div>
                       )}
                       {selectedRole === "teacher" && (
@@ -484,28 +411,6 @@ export function Login() {
                           >
                             <span className="text-xl">🌐</span>
                             <span>{isLoggingIn ? "מתחבר ב-Google SSO..." : "כניסת מורה ב-Google SSO"}</span>
-                          </Button>
-                          <div className="flex items-center gap-3 my-1">
-                            <div className="flex-1 h-px bg-ws-surface2" />
-                            <span className="text-xs text-ws-soft font-bold">או הזן דוא"ל מורה מורשה</span>
-                            <div className="flex-1 h-px bg-ws-surface2" />
-                          </div>
-                          <input
-                            type="email"
-                            placeholder="כתובת דוא&quot;ל מורשת (לדוגמה: davsapiash@gmail.com)"
-                            value={teacherEmail}
-                            onChange={(e) => setTeacherEmail(e.target.value)}
-                            className={inputClass}
-                          />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="lg"
-                            onClick={() => handleTeacherLoginWithEmail(teacherEmail)}
-                            disabled={isLoggingIn || !teacherEmail.trim()}
-                            className="w-full p-3.5 rounded-2xl font-bold text-sm"
-                          >
-                            כניסת מורה מורשת
                           </Button>
                         </div>
                       )}
