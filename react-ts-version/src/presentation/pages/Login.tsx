@@ -19,26 +19,15 @@ const ROLES = [
   { id: "admin" as const, icon: "⚙️", label: "מנהל מערכת" },
 ];
 
-export const WHITELISTED_EXPLICIT_EMAILS = [
+export const ALLOWED_SYSTEM_EMAILS = [
   "davidsep@edu-haifa.org.il",
   "1002220159@edu-haifa.org.il",
-  "davsapiash@gmail.com",
-  "davsapiash-ui@gmail.com",
-  "admin@mathmaticore.local",
-  "teacher@mathmaticore.local"
 ];
 
 export function isWhitelistedTeacherEmail(email: string): boolean {
   if (!email) return false;
   const normalized = email.toLowerCase().trim();
-  const domain = normalized.split('@')[1] || '';
-  return (
-    domain === 'edu-haifa.org.il' ||
-    normalized.endsWith('@mathmaticore.local') ||
-    WHITELISTED_EXPLICIT_EMAILS.includes(normalized) ||
-    normalized.includes('davsapiash') ||
-    normalized.includes('davidsep')
-  );
+  return ALLOWED_SYSTEM_EMAILS.includes(normalized);
 }
 
 const inputClass =
@@ -78,7 +67,7 @@ export function Login() {
       return;
     }
     if (!isWhitelistedTeacherEmail(email)) {
-      setErrorMsg(`גישת מורה נדחתה: החשבון (${email}) אינו ברשימת המורשים. הגישה מורשית אך ורק לחשבונות מורשים בפיקוח @edu-haifa.org.il.`);
+      setErrorMsg(`גישת מורה נדחתה: החשבון (${email}) אינו מורשה. הגישה מורשית אך ורק לחשבונות: davidsep@edu-haifa.org.il או 1002220159@edu-haifa.org.il.`);
       return;
     }
 
@@ -86,8 +75,7 @@ export function Login() {
     setErrorMsg("");
 
     const teacherId = email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '_');
-    const isDualAdmin = email.includes("davidsep") || email.includes("1002220159") || email.includes("admin") || email.includes("davsapiash");
-    const assignedRoles = isDualAdmin ? ["admin", "teacher"] : "teacher";
+    const assignedRoles = "teacher";
 
     setUser({
       uid: teacherId,
@@ -110,7 +98,7 @@ export function Login() {
 
       if (!isWhitelistedTeacherEmail(email)) {
         setIsLoggingIn(false);
-        setErrorMsg(`גישת מורה נדחתה: החשבון (${email}) אינו ברשימת המורשים. הגישה מורשית אך ורק לחשבונות מורשים בפיקוח @edu-haifa.org.il.`);
+        setErrorMsg(`גישת מורה נדחתה: החשבון (${email}) אינו מורשה. הגישה מורשית אך ורק לחשבונות: davidsep@edu-haifa.org.il או 1002220159@edu-haifa.org.il.`);
         await auth.signOut();
         return;
       }
@@ -126,14 +114,13 @@ export function Login() {
           console.warn("Failed to sync teacher roles", e);
         }
         
-        const isDualAdmin = email.includes("davidsep") || email.includes("1002220159") || email.includes("admin") || email.includes("davsapiash");
-        const assignedRoles = isDualAdmin ? ["admin", "teacher"] : "teacher";
+        const assignedRoles = "teacher";
 
         setUser({
           uid: currentUser.uid,
           email: email,
           role: assignedRoles,
-          displayName: currentUser.displayName || email || "מורה ומנהל",
+          displayName: currentUser.displayName || email || "מורה",
         }, assignedRoles);
         login("teacher", currentUser.uid);
         navigate("/dashboard", { replace: true });
@@ -237,15 +224,10 @@ export function Login() {
       const result = await signInWithPopup(auth, provider);
       const currentUser = result.user;
       const email = (currentUser.email || "").toLowerCase().trim();
-      const domain = email.split('@')[1] || "";
 
-      // PRD Section 5.3 & 5.6: Domain Constraint & Whitelist Verification
-      const allowedAdminEmails = ["davidsep@edu-haifa.org.il", "1002220159@edu-haifa.org.il", "admin@mathmaticore.local"];
-      const isAllowedAdmin = allowedAdminEmails.includes(email) || domain === "edu-haifa.org.il";
-
-      if (!isAllowedAdmin) {
+      if (!isWhitelistedTeacherEmail(email)) {
         setIsLoggingIn(false);
-        setErrorMsg(`גישת מנהל נדחתה: החשבון (${email}) אינו מורשה כמנהל. הגישה מורשית אך ורק לחשבונות מחוז חיפה (@edu-haifa.org.il).`);
+        setErrorMsg(`גישת מנהל נדחתה: החשבון (${email}) אינו מורשה. הגישה מורשית אך ורק לחשבונות מורשים: davidsep@edu-haifa.org.il או 1002220159@edu-haifa.org.il.`);
         await auth.signOut();
         return;
       }
@@ -253,8 +235,9 @@ export function Login() {
       const userRoles = ["admin", "teacher"];
       setUser({
         uid: currentUser.uid,
+        email: email,
         role: userRoles,
-        displayName: currentUser.displayName || email || "מנהל מערכת ראשי",
+        displayName: currentUser.displayName || email || "מנהל מערכת",
       }, userRoles);
       login("admin", currentUser.uid);
       navigate("/admin", { replace: true });
@@ -264,7 +247,7 @@ export function Login() {
       if (err?.code === 'auth/popup-closed-by-user') {
         setErrorMsg("התחברות Google בוטלה על ידי המשתמש.");
       } else {
-        setErrorMsg(`גישת מנהל נדחתה: התחברות Google נכשלה (${err?.message || err?.code}). יש להתחבר לחשבון מורשה בפיקוח @edu-haifa.org.il.`);
+        setErrorMsg(`גישת מנהל נדחתה: התחברות Google נכשלה (${err?.message || err?.code}).`);
       }
     }
   };
