@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { authReady, auth } from "@/infrastructure/firebase";
-import { Login } from "@/presentation/pages/Login";
+import { Login, isWhitelistedTeacherEmail } from "@/presentation/pages/Login";
 import { LandingPage } from "@/presentation/pages/LandingPage";
 import { StudentWorkspacePage } from "@/features/workspace/StudentWorkspacePage";
 import { StudentHub } from "@/presentation/pages/StudentHub";
@@ -62,6 +62,8 @@ function FirebaseGate({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+
+
 function AuthGuard({ allowedRoles, children }: { allowedRoles: string[]; children: React.ReactNode }) {
   const { user, isAuthenticated, logout } = useAuthStore();
   
@@ -74,13 +76,11 @@ function AuthGuard({ allowedRoles, children }: { allowedRoles: string[]; childre
   
   const userRoles = Array.isArray(user.role) ? user.role : [user.role as string];
 
-  // Systemic Whitelist Enforcement: Teacher and Admin MUST belong to edu-haifa.org.il
+  // Systemic Whitelist Enforcement: Teacher and Admin MUST belong to Whitelist or edu-haifa.org.il
   const isTeacherOrAdmin = userRoles.includes("teacher") || userRoles.includes("admin");
   if (isTeacherOrAdmin) {
     const email = ((user.email as string) || (auth.currentUser?.email as string) || "").toLowerCase().trim();
-    const domain = email.split('@')[1] || "";
-    const isWhitelisted = domain === "edu-haifa.org.il" || email.endsWith("@mathmaticore.local");
-    if (!isWhitelisted) {
+    if (!isWhitelistedTeacherEmail(email)) {
       logout();
       return <Navigate to="/login" replace />;
     }
@@ -114,9 +114,7 @@ function RoleRouter() {
       const isTeacherOrAdmin = userRoles.includes("teacher") || userRoles.includes("admin");
       if (isTeacherOrAdmin) {
         const email = ((user.email as string) || (auth.currentUser?.email as string) || "").toLowerCase().trim();
-        const domain = email.split('@')[1] || "";
-        const isWhitelisted = domain === "edu-haifa.org.il" || email.endsWith("@mathmaticore.local");
-        if (!isWhitelisted) {
+        if (!isWhitelistedTeacherEmail(email)) {
           logout();
           return;
         }

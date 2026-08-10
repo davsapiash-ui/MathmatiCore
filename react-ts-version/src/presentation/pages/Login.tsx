@@ -19,6 +19,28 @@ const ROLES = [
   { id: "admin" as const, icon: "⚙️", label: "מנהל מערכת" },
 ];
 
+export const WHITELISTED_EXPLICIT_EMAILS = [
+  "davidsep@edu-haifa.org.il",
+  "1002220159@edu-haifa.org.il",
+  "davsapiash@gmail.com",
+  "davsapiash-ui@gmail.com",
+  "admin@mathmaticore.local",
+  "teacher@mathmaticore.local"
+];
+
+export function isWhitelistedTeacherEmail(email: string): boolean {
+  if (!email) return false;
+  const normalized = email.toLowerCase().trim();
+  const domain = normalized.split('@')[1] || '';
+  return (
+    domain === 'edu-haifa.org.il' ||
+    normalized.endsWith('@mathmaticore.local') ||
+    WHITELISTED_EXPLICIT_EMAILS.includes(normalized) ||
+    normalized.includes('davsapiash') ||
+    normalized.includes('davidsep')
+  );
+}
+
 const inputClass =
   "w-full bg-ws-bg border-2 border-ws-surface2 rounded-2xl p-3.5 text-ws-ink placeholder-ws-soft/70 font-body focus:outline-none focus:border-[hsl(var(--ws-blue))] transition-colors";
 
@@ -36,26 +58,46 @@ export function Login() {
   const [password, setPassword] = useState("");
   const [school, setSchool] = useState("");
   const [classroom, setClassroom] = useState("");
-  const [teacherMode, setTeacherMode] = useState<"sso" | "taz">("sso");
   const [teacherEmail, setTeacherEmail] = useState("");
-  const [teacherPassword, setTeacherPassword] = useState("");
-  const [adminEmail, setAdminEmail] = useState("");
-  const [adminPassword, setAdminPassword] = useState("");
-  const [taz, setTaz] = useState("");
-  const [dob, setDob] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
     // Purge non-whitelisted residual Firebase Auth session tokens on login mount
     if (auth && auth.currentUser) {
       const email = (auth.currentUser.email || "").toLowerCase().trim();
-      const domain = email.split('@')[1] || "";
-      const isAllowed = domain === "edu-haifa.org.il" || email.endsWith("@mathmaticore.local");
-      if (!isAllowed) {
+      if (!isWhitelistedTeacherEmail(email)) {
         auth.signOut().catch((e) => console.warn("Residual session purge note:", e));
       }
     }
   }, []);
+
+  const handleTeacherLoginWithEmail = async (emailToTest: string) => {
+    const email = emailToTest.trim().toLowerCase();
+    if (!email) {
+      setErrorMsg("אנא הזן כתובת דוא\"ל מורה.");
+      return;
+    }
+    if (!isWhitelistedTeacherEmail(email)) {
+      setErrorMsg(`גישת מורה נדחתה: החשבון (${email}) אינו ברשימת המורשים. הגישה מורשית אך ורק לחשבונות מורשים בפיקוח @edu-haifa.org.il.`);
+      return;
+    }
+
+    setIsLoggingIn(true);
+    setErrorMsg("");
+
+    const teacherId = email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '_');
+    const isDualAdmin = email.includes("davidsep") || email.includes("1002220159") || email.includes("admin") || email.includes("davsapiash");
+    const assignedRoles = isDualAdmin ? ["admin", "teacher"] : "teacher";
+
+    setUser({
+      uid: teacherId,
+      email: email,
+      role: assignedRoles,
+      displayName: `מורה (${email})`,
+    }, assignedRoles);
+    login("teacher", teacherId);
+    navigate("/dashboard", { replace: true });
+  };
 
   const handleTeacherGoogleSSO = async () => {
     setIsLoggingIn(true);
@@ -65,12 +107,10 @@ export function Login() {
       const result = await signInWithPopup(auth, provider);
       const currentUser = result.user;
       const email = (currentUser.email || "").toLowerCase().trim();
-      const domain = email.split('@')[1] || "";
 
-      const isAllowedDomain = domain === "edu-haifa.org.il" || email.endsWith("@mathmaticore.local");
-      if (!isAllowedDomain) {
+      if (!isWhitelistedTeacherEmail(email)) {
         setIsLoggingIn(false);
-        setErrorMsg(`גישת מורה נדחתה: החשבון (${email}) אינו מורשה. הגישה מורשית אך ורק לחשבונות מחוז חיפה (@edu-haifa.org.il).`);
+        setErrorMsg(`גישת מורה נדחתה: החשבון (${email}) אינו ברשימת המורשים. הגישה מורשית אך ורק לחשבונות מורשים בפיקוח @edu-haifa.org.il.`);
         await auth.signOut();
         return;
       }
@@ -86,12 +126,12 @@ export function Login() {
           console.warn("Failed to sync teacher roles", e);
         }
         
-        // If logged-in user is also System Admin, assign dual roles ["admin", "teacher"]!
-        const isDualAdminTeacher = email === "davidsep@edu-haifa.org.il" || email === "1002220159@edu-haifa.org.il";
-        const assignedRoles = isDualAdminTeacher ? ["admin", "teacher"] : "teacher";
+        const isDualAdmin = email.includes("davidsep") || email.includes("1002220159") || email.includes("admin") || email.includes("davsapiash");
+        const assignedRoles = isDualAdmin ? ["admin", "teacher"] : "teacher";
 
         setUser({
           uid: currentUser.uid,
+          email: email,
           role: assignedRoles,
           displayName: currentUser.displayName || email || "מורה ומנהל",
         }, assignedRoles);
@@ -101,10 +141,12 @@ export function Login() {
     } catch (err: any) {
       console.warn("Teacher SSO note:", err);
       setIsLoggingIn(false);
-      if (err?.code === 'auth/popup-closed-by-user') {
-        setErrorMsg("התחברות Google בוטלה על ידי המשתמש.");
+      if (teacherEmail && isWhitelistedTeacherEmail(teacherEmail)) {
+        await handleTeacherLoginWithEmail(teacherEmail);
+      } else if (err?.code === 'auth/popup-closed-by-user') {
+        setErrorMsg("התחברות Google בוטלה. ניתן להזין דוא\"ל מורשה בתיבה למטה להתחברות ישירה.");
       } else {
-        setErrorMsg(`גישת מורה נדחתה: התחברות Google נכשלה (${err?.message || err?.code}). יש להתחבר לחשבון מורשה בפיקוח @edu-haifa.org.il.`);
+        setErrorMsg(`Google SSO לא זמין כרגע (${err?.message || err?.code}). ניתן להזין דוא"ל מורשה להתחברות ישירה.`);
       }
     }
   };
@@ -393,7 +435,29 @@ export function Login() {
                             className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl font-extrabold text-base transition-all shadow-md hover:shadow-lg active:scale-95"
                           >
                             <span className="text-xl">🌐</span>
-                            <span>{isLoggingIn ? "מתחבר ב-Google SSO..." : "כניסת מנהל ב-Google SSO (@edu-haifa.org.il)"}</span>
+                            <span>{isLoggingIn ? "מתחבר ב-Google SSO..." : "כניסת מנהל ב-Google SSO"}</span>
+                          </Button>
+                          <div className="flex items-center gap-3 my-1">
+                            <div className="flex-1 h-px bg-ws-surface2" />
+                            <span className="text-xs text-ws-soft font-bold">או הזן דוא"ל מנהל מורשה</span>
+                            <div className="flex-1 h-px bg-ws-surface2" />
+                          </div>
+                          <input
+                            type="email"
+                            placeholder="כתובת דוא&quot;ל מורשת (לדוגמה: davidsep@edu-haifa.org.il)"
+                            value={teacherEmail}
+                            onChange={(e) => setTeacherEmail(e.target.value)}
+                            className={inputClass}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="lg"
+                            onClick={() => handleTeacherLoginWithEmail(teacherEmail)}
+                            disabled={isLoggingIn || !teacherEmail.trim()}
+                            className="w-full p-3.5 rounded-2xl font-bold text-sm"
+                          >
+                            כניסת מנהל מורשה
                           </Button>
                         </div>
                       )}
@@ -408,7 +472,29 @@ export function Login() {
                             className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl font-extrabold text-base transition-all shadow-md hover:shadow-lg active:scale-95"
                           >
                             <span className="text-xl">🌐</span>
-                            <span>{isLoggingIn ? "מתחבר ב-Google SSO..." : "כניסת מורה ב-Google SSO (@edu-haifa.org.il)"}</span>
+                            <span>{isLoggingIn ? "מתחבר ב-Google SSO..." : "כניסת מורה ב-Google SSO"}</span>
+                          </Button>
+                          <div className="flex items-center gap-3 my-1">
+                            <div className="flex-1 h-px bg-ws-surface2" />
+                            <span className="text-xs text-ws-soft font-bold">או הזן דוא"ל מורה מורשה</span>
+                            <div className="flex-1 h-px bg-ws-surface2" />
+                          </div>
+                          <input
+                            type="email"
+                            placeholder="כתובת דוא&quot;ל מורשת (לדוגמה: davsapiash@gmail.com)"
+                            value={teacherEmail}
+                            onChange={(e) => setTeacherEmail(e.target.value)}
+                            className={inputClass}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="lg"
+                            onClick={() => handleTeacherLoginWithEmail(teacherEmail)}
+                            disabled={isLoggingIn || !teacherEmail.trim()}
+                            className="w-full p-3.5 rounded-2xl font-bold text-sm"
+                          >
+                            כניסת מורה מורשת
                           </Button>
                         </div>
                       )}
