@@ -63,7 +63,7 @@ function FirebaseGate({ children }: { children: React.ReactNode }) {
 }
 
 function AuthGuard({ allowedRoles, children }: { allowedRoles: string[]; children: React.ReactNode }) {
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated, logout } = useAuthStore();
   
   // Enforce idle timeout for authenticated users
   useIdleTimeout();
@@ -73,6 +73,19 @@ function AuthGuard({ allowedRoles, children }: { allowedRoles: string[]; childre
   }
   
   const userRoles = Array.isArray(user.role) ? user.role : [user.role as string];
+
+  // Systemic Whitelist Enforcement: Teacher and Admin MUST belong to edu-haifa.org.il
+  const isTeacherOrAdmin = userRoles.includes("teacher") || userRoles.includes("admin");
+  if (isTeacherOrAdmin) {
+    const email = ((user.email as string) || (auth.currentUser?.email as string) || "").toLowerCase().trim();
+    const domain = email.split('@')[1] || "";
+    const isWhitelisted = domain === "edu-haifa.org.il" || email.endsWith("@mathmaticore.local");
+    if (!isWhitelisted) {
+      logout();
+      return <Navigate to="/login" replace />;
+    }
+  }
+
   const hasAccess = userRoles.some((role: string) => allowedRoles.includes(role));
 
   if (!hasAccess) {
@@ -92,17 +105,27 @@ function AuthGuard({ allowedRoles, children }: { allowedRoles: string[]; childre
 }
 
 function RoleRouter() {
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated, logout } = useAuthStore();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (isAuthenticated && user) {
       const userRoles = Array.isArray(user.role) ? user.role : [user.role as string];
+      const isTeacherOrAdmin = userRoles.includes("teacher") || userRoles.includes("admin");
+      if (isTeacherOrAdmin) {
+        const email = ((user.email as string) || (auth.currentUser?.email as string) || "").toLowerCase().trim();
+        const domain = email.split('@')[1] || "";
+        const isWhitelisted = domain === "edu-haifa.org.il" || email.endsWith("@mathmaticore.local");
+        if (!isWhitelisted) {
+          logout();
+          return;
+        }
+      }
       if (userRoles.includes("admin")) navigate("/admin", { replace: true });
       else if (userRoles.includes("teacher")) navigate("/dashboard", { replace: true });
       else if (userRoles.includes("student")) navigate("/hub", { replace: true });
     }
-  }, [isAuthenticated, user, navigate]);
+  }, [isAuthenticated, user, navigate, logout]);
 
   return <Login />;
 }

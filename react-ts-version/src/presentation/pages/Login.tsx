@@ -45,6 +45,18 @@ export function Login() {
   const [dob, setDob] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
 
+  useEffect(() => {
+    // Purge non-whitelisted residual Firebase Auth session tokens on login mount
+    if (auth && auth.currentUser) {
+      const email = (auth.currentUser.email || "").toLowerCase().trim();
+      const domain = email.split('@')[1] || "";
+      const isAllowed = domain === "edu-haifa.org.il" || email.endsWith("@mathmaticore.local");
+      if (!isAllowed) {
+        auth.signOut().catch((e) => console.warn("Residual session purge note:", e));
+      }
+    }
+  }, []);
+
   const handleTeacherGoogleSSO = async () => {
     setIsLoggingIn(true);
     setErrorMsg("");

@@ -19,6 +19,8 @@ interface AuthState {
   logout: () => void;
 }
 
+import { auth } from "@/infrastructure/firebase";
+
 export const useAuthStore = create<AuthState>()(
   (set) => ({
     user: null,
@@ -29,10 +31,15 @@ export const useAuthStore = create<AuthState>()(
       AuditLogger.log("התחברות", user?.uid || "unknown_uid", `משתמש התחבר: ${username}`);
       return { user, role, isAuthenticated: true };
     }),
-    logout: () => set((state) => {
-      const username = state.user?.name || state.user?.email || "Unknown";
-      AuditLogger.log("התנתקות", state.user?.uid || "unknown_uid", `משתמש התנתק: ${username}`);
-      return { user: null, role: null, isAuthenticated: false };
-    }),
+    logout: () => {
+      if (auth && typeof auth.signOut === 'function') {
+        auth.signOut().catch((e) => console.warn("Firebase signOut error:", e));
+      }
+      return set((state) => {
+        const username = state.user?.name || state.user?.email || "Unknown";
+        AuditLogger.log("התנתקות", state.user?.uid || "unknown_uid", `משתמש התנתק: ${username}`);
+        return { user: null, role: null, isAuthenticated: false };
+      });
+    },
   })
 );
