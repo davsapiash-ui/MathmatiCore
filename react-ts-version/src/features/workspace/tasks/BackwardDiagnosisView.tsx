@@ -28,7 +28,6 @@ export function BackwardDiagnosisView({ task, qflow, isASD }: { task: QMatrixTas
 
   const instruction = diag.subtaskInstructionHe ?? diag.probeInstructionHe ?? '';
   const effNumber = getEffectiveNumber(task, qflow, isASD);
-  const effRange = getEffectiveRange(task, qflow, isASD);
   const choices = getEffectiveChoices(task, qflow);
 
   const effProbeA = isASD && diag.asdProbeA !== undefined ? diag.asdProbeA : diag.probeA;

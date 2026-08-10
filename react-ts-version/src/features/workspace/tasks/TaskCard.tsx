@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useWorkspaceStore, selectStandardTask, effectiveArithmetic } from '@/application/useWorkspaceStore';
-import { getCurrentQTask, getEffectiveChoices, getEffectiveNumber, getEffectiveRange, isSubtaskActive } from '@/core/qmatrixFlow';
+import { getCurrentQTask, getEffectiveChoices, getEffectiveNumber, isSubtaskActive } from '@/core/qmatrixFlow';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 import { AccessibleCard } from '@/presentation/design-system/AccessibleCard';
 import { IntroTask } from './IntroTask';
