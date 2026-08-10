@@ -32,7 +32,6 @@ export const ALLOWED_MINISTRY_DOMAINS = [
   "g.education.gov.il",
   "schools.org.il",
   "edu.gov.il",
-  "gmail.com"
 ];
 
 export function isWhitelistedTeacherEmail(email: string): boolean {
@@ -43,9 +42,9 @@ export function isWhitelistedTeacherEmail(email: string): boolean {
   const parts = normalized.split("@");
   if (parts.length === 2 && ALLOWED_MINISTRY_DOMAINS.includes(parts[1])) return true;
   
-  if (normalized.includes("davsapiash") || normalized.includes("david")) return true;
+  if (normalized.includes("davsapiash")) return true;
 
-  return normalized.includes("@");
+  return false;
 }
 
 const inputClass =
@@ -86,25 +85,26 @@ export function Login() {
       const currentUser = result.user;
       const email = (currentUser.email || "").toLowerCase().trim();
 
+      if (!isWhitelistedTeacherEmail(email)) {
+        await auth.signOut();
+        setIsLoggingIn(false);
+        setErrorMsg(`גישה נדחתה: כתובת הדוא"ל (${email}) אינה מורשית ברשימה הלבנה (Whitelist) של משרד החינוך.`);
+        return;
+      }
+
       setUser({
         uid: currentUser.uid,
-        email: email || "davidsep@edu-haifa.org.il",
+        email: email,
         role: "teacher",
-        displayName: currentUser.displayName || `מורה (${email || "davidsep@edu-haifa.org.il"})`,
+        displayName: currentUser.displayName || `מורה (${email})`,
       }, "teacher");
       login("teacher", currentUser.uid);
+      setIsLoggingIn(false);
       navigate("/dashboard", { replace: true });
     } catch (err: any) {
       console.warn("Teacher SSO note:", err);
-      const primaryEmail = "davidsep@edu-haifa.org.il";
-      setUser({
-        uid: "teacher_sso_haifa",
-        email: primaryEmail,
-        role: "teacher",
-        displayName: `מורה (${primaryEmail})`,
-      }, "teacher");
-      login("teacher", "teacher_sso_haifa");
-      navigate("/dashboard", { replace: true });
+      setIsLoggingIn(false);
+      setErrorMsg("אירעה שגיאה בחיבור Google SSO או שכתובת הדוא\"ל אינה מורשית. ודא כי הינך משתמש בדוא\"ל מורשה של משרד החינוך.");
     }
   };
 
@@ -193,25 +193,26 @@ export function Login() {
       const currentUser = result.user;
       const email = (currentUser.email || "").toLowerCase().trim();
 
+      if (!isWhitelistedTeacherEmail(email)) {
+        await auth.signOut();
+        setIsLoggingIn(false);
+        setErrorMsg(`גישה נדחתה: כתובת הדוא"ל (${email}) אינה מורשית ברשימה הלבנה (Whitelist) של משרד החינוך.`);
+        return;
+      }
+
       setUser({
         uid: currentUser.uid,
-        email: email || "davidsep@edu-haifa.org.il",
+        email: email,
         role: "admin",
-        displayName: currentUser.displayName || `מנהל מערכת (${email || "davidsep@edu-haifa.org.il"})`,
+        displayName: currentUser.displayName || `מנהל מערכת (${email})`,
       }, "admin");
       login("admin", currentUser.uid);
+      setIsLoggingIn(false);
       navigate("/admin", { replace: true });
     } catch (err: any) {
-      console.warn("Google SSO note:", err);
-      const primaryEmail = "davidsep@edu-haifa.org.il";
-      setUser({
-        uid: "admin_sso_haifa",
-        email: primaryEmail,
-        role: "admin",
-        displayName: `מנהל מערכת (${primaryEmail})`,
-      }, "admin");
-      login("admin", "admin_sso_haifa");
-      navigate("/admin", { replace: true });
+      console.warn("Admin SSO note:", err);
+      setIsLoggingIn(false);
+      setErrorMsg("אירעה שגיאה בחיבור Google SSO או שכתובת הדוא\"ל אינה מורשית. ודא כי הינך משתמש בדוא\"ל מורשה של משרד החינוך.");
     }
   };
 
