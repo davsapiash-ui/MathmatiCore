@@ -4,6 +4,7 @@ import { Bell, UserCircle } from 'lucide-react';
 import { UdlButton } from '@/presentation/design-system/UdlButton';
 import { motion } from 'framer-motion';
 import { useChatStore } from '@/application/useChatStore';
+import { LogoutButton } from '@/presentation/components/ui/LogoutButton';
 
 /** כותרת פשוטה שנגזרת מהנתיב הנוכחי — במקום פירורי לחם מזויפים. */
 function titleForPath(pathname: string): string {
@@ -56,6 +57,9 @@ export function Topbar() {
             <UserCircle className="w-6 h-6" />
           </div>
         </motion.div>
+
+        {/* Logout Button */}
+        <LogoutButton className="bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-950/30 dark:hover:bg-red-900/40 dark:text-red-400 rounded-full px-3.5 py-2 text-xs font-bold transition-all border border-red-200/60 dark:border-red-800/40 shadow-sm" />
       </div>
 
     </header>

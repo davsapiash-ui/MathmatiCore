@@ -1,3 +1,6 @@
+import { useAuthStore } from "@/application/useAuthStore";
+import { LogoutButton } from "@/presentation/components/ui/LogoutButton";
+
 interface TeacherSidebarProps {
   activeTab: string;
   handleTabChange: (tab: string) => void;
@@ -13,6 +16,7 @@ export function TeacherSidebar({
   pendingRouteStudents,
   unreadAdminCount,
 }: TeacherSidebarProps) {
+  const { user } = useAuthStore();
   return (
     <aside className="w-full md:w-64 bg-ws-surface/80 backdrop-blur-xl border-b md:border-b-0 md:border-l border-ws-surface2 flex flex-col shadow-[4px_0_24px_rgba(0,0,0,0.02)] dark:shadow-[4px_0_24px_rgba(0,0,0,0.2)] z-20 transition-all overflow-y-auto max-h-screen">
       <div className="p-6 border-b border-ws-surface2">
@@ -101,6 +105,19 @@ export function TeacherSidebar({
           )}
         </button>
       </nav>
+
+      <div className="p-4 border-t border-ws-surface2 mt-auto bg-ws-bg/50">
+        <div className="flex items-center gap-3 mb-3 px-2">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center font-bold text-white shadow-md text-sm shrink-0">
+            {(user?.displayName as string)?.[0] || "T"}
+          </div>
+          <div className="flex-1 overflow-hidden">
+            <div className="font-bold text-sm text-ws-ink truncate">{(user?.displayName as string) || "מורה"}</div>
+            <div className="text-[10px] text-ws-soft truncate">{(user?.email as string) || ""}</div>
+          </div>
+        </div>
+        <LogoutButton className="w-full justify-center bg-red-50 dark:bg-red-950/30 hover:bg-red-100 border border-red-200 dark:border-red-900/30 rounded-xl py-2.5 font-bold text-sm text-red-600 dark:text-red-400 shadow-sm transition-all" />
+      </div>
     </aside>
   );
 }
