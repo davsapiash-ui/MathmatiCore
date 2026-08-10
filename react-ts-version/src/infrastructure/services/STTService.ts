@@ -33,7 +33,7 @@ export class STTService {
     if (SpeechRecognition) {
       this.recognition = new SpeechRecognition();
       this.recognition.continuous = false;
-      this.recognition.interimResults = true;
+      this.recognition.interimResults = false;
     }
   }
 
@@ -54,12 +54,13 @@ export class STTService {
     this.recognition.lang = lang;
 
     this.recognition.onresult = (event: any) => {
-      let currentTranscript = "";
+      let finalTranscript = "";
       for (let i = event.resultIndex; i < event.results.length; i++) {
-        currentTranscript += event.results[i][0].transcript;
+        finalTranscript += event.results[i][0].transcript;
       }
-      if (currentTranscript) {
-        onResult(currentTranscript);
+      const cleanText = finalTranscript.trim();
+      if (cleanText) {
+        onResult(cleanText);
       }
     };
 

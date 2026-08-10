@@ -23,6 +23,15 @@ interface ChatState {
   initSync: () => void;
 }
 
+function computeRoomId(senderId: string, receiverId: string): string {
+  if (senderId === 'admin' || receiverId === 'admin') {
+    const teacherId = senderId === 'admin' ? receiverId : senderId;
+    return `admin_teacher_${teacherId}`;
+  }
+  const studentId = senderId.startsWith('student_') ? senderId : (receiverId.startsWith('student_') ? receiverId : senderId);
+  return studentId;
+}
+
 let isSynced = false;
 let chatUnsubscribe: (() => void) | null = null;
 
@@ -75,8 +84,7 @@ export const useChatStore = create<ChatState>()(
     },
 
     sendMessage: (senderId, senderName, receiverId, text) => {
-      const { role } = useAuthStore.getState();
-      const roomId = role === 'student' ? senderId : receiverId;
+      const roomId = computeRoomId(senderId, receiverId);
       const chatRef = ref(database, `chat_messages/${roomId}`);
       const newMsgRef = push(chatRef);
       firebaseSet(newMsgRef, {
@@ -89,20 +97,17 @@ export const useChatStore = create<ChatState>()(
         read: false
       }).catch((err) => {
         console.error("Error sending message:", err);
-        alert("שגיאה בשליחת ההודעה. אנא נסה שוב.");
       });
     },
 
     sendImageMessage: async (senderId, senderName, receiverId, file) => {
-      // Convert to base64 data URL (no Storage SDK needed — stored inline in DB)
       const reader = new FileReader();
       const dataUrl: string = await new Promise((resolve, reject) => {
         reader.onload = () => resolve(reader.result as string);
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
-      const { role } = useAuthStore.getState();
-      const roomId = role === 'student' ? senderId : receiverId;
+      const roomId = computeRoomId(senderId, receiverId);
       const chatRef = ref(database, `chat_messages/${roomId}`);
       const newMsgRef = push(chatRef);
       firebaseSet(newMsgRef, {
@@ -116,7 +121,6 @@ export const useChatStore = create<ChatState>()(
         read: false
       }).catch((err) => {
         console.error("Error sending image message:", err);
-        alert("שגיאה בשליחת ההודעה. אנא נסה שוב.");
       });
     },
 
@@ -125,14 +129,7 @@ export const useChatStore = create<ChatState>()(
       const unreadMsgs = messages.filter(msg => msg.receiverId === receiverId && msg.senderId === senderId && !msg.read);
       if (unreadMsgs.length > 0) {
         const updates: Record<string, any> = {};
-        const { role } = useAuthStore.getState();
-        let roomId = role === 'student' ? receiverId : senderId;
-        if (role !== 'student' && senderId === 'admin') {
-          roomId = receiverId; // Admin messages to teacher are stored in teacher's room
-        } else if (receiverId === 'admin') {
-          roomId = 'admin'; // Messages sent to admin are stored in admin's room
-        }
-        
+        const roomId = computeRoomId(senderId, receiverId);
         unreadMsgs.forEach(msg => {
           updates[`chat_messages/${roomId}/${msg.id}/read`] = true;
         });

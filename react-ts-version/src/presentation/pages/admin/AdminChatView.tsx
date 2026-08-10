@@ -73,11 +73,11 @@ export function AdminChatView() {
   const teacherChatMeta = useMemo(() => {
     return teachers.map(t => {
       const teacherMsgs = messages.filter(m => 
-        (m.senderId === "admin" && m.receiverId === t.id) ||
-        (m.senderId === t.id && m.receiverId === "admin")
+        (m.senderId === "admin" && (m.receiverId === t.id || m.receiverId === t.taz)) ||
+        ((m.senderId === t.id || m.senderId === t.taz) && m.receiverId === "admin")
       ).sort((a, b) => a.timestamp - b.timestamp);
 
-      const unreadCount = messages.filter(m => m.senderId === t.id && m.receiverId === "admin" && !m.read).length;
+      const unreadCount = messages.filter(m => (m.senderId === t.id || m.senderId === t.taz) && m.receiverId === "admin" && !m.read).length;
       const lastMsg = teacherMsgs[teacherMsgs.length - 1];
       const isUnanswered = lastMsg && lastMsg.senderId === t.id && !lastMsg.read;
 
