@@ -68,20 +68,10 @@ export function Login() {
   const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
-    // Purge non-whitelisted residual Firebase Auth session tokens or auto-restore if whitelisted
+    // Purge non-whitelisted residual Firebase Auth session tokens
     if (auth && auth.currentUser) {
       const email = (auth.currentUser.email || "").toLowerCase().trim();
-      if (isWhitelistedTeacherEmail(email)) {
-        const assignedRoles = ["admin", "teacher"];
-        setUser({
-          uid: auth.currentUser.uid,
-          email: email,
-          role: assignedRoles,
-          displayName: auth.currentUser.displayName || email || "משתמש מורשה",
-        }, assignedRoles);
-        login("admin", auth.currentUser.uid);
-        navigate("/admin", { replace: true });
-      } else {
+      if (!isWhitelistedTeacherEmail(email)) {
         auth.signOut().catch((e) => console.warn("Residual session purge note:", e));
       }
     }
@@ -95,26 +85,24 @@ export function Login() {
       const result = await signInWithPopup(auth, provider);
       const currentUser = result.user;
       const email = (currentUser.email || "").toLowerCase().trim();
-      const userRoles = ["admin", "teacher"];
 
       setUser({
         uid: currentUser.uid,
         email: email || "davidsep@edu-haifa.org.il",
-        role: userRoles,
-        displayName: currentUser.displayName || `מורה ומנהל (${email || "davidsep@edu-haifa.org.il"})`,
-      }, userRoles);
+        role: "teacher",
+        displayName: currentUser.displayName || `מורה (${email || "davidsep@edu-haifa.org.il"})`,
+      }, "teacher");
       login("teacher", currentUser.uid);
       navigate("/dashboard", { replace: true });
     } catch (err: any) {
       console.warn("Teacher SSO note:", err);
       const primaryEmail = "davidsep@edu-haifa.org.il";
-      const userRoles = ["admin", "teacher"];
       setUser({
         uid: "teacher_sso_haifa",
         email: primaryEmail,
-        role: userRoles,
-        displayName: `מורה ומנהל (${primaryEmail})`,
-      }, userRoles);
+        role: "teacher",
+        displayName: `מורה (${primaryEmail})`,
+      }, "teacher");
       login("teacher", "teacher_sso_haifa");
       navigate("/dashboard", { replace: true });
     }
@@ -204,26 +192,24 @@ export function Login() {
       const result = await signInWithPopup(auth, provider);
       const currentUser = result.user;
       const email = (currentUser.email || "").toLowerCase().trim();
-      const userRoles = ["admin", "teacher"];
 
       setUser({
         uid: currentUser.uid,
         email: email || "davidsep@edu-haifa.org.il",
-        role: userRoles,
-        displayName: currentUser.displayName || `מנהל ומורה (${email || "davidsep@edu-haifa.org.il"})`,
-      }, userRoles);
+        role: "admin",
+        displayName: currentUser.displayName || `מנהל מערכת (${email || "davidsep@edu-haifa.org.il"})`,
+      }, "admin");
       login("admin", currentUser.uid);
       navigate("/admin", { replace: true });
     } catch (err: any) {
       console.warn("Google SSO note:", err);
       const primaryEmail = "davidsep@edu-haifa.org.il";
-      const userRoles = ["admin", "teacher"];
       setUser({
         uid: "admin_sso_haifa",
         email: primaryEmail,
-        role: userRoles,
-        displayName: `מנהל ומורה (${primaryEmail})`,
-      }, userRoles);
+        role: "admin",
+        displayName: `מנהל מערכת (${primaryEmail})`,
+      }, "admin");
       login("admin", "admin_sso_haifa");
       navigate("/admin", { replace: true });
     }

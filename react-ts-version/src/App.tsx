@@ -86,17 +86,17 @@ function AuthGuard({ allowedRoles, children }: { allowedRoles: string[]; childre
     }
   }
 
-  const hasAccess = userRoles.some((role: string) => allowedRoles.includes(role));
+  const activeRole = Array.isArray(user.role) ? user.role[0] : (user.role as string);
+  const hasAccess = allowedRoles.includes(activeRole);
 
   if (!hasAccess) {
-    // Redirect based on role if they try to access unauthorized path
-    if (userRoles.includes("admin")) {
+    if (activeRole === "admin") {
       return <Navigate to="/admin" replace />;
     }
-    if (userRoles.includes("teacher")) {
+    if (activeRole === "teacher") {
       return <Navigate to="/dashboard" replace />;
     }
-    if (userRoles.includes("student")) {
+    if (activeRole === "student") {
       return <Navigate to="/hub" replace />;
     }
   }
@@ -119,9 +119,10 @@ function RoleRouter() {
           return;
         }
       }
-      if (userRoles.includes("admin")) navigate("/admin", { replace: true });
-      else if (userRoles.includes("teacher")) navigate("/dashboard", { replace: true });
-      else if (userRoles.includes("student")) navigate("/hub", { replace: true });
+      const activeRole = Array.isArray(user.role) ? user.role[0] : (user.role as string);
+      if (activeRole === "admin") navigate("/admin", { replace: true });
+      else if (activeRole === "teacher") navigate("/dashboard", { replace: true });
+      else if (activeRole === "student") navigate("/hub", { replace: true });
     }
   }, [isAuthenticated, user, navigate, logout]);
 
