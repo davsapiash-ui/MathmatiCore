@@ -41,6 +41,8 @@ export function Login() {
   const [teacherPassword, setTeacherPassword] = useState("");
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
+  const [taz, setTaz] = useState("");
+  const [dob, setDob] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
 
   const handleTeacherGoogleSSO = async () => {
