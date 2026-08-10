@@ -51,10 +51,20 @@ export function Login() {
   const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
-    // Purge non-whitelisted residual Firebase Auth session tokens on login mount
+    // Purge non-whitelisted residual Firebase Auth session tokens or auto-restore if whitelisted
     if (auth && auth.currentUser) {
       const email = (auth.currentUser.email || "").toLowerCase().trim();
-      if (!isWhitelistedTeacherEmail(email)) {
+      if (isWhitelistedTeacherEmail(email)) {
+        const assignedRoles = ["admin", "teacher"];
+        setUser({
+          uid: auth.currentUser.uid,
+          email: email,
+          role: assignedRoles,
+          displayName: auth.currentUser.displayName || email || "משתמש מורשה",
+        }, assignedRoles);
+        login("admin", auth.currentUser.uid);
+        navigate("/admin", { replace: true });
+      } else {
         auth.signOut().catch((e) => console.warn("Residual session purge note:", e));
       }
     }
