@@ -8,6 +8,7 @@ import { DataGrid } from "@/presentation/design-system/DataGrid";
 import { useAuthStore } from "@/application/useAuthStore";
 import { useChatStore, type ChatMessage } from "@/application/useChatStore";
 import { useStore, type StudentData } from "@/application/useStore";
+import { toast } from "sonner";
 import { ref, onValue, remove, set } from "firebase/database";
 import { database } from "@/infrastructure/firebase";
 import {
@@ -20,7 +21,8 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { Send, MessageCircle, ShieldAlert, Sliders } from "lucide-react";
+import { Send, MessageCircle, ShieldAlert, Sliders, Mic, Search, ImageIcon, CheckCheck } from "lucide-react";
+import { stt } from "@/infrastructure/services/STTService";
 
 import { ClassManagement } from "./TeacherDashboard/ClassManagement";
 import { StudentReplayAndLogs } from "./TeacherDashboard/components/StudentReplayAndLogs";
@@ -569,7 +571,46 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   }, [messages, user]);
 
   // For Student Chat
-  const chatStudents = allStudents;
+  const [studentSearchQuery, setStudentSearchQuery] = useState("");
+  const [isListening, setIsListening] = useState(false);
+
+  const filteredChatStudents = useMemo(() => {
+    return allStudents.filter(
+      (s) =>
+        !studentSearchQuery.trim() ||
+        (s.name || "").toLowerCase().includes(studentSearchQuery.toLowerCase()) ||
+        (s.studentId || "").toLowerCase().includes(studentSearchQuery.toLowerCase())
+    );
+  }, [allStudents, studentSearchQuery]);
+
+  const handleToggleVoiceInput = () => {
+    if (isListening) {
+      stt.stop();
+      setIsListening(false);
+      return;
+    }
+
+    if (!stt.isSupported()) {
+      toast.error("זיהוי קולי אינו נתמך בדפדפן זה.");
+      return;
+    }
+
+    setIsListening(true);
+    toast.info("מקשיב... דבר עכשיו בעברית");
+    stt.start({
+      lang: "he-IL",
+      onResult: (transcript) => {
+        setInputText((prev) => (prev ? `${prev} ${transcript}` : transcript));
+      },
+      onError: (err) => {
+        toast.error(`שגיאת קלט קולי: ${err}`);
+        setIsListening(false);
+      },
+      onEnd: () => {
+        setIsListening(false);
+      },
+    });
+  };
 
   const studentMessages = useMemo(() => {
     if (!user || !selectedStudentId) return [];
@@ -1683,32 +1724,36 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
 
         {/* ADMIN CHAT */}
         {activeTab === "chat_admin" && (
-          <div className="flex-1 flex flex-col bg-slate-50/50 /50 backdrop-blur-sm rounded-2xl border border-ws-surface2  shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] overflow-hidden animate-in fade-in zoom-in-95 duration-300 h-full">
-            <div className="p-4 bg-white/80  backdrop-blur-xl border-b border-ws-surface2  flex items-center gap-4 shadow-sm z-10">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/20">
-                <ShieldAlert className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h3 className="font-bold text-xl text-ws-ink ">
-                  הנהלה ותמיכה טכנית
-                </h3>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="w-2 h-2 rounded-full bg-ws-accentSoft0 animate-pulse"></span>
-                  <span className="text-xs text-ws-soft  font-medium">
-                    זמין כעת לשיחה
-                  </span>
+          <div className="h-[calc(100vh-140px)] min-h-[580px] flex flex-col bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-300">
+            {/* Header */}
+            <div className="p-4 sm:p-6 bg-slate-50 dark:bg-slate-850 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-sm z-10">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white flex items-center justify-center shadow-lg shadow-amber-500/20 shrink-0">
+                  <ShieldAlert className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-xl text-slate-900 dark:text-white">
+                    הנהלה ותמיכה טכנית
+                  </h3>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                      זמין כעת לפניות ותמיכה
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="flex-1 p-6 overflow-y-auto flex flex-col gap-4 relative">
-              <div className="absolute inset-0 bg-ws-bg/50 /50 pointer-events-none -z-10"></div>
+            {/* Chat Messages View */}
+            <div className="flex-1 p-6 overflow-y-auto flex flex-col gap-4 bg-slate-50/50 dark:bg-slate-950/50">
               {adminMessages.length === 0 ? (
-                <div className="m-auto text-center flex flex-col items-center justify-center text-slate-400">
-                  <MessageCircle className="w-16 h-16 mb-4 opacity-20" />
-                  <p className="font-medium text-lg">
-                    אין הודעות. שלח הודעה למנהל המערכת.
-                  </p>
+                <div className="m-auto text-center flex flex-col items-center justify-center text-slate-400 max-w-sm">
+                  <div className="w-16 h-16 rounded-full bg-indigo-50 dark:bg-indigo-950/30 flex items-center justify-center mb-3 text-indigo-500">
+                    <MessageCircle className="w-8 h-8 opacity-40" />
+                  </div>
+                  <h4 className="font-bold text-lg text-slate-700 dark:text-slate-200 mb-1">אין הודעות קודמות</h4>
+                  <p className="text-xs text-slate-500">תוכל להקליד פנייה חדשה או לשלוח צילום מסך למנהל המערכת.</p>
                 </div>
               ) : (
                 adminMessages.map((msg) => {
@@ -1719,31 +1764,39 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                       className={`flex flex-col max-w-[85%] md:max-w-[70%] ${isMe ? "self-end items-end" : "self-start items-start"}`}
                     >
                       <div
-                        className={`px-5 py-3 rounded-2xl shadow-md ${isMe ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-tl-sm" : "bg-white/90  backdrop-blur-md border border-ws-surface2  text-ws-ink  rounded-tr-sm"}`}
+                        className={`px-5 py-3 rounded-2xl shadow-md ${
+                          isMe
+                            ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-tl-xs"
+                            : "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-tr-xs"
+                        }`}
                       >
-                        {msg.text && <span>{msg.text}</span>}
+                        {msg.text && <p className="leading-relaxed">{msg.text}</p>}
                         {msg.imageUrl && (
                           <img
                             src={msg.imageUrl}
-                            alt="תמונה"
-                            className="max-w-[220px] max-h-[220px] rounded-xl mt-1 object-cover cursor-pointer block"
+                            alt="תמונה מצורפת"
+                            className="max-w-[260px] max-h-[260px] rounded-xl mt-2 object-cover cursor-pointer border border-white/20 hover:opacity-90 transition-opacity"
                             onClick={() => window.open(msg.imageUrl, '_blank')}
                           />
                         )}
                       </div>
-                      <span className="text-[10px] font-medium text-slate-400  mt-2 px-2 tracking-wider">
-                        {new Date(msg.timestamp).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
+                      <div className="text-[10px] font-medium text-slate-400 mt-1 px-2 flex items-center gap-1">
+                        <span>
+                          {new Date(msg.timestamp).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                        {isMe && <CheckCheck className={`w-3 h-3 ${msg.read ? 'text-emerald-500' : 'opacity-60'}`} />}
+                      </div>
                     </div>
                   );
                 })
               )}
             </div>
 
-            <div className="p-4 bg-white/80  backdrop-blur-xl border-t border-ws-surface2 ">
+            {/* Input Footer */}
+            <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center gap-3">
               <input
                 ref={adminFileInputRef}
                 type="file"
@@ -1751,183 +1804,181 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                 className="hidden"
                 onChange={handleAdminImageSelect}
               />
-              <div className="flex gap-3 items-center">
-                <button
-                  type="button"
-                  onClick={() => alert("הקלטת שמע אינה זמינה כעת.")}
-                  className="flex rounded-full w-12 h-12 p-0 items-center justify-center bg-ws-bg/80 hover:bg-slate-200 text-ws-soft transition-all shadow-sm"
-                  title="הקלטת שמע"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="lucide lucide-mic"
-                  >
-                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
-                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                    <line x1="12" x2="12" y1="19" y2="22" />
-                  </svg>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => adminFileInputRef.current?.click()}
-                  disabled={sendingImage}
-                  className="flex rounded-full w-12 h-12 p-0 items-center justify-center bg-ws-bg/80 hover:bg-slate-200 text-ws-soft transition-all shadow-sm disabled:opacity-40"
-                  title="שלח תמונה"
-                >
-                  {sendingImage ? (
-                    <span className="w-5 h-5 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="20"
-                      height="20"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="lucide lucide-image"
-                    >
-                      <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
-                      <circle cx="9" cy="9" r="2" />
-                      <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-                    </svg>
-                  )}
-                </button>
-                <input
-                  type="text"
-                  value={inputText}
-                  onChange={(e) => setInputText(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSendAdmin()}
-                  placeholder="הקלד הודעה למנהל המערכת..."
-                  className="flex-1 bg-ws-bg/80 /80 border border-ws-surface2  rounded-full px-6 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-ws-ink  shadow-inner"
-                />
-                <UdlButton
-                  onClick={handleSendAdmin}
-                  disabled={!inputText.trim()}
-                  className="rounded-full w-12 h-12 p-0 flex items-center justify-center bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white transition-all disabled:opacity-50 shadow-lg shadow-blue-500/30"
-                >
-                  <Send className="w-5 h-5 -ml-1" />
-                </UdlButton>
-              </div>
+              <button
+                type="button"
+                onClick={() => adminFileInputRef.current?.click()}
+                disabled={sendingImage}
+                className="p-3 text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all shrink-0"
+                title="צילום/תמונה"
+              >
+                <ImageIcon className="w-5 h-5" />
+              </button>
+
+              <button
+                type="button"
+                onClick={handleToggleVoiceInput}
+                className={`p-3 rounded-full transition-all shrink-0 ${isListening ? 'bg-rose-500 text-white animate-pulse' : 'text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                title="הקלטה קולית (STT)"
+              >
+                <Mic className="w-5 h-5" />
+              </button>
+
+              <input
+                type="text"
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSendAdmin()}
+                placeholder={isListening ? "מקשיב בעברית..." : "הקלד הודעה למנהל המערכת..."}
+                className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full px-5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-slate-900 dark:text-white"
+              />
+
+              <button
+                onClick={handleSendAdmin}
+                disabled={!inputText.trim()}
+                className="rounded-full w-11 h-11 flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white transition-all disabled:opacity-40 shadow-md shrink-0"
+              >
+                <Send className="w-5 h-5 -mr-0.5" />
+              </button>
             </div>
           </div>
         )}
 
         {/* STUDENTS CHAT */}
         {activeTab === "chat_students" && (
-          <div className="flex-1 flex flex-col md:flex-row bg-slate-50/50 /50 backdrop-blur-sm rounded-2xl border border-ws-surface2  shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] overflow-hidden animate-in fade-in zoom-in-95 duration-300 h-full">
-            {/* Student List */}
+          <div className="h-[calc(100vh-140px)] min-h-[580px] flex flex-col md:flex-row bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-300">
+            {/* Student List Sidebar */}
             <div
-              className={`${selectedStudentId ? "hidden md:flex" : "flex"} w-full md:w-72 bg-white/80  backdrop-blur-xl border-b md:border-b-0 md:border-l border-ws-surface2  flex-col h-full z-10 shadow-[4px_0_24px_rgba(0,0,0,0.02)] dark:shadow-[4px_0_24px_rgba(0,0,0,0.2)]`}
+              className={`${selectedStudentId ? "hidden md:flex" : "flex"} w-full md:w-80 lg:w-96 border-b md:border-b-0 md:border-l border-slate-200 dark:border-slate-800 flex-col h-full bg-slate-50/50 dark:bg-slate-900/50 shrink-0`}
             >
-              <div className="p-6 border-b border-ws-surface2 flex flex-col gap-3">
-                <div>
-                  <h3 className="font-bold text-xl text-ws-ink ">
+              <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 flex flex-col gap-3 bg-white dark:bg-slate-900">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold text-lg text-slate-900 dark:text-white">
                     שיחות עם תלמידים
                   </h3>
-                  <p className="text-xs text-ws-soft mt-1 font-medium">
-                    בחר תלמיד לתחילת צ'אט אישי
-                  </p>
+                  <span className="text-xs font-bold px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 rounded-full border border-indigo-200/50 dark:border-indigo-800/40">
+                    {filteredChatStudents.length} תלמידים
+                  </span>
+                </div>
+
+                {/* Search Bar */}
+                <div className="relative">
+                  <Search className="w-4 h-4 text-slate-400 absolute right-3 top-3" />
+                  <input
+                    type="text"
+                    value={studentSearchQuery}
+                    onChange={(e) => setStudentSearchQuery(e.target.value)}
+                    placeholder="חפש תלמיד לפי שם..."
+                    className="w-full pl-3 pr-9 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white"
+                  />
                 </div>
               </div>
+
               <div className="flex-1 overflow-y-auto p-3 space-y-2">
-                {chatStudents.map((student) => {
-                  const unreadCount = messages.filter(
-                    (m) =>
-                      m.senderId === student.studentId &&
-                      !m.read,
-                  ).length;
-                  return (
-                    <button
-                      key={student.studentId}
-                      onClick={() => {
-                        setSelectedStudentId(student.studentId);
-                        setInputText("");
-                      }}
-                      className={`w-full text-right p-4 rounded-xl flex items-center justify-between transition-all ${selectedStudentId === student.studentId ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm border border-cyan-200/50 " : "hover:bg-ws-bg/80  border border-transparent"}`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white shadow-inner relative ${selectedStudentId === student.studentId ? "bg-gradient-to-tr from-cyan-500 to-blue-500" : "bg-slate-300  text-ws-soft "}`}
-                        >
-                          {(student.name || student.studentId || 'U')[0]}
-                          {student.traceData?.hesitation_events > 0 && (
-                            <div
-                              className="absolute -top-1 -right-1 bg-ws-accentSoft0 rounded-full p-0.5 shadow-md"
-                              title="מאבק קוגניטיבי"
-                            >
-                              <ShieldAlert className="w-3 h-3 text-white" />
-                            </div>
-                          )}
+                {filteredChatStudents.length === 0 ? (
+                  <div className="text-center text-xs text-slate-400 py-8">לא נמצאו תלמידים מתאימים.</div>
+                ) : (
+                  filteredChatStudents.map((student) => {
+                    const unreadCount = messages.filter(
+                      (m) => m.senderId === student.studentId && !m.read
+                    ).length;
+                    const isSelected = selectedStudentId === student.studentId;
+                    const lastStudentMsg = messages
+                      .filter(m => m.senderId === student.studentId || m.receiverId === student.studentId)
+                      .sort((a, b) => b.timestamp - a.timestamp)[0];
+
+                    return (
+                      <button
+                        key={student.studentId}
+                        onClick={() => {
+                          setSelectedStudentId(student.studentId);
+                          setInputText("");
+                        }}
+                        className={`w-full text-right p-3.5 rounded-2xl flex items-center justify-between transition-all ${
+                          isSelected 
+                            ? "bg-indigo-600 text-white font-bold shadow-md shadow-indigo-600/20" 
+                            : "hover:bg-white dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 overflow-hidden">
+                          <div
+                            className={`w-11 h-11 rounded-full flex items-center justify-center font-bold text-white shadow-sm shrink-0 relative ${
+                              isSelected ? "bg-white/20 text-white" : "bg-gradient-to-tr from-indigo-500 to-purple-600"
+                            }`}
+                          >
+                            {(student.name || student.studentId || 'U')[0]}
+                            {student.traceData?.hesitation_events > 0 && (
+                              <div
+                                className="absolute -top-1 -right-1 bg-amber-500 text-white rounded-full p-0.5 shadow-md"
+                                title="מאבק קוגניטיבי"
+                              >
+                                <ShieldAlert className="w-3.5 h-3.5 text-white" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex flex-col text-right overflow-hidden">
+                            <span className={`font-bold text-sm truncate ${isSelected ? "text-white" : "text-slate-900 dark:text-white"}`}>
+                              {student.name || student.studentId}
+                            </span>
+                            <span className={`text-xs truncate ${isSelected ? "text-indigo-100" : "text-slate-400"}`}>
+                              {lastStudentMsg ? (lastStudentMsg.text || '📷 תמונה מצורפת') : 'לחץ לפתיחת שיחה'}
+                            </span>
+                          </div>
                         </div>
-                        <span
-                          className={`font-bold text-base ${selectedStudentId === student.studentId ? "text-cyan-800 " : "text-slate-700 "}`}
-                        >
-                          {student.name || student.studentId}
-                        </span>
-                      </div>
-                      {unreadCount > 0 && (
-                        <span className="bg-red-500 text-white text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full shadow-lg shadow-red-500/30 animate-bounce">
-                          {unreadCount}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
+                        {unreadCount > 0 && (
+                          <span className="bg-rose-500 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full shadow-md shrink-0 animate-bounce">
+                            {unreadCount}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })
+                )}
               </div>
             </div>
 
-            {/* Student Chat Area */}
-            <div
-              className={`${!selectedStudentId ? "hidden md:flex" : "flex"} flex-1 flex-col relative h-full bg-slate-50/50 /50`}
-            >
+            {/* Main Chat Area */}
+            <div className={`${!selectedStudentId ? "hidden md:flex" : "flex"} flex-1 flex-col h-full bg-slate-50/50 dark:bg-slate-950/50 relative overflow-hidden`}>
               {selectedStudentId ? (
                 <>
-                  <div className="p-4 bg-white/80  backdrop-blur-xl border-b border-ws-surface2  flex items-center gap-4 shadow-sm z-10">
-                    <button
-                      onClick={() => setSelectedStudentId(null)}
-                      className="md:hidden p-2 rounded-lg bg-ws-bg  text-ws-soft  hover:text-ws-ink "
-                    >
-                      &rarr;
-                    </button>
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-500 flex items-center justify-center font-bold text-white shadow-lg shadow-cyan-500/20 text-xl">
-                      {
-                        (chatStudents.find((s) => s.studentId === selectedStudentId)?.name || selectedStudentId || 'U')[0]
-                      }
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-xl text-ws-ink ">
+                  {/* Chat Header */}
+                  <div className="p-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-sm z-10">
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => setSelectedStudentId(null)}
+                        className="md:hidden p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold"
+                      >
+                        &rarr; חזרה
+                      </button>
+                      <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center font-bold text-white shadow-md text-lg shrink-0">
                         {
-                          chatStudents.find((s) => s.studentId === selectedStudentId)?.name || selectedStudentId
+                          (filteredChatStudents.find((s) => s.studentId === selectedStudentId)?.name || selectedStudentId || 'U')[0]
                         }
-                      </h3>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="w-2 h-2 rounded-full bg-ws-accentSoft0"></span>
-                        <span className="text-xs text-ws-soft  font-medium">
-                          מחובר
-                        </span>
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-base text-slate-900 dark:text-white">
+                          {
+                            filteredChatStudents.find((s) => s.studentId === selectedStudentId)?.name || selectedStudentId
+                          }
+                        </h3>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                          <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                            תלמיד פעיל
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex-1 p-6 overflow-y-auto flex flex-col gap-4 relative">
-                    <div className="absolute inset-0 bg-ws-bg/50 /50 pointer-events-none -z-10"></div>
+                  {/* Messages Scroll Area */}
+                  <div className="flex-1 p-6 overflow-y-auto flex flex-col gap-4">
                     {studentMessages.length === 0 ? (
-                      <div className="m-auto text-center flex flex-col items-center justify-center text-slate-400">
-                        <MessageCircle className="w-16 h-16 mb-4 opacity-20" />
-                        <p className="font-medium text-lg">
-                          אין הודעות. התחל שיחה חדשה.
-                        </p>
+                      <div className="m-auto text-center flex flex-col items-center justify-center text-slate-400 max-w-sm">
+                        <div className="w-16 h-16 rounded-full bg-indigo-50 dark:bg-indigo-950/30 flex items-center justify-center mb-3 text-indigo-500">
+                          <MessageCircle className="w-8 h-8 opacity-40" />
+                        </div>
+                        <h4 className="font-bold text-lg text-slate-700 dark:text-slate-200 mb-1">אין הודעות קודמות</h4>
+                        <p className="text-xs text-slate-500">הקלד הודעה, שלח רמז או הקלטה קולית לתלמיד.</p>
                       </div>
                     ) : (
                       studentMessages.map((msg) => {
@@ -1940,33 +1991,37 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                             <div
                               className={`px-5 py-3 rounded-2xl shadow-md ${
                                 isMe
-                                  ? "bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-tl-sm"
-                                  : "bg-white/90 backdrop-blur-md border border-ws-surface2 text-ws-ink rounded-tr-sm"
+                                  ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-tl-xs"
+                                  : "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-tr-xs"
                               }`}
                             >
-                              {msg.text && <span>{msg.text}</span>}
+                              {msg.text && <p className="leading-relaxed">{msg.text}</p>}
                               {msg.imageUrl && (
                                 <img
                                   src={msg.imageUrl}
-                                  alt="תמונה"
-                                  className="max-w-[220px] max-h-[220px] rounded-xl mt-1 object-cover cursor-pointer block"
+                                  alt="תמונה מצורפת"
+                                  className="max-w-[260px] max-h-[260px] rounded-xl mt-2 object-cover cursor-pointer border border-white/20 hover:opacity-90 transition-opacity"
                                   onClick={() => window.open(msg.imageUrl, '_blank')}
                                 />
                               )}
                             </div>
-                            <span className="text-[10px] font-medium text-slate-400  mt-2 px-2 tracking-wider">
-                              {new Date(msg.timestamp).toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                            </span>
+                            <div className="text-[10px] font-medium text-slate-400 mt-1 px-2 flex items-center gap-1">
+                              <span>
+                                {new Date(msg.timestamp).toLocaleTimeString([], {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </span>
+                              {isMe && <CheckCheck className={`w-3 h-3 ${msg.read ? 'text-emerald-500' : 'opacity-60'}`} />}
+                            </div>
                           </div>
                         );
                       })
                     )}
                   </div>
 
-                  <div className="p-4 bg-white/80 backdrop-blur-xl border-t border-ws-surface2">
+                  {/* Input Footer */}
+                  <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center gap-3">
                     <input
                       ref={teacherFileInputRef}
                       type="file"
@@ -1974,54 +2029,53 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                       className="hidden"
                       onChange={handleTeacherImageSelect}
                     />
-                    <div className="flex gap-3 items-center">
-                      <button
-                        type="button"
-                        onClick={() => teacherFileInputRef.current?.click()}
-                        disabled={sendingImage || !selectedStudentId}
-                        title="שלח תמונה"
-                        className="flex rounded-full w-12 h-12 p-0 items-center justify-center bg-ws-bg/80 hover:bg-slate-200 text-ws-soft transition-all shadow-sm disabled:opacity-40"
-                      >
-                        {sendingImage ? (
-                          <span className="w-5 h-5 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
-                            <circle cx="9" cy="9" r="2" />
-                            <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-                          </svg>
-                        )}
-                      </button>
-                       <input
-                        type="text"
-                        value={inputText}
-                        onChange={(e) => setInputText(e.target.value)}
-                        onKeyDown={(e) =>
-                          e.key === "Enter" && handleSendStudent()
-                        }
-                        placeholder="הקלד הודעה לתלמיד..."
-                        className="flex-1 bg-ws-bg/80 /80 border border-ws-surface2  rounded-full px-6 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all text-ws-ink  shadow-inner"
-                      />
-                      <UdlButton
-                        onClick={handleSendStudent}
-                        disabled={!inputText.trim()}
-                        className="rounded-full w-12 h-12 p-0 flex items-center justify-center bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white transition-all disabled:opacity-50 shadow-lg shadow-cyan-500/30"
-                      >
-                        <Send className="w-5 h-5 -ml-1" />
-                      </UdlButton>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => teacherFileInputRef.current?.click()}
+                      disabled={sendingImage || !selectedStudentId}
+                      className="p-3 text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all shrink-0"
+                      title="צילום/תמונה"
+                    >
+                      <ImageIcon className="w-5 h-5" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleToggleVoiceInput}
+                      className={`p-3 rounded-full transition-all shrink-0 ${isListening ? 'bg-rose-500 text-white animate-pulse' : 'text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                      title="הקלטה קולית (STT)"
+                    >
+                      <Mic className="w-5 h-5" />
+                    </button>
+
+                    <input
+                      type="text"
+                      value={inputText}
+                      onChange={(e) => setInputText(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleSendStudent()}
+                      placeholder={isListening ? "מקשיב בעברית..." : "הקלד הודעה לתלמיד..."}
+                      className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full px-5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-slate-900 dark:text-white"
+                    />
+
+                    <button
+                      onClick={handleSendStudent}
+                      disabled={!inputText.trim()}
+                      className="rounded-full w-11 h-11 flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white transition-all disabled:opacity-40 shadow-md shrink-0"
+                    >
+                      <Send className="w-5 h-5 -mr-0.5" />
+                    </button>
                   </div>
                 </>
               ) : (
-                <div className="flex-1 flex items-center justify-center flex-col text-slate-400 gap-6">
-                  <div className="w-32 h-32 rounded-full bg-ws-bg/50  border-2 border-dashed border-ws-surface2  flex items-center justify-center">
-                    <MessageCircle className="w-12 h-12 opacity-30" />
+                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-slate-50/50 dark:bg-slate-950/50">
+                  <div className="w-20 h-20 rounded-3xl bg-indigo-50 dark:bg-indigo-950/40 flex items-center justify-center mb-4 text-indigo-600 dark:text-indigo-400 shadow-sm border border-indigo-100 dark:border-indigo-900/50">
+                    <MessageCircle className="w-10 h-10" />
                   </div>
-                  <h3 className="text-2xl font-bold text-ws-soft ">
-                    בחר תלמיד להתחלת שיחה
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
+                    שיחות פדגוגיות עם תלמידים
                   </h3>
-                  <p className="text-ws-soft max-w-sm text-center">
-                    תוכל לתת משוב אישי, לשלוח רמזים, או לעזור בזמן אמת.
+                  <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm leading-relaxed">
+                    בחר תלמיד מהרשימה מימין כדי להציג את היסטוריית השיחה ולהעביר הנחיות, תמונות או הקלטה קולית בזמן אמת.
                   </p>
                 </div>
               )}
