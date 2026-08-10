@@ -84,10 +84,8 @@ export function AdminWizardModal({
       setTeacherError("נא להזין שם מורה.");
       return false;
     }
-    const isEmail = teacherTaz.includes('@');
-    const isValidTaz = teacherTaz.trim().length >= 8;
-    if (!isValidTaz && !isEmail) {
-      setTeacherError("נא להזין תעודת זהות תקינה (לפחות 8 ספרות) או כתובת דוא\"ל.");
+    if (!teacherTaz.trim() || !teacherTaz.includes('@')) {
+      setTeacherError("נא להזין כתובת דוא\"ל ארגונית מורשת (Google SSO).");
       return false;
     }
     if (teachers.length >= 5) {
@@ -387,7 +385,7 @@ export function AdminWizardModal({
                         <div>
                           <h4 className="font-bold text-sm text-emerald-950 dark:text-emerald-200">שיוך מורה מוביל (Lead Teacher)</h4>
                           <p className="text-xs text-emerald-800/80 dark:text-emerald-300/80 mt-0.5">
-                            תעודת הזהות תשמש כשם המשתמש. תאריך הלידה (DDMMYY) ישמש כסיסמת כניסה ראשונית.
+                            הזדהות המורה תתבצע באופן שקט ומאובטח באמצעות Google SSO והדוא"ל הארגוני המורשה בלבד (סעיף 5.5 באפיון).
                           </p>
                         </div>
                       </div>
@@ -406,33 +404,17 @@ export function AdminWizardModal({
                           />
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1">
-                              תעודת זהות / דוא"ל <span className="text-rose-500">*</span>
-                            </label>
-                            <input 
-                              type="text" 
-                              placeholder="123456789"
-                              value={teacherTaz}
-                              onChange={(e) => { setTeacherTaz(e.target.value); setTeacherError(""); }}
-                              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-2xl p-3.5 text-sm focus:border-indigo-500 outline-none font-mono"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1">
-                              תאריך לידה (DDMMYY) - סיסמה
-                            </label>
-                            <input 
-                              type="text" 
-                              maxLength={6}
-                              placeholder="010190"
-                              value={teacherDob}
-                              onChange={(e) => setTeacherDob(e.target.value)}
-                              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-2xl p-3.5 text-sm focus:border-indigo-500 outline-none font-mono"
-                            />
-                          </div>
+                        <div>
+                          <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1">
+                            כתובת דוא"ל ארגונית (Google SSO) <span className="text-rose-500">*</span>
+                          </label>
+                          <input 
+                            type="email" 
+                            placeholder="davidsep@edu-haifa.org.il"
+                            value={teacherTaz}
+                            onChange={(e) => { setTeacherTaz(e.target.value); setTeacherError(""); }}
+                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-2xl p-3.5 text-sm focus:border-indigo-500 outline-none font-mono"
+                          />
                         </div>
 
                         {teacherError && (

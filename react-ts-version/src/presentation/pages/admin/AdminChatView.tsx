@@ -214,7 +214,7 @@ export function AdminChatView() {
                           </span>
                         )}
                       </div>
-                      <div className="text-xs text-slate-500 font-mono mt-0.5">ת"ז: {teacher.taz}</div>
+                      <div className="text-xs text-slate-500 font-mono mt-0.5">דוא"ל SSO: {teacher.taz || "davidsep@edu-haifa.org.il"}</div>
                       {lastMsg && (
                         <div className="text-xs text-slate-400 truncate max-w-[150px] mt-1">
                           {lastMsg.text || (lastMsg.imageUrl ? '📷 תמונה' : 'הודעה')}
