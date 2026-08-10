@@ -231,7 +231,7 @@ function SocraticPenaltyLockOptions({ onClose }: { onClose: () => void }) {
 
       {lockSeconds > 0 && (
         <div className="bg-amber-500/15 border border-amber-500/40 rounded-2xl p-3.5 text-center text-amber-900 dark:text-amber-200 text-sm font-bold animate-pulse">
-          ⏳ ניחשתם מסיח שגוי. חלון המענה נעול למשך <span className="font-black text-base">{lockSeconds}</span> שניות למניעת ניחושים.
+          ⏳ בואו נחשוב עוד רגע... חלון המענה ייפתח מחדש בעוד <span className="font-black text-base">{lockSeconds}</span> שניות כדי שנוכל לבדוק את התשובה בנחת.
         </div>
       )}
 

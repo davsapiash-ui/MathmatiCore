@@ -79,7 +79,7 @@ export const SESSION1_TASKS: SessionTask[] = [
     id: 's1_sandbox_controlled',
     type: 'session1_intro',
     titleHe: 'ארגז חול: אימון טכני',
-    instructionHe: "כדי לקבל את רישיון החוקר שלכם, הראו שאתם שולטים בציוד המעבדה: \n1. גררו לפחות 5 פריטים ללוח. \n2. מחקו לפחות פריט אחד (גרירה החוצה או פח מחזור). \nלאחר שתסיימו כפתור ''התקדם'' ידלק ותוכלו לעבור אל השלב הבא!",
+    instructionHe: "כדי לקבל את רישיון החוקר שלכם, הראו שאתם שולטים בציוד המעבדה:\n1. גררו לפחות 5 פריטים ללוח.\n2. מחקו לפחות פריט אחד (גררו אותו לפח המחזור).\nלאחר שתסיימו, כפתור 'התקדם' יידלק ותוכלו לעבור לשלב הבא!",
     correctAnswer: 'proceed_any',
     scaffoldLevel: 0,
   },
@@ -88,10 +88,9 @@ export const SESSION1_TASKS: SessionTask[] = [
     id: 's1_license_test',
     type: 'addition_simple',
     numberA: 400, numberB: 20, correctAnswer: 420,
-    titleHe: 'בדיקת רישיון: חיבור מוחשי',
-    instructionHe: 'בנו בבית המספרים את המספר 400, ולאחר מכן הוסיפו עוד 20. מה התוצאה? הזינו אותה בתיבת התשובה.',
-    hintHe: 'הניחו מאות בטור המאות ועשרות בטור העשרות כדי לראות את התוצאה ברור.',
-    scaffoldLevel: 1,
+    titleHe: 'בניית מספרים עגולים',
+    instructionHe: 'בנו על לוח ערך המקום את המספר 420 בעזרת מאות ועשרות, והקלידו את התוצאה בתיבת המענה.',
+    targetNode: 'basic_addition_fluency',
   },
 
   // 8. Math Refresh 1

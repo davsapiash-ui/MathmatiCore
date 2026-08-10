@@ -194,7 +194,7 @@ export function ReflectionScreen() {
           disabled={!canComplete || done}
           className="w-full h-13 py-3.5 rounded-full font-display font-extrabold text-lg text-white bg-ws-accent shadow-md hover:brightness-105 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          {done ? '🎉 ממשיכים...' : '✓ סיימתי — יאללה להמשיך!'}
+          {done ? '🎉 ממשיכים...' : '✓ סיימתי — בואו נמשיך!'}
         </button>
       </motion.article>
     </div>

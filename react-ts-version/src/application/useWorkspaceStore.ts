@@ -535,7 +535,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         return;
       }
       // Correct — vanilla text carried a "(100)" copy bug; ported without the number.
-      handleSuccess('נָכוֹן מְאוֹד! 🌟', 'הָעֵרֶךְ נִשְׁאַר זֶהֶה לַחֲלוּטִין כִּי לֹא שִׁנִּינוּ אֶת הַכַּמּוּת הַכּוֹלֶלֶת.', 2500);
+      handleSuccess('נכון מאוד! 🌟', 'הערך נשאר זהה לחלוטין מכיוון שלא שינינו את הכמות הכוללת.', 2500);
       return;
     }
     if (task.type === 'addition_simple' || task.type === 'vertical_addition') {
