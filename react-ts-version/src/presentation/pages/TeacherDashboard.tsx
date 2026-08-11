@@ -890,7 +890,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       )}
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto p-4 md:p-8 relative">
+      <main className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-8 relative">
         {/* Subtle background glow effect */}
         <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-br from-indigo-500/5 via-transparent to-transparent pointer-events-none -z-10"></div>
         <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-gradient-to-tl from-cyan-500/5 via-transparent to-transparent pointer-events-none -z-10 rounded-full blur-3xl"></div>

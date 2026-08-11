@@ -150,7 +150,7 @@ export function AdminLayout() {
         </Sidebar>
 
         {/* Main Fluid Content Area */}
-        <main className="flex-1 p-3 md:p-6 min-w-0 overflow-y-auto">
+        <main className="flex-1 p-3 md:p-6 min-w-0 overflow-y-auto custom-scrollbar">
           {/* Ghost Mode Indicator */}
           <div className="bg-amber-500/10 border border-amber-500/40 text-amber-700 dark:text-amber-400 rounded-2xl px-4 py-2.5 mb-4 flex items-center justify-center gap-3 text-xs md:text-sm font-bold shadow-sm backdrop-blur-md">
             <span className="text-lg">👻</span>

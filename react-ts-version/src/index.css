@@ -146,6 +146,35 @@
     direction: rtl; /* Enforce RTL globally for Hebrew */
   }
 
+  /* Global visible custom scrollbars for RTL & LTR */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: rgba(226, 232, 240, 0.8);
+    border-radius: 9999px;
+  }
+  .dark ::-webkit-scrollbar-track {
+    background: rgba(30, 41, 59, 0.8);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #6366F1;
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #4F46E5;
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #6366F1 rgba(226, 232, 240, 0.8);
+  }
+  .dark * {
+    scrollbar-color: #818CF8 rgba(30, 41, 59, 0.8);
+  }
+
   /* Typography - Using Rubik for bold headers */
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Rubik', sans-serif;
