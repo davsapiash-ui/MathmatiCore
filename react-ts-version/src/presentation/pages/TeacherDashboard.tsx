@@ -1724,15 +1724,15 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
 
         {/* ADMIN CHAT */}
         {activeTab === "chat_admin" && (
-          <div className="h-[calc(100vh-140px)] min-h-[580px] flex flex-col bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-300">
+          <div className="h-[calc(100vh-110px)] max-h-[calc(100vh-110px)] flex flex-col bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden animate-in fade-in duration-300">
             {/* Header */}
-            <div className="p-4 sm:p-6 bg-slate-50 dark:bg-slate-850 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-sm z-10">
+            <div className="p-4 sm:p-5 bg-slate-50 dark:bg-slate-850 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-sm z-10 shrink-0">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white flex items-center justify-center shadow-lg shadow-amber-500/20 shrink-0">
+                <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white flex items-center justify-center shadow-lg shadow-amber-500/20 shrink-0">
                   <ShieldAlert className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-xl text-slate-900 dark:text-white">
+                  <h3 className="font-bold text-lg text-slate-900 dark:text-white">
                     הנהלה ותמיכה טכנית
                   </h3>
                   <div className="flex items-center gap-2 mt-0.5">
@@ -1746,7 +1746,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
             </div>
 
             {/* Chat Messages View */}
-            <div className="flex-1 p-6 overflow-y-auto flex flex-col gap-4 bg-slate-50/50 dark:bg-slate-950/50">
+            <div className="flex-1 min-h-0 p-5 overflow-y-auto flex flex-col gap-4 bg-slate-50/50 dark:bg-slate-950/50">
               {adminMessages.length === 0 ? (
                 <div className="m-auto text-center flex flex-col items-center justify-center text-slate-400 max-w-sm">
                   <div className="w-16 h-16 rounded-full bg-indigo-50 dark:bg-indigo-950/30 flex items-center justify-center mb-3 text-indigo-500">
@@ -1764,18 +1764,18 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                       className={`flex flex-col max-w-[85%] md:max-w-[70%] ${isMe ? "self-end items-end" : "self-start items-start"}`}
                     >
                       <div
-                        className={`px-5 py-3 rounded-2xl shadow-md ${
+                        className={`px-4 py-2.5 rounded-2xl shadow-md ${
                           isMe
                             ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-tl-xs"
                             : "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-tr-xs"
                         }`}
                       >
-                        {msg.text && <p className="leading-relaxed">{msg.text}</p>}
+                        {msg.text && <p className="leading-relaxed text-sm">{msg.text}</p>}
                         {msg.imageUrl && (
                           <img
                             src={msg.imageUrl}
                             alt="תמונה מצורפת"
-                            className="max-w-[260px] max-h-[260px] rounded-xl mt-2 object-cover cursor-pointer border border-white/20 hover:opacity-90 transition-opacity"
+                            className="max-w-[240px] max-h-[240px] rounded-xl mt-2 object-cover cursor-pointer border border-white/20 hover:opacity-90 transition-opacity"
                             onClick={() => window.open(msg.imageUrl, '_blank')}
                           />
                         )}
@@ -1795,8 +1795,8 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
               )}
             </div>
 
-            {/* Input Footer */}
-            <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center gap-3">
+            {/* Input Footer - ALWAYS VISIBLE AT BOTTOM (shrink-0) */}
+            <div className="p-3.5 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center gap-2.5 shrink-0 z-20">
               <input
                 ref={adminFileInputRef}
                 type="file"
@@ -1808,7 +1808,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                 type="button"
                 onClick={() => adminFileInputRef.current?.click()}
                 disabled={sendingImage}
-                className="p-3 text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all shrink-0"
+                className="p-2.5 text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all shrink-0"
                 title="צילום/תמונה"
               >
                 <ImageIcon className="w-5 h-5" />
@@ -1817,7 +1817,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
               <button
                 type="button"
                 onClick={handleToggleVoiceInput}
-                className={`p-3 rounded-full transition-all shrink-0 ${isListening ? 'bg-rose-500 text-white animate-pulse' : 'text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                className={`p-2.5 rounded-full transition-all shrink-0 ${isListening ? 'bg-rose-500 text-white animate-pulse' : 'text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
                 title="הקלטה קולית (STT)"
               >
                 <Mic className="w-5 h-5" />
@@ -1829,15 +1829,15 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSendAdmin()}
                 placeholder={isListening ? "מקשיב בעברית..." : "הקלד הודעה למנהל המערכת..."}
-                className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full px-5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-slate-900 dark:text-white"
+                className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-slate-900 dark:text-white"
               />
 
               <button
                 onClick={handleSendAdmin}
                 disabled={!inputText.trim()}
-                className="rounded-full w-11 h-11 flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white transition-all disabled:opacity-40 shadow-md shrink-0"
+                className="rounded-full w-10 h-10 flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white transition-all disabled:opacity-40 shadow-md shrink-0"
               >
-                <Send className="w-5 h-5 -mr-0.5" />
+                <Send className="w-4 h-4 -mr-0.5" />
               </button>
             </div>
           </div>
@@ -1845,12 +1845,12 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
 
         {/* STUDENTS CHAT */}
         {activeTab === "chat_students" && (
-          <div className="h-[calc(100vh-140px)] min-h-[580px] flex flex-col md:flex-row bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-300">
+          <div className="h-[calc(100vh-110px)] max-h-[calc(100vh-110px)] flex flex-col md:flex-row bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden animate-in fade-in duration-300">
             {/* Student List Sidebar */}
             <div
               className={`${selectedStudentId ? "hidden md:flex" : "flex"} w-full md:w-80 lg:w-96 border-b md:border-b-0 md:border-l border-slate-200 dark:border-slate-800 flex-col h-full bg-slate-50/50 dark:bg-slate-900/50 shrink-0`}
             >
-              <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 flex flex-col gap-3 bg-white dark:bg-slate-900">
+              <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 flex flex-col gap-3 bg-white dark:bg-slate-900 shrink-0">
                 <div className="flex items-center justify-between">
                   <h3 className="font-bold text-lg text-slate-900 dark:text-white">
                     שיחות עם תלמידים
@@ -1873,7 +1873,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-3 space-y-2">
+              <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-2">
                 {filteredChatStudents.length === 0 ? (
                   <div className="text-center text-xs text-slate-400 py-8">לא נמצאו תלמידים מתאימים.</div>
                 ) : (
@@ -1893,7 +1893,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                           setSelectedStudentId(student.studentId);
                           setInputText("");
                         }}
-                        className={`w-full text-right p-3.5 rounded-2xl flex items-center justify-between transition-all ${
+                        className={`w-full text-right p-3 rounded-2xl flex items-center justify-between transition-all ${
                           isSelected 
                             ? "bg-indigo-600 text-white font-bold shadow-md shadow-indigo-600/20" 
                             : "hover:bg-white dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
@@ -1901,7 +1901,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                       >
                         <div className="flex items-center gap-3 overflow-hidden">
                           <div
-                            className={`w-11 h-11 rounded-full flex items-center justify-center font-bold text-white shadow-sm shrink-0 relative ${
+                            className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white shadow-sm shrink-0 relative ${
                               isSelected ? "bg-white/20 text-white" : "bg-gradient-to-tr from-indigo-500 to-purple-600"
                             }`}
                           >
@@ -1911,7 +1911,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                 className="absolute -top-1 -right-1 bg-amber-500 text-white rounded-full p-0.5 shadow-md"
                                 title="מאבק קוגניטיבי"
                               >
-                                <ShieldAlert className="w-3.5 h-3.5 text-white" />
+                                <ShieldAlert className="w-3 h-3 text-white" />
                               </div>
                             )}
                           </div>
@@ -1941,7 +1941,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
               {selectedStudentId ? (
                 <>
                   {/* Chat Header */}
-                  <div className="p-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-sm z-10">
+                  <div className="p-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-sm z-10 shrink-0">
                     <div className="flex items-center gap-3">
                       <button
                         onClick={() => setSelectedStudentId(null)}
@@ -1949,7 +1949,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                       >
                         &rarr; חזרה
                       </button>
-                      <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center font-bold text-white shadow-md text-lg shrink-0">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center font-bold text-white shadow-md text-base shrink-0">
                         {
                           (filteredChatStudents.find((s) => s.studentId === selectedStudentId)?.name || selectedStudentId || 'U')[0]
                         }
@@ -1971,7 +1971,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                   </div>
 
                   {/* Messages Scroll Area */}
-                  <div className="flex-1 p-6 overflow-y-auto flex flex-col gap-4">
+                  <div className="flex-1 min-h-0 p-5 overflow-y-auto flex flex-col gap-4">
                     {studentMessages.length === 0 ? (
                       <div className="m-auto text-center flex flex-col items-center justify-center text-slate-400 max-w-sm">
                         <div className="w-16 h-16 rounded-full bg-indigo-50 dark:bg-indigo-950/30 flex items-center justify-center mb-3 text-indigo-500">
@@ -1989,18 +1989,18 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                             className={`flex flex-col max-w-[85%] md:max-w-[70%] ${isMe ? "self-end items-end" : "self-start items-start"}`}
                           >
                             <div
-                              className={`px-5 py-3 rounded-2xl shadow-md ${
+                              className={`px-4 py-2.5 rounded-2xl shadow-md ${
                                 isMe
                                   ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-tl-xs"
                                   : "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-tr-xs"
                               }`}
                             >
-                              {msg.text && <p className="leading-relaxed">{msg.text}</p>}
+                              {msg.text && <p className="leading-relaxed text-sm">{msg.text}</p>}
                               {msg.imageUrl && (
                                 <img
                                   src={msg.imageUrl}
                                   alt="תמונה מצורפת"
-                                  className="max-w-[260px] max-h-[260px] rounded-xl mt-2 object-cover cursor-pointer border border-white/20 hover:opacity-90 transition-opacity"
+                                  className="max-w-[240px] max-h-[240px] rounded-xl mt-2 object-cover cursor-pointer border border-white/20 hover:opacity-90 transition-opacity"
                                   onClick={() => window.open(msg.imageUrl, '_blank')}
                                 />
                               )}
@@ -2020,8 +2020,8 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                     )}
                   </div>
 
-                  {/* Input Footer */}
-                  <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center gap-3">
+                  {/* Input Footer - ALWAYS VISIBLE AT BOTTOM (shrink-0) */}
+                  <div className="p-3.5 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center gap-2.5 shrink-0 z-20">
                     <input
                       ref={teacherFileInputRef}
                       type="file"
@@ -2033,7 +2033,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                       type="button"
                       onClick={() => teacherFileInputRef.current?.click()}
                       disabled={sendingImage || !selectedStudentId}
-                      className="p-3 text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all shrink-0"
+                      className="p-2.5 text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all shrink-0"
                       title="צילום/תמונה"
                     >
                       <ImageIcon className="w-5 h-5" />
@@ -2042,7 +2042,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                     <button
                       type="button"
                       onClick={handleToggleVoiceInput}
-                      className={`p-3 rounded-full transition-all shrink-0 ${isListening ? 'bg-rose-500 text-white animate-pulse' : 'text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                      className={`p-2.5 rounded-full transition-all shrink-0 ${isListening ? 'bg-rose-500 text-white animate-pulse' : 'text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
                       title="הקלטה קולית (STT)"
                     >
                       <Mic className="w-5 h-5" />
@@ -2054,15 +2054,15 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                       onChange={(e) => setInputText(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && handleSendStudent()}
                       placeholder={isListening ? "מקשיב בעברית..." : "הקלד הודעה לתלמיד..."}
-                      className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full px-5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-slate-900 dark:text-white"
+                      className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-slate-900 dark:text-white"
                     />
 
                     <button
                       onClick={handleSendStudent}
                       disabled={!inputText.trim()}
-                      className="rounded-full w-11 h-11 flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white transition-all disabled:opacity-40 shadow-md shrink-0"
+                      className="rounded-full w-10 h-10 flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white transition-all disabled:opacity-40 shadow-md shrink-0"
                     >
-                      <Send className="w-5 h-5 -mr-0.5" />
+                      <Send className="w-4 h-4 -mr-0.5" />
                     </button>
                   </div>
                 </>
