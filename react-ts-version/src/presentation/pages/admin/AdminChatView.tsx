@@ -289,7 +289,7 @@ export function AdminChatView() {
             </div>
 
             {/* Input */}
-            <div className="p-4 bg-white/90 dark:bg-slate-950/90 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 flex flex-col gap-2">
+            <div className="p-4 bg-white/90 dark:bg-slate-950/90 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 flex flex-col gap-2 shrink-0 z-20">
               <input
                 ref={adminFileInputRef}
                 type="file"
