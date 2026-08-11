@@ -101,7 +101,8 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
           const isYellowPath = data.routeRecommendation === 'YELLOW' || sessionState.current_path === 'gap_reduction';
           const physicalOverride = data.physicalOverride || sessionState.physical_override || false;
 
-          const isStruggling = hesitationSeconds >= 30 || isYellowPath || errorCount > 2 || physicalOverride;
+          const hasCalledForHelp = !!(data.helpRequested || data.handRaised || data.isStruggling);
+          const isStruggling = hesitationSeconds >= 30 || isYellowPath || errorCount > 2 || physicalOverride || hasCalledForHelp;
 
           updated[slotIndex] = {
             id: uid,

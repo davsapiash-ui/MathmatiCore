@@ -23,12 +23,21 @@ interface ChatState {
   initSync: () => void;
 }
 
+export function normalizeStudentId(id: string): string {
+  if (!id) return '';
+  const clean = id.trim().toLowerCase();
+  if (clean === 'admin' || clean === 'teacher' || clean.startsWith('teacher_')) return clean;
+  return clean.startsWith('student_') ? clean : `student_${clean}`;
+}
+
 function computeRoomId(senderId: string, receiverId: string): string {
   if (senderId === 'admin' || receiverId === 'admin') {
     const teacherId = senderId === 'admin' ? receiverId : senderId;
     return `admin_teacher_${teacherId}`;
   }
-  const studentId = senderId.startsWith('student_') ? senderId : (receiverId.startsWith('student_') ? receiverId : senderId);
+  const sNorm = normalizeStudentId(senderId);
+  const rNorm = normalizeStudentId(receiverId);
+  const studentId = sNorm.startsWith('student_') ? sNorm : (rNorm.startsWith('student_') ? rNorm : sNorm);
   return studentId;
 }
 
@@ -44,8 +53,9 @@ export const useChatStore = create<ChatState>()(
       if (!user) return; // Only sync if authenticated
       if (isSynced) return;
       isSynced = true;
+      const normalizedUid = normalizeStudentId(user.uid || '');
       const chatRef = role === 'student' 
-        ? ref(database, `chat_messages/${user.uid}`) 
+        ? ref(database, `chat_messages/${normalizedUid}`) 
         : ref(database, 'chat_messages');
       if (chatUnsubscribe) {
         chatUnsubscribe();

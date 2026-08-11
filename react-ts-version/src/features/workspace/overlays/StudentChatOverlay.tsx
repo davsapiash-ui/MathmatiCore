@@ -1,11 +1,13 @@
 import { useEffect, useState, useRef } from 'react';
-import { useChatStore } from '@/application/useChatStore';
+import { useChatStore, normalizeStudentId } from '@/application/useChatStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useStore } from '@/application/useStore';
 import { useAdminStore } from '@/application/useAdminStore';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
 import { ImageIcon, BellRing } from 'lucide-react';
+import { ref, update } from 'firebase/database';
+import { database } from '@/infrastructure/firebase';
 
 export function StudentChatOverlay() {
   const [isOpen, setIsOpen] = useState(false);
@@ -19,10 +21,9 @@ export function StudentChatOverlay() {
   const students = useStore(s => s.students);
   const classes = useAdminStore(s => s.classes);
   
-  const studentData = user?.uid ? students[user.uid] : null;
+  const normUid = normalizeStudentId(user?.uid || '');
+  const studentData = normUid ? (students[normUid] || students[user?.uid || '']) : null;
   const studentClass = classes.find(c => c.id === studentData?.classId);
-  // Find the teacher of the class this student belongs to.
-  // Default to '039604483' (the known teacher) if no class found.
   const targetTeacherId = studentClass?.teacherId || '039604483';
 
   useEffect(() => {
@@ -32,13 +33,12 @@ export function StudentChatOverlay() {
   }, []);
 
   useEffect(() => {
-    if (isOpen && user?.uid) {
-      // Find the last teacher who sent a message to the student
-      const lastReceivedMsg = [...messages].reverse().find(m => m.receiverId === user.uid && m.senderId !== user.uid);
+    if (isOpen && normUid) {
+      const lastReceivedMsg = [...messages].reverse().find(m => normalizeStudentId(m.receiverId) === normUid && normalizeStudentId(m.senderId) !== normUid);
       const activeTeacher = lastReceivedMsg ? lastReceivedMsg.senderId : targetTeacherId;
-      markAsRead(user.uid, activeTeacher); 
+      markAsRead(normUid, activeTeacher); 
     }
-  }, [isOpen, messages, user, markAsRead, targetTeacherId]);
+  }, [isOpen, messages, normUid, markAsRead, targetTeacherId]);
 
   useEffect(() => {
     if (isOpen) {
@@ -49,14 +49,14 @@ export function StudentChatOverlay() {
   if (!isOpen || !user) return null;
 
   const myMessages = messages.filter(m => 
-    m.receiverId === user.uid || m.senderId === user.uid
+    normalizeStudentId(m.receiverId) === normUid || normalizeStudentId(m.senderId) === normUid
   );
 
   const handleSend = () => {
     if (!text.trim() || !user.uid) return;
-    const lastReceivedMsg = [...messages].reverse().find(m => m.receiverId === user.uid && m.senderId !== user.uid);
+    const lastReceivedMsg = [...messages].reverse().find(m => normalizeStudentId(m.receiverId) === normUid && normalizeStudentId(m.senderId) !== normUid);
     const activeTeacher = lastReceivedMsg ? lastReceivedMsg.senderId : targetTeacherId;
-    sendMessage(user.uid as string, String(user.displayName || user.email?.split('@')[0] || 'תלמיד'), activeTeacher as string, text);
+    sendMessage(normUid, String(user.displayName || user.email?.split('@')[0] || 'תלמיד'), activeTeacher as string, text);
     setText('');
   };
 
@@ -65,31 +65,48 @@ export function StudentChatOverlay() {
     if (!file || !user) return;
     setSendingImage(true);
     try {
-      const lastReceivedMsg = [...messages].reverse().find(m => m.receiverId === user.uid && m.senderId !== user.uid);
+      const lastReceivedMsg = [...messages].reverse().find(m => normalizeStudentId(m.receiverId) === normUid && normalizeStudentId(m.senderId) !== normUid);
       const activeTeacher = lastReceivedMsg ? lastReceivedMsg.senderId : targetTeacherId;
-      await sendImageMessage(user.uid as string, String(user.displayName || 'תלמיד'), activeTeacher as string, file);
+      await sendImageMessage(normUid, String(user.displayName || 'תלמיד'), activeTeacher as string, file);
     } finally {
       setSendingImage(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
-  const handleCallTeacher = () => {
+  const handleCallTeacher = async () => {
     if (!user?.uid) return;
+    const studentId = normUid;
     
-    // Silent alert to teacher dashboard via pedagogical radar
     AuditLogger.log(
       "CALL_FOR_HELP", 
-      user.uid as string, 
+      studentId, 
       "Student explicitly called for teacher help via the silent button."
     );
 
-    // Provide immediate local feedback to the student so they know it worked
+    // Sync to Realtime DB so Teacher Dashboard lights up immediately in orange
+    const updates: Record<string, any> = {};
+    updates[`users/students/${studentId}/helpRequested`] = true;
+    updates[`users/students/${studentId}/handRaised`] = true;
+    updates[`users/students/${studentId}/isStruggling`] = true;
+    updates[`users/students/${studentId}/lastAction`] = 'תלמיד ביקש עזרה מהמורה!';
+    updates[`users/students/${studentId}/last_alert`] = 'תלמיד ביקש עזרה מהמורה!';
+    updates[`radar_alerts/${studentId}_help`] = {
+      studentId: studentId,
+      studentName: user.displayName || studentId,
+      timestamp: Date.now(),
+      type: 'CALL_FOR_HELP',
+      message: 'תלמיד ביקש עזרה מהמורה!',
+      severity: 'alert'
+    };
+
+    await update(ref(database), updates).catch(console.error);
+
     useWorkspaceStore.getState().showFeedback({
-      correct: true, // blue/neutral toast
-      title: 'נשלחה קריאה',
-      sub: 'המורה קיבל את הבקשה שלך לעזרה ויגיע בקרוב.',
-    }, 3000);
+      correct: true,
+      title: 'נשלחה קריאה למורה 🔔',
+      sub: 'המורה קיבל/ה את הבקשה שלך לעזרה ויגיע/תגיע אלייך בקרוב.',
+    }, 4000);
   };
 
   return (

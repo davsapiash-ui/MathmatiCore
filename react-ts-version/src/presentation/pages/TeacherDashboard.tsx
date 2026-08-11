@@ -6,7 +6,7 @@ import { UdlButton } from "@/presentation/design-system/UdlButton";
 import { AccessibleCard } from "@/presentation/design-system/AccessibleCard";
 import { DataGrid } from "@/presentation/design-system/DataGrid";
 import { useAuthStore } from "@/application/useAuthStore";
-import { useChatStore, type ChatMessage } from "@/application/useChatStore";
+import { useChatStore, normalizeStudentId, type ChatMessage } from "@/application/useChatStore";
 import { useStore, type StudentData } from "@/application/useStore";
 import { toast } from "sonner";
 import { ref, onValue, remove, set } from "firebase/database";
@@ -614,8 +614,9 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
 
   const studentMessages = useMemo(() => {
     if (!user || !selectedStudentId) return [];
+    const targetId = normalizeStudentId(selectedStudentId);
     const chatMessages = messages.filter(
-      (m) => m.senderId === selectedStudentId || m.receiverId === selectedStudentId
+      (m) => normalizeStudentId(m.senderId) === targetId || normalizeStudentId(m.receiverId) === targetId
     );
     return chatMessages.sort((a, b) => a.timestamp - b.timestamp);
   }, [messages, user, selectedStudentId]);
@@ -636,10 +637,11 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     
     // Process student messages
     if (activeTab === "chat_students" && selectedStudentId && user.role !== "admin") {
-      const unreadStudent = messages.filter(m => m.senderId === selectedStudentId && m.receiverId === user.uid && !m.read && !processedMessages.current.has(m.id));
+      const targetId = normalizeStudentId(selectedStudentId);
+      const unreadStudent = messages.filter(m => normalizeStudentId(m.senderId) === targetId && !m.read && !processedMessages.current.has(m.id));
       if (unreadStudent.length > 0) {
         unreadStudent.forEach(m => processedMessages.current.add(m.id));
-        markAsRead(user.uid as string, selectedStudentId);
+        markAsRead(user.uid as string, targetId);
       }
     }
   }, [activeTab, selectedStudentId, messages, user, markAsRead]);
@@ -657,10 +659,11 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
 
   const handleSendStudent = () => {
     if (!inputText.trim() || !user || !selectedStudentId) return;
+    const targetId = normalizeStudentId(selectedStudentId);
     sendMessage(
       user.uid as string,
       (user.displayName as string) || "מורה",
-      selectedStudentId,
+      targetId,
       inputText.trim(),
     );
     setInputText("");
@@ -671,7 +674,8 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     if (!file || !user || !selectedStudentId) return;
     setSendingImage(true);
     try {
-      await sendImageMessage(user.uid as string, (user.displayName as string) || 'מורה', selectedStudentId, file);
+      const targetId = normalizeStudentId(selectedStudentId);
+      await sendImageMessage(user.uid as string, (user.displayName as string) || 'מורה', targetId, file);
     } finally {
       setSendingImage(false);
       if (teacherFileInputRef.current) teacherFileInputRef.current.value = '';
@@ -1878,12 +1882,13 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                   <div className="text-center text-xs text-slate-400 py-8">לא נמצאו תלמידים מתאימים.</div>
                 ) : (
                   filteredChatStudents.map((student) => {
+                    const normId = normalizeStudentId(student.studentId);
                     const unreadCount = messages.filter(
-                      (m) => m.senderId === student.studentId && !m.read
+                      (m) => normalizeStudentId(m.senderId) === normId && !m.read
                     ).length;
                     const isSelected = selectedStudentId === student.studentId;
                     const lastStudentMsg = messages
-                      .filter(m => m.senderId === student.studentId || m.receiverId === student.studentId)
+                      .filter(m => normalizeStudentId(m.senderId) === normId || normalizeStudentId(m.receiverId) === normId)
                       .sort((a, b) => b.timestamp - a.timestamp)[0];
 
                     return (

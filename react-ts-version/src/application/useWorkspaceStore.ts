@@ -37,6 +37,8 @@ import { QMatrixEvaluator } from '@/core/QMatrix';
 import { getSessionTasks, type SessionTask } from '@/data/sessionTasks';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
 import { SocraticEngine, type SocraticHintResponse } from '@/infrastructure/services/SocraticEngine';
+import { ref, update } from 'firebase/database';
+import { database } from '@/infrastructure/firebase';
 
 const UNDO_STACK_CAP = 50;
 
@@ -1198,11 +1200,29 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const s = get();
       if (s.helpState !== 'closed') return;
       if (s.sessionNumber === 2) return; // PRD: No help in Session 2
-      if (Date.now() - s.taskStartTime < 10000) return; // 10s delay before help is available
       
-      const studentId = useAuthStore.getState().user?.uid;
-      if (studentId) {
+      const rawUser = useAuthStore.getState().user;
+      if (rawUser?.uid) {
+        const clean = rawUser.uid.trim().toLowerCase();
+        const studentId = clean.startsWith('student_') ? clean : `student_${clean}`;
         AuditLogger.log('HINT_REQUESTED', studentId, 'Student clicked the hint lightbulb');
+
+        // Sync to Realtime DB so Teacher Dashboard lights up immediately in orange
+        const updates: Record<string, any> = {};
+        updates[`users/students/${studentId}/helpRequested`] = true;
+        updates[`users/students/${studentId}/handRaised`] = true;
+        updates[`users/students/${studentId}/isStruggling`] = true;
+        updates[`users/students/${studentId}/lastAction`] = 'תלמיד לחץ על נורת העזרה!';
+        updates[`users/students/${studentId}/last_alert`] = 'תלמיד לחץ על נורת העזרה!';
+        updates[`radar_alerts/${studentId}_help`] = {
+          studentId: studentId,
+          studentName: rawUser.displayName || studentId,
+          timestamp: Date.now(),
+          type: 'HESITATION',
+          message: 'תלמיד לחץ על נורת העזרה!',
+          severity: 'warning'
+        };
+        update(ref(database), updates).catch(console.error);
       }
 
       set({ helpState: 'friction', frictionTriggerSource: 'lightbulb', aiSocraticHint: null });
