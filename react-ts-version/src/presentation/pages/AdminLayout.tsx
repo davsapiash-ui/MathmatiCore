@@ -1,7 +1,9 @@
 import { Outlet, NavLink } from "react-router-dom";
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarGroup, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
-import { Settings, Shield, Users, Layers, GraduationCap } from "lucide-react";
+import { Settings, Shield, Users, Layers, GraduationCap, Bell, UserCircle } from "lucide-react";
 import { useAuthStore } from "@/application/useAuthStore";
+import { useChatStore } from "@/application/useChatStore";
+import { UdlButton } from "@/presentation/design-system/UdlButton";
 import { Logo } from "@/presentation/components/ui/Logo";
 import { LogoutButton } from "@/presentation/components/ui/LogoutButton";
 import { useAdminTour } from "./admin/useAdminTour";
@@ -9,6 +11,8 @@ import { useAdminTour } from "./admin/useAdminTour";
 export function AdminLayout() {
   useAdminTour();
   const { user } = useAuthStore();
+  const { messages } = useChatStore();
+  const unreadCount = messages.filter(m => m.receiverId === "admin" && !m.read).length;
 
   return (
     <SidebarProvider>
@@ -151,6 +155,52 @@ export function AdminLayout() {
 
         {/* Main Fluid Content Area */}
         <main className="flex-1 p-3 md:p-6 min-w-0 overflow-y-auto custom-scrollbar">
+          {/* Top Bar Header matching Teacher Topbar for UI consistency */}
+          <header className="hidden md:flex items-center justify-between p-4 px-6 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 rounded-2xl mb-4 shadow-sm z-10 sticky top-0 transition-all">
+            {/* Title */}
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-700 to-purple-600 flex items-center justify-center text-white font-bold shadow-md">
+                <Shield className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h1 className="font-display font-black text-xl md:text-2xl text-slate-900 dark:text-white tracking-tight">
+                  פורטל מנהל מערכת
+                </h1>
+                <p className="text-xs text-slate-500 font-medium">ניהול מוסדות, מורים, פדגוגיה ואבטחה</p>
+              </div>
+            </div>
+
+            {/* User Details & Actions */}
+            <div className="flex items-center gap-3">
+              {/* Notification Bell */}
+              <UdlButton variant="ghost" size="icon" className="relative text-slate-600 dark:text-slate-300 hover:text-slate-900 rounded-full transition-transform hover:scale-105 active:scale-95">
+                <Bell className="w-5 h-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-rose-500 border-2 border-white dark:border-slate-900 rounded-full animate-pulse" />
+                )}
+              </UdlButton>
+
+              {/* User Profile Badge */}
+              <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-800/90 backdrop-blur-md rounded-full py-1.5 px-3.5 shadow-sm border border-slate-200 dark:border-slate-700">
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-bold text-sm shadow-md shrink-0">
+                  <UserCircle className="w-5 h-5" />
+                </div>
+                <div className="flex flex-col items-start leading-tight">
+                  <span className="text-xs font-black text-slate-800 dark:text-slate-100">{(user?.displayName as string) || "מנהל מערכת"}</span>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="text-[10px] font-semibold text-slate-500">{user?.email || "davidsep@edu-haifa.org.il"}</span>
+                    <span className="bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-[10px] font-black px-2 py-0.5 rounded-full border border-indigo-200 dark:border-indigo-800">
+                      מנהל מערכת
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Logout Button */}
+              <LogoutButton className="bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 dark:text-rose-400 rounded-full px-3.5 py-2 text-xs font-bold transition-all border border-rose-200/60 dark:border-rose-800/40 shadow-sm" />
+            </div>
+          </header>
+
           {/* Ghost Mode Indicator */}
           <div className="bg-amber-500/10 border border-amber-500/40 text-amber-700 dark:text-amber-400 rounded-2xl px-4 py-2.5 mb-4 flex items-center justify-center gap-3 text-xs md:text-sm font-bold shadow-sm backdrop-blur-md">
             <span className="text-lg">👻</span>
