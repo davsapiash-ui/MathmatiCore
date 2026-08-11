@@ -8,7 +8,7 @@ export function AppShell() {
   const isTeacher = user?.role === 'teacher';
 
   return (
-    <div className="flex h-screen w-full bg-ws-bg font-body text-ws-ink overflow-hidden" dir="rtl">
+    <div className="flex h-screen w-full mesh-bg-ambient font-body text-ws-ink overflow-hidden" dir="rtl">
       {/* Sidebar - Hidden for teachers as they have their own integrated sidebar */}
       {!isTeacher && <Sidebar />}
 
