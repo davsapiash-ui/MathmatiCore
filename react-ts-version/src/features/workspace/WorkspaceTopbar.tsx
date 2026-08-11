@@ -103,14 +103,24 @@ export function WorkspaceTopbar() {
           </button>
         )}
 
-        <button
-          onClick={requestHelp}
-          className="h-10 w-10 rounded-full text-lg bg-amber-100/50 dark:bg-amber-500/20 border border-amber-300/50 dark:border-amber-500/30 text-amber-600 dark:text-amber-400 hover:scale-110 active:scale-95 transition-transform shadow-sm flex items-center justify-center"
-          aria-label="בקש עזרה"
-          title="לחץ לעזרה"
-        >
-          💡
-        </button>
+        <div className="relative group">
+          <button
+            onClick={requestHelp}
+            className="h-10 px-3.5 rounded-full text-xs sm:text-sm font-bold bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-md shadow-amber-500/25 hover:scale-105 active:scale-95 transition-all flex items-center gap-1.5 border border-amber-300/40 cursor-pointer"
+            aria-label="בקש עזרה וחניכה"
+          >
+            <span aria-hidden="true">💡</span>
+            <span className="hidden sm:inline font-bold">בקש עזרה</span>
+          </button>
+
+          {/* Norman Principle: Explanatory Hover Tooltip */}
+          <div className="absolute top-12 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 z-50 w-64 p-3 bg-slate-900/95 text-white text-xs rounded-2xl shadow-xl backdrop-blur-md border border-white/10 text-right leading-relaxed">
+            <div className="font-bold text-amber-300 mb-1 flex items-center gap-1">
+              <span>💡</span> בקשת עזרה וחניכה
+            </div>
+            <span>בלחיצה כאן תוכל לקבל רמז סוקרטי מנחה או להתריע למורה שאתה זקוק לסיוע בכיתה.</span>
+          </div>
+        </div>
 
         <button
           onClick={startTour}
