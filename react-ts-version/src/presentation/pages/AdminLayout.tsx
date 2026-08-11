@@ -173,12 +173,17 @@ export function AdminLayout() {
             {/* User Details & Actions */}
             <div className="flex items-center gap-3">
               {/* Notification Bell */}
-              <UdlButton variant="ghost" size="icon" className="relative text-slate-600 dark:text-slate-300 hover:text-slate-900 rounded-full transition-transform hover:scale-105 active:scale-95">
-                <Bell className="w-5 h-5" />
-                {unreadCount > 0 && (
-                  <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-rose-500 border-2 border-white dark:border-slate-900 rounded-full animate-pulse" />
-                )}
-              </UdlButton>
+              <div className="relative group">
+                <UdlButton variant="ghost" size="icon" aria-label="התראות מערכת" className="relative text-slate-600 dark:text-slate-300 hover:text-slate-900 rounded-full transition-transform hover:scale-105 active:scale-95 cursor-pointer">
+                  <Bell className="w-5 h-5" />
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-rose-500 border-2 border-white dark:border-slate-900 rounded-full animate-pulse" />
+                  )}
+                </UdlButton>
+                <div className="absolute top-12 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 z-50 w-52 p-2 bg-slate-900/95 text-white text-[11px] rounded-xl shadow-xl backdrop-blur-md border border-white/10 text-right leading-relaxed">
+                  <span>🔔 התראות מערכת והודעות שלא נקראו ({unreadCount})</span>
+                </div>
+              </div>
 
               {/* User Profile Badge */}
               <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-800/90 backdrop-blur-md rounded-full py-1.5 px-3.5 shadow-sm border border-slate-200 dark:border-slate-700">

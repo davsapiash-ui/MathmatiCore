@@ -55,52 +55,72 @@ export function WorkspaceTopbar() {
 
       {/* Actions */}
       <div id="tour-action-buttons" className="flex items-center gap-2 sm:gap-3 shrink-0 bg-ws-surface/50 p-1.5 rounded-full border border-ws-surface2 shadow-sm max-w-full overflow-x-auto no-scrollbar">
-        <button
-          onClick={() => {
-            logout();
-            navigate('/login');
-          }}
-          className="h-10 px-4 rounded-full text-sm font-bold text-ws-soft hover:text-red-600 hover:bg-red-50 transition-colors"
-          aria-label="התנתק"
-        >
-          יציאה
-        </button>
+        <div className="relative group">
+          <button
+            onClick={() => {
+              logout();
+              navigate('/login');
+            }}
+            className="h-10 px-4 rounded-full text-sm font-bold text-ws-soft hover:text-red-600 hover:bg-red-50 active:scale-95 transition-all cursor-pointer"
+            aria-label="התנתק"
+          >
+            יציאה
+          </button>
+          <div className="absolute top-12 left-0 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 z-50 w-44 p-2 bg-slate-900/95 text-white text-[11px] rounded-xl shadow-xl backdrop-blur-md border border-white/10 text-right leading-relaxed">
+            <span>🚪 התנתקות בטוחה מהמערכת</span>
+          </div>
+        </div>
 
         <div className="w-px h-6 bg-ws-surface2" />
 
         {sessionNumber !== 8 && (
           <>
-            <button
-              onClick={toggleBoard}
-              className={`h-10 px-4 sm:px-5 rounded-full text-sm font-bold border-2 transition-all flex items-center gap-2 shadow-sm ${
-                boardOpen 
-                  ? 'text-ws-blue border-ws-blue bg-white hover:bg-ws-blue/10'
-                  : 'text-white bg-ws-blue border-ws-blue hover:brightness-110'
-              }`}
-              aria-label={boardOpen ? 'הסתר בית המספרים' : 'פתח בית המספרים'}
-            >
-              <span aria-hidden="true">🏠</span>
-              <span className="hidden sm:inline">{boardOpen ? 'הסתר' : 'בית המספרים'}</span>
-            </button>
+            <div className="relative group">
+              <button
+                onClick={toggleBoard}
+                className={`h-10 px-4 sm:px-5 rounded-full text-sm font-bold border-2 active:scale-95 transition-all flex items-center gap-2 shadow-sm cursor-pointer ${
+                  boardOpen 
+                    ? 'text-ws-blue border-ws-blue bg-white hover:bg-ws-blue/10'
+                    : 'text-white bg-ws-blue border-ws-blue hover:brightness-110'
+                }`}
+                aria-label={boardOpen ? 'הסתר בית המספרים' : 'פתח בית המספרים'}
+              >
+                <span aria-hidden="true">🏠</span>
+                <span className="hidden sm:inline">{boardOpen ? 'הסתר' : 'בית המספרים'}</span>
+              </button>
+              <div className="absolute top-12 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 z-50 w-52 p-2 bg-slate-900/95 text-white text-[11px] rounded-xl shadow-xl backdrop-blur-md border border-white/10 text-right leading-relaxed">
+                <span>🏠 פתח/הסתר את קנבס המבנה העשרוני וקוביות הדינס</span>
+              </div>
+            </div>
 
-            <button
-              onClick={undo}
-              disabled={!canUndo}
-              className="h-10 px-3 sm:px-4 rounded-full text-sm font-bold text-ws-ink bg-ws-surface2 hover:bg-ws-surface2/80 transition-all flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
-              aria-label="בטל פעולה אחרונה"
-            >
-              <span aria-hidden="true">↩</span> <span className="hidden sm:inline">בטל</span>
-            </button>
+            <div className="relative group">
+              <button
+                onClick={undo}
+                disabled={!canUndo}
+                className="h-10 px-3 sm:px-4 rounded-full text-sm font-bold text-ws-ink bg-ws-surface2 hover:bg-ws-surface2/80 active:scale-95 transition-all flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                aria-label="בטל פעולה אחרונה"
+              >
+                <span aria-hidden="true">↩</span> <span className="hidden sm:inline">בטל</span>
+              </button>
+              <div className="absolute top-12 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 z-50 w-48 p-2 bg-slate-900/95 text-white text-[11px] rounded-xl shadow-xl backdrop-blur-md border border-white/10 text-right leading-relaxed">
+                <span>↩ בטל את הגרירה או הפעולה האחרונה בקנבס</span>
+              </div>
+            </div>
           </>
         )}
 
         {globalChatEnabled && (
-          <button
-            onClick={() => document.dispatchEvent(new CustomEvent('toggle-chat'))}
-            className="h-10 px-3 sm:px-4 rounded-full text-sm font-bold text-ws-accent bg-ws-surface border border-ws-accent/20 hover:border-ws-accent/50 hover:shadow-md transition-all flex items-center gap-1.5"
-          >
-            <span aria-hidden="true">💬</span> <span className="hidden sm:inline">צ'אט</span>
-          </button>
+          <div className="relative group">
+            <button
+              onClick={() => document.dispatchEvent(new CustomEvent('toggle-chat'))}
+              className="h-10 px-3 sm:px-4 rounded-full text-sm font-bold text-ws-accent bg-ws-surface border border-ws-accent/20 hover:border-ws-accent/50 hover:shadow-md active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <span aria-hidden="true">💬</span> <span className="hidden sm:inline">צ'אט</span>
+            </button>
+            <div className="absolute top-12 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 z-50 w-52 p-2 bg-slate-900/95 text-white text-[11px] rounded-xl shadow-xl backdrop-blur-md border border-white/10 text-right leading-relaxed">
+              <span>💬 פתח חלון צ'אט והתכתבות ישירה עם המורה</span>
+            </div>
+          </div>
         )}
 
         <div className="relative group">
@@ -122,24 +142,34 @@ export function WorkspaceTopbar() {
           </div>
         </div>
 
-        <button
-          onClick={startTour}
-          className="h-10 w-10 rounded-full text-lg bg-ws-blue-soft/50 border border-ws-blue/30 text-ws-blue hover:scale-110 active:scale-95 transition-transform shadow-sm flex items-center justify-center"
-          aria-label="הפעל הדרכה מחדש"
-          title="הדרכה"
-        >
-          🧭
-        </button>
+        <div className="relative group">
+          <button
+            onClick={startTour}
+            className="h-10 px-3 sm:px-4 rounded-full text-sm font-bold text-ws-blue bg-ws-blue-soft/50 border border-ws-blue/30 hover:scale-105 active:scale-95 transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
+            aria-label="הפעל הדרכה מחדש"
+          >
+            <span aria-hidden="true">🧭</span>
+            <span className="hidden sm:inline font-bold">הדרכה</span>
+          </button>
+          <div className="absolute top-12 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 z-50 w-52 p-2 bg-slate-900/95 text-white text-[11px] rounded-xl shadow-xl backdrop-blur-md border border-white/10 text-right leading-relaxed">
+            <span>🧭 הפעל הדרכה אינטראקטיבית מלווה במרחב</span>
+          </div>
+        </div>
 
-        <button
-          onClick={proceed}
-          disabled={!canProceed}
-          className="h-10 px-6 rounded-full text-base font-display font-extrabold text-white bg-ws-accent hover:brightness-110 shadow-md hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed"
-          aria-label="עבור למשימה הבאה"
-        >
-          התקדם
-          <span aria-hidden="true" className="text-lg leading-none">←</span>
-        </button>
+        <div className="relative group">
+          <button
+            onClick={proceed}
+            disabled={!canProceed}
+            className="h-10 px-6 rounded-full text-base font-display font-extrabold text-white bg-ws-accent hover:brightness-110 active:scale-95 shadow-md hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed cursor-pointer"
+            aria-label="עבור למשימה הבאה"
+          >
+            התקדם
+            <span aria-hidden="true" className="text-lg leading-none">←</span>
+          </button>
+          <div className="absolute top-12 left-0 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 z-50 w-52 p-2 bg-slate-900/95 text-white text-[11px] rounded-xl shadow-xl backdrop-blur-md border border-white/10 text-right leading-relaxed">
+            <span>← התקדם למשימה הבאה במפת הלמידה</span>
+          </div>
+        </div>
       </div>
     </nav>
   );

@@ -42,7 +42,7 @@ export function BlockPalette({ scaffoldLevel }: { scaffoldLevel: number }) {
       {paletteItemsToRender.map(({ place, labelHe, scale }) => (
         <div
           key={place}
-          className="flex flex-col items-center gap-1 rounded-2xl px-3 pt-2 pb-1.5 bg-ws-bg/70 border border-ws-surface2 hover:border-ws-accent/40 hover:bg-ws-accentSoft/40 hover:-translate-y-0.5 transition-all"
+          className="relative group flex flex-col items-center gap-1 rounded-2xl px-3 pt-2 pb-1.5 bg-ws-bg/70 border border-ws-surface2 hover:border-ws-accent/40 hover:bg-ws-accentSoft/40 hover:-translate-y-0.5 transition-all cursor-grab active:cursor-grabbing"
         >
           <div className="h-12 flex items-end justify-center" style={{ transform: `scale(${scale})`, transformOrigin: 'bottom center' }}>
             <DienesBlock
@@ -56,6 +56,11 @@ export function BlockPalette({ scaffoldLevel }: { scaffoldLevel: number }) {
             {labelHe}
           </span>
           <span className="sr-only">{`גרור ${PLACE_NAMES_HE[place]} לטבלה — ערך ${PLACE_VALUES[place]}`}</span>
+          
+          {/* Norman Principle: Explanatory Hover Tooltip */}
+          <div className="absolute -top-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 z-50 w-36 p-1.5 bg-slate-900/95 text-white text-[10px] text-center font-bold rounded-xl shadow-lg backdrop-blur-md border border-white/10 whitespace-nowrap">
+            <span>➕ לחץ או גרור לטבלה</span>
+          </div>
         </div>
       ))}
 
