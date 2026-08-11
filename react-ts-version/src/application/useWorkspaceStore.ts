@@ -1207,20 +1207,35 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const studentId = clean.startsWith('student_') ? clean : `student_${clean}`;
         AuditLogger.log('HINT_REQUESTED', studentId, 'Student clicked the hint lightbulb');
 
-        // Sync to Realtime DB so Teacher Dashboard lights up immediately in orange
+        const alertId = `${studentId}_help_${Date.now()}`;
+        const helpKey = `help_${Date.now()}`;
+
+        // Sync to Realtime DB so Teacher Dashboard lights up immediately in orange and stays persistent
         const updates: Record<string, any> = {};
         updates[`users/students/${studentId}/helpRequested`] = true;
         updates[`users/students/${studentId}/handRaised`] = true;
         updates[`users/students/${studentId}/isStruggling`] = true;
+        updates[`users/students/${studentId}/lastHelpTimestamp`] = Date.now();
         updates[`users/students/${studentId}/lastAction`] = 'תלמיד לחץ על נורת העזרה!';
         updates[`users/students/${studentId}/last_alert`] = 'תלמיד לחץ על נורת העזרה!';
-        updates[`radar_alerts/${studentId}_help`] = {
+        
+        updates[`users/students/${studentId}/helpHistory/${helpKey}`] = {
+          timestamp: Date.now(),
+          sessionNumber: s.sessionNumber || 1,
+          type: 'HINT_REQUESTED',
+          message: 'תלמיד לחץ על נורת העזרה והחניכה!',
+          status: 'pending'
+        };
+
+        updates[`radar_alerts/${alertId}`] = {
           studentId: studentId,
+          rawStudentId: studentId,
           studentName: rawUser.displayName || studentId,
           timestamp: Date.now(),
           type: 'HESITATION',
           message: 'תלמיד לחץ על נורת העזרה!',
-          severity: 'warning'
+          severity: 'warning',
+          persistent: true
         };
         update(ref(database), updates).catch(console.error);
       }

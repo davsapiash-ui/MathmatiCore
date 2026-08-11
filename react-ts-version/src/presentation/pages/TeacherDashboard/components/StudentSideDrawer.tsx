@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { type StudentData } from '@/application/useStore';
-import { X, CheckCircle, Video, ListTodo, Sliders } from 'lucide-react';
+import { X, CheckCircle, Video, ListTodo, Sliders, BellRing, Check } from 'lucide-react';
 import { StudentReplayAndLogs } from './StudentReplayAndLogs';
 import { BlueprintEditor } from './BlueprintEditor';
 import { PhysicalOverrideControl } from './PhysicalOverrideControl';
+import { ref, update } from 'firebase/database';
+import { database } from '@/infrastructure/firebase';
 
 interface Props {
   student: StudentData | null;
@@ -19,6 +21,20 @@ export function StudentSideDrawer({ student, onClose, isPendingApproval, onAppro
   );
 
   if (!student) return null;
+
+  const sAny = student as any;
+  const hasHelpRequest = sAny.helpRequested || sAny.handRaised || sAny.isStruggling;
+  const helpCount = sAny.helpCallCount || 0;
+
+  const handleClearHelpRequest = async () => {
+    if (!student.studentId) return;
+    const updates: Record<string, any> = {};
+    updates[`users/students/${student.studentId}/helpRequested`] = false;
+    updates[`users/students/${student.studentId}/handRaised`] = false;
+    updates[`users/students/${student.studentId}/isStruggling`] = false;
+    updates[`users/students/${student.studentId}/lastAction`] = 'המורה סימן את בקשת העזרה כטופלה';
+    await update(ref(database), updates).catch(console.error);
+  };
 
   return createPortal(
     <>
@@ -56,6 +72,23 @@ export function StudentSideDrawer({ student, onClose, isPendingApproval, onAppro
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Persistent Help Call Alert Banner */}
+        {hasHelpRequest && (
+          <div className="px-6 py-3 bg-amber-50 dark:bg-amber-950/50 border-b border-amber-200 dark:border-amber-900 flex items-center justify-between gap-3 shrink-0">
+            <div className="flex items-center gap-2 text-xs font-bold text-amber-900 dark:text-amber-200">
+              <BellRing className="w-4 h-4 text-amber-600 animate-bounce" />
+              <span>תלמיד ביקש עזרה מהמורה (סך הכל {helpCount} קריאות תועדו)</span>
+            </div>
+            <button
+              onClick={handleClearHelpRequest}
+              className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition-all flex items-center gap-1 shadow-sm shrink-0 cursor-pointer"
+            >
+              <Check className="w-3.5 h-3.5" />
+              <span>סמן כטופל</span>
+            </button>
+          </div>
+        )}
 
         <div className="flex border-b border-slate-200 dark:border-slate-800 px-4 pt-2 bg-slate-50/50 dark:bg-slate-800/20 overflow-x-auto no-scrollbar">
           <button

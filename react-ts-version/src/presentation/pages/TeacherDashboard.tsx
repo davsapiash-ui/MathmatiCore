@@ -508,14 +508,13 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
         const actualStudent = students[a.rawStudentId] || Object.values(students).find((s: StudentData) => s.studentId === a.rawStudentId || s.name === a.rawStudentId);
         // Only show alerts for students in this teacher's class
         const isMyStudent = !!actualStudent;
-        // Filter out disconnected students
-        const isOnline = actualStudent?.isOnline !== false;
         
         // Anti-leakage: must belong to this teacher (fallback to true for legacy alerts without teacherId, but reset will clean them)
         const aAny = a as any;
         const isMyTeacher = aAny.teacherId ? aAny.teacherId === TEACHER_ID : true;
         
-        return isMyStudent && isOnline && isMyTeacher;
+        // Help alerts and radar calls stay persistent even if student disconnected!
+        return isMyStudent && isMyTeacher;
       })
       .sort((a, b) => b.timestamp - a.timestamp);
   }, [firebaseAlerts, students, TEACHER_ID]);

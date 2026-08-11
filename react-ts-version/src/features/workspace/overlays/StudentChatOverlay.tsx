@@ -84,20 +84,39 @@ export function StudentChatOverlay() {
       "Student explicitly called for teacher help via the silent button."
     );
 
-    // Sync to Realtime DB so Teacher Dashboard lights up immediately in orange
+    // Persistent Help Call Counter & Historical Trace
+    const prevCount = (studentData as any)?.helpCallCount || 0;
+    const newCount = prevCount + 1;
+    const helpKey = `help_${Date.now()}`;
+    const alertId = `${studentId}_help_${Date.now()}`;
+
+    // Sync to Realtime DB so Teacher Dashboard lights up immediately in orange and stays persistent
     const updates: Record<string, any> = {};
     updates[`users/students/${studentId}/helpRequested`] = true;
     updates[`users/students/${studentId}/handRaised`] = true;
     updates[`users/students/${studentId}/isStruggling`] = true;
-    updates[`users/students/${studentId}/lastAction`] = 'תלמיד ביקש עזרה מהמורה!';
-    updates[`users/students/${studentId}/last_alert`] = 'תלמיד ביקש עזרה מהמורה!';
-    updates[`radar_alerts/${studentId}_help`] = {
+    updates[`users/students/${studentId}/helpCallCount`] = newCount;
+    updates[`users/students/${studentId}/lastHelpTimestamp`] = Date.now();
+    updates[`users/students/${studentId}/lastAction`] = `תלמיד ביקש עזרה מהמורה! (קריאה #${newCount})`;
+    updates[`users/students/${studentId}/last_alert`] = `תלמיד ביקש עזרה מהמורה! (קריאה #${newCount})`;
+    
+    updates[`users/students/${studentId}/helpHistory/${helpKey}`] = {
+      timestamp: Date.now(),
+      sessionNumber: useWorkspaceStore.getState().sessionNumber || 1,
+      type: 'CALL_FOR_HELP',
+      message: 'תלמיד ביקש עזרה מהמורה!',
+      status: 'pending'
+    };
+
+    updates[`radar_alerts/${alertId}`] = {
       studentId: studentId,
+      rawStudentId: studentId,
       studentName: user.displayName || studentId,
       timestamp: Date.now(),
       type: 'CALL_FOR_HELP',
-      message: 'תלמיד ביקש עזרה מהמורה!',
-      severity: 'alert'
+      message: `תלמיד ביקש עזרה מהמורה! (קריאה #${newCount})`,
+      severity: 'alert',
+      persistent: true
     };
 
     await update(ref(database), updates).catch(console.error);
@@ -105,7 +124,7 @@ export function StudentChatOverlay() {
     useWorkspaceStore.getState().showFeedback({
       correct: true,
       title: 'נשלחה קריאה למורה 🔔',
-      sub: 'המורה קיבל/ה את הבקשה שלך לעזרה ויגיע/תגיע אלייך בקרוב.',
+      sub: `בקשה #${newCount} נרשמה בהצלחה. המורה קיבל/ה את הבקשה ויגיע/תגיע אלייך בקרוב.`,
     }, 4000);
   };
 
