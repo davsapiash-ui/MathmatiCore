@@ -260,33 +260,33 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
   return (
     <div className="flex flex-col gap-8" dir="rtl">
       {/* Visual Live Feed Component (Mini-Radar) */}
-      <section className="bg-slate-950 text-white rounded-3xl p-6 shadow-2xl border border-indigo-500/20 relative overflow-hidden">
-        <div className="absolute -top-16 -left-16 w-56 h-56 bg-indigo-500/15 rounded-full blur-3xl pointer-events-none" />
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 border-b border-slate-800 pb-4">
+      <section className="bg-gradient-to-r from-indigo-900 via-indigo-800 to-purple-900 text-white rounded-3xl p-6 shadow-xl shadow-indigo-500/15 border border-indigo-400/30 relative overflow-hidden">
+        <div className="absolute -top-16 -left-16 w-56 h-56 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 border-b border-white/15 pb-4">
           <div className="flex items-center gap-3">
             <div className="relative flex items-center justify-center">
               <span className="animate-ping absolute inline-flex h-5 w-5 rounded-full bg-emerald-400 opacity-75" />
-              <div className="relative w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-emerald-400 shadow-lg shadow-emerald-500/20">
+              <div className="relative w-10 h-10 rounded-2xl bg-emerald-400/20 border border-emerald-300/40 flex items-center justify-center text-emerald-300 shadow-lg shadow-emerald-500/20">
                 <Activity className="w-5 h-5" />
               </div>
             </div>
             <div>
               <h2 className="text-xl font-black tracking-tight text-white flex items-center gap-2">
                 רדאר פדגוגי בזמן אמת
-                <span className="text-xs bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 px-2.5 py-0.5 rounded-full font-bold">
+                <span className="text-xs bg-white/20 text-white border border-white/30 px-2.5 py-0.5 rounded-full font-bold backdrop-blur-md">
                   לייב
                 </span>
               </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-indigo-100 mt-0.5">
                 ניטור רציף של פעולות התלמידים, השהיות והתראות קוגניטיביות בזמן אמת
               </p>
             </div>
           </div>
           
           <div className="flex items-center gap-3">
-            <div className="bg-slate-900 border border-amber-500/30 px-4 py-2 rounded-2xl text-xs flex items-center gap-2 shadow-inner">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" />
-              <span className="text-slate-300">תלמידים במאבק: <strong className="text-amber-300 font-extrabold text-sm">{strugglingCount} / 35</strong></span>
+            <div className="bg-white/15 border border-white/25 backdrop-blur-md px-4 py-2 rounded-2xl text-xs flex items-center gap-2 shadow-inner">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-300 animate-pulse" />
+              <span className="text-indigo-100">תלמידים במאבק: <strong className="text-amber-300 font-extrabold text-sm">{strugglingCount} / 35</strong></span>
             </div>
           </div>
         </div>

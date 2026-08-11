@@ -777,7 +777,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
 
       {/* Sidebar */}
       {!hideSidebar && (
-        <aside className="w-full md:w-64 lg:w-72 bg-ws-surface/80 backdrop-blur-xl border-b md:border-b-0 md:border-l border-ws-surface2 flex flex-col shadow-lg z-20 transition-all shrink-0 md:min-h-screen sticky top-0 md:h-screen overflow-y-auto custom-scrollbar">
+        <aside className="w-full md:w-64 lg:w-72 bg-white dark:bg-slate-900 border-b md:border-b-0 md:border-l border-slate-200/80 dark:border-slate-800 flex flex-col shadow-md z-20 transition-all shrink-0 md:min-h-screen sticky top-0 md:h-screen overflow-y-auto custom-scrollbar">
         <div className="h-20 flex items-center gap-3 px-6 border-b border-ws-surface2 bg-white/40 dark:bg-slate-800/40 shrink-0">
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-display font-black text-lg rotate-[-4deg] shrink-0 shadow-lg shadow-indigo-500/25">
             M

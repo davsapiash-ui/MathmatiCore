@@ -58,35 +58,35 @@ export function ClassManagement({
     <div className="p-6 md:p-10 max-w-7xl mx-auto w-full h-full flex flex-col space-y-8 animate-in fade-in duration-500" dir="rtl">
       
       {/* Header Banner */}
-      <header className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-8 text-white shadow-2xl border border-indigo-500/20">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+      <header className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-600 p-8 text-white shadow-xl shadow-indigo-500/20 border border-indigo-400/20">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none" />
         
         <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div className="space-y-3">
-            <div className="flex items-center gap-2 text-xs font-bold text-indigo-300">
-              <span className="bg-indigo-500/20 border border-indigo-400/30 px-3 py-1 rounded-full flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+            <div className="flex items-center gap-2 text-xs font-bold text-indigo-100">
+              <span className="bg-white/15 border border-white/20 px-3 py-1 rounded-full flex items-center gap-1.5 backdrop-blur-sm">
+                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
                 {currentSchool?.name || 'מוסד פיילוט מרכזי'}
               </span>
-              <ChevronRight className="w-4 h-4 opacity-50 rotate-180" />
-              <span className="bg-cyan-500/20 border border-cyan-400/30 px-3 py-1 rounded-full text-cyan-300">
+              <ChevronRight className="w-4 h-4 opacity-70 rotate-180" />
+              <span className="bg-white/15 border border-white/20 px-3 py-1 rounded-full text-white backdrop-blur-sm">
                 {currentClass?.name || 'כיתה א׳ מרכזית'}
               </span>
             </div>
 
             <h1 className="text-3xl md:text-4xl font-black tracking-tight text-white flex items-center gap-3">
-              <Users className="w-9 h-9 text-indigo-400" />
+              <Users className="w-9 h-9 text-indigo-200" />
               ניהול פדגוגי וכיתתי
             </h1>
-            <p className="text-slate-300 text-sm md:text-base font-light max-w-2xl">
+            <p className="text-indigo-100 text-sm md:text-base font-medium max-w-2xl">
               מבט על כיתתי, עקיפה פיזית גורפת, וניטור רדאר קוגניטיבי מותאם לפרטיות תלמידים.
             </p>
           </div>
 
-          <div className="flex items-center gap-3 bg-white/5 border border-white/10 backdrop-blur-md px-4 py-3 rounded-2xl">
+          <div className="flex items-center gap-3 bg-white/15 border border-white/25 backdrop-blur-md px-4 py-3 rounded-2xl">
             <div className="text-center">
-              <span className="text-[11px] text-slate-400 block font-semibold">תלמידים משוייכים</span>
-              <span className="text-xl font-black text-indigo-300">{allStudents.length} / 35</span>
+              <span className="text-[11px] text-indigo-100 block font-semibold">תלמידים משוייכים</span>
+              <span className="text-xl font-black text-white">{allStudents.length} / 35</span>
             </div>
           </div>
         </div>
@@ -95,7 +95,7 @@ export function ClassManagement({
       {/* PRD Section 7: Dual-Level Override Control Banner */}
       <div className="grid md:grid-cols-2 gap-6">
         {/* Zero PII Privacy Card */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl flex gap-4 items-start shadow-xl relative overflow-hidden">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-6 rounded-3xl flex gap-4 items-start shadow-lg shadow-slate-200/50 relative overflow-hidden">
           <div className="w-12 h-12 rounded-2xl bg-amber-500/10 dark:bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0 mt-0.5">
             <Lock className="w-6 h-6" />
           </div>
@@ -110,20 +110,20 @@ export function ClassManagement({
         </div>
 
         {/* Class-Level Override Card */}
-        <div className="bg-gradient-to-br from-indigo-900/90 to-purple-950/90 border border-indigo-500/30 p-6 rounded-3xl flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between shadow-xl text-white relative overflow-hidden">
+        <div className="bg-gradient-to-br from-indigo-600 to-purple-700 border border-indigo-400/30 p-6 rounded-3xl flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between shadow-xl shadow-indigo-500/15 text-white relative overflow-hidden">
           <div className="space-y-1 flex-1">
-            <div className="inline-flex items-center gap-1.5 text-xs text-indigo-300 font-bold mb-1">
-              <Zap className="w-3.5 h-3.5 text-amber-400" />
+            <div className="inline-flex items-center gap-1.5 text-xs text-indigo-100 font-bold mb-1">
+              <Zap className="w-3.5 h-3.5 text-amber-300" />
               <span>עקיפה פיזית כיתתית (Strict CRA Bridge)</span>
             </div>
             <h3 className="font-bold text-white text-base">
               אפיון כיתתי גורף (Class-Level Override)
             </h3>
-            <p className="text-xs text-slate-300 leading-relaxed">
+            <p className="text-xs text-indigo-100 leading-relaxed">
               הפעלת פרופיל תמיכה מוגבר ו-Strict CRA Bridge גורף לכלל תלמידי הכיתה (סעיף 7 באפיון).
             </p>
             {appliedOverride && (
-              <div className="text-xs font-bold text-emerald-400 flex items-center gap-1.5 mt-2 bg-emerald-500/20 border border-emerald-400/30 px-3 py-1 rounded-xl w-fit animate-bounce">
+              <div className="text-xs font-bold text-emerald-300 flex items-center gap-1.5 mt-2 bg-emerald-500/25 border border-emerald-400/40 px-3 py-1 rounded-xl w-fit animate-bounce">
                 <Check className="w-4 h-4" />
                 <span>אפיון כיתתי גורף הוחל בהצלחה על כלל הכיתה!</span>
               </div>
@@ -134,7 +134,7 @@ export function ClassManagement({
             type="button"
             onClick={handleApplyClassLevelOverride}
             disabled={isApplying}
-            className="px-5 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-extrabold text-xs rounded-2xl shadow-lg shadow-indigo-500/30 shrink-0 transition-all active:scale-95 border border-indigo-400/30 disabled:opacity-50"
+            className="px-5 py-3 bg-white text-indigo-700 hover:bg-indigo-50 font-extrabold text-xs rounded-2xl shadow-lg shrink-0 transition-all active:scale-95 border border-white/50 disabled:opacity-50"
           >
             {isApplying ? 'מחיל עקיפה גורפת...' : 'החל עקיפה גורפת'}
           </button>
