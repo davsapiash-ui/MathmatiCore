@@ -5,6 +5,7 @@ import { ref, push, update } from 'firebase/database';
 import { database, authReady } from '@/infrastructure/firebase';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
+import { normalizeStudentId } from '@/application/useChatStore';
 
 /**
  * מסך רפלקציה (מפגש 2) — port of vanilla_audit/student/reflection.html.
@@ -98,7 +99,8 @@ export function ReflectionScreen() {
 
       // Update student status to wait for teacher approval. The backend will asynchronously
       // generate the AgileSessionBlueprint tasks based on this status and Q-Matrix results.
-      await update(ref(database, `users/students/${username}`), {
+      const studentId = normalizeStudentId(username);
+      await update(ref(database, `users/students/${studentId}`), {
         routeStatus: 'PENDING_TEACHER_APPROVAL',
         qMatrixResults: qMatrix,
         effort: effort,

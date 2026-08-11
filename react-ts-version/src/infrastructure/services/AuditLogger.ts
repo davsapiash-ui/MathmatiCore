@@ -44,7 +44,10 @@ class AuditLoggerService {
         errorCategory = action;
       }
 
-      const radarRef = ref(database, `users/students/${userId}/radar_history`);
+      const cleanId = (userId || '').trim().toLowerCase();
+      const normId = cleanId === 'admin' || cleanId === 'teacher' || cleanId.startsWith('student_') ? cleanId : `student_${cleanId}`;
+
+      const radarRef = ref(database, `users/students/${normId}/radar_history`);
       await push(radarRef, {
         type,
         errorCategory,
@@ -56,7 +59,8 @@ class AuditLoggerService {
       const alertsRef = ref(database, 'radar_alerts');
       await push(alertsRef, {
         type,
-        studentId: userId,
+        studentId: normId,
+        rawStudentId: normId,
         timestamp,
         details: details || null,
       });

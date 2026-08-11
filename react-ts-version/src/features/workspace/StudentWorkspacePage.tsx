@@ -19,7 +19,7 @@ import { useSettingsStore } from '@/application/useSettingsStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { database, authReady } from '@/infrastructure/firebase';
 import { ref, push, onValue, remove, get, set, update } from 'firebase/database';
-import { useChatStore } from '@/application/useChatStore';
+import { useChatStore, normalizeStudentId } from '@/application/useChatStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getCurrentQTask, isSubtaskActive } from '@/core/qmatrixFlow';
 import { PlaceValueBoard } from './board/PlaceValueBoard';
@@ -81,10 +81,11 @@ export function StudentWorkspacePage() {
   }, [user?.uid]);
 
   const [teacherHint, setTeacherHint] = useState<string | null>(null);
+  const normUid = normalizeStudentId(user?.uid || '');
 
   useEffect(() => {
-    if (!user?.uid) return;
-    const hintRef = ref(database, `users/students/${user.uid}/teacher_hint`);
+    if (!normUid) return;
+    const hintRef = ref(database, `users/students/${normUid}/teacher_hint`);
     const unsub = onValue(hintRef, (snap) => {
       if (snap.exists()) {
         const hintData = snap.val();
@@ -94,16 +95,16 @@ export function StudentWorkspacePage() {
       }
     });
     return () => unsub();
-  }, [user?.uid]);
+  }, [normUid]);
 
   const handleAcknowledgeHint = async () => {
-    if (!user?.uid) return;
-    const hintRef = ref(database, `users/students/${user.uid}/teacher_hint`);
+    if (!normUid) return;
+    const hintRef = ref(database, `users/students/${normUid}/teacher_hint`);
     await remove(hintRef);
 
     let resolvedTeacherId: string = '039604483'; // default fallback
     try {
-      const studentSnap = await get(ref(database, `users/students/${user.uid}`));
+      const studentSnap = await get(ref(database, `users/students/${normUid}`));
       const classId = studentSnap.val()?.classId;
       if (classId) {
         const classSnap = await get(ref(database, `classes/${classId}`));
@@ -115,7 +116,7 @@ export function StudentWorkspacePage() {
     }
 
     const chatStore = useChatStore.getState();
-    chatStore.sendMessage(user.uid as string, (user as any).name || (user as any).displayName || 'תלמיד', resolvedTeacherId, `ראיתי את הרמז ("${teacherHint}"). תודה!`);
+    chatStore.sendMessage(normUid, (user as any)?.name || (user as any)?.displayName || 'תלמיד', resolvedTeacherId, `ראיתי את הרמז ("${teacherHint}"). תודה!`);
     
     setTeacherHint(null);
   };
@@ -148,7 +149,7 @@ export function StudentWorkspacePage() {
     
     const onVisibilityChange = () => {
       if (document.hidden) {
-        const studentId = useAuthStore.getState().user?.uid;
+        const studentId = normalizeStudentId(useAuthStore.getState().user?.uid || '');
         if (studentId) {
           AuditLogger.log('TAB_ESCAPE', studentId, 'Student switched to another tab or window');
         }
@@ -172,7 +173,7 @@ export function StudentWorkspacePage() {
     let cancelled = false;
     const sessionId = Date.now().toString();
 
-    const uid = user?.uid;
+    const uid = normUid;
     if (!uid) return;
 
     // Save this session ID so the dashboard knows what to fetch without OOM
