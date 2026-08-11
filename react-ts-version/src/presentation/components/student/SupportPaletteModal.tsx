@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bot, Lightbulb, Grid3X3, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -11,8 +12,9 @@ interface SupportPaletteModalProps {
 export function SupportPaletteModal({ isOpen, onClose, onSelectOption }: SupportPaletteModalProps) {
   return (
     <AnimatePresence>
-      {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {isOpen &&
+        createPortal(
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center">
           {/* Dark overlay to focus attention */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -78,7 +80,8 @@ export function SupportPaletteModal({ isOpen, onClose, onSelectOption }: Support
               אל דאגה, לוקחים את הזמן בקצב שלך.
             </p>
           </motion.div>
-        </div>
+        </div>,
+        document.body
       )}
     </AnimatePresence>
   );

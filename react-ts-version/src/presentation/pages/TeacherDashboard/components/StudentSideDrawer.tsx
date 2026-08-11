@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { type StudentData } from '@/application/useStore';
 import { X, CheckCircle, Video, ListTodo, Sliders } from 'lucide-react';
 import { StudentReplayAndLogs } from './StudentReplayAndLogs';
@@ -19,14 +20,14 @@ export function StudentSideDrawer({ student, onClose, isPendingApproval, onAppro
 
   if (!student) return null;
 
-  return (
+  return createPortal(
     <>
       <div 
-        className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm z-40 transition-opacity"
+        className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-[9998] transition-opacity"
         onClick={onClose}
       />
       
-      <div className="fixed top-0 right-0 w-full sm:w-[600px] h-[100dvh] bg-white dark:bg-slate-900 shadow-2xl z-50 flex flex-col transform transition-transform duration-300 border-l border-slate-200 dark:border-slate-800" dir="rtl">
+      <div className="fixed top-0 right-0 w-full sm:w-[600px] h-[100dvh] bg-white dark:bg-slate-900 shadow-2xl z-[9999] flex flex-col transform transition-transform duration-300 border-l border-slate-200 dark:border-slate-800" dir="rtl">
         {/* Mobile Drag Handle Signifier */}
         <div className="mx-auto my-2 h-1.5 w-12 rounded-full bg-slate-300 dark:bg-slate-700 sm:hidden shrink-0" />
         
@@ -143,6 +144,7 @@ export function StudentSideDrawer({ student, onClose, isPendingApproval, onAppro
           )}
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 }
