@@ -146,24 +146,26 @@ export function Login() {
         setErrorMsg("אנא בחר בית ספר וכיתה.");
         return;
       }
-      let rawInput = username.trim().toLowerCase();
-      // Normalize Hebrew "משתמש 1", "משתמש1", "user1", "1" -> "student_user1"
-      if (rawInput.startsWith("משתמש")) {
-        const num = rawInput.replace(/[^0-9]/g, "");
-        rawInput = num ? `user${num}` : rawInput.replace("משתמש", "user");
-      } else if (/^\d+$/.test(rawInput)) {
-        rawInput = `user${rawInput}`;
+      const rawTrimmed = username.trim();
+      // Strict Hebrew student input: must start with "משתמש" (e.g. "משתמש 1" or "משתמש1")
+      if (!rawTrimmed.startsWith("משתמש")) {
+        setErrorMsg("אנא הזן שם משתמש בפורמט עברי (לדוגמה: משתמש 1 או משתמש1).");
+        return;
       }
 
-      const studentKey = rawInput.startsWith("student_") ? rawInput : `student_${rawInput}`;
+      const num = rawTrimmed.replace(/[^0-9]/g, "");
+      if (!num) {
+        setErrorMsg("אנא כלול את מספר המשתמש (לדוגמה: משתמש 1).");
+        return;
+      }
+
+      const studentKey = `student_user${num}`;
       
       const storeStudents = useStore.getState().students;
       let matchedStudent = storeStudents[studentKey];
       if (!matchedStudent) {
         const match = Object.values(storeStudents).find(
-          (s) => s.name.toLowerCase() === rawInput || 
-                 s.studentId.toLowerCase() === rawInput ||
-                 s.name.toLowerCase() === username.trim().toLowerCase()
+          (s) => s.name === `משתמש ${num}` || s.studentId === studentKey
         );
         if (match) matchedStudent = match;
       }
