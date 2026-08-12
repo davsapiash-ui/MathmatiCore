@@ -33,7 +33,7 @@ import { ReflectionScreen } from './ReflectionScreen';
 import { Session8ReflectionScreen } from '@/presentation/components/student/Session8ReflectionScreen';
 import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
 import { useStore } from '@/application/useStore';
-import { Clock } from 'lucide-react';
+import { Clock, X } from 'lucide-react';
 
 import { StudentChatOverlay } from './overlays/StudentChatOverlay';
 import { AdditionHelper } from './board/AdditionHelper';
@@ -103,9 +103,10 @@ export function StudentWorkspacePage() {
   }, [normUid]);
 
   const handleAcknowledgeHint = async () => {
+    setTeacherHint(null);
     if (!normUid) return;
     const hintRef = ref(database, `users/students/${normUid}/teacher_hint`);
-    await remove(hintRef);
+    await remove(hintRef).catch(console.error);
 
     let resolvedTeacherId: string = '039604483'; // default fallback
     try {
@@ -520,8 +521,15 @@ export function StudentWorkspacePage() {
                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl border-4 border-ws-accent text-center"
+                className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl border-4 border-ws-accent text-center relative"
               >
+                <button 
+                  onClick={handleAcknowledgeHint}
+                  aria-label="סגור הודעה"
+                  className="absolute top-4 left-4 w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-all cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
                 <div className="text-5xl mb-4">👨‍🏫</div>
                 <h2 className="text-2xl font-black font-display text-ws-ink mb-4">הודעה מהמורה</h2>
                 <p className="text-xl text-ws-ink font-medium mb-8 bg-blue-50 p-6 rounded-2xl leading-relaxed">
