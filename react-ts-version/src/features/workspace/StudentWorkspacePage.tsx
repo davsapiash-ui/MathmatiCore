@@ -542,15 +542,13 @@ export function StudentWorkspacePage() {
         <HelpOverlays />
         <StudentChatOverlay />
         
-        {aiSocraticHint && (
+        {aiSocraticHint && (useSettingsStore.getState().autoShowHints || useWorkspaceStore.getState().helpState !== 'closed') && (
           <GraphicOrganizerHint 
             hint={aiSocraticHint} 
             onClose={() => useWorkspaceStore.setState({ aiSocraticHint: null, helpState: 'closed' })}
             onSelectOption={(id) => {
               const state = useWorkspaceStore.getState();
               if (state.keyboardState === 'SOCRATIC_ONLY') {
-                // If the backend doesn't specify a correct choice, any answer unlocks it.
-                // If we add `correctChoiceId` in the future, we can validate it here.
                 if (!(aiSocraticHint as any).correctChoiceId || (aiSocraticHint as any).correctChoiceId === id) {
                   state.unlockKeyboard();
                 }
