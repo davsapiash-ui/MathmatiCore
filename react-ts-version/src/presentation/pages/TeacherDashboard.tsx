@@ -379,7 +379,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
             row.qMatrixResults || {}
           ),
           traceData: {
-            hesitation_events: Math.max(existingLocal?.traceData?.hesitation_events || 0, row.traceData?.hesitation_events || 0, row.workspaceState?.hesitationCount || 0),
+            hesitation_events: Math.max(existingLocal?.traceData?.hesitation_events || 0, row.traceData?.hesitation_events || 0, row.workspaceState?.hesitationCount || 0, row.hesitating?.hesitating ? 1 : 0),
             undo_clicks: Math.max(existingLocal?.traceData?.undo_clicks || 0, row.traceData?.undo_clicks || 0, row.workspaceState?.undoCount || 0),
           },
           completedMeeting2: row.completedMeeting2 ?? existingLocal?.completedMeeting2 ?? false,
@@ -387,11 +387,12 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
           routeStatus: row.routeStatus ?? existingLocal?.routeStatus ?? null,
           diagnosticReport: row.diagnosticReport ?? existingLocal?.diagnosticReport ?? null,
           additionBoardEnabled: row.additionBoardEnabled ?? existingLocal?.additionBoardEnabled ?? false,
+          reflections: row.reflections ?? existingLocal?.reflections ?? null,
           // Support legacy props expected by some components
           currentTask: row.workspaceState?.standardTaskIdx || 0,
           sessionNum: row.workspaceState?.sessionNumber || 1,
           radar: {
-            hesitations: row.workspaceState?.hesitationCount || 0,
+            hesitations: Math.max(row.workspaceState?.hesitationCount || 0, row.hesitating?.hesitating ? 1 : 0),
             deletions: row.workspaceState?.undoCount || 0,
           },
         } as any;

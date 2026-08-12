@@ -272,7 +272,36 @@ export function StudentWorkspacePage() {
   const students = useStore((s) => s.students);
   const firebaseLoaded = useStore((s) => s.firebaseLoaded);
   const myData = user?.uid ? students[user.uid] : null;
-  const isAdditionBoardEnabled = myData?.additionBoardEnabled ?? false;
+
+  // Real-time additionBoardEnabled listener
+  const [liveAdditionBoardEnabled, setLiveAdditionBoardEnabled] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!user?.uid) return;
+    const boardRef = ref(database, `users/students/${user.uid}/additionBoardEnabled`);
+    const unsub = onValue(boardRef, (snap) => {
+      if (snap.exists()) {
+        const val = Boolean(snap.val());
+        setLiveAdditionBoardEnabled(val);
+        useStore.setState((s) => {
+          if (s.students[user.uid]) {
+            return {
+              students: {
+                ...s.students,
+                [user.uid]: {
+                  ...s.students[user.uid],
+                  additionBoardEnabled: val,
+                },
+              },
+            };
+          }
+          return s;
+        });
+      }
+    });
+    return () => unsub();
+  }, [user?.uid]);
+
+  const isAdditionBoardEnabled = liveAdditionBoardEnabled ?? (myData?.additionBoardEnabled ?? false);
 
   // --- PRD Section 4.5: Physical Override Teardown Cleanup Pipeline ---
   useEffect(() => {

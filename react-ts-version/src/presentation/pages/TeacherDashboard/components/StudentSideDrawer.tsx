@@ -144,6 +144,18 @@ export function StudentSideDrawer({ student, onClose, isPendingApproval, onAppro
                   ))}
                 </div>
               </div>
+
+              {sAny.reflections && (
+                <div className="bg-indigo-50/50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800 p-4 rounded-xl space-y-2 mb-6">
+                  <h4 className="font-bold text-sm text-indigo-900 dark:text-indigo-200">רפלקציית תלמיד מתועדת</h4>
+                  <p className="text-xs text-indigo-700 dark:text-indigo-300">
+                    <span className="font-semibold">מאמץ מוערך:</span> {sAny.reflections.effort || 'לא רלוונטי'}
+                  </p>
+                  <p className="text-xs text-indigo-700 dark:text-indigo-300">
+                    <span className="font-semibold">אסטרטגיות שנבחרו:</span> {Array.isArray(sAny.reflections.strategies) ? sAny.reflections.strategies.join(', ') : (sAny.reflections.strategies || 'אין')}
+                  </p>
+                </div>
+              )}
               
               {/* Physical Override Controls inside Replay Tab */}
               <PhysicalOverrideControl student={student} />
