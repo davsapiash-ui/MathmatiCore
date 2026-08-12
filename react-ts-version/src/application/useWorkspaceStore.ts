@@ -33,6 +33,7 @@ import { computeCognitiveMastery } from '@/core/QMatrix';
 import { useStore } from '@/application/useStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { CurriculumRouter } from '@/core/CurriculumRouter';
+import { syncQMatrixEvaluation } from '@/core/ExerciseValidationEngine';
 import { QMatrixEvaluator } from '@/core/QMatrix';
 import { getSessionTasks, type SessionTask } from '@/data/sessionTasks';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
@@ -407,6 +408,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
               };
               // Persist truth so the dashboard clustering reflects this student too.
               store.updateQMatrix(studentId, realQMatrix);
+              syncQMatrixEvaluation(studentId, realQMatrix).catch(console.error);
               
               const mastery = computeCognitiveMastery(realQMatrix);
               store.updateConceptMastery(studentId, mastery);
