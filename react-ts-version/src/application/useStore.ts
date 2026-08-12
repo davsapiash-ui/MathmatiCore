@@ -152,7 +152,7 @@ const generateInitialStudents = (): Record<string, StudentData> => {
     students[id] = {
       studentId: id,
       classId: 'class_1',
-      name: `user${i}`,
+      name: `משתמש ${i}`,
       completedMeeting2: false, // Default
       highestCompletedMeeting: 0,
       qMatrixResults: {

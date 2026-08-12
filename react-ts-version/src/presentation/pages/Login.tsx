@@ -146,25 +146,37 @@ export function Login() {
         setErrorMsg("אנא בחר בית ספר וכיתה.");
         return;
       }
-      const rawInput = username.trim().toLowerCase();
+      let rawInput = username.trim().toLowerCase();
+      // Normalize Hebrew "משתמש 1", "משתמש1", "user1", "1" -> "student_user1"
+      if (rawInput.startsWith("משתמש")) {
+        const num = rawInput.replace(/[^0-9]/g, "");
+        rawInput = num ? `user${num}` : rawInput.replace("משתמש", "user");
+      } else if (/^\d+$/.test(rawInput)) {
+        rawInput = `user${rawInput}`;
+      }
+
       const studentKey = rawInput.startsWith("student_") ? rawInput : `student_${rawInput}`;
       
       const storeStudents = useStore.getState().students;
       let matchedStudent = storeStudents[studentKey];
       if (!matchedStudent) {
         const match = Object.values(storeStudents).find(
-          (s) => s.name.toLowerCase() === rawInput || s.studentId.toLowerCase() === rawInput
+          (s) => s.name.toLowerCase() === rawInput || 
+                 s.studentId.toLowerCase() === rawInput ||
+                 s.name.toLowerCase() === username.trim().toLowerCase()
         );
         if (match) matchedStudent = match;
       }
 
       if (!matchedStudent) {
-        setErrorMsg("שם המשתמש אינו קיים במערכת. אנא ודא שהזנת פרטי תלמיד נכונים.");
+        setErrorMsg("שם המשתמש אינו קיים במערכת. אנא ודא שהזנת פרטי תלמיד נכונים (לדוגמה: משתמש 1).");
         return;
       }
 
       const studentId = matchedStudent.studentId;
-      const displayName = matchedStudent.name || `תלמיד (${username.trim()})`;
+      const numMatch = studentId.match(/\d+/);
+      const studentNum = numMatch ? numMatch[0] : "";
+      const displayName = matchedStudent.name || (studentNum ? `משתמש ${studentNum}` : `משתמש (${username.trim()})`);
 
       setIsLoggingIn(true);
       try {
@@ -365,7 +377,7 @@ export function Login() {
                           </select>
                           <input
                             type="text"
-                            placeholder="שם משתמש"
+                            placeholder="שם משתמש (לדוגמה: משתמש 1)"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
                             className={inputClass}

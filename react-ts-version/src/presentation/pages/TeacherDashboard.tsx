@@ -382,8 +382,9 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
         }
 
         let cleanName = row.name ?? row.profile?.displayName ?? row.studentName ?? formattedStudents[uid]?.name ?? uid.replace('student_','');
-        if (cleanName === 'student' || cleanName === 'student_user1' || cleanName.toLowerCase().startsWith('student_')) {
-            cleanName = uid.replace('student_', ''); // Force 'user1'
+        if (cleanName === 'student' || cleanName.startsWith('user') || cleanName.toLowerCase().startsWith('student_')) {
+            const num = uid.replace(/[^0-9]/g, '');
+            cleanName = num ? `משתמש ${num}` : cleanName;
         }
 
         const existingLocal = formattedStudents[uid];
