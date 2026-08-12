@@ -150,15 +150,17 @@ export const useChatStore = create<ChatState>()(
 );
 
 // Subscribe to auth changes to start chat sync safely
-useAuthStore.subscribe((authState) => {
-  if (authState.isAuthenticated && authState.user) {
-    useChatStore.getState().initSync();
-  } else {
-    isSynced = false;
-    if (chatUnsubscribe) {
-      chatUnsubscribe();
-      chatUnsubscribe = null;
+if (useAuthStore && typeof (useAuthStore as any).subscribe === 'function') {
+  (useAuthStore as any).subscribe((authState: any) => {
+    if (authState?.isAuthenticated && authState?.user) {
+      useChatStore.getState().initSync();
+    } else {
+      isSynced = false;
+      if (chatUnsubscribe) {
+        chatUnsubscribe();
+        chatUnsubscribe = null;
+      }
+      useChatStore.setState({ messages: [] });
     }
-    useChatStore.setState({ messages: [] });
-  }
-});
+  });
+}

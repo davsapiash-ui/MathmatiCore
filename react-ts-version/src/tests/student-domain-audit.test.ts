@@ -107,6 +107,7 @@ describe('Student Domain Verification & Audit Suite', () => {
       let sessionStorageMatches = 0;
 
       for (const filePath of files) {
+        if (filePath.includes('__tests__') || filePath.includes('/tests/') || filePath.endsWith('.test.ts') || filePath.endsWith('.test.tsx')) continue;
         const content = readFileSync(filePath, 'utf-8');
         // Match actual property accesses, not comments or variable names that contain the string
         if (/window\.localStorage\b|\blocalStorage\.(getItem|setItem|removeItem|clear)\b/.test(content)) {

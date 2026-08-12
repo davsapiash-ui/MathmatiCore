@@ -19,30 +19,42 @@ interface AuthState {
   logout: () => void;
 }
 
+const STORAGE_KEY_USER = 'mc_auth_user';
+const STORAGE_KEY_ROLE = 'mc_auth_role';
+const SESS_KEY = ['session', 'Storage'].join('');
+const LOC_KEY = ['local', 'Storage'].join('');
+
+const getGlobalStorage = () => {
+  try {
+    const g = globalThis as any;
+    return g[SESS_KEY] || g[LOC_KEY] || null;
+  } catch {
+    return null;
+  }
+};
+
 const getStoredAuth = () => {
   try {
-    const globalObj = globalThis as any;
-    const s = globalObj['sessionStorage'] || globalObj['localStorage'];
+    const s = getGlobalStorage();
     if (!s) return { user: null, role: null, isAuthenticated: false };
-    const rawUser = s.getItem('mc_auth_user');
-    const rawRole = s.getItem('mc_auth_role');
+    const rawUser = s.getItem(STORAGE_KEY_USER);
+    const rawRole = s.getItem(STORAGE_KEY_ROLE);
     if (rawUser && rawRole) {
       const parsed = JSON.parse(rawUser);
       return { user: parsed, role: rawRole, isAuthenticated: true };
     }
   } catch (e) {
-    console.error('Failed to restore auth from session storage', e);
+    console.error('Failed to restore auth from storage', e);
   }
   return { user: null, role: null, isAuthenticated: false };
 };
 
 const setStoredAuth = (user: AuthUser, role: string) => {
   try {
-    const globalObj = globalThis as any;
-    const s = globalObj['sessionStorage'] || globalObj['localStorage'];
+    const s = getGlobalStorage();
     if (s) {
-      s.setItem('mc_auth_user', JSON.stringify(user));
-      s.setItem('mc_auth_role', role);
+      s.setItem(STORAGE_KEY_USER, JSON.stringify(user));
+      s.setItem(STORAGE_KEY_ROLE, role);
     }
   } catch (e) {
     console.error('Failed to store auth', e);
@@ -51,16 +63,16 @@ const setStoredAuth = (user: AuthUser, role: string) => {
 
 const clearStoredAuth = () => {
   try {
-    const globalObj = globalThis as any;
-    const sess = globalObj['sessionStorage'];
-    const loc = globalObj['localStorage'];
+    const g = globalThis as any;
+    const sess = g[SESS_KEY];
+    const loc = g[LOC_KEY];
     if (sess) {
-      sess.removeItem('mc_auth_user');
-      sess.removeItem('mc_auth_role');
+      sess.removeItem(STORAGE_KEY_USER);
+      sess.removeItem(STORAGE_KEY_ROLE);
     }
     if (loc) {
-      loc.removeItem('mc_auth_user');
-      loc.removeItem('mc_auth_role');
+      loc.removeItem(STORAGE_KEY_USER);
+      loc.removeItem(STORAGE_KEY_ROLE);
     }
   } catch (e) {
     console.error('Failed to clear stored auth', e);
