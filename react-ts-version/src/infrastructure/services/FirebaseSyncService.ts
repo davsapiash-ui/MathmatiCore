@@ -951,21 +951,38 @@ export class FirebaseSyncService {
     await update(ref(database), updates);
   }
 
-  public async setGlobalStudentLimit(limit: number) {
+  public async registerStudentAtomic(studentId: string): Promise<boolean> {
+    if (!studentId) throw new Error("Student ID is required for atomic registration");
     const limitRef = ref(database, 'system_control/globalStudentLimit');
-    try {
-      // @ts-ignore
-      if (typeof runTransaction === 'function') {
-        await runTransaction(limitRef, (currentVal) => {
-          if (typeof limit !== 'number' || limit < 1) return currentVal;
-          return limit;
-        });
-        return;
+    const limitSnap = await get(limitRef);
+    const limit = limitSnap.exists() ? Number(limitSnap.val()) : 35;
+
+    const countRef = ref(database, 'system_control/activeStudentCount');
+    let transactionPassed = false;
+
+    await runTransaction(countRef, (currentCount) => {
+      const count = currentCount || 0;
+      if (count >= limit) {
+        transactionPassed = false;
+        return; // Abort transaction if limit reached
       }
-    } catch (e) {
-      // Fallback if mock is missing or transaction fails
+      transactionPassed = true;
+      return count + 1;
+    });
+
+    if (!transactionPassed) {
+      throw new Error(`Student registration blocked: Global limit (${limit}) reached.`);
     }
-    await set(limitRef, limit);
+
+    return true;
+  }
+
+  public async setGlobalStudentLimit(limit: number) {
+    if (typeof limit !== 'number' || limit < 1) {
+      throw new Error("Invalid global student limit");
+    }
+    const limitRef = ref(database, 'system_control/globalStudentLimit');
+    await runTransaction(limitRef, () => limit);
   }
 }
 

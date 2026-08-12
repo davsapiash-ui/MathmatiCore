@@ -13,6 +13,7 @@ vi.mock('firebase/database', () => ({
   push: vi.fn(() => ({ key: 'mock_push_key_123' })),
   onValue: vi.fn(),
   onDisconnect: vi.fn(() => ({ set: vi.fn() })),
+  runTransaction: vi.fn(async (_ref, updateFn) => { if (typeof updateFn === 'function') return updateFn(0); }),
   serverTimestamp: vi.fn(() => Date.now())
 }));
 

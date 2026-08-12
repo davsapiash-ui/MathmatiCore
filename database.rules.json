@@ -5,32 +5,32 @@
 
     "schools": {
       ".read": "auth != null",
-      ".write": "auth != null && (auth.token.admin === true || auth.token.role === 'admin' || auth.token.email === 'admin@mathmaticore.local')"
+      ".write": "auth != null && (auth.token.role === 'admin' || auth.token.admin === true)"
     },
 
     "public_classes": {
       ".read": true,
-      ".write": "auth != null && (auth.token.admin === true || auth.token.role === 'admin' || auth.token.email === 'admin@mathmaticore.local')"
+      ".write": "auth != null && (auth.token.role === 'admin' || auth.token.admin === true)"
     },
 
     "classes": {
       ".read": "auth != null",
-      ".write": "auth != null && (auth.token.admin === true || auth.token.role === 'admin' || auth.token.email === 'admin@mathmaticore.local')"
+      ".write": "auth != null && (auth.token.role === 'admin' || auth.token.admin === true)"
     },
 
     "users": {
       "students": {
-        ".read": "auth != null && (auth.token.teacher === true || auth.token.admin === true || auth.token.role === 'teacher' || auth.token.role === 'admin' || auth.token.email === 'admin@mathmaticore.local' || root.child('users/teachers/' + auth.uid).exists())",
+        ".read": "auth != null && (auth.token.role === 'teacher' || auth.token.teacher === true || auth.token.role === 'admin' || auth.token.admin === true || root.child('users/teachers/' + auth.uid).exists())",
         "$studentId": {
-          ".read": "auth != null && (auth.uid === $studentId || auth.token.email === $studentId + '@mathmaticore.local' || auth.token.teacher === true || auth.token.admin === true || auth.token.role === 'teacher' || auth.token.role === 'admin' || auth.token.email === 'admin@mathmaticore.local' || root.child('users/teachers/' + auth.uid).exists())",
-          ".write": "auth != null && (auth.uid === $studentId || auth.token.email === $studentId + '@mathmaticore.local' || auth.token.teacher === true || auth.token.admin === true || auth.token.role === 'teacher' || auth.token.role === 'admin' || auth.token.email === 'admin@mathmaticore.local' || root.child('users/teachers/' + auth.uid).exists())"
+          ".read": "auth != null && (auth.uid === $studentId || auth.token.role === 'teacher' || auth.token.teacher === true || auth.token.role === 'admin' || auth.token.admin === true || root.child('users/teachers/' + auth.uid).exists())",
+          ".write": "auth != null && (auth.uid === $studentId || auth.token.role === 'teacher' || auth.token.teacher === true || auth.token.role === 'admin' || auth.token.admin === true || root.child('users/teachers/' + auth.uid).exists())"
         }
       },
       "teachers": {
         ".read": "auth != null",
         "$teacherId": {
           ".read": "auth != null",
-          ".write": "auth != null && (auth.uid === $teacherId || auth.token.admin === true || auth.token.role === 'admin' || auth.token.email === 'admin@mathmaticore.local' || !data.exists())"
+          ".write": "auth != null && (auth.uid === $teacherId || auth.token.role === 'admin' || auth.token.admin === true || !data.exists())"
         }
       }
     },
@@ -39,7 +39,7 @@
       ".read": "auth != null",
       "$studentId": {
         ".read": "auth != null",
-        ".write": "auth != null && (auth.uid === $studentId || auth.token.teacher === true || auth.token.admin === true || auth.token.role === 'teacher' || auth.token.role === 'admin' || auth.token.email === 'admin@mathmaticore.local' || root.child('users/teachers/' + auth.uid).exists())"
+        ".write": "auth != null && (auth.uid === $studentId || auth.token.role === 'teacher' || auth.token.teacher === true || auth.token.role === 'admin' || auth.token.admin === true || root.child('users/teachers/' + auth.uid).exists())"
       }
     },
 
@@ -67,7 +67,7 @@
 
     "sessions": {
       ".read": "auth != null",
-      ".write": "auth != null && (auth.token.teacher === true || auth.token.admin === true || auth.token.role === 'teacher' || auth.token.role === 'admin' || auth.token.email === 'admin@mathmaticore.local' || root.child('users/teachers/' + auth.uid).exists())"
+      ".write": "auth != null && (auth.token.role === 'teacher' || auth.token.teacher === true || auth.token.role === 'admin' || auth.token.admin === true || root.child('users/teachers/' + auth.uid).exists())"
     },
 
     "replays": {
@@ -90,7 +90,7 @@
     "approved_tasks": {
       "$studentId": {
         ".read": "auth != null",
-        ".write": "auth != null && (auth.token.teacher === true || auth.token.admin === true || auth.token.role === 'teacher' || auth.token.role === 'admin' || auth.token.email === 'admin@mathmaticore.local')"
+        ".write": "auth != null && (auth.token.role === 'teacher' || auth.token.teacher === true || auth.token.role === 'admin' || auth.token.admin === true)"
       }
     },
 
@@ -103,16 +103,16 @@
 
     "system_control": {
       ".read": true,
-      ".write": "auth != null && (auth.token.admin === true || auth.token.role === 'admin' || auth.token.email === 'admin@mathmaticore.local')"
+      ".write": "auth != null && (auth.token.role === 'admin' || auth.token.admin === true)"
     },
 
     "active_class_session": {
       ".read": true,
-      ".write": "auth != null && (auth.token.teacher === true || auth.token.admin === true || auth.token.role === 'teacher' || auth.token.role === 'admin' || auth.token.email === 'admin@mathmaticore.local' || root.child('users/teachers/' + auth.uid).exists())"
+      ".write": "auth != null && (auth.token.role === 'teacher' || auth.token.teacher === true || auth.token.role === 'admin' || auth.token.admin === true || root.child('users/teachers/' + auth.uid).exists())"
     },
 
     "audit_logs": {
-      ".read": "auth != null && (auth.token.admin === true || auth.token.role === 'admin' || auth.token.email === 'admin@mathmaticore.local')",
+      ".read": "auth != null && (auth.token.role === 'admin' || auth.token.admin === true)",
       ".write": "auth != null",
       ".indexOn": ["timestamp"]
     }
