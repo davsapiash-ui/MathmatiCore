@@ -65,13 +65,7 @@ export function StudentWorkspacePage() {
   const isTimeExceeded = useWorkspaceStore((s) => s.isTimeExceeded);
   const awaitingNext = useWorkspaceStore((s) => s.awaitingNext);
 
-  // Soft 25-minute Timer Check
-  useEffect(() => {
-    const interval = setInterval(() => {
-      useWorkspaceStore.getState().checkTimeExceeded();
-    }, 10000); // Check every 10 seconds
-    return () => clearInterval(interval);
-  }, []);
+
 
   // Start telemetry session so the radar tracker is active
   useEffect(() => {
@@ -165,45 +159,66 @@ export function StudentWorkspacePage() {
     };
   }, []);
 
-  // RRWeb recording with batching
+  // --- RRWeb Telemetry Recording (Gated by Active Teacher Class Session) ---
   useEffect(() => {
     let stopRecording: (() => void) | undefined;
     let eventsQueue: any[] = [];
     let flushInterval: any;
     let cancelled = false;
-    const sessionId = Date.now().toString();
 
     const uid = normUid;
-    if (!uid) return;
+    const rawUid = user?.uid;
+    if (!uid || !isTeacherSessionActive || !activeClassSession) return;
 
-    // Save this session ID so the dashboard knows what to fetch without OOM
-    update(ref(database, `users/students/${uid}`), { latestTelemetrySessionId: sessionId }).catch(console.error);
+    // Use teacher's active session timestamp as the unified session ID
+    const sessionId = `session_${activeClassSession.startedAt}`;
+
+    // Save session metadata under student profile
+    const sessionMeta = { 
+      latestTelemetrySessionId: sessionId, 
+      activeSessionNumber: activeClassSession.sessionNumber,
+      lastActive: Date.now() 
+    };
+    update(ref(database, `users/students/${uid}`), sessionMeta).catch(console.error);
+    if (rawUid && rawUid !== uid) {
+      update(ref(database, `users/students/${rawUid}`), sessionMeta).catch(console.error);
+    }
 
     const flushTelemetry = () => {
       if (eventsQueue.length > 0) {
         const batch = [...eventsQueue];
         eventsQueue = [];
+        
         const newChunkRef = push(ref(database, `users/students/${uid}/telemetry_sessions/${sessionId}/chunks`));
         const chunkKey = newChunkRef.key;
         if (chunkKey) {
-          set(newChunkRef, JSON.stringify(batch)).catch(err => console.error('Telemetry push failed:', err));
+          const payload = JSON.stringify(batch);
+          set(newChunkRef, payload).catch(err => console.error('Telemetry push failed:', err));
           
+          const metaPayload = {
+            startTime: batch[0].timestamp,
+            endTime: batch[batch.length - 1].timestamp,
+            sessionNumber: activeClassSession.sessionNumber,
+          };
+
           update(ref(database, `users/students/${uid}/telemetry_sessions/${sessionId}/metadata`), {
-            [chunkKey]: {
-              startTime: batch[0].timestamp,
-              endTime: batch[batch.length - 1].timestamp
-            }
-          });
+            [chunkKey]: metaPayload
+          }).catch(console.error);
+
+          if (rawUid && rawUid !== uid) {
+            const rawChunkRef = ref(database, `users/students/${rawUid}/telemetry_sessions/${sessionId}/chunks/${chunkKey}`);
+            set(rawChunkRef, payload).catch(console.error);
+            update(ref(database, `users/students/${rawUid}/telemetry_sessions/${sessionId}/metadata`), {
+              [chunkKey]: metaPayload
+            }).catch(console.error);
+          }
         }
       }
     };
 
     // Load rrweb asynchronously
     (async () => {
-      const [rrweb] = await Promise.all([
-        import('rrweb')
-      ]);
-
+      const [rrweb] = await Promise.all([import('rrweb')]);
       if (cancelled) return;
 
       const authOk = await authReady;
@@ -239,12 +254,10 @@ export function StudentWorkspacePage() {
       window.removeEventListener('beforeunload', flushTelemetry);
       flushTelemetry();
     };
-  }, [user?.uid]);
+  }, [user?.uid, normUid, isTeacherSessionActive, activeClassSession?.startedAt]);
 
-
-
-  // Pedagogical Radar
-  useCognitiveHesitationRadar({ isActive: true });
+  // Pedagogical Radar — active ONLY when teacher session is active!
+  useCognitiveHesitationRadar({ isActive: isTeacherSessionActive });
   const [isInitializing, setIsInitializing] = useState(true);
   const [pendingApproval, setPendingApproval] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -402,33 +415,7 @@ export function StudentWorkspacePage() {
     return <ReflectionScreen />;
   }
   
-  if (isTimeExceeded && !awaitingNext && flowStatus === 'task') {
-    return (
-      <div dir="rtl" className="h-screen w-full flex flex-col items-center justify-center bg-ws-bg text-ws-ink font-body p-6">
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="bg-ws-surface p-12 rounded-3xl shadow-2xl max-w-2xl text-center border border-ws-surface2 flex flex-col items-center"
-        >
-          <div className="text-7xl mb-8 animate-bounce">🐝</div>
-          <h2 className="text-3xl font-black mb-6 text-ws-ink leading-tight">
-            איזו עבודה נפלאה עשית היום!
-            <br />
-            עכשיו זה הזמן להניח את המסך ולדבר עם המורה שרה.
-          </h2>
-          <p className="text-ws-soft text-lg mb-8 font-medium">
-            כל הכבוד על ההתמדה והמאמץ. אנחנו גאים בך!
-          </p>
-          <button 
-            onClick={() => navigate('/hub')}
-            className="px-10 py-4 bg-ws-accent text-white font-bold text-xl rounded-full shadow-md hover:brightness-105 transition-all active:scale-95"
-          >
-            המשך
-          </button>
-        </motion.div>
-      </div>
-    );
-  }
+
 
   if (isInitializing) {
     return (

@@ -544,36 +544,92 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // Target derived from the DISPLAYED (ASD-aware) operands — never from a hardcoded
       // correctAnswer that could mismatch the shown exercise.
       const { target } = effectiveArithmetic(task, s.isASD);
+      const boardVal = selectBoardValue(s);
+      const isBoardEmpty = boardVal === 0;
+
       // Gate 1: the blocks must represent the result (forced manipulative representation).
       if (s.sessionNumber !== 8) {
-        if (selectBoardValue(s) !== target) {
-          handleFailure('wrong_blocks', 'מערכת המעבדה 🤔', 'בואו נבדוק שוב את הלוח. האם הכמות של הקוביות שהנחתם תואמת בדיוק למה שמופיע בניסוי?', 3500);
+        if (isBoardEmpty) {
+          handleFailure(
+            'empty_board',
+            'בְּנִיַּת הַמִּסְפָּר בַּבַּיִת 🧱',
+            'עֲדַיִן לֹא הִנַּחְתֶּם קֻבִּיּוֹת בְּבֵית הַמְּסִפָּרִים. גִּרְרוּ אֶת קֻבִּיּוֹת הַדִּינֶס כְּדֵי לִבְנוֹת אֶת הַמִּסְפָּר!',
+            3500
+          );
           return;
         }
+
+        if (boardVal !== target) {
+          handleFailure(
+            'wrong_blocks',
+            'מערכת המעבדה 🤔',
+            'בואו נבדוק שוב את בית המספרים. הכמות של הקוביות שהנחתם אינה תואמת לתוצאת התרגיל.',
+            3500
+          );
+          return;
+        }
+
         // Gate 1.5: the representation must be canonical (properly grouped) at submission.
         const hasOvercrowded = s.counts.units >= 10 || s.counts.tens >= 10;
         if (hasOvercrowded) {
-          const title = 'לוח לא תקין 🧐';
+          const title = 'בית המספרים לא מסודר 🧐';
           const msg = task.isSubtraction
             ? 'נראה שיש מעל 9 יחידות או עשרות בעמודה. בתרגילי חיסור, האם שכחתם לבצע פריטה או להחסיר קוביות כדי להגיע לתוצאה הסופית?'
-            : 'נראה שיש מעל 9 יחידות או עשרות בעמודה. בתרגילי חיבור, יש לבצע המרה/קיבוץ כדי לסדר את הלוח בצורה תקנית!';
+            : 'נראה שיש מעל 9 יחידות או עשרות בעמודה. בתרגילי חיבור, יש לבצע המרה/קיבוץ כדי לסדר את בית המספרים בצורה תקנית!';
           handleFailure('overcrowded_columns', title, msg, 4000);
           return;
         }
       }
-      // Gate 2: the written answer must match.
+
+      // Gate 2: check if student entered a written answer
+      const hasTypedDigits = Object.keys(s.answerDigits).some(
+        (k) => s.answerDigits[k as Place] !== undefined && s.answerDigits[k as Place] !== ''
+      );
+
+      if (!hasTypedDigits) {
+        handleFailure(
+          'missing_answer',
+          'הַקְלָדַת תְּשׁוּבָה ✏️',
+          'הִנַּחְתֶּם אֶת הַקֻּבִּיּוֹת בְּבֵית הַמְּסִפָּרִים בְּצוּרָה מְעֻלָּה! כָּעֵת, הַקְלִידוּ אֶת הַתְּשׁוּבָה בְּתֵיבַת הַמַּעֲנֶה כְּדֵי לְהַמְשִׁיךְ.',
+          3500
+        );
+        return;
+      }
+
+      // Gate 2.5: check written answer match
       const ansVal = answerDigitsToNumber(s.answerDigits);
       if (ansVal !== target) {
         if (s.sessionNumber === 8) {
           handleFailure('wrong_numeric', 'נסו שוב 🤔', 'התשובה שהזנתם אינה נכונה. בדקו שוב!', 2800);
         } else {
-          handleFailure('wrong_numeric', 'כִּמְעַט... 🧐', 'הַתְּשׁוּבָה שֶׁכְּתַבְתֶּם אֵינָהּ זֵהָה לְסַךְ הַקֻּבִּיּוֹת בַּטַּבְלָה. בִּדְקוּ שׁוּב!', 2800);
+          handleFailure(
+            'wrong_numeric',
+            'כִּמְעַט... 🧐',
+            'הַתְּשׁוּבָה שֶׁכְּתַבְתֶּם אֵינָהּ תּוֹאֶמֶת לְסַךְ הַקֻּבִּיּוֹת בְּבֵית הַמְּסִפָּרִים. בִּדְקוּ שׁוּב!',
+            2800
+          );
         }
         return;
       }
-      // Gate 3: pedagogical progression compliance (grouping/ungrouping actions)
-      // Removed hard-blocks: UDL dictates we shouldn't force the concrete action if they got the right answer.
-      // The AI and radar will analyze `s.hasGrouped` in the trace data to assess procedural fluency.
+
+      // Gate 3: pedagogical memory box (carry digits) check for vertical regrouping/trading
+      if (task.type === 'vertical_addition' && (task.requiresGrouping || task.requiresUngrouping)) {
+        const hasCarriesEntered = Object.values(s.carryDigits).some((v) => v !== undefined && v !== '');
+        if (!hasCarriesEntered) {
+          showFeedback(
+            {
+              correct: true,
+              title: 'שימו לב לתיבות הזיכרון 💡',
+              sub: 'פתרתם נכון! זכרו שבתרגילי המרה ופריטה מומלץ להיעזר בחלוניות הזיכרון העליונות כדי לסמן את השאריות.',
+            },
+            3000,
+            () => {
+              advanceStandard();
+            }
+          );
+          return;
+        }
+      }
 
       // All gates passed.
       handleSuccess('כָּל הַכָּבוֹד! 🌟', 'פְּתַרְתֶּם נָכוֹן וְיִצַּגְתֶּם זֹאת מְצֻיָּן בְּבֵית הַמְּסִפָּרִים.', 2500);
@@ -637,7 +693,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     // Session complete (vanilla auto-chains 1→2 and 3→4).
     const studentId = useAuthStore.getState().user?.uid;
     if (studentId) {
+      const normId = normalizeStudentId(studentId);
       useStore.getState().updateHighestCompletedMeeting(studentId, s.sessionNumber);
+      useStore.getState().updateHighestCompletedMeeting(normId, s.sessionNumber);
+      firebaseSyncService.syncHighestCompletedMeeting(studentId, s.sessionNumber).catch(console.error);
+      if (normId !== studentId) {
+        firebaseSyncService.syncHighestCompletedMeeting(normId, s.sessionNumber).catch(console.error);
+      }
     }
 
     if (s.sessionNumber === 1) {

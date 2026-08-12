@@ -34,20 +34,26 @@ import type { RadarAlert } from "@/types/dashboard";
 import { CONCEPT_LABELS_HE } from "@/core/QMatrix";
 
 const getStudentKPIs = (student: StudentData, messages: ChatMessage[]) => {
-  // 1. Persistence
   const undo = student.traceData?.undo_clicks || 0;
   const hesitation = student.traceData?.hesitation_events || 0;
+  const hasHistory = (student.highestCompletedMeeting || 0) > 0 || student.completedMeeting2 || undo > 0 || hesitation > 0;
+
+  if (!hasHistory) {
+    return {
+      hasData: false,
+      persistence: 0,
+      efficiency: 0,
+      dialogueQuality: 0,
+    };
+  }
+
   const persistenceScore = 70 + Math.min(20, undo * 3) + Math.min(15, hesitation * 1.5);
   const persistence = Math.round(Math.min(100, persistenceScore));
 
-  // 2. Efficiency
   const meeting2Bonus = student.completedMeeting2 ? 10 : 0;
   const efficiencyScore = 90 - 2.5 * (undo + hesitation) + meeting2Bonus;
   const efficiency = Math.round(Math.max(0, Math.min(100, efficiencyScore)));
 
-  // 3. Dialogue Quality
-
-  // 4. Dialogue Quality
   const teacherMsgs = messages.filter(msg => msg.receiverId === student.studentId && msg.senderId !== student.studentId);
   let dialogueQuality = 85;
   if (teacherMsgs.length > 0) {
@@ -59,6 +65,7 @@ const getStudentKPIs = (student: StudentData, messages: ChatMessage[]) => {
   }
 
   return {
+    hasData: true,
     persistence,
     efficiency,
     dialogueQuality
@@ -241,6 +248,73 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
 
   const [teacherApprovals, setTeacherApprovals] = useState<PendingAIApproval[]>([]);
   const [fallbackApprovals, setFallbackApprovals] = useState<PendingAIApproval[]>([]);
+
+  // --- Class Session Management (20-Minute Teacher Session Timer) ---
+  const [isClassSessionActive, setIsClassSessionActive] = useState(false);
+  const [sessionStartTime, setSessionStartTime] = useState<number | null>(null);
+  const [selectedSessionNum, setSelectedSessionNum] = useState<number>(1);
+  const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
+  const [hasNotified20Min, setHasNotified20Min] = useState<boolean>(false);
+
+  // Sync active class session with Firebase
+  useEffect(() => {
+    const sessionRef = ref(database, 'active_class_session');
+    const unsub = onValue(sessionRef, (snap) => {
+      if (snap.exists()) {
+        const val = snap.val();
+        if (val && val.active && val.startedAt) {
+          setIsClassSessionActive(true);
+          setSessionStartTime(val.startedAt);
+          setSelectedSessionNum(val.sessionNumber || 1);
+        } else {
+          setIsClassSessionActive(false);
+          setSessionStartTime(null);
+        }
+      }
+    });
+    return () => unsub();
+  }, []);
+
+  // Timer Ticker
+  useEffect(() => {
+    if (!isClassSessionActive || !sessionStartTime) return;
+    const updateElapsed = () => {
+      const elapsed = Math.floor((Date.now() - sessionStartTime) / 1000);
+      setElapsedSeconds(elapsed);
+      if (elapsed >= 20 * 60 && !hasNotified20Min) {
+        setHasNotified20Min(true);
+      }
+    };
+    updateElapsed();
+    const interval = setInterval(updateElapsed, 1000);
+    return () => clearInterval(interval);
+  }, [isClassSessionActive, sessionStartTime, hasNotified20Min]);
+
+  const handleStartClassSession = async (sessionNum: number) => {
+    const now = Date.now();
+    setSessionStartTime(now);
+    setSelectedSessionNum(sessionNum);
+    setIsClassSessionActive(true);
+    setHasNotified20Min(false);
+    setElapsedSeconds(0);
+    await set(ref(database, 'active_class_session'), {
+      active: true,
+      sessionNumber: sessionNum,
+      startedAt: now,
+      teacherId: user?.uid || 'teacher',
+    }).catch(console.error);
+  };
+
+  const handleEndClassSession = async () => {
+    setIsClassSessionActive(false);
+    setSessionStartTime(null);
+    setElapsedSeconds(0);
+    await set(ref(database, 'active_class_session'), {
+      active: false,
+      endedAt: Date.now(),
+      teacherId: user?.uid || 'teacher',
+    }).catch(console.error);
+  };
 
   // Teacher-AI Co-Pilot States
   const [editingApproval, setEditingApproval] = useState<PendingAIApproval | null>(null);
@@ -898,6 +972,104 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
         <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-br from-indigo-500/5 via-transparent to-transparent pointer-events-none -z-10"></div>
         <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-gradient-to-tl from-cyan-500/5 via-transparent to-transparent pointer-events-none -z-10 rounded-full blur-3xl"></div>
 
+        {/* Class Session Control Bar & 20-min Timer Banner */}
+        <div className="mb-6 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-5 rounded-2xl shadow-xl border border-indigo-500/30 flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shadow-md ${isClassSessionActive ? 'bg-emerald-500 text-white animate-pulse' : 'bg-slate-800 text-slate-400'}`}>
+              {isClassSessionActive ? '⏱️' : '🏫'}
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-bold text-lg">
+                  {isClassSessionActive ? `מפגש ${selectedSessionNum} פעיל בכיתה` : 'ניהול מפגש בלייב'}
+                </h3>
+                {isClassSessionActive && (
+                  <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-black px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                    פתוח ללמידה
+                  </span>
+                )}
+              </div>
+              <p className="text-slate-300 text-xs mt-1">
+                {isClassSessionActive
+                  ? 'התלמידים פועלים במערכת. השעון מודד 20 דקות מפגש עד להתראת סיום יזומה.'
+                  : 'בחר מפגש ולחץ על "הפעל מפגש" כדי לפתוח את הלמידה ולמדוד 20 דקות מפגש.'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4 w-full md:w-auto justify-end">
+            {isClassSessionActive ? (
+              <>
+                {/* Live Timer Display */}
+                <div className={`px-4 py-2 rounded-xl border flex items-center gap-3 ${elapsedSeconds >= 1200 ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 animate-bounce' : 'bg-slate-800/80 border-slate-700 text-slate-200'}`}>
+                  <span className="text-xs font-bold uppercase text-slate-400">זמן שהלף:</span>
+                  <span className="font-mono text-xl font-black">
+                    {Math.floor(elapsedSeconds / 60).toString().padStart(2, '0')}:{(elapsedSeconds % 60).toString().padStart(2, '0')}
+                  </span>
+                  <span className="text-xs font-bold text-slate-400">/ 20:00 דק'</span>
+                </div>
+
+                {/* End Session Button */}
+                <button
+                  onClick={handleEndClassSession}
+                  className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm rounded-xl shadow-lg transition-all active:scale-95 flex items-center gap-2"
+                >
+                  <span>⏹️</span>
+                  <span>סגור מפגש יזום</span>
+                </button>
+              </>
+            ) : (
+              <>
+                {/* Select Session Number */}
+                <select
+                  value={selectedSessionNum}
+                  onChange={(e) => setSelectedSessionNum(parseInt(e.target.value, 10))}
+                  className="bg-slate-800 text-white border border-slate-700 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                >
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
+                    <option key={num} value={num}>
+                      מפגש {num}
+                    </option>
+                  ))}
+                </select>
+
+                {/* Start Session Button */}
+                <button
+                  onClick={() => handleStartClassSession(selectedSessionNum)}
+                  className="px-6 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold text-sm rounded-xl shadow-lg transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+                >
+                  <span>▶️</span>
+                  <span>הפעל מפגש (20 דקות)</span>
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* 20-Minute Alert Card if time exceeded */}
+        {isClassSessionActive && elapsedSeconds >= 1200 && (
+          <div className="mb-6 bg-amber-500/15 border-2 border-amber-500/60 p-5 rounded-2xl shadow-lg flex items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2">
+            <div className="flex items-center gap-3">
+              <span className="text-3xl">🔔</span>
+              <div>
+                <h4 className="font-bold text-amber-900 dark:text-amber-200 text-base">
+                  חלפו 20 דקות מראשית מפגש {selectedSessionNum}!
+                </h4>
+                <p className="text-amber-800 dark:text-amber-300 text-xs mt-0.5">
+                  מומלץ לסיים כעת את העבודה היחידנית במסכים, ללחוץ על "סגור מפגש יזום" ולעבור לדיון כיתתי ושיחה עם התלמידים.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleEndClassSession}
+              className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl shadow transition-all shrink-0 cursor-pointer"
+            >
+              סגור מפגש כעת
+            </button>
+          </div>
+        )}
+
         {activeTab === "heatmap" && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <header className="mb-6">
@@ -1372,8 +1544,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                   <span className={`font-semibold ${(s.qMatrixResults.task4_basic_addition_fluency && s.qMatrixResults.task4_basic_addition_fluency !== 'success') || (s.qMatrixResults.task6_subtraction_regrouping && s.qMatrixResults.task6_subtraction_regrouping !== 'success') ? 'text-red-500' : (s.qMatrixResults.task4_basic_addition_fluency === 'success' && s.qMatrixResults.task6_subtraction_regrouping === 'success') ? 'text-green-600' : 'text-slate-400'}`}>
                                     {(s.qMatrixResults.task4_basic_addition_fluency === null && s.qMatrixResults.task6_subtraction_regrouping === null) ? 'טרם נבדק' : ((s.qMatrixResults.task4_basic_addition_fluency && s.qMatrixResults.task4_basic_addition_fluency !== 'success') || (s.qMatrixResults.task6_subtraction_regrouping && s.qMatrixResults.task6_subtraction_regrouping !== 'success')) ? 'פער בעובדות יסוד' : 'שולט'}
                                   </span>
-                                </div>
-                                <div className="bg-ws-bg p-3 rounded-xl border border-ws-surface2">
+                <div className="bg-ws-bg p-3 rounded-xl border border-ws-surface2">
                                   <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">מציאת מחסר</span>
                                   <span className={`font-semibold ${s.qMatrixResults.task7_missing_subtrahend && s.qMatrixResults.task7_missing_subtrahend !== 'success' ? 'text-red-500' : s.qMatrixResults.task7_missing_subtrahend === 'success' ? 'text-green-600' : 'text-slate-400'}`}>
                                     {s.qMatrixResults.task7_missing_subtrahend === null ? 'טרם נבדק' : s.qMatrixResults.task7_missing_subtrahend === 'success' ? 'שולט' : 'דרוש חיזוק'}
@@ -1626,29 +1797,29 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                             <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200/60 dark:border-slate-800 shadow-sm flex flex-col justify-between">
                               <span className="text-xs text-ws-soft block mb-1">מדד התמדה (Persistence)</span>
                               <div className="flex items-baseline gap-2">
-                                <span className="text-2xl font-black text-slate-900 dark:text-white">{kpis.persistence}%</span>
+                                <span className="text-2xl font-black text-slate-900 dark:text-white">{kpis.hasData ? `${kpis.persistence}%` : 'טרם החל'}</span>
                               </div>
                               <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full mt-2 overflow-hidden">
-                                <div className="bg-blue-500 h-full rounded-full" style={{ width: `${kpis.persistence}%` }}></div>
+                                <div className="bg-blue-500 h-full rounded-full" style={{ width: `${kpis.hasData ? kpis.persistence : 0}%` }}></div>
                               </div>
                             </div>
                             <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200/60 dark:border-slate-800 shadow-sm flex flex-col justify-between">
                               <span className="text-xs text-ws-soft block mb-1">יעילות (Efficiency)</span>
                               <div className="flex items-baseline gap-2">
-                                <span className="text-2xl font-black text-slate-900 dark:text-white">{kpis.efficiency}%</span>
+                                <span className="text-2xl font-black text-slate-900 dark:text-white">{kpis.hasData ? `${kpis.efficiency}%` : 'טרם החל'}</span>
                               </div>
                               <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full mt-2 overflow-hidden">
-                                <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${kpis.efficiency}%` }}></div>
+                                <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${kpis.hasData ? kpis.efficiency : 0}%` }}></div>
                               </div>
                             </div>
 
                             <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200/60 dark:border-slate-800 shadow-sm flex flex-col justify-between">
                               <span className="text-xs text-ws-soft block mb-1">איכות דיאלוג (Dialogue)</span>
                               <div className="flex items-baseline gap-2">
-                                <span className="text-2xl font-black text-slate-900 dark:text-white">{kpis.dialogueQuality}%</span>
+                                <span className="text-2xl font-black text-slate-900 dark:text-white">{kpis.hasData ? `${kpis.dialogueQuality}%` : 'טרם החל'}</span>
                               </div>
                               <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full mt-2 overflow-hidden">
-                                <div className="bg-purple-500 h-full rounded-full" style={{ width: `${kpis.dialogueQuality}%` }}></div>
+                                <div className="bg-purple-500 h-full rounded-full" style={{ width: `${kpis.hasData ? kpis.dialogueQuality : 0}%` }}></div>
                               </div>
                             </div>
                           </div>

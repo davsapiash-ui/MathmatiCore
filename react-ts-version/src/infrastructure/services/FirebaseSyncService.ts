@@ -496,6 +496,47 @@ export class FirebaseSyncService {
     await update(ref(database), updates);
   }
 
+  public async syncHighestCompletedMeeting(studentId: string, meeting: number): Promise<void> {
+    if (!studentId) return;
+    const cleanId = studentId.trim().toLowerCase();
+    const normId = cleanId === 'admin' || cleanId === 'teacher' || cleanId.startsWith('student_') ? cleanId : `student_${cleanId}`;
+    
+    const updates: Record<string, any> = {};
+    updates[`users/students/${studentId}/highestCompletedMeeting`] = meeting;
+    if (normId !== studentId) {
+      updates[`users/students/${normId}/highestCompletedMeeting`] = meeting;
+    }
+    await update(ref(database), updates).catch(console.error);
+  }
+
+  public async syncMeeting2Complete(studentId: string): Promise<void> {
+    if (!studentId) return;
+    const cleanId = studentId.trim().toLowerCase();
+    const normId = cleanId === 'admin' || cleanId === 'teacher' || cleanId.startsWith('student_') ? cleanId : `student_${cleanId}`;
+    
+    const updates: Record<string, any> = {};
+    updates[`users/students/${studentId}/completedMeeting2`] = true;
+    if (normId !== studentId) {
+      updates[`users/students/${normId}/completedMeeting2`] = true;
+    }
+    await update(ref(database), updates).catch(console.error);
+  }
+
+  public async syncRouteRecommendation(studentId: string, route: string): Promise<void> {
+    if (!studentId) return;
+    const cleanId = studentId.trim().toLowerCase();
+    const normId = cleanId === 'admin' || cleanId === 'teacher' || cleanId.startsWith('student_') ? cleanId : `student_${cleanId}`;
+    
+    const updates: Record<string, any> = {};
+    updates[`users/students/${studentId}/routeRecommendation`] = route;
+    updates[`users/students/${studentId}/routeStatus`] = 'PENDING';
+    if (normId !== studentId) {
+      updates[`users/students/${normId}/routeRecommendation`] = route;
+      updates[`users/students/${normId}/routeStatus`] = 'PENDING';
+    }
+    await update(ref(database), updates).catch(console.error);
+  }
+
   public async logTelemetryEvent(studentId: string, event: TelemetryEvent): Promise<void> {
     if (!studentId) return;
     const refPath = `telemetry_events/${studentId}`;

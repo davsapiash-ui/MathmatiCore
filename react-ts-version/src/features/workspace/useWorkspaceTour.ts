@@ -7,14 +7,21 @@ import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 interface WorkspaceTourState {
   hasSeenWorkspaceTour: boolean;
   completeWorkspaceTour: () => void;
+  resetWorkspaceTour: () => void;
 }
 
-const isWebdriver = typeof navigator !== 'undefined' && navigator.webdriver;
-const e2eBypass = typeof window !== 'undefined' && ((window as any).__E2E_BYPASS_TOUR__ === true || isWebdriver);
+const getInitialSeenState = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  if ((window as any).__E2E_BYPASS_TOUR__ === true || (navigator && navigator.webdriver)) {
+    return true;
+  }
+  return false;
+};
 
 export const useWorkspaceTourStore = create<WorkspaceTourState>((set) => ({
-  hasSeenWorkspaceTour: e2eBypass, // In memory only. True bypasses the tour.
+  hasSeenWorkspaceTour: getInitialSeenState(),
   completeWorkspaceTour: () => set({ hasSeenWorkspaceTour: true }),
+  resetWorkspaceTour: () => set({ hasSeenWorkspaceTour: false }),
 }));
 
 export function useWorkspaceTour() {
@@ -28,17 +35,47 @@ export function useWorkspaceTour() {
       animate: true,
       allowClose: true,
       showButtons: ['next', 'previous', 'close'],
-      overlayColor: 'rgba(15, 23, 42, 0.75)',
+      overlayColor: 'rgba(15, 23, 42, 0.65)',
       nextBtnText: 'התקדם',
       prevBtnText: 'הקודם',
-      doneBtnText: 'הבנתי, בוא נתחיל!',
-      progressText: '{{current}} מתוך {{total}}',
+      doneBtnText: 'הבנתי, בוא נתחיל! 🚀',
+      progressText: 'שלב {{current}} מתוך {{total}}',
       popoverClass: 'ws-tour-popover font-display',
+      onDestroyed: () => {
+        completeWorkspaceTour();
+      },
+      onCloseClick: () => {
+        completeWorkspaceTour();
+        driverObj.current?.destroy();
+      },
+      onPopoverRender: (popover) => {
+        // Enforce exact button text to prevent any duplicate rendering ('הקודם הקודם')
+        if (popover.previousButton) {
+          popover.previousButton.textContent = 'הקודם';
+        }
+        if (popover.nextButton) {
+          const isLast = driverObj.current?.isLastStep();
+          popover.nextButton.textContent = isLast ? 'הבנתי, בוא נתחיל! 🚀' : 'התקדם ➔';
+        }
+        
+        // Add "אל תציג שוב" skip link in the footer if not present
+        if (popover.footer && !popover.footer.querySelector('.ws-tour-skip-link')) {
+          const skipBtn = document.createElement('button');
+          skipBtn.className = 'ws-tour-skip-link text-xs text-emerald-700 hover:text-emerald-900 underline font-medium cursor-pointer ml-auto';
+          skipBtn.textContent = 'אל תציג הדרכה זו שוב';
+          skipBtn.onclick = (e) => {
+            e.preventDefault();
+            completeWorkspaceTour();
+            driverObj.current?.destroy();
+          };
+          popover.footer.insertBefore(skipBtn, popover.footer.firstChild);
+        }
+      },
       steps: [
         {
           element: '#tour-task-card',
           popover: {
-            title: 'ברוכים הבאים למשימה!',
+            title: '🎯 ברוכים הבאים למשימה!',
             description: 'כאן מופיעה המשימה שלך. קרא אותה היטב לפני שתתחיל לפתור.',
             side: 'left',
             align: 'start'
@@ -47,8 +84,8 @@ export function useWorkspaceTour() {
         {
           element: '#tour-block-palette',
           popover: {
-            title: 'מחסן הכלים',
-            description: 'מכאן תוכל לגרור יחידות, עשרות, מאות ואלפים לתוך לוח המספרים.',
+            title: '🧰 מחסן הכלים',
+            description: 'מכאן תוכל לגרור יחידות, עשרות, מאות ואלפים לתוך בית המספרים.',
             side: 'top',
             align: 'center'
           }
@@ -56,7 +93,7 @@ export function useWorkspaceTour() {
         {
           element: '#tour-place-value-board',
           popover: {
-            title: 'בית המספרים',
+            title: '🏠 בית המספרים',
             description: 'כאן תבנה את התשובה שלך! גרור את הקוביות לעמודות המתאימות: יחידות, עשרות, מאות ואלפים.',
             side: 'right',
             align: 'start'
@@ -65,7 +102,7 @@ export function useWorkspaceTour() {
         {
           element: '#tour-column-units',
           popover: {
-            title: 'המרה ואריזה',
+            title: '🔄 המרה ואריזה',
             description: 'זכור: אם תאסוף 10 יחידות או יותר בטור אחד, תוכל לגרור אחת מהן לטור הבא כדי לקבץ אותן לעשרת שלמה!',
             side: 'left',
             align: 'center'
@@ -74,7 +111,7 @@ export function useWorkspaceTour() {
         {
           element: '#tour-action-buttons',
           popover: {
-            title: 'סיימת?',
+            title: '✅ סיימת?',
             description: 'בסיום המשימה, לחץ כאן כדי להתקדם למשימה הבאה. בהצלחה!',
             side: 'top',
             align: 'end'
@@ -82,7 +119,7 @@ export function useWorkspaceTour() {
         }
       ]
     });
-  }, []);
+  }, [completeWorkspaceTour]);
 
   const startTour = () => {
     if (driverObj.current) {
@@ -97,12 +134,11 @@ export function useWorkspaceTour() {
         // Small delay to ensure UI is mounted and blocks are rendered
         const timer = setTimeout(() => {
           startTour();
-          completeWorkspaceTour();
         }, 1000);
         return () => clearTimeout(timer);
       }
     }
-  }, [sessionNumber, hasSeenWorkspaceTour, completeWorkspaceTour]);
+  }, [sessionNumber, hasSeenWorkspaceTour]);
 
   return { startTour };
 }

@@ -2,8 +2,10 @@ import { useState, useEffect, useCallback } from "react";
 import { ref, onValue, get } from "firebase/database";
 import { database, authReady, auth } from "@/infrastructure/firebase";
 import { ReplayViewer } from "@/presentation/components/ReplayViewer";
+import { normalizeStudentId } from "@/application/useChatStore";
 
-export function StudentReplayAndLogs({ studentId }: { studentId: string }) {
+export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: string }) {
+  const studentId = normalizeStudentId(rawStudentId || '');
   const [liveReplayEvents, setLiveReplayEvents] = useState<any[]>([]);
   const [studentRadarHistory, setStudentRadarHistory] = useState<any[]>([]);
   const [seekToTime, setSeekToTime] = useState<number | undefined>();
@@ -15,7 +17,12 @@ export function StudentReplayAndLogs({ studentId }: { studentId: string }) {
   const fetchChunk = useCallback(async (sessionId: string, chunkKey: string) => {
     try {
       const chunkRef = ref(database, `users/students/${studentId}/telemetry_sessions/${sessionId}/chunks/${chunkKey}`);
-      const snap = await get(chunkRef);
+      let snap = await get(chunkRef);
+      if (!snap.exists() && rawStudentId && rawStudentId !== studentId) {
+        // Fallback to raw ID if normalized ID chunk was not found
+        const fallbackRef = ref(database, `users/students/${rawStudentId}/telemetry_sessions/${sessionId}/chunks/${chunkKey}`);
+        snap = await get(fallbackRef);
+      }
       if (snap.exists()) {
         let chunk = snap.val();
         if (typeof chunk === 'string') {
@@ -36,11 +43,11 @@ export function StudentReplayAndLogs({ studentId }: { studentId: string }) {
     } catch (err) {
       console.error("Error fetching chunk", err);
     }
-  }, [studentId, chunkKeys]);
+  }, [studentId, rawStudentId, chunkKeys]);
   
 
   useEffect(() => {
-    if (!studentId) return;
+    if (!studentId && !rawStudentId) return;
 
     let unsubscribeRadar: (() => void) | undefined;
     let cancelled = false;
@@ -55,10 +62,19 @@ export function StudentReplayAndLogs({ studentId }: { studentId: string }) {
           const token = await auth.currentUser?.getIdToken();
           const authParam = token ? `&auth=${token}` : '';
           
-          const sessionsUrl = `${dbUrl}/users/students/${studentId}/telemetry_sessions.json?shallow=true${authParam}`;
-          const sessionsRes = await fetch(sessionsUrl);
-          const sessionsData = await sessionsRes.json();
+          let targetId = studentId;
+          let sessionsUrl = `${dbUrl}/users/students/${targetId}/telemetry_sessions.json?shallow=true${authParam}`;
+          let sessionsRes = await fetch(sessionsUrl);
+          let sessionsData = await sessionsRes.json();
           
+          // Fallback to raw studentId if normalized ID had no telemetry sessions
+          if (!sessionsData && rawStudentId && rawStudentId !== studentId) {
+            targetId = rawStudentId;
+            sessionsUrl = `${dbUrl}/users/students/${targetId}/telemetry_sessions.json?shallow=true${authParam}`;
+            sessionsRes = await fetch(sessionsUrl);
+            sessionsData = await sessionsRes.json();
+          }
+
           if (!sessionsData) {
             setLiveReplayEvents([]);
             return;
@@ -71,7 +87,7 @@ export function StudentReplayAndLogs({ studentId }: { studentId: string }) {
           if (!latestSessionId) return;
 
           const tokenParam = token ? `?auth=${token}` : '';
-          const metadataUrl = `${dbUrl}/users/students/${studentId}/telemetry_sessions/${latestSessionId}/metadata.json${tokenParam}`;
+          const metadataUrl = `${dbUrl}/users/students/${targetId}/telemetry_sessions/${latestSessionId}/metadata.json${tokenParam}`;
           const metadataRes = await fetch(metadataUrl);
           const metadataData = await metadataRes.json();
           
@@ -91,14 +107,25 @@ export function StudentReplayAndLogs({ studentId }: { studentId: string }) {
 
       fetchMetadata();
 
-      // Fetch radar history (Logs)
-      const radarHistoryRef = ref(database, `users/students/${studentId}/radar_history`);
+      // Fetch radar history (Logs) — check both normalized ID and raw ID
+      const targetRadarId = studentId || rawStudentId;
+      const radarHistoryRef = ref(database, `users/students/${targetRadarId}/radar_history`);
       unsubscribeRadar = onValue(radarHistoryRef, (snapshot) => {
         try {
           if (snapshot.exists()) {
             const historyVal = snapshot.val();
             const historyList = historyVal ? Object.values(historyVal) : [];
             setStudentRadarHistory(historyList);
+          } else if (rawStudentId && rawStudentId !== targetRadarId) {
+            // Fallback to raw ID for radar history
+            get(ref(database, `users/students/${rawStudentId}/radar_history`)).then(snap => {
+              if (snap.exists()) {
+                const historyVal = snap.val();
+                setStudentRadarHistory(historyVal ? Object.values(historyVal) : []);
+              } else {
+                setStudentRadarHistory([]);
+              }
+            }).catch(() => setStudentRadarHistory([]));
           } else {
             setStudentRadarHistory([]);
           }
