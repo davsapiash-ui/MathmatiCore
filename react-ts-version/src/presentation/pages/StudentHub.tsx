@@ -87,8 +87,8 @@ export function StudentHub() {
       title: 'שיעור 1: הכשרת חוקרים', 
       desc: 'היכרות עם כלי המעבדה השונים במרחב החקר הווירטואלי.', 
       icon: '🧪', 
-      isTeacherActive: !isTeacherSessionActive || activeSessionNum === 1,
-      isLocked: false
+      isTeacherActive: isTeacherSessionActive && activeSessionNum === 1,
+      isLocked: !isTeacherSessionActive
     },
     { 
       id: 2, 

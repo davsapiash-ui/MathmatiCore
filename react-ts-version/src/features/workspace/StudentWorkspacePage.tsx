@@ -524,6 +524,27 @@ export function StudentWorkspacePage() {
     );
   }
 
+  if (!isTeacherSessionActive) {
+    return (
+      <div dir="rtl" className="h-screen w-full flex flex-col items-center justify-center bg-ws-bg text-ws-ink font-body p-6">
+        <div className="bg-ws-surface p-10 rounded-3xl shadow-xl max-w-md text-center border border-ws-surface2">
+          <div className="text-6xl mb-6 animate-pulse">🔒🧑‍🏫</div>
+          <h2 className="text-2xl font-bold mb-4 text-ws-ink">השיעור עדיין לא הופעל ע"י המורה</h2>
+          <p className="text-ws-soft mb-8 leading-relaxed">
+            המורה עדיין לא הפעיל/ה את השיעור בכיתה.
+            סביבת הלימוד תיפתח אוטומטית ברגע שהמורה יפעיל את השיעור בדשבורד המורה.
+          </p>
+          <button 
+            onClick={() => navigate('/hub')}
+            className="w-full py-4 bg-ws-accent text-white font-bold rounded-2xl hover:brightness-105 transition-all cursor-pointer shadow-md"
+          >
+            חזרה ללובי התלמיד
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (pendingApproval) {
     return (
       <div dir="rtl" className="h-screen w-full flex flex-col items-center justify-center bg-ws-bg text-ws-ink font-body p-6">
