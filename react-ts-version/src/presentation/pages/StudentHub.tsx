@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Play, Lock, ChevronLeft, Sun, Clock, Map, CheckCircle2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -6,6 +7,8 @@ import { useStore } from '@/application/useStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { StudentChatOverlay } from '@/features/workspace/overlays/StudentChatOverlay';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
+import { ref, onValue } from 'firebase/database';
+import { database } from '@/infrastructure/firebase';
 
 interface Meeting {
   id: number;
@@ -13,6 +16,7 @@ interface Meeting {
   desc: string;
   icon: string;
   isLocked: boolean;
+  isTeacherActive?: boolean;
   pendingApproval?: boolean;
 }
 
@@ -41,22 +45,55 @@ export function StudentHub() {
   const highestCompleted = currentStudent?.highestCompletedMeeting ?? (currentStudent?.completedMeeting2 ? 2 : 0);
   const isPendingLesson3 = isPending && highestCompleted >= 2;
 
+  // --- Realtime Teacher Active Class Session Listener ---
+  const [activeClassSession, setActiveClassSession] = useState<{ active: boolean; sessionNumber: number; startedAt: number } | null>(null);
+
+  useEffect(() => {
+    const sessionRef = ref(database, 'active_class_session');
+    const unsub = onValue(sessionRef, (snap) => {
+      if (snap.exists()) {
+        setActiveClassSession(snap.val());
+      } else {
+        setActiveClassSession(null);
+      }
+    });
+    return () => unsub();
+  }, []);
+
+  const isTeacherSessionActive = activeClassSession?.active ?? false;
+  const activeSessionNum = isTeacherSessionActive ? activeClassSession?.sessionNumber : null;
+
   const meetings: Meeting[] = [
-    { id: 1, title: 'שיעור 1: הכשרת חוקרים', desc: 'היכרות עם כלי המעבדה השונים במרחב החקר הווירטואלי.', icon: '🧪', isLocked: false },
-    { id: 2, title: 'שיעור 2: סריקת רדאר', desc: 'משימות חקר קצרות כדי שהמערכת תלמד את סגנון החשיבה הייחודי שלכם.', icon: '📡', isLocked: highestCompleted < 1 },
+    { 
+      id: 1, 
+      title: 'שיעור 1: הכשרת חוקרים', 
+      desc: 'היכרות עם כלי המעבדה השונים במרחב החקר הווירטואלי.', 
+      icon: '🧪', 
+      isTeacherActive: activeSessionNum === 1,
+      isLocked: activeSessionNum !== 1 && highestCompleted < 1 
+    },
+    { 
+      id: 2, 
+      title: 'שיעור 2: סריקת רדאר', 
+      desc: 'משימות חקר קצרות כדי שהמערכת תלמד את סגנון החשיבה הייחודי שלכם.', 
+      icon: '📡', 
+      isTeacherActive: activeSessionNum === 2,
+      isLocked: activeSessionNum !== 2 && highestCompleted < 1 
+    },
     { 
       id: 3, 
       title: 'שיעור 3: מחקר אישי', 
       desc: isPendingLesson3 ? 'הנתונים נסרקים במערכת, ממתין לאישור מנהל מעבדה...' : 'מתחילים במשימות מחקר שמותאמות בדיוק עבורכם!', 
       icon: '🔬', 
-      isLocked: (highestCompleted < 2) || !isApproved,
+      isTeacherActive: activeSessionNum === 3,
+      isLocked: activeSessionNum !== 3 && (highestCompleted < 2 || !isApproved),
       pendingApproval: isPendingLesson3
     },
-    { id: 4, title: 'שיעור 4: חוקרים ומגלים', desc: 'ניסויי פריטה וקיבוץ — חוקרים יחד ומצליחים.', icon: '🔍', isLocked: highestCompleted < 3 },
-    { id: 5, title: 'שיעור 5: חוקרים ומגלים', desc: 'ממשיכים לתכנן ניסויים ולגלות שיטות חשיבה חדשות.', icon: '💡', isLocked: highestCompleted < 4 },
-    { id: 6, title: 'שיעור 6: מחקר מתקדם', desc: 'אתגרים מחשבתיים שמותאמים לקצב הגילוי שלכם.', icon: '🧬', isLocked: highestCompleted < 5 },
-    { id: 7, title: 'שיעור 7: מחקר מתקדם', desc: 'לקראת סיום — ניסויים מאתגרים לחיזוק הלמידה.', icon: '🚀', isLocked: highestCompleted < 6 },
-    { id: 8, title: 'שיעור 8: סיכום ותגליות', desc: 'מסכמים את המחקר ורואים אילו תגליות גילינו!', icon: '🏆', isLocked: highestCompleted < 7 },
+    { id: 4, title: 'שיעור 4: חוקרים ומגלים', desc: 'ניסויי פריטה וקיבוץ — חוקרים יחד ומצליחים.', icon: '🔍', isTeacherActive: activeSessionNum === 4, isLocked: activeSessionNum !== 4 && highestCompleted < 3 },
+    { id: 5, title: 'שיעור 5: חוקרים ומגלים', desc: 'ממשיכים לתכנן ניסויים ולגלות שיטות חשיבה חדשות.', icon: '💡', isTeacherActive: activeSessionNum === 5, isLocked: activeSessionNum !== 5 && highestCompleted < 4 },
+    { id: 6, title: 'שיעור 6: מחקר מתקדם', desc: 'אתגרים מחשבתיים שמותאמים לקצב הגילוי שלכם.', icon: '🧬', isTeacherActive: activeSessionNum === 6, isLocked: activeSessionNum !== 6 && highestCompleted < 5 },
+    { id: 7, title: 'שיעור 7: מחקר מתקדם', desc: 'לקראת סיום — ניסויים מאתגרים לחיזוק הלמידה.', icon: '🚀', isTeacherActive: activeSessionNum === 7, isLocked: activeSessionNum !== 7 && highestCompleted < 6 },
+    { id: 8, title: 'שיעור 8: סיכום ותגליות', desc: 'מסכמים את המחקר ורואים אילו תגליות גילינו!', icon: '🏆', isTeacherActive: activeSessionNum === 8, isLocked: activeSessionNum !== 8 && highestCompleted < 7 },
   ];
 
   return (
@@ -232,13 +269,18 @@ export function StudentHub() {
                         <CheckCircle2 className="w-5 h-5" />
                         הושלם
                       </span>
+                    ) : meeting.isTeacherActive ? (
+                      <span className="ws-btn-primary flex items-center gap-1.5 px-6 py-2.5 rounded-full font-display font-extrabold transition-all shrink-0 shadow-lg shadow-indigo-500/25 animate-pulse cursor-pointer">
+                        ▶️ התחל משימה בלייב
+                        <ChevronLeft className="w-5 h-5" aria-hidden="true" />
+                      </span>
                     ) : meeting.isLocked ? (
-                      <span className={`px-5 py-2 rounded-full text-sm font-bold shrink-0 ${meeting.pendingApproval ? 'bg-[hsl(var(--ws-blue-soft))] text-[hsl(var(--ws-blue))]' : 'bg-ws-surface2 text-ws-soft'}`}>
-                        {meeting.pendingApproval ? 'ממתין לאישור' : 'בקרוב'}
+                      <span className={`px-5 py-2 rounded-full text-sm font-bold shrink-0 ${meeting.pendingApproval ? 'bg-[hsl(var(--ws-blue-soft))] text-[hsl(var(--ws-blue))]' : 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20'}`}>
+                        {meeting.pendingApproval ? 'ממתין לאישור מורה' : 'ממתין להפעלת המורה 🔒'}
                       </span>
                     ) : (
-                      <span className={`${isCurrent ? 'ws-btn-primary' : 'bg-ws-surface2 text-ws-ink hover:bg-[hsl(var(--ws-blue-soft))]'} flex items-center gap-1.5 px-6 py-2.5 rounded-full font-display font-extrabold transition-all shrink-0`}>
-                        {isCurrent ? 'התחל משימה' : 'חזור למשימה'}
+                      <span className="bg-ws-surface2 text-ws-ink hover:bg-[hsl(var(--ws-blue-soft))] flex items-center gap-1.5 px-6 py-2.5 rounded-full font-display font-extrabold transition-all shrink-0">
+                        חזור למשימה
                         <ChevronLeft className="w-5 h-5" aria-hidden="true" />
                       </span>
                     )}

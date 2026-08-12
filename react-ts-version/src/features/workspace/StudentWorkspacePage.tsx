@@ -33,6 +33,7 @@ import { ReflectionScreen } from './ReflectionScreen';
 import { Session8ReflectionScreen } from '@/presentation/components/student/Session8ReflectionScreen';
 import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
 import { useStore } from '@/application/useStore';
+import { Clock } from 'lucide-react';
 
 import { StudentChatOverlay } from './overlays/StudentChatOverlay';
 import { AdditionHelper } from './board/AdditionHelper';
@@ -425,7 +426,35 @@ export function StudentWorkspacePage() {
     return <ReflectionScreen />;
   }
   
-
+  // Gated entry: if teacher has not activated session for this meeting and it's not a review:
+  const isMeetingCompleted = (useStore.getState().students[user?.uid || '']?.highestCompletedMeeting ?? 0) >= meeting;
+  if (!isTeacherSessionActive && !isMeetingCompleted && flowStatus === 'task') {
+    return (
+      <div dir="rtl" className="h-screen w-full flex flex-col items-center justify-center bg-ws-bg text-ws-ink font-body p-6">
+        <div className="bg-ws-surface p-10 rounded-3xl shadow-2xl max-w-lg text-center border border-ws-surface2 flex flex-col items-center">
+          <div className="w-20 h-20 rounded-3xl bg-indigo-500/10 text-indigo-600 flex items-center justify-center text-4xl mb-6 shadow-inner animate-pulse">
+            🏫
+          </div>
+          <h2 className="text-2xl font-black mb-3 text-ws-ink">
+            המפגש טרם הופעל ע"י המורה
+          </h2>
+          <p className="text-ws-soft text-base mb-8 leading-relaxed">
+            המורה עדיין לא פתחה את מפגש {meeting}. הרימו את העיניים למורה והמתינו להפעלת המפגש בלייב מדאשבורד המורה.
+          </p>
+          <div className="flex items-center gap-2 text-indigo-600 font-bold bg-indigo-50 dark:bg-indigo-950/40 px-5 py-3 rounded-full text-sm animate-pulse mb-6">
+            <Clock className="w-4 h-4" />
+            <span>מקשיבים למורה וממתינים להפעלה בלייב...</span>
+          </div>
+          <button 
+            onClick={() => navigate('/hub')}
+            className="px-8 py-3 bg-ws-surface2 hover:bg-ws-surface text-ws-ink font-bold rounded-full transition-all text-sm cursor-pointer"
+          >
+            חזרה למפת המסע
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (isInitializing) {
     return (
