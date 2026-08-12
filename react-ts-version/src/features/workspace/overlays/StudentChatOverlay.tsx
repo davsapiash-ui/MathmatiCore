@@ -6,7 +6,7 @@ import { useAdminStore } from '@/application/useAdminStore';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
 import { ImageIcon, BellRing } from 'lucide-react';
-import { ref, update } from 'firebase/database';
+import { ref, update, onValue } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
 
 export function StudentChatOverlay() {
@@ -25,6 +25,18 @@ export function StudentChatOverlay() {
   const studentData = normUid ? (students[normUid] || students[user?.uid || '']) : null;
   const studentClass = classes.find(c => c.id === studentData?.classId);
   const targetTeacherId = studentClass?.teacherId || '039604483';
+
+  // Listen to globalChatEnabled changes from Firebase system_control
+  useEffect(() => {
+    const chatEnabledRef = ref(database, 'system_control/globalChatEnabled');
+    const unsub = onValue(chatEnabledRef, (snap) => {
+      if (snap.exists()) {
+        const enabled = Boolean(snap.val());
+        useStore.setState({ globalChatEnabled: enabled });
+      }
+    });
+    return () => unsub();
+  }, []);
 
   useEffect(() => {
     const handler = () => setIsOpen(open => !open);

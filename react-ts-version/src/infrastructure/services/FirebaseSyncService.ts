@@ -826,4 +826,10 @@ export const fetchClassroomSessions = (classId: string) =>
 export const syncPhysicalOverride = (studentId: string, overrideData: any) =>
   firebaseSyncService.syncPhysicalOverride(studentId, overrideData);
 
+export const syncQMatrix = (studentId: string, qMatrixUpdates: any) =>
+  firebaseSyncService.syncQMatrix(studentId, qMatrixUpdates);
+
+export const syncConceptMastery = (studentId: string, masteryUpdates: any) =>
+  firebaseSyncService.syncConceptMastery(studentId, masteryUpdates);
+
 

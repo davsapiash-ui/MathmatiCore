@@ -206,6 +206,11 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   const teacherFileInputRef = useRef<HTMLInputElement>(null);
   const adminFileInputRef = useRef<HTMLInputElement>(null);
   const [sendingImage, setSendingImage] = useState(false);
+
+  const handleToggleGlobalChat = (enabled: boolean) => {
+    useStore.setState({ globalChatEnabled: enabled });
+    set(ref(database, 'system_control/globalChatEnabled'), enabled).catch(console.error);
+  };
   const [students, setStudents] = useState<Record<string, StudentData>>(() => {
     const allSt = useStore.getState().students;
     const initial: Record<string, StudentData> = {};
