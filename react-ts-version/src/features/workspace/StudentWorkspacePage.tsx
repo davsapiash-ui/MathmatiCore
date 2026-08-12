@@ -256,8 +256,12 @@ export function StudentWorkspacePage() {
     };
   }, [user?.uid, normUid, isTeacherSessionActive, activeClassSession?.startedAt]);
 
+  const [showHesitationHint, setShowHesitationHint] = useState(false);
   // Pedagogical Radar — active ONLY when teacher session is active!
-  useCognitiveHesitationRadar({ isActive: isTeacherSessionActive });
+  useCognitiveHesitationRadar({ 
+    isActive: isTeacherSessionActive,
+    onHesitationDetected: () => setShowHesitationHint(true)
+  });
   const [isInitializing, setIsInitializing] = useState(true);
   const [pendingApproval, setPendingApproval] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);

@@ -85,3 +85,18 @@ export async function syncQMatrixEvaluation(studentId: string, qMatrixData: Reco
   await syncQMatrix(studentId, qMatrixData).catch(console.error);
   await syncConceptMastery(studentId, qMatrixData).catch(console.error);
 }
+
+/**
+ * Enforces a 30-second penalty lockout timer when a student chooses a wrong distractor option.
+ */
+export function executeDistractorPenaltyLockout(
+  onLock: () => void,
+  onUnlock: () => void,
+  durationMs: number = 30000
+): () => void {
+  onLock();
+  const timer = setTimeout(() => {
+    onUnlock();
+  }, durationMs);
+  return () => clearTimeout(timer);
+}

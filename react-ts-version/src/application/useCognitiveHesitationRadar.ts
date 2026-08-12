@@ -52,6 +52,10 @@ export function useCognitiveHesitationRadar({
         hesitating: true,
         timestamp: Date.now()
       }).catch(console.error);
+
+      if (onHesitationRef.current) {
+        onHesitationRef.current();
+      }
     }, HESITATION_THRESHOLD_MS);
   }, [isActive]); // ← onHesitationDetected intentionally removed from deps
 
