@@ -195,7 +195,7 @@
     },
 
     "active_class_session": {
-      ".read": "auth != null",
+      ".read": true,
       ".write": "auth != null"
     },
 

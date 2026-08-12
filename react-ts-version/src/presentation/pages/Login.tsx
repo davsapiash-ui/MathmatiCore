@@ -147,15 +147,9 @@ export function Login() {
         return;
       }
       const rawTrimmed = username.trim();
-      // Strict Hebrew student input: must start with "משתמש" (e.g. "משתמש 1" or "משתמש1")
-      if (!rawTrimmed.startsWith("משתמש")) {
-        setErrorMsg("אנא הזן שם משתמש בפורמט עברי (לדוגמה: משתמש 1 או משתמש1).");
-        return;
-      }
-
       const num = rawTrimmed.replace(/[^0-9]/g, "");
       if (!num) {
-        setErrorMsg("אנא כלול את מספר המשתמש (לדוגמה: משתמש 1).");
+        setErrorMsg("אנא הזן שם משתמש תקני (לדוגמה: משתמש 1, משתמש1 או 1).");
         return;
       }
 
@@ -382,13 +376,6 @@ export function Login() {
                             placeholder="שם משתמש (לדוגמה: משתמש 1)"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
-                            className={inputClass}
-                          />
-                          <input
-                            type="password"
-                            placeholder="סיסמה"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
                             className={inputClass}
                           />
                           <Button
