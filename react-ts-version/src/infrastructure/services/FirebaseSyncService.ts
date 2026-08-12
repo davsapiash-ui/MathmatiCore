@@ -3,6 +3,7 @@ import { database } from '@/infrastructure/firebase';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { useStore, type QMatrix, type TraceData } from '@/application/useStore';
+import { normalizeStudentId } from '@/application/useChatStore';
 import { useAdminStore, type School, type Teacher, type ClassRoom } from '@/application/useAdminStore';
 
 // --- PRD v4 Schema Interfaces ---
@@ -346,34 +347,53 @@ export class FirebaseSyncService {
   }
 
   // --- NEW: Sync specific fields to Firebase directly ---
-  public async syncQMatrix(studentId: string, qMatrixUpdates: Partial<QMatrix>) {
-    if (!studentId) return;
+  public async syncQMatrix(rawStudentId: string, qMatrixUpdates: Partial<QMatrix>) {
+    if (!rawStudentId) return;
+    const studentId = normalizeStudentId(rawStudentId);
     const qMatrixRef = ref(database, `users/students/${studentId}/qMatrixResults`);
     await update(qMatrixRef, qMatrixUpdates);
+    if (rawStudentId !== studentId) {
+      await update(ref(database, `users/students/${rawStudentId}/qMatrixResults`), qMatrixUpdates).catch(() => {});
+    }
   }
 
-  public async syncTraceData(studentId: string, traceDataUpdates: Partial<TraceData>) {
-    if (!studentId) return;
+  public async syncTraceData(rawStudentId: string, traceDataUpdates: Partial<TraceData>) {
+    if (!rawStudentId) return;
+    const studentId = normalizeStudentId(rawStudentId);
     const traceRef = ref(database, `users/students/${studentId}/traceData`);
     await update(traceRef, traceDataUpdates);
+    if (rawStudentId !== studentId) {
+      await update(ref(database, `users/students/${rawStudentId}/traceData`), traceDataUpdates).catch(() => {});
+    }
   }
 
-  public async syncConceptMastery(studentId: string, masteryUpdates: any) {
-    if (!studentId) return;
+  public async syncConceptMastery(rawStudentId: string, masteryUpdates: any) {
+    if (!rawStudentId) return;
+    const studentId = normalizeStudentId(rawStudentId);
     const masteryRef = ref(database, `users/students/${studentId}/conceptMastery`);
     await update(masteryRef, masteryUpdates);
+    if (rawStudentId !== studentId) {
+      await update(ref(database, `users/students/${rawStudentId}/conceptMastery`), masteryUpdates).catch(() => {});
+    }
   }
 
-  public async syncLiveSessionMetrics(studentId: string, metricsUpdates: any) {
-    if (!studentId) return;
+  public async syncLiveSessionMetrics(rawStudentId: string, metricsUpdates: any) {
+    if (!rawStudentId) return;
+    const studentId = normalizeStudentId(rawStudentId);
     const metricsRef = ref(database, `users/students/${studentId}/live_session_metrics`);
     await update(metricsRef, metricsUpdates);
+    if (rawStudentId !== studentId) {
+      await update(ref(database, `users/students/${rawStudentId}/live_session_metrics`), metricsUpdates).catch(() => {});
+    }
   }
 
-  public async syncApproveRoute(studentId: string) {
-    if (!studentId) return;
-    const refPath = ref(database, `users/students/${studentId}`);
-    await update(refPath, { routeStatus: 'APPROVED' });
+  public async syncApproveRoute(rawStudentId: string) {
+    if (!rawStudentId) return;
+    const studentId = normalizeStudentId(rawStudentId);
+    await update(ref(database, `users/students/${studentId}`), { routeStatus: 'APPROVED' });
+    if (rawStudentId !== studentId) {
+      await update(ref(database, `users/students/${rawStudentId}`), { routeStatus: 'APPROVED' }).catch(() => {});
+    }
   }
 
   public async syncPhysicalOverride(
