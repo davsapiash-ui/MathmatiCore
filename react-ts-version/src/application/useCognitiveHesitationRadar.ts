@@ -2,6 +2,8 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useAuthStore } from './useAuthStore';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
+import { database } from '@/infrastructure/firebase';
+import { ref, set } from 'firebase/database';
 
 const HESITATION_THRESHOLD_MS = 30 * 1000; // 30 seconds
 
@@ -46,9 +48,10 @@ export function useCognitiveHesitationRadar({
       );
       
       useWorkspaceStore.setState((s: any) => ({ hesitationCount: s.hesitationCount + 1 }));
-      
-      // onHesitationDetected is intentionally NOT called here — no visual shown to student.
-      // The ref is kept for possible future state-logging use.
+      set(ref(database, `users/students/${userId}/hesitating`), {
+        hesitating: true,
+        timestamp: Date.now()
+      }).catch(console.error);
     }, HESITATION_THRESHOLD_MS);
   }, [isActive]); // ← onHesitationDetected intentionally removed from deps
 

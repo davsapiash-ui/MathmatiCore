@@ -17,6 +17,7 @@ import type { DragSource, Place } from '@/core/placeValue';
 import { useWorkspaceStore, getActiveTasks, type SessionNumber } from '@/application/useWorkspaceStore';
 import { useSettingsStore } from '@/application/useSettingsStore';
 import { useAuthStore } from '@/application/useAuthStore';
+import { useActiveClassSession } from '@/application/useActiveClassSession';
 import { database, authReady } from '@/infrastructure/firebase';
 import { ref, push, onValue, remove, get, set, update } from 'firebase/database';
 import { useChatStore, normalizeStudentId } from '@/application/useChatStore';
@@ -69,20 +70,7 @@ export function StudentWorkspacePage() {
 
 
   // --- Active Teacher Class Session Listener ---
-  const [activeClassSession, setActiveClassSession] = useState<{ active: boolean; sessionNumber: number; startedAt: number } | null>(null);
-
-  useEffect(() => {
-    const sessionRef = ref(database, 'active_class_session');
-    const unsub = onValue(sessionRef, (snap) => {
-      if (snap.exists()) {
-        setActiveClassSession(snap.val());
-      } else {
-        setActiveClassSession(null);
-      }
-    });
-    return () => unsub();
-  }, []);
-
+  const activeClassSession = useActiveClassSession();
   const isTeacherSessionActive = activeClassSession?.active ?? false;
 
   const [teacherHint, setTeacherHint] = useState<string | null>(null);

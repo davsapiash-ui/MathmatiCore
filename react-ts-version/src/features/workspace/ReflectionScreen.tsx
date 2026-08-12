@@ -106,6 +106,12 @@ export function ReflectionScreen() {
         effort: effort,
         strategy: strategies.join(', ')
       });
+      await update(ref(database, `users/students/${studentId}/reflections`), {
+        effort,
+        strategies,
+        qMatrixResults: qMatrix,
+        timestamp: Date.now()
+      }).catch(console.error);
       useWorkspaceStore.setState({ flowStatus: 'sessionDone' });
     } catch (e) {
       console.error("Failed to save reflection:", e);

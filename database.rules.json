@@ -190,7 +190,7 @@
     },
 
     "system_control": {
-      ".read": "auth != null && (auth.token.email === 'admin@mathmaticore.local' || auth.token.admin === true)",
+      ".read": true,
       ".write": "auth != null && (auth.token.email === 'admin@mathmaticore.local' || auth.token.admin === true)"
     },
 

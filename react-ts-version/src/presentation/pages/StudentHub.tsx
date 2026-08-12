@@ -7,6 +7,7 @@ import { useStore } from '@/application/useStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { StudentChatOverlay } from '@/features/workspace/overlays/StudentChatOverlay';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
+import { useActiveClassSession } from '@/application/useActiveClassSession';
 import { ref, onValue } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
 
@@ -24,13 +25,13 @@ const containerVariants: Variants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    transition: { staggerChildren: 0.07 },
+    transition: { staggerChildren: 0.08 },
   },
 };
 
 const itemVariants: Variants = {
-  hidden: { y: 16, opacity: 0 },
-  visible: { y: 0, opacity: 1, transition: { type: 'spring', stiffness: 300, damping: 24 } },
+  hidden: { y: 15, opacity: 0 },
+  visible: { y: 0, opacity: 1, transition: { duration: 0.3 } },
 };
 
 export function StudentHub() {
@@ -38,28 +39,45 @@ export function StudentHub() {
   const user = useAuthStore(s => s.user);
   const students = useStore(s => s.students);
   const globalChatEnabled = useStore(s => s.globalChatEnabled);
-  const currentStudent = user?.uid ? students[user.uid] : null;
-  const isPending = currentStudent?.routeStatus === 'PENDING' || currentStudent?.routeStatus === 'PENDING_TEACHER_APPROVAL';
-  const isApproved = currentStudent?.routeStatus === 'APPROVED';
+  const uid = user?.uid || '';
+  const currentStudent = uid ? students[uid] : null;
+  const [liveRouteStatus, setLiveRouteStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!uid) return;
+    const statusRef = ref(database, `users/students/${uid}/routeStatus`);
+    const unsub = onValue(statusRef, (snap) => {
+      if (snap.exists()) {
+        const val = snap.val();
+        setLiveRouteStatus(val);
+        useStore.setState((s) => {
+          if (s.students[uid]) {
+            return {
+              students: {
+                ...s.students,
+                [uid]: {
+                  ...s.students[uid],
+                  routeStatus: val,
+                },
+              },
+            };
+          }
+          return s;
+        });
+      }
+    });
+    return () => unsub();
+  }, [uid]);
+
+  const activeRouteStatus = liveRouteStatus || currentStudent?.routeStatus;
+  const isPending = activeRouteStatus === 'PENDING' || activeRouteStatus === 'PENDING_TEACHER_APPROVAL';
+  const isApproved = activeRouteStatus === 'APPROVED';
 
   const highestCompleted = currentStudent?.highestCompletedMeeting ?? (currentStudent?.completedMeeting2 ? 2 : 0);
   const isPendingLesson3 = isPending && highestCompleted >= 2;
 
   // --- Realtime Teacher Active Class Session Listener ---
-  const [activeClassSession, setActiveClassSession] = useState<{ active: boolean; sessionNumber: number; startedAt: number } | null>(null);
-
-  useEffect(() => {
-    const sessionRef = ref(database, 'active_class_session');
-    const unsub = onValue(sessionRef, (snap) => {
-      if (snap.exists()) {
-        setActiveClassSession(snap.val());
-      } else {
-        setActiveClassSession(null);
-      }
-    });
-    return () => unsub();
-  }, []);
-
+  const activeClassSession = useActiveClassSession();
   const isTeacherSessionActive = Boolean(activeClassSession && activeClassSession.active);
   const activeSessionNum = isTeacherSessionActive ? (Number(activeClassSession?.sessionNumber) || 1) : null;
 

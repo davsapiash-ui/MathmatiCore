@@ -4,7 +4,8 @@ import { useAuthStore } from "@/application/useAuthStore";
 import { useAdminStore } from "@/application/useAdminStore";
 import { useStore } from "@/application/useStore";
 import { useNavigate } from "react-router-dom";
-import { auth } from "@/infrastructure/firebase";
+import { auth, database } from "@/infrastructure/firebase";
+import { ref, get } from 'firebase/database';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { firebaseSyncService } from "@/infrastructure/services/FirebaseSyncService";
 import { Button } from "@/components/ui/button";
@@ -175,6 +176,22 @@ export function Login() {
       const displayName = matchedStudent.name || (studentNum ? `משתמש ${studentNum}` : `משתמש (${username.trim()})`);
 
       setIsLoggingIn(true);
+
+      // Capacity Validation: Check global student limit in Firebase
+      try {
+        const limitSnap = await get(ref(database, 'system_control/globalStudentLimit'));
+        if (limitSnap.exists()) {
+          const maxLimit = Number(limitSnap.val());
+          const activeStudentsCount = Object.keys(storeStudents).length;
+          if (maxLimit > 0 && activeStudentsCount > maxLimit) {
+            setErrorMsg(`מכסת התלמידים במערכת הגיעה למקסימום המותר (${maxLimit}). גישה נדחתה.`);
+            setIsLoggingIn(false);
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn("Global student limit check note:", e);
+      }
       try {
         await performFirebaseAuth(`${studentId}@mathmaticore.local`, password || "10203040");
         setUser({
