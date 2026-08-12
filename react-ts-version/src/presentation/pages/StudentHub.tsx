@@ -107,60 +107,36 @@ export function StudentHub() {
 
       <div className="relative p-6 md:p-10 max-w-5xl mx-auto w-full flex flex-col gap-10">
 
-        {/* Warm welcome — process-oriented, no scores or fake metrics */}
+        {/* Warm welcome hero card */}
         <motion.section
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-          className="ws-card p-8 md:p-12"
+          className="ws-card p-6 md:p-8"
         >
-          <div className="max-w-2xl flex flex-col items-start gap-4">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold bg-[hsl(var(--ws-blue-soft))] text-[hsl(var(--ws-blue))]">
-              <Sun className="w-4 h-4" aria-hidden="true" />
-              סביבת הלמידה האישית שלך
-            </div>
-            <div className="flex items-start gap-4">
-              <div className="flex-1">
-                <h1 className="font-display font-black text-4xl md:text-5xl tracking-tight leading-tight text-ws-ink mb-4">
-                  ברוכים הבאים למעבדת החשיבה 🔬
-                </h1>
-                <p className="text-lg md:text-xl leading-relaxed font-medium text-ws-soft">
-                  כאן אנחנו לא רק פותרים תרגילים, אלא חוקרים איך מספרים עובדים. הכלים במעבדה יעזרו לכם לגלות שיטות חשיבה חדשות.
-                </p>
+          <div className="w-full flex flex-col gap-4">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs md:text-sm font-bold bg-[hsl(var(--ws-blue-soft))] text-[hsl(var(--ws-blue))]">
+                <Sun className="w-4 h-4" aria-hidden="true" />
+                סביבת הלמידה האישית שלך
               </div>
-              <div className="pt-2">
-                <UdlSpeechButton text="ברוכים הבאים למעבדת החשיבה. כאן אנחנו לא רק פותרים תרגילים, אלא חוקרים איך מספרים עובדים. הכלים במעבדה יעזרו לכם לגלות שיטות חשיבה חדשות." />
-              </div>
+              <UdlSpeechButton text="ברוכים הבאים למעבדת החשיבה. כאן אנחנו לא רק פותרים תרגילים, אלא חוקרים איך מספרים עובדים. הכלים במעבדה יעזרו לכם לגלות שיטות חשיבה חדשות." />
             </div>
 
-            {isPending ? (
-              <div className="mt-4 flex items-center gap-3 px-6 py-3 rounded-full bg-[hsl(var(--ws-blue-soft))] border border-[hsl(var(--ws-blue)/0.3)] text-[hsl(var(--ws-blue))] font-bold">
-                <Clock className="w-5 h-5 animate-pulse" aria-hidden="true" />
+            <div className="flex flex-col gap-2 max-w-3xl">
+              <h1 className="font-display font-black text-2xl md:text-3xl tracking-tight text-ws-ink">
+                ברוכים הבאים למעבדת החשיבה 🔬
+              </h1>
+              <p className="text-base md:text-lg leading-relaxed font-medium text-ws-soft">
+                כאן אנחנו לא רק פותרים תרגילים, אלא חוקרים איך מספרים עובדים. הכלים במעבדה יעזרו לכם לגלות שיטות חשיבה חדשות.
+              </p>
+            </div>
+
+            {isPending && (
+              <div className="mt-2 inline-flex items-center gap-3 px-5 py-2.5 rounded-full bg-[hsl(var(--ws-blue-soft))] border border-[hsl(var(--ws-blue)/0.3)] text-[hsl(var(--ws-blue))] font-bold text-sm">
+                <Clock className="w-4 h-4 animate-pulse" aria-hidden="true" />
                 ממתינים לאישור המורה למשימה הבאה...
               </div>
-            ) : (
-              <motion.button
-                whileHover={{ scale: 1.03, y: -2 }}
-                whileTap={{ scale: 0.97 }}
-                className="ws-brand mt-4 flex items-center justify-center gap-3 px-8 py-4 rounded-full font-display font-extrabold text-lg transition-all hover:brightness-105"
-                onClick={() => {
-                  // Smart routing: go to the next unlocked meeting
-                  let nextMeeting = 1;
-                  if (highestCompleted === 0) {
-                    nextMeeting = 1;
-                  } else if (highestCompleted === 1) {
-                    nextMeeting = 2;
-                  } else if (highestCompleted === 2) {
-                    nextMeeting = isApproved ? 3 : 2;
-                  } else {
-                    nextMeeting = Math.min(highestCompleted + 1, 8);
-                  }
-                  navigate(`/workspace?meeting=${nextMeeting}`);
-                }}
-              >
-                <Play className="w-5 h-5 fill-current" aria-hidden="true" />
-                להמשך התרגול
-              </motion.button>
             )}
           </div>
         </motion.section>
