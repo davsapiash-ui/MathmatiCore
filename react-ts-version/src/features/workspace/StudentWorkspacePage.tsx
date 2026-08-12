@@ -276,19 +276,20 @@ export function StudentWorkspacePage() {
   // Real-time additionBoardEnabled listener
   const [liveAdditionBoardEnabled, setLiveAdditionBoardEnabled] = useState<boolean | null>(null);
   useEffect(() => {
-    if (!user?.uid) return;
-    const boardRef = ref(database, `users/students/${user.uid}/additionBoardEnabled`);
+    const uid = user?.uid;
+    if (!uid) return;
+    const boardRef = ref(database, `users/students/${uid}/additionBoardEnabled`);
     const unsub = onValue(boardRef, (snap) => {
       if (snap.exists()) {
         const val = Boolean(snap.val());
         setLiveAdditionBoardEnabled(val);
         useStore.setState((s) => {
-          if (s.students[user.uid]) {
+          if (s.students[uid]) {
             return {
               students: {
                 ...s.students,
-                [user.uid]: {
-                  ...s.students[user.uid],
+                [uid]: {
+                  ...s.students[uid],
                   additionBoardEnabled: val,
                 },
               },

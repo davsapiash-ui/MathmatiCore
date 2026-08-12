@@ -82,6 +82,7 @@ export interface StudentData {
   };
   liveSessionMetrics?: Record<string, any> | null;
   additionBoardEnabled?: boolean;
+  reflections?: any;
 }
 
 export interface SemanticEventLegacy {
