@@ -4,9 +4,29 @@ import {
   logTelemetryEvent, 
   fetchTeacherClassrooms, 
   fetchClassroomSessions,
+  firebaseSyncService,
   type SessionState,
   type TelemetryEvent
 } from '../services/FirebaseSyncService';
+
+// Mock window and localStorage for Node test environment
+if (typeof window === 'undefined' || !window.localStorage) {
+  const store = new Map<string, string>();
+  const mockStorage = {
+    getItem: (key: string) => store.get(key) || null,
+    setItem: (key: string, val: string) => store.set(key, String(val)),
+    removeItem: (key: string) => store.delete(key),
+    clear: () => store.clear(),
+    length: 0,
+    key: () => null
+  } as unknown as Storage;
+  // @ts-ignore
+  global.window = {
+    localStorage: mockStorage
+  };
+  // @ts-ignore
+  global.localStorage = mockStorage;
+}
 
 // Mock Firebase RTDB methods
 vi.mock('firebase/database', () => {
@@ -72,5 +92,28 @@ describe('FirebaseSyncService', () => {
   it('should fetch classroom sessions successfully', async () => {
     const sessions = await fetchClassroomSessions('class_1');
     expect(Array.isArray(sessions)).toBe(true);
+  });
+
+  // --- PRD V2.0 Section 7 NFR Tests ---
+  it('verifies PRD V2.0 Offline Resilience local session caching', () => {
+    const service = firebaseSyncService;
+    const testData = { currentTaskIndex: 2, completedTasks: ['task_1'], status: 'active' };
+    
+    service.saveSessionProgressLocally('student_test_123', testData);
+    const cached = service.getLocalSessionProgress('student_test_123');
+    
+    expect(cached).not.toBeNull();
+    expect(cached.currentTaskIndex).toBe(2);
+    expect(cached.status).toBe('active');
+    expect(typeof cached.updatedAt).toBe('number');
+
+    service.clearLocalSessionProgress('student_test_123');
+    expect(service.getLocalSessionProgress('student_test_123')).toBeNull();
+  });
+
+  it('verifies PRD V2.0 Milestone Telemetry logging', async () => {
+    const service = firebaseSyncService;
+    await expect(service.logMilestoneEvent('student_test_123', 'session_1', 'GROUP', { column: 'units', count: 10 })).resolves.not.toThrow();
+    await expect(service.logMilestoneEvent('student_test_123', 'session_1', 'INPUT_SUBMIT', { digit: 5, place: 'tens' })).resolves.not.toThrow();
   });
 });

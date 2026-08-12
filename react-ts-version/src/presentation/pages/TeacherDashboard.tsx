@@ -207,7 +207,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   const adminFileInputRef = useRef<HTMLInputElement>(null);
   const [sendingImage, setSendingImage] = useState(false);
 
-  const handleToggleGlobalChat = (enabled: boolean) => {
+  const _handleToggleGlobalChat = (enabled: boolean) => {
     useStore.setState({ globalChatEnabled: enabled });
     set(ref(database, 'system_control/globalChatEnabled'), enabled).catch(console.error);
   };
@@ -256,7 +256,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
 
   // --- Class Session Management (Manual Start/Stop) ---
   const [isClassSessionActive, setIsClassSessionActive] = useState(false);
-  const [sessionStartTime, setSessionStartTime] = useState<number | null>(null);
+  const [_sessionStartTime, setSessionStartTime] = useState<number | null>(null);
   const [selectedSessionNum, setSelectedSessionNum] = useState<number>(1);
 
   // Sync active class session with Firebase
@@ -307,9 +307,9 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   const [coPilotChat, setCoPilotChat] = useState<{ role: 'ai' | 'teacher', text: string }[]>([
     { role: 'ai', text: 'שלום מורה! אני עוזר הפדגוגיה הדיגיטלי שלך. תוכל לבקש ממני להתאים את מסלול הלימוד של תלמיד, לשנות דרגת קושי או להוסיף רמזים מותאמים אישית.' }
   ]);
-  const [inputPrompt, setInputPrompt] = useState('');
+  const [_inputPrompt, _setInputPrompt] = useState('');
   const [coPilotInput, setCoPilotInput] = useState('');
-  const [isProcessingAI, setIsProcessingAI] = useState(false);
+  const [_isProcessingAI, _setIsProcessingAI] = useState(false);
 
   const pendingApprovals = useMemo(() => {
     const map = new Map<string, PendingAIApproval>();
@@ -474,10 +474,10 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   );
 
 
-  const decimalStructureGroup = allStudents.filter(
+  const _decimalStructureGroup = allStudents.filter(
     (s) => s.conceptMastery && s.conceptMastery.decimal_structure < 0.8
   );
-  const numberMagnitudeGroup = allStudents.filter(
+  const _numberMagnitudeGroup = allStudents.filter(
     (s) => s.conceptMastery && s.conceptMastery.number_magnitude < 0.8
   );
   const regroupingFluencyGroup = allStudents.filter(

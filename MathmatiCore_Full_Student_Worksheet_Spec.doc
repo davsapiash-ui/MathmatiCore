@@ -1,0 +1,155 @@
+
+<html xmlns:o='urn:schemas-microsoft-microsoft-com:office:office'
+      xmlns:w='urn:schemas-microsoft-microsoft-com:office:word'
+      xmlns='http://www.w3.org/TR/REC-html40'
+      dir='rtl'>
+<head>
+  <meta charset='utf-8'>
+  <title>MathmatiCore - Complete Student Activity Specification</title>
+  <!--[if gte mso 9]>
+  <xml>
+    <w:WordDocument>
+      <w:View>Print</w:View>
+      <w:Zoom>100</w:Zoom>
+      <w:DoNotOptimizeForBrowser/>
+    </w:WordDocument>
+  </xml>
+  <![endif]-->
+  <style>
+    body {
+      font-family: 'Segoe UI', 'Arial', sans-serif;
+      direction: rtl;
+      text-align: right;
+      line-height: 1.6;
+      color: #1e293b;
+      margin: 40px;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+    th, td {
+      border: 1px solid #cbd5e1;
+      padding: 8px 12px;
+      text-align: right;
+    }
+    th {
+      background-color: #f1f5f9;
+      color: #0f172a;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body dir="rtl" align="right">
+  <h1 style="color:#1e3a8a; font-size:22pt; font-family:'Segoe UI', Arial; border-bottom:2px solid #3b82f6; padding-bottom:8px; margin-top:20px;">MathmatiCore - Complete Student Activity Specification &amp; Pedagogical Worksheet</h1><p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p><strong>מסמך אפיון ודף עבודה מלא לבדיקה והשוואה חיצונית (Full Audit Document)</strong>  
+פלטפורמת הלמידה ההיברידית <strong>MathmatiCore</strong> – מתווה פעילות התלמיד במפגשים 1–8, מודל VRA הדיגיטלי, רדאר פדגוגי שקט ובקרת מורה.<p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p>---<p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p><h2 style="color:#1e40af; font-size:16pt; font-family:'Segoe UI', Arial; margin-top:16px; border-bottom:1px solid #cbd5e1; padding-bottom:4px;">1. תקציר מנהלים וחלוקת הזמנים הכיתתית</h2><p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p>המערכת פועלת במבנה שיעור מובנה של 45 דקות ברוטו:<p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p><table dir="rtl" border="1" cellspacing="0" cellpadding="8" style="border-collapse:collapse; width:100%; margin:16px 0; border:1px solid #cbd5e1; font-family:'Segoe UI', Arial; font-size:10.5pt;">
+  <tr>
+    <td style="border:1px solid #cbd5e1; padding:8px 12px;">סוג המפגש</td>
+    <td style="border:1px solid #cbd5e1; padding:8px 12px;">רכיבי השיעור והקשר הזמנים</td>
+    <td style="border:1px solid #cbd5e1; padding:8px 12px;">זמן עבודה עצמאית מול הלומדה במחשב הנייד</td>
+  </tr>
+  <tr>
+    <td style="border:1px solid #cbd5e1; padding:8px 12px;"><strong>מפגשים אדפטיביים (3–7)</strong></td>
+    <td style="border:1px solid #cbd5e1; padding:8px 12px;">5 דק' התארגנות + 10 דק' הקניה במליאה מול מקרן (מסכי תלמידים נעולים) + <strong>15 דק' עבודה עצמאית</strong> + 5 דק' סידור כיתה + 5 דק' סיכום במליאה (+5 דק' מוגנות לתקלות רשת).</td>
+    <td style="border:1px solid #cbd5e1; padding:8px 12px;"><strong>15 דקות נטו קשיחות</strong></td>
+  </tr>
+  <tr>
+    <td style="border:1px solid #cbd5e1; padding:8px 12px;"><strong>מפגשי אבחון והערכה (2 ו-8)</strong></td>
+    <td style="border:1px solid #cbd5e1; padding:8px 12px;">3 דק' התארגנות אנונימית + <strong>25 דק' עבודה עצמאית שקטה</strong> + 4 דק' סידור כיתה + 8 דק' סיכום ורפלקציה במליאה (+5 דק' מוגנות לתקלות רשת).</td>
+    <td style="border:1px solid #cbd5e1; padding:8px 12px;"><strong>25 דקות נטו קשיחות</strong></td>
+  </tr>
+</table><p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p>
+---<p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p><h2 style="color:#1e40af; font-size:16pt; font-family:'Segoe UI', Arial; margin-top:16px; border-bottom:1px solid #cbd5e1; padding-bottom:4px;">2. מפרט השלבים והנחיות התלמיד מילה במילה (מפגשים 1–8)</h2><p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p>---<p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p><h3 style="color:#2563eb; font-size:13pt; font-family:'Segoe UI', Arial; margin-top:12px;">מפגש 1: ארגז החול הדיגיטלי המונחה (Guided Digital Sandbox)</h3><p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p><h4 style="color:#1d4ed8; font-size:11pt; font-family:'Segoe UI', Arial; margin-top:10px;">פורמט הממשק וחלוקת המסך</h4>
+<ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;"><strong>מבנה דו-אזורי קבוע</strong>:</li>
+</ul>  - <strong>צד שמאל</strong>: לוח לבני הדינס הווירטואליות עם בית המספרים הדיגיטלי (אלפים, מאות, עשרות, יחידות).
+  - <strong>צד ימין</strong>: דף התרגילים הדיגיטלי עם תיבות התוצאה הצבעוניות התואמות בצבעיהן לעמודות משמאל.<p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p><h4 style="color:#1d4ed8; font-size:11pt; font-family:'Segoe UI', Arial; margin-top:10px;">תסריט האינטראקציה של התלמיד (שלב אחרי שלב)</h4>
+<ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;"><strong>כניסה והתארגנות ממשקית</strong>: התלמיד נכנס אנונימית ובוחר במסך הראשי את פעילות ארגז החול.</li>
+</ul>   - <em>הנחיה מוצגת במסך</em>: <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">"ברוכים הבאים לסביבת הלמידה מתמטיקאור! שחקו וחקרו בחופשיות בתחנה 1 היכרות עם המערכת שלנו. [אייקון: חול]"</code>
+<ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;"><strong>חקירה חופשית וסנכרון דו-כיווני</strong>: התלמיד גורר לבני דינס ללוח. גרירת 2 מאות ו-3 עשרות מציגה מיד את המספר <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">230</code> בבית המספרים.</li>
+</ul>   - <em>הנחיה מוצגת במסך</em>: <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">"גררו לבנים לטורים משמאל וצפו בספרות המשתנות בבית המספרים הדיגיטלי! [אייקון: לבנה]"</code>
+<ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;"><strong>חיכוך ממשקי של פירוק והרכבה</strong>: התלמיד מקליק על לבנת מאה אחת. הלבנה מתפרקת פיזית ל-10 עשרות הנודדות לטור העשרות (בית המספרים מעדכן ל-1 מאה ו-13 עשרות).</li>
+</ul>   - <em>הנחיה מוצגת במסך</em>: <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">"לחצו על לבנה כדי לפרק אותה לחלקים קטנים יותר ועקבו אחר השינוי בבית המספרים הדיגיטלי. [אייקון: חץ פריטה]"</code>
+<ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;"><strong>חיכוך מתמטי עם האפס כשומר מקום</strong>: התלמיד נדרש לייצג את המספר <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">305</code> ולראות את הספרה <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">0</code> בטור העשרות הריק.</li>
+</ul>   - <em>הנחיה מוצגת במסך</em>: <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">"נסו לבנות את המספר 305 בלבני דינס ושימו לב לתפקיד של הספרה אפס בבית המספרים הדיגיטלי הריק מעשרות. [אייקון: אפס]"</code>
+<ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;"><strong>תרגול הקלדה טורית</strong>: הקלדת ספרות בימין מייצרת את לבני הדינס התואמות משמאל.</li>
+</ul>   - <em>הנחיה מוצגת במסך</em>: <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">"הקלידו ספרות בתיבות התוצאה הצבעוניות מימין וראו כיצד המערכת מייצרת עבורכם לבנים מתאימות בצד שמאל! [אייקון: מקלדת]"</code>
+<ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;"><strong>עקרון הטעות ההפיכה ואיפוס</strong>: תרגול כפתור ביטול הפעולה (Undo) ופח המחזור.</li>
+</ul>   - <em>הנחיה במסך (Undo)</em>: <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">"רוצים לחזור צעד אחד אחורה? לחצו על כפתור ביטול. [אייקון: Undo]"</code>
+   - <em>הנחיה במסך (פח)</em>: <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">"רוצים להתחיל מחדש ולנקות את הלוח? לחצו על פח האשפה. [אייקון: פח]"</code>
+<ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;"><strong>משימת יעד מסכמת (<code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">s1_sandbox_controlled</code>)</strong>: בניית המספר <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">124</code>, פריטת עשרת אחת ל-10 יחידות, גרירת 5+ בלוקים ללוח ומחיקת 1 בפח המחזור. <strong>רק לאחר התקיימות תנאים אלו כפתור 'התקדם' נפתח!</strong></li>
+</ul>   - <em>הנחיה מוצגת במסך</em>: <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">"משימת יעד מסכמת: בנו את המספר 124 בלבני דינס, פרטו עשרת אחת לעשר יחידות, וכתבו את הייצוג החדש בתיבות התוצאה הצבעוניות! [אייקון: מטרה]"</code><p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p><h4 style="color:#1d4ed8; font-size:11pt; font-family:'Segoe UI', Arial; margin-top:10px;">פיגומים וחניכה סוקרטית בממשק סגור</h4>
+בעת היסוס של מעל 30 שניות, מופיעה חלונית סגורה:
+<ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;"><em>שאלה</em>: <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">"מה קורה כאשר אנו מפרקים עשרת אחת לטור היחידות? [אייקון: סימן שאלה]"</code></li>
+</ul>  - <strong>א.</strong> אנו מקבלים עשר יחידות בודדות הנוספות לטור היחידות על הלוח. <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">[תשובה נכונה]</code>
+  - <strong>ב.</strong> אנו משאירים את הלוח ללא שינוי. <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">[רמז: שימור הכמות]</code>
+  - <strong>ג.</strong> אנו מוחקים את העשרת מהלוח. <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">[נעילת מענה ל-30 שניות במקרה של שגיאה]</code><p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p>---<p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p><h3 style="color:#2563eb; font-size:13pt; font-family:'Segoe UI', Arial; margin-top:12px;">מפגש 2: תחנה 2 יוצאים למסע (אבחון שקט רב-ממדי בתחום ה-1,000)</h3><p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p><h4 style="color:#1d4ed8; font-size:11pt; font-family:'Segoe UI', Arial; margin-top:10px;">פורמט הממשק וחלוקת המסך</h4>
+<ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;">דף התרגילים הדיגיטלי בצד ימין.</li>
+<li style="margin-bottom:4px;"><strong>לוח לבני הדינס בצד שמאל חסום ומוסתר לחלוטין</strong> (נבדקת רמת ההפשטה המלאה ללא עזרים).</li>
+<li style="margin-bottom:4px;"><strong>סביבה שקטה</strong>: ללא שעוני עצר גלויים, ללא ציונים חיצוניים. זמן עבודה עצמאית: <strong>25 דקות נטו</strong>.</li>
+</ul>
+<h4 style="color:#1d4ed8; font-size:11pt; font-family:'Segoe UI', Arial; margin-top:10px;">6 משימות האבחון הסמויות</h4>
+<ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;"><strong>קריאה וכתיבה של מספר תלת-ספרתי</strong>: כתיבת המספר שש מאות וחמש $\rightarrow$ <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">605</code>.</li>
+</ul>   - <em>הנחיה</em>: <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">"קראו וכתבו מספרים בתיבות. הפעם פתרו לבד, ללא עזרים. [אייקון: מנעול]"</code>
+<ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;"><strong>זיהוי ערך ספרה</strong>: זיהוי ערך הספרה 4 במספר 742 $\rightarrow$ <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">40</code>.</li>
+<li style="margin-bottom:4px;"><strong>חיסור חד-שלבי עם פריטה בתחום המאה</strong>: פתרון 42 פחות 15 בהקלדה ישירה ללא דינס.</li>
+<li style="margin-bottom:4px;"><strong>פירוק מספר תלת-ספרתי לרכיביו</strong>: כתיבת מאות, עשרות ויחידות עבור חמש מאות ששים ושלוש.</li>
+<li style="margin-bottom:4px;"><strong>המרה עצמאית בין עזרים</strong>: קביעת מספר עשרות ויחידות מתוך 25 קוביות יחידה.</li>
+<li style="margin-bottom:4px;"><strong>חיבור במאונך עם המרה מעל מאה</strong>: פתרון 124 ועוד 85 בממשק טורי נקי.</li>
+</ul>
+<h4 style="color:#1d4ed8; font-size:11pt; font-family:'Segoe UI', Arial; margin-top:10px;">שער אישור המורה (Asynchronous Teacher Gate)</h4>
+סיום המפגש מפעיל <strong>נעילה מוחלטת וקשיחה</strong> של תוכנת התלמידים. התלמיד מועבר למסך המתנה ("המורה בודק/מאשר את תוכנית הלימודים שלך"), והמערכת מחייבת את המורה לבחון את דוחות האבחון ולאשר ידנית בדשבורד את המסלול המותאם (המסלול הירוק / מסלול צמצום הפערים) בטרם נפתח מפגש 3.<p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p>---<p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p><h3 style="color:#2563eb; font-size:13pt; font-family:'Segoe UI', Arial; margin-top:12px;">מפגש 3: ערך המקום וגמישות ייצוגית (פירוק והרכבה)</h3><p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p><h4 style="color:#1d4ed8; font-size:11pt; font-family:'Segoe UI', Arial; margin-top:10px;">שלב ההקניה במליאה בהובלת המורה (10 דקות)</h4>
+מסכי התלמידים נעולים. המורה מדגימה במקרן:
+<ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;"><em>מסלול צמצום פערים</em>: המספר <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">230</code> בייצוג סטנדרטי (2 מאות, 3 עשרות) $\rightarrow$ פריטה ל-1 מאה ו-13 עשרות.</li>
+<li style="margin-bottom:4px;"><em>המסלול הירוק</em>: המספר <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">2,300</code> בייצוג סטנדרטי (2 אלפים, 3 מאות) $\rightarrow$ פריטה ל-1 אלף ו-13 מאות.</li>
+</ul>
+<h4 style="color:#1d4ed8; font-size:11pt; font-family:'Segoe UI', Arial; margin-top:10px;">עבודה עצמאית (15 דקות נטו) – 7 תרגילי חובה</h4>
+<ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;"><strong>מסלול צמצום פערי קדם (בתחום האלף)</strong>:</li>
+</ul>  - <em>תרגיל 1</em>: ייצוג <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">340</code> בלבני דינס בדרך סטנדרטית (3 מאות, 4 עשרות).
+  - <em>תרגיל 2</em>: פירוק מונחה של <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">340</code> ל-2 מאות ו-14 עשרות.
+  - <em>תרגיל 3</em>: ייצוג <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">450</code> באמצעות עשרות בלבד (45 עשרות).
+  - <em>תרגיל 4</em>: פירוק <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">85</code> ל-7 עשרות ו-15 יחידות (פיגום כיתה א: חלוקה חזותית ל-10 ו-5 במקרה של קושי).
+  - <em>תרגיל 5</em>: ייצוג <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">506</code> עם טור עשרות ריק.
+  - <em>תרגיל 6</em>: פירוק <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">506</code> ל-4 מאות ו-10 עשרות.
+  - <em>תרגיל 7</em>: משימת חקר – השלמת פירוק המספר <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">160</code>.
+<ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;"><strong>המסלול הירוק (בתחום הרבבה - כיתה ג)</strong>:</li>
+</ul>  - <em>תרגילים 1–7</em>: <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">3,400</code> $\rightarrow$ <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">2 אלפים ו-14 מאות</code> $\rightarrow$ <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">45 מאות</code> $\rightarrow$ <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">5,230</code> $\rightarrow$ <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">6,030</code> $\rightarrow$ <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">6,030 (פירוק)</code> $\rightarrow$ <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">2,100</code>.<p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p><h4 style="color:#1d4ed8; font-size:11pt; font-family:'Segoe UI', Arial; margin-top:10px;">מדיניות סיום מוקדם ולומדים מהירים</h4>
+תלמיד המסיים את 7 תרגילי החובה לפני תום 15 הדקות מופנה למסך בחירה (נתיב ביסוס/נתיב אתגר). מדד העצמאות בדשבורד מחושב <strong>אך ורק על 7 תרגילי החובה</strong> לשמירה על השוואה שוויונית.<p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p>---<p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p><h3 style="color:#2563eb; font-size:13pt; font-family:'Segoe UI', Arial; margin-top:12px;">מפגש 4: אלגוריתם החיבור במאונך והמרה פשוטה (הקבצה)</h3><p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p><h4 style="color:#1d4ed8; font-size:11pt; font-family:'Segoe UI', Arial; margin-top:10px;">גשר VRA קשיח ונעילת מקלדת ASD</h4>
+עבור תלמידים בפרופיל תמיכה מוגבר (ASD), המקלדת ננעלת בתחילת התרגיל (<code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">keyboardState = LOCKED</code>). התלמיד מאולץ לבצע תחילה את הקבצת 10 היחידות בלבני הדינס וללחוץ "הקבץ". רק לאחר שהעשרת החדשה נודדת שמאלה, המקלדת משתחררת להזנת התוצאה.<p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p><h4 style="color:#1d4ed8; font-size:11pt; font-family:'Segoe UI', Arial; margin-top:10px;">7 תרגילי החובה (15 דקות עבודה עצמאית)</h4>
+<ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;"><strong>מסלול צמצום פערים</strong>: <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">142+23</code> $\rightarrow$ <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">128+35</code> (המרה ביחידות) $\rightarrow$ <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">247+135</code> $\rightarrow$ <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">456+281</code> (המרה בעשרות) $\rightarrow$ <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">384+259</code> (המרה כפולה) $\rightarrow$ <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">507+125</code> (אפס בעשרות) $\rightarrow$ גילוי ספרה חסרה.</li>
+<li style="margin-bottom:4px;"><strong>המסלול הירוק</strong>: <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">1,245+328</code> $\rightarrow$ <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">2,356+1,427</code> $\rightarrow$ <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">3,456+2,183</code> $\rightarrow$ <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">4,821+1,534</code> $\rightarrow$ <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">5,678+2,453</code> $\rightarrow$ <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">7,045+1,283</code> $\rightarrow$ הרכבי המרה משתנים.</li>
+<li style="margin-bottom:4px;"><strong>עמעום טורים דינמי</strong>: רק הטור הפעיל מואר, שאר הטורים מעומעמים למניעת הצפה תחושתית.</li>
+<li style="margin-bottom:4px;"><strong>תיבות זיכרון</strong>: הקלדת ספרת ההמרה (1) בראש הטור שמשמאל.</li>
+</ul>
+---<p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p><h3 style="color:#2563eb; font-size:13pt; font-family:'Segoe UI', Arial; margin-top:12px;">מפגש 5: אלגוריתם החיסור במאונך והמרה פשוטה (פריטה)</h3><p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p><h4 style="color:#1d4ed8; font-size:11pt; font-family:'Segoe UI', Arial; margin-top:10px;">תסריט האינטראקציה בשלבים</h4>
+<ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;"><strong>הצגת התרגיל ונעילת מקלדת</strong>: התרגיל <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">42 פחות 15</code> (או <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">6,432 פחות 1,879</code>) מוצג בימין. טור היחידות מואר, המקלדת נעולה.</li>
+<li style="margin-bottom:4px;"><strong>זיהוי החסם ופריטה פעילה</strong>: התלמיד מזהה שאינו יכול להחסיר 5 מ-2. הוא מקליק על לבנת עשרת בלוח משמאל, הפורטת אותה פיזית ל-10 יחידות באנימציה הנודדת ימינה.</li>
+<li style="margin-bottom:4px;"><strong>שחרור מקלדת וסנכרון</strong>: המקלדת משתחררת. התלמיד מקליק <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">12</code> בתיבת הזיכרון ומעדכן <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">3</code> עשרות בטור העשרות.</li>
+<li style="margin-bottom:4px;"><strong>פתרון טורי עצמאי</strong>: הקלדת התוצאה הסופית בתיבות התוצאה הצבעוניות.</li>
+</ul>
+---<p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p><h3 style="color:#2563eb; font-size:13pt; font-family:'Segoe UI', Arial; margin-top:12px;">מפגש 6: אתגר האפס כשומר מקום ומעבר מעל אפסים (המרה כפולה)</h3><p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p><h4 style="color:#1d4ed8; font-size:11pt; font-family:'Segoe UI', Arial; margin-top:10px;">תסריט הפריטה הכפולה (תרגיל 400 פחות 156 / 4,005 פחות 1,256)</h4>
+<ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;"><strong>זיהוי אפס בעשרות</strong>: התלמיד מזהה שטור היחידות וטור העשרות ריקים.</li>
+<li style="margin-bottom:4px;"><strong>פריטה וירטואלית דינמית 1</strong>: פריטת לבנת מאה אחת ל-10 עשרות בטור העשרות.</li>
+<li style="margin-bottom:4px;"><strong>פריטה וירטואלית דינמית 2</strong>: פריטת עשרת אחת מתוכן ל-10 יחידות בטור היחידות.</li>
+<li style="margin-bottom:4px;"><strong>עדכון הלוח ובית המספרים</strong>: הלוח מעדכן סנכרונית ל-3 מאות, 9 עשרות, 10 יחידות. המקלדת משתחררת והתלמיד מזין את התוצאה בבטחה.</li>
+</ul>
+---<p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p><h3 style="color:#2563eb; font-size:13pt; font-family:'Segoe UI', Arial; margin-top:12px;">מפגש 7: פתרון בעיות חקר ואינטגרציה של פעולות החשבון</h3><p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p><h4 style="color:#1d4ed8; font-size:11pt; font-family:'Segoe UI', Arial; margin-top:10px;">משימות החקר והספרות החסרות</h4>
+<ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;">התלמיד חוקר ספרות חסרות בתרגילי חיבור/חיסור מורכבים (גילוי מחוברים/מחסרים חסרים).</li>
+<li style="margin-bottom:4px;">הוכחת טענות מתמטיות (הוכחה ש-10 מאות שוות בדיוק ל-1 אלף באמצעות הקבצה אקטיבית וגריעה).</li>
+</ul>
+---<p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p><h3 style="color:#2563eb; font-size:13pt; font-family:'Segoe UI', Arial; margin-top:12px;">מפגש 8: מפגש חוקר (הערכה ורפלקציה מסכמת)</h3><p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p><h4 style="color:#1d4ed8; font-size:11pt; font-family:'Segoe UI', Arial; margin-top:10px;">חלק 1 – הערכה מופשטת (25 דקות נטו)</h4>
+<ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;"><strong>הסרת לבני הדינס מהמסך</strong>: פתרון 7 תרגילי הערכה ברמת ההפשטה המלאה.</li>
+<li style="margin-bottom:4px;"><strong>ללא חלוניות חניכה אקטיביות</strong>: המערכת מתעדת בשקט ברקע מחיקות וזמני שהייה.</li>
+<li style="margin-bottom:4px;"><strong>כפתור Undo נשמר</strong>: משמש כרשת ביטחון רגשית ללא פגיעה בציון התלמיד.</li>
+</ul>
+<h4 style="color:#1d4ed8; font-size:11pt; font-family:'Segoe UI', Arial; margin-top:10px;">חלק 2 – מסך רפלקציה אישי תלת-שלבי (SRL Board)</h4>
+<ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;"><strong>שלב 1 (מדד מאמץ חזותי קוגניטיבי)</strong>: בחירה בסרגל קווי תלת-שלבי ללא מילים: <em>קל</em> / <em>מתאים</em> / <em>מאתגר</em>.</li>
+<li style="margin-bottom:4px;"><strong>שלב 2 (חלונית בחירת אסטרטגיה מוצלחת)</strong>: שאלה סגורה מרובת אפשרויות (בחירת עד 2 תשובות: <em>כפתור ביטול הפעולה</em> / <em>השאלות המנחות והרמזים המובנים</em>).</li>
+<li style="margin-bottom:4px;"><strong>שלב 3 (משוב מעודד התמדה)</strong>: <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">"כל הכבוד! ראינו שחקרתם, ניסיתם ותקנתם טעויות בעצמכם כמו מתמטיקאים אמיתיים! [אייקון: גביע זהב]"</code></li>
+</ul>
+---<p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p><h2 style="color:#1e40af; font-size:16pt; font-family:'Segoe UI', Arial; margin-top:16px; border-bottom:1px solid #cbd5e1; padding-bottom:4px;">3. מצבים מיוחדים ובקרת מורה במערכת</h2><p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p><ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;"><strong>פרופיל תמיכה קוגניטיבי מוגבר (ASD Profile)</strong>: מפעיל נעילת מקלדת קשיחה (<code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">keyboardState = LOCKED</code>), אופרנדים מפשוטים (<code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">asdNumberA/B</code>), ללא תיוג חברתי.</li>
+<li style="margin-bottom:4px;"><strong>מצב Gate Locked &amp; Pending Approval</strong>: נעילה קשיחה של מסך התלמיד עד לאישור ידני של המורה בדשבורד.</li>
+<li style="margin-bottom:4px;"><strong>הרדאר הפדגוגי השקט &amp; Telemetry</strong>: איסוף סמוי של מיקרו-פעולות ללא שעוני עצר גלויים + מנגנון Debouncing ב-Dashboard למניעת עייפות התראות (Alert Fatigue).</li>
+<li style="margin-bottom:4px;"><strong>נגן שחזור הפעולות (Vector Replay)</strong>: כלי אבחון Offline מחוץ לשעות השיעור או במצב עבודה פרטני בלבד.</li>
+</ul>
+</body>
+</html>

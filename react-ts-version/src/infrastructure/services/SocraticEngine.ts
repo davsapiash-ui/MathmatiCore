@@ -27,6 +27,27 @@ export interface PendingAIApproval {
 }
 
 export class SocraticEngine {
+  private static localHintCache: Map<string, SocraticHintResponse> = new Map();
+
+  /**
+   * PRD V2.0 Section 7 NFR: Pre-fetch all session hints upon loading for <200ms instant latency
+   */
+  public static async prefetchSessionHints(sessionNumber: number): Promise<void> {
+    const defaultNodes = ["q_matrix_general", "subtraction_regrouping", "addition_regrouping", "zero_crossing"];
+    for (const node of defaultNodes) {
+      const hint = await this.getSocraticHint(null, node, { units: 0, tens: 0, hundreds: 0, thousands: 0 });
+      if (hint) {
+        this.localHintCache.set(`${sessionNumber}_${node}`, hint);
+      }
+    }
+  }
+
+  public static getCachedHint(sessionNumber: number, targetNode: string): SocraticHintResponse | null {
+    return this.localHintCache.get(`${sessionNumber}_${targetNode}`) || 
+           this.localHintCache.get(`${sessionNumber}_q_matrix_general`) || 
+           null;
+  }
+
   static async getSocraticHint(
     _currentTask: any,
     targetNode: string,
@@ -34,6 +55,10 @@ export class SocraticEngine {
     _traceData?: { hesitation_events: number; undo_clicks: number }
   ): Promise<SocraticHintResponse | null> {
     await ready();
+    // Check local pre-fetched cache first for <200ms latency
+    const cached = this.localHintCache.get(`${_currentTask?.sessionNumber || 3}_${targetNode}`);
+    if (cached) return cached;
+
     // Zero-Generation Policy: Fetch from hardcoded Q-Matrix based on targetNode
     const Q_MATRIX_HINTS: Record<string, SocraticHintResponse> = {
       "q_matrix_general": {

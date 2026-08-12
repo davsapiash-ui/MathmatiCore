@@ -1,0 +1,132 @@
+
+<html xmlns:o='urn:schemas-microsoft-microsoft-com:office:office'
+      xmlns:w='urn:schemas-microsoft-microsoft-com:office:word'
+      xmlns='http://www.w3.org/TR/REC-html40'
+      dir='rtl'>
+<head>
+  <meta charset='utf-8'>
+  <title>MathmatiCore - Complete Architecture and UI Specification</title>
+  <!--[if gte mso 9]>
+  <xml>
+    <w:WordDocument>
+      <w:View>Print</w:View>
+      <w:Zoom>100</w:Zoom>
+      <w:DoNotOptimizeForBrowser/>
+    </w:WordDocument>
+  </xml>
+  <![endif]-->
+  <style>
+    body {
+      font-family: 'Segoe UI', 'Arial', sans-serif;
+      direction: rtl;
+      text-align: right;
+      line-height: 1.6;
+      color: #1e293b;
+      margin: 40px;
+    }
+  </style>
+</head>
+<body dir="rtl" align="right">
+  <h1 style="color:#1e3a8a; font-size:22pt; font-family:'Segoe UI', Arial; border-bottom:2px solid #3b82f6; padding-bottom:8px; margin-top:20px;">מפרט ארכיטקטורה וממשק משתמש (MathmatiCore Workflow Specification)</h1><p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p>מסמך אפיון פדגוגי וטכני מקיף המתאר את כל זרימות העבודה, המצבים המרכזיים, לוגיקת המעבר (Progression Logic) וממשקי התלמיד והמורה בפלטפורמת הלמידה <strong>MathmatiCore</strong>, על פי קוד המקור של המערכת.<p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p>---<p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p><h2 style="color:#1e40af; font-size:16pt; font-family:'Segoe UI', Arial; margin-top:16px; border-bottom:1px solid #cbd5e1; padding-bottom:4px;">1. ארכיטקטורת הליבה ומכונת המצבים (Core Architecture)</h2><p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p><h3 style="color:#2563eb; font-size:13pt; font-family:'Segoe UI', Arial; margin-top:12px;">1.1 Single Source of Truth</h3>
+המערכת מבוססת על 4 רכיבי ליבה המסונכרנים בזמן אמת:
+<ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;"><strong><code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">useWorkspaceStore</code></strong> (Zustand): מנהל את המצב הפעיל של התלמיד בסשן (ספירת בלוקים, מחסנית ביטול Undo, מצבי מקלדת, טיימרים, פידבקים).</li>
+<li style="margin-bottom:4px;"><strong><code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">useStore</code></strong> (Zustand): מנהל את נתוני הסטודנטים בזיכרון, תוצאות ה-Q-Matrix, ומעקב הלמידה (Trace Data).</li>
+<li style="margin-bottom:4px;"><strong><code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">FirebaseSyncService</code></strong>: מתאם סנכרון דו-כיווני בזמן אמת מול Firebase Realtime Database עם הגנת תור offline ו-Debounce למורה.</li>
+<li style="margin-bottom:4px;"><strong><code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">CurriculumRouter</code></strong>: מנוע ניתוב פדגוגי המחשב את מסלול הלימוד (ירוק/צהוב) על בסיס תוצאות האבחון והעקבות הסומטיות.</li>
+</ul>
+<h3 style="color:#2563eb; font-size:13pt; font-family:'Segoe UI', Arial; margin-top:12px;">1.2 מצבי המקלדת והלוח (<code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">KeyboardState</code>)</h3>
+<ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;"><strong><code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">LOCKED</code></strong>: מקלדת המספרים נעולה. התלמיד מחויב לפעול בבית המספרים (גרירה/הקבצה/פריטה) לפני שיוכל להקליד תשובה.</li>
+<li style="margin-bottom:4px;"><strong><code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">UNLOCKED</code></strong>: מקלדת המספרים פתוחה להקלדה חופשית.</li>
+<li style="margin-bottom:4px;"><strong><code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">SOCRATIC_ONLY</code></strong>: המקלדת נעולה להקלדה מספרית ישירה, ומוצגת שאלה סוקרטית/מטה-קוגניטיבית לבחירה מרובה.</li>
+</ul>
+<h3 style="color:#2563eb; font-size:13pt; font-family:'Segoe UI', Arial; margin-top:12px;">1.3 הפיזיקה הפדגוגית של בית המספרים</h3>
+<ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;"><strong>טורים</strong>: אלפים (Thousands), מאות (Hundreds), עשרות (Tens), יחידות (Units).</li>
+<li style="margin-bottom:4px;"><strong>הקבצה (Regrouping)</strong>: 10 יחידות מומרות לעשרת אחת (או 10 עשרות למאה). הפיזיקה <strong>אינה אוטומטית</strong> (autoGroup = false) – התלמיד נדרש ללחוץ על כפתור "הקבץ" או לגרור 10 בלוקים לטור הבא.</li>
+<li style="margin-bottom:4px;"><strong>פריטה (Decomposition)</strong>: 1 מאה מתפרקת ל-10 עשרות (או 1 עשרת ל-10 יחידות). מבוצעת בלחיצה על הבלוק או בגרירה לטור קטן סמוך.</li>
+<li style="margin-bottom:4px;"><strong>פח מחזור (Trash)</strong>: מאפשר למחוק בלוקים שהוצאו מהטורים (הכרחי בחיסור ובמשימת ארגז החול).</li>
+</ul>
+---<p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p><h2 style="color:#1e40af; font-size:16pt; font-family:'Segoe UI', Arial; margin-top:16px; border-bottom:1px solid #cbd5e1; padding-bottom:4px;">2. מפרט השלבים והמפגשים (Sessions 1–8 Specification)</h2><p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p>---<p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p><h3 style="color:#2563eb; font-size:13pt; font-family:'Segoe UI', Arial; margin-top:12px;">מפגש 1: ארגז חול מבוקר ורישיון מעבדה (Sandbox &amp; License)</h3><p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p><h4 style="color:#1d4ed8; font-size:11pt; font-family:'Segoe UI', Arial; margin-top:10px;">Student UI (ממשק התלמיד)</h4>
+<ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;"><strong>תצוגה ראשית</strong>: בית המספרים (טורי מאות, עשרות, יחידות), פלטת עזרים עליונה, פח מחזור בתחתית.</li>
+<li style="margin-bottom:4px;"><strong>כפתורים</strong>: כפתור "התקדם" (כבוי/מעומעם בהתחלה), כפתור Undo, כפתור רענון/איפוס.</li>
+<li style="margin-bottom:4px;"><strong>הוראה</strong>: "כדי לקבל את רישיון החוקר שלכם, גררו לפחות 5 פריטים לבית המספרים ומחקו לפחות פריט אחד בפח המחזור".</li>
+</ul>
+<h4 style="color:#1d4ed8; font-size:11pt; font-family:'Segoe UI', Arial; margin-top:10px;">Progression Logic (לוגיקת מעבר)</h4>
+<ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;"><strong>תנאי עבר מיוחד (<code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">s1_sandbox_controlled</code>)</strong>:</li>
+</ul>  - <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">blocksAddedCount &gt;= 5</code> (לפחות 5 בלוקים הוספו מהפלטה).
+  - <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">hasDeletedBlock === true</code> (לפחות בלוק אחד נמחק בפח המחזור).
+  - רק לאחר התקיימות שני התנאים, כפתור "התקדם" מוערך כ-<code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">true</code> והתלמיד יכול לעבור למשימת הרישיון המספרית.<p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p><h4 style="color:#1d4ed8; font-size:11pt; font-family:'Segoe UI', Arial; margin-top:10px;">Teacher UI &amp; Controls (ממשק מורה)</h4>
+<ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;"><strong>צפייה ב-Dashboard</strong>: התלמיד מופיע במצב <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">Session 1</code>.</li>
+<li style="margin-bottom:4px;"><strong>מדדים מוצגים</strong>: מספר בלוקים פעילים בלוח, מזהה שגיאות/הססנות (<code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">hesitationCount</code>), אינדיקטור חיבור אונליין.</li>
+<li style="margin-bottom:4px;"><strong>פקודות מורה</strong>: אפשרות להגדיר מצב ASD (פשטות ויזואלית) או להפעיל לוח חיבור אנכי מבוצעת בלייב.</li>
+</ul>
+---<p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p><h3 style="color:#2563eb; font-size:13pt; font-family:'Segoe UI', Arial; margin-top:12px;">מפגש 2: דיאגנוסטיקה ותרשים Q-Matrix (Q-Matrix Diagnostic Flow)</h3><p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p><h4 style="color:#1d4ed8; font-size:11pt; font-family:'Segoe UI', Arial; margin-top:10px;">Student UI (ממשק התלמיד)</h4>
+<ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;"><strong>תצוגה ראשית</strong>: 5 משימות מפתח המכסות 7 מיומנויות בסיס (אפס כממלא מקום, ייצוג גמיש, שטף חיבור, עודף קטן, חיסור עם המרה, נעלמים).</li>
+<li style="margin-bottom:4px;"><strong>מבנה 2-Phase Flow</strong>:</li>
+</ul>  - <strong>Phase 1 (משימה ראשית)</strong>: ללא רמזים, ללא עזרים סוקרטיים, ללא חיווי מספרי.
+  - <strong>Phase 2 (סבב תיקון/ניסוי חוזר)</strong>: במידה והתלמיד טועה, המערכת מעבירה אותו לתת-משימה מונחית עם רמת פיגום 1 (<code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">scaffoldLevel = 1</code>) ואז מחזירה אותו לניסוי חוזר.
+<ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;"><strong>פידבק</strong>: ללא ציונים מספריים. מוצגים אייקונים מעודדים ("התשובה התקבלה! 👍", "סבב תיקונים 🔍").</li>
+</ul>
+<h4 style="color:#1d4ed8; font-size:11pt; font-family:'Segoe UI', Arial; margin-top:10px;">Progression Logic (לוגיקת מעבר)</h4>
+<ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;">המעבר מנוהל על ידי מנוע <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">qmatrixFlow</code>:</li>
+</ul>  1. <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">primary_done</code> -&gt; בדיקת תשובה מול <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">QMatrixEvaluator</code>.
+  2. טעות -&gt; מעבר ל-<code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">start_correction</code> -&gt; ביצוע תת-משימה (<code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">subtask_done</code>) -&gt; <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">start_retry</code>.
+  3. סיום כל המשימות -&gt; טריגר <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">all_complete</code>:
+     - חישוב מטריצת שליטה (<code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">computeCognitiveMastery</code>).
+     - חישוב מדדי יעילות והתמדה מתוך עקבות סומטיות (<code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">traceData</code>: הססנות וביטולים).
+     - הרצת <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">CurriculumRouter.evaluateRoute</code> לקביעת המלצת המסלול (ירוק/צהוב).<p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p><h4 style="color:#1d4ed8; font-size:11pt; font-family:'Segoe UI', Arial; margin-top:10px;">Teacher UI &amp; Controls (ממשק מורה)</h4>
+<ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;"><strong>תצוגת מפה קוגניטיבית (HeatmapGrid)</strong>:</li>
+</ul>  - מוצגת מטריצה של 7 מיומנויות לכל תלמיד בכיתה (ירוק = נרכש, צהוב = בטיפול, אדום/ריר = קושי).
+<ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;"><strong>בקרת אישור מסלול</strong>:</li>
+</ul>  - סטטוס התלמיד עובר ל-<code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">PENDING</code>. המורה רואה המלצת מערכת (למשל: "מסלול ירוק - חיזוק רגיל").
+  - למורה יש כפתורי פעולה: <strong>אישור מסלול (APPROVE)</strong> או <strong>נעילת שער (GATE_LOCKED)</strong> לצורך התערבות פרונטלית.<p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p>---<p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p><h3 style="color:#2563eb; font-size:13pt; font-family:'Segoe UI', Arial; margin-top:12px;">מפגשים 3–7: ענפי הלימוד והפדגוגיה המותאמת (Adapted Learning Paths)</h3><p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p><h4 style="color:#1d4ed8; font-size:11pt; font-family:'Segoe UI', Arial; margin-top:10px;">מפגש 3: ערך המקום וגמישות ייצוגית</h4>
+<ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;"><strong>Student UI</strong>: משימות ייצוג גמיש (<code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">flexible_decomp</code>). התלמיד נדרש לייצר מספר בלוח בדרכים שונות (למשל: 420 באמצעות 4 מאות ו-2 עשרות, או 3 מאות ו-12 עשרות).</li>
+<li style="margin-bottom:4px;"><strong>Progression Logic</strong>: <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">s.q3Reps.length &gt;= 2</code> (נדרשים לפחות 2 ייצוגים שונים תקפים בזיכרון המשימה).</li>
+</ul>
+<h4 style="color:#1d4ed8; font-size:11pt; font-family:'Segoe UI', Arial; margin-top:10px;">מפגש 4: חיבור אנכי והמרות (Vertical Addition)</h4>
+<ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;"><strong>Student UI</strong>: תצוגת משוואה אנכית לצד בית המספרים. תיבות קלט לספרות התוצאה ובחלק העליון תיבות קלט לספרות המרה (Carries).</li>
+<li style="margin-bottom:4px;"><strong>Progression Logic</strong>: הזנת התוצאה הנכונה בתיבות הקלט + ביצוע הקבצה בבית המספרים (אם נדרש במיומנות <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">requiresGrouping</code>).</li>
+</ul>
+<h4 style="color:#1d4ed8; font-size:11pt; font-family:'Segoe UI', Arial; margin-top:10px;">מפגש 5: עודף קטן וחיסור בשלבים (Small Change)</h4>
+<ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;"><strong>Student UI</strong>: משימות בחירה מרובה משולבות בניהול תקציב ועודף, לצד ייצוג פיזי.</li>
+<li style="margin-bottom:4px;"><strong>Progression Logic</strong>: בחירת מסיח נכון מתוך <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">choices</code> + אימות אינטראקציה בלוח.</li>
+</ul>
+<h4 style="color:#1d4ed8; font-size:11pt; font-family:'Segoe UI', Arial; margin-top:10px;">מפגש 6: חיסור עם פריטה ומחסר נעלם (Missing Subtrahend)</h4>
+<ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;"><strong>Student UI</strong>: בית המספרים במצב חיסור. התלמיד בונה רק את המספר הראשון ומוציא בלוקים לפח המחזור. במידה וחסרים בלוקים, מופיע כפתור/מנגנון פריטה.</li>
+<li style="margin-bottom:4px;"><strong>Progression Logic</strong>: ביצוע פריטה בפועל (<code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">hasUngrouped === true</code>) + הגעה לערך הלוח המבוקש.</li>
+</ul>
+<h4 style="color:#1d4ed8; font-size:11pt; font-family:'Segoe UI', Arial; margin-top:10px;">מפגש 7: חיבור וחיסור מתקדם רב-ספרתי</h4>
+<ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;"><strong>Student UI</strong>: תרגילים מורכבים בטווח האלפים, שילוב עזרים סוקרטיים אוטומטיים במקרה של 3 ביטולים ברצף.</li>
+<li style="margin-bottom:4px;"><strong>Progression Logic</strong>: פתרון מדויק של התרגיל + עמידה במגבלות הפיגום המוערכות.</li>
+</ul>
+<h4 style="color:#1d4ed8; font-size:11pt; font-family:'Segoe UI', Arial; margin-top:10px;">Teacher UI &amp; Controls (מפגשים 3–7)</h4>
+<ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;"><strong>מעקב בזמן אמת</strong>: צפייה במיקום המדויק של התלמיד בסשן (<code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">standardTaskIdx</code>), מד כעס/ביטולים (<code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">undoCount</code>), ומד הססנות.</li>
+<li style="margin-bottom:4px;"><strong>לוח חיבור אנכי</strong>: כפתור Toggle ב-Dashboard המאפשר למורה לפתוח/לסגור את לוח העזר האנכי בחרגת תלמיד בודד (<code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">additionBoardEnabled</code>).</li>
+</ul>
+---<p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p><h3 style="color:#2563eb; font-size:13pt; font-family:'Segoe UI', Arial; margin-top:12px;">מפגש 8: מסכם ושליטה מלאה &amp; מסך רפלקציה (Session 8 &amp; Reflection)</h3><p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p><h4 style="color:#1d4ed8; font-size:11pt; font-family:'Segoe UI', Arial; margin-top:10px;">Student UI (ממשק התלמיד)</h4>
+<ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;"><strong>חלק 1 – משימות שטף</strong>: משימות מסכמות המשלבות את כל מיומנויות היסוד.</li>
+<li style="margin-bottom:4px;"><strong>חלק 2 – מסך רפלקציה תלת-שלבי (<code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">Session8ReflectionScreen</code>)</strong>:</li>
+</ul>  1. <strong>שלב 1 (הרגשה)</strong>: בחירת אמוג'י מתוך 5 אפשרויות (קשה / הסתבכתי / בסדר / הצלחתי / מעולה).
+  2. <strong>שלב 2 (ניתוח ביצועים)</strong>: הצגת משוב אישי ("במשימות כפל פי 10 ו-100 סיימת מהר! במשימות כפל פי 20 ו-30 לקח קצת יותר זמן").
+  3. <strong>שלב 3 (מבט לעתיד)</strong>: בחירת תחום להתמקד בו במפגש הבא (חיזוק הבסיס / עשרות שלמות / אתגר).<p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p><h4 style="color:#1d4ed8; font-size:11pt; font-family:'Segoe UI', Arial; margin-top:10px;">Progression Logic (לוגיקת מעבר)</h4>
+<ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;">בלחיצה על בחירת תחום ההתמקדויות:</li>
+</ul>  1. שליחת נתונים ל-Firebase באמצעות <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">firebaseSyncService.syncRouteRecommendation(user.uid, focusArea)</code>.
+  2. במקרה של שגיאת הרשאה או פוג תוקף Auth (<code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">PERMISSION_DENIED</code>), המערכת מזהה זאת, מציגה הודעה ברורה ומעבירה באופן בטוח להתחברות מחדש (<code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">/login</code>).
+  3. מעבר חלק ל-<code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">StudentHub</code> (<code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">/hub</code>).<p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p><h4 style="color:#1d4ed8; font-size:11pt; font-family:'Segoe UI', Arial; margin-top:10px;">Teacher UI &amp; Controls (ממשק מורה)</h4>
+<ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;"><strong>דוח רפלקציה מסכם</strong>: המורה רואה ב-Dashboard את הרגשת התלמיד, תחום ההתמקדויות שנבחר, ומדדי השטף וההתמדה.</li>
+<li style="margin-bottom:4px;"><strong>בקרת דריסה פיזית (<code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">PhysicalOverrideControl</code>)</strong>: המורה יכול בכל עת לדרוס את המלצת המערכת ולשנות את המסלול או רמת הקושי של התלמיד.</li>
+</ul>
+---<p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p><h2 style="color:#1e40af; font-size:16pt; font-family:'Segoe UI', Arial; margin-top:16px; border-bottom:1px solid #cbd5e1; padding-bottom:4px;">3. מפרט מצבים מיוחדים (Special Operational States)</h2><p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p><h3 style="color:#2563eb; font-size:13pt; font-family:'Segoe UI', Arial; margin-top:12px;">3.1 מצב ASD (Autism Spectrum Support / CRA Bridge)</h3>
+<ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;"><strong>תכונות ממשק</strong>:</li>
+</ul>  - מקלדת המספרים נפתחת במצב <strong><code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">LOCKED</code></strong> כברירת מחדל בכל תרגיל (למעט דיאגנוסטיקה במפגש 2).
+  - מפשט אופרנדים בתרגילים (שימוש ב-<code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">asdNumberA</code> ו-<code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">asdNumberB</code> כגון 12+14 במקום מספרים מורכבים).
+  - מונע עומס ויזואלי ומספק חיווי תנועתי ברור.<p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p><h3 style="color:#2563eb; font-size:13pt; font-family:'Segoe UI', Arial; margin-top:12px;">3.2 מצב Gate Locked &amp; Pending Approval (המתנה לאישור מורה)</h3>
+<ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;"><strong>Student UI</strong>:</li>
+</ul>  - במידה וסטטוס התלמיד הינו <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">GATE_LOCKED</code>, מוצג מסך חסימה: "המורה בודק/מאשר את תוכנית הלימודים שלך". המקלדת ולוח העבודה נעולים כליל לפעילות.
+<ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;"><strong>Teacher UI</strong>:</li>
+</ul>  - התלמיד מודגש ב-Dashboard עם התראה כתומה/אדומה.
+  - למורה מוצגים כפתורי אישור: <strong>אישור מסלול</strong> (פתיחת החסימה ומעבר ל-<code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">APPROVED</code>) או <strong>שינוי הגדרות</strong>.<p style="margin:8px 0; line-height:1.6; font-family:'Segoe UI', Arial; font-size:11pt;"></p><h3 style="color:#2563eb; font-size:13pt; font-family:'Segoe UI', Arial; margin-top:12px;">3.3 בקרת דריסה בלייב (<code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">Teacher Overrides</code>)</h3>
+<ul style="margin-right:20px; margin-left:0; padding-right:20px;"><li style="margin-bottom:4px;"><strong><code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">additionBoardEnabled</code></strong>: שליטה מרחוק של המורה על הצגת לוח החיבור האנכי במכשיר התלמיד בזמן אמת.</li>
+<li style="margin-bottom:4px;"><strong><code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">forceReload</code></strong>: פקודת רענון עמוק שנשלחת מהמורה ומבצעת <code style="background-color:#f1f5f9; color:#0f172a; padding:2px 6px; border-radius:4px; font-family:Consolas, monospace;">window.location.reload()</code> במכשיר התלמיד מנקה זיכרון מקומי במקרה של תקלה.</li>
+</ul>
+</body>
+</html>

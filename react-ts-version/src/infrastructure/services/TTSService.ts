@@ -9,6 +9,8 @@ export class TTSService {
   private voices: SpeechSynthesisVoice[] = [];
   private isLoaded = false;
 
+  private audioUnlocked = false;
+
   private constructor() {
     this.initVoices();
   }
@@ -20,8 +22,30 @@ export class TTSService {
     return TTSService.instance;
   }
 
+  /**
+   * PRD V2.0 Section 7 Audio Initialization Entry Gate:
+   * Captures initial user click gesture to unlock browser Web Audio API & SpeechSynthesis permissions.
+   */
+  public initializeAudioGate(): boolean {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return false;
+    try {
+      const silentUtterance = new SpeechSynthesisUtterance(' ');
+      silentUtterance.volume = 0;
+      window.speechSynthesis.speak(silentUtterance);
+      this.audioUnlocked = true;
+      return true;
+    } catch (e) {
+      console.warn("Audio gate initialization failed:", e);
+      return false;
+    }
+  }
+
+  public isAudioUnlocked(): boolean {
+    return this.audioUnlocked;
+  }
+
   private initVoices() {
-    if (!('speechSynthesis' in window)) return;
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
 
     const load = () => {
       this.voices = window.speechSynthesis.getVoices();
@@ -42,7 +66,7 @@ export class TTSService {
     onEnd?: () => void, 
     onError?: (e: Event) => void
   ) {
-    if (!('speechSynthesis' in window)) {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
       if (onError) onError(new Event('TTSNotSupported'));
       return;
     }
@@ -79,7 +103,7 @@ export class TTSService {
   }
 
   public stop() {
-    if ('speechSynthesis' in window) {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
   }

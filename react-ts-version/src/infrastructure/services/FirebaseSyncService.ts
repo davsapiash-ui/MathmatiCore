@@ -426,20 +426,47 @@ export class FirebaseSyncService {
     }
   }
 
+  private loadOfflineQueueFromStorage() {
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = localStorage.getItem('mathmaticore_offline_queue');
+      if (raw) {
+        const items = JSON.parse(raw);
+        if (Array.isArray(items)) {
+          this.offlineTelemetryQueue = items.slice(-10);
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to load offline telemetry queue from storage:", e);
+    }
+  }
+
+  private saveOfflineQueueToStorage() {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem('mathmaticore_offline_queue', JSON.stringify(this.offlineTelemetryQueue));
+    } catch (e) {
+      console.warn("Failed to save offline telemetry queue to storage:", e);
+    }
+  }
+
   private enqueueOfflineTransaction(refPath: string, payload: any) {
     this.offlineTelemetryQueue.push({ refPath, payload });
-    // Enforce 10 items max (FIFO: shift oldest item out)
+    // Enforce 10 items max per PRD V2.0 NFR (FIFO: shift oldest item out)
     if (this.offlineTelemetryQueue.length > 10) {
       this.offlineTelemetryQueue.shift();
       console.warn("Offline telemetry queue exceeded 10 items. Dropping oldest transaction.");
     }
+    this.saveOfflineQueueToStorage();
   }
 
   private async flushOfflineQueue() {
+    this.loadOfflineQueueFromStorage();
     if (this.offlineTelemetryQueue.length === 0) return;
     console.log(`Flushing ${this.offlineTelemetryQueue.length} transactions from offline queue.`);
     const queueToFlush = [...this.offlineTelemetryQueue];
     this.offlineTelemetryQueue = [];
+    this.saveOfflineQueueToStorage();
     
     for (const transaction of queueToFlush) {
       try {
@@ -448,6 +475,70 @@ export class FirebaseSyncService {
         console.error("Failed to flush transaction, re-queueing:", e);
         this.enqueueOfflineTransaction(transaction.refPath, transaction.payload);
       }
+    }
+  }
+
+  // --- PRD V2.0 Section 7: Offline-First Resilience (Session Progress Cache) ---
+  public saveSessionProgressLocally(studentId: string, sessionData: any): void {
+    if (typeof window === 'undefined' || !studentId) return;
+    try {
+      const key = `mathmaticore_session_cache_${studentId}`;
+      localStorage.setItem(key, JSON.stringify({
+        ...sessionData,
+        updatedAt: Date.now()
+      }));
+    } catch (e) {
+      console.warn("Failed to cache session progress locally:", e);
+    }
+  }
+
+  public getLocalSessionProgress(studentId: string): any | null {
+    if (typeof window === 'undefined' || !studentId) return null;
+    try {
+      const key = `mathmaticore_session_cache_${studentId}`;
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      console.warn("Failed to retrieve local session progress:", e);
+      return null;
+    }
+  }
+
+  public clearLocalSessionProgress(studentId: string): void {
+    if (typeof window === 'undefined' || !studentId) return;
+    try {
+      localStorage.removeItem(`mathmaticore_session_cache_${studentId}`);
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  // --- PRD V2.0 Section 7: Milestone Telemetry Logging ---
+  public async logMilestoneEvent(
+    studentId: string,
+    sessionId: string,
+    milestoneType: 'GROUP' | 'UNGROUP' | 'INPUT_SUBMIT' | 'UNDO' | 'SOCRATIC_SUBMIT' | 'DELETE_TRASH',
+    details: Record<string, any>
+  ): Promise<void> {
+    if (!studentId) return;
+    const milestonePayload = {
+      event_type: 'milestone',
+      milestone_type: milestoneType,
+      session_id: sessionId,
+      timestamp: Date.now(),
+      details
+    };
+
+    if (!this.isOnline) {
+      this.enqueueOfflineTransaction(`users/students/${studentId}/milestones`, milestonePayload);
+      return;
+    }
+
+    try {
+      const milestoneRef = push(ref(database, `users/students/${studentId}/milestones`));
+      await set(milestoneRef, milestonePayload);
+    } catch (e) {
+      this.enqueueOfflineTransaction(`users/students/${studentId}/milestones`, milestonePayload);
     }
   }
 

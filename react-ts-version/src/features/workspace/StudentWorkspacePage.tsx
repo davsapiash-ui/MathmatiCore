@@ -43,6 +43,7 @@ import { SocraticEngine } from '@/infrastructure/services/SocraticEngine';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
 import { GraphicOrganizerHint } from './overlays/GraphicOrganizerHint';
 import { useCognitiveHesitationRadar } from '@/application/useCognitiveHesitationRadar';
+import { tts } from '@/infrastructure/services/TTSService';
 
 /**
  * מרחב הפעילות של התלמיד — חוויית מסך מלא ממוקדת (100vh, ללא גלילה, ללא טיימרים).
@@ -66,6 +67,12 @@ export function StudentWorkspacePage() {
 
   const isTimeExceeded = useWorkspaceStore((s) => s.isTimeExceeded);
   const awaitingNext = useWorkspaceStore((s) => s.awaitingNext);
+  const [audioUnlocked, setAudioUnlocked] = useState(() => tts.isAudioUnlocked());
+
+  // PRD V2.0 Section 7 NFR: Pre-fetch Socratic hints upon loading to guarantee <200ms latency
+  useEffect(() => {
+    SocraticEngine.prefetchSessionHints(sessionNumber);
+  }, [sessionNumber]);
 
 
 
@@ -235,12 +242,17 @@ export function StudentWorkspacePage() {
 
       stopRecording = recordFn({
         emit(event: any) {
+          // PRD V2.0 Section 7: Milestone Telemetry requirement - strip continuous coordinate streaming
+          // Source 2 in rrweb IncrementalSnapshot represents MouseMove
+          if (event && event.type === 3 && event.data && event.data.source === 2) {
+            return;
+          }
           eventsQueue.push(event);
         },
         sampling: {
-          mousemove: true,
-          mouseInteraction: true,
-          scroll: 150,
+          mousemove: false,
+          mouseInteraction: false,
+          scroll: 500,
           input: 'last',
         }
       });
@@ -569,6 +581,24 @@ export function StudentWorkspacePage() {
           <div className="absolute -bottom-32 -right-20 w-[380px] h-[380px] rounded-full bg-teal-500/5 mix-blend-multiply dark:mix-blend-screen" />
           <div className="absolute top-[30%] right-[42%] w-16 h-16 rounded-2xl rotate-12 bg-blue-500/5 mix-blend-multiply dark:mix-blend-screen" />
         </div>
+
+        {!audioUnlocked && (
+          <div className="bg-blue-600/90 text-white px-5 py-2.5 text-sm flex items-center justify-between font-bold z-40 max-w-[1600px] mx-auto w-full rounded-2xl mb-2 shadow-md backdrop-blur-sm" dir="rtl">
+            <span className="flex items-center gap-2">
+              <span className="text-xl">🔊</span>
+              <span>להפעיל את הקראת ההוראות הקולית, לחצו על הכפתור:</span>
+            </span>
+            <button
+              onClick={() => {
+                tts.initializeAudioGate();
+                setAudioUnlocked(true);
+              }}
+              className="bg-white hover:bg-slate-100 text-blue-700 px-5 py-1.5 rounded-xl font-black text-sm transition-all shadow cursor-pointer active:scale-95"
+            >
+              בואו נתחיל! 🎧
+            </button>
+          </div>
+        )}
 
         <WorkspaceTopbar isDragging={activeDrag !== null} />
 

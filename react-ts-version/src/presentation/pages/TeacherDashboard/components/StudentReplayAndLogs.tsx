@@ -144,7 +144,7 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
       cancelled = true;
       if (unsubscribeRadar) unsubscribeRadar();
     };
-  }, [studentId, fetchChunk]);
+  }, [studentId, rawStudentId, fetchChunk]);
 
 
 

@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "verify-component": "npm run lint && tsc --noEmit && echo Component verified!",
     "audit-shadcn": "echo Auditing Shadcn UI components for purity... && git diff --exit-code src/components/ui",
-    "test": "vitest run",
+    "test": "vitest run --no-cache",
+    "test:direct": "npx vitest run --config ./vite.config.ts --no-cache",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui"
   },
