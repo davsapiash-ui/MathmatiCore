@@ -15,13 +15,29 @@ const getInitialSeenState = (): boolean => {
   if ((window as any).__E2E_BYPASS_TOUR__ === true || (navigator && navigator.webdriver)) {
     return true;
   }
+  try {
+    const saved = localStorage.getItem('mathmaticore_has_seen_workspace_tour');
+    if (saved === 'true') return true;
+  } catch (e) {
+    // Ignore storage errors
+  }
   return false;
 };
 
 export const useWorkspaceTourStore = create<WorkspaceTourState>((set) => ({
   hasSeenWorkspaceTour: getInitialSeenState(),
-  completeWorkspaceTour: () => set({ hasSeenWorkspaceTour: true }),
-  resetWorkspaceTour: () => set({ hasSeenWorkspaceTour: false }),
+  completeWorkspaceTour: () => {
+    try {
+      localStorage.setItem('mathmaticore_has_seen_workspace_tour', 'true');
+    } catch (e) {}
+    set({ hasSeenWorkspaceTour: true });
+  },
+  resetWorkspaceTour: () => {
+    try {
+      localStorage.removeItem('mathmaticore_has_seen_workspace_tour');
+    } catch (e) {}
+    set({ hasSeenWorkspaceTour: false });
+  },
 }));
 
 export function useWorkspaceTour() {
@@ -130,7 +146,14 @@ export function useWorkspaceTour() {
   // Auto-start on meeting 1 if not seen
   useEffect(() => {
     if (sessionNumber === 1) {
-      if (!hasSeenWorkspaceTour) {
+      let isAlreadySeen = hasSeenWorkspaceTour;
+      try {
+        if (localStorage.getItem('mathmaticore_has_seen_workspace_tour') === 'true') {
+          isAlreadySeen = true;
+        }
+      } catch (e) {}
+
+      if (!isAlreadySeen) {
         // Small delay to ensure UI is mounted and blocks are rendered
         const timer = setTimeout(() => {
           startTour();
