@@ -524,15 +524,18 @@ export function StudentWorkspacePage() {
     );
   }
 
-  if (!isTeacherSessionActive) {
+  const isMatchingSessionActive = isTeacherSessionActive && activeClassSession?.sessionNumber === meeting;
+
+  if (!isMatchingSessionActive) {
     return (
       <div dir="rtl" className="h-screen w-full flex flex-col items-center justify-center bg-ws-bg text-ws-ink font-body p-6">
         <div className="bg-ws-surface p-10 rounded-3xl shadow-xl max-w-md text-center border border-ws-surface2">
           <div className="text-6xl mb-6 animate-pulse">🔒🧑‍🏫</div>
-          <h2 className="text-2xl font-bold mb-4 text-ws-ink">השיעור עדיין לא הופעל ע"י המורה</h2>
+          <h2 className="text-2xl font-bold mb-4 text-ws-ink">מפגש {meeting} אינו פתוח כעת</h2>
           <p className="text-ws-soft mb-8 leading-relaxed">
-            המורה עדיין לא הפעיל/ה את השיעור בכיתה.
-            סביבת הלימוד תיפתח אוטומטית ברגע שהמורה יפעיל את השיעור בדשבורד המורה.
+            {isTeacherSessionActive
+              ? `המורה מפעיל/ה כעת בכיתה את מפגש ${activeClassSession?.sessionNumber}. עליך להמתין שהמורה יבחר ויפעיל את מפגש ${meeting} בדשבורד המורה.`
+              : 'המורה עדיין לא הפעיל/ה את השיעור בכיתה. סביבת הלימוד תיפתח אוטומטית ברגע שהמורה יפעיל את השיעור בדשבורד המורה.'}
           </p>
           <button 
             onClick={() => navigate('/hub')}

@@ -472,6 +472,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           errorCategory = 'STRATEGIC_ERROR';
         }
         AuditLogger.log(errorCategory, studentId, `Task: ${task.id}, Detail: ${detail}`);
+        const qKey = (task as any).qMatrixKey || (task as any).targetNode || task.id;
+        const qUpdate = { [qKey]: detail };
+        firebaseSyncService.syncQMatrix(studentId, qUpdate as any).catch(console.error);
+        useStore.getState().updateQMatrix(studentId, qUpdate as any);
       }
 
       if (task.targetNode && s.sessionNumber >= 3) {
@@ -503,6 +507,15 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     const handleSuccess = (feedbackTitle: string, feedbackSub: string, feedbackMs: number) => {
       set({ awaitingNext: true });
+
+      // Realtime Q-Matrix & Telemetry Sync to Firebase for Live Teacher Dashboard
+      const studentId = useAuthStore.getState().user?.uid;
+      if (studentId) {
+        const qKey = (task as any).qMatrixKey || (task as any).targetNode || task.id;
+        const qUpdate = { [qKey]: 'success' };
+        firebaseSyncService.syncQMatrix(studentId, qUpdate as any).catch(console.error);
+        useStore.getState().updateQMatrix(studentId, qUpdate as any);
+      }
       if (task.targetNode && s.sessionNumber >= 3) {
         set({ nodeStrikes: { ...s.nodeStrikes, [task.targetNode]: 0 }, successStreak: s.successStreak + 1 });
         if (s.successStreak + 1 >= 3) {
