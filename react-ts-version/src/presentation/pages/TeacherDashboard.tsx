@@ -36,7 +36,7 @@ import { CONCEPT_LABELS_HE } from "@/core/QMatrix";
 const getStudentKPIs = (student: StudentData, messages: ChatMessage[]) => {
   const undo = student.traceData?.undo_clicks || 0;
   const hesitation = student.traceData?.hesitation_events || 0;
-  const hasHistory = (student.highestCompletedMeeting || 0) > 0 || student.completedMeeting2 || undo > 0 || hesitation > 0;
+  const hasHistory = (student.highestCompletedMeeting || 0) > 0 || Boolean(student.completedMeeting2) || undo > 0 || hesitation > 0;
 
   if (!hasHistory) {
     return {
@@ -55,7 +55,7 @@ const getStudentKPIs = (student: StudentData, messages: ChatMessage[]) => {
   const efficiency = Math.round(Math.max(0, Math.min(100, efficiencyScore)));
 
   const teacherMsgs = messages.filter(msg => msg.receiverId === student.studentId && msg.senderId !== student.studentId);
-  let dialogueQuality = 85;
+  let dialogueQuality = 0;
   if (teacherMsgs.length > 0) {
     const keywords = ["איך", "כיצד", "למה", "מדוע", "אסטרטגיה", "שלב", "דרך", "מחשבה", "פריטה", "קיבוץ", "המרה"];
     const matchingMsgs = teacherMsgs.filter(msg => 
