@@ -249,12 +249,10 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   const [teacherApprovals, setTeacherApprovals] = useState<PendingAIApproval[]>([]);
   const [fallbackApprovals, setFallbackApprovals] = useState<PendingAIApproval[]>([]);
 
-  // --- Class Session Management (20-Minute Teacher Session Timer) ---
+  // --- Class Session Management (Manual Start/Stop) ---
   const [isClassSessionActive, setIsClassSessionActive] = useState(false);
   const [sessionStartTime, setSessionStartTime] = useState<number | null>(null);
   const [selectedSessionNum, setSelectedSessionNum] = useState<number>(1);
-  const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
-  const [hasNotified20Min, setHasNotified20Min] = useState<boolean>(false);
 
   // Sync active class session with Firebase
   useEffect(() => {
@@ -262,50 +260,24 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     const unsub = onValue(sessionRef, (snap) => {
       if (snap.exists()) {
         const val = snap.val();
-        if (val && val.active && val.startedAt) {
+        if (val && val.active) {
           setIsClassSessionActive(true);
-          setSessionStartTime(val.startedAt);
+          setSessionStartTime(val.startedAt || Date.now());
           setSelectedSessionNum(val.sessionNumber || 1);
           return;
         }
       }
-      // Auto-activate Meeting 1 when teacher enters dashboard if no session active
-      const now = Date.now();
-      setIsClassSessionActive(true);
-      setSessionStartTime(now);
-      setSelectedSessionNum(1);
-      set(sessionRef, {
-        active: true,
-        sessionNumber: 1,
-        startedAt: now,
-        teacherId: user?.uid || 'teacher',
-      }).catch(console.error);
+      setIsClassSessionActive(false);
+      setSessionStartTime(null);
     });
     return () => unsub();
   }, []);
-
-  // Timer Ticker
-  useEffect(() => {
-    if (!isClassSessionActive || !sessionStartTime) return;
-    const updateElapsed = () => {
-      const elapsed = Math.floor((Date.now() - sessionStartTime) / 1000);
-      setElapsedSeconds(elapsed);
-      if (elapsed >= 20 * 60 && !hasNotified20Min) {
-        setHasNotified20Min(true);
-      }
-    };
-    updateElapsed();
-    const interval = setInterval(updateElapsed, 1000);
-    return () => clearInterval(interval);
-  }, [isClassSessionActive, sessionStartTime, hasNotified20Min]);
 
   const handleStartClassSession = async (sessionNum: number) => {
     const now = Date.now();
     setSessionStartTime(now);
     setSelectedSessionNum(sessionNum);
     setIsClassSessionActive(true);
-    setHasNotified20Min(false);
-    setElapsedSeconds(0);
     await set(ref(database, 'active_class_session'), {
       active: true,
       sessionNumber: sessionNum,
@@ -317,7 +289,6 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   const handleEndClassSession = async () => {
     setIsClassSessionActive(false);
     setSessionStartTime(null);
-    setElapsedSeconds(0);
     await set(ref(database, 'active_class_session'), {
       active: false,
       endedAt: Date.now(),
@@ -982,11 +953,11 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
         <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-br from-indigo-500/5 via-transparent to-transparent pointer-events-none -z-10"></div>
         <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-gradient-to-tl from-cyan-500/5 via-transparent to-transparent pointer-events-none -z-10 rounded-full blur-3xl"></div>
 
-        {/* Class Session Control Bar & 20-min Timer Banner */}
+        {/* Class Session Control Bar */}
         <div className="mb-6 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-5 rounded-2xl shadow-xl border border-indigo-500/30 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shadow-md ${isClassSessionActive ? 'bg-emerald-500 text-white animate-pulse' : 'bg-slate-800 text-slate-400'}`}>
-              {isClassSessionActive ? '⏱️' : '🏫'}
+              {isClassSessionActive ? '🟢' : '🏫'}
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -1002,36 +973,23 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
               </div>
               <p className="text-slate-300 text-xs mt-1">
                 {isClassSessionActive
-                  ? 'התלמידים פועלים במערכת. השעון מודד 20 דקות מפגש עד להתראת סיום יזומה.'
-                  : 'בחר מפגש ולחץ על "הפעל מפגש" כדי לפתוח את הלמידה ולמדוד 20 דקות מפגש.'}
+                  ? `מפגש ${selectedSessionNum} פעיל כעת עבור התלמידים בכיתה.`
+                  : 'בחר מפגש ולחץ על "הפעל מפגש" כדי לפתוח את הלמידה לתלמידים.'}
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-4 w-full md:w-auto justify-end">
             {isClassSessionActive ? (
-              <>
-                {/* Live Timer Display */}
-                <div className={`px-4 py-2 rounded-xl border flex items-center gap-3 ${elapsedSeconds >= 1200 ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 animate-bounce' : 'bg-slate-800/80 border-slate-700 text-slate-200'}`}>
-                  <span className="text-xs font-bold uppercase text-slate-400">זמן שהלף:</span>
-                  <span className="font-mono text-xl font-black">
-                    {Math.floor(elapsedSeconds / 60).toString().padStart(2, '0')}:{(elapsedSeconds % 60).toString().padStart(2, '0')}
-                  </span>
-                  <span className="text-xs font-bold text-slate-400">/ 20:00 דק'</span>
-                </div>
-
-                {/* End Session Button */}
-                <button
-                  onClick={handleEndClassSession}
-                  className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm rounded-xl shadow-lg transition-all active:scale-95 flex items-center gap-2"
-                >
-                  <span>⏹️</span>
-                  <span>סגור מפגש יזום</span>
-                </button>
-              </>
+              <button
+                onClick={handleEndClassSession}
+                className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm rounded-xl shadow-lg transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+              >
+                <span>⏹️</span>
+                <span>סגור מפגש</span>
+              </button>
             ) : (
               <>
-                {/* Select Session Number */}
                 <select
                   value={selectedSessionNum}
                   onChange={(e) => setSelectedSessionNum(parseInt(e.target.value, 10))}
@@ -1044,41 +1002,17 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                   ))}
                 </select>
 
-                {/* Start Session Button */}
                 <button
                   onClick={() => handleStartClassSession(selectedSessionNum)}
                   className="px-6 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold text-sm rounded-xl shadow-lg transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
                 >
                   <span>▶️</span>
-                  <span>הפעל מפגש (20 דקות)</span>
+                  <span>הפעל מפגש</span>
                 </button>
               </>
             )}
           </div>
         </div>
-
-        {/* 20-Minute Alert Card if time exceeded */}
-        {isClassSessionActive && elapsedSeconds >= 1200 && (
-          <div className="mb-6 bg-amber-500/15 border-2 border-amber-500/60 p-5 rounded-2xl shadow-lg flex items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2">
-            <div className="flex items-center gap-3">
-              <span className="text-3xl">🔔</span>
-              <div>
-                <h4 className="font-bold text-amber-900 dark:text-amber-200 text-base">
-                  חלפו 20 דקות מראשית מפגש {selectedSessionNum}!
-                </h4>
-                <p className="text-amber-800 dark:text-amber-300 text-xs mt-0.5">
-                  מומלץ לסיים כעת את העבודה היחידנית במסכים, ללחוץ על "סגור מפגש יזום" ולעבור לדיון כיתתי ושיחה עם התלמידים.
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={handleEndClassSession}
-              className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl shadow transition-all shrink-0 cursor-pointer"
-            >
-              סגור מפגש כעת
-            </button>
-          </div>
-        )}
 
         {activeTab === "heatmap" && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
