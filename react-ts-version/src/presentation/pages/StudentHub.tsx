@@ -60,8 +60,8 @@ export function StudentHub() {
     return () => unsub();
   }, []);
 
-  const isTeacherSessionActive = activeClassSession?.active ?? false;
-  const activeSessionNum = isTeacherSessionActive ? activeClassSession?.sessionNumber : null;
+  const isTeacherSessionActive = Boolean(activeClassSession && activeClassSession.active);
+  const activeSessionNum = isTeacherSessionActive ? (Number(activeClassSession?.sessionNumber) || 1) : null;
 
   const meetings: Meeting[] = [
     { 
@@ -69,31 +69,31 @@ export function StudentHub() {
       title: 'שיעור 1: הכשרת חוקרים', 
       desc: 'היכרות עם כלי המעבדה השונים במרחב החקר הווירטואלי.', 
       icon: '🧪', 
-      isTeacherActive: activeSessionNum === 1,
-      isLocked: activeSessionNum !== 1 && highestCompleted < 1 
+      isTeacherActive: isTeacherSessionActive && activeSessionNum === 1,
+      isLocked: isTeacherSessionActive ? (activeSessionNum !== 1 && highestCompleted < 1) : true
     },
     { 
       id: 2, 
       title: 'שיעור 2: סריקת רדאר', 
       desc: 'משימות חקר קצרות כדי שהמערכת תלמד את סגנון החשיבה הייחודי שלכם.', 
       icon: '📡', 
-      isTeacherActive: activeSessionNum === 2,
-      isLocked: activeSessionNum !== 2 && highestCompleted < 1 
+      isTeacherActive: isTeacherSessionActive && activeSessionNum === 2,
+      isLocked: isTeacherSessionActive ? (activeSessionNum !== 2 && highestCompleted < 1) : true
     },
     { 
       id: 3, 
       title: 'שיעור 3: מחקר אישי', 
       desc: isPendingLesson3 ? 'הנתונים נסרקים במערכת, ממתין לאישור מנהל מעבדה...' : 'מתחילים במשימות מחקר שמותאמות בדיוק עבורכם!', 
       icon: '🔬', 
-      isTeacherActive: activeSessionNum === 3,
-      isLocked: activeSessionNum !== 3 && (highestCompleted < 2 || !isApproved),
+      isTeacherActive: isTeacherSessionActive && activeSessionNum === 3,
+      isLocked: isTeacherSessionActive ? (activeSessionNum !== 3 && (highestCompleted < 2 || !isApproved)) : true,
       pendingApproval: isPendingLesson3
     },
-    { id: 4, title: 'שיעור 4: חוקרים ומגלים', desc: 'ניסויי פריטה וקיבוץ — חוקרים יחד ומצליחים.', icon: '🔍', isTeacherActive: activeSessionNum === 4, isLocked: activeSessionNum !== 4 && highestCompleted < 3 },
-    { id: 5, title: 'שיעור 5: חוקרים ומגלים', desc: 'ממשיכים לתכנן ניסויים ולגלות שיטות חשיבה חדשות.', icon: '💡', isTeacherActive: activeSessionNum === 5, isLocked: activeSessionNum !== 5 && highestCompleted < 4 },
-    { id: 6, title: 'שיעור 6: מחקר מתקדם', desc: 'אתגרים מחשבתיים שמותאמים לקצב הגילוי שלכם.', icon: '🧬', isTeacherActive: activeSessionNum === 6, isLocked: activeSessionNum !== 6 && highestCompleted < 5 },
-    { id: 7, title: 'שיעור 7: מחקר מתקדם', desc: 'לקראת סיום — ניסויים מאתגרים לחיזוק הלמידה.', icon: '🚀', isTeacherActive: activeSessionNum === 7, isLocked: activeSessionNum !== 7 && highestCompleted < 6 },
-    { id: 8, title: 'שיעור 8: סיכום ותגליות', desc: 'מסכמים את המחקר ורואים אילו תגליות גילינו!', icon: '🏆', isTeacherActive: activeSessionNum === 8, isLocked: activeSessionNum !== 8 && highestCompleted < 7 },
+    { id: 4, title: 'שיעור 4: חוקרים ומגלים', desc: 'ניסויי פריטה וקיבוץ — חוקרים יחד ומצליחים.', icon: '🔍', isTeacherActive: isTeacherSessionActive && activeSessionNum === 4, isLocked: isTeacherSessionActive ? (activeSessionNum !== 4 && highestCompleted < 3) : true },
+    { id: 5, title: 'שיעור 5: חוקרים ומגלים', desc: 'ממשיכים לתכנון ניסויים ולגלות שיטות חשיבה חדשות.', icon: '💡', isTeacherActive: isTeacherSessionActive && activeSessionNum === 5, isLocked: isTeacherSessionActive ? (activeSessionNum !== 5 && highestCompleted < 4) : true },
+    { id: 6, title: 'שיעור 6: מחקר מתקדם', desc: 'אתגרים מחשבתיים שמותאמים לקצב הגילוי שלכם.', icon: '🧬', isTeacherActive: isTeacherSessionActive && activeSessionNum === 6, isLocked: isTeacherSessionActive ? (activeSessionNum !== 6 && highestCompleted < 5) : true },
+    { id: 7, title: 'שיעור 7: מחקר מתקדם', desc: 'לקראת סיום — ניסויים מאתגרים לחיזוק הלמידה.', icon: '🚀', isTeacherActive: isTeacherSessionActive && activeSessionNum === 7, isLocked: isTeacherSessionActive ? (activeSessionNum !== 7 && highestCompleted < 6) : true },
+    { id: 8, title: 'שיעור 8: סיכום ותגליות', desc: 'מסכמים את המחקר ורואים אילו תגליות גילינו!', icon: '🏆', isTeacherActive: isTeacherSessionActive && activeSessionNum === 8, isLocked: isTeacherSessionActive ? (activeSessionNum !== 8 && highestCompleted < 7) : true },
   ];
 
   return (
