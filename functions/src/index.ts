@@ -175,6 +175,7 @@ JSON SCHEMA:
 
       const userPrompt = `
 Student Name: ${scrubbedName}
+Q-Matrix Diagnostic Results: ${JSON.stringify(qMatrix)}
 Concept Mastery Scores: ${JSON.stringify(conceptMastery)}
 Trace Data (Hesitations/Undos): ${scrubbedTrace}
 
