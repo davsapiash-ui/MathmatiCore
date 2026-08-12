@@ -474,7 +474,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   );
 
 
-  const _decimalStructureGroup = allStudents.filter(
+  const decimalStructureGroup = allStudents.filter(
     (s) => s.conceptMastery && s.conceptMastery.decimal_structure < 0.8
   );
   const _numberMagnitudeGroup = allStudents.filter(
