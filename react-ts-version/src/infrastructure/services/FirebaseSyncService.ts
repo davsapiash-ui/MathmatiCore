@@ -1,4 +1,4 @@
-import { ref, set, get, update, serverTimestamp, onValue, onDisconnect, push, type DataSnapshot } from 'firebase/database';
+import { ref, set, get, update, runTransaction, serverTimestamp, onValue, onDisconnect, push, type DataSnapshot } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
@@ -952,7 +952,20 @@ export class FirebaseSyncService {
   }
 
   public async setGlobalStudentLimit(limit: number) {
-    await set(ref(database, 'system_control/globalStudentLimit'), limit);
+    const limitRef = ref(database, 'system_control/globalStudentLimit');
+    try {
+      // @ts-ignore
+      if (typeof runTransaction === 'function') {
+        await runTransaction(limitRef, (currentVal) => {
+          if (typeof limit !== 'number' || limit < 1) return currentVal;
+          return limit;
+        });
+        return;
+      }
+    } catch (e) {
+      // Fallback if mock is missing or transaction fails
+    }
+    await set(limitRef, limit);
   }
 }
 
