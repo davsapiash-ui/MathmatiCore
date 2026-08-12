@@ -194,6 +194,11 @@
       ".write": "auth != null && (auth.token.email === 'admin@mathmaticore.local' || auth.token.admin === true)"
     },
 
+    "active_class_session": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+
     "audit_logs": {
       ".read": "auth != null && (auth.token.email === 'admin@mathmaticore.local' || auth.token.admin === true)",
       ".write": "auth != null",
