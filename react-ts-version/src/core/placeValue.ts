@@ -62,6 +62,7 @@ export function checkAndGroup(counts: PlaceCounts): { counts: PlaceCounts; event
 
 /** Add one block; auto-group only when the caller allows it (scaffold-gated). */
 export function addBlock(counts: PlaceCounts, place: Place, autoGroup: boolean): { counts: PlaceCounts; events: RegroupEvent[] } {
+  if (counts[place] >= MAX_VISIBLE_BLOCKS) return { counts, events: [] };
   const added = { ...counts, [place]: counts[place] + 1 };
   return autoGroup ? checkAndGroup(added) : { counts: added, events: [] };
 }
@@ -72,14 +73,25 @@ export function removeBlock(counts: PlaceCounts, place: Place): PlaceCounts | nu
   return { ...counts, [place]: counts[place] - 1 };
 }
 
-/** פריטה: 1 high → 10 adjacent-low. Null if impossible. */
-export function ungroupBlock(counts: PlaceCounts, fromPlace: Place): { counts: PlaceCounts; event: UngroupEvent } | null {
+/** פריטה בלחיצה: 1 high → 10 adjacent-low (Tens→Units, Hundreds→Tens, Thousands→Hundreds). */
+export function splitBlockClick(counts: PlaceCounts, place: Place): { counts: PlaceCounts; event: UngroupEvent } | null {
+  return ungroupBlock(counts, place);
+}
+
+/** הקבצה מפורשת בלחיצה על כפתור "הקבץ": 10 adjacent-low → 1 high (Units→Tens, Tens→Hundreds, Hundreds→Thousands). */
+export function groupBlocksManually(counts: PlaceCounts, fromPlace: Place): { counts: PlaceCounts; event: RegroupEvent } | null {
   const fromIdx = PLACE_ORDER.indexOf(fromPlace);
-  if (fromIdx <= 0 || counts[fromPlace] <= 0) return null;
-  const toPlace = PLACE_ORDER[fromIdx - 1];
+  if (fromIdx < 0 || fromIdx >= PLACE_ORDER.length - 1) return null;
+  if (counts[fromPlace] < 10) return null;
+  const toPlace = PLACE_ORDER[fromIdx + 1];
+  if (counts[toPlace] >= MAX_VISIBLE_BLOCKS) return null;
   return {
-    counts: { ...counts, [fromPlace]: counts[fromPlace] - 1, [toPlace]: counts[toPlace] + 10 },
-    event: { from: fromPlace, to: toPlace },
+    counts: {
+      ...counts,
+      [fromPlace]: counts[fromPlace] - 10,
+      [toPlace]: counts[toPlace] + 1,
+    },
+    event: { from: fromPlace, to: toPlace, groups: 1 },
   };
 }
 
@@ -88,9 +100,27 @@ export function addUngroupedFromPalette(counts: PlaceCounts, fromPlace: Place): 
   const fromIdx = PLACE_ORDER.indexOf(fromPlace);
   if (fromIdx <= 0) return null;
   const toPlace = PLACE_ORDER[fromIdx - 1];
+  if (counts[toPlace] + 10 > MAX_VISIBLE_BLOCKS) return null;
   return {
     counts: { ...counts, [toPlace]: counts[toPlace] + 10 },
     event: { from: fromPlace, to: toPlace },
+  };
+}
+
+export function ungroupBlock(counts: PlaceCounts, place: Place): { counts: PlaceCounts; event: UngroupEvent } | null {
+  const fromIdx = PLACE_ORDER.indexOf(place);
+  if (fromIdx <= 0) return null;
+  if (counts[place] <= 0) return null;
+  const toPlace = PLACE_ORDER[fromIdx - 1];
+  // Fix 3: Enforce strict MAX_VISIBLE_BLOCKS (30) column bounds to eliminate phantom blocks
+  if (counts[toPlace] + 10 > MAX_VISIBLE_BLOCKS) return null;
+  return {
+    counts: {
+      ...counts,
+      [place]: counts[place] - 1,
+      [toPlace]: counts[toPlace] + 10,
+    },
+    event: { from: place, to: toPlace },
   };
 }
 
@@ -151,21 +181,6 @@ export function resolveDrop(counts: PlaceCounts, input: DropInput, _scaffoldLeve
     return { ok: true, counts: res.counts, regroupEvents: [], ungroupEvent: res.event };
   }
 
-  // הקפצה ע"י גרירה: adjacent higher only, requires >=10 in source.
-  if (tgtIdx - srcIdx === 1) {
-    if (counts[input.sourcePlace] >= 10) {
-      const nextCounts = { ...counts, [input.sourcePlace]: counts[input.sourcePlace] - 10 };
-      const { counts: finalCounts, events } = addBlock(nextCounts, targetPlace, autoGroup);
-      return {
-        ok: true,
-        counts: finalCounts,
-        regroupEvents: [{ from: input.sourcePlace, to: targetPlace, groups: 1 }, ...events],
-        removed: input.sourcePlace,
-      };
-    }
-    return { ok: false, reason: 'constraint', place: input.sourcePlace };
-  }
-
-  // Non-adjacent: silently rejected (adjacent-step pedagogy).
+  // Non-adjacent or upward drag: rejected (regrouping must use the explicit "הקבץ" button per PRD).
   return { ok: false, reason: 'silent' };
 }

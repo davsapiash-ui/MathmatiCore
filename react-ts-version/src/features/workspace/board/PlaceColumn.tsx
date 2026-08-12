@@ -19,7 +19,8 @@ export function PlaceColumn({ place }: { place: Place }) {
   const errorNonce = useWorkspaceStore((s) => s.errorNonce);
   const focusedPlace = useWorkspaceStore((s) => s.focusedPlace);
   const isASD = useWorkspaceStore((s) => s.isASD);
-  const removeBlockClick = useWorkspaceStore((s) => s.removeBlockClick);
+  const splitBlockClick = useWorkspaceStore((s) => s.splitBlockClick);
+  const groupColumnClick = useWorkspaceStore((s) => s.groupColumnClick);
   const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
 
   const { setNodeRef, isOver } = useDroppable({
@@ -91,12 +92,32 @@ export function PlaceColumn({ place }: { place: Place }) {
         </span>
       </div>
 
+      {/* Explicit Group Button per PRD §3.1 */}
+      {count >= 10 && place !== 'thousands' && (
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="p-1.5 flex justify-center border-b border-ws-surface2/60 bg-ws-bg/40 shrink-0"
+        >
+          <button
+            type="button"
+            onClick={() => groupColumnClick(place)}
+            className="w-full py-1 px-2 rounded-xl text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700 shadow-md transition-all active:scale-95 flex items-center justify-center gap-1.5 animate-pulse"
+            aria-label={`הקבץ 10 ${PLACE_NAMES_HE[place]} ללבנה אחת בטור השמאלי`}
+          >
+            <span>✨</span>
+            <span>הקבץ (10)</span>
+          </button>
+        </motion.div>
+      )}
+
       <div
         ref={setNodeRef}
         id={`column-${place}`}
         role="group"
         aria-label={`אזור גרירה — ${PLACE_NAMES_HE[place]}`}
-        className="flex-1 flex flex-row flex-wrap content-start justify-center items-start gap-1 p-2 min-h-[150px] overflow-y-auto overflow-x-hidden no-scrollbar"
+        style={{ touchAction: 'none' }}
+        className="flex-1 flex flex-row flex-wrap content-start justify-center items-start gap-1 p-2 min-h-[150px] overflow-y-auto overflow-x-hidden no-scrollbar touch-none"
       >
 
         <AnimatePresence>
@@ -126,7 +147,7 @@ export function PlaceColumn({ place }: { place: Place }) {
                 id={`col-${place}-${i}`}
                 place={place}
                 source="column"
-                onRemove={() => removeBlockClick(place)}
+                onSplit={() => splitBlockClick(place)}
                 noEnter={i < renderCount - 1}
               />
             </motion.div>

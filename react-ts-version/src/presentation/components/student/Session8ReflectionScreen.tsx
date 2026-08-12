@@ -12,6 +12,7 @@ interface Session8ReflectionScreenProps {
 export function Session8ReflectionScreen({ onComplete, metrics }: Session8ReflectionScreenProps) {
   const [step, setStep] = useState(1);
   const [feeling, setFeeling] = useState<number | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const emojis = [
     { id: 1, icon: '😓', label: 'היה לי קשה', color: 'bg-rose-100 text-rose-600' },
@@ -28,6 +29,7 @@ export function Session8ReflectionScreen({ onComplete, metrics }: Session8Reflec
   ];
 
   const handleFeelingSelect = (id: number) => {
+    if (isSubmitting) return;
     setFeeling(id);
     setTimeout(() => {
       setStep(2);
@@ -35,6 +37,8 @@ export function Session8ReflectionScreen({ onComplete, metrics }: Session8Reflec
   };
 
   const handleFocusSelect = (id: string) => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     onComplete(id);
   };
 
@@ -130,8 +134,9 @@ export function Session8ReflectionScreen({ onComplete, metrics }: Session8Reflec
                 {focusAreas.map((area) => (
                   <button
                     key={area.id}
+                    disabled={isSubmitting}
                     onClick={() => handleFocusSelect(area.id)}
-                    className="flex items-center gap-4 p-5 rounded-2xl border-2 border-ws-surface2 bg-white hover:border-ws-blue hover:bg-ws-blue-soft transition-all text-right group"
+                    className={`flex items-center gap-4 p-5 rounded-2xl border-2 border-ws-surface2 transition-all text-right group ${isSubmitting ? 'opacity-50 cursor-not-allowed bg-slate-100' : 'bg-white hover:border-ws-blue hover:bg-ws-blue-soft cursor-pointer'}`}
                   >
                     <span className="text-3xl bg-slate-50 p-3 rounded-xl group-hover:bg-white">{area.icon}</span>
                     <span className="text-lg font-bold text-ws-ink">{area.label}</span>

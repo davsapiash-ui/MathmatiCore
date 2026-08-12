@@ -6,6 +6,7 @@ const logger = require("firebase-functions/logger");
 const generative_ai_1 = require("@google/generative-ai");
 const admin = require("firebase-admin");
 const dotenv = require("dotenv");
+const geminiProxy_1 = require("./geminiProxy");
 admin.initializeApp();
 // Load local .env file explicitly to guarantee key loading in emulator
 dotenv.config();
@@ -23,7 +24,6 @@ const STATIC_QMATRIX_HINTS = {
             { id: "choice_3", textHe: "נרשום 1 בעמודה" }
         ]
     },
-
     task3_flexible_regrouping: {
         questionHe: "איך עוד אפשר לייצג את המספר באמצעות עשרות ויחידות?",
         choices: [
@@ -118,9 +118,18 @@ exports.generateSocraticMapping = (0, https_1.onCall)(async (request) => {
     }
     // PRD 5.4: PII Scrubbing Middleware before hitting Gemini
     const scrubbedName = "[REDACTED_NAME]";
-    const scrubbedTrace = JSON.stringify(traceData)
-        .replace(/\b\d{9}\b/g, "[REDACTED_ID]")
-        .replace(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/g, "[REDACTED_EMAIL]");
+    const scrubbedQMatrix = (0, geminiProxy_1.scrubPII)(JSON.stringify(qMatrix));
+    const scrubbedConceptMastery = (0, geminiProxy_1.scrubPII)(JSON.stringify(conceptMastery));
+    const scrubbedTrace = (0, geminiProxy_1.scrubPII)(JSON.stringify(traceData || {}));
+    // Security: Strict Payload Size Guard — reject oversized/injected payloads before LLM call
+    const totalPayloadSize = scrubbedQMatrix.length + scrubbedConceptMastery.length + scrubbedTrace.length;
+    if (totalPayloadSize > 50000) {
+        logger.warn("generateSocraticMapping: Payload size exceeded safety threshold.", {
+            studentId,
+            payloadSize: totalPayloadSize,
+        });
+        throw new https_1.HttpsError("invalid-argument", `Payload size (${totalPayloadSize} chars) exceeds the safety threshold of 50,000 characters. Request rejected.`);
+    }
     try {
         const ai = new generative_ai_1.GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
         const model = ai.getGenerativeModel({
@@ -156,7 +165,8 @@ JSON SCHEMA:
         });
         const userPrompt = `
 Student Name: ${scrubbedName}
-Concept Mastery Scores: ${JSON.stringify(conceptMastery)}
+Q-Matrix Diagnostic Results: ${scrubbedQMatrix}
+Concept Mastery Scores: ${scrubbedConceptMastery}
 Trace Data (Hesitations/Undos): ${scrubbedTrace}
 
 Generate the pedagogical mapping JSON.`;
@@ -181,8 +191,8 @@ Generate the pedagogical mapping JSON.`;
 var syncUserRoles_1 = require("./syncUserRoles");
 Object.defineProperty(exports, "syncUserRoles", { enumerable: true, get: function () { return syncUserRoles_1.syncUserRoles; } });
 // Export the Gemini Proxy from the new module
-var geminiProxy_1 = require("./geminiProxy");
-Object.defineProperty(exports, "callGeminiSocraticProxy", { enumerable: true, get: function () { return geminiProxy_1.callGeminiSocraticProxy; } });
+var geminiProxy_2 = require("./geminiProxy");
+Object.defineProperty(exports, "callGeminiSocraticProxy", { enumerable: true, get: function () { return geminiProxy_2.callGeminiSocraticProxy; } });
 // Export the Transaction Guard module
 var transactionGuard_1 = require("./transactionGuard");
 Object.defineProperty(exports, "validateAndStoreTelemetry", { enumerable: true, get: function () { return transactionGuard_1.validateAndStoreTelemetry; } });

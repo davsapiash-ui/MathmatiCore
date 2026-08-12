@@ -9,7 +9,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
  * - IDs and standard PII (e.g., 9-digit Israeli IDs, passwords)
  * - Hebrew/English name prefixes ("My name is X", "קוראים לי Y")
  */
-function scrubPII(text: string): string {
+export function scrubPII(text: string): string {
   if (!text) return text;
 
   let scrubbed = text;
@@ -18,8 +18,8 @@ function scrubPII(text: string): string {
   const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
   scrubbed = scrubbed.replace(emailRegex, "[REDACTED_EMAIL]");
 
-  // Scrub Israeli IDs (9 digits) and basic phone numbers
-  const idRegex = /\b\d{9}\b/g;
+  // Scrub Israeli IDs (9 digits, with or without hyphens/spaces) and basic phone numbers
+  const idRegex = /\b\d{1,3}[-\s]?\d{3}[-\s]?\d{3}\b/g;
   scrubbed = scrubbed.replace(idRegex, "[REDACTED_ID]");
 
   // Scrub Name prefixes in English

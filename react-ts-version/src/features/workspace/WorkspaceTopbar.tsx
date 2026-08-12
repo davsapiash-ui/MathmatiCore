@@ -10,7 +10,11 @@ import { useWorkspaceTour } from './useWorkspaceTour';
  * הסרגל העליון של מרחב הפעילות — ניווט לינארי בלבד (הבא/בטל), ללא תפריטים.
  * אין שום חיווי זמן (איסור טיימרים מהאפיון).
  */
-export function WorkspaceTopbar() {
+interface WorkspaceTopbarProps {
+  isDragging?: boolean;
+}
+
+export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
   const navigate = useNavigate();
   const logout = useAuthStore((s) => s.logout);
   const user = useAuthStore((s) => s.user);
@@ -18,7 +22,7 @@ export function WorkspaceTopbar() {
   const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
   const standardTaskIdx = useWorkspaceStore((s) => s.standardTaskIdx);
   const qflow = useWorkspaceStore((s) => s.qflow);
-  const canUndo = useWorkspaceStore((s) => s.undoStack.length > 0);
+  const canUndo = useWorkspaceStore((s) => s.undoStack.length > 0) && !isDragging;
   const canProceed = useWorkspaceStore(selectCanProceed);
   const boardOpen = useWorkspaceStore((s) => s.boardOpen);
   const undo = useWorkspaceStore((s) => s.undo);

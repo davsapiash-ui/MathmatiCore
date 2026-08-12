@@ -59,6 +59,7 @@ export function VerticalAdditionTask({
     if (keyboardState === 'LOCKED') {
       timer = window.setTimeout(() => {
         setKeyboardSocratic();
+        useWorkspaceStore.getState().openAdditionHelper();
       }, 30000);
     }
     return () => clearTimeout(timer);
@@ -72,6 +73,7 @@ export function VerticalAdditionTask({
         const next = prev + 1;
         if (next >= 3) {
           setKeyboardSocratic();
+          useWorkspaceStore.getState().openAdditionHelper();
         }
         return next;
       });
@@ -160,13 +162,10 @@ export function VerticalAdditionTask({
                 inputMode="numeric"
                 maxLength={2}
                 value={carryDigits[place] ?? ''}
-                readOnly={isInputDisabled}
-                onClick={isInputDisabled ? handleLockedInteraction : undefined}
+                readOnly={false}
                 aria-label={`חלונית המרה ל${PLACE_LABEL_HE[place]}`}
-                className={`rounded-md border-2 border-ws-surface2 text-center font-mono font-bold bg-ws-surface text-ws-ink transition-shadow ${
-                  isInputDisabled ? 'opacity-60 cursor-not-allowed bg-gray-50' : 'focus:outline-none focus:ring-2 focus:ring-ws-accent'
-                }`}
-                style={{ width: CELL * 0.6, height: CELL * 0.6, fontSize: CELL * 0.35, ...shakeStyle }}
+                className="rounded-md border-2 border-ws-surface2 text-center font-mono font-bold bg-ws-surface text-ws-ink transition-shadow focus:outline-none focus:ring-2 focus:ring-ws-accent"
+                style={{ width: CELL * 0.6, height: CELL * 0.6, fontSize: CELL * 0.35 }}
                 onChange={(e) => {
                   const v = e.target.value.replace(/[^0-9]/g, '').slice(-2);
                   setCarryDigit(place, v);

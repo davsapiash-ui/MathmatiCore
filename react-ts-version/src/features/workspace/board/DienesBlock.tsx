@@ -15,6 +15,7 @@ export interface DienesBlockProps {
   sourcePlace?: Place;
   isOverlay?: boolean;
   onRemove?: () => void;
+  onSplit?: () => void;
   noEnter?: boolean;
 }
 
@@ -181,7 +182,7 @@ const BLOCK_VISUALS: Record<Place, { style?: React.CSSProperties; labelHe: strin
   },
 };
 
-export function DienesBlock({ id, place, source, sourcePlace, isOverlay, onRemove, noEnter }: DienesBlockProps) {
+export function DienesBlock({ id, place, source, sourcePlace, isOverlay, onRemove, onSplit, noEnter }: DienesBlockProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id,
     data: { source, place: sourcePlace ?? place, renderPlace: place },
@@ -207,6 +208,11 @@ export function DienesBlock({ id, place, source, sourcePlace, isOverlay, onRemov
 
   const hitPadding = place === 'units' ? 'p-2 -m-1' : '';
 
+  const handleAction = () => {
+    if (onSplit) onSplit();
+    else if (onRemove) onRemove();
+  };
+
   return (
     <div
       ref={setNodeRef}
@@ -216,16 +222,13 @@ export function DienesBlock({ id, place, source, sourcePlace, isOverlay, onRemov
       role="button"
       tabIndex={0}
       aria-label={visual.labelHe}
+      style={{ touchAction: 'none' }}
       className={`touch-none cursor-grab active:cursor-grabbing outline-none focus-visible:ring-2 focus-visible:ring-ws-accent rounded-[3px] transition-transform hover:scale-105 hover:-translate-y-1 ${hitPadding} ${isDragging ? 'opacity-30' : ''}`}
-      onClick={() => {
-        if (onRemove) {
-          onRemove();
-        }
-      }}
+      onClick={handleAction}
       onKeyDown={(e) => {
-        if (onRemove && (e.key === 'Enter' || e.key === ' ')) {
+        if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          onRemove();
+          handleAction();
         }
       }}
     >

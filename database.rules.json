@@ -31,6 +31,10 @@
           "studentId": {
             ".write": "auth != null && (auth.token.email === $studentId + '@mathmaticore.local' || (root.child('users/teachers/' + auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '')).exists() || auth.token.teacher === true) || (auth.token.email === 'admin@mathmaticore.local' || auth.token.admin === true))"
           },
+          "additionBoardEnabled": {
+            ".validate": "newData.isBoolean()",
+            ".write": "auth != null && (auth.token.email === $studentId + '@mathmaticore.local' || (root.child('users/teachers/' + auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '')).exists() || auth.token.teacher === true) || (auth.token.email === 'admin@mathmaticore.local' || auth.token.admin === true))"
+          },
           "classId": {
             ".write": "auth != null && (auth.token.email === $studentId + '@mathmaticore.local' || (root.child('users/teachers/' + auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '')).exists() || auth.token.teacher === true) || (auth.token.email === 'admin@mathmaticore.local' || auth.token.admin === true))"
           },
@@ -41,7 +45,8 @@
             ".write": "auth != null && (auth.token.email === $studentId + '@mathmaticore.local' || (root.child('users/teachers/' + auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '')).exists() || auth.token.teacher === true) || (auth.token.email === 'admin@mathmaticore.local' || auth.token.admin === true))"
           },
           "lastActive": {
-            ".write": "auth != null && (auth.token.email === $studentId + '@mathmaticore.local' || (root.child('users/teachers/' + auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '')).exists() || auth.token.teacher === true) || (auth.token.email === 'admin@mathmaticore.local' || auth.token.admin === true))"
+            ".write": "auth != null && (auth.token.email === $studentId + '@mathmaticore.local' || (root.child('users/teachers/' + auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '')).exists() || auth.token.teacher === true) || (auth.token.email === 'admin@mathmaticore.local' || auth.token.admin === true))",
+            ".validate": "newData.isNumber()"
           },
           "profile": {
             ".write": "auth != null && (auth.token.email === $studentId + '@mathmaticore.local' || (root.child('users/teachers/' + auth.token.email.replace('teacher_', '').replace('@mathmaticore.local', '')).exists() || auth.token.teacher === true) || (auth.token.email === 'admin@mathmaticore.local' || auth.token.admin === true))"

@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { SocraticHintResponse } from '@/infrastructure/services/SocraticEngine';
-import { Bot, X, CheckCircle2, Sparkles, BellOff, Lightbulb } from 'lucide-react';
+import { Bot, X, CheckCircle2, Sparkles, BellOff, Lightbulb, Lock, AlertTriangle } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useSettingsStore } from '@/application/useSettingsStore';
+import { executeDistractorPenaltyLockout } from '@/core/ExerciseValidationEngine';
 
 interface GraphicOrganizerHintProps {
   hint: SocraticHintResponse;
@@ -12,26 +13,93 @@ interface GraphicOrganizerHintProps {
 
 export const GraphicOrganizerHint: React.FC<GraphicOrganizerHintProps> = ({ hint, onClose, onSelectOption }) => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [isPenaltyLocked, setIsPenaltyLocked] = useState(false);
+  const [penaltyRemaining, setPenaltyRemaining] = useState(0);
+  const [distractorHint, setDistractorHint] = useState<string | null>(null);
+  const lockoutCleanupRef = useRef<(() => void) | null>(null);
+  const lockEndTimeRef = useRef<number | null>(null);
+
   const setAutoShowHints = useSettingsStore((s) => s.setAutoShowHints);
 
-  const handleSelect = (id: string) => {
-    setSelectedId(id);
-    if (onSelectOption) {
-      onSelectOption(id);
+  const correctId = hint.correctChoiceId || 'opt_1';
+
+  // Fix 2: Zombie Tab Timestamp Delta Timer (Instant unlock upon waking backgrounded tab)
+  useEffect(() => {
+    let interval: number | undefined;
+    if (isPenaltyLocked && lockEndTimeRef.current) {
+      const updateTimer = () => {
+        const now = Date.now();
+        const remaining = Math.max(0, Math.ceil((lockEndTimeRef.current! - now) / 1000));
+        setPenaltyRemaining(remaining);
+        if (remaining <= 0) {
+          setIsPenaltyLocked(false);
+          setDistractorHint(null);
+          lockEndTimeRef.current = null;
+          if (interval) clearInterval(interval);
+        }
+      };
+
+      updateTimer();
+      interval = window.setInterval(updateTimer, 500);
     }
-    setTimeout(() => {
-      onClose();
-    }, 1200);
+    return () => {
+      if (interval) clearInterval(interval);
+      if (lockoutCleanupRef.current) lockoutCleanupRef.current();
+    };
+  }, [isPenaltyLocked]);
+
+  const handleSelect = (id: string) => {
+    if (isPenaltyLocked) return;
+
+    if (id === correctId) {
+      setSelectedId(id);
+      if (onSelectOption) {
+        onSelectOption(id);
+      }
+      setTimeout(() => {
+        onClose();
+      }, 1200);
+    } else {
+      // Wrong distractor chosen — execute 30-second penalty lockout per PRD §3.4
+      setDistractorHint('בחירה זו אינה מביאה לפתרון הנכון. חשבו מה הפעולה המדויקת הנדרשת בבית המספרים ונסו שוב כשתום הנעילה.');
+      lockoutCleanupRef.current = executeDistractorPenaltyLockout(
+        () => {
+          lockEndTimeRef.current = Date.now() + 30000;
+          setIsPenaltyLocked(true);
+          setPenaltyRemaining(30);
+        },
+        () => {
+          lockEndTimeRef.current = null;
+          setIsPenaltyLocked(false);
+          setPenaltyRemaining(0);
+          setDistractorHint(null);
+        },
+        30000
+      );
+    }
   };
 
   const handleDisableAutoShow = () => {
+    if (isPenaltyLocked) return;
     setAutoShowHints(false);
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-in fade-in duration-300" dir="rtl">
-      <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden border border-indigo-100 dark:border-slate-800 animate-in zoom-in-95 duration-300">
+    <div 
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-in fade-in duration-300" 
+      dir="rtl"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && isPenaltyLocked) {
+          e.stopPropagation();
+          e.preventDefault();
+        }
+      }}
+    >
+      <div 
+        className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden border border-indigo-100 dark:border-slate-800 animate-in zoom-in-95 duration-300"
+        onClick={(e) => e.stopPropagation()}
+      >
         
         {/* Header */}
         <div className="bg-gradient-to-r from-indigo-600 via-blue-600 to-indigo-700 p-6 text-white flex items-center justify-between relative overflow-hidden">
@@ -54,9 +122,15 @@ export const GraphicOrganizerHint: React.FC<GraphicOrganizerHintProps> = ({ hint
           </div>
 
           <button 
-            onClick={onClose}
+            onClick={() => !isPenaltyLocked && onClose()}
+            disabled={isPenaltyLocked}
             aria-label="סגור חלון רמז"
-            className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all relative z-10 cursor-pointer"
+            className={clsx(
+              "w-10 h-10 rounded-full flex items-center justify-center transition-all relative z-10",
+              isPenaltyLocked 
+                ? "bg-white/5 text-white/30 opacity-30 cursor-not-allowed border border-white/10" 
+                : "bg-white/10 hover:bg-white/20 text-white cursor-pointer"
+            )}
           >
             <X className="w-5 h-5" />
           </button>
@@ -70,21 +144,38 @@ export const GraphicOrganizerHint: React.FC<GraphicOrganizerHintProps> = ({ hint
             </h3>
           </div>
 
+          {/* PRD §3.4: 30-Second Distractor Penalty Lockout Alert */}
+          {isPenaltyLocked && (
+            <div className="mb-6 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-400 text-amber-900 dark:text-amber-200 flex flex-col gap-2 animate-pulse">
+              <div className="flex items-center gap-2 font-bold text-base">
+                <Lock className="w-5 h-5 text-amber-600 animate-bounce" />
+                <span>חסימת ניחוס פדגוגית — האפשרויות נעולות ל-30 שניות למחשבה נוספת ({penaltyRemaining} שניות נותרו)</span>
+              </div>
+              {distractorHint && (
+                <p className="text-xs font-medium text-amber-800 dark:text-amber-300 pr-7">
+                  💡 {distractorHint}
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Socratic choices */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 mb-6">
             {hint.choices.map((choice) => {
               const isSelected = selectedId === choice.id;
+              const isDisabled = selectedId !== null || isPenaltyLocked;
+
               return (
                 <button
                   key={choice.id}
                   onClick={() => handleSelect(choice.id)}
-                  disabled={selectedId !== null}
+                  disabled={isDisabled}
                   className={clsx(
                     "relative p-5 rounded-2xl border-2 text-right transition-all duration-200 flex items-center gap-3.5 group cursor-pointer",
                     isSelected 
                       ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-950 dark:text-emerald-100 shadow-md scale-[1.02]"
-                      : selectedId !== null 
-                        ? "bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 opacity-40"
+                      : isDisabled 
+                        ? "bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 opacity-50 cursor-not-allowed"
                         : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-indigo-500 hover:shadow-lg hover:-translate-y-0.5"
                   )}
                 >

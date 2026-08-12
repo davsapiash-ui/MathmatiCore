@@ -12,6 +12,7 @@ async function ready(): Promise<void> {
 export interface SocraticHintResponse {
   questionHe: string;
   choices: { id: string; textHe: string }[];
+  correctChoiceId?: string;
 }
 
 export interface PendingAIApproval {
@@ -41,7 +42,8 @@ export class SocraticEngine {
           { id: "opt_1", textHe: "לפרוט עשרת אחת ל-10 יחידות" },
           { id: "opt_2", textHe: "לקבץ 10 יחידות לעשרת אחת" },
           { id: "opt_3", textHe: "לבדוק שוב את החישוב בבית המספרים" }
-        ]
+        ],
+        correctChoiceId: "opt_1"
       },
       "subtraction_regrouping": {
         questionHe: "חסרות לנו יחידות בלוח כדי לחסר. מה אפשר לעשות?",
@@ -49,7 +51,8 @@ export class SocraticEngine {
           { id: "opt_1", textHe: "לקחת קוביית עשרת ולפרוט אותה ל-10 יחידות" },
           { id: "opt_2", textHe: "להוסיף קוביות יחידה מהמחסן" },
           { id: "opt_3", textHe: "לחסר מלמטה למעלה" }
-        ]
+        ],
+        correctChoiceId: "opt_1"
       },
       "addition_regrouping": {
         questionHe: "יש לנו יותר מ-9 קוביות באותו טור. מה עושים?",
@@ -57,7 +60,8 @@ export class SocraticEngine {
           { id: "opt_1", textHe: "מקריפים (אורזים) 10 קוביות לבלוק גדול יותר" },
           { id: "opt_2", textHe: "מוחקים את הקוביות המיותרות" },
           { id: "opt_3", textHe: "מעבירים אותן סתם לטור אחר" }
-        ]
+        ],
+        correctChoiceId: "opt_1"
       }
     };
 

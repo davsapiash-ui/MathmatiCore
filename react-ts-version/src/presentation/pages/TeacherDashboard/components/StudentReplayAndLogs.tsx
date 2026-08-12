@@ -13,8 +13,10 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
   const [latestSession, setLatestSession] = useState<string | null>(null);
   const [chunkMetadata, setChunkMetadata] = useState<Record<string, {startTime: number, endTime: number}>>({});
   const [currentChunkIndex, setCurrentChunkIndex] = useState<number>(0);
+  const [isFetchingReplay, setIsFetchingReplay] = useState<boolean>(false);
 
   const fetchChunk = useCallback(async (sessionId: string, chunkKey: string) => {
+    setIsFetchingReplay(true);
     try {
       const chunkRef = ref(database, `users/students/${studentId}/telemetry_sessions/${sessionId}/chunks/${chunkKey}`);
       let snap = await get(chunkRef);
@@ -42,6 +44,8 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
       }
     } catch (err) {
       console.error("Error fetching chunk", err);
+    } finally {
+      setIsFetchingReplay(false);
     }
   }, [studentId, rawStudentId, chunkKeys]);
   
@@ -213,8 +217,9 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
                     .map((alert: any, index: number) => (
                     <button
                       key={alert.id || index}
+                      disabled={isFetchingReplay}
                       onClick={() => {
-                        setSeekToTime(alert.timestamp);
+                        if (isFetchingReplay) return;
                         if (chunkKeys.length > 0 && latestSession) {
                           // Find the chunk that contains this timestamp
                           const targetKey = chunkKeys.find(k => 
@@ -223,10 +228,15 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
                             alert.timestamp <= chunkMetadata[k].endTime
                           ) || [...chunkKeys].reverse().find(k => chunkMetadata[k] && alert.timestamp >= chunkMetadata[k].endTime) || chunkKeys[0];
                           
-                          fetchChunk(latestSession, targetKey);
+                          // Fix 4: Call setSeekToTime ONLY AFTER fetchChunk resolves
+                          fetchChunk(latestSession, targetKey).then(() => {
+                            setSeekToTime(alert.timestamp);
+                          });
+                        } else {
+                          setSeekToTime(alert.timestamp);
                         }
                       }}
-                      className="text-right p-3 rounded-lg border border-slate-200 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-200 transition-all flex flex-col gap-1 w-full"
+                      className={`text-right p-3 rounded-lg border border-slate-200 transition-all flex flex-col gap-1 w-full ${isFetchingReplay ? 'opacity-50 cursor-not-allowed bg-slate-100' : 'bg-slate-50 hover:bg-indigo-50 hover:border-indigo-200 cursor-pointer'}`}
                     >
                       <div className="flex items-center gap-2">
                         <span className="text-lg">

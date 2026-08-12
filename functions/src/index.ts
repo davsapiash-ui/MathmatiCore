@@ -3,6 +3,7 @@ import * as logger from "firebase-functions/logger";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import * as admin from "firebase-admin";
 import * as dotenv from "dotenv";
+import { scrubPII } from "./geminiProxy";
 
 admin.initializeApp();
 
@@ -135,9 +136,22 @@ export const generateSocraticMapping = onCall(
 
     // PRD 5.4: PII Scrubbing Middleware before hitting Gemini
     const scrubbedName = "[REDACTED_NAME]";
-    const scrubbedTrace = JSON.stringify(traceData)
-      .replace(/\b\d{9}\b/g, "[REDACTED_ID]")
-      .replace(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/g, "[REDACTED_EMAIL]");
+    const scrubbedQMatrix = scrubPII(JSON.stringify(qMatrix));
+    const scrubbedConceptMastery = scrubPII(JSON.stringify(conceptMastery));
+    const scrubbedTrace = scrubPII(JSON.stringify(traceData || {}));
+
+    // Security: Strict Payload Size Guard — reject oversized/injected payloads before LLM call
+    const totalPayloadSize = scrubbedQMatrix.length + scrubbedConceptMastery.length + scrubbedTrace.length;
+    if (totalPayloadSize > 50000) {
+      logger.warn("generateSocraticMapping: Payload size exceeded safety threshold.", {
+        studentId,
+        payloadSize: totalPayloadSize,
+      });
+      throw new HttpsError(
+        "invalid-argument",
+        `Payload size (${totalPayloadSize} chars) exceeds the safety threshold of 50,000 characters. Request rejected.`
+      );
+    }
 
     try {
       const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
@@ -175,8 +189,8 @@ JSON SCHEMA:
 
       const userPrompt = `
 Student Name: ${scrubbedName}
-Q-Matrix Diagnostic Results: ${JSON.stringify(qMatrix)}
-Concept Mastery Scores: ${JSON.stringify(conceptMastery)}
+Q-Matrix Diagnostic Results: ${scrubbedQMatrix}
+Concept Mastery Scores: ${scrubbedConceptMastery}
 Trace Data (Hesitations/Undos): ${scrubbedTrace}
 
 Generate the pedagogical mapping JSON.`;

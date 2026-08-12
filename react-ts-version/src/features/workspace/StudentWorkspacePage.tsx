@@ -137,7 +137,9 @@ export function StudentWorkspacePage() {
         useWorkspaceStore.getState().proceed();
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
         e.preventDefault();
-        useWorkspaceStore.getState().undo();
+        if (!activeDrag) {
+          useWorkspaceStore.getState().undo();
+        }
       }
     };
     
@@ -260,12 +262,27 @@ export function StudentWorkspacePage() {
   // Pedagogical Radar — active ONLY when teacher session is active!
   useCognitiveHesitationRadar({ 
     isActive: isTeacherSessionActive,
-    onHesitationDetected: () => setShowHesitationHint(true)
+    onHesitationDetected: () => {
+      setShowHesitationHint(true);
+      useWorkspaceStore.getState().openAdditionHelper();
+    }
   });
   const [isInitializing, setIsInitializing] = useState(true);
   const [pendingApproval, setPendingApproval] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
-  const [isAdditionHelperOpen, setIsAdditionHelperOpen] = useState(false);
+  const [networkError, setNetworkError] = useState(false);
+  const isAdditionHelperOpen = useWorkspaceStore((s) => s.isAdditionHelperOpen);
+  const toggleAdditionHelper = useWorkspaceStore((s) => s.toggleAdditionHelper);
+
+  // --- PRD Section 4.5: Gate Locked Limbo State Guard ---
+  useEffect(() => {
+    if (myData?.routeStatus === 'GATE_LOCKED') {
+      setNetworkError(false); // Teacher lock, not a network error
+      setPendingApproval(true);
+    } else if (pendingApproval && myData?.routeStatus === 'APPROVED' && !networkError) {
+      setPendingApproval(false);
+    }
+  }, [myData?.routeStatus, pendingApproval, networkError]);
 
   // Reset initialization when meeting changes
   useEffect(() => {
@@ -367,14 +384,12 @@ export function StudentWorkspacePage() {
         }
         setIsInitialized(true);
         setIsInitializing(false);
-      })().catch(() => {
+      })().catch((err) => {
         if (cancelled) return;
-        const canRestore = myData?.workspaceState?.sessionNumber === meeting && myData?.workspaceState?.flowStatus === 'task';
-        if (canRestore && myData?.workspaceState) {
-          restoreSession(myData.workspaceState);
-        } else {
-          initSession(meeting, isASDMode, null, 0);
-        }
+        console.error("Network or server error during Teacher Gate verification:", err);
+        // Fix 1: Strictly enforce Teacher Gate on error and surface clear network error UI
+        setNetworkError(true);
+        setPendingApproval(true);
         setIsInitialized(true);
         setIsInitializing(false);
       });
@@ -395,10 +410,35 @@ export function StudentWorkspacePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [meeting, firebaseLoaded, isInitialized, myData, initSession, restoreSession]);
 
+  // Fix 5: Auto-Retry Polling when Network Error occurs
+  useEffect(() => {
+    let pollInterval: number | undefined;
+    if (meeting === 3 && networkError && pendingApproval) {
+      pollInterval = window.setInterval(async () => {
+        const username = useAuthStore.getState().user?.uid;
+        if (!username) return;
+        try {
+          const tasks = await SocraticEngine.getApprovedTasks(username);
+          if (tasks) {
+            clearInterval(pollInterval);
+            setNetworkError(false);
+            setPendingApproval(false);
+            initSession(meeting, isASDMode, tasks, 0);
+          }
+        } catch (err) {
+          console.log("Auto-poll retry failed, waiting 5s...", err);
+        }
+      }, 5000);
+    }
+    return () => {
+      if (pollInterval) clearInterval(pollInterval);
+    };
+  }, [meeting, networkError, pendingApproval, isASDMode, initSession]);
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(TouchSensor, { activationConstraint: { distance: 5 } })
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } })
   );
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -464,17 +504,42 @@ export function StudentWorkspacePage() {
     return (
       <div dir="rtl" className="h-screen w-full flex flex-col items-center justify-center bg-ws-bg text-ws-ink font-body p-6">
         <div className="bg-ws-surface p-10 rounded-3xl shadow-xl max-w-md text-center border border-ws-surface2">
-          <div className="text-5xl mb-6">🧑‍🏫</div>
-          <h2 className="text-2xl font-bold mb-4 text-ws-ink">המורה בודק את המסלול שלך</h2>
-          <p className="text-ws-soft mb-8">
-            סיימת את שלב האבחון בהצלחה! כעת, המורה עובר על התוצאות ומאשר את המשימות המותאמות במיוחד עבורך. אפשר לחזור מאוחר יותר.
-          </p>
-          <button 
-            onClick={() => navigate('/hub')}
-            className="w-full py-4 bg-ws-accent text-white font-bold rounded-2xl hover:brightness-105 transition-all"
-          >
-            חזרה לעמוד הראשי
-          </button>
+          {networkError ? (
+            <>
+              <div className="text-5xl mb-6 animate-pulse">📡⚠️</div>
+              <h2 className="text-2xl font-bold mb-4 text-rose-600">שגיאת תקשורת ברשת</h2>
+              <p className="text-ws-soft mb-8 leading-relaxed">
+                לא ניתן להתחבר לשרת לבדיקת אישור המורה עבור מפגש 3. 
+                מטעמי אבטחה ופדגוגיה, הגישה למשימות חסומה עד לחידוש החיבור לרשת.
+              </p>
+              <button 
+                onClick={() => window.location.reload()}
+                className="w-full py-4 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-2xl transition-all shadow-md mb-3 cursor-pointer"
+              >
+                🔄 נסה להתחבר מחדש
+              </button>
+              <button 
+                onClick={() => navigate('/hub')}
+                className="w-full py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-2xl transition-all cursor-pointer"
+              >
+                חזרה לעמוד הראשי
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="text-5xl mb-6">🧑‍🏫</div>
+              <h2 className="text-2xl font-bold mb-4 text-ws-ink">המורה בודק את המסלול שלך</h2>
+              <p className="text-ws-soft mb-8">
+                סיימת את שלב האבחון בהצלחה! כעת, המורה עובר על התוצאות ומאשר את המשימות המותאמות במיוחד עבורך. אפשר לחזור מאוחר יותר.
+              </p>
+              <button 
+                onClick={() => navigate('/hub')}
+                className="w-full py-4 bg-ws-accent text-white font-bold rounded-2xl hover:brightness-105 transition-all"
+              >
+                חזרה לעמוד הראשי
+              </button>
+            </>
+          )}
         </div>
       </div>
     );
@@ -493,7 +558,7 @@ export function StudentWorkspacePage() {
           <div className="absolute top-[30%] right-[42%] w-16 h-16 rounded-2xl rotate-12 bg-blue-500/5 mix-blend-multiply dark:mix-blend-screen" />
         </div>
 
-        <WorkspaceTopbar />
+        <WorkspaceTopbar isDragging={activeDrag !== null} />
 
         {/* Main 50/50 workspace (or centered in Session 8) */}
         <main className={`flex flex-row flex-1 overflow-hidden p-5 gap-5 max-w-[1600px] mx-auto w-full box-border ${sessionNumber === 8 ? 'justify-center items-center' : ''}`}>
@@ -574,7 +639,7 @@ export function StudentWorkspacePage() {
               )}
             </AnimatePresence>
             <button
-              onClick={() => setIsAdditionHelperOpen(!isAdditionHelperOpen)}
+              onClick={toggleAdditionHelper}
               className="bg-ws-accent text-white font-bold px-4 py-3 rounded-full shadow-lg hover:bg-ws-accent/90 transition-all flex items-center gap-2 border border-ws-accent/20"
             >
               <span>🧮</span>

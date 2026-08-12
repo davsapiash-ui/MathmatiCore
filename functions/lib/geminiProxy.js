@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.callGeminiSocraticProxy = void 0;
+exports.scrubPII = scrubPII;
 const https_1 = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
 const generative_ai_1 = require("@google/generative-ai");
@@ -18,8 +19,8 @@ function scrubPII(text) {
     // Scrub Emails
     const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
     scrubbed = scrubbed.replace(emailRegex, "[REDACTED_EMAIL]");
-    // Scrub Israeli IDs (9 digits) and basic phone numbers
-    const idRegex = /\b\d{9}\b/g;
+    // Scrub Israeli IDs (9 digits, with or without hyphens/spaces) and basic phone numbers
+    const idRegex = /\b\d{1,3}[-\s]?\d{3}[-\s]?\d{3}\b/g;
     scrubbed = scrubbed.replace(idRegex, "[REDACTED_ID]");
     // Scrub Name prefixes in English
     const englishNameRegex = /(my name is|i am|this is) ([A-Z][a-z]+(\s[A-Z][a-z]+)?)/gi;

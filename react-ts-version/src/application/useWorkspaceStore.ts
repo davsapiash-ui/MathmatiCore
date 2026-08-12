@@ -12,6 +12,8 @@ import {
   getValue,
   removeBlock,
   resolveDrop,
+  splitBlockClick,
+  groupBlocksManually,
   type DropInput,
   type Place,
   type PlaceCounts,
@@ -120,13 +122,19 @@ interface WorkspaceState {
   nodeStrikes: Record<string, number>;
   successStreak: number;
   keyboardState: KeyboardState;
+  isAdditionHelperOpen: boolean;
 
   // actions
+  openAdditionHelper: () => void;
+  closeAdditionHelper: () => void;
+  toggleAdditionHelper: () => void;
   injectTask: (task: SessionTask, position: 'next' | 'end') => void;
   initSession: (meeting: SessionNumber, isASD: boolean, aiTasks?: SessionTask[] | null, startingTaskIdx?: number) => void;
   restoreSession: (savedState: any) => void;
   applyDrop: (input: DropInput) => void;
   removeBlockClick: (place: Place) => void;
+  splitBlockClick: (place: Place) => void;
+  groupColumnClick: (place: Place) => void;
   undo: () => void;
   toggleBoard: () => void;
   setFocusedPlace: (place: Place | null) => void;
@@ -176,6 +184,7 @@ function resetTaskInteraction(isASD = false) {
     hasRequestedBasicHelp: false,
     taskStartTime: Date.now(),
     keyboardState: (isASD ? 'LOCKED' : 'UNLOCKED') as KeyboardState,
+    isAdditionHelperOpen: false,
   };
 }
 
@@ -204,6 +213,12 @@ export function answerDigitsToNumber(digits: Partial<Record<Place, string>>): nu
 }
 
 /** Effective scaffold level of the current task (correction subtasks scaffold at 1). */
+function sanitizeSessionNumber(n: any): number {
+  const parsed = parseInt(n, 10);
+  if (isNaN(parsed) || parsed < 1 || parsed > 8) return 1;
+  return parsed;
+}
+
 export function selectScaffoldLevel(s: WorkspaceState): number {
   if (s.sessionNumber === 2) {
     if (isSubtaskActive(s.qflow)) return 1;
@@ -839,7 +854,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     initSession: (meeting, isASD, initialAITasks, startingTaskIdx) => {
       const qflow = initQFlow();
       set({
-        sessionNumber: meeting,
+        sessionNumber: sanitizeSessionNumber(meeting),
         isASD,
         aiTasks: initialAITasks ?? null,
         dynamicTasks: null,
@@ -864,7 +879,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     restoreSession: (saved) => {
       if (!saved) return;
       set({
-        sessionNumber: saved.sessionNumber ?? 1,
+        sessionNumber: sanitizeSessionNumber(saved.sessionNumber),
         isASD: saved.isASD ?? false,
         standardTaskIdx: saved.standardTaskIdx ?? 0,
         qflow: saved.qflow ?? initQFlow(),
@@ -915,164 +930,211 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     },
 
     applyDrop: (input) => {
-      const s = get();
-      if (s.isBoardLocked) return;
-      const result = resolveDrop(s.counts, input, selectScaffoldLevel(s));
-      if (!result.ok) {
-        if (result.reason === 'constraint') flagConstraintError(result.place);
-        
-        // Log semantic event for invalid drop
-        const studentId = useAuthStore.getState().user?.uid;
-        if (studentId) {
-          const task = getActiveTasks(s)[s.standardTaskIdx] || null;
-          useStore.getState().logSemanticEvent(studentId, {
-            action: 'drop_invalid',
-            element: input.source === 'palette' ? `palette_block` : `${input.sourcePlace}_block`,
-            target: input.target.kind === 'column' ? `${input.target.place}_column` : 'trash',
-            context: `Failed due to ${result.reason}`,
-            ...(task?.targetNode ? { q_matrix_node: task.targetNode } : {}),
-            state_snapshot: `Units: ${s.counts.units}, Tens: ${s.counts.tens}, Hundreds: ${s.counts.hundreds}, Thousands: ${s.counts.thousands}`
-          });
+      set((s) => {
+        if (s.isBoardLocked) return s;
+        const result = resolveDrop(s.counts, input, selectScaffoldLevel(s));
+        if (!result.ok) {
+          if (result.reason === 'constraint') flagConstraintError(result.place);
+          
+          // Log semantic event for invalid drop
+          const studentId = useAuthStore.getState().user?.uid;
+          if (studentId) {
+            const task = getActiveTasks(s)[s.standardTaskIdx] || null;
+            useStore.getState().logSemanticEvent(studentId, {
+              action: 'drop_invalid',
+              element: input.source === 'palette' ? `palette_block` : `${input.sourcePlace}_block`,
+              target: input.target.kind === 'column' ? `${input.target.place}_column` : 'trash',
+              context: `Failed due to ${result.reason}`,
+              ...(task?.targetNode ? { q_matrix_node: task.targetNode } : {}),
+              state_snapshot: `Units: ${s.counts.units}, Tens: ${s.counts.tens}, Hundreds: ${s.counts.hundreds}, Thousands: ${s.counts.thousands}`
+            });
+          }
+          return s;
         }
-        return;
-      }
-      pushSnapshot(s.counts);
+        
+        const stack = [...s.undoStack, { counts: { ...s.counts } }];
+        if (stack.length > UNDO_STACK_CAP) stack.shift();
       const isDelete = result.removed && input.target.kind === 'trash';
       const isUngroup = !!result.ungroupEvent;
       const isGroup = result.regroupEvents && result.regroupEvents.length > 0;
       const isFromStore = input.source === 'palette';
       const addedCount = isFromStore ? (s.blocksAddedCount + 1) : s.blocksAddedCount;
 
-      set({ 
-        counts: result.counts, 
-        hasInteracted: true,
-        blocksAddedCount: addedCount,
-        undoCount: isDelete ? s.undoCount + 1 : s.undoCount,
-        undoTimestamps: [],
-        ...(isDelete ? { hasDeletedBlock: true } : {}),
-        ...(isUngroup ? { hasUngrouped: true } : {}),
-        ...(isGroup ? { hasGrouped: true } : {}),
-        ...((isGroup || isUngroup) && s.keyboardState === 'LOCKED' ? { keyboardState: 'UNLOCKED' as KeyboardState } : {})
+        return { 
+          counts: result.counts,
+          undoStack: stack,
+          hasInteracted: true,
+          blocksAddedCount: addedCount,
+          undoCount: isDelete ? s.undoCount + 1 : s.undoCount,
+          undoTimestamps: [],
+          ...(isDelete ? { hasDeletedBlock: true } : {}),
+          ...(isUngroup ? { hasUngrouped: true } : {}),
+          ...(isGroup ? { hasGrouped: true } : {}),
+          ...((isGroup || isUngroup) && s.keyboardState === 'LOCKED' ? { keyboardState: 'UNLOCKED' as KeyboardState } : {})
+        };
       });
-      
-      // Only a TRASH drop is a delete. Manual regrouping also sets `removed` (blocks leave
-      // the source column) — counting it fired false PASSIVE_DRIFTING radar alerts after
-      // three quick regroups, flagging exactly the students doing the RIGHT thing.
-
-      // Log semantic event for valid drop
-      const studentId = useAuthStore.getState().user?.uid;
-      if (studentId) {
-        const task = getActiveTasks(s)[s.standardTaskIdx] || null;
-        let action = 'drag_moved';
-        if (isDelete) action = 'drag_deleted';
-        else if (isFromStore) action = 'drag_added';
-        else if (isGroup) action = 'drag_grouped';
-        else if (isUngroup) action = 'drag_ungrouped';
-        
-        useStore.getState().logSemanticEvent(studentId, {
-          action,
-          element: isFromStore ? `palette_block` : `${input.sourcePlace}_block`,
-          target: input.target.kind === 'column' ? `${input.target.place}_column` : 'trash',
-          context: action,
-          ...(task?.targetNode ? { q_matrix_node: task.targetNode } : {}),
-          state_snapshot: `Units: ${result.counts.units}, Tens: ${result.counts.tens}, Hundreds: ${result.counts.hundreds}, Thousands: ${result.counts.thousands}`
-        });
-      }
     },
 
     removeBlockClick: (place) => {
-      const s = get();
-      if (s.isBoardLocked) return;
-      const next = removeBlock(s.counts, place);
-      if (!next) {
-        flagConstraintError(place);
-        return;
-      }
-      pushSnapshot(s.counts);
-      set({ 
-        counts: next, 
-        hasInteracted: true, 
-        hasDeletedBlock: true, 
-        undoCount: s.undoCount + 1
-      });
+      set((state) => {
+        if (state.isBoardLocked) return state;
+        const next = removeBlock(state.counts, place);
+        if (!next) {
+          flagConstraintError(place);
+          return state;
+        }
+        pushSnapshot(state.counts);
 
-      const studentId = useAuthStore.getState().user?.uid;
-      if (studentId) {
-        const task = getActiveTasks(s)[s.standardTaskIdx] || null;
-        useStore.getState().logSemanticEvent(studentId, {
-          action: 'block_clicked_to_remove',
-          element: `${place}_block`,
-          context: `Removed a block from ${place}`,
-          ...(task?.targetNode ? { q_matrix_node: task.targetNode } : {}),
-          state_snapshot: `Units: ${next.units}, Tens: ${next.tens}, Hundreds: ${next.hundreds}, Thousands: ${next.thousands}`
-        });
-      }
+        const studentId = useAuthStore.getState().user?.uid;
+        if (studentId) {
+          const task = getActiveTasks(state)[state.standardTaskIdx] || null;
+          useStore.getState().logSemanticEvent(studentId, {
+            action: 'block_clicked_to_remove',
+            element: `${place}_block`,
+            context: `Removed a block from ${place}`,
+            ...(task?.targetNode ? { q_matrix_node: task.targetNode } : {}),
+            state_snapshot: `Units: ${next.units}, Tens: ${next.tens}, Hundreds: ${next.hundreds}, Thousands: ${next.thousands}`
+          });
+        }
+
+        return { 
+          counts: next, 
+          hasInteracted: true, 
+          hasDeletedBlock: true, 
+          undoCount: state.undoCount + 1
+        };
+      });
+    },
+
+    splitBlockClick: (place) => {
+      set((state) => {
+        if (state.isBoardLocked) return state;
+        const res = splitBlockClick(state.counts, place);
+        if (!res) {
+          flagConstraintError(place);
+          return state;
+        }
+        pushSnapshot(state.counts);
+
+        const studentId = useAuthStore.getState().user?.uid;
+        if (studentId) {
+          const task = getActiveTasks(state)[state.standardTaskIdx] || null;
+          useStore.getState().logSemanticEvent(studentId, {
+            action: 'block_split',
+            element: `${place}_block`,
+            target: `${res.event.to}_column`,
+            context: `Split 1 ${place} block into 10 ${res.event.to} blocks`,
+            ...(task?.targetNode ? { q_matrix_node: task.targetNode } : {}),
+            state_snapshot: `Units: ${res.counts.units}, Tens: ${res.counts.tens}, Hundreds: ${res.counts.hundreds}, Thousands: ${res.counts.thousands}`
+          });
+        }
+
+        return {
+          counts: res.counts,
+          hasInteracted: true,
+          hasUngrouped: true,
+          keyboardState: state.keyboardState === 'LOCKED' ? ('UNLOCKED' as KeyboardState) : state.keyboardState,
+        };
+      });
+    },
+
+    groupColumnClick: (place) => {
+      set((state) => {
+        if (state.isBoardLocked) return state;
+        const res = groupBlocksManually(state.counts, place);
+        if (!res) {
+          flagConstraintError(place);
+          return state;
+        }
+        pushSnapshot(state.counts);
+
+        const studentId = useAuthStore.getState().user?.uid;
+        if (studentId) {
+          const task = getActiveTasks(state)[state.standardTaskIdx] || null;
+          useStore.getState().logSemanticEvent(studentId, {
+            action: 'blocks_grouped',
+            element: `${place}_column`,
+            target: `${res.event.to}_column`,
+            context: `Grouped 10 ${place} blocks into 1 ${res.event.to} block`,
+            ...(task?.targetNode ? { q_matrix_node: task.targetNode } : {}),
+            state_snapshot: `Units: ${res.counts.units}, Tens: ${res.counts.tens}, Hundreds: ${res.counts.hundreds}, Thousands: ${res.counts.thousands}`
+          });
+        }
+
+        return {
+          counts: res.counts,
+          hasInteracted: true,
+          hasGrouped: true,
+          keyboardState: state.keyboardState === 'LOCKED' ? ('UNLOCKED' as KeyboardState) : state.keyboardState,
+        };
+      });
     },
 
     undo: () => {
-      const s = get();
-      if (s.isBoardLocked) return;
+      set((s) => {
+        if (s.isBoardLocked) return s;
 
-      const now = Date.now();
-      const newUndoTimestamps = [...s.undoTimestamps, now];
-      
-      let shouldTriggerSocratic = false;
-
-      if (s.sessionNumber === 2) {
-        shouldTriggerSocratic = false; // PRD: No scaffolding or help in Session 2
-      } else if (s.sessionNumber === 6) {
-        // 4 clicks in 15 seconds
-        const recentUndos = newUndoTimestamps.filter(t => now - t <= 15000);
-        if (recentUndos.length >= 4) {
-          shouldTriggerSocratic = true;
-        }
-      } else if (s.sessionNumber === 8) {
-        // 3 clicks in a single task
-        if (newUndoTimestamps.length >= 3) {
-          shouldTriggerSocratic = true;
-        }
-      } else {
-        // Fallback for other sessions: 3 clicks in 15 seconds
-        const recentUndos = newUndoTimestamps.filter(t => now - t <= 15000);
-        if (recentUndos.length >= 3) {
-          shouldTriggerSocratic = true;
-        }
-      }
-
-      const stack = [...s.undoStack];
-      const snapshot = stack.pop();
-
-      if (shouldTriggerSocratic) {
-        set({ undoTimestamps: [] }); // Reset after triggering
+        const now = Date.now();
+        const newUndoTimestamps = [...s.undoTimestamps, now];
         
-        const studentId = useAuthStore.getState().user?.uid;
-        if (studentId) {
-          AuditLogger.log('PASSIVE_DRIFTING', studentId, 'Frequent undos detected');
+        let shouldTriggerSocratic = false;
+
+        if (s.sessionNumber === 2) {
+          shouldTriggerSocratic = false; // PRD: No scaffolding or help in Session 2
+        } else if (s.sessionNumber === 6) {
+          // 4 clicks in 15 seconds
+          const recentUndos = newUndoTimestamps.filter(t => now - t <= 15000);
+          if (recentUndos.length >= 4) {
+            shouldTriggerSocratic = true;
+          }
+        } else if (s.sessionNumber === 8) {
+          // 3 clicks in a single task
+          if (newUndoTimestamps.length >= 3) {
+            shouldTriggerSocratic = true;
+          }
+        } else {
+          // Fallback for other sessions: 3 clicks in 15 seconds
+          const recentUndos = newUndoTimestamps.filter(t => now - t <= 15000);
+          if (recentUndos.length >= 3) {
+            shouldTriggerSocratic = true;
+          }
         }
 
-        if (snapshot) {
-          set({ 
-            counts: snapshot.counts, 
-            undoStack: stack, 
-            undoCount: s.undoCount + 1,
-            undoTimestamps: []
-          });
-        }
-        s.setKeyboardSocratic();
-        return;
-      }
+        const stack = [...s.undoStack];
+        const snapshot = stack.pop();
 
-      if (!snapshot) {
-        set({ undoTimestamps: newUndoTimestamps });
-        return;
-      }
-      
-      set({ 
-        counts: snapshot.counts, 
-        undoStack: stack, 
-        undoCount: s.undoCount + 1,
-        undoTimestamps: newUndoTimestamps,
-        keyboardState: stateReducer(s.keyboardState, { type: 'UNDO_CLICK' })
+        if (shouldTriggerSocratic) {
+          const studentId = useAuthStore.getState().user?.uid;
+          if (studentId) {
+            AuditLogger.log('PASSIVE_DRIFTING', studentId, 'Frequent undos detected');
+          }
+
+          setTimeout(() => {
+            get().setKeyboardSocratic();
+          }, 0);
+
+          if (snapshot) {
+            return { 
+              counts: snapshot.counts, 
+              undoStack: stack, 
+              undoCount: s.undoCount + 1,
+              undoTimestamps: []
+            };
+          }
+          return { undoTimestamps: [] };
+        }
+
+        if (!snapshot) {
+          return { undoTimestamps: newUndoTimestamps };
+        }
+        
+        return { 
+          counts: snapshot.counts, 
+          undoStack: stack, 
+          undoCount: s.undoCount + 1,
+          undoTimestamps: newUndoTimestamps,
+          keyboardState: stateReducer(s.keyboardState, { type: 'UNDO_CLICK' })
+        };
       });
 
       const studentId = useAuthStore.getState().user?.uid;
@@ -1336,6 +1398,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     showFeedback,
     unlockKeyboard: () => set({ keyboardState: 'UNLOCKED' }),
     lockKeyboard: () => set({ keyboardState: 'LOCKED' }),
+    openAdditionHelper: () => set({ isAdditionHelperOpen: true }),
+    closeAdditionHelper: () => set({ isAdditionHelperOpen: false }),
+    toggleAdditionHelper: () => set((s) => ({ isAdditionHelperOpen: !s.isAdditionHelperOpen })),
     setKeyboardSocratic: () => {
       set((s) => ({
         keyboardState: 'SOCRATIC_ONLY',
