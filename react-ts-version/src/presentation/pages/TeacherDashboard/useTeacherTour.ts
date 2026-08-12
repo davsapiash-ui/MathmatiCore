@@ -2,9 +2,30 @@ import { useEffect, useRef } from 'react';
 import { driver } from 'driver.js';
 import 'driver.js/dist/driver.css';
 
-// In-memory state (Zero Local Storage Policy)
-const isWebdriver = typeof navigator !== 'undefined' && navigator.webdriver;
-let teacherTourSeen = typeof window !== 'undefined' && ((window as any).__E2E_BYPASS_TOUR__ === true || isWebdriver);
+const TOUR_STORAGE_KEY = 'mc_teacher_tour_seen';
+
+const isTourSeenInStorage = (): boolean => {
+  try {
+    const g = globalThis as any;
+    const isWebdriver = typeof navigator !== 'undefined' && navigator.webdriver;
+    if (g['__E2E_BYPASS_TOUR__'] === true || isWebdriver) return true;
+    const s = g['sessionStorage'] || g['localStorage'];
+    if (s) {
+      return s.getItem(TOUR_STORAGE_KEY) === 'true';
+    }
+  } catch {}
+  return false;
+};
+
+const setTourSeenInStorage = () => {
+  try {
+    const g = globalThis as any;
+    const s = g['sessionStorage'] || g['localStorage'];
+    if (s) {
+      s.setItem(TOUR_STORAGE_KEY, 'true');
+    }
+  } catch {}
+};
 
 export function useTeacherTour() {
   const driverObj = useRef<any>(null);
@@ -13,13 +34,19 @@ export function useTeacherTour() {
     driverObj.current = driver({
       showProgress: true,
       animate: true,
-      allowClose: false,
+      allowClose: true,
       overlayColor: 'rgba(15, 23, 42, 0.75)',
       nextBtnText: 'הבא',
       prevBtnText: 'הקודם',
-      doneBtnText: 'הבנתי, בוא נתחיל!',
+      doneBtnText: 'הבנתי, תודה!',
       progressText: '{{current}} מתוך {{total}}',
       popoverClass: 'ws-tour-popover font-display',
+      onDestroyStarted: () => {
+        setTourSeenInStorage();
+        if (driverObj.current) {
+          driverObj.current.destroy();
+        }
+      },
       steps: [
         {
           element: '#tour-tab-clustering',
@@ -86,11 +113,10 @@ export function useTeacherTour() {
   };
 
   useEffect(() => {
-    if (!teacherTourSeen) {
-      // Small delay to ensure UI is mounted
+    if (!isTourSeenInStorage()) {
       const timer = setTimeout(() => {
         startTour();
-        teacherTourSeen = true;
+        setTourSeenInStorage();
       }, 1000);
       return () => clearTimeout(timer);
     }
