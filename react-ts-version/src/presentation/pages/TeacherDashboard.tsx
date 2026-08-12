@@ -9,7 +9,7 @@ import { useAuthStore } from "@/application/useAuthStore";
 import { useChatStore, normalizeStudentId, type ChatMessage } from "@/application/useChatStore";
 import { useStore, type StudentData } from "@/application/useStore";
 import { toast } from "sonner";
-import { ref, onValue, remove, set } from "firebase/database";
+import { ref, onValue, remove, set, onDisconnect } from "firebase/database";
 import { database } from "@/infrastructure/firebase";
 import {
   BarChart,
@@ -277,6 +277,27 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     });
     return () => unsub();
   }, []);
+
+  // Active Teacher Presence Heartbeat (Ensures active class session locks if teacher disconnects/leaves)
+  useEffect(() => {
+    const presenceRef = ref(database, 'active_teacher_presence');
+    const updatePresence = () => {
+      set(presenceRef, {
+        online: true,
+        teacherId: user?.uid || 'teacher',
+        lastHeartbeat: Date.now(),
+      }).catch(console.error);
+    };
+
+    updatePresence();
+    const interval = setInterval(updatePresence, 15000);
+    onDisconnect(presenceRef).remove().catch(console.error);
+
+    return () => {
+      clearInterval(interval);
+      remove(presenceRef).catch(console.error);
+    };
+  }, [user?.uid]);
 
   const handleStartClassSession = async (sessionNum: number) => {
     const now = Date.now();
