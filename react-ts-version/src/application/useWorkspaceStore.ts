@@ -39,6 +39,8 @@ import { AuditLogger } from '@/infrastructure/services/AuditLogger';
 import { SocraticEngine, type SocraticHintResponse } from '@/infrastructure/services/SocraticEngine';
 import { ref, update } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
+import { normalizeStudentId } from '@/application/useChatStore';
+import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
 
 const UNDO_STACK_CAP = 50;
 

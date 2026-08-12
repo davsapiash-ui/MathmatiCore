@@ -67,12 +67,22 @@ export function StudentWorkspacePage() {
 
 
 
-  // Start telemetry session so the radar tracker is active
+  // --- Active Teacher Class Session Listener ---
+  const [activeClassSession, setActiveClassSession] = useState<{ active: boolean; sessionNumber: number; startedAt: number } | null>(null);
+
   useEffect(() => {
-    if (!user?.uid) return;
-    return () => {
-    };
-  }, [user?.uid]);
+    const sessionRef = ref(database, 'active_class_session');
+    const unsub = onValue(sessionRef, (snap) => {
+      if (snap.exists()) {
+        setActiveClassSession(snap.val());
+      } else {
+        setActiveClassSession(null);
+      }
+    });
+    return () => unsub();
+  }, []);
+
+  const isTeacherSessionActive = activeClassSession?.active ?? false;
 
   const [teacherHint, setTeacherHint] = useState<string | null>(null);
   const normUid = normalizeStudentId(user?.uid || '');

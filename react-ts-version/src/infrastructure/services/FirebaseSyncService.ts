@@ -354,24 +354,6 @@ export class FirebaseSyncService {
     await update(metricsRef, metricsUpdates);
   }
 
-  public async syncRouteRecommendation(studentId: string, route: string) {
-    if (!studentId) return;
-    const routeRef = ref(database, `users/students/${studentId}`);
-    await update(routeRef, { routeRecommendation: route, routeStatus: 'PENDING' });
-  }
-
-  public async syncMeeting2Complete(studentId: string) {
-    if (!studentId) return;
-    const refPath = ref(database, `users/students/${studentId}`);
-    await update(refPath, { completedMeeting2: true });
-  }
-
-  public async syncHighestCompletedMeeting(studentId: string, meeting: number) {
-    if (!studentId) return;
-    const refPath = ref(database, `users/students/${studentId}`);
-    await update(refPath, { highestCompletedMeeting: meeting });
-  }
-
   public async syncApproveRoute(studentId: string) {
     if (!studentId) return;
     const refPath = ref(database, `users/students/${studentId}`);
