@@ -69,8 +69,8 @@ export function StudentHub() {
       title: 'שיעור 1: הכשרת חוקרים', 
       desc: 'היכרות עם כלי המעבדה השונים במרחב החקר הווירטואלי.', 
       icon: '🧪', 
-      isTeacherActive: isTeacherSessionActive && activeSessionNum === 1,
-      isLocked: isTeacherSessionActive ? (activeSessionNum !== 1 && highestCompleted < 1) : true
+      isTeacherActive: !isTeacherSessionActive || activeSessionNum === 1,
+      isLocked: false
     },
     { 
       id: 2, 
@@ -78,7 +78,7 @@ export function StudentHub() {
       desc: 'משימות חקר קצרות כדי שהמערכת תלמד את סגנון החשיבה הייחודי שלכם.', 
       icon: '📡', 
       isTeacherActive: isTeacherSessionActive && activeSessionNum === 2,
-      isLocked: isTeacherSessionActive ? (activeSessionNum !== 2 && highestCompleted < 1) : true
+      isLocked: (activeSessionNum !== 2) && (highestCompleted < 1)
     },
     { 
       id: 3, 
@@ -86,14 +86,14 @@ export function StudentHub() {
       desc: isPendingLesson3 ? 'הנתונים נסרקים במערכת, ממתין לאישור מנהל מעבדה...' : 'מתחילים במשימות מחקר שמותאמות בדיוק עבורכם!', 
       icon: '🔬', 
       isTeacherActive: isTeacherSessionActive && activeSessionNum === 3,
-      isLocked: isTeacherSessionActive ? (activeSessionNum !== 3 && (highestCompleted < 2 || !isApproved)) : true,
+      isLocked: (activeSessionNum !== 3) && (highestCompleted < 2 || !isApproved),
       pendingApproval: isPendingLesson3
     },
-    { id: 4, title: 'שיעור 4: חוקרים ומגלים', desc: 'ניסויי פריטה וקיבוץ — חוקרים יחד ומצליחים.', icon: '🔍', isTeacherActive: isTeacherSessionActive && activeSessionNum === 4, isLocked: isTeacherSessionActive ? (activeSessionNum !== 4 && highestCompleted < 3) : true },
-    { id: 5, title: 'שיעור 5: חוקרים ומגלים', desc: 'ממשיכים לתכנון ניסויים ולגלות שיטות חשיבה חדשות.', icon: '💡', isTeacherActive: isTeacherSessionActive && activeSessionNum === 5, isLocked: isTeacherSessionActive ? (activeSessionNum !== 5 && highestCompleted < 4) : true },
-    { id: 6, title: 'שיעור 6: מחקר מתקדם', desc: 'אתגרים מחשבתיים שמותאמים לקצב הגילוי שלכם.', icon: '🧬', isTeacherActive: isTeacherSessionActive && activeSessionNum === 6, isLocked: isTeacherSessionActive ? (activeSessionNum !== 6 && highestCompleted < 5) : true },
-    { id: 7, title: 'שיעור 7: מחקר מתקדם', desc: 'לקראת סיום — ניסויים מאתגרים לחיזוק הלמידה.', icon: '🚀', isTeacherActive: isTeacherSessionActive && activeSessionNum === 7, isLocked: isTeacherSessionActive ? (activeSessionNum !== 7 && highestCompleted < 6) : true },
-    { id: 8, title: 'שיעור 8: סיכום ותגליות', desc: 'מסכמים את המחקר ורואים אילו תגליות גילינו!', icon: '🏆', isTeacherActive: isTeacherSessionActive && activeSessionNum === 8, isLocked: isTeacherSessionActive ? (activeSessionNum !== 8 && highestCompleted < 7) : true },
+    { id: 4, title: 'שיעור 4: חוקרים ומגלים', desc: 'ניסויי פריטה וקיבוץ — חוקרים יחד ומצליחים.', icon: '🔍', isTeacherActive: isTeacherSessionActive && activeSessionNum === 4, isLocked: (activeSessionNum !== 4) && (highestCompleted < 3) },
+    { id: 5, title: 'שיעור 5: חוקרים ומגלים', desc: 'ממשיכים לתכנון ניסויים ולגלות שיטות חשיבה חדשות.', icon: '💡', isTeacherActive: isTeacherSessionActive && activeSessionNum === 5, isLocked: (activeSessionNum !== 5) && (highestCompleted < 4) },
+    { id: 6, title: 'שיעור 6: מחקר מתקדם', desc: 'אתגרים מחשבתיים שמותאמים לקצב הגילוי שלכם.', icon: '🧬', isTeacherActive: isTeacherSessionActive && activeSessionNum === 6, isLocked: (activeSessionNum !== 6) && (highestCompleted < 5) },
+    { id: 7, title: 'שיעור 7: מחקר מתקדם', desc: 'לקראת סיום — ניסויים מאתגרים לחיזוק הלמידה.', icon: '🚀', isTeacherActive: isTeacherSessionActive && activeSessionNum === 7, isLocked: (activeSessionNum !== 7) && (highestCompleted < 6) },
+    { id: 8, title: 'שיעור 8: סיכום ותגליות', desc: 'מסכמים את המחקר ורואים אילו תגליות גילינו!', icon: '🏆', isTeacherActive: isTeacherSessionActive && activeSessionNum === 8, isLocked: (activeSessionNum !== 8) && (highestCompleted < 7) },
   ];
 
   return (

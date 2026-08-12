@@ -266,11 +266,20 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
           setIsClassSessionActive(true);
           setSessionStartTime(val.startedAt);
           setSelectedSessionNum(val.sessionNumber || 1);
-        } else {
-          setIsClassSessionActive(false);
-          setSessionStartTime(null);
+          return;
         }
       }
+      // Auto-activate Meeting 1 when teacher enters dashboard if no session active
+      const now = Date.now();
+      setIsClassSessionActive(true);
+      setSessionStartTime(now);
+      setSelectedSessionNum(1);
+      set(sessionRef, {
+        active: true,
+        sessionNumber: 1,
+        startedAt: now,
+        teacherId: user?.uid || 'teacher',
+      }).catch(console.error);
     });
     return () => unsub();
   }, []);
