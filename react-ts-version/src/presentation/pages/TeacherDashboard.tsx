@@ -301,14 +301,15 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     }).catch(console.error);
   };
 
-  // Teacher-AI Co-Pilot States
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [editingApproval, setEditingApproval] = useState<PendingAIApproval | null>(null);
   const [editedTasks, setEditedTasks] = useState<any[] | null>(null);
   const [coPilotChat, setCoPilotChat] = useState<{ role: 'ai' | 'teacher', text: string }[]>([
-    { role: 'ai', text: 'שלום! אני סוכן ה-AI. התוכנית למפגש הקרוב מוכנה. תוכל לאשר אותה, לערוך אותה כאן, או לבקש ממני לשנות משהו (למשל: "הורד את רמת הקושי של תרגיל 1").' }
+    { role: 'ai', text: 'שלום מורה! אני עוזר הפדגוגיה הדיגיטלי שלך. תוכל לבקש ממני להתאים את מסלול הלימוד של תלמיד, לשנות דרגת קושי או להוסיף רמזים מותאמים אישית.' }
   ]);
+  const [inputPrompt, setInputPrompt] = useState('');
   const [coPilotInput, setCoPilotInput] = useState('');
-
+  const [isProcessingAI, setIsProcessingAI] = useState(false);
 
   const pendingApprovals = useMemo(() => {
     const map = new Map<string, PendingAIApproval>();
@@ -316,8 +317,9 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     fallbackApprovals.forEach(a => map.set(a.id, a));
     return Array.from(map.values());
   }, [teacherApprovals, fallbackApprovals]);
-  
-  // Extract dynamic teacher ID from the logged-in user (format is usually "teacher_12345" or just ID)
+
+  // Multi-Tenant context: TEACHER_ID is the canonical ID of the logged-in teacher (e.g. "12345" if rawUid is "teacher_12345" or "12345")
+  // All student queries and pending AI approval paths map under this ID.
   const TEACHER_ID = useMemo(() => {
     const rawUid = user?.uid || user?.id || (typeof user?.email === 'string' ? user.email.split('@')[0] : "teacher-1");
     return String(rawUid).replace(/^teacher_/, "");
@@ -326,89 +328,97 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   useEffect(() => {
     const studentsRef = ref(database, 'users/students');
     const unsubscribe = onValue(studentsRef, (snapshot) => {
-      const rawData = snapshot.val();
-      const data = (rawData && typeof rawData === 'object') ? rawData : {};
-      const allStudents = useStore.getState().students;
-      const formattedStudents: Record<string, StudentData> = {};
-
-      // 1. Add base demo students first — preserve their real qMatrixResults from the store
-      for (const [id, s] of Object.entries(allStudents)) {
-        formattedStudents[id] = {
-          studentId: id,
-          classId: 'demo',
-          name: s.name,
-          // Use real data from useStore (written by session 2 at completion via updateQMatrix)
-          qMatrixResults: s.qMatrixResults ?? {
-            task1_zero_placeholder: null,
-            task3_flexible_regrouping: null,
-            task4_basic_addition_fluency: null,
-            task5_small_change: null,
-            task6_subtraction_regrouping: null,
-            task7_missing_subtrahend: null,
-            task8_missing_addend: null,
-          },
-          traceData: s.traceData ?? { hesitation_events: 0, undo_clicks: 0 },
-          completedMeeting2: s.completedMeeting2 ?? false,
-          routeRecommendation: s.routeRecommendation ?? null,
-          routeStatus: s.routeStatus ?? null,
-          additionBoardEnabled: s.additionBoardEnabled ?? false,
-        } as any;
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
       }
+      debounceTimerRef.current = setTimeout(() => {
+        const rawData = snapshot.val();
+        const data = (rawData && typeof rawData === 'object') ? rawData : {};
+        const allStudents = useStore.getState().students;
+        const formattedStudents: Record<string, StudentData> = {};
 
-      // 2. Override with live cloud data
-      Object.keys(data).forEach((uid) => {
-        const row = data[uid] ?? {};
-        
-        const isAdmin = user?.role === 'admin';
-        const rowTeacherId = row.teacherId ? String(row.teacherId).replace(/^teacher_/, "") : undefined;
-        // Multi-tenant filtering: Only load students belonging to this teacher (or unassigned/demo)
-        if (!isAdmin && rowTeacherId && rowTeacherId !== TEACHER_ID && rowTeacherId !== "teacher-1") {
-          return; // Skip students from other teachers
+        // 1. Add base demo students first — preserve their real qMatrixResults from the store
+        for (const [id, s] of Object.entries(allStudents)) {
+          formattedStudents[id] = {
+            studentId: id,
+            classId: 'demo',
+            name: s.name,
+            qMatrixResults: s.qMatrixResults ?? {
+              task1_zero_placeholder: null,
+              task3_flexible_regrouping: null,
+              task4_basic_addition_fluency: null,
+              task5_small_change: null,
+              task6_subtraction_regrouping: null,
+              task7_missing_subtrahend: null,
+              task8_missing_addend: null,
+            },
+            traceData: s.traceData ?? { hesitation_events: 0, undo_clicks: 0 },
+            completedMeeting2: s.completedMeeting2 ?? false,
+            routeRecommendation: s.routeRecommendation ?? null,
+            routeStatus: s.routeStatus ?? null,
+            additionBoardEnabled: s.additionBoardEnabled ?? false,
+          } as any;
         }
 
-        let cleanName = row.name ?? row.profile?.displayName ?? row.studentName ?? formattedStudents[uid]?.name ?? uid.replace('student_','');
-        if (cleanName === 'student' || cleanName.startsWith('user') || cleanName.toLowerCase().startsWith('student_')) {
-            const num = uid.replace(/[^0-9]/g, '');
-            cleanName = num ? `משתמש ${num}` : cleanName;
-        }
+        // 2. Override with live cloud data
+        Object.keys(data).forEach((uid) => {
+          const row = data[uid] ?? {};
+          
+          const isAdmin = user?.role === 'admin';
+          const rowTeacherId = row.teacherId ? String(row.teacherId).replace(/^teacher_/, "") : undefined;
+          if (!isAdmin && rowTeacherId && rowTeacherId !== TEACHER_ID && rowTeacherId !== "teacher-1") {
+            return;
+          }
 
-        const existingLocal = formattedStudents[uid];
+          let cleanName = row.name ?? row.profile?.displayName ?? row.studentName ?? formattedStudents[uid]?.name ?? uid.replace('student_','');
+          if (cleanName === 'student' || cleanName.startsWith('user') || cleanName.toLowerCase().startsWith('student_')) {
+              const num = uid.replace(/[^0-9]/g, '');
+              cleanName = num ? `משתמש ${num}` : cleanName;
+          }
 
-        formattedStudents[uid] = {
-          studentId: uid,
-          classId: row.classId ?? existingLocal?.classId ?? 'live',
-          name: cleanName,
-          qMatrixResults: Object.assign(
-            {},
-            existingLocal?.qMatrixResults || {},
-            row.qMatrixResults || {}
-          ),
-          traceData: {
-            hesitation_events: Math.max(existingLocal?.traceData?.hesitation_events || 0, row.traceData?.hesitation_events || 0, row.workspaceState?.hesitationCount || 0, row.hesitating?.hesitating ? 1 : 0),
-            undo_clicks: Math.max(existingLocal?.traceData?.undo_clicks || 0, row.traceData?.undo_clicks || 0, row.workspaceState?.undoCount || 0),
-          },
-          completedMeeting2: row.completedMeeting2 ?? existingLocal?.completedMeeting2 ?? false,
-          routeRecommendation: row.routeRecommendation ?? existingLocal?.routeRecommendation ?? null,
-          routeStatus: row.routeStatus ?? existingLocal?.routeStatus ?? null,
-          diagnosticReport: row.diagnosticReport ?? existingLocal?.diagnosticReport ?? null,
-          additionBoardEnabled: row.additionBoardEnabled ?? existingLocal?.additionBoardEnabled ?? false,
-          reflections: row.reflections ?? existingLocal?.reflections ?? null,
-          // Support legacy props expected by some components
-          currentTask: row.workspaceState?.standardTaskIdx || 0,
-          sessionNum: row.workspaceState?.sessionNumber || 1,
-          radar: {
-            hesitations: Math.max(row.workspaceState?.hesitationCount || 0, row.hesitating?.hesitating ? 1 : 0),
-            deletions: row.workspaceState?.undoCount || 0,
-          },
-        } as any;
-      });
-      setStudents(formattedStudents);
-      setIsLoading(false);
+          const existingLocal = formattedStudents[uid];
+
+          formattedStudents[uid] = {
+            ...(existingLocal || {}),
+
+            studentId: uid,
+
+            classId: row.classId ?? existingLocal?.classId ?? 'live',
+            name: cleanName,
+            qMatrixResults: Object.assign(
+              {},
+              existingLocal?.qMatrixResults || {},
+              row.qMatrixResults || {}
+            ),
+            traceData: {
+              hesitation_events: Math.max(existingLocal?.traceData?.hesitation_events || 0, row.traceData?.hesitation_events || 0, row.workspaceState?.hesitationCount || 0, row.hesitating?.hesitating ? 1 : 0),
+              undo_clicks: Math.max(existingLocal?.traceData?.undo_clicks || 0, row.traceData?.undo_clicks || 0, row.workspaceState?.undoCount || 0),
+            },
+            completedMeeting2: row.completedMeeting2 ?? existingLocal?.completedMeeting2 ?? false,
+            routeRecommendation: row.routeRecommendation ?? existingLocal?.routeRecommendation ?? null,
+            routeStatus: row.routeStatus ?? existingLocal?.routeStatus ?? null,
+            diagnosticReport: row.diagnosticReport ?? existingLocal?.diagnosticReport ?? null,
+            additionBoardEnabled: row.additionBoardEnabled ?? existingLocal?.additionBoardEnabled ?? false,
+            reflections: row.reflections ?? existingLocal?.reflections ?? null,
+            currentTask: row.workspaceState?.standardTaskIdx || 0,
+            sessionNum: row.workspaceState?.sessionNumber || 1,
+            radar: {
+              hesitations: Math.max(row.workspaceState?.hesitationCount || 0, row.hesitating?.hesitating ? 1 : 0),
+              deletions: row.workspaceState?.undoCount || 0,
+            },
+          } as any;
+        });
+        setStudents(formattedStudents);
+        setIsLoading(false);
+      }, 300);
     }, (error) => {
       console.error("Firebase permission denied or network error on users/students:", error);
       setIsLoading(false);
     });
-    return () => unsubscribe();
+    return () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      unsubscribe();
+    };
   }, [TEACHER_ID, user?.role]);
 
   useEffect(() => {

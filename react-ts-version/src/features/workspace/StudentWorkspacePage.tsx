@@ -274,6 +274,11 @@ export function StudentWorkspacePage() {
   const isAdditionHelperOpen = useWorkspaceStore((s) => s.isAdditionHelperOpen);
   const toggleAdditionHelper = useWorkspaceStore((s) => s.toggleAdditionHelper);
 
+  // Retrieve saved progress from Firebase (synced into useStore)
+  const students = useStore((s) => s.students);
+  const firebaseLoaded = useStore((s) => s.firebaseLoaded);
+  const myData = user?.uid ? students[user.uid] : null;
+
   // --- PRD Section 4.5: Gate Locked Limbo State Guard ---
   useEffect(() => {
     if (myData?.routeStatus === 'GATE_LOCKED') {
@@ -288,11 +293,6 @@ export function StudentWorkspacePage() {
   useEffect(() => {
     setIsInitialized(false);
   }, [meeting]);
-
-  // Retrieve saved progress from Firebase (synced into useStore)
-  const students = useStore((s) => s.students);
-  const firebaseLoaded = useStore((s) => s.firebaseLoaded);
-  const myData = user?.uid ? students[user.uid] : null;
 
   // Real-time additionBoardEnabled listener
   const [liveAdditionBoardEnabled, setLiveAdditionBoardEnabled] = useState<boolean | null>(null);
@@ -478,11 +478,23 @@ export function StudentWorkspacePage() {
     if (sessionNumber === 8) {
       return <Session8ReflectionScreen 
         metrics={{ fastestTaskType: 'כפל פי 10 ו-100', slowestTaskType: 'כפל פי 20 ו-30' }}
-        onComplete={(focusArea) => {
+        onComplete={async (focusArea) => {
           if (user?.uid) {
-            firebaseSyncService.syncRouteRecommendation(user.uid, focusArea);
+            try {
+              await firebaseSyncService.syncRouteRecommendation(user.uid, focusArea);
+              navigate('/hub');
+            } catch (err: any) {
+              const errMsg = String(err?.message || err);
+              if (errMsg.includes('PERMISSION_DENIED') || errMsg.includes('auth')) {
+                alert('פג תוקף ההתחברות שלך (PERMISSION_DENIED). עליך להתחבר מחדש.');
+                navigate('/login');
+                return;
+              }
+              navigate('/hub');
+            }
+          } else {
+            navigate('/hub');
           }
-          navigate('/hub');
         }}
       />;
     }

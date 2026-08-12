@@ -140,6 +140,10 @@ export type DropResult =
   | { ok: false; reason: 'constraint'; place: Place };
 
 export function resolveDrop(counts: PlaceCounts, input: DropInput, _scaffoldLevel: number): DropResult {
+  if (!input || !input.target) {
+    return { ok: false, reason: 'silent' };
+  }
+
   // בעקבות אפיון פדגוגי מחמיר: הפיזיקה של בית המספרים לא עושה "קסמים". 
   // ביטול מוחלט של הקפצה אוטומטית (autoGroup = false) כדי לאפשר פריטה אמינה בשלבי חיסור מאוחרים.
   const autoGroup = false;

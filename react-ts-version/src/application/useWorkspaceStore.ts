@@ -213,10 +213,10 @@ export function answerDigitsToNumber(digits: Partial<Record<Place, string>>): nu
 }
 
 /** Effective scaffold level of the current task (correction subtasks scaffold at 1). */
-function sanitizeSessionNumber(n: any): number {
+function sanitizeSessionNumber(n: any): SessionNumber {
   const parsed = parseInt(n, 10);
   if (isNaN(parsed) || parsed < 1 || parsed > 8) return 1;
-  return parsed;
+  return parsed as SessionNumber;
 }
 
 export function selectScaffoldLevel(s: WorkspaceState): number {
@@ -302,7 +302,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
   function showFeedback(feedback: FeedbackState, ms: number, then?: () => void) {
     const nonce = get().feedbackNonce + 1;
     set({ feedback, feedbackNonce: nonce });
-    window.setTimeout(() => {
+    setTimeout(() => {
       if (get().feedbackNonce === nonce) {
         set({ feedback: null });
         then?.();
@@ -320,7 +320,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
   function flagConstraintError(place: Place) {
     const nonce = get().errorNonce + 1;
     set({ errorPlace: place, errorNonce: nonce });
-    window.setTimeout(() => {
+    setTimeout(() => {
       if (get().errorNonce === nonce) set({ errorPlace: null });
     }, 500);
   }
@@ -823,6 +823,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     errorPlace: null,
     errorNonce: 0,
     focusedPlace: null,
+    isAdditionHelperOpen: false,
 
     hasInteracted: false,
     undoTimestamps: [],
@@ -1127,6 +1128,18 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         if (!snapshot) {
           return { undoTimestamps: newUndoTimestamps };
         }
+
+        const studentId = useAuthStore.getState().user?.uid;
+        if (studentId) {
+          const task = getActiveTasks(s)[s.standardTaskIdx] || null;
+          useStore.getState().logSemanticEvent(studentId, {
+            action: 'undo',
+            element: 'undo_button',
+            context: 'User clicked undo',
+            ...(task?.targetNode ? { q_matrix_node: task.targetNode } : {}),
+            state_snapshot: `Units: ${snapshot.counts.units}, Tens: ${snapshot.counts.tens}, Hundreds: ${snapshot.counts.hundreds}, Thousands: ${snapshot.counts.thousands}`
+          });
+        }
         
         return { 
           counts: snapshot.counts, 
@@ -1136,18 +1149,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           keyboardState: stateReducer(s.keyboardState, { type: 'UNDO_CLICK' })
         };
       });
-
-      const studentId = useAuthStore.getState().user?.uid;
-      if (studentId) {
-        const task = getActiveTasks(s)[s.standardTaskIdx] || null;
-        useStore.getState().logSemanticEvent(studentId, {
-          action: 'undo',
-          element: 'undo_button',
-          context: 'User clicked undo',
-          ...(task?.targetNode ? { q_matrix_node: task.targetNode } : {}),
-          state_snapshot: `Units: ${snapshot.counts.units}, Tens: ${snapshot.counts.tens}, Hundreds: ${snapshot.counts.hundreds}, Thousands: ${snapshot.counts.thousands}`
-        });
-      }
     },
 
     toggleBoard: () => set((s) => ({ boardOpen: !s.boardOpen })),

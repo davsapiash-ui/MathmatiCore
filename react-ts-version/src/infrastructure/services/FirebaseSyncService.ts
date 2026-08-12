@@ -161,6 +161,20 @@ export class FirebaseSyncService {
             return;
           }
 
+          if (data.workspaceState?.aiTasks && Array.isArray(data.workspaceState.aiTasks)) {
+            // Check if server aiTasks is newer than local aiTasks (Merge Conflict Resolution)
+            const localAiTasks = useWorkspaceStore.getState().aiTasks;
+            const serverTimestamp = data.workspaceState.aiTasksUpdatedAt || 0;
+            const localTimestamp = (useWorkspaceStore.getState() as any).aiTasksUpdatedAt || 0;
+
+            if (!localAiTasks || serverTimestamp >= localTimestamp) {
+              useWorkspaceStore.setState({
+                aiTasks: data.workspaceState.aiTasks,
+                ...(data.workspaceState.dynamicTasks ? { dynamicTasks: data.workspaceState.dynamicTasks } : {})
+              });
+            }
+          }
+
           // Update the top-level useStore so StudentHub knows about route approvals and Q-Matrix
           const currentStudents = useStore.getState().students;
           useStore.setState({
@@ -212,7 +226,7 @@ export class FirebaseSyncService {
     this.unsubscribeWorkspace = useWorkspaceStore.subscribe((state) => {
       if (this.isInitialLoad) return;
       
-      const syncableData = {
+      const syncableData: Record<string, any> = {
         sessionNumber: state.sessionNumber,
         isASD: state.isASD,
         standardTaskIdx: state.standardTaskIdx,
@@ -223,17 +237,20 @@ export class FirebaseSyncService {
         undoCount: state.undoCount,
         hesitationCount: state.hesitationCount,
         hasInteracted: state.hasInteracted,
-        aiTasks: state.aiTasks
       };
+
+      // Protection against Socratic Engine Desync: Only sync aiTasks if explicitly set by local user action
+      if (state.aiTasks && Array.isArray(state.aiTasks) && state.aiTasks.length > 0) {
+        syncableData.aiTasks = state.aiTasks;
+      }
 
       // PRD Section 5.2: Enforce <50KB payload limit for Transient State Sync
       const MAX_PAYLOAD_BYTES = 50 * 1024; // 50KB
       const payloadJson = JSON.stringify(syncableData);
-      if (payloadJson.length > MAX_PAYLOAD_BYTES) {
+      const updatePayload = payloadJson.length > MAX_PAYLOAD_BYTES ? (() => {
         console.warn(
           `[FirebaseSyncService] Payload size ${payloadJson.length} bytes exceeds 50KB limit. Trimming aiTasks and qflow history.`
         );
-        // Trim large fields to fit within the 50KB budget
         const trimmed = { ...syncableData };
         if (trimmed.aiTasks && Array.isArray(trimmed.aiTasks) && trimmed.aiTasks.length > 5) {
           trimmed.aiTasks = trimmed.aiTasks.slice(-5);
@@ -245,16 +262,15 @@ export class FirebaseSyncService {
             trimmed.qflow = { ...trimmed.qflow, results: Object.fromEntries(recentKeys.map(k => [k, trimmed.qflow.results[k]])) };
           }
         }
-        update(studentRef, {
-          workspaceState: trimmed,
-          lastActive: serverTimestamp()
-        });
-      } else {
-        update(studentRef, {
-          workspaceState: syncableData,
-          lastActive: serverTimestamp()
-        });
-      }
+        return trimmed;
+      })() : syncableData;
+
+      update(studentRef, {
+        workspaceState: updatePayload,
+        lastActive: serverTimestamp()
+      }).catch((err) => {
+        this.handlePermissionOrAuthError(err);
+      });
 
       if (this.currentUserId) {
         const isStruggling = (state.hesitationCount || 0) > 6 || (state.undoCount || 0) > 3;
@@ -504,6 +520,21 @@ export class FirebaseSyncService {
     await update(ref(database), updates).catch(console.error);
   }
 
+  public handlePermissionOrAuthError(error: any) {
+    const errMsg = String(error?.message || error?.code || error);
+    if (
+      errMsg.includes('PERMISSION_DENIED') ||
+      errMsg.includes('auth/id-token-expired') ||
+      errMsg.includes('auth/user-token-expired') ||
+      error?.code === 'PERMISSION_DENIED'
+    ) {
+      console.error('[FirebaseSyncService] Auth token expired or PERMISSION_DENIED detected. Dispatching auth error event.');
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('firebase:auth_expired', { detail: { error: errMsg } }));
+      }
+    }
+  }
+
   public async syncRouteRecommendation(studentId: string, route: string): Promise<void> {
     if (!studentId) return;
     const cleanId = studentId.trim().toLowerCase();
@@ -516,7 +547,12 @@ export class FirebaseSyncService {
       updates[`users/students/${normId}/routeRecommendation`] = route;
       updates[`users/students/${normId}/routeStatus`] = 'PENDING';
     }
-    await update(ref(database), updates).catch(console.error);
+    try {
+      await update(ref(database), updates);
+    } catch (err: any) {
+      this.handlePermissionOrAuthError(err);
+      throw err;
+    }
   }
 
   public async logTelemetryEvent(studentId: string, event: TelemetryEvent): Promise<void> {
