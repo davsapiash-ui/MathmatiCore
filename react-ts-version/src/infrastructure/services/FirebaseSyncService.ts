@@ -273,18 +273,18 @@ export class FirebaseSyncService {
       const rawNum = (this.currentUserId || '').replace(/[^0-9]/g, '');
       const studentKeys = Array.from(new Set([this.currentUserId, normId, rawNum ? `student_user${rawNum}` : null, rawNum ? `user${rawNum}` : null].filter(Boolean) as string[]));
       
-      const bulkUpdates: Record<string, any> = {};
       studentKeys.forEach(key => {
-        bulkUpdates[`users/students/${key}/workspaceState`] = updatePayload;
-        bulkUpdates[`users/students/${key}/lastActive`] = serverTimestamp();
-        bulkUpdates[`users/students/${key}/currentTaskIdx`] = state.standardTaskIdx;
-        bulkUpdates[`users/students/${key}/activeStep`] = state.standardTaskIdx + 1;
-        bulkUpdates[`users/students/${key}/lastActivityTimestamp`] = Date.now();
-        bulkUpdates[`users/students/${key}/onlineStatus`] = 'active';
-      });
-
-      update(ref(database), bulkUpdates).catch((err) => {
-        this.handlePermissionOrAuthError(err);
+        const studentDirectRef = ref(database, `users/students/${key}`);
+        update(studentDirectRef, {
+          workspaceState: updatePayload,
+          lastActive: serverTimestamp(),
+          currentTaskIdx: state.standardTaskIdx,
+          activeStep: state.standardTaskIdx + 1,
+          lastActivityTimestamp: Date.now(),
+          onlineStatus: 'active'
+        }).catch((err) => {
+          this.handlePermissionOrAuthError(err);
+        });
       });
 
       if (this.currentUserId) {
@@ -433,28 +433,21 @@ export class FirebaseSyncService {
     const difficultyRec = overrideData.difficultyRecommendation ?? 'REGULAR';
     const updatedAt = overrideData.overrideUpdatedAt ?? Date.now();
 
-    const updates: Record<string, any> = {};
+    const studentOverridePayload = {
+      routeStatus: routeStatus,
+      difficultyRecommendation: difficultyRec,
+      isASD: isASD,
+      physicalOverride: isPhysical,
+      physicalOverrideActive: overrideData.physicalOverrideActive ?? isPhysical,
+      overrideUpdatedAt: updatedAt,
+    };
 
-    // 1. Primary path: users/students/${studentId}
-    updates[`users/students/${studentId}/routeStatus`] = routeStatus;
-    updates[`users/students/${studentId}/difficultyRecommendation`] = difficultyRec;
-    updates[`users/students/${studentId}/isASD`] = isASD;
-    updates[`users/students/${studentId}/physicalOverride`] = isPhysical;
-    updates[`users/students/${studentId}/physicalOverrideActive`] = overrideData.physicalOverrideActive ?? isPhysical;
-    updates[`users/students/${studentId}/overrideUpdatedAt`] = updatedAt;
-    updates[`users/students/${studentId}/workspaceState/isASD`] = isASD;
+    await update(ref(database, `users/students/${studentId}`), {
+      ...studentOverridePayload,
+      workspaceState: { isASD },
+    }).catch(() => {});
 
-    // 2. Secondary path: students/${studentId} (backup per requirement 3)
-    updates[`students/${studentId}/routeStatus`] = routeStatus;
-    updates[`students/${studentId}/difficultyRecommendation`] = difficultyRec;
-    updates[`students/${studentId}/isASD`] = isASD;
-    updates[`students/${studentId}/physicalOverride`] = isPhysical;
-    updates[`students/${studentId}/physicalOverrideActive`] = overrideData.physicalOverrideActive ?? isPhysical;
-    updates[`students/${studentId}/overrideUpdatedAt`] = updatedAt;
-
-    await update(ref(database), updates).catch((_err) => {
-      // Gracefully catch unauthenticated or offline simulation errors
-    });
+    await update(ref(database, `students/${studentId}`), studentOverridePayload).catch(() => {});
   }
 
   // --- NEW: PRD Section 5.2 FIFO In-Memory Network Sync Queue ---

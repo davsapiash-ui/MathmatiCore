@@ -103,24 +103,24 @@ export function StudentChatOverlay() {
     const alertId = `${studentId}_help_${Date.now()}`;
 
     // Sync to Realtime DB so Teacher Dashboard lights up immediately in orange and stays persistent
-    const updates: Record<string, any> = {};
-    updates[`users/students/${studentId}/helpRequested`] = true;
-    updates[`users/students/${studentId}/handRaised`] = true;
-    updates[`users/students/${studentId}/isStruggling`] = true;
-    updates[`users/students/${studentId}/helpCallCount`] = newCount;
-    updates[`users/students/${studentId}/lastHelpTimestamp`] = Date.now();
-    updates[`users/students/${studentId}/lastAction`] = `תלמיד ביקש עזרה מהמורה! (קריאה #${newCount})`;
-    updates[`users/students/${studentId}/last_alert`] = `תלמיד ביקש עזרה מהמורה! (קריאה #${newCount})`;
-    
-    updates[`users/students/${studentId}/helpHistory/${helpKey}`] = {
+    const studentHelpPayload = {
+      helpRequested: true,
+      handRaised: true,
+      isStruggling: true,
+      helpCallCount: newCount,
+      lastHelpTimestamp: Date.now(),
+      lastAction: `תלמיד ביקש עזרה מהמורה! (קריאה #${newCount})`,
+      last_alert: `תלמיד ביקש עזרה מהמורה! (קריאה #${newCount})`,
+    };
+    await update(ref(database, `users/students/${studentId}`), studentHelpPayload).catch(console.error);
+    await update(ref(database, `users/students/${studentId}/helpHistory/${helpKey}`), {
       timestamp: Date.now(),
       sessionNumber: useWorkspaceStore.getState().sessionNumber || 1,
       type: 'CALL_FOR_HELP',
       message: 'תלמיד ביקש עזרה מהמורה!',
       status: 'pending'
-    };
-
-    updates[`radar_alerts/${alertId}`] = {
+    }).catch(console.error);
+    await set(ref(database, `radar_alerts/${alertId}`), {
       studentId: studentId,
       rawStudentId: studentId,
       studentName: user.displayName || studentId,
@@ -129,9 +129,7 @@ export function StudentChatOverlay() {
       message: `תלמיד ביקש עזרה מהמורה! (קריאה #${newCount})`,
       severity: 'alert',
       persistent: true
-    };
-
-    await update(ref(database), updates).catch(console.error);
+    }).catch(console.error);
 
     useWorkspaceStore.getState().showFeedback({
       correct: true,

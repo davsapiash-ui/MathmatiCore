@@ -33,14 +33,15 @@ export function StudentSideDrawer({ student, onClose, isPendingApproval, onAppro
     const rawNum = student.studentId.replace(/[^0-9]/g, '');
     const ids = Array.from(new Set([student.studentId, normId, rawNum, `student_user${rawNum}`].filter(Boolean)));
     
-    const updates: Record<string, any> = {};
+    const studentClearPayload = {
+      helpRequested: false,
+      handRaised: false,
+      isStruggling: false,
+      lastAction: 'המורה סימן את בקשת העזרה כטופלה',
+    };
     ids.forEach((id) => {
-      updates[`users/students/${id}/helpRequested`] = false;
-      updates[`users/students/${id}/handRaised`] = false;
-      updates[`users/students/${id}/isStruggling`] = false;
-      updates[`users/students/${id}/lastAction`] = 'המורה סימן את בקשת העזרה כטופלה';
+      update(ref(database, `users/students/${id}`), studentClearPayload).catch(console.error);
     });
-    await update(ref(database), updates).catch(console.error);
   };
 
   return createPortal(

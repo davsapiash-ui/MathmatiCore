@@ -721,21 +721,17 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       if (studentId) {
         const normId = normalizeStudentId(studentId);
         const taskTitle = tasks[nextIdx]?.titleHe || `משימה ${nextIdx + 1}`;
-        const updates: Record<string, any> = {
-          [`users/students/${studentId}/currentTaskIdx`]: nextIdx,
-          [`users/students/${studentId}/activeStep`]: nextIdx + 1,
-          [`users/students/${studentId}/lastAction`]: `מתקדם למשימה ${nextIdx + 1}: ${taskTitle}`,
-          [`users/students/${studentId}/lastActivityTimestamp`]: Date.now(),
-          [`users/students/${studentId}/onlineStatus`]: 'active',
+        const studentPayload = {
+          currentTaskIdx: nextIdx,
+          activeStep: nextIdx + 1,
+          lastAction: `מתקדם למשימה ${nextIdx + 1}: ${taskTitle}`,
+          lastActivityTimestamp: Date.now(),
+          onlineStatus: 'active',
         };
+        update(ref(database, `users/students/${studentId}`), studentPayload).catch(console.error);
         if (normId !== studentId) {
-          updates[`users/students/${normId}/currentTaskIdx`] = nextIdx;
-          updates[`users/students/${normId}/activeStep`] = nextIdx + 1;
-          updates[`users/students/${normId}/lastAction`] = `מתקדם למשימה ${nextIdx + 1}: ${taskTitle}`;
-          updates[`users/students/${normId}/lastActivityTimestamp`] = Date.now();
-          updates[`users/students/${normId}/onlineStatus`] = 'active';
+          update(ref(database, `users/students/${normId}`), studentPayload).catch(console.error);
         }
-        update(ref(database), updates).catch(console.error);
       }
       startTask(tasks[nextIdx].id);
       return;
@@ -1378,23 +1374,23 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const helpKey = `help_${Date.now()}`;
 
         // Sync to Realtime DB so Teacher Dashboard lights up immediately in orange and stays persistent
-        const updates: Record<string, any> = {};
-        updates[`users/students/${studentId}/helpRequested`] = true;
-        updates[`users/students/${studentId}/handRaised`] = true;
-        updates[`users/students/${studentId}/isStruggling`] = true;
-        updates[`users/students/${studentId}/lastHelpTimestamp`] = Date.now();
-        updates[`users/students/${studentId}/lastAction`] = 'תלמיד לחץ על נורת העזרה!';
-        updates[`users/students/${studentId}/last_alert`] = 'תלמיד לחץ על נורת העזרה!';
-        
-        updates[`users/students/${studentId}/helpHistory/${helpKey}`] = {
+        const studentHelpPayload = {
+          helpRequested: true,
+          handRaised: true,
+          isStruggling: true,
+          lastHelpTimestamp: Date.now(),
+          lastAction: 'תלמיד לחץ על נורת העזרה!',
+          last_alert: 'תלמיד לחץ על נורת העזרה!',
+        };
+        update(ref(database, `users/students/${studentId}`), studentHelpPayload).catch(console.error);
+        update(ref(database, `users/students/${studentId}/helpHistory/${helpKey}`), {
           timestamp: Date.now(),
           sessionNumber: s.sessionNumber || 1,
           type: 'HINT_REQUESTED',
           message: 'תלמיד לחץ על נורת העזרה והחניכה!',
           status: 'pending'
-        };
-
-        updates[`radar_alerts/${alertId}`] = {
+        }).catch(console.error);
+        set(ref(database, `radar_alerts/${alertId}`), {
           studentId: studentId,
           rawStudentId: studentId,
           studentName: rawUser.displayName || studentId,
@@ -1403,8 +1399,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           message: 'תלמיד לחץ על נורת העזרה!',
           severity: 'warning',
           persistent: true
-        };
-        update(ref(database), updates).catch(console.error);
+        }).catch(console.error);
       }
 
       set({ helpState: 'friction', frictionTriggerSource: 'lightbulb', aiSocraticHint: null });

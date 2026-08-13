@@ -143,12 +143,12 @@ export const useChatStore = create<ChatState>()(
       const { messages } = get();
       const unreadMsgs = messages.filter(msg => msg.receiverId === receiverId && msg.senderId === senderId && !msg.read);
       if (unreadMsgs.length > 0) {
-        const updates: Record<string, any> = {};
         const roomId = computeRoomId(senderId, receiverId);
+        const updates: Record<string, any> = {};
         unreadMsgs.forEach(msg => {
-          updates[`chat_messages/${roomId}/${msg.id}/read`] = true;
+          updates[`${msg.id}/read`] = true;
         });
-        update(ref(database), updates).catch(console.error);
+        update(ref(database, `chat_messages/${roomId}`), updates).catch(console.error);
       }
     },
   })

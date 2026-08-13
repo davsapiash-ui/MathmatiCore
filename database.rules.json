@@ -1,23 +1,19 @@
 {
   "rules": {
-    ".read": false,
-    ".write": false,
-
+    ".read": "auth != null",
+    ".write": "auth != null",
     "schools": {
       ".read": "auth != null",
       ".write": "auth != null"
     },
-
     "public_classes": {
       ".read": true,
       ".write": "auth != null"
     },
-
     "classes": {
       ".read": "auth != null",
       ".write": "auth != null"
     },
-
     "users": {
       ".read": "auth != null",
       ".write": "auth != null",
@@ -30,57 +26,46 @@
         ".write": "auth != null"
       }
     },
-
     "students": {
       ".read": "auth != null",
       ".write": "auth != null"
     },
-
     "radar_alerts": {
       ".read": "auth != null",
       ".write": "auth != null"
     },
-
     "reflections": {
       ".read": "auth != null",
       ".write": "auth != null"
     },
-
     "chat_messages": {
       ".read": "auth != null",
       ".write": "auth != null"
     },
-
     "sessions": {
       ".read": "auth != null",
       ".write": "auth != null"
     },
-
     "replays": {
       ".read": "auth != null",
       ".write": "auth != null"
     },
-
     "approved_tasks": {
       ".read": "auth != null",
       ".write": "auth != null"
     },
-
     "ai_pending_approvals": {
       ".read": "auth != null",
       ".write": "auth != null"
     },
-
     "system_control": {
       ".read": true,
       ".write": "auth != null"
     },
-
     "active_class_session": {
       ".read": true,
       ".write": "auth != null"
     },
-
     "audit_logs": {
       ".read": "auth != null",
       ".write": "auth != null",
