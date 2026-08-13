@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { UdlButton } from "@/presentation/design-system/UdlButton";
 import { 
   Plus, 
@@ -12,8 +12,6 @@ import {
   Sparkles,
   KeyRound,
   GraduationCap,
-  AlertCircle,
-  BarChart3,
   Layers
 } from "lucide-react";
 import { useAdminStore } from "@/application/useAdminStore";

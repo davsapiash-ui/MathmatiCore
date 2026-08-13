@@ -9,7 +9,7 @@ import { useAuthStore } from "@/application/useAuthStore";
 import { useChatStore, normalizeStudentId, type ChatMessage } from "@/application/useChatStore";
 import { useStore, type StudentData } from "@/application/useStore";
 import { toast } from "sonner";
-import { ref, onValue, remove, set, onDisconnect } from "firebase/database";
+import { ref, onValue, remove, set } from "firebase/database";
 import { database } from "@/infrastructure/firebase";
 import {
   BarChart,

@@ -90,7 +90,7 @@ describe('THE HYDRA SWARM INQUISITION (20-Node Concurrent Fuzzer)', () => {
                 } as any,
                 'next'
               );
-            } catch (e) {
+            } catch (_e) {
               // Store should gracefully handle or swallow bad inputs
             }
 

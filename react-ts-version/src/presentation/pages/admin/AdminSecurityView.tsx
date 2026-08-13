@@ -1,6 +1,6 @@
 import { AccessibleCard } from "@/presentation/design-system/AccessibleCard";
 import { UdlButton } from "@/presentation/design-system/UdlButton";
-import { Key, Clock, Fingerprint, ShieldCheck, Lock, CheckCircle2 } from "lucide-react";
+import { Key, Clock, Fingerprint, ShieldCheck } from "lucide-react";
 
 export function AdminSecurityView() {
   return (

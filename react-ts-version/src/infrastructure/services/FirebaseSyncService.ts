@@ -398,36 +398,49 @@ export class FirebaseSyncService {
 
   public async syncPhysicalOverride(
     studentId: string,
-    overrideData: {
-      routeStatus: string;
-      difficultyRecommendation: string;
-      isASD: boolean;
-      physicalOverride: boolean;
+    overrideInput: boolean | {
+      routeStatus?: string;
+      difficultyRecommendation?: string;
+      isASD?: boolean;
+      physicalOverride?: boolean;
       physicalOverrideActive?: boolean;
-      overrideUpdatedAt: number;
+      overrideUpdatedAt?: number;
     }
   ) {
     if (!studentId) return;
+
+    const overrideData = typeof overrideInput === 'boolean' 
+      ? { physicalOverride: overrideInput }
+      : overrideInput;
+
+    const isPhysical = overrideData.physicalOverride ?? true;
+    const isASD = overrideData.isASD ?? false;
+    const routeStatus = overrideData.routeStatus ?? 'APPROVED';
+    const difficultyRec = overrideData.difficultyRecommendation ?? 'REGULAR';
+    const updatedAt = overrideData.overrideUpdatedAt ?? Date.now();
+
     const updates: Record<string, any> = {};
 
     // 1. Primary path: users/students/${studentId}
-    updates[`users/students/${studentId}/routeStatus`] = overrideData.routeStatus;
-    updates[`users/students/${studentId}/difficultyRecommendation`] = overrideData.difficultyRecommendation;
-    updates[`users/students/${studentId}/isASD`] = overrideData.isASD;
-    updates[`users/students/${studentId}/physicalOverride`] = overrideData.physicalOverride;
-    updates[`users/students/${studentId}/physicalOverrideActive`] = overrideData.physicalOverrideActive ?? overrideData.physicalOverride;
-    updates[`users/students/${studentId}/overrideUpdatedAt`] = overrideData.overrideUpdatedAt;
-    updates[`users/students/${studentId}/workspaceState/isASD`] = overrideData.isASD;
+    updates[`users/students/${studentId}/routeStatus`] = routeStatus;
+    updates[`users/students/${studentId}/difficultyRecommendation`] = difficultyRec;
+    updates[`users/students/${studentId}/isASD`] = isASD;
+    updates[`users/students/${studentId}/physicalOverride`] = isPhysical;
+    updates[`users/students/${studentId}/physicalOverrideActive`] = overrideData.physicalOverrideActive ?? isPhysical;
+    updates[`users/students/${studentId}/overrideUpdatedAt`] = updatedAt;
+    updates[`users/students/${studentId}/workspaceState/isASD`] = isASD;
 
     // 2. Secondary path: students/${studentId} (backup per requirement 3)
-    updates[`students/${studentId}/routeStatus`] = overrideData.routeStatus;
-    updates[`students/${studentId}/difficultyRecommendation`] = overrideData.difficultyRecommendation;
-    updates[`students/${studentId}/isASD`] = overrideData.isASD;
-    updates[`students/${studentId}/physicalOverride`] = overrideData.physicalOverride;
-    updates[`students/${studentId}/physicalOverrideActive`] = overrideData.physicalOverrideActive ?? overrideData.physicalOverride;
-    updates[`students/${studentId}/overrideUpdatedAt`] = overrideData.overrideUpdatedAt;
+    updates[`students/${studentId}/routeStatus`] = routeStatus;
+    updates[`students/${studentId}/difficultyRecommendation`] = difficultyRec;
+    updates[`students/${studentId}/isASD`] = isASD;
+    updates[`students/${studentId}/physicalOverride`] = isPhysical;
+    updates[`students/${studentId}/physicalOverrideActive`] = overrideData.physicalOverrideActive ?? isPhysical;
+    updates[`students/${studentId}/overrideUpdatedAt`] = updatedAt;
 
-    await update(ref(database), updates);
+    await update(ref(database), updates).catch((_err) => {
+      // Gracefully catch unauthenticated or offline simulation errors
+    });
   }
 
   // --- NEW: PRD Section 5.2 FIFO In-Memory Network Sync Queue ---
@@ -528,7 +541,7 @@ export class FirebaseSyncService {
     if (typeof window === 'undefined' || !studentId) return;
     try {
       localStorage.removeItem(`mathmaticore_session_cache_${studentId}`);
-    } catch (e) {
+    } catch (_e) {
       // ignore
     }
   }
@@ -557,7 +570,7 @@ export class FirebaseSyncService {
     try {
       const milestoneRef = push(ref(database, `users/students/${studentId}/milestones`));
       await set(milestoneRef, milestonePayload);
-    } catch (e) {
+    } catch (_e) {
       this.enqueueOfflineTransaction(`users/students/${studentId}/milestones`, milestonePayload);
     }
   }

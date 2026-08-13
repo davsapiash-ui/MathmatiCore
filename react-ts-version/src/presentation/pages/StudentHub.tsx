@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Play, Lock, ChevronLeft, Sun, Clock, Map, CheckCircle2 } from 'lucide-react';
+import { Lock, ChevronLeft, Sun, Clock, Map, CheckCircle2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import type { Variants } from 'framer-motion';
@@ -71,7 +71,6 @@ export function StudentHub() {
 
   const activeRouteStatus = liveRouteStatus || currentStudent?.routeStatus;
   const isPending = activeRouteStatus === 'PENDING' || activeRouteStatus === 'PENDING_TEACHER_APPROVAL';
-  const isApproved = activeRouteStatus === 'APPROVED';
 
   const highestCompleted = currentStudent?.highestCompletedMeeting ?? (currentStudent?.completedMeeting2 ? 2 : 0);
   const isPendingLesson3 = isPending && highestCompleted >= 2;

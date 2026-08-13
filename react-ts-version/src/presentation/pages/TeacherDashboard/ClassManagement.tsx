@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { useAdminStore } from '@/application/useAdminStore';
-import { ShieldCheck, Users, Check, Lock, Sparkles, ChevronRight, Zap } from 'lucide-react';
+import { Users, Check, Lock, Sparkles, ChevronRight, Zap } from 'lucide-react';
 import { useStore, type StudentData } from '@/application/useStore';
 import { HeatmapGrid } from './components/HeatmapGrid';
 import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
-import { UdlButton } from '@/presentation/design-system/UdlButton';
 
 export function ClassManagement({ 
   allStudents, 

@@ -5,19 +5,14 @@ import {
   Users, 
   GraduationCap, 
   ShieldAlert, 
-  Sparkles, 
   Trash2, 
   Lock, 
   CheckCircle2, 
   Search, 
-  Filter, 
   Clock, 
   Zap,
   BarChart3,
   TrendingUp,
-  RefreshCw,
-  FileSpreadsheet,
-  Download,
   UploadCloud
 } from "lucide-react";
 import { UdlButton } from "@/presentation/design-system/UdlButton";
@@ -32,8 +27,7 @@ import {
   YAxis, 
   CartesianGrid, 
   Tooltip, 
-  ResponsiveContainer,
-  Legend
+  ResponsiveContainer
 } from "recharts";
 import { ref, onValue, query, orderByChild, limitToLast, get, update } from "firebase/database";
 import { database } from "@/infrastructure/firebase";

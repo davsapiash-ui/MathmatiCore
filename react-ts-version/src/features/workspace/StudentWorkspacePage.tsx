@@ -22,7 +22,6 @@ import { database, authReady } from '@/infrastructure/firebase';
 import { ref, push, onValue, remove, get, set, update } from 'firebase/database';
 import { useChatStore, normalizeStudentId } from '@/application/useChatStore';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getCurrentQTask, isSubtaskActive } from '@/core/qmatrixFlow';
 import { PlaceValueBoard } from './board/PlaceValueBoard';
 
 import { DienesBlock } from './board/DienesBlock';
@@ -34,7 +33,7 @@ import { ReflectionScreen } from './ReflectionScreen';
 import { Session8ReflectionScreen } from '@/presentation/components/student/Session8ReflectionScreen';
 import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
 import { useStore } from '@/application/useStore';
-import { Clock, X } from 'lucide-react';
+import { X } from 'lucide-react';
 
 import { StudentChatOverlay } from './overlays/StudentChatOverlay';
 import { AdditionHelper } from './board/AdditionHelper';
@@ -61,12 +60,9 @@ export function StudentWorkspacePage() {
   const applyDrop = useWorkspaceStore((s) => s.applyDrop);
   const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
   const flowStatus = useWorkspaceStore((s) => s.flowStatus);
-  const qflow = useWorkspaceStore((s) => s.qflow);
   const aiSocraticHint = useWorkspaceStore((s) => s.aiSocraticHint);
   const user = useAuthStore((s) => s.user);
 
-  const isTimeExceeded = useWorkspaceStore((s) => s.isTimeExceeded);
-  const awaitingNext = useWorkspaceStore((s) => s.awaitingNext);
   const [audioUnlocked, setAudioUnlocked] = useState(() => tts.isAudioUnlocked());
 
   // PRD V2.0 Section 7 NFR: Pre-fetch Socratic hints upon loading to guarantee <200ms latency
@@ -166,7 +162,7 @@ export function StudentWorkspacePage() {
       window.removeEventListener('keydown', onKeyDown);
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
-  }, []);
+  }, [activeDrag]);
 
   // --- RRWeb Telemetry Recording (Gated by Active Teacher Class Session) ---
   useEffect(() => {
@@ -268,14 +264,12 @@ export function StudentWorkspacePage() {
       window.removeEventListener('beforeunload', flushTelemetry);
       flushTelemetry();
     };
-  }, [user?.uid, normUid, isTeacherSessionActive, activeClassSession?.startedAt]);
+  }, [user?.uid, normUid, isTeacherSessionActive, activeClassSession]);
 
-  const [showHesitationHint, setShowHesitationHint] = useState(false);
   // Pedagogical Radar — active ONLY when teacher session is active!
   useCognitiveHesitationRadar({ 
     isActive: isTeacherSessionActive,
     onHesitationDetected: () => {
-      setShowHesitationHint(true);
       useWorkspaceStore.getState().openAdditionHelper();
     }
   });

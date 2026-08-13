@@ -1,7 +1,7 @@
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import type { QMatrixTask } from '@/core/QMatrix';
 import type { QMatrixFlowState } from '@/core/qmatrixFlow';
-import { getEffectiveChoices, getEffectiveNumber, getEffectiveRange } from '@/core/qmatrixFlow';
+import { getEffectiveChoices, getEffectiveNumber } from '@/core/qmatrixFlow';
 import { ChoiceList } from './ChoiceList';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 import { InlineMath } from 'react-katex';

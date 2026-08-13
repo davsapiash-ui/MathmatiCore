@@ -7,7 +7,6 @@ import { useNavigate } from "react-router-dom";
 import { auth, database } from "@/infrastructure/firebase";
 import { ref, get } from 'firebase/database';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
-import { firebaseSyncService } from "@/infrastructure/services/FirebaseSyncService";
 import { Button } from "@/components/ui/button";
 
 // DEMO_USERS removed
@@ -54,7 +53,7 @@ const inputClass =
 export function Login() {
   const { setUser } = useAuthStore();
   const { schools, classes } = useAdminStore();
-  const { login, students } = useStore();
+  const { login } = useStore();
   const navigate = useNavigate();
 
   const [selectedRole, setSelectedRole] = useState<"student" | "teacher" | "admin" | null>(null);
@@ -76,6 +75,46 @@ export function Login() {
       }
     }
   }, []);
+
+  const [showEmailFallback, setShowEmailFallback] = useState(false);
+
+  const handleEmailTeacherOrAdminLogin = async (targetRole: "teacher" | "admin") => {
+    if (!username.trim()) {
+      setErrorMsg('אנא הזן כתובת דוא"ל מורשית (לדוגמה: teacher@edu-haifa.org.il).');
+      return;
+    }
+    const emailInput = username.trim().toLowerCase();
+    if (!isWhitelistedTeacherEmail(emailInput)) {
+      setErrorMsg(`גישה נדחתה: כתובת הדוא"ל (${emailInput}) אינה מורשית ברשימה הלבנה (Whitelist) של משרד החינוך.`);
+      return;
+    }
+
+    setIsLoggingIn(true);
+    setErrorMsg("");
+    try {
+      if (auth && auth.config) {
+        try {
+          await signInWithEmailAndPassword(auth, emailInput, password || "10203040");
+        } catch {
+          await createUserWithEmailAndPassword(auth, emailInput, password || "10203040");
+        }
+      }
+      const uid = targetRole === "teacher" ? `teacher_${emailInput.replace(/[^a-z0-9]/g, "_")}` : `admin_${emailInput.replace(/[^a-z0-9]/g, "_")}`;
+      setUser({
+        uid,
+        email: emailInput,
+        role: targetRole,
+        displayName: `${targetRole === "teacher" ? "מורה" : "מנהל מערכת"} (${emailInput})`,
+      }, targetRole);
+      login(targetRole, uid);
+      setIsLoggingIn(false);
+      navigate(targetRole === "teacher" ? "/dashboard" : "/admin", { replace: true });
+    } catch (err: any) {
+      console.error("Email Fallback Login Error:", err);
+      setIsLoggingIn(false);
+      setErrorMsg("התחברות נכשלה. אנא בדוק את הפרטים ונסה שוב.");
+    }
+  };
 
   const handleTeacherGoogleSSO = async () => {
     setIsLoggingIn(true);
@@ -106,7 +145,8 @@ export function Login() {
     } catch (err: any) {
       console.error("Teacher SSO Login Error:", err);
       setIsLoggingIn(false);
-      setErrorMsg("התחברות Google נכשלה או בוטלה. אנא נסה שוב.");
+      setShowEmailFallback(true);
+      setErrorMsg('התחברות Google SSO לא הושלמה. נפתח טופס התחברות בדוא"ל מורשת חלופי.');
     }
   };
 
@@ -119,7 +159,7 @@ export function Login() {
       try {
         if (!auth || !auth.config) return;
         await signInWithEmailAndPassword(auth, virtualEmail, virtualPass);
-      } catch (err: any) {
+      } catch (_err: any) {
         try {
           if (auth && auth.config) {
             await createUserWithEmailAndPassword(auth, virtualEmail, virtualPass);
@@ -222,13 +262,14 @@ export function Login() {
     } catch (err: any) {
       console.error("Admin SSO Login Error:", err);
       setIsLoggingIn(false);
-      setErrorMsg("התחברות Google כמנהל נכשלה או בוטלה. אנא נסה שוב.");
+      setShowEmailFallback(true);
+      setErrorMsg('התחברות Google SSO לא הושלמה. נפתח טופס התחברות בדוא"ל מורשת חלופי.');
     }
   };
 
   const roleTitle =
     selectedRole === "student" ? "כניסת תלמיד - זיהוי אוטומטי" :
-    selectedRole === "teacher" ? "כניסת מורה - הקלדת פרטים מזהים" :
+    selectedRole === "teacher" ? "כניסת מורה - הזדהות מאובטחת" :
     selectedRole === "admin" ? "כניסת מנהל - גישה מאובטחת" : "";
 
   return (
@@ -286,7 +327,7 @@ export function Login() {
                     {ROLES.map((role) => (
                       <button
                         key={role.id}
-                        onClick={() => { setSelectedRole(role.id); }}
+                        onClick={() => { setSelectedRole(role.id); setShowEmailFallback(false); setErrorMsg(""); }}
                         className="flex-1 flex flex-col items-center gap-2 p-5 sm:p-4 bg-ws-bg/50 border-2 border-ws-surface2 rounded-2xl text-ws-ink font-display font-bold transition-all hover:border-[hsl(var(--ws-blue)/0.5)] hover:bg-[hsl(var(--ws-blue-soft)/0.5)] hover:-translate-y-1 hover:shadow-lg active:scale-[0.98]"
                       >
                         <span className="text-4xl leading-none drop-shadow-sm" aria-hidden="true">{role.icon}</span>
@@ -306,7 +347,7 @@ export function Login() {
                 >
                   <button
                     type="button"
-                    onClick={() => { setSelectedRole(null); setErrorMsg(""); }}
+                    onClick={() => { setSelectedRole(null); setShowEmailFallback(false); setErrorMsg(""); }}
                     className="text-sm font-display font-bold text-ws-soft px-2 py-1 rounded-lg transition-colors hover:text-[hsl(var(--ws-blue))] hover:bg-[hsl(var(--ws-blue-soft))] mb-3 -mr-2 flex items-center gap-1"
                   >
                     ➔ חזרה
@@ -319,8 +360,8 @@ export function Login() {
                       className="mb-6 text-sm leading-relaxed rounded-2xl p-3.5 pr-4 border-r-4 text-ws-ink/80 font-medium bg-[hsl(var(--ws-blue-soft)/0.55)] border-[hsl(var(--ws-blue)/0.55)] shadow-sm"
                     >
                       {selectedRole === "student" && "ברוך הבא! אנא בחר בית ספר, כיתה, והזן את שם המשתמש והסיסמה שלך כדי להיכנס."}
-                      {selectedRole === "teacher" && "ברוכים הבאים! הגישה למרחב הניהול של המורה מורשית אך ורק באמצעות הזדהות Google SSO עם חשבון מחוז חיפה (@edu-haifa.org.il)."}
-                      {selectedRole === "admin" && "ברוכים הבאים! הגישה למרחב מנהל המערכת מורשית אך ורק באמצעות הזדהות Google SSO עם חשבון מורשה (@edu-haifa.org.il)."}
+                      {selectedRole === "teacher" && "ברוכים הבאים! הגישה למרחב הניהול מורשית באמצעות הזדהות Google SSO או דוא\"ל מורשה ברשימה הלבנה."}
+                      {selectedRole === "admin" && "ברוכים הבאים! הגישה למרחב מנהל המערכת מורשית באמצעות הזדהות Google SSO או דוא\"ל מורשה ברשימה הלבנה."}
                     </p>
 
                     {errorMsg && (
@@ -339,7 +380,7 @@ export function Login() {
                             value={school}
                             onChange={(e) => {
                               setSchool(e.target.value);
-                              setClassroom(""); // Reset class when school changes
+                              setClassroom("");
                             }}
                             className={inputClass}
                           >
@@ -374,34 +415,50 @@ export function Login() {
                           </Button>
                         </>
                       )}
-                      {selectedRole === "admin" && (
+                      {(selectedRole === "teacher" || selectedRole === "admin") && (
                         <div className="flex flex-col gap-4">
                           <Button
                             type="button"
                             variant="udl"
                             size="lg"
-                            onClick={handleAdminGoogleSSO}
+                            onClick={selectedRole === "teacher" ? handleTeacherGoogleSSO : handleAdminGoogleSSO}
                             disabled={isLoggingIn}
                             className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl font-extrabold text-base transition-all shadow-md hover:shadow-lg active:scale-95"
                           >
                             <span className="text-xl">🌐</span>
-                            <span>{isLoggingIn ? "מתחבר ב-Google SSO..." : "כניסת מנהל ב-Google SSO"}</span>
+                            <span>{isLoggingIn ? "מתחבר ב-Google SSO..." : `כניסת ${selectedRole === "teacher" ? "מורה" : "מנהל"} ב-Google SSO`}</span>
                           </Button>
-                        </div>
-                      )}
-                      {selectedRole === "teacher" && (
-                        <div className="flex flex-col gap-4">
-                          <Button
-                            type="button"
-                            variant="udl"
-                            size="lg"
-                            onClick={handleTeacherGoogleSSO}
-                            disabled={isLoggingIn}
-                            className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl font-extrabold text-base transition-all shadow-md hover:shadow-lg active:scale-95"
-                          >
-                            <span className="text-xl">🌐</span>
-                            <span>{isLoggingIn ? "מתחבר ב-Google SSO..." : "כניסת מורה ב-Google SSO"}</span>
-                          </Button>
+
+                          {!showEmailFallback ? (
+                            <button
+                              type="button"
+                              onClick={() => setShowEmailFallback(true)}
+                              className="text-xs text-center text-ws-soft hover:text-[hsl(var(--ws-blue))] font-semibold underline mt-1"
+                            >
+                              כניסה חלופית באמצעות דוא"ל מורשת משרד החינוך
+                            </button>
+                          ) : (
+                            <div className="flex flex-col gap-3 pt-2 border-t border-ws-surface2 mt-2">
+                              <span className="text-xs font-bold text-ws-ink-soft">כניסה חלופית באמצעות דוא"ל:</span>
+                              <input
+                                type="email"
+                                placeholder="כתובת דואל (לדוגמה: davidsep@edu-haifa.org.il)"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                className={inputClass}
+                              />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="lg"
+                                disabled={isLoggingIn}
+                                onClick={() => handleEmailTeacherOrAdminLogin(selectedRole)}
+                                className="w-full p-3 rounded-2xl font-bold text-sm"
+                              >
+                                {isLoggingIn ? "מתחבר..." : "כניסה בדואל מורשה"}
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

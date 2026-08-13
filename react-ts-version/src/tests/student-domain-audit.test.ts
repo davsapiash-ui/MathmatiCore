@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { stateReducer } from '@/machines/craMachine';
-import { SESSIONS, getSessionTasks, SESSION1_TASKS, SESSION3_TASKS, SESSION4_TASKS, SESSION5_TASKS, SESSION6_TASKS, SESSION7_TASKS, SESSION8_TASKS } from '@/data/sessionTasks';
+import { getSessionTasks, SESSION1_TASKS, SESSION3_TASKS, SESSION4_TASKS, SESSION5_TASKS, SESSION6_TASKS, SESSION7_TASKS, SESSION8_TASKS } from '@/data/sessionTasks';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { readFileSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { SocraticHintResponse } from '@/infrastructure/services/SocraticEngine';
-import { Bot, X, CheckCircle2, Sparkles, BellOff, Lightbulb, Lock, AlertTriangle } from 'lucide-react';
+import { Bot, X, CheckCircle2, Sparkles, BellOff, Lightbulb, Lock } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useSettingsStore } from '@/application/useSettingsStore';
 import { executeDistractorPenaltyLockout } from '@/core/ExerciseValidationEngine';

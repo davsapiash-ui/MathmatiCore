@@ -18,7 +18,7 @@ const getInitialSeenState = (): boolean => {
   try {
     const saved = localStorage.getItem('mathmaticore_has_seen_workspace_tour');
     if (saved === 'true') return true;
-  } catch (e) {
+  } catch (_e) {
     // Ignore storage errors
   }
   return false;
@@ -29,13 +29,13 @@ export const useWorkspaceTourStore = create<WorkspaceTourState>((set) => ({
   completeWorkspaceTour: () => {
     try {
       localStorage.setItem('mathmaticore_has_seen_workspace_tour', 'true');
-    } catch (e) {}
+    } catch (_e) {}
     set({ hasSeenWorkspaceTour: true });
   },
   resetWorkspaceTour: () => {
     try {
       localStorage.removeItem('mathmaticore_has_seen_workspace_tour');
-    } catch (e) {}
+    } catch (_e) {}
     set({ hasSeenWorkspaceTour: false });
   },
 }));
@@ -151,7 +151,7 @@ export function useWorkspaceTour() {
         if (localStorage.getItem('mathmaticore_has_seen_workspace_tour') === 'true') {
           isAlreadySeen = true;
         }
-      } catch (e) {}
+      } catch (_e) {}
 
       if (!isAlreadySeen) {
         // Small delay to ensure UI is mounted and blocks are rendered

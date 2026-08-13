@@ -10,10 +10,7 @@ import {
   ShieldAlert, 
   Sparkles,
   UserCheck,
-  Filter,
-  Search,
-  Users,
-  ChevronLeft
+  Users
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -71,7 +68,6 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
 
   // Filter state for Heatmap
   const [activeFilter, setActiveFilter] = useState<'ALL' | 'STRUGGLING' | 'LOCKED' | 'PHYSICAL_OVERRIDE'>('ALL');
-  const [searchQuery, setSearchQuery] = useState('');
 
   // Subscribe to live Firebase data and merge with 35 student slots
   useEffect(() => {
@@ -248,15 +244,12 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
   // Filtered Students
   const filteredStudents = useMemo(() => {
     return students.filter(s => {
-      const matchesSearch = !searchQuery || s.displayName.toLowerCase().includes(searchQuery.toLowerCase());
-      if (!matchesSearch) return false;
-
       if (activeFilter === 'STRUGGLING') return s.isStruggling;
       if (activeFilter === 'LOCKED') return s.status === 'locked';
       if (activeFilter === 'PHYSICAL_OVERRIDE') return s.physicalOverride;
       return true;
     });
-  }, [students, activeFilter, searchQuery]);
+  }, [students, activeFilter]);
 
   return (
     <div className="flex flex-col gap-8" dir="rtl">

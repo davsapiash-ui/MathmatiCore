@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { AccessibleCard } from "@/presentation/design-system/AccessibleCard";
 import { UdlButton } from "@/presentation/design-system/UdlButton";
-import { Brain, SlidersHorizontal, ToggleLeft, ToggleRight, Sparkles, CheckCircle2, AlertCircle } from "lucide-react";
+import { Brain, SlidersHorizontal, ToggleLeft, ToggleRight, CheckCircle2 } from "lucide-react";
 
 export function AdminCurriculumView() {
   const [hesitationThreshold, setHesitationThreshold] = useState<number>(30);

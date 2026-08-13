@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useSettingsStore } from '@/application/useSettingsStore';
-import { useStore, type StudentData } from '@/application/useStore';
+import type { StudentData } from '@/application/useStore';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
@@ -67,7 +67,7 @@ describe('Full System Workflow & Integration Empirical Audit Suite', () => {
         qMatrixResults: {} as any,
       } as any;
 
-      const getStudentKPIs = (student: StudentData, messages: any[]) => {
+      const getStudentKPIs = (student: StudentData, _messages: any[]) => {
         const undo = student.traceData?.undo_clicks || 0;
         const hesitation = student.traceData?.hesitation_events || 0;
         const hasHistory = (student.highestCompletedMeeting || 0) > 0 || Boolean(student.completedMeeting2) || undo > 0 || hesitation > 0;

@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { TTSService, tts } from '@/infrastructure/services/TTSService';
+import { describe, it, expect, vi } from 'vitest';
+import { tts } from '@/infrastructure/services/TTSService';
 import { SocraticEngine } from '@/infrastructure/services/SocraticEngine';
-import { FirebaseSyncService, firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
+import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
 
 // Mock window and localStorage for Node test environment
 if (typeof window === 'undefined' || !window.localStorage) {

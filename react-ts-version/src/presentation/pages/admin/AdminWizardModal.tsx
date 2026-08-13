@@ -12,7 +12,6 @@ import {
   ShieldCheck, 
   AlertCircle, 
   Sparkles,
-  School as SchoolIcon,
   UserPlus,
   BookOpen
 } from "lucide-react";
