@@ -116,16 +116,23 @@ export const useChatStore = create<ChatState>()(
       const roomId = computeRoomId(senderId, receiverId);
       const chatRef = ref(database, `chat_messages/${roomId}`);
       const newMsgRef = push(chatRef);
-      firebaseSet(newMsgRef, {
-        id: newMsgRef.key!,
+      const newMsg: ChatMessage = {
+        id: newMsgRef.key || `local_${Date.now()}`,
         senderId,
         senderName,
         receiverId,
         text,
         timestamp: Date.now(),
         read: false
-      }).catch((err) => {
-        console.error("Error sending message:", err);
+      };
+      
+      // Optimistic update: render message on screen immediately
+      set((state) => ({
+        messages: [...state.messages.filter(m => m.id !== newMsg.id), newMsg]
+      }));
+
+      firebaseSet(newMsgRef, newMsg).catch((err) => {
+        console.error("Error sending message to Firebase:", err);
       });
     },
 
@@ -139,8 +146,8 @@ export const useChatStore = create<ChatState>()(
       const roomId = computeRoomId(senderId, receiverId);
       const chatRef = ref(database, `chat_messages/${roomId}`);
       const newMsgRef = push(chatRef);
-      firebaseSet(newMsgRef, {
-        id: newMsgRef.key!,
+      const newMsg: ChatMessage = {
+        id: newMsgRef.key || `local_${Date.now()}`,
         senderId,
         senderName,
         receiverId,
@@ -148,8 +155,15 @@ export const useChatStore = create<ChatState>()(
         imageUrl: dataUrl,
         timestamp: Date.now(),
         read: false
-      }).catch((err) => {
-        console.error("Error sending image message:", err);
+      };
+      
+      // Optimistic update
+      set((state) => ({
+        messages: [...state.messages.filter(m => m.id !== newMsg.id), newMsg]
+      }));
+
+      firebaseSet(newMsgRef, newMsg).catch((err) => {
+        console.error("Error sending image message to Firebase:", err);
       });
     },
 

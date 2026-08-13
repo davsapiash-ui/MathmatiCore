@@ -48,12 +48,13 @@ import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncServi
 const UNDO_STACK_CAP = 50;
 
 const DEFAULT_SOCRATIC_HINT: SocraticHintResponse = {
-  questionHe: 'שמנו לב שנסית כמה פעמים. מה הצעד הבא שתרצה לבצע?',
+  questionHe: 'מה הפעולה המתמטית שנרצה לבצע בבית המספרים?',
   choices: [
-    { id: 'opt_1', textHe: 'לפרוט עשרת אחת ל-10 יחידות' },
-    { id: 'opt_2', textHe: 'לקבץ 10 יחידות לעשרת אחת' },
-    { id: 'opt_3', textHe: 'לבדוק שוב את החישוב בבית המספרים' }
-  ]
+    { id: 'opt_1', textHe: 'לבדוק את מספר הבלוקים בכל טור בבית המספרים ולחשב מחדש' },
+    { id: 'opt_2', textHe: 'לפרוט עשרת אחת ל-10 יחידות' },
+    { id: 'opt_3', textHe: 'לקבץ 10 יחידות לעשרת אחת' }
+  ],
+  correctChoiceId: 'opt_1'
 };
 
 

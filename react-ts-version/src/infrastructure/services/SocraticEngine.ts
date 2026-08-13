@@ -80,8 +80,56 @@ export class SocraticEngine {
     const cached = this.localHintCache.get(`${_currentTask?.sessionNumber || 3}_${targetNode}`);
     if (cached) return cached;
 
+    // Check if task-specific hint is available
+    const taskId = _currentTask?.id;
+    const taskType = _currentTask?.type;
+
+    if (taskId === 's1_sandbox_controlled' || taskType === 'session1_intro') {
+      return {
+        pedagogical_intent: "procedural",
+        tts_text: enhancedCognitiveSupport
+          ? "גררו חמישה פריטים לבית המספרים ומחקו פריט אחד בפח המחזור לפתיחת כפתור התקדם."
+          : "כדי לפתוח את כפתור 'התקדם' במעבדה, מה הפעולות שעלינו להראות?",
+        suggested_highlight: "tour-place-value-board",
+        questionHe: "איך משלימים את משימת אימון המעבדה בבית המספרים?",
+        choices: [
+          { id: "opt_1", textHe: "לגרור לפחות 5 פריטים לבית המספרים ולמחוק פריט אחד בפח המחזור" },
+          { id: "opt_2", textHe: "להקליד מספר בתיבת התשובה" },
+          { id: "opt_3", textHe: "ללחוץ על כפתור סיום ללא גרירת קוביות" }
+        ],
+        correctChoiceId: "opt_1"
+      };
+    }
+
+    if (taskId === 's1_license_test') {
+      return {
+        pedagogical_intent: "conceptual",
+        tts_text: "בנו את המספר 420 בעזרת 4 מאות ו-2 עשרות.",
+        suggested_highlight: "tour-column-hundreds",
+        questionHe: "כיצד נבנה את המספר 420 בבית המספרים?",
+        choices: [
+          { id: "opt_1", textHe: "נניח 4 בלוקים בטור המאות ו-2 בלוקים בטור העשרות" },
+          { id: "opt_2", textHe: "נניח 42 קוביות בטור היחידות" },
+          { id: "opt_3", textHe: "נניח 4 בלוקים בטור העשרות ו-2 בטור היחידות" }
+        ],
+        correctChoiceId: "opt_1"
+      };
+    }
+
     // Zero-Generation Policy: Fetch from hardcoded Q-Matrix based on targetNode & cognitive profile
     const Q_MATRIX_HINTS: Record<string, SocraticHintResponse> = {
+      "basic_addition_fluency": {
+        pedagogical_intent: "conceptual",
+        tts_text: "בנו את שני המספרים בבית המספרים וחברו את כל הבלוקים בכל טור.",
+        suggested_highlight: "tour-place-value-board",
+        questionHe: "איך נחבר את המספרים בבית המספרים?",
+        choices: [
+          { id: "opt_1", textHe: "מניחים את הבלוקים של שני המספרים וסופרים את הסכום בכל טור" },
+          { id: "opt_2", textHe: "בונים רק את המספר הראשון" },
+          { id: "opt_3", textHe: "מוחקים את כל הבלוקים בלוח" }
+        ],
+        correctChoiceId: "opt_1"
+      },
       "q_matrix_general": {
         pedagogical_intent: "focus",
         tts_text: enhancedCognitiveSupport 
@@ -90,11 +138,11 @@ export class SocraticEngine {
         suggested_highlight: "tour-place-value-board",
         questionHe: enhancedCognitiveSupport 
           ? "בדקו את המיקום של קוביות היחידות והעשרות בלוח. בצעו חישוב מחודש של הטור הימני."
-          : "שמנו לב שנסית כמה פעמים. מה הצעד הבא שתרצה לבצע?",
+          : "מה הצעד הבא שתרצו לבצע בבית המספרים?",
         choices: [
-          { id: "opt_1", textHe: "לפרוט עשרת אחת ל-10 יחידות" },
-          { id: "opt_2", textHe: "לקבץ 10 יחידות לעשרת אחת" },
-          { id: "opt_3", textHe: "לבדוק שוב את החישוב בבית המספרים" }
+          { id: "opt_1", textHe: "לבדוק את מספר הבלוקים בכל טור ולחשב מחדש" },
+          { id: "opt_2", textHe: "לפרוט עשרת אחת ל-10 יחידות" },
+          { id: "opt_3", textHe: "לקבץ 10 יחידות לעשרת אחת" }
         ],
         correctChoiceId: "opt_1"
       },
