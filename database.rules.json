@@ -23,56 +23,32 @@
       ".write": "auth != null",
       "students": {
         ".read": "auth != null",
-        ".write": "auth != null",
-        "$studentId": {
-          ".read": "auth != null",
-          ".write": "auth != null"
-        }
+        ".write": "auth != null"
       },
       "teachers": {
         ".read": "auth != null",
-        ".write": "auth != null",
-        "$teacherId": {
-          ".read": "auth != null",
-          ".write": "auth != null"
-        }
+        ".write": "auth != null"
       }
     },
 
     "students": {
       ".read": "auth != null",
-      ".write": "auth != null",
-      "$studentId": {
-        ".read": "auth != null",
-        ".write": "auth != null"
-      }
+      ".write": "auth != null"
     },
 
     "radar_alerts": {
       ".read": "auth != null",
-      ".write": "auth != null",
-      "$alertId": {
-        ".read": "auth != null",
-        ".write": "auth != null"
-      }
+      ".write": "auth != null"
     },
 
     "reflections": {
       ".read": "auth != null",
-      ".write": "auth != null",
-      "$reflectionId": {
-        ".read": "auth != null",
-        ".write": "auth != null"
-      }
+      ".write": "auth != null"
     },
 
     "chat_messages": {
       ".read": "auth != null",
-      ".write": "auth != null",
-      "$roomId": {
-        ".read": "auth != null",
-        ".write": "auth != null"
-      }
+      ".write": "auth != null"
     },
 
     "sessions": {
@@ -82,29 +58,17 @@
 
     "replays": {
       ".read": "auth != null",
-      ".write": "auth != null",
-      "$sessionKey": {
-        ".read": "auth != null",
-        ".write": "auth != null"
-      }
+      ".write": "auth != null"
     },
 
     "approved_tasks": {
       ".read": "auth != null",
-      ".write": "auth != null",
-      "$studentId": {
-        ".read": "auth != null",
-        ".write": "auth != null"
-      }
+      ".write": "auth != null"
     },
 
     "ai_pending_approvals": {
       ".read": "auth != null",
-      ".write": "auth != null",
-      "$teacherId": {
-        ".read": "auth != null",
-        ".write": "auth != null"
-      }
+      ".write": "auth != null"
     },
 
     "system_control": {
@@ -120,10 +84,6 @@
     "audit_logs": {
       ".read": "auth != null",
       ".write": "auth != null",
-      "$logId": {
-        ".read": "auth != null",
-        ".write": "auth != null"
-      },
       ".indexOn": ["timestamp"]
     }
   }
