@@ -146,10 +146,10 @@ interface AppState {
   updateStudent: (studentId: string, updates: Partial<StudentData>) => void;
 }
 
-// Generate 30 users for Audit (ביקורת) environment
+// Generate 12 users for Pilot / Audit (ביקורת) environment
 const generateInitialStudents = (): Record<string, StudentData> => {
   const students: Record<string, StudentData> = {};
-  for (let i = 1; i <= 30; i++) {
+  for (let i = 1; i <= 12; i++) {
     const id = `student_user${i}`;
     students[id] = {
       studentId: id,

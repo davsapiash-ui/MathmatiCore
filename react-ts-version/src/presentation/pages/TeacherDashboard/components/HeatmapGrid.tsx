@@ -289,7 +289,7 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
           <div className="flex items-center gap-3">
             <div className="bg-white/15 border border-white/25 backdrop-blur-md px-4 py-2 rounded-2xl text-xs flex items-center gap-2 shadow-inner">
               <span className="w-2.5 h-2.5 rounded-full bg-amber-300 animate-pulse" />
-              <span className="text-indigo-100">תלמידים במאבק: <strong className="text-amber-300 font-extrabold text-sm">{strugglingCount} / 35</strong></span>
+              <span className="text-indigo-100">תלמידים במאבק: <strong className="text-amber-300 font-extrabold text-sm">{strugglingCount} / {students.length || 12}</strong></span>
             </div>
           </div>
         </div>

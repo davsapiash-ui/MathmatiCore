@@ -50,7 +50,7 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
   schools: [],
   teachers: [],
   classes: [],
-  globalStudentLimit: 35,
+  globalStudentLimit: 12,
 
   setGlobalStudentLimit: (limit) => {
     AuditLogger.log("עדכון מגבלת תלמידים", "admin", `מגבלה גלובלית חדשה: ${limit}`);

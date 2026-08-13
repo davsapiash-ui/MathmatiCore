@@ -55,7 +55,7 @@ describe('Empirical Verification: Static Imports & Zustand Store Initialization'
     const { useAdminStore } = await import('@/application/useAdminStore');
     const adminState = useAdminStore.getState();
     expect(adminState).toBeDefined();
-    expect(adminState.globalStudentLimit).toBe(35);
+    expect(adminState.globalStudentLimit).toBe(12);
     expect(Array.isArray(adminState.schools)).toBe(true);
     expect(typeof adminState.setGlobalStudentLimit).toBe('function');
   });

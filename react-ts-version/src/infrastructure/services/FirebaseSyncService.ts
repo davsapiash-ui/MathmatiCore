@@ -712,7 +712,7 @@ export class FirebaseSyncService {
           id: c.id,
           teacher_id: c.teacher_id || c.teacherId || teacherId,
           name: c.name || `כיתה ${c.id}`,
-          anonymous_students: c.anonymous_students || c.students || Array.from({ length: 35 }, (_, i) => `student_${i + 1}`)
+          anonymous_students: c.anonymous_students || c.students || Array.from({ length: 12 }, (_, i) => `student_${i + 1}`)
         });
       }
     });
@@ -808,7 +808,7 @@ export class FirebaseSyncService {
       schoolId: 'school_bikorot', 
       teacherId: '039604483', 
       name: 'כיתה 1', 
-      studentLimit: 35, 
+      studentLimit: 12, 
       createdAt: timestamp 
     };
     const initialPublicClass = {
@@ -823,7 +823,7 @@ export class FirebaseSyncService {
       updates[`users/teachers/039604483`] = initialTeacher;
       updates[`classes/class_1`] = initialClass;
       updates[`public_classes/class_1`] = initialPublicClass;
-      updates[`system_control/globalStudentLimit`] = 35;
+      updates[`system_control/globalStudentLimit`] = 12;
       
       await update(ref(database), updates);
       console.log("Auto-seeding completed successfully.");
@@ -854,7 +854,7 @@ export class FirebaseSyncService {
     const limitRef = ref(database, 'system_control/globalStudentLimit');
     this.unsubscribeGlobalStudentLimit = onValue(limitRef, (snapshot) => {
       const limitVal = snapshot.val();
-      const globalStudentLimit = limitVal !== null ? Number(limitVal) : 35;
+      const globalStudentLimit = limitVal !== null ? Number(limitVal) : 12;
       useAdminStore.setState({ globalStudentLimit });
     });
   }
@@ -868,7 +868,7 @@ export class FirebaseSyncService {
       this.unsubscribeGlobalStudentLimit();
       this.unsubscribeGlobalStudentLimit = null;
     }
-    useAdminStore.setState({ teachers: [], globalStudentLimit: 35 });
+    useAdminStore.setState({ teachers: [], globalStudentLimit: 12 });
   }
 
   // --- Admin actions syncing to Firebase ---
@@ -973,7 +973,7 @@ export class FirebaseSyncService {
     if (!studentId) throw new Error("Student ID is required for atomic registration");
     const limitRef = ref(database, 'system_control/globalStudentLimit');
     const limitSnap = await get(limitRef);
-    const limit = limitSnap.exists() ? Number(limitSnap.val()) : 35;
+    const limit = limitSnap.exists() ? Number(limitSnap.val()) : 12;
 
     const countRef = ref(database, 'system_control/activeStudentCount');
     let transactionPassed = false;

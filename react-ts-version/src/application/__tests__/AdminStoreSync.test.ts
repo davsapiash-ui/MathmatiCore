@@ -27,7 +27,7 @@ describe('Admin Store State Synchronization & Creation/Deletion', () => {
       schools: [],
       teachers: [],
       classes: [],
-      globalStudentLimit: 35,
+      globalStudentLimit: 12,
     });
   });
 
@@ -70,7 +70,7 @@ describe('Admin Store State Synchronization & Creation/Deletion', () => {
     const stateWithClass = useAdminStore.getState();
     expect(stateWithClass.classes).toHaveLength(1);
     expect(stateWithClass.classes[0].name).toBe('כיתה ד1');
-    expect(stateWithClass.classes[0].studentLimit).toBe(35);
+    expect(stateWithClass.classes[0].studentLimit).toBe(12);
 
     const classId = stateWithClass.classes[0].id;
     useAdminStore.getState().deleteClassRoom(classId);
