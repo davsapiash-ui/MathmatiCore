@@ -80,6 +80,14 @@ export function StudentHub() {
   const isTeacherSessionActive = Boolean(activeClassSession && activeClassSession.active);
   const activeSessionNum = isTeacherSessionActive ? (Number(activeClassSession?.sessionNumber) || 1) : null;
 
+  const isMeetingLocked = (meetingId: number): boolean => {
+    if (meetingId === 1) return false;
+    if (isTeacherSessionActive && activeSessionNum && meetingId <= activeSessionNum) {
+      return false;
+    }
+    return highestCompleted < meetingId - 1;
+  };
+
   const meetings: Meeting[] = [
     { 
       id: 1, 
@@ -87,7 +95,7 @@ export function StudentHub() {
       desc: 'היכרות עם כלי המעבדה השונים במרחב החקר הווירטואלי.', 
       icon: '🧪', 
       isTeacherActive: isTeacherSessionActive && activeSessionNum === 1,
-      isLocked: isTeacherSessionActive ? activeSessionNum !== 1 && highestCompleted < 1 : false
+      isLocked: isMeetingLocked(1)
     },
     { 
       id: 2, 
@@ -95,7 +103,7 @@ export function StudentHub() {
       desc: 'משימות חקר קצרות כדי שהמערכת תלמד את סגנון החשיבה הייחודי שלכם.', 
       icon: '📡', 
       isTeacherActive: isTeacherSessionActive && activeSessionNum === 2,
-      isLocked: isTeacherSessionActive ? activeSessionNum !== 2 && highestCompleted < 2 : highestCompleted < 1
+      isLocked: isMeetingLocked(2)
     },
     { 
       id: 3, 
@@ -103,7 +111,7 @@ export function StudentHub() {
       desc: isPendingLesson3 ? 'הנתונים נסרקים במערכת, ממתין לאישור מנהל מעבדה...' : 'מתחילים במשימות מחקר שמותאמות בדיוק עבורכם!', 
       icon: '🔬', 
       isTeacherActive: isTeacherSessionActive && activeSessionNum === 3,
-      isLocked: (isTeacherSessionActive && activeSessionNum === 3) ? false : (highestCompleted < 2),
+      isLocked: isMeetingLocked(3),
       pendingApproval: isPendingLesson3
     },
     { 
@@ -112,7 +120,7 @@ export function StudentHub() {
       desc: 'ניסויי פריטה וקיבוץ — חוקרים יחד ומצליחים.', 
       icon: '🔍', 
       isTeacherActive: isTeacherSessionActive && activeSessionNum === 4, 
-      isLocked: (isTeacherSessionActive && activeSessionNum === 4) ? false : highestCompleted < 3 
+      isLocked: isMeetingLocked(4) 
     },
     { 
       id: 5, 
@@ -120,7 +128,7 @@ export function StudentHub() {
       desc: 'ממשיכים לתכנון ניסויים ולגלות שיטות חשיבה חדשות.', 
       icon: '💡', 
       isTeacherActive: isTeacherSessionActive && activeSessionNum === 5, 
-      isLocked: (isTeacherSessionActive && activeSessionNum === 5) ? false : highestCompleted < 4 
+      isLocked: isMeetingLocked(5) 
     },
     { 
       id: 6, 
@@ -128,7 +136,7 @@ export function StudentHub() {
       desc: 'אתגרים מחשבתיים שמותאמים לקצב הגילוי שלכם.', 
       icon: '🧬', 
       isTeacherActive: isTeacherSessionActive && activeSessionNum === 6, 
-      isLocked: (isTeacherSessionActive && activeSessionNum === 6) ? false : highestCompleted < 5 
+      isLocked: isMeetingLocked(6) 
     },
     { 
       id: 7, 
@@ -136,7 +144,7 @@ export function StudentHub() {
       desc: 'לקראת סיום — ניסויים מאתגרים לחיזוק הלמידה.', 
       icon: '🚀', 
       isTeacherActive: isTeacherSessionActive && activeSessionNum === 7, 
-      isLocked: (isTeacherSessionActive && activeSessionNum === 7) ? false : highestCompleted < 6 
+      isLocked: isMeetingLocked(7) 
     },
     { 
       id: 8, 
@@ -144,7 +152,7 @@ export function StudentHub() {
       desc: 'מסכמים את המחקר ורואים אילו תגליות גילינו!', 
       icon: '🏆', 
       isTeacherActive: isTeacherSessionActive && activeSessionNum === 8, 
-      isLocked: (isTeacherSessionActive && activeSessionNum === 8) ? false : highestCompleted < 7 
+      isLocked: isMeetingLocked(8) 
     },
   ];
 
