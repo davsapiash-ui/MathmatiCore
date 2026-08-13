@@ -54,7 +54,7 @@ export function StudentWorkspacePage() {
   const meeting = (Number.isNaN(meetingRaw) ? 1 : Math.min(8, Math.max(1, meetingRaw))) as SessionNumber;
 
   const navigate = useNavigate();
-  const { isASDMode } = useSettingsStore();
+  const { isASDMode: localIsASD } = useSettingsStore();
   const initSession = useWorkspaceStore((s) => s.initSession);
   const restoreSession = useWorkspaceStore((s) => s.restoreSession);
   const applyDrop = useWorkspaceStore((s) => s.applyDrop);
@@ -283,7 +283,8 @@ export function StudentWorkspacePage() {
   // Retrieve saved progress from Firebase (synced into useStore)
   const students = useStore((s) => s.students);
   const firebaseLoaded = useStore((s) => s.firebaseLoaded);
-  const myData = user?.uid ? students[user.uid] : null;
+  const myData = user?.uid ? (students[user.uid] || students[normalizeStudentId(user.uid)]) : null;
+  const isASDMode = myData?.isASD ?? localIsASD;
 
   // --- PRD Section 4.5: Gate Locked Limbo State Guard ---
   useEffect(() => {
@@ -331,24 +332,30 @@ export function StudentWorkspacePage() {
 
   const isAdditionBoardEnabled = liveAdditionBoardEnabled ?? (myData?.additionBoardEnabled ?? false);
 
-  // --- PRD Section 4.5: Physical Override Teardown Cleanup Pipeline ---
+  // --- PRD Section 4.5: Physical Override Listener and Teardown Pipeline ---
   useEffect(() => {
-    if (!user?.uid) return;
+    const uid = user?.uid;
+    if (!uid) return;
+    const normId = normalizeStudentId(uid);
     
-    const overrideRef = ref(database, `sessions/${user.uid}/physical_override`);
+    const overrideRef = ref(database, `users/students/${normId}/physicalOverrideActive`);
     let previousOverrideState = false;
     
     const unsubscribe = onValue(overrideRef, (snapshot) => {
-      const isOverrideActive = snapshot.val() === true;
+      const isOverrideActive = snapshot.val() === true || myData?.physicalOverrideActive === true || myData?.physicalOverride === true;
       
-      // Listen for transition from TRUE to FALSE
+      // When override is activated, immediately unlock keyboard for student
+      if (isOverrideActive && !previousOverrideState) {
+        useWorkspaceStore.getState().unlockKeyboard();
+      }
+
+      // Listen for transition from TRUE to FALSE (Teardown)
       if (previousOverrideState && !isOverrideActive) {
         console.log("Physical Override Teardown: Cleanup Pipeline triggered.");
         const store = useWorkspaceStore.getState();
         // 1. Restart hesitation timer by toggling keyboard state
         store.lockKeyboard();
         // 2. Validate current block state against target state (CRA Bridge).
-        // The proceed() call handles the mathematical comparison.
         store.proceed(); 
       }
       
@@ -356,7 +363,7 @@ export function StudentWorkspacePage() {
     });
 
     return () => unsubscribe();
-  }, [user?.uid]);
+  }, [user?.uid, myData?.physicalOverrideActive, myData?.physicalOverride]);
 
   useEffect(() => {
     if (!firebaseLoaded || isInitialized) return;

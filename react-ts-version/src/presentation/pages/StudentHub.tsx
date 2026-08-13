@@ -40,29 +40,30 @@ export function StudentHub() {
   const students = useStore(s => s.students);
   const globalChatEnabled = useStore(s => s.globalChatEnabled);
   const uid = user?.uid || '';
-  const currentStudent = uid ? students[uid] : null;
+  const normUid = normalizeStudentId(uid);
+  const currentStudent = uid ? (students[uid] || students[normUid]) : null;
   const [liveRouteStatus, setLiveRouteStatus] = useState<string | null>(null);
 
   useEffect(() => {
     if (!uid) return;
-    const statusRef = ref(database, `users/students/${uid}/routeStatus`);
+    const statusRef = ref(database, `users/students/${normUid}/routeStatus`);
     const unsub = onValue(statusRef, (snap) => {
       if (snap.exists()) {
         const val = snap.val();
         setLiveRouteStatus(val);
         useStore.setState((s) => {
-          if (s.students[uid]) {
-            return {
-              students: {
-                ...s.students,
-                [uid]: {
-                  ...s.students[uid],
-                  routeStatus: val,
-                },
-              },
-            };
-          }
-          return s;
+          const currentEntry = s.students[uid] || s.students[normUid] || ({} as any);
+          const updated = {
+            ...currentEntry,
+            routeStatus: val,
+          };
+          return {
+            students: {
+              ...s.students,
+              [uid]: updated,
+              ...(normUid !== uid ? { [normUid]: updated } : {}),
+            },
+          };
         });
       }
     });
