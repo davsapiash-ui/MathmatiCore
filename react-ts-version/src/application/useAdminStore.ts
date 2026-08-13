@@ -94,7 +94,7 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
       name: name.trim(),
       taz: id,
       dob: dob.trim() || "010190",
-      licenseActive: true,
+      licenseActive: false,
       createdAt: Date.now()
     };
     set((state) => ({

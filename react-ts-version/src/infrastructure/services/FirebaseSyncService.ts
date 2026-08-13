@@ -901,7 +901,7 @@ export class FirebaseSyncService {
       name,
       taz,
       dob,
-      licenseActive: true,
+      licenseActive: false,
       createdAt: Date.now()
     };
     await set(ref(database, `users/teachers/${id}`), newTeacher);

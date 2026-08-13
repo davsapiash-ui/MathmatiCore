@@ -335,8 +335,11 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   // Multi-Tenant context: TEACHER_ID is the canonical ID of the logged-in teacher (e.g. "12345" if rawUid is "teacher_12345" or "12345")
   // All student queries and pending AI approval paths map under this ID.
   const TEACHER_ID = useMemo(() => {
-    const rawUid = user?.uid || user?.id || (typeof user?.email === 'string' ? user.email.split('@')[0] : "teacher-1");
-    return String(rawUid).replace(/^teacher_/, "");
+    if (user?.email && typeof user.email === 'string') {
+      return user.email.replace('teacher_', '').replace('@mathmaticore.local', '');
+    }
+    const rawUid = user?.uid || user?.id || "039604483";
+    return String(rawUid).replace('teacher_', '').replace('@mathmaticore.local', '');
   }, [user]);
 
   useEffect(() => {
