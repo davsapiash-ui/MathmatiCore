@@ -24,9 +24,9 @@ const STORAGE_KEY_ROLE = 'mc_auth_role';
 const SESS_KEY = ['session', 'Storage'].join('');
 const LOC_KEY = ['local', 'Storage'].join('');
 
-const getGlobalStorage = () => {
+const getGlobalStorage = (): Storage | null => {
   try {
-    const g = globalThis as any;
+    const g = globalThis as unknown as Record<string, Storage>;
     return g[SESS_KEY] || g[LOC_KEY] || null;
   } catch {
     return null;
@@ -63,7 +63,7 @@ const setStoredAuth = (user: AuthUser, role: string) => {
 
 const clearStoredAuth = () => {
   try {
-    const g = globalThis as any;
+    const g = globalThis as unknown as Record<string, Storage>;
     const sess = g[SESS_KEY];
     const loc = g[LOC_KEY];
     if (sess) {
