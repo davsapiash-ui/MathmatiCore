@@ -20,14 +20,12 @@
 
     "users": {
       "students": {
-        ".read": "auth != null",
         "$studentId": {
           ".read": "auth != null",
-          ".write": "auth != null"
+          ".write": "auth != null && (auth.uid == $studentId || auth.uid.slice(0, 7) == 'teacher' || auth.token.role == 'TEACHER' || auth.token.role == 'ADMIN')"
         }
       },
       "teachers": {
-        ".read": "auth != null",
         "$teacherId": {
           ".read": "auth != null",
           ".write": "auth != null"
@@ -36,10 +34,9 @@
     },
 
     "students": {
-      ".read": "auth != null",
       "$studentId": {
         ".read": "auth != null",
-        ".write": "auth != null"
+        ".write": "auth != null && (auth.uid == $studentId || auth.uid.slice(0, 7) == 'teacher' || auth.token.role == 'TEACHER' || auth.token.role == 'ADMIN')"
       }
     },
 
@@ -75,15 +72,6 @@
       "$sessionKey": {
         ".read": "auth != null",
         ".write": "auth != null"
-      }
-    },
-
-    "chat": {
-      "$roomId": {
-        ".read": "auth != null",
-        "$messageId": {
-          ".write": "auth != null"
-        }
       }
     },
 
