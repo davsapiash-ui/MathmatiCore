@@ -10,8 +10,12 @@ async function ready(): Promise<void> {
 }
 
 export interface SocraticHintResponse {
-  questionHe: string;
-  choices: { id: string; textHe: string }[];
+  pedagogical_intent: "conceptual" | "procedural" | "focus";
+  tts_text: string;
+  suggested_highlight?: string | null;
+  // Legacy UI compat fields for GraphicOrganizerHint modal
+  questionHe?: string;
+  choices?: { id: string; textHe: string }[];
   correctChoiceId?: string;
 }
 
@@ -26,6 +30,23 @@ export interface PendingAIApproval {
   targetSession: string;
 }
 
+/**
+ * SYSTEM DIRECTIVE: MATHMATICORE SOCRATIC ENGINE
+ * 
+ * ROLE: Socratic Math Tutor.
+ * CONSTRAINT: Never provide the direct answer or calculate the result for the student.
+ * COGNITIVE PROFILE (enhanced_cognitive_support):
+ *  - false: Warm, encouraging tone.
+ *  - true: Hyper-literal, concrete instructions. Strip all idioms, metaphors, and emotional framing.
+ * BREVITY: Max 2 sentences in clear Hebrew.
+ * 
+ * STRICT JSON OUTPUT SCHEMA:
+ * {
+ *   "pedagogical_intent": "conceptual" | "procedural" | "focus",
+ *   "tts_text": "string (Hebrew)",
+ *   "suggested_highlight": "string | null"
+ * }
+ */
 export class SocraticEngine {
   private static localHintCache: Map<string, SocraticHintResponse> = new Map();
 
@@ -52,17 +73,25 @@ export class SocraticEngine {
     _currentTask: any,
     targetNode: string,
     _counts: { units: number; tens: number; hundreds: number; thousands: number },
-    _traceData?: { hesitation_events: number; undo_clicks: number }
+    _traceData?: { hesitation_events: number; undo_clicks: number },
+    enhancedCognitiveSupport: boolean = false
   ): Promise<SocraticHintResponse | null> {
     await ready();
     // Check local pre-fetched cache first for <200ms latency
     const cached = this.localHintCache.get(`${_currentTask?.sessionNumber || 3}_${targetNode}`);
     if (cached) return cached;
 
-    // Zero-Generation Policy: Fetch from hardcoded Q-Matrix based on targetNode
+    // Zero-Generation Policy: Fetch from hardcoded Q-Matrix based on targetNode & cognitive profile
     const Q_MATRIX_HINTS: Record<string, SocraticHintResponse> = {
       "q_matrix_general": {
-        questionHe: "שמנו לב שנסית כמה פעמים. מה הצעד הבא שתרצה לבצע?",
+        pedagogical_intent: "focus",
+        tts_text: enhancedCognitiveSupport 
+          ? "בדקו את המיקום של קוביות היחידות והעשרות בלוח. בצעו חישוב מחודש של הטור הימני." 
+          : "שמנו לב שנסית כמה פעמים. בוא נסתכל שוב יחד על בית המספרים!",
+        suggested_highlight: "tour-place-value-board",
+        questionHe: enhancedCognitiveSupport 
+          ? "בדקו את המיקום של קוביות היחידות והעשרות בלוח. בצעו חישוב מחודש של הטור הימני."
+          : "שמנו לב שנסית כמה פעמים. מה הצעד הבא שתרצה לבצע?",
         choices: [
           { id: "opt_1", textHe: "לפרוט עשרת אחת ל-10 יחידות" },
           { id: "opt_2", textHe: "לקבץ 10 יחידות לעשרת אחת" },
@@ -71,7 +100,14 @@ export class SocraticEngine {
         correctChoiceId: "opt_1"
       },
       "subtraction_regrouping": {
-        questionHe: "חסרות לנו יחידות בלוח כדי לחסר. מה אפשר לעשות?",
+        pedagogical_intent: "procedural",
+        tts_text: enhancedCognitiveSupport 
+          ? "חסרות קוביות יחידה בטור הימני. גררו קוביית עשרת אחת מטור העשרות לפריטה." 
+          : "חסרות לנו יחידות בלוח כדי לחסר. מה אפשר לעשות?",
+        suggested_highlight: "tour-column-units",
+        questionHe: enhancedCognitiveSupport 
+          ? "חסרות קוביות יחידה בטור הימני. גררו קוביית עשרת אחת מטור העשרות לפריטה."
+          : "חסרות לנו יחידות בלוח כדי לחסר. מה אפשר לעשות?",
         choices: [
           { id: "opt_1", textHe: "לקחת קוביית עשרת ולפרוט אותה ל-10 יחידות" },
           { id: "opt_2", textHe: "להוסיף קוביות יחידה מהמחסן" },
@@ -80,7 +116,14 @@ export class SocraticEngine {
         correctChoiceId: "opt_1"
       },
       "addition_regrouping": {
-        questionHe: "יש לנו יותר מ-9 קוביות באותו טור. מה עושים?",
+        pedagogical_intent: "conceptual",
+        tts_text: enhancedCognitiveSupport 
+          ? "יש יותר מתשע קוביות בטור אחד. אספו עשר קוביות והעבירו אותן כבלוק אחד לטור הבא." 
+          : "יש לנו יותר מ-9 קוביות באותו טור. מה עושים?",
+        suggested_highlight: "tour-column-units",
+        questionHe: enhancedCognitiveSupport 
+          ? "יש יותר מתשע קוביות בטור אחד. אספו עשר קוביות והעבירו אותן כבלוק אחד לטור הבא."
+          : "יש לנו יותר מ-9 קוביות באותו טור. מה עושים?",
         choices: [
           { id: "opt_1", textHe: "מקריפים (אורזים) 10 קוביות לבלוק גדול יותר" },
           { id: "opt_2", textHe: "מוחקים את הקוביות המיותרות" },
