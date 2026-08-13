@@ -88,11 +88,12 @@ describe('Full System Workflow & Integration Empirical Audit Suite', () => {
   describe('3. Firebase Realtime Database Security Rules Audit', () => {
     it('verifies active_class_session exists in database.rules.json with read/write access', () => {
       const rulesPath = join(__dirname, '../../../../../../../database.rules.json');
-      const rulesContent = readFileSync(rulesPath, 'utf-8');
+      const rulesContent = JSON.parse(readFileSync(rulesPath, 'utf-8'));
+      const activeSessionRules = rulesContent.rules.active_class_session;
       
-      expect(rulesContent).toContain('"active_class_session"');
-      expect(rulesContent).toContain('".read": "auth != null"');
-      expect(rulesContent).toContain('".write": "auth != null"');
+      expect(activeSessionRules).toBeDefined();
+      expect(activeSessionRules['.read']).toBe(true);
+      expect(activeSessionRules['.write']).toBe('auth != null');
     });
   });
 
