@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { type StudentData } from '@/application/useStore';
 import { X, Send, Minus, Mic, ImageIcon, CheckCheck } from 'lucide-react';
-import { useChatStore } from '@/application/useChatStore';
+import { useChatStore, normalizeStudentId } from '@/application/useChatStore';
 import { stt } from '@/infrastructure/services/STTService';
 import { toast } from 'sonner';
 
@@ -22,8 +22,9 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const normStudentId = normalizeStudentId(student.studentId);
   const studentMessages = messages.filter(
-    m => m.senderId === student.studentId || m.receiverId === student.studentId
+    m => normalizeStudentId(m.senderId) === normStudentId || normalizeStudentId(m.receiverId) === normStudentId
   ).sort((a, b) => a.timestamp - b.timestamp);
 
   useEffect(() => {

@@ -289,11 +289,10 @@ export function selectCanProceed(s: WorkspaceState): boolean {
   if (task.type === 'flexible_decomp') {
     return s.q3Reps.length >= 2;
   }
+  if (task.type === 'addition_simple' || task.type === 'vertical_addition') {
+    return s.hasInteracted || answerDigitsToNumber(s.answerDigits) !== null;
+  }
   if (!s.hasInteracted) return false;
-  // Phase 1: Progression Locks
-  if (task.requiresGrouping && !s.hasGrouped) return false;
-  if (task.requiresUngrouping && !s.hasUngrouped) return false;
-
   return true;
 }
 
@@ -718,6 +717,26 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     if (nextIdx < tasks.length) {
       set({ standardTaskIdx: nextIdx, awaitingNext: false });
+      const studentId = useAuthStore.getState().user?.uid;
+      if (studentId) {
+        const normId = normalizeStudentId(studentId);
+        const taskTitle = tasks[nextIdx]?.titleHe || `משימה ${nextIdx + 1}`;
+        const updates: Record<string, any> = {
+          [`users/students/${studentId}/currentTaskIdx`]: nextIdx,
+          [`users/students/${studentId}/activeStep`]: nextIdx + 1,
+          [`users/students/${studentId}/lastAction`]: `מתקדם למשימה ${nextIdx + 1}: ${taskTitle}`,
+          [`users/students/${studentId}/lastActivityTimestamp`]: Date.now(),
+          [`users/students/${studentId}/onlineStatus`]: 'active',
+        };
+        if (normId !== studentId) {
+          updates[`users/students/${normId}/currentTaskIdx`] = nextIdx;
+          updates[`users/students/${normId}/activeStep`] = nextIdx + 1;
+          updates[`users/students/${normId}/lastAction`] = `מתקדם למשימה ${nextIdx + 1}: ${taskTitle}`;
+          updates[`users/students/${normId}/lastActivityTimestamp`] = Date.now();
+          updates[`users/students/${normId}/onlineStatus`] = 'active';
+        }
+        update(ref(database), updates).catch(console.error);
+      }
       startTask(tasks[nextIdx].id);
       return;
     }
@@ -1340,8 +1359,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     /** Help flow: lightbulb → 3s "productive metacognitive friction" → calibrated choice. */
     requestHelp: () => {
       const s = get();
-      if (s.helpState !== 'closed') return;
-      if (s.sessionNumber === 2) return; // PRD: No help in Session 2
+      if (s.helpState !== 'closed') {
+        set({ helpState: 'closed' });
+        return;
+      }
+      if (s.sessionNumber === 2) {
+        showFeedback({ correct: false, title: 'מפגש אבחון 📡', sub: 'במפגש אבחון זה עובדים באופן עצמאי ללא תמיכת רמזים.' }, 3000);
+        return;
+      }
       
       const rawUser = useAuthStore.getState().user;
       if (rawUser?.uid) {

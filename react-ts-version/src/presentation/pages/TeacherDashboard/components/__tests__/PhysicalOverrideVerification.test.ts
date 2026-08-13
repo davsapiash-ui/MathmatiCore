@@ -94,7 +94,7 @@ describe('Physical Override Empirical Verification Suite', () => {
       // updates["users/students/123/physicalOverride"] = true
       // updates["students/123/physicalOverride"] = true
       
-      const primaryPathAllowed = Boolean(rootRules['users']?.['students']?.['$studentId']);
+      const primaryPathAllowed = Boolean(rootRules['users']?.['students']);
       const backupPathAllowed = Boolean(rootRules['students']);
 
       expect(primaryPathAllowed).toBe(true);

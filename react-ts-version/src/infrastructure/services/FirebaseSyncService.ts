@@ -266,10 +266,21 @@ export class FirebaseSyncService {
         return trimmed;
       })() : syncableData;
 
-      update(studentRef, {
-        workspaceState: updatePayload,
-        lastActive: serverTimestamp()
-      }).catch((err) => {
+      const normId = normalizeStudentId(this.currentUserId || '');
+      const rawNum = (this.currentUserId || '').replace(/[^0-9]/g, '');
+      const studentKeys = Array.from(new Set([this.currentUserId, normId, rawNum ? `student_user${rawNum}` : null, rawNum ? `user${rawNum}` : null].filter(Boolean) as string[]));
+      
+      const bulkUpdates: Record<string, any> = {};
+      studentKeys.forEach(key => {
+        bulkUpdates[`users/students/${key}/workspaceState`] = updatePayload;
+        bulkUpdates[`users/students/${key}/lastActive`] = serverTimestamp();
+        bulkUpdates[`users/students/${key}/currentTaskIdx`] = state.standardTaskIdx;
+        bulkUpdates[`users/students/${key}/activeStep`] = state.standardTaskIdx + 1;
+        bulkUpdates[`users/students/${key}/lastActivityTimestamp`] = Date.now();
+        bulkUpdates[`users/students/${key}/onlineStatus`] = 'active';
+      });
+
+      update(ref(database), bulkUpdates).catch((err) => {
         this.handlePermissionOrAuthError(err);
       });
 
