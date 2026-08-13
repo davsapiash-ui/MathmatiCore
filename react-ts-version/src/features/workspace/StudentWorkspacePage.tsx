@@ -513,7 +513,9 @@ export function StudentWorkspacePage() {
     );
   }
 
-  const isMatchingSessionActive = isTeacherSessionActive && activeClassSession?.sessionNumber === meeting;
+  const isMatchingSessionActive =
+    meeting === 1 ||
+    (isTeacherSessionActive && activeClassSession?.sessionNumber ? meeting <= Number(activeClassSession.sessionNumber) : false);
 
   if (!isMatchingSessionActive) {
     return (
