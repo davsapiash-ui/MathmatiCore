@@ -375,7 +375,8 @@ export function StudentWorkspacePage() {
           setIsInitializing(false);
           return;
         }
-        const tasks = await SocraticEngine.getApprovedTasks(username);
+        const normId = normalizeStudentId(username);
+        const tasks = (await SocraticEngine.getApprovedTasks(username)) || (await SocraticEngine.getApprovedTasks(normId));
         if (cancelled) return;
         const canRestore = myData?.workspaceState?.sessionNumber === meeting && myData?.workspaceState?.flowStatus === 'task';
         if (canRestore && myData?.workspaceState) {
