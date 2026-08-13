@@ -378,11 +378,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
         Object.keys(data).forEach((uid) => {
           const row = data[uid] ?? {};
           
-          // Include all active students in the class/school
-          const rowTeacherId = row.teacherId ? String(row.teacherId).replace(/^teacher_/, "") : undefined;
-          if (row.classId && selectedClass && row.classId !== selectedClass && row.classId !== 'demo' && row.classId !== 'live') {
-            // Optional filter only when specific class is selected
-          }
+          // Include all active students in the school/class
 
           let cleanName = row.name ?? row.profile?.displayName ?? row.studentName ?? formattedStudents[uid]?.name ?? uid.replace('student_','');
           if (cleanName === 'student' || cleanName.startsWith('user') || cleanName.toLowerCase().startsWith('student_')) {
