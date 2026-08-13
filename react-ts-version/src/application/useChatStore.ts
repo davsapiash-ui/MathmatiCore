@@ -3,7 +3,6 @@ import { database } from '@/infrastructure/firebase';
 import { ref, onValue, set as firebaseSet, push, update } from 'firebase/database';
 import { useAuthStore } from "@/application/useAuthStore";
 
-
 export interface ChatMessage {
   id: string;
   senderId: string;
@@ -27,7 +26,14 @@ export function normalizeStudentId(id: string): string {
   if (!id) return '';
   const clean = id.trim().toLowerCase();
   if (clean === 'admin' || clean === 'teacher' || clean.startsWith('teacher_')) return clean;
-  return clean.startsWith('student_') ? clean : `student_${clean}`;
+  if (/^\d+$/.test(clean)) return `student_user${clean}`;
+  if (clean.startsWith('user')) return `student_${clean}`;
+  if (clean.startsWith('student_')) {
+    const sub = clean.replace('student_', '');
+    if (/^\d+$/.test(sub)) return `student_user${sub}`;
+    return clean;
+  }
+  return `student_${clean}`;
 }
 
 function computeRoomId(senderId: string, receiverId: string): string {
@@ -70,7 +76,6 @@ export const useChatStore = create<ChatState>()(
               msgs = Object.values(data) as ChatMessage[];
             } else {
               // For teacher/admin, data is nested: { studentId: { msgId: message } }
-
               Object.keys(data).forEach((roomId: string) => {
                 const roomData = data[roomId as keyof typeof data];
                 if (roomData && typeof roomData === 'object') {

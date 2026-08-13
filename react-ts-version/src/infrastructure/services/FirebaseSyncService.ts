@@ -128,9 +128,10 @@ export class FirebaseSyncService {
     });
   }
 
-  private startSync(studentId: string, userData: Record<string, unknown>) {
+  private startSync(rawStudentId: string, userData: Record<string, unknown>) {
     this.stopSync();
 
+    const studentId = normalizeStudentId(rawStudentId);
     const studentRef = ref(database, `users/students/${studentId}`);
     
     // Set online presence
@@ -178,26 +179,28 @@ export class FirebaseSyncService {
 
           // Update the top-level useStore so StudentHub knows about route approvals and Q-Matrix
           const currentStudents = useStore.getState().students;
+          const updatedStudent = {
+            ...(currentStudents[studentId] || currentStudents[rawStudentId] || {}),
+            // Merge Firebase data: qMatrixResults, traceData, route info
+            ...(data.qMatrixResults && { qMatrixResults: data.qMatrixResults }),
+            ...(data.traceData && { traceData: data.traceData }),
+            ...(data.completedMeeting2 !== undefined && { completedMeeting2: data.completedMeeting2 }),
+            ...(data.highestCompletedMeeting !== undefined && { highestCompletedMeeting: data.highestCompletedMeeting }),
+            ...(data.routeRecommendation !== undefined && { routeRecommendation: data.routeRecommendation }),
+            ...(data.routeStatus !== undefined && { routeStatus: data.routeStatus }),
+            ...(data.difficultyRecommendation !== undefined && { difficultyRecommendation: data.difficultyRecommendation }),
+            ...(data.isASD !== undefined && { isASD: data.isASD }),
+            ...(data.physicalOverride !== undefined && { physicalOverride: data.physicalOverride }),
+            ...(data.overrideUpdatedAt !== undefined && { overrideUpdatedAt: data.overrideUpdatedAt }),
+            ...(data.isOnline !== undefined && { isOnline: data.isOnline }),
+            ...(data.workspaceState && { workspaceState: data.workspaceState }),
+            ...(data.additionBoardEnabled !== undefined && { additionBoardEnabled: data.additionBoardEnabled }),
+          };
           useStore.setState({
             students: {
               ...currentStudents,
-              [studentId]: {
-                ...(currentStudents[studentId] || {}),
-                // Merge Firebase data: qMatrixResults, traceData, route info
-                ...(data.qMatrixResults && { qMatrixResults: data.qMatrixResults }),
-                ...(data.traceData && { traceData: data.traceData }),
-                ...(data.completedMeeting2 !== undefined && { completedMeeting2: data.completedMeeting2 }),
-                ...(data.highestCompletedMeeting !== undefined && { highestCompletedMeeting: data.highestCompletedMeeting }),
-                ...(data.routeRecommendation !== undefined && { routeRecommendation: data.routeRecommendation }),
-                ...(data.routeStatus !== undefined && { routeStatus: data.routeStatus }),
-                ...(data.difficultyRecommendation !== undefined && { difficultyRecommendation: data.difficultyRecommendation }),
-                ...(data.isASD !== undefined && { isASD: data.isASD }),
-                ...(data.physicalOverride !== undefined && { physicalOverride: data.physicalOverride }),
-                ...(data.overrideUpdatedAt !== undefined && { overrideUpdatedAt: data.overrideUpdatedAt }),
-                ...(data.isOnline !== undefined && { isOnline: data.isOnline }),
-                ...(data.workspaceState && { workspaceState: data.workspaceState }),
-                ...(data.additionBoardEnabled !== undefined && { additionBoardEnabled: data.additionBoardEnabled }),
-              }
+              [studentId]: updatedStudent,
+              ...(rawStudentId !== studentId ? { [rawStudentId]: updatedStudent } : {})
             },
             firebaseLoaded: true
           });
