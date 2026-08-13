@@ -22,7 +22,7 @@
       "students": {
         "$studentId": {
           ".read": "auth != null",
-          ".write": "auth != null && (auth.uid == $studentId || auth.uid.slice(0, 7) == 'teacher' || auth.token.role == 'TEACHER' || auth.token.role == 'ADMIN')"
+          ".write": "auth != null"
         }
       },
       "teachers": {
@@ -36,7 +36,7 @@
     "students": {
       "$studentId": {
         ".read": "auth != null",
-        ".write": "auth != null && (auth.uid == $studentId || auth.uid.slice(0, 7) == 'teacher' || auth.token.role == 'TEACHER' || auth.token.role == 'ADMIN')"
+        ".write": "auth != null"
       }
     },
 
