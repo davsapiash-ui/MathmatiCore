@@ -81,7 +81,23 @@ export function StudentHub() {
   const activeSessionNum = isTeacherSessionActive ? (Number(activeClassSession?.sessionNumber) || 1) : null;
 
   const isMeetingLocked = (meetingId: number): boolean => {
+    // Meeting 1 (Sandbox) is always unlocked (PRD 4.2)
     if (meetingId === 1) return false;
+
+    // Meeting 2 requires completing Meeting 1 (or active teacher session 2+)
+    if (meetingId === 2) {
+      if (isTeacherSessionActive && activeSessionNum && activeSessionNum >= 2) return false;
+      return highestCompleted < 1;
+    }
+
+    // Meeting 3 requires completion of Meeting 2 AND Teacher Gate approval (PRD 4.2)
+    if (meetingId === 3) {
+      if (isPendingLesson3) return true; // Hard lock until teacher approves in dashboard
+      if (isTeacherSessionActive && activeSessionNum && activeSessionNum >= 3) return false;
+      return highestCompleted < 2;
+    }
+
+    // Meetings 4-8 require preceding session completion or active teacher session
     if (isTeacherSessionActive && activeSessionNum && meetingId <= activeSessionNum) {
       return false;
     }
