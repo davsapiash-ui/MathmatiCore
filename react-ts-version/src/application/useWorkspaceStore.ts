@@ -1364,6 +1364,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         showFeedback({ correct: false, title: 'מפגש אבחון 📡', sub: 'במפגש אבחון זה עובדים באופן עצמאי ללא תמיכת רמזים.' }, 3000);
         return;
       }
+
+      // Session 1 intro/sandbox tasks: skip Socratic coach entirely — show a plain instruction
+      const currentTask = getActiveTasks(s)[s.standardTaskIdx];
+      if (currentTask?.type === 'session1_intro' || currentTask?.id === 's1_sandbox_controlled') {
+        showFeedback(
+          { correct: true, title: 'טיפ 💡', sub: 'גרור לפחות 5 פריטים לבית המספרים ומחק פריט אחד לפח המחזור — כפתור "התקדם" ייפתח אוטומטית!' },
+          5000
+        );
+        return;
+      }
       
       const rawUser = useAuthStore.getState().user;
       if (rawUser?.uid) {
