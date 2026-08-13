@@ -514,8 +514,10 @@ export function StudentWorkspacePage() {
     );
   }
 
+  const highestCompleted = myData?.highestCompletedMeeting ?? (myData?.completedMeeting2 ? 2 : 0);
   const isMatchingSessionActive =
     meeting === 1 ||
+    highestCompleted >= meeting - 1 ||
     (isTeacherSessionActive && activeClassSession?.sessionNumber ? meeting <= Number(activeClassSession.sessionNumber) : false);
 
   if (!isMatchingSessionActive) {

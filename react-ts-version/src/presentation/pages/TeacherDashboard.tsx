@@ -285,22 +285,34 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     setSessionStartTime(now);
     setSelectedSessionNum(sessionNum);
     setIsClassSessionActive(true);
-    await set(ref(database, 'active_class_session'), {
-      active: true,
-      sessionNumber: sessionNum,
-      startedAt: now,
-      teacherId: user?.uid || 'teacher',
-    }).catch(console.error);
+    try {
+      await set(ref(database, 'active_class_session'), {
+        active: true,
+        sessionNumber: sessionNum,
+        startedAt: now,
+        teacherId: user?.uid || 'teacher',
+      });
+      await set(ref(database, 'system_control/activeMeeting'), sessionNum).catch(() => {});
+      toast.success(`שיעור ${sessionNum} הופעל בהצלחה לכלל תלמידי הכיתה! 🚀`);
+    } catch (err) {
+      console.error('Error starting class session:', err);
+      toast.error('שגיאה בהפעלת המפגש מול השרת. אנא בדוק חיבור לרשת.');
+    }
   };
 
   const handleEndClassSession = async () => {
     setIsClassSessionActive(false);
     setSessionStartTime(null);
-    await set(ref(database, 'active_class_session'), {
-      active: false,
-      endedAt: Date.now(),
-      teacherId: user?.uid || 'teacher',
-    }).catch(console.error);
+    try {
+      await set(ref(database, 'active_class_session'), {
+        active: false,
+        endedAt: Date.now(),
+        teacherId: user?.uid || 'teacher',
+      });
+      toast.info('המפגש הכיתתי נסגר.');
+    } catch (err) {
+      console.error('Error ending class session:', err);
+    }
   };
 
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
