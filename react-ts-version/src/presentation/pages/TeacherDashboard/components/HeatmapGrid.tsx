@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { ref, onValue, update } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
+import { normalizeStudentId } from '@/application/useChatStore';
 import { 
   Activity, 
   AlertTriangle, 
@@ -174,12 +175,20 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
 
     // Persist to Firebase
     try {
-      const updates: Record<string, any> = {};
-      updates[`users/students/${student.id}/physicalOverride`] = newOverrideState;
-      updates[`users/students/${student.id}/isBoardLocked`] = false;
-      updates[`sessions/${student.id}/physical_override`] = newOverrideState;
-      updates[`sessions/${student.id}/status`] = updatedStatus;
-      await update(ref(database), updates);
+      const normId = normalizeStudentId(student.id);
+      const studentPayload = {
+        physicalOverride: newOverrideState,
+        physicalOverrideActive: newOverrideState,
+        isBoardLocked: false,
+      };
+      await update(ref(database, `users/students/${student.id}`), studentPayload).catch(() => {});
+      if (normId !== student.id) {
+        await update(ref(database, `users/students/${normId}`), studentPayload).catch(() => {});
+      }
+      await update(ref(database, `sessions/${student.id}`), {
+        physical_override: newOverrideState,
+        status: updatedStatus,
+      }).catch(() => {});
     } catch (e) {
       console.error('Failed to sync physical override to Firebase:', e);
     }

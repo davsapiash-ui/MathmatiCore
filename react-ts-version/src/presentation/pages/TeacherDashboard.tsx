@@ -460,11 +460,16 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   }, [TEACHER_ID]);
 
   const handleHintClick = (studentId: string) => {
-    // 1. Write the hint flag to Firebase so the student gets an actual popup
-    set(ref(database, `users/students/${studentId}/teacher_hint`), {
+    const normId = normalizeStudentId(studentId);
+    const hintPayload = {
       timestamp: Date.now(),
-      message: "המורה שלח לך רמז: נסה להשתמש בלוח העשרות כדי לפרוט."
-    }).then(() => {
+      message: "המורה שלח/ה לך רמז: נסה/י להשתמש בלוח העשרות כדי לפרוט."
+    };
+    // 1. Write the hint flag to Firebase so the student gets an actual popup
+    set(ref(database, `users/students/${studentId}/teacher_hint`), hintPayload).then(() => {
+      if (normId !== studentId) {
+        set(ref(database, `users/students/${normId}/teacher_hint`), hintPayload).catch(() => {});
+      }
       // 2. Switch to chat so the teacher can follow up manually
       setSelectedStudentId(studentId);
       setActiveTab("chat_students");

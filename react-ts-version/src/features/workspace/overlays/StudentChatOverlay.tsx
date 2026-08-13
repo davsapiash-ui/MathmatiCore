@@ -120,7 +120,7 @@ export function StudentChatOverlay() {
       message: 'תלמיד ביקש עזרה מהמורה!',
       status: 'pending'
     }).catch(console.error);
-    await set(ref(database, `radar_alerts/${alertId}`), {
+    await update(ref(database, `radar_alerts/${alertId}`), {
       studentId: studentId,
       rawStudentId: studentId,
       studentName: user.displayName || studentId,

@@ -1390,7 +1390,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           message: 'תלמיד לחץ על נורת העזרה והחניכה!',
           status: 'pending'
         }).catch(console.error);
-        set(ref(database, `radar_alerts/${alertId}`), {
+        update(ref(database, `radar_alerts/${alertId}`), {
           studentId: studentId,
           rawStudentId: studentId,
           studentName: rawUser.displayName || studentId,

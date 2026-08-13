@@ -619,36 +619,27 @@ export class FirebaseSyncService {
   // --- PRD v4 Task 1 Implementation Functions ---
   public async syncSessionState(studentId: string, sessionState: SessionState): Promise<void> {
     if (!studentId) return;
-    const updates: Record<string, any> = {};
-    updates[`sessions/${studentId}`] = sessionState;
-    updates[`users/students/${studentId}/sessionState`] = sessionState;
-    await update(ref(database), updates);
+    const normId = normalizeStudentId(studentId);
+    await update(ref(database, `sessions/${normId}`), sessionState as any).catch(() => {});
+    await update(ref(database, `users/students/${normId}/sessionState`), sessionState as any).catch(() => {});
   }
 
   public async syncHighestCompletedMeeting(studentId: string, meeting: number): Promise<void> {
     if (!studentId) return;
-    const cleanId = studentId.trim().toLowerCase();
-    const normId = cleanId === 'admin' || cleanId === 'teacher' || cleanId.startsWith('student_') ? cleanId : `student_${cleanId}`;
-    
-    const updates: Record<string, any> = {};
-    updates[`users/students/${studentId}/highestCompletedMeeting`] = meeting;
+    const normId = normalizeStudentId(studentId);
+    await update(ref(database, `users/students/${studentId}`), { highestCompletedMeeting: meeting }).catch(console.error);
     if (normId !== studentId) {
-      updates[`users/students/${normId}/highestCompletedMeeting`] = meeting;
+      await update(ref(database, `users/students/${normId}`), { highestCompletedMeeting: meeting }).catch(console.error);
     }
-    await update(ref(database), updates).catch(console.error);
   }
 
   public async syncMeeting2Complete(studentId: string): Promise<void> {
     if (!studentId) return;
-    const cleanId = studentId.trim().toLowerCase();
-    const normId = cleanId === 'admin' || cleanId === 'teacher' || cleanId.startsWith('student_') ? cleanId : `student_${cleanId}`;
-    
-    const updates: Record<string, any> = {};
-    updates[`users/students/${studentId}/completedMeeting2`] = true;
+    const normId = normalizeStudentId(studentId);
+    await update(ref(database, `users/students/${studentId}`), { completedMeeting2: true }).catch(console.error);
     if (normId !== studentId) {
-      updates[`users/students/${normId}/completedMeeting2`] = true;
+      await update(ref(database, `users/students/${normId}`), { completedMeeting2: true }).catch(console.error);
     }
-    await update(ref(database), updates).catch(console.error);
   }
 
   public handlePermissionOrAuthError(error: any) {
@@ -668,21 +659,11 @@ export class FirebaseSyncService {
 
   public async syncRouteRecommendation(studentId: string, route: string): Promise<void> {
     if (!studentId) return;
-    const cleanId = studentId.trim().toLowerCase();
-    const normId = cleanId === 'admin' || cleanId === 'teacher' || cleanId.startsWith('student_') ? cleanId : `student_${cleanId}`;
-    
-    const updates: Record<string, any> = {};
-    updates[`users/students/${studentId}/routeRecommendation`] = route;
-    updates[`users/students/${studentId}/routeStatus`] = 'PENDING';
+    const normId = normalizeStudentId(studentId);
+    const payload = { routeRecommendation: route, routeStatus: 'PENDING' };
+    await update(ref(database, `users/students/${studentId}`), payload).catch((err) => this.handlePermissionOrAuthError(err));
     if (normId !== studentId) {
-      updates[`users/students/${normId}/routeRecommendation`] = route;
-      updates[`users/students/${normId}/routeStatus`] = 'PENDING';
-    }
-    try {
-      await update(ref(database), updates);
-    } catch (err: any) {
-      this.handlePermissionOrAuthError(err);
-      throw err;
+      await update(ref(database, `users/students/${normId}`), payload).catch((err) => this.handlePermissionOrAuthError(err));
     }
   }
 

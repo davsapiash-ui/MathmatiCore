@@ -95,9 +95,12 @@ export function StudentWorkspacePage() {
 
   const handleAcknowledgeHint = async () => {
     setTeacherHint(null);
-    if (!normUid) return;
-    const hintRef = ref(database, `users/students/${normUid}/teacher_hint`);
-    await remove(hintRef).catch(console.error);
+    if (normUid) {
+      remove(ref(database, `users/students/${normUid}/teacher_hint`)).catch(console.error);
+    }
+    if (user?.uid && user.uid !== normUid) {
+      remove(ref(database, `users/students/${user.uid}/teacher_hint`)).catch(console.error);
+    }
 
     let resolvedTeacherId: string = '039604483'; // default fallback
     try {
