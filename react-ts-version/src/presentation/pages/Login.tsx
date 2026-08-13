@@ -156,24 +156,17 @@ export function Login() {
 
       const studentKey = `student_user${num}`;
       
-      const storeStudents = useStore.getState().students;
+      const storeStudents = useStore.getState().students || {};
       let matchedStudent = storeStudents[studentKey];
       if (!matchedStudent) {
         const match = Object.values(storeStudents).find(
-          (s) => s.name === `משתמש ${num}` || s.studentId === studentKey
+          (s) => s.name === `משתמש ${num}` || s.studentId === studentKey || s.studentId === `student_${num}` || s.studentId === `${num}`
         );
         if (match) matchedStudent = match;
       }
 
-      if (!matchedStudent) {
-        setErrorMsg("שם המשתמש אינו קיים במערכת. אנא ודא שהזנת פרטי תלמיד נכונים (לדוגמה: משתמש 1).");
-        return;
-      }
-
-      const studentId = matchedStudent.studentId;
-      const numMatch = studentId.match(/\d+/);
-      const studentNum = numMatch ? numMatch[0] : "";
-      const displayName = matchedStudent.name || (studentNum ? `משתמש ${studentNum}` : `משתמש (${username.trim()})`);
+      const studentId = matchedStudent?.studentId || studentKey;
+      const displayName = matchedStudent?.name || `משתמש ${num}`;
 
       setIsLoggingIn(true);
 
