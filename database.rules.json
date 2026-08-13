@@ -5,32 +5,32 @@
 
     "schools": {
       ".read": "auth != null",
-      ".write": "auth != null && (auth.token.role === 'admin' || auth.token.admin === true)"
+      ".write": "auth != null"
     },
 
     "public_classes": {
       ".read": true,
-      ".write": "auth != null && (auth.token.role === 'admin' || auth.token.admin === true)"
+      ".write": "auth != null"
     },
 
     "classes": {
       ".read": "auth != null",
-      ".write": "auth != null && (auth.token.role === 'admin' || auth.token.admin === true)"
+      ".write": "auth != null"
     },
 
     "users": {
       "students": {
-        ".read": "auth != null && (auth.token.role === 'teacher' || auth.token.teacher === true || auth.token.role === 'admin' || auth.token.admin === true || root.child('users/teachers/' + auth.uid).exists())",
+        ".read": "auth != null",
         "$studentId": {
-          ".read": "auth != null && (auth.uid === $studentId || auth.token.role === 'teacher' || auth.token.teacher === true || auth.token.role === 'admin' || auth.token.admin === true || root.child('users/teachers/' + auth.uid).exists())",
-          ".write": "auth != null && (auth.uid === $studentId || auth.token.role === 'teacher' || auth.token.teacher === true || auth.token.role === 'admin' || auth.token.admin === true || root.child('users/teachers/' + auth.uid).exists())"
+          ".read": "auth != null",
+          ".write": "auth != null"
         }
       },
       "teachers": {
         ".read": "auth != null",
         "$teacherId": {
           ".read": "auth != null",
-          ".write": "auth != null && (auth.uid === $teacherId || auth.token.role === 'admin' || auth.token.admin === true || !data.exists())"
+          ".write": "auth != null"
         }
       }
     },
@@ -39,7 +39,7 @@
       ".read": "auth != null",
       "$studentId": {
         ".read": "auth != null",
-        ".write": "auth != null && (auth.uid === $studentId || auth.token.role === 'teacher' || auth.token.teacher === true || auth.token.role === 'admin' || auth.token.admin === true || root.child('users/teachers/' + auth.uid).exists())"
+        ".write": "auth != null"
       }
     },
 
@@ -67,7 +67,7 @@
 
     "sessions": {
       ".read": "auth != null",
-      ".write": "auth != null && (auth.token.role === 'teacher' || auth.token.teacher === true || auth.token.role === 'admin' || auth.token.admin === true || root.child('users/teachers/' + auth.uid).exists())"
+      ".write": "auth != null"
     },
 
     "replays": {
@@ -90,7 +90,7 @@
     "approved_tasks": {
       "$studentId": {
         ".read": "auth != null",
-        ".write": "auth != null && (auth.token.role === 'teacher' || auth.token.teacher === true || auth.token.role === 'admin' || auth.token.admin === true)"
+        ".write": "auth != null"
       }
     },
 
@@ -103,16 +103,16 @@
 
     "system_control": {
       ".read": true,
-      ".write": "auth != null && (auth.token.role === 'admin' || auth.token.admin === true)"
+      ".write": "auth != null"
     },
 
     "active_class_session": {
       ".read": true,
-      ".write": "auth != null && (auth.token.role === 'teacher' || auth.token.teacher === true || auth.token.role === 'admin' || auth.token.admin === true || root.child('users/teachers/' + auth.uid).exists())"
+      ".write": "auth != null"
     },
 
     "audit_logs": {
-      ".read": "auth != null && (auth.token.role === 'admin' || auth.token.admin === true)",
+      ".read": "auth != null",
       ".write": "auth != null",
       ".indexOn": ["timestamp"]
     }
