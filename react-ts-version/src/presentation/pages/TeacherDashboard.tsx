@@ -7,6 +7,7 @@ import { AccessibleCard } from "@/presentation/design-system/AccessibleCard";
 import { DataGrid } from "@/presentation/design-system/DataGrid";
 import { useAuthStore } from "@/application/useAuthStore";
 import { useChatStore, normalizeStudentId, type ChatMessage } from "@/application/useChatStore";
+import { extractTeacherId } from "@/infrastructure/services/FirebaseSyncService";
 import { useStore, type StudentData } from "@/application/useStore";
 import { toast } from "sonner";
 import { ref, onValue, remove, set } from "firebase/database";
@@ -335,11 +336,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   // Multi-Tenant context: TEACHER_ID is the canonical ID of the logged-in teacher (e.g. "12345" if rawUid is "teacher_12345" or "12345")
   // All student queries and pending AI approval paths map under this ID.
   const TEACHER_ID = useMemo(() => {
-    if (user?.email && typeof user.email === 'string') {
-      return user.email.replace('teacher_', '').replace('@mathmaticore.local', '');
-    }
-    const rawUid = user?.uid || user?.id || "039604483";
-    return String(rawUid).replace('teacher_', '').replace('@mathmaticore.local', '');
+    return extractTeacherId(user?.email, (user?.uid || user?.id) as string);
   }, [user]);
 
   useEffect(() => {

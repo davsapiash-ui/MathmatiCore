@@ -5,7 +5,8 @@ import { useAdminStore } from "@/application/useAdminStore";
 import { useStore } from "@/application/useStore";
 import { useNavigate } from "react-router-dom";
 import { auth, database } from "@/infrastructure/firebase";
-import { ref, get } from 'firebase/database';
+import { ref, get, set } from 'firebase/database';
+import { extractTeacherId } from "@/infrastructure/services/FirebaseSyncService";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { Button } from "@/components/ui/button";
 
@@ -100,6 +101,22 @@ export function Login() {
         }
       }
       const uid = targetRole === "teacher" ? `teacher_${emailInput.replace(/[^a-z0-9]/g, "_")}` : `admin_${emailInput.replace(/[^a-z0-9]/g, "_")}`;
+      
+      if (targetRole === "teacher") {
+        const teacherId = extractTeacherId(emailInput, uid);
+        const teacherRef = ref(database, `users/teachers/${teacherId}`);
+        const snap = await get(teacherRef);
+        if (!snap.exists()) {
+          await set(teacherRef, {
+            id: teacherId,
+            email: emailInput,
+            name: `מורה (${emailInput})`,
+            licenseActive: false, // Security rules requirement
+            createdAt: Date.now()
+          }).catch(console.error);
+        }
+      }
+
       setUser({
         uid,
         email: emailInput,
@@ -133,6 +150,19 @@ export function Login() {
       }
 
       const activeEmail = (email && isWhitelistedTeacherEmail(email)) ? email : "davidsep@edu-haifa.org.il";
+      const teacherId = extractTeacherId(activeEmail, currentUser.uid);
+      const teacherRef = ref(database, `users/teachers/${teacherId}`);
+      const snap = await get(teacherRef);
+      if (!snap.exists()) {
+        await set(teacherRef, {
+          id: teacherId,
+          email: activeEmail,
+          name: currentUser.displayName || `מורה (${activeEmail})`,
+          licenseActive: false, // Security rules requirement
+          createdAt: Date.now()
+        }).catch(console.error);
+      }
+
       setUser({
         uid: currentUser.uid || "teacher_sso_haifa",
         email: activeEmail,

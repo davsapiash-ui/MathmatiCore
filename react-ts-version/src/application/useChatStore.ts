@@ -25,7 +25,7 @@ interface ChatState {
 export function normalizeStudentId(id: string): string {
   if (!id) return '';
   const clean = id.trim().toLowerCase();
-  if (clean === 'admin' || clean === 'teacher' || clean.startsWith('teacher_')) return clean;
+  if (clean === 'admin' || clean === 'teacher' || clean.startsWith('teacher_') || /^\d{8,9}$/.test(clean)) return clean;
   if (/^\d+$/.test(clean)) return `student_user${clean}`;
   if (clean.startsWith('user')) return `student_${clean}`;
   if (clean.startsWith('student_')) {
@@ -36,20 +36,29 @@ export function normalizeStudentId(id: string): string {
   return `student_${clean}`;
 }
 
-function computeRoomId(senderId: string, receiverId: string): string {
+export function computeRoomId(senderId: string, receiverId: string): string {
+  const normSender = normalizeStudentId(senderId);
+  const normReceiver = normalizeStudentId(receiverId);
+
+  const isSenderStudent = normSender.startsWith('student_');
+  const isReceiverStudent = normReceiver.startsWith('student_');
+
+  // If one of the participants is a student, the roomId MUST be that student's normalized UID
+  if (isSenderStudent && !isReceiverStudent) {
+    return normSender;
+  }
+  if (isReceiverStudent && !isSenderStudent) {
+    return normReceiver;
+  }
+  if (isSenderStudent && isReceiverStudent) {
+    return normSender;
+  }
+
+  // Fallback for non-student chat (e.g. teacher/admin)
   if (senderId === 'admin' || receiverId === 'admin') {
     return senderId === 'admin' ? receiverId : senderId;
   }
-  const isSenderTeacher = senderId === 'teacher' || senderId.startsWith('teacher_') || /^\d{8,9}$/.test(senderId);
-  const isReceiverTeacher = receiverId === 'teacher' || receiverId.startsWith('teacher_') || /^\d{8,9}$/.test(receiverId);
-
-  if (isSenderTeacher && !isReceiverTeacher) {
-    return receiverId; // Student's UID
-  }
-  if (isReceiverTeacher && !isSenderTeacher) {
-    return senderId; // Student's UID
-  }
-  return normalizeStudentId(senderId);
+  return receiverId || senderId;
 }
 
 let isSynced = false;
@@ -64,7 +73,7 @@ export const useChatStore = create<ChatState>()(
       if (!user) return; // Only sync if authenticated
       if (isSynced) return;
       isSynced = true;
-      const studentRoomId = user.uid;
+      const studentRoomId = normalizeStudentId((user.uid || user.id || '') as string);
       const chatRef = role === 'student' 
         ? ref(database, `chat_messages/${studentRoomId}`) 
         : ref(database, 'chat_messages');

@@ -6,6 +6,16 @@ import { useStore, type QMatrix, type TraceData } from '@/application/useStore';
 import { normalizeStudentId } from '@/application/useChatStore';
 import { useAdminStore, type School, type Teacher, type ClassRoom } from '@/application/useAdminStore';
 
+export function extractTeacherId(email?: string | null, uid?: string | null): string {
+  if (email && typeof email === 'string') {
+    return email.replace('teacher_', '').replace('@mathmaticore.local', '');
+  }
+  if (uid && typeof uid === 'string') {
+    return uid.replace('teacher_', '').replace('@mathmaticore.local', '');
+  }
+  return '039604483';
+}
+
 // --- PRD v4 Schema Interfaces ---
 export interface TeacherProfile {
   id: string;
@@ -356,8 +366,15 @@ export class FirebaseSyncService {
   }
 
   public async registerTeacher(teacherData: Record<string, unknown>) {
-    const teacherRef = ref(database, `users/teachers/${teacherData.id}`);
-    await set(teacherRef, teacherData);
+    const id = (teacherData.id || teacherData.taz || teacherData.uid) as string;
+    if (!id) throw new Error("Missing teacher ID for registration");
+    const dataToSave = {
+      ...teacherData,
+      id,
+      licenseActive: false, // Security rules require licenseActive to be false upon new registration
+    };
+    const teacherRef = ref(database, `users/teachers/${id}`);
+    await set(teacherRef, dataToSave);
   }
 
   // --- NEW: Sync specific fields to Firebase directly ---
@@ -783,7 +800,7 @@ export class FirebaseSyncService {
       name: 'דוד', 
       taz: '039604483', 
       dob: '290984', 
-      licenseActive: true, 
+      licenseActive: false, // Security rules require licenseActive to be false upon creation
       createdAt: timestamp 
     };
     const initialClass = { 

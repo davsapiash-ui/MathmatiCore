@@ -111,25 +111,31 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
 
       fetchMetadata();
 
-      // Fetch radar history (Logs) — check both normalized ID and raw ID
+      // Fetch radar history (Logs) — check both normalized ID and raw ID with live listeners
       const targetRadarId = studentId || rawStudentId;
       const radarHistoryRef = ref(database, `users/students/${targetRadarId}/radar_history`);
+      let unsubFallback: (() => void) | undefined;
+
       unsubscribeRadar = onValue(radarHistoryRef, (snapshot) => {
         try {
           if (snapshot.exists()) {
+            if (unsubFallback) { unsubFallback(); unsubFallback = undefined; }
             const historyVal = snapshot.val();
             const historyList = historyVal ? Object.values(historyVal) : [];
             setStudentRadarHistory(historyList);
           } else if (rawStudentId && rawStudentId !== targetRadarId) {
-            // Fallback to raw ID for radar history
-            get(ref(database, `users/students/${rawStudentId}/radar_history`)).then(snap => {
-              if (snap.exists()) {
-                const historyVal = snap.val();
-                setStudentRadarHistory(historyVal ? Object.values(historyVal) : []);
-              } else {
-                setStudentRadarHistory([]);
-              }
-            }).catch(() => setStudentRadarHistory([]));
+            // Live fallback listener to raw ID for radar history
+            const fallbackRef = ref(database, `users/students/${rawStudentId}/radar_history`);
+            if (!unsubFallback) {
+              unsubFallback = onValue(fallbackRef, (fallbackSnap) => {
+                if (fallbackSnap.exists()) {
+                  const historyVal = fallbackSnap.val();
+                  setStudentRadarHistory(historyVal ? Object.values(historyVal) : []);
+                } else {
+                  setStudentRadarHistory([]);
+                }
+              });
+            }
           } else {
             setStudentRadarHistory([]);
           }
