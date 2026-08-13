@@ -383,16 +383,11 @@ export function StudentWorkspacePage() {
         }
         const tasks = await SocraticEngine.getApprovedTasks(username);
         if (cancelled) return;
-        if (tasks) {
-          const canRestore = myData?.workspaceState?.sessionNumber === meeting && myData?.workspaceState?.flowStatus === 'task';
-          if (canRestore && myData?.workspaceState) {
-            restoreSession(myData.workspaceState);
-          } else {
-            initSession(meeting, isASDMode, tasks, 0);
-          }
+        const canRestore = myData?.workspaceState?.sessionNumber === meeting && myData?.workspaceState?.flowStatus === 'task';
+        if (canRestore && myData?.workspaceState) {
+          restoreSession(myData.workspaceState);
         } else {
-          // Pending teacher approval — blocking screen with a way back to the hub.
-          setPendingApproval(true);
+          initSession(meeting, isASDMode, tasks || null, 0);
         }
         setIsInitialized(true);
         setIsInitializing(false);
