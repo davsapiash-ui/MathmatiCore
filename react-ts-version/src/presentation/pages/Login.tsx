@@ -104,17 +104,9 @@ export function Login() {
       setIsLoggingIn(false);
       navigate("/dashboard", { replace: true });
     } catch (err: any) {
-      console.warn("Teacher SSO note:", err);
-      const primaryEmail = "davidsep@edu-haifa.org.il";
-      setUser({
-        uid: "teacher_sso_haifa",
-        email: primaryEmail,
-        role: "teacher",
-        displayName: `מורה (${primaryEmail})`,
-      }, "teacher");
-      login("teacher", "teacher_sso_haifa");
+      console.error("Teacher SSO Login Error:", err);
       setIsLoggingIn(false);
-      navigate("/dashboard", { replace: true });
+      setErrorMsg("התחברות Google נכשלה או בוטלה. אנא נסה שוב.");
     }
   };
 
@@ -238,17 +230,9 @@ export function Login() {
       setIsLoggingIn(false);
       navigate("/admin", { replace: true });
     } catch (err: any) {
-      console.warn("Admin SSO note:", err);
-      const primaryEmail = "davidsep@edu-haifa.org.il";
-      setUser({
-        uid: "admin_sso_haifa",
-        email: primaryEmail,
-        role: "admin",
-        displayName: `מנהל מערכת (${primaryEmail})`,
-      }, "admin");
-      login("admin", "admin_sso_haifa");
+      console.error("Admin SSO Login Error:", err);
       setIsLoggingIn(false);
-      navigate("/admin", { replace: true });
+      setErrorMsg("התחברות Google כמנהל נכשלה או בוטלה. אנא נסה שוב.");
     }
   };
 
