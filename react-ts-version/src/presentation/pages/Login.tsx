@@ -177,25 +177,15 @@ export function Login() {
       } catch (e) {
         console.warn("Global student limit check note:", e);
       }
-      try {
-        await performFirebaseAuth(`${studentId}@mathmaticore.local`, password || "10203040");
-        setUser({
-          uid: studentId,
-          role: "student",
-          displayName: displayName,
-        }, "student");
-        login("student", studentId);
-        navigate("/hub", { replace: true });
-      } catch (err: any) {
-        console.warn("Student login auth note:", err);
-        setUser({
-          uid: studentId,
-          role: "student",
-          displayName: displayName,
-        }, "student");
-        login("student", studentId);
-        navigate("/hub", { replace: true });
-      }
+      await performFirebaseAuth(`${studentId}@mathmaticore.local`, password || "10203040");
+      setUser({
+        uid: studentId,
+        role: "student",
+        displayName: displayName,
+      }, "student");
+      login("student", studentId);
+      setIsLoggingIn(false);
+      navigate("/hub", { replace: true });
     } else if (selectedRole === "teacher") {
       await handleTeacherGoogleSSO();
     } else if (selectedRole === "admin") {
