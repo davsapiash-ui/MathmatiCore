@@ -10,12 +10,11 @@ async function ready(): Promise<void> {
 }
 
 export interface SocraticHintResponse {
-  pedagogical_intent: "conceptual" | "procedural" | "focus";
-  tts_text: string;
+  pedagogical_intent?: "conceptual" | "procedural" | "focus";
+  tts_text?: string;
   suggested_highlight?: string | null;
-  // Legacy UI compat fields for GraphicOrganizerHint modal
-  questionHe?: string;
-  choices?: { id: string; textHe: string }[];
+  questionHe: string;
+  choices: { id: string; textHe: string }[];
   correctChoiceId?: string;
 }
 
