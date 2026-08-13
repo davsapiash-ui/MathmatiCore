@@ -71,6 +71,7 @@ export interface StudentData {
   difficultyRecommendation?: string | number | null;
   isASD?: boolean;
   physicalOverride?: boolean;
+  physicalOverrideActive?: boolean;
   overrideUpdatedAt?: number;
   diagnosticReport?: DiagnosticReport | null;
   conceptMastery?: MasteryProfile;

@@ -8,6 +8,7 @@ import { useAuthStore } from '@/application/useAuthStore';
 import { StudentChatOverlay } from '@/features/workspace/overlays/StudentChatOverlay';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 import { useActiveClassSession } from '@/application/useActiveClassSession';
+import { normalizeStudentId } from '@/application/useChatStore';
 import { ref, onValue } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
 
