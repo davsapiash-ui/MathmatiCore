@@ -125,7 +125,7 @@ export const useAuthStore = create<AuthState>()(
     setUser: (user, role) => set((state) => {
       const activeRole = Array.isArray(role) ? role[0] : (typeof role === 'string' ? role : 'teacher');
 
-      // PRD v3.3 Module 1 & 3: Strict 1..12 Integer Student ID Restriction with Zero PII
+      // PRD v3.3 Module 1, 3 & 4: Strict 1..12 Integer Student ID Restriction with Zero PII & Research Classification
       if (activeRole === 'student') {
         const rawId = (user?.uid || user?.id || '').toString();
         const numMatch = rawId.match(/\d+/);

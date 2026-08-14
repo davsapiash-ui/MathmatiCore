@@ -179,17 +179,23 @@ export function HelpOverlays() {
 }
 
 function SocraticPenaltyLockOptions({ onClose }: { onClose: () => void }) {
-  const [lockSeconds, setLockSeconds] = useState(0);
+  const socraticPenaltyLockoutUntil = useWorkspaceStore((s) => s.socraticPenaltyLockoutUntil);
+  const triggerSocraticPenaltyLockout = useWorkspaceStore((s) => s.triggerSocraticPenaltyLockout);
+  const getSocraticPenaltyRemaining = useWorkspaceStore((s) => s.getSocraticPenaltyRemaining);
+
+  const [lockSeconds, setLockSeconds] = useState(() => getSocraticPenaltyRemaining());
   const [selectedOpt, setSelectedOpt] = useState<string | null>(null);
   const [feedbackHint, setFeedbackHint] = useState<string | null>(null);
 
   useEffect(() => {
-    if (lockSeconds <= 0) return;
-    const interval = setInterval(() => {
-      setLockSeconds((prev) => prev - 1);
-    }, 1000);
+    const updateTimer = () => {
+      const remaining = getSocraticPenaltyRemaining();
+      setLockSeconds(remaining);
+    };
+    updateTimer();
+    const interval = setInterval(updateTimer, 500);
     return () => clearInterval(interval);
-  }, [lockSeconds]);
+  }, [socraticPenaltyLockoutUntil, getSocraticPenaltyRemaining]);
 
   const options = [
     { id: 'A', text: 'א. נאסוף 10 יחידות מטור היחידות ונמיר אותן לעשרת אחת בטור העשרות.', correct: true, hint: 'תשובה נכונה! כעת בצעו את ההמרה בלוח הדינס.' },
@@ -202,8 +208,8 @@ function SocraticPenaltyLockOptions({ onClose }: { onClose: () => void }) {
     setSelectedOpt(opt.id);
     setFeedbackHint(opt.hint);
     if (!opt.correct) {
-      // PRD v3.3 Module 12: 60-second penalty lock on wrong distractor
-      setLockSeconds(60);
+      // PRD v3.3 Module 12: 60-second penalty lock on wrong distractor in Zustand Store
+      triggerSocraticPenaltyLockout(opt.hint);
     }
   };
 

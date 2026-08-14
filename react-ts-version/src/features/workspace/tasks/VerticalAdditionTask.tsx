@@ -46,7 +46,7 @@ export function VerticalAdditionTask({
   const keyboardState = useWorkspaceStore((s) => s.keyboardState);
   const setKeyboardSocratic = useWorkspaceStore((s) => s.setKeyboardSocratic);
   const hasGrouped = useWorkspaceStore((s) => s.hasGrouped);
-  const hasUngrouped = useWorkspaceStore((s) => s.hasUngrouped);
+  const isStoreColumnLocked = useWorkspaceStore((s) => s.isColumnInputLocked);
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
 
   const [shake, setShake] = useState(false);
@@ -102,39 +102,11 @@ export function VerticalAdditionTask({
   const firstAnswerCol = cols - answerLength;
 
   /**
-   * Helper to check if a specific column requires mathematical exchange:
-   * Addition: sum of digits + carry >= 10
-   * Subtraction: digitA < digitB (requires borrowing/regrouping)
-   */
-  const checkColumnRequiresExchange = (place: Place, colIdx: number): boolean => {
-    const da = parseInt(digitsA[colIdx] || '0', 10);
-    const db = parseInt(digitsB[colIdx] || '0', 10);
-    const carry = parseInt(carryDigits[place] || '0', 10);
-
-    if (isSubtraction) {
-      return da < db;
-    }
-    return da + db + carry >= 10;
-  };
-
-  /**
    * Evaluates if input for a specific column should be locked:
-   * Locks if global keyboard is LOCKED, or if column requires exchange and conversion hasn't happened.
+   * Delegated to central Zustand store per PRD v3.3 Module 9
    */
-  const isColumnInputLocked = (place: Place, colIdx: number): boolean => {
-    if (keyboardState === 'LOCKED') return true;
-    if (keyboardState === 'SOCRATIC_ONLY') return true;
-
-    // Check dynamic exchange constraint per PRD v3.3 Module 9
-    const requiresExchange = checkColumnRequiresExchange(place, colIdx);
-    if (requiresExchange) {
-      const conversionDone = isSubtraction ? hasUngrouped : hasGrouped;
-      if (!conversionDone && !carryDigits[place]) {
-        return true;
-      }
-    }
-
-    return false;
+  const isColumnInputLocked = (place: Place): boolean => {
+    return isStoreColumnLocked(place, numberA, numberB, isSubtraction);
   };
 
   const digitCell = (d: string | null, key: string, place?: Place, extra?: React.CSSProperties) => {
@@ -293,7 +265,7 @@ export function VerticalAdditionTask({
         {colPlaces.map((place, j) => {
           if (j < firstAnswerCol) return <div key={`e${j}`} aria-hidden="true" />;
           const ansIdx = j - firstAnswerCol;
-          const isLocked = isColumnInputLocked(place, j);
+          const isLocked = isColumnInputLocked(place);
 
           return (
             <div key={`ans${j}`} className="flex items-center justify-center">

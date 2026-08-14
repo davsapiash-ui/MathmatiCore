@@ -14,6 +14,7 @@ import {
   resolveDrop,
   splitBlockClick,
   groupBlocksManually,
+  PLACE_ORDER,
   type DropInput,
   type Place,
   type PlaceCounts,
@@ -110,6 +111,8 @@ interface WorkspaceState {
   probeAnswer: string;
   q3Reps: PlaceCounts[];
   aiSocraticHint: SocraticHintResponse | null;
+  socraticPenaltyLockoutUntil: number | null;
+  socraticDistractorHint: string | null;
 
   // overlays
   feedback: FeedbackState | null;
@@ -160,6 +163,28 @@ interface WorkspaceState {
   unlockKeyboard: () => void;
   lockKeyboard: () => void;
   setKeyboardSocratic: () => void;
+  triggerSocraticPenaltyLockout: (hintText?: string) => void;
+  clearSocraticPenaltyLockout: () => void;
+  getSocraticPenaltyRemaining: () => number;
+  isColumnInputLocked: (place: Place, numberA: number, numberB: number, isSubtraction?: boolean) => boolean;
+}
+
+const SOCRATIC_PENALTY_STORAGE_KEY = 'mc_socratic_penalty_until';
+
+function getStoredSocraticPenaltyUntil(): number | null {
+  try {
+    if (typeof localStorage === 'undefined') return null;
+    const val = localStorage.getItem(SOCRATIC_PENALTY_STORAGE_KEY);
+    if (val) {
+      const parsed = parseInt(val, 10);
+      if (parsed > Date.now()) {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.error('Failed to read socratic penalty from storage', e);
+  }
+  return null;
 }
 
 /* ── Pure helpers ── */
@@ -877,6 +902,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     helpState: 'closed',
     frictionTriggerSource: null,
     aiSocraticHint: null,
+    socraticPenaltyLockoutUntil: getStoredSocraticPenaltyUntil(),
+    socraticDistractorHint: null,
     aiTasks: null,
     dynamicTasks: null,
     nodeStrikes: {},
@@ -936,6 +963,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         feedback: null,
         helpState: 'closed',
         frictionTriggerSource: null,
+        socraticPenaltyLockoutUntil: saved.socraticPenaltyLockoutUntil ?? getStoredSocraticPenaltyUntil(),
+        socraticDistractorHint: saved.socraticDistractorHint ?? null,
         selectedChoiceId: null,
         answerDigits: {},
         carryDigits: {},
@@ -1473,6 +1502,75 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         aiSocraticHint: s.aiSocraticHint || DEFAULT_SOCRATIC_HINT
       }));
       get().fetchSocraticHint();
+    },
+    triggerSocraticPenaltyLockout: (hintText) => {
+      const until = Date.now() + 60000;
+      try {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem(SOCRATIC_PENALTY_STORAGE_KEY, until.toString());
+        }
+      } catch (e) {
+        console.error('Failed to persist socratic penalty', e);
+      }
+      set({
+        socraticPenaltyLockoutUntil: until,
+        socraticDistractorHint: hintText || 'בחירה זו אינה מביאה לפתרון הנכון. חשבו מה הפעולה הנדרשת בבית המספרים ונסו שוב כשתום הנעילה.',
+      });
+    },
+
+    clearSocraticPenaltyLockout: () => {
+      try {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.removeItem(SOCRATIC_PENALTY_STORAGE_KEY);
+        }
+      } catch (e) {
+        console.error('Failed to clear socratic penalty', e);
+      }
+      set({
+        socraticPenaltyLockoutUntil: null,
+        socraticDistractorHint: null,
+      });
+    },
+
+    getSocraticPenaltyRemaining: () => {
+      const until = get().socraticPenaltyLockoutUntil;
+      if (!until) return 0;
+      const remaining = Math.max(0, Math.ceil((until - Date.now()) / 1000));
+      if (remaining <= 0 && get().socraticPenaltyLockoutUntil !== null) {
+        get().clearSocraticPenaltyLockout();
+        return 0;
+      }
+      return remaining;
+    },
+
+    isColumnInputLocked: (place, numberA, numberB, isSubtraction) => {
+      const s = get();
+      if (s.keyboardState === 'LOCKED' || s.keyboardState === 'SOCRATIC_ONLY') return true;
+
+      const aStr = String(numberA);
+      const bStr = String(numberB);
+      const cols = Math.max(aStr.length, bStr.length, 4);
+      const colPlaces: Place[] = PLACE_ORDER.slice(0, cols).reverse();
+      const colIdx = colPlaces.indexOf(place);
+      if (colIdx === -1) return false;
+
+      const padDigits = (str: string): number => {
+        const idx = colIdx - (cols - str.length);
+        return idx >= 0 ? parseInt(str[idx], 10) : 0;
+      };
+
+      const da = padDigits(aStr);
+      const db = padDigits(bStr);
+      const carry = parseInt(s.carryDigits[place] || '0', 10);
+
+      const requiresExchange = isSubtraction ? (da < db) : (da + db + carry >= 10);
+      if (requiresExchange) {
+        const conversionDone = isSubtraction ? s.hasUngrouped : s.hasGrouped;
+        if (!conversionDone && !s.carryDigits[place]) {
+          return true;
+        }
+      }
+      return false;
     },
     checkTimeExceeded: () => {
       const { sessionStartTimeMs, isTimeExceeded } = get();

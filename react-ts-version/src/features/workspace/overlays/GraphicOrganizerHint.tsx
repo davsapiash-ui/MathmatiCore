@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { SocraticHintResponse } from '@/infrastructure/services/SocraticEngine';
 import { Bot, X, CheckCircle2, Sparkles, BellOff, Lightbulb, Lock } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useSettingsStore } from '@/application/useSettingsStore';
-import { executeDistractorPenaltyLockout } from '@/core/ExerciseValidationEngine';
+import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 
 interface GraphicOrganizerHintProps {
   hint: SocraticHintResponse;
@@ -13,40 +13,29 @@ interface GraphicOrganizerHintProps {
 
 export const GraphicOrganizerHint: React.FC<GraphicOrganizerHintProps> = ({ hint, onClose, onSelectOption }) => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [isPenaltyLocked, setIsPenaltyLocked] = useState(false);
-  const [penaltyRemaining, setPenaltyRemaining] = useState(0);
-  const [distractorHint, setDistractorHint] = useState<string | null>(null);
-  const lockoutCleanupRef = useRef<(() => void) | null>(null);
-  const lockEndTimeRef = useRef<number | null>(null);
-
   const setAutoShowHints = useSettingsStore((s) => s.setAutoShowHints);
+
+  const socraticPenaltyLockoutUntil = useWorkspaceStore((s) => s.socraticPenaltyLockoutUntil);
+  const socraticDistractorHint = useWorkspaceStore((s) => s.socraticDistractorHint);
+  const triggerSocraticPenaltyLockout = useWorkspaceStore((s) => s.triggerSocraticPenaltyLockout);
+  const getSocraticPenaltyRemaining = useWorkspaceStore((s) => s.getSocraticPenaltyRemaining);
+
+  const [penaltyRemaining, setPenaltyRemaining] = useState(() => getSocraticPenaltyRemaining());
+  const isPenaltyLocked = penaltyRemaining > 0;
 
   const correctId = hint.correctChoiceId || 'opt_1';
 
-  // Fix 2: Zombie Tab Timestamp Delta Timer (Instant unlock upon waking backgrounded tab)
+  // Socratic Lockout Countdown synchronized with global Zustand store & persisted storage
   useEffect(() => {
-    let interval: number | undefined;
-    if (isPenaltyLocked && lockEndTimeRef.current) {
-      const updateTimer = () => {
-        const now = Date.now();
-        const remaining = Math.max(0, Math.ceil((lockEndTimeRef.current! - now) / 1000));
-        setPenaltyRemaining(remaining);
-        if (remaining <= 0) {
-          setIsPenaltyLocked(false);
-          setDistractorHint(null);
-          lockEndTimeRef.current = null;
-          if (interval) clearInterval(interval);
-        }
-      };
-
-      updateTimer();
-      interval = window.setInterval(updateTimer, 500);
-    }
-    return () => {
-      if (interval) clearInterval(interval);
-      if (lockoutCleanupRef.current) lockoutCleanupRef.current();
+    const updateTimer = () => {
+      const remaining = getSocraticPenaltyRemaining();
+      setPenaltyRemaining(remaining);
     };
-  }, [isPenaltyLocked]);
+
+    updateTimer();
+    const interval = window.setInterval(updateTimer, 500);
+    return () => clearInterval(interval);
+  }, [socraticPenaltyLockoutUntil, getSocraticPenaltyRemaining]);
 
   const handleSelect = (id: string) => {
     if (isPenaltyLocked) return;
@@ -60,21 +49,9 @@ export const GraphicOrganizerHint: React.FC<GraphicOrganizerHintProps> = ({ hint
         onClose();
       }, 1200);
     } else {
-      // Wrong distractor chosen — execute 60-second penalty lockout per PRD v3.0 Module 12
-      setDistractorHint('בחירה זו אינה מביאה לפתרון הנכון. חשבו מה הפעולה המדויקת הנדרשת בבית המספרים ונסו שוב כשתום הנעילה.');
-      lockoutCleanupRef.current = executeDistractorPenaltyLockout(
-        () => {
-          lockEndTimeRef.current = Date.now() + 60000;
-          setIsPenaltyLocked(true);
-          setPenaltyRemaining(60);
-        },
-        () => {
-          lockEndTimeRef.current = null;
-          setIsPenaltyLocked(false);
-          setPenaltyRemaining(0);
-          setDistractorHint(null);
-        },
-        60000
+      // Wrong distractor chosen — trigger 60-second penalty lockout in global Zustand store per PRD v3.3 Module 12
+      triggerSocraticPenaltyLockout(
+        'בחירה זו אינה מביאה לפתרון הנכון. חשבו מה הפעולה המדויקת הנדרשת בבית המספרים ונסו שוב כשתום הנעילה.'
       );
     }
   };
@@ -145,9 +122,9 @@ export const GraphicOrganizerHint: React.FC<GraphicOrganizerHintProps> = ({ hint
                 <Lock className="w-5 h-5 text-amber-600 animate-bounce" />
                 <span>חסימת ניחוש פדגוגית — האפשרויות נעולות ל-60 שניות למחשבה נוספת ({penaltyRemaining} שניות נותרו)</span>
               </div>
-              {distractorHint && (
+              {socraticDistractorHint && (
                 <p className="text-xs font-medium text-amber-800 dark:text-amber-300 pr-7">
-                  💡 {distractorHint}
+                  💡 {socraticDistractorHint}
                 </p>
               )}
             </div>
