@@ -188,15 +188,26 @@ export const useStore = create<AppState>()(
       toggleGlobalChat: () => set((state) => ({ globalChatEnabled: !state.globalChatEnabled })),
 
       login: (role, id) => set((state) => {
+        if (role === 'student') {
+          const numMatch = id.match(/\d+/);
+          const studentNum = numMatch ? parseInt(numMatch[0], 10) : 0;
+          if (studentNum < 1 || studentNum > 12) {
+            console.error(`Invalid student login: ${id}. Only students 1 to 12 are permitted in Pilot PRD v3.0.`);
+            return state;
+          }
+        }
+
         const newState: Partial<AppState> = { currentUserRole: role, currentUserId: id, firebaseLoaded: false };
         if (role === 'student' && !state.students[id]) {
-          // Auto-initialize new student (fallback)
+          // Auto-initialize new student (strictly within 1..12 range)
+          const numMatch = id.match(/\d+/);
+          const studentNum = numMatch ? parseInt(numMatch[0], 10) : 1;
           newState.students = {
             ...state.students,
             [id]: {
               studentId: id,
-              classId: 'unknown_class',
-              name: id.replace('student_', ''),
+              classId: 'class_1',
+              name: `תלמיד ${studentNum}`,
               completedMeeting2: false,
               highestCompletedMeeting: 0,
               qMatrixResults: {

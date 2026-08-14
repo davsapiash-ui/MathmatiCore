@@ -65,7 +65,7 @@ describe('Empirical Verification: Static Imports & Zustand Store Initialization'
     const { useWorkspaceStore } = await import('@/application/useWorkspaceStore');
 
     // Test auth store state update (triggers AuditLogger.log inside set)
-    const mockUser = { uid: 'test_user_123', name: 'Test Student', email: 'test@example.com' };
+    const mockUser = { uid: 'student_1', name: 'תלמיד 1', email: 'student_1@mathmaticore.local' };
     useAuthStore.getState().setUser(mockUser, 'student');
     expect(useAuthStore.getState().isAuthenticated).toBe(true);
     expect(useAuthStore.getState().user).toEqual(mockUser);

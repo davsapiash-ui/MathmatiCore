@@ -26,12 +26,11 @@ export function normalizeStudentId(id: string): string {
   if (!id) return '';
   const clean = id.trim().toLowerCase();
   if (clean === 'admin' || clean === 'teacher' || clean.startsWith('teacher_') || /^\d{8,9}$/.test(clean)) return clean;
-  if (/^\d+$/.test(clean)) return `student_user${clean}`;
-  if (clean.startsWith('user')) return `student_${clean}`;
-  if (clean.startsWith('student_')) {
-    const sub = clean.replace('student_', '');
-    if (/^\d+$/.test(sub)) return `student_user${sub}`;
-    return clean;
+  const numMatch = clean.match(/\d+/);
+  if (numMatch) {
+    const parsed = parseInt(numMatch[0], 10);
+    const validNum = Math.min(Math.max(parsed, 1), 12);
+    return `student_user${validNum}`;
   }
   return `student_${clean}`;
 }

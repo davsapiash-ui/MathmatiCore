@@ -88,6 +88,18 @@ export const useAuthStore = create<AuthState>()(
     isAuthenticated: initial.isAuthenticated,
     setUser: (user, role) => set(() => {
       const activeRole = Array.isArray(role) ? role[0] : (typeof role === 'string' ? role : 'teacher');
+
+      // PRD v3.0 Module 1 & 3: Strict 1..12 Integer Student ID Restriction
+      if (activeRole === 'student') {
+        const rawId = (user?.uid || user?.id || '').toString();
+        const numMatch = rawId.match(/\d+/);
+        const studentNum = numMatch ? parseInt(numMatch[0], 10) : 0;
+        if (studentNum < 1 || studentNum > 12) {
+          console.error(`Invalid student ID: ${rawId}. Pilot constraint permits integer IDs strictly 1..12.`);
+          return { user: null, role: null, isAuthenticated: false };
+        }
+      }
+
       const cleanUser: AuthUser = {
         ...user,
         role: activeRole,

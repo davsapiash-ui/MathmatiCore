@@ -19,7 +19,11 @@
       ".write": "auth != null",
       "students": {
         ".read": "auth != null",
-        ".write": "auth != null"
+        ".write": "auth != null",
+        "$studentId": {
+          ".read": "auth != null",
+          ".write": "auth != null && ($studentId.matches(/^student_(user)?(1[0-2]|[1-9])$/) || $studentId.matches(/^(1[0-2]|[1-9])$/))"
+        }
       },
       "teachers": {
         ".read": "auth != null",
@@ -35,7 +39,11 @@
     },
     "students": {
       ".read": "auth != null",
-      ".write": "auth != null"
+      ".write": "auth != null",
+      "$studentId": {
+        ".read": "auth != null",
+        ".write": "auth != null && ($studentId.matches(/^student_(user)?(1[0-2]|[1-9])$/) || $studentId.matches(/^(1[0-2]|[1-9])$/))"
+      }
     },
     "radar_alerts": {
       ".read": "auth != null",
