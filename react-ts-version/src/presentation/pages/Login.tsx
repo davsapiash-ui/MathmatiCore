@@ -19,21 +19,28 @@ export function Login() {
   const navigate = useNavigate();
 
   const [selectedRole, setSelectedRole] = useState<"student" | "teacher" | "admin" | null>(null);
+  const [selectedStudentNum, setSelectedStudentNum] = useState<number | null>(null);
+  const [studentPassword, setStudentPassword] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [lastStudentClickTime, setLastStudentClickTime] = useState(0);
 
-  // Student Anonymous 12-Slot Grid Handler (PRD v3.0 Module 1)
-  const handleStudentSelect = async (studentNum: number) => {
+  // Student 12-Slot Selection & Password Login Handler (Master PRD v3.1 Module 1)
+  const handleStudentLogin = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     tts.initializeAudioGate();
 
-    // 500ms Throttle to prevent rapid clicking
     const now = Date.now();
     if (now - lastStudentClickTime < 500) return;
     setLastStudentClickTime(now);
 
-    if (studentNum < 1 || studentNum > 12) {
-      setErrorMsg("מזהה תלמיד חייב להיות מספר שלם בין 1 ל-12 בלבד.");
+    if (!selectedStudentNum || selectedStudentNum < 1 || selectedStudentNum > 12) {
+      setErrorMsg("יש לבחור מספר תלמיד מהגריד");
+      return;
+    }
+
+    if (studentPassword.trim() !== "10203040") {
+      setErrorMsg("סיסמה שגויה");
       return;
     }
 
@@ -41,8 +48,8 @@ export function Login() {
     setErrorMsg("");
 
     try {
-      const studentId = `student_${studentNum}`;
-      const displayName = `תלמיד ${studentNum}`;
+      const studentId = `student_${selectedStudentNum}`;
+      const displayName = `תלמיד ${selectedStudentNum}`;
 
       setUser(
         {
@@ -63,7 +70,7 @@ export function Login() {
     }
   };
 
-  // Teacher / Admin Google SSO Handler
+  // Teacher / Admin Google SSO Handler (Master PRD v3.1 Module 1)
   const handleGoogleSSO = async (targetRole: "teacher" | "admin") => {
     setIsLoggingIn(true);
     setErrorMsg("");
@@ -122,11 +129,11 @@ export function Login() {
 
   const roleTitle =
     selectedRole === "student"
-      ? "כניסת תלמיד — בחירה אנונימית"
+      ? "כניסת תלמיד"
       : selectedRole === "teacher"
-      ? "כניסת מורה — הזדהות מאובטחת"
+      ? "כניסת מורה"
       : selectedRole === "admin"
-      ? "כניסת מנהל — גישה מאובטחת"
+      ? "כניסת מנהל"
       : "";
 
   return (
@@ -139,13 +146,13 @@ export function Login() {
         <div className="w-full max-w-[540px] flex flex-col items-center gap-8 z-10">
           {/* Logo Area */}
           <motion.div
-            initial={{ opacity: 0, y: 12 }}
+            initial={{ opacity: 0, y: -16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.45 }}
-            className="flex items-center gap-4"
+            transition={{ duration: 0.4 }}
+            className="flex items-center gap-4 cursor-default select-none"
           >
-            <div className="w-16 h-16 rounded-3xl ws-brand flex items-center justify-center rotate-[-4deg] shadow-lg">
-              <span className="text-[2.2rem] font-black leading-none font-display">מ</span>
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[hsl(var(--ws-blue))] to-[hsl(var(--ws-gold))] flex items-center justify-center text-white shadow-xl shadow-[hsl(var(--ws-blue)/0.2)] text-2xl font-black">
+              M
             </div>
             <div className="text-right">
               <h1 className="font-display font-black text-3xl text-ws-ink tracking-tight leading-tight">מתמטיקאור &copy;</h1>
@@ -179,6 +186,8 @@ export function Login() {
                         key={role.id}
                         onClick={() => {
                           setSelectedRole(role.id);
+                          setSelectedStudentNum(null);
+                          setStudentPassword("");
                           setErrorMsg("");
                         }}
                         className="flex-1 flex flex-col items-center gap-2 p-5 sm:p-4 bg-ws-bg/50 border-2 border-ws-surface2 rounded-2xl text-ws-ink font-display font-bold transition-all hover:border-[hsl(var(--ws-blue)/0.5)] hover:bg-[hsl(var(--ws-blue-soft)/0.5)] hover:-translate-y-1 hover:shadow-lg active:scale-[0.98]"
@@ -204,6 +213,8 @@ export function Login() {
                     type="button"
                     onClick={() => {
                       setSelectedRole(null);
+                      setSelectedStudentNum(null);
+                      setStudentPassword("");
                       setErrorMsg("");
                     }}
                     className="text-sm font-display font-bold text-ws-soft px-2 py-1 rounded-lg transition-colors hover:text-[hsl(var(--ws-blue))] hover:bg-[hsl(var(--ws-blue-soft))] mb-3 -mr-2 flex items-center gap-1"
@@ -211,7 +222,7 @@ export function Login() {
                     ➔ חזרה
                   </button>
 
-                  <h2 className="font-display font-extrabold text-xl text-ws-ink mb-3">{roleTitle}</h2>
+                  <h2 className="font-display font-extrabold text-xl text-ws-ink mb-4">{roleTitle}</h2>
 
                   {errorMsg && (
                     <div
@@ -222,38 +233,66 @@ export function Login() {
                     </div>
                   )}
 
-                  {/* Student 12-Slot Anonymous Grid (PRD v3.0 Module 1) */}
+                  {/* Student 12-Slot Anonymous Grid + Strict Password Input (PRD v3.1 Module 1) */}
                   {selectedRole === "student" && (
-                    <div>
-                      <p className="mb-5 text-sm leading-relaxed rounded-2xl p-3.5 pr-4 border-r-4 text-ws-ink/80 font-medium bg-[hsl(var(--ws-blue-soft)/0.55)] border-[hsl(var(--ws-blue)/0.55)] shadow-sm">
-                        בחר את מספר המושב האישי שלך כדי להיכנס לסביבת התרגול ללא שמירת פרטים מזהים.
-                      </p>
-
-                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 max-w-[440px] mx-auto justify-items-center">
-                        {Array.from({ length: 12 }, (_, i) => i + 1).map((num) => (
-                          <button
-                            key={num}
-                            onClick={() => handleStudentSelect(num)}
-                            disabled={isLoggingIn}
-                            className="w-[100px] h-[100px] flex flex-col items-center justify-center gap-1 rounded-2xl border-2 border-ws-surface2 bg-ws-bg hover:border-[hsl(var(--ws-blue))] hover:bg-[hsl(var(--ws-blue-soft))] transition-all active:scale-95 shadow-sm group"
-                          >
-                            <span className="text-2xl font-black text-ws-ink group-hover:text-[hsl(var(--ws-blue))]">
-                              {num}
-                            </span>
-                            <span className="text-xs font-bold text-ws-soft">תלמיד</span>
-                          </button>
-                        ))}
+                    <form onSubmit={handleStudentLogin} className="flex flex-col gap-5">
+                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5 max-w-[440px] mx-auto justify-items-center">
+                        {Array.from({ length: 12 }, (_, i) => i + 1).map((num) => {
+                          const isSelected = selectedStudentNum === num;
+                          return (
+                            <button
+                              type="button"
+                              key={num}
+                              onClick={() => {
+                                tts.initializeAudioGate();
+                                setSelectedStudentNum(num);
+                                setErrorMsg("");
+                              }}
+                              disabled={isLoggingIn}
+                              className={`w-[90px] h-[90px] flex flex-col items-center justify-center gap-1 rounded-2xl border-2 transition-all active:scale-95 shadow-sm group ${
+                                isSelected
+                                  ? "border-[hsl(var(--ws-blue))] bg-[hsl(var(--ws-blue-soft))] ring-2 ring-[hsl(var(--ws-blue)/0.4)]"
+                                  : "border-ws-surface2 bg-ws-bg hover:border-[hsl(var(--ws-blue)/0.5)] hover:bg-[hsl(var(--ws-blue-soft)/0.5)]"
+                              }`}
+                            >
+                              <span className={`text-2xl font-black ${isSelected ? "text-[hsl(var(--ws-blue))]" : "text-ws-ink group-hover:text-[hsl(var(--ws-blue))]"}`}>
+                                {num}
+                              </span>
+                              <span className="text-xs font-bold text-ws-soft">תלמיד</span>
+                            </button>
+                          );
+                        })}
                       </div>
-                    </div>
+
+                      {/* Pupil Password Input (No placeholders or hint descriptions per PRD v3.1) */}
+                      <div className="mt-2 flex flex-col gap-3">
+                        <input
+                          type="password"
+                          value={studentPassword}
+                          onChange={(e) => {
+                            setStudentPassword(e.target.value);
+                            setErrorMsg("");
+                          }}
+                          className="w-full bg-slate-50 dark:bg-slate-950 border-2 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-2xl p-4 text-center text-lg font-bold tracking-widest focus:border-[hsl(var(--ws-blue))] outline-none transition-all shadow-inner"
+                          autoComplete="off"
+                        />
+
+                        <Button
+                          type="submit"
+                          variant="udl"
+                          size="lg"
+                          disabled={isLoggingIn || !selectedStudentNum}
+                          className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl font-extrabold text-base transition-all shadow-md active:scale-95 bg-[hsl(var(--ws-blue))] text-white hover:brightness-105 disabled:opacity-50"
+                        >
+                          <span>{isLoggingIn ? "מאמת..." : "כניסה"}</span>
+                        </Button>
+                      </div>
+                    </form>
                   )}
 
-                  {/* Teacher & Admin Pure Google SSO Flow (PRD v3.0 Module 1 & 2) */}
+                  {/* Teacher & Admin Pure Google SSO Flow (PRD v3.1 Module 1 & 2 - No password inputs, placeholders or hints) */}
                   {(selectedRole === "teacher" || selectedRole === "admin") && (
                     <div className="flex flex-col gap-5">
-                      <p className="text-sm leading-relaxed rounded-2xl p-4 border-r-4 text-ws-ink/80 font-medium bg-[hsl(var(--ws-blue-soft)/0.55)] border-[hsl(var(--ws-blue)/0.55)] shadow-sm">
-                        הכניסה למרחב {selectedRole === "teacher" ? "המורה" : "הניהול"} מתבצעת באופן מאובטח באמצעות חשבון Google SSO מורשה של משרד החינוך.
-                      </p>
-
                       <Button
                         type="button"
                         variant="udl"
@@ -298,36 +337,22 @@ export function Login() {
       <aside className="hidden lg:flex flex-1 relative bg-gradient-to-br from-indigo-50/50 to-blue-50/30 dark:from-ws-bg dark:to-ws-surface2 items-center justify-center overflow-hidden border-r border-ws-surface2">
         <div
           aria-hidden="true"
-          className="absolute inset-0 pointer-events-none animate-breathe mix-blend-multiply dark:mix-blend-screen opacity-70 dark:opacity-40"
-        >
-          <div className="absolute -top-32 -left-32 w-[600px] h-[600px] rounded-full bg-indigo-500/20 blur-[100px]" />
-          <div className="absolute top-[30%] -right-20 w-[500px] h-[500px] rounded-full bg-teal-500/20 blur-[80px]" />
-          <div className="absolute -bottom-40 left-20 w-[450px] h-[450px] rounded-full bg-rose-500/15 blur-[90px]" />
-        </div>
-
-        <div className="relative z-10 flex flex-col items-center text-center max-w-md px-8">
-          <motion.div
-            initial={{ scale: 0.8, opacity: 0, rotate: -10 }}
-            animate={{ scale: 1, opacity: 1, rotate: 0 }}
-            transition={{ type: "spring", duration: 1.5, bounce: 0.4 }}
-            className="w-32 h-32 mx-auto bg-white/80 dark:bg-ws-surface/80 rounded-[2.5rem] shadow-2xl mb-10 flex items-center justify-center rotate-3 border-4 border-white dark:border-ws-surface2 backdrop-blur-md"
-          >
-            <span className="text-7xl drop-shadow-md">🚀</span>
-          </motion.div>
-
-          <motion.div
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.3, duration: 0.6 }}
-          >
-            <h2 className="text-4xl font-display font-black text-ws-ink mb-5 leading-tight">
-              מתמטיקה, <br />
-              בקצב שלך.
-            </h2>
-            <p className="text-ws-soft text-lg font-medium leading-relaxed max-w-sm mx-auto">
-              סביבת הלמידה שמזהה איך אתה חושב, ומתאימה את עצמה בדיוק אליך.
+          className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05] pointer-events-none"
+          style={{
+            backgroundImage: "radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)",
+            backgroundSize: "28px 28px",
+          }}
+        />
+        <div className="max-w-md p-8 text-right flex flex-col gap-6 select-none relative z-10">
+          <div className="w-16 h-16 rounded-3xl bg-[hsl(var(--ws-blue-soft))] flex items-center justify-center text-3xl text-[hsl(var(--ws-blue))] shadow-inner">
+            📐
+          </div>
+          <div>
+            <h3 className="font-display font-extrabold text-2xl text-ws-ink mb-2">מרחב למידה מתמטי אינטראקטיבי</h3>
+            <p className="text-sm text-ws-soft leading-relaxed">
+              פלטפורמה המשלבת המחשה וקטורית, פידבק בזמן אמת והתאמה אישית של רצף התרגול להוראה דיפרנציאלית מדויקת.
             </p>
-          </motion.div>
+          </div>
         </div>
       </aside>
     </div>

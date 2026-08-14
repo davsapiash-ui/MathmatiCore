@@ -1,8 +1,7 @@
-# מסמך דרישות מוצר מפורט (Master PRD v3.0)
+# מסמך דרישות מוצר מפורט (Master PRD v3.1)
 ## פלטפורמת הלמידה ההיברידית "מתמטיקאור" (MathematiCOre)
-**מספר גרסה:** Version 3.0  
+**מספר גרסה:** Version 3.1  
 **תאריך עדכון:** August 14, 2026  
-**שעת עדכון:** 05:12 UTC  
 **סטטוס:** Approved for Development  
 
 ---
@@ -10,16 +9,8 @@
 ## חלק א: שער הכניסה, בקרת הרשאות וניהול זהויות
 
 ### 1. מודול כניסה והזדהות (Login Module Spec)
-1. **מטרת המודול הפדגוגית והטכנולוגית**: יצירת שער כניסה מאובטח השומר על פרטיות מוחלטת של הלומד ומבטיח תחילת עבודה ללא חסמים רגשיים.
-2. **רכיבי ממשק המשתמש והעיצוב החזותי**: מסך כניסה בעל רקע נקי הכולל כפתור מורים במיקום 400 על 300 פיקסלים וכפתור תלמידים במיקום 400 על 500 פיקסלים וגריד בחירה אנונימי המציג 12 משבצות בגודל 100 על 100 פיקסלים.
-3. **לוגיקת אינטראקציה ומכונת המצבים**: המערכת פועלת במצב Idle עד לזיהוי קליק ואז עוברת למצב Auth Redirect עבור מורים או מצב Grid Selection עבור תלמידים.
-4. **תרחישי קצה וטיפול בשגיאות ממשק**: במקרה של ניתוק רשת בעת בקשת אימות המערכת תציג חיווי ניסיון חוזר שקט ובמקרה של לחיצה כפולה מהירה המערכת תתעלם מהקלט השני ובמקרה של קלט לא תקין המערכת תבצע איפוס.
-5. **דרישות מרווחים נגישות וביצועים**: זמן תגובה לאימות חייב להיות פחות מ 200ms וכל שטחי ההקלקה יוגדרו בגודל של לפחות 48 פיקסלים.
-6. **מבנה נתונים ושדות בסיס הנתונים**: שמירת student ID מסוג Integer בטווח של אחד עד 12 בלבד.
-7. **לוגיקת שחזור וריענון דפדפן**: המערכת תשמור את מזהה התלמיד ב Local Storage ותבצע בדיקת תקינות מול השרת בכל רענון דף.
-8. **מניעת לולאות עדכון בזמן אמת**: המערכת תשתמש במנגנון Throttle על כפתורי הבחירה כדי למנוע שליחת בקשות מרובות לבסיס הנתונים בטווח זמן של 500ms.
-9. **Strict Bilingual Developer Instructions**: Implement Single Sign On using OAuth2 for teachers. Do not store passwords locally. Create an anonymous grid for students where each slot maps to an integer ID. Ensure the audio context initializes only after the user interaction click. Validate all inputs against the numeric range restriction before processing.
-10. **תרחיש בדיקה קוגניטיבי מפורט**: המשתמש מגיע למסך ומבין מיד האם עליו לבחור בנתיב המורה או בנתיב התלמיד מבלי ללחוץ על אלמנטים שגויים.
+מטרת המודול היא יצירת שער כניסה מאובטח ונוקשה ללא פשרות. ממשק המורה מוגדר לשימוש ב-Google SSO בלבד מול רשימה לבנה של כתובות מאושרות ללא הצגת שדות סיסמה ידניים או סיסמאות ברירת מחדל או רמזים או טקסטים מדריכים בתיבות הקלט. ממשק התלמיד מחייב הזנת סיסמה קשיחה הזהה ל-10203040 ללא כל יוצא מן הכלל וללא הצגת רמזים או טקסטים מקדימים בתיבת הקלט. מערכת אימות המורה והתלמיד תפעל ללא חשיפת רכיבי ממשק מיותרים.
+**Developer Instruction:** Teachers login must rely exclusively on Google SSO with a predefined restricted list of permitted emails. Do not render any password input fields or placeholder texts or hints in teacher login view. Students login requires a password input field restricted strictly to the hardcoded value 10203040 with absolutely no placeholder texts or hint descriptions displayed to the pupil.
 
 ---
 
@@ -27,11 +18,11 @@
 1. **מטרת המודול הפדגוגית והטכנולוגית**: מניעת גישה לא מורשית לממשקים שאינם רלוונטיים לתפקיד המשתמש תוך הבטחת עבודה בנתיב מוגדר.
 2. **רכיבי ממשק המשתמש והעיצוב החזותי**: חלונית בחירה מרכזית בגודל 600 על 400 פיקסלים ושני כפתורי פעולה בולטים בצבעי כחול ולבן המציגים מורה ומנהל.
 3. **לוגיקת אינטראקציה ומכונת המצבים**: המערכת מזהה טוקן JWT ובמקרה של הרשאה כפולה עוברת למצב Role Selection ולאחר בחירה מעדכנת את הסטור הגלובלי ועוברת למצב Route Locked.
-4. **תרחישי קצה וטיפול בשגיאות ממשק**: במקרה של ניסיון מעקף כתובת ה URL המערכת תחסום גישה ובמקרה של פקיעת טוקן המערכת תבצע ריענון ובמקרה של בחירה לא חוקית המערכת תנעל.
+4. **תרחישי קצה וטיפול בשגיאות ממשק**: במקרה של ניסיון מעקף כתובת ה-URL המערכת תחסום גישה ובמקרה של פקיעת טוקן המערכת תבצע ריענון ובמקרה של בחירה לא חוקית המערכת תנעל.
 5. **דרישות מרווחים נגישות וביצועים**: מעבר בין תפקידים חייב להתבצע בתוך 100ms.
-6. **מבנה נתונים ושדות בסיס הנתונים**: שדה role מסוג String בתוך ה JWT.
+6. **מבנה נתונים ושדות בסיס הנתונים**: שדה role מסוג String בתוך ה-JWT.
 7. **לוגיקת שחזור וריענון דפדפן**: המערכת תשמור את התפקיד שנבחר בזיכרון המקומי ותטען אותו מחדש אוטומטית לאחר כל רענון.
-8. **מניעת לולאות עדכון בזמן אמת**: ביצוע ה Role Check יתבצע פעם אחת בלבד בעת טעינת האפליקציה.
+8. **מניעת לולאות עדכון בזמן אמת**: ביצוע ה-Role Check יתבצע פעם אחת בלבד בעת טעינת האפליקציה.
 9. **Strict Bilingual Developer Instructions**: Guard routes using react router guards. If a user token contains dual claims present a blocking selection screen. Save the chosen role in the global store and lock down all unauthorized API endpoints immediately. Use declarative state management to handle role transitions.
 10. **תרחיש בדיקה קוגניטיבי מפורט**: האם המשתמש יודע מהו התפקיד שנבחר וכיצד לשנות אותו במידת הצורך בתוך דשבורד המשתמש.
 
@@ -193,7 +184,7 @@
 7. **לוגיקת שחזור וריענון דפדפן**: שימוש ב Cache מקומי לרמזים חוזרים.
 8. **מניעת לולאות עדכון בזמן אמת**: מניעת קריאות מרובות לאותה שאלה.
 9. **Strict Bilingual Developer Instructions**: Enforce response format verification inside Socratic Cloud Function. If API fails, fallback to predefined static pedagogical hints database array to guarantee zero interface disruptions. Encrypt API keys in server environment variables.
-10. **תרחיש בדיקה קוגניטיבי מפורט**: האם ה API מחזיר את המבנה הנכון בזמן סביר.
+10. **תרחיש בדיקה קוגניטיבי מפורט**: האם ה-API מחזיר את המבנה הנכון בזמן סביר.
 
 ---
 
