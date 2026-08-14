@@ -7,7 +7,9 @@ import { useWorkspaceStore } from '@/application/useWorkspaceStore';
  * רקע משבצות שהספרות יושבות בתוך המשבצות שלו (יישור מושלם: רוחב עמודה = משבצת),
  * בלי מסגרות סביב ספרות. סימן משמאל לשורה התחתונה, קו תוצאה עבה,
  * ותיבות התשובה באותן משבצות בדיוק — יחידות מתחת ליחידות.
- * Two-gate validation happens in the store's proceed(); this renders the exercise + inputs.
+ * 
+ * [Developer Instruction: Implement conditional column keyboard locking in worksheet addition steps 
+ * during dynamic exchange operations, while keeping memory circles active for working memory relief.]
  */
 
 const PLACE_LABEL_HE: Record<Place, string> = {
@@ -43,6 +45,8 @@ export function VerticalAdditionTask({
   const setFocusedPlace = useWorkspaceStore((s) => s.setFocusedPlace);
   const keyboardState = useWorkspaceStore((s) => s.keyboardState);
   const setKeyboardSocratic = useWorkspaceStore((s) => s.setKeyboardSocratic);
+  const hasGrouped = useWorkspaceStore((s) => s.hasGrouped);
+  const hasUngrouped = useWorkspaceStore((s) => s.hasUngrouped);
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
 
   const [shake, setShake] = useState(false);
@@ -60,27 +64,23 @@ export function VerticalAdditionTask({
       timer = window.setTimeout(() => {
         setKeyboardSocratic();
         useWorkspaceStore.getState().openAdditionHelper();
-      }, 30000);
+      }, 45000); // 45s cognitive hesitation trigger per PRD v3.3
     }
     return () => clearTimeout(timer);
   }, [keyboardState, setKeyboardSocratic]);
 
   const handleLockedInteraction = () => {
-    if (keyboardState === 'LOCKED') {
-      setShake(true);
-      setTimeout(() => setShake(false), 400);
-      setLockedClicks((prev) => {
-        const next = prev + 1;
-        if (next >= 3) {
-          setKeyboardSocratic();
-          useWorkspaceStore.getState().openAdditionHelper();
-        }
-        return next;
-      });
-    }
+    setShake(true);
+    setTimeout(() => setShake(false), 400);
+    setLockedClicks((prev) => {
+      const next = prev + 1;
+      if (next >= 3) {
+        setKeyboardSocratic();
+        useWorkspaceStore.getState().openAdditionHelper();
+      }
+      return next;
+    });
   };
-
-  const isInputDisabled = keyboardState !== 'UNLOCKED';
 
   const aStr = String(numberA);
   const bStr = String(numberB);
@@ -100,6 +100,42 @@ export function VerticalAdditionTask({
   const digitsA = padDigits(aStr);
   const digitsB = padDigits(bStr);
   const firstAnswerCol = cols - answerLength;
+
+  /**
+   * Helper to check if a specific column requires mathematical exchange:
+   * Addition: sum of digits + carry >= 10
+   * Subtraction: digitA < digitB (requires borrowing/regrouping)
+   */
+  const checkColumnRequiresExchange = (place: Place, colIdx: number): boolean => {
+    const da = parseInt(digitsA[colIdx] || '0', 10);
+    const db = parseInt(digitsB[colIdx] || '0', 10);
+    const carry = parseInt(carryDigits[place] || '0', 10);
+
+    if (isSubtraction) {
+      return da < db;
+    }
+    return da + db + carry >= 10;
+  };
+
+  /**
+   * Evaluates if input for a specific column should be locked:
+   * Locks if global keyboard is LOCKED, or if column requires exchange and conversion hasn't happened.
+   */
+  const isColumnInputLocked = (place: Place, colIdx: number): boolean => {
+    if (keyboardState === 'LOCKED') return true;
+    if (keyboardState === 'SOCRATIC_ONLY') return true;
+
+    // Check dynamic exchange constraint per PRD v3.3 Module 9
+    const requiresExchange = checkColumnRequiresExchange(place, colIdx);
+    if (requiresExchange) {
+      const conversionDone = isSubtraction ? hasUngrouped : hasGrouped;
+      if (!conversionDone && !carryDigits[place]) {
+        return true;
+      }
+    }
+
+    return false;
+  };
 
   const digitCell = (d: string | null, key: string, place?: Place, extra?: React.CSSProperties) => {
     const isStriked = isSubtraction && place && carryDigits[place];
@@ -134,8 +170,7 @@ export function VerticalAdditionTask({
           <span>🤔</span> חושבים יחד...
         </div>
       )}
-      {/* Notebook paper: background squares EXACTLY the size of a grid column,
-          so every digit sits inside a real square — like a math notebook. */}
+      {/* Notebook paper: background squares EXACTLY the size of a grid column */}
       <div
         dir="ltr"
         role="group"
@@ -144,15 +179,15 @@ export function VerticalAdditionTask({
         style={{
           gridTemplateColumns: `${CELL}px repeat(${cols}, ${CELL}px)`,
           gridTemplateRows: `${CELL}px ${CELL}px ${CELL}px ${CELL}px`,
-          padding: `${CELL * 0.75}px ${CELL}px`, // 0.75 top/bottom, 1 full square left/right
+          padding: `${CELL * 0.75}px ${CELL}px`,
           backgroundColor: 'var(--ws-surface)',
           backgroundImage:
             'linear-gradient(rgba(96,130,190,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(96,130,190,0.15) 1px, transparent 1px)',
           backgroundSize: `${CELL}px ${CELL}px`,
-          backgroundPosition: `0 ${CELL * 0.75}px`, // Shift vertical pattern to align with top padding
-          }}
+          backgroundPosition: `0 ${CELL * 0.75}px`,
+        }}
       >
-        {/* Row 0 — Carry/Borrow inputs */}
+        {/* Row 0 — Carry/Borrow inputs (Memory circles ALWAYS active for working memory relief) */}
         <div aria-hidden="true" />
         {colPlaces.map((place, j) => {
           return (
@@ -164,7 +199,7 @@ export function VerticalAdditionTask({
                 value={carryDigits[place] ?? ''}
                 readOnly={false}
                 aria-label={`חלונית המרה ל${PLACE_LABEL_HE[place]}`}
-                className="rounded-md border-2 border-ws-surface2 text-center font-mono font-bold bg-ws-surface text-ws-ink transition-shadow focus:outline-none focus:ring-2 focus:ring-ws-accent"
+                className="rounded-full border-2 border-ws-surface2 text-center font-mono font-bold bg-ws-surface text-ws-ink transition-shadow focus:outline-none focus:ring-2 focus:ring-ws-accent shadow-sm"
                 style={{ width: CELL * 0.6, height: CELL * 0.6, fontSize: CELL * 0.35 }}
                 onChange={(e) => {
                   const v = e.target.value.replace(/[^0-9]/g, '').slice(-2);
@@ -258,6 +293,8 @@ export function VerticalAdditionTask({
         {colPlaces.map((place, j) => {
           if (j < firstAnswerCol) return <div key={`e${j}`} aria-hidden="true" />;
           const ansIdx = j - firstAnswerCol;
+          const isLocked = isColumnInputLocked(place, j);
+
           return (
             <div key={`ans${j}`} className="flex items-center justify-center">
               <input
@@ -268,11 +305,11 @@ export function VerticalAdditionTask({
                 inputMode="numeric"
                 maxLength={1}
                 value={answerDigits[place] ?? ''}
-                readOnly={isInputDisabled}
-                onClick={isInputDisabled ? handleLockedInteraction : undefined}
+                readOnly={isLocked}
+                onClick={isLocked ? handleLockedInteraction : undefined}
                 aria-label={`ספרת ה${PLACE_LABEL_HE[place]} בתשובה`}
                 className={`rounded-lg border-2 text-center font-mono font-black bg-ws-surface text-ws-ink transition-all ${
-                  isInputDisabled ? 'opacity-60 cursor-not-allowed bg-gray-50' : 'focus:outline-none focus:ring-2 focus:ring-ws-accent'
+                  isLocked ? 'opacity-60 cursor-not-allowed bg-gray-50' : 'focus:outline-none focus:ring-2 focus:ring-ws-accent'
                 }`}
                 style={{ width: CELL - 12, height: CELL - 12, fontSize: CELL * 0.48, borderColor: PLACE_TINT[place], ...shakeStyle }}
                 onFocus={() => setFocusedPlace(place)}
@@ -306,8 +343,6 @@ export function VerticalAdditionTask({
           )
         )}
       </div>
-
-
     </div>
   );
 }

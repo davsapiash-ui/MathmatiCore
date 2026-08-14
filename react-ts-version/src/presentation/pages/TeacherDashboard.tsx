@@ -1052,7 +1052,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                 לוח בקרה כיתתי ומפת חום בזמן אמת
               </h1>
               <p className="text-ws-soft mt-2 text-lg">
-                ניטור 35 תלמידים אנונימיים, רדאר פדגוגי בזמן אמת ותיווך פיזי ישיר.
+                ניטור 12 תלמידים אנונימיים, רדאר פדגוגי שקט (Silent Radar) ותמיכת VRA דיגיטלית.
               </p>
             </header>
             <HeatmapGrid

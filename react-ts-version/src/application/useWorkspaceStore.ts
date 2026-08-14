@@ -101,6 +101,7 @@ interface WorkspaceState {
   hasInteracted: boolean;
   hasDeletedBlock: boolean;
   blocksAddedCount: number; // Added to enforce the 5 block rule in Sandbox
+  consecutiveDeletions: number; // 3 consecutive deletions triggers Socratic card per PRD v3.3 Module 12
   hasUngrouped: boolean;
   hasGrouped: boolean;
   selectedChoiceId: string | null;
@@ -179,6 +180,7 @@ function resetTaskInteraction(isASD = false) {
     q3Reps: [] as PlaceCounts[],
     focusedPlace: null as Place | null,
     undoCount: 0,
+    consecutiveDeletions: 0,
     hesitationCount: 0,
     undoTimestamps: [],
     isBoardLocked: false,
@@ -861,6 +863,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     taskStartTime: Date.now(),
     hasDeletedBlock: false,
     blocksAddedCount: 0,
+    consecutiveDeletions: 0,
     hasUngrouped: false,
     hasGrouped: false,
     selectedChoiceId: null,
@@ -990,12 +993,21 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const isFromStore = input.source === 'palette';
       const addedCount = isFromStore ? (s.blocksAddedCount + 1) : s.blocksAddedCount;
 
+        const nextDeletions = isDelete ? (s.consecutiveDeletions + 1) : 0;
+        if (nextDeletions >= 3) {
+          setTimeout(() => {
+            get().fetchSocraticHint();
+            set({ helpState: 'socratic' });
+          }, 0);
+        }
+
         return { 
           counts: result.counts,
           undoStack: stack,
           hasInteracted: true,
           blocksAddedCount: addedCount,
           undoCount: isDelete ? s.undoCount + 1 : s.undoCount,
+          consecutiveDeletions: nextDeletions,
           undoTimestamps: [],
           ...(isDelete ? { hasDeletedBlock: true } : {}),
           ...(isUngroup ? { hasUngrouped: true } : {}),
@@ -1027,11 +1039,20 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           });
         }
 
+        const nextDeletions = state.consecutiveDeletions + 1;
+        if (nextDeletions >= 3) {
+          setTimeout(() => {
+            get().fetchSocraticHint();
+            set({ helpState: 'socratic' });
+          }, 0);
+        }
+
         return { 
           counts: next, 
           hasInteracted: true, 
           hasDeletedBlock: true, 
-          undoCount: state.undoCount + 1
+          undoCount: state.undoCount + 1,
+          consecutiveDeletions: nextDeletions
         };
       });
     },

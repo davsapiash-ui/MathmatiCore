@@ -202,8 +202,8 @@ function SocraticPenaltyLockOptions({ onClose }: { onClose: () => void }) {
     setSelectedOpt(opt.id);
     setFeedbackHint(opt.hint);
     if (!opt.correct) {
-      // PRD v2.0 Section 3.4: 30-second penalty lock on wrong distractor
-      setLockSeconds(30);
+      // PRD v3.3 Module 12: 60-second penalty lock on wrong distractor
+      setLockSeconds(60);
     }
   };
 

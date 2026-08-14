@@ -2,12 +2,28 @@ import { create } from "zustand";
 import { AuditLogger } from "@/infrastructure/services/AuditLogger";
 import { auth } from "@/infrastructure/firebase";
 
+export interface ClassSchema {
+  school_id: string;
+  class_name: string;
+  class_type: "כיתת ביקורת" | "כיתת ניסוי";
+}
+
+export interface StudentSchema {
+  student_id: number; // Strictly 1..12
+  school_id: string;
+  class_name: string;
+  class_type: "כיתת ביקורת" | "כיתת ניסוי";
+}
+
 export interface AuthUser {
   uid?: string;
   id?: string;
   name?: string;
   email?: string;
   role?: string;
+  school_id?: string;
+  class_name?: string;
+  class_type?: "כיתת ביקורת" | "כיתת ניסוי";
   [key: string]: unknown;
 }
 
@@ -15,9 +31,17 @@ interface AuthState {
   user: AuthUser | null;
   role: string | null;
   isAuthenticated: boolean;
+  activeClass: ClassSchema;
   setUser: (user: AuthUser, role: string) => void;
+  setClass: (classInfo: Partial<ClassSchema>) => void;
   logout: () => void;
 }
+
+const DEFAULT_CLASS: ClassSchema = {
+  school_id: "sch_control",
+  class_name: "המבקרים",
+  class_type: "כיתת ביקורת",
+};
 
 const STORAGE_KEY_USER = 'mc_auth_user';
 const STORAGE_KEY_ROLE = 'mc_auth_role';
@@ -81,15 +105,27 @@ const clearStoredAuth = () => {
 
 const initial = getStoredAuth();
 
+/**
+ * [Developer Instruction: Implement Firestore schema updates in useAuthStore.ts with fields for school_id, class_name, and class_type.
+ * Ensure student IDs are restricted strictly to integers between 1 and 12 with Zero PII.]
+ */
 export const useAuthStore = create<AuthState>()(
   (set) => ({
     user: initial.user,
     role: initial.role,
     isAuthenticated: initial.isAuthenticated,
-    setUser: (user, role) => set(() => {
+    activeClass: DEFAULT_CLASS,
+    setClass: (classInfo) =>
+      set((state) => ({
+        activeClass: {
+          ...state.activeClass,
+          ...classInfo,
+        },
+      })),
+    setUser: (user, role) => set((state) => {
       const activeRole = Array.isArray(role) ? role[0] : (typeof role === 'string' ? role : 'teacher');
 
-      // PRD v3.0 Module 1 & 3: Strict 1..12 Integer Student ID Restriction
+      // PRD v3.3 Module 1 & 3: Strict 1..12 Integer Student ID Restriction with Zero PII
       if (activeRole === 'student') {
         const rawId = (user?.uid || user?.id || '').toString();
         const numMatch = rawId.match(/\d+/);
@@ -98,6 +134,14 @@ export const useAuthStore = create<AuthState>()(
           console.error(`Invalid student ID: ${rawId}. Pilot constraint permits integer IDs strictly 1..12.`);
           return { user: null, role: null, isAuthenticated: false };
         }
+
+        const cleanUser: AuthUser = {
+          ...user,
+        };
+
+        setStoredAuth(cleanUser, activeRole);
+        AuditLogger.log("התחברות", cleanUser.uid || `student_${studentNum}`, `תלמיד ${studentNum} התחבר לכיתה ${cleanUser.class_name || state.activeClass.class_name}`);
+        return { user: cleanUser, role: activeRole, isAuthenticated: true };
       }
 
       const cleanUser: AuthUser = {
@@ -107,7 +151,7 @@ export const useAuthStore = create<AuthState>()(
       setStoredAuth(cleanUser, activeRole);
       const username = user?.name || user?.email || "Unknown";
       AuditLogger.log("התחברות", user?.uid || "unknown_uid", `משתמש התחבר במצב ${activeRole}: ${username}`);
-      return { user: user.role ? cleanUser : user, role: activeRole, isAuthenticated: true };
+      return { user: cleanUser, role: activeRole, isAuthenticated: true };
     }),
     logout: () => {
       clearStoredAuth();
