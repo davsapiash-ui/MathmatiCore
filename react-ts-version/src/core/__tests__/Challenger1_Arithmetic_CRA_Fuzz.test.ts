@@ -364,7 +364,7 @@ describe('Challenger 1 — Adversarial Stress & Fuzz Suite: Arithmetic & VRA Eng
       const boardVal = getValue(s.counts);
       const target = 42;
 
-      const isBoardEmpty = boardVal === 0 && target !== 0;
+      const isBoardEmpty = boardVal === 0 && Number(target) !== 0;
       expect(isBoardEmpty).toBe(true);
     });
 
