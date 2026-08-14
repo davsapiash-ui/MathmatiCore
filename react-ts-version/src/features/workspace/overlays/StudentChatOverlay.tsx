@@ -151,24 +151,27 @@ export function StudentChatOverlay() {
         {myMessages.length === 0 ? (
           <p className="text-center text-ws-soft text-sm mt-10">אין הודעות. כתבו למורה כדי להתחיל.</p>
         ) : (
-          myMessages.map(m => (
-            <div key={m.id} className={`flex flex-col max-w-[80%] ${m.senderId === user.uid ? 'self-end items-end' : 'self-start items-start'}`}>
-              <div className={`p-3 rounded-2xl ${m.senderId === user.uid ? 'bg-ws-accent text-white rounded-tr-sm' : 'bg-ws-surface2 text-ws-ink rounded-tl-sm'}`}>
-                {m.text && <span>{m.text}</span>}
-              {m.imageUrl && (
-                <img
-                  src={m.imageUrl}
-                  alt="תמונה"
-                  className="max-w-[200px] max-h-[200px] rounded-xl mt-1 object-cover cursor-pointer"
-                  onClick={() => window.open(m.imageUrl, '_blank')}
-                />
-              )}
+          myMessages.map(m => {
+            const isMe = normalizeStudentId(m.senderId) === normUid;
+            return (
+              <div key={m.id} className={`flex flex-col max-w-[80%] ${isMe ? 'self-end items-end' : 'self-start items-start'}`}>
+                <div className={`p-3 rounded-2xl ${isMe ? 'bg-ws-accent text-white rounded-tr-sm' : 'bg-ws-surface2 text-ws-ink rounded-tl-sm'}`}>
+                  {m.text && <span className="leading-relaxed">{m.text}</span>}
+                  {m.imageUrl && (
+                    <img
+                      src={m.imageUrl}
+                      alt="תמונה"
+                      className="max-w-[200px] max-h-[200px] rounded-xl mt-1 object-cover cursor-pointer"
+                      onClick={() => window.open(m.imageUrl, '_blank')}
+                    />
+                  )}
+                </div>
+                <span className="text-xs text-ws-soft mt-1">
+                  {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
               </div>
-              <span className="text-xs text-ws-soft mt-1">
-                {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </span>
-            </div>
-          ))
+            );
+          })
         )}
         <div ref={messagesEndRef} />
       </div>

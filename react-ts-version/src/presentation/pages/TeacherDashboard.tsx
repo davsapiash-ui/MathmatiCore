@@ -377,24 +377,24 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
         // 2. Override with live cloud data
         Object.keys(data).forEach((uid) => {
           const row = data[uid] ?? {};
-          
-          // Include all active students in the school/class
+          const normUid = normalizeStudentId(uid);
+          // Only map to normalized pilot IDs (student_user1..student_user12)
+          if (!normUid.startsWith('student_user')) return;
 
-          let cleanName = row.name ?? row.profile?.displayName ?? row.studentName ?? formattedStudents[uid]?.name ?? uid.replace('student_','');
-          if (cleanName === 'student' || cleanName.startsWith('user') || cleanName.toLowerCase().startsWith('student_')) {
-              const num = uid.replace(/[^0-9]/g, '');
-              cleanName = num ? `משתמש ${num}` : cleanName;
+          let cleanName = row.name ?? row.profile?.displayName ?? row.studentName ?? formattedStudents[normUid]?.name ?? normUid.replace('student_user', 'תלמיד ');
+          if (cleanName === 'student' || cleanName.startsWith('user') || cleanName.toLowerCase().startsWith('student_') || cleanName.startsWith('משתמש')) {
+            const num = normUid.replace(/[^0-9]/g, '');
+            cleanName = num ? `תלמיד ${num}` : cleanName;
           }
 
-          const existingLocal = formattedStudents[uid];
+          const existingLocal = formattedStudents[normUid];
 
-          formattedStudents[uid] = {
+          formattedStudents[normUid] = {
             ...(existingLocal || {}),
-
-            studentId: uid,
-
+            studentId: normUid,
             classId: row.classId ?? existingLocal?.classId ?? 'live',
             name: cleanName,
+            isOnline: row.isOnline === true,
             qMatrixResults: Object.assign(
               {},
               existingLocal?.qMatrixResults || {},
@@ -2133,7 +2133,8 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                       </div>
                     ) : (
                       studentMessages.map((msg) => {
-                        const isMe = msg.senderId === user?.uid;
+                        const targetId = normalizeStudentId(selectedStudentId);
+                        const isMe = normalizeStudentId(msg.senderId) !== targetId;
                         return (
                           <div
                             key={msg.id}

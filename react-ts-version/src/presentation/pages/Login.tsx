@@ -68,7 +68,7 @@ export function Login() {
     setErrorMsg("");
 
     try {
-      const studentId = `student_${selectedStudentNum}`;
+      const studentId = `student_user${selectedStudentNum}`;
       const className = CLASSES.find((c) => c.id === selectedClass)?.name || "המבקרים";
       const displayName = `תלמיד ${selectedStudentNum} (${className})`;
 
