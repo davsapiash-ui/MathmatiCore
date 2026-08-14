@@ -85,13 +85,13 @@ export function ClassManagement({
           <div className="flex items-center gap-3 bg-white/15 border border-white/25 backdrop-blur-md px-4 py-3 rounded-2xl">
             <div className="text-center">
               <span className="text-[11px] text-indigo-100 block font-semibold">תלמידים משוייכים</span>
-              <span className="text-xl font-black text-white">{allStudents.length} / 35</span>
+              <span className="text-xl font-black text-white">{Math.min(allStudents.length, 12)} / 12</span>
             </div>
           </div>
         </div>
       </header>
 
-      {/* PRD Section 7: Dual-Level Override Control Banner */}
+      {/* PRD v3.0 Module 19: Dual-Level Override Control Banner */}
       <div className="grid md:grid-cols-2 gap-6">
         {/* Zero PII Privacy Card */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-6 rounded-3xl flex gap-4 items-start shadow-lg shadow-slate-200/50 relative overflow-hidden">
@@ -103,7 +103,7 @@ export function ClassManagement({
               הנחיית פרטיות ואבטחת מידע (Zero PII Compliance)
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-              שמות התלמידים מיוצגים באופן אנונימי או במזהים פנימיים. שיוך השמות הממשיים מנוהל חיצונית בלבד על ידי המורה ומנהל המערכת.
+              שמות התלמידים מיוצגים באופן אנונימי במזהים 1 עד 12 בלבד. שיוך השמות הממשיים מנוהל חיצונית בלבד על ידי המורה ומנהל המערכת.
             </p>
           </div>
         </div>
@@ -113,18 +113,18 @@ export function ClassManagement({
           <div className="space-y-1 flex-1">
             <div className="inline-flex items-center gap-1.5 text-xs text-indigo-100 font-bold mb-1">
               <Zap className="w-3.5 h-3.5 text-amber-300" />
-              <span>עקיפה פיזית כיתתית (Strict CRA Bridge)</span>
+              <span>הפעלת פרופיל תמיכה קוגניטיבי מוגבר (VRA Bridge)</span>
             </div>
             <h3 className="font-bold text-white text-base">
-              אפיון כיתתי גורף (Class-Level Override)
+              אפיון כיתתי סמוי (Class-Level Support Profile)
             </h3>
             <p className="text-xs text-indigo-100 leading-relaxed">
-              הפעלת פרופיל תמיכה מוגבר ו-Strict CRA Bridge גורף לכלל תלמידי הכיתה (סעיף 7 באפיון).
+              הפעלת פרופיל תמיכה מוגבר וגשר VRA דיגיטלי סמוי לכלל תלמידי הכיתה ללא סימון חזותי בממשק התלמיד.
             </p>
             {appliedOverride && (
               <div className="text-xs font-bold text-emerald-300 flex items-center gap-1.5 mt-2 bg-emerald-500/25 border border-emerald-400/40 px-3 py-1 rounded-xl w-fit animate-bounce">
                 <Check className="w-4 h-4" />
-                <span>אפיון כיתתי גורף הוחל בהצלחה על כלל הכיתה!</span>
+                <span>פרופיל תמיכה קוגניטיבי מוגבר הוחל בהצלחה על כלל הכיתה!</span>
               </div>
             )}
           </div>
@@ -135,7 +135,7 @@ export function ClassManagement({
             disabled={isApplying}
             className="px-5 py-3 bg-white text-indigo-700 hover:bg-indigo-50 font-extrabold text-xs rounded-2xl shadow-lg shrink-0 transition-all active:scale-95 border border-white/50 disabled:opacity-50"
           >
-            {isApplying ? 'מחיל עקיפה גורפת...' : 'החל עקיפה גורפת'}
+            {isApplying ? 'מחיל פרופיל תמיכה...' : 'החל פרופיל תמיכה גורף'}
           </button>
         </div>
       </div>

@@ -38,12 +38,12 @@ export interface LiveFeedItem {
   severity: 'info' | 'warning' | 'alert';
 }
 
-const INITIAL_MOCK_STUDENTS: AnonymousStudent[] = Array.from({ length: 35 }, (_, index) => {
+const INITIAL_MOCK_STUDENTS: AnonymousStudent[] = Array.from({ length: 12 }, (_, index) => {
   const studentNum = index + 1;
   return {
     id: `slot_${studentNum}`,
-    displayName: `מושב ${studentNum}`,
-    sessionNumber: 0,
+    displayName: `תלמיד ${studentNum}`,
+    sessionNumber: 1,
     currentPath: 'ירוק',
     status: 'active' as const,
     hesitationSeconds: 0,
@@ -70,7 +70,7 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
   // Filter state for Heatmap
   const [activeFilter, setActiveFilter] = useState<'ALL' | 'STRUGGLING' | 'LOCKED' | 'PHYSICAL_OVERRIDE'>('ALL');
 
-  // Subscribe to live Firebase data and merge with 35 student slots
+  // Subscribe to live Firebase data and merge with 12 pilot student slots (sorted strictly by student ID)
   useEffect(() => {
     const studentsRef = ref(database, 'users/students');
     const unsubStudents = onValue(studentsRef, (snapshot) => {
@@ -82,7 +82,7 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
         const entries = Object.entries(rawData);
 
         entries.forEach(([uid, data]: [string, any], idx) => {
-          if (idx >= 35) return;
+          if (idx >= 12) return;
           const slotIndex = idx;
           const studentNum = slotIndex + 1;
 
@@ -93,13 +93,13 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
             data.traceData?.hesitation_events || 0,
             data.radar?.hesitations || 0
           );
-          const hesitationSeconds = hesitationEvents ? hesitationEvents * 30 : (sessionState.hesitation_seconds || 0);
+          const hesitationSeconds = hesitationEvents ? hesitationEvents * 45 : (sessionState.hesitation_seconds || 0);
           const errorCount = Math.max(wsState.undoCount || 0, data.traceData?.undo_clicks || 0, sessionState.error_count || 0);
           const isYellowPath = data.routeRecommendation === 'YELLOW' || sessionState.current_path === 'gap_reduction';
           const physicalOverride = data.physicalOverride || sessionState.physical_override || false;
 
           const hasCalledForHelp = !!(data.helpRequested || data.handRaised || data.isStruggling);
-          const isStruggling = hesitationSeconds >= 30 || isYellowPath || errorCount > 2 || physicalOverride || hasCalledForHelp;
+          const isStruggling = hesitationSeconds >= 45 || isYellowPath || errorCount > 2 || physicalOverride || hasCalledForHelp;
 
           updated[slotIndex] = {
             id: uid,
@@ -351,7 +351,7 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
                   : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
               }`}
             >
-              הכל (35)
+              הכל ({students.length})
             </button>
             <button
               onClick={() => setActiveFilter('STRUGGLING')}
@@ -389,8 +389,8 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
           </div>
         </div>
 
-        {/* 5x7 Student Cards Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-7 gap-3.5">
+        {/* Static 3x4 CSS Grid for 12 Pilot Students with 1000ms ease-in-out transition */}
+        <div className="grid grid-cols-3 sm:grid-cols-4 gap-4 max-w-4xl mx-auto">
           {filteredStudents.map((student) => {
             const isStruggling = student.isStruggling;
 
@@ -401,7 +401,7 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
                 whileHover={{ scale: 1.03, y: -2 }}
                 whileTap={{ scale: 0.97 }}
                 onClick={() => setSelectedStudent(student)}
-                className={`p-3.5 rounded-2xl border text-right transition-all flex flex-col justify-between h-[135px] relative overflow-hidden group shadow-md ${
+                className={`p-3.5 rounded-2xl border text-right transition-all duration-1000 ease-in-out flex flex-col justify-between min-h-[110px] relative overflow-hidden group shadow-md ${
                   student.physicalOverride
                     ? 'bg-purple-500/10 border-2 border-purple-500 text-purple-950 dark:text-purple-100 shadow-purple-500/20'
                     : student.status === 'locked'

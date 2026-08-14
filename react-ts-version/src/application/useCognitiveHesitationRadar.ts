@@ -5,7 +5,7 @@ import { AuditLogger } from '@/infrastructure/services/AuditLogger';
 import { database } from '@/infrastructure/firebase';
 import { ref, set } from 'firebase/database';
 
-const HESITATION_THRESHOLD_MS = 30 * 1000; // 30 seconds
+const HESITATION_THRESHOLD_MS = 45 * 1000; // 45 seconds per PRD v3.0 Module 10 & 12
 
 interface UseCognitiveHesitationRadarProps {
   isActive: boolean;
@@ -15,7 +15,7 @@ interface UseCognitiveHesitationRadarProps {
 /**
  * A silent pedagogical radar that tracks time between clicks/interactions.
  * Sends a silent alert to the teacher dashboard if the student 
- * exhibits 30 seconds of continuous cognitive hesitation.
+ * exhibits 45 seconds of continuous cognitive hesitation.
  * Ensures NO visual indication is shown to the student.
  */
 export function useCognitiveHesitationRadar({ 

@@ -60,13 +60,13 @@ export const GraphicOrganizerHint: React.FC<GraphicOrganizerHintProps> = ({ hint
         onClose();
       }, 1200);
     } else {
-      // Wrong distractor chosen — execute 30-second penalty lockout per PRD §3.4
+      // Wrong distractor chosen — execute 60-second penalty lockout per PRD v3.0 Module 12
       setDistractorHint('בחירה זו אינה מביאה לפתרון הנכון. חשבו מה הפעולה המדויקת הנדרשת בבית המספרים ונסו שוב כשתום הנעילה.');
       lockoutCleanupRef.current = executeDistractorPenaltyLockout(
         () => {
-          lockEndTimeRef.current = Date.now() + 30000;
+          lockEndTimeRef.current = Date.now() + 60000;
           setIsPenaltyLocked(true);
-          setPenaltyRemaining(30);
+          setPenaltyRemaining(60);
         },
         () => {
           lockEndTimeRef.current = null;
@@ -74,7 +74,7 @@ export const GraphicOrganizerHint: React.FC<GraphicOrganizerHintProps> = ({ hint
           setPenaltyRemaining(0);
           setDistractorHint(null);
         },
-        30000
+        60000
       );
     }
   };
@@ -87,17 +87,11 @@ export const GraphicOrganizerHint: React.FC<GraphicOrganizerHintProps> = ({ hint
 
   return (
     <div 
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-in fade-in duration-300" 
+      className="fixed bottom-6 right-6 z-[100] pointer-events-none" 
       dir="rtl"
-      onClick={(e) => {
-        if (e.target === e.currentTarget && isPenaltyLocked) {
-          e.stopPropagation();
-          e.preventDefault();
-        }
-      }}
     >
       <div 
-        className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden border border-indigo-100 dark:border-slate-800 animate-in zoom-in-95 duration-300"
+        className="pointer-events-auto bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-[360px] max-h-[580px] overflow-y-auto border border-indigo-100 dark:border-slate-800 animate-in slide-in-from-bottom-5 duration-300"
         onClick={(e) => e.stopPropagation()}
       >
         
@@ -144,12 +138,12 @@ export const GraphicOrganizerHint: React.FC<GraphicOrganizerHintProps> = ({ hint
             </h3>
           </div>
 
-          {/* PRD §3.4: 30-Second Distractor Penalty Lockout Alert */}
+          {/* PRD v3.0 Module 12: 60-Second Distractor Penalty Lockout Alert */}
           {isPenaltyLocked && (
             <div className="mb-6 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-400 text-amber-900 dark:text-amber-200 flex flex-col gap-2 animate-pulse">
               <div className="flex items-center gap-2 font-bold text-base">
                 <Lock className="w-5 h-5 text-amber-600 animate-bounce" />
-                <span>חסימת ניחוס פדגוגית — האפשרויות נעולות ל-30 שניות למחשבה נוספת ({penaltyRemaining} שניות נותרו)</span>
+                <span>חסימת ניחוש פדגוגית — האפשרויות נעולות ל-60 שניות למחשבה נוספת ({penaltyRemaining} שניות נותרו)</span>
               </div>
               {distractorHint && (
                 <p className="text-xs font-medium text-amber-800 dark:text-amber-300 pr-7">
