@@ -15,7 +15,7 @@ describe('SECURITY RULES & REALTIME LISTENERS AUDIT & VERIFICATION', () => {
       expect(extractTeacherId(email2, null)).toBe('123456789');
 
       const email3 = 'davidsep@edu-haifa.org.il';
-      expect(extractTeacherId(email3, null)).toBe('davidsep@edu-haifa.org.il');
+      expect(extractTeacherId(email3, null)).toBe('davidsep_edu-haifa_org_il');
 
       const uidOnly = 'teacher_987654321';
       expect(extractTeacherId(null, uidOnly)).toBe('987654321');

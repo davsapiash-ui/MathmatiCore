@@ -8,10 +8,16 @@ import { useAdminStore, type School, type Teacher, type ClassRoom } from '@/appl
 
 export function extractTeacherId(email?: string | null, uid?: string | null): string {
   if (email && typeof email === 'string') {
-    return email.replace('teacher_', '').replace('@mathmaticore.local', '');
+    const cleaned = email
+      .replace(/^teacher_/, '')
+      .replace(/@mathmaticore\.local$/, '');
+    return cleaned.replace(/[.@#$[\]]/g, '_');
   }
   if (uid && typeof uid === 'string') {
-    return uid.replace('teacher_', '').replace('@mathmaticore.local', '');
+    const cleaned = uid
+      .replace(/^teacher_/, '')
+      .replace(/@mathmaticore\.local$/, '');
+    return cleaned.replace(/[.@#$[\]]/g, '_');
   }
   return '039604483';
 }
