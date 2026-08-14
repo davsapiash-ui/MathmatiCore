@@ -60,7 +60,7 @@ export function computeRoomId(senderId: string, receiverId: string): string {
   return receiverId || senderId;
 }
 
-let isSynced = false;
+let activeSyncedKey: string | null = null;
 let chatUnsubscribe: (() => void) | null = null;
 
 export const useChatStore = create<ChatState>()(
@@ -70,15 +70,20 @@ export const useChatStore = create<ChatState>()(
     initSync: () => {
       const { user, role } = useAuthStore.getState();
       if (!user) return; // Only sync if authenticated
-      if (isSynced) return;
-      isSynced = true;
       const studentRoomId = normalizeStudentId((user.uid || user.id || '') as string);
+      const syncKey = `${role}_${user.uid || user.id}_${studentRoomId}`;
+      if (activeSyncedKey === syncKey) return;
+      activeSyncedKey = syncKey;
+
       const chatRef = role === 'student' 
         ? ref(database, `chat_messages/${studentRoomId}`) 
         : ref(database, 'chat_messages');
+
       if (chatUnsubscribe) {
         chatUnsubscribe();
+        chatUnsubscribe = null;
       }
+
       chatUnsubscribe = onValue(chatRef, (snapshot) => {
         try {
           if (snapshot.exists()) {
@@ -106,8 +111,8 @@ export const useChatStore = create<ChatState>()(
           set({ messages: [] });
         }
       }, (error) => {
-        console.error("Chat sync permission denied:", error);
-        isSynced = false; // Allow retrying if permission denied
+        console.error("Chat sync error:", error);
+        activeSyncedKey = null; // Allow retrying if permission error
       });
     },
 
@@ -187,7 +192,7 @@ if (useAuthStore && typeof (useAuthStore as any).subscribe === 'function') {
     if (authState?.isAuthenticated && authState?.user) {
       useChatStore.getState().initSync();
     } else {
-      isSynced = false;
+      activeSyncedKey = null;
       if (chatUnsubscribe) {
         chatUnsubscribe();
         chatUnsubscribe = null;
