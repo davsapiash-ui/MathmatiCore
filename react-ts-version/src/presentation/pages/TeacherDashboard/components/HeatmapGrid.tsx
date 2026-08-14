@@ -88,6 +88,7 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
           const studentNum = i + 1;
           const uid = `student_${studentNum}`;
           const data = rawData[uid] || rawData[`slot_${studentNum}`] || rawData[`student_user${studentNum}`] || {};
+          const isOnline = data.isOnline === true;
 
           const wsState = data.workspaceState || {};
           const sessionState = data.sessionState || {};
@@ -96,26 +97,26 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
             data.traceData?.hesitation_events || 0,
             data.radar?.hesitations || 0
           );
-          const hesitationSeconds = hesitationEvents ? hesitationEvents * 45 : (sessionState.hesitation_seconds || 0);
-          const errorCount = Math.max(wsState.undoCount || 0, data.traceData?.undo_clicks || 0, sessionState.error_count || 0);
+          const hesitationSeconds = isOnline && hesitationEvents ? hesitationEvents * 45 : (sessionState.hesitation_seconds || 0);
+          const errorCount = isOnline ? Math.max(wsState.undoCount || 0, data.traceData?.undo_clicks || 0, sessionState.error_count || 0) : 0;
           const isYellowPath = data.routeRecommendation === 'YELLOW' || sessionState.current_path === 'gap_reduction';
-          const physicalOverride = data.physicalOverride || sessionState.physical_override || false;
+          const physicalOverride = Boolean(data.physicalOverrideActive || data.physicalOverride || sessionState.physical_override);
 
-          const hasCalledForHelp = !!(data.helpRequested || data.handRaised || data.isStruggling);
-          const isStruggling = hesitationSeconds >= 45 || isYellowPath || errorCount > 2 || physicalOverride || hasCalledForHelp;
+          const hasCalledForHelp = isOnline && !!(data.helpRequested || data.handRaised || data.isStruggling);
+          const isStruggling = isOnline && (hesitationSeconds >= 45 || isYellowPath || errorCount > 2 || physicalOverride || hasCalledForHelp);
 
           updated[i] = {
             id: uid,
             displayName: `תלמיד ${studentNum}`,
-            sessionNumber: wsState.sessionNumber || sessionState.session_number || ((studentNum % 8) + 1),
+            sessionNumber: wsState.sessionNumber || sessionState.session_number || (data.highestCompletedMeeting ? data.highestCompletedMeeting + 1 : 1),
             currentPath: isYellowPath ? 'צמצום פערים' : 'ירוק',
             status: wsState.flowStatus === 'sessionDone' ? 'completed' : (data.isBoardLocked || sessionState.status === 'locked') ? 'locked' : 'active',
             hesitationSeconds,
             errorCount,
             physicalOverride,
             isStruggling,
-            lastAction: data.lastAction || (isStruggling ? 'מאבק קוגניטיבי נותח ברדאר' : 'פעיל בלמידה עצמאית'),
-            isOnline: data.isOnline !== false,
+            lastAction: isOnline ? (data.lastAction || (isStruggling ? 'מאבק קוגניטיבי נותח ברדאר' : 'פעיל בלמידה עצמאית')) : 'לא מחובר',
+            isOnline: isOnline,
           };
         }
         return updated;
@@ -124,24 +125,25 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
 
     const alertsRef = ref(database, 'radar_alerts');
     const unsubAlerts = onValue(alertsRef, (snapshot) => {
-      if (!snapshot.exists()) return;
-      const rawAlerts = snapshot.val() || {};
-      const newItems: LiveFeedItem[] = Object.entries(rawAlerts).map(([key, val]: [string, any]) => ({
-        id: key,
-        studentId: val.studentId || val.rawStudentId || 'student_1',
-        studentName: `תלמיד ${val.studentId ? String(val.studentId).replace(/\D+/g, '') || '1' : '1'}`,
-        timestamp: val.timestamp || Date.now(),
-        message: val.type === 'HESITATION' ? 'השהייה מעל 45 שניות בטור הפעיל' : val.type === 'PASSIVE_DRIFTING' ? 'זיהוי מחיקות או ביטולים רצופים' : val.message || 'התראת רדאר שקטה בזמן אמת',
-        severity: (val.type === 'TAB_ESCAPE' || val.type === 'PASSIVE_DRIFTING' ? 'alert' : 'warning') as "alert" | "warning",
-      })).reverse();
-
-      if (newItems.length > 0) {
-        setFeedItems((prev) => {
-          const combined = [...newItems, ...prev];
-          const unique = Array.from(new Map(combined.map(item => [item.id, item])).values());
-          return unique.slice(0, 15);
-        });
+      if (!snapshot.exists()) {
+        setFeedItems([]);
+        return;
       }
+      const rawAlerts = snapshot.val() || {};
+      const sixtyMinsAgo = Date.now() - 60 * 60 * 1000;
+      const newItems: LiveFeedItem[] = Object.entries(rawAlerts)
+        .map(([key, val]: [string, any]) => ({
+          id: key,
+          studentId: val.studentId || val.rawStudentId || 'student_1',
+          studentName: `תלמיד ${val.studentId ? String(val.studentId).replace(/\D+/g, '') || '1' : '1'}`,
+          timestamp: val.timestamp || Date.now(),
+          message: val.type === 'HESITATION' ? 'השהייה מעל 45 שניות בטור הפעיל' : val.type === 'PASSIVE_DRIFTING' ? 'זיהוי מחיקות או ביטולים רצופים' : val.message || 'התראת רדאר שקטה בזמן אמת',
+          severity: (val.type === 'TAB_ESCAPE' || val.type === 'PASSIVE_DRIFTING' || val.type === 'CALL_FOR_HELP' ? 'alert' : 'warning') as "alert" | "warning",
+        }))
+        .filter(item => item.timestamp > sixtyMinsAgo)
+        .reverse();
+
+      setFeedItems(newItems.slice(0, 15));
     });
 
     return () => {
