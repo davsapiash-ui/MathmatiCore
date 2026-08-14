@@ -3,12 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "@/application/useAuthStore";
 import { useStore } from "@/application/useStore";
 import { useNavigate } from "react-router-dom";
-import { 
-  executeGoogleSSO, 
-  mockSimulatedSSO, 
-  authenticateWhitelistedEmail, 
-  getAllowedSpecificEmails 
-} from "@/infrastructure/services/AuthService";
+import { executeGoogleSSO, mockSimulatedSSO } from "@/infrastructure/services/AuthService";
 import { tts } from "@/infrastructure/services/TTSService";
 import { Button } from "@/components/ui/button";
 
@@ -36,11 +31,6 @@ export function Login() {
   const [selectedClass, setSelectedClass] = useState(CLASSES[0].id);
   const [selectedStudentNum, setSelectedStudentNum] = useState<number | null>(null);
   const [studentPassword, setStudentPassword] = useState("");
-  
-  // Teacher & Admin credentials
-  const [staffIdentifier, setStaffIdentifier] = useState("");
-  const [staffPassword, setStaffPassword] = useState("");
-
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [lastStudentClickTime, setLastStudentClickTime] = useState(0);
@@ -101,54 +91,7 @@ export function Login() {
     }
   };
 
-  // Staff (Teacher / Admin) Direct Credential Login Handler
-  const handleStaffDirectLogin = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!selectedRole || selectedRole === "student") return;
-
-    const identifier = staffIdentifier.trim().toLowerCase();
-    if (!identifier) {
-      setErrorMsg("נא להזין ת\"ז מורה או כתובת דוא\"ל מורשית");
-      return;
-    }
-
-    if (staffPassword.trim() !== "10203040" && staffPassword.trim() !== "admin123" && staffPassword.trim() !== "teacher123") {
-      setErrorMsg("סיסמה שגויה");
-      return;
-    }
-
-    setIsLoggingIn(true);
-    setErrorMsg("");
-
-    try {
-      // If identifier matches whitelisted email format or is ID
-      const emailToUse = identifier.includes("@") 
-        ? identifier 
-        : (identifier === "davidsep" || identifier === "039604483" ? "davidsep@edu-haifa.org.il" : `${identifier}@mathmaticore.local`);
-      
-      const authenticatedUser = await authenticateWhitelistedEmail(emailToUse, selectedRole);
-
-      setUser(
-        {
-          uid: authenticatedUser.uid,
-          email: authenticatedUser.email,
-          role: selectedRole,
-          displayName: authenticatedUser.displayName,
-        },
-        selectedRole
-      );
-
-      login(selectedRole, authenticatedUser.uid);
-      setIsLoggingIn(false);
-      navigate(selectedRole === "teacher" ? "/dashboard" : "/admin", { replace: true });
-    } catch (err: any) {
-      console.error("Staff Direct Login Error:", err);
-      setIsLoggingIn(false);
-      setErrorMsg(err?.message || "התחברות ישירה נכשלה.");
-    }
-  };
-
-  // Teacher / Admin Google SSO Handler
+  // Teacher & Admin Pure Google SSO Handler (Master PRD v3.3 Module 1)
   const handleGoogleSSO = async (targetRole: "teacher" | "admin") => {
     setIsLoggingIn(true);
     setErrorMsg("");
@@ -172,44 +115,7 @@ export function Login() {
     } catch (err: any) {
       console.error(`${targetRole} Google SSO Error:`, err);
       setIsLoggingIn(false);
-      const isNotAllowed =
-        err?.code === "auth/operation-not-allowed" ||
-        (err?.message && err.message.includes("operation-not-allowed")) ||
-        (err?.message && err.message.includes("auth/unauthorized-domain"));
-
-      if (isNotAllowed) {
-        setErrorMsg("ספק Google אינו מופעל עדיין ב-Firebase Console. באפשרותך להיכנס ישירות באמצעות הזנת הדוא\"ל/ת\"ז והסיסמה, או בלחיצה על אחד החשבונות המורשים מטה:");
-      } else {
-        setErrorMsg(err?.message || "התחברות Google SSO נכשלה. אנא ודא שחשבונך מורשה ברשימת משרד החינוך.");
-      }
-    }
-  };
-
-  // Direct 1-Click Whitelisted Login
-  const handleQuickWhitelistedLogin = async (email: string, targetRole: "teacher" | "admin") => {
-    setIsLoggingIn(true);
-    setErrorMsg("");
-
-    try {
-      const authenticatedUser = await authenticateWhitelistedEmail(email, targetRole);
-
-      setUser(
-        {
-          uid: authenticatedUser.uid,
-          email: authenticatedUser.email,
-          role: targetRole,
-          displayName: authenticatedUser.displayName,
-        },
-        targetRole
-      );
-
-      login(targetRole, authenticatedUser.uid);
-      setIsLoggingIn(false);
-      navigate(targetRole === "teacher" ? "/dashboard" : "/admin", { replace: true });
-    } catch (err: any) {
-      console.error("Quick Whitelisted Login Error:", err);
-      setIsLoggingIn(false);
-      setErrorMsg(err?.message || "התחברות ישירה נכשלה.");
+      setErrorMsg(err?.message || "התחברות Google SSO נכשלה. אנא ודא שחשבונך מורשה ברשימת משרד החינוך.");
     }
   };
 
@@ -256,7 +162,7 @@ export function Login() {
       dir="rtl"
       className="min-h-screen bg-slate-50 dark:bg-slate-950 font-body text-slate-900 dark:text-slate-100 flex items-center justify-center p-4 sm:p-6"
     >
-      <main className="w-full max-w-[520px] flex flex-col items-center gap-6 my-auto">
+      <main className="w-full max-w-[500px] flex flex-col items-center gap-6 my-auto">
         {/* Logo Area */}
         <motion.div
           initial={{ opacity: 0, y: -16 }}
@@ -309,8 +215,6 @@ export function Login() {
                         setSelectedRole(role.id);
                         setSelectedStudentNum(null);
                         setStudentPassword("");
-                        setStaffIdentifier("");
-                        setStaffPassword("");
                         setErrorMsg("");
                       }}
                       className="flex-1 flex flex-col items-center gap-2 p-5 sm:p-4 bg-slate-50 dark:bg-slate-800/60 border-2 border-slate-200 dark:border-slate-700/60 rounded-2xl text-slate-800 dark:text-slate-100 font-display font-bold transition-all hover:border-[hsl(var(--ws-blue))] hover:bg-blue-50/50 dark:hover:bg-slate-800 hover:-translate-y-1 hover:shadow-lg active:scale-[0.98]"
@@ -342,8 +246,6 @@ export function Login() {
                       setSelectedRole(null);
                       setSelectedStudentNum(null);
                       setStudentPassword("");
-                      setStaffIdentifier("");
-                      setStaffPassword("");
                       setErrorMsg("");
                     }}
                     className="text-xs font-display font-bold text-slate-500 hover:text-[hsl(var(--ws-blue))] px-2.5 py-1 rounded-lg transition-colors bg-slate-100 dark:bg-slate-800 hover:bg-blue-50"
@@ -355,7 +257,7 @@ export function Login() {
                 {errorMsg && (
                   <div
                     role="alert"
-                    className="mb-4 p-3 bg-rose-50 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/60 rounded-2xl text-rose-700 dark:text-rose-300 text-xs sm:text-sm font-bold shadow-sm leading-relaxed"
+                    className="mb-4 p-3.5 bg-rose-50 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/60 rounded-2xl text-rose-700 dark:text-rose-300 text-xs sm:text-sm font-bold shadow-sm leading-relaxed"
                   >
                     {errorMsg}
                   </div>
@@ -425,7 +327,7 @@ export function Login() {
                       </div>
                     </div>
 
-                    {/* Step 4: Password Input */}
+                    {/* Step 4: Password Input (Strictly No placeholders / No hints per PRD v3.3) */}
                     <div className="flex flex-col gap-1 text-right mt-1">
                       <label className="text-xs font-black text-slate-700 dark:text-slate-300">קוד גישה</label>
                       <input
@@ -452,97 +354,28 @@ export function Login() {
                   </form>
                 )}
 
-                {/* Teacher & Admin Login Flow */}
+                {/* Teacher & Admin Pure Google SSO Flow (Master PRD v3.3 Module 1 - Google SSO Exclusively) */}
                 {(selectedRole === "teacher" || selectedRole === "admin") && (
                   <div className="flex flex-col gap-4">
-                    {/* Direct Credential Form */}
-                    <form onSubmit={handleStaffDirectLogin} className="flex flex-col gap-3">
-                      <div className="flex flex-col gap-1 text-right">
-                        <label className="text-xs font-black text-slate-700 dark:text-slate-300">
-                          {selectedRole === "teacher" ? "תעודת זהות / דוא\"ל מורה" : "שם משתמש / דוא\"ל מנהל"}
-                        </label>
-                        <input
-                          type="text"
-                          value={staffIdentifier}
-                          onChange={(e) => {
-                            setStaffIdentifier(e.target.value);
-                            setErrorMsg("");
-                          }}
-                          className="w-full bg-slate-50 dark:bg-slate-950 border-2 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl p-3 text-sm font-bold focus:border-[hsl(var(--ws-blue))] outline-none transition-all"
-                          autoComplete="off"
-                        />
-                      </div>
-
-                      <div className="flex flex-col gap-1 text-right">
-                        <label className="text-xs font-black text-slate-700 dark:text-slate-300">קוד גישה</label>
-                        <input
-                          type="password"
-                          value={staffPassword}
-                          onChange={(e) => {
-                            setStaffPassword(e.target.value);
-                            setErrorMsg("");
-                          }}
-                          className="w-full bg-slate-50 dark:bg-slate-950 border-2 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl p-3 text-center text-base font-bold tracking-widest focus:border-[hsl(var(--ws-blue))] outline-none transition-all shadow-inner"
-                          autoComplete="off"
-                        />
-                      </div>
-
-                      <Button
-                        type="submit"
-                        variant="udl"
-                        size="lg"
-                        disabled={isLoggingIn}
-                        className="w-full flex items-center justify-center gap-2 p-3.5 rounded-2xl font-extrabold text-base transition-all shadow-md active:scale-95 bg-[hsl(var(--ws-blue))] text-white hover:brightness-105 disabled:opacity-50 mt-1"
-                      >
-                        <span>{isLoggingIn ? "מאמת..." : `כניסה למרחב ${selectedRole === "teacher" ? "מורה" : "מנהל"}`}</span>
-                      </Button>
-                    </form>
-
-                    <div className="flex items-center gap-3 my-0.5">
-                      <div className="flex-1 border-t border-slate-200 dark:border-slate-700" />
-                      <span className="text-xs text-slate-400 font-bold">או</span>
-                      <div className="flex-1 border-t border-slate-200 dark:border-slate-700" />
-                    </div>
-
-                    {/* Google SSO Button */}
                     <Button
                       type="button"
-                      variant="outline"
+                      variant="udl"
                       size="lg"
                       onClick={() => handleGoogleSSO(selectedRole)}
                       disabled={isLoggingIn}
-                      className="w-full flex items-center justify-center gap-2.5 p-3.5 rounded-2xl font-extrabold text-sm transition-all shadow-sm hover:shadow active:scale-95 border-2 border-blue-600 text-blue-600 dark:text-blue-400 bg-blue-50/50 dark:bg-slate-800 hover:bg-blue-100/60"
+                      className="w-full flex items-center justify-center gap-3 p-5 rounded-2xl font-extrabold text-base transition-all shadow-lg hover:shadow-xl active:scale-95 bg-gradient-to-r from-blue-600 to-indigo-600 text-white"
                     >
-                      <span className="text-xl">🌐</span>
-                      <span>{isLoggingIn ? "מאמת..." : `כניסה באמצעות Google SSO`}</span>
+                      <span className="text-2xl">🌐</span>
+                      <span>{isLoggingIn ? "מאמת נתונים מול Google..." : `כניסה באמצעות Google SSO`}</span>
                     </Button>
-
-                    {/* Quick Access Whitelisted Buttons */}
-                    <div className="flex flex-col gap-2 p-3 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl text-right mt-1">
-                      <span className="text-xs font-black text-slate-600 dark:text-slate-300">
-                        חשבונות מורשים לכניסה ישירה:
-                      </span>
-                      <div className="flex flex-col gap-1.5">
-                        {getAllowedSpecificEmails().map((email) => (
-                          <Button
-                            key={email}
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            disabled={isLoggingIn}
-                            onClick={() => handleQuickWhitelistedLogin(email, selectedRole)}
-                            className="w-full flex items-center justify-between p-2.5 rounded-xl border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-blue-50 dark:hover:bg-slate-800 font-bold text-xs text-slate-800 dark:text-white"
-                          >
-                            <span className="font-mono text-xs text-left" dir="ltr">{email}</span>
-                            <span className="text-xs text-blue-600 dark:text-blue-400">🔑 כניסה</span>
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
 
                     {/* Development Mock SSO (Strictly visible in Dev mode) */}
                     {import.meta.env.DEV && (
-                      <div className="mt-1 pt-2 border-t border-dashed border-amber-300 dark:border-amber-700">
+                      <div className="mt-2 pt-3 border-t border-dashed border-amber-300 dark:border-amber-700">
+                        <div className="text-xs font-bold text-amber-700 dark:text-amber-300 mb-2 flex items-center gap-1.5">
+                          <span>🛠️</span>
+                          <span>סביבת פיתוח מקומית (Simulated SSO Mock)</span>
+                        </div>
                         <Button
                           type="button"
                           variant="outline"
