@@ -87,6 +87,7 @@ export interface AuthenticatedUserPayload {
 
 /**
  * Executes authentic Google SSO via OAuth2 popup provider.
+ * Strictly enforces real Google authentication and whitelist verification.
  */
 export async function executeGoogleSSO(targetRole: "teacher" | "admin"): Promise<AuthenticatedUserPayload> {
   const provider = new GoogleAuthProvider();
@@ -94,33 +95,12 @@ export async function executeGoogleSSO(targetRole: "teacher" | "admin"): Promise
     prompt: "select_account"
   });
 
-  let user: any = null;
-  let email = "";
-
-  try {
-    const result: UserCredential = await signInWithPopup(auth, provider);
-    user = result.user;
-    email = (user.email || "").toLowerCase().trim();
-  } catch (err: any) {
-    if (
-      err?.code === "auth/operation-not-allowed" ||
-      (err?.message && err.message.includes("operation-not-allowed")) ||
-      (err?.message && err.message.includes("auth/unauthorized-domain"))
-    ) {
-      // If Google Provider is not yet toggled on in Firebase Console, seamlessly authenticate the authorized institutional teacher
-      email = "davidsep@edu-haifa.org.il";
-      user = {
-        uid: "auth_google_davidsep",
-        displayName: "דוד ספיאשווילי (Google SSO)",
-        email: email
-      };
-    } else {
-      throw err;
-    }
-  }
+  const result: UserCredential = await signInWithPopup(auth, provider);
+  const user = result.user;
+  const email = (user.email || "").toLowerCase().trim();
 
   if (!email || !isWhitelistedTeacherEmail(email)) {
-    if (auth.currentUser) await auth.signOut();
+    await auth.signOut();
     throw new Error(`גישה נדחתה: כתובת הדוא"ל (${email || "לא זוהתה"}) אינה מורשית ברשימה הלבנה של מוסדות החינוך.`);
   }
 
