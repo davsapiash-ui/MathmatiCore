@@ -1,7 +1,8 @@
-# מסמך דרישות מוצר מפורט (Master PRD v3.1)
+# מסמך דרישות מוצר מפורט (Master PRD v3.2)
 ## פלטפורמת הלמידה ההיברידית "מתמטיקאור" (MathematiCOre)
-**מספר גרסה:** Version 3.1  
+**מספר גרסה:** Version 3.2  
 **תאריך עדכון:** August 14, 2026  
+**שעת עדכון:** 12:13 IDT  
 **סטטוס:** Approved for Development  
 
 ---
@@ -9,8 +10,16 @@
 ## חלק א: שער הכניסה, בקרת הרשאות וניהול זהויות
 
 ### 1. מודול כניסה והזדהות (Login Module Spec)
-מטרת המודול היא יצירת שער כניסה מאובטח ונוקשה ללא פשרות. ממשק המורה מוגדר לשימוש ב-Google SSO בלבד מול רשימה לבנה של כתובות מאושרות ללא הצגת שדות סיסמה ידניים או סיסמאות ברירת מחדל או רמזים או טקסטים מדריכים בתיבות הקלט. ממשק התלמיד מחייב הזנת סיסמה קשיחה הזהה ל-10203040 ללא כל יוצא מן הכלל וללא הצגת רמזים או טקסטים מקדימים בתיבת הקלט. מערכת אימות המורה והתלמיד תפעל ללא חשיפת רכיבי ממשק מיותרים.
-**Developer Instruction:** Teachers login must rely exclusively on Google SSO with a predefined restricted list of permitted emails. Do not render any password input fields or placeholder texts or hints in teacher login view. Students login requires a password input field restricted strictly to the hardcoded value 10203040 with absolutely no placeholder texts or hint descriptions displayed to the pupil.
+1. **מטרת המודול הפדגוגית והטכנולוגית**: יצירת שער כניסה מאובטח השומר על פרטיות מוחלטת של הלומד ומבטיח תחילת עבודה ללא חסמים רגשיים.
+2. **רכיבי ממשק המשתמש והעיצוב החזותי**: מסך כניסה בעל רקע נקי הכולל כפתור כניסת מורים באמצעות Google SSO, ותהליך כניסת תלמידים רציף ומדורג: רשימה נפתחת (Dropdown) לבחירת שם בית ספר, רשימה נפתחת לבחירת שם הכיתה (כולל כיתת ביקורת המוגדרת בקוד כ-"המבקרים"), לוח מקשים קומפקטי (Compact Numeric Pad) לבחירת מספר תלמיד (1-12), ותיבת קלט נקייה להקלדת קוד הגישה 10203040. חל איסור על הצגת רמזים, סיסמאות ברירת מחדל או טקסטים מקדימים (Placeholders/Hints) בשדות הקלט בממשק המורה והתלמיד.
+3. **לוגיקת אינטראקציה ומכונת המצבים**: המערכת פועלת במצב Idle עד לזיהוי קליק, ואז עוברת למצב Auth Redirect באמצעות Google SSO עבור מורים, או לתהליך מדורג וחד-כיווני עבור תלמידים: בחירת בית ספר -> בחירת כיתה -> בחירת מספר תלמיד -> הזנת קוד גישה 10203040.
+4. **תרחישי קצה וטיפול בשגיאות ממשק**: במקרה של ניתוק רשת בעת בקשת אימות המערכת תציג חיווי ניסיון חוזר שקט ובמקרה של לחיצה כפולה מהירה המערכת תתעלם מהקלט השני ובמקרה של קלט לא תקין המערכת תבצע איפוס.
+5. **דרישות מרווחים נגישות וביצועים**: זמן תגובה לאימות חייב להיות פחות מ 200ms וכל שטחי ההקלקה יוגדרו בגודל של לפחות 48 פיקסלים.
+6. **מבנה נתונים ושדות בסיס הנתונים**: שמירת student ID מסוג Integer בטווח של אחד עד 12 בלבד.
+7. **לוגיקת שחזור וריענון דפדפן**: המערכת תשמור את מזהה התלמיד ב Local Storage ותבצע בדיקת תקינות מול השרת בכל רענון דף.
+8. **מניעת לולאות עדכון בזמן אמת**: המערכת תשתמש במנגנון Throttle על כפתורי הבחירה כדי למנוע שליחת בקשות מרובות לבסיס הנתונים בטווח זמן של 500ms.
+9. **Strict Bilingual Developer Instructions**: Teachers login must rely exclusively on Google SSO with a predefined restricted list of permitted emails. Do not render any password input fields or placeholder texts or hints in teacher login view. Students login flow is strictly sequential: School Dropdown -> Class Dropdown (including "המבקרים" for control group) -> Compact Numeric Keypad for ID selection (1-12) -> Password input accepting strictly the value 10203040. Do not render any placeholder text or hint description on any student input element.
+10. **תרחיש בדיקה קוגניטיבי מפורט**: המשתמש מגיע למסך ומבין מיד האם עליו לבחור בנתיב המורה או בנתיב התלמיד מבלי ללחוץ על אלמנטים שגויים.
 
 ---
 
@@ -45,15 +54,15 @@
 ## חלק ב: ארכיטקטורת בסיס הנתונים וסכמות הנתונים
 
 ### 4. סכמת אוספי בסיס הנתונים (Firestore Collections Schema Spec)
-1. **מטרת המודול הפדגוגית והטכנולוגית**: הגדרת מבנה נתונים קשיח המבטיח יציבות וביצועים גבוהים לאורך זמן.
+1. **מטרת המודול הפדגוגית והטכנולוגית**: הגדרת מבנה נתונים קשיח המבטיח יציבות, ביצועים גבוהים לאורך זמן ותמיכה מלאה במיון וסינון של קבוצות מחקר.
 2. **רכיבי ממשק המשתמש והעיצוב החזותי**: אין רכיבי ממשק.
 3. **לוגיקת אינטראקציה ומכונת המצבים**: ניהול סנכרון נתונים אסינכרוני מול פיירבייס.
 4. **תרחישי קצה וטיפול בשגיאות ממשק**: במקרה של קונפליקט במיזוג נתונים המערכת תתעדף את השרת ובמקרה של מסמך חסר המערכת תיצור רשומה ריקה ובמקרה של כתיבה ללא הרשאה המערכת תחסום.
 5. **דרישות מרווחים נגישות וביצועים**: זמן אחזור נתונים מקסימלי 150ms.
-6. **מבנה נתונים ושדות בסיס הנתונים**: אוספי classes ו students ו sessions ו telemetry logs.
+6. **מבנה נתונים ושדות בסיס הנתונים**: אוספי classes (הכולל שדות קשיחים: school_id, class_name כגון "המבקרים", ו-class_type כגון כיתת ביקורת או כיתת ניסוי), students, sessions ו-telemetry logs.
 7. **לוגיקת שחזור וריענון דפדפן**: המערכת משתמשת ב Snapshot Listeners כדי לשחזר את מצב האפליקציה מיד בעת חיבור.
 8. **מניעת לולאות עדכון בזמן אמת**: הגדרת Batch Updates לכל קבוצת נתונים כדי למנוע קריאות מרובות.
-9. **Strict Bilingual Developer Instructions**: Define and enforce Firestore collections with strict security rules. Database write validation must reject any document that violates these predefined schemas. Ensure integer constraint of one to 12 on student ID path.
+9. **Strict Bilingual Developer Instructions**: Enforce Firestore collection schemas with strict fields for school_id, class_name, and class_type. Ensure student documents contain no personal identifiable information (Zero PII) and restrict student_id strictly to integers between 1 and 12.
 10. **תרחיש בדיקה קוגניטיבי מפורט**: האם המידע בבסיס הנתונים תואם את המבנה המוגדר ואם לא האם המערכת מתריעה.
 
 ---

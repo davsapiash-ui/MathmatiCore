@@ -13,19 +13,33 @@ const ROLES = [
   { id: "admin" as const, icon: "⚙️", label: "מנהל מערכת" },
 ];
 
+const SCHOOLS = [
+  { id: "sch_1", name: "בית ספר אלונים" },
+  { id: "sch_2", name: "בית ספר הדרים" },
+  { id: "sch_3", name: "בית ספר ניסויי חיפה" },
+];
+
+const CLASSES = [
+  { id: "cls_control", name: "המבקרים", type: "כיתת ביקורת" },
+  { id: "cls_exp_1", name: "כיתה ד1", type: "כיתת ניסוי" },
+  { id: "cls_exp_2", name: "כיתה ד2", type: "כיתת ניסוי" },
+];
+
 export function Login() {
   const { setUser } = useAuthStore();
   const { login } = useStore();
   const navigate = useNavigate();
 
   const [selectedRole, setSelectedRole] = useState<"student" | "teacher" | "admin" | null>(null);
+  const [selectedSchool, setSelectedSchool] = useState(SCHOOLS[0].id);
+  const [selectedClass, setSelectedClass] = useState(CLASSES[0].id);
   const [selectedStudentNum, setSelectedStudentNum] = useState<number | null>(null);
   const [studentPassword, setStudentPassword] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [lastStudentClickTime, setLastStudentClickTime] = useState(0);
 
-  // Student 12-Slot Selection & Password Login Handler (Master PRD v3.1 Module 1)
+  // Student Sequential Login Handler (Master PRD v3.2 Module 1)
   const handleStudentLogin = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     tts.initializeAudioGate();
@@ -34,8 +48,18 @@ export function Login() {
     if (now - lastStudentClickTime < 500) return;
     setLastStudentClickTime(now);
 
+    if (!selectedSchool) {
+      setErrorMsg("יש לבחור בית ספר");
+      return;
+    }
+
+    if (!selectedClass) {
+      setErrorMsg("יש לבחור כיתה");
+      return;
+    }
+
     if (!selectedStudentNum || selectedStudentNum < 1 || selectedStudentNum > 12) {
-      setErrorMsg("יש לבחור מספר תלמיד מהגריד");
+      setErrorMsg("יש לבחור מספר תלמיד");
       return;
     }
 
@@ -49,7 +73,8 @@ export function Login() {
 
     try {
       const studentId = `student_${selectedStudentNum}`;
-      const displayName = `תלמיד ${selectedStudentNum}`;
+      const className = CLASSES.find((c) => c.id === selectedClass)?.name || "כיתה";
+      const displayName = `תלמיד ${selectedStudentNum} (${className})`;
 
       setUser(
         {
@@ -70,7 +95,7 @@ export function Login() {
     }
   };
 
-  // Teacher / Admin Google SSO Handler (Master PRD v3.1 Module 1)
+  // Teacher / Admin Google SSO Handler (Master PRD v3.2 Module 1)
   const handleGoogleSSO = async (targetRole: "teacher" | "admin") => {
     setIsLoggingIn(true);
     setErrorMsg("");
@@ -233,39 +258,73 @@ export function Login() {
                     </div>
                   )}
 
-                  {/* Student 12-Slot Anonymous Grid + Strict Password Input (PRD v3.1 Module 1) */}
+                  {/* Student Sequential Login Flow (PRD v3.2 Module 1) */}
                   {selectedRole === "student" && (
-                    <form onSubmit={handleStudentLogin} className="flex flex-col gap-5">
-                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5 max-w-[440px] mx-auto justify-items-center">
-                        {Array.from({ length: 12 }, (_, i) => i + 1).map((num) => {
-                          const isSelected = selectedStudentNum === num;
-                          return (
-                            <button
-                              type="button"
-                              key={num}
-                              onClick={() => {
-                                tts.initializeAudioGate();
-                                setSelectedStudentNum(num);
-                                setErrorMsg("");
-                              }}
-                              disabled={isLoggingIn}
-                              className={`w-[90px] h-[90px] flex flex-col items-center justify-center gap-1 rounded-2xl border-2 transition-all active:scale-95 shadow-sm group ${
-                                isSelected
-                                  ? "border-[hsl(var(--ws-blue))] bg-[hsl(var(--ws-blue-soft))] ring-2 ring-[hsl(var(--ws-blue)/0.4)]"
-                                  : "border-ws-surface2 bg-ws-bg hover:border-[hsl(var(--ws-blue)/0.5)] hover:bg-[hsl(var(--ws-blue-soft)/0.5)]"
-                              }`}
-                            >
-                              <span className={`text-2xl font-black ${isSelected ? "text-[hsl(var(--ws-blue))]" : "text-ws-ink group-hover:text-[hsl(var(--ws-blue))]"}`}>
-                                {num}
-                              </span>
-                              <span className="text-xs font-bold text-ws-soft">תלמיד</span>
-                            </button>
-                          );
-                        })}
+                    <form onSubmit={handleStudentLogin} className="flex flex-col gap-4">
+                      {/* Step 1: School Selection Dropdown */}
+                      <div className="flex flex-col gap-1.5 text-right">
+                        <label className="text-xs font-black text-ws-ink/80">שם בית ספר</label>
+                        <select
+                          value={selectedSchool}
+                          onChange={(e) => setSelectedSchool(e.target.value)}
+                          className="w-full bg-slate-50 dark:bg-slate-950 border-2 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl p-3 text-sm font-bold focus:border-[hsl(var(--ws-blue))] outline-none transition-all cursor-pointer"
+                        >
+                          {SCHOOLS.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.name}
+                            </option>
+                          ))}
+                        </select>
                       </div>
 
-                      {/* Pupil Password Input (No placeholders or hint descriptions per PRD v3.1) */}
-                      <div className="mt-2 flex flex-col gap-3">
+                      {/* Step 2: Class Selection Dropdown (including המבקרים) */}
+                      <div className="flex flex-col gap-1.5 text-right">
+                        <label className="text-xs font-black text-ws-ink/80">שם הכיתה</label>
+                        <select
+                          value={selectedClass}
+                          onChange={(e) => setSelectedClass(e.target.value)}
+                          className="w-full bg-slate-50 dark:bg-slate-950 border-2 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl p-3 text-sm font-bold focus:border-[hsl(var(--ws-blue))] outline-none transition-all cursor-pointer"
+                        >
+                          {CLASSES.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.name} ({c.type})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Step 3: Compact Numeric Keypad for ID Selection (1-12) */}
+                      <div className="flex flex-col gap-1.5 text-right mt-1">
+                        <label className="text-xs font-black text-ws-ink/80">מספר תלמיד (1-12)</label>
+                        <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 max-w-[440px] mx-auto justify-items-center w-full">
+                          {Array.from({ length: 12 }, (_, i) => i + 1).map((num) => {
+                            const isSelected = selectedStudentNum === num;
+                            return (
+                              <button
+                                type="button"
+                                key={num}
+                                onClick={() => {
+                                  tts.initializeAudioGate();
+                                  setSelectedStudentNum(num);
+                                  setErrorMsg("");
+                                }}
+                                disabled={isLoggingIn}
+                                className={`w-14 h-14 flex items-center justify-center rounded-xl border-2 font-black text-lg transition-all active:scale-95 shadow-sm ${
+                                  isSelected
+                                    ? "border-[hsl(var(--ws-blue))] bg-[hsl(var(--ws-blue))] text-white ring-2 ring-[hsl(var(--ws-blue)/0.4)]"
+                                    : "border-ws-surface2 bg-ws-bg text-ws-ink hover:border-[hsl(var(--ws-blue)/0.5)] hover:bg-[hsl(var(--ws-blue-soft)/0.5)]"
+                                }`}
+                              >
+                                {num}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Step 4: Password Input (No placeholders or hint descriptions per PRD v3.2) */}
+                      <div className="flex flex-col gap-1.5 text-right mt-1">
+                        <label className="text-xs font-black text-ws-ink/80">קוד גישה</label>
                         <input
                           type="password"
                           value={studentPassword}
@@ -273,24 +332,24 @@ export function Login() {
                             setStudentPassword(e.target.value);
                             setErrorMsg("");
                           }}
-                          className="w-full bg-slate-50 dark:bg-slate-950 border-2 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-2xl p-4 text-center text-lg font-bold tracking-widest focus:border-[hsl(var(--ws-blue))] outline-none transition-all shadow-inner"
+                          className="w-full bg-slate-50 dark:bg-slate-950 border-2 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl p-3.5 text-center text-lg font-bold tracking-widest focus:border-[hsl(var(--ws-blue))] outline-none transition-all shadow-inner"
                           autoComplete="off"
                         />
-
-                        <Button
-                          type="submit"
-                          variant="udl"
-                          size="lg"
-                          disabled={isLoggingIn || !selectedStudentNum}
-                          className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl font-extrabold text-base transition-all shadow-md active:scale-95 bg-[hsl(var(--ws-blue))] text-white hover:brightness-105 disabled:opacity-50"
-                        >
-                          <span>{isLoggingIn ? "מאמת..." : "כניסה"}</span>
-                        </Button>
                       </div>
+
+                      <Button
+                        type="submit"
+                        variant="udl"
+                        size="lg"
+                        disabled={isLoggingIn || !selectedStudentNum}
+                        className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl font-extrabold text-base transition-all shadow-md active:scale-95 bg-[hsl(var(--ws-blue))] text-white hover:brightness-105 disabled:opacity-50 mt-2"
+                      >
+                        <span>{isLoggingIn ? "מאמת..." : "כניסה לסביבה"}</span>
+                      </Button>
                     </form>
                   )}
 
-                  {/* Teacher & Admin Pure Google SSO Flow (PRD v3.1 Module 1 & 2 - No password inputs, placeholders or hints) */}
+                  {/* Teacher & Admin Pure Google SSO Flow (PRD v3.2 Module 1 - No password inputs, placeholders or hints) */}
                   {(selectedRole === "teacher" || selectedRole === "admin") && (
                     <div className="flex flex-col gap-5">
                       <Button
