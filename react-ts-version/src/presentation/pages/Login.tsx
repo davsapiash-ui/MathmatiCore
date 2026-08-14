@@ -14,6 +14,7 @@ const ROLES = [
 ];
 
 const SCHOOLS = [
+  { id: "sch_control", name: "בית ספר ביקורת" },
   { id: "sch_1", name: "בית ספר אלונים" },
   { id: "sch_2", name: "בית ספר הדרים" },
   { id: "sch_3", name: "בית ספר ניסויי חיפה" },
@@ -39,7 +40,7 @@ export function Login() {
   const [errorMsg, setErrorMsg] = useState("");
   const [lastStudentClickTime, setLastStudentClickTime] = useState(0);
 
-  // Student Sequential Login Handler (Master PRD v3.2 Module 1)
+  // Student Sequential Login Handler (Master PRD v3.3 Module 1)
   const handleStudentLogin = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     tts.initializeAudioGate();
@@ -73,7 +74,7 @@ export function Login() {
 
     try {
       const studentId = `student_${selectedStudentNum}`;
-      const className = CLASSES.find((c) => c.id === selectedClass)?.name || "כיתה";
+      const className = CLASSES.find((c) => c.id === selectedClass)?.name || "המבקרים";
       const displayName = `תלמיד ${selectedStudentNum} (${className})`;
 
       setUser(
@@ -95,7 +96,7 @@ export function Login() {
     }
   };
 
-  // Teacher / Admin Google SSO Handler (Master PRD v3.2 Module 1)
+  // Teacher / Admin Google SSO Handler (Master PRD v3.3 Module 1)
   const handleGoogleSSO = async (targetRole: "teacher" | "admin") => {
     setIsLoggingIn(true);
     setErrorMsg("");
@@ -258,7 +259,7 @@ export function Login() {
                     </div>
                   )}
 
-                  {/* Student Sequential Login Flow (PRD v3.2 Module 1) */}
+                  {/* Student Sequential Login Flow (PRD v3.3 Module 1) */}
                   {selectedRole === "student" && (
                     <form onSubmit={handleStudentLogin} className="flex flex-col gap-4">
                       {/* Step 1: School Selection Dropdown */}
@@ -322,7 +323,7 @@ export function Login() {
                         </div>
                       </div>
 
-                      {/* Step 4: Password Input (No placeholders or hint descriptions per PRD v3.2) */}
+                      {/* Step 4: Password Input (No placeholders or hint descriptions per PRD v3.3) */}
                       <div className="flex flex-col gap-1.5 text-right mt-1">
                         <label className="text-xs font-black text-ws-ink/80">קוד גישה</label>
                         <input
@@ -349,7 +350,7 @@ export function Login() {
                     </form>
                   )}
 
-                  {/* Teacher & Admin Pure Google SSO Flow (PRD v3.2 Module 1 - No password inputs, placeholders or hints) */}
+                  {/* Teacher & Admin Pure Google SSO Flow (PRD v3.3 Module 1 - No password inputs, placeholders or hints) */}
                   {(selectedRole === "teacher" || selectedRole === "admin") && (
                     <div className="flex flex-col gap-5">
                       <Button
@@ -409,7 +410,7 @@ export function Login() {
           <div>
             <h3 className="font-display font-extrabold text-2xl text-ws-ink mb-2">מרחב למידה מתמטי אינטראקטיבי</h3>
             <p className="text-sm text-ws-soft leading-relaxed">
-              פלטפורמה המשלבת המחשה וקטורית, פידבק בזמן אמת והתאמה אישית של רצף התרגול להוראה דיפרנציאלית מדויקת.
+              פלטפורמה המשלבת המחשה וקטורית, פידבק בזמן אמת והתאמה אישית של רצף התרגול במודל VRA דיגיטלי בלבד.
             </p>
           </div>
         </div>

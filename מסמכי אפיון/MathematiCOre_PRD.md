@@ -1,8 +1,8 @@
-# מסמך דרישות מוצר מפורט (Master PRD v3.2)
+# מסמך דרישות מוצר מפורט (Master PRD v3.3)
 ## פלטפורמת הלמידה ההיברידית "מתמטיקאור" (MathematiCOre)
-**מספר גרסה:** Version 3.2  
+**מספר גרסה:** Version 3.3  
 **תאריך עדכון:** August 14, 2026  
-**שעת עדכון:** 12:13 IDT  
+**שעת עדכון:** 13:07  
 **סטטוס:** Approved for Development  
 
 ---
@@ -10,15 +10,15 @@
 ## חלק א: שער הכניסה, בקרת הרשאות וניהול זהויות
 
 ### 1. מודול כניסה והזדהות (Login Module Spec)
-1. **מטרת המודול הפדגוגית והטכנולוגית**: יצירת שער כניסה מאובטח השומר על פרטיות מוחלטת של הלומד ומבטיח תחילת עבודה ללא חסמים רגשיים.
-2. **רכיבי ממשק המשתמש והעיצוב החזותי**: מסך כניסה בעל רקע נקי הכולל כפתור כניסת מורים באמצעות Google SSO, ותהליך כניסת תלמידים רציף ומדורג: רשימה נפתחת (Dropdown) לבחירת שם בית ספר, רשימה נפתחת לבחירת שם הכיתה (כולל כיתת ביקורת המוגדרת בקוד כ-"המבקרים"), לוח מקשים קומפקטי (Compact Numeric Pad) לבחירת מספר תלמיד (1-12), ותיבת קלט נקייה להקלדת קוד הגישה 10203040. חל איסור על הצגת רמזים, סיסמאות ברירת מחדל או טקסטים מקדימים (Placeholders/Hints) בשדות הקלט בממשק המורה והתלמיד.
-3. **לוגיקת אינטראקציה ומכונת המצבים**: המערכת פועלת במצב Idle עד לזיהוי קליק, ואז עוברת למצב Auth Redirect באמצעות Google SSO עבור מורים, או לתהליך מדורג וחד-כיווני עבור תלמידים: בחירת בית ספר -> בחירת כיתה -> בחירת מספר תלמיד -> הזנת קוד גישה 10203040.
+1. **מטרת המודול הפדגוגית והטכנולוגית**: יצירת שער כניסה מאובטח השומר על פרטיות מוחלטת של הלומד על בסיס מודל VRA דיגיטלי בלבד ומבטיח תחילת עבודה ללא חסמים רגשיים.
+2. **רכיבי ממשק המשתמש והעיצוב החזותי**: מסך כניסה בעל רקע נקי הכולל כפתור כניסת מורים באמצעות Google SSO בלבד עבור דוא"ל מורשה (davidsep@edu-haifa.org.il או davsapiash@gmail.com), ותהליך כניסת תלמידים מדורג: בחירת בית ספר ביקורת, בחירת כיתה המבקרים, בחירת מספר תלמיד מתוך אחד עד 12, ותיבת קלט נקייה להקלדת קוד הגישה 10203040. חל איסור מוחלט על הצגת רמזים, סיסמאות ברירת מחדל או טקסטים מקדימים בשדות הקלט בממשק המורה והתלמיד.
+3. **לוגיקת אינטראקציה ומכונת המצבים**: המערכת פועלת במצב Idle עד לזיהוי קליק, ואז עוברת למצב Auth Redirect באמצעות Google SSO עבור מורים מורשים בלבד, או לתהליך מדורג וחד-כיווני עבור תלמידים: בחירת בית ספר ביקורת -> בחירת כיתה המבקרים -> בחירת מספר תלמיד בין אחד ל-12 -> הזנת קוד גישה 10203040.
 4. **תרחישי קצה וטיפול בשגיאות ממשק**: במקרה של ניתוק רשת בעת בקשת אימות המערכת תציג חיווי ניסיון חוזר שקט ובמקרה של לחיצה כפולה מהירה המערכת תתעלם מהקלט השני ובמקרה של קלט לא תקין המערכת תבצע איפוס.
 5. **דרישות מרווחים נגישות וביצועים**: זמן תגובה לאימות חייב להיות פחות מ 200ms וכל שטחי ההקלקה יוגדרו בגודל של לפחות 48 פיקסלים.
-6. **מבנה נתונים ושדות בסיס הנתונים**: שמירת student ID מסוג Integer בטווח של אחד עד 12 בלבד.
+6. **מבנה נתונים ושדות בסיס הנתונים**: שמירת student ID מסוג Integer בטווח של אחד עד 12 בלבד עבור 12 תלמידי הפיילוט.
 7. **לוגיקת שחזור וריענון דפדפן**: המערכת תשמור את מזהה התלמיד ב Local Storage ותבצע בדיקת תקינות מול השרת בכל רענון דף.
 8. **מניעת לולאות עדכון בזמן אמת**: המערכת תשתמש במנגנון Throttle על כפתורי הבחירה כדי למנוע שליחת בקשות מרובות לבסיס הנתונים בטווח זמן של 500ms.
-9. **Strict Bilingual Developer Instructions**: Teachers login must rely exclusively on Google SSO with a predefined restricted list of permitted emails. Do not render any password input fields or placeholder texts or hints in teacher login view. Students login flow is strictly sequential: School Dropdown -> Class Dropdown (including "המבקרים" for control group) -> Compact Numeric Keypad for ID selection (1-12) -> Password input accepting strictly the value 10203040. Do not render any placeholder text or hint description on any student input element.
+9. **Strict Bilingual Developer Instructions**: Developer Instruction: Eradiate all CRA terminology and physical object references. All design specifications and code structures must implement the VRA model only. No placeholders or hints allowed on input elements. Keep student profiles strictly anonymous using numeric IDs 1 to 12 with zero persona names in UI. Teachers login must rely exclusively on Google SSO restricted to davidsep@edu-haifa.org.il and davsapiash@gmail.com. Students login flow is strictly sequential: School Dropdown selecting "בית ספר ביקורת" -> Class Dropdown selecting "המבקרים" -> Compact Numeric Keypad for ID selection (1 to 12) -> Password input accepting strictly the value 10203040.
 10. **תרחיש בדיקה קוגניטיבי מפורט**: המשתמש מגיע למסך ומבין מיד האם עליו לבחור בנתיב המורה או בנתיב התלמיד מבלי ללחוץ על אלמנטים שגויים.
 
 ---
@@ -62,7 +62,7 @@
 6. **מבנה נתונים ושדות בסיס הנתונים**: אוספי classes (הכולל שדות קשיחים: school_id, class_name כגון "המבקרים", ו-class_type כגון כיתת ביקורת או כיתת ניסוי), students, sessions ו-telemetry logs.
 7. **לוגיקת שחזור וריענון דפדפן**: המערכת משתמשת ב Snapshot Listeners כדי לשחזר את מצב האפליקציה מיד בעת חיבור.
 8. **מניעת לולאות עדכון בזמן אמת**: הגדרת Batch Updates לכל קבוצת נתונים כדי למנוע קריאות מרובות.
-9. **Strict Bilingual Developer Instructions**: Enforce Firestore collection schemas with strict fields for school_id, class_name, and class_type. Ensure student documents contain no personal identifiable information (Zero PII) and restrict student_id strictly to integers between 1 and 12.
+9. **Strict Bilingual Developer Instructions**: Developer Instruction: Eradiate all CRA terminology and physical object references. All design specifications and code structures must implement the VRA model only. Ensure the Firestore classes collection schema contains fields for school_id, class_name, and class_type to allow dynamic research data partitioning between control and experiment groups. Ensure student documents contain zero PII and restrict student_id strictly to integers between 1 and 12 for the 12 pilot students.
 10. **תרחיש בדיקה קוגניטיבי מפורט**: האם המידע בבסיס הנתונים תואם את המבנה המוגדר ואם לא האם המערכת מתריעה.
 
 ---
@@ -106,7 +106,7 @@
 6. **מבנה נתונים ושדות בסיס הנתונים**: column ID מסוג String.
 7. **לוגיקת שחזור וריענון דפדפן**: שמירת הטור הפעיל בזיכרון המקומי.
 8. **מניעת לולאות עדכון בזמן אמת**: נעילת אינטראקציה בטורים שאינם פעילים.
-9. **Strict Bilingual Developer Instructions**: Implement CSS filter properties for brightness control. Sibling columns must receive class dimmed column with brightness 0.6 and pointer events disabled when a specific column is active for calculation. Ensure the UI reacts instantly to column activation events.
+9. **Strict Bilingual Developer Instructions**: Developer Instruction: Eradiate all CRA terminology and physical object references. All design specifications and code structures must implement the VRA model only. Implement CSS filter properties for brightness control in the digital place value chart. Sibling columns must receive class dimmed column with brightness 0.6 and pointer events disabled when a specific column is active for calculation. Keep student input anonymous and prevent visual overload with zero placeholders or hints.
 10. **תרחיש בדיקה קוגניטיבי מפורט**: האם התלמיד מזהה איזה טור הוא הפעיל ביותר וכיצד הוא עובר בין טורים.
 
 ---
@@ -120,7 +120,7 @@
 6. **מבנה נתונים ושדות בסיס הנתונים**: coordinates מסוג Array of Integers.
 7. **לוגיקת שחזור וריענון דפדפן**: שמירת מיקומי הקוביות ב Local Storage.
 8. **מניעת לולאות עדכון בזמן אמת**: שימוש ב RequestAnimationFrame לעדכון מיקומים.
-9. **Strict Bilingual Developer Instructions**: Use WebGL or HTML5 Canvas for smooth block manipulation at 60fps. Implement magnetic snap physics in drop targets. Log conversion events PLACE VALUE CONVERSION only at logical milestones. Ensure the physics engine calculates collision detection within the expanded drop zones.
+9. **Strict Bilingual Developer Instructions**: Developer Instruction: Eradiate all CRA terminology and physical object references. All design specifications and code structures must implement the VRA model only. Use WebGL or HTML5 Canvas for smooth digital block manipulation at 60fps. Implement magnetic snap physics in drop targets. Log conversion events PLACE VALUE CONVERSION only at logical milestones. Ensure the physics engine calculates collision detection within the expanded drop zones.
 10. **תרחיש בדיקה קוגניטיבי מפורט**: האם הלומד מצליח לגרור ולהצמיד את הבלוקים למקום הנכון מבלי שהם יחזרו למקומם בטעות.
 
 ---
@@ -134,7 +134,7 @@
 6. **מבנה נתונים ושדות בסיס הנתונים**: locked מסוג Boolean.
 7. **לוגיקת שחזור וריענון דפדפן**: מצב המקלדת נשמר בסנכרון עם השרת.
 8. **מניעת לולאות עדכון בזמן אמת**: מניעת אירועי Input כפולים.
-9. **Strict Bilingual Developer Instructions**: The active input box in result row must have read only attribute set to true when keyboard locked state is active. Listen for conversion success event to trigger state change and set read only to false. Validate input format against the current exercise requirement.
+9. **Strict Bilingual Developer Instructions**: Developer Instruction: Eradiate all CRA terminology and physical object references. All design specifications and code structures must implement the VRA model only. Implement conditional column keyboard locking in worksheet addition steps during dynamic exchange operations, while keeping memory circles active for working memory relief. Listen for conversion success event to trigger state change. Validate input format against the current exercise requirement with zero placeholders or hints.
 10. **תרחיש בדיקה קוגניטיבי מפורט**: האם הלומד מבין מדוע המקלדת נעולה ואיזו פעולה הוא צריך לבצע כדי לשחרר את הנעילה.
 
 ---
@@ -162,7 +162,7 @@
 6. **מבנה נתונים ושדות בסיס הנתונים**: state stack מסוג Array.
 7. **לוגיקת שחזור וריענון דפדפן**: הסטאק נשמר בזיכרון המקומי בלבד.
 8. **מניעת לולאות עדכון בזמן אמת**: הגבלת גודל סטאק ל 10 פעולות.
-9. **Strict Bilingual Developer Instructions**: Maintain a client side stack of historical states. Pop states on click to restore block canvas positions and input values without triggering error flags in telemetry logs. Limit stack depth to prevent memory overflow.
+9. **Strict Bilingual Developer Instructions**: Developer Instruction: Eradiate all CRA terminology and physical object references. All design specifications and code structures must implement the VRA model only. Maintain a client side stack of historical states. Pop states on click to restore block canvas positions and input values without triggering error flags in telemetry logs. Ensure unlimited reversible error support via Undo without penalty.
 10. **תרחיש בדיקה קוגניטיבי מפורט**: האם הלומד יודע כיצד לבטל את הפעולה האחרונה ללא חשש מתוצאות.
 
 ---
@@ -178,7 +178,7 @@
 6. **מבנה נתונים ושדות בסיס הנתונים**: hint ID מסוג String.
 7. **לוגיקת שחזור וריענון דפדפן**: המצב נשמר בסנכרון עם השרת.
 8. **מניעת לולאות עדכון בזמן אמת**: מניעת עדכון מצב ללא פעולת משתמש.
-9. **Strict Bilingual Developer Instructions**: Disable Socratic response buttons strictly for 60000ms upon wrong answer. Show a countdown timer inside Socratic card. Do not block interactions on main canvas to encourage manual correction. Ensure the API failure fallback is hardcoded in the client.
+9. **Strict Bilingual Developer Instructions**: Developer Instruction: Eradiate all CRA terminology and physical object references. All design specifications and code structures must implement the VRA model only. Trigger socratic mentoring card upon 45 seconds of hesitation or three deletion actions. Apply a 60 second input block only on the active socratic card buttons upon incorrect answer, keeping the rest of the workspace and undo features fully functional. Do not show text placeholders or hints on input fields.
 10. **תרחיש בדיקה קוגניטיבי מפורט**: האם הלומד מבין את השאלה המנחה וכיצד לבחור את התשובה המתאימה.
 
 ---
@@ -266,7 +266,7 @@
 6. **מבנה נתונים ושדות בסיס הנתונים**: status color מסוג String.
 7. **לוגיקת שחזור וריענון דפדפן**: עדכון מצב מהשרת.
 8. **מניעת לולאות עדכון בזמן אמת**: צמצום קריאות ל Snapshot.
-9. **Strict Bilingual Developer Instructions**: Teachers grid layout must be configured as a static 3x4 CSS grid sorted strictly by student ID. Bind card background color properties to snapshots from real time database with CSS color transition ease in out 1000ms.
+9. **Strict Bilingual Developer Instructions**: Developer Instruction: Eradiate all CRA terminology and physical object references. All design specifications and code structures must implement the VRA model only. Implement the Teacher Dashboard with a fixed 12-slot Silent Radar grid representing the 12 active students, using background color shifts only to reflect real-time process data without layout reflows or popup alerts. Sort strictly by numeric student ID 1 to 12 with zero student names displayed.
 10. **תרחיש בדיקה קוגניטיבי מפורט**: האם המורה מבין את משמעות צבעי הרדאר וכיצד לפעול בהתאם.
 
 ---
@@ -425,4 +425,4 @@
 7. **לוגיקת שחזור וריענון דפדפן**: שמירה מלאה של כל המצב.
 8. **מניעת לולאות עדכון בזמן אמת**: שימוש ב Selectors ממוקדים.
 9. **Strict Bilingual Developer Instructions**: Architect a modular client global state using Zustand. Keep workspace store teacher store and authentication credentials store decoupled. Write robust state transition functions using declarative frameworks to manage UI state changes based on non nullable telemetry input actions.
-10. **תרחיש בדיקה קוגניטיבי מפורט**: האם המערכת שומרת על עקביות הנתונים בכל שלב של העבודה.
+10. **תרחיש בדיקה קוגניטיבי מפורט**: המערכת שומרת על עקביות הנתונים בכל שלב של העבודה ומוודאת עמידה בכל חוקי היסוד הגלובליים ללא תקלות.
