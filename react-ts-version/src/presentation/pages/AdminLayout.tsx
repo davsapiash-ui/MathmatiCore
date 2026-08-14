@@ -193,7 +193,7 @@ export function AdminLayout() {
                 <div className="flex flex-col items-start leading-tight">
                   <span className="text-xs font-black text-slate-800 dark:text-slate-100">{(user?.displayName as string) || "מנהל מערכת"}</span>
                   <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="text-[10px] font-semibold text-slate-500">{user?.email || "davidsep@edu-haifa.org.il"}</span>
+                    <span className="text-[10px] font-semibold text-slate-500">{user?.email || "admin@edu-haifa.org.il"}</span>
                     <span className="bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-[10px] font-black px-2 py-0.5 rounded-full border border-indigo-200 dark:border-indigo-800">
                       מנהל מערכת
                     </span>

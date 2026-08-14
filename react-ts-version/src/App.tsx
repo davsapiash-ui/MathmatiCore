@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { authReady, auth } from "@/infrastructure/firebase";
-import { Login, isWhitelistedTeacherEmail } from "@/presentation/pages/Login";
+import { Login } from "@/presentation/pages/Login";
+import { isWhitelistedTeacherEmail } from "@/infrastructure/services/AuthService";
 import { LandingPage } from "@/presentation/pages/LandingPage";
 import { StudentWorkspacePage } from "@/features/workspace/StudentWorkspacePage";
 import { StudentHub } from "@/presentation/pages/StudentHub";

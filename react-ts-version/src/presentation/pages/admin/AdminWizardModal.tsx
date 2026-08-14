@@ -411,7 +411,7 @@ export function AdminWizardModal({
                           </label>
                           <input 
                             type="email" 
-                            placeholder="davidsep@edu-haifa.org.il"
+                            placeholder="teacher@edu-haifa.org.il"
                             value={teacherTaz}
                             onChange={(e) => { setTeacherTaz(e.target.value); setTeacherError(""); }}
                             className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-2xl p-3.5 text-sm focus:border-indigo-500 outline-none font-mono"

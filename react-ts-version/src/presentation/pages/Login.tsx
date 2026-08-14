@@ -1,13 +1,10 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "@/application/useAuthStore";
-import { useAdminStore } from "@/application/useAdminStore";
 import { useStore } from "@/application/useStore";
 import { useNavigate } from "react-router-dom";
-import { auth, database } from "@/infrastructure/firebase";
-import { ref, get, set } from 'firebase/database';
-import { extractTeacherId } from "@/infrastructure/services/FirebaseSyncService";
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { executeGoogleSSO, mockSimulatedSSO } from "@/infrastructure/services/AuthService";
+import { tts } from "@/infrastructure/services/TTSService";
 import { Button } from "@/components/ui/button";
 
 const ROLES = [
@@ -16,301 +13,130 @@ const ROLES = [
   { id: "admin" as const, icon: "⚙️", label: "מנהל מערכת" },
 ];
 
-export const ALLOWED_SYSTEM_EMAILS = [
-  "davidsep@edu-haifa.org.il",
-  "1002220159@edu-haifa.org.il",
-  "davsapiash@gmail.com",
-  "davsapiash@edu-haifa.org.il",
-];
-
-export const ALLOWED_MINISTRY_DOMAINS = [
-  "edu-haifa.org.il",
-  "education.gov.il",
-  "g.education.gov.il",
-  "schools.org.il",
-  "edu.gov.il",
-];
-
-export function isWhitelistedTeacherEmail(email: string): boolean {
-  if (!email) return false;
-  const normalized = email.toLowerCase().trim();
-  if (normalized.endsWith('@mathmaticore.local')) return true;
-  if (/^\d+$/.test(normalized)) return true; // Numeric TAZ / Teacher ID
-  if (ALLOWED_SYSTEM_EMAILS.includes(normalized)) return true;
-  
-  const parts = normalized.split("@");
-  if (parts.length === 2 && ALLOWED_MINISTRY_DOMAINS.includes(parts[1])) return true;
-  
-  if (normalized.includes("davsapiash") || normalized.includes("teacher") || normalized.includes("admin")) return true;
-
-  return false;
-}
-
-const inputClass =
-  "w-full bg-ws-bg border-2 border-ws-surface2 rounded-2xl p-3.5 text-ws-ink placeholder-ws-soft/70 font-body focus:outline-none focus:border-[hsl(var(--ws-blue))] transition-colors";
-
 export function Login() {
   const { setUser } = useAuthStore();
-  const { schools, classes } = useAdminStore();
   const { login } = useStore();
   const navigate = useNavigate();
 
   const [selectedRole, setSelectedRole] = useState<"student" | "teacher" | "admin" | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-
-  // Form State
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [school, setSchool] = useState("");
-  const [classroom, setClassroom] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+  const [lastStudentClickTime, setLastStudentClickTime] = useState(0);
 
-  const handleTeacherOrAdminSubmit = async (targetRole: "teacher" | "admin") => {
-    const rawInput = username.trim();
-    if (!rawInput) {
-      setErrorMsg(targetRole === "teacher" 
-        ? 'אנא הזן תעודת זהות (לדוגמה: 039604483) או כתובת דוא"ל מורה.' 
-        : 'אנא הזן שם משתמש או כתובת דוא"ל מנהל.');
+  // Student Anonymous 12-Slot Grid Handler (PRD v3.0 Module 1)
+  const handleStudentSelect = async (studentNum: number) => {
+    tts.initializeAudioGate();
+
+    // 500ms Throttle to prevent rapid clicking
+    const now = Date.now();
+    if (now - lastStudentClickTime < 500) return;
+    setLastStudentClickTime(now);
+
+    if (studentNum < 1 || studentNum > 12) {
+      setErrorMsg("מזהה תלמיד חייב להיות מספר שלם בין 1 ל-12 בלבד.");
       return;
     }
-
-    const isEmail = rawInput.includes('@');
-    const normalizedInput = rawInput.toLowerCase();
-    const virtualEmail = isEmail ? normalizedInput : `${normalizedInput.replace(/[^a-zA-Z0-9]/g, '_')}@mathmaticore.local`;
-    const defaultPassword = password.trim() || "10203040";
 
     setIsLoggingIn(true);
     setErrorMsg("");
 
     try {
-      if (auth && auth.config) {
-        try {
-          await signInWithEmailAndPassword(auth, virtualEmail, defaultPassword);
-        } catch {
-          try {
-            await createUserWithEmailAndPassword(auth, virtualEmail, defaultPassword);
-          } catch (createErr: any) {
-            console.warn("Auth sync note:", createErr?.message);
-          }
-        }
-      }
+      const studentId = `student_${studentNum}`;
+      const displayName = `תלמיד ${studentNum}`;
 
-      const teacherId = extractTeacherId(virtualEmail, null);
-      const uid = targetRole === "teacher" ? `teacher_${teacherId}` : `admin_${teacherId}`;
+      setUser(
+        {
+          uid: studentId,
+          role: "student",
+          displayName: displayName,
+        },
+        "student"
+      );
 
-      if (targetRole === "teacher") {
-        const teacherRef = ref(database, `users/teachers/${teacherId}`);
-        const snap = await get(teacherRef);
-        if (!snap.exists()) {
-          await set(teacherRef, {
-            id: teacherId,
-            taz: teacherId,
-            email: virtualEmail,
-            name: `מורה (${teacherId})`,
-            licenseActive: false,
-            createdAt: Date.now()
-          }).catch(console.error);
-        }
-      }
+      login("student", studentId);
+      setIsLoggingIn(false);
+      navigate("/hub", { replace: true });
+    } catch (err: any) {
+      console.error("Student Login Error:", err);
+      setIsLoggingIn(false);
+      setErrorMsg("התחברות תלמיד נכשלה. אנא נסה שוב.");
+    }
+  };
 
-      setUser({
-        uid,
-        email: virtualEmail,
-        role: targetRole,
-        displayName: `${targetRole === "teacher" ? "מורה" : "מנהל מערכת"} (${teacherId})`,
-      }, targetRole);
+  // Teacher / Admin Google SSO Handler
+  const handleGoogleSSO = async (targetRole: "teacher" | "admin") => {
+    setIsLoggingIn(true);
+    setErrorMsg("");
 
-      login(targetRole, uid);
+    try {
+      const authenticatedUser = await executeGoogleSSO(targetRole);
+
+      setUser(
+        {
+          uid: authenticatedUser.uid,
+          email: authenticatedUser.email,
+          role: targetRole,
+          displayName: authenticatedUser.displayName,
+        },
+        targetRole
+      );
+
+      login(targetRole, authenticatedUser.uid);
       setIsLoggingIn(false);
       navigate(targetRole === "teacher" ? "/dashboard" : "/admin", { replace: true });
     } catch (err: any) {
-      console.error("Teacher/Admin Login Error:", err);
+      console.error(`${targetRole} Google SSO Error:`, err);
       setIsLoggingIn(false);
-      setErrorMsg("התחברות נכשלה. אנא בדוק את הפרטים ונסה שוב.");
+      setErrorMsg(err?.message || "התחברות Google SSO נכשלה. אנא ודא שחשבונך מורשה ברשימת משרד החינוך.");
     }
   };
 
-  const handleTeacherGoogleSSO = async () => {
+  // Simulated SSO Mock (Active strictly in Development mode)
+  const handleDevMockSSO = async (targetRole: "teacher" | "admin") => {
+    if (!import.meta.env.DEV) return;
     setIsLoggingIn(true);
     setErrorMsg("");
+
     try {
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      const currentUser = result.user;
-      const email = (currentUser.email || "").toLowerCase().trim();
+      const mockUser = await mockSimulatedSSO(targetRole);
 
-      if (email && !isWhitelistedTeacherEmail(email)) {
-        await auth.signOut();
-        setIsLoggingIn(false);
-        setErrorMsg(`גישה נדחתה: כתובת הדוא"ל (${email}) אינה מורשית ברשימה הלבנה של משרד החינוך.`);
-        return;
-      }
-
-      const activeEmail = (email && isWhitelistedTeacherEmail(email)) ? email : "davidsep@edu-haifa.org.il";
-      const teacherId = extractTeacherId(activeEmail, currentUser.uid);
-      const teacherRef = ref(database, `users/teachers/${teacherId}`);
-      const snap = await get(teacherRef);
-      if (!snap.exists()) {
-        await set(teacherRef, {
-          id: teacherId,
-          taz: teacherId,
-          email: activeEmail,
-          name: currentUser.displayName || `מורה (${activeEmail})`,
-          licenseActive: false,
-          createdAt: Date.now()
-        }).catch(console.error);
-      }
-
-      setUser({
-        uid: currentUser.uid || `teacher_${teacherId}`,
-        email: activeEmail,
-        role: "teacher",
-        displayName: currentUser.displayName || `מורה (${activeEmail})`,
-      }, "teacher");
-      login("teacher", currentUser.uid || `teacher_${teacherId}`);
-      setIsLoggingIn(false);
-      navigate("/dashboard", { replace: true });
-    } catch (err: any) {
-      console.error("Teacher SSO Login Error:", err);
-      setIsLoggingIn(false);
-      setErrorMsg('התחברות Google SSO בוטלה או נחסמה. ניתן להתחבר ישירות בטופס שלמעלה.');
-    }
-  };
-
-  const handleAdminGoogleSSO = async () => {
-    setIsLoggingIn(true);
-    setErrorMsg("");
-    try {
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      const currentUser = result.user;
-      const email = (currentUser.email || "").toLowerCase().trim();
-
-      if (email && !isWhitelistedTeacherEmail(email)) {
-        await auth.signOut();
-        setIsLoggingIn(false);
-        setErrorMsg(`גישה נדחתה: כתובת הדוא"ל (${email}) אינה מורשית ברשימה הלבנה.`);
-        return;
-      }
-
-      const activeEmail = (email && isWhitelistedTeacherEmail(email)) ? email : "davidsep@edu-haifa.org.il";
-      setUser({
-        uid: currentUser.uid || "admin_sso_haifa",
-        email: activeEmail,
-        role: "admin",
-        displayName: currentUser.displayName || `מנהל מערכת (${activeEmail})`,
-      }, "admin");
-      login("admin", currentUser.uid || "admin_sso_haifa");
-      setIsLoggingIn(false);
-      navigate("/admin", { replace: true });
-    } catch (err: any) {
-      console.error("Admin SSO Login Error:", err);
-      setIsLoggingIn(false);
-      setErrorMsg('התחברות Google SSO בוטלה או נחסמה. ניתן להתחבר ישירות בטופס שלמעלה.');
-    }
-  };
-
-  const handleLogin = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!selectedRole) return;
-    setErrorMsg("");
-
-    if (selectedRole === "teacher") {
-      await handleTeacherOrAdminSubmit("teacher");
-      return;
-    }
-
-    if (selectedRole === "admin") {
-      await handleTeacherOrAdminSubmit("admin");
-      return;
-    }
-
-    // Student Login
-    if (!username.trim()) {
-      setErrorMsg("אנא הזן שם משתמש תלמיד.");
-      return;
-    }
-    if (schools.length > 0 && (!school || !classroom)) {
-      setErrorMsg("אנא בחר בית ספר וכיתה.");
-      return;
-    }
-    const rawTrimmed = username.trim();
-    const num = rawTrimmed.replace(/[^0-9]/g, "");
-    if (!num) {
-      setErrorMsg("אנא הזן שם משתמש תקני (לדוגמה: משתמש 1, משתמש1 או 1).");
-      return;
-    }
-
-    const studentKey = `student_user${num}`;
-    
-    const storeStudents = useStore.getState().students || {};
-    let matchedStudent = storeStudents[studentKey];
-    if (!matchedStudent) {
-      const match = Object.values(storeStudents).find(
-        (s) => s.name === `משתמש ${num}` || s.studentId === studentKey || s.studentId === `student_${num}` || s.studentId === `${num}`
+      setUser(
+        {
+          uid: mockUser.uid,
+          email: mockUser.email,
+          role: targetRole,
+          displayName: mockUser.displayName,
+        },
+        targetRole
       );
-      if (match) matchedStudent = match;
+
+      login(targetRole, mockUser.uid);
+      setIsLoggingIn(false);
+      navigate(targetRole === "teacher" ? "/dashboard" : "/admin", { replace: true });
+    } catch (err: any) {
+      console.error("Mock SSO Error:", err);
+      setIsLoggingIn(false);
+      setErrorMsg("הזדהות פיתוח נכשלה.");
     }
-
-    const studentId = matchedStudent?.studentId || studentKey;
-    const displayName = matchedStudent?.name || `משתמש ${num}`;
-
-    setIsLoggingIn(true);
-
-    try {
-      const limitSnap = await get(ref(database, 'system_control/globalStudentLimit'));
-      if (limitSnap.exists()) {
-        const maxLimit = Number(limitSnap.val());
-        const activeStudentsCount = Object.keys(storeStudents).length;
-        if (maxLimit > 0 && activeStudentsCount > maxLimit) {
-          setErrorMsg(`מכסת התלמידים במערכת הגיעה למקסימום המותר (${maxLimit}). גישה נדחתה.`);
-          setIsLoggingIn(false);
-          return;
-        }
-      }
-    } catch (e) {
-      console.warn("Global student limit check note:", e);
-    }
-
-    const virtualEmail = `${studentId}@mathmaticore.local`;
-    const defaultPassword = password || "10203040";
-
-    try {
-      if (auth && auth.config) {
-        try {
-          await signInWithEmailAndPassword(auth, virtualEmail, defaultPassword);
-        } catch {
-          try {
-            await createUserWithEmailAndPassword(auth, virtualEmail, defaultPassword);
-          } catch {}
-        }
-      }
-    } catch {}
-
-    setUser({
-      uid: studentId,
-      role: "student",
-      displayName: displayName,
-    }, "student");
-    login("student", studentId);
-    setIsLoggingIn(false);
-    navigate("/hub", { replace: true });
   };
 
   const roleTitle =
-    selectedRole === "student" ? "כניסת תלמיד - זיהוי אוטומטי" :
-    selectedRole === "teacher" ? "כניסת מורה - הזדהות מאובטחת" :
-    selectedRole === "admin" ? "כניסת מנהל - גישה מאובטחת" : "";
+    selectedRole === "student"
+      ? "כניסת תלמיד — בחירה אנונימית"
+      : selectedRole === "teacher"
+      ? "כניסת מורה — הזדהות מאובטחת"
+      : selectedRole === "admin"
+      ? "כניסת מנהל — גישה מאובטחת"
+      : "";
 
   return (
     <div
       dir="rtl"
       className="relative min-h-screen bg-ws-bg font-body text-ws-ink flex overflow-hidden"
     >
-      {/* Right Side: Login Form */}
+      {/* Right Side: Main Portal Container */}
       <main className="flex-1 flex flex-col items-center justify-center p-6 sm:p-12 relative z-10 w-full overflow-y-auto">
-        
-        <div className="w-full max-w-[480px] flex flex-col items-center gap-8 z-10">
+        <div className="w-full max-w-[540px] flex flex-col items-center gap-8 z-10">
           {/* Logo Area */}
           <motion.div
             initial={{ opacity: 0, y: 12 }}
@@ -323,7 +149,7 @@ export function Login() {
             </div>
             <div className="text-right">
               <h1 className="font-display font-black text-3xl text-ws-ink tracking-tight leading-tight">מתמטיקאור &copy;</h1>
-              <p className="text-sm text-ws-soft mt-0.5">סביבת למידה מוגברת טכנולוגיה</p>
+              <p className="text-sm text-ws-soft mt-0.5">סביבת למידה היברידית מוגברת טכנולוגיה</p>
             </div>
           </motion.div>
 
@@ -345,23 +171,28 @@ export function Login() {
                   transition={{ duration: 0.2 }}
                 >
                   <h2 className="font-display font-extrabold text-2xl text-ws-ink mb-1">שלום! מי נכנס היום?</h2>
-                  <p className="text-sm text-ws-soft mb-6">בחר את סוג הכניסה שלך</p>
+                  <p className="text-sm text-ws-soft mb-6">בחר את שער הכניסה שלך</p>
 
                   <div className="flex gap-3 justify-center flex-col sm:flex-row">
                     {ROLES.map((role) => (
                       <button
                         key={role.id}
-                        onClick={() => { setSelectedRole(role.id); setErrorMsg(""); setUsername(""); setPassword(""); }}
+                        onClick={() => {
+                          setSelectedRole(role.id);
+                          setErrorMsg("");
+                        }}
                         className="flex-1 flex flex-col items-center gap-2 p-5 sm:p-4 bg-ws-bg/50 border-2 border-ws-surface2 rounded-2xl text-ws-ink font-display font-bold transition-all hover:border-[hsl(var(--ws-blue)/0.5)] hover:bg-[hsl(var(--ws-blue-soft)/0.5)] hover:-translate-y-1 hover:shadow-lg active:scale-[0.98]"
                       >
-                        <span className="text-4xl leading-none drop-shadow-sm" aria-hidden="true">{role.icon}</span>
+                        <span className="text-4xl leading-none drop-shadow-sm" aria-hidden="true">
+                          {role.icon}
+                        </span>
                         <span>{role.label}</span>
                       </button>
                     ))}
                   </div>
                 </motion.div>
               ) : (
-                /* Authentication Form */
+                /* Authenticated Entry Form */
                 <motion.div
                   key="form"
                   initial={{ opacity: 0, x: 16 }}
@@ -371,123 +202,91 @@ export function Login() {
                 >
                   <button
                     type="button"
-                    onClick={() => { setSelectedRole(null); setErrorMsg(""); }}
+                    onClick={() => {
+                      setSelectedRole(null);
+                      setErrorMsg("");
+                    }}
                     className="text-sm font-display font-bold text-ws-soft px-2 py-1 rounded-lg transition-colors hover:text-[hsl(var(--ws-blue))] hover:bg-[hsl(var(--ws-blue-soft))] mb-3 -mr-2 flex items-center gap-1"
                   >
                     ➔ חזרה
                   </button>
 
-                  <h2 className="font-display font-extrabold text-xl text-ws-ink mb-5">{roleTitle}</h2>
+                  <h2 className="font-display font-extrabold text-xl text-ws-ink mb-3">{roleTitle}</h2>
 
-                  <form onSubmit={handleLogin}>
-                    <p
-                      className="mb-6 text-sm leading-relaxed rounded-2xl p-3.5 pr-4 border-r-4 text-ws-ink/80 font-medium bg-[hsl(var(--ws-blue-soft)/0.55)] border-[hsl(var(--ws-blue)/0.55)] shadow-sm"
+                  {errorMsg && (
+                    <div
+                      role="alert"
+                      className="mb-4 p-3.5 bg-rose-50 border border-rose-200 dark:bg-rose-950/30 dark:border-rose-900/50 rounded-2xl text-rose-600 dark:text-rose-400 text-sm font-bold shadow-sm"
                     >
-                      {selectedRole === "student" && "ברוך הבא! אנא בחר בית ספר, כיתה, והזן את שם המשתמש שלך כדי להיכנס."}
-                      {selectedRole === "teacher" && "ברוכים הבאים! הזן ת\"ז מורה (לדוגמה: 039604483), דוא\"ל משרד החינוך או התחבר ב-Google SSO."}
-                      {selectedRole === "admin" && "ברוכים הבאים! הזן שם משתמש מנהל או דוא\"ל מורשה לגישה למרחב הניהול."}
-                    </p>
+                      {errorMsg}
+                    </div>
+                  )}
 
-                    {errorMsg && (
-                      <div
-                        role="alert"
-                        className="mb-4 p-3 bg-rose-50 border border-rose-200 dark:bg-rose-950/30 dark:border-rose-900/50 rounded-2xl text-rose-600 dark:text-rose-400 text-sm font-bold shadow-sm"
-                      >
-                        {errorMsg}
+                  {/* Student 12-Slot Anonymous Grid (PRD v3.0 Module 1) */}
+                  {selectedRole === "student" && (
+                    <div>
+                      <p className="mb-5 text-sm leading-relaxed rounded-2xl p-3.5 pr-4 border-r-4 text-ws-ink/80 font-medium bg-[hsl(var(--ws-blue-soft)/0.55)] border-[hsl(var(--ws-blue)/0.55)] shadow-sm">
+                        בחר את מספר המושב האישי שלך כדי להיכנס לסביבת התרגול ללא שמירת פרטים מזהים.
+                      </p>
+
+                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 max-w-[440px] mx-auto justify-items-center">
+                        {Array.from({ length: 12 }, (_, i) => i + 1).map((num) => (
+                          <button
+                            key={num}
+                            onClick={() => handleStudentSelect(num)}
+                            disabled={isLoggingIn}
+                            className="w-[100px] h-[100px] flex flex-col items-center justify-center gap-1 rounded-2xl border-2 border-ws-surface2 bg-ws-bg hover:border-[hsl(var(--ws-blue))] hover:bg-[hsl(var(--ws-blue-soft))] transition-all active:scale-95 shadow-sm group"
+                          >
+                            <span className="text-2xl font-black text-ws-ink group-hover:text-[hsl(var(--ws-blue))]">
+                              {num}
+                            </span>
+                            <span className="text-xs font-bold text-ws-soft">תלמיד</span>
+                          </button>
+                        ))}
                       </div>
-                    )}
+                    </div>
+                  )}
 
-                    <div className="flex flex-col gap-4 mb-6">
-                      {selectedRole === "student" && (
-                        <>
-                          <select
-                            value={school}
-                            onChange={(e) => {
-                              setSchool(e.target.value);
-                              setClassroom("");
-                            }}
-                            className={inputClass}
-                          >
-                            <option value="" disabled>בחר בית ספר</option>
-                            {schools.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                          </select>
-                          <select
-                            value={classroom}
-                            onChange={(e) => setClassroom(e.target.value)}
-                            className={inputClass}
-                            disabled={!school}
-                          >
-                            <option value="" disabled>בחר כיתה</option>
-                            {classes.filter(c => c.schoolId === school).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                          </select>
-                          <input
-                            type="text"
-                            placeholder="שם משתמש (לדוגמה: משתמש 1 או 1)"
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
-                            className={inputClass}
-                          />
-                          <Button
-                            type="submit"
-                            variant="udl"
-                            size="lg"
-                            disabled={isLoggingIn}
-                            className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl font-extrabold text-base transition-all shadow-md hover:shadow-lg active:scale-95"
-                          >
-                            <span>🚀</span>
-                            <span>{isLoggingIn ? "מתחבר..." : "כניסה למרחב הלמידה"}</span>
-                          </Button>
-                        </>
-                      )}
+                  {/* Teacher & Admin Pure Google SSO Flow (PRD v3.0 Module 1 & 2) */}
+                  {(selectedRole === "teacher" || selectedRole === "admin") && (
+                    <div className="flex flex-col gap-5">
+                      <p className="text-sm leading-relaxed rounded-2xl p-4 border-r-4 text-ws-ink/80 font-medium bg-[hsl(var(--ws-blue-soft)/0.55)] border-[hsl(var(--ws-blue)/0.55)] shadow-sm">
+                        הכניסה למרחב {selectedRole === "teacher" ? "המורה" : "הניהול"} מתבצעת באופן מאובטח באמצעות חשבון Google SSO מורשה של משרד החינוך.
+                      </p>
 
-                      {(selectedRole === "teacher" || selectedRole === "admin") && (
-                        <div className="flex flex-col gap-4">
-                          <input
-                            type="text"
-                            placeholder={selectedRole === "teacher" ? "תעודת זהות / דוא\"ל מורה (לדוגמה: 039604483)" : "שם משתמש / דוא\"ל מנהל"}
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
-                            className={inputClass}
-                          />
-                          <input
-                            type="password"
-                            placeholder="סיסמה (ברירת מחדל: 10203040)"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            className={inputClass}
-                          />
-                          <Button
-                            type="submit"
-                            variant="udl"
-                            size="lg"
-                            disabled={isLoggingIn}
-                            className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl font-extrabold text-base transition-all shadow-md hover:shadow-lg active:scale-95"
-                          >
-                            <span>🚀</span>
-                            <span>{isLoggingIn ? "מתחבר..." : `כניסה למרחב ${selectedRole === "teacher" ? "מורה" : "מנהל"}`}</span>
-                          </Button>
+                      <Button
+                        type="button"
+                        variant="udl"
+                        size="lg"
+                        onClick={() => handleGoogleSSO(selectedRole)}
+                        disabled={isLoggingIn}
+                        className="w-full flex items-center justify-center gap-3 p-5 rounded-2xl font-extrabold text-base transition-all shadow-lg hover:shadow-xl active:scale-95 bg-gradient-to-r from-blue-600 to-indigo-600 text-white"
+                      >
+                        <span className="text-2xl">🌐</span>
+                        <span>{isLoggingIn ? "מאמת נתונים מול Google..." : `כניסה באמצעות Google SSO`}</span>
+                      </Button>
 
-                          <div className="flex items-center gap-3 my-1">
-                            <div className="flex-1 border-t border-ws-surface2" />
-                            <span className="text-xs text-ws-soft font-bold">או</span>
-                            <div className="flex-1 border-t border-ws-surface2" />
+                      {/* Development Mock SSO (Strictly visible in Dev mode) */}
+                      {import.meta.env.DEV && (
+                        <div className="mt-4 pt-4 border-t border-dashed border-amber-300 dark:border-amber-700">
+                          <div className="text-xs font-bold text-amber-700 dark:text-amber-300 mb-2 flex items-center gap-1.5">
+                            <span>🛠️</span>
+                            <span>סביבת פיתוח מקומית (Simulated SSO Mock)</span>
                           </div>
-
                           <Button
                             type="button"
                             variant="outline"
-                            size="lg"
-                            onClick={selectedRole === "teacher" ? handleTeacherGoogleSSO : handleAdminGoogleSSO}
+                            size="sm"
+                            onClick={() => handleDevMockSSO(selectedRole)}
                             disabled={isLoggingIn}
-                            className="w-full flex items-center justify-center gap-3 p-3.5 rounded-2xl font-bold text-sm transition-all shadow-sm hover:shadow active:scale-95"
+                            className="w-full border-amber-400 text-amber-900 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/30 hover:bg-amber-100 font-bold text-xs"
                           >
-                            <span className="text-lg">🌐</span>
-                            <span>התחברות מהירה באמצעות Google SSO</span>
+                            התחבר כ-{selectedRole === "teacher" ? "מורה" : "מנהל"} מדמה (Local Dev Only)
                           </Button>
                         </div>
                       )}
                     </div>
-                  </form>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>
@@ -497,34 +296,38 @@ export function Login() {
 
       {/* Left Side: Atmosphere */}
       <aside className="hidden lg:flex flex-1 relative bg-gradient-to-br from-indigo-50/50 to-blue-50/30 dark:from-ws-bg dark:to-ws-surface2 items-center justify-center overflow-hidden border-r border-ws-surface2">
-        <div aria-hidden="true" className="absolute inset-0 pointer-events-none animate-breathe mix-blend-multiply dark:mix-blend-screen opacity-70 dark:opacity-40">
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 pointer-events-none animate-breathe mix-blend-multiply dark:mix-blend-screen opacity-70 dark:opacity-40"
+        >
           <div className="absolute -top-32 -left-32 w-[600px] h-[600px] rounded-full bg-indigo-500/20 blur-[100px]" />
           <div className="absolute top-[30%] -right-20 w-[500px] h-[500px] rounded-full bg-teal-500/20 blur-[80px]" />
           <div className="absolute -bottom-40 left-20 w-[450px] h-[450px] rounded-full bg-rose-500/15 blur-[90px]" />
         </div>
-        
+
         <div className="relative z-10 flex flex-col items-center text-center max-w-md px-8">
-           <motion.div 
-             initial={{ scale: 0.8, opacity: 0, rotate: -10 }}
-             animate={{ scale: 1, opacity: 1, rotate: 0 }}
-             transition={{ type: "spring", duration: 1.5, bounce: 0.4 }}
-             className="w-32 h-32 mx-auto bg-white/80 dark:bg-ws-surface/80 rounded-[2.5rem] shadow-2xl mb-10 flex items-center justify-center rotate-3 border-4 border-white dark:border-ws-surface2 backdrop-blur-md"
-           >
-             <span className="text-7xl drop-shadow-md">🚀</span>
-           </motion.div>
-           
-           <motion.div
-             initial={{ y: 20, opacity: 0 }}
-             animate={{ y: 0, opacity: 1 }}
-             transition={{ delay: 0.3, duration: 0.6 }}
-           >
-             <h2 className="text-4xl font-display font-black text-ws-ink mb-5 leading-tight">
-               מתמטיקה, <br/>בקצב שלך.
-             </h2>
-             <p className="text-ws-soft text-lg font-medium leading-relaxed max-w-sm mx-auto">
-               סביבת הלמידה שמזהה איך אתה חושב, ומתאימה את עצמה בדיוק אליך.
-             </p>
-           </motion.div>
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0, rotate: -10 }}
+            animate={{ scale: 1, opacity: 1, rotate: 0 }}
+            transition={{ type: "spring", duration: 1.5, bounce: 0.4 }}
+            className="w-32 h-32 mx-auto bg-white/80 dark:bg-ws-surface/80 rounded-[2.5rem] shadow-2xl mb-10 flex items-center justify-center rotate-3 border-4 border-white dark:border-ws-surface2 backdrop-blur-md"
+          >
+            <span className="text-7xl drop-shadow-md">🚀</span>
+          </motion.div>
+
+          <motion.div
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.3, duration: 0.6 }}
+          >
+            <h2 className="text-4xl font-display font-black text-ws-ink mb-5 leading-tight">
+              מתמטיקה, <br />
+              בקצב שלך.
+            </h2>
+            <p className="text-ws-soft text-lg font-medium leading-relaxed max-w-sm mx-auto">
+              סביבת הלמידה שמזהה איך אתה חושב, ומתאימה את עצמה בדיוק אליך.
+            </p>
+          </motion.div>
         </div>
       </aside>
     </div>

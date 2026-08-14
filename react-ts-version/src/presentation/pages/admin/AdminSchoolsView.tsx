@@ -301,7 +301,7 @@ export function AdminSchoolsView() {
                               <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-3">
                                 <span className="flex items-center gap-1 font-mono">
                                   <KeyRound className="w-3 h-3 text-slate-400" />
-                                  דוא"ל SSO: {teacher.taz || "davidsep@edu-haifa.org.il"}
+                                  דוא"ל SSO: {teacher.taz || "teacher@edu-haifa.org.il"}
                                 </span>
                               </div>
                             </div>
