@@ -37,7 +37,9 @@ import { CONCEPT_LABELS_HE } from "@/core/QMatrix";
 const getStudentKPIs = (student: StudentData, messages: ChatMessage[]) => {
   const undo = student.traceData?.undo_clicks || 0;
   const hesitation = student.traceData?.hesitation_events || 0;
-  const hasHistory = (student.highestCompletedMeeting || 0) > 0 || Boolean(student.completedMeeting2) || undo > 0 || hesitation > 0;
+  const errors = (student as any).errorCount || (student as any).errors || 0;
+  const guesses = (student as any).guessCount || (student as any).distractorClicks || 0;
+  const hasHistory = (student.highestCompletedMeeting || 0) > 0 || Boolean(student.completedMeeting2) || undo > 0 || hesitation > 0 || errors > 0;
 
   if (!hasHistory) {
     return {
@@ -48,8 +50,12 @@ const getStudentKPIs = (student: StudentData, messages: ChatMessage[]) => {
     };
   }
 
-  const persistenceScore = 70 + Math.min(20, undo * 3) + Math.min(15, hesitation * 1.5);
-  const persistence = Math.round(Math.min(100, persistenceScore));
+  // SRL Canonical Persistence Ratio: (U / (U + E + G)) * 100 with safe 0/0/0 handling
+  const safeU = Math.max(0, undo);
+  const safeE = Math.max(0, errors);
+  const safeG = Math.max(0, guesses);
+  const denominator = safeU + safeE + safeG;
+  const persistence = denominator <= 0 ? 100 : Math.min(100, Math.max(0, Math.round((safeU / denominator) * 100)));
 
   const meeting2Bonus = student.completedMeeting2 ? 10 : 0;
   const efficiencyScore = 90 - 2.5 * (undo + hesitation) + meeting2Bonus;
@@ -1707,6 +1713,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                           size="sm" 
                           className="font-bold shadow-md shadow-ws-accent/20"
                           onClick={async () => {
+                            const prevRouteStatus = student.routeStatus;
                             // Local state for this browser's UI…
                             approveRoute(student.studentId);
                             // …AND the Firebase write the student's browser actually waits on
@@ -1720,7 +1727,21 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                 await SocraticEngine.approveTasks(targetTeacherId, approval.id, approval.studentId, approval.tasks);
                               } catch (err) {
                                 console.error('Firebase task approval failed:', err);
-                                alert('שגיאה באישור המשימות ב-Firebase.');
+                                // Optimistic rollback
+                                useStore.setState((state) => {
+                                  const s = state.students[student.studentId];
+                                  if (!s) return state;
+                                  return {
+                                    students: {
+                                      ...state.students,
+                                      [student.studentId]: {
+                                        ...s,
+                                        routeStatus: prevRouteStatus || 'PENDING_TEACHER_APPROVAL'
+                                      }
+                                    }
+                                  };
+                                });
+                                alert('שגיאה באישור המשימות ב-Firebase. הפעולה בוטלה.');
                               }
                             }
                           }}
@@ -2496,8 +2517,35 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
             onClose={() => setDrawerStudent(null)}
             isPendingApproval={drawerStudent.routeStatus === 'PENDING'}
             onApproveTasks={async (studentId: string) => {
+              const prevStudent = useStore.getState().students[studentId];
+              const prevRouteStatus = prevStudent?.routeStatus;
               approveRoute(studentId);
               setDrawerStudent(null);
+              const allPending = [...teacherApprovals, ...fallbackApprovals];
+              const approval = allPending.find((a) => a.studentId === studentId);
+              if (approval) {
+                try {
+                  const isFallback = fallbackApprovals.some(a => a.id === approval.id);
+                  const targetTeacherId = isFallback ? "teacher-1" : TEACHER_ID;
+                  await SocraticEngine.approveTasks(targetTeacherId, approval.id, approval.studentId, approval.tasks);
+                } catch (err) {
+                  console.error('Firebase task approval failed:', err);
+                  useStore.setState((state) => {
+                    const s = state.students[studentId];
+                    if (!s) return state;
+                    return {
+                      students: {
+                        ...state.students,
+                        [studentId]: {
+                          ...s,
+                          routeStatus: prevRouteStatus || 'PENDING_TEACHER_APPROVAL'
+                        }
+                      }
+                    };
+                  });
+                  alert('שגיאה באישור המשימות ב-Firebase. הפעולה בוטלה.');
+                }
+              }
             }}
           />
         )}

@@ -86,7 +86,7 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
   },
 
   addTeacher: (schoolId, name, taz, dob) => {
-    AuditLogger.log("יצירת מורה", "admin", `מורה חדש: ${name} (ת"ז: ${taz})`);
+    AuditLogger.log("יצירת מורה", "admin", `מורה חדש: ${name} (ת"ז: ***${taz.slice(-4)})`);
     const id = taz.trim();
     const newTeacher: Teacher = {
       id,

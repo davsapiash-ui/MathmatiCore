@@ -1,6 +1,10 @@
 import { create } from "zustand";
 import { AuditLogger } from "@/infrastructure/services/AuditLogger";
 import { auth } from "@/infrastructure/firebase";
+import { useStore } from "@/application/useStore";
+import { useWorkspaceStore } from "@/application/useWorkspaceStore";
+import { useAdminStore } from "@/application/useAdminStore";
+import { useChatStore } from "@/application/useChatStore";
 
 export interface ClassSchema {
   school_id: string;
@@ -106,6 +110,26 @@ const clearStoredAuth = () => {
 const initial = getStoredAuth();
 
 /**
+ * Unified logout utility to synchronously reset useAuthStore, useStore,
+ * useWorkspaceStore, useAdminStore, and useChatStore.
+ */
+export function unifiedLogout() {
+  clearStoredAuth();
+  if (auth && typeof auth.signOut === 'function') {
+    auth.signOut().catch((e) => console.warn("Firebase signOut error:", e));
+  }
+  useStore.getState().logout();
+  useWorkspaceStore.getState().resetWorkspace?.();
+  useAdminStore.setState({ schools: [], teachers: [], classes: [], globalStudentLimit: 12 });
+  useChatStore.setState({ messages: [], activeRoomId: null, unreadCount: 0 });
+  useAuthStore.setState((state) => {
+    const username = state.user?.name || state.user?.email || "Unknown";
+    AuditLogger.log("התנתקות", state.user?.uid || "unknown_uid", `משתמש התנתק: ${username}`);
+    return { user: null, role: null, isAuthenticated: false };
+  });
+}
+
+/**
  * [Developer Instruction: Implement Firestore schema updates in useAuthStore.ts with fields for school_id, class_name, and class_type.
  * Ensure student IDs are restricted strictly to integers between 1 and 12 with Zero PII.]
  */
@@ -154,15 +178,7 @@ export const useAuthStore = create<AuthState>()(
       return { user: cleanUser, role: activeRole, isAuthenticated: true };
     }),
     logout: () => {
-      clearStoredAuth();
-      if (auth && typeof auth.signOut === 'function') {
-        auth.signOut().catch((e) => console.warn("Firebase signOut error:", e));
-      }
-      return set((state) => {
-        const username = state.user?.name || state.user?.email || "Unknown";
-        AuditLogger.log("התנתקות", state.user?.uid || "unknown_uid", `משתמש התנתק: ${username}`);
-        return { user: null, role: null, isAuthenticated: false };
-      });
+      unifiedLogout();
     },
   })
 );

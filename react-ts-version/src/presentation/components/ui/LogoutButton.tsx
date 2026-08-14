@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { LogOut } from "lucide-react";
-import { useAuthStore } from "@/application/useAuthStore";
+import { useAuthStore, unifiedLogout } from "@/application/useAuthStore";
 import { useNavigate } from "react-router-dom";
 
 interface LogoutButtonProps {
@@ -11,11 +11,10 @@ interface LogoutButtonProps {
 
 export function LogoutButton({ className = "", showIconOnly = false }: LogoutButtonProps) {
   const [showConfirm, setShowConfirm] = useState(false);
-  const { logout } = useAuthStore();
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    logout();
+    unifiedLogout();
     navigate("/login", { replace: true });
   };
 
