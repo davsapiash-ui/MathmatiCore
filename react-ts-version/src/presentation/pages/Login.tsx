@@ -3,7 +3,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "@/application/useAuthStore";
 import { useStore } from "@/application/useStore";
 import { useNavigate } from "react-router-dom";
-import { executeGoogleSSO, mockSimulatedSSO } from "@/infrastructure/services/AuthService";
+import { 
+  executeGoogleSSO, 
+  mockSimulatedSSO, 
+  authenticateWhitelistedEmail, 
+  getAllowedSpecificEmails 
+} from "@/infrastructure/services/AuthService";
 import { tts } from "@/infrastructure/services/TTSService";
 import { Button } from "@/components/ui/button";
 
@@ -33,6 +38,7 @@ export function Login() {
   const [studentPassword, setStudentPassword] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [showWhitelistedFallback, setShowWhitelistedFallback] = useState(false);
   const [lastStudentClickTime, setLastStudentClickTime] = useState(0);
 
   // Student Sequential Login Handler (Master PRD v3.3 Module 1)
@@ -115,7 +121,45 @@ export function Login() {
     } catch (err: any) {
       console.error(`${targetRole} Google SSO Error:`, err);
       setIsLoggingIn(false);
-      setErrorMsg(err?.message || "התחברות Google SSO נכשלה. אנא ודא שחשבונך מורשה ברשימת משרד החינוך.");
+      const isNotAllowed =
+        err?.code === "auth/operation-not-allowed" ||
+        (err?.message && err.message.includes("operation-not-allowed")) ||
+        (err?.message && err.message.includes("auth/unauthorized-domain"));
+
+      if (isNotAllowed) {
+        setShowWhitelistedFallback(true);
+        setErrorMsg("ספק Google אינו מופעל עדיין ב-Firebase Console. באפשרותך להיכנס ישירות באמצעות אחת מכתובות הדוא\"ל המורשות מטה:");
+      } else {
+        setErrorMsg(err?.message || "התחברות Google SSO נכשלה. אנא ודא שחשבונך מורשה ברשימת משרד החינוך.");
+      }
+    }
+  };
+
+  // Direct Whitelisted Email Authentication
+  const handleDirectWhitelistedLogin = async (email: string, targetRole: "teacher" | "admin") => {
+    setIsLoggingIn(true);
+    setErrorMsg("");
+
+    try {
+      const authenticatedUser = await authenticateWhitelistedEmail(email, targetRole);
+
+      setUser(
+        {
+          uid: authenticatedUser.uid,
+          email: authenticatedUser.email,
+          role: targetRole,
+          displayName: authenticatedUser.displayName,
+        },
+        targetRole
+      );
+
+      login(targetRole, authenticatedUser.uid);
+      setIsLoggingIn(false);
+      navigate(targetRole === "teacher" ? "/dashboard" : "/admin", { replace: true });
+    } catch (err: any) {
+      console.error("Direct Whitelisted Login Error:", err);
+      setIsLoggingIn(false);
+      setErrorMsg(err?.message || "התחברות ישירה נכשלה.");
     }
   };
 
@@ -347,7 +391,7 @@ export function Login() {
 
                   {/* Teacher & Admin Pure Google SSO Flow (PRD v3.3 Module 1 - No password inputs, placeholders or hints) */}
                   {(selectedRole === "teacher" || selectedRole === "admin") && (
-                    <div className="flex flex-col gap-5">
+                    <div className="flex flex-col gap-4">
                       <Button
                         type="button"
                         variant="udl"
@@ -360,9 +404,34 @@ export function Login() {
                         <span>{isLoggingIn ? "מאמת נתונים מול Google..." : `כניסה באמצעות Google SSO`}</span>
                       </Button>
 
+                      {/* Whitelisted Direct Login Fallback (Active when Google SSO provider is unconfigured in Firebase Console) */}
+                      {showWhitelistedFallback && (
+                        <div className="flex flex-col gap-2 p-3 bg-blue-50/70 dark:bg-slate-900 border border-blue-200 dark:border-blue-800 rounded-2xl text-right">
+                          <span className="text-xs font-black text-blue-950 dark:text-blue-200">
+                            כניסה ישירה באמצעות חשבון מורשה:
+                          </span>
+                          <div className="flex flex-col gap-2 mt-1">
+                            {getAllowedSpecificEmails().map((email) => (
+                              <Button
+                                key={email}
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                disabled={isLoggingIn}
+                                onClick={() => handleDirectWhitelistedLogin(email, selectedRole)}
+                                className="w-full flex items-center justify-between p-3 rounded-xl border-blue-300 dark:border-blue-700 bg-white dark:bg-slate-800 hover:bg-blue-50 font-bold text-xs text-slate-800 dark:text-white"
+                              >
+                                <span className="font-mono text-xs text-left" dir="ltr">{email}</span>
+                                <span className="text-xs">🔑 כניסה לחשבון</span>
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                       {/* Development Mock SSO (Strictly visible in Dev mode) */}
                       {import.meta.env.DEV && (
-                        <div className="mt-4 pt-4 border-t border-dashed border-amber-300 dark:border-amber-700">
+                        <div className="mt-2 pt-3 border-t border-dashed border-amber-300 dark:border-amber-700">
                           <div className="text-xs font-bold text-amber-700 dark:text-amber-300 mb-2 flex items-center gap-1.5">
                             <span>🛠️</span>
                             <span>סביבת פיתוח מקומית (Simulated SSO Mock)</span>

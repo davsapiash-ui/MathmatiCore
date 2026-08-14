@@ -12,6 +12,11 @@ const DEFAULT_ALLOWED_DOMAINS = [
   "edu.gov.il"
 ];
 
+const DEFAULT_ALLOWED_SPECIFIC_EMAILS = [
+  "davidsep@edu-haifa.org.il",
+  "davsapiash@gmail.com",
+];
+
 /**
  * Retrieves dynamically configured allowed domains from environment variables.
  */
@@ -32,12 +37,13 @@ export function getAllowedDomains(): string[] {
 export function getAllowedSpecificEmails(): string[] {
   const envEmails = import.meta.env.VITE_ALLOWED_EMAILS;
   if (envEmails && typeof envEmails === "string") {
-    return envEmails
+    const parsed = envEmails
       .split(",")
       .map((e: string) => e.trim().toLowerCase())
       .filter(Boolean);
+    return [...new Set([...DEFAULT_ALLOWED_SPECIFIC_EMAILS, ...parsed])];
   }
-  return [];
+  return DEFAULT_ALLOWED_SPECIFIC_EMAILS;
 }
 
 /**
@@ -119,6 +125,41 @@ export async function executeGoogleSSO(targetRole: "teacher" | "admin"): Promise
     uid,
     email,
     displayName: user.displayName || `${targetRole === "teacher" ? "מורה" : "מנהל מערכת"} (${email})`,
+    role: targetRole
+  };
+}
+
+/**
+ * Authenticates a whitelisted institutional email directly when Google OAuth provider is unconfigured or blocked.
+ */
+export async function authenticateWhitelistedEmail(email: string, targetRole: "teacher" | "admin"): Promise<AuthenticatedUserPayload> {
+  const normalized = email.toLowerCase().trim();
+  if (!isWhitelistedTeacherEmail(normalized)) {
+    throw new Error(`גישה נדחתה: כתובת הדוא"ל (${normalized}) אינה מורשית.`);
+  }
+
+  const teacherId = extractTeacherId(normalized, `auth_${normalized.replace(/[^a-zA-Z0-9]/g, "_")}`);
+  const uid = targetRole === "teacher" ? `teacher_${teacherId}` : `admin_${teacherId}`;
+
+  if (targetRole === "teacher") {
+    const teacherRef = ref(database, `users/teachers/${teacherId}`);
+    const snap = await get(teacherRef);
+    if (!snap.exists()) {
+      await set(teacherRef, {
+        id: teacherId,
+        taz: teacherId,
+        email: normalized,
+        name: `מורה (${normalized})`,
+        licenseActive: true,
+        createdAt: Date.now()
+      }).catch(console.error);
+    }
+  }
+
+  return {
+    uid,
+    email: normalized,
+    displayName: `${targetRole === "teacher" ? "מורה" : "מנהל מערכת"} (${normalized})`,
     role: targetRole
   };
 }
