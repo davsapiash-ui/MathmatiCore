@@ -47,27 +47,57 @@ export function getAllowedSpecificEmails(): string[] {
 
 /**
  * Validates whether an email is authorized to access teacher / admin portals.
- * Enforces dynamic domain whitelist and environment settings with Zero hardcoded private emails.
+ * Strictly permits davidsep@edu-haifa.org.il and teachers provisioned in the database by admin.
  */
-export function isWhitelistedTeacherEmail(email?: string | null): boolean {
+export async function isWhitelistedTeacherEmailAsync(email?: string | null): Promise<boolean> {
   if (!email) return false;
   const normalized = email.toLowerCase().trim();
 
   // Local development domain
   if (normalized.endsWith("@mathmaticore.local")) return true;
 
+  // Master authorized initial administrator & teacher
+  if (normalized === "davidsep@edu-haifa.org.il") return true;
+
   // Check specific allowed emails configured in environment
   const allowedEmails = getAllowedSpecificEmails();
   if (allowedEmails.includes(normalized)) return true;
 
-  // Check allowed institutional domains
-  const allowedDomains = getAllowedDomains();
-  const parts = normalized.split("@");
-  if (parts.length === 2 && allowedDomains.includes(parts[1])) {
-    return true;
+  // Check if this teacher email was provisioned in the database (users/teachers or schools)
+  try {
+    const teachersSnap = await get(ref(database, 'users/teachers'));
+    if (teachersSnap.exists()) {
+      const teachersObj = teachersSnap.val();
+      const match = Object.values(teachersObj).some((t: any) => 
+        (t?.email && t.email.toLowerCase().trim() === normalized) ||
+        (t?.id && t.id.toLowerCase().trim() === normalized)
+      );
+      if (match) return true;
+    }
+  } catch (err) {
+    console.warn("Database teacher whitelist check non-blocking warning:", err);
   }
 
-  // In local development / test mode, allow development testing accounts
+  // In local test mode only
+  if (import.meta.env.DEV || import.meta.env.MODE === "test") {
+    if (normalized.includes("teacher") || normalized.includes("admin") || normalized.endsWith("@local.dev")) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+export function isWhitelistedTeacherEmail(email?: string | null): boolean {
+  if (!email) return false;
+  const normalized = email.toLowerCase().trim();
+
+  if (normalized.endsWith("@mathmaticore.local")) return true;
+  if (normalized === "davidsep@edu-haifa.org.il") return true;
+
+  const allowedEmails = getAllowedSpecificEmails();
+  if (allowedEmails.includes(normalized)) return true;
+
   if (import.meta.env.DEV || import.meta.env.MODE === "test") {
     if (normalized.includes("teacher") || normalized.includes("admin") || normalized.endsWith("@local.dev")) {
       return true;
@@ -86,7 +116,7 @@ export interface AuthenticatedUserPayload {
 
 /**
  * Executes authentic Google SSO via OAuth2 popup provider.
- * Strictly enforces real Google authentication and whitelist verification.
+ * Strictly enforces real Google authentication and database whitelist verification.
  */
 export async function executeGoogleSSO(targetRole: "teacher" | "admin"): Promise<AuthenticatedUserPayload> {
   const provider = new GoogleAuthProvider();
@@ -98,9 +128,10 @@ export async function executeGoogleSSO(targetRole: "teacher" | "admin"): Promise
   const user = result.user;
   const email = (user.email || "").toLowerCase().trim();
 
-  if (!email || !isWhitelistedTeacherEmail(email)) {
+  const isAuthorized = await isWhitelistedTeacherEmailAsync(email);
+  if (!email || !isAuthorized) {
     await auth.signOut();
-    throw new Error(`גישה נדחתה: כתובת הדוא"ל (${email || "לא זוהתה"}) אינה מורשית ברשימה הלבנה של מוסדות החינוך.`);
+    throw new Error(`גישה נדחתה: כתובת הדוא"ל (${email || "לא זוהתה"}) אינה מוגדרת כמורה במערכת. רק מורים שהוקמו במערכת על ידי מנהל רשאים להיכנס.`);
   }
 
   const teacherId = extractTeacherId(email, user.uid);

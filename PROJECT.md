@@ -11,31 +11,37 @@ MathmatiCore is an interactive mathematical education platform (React + TypeScri
 ## Feature Inventory
 | # | Feature | Description | Milestone | Source |
 |---|---------|-------------|-----------|--------|
-| 1 | R1 Role Transitions & Route Guards | Fuzz student/teacher/admin state transitions, role spoofing, token expiry, unauthorized route navigation | M1 | ORIGINAL_REQUEST |
-| 2 | R2 Arithmetic Engine & VRA Invariants | Stress test cascading carries/borrows, 0 values, 4-digit bounds, hammer decomposition, 10-for-1 regrouping, memory circles, undo/redo invariant preservation | M2 | ORIGINAL_REQUEST |
-| 3 | R3 Socratic Engine & Anti-Guessing Chaos | Boundary testing on hesitation (43s/45s/46s), 20-click bursts, timer expiry race conditions, background/foreground tab switching, Dienes responsiveness | M3 | ORIGINAL_REQUEST |
-| 4 | R4 RTDB Sync & Network Chaos | Network partitions, 500+ item offline queue FIFO drain, duplicate message suppression, base64 payload stress, teacher gate approvals under packet loss | M4 | ORIGINAL_REQUEST |
-| 5 | R5 SRL Metrics & Analytics Edge Cases | Persistence Index divide-by-zero, extreme click volumes (>1000), negative inputs, out-of-order reflection steps, PDF generation stability | M5 | ORIGINAL_REQUEST |
-| 6 | E2E & Vitest Regression Suite | Verify 140+ existing Vitest test cases and run full adversarial regression suites with 0 failures | M_ALL | ORIGINAL_REQUEST |
+| 1 | R1 Role Transitions & Route Guards | Fuzz student/teacher/admin state transitions, role spoofing, token expiry, unauthorized route navigation, RTDB rule bypasses, multi-store logout | M1 | Survey Findings |
+| 2 | R2 Arithmetic Engine & VRA Invariants | Fix 0-value subtraction gate bug, hundreds overcrowding check, cascading carries/borrows, 4-digit bounds, hammer decomposition, undo snapshot nesting | M2 | Survey Findings |
+| 3 | R3 Socratic Engine & Anti-Guessing Chaos | Boundary testing on hesitation (43s/45s/46s), 20-click bursts, timer expiry race conditions, background/foreground tab switching, Dienes responsiveness | M3 | Survey Findings |
+| 4 | R4 RTDB Sync & Network Chaos | Expand offline FIFO queue capacity to 500+ items, duplicate message suppression, base64 payload stress, teacher gate approval rollback on network failure | M4 | Survey Findings |
+| 5 | R5 SRL Metrics & Analytics Edge Cases | Align Persistence Index ratio calculation in TeacherDashboard, handle 0/0/0 divide-by-zero, massive click counts (>1000), 3-step reflection state machine | M5 | Survey Findings |
+| 6 | E2E & Vitest Regression Suite | Maintain 100% pass rate on existing 140 Vitest tests + all new comprehensive adversarial stress test suites | M6 | Survey Findings |
 
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
-| M0 | Survey & Architecture Mapping | Survey code across R1-R5 to locate exact files, hooks, stores, and test files | none | IN_PROGRESS |
-| M1 | Security & State Transition Remediation | Implement and verify R1 adversarial test harness and fix any route/role security gaps | M0 | PLANNED |
-| M2 | Arithmetic Engine & VRA Invariants Remediation | Implement and verify R2 stress harness and fix any place-value or undo/redo mathematical bugs | M0 | PLANNED |
-| M3 | Socratic Engine & Anti-Guessing Remediation | Implement and verify R3 chaos harness and fix hesitation/lockout timer bypasses | M0 | PLANNED |
-| M4 | RTDB & Offline Queue Chaos Remediation | Implement and verify R4 network chaos harness and fix queue overflow or duplicate issues | M0 | PLANNED |
-| M5 | SRL Metrics & Analytics Remediation | Implement and verify R5 math fuzz harness and fix edge cases in calculation and PDF export | M0 | PLANNED |
-| M6 | Final Verification, Adversarial Hardening & Audit | Full regression run (140+ Vitest tests), adversarial challenger stress testing, forensic integrity audit | M1-M5 | PLANNED |
+| M0 | Survey & Architecture Mapping | Survey code across R1-R5 to locate exact files, hooks, stores, and test files | none | DONE |
+| M1 | Security & State Transition Remediation | Implement R1 adversarial tests, fix RTDB rules (`database.rules.json`), route guards, Meeting 3 gate bypass in `StudentWorkspacePage.tsx`, unified logout, PII sanitization in telemetry & seeds | M0 | IN_PROGRESS |
+| M2 | Arithmetic Engine & VRA Invariants Remediation | Implement R2 adversarial tests, fix 0-value subtraction bug (`boardVal === 0 && target !== 0`), fix hundreds overcrowding check (`hundreds >= 10`), fix `pushSnapshot` nesting | M0 | IN_PROGRESS |
+| M3 | Socratic Engine & Anti-Guessing Remediation | Implement R3 adversarial tests for 43s/45s/46s hesitation boundary, 60s lockout persistence, 20-click bursts | M0 | IN_PROGRESS |
+| M4 | RTDB & Offline Queue Chaos Remediation | Implement R4 network chaos tests, expand offline queue limit to 500 items in `FirebaseSyncService.ts`, implement teacher gate approval rollback | M0 | IN_PROGRESS |
+| M5 | SRL Metrics & Analytics Remediation | Implement R5 math fuzz tests, align Persistence Index formula in `TeacherDashboard.tsx`, test reflection screen debouncing | M0 | IN_PROGRESS |
+| M6 | Final Verification, Adversarial Hardening & Audit | Full regression run (all existing + new tests), Challenger stress test harness, Forensic Integrity Audit | M1-M5 | PLANNED |
+
+## Interface Contracts
+- **Auth & Session Management**: Unified logout resets `useAuthStore`, `useStore`, `useWorkspaceStore`, and `useAdminStore`.
+- **Database Rules**: Strict rule checks on `$roomId` and root RTDB node. No `|| true` wildcards.
+- **Arithmetic Place-Value**: `isBoardEmpty` checks `boardVal === 0 && target !== 0`. `hasOvercrowded` checks `units >= 10 || tens >= 10 || hundreds >= 10`.
+- **Offline Telemetry Queue**: FIFO queue capacity $\ge 500$ with auto-flush on reconnection.
+- **Persistence Metric**: Canonical formula `(U / (U + E + G)) * 100` with 0/0/0 returning 100%.
 
 ## Code Layout
 - Frontend Application: `react-ts-version/src/`
-  - Components: `react-ts-version/src/components/`
-  - Context / State: `react-ts-version/src/context/` or `src/store/`
-  - Hooks: `react-ts-version/src/hooks/`
-  - Services / Firebase: `react-ts-version/src/services/` or `src/firebase/`
-  - Types: `react-ts-version/src/types/`
-  - Utils: `react-ts-version/src/utils/`
-- Test Suites: `react-ts-version/src/**/__tests__/` or `react-ts-version/src/**/*.test.ts*`
+  - Components: `react-ts-version/src/presentation/` and `src/features/`
+  - Context / State: `react-ts-version/src/application/` (stores)
+  - Core Logic: `react-ts-version/src/core/`
+  - Services / Firebase: `react-ts-version/src/infrastructure/services/`
+  - Test Suites: `react-ts-version/src/**/__tests__/`
+- Security Rules: `c:\Users\david\Projects\MathmatiCore\database.rules.json`
 - Agent Workspace: `.agents/`
