@@ -26,7 +26,7 @@ export function normalizeStudentId(id: string): string {
   if (!id) return '';
   const clean = id.trim().toLowerCase();
   if (clean === 'admin' || clean === 'teacher' || clean.startsWith('teacher_') || /^\d{8,9}$/.test(clean)) return clean;
-  const numMatch = clean.match(/\d+/);
+  const numMatch = clean.match(/-?\d+/);
   if (numMatch) {
     const parsed = parseInt(numMatch[0], 10);
     const validNum = Math.min(Math.max(parsed, 1), 12);

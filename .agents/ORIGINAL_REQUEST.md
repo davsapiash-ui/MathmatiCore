@@ -623,3 +623,47 @@ Update updates object in PhysicalOverrideControl.tsx to set `physicalOverride: t
 Execute edit and run `npm run build` in `react-ts-version/`.
 </USER_REQUEST>
 
+## Follow-up — 2026-08-14T14:05:49Z
+
+<USER_REQUEST>
+An exhaustive, adversarial audit and multi-agent simulation of MathmatiCore to find hidden race conditions, state corruptions, memory leaks, edge-case arithmetic failures, and UX breakdowns under high concurrency and degraded network conditions.
+
+Working directory: c:\Users\david\Projects\MathmatiCore\react-ts-version
+Integrity mode: development
+
+## Requirements
+
+### R1. Adversarial Role & State Transition Fuzzing
+Simulate rogue, concurrent, and out-of-order state transitions across Student, Teacher, and Admin roles. Test rapid switching, invalid JWT/role payloads, session hijacking attempts, and unauthorized navigation bypasses across all routes (`/hub`, `/workspace`, `/teacher`, `/admin`).
+
+### R2. Arithmetic Engine & VRA Mathematical Invariant Verification
+Stress-test the place-value manipulation engine, dynamic column locking, regrouping (10-for-1), decomposition (hammer tool), and memory circles across extreme mathematical inputs (multiple cascading carries, 0-value operations, 4-digit numbers, negative subtraction attempts, rapid undo/redo spamming).
+
+### R3. Hesitation & Socratic Anti-Guessing Chaos Injections
+Simulate erratic student behaviors: idle pauses (43s vs 45s vs 46s boundary tests), clicking 20 distractors in 1 second, spamming drag events while timer is expiring, rapid browser tab backgrounding/foregrounding during the 60-second lockout timer, and verify that the main Dienes workspace and Undo buttons remain fully responsive without dropping telemetry.
+
+### R4. Realtime Database & Network Chaos Simulation
+Subject the Firebase Realtime Database and chat channels (`chat_messages/student_userX`, `users/students/student_userX`, `radar_alerts`) to simulated network partitions, offline FIFO queue overflows (>500 items), duplicate message deliveries, large base64 image payloads, rapid toggles of global chat, and teacher gate approvals under intermittent connectivity.
+
+### R5. SRL Persistence Metric & Analytics Edge Case Fuzzing
+Fuzz the Persistence Index calculation `(U / (U + E + G)) * 100` with divide-by-zero scenarios (0/0/0), massive click counts (>1000), negative inputs, and out-of-order 3-step reflection completions to guarantee mathematical soundness and clean PDF report generation.
+
+## Acceptance Criteria
+
+### Security & Invariant Integrity
+- [ ] Zero PII leaks in any telemetry packet, chat message, or RTDB snapshot.
+- [ ] No unauthorized user can read or write to another student's workspace state or chat room.
+- [ ] 100% of arithmetic operations preserve place-value mathematical equivalence.
+
+### Concurrency & Chaos Resilience
+- [ ] System handles 12 simultaneous active pilot students with 0 dropped telemetry events.
+- [ ] Offline queue reliably drains in FIFO order upon network reconnection without state duplication.
+- [ ] Socratic 60s lockout timer survives browser refresh and cannot be bypassed via DOM manipulation.
+- [ ] Chat messages render with zero duplicates, instant optimistic display, and bidirectional read receipts.
+
+### Automated Test Coverage
+- [ ] All 140 existing Vitest test cases pass with 0 regressions.
+- [ ] New adversarial stress test suites validate all 5 requirement blocks.
+</USER_REQUEST>
+
+
