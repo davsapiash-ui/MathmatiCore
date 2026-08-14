@@ -117,7 +117,7 @@ export async function executeGoogleSSO(targetRole: "teacher" | "admin"): Promise
           taz: teacherId,
           email: email,
           name: user.displayName || `מורה (${email})`,
-          licenseActive: true,
+          licenseActive: false,
           createdAt: Date.now()
         });
       }
@@ -156,7 +156,7 @@ export async function authenticateWhitelistedEmail(email: string, targetRole: "t
           taz: teacherId,
           email: normalized,
           name: `מורה (${normalized})`,
-          licenseActive: true,
+          licenseActive: false,
           createdAt: Date.now()
         });
       }
