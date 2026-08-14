@@ -128,17 +128,21 @@ export async function executeGoogleSSO(targetRole: "teacher" | "admin"): Promise
   const uid = targetRole === "teacher" ? `teacher_${teacherId}` : `admin_${teacherId}`;
 
   if (targetRole === "teacher") {
-    const teacherRef = ref(database, `users/teachers/${teacherId}`);
-    const snap = await get(teacherRef);
-    if (!snap.exists()) {
-      await set(teacherRef, {
-        id: teacherId,
-        taz: teacherId,
-        email: email,
-        name: user.displayName || `מורה (${email})`,
-        licenseActive: true,
-        createdAt: Date.now()
-      }).catch(console.error);
+    try {
+      const teacherRef = ref(database, `users/teachers/${teacherId}`);
+      const snap = await get(teacherRef);
+      if (!snap.exists()) {
+        await set(teacherRef, {
+          id: teacherId,
+          taz: teacherId,
+          email: email,
+          name: user.displayName || `מורה (${email})`,
+          licenseActive: true,
+          createdAt: Date.now()
+        });
+      }
+    } catch (e) {
+      console.warn("Teacher record sync non-blocking warning:", e);
     }
   }
 
@@ -163,17 +167,21 @@ export async function authenticateWhitelistedEmail(email: string, targetRole: "t
   const uid = targetRole === "teacher" ? `teacher_${teacherId}` : `admin_${teacherId}`;
 
   if (targetRole === "teacher") {
-    const teacherRef = ref(database, `users/teachers/${teacherId}`);
-    const snap = await get(teacherRef);
-    if (!snap.exists()) {
-      await set(teacherRef, {
-        id: teacherId,
-        taz: teacherId,
-        email: normalized,
-        name: `מורה (${normalized})`,
-        licenseActive: true,
-        createdAt: Date.now()
-      }).catch(console.error);
+    try {
+      const teacherRef = ref(database, `users/teachers/${teacherId}`);
+      const snap = await get(teacherRef);
+      if (!snap.exists()) {
+        await set(teacherRef, {
+          id: teacherId,
+          taz: teacherId,
+          email: normalized,
+          name: `מורה (${normalized})`,
+          licenseActive: true,
+          createdAt: Date.now()
+        });
+      }
+    } catch (e) {
+      console.warn("Teacher record sync non-blocking warning:", e);
     }
   }
 
