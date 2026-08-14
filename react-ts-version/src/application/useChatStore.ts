@@ -71,11 +71,12 @@ export const useChatStore = create<ChatState>()(
       const { user, role } = useAuthStore.getState();
       if (!user) return; // Only sync if authenticated
       const studentRoomId = normalizeStudentId((user.uid || user.id || '') as string);
-      const syncKey = `${role}_${user.uid || user.id}_${studentRoomId}`;
-      if (activeSyncedKey === syncKey) return;
+      const currentRole = role || user.role || (studentRoomId.startsWith('student_') ? 'student' : 'teacher');
+      const syncKey = `${currentRole}_${user.uid || user.id}_${studentRoomId}`;
+      if (activeSyncedKey === syncKey && chatUnsubscribe) return;
       activeSyncedKey = syncKey;
 
-      const chatRef = role === 'student' 
+      const chatRef = currentRole === 'student' 
         ? ref(database, `chat_messages/${studentRoomId}`) 
         : ref(database, 'chat_messages');
 
@@ -90,7 +91,7 @@ export const useChatStore = create<ChatState>()(
             const rawData = snapshot.val();
             const data = (rawData && typeof rawData === 'object') ? rawData : {};
             let msgs: ChatMessage[] = [];
-            if (role === 'student') {
+            if (currentRole === 'student') {
               msgs = Object.values(data) as ChatMessage[];
             } else {
               // For teacher/admin, data is nested: { studentId: { msgId: message } }
@@ -200,4 +201,11 @@ if (useAuthStore && typeof (useAuthStore as any).subscribe === 'function') {
       useChatStore.setState({ messages: [] });
     }
   });
+}
+
+// Initial trigger on boot if already authenticated from storage
+if (typeof window !== 'undefined') {
+  setTimeout(() => {
+    useChatStore.getState().initSync();
+  }, 100);
 }

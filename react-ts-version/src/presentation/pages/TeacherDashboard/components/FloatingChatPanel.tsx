@@ -18,9 +18,13 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
   const [sendingImage, setSendingImage] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
-  const { messages, sendMessage, sendImageMessage, markAsRead } = useChatStore();
+  const { messages, sendMessage, sendImageMessage, markAsRead, initSync } = useChatStore();
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    initSync();
+  }, [initSync]);
 
   const normStudentId = normalizeStudentId(student.studentId);
   const studentMessages = messages.filter(

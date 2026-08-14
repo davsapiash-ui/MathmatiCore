@@ -13,7 +13,7 @@ export function StudentChatOverlay() {
   const [isOpen, setIsOpen] = useState(false);
   const [text, setText] = useState('');
   const [sendingImage, setSendingImage] = useState(false);
-  const { messages, sendMessage, sendImageMessage, markAsRead } = useChatStore();
+  const { messages, sendMessage, sendImageMessage, markAsRead, initSync } = useChatStore();
   const user = useAuthStore(s => s.user);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -25,6 +25,11 @@ export function StudentChatOverlay() {
   const studentData = normUid ? (students[normUid] || students[user?.uid || '']) : null;
   const studentClass = classes.find(c => c.id === studentData?.classId);
   const targetTeacherId = studentClass?.teacherId || '039604483';
+
+  // Ensure chat is synced with Firebase on mount
+  useEffect(() => {
+    initSync();
+  }, [initSync]);
 
   // Listen to globalChatEnabled changes from Firebase system_control
   useEffect(() => {

@@ -202,7 +202,11 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   const { id: routeStudentId } = useParams<{ id: string }>();
   useTeacherTour();
   const { user } = useAuthStore();
-  const { messages, sendMessage, sendImageMessage, markAsRead } = useChatStore();
+  const { messages, sendMessage, sendImageMessage, markAsRead, initSync } = useChatStore();
+
+  useEffect(() => {
+    initSync();
+  }, [initSync]);
 
   const teacherFileInputRef = useRef<HTMLInputElement>(null);
   const adminFileInputRef = useRef<HTMLInputElement>(null);
