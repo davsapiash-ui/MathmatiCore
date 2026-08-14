@@ -12,6 +12,12 @@ export interface AuditLogEvent {
   timestamp?: number | any;
 }
 
+export function maskPII(text?: string | null): string | null {
+  if (!text) return null;
+  // Mask 9-digit Israeli national IDs (e.g. 039604483 -> ***04483)
+  return text.replace(/\b\d{9}\b/g, (match) => `***${match.slice(-4)}`);
+}
+
 class AuditLoggerService {
   /**
    * Log an event to the `audit_logs` Firebase node, AND to the student's personal `radar_history`
@@ -25,45 +31,50 @@ class AuditLoggerService {
 
     try {
       const timestamp = Date.now();
+      const sanitizedDetails = maskPII(details);
       
       // Global audit log
       const logsRef = ref(database, 'audit_logs');
       await push(logsRef, {
         action,
         user_id: userId,
-        details: details || null,
+        details: sanitizedDetails || null,
         timestamp: serverTimestamp(),
       });
 
-      // Student personal radar history (for Teacher Dashboard timeline)
-      // Map actions to radar types: 'TASK_ERROR', 'PASSIVE_DRIFTING', 'HESITATION', etc.
-      let type = action;
-      let errorCategory = null;
-      if (['FACTUAL_ERROR', 'PROCEDURAL_ERROR', 'STRATEGIC_ERROR'].includes(action)) {
-        type = 'TASK_ERROR';
-        errorCategory = action;
-      }
-
       const cleanId = (userId || '').trim().toLowerCase();
-      const normId = cleanId === 'admin' || cleanId === 'teacher' || cleanId.startsWith('student_') ? cleanId : `student_${cleanId}`;
+      const isStudentEvent = cleanId.startsWith('student_') || (!['admin', 'teacher', 'unknown_uid'].includes(cleanId) && !cleanId.includes('@'));
 
-      const radarRef = ref(database, `users/students/${normId}/radar_history`);
-      await push(radarRef, {
-        type,
-        errorCategory,
-        timestamp, // use client timestamp to match rrweb video timeline
-        details: details || null,
-      });
+      if (isStudentEvent) {
+        // Student personal radar history (for Teacher Dashboard timeline)
+        // Map actions to radar types: 'TASK_ERROR', 'PASSIVE_DRIFTING', 'HESITATION', etc.
+        let type = action;
+        let errorCategory = null;
+        if (['FACTUAL_ERROR', 'PROCEDURAL_ERROR', 'STRATEGIC_ERROR'].includes(action)) {
+          type = 'TASK_ERROR';
+          errorCategory = action;
+        }
 
-      // Global radar alerts for the live Teacher Dashboard sidebar
-      const alertsRef = ref(database, 'radar_alerts');
-      await push(alertsRef, {
-        type,
-        studentId: normId,
-        rawStudentId: normId,
-        timestamp,
-        details: details || null,
-      });
+        const normId = cleanId.startsWith('student_') ? cleanId : `student_${cleanId}`;
+
+        const radarRef = ref(database, `users/students/${normId}/radar_history`);
+        await push(radarRef, {
+          type,
+          errorCategory,
+          timestamp, // use client timestamp to match rrweb video timeline
+          details: sanitizedDetails || null,
+        });
+
+        // Global radar alerts for the live Teacher Dashboard sidebar
+        const alertsRef = ref(database, 'radar_alerts');
+        await push(alertsRef, {
+          type,
+          studentId: normId,
+          rawStudentId: normId,
+          timestamp,
+          details: sanitizedDetails || null,
+        });
+      }
 
     } catch (e) {
       console.error("Failed to write audit log or radar history:", e);

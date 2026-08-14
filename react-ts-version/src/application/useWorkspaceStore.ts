@@ -167,6 +167,7 @@ interface WorkspaceState {
   clearSocraticPenaltyLockout: () => void;
   getSocraticPenaltyRemaining: () => number;
   isColumnInputLocked: (place: Place, numberA: number, numberB: number, isSubtraction?: boolean) => boolean;
+  resetWorkspace: () => void;
 }
 
 const SOCRATIC_PENALTY_STORAGE_KEY = 'mc_socratic_penalty_until';
@@ -337,10 +338,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     }, ms);
   }
 
-  function pushSnapshot(counts: PlaceCounts) {
-    const stack = [...get().undoStack, { counts: { ...counts } }];
+  function createNextUndoStack(currentStack: { counts: PlaceCounts }[], counts: PlaceCounts): { counts: PlaceCounts }[] {
+    const stack = [...currentStack, { counts: { ...counts } }];
     if (stack.length > UNDO_STACK_CAP) stack.shift();
-    set({ undoStack: stack });
+    return stack;
+  }
+
+  function pushSnapshot(counts: PlaceCounts) {
+    set((state) => ({ undoStack: createNextUndoStack(state.undoStack, counts) }));
   }
 
   /** Flash a constraint violation on a column, then clear the tint (shake lasts 400ms). */
@@ -604,7 +609,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // correctAnswer that could mismatch the shown exercise.
       const { target } = effectiveArithmetic(task, s.isASD);
       const boardVal = selectBoardValue(s);
-      const isBoardEmpty = boardVal === 0;
+      const isBoardEmpty = boardVal === 0 && target !== 0;
 
       // Gate 1: the blocks must represent the result (forced manipulative representation).
       if (s.sessionNumber !== 8) {
@@ -629,7 +634,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         }
 
         // Gate 1.5: the representation must be canonical (properly grouped) at submission.
-        const hasOvercrowded = s.counts.units >= 10 || s.counts.tens >= 10;
+        const hasOvercrowded = s.counts.units >= 10 || s.counts.tens >= 10 || s.counts.hundreds >= 10;
         if (hasOvercrowded) {
           const title = 'בית המספרים לא מסודר 🧐';
           const msg = task.isSubtraction
@@ -1054,7 +1059,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           flagConstraintError(place);
           return state;
         }
-        pushSnapshot(state.counts);
+        const undoStack = createNextUndoStack(state.undoStack, state.counts);
 
         const studentId = useAuthStore.getState().user?.uid;
         if (studentId) {
@@ -1078,6 +1083,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
         return { 
           counts: next, 
+          undoStack,
           hasInteracted: true, 
           hasDeletedBlock: true, 
           undoCount: state.undoCount + 1,
@@ -1094,7 +1100,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           flagConstraintError(place);
           return state;
         }
-        pushSnapshot(state.counts);
+        const undoStack = createNextUndoStack(state.undoStack, state.counts);
 
         const studentId = useAuthStore.getState().user?.uid;
         if (studentId) {
@@ -1111,6 +1117,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
         return {
           counts: res.counts,
+          undoStack,
           hasInteracted: true,
           hasUngrouped: true,
           keyboardState: state.keyboardState === 'LOCKED' ? ('UNLOCKED' as KeyboardState) : state.keyboardState,
@@ -1126,7 +1133,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           flagConstraintError(place);
           return state;
         }
-        pushSnapshot(state.counts);
+        const undoStack = createNextUndoStack(state.undoStack, state.counts);
 
         const studentId = useAuthStore.getState().user?.uid;
         if (studentId) {
@@ -1143,6 +1150,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
         return {
           counts: res.counts,
+          undoStack,
           hasInteracted: true,
           hasGrouped: true,
           keyboardState: state.keyboardState === 'LOCKED' ? ('UNLOCKED' as KeyboardState) : state.keyboardState,
@@ -1356,8 +1364,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const s = get();
       const result = resolveDrop(s.counts, { source: 'column', sourcePlace: 'tens', target: { kind: 'column', place: 'units' } }, selectScaffoldLevel(s));
       if (result.ok) {
-        pushSnapshot(s.counts);
-        set({ counts: result.counts, hasInteracted: true, hasUngrouped: true });
+        const undoStack = createNextUndoStack(s.undoStack, s.counts);
+        set({ counts: result.counts, undoStack, hasInteracted: true, hasUngrouped: true });
       }
     },
 
@@ -1578,6 +1586,54 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       if (Date.now() - sessionStartTimeMs >= 25 * 60 * 1000) {
         set({ isTimeExceeded: true });
       }
+    },
+    resetWorkspace: () => {
+      set({
+        sessionNumber: 1,
+        isASD: false,
+        standardTaskIdx: 0,
+        qflow: initQFlow(),
+        flowStatus: 'task',
+        awaitingNext: false,
+        keyboardState: 'UNLOCKED',
+        sessionStartTimeMs: Date.now(),
+        isTimeExceeded: false,
+        counts: { ...EMPTY_COUNTS },
+        undoStack: [],
+        undoCount: 0,
+        hesitationCount: 0,
+        boardOpen: true,
+        scaffoldFadeLevel: 0,
+        errorPlace: null,
+        errorNonce: 0,
+        focusedPlace: null,
+        isAdditionHelperOpen: false,
+        hasInteracted: false,
+        undoTimestamps: [],
+        isBoardLocked: false,
+        hasRequestedBasicHelp: false,
+        taskStartTime: Date.now(),
+        hasDeletedBlock: false,
+        blocksAddedCount: 0,
+        consecutiveDeletions: 0,
+        hasUngrouped: false,
+        hasGrouped: false,
+        selectedChoiceId: null,
+        answerDigits: {},
+        carryDigits: {},
+        probeAnswer: '',
+        q3Reps: [],
+        feedback: null,
+        feedbackNonce: 0,
+        helpState: 'closed',
+        frictionTriggerSource: null,
+        aiSocraticHint: null,
+        socraticDistractorHint: null,
+        aiTasks: null,
+        dynamicTasks: null,
+        nodeStrikes: {},
+        successStreak: 0,
+      });
     },
   };
 });

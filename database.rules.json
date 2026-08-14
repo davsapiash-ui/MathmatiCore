@@ -1,7 +1,5 @@
 {
   "rules": {
-    ".read": "auth != null",
-    ".write": "auth != null",
     "schools": {
       ".read": "auth != null",
       ".write": "auth != null"
@@ -15,11 +13,8 @@
       ".write": "auth != null"
     },
     "users": {
-      ".read": "auth != null",
-      ".write": "auth != null",
       "students": {
         ".read": "auth != null",
-        ".write": "auth != null",
         "$studentId": {
           ".read": "auth != null",
           ".write": "auth != null && ($studentId.matches(/^student_(user)?(1[0-2]|[1-9])$/) || $studentId.matches(/^(1[0-2]|[1-9])$/))"
@@ -27,7 +22,6 @@
       },
       "teachers": {
         ".read": "auth != null",
-        ".write": "auth != null",
         "$teacherId": {
           ".read": "auth != null",
           ".write": "auth != null && (data.exists() || newData.child('licenseActive').val() === false)",
@@ -39,7 +33,6 @@
     },
     "students": {
       ".read": "auth != null",
-      ".write": "auth != null",
       "$studentId": {
         ".read": "auth != null",
         ".write": "auth != null && ($studentId.matches(/^student_(user)?(1[0-2]|[1-9])$/) || $studentId.matches(/^(1[0-2]|[1-9])$/))"
@@ -55,10 +48,9 @@
     },
     "chat_messages": {
       ".read": "auth != null",
-      ".write": "auth != null",
       "$roomId": {
-        ".read": "auth != null && (auth.uid == $roomId || auth.token.email != null || true)",
-        ".write": "auth != null && (auth.uid == $roomId || auth.token.email != null || true)"
+        ".read": "auth != null && (auth.uid == $roomId || auth.token.email != null)",
+        ".write": "auth != null && (auth.uid == $roomId || auth.token.email != null)"
       }
     },
     "sessions": {

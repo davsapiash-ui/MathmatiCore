@@ -19,7 +19,7 @@ export function extractTeacherId(email?: string | null, uid?: string | null): st
       .replace(/@mathmaticore\.local$/, '');
     return cleaned.replace(/[.@#$[\]]/g, '_');
   }
-  return '039604483';
+  return 'teacher_default';
 }
 
 // --- PRD v4 Schema Interfaces ---
@@ -496,7 +496,7 @@ export class FirebaseSyncService {
       if (raw) {
         const items = JSON.parse(raw);
         if (Array.isArray(items)) {
-          this.offlineTelemetryQueue = items.slice(-10);
+          this.offlineTelemetryQueue = items.slice(-500);
         }
       }
     } catch (e) {
@@ -515,10 +515,10 @@ export class FirebaseSyncService {
 
   private enqueueOfflineTransaction(refPath: string, payload: any) {
     this.offlineTelemetryQueue.push({ refPath, payload });
-    // Enforce 10 items max per PRD V2.0 NFR (FIFO: shift oldest item out)
-    if (this.offlineTelemetryQueue.length > 10) {
+    // Expand offline queue capacity to 500 items to handle large bursts without dropping telemetry
+    if (this.offlineTelemetryQueue.length > 500) {
       this.offlineTelemetryQueue.shift();
-      console.warn("Offline telemetry queue exceeded 10 items. Dropping oldest transaction.");
+      console.warn("Offline telemetry queue exceeded 500 items. Dropping oldest transaction.");
     }
     this.saveOfflineQueueToStorage();
   }
@@ -801,18 +801,18 @@ export class FirebaseSyncService {
     const timestamp = Date.now();
     const initialSchool = { id: 'school_bikorot', name: 'ביקורת', createdAt: timestamp };
     const initialTeacher = { 
-      id: '039604483', 
+      id: 'teacher_mock_1', 
       schoolId: 'school_bikorot', 
       name: 'דוד', 
-      taz: '039604483', 
-      dob: '290984', 
+      taz: '000000000', 
+      dob: '010190', 
       licenseActive: false, // Security rules require licenseActive to be false upon creation
       createdAt: timestamp 
     };
     const initialClass = { 
       id: 'class_1', 
       schoolId: 'school_bikorot', 
-      teacherId: '039604483', 
+      teacherId: 'teacher_mock_1', 
       name: 'כיתה 1', 
       studentLimit: 12, 
       createdAt: timestamp 
@@ -826,7 +826,7 @@ export class FirebaseSyncService {
     try {
       const updates: Record<string, any> = {};
       updates[`schools/school_bikorot`] = initialSchool;
-      updates[`users/teachers/039604483`] = initialTeacher;
+      updates[`users/teachers/teacher_mock_1`] = initialTeacher;
       updates[`classes/class_1`] = initialClass;
       updates[`public_classes/class_1`] = initialPublicClass;
       updates[`system_control/globalStudentLimit`] = 12;

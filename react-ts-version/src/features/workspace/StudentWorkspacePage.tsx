@@ -386,6 +386,21 @@ export function StudentWorkspacePage() {
           const normId = normalizeStudentId(username);
           const tasks = (await SocraticEngine.getApprovedTasks(username)) || (await SocraticEngine.getApprovedTasks(normId));
           if (cancelled) return;
+
+          const routeStatus = myData?.routeStatus;
+          const isPending = routeStatus === 'PENDING' || routeStatus === 'PENDING_TEACHER_APPROVAL';
+          const highestCompleted = myData?.highestCompletedMeeting ?? (myData?.completedMeeting2 ? 2 : 0);
+          const activeSessionNum = isTeacherSessionActive ? (Number(activeClassSession?.sessionNumber) || 1) : null;
+          const teacherSessionAllowsMeeting3 = isTeacherSessionActive && activeSessionNum !== null && activeSessionNum >= 3;
+
+          // If tasks are not approved yet and approval is pending/required, lock and show waiting screen
+          if (!tasks && (isPending || (highestCompleted >= 2 && routeStatus !== 'APPROVED' && !teacherSessionAllowsMeeting3))) {
+            setPendingApproval(true);
+            setIsInitialized(true);
+            setIsInitializing(false);
+            return;
+          }
+
           const canRestore = myData?.workspaceState?.sessionNumber === meeting && myData?.workspaceState?.flowStatus === 'task';
           if (canRestore && myData?.workspaceState) {
             restoreSession(myData.workspaceState);
@@ -432,7 +447,7 @@ export function StudentWorkspacePage() {
     return () => {
       cancelled = true;
     };
-  }, [meeting, firebaseLoaded, isInitialized, myData, initSession, restoreSession, isASDMode]);
+  }, [meeting, firebaseLoaded, isInitialized, myData, initSession, restoreSession, isASDMode, activeClassSession, isTeacherSessionActive]);
 
   // Fix 5: Auto-Retry Polling when Network Error occurs
   useEffect(() => {
