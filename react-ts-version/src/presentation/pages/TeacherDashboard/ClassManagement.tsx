@@ -78,7 +78,7 @@ export function ClassManagement({
               ניהול פדגוגי וכיתתי
             </h1>
             <p className="text-indigo-100 text-sm md:text-base font-medium max-w-2xl">
-              מבט על כיתתי, עקיפה פיזית גורפת, וניטור רדאר קוגניטיבי מותאם לפרטיות תלמידים.
+              מבט על כיתתי, תמיכת VRA דיגיטלית גורפת, וניטור רדאר קוגניטיבי מותאם לפרטיות תלמידים.
             </p>
           </div>
 

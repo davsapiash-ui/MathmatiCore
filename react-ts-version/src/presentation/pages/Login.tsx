@@ -15,15 +15,10 @@ const ROLES = [
 
 const SCHOOLS = [
   { id: "sch_control", name: "בית ספר ביקורת" },
-  { id: "sch_1", name: "בית ספר אלונים" },
-  { id: "sch_2", name: "בית ספר הדרים" },
-  { id: "sch_3", name: "בית ספר ניסויי חיפה" },
 ];
 
 const CLASSES = [
   { id: "cls_control", name: "המבקרים", type: "כיתת ביקורת" },
-  { id: "cls_exp_1", name: "כיתה ד1", type: "כיתת ניסוי" },
-  { id: "cls_exp_2", name: "כיתה ד2", type: "כיתת ניסוי" },
 ];
 
 export function Login() {
