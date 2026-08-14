@@ -369,58 +369,70 @@ export function StudentWorkspacePage() {
   }, [user?.uid, myData?.physicalOverrideActive, myData?.physicalOverride]);
 
   useEffect(() => {
-    if (!firebaseLoaded || isInitialized) return;
+    if (isInitialized) return;
     let cancelled = false;
 
-    if (meeting === 3) {
-      setIsInitializing(true);
-      // Any failure in this async chain must NOT strand the student on the loading
-      // screen — the outer .catch falls back to the standard session tasks.
-      (async () => {
-        if (cancelled) return;
-        const username = useAuthStore.getState().user?.uid;
-        if (!username) {
-          initSession(meeting, isASDMode, null, 0);
+    const runInit = async () => {
+      if (meeting === 3) {
+        setIsInitializing(true);
+        try {
+          const username = useAuthStore.getState().user?.uid;
+          if (!username) {
+            initSession(meeting, isASDMode, null, 0);
+            setIsInitialized(true);
+            setIsInitializing(false);
+            return;
+          }
+          const normId = normalizeStudentId(username);
+          const tasks = (await SocraticEngine.getApprovedTasks(username)) || (await SocraticEngine.getApprovedTasks(normId));
+          if (cancelled) return;
+          const canRestore = myData?.workspaceState?.sessionNumber === meeting && myData?.workspaceState?.flowStatus === 'task';
+          if (canRestore && myData?.workspaceState) {
+            restoreSession(myData.workspaceState);
+          } else {
+            initSession(meeting, isASDMode, tasks || null, 0);
+          }
           setIsInitialized(true);
           setIsInitializing(false);
-          return;
+        } catch (err) {
+          if (cancelled) return;
+          console.error("Network or server error during Teacher Gate verification:", err);
+          setNetworkError(true);
+          setPendingApproval(true);
+          setIsInitialized(true);
+          setIsInitializing(false);
         }
-        const normId = normalizeStudentId(username);
-        const tasks = (await SocraticEngine.getApprovedTasks(username)) || (await SocraticEngine.getApprovedTasks(normId));
-        if (cancelled) return;
+      } else {
         const canRestore = myData?.workspaceState?.sessionNumber === meeting && myData?.workspaceState?.flowStatus === 'task';
         if (canRestore && myData?.workspaceState) {
           restoreSession(myData.workspaceState);
         } else {
-          initSession(meeting, isASDMode, tasks || null, 0);
+          initSession(meeting, isASDMode, null, 0);
         }
         setIsInitialized(true);
         setIsInitializing(false);
-      })().catch((err) => {
-        if (cancelled) return;
-        console.error("Network or server error during Teacher Gate verification:", err);
-        // Fix 1: Strictly enforce Teacher Gate on error and surface clear network error UI
-        setNetworkError(true);
-        setPendingApproval(true);
-        setIsInitialized(true);
-        setIsInitializing(false);
-      });
-    } else {
-      const canRestore = myData?.workspaceState?.sessionNumber === meeting && myData?.workspaceState?.flowStatus === 'task';
-      if (canRestore && myData?.workspaceState) {
-        restoreSession(myData.workspaceState);
-      } else {
-        initSession(meeting, isASDMode, null, 0);
       }
-      setIsInitialized(true);
-      setIsInitializing(false);
+    };
+
+    if (firebaseLoaded) {
+      runInit();
+    } else {
+      // Grace period of 300ms for Firebase to sync, otherwise initialize from local state to never block the student
+      const timer = setTimeout(() => {
+        if (!cancelled && !isInitialized) {
+          runInit();
+        }
+      }, 300);
+      return () => {
+        cancelled = true;
+        clearTimeout(timer);
+      };
     }
+
     return () => {
       cancelled = true;
     };
-    // isASDMode intentionally not a dependency: mid-session toggling must not reset the student's work.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [meeting, firebaseLoaded, isInitialized, myData, initSession, restoreSession]);
+  }, [meeting, firebaseLoaded, isInitialized, myData, initSession, restoreSession, isASDMode]);
 
   // Fix 5: Auto-Retry Polling when Network Error occurs
   useEffect(() => {
