@@ -16,6 +16,9 @@ export interface ChatMessage {
 
 interface ChatState {
   messages: ChatMessage[];
+  activeRoomId: string | null;
+  unreadCount: number;
+  setActiveRoomId: (roomId: string | null) => void;
   sendMessage: (senderId: string, senderName: string, receiverId: string, text: string) => void;
   sendImageMessage: (senderId: string, senderName: string, receiverId: string, file: File) => Promise<void>;
   markAsRead: (receiverId: string, senderId: string) => void;
@@ -66,6 +69,9 @@ let chatUnsubscribe: (() => void) | null = null;
 export const useChatStore = create<ChatState>()(
   (set, get) => ({
     messages: [],
+    activeRoomId: null,
+    unreadCount: 0,
+    setActiveRoomId: (activeRoomId: string | null) => set({ activeRoomId }),
     
     initSync: () => {
       const { user, role } = useAuthStore.getState();
