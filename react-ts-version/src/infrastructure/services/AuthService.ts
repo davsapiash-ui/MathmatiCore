@@ -14,7 +14,6 @@ const DEFAULT_ALLOWED_DOMAINS = [
 
 const DEFAULT_ALLOWED_SPECIFIC_EMAILS = [
   "davidsep@edu-haifa.org.il",
-  "davsapiash@gmail.com",
 ];
 
 /**
