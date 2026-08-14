@@ -377,7 +377,16 @@ export function StudentWorkspacePage() {
         setIsInitializing(true);
         try {
           const username = useAuthStore.getState().user?.uid;
+          const activeSessionNum = isTeacherSessionActive ? (Number(activeClassSession?.sessionNumber) || 1) : null;
+          const teacherSessionAllowsMeeting3 = isTeacherSessionActive && activeSessionNum !== null && activeSessionNum >= 3;
+
           if (!username) {
+            if (!teacherSessionAllowsMeeting3) {
+              setPendingApproval(true);
+              setIsInitialized(true);
+              setIsInitializing(false);
+              return;
+            }
             initSession(meeting, isASDMode, null, 0);
             setIsInitialized(true);
             setIsInitializing(false);
@@ -388,13 +397,12 @@ export function StudentWorkspacePage() {
           if (cancelled) return;
 
           const routeStatus = myData?.routeStatus;
-          const isPending = routeStatus === 'PENDING' || routeStatus === 'PENDING_TEACHER_APPROVAL';
           const highestCompleted = myData?.highestCompletedMeeting ?? (myData?.completedMeeting2 ? 2 : 0);
-          const activeSessionNum = isTeacherSessionActive ? (Number(activeClassSession?.sessionNumber) || 1) : null;
-          const teacherSessionAllowsMeeting3 = isTeacherSessionActive && activeSessionNum !== null && activeSessionNum >= 3;
 
-          // If tasks are not approved yet and approval is pending/required, lock and show waiting screen
-          if (!tasks && (isPending || (highestCompleted >= 2 && routeStatus !== 'APPROVED' && !teacherSessionAllowsMeeting3))) {
+          const isAllowedMeeting3 = teacherSessionAllowsMeeting3 || (highestCompleted >= 2 && routeStatus === 'APPROVED' && Boolean(tasks));
+
+          // If prerequisite completion or active teacher session requirement is not met, lock and show waiting screen
+          if (!isAllowedMeeting3) {
             setPendingApproval(true);
             setIsInitialized(true);
             setIsInitializing(false);

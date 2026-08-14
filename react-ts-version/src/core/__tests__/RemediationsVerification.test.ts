@@ -221,4 +221,53 @@ describe('Remediations Verification Suite (R1 - R5)', () => {
       expect(calculatePersistence(0, 5, 5)).toBe(0);
     });
   });
+
+  describe('R3 & Gating: Meeting 3 Prerequisite Gate Enforcement', () => {
+    const evaluateMeeting3Access = (
+      highestCompleted: number,
+      routeStatus: string | null | undefined,
+      tasks: any[] | null | undefined,
+      isTeacherSessionActive: boolean,
+      teacherActiveSessionNum: number | null
+    ) => {
+      const teacherSessionAllowsMeeting3 = isTeacherSessionActive && teacherActiveSessionNum !== null && teacherActiveSessionNum >= 3;
+      const isAllowedMeeting3 = teacherSessionAllowsMeeting3 || (highestCompleted >= 2 && routeStatus === 'APPROVED' && Boolean(tasks));
+      return isAllowedMeeting3;
+    };
+
+    it('blocks fresh students (highestCompleted === 0) from entering Meeting 3 directly', () => {
+      const allowed = evaluateMeeting3Access(0, null, null, false, null);
+      expect(allowed).toBe(false);
+    });
+
+    it('blocks students who only completed Meeting 1 (highestCompleted === 1)', () => {
+      const allowed = evaluateMeeting3Access(1, null, null, false, null);
+      expect(allowed).toBe(false);
+    });
+
+    it('blocks students who completed Meeting 2 but routeStatus is PENDING', () => {
+      const allowed = evaluateMeeting3Access(2, 'PENDING', null, false, null);
+      expect(allowed).toBe(false);
+    });
+
+    it('blocks students who completed Meeting 2 and routeStatus is APPROVED but tasks are null', () => {
+      const allowed = evaluateMeeting3Access(2, 'APPROVED', null, false, null);
+      expect(allowed).toBe(false);
+    });
+
+    it('allows students who completed Meeting 2, routeStatus is APPROVED, and tasks are populated', () => {
+      const allowed = evaluateMeeting3Access(2, 'APPROVED', [{ id: 't1' }], false, null);
+      expect(allowed).toBe(true);
+    });
+
+    it('allows students if teacher session is active and sessionNumber >= 3', () => {
+      const allowed = evaluateMeeting3Access(0, null, null, true, 3);
+      expect(allowed).toBe(true);
+    });
+
+    it('blocks students if teacher session is active for session 2 only and student has not completed prerequisites', () => {
+      const allowed = evaluateMeeting3Access(0, null, null, true, 2);
+      expect(allowed).toBe(false);
+    });
+  });
 });

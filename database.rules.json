@@ -47,7 +47,7 @@
       ".write": "auth != null"
     },
     "chat_messages": {
-      ".read": "auth != null",
+      ".read": "auth != null && auth.token.email != null",
       "$roomId": {
         ".read": "auth != null && (auth.uid == $roomId || auth.token.email != null)",
         ".write": "auth != null && (auth.uid == $roomId || auth.token.email != null)"

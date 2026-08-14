@@ -74,9 +74,12 @@ describe('SECURITY RULES & REALTIME LISTENERS AUDIT & VERIFICATION', () => {
       expect(roomId).toBe('student_user1');
     });
 
-    it('verifies database.rules.json chat_messages rule checks auth.uid == $roomId for student access', () => {
+    it('verifies database.rules.json chat_messages rule checks auth.uid == $roomId for student access and parent .read requires teacher/admin token', () => {
       const rulesPath = resolve('c:/Users/david/Projects/MathmatiCore/database.rules.json');
       const rulesContent = JSON.parse(readFileSync(rulesPath, 'utf-8'));
+
+      const parentChatRule = rulesContent.rules.chat_messages;
+      expect(parentChatRule['.read']).toBe('auth != null && auth.token.email != null');
 
       const chatRule = rulesContent.rules.chat_messages.$roomId;
       expect(chatRule).toBeDefined();
