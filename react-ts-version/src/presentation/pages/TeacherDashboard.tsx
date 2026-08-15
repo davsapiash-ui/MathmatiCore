@@ -6,7 +6,7 @@ import { UdlButton } from "@/presentation/design-system/UdlButton";
 import { AccessibleCard } from "@/presentation/design-system/AccessibleCard";
 import { DataGrid } from "@/presentation/design-system/DataGrid";
 import { useAuthStore } from "@/application/useAuthStore";
-import { useChatStore, normalizeStudentId, type ChatMessage } from "@/application/useChatStore";
+import { useChatStore, normalizeStudentId, isTeacherOrAdminId, type ChatMessage } from "@/application/useChatStore";
 import { extractTeacherId } from "@/infrastructure/services/FirebaseSyncService";
 import { useStore, type StudentData } from "@/application/useStore";
 import { toast } from "sonner";
