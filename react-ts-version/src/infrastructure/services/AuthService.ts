@@ -31,7 +31,7 @@ export async function isWhitelistedTeacherEmailAsync(email?: string | null): Pro
   const normalized = email.toLowerCase().trim();
 
   // Master pilot administrator & teacher initial exact authorization
-  if (normalized === "davidsep@edu-haifa.org.il") return true;
+  if (normalized === "davidsep@edu-haifa.org.il" || normalized === "1002220159@edu-haifa.org.il") return true;
 
   // Development/Test simulated accounts
   if (import.meta.env.DEV || import.meta.env.MODE === "test") {
@@ -84,7 +84,7 @@ export function isWhitelistedTeacherEmail(email?: string | null): boolean {
   const normalized = email.toLowerCase().trim();
 
   if (normalized.endsWith("@mathmaticore.local")) return true;
-  if (normalized === "davidsep@edu-haifa.org.il") return true;
+  if (normalized === "davidsep@edu-haifa.org.il" || normalized === "1002220159@edu-haifa.org.il") return true;
 
   if (import.meta.env.DEV || import.meta.env.MODE === "test") {
     if (
