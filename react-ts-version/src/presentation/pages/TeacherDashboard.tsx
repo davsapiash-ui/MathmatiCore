@@ -791,13 +791,30 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     }
   };
 
-  const unreadAdminCount = messages.filter(
-    (m) => m.senderId === "admin" && m.receiverId === user?.uid && !m.read,
-  ).length;
+  const unreadAdminCount = useMemo(() => {
+    if (!user) return 0;
+    const userUid = (user.uid || "").toLowerCase().trim();
+    const userEmail = (user.email || "").toLowerCase().trim();
+    return messages.filter((m) => {
+      if (m.senderId !== "admin" || m.read) return false;
+      const recv = (m.receiverId || "").toLowerCase().trim();
+      return (
+        recv === userUid ||
+        recv === userEmail ||
+        recv.includes(userUid) ||
+        userUid.includes(recv) ||
+        isTeacherOrAdminId(recv)
+      );
+    }).length;
+  }, [messages, user]);
 
-  const unreadStudentsCount = messages.filter(
-    (m) => m.senderId !== "admin" && m.senderId !== user?.uid && m.receiverId === user?.uid && !m.read,
-  ).length;
+  const unreadStudentsCount = useMemo(() => {
+    if (!user) return 0;
+    return messages.filter((m) => {
+      if (m.read) return false;
+      return !isTeacherOrAdminId(m.senderId) || m.senderId.startsWith("student_");
+    }).length;
+  }, [messages, user]);
 
   if (isLoading) {
     return (
@@ -812,7 +829,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
 
   return (
     <div
-      className={`flex flex-col ${hideSidebar ? 'w-full' : 'md:flex-row min-h-screen'} bg-ws-bg font-sans text-ws-ink selection:bg-ws-accentSoft0/30 overflow-x-hidden`}
+      className={`flex flex-col ${hideSidebar ? 'w-full' : 'md:flex-row min-h-screen'} bg-ws-bg font-sans text-ws-ink selection:bg-ws-accentSoft/30 overflow-x-hidden`}
       dir="rtl"
     >
       {/* Top Sub-Navigation Bar when embedded inside Admin view */}
@@ -862,15 +879,25 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
             </button>
             <button
               onClick={() => handleTabChange("chat_students")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === "chat_students" ? "bg-indigo-600 text-white shadow-md" : "bg-slate-800 text-slate-300 hover:bg-slate-700"}`}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${activeTab === "chat_students" ? "bg-indigo-600 text-white shadow-md" : "bg-slate-800 text-slate-300 hover:bg-slate-700"}`}
             >
-              צ'אט תלמידים
+              <span>צ'אט תלמידים</span>
+              {unreadStudentsCount > 0 && (
+                <span className="bg-rose-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full shadow-md animate-pulse">
+                  {unreadStudentsCount}
+                </span>
+              )}
             </button>
             <button
               onClick={() => handleTabChange("chat_admin")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === "chat_admin" ? "bg-indigo-600 text-white shadow-md" : "bg-slate-800 text-slate-300 hover:bg-slate-700"}`}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${activeTab === "chat_admin" ? "bg-indigo-600 text-white shadow-md" : "bg-slate-800 text-slate-300 hover:bg-slate-700"}`}
             >
-              צ'אט הנהלה
+              <span>צ'אט הנהלה</span>
+              {unreadAdminCount > 0 && (
+                <span className="bg-indigo-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full shadow-md animate-bounce">
+                  {unreadAdminCount}
+                </span>
+              )}
             </button>
           </div>
         </div>
@@ -977,7 +1004,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
           >
             <span>צ'אט הנהלה</span>
             {unreadAdminCount > 0 && (
-              <span className="bg-ws-accentSoft0 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg shadow-amber-500/30 animate-bounce">
+              <span className="bg-indigo-600 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-lg shadow-indigo-600/30 animate-bounce">
                 {unreadAdminCount}
               </span>
             )}

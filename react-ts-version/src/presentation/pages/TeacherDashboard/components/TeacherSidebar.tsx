@@ -7,6 +7,7 @@ interface TeacherSidebarProps {
   allAlerts: any[];
   pendingRouteStudents: any[];
   unreadAdminCount: number;
+  unreadStudentsCount?: number;
 }
 
 export function TeacherSidebar({
@@ -15,6 +16,7 @@ export function TeacherSidebar({
   allAlerts,
   pendingRouteStudents,
   unreadAdminCount,
+  unreadStudentsCount = 0,
 }: TeacherSidebarProps) {
   const { user } = useAuthStore();
   return (
@@ -89,9 +91,14 @@ export function TeacherSidebar({
         <button
           id="tour-tab-chat"
           onClick={() => handleTabChange("chat_students")}
-          className={`w-full text-right px-4 py-3 rounded-xl transition-all ${activeTab === "chat_students" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg text-ws-soft"}`}
+          className={`w-full flex justify-between items-center text-right px-4 py-3 rounded-xl transition-all ${activeTab === "chat_students" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg text-ws-soft"}`}
         >
-          צ'אט עם תלמידים
+          <span>צ'אט עם תלמידים</span>
+          {unreadStudentsCount > 0 && (
+            <span className="bg-rose-500 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-md animate-pulse">
+              {unreadStudentsCount}
+            </span>
+          )}
         </button>
         <button
           onClick={() => handleTabChange("chat_admin")}
@@ -99,7 +106,7 @@ export function TeacherSidebar({
         >
           <span>צ'אט הנהלה</span>
           {unreadAdminCount > 0 && (
-            <span className="bg-ws-accentSoft text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg shadow-amber-500/30 animate-bounce">
+            <span className="bg-indigo-600 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-md animate-bounce">
               {unreadAdminCount}
             </span>
           )}
