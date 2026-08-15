@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { type StudentData } from '@/application/useStore';
 import { normalizeStudentId } from '@/application/useChatStore';
-import { X, CheckCircle, Video, ListTodo, Sliders, BellRing, Check } from 'lucide-react';
+import { X, CheckCircle, Video, ListTodo, Sliders, BellRing, Check, MessageCircle } from 'lucide-react';
 import { StudentReplayAndLogs } from './StudentReplayAndLogs';
 import { BlueprintEditor } from './BlueprintEditor';
 import { PhysicalOverrideControl } from './PhysicalOverrideControl';
@@ -14,9 +14,10 @@ interface Props {
   onClose: () => void;
   isPendingApproval: boolean;
   onApproveTasks?: (studentId: string) => Promise<void>;
+  onOpenChat?: (student: StudentData) => void;
 }
 
-export function StudentSideDrawer({ student, onClose, isPendingApproval, onApproveTasks }: Props) {
+export function StudentSideDrawer({ student, onClose, isPendingApproval, onApproveTasks, onOpenChat }: Props) {
   const [activeTab, setActiveTab] = useState<'replays' | 'blueprint' | 'override'>(
     isPendingApproval ? 'blueprint' : 'replays'
   );
@@ -71,14 +72,25 @@ export function StudentSideDrawer({ student, onClose, isPendingApproval, onAppro
               </span>
             )}
           </div>
-          <button 
-            onClick={onClose}
-            className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors text-slate-500 focus-visible:ring-2 focus-visible:ring-blue-500"
-            aria-label="סגור חלון אבחון"
-            title="סגור חלון אבחון"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-1">
+            {onOpenChat && (
+              <button 
+                onClick={() => onOpenChat(student)}
+                className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors text-indigo-600 dark:text-indigo-400"
+                title="צ'אט עם התלמיד"
+              >
+                <MessageCircle className="w-5 h-5" />
+              </button>
+            )}
+            <button 
+              onClick={onClose}
+              className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors text-slate-500 focus-visible:ring-2 focus-visible:ring-blue-500"
+              aria-label="סגור חלון אבחון"
+              title="סגור חלון אבחון"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Persistent Help Call Alert Banner */}

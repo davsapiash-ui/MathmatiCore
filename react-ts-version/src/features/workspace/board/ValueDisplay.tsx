@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 import { useWorkspaceStore, selectBoardValue } from '@/application/useWorkspaceStore';
 
 /**
- * תצוגת הערך החי — the CRA bridge between the concrete blocks and the abstract number.
+ * תצוגת הערך החי — the VRA bridge between the digital blocks and the abstract number.
  * he-IL formatting + pulse on every change (vanilla updateValueDisplay).
  * Hidden for estimation tasks (session-2 number line) by the parent.
  */

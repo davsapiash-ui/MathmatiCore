@@ -18,6 +18,7 @@ interface ChatState {
   messages: ChatMessage[];
   activeRoomId: string | null;
   unreadCount: number;
+  globalChatEnabled: boolean;
   setActiveRoomId: (roomId: string | null) => void;
   sendMessage: (senderId: string, senderName: string, receiverId: string, text: string) => void;
   sendImageMessage: (senderId: string, senderName: string, receiverId: string, file: File) => Promise<void>;
@@ -25,10 +26,27 @@ interface ChatState {
   initSync: () => void;
 }
 
-export function normalizeStudentId(id: string): string {
+export function isTeacherOrAdminId(id?: string | null): boolean {
+  if (!id) return false;
+  const clean = id.trim().toLowerCase();
+  if (clean.startsWith('student_') || clean.startsWith('student') || clean.startsWith('user_') || clean.startsWith('user')) {
+    return false;
+  }
+  return (
+    clean === 'admin' ||
+    clean === 'teacher' ||
+    clean.startsWith('admin_') ||
+    clean.startsWith('teacher_') ||
+    clean.includes('@') ||
+    /^\d{8,9}$/.test(clean)
+  );
+}
+
+export function normalizeStudentId(id?: string | null): string {
   if (!id) return '';
   const clean = id.trim().toLowerCase();
-  if (clean === 'admin' || clean === 'teacher' || clean.startsWith('teacher_') || /^\d{8,9}$/.test(clean)) return clean;
+  if (isTeacherOrAdminId(clean)) return clean;
+  
   const numMatch = clean.match(/-?\d+/);
   if (numMatch) {
     const parsed = parseInt(numMatch[0], 10);
@@ -39,28 +57,25 @@ export function normalizeStudentId(id: string): string {
 }
 
 export function computeRoomId(senderId: string, receiverId: string): string {
-  const normSender = normalizeStudentId(senderId);
-  const normReceiver = normalizeStudentId(receiverId);
+  const cleanSender = (senderId || '').trim();
+  const cleanReceiver = (receiverId || '').trim();
 
-  const isSenderStudent = normSender.startsWith('student_');
-  const isReceiverStudent = normReceiver.startsWith('student_');
+  const isSenderTeacherAdmin = isTeacherOrAdminId(cleanSender);
+  const isReceiverTeacherAdmin = isTeacherOrAdminId(cleanReceiver);
 
-  // If one of the participants is a student, the roomId MUST be that student's normalized UID
-  if (isSenderStudent && !isReceiverStudent) {
-    return normSender;
+  // If one of the participants is a student, the roomId MUST be that student's normalized UID (student_user1..12)
+  if (!isSenderTeacherAdmin) {
+    return normalizeStudentId(cleanSender);
   }
-  if (isReceiverStudent && !isSenderStudent) {
-    return normReceiver;
-  }
-  if (isSenderStudent && isReceiverStudent) {
-    return normSender;
+  if (!isReceiverTeacherAdmin) {
+    return normalizeStudentId(cleanReceiver);
   }
 
-  // Fallback for non-student chat (e.g. teacher/admin)
-  if (senderId === 'admin' || receiverId === 'admin') {
-    return senderId === 'admin' ? receiverId : senderId;
+  // Fallback for non-student chat (e.g. Teacher <-> Admin)
+  if (cleanSender === 'admin' || cleanSender.startsWith('admin_')) {
+    return cleanReceiver;
   }
-  return receiverId || senderId;
+  return cleanSender;
 }
 
 let activeSyncedKey: string | null = null;
@@ -71,18 +86,30 @@ export const useChatStore = create<ChatState>()(
     messages: [],
     activeRoomId: null,
     unreadCount: 0,
+    globalChatEnabled: true,
     setActiveRoomId: (activeRoomId: string | null) => set({ activeRoomId }),
     
     initSync: () => {
       const { user, role } = useAuthStore.getState();
       if (!user) return; // Only sync if authenticated
-      const studentRoomId = normalizeStudentId((user.uid || user.id || '') as string);
-      const currentRole = role || user.role || (studentRoomId.startsWith('student_') ? 'student' : 'teacher');
-      const syncKey = `${currentRole}_${user.uid || user.id}_${studentRoomId}`;
+      const userId = ((user.uid || (user as any).id || '') as string).trim();
+      const isStudent = role === 'student' || (!isTeacherOrAdminId(userId) && userId.startsWith('student_'));
+      const studentRoomId = normalizeStudentId(userId);
+      const syncKey = `${isStudent ? 'student' : 'staff'}_${userId}_${studentRoomId}`;
       if (activeSyncedKey === syncKey && chatUnsubscribe) return;
       activeSyncedKey = syncKey;
 
-      const chatRef = currentRole === 'student' 
+      // Sync globalChatEnabled control flag from Firebase Realtime DB
+      try {
+        onValue(ref(database, 'system_control/globalChatEnabled'), (snap) => {
+          const enabled = snap.exists() ? Boolean(snap.val()) : true;
+          set({ globalChatEnabled: enabled });
+        });
+      } catch (err) {
+        console.warn("Global chat status sync non-blocking warning:", err);
+      }
+
+      const chatRef = isStudent 
         ? ref(database, `chat_messages/${studentRoomId}`) 
         : ref(database, 'chat_messages');
 
@@ -97,10 +124,10 @@ export const useChatStore = create<ChatState>()(
             const rawData = snapshot.val();
             const data = (rawData && typeof rawData === 'object') ? rawData : {};
             let msgs: ChatMessage[] = [];
-            if (currentRole === 'student') {
+            if (isStudent) {
               msgs = Object.values(data) as ChatMessage[];
             } else {
-              // For teacher/admin, data is nested: { studentId: { msgId: message } }
+              // For teacher/admin, data is nested: { roomId: { msgId: message } }
               Object.keys(data).forEach((roomId: string) => {
                 const roomData = data[roomId as keyof typeof data];
                 if (roomData && typeof roomData === 'object') {
@@ -109,7 +136,7 @@ export const useChatStore = create<ChatState>()(
               });
             }
             msgs.sort((a, b) => a.timestamp - b.timestamp);
-            set({ messages: msgs });
+            set({ messages: [...msgs] });
           } else {
             set({ messages: [] });
           }
@@ -137,7 +164,7 @@ export const useChatStore = create<ChatState>()(
         read: false
       };
       
-      // Optimistic update: render message on screen immediately
+      // Optimistic update: render message on screen immediately with fresh array reference
       set((state) => ({
         messages: [...state.messages.filter(m => m.id !== newMsg.id), newMsg]
       }));
@@ -180,7 +207,17 @@ export const useChatStore = create<ChatState>()(
 
     markAsRead: (receiverId, senderId) => {
       const { messages } = get();
-      const unreadMsgs = messages.filter(msg => msg.receiverId === receiverId && msg.senderId === senderId && !msg.read);
+      const normReceiver = normalizeStudentId(receiverId);
+      const normSender = normalizeStudentId(senderId);
+      
+      const unreadMsgs = messages.filter(msg => {
+        const msgRecv = normalizeStudentId(msg.receiverId);
+        const msgSend = normalizeStudentId(msg.senderId);
+        return (msgRecv === normReceiver || msg.receiverId === receiverId) &&
+               (msgSend === normSender || msg.senderId === senderId) &&
+               !msg.read;
+      });
+
       if (unreadMsgs.length > 0) {
         const roomId = computeRoomId(senderId, receiverId);
         const updates: Record<string, any> = {};
@@ -188,6 +225,13 @@ export const useChatStore = create<ChatState>()(
           updates[`${msg.id}/read`] = true;
         });
         update(ref(database, `chat_messages/${roomId}`), updates).catch(console.error);
+        
+        // Optimistic local read status update
+        set((state) => ({
+          messages: state.messages.map(m => 
+            unreadMsgs.some(u => u.id === m.id) ? { ...m, read: true } : m
+          )
+        }));
       }
     },
   })

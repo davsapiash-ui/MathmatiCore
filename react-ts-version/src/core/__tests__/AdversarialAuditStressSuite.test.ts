@@ -18,7 +18,7 @@ import {
   type PlaceCounts,
   type Place,
 } from '@/core/placeValue';
-import { stateReducer } from '@/machines/craMachine';
+import { stateReducer } from '@/machines/vraMachine';
 import { transitionKeyboardState } from '@/core/ExerciseValidationEngine';
 
 // ============================================================================

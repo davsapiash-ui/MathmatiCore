@@ -28,6 +28,7 @@ import { stt } from "@/infrastructure/services/STTService";
 import { ClassManagement } from "./TeacherDashboard/ClassManagement";
 import { StudentReplayAndLogs } from "./TeacherDashboard/components/StudentReplayAndLogs";
 import { StudentSideDrawer } from "./TeacherDashboard/components/StudentSideDrawer";
+import { FloatingChatPanel } from "./TeacherDashboard/components/FloatingChatPanel";
 import { HeatmapGrid } from "./TeacherDashboard/components/HeatmapGrid";
 import { SocraticEngine, type PendingAIApproval } from "@/infrastructure/services/SocraticEngine";
 import { useTeacherTour } from "./TeacherDashboard/useTeacherTour";
@@ -250,6 +251,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     routeStudentId || null,
   );
   const [drawerStudent, setDrawerStudent] = useState<StudentData | null>(null);
+  const [floatingChatStudent, setFloatingChatStudent] = useState<StudentData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   // Update active tab and selected student based on route params (PRD 4.3 Navigation Redundancy)
@@ -2516,6 +2518,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
             student={drawerStudent}
             onClose={() => setDrawerStudent(null)}
             isPendingApproval={drawerStudent.routeStatus === 'PENDING'}
+            onOpenChat={(st) => setFloatingChatStudent(st)}
             onApproveTasks={async (studentId: string) => {
               const prevStudent = useStore.getState().students[studentId];
               const prevRouteStatus = prevStudent?.routeStatus;
@@ -2547,6 +2550,13 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                 }
               }
             }}
+          />
+        )}
+        {floatingChatStudent && (
+          <FloatingChatPanel
+            student={floatingChatStudent}
+            onClose={() => setFloatingChatStudent(null)}
+            teacherId={(user?.uid as string) || TEACHER_ID}
           />
         )}
       </main>

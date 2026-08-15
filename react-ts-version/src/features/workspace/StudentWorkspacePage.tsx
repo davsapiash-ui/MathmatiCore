@@ -269,11 +269,14 @@ export function StudentWorkspacePage() {
     };
   }, [user?.uid, normUid, isTeacherSessionActive, activeClassSession]);
 
-  // Pedagogical Radar — active ONLY when teacher session is active!
+  // Pedagogical Radar — active during student sessions per PRD v4.2 Modules 10 & 12
   useCognitiveHesitationRadar({ 
-    isActive: isTeacherSessionActive,
+    isActive: true,
     onHesitationDetected: () => {
-      useWorkspaceStore.getState().openAdditionHelper();
+      const ws = useWorkspaceStore.getState();
+      if (ws.flowStatus === 'task') {
+        ws.setKeyboardSocratic();
+      }
     }
   });
   const [isInitializing, setIsInitializing] = useState(true);
@@ -358,7 +361,7 @@ export function StudentWorkspacePage() {
         const store = useWorkspaceStore.getState();
         // 1. Restart hesitation timer by toggling keyboard state
         store.lockKeyboard();
-        // 2. Validate current block state against target state (CRA Bridge).
+        // 2. Validate current block state against target state (VRA Bridge).
         store.proceed(); 
       }
       

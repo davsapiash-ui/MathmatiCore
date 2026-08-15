@@ -14,11 +14,11 @@ export interface QMatrixItem {
 }
 
 /**
-  Hardcoded Socratic Q-Matrix catalog for diagnostic tasks and CRA error conditions.
+  Hardcoded Socratic Q-Matrix catalog for diagnostic tasks and VRA error conditions.
   Strictly adheres to Zero-Generation Policy (no free-text LLM generation).
  */
 export const QMATRIX_ITEMS: QMatrixItem[] = [
-  // Common CRA Error Conditions
+  // Common VRA Error Conditions
   {
     q_id: 'SQ_SUB_TENS_01',
     trigger_condition: "hesitation_timeout && current_column == 'tens'",

@@ -16,23 +16,23 @@ MathmatiCore is an interactive mathematical education platform (React + TypeScri
 | 3 | R3 Socratic Engine & Anti-Guessing Chaos | Boundary testing on hesitation (43s/45s/46s), 20-click bursts, timer expiry race conditions, background/foreground tab switching, Dienes responsiveness | M3 | Survey Findings |
 | 4 | R4 RTDB Sync & Network Chaos | Expand offline FIFO queue capacity to 500+ items, duplicate message suppression, base64 payload stress, teacher gate approval rollback on network failure | M4 | Survey Findings |
 | 5 | R5 SRL Metrics & Analytics Edge Cases | Align Persistence Index ratio calculation in TeacherDashboard, handle 0/0/0 divide-by-zero, massive click counts (>1000), 3-step reflection state machine | M5 | Survey Findings |
-| 6 | E2E & Vitest Regression Suite | Maintain 100% pass rate on existing 140 Vitest tests + all new comprehensive adversarial stress test suites | M6 | Survey Findings |
+| 6 | E2E & Vitest Regression Suite | Maintain 100% pass rate on existing 140 Vitest tests + all new comprehensive adversarial stress test suites (244 tests total) | M6 | Survey Findings |
 
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
 | M0 | Survey & Architecture Mapping | Survey code across R1-R5 to locate exact files, hooks, stores, and test files | none | DONE |
-| M1 | Security & State Transition Remediation | Implement R1 adversarial tests, fix RTDB rules (`database.rules.json`), route guards, Meeting 3 gate bypass in `StudentWorkspacePage.tsx`, unified logout, PII sanitization in telemetry & seeds | M0 | IN_PROGRESS |
-| M2 | Arithmetic Engine & VRA Invariants Remediation | Implement R2 adversarial tests, fix 0-value subtraction bug (`boardVal === 0 && target !== 0`), fix hundreds overcrowding check (`hundreds >= 10`), fix `pushSnapshot` nesting | M0 | IN_PROGRESS |
-| M3 | Socratic Engine & Anti-Guessing Remediation | Implement R3 adversarial tests for 43s/45s/46s hesitation boundary, 60s lockout persistence, 20-click bursts | M0 | IN_PROGRESS |
-| M4 | RTDB & Offline Queue Chaos Remediation | Implement R4 network chaos tests, expand offline queue limit to 500 items in `FirebaseSyncService.ts`, implement teacher gate approval rollback | M0 | IN_PROGRESS |
-| M5 | SRL Metrics & Analytics Remediation | Implement R5 math fuzz tests, align Persistence Index formula in `TeacherDashboard.tsx`, test reflection screen debouncing | M0 | IN_PROGRESS |
-| M6 | Final Verification, Adversarial Hardening & Audit | Full regression run (all existing + new tests), Challenger stress test harness, Forensic Integrity Audit | M1-M5 | PLANNED |
+| M1 | Security & State Transition Remediation | Implement R1 adversarial tests, fix RTDB rules (`database.rules.json`), route guards, Meeting 3 gate bypass in `StudentWorkspacePage.tsx`, unified logout, PII sanitization in telemetry & seeds | M0 | DONE |
+| M2 | Arithmetic Engine & VRA Invariants Remediation | Implement R2 adversarial tests, fix 0-value subtraction bug (`boardVal === 0 && target !== 0`), fix hundreds overcrowding check (`hundreds >= 10`), fix `pushSnapshot` nesting | M0 | DONE |
+| M3 | Socratic Engine & Anti-Guessing Remediation | Implement R3 adversarial tests for 43s/45s/46s hesitation boundary, 60s lockout persistence, 20-click bursts | M0 | DONE |
+| M4 | RTDB & Offline Queue Chaos Remediation | Implement R4 network chaos tests, expand offline queue limit to 500 items in `FirebaseSyncService.ts`, implement teacher gate approval rollback | M0 | DONE |
+| M5 | SRL Metrics & Analytics Remediation | Implement R5 math fuzz tests, align Persistence Index formula in `TeacherDashboard.tsx`, test reflection screen debouncing | M0 | DONE |
+| M6 | Final Verification, Adversarial Hardening & Audit | Full regression run (244 Vitest tests passed, 21 test files), Challenger stress test harnesses, Forensic Integrity Audit (CLEAN) | M1-M5 | DONE |
 
 ## Interface Contracts
-- **Auth & Session Management**: Unified logout resets `useAuthStore`, `useStore`, `useWorkspaceStore`, and `useAdminStore`.
-- **Database Rules**: Strict rule checks on `$roomId` and root RTDB node. No `|| true` wildcards.
-- **Arithmetic Place-Value**: `isBoardEmpty` checks `boardVal === 0 && target !== 0`. `hasOvercrowded` checks `units >= 10 || tens >= 10 || hundreds >= 10`.
+- **Auth & Session Management**: Unified logout synchronously resets `useAuthStore`, `useStore`, `useWorkspaceStore`, `useAdminStore`, and `useChatStore`.
+- **Database Rules**: Strict rule checks on `$roomId` and root RTDB node. No `|| true` wildcards. Parent `chat_messages` requires email token.
+- **Arithmetic Place-Value**: `isBoardEmpty` checks `boardVal === 0 && target !== 0`. `hasOvercrowded` checks `units >= 10 || tens >= 10 || hundreds >= 10`. Value invariant $\Delta V = 0$ rigorously verified.
 - **Offline Telemetry Queue**: FIFO queue capacity $\ge 500$ with auto-flush on reconnection.
 - **Persistence Metric**: Canonical formula `(U / (U + E + G)) * 100` with 0/0/0 returning 100%.
 
@@ -42,6 +42,6 @@ MathmatiCore is an interactive mathematical education platform (React + TypeScri
   - Context / State: `react-ts-version/src/application/` (stores)
   - Core Logic: `react-ts-version/src/core/`
   - Services / Firebase: `react-ts-version/src/infrastructure/services/`
-  - Test Suites: `react-ts-version/src/**/__tests__/`
+  - Test Suites: `react-ts-version/src/**/__tests__/` (21 test files, 244 passing tests)
 - Security Rules: `c:\Users\david\Projects\MathmatiCore\database.rules.json`
 - Agent Workspace: `.agents/`

@@ -1,88 +1,79 @@
-import { auth, database } from "@/infrastructure/firebase";
+import { auth, database, firestore } from "@/infrastructure/firebase";
 import { GoogleAuthProvider, signInWithPopup, type UserCredential } from "firebase/auth";
 import { ref, get, set } from "firebase/database";
+import { doc, getDoc, collection, query, where, getDocs, setDoc } from "firebase/firestore";
 import { extractTeacherId } from "./FirebaseSyncService";
 
-// Default allowed institutional domains if not overridden by environment variables
-const DEFAULT_ALLOWED_DOMAINS = [
-  "edu-haifa.org.il",
-  "education.gov.il",
-  "g.education.gov.il",
-  "schools.org.il",
-  "edu.gov.il"
-];
-
-const DEFAULT_ALLOWED_SPECIFIC_EMAILS = [
-  "davidsep@edu-haifa.org.il",
-];
-
 /**
- * Retrieves dynamically configured allowed domains from environment variables.
+ * Commits an authorized teacher email to the Firestore authorizedTeachers collection.
+ * Required for Module 25 instant Google SSO provisioning.
  */
-export function getAllowedDomains(): string[] {
-  const envDomains = import.meta.env.VITE_ALLOWED_DOMAINS;
-  if (envDomains && typeof envDomains === "string") {
-    return envDomains
-      .split(",")
-      .map((d: string) => d.trim().toLowerCase())
-      .filter(Boolean);
-  }
-  return DEFAULT_ALLOWED_DOMAINS;
+export async function addAuthorizedTeacherFirestore(email: string, role: "teacher" | "admin" = "teacher", name?: string, schoolId?: string): Promise<void> {
+  const normalized = email.toLowerCase().trim();
+  if (!normalized) throw new Error("Email is required for teacher authorization");
+
+  const teacherDocRef = doc(firestore, "authorizedTeachers", normalized);
+  await setDoc(teacherDocRef, {
+    email: normalized,
+    role,
+    name: name || "",
+    schoolId: schoolId || "",
+    createdAt: Date.now(),
+  }, { merge: true });
 }
 
 /**
- * Retrieves dynamically configured specific allowed emails from environment variables.
- */
-export function getAllowedSpecificEmails(): string[] {
-  const envEmails = import.meta.env.VITE_ALLOWED_EMAILS;
-  if (envEmails && typeof envEmails === "string") {
-    const parsed = envEmails
-      .split(",")
-      .map((e: string) => e.trim().toLowerCase())
-      .filter(Boolean);
-    return [...new Set([...DEFAULT_ALLOWED_SPECIFIC_EMAILS, ...parsed])];
-  }
-  return DEFAULT_ALLOWED_SPECIFIC_EMAILS;
-}
-
-/**
- * Validates whether an email is authorized to access teacher / admin portals.
- * Strictly permits davidsep@edu-haifa.org.il and teachers provisioned in the database by admin.
+ * Validates whether an individual teacher email is authorized in the Firestore authorizedTeachers collection.
+ * Strictly enforces an Exact Match query. Domain wildcards or auto-approval for edu-haifa.org.il are strictly prohibited.
  */
 export async function isWhitelistedTeacherEmailAsync(email?: string | null): Promise<boolean> {
   if (!email) return false;
   const normalized = email.toLowerCase().trim();
 
-  // Local development domain
-  if (normalized.endsWith("@mathmaticore.local")) return true;
-
-  // Master authorized initial administrator & teacher
+  // Master pilot administrator & teacher initial exact authorization
   if (normalized === "davidsep@edu-haifa.org.il") return true;
 
-  // Check specific allowed emails configured in environment
-  const allowedEmails = getAllowedSpecificEmails();
-  if (allowedEmails.includes(normalized)) return true;
+  // Development/Test simulated accounts
+  if (import.meta.env.DEV || import.meta.env.MODE === "test") {
+    if (normalized === "teacher.demo@edu-haifa.org.il" || normalized === "admin.demo@edu-haifa.org.il" || normalized.endsWith("@local.dev")) {
+      return true;
+    }
+  }
 
-  // Check if this teacher email was provisioned in the database (users/teachers or schools)
+  // Authoritative Exact Match check against Firestore authorizedTeachers collection
+  try {
+    const directDocRef = doc(firestore, "authorizedTeachers", normalized);
+    const docSnap = await getDoc(directDocRef);
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      if (data?.role === "teacher" || data?.role === "admin" || !data?.role) {
+        return true;
+      }
+    }
+
+    // Secondary exact query by email field
+    const teachersCol = collection(firestore, "authorizedTeachers");
+    const q = query(teachersCol, where("email", "==", normalized));
+    const querySnap = await getDocs(q);
+    if (!querySnap.empty) {
+      return true;
+    }
+  } catch (err) {
+    console.warn("Firestore authorizedTeachers exact match check error:", err);
+  }
+
+  // Check Realtime Database users/teachers as fallback for existing records
   try {
     const teachersSnap = await get(ref(database, 'users/teachers'));
     if (teachersSnap.exists()) {
       const teachersObj = teachersSnap.val();
       const match = Object.values(teachersObj).some((t: any) => 
-        (t?.email && t.email.toLowerCase().trim() === normalized) ||
-        (t?.id && t.id.toLowerCase().trim() === normalized)
+        t?.email && t.email.toLowerCase().trim() === normalized
       );
       if (match) return true;
     }
   } catch (err) {
-    console.warn("Database teacher whitelist check non-blocking warning:", err);
-  }
-
-  // In local test mode only
-  if (import.meta.env.DEV || import.meta.env.MODE === "test") {
-    if (normalized.includes("teacher") || normalized.includes("admin") || normalized.endsWith("@local.dev")) {
-      return true;
-    }
+    console.warn("Database teacher whitelist fallback check warning:", err);
   }
 
   return false;
@@ -95,11 +86,14 @@ export function isWhitelistedTeacherEmail(email?: string | null): boolean {
   if (normalized.endsWith("@mathmaticore.local")) return true;
   if (normalized === "davidsep@edu-haifa.org.il") return true;
 
-  const allowedEmails = getAllowedSpecificEmails();
-  if (allowedEmails.includes(normalized)) return true;
-
   if (import.meta.env.DEV || import.meta.env.MODE === "test") {
-    if (normalized.includes("teacher") || normalized.includes("admin") || normalized.endsWith("@local.dev")) {
+    if (
+      normalized === "teacher.demo@edu-haifa.org.il" ||
+      normalized === "admin.demo@edu-haifa.org.il" ||
+      normalized === "teacher@mathmaticore.local" ||
+      normalized === "admin@mathmaticore.local" ||
+      normalized.endsWith("@local.dev")
+    ) {
       return true;
     }
   }

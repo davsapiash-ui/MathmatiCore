@@ -86,7 +86,7 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
   },
 
   addTeacher: (schoolId, name, taz, dob) => {
-    AuditLogger.log("יצירת מורה", "admin", `מורה חדש: ${name} (ת"ז: ***${taz.slice(-4)})`);
+    AuditLogger.log("יצירת מורה", "admin", `מורה חדש: ${name} (ת"ז/דוא"ל: ${taz})`);
     const id = taz.trim();
     const newTeacher: Teacher = {
       id,
@@ -101,6 +101,11 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
       teachers: [...state.teachers.filter(t => t.id !== id), newTeacher]
     }));
     firebaseSyncService.addTeacher(schoolId, name, taz, dob).catch(err => console.error("Failed to add teacher to Firebase", err));
+    if (taz.includes('@')) {
+      import('@/infrastructure/services/AuthService').then(({ addAuthorizedTeacherFirestore }) => {
+        addAuthorizedTeacherFirestore(taz.trim(), 'teacher', name.trim(), schoolId).catch(err => console.error("Failed to add teacher to Firestore authorizedTeachers", err));
+      }).catch(console.error);
+    }
   },
 
   deleteTeacher: (id) => {

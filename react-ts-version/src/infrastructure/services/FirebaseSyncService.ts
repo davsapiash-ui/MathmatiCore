@@ -928,6 +928,10 @@ export class FirebaseSyncService {
       createdAt: Date.now()
     };
     await set(ref(database, `users/teachers/${id}`), newTeacher);
+    if (taz.includes('@')) {
+      const { addAuthorizedTeacherFirestore } = await import('./AuthService');
+      await addAuthorizedTeacherFirestore(taz, 'teacher', name, schoolId).catch(console.error);
+    }
   }
 
   public async deleteTeacher(teacherId: string) {

@@ -112,9 +112,63 @@ export function HelpOverlays() {
         )}
       </AnimatePresence>
 
-      {/* Socratic content modal with 3 closed options & 30s penalty lock */}
+      {/* Socratic content side-panel (Quiet side drawer, NO blocking popup/backdrop per PRD v4.2 Modules 10 & 12) */}
       <AnimatePresence>
-        {content && (
+        {content && helpState === 'socratic' && (
+          <motion.aside
+            initial={{ opacity: 0, x: -30, scale: 0.95 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: -30, scale: 0.95 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+            className="fixed bottom-4 left-4 z-40 max-w-sm sm:max-w-md w-[92vw] sm:w-[420px] bg-ws-surface rounded-3xl shadow-2xl border-2 border-indigo-200 dark:border-indigo-800/80 p-6 pointer-events-auto"
+            role="region"
+            aria-label="חונך דיגיטלי סוקרטי"
+            dir="rtl"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl" aria-hidden="true">💡</span>
+                <h2 className="font-display font-black text-xl text-ws-ink">{content.titleHe}</h2>
+              </div>
+              <button
+                onClick={closeHelp}
+                aria-label="סגור חלונית עזרה"
+                className="w-8 h-8 rounded-full bg-ws-surface2 hover:bg-ws-surface2/80 text-ws-soft font-bold flex items-center justify-center text-sm transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            {content.kind === 'equivalence' && (
+              /* Visual 10 ↔ ten-units equivalence (vanilla socratic graphic) */
+              <div className="flex items-center justify-center gap-4 mb-4 bg-ws-surface2/50 rounded-2xl p-3" dir="ltr" aria-hidden="true">
+                <div className="w-[80px] h-[10px] rounded-[2px]" style={{ backgroundColor: 'var(--block-ten)' }} />
+                <span className="font-black text-xl text-ws-soft">=</span>
+                <div className="flex gap-0.5">
+                  {Array.from({ length: 10 }).map((_, i) => (
+                    <span key={i} className="w-2.5 h-2.5 rounded-[1px] inline-block" style={{ backgroundColor: 'var(--block-unit)' }} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <ul className="flex flex-col gap-2 mb-3">
+              {content.lines.map((line, i) => (
+                <li key={i} className="flex items-start gap-2 text-base text-ws-ink leading-relaxed font-semibold">
+                  <span className="text-ws-accent font-black shrink-0 mt-0.5" aria-hidden="true">
+                    {content.kind === 'checklist' ? '✔' : content.kind === 'worked_example' ? `${i + 1}.` : '•'}
+                  </span>
+                  {line}
+                </li>
+              ))}
+            </ul>
+
+            {/* 3 Closed Options for Socratic Mentoring */}
+            <SocraticPenaltyLockOptions onClose={closeHelp} />
+          </motion.aside>
+        )}
+
+        {content && helpState !== 'socratic' && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -133,19 +187,6 @@ export function HelpOverlays() {
             >
               <h2 className="font-display font-black text-2xl text-ws-ink mb-5">{content.titleHe}</h2>
 
-              {content.kind === 'equivalence' && (
-                /* Visual 10 ↔ ten-units equivalence (vanilla socratic graphic) */
-                <div className="flex items-center justify-center gap-4 mb-5 bg-ws-surface2/50 rounded-2xl p-4" dir="ltr" aria-hidden="true">
-                  <div className="w-[100px] h-[12px] rounded-[2px]" style={{ backgroundColor: 'var(--block-ten)' }} />
-                  <span className="font-black text-2xl text-ws-soft">=</span>
-                  <div className="flex gap-0.5">
-                    {Array.from({ length: 10 }).map((_, i) => (
-                      <span key={i} className="w-3 h-3 rounded-[1px] inline-block" style={{ backgroundColor: 'var(--block-unit)' }} />
-                    ))}
-                  </div>
-                </div>
-              )}
-
               <ul className="flex flex-col gap-3">
                 {content.lines.map((line, i) => (
                   <li key={i} className="flex items-start gap-2 text-lg text-ws-ink leading-relaxed font-semibold">
@@ -157,19 +198,12 @@ export function HelpOverlays() {
                 ))}
               </ul>
 
-              {/* 3 Closed Options for Socratic Mentoring */}
-              {helpState === 'socratic' && (
-                <SocraticPenaltyLockOptions onClose={closeHelp} />
-              )}
-
-              {helpState !== 'socratic' && (
-                <button
-                  onClick={closeHelp}
-                  className="mt-7 w-full h-12 rounded-full font-display font-extrabold text-lg text-white bg-ws-accent shadow-md hover:brightness-105 active:scale-95 transition-all"
-                >
-                  הבנתי, חזרה לתרגיל
-                </button>
-              )}
+              <button
+                onClick={closeHelp}
+                className="mt-7 w-full h-12 rounded-full font-display font-extrabold text-lg text-white bg-ws-accent shadow-md hover:brightness-105 active:scale-95 transition-all"
+              >
+                הבנתי, חזרה לתרגיל
+              </button>
             </motion.div>
           </motion.div>
         )}
@@ -199,8 +233,8 @@ function SocraticPenaltyLockOptions({ onClose }: { onClose: () => void }) {
 
   const options = [
     { id: 'A', text: 'א. נאסוף 10 יחידות מטור היחידות ונמיר אותן לעשרת אחת בטור העשרות.', correct: true, hint: 'תשובה נכונה! כעת בצעו את ההמרה בלוח הדינס.' },
-    { id: 'B', text: 'ב. נמחק 10 יחידות מטור היחידות מבלי להוסיף עשרת.', correct: false, hint: 'רמז: מחיקת בלוקים משנה את ערך המספר! עלינו לשמר את הכמות הכוללת בעזרת המרה.' },
-    { id: 'C', text: 'ג. נעביר קובייה אחת בלבד לטור העשרות.', correct: false, hint: 'רמז: 1 עשרת שווה בדיוק ל-10 יחידות. העברת קובייה אחת בלבד אינה שקולה לעשרת.' },
+    { id: 'B', text: 'ב. נמחק 10 יחידות מטור היחידות מבלי להוסיף עשרת.', correct: false, hint: 'רמז: מחיקת בלוקים משנה את ערך המספר! עלינו לשמר את הכמות הכוללת בעזרת המרה. אפשר להשתמש בביטול ↩️.' },
+    { id: 'C', text: 'ג. נעביר קובייה אחת בלבד לטור העשרות.', correct: false, hint: 'רמז: 1 עשרת שווה בדיוק ל-10 יחידות. העברת קובייה אחת בלבד אינה שקולה לעשרת. אפשר להשתמש בביטול ↩️.' },
   ];
 
   const handleSelect = (opt: typeof options[0]) => {
@@ -208,41 +242,56 @@ function SocraticPenaltyLockOptions({ onClose }: { onClose: () => void }) {
     setSelectedOpt(opt.id);
     setFeedbackHint(opt.hint);
     if (!opt.correct) {
-      // PRD v3.3 Module 12: 60-second penalty lock on wrong distractor in Zustand Store
+      // PRD v4.2 Module 12: 60-second penalty lock on wrong distractor in Socratic Card
       triggerSocraticPenaltyLockout(opt.hint);
     }
   };
 
   return (
-    <div className="mt-6 flex flex-col gap-3">
-      <p className="font-extrabold text-sm text-ws-soft">בחרו את הדרך הנכונה להתקדם:</p>
-      {options.map((opt) => (
-        <button
-          key={opt.id}
-          disabled={lockSeconds > 0}
-          onClick={() => handleSelect(opt)}
-          className={`p-3.5 rounded-2xl border-2 text-right font-medium text-sm transition-all ${
-            selectedOpt === opt.id
-              ? opt.correct
+    <div className="mt-4 flex flex-col gap-2.5">
+      <p className="font-extrabold text-xs text-ws-soft">בחרו את הדרך הנכונה להתקדם:</p>
+      {options.map((opt) => {
+        const isChosen = selectedOpt === opt.id;
+        const isWrongChosen = isChosen && !opt.correct;
+        const isCorrectChosen = isChosen && opt.correct;
+        const isOtherDisabled = lockSeconds > 0 && !isChosen;
+
+        return (
+          <button
+            key={opt.id}
+            disabled={lockSeconds > 0}
+            onClick={() => handleSelect(opt)}
+            className={`p-3 rounded-2xl border-2 text-right font-medium text-xs sm:text-sm transition-all flex items-start gap-2 ${
+              isCorrectChosen
                 ? 'border-emerald-500 bg-emerald-50 text-emerald-950 dark:bg-emerald-950/40 dark:text-emerald-100'
-                : 'border-rose-500 bg-rose-50 text-rose-950 dark:bg-rose-950/40 dark:text-rose-100'
-              : lockSeconds > 0
-              ? 'border-ws-surface2 opacity-50 cursor-not-allowed'
-              : 'border-ws-surface2 bg-ws-surface hover:border-ws-accent hover:bg-ws-accentSoft/30'
-          }`}
-        >
-          {opt.text}
-        </button>
-      ))}
+                : isWrongChosen
+                ? 'border-rose-500 bg-rose-100 text-rose-950 dark:bg-rose-950/60 dark:text-rose-100 font-bold'
+                : isOtherDisabled
+                ? 'border-ws-surface2 opacity-40 cursor-not-allowed bg-slate-100 dark:bg-slate-800'
+                : 'border-ws-surface2 bg-ws-surface hover:border-ws-accent hover:bg-ws-accentSoft/30'
+            }`}
+          >
+            {isWrongChosen && <span className="text-rose-600 font-black shrink-0" aria-hidden="true">❌</span>}
+            {isCorrectChosen && <span className="text-emerald-600 font-black shrink-0" aria-hidden="true">✅</span>}
+            <span>{opt.text}</span>
+          </button>
+        );
+      })}
 
       {lockSeconds > 0 && (
-        <div className="bg-amber-500/15 border border-amber-500/40 rounded-2xl p-3.5 text-center text-amber-900 dark:text-amber-200 text-sm font-bold animate-pulse">
-          ⏳ בואו נחשוב עוד רגע... חלון המענה ייפתח מחדש בעוד <span className="font-black text-base">{lockSeconds}</span> שניות כדי שנוכל לבדוק את התשובה בנחת.
+        <div className="bg-amber-500/15 border border-amber-500/40 rounded-2xl p-3 text-center text-amber-900 dark:text-amber-200 text-xs sm:text-sm font-bold animate-pulse space-y-1">
+          <div className="flex items-center justify-center gap-1.5 text-base font-black">
+            <span>⏳</span>
+            <span>החלונית נעולה לחשיבה: {lockSeconds} שניות</span>
+          </div>
+          <p className="text-xs text-amber-800/90 dark:text-amber-300/90 font-medium">
+            לוח הדינס וכפתור הביטול (↩️) פתוחים ופעילים. נסו לחקור את הבלוקים עד שהחלונית תיפתח מחדש.
+          </p>
         </div>
       )}
 
       {feedbackHint && (
-        <div className="bg-ws-surface2/60 rounded-2xl p-3.5 text-sm text-ws-ink font-semibold">
+        <div className="bg-ws-surface2/60 rounded-2xl p-3 text-xs sm:text-sm text-ws-ink font-semibold">
           💡 {feedbackHint}
         </div>
       )}
@@ -250,13 +299,13 @@ function SocraticPenaltyLockOptions({ onClose }: { onClose: () => void }) {
       <button
         onClick={onClose}
         disabled={lockSeconds > 0}
-        className={`mt-3 w-full h-12 rounded-full font-display font-extrabold text-base transition-all ${
+        className={`mt-2 w-full h-10 rounded-full font-display font-extrabold text-sm transition-all ${
           lockSeconds > 0
-            ? 'bg-slate-300 dark:bg-slate-800 text-slate-500 cursor-not-allowed'
+            ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed opacity-60'
             : 'bg-ws-accent text-white hover:brightness-105 shadow-md'
         }`}
       >
-        {lockSeconds > 0 ? `חלונית נעולה (${lockSeconds}ש')` : 'הבנתי, חזרה לתרגיל'}
+        {lockSeconds > 0 ? `חלונית נעולה (${lockSeconds}ש')` : 'הבנתי, סגור חלונית'}
       </button>
     </div>
   );

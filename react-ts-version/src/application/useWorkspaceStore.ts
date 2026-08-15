@@ -31,7 +31,7 @@ import {
   type QFlowEvent,
   type QMatrixFlowState,
 } from '@/core/qmatrixFlow';
-import { stateReducer } from '@/machines/craMachine';
+import { stateReducer } from '@/machines/vraMachine';
 import { computeCognitiveMastery } from '@/core/QMatrix';
 import { useStore } from '@/application/useStore';
 import { useAuthStore } from '@/application/useAuthStore';
@@ -113,6 +113,9 @@ interface WorkspaceState {
   aiSocraticHint: SocraticHintResponse | null;
   socraticPenaltyLockoutUntil: number | null;
   socraticDistractorHint: string | null;
+  typedErrorCount: number;
+  socraticDistractorErrors: number;
+  lastInteractionTime: number;
 
   // overlays
   feedback: FeedbackState | null;
@@ -141,6 +144,9 @@ interface WorkspaceState {
   splitBlockClick: (place: Place) => void;
   groupColumnClick: (place: Place) => void;
   undo: () => void;
+  recordUserInteraction: () => void;
+  incrementTypedErrorCount: () => void;
+  getPersistenceIndex: () => number;
   toggleBoard: () => void;
   setFocusedPlace: (place: Place | null) => void;
   selectChoice: (id: string) => void;
@@ -361,7 +367,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     set(resetTaskInteraction());
 
     const s = get();
-    // Strict CRA Bridge: lock keyboard in ASD mode, UNLESS in Session 2 (pure diagnostic, no scaffolding)
+    // Strict VRA Bridge: lock keyboard in ASD mode, UNLESS in Session 2 (pure diagnostic, no scaffolding)
     set({ keyboardState: s.isASD && s.sessionNumber !== 2 ? 'LOCKED' : 'UNLOCKED' });
 
 
@@ -909,6 +915,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     aiSocraticHint: null,
     socraticPenaltyLockoutUntil: getStoredSocraticPenaltyUntil(),
     socraticDistractorHint: null,
+    typedErrorCount: 0,
+    socraticDistractorErrors: 0,
+    lastInteractionTime: Date.now(),
     aiTasks: null,
     dynamicTasks: null,
     nodeStrikes: {},
@@ -1511,6 +1520,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       }));
       get().fetchSocraticHint();
     },
+    recordUserInteraction: () => set({ lastInteractionTime: Date.now(), hasInteracted: true }),
+    incrementTypedErrorCount: () => set((s) => ({ typedErrorCount: s.typedErrorCount + 1, lastInteractionTime: Date.now() })),
+    getPersistenceIndex: () => {
+      const { undoCount, typedErrorCount, socraticDistractorErrors } = get();
+      const denom = undoCount + typedErrorCount + socraticDistractorErrors;
+      if (denom === 0) return 100;
+      return Math.min(100, Math.max(0, Math.round((undoCount / denom) * 100)));
+    },
     triggerSocraticPenaltyLockout: (hintText) => {
       const until = Date.now() + 60000;
       try {
@@ -1520,10 +1537,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       } catch (e) {
         console.error('Failed to persist socratic penalty', e);
       }
-      set({
+      set((s) => ({
         socraticPenaltyLockoutUntil: until,
         socraticDistractorHint: hintText || 'בחירה זו אינה מביאה לפתרון הנכון. חשבו מה הפעולה הנדרשת בבית המספרים ונסו שוב כשתום הנעילה.',
-      });
+        socraticDistractorErrors: s.socraticDistractorErrors + 1,
+        lastInteractionTime: Date.now()
+      }));
     },
 
     clearSocraticPenaltyLockout: () => {
@@ -1629,6 +1648,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         frictionTriggerSource: null,
         aiSocraticHint: null,
         socraticDistractorHint: null,
+        typedErrorCount: 0,
+        socraticDistractorErrors: 0,
+        lastInteractionTime: Date.now(),
         aiTasks: null,
         dynamicTasks: null,
         nodeStrikes: {},

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { useWorkspaceStore } from '../../application/useWorkspaceStore';
 import { useAuthStore } from '../../application/useAuthStore';
 import { useSettingsStore } from '../../application/useSettingsStore';
-import { stateReducer } from '../../machines/craMachine';
+import { stateReducer } from '../../machines/vraMachine';
 import { CurriculumRouter } from '../../core/CurriculumRouter';
 import { computeCognitiveMastery } from '../../core/QMatrix';
 import { firebaseSyncService } from '../../infrastructure/services/FirebaseSyncService';
@@ -315,11 +315,11 @@ describe('8-STUDENT COGNITIVE PROFILE & PATHWAY RESILIENCE SIMULATION', () => {
     // Session 4 with ASD mode
     useWorkspaceStore.getState().initSession(4, false);
     
-    // CRA Machine State Transition: In ASD mode, keyboard starts LOCKED
+    // VRA Machine State Transition: In ASD mode, keyboard starts LOCKED
     let keyboardState = 'LOCKED';
     expect(keyboardState).toBe('LOCKED');
 
-    // Performing Dienes operation unlocks the keyboard
+    // Performing Dienes operation unlocks the keyboard via VRA event
     keyboardState = stateReducer('LOCKED', { type: 'BLOCK_SPLIT_SUCCESS' });
     expect(keyboardState).toBe('UNLOCKED');
 

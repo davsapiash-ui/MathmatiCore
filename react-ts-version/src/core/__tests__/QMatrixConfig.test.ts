@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { QMATRIX_ITEMS, getQMatrixItemByTrigger } from '../QMatrixConfig';
 
 describe('QMatrixConfig', () => {
-  it('should export non-empty QMATRIX_ITEMS containing diagnostic and CRA error conditions', () => {
+  it('should export non-empty QMATRIX_ITEMS containing diagnostic and VRA error conditions', () => {
     expect(QMATRIX_ITEMS.length).toBeGreaterThan(0);
     const qIds = QMATRIX_ITEMS.map((item) => item.q_id);
     expect(qIds).toContain('SQ_SUB_TENS_01');

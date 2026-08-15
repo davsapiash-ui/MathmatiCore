@@ -7,6 +7,7 @@
 
 import { initializeApp } from 'firebase/app';
 import { getDatabase } from 'firebase/database';
+import { getFirestore, type Firestore } from 'firebase/firestore';
 import { getAuth, signInAnonymously, onAuthStateChanged, type Auth } from 'firebase/auth';
 
 const firebaseConfig = {
@@ -24,6 +25,8 @@ import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 
 const app = initializeApp(firebaseConfig);
 export const database = getDatabase(app);
+export const firestore: Firestore = getFirestore(app);
+export const db = firestore;
 export const functions = getFunctions(app);
 
 // Use local emulator for functions when running locally

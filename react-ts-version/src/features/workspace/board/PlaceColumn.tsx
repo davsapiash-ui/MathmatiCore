@@ -59,7 +59,7 @@ export function PlaceColumn({ place }: { place: Place }) {
       className={`flex-1 min-w-0 flex flex-col rounded-2xl border-2 transition-all duration-300 ${
         isHighlighted ? 'border-solid' : 'border-dashed'
       } ${
-        isDimmed ? 'opacity-20 pointer-events-none' : ''
+        isDimmed ? 'opacity-40 brightness-75 pointer-events-none select-none transition-all' : ''
       } ${isOver ? 'animate-[pulse_1.5s_ease-in-out_infinite]' : ''}`}
       style={{
         borderColor: isOver 

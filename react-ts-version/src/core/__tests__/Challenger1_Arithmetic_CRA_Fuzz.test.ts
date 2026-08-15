@@ -17,7 +17,7 @@ import {
   type PlaceCounts,
   type Place,
 } from '@/core/placeValue';
-import { stateReducer, type SystemEvent } from '@/machines/craMachine';
+import { stateReducer, type SystemEvent } from '@/machines/vraMachine';
 import {
   validateConcreteState,
   transitionKeyboardState,
@@ -494,12 +494,13 @@ describe('Challenger 1 — Adversarial Stress & Fuzz Suite: Arithmetic & VRA Eng
   });
 
   // ==========================================================================
-  // SECTION 6: CRA KEYBOARD STATE MACHINE FUZZING & ANTI-DESYNC PROOF
+  // SECTION 6: VRA KEYBOARD STATE MACHINE FUZZING & ANTI-DESYNC PROOF
   // ==========================================================================
-  describe('6. CRA Keyboard State Machine Fuzzing & Anti-Desync Proof', () => {
+  describe('6. VRA Keyboard State Machine Fuzzing & Anti-Desync Proof', () => {
 
     const validStates: KeyboardState[] = ['LOCKED', 'UNLOCKED', 'SOCRATIC_ONLY'];
     const validEvents: SystemEvent[] = [
+      { type: 'PLACE_VALUE_CONVERSION_SUCCESS' },
       { type: 'BLOCK_GROUP_SUCCESS' },
       { type: 'BLOCK_SPLIT_SUCCESS' },
       { type: 'HESITATION_TIMER_EXPIRE' },
@@ -507,10 +508,11 @@ describe('Challenger 1 — Adversarial Stress & Fuzz Suite: Arithmetic & VRA Eng
       { type: 'UNDO_CLICK' },
     ];
 
-    it('strictly adheres to the CRA state transition table under all valid state x event combinations', () => {
+    it('strictly adheres to the VRA state transition table under all valid state x event combinations', () => {
       // Expected transition table
       const expectedTransitions: Record<KeyboardState, Record<string, KeyboardState>> = {
         LOCKED: {
+          PLACE_VALUE_CONVERSION_SUCCESS: 'UNLOCKED',
           BLOCK_GROUP_SUCCESS: 'UNLOCKED',
           BLOCK_SPLIT_SUCCESS: 'UNLOCKED',
           HESITATION_TIMER_EXPIRE: 'SOCRATIC_ONLY',
@@ -518,6 +520,7 @@ describe('Challenger 1 — Adversarial Stress & Fuzz Suite: Arithmetic & VRA Eng
           UNDO_CLICK: 'LOCKED',
         },
         SOCRATIC_ONLY: {
+          PLACE_VALUE_CONVERSION_SUCCESS: 'SOCRATIC_ONLY',
           BLOCK_GROUP_SUCCESS: 'SOCRATIC_ONLY',
           BLOCK_SPLIT_SUCCESS: 'SOCRATIC_ONLY',
           HESITATION_TIMER_EXPIRE: 'SOCRATIC_ONLY',
@@ -525,6 +528,7 @@ describe('Challenger 1 — Adversarial Stress & Fuzz Suite: Arithmetic & VRA Eng
           UNDO_CLICK: 'SOCRATIC_ONLY',
         },
         UNLOCKED: {
+          PLACE_VALUE_CONVERSION_SUCCESS: 'UNLOCKED',
           BLOCK_GROUP_SUCCESS: 'UNLOCKED',
           BLOCK_SPLIT_SUCCESS: 'UNLOCKED',
           HESITATION_TIMER_EXPIRE: 'UNLOCKED',

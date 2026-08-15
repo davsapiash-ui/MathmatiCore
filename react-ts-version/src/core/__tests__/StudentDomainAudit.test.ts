@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { stateReducer } from '../../machines/craMachine';
+import { stateReducer } from '../../machines/vraMachine';
 import { getSessionTasks, SESSION1_TASKS, SESSION3_TASKS, SESSION4_TASKS, SESSION5_TASKS, SESSION6_TASKS, SESSION7_TASKS, SESSION8_TASKS } from '../../data/sessionTasks';
 import { useWorkspaceStore } from '../../application/useWorkspaceStore';
 import { readFileSync, readdirSync, statSync } from 'fs';
@@ -7,7 +7,7 @@ import { join } from 'path';
 
 describe('Student Domain Verification & Audit Suite', () => {
 
-  describe('1. craMachine State Reducer & Undo Reset Guard', () => {
+  describe('1. vraMachine State Reducer & Undo Reset Guard', () => {
     it('transitions LOCKED -> UNLOCKED on BLOCK_GROUP_SUCCESS', () => {
       const next = stateReducer('LOCKED', { type: 'BLOCK_GROUP_SUCCESS' });
       expect(next).toBe('UNLOCKED');
@@ -128,7 +128,7 @@ describe('Student Domain Verification & Audit Suite', () => {
       const targetFiles = [
         'features/workspace/StudentWorkspacePage.tsx',
         'presentation/pages/StudentHub.tsx',
-        'machines/craMachine.ts',
+        'machines/vraMachine.ts',
         'features/workspace/board/PlaceValueBoard.tsx',
         'features/workspace/board/DienesBlock.tsx',
         'features/workspace/board/PlaceColumn.tsx',

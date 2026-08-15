@@ -39,14 +39,16 @@ export function ReflectionScreen() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const qflow = useWorkspaceStore((s) => s.qflow);
+  const undoCount = useWorkspaceStore((s) => s.undoCount);
+  const getPersistenceIndex = useWorkspaceStore((s) => s.getPersistenceIndex);
 
   const [effort, setEffort] = useState<number | null>(null);
   const [strategies, setStrategies] = useState<string[]>([]);
   const [done, setDone] = useState(false);
 
+  const persistenceIndex = getPersistenceIndex();
+
   const studentName: string = (user?.displayName as string) || 'תלמיד';
-  // uid is the ONE canonical identity field (Login stores {uid, role, displayName}).
-  // The old user.username read was always undefined → every student wrote to 'unknown_student'.
   const username: string = user?.uid || 'unknown_student';
   const feedback = effort !== null ? EFFORT_FEEDBACK[effort] : null;
   const canComplete = effort !== null && strategies.length > 0;
@@ -72,6 +74,8 @@ export function ReflectionScreen() {
       await push(ref(database, 'reflections'), {
         effort,
         strategy: strategies.join(', '),
+        persistenceIndex,
+        undoCount,
         timestamp: Date.now(),
         student: { id: username },
       });
@@ -104,11 +108,15 @@ export function ReflectionScreen() {
         routeStatus: 'PENDING_TEACHER_APPROVAL',
         qMatrixResults: qMatrix,
         effort: effort,
-        strategy: strategies.join(', ')
+        strategy: strategies.join(', '),
+        persistenceIndex,
+        undoCount
       });
       await update(ref(database, `users/students/${studentId}/reflections`), {
         effort,
         strategies,
+        persistenceIndex,
+        undoCount,
         qMatrixResults: qMatrix,
         timestamp: Date.now()
       }).catch(console.error);
@@ -194,6 +202,12 @@ export function ReflectionScreen() {
             <div className="text-3xl mb-1" aria-hidden="true">{feedback?.emoji ?? '🌟'}</div>
             <p className="font-display font-extrabold text-lg text-ws-ink">{feedback?.text ?? 'הכוח שלכם הוא בהתמדה ובניסיון שוב ושוב!'}</p>
             <p className="text-sm text-ws-soft mt-1">{feedback?.sub ?? 'כל פעם שניסיתם שוב — הדמיון שלכם גדל. זה המתמטיקאי הטוב ביותר שיכול להיות.'}</p>
+            {undoCount > 0 && (
+              <div className="mt-3 inline-flex items-center gap-2 px-3.5 py-1.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-700/60 rounded-full text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                <span>💪</span>
+                <span>מדד התמדה וניסוי חוזר: {persistenceIndex}% ({undoCount} בדיקות עצמיות ותיקונים)</span>
+              </div>
+            )}
           </motion.div>
         </section>
 
