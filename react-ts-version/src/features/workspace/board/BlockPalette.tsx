@@ -29,7 +29,7 @@ export function BlockPalette({ scaffoldLevel }: { scaffoldLevel: number }) {
       id="tour-block-palette"
       role="toolbar"
       aria-label="מחסן הכלים — גרור לטבלה"
-      className="shrink-0 ws-card !rounded-2xl px-4 py-2.5 flex items-center justify-start sm:justify-center gap-3 max-w-full overflow-x-auto no-scrollbar"
+      className="shrink-0 ws-card !rounded-2xl px-4 py-2.5 flex items-center justify-start sm:justify-center gap-3 max-w-full overflow-x-auto no-scrollbar select-none"
     >
       <div className="flex flex-col items-center gap-1 rounded-2xl px-4 pt-2 pb-1.5 bg-ws-accentSoft/35 border border-ws-accent/25 shrink-0 select-none">
         <span aria-hidden="true" className="text-3xl leading-none h-12 flex items-center justify-center">🧰</span>
@@ -42,7 +42,7 @@ export function BlockPalette({ scaffoldLevel }: { scaffoldLevel: number }) {
       {paletteItemsToRender.map(({ place, labelHe, scale }) => (
         <div
           key={place}
-          className="relative group flex flex-col items-center gap-1 rounded-2xl px-3 pt-2 pb-1.5 bg-ws-bg/70 border border-ws-surface2 hover:border-ws-accent/40 hover:bg-ws-accentSoft/40 hover:-translate-y-0.5 transition-all cursor-grab active:cursor-grabbing"
+          className="relative group flex flex-col items-center gap-1 rounded-2xl px-3 pt-2 pb-1.5 bg-ws-bg/70 border border-ws-surface2 hover:border-ws-accent/40 hover:bg-ws-accentSoft/40 hover:-translate-y-0.5 transition-all cursor-grab active:cursor-grabbing select-none"
         >
           <div className="h-12 flex items-end justify-center" style={{ transform: `scale(${scale})`, transformOrigin: 'bottom center' }}>
             <DienesBlock

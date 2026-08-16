@@ -56,10 +56,10 @@ export function PlaceColumn({ place }: { place: Place }) {
     <motion.div
       id={place === 'units' ? 'tour-column-units' : undefined}
       animate={shakeControls}
-      className={`flex-1 min-w-0 flex flex-col rounded-2xl border-2 transition-all duration-300 ${
+      className={`flex-1 min-w-0 flex flex-col rounded-2xl border-2 transition-all duration-300 select-none ${
         isHighlighted ? 'border-solid' : 'border-dashed'
       } ${
-        isDimmed ? 'opacity-40 brightness-75 pointer-events-none select-none transition-all' : ''
+        isDimmed ? 'opacity-40 brightness-75 pointer-events-none transition-all' : ''
       } ${isOver ? 'animate-[pulse_1.5s_ease-in-out_infinite]' : ''}`}
       style={{
         borderColor: isOver 

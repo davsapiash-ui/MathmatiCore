@@ -9,12 +9,20 @@ async function ready(): Promise<void> {
   await authReady;
 }
 
+export interface SocraticChoice {
+  id: string;
+  textHe: string;
+  isCorrect?: boolean;
+  hint?: string;
+  feedbackHe?: string;
+}
+
 export interface SocraticHintResponse {
   pedagogical_intent?: "conceptual" | "procedural" | "focus";
   tts_text?: string;
   suggested_highlight?: string | null;
   questionHe: string;
-  choices: { id: string; textHe: string }[];
+  choices: SocraticChoice[];
   correctChoiceId?: string;
 }
 
@@ -784,6 +792,259 @@ export class SocraticEngine {
            null;
   }
 
+  /**
+   * Evaluates the live board state (counts, deficits, overcrowding, active operation)
+   * to produce a high-precision, real-time Socratic question and 3 closed pedagogical options.
+   */
+  public static analyzeLiveBoardState(
+    currentTask: any,
+    targetNode: string,
+    counts: { units: number; tens: number; hundreds: number; thousands: number }
+  ): SocraticHintResponse | null {
+    if (!counts) return null;
+
+    // 1. Overcrowding Check (>= 10 blocks in a column)
+    if (counts.units >= 10) {
+      return {
+        pedagogical_intent: "procedural",
+        tts_text: `בטור היחידות יש ${counts.units} קוביות. עלינו לקבץ 10 מהן לעשרת אחת.`,
+        suggested_highlight: "tour-column-units",
+        questionHe: `בטור היחידות הצטברו ${counts.units} קוביות (יותר מ-9). מה הצעד הבא שנבצע?`,
+        choices: [
+          { 
+            id: "opt_1", 
+            textHe: "נאסוף 10 יחידות מטור היחידות ונמיר אותן לעשרת אחת בטור העשרות", 
+            isCorrect: true, 
+            feedbackHe: "תשובה נכונה! כעת בצעו את הקיבוץ בלוח הדינס." 
+          },
+          { 
+            id: "opt_2", 
+            textHe: "נמחק 10 יחידות מטור היחידות לפח מבלי להוסיף עשרת", 
+            isCorrect: false, 
+            feedbackHe: "רמז: מחיקת בלוקים לפח משנה את ערך המספר! עלינו לשמר את הכמות הכוללת בעזרת המרה. אפשר להשתמש בביטול ↩️." 
+          },
+          { 
+            id: "opt_3", 
+            textHe: "נעביר קובייה אחת בלבד לטור העשרות", 
+            isCorrect: false, 
+            feedbackHe: "רמז: 1 עשרת שווה בדיוק ל-10 יחידות. העברת קובייה אחת אינה שקולה לעשרת. אפשר להשתמש בביטול ↩️." 
+          }
+        ],
+        correctChoiceId: "opt_1"
+      };
+    }
+
+    if (counts.tens >= 10) {
+      return {
+        pedagogical_intent: "procedural",
+        tts_text: `בטור העשרות יש ${counts.tens} עשרות. עלינו לקבץ 10 מהן למאה אחת.`,
+        suggested_highlight: "tour-column-tens",
+        questionHe: `בטור העשרות הצטברו ${counts.tens} עשרות (יותר מ-9). מה עלינו לעשות?`,
+        choices: [
+          { 
+            id: "opt_1", 
+            textHe: "נאסוף 10 עשרות ונקבץ אותן למאה אחת בטור המאות", 
+            isCorrect: true, 
+            feedbackHe: "נכון מאוד! גררו 10 עשרות לטור המאות להמרה למאה אחת." 
+          },
+          { 
+            id: "opt_2", 
+            textHe: "נמחק עשרות מיותרות לפח המחזור", 
+            isCorrect: false, 
+            feedbackHe: "רמז: אסור למחוק בלוקים ללא המרה כדי לא לאבד מהערך הכולל של המספר." 
+          },
+          { 
+            id: "opt_3", 
+            textHe: "נרשום מספר דו-ספרתי במשבצת העשרות", 
+            isCorrect: false, 
+            feedbackHe: "רמז: בכל משבצת בבית המספרים מותרת רק ספרה אחת (0 עד 9)." 
+          }
+        ],
+        correctChoiceId: "opt_1"
+      };
+    }
+
+    if (counts.hundreds >= 10) {
+      return {
+        pedagogical_intent: "procedural",
+        tts_text: `בטור המאות יש ${counts.hundreds} מאות. עלינו לקבץ 10 מהן לאלף אחד.`,
+        suggested_highlight: "tour-column-hundreds",
+        questionHe: `בטור המאות הצטברו ${counts.hundreds} מאות (יותר מ-9). מה הפעולה הנדרשת?`,
+        choices: [
+          { 
+            id: "opt_1", 
+            textHe: "נאסוף 10 מאות ונקבץ אותן לאלף אחד בטור האלפים", 
+            isCorrect: true, 
+            feedbackHe: "מצוין! קבצו 10 מאות לאלף אחד בטור האלפים." 
+          },
+          { 
+            id: "opt_2", 
+            textHe: "נשאיר 10 מאות באותו הטור", 
+            isCorrect: false, 
+            feedbackHe: "רמז: כל טור יכול להכיל לכל היותר 9 בלוקים." 
+          },
+          { 
+            id: "opt_3", 
+            textHe: "נמחק מאות לפח המחזור", 
+            isCorrect: false, 
+            feedbackHe: "רמז: שמרו על הכמות הכוללת בעזרת קיבוץ לאלפים." 
+          }
+        ],
+        correctChoiceId: "opt_1"
+      };
+    }
+
+    // 2. Subtraction Deficit Checks
+    const isSubtraction = currentTask?.isSubtraction || 
+                          (typeof currentTask?.instructionHe === 'string' && (currentTask.instructionHe.includes('חסר') || currentTask.instructionHe.includes('הפחת'))) ||
+                          (typeof currentTask?.exercise === 'string' && currentTask.exercise.includes('-')) ||
+                          targetNode === 'subtraction_regrouping';
+
+    let subtrahend = currentTask?.numberB;
+    if (!subtrahend && typeof currentTask?.exercise === 'string' && currentTask.exercise.includes('-')) {
+      const parts = currentTask.exercise.split('-');
+      if (parts[1]) {
+        const parsed = parseInt(parts[1].trim(), 10);
+        if (!isNaN(parsed)) subtrahend = parsed;
+      }
+    }
+
+    if (isSubtraction && subtrahend) {
+      const unitsB = subtrahend % 10;
+      const tensB = Math.floor((subtrahend % 100) / 10);
+      const hundredsB = Math.floor((subtrahend % 1000) / 100);
+
+      // Check Units Deficit
+      if (unitsB > 0 && counts.units < unitsB) {
+        return {
+          pedagogical_intent: "procedural",
+          tts_text: `יש לנו ${counts.units} יחידות בלוח ואנו צריכים להחסיר ${unitsB}. פרטו עשרת אחת ל-10 יחידות.`,
+          suggested_highlight: "tour-column-tens",
+          questionHe: `יש לנו ${counts.units} יחידות בלוח ואנו צריכים להחסיר ${unitsB} יחידות. מה הצעד הנכון לבצע?`,
+          choices: [
+            { 
+              id: "opt_1", 
+              textHe: "נלחץ על עשרת אחת מטור העשרות כדי לפרוט אותה ל-10 יחידות", 
+              isCorrect: true, 
+              feedbackHe: "מעולה! לחצו על בלוק העשרת בלוח כדי לפרוט אותו ל-10 יחידות." 
+            },
+            { 
+              id: "opt_2", 
+              textHe: `נחסיר הפוך: ${unitsB} פחות ${counts.units} יחידות`, 
+              isCorrect: false, 
+              feedbackHe: "רמז: בחיסור אנו מוציאים רק מהכמות הקיימת. אי אפשר להחסיר הפוך מלמטה למעלה. אפשר להשתמש בביטול ↩️." 
+            },
+            { 
+              id: "opt_3", 
+              textHe: `נוסיף ${unitsB - counts.units} יחידות חדשות מהמחסן`, 
+              isCorrect: false, 
+              feedbackHe: "רמז: הוספת בלוקים מהמחסן משנה את ערך המספר המקורי! יש לבצע פריטה משכן כדי לשמור על הכמות." 
+            }
+          ],
+          correctChoiceId: "opt_1"
+        };
+      }
+
+      // Check Tens Deficit
+      if (tensB > 0 && counts.tens < tensB) {
+        return {
+          pedagogical_intent: "procedural",
+          tts_text: `יש לנו ${counts.tens} עשרות ואנו צריכים להחסיר ${tensB}. פרטו מאה אחת ל-10 עשרות.`,
+          suggested_highlight: "tour-column-hundreds",
+          questionHe: `יש לנו ${counts.tens} עשרות בלוח ואנו צריכים להחסיר ${tensB} עשרות. מאיזה טור שכן נוכל לפרוט בלוק?`,
+          choices: [
+            { 
+              id: "opt_1", 
+              textHe: "נלחץ על מאה אחת מטור המאות כדי לפרוט אותה ל-10 עשרות", 
+              isCorrect: true, 
+              feedbackHe: "מצוין! לחצו על בלוק המאה בלוח כדי לפרוט אותו ל-10 עשרות." 
+            },
+            { 
+              id: "opt_2", 
+              textHe: `נחסיר הפוך: ${tensB} פחות ${counts.tens} עשרות`, 
+              isCorrect: false, 
+              feedbackHe: "רמז: בחיסור אנו מוציאים מהכמות שיש לנו. אסור להחסיר הפוך. אפשר להשתמש בביטול ↩️." 
+            },
+            { 
+              id: "opt_3", 
+              textHe: "נמחק את ספרת המאות לפח המחזור", 
+              isCorrect: false, 
+              feedbackHe: "רמז: מחיקת מאות ללא פריטה תקטין את המספר במקום לשמר את הכמות הכוללת." 
+            }
+          ],
+          correctChoiceId: "opt_1"
+        };
+      }
+
+      // Check Hundreds Deficit
+      if (hundredsB > 0 && counts.hundreds < hundredsB) {
+        return {
+          pedagogical_intent: "procedural",
+          tts_text: `יש לנו ${counts.hundreds} מאות ואנו צריכים להחסיר ${hundredsB}. פרטו אלף אחד ל-10 מאות.`,
+          suggested_highlight: "tour-column-thousands",
+          questionHe: `יש לנו ${counts.hundreds} מאות בלוח ואנו צריכים להחסיר ${hundredsB} מאות. מה עלינו לעשות?`,
+          choices: [
+            { 
+              id: "opt_1", 
+              textHe: "נלחץ על אלף אחד מטור האלפים כדי לפרוט אותו ל-10 מאות", 
+              isCorrect: true, 
+              feedbackHe: "מדויק! לחצו על בלוק האלף בטור האלפים כדי לפרוט אותו ל-10 מאות." 
+            },
+            { 
+              id: "opt_2", 
+              textHe: `נחסיר הפוך: ${hundredsB} פחות ${counts.hundreds} מאות`, 
+              isCorrect: false, 
+              feedbackHe: "רמז: בחיסור אנו גורעים רק מהכמות הקיימת. נסה לחקור את הפריטה בעזרת כפתור הביטול ↩️." 
+            },
+            { 
+              id: "opt_3", 
+              textHe: "נוסיף מאות נוספות מהמחסן", 
+              isCorrect: false, 
+              feedbackHe: "רמז: הוספת בלוקים מהמחסן משנה את המספר. עלינו לשמר את הכמות על ידי פריטה מטור האלפים." 
+            }
+          ],
+          correctChoiceId: "opt_1"
+        };
+      }
+    }
+
+    // 3. Zero Placeholder Awareness
+    if (targetNode === 'zero_placeholder') {
+      const numStr = String(currentTask?.numberA || '');
+      if (numStr.includes('0') && counts.tens === 0) {
+        return {
+          pedagogical_intent: "conceptual",
+          tts_text: "כאשר אין קוביות בטור העשרות, נרשום 0 כדי לשמור על ערך המקום.",
+          suggested_highlight: "tour-column-tens",
+          questionHe: "כאשר אין קוביות בעמודת העשרות, איזה מספר נרשום בבית המספרים?",
+          choices: [
+            { 
+              id: "opt_1", 
+              textHe: "נרשום 0 בעמודת העשרות כדי לשמור על ערך המקום של שאר הספרות", 
+              isCorrect: true, 
+              feedbackHe: "מדויק! ה-0 שומר שהמאות לא יזוזו ימינה ויהפכו לעשרות." 
+            },
+            { 
+              id: "opt_2", 
+              textHe: "נשאיר את העמודה ריקה לחלוטין ללא ספרה", 
+              isCorrect: false, 
+              feedbackHe: "רמז: אם נשאיר ריק, הספרות יתחברו והמספר כולו ישתנה!" 
+            },
+            { 
+              id: "opt_3", 
+              textHe: "נרשום 1 בעמודת העשרות", 
+              isCorrect: false, 
+              feedbackHe: "רמז: אין בלוקים בעמודה זו, ולכן הערך שלה הוא 0." 
+            }
+          ],
+          correctChoiceId: "opt_1"
+        };
+      }
+    }
+
+    return null;
+  }
+
   static async getSocraticHint(
     _currentTask: any,
     targetNode: string,
@@ -793,29 +1054,35 @@ export class SocraticEngine {
   ): Promise<SocraticHintResponse | null> {
     await ready();
 
+    // 1. Real-Time Live Board Anomaly Evaluation (Highest Priority)
+    const liveHint = SocraticEngine.analyzeLiveBoardState(_currentTask, targetNode, _counts);
+    if (liveHint) {
+      return liveHint;
+    }
+
     const taskId: string | undefined = _currentTask?.id;
     const taskType: string | undefined = _currentTask?.type;
 
-    // 1. Exact task-ID match (most specific)
+    // 2. Exact task-ID match (most specific)
     if (taskId && TASK_HINTS[taskId]) {
       return TASK_HINTS[taskId];
     }
 
-    // 2. Session 1 intro type (sandbox tasks without specific ID match)
+    // 3. Session 1 intro type (sandbox tasks without specific ID match)
     if (taskType === 'session1_intro') {
       return TASK_HINTS['s1_sandbox_controlled'];
     }
 
-    // 3. Target-node fallback (task-agnostic but node-specific)
+    // 4. Target-node fallback (task-agnostic but node-specific)
     if (targetNode && NODE_HINTS[targetNode]) {
       return NODE_HINTS[targetNode];
     }
 
-    // 4. Cached node hint
+    // 5. Cached node hint
     const cached = this.localHintCache.get(`${_currentTask?.sessionNumber || 1}_${targetNode}`);
     if (cached) return cached;
 
-    // 5. General fallback
+    // 6. General fallback
     return GENERAL_FALLBACK;
   }
 

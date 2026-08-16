@@ -1389,8 +1389,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     fetchSocraticHint: async () => {
       const s = get();
-      if (s.aiSocraticHint !== null) return; // Already fetched
-      
       const currentTask = getActiveTasks(s)[s.standardTaskIdx];
       const targetNode = currentTask?.targetNode || 'q_matrix_general';
       
