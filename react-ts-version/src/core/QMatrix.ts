@@ -92,7 +92,7 @@ export const TASKS: QMatrixTask[] = [
     type: "flexible_decomp",
     scaffoldLevel: 2,
     titleHe: "פירוק והרכבה לפי המבנה העשרוני",
-    instructionHe: "בנו את המספר {{number}} בבית המספרים, ולחצו \"הוסף ייצוג\". לאחר מכן, חקרו ומצאו דרך נוספת לייצג את אותו המספר ולחצו שוב! (רמז: נסו להיעזר בפריטה).",
+    instructionHe: "בנו את המספר {{number}} בבית המספרים, ולחצו \"+ הוספת ייצוג\". לאחר מכן, מצאו דרך נוספת לייצג את אותו המספר (למשל: לחצו על עשרת כדי לפרוט אותה ליחידות) ולחצו שוב על \"+ הוספת ייצוג\".",
     number: 520,
     asdNumber: 34,
     validRepresentations: [
@@ -108,7 +108,7 @@ export const TASKS: QMatrixTask[] = [
     ],
     backwardDiagnosis: {
       triggerOn: "only_canonical",
-      subtaskInstructionHe: "ניסוי מודרך: לחצו על כפתור 'הדגם פריטה' או גררו עשרת אחת לטור היחידות כדי לפרוט אותה. נסו זאת ואז הוסיפו את הייצוג החדש.",
+      subtaskInstructionHe: "ניסוי מודרך: לחצו על כפתור 'הדגם פריטה' (או לחצו על עשרת בלוח כדי לפרוט אותה ל-10 יחידות). לאחר מכן לחצו על '+ הוספת ייצוג'.",
       showAutoUngroup: true,
       subtaskNumber: 34,
       asdSubtaskNumber: 34,
