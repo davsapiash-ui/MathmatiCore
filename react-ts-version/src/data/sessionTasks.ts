@@ -336,7 +336,7 @@ export function getDynamicSocraticHint(
     const hasAnswer = Object.keys(answerDigits).length > 0;
     const hasCarry = Object.keys(carryDigits).length > 0;
     if (hasAnswer && !hasCarry) {
-      return `רשמתם ספרה בתשובה, אך האם ביצעתם המרה כלשהי? אם כן, איפה עלינו לרשום את ה-Carry (השארית) בראש התרגיל כדי לא לשכוח אותה?`;
+      return `רשמתם ספרה בתשובה, אך האם ביצעתם המרה כלשהי? אם כן, איפה עלינו לרשום את השארית (הספרה שהעברנו) בראש התרגיל כדי לא לשכוח אותה?`;
     }
   }
 

@@ -54,7 +54,7 @@ export function useWorkspaceTour() {
       overlayColor: 'rgba(15, 23, 42, 0.65)',
       nextBtnText: 'התקדם',
       prevBtnText: 'הקודם',
-      doneBtnText: 'הבנתי, בוא נתחיל! 🚀',
+      doneBtnText: 'הבנו, בואו נתחיל! 🚀',
       progressText: 'שלב {{current}} מתוך {{total}}',
       popoverClass: 'ws-tour-popover font-display',
       onDestroyed: () => {
@@ -71,7 +71,7 @@ export function useWorkspaceTour() {
         }
         if (popover.nextButton) {
           const isLast = driverObj.current?.isLastStep();
-          popover.nextButton.textContent = isLast ? 'הבנתי, בוא נתחיל! 🚀' : 'התקדם ➔';
+          popover.nextButton.textContent = isLast ? 'הבנו, בואו נתחיל! 🚀' : 'התקדם ➔';
         }
         
         // Add "אל תציג שוב" skip link in the footer if not present
@@ -92,7 +92,7 @@ export function useWorkspaceTour() {
           element: '#tour-task-card',
           popover: {
             title: '🎯 ברוכים הבאים למשימה!',
-            description: 'כאן מופיעה המשימה שלך. קרא אותה היטב לפני שתתחיל לפתור.',
+            description: 'כאן מופיעה המשימה. קראו אותה היטב לפני שתתחילו לפתור.',
             side: 'left',
             align: 'start'
           }
@@ -101,7 +101,7 @@ export function useWorkspaceTour() {
           element: '#tour-block-palette',
           popover: {
             title: '🧰 מחסן הכלים',
-            description: 'מכאן תוכל לגרור יחידות, עשרות, מאות ואלפים לתוך בית המספרים.',
+            description: 'מכאן תוכלו לגרור יחידות, עשרות, מאות ואלפים לתוך בית המספרים.',
             side: 'top',
             align: 'center'
           }
@@ -110,7 +110,7 @@ export function useWorkspaceTour() {
           element: '#tour-place-value-board',
           popover: {
             title: '🏠 בית המספרים',
-            description: 'כאן תבנה את התשובה שלך! גרור את הקוביות לעמודות המתאימות: יחידות, עשרות, מאות ואלפים.',
+            description: 'כאן בונים את המספרים! גררו את הקוביות לטורים המתאימים: יחידות, עשרות, מאות ואלפים.',
             side: 'right',
             align: 'start'
           }
@@ -118,8 +118,8 @@ export function useWorkspaceTour() {
         {
           element: '#tour-column-units',
           popover: {
-            title: '🔄 המרה ואריזה',
-            description: 'זכור: אם תאסוף 10 יחידות או יותר בטור אחד, תוכל לגרור אחת מהן לטור הבא כדי לקבץ אותן לעשרת שלמה!',
+            title: '🔄 קיבוץ ופריטה',
+            description: 'כאשר מצטברות 10 קוביות בטור, תוכלו ללחוץ על כפתור "הקבץ (10)" שמופיע בראש הטור או לגרור אותן שמאלה!',
             side: 'left',
             align: 'center'
           }
@@ -127,8 +127,8 @@ export function useWorkspaceTour() {
         {
           element: '#tour-action-buttons',
           popover: {
-            title: '✅ סיימת?',
-            description: 'בסיום המשימה, לחץ כאן כדי להתקדם למשימה הבאה. בהצלחה!',
+            title: '✅ סיימתם?',
+            description: 'בסיום המשימה, לחצו על "התקדם" בסרגל העליון כדי לעבור לשלב הבא. בהצלחה!',
             side: 'top',
             align: 'end'
           }

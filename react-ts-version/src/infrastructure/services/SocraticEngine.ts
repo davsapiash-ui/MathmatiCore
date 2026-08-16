@@ -93,11 +93,11 @@ const TASK_HINTS: Record<string, SocraticHintResponse> = {
   // Task: תרגול חיבור עם קיבוץ — 385 + 152 (requiresGrouping)
   's1_t8': {
     pedagogical_intent: "procedural",
-    tts_text: "כאשר יש 10 או יותר בלוקים בטור, גרור אותם לטור הבא כבלוק אחד גדול יותר.",
+    tts_text: "כאשר יש 10 בלוקים בטור, לחצו על כפתור הקבץ או גררו אותם שמאלה.",
     suggested_highlight: "tour-column-units",
     questionHe: "יש יותר מ-9 בלוקים בטור — מה הצעד הבא?",
     choices: [
-      { id: "opt_1", textHe: "גוררים 10 יחידות לטור העשרות — הן הופכות לעשרת אחת" },
+      { id: "opt_1", textHe: "לוחצים על כפתור הקבץ (או גוררים לטור העשרות) — והן הופכות לעשרת אחת" },
       { id: "opt_2", textHe: "מוחקים את הבלוקים המיותרים" },
       { id: "opt_3", textHe: "כותבים את כל המספרים ישר בתיבת התשובה ללא בלוקים" }
     ],
@@ -121,11 +121,11 @@ const TASK_HINTS: Record<string, SocraticHintResponse> = {
   // Task: חיסור עם פריטת עשרות — 425 − 162 (requiresUngrouping)
   's1_t10': {
     pedagogical_intent: "procedural",
-    tts_text: "חסרות לנו עשרות כדי לחסר — גרור מאה אחת לטור העשרות כדי לפרוט אותה ל-10 עשרות.",
+    tts_text: "חסרות לנו עשרות כדי לחסר — לחצו על קוביית המאה בלוח כדי לפרוט אותה ל-10 עשרות.",
     suggested_highlight: "tour-column-tens",
     questionHe: "חסרות לנו עשרות בלוח כדי לחסר — מה עושים?",
     choices: [
-      { id: "opt_1", textHe: "גוררים מאה אחת מטור המאות לטור העשרות — היא נפרטת ל-10 עשרות" },
+      { id: "opt_1", textHe: "לוחצים על קוביית המאה (או גוררים לטור העשרות) — והיא נפרטת ל-10 עשרות" },
       { id: "opt_2", textHe: "מוסיפים עשרות מהמחסן" },
       { id: "opt_3", textHe: "חוסרים מלמטה למעלה בלי פריטה" }
     ],
