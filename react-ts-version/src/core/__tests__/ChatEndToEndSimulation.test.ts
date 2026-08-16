@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { 
   useChatStore, 
   normalizeStudentId, 
@@ -57,7 +57,7 @@ describe('🚀 Comprehensive Real-Time Chat Simulation (Teacher <-> Student & Te
 
     // 5. Teacher replies to student
     console.log('--- שלב 2: המורה משיב לתלמיד עם הנחיה פדגוגית ---');
-    const teacherReplyText = 'היי תלמיד 3, שים לב שיש לך עשרת אחת שניתן לפרוט ל-10 יחידות בעזרת הפטיש 🔨';
+    const teacherReplyText = 'היי תלמיד 3, שים לב שיש לך עשרת אחת שניתן לפרוט ל-10 יחידות בלחיצה עליה 💡';
     
     const roomFromTeacherPerspective = computeRoomId(teacherId, studentId);
     expect(roomFromTeacherPerspective).toBe('student_user3'); // EXACT SAME ROOM!

@@ -1349,7 +1349,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const is2Tens = s.counts.tens === 2 && s.counts.units === 0 && s.counts.hundreds === 0 && s.counts.thousands === 0;
         const is20Units = s.counts.units === 20 && s.counts.tens === 0 && s.counts.hundreds === 0 && s.counts.thousands === 0;
         if (!is2Tens && !is20Units) {
-          showFeedback({ correct: false, title: 'לֹא לְפִי הַהוֹרָאוֹת', sub: 'עֲלֵיכֶם לִבְנוֹת אֶת הַמִּסְפָּר 20 מִ-2 עֲשָׂרוֹת בִּלְבַד, אוֹ מִ-20 יְחִידוֹת בִּלְבַד.' }, 3500);
+          showFeedback({ correct: false, title: 'בּוֹאוּ נְדַיֵּק אֶת הַמִּבְנֶה 🔍', sub: 'בְּנוּ אֶת הַמִּסְפָּר 20 בְּעֶזְרַת 2 עֲשָׂרוֹת, אוֹ בְּעֶזְרַת 20 יְחִידוֹת.' }, 3500);
           return;
         }
       }

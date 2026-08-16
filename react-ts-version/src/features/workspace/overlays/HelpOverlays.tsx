@@ -64,7 +64,7 @@ export function HelpOverlays() {
             >
               🤔
             </motion.span>
-            <p className="font-display font-extrabold text-2xl text-white">בוא נחשוב רגע יחד…</p>
+            <p className="font-display font-extrabold text-2xl text-white">בואו נחשוב רגע יחד…</p>
             <p className="text-white/80 font-medium">מכין רמז מותאם אישית...</p>
           </motion.div>
         )}
@@ -86,7 +86,7 @@ export function HelpOverlays() {
           >
             <div className="max-w-3xl mx-auto">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="font-display font-extrabold text-xl text-ws-ink">איך תרצה לקבל עזרה?</h2>
+                <h2 className="font-display font-extrabold text-xl text-ws-ink">איזו עזרה תרצו לקבל כעת?</h2>
                 <button
                   onClick={closeHelp}
                   aria-label="סגור חלון עזרה"

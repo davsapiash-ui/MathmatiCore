@@ -62,9 +62,9 @@ export function Session8ReflectionScreen({ onComplete, metrics }: Session8Reflec
                 🤔
               </div>
               <h1 className="text-3xl font-display font-black text-ws-ink mb-4">
-                איך הלך לך במפגש?
+                איך הלך לכם במפגש?
               </h1>
-              <p className="text-ws-soft mb-8 text-lg">בחר את האמוג'י שמתאר הכי טוב את ההרגשה שלך</p>
+              <p className="text-ws-soft mb-8 text-lg">בחרו את האימוג'י שמתאר בצורה הטובה ביותר את הרגשתכם:</p>
               
               <div className="flex flex-wrap justify-center gap-4 md:gap-6">
                 {emojis.map((emoji) => (
@@ -93,7 +93,7 @@ export function Session8ReflectionScreen({ onComplete, metrics }: Session8Reflec
                 ⏱️
               </div>
               <h1 className="text-3xl font-display font-black text-ws-ink mb-6">
-                בוא נסתכל על הביצועים שלך!
+                בואו נתבונן בדרך שעשיתם!
               </h1>
               
               <div className="bg-white/80 border border-ws-surface2 p-6 rounded-2xl w-full text-right mb-8">
