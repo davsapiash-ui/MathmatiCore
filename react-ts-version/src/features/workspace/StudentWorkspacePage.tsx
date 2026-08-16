@@ -416,7 +416,12 @@ export function StudentWorkspacePage() {
           if (canRestore && myData?.workspaceState) {
             restoreSession(myData.workspaceState);
           } else {
-            initSession(meeting, isASDMode, tasks || null, 0);
+            const localSaved = firebaseSyncService.getLocalSessionProgress(normId || username);
+            if (localSaved && localSaved.sessionNumber === meeting && localSaved.flowStatus === 'task') {
+              restoreSession(localSaved);
+            } else {
+              initSession(meeting, isASDMode, tasks || null, 0);
+            }
           }
           setIsInitialized(true);
           setIsInitializing(false);
@@ -433,7 +438,12 @@ export function StudentWorkspacePage() {
         if (canRestore && myData?.workspaceState) {
           restoreSession(myData.workspaceState);
         } else {
-          initSession(meeting, isASDMode, null, 0);
+          const localSaved = firebaseSyncService.getLocalSessionProgress(normUid || user?.uid || '');
+          if (localSaved && localSaved.sessionNumber === meeting && localSaved.flowStatus === 'task') {
+            restoreSession(localSaved);
+          } else {
+            initSession(meeting, isASDMode, null, 0);
+          }
         }
         setIsInitialized(true);
         setIsInitializing(false);
@@ -443,16 +453,24 @@ export function StudentWorkspacePage() {
     if (firebaseLoaded) {
       runInit();
     } else {
-      // Grace period of 300ms for Firebase to sync, otherwise initialize from local state to never block the student
-      const timer = setTimeout(() => {
-        if (!cancelled && !isInitialized) {
-          runInit();
-        }
-      }, 300);
-      return () => {
-        cancelled = true;
-        clearTimeout(timer);
-      };
+      // Check if local cache has current meeting state for instantaneous restoration
+      const cached = firebaseSyncService.getLocalSessionProgress(normUid || user?.uid || '');
+      if (cached && cached.sessionNumber === meeting && cached.flowStatus === 'task') {
+        restoreSession(cached);
+        setIsInitialized(true);
+        setIsInitializing(false);
+      } else {
+        // Extended grace period for Firebase to sync so server progress is never prematurely overwritten
+        const timer = setTimeout(() => {
+          if (!cancelled && !isInitialized) {
+            runInit();
+          }
+        }, 1500);
+        return () => {
+          cancelled = true;
+          clearTimeout(timer);
+        };
+      }
     }
 
     return () => {

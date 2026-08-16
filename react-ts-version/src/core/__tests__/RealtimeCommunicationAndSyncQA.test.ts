@@ -16,6 +16,25 @@ import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { useStore } from '@/application/useStore';
 import { useAuthStore } from '@/application/useAuthStore';
 
+// Mock window and localStorage for Node test environment
+if (typeof window === 'undefined' || !window.localStorage) {
+  const localStore = new Map<string, string>();
+  const mockStorage = {
+    getItem: (key: string) => localStore.get(key) || null,
+    setItem: (key: string, val: string) => localStore.set(key, String(val)),
+    removeItem: (key: string) => localStore.delete(key),
+    clear: () => localStore.clear(),
+    length: 0,
+    key: () => null
+  } as unknown as Storage;
+  // @ts-ignore
+  global.window = {
+    localStorage: mockStorage
+  };
+  // @ts-ignore
+  global.localStorage = mockStorage;
+}
+
 // In-memory mock database store for Realtime Firebase RTDB simulation
 const mockDatabaseTree: Record<string, any> = {};
 
@@ -439,6 +458,47 @@ describe('Realtime Communication & Data Synchronization QA Suite (Master PRD v4.
 
       expect(mockDatabaseTree[`users/students/${studentId}/isOnline`]).toBe(false);
       expect((syncService as any).currentUserId).toBeNull();
+    });
+  });
+
+  // =========================================================================
+  // 9. Mid-Stage Screen Refresh & Browser Reload Resilience (Meeting 1 Question 3/4)
+  // =========================================================================
+  describe('9. Mid-Stage Screen Refresh Resilience', () => {
+    it('preserves question index (e.g. Question 3/4) and board state on screen refresh without resetting to 1', () => {
+      const syncService = FirebaseSyncService.getInstance();
+      const studentId = 'student_user1';
+
+      // 1. Student advances to Meeting 1, Question 4 with 4 tens and 2 units
+      const midSessionState = {
+        sessionNumber: 1,
+        flowStatus: 'task',
+        standardTaskIdx: 3, // 4th question
+        counts: { units: 2, tens: 4, hundreds: 0, thousands: 0 },
+        isASD: false,
+        undoCount: 2,
+        hesitationCount: 1
+      };
+
+      // 2. State is cached locally and sent to Firebase
+      syncService.saveSessionProgressLocally(studentId, midSessionState);
+
+      // 3. Simulate browser refresh / component remount
+      const localCached = syncService.getLocalSessionProgress(studentId);
+      expect(localCached).toBeDefined();
+      expect(localCached.sessionNumber).toBe(1);
+      expect(localCached.standardTaskIdx).toBe(3);
+      expect(localCached.counts.tens).toBe(4);
+
+      // 4. Restore session
+      useWorkspaceStore.getState().restoreSession(localCached);
+
+      const stateAfterRestore = useWorkspaceStore.getState();
+      expect(stateAfterRestore.sessionNumber).toBe(1);
+      expect(stateAfterRestore.standardTaskIdx).toBe(3); // Preserved at question 4!
+      expect(stateAfterRestore.counts.tens).toBe(4);
+      expect(stateAfterRestore.counts.units).toBe(2);
+      expect(stateAfterRestore.undoCount).toBe(2);
     });
   });
 });

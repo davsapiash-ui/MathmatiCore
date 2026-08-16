@@ -290,6 +290,12 @@ export class FirebaseSyncService {
       const rawNum = (this.currentUserId || '').replace(/[^0-9]/g, '');
       const studentKeys = Array.from(new Set([this.currentUserId, normId, rawNum ? `student_user${rawNum}` : null, rawNum ? `user${rawNum}` : null].filter(Boolean) as string[]));
       
+      // Save locally to prevent refresh race conditions
+      if (normId) this.saveSessionProgressLocally(normId, updatePayload);
+      if (this.currentUserId && this.currentUserId !== normId) {
+        this.saveSessionProgressLocally(this.currentUserId, updatePayload);
+      }
+
       studentKeys.forEach(key => {
         const studentDirectRef = ref(database, `users/students/${key}`);
         update(studentDirectRef, {
