@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { AuditLogger } from "@/infrastructure/services/AuditLogger";
 import { firebaseSyncService } from "@/infrastructure/services/FirebaseSyncService";
+import { addAuthorizedTeacherFirestore } from "@/infrastructure/services/AuthService";
 
 export interface School {
   id: string;
@@ -102,9 +103,7 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
     }));
     firebaseSyncService.addTeacher(schoolId, name, taz, dob).catch(err => console.error("Failed to add teacher to Firebase", err));
     if (taz.includes('@')) {
-      import('@/infrastructure/services/AuthService').then(({ addAuthorizedTeacherFirestore }) => {
-        addAuthorizedTeacherFirestore(taz.trim(), 'teacher', name.trim(), schoolId).catch(err => console.error("Failed to add teacher to Firestore authorizedTeachers", err));
-      }).catch(console.error);
+      addAuthorizedTeacherFirestore(taz.trim(), 'teacher', name.trim(), schoolId).catch(err => console.error("Failed to add teacher to Firestore authorizedTeachers", err));
     }
   },
 

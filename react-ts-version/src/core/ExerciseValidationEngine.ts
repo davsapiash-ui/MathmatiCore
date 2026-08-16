@@ -79,12 +79,13 @@ export function evaluateKeyboardState(
   return transitionKeyboardState(currentKeyboardState, effectiveEvent);
 }
 
+import { syncQMatrix, syncConceptMastery } from '../infrastructure/services/FirebaseSyncService';
+
 /**
  * Pushes updated Q-Matrix diagnostic mastery values directly to Firebase upon task evaluation.
  */
 export async function syncQMatrixEvaluation(studentId: string, qMatrixData: Record<string, any>) {
   if (!studentId) return;
-  const { syncQMatrix, syncConceptMastery } = await import('../infrastructure/services/FirebaseSyncService');
   await syncQMatrix(studentId, qMatrixData).catch(console.error);
   await syncConceptMastery(studentId, qMatrixData).catch(console.error);
 }
