@@ -78,6 +78,17 @@ export function computeRoomId(senderId: string, receiverId: string): string {
   return cleanSender;
 }
 
+export function sanitizeChatText(text?: string | null): string {
+  if (!text) return '';
+  // 1. Mask 9-digit Israeli IDs
+  let sanitized = text.replace(/\b\d{9}\b/g, (match) => `***${match.slice(-4)}`);
+  // 2. Mask Israeli phone numbers (e.g. 050-1234567, 0521234567, 02-1234567)
+  sanitized = sanitized.replace(/\b0[23489]-?\d{7}\b|\b05\d-?\d{7}\b/g, '[PHONE_REDACTED]');
+  // 3. Mask personal emails
+  sanitized = sanitized.replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g, '[EMAIL_REDACTED]');
+  return sanitized;
+}
+
 let activeSyncedKey: string | null = null;
 let chatUnsubscribe: (() => void) | null = null;
 
@@ -151,6 +162,7 @@ export const useChatStore = create<ChatState>()(
     },
 
     sendMessage: (senderId, senderName, receiverId, text) => {
+      const sanitizedText = sanitizeChatText(text);
       const roomId = computeRoomId(senderId, receiverId);
       const chatRef = ref(database, `chat_messages/${roomId}`);
       const newMsgRef = push(chatRef);
@@ -159,7 +171,7 @@ export const useChatStore = create<ChatState>()(
         senderId,
         senderName,
         receiverId,
-        text,
+        text: sanitizedText,
         timestamp: Date.now(),
         read: false
       };
