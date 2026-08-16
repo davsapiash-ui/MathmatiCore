@@ -131,18 +131,18 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
           <button
             onClick={requestHelp}
             className="h-10 px-3.5 rounded-full text-xs sm:text-sm font-bold bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-md shadow-amber-500/25 hover:scale-105 active:scale-95 transition-all flex items-center gap-1.5 border border-amber-300/40 cursor-pointer"
-            aria-label="בקש עזרה וחניכה"
+            aria-label="בקשת עזרה והדרכה"
           >
             <span aria-hidden="true">💡</span>
-            <span className="hidden sm:inline font-bold">בקש עזרה</span>
+            <span className="hidden sm:inline font-bold">עזרה</span>
           </button>
 
           {/* Norman Principle: Explanatory Hover Tooltip */}
           <div className="absolute top-12 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 z-50 w-64 p-3 bg-slate-900/95 text-white text-xs rounded-2xl shadow-xl backdrop-blur-md border border-white/10 text-right leading-relaxed">
             <div className="font-bold text-amber-300 mb-1 flex items-center gap-1">
-              <span>💡</span> בקשת עזרה וחניכה
+              <span>💡</span> עזרה והדרכה
             </div>
-            <span>בלחיצה כאן תוכל לקבל רמז סוקרטי מנחה או להתריע למורה שאתה זקוק לסיוע בכיתה.</span>
+            <span>בלחיצה כאן תוכלו לקבל רמז מנחה או לפנות למורה לסיוע.</span>
           </div>
         </div>
 
