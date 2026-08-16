@@ -370,4 +370,75 @@ describe('Realtime Communication & Data Synchronization QA Suite (Master PRD v4.
       expect(extractTeacherId(null, null)).toBe('teacher_default');
     });
   });
+
+  // =========================================================================
+  // 7. Adversarial Race Conditions & Concurrent High-Frequency State Mutations
+  // =========================================================================
+  describe('7. High-Frequency Realtime Concurrency & State Convergence', () => {
+    it('handles concurrent teacher overrides while student rapidly mutates local board', async () => {
+      const syncService = FirebaseSyncService.getInstance();
+      const studentId = 'student_user6';
+
+      // 1. Student performs local board operations
+      useWorkspaceStore.setState({
+        counts: { units: 5, tens: 2, hundreds: 1, thousands: 0 },
+        isASD: false
+      });
+
+      // 2. Teacher fires concurrent asynchronous overrides
+      const overridePromise1 = syncService.syncPhysicalOverride(studentId, {
+        isASD: true,
+        physicalOverride: true,
+        routeStatus: 'APPROVED'
+      });
+
+      const overridePromise2 = syncService.syncQMatrix(studentId, {
+        task1_zero_placeholder: 'PASSED'
+      });
+
+      const overridePromise3 = syncService.syncTraceData(studentId, {
+        hesitation_events: 3,
+        undo_clicks: 1
+      });
+
+      await Promise.all([overridePromise1, overridePromise2, overridePromise3]);
+
+      // Verify all overrides converged cleanly in RTDB without dropping any fields
+      const userNode = mockDatabaseTree[`users/students/${studentId}`];
+      expect(userNode).toBeDefined();
+      expect(userNode.isASD).toBe(true);
+      expect(userNode.physicalOverride).toBe(true);
+      expect(userNode.routeStatus).toBe('APPROVED');
+      
+      const qmNode = mockDatabaseTree[`users/students/${studentId}/qMatrixResults`];
+      expect(qmNode).toBeDefined();
+      expect(qmNode.task1_zero_placeholder).toBe('PASSED');
+
+      const traceNode = mockDatabaseTree[`users/students/${studentId}/traceData`];
+      expect(traceNode).toBeDefined();
+      expect(traceNode.hesitation_events).toBe(3);
+      expect(traceNode.undo_clicks).toBe(1);
+    });
+  });
+
+  // =========================================================================
+  // 8. Presence Lifecycle & Clean Disconnect Tear-Down
+  // =========================================================================
+  describe('8. Student Presence Lifecycle & Disconnect Tear-Down', () => {
+    it('sets presence to online on startSync and offline on stopSync', async () => {
+      const syncService = FirebaseSyncService.getInstance();
+      const studentId = 'student_user7';
+
+      // Start student sync
+      (syncService as any).startSync(studentId, { name: 'תלמיד 7' });
+
+      expect(mockDatabaseTree[`users/students/${studentId}/isOnline`]).toBe(true);
+
+      // Stop student sync
+      (syncService as any).stopSync();
+
+      expect(mockDatabaseTree[`users/students/${studentId}/isOnline`]).toBe(false);
+      expect((syncService as any).currentUserId).toBeNull();
+    });
+  });
 });

@@ -148,6 +148,7 @@ export class FirebaseSyncService {
     this.stopSync();
 
     const studentId = normalizeStudentId(rawStudentId);
+    this.currentUserId = studentId;
     const studentRef = ref(database, `users/students/${studentId}`);
     
     // Set online presence
