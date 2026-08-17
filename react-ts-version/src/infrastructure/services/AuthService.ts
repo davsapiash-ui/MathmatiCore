@@ -163,8 +163,9 @@ export async function executeGoogleSSO(targetRole: "teacher" | "admin"): Promise
  */
 export async function authenticateWhitelistedEmail(email: string, targetRole: "teacher" | "admin"): Promise<AuthenticatedUserPayload> {
   const normalized = email.toLowerCase().trim();
-  if (!isWhitelistedTeacherEmail(normalized)) {
-    throw new Error(`גישה נדחתה: כתובת הדוא"ל (${normalized}) אינה מורשית.`);
+  const isAuthorized = (await isWhitelistedTeacherEmailAsync(normalized)) || isWhitelistedTeacherEmail(normalized);
+  if (!isAuthorized) {
+    throw new Error(`גישה נדחתה: כתובת הדוא"ל (${normalized}) אינה מורשית במערכת. רק מורים שהוקמו במערכת רשאים להיכנס.`);
   }
 
   const teacherId = extractTeacherId(normalized, `auth_${normalized.replace(/[^a-zA-Z0-9]/g, "_")}`);
