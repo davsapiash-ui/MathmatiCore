@@ -6,7 +6,6 @@ import { useStore } from "@/application/useStore";
 import { executeGoogleSSO, mockSimulatedSSO } from "@/infrastructure/services/AuthService";
 import { tts } from "@/infrastructure/services/TTSService";
 import { Button } from "@/components/ui/button";
-import { Delete, Check } from "lucide-react";
 
 const ROLES = [
   { id: "student" as const, icon: "🎓", label: "תלמיד" },
@@ -119,25 +118,6 @@ export function Login() {
       console.error("Student Login Error:", err);
       setIsLoggingIn(false);
       triggerErrorWithShake("התחברות תלמיד נכשלה. אנא נסה שוב.");
-    }
-  };
-
-  // Virtual Keypad Button Press Handler
-  const handleKeypadPress = (val: string) => {
-    const now = Date.now();
-    if (now - lastActionTime < 100) return; // short debounce for keypad digits
-    setLastActionTime(now);
-
-    if (val === "DELETE") {
-      setStudentPassword((prev) => prev.slice(0, -1));
-      setErrorMsg("");
-      passwordInputRef.current?.focus();
-    } else if (val === "ENTER") {
-      handleStudentLogin();
-    } else {
-      setStudentPassword((prev) => (prev.length < 12 ? prev + val : prev));
-      setErrorMsg("");
-      passwordInputRef.current?.focus();
     }
   };
 
@@ -424,92 +404,19 @@ export function Login() {
                           }}
                           className="w-full bg-slate-50 dark:bg-slate-950 border-2 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl p-3.5 text-center text-xl font-bold tracking-widest focus:border-[hsl(var(--ws-blue))] outline-none transition-all shadow-inner min-h-[48px]"
                           autoComplete="off"
+                          placeholder="הזן קוד גישה"
                         />
                       </motion.div>
-                    </div>
-
-                    {/* Compact Virtual Keypad Component (3 columns x 4 rows: 0-9, delete, enter) */}
-                    <div className="flex flex-col gap-2 text-right mt-2">
-                      <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
-                        מקלדת ספרות
-                      </span>
-                      <div className="grid grid-cols-3 gap-3 w-full max-w-[340px] mx-auto p-3 bg-slate-100 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm">
-                        {/* Row 1: 1, 2, 3 */}
-                        {[1, 2, 3].map((d) => (
-                          <button
-                            key={d}
-                            type="button"
-                            onClick={() => handleKeypadPress(d.toString())}
-                            disabled={isLoggingIn}
-                            className="min-w-[48px] min-h-[48px] h-12 bg-white dark:bg-slate-700 hover:bg-blue-50 dark:hover:bg-slate-600 active:scale-95 border border-slate-300 dark:border-slate-600 rounded-xl font-black text-xl text-slate-800 dark:text-white flex items-center justify-center transition-all shadow-sm"
-                          >
-                            {d}
-                          </button>
-                        ))}
-                        {/* Row 2: 4, 5, 6 */}
-                        {[4, 5, 6].map((d) => (
-                          <button
-                            key={d}
-                            type="button"
-                            onClick={() => handleKeypadPress(d.toString())}
-                            disabled={isLoggingIn}
-                            className="min-w-[48px] min-h-[48px] h-12 bg-white dark:bg-slate-700 hover:bg-blue-50 dark:hover:bg-slate-600 active:scale-95 border border-slate-300 dark:border-slate-600 rounded-xl font-black text-xl text-slate-800 dark:text-white flex items-center justify-center transition-all shadow-sm"
-                          >
-                            {d}
-                          </button>
-                        ))}
-                        {/* Row 3: 7, 8, 9 */}
-                        {[7, 8, 9].map((d) => (
-                          <button
-                            key={d}
-                            type="button"
-                            onClick={() => handleKeypadPress(d.toString())}
-                            disabled={isLoggingIn}
-                            className="min-w-[48px] min-h-[48px] h-12 bg-white dark:bg-slate-700 hover:bg-blue-50 dark:hover:bg-slate-600 active:scale-95 border border-slate-300 dark:border-slate-600 rounded-xl font-black text-xl text-slate-800 dark:text-white flex items-center justify-center transition-all shadow-sm"
-                          >
-                            {d}
-                          </button>
-                        ))}
-                        {/* Row 4: Delete, 0, Confirm/Enter */}
-                        <button
-                          type="button"
-                          onClick={() => handleKeypadPress("DELETE")}
-                          disabled={isLoggingIn}
-                          aria-label="מחיקה"
-                          className="min-w-[48px] min-h-[48px] h-12 bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 dark:hover:bg-rose-900/60 active:scale-95 border border-rose-200 dark:border-rose-800 rounded-xl font-bold text-rose-700 dark:text-rose-300 flex items-center justify-center gap-1 transition-all shadow-sm text-sm"
-                        >
-                          <Delete className="w-5 h-5" />
-                          <span className="hidden sm:inline">מחיקה</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleKeypadPress("0")}
-                          disabled={isLoggingIn}
-                          className="min-w-[48px] min-h-[48px] h-12 bg-white dark:bg-slate-700 hover:bg-blue-50 dark:hover:bg-slate-600 active:scale-95 border border-slate-300 dark:border-slate-600 rounded-xl font-black text-xl text-slate-800 dark:text-white flex items-center justify-center transition-all shadow-sm"
-                        >
-                          0
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleKeypadPress("ENTER")}
-                          disabled={isLoggingIn || !selectedStudentNum}
-                          aria-label="אישור"
-                          className="min-w-[48px] min-h-[48px] h-12 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-xl font-bold flex items-center justify-center gap-1 transition-all shadow-sm text-sm disabled:opacity-50"
-                        >
-                          <Check className="w-5 h-5" />
-                          <span className="hidden sm:inline">אישור</span>
-                        </button>
-                      </div>
                     </div>
 
                     <Button
                       type="submit"
                       variant="udl"
                       size="lg"
-                      disabled={isLoggingIn || !selectedStudentNum}
-                      className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl font-extrabold text-base transition-all shadow-md active:scale-95 bg-[hsl(var(--ws-blue))] text-white hover:brightness-105 disabled:opacity-50 mt-2 min-h-[48px]"
+                      disabled={isLoggingIn || !selectedStudentNum || !studentPassword.trim()}
+                      className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl font-extrabold text-base transition-all shadow-md active:scale-95 bg-[hsl(var(--ws-blue))] text-white hover:brightness-105 disabled:opacity-50 mt-4 min-h-[48px] cursor-pointer"
                     >
-                      <span>{isLoggingIn ? "מאמת..." : "כניסה לסביבה"}</span>
+                      <span>{isLoggingIn ? "מאמת נתונים..." : "כניסה לסביבה"}</span>
                     </Button>
                   </form>
                 )}
