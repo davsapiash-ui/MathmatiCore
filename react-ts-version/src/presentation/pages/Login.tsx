@@ -3,10 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "@/application/useAuthStore";
 import { useStore } from "@/application/useStore";
-import { executeGoogleSSO, mockSimulatedSSO, authenticateWhitelistedEmail } from "@/infrastructure/services/AuthService";
+import { executeGoogleSSO, mockSimulatedSSO } from "@/infrastructure/services/AuthService";
 import { tts } from "@/infrastructure/services/TTSService";
 import { Button } from "@/components/ui/button";
-import { Delete, Check, Mail, Lock } from "lucide-react";
+import { Delete, Check } from "lucide-react";
 
 const ROLES = [
   { id: "student" as const, icon: "🎓", label: "תלמיד" },
@@ -32,7 +32,6 @@ export function Login() {
   const [selectedClass, setSelectedClass] = useState(CLASSES[0].id);
   const [selectedStudentNum, setSelectedStudentNum] = useState<number | null>(null);
   const [studentPassword, setStudentPassword] = useState("");
-  const [teacherEmailInput, setTeacherEmailInput] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [isShaking, setIsShaking] = useState(false);
@@ -174,11 +173,11 @@ export function Login() {
       const msg = String(err?.message || "");
 
       if (code === "auth/popup-closed-by-user" || msg.includes("popup-closed-by-user")) {
-        setErrorMsg("חלון ההזדהות של Google נסגר. באפשרותך ללחוץ שוב כדי לנסות מחדש או להזין דוא\"ל מורשה ישירות למטה.");
+        setErrorMsg("חלון ההזדהות של Google נסגר. אנא לחץ שוב כדי להתחבר.");
       } else if (code === "auth/popup-blocked" || msg.includes("popup-blocked")) {
-        setErrorMsg("הדפדפן חסם את חלון ההתחברות הקופץ. אנא אשר חלונות קופצים בדפדפן או הזן את כתובת הדוא\"ל המורשית שלך ישירות למטה.");
+        setErrorMsg("הדפדפן חסם את חלון ההתחברות הקופץ. אנא אשר חלונות קופצים (Popups) בדפדפן ונסה שוב.");
       } else if (code === "auth/unauthorized-domain" || msg.includes("unauthorized-domain")) {
-        setErrorMsg("הדומיין הנוכחי טרם הוגדר ב-Firebase Auth. השתמש בהזדהות ישירה עם דוא\"ל מורשה למטה.");
+        setErrorMsg("הדומיין הנוכחי טרם הוגדר ב-Firebase Auth. פנה למנהל המערכת.");
       } else if (code === "auth/cancelled-popup-request" || msg.includes("cancelled-popup-request")) {
         setErrorMsg("");
       } else if (code === "auth/network-request-failed" || msg.includes("network-request-failed")) {
@@ -186,45 +185,6 @@ export function Login() {
       } else {
         setErrorMsg(err?.message || "התחברות Google SSO נכשלה. רק מורים מורשים רשאים להיכנס.");
       }
-    }
-  };
-
-  // Direct Institutional Email Authentication (Fallback for popup-blocked / browser isolation)
-  const handleDirectEmailLogin = async (targetRole: "teacher" | "admin", e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    const now = Date.now();
-    if (now - lastActionTime < 500) return;
-    setLastActionTime(now);
-
-    const email = teacherEmailInput.trim();
-    if (!email) {
-      setErrorMsg("נא להזין כתובת דוא\"ל ארגונית מורשת (Google SSO).");
-      return;
-    }
-
-    setIsLoggingIn(true);
-    setErrorMsg("");
-
-    try {
-      const authenticatedUser = await authenticateWhitelistedEmail(email, targetRole);
-
-      setUser(
-        {
-          uid: authenticatedUser.uid,
-          email: authenticatedUser.email,
-          role: targetRole,
-          displayName: authenticatedUser.displayName,
-        },
-        targetRole
-      );
-
-      login(targetRole, authenticatedUser.uid);
-      setIsLoggingIn(false);
-      navigate(targetRole === "teacher" ? "/dashboard" : "/admin", { replace: true });
-    } catch (err: any) {
-      console.error(`${targetRole} Direct Email Auth Error:`, err);
-      setIsLoggingIn(false);
-      setErrorMsg(err?.message || "כתובת הדוא\"ל אינה מורשית במערכת.");
     }
   };
 
@@ -554,9 +514,9 @@ export function Login() {
                   </form>
                 )}
 
-                {/* Teacher & Admin Google SSO + Whitelisted Direct SSO Flow (Master PRD v5.0 Module 1) */}
+                {/* Teacher & Admin Pure Google SSO Flow (Master PRD v5.0 Module 1) */}
                 {(selectedRole === "teacher" || selectedRole === "admin") && (
-                  <div className="flex flex-col gap-5">
+                  <div className="flex flex-col gap-4">
                     {/* Primary Google SSO Button */}
                     <Button
                       type="button"
@@ -569,42 +529,6 @@ export function Login() {
                       <span className="text-2xl">🌐</span>
                       <span>{isLoggingIn ? "מאמת נתונים מול Google..." : `כניסה באמצעות Google SSO`}</span>
                     </Button>
-
-                    {/* Divider */}
-                    <div className="relative flex py-1 items-center">
-                      <div className="flex-grow border-t border-slate-200 dark:border-slate-800"></div>
-                      <span className="flex-shrink mx-3 text-xs font-bold text-slate-400">או כניסה באמצעות דוא"ל ארגוני מורשה</span>
-                      <div className="flex-grow border-t border-slate-200 dark:border-slate-800"></div>
-                    </div>
-
-                    {/* Direct Institutional Email Form */}
-                    <form onSubmit={(e) => handleDirectEmailLogin(selectedRole, e)} className="flex flex-col gap-3">
-                      <div className="relative">
-                        <Mail className="w-5 h-5 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2" />
-                        <input
-                          type="email"
-                          placeholder="your-name@edu-haifa.org.il"
-                          value={teacherEmailInput}
-                          onChange={(e) => {
-                            setTeacherEmailInput(e.target.value);
-                            setErrorMsg("");
-                          }}
-                          disabled={isLoggingIn}
-                          className="w-full bg-slate-50 dark:bg-slate-950 border-2 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl p-3.5 pr-11 text-sm font-bold focus:border-indigo-500 outline-none transition-all shadow-inner min-h-[48px] text-right dir-rtl"
-                        />
-                      </div>
-
-                      <Button
-                        type="submit"
-                        variant="udl"
-                        size="lg"
-                        disabled={isLoggingIn || !teacherEmailInput.trim()}
-                        className="w-full flex items-center justify-center gap-2 p-3.5 rounded-xl font-extrabold text-sm transition-all shadow-md active:scale-95 bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50 min-h-[44px] cursor-pointer"
-                      >
-                        <Lock className="w-4 h-4" />
-                        <span>{isLoggingIn ? "מאמת..." : "אימות וכניסה"}</span>
-                      </Button>
-                    </form>
 
                     {/* Development Mock SSO (Strictly visible in Dev mode) */}
                     {import.meta.env.DEV && (
