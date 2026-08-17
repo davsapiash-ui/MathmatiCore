@@ -5,6 +5,7 @@ import { useStore } from "@/application/useStore";
 import { useWorkspaceStore } from "@/application/useWorkspaceStore";
 import { useAdminStore } from "@/application/useAdminStore";
 import { useChatStore } from "@/application/useChatStore";
+import { validateZeroPIIPayload } from "@/core/security/PiiFilter";
 
 export interface ClassSchema {
   school_id: string;
@@ -22,12 +23,16 @@ export interface StudentSchema {
 export interface AuthUser {
   uid?: string;
   id?: string;
+  student_id?: number; // Integer 1..12
   name?: string;
   email?: string;
   role?: string;
+  roles?: string[];
+  dualClaims?: string[];
   school_id?: string;
   class_name?: string;
   class_type?: "כיתת ביקורת" | "כיתת ניסוי";
+  authTimestamp?: number;
   [key: string]: unknown;
 }
 
@@ -35,10 +40,15 @@ interface AuthState {
   user: AuthUser | null;
   role: string | null;
   isAuthenticated: boolean;
+  isRoleLocked: boolean;
+  showRoleSelector: boolean;
+  authTimestamp: number | null;
   activeClass: ClassSchema;
-  setUser: (user: AuthUser, role: string) => void;
+  setUser: (user: AuthUser, role?: string) => void;
+  selectRole: (chosenRole: string) => void;
   setClass: (classInfo: Partial<ClassSchema>) => void;
   logout: () => void;
+  isTokenExpired: () => boolean;
 }
 
 const DEFAULT_CLASS: ClassSchema = {
@@ -47,8 +57,12 @@ const DEFAULT_CLASS: ClassSchema = {
   class_type: "כיתת ביקורת",
 };
 
+// 8 hours continuous token limit per Master PRD v5.0 Module 2
+export const JWT_EXPIRY_MS = 8 * 60 * 60 * 1000;
+
 const STORAGE_KEY_USER = 'mc_auth_user';
 const STORAGE_KEY_ROLE = 'mc_auth_role';
+const STORAGE_KEY_TIMESTAMP = 'mc_auth_time';
 const SESS_KEY = ['session', 'Storage'].join('');
 const LOC_KEY = ['local', 'Storage'].join('');
 
@@ -64,25 +78,36 @@ const getGlobalStorage = (): Storage | null => {
 const getStoredAuth = () => {
   try {
     const s = getGlobalStorage();
-    if (!s) return { user: null, role: null, isAuthenticated: false };
+    if (!s) return { user: null, role: null, isAuthenticated: false, isRoleLocked: false, showRoleSelector: false, authTimestamp: null };
     const rawUser = s.getItem(STORAGE_KEY_USER);
     const rawRole = s.getItem(STORAGE_KEY_ROLE);
+    const rawTime = s.getItem(STORAGE_KEY_TIMESTAMP);
+
     if (rawUser && rawRole) {
       const parsed = JSON.parse(rawUser);
-      return { user: parsed, role: rawRole, isAuthenticated: true };
+      const authTime = rawTime ? parseInt(rawTime, 10) : Date.now();
+
+      // Check 8-hour token expiration
+      if (Date.now() - authTime > JWT_EXPIRY_MS) {
+        clearStoredAuth();
+        return { user: null, role: null, isAuthenticated: false, isRoleLocked: false, showRoleSelector: false, authTimestamp: null };
+      }
+
+      return { user: parsed, role: rawRole, isAuthenticated: true, isRoleLocked: true, showRoleSelector: false, authTimestamp: authTime };
     }
   } catch (e) {
     console.error('Failed to restore auth from storage', e);
   }
-  return { user: null, role: null, isAuthenticated: false };
+  return { user: null, role: null, isAuthenticated: false, isRoleLocked: false, showRoleSelector: false, authTimestamp: null };
 };
 
-const setStoredAuth = (user: AuthUser, role: string) => {
+const setStoredAuth = (user: AuthUser, role: string, timestamp?: number) => {
   try {
     const s = getGlobalStorage();
     if (s) {
       s.setItem(STORAGE_KEY_USER, JSON.stringify(user));
       s.setItem(STORAGE_KEY_ROLE, role);
+      s.setItem(STORAGE_KEY_TIMESTAMP, (timestamp || Date.now()).toString());
     }
   } catch (e) {
     console.error('Failed to store auth', e);
@@ -97,10 +122,12 @@ const clearStoredAuth = () => {
     if (sess) {
       sess.removeItem(STORAGE_KEY_USER);
       sess.removeItem(STORAGE_KEY_ROLE);
+      sess.removeItem(STORAGE_KEY_TIMESTAMP);
     }
     if (loc) {
       loc.removeItem(STORAGE_KEY_USER);
       loc.removeItem(STORAGE_KEY_ROLE);
+      loc.removeItem(STORAGE_KEY_TIMESTAMP);
     }
   } catch (e) {
     console.error('Failed to clear stored auth', e);
@@ -125,20 +152,33 @@ export function unifiedLogout() {
   useAuthStore.setState((state) => {
     const username = state.user?.name || state.user?.email || "Unknown";
     AuditLogger.log("התנתקות", state.user?.uid || "unknown_uid", `משתמש התנתק: ${username}`);
-    return { user: null, role: null, isAuthenticated: false };
+    return {
+      user: null,
+      role: null,
+      isAuthenticated: false,
+      isRoleLocked: false,
+      showRoleSelector: false,
+      authTimestamp: null,
+    };
   });
 }
 
-/**
- * [Developer Instruction: Implement Firestore schema updates in useAuthStore.ts with fields for school_id, class_name, and class_type.
- * Ensure student IDs are restricted strictly to integers between 1 and 12 with Zero PII.]
- */
 export const useAuthStore = create<AuthState>()(
-  (set) => ({
+  (set, get) => ({
     user: initial.user,
     role: initial.role,
     isAuthenticated: initial.isAuthenticated,
+    isRoleLocked: initial.isRoleLocked,
+    showRoleSelector: initial.showRoleSelector,
+    authTimestamp: initial.authTimestamp,
     activeClass: DEFAULT_CLASS,
+
+    isTokenExpired: () => {
+      const authTime = get().authTimestamp ?? get().user?.authTimestamp;
+      if (!authTime) return false;
+      return Date.now() - authTime > JWT_EXPIRY_MS;
+    },
+
     setClass: (classInfo) =>
       set((state) => ({
         activeClass: {
@@ -146,37 +186,95 @@ export const useAuthStore = create<AuthState>()(
           ...classInfo,
         },
       })),
-    setUser: (user, role) => set((state) => {
-      const activeRole = Array.isArray(role) ? role[0] : (typeof role === 'string' ? role : 'teacher');
 
-      // PRD v3.3 Module 1, 3 & 4: Strict 1..12 Integer Student ID Restriction with Zero PII & Research Classification
-      if (activeRole === 'student') {
-        const rawId = (user?.uid || user?.id || '').toString();
-        const numMatch = rawId.match(/\d+/);
-        const studentNum = numMatch ? parseInt(numMatch[0], 10) : 0;
-        if (studentNum < 1 || studentNum > 12) {
-          console.error(`Invalid student ID: ${rawId}. Pilot constraint permits integer IDs strictly 1..12.`);
-          return { user: null, role: null, isAuthenticated: false };
-        }
-
-        const cleanUser: AuthUser = {
-          ...user,
-        };
-
-        setStoredAuth(cleanUser, activeRole);
-        AuditLogger.log("התחברות", cleanUser.uid || `student_${studentNum}`, `תלמיד ${studentNum} התחבר לכיתה ${cleanUser.class_name || state.activeClass.class_name}`);
-        return { user: cleanUser, role: activeRole, isAuthenticated: true };
+    setUser: (user, explicitRole) => set((state) => {
+      // Validate Zero PII constraints
+      const piiCheck = validateZeroPIIPayload(user);
+      if (!piiCheck.valid) {
+        console.warn(`[Zero PII Security] Payload advisory: ${piiCheck.reason}`);
       }
 
-      const cleanUser: AuthUser = {
-        ...user,
-        role: activeRole,
-      };
-      setStoredAuth(cleanUser, activeRole);
+      const timestamp = user.authTimestamp || Date.now();
+
+      // Check Dual Claims (Master PRD v5.0 Module 2)
+      const claims = user.dualClaims || (user.roles && user.roles.length > 1 ? user.roles : null);
+      if (claims && claims.length > 1 && !explicitRole) {
+        return {
+          user: { ...user },
+          role: null,
+          isAuthenticated: true,
+          isRoleLocked: false,
+          showRoleSelector: true,
+          authTimestamp: timestamp,
+        };
+      }
+
+      const activeRole = explicitRole || (typeof user.role === 'string' ? user.role : 'teacher');
+
+      // Student ID Constraint Check (Strictly 1..12 Integer)
+      if (activeRole === 'student') {
+        let studentNum: number;
+        if (typeof user.student_id === 'number') {
+          studentNum = user.student_id;
+        } else {
+          const rawId = (user.uid || user.id || '').toString();
+          // match student_user3, student_3, or 3
+          const match = rawId.match(/^(?:student_user|student_)?(-?\d+)$/);
+          studentNum = match ? parseInt(match[1], 10) : NaN;
+        }
+
+        if (isNaN(studentNum) || !Number.isInteger(studentNum) || studentNum < 1 || studentNum > 12) {
+          console.error(`Invalid student ID. Pilot constraint permits integer IDs strictly 1..12.`);
+          return {
+            user: null,
+            role: null,
+            isAuthenticated: false,
+            isRoleLocked: false,
+            showRoleSelector: false,
+            authTimestamp: null
+          };
+        }
+
+        setStoredAuth(user, 'student', timestamp);
+        AuditLogger.log("התחברות", user.uid || `student_${studentNum}`, `תלמיד ${studentNum} התחבר לכיתה ${user.class_name || state.activeClass.class_name}`);
+        return {
+          user: user,
+          role: 'student',
+          isAuthenticated: true,
+          isRoleLocked: true,
+          showRoleSelector: false,
+          authTimestamp: timestamp,
+        };
+      }
+
+      setStoredAuth(user, activeRole, timestamp);
       const username = user?.name || user?.email || "Unknown";
       AuditLogger.log("התחברות", user?.uid || "unknown_uid", `משתמש התחבר במצב ${activeRole}: ${username}`);
-      return { user: cleanUser, role: activeRole, isAuthenticated: true };
+      return {
+        user: user,
+        role: activeRole,
+        isAuthenticated: true,
+        isRoleLocked: true,
+        showRoleSelector: false,
+        authTimestamp: timestamp,
+      };
     }),
+
+    selectRole: (chosenRole: string) => set((state) => {
+      if (!state.user) return state;
+      const timestamp = Date.now();
+      setStoredAuth(state.user, chosenRole, timestamp);
+      AuditLogger.log("מיתוג_תפקיד", state.user.uid || "unknown_uid", `נבחר תפקיד: ${chosenRole}`);
+      return {
+        user: state.user,
+        role: chosenRole,
+        isAuthenticated: true,
+        isRoleLocked: true,
+        showRoleSelector: false,
+        authTimestamp: timestamp,
+      };
+    }),
+
     logout: () => {
       unifiedLogout();
     },

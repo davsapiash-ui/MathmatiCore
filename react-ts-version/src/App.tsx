@@ -9,6 +9,7 @@ import { StudentHub } from "@/presentation/pages/StudentHub";
 import { TeacherDashboard } from "@/presentation/pages/TeacherDashboard";
 import { ProjectorSandboxPage } from "@/presentation/pages/ProjectorSandboxPage";
 import { AppShell } from "@/presentation/components/layout/AppShell";
+import { RoleSelectionModal } from "@/presentation/components/RoleSelectionModal";
 
 import { AdminLayout } from "@/presentation/pages/AdminLayout";
 import { AdminOverview } from "@/presentation/pages/admin/AdminOverview";
@@ -17,6 +18,7 @@ import { AdminCurriculumView } from "@/presentation/pages/admin/AdminCurriculumV
 import { AdminSecurityView } from "@/presentation/pages/admin/AdminSecurityView";
 import { AdminSettingsView } from "@/presentation/pages/admin/AdminSettingsView";
 import { AdminChatView } from "@/presentation/pages/admin/AdminChatView";
+import { AdminSupportHubView } from "@/presentation/pages/admin/AdminSupportHubView";
 import { useAuthStore } from "@/application/useAuthStore";
 import { SocraticEngine } from "./infrastructure/services/SocraticEngine";
 
@@ -35,10 +37,7 @@ import { useSettingsStore } from "@/application/useSettingsStore";
 import { useIdleTimeout } from "@/application/useIdleTimeout";
 
 /**
- * Mount-gate on the Firebase session: children (and ALL their onValue listeners /
- * writes) mount only after sign-in completes. Listeners attached pre-auth are
- * cancelled with permission-denied and never retry — this is the single systemic
- * fix for that startup race, resilient to any future subscriptions added inside.
+ * Mount-gate on the Firebase session: children mount only after sign-in completes.
  */
 function FirebaseGate({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
@@ -63,21 +62,29 @@ function FirebaseGate({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-
-
+/**
+ * Direct Route Guard (Master PRD v5.0 Module 2)
+ * Performs asynchronous permission checks on route changes.
+ * Restricts anonymous student access to teacher/admin routes, immediately redirecting back to student hub.
+ */
 function AuthGuard({ allowedRoles, children }: { allowedRoles: string[]; children: React.ReactNode }) {
-  const { user, role, isAuthenticated, logout } = useAuthStore();
+  const { user, role, isAuthenticated, logout, showRoleSelector } = useAuthStore();
   
-  // Enforce idle timeout for authenticated users
+  // Enforce idle timeout and 8-hour token expiration for authenticated users
   useIdleTimeout();
   
   if (!isAuthenticated || !user) {
     return <Navigate to="/login" replace />;
   }
+
+  // Dual claims blocking modal
+  if (showRoleSelector) {
+    return <RoleSelectionModal />;
+  }
   
   const activeRole = (typeof role === "string" ? role : (user.role as string)) || "teacher";
 
-  // Systemic Whitelist Enforcement: Teacher and Admin MUST belong to Whitelist or edu-haifa.org.il
+  // Whitelist exact match enforcement for teachers & admins
   if (activeRole === "teacher" || activeRole === "admin") {
     const email = ((user.email as string) || (auth.currentUser?.email as string) || "").toLowerCase().trim();
     if (!isWhitelistedTeacherEmail(email)) {
@@ -89,14 +96,15 @@ function AuthGuard({ allowedRoles, children }: { allowedRoles: string[]; childre
   const hasAccess = allowedRoles.includes(activeRole);
 
   if (!hasAccess) {
-    if (activeRole === "admin") {
-      return <Navigate to="/admin" replace />;
+    if (activeRole === "student") {
+      // Immediate bounce back to Student Hub without changing state
+      return <Navigate to="/hub" replace />;
     }
     if (activeRole === "teacher") {
       return <Navigate to="/dashboard" replace />;
     }
-    if (activeRole === "student") {
-      return <Navigate to="/hub" replace />;
+    if (activeRole === "admin") {
+      return <Navigate to="/admin" replace />;
     }
   }
 
@@ -104,11 +112,11 @@ function AuthGuard({ allowedRoles, children }: { allowedRoles: string[]; childre
 }
 
 function RoleRouter() {
-  const { user, role, isAuthenticated, logout } = useAuthStore();
+  const { user, role, isAuthenticated, logout, showRoleSelector } = useAuthStore();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (isAuthenticated && user) {
+    if (isAuthenticated && user && !showRoleSelector) {
       const activeRole = (typeof role === "string" ? role : (user.role as string)) || "teacher";
       if (activeRole === "teacher" || activeRole === "admin") {
         const email = ((user.email as string) || (auth.currentUser?.email as string) || "").toLowerCase().trim();
@@ -121,7 +129,11 @@ function RoleRouter() {
       else if (activeRole === "teacher") navigate("/dashboard", { replace: true });
       else if (activeRole === "student") navigate("/hub", { replace: true });
     }
-  }, [isAuthenticated, user, role, navigate, logout]);
+  }, [isAuthenticated, user, role, showRoleSelector, navigate, logout]);
+
+  if (showRoleSelector) {
+    return <RoleSelectionModal />;
+  }
 
   return <Login />;
 }
@@ -177,7 +189,7 @@ function App() {
           } />
         </Route>
 
-        {/* Student workspace: standalone fullscreen experience (100vh, single chrome, per spec) */}
+        {/* Student workspace: standalone fullscreen experience */}
         <Route path="/workspace" element={
           <AuthGuard allowedRoles={["student", "admin"]}>
             <FirebaseGate>
@@ -203,6 +215,7 @@ function App() {
           <Route index element={<AdminOverview />} />
           <Route path="schools" element={<AdminSchoolsView />} />
           <Route path="curriculum" element={<AdminCurriculumView />} />
+          <Route path="support" element={<AdminSupportHubView />} />
           <Route path="security" element={<AdminSecurityView />} />
           <Route path="settings" element={<AdminSettingsView />} />
           <Route path="chat" element={<AdminChatView />} />

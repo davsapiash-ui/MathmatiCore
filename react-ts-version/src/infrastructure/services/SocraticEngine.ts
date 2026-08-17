@@ -1045,6 +1045,106 @@ export class SocraticEngine {
     return null;
   }
 
+  /**
+   * Gemini Socratic Query API (Master PRD v5.0 Module 13)
+   * Strictly enforces:
+   * - System persona bound to 'Socratic Mentor' in digital VRA model.
+   * - Absolutely forbids direct answers or CRA terminology.
+   * - Rigid JSON Schema: { guiding_question: string, options: [{ id: "A", text: string }, { id: "B", text: string }, { id: "C", text: string }] }
+   * - Fallback to pre-defined static hints if API fails or times out (>5000ms).
+   */
+  static async fetchGeminiSocraticQuery(
+    studentIdNum: number,
+    taskId: string,
+    activeColumn: string,
+    counts: { units: number; tens: number; hundreds: number; thousands: number },
+    memoryCircles?: Partial<Record<string, string>>,
+    recentActions?: string[]
+  ): Promise<SocraticHintResponse | null> {
+    try {
+      const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY || (window as any).__GEMINI_API_KEY__;
+      if (!apiKey) {
+        return null;
+      }
+
+      const prompt = `
+Context: Student #${studentIdNum} is working on math task "${taskId}" at active place-value column "${activeColumn}".
+Current Dienes block counts: ${JSON.stringify(counts)}.
+Memory circle inputs: ${JSON.stringify(memoryCircles || {})}.
+Recent student interactions: ${JSON.stringify(recentActions || [])}.
+
+Provide a guiding question and exactly 3 closed options to help the student self-correct using place-value blocks.
+Option A must be the optimal correct action. Option B and C must be plausible structural distractors.
+`;
+
+      const systemInstruction = `You are the Socratic Mentor for the digital Virtual Representation (VRA) learning platform 'MathematiCOre'.
+Your role is to offer one short, single-line guiding question and exactly three closed choices (A, B, C) to guide the student toward self-correction using the place-value board and Dienes blocks.
+ABSOLUTELY FORBIDDEN:
+- Do NOT provide the direct answer or final calculation.
+- Do NOT use CRA terminology (such as 'מוחשי', 'ייצוגי', 'מופשט').
+- Do NOT provide more or less than 3 options.
+Return STRICT JSON matching this schema:
+{
+  "guiding_question": "שאלה מנחה קצרה בת שורה אחת בלבד",
+  "options": [
+    {"id": "A", "text": "מסיח אופטימלי נכון עם משוב חיובי קצר"},
+    {"id": "B", "text": "מסיח שגוי א עם רמז מבני עדין"},
+    {"id": "C", "text": "מסיח שגוי ב עם רמז מבני עדין"}
+  ]
+}`;
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            systemInstruction: { parts: [{ text: systemInstruction }] },
+            generationConfig: {
+              responseMimeType: 'application/json',
+              temperature: 0.2,
+            },
+          }),
+        }
+      );
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        console.warn(`[Gemini API] Request failed with status ${response.status}`);
+        return null;
+      }
+
+      const data = await response.json();
+      const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!rawText) return null;
+
+      const parsed = JSON.parse(rawText);
+      if (!parsed.guiding_question || !Array.isArray(parsed.options) || parsed.options.length !== 3) {
+        console.warn('[Gemini API] Schema validation failed for response:', parsed);
+        return null;
+      }
+
+      return {
+        questionHe: parsed.guiding_question,
+        choices: parsed.options.map((opt: { id: string; text: string }, idx: number) => ({
+          id: opt.id || (idx === 0 ? 'A' : idx === 1 ? 'B' : 'C'),
+          textHe: opt.text,
+          isCorrect: idx === 0 || opt.id === 'A',
+        })),
+        correctChoiceId: 'A',
+      };
+    } catch (err) {
+      console.warn('[Gemini Socratic Engine] Fallback triggered due to error/timeout:', err);
+      return null;
+    }
+  }
+
   static async getSocraticHint(
     _currentTask: any,
     targetNode: string,

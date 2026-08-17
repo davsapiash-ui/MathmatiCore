@@ -34,6 +34,7 @@ import { SocraticEngine, type PendingAIApproval } from "@/infrastructure/service
 import { useTeacherTour } from "./TeacherDashboard/useTeacherTour";
 import type { RadarAlert } from "@/types/dashboard";
 import { CONCEPT_LABELS_HE } from "@/core/QMatrix";
+import { validateChatInputForPII, anonymizeChatMessageBody } from "@/core/security/PiiFilter";
 
 const getStudentKPIs = (student: StudentData, messages: ChatMessage[]) => {
   const undo = student.traceData?.undo_clicks || 0;
@@ -745,23 +746,44 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
 
   const handleSendAdmin = () => {
     if (!inputText.trim() || !user) return;
+
+    // Module 22: Tier 1 Client-Side Regex Validation
+    const validation = validateChatInputForPII(inputText);
+    if (!validation.valid) {
+      toast.warning(validation.errorHe || 'הודעה מכילה פרטים מזהים (PII). יש להשתמש במזהה 1-12 בלבד.');
+      return;
+    }
+
+    // Module 22: Tier 2 Sanitization / Anonymization Service
+    const cleanText = anonymizeChatMessageBody(inputText.trim());
+
     sendMessage(
       user.uid as string,
       (user.displayName as string) || "מורה",
       "admin",
-      inputText.trim(),
+      cleanText,
     );
     setInputText("");
   };
 
   const handleSendStudent = () => {
     if (!inputText.trim() || !user || !selectedStudentId) return;
+
+    // Module 22: Tier 1 Client-Side Regex Validation
+    const validation = validateChatInputForPII(inputText);
+    if (!validation.valid) {
+      toast.warning(validation.errorHe || 'הודעה מכילה פרטים מזהים (PII). יש להשתמש במזהה 1-12 בלבד.');
+      return;
+    }
+
+    const cleanText = anonymizeChatMessageBody(inputText.trim());
     const targetId = normalizeStudentId(selectedStudentId);
+
     sendMessage(
       user.uid as string,
       (user.displayName as string) || "מורה",
       targetId,
-      inputText.trim(),
+      cleanText,
     );
     setInputText("");
   };

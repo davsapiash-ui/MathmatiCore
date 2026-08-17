@@ -1,5 +1,6 @@
 import { ref, push, serverTimestamp } from "firebase/database";
 import { database } from "@/infrastructure/firebase";
+import { sanitizePII } from "@/core/security/PiiFilter";
 
 export type ErrorCategory = 'FACTUAL_ERROR' | 'PROCEDURAL_ERROR' | 'STRATEGIC_ERROR';
 export type AuditAction = ErrorCategory | 'TASK_ERROR' | string;
@@ -14,8 +15,7 @@ export interface AuditLogEvent {
 
 export function maskPII(text?: string | null): string | null {
   if (!text) return null;
-  // Mask 9-digit Israeli national IDs (e.g. 039604483 -> ***04483)
-  return text.replace(/\b\d{9}\b/g, (match) => `***${match.slice(-4)}`);
+  return sanitizePII(text);
 }
 
 class AuditLoggerService {
@@ -47,7 +47,6 @@ class AuditLoggerService {
 
       if (isStudentEvent) {
         // Student personal radar history (for Teacher Dashboard timeline)
-        // Map actions to radar types: 'TASK_ERROR', 'PASSIVE_DRIFTING', 'HESITATION', etc.
         let type = action;
         let errorCategory = null;
         if (['FACTUAL_ERROR', 'PROCEDURAL_ERROR', 'STRATEGIC_ERROR'].includes(action)) {
@@ -61,7 +60,7 @@ class AuditLoggerService {
         await push(radarRef, {
           type,
           errorCategory,
-          timestamp, // use client timestamp to match rrweb video timeline
+          timestamp,
           details: sanitizedDetails || null,
         });
 

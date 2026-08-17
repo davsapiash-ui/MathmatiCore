@@ -1,13 +1,19 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { useAuthStore } from './useAuthStore';
+import { useAuthStore, JWT_EXPIRY_MS } from './useAuthStore';
 import { useNavigate } from 'react-router-dom';
 
-const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes inactivity
 
 export function useIdleTimeout() {
-  const { isAuthenticated, logout } = useAuthStore();
+  const { user, isAuthenticated, logout, isTokenExpired } = useAuthStore();
   const navigate = useNavigate();
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tokenCheckIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const handleLogout = useCallback((reason?: string) => {
+    logout();
+    navigate('/login', { replace: true, state: { logoutReason: reason } });
+  }, [logout, navigate]);
 
   const resetTimeout = useCallback(() => {
     if (timeoutRef.current) {
@@ -15,18 +21,15 @@ export function useIdleTimeout() {
     }
     timeoutRef.current = setTimeout(() => {
       if (isAuthenticated) {
-        // Auto-save logic can be triggered here if there are global stores to sync
-        logout();
-        navigate('/login', { replace: true });
-        // Optional: show a toast or alert that they were logged out due to inactivity
+        handleLogout("התנתקת עקב חוסר פעילות.");
       }
     }, IDLE_TIMEOUT_MS);
-  }, [isAuthenticated, logout, navigate]);
+  }, [isAuthenticated, handleLogout]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    // Events that reset the idle timer
+    // 1. Inactivity Reset Listeners
     const events = ['mousemove', 'keydown', 'wheel', 'mousedown', 'touchstart', 'touchmove'];
     
     const handleActivity = () => {
@@ -37,16 +40,31 @@ export function useIdleTimeout() {
       window.addEventListener(event, handleActivity, { passive: true });
     });
 
-    // Start initial timeout
+    // Start initial inactivity timeout
     resetTimeout();
+
+    // 2. Continuous 8-Hour Token Expiry Check (Master PRD v5.0 Module 2)
+    const checkExpiry = () => {
+      if (isTokenExpired()) {
+        handleLogout("פג תוקף אסימון ההתחברות (8 שעות). אנא בצע כניסה מחודשת.");
+      }
+    };
+
+    // Check periodically every minute
+    tokenCheckIntervalRef.current = setInterval(checkExpiry, 60 * 1000);
+    // Also check immediately on mount
+    checkExpiry();
 
     return () => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
+      if (tokenCheckIntervalRef.current) {
+        clearInterval(tokenCheckIntervalRef.current);
+      }
       events.forEach(event => {
         window.removeEventListener(event, handleActivity);
       });
     };
-  }, [isAuthenticated, logout, navigate, resetTimeout]);
+  }, [isAuthenticated, handleLogout, resetTimeout, isTokenExpired]);
 }

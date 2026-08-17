@@ -68,7 +68,7 @@ exports.callGeminiSocraticProxy = (0, https_1.onCall)(async (request) => {
     try {
         const ai = new generative_ai_1.GoogleGenerativeAI(apiKey);
         const model = ai.getGenerativeModel({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3.7-flash',
             generationConfig: {
                 temperature: 0.2,
                 responseMimeType: "application/json"

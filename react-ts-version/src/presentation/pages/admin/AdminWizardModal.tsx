@@ -54,9 +54,10 @@ export function AdminWizardModal({
   const [teacherDob, setTeacherDob] = useState("");
   const [teacherError, setTeacherError] = useState("");
 
-  // Step 3: Class Form
+  // Step 3: Class Form (Module 25: Strict 12-student limit per class)
   const [className, setClassName] = useState("");
-  const [studentLimit, setStudentLimit] = useState(globalStudentLimit.toString());
+  const [classType, setClassType] = useState<string>("המבקרים");
+  const [studentLimit, setStudentLimit] = useState("12");
   const [classError, setClassError] = useState("");
 
   // Provisioning Complete state
@@ -474,12 +475,32 @@ export function AdminWizardModal({
 
                         <div>
                           <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1">
-                            מגבלת תלמידים מרבית לכיתה זו
+                            סוג כיתה (Class Type)
+                          </label>
+                          <select
+                            value={classType}
+                            onChange={(e) => setClassType(e.target.value)}
+                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-2xl p-3.5 text-sm focus:border-indigo-500 outline-none font-bold"
+                          >
+                            <option value="המבקרים">המבקרים (קבוצת ביקורת פיילוט)</option>
+                            <option value="כיתת פיילוט סטנדרטית">כיתת פיילוט סטנדרטית</option>
+                            <option value="כיתת תמיכה מוגברת (UDL)">כיתת תמיכה מוגברת (UDL)</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1">
+                            מגבלת תלמידים מרבית לכיתה זו (מקסימום 12 לפי מודול 25)
                           </label>
                           <input 
-                            type="number" 
+                            type="number"
+                            min="1"
+                            max="12"
                             value={studentLimit}
-                            onChange={(e) => setStudentLimit(e.target.value)}
+                            onChange={(e) => {
+                              const val = Math.min(12, Math.max(1, parseInt(e.target.value, 10) || 12));
+                              setStudentLimit(val.toString());
+                            }}
                             className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-2xl p-3.5 text-sm focus:border-indigo-500 outline-none font-bold"
                           />
                         </div>

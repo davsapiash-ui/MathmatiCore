@@ -19,7 +19,7 @@ async function testGemini() {
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-3.7-flash" });
     
     console.log("Sending prompt to Gemini: 'Say hello in Hebrew'...");
     const result = await model.generateContent("Say hello in Hebrew. Just the word, nothing else.");

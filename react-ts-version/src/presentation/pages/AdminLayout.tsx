@@ -1,6 +1,6 @@
 import { Outlet, NavLink } from "react-router-dom";
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarGroup, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
-import { Settings, Shield, Users, Layers, GraduationCap, Bell, UserCircle } from "lucide-react";
+import { Settings, Shield, Users, Layers, GraduationCap, Bell, UserCircle, LifeBuoy } from "lucide-react";
 import { useAuthStore } from "@/application/useAuthStore";
 import { useChatStore } from "@/application/useChatStore";
 import { UdlButton } from "@/presentation/design-system/UdlButton";
@@ -41,6 +41,9 @@ export function AdminLayout() {
           </NavLink>
           <NavLink to="/admin/curriculum" className={({isActive}) => `px-3 py-2 text-xs font-bold whitespace-nowrap rounded-xl transition-all ${isActive ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-900"}`}>
             פדגוגיה
+          </NavLink>
+          <NavLink to="/admin/support" className={({isActive}) => `px-3 py-2 text-xs font-bold whitespace-nowrap rounded-xl transition-all ${isActive ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-900"}`}>
+            מוקד תמיכה
           </NavLink>
           <NavLink to="/admin/security" className={({isActive}) => `px-3 py-2 text-xs font-bold whitespace-nowrap rounded-xl transition-all ${isActive ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-900"}`}>
             אבטחה
@@ -94,6 +97,15 @@ export function AdminLayout() {
                     <NavLink id="tour-admin-curriculum" to="/admin/curriculum" className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 flex items-center" : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold transition-colors rounded-xl p-3.5 flex items-center"}>
                       <Layers className="w-5 h-5 ml-3 opacity-90" /> 
                       <span className="text-sm lg:text-base tracking-wide">הגדרות פדגוגיה</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <NavLink id="tour-admin-support" to="/admin/support" className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 flex items-center" : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold transition-colors rounded-xl p-3.5 flex items-center"}>
+                      <LifeBuoy className="w-5 h-5 ml-3 opacity-90" /> 
+                      <span className="text-sm lg:text-base tracking-wide">מוקד תמיכה וקריאות</span>
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

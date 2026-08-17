@@ -40,9 +40,10 @@ import { AdditionHelper } from './board/AdditionHelper';
 
 import { SocraticEngine } from '@/infrastructure/services/SocraticEngine';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
-import { GraphicOrganizerHint } from './overlays/GraphicOrganizerHint';
 import { useCognitiveHesitationRadar } from '@/application/useCognitiveHesitationRadar';
 import { tts } from '@/infrastructure/services/TTSService';
+import { BeeFlightWaitingScreen } from '@/presentation/components/student/BeeFlightWaitingScreen';
+import { ProjectorWaitingScreen } from '@/presentation/components/student/ProjectorWaitingScreen';
 
 /**
  * מרחב הפעילות של התלמיד — חוויית מסך מלא ממוקדת (100vh, ללא גלילה, ללא טיימרים).
@@ -77,7 +78,21 @@ export function StudentWorkspacePage() {
   const isTeacherSessionActive = activeClassSession?.active ?? false;
 
   const [teacherHint, setTeacherHint] = useState<string | null>(null);
+  const [isProjectorModeActive, setIsProjectorModeActive] = useState<boolean>(false);
   const normUid = normalizeStudentId(user?.uid || '');
+
+  // Module 15: Real-time Projector Mode Listener (<1000ms sync)
+  useEffect(() => {
+    const projectorRef = ref(database, 'system_control/projector_mode');
+    const unsub = onValue(projectorRef, (snap) => {
+      if (snap.exists()) {
+        setIsProjectorModeActive(Boolean(snap.val()));
+      } else {
+        setIsProjectorModeActive(false);
+      }
+    });
+    return () => unsub();
+  }, []);
 
   useEffect(() => {
     if (!normUid) return;
@@ -540,12 +555,27 @@ export function StudentWorkspacePage() {
     });
   };
 
+  // Module 15: If teacher activated Projector Mode, render serene waiting screen immediately (<1000ms)
+  if (isProjectorModeActive) {
+    return <ProjectorWaitingScreen />;
+  }
+
   // All 5 diagnostic tasks done → reflection (icons, no numeric grades).
   // After every hook so React's hook order stays stable.
   if (flowStatus === 'reflection') {
     if (sessionNumber === 8) {
+      const undoCount = useWorkspaceStore.getState().undoCount || myData?.traceData?.undo_clicks || 0;
+      const errorCount = (myData as any)?.errorCount || (myData as any)?.errors || 0;
+      const guessCount = (myData as any)?.guessCount || (myData as any)?.distractorClicks || 0;
+
       return <Session8ReflectionScreen 
-        metrics={{ fastestTaskType: 'כפל פי 10 ו-100', slowestTaskType: 'כפל פי 20 ו-30' }}
+        metrics={{ 
+          fastestTaskType: 'כפל פי 10 ו-100', 
+          slowestTaskType: 'כפל פי 20 ו-30',
+          undoCount,
+          errorCount,
+          guessCount
+        }}
         onComplete={async (focusArea) => {
           if (user?.uid) {
             try {
@@ -609,48 +639,7 @@ export function StudentWorkspacePage() {
   }
 
   if (pendingApproval) {
-    return (
-      <div dir="rtl" className="h-screen w-full flex flex-col items-center justify-center bg-ws-bg text-ws-ink font-body p-6">
-        <div className="bg-ws-surface p-10 rounded-3xl shadow-xl max-w-md text-center border border-ws-surface2">
-          {networkError ? (
-            <>
-              <div className="text-5xl mb-6 animate-pulse">📡⚠️</div>
-              <h2 className="text-2xl font-bold mb-4 text-rose-600">שגיאת תקשורת ברשת</h2>
-              <p className="text-ws-soft mb-8 leading-relaxed">
-                לא ניתן להתחבר לשרת לבדיקת אישור המורה עבור מפגש 3. 
-                מטעמי אבטחה ופדגוגיה, הגישה למשימות חסומה עד לחידוש החיבור לרשת.
-              </p>
-              <button 
-                onClick={() => window.location.reload()}
-                className="w-full py-4 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-2xl transition-all shadow-md mb-3 cursor-pointer"
-              >
-                🔄 נסה להתחבר מחדש
-              </button>
-              <button 
-                onClick={() => navigate('/hub')}
-                className="w-full py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-2xl transition-all cursor-pointer"
-              >
-                חזרה לעמוד הראשי
-              </button>
-            </>
-          ) : (
-            <>
-              <div className="text-5xl mb-6">🧑‍🏫</div>
-              <h2 className="text-2xl font-bold mb-4 text-ws-ink">המורה בודק את המסלול שלך</h2>
-              <p className="text-ws-soft mb-8">
-                סיימת את שלב האבחון בהצלחה! כעת, המורה עובר על התוצאות ומאשר את המשימות המותאמות במיוחד עבורך. אפשר לחזור מאוחר יותר.
-              </p>
-              <button 
-                onClick={() => navigate('/hub')}
-                className="w-full py-4 bg-ws-accent text-white font-bold rounded-2xl hover:brightness-105 transition-all"
-              >
-                חזרה לעמוד הראשי
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-    );
+    return <BeeFlightWaitingScreen onApproved={() => setPendingApproval(false)} />;
   }
 
   return (
@@ -735,21 +724,6 @@ export function StudentWorkspacePage() {
         <HelpOverlays />
         <StudentChatOverlay />
         
-        {aiSocraticHint && (useSettingsStore.getState().autoShowHints || useWorkspaceStore.getState().helpState !== 'closed') && (
-          <GraphicOrganizerHint 
-            hint={aiSocraticHint} 
-            onClose={() => useWorkspaceStore.setState({ aiSocraticHint: null, helpState: 'closed' })}
-            onSelectOption={(id) => {
-              const state = useWorkspaceStore.getState();
-              if (state.keyboardState === 'SOCRATIC_ONLY') {
-                if (!(aiSocraticHint as any).correctChoiceId || (aiSocraticHint as any).correctChoiceId === id) {
-                  state.unlockKeyboard();
-                }
-              }
-            }}
-          />
-        )}
-
         {isAdditionBoardEnabled && (
           <div className="fixed bottom-20 left-4 z-50 flex flex-col items-end gap-2" dir="rtl">
             <AnimatePresence>

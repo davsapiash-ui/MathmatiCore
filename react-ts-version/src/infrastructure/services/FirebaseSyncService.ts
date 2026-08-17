@@ -5,6 +5,7 @@ import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { useStore, type QMatrix, type TraceData } from '@/application/useStore';
 import { normalizeStudentId } from '@/application/useChatStore';
 import { useAdminStore, type School, type Teacher, type ClassRoom } from '@/application/useAdminStore';
+import { indexedDBQueue } from './IndexedDBQueue';
 
 export function extractTeacherId(email?: string | null, uid?: string | null): string {
   if (email && typeof email === 'string') {
@@ -101,7 +102,7 @@ export class FirebaseSyncService {
 
   private init() {
     // Check initial auth state
-    const initialAuth = useAuthStore.getState();
+    const initialAuth = typeof useAuthStore?.getState === 'function' ? useAuthStore.getState() : { isAuthenticated: false, user: null, role: null };
     this.syncSharedListeners(initialAuth.isAuthenticated);
 
     if (initialAuth.isAuthenticated && initialAuth.user) {
@@ -119,8 +120,9 @@ export class FirebaseSyncService {
     }
 
     // Subscribe to auth changes
-    useAuthStore.subscribe((authState) => {
-      this.syncSharedListeners(authState.isAuthenticated);
+    if (typeof useAuthStore?.subscribe === 'function') {
+      useAuthStore.subscribe((authState) => {
+        this.syncSharedListeners(authState.isAuthenticated);
 
       const authRoles = Array.isArray(authState.role) ? authState.role : [authState.role];
       const isStudent = authRoles.includes('student');
@@ -142,6 +144,7 @@ export class FirebaseSyncService {
         this.stopAdminSync();
       }
     });
+    }
   }
 
   private startSync(rawStudentId: string, userData: Record<string, unknown>) {
@@ -528,6 +531,7 @@ export class FirebaseSyncService {
       console.warn("Offline telemetry queue exceeded 500 items. Dropping oldest transaction.");
     }
     this.saveOfflineQueueToStorage();
+    indexedDBQueue.enqueue(refPath, payload).catch(() => {});
   }
 
   private async flushOfflineQueue() {

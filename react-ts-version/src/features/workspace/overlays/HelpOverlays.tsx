@@ -269,6 +269,11 @@ function SocraticPenaltyLockOptions({ onClose }: { onClose: () => void }) {
     if (!opt.correct) {
       // PRD v4.2 Module 12: 60-second penalty lock on wrong distractor in Socratic Card
       triggerSocraticPenaltyLockout(opt.hint);
+    } else {
+      const state = useWorkspaceStore.getState();
+      if (state.keyboardState === 'SOCRATIC_ONLY') {
+        state.unlockKeyboard();
+      }
     }
   };
 

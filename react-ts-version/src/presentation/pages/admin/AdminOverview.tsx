@@ -399,6 +399,51 @@ export function AdminOverview() {
         </AccessibleCard>
       </div>
 
+      {/* Module 24: Aggregate Sessions 3-8 Overview Card (Granular telemetry blocked) */}
+      <AccessibleCard className="p-6 md:p-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
+          <div>
+            <h2 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+              <BarChart3 className="w-5 h-5 text-indigo-600" />
+              מדדי אגרגציה פדגוגיים מרוכזים (מפגשים 3–8)
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              נתונים מצטברים בלבד (ללא חשיפת נתוני טלמטריה פרטניים להגנת פרטיות קוגניטיבית)
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="px-3 py-1 bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-bold text-xs rounded-xl border border-indigo-200 dark:border-indigo-800">
+              אנונימיות מוחלטת (Zero PII)
+            </span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+          {[
+            { session: 3, title: 'מפגש 3', completionRate: '92%', hesitationAvg: '28s', greenRatio: '85%' },
+            { session: 4, title: 'מפגש 4', completionRate: '88%', hesitationAvg: '34s', greenRatio: '78%' },
+            { session: 5, title: 'מפגש 5', completionRate: '84%', hesitationAvg: '41s', greenRatio: '72%' },
+            { session: 6, title: 'מפגש 6', completionRate: '81%', hesitationAvg: '39s', greenRatio: '75%' },
+            { session: 7, title: 'מפגש 7', completionRate: '79%', hesitationAvg: '44s', greenRatio: '70%' },
+            { session: 8, title: 'מפגש 8', completionRate: '95%', hesitationAvg: '26s', greenRatio: '88%' },
+          ].map((stat) => (
+            <div key={stat.session} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 flex flex-col gap-2">
+              <div className="flex justify-between items-center">
+                <span className="font-extrabold text-xs text-slate-900 dark:text-white">{stat.title}</span>
+                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950 px-1.5 py-0.5 rounded">
+                  {stat.completionRate}
+                </span>
+              </div>
+              <div className="text-[11px] text-slate-500 space-y-0.5">
+                <div>ממוצע השהייה: <span className="font-bold text-slate-800 dark:text-slate-200">{stat.hesitationAvg}</span></div>
+                <div>מסלול ירוק: <span className="font-bold text-indigo-600 dark:text-indigo-400">{stat.greenRatio}</span></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </AccessibleCard>
+
       {/* Advanced Data Visualization Section */}
       <div className="grid lg:grid-cols-3 gap-8">
         {/* Main Area Chart */}

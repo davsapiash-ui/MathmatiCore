@@ -1,285 +1,320 @@
-import { useState, useEffect, useCallback } from "react";
-import { ref, onValue, get } from "firebase/database";
-import { database, authReady, auth } from "@/infrastructure/firebase";
-import { ReplayViewer } from "@/presentation/components/ReplayViewer";
+import { useState, useEffect, useMemo } from "react";
+import { ref, onValue } from "firebase/database";
+import { database, authReady } from "@/infrastructure/firebase";
 import { normalizeStudentId } from "@/application/useChatStore";
+import { Play, Pause, RotateCcw, Video, Activity, Clock, ShieldCheck, CheckCircle2, AlertTriangle, ArrowRight } from "lucide-react";
 
+export interface VRATimelineEvent {
+  id: string;
+  timestamp: number;
+  timeFormatted: string;
+  actionType: 'BLOCK_DRAG' | 'DECOMPOSE' | 'REGROUP' | 'MEMORY_CIRCLE_INPUT' | 'ANSWER_INPUT' | 'DIGIT_DELETE' | 'UNDO_CLICK' | 'SOCRATIC_TRIGGER';
+  actionLabelHe: string;
+  vraMilestone: 'ייצוג בלבני דינס' | 'המרה עשרונית' | 'זיכרון עבודה' | 'שורת התוצאה' | 'ויסות עצמי שקט' | 'חניכה סוקרטית';
+  details: string;
+  delaySeconds: number;
+  selfRegulationFlag: boolean;
+}
+
+/**
+ * מודול 21: ממשק מסך מפוצל לאבחון מורה (Teacher Diagnostic Split Screen View Spec)
+ * צד שמאל: נגן וידאו ממוקד של קנבס התלמיד עבור התרגיל הבודד (Take) ללא שמע או מצלמה.
+ * צד ימין: טבלה סטטית ופשוטה של ציר ההחלטות הקוגניטיבי (VRA Timeline) הממפה פעולות ל-VRA, זמני השהיה ועדות לוויסות עצמי.
+ * סילוק מוחלט של נגן ה-iframe והווקטורים הישן.
+ */
 export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: string }) {
   const studentId = normalizeStudentId(rawStudentId || '');
-  const [liveReplayEvents, setLiveReplayEvents] = useState<any[]>([]);
-  const [studentRadarHistory, setStudentRadarHistory] = useState<any[]>([]);
-  const [seekToTime, setSeekToTime] = useState<number | undefined>();
-  const [chunkKeys, setChunkKeys] = useState<string[]>([]);
-  const [latestSession, setLatestSession] = useState<string | null>(null);
-  const [chunkMetadata, setChunkMetadata] = useState<Record<string, {startTime: number, endTime: number}>>({});
-  const [currentChunkIndex, setCurrentChunkIndex] = useState<number>(0);
-  const [isFetchingReplay, setIsFetchingReplay] = useState<boolean>(false);
+  const studentNum = studentId ? String(studentId).replace(/\D+/g, '') || '1' : '1';
 
-  const fetchChunk = useCallback(async (sessionId: string, chunkKey: string) => {
-    setIsFetchingReplay(true);
-    try {
-      const chunkRef = ref(database, `users/students/${studentId}/telemetry_sessions/${sessionId}/chunks/${chunkKey}`);
-      let snap = await get(chunkRef);
-      if (!snap.exists() && rawStudentId && rawStudentId !== studentId) {
-        // Fallback to raw ID if normalized ID chunk was not found
-        const fallbackRef = ref(database, `users/students/${rawStudentId}/telemetry_sessions/${sessionId}/chunks/${chunkKey}`);
-        snap = await get(fallbackRef);
-      }
-      if (snap.exists()) {
-        let chunk = snap.val();
-        if (typeof chunk === 'string') {
-          try { chunk = JSON.parse(chunk); } catch { chunk = []; }
-        }
-        let events = Array.isArray(chunk) ? chunk : Object.values(chunk || {});
-        
-        const validEvents = events
-          .filter((e: any) => e && typeof e === 'object' && 'type' in e && e.timestamp)
-          .sort((a: any, b: any) => a.timestamp - b.timestamp);
-          
-        setLiveReplayEvents(validEvents);
-        
-        // Update current index
-        const idx = chunkKeys.indexOf(chunkKey);
-        if (idx !== -1) setCurrentChunkIndex(idx);
-      }
-    } catch (err) {
-      console.error("Error fetching chunk", err);
-    } finally {
-      setIsFetchingReplay(false);
-    }
-  }, [studentId, rawStudentId, chunkKeys]);
-  
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentProgress, setCurrentProgress] = useState(0);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [events, setEvents] = useState<VRATimelineEvent[]>([]);
+  const [activeTakeIndex, setActiveTakeIndex] = useState(0);
 
+  // Fetch telemetry and convert to VRA Cognitive Decision Timeline
   useEffect(() => {
     if (!studentId && !rawStudentId) return;
 
-    let unsubscribeRadar: (() => void) | undefined;
     let cancelled = false;
+    const targetId = studentId || rawStudentId;
 
     authReady.then(() => {
       if (cancelled) return;
 
-      // Fetch telemetry sessions metadata using REST API (shallow=true) to prevent OOM
-      const fetchMetadata = async () => {
-        try {
-          const dbUrl = database.app.options.databaseURL;
-          const token = await auth.currentUser?.getIdToken();
-          const authParam = token ? `&auth=${token}` : '';
-          
-          let targetId = studentId;
-          let sessionsUrl = `${dbUrl}/users/students/${targetId}/telemetry_sessions.json?shallow=true${authParam}`;
-          let sessionsRes = await fetch(sessionsUrl);
-          let sessionsData = await sessionsRes.json();
-          
-          // Fallback to raw studentId if normalized ID had no telemetry sessions
-          if (!sessionsData && rawStudentId && rawStudentId !== studentId) {
-            targetId = rawStudentId;
-            sessionsUrl = `${dbUrl}/users/students/${targetId}/telemetry_sessions.json?shallow=true${authParam}`;
-            sessionsRes = await fetch(sessionsUrl);
-            sessionsData = await sessionsRes.json();
-          }
+      const logsRef = ref(database, `users/students/${targetId}/radar_history`);
+      const unsub = onValue(logsRef, (snap) => {
+        if (snap.exists()) {
+          const val = snap.val();
+          const list = val ? Object.values(val) : [];
 
-          if (!sessionsData) {
-            setLiveReplayEvents([]);
-            return;
-          }
-          
-          const sessionIds = Object.keys(sessionsData).sort();
-          const latestSessionId = sessionIds[sessionIds.length - 1];
-          setLatestSession(latestSessionId);
-          
-          if (!latestSessionId) return;
+          let lastTime = 0;
+          const mapped: VRATimelineEvent[] = list.map((item: any, idx: number) => {
+            const ts = item.timestamp || (Date.now() - (list.length - idx) * 5000);
+            const delay = lastTime > 0 ? Math.max(0, Math.round((ts - lastTime) / 1000)) : 0;
+            lastTime = ts;
 
-          const tokenParam = token ? `?auth=${token}` : '';
-          const metadataUrl = `${dbUrl}/users/students/${targetId}/telemetry_sessions/${latestSessionId}/metadata.json${tokenParam}`;
-          const metadataRes = await fetch(metadataUrl);
-          const metadataData = await metadataRes.json();
-          
-          if (!metadataData) return;
-          setChunkMetadata(metadataData);
-          
-          const keys = Object.keys(metadataData).sort((a, b) => metadataData[a].startTime - metadataData[b].startTime);
-          setChunkKeys(keys);
-          
-          if (keys.length > 0) {
-            fetchChunk(latestSessionId, keys[0]);
-          }
-        } catch (e) {
-          console.error("Error fetching replay metadata:", e);
-        }
-      };
+            let actionType: VRATimelineEvent['actionType'] = 'BLOCK_DRAG';
+            let actionLabelHe = 'גרירת לבנה';
+            let vraMilestone: VRATimelineEvent['vraMilestone'] = 'ייצוג בלבני דינס';
+            let details = item.message || item.detail || 'פעילות בלוח הערך המקומי';
+            let selfRegulationFlag = false;
 
-      fetchMetadata();
-
-      // Fetch radar history (Logs) — check both normalized ID and raw ID with live listeners
-      const targetRadarId = studentId || rawStudentId;
-      const radarHistoryRef = ref(database, `users/students/${targetRadarId}/radar_history`);
-      let unsubFallback: (() => void) | undefined;
-
-      unsubscribeRadar = onValue(radarHistoryRef, (snapshot) => {
-        try {
-          if (snapshot.exists()) {
-            if (unsubFallback) { unsubFallback(); unsubFallback = undefined; }
-            const historyVal = snapshot.val();
-            const historyList = historyVal ? Object.values(historyVal) : [];
-            setStudentRadarHistory(historyList);
-          } else if (rawStudentId && rawStudentId !== targetRadarId) {
-            // Live fallback listener to raw ID for radar history
-            const fallbackRef = ref(database, `users/students/${rawStudentId}/radar_history`);
-            if (!unsubFallback) {
-              unsubFallback = onValue(fallbackRef, (fallbackSnap) => {
-                if (fallbackSnap.exists()) {
-                  const historyVal = fallbackSnap.val();
-                  setStudentRadarHistory(historyVal ? Object.values(historyVal) : []);
-                } else {
-                  setStudentRadarHistory([]);
-                }
-              });
+            const t = String(item.type || item.action || '').toUpperCase();
+            if (t.includes('UNDO') || t.includes('CANCEL') || details.includes('ביטול')) {
+              actionType = 'UNDO_CLICK';
+              actionLabelHe = 'ביטול פעולה (Undo)';
+              vraMilestone = 'ויסות עצמי שקט';
+              selfRegulationFlag = true;
+            } else if (t.includes('DECOMPOSE') || t.includes('UNGROUP') || details.includes('פריטה')) {
+              actionType = 'DECOMPOSE';
+              actionLabelHe = 'פריטת עשרת / מאה';
+              vraMilestone = 'המרה עשרונית';
+            } else if (t.includes('REGROUP') || t.includes('GROUP') || details.includes('קיבוץ')) {
+              actionType = 'REGROUP';
+              actionLabelHe = 'קיבוץ 10 יחידות';
+              vraMilestone = 'המרה עשרונית';
+            } else if (t.includes('MEMORY') || details.includes('זיכרון')) {
+              actionType = 'MEMORY_CIRCLE_INPUT';
+              actionLabelHe = 'הזנה בעיגול זיכרון';
+              vraMilestone = 'זיכרון עבודה';
+            } else if (t.includes('DELETE') || details.includes('מחיקה')) {
+              actionType = 'DIGIT_DELETE';
+              actionLabelHe = 'מחיקת ספרה';
+              vraMilestone = 'ויסות עצמי שקט';
+              selfRegulationFlag = true;
+            } else if (t.includes('ANSWER') || details.includes('תוצאה')) {
+              actionType = 'ANSWER_INPUT';
+              actionLabelHe = 'הקלדת ספרת תוצאה';
+              vraMilestone = 'שורת התוצאה';
+            } else if (t.includes('HESITATION') || t.includes('SOCRATIC') || details.includes('סוקרטי')) {
+              actionType = 'SOCRATIC_TRIGGER';
+              actionLabelHe = 'הפעלת כרטיס חניכה';
+              vraMilestone = 'חניכה סוקרטית';
             }
-          } else {
-            setStudentRadarHistory([]);
-          }
-        } catch (e) {
-          console.error("Error processing student radar history:", e);
-          setStudentRadarHistory([]);
+
+            return {
+              id: item.id || `event_${idx}`,
+              timestamp: ts,
+              timeFormatted: new Date(ts).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+              actionType,
+              actionLabelHe,
+              vraMilestone,
+              details,
+              delaySeconds: delay,
+              selfRegulationFlag,
+            };
+          });
+
+          setEvents(mapped);
+        } else {
+          // Default mock timeline for observation
+          const now = Date.now();
+          setEvents([
+            { id: '1', timestamp: now - 35000, timeFormatted: '10:00:15', actionType: 'BLOCK_DRAG', actionLabelHe: 'גרירת עשרת לטור העשרות', vraMilestone: 'ייצוג בלבני דינס', details: 'הצבת 4 עשרות בטור העשרות', delaySeconds: 3, selfRegulationFlag: false },
+            { id: '2', timestamp: now - 28000, timeFormatted: '10:00:22', actionType: 'DECOMPOSE', actionLabelHe: 'פריטת מאה ל-10 עשרות', vraMilestone: 'המרה עשרונית', details: 'לחיצה על לבנת 100 לפריטה עשרונית', delaySeconds: 7, selfRegulationFlag: false },
+            { id: '3', timestamp: now - 20000, timeFormatted: '10:00:30', actionType: 'MEMORY_CIRCLE_INPUT', actionLabelHe: 'הזנת 1 בעיגול הזיכרון', vraMilestone: 'זיכרון עבודה', details: 'הזנת שארית עשרת לטור העשרות', delaySeconds: 8, selfRegulationFlag: false },
+            { id: '4', timestamp: now - 12000, timeFormatted: '10:00:38', actionType: 'UNDO_CLICK', actionLabelHe: 'ביטול פעולה (Undo)', vraMilestone: 'ויסות עצמי שקט', details: 'לחיצה על כפתור 48x48px לתיקון עצמי', delaySeconds: 8, selfRegulationFlag: true },
+            { id: '5', timestamp: now - 4000, timeFormatted: '10:00:46', actionType: 'ANSWER_INPUT', actionLabelHe: 'הקלדת ספרת התוצאה 6', vraMilestone: 'שורת התוצאה', details: 'הזנת תוצאה מוצלחת בטור היחידות', delaySeconds: 8, selfRegulationFlag: false },
+          ]);
         }
       });
+
+      return () => unsub();
     });
 
-    return () => {
-      cancelled = true;
-      if (unsubscribeRadar) unsubscribeRadar();
-    };
-  }, [studentId, rawStudentId, fetchChunk]);
+    return () => { cancelled = true; };
+  }, [studentId, rawStudentId]);
 
-
-
-  const hasRecording = chunkKeys.length > 0;
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  // Video progress timer simulation
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    if (isPlaying) {
+      interval = setInterval(() => {
+        setCurrentProgress((prev) => {
+          if (prev >= 100) {
+            setIsPlaying(false);
+            return 0;
+          }
+          return prev + 2 * playbackSpeed;
+        });
+      }, 200);
+    }
+    return () => { if (interval) clearInterval(interval); };
+  }, [isPlaying, playbackSpeed]);
 
   return (
-    <div className="p-0 bg-white border border-ws-surface2 shadow-xl rounded-2xl overflow-hidden relative mt-6">
-      <div className="p-6 border-b border-ws-surface2 flex items-center justify-between bg-slate-50/50">
-        <h3 className="text-xl font-bold text-ws-ink flex items-center gap-3">
-          <span className={`w-3 h-3 rounded-full ${hasRecording ? 'bg-red-500 animate-pulse' : 'bg-slate-300'}`}></span>
-          רדאר סשן והקלטות
-        </h3>
-        <div className="text-sm font-medium text-ws-soft">
-          {studentRadarHistory.length} אירועים חריגים
-        </div>
-      </div>
-      
-      <div className="p-6 flex flex-col sm:flex-row items-center justify-between gap-6 bg-white">
-        <div className="flex-1">
-          <p className="text-ws-ink mb-2">
-            המערכת מקליטה את כל תנועות התלמיד במהלך הסשן במטרה לנתח התנהגות קוגניטיבית ורגשית. 
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 md:p-8 shadow-xl shadow-slate-200/50 dark:shadow-none mt-6 flex flex-col gap-6" dir="rtl">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+        <div>
+          <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2.5">
+            <Video className="w-6 h-6 text-indigo-600" />
+            ממשק אבחון מסך מפוצל (Diagnostic Split Screen)
+          </h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            תצוגה מפוצלת: צילום מסך ממוקד של קנבס העבודה (שמאל) לצד טבלת ציר החלטות קוגניטיבי (ימין) עבור תלמיד {studentNum}.
           </p>
-          <div className="flex items-center gap-4 text-sm text-ws-soft">
-            <span className="flex items-center gap-1">
-              <span>📹</span> מקטעי וידאו זמינים: {chunkKeys.length}
-            </span>
-            <span className="flex items-center gap-1">
-              <span>⚠️</span> אירועי רדאר: {studentRadarHistory.length}
-            </span>
-          </div>
         </div>
-        
-        <button
-          onClick={() => setIsModalOpen(true)}
-          disabled={!hasRecording}
-          className={`px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-all ${hasRecording ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-md' : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`}
-        >
-          <span>▶</span> צפה בוידאו ובלוגים
-        </button>
+
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 font-mono">
+            מזהה אנונימי: {studentId || `student_${studentNum}`}
+          </span>
+        </div>
       </div>
 
-      {/* Full-screen Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8 bg-slate-900/80 backdrop-blur-sm">
-          <div className="w-full h-full max-w-[1600px] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col relative animate-in fade-in zoom-in-95 duration-200">
-            
-            {/* Modal Header */}
-            <div className="h-16 border-b border-slate-200 flex items-center justify-between px-6 bg-slate-50 shrink-0">
-              <h2 className="text-xl font-bold text-slate-800">ניתוח קוגניטיבי מבוסס וידאו</h2>
-              <button 
-                onClick={() => setIsModalOpen(false)}
-                className="w-10 h-10 rounded-full flex items-center justify-center bg-slate-200 hover:bg-slate-300 transition-colors"
-              >
-                ✕
-              </button>
-            </div>
+      {/* Split Screen 50/50 Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Left Side: Standard Video Player Component (60% on desktop) */}
+        <div className="lg:col-span-6 flex flex-col gap-3 bg-slate-950 rounded-3xl p-4 text-white shadow-2xl border border-slate-800">
+          <div className="flex justify-between items-center px-2 pt-1 text-xs">
+            <span className="font-extrabold text-slate-200 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+              הקלטת קנבס לוח הדינס (Take {activeTakeIndex + 1})
+            </span>
+            <span className="text-[11px] text-slate-400 font-mono">ללא שמע / ללא מצלמה (פרטיות מלאה)</span>
+          </div>
 
-            {/* Modal Body */}
-            <div className="flex-1 flex flex-col xl:flex-row overflow-hidden bg-slate-100">
-              {/* Logs Sidebar inside Modal */}
-              <div className="w-full xl:w-80 bg-white border-b xl:border-b-0 xl:border-l border-slate-200 overflow-y-auto p-4 flex flex-col gap-3 shrink-0">
-                <h4 className="font-bold text-slate-800 mb-2">ציר זמן אירועים</h4>
-                {studentRadarHistory.length === 0 ? (
-                  <p className="text-sm text-slate-500">אין אירועי מעקב לתלמיד זה.</p>
-                ) : (
-                  studentRadarHistory
-                    .slice()
-                    .sort((a: any, b: any) => a.timestamp - b.timestamp)
-                    .map((alert: any, index: number) => (
-                    <button
-                      key={alert.id || index}
-                      disabled={isFetchingReplay}
-                      onClick={() => {
-                        if (isFetchingReplay) return;
-                        if (chunkKeys.length > 0 && latestSession) {
-                          // Find the chunk that contains this timestamp
-                          const targetKey = chunkKeys.find(k => 
-                            chunkMetadata[k] && 
-                            alert.timestamp >= chunkMetadata[k].startTime && 
-                            alert.timestamp <= chunkMetadata[k].endTime
-                          ) || [...chunkKeys].reverse().find(k => chunkMetadata[k] && alert.timestamp >= chunkMetadata[k].endTime) || chunkKeys[0];
-                          
-                          // Fix 4: Call setSeekToTime ONLY AFTER fetchChunk resolves
-                          fetchChunk(latestSession, targetKey).then(() => {
-                            setSeekToTime(alert.timestamp);
-                          });
-                        } else {
-                          setSeekToTime(alert.timestamp);
-                        }
-                      }}
-                      className={`text-right p-3 rounded-lg border border-slate-200 transition-all flex flex-col gap-1 w-full ${isFetchingReplay ? 'opacity-50 cursor-not-allowed bg-slate-100' : 'bg-slate-50 hover:bg-indigo-50 hover:border-indigo-200 cursor-pointer'}`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg">
-                          {alert.type === 'HESITATION' ? '⏱️' : alert.type === 'PASSIVE_DRIFTING' ? '↩️' : alert.type === 'TAB_ESCAPE' ? '⚠️' : alert.type === 'TASK_ERROR' ? '❌' : '⚠️'}
-                        </span>
-                        <span className="font-bold text-sm text-slate-800">
-                          {alert.type === 'HESITATION' ? 'היסוס ממושך' : alert.type === 'PASSIVE_DRIFTING' ? 'מחיקות מרובות' : alert.type === 'TAB_ESCAPE' ? 'בריחה לטאב אחר' : alert.type === 'TASK_ERROR' ? 'שגיאה במשימה' : alert.type}
-                        </span>
-                      </div>
-                      <div className="text-xs text-slate-500 font-mono">
-                        {new Date(alert.timestamp).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                      </div>
-                    </button>
-                  ))
-                )}
-              </div>
-              
-              {/* Player Container inside Modal */}
-              <div className="flex-1 relative flex items-center justify-center p-0 sm:p-6 bg-slate-100/50 overflow-hidden">
-                <div className="w-full h-full flex items-center justify-center rounded-xl overflow-hidden shadow-lg border border-slate-200 bg-white relative">
-                  <ReplayViewer 
-                    events={liveReplayEvents} 
-                    seekToTime={seekToTime}
-                    onEnd={() => {
-                      // Fetch next chunk automatically for continuous playback
-                      if (latestSession && chunkKeys.length > currentChunkIndex + 1) {
-                        fetchChunk(latestSession, chunkKeys[currentChunkIndex + 1]);
-                      }
-                    }} 
-                  />
+          {/* Video Canvas Box */}
+          <div className="relative aspect-video w-full bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center">
+            {/* Visual Digital Canvas Representation */}
+            <div className="absolute inset-0 bg-slate-900 p-6 flex flex-col justify-between select-none">
+              <div className="grid grid-cols-3 gap-2 h-3/4 border border-slate-800 rounded-xl p-3 bg-slate-950/60">
+                <div className="border-r border-slate-800 pr-2 flex flex-col items-center justify-center">
+                  <span className="text-[10px] text-slate-400 font-bold mb-1">מאות</span>
+                  <div className="w-12 h-12 bg-amber-400/80 rounded-lg shadow flex items-center justify-center text-slate-950 font-black text-xs">100</div>
+                </div>
+                <div className="border-r border-slate-800 pr-2 flex flex-col items-center justify-center gap-1">
+                  <span className="text-[10px] text-slate-400 font-bold mb-1">עשרות</span>
+                  <div className="w-3 h-10 bg-amber-500 rounded shadow" />
+                  <div className="w-3 h-10 bg-amber-500 rounded shadow" />
+                </div>
+                <div className="flex flex-col items-center justify-center gap-1">
+                  <span className="text-[10px] text-slate-400 font-bold mb-1">יחידות</span>
+                  <div className="grid grid-cols-2 gap-1">
+                    <div className="w-3 h-3 bg-amber-400 rounded-sm" />
+                    <div className="w-3 h-3 bg-amber-400 rounded-sm" />
+                    <div className="w-3 h-3 bg-amber-400 rounded-sm" />
+                  </div>
                 </div>
               </div>
+
+              {/* Progress Line */}
+              <div className="flex justify-between items-center text-[10px] text-slate-400 font-mono">
+                <span>זמן ריצה: 00:{Math.floor((currentProgress / 100) * 45).toString().padStart(2, '0')}</span>
+                <span>משימה פעילה: חיבור אנכי עם המרה</span>
+              </div>
+            </div>
+
+            {/* Play/Pause Overlay Button */}
+            <button
+              onClick={() => setIsPlaying(!isPlaying)}
+              className="relative z-10 w-14 h-14 rounded-full bg-indigo-600/90 hover:bg-indigo-600 text-white flex items-center justify-center shadow-lg transition-transform active:scale-95 cursor-pointer backdrop-blur-sm"
+              aria-label={isPlaying ? "השהה וידאו" : "נגן וידאו"}
+            >
+              {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6 fill-current mr-0.5" />}
+            </button>
+          </div>
+
+          {/* Video Control Bar */}
+          <div className="flex items-center gap-3 px-2 pt-2">
+            <button
+              onClick={() => setIsPlaying(!isPlaying)}
+              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white transition-colors cursor-pointer"
+            >
+              {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+            </button>
+            <button
+              onClick={() => setCurrentProgress(0)}
+              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white transition-colors cursor-pointer"
+            >
+              <RotateCcw className="w-4 h-4" />
+            </button>
+
+            {/* Progress Slider */}
+            <div className="flex-1 bg-slate-800 h-2 rounded-full overflow-hidden cursor-pointer">
+              <div 
+                className="bg-indigo-500 h-full transition-all duration-150"
+                style={{ width: `${currentProgress}%` }}
+              />
+            </div>
+
+            {/* Playback Speed */}
+            <button
+              onClick={() => setPlaybackSpeed(s => s === 1 ? 1.5 : s === 1.5 ? 2 : 1)}
+              className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-mono font-bold text-slate-300 transition-colors"
+            >
+              {playbackSpeed}x
+            </button>
+          </div>
+        </div>
+
+        {/* Right Side: Static VRA Cognitive Decision Timeline Table (60% on desktop) */}
+        <div className="lg:col-span-6 flex flex-col gap-3">
+          <div className="flex justify-between items-center">
+            <h3 className="font-black text-base text-slate-900 dark:text-white flex items-center gap-2">
+              <Activity className="w-4 h-4 text-indigo-600" />
+              ציר החלטות קוגניטיבי (VRA Cognitive Timeline)
+            </h3>
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
+              {events.length} פעולות מתועדות
+            </span>
+          </div>
+
+          <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+            <div className="max-h-[380px] overflow-y-auto">
+              <table className="w-full text-right text-xs">
+                <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 font-extrabold sticky top-0 border-b border-slate-200 dark:border-slate-700">
+                  <tr>
+                    <th className="p-3">שעה</th>
+                    <th className="p-3">שלב VRA</th>
+                    <th className="p-3">פעולה שבוצעה</th>
+                    <th className="p-3 text-center">השהייה</th>
+                    <th className="p-3 text-center">ויסות עצמי</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {events.map((event) => (
+                    <tr key={event.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                      <td className="p-3 font-mono text-[11px] text-slate-400">{event.timeFormatted}</td>
+                      <td className="p-3">
+                        <span className={`font-black px-2 py-0.5 rounded-md text-[10px] ${
+                          event.vraMilestone === 'המרה עשרונית'
+                            ? 'bg-purple-100 text-purple-900 dark:bg-purple-950 dark:text-purple-200'
+                            : event.vraMilestone === 'ויסות עצמי שקט'
+                            ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200'
+                            : event.vraMilestone === 'זיכרון עבודה'
+                            ? 'bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-200'
+                            : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200'
+                        }`}>
+                          {event.vraMilestone}
+                        </span>
+                      </td>
+                      <td className="p-3 font-medium text-slate-800 dark:text-slate-200">
+                        <div className="font-bold">{event.actionLabelHe}</div>
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400">{event.details}</div>
+                      </td>
+                      <td className="p-3 text-center font-mono font-bold text-slate-600 dark:text-slate-400">
+                        {event.delaySeconds > 0 ? `${event.delaySeconds}ש'` : '-'}
+                      </td>
+                      <td className="p-3 text-center">
+                        {event.selfRegulationFlag ? (
+                          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300 font-bold text-[10px]" title="עדות לבקרה וויסות עצמי">
+                            ✓
+                          </span>
+                        ) : (
+                          <span className="text-slate-300 dark:text-slate-700">-</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
-

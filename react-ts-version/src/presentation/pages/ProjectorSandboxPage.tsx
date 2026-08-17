@@ -18,9 +18,13 @@ import { WorkspaceTopbar } from '@/features/workspace/WorkspaceTopbar';
 import { useAuthStore } from '@/application/useAuthStore';
 import { Navigate } from 'react-router-dom';
 
+import { ref, set, update, onValue } from 'firebase/database';
+import { database } from '@/infrastructure/firebase';
+
 /**
  * ארגז חול למקרן (מצב מורה)
  * מסך נקי המאפשר הדגמה של גרירה, פריטה ומחיקה על הלוח החכם ללא תיעוד נתונים.
+ * מודול 15: שידור מצב מקרן למסכי התלמידים בזמן אמת (<1000ms).
  */
 export function ProjectorSandboxPage() {
   const user = useAuthStore((s) => s.user);
@@ -29,6 +33,7 @@ export function ProjectorSandboxPage() {
   
   const [activeDrag, setActiveDrag] = useState<{ place: Place; source: DragSource; renderPlace?: Place } | null>(null);
   const [selectedRange, setSelectedRange] = useState<'1000' | '10000'>('1000');
+  const [isBroadcasting, setIsBroadcasting] = useState(true);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 3 } }),
@@ -40,6 +45,20 @@ export function ProjectorSandboxPage() {
     // אתחול סשן נקי ללוח
     initSession(targetSession, false);
   }, [selectedRange, initSession]);
+
+  // Sync Projector Mode state to Firebase
+  useEffect(() => {
+    const projectorRef = ref(database, 'system_control/projector_mode');
+    set(projectorRef, isBroadcasting).catch(console.error);
+
+    return () => {
+      set(projectorRef, false).catch(console.error);
+    };
+  }, [isBroadcasting]);
+
+  const toggleBroadcasting = () => {
+    setIsBroadcasting((prev) => !prev);
+  };
 
   if (user?.role !== 'teacher' && user?.role !== 'admin') {
     return <Navigate to="/" replace />;

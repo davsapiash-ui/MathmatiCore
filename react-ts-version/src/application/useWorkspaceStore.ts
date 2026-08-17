@@ -46,7 +46,7 @@ import { database } from '@/infrastructure/firebase';
 import { normalizeStudentId } from '@/application/useChatStore';
 import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
 
-const UNDO_STACK_CAP = 50;
+const UNDO_STACK_CAP = 10;
 
 const DEFAULT_SOCRATIC_HINT: SocraticHintResponse = {
   questionHe: 'מה הפעולה המתמטית שנרצה לבצע בבית המספרים?',
@@ -137,6 +137,7 @@ interface WorkspaceState {
   closeAdditionHelper: () => void;
   toggleAdditionHelper: () => void;
   injectTask: (task: SessionTask, position: 'next' | 'end') => void;
+  startSession: (meeting: number) => void;
   initSession: (meeting: SessionNumber, isASD: boolean, aiTasks?: SessionTask[] | null, startingTaskIdx?: number) => void;
   restoreSession: (savedState: any) => void;
   applyDrop: (input: DropInput) => void;
@@ -925,6 +926,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     setAITasks: (tasks) => set({ aiTasks: tasks }),
 
+    startSession: (meeting: number) => {
+      get().initSession(sanitizeSessionNumber(meeting), get().isASD);
+    },
+
     initSession: (meeting, isASD, initialAITasks, startingTaskIdx) => {
       const qflow = initQFlow();
       set({
@@ -1037,7 +1042,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const addedCount = isFromStore ? (s.blocksAddedCount + 1) : s.blocksAddedCount;
 
         const nextDeletions = isDelete ? (s.consecutiveDeletions + 1) : 0;
-        if (nextDeletions >= 3) {
+        if (nextDeletions >= 4) {
           setTimeout(() => {
             get().fetchSocraticHint();
             set({ helpState: 'socratic' });
@@ -1083,7 +1088,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         }
 
         const nextDeletions = state.consecutiveDeletions + 1;
-        if (nextDeletions >= 3) {
+        if (nextDeletions >= 4) {
           setTimeout(() => {
             get().fetchSocraticHint();
             set({ helpState: 'socratic' });
@@ -1270,7 +1275,31 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
 
     setAnswerDigit: (place, val) => {
-      set((s) => ({ answerDigits: { ...s.answerDigits, [place]: val }, hasInteracted: true }));
+      set((s) => {
+        const isDelete = val === '' && Boolean(s.answerDigits[place]);
+        const nextDeletions = isDelete ? s.consecutiveDeletions + 1 : (val !== '' ? 0 : s.consecutiveDeletions);
+
+        if (isDelete && nextDeletions >= 4) {
+          setTimeout(() => {
+            get().fetchSocraticHint();
+            set({ helpState: 'socratic' });
+          }, 0);
+        }
+
+        if (val !== '' && s.helpState === 'socratic') {
+          setTimeout(() => {
+            if (get().helpState === 'socratic') {
+              get().closeHelp();
+            }
+          }, 3000);
+        }
+
+        return {
+          answerDigits: { ...s.answerDigits, [place]: val },
+          hasInteracted: true,
+          consecutiveDeletions: nextDeletions
+        };
+      });
       
       const studentId = useAuthStore.getState().user?.uid;
       if (studentId) {
@@ -1287,7 +1316,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     },
 
     setCarryDigit: (place, val) => {
-      set((s) => ({ carryDigits: { ...s.carryDigits, [place]: val }, hasInteracted: true }));
+      set((s) => {
+        if (val !== '' && s.helpState === 'socratic') {
+          setTimeout(() => {
+            if (get().helpState === 'socratic') {
+              get().closeHelp();
+            }
+          }, 3000);
+        }
+        return { carryDigits: { ...s.carryDigits, [place]: val }, hasInteracted: true };
+      });
 
       const studentId = useAuthStore.getState().user?.uid;
       if (studentId) {
@@ -1598,9 +1636,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       return false;
     },
     checkTimeExceeded: () => {
-      const { sessionStartTimeMs, isTimeExceeded } = get();
+      const { sessionStartTimeMs, isTimeExceeded, sessionNumber } = get();
       if (isTimeExceeded) return;
-      if (Date.now() - sessionStartTimeMs >= 25 * 60 * 1000) {
+      // Module 14: 15 minutes for sessions 3-7; 25 minutes for sessions 2 & 8 (and session 1)
+      const durationMinutes = (sessionNumber === 2 || sessionNumber === 8 || sessionNumber === 1) ? 25 : 15;
+      if (Date.now() - sessionStartTimeMs >= durationMinutes * 60 * 1000) {
         set({ isTimeExceeded: true });
       }
     },

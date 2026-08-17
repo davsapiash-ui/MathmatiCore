@@ -9,11 +9,13 @@ import type { Place, DragSource } from '@/core/placeValue';
  */
 
 export interface DienesBlockProps {
-  id: string;
+  id?: string;
   place: Place;
-  source: DragSource;
+  source?: DragSource;
   sourcePlace?: Place;
   isOverlay?: boolean;
+  interactive?: boolean;
+  onClick?: () => void;
   onRemove?: () => void;
   onSplit?: () => void;
   noEnter?: boolean;
@@ -182,11 +184,22 @@ const BLOCK_VISUALS: Record<Place, { style?: React.CSSProperties; labelHe: strin
   },
 };
 
-export function DienesBlock({ id, place, source, sourcePlace, isOverlay, onRemove, onSplit, noEnter }: DienesBlockProps) {
+export function DienesBlock({ 
+  id = 'dienes-block', 
+  place, 
+  source = 'column', 
+  sourcePlace, 
+  isOverlay, 
+  interactive,
+  onClick,
+  onRemove, 
+  onSplit, 
+  noEnter 
+}: DienesBlockProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id,
     data: { source, place: sourcePlace ?? place, renderPlace: place },
-    disabled: isOverlay,
+    disabled: isOverlay || interactive,
   });
 
   const visual = BLOCK_VISUALS[place];
@@ -209,7 +222,8 @@ export function DienesBlock({ id, place, source, sourcePlace, isOverlay, onRemov
   const hitPadding = place === 'units' ? 'p-2 -m-1' : '';
 
   const handleAction = () => {
-    if (onSplit) onSplit();
+    if (onClick) onClick();
+    else if (onSplit) onSplit();
     else if (onRemove) onRemove();
   };
 

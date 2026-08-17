@@ -39,7 +39,9 @@ export function PlaceColumn({ place }: { place: Place }) {
   const colors = COLUMN_COLORS[place];
   const renderCount = Math.min(count, MAX_VISIBLE_BLOCKS);
   const isError = errorPlace === place;
-  const isDimmed = (isASD || sessionNumber === 6) && focusedPlace !== null && focusedPlace !== place;
+  
+  // Column dimming per Master PRD v5.0 Modules 7-8: opacity 0.7, brightness 0.6 for inactive columns
+  const isDimmed = focusedPlace !== null && focusedPlace !== place;
 
   // Constraint-error shake (vanilla .constraint-error, 400ms). errorNonce retriggers repeats.
   const shakeControls = useAnimationControls();
@@ -47,8 +49,7 @@ export function PlaceColumn({ place }: { place: Place }) {
     if (isError) {
       shakeControls.start({ x: [0, -8, 8, -6, 6, -3, 3, 0], transition: { duration: 0.4 } });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [errorNonce]);
+  }, [errorNonce, isError, shakeControls]);
 
   const isHighlighted = scaffoldFadeLevel === 0;
 
@@ -59,7 +60,7 @@ export function PlaceColumn({ place }: { place: Place }) {
       className={`flex-1 min-w-0 flex flex-col rounded-2xl border-2 transition-all duration-300 select-none ${
         isHighlighted ? 'border-solid' : 'border-dashed'
       } ${
-        isDimmed ? 'opacity-40 brightness-75 pointer-events-none transition-all' : ''
+        isDimmed ? 'opacity-70 brightness-[0.6] pointer-events-none' : ''
       } ${isOver ? 'animate-[pulse_1.5s_ease-in-out_infinite]' : ''}`}
       style={{
         borderColor: isOver 
@@ -73,6 +74,9 @@ export function PlaceColumn({ place }: { place: Place }) {
           : isHighlighted 
             ? '0 4px 14px -6px rgba(0,0,0,0.06)' 
             : '0 2px 8px -6px rgba(0,0,0,0.02)',
+        filter: isDimmed ? 'brightness(0.6)' : undefined,
+        opacity: isDimmed ? 0.7 : 1,
+        pointerEvents: isDimmed ? 'none' : 'auto',
       }}
       aria-label={`טור ${PLACE_NAMES_HE[place]}`}
     >
@@ -92,7 +96,7 @@ export function PlaceColumn({ place }: { place: Place }) {
         </span>
       </div>
 
-      {/* Explicit Group Button per PRD §3.1 */}
+      {/* Explicit Group Button */}
       {count >= 10 && place !== 'thousands' && (
         <motion.div 
           initial={{ opacity: 0, scale: 0.9 }}
@@ -100,26 +104,26 @@ export function PlaceColumn({ place }: { place: Place }) {
           className="p-1.5 flex justify-center border-b border-ws-surface2/60 bg-ws-bg/40 shrink-0"
         >
           <button
-            type="button"
             onClick={() => groupColumnClick(place)}
-            className="w-full py-1 px-2 rounded-xl text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700 shadow-md transition-all active:scale-95 flex items-center justify-center gap-1.5 animate-pulse"
-            aria-label={`הקבץ 10 ${PLACE_NAMES_HE[place]} ללבנה אחת בטור השמאלי`}
+            className="w-full py-1 px-2 rounded-xl text-xs font-black text-white shadow-md active:scale-95 transition-all flex items-center justify-center gap-1 cursor-pointer animate-pulse hover:animate-none"
+            style={{ backgroundColor: colors.header }}
+            title={`קבץ 10 לבנים ל${place === 'units' ? 'עשרת' : place === 'tens' ? 'מאה' : 'אלף'}`}
           >
             <span>✨</span>
-            <span>הקבץ (10)</span>
+            <span>קבץ 10 ל{place === 'units' ? 'עשרת' : place === 'tens' ? 'מאה' : 'אלף'}</span>
           </button>
         </motion.div>
       )}
 
+      {/* 30px extended drop zone container with Magnetic Snap physics */}
       <div
         ref={setNodeRef}
         id={`column-${place}`}
         role="group"
         aria-label={`אזור גרירה — ${PLACE_NAMES_HE[place]}`}
         style={{ touchAction: 'none' }}
-        className="flex-1 flex flex-row flex-wrap content-start justify-center items-start gap-1 p-2 min-h-[150px] overflow-y-auto overflow-x-hidden no-scrollbar touch-none"
+        className="relative flex-1 flex flex-row flex-wrap content-start justify-center items-start gap-1 p-2 min-h-[150px] overflow-y-auto overflow-x-hidden no-scrollbar touch-none before:absolute before:-inset-[30px] before:pointer-events-none"
       >
-
         <AnimatePresence>
         {Array.from({ length: renderCount }).map((_, i) => {
           let overlapStyle: React.CSSProperties = { zIndex: i };
@@ -138,40 +142,35 @@ export function PlaceColumn({ place }: { place: Place }) {
 
           return (
             <motion.div 
-              key={`${place}-${i}`} 
-              style={overlapStyle} 
-              className="relative transition-all"
-              exit={{ opacity: 0, scale: 1.3, y: -10, transition: { duration: 0.25 } }}
+              key={`${place}-${i}`}
+              layout
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 450, damping: 25 }}
+              style={overlapStyle}
             >
-              <DienesBlock
-                id={`col-${place}-${i}`}
-                place={place}
-                source="column"
-                onSplit={() => splitBlockClick(place)}
-                noEnter={i < renderCount - 1}
+              <DienesBlock 
+                place={place} 
+                interactive={true} 
+                onClick={() => {
+                  if (place !== 'units') {
+                    splitBlockClick(place);
+                  }
+                }} 
               />
             </motion.div>
           );
         })}
-
-        {isPreviewingDecomp && Array.from({ length: 10 }).map((_, i) => (
-          <motion.div
-            key={`preview-units-${i}`}
-            initial={{ opacity: 0, scale: 0.5 }}
-            animate={{ opacity: 0.5, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.5 }}
-            className="relative transition-all pointer-events-none"
-            style={{ zIndex: renderCount + i }}
-          >
-            <DienesBlock
-              id={`preview-units-${i}`}
-              place="units"
-              source="column"
-              noEnter={true}
-            />
-          </motion.div>
-        ))}
         </AnimatePresence>
+
+        {isPreviewingDecomp && (
+          <div className="flex flex-wrap gap-1 p-1 bg-ws-accentSoft/30 border border-dashed border-ws-accent rounded-xl animate-pulse">
+            {Array.from({ length: 10 }).map((_, idx) => (
+              <div key={`prev-${idx}`} className="w-5 h-5 rounded-md bg-amber-400/60" />
+            ))}
+          </div>
+        )}
       </div>
     </motion.div>
   );

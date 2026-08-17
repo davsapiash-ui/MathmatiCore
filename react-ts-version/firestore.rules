@@ -1,0 +1,75 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check teacher claim
+    function isTeacher() {
+      return isAuthenticated() && (request.auth.token.role == 'teacher' || request.auth.token.email != null);
+    }
+    
+    // Helper function to check admin claim
+    function isAdmin() {
+      return isAuthenticated() && (request.auth.token.role == 'admin' || request.auth.token.admin == true);
+    }
+
+    // Helper to validate student ID is strictly in range 1 to 12
+    function isValidStudentId(studentId) {
+      return studentId.matches('^(student_)?(1[0-2]|[1-9])$');
+    }
+
+    // Helper to enforce Zero PII in written documents
+    function hasZeroPII() {
+      return !('name' in request.resource.data) &&
+             !('fullName' in request.resource.data) &&
+             !('email' in request.resource.data) &&
+             !('phone' in request.resource.data) &&
+             !('taz' in request.resource.data) &&
+             !('teudatZehut' in request.resource.data);
+    }
+
+    // Students Collection: strictly IDs 1 to 12, Zero PII
+    match /users/students/{studentId} {
+      allow read: if isAuthenticated();
+      allow write: if (isTeacher() || (isAuthenticated() && isValidStudentId(studentId))) && hasZeroPII();
+    }
+
+    match /students/{studentId} {
+      allow read: if isAuthenticated();
+      allow write: if (isTeacher() || (isAuthenticated() && isValidStudentId(studentId))) && hasZeroPII();
+    }
+
+    // Classes & Schools Collections
+    match /schools/{schoolId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /classes/{classId} {
+      allow read: if isAuthenticated();
+      allow write: if isTeacher() || isAdmin();
+    }
+
+    // Messages Collection (Teacher-Admin Chat)
+    match /messages/{messageId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && hasZeroPII();
+      allow update, delete: if isTeacher() || isAdmin();
+    }
+
+    // Telemetry & Radar Logs
+    match /radar_alerts/{alertId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+
+    match /audit_logs/{logId} {
+      allow read: if isTeacher() || isAdmin();
+      allow write: if isAuthenticated();
+    }
+  }
+}

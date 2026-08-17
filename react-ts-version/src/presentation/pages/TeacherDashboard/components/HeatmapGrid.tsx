@@ -14,6 +14,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 export interface AnonymousStudent {
   id: string; // e.g. "student_1"
+  studentNumber: number; // 1-12
   displayName: string; // "תלמיד 1"
   sessionNumber: number; // 1-8
   currentPath: 'ירוק' | 'צמצום פערים';
@@ -22,6 +23,7 @@ export interface AnonymousStudent {
   errorCount: number;
   physicalOverride: boolean; // VRA virtual support override
   isStruggling: boolean;
+  isSocraticActive: boolean;
   lastAction?: string;
   isOnline?: boolean;
 }
@@ -40,6 +42,7 @@ const INITIAL_MOCK_STUDENTS: AnonymousStudent[] = Array.from({ length: 12 }, (_,
   const studentNum = index + 1;
   return {
     id: `student_${studentNum}`,
+    studentNumber: studentNum,
     displayName: `תלמיד ${studentNum}`,
     sessionNumber: 1,
     currentPath: 'ירוק',
@@ -48,6 +51,7 @@ const INITIAL_MOCK_STUDENTS: AnonymousStudent[] = Array.from({ length: 12 }, (_,
     errorCount: 0,
     physicalOverride: false,
     isStruggling: false,
+    isSocraticActive: false,
     lastAction: '',
     isOnline: false,
   };
@@ -61,29 +65,35 @@ interface HeatmapGridProps {
 }
 
 /**
- * [Developer Instruction: Implement the Teacher Dashboard with a fixed 12-slot Silent Radar grid 
- * using background color shifts only to reflect real-time process data without layout reflows or popup alerts.
- * Sort strictly by numeric student ID 1 to 12 with zero student names displayed.]
+ * מודול 18: רדאר פדגוגי שקט (Silent Radar Module Spec)
+ * רשת קבועה 3x4 עבור 12 תלמידי הפיילוט (מזהים 1-12 בלבד, אפס שמות/תמונות/ראשי תיבות).
+ * צבעי רקע בזמן אמת עם מסנן 1000ms:
+ * - ירוק: פעילות תקינה ורציפה
+ * - צהוב: היסוס מעל 45 שניות בטור הפעיל
+ * - אדום: כרטיס חניכה סוקרטי פעיל
+ * - אפור: מנותק / לא החל
  */
 export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
   const [students, setStudents] = useState<AnonymousStudent[]>(INITIAL_MOCK_STUDENTS);
   const [feedItems, setFeedItems] = useState<LiveFeedItem[]>(INITIAL_MOCK_FEED);
   const [selectedStudent, setSelectedStudent] = useState<AnonymousStudent | null>(null);
 
-  // Filter state for Heatmap (highlighting filter without reflowing or removing cards)
+  // Filter state for Heatmap
   const [activeFilter, setActiveFilter] = useState<'ALL' | 'STRUGGLING' | 'LOCKED' | 'PHYSICAL_OVERRIDE'>('ALL');
 
   // Subscribe to live Firebase data and merge with 12 pilot student slots (sorted strictly by student ID 1..12)
   useEffect(() => {
-    const studentsRef = ref(database, 'users/students');
-    const unsubStudents = onValue(studentsRef, (snapshot) => {
-      if (!snapshot.exists()) return;
-      const rawData = snapshot.val() || {};
+    let throttleTimeout: NodeJS.Timeout | null = null;
+    let pendingData: any = null;
+
+    const flushThrottledData = () => {
+      if (!pendingData) return;
+      const rawData = pendingData;
+      pendingData = null;
 
       setStudents((prev) => {
         const updated = [...prev];
         
-        // Loop through slots 1 to 12
         for (let i = 0; i < 12; i++) {
           const studentNum = i + 1;
           const uid = `student_${studentNum}`;
@@ -100,13 +110,14 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
           const hesitationSeconds = isOnline && hesitationEvents ? hesitationEvents * 45 : (sessionState.hesitation_seconds || 0);
           const errorCount = isOnline ? Math.max(wsState.undoCount || 0, data.traceData?.undo_clicks || 0, sessionState.error_count || 0) : 0;
           const isYellowPath = data.routeRecommendation === 'YELLOW' || sessionState.current_path === 'gap_reduction';
-          const physicalOverride = Boolean(data.physicalOverrideActive || data.physicalOverride || sessionState.physical_override);
+          const physicalOverride = Boolean(data.physicalOverrideActive || data.physicalOverride || sessionState.physical_override || data.enhanced_support_profile);
 
-          const hasCalledForHelp = isOnline && !!(data.helpRequested || data.handRaised || data.isStruggling);
-          const isStruggling = isOnline && (hesitationSeconds >= 45 || isYellowPath || errorCount > 2 || physicalOverride || hasCalledForHelp);
+          const isSocraticActive = isOnline && (wsState.helpState === 'socratic' || data.isSocraticActive === true || data.helpRequested === true);
+          const isStruggling = isOnline && (hesitationSeconds >= 45 || isYellowPath || errorCount > 2 || physicalOverride || isSocraticActive);
 
           updated[i] = {
             id: uid,
+            studentNumber: studentNum,
             displayName: `תלמיד ${studentNum}`,
             sessionNumber: wsState.sessionNumber || sessionState.session_number || (data.highestCompletedMeeting ? data.highestCompletedMeeting + 1 : 1),
             currentPath: isYellowPath ? 'צמצום פערים' : 'ירוק',
@@ -115,12 +126,26 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
             errorCount,
             physicalOverride,
             isStruggling,
-            lastAction: isOnline ? (data.lastAction || (isStruggling ? 'מאבק קוגניטיבי נותח ברדאר' : 'פעיל בלמידה עצמאית')) : 'לא מחובר',
+            isSocraticActive,
+            lastAction: isOnline ? (data.lastAction || (isSocraticActive ? 'כרטיס חניכה סוקרטי פעיל' : hesitationSeconds >= 45 ? 'היסוס מעל 45 שניות בטור הפעיל' : 'פעיל בלמידה עצמאית')) : 'לא מחובר',
             isOnline: isOnline,
           };
         }
         return updated;
       });
+    };
+
+    const studentsRef = ref(database, 'users/students');
+    const unsubStudents = onValue(studentsRef, (snapshot) => {
+      if (!snapshot.exists()) return;
+      pendingData = snapshot.val() || {};
+
+      if (!throttleTimeout) {
+        throttleTimeout = setTimeout(() => {
+          throttleTimeout = null;
+          flushThrottledData();
+        }, 1000);
+      }
     });
 
     const alertsRef = ref(database, 'radar_alerts');
@@ -401,40 +426,39 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
                 className={`p-3.5 rounded-2xl border text-right transition-colors duration-1000 ease-in-out flex flex-col justify-between min-h-[110px] relative overflow-hidden shadow-sm ${
                   isDimmed ? 'opacity-30' : 'opacity-100'
                 } ${
-                  student.physicalOverride
-                    ? 'bg-purple-500/15 border-2 border-purple-500 text-purple-950 dark:text-purple-100'
-                    : student.status === 'locked'
-                    ? 'bg-rose-500/15 border-2 border-rose-500 text-rose-950 dark:text-rose-100'
-                    : isStruggling
+                  !student.isOnline
+                    ? 'bg-slate-100 dark:bg-slate-800/60 border-2 border-slate-300 dark:border-slate-700 text-slate-500'
+                    : student.isSocraticActive
+                    ? 'bg-rose-500/20 border-2 border-rose-500 text-rose-950 dark:text-rose-100'
+                    : student.hesitationSeconds >= 45
                     ? 'bg-amber-500/20 border-2 border-amber-500 text-amber-950 dark:text-amber-100'
-                    : 'bg-emerald-500/10 border-2 border-emerald-500/60 text-slate-900 dark:text-slate-100'
+                    : 'bg-emerald-500/15 border-2 border-emerald-500 text-emerald-950 dark:text-emerald-100'
                 }`}
               >
                 {/* Top Badge Row */}
                 <div className="flex justify-between items-start w-full">
                   <span className="font-black text-xs tracking-tight text-slate-900 dark:text-slate-100">
-                    {student.displayName}
+                    תלמיד {student.studentNumber}
                   </span>
                   
                   {/* Status Icon */}
-                  {student.status === 'locked' ? (
-                    <span className="inline-flex items-center gap-1 bg-rose-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="מפגש נעול">
-                      <Lock className="w-3 h-3" />
-                      נעול
+                  {!student.isOnline ? (
+                    <span className="inline-flex items-center gap-1 bg-slate-400 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="לא מחובר">
+                      מנותק
                     </span>
-                  ) : student.status === 'completed' ? (
-                    <span className="inline-flex items-center gap-1 bg-emerald-600 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="הושלם בהצלחה">
-                      <CheckCircle2 className="w-3 h-3" />
-                      הושלם
+                  ) : student.isSocraticActive ? (
+                    <span className="inline-flex items-center gap-1 bg-rose-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm animate-pulse" title="חניכה סוקרטית פעילה">
+                      <ShieldAlert className="w-3 h-3" />
+                      סוקרטי
                     </span>
-                  ) : isStruggling ? (
-                    <span className="inline-flex items-center gap-1 bg-amber-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="מאבק קוגניטיבי">
+                  ) : student.hesitationSeconds >= 45 ? (
+                    <span className="inline-flex items-center gap-1 bg-amber-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="היסוס > 45 שניות">
                       <AlertTriangle className="w-3 h-3" />
-                      מאבק
+                      היסוס
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 bg-emerald-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="למידה תקינה">
-                      <span className="w-2 h-2 rounded-full bg-white" />
+                    <span className="inline-flex items-center gap-1 bg-emerald-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="פעיל ותקין">
+                      <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
                       פעיל
                     </span>
                   )}
