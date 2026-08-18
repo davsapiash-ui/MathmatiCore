@@ -68,29 +68,14 @@ export function PlaceValueBoard({ hideValueDisplay }: { hideValueDisplay?: boole
           aria-label="טבלת ערך המקום"
         >
           <div id="tour-place-value-board" className="flex-1 ws-card p-4 flex flex-col gap-3 hover:translate-y-0 select-none">
-            <div className="flex items-center justify-center gap-2 shrink-0">
+            <div className="flex items-center justify-center shrink-0">
               <span className="inline-flex items-center gap-2 text-lg font-display font-black text-ws-ink bg-ws-blue-soft/50 rounded-full px-6 py-1.5 border-2 border-ws-blue/20 shadow-sm select-none">
                 <span aria-hidden="true" className="text-xl">🏠</span> בית המספרים
               </span>
-              {/* "החזרת עזרים" — spec-mandated bidirectional scaffold fading (appears only when faded) */}
-              {scaffoldFadeLevel > 0 && (
-                <button
-                  onClick={restoreScaffolds}
-                  className="inline-flex items-center gap-1 text-xs font-bold rounded-full px-3 py-1 border transition-all hover:scale-105 active:scale-95 select-none"
-                  style={{
-                    color: 'hsl(var(--ws-blue))',
-                    borderColor: 'hsl(var(--ws-blue) / 0.4)',
-                    backgroundColor: 'hsl(var(--ws-blue-soft) / 0.6)',
-                  }}
-                  aria-label="הדגשת גבולות טורי הלוח — הצג שוב את גבולות הטורים בבירור"
-                >
-                  <span aria-hidden="true">👁</span> הדגש גבולות טורים
-                </button>
-              )}
             </div>
 
-            {/* Scaffold fade applies to the columns only — the palette stays crisp */}
-            <div dir="rtl" className={`flex-1 flex flex-row gap-2 min-h-0 select-none scaffold-level-${scaffoldFadeLevel}`} role="group" aria-label="טורי ערך המקום">
+            {/* Place-value columns with permanent clear solid borders */}
+            <div dir="rtl" className="flex-1 flex flex-row gap-2 min-h-0 select-none" role="group" aria-label="טורי ערך המקום">
               {placesToRender.map((place) => (
                 <PlaceColumn key={place} place={place} />
               ))}

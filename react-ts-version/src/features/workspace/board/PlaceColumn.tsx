@@ -57,23 +57,15 @@ export function PlaceColumn({ place }: { place: Place }) {
     <motion.div
       id={place === 'units' ? 'tour-column-units' : undefined}
       animate={shakeControls}
-      className={`flex-1 min-w-0 flex flex-col rounded-2xl border-2 transition-all duration-300 select-none ${
-        isHighlighted ? 'border-solid' : 'border-dashed'
-      } ${
+      className={`flex-1 min-w-0 flex flex-col rounded-2xl border-2 border-solid transition-all duration-300 select-none ${
         isDimmed ? 'opacity-70 brightness-[0.6] pointer-events-none' : ''
       } ${isOver ? 'animate-[pulse_1.5s_ease-in-out_infinite]' : ''}`}
       style={{
-        borderColor: isOver 
-          ? colors.border 
-          : isHighlighted 
-            ? 'hsl(var(--ws-ink) / 0.22)' 
-            : 'hsl(var(--ws-surface-2) / 0.75)',
+        borderColor: isOver ? colors.border : `${colors.border}55`,
         backgroundColor: isOver || isError ? colors.tint : 'hsl(var(--ws-surface))',
         boxShadow: isOver 
           ? `0 0 0 4px ${colors.tint}` 
-          : isHighlighted 
-            ? '0 4px 14px -6px rgba(0,0,0,0.06)' 
-            : '0 2px 8px -6px rgba(0,0,0,0.02)',
+          : '0 4px 14px -6px rgba(0,0,0,0.06)',
         filter: isDimmed ? 'brightness(0.6)' : undefined,
         opacity: isDimmed ? 0.7 : 1,
         pointerEvents: isDimmed ? 'none' : 'auto',
