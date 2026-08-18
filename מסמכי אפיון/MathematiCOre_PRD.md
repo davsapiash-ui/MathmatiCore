@@ -6,32 +6,88 @@
 
 ## חלק א: תשתית הזדהות, ניהול תפקידים ואבטחה
 
-### 1. מודול כניסה והזדהות (Login Module Spec)
-1. **מהות פדגוגית וטכנולוגית:** הגדרת שער כניסה פשוט ונגיש הנקי מעומס קוגניטיבי או מוטורי ושומר על אנונימיות מלאה של הלומדים על בסיס מודל ייצוג וירטואלי מוחשי דיגיטלי בלבד. הממשק כולל כפתור כניסת מורים באמצעות מערכת הזדהות גוגל בלבד המבוסס על התאמה מדויקת מול אוסף מורים מורשים בבסיס הנתונים פיירבייס. הכתובות המורשות היחידות להזדהות כמורים בשיטת התאמה מדויקת הן davidsep@edu-haifa.org.il וכן 1002220159@edu-haifa.org.il. כל כתובת דואר אלקטרוני אחרת תיחסם באופן גורף ומיידי.
-2. **מפרט יישום חוויית המשתמש ועיצוב הממשק:** כניסת התלמידים תתבצע ברצף פעולות מדורג וחד כיווני קבוע:
-* בחירת בית הספר מתוך רשימה נפתחת המכילה את בית ספר ביקורת.
-* בחירת שם הכיתה מתוך רשימה נפתחת המכילה את כיתת המבקרים.
-* בחירת מזהה התלמיד בטווח של אחת עד שתים עשרה מתוך רשימה נפתחת ייעודית.
-* הזנת קוד הגישה הקבוע 10203040 בתוך תיבת טקסט נקייה לחלוטין באמצעות הקלדה פיזית רגילה במקלדת הפיזית בלבד ללא שילוב או רינדור של מקלדת וירטואלית על גבי המסך. שמירת מזהה התלמיד כמספר שלם בטווח של אחת עד שתים עשרה בזיכרון המקומי. זמן תגובה לאימות פחות ממאתיים מילישניות, שטחי הקלקה בגודל ארבעים ושמונה פיקסלים לפחות, ומנגנון ויסות קצב של חמש מאות מילישניות על כפתורי הבחירה.
-3. **התנהגות במצבי שגיאה:** בעת הקלדת קוד שגוי המערכת תבצע רטט חזותי עדין של תיבת הקלט למשך שלוש מאות מילישניות ותרוקן את השדה באופן אוטומטי ותחזיר את מיקוד ההקלדה לתחילת השדה ללא הצגת הודעות אזהרה המייצרות חרדה.
-4. **Strict Bilingual Developer Instructions:** [Strict Bilingual Developer Instructions: All design specifications and code structures must implement the VRA model only. No placeholders or hints allowed on input elements. Keep student profiles strictly anonymous using numeric IDs 1 to 12 with zero persona names in UI. Teachers login must rely exclusively on Google SSO verified via exact match query against the authorizedTeachers Firestore collection. Students login flow is strictly sequential: School Dropdown selecting "בית ספר ביקורת" -> Class Dropdown selecting "המבקרים" -> Student ID Dropdown selecting numeric IDs in the range 1 to 12 -> Password text input accepting strictly the value 10203040 via physical keyboard with zero virtual on-screen keypad rendered.]
-* **תרחיש בדיקה קוגניטיבי:** המשתמשים מגיעים למסך ומבינים מיד כיצד לבחור בנתיב המורים או בנתיב התלמידים ומבצעים כניסה חלקה באמצעות המקלדת הפיזית בלבד ללא עומס קוגניטיבי.
+### מודול 1: מודול כניסה והזדהות (Login Module Spec)
+#### א. נתיב התלמידים (Student Login Pipeline)
+**הטריגר הפדגוגי:** תחילת פעילות חקירה במתמטיקה ללא חסמים רגשיים ותוך שמירה על אנונימיות מלאה של הלומדים למניעת תיוג חברתי.
+**מצב המערכת:** המערכת מאתחלת את מצב ההזדהות לערכי ברירת מחדל ריקים. עם השלמת ארבעת השלבים בהצלחה המערכת מעדכנת את משתנה המצב הגלובלי isStudentAuthenticated לערך אמת (true) ושומרת את המשתנים selectedSchoolId וכן selectedClassId לצד המזהה האנונימי studentId שהוא מספר שלם בטווח של אחת עד שתים עשרה באחסון המקומי LocalStorage של הדפדפן.
+**אירוע המשתמש:**
+* בחירת מזהה בית הספר מתוך תיבת בחירה נפתחת School Select Dropdown המפעילה אירוע onChange וטוענת באופן דינמי את רשימת הכיתות המשויכות מאוסף בתי הספר בבסיס הנתונים.
+* בחירת מזהה הכיתה מתוך תיבת בחירה נפתחת שנייה Class Select Dropdown המסוננת באופן דינמי ומציגה אך ורק את הכיתות המשויכות לבית הספר שנבחר.
+* בחירת מספר הזיהוי האנונימי מתוך תיבת בחירה נפתחת שלישית StudentID Dropdown המציגה רשימה קבועה של מספרים שלמים בטווח של אחת עד שתים עשרה.
+* הקלדה ידנית של קוד הגישה עשר עשרים שלושים ארבעים בשדה הקלט Password Input באמצעות מקלדת חומרה פיזית בלבד ללא רינדור מקלדת וירטואלית כלל ולחיצה על כפתור השליחה Submit Button או הקשת מקש Enter המפעילה אירוע onSubmit.
+**התוצאה הצפויה:** אימות קוד הגישה בהצלחה מול השרת בתוך פחות ממאתיים מילישניות וניתוב אוטומטי של התלמידים לנתיב הלובי /student/lobby בצורה חלקה ללא מסכי טעינה ארוכים או חסימות ממשק המעוררות חרדה קוגניטיבית.
+
+#### ב. מצבי שגיאה בהזדהות התלמידים (Student Auth Error States)
+**הטריגר הפדגוגי:** מניעת חרדת כשל קוגניטיבית ולמידה מתוך ניסוי וטעייה בטוחים ללא ענישה.
+**מצב המערכת:** זיהוי קוד שאינו תואם את הערך הקבוע עשר עשרים שלושים ארבעים מותיר את משתנה המצב הגלובלי isStudentAuthenticated בערך שקר (false) ומונע כתיבה של נתוני זיהוי באחסון המקומי.
+**אירוע המשתמש:** הזנת קוד שגוי בשדה הקלט ולחיצה על כפתור השליחה או הקשת מקש Enter.
+**התוצאה הצפויה:** הפעלת אנימציית רטט חזותית עדינה shake של שדה הקלט למשך שלוש מאות מילישניות בדיוק איפוס אוטומטי ומיידי של ערך השדה לריק והחזרת מיקוד ההקלדה focus לתחילת השדה ללא רינדור הודעות שגיאה קופצות או חלונות אזהרה המפריעים לרצף הפעילות.
+
+#### ג. נתיב המורים (Teacher Login Pipeline)
+**הטריגר הפדגוגי:** כניסה מהירה ומאובטחת למערכת הבקרה והניהול של הכיתה לצורך מעקב פדגוגי שקט.
+**מצב המערכת:** זיהוי אות כניסה ממערכת הזדהות אחודה של גוגל וביצוע בדיקה אסינכרונית בבסיס הנתונים של פיירסטור מול אוסף המורים המורשים authorizedTeachers.
+**אירוע המשתמש:** המורים לוחצים על לחצן הזדהות גוגל ומבצעים כניסה.
+**התוצאה הצפויה:** כניסה מאושרת לכל היותר עבור שני המורים המורשים של הפיילוט שהם davidsep@edu-haifa.org.il וכן 1002220159@edu-haifa.org.il בלבד וניתובם אל דשבורד המורה /teacher/dashboard. כל משתמש אחר נחסם באופן מיידי ומוחזר לדף הבית.
+
+#### ד. נתיב מנהלי המערכת (Admin Login Pipeline)
+**הטריגר הפדגוגי:** ניטור ובקרה ברמה הארגונית תוך שמירה הרמטית על סודיות מחקרית.
+**מצב המערכת:** זיהוי תפקיד מנהל וחסימה גורפת ומוחלטת של כל גישה לנתוני טלמטריה אישיים של תלמידים בבסיס הנתונים.
+**אירוע המשתמש:** המנהלים מבצעים כניסה למערכת.
+**התוצאה הצפויה:** פתיחת לוח הבקרה הניהולי /admin/dashboard המציג נתונים סטטיסטיים מצטברים בלבד ברמת הארגון.
+
+**תרחיש בדיקה קוגניטיבי (Cognitive Test Scenario)**
+* **מצב המוצא:** המשתמש מגיע למסך הראשי של המערכת.
+* **התוצאה הנדרשת:** המשתמש מבין מיד ובאופן אינטואיטיבי ללא צורך בהסבר מילולי האם עליו לבחור בנתיב המורה או בנתיב התלמיד ומבצע את הבחירה הנכונה ללא לחיצות שגויות או ניסוי וטעייה בממשק הראשי.
+
+**Strict Bilingual Developer Instructions:** [Strict Bilingual Developer Instructions: All design specifications and code structures must implement the VRA model only. No placeholders or hints allowed on input elements. Keep student profiles strictly anonymous using numeric studentId in the range 1 to 12 with zero persona names in UI. Teachers login must rely exclusively on Google SSO verified via exact match query against the authorizedTeachers Firestore collection, with davidsep@edu-haifa.org.il and 1002220159@edu-haifa.org.il as the only two allowed email addresses. Students login flow is strictly sequential: School Dropdown (dynamically populated supporting initial 2 pilot schools with future scaling) -> Class Dropdown (filtered dynamically based on school selection supporting multiple classes) -> Student ID Dropdown selecting numeric IDs in the range 1 to 12 -> Password text input accepting strictly the value 10203040 via physical keyboard with no virtual keypad rendered. Successful authentication must complete in less than 200ms redirecting smoothly to /student/lobby without long loading screens. Upon incorrect password entry, apply a 300ms visual shake animation to the input field, automatically clear the value, and restore input focus without rendering intrusive error alert dialogs. Secure the Admin route to display only global aggregated metrics, programmatically blocking Admin role read access to individual student telemetry logs.]
 
 ---
 
-### 2. מודול מיתוג תפקידים (Role Switcher Module Spec)
-1. **דרישות:** המערכת תגדיר הגנת ניתוב ישיר באמצעות ספריית הריאקט ראוטר. המערכת תבצע בדיקת הרשאות אסינכרונית בכל שינוי נתיב בדפדפן. ניסיון גישה ידני של תלמיד אנונימי לנתיב מורה מוגן יחסם באופן מיידי והמשתמש ינותב בחזרה ללובי התלמידים ללא שינוי במצב המערכת. מנגנון פקיעת תוקף אסימון הגישה יגדיר כי תוקף אסימון מסוג ג'ייסון ווב טוקן עבור מורים ומנהלים יוגבל לשמונה שעות עבודה רצופות. עם פקיעת התוקף המערכת תבצע התנתקות שקטה ואוטומטית ותעביר את המשתמשים לדף הבית עם הודעה מעודנת המבקשת לבצע כניסה מחודשת.
-2. **אפיון:** המערכת מזהה טוקן JWT ובמקרה של הרשאה כפולה עוברת למצב Role Selection. לאחר בחירה, מעדכנת את הסטור הגלובלי ועוברת למצב Route Locked. שמירת שדה role מסוג String בתוך ה-JWT ובזיכרון המקומי. ניתוח הרשאות בעת טעינת האפליקציה ומעבר תפקיד תוך פחות מ-100ms.
-3. **Strict Bilingual Developer Instructions:** Guard routes using react router guards. If a user token contains dual claims present a blocking selection screen. Save the chosen role in the global store and lock down all unauthorized API endpoints immediately. Use declarative state management to handle role transitions.
-* **תרחיש בדיקה קוגניטיבי:** האם המשתמש יודע מהו התפקיד שנבחר וכיצד לשנות אותו במידת הצורך בתוך דשבורד המשתמש.
+### מודול 2: מודול מיתוג תפקידים (Role Switcher Module Spec)
+#### א. הגנת ניתוב ישיר (Direct Route Guarding Spec)
+**הטריגר הפדגוגי:** הגנה על פרטיות הלומדים ומניעת עומס או הסחת דעת הנובעת מחשיפת ממשקי בקרה שאינם מיועדים להם.
+**מצב המערכת:** המערכת מבצעת בדיקת הרשאות אסינכרונית בכל ניסיון ניווט או שינוי נתיב בדפדפן. המצב הגלובלי של ההרשאות מנוהל באמצעות משתנה userRole המקבל את הערכים student או teacher או admin והשמור בזיכרון המקומי ובאסימון JWT.
+**אירוע המשתמש:** ניסיון גישה ידני או ניתוב ישיר של משתמש אנונימי או משתמש בעל תפקיד תלמיד לנתיבי מורה מוגנים כגון נתיב מורה או נתיב מנהל.
+**התוצאה הצפויה:** חסימה מיידית והרמטית של הגישה בתוך פחות ממאה מילישניות וניתוב חזרה של המשתמש לנתיב הלובי המוגדר לתלמידים ללא שינוי במצב המערכת ובשדות שמירת הנתונים.
+
+#### ב. בחירת תפקיד כפול (Dual Role Selection Spec)
+**הטריגר הפדגוגי:** תמיכה במורים ומנהלים בעלי הרשאות כפולות במערכת המאפשרת להם לעבור במהירות בין תצוגת בקרה לתצוגה תפעולית.
+**מצב המערכת:** זיהוי אסימון אבטחה בעל הרשאות כפולות מעביר את המערכת למצב בחירת תפקיד ומקפיא את תהליך הניתוב עד לקבלת החלטה.
+**אירוע המשתמש:** בחירת המורה או המנהל באפשרות התצוגה הרצויה מתוך מסך בחירה ייעודי ונעילת התפקיד המבוקש.
+**התוצאה הצפויה:** עדכון משתנה המצב הגלובלי userRole בהתאם לבחירה בתוך פחות ממאה מילישניות נעילת כל קצוות ממשק תכנות היישומים שאינם מורשים לתפקיד שנבחר ומעבר בטוח למצב נתיב נעול של התפקיד הנבחר.
+
+#### ג. פקיעת תוקף אסימון והתנתקות שקטה (Token Expiration and Silent Logout)
+**הטריגר הפדגוגי:** שמירה על אבטחת מידע וסודיות מחקרית ללא יצירת עומס קוגניטיבי או הפחדה של המשתמשים בעת ניתוק חיבור ישן.
+**מצב המערכת:** מעקב אסינכרוני אחר תוקף אסימון הגישה JWT. אם משך זמן העבודה הרציף של מורים או מנהלים עולה על שמונה שעות המערכת משנה את מצב ההזדהות למצב מנותק.
+**אירוע המשתמש:** הגעה לפקיעת תוקף האסימון של שמונה שעות עבודה רצופות או ניסיון שליחת בקשת שרת עם אסימון שפג תוקפו.
+**התוצאה הצפויה:** ביצוע התנתקות שקטה ואוטומטית מחיקת אסימון האבטחה מהזיכרון המקומי וניתוב המשתמשים חזרה לדף הבית בתוספת חיווי חזותי עדין המבקש לבצע כניסה מחודשת.
+
+**תרחיש בדיקה קוגניטיבי (Cognitive Test Scenario)**
+* **מצב המוצא:** המשתמש נמצא בתוך לוח הבקרה וברצונו לדעת מהו התפקיד הפעיל כעת בממשק.
+* **התוצאה הנדרשת:** המשתמש מזהה באופן מיידי וברור את תפקידו הנוכחי ומבין כיצד לעבור לתפקיד אחר במידת הצורך בתוך דשבורד המשתמש ללא בלבול או עומס קוגניטיבי.
+
+**Strict Bilingual Developer Instructions:** [Strict Bilingual Developer Instructions: Guard routes using react router guards. Analyze user permissions during application initialization and on every route change in less than 100ms. If a student attempts to access a protected teacher route or admin route, block access immediately and redirect them to /student/lobby. If a user token contains dual claims, present a selection view to select the active role, update the global Zustand state with userRole ('student', 'teacher', or 'admin'), and lock down all unauthorized API endpoints. Set teachers and admins JWT token expiration strictly to 8 continuous hours. Upon token expiration, trigger a silent logout, clear the token from LocalStorage, and redirect to the home screen with a quiet alert message to log in again.]
 
 ---
 
-### 3. מודול אבטחה ואנונימיזציה (Zero PII Identity Module Spec)
-1. **דרישות:** המערכת תגדיר ביטויים רגולריים שיורצו בצד הלקוח לסינון מידע מזהה אישי בטרם שידור הנתונים לשרת. זיהוי מספרי טלפון יבוצע באמצעות ביטוי רגולרי האוחז בטווח של תשע עד אחת עשרה ספרות רציפות. זיהוי תעודות זהות יבוצע באמצעות ביטוי רגולרי המזהה תשע ספרות התואמות את ספרת הביקורת הלאומית. זיהוי כתובות דואר אלקטרוני יבוצע באמצעות ביטוי רגולרי המזהה תבנית של תווים המופרדים על ידי כרוכית ונקודה. חוק מערכת קשיח לצד השרת יקבע כי כל בקשת כתיבה המכילה שדות שאינם מזהה אנונימי בטווח של אחת עד שתים עשרה תידחה באופן מלא והשרת יחזיר קוד שגיאת אבטחה ללא שמירת המידע בבסיס הנתונים.
-2. **אפיון:** פילטר קבוע בשכבת השרת וחוקי אבטחה ב-Firestore הדוחים כל בקשת כתיבה עם שדות מזהים. ולידציה בצד השרת לכל מטעני הטלמטריה תוך פחות מ-50ms לכל בקשה.
-3. **Strict Bilingual Developer Instructions:** Database rules must reject any write operation containing fields like name, email, or phone. Enforce database schema constraints restricting student_id strictly to integer values between 1 and 12. Use server-side validation for all incoming telemetry data packets.
-* **תרחיש בדיקה קוגניטיבי:** האם הנתונים הנשלחים מכילים פרטים מזהים בבסיס הנתונים ואם כן האם המערכת עוצרת אותם בזמן.
+### מודול 3: מודול אבטחה ואנונימיזציה (Zero PII Identity Module Spec)
+#### א. סינון מידע מזהה בצד הלקוח (Client Side PII Filtering Spec)
+**הטריגר הפדגוגי:** שמירה הרמטית על סודיות הלומדים ופרטיותם במטרה למנוע תיוג חברתי ולחץ פסיכולוגי במהלך תהליך הלמידה.
+**מצב המערכת:** המערכת מריצה באופן רציף פילטרים אקטיביים של ביטויים רגולריים בצד הלקוח לפני כל שידור של נתוני טלמטריה או הודעות צ'אט אל השרת ומעדכנת את משתנה המצב isPiiDetected לערך שקר.
+**אירוע המשתמש:** ניסיון של מורים או תלמידים להזין או לשלוח נתונים המכילים פרטי זיהוי אישיים כגון מספרי טלפון בטווח של תשע עד אחת עשרה ספרות רציפות מספרי זהות של תשע ספרות התואמות את ספרת הביקורת הלאומית או כתובות דואר אלקטרוני המכילות תבנית של תווים המופרדים על ידי כרוכית ונקודה.
+**התוצאה הצפויה:** זיהוי מיידי של המידע המזהה ועדכון משתנה המצב isPiiDetected לערך אמת המפעיל חסימת שליחה אוטומטית בצד הלקוח בתוך פחות מחמישים מילישניות והצגת התרעה שקטה המבקשת להשתמש במזהה אנונימי בלבד ללא הפרעה לרצף הלמידה של התלמידים.
+
+#### ב. אבטחה ואימות נתונים בצד השרת (Server Side Security and Validation Spec)
+**הטריגר הפדגוגי:** הבטחת שלמות מסד הנתונים ומניעת זליגה של נתוני מחקר רגישים אל גורמים שאינם מורשים.
+**מצב המערכת:** השרת מפעיל חוקי אבטחה הצהרתיים קשיחים בבסיס הנתונים פיירסטור ומריץ פונקציית שרת לאימות מטעני הטלמטריה בתוך פחות מחמישים מילישניות מול סכמת הנתונים המאושרת.
+**אירוע המשתמש:** הגעת בקשת כתיבה או עדכון של נתוני טלמטריה מצד הלקוח אל בסיס הנתונים בשרת.
+**התוצאה הצפויה:** השרת מאשר בקשות כתיבה של תלמידים אך ורק אם השדה studentId מכיל מספר שלם בטווח של אחת עד שתים עשרה והמטען נקי לחלוטין משדות מזהים כגון שם דואר אלקטרוני או טלפון. כל בקשה המכילה שדות אסורים או מזהה מחוץ לטווח נדחית באופן מלא השרת מחזיר קוד שגיאת אבטחה ארבע מאות ושלוש והמידע אינו נשמר במסד הנתונים כלל.
+
+**תרחיש בדיקה קוגניטיבי (Cognitive Test Scenario)**
+* **מצב המוצא:** משתמש מנסה להקליד שם תלמיד או מספר טלפון בתוך שדה טקסט המשודר לשרת.
+* **התוצאה הנדרשת:** המערכת מזהה וחוסמת את הפעולה בזמן אמת ומספקת חיווי שקט וברור המנחה את המשתמש להשתמש במזהים מספריים אנונימיים בלבד מבלי לייצר חרדה או תסכול חזותי.
+
+**Strict Bilingual Developer Instructions:** [Strict Bilingual Developer Instructions: Implement client side validation using optimized regular expressions to scan all outgoing telemetry payloads and chat messages. Detect and block phone numbers (9 to 11 digits), national IDs (9 digits matching national check digit algorithm), and email addresses. Database security rules in Firestore must programmatically reject any write operation containing fields like name, email, or phone. Enforce server side validation using Firebase Cloud Functions to validate all incoming telemetry data packets in less than 50ms, strictly restricting the student_id to integer values between 1 and 12. If validation fails, return a 403 Forbidden status code and prevent database insertion.]
 
 ---
 

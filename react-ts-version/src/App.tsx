@@ -163,7 +163,22 @@ function App() {
             </AuthGuard>
           } />
 
+          {/* Master PRD v5.0 Route Aliases */}
+          <Route path="/student/lobby" element={
+            <AuthGuard allowedRoles={["student", "admin"]}>
+              <StudentHub />
+            </AuthGuard>
+          } />
+
           <Route path="/dashboard" element={
+            <AuthGuard allowedRoles={["teacher", "admin"]}>
+              <FirebaseGate>
+              <TeacherDashboard />
+              </FirebaseGate>
+            </AuthGuard>
+          } />
+
+          <Route path="/teacher/dashboard" element={
             <AuthGuard allowedRoles={["teacher", "admin"]}>
               <FirebaseGate>
               <TeacherDashboard />
@@ -204,6 +219,8 @@ function App() {
             <ProjectorSandboxPage />
           </AuthGuard>
         } />
+
+        <Route path="/admin/dashboard" element={<Navigate to="/admin" replace />} />
 
         <Route path="/admin" element={
           <AuthGuard allowedRoles={["admin"]}>

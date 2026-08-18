@@ -84,7 +84,11 @@ export function Login() {
       const studentUid = `student_user${studentIdNum}`;
       const className = CLASSES.find((c) => c.id === selectedClass)?.name || "המבקרים";
       
-      // Store student_id as Integer in localStorage
+      // Store authentication & anonymous student parameters in localStorage (Master PRD v5.0 Module 1)
+      localStorage.setItem("isStudentAuthenticated", "true");
+      localStorage.setItem("selectedSchoolId", selectedSchool);
+      localStorage.setItem("selectedClassId", selectedClass);
+      localStorage.setItem("studentId", studentIdNum.toString());
       localStorage.setItem("student_id", studentIdNum.toString());
 
       setUser(
@@ -103,7 +107,7 @@ export function Login() {
 
       login("student", studentUid);
       setIsLoggingIn(false);
-      navigate("/hub", { replace: true });
+      navigate("/student/lobby", { replace: true });
     } catch (err: unknown) {
       console.error("Student Login Error:", err);
       setIsLoggingIn(false);
