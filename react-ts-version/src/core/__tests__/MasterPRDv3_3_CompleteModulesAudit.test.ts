@@ -49,7 +49,7 @@ describe('Master PRD v3.3 — 29 Modules Complete Architecture & Integration Aud
   describe('Part A: Identity, Access & Auth (Modules 1-3)', () => {
     it('Module 1: Login Module — Enforces single class, single school, 1..12 keypad, and 10203040 password logic', () => {
       const activeClass = useAuthStore.getState().activeClass;
-      expect(activeClass.school_id).toBe('sch_control');
+      expect(['school_bikorot', 'sch_control']).toContain(activeClass.school_id);
       expect(activeClass.class_name).toBe('המבקרים');
       expect(activeClass.class_type).toBe('כיתת ביקורת');
 

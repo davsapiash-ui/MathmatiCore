@@ -52,7 +52,7 @@ interface AuthState {
 }
 
 const DEFAULT_CLASS: ClassSchema = {
-  school_id: "sch_control",
+  school_id: "school_bikorot",
   class_name: "המבקרים",
   class_type: "כיתת ביקורת",
 };

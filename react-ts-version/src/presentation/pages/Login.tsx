@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "@/application/useAuthStore";
+import { useAdminStore } from "@/application/useAdminStore";
 import { useStore } from "@/application/useStore";
 import { executeGoogleSSO, mockSimulatedSSO } from "@/infrastructure/services/AuthService";
 import { tts } from "@/infrastructure/services/TTSService";
@@ -13,22 +14,32 @@ const ROLES = [
   { id: "admin" as const, icon: "⚙️", label: "מנהל מערכת" },
 ];
 
-const SCHOOLS = [
-  { id: "sch_control", name: "בית ספר ביקורת" },
-];
-
-const CLASSES = [
-  { id: "cls_control", name: "המבקרים", type: "כיתת ביקורת" },
-];
-
 export function Login() {
   const { setUser } = useAuthStore();
   const { login } = useStore();
+  const { schools: storeSchools, classes: storeClasses } = useAdminStore();
   const navigate = useNavigate();
 
+  // Subscribe to real-time schools & classes from Firebase
+  useEffect(() => {
+    return useAdminStore.getState().initAdminSubscriptions();
+  }, []);
+
+  const schoolsList = useMemo(() => {
+    return storeSchools && storeSchools.length > 0
+      ? storeSchools
+      : [{ id: "school_bikorot", name: "בית ספר ביקורת" }];
+  }, [storeSchools]);
+
   const [selectedRole, setSelectedRole] = useState<"student" | "teacher" | "admin" | null>(null);
-  const [selectedSchool, setSelectedSchool] = useState(SCHOOLS[0].id);
-  const [selectedClass, setSelectedClass] = useState(CLASSES[0].id);
+  const [selectedSchool, setSelectedSchool] = useState<string>("school_bikorot");
+
+  const classesForSelectedSchool = useMemo(() => {
+    const list = storeClasses.filter((c) => c.schoolId === selectedSchool);
+    return list.length > 0 ? list : [{ id: "class_1", name: "המבקרים", schoolId: selectedSchool }];
+  }, [storeClasses, selectedSchool]);
+
+  const [selectedClass, setSelectedClass] = useState<string>("class_1");
   const [selectedStudentNum, setSelectedStudentNum] = useState<number>(1);
   const [studentPassword, setStudentPassword] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
@@ -37,6 +48,20 @@ export function Login() {
   const [lastActionTime, setLastActionTime] = useState(0);
 
   const passwordInputRef = useRef<HTMLInputElement>(null);
+
+  // Sync selected school if store updates
+  useEffect(() => {
+    if (schoolsList.length > 0 && !schoolsList.some((s) => s.id === selectedSchool)) {
+      setSelectedSchool(schoolsList[0].id);
+    }
+  }, [schoolsList, selectedSchool]);
+
+  // Sync selected class when school changes
+  useEffect(() => {
+    if (classesForSelectedSchool.length > 0 && !classesForSelectedSchool.some((c) => c.id === selectedClass)) {
+      setSelectedClass(classesForSelectedSchool[0].id);
+    }
+  }, [classesForSelectedSchool, selectedClass]);
 
   // Focus password input when entering student login
   useEffect(() => {
@@ -82,7 +107,7 @@ export function Login() {
     try {
       const studentIdNum = selectedStudentNum;
       const studentUid = `student_user${studentIdNum}`;
-      const className = CLASSES.find((c) => c.id === selectedClass)?.name || "המבקרים";
+      const className = classesForSelectedSchool.find((c) => c.id === selectedClass)?.name || "המבקרים";
       
       // Store authentication & anonymous student parameters in localStorage (Master PRD v5.0 Module 1)
       localStorage.setItem("isStudentAuthenticated", "true");
@@ -112,25 +137,6 @@ export function Login() {
       console.error("Student Login Error:", err);
       setIsLoggingIn(false);
       triggerErrorWithShake();
-    }
-  };
-
-  // Virtual Keypad Button Press Handler (for Collapsible Screen Keypad)
-  const handleKeypadPress = (val: string) => {
-    const now = Date.now();
-    if (now - lastActionTime < 100) return;
-    setLastActionTime(now);
-
-    if (val === "DELETE") {
-      setStudentPassword((prev) => prev.slice(0, -1));
-      setErrorMsg("");
-      passwordInputRef.current?.focus();
-    } else if (val === "ENTER") {
-      handleStudentLogin();
-    } else {
-      setStudentPassword((prev) => (prev.length < 12 ? prev + val : prev));
-      setErrorMsg("");
-      passwordInputRef.current?.focus();
     }
   };
 
@@ -339,7 +345,7 @@ export function Login() {
                         onChange={(e) => setSelectedSchool(e.target.value)}
                         className="w-full bg-slate-50 dark:bg-slate-950 border-2 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl p-3 text-sm font-bold focus:border-[hsl(var(--ws-blue))] outline-none transition-all cursor-pointer min-h-[48px]"
                       >
-                        {SCHOOLS.map((s) => (
+                        {schoolsList.map((s) => (
                           <option key={s.id} value={s.id}>
                             {s.name}
                           </option>
@@ -355,9 +361,9 @@ export function Login() {
                         onChange={(e) => setSelectedClass(e.target.value)}
                         className="w-full bg-slate-50 dark:bg-slate-950 border-2 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl p-3 text-sm font-bold focus:border-[hsl(var(--ws-blue))] outline-none transition-all cursor-pointer min-h-[48px]"
                       >
-                        {CLASSES.map((c) => (
+                        {classesForSelectedSchool.map((c) => (
                           <option key={c.id} value={c.id}>
-                            {c.name} ({c.type})
+                            {c.name}
                           </option>
                         ))}
                       </select>
