@@ -202,6 +202,9 @@ export function DienesBlock({
     disabled: isOverlay,
   });
 
+  const visual = BLOCK_VISUALS[place];
+  const SvgElement = visual.Component;
+
   const inner = (
     <div
       className="relative select-none shrink-0 inline-flex items-end justify-center"
