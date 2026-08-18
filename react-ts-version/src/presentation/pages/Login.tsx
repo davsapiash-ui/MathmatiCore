@@ -6,7 +6,6 @@ import { useStore } from "@/application/useStore";
 import { executeGoogleSSO, mockSimulatedSSO } from "@/infrastructure/services/AuthService";
 import { tts } from "@/infrastructure/services/TTSService";
 import { Button } from "@/components/ui/button";
-import { Delete, Check, Keyboard, ChevronDown, ChevronUp } from "lucide-react";
 
 const ROLES = [
   { id: "student" as const, icon: "🎓", label: "תלמיד" },
@@ -30,9 +29,8 @@ export function Login() {
   const [selectedRole, setSelectedRole] = useState<"student" | "teacher" | "admin" | null>(null);
   const [selectedSchool, setSelectedSchool] = useState(SCHOOLS[0].id);
   const [selectedClass, setSelectedClass] = useState(CLASSES[0].id);
-  const [selectedStudentNum, setSelectedStudentNum] = useState<number | null>(null);
+  const [selectedStudentNum, setSelectedStudentNum] = useState<number>(1);
   const [studentPassword, setStudentPassword] = useState("");
-  const [showKeypad, setShowKeypad] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [isShaking, setIsShaking] = useState(false);
@@ -40,16 +38,16 @@ export function Login() {
 
   const passwordInputRef = useRef<HTMLInputElement>(null);
 
-  // Focus password input when selectedStudentNum changes
+  // Focus password input when entering student login
   useEffect(() => {
-    if (selectedStudentNum && passwordInputRef.current) {
+    if (selectedRole === "student" && passwordInputRef.current) {
       passwordInputRef.current.focus();
     }
-  }, [selectedStudentNum]);
+  }, [selectedRole, selectedStudentNum]);
 
-  // Trigger error shake animation (300ms) with automatic field reset and refocus
-  const triggerErrorWithShake = (message: string) => {
-    setErrorMsg(message);
+  // Trigger gentle 300ms visual shake on error, auto-clear field and return focus without anxiety-inducing alerts
+  const triggerErrorWithShake = () => {
+    setErrorMsg("");
     setIsShaking(true);
     setStudentPassword("");
     setTimeout(() => {
@@ -68,23 +66,13 @@ export function Login() {
     if (now - lastActionTime < 500) return;
     setLastActionTime(now);
 
-    if (!selectedSchool) {
-      triggerErrorWithShake("יש לבחור בית ספר");
-      return;
-    }
-
-    if (!selectedClass) {
-      triggerErrorWithShake("יש לבחור כיתה");
-      return;
-    }
-
-    if (!selectedStudentNum || selectedStudentNum < 1 || selectedStudentNum > 12) {
-      triggerErrorWithShake("יש לבחור מספר תלמיד מתוך 1 עד 12");
+    if (!selectedSchool || !selectedClass || !selectedStudentNum || selectedStudentNum < 1 || selectedStudentNum > 12) {
+      triggerErrorWithShake();
       return;
     }
 
     if (studentPassword.trim() !== "10203040") {
-      triggerErrorWithShake("קוד הגישה שגוי");
+      triggerErrorWithShake();
       return;
     }
 
@@ -119,7 +107,7 @@ export function Login() {
     } catch (err: unknown) {
       console.error("Student Login Error:", err);
       setIsLoggingIn(false);
-      triggerErrorWithShake("התחברות תלמיד נכשלה. אנא נסה שוב.");
+      triggerErrorWithShake();
     }
   };
 
@@ -286,7 +274,7 @@ export function Login() {
                         if (now - lastActionTime < 500) return;
                         setLastActionTime(now);
                         setSelectedRole(role.id);
-                        setSelectedStudentNum(null);
+                        setSelectedStudentNum(1);
                         setStudentPassword("");
                         setErrorMsg("");
                       }}
@@ -317,7 +305,7 @@ export function Login() {
                     type="button"
                     onClick={() => {
                       setSelectedRole(null);
-                      setSelectedStudentNum(null);
+                      setSelectedStudentNum(1);
                       setStudentPassword("");
                       setErrorMsg("");
                     }}
@@ -371,59 +359,37 @@ export function Login() {
                       </select>
                     </div>
 
-                    {/* Step 3: Numeric Keypad for ID Selection (1-12) */}
-                    <div className="flex flex-col gap-1.5 text-right">
+                    {/* Step 3: Student ID Selection Dropdown (1-12) */}
+                    <div className="flex flex-col gap-1 text-right">
                       <label className="text-xs font-black text-slate-700 dark:text-slate-300">
-                        בחר מספר תלמיד (1-12)
+                        מזהה תלמיד
                       </label>
-                      <div className="grid grid-cols-4 sm:grid-cols-6 gap-3 justify-items-center w-full">
-                        {Array.from({ length: 12 }, (_, i) => i + 1).map((num) => {
-                          const isSelected = selectedStudentNum === num;
-                          return (
-                            <button
-                              type="button"
-                              key={num}
-                              onClick={() => {
-                                const now = Date.now();
-                                if (now - lastActionTime < 500) return;
-                                setLastActionTime(now);
-                                tts.initializeAudioGate();
-                                setSelectedStudentNum(num);
-                                setErrorMsg("");
-                              }}
-                              disabled={isLoggingIn}
-                              className={`w-12 h-12 min-w-[48px] min-h-[48px] flex items-center justify-center rounded-xl border-2 font-black text-lg transition-all active:scale-95 shadow-sm ${
-                                isSelected
-                                  ? "border-[hsl(var(--ws-blue))] bg-[hsl(var(--ws-blue))] text-white ring-2 ring-[hsl(var(--ws-blue)/0.4)]"
-                                  : "border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white hover:border-[hsl(var(--ws-blue)/0.5)] hover:bg-blue-50 dark:hover:bg-slate-700"
-                              }`}
-                            >
-                              {num}
-                            </button>
-                          );
-                        })}
-                      </div>
+                      <select
+                        value={selectedStudentNum}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value, 10);
+                          setSelectedStudentNum(val);
+                          setErrorMsg("");
+                        }}
+                        disabled={isLoggingIn}
+                        className="w-full bg-slate-50 dark:bg-slate-950 border-2 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl p-3 text-sm font-bold focus:border-[hsl(var(--ws-blue))] outline-none transition-all cursor-pointer min-h-[48px]"
+                      >
+                        {Array.from({ length: 12 }, (_, i) => i + 1).map((num) => (
+                          <option key={num} value={num}>
+                            {num}
+                          </option>
+                        ))}
+                      </select>
                     </div>
 
-                    {/* Step 4: Password Input with 300ms Vibration Effect on Error & Collapsible Screen Keypad */}
+                    {/* Step 4: Clean Password Input via Physical Keyboard Only (300ms gentle shake on error) */}
                     <div className="flex flex-col gap-1 text-right mt-1">
-                      <div className="flex items-center justify-between">
-                        <label className="text-xs font-black text-slate-700 dark:text-slate-300">
-                          קוד גישה
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => setShowKeypad((prev) => !prev)}
-                          className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 flex items-center gap-1.5 transition-colors cursor-pointer py-1 px-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 border border-indigo-200/60 dark:border-indigo-800"
-                        >
-                          <Keyboard className="w-3.5 h-3.5" />
-                          <span>{showKeypad ? "הסתר מקלדת" : "מקלדת מסך"}</span>
-                          {showKeypad ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                        </button>
-                      </div>
+                      <label className="text-xs font-black text-slate-700 dark:text-slate-300">
+                        קוד גישה
+                      </label>
 
                       <motion.div
-                        animate={isShaking ? { x: [-8, 8, -6, 6, -3, 3, 0] } : { x: 0 }}
+                        animate={isShaking ? { x: [-6, 6, -4, 4, -2, 2, 0] } : { x: 0 }}
                         transition={{ duration: 0.3 }}
                         className="w-full"
                       >
@@ -437,90 +403,9 @@ export function Login() {
                           }}
                           className="w-full bg-slate-50 dark:bg-slate-950 border-2 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl p-3.5 text-center text-xl font-bold tracking-widest focus:border-[hsl(var(--ws-blue))] outline-none transition-all shadow-inner min-h-[48px]"
                           autoComplete="off"
-                          placeholder="הזן קוד גישה"
+                          autoFocus
                         />
                       </motion.div>
-
-                      {/* Collapsible Virtual Screen Keypad */}
-                      <AnimatePresence>
-                        {showKeypad && (
-                          <motion.div
-                            initial={{ opacity: 0, height: 0, scale: 0.96 }}
-                            animate={{ opacity: 1, height: "auto", scale: 1 }}
-                            exit={{ opacity: 0, height: 0, scale: 0.96 }}
-                            transition={{ duration: 0.25, ease: "easeInOut" }}
-                            className="overflow-hidden mt-3"
-                          >
-                            <div className="grid grid-cols-3 gap-3 w-full max-w-[340px] mx-auto p-3 bg-slate-100 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm">
-                              {/* Row 1: 1, 2, 3 */}
-                              {[1, 2, 3].map((d) => (
-                                <button
-                                  key={d}
-                                  type="button"
-                                  onClick={() => handleKeypadPress(d.toString())}
-                                  disabled={isLoggingIn}
-                                  className="min-w-[48px] min-h-[48px] h-12 bg-white dark:bg-slate-700 hover:bg-blue-50 dark:hover:bg-slate-600 active:scale-95 border border-slate-300 dark:border-slate-600 rounded-xl font-black text-xl text-slate-800 dark:text-white flex items-center justify-center transition-all shadow-sm"
-                                >
-                                  {d}
-                                </button>
-                              ))}
-                              {/* Row 2: 4, 5, 6 */}
-                              {[4, 5, 6].map((d) => (
-                                <button
-                                  key={d}
-                                  type="button"
-                                  onClick={() => handleKeypadPress(d.toString())}
-                                  disabled={isLoggingIn}
-                                  className="min-w-[48px] min-h-[48px] h-12 bg-white dark:bg-slate-700 hover:bg-blue-50 dark:hover:bg-slate-600 active:scale-95 border border-slate-300 dark:border-slate-600 rounded-xl font-black text-xl text-slate-800 dark:text-white flex items-center justify-center transition-all shadow-sm"
-                                >
-                                  {d}
-                                </button>
-                              ))}
-                              {/* Row 3: 7, 8, 9 */}
-                              {[7, 8, 9].map((d) => (
-                                <button
-                                  key={d}
-                                  type="button"
-                                  onClick={() => handleKeypadPress(d.toString())}
-                                  disabled={isLoggingIn}
-                                  className="min-w-[48px] min-h-[48px] h-12 bg-white dark:bg-slate-700 hover:bg-blue-50 dark:hover:bg-slate-600 active:scale-95 border border-slate-300 dark:border-slate-600 rounded-xl font-black text-xl text-slate-800 dark:text-white flex items-center justify-center transition-all shadow-sm"
-                                >
-                                  {d}
-                                </button>
-                              ))}
-                              {/* Row 4: Delete, 0, Confirm/Enter */}
-                              <button
-                                type="button"
-                                onClick={() => handleKeypadPress("DELETE")}
-                                disabled={isLoggingIn}
-                                aria-label="מחיקה"
-                                className="min-w-[48px] min-h-[48px] h-12 bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 dark:hover:bg-rose-900/60 active:scale-95 border border-rose-200 dark:border-rose-800 rounded-xl font-bold text-rose-700 dark:text-rose-300 flex items-center justify-center gap-1 transition-all shadow-sm text-sm"
-                              >
-                                <Delete className="w-5 h-5" />
-                                <span className="hidden sm:inline">מחיקה</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleKeypadPress("0")}
-                                disabled={isLoggingIn}
-                                className="min-w-[48px] min-h-[48px] h-12 bg-white dark:bg-slate-700 hover:bg-blue-50 dark:hover:bg-slate-600 active:scale-95 border border-slate-300 dark:border-slate-600 rounded-xl font-black text-xl text-slate-800 dark:text-white flex items-center justify-center transition-all shadow-sm"
-                              >
-                                0
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleKeypadPress("ENTER")}
-                                disabled={isLoggingIn || !selectedStudentNum}
-                                aria-label="אישור"
-                                className="min-w-[48px] min-h-[48px] h-12 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-xl font-bold flex items-center justify-center gap-1 transition-all shadow-sm text-sm disabled:opacity-50"
-                              >
-                                <Check className="w-5 h-5" />
-                                <span className="hidden sm:inline">אישור</span>
-                              </button>
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
                     </div>
 
                     <Button
