@@ -115,40 +115,41 @@ export function PlaceColumn({ place }: { place: Place }) {
         </motion.div>
       )}
 
-      {/* 30px extended drop zone container with Magnetic Snap physics */}
+      {/* Drop zone container */}
       <div
         ref={setNodeRef}
         id={`column-${place}`}
         role="group"
         aria-label={`אזור גרירה — ${PLACE_NAMES_HE[place]}`}
         style={{ touchAction: 'none' }}
-        className="relative flex-1 flex flex-row flex-wrap content-start justify-center items-start gap-1 p-2 min-h-[150px] overflow-y-auto overflow-x-hidden no-scrollbar touch-none before:absolute before:-inset-[30px] before:pointer-events-none"
+        className={`relative flex-1 min-h-[160px] p-3 pt-4 overflow-y-auto overflow-x-hidden no-scrollbar touch-none ${
+          place === 'units'
+            ? 'flex flex-row flex-wrap content-start justify-center items-start gap-1.5'
+            : 'flex flex-col items-center justify-start gap-1'
+        }`}
       >
-        <AnimatePresence>
+        <AnimatePresence mode="popLayout">
         {Array.from({ length: renderCount }).map((_, i) => {
           let overlapStyle: React.CSSProperties = { zIndex: i };
           if (i > 0) {
             if (place === 'hundreds') {
-              overlapStyle.marginRight = '-30px';
-              overlapStyle.marginTop = '-5px';
+              overlapStyle.marginTop = '-16px';
             } else if (place === 'thousands') {
-              overlapStyle.marginRight = '-40px';
-              overlapStyle.marginTop = '-10px';
+              overlapStyle.marginTop = '-20px';
             } else if (place === 'tens') {
-              overlapStyle.marginRight = '-15px';
-              overlapStyle.marginTop = '0px';
+              overlapStyle.marginTop = '-4px';
             }
           }
 
           return (
             <motion.div 
               key={`${place}-${i}`}
-              layout
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0, opacity: 0 }}
-              transition={{ type: 'spring', stiffness: 450, damping: 25 }}
+              initial={{ scale: 0.8, opacity: 0, y: -6 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              transition={{ duration: 0.15, ease: 'easeOut' }}
               style={overlapStyle}
+              className="shrink-0 flex items-center justify-center select-none"
             >
               <DienesBlock 
                 id={`column-${place}-${i}`}
