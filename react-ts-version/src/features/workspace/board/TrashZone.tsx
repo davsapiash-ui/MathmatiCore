@@ -1,48 +1,65 @@
 import { useDroppable } from '@dnd-kit/core';
 import { motion } from 'framer-motion';
 
-/** פח מחיקה — animated trash bin with opening and closing lid on drag hover */
+/**
+ * פח מחיקה — אזור השלכה ייעודי (Drop Zone), אינו מעוצב ככפתור.
+ * מעוצב ככלי פיזי עם מכסה מונפש הנפתח בעת גרירה מעליו.
+ */
 export function TrashZone() {
   const { setNodeRef, isOver } = useDroppable({ id: 'trash', data: { kind: 'trash' } });
 
   return (
-    <div className="relative group shrink-0">
+    <div className="relative group shrink-0 flex items-center">
+      {/* Drop Zone Receptacle — NO button box, pure organic drop area */}
       <div
         ref={setNodeRef}
         role="region"
-        aria-label="פח אשפה — גרור לכאן לבנה מבית המספרים למחיקה"
-        className={`flex flex-col items-center justify-between rounded-2xl px-3 pt-2 pb-1.5 min-w-[80px] transition-all duration-200 select-none ${
-          isOver 
-            ? 'scale-105 bg-red-50 text-red-600 border-2 border-dashed border-red-500 shadow-md ring-2 ring-red-200' 
-            : 'bg-ws-bg/80 text-ws-soft border border-ws-surface2 hover:border-red-300 hover:text-red-500 hover:bg-red-50/40'
+        aria-label="פח אשפה — גררו לכאן לבנים למחיקה"
+        className={`relative flex flex-col items-center justify-center px-3.5 py-1.5 rounded-2xl transition-all duration-200 select-none ${
+          isOver
+            ? 'bg-red-100/90 scale-110 shadow-[0_0_24px_rgba(239,68,68,0.4)] ring-2 ring-red-400 ring-offset-2'
+            : 'hover:bg-red-50/60'
         }`}
       >
-        <div className="h-12 flex items-center justify-center relative">
+        {/* Subtle drop target floor ring */}
+        <div
+          className={`absolute bottom-4 w-10 h-2.5 rounded-full transition-all duration-200 -z-0 ${
+            isOver ? 'bg-red-300/70 scale-125 blur-[1px]' : 'bg-slate-200/50 group-hover:bg-red-200/50'
+          }`}
+        />
+
+        <div className="h-10 w-10 flex items-center justify-center relative z-10">
           <svg
             viewBox="0 0 36 40"
-            className={`w-9 h-10 overflow-visible transition-all duration-200 ${
-              isOver ? 'text-red-600 drop-shadow-[0_4px_8px_rgba(220,38,38,0.4)]' : 'text-slate-500 group-hover:text-red-500'
+            className={`w-8 h-9 overflow-visible transition-all duration-200 ${
+              isOver
+                ? 'text-red-600 drop-shadow-[0_6px_12px_rgba(220,38,38,0.45)]'
+                : 'text-slate-400 group-hover:text-red-500'
             }`}
             fill="none"
             stroke="currentColor"
             strokeLinecap="round"
             strokeLinejoin="round"
           >
-            {/* Trash interior depth (visible when lid opens) */}
+            {/* Dark inner cavity (revealed when lid opens) */}
             <ellipse
               cx="18"
               cy="16"
               rx="8.5"
               ry="2.5"
-              className={isOver ? 'fill-red-900/60' : 'fill-slate-700/40'}
+              className={isOver ? 'fill-red-950/70' : 'fill-slate-700/30'}
               stroke="none"
             />
 
-            {/* Trash Body */}
+            {/* Bin Body */}
             <path
               d="M9 16.5 L11.2 33.5 C11.5 35.5 13.2 37 15.2 37 L20.8 37 C22.8 37 24.5 35.5 24.8 33.5 L27 16.5 Z"
               strokeWidth="2.2"
-              className={isOver ? 'fill-red-100/80 stroke-red-600' : 'fill-slate-100 group-hover:fill-red-50/60 stroke-current'}
+              className={
+                isOver
+                  ? 'fill-red-100 stroke-red-600'
+                  : 'fill-slate-100/90 group-hover:fill-red-50 stroke-current'
+              }
             />
 
             {/* Vertical Flutes on Bin Body */}
@@ -58,15 +75,19 @@ export function TrashZone() {
               height="3"
               rx="1.5"
               strokeWidth="2"
-              className={isOver ? 'fill-red-200 stroke-red-600' : 'fill-slate-200 group-hover:fill-red-100 stroke-current'}
+              className={
+                isOver
+                  ? 'fill-red-200 stroke-red-600'
+                  : 'fill-slate-200 group-hover:fill-red-100 stroke-current'
+              }
             />
 
-            {/* Animated Lid + Handle (Hinged on the right in RTL / left in geometry) */}
+            {/* Animated Lid + Handle (Hinged at top-left) */}
             <motion.g
               animate={{
-                rotate: isOver ? -48 : 0,
-                x: isOver ? -2.5 : 0,
-                y: isOver ? -4 : 0,
+                rotate: isOver ? -52 : 0,
+                x: isOver ? -3 : 0,
+                y: isOver ? -5 : 0,
               }}
               transition={{
                 type: 'spring',
@@ -89,19 +110,28 @@ export function TrashZone() {
               <path
                 d="M6 14.5 C6 13.2 7.2 12.2 8.5 12.2 L27.5 12.2 C28.8 12.2 30 13.2 30 14.5 L30 15.5 L6 15.5 Z"
                 strokeWidth="2.2"
-                className={isOver ? 'fill-red-200 stroke-red-600' : 'fill-slate-200 group-hover:fill-red-100 stroke-current'}
+                className={
+                  isOver
+                    ? 'fill-red-200 stroke-red-600'
+                    : 'fill-slate-200 group-hover:fill-red-100 stroke-current'
+                }
               />
             </motion.g>
           </svg>
         </div>
-        <span className={`text-[11px] font-black transition-colors ${isOver ? 'text-red-600 font-extrabold' : 'text-ws-soft group-hover:text-red-500'}`}>
-          פח מחיקה
+
+        <span
+          className={`text-[10px] font-bold tracking-tight transition-colors duration-200 mt-0.5 ${
+            isOver ? 'text-red-600 font-black' : 'text-slate-400 group-hover:text-red-500'
+          }`}
+        >
+          {isOver ? 'שחררו למחיקה' : 'פח אשפה'}
         </span>
       </div>
 
-      {/* Norman Principle: Explanatory Hover Tooltip */}
-      <div className="absolute -top-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 z-50 w-36 p-1.5 bg-slate-900/95 text-white text-[10px] text-center font-bold rounded-xl shadow-lg backdrop-blur-md border border-white/10 whitespace-nowrap">
-        <span>🗑️ גרור לכאן כדי למחוק</span>
+      {/* Tooltip on Hover */}
+      <div className="absolute -top-9 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 z-50 p-1.5 px-3 bg-slate-900/95 text-white text-[10px] text-center font-bold rounded-xl shadow-lg backdrop-blur-md border border-white/10 whitespace-nowrap">
+        <span>🗑️ גררו לכאן לבנים למחיקה מהלוח</span>
       </div>
     </div>
   );

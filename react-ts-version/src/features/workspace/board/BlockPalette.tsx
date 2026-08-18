@@ -28,55 +28,62 @@ export function BlockPalette({ scaffoldLevel }: { scaffoldLevel: number }) {
     <div
       id="tour-block-palette"
       role="toolbar"
-      aria-label="מחסן הכלים — גרור לטבלה"
-      className="shrink-0 ws-card !rounded-2xl px-4 py-2 flex items-center justify-start sm:justify-center gap-3 max-w-full overflow-x-auto no-scrollbar select-none"
+      aria-label="מחסן הכלים — גררו לבנים לטבלה"
+      className="shrink-0 ws-card !rounded-2xl px-5 py-2.5 flex items-center justify-between gap-4 max-w-full overflow-x-auto no-scrollbar select-none bg-gradient-to-b from-white to-slate-50/90 border border-slate-200/90 shadow-sm"
     >
-      <div className="flex items-center gap-2.5 px-2 py-1 shrink-0 select-none">
+      {/* Title & Legend (RTL Right side) */}
+      <div className="flex items-center gap-2.5 shrink-0 select-none">
         <span aria-hidden="true" className="text-2xl drop-shadow-sm">🧰</span>
         <div className="flex flex-col">
-          <span className="text-xs font-black text-ws-ink/80 tracking-wide leading-tight">
+          <span className="text-xs font-black text-slate-800 tracking-wide leading-tight">
             ארגז כלים
           </span>
-          <span className="text-[10px] font-semibold text-ws-soft leading-none">
+          <span className="text-[10px] font-semibold text-slate-400 leading-none">
             לבנים לפעילות
           </span>
         </div>
       </div>
-      <div className="w-px h-10 bg-ws-surface2 shrink-0 mx-1" />
 
-      {paletteItemsToRender.map(({ place, labelHe, scale }) => (
-        <div
-          key={place}
-          onClick={() => {
-            useWorkspaceStore.getState().applyDrop({
-              source: 'palette',
-              sourcePlace: place,
-              target: { kind: 'column', place },
-            });
-          }}
-          className="relative group flex flex-col items-center justify-between rounded-2xl px-3 pt-2 pb-1.5 min-w-[80px] bg-ws-bg/80 border border-ws-surface2 hover:border-ws-accent/50 hover:bg-white hover:shadow-md hover:-translate-y-0.5 transition-all cursor-grab active:cursor-grabbing select-none"
-        >
-          <div className="h-12 flex items-end justify-center" style={{ transform: `scale(${scale})`, transformOrigin: 'bottom center' }}>
-            <DienesBlock
-              id={`palette-${place}`}
-              place={place}
-              source="palette"
-              noEnter
-            />
-          </div>
-          <span className="text-[11px] font-black text-ws-soft group-hover:text-ws-ink transition-colors" aria-hidden="true">
-            {labelHe}
-          </span>
-          <span className="sr-only">{`גרור ${PLACE_NAMES_HE[place]} לטבלה — ערך ${PLACE_VALUES[place]}`}</span>
-          
-          {/* Norman Principle: Explanatory Hover Tooltip */}
-          <div className="absolute -top-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 z-50 w-36 p-1.5 bg-slate-900/95 text-white text-[10px] text-center font-bold rounded-xl shadow-lg backdrop-blur-md border border-white/10 whitespace-nowrap">
-            <span>➕ לחץ או גרור לטבלה</span>
-          </div>
-        </div>
-      ))}
+      <div className="w-px h-10 bg-slate-200/80 shrink-0" />
 
-      <div className="w-px h-10 bg-ws-surface2 shrink-0 mx-1" />
+      {/* Manipulatives on Tray (Center) */}
+      <div className="flex items-center gap-3 flex-1 justify-center">
+        {paletteItemsToRender.map(({ place, labelHe, scale }) => (
+          <div
+            key={place}
+            onClick={() => {
+              useWorkspaceStore.getState().applyDrop({
+                source: 'palette',
+                sourcePlace: place,
+                target: { kind: 'column', place },
+              });
+            }}
+            className="relative group flex flex-col items-center justify-between rounded-xl px-4 pt-2 pb-1.5 min-w-[84px] bg-white border border-slate-200/90 shadow-sm hover:border-ws-accent hover:shadow-md hover:scale-[1.03] active:scale-95 transition-all cursor-grab active:cursor-grabbing select-none"
+          >
+            <div className="h-10 flex items-end justify-center pointer-events-auto" style={{ transform: `scale(${scale})`, transformOrigin: 'bottom center' }}>
+              <DienesBlock
+                id={`palette-${place}`}
+                place={place}
+                source="palette"
+                noEnter
+              />
+            </div>
+            <span className="text-[11px] font-black text-slate-600 group-hover:text-ws-accent transition-colors mt-0.5" aria-hidden="true">
+              {labelHe}
+            </span>
+            <span className="sr-only">{`גרור ${PLACE_NAMES_HE[place]} לטבלה — ערך ${PLACE_VALUES[place]}`}</span>
+            
+            {/* Norman Principle: Explanatory Hover Tooltip */}
+            <div className="absolute -top-9 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 z-50 p-1.5 px-3 bg-slate-900/95 text-white text-[10px] text-center font-bold rounded-xl shadow-lg backdrop-blur-md border border-white/10 whitespace-nowrap">
+              <span>➕ לחצו או גררו להוספת {PLACE_NAMES_HE[place]}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="w-px h-10 bg-slate-200/80 shrink-0" />
+
+      {/* Dedicated Drop Disposal Zone (RTL Left side) */}
       <TrashZone />
     </div>
   );
