@@ -202,19 +202,13 @@ export function DienesBlock({
     disabled: isOverlay,
   });
 
-  const visual = BLOCK_VISUALS[place];
-  const SvgElement = visual.Component;
-
   const inner = (
-    <motion.div
-      initial={noEnter || isOverlay ? false : { scale: 0.1, y: -12 }}
-      animate={{ scale: 1, y: 0 }}
-      transition={{ type: 'spring', stiffness: 500, damping: 22 }}
-      className={`relative select-none shrink-0 inline-flex items-end justify-center`}
+    <div
+      className="relative select-none shrink-0 inline-flex items-end justify-center"
       style={visual.style}
     >
       <SvgElement />
-    </motion.div>
+    </div>
   );
 
   if (isOverlay) return inner;

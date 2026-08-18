@@ -81,7 +81,7 @@ export function PlaceColumn({ place }: { place: Place }) {
       aria-label={`טור ${PLACE_NAMES_HE[place]}`}
     >
       <div
-        className="relative flex items-center justify-center py-2.5 font-display font-extrabold text-lg border-b-[3px] rounded-t-[14px]"
+        className="relative flex items-center justify-center py-2.5 font-display font-extrabold text-lg border-b-[3px] rounded-t-[14px] shrink-0"
         style={{ color: colors.header, backgroundColor: colors.headerBg, borderColor: colors.header }}
       >
         <span>{PLACE_NAMES_HE[place]}</span>
@@ -122,7 +122,7 @@ export function PlaceColumn({ place }: { place: Place }) {
         role="group"
         aria-label={`אזור גרירה — ${PLACE_NAMES_HE[place]}`}
         style={{ touchAction: 'none' }}
-        className="relative flex-1 min-h-[180px] p-3 pb-4 overflow-y-auto overflow-x-hidden no-scrollbar touch-none flex flex-col justify-end"
+        className="relative flex-1 min-h-0 p-3 pb-4 overflow-y-auto overflow-x-hidden no-scrollbar touch-none flex flex-col justify-end"
       >
         {/* Grounded block stack anchored at the bottom */}
         <div
