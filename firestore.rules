@@ -17,11 +17,11 @@ service cloud.firestore {
       return isAuthenticated() && (request.auth.token.role == 'admin' || request.auth.token.role == 'ADMIN' || request.auth.token.admin == true);
     }
 
-    // Helper function to check if authenticated as specific student (claims or matching auth UID)
+    // Helper function to check if authenticated as specific student (Verified Custom Claim strictly)
     function isOwningStudent(studentId) {
       return isAuthenticated() && (
-        (request.auth.token.student_id != null && (request.auth.token.student_id == studentId || string(request.auth.token.student_id) == studentId)) ||
-        (request.auth.uid == 'student_' + studentId || request.auth.uid == 'student_user' + studentId || request.auth.uid == studentId)
+        request.auth.token.student_id != null && 
+        (request.auth.token.student_id == studentId || string(request.auth.token.student_id) == studentId)
       );
     }
 
@@ -125,7 +125,8 @@ service cloud.firestore {
         'gate_approved_at',
         'gate_approved_by',
         'teacher_selected_path',
-        'matrix_recommended_path'
+        'matrix_recommended_path',
+        'evaluated_at'
       ]) &&
       data.session_id is string &&
       data.class_id is string &&
@@ -196,13 +197,17 @@ service cloud.firestore {
       allow write: if isTeacherOfClass(classId) || isAdmin();
     }
 
-    // Teacher-Admin Messages (Allowlist only)
+    // Teacher-Admin Messages (Module 22: Direct client create is BLOCKED; writes permitted exclusively via sendTeacherAdminMessage Cloud Function)
     match /messages/{messageId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() &&
-                       request.resource.data.keys().hasOnly(['sender_id', 'receiver_id', 'message_body', 'timestamp', 'school_id', 'class_name', 'read']) &&
-                       request.resource.data.message_body is string;
-      allow update, delete: if isTeacher() || isAdmin();
+      allow read: if isAuthenticated() &&
+                     (request.auth.uid == resource.data.sender_id ||
+                      request.auth.uid == resource.data.receiver_id ||
+                      isAdmin() || isTeacher());
+      allow create: if false;
+      allow update: if isAuthenticated() &&
+                       (request.auth.uid == resource.data.receiver_id || isAdmin() || isTeacher()) &&
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      allow delete: if isAdmin();
     }
 
     // Admin Cached Store (Module 24: Store Cache)
@@ -252,6 +257,46 @@ service cloud.firestore {
       data.effort_level is string &&
       data.persistence_index is number &&
       data.submitted_at is number;
+    }
+
+    // Support Tickets (Module 28: Admin Support Hub)
+    function isValidSupportTicketDoc() {
+      let data = request.resource.data;
+      return data.keys().hasOnly([
+        'school_id',
+        'school_name',
+        'class_id',
+        'class_name',
+        'student_id',
+        'teacher_id',
+        'subject',
+        'category',
+        'priority',
+        'status',
+        'description',
+        'created_at',
+        'updated_at',
+        'responses'
+      ]) &&
+      data.school_id is string &&
+      data.class_id is string &&
+      data.subject is string &&
+      data.category in ['PEDAGOGICAL', 'TECHNICAL', 'ACCOMMODATION_ASD', 'GENERAL'] &&
+      data.priority in ['LOW', 'MEDIUM', 'HIGH', 'URGENT'] &&
+      data.status in ['OPEN', 'IN_PROGRESS', 'RESOLVED'] &&
+      data.description is string;
+    }
+
+    match /support_tickets/{ticketId} {
+      allow read: if isTeacher() || isAdmin();
+      allow create, update: if (isTeacher() || isAdmin()) && isValidSupportTicketDoc();
+      allow delete: if isAdmin();
+    }
+
+    // System Control (Module 26: Curriculum & Batch Distribution)
+    match /system_control/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
     }
 
     match /srl_reflections/{reflectionId} {

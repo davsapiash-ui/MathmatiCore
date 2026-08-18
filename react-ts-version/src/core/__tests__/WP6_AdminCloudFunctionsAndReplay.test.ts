@@ -87,15 +87,20 @@ describe('Work Package 6 (WP6): Admin Hubs, Two-Layer Chat PII, Cloud Functions 
   });
 
   describe('5. Cloud Functions: onSessionCompleteTrigger Closed-Form Mastery & Admin Aggregator', () => {
-    it('computes closed-form matrix_recommended_path based on deterministic score threshold', () => {
-      const computeRecommendedPath = (scorePercent: number): 'green_path' | 'gap_reduction' => {
-        return scorePercent >= 80 ? 'green_path' : 'gap_reduction';
+    it('computes closed-form matrix_recommended_path based on deterministic score threshold (50% from 7 mandatory tasks)', () => {
+      const computeRecommendedPathFromTasks = (firstAttemptCorrectCount: number): 'green_path' | 'remediation_path' => {
+        const scorePercent = (firstAttemptCorrectCount / 7) * 100;
+        return scorePercent >= 50 ? 'green_path' : 'remediation_path';
       };
 
-      expect(computeRecommendedPath(100)).toBe('green_path');
-      expect(computeRecommendedPath(80)).toBe('green_path');
-      expect(computeRecommendedPath(79)).toBe('gap_reduction');
-      expect(computeRecommendedPath(45)).toBe('gap_reduction');
+      // 5 out of 7 is ~71.4% (>= 50%) -> green_path
+      expect(computeRecommendedPathFromTasks(5)).toBe('green_path');
+      expect(computeRecommendedPathFromTasks(7)).toBe('green_path'); // 100%
+      expect(computeRecommendedPathFromTasks(4)).toBe('green_path'); // ~57.1%
+      
+      // 3 or fewer out of 7 is <= 42.8% (< 50%) -> remediation_path
+      expect(computeRecommendedPathFromTasks(3)).toBe('remediation_path'); // ~42.8%
+      expect(computeRecommendedPathFromTasks(0)).toBe('remediation_path'); // 0%
     });
 
     it('calculates authoritative session duration based on session number', () => {

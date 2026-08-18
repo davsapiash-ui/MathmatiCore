@@ -28,7 +28,11 @@ async function runFirestoreRulesTest() {
 
   console.log(`[SETUP] Initialized Firestore test environment with strict firestore.rules.`);
 
-  // 1. Context for Student 2
+  // 0. Context for Bare Anonymous User (NO custom claims)
+  const bareAnonContext = testEnv.authenticatedContext('anon_random_uid_123', {});
+  const dbBareAnon = bareAnonContext.firestore();
+
+  // 1. Context for Student 2 (WITH verified claim student_id: 2)
   const student2Context = testEnv.authenticatedContext('student_2', {
     role: 'student',
     student_id: 2,
@@ -37,7 +41,7 @@ async function runFirestoreRulesTest() {
   });
   const dbStudent2 = student2Context.firestore();
 
-  // 2. Context for Student 5
+  // 2. Context for Student 5 (WITH verified claim student_id: 5)
   const student5Context = testEnv.authenticatedContext('student_5', {
     role: 'student',
     student_id: 5,
@@ -49,9 +53,30 @@ async function runFirestoreRulesTest() {
   let testCount = 0;
   let passedCount = 0;
 
-  // --- TEST A: Student 2 writes to own student document (/students/2) ---
+  // --- TEST 0: Bare Anonymous user WITHOUT student_id claim attempts to write (/students/2) MUST FAIL ---
   testCount++;
-  console.log(`\n[TEST 1] Student 2 writes to own document (/students/2)...`);
+  console.log(`\n[TEST 0: NO CLAIM ATTACK] Bare anonymous user (no student_id claim) attempts to write to /students/2...`);
+  try {
+    await assertFails(setDoc(doc(dbBareAnon, 'students', '2'), {
+      student_id: 2,
+      class_id: 'class_pilot_01',
+      school_id: 'school_bikorot',
+      created_at: Date.now(),
+      support_profile_id: null,
+      support_profile_version: 1,
+      support_profile_updated_at: null,
+      support_profile_updated_by: null,
+      active_session_id: 'session_01'
+    }));
+    console.log(`✅ PASSED (PERMISSION_DENIED): User without verified student_id claim is strictly blocked!`);
+    passedCount++;
+  } catch (err) {
+    console.error(`❌ FAILED: User without claim was NOT blocked:`, err);
+  }
+
+  // --- TEST A: Student 2 (with verified claim) writes to own student document (/students/2) ---
+  testCount++;
+  console.log(`\n[TEST 1] Student 2 (with verified claim) writes to own document (/students/2)...`);
   try {
     await assertSucceeds(setDoc(doc(dbStudent2, 'students', '2'), {
       student_id: 2,
@@ -236,6 +261,234 @@ async function runFirestoreRulesTest() {
     passedCount++;
   } catch (err) {
     console.error(`❌ FAILED: Extra non-canonical field in SRL reflection was NOT rejected!`, err);
+  }
+
+  // --- SESSION GATE APPROVAL TESTS (Module 20 / PRD §2.5) ---
+
+  const VALID_SESSION_DOC = {
+    session_id: 'session_02_student_2',
+    class_id: 'class_pilot_01',
+    session_number: 2,
+    session_start_time: Date.now(),
+    session_deadline_time: Date.now() + 15 * 60 * 1000,
+    active_exercise_id: 'ex_02_01',
+    is_completed: false,
+    session_score_percent: 0,
+    teacher_gate_approved: false,
+    gate_approved_at: null,
+    gate_approved_by: null,
+    teacher_selected_path: null,
+    matrix_recommended_path: null,
+  };
+
+  // Pre-seed the session document
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), 'sessions', 'session_02_student_2'), VALID_SESSION_DOC);
+  });
+
+  // --- TEST 10: SELF-APPROVAL ATTACK — Student 2 attempts to set teacher_gate_approved: true on own session (should FAIL 403) ---
+  testCount++;
+  console.log(`\n[TEST 10: SELF-APPROVAL ATTACK] Student 2 attempts to set teacher_gate_approved: true on own session...`);
+  try {
+    await assertFails(setDoc(doc(dbStudent2, 'sessions', 'session_02_student_2'), {
+      ...VALID_SESSION_DOC,
+      teacher_gate_approved: true, // Forged approval!
+      is_completed: true,
+      session_score_percent: 85,
+    }));
+    console.log(`✅ PASSED (403 PERMISSION_DENIED): Self-approval attack strictly blocked by Firestore Rules!`);
+    passedCount++;
+  } catch (err) {
+    console.error(`❌ FAILED: Self-approval attack was NOT blocked:`, err);
+  }
+
+  // --- TEST 11: Teacher approves gate on Session 2 (should SUCCEED) ---
+  testCount++;
+  console.log(`\n[TEST 11] Teacher approves gate on Session 2 (teacher_gate_approved: true)...`);
+  try {
+    await assertSucceeds(setDoc(doc(dbTeacher, 'sessions', 'session_02_student_2'), {
+      ...VALID_SESSION_DOC,
+      teacher_gate_approved: true,
+      teacher_selected_path: 'green_path',
+      gate_approved_at: Date.now(),
+      gate_approved_by: 'teacher_01',
+    }));
+    console.log(`✅ PASSED: Teacher successfully approved session gate.`);
+    passedCount++;
+  } catch (err) {
+    console.error(`❌ FAILED: Teacher gate approval failed:`, err);
+  }
+
+  // --- SUPPORT TICKETS & SYSTEM CONTROL TESTS (Modules 26 & 28) ---
+
+  const adminContext = testEnv.authenticatedContext('admin_01', {
+    role: 'admin',
+    admin: true,
+    roles: ['ADMIN']
+  });
+  const dbAdmin = adminContext.firestore();
+
+  const VALID_TICKET_DOC = {
+    school_id: 'school_pilot_01',
+    school_name: 'בית ספר ביקורת',
+    class_id: 'class_pilot_01',
+    class_name: 'המבקרים',
+    student_id: 'student_3',
+    teacher_id: 'teacher_01',
+    subject: 'בקשת התאמת רמת קושי לתלמיד 3',
+    category: 'ACCOMMODATION_ASD',
+    priority: 'MEDIUM',
+    status: 'OPEN',
+    description: 'התלמיד זקוק לחיזוק מוחשי של עמודת העשרות',
+    created_at: Date.now(),
+    updated_at: Date.now(),
+    responses: []
+  };
+
+  // --- TEST 12: Teacher writes valid support ticket (/support_tickets/tkt_01) ---
+  testCount++;
+  console.log(`\n[TEST 12] Teacher writes valid anonymous support ticket (/support_tickets/tkt_01)...`);
+  try {
+    await assertSucceeds(setDoc(doc(dbTeacher, 'support_tickets', 'tkt_01'), VALID_TICKET_DOC));
+    console.log(`✅ PASSED: Teacher successfully wrote valid anonymous support ticket.`);
+    passedCount++;
+  } catch (err) {
+    console.error(`❌ FAILED: Teacher could not write support ticket:`, err);
+  }
+
+  // --- TEST 13: Support ticket with forbidden PII field (raw_student_name) rejected with 403 ---
+  testCount++;
+  console.log(`\n[TEST 13: PII LEAK PREVENTION] Write support ticket with forbidden field 'raw_student_name'...`);
+  try {
+    await assertFails(setDoc(doc(dbTeacher, 'support_tickets', 'tkt_pii_bad'), {
+      ...VALID_TICKET_DOC,
+      raw_student_name: 'ישראל ישראלי', // Forbidden PII field!
+    }));
+    console.log(`✅ PASSED (403 PERMISSION_DENIED): PII field in support ticket was strictly rejected!`);
+    passedCount++;
+  } catch (err) {
+    console.error(`❌ FAILED: PII field in support ticket was NOT rejected:`, err);
+  }
+
+  // --- TEST 14: Non-admin (Student) attempts to write to /system_control/active_curriculum (should FAIL 403) ---
+  testCount++;
+  console.log(`\n[TEST 14: PRIVILEGE ESCALATION ATTACK] Student attempts to write to /system_control/active_curriculum...`);
+  try {
+    await assertFails(setDoc(doc(dbStudent2, 'system_control', 'active_curriculum'), {
+      active_batch_session: 8,
+      batch_assigned_at: Date.now()
+    }));
+    console.log(`✅ PASSED (403 PERMISSION_DENIED): Non-admin write to system_control strictly blocked!`);
+    passedCount++;
+  } catch (err) {
+    console.error(`❌ FAILED: Non-admin write to system_control was NOT blocked:`, err);
+  }
+
+  // --- TEST 15: Admin writes to /system_control/active_curriculum (should SUCCEED) ---
+  testCount++;
+  console.log(`\n[TEST 15] Admin writes to /system_control/active_curriculum...`);
+  try {
+    await assertSucceeds(setDoc(doc(dbAdmin, 'system_control', 'active_curriculum'), {
+      active_batch_session: 2,
+      batch_assigned_at: Date.now()
+    }));
+    console.log(`✅ PASSED: Admin successfully wrote to system_control.`);
+    passedCount++;
+  } catch (err) {
+    console.error(`❌ FAILED: Admin write to system_control failed:`, err);
+  }
+
+  // --- TEACHER-ADMIN MESSAGES SECURITY TESTS (Module 22) ---
+
+  const VALID_MSG_DOC = {
+    sender_id: 'admin',
+    receiver_id: 'teacher_01',
+    message_body: 'נא לבדוק את התאמת הרמה למפגש 3',
+    timestamp: Date.now(),
+    school_id: 'school_pilot_01',
+    class_name: 'המבקרים',
+    read: false
+  };
+
+  // Pre-seed a message via Admin SDK / security rules disabled (simulating Cloud Function write)
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), 'messages', 'msg_server_created_01'), VALID_MSG_DOC);
+  });
+
+  // --- TEST 16: DIRECT CLIENT CREATE ATTACK — Teacher attempts direct client write to /messages (should FAIL 403) ---
+  testCount++;
+  console.log(`\n[TEST 16: CLIENT BYPASS ATTACK] Direct client create to /messages/msg_direct_client...`);
+  try {
+    await assertFails(setDoc(doc(dbTeacher, 'messages', 'msg_direct_client'), VALID_MSG_DOC));
+    console.log(`✅ PASSED (403 PERMISSION_DENIED): Direct client message create strictly blocked by Firestore Rules!`);
+    passedCount++;
+  } catch (err) {
+    console.error(`❌ FAILED: Direct client message create was NOT blocked:`, err);
+  }
+
+  // --- TEST 17: Read restriction on /messages — Teacher 01 reads own message (should SUCCEED) ---
+  testCount++;
+  console.log(`\n[TEST 17] Teacher 01 reads own conversation message (/messages/msg_server_created_01)...`);
+  try {
+    await assertSucceeds(getDoc(doc(dbTeacher, 'messages', 'msg_server_created_01')));
+    console.log(`✅ PASSED: Teacher 01 successfully read own message.`);
+    passedCount++;
+  } catch (err) {
+    console.error(`❌ FAILED: Teacher 01 could not read own message:`, err);
+  }
+
+  // --- TEST 18: WP8 Part A — Full Live Student Journey (Session 2 -> Gate -> Teacher Approval -> Session 8 SRL) ---
+  testCount++;
+  console.log(`\n[TEST 18: WP8 E2E JOURNEY] Student 2 Session 2 Completion (5/7) -> Gate Lockout -> Teacher Approval -> Session 8 SRL...`);
+  try {
+    const nowTimestamp = Date.now();
+    // 1. Student completes Session 2
+    const session2Ref = doc(dbStudent2, 'sessions', 'session_02_student_2_journey');
+    const session2Doc = {
+      session_id: 'session_02_student_2_journey',
+      class_id: 'class_pilot_01',
+      session_number: 2,
+      session_start_time: nowTimestamp,
+      session_deadline_time: nowTimestamp + 15 * 60 * 1000,
+      active_exercise_id: 'ex_02_07',
+      is_completed: true,
+      session_score_percent: 71.4,
+      matrix_recommended_path: 'green_path',
+      teacher_gate_approved: false,
+      gate_approved_at: null,
+      gate_approved_by: null,
+      teacher_selected_path: null,
+      evaluated_at: nowTimestamp
+    };
+    await assertSucceeds(setDoc(session2Ref, session2Doc));
+
+    // 2. Teacher approves gate
+    await assertSucceeds(setDoc(doc(dbTeacher, 'sessions', 'session_02_student_2_journey'), {
+      ...session2Doc,
+      teacher_gate_approved: true,
+      teacher_selected_path: 'green_path',
+      gate_approved_at: nowTimestamp,
+      gate_approved_by: 'teacher_1'
+    }));
+
+    // 3. Student 2 submits Session 8 SRL reflection
+    await assertSucceeds(setDoc(doc(dbStudent2, 'srl_reflections', 'session_08_student_2_journey'), {
+      student_id: 2,
+      session_id: 'session_08_student_2_journey',
+      session_number: 8,
+      effort_level: 'HIGH',
+      focus_area: 'regrouping',
+      persistence_index: 85,
+      undo_count: 3,
+      error_count: 1,
+      guess_count: 0,
+      submitted_at: nowTimestamp
+    }));
+
+    console.log(`✅ PASSED: Full E2E database journey completed: Session 2 (71.4% score -> green_path) -> Teacher Gate Approval -> Session 8 SRL reflection!`);
+    passedCount++;
+  } catch (err) {
+    console.error(`❌ FAILED: WP8 E2E database journey failed:`, err);
   }
 
   // Cleanup test environment

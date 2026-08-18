@@ -72,7 +72,7 @@ export function ClassManagement({
             data.routeStatus === 'APPROVED'
           );
 
-          const isYellow = data.routeRecommendation === 'YELLOW' || data.sessionState?.current_path === 'gap_reduction';
+          const isYellow = data.routeRecommendation === 'YELLOW' || data.sessionState?.current_path === 'remediation_path';
           const isApproved = data.teacher_gate_approved === true || data.routeStatus === 'APPROVED';
           const enhanced = Boolean(data.enhanced_support_profile || data.physicalOverrideActive || data.physicalOverride);
 

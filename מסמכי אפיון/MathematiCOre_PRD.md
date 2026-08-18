@@ -1,6 +1,7 @@
 # מסמך דרישות מוצר (PRD Master) — פלטפורמת הלמידה ההיברידית מתמטיקאור (MathematiCore)
 
-**Version 6.3 — Corrected | Base: v6.0 | Date: August 18, 2026 | Master Production Spec for Antigravity Agent**
+**Version 6.4 — Corrected | Base: v6.3 | Date: August 19, 2026 | Master Production Spec for Antigravity Agent**
+* **Changelog v6.4:** ביטול והסרה מוחלטת של קלט קולי (STT) מכל ממשקי המערכת (מודול 22). תקשורת מורה-אדמין היא טקסט בלבד. אודיו לעולם אינו עוזב את המכשיר.
 
 ---
 
@@ -521,7 +522,7 @@ Implement split-screen view interface. Left side: standard video player playing 
 אספקת ערוץ התייעצות ותמיכה מקצועי אסינכרוני למורה מול מנהלי המערכת, תוך הגנה הרמטית מוחלטת על פרטיות התלמידים ומניעה מוחלטת של זליגת PII.
 
 ### ב. מצב המערכת ומנגנון האנונימיזציה הדו-שכבתי
-ערוץ השיח מנוהל בחלונית נשלפת (Sliding Side Drawer) שנפתחת בלחיצה על אייקון המעטפה בסרגל הכלים. מנגנון הגנת PII דו-שכבתי (Double-Tier Protection):
+ערוץ השיח מנוהל בחלונית נשלפת (Sliding Side Drawer) שנפתחת בלחיצה על אייקון המעטפה בסרגל הכלים. אין קלט קולי (STT) בשום ממשק. תקשורת מורה-אדמין היא טקסט בלבד. אודיו לעולם אינו עוזב את המכשיר. מנגנון הגנת PII דו-שכבתי (Double-Tier Protection):
 1. **שכבה 1 — Client-Side Regex Validation:** הלקוח סורק בזמן אמת את תיבת הקלט. אם זוהו שמות פרטיים, מספרי טלפון, מיילים או ת"ז, כפתור השליחה נחסם ומוצגת התראה עדינה המבקשת להשתמש במזהים 1–12.
 2. **שכבה 2 — Server-Side Cloud Anonymizer Function:** לפני כתיבה ל-Firestore, פונקציית ענן סורקת את הטקסט, מצליבה מול רשימת שמות הכיתה ומחליפה כל שם פרטי במזהה האנונימי התואם (לדוגמה: "דניאל" ← "תלמיד 4").
 
@@ -542,7 +543,7 @@ Implement split-screen view interface. Left side: standard video player playing 
 - **תוצאה:** השרת ממיר את ההודעה ל-"תלמיד 3 המכונה תלמיד 4 מתקשה בפריטה" לפני השמירה במסד הנתונים.
 
 ### ח. הנחיות פיתוח נוקשות (Strict Developer Instructions)
-Implement teacher admin chat inside a sliding side drawer triggered by an envelope icon. Enforce two-tier PII protection: (1) Client-side regex checking input to block PII submission, (2) Server-side Cloud Function Anonymizer parsing message body and replacing pupil personal names with anonymous IDs (1-12) prior to writing documents to Firestore. Strictly forbid saving raw PII database records.
+Implement teacher admin chat inside a sliding side drawer triggered by an envelope icon. Enforce two-tier PII protection: (1) Client-side regex checking input to block PII submission, (2) Server-side Cloud Function Anonymizer parsing message body and replacing pupil personal names with anonymous IDs (1-12) prior to writing documents to Firestore. Strictly forbid saving raw PII database records. Enforce zero STT or voice input in any interface; text only; audio never leaves the device.
 
 ---
 

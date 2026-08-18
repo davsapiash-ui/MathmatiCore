@@ -16,8 +16,8 @@ import {
   ChevronUp
 } from "lucide-react";
 import { useAdminStore } from "@/application/useAdminStore";
-import { ref, update } from "firebase/database";
-import { database } from "@/infrastructure/firebase";
+import { doc, setDoc, updateDoc } from "firebase/firestore";
+import { db } from "@/infrastructure/firebase";
 import { toast } from "sonner";
 
 interface SessionCurriculumItem {
@@ -98,7 +98,7 @@ const SESSIONS_CURRICULUM_CATALOG: SessionCurriculumItem[] = [
 
 /**
  * מודול 26: קטלוג תכנית הלימודים וחלוקת מטלות מרוכזת (Curriculum Catalog & Batch Assignment)
- * כולל ניהול 7 משימות החובה + נתיבי האתגר לכל מפגש, מנגנון Batch להפצה לכלל הכיתות, וכיול מנוע.
+ * מבוסס Cloud Firestore תחת חוקי אבטחה קפדניים (/system_control, /classes).
  */
 export function AdminCurriculumView() {
   const { schools, classes } = useAdminStore();
@@ -113,26 +113,43 @@ export function AdminCurriculumView() {
   const [selectedBatchSession, setSelectedBatchSession] = useState<number>(1);
   const [isBatchDistributing, setIsBatchDistributing] = useState(false);
 
-  const handleSaveCalibration = () => {
-    setIsSaved(true);
-    setTimeout(() => setIsSaved(false), 3000);
+  const handleSaveCalibration = async () => {
+    try {
+      await setDoc(doc(db, 'system_control', 'trace_calibration'), {
+        hesitation_threshold_seconds: hesitationThreshold,
+        undo_threshold_clicks: undoThreshold,
+        regrouping_enabled: regroupingEnabled,
+        fluency_enabled: fluencyEnabled,
+        updated_at: Date.now(),
+      }, { merge: true });
+      setIsSaved(true);
+      setTimeout(() => setIsSaved(false), 3000);
+      toast.success('הגדרות הכיול נשמרו ב-Firestore בהצלחה!');
+    } catch (e) {
+      console.error(e);
+      toast.error('שגיאה בשמירת הגדרות הכיול.');
+    }
   };
 
   const handleBatchDistribute = async () => {
     try {
       setIsBatchDistributing(true);
-      const updates: Record<string, any> = {
-        'system_control/active_batch_session': selectedBatchSession,
-        'system_control/batch_assigned_at': Date.now(),
-      };
+      
+      // 1. Update global active batch session in Firestore system_control
+      await setDoc(doc(db, 'system_control', 'active_curriculum'), {
+        active_batch_session: selectedBatchSession,
+        batch_assigned_at: Date.now(),
+      }, { merge: true });
 
-      // Also set active_session_id across all classroom sessions
-      classes.forEach((cls) => {
-        updates[`classes/${cls.id}/active_session_id`] = selectedBatchSession;
-      });
+      // 2. Update active session across class documents in Firestore
+      const updatePromises = classes.map((cls) =>
+        setDoc(doc(db, 'classes', cls.id), {
+          active_session_id: `session_0${selectedBatchSession}`,
+        }, { merge: true })
+      );
+      await Promise.all(updatePromises);
 
-      await update(ref(database), updates);
-      toast.success(`מפגש ${selectedBatchSession} (7 משימות חובה + אתגר) הופץ בהצלחה לכל ${classes.length || 1} הכיתות במערכת! 🚀`);
+      toast.success(`מפגש ${selectedBatchSession} (7 משימות חובה + אתגר) הופץ ב-Firestore לכל ${classes.length || 1} הכיתות במערכת! 🚀`);
     } catch (e) {
       console.error(e);
       toast.error("שגיאה בהפצת המטלות המרוכזת.");

@@ -23,8 +23,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { Send, MessageCircle, ShieldAlert, Sliders, Mic, Search, ImageIcon, CheckCheck } from "lucide-react";
-import { stt } from "@/infrastructure/services/STTService";
+import { Send, MessageCircle, ShieldAlert, Sliders, Search, CheckCheck } from "lucide-react";
 
 import { ClassManagement } from "./TeacherDashboard/ClassManagement";
 import { StudentReplayAndLogs } from "./TeacherDashboard/components/StudentReplayAndLogs";
@@ -212,7 +211,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   const { id: routeStudentId } = useParams<{ id: string }>();
   useTeacherTour();
   const { user } = useAuthStore();
-  const { messages, sendMessage, sendImageMessage, markAsRead, initSync } = useChatStore();
+  const { messages, sendMessage, markAsRead, initSync } = useChatStore();
 
   useEffect(() => {
     initSync();
@@ -517,22 +516,22 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
 
 
   const decimalStructureGroup = allStudents.filter(
-    (s) => s.conceptMastery && s.conceptMastery.decimal_structure < 0.8
+    (s) => s.conceptMastery && s.conceptMastery.decimal_structure < 0.5
   );
   const _numberMagnitudeGroup = allStudents.filter(
-    (s) => s.conceptMastery && s.conceptMastery.number_magnitude < 0.8
+    (s) => s.conceptMastery && s.conceptMastery.number_magnitude < 0.5
   );
   const regroupingFluencyGroup = allStudents.filter(
-    (s) => s.conceptMastery && s.conceptMastery.regrouping_fluency < 0.8
+    (s) => s.conceptMastery && s.conceptMastery.regrouping_fluency < 0.5
   );
   const proceduralFluencyGroup = allStudents.filter(
-    (s) => s.conceptMastery && s.conceptMastery.procedural_fluency < 0.8
+    (s) => s.conceptMastery && s.conceptMastery.procedural_fluency < 0.5
   );
   const relationalThinkingGroup = allStudents.filter(
-    (s) => s.conceptMastery && s.conceptMastery.relational_thinking < 0.8
+    (s) => s.conceptMastery && s.conceptMastery.relational_thinking < 0.5
   );
   const algebraicReasoningGroup = allStudents.filter(
-    (s) => s.conceptMastery && s.conceptMastery.algebraic_reasoning < 0.8
+    (s) => s.conceptMastery && s.conceptMastery.algebraic_reasoning < 0.5
   );
 
 
@@ -684,7 +683,6 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
 
   // For Student Chat
   const [studentSearchQuery, setStudentSearchQuery] = useState("");
-  const [isListening, setIsListening] = useState(false);
 
   const filteredChatStudents = useMemo(() => {
     return allStudents.filter(
@@ -694,35 +692,6 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
         (s.studentId || "").toLowerCase().includes(studentSearchQuery.toLowerCase())
     );
   }, [allStudents, studentSearchQuery]);
-
-  const handleToggleVoiceInput = () => {
-    if (isListening) {
-      stt.stop();
-      setIsListening(false);
-      return;
-    }
-
-    if (!stt.isSupported()) {
-      toast.error("זיהוי קולי אינו נתמך בדפדפן זה.");
-      return;
-    }
-
-    setIsListening(true);
-    toast.info("מקשיב... דבר עכשיו בעברית");
-    stt.start({
-      lang: "he-IL",
-      onResult: (transcript) => {
-        setInputText((prev) => (prev ? `${prev} ${transcript}` : transcript));
-      },
-      onError: (err) => {
-        toast.error(`שגיאת קלט קולי: ${err}`);
-        setIsListening(false);
-      },
-      onEnd: () => {
-        setIsListening(false);
-      },
-    });
-  };
 
   const studentMessages = useMemo(() => {
     if (!user || !selectedStudentId) return [];
@@ -800,31 +769,6 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       cleanText,
     );
     setInputText("");
-  };
-
-  const handleTeacherImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !user || !selectedStudentId) return;
-    setSendingImage(true);
-    try {
-      const targetId = normalizeStudentId(selectedStudentId);
-      await sendImageMessage(user.uid as string, (user.displayName as string) || 'מורה', targetId, file);
-    } finally {
-      setSendingImage(false);
-      if (teacherFileInputRef.current) teacherFileInputRef.current.value = '';
-    }
-  };
-
-  const handleAdminImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
-    setSendingImage(true);
-    try {
-      await sendImageMessage(user.uid as string, (user.displayName as string) || 'מורה', 'admin', file);
-    } finally {
-      setSendingImage(false);
-      if (adminFileInputRef.current) adminFileInputRef.current.value = '';
-    }
   };
 
   const unreadAdminCount = useMemo(() => {
@@ -2052,14 +1996,6 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                         }`}
                       >
                         {msg.text && <p className="leading-relaxed text-sm">{msg.text}</p>}
-                        {msg.imageUrl && (
-                          <img
-                            src={msg.imageUrl}
-                            alt="תמונה מצורפת"
-                            className="max-w-[240px] max-h-[240px] rounded-xl mt-2 object-cover cursor-pointer border border-white/20 hover:opacity-90 transition-opacity"
-                            onClick={() => window.open(msg.imageUrl, '_blank')}
-                          />
-                        )}
                       </div>
                       <div className="text-[10px] font-medium text-slate-400 mt-1 px-2 flex items-center gap-1">
                         <span>
@@ -2079,37 +2015,11 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
             {/* Input Footer - ALWAYS VISIBLE AT BOTTOM (shrink-0) */}
             <div className="p-3.5 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center gap-2.5 shrink-0 z-20">
               <input
-                ref={adminFileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleAdminImageSelect}
-              />
-              <button
-                type="button"
-                onClick={() => adminFileInputRef.current?.click()}
-                disabled={sendingImage}
-                className="p-2.5 text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all shrink-0"
-                title="צילום/תמונה"
-              >
-                <ImageIcon className="w-5 h-5" />
-              </button>
-
-              <button
-                type="button"
-                onClick={handleToggleVoiceInput}
-                className={`p-2.5 rounded-full transition-all shrink-0 ${isListening ? 'bg-rose-500 text-white animate-pulse' : 'text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-                title="הקלטה קולית (STT)"
-              >
-                <Mic className="w-5 h-5" />
-              </button>
-
-              <input
                 type="text"
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSendAdmin()}
-                placeholder={isListening ? "מקשיב בעברית..." : "הקלד הודעה למנהל המערכת..."}
+                placeholder="הקלד הודעה למנהל המערכת..."
                 className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-slate-900 dark:text-white"
               />
 
@@ -2279,14 +2189,6 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                               }`}
                             >
                               {msg.text && <p className="leading-relaxed text-sm">{msg.text}</p>}
-                              {msg.imageUrl && (
-                                <img
-                                  src={msg.imageUrl}
-                                  alt="תמונה מצורפת"
-                                  className="max-w-[240px] max-h-[240px] rounded-xl mt-2 object-cover cursor-pointer border border-white/20 hover:opacity-90 transition-opacity"
-                                  onClick={() => window.open(msg.imageUrl, '_blank')}
-                                />
-                              )}
                             </div>
                             <div className="text-[10px] font-medium text-slate-400 mt-1 px-2 flex items-center gap-1">
                               <span>
@@ -2306,37 +2208,11 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                   {/* Input Footer - ALWAYS VISIBLE AT BOTTOM (shrink-0) */}
                   <div className="p-3.5 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center gap-2.5 shrink-0 z-20">
                     <input
-                      ref={teacherFileInputRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleTeacherImageSelect}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => teacherFileInputRef.current?.click()}
-                      disabled={sendingImage || !selectedStudentId}
-                      className="p-2.5 text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all shrink-0"
-                      title="צילום/תמונה"
-                    >
-                      <ImageIcon className="w-5 h-5" />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleToggleVoiceInput}
-                      className={`p-2.5 rounded-full transition-all shrink-0 ${isListening ? 'bg-rose-500 text-white animate-pulse' : 'text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-                      title="הקלטה קולית (STT)"
-                    >
-                      <Mic className="w-5 h-5" />
-                    </button>
-
-                    <input
                       type="text"
                       value={inputText}
                       onChange={(e) => setInputText(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && handleSendStudent()}
-                      placeholder={isListening ? "מקשיב בעברית..." : "הקלד הודעה לתלמיד..."}
+                      placeholder="הקלד הודעה לתלמיד..."
                       className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-slate-900 dark:text-white"
                     />
 

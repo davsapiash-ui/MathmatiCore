@@ -131,7 +131,7 @@ describe('Realtime Communication & Data Synchronization QA Suite (Master PRD v4.
           student_id: student.normId,
           session_number: student.sessionNumber,
           status: 'active',
-          current_path: student.hesitationCount > 5 ? 'gap_reduction' : 'green_path',
+          current_path: student.hesitationCount > 5 ? 'remediation_path' : 'green_path',
           hesitation_seconds: student.hesitationCount * 5,
           error_count: student.undoCount,
         };

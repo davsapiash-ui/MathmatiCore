@@ -22,7 +22,6 @@ export function MissingElementTask({
   const setProbeAnswer = useWorkspaceStore((s) => s.setProbeAnswer);
   const showFeedback = useWorkspaceStore((s) => s.showFeedback);
   const user = useAuthStore((s) => s.user);
-  const sendImageMessage = useChatStore((s) => s.sendImageMessage);
 
   const sign = isSubtraction ? '-' : '﬩';
   const speechText = isSubtraction 
@@ -58,22 +57,6 @@ export function MissingElementTask({
         <span className="font-mono font-black text-5xl text-ws-ink tabular-nums">
           {numberB}
         </span>
-      </div>
-
-      {/* UDL Alternative Expression: Upload Draft */}
-      <div className="mt-2 flex justify-center w-full">
-        <label className="cursor-pointer text-sm font-bold text-ws-accent hover:text-ws-ink transition-colors flex items-center gap-2 bg-ws-surface px-4 py-2 rounded-xl shadow-sm border border-ws-ink/10">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
-          העלאת פתרון כתוב (תמונה)
-          <input type="file" className="hidden" accept="image/*" aria-label="העלאת פתרון כתמונה" onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file && user && user.uid) {
-              const teacherId = (useAuthStore.getState().user?.teacherId as string) || 'admin';
-              sendImageMessage(user.uid, user.name || 'תלמיד', teacherId, file);
-              showFeedback({ correct: true, title: "נשלח בהצלחה", sub: "הפתרון הועבר לעיון המורה." }, 3000);
-            }
-          }} />
-        </label>
       </div>
     </div>
   );

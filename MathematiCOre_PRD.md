@@ -1,6 +1,7 @@
-# מסמך דרישות מוצר (Master PRD v5.0)
+# מסמך דרישות מוצר (Master PRD v6.4)
 ## פלטפורמת הלמידה ההיברידית מתמטיקאור (MathematiCOre)
-**Version 5.0 | Date: August 18, 2026 | Time: 12:59 IDT**
+**Version 6.4 | Date: August 19, 2026**
+* **Changelog v6.4:** ביטול והסרה מוחלטת של קלט קולי (STT) מכל ממשקי המערכת (מודול 22). תקשורת מורה-אדמין היא טקסט בלבד. אודיו לעולם אינו עוזב את המכשיר.
 
 ---
 
@@ -489,9 +490,9 @@ Implement the Silent Radar as a fixed 3x4 grid containing up to twelve permanent
 ---
 
 ### 22. מודול ערוץ שיח ניהולי למורה (Teacher Admin Chat Spec)
-1. **דרישות:** מתן ערוץ התייעצות ותמיכה אסינכרוני נפרד מול מנהלי המערכת לשמירה על בקרת עבודה תקינה תוך הגנה קשיחה על פרטיות הלומדים. ערוץ התקשורת מיוצג על ידי אייקון מעטפה שקט בסרגל הכלים העליון של המורה הפותח חלונית שיח צדדית נשלפת ללא חלונות קופצים מסיחים. מפרט אבטחה וסינון מידע מזהה דו שכבתי: שכבה ראשונה בצד הלקוח כוללת הפעלת ביטויים רגולריים המנטרים את תיבת הקלט בזמן אמת חוסמים שליחת הודעות המכילות שמות תלמידים מספרי טלפון או מספרי זהות ומציגים התרעה עדינה המבקשת להשתמש במזהה האנונימי של התלמיד. שכבה שנייה בצד השרת כוללת שירות אנונימיזציה אוטומטי הפועל בצד השרת ומסנן את תוכן ההודעה בטרם שמירתה בבסיס הנתונים המבצע הצלבה והחלפה של כל שם תלמיד שנמצא ברשימת הניהול למזהה האנונימי התואם שלו בטווח של אחת עד שתים עשרה.
-2. **אפיון:** Client-side Regex חוסם שליחה עם שמות. Cloud Function מריץ anonymizerService שממפה שמות ל-student_id לפני Commit ל-Firestore.
-3. **Strict Bilingual Developer Instructions:** Implement the teacher admin chat inside a sliding side drawer triggered by an envelope icon. Enforce a two tier PII protection system: (a) Client side regex checks to validate incoming input text and block transmissions containing pupil names, phone numbers, or national IDs, and (b) Server side cloud function anonymizer service that automatically parses the message body and replaces any student personal names with their corresponding anonymous numeric student ID (1 to 12) before writing documents to the messages collection in Firestore.
+1. **דרישות:** מתן ערוץ התייעצות ותמיכה אסינכרוני נפרד מול מנהלי המערכת לשמירה על בקרת עבודה תקינה תוך הגנה קשיחה על פרטיות הלומדים. ערוץ התקשורת מיוצג על ידי אייקון מעטפה שקט בסרגל הכלים העליון של המורה הפותח חלונית שיח צדדית נשלפת ללא חלונות קופצים מסיחים. מפרט אבטחה וסינון מידע מזהה דו שכבתי: שכבה ראשונה בצד הלקוח כוללת הפעלת ביטויים רגולריים המנטרים את תיבת הקלט בזמן אמת חוסמים שליחת הודעות המכילות שמות תלמידים מספרי טלפון או מספרי זהות ומציגים התרעה עדינה המבקשת להשתמש במזהה האנונימי של התלמיד. שכבה שנייה בצד השרת כוללת שירות אנונימיזציה אוטומטי הפועל בצד השרת ומסנן את תוכן ההודעה בטרם שמירתה בבסיס הנתונים המבצע הצלבה והחלפה של כל שם תלמיד שנמצא ברשימת הניהול למזהה האנונימי התואם שלו בטווח של אחת עד שתים עשרה. אין קלט קולי (STT) בשום ממשק. תקשורת מורה-אדמין היא טקסט בלבד. אודיו לעולם אינו עוזב את המכשיר.
+2. **אפיון:** Client-side Regex חוסם שליחה עם שמות. Cloud Function מריץ anonymizerService שממפה שמות ל-student_id לפני Commit ל-Firestore. אין קלט קולי (STT) בשום ממשק. תקשורת מורה-אדמין היא טקסט בלבד. אודיו לעולם אינו עוזב את המכשיר.
+3. **Strict Bilingual Developer Instructions:** Implement the teacher admin chat inside a sliding side drawer triggered by an envelope icon. Enforce a two tier PII protection system: (a) Client side regex checks to validate incoming input text and block transmissions containing pupil names, phone numbers, or national IDs, and (b) Server side cloud function anonymizer service that automatically parses the message body and replaces any student personal names with their corresponding anonymous numeric student ID (1 to 12) before writing documents to the messages collection in Firestore. Enforce zero STT or voice input in any interface; text only; audio never leaves the device.
 * **תרחיש בדיקה קוגניטיבי:** האם הצ'אט מאפשר תקשורת בטוחה ללא סיכון לפרטיות.
 
 ---

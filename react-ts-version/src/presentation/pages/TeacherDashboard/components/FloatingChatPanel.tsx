@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { type StudentData } from '@/application/useStore';
-import { X, Send, Minus, Mic, ImageIcon, CheckCheck } from 'lucide-react';
+import { X, Send, Minus, CheckCheck } from 'lucide-react';
 import { useChatStore, normalizeStudentId } from '@/application/useChatStore';
-import { stt } from '@/infrastructure/services/STTService';
 import { toast } from 'sonner';
 import { validateChatInputForPII, anonymizeChatMessageBody } from '@/core/security/PiiFilter';
 
@@ -15,13 +14,9 @@ interface Props {
 export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
   const [isMinimized, setIsMinimized] = useState(false);
   const [inputText, setInputText] = useState('');
-  const [isListening, setIsListening] = useState(false);
-  const [sendingImage, setSendingImage] = useState(false);
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
-  const { messages, sendMessage, sendImageMessage, markAsRead, initSync } = useChatStore();
+  const { messages, sendMessage, markAsRead, initSync } = useChatStore();
   const scrollRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     initSync();
@@ -60,48 +55,6 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
     const cleanText = anonymizeChatMessageBody(inputText.trim());
     sendMessage(teacherId, 'מורה', normStudentId, cleanText);
     setInputText('');
-  };
-
-  const handleToggleVoiceInput = () => {
-    if (isListening) {
-      stt.stop();
-      setIsListening(false);
-      return;
-    }
-    if (!stt.isSupported()) {
-      toast.error("זיהוי קולי אינו נתמך בדפדפן זה.");
-      return;
-    }
-    setIsListening(true);
-    toast.info("מקשיב... דבר עכשיו בעברית");
-    stt.start({
-      lang: "he-IL",
-      onResult: (transcript) => {
-        setInputText(prev => prev ? `${prev} ${transcript}` : transcript);
-      },
-      onError: (err) => {
-        toast.error(`שגיאת קלט קולי: ${err}`);
-        setIsListening(false);
-      },
-      onEnd: () => {
-        setIsListening(false);
-      }
-    });
-  };
-
-  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setSendingImage(true);
-    try {
-      await sendImageMessage(teacherId, 'מורה', student.studentId, file);
-    } catch (err) {
-      console.error("Failed to send image:", err);
-      toast.error("שגיאה בהעלאת התמונה.");
-    } finally {
-      setSendingImage(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
   };
 
   return (
@@ -147,14 +100,6 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
                           : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-bl-xs'
                       }`}>
                         {msg.text && <p className="leading-relaxed">{msg.text}</p>}
-                        {msg.imageUrl && (
-                          <img 
-                            src={msg.imageUrl} 
-                            alt="תמונה מצורפת" 
-                            onClick={() => setPreviewImage(msg.imageUrl || null)}
-                            className="rounded-xl max-h-48 object-cover cursor-pointer hover:opacity-90 transition-opacity border border-white/20"
-                          />
-                        )}
                         <div className={`text-[10px] flex items-center justify-end gap-1 ${isTeacher ? 'text-indigo-200' : 'text-slate-400'}`}>
                           <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                           {isTeacher && (
@@ -171,36 +116,11 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
           
           <div className="p-3 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center gap-2">
             <input 
-              type="file" 
-              ref={fileInputRef} 
-              onChange={handleImageSelect} 
-              accept="image/*" 
-              className="hidden" 
-            />
-            
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={sendingImage}
-              className="p-2 text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all shrink-0"
-              title="צליום/תמונה"
-            >
-              <ImageIcon className="w-5 h-5" />
-            </button>
-
-            <button
-              onClick={handleToggleVoiceInput}
-              className={`p-2 rounded-full transition-all shrink-0 ${isListening ? 'bg-rose-500 text-white animate-pulse' : 'text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-              title="הקלטה קולית (STT)"
-            >
-              <Mic className="w-5 h-5" />
-            </button>
-
-            <input 
               type="text" 
               value={inputText}
               onChange={e => setInputText(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSend()}
-              placeholder={isListening ? "מקשיב בעברית..." : "כתוב הודעה..."}
+              placeholder="כתוב הודעה לתלמיד..."
               className="flex-1 border border-slate-200 dark:border-slate-700 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
             />
             
@@ -212,24 +132,6 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
             </button>
           </div>
         </>
-      )}
-
-      {/* Image Preview Modal */}
-      {previewImage && (
-        <div 
-          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-          onClick={() => setPreviewImage(null)}
-        >
-          <div className="relative max-w-2xl max-h-[90vh]">
-            <img src={previewImage} alt="תצוגה מוגדלת" className="rounded-2xl max-h-[85vh] object-contain shadow-2xl" />
-            <button 
-              onClick={() => setPreviewImage(null)} 
-              className="absolute -top-4 -right-4 bg-white text-slate-900 p-2 rounded-full shadow-lg font-bold"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
       )}
     </div>
   );

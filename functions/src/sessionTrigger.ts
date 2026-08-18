@@ -6,7 +6,8 @@ import * as admin from "firebase-admin";
 /**
  * Module 14 / Module 20: onSessionCompleteTrigger
  * Background trigger on session completion calculating closed-form cognitive mastery score
- * and computing matrix_recommended_path ('green_path' vs 'gap_reduction').
+ * Formula: (correct_first_attempt_mandatory_tasks / 7) * 100
+ * Threshold: Score >= 50% -> 'green_path', Score < 50% -> 'remediation_path'
  */
 export const onSessionCompleteTrigger = onDocumentWritten("sessions/{sessionId}", async (event) => {
   const afterData = event.data?.after?.data();
@@ -26,8 +27,8 @@ export const onSessionCompleteTrigger = onDocumentWritten("sessions/{sessionId}"
     const score = Number(afterData.session_score_percent) || 0;
     const sessionNum = Number(afterData.session_number) || 1;
 
-    // Closed-form deterministic mastery: score >= 80% maps to green_path, otherwise gap_reduction
-    const recommendedPath = score >= 80 ? "green_path" : "gap_reduction";
+    // Closed-form deterministic mastery: score >= 50% maps to green_path, otherwise remediation_path
+    const recommendedPath = score >= 50 ? "green_path" : "remediation_path";
 
     logger.info(`Evaluating Session ${event.params.sessionId} (Session ${sessionNum}): Score ${score}% -> Recommended ${recommendedPath}`);
 

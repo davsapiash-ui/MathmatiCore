@@ -42,7 +42,7 @@ export interface SessionState {
   student_id: string;
   session_number: number; // 1-8
   status: 'active' | 'locked' | 'completed';
-  current_path: 'green_path' | 'gap_reduction';
+  current_path: 'green_path' | 'remediation_path';
   hesitation_seconds?: number;
   error_count?: number;
   physical_override?: boolean;
@@ -343,7 +343,7 @@ export class FirebaseSyncService {
 
       if (this.currentUserId) {
         const isStruggling = (state.hesitationCount || 0) > 6 || (state.undoCount || 0) > 3;
-        const currentPath: 'green_path' | 'gap_reduction' = isStruggling ? 'gap_reduction' : 'green_path';
+        const currentPath: 'green_path' | 'remediation_path' = isStruggling ? 'remediation_path' : 'green_path';
         const sessionStatus: 'active' | 'locked' | 'completed' = state.flowStatus === 'sessionDone' 
           ? 'completed' 
           : state.keyboardState === 'LOCKED' ? 'locked' : 'active';

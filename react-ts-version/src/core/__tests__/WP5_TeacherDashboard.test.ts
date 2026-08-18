@@ -123,7 +123,7 @@ describe('Work Package 5 (WP5): Teacher Dashboard, Silent Radar Matrix, Gate App
       const adaptation: AdaptationSettings = {
         studentId: 'student_5',
         anonymousLabel: 'תלמיד 5',
-        path: 'gap_reduction',
+        path: 'remediation_path',
         scaffoldLevel: 0,
         forceAdditionHelper: true,
         hesitationThresholdSeconds: 25,
@@ -131,7 +131,7 @@ describe('Work Package 5 (WP5): Teacher Dashboard, Silent Radar Matrix, Gate App
       };
 
       expect(adaptation.applyAtTaskBoundaryOnly).toBe(true);
-      expect(adaptation.path).toBe('gap_reduction');
+      expect(adaptation.path).toBe('remediation_path');
       expect(adaptation.scaffoldLevel).toBe(0);
     });
 
@@ -176,18 +176,18 @@ describe('Work Package 5 (WP5): Teacher Dashboard, Silent Radar Matrix, Gate App
 
   describe('3. Module 20: Teacher Approval Gate Flow', () => {
     it('correctly maps recommended path based on diagnostic node evaluation', () => {
-      const evaluatePath = (errorCount: number): 'green_path' | 'gap_reduction' => {
-        return errorCount <= 1 ? 'green_path' : 'gap_reduction';
+      const evaluatePath = (errorCount: number): 'green_path' | 'remediation_path' => {
+        return errorCount <= 1 ? 'green_path' : 'remediation_path';
       };
 
       expect(evaluatePath(0)).toBe('green_path');
       expect(evaluatePath(1)).toBe('green_path');
-      expect(evaluatePath(2)).toBe('gap_reduction');
-      expect(evaluatePath(4)).toBe('gap_reduction');
+      expect(evaluatePath(2)).toBe('remediation_path');
+      expect(evaluatePath(4)).toBe('remediation_path');
     });
 
     it('generates valid Firestore gate approval payload for SessionDocument', () => {
-      const generateApprovalPayload = (studentId: string, approvedPath: 'green_path' | 'gap_reduction') => {
+      const generateApprovalPayload = (studentId: string, approvedPath: 'green_path' | 'remediation_path') => {
         return {
           session_id: `session_02_${studentId}`,
           session_number: 2,

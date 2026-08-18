@@ -1,85 +1,88 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useAdminStore } from "@/application/useAdminStore";
-import { useChatStore } from "@/application/useChatStore";
 import { UdlButton } from "@/presentation/design-system/UdlButton";
 import { UdlSpeechButton } from "@/presentation/design-system/UdlSpeechButton";
-import { stt } from "@/infrastructure/services/STTService";
-import { Send, UserCircle2, Users, ImageIcon, Mic } from "lucide-react";
+import { Send, UserCircle2, Users, ShieldCheck } from "lucide-react";
 import { useAuthStore } from "@/application/useAuthStore";
+import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
+import { httpsCallable } from "firebase/functions";
+import { db, functions } from "@/infrastructure/firebase";
+import { containsPII } from "@/core/security/PiiFilter";
 import { toast } from "sonner";
 
+interface ChatMessage {
+  id: string;
+  sender_id: string;
+  receiver_id: string;
+  message_body: string;
+  timestamp: number;
+  school_id?: string;
+  class_name?: string;
+  read?: boolean;
+}
+
+/**
+ * מודול 22: צ'אט הנהלה-מורים (Teacher-Admin Secure Chat)
+ * אנונימיות מוחלטת (Zero PII): ללא שמות מורים, ללא ת"ז (TAZ), ללא אימיילים, וללא תמונות/ביומטריה.
+ * שכבת אבטחה דו-שלבית:
+ * 1. סינון PII צד-לקוח (containsPII).
+ * 2. סינון PII צד-שרת (Cloud Function: sendTeacherAdminMessage).
+ */
 export function AdminChatView() {
   const { teachers } = useAdminStore();
-  const { messages, sendMessage, sendImageMessage, markAsRead } = useChatStore();
   const { user } = useAuthStore();
   
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [selectedTeacherId, setSelectedTeacherId] = useState<string | null>(null);
   const [inputText, setInputText] = useState("");
-  const [isListening, setIsListening] = useState(false);
-  const [sendingImage, setSendingImage] = useState(false);
-  const adminFileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleToggleVoiceInput = () => {
-    if (isListening) {
-      stt.stop();
-      setIsListening(false);
-      return;
-    }
-
-    if (!stt.isSupported()) {
-      toast.error("זיהוי קולי אינו נתמך בדפדפן זה.");
-      return;
-    }
-
-    setIsListening(true);
-    toast.info("מקשיב... דבר עכשיו בעברית");
-    stt.start({
-      lang: "he-IL",
-      onResult: (transcript) => {
-        setInputText(prev => prev ? `${prev} ${transcript}` : transcript);
-      },
-      onError: (err) => {
-        toast.error(`שגיאת קלט קולי: ${err}`);
-        setIsListening(false);
-      },
-      onEnd: () => {
-        setIsListening(false);
-      }
-    });
-  };
-
-  const handleAdminImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !selectedTeacherId) return;
-    setSendingImage(true);
-    try {
-      await sendImageMessage("admin", (user?.displayName as string) || "מנהל מערכת", selectedTeacherId, file);
-    } catch (err) {
-      console.error("Failed to send image:", err);
-    } finally {
-      setSendingImage(false);
-      if (adminFileInputRef.current) adminFileInputRef.current.value = "";
-    }
-  };
-
+  const [isSending, setIsSending] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterTab, setFilterTab] = useState<"ALL" | "UNANSWERED" | "ANSWERED">("ALL");
 
-  const selectedTeacher = useMemo(() => 
-    teachers.find(t => t.id === selectedTeacherId), 
-  [teachers, selectedTeacherId]);
+  // Real-time listener for Firestore /messages collection
+  useEffect(() => {
+    const q = query(collection(db, "messages"), orderBy("timestamp", "asc"));
+    const unsub = onSnapshot(q, (snapshot) => {
+      const msgs: ChatMessage[] = snapshot.docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...(docSnap.data() as Omit<ChatMessage, "id">),
+      }));
+      setMessages(msgs);
+    }, (err) => {
+      console.error("Firestore messages listener error:", err);
+    });
 
-  // Compute teacher chat metadata (unread count, last message, unanswered status)
+    return () => unsub();
+  }, []);
+
+  // Standardized anonymous teacher representation (Zero PII)
+  const anonymousTeachers = useMemo(() => {
+    return teachers.map((t, idx) => {
+      const anonId = t.id || `teacher_${String(idx + 1).padStart(2, "0")}`;
+      const anonLabel = `מורה מוסמך (${anonId})`;
+      return {
+        id: anonId,
+        label: anonLabel,
+        schoolId: t.schoolId || "school_pilot_01",
+      };
+    });
+  }, [teachers]);
+
+  const selectedTeacher = useMemo(() => 
+    anonymousTeachers.find(t => t.id === selectedTeacherId), 
+  [anonymousTeachers, selectedTeacherId]);
+
+  // Compute unread counts and unanswered status anonymously
   const teacherChatMeta = useMemo(() => {
-    return teachers.map(t => {
+    return anonymousTeachers.map(t => {
       const teacherMsgs = messages.filter(m => 
-        (m.senderId === "admin" && (m.receiverId === t.id || m.receiverId === t.taz)) ||
-        ((m.senderId === t.id || m.senderId === t.taz) && m.receiverId === "admin")
+        (m.sender_id === "admin" && m.receiver_id === t.id) ||
+        (m.sender_id === t.id && m.receiver_id === "admin")
       ).sort((a, b) => a.timestamp - b.timestamp);
 
-      const unreadCount = messages.filter(m => (m.senderId === t.id || m.senderId === t.taz) && m.receiverId === "admin" && !m.read).length;
+      const unreadCount = messages.filter(m => m.sender_id === t.id && m.receiver_id === "admin" && !m.read).length;
       const lastMsg = teacherMsgs[teacherMsgs.length - 1];
-      const isUnanswered = lastMsg && lastMsg.senderId === t.id && !lastMsg.read;
+      const isUnanswered = lastMsg && lastMsg.sender_id === t.id && !lastMsg.read;
 
       return {
         teacher: t,
@@ -88,13 +91,13 @@ export function AdminChatView() {
         isUnanswered,
       };
     });
-  }, [teachers, messages]);
+  }, [anonymousTeachers, messages]);
 
   const filteredTeachers = useMemo(() => {
     return teacherChatMeta.filter(({ teacher, isUnanswered, unreadCount }) => {
       const matchesSearch = !searchQuery.trim() || 
-        teacher.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        teacher.taz.includes(searchQuery);
+        teacher.label.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        teacher.id.includes(searchQuery);
 
       if (!matchesSearch) return false;
 
@@ -111,28 +114,41 @@ export function AdminChatView() {
   const conversationMessages = useMemo(() => {
     if (!selectedTeacherId) return [];
     return messages.filter(m => 
-      (m.senderId === "admin" && m.receiverId === selectedTeacherId) ||
-      (m.senderId === selectedTeacherId && m.receiverId === "admin")
-    ).sort((a, b) => a.timestamp - b.timestamp);
+      (m.sender_id === "admin" && m.receiver_id === selectedTeacherId) ||
+      (m.sender_id === selectedTeacherId && m.receiver_id === "admin")
+    );
   }, [messages, selectedTeacherId]);
 
-  const handleSend = () => {
-    if (!inputText.trim() || !selectedTeacherId) return;
-    sendMessage("admin", (user?.displayName as string) || "מנהל מערכת", selectedTeacherId, inputText.trim());
-    setInputText("");
-  };
+  const handleSend = async () => {
+    if (!inputText.trim() || !selectedTeacherId || isSending) return;
 
-  const handleTeacherSelect = (teacherId: string) => {
-    setSelectedTeacherId(teacherId);
-    setInputText("");
-    markAsRead("admin", teacherId);
-  };
-
-  useEffect(() => {
-    if (selectedTeacherId) {
-      markAsRead("admin", selectedTeacherId);
+    // Layer 1: Client-side PII check
+    if (containsPII(inputText)) {
+      toast.error("ההודעה מכילה פרטים מזהים (PII). נא לנסח מחדש ללא שמות, תעודות זהות או מספרי טלפון.");
+      return;
     }
-  }, [selectedTeacherId, messages, markAsRead]);
+
+    try {
+      setIsSending(true);
+      
+      // Layer 2: Send strictly through Cloud Function sendTeacherAdminMessage
+      const sendFn = httpsCallable(functions, "sendTeacherAdminMessage");
+      await sendFn({
+        receiver_id: selectedTeacherId,
+        message_body: inputText.trim(),
+        school_id: selectedTeacher?.schoolId || "school_pilot_01",
+        class_name: "המבקרים",
+      });
+
+      setInputText("");
+      toast.success("ההודעה נשלחה בהצלחה ונבדקה בשכבת ה-PII!");
+    } catch (err: any) {
+      console.error("Failed to send teacher-admin message:", err);
+      toast.error("שגיאה בשליחת ההודעה דרך ענן הפיירבייס.");
+    } finally {
+      setIsSending(false);
+    }
+  };
 
   return (
     <div className="flex h-full bg-slate-50/50 dark:bg-slate-900/50 overflow-hidden backdrop-blur-xl" dir="rtl">
@@ -151,13 +167,18 @@ export function AdminChatView() {
             )}
           </div>
 
+          <div className="flex items-center gap-1 text-[11px] text-emerald-600 font-bold bg-emerald-50 dark:bg-emerald-950/50 p-2 rounded-xl border border-emerald-200 dark:border-emerald-800">
+            <ShieldCheck className="w-4 h-4 shrink-0" />
+            <span>סינון PII דו-שכבתי מופעל (אנונימיות מוחלטת)</span>
+          </div>
+
           {/* Search Input */}
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder='חפש מורה לפי שם או ת"ז...'
-            className="w-full px-3.5 py-2 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-slate-200 shadow-sm"
+            placeholder='חפש מזהה מורה אנונימי (teacher_XX)...'
+            className="w-full px-3.5 py-2 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-slate-200 shadow-sm font-mono"
           />
 
           {/* Filter Chips */}
@@ -166,7 +187,7 @@ export function AdminChatView() {
               onClick={() => setFilterTab("ALL")}
               className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${filterTab === "ALL" ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-200/60 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'}`}
             >
-              הכל ({teachers.length})
+              הכל ({anonymousTeachers.length})
             </button>
             <button
               onClick={() => setFilterTab("UNANSWERED")}
@@ -193,7 +214,10 @@ export function AdminChatView() {
               return (
                 <button
                   key={teacher.id}
-                  onClick={() => handleTeacherSelect(teacher.id)}
+                  onClick={() => {
+                    setSelectedTeacherId(teacher.id);
+                    setInputText("");
+                  }}
                   className={`w-full text-right p-3.5 rounded-2xl flex items-start justify-between transition-all border ${isSelected ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-500 shadow-md' : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 hover:border-indigo-300'}`}
                 >
                   <div className="flex items-start gap-3">
@@ -206,18 +230,18 @@ export function AdminChatView() {
                     <div>
                       <div className="flex items-center gap-2">
                         <span className={`font-black text-sm ${isSelected ? 'text-indigo-900 dark:text-indigo-200' : 'text-slate-800 dark:text-slate-100'}`}>
-                          {teacher.name}
+                          {teacher.label}
                         </span>
                         {isUnanswered && (
                           <span className="text-[10px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-200 px-1.5 py-0.5 rounded-md">
-                            ממתין למנהל
+                            ממתין למענה
                           </span>
                         )}
                       </div>
-                      <div className="text-xs text-slate-500 font-mono mt-0.5">דוא"ל SSO: {teacher.taz || "teacher@edu-haifa.org.il"}</div>
+                      <div className="text-xs text-slate-500 font-mono mt-0.5">מזהה: {teacher.id}</div>
                       {lastMsg && (
                         <div className="text-xs text-slate-400 truncate max-w-[150px] mt-1">
-                          {lastMsg.text || (lastMsg.imageUrl ? '📷 תמונה' : 'הודעה')}
+                          {lastMsg.message_body}
                         </div>
                       )}
                     </div>
@@ -249,8 +273,8 @@ export function AdminChatView() {
               </button>
               <UserCircle2 className="w-10 h-10 text-slate-400" />
               <div>
-                <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100">{selectedTeacher.name}</h3>
-                <p className="text-xs text-slate-500">מורה פעיל במערכת</p>
+                <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100">{selectedTeacher.label}</h3>
+                <p className="text-xs text-slate-500 font-mono">מזהה אנונימי: {selectedTeacher.id}</p>
               </div>
             </div>
 
@@ -260,23 +284,15 @@ export function AdminChatView() {
                 <div className="m-auto text-slate-400 text-sm">אין הודעות. שלח הודעה כדי להתחיל שיחה.</div>
               ) : (
                 conversationMessages.map(msg => {
-                  const isAdmin = msg.senderId === "admin";
+                  const isAdmin = msg.sender_id === "admin";
                   return (
                     <div key={msg.id} className={`flex flex-col max-w-[85%] md:max-w-[70%] ${isAdmin ? 'self-end items-end' : 'self-start items-start'}`}>
                       <div className={`px-4 py-2 rounded-2xl shadow-sm ${isAdmin ? 'bg-blue-600 text-white rounded-tl-sm' : 'bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-tr-sm'}`}>
-                        {msg.text && (
+                        {msg.message_body && (
                           <div className="flex items-center gap-2">
-                            <span>{msg.text}</span>
-                            <UdlSpeechButton text={msg.text} className="w-7 h-7 p-0 shrink-0 text-slate-500" />
+                            <span>{msg.message_body}</span>
+                            <UdlSpeechButton text={msg.message_body} className="w-7 h-7 p-0 shrink-0 text-slate-500" />
                           </div>
-                        )}
-                        {msg.imageUrl && (
-                          <img
-                            src={msg.imageUrl}
-                            alt="תמונה"
-                            className="max-w-[220px] max-h-[220px] rounded-xl mt-1 object-cover cursor-pointer block"
-                            onClick={() => window.open(msg.imageUrl, '_blank')}
-                          />
                         )}
                       </div>
                       <span className="text-[10px] text-slate-400 mt-1 px-1">
@@ -290,48 +306,18 @@ export function AdminChatView() {
 
             {/* Input */}
             <div className="p-4 bg-white/90 dark:bg-slate-950/90 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 flex flex-col gap-2 shrink-0 z-20">
-              <input
-                ref={adminFileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleAdminImageSelect}
-              />
               <div className="flex gap-2 items-center">
-                <button
-                  type="button"
-                  onClick={handleToggleVoiceInput}
-                  className={`flex rounded-full w-12 h-12 p-0 items-center justify-center transition-all shadow-sm ${
-                    isListening ? 'bg-rose-600 text-white animate-pulse' : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-300'
-                  }`}
-                  title={isListening ? "עצור זיהוי קולי" : "הזן הודעה בדיבור (עברית)"}
-                >
-                  <Mic className="w-5 h-5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => adminFileInputRef.current?.click()}
-                  disabled={sendingImage || !selectedTeacherId}
-                  title="שלח תמונה"
-                  className="flex rounded-full w-12 h-12 p-0 items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-600 transition-all shadow-sm disabled:opacity-40"
-                >
-                  {sendingImage ? (
-                    <span className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <ImageIcon className="w-5 h-5" />
-                  )}
-                </button>
                 <input
                   type="text"
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                  placeholder="הקלד הודעה..."
+                  placeholder="הקלד הודעה ללא פרטים מזהים..."
                   className="flex-1 bg-slate-100 dark:bg-slate-900 border-none rounded-full px-6 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-slate-800 dark:text-slate-100 shadow-inner"
                 />
                 <UdlButton 
                   onClick={handleSend} 
-                  disabled={!inputText.trim()}
+                  disabled={!inputText.trim() || isSending}
                   aria-label="שלח"
                   className="rounded-full w-12 h-12 p-0 flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white transition-all disabled:opacity-50 shadow-md"
                 >

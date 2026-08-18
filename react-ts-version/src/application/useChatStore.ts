@@ -9,7 +9,6 @@ export interface ChatMessage {
   senderName: string;
   receiverId: string;
   text: string;
-  imageUrl?: string; // optional: base64 data URL or Firebase Storage URL
   timestamp: number;
   read: boolean;
 }
@@ -21,7 +20,6 @@ interface ChatState {
   globalChatEnabled: boolean;
   setActiveRoomId: (roomId: string | null) => void;
   sendMessage: (senderId: string, senderName: string, receiverId: string, text: string) => void;
-  sendImageMessage: (senderId: string, senderName: string, receiverId: string, file: File) => Promise<void>;
   markAsRead: (receiverId: string, senderId: string) => void;
   initSync: () => void;
 }
@@ -188,37 +186,6 @@ export const useChatStore = create<ChatState>()(
       });
     },
 
-    sendImageMessage: async (senderId, senderName, receiverId, file) => {
-      const reader = new FileReader();
-      const dataUrl: string = await new Promise((resolve, reject) => {
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-      const roomId = computeRoomId(senderId, receiverId);
-      const chatRef = ref(database, `chat_messages/${roomId}`);
-      const newMsgRef = push(chatRef);
-      const newMsg: ChatMessage = {
-        id: newMsgRef.key || `local_${Date.now()}`,
-        senderId,
-        senderName,
-        receiverId,
-        text: '',
-        imageUrl: dataUrl,
-        timestamp: Date.now(),
-        read: false
-      };
-      
-      // Optimistic update
-      set((state) => ({
-        messages: [...state.messages.filter(m => m.id !== newMsg.id), newMsg]
-      }));
-
-      firebaseSet(newMsgRef, newMsg).catch((err) => {
-        console.error("Error sending image message to Firebase:", err);
-      });
-    },
-
     markAsRead: (receiverId, senderId) => {
       const { messages } = get();
       const normReceiver = normalizeStudentId(receiverId);
@@ -252,19 +219,27 @@ export const useChatStore = create<ChatState>()(
 );
 
 // Subscribe to auth changes to start chat sync safely
-if (useAuthStore && typeof (useAuthStore as any).subscribe === 'function') {
-  (useAuthStore as any).subscribe((authState: any) => {
-    if (authState?.isAuthenticated && authState?.user) {
-      useChatStore.getState().initSync();
-    } else {
-      activeSyncedKey = null;
-      if (chatUnsubscribe) {
-        chatUnsubscribe();
-        chatUnsubscribe = null;
+if (typeof window !== 'undefined') {
+  setTimeout(() => {
+    try {
+      if (useAuthStore && typeof (useAuthStore as any).subscribe === 'function') {
+        (useAuthStore as any).subscribe((authState: any) => {
+          if (authState?.isAuthenticated && authState?.user) {
+            useChatStore.getState().initSync();
+          } else {
+            activeSyncedKey = null;
+            if (chatUnsubscribe) {
+              chatUnsubscribe();
+              chatUnsubscribe = null;
+            }
+            useChatStore.setState({ messages: [] });
+          }
+        });
       }
-      useChatStore.setState({ messages: [] });
+    } catch (e) {
+      console.warn('Chat auth subscription deferral error:', e);
     }
-  });
+  }, 0);
 }
 
 // Initial trigger on boot if already authenticated from storage

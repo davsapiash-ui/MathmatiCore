@@ -109,7 +109,7 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
           );
           const hesitationSeconds = isOnline && hesitationEvents ? hesitationEvents * 45 : (sessionState.hesitation_seconds || 0);
           const errorCount = isOnline ? Math.max(wsState.undoCount || 0, data.traceData?.undo_clicks || 0, sessionState.error_count || 0) : 0;
-          const isYellowPath = data.routeRecommendation === 'YELLOW' || sessionState.current_path === 'gap_reduction';
+          const isYellowPath = data.routeRecommendation === 'YELLOW' || sessionState.current_path === 'remediation_path';
           const physicalOverride = Boolean(data.physicalOverrideActive || data.physicalOverride || sessionState.physical_override || data.enhanced_support_profile);
 
           const isSocraticActive = isOnline && (wsState.helpState === 'socratic' || data.isSocraticActive === true || data.helpRequested === true);

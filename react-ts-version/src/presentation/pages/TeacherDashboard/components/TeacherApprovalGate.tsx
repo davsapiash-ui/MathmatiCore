@@ -7,7 +7,7 @@ export interface GateStudentItem {
   studentId: string;
   anonymousLabel: string;
   session2Doc?: Partial<SessionDocument>;
-  recommendedPath: 'green_path' | 'gap_reduction';
+  recommendedPath: 'green_path' | 'remediation_path';
   isApproved: boolean;
   scoreSummary?: string;
   errorNodes?: string[];
@@ -15,8 +15,8 @@ export interface GateStudentItem {
 
 interface TeacherApprovalGateProps {
   students: GateStudentItem[];
-  onApproveStudent: (studentId: string, path: 'green_path' | 'gap_reduction') => Promise<void>;
-  onApproveAll: (pathMap: Record<string, 'green_path' | 'gap_reduction'>) => Promise<void>;
+  onApproveStudent: (studentId: string, path: 'green_path' | 'remediation_path') => Promise<void>;
+  onApproveAll: (pathMap: Record<string, 'green_path' | 'remediation_path'>) => Promise<void>;
   isLoading?: boolean;
 }
 
@@ -32,8 +32,8 @@ export function TeacherApprovalGate({
   isLoading = false,
 }: TeacherApprovalGateProps) {
   const [approvingId, setApprovingId] = useState<string | null>(null);
-  const [selectedPaths, setSelectedPaths] = useState<Record<string, 'green_path' | 'gap_reduction'>>(() => {
-    const initial: Record<string, 'green_path' | 'gap_reduction'> = {};
+  const [selectedPaths, setSelectedPaths] = useState<Record<string, 'green_path' | 'remediation_path'>>(() => {
+    const initial: Record<string, 'green_path' | 'remediation_path'> = {};
     students.forEach((s) => {
       initial[s.studentId] = s.recommendedPath;
     });
@@ -43,7 +43,7 @@ export function TeacherApprovalGate({
   const waitingStudents = students.filter((s) => !s.isApproved);
   const approvedStudents = students.filter((s) => s.isApproved);
 
-  const handlePathChange = (studentId: string, path: 'green_path' | 'gap_reduction') => {
+  const handlePathChange = (studentId: string, path: 'green_path' | 'remediation_path') => {
     setSelectedPaths((prev) => ({ ...prev, [studentId]: path }));
   };
 
@@ -152,7 +152,7 @@ export function TeacherApprovalGate({
                         ) : (
                           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
                             <AlertCircle className="w-3 h-3" />
-                            מסלול צהוב (צמצום פערים)
+                            מסלול צהוב (ביסוס ומענה מותאם)
                           </span>
                         )}
                       </td>
@@ -164,7 +164,7 @@ export function TeacherApprovalGate({
                           className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500"
                         >
                           <option value="green_path">מסלול ירוק</option>
-                          <option value="gap_reduction">מסלול צהוב (צמצום פערים)</option>
+                          <option value="remediation_path">מסלול צהוב (ביסוס ומענה מותאם)</option>
                         </select>
                       </td>
 

@@ -27,7 +27,7 @@ export interface StudentReportData {
   undoCount: number;
   errorCount: number;
   guessCount: number;
-  routeType: 'GREEN' | 'YELLOW_GAP_REDUCTION';
+  routeType: 'GREEN' | 'YELLOW_REMEDIATION_PATH';
   groupRecommendation: PedagogicalGroupRecommendation;
   recommendationLabelHebrew: string;
   recommendationDetailsHebrew: string;
@@ -88,7 +88,7 @@ export class PedagogicalReportService {
     undoCount?: number;
     errorCount?: number;
     guessCount?: number;
-    routeType?: 'GREEN' | 'YELLOW_GAP_REDUCTION';
+    routeType?: 'GREEN' | 'YELLOW_REMEDIATION_PATH';
     completedMilestones?: string[];
   }): StudentReportData {
     const rawId = params.studentId;
@@ -115,7 +115,7 @@ export class PedagogicalReportService {
       undoCount: U,
       errorCount: E,
       guessCount: G,
-      routeType: params.routeType || (score >= 70 ? 'GREEN' : 'YELLOW_GAP_REDUCTION'),
+      routeType: params.routeType || (score >= 50 ? 'GREEN' : 'YELLOW_REMEDIATION_PATH'),
       groupRecommendation: recommendation,
       recommendationLabelHebrew: labelHebrew,
       recommendationDetailsHebrew: detailsHebrew,

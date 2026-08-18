@@ -5,7 +5,7 @@ import { Sliders, Shield, Layers, HelpCircle, Check, Clock } from 'lucide-react'
 export interface AdaptationSettings {
   studentId: string;
   anonymousLabel: string;
-  path: 'green_path' | 'gap_reduction';
+  path: 'green_path' | 'remediation_path';
   scaffoldLevel: 0 | 1 | 2; // 0: full, 1: mid, 2: low
   forceAdditionHelper: boolean;
   hesitationThresholdSeconds: number; // default 30
@@ -92,14 +92,14 @@ export function SilentAdaptationPanel({
 
             <button
               type="button"
-              onClick={() => setCurrentSettings((s) => ({ ...s, path: 'gap_reduction' }))}
+              onClick={() => setCurrentSettings((s) => ({ ...s, path: 'remediation_path' }))}
               className={`p-3 rounded-2xl border-2 text-right transition-all cursor-pointer ${
-                currentSettings.path === 'gap_reduction'
+                currentSettings.path === 'remediation_path'
                   ? 'border-amber-500 bg-amber-50/60 dark:bg-amber-950/40 font-bold text-amber-900 dark:text-amber-200'
                   : 'border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400'
               }`}
             >
-              <span className="block text-xs font-black">מסלול צהוב (צמצום פערים)</span>
+              <span className="block text-xs font-black">מסלול צהוב (ביסוס ומענה מותאם)</span>
               <span className="text-[10px] opacity-80">פיגום מוגבר ומספרים קטנים</span>
             </button>
           </div>

@@ -1,6 +1,9 @@
 node_modules/
 .firebase/
 firebase-debug.log
+firebase-debug.*.log
+firestore-debug.log
+database-debug.log
 .env
 .env.local
 .env.*.local
@@ -13,6 +16,28 @@ build_output*
 dev_output*
 full_build_output*
 screenshot.png
+
+# Test artifacts & reports
+playwright-report/
+test-results/
+react-ts-version/playwright-report/
+react-ts-version/test-results/
+
+# Secrets & Database backups
+rtdb-backup.json
+*backup*.json
+*serviceAccount*.json
+*.pem
+*.key
+*.cert
+clean_doc.js
+
+# Temp test runners & scripts
+react-ts-version/test-rules.js
+react-ts-version/test-rtdb-rules.js
+react-ts-version/run-*.cmd
+react-ts-version/scripts/
+react-ts-version/rtdb-backup.json
 
 # Agent and temporary files
 .agents/

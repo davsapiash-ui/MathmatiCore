@@ -7,6 +7,9 @@ import { useStore } from "@/application/useStore";
 import { executeGoogleSSO, mockSimulatedSSO } from "@/infrastructure/services/AuthService";
 import { tts } from "@/infrastructure/services/TTSService";
 import { Button } from "@/components/ui/button";
+import { auth, functions } from "@/infrastructure/firebase";
+import { signInAnonymously } from "firebase/auth";
+import { httpsCallable } from "firebase/functions";
 
 const ROLES = [
   { id: "student" as const, icon: "🎓", label: "תלמיד" },
@@ -41,7 +44,7 @@ export function Login() {
 
   const [selectedClass, setSelectedClass] = useState<string>("class_1");
   const [selectedStudentNum, setSelectedStudentNum] = useState<number>(1);
-  const [studentPassword, setStudentPassword] = useState("10203040");
+  const [studentPassword, setStudentPassword] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [isShaking, setIsShaking] = useState(false);
@@ -91,9 +94,8 @@ export function Login() {
       return;
     }
 
-    const inputPass = (studentPassword || "10203040").trim();
-    const validCodes = ["10203040", "1234", "0000", "1111", "math1234"];
-    if (inputPass && inputPass !== "10203040" && !validCodes.includes(inputPass) && inputPass.length < 4) {
+    const trimmedPasscode = studentPassword.trim();
+    if (!trimmedPasscode) {
       triggerErrorWithShake();
       return;
     }
@@ -105,7 +107,29 @@ export function Login() {
       const studentIdNum = selectedStudentNum;
       const studentUid = `student_user${studentIdNum}`;
       const className = classesForSelectedSchool.find((c) => c.id === selectedClass)?.name || "המבקרים";
-      
+
+      // 1. Ensure Firebase Auth anonymous session exists
+      if (!auth.currentUser && typeof signInAnonymously === "function") {
+        try {
+          await signInAnonymously(auth);
+        } catch (authErr) {
+          console.warn("Anonymous sign-in fallback:", authErr);
+        }
+      }
+
+      // 2. Call authenticateStudentSession Cloud Function for pure server-side verification
+      const authStudentCallable = httpsCallable(functions, "authenticateStudentSession");
+      await authStudentCallable({
+        studentId: studentIdNum,
+        passcode: trimmedPasscode,
+        classId: selectedClass || "class_1",
+      });
+
+      // 3. Force refresh the ID token so custom claims take immediate effect on the client
+      if (auth.currentUser) {
+        await auth.currentUser.getIdToken(true);
+      }
+
       // Global auth state flag (Master PRD v5.0 Module 1)
       (window as any).isStudentAuthenticated = true;
 
@@ -127,7 +151,7 @@ export function Login() {
       setIsLoggingIn(false);
       navigate("/student/lobby", { replace: true });
     } catch (err: unknown) {
-      console.error("Student Login Error:", err);
+      console.error("Student Login Error (Invalid code or server rejection):", err);
       setIsLoggingIn(false);
       triggerErrorWithShake();
     }
@@ -404,14 +428,14 @@ export function Login() {
                             setStudentPassword(e.target.value);
                             setErrorMsg("");
                           }}
-                          placeholder="10203040"
+                          placeholder="••••••••"
                           className="w-full bg-slate-50 dark:bg-slate-950 border-2 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl p-3.5 text-center text-xl font-bold tracking-widest focus:border-[hsl(var(--ws-blue))] outline-none transition-all shadow-inner min-h-[48px] placeholder:text-slate-300 dark:placeholder:text-slate-700"
                           autoComplete="off"
                           autoFocus
                         />
                       </motion.div>
                       <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 text-center block mt-1">
-                        קוד גישה פיזי לכיתה: 10203040
+                        הזן את קוד הגישה שקיבלת מהמורה
                       </span>
                     </div>
 

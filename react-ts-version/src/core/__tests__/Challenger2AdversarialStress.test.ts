@@ -247,24 +247,23 @@ describe('Challenger 2 — Concurrency, Network Chaos, & SRL Metrics Adversarial
       useChatStore.setState({ messages: [] });
 
       // Generate a mock 200KB base64 image string
-      const largeBase64 = 'data:image/png;base64,' + 'A'.repeat(200000);
-      const imgMsg: ChatMessage = {
-        id: 'img_msg_1',
+      const largeText = 'הסבר פדגוגי מפורט: ' + 'מתמטיקה '.repeat(500);
+      const textMsg: ChatMessage = {
+        id: 'text_msg_1',
         senderId: 'student_user1',
         senderName: 'Student 1',
         receiverId: 'teacher_1',
-        text: '',
-        imageUrl: largeBase64,
+        text: largeText,
         timestamp: Date.now(),
         read: false
       };
 
-      useChatStore.setState({ messages: [imgMsg] });
+      useChatStore.setState({ messages: [textMsg] });
 
       const state = useChatStore.getState();
       expect(state.messages.length).toBe(1);
-      expect(state.messages[0].imageUrl?.length).toBeGreaterThan(200000);
-      expect(state.messages[0].imageUrl?.startsWith('data:image/png;base64,')).toBe(true);
+      expect(state.messages[0].text.length).toBeGreaterThan(1000);
+      expect(state.messages[0].text.startsWith('הסבר פדגוגי מפורט:')).toBe(true);
     });
   });
 

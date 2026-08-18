@@ -8,7 +8,8 @@ const admin = require("firebase-admin");
 /**
  * Module 14 / Module 20: onSessionCompleteTrigger
  * Background trigger on session completion calculating closed-form cognitive mastery score
- * and computing matrix_recommended_path ('green_path' vs 'gap_reduction').
+ * Formula: (correct_first_attempt_mandatory_tasks / 7) * 100
+ * Threshold: Score >= 50% -> 'green_path', Score < 50% -> 'remediation_path'
  */
 exports.onSessionCompleteTrigger = (0, firestore_1.onDocumentWritten)("sessions/{sessionId}", async (event) => {
     var _a, _b, _c, _d, _e, _f;
@@ -25,8 +26,8 @@ exports.onSessionCompleteTrigger = (0, firestore_1.onDocumentWritten)("sessions/
     if (afterData.is_completed === true && needsPathEvaluation) {
         const score = Number(afterData.session_score_percent) || 0;
         const sessionNum = Number(afterData.session_number) || 1;
-        // Closed-form deterministic mastery: score >= 80% maps to green_path, otherwise gap_reduction
-        const recommendedPath = score >= 80 ? "green_path" : "gap_reduction";
+        // Closed-form deterministic mastery: score >= 50% maps to green_path, otherwise remediation_path
+        const recommendedPath = score >= 50 ? "green_path" : "remediation_path";
         logger.info(`Evaluating Session ${event.params.sessionId} (Session ${sessionNum}): Score ${score}% -> Recommended ${recommendedPath}`);
         await ((_f = (_e = event.data) === null || _e === void 0 ? void 0 : _e.after) === null || _f === void 0 ? void 0 : _f.ref.update({
             matrix_recommended_path: recommendedPath,

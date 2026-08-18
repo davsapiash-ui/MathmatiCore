@@ -17,11 +17,11 @@ service cloud.firestore {
       return isAuthenticated() && (request.auth.token.role == 'admin' || request.auth.token.role == 'ADMIN' || request.auth.token.admin == true);
     }
 
-    // Helper function to check if authenticated as specific student (claims or matching auth UID)
+    // Helper function to check if authenticated as specific student (Verified Custom Claim strictly)
     function isOwningStudent(studentId) {
       return isAuthenticated() && (
-        (request.auth.token.student_id != null && (request.auth.token.student_id == studentId || string(request.auth.token.student_id) == studentId)) ||
-        (request.auth.uid == 'student_' + studentId || request.auth.uid == 'student_user' + studentId || request.auth.uid == studentId)
+        request.auth.token.student_id != null && 
+        (request.auth.token.student_id == studentId || string(request.auth.token.student_id) == studentId)
       );
     }
 
@@ -58,181 +58,82 @@ service cloud.firestore {
     }
 
     // 2. Telemetry Log Schema Allowlist (Module 5 & Appendix A §3)
-    function isColumnScopedEvent(eventType) {
-      return eventType in [
-        'BLOCK_DRAG_COMPLETE',
-        'REGROUPING_TRIGGERED',
-        'REGROUPING_SUCCESS',
-        'DIGIT_ENTERED',
-        'DIGIT_DELETED',
-        'HESITATION_DETECTED',
-        'SOCRATIC_CARD_SHOWN'
-      ];
-    }
-
-    function isNonColumnEvent(eventType) {
-      return eventType in [
-        'SESSION_START',
-        'PROBLEM_LOAD',
-        'SOCRATIC_OPTION_SELECTED',
-        'PROBLEM_COMPLETE',
-        'REFLECTION_SUBMITTED'
-      ];
-    }
-
-    function isValidTelemetryDoc() {
+    function isValidTelemetryEvent() {
       let data = request.resource.data;
-      let hasPermittedKeys = data.keys().hasOnly([
+      return data.keys().hasOnly([
         'idempotency_key',
-        'client_timestamp',
+        'timestamp',
+        'server_timestamp',
         'session_id',
         'student_id',
-        'exercise_id',
         'event_type',
-        'column_index',
-        'details',
-        'synced_at'
-      ]);
-
-      let validTypes = data.idempotency_key is string &&
-                       data.client_timestamp is number &&
-                       data.session_id is string &&
-                       data.student_id is int && data.student_id >= 1 && data.student_id <= 12 &&
-                       data.exercise_id is string &&
-                       data.event_type is string &&
-                       data.details is map;
-
-      let validColumnRule = (isColumnScopedEvent(data.event_type) && ('column_index' in data) && data.column_index in [0, 1, 2]) ||
-                            (isNonColumnEvent(data.event_type) && (!('column_index' in data) || data.column_index == null)) ||
-                            (data.event_type == 'UNDO_EXECUTED');
-
-      return hasPermittedKeys && validTypes && validColumnRule;
+        'payload'
+      ]) &&
+      data.idempotency_key is string &&
+      data.timestamp is number &&
+      data.session_id is string &&
+      data.student_id is int && data.student_id >= 1 && data.student_id <= 12 &&
+      data.event_type is string &&
+      data.payload is map;
     }
 
-    // 3. Session Document Schema Allowlist (Module 14 / Appendix A §2)
+    // 3. Session Progress Schema Allowlist (Module 7 & Appendix A §2)
     function isValidSessionDoc() {
       let data = request.resource.data;
       return data.keys().hasOnly([
         'session_id',
         'class_id',
         'session_number',
-        'session_start_time',
-        'session_deadline_time',
-        'active_exercise_id',
         'is_completed',
         'session_score_percent',
+        'matrix_recommended_path',
+        'teacher_selected_path',
         'teacher_gate_approved',
         'gate_approved_at',
         'gate_approved_by',
-        'teacher_selected_path',
-        'matrix_recommended_path'
+        'active_exercise_id',
+        'session_start_time',
+        'session_deadline_time',
+        'completed_at',
+        'evaluated_at'
       ]) &&
       data.session_id is string &&
-      data.class_id is string &&
       data.session_number is int && data.session_number >= 1 && data.session_number <= 8 &&
       data.is_completed is bool &&
       data.teacher_gate_approved is bool;
     }
 
-    // 4. Class Document Schema Allowlist (Module 4 / Module 25)
-    function isValidClassDoc() {
+    // 4. Support Ticket Schema Allowlist (Module 18 & Appendix A §4)
+    function isValidSupportTicket() {
       let data = request.resource.data;
       return data.keys().hasOnly([
-        'class_id',
+        'ticket_id',
+        'category',
+        'severity',
+        'subject',
+        'description',
+        'status',
+        'created_at',
+        'created_by',
+        'assigned_to',
         'school_id',
-        'class_name',
-        'class_type',
-        'active_session_id',
-        'projector_mode',
-        'projector_mode_updated_at',
-        'updated_by_teacher_id'
+        'class_id',
+        'system_info',
+        'source_conversation_id',
+        'updated_at',
+        'resolved_at',
+        'resolution_notes'
       ]) &&
-      data.class_name == 'המבקרים';
+      data.ticket_id is string &&
+      data.category is string &&
+      data.severity is string &&
+      data.status is string &&
+      data.created_at is number &&
+      data.created_by is string;
     }
 
-    // --- Collections Routing ---
-
-    // Students Collection: Strict Ownership & Teacher Class Guard
-    match /students/{studentId} {
-      allow read: if isTeacher() || isOwningStudent(studentId);
-      allow create, update: if (isTeacher() || isOwningStudent(studentId)) && isValidStudentDoc();
-      allow delete: if isAdmin();
-    }
-
-    match /users/students/{studentId} {
-      allow read: if isTeacher() || isOwningStudent(studentId);
-      allow write: if (isTeacher() || isOwningStudent(studentId)) && isValidStudentDoc();
-    }
-
-    // Sessions Collection: Students can create/update sessions, but ONLY teachers can approve teacher_gate_approved
-    match /sessions/{sessionId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isValidSessionDoc() &&
-                       (isTeacher() || request.resource.data.teacher_gate_approved == false);
-      allow update: if isAuthenticated() && isValidSessionDoc() &&
-                       (isTeacher() || request.resource.data.teacher_gate_approved == resource.data.teacher_gate_approved);
-      allow delete: if isAdmin();
-    }
-
-    // Telemetry Logs: Strictly Owning Student or Teacher; Idempotency Doc ID; Schema Allowlist
-    match /telemetry_logs/{logId} {
-      // Direct telemetry read: allowed for teachers, allowed for owning student, BLOCKED for admin
-      allow read: if isTeacher() || (isAuthenticated() && !isAdmin());
-      allow create, update: if isAuthenticated() &&
-                               (isOwningStudent(string(request.resource.data.student_id))) &&
-                               (request.resource.data.idempotency_key == logId) &&
-                               isValidTelemetryDoc();
-      allow delete: if isAdmin();
-    }
-
-    // Classes & Schools Collections
-    match /schools/{schoolId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
-    }
-
-    match /classes/{classId} {
-      allow read: if isAuthenticated();
-      allow write: if isTeacherOfClass(classId) || isAdmin();
-    }
-
-    // Teacher-Admin Messages (Allowlist only)
-    match /messages/{messageId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() &&
-                       request.resource.data.keys().hasOnly(['sender_id', 'receiver_id', 'message_body', 'timestamp', 'school_id', 'class_name', 'read']) &&
-                       request.resource.data.message_body is string;
-      allow update, delete: if isTeacher() || isAdmin();
-    }
-
-    // Admin Cached Store (Module 24: Store Cache)
-    match /store_cache/{cacheId} {
-      allow read: if isAdmin() || isTeacher();
-      allow write: if isAdmin();
-    }
-
-    // Workspace States & Radar Logs
-    match /workspace_states/{stateId} {
-      allow read: if isTeacher() || isAuthenticated();
-      allow write: if isAuthenticated() && request.resource.data.keys().hasOnly([
-        'student_id', 'session_id', 'exercise_id', 'active_column_index', 'ones_count', 'tens_count', 'hundreds_count', 'memory_circles', 'updated_at'
-      ]);
-    }
-
-    match /radar_alerts/{alertId} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated();
-    }
-
-    match /audit_logs/{logId} {
-      allow read: if isTeacher() || isAdmin();
-      allow write: if isAuthenticated();
-    }
-
-    // SRL Reflections (Module 16 — Session 8 Reflection)
-    // Only the owning student may write their own reflection document.
-    // Schema is strictly enforced: no extra fields, no cross-student writes.
-    function isValidSRLReflectionDoc() {
+    // 5. SRL Reflection Schema Allowlist (Module 10 & Appendix A §5)
+    function isValidSRLReflection() {
       let data = request.resource.data;
       return data.keys().hasOnly([
         'student_id',
@@ -248,17 +149,118 @@ service cloud.firestore {
       ]) &&
       data.student_id is int && data.student_id >= 1 && data.student_id <= 12 &&
       data.session_id is string &&
-      data.session_number is int && data.session_number == 8 &&
+      data.session_number is int &&
       data.effort_level is string &&
       data.persistence_index is number &&
       data.submitted_at is number;
     }
 
-    match /srl_reflections/{reflectionId} {
-      allow read: if isTeacher() || isOwningStudent(string(resource.data.student_id));
-      allow create, update: if isOwningStudent(string(request.resource.data.student_id)) &&
-                               isValidSRLReflectionDoc();
+    // 6. Chat Message Schema Allowlist (Module 22 & Appendix A §6)
+    function isValidChatMessageDoc() {
+      let data = request.resource.data;
+      return data.keys().hasOnly([
+        'conversation_id',
+        'sender_id',
+        'sender_role',
+        'recipient_id',
+        'recipient_role',
+        'content',
+        'timestamp',
+        'read_by_recipient',
+        'support_ticket_id',
+        'delivery_status'
+      ]) &&
+      data.conversation_id is string &&
+      data.sender_id is string &&
+      data.sender_role is string &&
+      data.recipient_id is string &&
+      data.recipient_role is string &&
+      data.content is string &&
+      data.timestamp is number &&
+      data.read_by_recipient is bool;
+    }
+
+    // --- COLLECTION RULES ---
+
+    // 1. Students Collection (/students/{studentId})
+    match /students/{studentId} {
+      allow read: if isTeacher() || isOwningStudent(studentId);
+      allow create: if (isOwningStudent(studentId) || isTeacher()) && isValidStudentDoc();
+      allow update: if (isOwningStudent(studentId) || isTeacher()) && isValidStudentDoc();
+      allow delete: if isAdmin() || isTeacher();
+    }
+
+    // 2. Telemetry Logs Collection (/telemetry_logs/{logId})
+    match /telemetry_logs/{logId} {
+      allow read: if isTeacher();
+      allow create: if isAuthenticated() && 
+                      isOwningStudent(request.resource.data.student_id) && 
+                      isValidTelemetryEvent();
+      allow update: if false; // Append-only immutable log
+      allow delete: if false; // Immutable audit log
+    }
+
+    // 3. Sessions Collection (/sessions/{sessionId})
+    match /sessions/{sessionId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidSessionDoc();
+      allow update: if isAuthenticated() && isValidSessionDoc() && (
+        // Student cannot self-approve gate
+        (isTeacher() || isAdmin()) ||
+        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['teacher_gate_approved', 'teacher_selected_path']))
+      );
       allow delete: if isAdmin();
+    }
+
+    // 4. Messages Collection (/messages/{messageId})
+    match /messages/{messageId} {
+      allow read: if isAuthenticated() && (
+        isAdmin() || 
+        isTeacher() || 
+        request.auth.uid == resource.data.sender_id || 
+        request.auth.uid == resource.data.recipient_id ||
+        (request.auth.token.role == 'student' && (
+          string(request.auth.token.student_id) == resource.data.sender_id || 
+          string(request.auth.token.student_id) == resource.data.recipient_id
+        ))
+      );
+      allow create: if false; // Only Cloud Functions write messages directly to Firestore
+      allow update: if isAuthenticated() && (
+        // Allow recipient to mark message as read
+        (request.auth.uid == resource.data.recipient_id || 
+         string(request.auth.token.student_id) == resource.data.recipient_id ||
+         isTeacher() || isAdmin()) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read_by_recipient'])
+      );
+      allow delete: if isAdmin();
+    }
+
+    // 5. Support Tickets Collection (/support_tickets/{ticketId})
+    match /support_tickets/{ticketId} {
+      allow read: if isTeacher() || isAdmin();
+      allow create: if (isTeacher() || isAdmin()) && isValidSupportTicket();
+      allow update: if (isTeacher() || isAdmin()) && isValidSupportTicket();
+      allow delete: if isAdmin();
+    }
+
+    // 6. SRL Reflections Collection (/srl_reflections/{reflectionId})
+    match /srl_reflections/{reflectionId} {
+      allow read: if isTeacher() || (isAuthenticated() && isOwningStudent(resource.data.student_id));
+      allow create: if isAuthenticated() && isOwningStudent(request.resource.data.student_id) && isValidSRLReflection();
+      allow update: if false; // Immutable student reflection
+      allow delete: if isAdmin();
+    }
+
+    // 7. System Control Collection (/system_control/{controlId})
+    match /system_control/{controlId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // 8. Replays Collection (/replays/{replayId})
+    match /replays/{replayId} {
+      allow read: if isTeacher() || isAdmin();
+      allow write: if isTeacher() || isAdmin();
     }
   }
 }

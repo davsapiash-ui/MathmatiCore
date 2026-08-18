@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.onStudentEvent = exports.verifyTeacherSSO = exports.sendTeacherAdminMessage = exports.hourlyAdminAggregator = exports.generatePedagogicalReportPDF = exports.createSessionWithServerDeadline = exports.onSessionCompleteTrigger = exports.exportAdminReportToDrive = exports.validateAndStoreTelemetry = exports.callGeminiSocraticProxy = exports.syncUserRoles = exports.generateSocraticMapping = exports.generateSocraticHint = void 0;
+exports.authenticateStudentSession = exports.onStudentEvent = exports.verifyTeacherSSO = exports.sendTeacherAdminMessage = exports.hourlyAdminAggregator = exports.generatePedagogicalReportPDF = exports.createSessionWithServerDeadline = exports.onSessionCompleteTrigger = exports.exportAdminReportToDrive = exports.validateAndStoreTelemetry = exports.callGeminiSocraticProxy = exports.syncUserRoles = exports.generateSocraticMapping = exports.generateSocraticHint = void 0;
 const https_1 = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
 const generative_ai_1 = require("@google/generative-ai");
@@ -148,7 +148,7 @@ JSON SCHEMA:
 {
   "macroBlueprintHe": "string (A bird's-eye view analysis of their performance and what sessions 3-7 will look like)",
   "microBlueprintHe": "string (Specific actionable focus for the next immediate session)",
-  "isYellowPath": "boolean (true if mastery < 0.8 in core areas, false otherwise)",
+  "isYellowPath": "boolean (true if mastery < 0.5 in core areas, false otherwise)",
   "tasks": [
     {
       "id": "string (unique id like gen_t1)",
@@ -281,4 +281,6 @@ exports.onStudentEvent = (0, https_1.onCall)(async (request) => {
     logger.info(`Ingested clean student event for session ${session_id}`);
     return { status: "PROCESSED" };
 });
+var authenticateStudentSession_1 = require("./authenticateStudentSession");
+Object.defineProperty(exports, "authenticateStudentSession", { enumerable: true, get: function () { return authenticateStudentSession_1.authenticateStudentSession; } });
 //# sourceMappingURL=index.js.map

@@ -171,7 +171,7 @@ JSON SCHEMA:
 {
   "macroBlueprintHe": "string (A bird's-eye view analysis of their performance and what sessions 3-7 will look like)",
   "microBlueprintHe": "string (Specific actionable focus for the next immediate session)",
-  "isYellowPath": "boolean (true if mastery < 0.8 in core areas, false otherwise)",
+  "isYellowPath": "boolean (true if mastery < 0.5 in core areas, false otherwise)",
   "tasks": [
     {
       "id": "string (unique id like gen_t1)",
@@ -322,4 +322,6 @@ export const onStudentEvent = onCall(async (request) => {
 
   return { status: "PROCESSED" };
 });
+
+export { authenticateStudentSession } from "./authenticateStudentSession";
 

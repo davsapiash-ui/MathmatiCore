@@ -19,26 +19,26 @@ import {
 import { AccessibleCard } from '@/presentation/design-system/AccessibleCard';
 import { UdlButton } from '@/presentation/design-system/UdlButton';
 import { useAdminStore } from '@/application/useAdminStore';
-import { ref, onValue, push, update } from 'firebase/database';
-import { database } from '@/infrastructure/firebase';
+import { collection, onSnapshot, addDoc, updateDoc, doc } from 'firebase/firestore';
+import { db } from '@/infrastructure/firebase';
 import { containsPII } from '@/core/security/PiiFilter';
 import { toast } from 'sonner';
 
 export interface SupportTicket {
   id: string;
-  schoolId: string;
-  schoolName: string;
-  classId: string;
-  className: string;
-  studentId?: string; // Strictly 1-12
-  teacherEmail: string;
+  school_id: string;
+  school_name: string;
+  class_id: string;
+  class_name: string;
+  student_id?: string; // Strictly 1-12 or student_X
+  teacher_id: string; // Anonymous teacher ID (e.g., teacher_01)
   subject: string;
   category: 'PEDAGOGICAL' | 'TECHNICAL' | 'ACCOMMODATION_ASD' | 'GENERAL';
   priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
   status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED';
   description: string;
-  createdAt: number;
-  updatedAt: number;
+  created_at: number;
+  updated_at: number;
   responses?: Array<{
     author: string;
     message: string;
@@ -68,8 +68,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }>
 
 /**
  * מודול 28: מרכז תמיכה וקריאות שירות לאדמין (Admin Support Hub)
- * ממשק מרכזי לניהול קריאות תמיכה וסיוע טכנו-פדגוגי לבתי הספר ולמורים.
- * האזנה בזמן אמת לקריאות חדשות, סינון לפי מוסד וכיתה, ושימוש אנונימי (1-12) ללא PII.
+ * מבוסס Cloud Firestore (/support_tickets) עם חוקי אבטחה ופרטיות מוחלטת (Zero PII, תלמידים 1-12 בלבד).
  */
 export function AdminSupportHubView() {
   const { schools, classes } = useAdminStore();
@@ -91,67 +90,22 @@ export function AdminSupportHubView() {
   const [newPriority, setNewPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'>('MEDIUM');
   const [newStudentId, setNewStudentId] = useState<string>('1');
 
-  // Real-time listener for tickets
+  // Real-time Firestore listener for tickets
   useEffect(() => {
-    const ticketsRef = ref(database, 'support_tickets');
-    const unsub = onValue(ticketsRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const raw = snapshot.val();
-        const loaded: SupportTicket[] = Object.keys(raw).map((k) => ({
-          id: k,
-          ...raw[k],
-        }));
-        // Sort newest first
-        setTickets(loaded.sort((a, b) => b.createdAt - a.createdAt));
-      } else {
-        // Mock fallback initial tickets for demonstration if empty
-        setTickets([
-          {
-            id: 'tkt_001',
-            schoolId: schools[0]?.id || 'sch_1',
-            schoolName: schools[0]?.name || 'בית ספר ביקורת',
-            classId: classes[0]?.id || 'cls_1',
-            className: classes[0]?.name || 'המבקרים',
-            studentId: 'student_3',
-            teacherEmail: 'davidsep@edu-haifa.org.il',
-            subject: 'התאמת מסלול מופחת עומס (UDL) לתלמיד 3',
-            category: 'ACCOMMODATION_ASD',
-            priority: 'MEDIUM',
-            status: 'OPEN',
-            description: 'נצפה היסוס ממושך במפגש 4. האם מומלץ להפעיל פרופיל תמיכה מוגבר?',
-            createdAt: Date.now() - 3600000 * 2,
-            updatedAt: Date.now() - 3600000 * 2,
-            responses: [],
-          },
-          {
-            id: 'tkt_002',
-            schoolId: schools[0]?.id || 'sch_1',
-            schoolName: schools[0]?.name || 'בית ספר ביקורת',
-            classId: classes[0]?.id || 'cls_1',
-            className: classes[0]?.name || 'המבקרים',
-            studentId: 'student_7',
-            teacherEmail: '1002220159@edu-haifa.org.il',
-            subject: 'אישור מעבר שער מורה (Teacher Gate) למפגש 3',
-            category: 'PEDAGOGICAL',
-            priority: 'HIGH',
-            status: 'IN_PROGRESS',
-            description: 'התלמיד השלים את מפגש 2 בהצלחה וממתין לפתיחת מפגש 3.',
-            createdAt: Date.now() - 3600000 * 5,
-            updatedAt: Date.now() - 3600000 * 1,
-            responses: [
-              {
-                author: 'מנהל מערכת',
-                message: 'השער אושר בדשבורד המורה.',
-                timestamp: Date.now() - 3600000 * 1,
-              }
-            ],
-          }
-        ]);
-      }
+    const ticketsCol = collection(db, 'support_tickets');
+    const unsub = onSnapshot(ticketsCol, (snapshot) => {
+      const loaded: SupportTicket[] = snapshot.docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...(docSnap.data() as Omit<SupportTicket, 'id'>),
+      }));
+      // Sort newest first
+      setTickets(loaded.sort((a, b) => (b.created_at || 0) - (a.created_at || 0)));
+    }, (err) => {
+      console.error('Firestore support_tickets listener error:', err);
     });
 
     return () => unsub();
-  }, [schools, classes]);
+  }, []);
 
   const filteredTickets = useMemo(() => {
     return tickets.filter((t) => {
@@ -159,9 +113,9 @@ export function AdminSupportHubView() {
         !searchQuery ||
         t.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
         t.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (t.studentId && t.studentId.includes(searchQuery));
+        (t.student_id && t.student_id.includes(searchQuery));
       
-      const matchesSchool = selectedSchool === 'ALL' || t.schoolId === selectedSchool;
+      const matchesSchool = selectedSchool === 'ALL' || t.school_id === selectedSchool;
       const matchesStatus = selectedStatus === 'ALL' || t.status === selectedStatus;
       const matchesCategory = selectedCategory === 'ALL' || t.category === selectedCategory;
 
@@ -171,9 +125,9 @@ export function AdminSupportHubView() {
 
   const handleUpdateStatus = async (ticketId: string, nextStatus: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED') => {
     try {
-      await update(ref(database, `support_tickets/${ticketId}`), {
+      await updateDoc(doc(db, 'support_tickets', ticketId), {
         status: nextStatus,
-        updatedAt: Date.now(),
+        updated_at: Date.now(),
       });
       toast.success(`סטטוס הקריאה עודכן ל-${STATUS_CONFIG[nextStatus].label}`);
       if (selectedTicket && selectedTicket.id === ticketId) {
@@ -204,14 +158,14 @@ export function AdminSupportHubView() {
         }
       ];
 
-      await update(ref(database, `support_tickets/${selectedTicket.id}`), {
+      await updateDoc(doc(db, 'support_tickets', selectedTicket.id), {
         responses: newResponses,
-        updatedAt: Date.now(),
+        updated_at: Date.now(),
       });
 
       setReplyMessage('');
       setSelectedTicket(prev => prev ? { ...prev, responses: newResponses } : null);
-      toast.success('התגובה נשלחה בהצלחה!');
+      toast.success('התגובה נשלחה בהצלחה ב-Firestore!');
     } catch (e) {
       console.error(e);
       toast.error('שגיאה בשליחת תגובה');
@@ -236,29 +190,28 @@ export function AdminSupportHubView() {
       const targetClass = classes[0];
 
       const ticketPayload: Omit<SupportTicket, 'id'> = {
-        schoolId: targetSchool?.id || 'sch_1',
-        schoolName: targetSchool?.name || 'בית ספר ביקורת',
-        classId: targetClass?.id || 'cls_1',
-        className: targetClass?.name || 'המבקרים',
-        studentId: `student_${newStudentId}`,
-        teacherEmail: 'davidsep@edu-haifa.org.il',
+        school_id: targetSchool?.id || 'sch_1',
+        school_name: targetSchool?.name || 'בית ספר ביקורת',
+        class_id: targetClass?.id || 'cls_1',
+        class_name: targetClass?.name || 'המבקרים',
+        student_id: `student_${newStudentId}`,
+        teacher_id: 'teacher_01',
         subject: newSubject.trim(),
         category: newCategory,
         priority: newPriority,
         status: 'OPEN',
         description: newDescription.trim(),
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
+        created_at: Date.now(),
+        updated_at: Date.now(),
         responses: [],
       };
 
-      const newRef = push(ref(database, 'support_tickets'));
-      await update(newRef, ticketPayload);
+      await addDoc(collection(db, 'support_tickets'), ticketPayload);
 
       setIsCreateModalOpen(false);
       setNewSubject('');
       setNewDescription('');
-      toast.success('קריאת התמיכה נוצרה ונשלחה בהצלחה!');
+      toast.success('קריאת התמיכה נוצרה ונשמרה ב-Firestore בהצלחה!');
     } catch (e) {
       console.error(e);
       toast.error('שגיאה ביצירת הקריאה');
@@ -375,9 +328,9 @@ export function AdminSupportHubView() {
                         {CATEGORY_LABELS[ticket.category] || ticket.category}
                       </span>
 
-                      {ticket.studentId && (
+                      {ticket.student_id && (
                         <span className="text-xs font-black text-indigo-600 bg-indigo-50 dark:bg-indigo-950 px-2 py-0.5 rounded-lg border border-indigo-200 dark:border-indigo-800">
-                          {ticket.studentId.replace('student_', 'תלמיד ')}
+                          {ticket.student_id.replace('student_', 'תלמיד ')}
                         </span>
                       )}
                     </div>
@@ -391,15 +344,15 @@ export function AdminSupportHubView() {
                     </p>
 
                     <div className="flex items-center gap-4 text-[11px] text-slate-400 pt-1">
-                      <span>מוסד: {ticket.schoolName} ({ticket.className})</span>
+                      <span>מוסד: {ticket.school_name} ({ticket.class_name})</span>
                       <span>•</span>
-                      <span>מורה: {ticket.teacherEmail}</span>
+                      <span>מזהה מורה: {ticket.teacher_id}</span>
                     </div>
                   </div>
 
                   <div className="flex flex-col justify-between items-end shrink-0 text-left">
                     <span className="text-[11px] text-slate-400">
-                      {new Date(ticket.createdAt).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                      {new Date(ticket.created_at || Date.now()).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
                     </span>
 
                     {ticket.responses && ticket.responses.length > 0 && (

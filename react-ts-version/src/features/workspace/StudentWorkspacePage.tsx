@@ -37,6 +37,7 @@ import { X } from 'lucide-react';
 
 import { StudentChatOverlay } from './overlays/StudentChatOverlay';
 import { AdditionHelper } from './board/AdditionHelper';
+import { canvasRecorder } from '@/infrastructure/services/CanvasRecorderService';
 
 import { SocraticEngine } from '@/infrastructure/services/SocraticEngine';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
@@ -109,18 +110,36 @@ export function StudentWorkspacePage() {
     return () => unsub();
   }, []);
 
+  // WP6 / Chaos Scenario 2: Soft Device Lock (active_device_id writer and real-time takeover listener)
+  const currentDeviceIdRef = useRef<string>(
+    `dev_${Math.random().toString(36).substring(2, 9)}_${Date.now()}`
+  );
+
   useEffect(() => {
     if (!normUid) return;
-    const hintRef = ref(database, `users/students/${normUid}/teacher_hint`);
-    const unsub = onValue(hintRef, (snap) => {
+    const myDevId = currentDeviceIdRef.current;
+    useWorkspaceStore.getState().setActiveDeviceId(myDevId);
+
+    // 1. Claim ownership of student session for this device
+    update(ref(database, `users/students/${normUid}`), {
+      active_device_id: myDevId,
+      device_claimed_at: Date.now(),
+    }).catch(console.error);
+
+    // 2. Real-time listener: Detect if a newer device took over ownership
+    const deviceRef = ref(database, `users/students/${normUid}/active_device_id`);
+    const unsubDevice = onValue(deviceRef, (snap) => {
       if (snap.exists()) {
-        const hintData = snap.val();
-        if (hintData && hintData.message) {
-          setTeacherHint(hintData.message);
+        const remoteDevId = snap.val();
+        if (remoteDevId && remoteDevId !== myDevId) {
+          // This device was superseded! Lock screen and safely halt canvas recorder to prevent Storage overwrites
+          useWorkspaceStore.getState().setSupersededByOtherDevice(true);
+          canvasRecorder.stopRecording().catch(console.error);
         }
       }
     });
-    return () => unsub();
+
+    return () => unsubDevice();
   }, [normUid]);
 
   const handleAcknowledgeHint = async () => {
