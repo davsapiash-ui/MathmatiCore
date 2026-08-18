@@ -125,29 +125,9 @@ export function StudentHub() {
     return () => unsub();
   }, [uid, normUid, teacherSessionNum]);
 
-  const [isProjectorModeActive, setIsProjectorModeActive] = useState<boolean>(false);
-
-  // Module 15: Realtime Projector Mode Listener (<1000ms sync)
-  useEffect(() => {
-    const projectorRef = ref(database, 'system_control/projector_mode');
-    const unsub = onValue(projectorRef, (snap) => {
-      if (snap.exists()) {
-        setIsProjectorModeActive(Boolean(snap.val()));
-      } else {
-        setIsProjectorModeActive(false);
-      }
-    });
-    return () => unsub();
-  }, []);
-
   // Compute the single active session to render
   const effectiveSessionId = Math.min(Math.max(1, activeSessionId), 8);
   const activeSession = SESSIONS_CONFIG[effectiveSessionId] || SESSIONS_CONFIG[1];
-
-  // Module 15: If teacher activated Projector Mode, show serene Projector Waiting Screen immediately (<1000ms)
-  if (isProjectorModeActive) {
-    return <ProjectorWaitingScreen />;
-  }
 
   // Module 20: If student completed Session 2 and attempts Session 3 without teacher approval -> Bee Flight
   const isAwaitingTeacherGate = hasCompletedSession2 && effectiveSessionId === 3 && !isTeacherGateApproved;
