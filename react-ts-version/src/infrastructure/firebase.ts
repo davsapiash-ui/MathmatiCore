@@ -79,3 +79,36 @@ export const authReady: Promise<boolean> = new Promise((resolve) => {
 export type { TeacherProfile, Classroom, SessionState, TelemetryEvent } from './services/FirebaseSyncService';
 export { syncSessionState, logTelemetryEvent, fetchTeacherClassrooms, fetchClassroomSessions } from './services/FirebaseSyncService';
 
+/**
+ * Server Clock Offset — תיקון שעון עקום (תרחיש 1)
+ * Firebase RTDB מציע .info/serverTimeOffset: מספר המייצג את ההפרש בין שעון השרת לשעון הלקוח (ms).
+ * serverNow() = Date.now() + _serverClockOffsetMs
+ *
+ * קוראים את ה-offset פעם אחת בתחילת הסשן (via fetchServerClockOffset) ושומרים בזיכרון.
+ * כל חישוב deadline משתמש ב-serverNow() במקום ב-Date.now() ישיר.
+ */
+import { get as rtdbGet, ref as rtdbRef } from 'firebase/database';
+
+let _serverClockOffsetMs = 0;
+
+/**
+ * קורא את serverTimeOffset מה-RTDB פעם אחת ושומר.
+ * יש לקרוא ב-initSession לפני חישוב ה-deadline.
+ */
+export async function fetchServerClockOffset(): Promise<number> {
+  try {
+    const snap = await rtdbGet(rtdbRef(database, '.info/serverTimeOffset'));
+    _serverClockOffsetMs = snap.exists() ? (snap.val() as number) : 0;
+  } catch {
+    _serverClockOffsetMs = 0;
+  }
+  return _serverClockOffsetMs;
+}
+
+/**
+ * מחזיר את הזמן הנוכחי מסונכרן עם שרת Firebase.
+ * נכון גם כאשר שעון המכשיר עקום (BIOS מת, טאבלט ישן).
+ */
+export function serverNow(): number {
+  return Date.now() + _serverClockOffsetMs;
+}

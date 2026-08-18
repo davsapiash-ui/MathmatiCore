@@ -202,3 +202,6 @@ export function StudentHub() {
     </div>
   );
 }
+
+export { StudentHubPage } from './student/StudentHubPage';
+

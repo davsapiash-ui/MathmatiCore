@@ -72,7 +72,8 @@ describe('Workspace Drag-and-Drop & Trash Deletion Suite', () => {
     });
     expect(useWorkspaceStore.getState().counts.units).toBe(1);
     expect(useWorkspaceStore.getState().hasDeletedBlock).toBe(true);
-    expect(useWorkspaceStore.getState().undoCount).toBeGreaterThan(0);
+    // Module 11: Block deletion is NOT counted as Undo
+    expect(useWorkspaceStore.getState().undoCount).toBe(0);
   });
 
   it('supports decomposing high place block to adjacent lower place (Tens to Units)', () => {

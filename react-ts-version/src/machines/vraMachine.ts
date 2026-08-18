@@ -1,4 +1,4 @@
-﻿import type { KeyboardState } from '../types';
+import type { KeyboardState } from '../types';
 
 export type SystemEvent = 
   | { type: 'PLACE_VALUE_CONVERSION_SUCCESS' }
@@ -11,8 +11,8 @@ export type SystemEvent =
 
 /**
  * VRA Digital Pedagogical State Machine.
- * Manages transitions between LOCKED, UNLOCKED, and SOCRATIC_ONLY states
- * based strictly on VRA digital manipulations and logical conversion events.
+ * Manages transitions between LOCKED, UNLOCKED, and SOCRATIC_ONLY states.
+ * Module 11 Contract: Undo never locks keyboard and never applies penalties.
  */
 export const stateReducer = (currentState: KeyboardState, event: SystemEvent): KeyboardState => {
   switch (currentState) {
@@ -37,9 +37,7 @@ export const stateReducer = (currentState: KeyboardState, event: SystemEvent): K
       return 'SOCRATIC_ONLY';
 
     case 'UNLOCKED':
-      if (event.type === 'UNDO_CLICK') {
-        return 'LOCKED'; // Undo Reset Guard - Prevents VRA Bypass
-      }
+      // Module 11: Undo never locks keyboard and never applies penalties.
       return 'UNLOCKED';
 
     default:

@@ -53,9 +53,9 @@ describe('ExerciseValidationEngine', () => {
       expect(nextState).toBe('UNLOCKED');
     });
 
-    it('should transition UNLOCKED -> LOCKED upon undo_click revert', () => {
+    it('should maintain UNLOCKED upon undo_click per Module 11 (Undo never locks keyboard)', () => {
       const nextState = transitionKeyboardState('UNLOCKED', { undo_click: true });
-      expect(nextState).toBe('LOCKED');
+      expect(nextState).toBe('UNLOCKED');
     });
 
     it('should remain LOCKED if no transition conditions are met', () => {
@@ -79,12 +79,12 @@ describe('ExerciseValidationEngine', () => {
       expect(nextState).toBe('SOCRATIC_ONLY');
     });
 
-    it('should transition UNLOCKED back to LOCKED when undo_click is performed on invalid concrete state', () => {
+    it('should maintain UNLOCKED when undo_click is performed per Module 11', () => {
       const invalidState: ConcreteState = { hundreds: 5, tens: 2, ones: 4 };
       const nextState = evaluateKeyboardState(mockExercise, invalidState, 'UNLOCKED', {
         undo_click: true,
       });
-      expect(nextState).toBe('LOCKED');
+      expect(nextState).toBe('UNLOCKED');
     });
   });
 });

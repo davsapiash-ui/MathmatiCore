@@ -18,7 +18,7 @@ import { useWorkspaceStore, getActiveTasks, type SessionNumber } from '@/applica
 import { useSettingsStore } from '@/application/useSettingsStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useActiveClassSession } from '@/application/useActiveClassSession';
-import { database, authReady } from '@/infrastructure/firebase';
+import { database, authReady, fetchServerClockOffset } from '@/infrastructure/firebase';
 import { ref, push, onValue, remove, get, set, update } from 'firebase/database';
 import { useChatStore, normalizeStudentId } from '@/application/useChatStore';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -44,6 +44,7 @@ import { useCognitiveHesitationRadar } from '@/application/useCognitiveHesitatio
 import { tts } from '@/infrastructure/services/TTSService';
 import { BeeFlightWaitingScreen } from '@/presentation/components/student/BeeFlightWaitingScreen';
 import { ProjectorWaitingScreen } from '@/presentation/components/student/ProjectorWaitingScreen';
+import { ReinforcementOrChallengeScreen } from './overlays/ReinforcementOrChallengeScreen';
 
 /**
  * מרחב הפעילות של התלמיד — חוויית מסך מלא ממוקדת (100vh, ללא גלילה, ללא טיימרים).
@@ -408,6 +409,9 @@ export function StudentWorkspacePage() {
       if (meeting === 3) {
         setIsInitializing(true);
         try {
+          // תרחיש 1 — שעון עקום: קריאת offset שרת פעם אחת לפני כל חישוב deadline
+          await fetchServerClockOffset();
+
           const username = useAuthStore.getState().user?.uid;
           const activeSessionNum = isTeacherSessionActive ? (Number(activeClassSession?.sessionNumber) || 1) : null;
           const teacherSessionAllowsMeeting3 = isTeacherSessionActive && activeSessionNum !== null && activeSessionNum >= 3;
@@ -568,12 +572,46 @@ export function StudentWorkspacePage() {
     });
   };
 
+  // WP6 / Chaos Scenario 2: Soft Device Lock (נעילת מכשיר רכה — active_device_id)
+  const isSupersededByOtherDevice = useWorkspaceStore((s) => s.isSupersededByOtherDevice);
+  if (isSupersededByOtherDevice) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/95 backdrop-blur-md p-6 font-body text-center" dir="rtl">
+        <div className="max-w-md w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 shadow-2xl space-y-4">
+          <div className="w-16 h-16 rounded-2xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 mx-auto flex items-center justify-center text-3xl shadow-inner">
+            📱
+          </div>
+          <h2 className="font-display font-black text-xl text-slate-900 dark:text-white">
+            המשכת במכשיר אחר
+          </h2>
+          <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+            הפעילות שלך פתוחה כעת במכשיר אחר. מסך זה נעול באופן שקט כדי למנוע כפילויות ולשמור על הנתונים שלך.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   // Module 15: If teacher activated Projector Mode, render serene waiting screen immediately (<1000ms)
   if (isProjectorModeActive) {
     return <ProjectorWaitingScreen />;
   }
 
-  // All 5 diagnostic tasks done → reflection (icons, no numeric grades).
+  // Module 14: Post-7 Mandatory Tasks Choice Point (Reinforcement vs Challenge)
+  if (flowStatus === 'choice_branch') {
+    return (
+      <ReinforcementOrChallengeScreen
+        onSelectBranch={(branch) => {
+          useWorkspaceStore.getState().selectBranch(branch);
+        }}
+        onSkipToFinish={() => {
+          useWorkspaceStore.setState({ flowStatus: 'sessionDone' });
+        }}
+      />
+    );
+  }
+
+  // All diagnostic tasks done → reflection (icons, no numeric grades).
   // After every hook so React's hook order stays stable.
   if (flowStatus === 'reflection') {
     if (sessionNumber === 8) {

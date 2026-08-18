@@ -105,8 +105,9 @@ export function AdminWizardModal({
 
   const validateStep3 = (targetTeacherId: string) => {
     setClassError("");
-    if (!className.trim()) {
-      setClassError("נא להזין שם כיתה.");
+    const limitNum = parseInt(studentLimit, 10);
+    if (isNaN(limitNum) || limitNum < 1 || limitNum > 12) {
+      setClassError("לפי מפרט המערכת (מודול 25), כיתה מכילה לכל היותר 12 תלמידים אנונימיים (תלמיד 1 עד תלמיד 12). הוספת תלמיד 13 חסומה.");
       return false;
     }
     const teacherClasses = classes.filter(c => c.teacherId === targetTeacherId);

@@ -30,9 +30,9 @@ export function scrubPII(text: string): string {
   const hebrewNameRegex = /(קוראים לי|שמי|אני) ([א-ת]+(\s[א-ת]+)?)/g;
   scrubbed = scrubbed.replace(hebrewNameRegex, "$1 [REDACTED_NAME]");
 
-  // Password-like patterns (e.g., password: <something>, סיסמה: <משהו>)
-  const passwordRegex = /(password|pass|סיסמה|ססמא)[\s:=]+(\S+)/gi;
-  scrubbed = scrubbed.replace(passwordRegex, "$1 [REDACTED_PASSWORD]");
+  // Password-like patterns (e.g., password: <something>, סיסמה: <משהו>, סיסמה שלי היא <משהו>)
+  const passwordRegex = /(password|pass|סיסמה|ססמא)(?:[\s:=]+(?:שלי|היא|הוא|שלנו|זה|הינו|הינה|is|my)+)*[\s:=]+(\S+)/gi;
+  scrubbed = scrubbed.replace(passwordRegex, "$1: [REDACTED_PASSWORD]");
 
   return scrubbed;
 }

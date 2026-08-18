@@ -1,545 +1,1025 @@
-# מסמך דרישות מוצר (Master PRD v5.0)
-## פלטפורמת הלמידה ההיברידית מתמטיקאור (MathematiCOre)
-**Version 5.0 | Date: August 18, 2026 | Time: 12:59 IDT**
+# מסמך דרישות מוצר (PRD Master) — פלטפורמת הלמידה ההיברידית מתמטיקאור (MathematiCore)
+
+**Version 6.3 — Corrected | Base: v6.0 | Date: August 18, 2026 | Master Production Spec for Antigravity Agent**
 
 ---
 
-## חלק א: תשתית הזדהות, ניהול תפקידים ואבטחה
+## שינויים מרכזיים מגרסה 6.0 ל-6.1
 
-### מודול 1: מודול כניסה והזדהות
-#### א. נתיב התלמידים (Student Login Pipeline)
-**הטריגר הפדגוגי:** תחילת פעילות חקירה במתמטיקה ללא חסמים רגשיים ותוך שמירה על אנונימיות מלאה למניעת תיוג חברתי וחרדת ביצוע.
-**מצב המערכת:** המערכת מנהלת מצב אטומי. עדכון המצב הגלובלי isStudentAuthenticated מתבצע אך ורק לאחר handshake מוצלח עם השרת. במקרה של שגיאת תקשורת, המערכת מבצעת Rollback מיידי למצב ההתחלתי.
-**אירוע המשתמש:** בחירת בית ספר, כיתה, מזהה תלמיד והקלדת קוד גישה פיזי.
-**התוצאה הצפויה:** אימות נתונים אטומי. יעד ביצועים: P95 ≤ 200ms בתנאי בדיקה מוגדרים. במקרה של פקיעת זמן, המערכת מאפסת את השדות למניעת מצב תלוי (Limbo State) בממשק, תוך מתן feedback פדגוגי מינימלי.
-**Strict Bilingual Developer Instructions:** Enforce atomic state updates. If the server request times out or fails during authentication, trigger an immediate rollback to the idle state. No partial states or loading spinners permitted. Ensure the auth token is saved securely and the global authentication state is only updated upon successful handshake. Performance Target: P95 ≤ 200ms.
+גרסה זו נכתבה בעקבות ביקורת טכנית שמטרתה לוודא שסוכן AI יוכל לממש את המסמך ללא ניחושים. תוקנו תשע נקודות קונקרטיות:
 
-#### ב. מצבי שגיאה בהזדהות התלמידים (Student Auth Error States)
-**הטריגר הפדגוגי:** מניעת חרדת כשל קוגניטיבית וויסות תחושתי לתלמידי חינוך מיוחד.
-**מצב המערכת:** מנגנון Fail-safe: במקרה של שגיאת מערכת בלתי צפויה, המצב מתאפס לערך התקין האחרון הידוע. אין הצגת הודעות מערכת חוסמות (Modal Dialogs).
-**אירוע המשתמש:** הזנת קוד שגוי או ניסיון כניסה בעת תקלת רשת.
-**התוצאה הצפויה:** רטט ויזואלי של 300ms וניקוי שדות. במקרה של תקלה חמורה, הממשק מחזיר את התלמיד למצב עבודה שקט ולא מציג הודעת שגיאה.
-**Strict Bilingual Developer Instructions:** Implement a fail-safe mechanism: any unexpected runtime error during the auth process must force a state reset to the last known good configuration. Do not render modal error dialogs or blocking alerts.
+1. **סכימות payload מלאות לכל 13 סוגי אירועי הטלמטריה** (מודול 5 + נספח א', סעיף 3) — הוחלף `details: Record<string, unknown>` הפתוח ב-`TelemetryDetailsMap`, שמגדיר טיפוס מדויק לכל `event_type`. כחלק מהתיקון נוסף שדה `is_correct` לאירוע `DIGIT_ENTERED` — בלעדיו לא הייתה דרך לחשב את מדד ה-E (שגיאות הקלדה) בנוסחת מדד ההתמדה של מודול 16.
+2. **איחוד סכימת אוסף ה-`students`** — מודול 4, מודול 19 ונספח א' הגדירו שלוש רשימות שדות שונות (וחלקית סותרות) לאותו מסמך. אוחדו לרשימה קנונית אחת בת 9 שדות, כולל `school_id` ו-`support_profile_updated_at/by` שהיו חסרים בחלק מהמקורות.
+3. **הוסר שדה `teacher_approval_status`** ממסמך התלמיד — הוגדר בשתי סכימות אך לא נכתב ולא נקרא באף תהליך בפועל. לוגיקת שער האישור (מודול 20) מסתמכת אך ורק על `teacher_gate_approved` ברמת מסמך הסשן, ולכן השדה המקביל ברמת התלמיד היה כפילות יתומה שיצרה שני מקורות אמת לאותו מושג.
+4. **אוחד שם השדה לזיהוי תלמיד** — מודול 13 (חוזה Gemini) השתמש ב-`anonymous_student_id`, בעוד כל שאר המערכת (כולל נספח א') משתמשת ב-`student_id`. אוחד ל-`student_id` בכל מקום.
+5. **תוקן כיוון סף הציון בדוח הפדגוגי** (מודול 23) — הגוף העברי והוראות הפיתוח האנגליות הצביעו על כיוונים הפוכים (`>50%` מול `<50%` לאותה המלצה). נקבע כיוון אחיד התואם את ההיגיון הפדגוגי המוצהר: ציון נמוך יותר ← תמיכה אינטנסיבית יותר.
+6. **תוקן מספר שלבי פרוטוקול ההתאוששות** (מודול 17) — הוראות הפיתוח ציינו "11-step handshake" בעוד הגוף העברי מפרט 5 שלבים בלבד. אוחד ל-5 שלבים.
+7. **הובהרה היררכיית הצבעים ברדאר הפדגוגי** (מודול 18) — ניסוח "אדום < אפור..." בגוף העברי היה ניתן לפירוש כפול מול הוראות הפיתוח ("RED > GREY..."). נוסח מחדש באופן חד-משמעי: "מהגבוה לנמוך בעדיפות תצוגה".
+8. **נוסף שדה חסר `session_score_percent`** למסמך הסשן (נספח א') — מודול 23 מתבסס על "ציון" לצורך ניתוב ההמלצה הפדגוגית, אך אף סכימה במסמך לא הגדירה שדה כזה. השדה נוסף; **נוסחת החישוב המדויקת שלו נותרה החלטת מוצר פתוחה** (ראו הערה במודול 23) ולא הומצאה באופן חד-צדדי.
+9. **נורמול שמות שדות/מצבים** שהופיעו בכמה כתיבים שונים עקב היפוך כיווניות RTL/LTR בקובץ המקור — התקן היחיד מעתה הוא ההגדרות שבנספח א' והקוד האנגלי הנקי בהוראות הפיתוח.
 
-#### ג. נתיב המורים (Teacher Login Pipeline)
-**הטריגר הפדגוגי:** כניסה מאובטחת למערכת הבקרה לצורך מעקב פדגוגי שקט.
-**מצב המערכת:** אימות אסינכרוני מול מערכת ההזדהות. המערכת פועלת במצב Fail-closed וחוסמת גישה מוחלטת להרשאות, ללא חשיפת סיבת השגיאה או מידע טכני.
-**אירוע המשתמש:** לחיצה על לחצן הזדהות Google SSO.
-**התוצאה הצפויה:** ניתוב לדשבורד אך ורק למורשים. כל כשל אימות מוביל חזרה לדף הבית באופן שקט עבור המשתמש הלא מורשה.
-**Strict Bilingual Developer Instructions:** Enforce a fail-closed policy for authorization: any mismatch or failure must result in an immediate redirect to the landing page with no feedback or error visibility to the unauthorized user. Only explicitly authorized identities are granted access.
+> **נקודה שנדונה במפורש ולא שונתה:** מנגנון ההזדהות המשותף של התלמידים (קוד גישה קבוע `10203040` + בחירת מזהה מתוך 1–12) הוא החלטת מוצר מכוונת עבור גרסת הפיילוט הראשונית (כיתה יחידה, ללא נתונים אישיים מאחורי החשבון) — כפי שהובהר בסבב ביקורת קודם. לא נגעתי בו.
 
 ---
 
-### מודול 2: מודול מיתוג תפקידים
-#### א. הגנת ניתוב ישיר (Direct Route Guarding Spec)
-**הטריגר הפדגוגי:** הגנה על פרטיות הלומדים ומניעת עומס.
-**מצב המערכת:** יישום Single Source of Truth באמצעות מנהל המצב Zustand. אם מצב המשתמש אינו תקין, הניתוב נחסם והמערכת מובילה ללובי.
-**אירוע המשתמש:** ניסיון גישה לנתיב מוגן.
-**התוצאה הצפויה:** חסימה וניתוב אוטומטי ללובי. יעד ביצועים לניתוב מקומי: ≤50ms.
-**Strict Bilingual Developer Instructions:** Implement Route Guards using a Single Source of Truth via Zustand. If a route check fails or user state is inconsistent, force a redirect to the student lobby immediately. Do not allow partial render of protected routes.
+## שינויים מגרסה 6.1 ל-6.2
 
-#### ב. בחירת תפקיד כפול (Dual Role Selection Spec)
-**הטריגר הפדגוגי:** תמיכה במורים ומנהלים בעלי הרשאות כפולות.
-**מצב המערכת:** בעת שינוי תפקיד, המערכת מבצעת איפוס מלא ל-session context המקומי למניעת זליגת נתונים, תוך שמירה על persistent server data במידת הצורך.
-**אירוע המשתמש:** בחירת תפקיד מתוך מסך בחירה.
-**התוצאה הצפויה:** עדכון משתנה המצב וניקוי כל הקשר המידע הישן של הסשן הקודם.
-**Strict Bilingual Developer Instructions:** Upon role switching, perform a hard wipe of all local session context and Zustand state buffers to prevent privilege escalation or data bleed between roles. Do not delete persistent server-side records.
+תוקנו ב-6.2 שתי בעיות שהתגלו כשתוכנית מימוש (Antigravity) נבנתה בפועל מול הסכמה של 6.1:
 
-#### ג. פקיעת תוקף אסימון והתנתקות שקטה (Token Expiration)
-**הטריגר הפדגוגי:** אבטחת מידע מחקרי.
-**מצב המערכת:** התנתקות שקטה (Silent Logout). מחיקת אסימון, איפוס Zustand ואיפוס ה-IndexedDB עבור הסשן הנוכחי.
-**אירוע המשתמש:** פקיעת תוקף אסימון הגישה.
-**התוצאה הצפויה:** ניקוי מלא של הזיכרון המקומי וניתוב הביתה.
-**Strict Bilingual Developer Instructions:** Execute silent logout: clear all session tokens, Zustand state buffers, and IndexedDB caches upon JWT expiration. Redirect strictly to the public landing page.
+1. **תוקן שדה שאינו קיים במודול 20** — הבדיקה תוארה כ"`session_completed == 2`", אבל `SessionDocument` (נספח א') אינו מכיל שדה כזה כלל, רק `session_number` ו-`is_completed` בנפרד. הבדיקה נוסחה מחדש לפי שני השדות שכן קיימים: `session_number == 2 && is_completed == true`. **זו טעות מ-6.1** — לא נורמלה מול הסכמה שכתבתי באותה גרסה.
+2. **נסגרה החלטת נוסחת `session_score_percent`** (הייתה פתוחה מ-6.1) — אומצה הנוסחה שהוצעה כברירת מחדל בתוכנית המימוש: `(מספר תרגילי החובה שנפתרו נכון בניסיון ראשון ÷ 7) × 100`, מבוססת אך ורק על 7 תרגילי החובה (לא כולל תרגילי בחירה), בהתאם לכלל שנקבע כבר במודול 14. כתוצאה מכך תוקנה גם דוגמת הבדיקה הקוגניטיבית במודול 23, שהציגה "ציון 40%" — ערך שלא בר-השגה מתמטית עם מכנה קבוע של 7 (התוצאות האפשריות היחידות הן כפולות של 1/7 ≈ 14.3%).
+
+> **נותר פתוח, לא נחסם:** אם בעתיד יידרש ניקוד משוקלל (הכולל ניכוי לפי שגיאות הקלדה/רמזים סוקרטיים ולא רק הצלחה/כישלון בינארית לכל תרגיל), זו תהיה החלטת המשך נפרדת ולא מעכבת את תחילת העבודה.
 
 ---
 
-### מודול 3: מודול אבטחה ואנונימיזציה
-#### א. סינון מידע מזהה והגנה רציפה (Zero PII Identity & Transmission Safety)
-**הטריגר הפדגוגי:** שמירה הרמטית על פרטיות הלומדים ומניעת זליגת מידע.
-**מצב המערכת:** מנגנון "Transmission Fail-Closed, Learning Environment Fail-Safe". אם פילטר זיהוי הנתונים המזהים חווה תקלה, המערכת עוצרת העברה (Transmission) אך שומרת על יציבות סביבת הלמידה.
-**אירוע המשתמש:** הקלדת טקסט.
-**התוצאה הצפויה:** חסימת שליחה במקרה של זיהוי נתונים מזהים. במקרה של תקלה ברכיב הסינון, המערכת נועלת את הקלט ליתר ביטחון עד להתאוששות הלוגיקה.
-**Strict Bilingual Developer Instructions:** Implement a fail-closed PII filter for transmission: if the PII detection logic encounters a runtime error, disable all input and transmission components immediately to guarantee zero PII leakage. The system must remain locked until logic recovery, but the UI itself must remain stable.
+## שינויים מגרסה 6.2 ל-6.3
 
-#### ב. אימות קשיח בצד השרת (Server Side Validation)
-**הטריגר הפדגוגי:** שלמות מסד הנתונים.
-**מצב המערכת:** חוקי האבטחה פועלים כחומת אש אטומית. כל בקשת כתיבה/עדכון נבדקת במלואה מול הסכמה.
-**אירוע המשתמש:** בקשת כתיבה.
-**התוצאה הצפויה:** אישור או דחייה מלאה (403). אין אישור חלקי.
-**Strict Bilingual Developer Instructions:** Enforce atomic validation in Firestore Security Rules. A request is valid only if the entire payload conforms to the schema. Any field variance results in a hard deny (403). No partial updates or partial commits permitted.
+התגלה תוך בניית תוכנית המימוש בפועל (מול הסכמה של 6.2): שדה `matrix_recommended_path` (המלצת המסלול שהמורה רואה בדשבורד שער האישור, מודול 20) הופיע בסכימה מאז v6.0 אך **אף מקום במסמך לא הגדיר איך הוא מחושב**. אותה טעות בדיוק כמו `session_score_percent` ב-v6.1 — הפעם זוהתה מיד, לפני שהתחילו לממש, כי הבדיקה נעשית כעת מול כל שינוי בתוכנית העבודה.
+
+1. **נוסף כלל חישוב ברירת מחדל למודול 20:** `matrix_recommended_path = 'green_path'` אם `session_score_percent >= 50`, אחרת `'remediation_path'` — אותו סף כמו קו החלוקה התחתון של מודול 23. **זו ברירת מחדל מוצעת, לא סופית** — ניתנת לשינוי בקלות אם רוצים סימן אחר (למשל תדירות כרטיסים סוקרטיים או מדד ההתמדה).
+2. **הופרד עיתוי החישוב מהפקת ה-PDF:** `session_score_percent` ו-`matrix_recommended_path` ייכתבו בטריגר עצמאי על סיום מפגש (`is_completed → true`), לא בתוך `generatePedagogicalReportPDF`. אחרת דשבורד שער האישור (מודול 20) היה תלוי בהצלחת הפקת דוח PDF כדי להציג המלצה — צימוד בין שני מודולים שאמורים להיות עצמאיים.
+3. **תוקן שם שדה הפוך:** מודול 20 השתמש ב-`path_green`/`path_remediation` (סדר הפוך) בעוד הסכמה בנספח א' מגדירה `green_path`/`remediation_path`. אוחד לצורה של נספח א'.
 
 ---
 
-## חלק ב: ארכיטקטורת בסיס הנתונים וסכמות הנתונים
+## תוכן עניינים ומבנה המערכת
 
-### מודול 4: סכמת אוספי בסיס הנתונים (Firestore Collections Schema Spec)
-#### א. מבנה האוספים והסכמה הקשיחה
-**הטריגר הפדגוגי:** הגדרת תשתית נתונים אנונימית הרמטית המונעת זיהוי של הלומדים ושומרת על פרטיותם המלאה.
-**מצב המערכת:** המערכת מאבטחת את המידע ואוכפת את מבנה הטבלאות בבסיס הנתונים באופן קשיח. הפרדה לוגית בין classes, students, sessions, workspace_states, telemetry_logs, ו-interventions. הפרדת session/workspace state מ-student identity נועדה למנוע זליגת הקשר.
-
-#### ב. מדיניות סנכרון וביצועים (Real Time Synchronization and Performance Spec)
-**הטריגר הפדגוגי:** מניעת תסכול קוגניטיבי ושמירה על רציפות הלמידה של התלמידים על ידי עדכונים מהירים ורכים.
-**מצב המערכת:** Realtime interaction is local-first and event-driven. הממשק מגיב מיידית בצד הלקוח (יעד תגובה מצב מקומי ≤50ms). השרת מקבל רק אירועים לוגיים שנבחרו לפי חוזה Telemetry (יעד ביצועים P95 ≤ 150ms).
-**אירוע המשתמש:** פעולה לוגית בממשק.
-**התוצאה הצפויה:** סנכרון נתונים אסינכרוני, מבוסס אירועים בלבד. אין לשדר תנועות עכבר, גרירות רציפות או שינויי פיקסלים.
-**Strict Bilingual Developer Instructions:** Eradicate all physical object references. Define Firestore schemas with absolute rigidity. Classes collection must contain strictly school_id, class_name, class_type. Students collection must contain strictly student_id (1-12), class_id, created_at, enhanced_support_profile, active_session_id, teacher_approval_status. Manage synchronization asynchronously; server latency target P95 ≤ 150ms. Restrict write operations strictly via Firestore Security Rules.
-
----
-
-### מודול 5: סכמת נתוני מיקרו פעילות (Telemetry JSON Payload Schema Spec)
-**עקרון מרכזי:** Telemetry is event-based, not continuous.
-**מבנה נתונים:** כל אירוע ממשק לוגי (למשל: DECOMPOSITION_SUCCESS) מקודד לאובייקט JSON בודד.
-**דרישות שליחה:** ולידציית גודל מטען ≤50KB לפני Transmission. שימוש בתור מקומי (Local Queue) עבור נתונים המוגדרים כ-persistable בעת תקלת רשת.
-**Strict Bilingual Developer Instructions:** Construct the exact JSON payload format for every client workspace action event. Validate payload size before every database update. Enforce event-based logging (no mouse movement streams).
-
----
-
-## חלק ג: מרחב הלמידה של התלמיד ומנוע VRA
-
-### מודול 6: מודול לובי התלמיד (Student Hub Module Spec)
-**ניהול מפגשים:** המערכת שולפת את המפגש הפעיל בטעינה ראשונית. Snapshot listener ממוקד למסמך המפגש הפעיל בלבד (ללא גלובליות).
-**Strict Bilingual Developer Instructions:** Render a clean dashboard displaying only the current active session object fetched from the student state database. Use targeted listeners to minimize read costs. Keep local state updated with latest session ID.
-
----
-
-### מודול 7: מודול לוח בית המספרים הדיגיטלי (Place Value Chart Module Spec)
-**עקרון ניהול:** Zustand הוא מקור האמת ל-Local Runtime State.
-**ממשק:** עמעום טורים (brightness: 0.6) ונעילת pointer-events בטורים לא פעילים.
-**Strict Bilingual Developer Instructions:** Implement CSS filter properties for brightness control. Use Zustand for active column state tracking.
+- מודול 1: מודול כניסה והזדהות (Student & Teacher Login Pipelines)
+- מודול 2: מודול מיתוג תפקידים (Role Switching & Route Guards)
+- מודול 3: מודול אבטחה ואנונימיזציה (PII Filter & Server Validation)
+- מודול 4: סכמת אוספי בסיס הנתונים (Firestore Collections Schema Spec)
+- מודול 5: סכמת נתוני מיקרו פעילות (Telemetry Payload & TS Contracts)
+- מודול 6: מודול לובי התלמיד (Student Hub Spec)
+- מודול 7: מודול לוח בית המספרים הדיגיטלי (Place Value Chart Engine)
+- מודול 8: מודול לבני דינס וירטואליות (Dienes Blocks Engine & Canvas)
+- מודול 9: מודול מקלדת דינמית וגשר VRA (Dynamic Keyboard & VRA Bridge Spec)
+- מודול 10: מודול לוח חיבור אדפטיבי מבוקר (Symmetrical Addition Grid Module Spec)
+- מודול 11: מודול כפתור ביטול פעולה פדגוגי (Undo Action Engine Module Spec)
+- מודול 12: מנגנון בלימת ניחושים וחיכוך פדגוגי (Socratic Mentoring Trigger Spec)
+- מודול 13: ממשק החונך הדיגיטלי ומנוע החניכה (Socratic AI Engine & Gemini API Contract)
+- מודול 14: מודול מפגשים 1 עד 8 ומנוע תרגילים (Session & Worksheet Progression Spec)
+- מודול 15: מודול ארגז חול דיגיטלי מונחה ומצב מקרן (Sandbox & Projector Mode Spec)
+- מודול 16: מודול לוח רפלקציה תלת־שלבי (SRL Reflection Board Spec)
+- מודול 17: מודול עבודה במצב לא מקוון ותור סנכרון (Offline Queue & Sync Engine Spec)
+- מודול 18: מודול רדאר פדגוגי שקט (Silent Radar Matrix Spec)
+- מודול 19: מודול הקצאת התאמות פדגוגיות שקטות (Silent Adaptation Assignment Spec)
+- מודול 20: מודול שער אישור מורה קשיח (Teacher Approval Gate Spec)
+- מודול 21: מודול ממשק מסך מפוצל לאבחון מורה (Teacher Diagnostic Split-Screen Spec)
+- מודול 22: מודול ערוץ שיח ניהולי למורה (Teacher Admin Chat Engine Spec)
+- מודול 23: מודול דוחות ואנליטיקה פדגוגית (Pedagogical Analytics & PDF Generator Spec)
+- מודול 24: מודול סקירת מערכת כוללת (Admin Overview & Caching Spec)
+- מודול 25: מודול ניהול בתי ספר, כיתות ומורים (Schools & Teachers Setup Wizard Spec)
+- מודול 26: מודול קטלוג תוכנית הלימודים (Curriculum Catalog & Batch Spec)
+- מודול 27: מודול מדיניות אבטחה והגבלות גלובליות (Global Firestore Security Rules Spec)
+- מודול 28: מודול תמיכה ותקשורת ניהולית (Admin Support Hub Spec)
+- מודול 29: מודול ניהול מצב גלובלי ומכונות מצבים (Zustand & State Machine Spec)
+- נספח א': חוזה טיפוסים מרכזי (Core TypeScript Interfaces & Data Contracts)
 
 ---
 
-### מודול 8: מודול לבני דינס וירטואליות (Dienes Blocks Engine Module Spec)
-**ניהול מצב:** Zustand הוא מקור האמת למיקום וכמות הבלוקים. IndexedDB עבור Persistence בלבד. Undo משחזר Snapshot דטרמיניסטי של מצב ה-VRA.
-**Strict Bilingual Developer Instructions:** Use HTML5 Canvas/WebGL for manipulation at 60fps. Implement magnetic snap physics. Undo actions must be excluded from mistake telemetry tallies.
+## מודול 1: מודול כניסה והזדהות (Student & Teacher Login Pipelines)
+
+### א. נתיב התלמידים (Student Login Pipeline)
+- **הטריגר הפדגוגי:** תחילת פעילות חקירה במתמטיקה ללא חסמים רגשיים, תוך שמירה על אנונימיות מלאה למניעת תיוג חברתי וחרדת ביצוע.
+- **מצב המערכת:** המערכת מנהלת מצב אטומי. עדכון המצב הגלובלי `isStudentAuthenticated` מתבצע אך ורק לאחר handshake מוצלח עם השרת. במקרה של שגיאת תקשורת, המערכת מבצעת Rollback מיידי למצב ההתחלתי.
+- **אירוע המשתמש:** בחירת בית ספר, כיתה, מזהה תלמיד אנונימי (1–12), והקלדת קוד גישה פיזי.
+- **התוצאה הצפויה:** אימות נתונים אטומי. יעד ביצועים: P95 ≤ 200ms בתנאי בדיקה מוגדרים. במקרה של פקיעת זמן, המערכת מאפסת את השדות למניעת מצב תלוי בממשק (State Limbo), תוך מתן feedback פדגוגי מינימלי.
+
+### ב. מצבי שגיאה בהזדהות התלמידים (Student Auth Error States)
+- **הטריגר הפדגוגי:** מניעת חרדת כשל קוגניטיבית וויסות תחושתי לתלמידי חינוך מיוחד.
+- **מצב המערכת:** מנגנון Fail-safe — במקרה של שגיאת מערכת בלתי צפויה, המצב מתאפס לערך התקין האחרון הידוע. אין הצגת הודעות מערכת חוסמות (Modal Dialogs).
+- **אירוע המשתמש:** הזנת קוד שגוי, או ניסיון כניסה בעת תקלת רשת.
+- **התוצאה הצפויה:** רטט ויזואלי של 300ms וניקוי שדות. במקרה של תקלה חמורה, הממשק מחזיר את התלמיד למצב עבודה שקט ולא מציג הודעת שגיאה.
+
+### ג. נתיב המורים (Teacher Login Pipeline)
+- **הטריגר הפדגוגי:** כניסה מאובטחת למערכת הבקרה לצורך מעקב פדגוגי שקט.
+- **מצב המערכת:** אימות אסינכרוני מול מערכת ההזדהות. המערכת פועלת במצב Fail-closed וחוסמת גישה מוחלטת להרשאות, ללא חשיפת סיבת השגיאה או מידע טכני.
+- **אירוע המשתמש:** לחיצה על לחצן הזדהות Google SSO.
+- **התוצאה הצפויה:** ניתוב לדשבורד אך ורק למורשים. כל כשל אימות מוביל חזרה לדף הבית באופן שקט עבור המשתמש הלא מורשה.
+
+### ד. הנחיות פיתוח נוקשות (Strict Developer Instructions)
+Enforce atomic state updates. If the server request times out or fails during authentication, trigger an immediate rollback to the idle state. No partial states or loading spinners permitted. Ensure the auth token is saved securely and the global authentication state is only updated upon successful handshake. Performance Target: P95 ≤ 200ms. Enforce a fail-closed policy for teacher authorization.
 
 ---
 
-### מודול 9: מודול מקלדת דינמית וגשר VRA דיגיטלי (Dynamic Keyboard and VRA Bridge Module Spec)
-**עקרון:** מנוע VRA / Rule Engine קובע את אירוע ההמרה.
-**הפרדה:** Teacher-configured support profile (system setting) vs. Current intervention state (momentary UI state).
-**Strict Bilingual Developer Instructions:** Implement conditional column keyboard locking based on VRA engine conversion events. Unlock keyboard only upon conversion success.
+## מודול 2: מודול מיתוג תפקידים (Role Switching & Route Guards)
+
+### א. הגנת ניתוב ישיר (Direct Route Guarding Spec)
+- **הטריגר הפדגוגי:** הגנה על פרטיות הלומדים ומניעת עומס.
+- **מצב המערכת:** יישום Single Source of Truth באמצעות מנהל המצב Zustand, המגובה באימות סמכותי מהשרת. אם מצב המשתמש אינו תקין, הניתוב נחסם והמערכת מובילה ללובי.
+- **אירוע המשתמש:** ניסיון גישה לנתיב מוגן.
+- **התוצאה הצפויה:** חסימה וניתוב אוטומטי ללובי. יעד ביצועים לניתוב מקומי: ≤50ms.
+
+### ב. בחירת תפקיד כפול (Dual Role Selection Spec)
+- **הטריגר הפדגוגי:** תמיכה במורים ומנהלים בעלי הרשאות כפולות.
+- **מצב המערכת:** בעת שינוי תפקיד, המערכת מבצעת איפוס מלא ל-session context המקומי למניעת זליגת נתונים, תוך שמירה על persistent server data במידת הצורך.
+- **אירוע המשתמש:** בחירת תפקיד מתוך מסך בחירה.
+- **התוצאה הצפויה:** עדכון משתנה המצב וניקוי כל הקשר המידע הישן של הסשן הקודם.
+
+### ג. פקיעת תוקף אסימון והתנתקות שקטה (Token Expiration)
+- **הטריגר הפדגוגי:** אבטחת מידע מחקרי.
+- **מצב המערכת:** התנתקות שקטה (Silent Logout). מחיקת אסימון, איפוס Zustand ואיפוס ה-IndexedDB עבור הסשן הנוכחי.
+- **אירוע המשתמש:** פקיעת תוקף אסימון הגישה.
+- **התוצאה הצפויה:** ניקוי מלא של הזיכרון המקומי וניתוב הביתה.
+
+### ד. הנחיות פיתוח נוקשות (Strict Developer Instructions)
+Implement Route Guards using a Single Source of Truth via Zustand backed by Firebase Auth state. If a route check fails or user state is inconsistent, force a redirect to the student lobby immediately. Upon role switching, perform a hard wipe of all local session context and Zustand state buffers to prevent privilege escalation. Execute silent logout upon JWT expiration, clearing all caches and IndexedDB.
 
 ---
 
-### מודול 10: מודול לוח חיבור אדפטיבי מבוקר (Symmetrical Addition Grid Module Spec)
-**היררכיה:**
-1. Independent Exploration (0-30s).
-2. Adaptive Grid/Low-Level Scaffold (30s+).
-3. Socratic Intervention (45s+).
-**טיימר:** מתאפס על פעולות קוגניטיביות בלבד (drag, typing, conversion).
-**Strict Bilingual Developer Instructions:** Manage grid visibility via local React state decoupled from Firestore writes. Track cognitive interaction events to reset the grid timer.
+## מודול 3: מודול אבטחה ואנונימיזציה (PII Filter & Server-Side Validation)
+
+### א. פילטר אנונימיזציה בזמן אמת
+- **הטריגר הפדגוגי:** שמירה הרמטית על פרטיות הלומדים ומניעת זליגת מידע.
+- **מצב המערכת:** "Fail-Closed Transmission, Fail-Safe Learning Environment". אם מנגנון זיהוי הנתונים המזהים (PII) חווה תקלה, המערכת עוצרת את ה-Transmission אך שומרת על יציבות סביבת הלמידה.
+- **אירוע המשתמש:** הקלדת טקסט בתיבות קלט או שיח.
+- **התוצאה הצפויה:** חסימת שליחה במקרה של זיהוי נתונים מזהים (PII). במקרה של תקלה ברכיב הסינון, המערכת נועלת את הקלט ליתר ביטחון עד להתאוששות הלוגיקה.
+
+### ב. אימות קשיח בצד השרת (Server-Side Validation)
+- **הטריגר הפדגוגי:** שלמות מסד הנתונים והגנה על מערך המחקר.
+- **מצב המערכת:** חוקי האבטחה פועלים כחומת אש אטומית. כל בקשת כתיבה/עדכון נבדקת במלואה מול הסכמה ב-Firestore Rules.
+- **אירוע המשתמש:** בקשת כתיבה לשרת.
+- **התוצאה הצפויה:** אישור או דחייה מלאה (403). אין אישור חלקי.
+
+### ג. הנחיות פיתוח נוקשות (Strict Developer Instructions)
+Implement a fail-closed PII filter for transmission: if the PII detection logic encounters a runtime error, disable all input and transmission components immediately to guarantee zero PII leakage. Enforce atomic validation in Firestore Security Rules. Any payload field variance results in a hard deny (403).
 
 ---
 
-### מודול 11: מודול כפתור ביטול פעולה פדגוגי (Undo Action Engine Module Spec)
-**עקרון:** Undo is not a mistake event. Undos are excluded from mistake tallies and latency penalty.
-**טכני:** שחזור Snapshot דטרמיניסטי של מצב VRA (קואורדינטות, כמויות, קלט).
-**Strict Bilingual Developer Instructions:** Maintain a client-side state stack restricted to the last 10 actions. Undo actions must never reduce scores or trigger punitive interventions.
+## מודול 4: סכמת אוספי בסיס הנתונים (Firestore Collections Schema Spec)
+
+### א. מבנה האוספים והסכמה הקשיחה
+- **הטריגר הפדגוגי:** הגדרת תשתית נתונים אנונימית הרמטית המונעת זיהוי של הלומדים ושומרת על פרטיותם המלאה.
+- **מצב המערכת:** השרת הוא מקור האמת היחיד והמוחלט. המערכת מאבטחת ואוכפת את מבנה הטבלאות באופן קשיח. הפרדה לוגית בין `classes`, `students`, `sessions`, `workspace_states`, `telemetry_logs`, ו-`interventions`. הפרדת session/workspace state מ-student identity נועדה למנוע זליגת הקשר.
+- **נתיבי הנתונים המורשים:**
+  - נתונים כיתתיים/ציבוריים: `/artifacts/{appId}/public/data/{collectionName}`
+  - נתונים פרטיים: `/artifacts/{appId}/users/{userId}/{collectionName}`
+
+### ב. מדיניות סנכרון וביצועים (Real-Time Synchronization & Performance Spec)
+- **הטריגר הפדגוגי:** מניעת תסכול קוגניטיבי ושמירה על רציפות הלמידה באמצעות עדכונים מהירים ורכים.
+- **מצב המערכת:** Realtime interaction is local-first and event-driven. הממשק מגיב מיידית בצד הלקוח (יעד תגובה מצב מקומי ≤50ms); השרת מקבל רק אירועים לוגיים שנבחרו לפי חוזה Telemetry (יעד ביצועים P95 ≤ 150ms).
+- **אירוע המשתמש:** פעולה לוגית בממשק.
+- **התוצאה הצפויה:** סנכרון נתונים אסינכרוני, מבוסס אירועים בלבד. אין לשדר תנועות עכבר, גרירות רציפות או שינויי פיקסלים.
+
+### ג. הנחיות פיתוח נוקשות (Strict Developer Instructions)
+Define Firestore schemas with absolute rigidity.
+
+Classes collection must contain strictly: `school_id`, `class_name`, `class_type` (fields set during initial class creation — see Module 25; the full `ClassDocument` also carries `active_session_id`, `projector_mode`, `projector_mode_updated_at`, `updated_by_teacher_id`, populated by Module 15).
+
+Students collection must contain strictly: `student_id` (1-12), `class_id`, `school_id`, `created_at`, `support_profile_id`, `support_profile_version`, `support_profile_updated_at`, `support_profile_updated_by`, `active_session_id`. **(v6.1: this is now the single canonical field list — it replaces the three partially-conflicting lists that existed across Module 4, Module 19 and Appendix A in v6.0. `teacher_approval_status` was removed: it was never read or written by any workflow in this spec — the actual approval gate lives exclusively on `SessionDocument.teacher_gate_approved`, see Module 20.)**
+
+Restrict write operations strictly via Firestore Security Rules. Latency target P95 ≤ 150ms.
 
 ---
 
-## חלק ד: מנוע החניכה הסוקרטי ומפרט אינטגרציית ג'מיני
+## מודול 5: סכמת נתוני מיקרו פעילות (Telemetry Payload Schema Spec)
 
-### מודול 12: מנגנון בלימת ניחושים וחיכוך פדגוגי (Socratic Mentoring & Friction Spec)
-המערכת תעקוב אחר פעולות הלומד ותזהה מצבי קושי על פי שני מדדים בלבד. המדד הראשון הוא השהיה של ארבעים וחמש שניות ללא פעולה בטור החישוב הפעיל. המדד השני הוא ביצוע של ארבעה ניסיונות הקלדה שגויים ברציפות באותו תרגיל. בעת זיהוי קושי זה יופעל כרטיס החניכה הצידי. אם הלומד בוחר תשובה שגויה בתוך כרטיס החניכה המערכת תבצע נעילה שקטה של לחצני המענה בכרטיס למשך שישים שניות. בזמן הנעילה של כרטיס החניכה קנבס הלבנים הדיגיטליות וכפתור ביטול הפעולה יישארו פעילים וחופשיים לחלוטין. עיצוב זה נועד למנוע חוסר אונים נרכש ולאלץ את הלומד לחזור לחקירה ברמה הוירטואלית והייצוגית של מודל VRA כדי לבצע בקרה עצמית לפני הזנת התשובה המופשטת.
-**Strict Bilingual Developer Instructions:** Implement the socratic card in a dedicated side drawer without using popup dialogs. Trigger socratic card activation strictly upon: (a) 45 seconds of continuous column hesitation, or (b) 4 consecutive digit deletions in the active column. Upon incorrect answer selection inside the socratic card, immediately apply a 60 second pointer events disabled block exclusively to the card buttons with a hourglass indicator. Ensure the rest of the workspace, including Dienes blocks canvas interaction and the undo button, remains fully functional and accessible for student exploration. Send workspace telemetry JSON data to initiate server side Gemini API function calls upon trigger detection.
-**תרחיש בדיקה קוגניטיבי:** האם הלומד מבין את מטרת העצירה וכיצד היא עוזרת לו בבקרה העצמית?
+### א. עקרון מרכזי
+Telemetry is event-based, not continuous. חל איסור מוחלט על שידור streams רציפים של קואורדינטות עכבר או גרירה.
 
----
+### ב. מבנה נתונים ודרישות שליחה
+כל אירוע ממשק לוגי (למשל `REGROUPING_SUCCESS`, `BLOCK_DRAG_COMPLETE`, `DIGIT_ENTERED`) מקודד לאובייקט JSON בודד, במבנה מוגדר מראש **לפי סוג האירוע הספציפי** (ראו ס"ג להלן — זהו התיקון המרכזי של גרסה 6.1). גודל מטען מרבי לבקשה: ≤50KB. שימוש בתור מקומי ב-IndexedDB במקרה של אופליין.
 
-### מודול 13: ממשק החונך הדיגיטלי וחוקי החניכה (Socratic Mentoring Engine Spec)
-מנוע הבינה המלאכותית יקבל כקלט את קובץ נתוני הטלמטריה המלא המייצג את מצב מרחב העבודה של התלמיד. קלט זה יכלול את היסטוריית הפעולות האחרונות בקנבס ואת ערכי הקלדה שבוצעו. המנוע ינתח את סוג הטעות של התלמיד ויסווג אותה לאחת משלוש קטגוריות פדגוגיות ברורות. קטגוריה ראשונה היא טעויות עובדתיות בחישוב הבסיסי. קטגוריה שנייה היא טעויות במיומנויות רכיב כגון ביצוע שלבי האלגוריתם בסדר שגוי. קטגוריה שלישית היא טעויות אסטרטגיה המעידות על כך שהתלמיד לא הבין את דרך הפתרון הכללית. בהתאם לסיווג הטעות ושלב הלמידה הדיגיטלי שבו התלמיד נמצא במודל VRA המנוע ינסח שאלה מנחה סוקרטית קצרה אחת ושלושה מסיחים מותאמים אישית. השאלה המנחה תתייחס באופן ישיר לפעולה האחרונה שהתלמיד ביצע בקנבס כגון גרירת לבנים או פריטה כדי לכוון אותו למקור הטעות שלו באופן עצמאי. המנוע יפעל תחת הנחיות מערכת נוקשות שיאכפו את הכללים הבאים: חל איסור מוחלט לספק את התשובה המספרית הסופית לתלמיד או לפתור עבורו את שלבי החישוב. הרמזים והשאלה המנחה יתייחסו אך ורק לייצוגים הדיגיטליים על גבי המסך כמו פעולות של גרירת לבנים או פריטה או המרה. חל איסור מוחלט על שימוש במונחים של אביזרים פיזיים מוחשיים שאינם קיימים בממשק הדיגיטלי. במקרה של כשל בתקשורת או חריגה מהמבנה שהוגדר המערכת תציג רמז סטטי מוכן מראש כדי לשמור על רציפות הלמידה של התלמיד.
-**Strict Bilingual Developer Instructions:** Enforce a rigid JSON schema validation for the Gemini API exchange. The outgoing request payload must convey the current workspace state containing anonymous student ID, active column ID, block counts per column, memory circle digits, and action history. The return JSON response schema must be strictly constrained to a single string field for the guiding question and exactly three closed option objects containing unique IDs, option texts, and concise feedback strings. Program system instructions to bind the Socratic persona exclusively to the digital VRA model, strictly forbidding direct answer disclosure or any physical CRA terminology. In case of API failure, serve a pre-configured static hint.
-**תרחיש בדיקה קוגניטיבי:** האם המנוע מבצע אבחון נכון ומגיב בשאלה סוקרטית ללא חשיפת תשובה?
+### ג. עיקרון הקלדה לפי סוג אירוע (v6.1)
+בגרסה 6.0 שדה ה-`details` היה מוקלד כ-`Record<string, unknown>` — טיפוס פתוח שסתר ישירות את הדרישה ל"מבנה מוגדר מראש", והשאיר את מבנה השדות עבור 12 מתוך 13 סוגי האירועים לא מוגדר. בגרסה זו לכל אחד מ-13 סוגי האירועים יש ממשק `Details` ייעודי, וקיים `TelemetryDetailsMap` שמקשר `event_type` לטיפוס ה-`details` המתאים (ראו נספח א', סעיף 3, למקור האמת המלא).
 
----
+**כלל חובה נוסף:** שדה `column_index` ברמת ה-payload (לא בתוך `details`) הוא **חובה** עבור אירועים מוגבלי-טור — `BLOCK_DRAG_COMPLETE`, `REGROUPING_TRIGGERED`, `REGROUPING_SUCCESS`, `DIGIT_ENTERED`, `DIGIT_DELETED`, `HESITATION_DETECTED`, `SOCRATIC_CARD_SHOWN` — ו**מושמט** עבור אירועי סשן/תרגיל/רפלקציה: `SESSION_START`, `PROBLEM_LOAD`, `UNDO_EXECUTED` (למעט כאשר הפעולה שבוטלה הייתה מוגבלת לטור ספציפי), `SOCRATIC_OPTION_SELECTED`, `PROBLEM_COMPLETE`, `REFLECTION_SUBMITTED`. כלל זה נאכף ב-Firestore Security Rules (מודול 27) לצד בדיקת סכמת ה-`details`.
 
-## חלק ה: מפגשי הלמידה, רפלקציה ועבודה מחוץ לרשת
+### ד. טיפוסי TS רשמיים לאירועי טלמטריה
+ראו נספח א', סעיף 3, למקור האמת המלא והמחייב (`TelemetryEventType`, `TelemetryDetailsMap`, `TelemetryPayload<T>`). ה-13 סוגי האירועים נותרו זהים לגרסה 6.0.
 
-### מודול 14: מודול מפגשים 1 עד 8 ומנוע תרגילים (Worksheet and Session Progression Module Spec)
-#### א. הטריגר הפדגוגי
-מניעת עומס קוגניטיבי ושמירה על החוסן הרגשי של תלמידי כיתה ג באמצעות הגבלת זמן העבודה העצמאית בהתאם לסוג המפגש. עידוד סוכנות הלמידה של לומדים מהירים באמצעות בחירה אקטיבית בין נתיב ביסוס לנתיב אתגר ללא יצירת תיוג חברתי.
-
-#### ב. מצב המערכת
-השרת הוא מקור האמת היחיד והמוחלט עבור זמן המפגש ומצב התרגיל הפעיל של התלמיד. המערכת תשמור בשרת לכל מפגש פעיל את הנתונים הבאים לכל הפחות:
-- זמן תחילת המפגש
-- זמן גבול המפגש הסופי
-- מזהה התרגיל הפעיל הנוכחי
-- מצב המפגש הנוכחי
-- מזהה הסשן הפעיל
-
-משך המפגש נקבע באופן אטומי בשרת לפי סוג המפגש ולא ניתן לשינוי על ידי הדפדפן:
-- מפגשים שלוש עד שבע יוגבלו לחמש עשרה דקות נטו של עבודה עצמאית.
-- מפגשים שתיים ושמונה יוגבלו לעשרים וחמש דקות נטו של עבודה עצמאית.
-
-חנות Zustand בדפדפן משמשת לצורך תצוגה מקומית ועדכון זמני של הממשק בלבד ואינה מוסמכת לקבוע או לשנות את זמן המפגש או את התרגיל הפעיל. לאחר רענון מסך או פתיחת כרטיסייה נוספת או שחזור מחיבור שנקטע הדפדפן מסתנכרן מחדש באופן אוטומטי מול מצב השרת. פתיחה של מספר כרטיסיות עבור אותו תלמיד אינה יוצרת מספר מצבי למידה עצמאיים וכל הכרטיסיות מסתנכרנות מול אותו מזהה סשן ואותו מצב שרת סמכותי.
-
-#### ג. אירוע המשתמש
-המערכת תאזין לאירועים הבאים:
-- התלמיד מסיים את אחד משבעת תרגילי החובה.
-- התלמיד משלים את כל שבעת תרגילי החובה.
-- זמן המפגש הסמכותי מגיע לגבול המפגש הסופי בשרת.
-- התלמיד מרענן את הדפדפן.
-- חיבור הרשת מתנתק או מתחדש.
-- נפתח לקוח נוסף באותו מזהה תלמיד.
-
-#### ד. התוצאה הצפויה
-עם השלמת שבעת תרגילי החובה לפני תום הזמן המערכת תציג מסך בחירה שקט ומעצים המאפשר לתלמיד לבחור באופן עצמאי בין שתי אפשרויות למידה:
-1. **נתיב ביסוס:** המציג משימות חזרה וייצוגים לא סטנדרטיות בלוח המבנה העשרוני.
-2. **נתיב אתגר:** המציג משימות חקר מורכבות בתחום הרבבה לרבות משימות הדורשות מספר פעולות המרה או גילוי ספרות חסרות.
-
-תרגילי ההמשך והבחירה אינם נכללים במדדי השליטה או בציונים של שבעת תרגילי החובה ובכך נשמרת השוואה הוגנת ושוויונית לכלל הלומדים.
-
-#### ה. חוזה נתונים והתנהגות בזמן כשל
-במצב עבודה לא מקוון הזיכרון המקומי של הדפדפן רשאי לשמור עותק התאוששות של המצב האחרון הידוע בלבד. הזיכרון המקומי אינו מהווה מקור אמת ואינו רשאי להאריך את זמן המפגש או לשנות את מזהה התרגיל באופן עצמאי.
-עם חידוש החיבור לרשת מתבצעים השלבים הבאים:
-1. הלקוח יוצר קשר מחדש עם השרת.
-2. השרת מחזיר את המצב הסמכותי השמור אצלו.
-3. הלקוח משווה את המצב המקומי למצב השרת.
-4. במקרה של פער מצב השרת גובר ומעודכן בדפדפן.
-5. אם זמן גבול המפגש הסופי כבר חלף המערכת מעבירה את התלמיד למסך הסיום השקט.
-אין להסתמך על השעון המקומי של הדפדפן לצורך קביעת תוקף המפגש.
-
-#### ו. תלויות במודולים אחרים
-מודול זה קשור ותלוי במודולים הבאים:
-- מודול חמש המגדיר את סכמת נתוני הטלמטריה של הפעולות
-- מודול שש המנהל את לובי התלמיד
-- מודול שמונה המנהל את מנוע הלבנים הדיגיטליות
-- מודול אחת עשרה המנהל את כפתור ביטול הפעולה
-- מודול שתים עשרה המנהל את כרטיס החניכה הסוקרטי
-- מודול שבעה עשר המנהל את תור העבודה הלא מקוון
-- מודול עשרים ותשעה המנהל את מכונת המצבים הגלובלית
-
-#### ז. בדיקה קוגניטיבית קריטריון התאוששות ורציפות
-**נתון:** התלמיד נמצא בתרגיל חמש מתוך שבעת תרגילי החובה ונותרו שבע דקות עד לזמן גבול המפגש הסופי.
-**כאשר:** התלמיד מרענן את הדפדפן או חווה ניתוק רשת של שלושים שניות.
-**אז:**
-- המערכת משחזרת את מזהה הסשן הפעיל.
-- המערכת משחזרת את מספר התרגיל הפעיל כתרגיל חמש.
-- המערכת משחזרת את מצב ה-VRA הדיגיטלי האחרון שנשמר במדויק.
-- עם חידוש החיבור המערכת מאמתת את המצב מול השרת.
-- ספירת הזמן ממשיכה בהתאם לחותמת הזמן הסמכותית בשרת ולא לפי שעון הדפדפן.
-- אין איבוד של מצב הלמידה או של נתוני הטלמטריה שכבר נשמרו.
-**קריטריון הצלחה:** התלמיד חוזר לאותו תרגיל ובאותו מצב עבודה ללא צורך בהתערבות ידנית וללא שינוי מלאכותי בזמן המפגש.
-
-#### ח. הנחיות פיתוח נוקשות בשפה האנגלית (Strict Developer Instructions)
-Establish the server as the sole authoritative source of truth for both session duration and the current problem index. Use the React Zustand store strictly as a presentation and local cache layer. Implement a synchronization protocol to prevent clock manipulation or state loss upon browser refresh or multi tab sessions. Restrict all teacher dashboard mastery calculations exclusively to the first seven compulsory tasks. Ensure graceful fallback by persisting the last known timestamp in IndexedDB during offline states as recovery cache only and reconciling with the server immediately upon reconnection.
+### ה. הנחיות פיתוח נוקשות (Strict Developer Instructions)
+Construct the exact JSON payload format for every client workspace action event matching `TelemetryPayload<T>` and the corresponding entry in `TelemetryDetailsMap` (Appendix A §3). Never fall back to a generic object shape for `details` — every one of the 13 event types has its own required field set now. Validate payload size (≤50KB) before every update. Enforce event-based logging only. Include client timestamps and unique idempotency keys. Enforce `column_index` presence/absence per the rule in §C above via server-side Security Rules validation, not client-side trust alone.
 
 ---
 
-### מודול 15: מודול ארגז חול דיגיטלי מונחה ומצב מקרן (Sandbox and Projector Mode Module Spec)
-#### א. הטריגר הפדגוגי
-ניהול הלמידה ההיברידית בכיתה בצורה רכה וצפויה המונעת חרדה ותסכול בעת עצירת הפעילות העצמאית במחשבים. הפעלת מצב מקרן יוצרת מעבר קוגניטיבי מבוקר המכוון את קשב הלומדים להסבר המורה באופן מלא תוך מניעת עומס קוגניטיבי מפוצל על ידי הצגת מסך אטום ושקט לחלוטין. עיצוב זה שומר על מצב העבודה הקיים ומספק הגנה מפני תחושת איבוד הנתונים או הצורך להתחיל את המשימה מחדש.
+## מודול 6: מודול לובי התלמיד (Student Hub Spec)
 
-#### ב. מצב המערכת
-השרת הוא מקור האמת היחיד והמוחלט עבור מצב המקרן. מצב המקרן מנוהל ונשמר ברמת השילוב של כיתה ומפגש פעיל מוגדר בשרת כדי למנוע ערבוב של מצבים בין מפגשי למידה שונים או בין כיתות מקבילות.
-השרת ינהל לכל כיתה פעילה ולכל מפגש את השדות הבאים לפחות:
-- מצב מקרן כערך בוליאני בשדה `projector_mode`
-- חותמת זמן של עדכון מצב המקרן בשדה `projector_mode_updated_at`
-- מזהה המורה המעדכן את המצב בשדה `updated_by_teacher_id`
+### א. ניהול מפגשים
+המערכת שולפת את המפגש הפעיל בטעינה ראשונית. Snapshot listener ממוקד למסמך המפגש הפעיל בלבד (ללא קריאות גלובליות יקרות).
 
-שכבת הסנכרון בצד הלקוח מאזינה לשינויים בבסיס הנתונים בזמן אמת ומעדכנת את חנות Zustand. חנות Zustand אינה מוסמכת לשנות את מצב המקרן הסמכותי ואינה מהווה מקור אמת עבורו. כדי למנוע עיבוד של אירועים ישנים שמגיעים באיחור בשל עיכובי רשת שכבת הסנכרון בצד הלקוח תבצע אימות של חותמת הזמן ותתעלם מכל עדכון שבו חותמת הזמן `projector_mode_updated_at` קטנה או שווה לחותמת הזמן של המצב הפעיל הנוכחי בדפדפן. כאשר מצב המקרן פעיל סביבת העבודה של התלמיד עוברת למצב צפייה חסום וכל פעולות הקלט והאינטראקציה עם הקנבס והמקלדת נחסמות באופן זמני. המצב המקומי של מרחב העבודה נשמר ללא שינוי.
-
-חל איסור מוחלט על ביצוע הפעולות הבאות:
-- הצגת מסכים ריקים או ערכי null
-- הצגת מסך לבן ללא תוכן
-- איפוס מרחב העבודה המקומי
-- טעינה מחדש של האפליקציה בדפדפן
-- מחיקת נתוני התרגיל הפעיל
-
-#### ג. אירוע המשתמש
-המורה מפעיל או מכבה את מצב המקרן מתוך לוח הבקרה של המורה עבור כיתה ומפגש ספציפיים. בעת שינוי הערך בשרת כל לקוחות התלמידים המחוברים למפגש הכיתה מקבלים את שינוי המצב באופן מיידי.
-
-#### ד. התוצאה הצפויה
-כאשר מצב המקרן מופעל התלמיד רואה מסך המתנה ייעודי אטום לחלוטין המשרה רוגע ומונע עומס קוגניטיבי מפוצל. המסך יציג רקע חזותי שליו איור של מקרן ואת המשפט הבא בגופן גדול ובולט: **הקשיבו להסבר של המורה על גבי המקרן**. מרחב העבודה הקיים נשמר בזיכרון המקומי אך אינו מוצג מתחת למסך ההמתנה כדי למנוע הסחות דעת. עם כיבוי מצב המקרן סביבת העבודה משתחררת מיד וחוזרת למצב הפעיל האחרון שנשמר ללא צורך בטעינה מחדש של הדפדפן וללא יצירת מפגש למידה חדש. יעד הביצועים של המעבר לעיל יעמוד על מדד P95 קטן או שווה לאלף מילישניות מרגע הלחיצה ועד לשינוי המצב בכל לקוחות התלמידים המחוברים.
-
-#### ה. חוזה נתונים והתנהגות בזמן כשל
-במקרה של ניתוק רשת בזמן שמצב המקרן פעיל הלקוח שומר את המצב האחרון הידוע וממשיך להציג את מסך ההמתנה השקט. הלקוח אינו רשאי להסיק באופן עצמאי שמצב המקרן הסתיים. עם חידוש החיבור לרשת שכבת הסנכרון מבצעת התאמה מול המצב הסמכותי בשרת. אם המצב בשרת פעיל מסך ההמתנה נשאר דולק ואם המצב בשרת כבוי סביבת העבודה משתחררת באופן מיידי. במקרה של אי התאמה מצב השרת הוא הקובע תמיד. אין להציג הודעות שגיאה חוסמות או חלונות אזהרה במהלך התהליך.
-
-#### ו. תלויות במודולים אחרים
-מודול זה קשור ותלוי במודולים הבאים:
-- מודול שש המנהל את לובי התלמיד
-- מודול שבעה עשר המנהל את תור העבודה הלא מקוון
-- מודול עשרים ואחת המנהל את לוח הבקרה וממשק השליטה של המורה
-- מודול עשרים ותשעה המנהל את מכונת המצבים הגלובלית
-
-#### ז. בדיקה קוגניטיבית
-**נתון:** התלמיד נמצא בתרגיל שלוש ומבצע גרירת לבנים בקנבס הלבנים הדיגיטליות.
-**כאשר:** המורה מפעיל את מצב המקרן עבור הכיתה והמפגש הפעיל.
-**אז:**
-- בתוך פחות מאלף מילישניות ברמת P95 הלקוח מציג את מסך ההמתנה השקט והאטום לחלוטין.
-- כל פעולות הקלט והגרירה נחסמות באופן מיידי.
-- מצב מרחב העבודה האחרון של התלמיד נשמר ללא שינוי ואינו נמחק.
-- המערכת אינה מבצעת טעינה מחדש של הדפדפן.
-- לא מוצגות הודעות שגיאה או חלונות אזהרה.
-- כאשר המורה מכבה את מצב המקרן התלמיד חוזר מיד לאותו תרגיל ולאותו מצב לבנים מדויק שבו עמד ללא צורך בטעינת הדפדפן מחדש.
-
-#### ח. הנחיות פיתוח נוקשות בשפה האנגלית (Strict Developer Instructions)
-Eradicate all rendering of null or blank screen states when projector mode is active to prevent student confusion or application crashes. Restrict the projector mode state scope strictly to class_id and active_session_id context. Implement a dedicated visually soothing fully opaque waiting screen component on student clients displaying a serene background a projector icon and the bold text message הקשיבו להסבר של המורה על גבי המקרן. Ensure that the active place value canvas is completely hidden beneath the opaque wait screen to avoid split attention cognitive overload. Persist the current Zustand state without deletion or reset. Synchronize the projector mode boolean state using a real time Firestore onSnapshot listener ensuring screen locking and unlocking events complete on all student clients under a performance target of P95 <= 1000ms. To prevent out of order execution of delayed network events ignore any incoming Firestore state update if its projector_mode_updated_at timestamp is less than or equal to the currently applied state timestamp.
+### ב. הנחיות פיתוח נוקשות (Strict Developer Instructions)
+Render a clean dashboard displaying only the current active session object fetched from the student state database. Use targeted listeners to minimize read costs. Keep local Zustand state updated with the latest session ID fetched from the authoritative server state.
 
 ---
 
+## מודול 7: מודול לוח בית המספרים הדיגיטלי (Place Value Chart Engine Spec)
 
+### א. ניהול מצב ותצוגה
+Zustand הוא מקור האמת ל-Local Runtime State בלבד, כאשר השרת מקבל עדכוני אירועים תקופתיים. ממשק: עמעום טורים לא פעילים (`brightness: 0.6`) ונעילת pointer-events בטורים שאינם במוקד החישוב הנוכחי.
 
-### מודול 16: מודול לוח רפלקציה תלת־שלבי (SRL Reflection Board Module Spec)
-#### א. הטריגר הפדגוגי
-קידום מודעות עצמית, הכוונה עצמית ופיתוח סוכנות הלומד בסיום מפגש שמונה.
-לוח הרפלקציה נועד לאפשר לתלמיד לזהות את מידת המאמץ שהשקיע, לזהות אסטרטגיות דיגיטליות שסייעו לו במהלך ההתמודדות ולקבל משוב מעודד על תהליך ההתמודדות וההתמדה.
-הרכיב יעוצב באופן המותאם קוגניטיבית וחזותית לתלמידי כיתה ג ולתלמידי שילוב, תוך הפחתת עומס שפתי, צמצום עומס קוגניטיבי מפוצל ושימוש בייצוגים חזותיים ברורים.
-הרפלקציה תתמקד בתהליך הלמידה ובהתמודדות של התלמיד, ולא בהשוואתו לתלמידים אחרים או בתיוג יכולתו.
+### ב. הנחיות פיתוח נוקשות (Strict Developer Instructions)
+Implement CSS filter properties for brightness control (`brightness(0.6)` for inactive columns). Use Zustand for active column state tracking. Ensure active column pointer events are properly isolated.
 
-#### ב. מצב המערכת
-השרת הוא מקור האמת הסמכותי והיחיד עבור מצב התקדמות הרפלקציה והשלמתה. השרת ינהל לכל סשן של מפגש שמונה את השדות הבאים לפחות:
-- שלב הרפלקציה הנוכחי בשדה `reflection_step`, בערכים 1, 2 או 3.
-- סטטוס השלמת הרפלקציה בשדה `reflection_completed` כערך בוליאני.
-- נתוני תשובות הרפלקציה, לרבות דירוג המאמץ והאסטרטגיות שנבחרו.
-- ערך מדד ההתמדה בשדה `persistence_index`, לאחר השלמת שלב 3.
-- חותמת זמן לעדכון האחרון של הרפלקציה בשדה `reflection_updated_at`.
+---
 
-שכבת הסנכרון בצד הלקוח מאזינה למצב הסמכותי בשרת ומעדכנת את חנות Zustand. Zustand משמשת כשכבת תצוגה ומטמון מקומי בלבד ואינה מהווה מקור אמת. היא אינה רשאית לקבוע באופן עצמאי את שלב הרפלקציה, השלמת הרפלקציה, מדד ההתמדה הסמכותי או סיום מפגש שמונה.
-המעבר משלב אחד לשלב הבא מותנה באישור שמירת נתוני השלב הקודם בשרת. לאחר רענון הדפדפן, פתיחת הסשן מחדש או חידוש חיבור רשת, המערכת תשחזר את מצב הרפלקציה ואת הנתונים שאושרו מתוך המצב הסמכותי בשרת.
+## מודול 8: מודול לבני דינס וירטואליות (Dienes Blocks Engine & Canvas Spec)
 
-**חישוב מדד ההתמדה:**
-לצורך חישוב מדד ההתמדה המערכת תשתמש בשלושת מדדי ההתמודדות המצטברים שנאספו במהלך מפגש שמונה:
-- **U** — מספר פעולות ביטול פעולה (Undo) שבוצעו.
-- **E** — מספר ניסיונות הקלדה שגויים.
-- **G** — מספר בחירות שגויות בכרטיס החניכה הסוקרטי.
+### א. מנוע הגרירה והחישוב
+- **ניהול מצב:** Zustand הוא מקור האמת למיקום וכמות הבלוקים ברמת ה-UI. IndexedDB משמש ל-Persistence מקומי בעת ניתוק.
+- **פיזיקה ממוחשבת:** 60fps, מנגנון Magnetic Snap מבוקר עם HTML5 Canvas/WebGL.
+- **מנגנון Undo:** משחזר Snapshot דטרמיניסטי של מצב ה-VRA. אירועי Undo מוסרים באופן מפורש ממדדי השגיאות והשחיקה בטלמטריה.
 
-נוסחת המדד מוגדרת כך:
+### ב. הנחיות פיתוח נוקשות (Strict Developer Instructions)
+Use HTML5 Canvas/WebGL for block manipulation running steadily at 60fps. Implement magnetic snap physics for snapping blocks into standard column layouts. Undo actions must be excluded from mistake telemetry tallies.
+
+---
+
+## מודול 9: מודול מקלדת דינמית וגשר VRA (Dynamic Keyboard & VRA Bridge Spec)
+
+### א. התנהגות המקלדת הדינמית
+- **עקרון:** מנוע ה-Rule Engine / VRA קובע את אירוע ההמרה.
+- **הפרדה:** Teacher-configured support profile (הגדרה סמכותית בשרת) מול Current intervention state (מצב UI רגעי).
+- **חסימת קלט:** המקלדת הדינמית ננעלת בטורים הדורשים המרה (פריטה/צירוף עשר), ומשתחררת רק עם השלמת הפעולה הפיזית בקנבס הלבנים.
+
+### ב. הנחיות פיתוח נוקשות (Strict Developer Instructions)
+Implement conditional column keyboard locking based on VRA engine conversion events. Unlock column keyboard strictly upon conversion success event execution.
+
+---
+
+## מודול 10: מודול לוח חיבור אדפטיבי מבוקר (Symmetrical Addition Grid Module Spec)
+
+### א. היררכיית תמיכה וזמנים
+1. **Independent Exploration:** חקירה עצמאית (0–30 שניות).
+2. **Adaptive Grid / Low-Level Scaffold:** 30 שניות+ (הצגת רשת תמיכה).
+3. **Socratic Intervention:** 45 שניות+ (הפעלת טריגר חניכה סוקרטית).
+
+### ב. ניהול טיימר
+הטיימר מתאפס על פעולות קוגניטיביות בלבד (גרירת לבנים, הקלדה, המרה). תנועות עכבר אינן מאפסות את הטיימר.
+
+### ג. הנחיות פיתוח נוקשות (Strict Developer Instructions)
+Manage grid visibility via local React state decoupled from Firestore write streams. Track cognitive interaction events exclusively to reset the hesitation timer.
+
+---
+
+## מודול 11: מודול כפתור ביטול פעולה פדגוגי (Undo Action Engine Module Spec)
+
+### א. עקרונות פדגוגיים ותפעוליים
+- **עקרון:** Undo is not a mistake event. Undos are excluded from mistake tallies and latency penalty.
+- **טכני:** שמירת מחסנית (Stack) מקומית בלקוח המוגבלת ל-10 הפעולות האחרונות. שחזור Snapshot דטרמיניסטי של מצב ה-VRA (קואורדינטות, כמויות, קלט).
+
+### ב. הנחיות פיתוח נוקשות (Strict Developer Instructions)
+Maintain a client-side state stack restricted strictly to the last 10 actions. Undo actions must never reduce scores or trigger punitive interventions.
+
+---
+
+## מודול 12: מנגנון בלימת ניחושים וחיכוך פדגוגי (Socratic Mentoring Trigger Spec)
+
+### א. הטריגר הפדגוגי
+זיהוי קושי קוגניטיבי ומניעת ניחושים עיוורים או חוסר אונים נרכש, תוך הכוונה עצמית של התלמיד בחזרה לחקירה ייצוגית בקנבס הלבנים.
+
+### ב. מצב המערכת ומעטפת החיכוך
+המערכת עוקבת אחר פעולות הלומד ומזהה מצבי קושי על פי שני מדדים בלבד:
+1. השהיה רצופה של 45 שניות ללא פעולה קוגניטיבית בטור החישוב הפעיל.
+2. ביצוע של 4 ניסיונות הקלדה/מחיקה שגויים ברציפות באותו תרגיל.
+
+בעת זיהוי קושי, מופעל כרטיס החניכה הצידי (Socratic Card) במגירה נשלפת (Side Drawer). בעת בחירת תשובה שגויה בתוך כרטיס החניכה, המערכת מפעילה נעילה שקטה של לחצני המענה בכרטיס בלבד למשך 60 שניות (`pointer-events: none` בתוספת אינדיקטור שעון חול עדין). בזמן נעילת כרטיס החניכה, מרחב הלבנים הדיגיטליות, המקלדת, וכפתור ה-Undo נשארים פעילים וחופשיים לחלוטין לחקירה.
+
+### ג. הנחיות פיתוח נוקשות (Strict Developer Instructions)
+Implement the Socratic card in a dedicated side drawer without using popup dialogs or blocking modals. Trigger Socratic card activation strictly upon: (a) 45 seconds of continuous column hesitation, or (b) 4 consecutive digit deletions/errors in the active column — these two conditions correspond exactly to `trigger_reason: 'hesitation_45s' | 'consecutive_errors_4'` in `SocraticCardShownDetails` (Appendix A §3). Upon incorrect answer selection inside the Socratic card, immediately apply a 60-second pointer-events-disabled block exclusively to the card buttons with a serene hourglass indicator. Ensure Dienes blocks canvas interaction and the undo button remain fully functional and accessible. Send workspace telemetry JSON to initiate backend AI analysis.
+
+---
+
+## מודול 13: ממשק החונך הדיגיטלי ומנוע החניכה (Socratic AI Engine & Gemini API Contract)
+
+### א. מנוע האבחון והנחיות המערכת
+מנוע הבינה המלאכותית מקבל כקלט את מטען הטלמטריה ומצב מרחב העבודה של התלמיד. המנוע מסווג את הטעות לאחת משלוש קטגוריות:
+1. טעויות עובדתיות בחישוב הבסיסי.
+2. טעויות מיומנות רכיב (סדר האלגוריתם).
+3. טעויות אסטרטגיה (חוסר הבנה מושגית של המבנה העשרוני).
+
+בהתאם לסיווג, המנוע מנסח שאלה מנחה סוקרטית אחת קצרה ושלושה מסיחים מותאמים. חוקי ברזל למנוע ה-AI: חל איסור מוחלט לחשוף את התשובה המספרית הסופית, לפתור עבור התלמיד, או להשתמש במונחי עזרים פיזיים שאינם קיימים בממשק הדיגיטלי. במקרה של כשל תקשורת, המערכת מגישה רמז סטטי מובנה מראש.
+
+### ב. חוזה בקשה ותשובה מול ה-Gemini API (JSON Schema)
+
+```typescript
+// Request Payload (Outgoing to Cloud Function / Gemini API)
+export interface GeminiSocraticRequest {
+  student_id: number; // Strictly 1-12
+  session_id: string;
+  exercise_id: string;
+  active_column_index: number;
+  workspace_state: {
+    ones_count: number;
+    tens_count: number;
+    hundreds_count: number;
+    memory_circles: Record<string, number>;
+  };
+  recent_actions: TelemetryPayload<TelemetryEventType>[]; // מערך הטרוגני; כל איבר מוקלד פנימית לפי event_type שלו
+}
+
+// Response Payload (Incoming from Gemini API)
+export interface GeminiSocraticResponse {
+  guiding_question: string; // Single concise question referring strictly to digital VRA
+  options: [
+    { id: 'opt_1'; option_text: string; feedback_text: string; is_correct: boolean },
+    { id: 'opt_2'; option_text: string; feedback_text: string; is_correct: boolean },
+    { id: 'opt_3'; option_text: string; feedback_text: string; is_correct: boolean }
+  ];
+}
+```
+
+### ג. הנחיות פיתוח נוקשות (Strict Developer Instructions)
+Enforce rigid JSON schema validation for the Gemini API exchange matching `GeminiSocraticRequest` and `GeminiSocraticResponse`. Use `student_id` exclusively — do not reintroduce `anonymous_student_id` as a separate field name anywhere in the implementation. Bind Socratic persona exclusively to digital VRA model representations, strictly forbidding direct answer disclosure or physical CRA terminology. Serve pre-configured static hints instantly upon API timeout or network failure.
+
+---
+
+## מודול 14: מודול מפגשים 1 עד 8 ומנוע תרגילים (Session & Worksheet Progression Spec)
+
+### א. הטריגר הפדגוגי
+מניעת עומס קוגניטיבי ושמירה על החוסן הרגשי של תלמידי כיתה ג' באמצעות הגבלת זמן העבודה העצמאית בהתאם לסוג המפגש. עידוד סוכנות הלמידה באמצעות בחירה אקטיבית בין נתיב ביסוס לנתיב אתגר.
+
+### ב. מצב המערכת
+השרת הוא מקור האמת היחיד והמוחלט עבור זמן המפגש ומצב התרגיל הפעיל. השרת מנהל: `session_start_time`, `session_deadline_time`, `active_exercise_id`, `session_state`, `active_session_id`.
+- מפגשים 3–7: מוגבלים ל-15 דקות נטו של עבודה עצמאית.
+- מפגשים 2 ו-8: מוגבלים ל-25 דקות נטו של עבודה עצמאית.
+
+חנות Zustand בדפדפן משמשת לתצוגה בלבד ואינה מוסמכת לקבוע או להאריך זמנים. במקרה של רענון או פתיחת מספר כרטיסיות, הדפדפן מסתנכרן מול השרת.
+
+### ג. נתיבי בחירה בסיום 7 תרגילי החובה
+עם השלמת 7 תרגילי החובה לפני תום הזמן, המערכת מציגה מסך בחירה שקט ומעצים:
+- **נתיב ביסוס:** משימות חזרה וייצוגים לא סטנדרטיים.
+- **נתיב אתגר:** משימות חקר מורכבות בתחום הרבבה, המרות מרובות וספרות חסרות.
+
+תרגילי הבחירה אינם נכללים במדדי השליטה הרשמיים של 7 תרגילי החובה.
+
+### ד. בדיקה קוגניטיבית
+- **נתון:** התלמיד בתרגיל 5/7, נותרו 7 דקות. התלמיד מרענן דפדפן או חווה ניתוק רשת של 30 שניות.
+- **תוצאה:** הסשן, מספר התרגיל (5) ומצב ה-VRA משתחזרים בדיוק. הספירה נמשכת לפי חותמת הזמן הסמכותית בשרת.
+
+### ה. הנחיות פיתוח נוקשות (Strict Developer Instructions)
+Establish the server as the sole authoritative source of truth for both session duration and current problem index. Use Zustand strictly as a presentation and local cache layer. Synchronize state upon refresh to prevent clock manipulation. Restrict teacher dashboard mastery calculations strictly to the first seven compulsory tasks.
+
+---
+
+## מודול 15: מודול ארגז חול דיגיטלי מונחה ומצב מקרן (Sandbox & Projector Mode Spec)
+
+### א. הטריגר הפדגוגי
+ניהול הלמידה ההיברידית בכיתה בצורה רכה וצפויה. הפעלת מצב מקרן יוצרת מעבר קוגניטיבי מבוקר המכוון את קשב הלומדים להסבר המורה תוך מניעת עומס מפוצל.
+
+### ב. מצב המערכת
+השרת הוא מקור האמת היחיד למצב המקרן ברמת `class_id` ו-`active_session_id`. שדות שרת: `projector_mode` (boolean), `projector_mode_updated_at` (timestamp), `updated_by_teacher_id`. כאשר מצב מקרן פעיל, סביבת התלמיד עוברת למצב צפייה חסום ואטום. חל איסור מוחלט על הצגת מסכים Null/לבנים, איפוס מרחב העבודה המקומי, או טעינה מחדש של הדפדפן.
+
+### ג. התוצאה הצפויה והתנהגות ויזואלית
+הצגת מסך המתנה אטום הכולל איור מקרן שליו והטקסט: "הקשיבו להסבר של המורה על גבי המקרן". מרחב העבודה נשמר בזיכרון המקומי אך מוסתר לחלוטין. עם כיבוי המקרן, הסביבה משתחררת מיד (P95 ≤ 1000ms) לאותו מצב מדויק.
+
+### ד. הנחיות פיתוח נוקשות (Strict Developer Instructions)
+Eradicate all rendering of null or blank screen states when projector mode is active. Restrict projector mode state strictly to `class_id` and `active_session_id` context. Render a serene, fully opaque wait screen displaying "הקשיבו להסבר של המורה על גבי המקרן" without deletion. Persist current Zustand state. Synchronize boolean state via real-time Firestore listener with target P95 ≤ 1000ms. Ignore outdated updates using timestamp validation.
+
+---
+
+## מודול 16: מודול לוח רפלקציה תלת־שלבי (SRL Reflection Board Spec)
+
+### א. הטריגר הפדגוגי
+קידום מודעות עצמית, הכוונה עצמית ופיתוח סוכנות הלומד בסיום מפגש 8, ללא תיוג או השוואה לאחרים.
+
+### ב. מצב המערכת וחישוב מדד ההתמדה
+השרת מנהל: `reflection_step` (1, 2 או 3), `reflection_completed` (boolean), `persistence_index` (number).
+
+**נוסחת מדד ההתמדה (Persistence Index):**
+
 $$\text{Persistence Index} = \frac{U}{U + E + G} \times 100$$
 
 כאשר:
-- המונה הוא $U$.
-- המכנה הוא $U + E + G$.
-- התוצאה תעוגל לערך אחוזי שלם בטווח 0%–100%.
-- כאשר $U + E + G = 0$, המערכת לא תבצע חלוקה, ותגדיר את Persistence Index לערך **100%** כברירת מחדל טכנית למניעת שגיאת חלוקה באפס.
+- **U** = מספר פעולות ביטול פעולה (Undo) — נגזר מספירת אירועי `UNDO_EXECUTED`.
+- **E** = מספר ניסיונות הקלדה שגויים — נגזר מספירת אירועי `DIGIT_ENTERED` שבהם `is_correct === false` (שדה זה נוסף בגרסה 6.1 בדיוק לצורך חישוב זה; ראו מודול 5 ונספח א' §3).
+- **G** = מספר בחירות שגויות בכרטיס החניכה — נגזר מספירת אירועי `SOCRATIC_OPTION_SELECTED` שבהם `is_correct === false`.
 
-מדד ההתמדה הסמכותי יחושב ויישמר בשרת לאחר השלמת שלב 3 בלבד. המערכת לא תציג את המדד כציון, דירוג או מדד השוואתי בין תלמידים.
+**טיפול בקצה:** כאשר U + E + G = 0, המודול קובע דינמית Persistence Index = 100%, למניעת חלוקה באפס.
 
-**נתוני Recovery:**
-נתוני רפלקציה שטרם אושרו בשרת יישמרו ב-IndexedDB כ-Recovery Draft בלבד. נתוני ה-Recovery Draft אינם מקור אמת, אינם רשאים לשנות את `reflection_step` או `reflection_completed`, ואינם רשאים לאשר את השלמת המפגש.
+### ג. שלושת שלבי הרפלקציה
+1. **שלב א — הערכת מאמץ:** בחירה מתוך 3 סמלים חזותיים (מאמץ קל, בינוני, רב).
+2. **שלב ב — זיהוי אסטרטגיות:** סימון צ'קבוקסים (Undo, עיגולי זיכרון, כרטיס סוקרטי).
+3. **שלב ג — משוב התמדה:** הצגת האחוז, מסר מעצים וכפתור סיום מפגש סופי.
 
-#### ג. אירוע המשתמש
-התלמיד משלים את פתרון שבעת תרגילי החובה של מפגש שמונה ועובר באופן אוטומטי למסך הרפלקציה:
-- **שלב א — הערכת מאמץ:** התלמיד בוחר אחד משלושה סמלים חזותיים המייצגים מאמץ קל, בינוני או רב.
-- **שלב ב — זיהוי אסטרטגיות:** התלמיד מסמן את האסטרטגיות הדיגיטליות שסייעו לו במהלך פתרון התרגילים (שימוש ב-Undo, עיגולי זיכרון, רמזי כרטיס חניכה).
-- **שלב ג — משוב התמדה:** התלמיד צופה במדד ההתמדה שחושב על ידי המערכת ובמסר משוב קצר ומעודד, ולאחר מכן לוחץ על כפתור סיום המפגש.
-
-המערכת לא תאפשר דילוג על שלב שטרם אושר או סימון הרפלקציה כהושלמה לפני אישור שלושת השלבים בשרת.
-
-#### ד. התוצאה הצפויה
-המערכת תציג רכיב רפלקציה תלת־שלבי, חזותי, דל־שפה ומצומצם גירויים, המותאם למאפייני הלומדים:
-1. **שלב א — הערכת מאמץ:** רכיב חזותי הכולל בדיוק שלושה סמלים מובחנים המייצגים מאמץ קל, בינוני, או רב. הבחירה נשמרת בשרת לפני המעבר.
-2. **שלב ב — בחירת אסטרטגיות:** יוצגו בדיוק שלוש אסטרטגיות דיגיטליות: (1) שימוש בכפתור ביטול הפעולה (Undo), (2) שימוש בעיגולי הזיכרון, (3) שימוש בשאלות כרטיס החניכה הסוקרטי. התלמיד רשאי לבחור יותר מאסטרטגיה אחת.
-3. **שלב ג — משוב התמדה:** יוצג מדד ההתמדה באחוזים, מסר קצר, חיובי וממוקד־תהליך, וכפתור סיום המפגש. לאחר אישור שמירת שלב 3 בשרת: `reflection_completed` יעודכן ל-true וכפתור סיום המפגש יהפוך לזמין.
-
-#### ה. חוזה נתונים והתנהגות בזמן כשל
-במקרה של ניתוק רשת זמני, התלמיד יכול להמשיך למלא את הרפלקציה, אך לא יוכל להשלים את המפגש לפני אישור הנתונים בשרת. נתונים שטרם נשמרו בשרת יישמרו ב-IndexedDB כ-Recovery Draft בלבד.
-במצב לא מקוון: אין להציג Modal חוסם, אין לאבד נתונים, כפתור סיום המפגש נשאר חסום, ומוצג חיווי לא חוסם שהנתונים ממתינים לסנכרון.
-עם חידוש החיבור: התחברות לשרת, השוואת Recovery Draft מול מצב שרת, שליחת נתונים לפי סדר שלבים עם `idempotency_key`, אישור שרת, עדכון Zustand, ומחיקת ה-Recovery Draft שאושר.
-
-#### ו. תלויות במודולים אחרים
-מודול זה קשור ותלוי במודולים: 5, 8, 11, 12, 13, 17, 29.
-
-#### ז. בדיקה קוגניטיבית
-- **תרחיש רענון:** התלמיד בשלב ב ומרענן את הדפדפן -> המערכת פותחת את הרפלקציה בשלב ב, בחירת המאמץ משלב א משוחזרת מהשרת.
-- **תרחיש ניתוק רשת:** התלמיד ממשיך למלא, נתונים נשמרים כ-Recovery Draft ב-IndexedDB, ועם חידוש הרשת מסתנכרנים באופן אטומי לשרת.
-- **תרחיש שליחה כפולה:** השרת מזהה את ה-`idempotency_key` ומונע כפילויות.
-
-#### ח. הנחיות פיתוח נוקשות בשפה האנגלית (Strict Bilingual Developer Instructions)
-Implement the SRL Reflection Board strictly in three chronological steps: (Step 1) Effort Evaluation presenting a 3 point visual scale using icons representing low, medium, and high mental effort to bypass language barriers; (Step 2) Strategy Selection rendering checkboxes for used strategies including undo button, memory circles, or socratic card hints; (Step 3) Persistence Feedback displaying the calculated index. Handle the mathematical edge case: if the denominator (U + E + G) equals zero, dynamically default the Persistence Index value to 100 percent to prevent division by zero runtime errors in the client execution.
-Do not expose comparative rankings, peer comparisons, social labels, or achievement classifications. Students may continue completing the reflection while temporarily offline. Persist unsynchronized reflection data only as a Recovery Draft in IndexedDB. Recovery Draft data is never authoritative and must never independently modify reflection_step, reflection_completed, session completion, or the authoritative Persistence Index. The final reflection submission and session completion must remain blocked until the complete three-step reflection state has been successfully acknowledged by Firestore. Upon network recovery: 1. Reconnect to Firestore. 2. Retrieve the latest authoritative reflection state. 3. Compare the Recovery Draft with the authoritative server state. 4. Identify unsynchronized data. 5. Submit missing data in step order. 6. Wait for successful server acknowledgement. 7. Update Zustand from the authoritative server response. 8. Remove successfully synchronized Recovery Draft data. 9. Enable final session completion only after server confirmation. Every reflection write operation must include a unique idempotency key. The server must prevent duplicate writes when the same operation is retried because of network failure, browser refresh, or synchronization retry.
+### ד. הנחיות פיתוח נוקשות (Strict Developer Instructions)
+Implement SRL Reflection Board strictly in three chronological steps: (1) Effort Evaluation (3-point visual scale), (2) Strategy Selection, (3) Persistence Feedback displaying calculated index. Compute U, E, G exclusively from `UNDO_EXECUTED` count, `DIGIT_ENTERED` events with `is_correct: false`, and `SOCRATIC_OPTION_SELECTED` events with `is_correct: false`, respectively. Dynamically default Persistence Index to 100% if the denominator (U + E + G) equals zero. Do not expose comparative rankings or social labels. Synchronize step completions atomically with Firestore using idempotency keys.
 
 ---
 
-### מודול 17: מודול עבודה במצב לא מקוון ותור סנכרון (Offline Queue and Local Storage Module Spec)
-#### א. הטריגר הפדגוגי
-הבטחת רציפות הלמידה והפחתת חרדה ותסכול הנובעים מתקלות תקשורת זמניות בכיתה המשלבת. המערכת תאפשר לתלמידי כיתה ג ולתלמידי השילוב להמשיך בעבודתם גם בעת ניתוק רשת ללא קטיעת חוט המחשבה וללא דרישה להבנה טכנית של מצב החיבור. המעבר למצב לא מקוון יתבצע באופן שקט עם חיווי חזותי מינימלי ולא חוסם תוך שמירה על פעולות הלמידה ועל רצף התהליך הקוגניטיבי.
+## מודול 17: מודול עבודה במצב לא מקוון ותור סנכרון (Offline Queue & Sync Engine Spec)
 
-#### ב. מצב המערכת
-המערכת תנהל בחנות Zustand את מצב החיבור הנוכחי לצורכי תצוגה והתנהגות ממשק בלבד. Zustand אינה מקור אמת למצב הסנכרון, למצב המפגש או לנתוני התלמיד.
-בעת זיהוי ניתוק רשת המערכת תעבור באופן אוטומטי למצב לא מקוון ותפעיל מנגנון אגירה מקומי המבוסס על **IndexedDB**. הזיכרון המקומי של IndexedDB ישמש כמאגר עמיד לתור פעולות ולטלמטריה שטרם סונכרנו עם השרת.
-**חל איסור מוחלט להשתמש ב-LocalStorage לצורך אגירת פעולות טלמטריה או נתוני סנכרון** בשל אופיו הסינכרוני והאפשרות לחסום את חוט הממשק.
+### א. הטריגר הפדגוגי
+הבטחת רציפות הלמידה והפחתת חרדה הנובעת מתקלות תקשורת. המעבר לאופליין מתבצע באופן שקט ללא קטיעת חוט המחשבה.
 
-כל פעולה שנדרשת להישמר בשרת תיכנס לתור הסנכרון המקומי עם הנתונים הבאים לפחות:
-- מזהה פעולה ייחודי (`idempotency_key`)
-- חותמת זמן של ביצוע הפעולה בפועל בצד הלקוח (`client_timestamp`)
-- מזהה סשן (`session_id`)
-- מזהה תרגיל או מרחב עבודה בהתאם לסוג הפעולה
-- מזהה תלמיד אנונימי (1–12) או מזהה משתמש פנימי
-- סוג הפעולה (`action_type`)
-- מטען הנתונים הנדרש לשחזור הפעולה (`payload`)
+### ב. מצב המערכת וניהול תור
+Zustand מייצג את מצב ה-UI בלבד. IndexedDB משמש כמאגר אגירה עמיד. חל איסור מוחלט להשתמש ב-LocalStorage עבור תורי טלמטריה וסנכרון. כל פעולה שנאגרת באופליין נשמרת ב-IndexedDB במבנה FIFO הכולל: `idempotency_key`, `client_timestamp`, `session_id`, `student_id`, `exercise_id`, `operation_type`, `payload`.
 
-התור ינוהל בסדר **FIFO** (נכנס ראשון יוצא ראשון) ביחס לפעולות מאותו סשן ומרחב עבודה. השרת הוא מקור האמת למצב הסמכותי של המפגש והתרגיל. מצב החיבור של התלמיד שיוצג למורה ינוהל באמצעות מנגנון נוכחות ודופק חיים (**Presence Heartbeat**) של המערכת (עד 15 שניות) ולא ייגזר באופן בלעדי מניתוק של Firestore listener.
+### ג. פרוטוקול התאוששות וחידוש חיבור
+פרוטוקול בן **5 שלבים**:
+1. זיהוי חידוש חיבור ואימות נגישות לשרת.
+2. שליפת מצב סמכותי עדכני מ-Firestore ועדכון Zustand.
+3. קריאת תור ה-FIFO מ-IndexedDB ושליחה במנות מוגבלות (Bounded Batches).
+4. מחיקה אטומית מ-IndexedDB רק לאחר קבלת אישור שרת (Ack).
+5. השרת אוכף עיבוד אידמפוטנטי (Idempotent Execution) למניעת כפילויות.
 
-#### ג. אירוע המשתמש
-התלמיד עובד במפגש ומבצע פעולות בממשק (גרירת לבנים, הזנת ספרות, ביטול פעולה, כרטיס חניכה). חיבור הרשת מתנתק או מתחדש. הדפדפן מזהה את שינוי מצב החיבור:
-- בניתוק: המערכת מאפשרת המשך פעולות למידה הנתמכות במצב לא מקוון ושומרת פעולות הדורשות סנכרון ב-IndexedDB.
-- בחידוש: המערכת מפעילה את מנגנון ההתאוששות והסנכרון האסינכרוני.
+### ד. חיווי ויזואלי
+אופליין = אייקון ענן אפור קטן ולא חוסם בפינה. אונליין מסונכרן = ענן ירוק. אין הצגת פופ-אפים או הודעות שגיאה חוסמות.
 
-#### ד. התוצאה הצפויה
-בעת ניתוק הרשת המערכת תציג בפינת הממשק חיווי קטן ולא חוסם של **ענן אפור** המציין שהמערכת פועלת במצב לא מקוון.
-בעת מעבר למצב לא מקוון:
-- אין להציג Modal חוסם או חלון שגיאה קופץ.
-- אין לעצור את פעילות הקנבס.
-- אין לדרוש מהתלמיד לבצע פעולה כדי להמשיך לעבוד.
-- אין למחוק פעולות שבוצעו במצב לא מקוון.
-- אין להציג לתלמיד הודעות טכניות מורכבות.
-
-בעת חידוש החיבור והשלמת אימות הסנכרון, החיווי יעבור ל**ענן ירוק**. הסנכרון מתחיל ללא דיחוי מורגש באופן אסינכרוני.
-
-#### ה. חוזה נתונים והתנהגות בזמן כשל
-במקרה של ניתוק רשת, כל פעולה הדורשת שמירה בשרת תתווסף באופן אטומי לתור IndexedDB. עם חידוש החיבור המערכת תבצע:
-1. זיהוי חידוש החיבור ואימות שהחיבור לשרת זמין.
-2. קבלת המצב הסמכותי העדכני של הסשן והתרגיל מהשרת.
-3. עדכון Zustand בהתאם למצב הסמכותי שהתקבל.
-4. קריאת הפעולות הממתינות מ-IndexedDB ושליחתן בסדר FIFO בקבוצות מוגבלות (Bounded Batches).
-5. הכללת `idempotency_key` בכל בקשת סנכרון.
-6. מחיקה אטומית מ-IndexedDB רק של הפעולות שהשרת אישר בהצלחה.
-7. מעבר לחיווי מקוון מלא (ענן ירוק) רק לאחר אימות החיבור לשרת.
-
-במקרה של כשל עסקי קבוע (שאינו נפתר ב-Retry), הפעולה תסומן כפנייה חריגה (Dead Letter) ללא מחיקה שקטה. בסגירת הדפדפן, הפעולות שנשמרו ב-IndexedDB יישארו זמינות לסנכרון בסשן הבא.
-
-#### ו. תלויות במודולים אחרים
-מודול זה קשור ותלוי במודולים: 5, 8, 12, 13, 14, 16, 18, 21, 29.
-
-#### ז. בדיקה קוגניטיבית
-- **תרחיש:** התלמיד מבצע פעולות (גרירה, Undo, עיגול זיכרון) בזמן ניתוק -> הממשק מציג ענן אפור, הפעולות נשמרות בתור IndexedDB עם חותמות זמן ו-`idempotency_key`. עם חידוש החיבור, הפעולות מועברות לפי הסדר, מאושרות בשרת, ונמחקות מ-IndexedDB ללא קטיעת רצף הלמידה.
-
-#### ח. הנחיות פיתוח נוקשות בשפה האנגלית (Strict Bilingual Developer Instructions)
-Implement the Offline Learning Continuity and Synchronization Module as a non-blocking resilience layer for the student learning environment. Use Zustand only for client-side UI and connection state representation. Never treat Zustand as the authoritative source for session state, exercise state, synchronization state, or server persistence. Use IndexedDB as the persistent local transaction buffer for offline actions and telemetry that must eventually reach the server. Strictly prohibit LocalStorage for transaction buffering, telemetry queues, synchronization state, or other write-heavy persistence operations. Display a small non-blocking grey cloud icon when the client is offline and a green cloud icon only after connectivity to the backend has been successfully restored and synchronization readiness has been confirmed. Never display blocking modal dialogs, intrusive network error popups, or technical error messages during ordinary temporary connectivity loss. Every queued operation must contain, at minimum, a unique idempotency key generated by the client, the original client timestamp, an anonymous student ID (1 to 12), the session identifier, the exercise or workspace identifier when applicable, the operation type, and the operation payload. Persist queue entries atomically in IndexedDB. Maintain FIFO ordering for operations within the same session and workspace. When connectivity is restored, execute the recovery protocol: 1. Detect network recovery. 2. Verify backend connectivity. 3. Fetch authoritative session state. 4. Update Zustand. 5. Read pending IndexedDB operations. 6. Submit in FIFO order with idempotency keys in bounded batches. 7. Atomically delete only acknowledged operations from IndexedDB. 8. Mark online status as healthy. For teacher-facing connectivity monitoring, use the dedicated presence heartbeat mechanism (maximum 15-second detection window) instead of inferring presence solely from client browser events.
+### ה. הנחיות פיתוח נוקשות (Strict Developer Instructions)
+Use Zustand only for client UI/connection state. Never treat Zustand as authoritative for persistence. Use IndexedDB as the persistent local transaction buffer. Strictly prohibit LocalStorage. Implement FIFO queue ordering with unique idempotency keys per operation. Restore connection via the **5-step** handshake protocol described in §C above, executing atomic deletes from IndexedDB strictly upon server acknowledgment.
 
 ---
 
-## חלק ו: דשבורד המורה וניהול הכיתה
+## מודול 18: מודול רדאר פדגוגי שקט (Silent Radar Matrix Spec)
 
-### מודול 18: מודול רדאר פדגוגי שקט (Silent Radar Module Spec)
-#### א. הטריגר הפדגוגי
-תמיכה במורה כמנווט אנושי בכיתה ההיברידית על ידי אספקת תמונת מצב אבחונית בזמן אמת, ללא הצפה חושית או עייפות מהתראות. מניעת תיוג חברתי של תלמידים ושמירה על פרטיותם באמצעות אנונימיות מלאה בממשק המורה, תוך שיקוף מדויק של מצב הלמידה, הקושי והקישוריות לצורך קבלת החלטה פדגוגית מותאמת מחוץ ללומדה הדיגיטלית. הרדאר אינו כלי להערכת תלמידים, דירוגם או השוואתם, אלא כלי ניווט פדגוגי שקט המאפשר למורה לזהות מצבים הדורשים תשומת לב.
+### א. הטריגר הפדגוגי
+אספקת תמונת מצב אבחונית בזמן אמת למורה כמנווט אנושי, ללא הצפה חושית, ללא תיוג חברתי ותוך שמירה מלאה על אנונימיות התלמידים.
 
-#### ב. מצב המערכת
-דשבורד המורה יאזין בזמן אמת לשינויי מצב של תלמידי הכיתה הפעילה באמצעות מנגנון Snapshot Listener ממוקד על נתוני המצב הרלוונטיים בלבד בבסיס הנתונים Firestore. המערכת לא תאזין מחדש לכל נתוני הטלמטריה בכל שינוי, אלא רק לשדות הנדרשים להצגת מצב הרדאר.
+### ב. מפרט הגריד ומיפוי הצבעים
+גריד קבוע של 3×4 המכיל בדיוק 12 משבצות אנונימיות ממוספרות 1–12. אין לשנות את סדר המשבצות או להזיזן.
+- **ירוק (Green):** פעילות למידה תקינה (אירוע קוגניטיבי ב-30 השניות האחרונות).
+- **צהוב (Yellow):** היסוס קוגניטיבי (45 שניות רצופות ללא פעולה בטור הפעיל).
+- **אדום (Red):** כרטיס חניכה סוקרטי פעיל כעת במסך התלמיד.
+- **אפור (Grey):** התלמיד מנותק (לפי Presence Heartbeat) או שטרם החל סשן.
 
-המערכת תמפה את מצב התלמיד לאחד מארבעה מצבים חזותיים בלבד:
-1. **צבע ירוק:** התלמיד נמצא בפעילות למידה תקינה ורציפה, כאשר התקבלה פעולה קוגניטיבית רלוונטית בקנבס או במקלדת בתוך 30 השניות האחרונות.
-2. **צבע צהוב:** התלמיד נמצא במצב היסוס קוגניטיבי, כאשר חלפו לפחות 45 שניות רצופות ללא פעולה קוגניטיבית רלוונטית בטור החישוב הפעיל, בהתאם לטריגרים המוגדרים במודול 12.
-3. **צבע אדום:** כרטיס החניכה הסוקרטי פעיל כעת על מסך התלמיד, בהתאם למצב הסמכותי המוגדר במודול 13.
-4. **צבע אפור:** התלמיד אינו מחובר לפי מנגנון ה-Presence Heartbeat או טרם התחיל את המפגש.
-
-**היררכיית קדימויות דטרמיניסטית:**
-כאשר יותר מתנאי אחד מתקיים בו־זמנית, תופעל היררכיית מצבים קבועה כדי למנוע סתירות חזותיות:
+**היררכיית עדיפות תצוגה, מהגבוה לנמוך:**
 $$\text{RED} > \text{GREY} > \text{YELLOW} > \text{GREEN}$$
-כלומר: מצב חניכה פעיל (אדום) מקבל קדימות על פני מצב ניתוק (אפור), ומצב ניתוק מקבל קדימות על פני היסוס (צהוב) או פעילות רגילה (ירוק).
 
-עדכוני מצב הנשלחים מלקוח התלמיד לשרת יוגבלו באמצעות **Throttle של 1,000ms לכל היותר** לעדכון מצב, כדי להפחית כתיבות מיותרות לשרת.
-מצב הניתוק ייקבע באופן סמכותי בצד השרת באמצעות מנגנון ה-Presence Heartbeat (עד 15 שניות).
-הרדאר לא יציג שום נתונים מזהים כגון שמות תלמידים, תמונות, ראשי תיבות, אותיות או אווטארים. כל משבצת תציג **מזהה מספרי אנונימי קבוע בלבד בטווח 1–12**.
+### ג. אנונימיזציה הרמטית ו-Presence
+איסור מוחלט על הצגת שמות, ראשי תיבות או אווטארים. הצגת מזהים מספריים 1–12 בלבד. זיהוי ניתוק מבוצע בצד השרת דרך מנגנון Presence Heartbeat (חלון זיהוי מרבי: 15 שניות).
 
-#### ג. אירוע המשתמש
-התלמיד מבצע פעילות למידה, מפסיק פעילות לפרק זמן המוגדר כהיסוס (45s) או נכנס למצב חניכה סוקרטי.
-לקוח התלמיד מעדכן את מצב הלמידה הרלוונטי (מוגבל ב-Throttle של 1000ms).
-מנגנון ה-Presence Heartbeat מזהה מצב קישוריות ומעדכן אותו בצד השרת.
-דשבורד המורה מקבל את שינוי המצב באמצעות Snapshot Listener ומעדכן את המשבצת האנונימית המתאימה.
-
-#### ד. התוצאה הצפויה
-המערכת תרנדר **גריד קבוע של 3×4** המכיל עד שתים־עשרה משבצות אנונימיות קבועות, הממוספרות 1–12.
-שינוי מצב של משבצת יתבצע ללא שינוי במיקום האלמנטים וללא Layout Shift. המעבר החזותי בין צבעי המשבצות יתבצע באמצעות **CSS Transition חלק של 1000ms**.
-חל איסור מוחלט על: הצגת חלונות קופצים/Modals, הודעות אזהרה המחייבות פעולה, השמעת התראות קוליות, שינוי מיקום המשבצות, הצגת שמות/פרטים מזהים, הצגת דירוגים/ציונים, או הצגת מידע טכני/Stack Traces.
-
-#### ה. חוזה נתונים והתנהגות בזמן כשל
-במקרה של ניתוק רשת זמני של לקוח המורה, הרדאר ישמור את המצב האחרון הידוע (Last Known State) ויציג חיווי קישוריות שקט ללא התראה חוסמת. עם חידוש החיבור, ה-Snapshot Listener מתחבר מחדש ומעדכן ללא טעינת דף.
-אם לקוח תלמיד מתנתק, מנגנון ה-Presence Heartbeat בשרת יעדכן את מצבו ל-disconnected בתוך 15 שניות לכל היותר, ומשבצת התלמיד תעבור לאפור באופן שקט ואוטומטי.
-
-#### ו. תלויות במודולים אחרים
-מודול זה קשור ותלוי במודולים: 4, 5, 12, 13, 17, 21, 29.
-
-#### ז. בדיקה קוגניטיבית
-- **תרחיש:** תלמיד 3 מפסיק לפעול במשך 45 שניות, ובמקביל תלמיד 5 מתנתק מהרשת.
-  - משבצת 3 משתנה מירוק לצהוב בצורה חלקה בתוך פחות משנייה מקבלת העדכון.
-  - מנגנון ה-Presence Heartbeat מזהה את ניתוק תלמיד 5 בתוך 15 שניות ומעדכן את משבצת 5 לאפור.
-  - שני השינויים מתבצעים ללא התראה קולית, ללא פופ-אפ, ללא שינוי במבנה הגריד וללא חשיפת שמות.
-
-#### ח. הנחיות פיתוח נוקשות בשפה האנגלית (Strict Developer Instructions)
-Implement the Silent Radar as a fixed 3x4 grid containing up to twelve permanent anonymous student slots (1 to 12). Never reorder, move, resize, or dynamically rearrange radar cells. Use a focused Firestore Snapshot Listener for the active class subscribing only to the student state fields required by the radar. Render exactly four visual states: 1. GREEN = active learning state with a relevant cognitive action recorded within the last 30 seconds. 2. YELLOW = cognitive hesitation state after at least 45 consecutive seconds without a relevant cognitive action in the active calculation column. 3. RED = active Socratic mentoring card state. 4. GREY = authoritative server-side disconnected state or session-not-started state. When multiple conditions are true, apply this deterministic precedence: RED > GREY > YELLOW > GREEN. The disconnected state must be determined by the server-side Presence Heartbeat with a maximum target of 15 seconds. Throttle student state writes to the server to no more frequently than once per 1000 milliseconds. Do not expose student names, initials, photographs, avatars, letters, or any other personally identifying information in radar cells. Display only permanent numeric anonymous identifiers from 1 to 12. Use CSS transitions for smooth background-state changes without causing layout shifts. The teacher dashboard must never display modal dialogs, blocking alerts, audio notifications, technical error messages, or disruptive popups.
+### ד. הנחיות פיתוח נוקשות (Strict Developer Instructions)
+Implement Silent Radar as a static 3x4 grid representing 12 anonymous student profiles (IDs 1-12). Throttle client writes to maximum once per 1000ms. Apply color precedence highest to lowest: RED > GREY > YELLOW > GREEN. Server-side Presence Heartbeat determines GREY state within a 15-second max target. Strictly forbid rendering names, initials, or avatars.
 
 ---
 
-### 19. מודול ניהול כיתה והגדרת פרופילים (Class Management and Profiles Module Spec)
-1. **דרישות:** מתן התאמות פדגוגיות אישיות בשקט מוחלט וללא כל חיווי בממשק התלמיד למניעת תיוג חברתי של תלמידי השילוב בכיתה ההטרוגנית. פאנל הגדרות ייעודי בדשבורד המורה מעוצב כרשת קשיחה של שתים עשרה משבצות קבועות המייצגות את שתים עשרה תלמידי הפיילוט הממוינות לפי מזהים אנונימיים בטווח של אחת עד שתים עשרה בלבד ללא שמות. לצד כל מזהה תלמיד מוצג כפתור להפעלה או ביטול של פרופיל התמיכה הקוגניטיבי המוגבר. הפעלת הפרופיל משנה באופן דינמי וסמוי את ערך השדה המייצג את פרופיל התמיכה הקוגניטיבי המוגבר כערך בוליאני בבסיס הנתונים עבור אותו תלמיד. המערכת אוכפת מגבלת גודל כיתה קשיחה המונעת הוספה או הקמה של יותר משנים עשר תלמידים פעילים לכיתת המבקרים תחת בית ספר ביקורת. הממשק בצד התלמידים נשאר נקי לחלוטין מכל סימון חזותי חיצוני המעיד על קבלת סיוע.
-2. **Strict Bilingual Developer Instructions:** Render a silent configuration panel within the teacher class dashboard using a fixed 12 slot grid matching the silent radar. Toggling user properties must save enhanced_support_profile as boolean true or false in DB without triggering UI flags on pupil clients. Restrict the class size configuration strictly to 12 active students for המבקרים class under בית ספר ביקורת school context and block any excess user additions in the database layer.
-* **תרחיש בדיקה קוגניטיבי:** האם המורה יודע להפעיל פרופיל לתלמיד מבלי שהדבר ייראה על מסך התלמיד.
+## מודול 19: מודול הקצאת התאמות פדגוגיות שקטות (Silent Adaptation Assignment Spec)
+
+### א. הטריגר הפדגוגי
+מתן התאמות אישיות שקטות ללומדים ללא חיווי בממשק התלמיד וללא יצירת סממן חזותי המעיד על קבלת תמיכה מיוחדת, לשמירה על סוכנות הלומד והחוסן הרגשי.
+
+### ב. מצב המערכת ונקודת ההחלה
+השרת הוא מקור האמת עבור שיוך `support_profile_id`. שדות התלמיד הרלוונטיים בשרת (חלק מסכימת ה-`students` הקנונית המלאה במודול 4): `student_id` (1-12), `class_id`, `school_id`, `support_profile_id`, `support_profile_version`, `support_profile_updated_at`, `support_profile_updated_by`.
+
+- **גבול החלה בטוח (Safe Application Boundary):** שינוי פרופיל במהלך תרגיל פעיל נשמר כ-Pending Adaptation ומוחל אך ורק במעבר לתרגיל הבא, כדי למנוע קטיעת רצף קוגניטיבי.
+- **תצוגת תלמיד:** זהה לחלוטין לממשק הסטנדרטי (ללא Badges, אייקונים או הודעות).
+
+### ג. הנחיות פיתוח נוקשות (Strict Developer Instructions)
+Store support profile configuration strictly on the student document fields listed in §B (which match Appendix A's `AnonymousStudent` interface exactly as of v6.1 — do not introduce additional or renamed fields). Only authorized teachers may write this field. Pupil UI must remain visually indistinguishable from standard UI. If a profile is updated mid-exercise, apply it strictly at the next exercise transition boundary.
 
 ---
 
-### 20. מודול שער אישור מורה קשיח (Teacher Gate Approval Module Spec)
-1. **דרישות:** הבטחת עמידה ביעדי למידה וסגירת פערי ידע לפני מעבר לשלב הלמידה האדפטיבית תוך מניעת דפוסים של חוסר אונים נרכש בעת חסימת הניווט. בסיום מפגש שתיים התלמידים מופנים אוטומטית למסך סיום חיובי ומעודד של מעוף הדבורה המבשר להם בנחת כי המורים בודקים את עבודתם ללא שלטי נעילה חיוויי חסימה או מילים מעוררות חרדת ביצוע. הניווט למפגש שלוש נחסם בצורה אסינכרונית בצד הלקוח על ידי בקר הנתיבים. דשבורד המורה מציג טבלת מעקב עם שתים עשרה מזהי התלמידים. לצד כל תלמיד שהשלים את מפגש שתיים מוצגת המלצת הניתוב של המטריקס האדפטיבי למסלול הירוק או למסלול צמצום פערי קדם. המורה מאשר או משנה את הניתוב ולוחץ על כפתור אישור מסלול אקטיבי המעדכן את השדה המייצג אישור מורה למעבר לערך אמת בבסיס הנתונים. מעבר התלמיד למפגש שלוש מתאפשר באופן אוטומטי ומיידי עם זיהוי שינוי ערך השדה לערך אמת באמצעות מאזין הפועל בצד הלקוח עם זמן תגובה של פחות משנייה אחת.
-2. **Strict Bilingual Developer Instructions:** Enforce asynchronous check in route controller. If session Completed matches session two, restrict client navigation to session three and redirect students to a positive waiting view rendering a quiet bee flight animation with zero lock graphics or error warning indicators. Inside the teacher portal, render a list of the 12 student IDs with their matrix recommended paths and an active approve button. Toggling this button must commit teacher_gate_approved value as true in Firestore. Use a real time Snapshot Listener on student clients to trigger instant session 3 route unlocking within 1000ms.
-* **תרחיש בדיקה קוגניטיבי:** האם התלמיד מבין מדוע המערכת ממתינה לאישור המורה.
+## מודול 20: מודול שער אישור מורה קשיח (Teacher Approval Gate Spec)
+
+### א. הטריגר הפדגוגי
+הבטחת עמידה ביעדי הלמידה וסגירת פערי ידע לפני מעבר לשלב הלמידה האדפטיבית (מפגשים 3–7), תוך חוויית המתנה חיובית ומשרה רוגע.
+
+### ב. מצב המערכת
+בקר הניתוב (Route Guard) בלקוח התלמיד בודק: אם `session_number == 2` וגם `is_completed == true` וגם `teacher_gate_approved == false` (שלושתם על מסמך הסשן של מפגש 2 של אותו תלמיד), הגישה למפגש 3 נחסמת אסינכרונית והתלמיד מועבר למסך ההמתנה.
+
+- **מסך המתנה ("מעוף הדבורה"):** מציג אנימציית דבורה שלווה והודעה: "כל הכבוד מתמטיקאים! סיימתם את התחנה השנייה בהצלחה. המורה בודק את העבודה שלכם כעת, ומיד נמשיך במסע המשותף שלנו."
+- **דשבורד מורה:** טבלה אנונימית (1–12) המציגה את המלצת המטריקס האבחונית (`green_path`/`remediation_path` — שם השדה תוקן ב-v6.3 מ-`path_green`/`path_remediation` כדי להתאים לנספח א') ומתג אישור. בלחיצה, השרת מעדכן `teacher_gate_approved = true`.
+
+**חישוב `matrix_recommended_path` (נוסף ב-v6.3 — ברירת מחדל מוצעת):** עד גרסה 6.2 שדה זה הופיע בסכימה (נספח א') אך שום מקום במסמך לא הגדיר איך הוא מחושב. ברירת המחדל: `matrix_recommended_path = 'green_path'` אם `session_score_percent >= 50`, אחרת `'remediation_path'` — אותו סף בדיוק כמו קו החלוקה התחתון של מודול 23.
+
+**תלות בזמן חישוב (חשוב):** `session_score_percent` ו-`matrix_recommended_path` חייבים להיות מחושבים ונכתבים ל-`SessionDocument` **בטריגר עצמאי על סיום המפגש** (`is_completed` → `true`), **ולא** כתוצר לוואי של `generatePedagogicalReportPDF` (מודול 23). שער האישור כאן צריך לקרוא ערכים קיימים מיד עם סיום מפגש 2 — אם החישוב תלוי בהצלחת/סיום הפקת ה-PDF, נוצרת צימוד מיותר: כשל או עיכוב בהפקת הדוח יעכב את דשבורד האישור של המורה, בסתירה לעיקרון ההפרדה בין המודולים.
+
+### ג. התרשתות ושחרור
+הלקוח מאזין ל-Firestore Snapshot Listener. עם אישור השרת, הנעילה משתחררת מיד (P95 ≤ 1000ms) והלובי מעודכן ללא רענון דף.
+
+### ד. הנחיות פיתוח נוקשות (Strict Developer Instructions)
+Enforce async check in client router guards: restrict navigation access to session 3 if, on that student's session-2 `SessionDocument`, `session_number` equals 2 AND `is_completed` is true AND `teacher_gate_approved` is false. *(v6.2: corrected — `session_completed` is not a field on `SessionDocument`; the check is expressed via `session_number` + `is_completed`, both of which are.)* Redirect strictly to the positive waiting view ("מעוף הדבורה"). Atomically update approval fields (`teacher_gate_approved`, `teacher_selected_path`, `gate_approved_at`, `gate_approved_by`) in Firestore upon teacher click, unlocking student route via real-time listener under P95 ≤ 1000ms latency. Do not read or write any student-level approval field — `SessionDocument.teacher_gate_approved` is the sole source of truth. *(v6.3: compute `session_score_percent` and `matrix_recommended_path` in a dedicated `onSessionComplete`-style trigger, independent of `generatePedagogicalReportPDF` — the PDF generator should only read the already-computed value, never compute it itself. Default rule: `matrix_recommended_path = session_score_percent >= 50 ? 'green_path' : 'remediation_path'`, pending product confirmation.)*
 
 ---
 
-### 21. מודול ממשק מסך מפוצל לאבחון מורה (Teacher Diagnostic split screen view spec)
-1. **דרישות:** ממשק אבחון המורה מיועד להצגת ציר החלטות קוגניטיבי מבוסס מודל ייצוג וירטואלי דיגיטלי המאפשר למורה להתחקות אחר תהליך פתרון התרגיל הבודד ללא יצירת עומס קוגניטיבי וללא פגיעה בפרטיות הלומדים. המסך מפוצל ונקי מעומס חזותי ומורכב משני חלקים עיקריים. בצד שמאל מוצג נגן וידאו ממוקד המריץ צילום מסך של קנבס העבודה של התלמיד עבור התרגיל הספציפי בלבד ללא שילוב שמע או מצלמה לשם שמירה על מוגנות ופרטיות. בצד ימין מוצגת טבלה סטטית ופשוטה של ציר ההחלטות הקוגניטיבי הממפה את כלל פעולות התלמיד גרירת לבנים הזנת נתונים בעיגולי הזיכרון מחיקות וביטול פעולה לשלבי מודל הייצוג הדיגיטלי בלבד לצד תיעוד זמני השהיה ועדות לבקרה עצמית.
-2. **אפיון:** ממשק מסך מפוצל לאבחון מורה. נגן וידאו בצד שמאל המציג צילום מסך מקומי של קנבס העבודה עבור התרגיל, וטבלה סטטית בצד ימין הממפה את ציר ההחלטות הקוגניטיבי לפי שלבי ה-VRA.
-3. **Strict Bilingual Developer Instructions:** Replace the obsolete iframe canvas replay and coordinate vector stream rendering entirely. Implement a split screen view interface for the teacher diagnostic panel. The left side must render a standard video player playing a recorded local screen capture of the individual workspace canvas for the current problem (Take), with zero audio or webcam inputs. The right side must render a clean static table representing the VRA Cognitive Decision Timeline, mapping student interactions (block drag, memory circle entries, deletions, and undo clicks) to chronological VRA milestones alongside delay times and self regulation flags. All telemetry logs must rely strictly on anonymous student IDs in the range 1 to 12, mapping to physical teacher logbooks.
-* **תרחיש בדיקה קוגניטיבי:** האם המורה יכול לצפות בשחזור של פעולת תלמיד בבירור.
+## מודול 21: מודול ממשק מסך מפוצל לאבחון מורה (Teacher Diagnostic Split-Screen Spec)
+
+### א. הטריגר הפדגוגי
+מתן אפשרות למורה להתחקות אחר תהליך פתרון התרגיל הבודד וציר ההחלטות הקוגניטיבי של התלמיד, ללא יצירת עומס קוגניטיבי ותוך שמירה הרמטית על פרטיות.
+
+### ב. מצב המערכת ומבנה המסך המפוצל
+המסך מפוצל לשני חלקים שווים ונקיים ממסיחים:
+1. **צד שמאל (Screen Capture — סרטון שחזור קנבס):** נגן וידאו ממוקד המריץ צילום מסך מקומי מקוודד של קנבס העבודה עבור התרגיל הספציפי שנבחר בלבד. חל איסור מוחלט על שילוב מצלמה, מיקרופון או שמע.
+2. **צד ימין (טבלת ציר החלטות קוגניטיבי — VRA Timeline):** טבלה סטטית וברורה הממפה כרונולוגית את כל פעולות התלמיד (גרירת לבנים, הזנה בעיגולי זיכרון, מחיקות, וביטולי פעולה) לצד זמני השהיה וחיוויי בקרה עצמית.
+
+### ג. אירוע המשתמש
+המורה בוחרת מזהה אנונימי (1–12) ותרגיל מסוים מתוך דשבורד האבחון. המערכת טוענת את קובץ הוידאו המוצפן ואת טבלת ה-VRA התואמת.
+
+### ד. התוצאה הצפויה
+טעינה מהירה של הנגן וטבלת ציר הזמן. המורה יכולה להריץ, לעצור ולנתח את שלבי הפתרון. כל הנתונים משויכים למזהה אנונימי בלבד.
+
+### ה. חוזה נתונים והתנהגות בזמן כשל
+במקרה של כשל בטעינת קובץ השחזור, המערכת מציגה הודעה שקטה: "וידאו השחזור בהכנה" ומציגה את טבלת ציר ההחלטות מתוך נתוני הטלמטריה השמורים בשרת. (הטבלה ניתנת לבנייה מלאה כעת מסכימות ה-`details` הייעודיות שנוספו במודול 5 — ראו נספח א' §3.)
+
+### ו. תלויות במודולים אחרים
+מודולים 4, 5, 8, 11, 18, 27.
+
+### ז. בדיקה קוגניטיבית
+- **תרחיש:** המורה בוחנת את תהליך הפריטה בתרגיל 4 של תלמיד 3.
+- **תוצאה:** הנגן משחזר את תנועת הלבנים בקנבס, ובמקביל הטבלה בצד ימין מדגישה את אירוע `REGROUPING_SUCCESS` עם חותמת הזמן המדויקת.
+
+### ח. הנחיות פיתוח נוקשות (Strict Developer Instructions)
+Implement split-screen view interface. Left side: standard video player playing recorded local screen capture of individual workspace canvas for selected exercise, strictly with zero audio/webcam stream. Right side: static clean table representing VRA Cognitive Decision Timeline mapping student telemetry events (block drags, memory circles, deletions, undos) alongside timestamps and self-regulation flags, populated from the typed `TelemetryDetailsMap` payloads (Appendix A §3). Maintain strict anonymity (student IDs 1-12).
 
 ---
 
-### 22. מודול ערוץ שיח ניהולי למורה (Teacher Admin Chat Spec)
-1. **דרישות:** מתן ערוץ התייעצות ותמיכה אסינכרוני נפרד מול מנהלי המערכת לשמירה על בקרת עבודה תקינה תוך הגנה קשיחה על פרטיות הלומדים. ערוץ התקשורת מיוצג על ידי אייקון מעטפה שקט בסרגל הכלים העליון של המורה הפותח חלונית שיח צדדית נשלפת ללא חלונות קופצים מסיחים. מפרט אבטחה וסינון מידע מזהה דו שכבתי: שכבה ראשונה בצד הלקוח כוללת הפעלת ביטויים רגולריים המנטרים את תיבת הקלט בזמן אמת חוסמים שליחת הודעות המכילות שמות תלמידים מספרי טלפון או מספרי זהות ומציגים התרעה עדינה המבקשת להשתמש במזהה האנונימי של התלמיד. שכבה שנייה בצד השרת כוללת שירות אנונימיזציה אוטומטי הפועל בצד השרת ומסנן את תוכן ההודעה בטרם שמירתה בבסיס הנתונים המבצע הצלבה והחלפה של כל שם תלמיד שנמצא ברשימת הניהול למזהה האנונימי התואם שלו בטווח של אחת עד שתים עשרה.
-2. **אפיון:** Client-side Regex חוסם שליחה עם שמות. Cloud Function מריץ anonymizerService שממפה שמות ל-student_id לפני Commit ל-Firestore.
-3. **Strict Bilingual Developer Instructions:** Implement the teacher admin chat inside a sliding side drawer triggered by an envelope icon. Enforce a two tier PII protection system: (a) Client side regex checks to validate incoming input text and block transmissions containing pupil names, phone numbers, or national IDs, and (b) Server side cloud function anonymizer service that automatically parses the message body and replaces any student personal names with their corresponding anonymous numeric student ID (1 to 12) before writing documents to the messages collection in Firestore.
-* **תרחיש בדיקה קוגניטיבי:** האם הצ'אט מאפשר תקשורת בטוחה ללא סיכון לפרטיות.
+## מודול 22: מודול ערוץ שיח ניהולי למורה (Teacher Admin Chat Engine Spec)
+
+### א. הטריגר הפדגוגי
+אספקת ערוץ התייעצות ותמיכה מקצועי אסינכרוני למורה מול מנהלי המערכת, תוך הגנה הרמטית מוחלטת על פרטיות התלמידים ומניעה מוחלטת של זליגת PII.
+
+### ב. מצב המערכת ומנגנון האנונימיזציה הדו-שכבתי
+ערוץ השיח מנוהל בחלונית נשלפת (Sliding Side Drawer) שנפתחת בלחיצה על אייקון המעטפה בסרגל הכלים. מנגנון הגנת PII דו-שכבתי (Double-Tier Protection):
+1. **שכבה 1 — Client-Side Regex Validation:** הלקוח סורק בזמן אמת את תיבת הקלט. אם זוהו שמות פרטיים, מספרי טלפון, מיילים או ת"ז, כפתור השליחה נחסם ומוצגת התראה עדינה המבקשת להשתמש במזהים 1–12.
+2. **שכבה 2 — Server-Side Cloud Anonymizer Function:** לפני כתיבה ל-Firestore, פונקציית ענן סורקת את הטקסט, מצליבה מול רשימת שמות הכיתה ומחליפה כל שם פרטי במזהה האנונימי התואם (לדוגמה: "דניאל" ← "תלמיד 4").
+
+### ג. אירוע המשתמש
+המורה הקלידה הודעת התייעצות הכוללת שם תלמיד ולחצה שליחה.
+
+### ד. התוצאה הצפויה
+השם מוחלף בשרת באופן אטומי למזהה אנונימי, וההודעה נשמרת ב-Firestore במבנה אנונימי נקי ומסתנכרנת בזמן אמת לדשבורד הניהול.
+
+### ה. חוזה נתונים והתנהגות בזמן כשל
+במקרה של ניתוק רשת, ההודעה נאגרת בתור ה-IndexedDB (מודול 17) ונשלחת רק לאחר חידוש החיבור וביצוע האנונימיזציה בשרת.
+
+### ו. תלויות במודולים אחרים
+מודולים 3, 4, 17, 27, 28.
+
+### ז. בדיקה קוגניטיבית
+- **נתון:** המורה מקלידה "תלמיד 3 המכונה דניאל מתקשה בפריטה".
+- **תוצאה:** השרת ממיר את ההודעה ל-"תלמיד 3 המכונה תלמיד 4 מתקשה בפריטה" לפני השמירה במסד הנתונים.
+
+### ח. הנחיות פיתוח נוקשות (Strict Developer Instructions)
+Implement teacher admin chat inside a sliding side drawer triggered by an envelope icon. Enforce two-tier PII protection: (1) Client-side regex checking input to block PII submission, (2) Server-side Cloud Function Anonymizer parsing message body and replacing pupil personal names with anonymous IDs (1-12) prior to writing documents to Firestore. Strictly forbid saving raw PII database records.
 
 ---
 
-### 23. מודול דוחות ואנליטיקה פדגוגית (Pedagogical Reports and Analytics Spec)
-1. **דרישות:** תרגום נתוני הלמידה הדיגיטליים להמלצות פדגוגיות אופרטיביות להמשך ההוראה הפרונטלית והקבוצתית בכיתה הפיזית מחוץ ללומדה הדיגיטלית. מחולל הדוחות מופעל אוטומטית עם השלמת מפגש שמונה ומפיק דוח סיכום והמלצות פדגוגיות לקריאה בלבד הניתן לייצוא כקובץ. הדוח מתבסס על מזהים אנונימיים בטווח של אחת עד שתים עשרה ללא שמות ומציג ניתוח השוואתי של סגירת פערי ידע ומדדי הכוונה עצמית. אכיפת חוקי הניתוב הדידקטיים בקוד: ציון נמוך מחמישים אחוזים לצד פערי יסוד מפיק המלצה על עבודה בקבוצה הומוגנית קטנה תיווך פרונטלי של המורה ושימוש בתבניות עשר פיזיות מחוץ למחשב. ציון שבין חמישים לשבעים וחמישה אחוזים לצד פערי כיתה ב מפיק המלצה על עבודה בקבוצה הטרוגנית שיח עמיתים ושימוש בחשבונייה או קשים פיזיים. ציון הגבוה משבעים וחמישה אחוזים מפיק המלצה על עבודה עצמאית נתיבי אתגר של כיתה ג ושימוש בלוח מחיק פיזי.
-2. **אפיון:** תשאול נתוני תרגילים באמצעות תסריטי MapReduce. מחולל הדוחות מפיק קובצי PDF בצד השרת באמצעות Node.js / Cloud Functions.
-3. **Strict Bilingual Developer Instructions:** Create a server-side PDF generator cloud function that validates completion of session 8. The generated PDF must be read-only and restrict identifiers to anonymous student IDs 1 to 12. Enforce the mathematical routing logic within the aggregation code: (a) score < 50% yields recommendation for small homogeneous group, teacher mediation, and physical ten-frames; (b) score 50-75% yields recommendation for heterogeneous group, peer discourse, and abacus or straws; (c) score > 75% yields recommendation for independent work, 3rd grade challenge tracks, and physical whiteboard exercises.
-* **תרחיש בדיקה קוגניטיבי:** האם הדוח מכיל מידע רלוונטי שקל להבין אותו.
+## מודול 23: מודול דוחות ואנליטיקה פדגוגית (Pedagogical Analytics & PDF Generator Spec)
+
+### א. הטריגר הפדגוגי
+תרגום נתוני הלמידה הדיגיטליים להמלצות פדגוגיות אופרטיביות להוראה פרונטלית והתערבות בכיתה הפיזית, תוך שמירה על אנונימיות מלאה.
+
+### ב. מצב המערכת ומחולל הדוחות
+מחולל הדוחות פועל בצד השרת בלבד באמצעות Cloud Function (`generatePedagogicalReportPDF`). המחולל מופעל עם השלמת מפגש 2 או 8 ומפיק קובץ PDF לקריאה בלבד השמור ב-Cloud Storage ומקושר למסמך המורה. **(v6.3: הפונקציה קוראת את `session_score_percent` הקיים כבר על `SessionDocument` — היא אינה מחשבת אותו בעצמה. החישוב עצמו קורה בטריגר נפרד על סיום מפגש, ראו מודול 20 §ב, כדי שדשבורד האישור לא יהיה תלוי בהפקת ה-PDF.)**
+
+**כללי הניתוב וההמלצות הפדגוגיות (מבוססים אחוזים — תוקן כיוון בגרסה 6.1):**
+- **ציון < 50%:** המלצה לעבודה בקבוצה הומוגנית קטנה, תיווך פרונטלי צמוד של המורה ושימוש בתבניות עשר פיזיות ומקלות מנייה.
+- **ציון 50%–75%:** המלצה לעבודה בקבוצה הטרוגנית, שיח עמיתים ופתרון בעיות משותף באמצעות חשבונייה פיזית.
+- **ציון > 75%:** המלצה לעבודה עצמאית עם משימות האתגר והעומק של כיתה ג' ושימוש בלוח מחיק פיזי וכרטיסיות מספרים.
+
+**הוכרע ב-v6.2:** נוסחת הציון: **`session_score_percent = (מספר תרגילי החובה מתוך 7 שנפתרו נכון בניסיון ראשון ÷ 7) × 100`**. "נפתר נכון בניסיון ראשון" = אירוע `PROBLEM_COMPLETE` לתרגיל זה שלא קדם לו אף `DIGIT_ENTERED` עם `is_correct: false` באותו `exercise_id`.
+
+### ג. אירוע המשתמש
+המורה בוחרת מזהה תלמיד אנונימי (1–12) בדשבורד הדוחות ומורידה את הדוח המסכם כ-PDF.
+
+### ד. התוצאה הצפויה
+הפקת PDF מעוצב, קריא ואנונימי בתוך פחות משנייה אחת מרגע הבקשה, המכיל ניתוח פערי ידע, מדדי שליטה, מדד התמדה SRL והנחיות דידקטיות.
+
+### ה. חוזה נתונים והתנהגות בזמן כשל
+אם עיבוד ה-PDF נכשל בשרת, המערכת מציגה הודעה שקטה: "הדוח בעיבוד כעת, אנא נסו שוב בעוד מספר רגעים" ולא מציגה קבצים פגומים.
+
+### ו. תלויות במודולים אחרים
+מודולים 4, 5, 14, 16, 17, 27.
+
+### ז. בדיקה קוגניטיבית
+- **נתון:** תלמיד 7 סיים מפגש 8 לאחר שפתר נכון בניסיון ראשון 3 מתוך 7 תרגילי החובה — `session_score_percent ≈ 43%`.
+- **תוצאה:** ה-PDF מונפק עם מזהה "תלמיד 7" בלבד וכולל המלצה לעבודה בקבוצה הומוגנית קטנה ותבניות עשר פיזיות (עקבי עם כלל "ציון < 50%").
+
+### ח. הנחיות פיתוח נוקשות (Strict Developer Instructions)
+Create a server-side Cloud Function PDF generator triggered upon session 2 or 8 completion. Read-only PDF assets must restrict student identifiers strictly to anonymous numeric IDs (1-12). Enforce mathematical routing logic: **<50% score → small homogeneous group & physical ten frames; 50–75% → heterogeneous peer discourse & abacus; >75% → independent third-grade challenge track.** Strictly prohibit storing student real names in PDF files. Compute `session_score_percent` as `(count of the 7 compulsory exercises solved correctly on first attempt ÷ 7) × 100` — "correct on first attempt" means the `PROBLEM_COMPLETE` event for that `exercise_id` was not preceded by any `DIGIT_ENTERED` event with `is_correct: false` in that same exercise.
 
 ---
 
-## חלק ז: ממשק ניהול מערכת
+## מודול 24: מודול סקירת מערכת כוללת (Admin Overview & Caching Spec)
 
-### 24. מודול סקירת מערכת כוללת (Admin Overview Spec)
-1. **דרישות:** בקרה על מדדים גלובליים ונתוני שימוש במערכת ברמת הארגון תוך שמירה מוחלטת על סודיות מחקרית והגנת פרטיות קשיחה. המערכת חוסמת לחלוטין ברמת הקוד גישה של מנהלי מערכת לנתוני טלמטריה פרטניים ליומני הפעילות האישיים של התלמידים או למזהים ספציפיים ברמת בית ספר או כיתה. לוח המחוונים מציג נתונים סטטיסטיים מצטברים בלבד כגון אחוזי השלמת מפגשים שלוש עד שמונה ברמת הארגון סך כל התרגילים שנפתרו ומדדי שגיאות גלובליים. הנתונים המצטברים נשלפים מתוך משתני זיכרון מטמון המעודכנים על ידי פונקציית שרת קבועה אחת לשעה בלבד במטרה למנוע עומסי שאילתות בזמן אמת בבסיס הנתונים וקריסת ביצועי הרשת בבתי הספר.
-2. **אפיון:** לוח מחוונים המרכז aggregated metrics בשרת בתדירות עדכון של שעה, תוך תצוגת נתונים מגובים (Cached) במקרה של עומס.
-3. **Strict Bilingual Developer Instructions:** Construct a high-level analytics dashboard presenting global aggregated system usage statistics without exposing granular school-level, class-level, or student-level telemetry streams. Implement strict database security rules to deny Admin role read access to telemetry_logs or student collections. Build a server-side cached aggregation routine that runs once per hour, saving aggregated metrics (session completion rates, global error indices) to a read-only cache store to prevent live query bottlenecks during school pilot hours.
-* **תרחיש בדיקה קוגניטיבי:** האם מנהל המערכת מקבל תמונה נכונה של המצב הגלובלי.
+### א. הטריגר הפדגוגי
+מעקב ובקרה על מדדי הלמידה והשימוש הגלובליים ברמת מנהל המערכת, תוך סודיות מחקרית מלאה ומניעת גישה לנתוני תלמידים פרטניים.
 
----
+### ב. מצב המערכת ומדיניות ה-Caching
+המערכת מפעילה כלל אבטחה קשיח: Fail-Closed Admin Security Rule. מנהלי מערכת חסומים מגישה לנתוני טלמטריה פרטניים או למסמכי תלמידים אישיים.
+- **אגרגציה מתוזמנת:** פונקציית ענן רצה אחת לשעה, מחשבת מדדים מצטברים (אחוזי השלמת מפגשים, סך תרגילים שנפתרו, מדדי שגיאות גלובליים) ושומרת אותם במסמך מטמון ייעודי (`store_cache`).
+- **ממשק אדמין:** קורא אך ורק ממסמך ה-`store_cache` וחסום מביצוע שאילתות חיות יקרות ב-Firestore.
 
-### 25. מודול ניהול בתי ספר, כיתות ומורים (Schools and Teachers Wizard Spec)
-1. **דרישות:** ניהול ארגוני מבוקר התומך בהגדרות המחקר ושומר על עקרונות האנונימיזציה והפרטיות של הלומדים לשם מניעת תיוג חברתי. אשף הקמת כיתה המאפשר למנהלים להגדיר את מוסדות הלימוד הפעילים בפיילוט. האשף אוכף באופן קשיח מגבלת גודל כיתה של שנים עשר תלמידים פעילים לכל היותר עבור כיתת המבקרים. האשף יוצר מסמכים התואמים במדויק את סכמת בסיס הנתונים שהוגדרה במודול ארבע לרבות שדות הסיווג הקבועים מזהה בית ספר מזהה שם כיתה ומזהה סיווג קבוצת מחקר.
-2. **Strict Bilingual Developer Instructions:** Implement a step by step setup wizard for class initialization. Enforce database schema synchronization matching the classes collection defined in module 4, including non nullable fields for school_id, class_name (set strictly to המבקרים), and class_type. Apply strict input and validation rules at the client level to block creating pilot classes exceeding 12 active students. Ensure pupil registrations generate only numeric anonymous IDs from 1 to 12 with zero personally identifiable name or email variables.
+### ג. אירוע המשתמש
+מנהל המערכת נכנס לדשבורד הניהול הגלובלי.
 
----
+### ד. התוצאה הצפויה
+טעינה מיידית של גרפים ונתונים סטטיסטיים מצטברים ברמת הפרויקט, ללא חשיפת בתי ספר, כיתות או תלמידים ספציפיים.
 
-### 26. מודול קטלוג תוכנית הלימודים (Curriculum and Task Catalog Spec)
-1. **דרישות:** ניהול וארגון של תכני הוראה וקטלוג המשימות תוך הבטחת רצף למידה היררכי ומדורג התואם את שלבי מודל הייצוג הדיגיטלי. ממשק טבלאי מבוקר המאפשר עדכון של תבניות המשימה וניהול שמונת מפגשי הלמידה. הקטלוג מאפשר להגדיר לכל מפגש את שבעת תרגילי החובה המשותפים לצד תרגילי הבחירה של הלומדים המהירים המחולקים לנתיב הביסוס ונתיב האתגר. עדכון תבניות משימה מופץ לגיליונות התלמידים הפעילים באמצעות עדכונים קבוצתיים בבסיס הנתונים. כדי למנוע קטיעת רצף הלמידה או קריסת הממשק באמצע פתרון תרגיל ההפצה מוחלת רק על משימות עתידיות או תרגילים שטרם נפתחו על ידי התלמידים בפועל.
-2. **Strict Bilingual Developer Instructions:** Construct a master curriculum catalog console to configure worksheet equations for sessions 1 to 8. Segment task definitions between the 7 compulsory problems and the optional early completion pathway tracks (Review and Consolidation versus Challenge and Depth). To prevent workspace corruption or client crashes during live sessions, push curriculum updates to student client worksheet stores asynchronously using Firestore Batch Writes, applying changes exclusively to pending or unstarted worksheets.
+### ה. חוזה נתונים והתנהגות בזמן כשל
+במקרה של כשל בעדכון המטמון, הממשק מציג את הנתונים השמורים האחרונים (Last Known Cached State) עם חיווי שקט של זמן העדכון האחרון.
 
----
+### ו. תלויות במודולים אחרים
+מודולים 4, 5, 25, 27.
 
-### 27. מודול מדיניות אבטחה והגבלות גלובליות (Global Security and Settings Spec)
-1. **דרישות:** הגנה הרמטית על שלמות מסד הנתונים וסודיות מחקרית מלאה באמצעות אכיפת הרשאות גישה קשיחות בצד השרת. הגדרת כללי הגישה הבאים עבור המפתח לאטנטיגרביטי: תלמידים אנונימיים בטווח של אחת עד שתים עשרה רשאים לקרוא אך ורק את מסמך התלמידים שלהם ואינם מורשים לקרוא או לכתוב באוסף הכיתות או ביומני טלמטריה של תלמידים אחרים. תלמידים מורשים לכתוב מסמכים חדשים באוסף רישומי טלמטריה אך ורק אם מזהה התלמיד במסמך תואם במדויק את מזהה התלמיד המאומת שלהם וסוגי הפעולות מוגבלים למיקרו פעולות קוגניטיביות קבועות מראש. מורים מורשים לקרוא את נתוני הטלמטריה של תלמידי הכיתה שלהם בלבד ואינם מורשים לכתוב או לערוך הגדרות ניהול גלובליות.
-2. **Strict Bilingual Developer Instructions:** Enforce bulletproof Firestore Security Rules code patterns. Block student role authentication tokens from writing or reading classes and students collections, restricting their read access solely to their own student document. Allow student role write permissions to telemetry_logs collection strictly if the incoming log's student_id matches the authenticated token ID in the range of 1 to 12. Deny client application access to server configurations and private API keys, securing them inside private Google Cloud Secret Manager environments.
+### ז. בדיקה קוגניטיבית
+- **תרחיש:** אדמין מנסה להזין כתובת URL ישירה לאוסף הטלמטריה של תלמיד 3.
+- **תוצאה:** Firestore Security Rules מחזירים שגיאה אטומית 403 (Deny), והאדמין מועבר לדף הבית.
 
----
-
-### 28. מודול תמיכה ותקשורת ניהולית (Admin Support Hub Spec)
-1. **דרישות:** ניהול ותיעוד פניות תמיכה מקצועיות בצורה מאובטחת המבטיחה הגנה קשיחה על פרטיות הלומדים ומניעה מוחלטת של זליגת מידע אישי. מרכז פניות התמיכה של מנהלי המערכת מקבל ומציג פניות המגיעות מערוצי השיח של המורים. המערכת אוכפת בצורה קשיחה כי כל הודעה או פנייה המוצגת במסך המנהל עוברת סינון ואנונימיזציה מלאה בטרם הצגתה כך שמוסרים ממנה שמות או מזהים אישיים והיא מתבססת אך ורק על מזהי תלמידים אנונימיים בטווח של אחת עד שתים עשרה. הממשק מציג את הפניות בטבלה נקייה הממוינת לפי מזהה בית ספר ומזהה כיתה. המערכת מפעילה מאזין בזמן אמת לעדכון אוטומטי של הודעות נכנסות ומציגה מחוון התראות שקט ועדין בסרגל הניווט העליון של המנהל ללא יצירת רעש חזותי.
-2. **Strict Bilingual Developer Instructions:** Architect the admin support ticketing dashboard to display incoming streams from teacher chat modules. Enforce complete anonymity at the visualization layer, ensuring zero PII or pupil names are displayed to the admin user. Filter and sanitize ticket contents using cloud functions, displaying strictly anonymous student IDs in the range 1 to 12 linked to school_id and class_name. Integrate Firestore onSnapshot real-time listeners to update incoming tickets chronologically, rendering a silent badge alert indicator in the admin global navigation menu without full page reloads.
+### ח. הנחיות פיתוח נוקשות (Strict Developer Instructions)
+Construct high-level analytics dashboard presenting global aggregated statistics without exposing school, class, or student-level telemetry streams. Implement strict database security rules denying Admin role read access to `telemetry_logs` or `students` collections. Build a server-side cached aggregation routine running once per hour saving metrics to a read-only cache store to prevent live query bottlenecks.
 
 ---
 
-## חלק ח: שכבת התשתית, ניהול המצב ואינטגרציית השרת
+## מודול 25: מודול ניהול בתי ספר, כיתות ומורים (Schools & Teachers Setup Wizard Spec)
 
-### 29. מודול ניהול מצב גלובלי ומכונות מצבים (Zustand and State Machines Spec)
-1. **דרישות:** הבטחת עקביות ממשק וסנכרון מלא של נתוני הלמידה בכל המודולים של מודל הייצוג הדיגיטלי תוך מניעת תסכול או הצפה חושית כתוצאה משגיאות סנכרון ממשק. הגדרה קשיחה של מעברי המצבים בצד הלקוח: מצב המתנה מעבר למצב פעילות בעת טעינת תרגיל. מצב פעילות מעבר למצב המרה בעת סימון עשר לבנים בחיבור או קליק על לבנת המרה בחיסור. מצב המרה חזרה למצב פעילות ושחרור המקלדת רק בעת קבלת אירוע אישור המרה מוצלח. מצב חניכה פעיל מופעל בעת אירוע טריגר היסוס או זיהוי ארבע מחיקות רצופות וחוסם את לחצני הכרטיס בלבד לשישים שניות בעת מענה שגוי. המערכת משלבת מנגנון סנכרון אסינכרוני מול אחסון מקומי. בעת ניתוק רשת זמני המצב הגלובלי נשמר מקומית והפעולות מתווספות לתור סנכרון בשיטת נכנס ראשון יוצא ראשון המשודר אוטומטית ברקע עם חידוש החיבור לרשת למניעת מצבי מרוץ ואיבוד שלבי למידה.
-2. **Strict Bilingual Developer Instructions:** Implement global state management using decoupled Zustand stores for workspace, teacher, and authentication states. Define a declarative state machine representing the student VRA environment transitions (Idle, Problem_Active, Regrouping_Active, Socratic_Active, Complete). Bind the Zustand state changes to a local synchronization engine that buffers all actions to IndexedDB during offline sessions. Upon internet connection recovery, dispatch the buffered actions asynchronously in chronological sequence using a strict First In First Out (FIFO) queue process to avoid race conditions and maintain database consistency.
+### א. הטריגר הפדגוגי
+ניהול ארגוני מבוקר התומך במבנה המחקרי הצר של הפיילוט, המאפשר הקמת כיתות תוך שמירה מלאה על אנונימיזציה מחמירה ואכיפת מגבלת גודל כיתה.
+
+### ב. מצב המערכת ואשף ההקמה
+השרת הוא מקור האמת היחיד. אשף הקמת הכיתה (Class Initialization Wizard) פועל תחת המגבלות והחוקים הבאים:
+1. הגדרת בית ספר יחיד בשם "בית ספר ביקורת" וכיתה פעילה אחת בלבד בשם "המבקרים".
+2. אכיפת סף קיבולת קשיחה: חוק אבטחה בשרת חוסם רישום של יותר מ-12 תלמידים פעילים לכיתה זו.
+3. יצירת זהויות אנונימיות: המערכת מייצרת אוטומטית מזהים מספריים 1–12 בלבד עם הסיסמה הקבועה `10203040`. איסור מוחלט על שמירת שמות, מיילים או פרטים מזהים.
+
+### ג. אירוע המשתמש
+מנהל המערכת מפעיל את אשף ההקמה, מגדיר את הכיתה והמורה המורשה, ומאשר פתיחה.
+
+### ד. התוצאה הצפויה
+הקמת מסמכי הכיתה והמורים ב-Firestore. הנפקת כרטיסי כניסה אנונימיים לתלמידים (1–12, סיסמה `10203040`).
+
+### ה. חוזה נתונים והתנהגות בזמן כשל
+ניסיון לרשום תלמיד 13 או להזין שדה שאינו בתקן נחסם אטומית בשרת (שגיאה 403). הלקוח מבצע Rollback ומציג הודעה: "ההרשמה חסומה. כיתת המחקר הגיעה לתפוסה מלאה של 12 לומדים."
+
+### ו. תלויות במודולים אחרים
+מודולים 1, 4, 19, 27.
+
+### ז. בדיקה קוגניטיבית
+- **תרחיש:** ניסיון הוספת תלמיד 13 לכיתת "המבקרים".
+- **תוצאה:** השרת חוסם את הכתיבה (403), האשף מנקה את השדה ומציג חיווי שהכיתה בתפוסה מלאה של 12 לומדים.
+
+### ח. הנחיות פיתוח נוקשות (Strict Developer Instructions)
+Implement a step-by-step setup wizard for class initialization matching the classes collection schema in Module 4. Non-nullable fields: `school_id`, `class_name` (set strictly to "המבקרים"), `class_type`. Apply strict validation rules to block creating pilot classes exceeding 12 active students. Ensure student registrations generate strictly numeric anonymous IDs from 1 to 12 with zero personally identifiable variables.
+
+---
+
+## מודול 26: מודול קטלוג תוכנית הלימודים (Curriculum Catalog & Batch Spec)
+
+### א. הטריגר הפדגוגי
+ניהול מבוקר של תכני הלמידה והמשימות בקטלוג, המבטיח מעבר היררכי ומדורג בין שלבי מודל VRA לאורך 8 המפגשים.
+
+### ב. מצב המערכת והפצת ה-Batch
+השרת הוא מקור האמת עבור הגדרות התרגילים. הקטלוג מנהל את 7 תרגילי החובה ואת משימות הבחירה (ביסוס מול אתגר).
+- **עדכון אסינכרוני מוגן (Firestore Batch Writes):** עדכוני תרגילים המופצים על ידי מנהל המערכת במהלך שיעור פעיל מוחלים בצד התלמיד אך ורק על תרגילים שטרם נפתחו בפועל (Pending or Unstarted Worksheets). תרגיל פעיל שפתרונו החל אינו מופרע.
+
+### ג. אירוע המשתמש
+מנהל המערכת מעדכן תבנית תרגיל בקטלוג ומאשר הפצה.
+
+### ד. התוצאה הצפויה
+הפצת השינויים ברקע. התלמידים ממשיכים לעבוד בצורה חלקית, והתרגיל המעודכן נטען בצורה שקופה רק בעת מעבר למשימה החדשה, ללא רענון דף.
+
+### ה. חוזה נתונים והתנהגות בזמן כשל
+במקרה של כשל בשידור ה-Batch, מתבצע ביטול אטומי (Rollback) בשרת. התלמידים ממשיכים לעבוד עם גרסת המטמון האחרונה ב-Zustand.
+
+### ו. תלויות במודולים אחרים
+מודולים 4, 14, 17, 29.
+
+### ז. בדיקה קוגניטיבית
+- **נתון:** תלמיד פותר את תרגיל 4 במפגש 6. האדמין מעדכן את תבנית תרגיל 5.
+- **תוצאה:** הממשק אינו קופא. עם השלמת תרגיל 4 ומעבר לתרגיל 5, התבנית החדשה נטענת ברוגע מהשרת.
+
+### ח. הנחיות פיתוח נוקשות (Strict Developer Instructions)
+Construct a master curriculum catalog console to configure worksheet equations for sessions 1 to 8. Segment task definitions between 7 compulsory problems and optional early completion tracks (Consolidation vs. Challenge). Push curriculum updates asynchronously using Firestore Batch Writes, applying changes exclusively to pending or unstarted worksheets to prevent workspace corruption during live sessions.
+
+---
+
+## מודול 27: מודול מדיניות אבטחה והגבלות גלובליות (Global Firestore Security Rules Spec)
+
+### א. הטריגר הפדגוגי
+הגנה הרמטית על שלמות מסד הנתונים והסודיות המחקרית באמצעות אכיפת הרשאות קשיחות בצד השרת בלבד.
+
+### ב. מצב המערכת וחוקי ה-Firestore Rules
+כל הגישות למסד הנתונים מוכפפות לחוקי אבטחה אטומיים בצד השרת:
+
+1. **תלמידים (תפקיד Student):**
+   - קריאה: מורשים לקרוא אך ורק את מסמך התלמיד האישי שלהם (`/students/{studentId}`). חסומים מקריאת אוספי כיתות או תלמידים אחרים.
+   - כתיבה: מורשים לכתוב במסמכי `telemetry_logs` ו-`workspace_states` אך ורק אם מזהה התלמיד במסמך (`student_id`) תואם במדויק את מזהה ה-Auth המאומת שלהם (1–12), והמטען עומד בסכימת `TelemetryDetailsMap` (כולל כלל ה-`column_index` ממודול 5).
+
+2. **מורים (תפקיד Teacher):**
+   - קריאה: מורשים לקרוא נתוני טלמטריה ומצבי עבודה של תלמידי הכיתה המשויכת אליהם בלבד (`class_id`).
+   - כתיבה: מורשים לעדכן שדות אישור מורה (`teacher_gate_approved`, `gate_approved_at`, `gate_approved_by`) ופרופילי תמיכה (`support_profile_id` וסביבתו). חסומים משינוי הגדרות ניהול גלובליות.
+
+3. **מפתחות וסודות:** מפתחות API פרטיים והגדרות AI שמורים ב-Google Cloud Secret Manager בלבד ואינם נחשפים ללקוח.
+
+### ג. אירוע המשתמש
+ניסיון גישה או כתיבה למסד הנתונים.
+
+### ד. התוצאה הצפויה
+אישור אטומי אם הבקשה תואמת במדויק את הכללים, או דחייה קשיחה HTTP 403 (Permission Denied) ללא חשיפת פרטי מערכת.
+
+### ה. חוזה נתונים והתנהגות בזמן כשל
+במקרה של דחיית אבטחה, הלקוח מזהה את שגיאת ה-403, מבצע Rollback למצב הבטוח האחרון ב-Zustand, ומציג חיווי שקט.
+
+### ו. תלויות במודולים אחרים
+כל מודולי המערכת (1–29).
+
+### ז. בדיקה קוגניטיבית
+- **תרחיש:** לקוח תלמיד 2 מנסה לעדכן את מסמך תלמיד 5.
+- **תוצאה:** השרת דוחה את הבקשה מיד ב-403 Forbidden.
+
+### ח. הנחיות פיתוח נוקשות (Strict Developer Instructions)
+Enforce bulletproof Firestore Security Rules code patterns. Block student role auth tokens from writing or reading `classes` and `students` collections, restricting their read access solely to their own student document. Allow student write permissions to `telemetry_logs` strictly if the incoming log's `student_id` matches the authenticated token ID (1-12) and the payload matches the per-event-type schema in `TelemetryDetailsMap`. Deny client access to server configs and private API keys, securing them inside Google Cloud Secret Manager.
+
+---
+
+## מודול 28: מודול תמיכה ותקשורת ניהולית (Admin Support Hub Spec)
+
+### א. הטריגר הפדגוגי
+ניהול ותיעוד פניות תמיכה מקצועיות בצורה מאובטחת, המבטיחה הגנה קשיחה על פרטיות הלומדים ומניעה מוחלטת של זליגת מידע אישי.
+
+### ב. מצב המערכת ולוח הניהול
+מרכז הפניות מציג למנהל המערכת הודעות נכנסות מערוצי השיח של המורים (מודול 22).
+- **אנונימיזציה בשכבת התצוגה:** המערכת מציגה פניות בטבלה נקייה הממוינת לפי `school_id` ו-`class_name`. כל הודעה המוצגת באדמין עוברת סינון ומציגה מזהים אנונימיים 1–12 בלבד.
+- **עדכון בזמן אמת:** הממשק מפעיל Snapshot Listener ל-Firestore ומציג מחוון התראות שקט ועדין (Silent Badge Indicator) בסרגל הניווט העליון, ללא רעש חזותי או רענון דף.
+
+### ג. אירוע המשתמש
+מורה שלחה הודעת התייעצות בערוץ השיח.
+
+### ד. התוצאה הצפויה
+הודעה חדשה מופיעה בטבלת התמיכה של האדמין כרונולוגית, עם מחוון עדין בסרגל הניהול, כשהיא נקייה מ-PII.
+
+### ה. חוזה נתונים והתנהגות בזמן כשל
+במקרה של ניתוק רשת באדמין, המערכת מציגה את הפניות האחרונות שנשמרו במטמון ומחדשת את המאזין עם חידוש החיבור.
+
+### ו. תלויות במודולים אחרים
+מודולים 4, 22, 24, 27.
+
+### ז. בדיקה קוגניטיבית
+- **תרחיש:** פניית תמיכה מגיעה מהמורה בכיתת "המבקרים".
+- **תוצאה:** האדמין רואה פנייה המשויכת ל"בית ספר ביקורת — המבקרים" עם התייחסות ל"תלמיד 8", ללא שמות פרטיים.
+
+### ח. הנחיות פיתוח נוקשות (Strict Developer Instructions)
+Architect admin support ticketing dashboard to display incoming streams from teacher chat modules. Enforce complete anonymity at visualization layer, ensuring zero PII or pupil names are displayed. Filter and sanitize ticket contents via Cloud Functions, displaying strictly anonymous student IDs (1-12) linked to `school_id` and `class_name`. Integrate Firestore Snapshot listeners rendering a silent badge alert indicator in the global menu without full page reloads.
+
+---
+
+## מודול 29: מודול ניהול מצב גלובלי ומכונות מצבים (Zustand & State Machine Spec)
+
+### א. הטריגר הפדגוגי
+הבטחת עקביות ממשק וסנכרון מלא של נתוני הלמידה בכל המודולים של מודל הייצוג הדיגיטלי (VRA), תוך מניעת תסכול או הצפה חושית כתוצאה משגיאות סנכרון ממשק.
+
+### ב. מפרט חנויות Zustand ומכונת המצבים הדקלרטיבית
+ניהול המצב המקומי מופרד ל-3 חנויות Zustand בלתי תלויות:
+1. **`useWorkspaceStore`:** מנהל את מצב מרחב העבודה, הבלוקים, הטורים והמקלדת.
+2. **`useTeacherStore`:** מנהל את מצבי הרדאר, המקרן והאישורים בדשבורד המורה.
+3. **`useAuthStore`:** מנהל את אסימון ההזדהות, הדרכון האנונימי והתפקיד הפעיל.
+
+**מכונת המצבים של מרחב העבודה (VRA Workspace State Machine):**
+- `IDLE`: הסביבה מוכנה, משימה טרם נטענה.
+- `PROBLEM_ACTIVE`: תרגיל נטען, קנבס ומקלדת פעילים.
+- `REGROUPING_ACTIVE`: אירוע המרה פעיל (צירוף עשר / פריטה). המקלדת ננעלת עד לאישור המרה מוצלח.
+- `SOCRATIC_ACTIVE`: טריגר היסוס (45 שנ') או מחיקות (4) הופעלו. מגירת החניכה נפתחת. תשובה שגויה נועלת לחצנים ל-60 שניות.
+- `COMPLETE`: התרגיל פותר בהצלחה, מעבר לתרגיל הבא או לשער האישור.
+
+### ג. מעבר מצבים וסנכרון אופליין
+כל מעבר מצב ב-Zustand מייצר אירוע לוגי הנכתב אטומית לתור ה-IndexedDB (מודול 17). ברשת פעילה, הסנכרון ל-Firestore מתבצע ברקע לפי סדר FIFO קשוח.
+
+### ד. הנחיות פיתוח נוקשות (Strict Developer Instructions)
+Implement global state management using decoupled Zustand stores for workspace, teacher, and auth states. Define a declarative state machine representing student VRA environment transitions (`IDLE`, `PROBLEM_ACTIVE`, `REGROUPING_ACTIVE`, `SOCRATIC_ACTIVE`, `COMPLETE`) — these five values are canonical and must match `VRAWorkspaceState` in Appendix A exactly. Bind Zustand state changes to a local synchronization engine that buffers all actions to IndexedDB during offline sessions. Dispatch buffered actions asynchronously in chronological sequence using a strict FIFO queue upon reconnection to avoid race conditions and maintain database consistency.
+
+---
+
+## נספח א': חוזה טיפוסים מרכזי (Core TypeScript Interfaces & Data Contracts)
+
+להלן הגדרות ה-TypeScript הרשמיות והמחייבות לכל רכיבי המערכת. חל איסור על שימוש בשמות שדות שונים בקוד. **זהו מקור האמת היחיד** במקרה של אי-התאמה בין נספח זה לבין ניסוח פרוזה בגוף המודולים — ראו גם רשימת התיקונים בראש המסמך.
+
+### 1. Auth & User Identity Schemas
+
+```typescript
+export type UserRole = 'STUDENT' | 'TEACHER' | 'ADMIN';
+
+export interface AnonymousStudent {
+  student_id: number; // Strictly 1 to 12
+  class_id: string;
+  school_id: string;
+  created_at: number; // Client/Server timestamp
+  support_profile_id: string | null;
+  support_profile_version: number;
+  support_profile_updated_at: number | null; // v6.1: added — required by Module 19, missing from v6.0 appendix
+  support_profile_updated_by: string | null; // v6.1: added — teacher_id; required by Module 19
+  active_session_id: string | null;
+  // v6.1: `teacher_approval_status` removed — orphaned duplicate of
+  // SessionDocument.teacher_gate_approved, never read/written by any module.
+}
+```
+
+### 2. Firestore Document Schemas
+
+```typescript
+export interface ClassDocument {
+  class_id: string;
+  school_id: string;
+  class_name: 'המבקרים'; // Strictly set for pilot
+  class_type: string;
+  active_session_id: string | null;
+  projector_mode: boolean;
+  projector_mode_updated_at: number;
+  updated_by_teacher_id: string | null;
+}
+
+export interface SessionDocument {
+  session_id: string;
+  class_id: string;
+  session_number: number; // 1 to 8
+  session_start_time: number;
+  session_deadline_time: number;
+  active_exercise_id: string;
+  is_completed: boolean;
+  session_score_percent: number | null; // v6.1: field added. v6.2: formula decided — see Module 23 §B:
+                                          // (compulsory exercises correct on first attempt ÷ 7) × 100
+  teacher_gate_approved: boolean;
+  gate_approved_at: number | null;
+  gate_approved_by: string | null;
+  teacher_selected_path: 'green_path' | 'remediation_path' | null; // teacher's actual choice — may override the recommendation
+  matrix_recommended_path: 'green_path' | 'remediation_path' | null; // v6.3: default rule — 'green_path' if session_score_percent >= 50, else 'remediation_path'.
+                                                                       // Computed in a dedicated onSessionComplete trigger, NOT inside generatePedagogicalReportPDF (Module 20 §B / Module 23 §B).
+                                                                       // Proposed default, pending product confirmation.
+}
+```
+
+### 3. Telemetry & Offline Queue Schemas
+
+```typescript
+export type TelemetryEventType =
+  | 'SESSION_START'
+  | 'PROBLEM_LOAD'
+  | 'BLOCK_DRAG_COMPLETE'
+  | 'REGROUPING_TRIGGERED'
+  | 'REGROUPING_SUCCESS'
+  | 'DIGIT_ENTERED'
+  | 'DIGIT_DELETED'
+  | 'UNDO_EXECUTED'
+  | 'HESITATION_DETECTED'
+  | 'SOCRATIC_CARD_SHOWN'
+  | 'SOCRATIC_OPTION_SELECTED'
+  | 'PROBLEM_COMPLETE'
+  | 'REFLECTION_SUBMITTED';
+
+// --- v6.1: per-event-type details schemas (replaces the open Record<string, unknown> from v6.0) ---
+
+export interface SessionStartDetails {
+  session_number: number; // 1 to 8
+}
+
+export interface ProblemLoadDetails {
+  exercise_template_id: string;
+  path_type: 'compulsory' | 'consolidation' | 'challenge';
+}
+
+export interface BlockDragCompleteDetails {
+  block_value: number; // 1, 10, or 100
+  source_column_index: number | null; // populated only for cross-column drags (regrouping)
+}
+
+export interface RegroupingTriggeredDetails {
+  regrouping_type: 'decomposition' | 'composition';
+}
+
+export interface RegroupingSuccessDetails {
+  regrouping_type: 'decomposition' | 'composition';
+  duration_ms: number;
+}
+
+export interface DigitEnteredDetails {
+  digit_value: number; // 0-9
+  is_correct: boolean; // required — sole source for computing E in the Persistence Index (Module 16)
+}
+
+export interface DigitDeletedDetails {
+  deleted_digit_value: number | null;
+}
+
+export interface UndoExecutedDetails {
+  undo_stack_depth_before: number; // 1-10
+  reverted_event_type: TelemetryEventType;
+}
+
+export interface HesitationDetectedDetails {
+  hesitation_seconds: number; // >= 45
+}
+
+export interface SocraticCardShownDetails {
+  trigger_reason: 'hesitation_45s' | 'consecutive_errors_4';
+}
+
+export interface SocraticOptionSelectedDetails {
+  option_id: 'opt_1' | 'opt_2' | 'opt_3';
+  is_correct: boolean; // sole source for computing G in the Persistence Index (Module 16)
+}
+
+export interface ProblemCompleteDetails {
+  total_duration_ms: number;
+  undo_count: number;
+  error_count: number;
+}
+
+export interface ReflectionSubmittedDetails {
+  reflection_step: 1 | 2 | 3;
+  effort_score: 'LOW' | 'MEDIUM' | 'HIGH' | null;
+  selected_strategies: Array<'UNDO_BUTTON' | 'MEMORY_CIRCLES' | 'SOCRATIC_CARD'> | null;
+  persistence_index: number | null; // 0-100
+}
+
+export interface TelemetryDetailsMap {
+  SESSION_START: SessionStartDetails;
+  PROBLEM_LOAD: ProblemLoadDetails;
+  BLOCK_DRAG_COMPLETE: BlockDragCompleteDetails;
+  REGROUPING_TRIGGERED: RegroupingTriggeredDetails;
+  REGROUPING_SUCCESS: RegroupingSuccessDetails;
+  DIGIT_ENTERED: DigitEnteredDetails;
+  DIGIT_DELETED: DigitDeletedDetails;
+  UNDO_EXECUTED: UndoExecutedDetails;
+  HESITATION_DETECTED: HesitationDetectedDetails;
+  SOCRATIC_CARD_SHOWN: SocraticCardShownDetails;
+  SOCRATIC_OPTION_SELECTED: SocraticOptionSelectedDetails;
+  PROBLEM_COMPLETE: ProblemCompleteDetails;
+  REFLECTION_SUBMITTED: ReflectionSubmittedDetails;
+}
+
+export interface TelemetryPayload<T extends TelemetryEventType = TelemetryEventType> {
+  idempotency_key: string;
+  client_timestamp: number;
+  session_id: string;
+  student_id: number; // Strictly 1-12
+  exercise_id: string;
+  event_type: T;
+  column_index?: number; // 0: Ones, 1: Tens, 2: Hundreds — required for column-scoped events, omitted otherwise (see Module 5 §C)
+  details: TelemetryDetailsMap[T];
+}
+
+export interface OfflineQueueItem {
+  idempotency_key: string; // Unique UUID
+  client_timestamp: number;
+  session_id: string;
+  student_id: number;
+  exercise_id: string;
+  operation_type: TelemetryEventType;
+  payload: TelemetryDetailsMap[TelemetryEventType]; // v6.1: typed — was Record<string, unknown> in v6.0
+  retry_count: number;
+}
+```
+
+### 4. SRL Reflection Board Schemas
+
+```typescript
+export interface SRLReflectionState {
+  session_id: string;
+  student_id: number;
+  reflection_step: 1 | 2 | 3;
+  effort_score: 'LOW' | 'MEDIUM' | 'HIGH' | null;
+  selected_strategies: Array<'UNDO_BUTTON' | 'MEMORY_CIRCLES' | 'SOCRATIC_CARD'>;
+  persistence_index: number; // Calculated value 0-100
+  reflection_completed: boolean;
+  reflection_updated_at: number;
+  idempotency_key: string;
+}
+```
+
+### 5. VRA Workspace State Machine Types
+
+```typescript
+export type VRAWorkspaceState =
+  | 'IDLE'
+  | 'PROBLEM_ACTIVE'
+  | 'REGROUPING_ACTIVE'
+  | 'SOCRATIC_ACTIVE'
+  | 'COMPLETE';
+
+export interface VRAWorkspaceStore {
+  currentState: VRAWorkspaceState;
+  activeColumnIndex: number; // 0: Ones, 1: Tens, 2: Hundreds
+  onesCount: number;
+  tensCount: number;
+  hundredsCount: number;
+  memoryCircles: Record<number, number>;
+  undoStack: Array<Record<string, unknown>>; // Restricted to max 10
+  hesitationTimerSeconds: number;
+  consecutiveErrorCount: number;
+  isSocraticCardLocked: boolean;
+  socraticLockDeadline: number | null;
+  // Action Handlers
+  transitionTo: (newState: VRAWorkspaceState) => void;
+  resetHesitationTimer: () => void;
+  pushUndoSnapshot: (snapshot: Record<string, unknown>) => void;
+  popUndoSnapshot: () => Record<string, unknown> | null;
+}
+```
+
+### 6. Gemini Socratic Contract (ref. Module 13)
+
+```typescript
+export interface GeminiSocraticRequest {
+  student_id: number; // Strictly 1-12 — v6.1: renamed from anonymous_student_id for consistency
+  session_id: string;
+  exercise_id: string;
+  active_column_index: number;
+  workspace_state: {
+    ones_count: number;
+    tens_count: number;
+    hundreds_count: number;
+    memory_circles: Record<string, number>;
+  };
+  recent_actions: TelemetryPayload<TelemetryEventType>[];
+}
+
+export interface GeminiSocraticResponse {
+  guiding_question: string;
+  options: [
+    { id: 'opt_1'; option_text: string; feedback_text: string; is_correct: boolean },
+    { id: 'opt_2'; option_text: string; feedback_text: string; is_correct: boolean },
+    { id: 'opt_3'; option_text: string; feedback_text: string; is_correct: boolean }
+  ];
+}
+```

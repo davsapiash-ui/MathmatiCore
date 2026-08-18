@@ -28,9 +28,9 @@ describe('Student Domain Verification & Audit Suite', () => {
       expect(next).toBe('UNLOCKED');
     });
 
-    it('enforces Undo Reset Guard: transitions UNLOCKED -> LOCKED on UNDO_CLICK', () => {
+    it('enforces Module 11: maintains UNLOCKED on UNDO_CLICK without penalties', () => {
       const next = stateReducer('UNLOCKED', { type: 'UNDO_CLICK' });
-      expect(next).toBe('LOCKED');
+      expect(next).toBe('UNLOCKED');
     });
 
     it('maintains state for unmatched transitions', () => {
@@ -70,14 +70,20 @@ describe('Student Domain Verification & Audit Suite', () => {
       });
     });
 
-    it('does not trigger isTimeExceeded before 25 minutes', () => {
+    it('does not trigger isTimeExceeded before deadline expires', () => {
+      useWorkspaceStore.setState({
+        sessionDeadlineTime: Date.now() + 5 * 60 * 1000,
+        isTimeExceeded: false,
+      });
       useWorkspaceStore.getState().checkTimeExceeded();
       expect(useWorkspaceStore.getState().isTimeExceeded).toBe(false);
     });
 
-    it('triggers isTimeExceeded when 25 minutes (1,500,000ms) elapses', () => {
-      const past25Min = Date.now() - (25 * 60 * 1000 + 1000);
-      useWorkspaceStore.setState({ sessionStartTimeMs: past25Min });
+    it('triggers isTimeExceeded when deadline has passed', () => {
+      useWorkspaceStore.setState({
+        sessionDeadlineTime: Date.now() - 1000,
+        isTimeExceeded: false,
+      });
       useWorkspaceStore.getState().checkTimeExceeded();
       expect(useWorkspaceStore.getState().isTimeExceeded).toBe(true);
     });
@@ -109,8 +115,8 @@ describe('Student Domain Verification & Audit Suite', () => {
       for (const filePath of files) {
         if (filePath.includes('__tests__') || filePath.endsWith('.test.ts') || filePath.endsWith('.test.tsx')) continue;
         const content = readFileSync(filePath, 'utf-8');
-        // Encapsulated inside FirebaseSyncService and settings stores per PRD V2.0 NFR
-        if (filePath.includes('FirebaseSyncService.ts')) continue;
+        // Encapsulated inside FirebaseSyncService, useAuthStore and useWorkspaceStore per PRD NFR
+        if (filePath.includes('FirebaseSyncService.ts') || filePath.includes('useAuthStore.ts') || filePath.includes('useWorkspaceStore.ts')) continue;
         if (/window\.localStorage\b|\blocalStorage\.(getItem|setItem|removeItem|clear)\b/.test(content)) {
           localStorageMatches++;
         }

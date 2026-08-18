@@ -64,13 +64,12 @@ export const JWT_EXPIRY_MS = 8 * 60 * 60 * 1000;
 const STORAGE_KEY_USER = 'mc_auth_user';
 const STORAGE_KEY_ROLE = 'mc_auth_role';
 const STORAGE_KEY_TIMESTAMP = 'mc_auth_time';
-const SESS_KEY = ['session', 'Storage'].join('');
-const LOC_KEY = ['local', 'Storage'].join('');
 
 const getGlobalStorage = (): Storage | null => {
   try {
-    const g = globalThis as unknown as Record<string, Storage>;
-    return g[SESS_KEY] || g[LOC_KEY] || null;
+    if (typeof sessionStorage !== 'undefined') return sessionStorage;
+    if (typeof localStorage !== 'undefined') return localStorage;
+    return null;
   } catch {
     return null;
   }
@@ -125,9 +124,6 @@ const setStoredAuth = (user: AuthUser, role: string, timestamp?: number) => {
 
 const clearStoredAuth = () => {
   try {
-    const g = globalThis as unknown as Record<string, Storage>;
-    const sess = g[SESS_KEY];
-    const loc = g[LOC_KEY];
     const keysToRemove = [
       STORAGE_KEY_USER,
       STORAGE_KEY_ROLE,
@@ -144,8 +140,8 @@ const clearStoredAuth = () => {
       'mc_workspace_state',
     ];
     keysToRemove.forEach((k) => {
-      if (loc) try { loc.removeItem(k); } catch {}
-      if (sess) try { sess.removeItem(k); } catch {}
+      try { localStorage.removeItem(k); } catch {}
+      try { sessionStorage.removeItem(k); } catch {}
     });
     try {
       (window as any).isStudentAuthenticated = false;

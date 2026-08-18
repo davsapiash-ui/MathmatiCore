@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.onStudentEvent = exports.verifyTeacherSSO = exports.exportAdminReportToDrive = exports.validateAndStoreTelemetry = exports.callGeminiSocraticProxy = exports.syncUserRoles = exports.generateSocraticMapping = exports.generateSocraticHint = void 0;
+exports.onStudentEvent = exports.verifyTeacherSSO = exports.sendTeacherAdminMessage = exports.hourlyAdminAggregator = exports.generatePedagogicalReportPDF = exports.createSessionWithServerDeadline = exports.onSessionCompleteTrigger = exports.exportAdminReportToDrive = exports.validateAndStoreTelemetry = exports.callGeminiSocraticProxy = exports.syncUserRoles = exports.generateSocraticMapping = exports.generateSocraticHint = void 0;
 const https_1 = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
 const generative_ai_1 = require("@google/generative-ai");
@@ -199,6 +199,16 @@ Object.defineProperty(exports, "validateAndStoreTelemetry", { enumerable: true, 
 // Export the Google Drive Admin PDF Report module
 var exportDriveReport_1 = require("./exportDriveReport");
 Object.defineProperty(exports, "exportAdminReportToDrive", { enumerable: true, get: function () { return exportDriveReport_1.exportAdminReportToDrive; } });
+// Export WP6 Cloud Functions (Module 14, 20, 22, 24, 27)
+var sessionTrigger_1 = require("./sessionTrigger");
+Object.defineProperty(exports, "onSessionCompleteTrigger", { enumerable: true, get: function () { return sessionTrigger_1.onSessionCompleteTrigger; } });
+Object.defineProperty(exports, "createSessionWithServerDeadline", { enumerable: true, get: function () { return sessionTrigger_1.createSessionWithServerDeadline; } });
+var pedagogicalReport_1 = require("./pedagogicalReport");
+Object.defineProperty(exports, "generatePedagogicalReportPDF", { enumerable: true, get: function () { return pedagogicalReport_1.generatePedagogicalReportPDF; } });
+var adminAggregator_1 = require("./adminAggregator");
+Object.defineProperty(exports, "hourlyAdminAggregator", { enumerable: true, get: function () { return adminAggregator_1.hourlyAdminAggregator; } });
+var teacherAdminChat_1 = require("./teacherAdminChat");
+Object.defineProperty(exports, "sendTeacherAdminMessage", { enumerable: true, get: function () { return teacherAdminChat_1.sendTeacherAdminMessage; } });
 /**
  * verifyTeacherSSO Cloud Function (PRD Section 4.1)
  * Enforces domain constraints (@edu-haifa.org.il), secret environment specs,

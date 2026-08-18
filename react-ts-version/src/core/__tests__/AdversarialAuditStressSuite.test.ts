@@ -530,9 +530,9 @@ describe('Master PRD v4.0 — Adversarial Audit & Stress Test Suite (R1-R5)', ()
         expect(useWorkspaceStore.getState().counts.units).toBe(0);
       });
 
-      it('should transition keyboard from UNLOCKED back to LOCKED upon Undo (Undo Reset Guard)', () => {
-        expect(stateReducer('UNLOCKED', { type: 'UNDO_CLICK' })).toBe('LOCKED');
-        expect(transitionKeyboardState('UNLOCKED', { undo_click: true })).toBe('LOCKED');
+      it('should maintain keyboard as UNLOCKED upon Undo per Module 11 (no penalty)', () => {
+        expect(stateReducer('UNLOCKED', { type: 'UNDO_CLICK' })).toBe('UNLOCKED');
+        expect(transitionKeyboardState('UNLOCKED', { undo_click: true })).toBe('UNLOCKED');
       });
     });
   });

@@ -30,4 +30,8 @@ If you are developing a production application, we recommend enabling type-aware
 ```
 
 See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
-  
+
+## MathmatiCore Architecture & Pedagogical Extension Notes
+
+- **Session Document Key Convention**: Session documents in Firestore follow the canonical format `session_{session_number.toString().padStart(2, '0')}_student_{student_id}` (e.g. `session_02_student_1`).
+- **Meeting 2 Diagnostic Isolation**: In `useWorkspaceStore`, `sessionNumber !== 2` excludes Meeting 2 from the 30s adaptive grid (`isAdditionHelperOpen`) and 45s Socratic hint triggers. This is an approved implementation extension to ensure baseline diagnostic purity for Q-Matrix cognitive profiling without premature automated assistance.

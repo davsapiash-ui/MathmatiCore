@@ -457,13 +457,13 @@ describe('Challenger 1 — Adversarial Stress & Fuzz Suite: Arithmetic & VRA Eng
       expect(state.counts.units).toBe(10);
       expect(state.undoStack).toHaveLength(1);
 
-      // Undo 2: Reverts to 1 ten, 0 units, and locks keyboard
+      // Undo 2: Reverts to 1 ten, 0 units, and keeps keyboard UNLOCKED per Module 11
       useWorkspaceStore.getState().undo();
       state = useWorkspaceStore.getState();
       expect(state.counts.tens).toBe(1);
       expect(state.counts.units).toBe(0);
       expect(state.undoStack).toHaveLength(0);
-      expect(state.keyboardState).toBe('LOCKED');
+      expect(state.keyboardState).toBe('UNLOCKED');
     });
 
     it('triggers Socratic passive drifting on rapid undo spamming (>= 3 undos within 15s)', () => {
@@ -533,7 +533,7 @@ describe('Challenger 1 — Adversarial Stress & Fuzz Suite: Arithmetic & VRA Eng
           BLOCK_SPLIT_SUCCESS: 'UNLOCKED',
           HESITATION_TIMER_EXPIRE: 'UNLOCKED',
           SOCRATIC_SUCCESS: 'UNLOCKED',
-          UNDO_CLICK: 'LOCKED', // Undo Reset Guard
+          UNDO_CLICK: 'UNLOCKED', // Module 11: Undo never locks keyboard
         },
       };
 
@@ -573,9 +573,9 @@ describe('Challenger 1 — Adversarial Stress & Fuzz Suite: Arithmetic & VRA Eng
           expect(state).toBe('SOCRATIC_ONLY');
         }
 
-        // Invariant 3: UNLOCKED reverted via UNDO_CLICK MUST always return to LOCKED
+        // Invariant 3: UNLOCKED on UNDO_CLICK remains UNLOCKED per Module 11
         if (prevState === 'UNLOCKED' && evt.type === 'UNDO_CLICK') {
-          expect(state).toBe('LOCKED');
+          expect(state).toBe('UNLOCKED');
         }
       }
     });

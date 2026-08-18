@@ -227,6 +227,12 @@ export { validateAndStoreTelemetry } from "./transactionGuard";
 // Export the Google Drive Admin PDF Report module
 export { exportAdminReportToDrive } from "./exportDriveReport";
 
+// Export WP6 Cloud Functions (Module 14, 20, 22, 24, 27)
+export { onSessionCompleteTrigger, createSessionWithServerDeadline } from "./sessionTrigger";
+export { generatePedagogicalReportPDF } from "./pedagogicalReport";
+export { hourlyAdminAggregator } from "./adminAggregator";
+export { sendTeacherAdminMessage } from "./teacherAdminChat";
+
 /**
  * verifyTeacherSSO Cloud Function (PRD Section 4.1)
  * Enforces domain constraints (@edu-haifa.org.il), secret environment specs,

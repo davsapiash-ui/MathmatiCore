@@ -39,9 +39,13 @@ export function PlaceColumn({ place }: { place: Place }) {
   const colors = COLUMN_COLORS[place];
   const renderCount = Math.min(count, MAX_VISIBLE_BLOCKS);
   const isError = errorPlace === place;
-  
-  // Column dimming per Master PRD v5.0 Modules 7-8: opacity 0.7, brightness 0.6 for inactive columns
-  const isDimmed = focusedPlace !== null && focusedPlace !== place;
+  const activeColumnIndex = useWorkspaceStore((s) => s.activeColumnIndex);
+  const places: Place[] = ['units', 'tens', 'hundreds', 'thousands'];
+  const activePlaceByCol = typeof activeColumnIndex === 'number' && activeColumnIndex >= 0 && activeColumnIndex < places.length ? places[activeColumnIndex] : null;
+  const effectiveFocus = focusedPlace || (sessionNumber >= 3 ? activePlaceByCol : null);
+
+  // Column dimming per Master PRD Module 7: opacity 0.7, brightness 0.6 for inactive columns
+  const isDimmed = effectiveFocus !== null && effectiveFocus !== place;
 
   // Constraint-error shake (vanilla .constraint-error, 400ms). errorNonce retriggers repeats.
   const shakeControls = useAnimationControls();

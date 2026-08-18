@@ -42,9 +42,10 @@ import { getSessionTasks, type SessionTask } from '@/data/sessionTasks';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
 import { SocraticEngine, type SocraticHintResponse } from '@/infrastructure/services/SocraticEngine';
 import { ref, update } from 'firebase/database';
-import { database } from '@/infrastructure/firebase';
+import { database, serverNow, fetchServerClockOffset } from '@/infrastructure/firebase';
 import { normalizeStudentId } from '@/application/useChatStore';
 import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
+import type { VRAWorkspaceState } from '@/types';
 
 const UNDO_STACK_CAP = 10;
 
@@ -58,11 +59,10 @@ const DEFAULT_SOCRATIC_HINT: SocraticHintResponse = {
   correctChoiceId: 'opt_1'
 };
 
-
 export type SessionNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 export type SupportType = 'metacognitive' | 'socratic' | 'worked_example';
 export type HelpState = 'closed' | 'friction' | 'palette' | SupportType;
-export type FlowStatus = 'task' | 'reflection' | 'sessionDone';
+export type FlowStatus = 'task' | 'choice_branch' | 'reflection' | 'sessionDone';
 export type KeyboardState = 'LOCKED' | 'UNLOCKED' | 'SOCRATIC_ONLY';
 
 export interface FeedbackState {
@@ -72,6 +72,15 @@ export interface FeedbackState {
 }
 
 interface WorkspaceState {
+  // canonical VRA state machine (Module 29 / Appendix A §5)
+  currentState: VRAWorkspaceState;
+  activeColumnIndex: number; // 0: Ones, 1: Tens, 2: Hundreds
+  isSocraticCardLocked: boolean;
+  socraticLockDeadline: number | null;
+  hesitationTimerSeconds: number;
+  consecutiveErrorCount: number;
+  genericUndoStack: Array<Record<string, unknown>>;
+
   // session / flow
   sessionNumber: SessionNumber;
   isASD: boolean;
@@ -81,6 +90,9 @@ interface WorkspaceState {
   awaitingNext: boolean;
   sessionStartTimeMs: number;
   isTimeExceeded: boolean;
+  sessionDeadlineTime: number | null;
+  sessionDurationMinutes: number;
+  selectedBranch: 'reinforcement' | 'challenge' | null;
 
   // board
   counts: PlaceCounts;
@@ -102,7 +114,7 @@ interface WorkspaceState {
   hasInteracted: boolean;
   hasDeletedBlock: boolean;
   blocksAddedCount: number; // Added to enforce the 5 block rule in Sandbox
-  consecutiveDeletions: number; // 3 consecutive deletions triggers Socratic card per PRD v3.3 Module 12
+  consecutiveDeletions: number;
   hasUngrouped: boolean;
   hasGrouped: boolean;
   selectedChoiceId: string | null;
@@ -131,15 +143,24 @@ interface WorkspaceState {
   successStreak: number;
   keyboardState: KeyboardState;
   isAdditionHelperOpen: boolean;
+  pendingSupportProfileId: string | null;
+  activeSupportProfileId: string | null;
+  activeDeviceId: string | null;
+  isSupersededByOtherDevice: boolean;
 
   // actions
+  setActiveDeviceId: (id: string) => void;
+  setSupersededByOtherDevice: (superseded: boolean) => void;
+  setPendingSupportProfile: (profileId: string | null) => void;
   openAdditionHelper: () => void;
   closeAdditionHelper: () => void;
   toggleAdditionHelper: () => void;
   injectTask: (task: SessionTask, position: 'next' | 'end') => void;
   startSession: (meeting: number) => void;
-  initSession: (meeting: SessionNumber, isASD: boolean, aiTasks?: SessionTask[] | null, startingTaskIdx?: number) => void;
+  initSession: (meeting: SessionNumber, isASD: boolean, aiTasks?: SessionTask[] | null, startingTaskIdx?: number, existingDeadline?: number | null) => void;
   restoreSession: (savedState: any) => void;
+  getSessionRemainingSeconds: () => number;
+  selectBranch: (branch: 'reinforcement' | 'challenge') => void;
   applyDrop: (input: DropInput) => void;
   clearBoard: () => void;
   removeBlockClick: (place: Place) => void;
@@ -176,11 +197,23 @@ interface WorkspaceState {
   getSocraticPenaltyRemaining: () => number;
   isColumnInputLocked: (place: Place, numberA: number, numberB: number, isSubtraction?: boolean) => boolean;
   resetWorkspace: () => void;
+
+  // Canonical VRA handlers (Module 29 / Appendix A §5)
+  transitionTo: (newState: VRAWorkspaceState) => void;
+  resetHesitationTimer: () => void;
+  tickHesitationTimer: () => void;
+  pushUndoSnapshot: (snapshot: Record<string, unknown>) => void;
+  popUndoSnapshot: () => Record<string, unknown> | null;
+  lockSocraticCard: (durationMs?: number) => void;
+  unlockSocraticCard: () => void;
+  setActiveColumnIndex: (colIndex: number) => void;
+  incrementConsecutiveErrors: () => void;
+  resetConsecutiveErrors: () => void;
 }
 
 const SOCRATIC_PENALTY_STORAGE_KEY = 'mc_socratic_penalty_until';
 
-function getStoredSocraticPenaltyUntil(): number | null {
+function getStoredSocraticLockDeadline(): number | null {
   try {
     if (typeof localStorage === 'undefined') return null;
     const val = localStorage.getItem(SOCRATIC_PENALTY_STORAGE_KEY);
@@ -216,6 +249,8 @@ function resetTaskInteraction(isASD = false) {
     undoCount: 0,
     consecutiveDeletions: 0,
     hesitationCount: 0,
+    hesitationTimerSeconds: 0,
+    consecutiveErrorCount: 0,
     undoTimestamps: [],
     isBoardLocked: false,
     hasRequestedBasicHelp: false,
@@ -228,7 +263,7 @@ function resetTaskInteraction(isASD = false) {
 /**
  * Effective operands + result for an arithmetic task, ASD-aware.
  * The result is DERIVED from the displayed operands so the shown exercise and the
- * validated answer can never diverge (the ASD 12+14 vs 36 bug).
+ * validated answer can never diverge.
  */
 export function effectiveArithmetic(
   task: { numberA?: number; numberB?: number; asdNumberA?: number; asdNumberB?: number; isSubtraction?: boolean },
@@ -310,10 +345,7 @@ export function selectCanProceed(s: WorkspaceState): boolean {
   const task = selectStandardTask(s);
   if (!task) return false;
   if (task.type === 'session1_intro') {
-    // Choiceless exploration tasks (correctAnswer 'proceed_any') pass on any interaction;
-    // question intros still require a selected choice.
     if (task.correctAnswer === 'proceed_any' || !task.choices?.length) {
-      // Standard progress logic
       if (task.id === 's1_sandbox_controlled') {
         return s.blocksAddedCount >= 5 && s.hasDeletedBlock;
       }
@@ -352,10 +384,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     return stack;
   }
 
-  function pushSnapshot(counts: PlaceCounts) {
-    set((state) => ({ undoStack: createNextUndoStack(state.undoStack, counts) }));
-  }
-
   /** Flash a constraint violation on a column, then clear the tint (shake lasts 400ms). */
   function flagConstraintError(place: Place) {
     const nonce = get().errorNonce + 1;
@@ -367,10 +395,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
   function startTask(_taskId: string) {
     set(resetTaskInteraction());
-
-    set({ keyboardState: 'UNLOCKED' });
-
-
+    set({ keyboardState: 'UNLOCKED', currentState: 'PROBLEM_ACTIVE' });
   }
 
   /** Session-2 transition script (vanilla onQTaskComplete, app.js 813–873). */
@@ -381,8 +406,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         showFeedback({ correct: true, title: 'הַתְּשׁוּבָה הִתְקַבְּלָה! 👍', sub: 'עוֹבְרִים לַמְּשִׂימָה הַבָּאָה...' }, 1500, () => {
           const { state, event: next } = advance(get().qflow);
           set({ qflow: state });
-          // awaitingNext stays true through the whole transition chain — released only
-          // when the next task is actually live (prevents mid-transition clicks being eaten).
           if (next) handleQFlowEvent(next);
           else {
             startTask(getCurrentQTask(state)?.id ?? '');
@@ -431,17 +454,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         break;
       case 'all_complete':
         showFeedback({ correct: true, title: 'סִיַּמְתֶּם! 🎉', sub: 'כָּל הַכָּבוֹד עַל הָעֲבוֹדָה הַטּוֹבָה!' }, 2200, () => {
-          set({ flowStatus: 'reflection', awaitingNext: false });
-          // Curriculum Router trigger (uid is the ONE canonical identity field)
+          set({ flowStatus: 'reflection', awaitingNext: false, currentState: 'COMPLETE' });
           const studentId = useAuthStore.getState().user?.uid;
           if (studentId) {
             const store = useStore.getState();
             store.markMeeting2Complete(studentId);
             const student = store.students[studentId];
             if (student) {
-              // Route from the REAL diagnostics of this run — useStore's seeded
-              // qMatrixResults/traceData are never written by live code, so routing
-              // from them made every student 'GREEN' regardless of performance.
               const r = get().qflow.results;
               const getTag = (taskResult: any) => {
                 if (!taskResult) return null;
@@ -459,7 +478,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
                 task7_missing_subtrahend: getTag(r['task7_missing_subtrahend']),
                 task8_missing_addend: getTag(r['task8_missing_addend']),
               };
-              // Persist truth so the dashboard clustering reflects this student too.
               store.updateQMatrix(studentId, realQMatrix);
               syncQMatrixEvaluation(studentId, realQMatrix).catch(console.error);
               
@@ -501,6 +519,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     if (!task) return;
 
     const handleFailure = (detail: string, feedbackTitle: string, feedbackSub: string, feedbackMs: number) => {
+      get().incrementConsecutiveErrors();
       const studentId = useAuthStore.getState().user?.uid;
       if (studentId) {
         let errorCategory: 'FACTUAL_ERROR' | 'PROCEDURAL_ERROR' | 'STRATEGIC_ERROR' = 'FACTUAL_ERROR';
@@ -521,10 +540,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         set({ nodeStrikes: { ...s.nodeStrikes, [task.targetNode]: strikes }, successStreak: 0 });
         
         if (strikes === 1) {
-          // Micro-Agility: Socratic Buffer
           set({ helpState: 'friction', frictionTriggerSource: 'mistake' });
         } else if (strikes >= 2) {
-          // Micro-Agility: Decoupled Vector Scaling
           get().injectTask({
             id: `scaffold_${task.id}_${Date.now()}`,
             type: task.type,
@@ -544,20 +561,20 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     };
 
     const handleSuccess = (feedbackTitle: string, feedbackSub: string, feedbackMs: number) => {
+      get().resetConsecutiveErrors();
       set({ awaitingNext: true });
 
-      // Realtime Q-Matrix & Telemetry Sync to Firebase for Live Teacher Dashboard
       const studentId = useAuthStore.getState().user?.uid;
-      if (studentId) {
+      // Module 14: Choice branch tasks are strictly excluded from baseline Q-Matrix mastery
+      if (studentId && !task.isOptionalChoiceTask) {
         const qKey = (task as any).qMatrixKey || (task as any).targetNode || task.id;
         const qUpdate = { [qKey]: 'success' };
         firebaseSyncService.syncQMatrix(studentId, qUpdate as any).catch(console.error);
         useStore.getState().updateQMatrix(studentId, qUpdate as any);
       }
-      if (task.targetNode && s.sessionNumber >= 3) {
+      if (task.targetNode && s.sessionNumber >= 3 && !task.isOptionalChoiceTask) {
         set({ nodeStrikes: { ...s.nodeStrikes, [task.targetNode]: 0 }, successStreak: s.successStreak + 1 });
         if (s.successStreak + 1 >= 3) {
-          // Micro-Agility: Cognitive Acceleration
           get().injectTask({
             id: `challenge_${task.id}_${Date.now()}`,
             type: task.type,
@@ -573,7 +590,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         }
       }
       
-      // Scaffold fading (UDL): fade a step on success for scaffolded tasks; capped at 2 by design decision.
       if ((task.scaffoldLevel ?? 0) >= 1) {
         set({ scaffoldFadeLevel: Math.min(2, get().scaffoldFadeLevel + 1) });
       }
@@ -584,17 +600,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     };
 
     if (task.type === 'session1_intro') {
-      // Choiceless exploration tasks ('proceed_any'): any interaction passes — no question to answer.
       if (task.correctAnswer === 'proceed_any' || !task.choices?.length) {
-        
-        // Strict verification for specific tutorial tasks to ensure pedagogical compliance
         if (task.id === 's1_sandbox_controlled') {
           if (!s.hasDeletedBlock) {
             showFeedback({ correct: false, title: 'עוד לא סיימנו', sub: 'אנא ודאו שגררתם בלוקים ומחקתם לפחות בלוק אחד בעזרת פח המחזור.' }, 3000);
             return;
           }
         }
-
         handleSuccess('מעולה! 🌟', 'ממשיכים הלאה.', 1500);
         return;
       }
@@ -606,18 +618,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         handleFailure('wrong_choice', 'בּוֹאוּ נַחְשֹׁב שׁוּב 🤔', 'הַאִם הוֹסַפְנוּ אוֹ גָּרַעְנוּ קֻבִּיּוֹת כָּלְשֵׁהֵן מִבֵּית הַמְּסִפָּרִים?', 2800);
         return;
       }
-      // Correct — vanilla text carried a "(100)" copy bug; ported without the number.
       handleSuccess('נכון מאוד! 🌟', 'הערך נשאר זהה לחלוטין מכיוון שלא שינינו את הכמות הכוללת.', 2500);
       return;
     }
     if (task.type === 'addition_simple' || task.type === 'vertical_addition') {
-      // Target derived from the DISPLAYED (ASD-aware) operands — never from a hardcoded
-      // correctAnswer that could mismatch the shown exercise.
       const { target } = effectiveArithmetic(task, s.isASD);
       const boardVal = selectBoardValue(s);
       const isBoardEmpty = boardVal === 0 && target !== 0;
 
-      // Gate 1: the blocks must represent the result (forced manipulative representation).
       if (s.sessionNumber !== 8) {
         if (isBoardEmpty) {
           handleFailure(
@@ -639,7 +647,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           return;
         }
 
-        // Gate 1.5: the representation must be canonical (properly grouped) at submission.
         const hasOvercrowded = s.counts.units >= 10 || s.counts.tens >= 10 || s.counts.hundreds >= 10;
         if (hasOvercrowded) {
           const title = 'בית המספרים לא מסודר 🧐';
@@ -651,7 +658,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         }
       }
 
-      // Gate 2: check if student entered a written answer
       const hasTypedDigits = Object.keys(s.answerDigits).some(
         (k) => s.answerDigits[k as Place] !== undefined && s.answerDigits[k as Place] !== ''
       );
@@ -666,7 +672,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         return;
       }
 
-      // Gate 2.5: check written answer match
       const ansVal = answerDigitsToNumber(s.answerDigits);
       if (ansVal !== target) {
         if (s.sessionNumber === 8) {
@@ -682,7 +687,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         return;
       }
 
-      // Gate 3: pedagogical memory box (carry digits) check for vertical regrouping/trading
       if (task.type === 'vertical_addition' && (task.requiresGrouping || task.requiresUngrouping)) {
         const hasCarriesEntered = Object.values(s.carryDigits).some((v) => v !== undefined && v !== '');
         if (!hasCarriesEntered) {
@@ -701,12 +705,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         }
       }
 
-      // All gates passed.
       handleSuccess('כָּל הַכָּבוֹד! 🌟', 'פְּתַרְתֶּם נָכוֹן וְיִצַּגְתֶּם זֹאת מְצֻיָּן בְּבֵית הַמְּסִפָּרִים.', 2500);
       return;
     }
-
-
 
     if (task.type === 'small_change') {
       if (!s.selectedChoiceId) return;
@@ -745,7 +746,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       return;
     }
 
-    // Fallback if none matched
     handleSuccess('כָּל הַכָּבוֹד! 🌟', 'המשך לשלב הבא.', 2500);
   }
 
@@ -754,7 +754,18 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     const tasks = getActiveTasks(s);
     const nextIdx = s.standardTaskIdx + 1;
 
+    // Module 14: After completing 7 mandatory tasks in guided sessions (3..7), present Reinforcement vs Challenge choice
+    if (s.sessionNumber >= 3 && s.sessionNumber <= 7 && nextIdx === 7 && !s.selectedBranch) {
+      set({ flowStatus: 'choice_branch', awaitingNext: false });
+      return;
+    }
+
     if (nextIdx < tasks.length) {
+      // Module 19: Apply pending teacher support profile strictly at task boundary
+      if (s.pendingSupportProfileId) {
+        set({ activeSupportProfileId: s.pendingSupportProfileId, pendingSupportProfileId: null });
+      }
+
       set({ standardTaskIdx: nextIdx, awaitingNext: false });
       const studentId = useAuthStore.getState().user?.uid;
       if (studentId) {
@@ -776,7 +787,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       return;
     }
 
-    // Session complete (vanilla auto-chains 1→2 and 3→4).
+    // Session complete
     const studentId = useAuthStore.getState().user?.uid;
     if (studentId) {
       const normId = normalizeStudentId(studentId);
@@ -794,7 +805,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         get().initSession(2, get().isASD);
       });
     } else {
-      set({ awaitingNext: true });
+      set({ awaitingNext: true, currentState: 'COMPLETE' });
       showFeedback({ correct: true, title: 'כָּל הַכָּבוֹד! 🎉', sub: 'הִצְלַחְתֶּם בַּמְּשִׂימָה! נַעֲבֹר לַמְּשִׂימָה הַבָּאָה...' }, 2500, () => {
         set({ flowStatus: 'sessionDone', awaitingNext: false });
       });
@@ -851,6 +862,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     if (evalResult) {
       if (!evalResult.correct) {
+        get().incrementConsecutiveErrors();
         const studentId = useAuthStore.getState().user?.uid;
         if (studentId) {
           let errorCategory: 'FACTUAL_ERROR' | 'PROCEDURAL_ERROR' | 'STRATEGIC_ERROR' = 'FACTUAL_ERROR';
@@ -862,6 +874,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           }
           AuditLogger.log(errorCategory, studentId, `QTask: ${task.id}, Detail: ${d}`);
         }
+      } else {
+        get().resetConsecutiveErrors();
       }
       set({ awaitingNext: true });
       const { state, event } = recordResult(s.qflow, evalResult);
@@ -870,7 +884,19 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     }
   }
 
+  const initialDeadline = getStoredSocraticLockDeadline();
+
   return {
+    // canonical VRA state machine (Module 29 / Appendix A §5)
+    currentState: 'IDLE' as VRAWorkspaceState,
+    activeColumnIndex: 0,
+    isSocraticCardLocked: Boolean(initialDeadline && initialDeadline > Date.now()),
+    socraticLockDeadline: initialDeadline,
+    socraticPenaltyLockoutUntil: initialDeadline,
+    hesitationTimerSeconds: 0,
+    consecutiveErrorCount: 0,
+    genericUndoStack: [],
+
     sessionNumber: 1,
     isASD: false,
     standardTaskIdx: 0,
@@ -880,6 +906,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     keyboardState: 'UNLOCKED',
     sessionStartTimeMs: Date.now(),
     isTimeExceeded: false,
+    sessionDeadlineTime: null,
+    sessionDurationMinutes: 15,
+    selectedBranch: null,
 
     counts: { ...EMPTY_COUNTS },
     undoStack: [],
@@ -913,7 +942,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     helpState: 'closed',
     frictionTriggerSource: null,
     aiSocraticHint: null,
-    socraticPenaltyLockoutUntil: getStoredSocraticPenaltyUntil(),
     socraticDistractorHint: null,
     typedErrorCount: 0,
     socraticDistractorErrors: 0,
@@ -922,6 +950,18 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     dynamicTasks: null,
     nodeStrikes: {},
     successStreak: 0,
+    pendingSupportProfileId: null,
+    activeSupportProfileId: null,
+    activeDeviceId: null,
+    isSupersededByOtherDevice: false,
+
+    setActiveDeviceId: (id) => set({ activeDeviceId: id }),
+    setSupersededByOtherDevice: (superseded) => set({ isSupersededByOtherDevice: superseded }),
+
+    setPendingSupportProfile: (profileId) => {
+      // Module 19: Stores pending support profile without altering the active workspace/board/keyboard state
+      set({ pendingSupportProfileId: profileId });
+    },
 
     setAITasks: (tasks) => set({ aiTasks: tasks }),
 
@@ -929,11 +969,41 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       get().initSession(sanitizeSessionNumber(meeting), get().isASD);
     },
 
-    initSession: (meeting, isASD, initialAITasks, startingTaskIdx) => {
+    initSession: (meeting, isASD, initialAITasks, startingTaskIdx, existingDeadline) => {
+      const sanitized = sanitizeSessionNumber(meeting);
+      const durationMin = sanitized <= 2 ? 15 : 25;
+
+      let deadline = existingDeadline || null;
+      if (!deadline && typeof localStorage !== 'undefined') {
+        const stored = localStorage.getItem(`mathmaticore_session_${sanitized}_deadline`);
+        if (stored) {
+          const parsed = parseInt(stored, 10);
+          // serverNow() — מסנכרן עם שרת Firebase לפני הבדיקה
+          if (parsed > serverNow()) {
+            deadline = parsed;
+          }
+        }
+      }
+      if (!deadline) {
+        // יש לקרוא fetchServerClockOffset לפני כן (StudentHubPage / StudentWorkspacePage)
+        // אם עדיין לא נקרא — serverNow() == Date.now() (offset=0, בטוח)
+        deadline = serverNow() + durationMin * 60 * 1000;
+        try {
+          if (typeof localStorage !== 'undefined') {
+            localStorage.setItem(`mathmaticore_session_${sanitized}_deadline`, deadline.toString());
+          }
+        } catch (e) {
+          console.error('Failed to store session deadline', e);
+        }
+      }
+
       const qflow = initQFlow();
       set({
-        sessionNumber: sanitizeSessionNumber(meeting),
+        sessionNumber: sanitized,
         isASD,
+        sessionDurationMinutes: durationMin,
+        sessionDeadlineTime: deadline,
+        selectedBranch: null,
         aiTasks: initialAITasks ?? null,
         dynamicTasks: null,
         nodeStrikes: {},
@@ -950,15 +1020,105 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         frictionTriggerSource: null,
         sessionStartTimeMs: Date.now(),
         isTimeExceeded: false,
+        currentState: 'PROBLEM_ACTIVE',
         ...resetTaskInteraction(isASD),
       });
     },
 
+    getSessionRemainingSeconds: () => {
+      const deadline = get().sessionDeadlineTime;
+      if (!deadline) return get().sessionDurationMinutes * 60;
+      // שימוש ב-serverNow() בלבד — מגן מפני שעון מקומי עקום (תרחיש BIOS מת, טאבלט ישן)
+      return Math.max(0, Math.floor((deadline - serverNow()) / 1000));
+    },
+
+    selectBranch: (branch: 'reinforcement' | 'challenge') => {
+      const s = get();
+      const currentTasks = getActiveTasks(s);
+      const branchTasks: SessionTask[] = branch === 'reinforcement' ? [
+        {
+          id: `branch_reinforce_${s.sessionNumber}_1`,
+          type: 'vertical_addition',
+          titleHe: 'משימת ביסוס 1 (רשות)',
+          instructionHe: 'פתרו את התרגיל הבא בבית המספרים:',
+          targetNode: 'q_matrix_q4_addition',
+          scaffoldLevel: 1,
+          numberA: 24,
+          numberB: 18,
+          isOptionalChoiceTask: true,
+          branchType: 'reinforcement',
+        },
+        {
+          id: `branch_reinforce_${s.sessionNumber}_2`,
+          type: 'vertical_addition',
+          titleHe: 'משימת ביסוס 2 (רשות)',
+          instructionHe: 'פתרו תרגיל נוסף לחיזוק:',
+          targetNode: 'q_matrix_q4_addition',
+          scaffoldLevel: 1,
+          numberA: 35,
+          numberB: 27,
+          isOptionalChoiceTask: true,
+          branchType: 'reinforcement',
+        }
+      ] : [
+        {
+          id: `branch_challenge_${s.sessionNumber}_1`,
+          type: 'vertical_addition',
+          titleHe: 'אתגר חשיבה 1 (רשות)',
+          instructionHe: 'אתגר במספרים תלת-ספרתיים:',
+          targetNode: 'q_matrix_q4_addition',
+          scaffoldLevel: 0,
+          numberA: 148,
+          numberB: 275,
+          isOptionalChoiceTask: true,
+          branchType: 'challenge',
+        },
+        {
+          id: `branch_challenge_${s.sessionNumber}_2`,
+          type: 'vertical_addition',
+          titleHe: 'אתגר חשיבה 2 (רשות)',
+          instructionHe: 'אתגר מסכם ברמת מורכבות גבוהה:',
+          targetNode: 'q_matrix_q4_addition',
+          scaffoldLevel: 0,
+          numberA: 389,
+          numberB: 456,
+          isOptionalChoiceTask: true,
+          branchType: 'challenge',
+        }
+      ];
+
+      set({
+        selectedBranch: branch,
+        dynamicTasks: [...currentTasks, ...branchTasks],
+        standardTaskIdx: currentTasks.length,
+        flowStatus: 'task',
+        awaitingNext: false,
+      });
+      startTask(branchTasks[0].id);
+    },
+
     restoreSession: (saved) => {
       if (!saved) return;
+      const storedDeadline = getStoredSocraticLockDeadline();
+      const sanitized = sanitizeSessionNumber(saved.sessionNumber);
+      const durationMin = sanitized <= 2 ? 15 : 25;
+      let sessionDeadline = saved.sessionDeadlineTime || null;
+      if (!sessionDeadline && typeof localStorage !== 'undefined') {
+        const stored = localStorage.getItem(`mathmaticore_session_${sanitized}_deadline`);
+        if (stored) {
+          const parsed = parseInt(stored, 10);
+          if (parsed > Date.now()) {
+            sessionDeadline = parsed;
+          }
+        }
+      }
+
       set({
-        sessionNumber: sanitizeSessionNumber(saved.sessionNumber),
+        sessionNumber: sanitized,
         isASD: saved.isASD ?? false,
+        sessionDurationMinutes: durationMin,
+        sessionDeadlineTime: sessionDeadline,
+        selectedBranch: saved.selectedBranch ?? null,
         standardTaskIdx: saved.standardTaskIdx ?? 0,
         qflow: saved.qflow ?? initQFlow(),
         flowStatus: saved.flowStatus ?? 'task',
@@ -981,7 +1141,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         feedback: null,
         helpState: 'closed',
         frictionTriggerSource: null,
-        socraticPenaltyLockoutUntil: saved.socraticPenaltyLockoutUntil ?? getStoredSocraticPenaltyUntil(),
+        isSocraticCardLocked: Boolean(storedDeadline && storedDeadline > Date.now()),
+        socraticLockDeadline: storedDeadline,
         socraticDistractorHint: saved.socraticDistractorHint ?? null,
         selectedChoiceId: null,
         answerDigits: {},
@@ -990,22 +1151,19 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         q3Reps: [],
         focusedPlace: null,
         undoStack: [],
+        currentState: 'PROBLEM_ACTIVE',
       });
     },
 
     injectTask: (task, position) => {
       const s = get();
-      if (s.sessionNumber === 2) return; // Q-Matrix engine handles its own flow
-
-      // Initialize dynamicTasks from current active tasks if null
+      if (s.sessionNumber === 2) return;
       const currentTasks = s.dynamicTasks ? [...s.dynamicTasks] : [...getActiveTasks(s)];
-      
       if (position === 'next') {
         currentTasks.splice(s.standardTaskIdx + 1, 0, task);
       } else {
         currentTasks.push(task);
       }
-      
       set({ dynamicTasks: currentTasks });
     },
 
@@ -1015,8 +1173,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const result = resolveDrop(s.counts, input, selectScaffoldLevel(s));
         if (!result.ok) {
           if (result.reason === 'constraint') flagConstraintError(result.place);
-          
-          // Log semantic event for invalid drop
           const studentId = useAuthStore.getState().user?.uid;
           if (studentId) {
             const task = getActiveTasks(s)[s.standardTaskIdx] || null;
@@ -1034,18 +1190,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         
         const stack = [...s.undoStack, { counts: { ...s.counts } }];
         if (stack.length > UNDO_STACK_CAP) stack.shift();
-      const isDelete = result.removed && input.target.kind === 'trash';
-      const isUngroup = !!result.ungroupEvent;
-      const isGroup = result.regroupEvents && result.regroupEvents.length > 0;
-      const isFromStore = input.source === 'palette';
-      const addedCount = isFromStore ? (s.blocksAddedCount + 1) : s.blocksAddedCount;
+        const isDelete = result.removed && input.target.kind === 'trash';
+        const isUngroup = !!result.ungroupEvent;
+        const isGroup = result.regroupEvents && result.regroupEvents.length > 0;
+        const isFromStore = input.source === 'palette';
+        const addedCount = isFromStore ? (s.blocksAddedCount + 1) : s.blocksAddedCount;
 
-        const nextDeletions = isDelete ? (s.consecutiveDeletions + 1) : 0;
-        if (nextDeletions >= 4) {
-          setTimeout(() => {
-            get().fetchSocraticHint();
-            set({ helpState: 'socratic' });
-          }, 0);
+        if (isGroup || isUngroup) {
+          get().transitionTo('REGROUPING_ACTIVE');
         }
 
         return { 
@@ -1053,8 +1205,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           undoStack: stack,
           hasInteracted: true,
           blocksAddedCount: addedCount,
-          undoCount: isDelete ? s.undoCount + 1 : s.undoCount,
-          consecutiveDeletions: nextDeletions,
+          // Module 11: Block deletion is NOT counted as Undo
           undoTimestamps: [],
           ...(isDelete ? { hasDeletedBlock: true } : {}),
           ...(isUngroup ? { hasUngrouped: true } : {}),
@@ -1086,21 +1237,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           });
         }
 
-        const nextDeletions = state.consecutiveDeletions + 1;
-        if (nextDeletions >= 4) {
-          setTimeout(() => {
-            get().fetchSocraticHint();
-            set({ helpState: 'socratic' });
-          }, 0);
-        }
-
+        // Module 11: Block deletion is NOT an Undo, does not increment undoCount
         return { 
           counts: next, 
           undoStack,
           hasInteracted: true, 
           hasDeletedBlock: true, 
-          undoCount: state.undoCount + 1,
-          consecutiveDeletions: nextDeletions
         };
       });
     },
@@ -1154,6 +1296,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           });
         }
 
+        get().transitionTo('REGROUPING_ACTIVE');
+
         return {
           counts: res.counts,
           undoStack,
@@ -1187,6 +1331,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           });
         }
 
+        get().transitionTo('REGROUPING_ACTIVE');
+
         return {
           counts: res.counts,
           undoStack,
@@ -1200,61 +1346,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     undo: () => {
       set((s) => {
         if (s.isBoardLocked) return s;
-
-        const now = Date.now();
-        const newUndoTimestamps = [...s.undoTimestamps, now];
-        
-        let shouldTriggerSocratic = false;
-
-        if (s.sessionNumber === 2) {
-          shouldTriggerSocratic = false; // PRD: No scaffolding or help in Session 2
-        } else if (s.sessionNumber === 6) {
-          // 4 clicks in 15 seconds
-          const recentUndos = newUndoTimestamps.filter(t => now - t <= 15000);
-          if (recentUndos.length >= 4) {
-            shouldTriggerSocratic = true;
-          }
-        } else if (s.sessionNumber === 8) {
-          // 3 clicks in a single task
-          if (newUndoTimestamps.length >= 3) {
-            shouldTriggerSocratic = true;
-          }
-        } else {
-          // Fallback for other sessions: 3 clicks in 15 seconds
-          const recentUndos = newUndoTimestamps.filter(t => now - t <= 15000);
-          if (recentUndos.length >= 3) {
-            shouldTriggerSocratic = true;
-          }
-        }
-
         const stack = [...s.undoStack];
         const snapshot = stack.pop();
+        if (!snapshot) return s;
 
-        if (shouldTriggerSocratic) {
-          const studentId = useAuthStore.getState().user?.uid;
-          if (studentId) {
-            AuditLogger.log('PASSIVE_DRIFTING', studentId, 'Frequent undos detected');
-          }
-
-          setTimeout(() => {
-            get().setKeyboardSocratic();
-          }, 0);
-
-          if (snapshot) {
-            return { 
-              counts: snapshot.counts, 
-              undoStack: stack, 
-              undoCount: s.undoCount + 1,
-              undoTimestamps: []
-            };
-          }
-          return { undoTimestamps: [] };
-        }
-
-        if (!snapshot) {
-          return { undoTimestamps: newUndoTimestamps };
-        }
-
+        // Module 11: Undo does NOT trigger any penalty (no Socratic card popup, no timeout lockout, no PASSIVE_DRIFTING)
         const studentId = useAuthStore.getState().user?.uid;
         if (studentId) {
           const task = getActiveTasks(s)[s.standardTaskIdx] || null;
@@ -1271,7 +1367,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           counts: snapshot.counts, 
           undoStack: stack, 
           undoCount: s.undoCount + 1,
-          undoTimestamps: newUndoTimestamps,
+          undoTimestamps: [],
           keyboardState: stateReducer(s.keyboardState, { type: 'UNDO_CLICK' })
         };
       });
@@ -1282,7 +1378,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     selectChoice: (id) => {
       set({ selectedChoiceId: id, hasInteracted: true });
-      
       const studentId = useAuthStore.getState().user?.uid;
       if (studentId) {
         const s = get();
@@ -1297,19 +1392,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       }
     },
 
-
-
     setAnswerDigit: (place, val) => {
       set((s) => {
         const isDelete = val === '' && Boolean(s.answerDigits[place]);
         const nextDeletions = isDelete ? s.consecutiveDeletions + 1 : (val !== '' ? 0 : s.consecutiveDeletions);
-
-        if (isDelete && nextDeletions >= 4) {
-          setTimeout(() => {
-            get().fetchSocraticHint();
-            set({ helpState: 'socratic' });
-          }, 0);
-        }
 
         if (val !== '' && s.helpState === 'socratic') {
           setTimeout(() => {
@@ -1322,7 +1408,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         return {
           answerDigits: { ...s.answerDigits, [place]: val },
           hasInteracted: true,
-          consecutiveDeletions: nextDeletions
+          consecutiveDeletions: nextDeletions,
         };
       });
       
@@ -1407,7 +1493,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         return;
       }
       
-      // Strict structural validation for the tutorial task s1_t4 (2 tens, or 20 units)
       if (s.sessionNumber === 1 && target === 20) {
         const is2Tens = s.counts.tens === 2 && s.counts.units === 0 && s.counts.hundreds === 0 && s.counts.thousands === 0;
         const is20Units = s.counts.units === 20 && s.counts.tens === 0 && s.counts.hundreds === 0 && s.counts.thousands === 0;
@@ -1419,29 +1504,24 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
       const q3Reps = [...s.q3Reps, { ...s.counts }];
       set({ q3Reps, hasInteracted: true });
-      // Reset the board for the next representation (vanilla resets below 2).
       if (q3Reps.length < 2) {
         set({ counts: { ...EMPTY_COUNTS }, undoStack: [] });
       }
     },
 
-    /** "החזרת עזרים" (spec M4, Responsive Fading): the student may temporarily bring
-        faded scaffolds back to full visibility when hitting a new difficulty. */
     restoreScaffolds: () => {
       set({ scaffoldFadeLevel: 0 });
     },
 
-    /** Q3 backward-diagnosis guided demo: decompose one ten into 10 units. */
     demoUngroup: () => {
       const s = get();
       const result = resolveDrop(s.counts, { source: 'column', sourcePlace: 'tens', target: { kind: 'column', place: 'units' } }, selectScaffoldLevel(s));
       if (result.ok) {
         const undoStack = createNextUndoStack(s.undoStack, s.counts);
+        get().transitionTo('REGROUPING_ACTIVE');
         set({ counts: result.counts, undoStack, hasInteracted: true, hasUngrouped: true });
       }
     },
-
-    markInteracted: () => set(() => ({ hasInteracted: true })),
 
     proceed: () => {
       const s = get();
@@ -1493,7 +1573,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         return;
       }
 
-      // Session 1 intro/sandbox tasks: skip Socratic coach entirely — show a plain instruction
       const currentTask = getActiveTasks(s)[s.standardTaskIdx];
       if (currentTask?.type === 'session1_intro' || currentTask?.id === 's1_sandbox_controlled') {
         showFeedback(
@@ -1512,7 +1591,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const alertId = `${studentId}_help_${Date.now()}`;
         const helpKey = `help_${Date.now()}`;
 
-        // Sync to Realtime DB so Teacher Dashboard lights up immediately in orange and stays persistent
+        // Sync to Realtime DB: STRICT Zero PII — NO studentName / displayName!
         const studentHelpPayload = {
           helpRequested: true,
           handRaised: true,
@@ -1532,7 +1611,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         update(ref(database, `radar_alerts/${alertId}`), {
           studentId: studentId,
           rawStudentId: studentId,
-          studentName: rawUser.displayName || studentId,
           timestamp: Date.now(),
           type: 'HESITATION',
           message: 'תלמיד לחץ על נורת העזרה!',
@@ -1542,6 +1620,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       }
 
       set({ helpState: 'friction', frictionTriggerSource: 'lightbulb', aiSocraticHint: null });
+      get().transitionTo('SOCRATIC_ACTIVE');
       get().fetchSocraticHint();
     },
 
@@ -1550,6 +1629,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       if (s.helpState === 'friction') {
         if (s.frictionTriggerSource === 'mistake') {
           set({ helpState: 'socratic' });
+          get().transitionTo('SOCRATIC_ACTIVE');
         } else {
           set({ helpState: 'palette' });
         }
@@ -1562,12 +1642,21 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       if (type === 'worked_example' && (!s.hasRequestedBasicHelp || !s.hasInteracted)) {
         return;
       }
+      if (type === 'socratic') {
+        get().transitionTo('SOCRATIC_ACTIVE');
+      }
       set({ 
         helpState: type,
         ...((type as string) !== 'worked_example' && (type as string) !== 'closed' ? { hasRequestedBasicHelp: true } : {})
       });
     },
-    closeHelp: () => set({ helpState: 'closed' }),
+
+    closeHelp: () => {
+      set({ helpState: 'closed' });
+      if (get().currentState === 'SOCRATIC_ACTIVE') {
+        get().transitionTo('PROBLEM_ACTIVE');
+      }
+    },
     showFeedback,
     unlockKeyboard: () => set({ keyboardState: 'UNLOCKED' }),
     lockKeyboard: () => set({ keyboardState: 'LOCKED' }),
@@ -1578,12 +1667,15 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       set((s) => ({
         keyboardState: 'SOCRATIC_ONLY',
         helpState: 'socratic',
+        currentState: 'SOCRATIC_ACTIVE',
         aiSocraticHint: s.aiSocraticHint || DEFAULT_SOCRATIC_HINT
       }));
       get().fetchSocraticHint();
     },
-    recordUserInteraction: () => set({ lastInteractionTime: Date.now(), hasInteracted: true }),
-    incrementTypedErrorCount: () => set((s) => ({ typedErrorCount: s.typedErrorCount + 1, lastInteractionTime: Date.now() })),
+    recordUserInteraction: () => set({ lastInteractionTime: Date.now(), hasInteracted: true, hesitationTimerSeconds: 0 }),
+    incrementTypedErrorCount: () => {
+      get().incrementConsecutiveErrors();
+    },
     getPersistenceIndex: () => {
       const { undoCount, typedErrorCount, socraticDistractorErrors } = get();
       const denom = undoCount + typedErrorCount + socraticDistractorErrors;
@@ -1591,16 +1683,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       return Math.min(100, Math.max(0, Math.round((undoCount / denom) * 100)));
     },
     triggerSocraticPenaltyLockout: (hintText) => {
-      const until = Date.now() + 60000;
-      try {
-        if (typeof localStorage !== 'undefined') {
-          localStorage.setItem(SOCRATIC_PENALTY_STORAGE_KEY, until.toString());
-        }
-      } catch (e) {
-        console.error('Failed to persist socratic penalty', e);
-      }
+      get().lockSocraticCard(60000);
       set((s) => ({
-        socraticPenaltyLockoutUntil: until,
         socraticDistractorHint: hintText || 'בחירה זו אינה מביאה לפתרון הנכון. חשבו מה הפעולה הנדרשת בבית המספרים ונסו שוב כשתום הנעילה.',
         socraticDistractorErrors: s.socraticDistractorErrors + 1,
         lastInteractionTime: Date.now()
@@ -1608,25 +1692,18 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     },
 
     clearSocraticPenaltyLockout: () => {
-      try {
-        if (typeof localStorage !== 'undefined') {
-          localStorage.removeItem(SOCRATIC_PENALTY_STORAGE_KEY);
-        }
-      } catch (e) {
-        console.error('Failed to clear socratic penalty', e);
-      }
+      get().unlockSocraticCard();
       set({
-        socraticPenaltyLockoutUntil: null,
         socraticDistractorHint: null,
       });
     },
 
     getSocraticPenaltyRemaining: () => {
-      const until = get().socraticPenaltyLockoutUntil;
+      const until = get().socraticLockDeadline;
       if (!until) return 0;
       const remaining = Math.max(0, Math.ceil((until - Date.now()) / 1000));
-      if (remaining <= 0 && get().socraticPenaltyLockoutUntil !== null) {
-        get().clearSocraticPenaltyLockout();
+      if (remaining <= 0 && get().isSocraticCardLocked) {
+        get().unlockSocraticCard();
         return 0;
       }
       return remaining;
@@ -1662,11 +1739,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       return false;
     },
     checkTimeExceeded: () => {
-      const { sessionStartTimeMs, isTimeExceeded, sessionNumber } = get();
-      if (isTimeExceeded) return;
-      // Module 14: 15 minutes for sessions 3-7; 25 minutes for sessions 2 & 8 (and session 1)
-      const durationMinutes = (sessionNumber === 2 || sessionNumber === 8 || sessionNumber === 1) ? 25 : 15;
-      if (Date.now() - sessionStartTimeMs >= durationMinutes * 60 * 1000) {
+      const { sessionDeadlineTime, isTimeExceeded } = get();
+      if (isTimeExceeded || !sessionDeadlineTime) return;
+      // סמכותי בלבד: בדיקה מול sessionDeadlineTime ו-serverNow() ללא דלת אחורית של deadline מקומי
+      if (serverNow() >= sessionDeadlineTime) {
         set({ isTimeExceeded: true });
       }
     },
@@ -1719,7 +1795,111 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         dynamicTasks: null,
         nodeStrikes: {},
         successStreak: 0,
+        currentState: 'IDLE' as VRAWorkspaceState,
+        activeColumnIndex: 0,
+        isSocraticCardLocked: false,
+        socraticLockDeadline: null,
+        socraticPenaltyLockoutUntil: null,
+        hesitationTimerSeconds: 0,
+        consecutiveErrorCount: 0,
+        genericUndoStack: [],
       });
+    },
+
+    // Canonical VRA State Machine Actions (Module 29 / Appendix A §5)
+    transitionTo: (newState: VRAWorkspaceState) => {
+      set({ currentState: newState });
+    },
+
+    resetHesitationTimer: () => {
+      set({ hesitationTimerSeconds: 0, lastInteractionTime: Date.now() });
+    },
+
+    // Module 10 (30s) & Module 12 (45s): Pedagogical Hesitation Triggers
+    tickHesitationTimer: () => {
+      set((state) => {
+        const nextSec = state.hesitationTimerSeconds + 1;
+        const shouldOpenAddition = nextSec >= 30 && !state.isAdditionHelperOpen && state.sessionNumber !== 2;
+
+        // Module 12: Trigger 1 — 45 seconds of hesitation triggers Socratic coach across ALL sessions
+        if (nextSec >= 45 && state.currentState !== 'SOCRATIC_ACTIVE' && !state.isSocraticCardLocked && state.sessionNumber !== 2) {
+          setTimeout(() => {
+            get().fetchSocraticHint();
+            set({ helpState: 'socratic', currentState: 'SOCRATIC_ACTIVE' });
+          }, 0);
+        }
+        return { 
+          hesitationTimerSeconds: nextSec,
+          hesitationCount: nextSec >= 45 ? state.hesitationCount + 1 : state.hesitationCount,
+          ...(shouldOpenAddition ? { isAdditionHelperOpen: true } : {})
+        };
+      });
+    },
+
+    pushUndoSnapshot: (snapshot: Record<string, unknown>) => {
+      set((state) => {
+        const next = [...state.genericUndoStack, snapshot];
+        if (next.length > UNDO_STACK_CAP) next.shift();
+        return { genericUndoStack: next };
+      });
+    },
+
+    popUndoSnapshot: () => {
+      const s = get();
+      if (s.genericUndoStack.length === 0) return null;
+      const next = [...s.genericUndoStack];
+      const popped = next.pop() ?? null;
+      set({ genericUndoStack: next });
+      return popped;
+    },
+
+    lockSocraticCard: (durationMs = 60000) => {
+      const deadline = Date.now() + durationMs;
+      set({ isSocraticCardLocked: true, socraticLockDeadline: deadline, socraticPenaltyLockoutUntil: deadline });
+      try {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem(SOCRATIC_PENALTY_STORAGE_KEY, deadline.toString());
+        }
+      } catch (e) {
+        console.error('Failed to store socratic penalty', e);
+      }
+    },
+
+    unlockSocraticCard: () => {
+      set({ isSocraticCardLocked: false, socraticLockDeadline: null, socraticPenaltyLockoutUntil: null, socraticDistractorHint: null });
+      try {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.removeItem(SOCRATIC_PENALTY_STORAGE_KEY);
+        }
+      } catch (e) {
+        console.error('Failed to clear socratic penalty', e);
+      }
+    },
+
+    setActiveColumnIndex: (colIndex: number) => {
+      set({ activeColumnIndex: colIndex });
+    },
+
+    // Module 12: Trigger 2 — 4 consecutive errors triggers Socratic coach across ALL sessions
+    incrementConsecutiveErrors: () => {
+      set((state) => {
+        const nextErrors = state.consecutiveErrorCount + 1;
+        if (nextErrors >= 4 && state.currentState !== 'SOCRATIC_ACTIVE' && !state.isSocraticCardLocked && state.sessionNumber !== 2) {
+          setTimeout(() => {
+            get().fetchSocraticHint();
+            set({ helpState: 'socratic', currentState: 'SOCRATIC_ACTIVE' });
+          }, 0);
+        }
+        return { 
+          consecutiveErrorCount: nextErrors, 
+          typedErrorCount: state.typedErrorCount + 1, 
+          lastInteractionTime: Date.now() 
+        };
+      });
+    },
+
+    resetConsecutiveErrors: () => {
+      set({ consecutiveErrorCount: 0 });
     },
   };
 });

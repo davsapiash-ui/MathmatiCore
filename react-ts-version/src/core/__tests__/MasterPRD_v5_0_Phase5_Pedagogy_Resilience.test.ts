@@ -27,40 +27,40 @@ describe('Master PRD v5.0 — Phase 5: Pedagogical Progression, Offline Resilien
     it('triggers isTimeExceeded flag in useWorkspaceStore when session duration expires', () => {
       const store = useWorkspaceStore.getState();
 
-      // Test Session 4 (15 minutes limit)
+      // Test Session 4 (15 minutes limit) - deadline expired 1 minute ago
       useWorkspaceStore.setState({
         sessionNumber: 4,
-        sessionStartTimeMs: Date.now() - (16 * 60 * 1000), // 16 mins ago
+        sessionDeadlineTime: Date.now() - (1 * 60 * 1000), // expired 1 min ago
         isTimeExceeded: false,
       });
 
       store.checkTimeExceeded();
       expect(useWorkspaceStore.getState().isTimeExceeded).toBe(true);
 
-      // Test Session 4 within limit (10 minutes)
+      // Test Session 4 within limit (deadline in 5 minutes)
       useWorkspaceStore.setState({
         sessionNumber: 4,
-        sessionStartTimeMs: Date.now() - (10 * 60 * 1000), // 10 mins ago
+        sessionDeadlineTime: Date.now() + (5 * 60 * 1000), // in 5 mins
         isTimeExceeded: false,
       });
 
       store.checkTimeExceeded();
       expect(useWorkspaceStore.getState().isTimeExceeded).toBe(false);
 
-      // Test Session 8 (25 minutes limit) - 20 minutes should still be valid
+      // Test Session 8 (25 minutes limit) - 5 minutes remaining
       useWorkspaceStore.setState({
         sessionNumber: 8,
-        sessionStartTimeMs: Date.now() - (20 * 60 * 1000), // 20 mins ago
+        sessionDeadlineTime: Date.now() + (5 * 60 * 1000),
         isTimeExceeded: false,
       });
 
       store.checkTimeExceeded();
       expect(useWorkspaceStore.getState().isTimeExceeded).toBe(false);
 
-      // Test Session 8 exceeded (26 minutes)
+      // Test Session 8 exceeded (deadline passed 1 minute ago)
       useWorkspaceStore.setState({
         sessionNumber: 8,
-        sessionStartTimeMs: Date.now() - (26 * 60 * 1000),
+        sessionDeadlineTime: Date.now() - (1 * 60 * 1000),
         isTimeExceeded: false,
       });
 

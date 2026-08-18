@@ -70,14 +70,20 @@ describe('Student Domain Verification & Audit Suite', () => {
       });
     });
 
-    it('does not trigger isTimeExceeded before 25 minutes', () => {
+    it('does not trigger isTimeExceeded before deadline expires', () => {
+      useWorkspaceStore.setState({
+        sessionDeadlineTime: Date.now() + 5 * 60 * 1000,
+        isTimeExceeded: false,
+      });
       useWorkspaceStore.getState().checkTimeExceeded();
       expect(useWorkspaceStore.getState().isTimeExceeded).toBe(false);
     });
 
-    it('triggers isTimeExceeded when 25 minutes (1,500,000ms) elapses', () => {
-      const past25Min = Date.now() - (25 * 60 * 1000 + 1000);
-      useWorkspaceStore.setState({ sessionStartTimeMs: past25Min });
+    it('triggers isTimeExceeded when deadline has passed', () => {
+      useWorkspaceStore.setState({
+        sessionDeadlineTime: Date.now() - 1000,
+        isTimeExceeded: false,
+      });
       useWorkspaceStore.getState().checkTimeExceeded();
       expect(useWorkspaceStore.getState().isTimeExceeded).toBe(true);
     });

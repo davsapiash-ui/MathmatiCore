@@ -14,10 +14,10 @@
     },
     "users": {
       "students": {
-        ".read": true,
+        ".read": "auth != null",
         "$studentId": {
-          ".read": true,
-          ".write": "auth != null && ($studentId.matches(/^student_(user)?(30|[1-2][0-9]|[1-9])$/) || $studentId.matches(/^(30|[1-2][0-9]|[1-9])$/))"
+          ".read": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.email == $studentId + '@mathmaticore.local' || auth.uid == $studentId)",
+          ".write": "auth != null && ($studentId.matches(/^student_(user)?(1[0-2]|[1-9])$/) || $studentId.matches(/^(1[0-2]|[1-9])$/)) && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.email == $studentId + '@mathmaticore.local' || auth.uid == $studentId)"
         }
       },
       "teachers": {
@@ -32,10 +32,10 @@
       }
     },
     "students": {
-      ".read": true,
+      ".read": "auth != null",
       "$studentId": {
-        ".read": true,
-        ".write": "auth != null && ($studentId.matches(/^student_(user)?(30|[1-2][0-9]|[1-9])$/) || $studentId.matches(/^(30|[1-2][0-9]|[1-9])$/))"
+        ".read": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.email == $studentId + '@mathmaticore.local' || auth.uid == $studentId)",
+        ".write": "auth != null && ($studentId.matches(/^student_(user)?(1[0-2]|[1-9])$/) || $studentId.matches(/^(1[0-2]|[1-9])$/)) && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.email == $studentId + '@mathmaticore.local' || auth.uid == $studentId)"
       }
     },
     "radar_alerts": {

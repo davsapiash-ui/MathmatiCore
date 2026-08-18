@@ -61,6 +61,10 @@ export interface SessionTask {
   /* Scaffolding & hints */
   hintHe?: string;
 
+  /** Module 14: Indicates an elective branch task (Reinforcement / Challenge) excluded from baseline mastery metrics */
+  isOptionalChoiceTask?: boolean;
+  branchType?: 'reinforcement' | 'challenge';
+
   /* Dynamic/adaptive tasks properties */
   range?: [number, number];
   givenHe?: string;

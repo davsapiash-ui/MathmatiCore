@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { stateReducer, type SystemEvent } from '@/machines/vraMachine';
 import { isWhitelistedTeacherEmail, isWhitelistedTeacherEmailAsync } from '@/infrastructure/services/AuthService';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
@@ -37,9 +37,9 @@ describe('Master PRD v4.2 Rigorous Compliance Suite', () => {
       expect(next).toBe('UNLOCKED');
     });
 
-    it('enforces Undo Reset Guard: transitions UNLOCKED -> LOCKED on UNDO_CLICK', () => {
+    it('enforces Module 11: maintains UNLOCKED on UNDO_CLICK without penalties', () => {
       const next = stateReducer('UNLOCKED', { type: 'UNDO_CLICK' });
-      expect(next).toBe('LOCKED');
+      expect(next).toBe('UNLOCKED');
     });
 
     it('handles hesitation timeout transition LOCKED -> SOCRATIC_ONLY', () => {
