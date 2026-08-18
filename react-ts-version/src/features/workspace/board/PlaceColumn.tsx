@@ -151,8 +151,9 @@ export function PlaceColumn({ place }: { place: Place }) {
               style={overlapStyle}
             >
               <DienesBlock 
+                id={`column-${place}-${i}`}
                 place={place} 
-                interactive={true} 
+                source="column"
                 onClick={() => {
                   if (place !== 'units') {
                     splitBlockClick(place);

@@ -190,7 +190,7 @@ export function DienesBlock({
   source = 'column', 
   sourcePlace, 
   isOverlay, 
-  interactive,
+  interactive: _interactive,
   onClick,
   onRemove, 
   onSplit, 
@@ -199,7 +199,7 @@ export function DienesBlock({
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id,
     data: { source, place: sourcePlace ?? place, renderPlace: place },
-    disabled: isOverlay || interactive,
+    disabled: isOverlay,
   });
 
   const visual = BLOCK_VISUALS[place];
