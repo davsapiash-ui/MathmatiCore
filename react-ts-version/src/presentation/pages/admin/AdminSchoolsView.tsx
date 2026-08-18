@@ -26,11 +26,13 @@ export function AdminSchoolsView() {
     setGlobalStudentLimit,
     deleteSchool,
     deleteTeacher,
-    deleteClassRoom
+    deleteClassRoom,
+    resetInstitutionsToOfficialPilot
   } = useAdminStore();
 
   const [limitInput, setLimitInput] = useState(globalStudentLimit.toString());
   const [searchQuery, setSearchQuery] = useState("");
+  const [isResetting, setIsResetting] = useState(false);
   
   // Real-time Firebase Sync for Schools, Teachers and Classes
   useEffect(() => {
@@ -49,13 +51,30 @@ export function AdminSchoolsView() {
     }
   };
 
+  const handleResetPilot = async () => {
+    if (window.confirm("פעולה זו תנקה את כל מוסדות הבדיקה מהשרת ותאפס את המערכת למבנה הפיילוט הרשמי בלבד (בית ספר ביקורת, כיתת המבקרים, עד 12 תלמידים). האם להמשיך?")) {
+      setIsResetting(true);
+      try {
+        await resetInstitutionsToOfficialPilot();
+      } catch (e) {
+        console.error("Failed to reset pilot institutions:", e);
+      } finally {
+        setIsResetting(false);
+      }
+    }
+  };
+
   const filteredSchools = useMemo(() => {
     if (!searchQuery.trim()) return schools;
     const query = searchQuery.toLowerCase().trim();
     return schools.filter(s => {
       const schoolTeachers = teachers.filter(t => t.schoolId === s.id);
-      const hasMatchingTeacher = schoolTeachers.some(t => t.name.toLowerCase().includes(query) || t.taz.includes(query));
-      return s.name.toLowerCase().includes(query) || hasMatchingTeacher;
+      const hasMatchingTeacher = schoolTeachers.some(t => 
+        (t.name && t.name.toLowerCase().includes(query)) || 
+        (t.taz && t.taz.toLowerCase().includes(query)) ||
+        (t.id && t.id.toLowerCase().includes(query))
+      );
+      return (s.name && s.name.toLowerCase().includes(query)) || hasMatchingTeacher;
     });
   }, [schools, teachers, searchQuery]);
 
@@ -87,6 +106,16 @@ export function AdminSchoolsView() {
           </div>
 
           <div className="flex flex-wrap gap-3">
+            <UdlButton 
+              semanticColor="neutral" 
+              className="gap-2 bg-slate-800/80 hover:bg-slate-700/80 text-rose-300 hover:text-rose-200 font-bold py-3.5 px-5 rounded-2xl shadow-lg border border-rose-500/30 transition-all hover:scale-105 active:scale-95 text-xs"
+              onClick={handleResetPilot}
+              disabled={isResetting}
+            >
+              <Trash2 className="w-4 h-4 text-rose-400" />
+              <span>{isResetting ? "מאפס נתונים..." : "🧹 איפוס וניקוי לפיילוט"}</span>
+            </UdlButton>
+
             <UdlButton 
               semanticColor="primary" 
               className="gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold py-3.5 px-6 rounded-2xl shadow-lg shadow-indigo-600/30 border border-indigo-400/30 transition-all hover:scale-105 active:scale-95"
@@ -312,8 +341,12 @@ export function AdminSchoolsView() {
                             </div>
 
                             <button 
-                              onClick={() => deleteTeacher(teacher.id)}
-                              className="text-slate-400 hover:text-rose-500 p-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={() => {
+                                if (window.confirm(`האם למחוק את המורה "${teacher.name}"?`)) {
+                                  deleteTeacher(teacher.id);
+                                }
+                              }}
+                              className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 p-2 rounded-xl transition-all"
                               title="מחק מורה"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -353,8 +386,12 @@ export function AdminSchoolsView() {
                             </div>
 
                             <button 
-                              onClick={() => deleteClassRoom(cls.id)}
-                              className="text-slate-400 hover:text-rose-500 p-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={() => {
+                                if (window.confirm(`האם למחוק את הכיתה "${cls.name}"?`)) {
+                                  deleteClassRoom(cls.id);
+                                }
+                              }}
+                              className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 p-1.5 rounded-lg transition-all"
                               title="מחק כיתה"
                             >
                               <Trash2 className="w-3.5 h-3.5" />

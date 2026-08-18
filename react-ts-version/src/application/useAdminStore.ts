@@ -59,6 +59,8 @@ interface AdminState {
     classType?: string;
     studentLimit?: number;
   }) => Promise<{ school: School; teacher: Teacher; classRoom: ClassRoom }>;
+
+  resetInstitutionsToOfficialPilot: () => Promise<void>;
 }
 
 let adminUnsubscribes: Unsubscribe[] = [];
@@ -135,6 +137,53 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
     };
   },
 
+  resetInstitutionsToOfficialPilot: async () => {
+    const timestamp = Date.now();
+    const cleanSchool: School = {
+      id: "school_bikorot",
+      name: "בית ספר ביקורת",
+      createdAt: timestamp,
+    };
+    const cleanTeacher: Teacher = {
+      id: "davidsep_edu_haifa_org_il",
+      schoolId: "school_bikorot",
+      name: "דוד ספיאשוילי",
+      taz: "davidsep@edu-haifa.org.il",
+      dob: "010190",
+      licenseActive: false,
+      createdAt: timestamp,
+    };
+    const cleanClass: ClassRoom = {
+      id: "class_1",
+      schoolId: "school_bikorot",
+      teacherId: "davidsep_edu_haifa_org_il",
+      name: "המבקרים",
+      studentLimit: 12,
+      createdAt: timestamp,
+    };
+    const cleanPublicClass = {
+      id: "class_1",
+      name: "המבקרים",
+      schoolId: "school_bikorot",
+    };
+
+    set({
+      schools: [cleanSchool],
+      teachers: [cleanTeacher],
+      classes: [cleanClass],
+      globalStudentLimit: 12,
+    });
+
+    const { set: firebaseSet } = await import("firebase/database");
+    await firebaseSet(ref(database, 'schools'), { school_bikorot: cleanSchool });
+    await firebaseSet(ref(database, 'users/teachers'), { "davidsep_edu_haifa_org_il": cleanTeacher });
+    await firebaseSet(ref(database, 'classes'), { class_1: cleanClass });
+    await firebaseSet(ref(database, 'public_classes'), { class_1: cleanPublicClass });
+    await firebaseSet(ref(database, 'system_control/globalStudentLimit'), 12);
+
+    AuditLogger.log("איפוס מוסדות לפיילוט", "admin", "כל המוסדות נוקו ואופסו למבנה הפיילוט הרשמי (בית ספר ביקורת, כיתת המבקרים)");
+  },
+
   setGlobalStudentLimit: (limit) => {
     AuditLogger.log("עדכון מגבלת תלמידים", "admin", `מגבלה גלובלית חדשה: ${limit}`);
     set({ globalStudentLimit: limit });
@@ -152,6 +201,7 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
     const timestamp = Date.now();
     const schoolId = `school_${timestamp}`;
     const teacherId = teacherEmail.trim();
+    const teacherKey = teacherId.replace(/[@.#$[\]]/g, '_');
     const classId = `class_${timestamp}`;
 
     const school: School = {
@@ -161,7 +211,7 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
     };
 
     const teacher: Teacher = {
-      id: teacherId,
+      id: teacherKey,
       schoolId,
       name: teacherName.trim(),
       taz: teacherId,
@@ -173,7 +223,7 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
     const classRoom: ClassRoom = {
       id: classId,
       schoolId,
-      teacherId,
+      teacherId: teacherKey,
       name: className.trim() || "כיתת המבקרים",
       studentLimit: Math.min(12, Math.max(1, studentLimit)),
       createdAt: timestamp,
@@ -182,14 +232,14 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
     // Optimistic local state update
     set((state) => ({
       schools: [...state.schools.filter(s => s.id !== schoolId), school],
-      teachers: [...state.teachers.filter(t => t.id !== teacherId), teacher],
+      teachers: [...state.teachers.filter(t => t.id !== teacherKey && t.taz !== teacherId), teacher],
       classes: [...state.classes.filter(c => c.id !== classId), classRoom],
     }));
 
     // Atomic Multi-Node Firebase RTDB update
     const updates: Record<string, any> = {};
     updates[`schools/${schoolId}`] = school;
-    updates[`users/teachers/${teacherId}`] = teacher;
+    updates[`users/teachers/${teacherKey}`] = teacher;
     updates[`classes/${classId}`] = classRoom;
     updates[`public_classes/${classId}`] = { id: classId, name: classRoom.name, schoolId };
 
@@ -234,8 +284,9 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
   addTeacher: (schoolId, name, taz, dob) => {
     AuditLogger.log("יצירת מורה", "admin", `מורה חדש: ${name} (ת"ז/דוא"ל: ${taz})`);
     const id = taz.trim();
+    const teacherKey = id.replace(/[@.#$[\]]/g, '_');
     const newTeacher: Teacher = {
-      id,
+      id: teacherKey,
       schoolId,
       name: name.trim(),
       taz: id,
@@ -244,7 +295,7 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
       createdAt: Date.now()
     };
     set((state) => ({
-      teachers: [...state.teachers.filter(t => t.id !== id), newTeacher]
+      teachers: [...state.teachers.filter(t => t.id !== teacherKey && t.taz !== id), newTeacher]
     }));
     firebaseSyncService.addTeacher(schoolId, name, taz, dob).catch(err => console.error("Failed to add teacher to Firebase", err));
     if (taz.includes('@')) {
@@ -253,11 +304,11 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
   },
 
   deleteTeacher: (id) => {
-    const teacher = get().teachers.find(t => t.id === id);
+    const teacher = get().teachers.find(t => t.id === id || t.taz === id);
     if (teacher) AuditLogger.log("מחיקת מורה", "admin", `מורה נמחק: ${teacher.name}`);
     set((state) => ({
-      teachers: state.teachers.filter(t => t.id !== id),
-      classes: state.classes.filter(c => c.teacherId !== id)
+      teachers: state.teachers.filter(t => t.id !== id && t.taz !== id),
+      classes: state.classes.filter(c => c.teacherId !== id && c.teacherId !== teacher?.id)
     }));
     firebaseSyncService.deleteTeacher(id).catch(err => console.error("Failed to delete teacher from Firebase", err));
   },
