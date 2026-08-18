@@ -10,15 +10,15 @@ export function ProjectorWaitingScreen() {
   return (
     <div
       dir="rtl"
-      className="relative min-h-[calc(100vh-72px)] flex flex-col items-center justify-center p-6 bg-gradient-to-b from-indigo-50/60 via-slate-50 to-blue-50/60 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 font-body text-slate-900 dark:text-slate-100 select-none overflow-hidden"
+      className="relative min-h-[calc(100vh-72px)] w-full flex flex-col items-center justify-center p-6 bg-slate-50 dark:bg-slate-950 font-body text-slate-900 dark:text-slate-100 select-none overflow-hidden"
     >
       {/* Serene Ambient Background */}
-      <div aria-hidden="true" className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-indigo-200/30 dark:bg-indigo-900/15 blur-3xl" />
-        <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-blue-200/30 dark:bg-blue-900/15 blur-3xl" />
+      <div aria-hidden="true" className="absolute inset-0 pointer-events-none overflow-hidden bg-slate-50 dark:bg-slate-950">
+        <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-indigo-100 dark:bg-indigo-950/40 blur-3xl" />
+        <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-blue-100 dark:bg-blue-950/40 blur-3xl" />
       </div>
 
-      <div className="relative z-10 w-full max-w-md flex flex-col items-center gap-8 text-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-10 rounded-3xl border border-indigo-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5">
+      <div className="relative z-10 w-full max-w-md flex flex-col items-center gap-8 text-center bg-white dark:bg-slate-900 p-10 rounded-3xl border border-indigo-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5">
         {/* Projector Icon */}
         <motion.div
           animate={{

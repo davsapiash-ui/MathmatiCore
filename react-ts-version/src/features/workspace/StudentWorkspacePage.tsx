@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   DndContext,
@@ -81,12 +81,26 @@ export function StudentWorkspacePage() {
   const [isProjectorModeActive, setIsProjectorModeActive] = useState<boolean>(false);
   const normUid = normalizeStudentId(user?.uid || '');
 
-  // Module 15: Real-time Projector Mode Listener (<1000ms sync)
+  const lastProjectorTimestampRef = useRef<number>(0);
+
+  // Module 15: Real-time Projector Mode Listener (<1000ms sync) with timestamp ordering protection
   useEffect(() => {
     const projectorRef = ref(database, 'system_control/projector_mode');
     const unsub = onValue(projectorRef, (snap) => {
       if (snap.exists()) {
-        setIsProjectorModeActive(Boolean(snap.val()));
+        const val = snap.val();
+        if (typeof val === 'object' && val !== null) {
+          const timestamp = val.projector_mode_updated_at || val.updated_at || 0;
+          if (timestamp > 0 && timestamp <= lastProjectorTimestampRef.current) {
+            return; // Ignore stale / out-of-order updates
+          }
+          if (timestamp > 0) {
+            lastProjectorTimestampRef.current = timestamp;
+          }
+          setIsProjectorModeActive(Boolean(val.projector_mode ?? val.active));
+        } else {
+          setIsProjectorModeActive(Boolean(val));
+        }
       } else {
         setIsProjectorModeActive(false);
       }
