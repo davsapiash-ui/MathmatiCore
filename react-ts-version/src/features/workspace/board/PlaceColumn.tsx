@@ -115,17 +115,17 @@ export function PlaceColumn({ place }: { place: Place }) {
         </motion.div>
       )}
 
-      {/* Drop zone container */}
+      {/* Drop zone container — blocks ground at the bottom base of the column */}
       <div
         ref={setNodeRef}
         id={`column-${place}`}
         role="group"
         aria-label={`אזור גרירה — ${PLACE_NAMES_HE[place]}`}
         style={{ touchAction: 'none' }}
-        className={`relative flex-1 min-h-[160px] p-3 pt-4 overflow-y-auto overflow-x-hidden no-scrollbar touch-none ${
+        className={`relative flex-1 min-h-[160px] p-3 pb-4 overflow-y-auto overflow-x-hidden no-scrollbar touch-none ${
           place === 'units'
-            ? 'flex flex-row flex-wrap content-start justify-center items-start gap-1.5'
-            : 'flex flex-col items-center justify-start gap-1'
+            ? 'flex flex-row flex-wrap content-end justify-center items-end gap-1.5'
+            : 'flex flex-col items-center justify-end gap-1.5'
         }`}
       >
         <AnimatePresence mode="popLayout">
@@ -144,7 +144,7 @@ export function PlaceColumn({ place }: { place: Place }) {
           return (
             <motion.div 
               key={`${place}-${i}`}
-              initial={{ scale: 0.8, opacity: 0, y: -6 }}
+              initial={{ scale: 0.8, opacity: 0, y: 6 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.8, opacity: 0 }}
               transition={{ duration: 0.15, ease: 'easeOut' }}

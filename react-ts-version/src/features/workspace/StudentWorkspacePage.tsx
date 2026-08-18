@@ -520,7 +520,6 @@ export function StudentWorkspacePage() {
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } })
   );
 
@@ -749,7 +748,7 @@ export function StudentWorkspacePage() {
         )}
       </div>
 
-      <DragOverlay dropAnimation={{ duration: 250, easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)' }}>
+      <DragOverlay dropAnimation={null}>
         {activeDrag ? (
           // 15% smaller than the old 1.10 per user request — the dragged block must not dwarf the board
           <div className="scale-[0.93] rotate-2 opacity-90 drop-shadow-2xl">
