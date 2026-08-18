@@ -23,45 +23,43 @@ export function Topbar() {
   const unreadCount = messages.filter(m => m.receiverId === user?.uid && !m.read).length;
 
   return (
-    <header className="h-20 bg-white/70 dark:bg-slate-900/40 backdrop-blur-xl border-b border-white/20 dark:border-white/5 flex items-center justify-between px-8 z-10 sticky top-0 shadow-sm transition-colors duration-300">
-
-      {/* Current page title (derived from route) */}
-      <motion.div 
-        initial={{ opacity: 0, x: -10 }}
-        animate={{ opacity: 1, x: 0 }}
-        className="font-display font-extrabold text-2xl text-ws-ink tracking-tight"
-      >
-        {title}
-      </motion.div>
-
-      <div className="flex items-center gap-4">
-        {/* Notifications */}
-        <UdlButton variant="ghost" size="icon" className="relative text-ws-soft hover:text-ws-ink rounded-full transition-transform hover:scale-105 active:scale-95">
-          <Bell className="w-5 h-5" />
-          {unreadCount > 0 && (
-            <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 border-2 border-white dark:border-slate-900 rounded-full" />
+    <header className="h-18 sm:h-20 bg-white/80 dark:bg-slate-900/60 backdrop-blur-xl border-b border-slate-200/60 dark:border-slate-800 flex items-center justify-between px-6 sm:px-8 z-10 sticky top-0 shadow-sm transition-colors duration-300">
+      {/* Brand / Page Title */}
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center font-black text-white shadow-md text-lg rotate-[-4deg]">
+          מ
+        </div>
+        <div className="flex flex-col text-right">
+          <span className="font-display font-black text-xl text-slate-900 dark:text-white tracking-tight leading-tight">
+            מתמטיקאור &copy;
+          </span>
+          {title && (
+            <span className="text-xs font-bold text-slate-400 dark:text-slate-500">
+              {title}
+            </span>
           )}
-        </UdlButton>
-
-        {/* User Profile */}
-        <motion.div 
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          className="flex items-center gap-3 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md rounded-full py-1.5 px-1.5 pr-4 shadow-sm border border-slate-200/50 dark:border-slate-700/50 cursor-pointer transition-all"
-        >
-          <div className="flex flex-col items-end leading-tight">
-            <span className="text-sm font-bold text-ws-ink">{(user?.displayName as string) || 'אורח'}</span>
-            <span className="text-xs font-medium text-ws-soft">{user?.role === 'student' ? 'תלמיד' : 'מורה'}</span>
-          </div>
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-md">
-            <UserCircle className="w-6 h-6" />
-          </div>
-        </motion.div>
-
-        {/* Logout Button */}
-        <LogoutButton className="bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-950/30 dark:hover:bg-red-900/40 dark:text-red-400 rounded-full px-3.5 py-2 text-xs font-bold transition-all border border-red-200/60 dark:border-red-800/40 shadow-sm" />
+        </div>
       </div>
 
+      <div className="flex items-center gap-3 sm:gap-4">
+        {/* User Profile */}
+        <div className="flex items-center gap-2.5 bg-slate-100/80 dark:bg-slate-800/80 backdrop-blur-md rounded-2xl py-1.5 px-3 border border-slate-200/50 dark:border-slate-700/50">
+          <div className="flex flex-col items-end leading-tight">
+            <span className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white">
+              {(user?.displayName as string) || (user?.role === 'student' ? `תלמיד ${user?.student_id || ''}` : 'משתמש')}
+            </span>
+            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
+              {user?.role === 'student' ? (user?.class_name || 'כיתת פיילוט') : user?.role === 'teacher' ? 'מורה מוביל' : 'מנהל מערכת'}
+            </span>
+          </div>
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-sm text-xs font-black">
+            {user?.role === 'student' ? (user?.student_id || 'ת') : '👤'}
+          </div>
+        </div>
+
+        {/* Logout Button */}
+        <LogoutButton className="bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 dark:text-rose-400 rounded-2xl px-4 py-2 text-xs sm:text-sm font-extrabold transition-all border border-rose-200 dark:border-rose-800/60 shadow-sm" />
+      </div>
     </header>
   );
 }

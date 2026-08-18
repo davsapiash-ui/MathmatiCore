@@ -40,6 +40,7 @@ interface AuthState {
   user: AuthUser | null;
   role: string | null;
   isAuthenticated: boolean;
+  isStudentAuthenticated: boolean;
   isRoleLocked: boolean;
   showRoleSelector: boolean;
   authTimestamp: number | null;
@@ -78,7 +79,7 @@ const getGlobalStorage = (): Storage | null => {
 const getStoredAuth = () => {
   try {
     const s = getGlobalStorage();
-    if (!s) return { user: null, role: null, isAuthenticated: false, isRoleLocked: false, showRoleSelector: false, authTimestamp: null };
+    if (!s) return { user: null, role: null, isAuthenticated: false, isStudentAuthenticated: false, isRoleLocked: false, showRoleSelector: false, authTimestamp: null };
     const rawUser = s.getItem(STORAGE_KEY_USER);
     const rawRole = s.getItem(STORAGE_KEY_ROLE);
     const rawTime = s.getItem(STORAGE_KEY_TIMESTAMP);
@@ -90,15 +91,23 @@ const getStoredAuth = () => {
       // Check 8-hour token expiration
       if (Date.now() - authTime > JWT_EXPIRY_MS) {
         clearStoredAuth();
-        return { user: null, role: null, isAuthenticated: false, isRoleLocked: false, showRoleSelector: false, authTimestamp: null };
+        return { user: null, role: null, isAuthenticated: false, isStudentAuthenticated: false, isRoleLocked: false, showRoleSelector: false, authTimestamp: null };
       }
 
-      return { user: parsed, role: rawRole, isAuthenticated: true, isRoleLocked: true, showRoleSelector: false, authTimestamp: authTime };
+      return {
+        user: parsed,
+        role: rawRole,
+        isAuthenticated: true,
+        isStudentAuthenticated: rawRole === 'student',
+        isRoleLocked: true,
+        showRoleSelector: false,
+        authTimestamp: authTime
+      };
     }
   } catch (e) {
     console.error('Failed to restore auth from storage', e);
   }
-  return { user: null, role: null, isAuthenticated: false, isRoleLocked: false, showRoleSelector: false, authTimestamp: null };
+  return { user: null, role: null, isAuthenticated: false, isStudentAuthenticated: false, isRoleLocked: false, showRoleSelector: false, authTimestamp: null };
 };
 
 const setStoredAuth = (user: AuthUser, role: string, timestamp?: number) => {
@@ -119,16 +128,29 @@ const clearStoredAuth = () => {
     const g = globalThis as unknown as Record<string, Storage>;
     const sess = g[SESS_KEY];
     const loc = g[LOC_KEY];
-    if (sess) {
-      sess.removeItem(STORAGE_KEY_USER);
-      sess.removeItem(STORAGE_KEY_ROLE);
-      sess.removeItem(STORAGE_KEY_TIMESTAMP);
-    }
-    if (loc) {
-      loc.removeItem(STORAGE_KEY_USER);
-      loc.removeItem(STORAGE_KEY_ROLE);
-      loc.removeItem(STORAGE_KEY_TIMESTAMP);
-    }
+    const keysToRemove = [
+      STORAGE_KEY_USER,
+      STORAGE_KEY_ROLE,
+      STORAGE_KEY_TIMESTAMP,
+      'isStudentAuthenticated',
+      'studentId',
+      'student_id',
+      'selectedSchoolId',
+      'selectedClassId',
+      'mc_auth_user',
+      'mc_auth_role',
+      'mc_auth_time',
+      'mc_session_data',
+      'mc_workspace_state',
+    ];
+    keysToRemove.forEach((k) => {
+      if (loc) try { loc.removeItem(k); } catch {}
+      if (sess) try { sess.removeItem(k); } catch {}
+    });
+    try {
+      (window as any).isStudentAuthenticated = false;
+      delete (window as any).isStudentAuthenticated;
+    } catch {}
   } catch (e) {
     console.error('Failed to clear stored auth', e);
   }
@@ -156,6 +178,7 @@ export function unifiedLogout() {
       user: null,
       role: null,
       isAuthenticated: false,
+      isStudentAuthenticated: false,
       isRoleLocked: false,
       showRoleSelector: false,
       authTimestamp: null,
@@ -168,6 +191,7 @@ export const useAuthStore = create<AuthState>()(
     user: initial.user,
     role: initial.role,
     isAuthenticated: initial.isAuthenticated,
+    isStudentAuthenticated: initial.isStudentAuthenticated,
     isRoleLocked: initial.isRoleLocked,
     showRoleSelector: initial.showRoleSelector,
     authTimestamp: initial.authTimestamp,
@@ -203,6 +227,7 @@ export const useAuthStore = create<AuthState>()(
           user: { ...user },
           role: null,
           isAuthenticated: true,
+          isStudentAuthenticated: false,
           isRoleLocked: false,
           showRoleSelector: true,
           authTimestamp: timestamp,
@@ -229,6 +254,7 @@ export const useAuthStore = create<AuthState>()(
             user: null,
             role: null,
             isAuthenticated: false,
+            isStudentAuthenticated: false,
             isRoleLocked: false,
             showRoleSelector: false,
             authTimestamp: null
@@ -241,6 +267,7 @@ export const useAuthStore = create<AuthState>()(
           user: user,
           role: 'student',
           isAuthenticated: true,
+          isStudentAuthenticated: true,
           isRoleLocked: true,
           showRoleSelector: false,
           authTimestamp: timestamp,
@@ -254,6 +281,7 @@ export const useAuthStore = create<AuthState>()(
         user: user,
         role: activeRole,
         isAuthenticated: true,
+        isStudentAuthenticated: false,
         isRoleLocked: true,
         showRoleSelector: false,
         authTimestamp: timestamp,
@@ -269,6 +297,7 @@ export const useAuthStore = create<AuthState>()(
         user: state.user,
         role: chosenRole,
         isAuthenticated: true,
+        isStudentAuthenticated: chosenRole === 'student',
         isRoleLocked: true,
         showRoleSelector: false,
         authTimestamp: timestamp,

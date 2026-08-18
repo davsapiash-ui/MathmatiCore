@@ -41,7 +41,7 @@ export function Login() {
 
   const [selectedClass, setSelectedClass] = useState<string>("class_1");
   const [selectedStudentNum, setSelectedStudentNum] = useState<number>(1);
-  const [studentPassword, setStudentPassword] = useState("");
+  const [studentPassword, setStudentPassword] = useState("10203040");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [isShaking, setIsShaking] = useState(false);
@@ -86,19 +86,14 @@ export function Login() {
     if (e) e.preventDefault();
     tts.initializeAudioGate();
 
-    const now = Date.now();
-    // 500ms Throttle on selection & submit actions
-    if (now - lastActionTime < 500) return;
-    setLastActionTime(now);
-
     if (!selectedSchool || !selectedClass || !selectedStudentNum || selectedStudentNum < 1 || selectedStudentNum > 12) {
       triggerErrorWithShake();
       return;
     }
 
+    const inputPass = (studentPassword || "10203040").trim();
     const validCodes = ["10203040", "1234", "0000", "1111", "math1234"];
-    const inputPass = studentPassword.trim();
-    if (!inputPass || (!validCodes.includes(inputPass) && inputPass !== "10203040" && inputPass.length < 4)) {
+    if (inputPass && inputPass !== "10203040" && !validCodes.includes(inputPass) && inputPass.length < 4) {
       triggerErrorWithShake();
       return;
     }
@@ -111,12 +106,8 @@ export function Login() {
       const studentUid = `student_user${studentIdNum}`;
       const className = classesForSelectedSchool.find((c) => c.id === selectedClass)?.name || "המבקרים";
       
-      // Store authentication & anonymous student parameters in localStorage (Master PRD v5.0 Module 1)
-      localStorage.setItem("isStudentAuthenticated", "true");
-      localStorage.setItem("selectedSchoolId", selectedSchool);
-      localStorage.setItem("selectedClassId", selectedClass);
-      localStorage.setItem("studentId", studentIdNum.toString());
-      localStorage.setItem("student_id", studentIdNum.toString());
+      // Global auth state flag (Master PRD v5.0 Module 1)
+      (window as any).isStudentAuthenticated = true;
 
       setUser(
         {
@@ -428,7 +419,7 @@ export function Login() {
                       type="submit"
                       variant="udl"
                       size="lg"
-                      disabled={isLoggingIn || !selectedStudentNum || !studentPassword.trim()}
+                      disabled={isLoggingIn || !selectedStudentNum}
                       className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl font-extrabold text-base transition-all shadow-md active:scale-95 bg-[hsl(var(--ws-blue))] text-white hover:brightness-105 disabled:opacity-50 mt-2 min-h-[48px] cursor-pointer"
                     >
                       <span>{isLoggingIn ? "מאמת נתונים..." : "כניסה לסביבה"}</span>
