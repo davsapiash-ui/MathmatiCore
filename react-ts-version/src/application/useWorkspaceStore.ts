@@ -141,6 +141,7 @@ interface WorkspaceState {
   initSession: (meeting: SessionNumber, isASD: boolean, aiTasks?: SessionTask[] | null, startingTaskIdx?: number) => void;
   restoreSession: (savedState: any) => void;
   applyDrop: (input: DropInput) => void;
+  clearBoard: () => void;
   removeBlockClick: (place: Place) => void;
   splitBlockClick: (place: Place) => void;
   groupColumnClick: (place: Place) => void;
@@ -1102,6 +1103,32 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           hasDeletedBlock: true, 
           undoCount: state.undoCount + 1,
           consecutiveDeletions: nextDeletions
+        };
+      });
+    },
+
+    clearBoard: () => {
+      set((state) => {
+        if (state.isBoardLocked) return state;
+        const hasBlocks = state.counts.units > 0 || state.counts.tens > 0 || state.counts.hundreds > 0 || state.counts.thousands > 0;
+        if (!hasBlocks) return state;
+
+        const undoStack = createNextUndoStack(state.undoStack, state.counts);
+        const studentId = useAuthStore.getState().user?.uid;
+        if (studentId) {
+          useStore.getState().logSemanticEvent(studentId, {
+            action: 'board_cleared',
+            element: 'trash_can',
+            context: 'Cleared all blocks on board via trash can click',
+            state_snapshot: `Units: 0, Tens: 0, Hundreds: 0, Thousands: 0`
+          });
+        }
+
+        return {
+          counts: { ...EMPTY_COUNTS },
+          undoStack,
+          hasInteracted: true,
+          hasDeletedBlock: true,
         };
       });
     },

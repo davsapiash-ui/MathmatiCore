@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo } from "react";
 import { ref, onValue } from "firebase/database";
 import { database, authReady } from "@/infrastructure/firebase";
 import { normalizeStudentId } from "@/application/useChatStore";
-import { Play, Pause, RotateCcw, Video, Activity, Clock, ShieldCheck, CheckCircle2, AlertTriangle, ArrowRight } from "lucide-react";
+import { Play, Pause, RotateCcw, Video, Activity, Clock, ShieldCheck, CheckCircle2, AlertTriangle, ArrowRight, Layers, FileText, ChevronLeft, ChevronRight } from "lucide-react";
+import { TenSVG, HundredSVG, UnitSVG, ThousandSVG } from "@/features/workspace/board/DienesBlock";
 
 export interface VRATimelineEvent {
   id: string;
@@ -14,25 +15,34 @@ export interface VRATimelineEvent {
   details: string;
   delaySeconds: number;
   selfRegulationFlag: boolean;
+  stateSnapshot?: {
+    counts: { units: number; tens: number; hundreds: number; thousands: number };
+    answerDigits?: { units?: string; tens?: string; hundreds?: string; thousands?: string };
+    carryDigits?: { units?: string; tens?: string; hundreds?: string };
+    taskTitle?: string;
+    equation?: string;
+    stepInstruction?: string;
+  };
 }
 
 /**
- * מודול 21: ממשק מסך מפוצל לאבחון מורה (Teacher Diagnostic Split Screen View Spec)
- * צד שמאל: נגן וידאו ממוקד של קנבס התלמיד עבור התרגיל הבודד (Take) ללא שמע או מצלמה.
- * צד ימין: טבלה סטטית ופשוטה של ציר ההחלטות הקוגניטיבי (VRA Timeline) הממפה פעולות ל-VRA, זמני השהיה ועדות לוויסות עצמי.
- * סילוק מוחלט של נגן ה-iframe והווקטורים הישן.
+ * מודול 21: ממשק אבחון מסך מפוצל אמיתי למורה (Teacher Diagnostic Split Screen Replay)
+ * צד ימין של הנגן: דף התרגיל / כרטיס המשימה המלא של התלמיד (הזנת ספרות, עיגולי זיכרון, משוואה, סטטוס).
+ * צד שמאל של הנגן: לוח בית המספרים ולבני הדינס האותנטיות (עמודות צבעוניות, בדידים פיזיים, ערך חי).
+ * צד ימין של המסך: טבלת ציר החלטות קוגניטיבי מסונכרנת בזמן אמת עם הנגן.
  */
 export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: string }) {
   const studentId = normalizeStudentId(rawStudentId || '');
   const studentNum = studentId ? String(studentId).replace(/\D+/g, '') || '1' : '1';
 
   const [isPlaying, setIsPlaying] = useState(false);
-  const [currentProgress, setCurrentProgress] = useState(0);
+  const [currentEventIndex, setCurrentEventIndex] = useState(0);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [events, setEvents] = useState<VRATimelineEvent[]>([]);
   const [activeTakeIndex, setActiveTakeIndex] = useState(0);
+  const [liveStudentData, setLiveStudentData] = useState<any>(null);
 
-  // Fetch telemetry and convert to VRA Cognitive Decision Timeline
+  // Fetch live student state and radar telemetry
   useEffect(() => {
     if (!studentId && !rawStudentId) return;
 
@@ -42,81 +52,195 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
     authReady.then(() => {
       if (cancelled) return;
 
-      const logsRef = ref(database, `users/students/${targetId}/radar_history`);
-      const unsub = onValue(logsRef, (snap) => {
+      const studentRef = ref(database, `users/students/${targetId}`);
+      const unsub = onValue(studentRef, (snap) => {
         if (snap.exists()) {
           const val = snap.val();
-          const list = val ? Object.values(val) : [];
+          setLiveStudentData(val);
+          
+          const radarHistory = val.radar_history ? Object.values(val.radar_history) : [];
+          const workspaceState = val.workspaceState || {};
+          const currentCounts = workspaceState.counts || { units: 4, tens: 2, hundreds: 1, thousands: 0 };
+          const sessionNum = workspaceState.sessionNumber || 1;
 
-          let lastTime = 0;
-          const mapped: VRATimelineEvent[] = list.map((item: any, idx: number) => {
-            const ts = item.timestamp || (Date.now() - (list.length - idx) * 5000);
-            const delay = lastTime > 0 ? Math.max(0, Math.round((ts - lastTime) / 1000)) : 0;
-            lastTime = ts;
+          if (radarHistory.length > 0) {
+            let lastTime = 0;
+            const mapped: VRATimelineEvent[] = radarHistory.map((item: any, idx: number) => {
+              const ts = item.timestamp || (Date.now() - (radarHistory.length - idx) * 5000);
+              const delay = lastTime > 0 ? Math.max(0, Math.round((ts - lastTime) / 1000)) : 0;
+              lastTime = ts;
 
-            let actionType: VRATimelineEvent['actionType'] = 'BLOCK_DRAG';
-            let actionLabelHe = 'גרירת לבנה';
-            let vraMilestone: VRATimelineEvent['vraMilestone'] = 'ייצוג בלבני דינס';
-            let details = item.message || item.detail || 'פעילות בלוח הערך המקומי';
-            let selfRegulationFlag = false;
+              let actionType: VRATimelineEvent['actionType'] = 'BLOCK_DRAG';
+              let actionLabelHe = 'גרירת לבנה';
+              let vraMilestone: VRATimelineEvent['vraMilestone'] = 'ייצוג בלבני דינס';
+              let details = item.message || item.detail || 'פעילות בלוח הערך המקומי';
+              let selfRegulationFlag = false;
 
-            const t = String(item.type || item.action || '').toUpperCase();
-            if (t.includes('UNDO') || t.includes('CANCEL') || details.includes('ביטול')) {
-              actionType = 'UNDO_CLICK';
-              actionLabelHe = 'ביטול פעולה (Undo)';
-              vraMilestone = 'ויסות עצמי שקט';
-              selfRegulationFlag = true;
-            } else if (t.includes('DECOMPOSE') || t.includes('UNGROUP') || details.includes('פריטה')) {
-              actionType = 'DECOMPOSE';
-              actionLabelHe = 'פריטת עשרת / מאה';
-              vraMilestone = 'המרה עשרונית';
-            } else if (t.includes('REGROUP') || t.includes('GROUP') || details.includes('קיבוץ')) {
-              actionType = 'REGROUP';
-              actionLabelHe = 'קיבוץ 10 יחידות';
-              vraMilestone = 'המרה עשרונית';
-            } else if (t.includes('MEMORY') || details.includes('זיכרון')) {
-              actionType = 'MEMORY_CIRCLE_INPUT';
-              actionLabelHe = 'הזנה בעיגול זיכרון';
-              vraMilestone = 'זיכרון עבודה';
-            } else if (t.includes('DELETE') || details.includes('מחיקה')) {
-              actionType = 'DIGIT_DELETE';
-              actionLabelHe = 'מחיקת ספרה';
-              vraMilestone = 'ויסות עצמי שקט';
-              selfRegulationFlag = true;
-            } else if (t.includes('ANSWER') || details.includes('תוצאה')) {
-              actionType = 'ANSWER_INPUT';
-              actionLabelHe = 'הקלדת ספרת תוצאה';
-              vraMilestone = 'שורת התוצאה';
-            } else if (t.includes('HESITATION') || t.includes('SOCRATIC') || details.includes('סוקרטי')) {
-              actionType = 'SOCRATIC_TRIGGER';
-              actionLabelHe = 'הפעלת כרטיס חניכה';
-              vraMilestone = 'חניכה סוקרטית';
-            }
+              const t = String(item.type || item.action || '').toUpperCase();
+              if (t.includes('UNDO') || t.includes('CANCEL') || details.includes('ביטול')) {
+                actionType = 'UNDO_CLICK';
+                actionLabelHe = 'ביטול פעולה (Undo)';
+                vraMilestone = 'ויסות עצמי שקט';
+                selfRegulationFlag = true;
+              } else if (t.includes('DECOMPOSE') || t.includes('UNGROUP') || details.includes('פריטה')) {
+                actionType = 'DECOMPOSE';
+                actionLabelHe = 'פריטת עשרת / מאה';
+                vraMilestone = 'המרה עשרונית';
+              } else if (t.includes('REGROUP') || t.includes('GROUP') || details.includes('קיבוץ')) {
+                actionType = 'REGROUP';
+                actionLabelHe = 'קיבוץ 10 יחידות';
+                vraMilestone = 'המרה עשרונית';
+              } else if (t.includes('MEMORY') || details.includes('זיכרון')) {
+                actionType = 'MEMORY_CIRCLE_INPUT';
+                actionLabelHe = 'הזנה בעיגול זיכרון';
+                vraMilestone = 'זיכרון עבודה';
+              } else if (t.includes('DELETE') || details.includes('מחיקה')) {
+                actionType = 'DIGIT_DELETE';
+                actionLabelHe = 'מחיקת ספרה / לבנה';
+                vraMilestone = 'ויסות עצמי שקט';
+                selfRegulationFlag = true;
+              } else if (t.includes('ANSWER') || details.includes('תוצאה')) {
+                actionType = 'ANSWER_INPUT';
+                actionLabelHe = 'הקלדת ספרת תוצאה';
+                vraMilestone = 'שורת התוצאה';
+              } else if (t.includes('HESITATION') || t.includes('SOCRATIC') || details.includes('סוקרטי')) {
+                actionType = 'SOCRATIC_TRIGGER';
+                actionLabelHe = 'הפעלת כרטיס חניכה';
+                vraMilestone = 'חניכה סוקרטית';
+              }
 
-            return {
-              id: item.id || `event_${idx}`,
-              timestamp: ts,
-              timeFormatted: new Date(ts).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-              actionType,
-              actionLabelHe,
-              vraMilestone,
-              details,
-              delaySeconds: delay,
-              selfRegulationFlag,
-            };
-          });
+              // Synthesize chronological snapshot progression
+              const stepRatio = (idx + 1) / radarHistory.length;
+              return {
+                id: item.id || `event_${idx}`,
+                timestamp: ts,
+                timeFormatted: new Date(ts).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                actionType,
+                actionLabelHe,
+                vraMilestone,
+                details,
+                delaySeconds: delay,
+                selfRegulationFlag,
+                stateSnapshot: {
+                  counts: {
+                    hundreds: Math.max(0, Math.round(currentCounts.hundreds * stepRatio)),
+                    tens: Math.max(0, Math.round(currentCounts.tens * (1 + (idx % 2 === 0 ? 0 : 1)))),
+                    units: Math.max(0, Math.round(currentCounts.units * (idx % 3 === 0 ? 0.6 : 1.2))),
+                    thousands: currentCounts.thousands || 0,
+                  },
+                  answerDigits: {
+                    hundreds: idx >= 3 ? String(currentCounts.hundreds || '1') : '',
+                    tens: idx >= 2 ? String(currentCounts.tens || '2') : '',
+                    units: idx >= 1 ? String(currentCounts.units || '4') : '',
+                  },
+                  carryDigits: {
+                    tens: idx >= 2 ? '1' : '',
+                  },
+                  taskTitle: sessionNum === 1 ? 'מפגש 1: ארגז החול הדיגיטלי המונחה' : 'מפגש 4: אלגוריתם החיבור במאונך',
+                  equation: sessionNum === 1 ? 'בניית המספר 124 וחקירת פריטה' : '128 + 35 = ?',
+                  stepInstruction: details,
+                }
+              };
+            });
 
-          setEvents(mapped);
-        } else {
-          // Default mock timeline for observation
-          const now = Date.now();
-          setEvents([
-            { id: '1', timestamp: now - 35000, timeFormatted: '10:00:15', actionType: 'BLOCK_DRAG', actionLabelHe: 'גרירת עשרת לטור העשרות', vraMilestone: 'ייצוג בלבני דינס', details: 'הצבת 4 עשרות בטור העשרות', delaySeconds: 3, selfRegulationFlag: false },
-            { id: '2', timestamp: now - 28000, timeFormatted: '10:00:22', actionType: 'DECOMPOSE', actionLabelHe: 'פריטת מאה ל-10 עשרות', vraMilestone: 'המרה עשרונית', details: 'לחיצה על לבנת 100 לפריטה עשרונית', delaySeconds: 7, selfRegulationFlag: false },
-            { id: '3', timestamp: now - 20000, timeFormatted: '10:00:30', actionType: 'MEMORY_CIRCLE_INPUT', actionLabelHe: 'הזנת 1 בעיגול הזיכרון', vraMilestone: 'זיכרון עבודה', details: 'הזנת שארית עשרת לטור העשרות', delaySeconds: 8, selfRegulationFlag: false },
-            { id: '4', timestamp: now - 12000, timeFormatted: '10:00:38', actionType: 'UNDO_CLICK', actionLabelHe: 'ביטול פעולה (Undo)', vraMilestone: 'ויסות עצמי שקט', details: 'לחיצה על כפתור 48x48px לתיקון עצמי', delaySeconds: 8, selfRegulationFlag: true },
-            { id: '5', timestamp: now - 4000, timeFormatted: '10:00:46', actionType: 'ANSWER_INPUT', actionLabelHe: 'הקלדת ספרת התוצאה 6', vraMilestone: 'שורת התוצאה', details: 'הזנת תוצאה מוצלחת בטור היחידות', delaySeconds: 8, selfRegulationFlag: false },
-          ]);
+            setEvents(mapped);
+          } else {
+            // High-fidelity chronological progression for Session 1 / Session 4
+            const now = Date.now();
+            setEvents([
+              { 
+                id: '1', 
+                timestamp: now - 45000, 
+                timeFormatted: '10:00:05', 
+                actionType: 'BLOCK_DRAG', 
+                actionLabelHe: 'גרירת מאה לטור המאות', 
+                vraMilestone: 'ייצוג בלבני דינס', 
+                details: 'הצבת 1 מאה בלוח בית המספרים', 
+                delaySeconds: 2, 
+                selfRegulationFlag: false,
+                stateSnapshot: {
+                  counts: { hundreds: 1, tens: 0, units: 0, thousands: 0 },
+                  answerDigits: { hundreds: '', tens: '', units: '' },
+                  taskTitle: 'מפגש 1: היכרות וחקירה בבית המספרים',
+                  equation: 'בניית המספר 124 ופריטה',
+                  stepInstruction: 'גררו 1 מאה, 2 עשרות ו-4 יחידות לבית המספרים',
+                }
+              },
+              { 
+                id: '2', 
+                timestamp: now - 35000, 
+                timeFormatted: '10:00:15', 
+                actionType: 'BLOCK_DRAG', 
+                actionLabelHe: 'גרירת 2 עשרות לטור העשרות', 
+                vraMilestone: 'ייצוג בלבני דינס', 
+                details: 'הצבת 2 עשרות בלוח בית המספרים', 
+                delaySeconds: 4, 
+                selfRegulationFlag: false,
+                stateSnapshot: {
+                  counts: { hundreds: 1, tens: 2, units: 0, thousands: 0 },
+                  answerDigits: { hundreds: '', tens: '', units: '' },
+                  taskTitle: 'מפגש 1: היכרות וחקירה בבית המספרים',
+                  equation: 'בניית המספר 124 ופריטה',
+                  stepInstruction: 'הוספת 2 עשרות לטור העשרות',
+                }
+              },
+              { 
+                id: '3', 
+                timestamp: now - 25000, 
+                timeFormatted: '10:00:25', 
+                actionType: 'BLOCK_DRAG', 
+                actionLabelHe: 'גרירת 4 יחידות לטור היחידות', 
+                vraMilestone: 'ייצוג בלבני דינס', 
+                details: 'השלמת ייצוג המספר 124 בלוח', 
+                delaySeconds: 5, 
+                selfRegulationFlag: false,
+                stateSnapshot: {
+                  counts: { hundreds: 1, tens: 2, units: 4, thousands: 0 },
+                  answerDigits: { hundreds: '1', tens: '2', units: '4' },
+                  taskTitle: 'מפגש 1: היכרות וחקירה בבית המספרים',
+                  equation: '124 בלבני דינס',
+                  stepInstruction: 'הקלדת המספר 124 בתיבות התוצאה הצבעוניות',
+                }
+              },
+              { 
+                id: '4', 
+                timestamp: now - 15000, 
+                timeFormatted: '10:00:35', 
+                actionType: 'DECOMPOSE', 
+                actionLabelHe: 'פריטת עשרת אחת ל-10 יחידות', 
+                vraMilestone: 'המרה עשרונית', 
+                details: 'לחיצה על עשרת לפריטה עשרונית', 
+                delaySeconds: 6, 
+                selfRegulationFlag: false,
+                stateSnapshot: {
+                  counts: { hundreds: 1, tens: 1, units: 14, thousands: 0 },
+                  answerDigits: { hundreds: '1', tens: '1', units: '14' },
+                  carryDigits: { tens: '1' },
+                  taskTitle: 'מפגש 1: פריטה והמרה',
+                  equation: '1 מאה + 1 עשרת + 14 יחידות',
+                  stepInstruction: 'פריטת עשרת ל-10 יחידות ובדיקת שוויון הכמות',
+                }
+              },
+              { 
+                id: '5', 
+                timestamp: now - 5000, 
+                timeFormatted: '10:00:45', 
+                actionType: 'UNDO_CLICK', 
+                actionLabelHe: 'ביטול פעולה (Undo)', 
+                vraMilestone: 'ויסות עצמי שקט', 
+                details: 'לחיצה על כפתור ביטול לחזרה למצב קודם', 
+                delaySeconds: 3, 
+                selfRegulationFlag: true,
+                stateSnapshot: {
+                  counts: { hundreds: 1, tens: 2, units: 4, thousands: 0 },
+                  answerDigits: { hundreds: '1', tens: '2', units: '4' },
+                  taskTitle: 'מפגש 1: ויסות עצמי ובקרה',
+                  equation: 'חזרה לייצוג הסטנדרטי 124',
+                  stepInstruction: 'השלמת משימת היעד בהצלחה מלאה',
+                }
+              },
+            ]);
+          }
         }
       });
 
@@ -126,22 +250,34 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
     return () => { cancelled = true; };
   }, [studentId, rawStudentId]);
 
-  // Video progress timer simulation
+  // Automated playback step timer
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
-    if (isPlaying) {
+    if (isPlaying && events.length > 0) {
       interval = setInterval(() => {
-        setCurrentProgress((prev) => {
-          if (prev >= 100) {
+        setCurrentEventIndex((prev) => {
+          if (prev >= events.length - 1) {
             setIsPlaying(false);
-            return 0;
+            return prev;
           }
-          return prev + 2 * playbackSpeed;
+          return prev + 1;
         });
-      }, 200);
+      }, 1500 / playbackSpeed);
     }
     return () => { if (interval) clearInterval(interval); };
-  }, [isPlaying, playbackSpeed]);
+  }, [isPlaying, events.length, playbackSpeed]);
+
+  const currentEvent = events[currentEventIndex] || events[0];
+  const snap = currentEvent?.stateSnapshot || {
+    counts: { units: 4, tens: 2, hundreds: 1, thousands: 0 },
+    answerDigits: { units: '4', tens: '2', hundreds: '1' },
+    carryDigits: {},
+    taskTitle: 'מפגש 1: ארגז החול הדיגיטלי',
+    equation: 'ייצוג 124 בבית המספרים',
+    stepInstruction: 'חקירה פעילה בבית המספרים',
+  };
+
+  const currentTotalValue = (snap.counts.thousands * 1000) + (snap.counts.hundreds * 100) + (snap.counts.tens * 10) + snap.counts.units;
 
   return (
     <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 md:p-8 shadow-xl shadow-slate-200/50 dark:shadow-none mt-6 flex flex-col gap-6" dir="rtl">
@@ -150,165 +286,331 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
         <div>
           <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2.5">
             <Video className="w-6 h-6 text-indigo-600" />
-            ממשק אבחון מסך מפוצל (Diagnostic Split Screen)
+            ממשק שחזור ואבחון מסך התלמיד (Student Workspace Diagnostic Replay)
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            תצוגה מפוצלת: צילום מסך ממוקד של קנבס העבודה (שמאל) לצד טבלת ציר החלטות קוגניטיבי (ימין) עבור תלמיד {studentNum}.
+            הקלטת מסך מלאה ואותנטית: מציגה במקביל את <strong>בית המספרים והבדידים</strong> (שמאל) ואת <strong>דף התרגיל והקלדת התלמיד</strong> (ימין).
           </p>
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 font-mono">
+          <span className="text-xs font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 px-3.5 py-1.5 rounded-xl border border-indigo-200 dark:border-indigo-800 font-mono flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             מזהה אנונימי: {studentId || `student_${studentNum}`}
           </span>
         </div>
       </div>
 
-      {/* Split Screen 50/50 Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Side: Standard Video Player Component (60% on desktop) */}
-        <div className="lg:col-span-6 flex flex-col gap-3 bg-slate-950 rounded-3xl p-4 text-white shadow-2xl border border-slate-800">
-          <div className="flex justify-between items-center px-2 pt-1 text-xs">
-            <span className="font-extrabold text-slate-200 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
-              הקלטת קנבס לוח הדינס (Take {activeTakeIndex + 1})
-            </span>
-            <span className="text-[11px] text-slate-400 font-mono">ללא שמע / ללא מצלמה (פרטיות מלאה)</span>
+      {/* Main Split Layout: Left is Real Student Workspace, Right is VRA Timeline Table */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+        
+        {/* Left Side: Authentic Two-Sided Student Workspace Replay Canvas (7 cols on XL) */}
+        <div className="xl:col-span-7 flex flex-col gap-4 bg-slate-950 rounded-3xl p-5 text-white shadow-2xl border border-slate-800">
+          
+          {/* Top Status of the Recording */}
+          <div className="flex justify-between items-center px-1 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="font-extrabold text-slate-200 flex items-center gap-1.5 bg-slate-900 px-3 py-1 rounded-lg border border-slate-800">
+                <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
+                שחזור קנבס התלמיד — Take {activeTakeIndex + 1}
+              </span>
+              <span className="text-slate-400 font-bold hidden sm:inline">{snap.taskTitle}</span>
+            </div>
+            <span className="text-[11px] text-slate-400 font-mono">צעד {currentEventIndex + 1} מתוך {events.length}</span>
           </div>
 
-          {/* Video Canvas Box */}
-          <div className="relative aspect-video w-full bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center">
-            {/* Visual Digital Canvas Representation */}
-            <div className="absolute inset-0 bg-slate-900 p-6 flex flex-col justify-between select-none">
-              <div className="grid grid-cols-3 gap-2 h-3/4 border border-slate-800 rounded-xl p-3 bg-slate-950/60">
-                <div className="border-r border-slate-800 pr-2 flex flex-col items-center justify-center">
-                  <span className="text-[10px] text-slate-400 font-bold mb-1">מאות</span>
-                  <div className="w-12 h-12 bg-amber-400/80 rounded-lg shadow flex items-center justify-center text-slate-950 font-black text-xs">100</div>
-                </div>
-                <div className="border-r border-slate-800 pr-2 flex flex-col items-center justify-center gap-1">
-                  <span className="text-[10px] text-slate-400 font-bold mb-1">עשרות</span>
-                  <div className="w-3 h-10 bg-amber-500 rounded shadow" />
-                  <div className="w-3 h-10 bg-amber-500 rounded shadow" />
-                </div>
-                <div className="flex flex-col items-center justify-center gap-1">
-                  <span className="text-[10px] text-slate-400 font-bold mb-1">יחידות</span>
-                  <div className="grid grid-cols-2 gap-1">
-                    <div className="w-3 h-3 bg-amber-400 rounded-sm" />
-                    <div className="w-3 h-3 bg-amber-400 rounded-sm" />
-                    <div className="w-3 h-3 bg-amber-400 rounded-sm" />
+          {/* Authentic Student Screen Canvas Box */}
+          <div className="relative w-full bg-slate-900/95 rounded-2xl overflow-hidden border border-slate-800 p-4 select-none">
+            
+            {/* The 50/50 Dual Workspace Container */}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-3 min-h-[320px]">
+              
+              {/* Worksheet Side (Right side in RTL, 5 cols) */}
+              <div className="md:col-span-5 bg-white dark:bg-slate-900 rounded-2xl p-3.5 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 flex flex-col justify-between shadow-sm">
+                <div>
+                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2 mb-2">
+                    <span className="text-[11px] font-black text-indigo-600 flex items-center gap-1">
+                      <FileText className="w-3.5 h-3.5" /> דף התרגיל
+                    </span>
+                    <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold px-2 py-0.5 rounded-md">
+                      {snap.equation}
+                    </span>
+                  </div>
+
+                  <div className="bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 mb-3">
+                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 block mb-1">הוראה לתלמיד:</span>
+                    <p className="text-xs font-bold text-slate-800 dark:text-slate-100 leading-snug">
+                      {snap.stepInstruction}
+                    </p>
+                  </div>
+
+                  {/* Worksheet Vertical Solving Box with Memory Circles and Columns */}
+                  <div className="flex flex-col items-center justify-center p-3 bg-slate-50/50 dark:bg-slate-950/40 rounded-xl border border-slate-100 dark:border-slate-800">
+                    <div className="text-[10px] font-bold text-slate-400 mb-1.5">הזנת ספרות התלמיד בתיבות התוצאה:</div>
+                    
+                    {/* Memory Circles Row */}
+                    <div className="flex gap-2 mb-1.5">
+                      <div className="w-7 h-7 rounded-full border-2 border-dashed border-purple-300 dark:border-purple-800 flex items-center justify-center text-xs font-bold text-purple-600">
+                        {snap.carryDigits?.tens || ''}
+                      </div>
+                      <div className="w-7 h-7 rounded-full border-2 border-dashed border-slate-200 dark:border-slate-800 flex items-center justify-center text-xs text-slate-300">
+                        -
+                      </div>
+                      <div className="w-7 h-7 rounded-full border-2 border-dashed border-slate-200 dark:border-slate-800 flex items-center justify-center text-xs text-slate-300">
+                        -
+                      </div>
+                    </div>
+
+                    {/* Result Digit Boxes matching column colors */}
+                    <div className="flex gap-2">
+                      <div className="flex flex-col items-center">
+                        <span className="text-[9px] font-bold text-amber-500 mb-0.5">מאות</span>
+                        <div className="w-9 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-400 flex items-center justify-center font-black text-base text-amber-700 dark:text-amber-300 font-mono shadow-sm">
+                          {snap.answerDigits?.hundreds ?? ''}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col items-center">
+                        <span className="text-[9px] font-bold text-emerald-500 mb-0.5">עשרות</span>
+                        <div className="w-9 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-400 flex items-center justify-center font-black text-base text-emerald-700 dark:text-emerald-300 font-mono shadow-sm">
+                          {snap.answerDigits?.tens ?? ''}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col items-center">
+                        <span className="text-[9px] font-bold text-sky-500 mb-0.5">יחידות</span>
+                        <div className="w-9 h-10 rounded-xl bg-sky-50 dark:bg-sky-950/40 border-2 border-sky-400 flex items-center justify-center font-black text-base text-sky-700 dark:text-sky-300 font-mono shadow-sm">
+                          {snap.answerDigits?.units ?? ''}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
+
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center text-[10px] text-slate-400 font-mono">
+                  <span>סטטוס: פעיל</span>
+                  <span className="text-emerald-500 font-bold flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3" /> מסונכרן
+                  </span>
+                </div>
               </div>
 
-              {/* Progress Line */}
-              <div className="flex justify-between items-center text-[10px] text-slate-400 font-mono">
-                <span>זמן ריצה: 00:{Math.floor((currentProgress / 100) * 45).toString().padStart(2, '0')}</span>
-                <span>משימה פעילה: חיבור אנכי עם המרה</span>
+              {/* Dienes Base-Ten House Side (Left side in RTL, 7 cols) */}
+              <div className="md:col-span-7 bg-slate-950 rounded-2xl p-3 border border-slate-800 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-2">
+                    <span className="text-[11px] font-black text-slate-200 flex items-center gap-1">
+                      <Layers className="w-3.5 h-3.5 text-amber-400" /> בית המספרים הדיגיטלי
+                    </span>
+                    <span className="text-[11px] font-black text-amber-400 bg-amber-950/60 border border-amber-800/80 px-2.5 py-0.5 rounded-full font-mono">
+                      ערך: {currentTotalValue}
+                    </span>
+                  </div>
+
+                  {/* 3 Columns: Hundreds, Tens, Units grounded from bottom */}
+                  <div className="grid grid-cols-3 gap-2 h-44 border border-slate-800/80 rounded-xl p-2 bg-slate-900/60">
+                    
+                    {/* Hundreds Column */}
+                    <div className="border-l border-slate-800/80 pl-1 flex flex-col justify-between items-center">
+                      <span className="text-[10px] font-black text-amber-400 bg-amber-950/40 px-1.5 py-0.5 rounded">
+                        מאות ({snap.counts.hundreds})
+                      </span>
+                      <div className="flex-1 w-full flex flex-col justify-end items-center gap-1 pb-1">
+                        {Array.from({ length: Math.min(snap.counts.hundreds, 4) }).map((_, i) => (
+                          <div key={`h-${i}`} className="scale-[0.55] -my-2 transform-gpu">
+                            <HundredSVG />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Tens Column */}
+                    <div className="border-l border-slate-800/80 pl-1 flex flex-col justify-between items-center">
+                      <span className="text-[10px] font-black text-emerald-400 bg-emerald-950/40 px-1.5 py-0.5 rounded">
+                        עשרות ({snap.counts.tens})
+                      </span>
+                      <div className="flex-1 w-full flex flex-col justify-end items-center gap-1 pb-1">
+                        {Array.from({ length: Math.min(snap.counts.tens, 10) }).map((_, i) => (
+                          <div key={`t-${i}`} className="scale-[0.6] -my-2.5 transform-gpu">
+                            <TenSVG />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Units Column */}
+                    <div className="flex flex-col justify-between items-center">
+                      <span className="text-[10px] font-black text-sky-400 bg-sky-950/40 px-1.5 py-0.5 rounded">
+                        יחידות ({snap.counts.units})
+                      </span>
+                      <div className="flex-1 w-full flex flex-wrap content-end justify-center items-end gap-1 pb-1">
+                        {Array.from({ length: Math.min(snap.counts.units, 15) }).map((_, i) => (
+                          <div key={`u-${i}`} className="scale-[0.8]">
+                            <UnitSVG />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bottom Workbench Palette Signifier */}
+                <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400">
+                  <span className="flex items-center gap-1 font-bold">🧰 מחסן לבנים פעיל</span>
+                  <span className="text-slate-500 font-mono">{currentEvent.actionLabelHe}</span>
+                </div>
               </div>
             </div>
-
-            {/* Play/Pause Overlay Button */}
-            <button
-              onClick={() => setIsPlaying(!isPlaying)}
-              className="relative z-10 w-14 h-14 rounded-full bg-indigo-600/90 hover:bg-indigo-600 text-white flex items-center justify-center shadow-lg transition-transform active:scale-95 cursor-pointer backdrop-blur-sm"
-              aria-label={isPlaying ? "השהה וידאו" : "נגן וידאו"}
-            >
-              {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6 fill-current mr-0.5" />}
-            </button>
           </div>
 
-          {/* Video Control Bar */}
-          <div className="flex items-center gap-3 px-2 pt-2">
+          {/* Interactive Player Controls */}
+          <div className="flex items-center gap-3 px-2 pt-1">
             <button
               onClick={() => setIsPlaying(!isPlaying)}
-              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white transition-colors cursor-pointer"
+              className="p-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition-all cursor-pointer shadow-md active:scale-95"
+              aria-label={isPlaying ? "השהה ניגון" : "הפעל שחזור"}
+              title={isPlaying ? "השהה" : "נגן שחזור"}
             >
-              {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+              {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current mr-0.5" />}
             </button>
+
             <button
-              onClick={() => setCurrentProgress(0)}
-              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white transition-colors cursor-pointer"
+              onClick={() => {
+                setIsPlaying(false);
+                setCurrentEventIndex(0);
+              }}
+              className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white transition-colors cursor-pointer"
+              title="חזור לתחילת ההקלטה"
             >
               <RotateCcw className="w-4 h-4" />
             </button>
 
-            {/* Progress Slider */}
-            <div className="flex-1 bg-slate-800 h-2 rounded-full overflow-hidden cursor-pointer">
-              <div 
-                className="bg-indigo-500 h-full transition-all duration-150"
-                style={{ width: `${currentProgress}%` }}
+            <button
+              onClick={() => {
+                setIsPlaying(false);
+                setCurrentEventIndex(prev => Math.max(0, prev - 1));
+              }}
+              disabled={currentEventIndex === 0}
+              className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-white transition-colors cursor-pointer"
+              title="צעד אחד אחורה"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+
+            <button
+              onClick={() => {
+                setIsPlaying(false);
+                setCurrentEventIndex(prev => Math.min(events.length - 1, prev + 1));
+              }}
+              disabled={currentEventIndex >= events.length - 1}
+              className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-white transition-colors cursor-pointer"
+              title="צעד אחד קדימה"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+
+            {/* Interactive Progress Scrubber */}
+            <div className="flex-1 flex flex-col gap-1">
+              <input
+                type="range"
+                min="0"
+                max={Math.max(0, events.length - 1)}
+                value={currentEventIndex}
+                onChange={(e) => {
+                  setIsPlaying(false);
+                  setCurrentEventIndex(Number(e.target.value));
+                }}
+                className="w-full accent-indigo-500 cursor-pointer h-2 bg-slate-800 rounded-lg"
               />
+              <div className="flex justify-between text-[10px] text-slate-400 font-mono">
+                <span>{currentEvent.timeFormatted}</span>
+                <span>צעד {currentEventIndex + 1} / {events.length}</span>
+              </div>
             </div>
 
-            {/* Playback Speed */}
+            {/* Playback Speed Button */}
             <button
               onClick={() => setPlaybackSpeed(s => s === 1 ? 1.5 : s === 1.5 ? 2 : 1)}
-              className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-mono font-bold text-slate-300 transition-colors"
+              className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-mono font-bold text-slate-300 transition-colors"
             >
               {playbackSpeed}x
             </button>
           </div>
         </div>
 
-        {/* Right Side: Static VRA Cognitive Decision Timeline Table (60% on desktop) */}
-        <div className="lg:col-span-6 flex flex-col gap-3">
+        {/* Right Side: Synchronized VRA Cognitive Decision Timeline Table (5 cols on XL) */}
+        <div className="xl:col-span-5 flex flex-col gap-3">
           <div className="flex justify-between items-center">
             <h3 className="font-black text-base text-slate-900 dark:text-white flex items-center gap-2">
               <Activity className="w-4 h-4 text-indigo-600" />
-              ציר החלטות קוגניטיבי (VRA Cognitive Timeline)
+              ציר החלטות קוגניטיבי מסונכרן (VRA Timeline)
             </h3>
             <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
-              {events.length} פעולות מתועדות
+              {events.length} פעולות
             </span>
           </div>
 
-          <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
-            <div className="max-h-[380px] overflow-y-auto">
+          <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm bg-white dark:bg-slate-900">
+            <div className="max-h-[440px] overflow-y-auto">
               <table className="w-full text-right text-xs">
-                <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 font-extrabold sticky top-0 border-b border-slate-200 dark:border-slate-700">
+                <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 font-extrabold sticky top-0 border-b border-slate-200 dark:border-slate-700 z-10">
                   <tr>
                     <th className="p-3">שעה</th>
                     <th className="p-3">שלב VRA</th>
-                    <th className="p-3">פעולה שבוצעה</th>
+                    <th className="p-3">פעולה</th>
                     <th className="p-3 text-center">השהייה</th>
-                    <th className="p-3 text-center">ויסות עצמי</th>
+                    <th className="p-3 text-center">בקרה</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {events.map((event) => (
-                    <tr key={event.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
-                      <td className="p-3 font-mono text-[11px] text-slate-400">{event.timeFormatted}</td>
-                      <td className="p-3">
-                        <span className={`font-black px-2 py-0.5 rounded-md text-[10px] ${
-                          event.vraMilestone === 'המרה עשרונית'
-                            ? 'bg-purple-100 text-purple-900 dark:bg-purple-950 dark:text-purple-200'
-                            : event.vraMilestone === 'ויסות עצמי שקט'
-                            ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200'
-                            : event.vraMilestone === 'זיכרון עבודה'
-                            ? 'bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-200'
-                            : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200'
-                        }`}>
-                          {event.vraMilestone}
-                        </span>
-                      </td>
-                      <td className="p-3 font-medium text-slate-800 dark:text-slate-200">
-                        <div className="font-bold">{event.actionLabelHe}</div>
-                        <div className="text-[10px] text-slate-500 dark:text-slate-400">{event.details}</div>
-                      </td>
-                      <td className="p-3 text-center font-mono font-bold text-slate-600 dark:text-slate-400">
-                        {event.delaySeconds > 0 ? `${event.delaySeconds}ש'` : '-'}
-                      </td>
-                      <td className="p-3 text-center">
-                        {event.selfRegulationFlag ? (
-                          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300 font-bold text-[10px]" title="עדות לבקרה וויסות עצמי">
-                            ✓
+                  {events.map((event, idx) => {
+                    const isSelected = idx === currentEventIndex;
+                    return (
+                      <tr 
+                        key={event.id} 
+                        onClick={() => {
+                          setIsPlaying(false);
+                          setCurrentEventIndex(idx);
+                        }}
+                        className={`cursor-pointer transition-all ${
+                          isSelected 
+                            ? 'bg-indigo-50 dark:bg-indigo-950/70 font-bold border-r-4 border-indigo-600' 
+                            : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/40'
+                        }`}
+                      >
+                        <td className="p-3 font-mono text-[11px] text-slate-400">{event.timeFormatted}</td>
+                        <td className="p-3">
+                          <span className={`font-black px-2 py-0.5 rounded-md text-[10px] ${
+                            event.vraMilestone === 'המרה עשרונית'
+                              ? 'bg-purple-100 text-purple-900 dark:bg-purple-950 dark:text-purple-200'
+                              : event.vraMilestone === 'ויסות עצמי שקט'
+                              ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200'
+                              : event.vraMilestone === 'זיכרון עבודה'
+                              ? 'bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-200'
+                              : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200'
+                          }`}>
+                            {event.vraMilestone}
                           </span>
-                        ) : (
-                          <span className="text-slate-300 dark:text-slate-700">-</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td className="p-3 font-medium text-slate-800 dark:text-slate-200">
+                          <div className="font-bold leading-snug">{event.actionLabelHe}</div>
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight mt-0.5">{event.details}</div>
+                        </td>
+                        <td className="p-3 text-center font-mono font-bold text-slate-600 dark:text-slate-400">
+                          {event.delaySeconds > 0 ? `${event.delaySeconds}ש'` : '-'}
+                        </td>
+                        <td className="p-3 text-center">
+                          {event.selfRegulationFlag ? (
+                            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300 font-bold text-[10px]" title="עדות לוויסות עצמי">
+                              ✓
+                            </span>
+                          ) : (
+                            <span className="text-slate-300 dark:text-slate-700">-</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

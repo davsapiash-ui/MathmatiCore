@@ -1,21 +1,34 @@
 import { useDroppable } from '@dnd-kit/core';
 import { motion } from 'framer-motion';
+import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 
 /**
- * פח מחיקה — אזור השלכה ייעודי (Drop Zone), אינו מעוצב ככפתור.
+ * פח מחיקה ואיפוס — אזור השלכה ייעודי (Drop Zone) ואיפוס בלחיצה לפי סעיף 6 ב-PRD.
  * מעוצב ככלי פיזי עם מכסה מונפש הנפתח בעת גרירה מעליו.
  */
 export function TrashZone() {
   const { setNodeRef, isOver } = useDroppable({ id: 'trash', data: { kind: 'trash' } });
+
+  const handleClick = () => {
+    useWorkspaceStore.getState().clearBoard();
+  };
 
   return (
     <div className="relative group shrink-0 flex items-center">
       {/* Drop Zone Receptacle — NO button box, pure organic drop area */}
       <div
         ref={setNodeRef}
-        role="region"
-        aria-label="פח אשפה — גררו לכאן לבנים למחיקה"
-        className={`relative flex flex-col items-center justify-center px-3.5 py-1.5 rounded-2xl transition-all duration-200 select-none ${
+        role="button"
+        tabIndex={0}
+        onClick={handleClick}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handleClick();
+          }
+        }}
+        aria-label="פח אשפה — גררו לכאן לבנים למחיקה או לחצו לניקוי הלוח"
+        className={`relative flex flex-col items-center justify-center px-3.5 py-1.5 rounded-2xl transition-all duration-200 select-none cursor-pointer active:scale-95 ${
           isOver
             ? 'bg-red-100/90 scale-110 shadow-[0_0_24px_rgba(239,68,68,0.4)] ring-2 ring-red-400 ring-offset-2'
             : 'hover:bg-red-50/60'
@@ -131,7 +144,7 @@ export function TrashZone() {
 
       {/* Tooltip on Hover */}
       <div className="absolute -top-9 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 z-50 p-1.5 px-3 bg-slate-900/95 text-white text-[10px] text-center font-bold rounded-xl shadow-lg backdrop-blur-md border border-white/10 whitespace-nowrap">
-        <span>🗑️ גררו לכאן לבנים למחיקה מהלוח</span>
+        <span>🗑️ גררו לכאן לבנים למחיקה / לחצו לניקוי הלוח</span>
       </div>
     </div>
   );
