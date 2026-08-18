@@ -38,7 +38,8 @@ export function AdminWizardModal({
     globalStudentLimit, 
     addSchool, 
     addTeacher, 
-    addClassRoom 
+    addClassRoom,
+    provisionFullInstitution 
   } = useAdminStore();
 
   const [step, setStep] = useState<number>(mode === "add_teacher" ? 2 : mode === "add_class" ? 3 : 1);
@@ -62,6 +63,7 @@ export function AdminWizardModal({
 
   // Provisioning Complete state
   const [isDone, setIsDone] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
 
@@ -131,37 +133,28 @@ export function AdminWizardModal({
     }
   };
 
-  const handleFinishFullSetup = () => {
+  const handleFinishFullSetup = async () => {
     if (!validateStep1() || !validateStep2("pending_new")) return;
     
-    // 1. Create School
-    const cleanSchoolName = schoolName.trim();
-    addSchool(cleanSchoolName);
-    
-    // Wait for store update or grab freshly created ID
-    setTimeout(() => {
-      const freshSchools = useAdminStore.getState().schools;
-      const createdSchool = freshSchools.find(s => s.name === cleanSchoolName) || freshSchools[freshSchools.length - 1];
-      const schoolId = createdSchool ? createdSchool.id : `sch_${Date.now()}`;
+    setIsSubmitting(true);
+    try {
+      await provisionFullInstitution({
+        schoolName: schoolName.trim(),
+        teacherName: teacherName.trim(),
+        teacherEmail: teacherTaz.trim(),
+        teacherDob: teacherDob.trim() || "010190",
+        className: className.trim() || "כיתת המבקרים",
+        classType,
+        studentLimit: parseInt(studentLimit, 10) || 12,
+      });
 
-      // 2. Create Teacher
-      const cleanTeacherName = teacherName.trim();
-      const cleanTaz = teacherTaz.trim();
-      const cleanDob = teacherDob.trim() || "010190";
-      addTeacher(schoolId, cleanTeacherName, cleanTaz, cleanDob);
-
-      setTimeout(() => {
-        const freshTeachers = useAdminStore.getState().teachers;
-        const createdTeacher = freshTeachers.find(t => t.taz === cleanTaz) || freshTeachers[freshTeachers.length - 1];
-        const teacherId = createdTeacher ? createdTeacher.id : `t_${Date.now()}`;
-
-        // 3. Create Class
-        const cleanClassName = className.trim() || "כיתה א'";
-        addClassRoom(schoolId, teacherId, cleanClassName);
-
-        setIsDone(true);
-      }, 50);
-    }, 50);
+      setIsDone(true);
+    } catch (err) {
+      console.error("Failed to provision institution:", err);
+      setClassError("שגיאה בהקמת המוסד: " + (err as Error).message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleQuickAddTeacher = () => {
@@ -587,9 +580,10 @@ export function AdminWizardModal({
                     <UdlButton 
                       semanticColor="primary" 
                       onClick={handleFinishFullSetup}
-                      className="gap-2 px-8 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-500/25 font-bold"
+                      disabled={isSubmitting}
+                      className="gap-2 px-8 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-500/25 font-bold disabled:opacity-50"
                     >
-                      הקם מוסד ומורה מוביל
+                      {isSubmitting ? "מקים מוסד ומסנכרן מול השרת..." : "הקם מוסד ומורה מוביל"}
                       <CheckCircle2 className="w-5 h-5" />
                     </UdlButton>
                   )

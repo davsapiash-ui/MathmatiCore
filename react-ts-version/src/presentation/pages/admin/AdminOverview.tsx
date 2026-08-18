@@ -61,8 +61,10 @@ export function AdminOverview() {
   const [isCleaning, setIsCleaning] = useState(false);
 
   useEffect(() => {
+    const unsubAdmin = useAdminStore.getState().initAdminSubscriptions();
+    
     const logsRef = query(ref(database, 'audit_logs'), orderByChild('timestamp'), limitToLast(30));
-    const unsubscribe = onValue(logsRef, (snapshot) => {
+    const unsubLogs = onValue(logsRef, (snapshot) => {
       try {
         if (snapshot.exists()) {
           const rawData = snapshot.val();
@@ -80,10 +82,7 @@ export function AdminOverview() {
         setAuditLogs([]);
       }
     });
-    return () => unsubscribe();
-  }, []);
 
-  useEffect(() => {
     const studentsRef = ref(database, 'users/students');
     const unsubStudents = onValue(studentsRef, (snapshot) => {
       if (snapshot.exists()) {
@@ -103,6 +102,8 @@ export function AdminOverview() {
     });
 
     return () => {
+      unsubAdmin();
+      unsubLogs();
       unsubStudents();
       unsubAlerts();
     };

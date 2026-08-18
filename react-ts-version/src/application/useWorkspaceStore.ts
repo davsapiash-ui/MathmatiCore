@@ -1632,8 +1632,33 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       return remaining;
     },
 
-    isColumnInputLocked: (_place, _numberA, _numberB, _isSubtraction) => {
-      // Inputs must always remain open and editable so the student is never locked out
+    isColumnInputLocked: (place, numberA, numberB, isSubtraction) => {
+      const s = get();
+      if (s.keyboardState === 'LOCKED' || s.keyboardState === 'SOCRATIC_ONLY') return true;
+
+      const aStr = String(numberA);
+      const bStr = String(numberB);
+      const cols = Math.max(aStr.length, bStr.length, 4);
+      const colPlaces: Place[] = PLACE_ORDER.slice(0, cols).reverse();
+      const colIdx = colPlaces.indexOf(place);
+      if (colIdx === -1) return false;
+
+      const padDigits = (str: string): number => {
+        const idx = colIdx - (cols - str.length);
+        return idx >= 0 ? parseInt(str[idx], 10) : 0;
+      };
+
+      const da = padDigits(aStr);
+      const db = padDigits(bStr);
+      const carry = parseInt(s.carryDigits[place] || '0', 10);
+
+      const requiresExchange = isSubtraction ? (da < db) : (da + db + carry >= 10);
+      if (requiresExchange) {
+        const conversionDone = isSubtraction ? s.hasUngrouped : s.hasGrouped;
+        if (!conversionDone && !s.carryDigits[place]) {
+          return true;
+        }
+      }
       return false;
     },
     checkTimeExceeded: () => {

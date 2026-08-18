@@ -2,6 +2,8 @@ import { create } from "zustand";
 import { AuditLogger } from "@/infrastructure/services/AuditLogger";
 import { firebaseSyncService } from "@/infrastructure/services/FirebaseSyncService";
 import { addAuthorizedTeacherFirestore } from "@/infrastructure/services/AuthService";
+import { ref, onValue, update, type Unsubscribe } from "firebase/database";
+import { database } from "@/infrastructure/firebase";
 
 export interface School {
   id: string;
@@ -33,8 +35,10 @@ interface AdminState {
   teachers: Teacher[];
   classes: ClassRoom[];
   globalStudentLimit: number;
+  isSubscribed: boolean;
   
   // Actions
+  initAdminSubscriptions: () => () => void;
   setGlobalStudentLimit: (limit: number) => void;
   
   addSchool: (name: string) => void;
@@ -45,18 +49,159 @@ interface AdminState {
   
   addClassRoom: (schoolId: string, teacherId: string, name: string) => void;
   deleteClassRoom: (id: string) => void;
+
+  provisionFullInstitution: (params: {
+    schoolName: string;
+    teacherName: string;
+    teacherEmail: string;
+    teacherDob?: string;
+    className: string;
+    classType?: string;
+    studentLimit?: number;
+  }) => Promise<{ school: School; teacher: Teacher; classRoom: ClassRoom }>;
 }
+
+let adminUnsubscribes: Unsubscribe[] = [];
 
 export const useAdminStore = create<AdminState>()((set, get) => ({
   schools: [],
   teachers: [],
   classes: [],
   globalStudentLimit: 12,
+  isSubscribed: false,
+
+  initAdminSubscriptions: () => {
+    // If already subscribed, return the cleanup function
+    if (get().isSubscribed && adminUnsubscribes.length > 0) {
+      return () => {
+        adminUnsubscribes.forEach(unsub => unsub());
+        adminUnsubscribes = [];
+        set({ isSubscribed: false });
+      };
+    }
+
+    try {
+      const schoolsRef = ref(database, 'schools');
+      const unsubSchools = onValue(schoolsRef, (snap) => {
+        if (snap.exists()) {
+          const val = snap.val() || {};
+          const schools = Object.values(val) as School[];
+          set({ schools });
+        } else {
+          set({ schools: [] });
+        }
+      }, (err) => console.error("Error subscribing to schools:", err));
+
+      const teachersRef = ref(database, 'users/teachers');
+      const unsubTeachers = onValue(teachersRef, (snap) => {
+        if (snap.exists()) {
+          const val = snap.val() || {};
+          const teachers = Object.values(val) as Teacher[];
+          set({ teachers });
+        } else {
+          set({ teachers: [] });
+        }
+      }, (err) => console.error("Error subscribing to teachers:", err));
+
+      const classesRef = ref(database, 'classes');
+      const unsubClasses = onValue(classesRef, (snap) => {
+        if (snap.exists()) {
+          const val = snap.val() || {};
+          const classes = Object.values(val) as ClassRoom[];
+          set({ classes });
+        } else {
+          set({ classes: [] });
+        }
+      }, (err) => console.error("Error subscribing to classes:", err));
+
+      const limitRef = ref(database, 'system_control/globalStudentLimit');
+      const unsubLimit = onValue(limitRef, (snap) => {
+        if (snap.exists()) {
+          const limit = Number(snap.val()) || 12;
+          set({ globalStudentLimit: limit });
+        }
+      }, (err) => console.error("Error subscribing to limit:", err));
+
+      adminUnsubscribes = [unsubSchools, unsubTeachers, unsubClasses, unsubLimit];
+      set({ isSubscribed: true });
+    } catch (e) {
+      console.error("Failed to initialize admin subscriptions:", e);
+    }
+
+    return () => {
+      adminUnsubscribes.forEach(unsub => unsub());
+      adminUnsubscribes = [];
+      set({ isSubscribed: false });
+    };
+  },
 
   setGlobalStudentLimit: (limit) => {
     AuditLogger.log("עדכון מגבלת תלמידים", "admin", `מגבלה גלובלית חדשה: ${limit}`);
     set({ globalStudentLimit: limit });
     firebaseSyncService.setGlobalStudentLimit(limit).catch(err => console.error("Failed to set global student limit in Firebase", err));
+  },
+
+  provisionFullInstitution: async ({
+    schoolName,
+    teacherName,
+    teacherEmail,
+    teacherDob = "010190",
+    className,
+    studentLimit = 12,
+  }) => {
+    const timestamp = Date.now();
+    const schoolId = `school_${timestamp}`;
+    const teacherId = teacherEmail.trim();
+    const classId = `class_${timestamp}`;
+
+    const school: School = {
+      id: schoolId,
+      name: schoolName.trim(),
+      createdAt: timestamp,
+    };
+
+    const teacher: Teacher = {
+      id: teacherId,
+      schoolId,
+      name: teacherName.trim(),
+      taz: teacherId,
+      dob: teacherDob.trim() || "010190",
+      licenseActive: false,
+      createdAt: timestamp,
+    };
+
+    const classRoom: ClassRoom = {
+      id: classId,
+      schoolId,
+      teacherId,
+      name: className.trim() || "כיתת המבקרים",
+      studentLimit: Math.min(12, Math.max(1, studentLimit)),
+      createdAt: timestamp,
+    };
+
+    // Optimistic local state update
+    set((state) => ({
+      schools: [...state.schools.filter(s => s.id !== schoolId), school],
+      teachers: [...state.teachers.filter(t => t.id !== teacherId), teacher],
+      classes: [...state.classes.filter(c => c.id !== classId), classRoom],
+    }));
+
+    // Atomic Multi-Node Firebase RTDB update
+    const updates: Record<string, any> = {};
+    updates[`schools/${schoolId}`] = school;
+    updates[`users/teachers/${teacherId}`] = teacher;
+    updates[`classes/${classId}`] = classRoom;
+    updates[`public_classes/${classId}`] = { id: classId, name: classRoom.name, schoolId };
+
+    await update(ref(database), updates);
+
+    // Whitelist in Firestore for Google SSO
+    if (teacherEmail.includes('@')) {
+      await addAuthorizedTeacherFirestore(teacherEmail.trim(), 'teacher', teacherName.trim(), schoolId).catch(console.error);
+    }
+
+    AuditLogger.log("הקמת מוסד מלאה", "admin", `מוסד: ${schoolName}, מורה: ${teacherName}, כיתה: ${className}`);
+    return { school, teacher, classRoom };
   },
 
   addSchool: (name) => {
@@ -148,3 +293,4 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
     firebaseSyncService.deleteClassRoom(id).catch(err => console.error("Failed to delete class from Firebase", err));
   }
 }));
+

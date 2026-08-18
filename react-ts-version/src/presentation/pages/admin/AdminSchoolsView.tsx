@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { UdlButton } from "@/presentation/design-system/UdlButton";
 import { 
@@ -32,6 +32,11 @@ export function AdminSchoolsView() {
   const [limitInput, setLimitInput] = useState(globalStudentLimit.toString());
   const [searchQuery, setSearchQuery] = useState("");
   
+  // Real-time Firebase Sync for Schools, Teachers and Classes
+  useEffect(() => {
+    return useAdminStore.getState().initAdminSubscriptions();
+  }, []);
+
   // Wizard Modal State
   const [wizardOpen, setWizardOpen] = useState(false);
   const [wizardMode, setWizardMode] = useState<"full_setup" | "add_teacher" | "add_class">("full_setup");
