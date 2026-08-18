@@ -25,7 +25,7 @@ export interface DienesBlockProps {
 // SVG Components for each Isometric Block
 // ----------------------------------------------------------------------
 
-const UnitSVG = () => {
+export const UnitSVG = () => {
   return (
     <svg viewBox="-5 -5 210 210" className="w-full h-full filter drop-shadow-[0_6px_12px_rgba(234,179,8,0.35)] overflow-visible pointer-events-none select-none">
       <defs>
@@ -49,7 +49,7 @@ const UnitSVG = () => {
   );
 };
 
-const TenSVG = () => {
+export const TenSVG = () => {
   const renderLines = () => {
     const lines = [];
     for (let i = 1; i <= 9; i++) {
@@ -83,7 +83,7 @@ const TenSVG = () => {
   );
 };
 
-const HundredSVG = () => {
+export const HundredSVG = () => {
   const renderLines = () => {
     const lines = [];
     for (let i = 1; i <= 9; i++) {
@@ -119,7 +119,7 @@ const HundredSVG = () => {
   );
 };
 
-const ThousandSVG = () => {
+export const ThousandSVG = () => {
   const renderLines = () => {
     const lines = [];
     for (let i = 1; i <= 9; i++) {
