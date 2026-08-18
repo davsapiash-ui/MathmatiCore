@@ -1,7 +1,7 @@
 {
   "rules": {
     "schools": {
-      ".read": "auth != null",
+      ".read": true,
       ".write": "auth != null"
     },
     "public_classes": {
@@ -9,21 +9,21 @@
       ".write": "auth != null"
     },
     "classes": {
-      ".read": "auth != null",
+      ".read": true,
       ".write": "auth != null"
     },
     "users": {
       "students": {
-        ".read": "auth != null",
+        ".read": true,
         "$studentId": {
-          ".read": "auth != null",
+          ".read": true,
           ".write": "auth != null && ($studentId.matches(/^student_(user)?(30|[1-2][0-9]|[1-9])$/) || $studentId.matches(/^(30|[1-2][0-9]|[1-9])$/))"
         }
       },
       "teachers": {
-        ".read": "auth != null",
+        ".read": true,
         "$teacherId": {
-          ".read": "auth != null",
+          ".read": true,
           ".write": "auth != null && (data.exists() || newData.child('licenseActive').val() === false)",
           "licenseActive": {
             ".validate": "newData.isBoolean()"
@@ -32,18 +32,18 @@
       }
     },
     "students": {
-      ".read": "auth != null",
+      ".read": true,
       "$studentId": {
-        ".read": "auth != null",
+        ".read": true,
         ".write": "auth != null && ($studentId.matches(/^student_(user)?(30|[1-2][0-9]|[1-9])$/) || $studentId.matches(/^(30|[1-2][0-9]|[1-9])$/))"
       }
     },
     "radar_alerts": {
-      ".read": "auth != null",
+      ".read": true,
       ".write": "auth != null"
     },
     "reflections": {
-      ".read": "auth != null",
+      ".read": true,
       ".write": "auth != null"
     },
     "chat_messages": {
@@ -54,19 +54,19 @@
       }
     },
     "sessions": {
-      ".read": "auth != null",
+      ".read": true,
       ".write": "auth != null"
     },
     "replays": {
-      ".read": "auth != null",
+      ".read": true,
       ".write": "auth != null"
     },
     "approved_tasks": {
-      ".read": "auth != null",
+      ".read": true,
       ".write": "auth != null"
     },
     "ai_pending_approvals": {
-      ".read": "auth != null",
+      ".read": true,
       ".write": "auth != null"
     },
     "system_control": {

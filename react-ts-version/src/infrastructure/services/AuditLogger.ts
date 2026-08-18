@@ -1,5 +1,5 @@
 import { ref, push, serverTimestamp } from "firebase/database";
-import { database } from "@/infrastructure/firebase";
+import { database, authReady } from "@/infrastructure/firebase";
 import { sanitizePII } from "@/core/security/PiiFilter";
 
 export type ErrorCategory = 'FACTUAL_ERROR' | 'PROCEDURAL_ERROR' | 'STRATEGIC_ERROR';
@@ -30,6 +30,7 @@ class AuditLoggerService {
     }
 
     try {
+      await authReady;
       const timestamp = Date.now();
       const sanitizedDetails = maskPII(details);
       
