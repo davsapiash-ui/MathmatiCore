@@ -122,52 +122,52 @@ export function PlaceColumn({ place }: { place: Place }) {
         role="group"
         aria-label={`אזור גרירה — ${PLACE_NAMES_HE[place]}`}
         style={{ touchAction: 'none' }}
-        className={`relative flex-1 min-h-[160px] p-3 pb-4 overflow-y-auto overflow-x-hidden no-scrollbar touch-none ${
-          place === 'units'
-            ? 'flex flex-row flex-wrap content-end justify-center items-end gap-1.5'
-            : 'flex flex-col items-center justify-end gap-1.5'
-        }`}
+        className="relative flex-1 min-h-[180px] p-3 pb-4 overflow-y-auto overflow-x-hidden no-scrollbar touch-none flex flex-col justify-end"
       >
-        <AnimatePresence mode="popLayout">
-        {Array.from({ length: renderCount }).map((_, i) => {
-          let overlapStyle: React.CSSProperties = { zIndex: i };
-          if (i > 0) {
-            if (place === 'hundreds') {
-              overlapStyle.marginTop = '-16px';
-            } else if (place === 'thousands') {
-              overlapStyle.marginTop = '-20px';
-            } else if (place === 'tens') {
-              overlapStyle.marginTop = '-4px';
+        {/* Grounded block stack anchored at the bottom */}
+        <div
+          className={`w-full mt-auto ${
+            place === 'units'
+              ? 'flex flex-row flex-wrap content-end justify-center items-end gap-1.5'
+              : 'flex flex-col items-center justify-end gap-1.5'
+          }`}
+        >
+          {Array.from({ length: renderCount }).map((_, i) => {
+            let overlapStyle: React.CSSProperties = { zIndex: i };
+            if (i > 0) {
+              if (place === 'hundreds') {
+                overlapStyle.marginTop = '-16px';
+              } else if (place === 'thousands') {
+                overlapStyle.marginTop = '-20px';
+              } else if (place === 'tens') {
+                overlapStyle.marginTop = '-4px';
+              }
             }
-          }
 
-          return (
-            <motion.div 
-              key={`${place}-${i}`}
-              initial={{ scale: 0.8, opacity: 0, y: 6 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.8, opacity: 0 }}
-              transition={{ duration: 0.15, ease: 'easeOut' }}
-              style={overlapStyle}
-              className="shrink-0 flex items-center justify-center select-none"
-            >
-              <DienesBlock 
-                id={`column-${place}-${i}`}
-                place={place} 
-                source="column"
-                onClick={() => {
-                  if (place !== 'units') {
-                    splitBlockClick(place);
-                  }
-                }} 
-              />
-            </motion.div>
-          );
-        })}
-        </AnimatePresence>
+            return (
+              <div 
+                key={`${place}-${i}`}
+                style={overlapStyle}
+                className="shrink-0 flex items-center justify-center select-none transform-gpu transition-transform"
+              >
+                <DienesBlock 
+                  id={`column-${place}-${i}`}
+                  place={place} 
+                  source="column"
+                  noEnter={i < renderCount - 1}
+                  onClick={() => {
+                    if (place !== 'units') {
+                      splitBlockClick(place);
+                    }
+                  }} 
+                />
+              </div>
+            );
+          })}
+        </div>
 
         {isPreviewingDecomp && (
-          <div className="flex flex-wrap gap-1 p-1 bg-ws-accentSoft/30 border border-dashed border-ws-accent rounded-xl animate-pulse">
+          <div className="flex flex-wrap gap-1 p-1 bg-ws-accentSoft/30 border border-dashed border-ws-accent rounded-xl animate-pulse mt-2">
             {Array.from({ length: 10 }).map((_, idx) => (
               <div key={`prev-${idx}`} className="w-5 h-5 rounded-md bg-amber-400/60" />
             ))}
