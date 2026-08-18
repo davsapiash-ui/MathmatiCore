@@ -33,12 +33,11 @@ export function Session8ReflectionScreen({ onComplete, metrics }: Session8Reflec
     { id: 'HARD' as const, emoji: '🔴', label: 'היה מאתגר מאוד', desc: 'התאמצתי ולמדתי דברים חדשים', color: 'border-rose-400 bg-rose-50/60 dark:bg-rose-950/20' },
   ];
 
-  // Stage B: Strategy Checkboxes
+  // Stage B: Strategy Checkboxes (Strictly 3 digital strategies per PRD v5.0 Module 16)
   const strategyOptions = [
-    { id: 'undo', label: 'שימוש בלחצן ביטול (Undo) לבקרה ותיקון עצמי', icon: RotateCcw },
-    { id: 'memory', label: 'הזנת שארית בעיגולי הזיכרון בעמודות', icon: Brain },
-    { id: 'hints', label: 'היעזרות בשאלות מכוונות ורמזים סוקרטיים', icon: HelpCircle },
-    { id: 'blocks', label: 'ייצוג והמרה בלבני דינס בבית המספרים', icon: Layers },
+    { id: 'undo', label: 'שימוש בכפתור ביטול הפעולה (Undo) לבקרה ותיקון עצמי', icon: RotateCcw },
+    { id: 'memory', label: 'שימוש בעיגולי הזיכרון בעמודות לחישוב שארית', icon: Brain },
+    { id: 'hints', label: 'שימוש בשאלות כרטיס החניכה הסוקרטי והרמזים המכוונים', icon: HelpCircle },
   ];
 
   const toggleStrategy = (id: string) => {

@@ -283,29 +283,186 @@ Eradicate all rendering of null or blank screen states when projector mode is ac
 
 
 
-### 16. מודול לוח רפלקציה תלת שלבי (SRL Reflection Board Module Spec)
-1. **דרישות:** קידום מודעות עצמית הכוונה עצמית ופיתוח סוכנות הלומד בסיום מפגש שמונה. אפיון מדויק של שלושת שלבי לוח הרפלקציה: שלב א (הערכת מאמץ) מציג סרגל קווי תלת שלבי ללא מילים המיוצג על ידי שלושה סמיילים חזותיים המבטאים מאמץ קל מאמץ בינוני ומאמץ רב לעקיפת חסמים שפתיים אצל הלומדים. שלב ב (בחירת אסטרטגיות) התלמידים מסמנים בתיבות סימון את האסטרטגיות שהועילו להם כגון שימוש בכפתור ביטול הפעולה שימוש בעיגולי הזיכרון או קריאת שאלות כרטיס החניכה. שלב ג (משוב התמדה מעצים) הצגת ערך מדד ההתמדה המחושב לצד מסר מילולי מעצים ומעודד התמדה. טיפול בקצוות מתמטיים בקוד: הגדרת חוק קשיח לפיו אם סך הלחיצות הניסיונות השגויים והבחירות השגויות שווה לאפס מדד ההתמדה מוגדר באופן אוטומטי כמאה אחוזים למניעת כשל מתמטי של חלוקה באפס בקוד.
-2. **אפיון:** רכיב רפלקציה רב-שלבי ב-React. שמירת reflection data בשרת בכל שלב ווידוא השלמת 3 השלבים לפני הגשה סופית.
-3. **Strict Bilingual Developer Instructions:** Implement the SRL Reflection Board strictly in three chronological steps: (Step 1) Effort Evaluation presenting a 3 point visual scale using icons representing low, medium, and high mental effort to bypass language barriers; (Step 2) Strategy Selection rendering checkboxes for used strategies including undo button, memory circles, or socratic card hints; (Step 3) Persistence Feedback displaying the calculated index. Handle the mathematical edge case: if the denominator (U + E + G) equals zero, dynamically default the Persistence Index value to 100 percent to prevent division by zero runtime errors in the client execution.
-* **תרחיש בדיקה קוגניטיבי:** האם הלומד מבין את התהליך הרפלקטיבי ומה מצופה ממנו בכל שלב.
+### מודול 16: מודול לוח רפלקציה תלת־שלבי (SRL Reflection Board Module Spec)
+#### א. הטריגר הפדגוגי
+קידום מודעות עצמית, הכוונה עצמית ופיתוח סוכנות הלומד בסיום מפגש שמונה.
+לוח הרפלקציה נועד לאפשר לתלמיד לזהות את מידת המאמץ שהשקיע, לזהות אסטרטגיות דיגיטליות שסייעו לו במהלך ההתמודדות ולקבל משוב מעודד על תהליך ההתמודדות וההתמדה.
+הרכיב יעוצב באופן המותאם קוגניטיבית וחזותית לתלמידי כיתה ג ולתלמידי שילוב, תוך הפחתת עומס שפתי, צמצום עומס קוגניטיבי מפוצל ושימוש בייצוגים חזותיים ברורים.
+הרפלקציה תתמקד בתהליך הלמידה ובהתמודדות של התלמיד, ולא בהשוואתו לתלמידים אחרים או בתיוג יכולתו.
+
+#### ב. מצב המערכת
+השרת הוא מקור האמת הסמכותי והיחיד עבור מצב התקדמות הרפלקציה והשלמתה. השרת ינהל לכל סשן של מפגש שמונה את השדות הבאים לפחות:
+- שלב הרפלקציה הנוכחי בשדה `reflection_step`, בערכים 1, 2 או 3.
+- סטטוס השלמת הרפלקציה בשדה `reflection_completed` כערך בוליאני.
+- נתוני תשובות הרפלקציה, לרבות דירוג המאמץ והאסטרטגיות שנבחרו.
+- ערך מדד ההתמדה בשדה `persistence_index`, לאחר השלמת שלב 3.
+- חותמת זמן לעדכון האחרון של הרפלקציה בשדה `reflection_updated_at`.
+
+שכבת הסנכרון בצד הלקוח מאזינה למצב הסמכותי בשרת ומעדכנת את חנות Zustand. Zustand משמשת כשכבת תצוגה ומטמון מקומי בלבד ואינה מהווה מקור אמת. היא אינה רשאית לקבוע באופן עצמאי את שלב הרפלקציה, השלמת הרפלקציה, מדד ההתמדה הסמכותי או סיום מפגש שמונה.
+המעבר משלב אחד לשלב הבא מותנה באישור שמירת נתוני השלב הקודם בשרת. לאחר רענון הדפדפן, פתיחת הסשן מחדש או חידוש חיבור רשת, המערכת תשחזר את מצב הרפלקציה ואת הנתונים שאושרו מתוך המצב הסמכותי בשרת.
+
+**חישוב מדד ההתמדה:**
+לצורך חישוב מדד ההתמדה המערכת תשתמש בשלושת מדדי ההתמודדות המצטברים שנאספו במהלך מפגש שמונה:
+- **U** — מספר פעולות ביטול פעולה (Undo) שבוצעו.
+- **E** — מספר ניסיונות הקלדה שגויים.
+- **G** — מספר בחירות שגויות בכרטיס החניכה הסוקרטי.
+
+נוסחת המדד מוגדרת כך:
+$$\text{Persistence Index} = \frac{U}{U + E + G} \times 100$$
+
+כאשר:
+- המונה הוא $U$.
+- המכנה הוא $U + E + G$.
+- התוצאה תעוגל לערך אחוזי שלם בטווח 0%–100%.
+- כאשר $U + E + G = 0$, המערכת לא תבצע חלוקה, ותגדיר את Persistence Index לערך **100%** כברירת מחדל טכנית למניעת שגיאת חלוקה באפס.
+
+מדד ההתמדה הסמכותי יחושב ויישמר בשרת לאחר השלמת שלב 3 בלבד. המערכת לא תציג את המדד כציון, דירוג או מדד השוואתי בין תלמידים.
+
+**נתוני Recovery:**
+נתוני רפלקציה שטרם אושרו בשרת יישמרו ב-IndexedDB כ-Recovery Draft בלבד. נתוני ה-Recovery Draft אינם מקור אמת, אינם רשאים לשנות את `reflection_step` או `reflection_completed`, ואינם רשאים לאשר את השלמת המפגש.
+
+#### ג. אירוע המשתמש
+התלמיד משלים את פתרון שבעת תרגילי החובה של מפגש שמונה ועובר באופן אוטומטי למסך הרפלקציה:
+- **שלב א — הערכת מאמץ:** התלמיד בוחר אחד משלושה סמלים חזותיים המייצגים מאמץ קל, בינוני או רב.
+- **שלב ב — זיהוי אסטרטגיות:** התלמיד מסמן את האסטרטגיות הדיגיטליות שסייעו לו במהלך פתרון התרגילים (שימוש ב-Undo, עיגולי זיכרון, רמזי כרטיס חניכה).
+- **שלב ג — משוב התמדה:** התלמיד צופה במדד ההתמדה שחושב על ידי המערכת ובמסר משוב קצר ומעודד, ולאחר מכן לוחץ על כפתור סיום המפגש.
+
+המערכת לא תאפשר דילוג על שלב שטרם אושר או סימון הרפלקציה כהושלמה לפני אישור שלושת השלבים בשרת.
+
+#### ד. התוצאה הצפויה
+המערכת תציג רכיב רפלקציה תלת־שלבי, חזותי, דל־שפה ומצומצם גירויים, המותאם למאפייני הלומדים:
+1. **שלב א — הערכת מאמץ:** רכיב חזותי הכולל בדיוק שלושה סמלים מובחנים המייצגים מאמץ קל, בינוני, או רב. הבחירה נשמרת בשרת לפני המעבר.
+2. **שלב ב — בחירת אסטרטגיות:** יוצגו בדיוק שלוש אסטרטגיות דיגיטליות: (1) שימוש בכפתור ביטול הפעולה (Undo), (2) שימוש בעיגולי הזיכרון, (3) שימוש בשאלות כרטיס החניכה הסוקרטי. התלמיד רשאי לבחור יותר מאסטרטגיה אחת.
+3. **שלב ג — משוב התמדה:** יוצג מדד ההתמדה באחוזים, מסר קצר, חיובי וממוקד־תהליך, וכפתור סיום המפגש. לאחר אישור שמירת שלב 3 בשרת: `reflection_completed` יעודכן ל-true וכפתור סיום המפגש יהפוך לזמין.
+
+#### ה. חוזה נתונים והתנהגות בזמן כשל
+במקרה של ניתוק רשת זמני, התלמיד יכול להמשיך למלא את הרפלקציה, אך לא יוכל להשלים את המפגש לפני אישור הנתונים בשרת. נתונים שטרם נשמרו בשרת יישמרו ב-IndexedDB כ-Recovery Draft בלבד.
+במצב לא מקוון: אין להציג Modal חוסם, אין לאבד נתונים, כפתור סיום המפגש נשאר חסום, ומוצג חיווי לא חוסם שהנתונים ממתינים לסנכרון.
+עם חידוש החיבור: התחברות לשרת, השוואת Recovery Draft מול מצב שרת, שליחת נתונים לפי סדר שלבים עם `idempotency_key`, אישור שרת, עדכון Zustand, ומחיקת ה-Recovery Draft שאושר.
+
+#### ו. תלויות במודולים אחרים
+מודול זה קשור ותלוי במודולים: 5, 8, 11, 12, 13, 17, 29.
+
+#### ז. בדיקה קוגניטיבית
+- **תרחיש רענון:** התלמיד בשלב ב ומרענן את הדפדפן -> המערכת פותחת את הרפלקציה בשלב ב, בחירת המאמץ משלב א משוחזרת מהשרת.
+- **תרחיש ניתוק רשת:** התלמיד ממשיך למלא, נתונים נשמרים כ-Recovery Draft ב-IndexedDB, ועם חידוש הרשת מסתנכרנים באופן אטומי לשרת.
+- **תרחיש שליחה כפולה:** השרת מזהה את ה-`idempotency_key` ומונע כפילויות.
+
+#### ח. הנחיות פיתוח נוקשות בשפה האנגלית (Strict Bilingual Developer Instructions)
+Implement the SRL Reflection Board strictly in three chronological steps: (Step 1) Effort Evaluation presenting a 3 point visual scale using icons representing low, medium, and high mental effort to bypass language barriers; (Step 2) Strategy Selection rendering checkboxes for used strategies including undo button, memory circles, or socratic card hints; (Step 3) Persistence Feedback displaying the calculated index. Handle the mathematical edge case: if the denominator (U + E + G) equals zero, dynamically default the Persistence Index value to 100 percent to prevent division by zero runtime errors in the client execution.
+Do not expose comparative rankings, peer comparisons, social labels, or achievement classifications. Students may continue completing the reflection while temporarily offline. Persist unsynchronized reflection data only as a Recovery Draft in IndexedDB. Recovery Draft data is never authoritative and must never independently modify reflection_step, reflection_completed, session completion, or the authoritative Persistence Index. The final reflection submission and session completion must remain blocked until the complete three-step reflection state has been successfully acknowledged by Firestore. Upon network recovery: 1. Reconnect to Firestore. 2. Retrieve the latest authoritative reflection state. 3. Compare the Recovery Draft with the authoritative server state. 4. Identify unsynchronized data. 5. Submit missing data in step order. 6. Wait for successful server acknowledgement. 7. Update Zustand from the authoritative server response. 8. Remove successfully synchronized Recovery Draft data. 9. Enable final session completion only after server confirmation. Every reflection write operation must include a unique idempotency key. The server must prevent duplicate writes when the same operation is retried because of network failure, browser refresh, or synchronization retry.
 
 ---
 
-### 17. מודול עבודה במצב לא מקוון ותור סנכרון (Offline Queue and Local Storage Module Spec)
-1. **דרישות:** הבטחת רציפות הלמידה והפחתת חרדה הנובעת מתקלות תקשורת זמניות בכיתה המשלבת. אפיון חזותי של מצב הרשת: המערכת מציגה חיווי חזותי שקט בלבד בפינת המסך המורכב מאייקון ענן קטן. ענן בצבע אפור מסמן מצב לא מקוון שבו הנתונים נשמרים מקומית בדפדפן. ענן בצבע ירוק מסמן מצב מקוון וסנכרון תקין מול השרת. חל איסור מוחלט על הצגת מודאלים חוסמים הודעות שגיאה קופצות או חלונות אזהרה המפריעים לרצף העבודה של התלמיד. הסנכרון האוטומטי מול השרת עם חידוש החיבור מתבצע באופן אסינכרוני ואוכף סדר קשיח של נכנס ראשון יוצא ראשון של מטעני הג'ייסון השמורים באחסון מקומי לשמירה על עקביות שלבי פתרון התרגילים בבסיס הנתונים.
-2. **אפיון:** לכידת בקשות נכשלות ואגירת מטעני הטרנזקציות (pending payloads) ב-IndexedDB / LocalStorage. האזנה לאירוע window online ושליחת המטענים בתור FIFO בצורה אסינכרונית ב-Batch.
-3. **Strict Bilingual Developer Instructions:** Render a silent visual connectivity status indicator in the client header using a small cloud icon: grey cloud signifies offline mode with active local buffering, and green cloud signifies fully connected online mode. Strictly prohibit all blocking modal dialogs, error alert boxes, or network warning popups during offline operations. Enforce strict First In First Out (FIFO) queue execution sequence from IndexedDB or LocalStorage upon connection recovery to guarantee chronological database transactional consistency.
-* **תרחיש בדיקה קוגניטיבי:** האם הנתונים מסתנכרנים כראוי עם חידוש החיבור לרשת.
+### מודול 17: מודול עבודה במצב לא מקוון ותור סנכרון (Offline Queue and Local Storage Module Spec)
+#### א. הטריגר הפדגוגי
+הבטחת רציפות הלמידה והפחתת חרדה ותסכול הנובעים מתקלות תקשורת זמניות בכיתה המשלבת. המערכת תאפשר לתלמידי כיתה ג ולתלמידי השילוב להמשיך בעבודתם גם בעת ניתוק רשת ללא קטיעת חוט המחשבה וללא דרישה להבנה טכנית של מצב החיבור. המעבר למצב לא מקוון יתבצע באופן שקט עם חיווי חזותי מינימלי ולא חוסם תוך שמירה על פעולות הלמידה ועל רצף התהליך הקוגניטיבי.
+
+#### ב. מצב המערכת
+המערכת תנהל בחנות Zustand את מצב החיבור הנוכחי לצורכי תצוגה והתנהגות ממשק בלבד. Zustand אינה מקור אמת למצב הסנכרון, למצב המפגש או לנתוני התלמיד.
+בעת זיהוי ניתוק רשת המערכת תעבור באופן אוטומטי למצב לא מקוון ותפעיל מנגנון אגירה מקומי המבוסס על **IndexedDB**. הזיכרון המקומי של IndexedDB ישמש כמאגר עמיד לתור פעולות ולטלמטריה שטרם סונכרנו עם השרת.
+**חל איסור מוחלט להשתמש ב-LocalStorage לצורך אגירת פעולות טלמטריה או נתוני סנכרון** בשל אופיו הסינכרוני והאפשרות לחסום את חוט הממשק.
+
+כל פעולה שנדרשת להישמר בשרת תיכנס לתור הסנכרון המקומי עם הנתונים הבאים לפחות:
+- מזהה פעולה ייחודי (`idempotency_key`)
+- חותמת זמן של ביצוע הפעולה בפועל בצד הלקוח (`client_timestamp`)
+- מזהה סשן (`session_id`)
+- מזהה תרגיל או מרחב עבודה בהתאם לסוג הפעולה
+- מזהה תלמיד אנונימי (1–12) או מזהה משתמש פנימי
+- סוג הפעולה (`action_type`)
+- מטען הנתונים הנדרש לשחזור הפעולה (`payload`)
+
+התור ינוהל בסדר **FIFO** (נכנס ראשון יוצא ראשון) ביחס לפעולות מאותו סשן ומרחב עבודה. השרת הוא מקור האמת למצב הסמכותי של המפגש והתרגיל. מצב החיבור של התלמיד שיוצג למורה ינוהל באמצעות מנגנון נוכחות ודופק חיים (**Presence Heartbeat**) של המערכת (עד 15 שניות) ולא ייגזר באופן בלעדי מניתוק של Firestore listener.
+
+#### ג. אירוע המשתמש
+התלמיד עובד במפגש ומבצע פעולות בממשק (גרירת לבנים, הזנת ספרות, ביטול פעולה, כרטיס חניכה). חיבור הרשת מתנתק או מתחדש. הדפדפן מזהה את שינוי מצב החיבור:
+- בניתוק: המערכת מאפשרת המשך פעולות למידה הנתמכות במצב לא מקוון ושומרת פעולות הדורשות סנכרון ב-IndexedDB.
+- בחידוש: המערכת מפעילה את מנגנון ההתאוששות והסנכרון האסינכרוני.
+
+#### ד. התוצאה הצפויה
+בעת ניתוק הרשת המערכת תציג בפינת הממשק חיווי קטן ולא חוסם של **ענן אפור** המציין שהמערכת פועלת במצב לא מקוון.
+בעת מעבר למצב לא מקוון:
+- אין להציג Modal חוסם או חלון שגיאה קופץ.
+- אין לעצור את פעילות הקנבס.
+- אין לדרוש מהתלמיד לבצע פעולה כדי להמשיך לעבוד.
+- אין למחוק פעולות שבוצעו במצב לא מקוון.
+- אין להציג לתלמיד הודעות טכניות מורכבות.
+
+בעת חידוש החיבור והשלמת אימות הסנכרון, החיווי יעבור ל**ענן ירוק**. הסנכרון מתחיל ללא דיחוי מורגש באופן אסינכרוני.
+
+#### ה. חוזה נתונים והתנהגות בזמן כשל
+במקרה של ניתוק רשת, כל פעולה הדורשת שמירה בשרת תתווסף באופן אטומי לתור IndexedDB. עם חידוש החיבור המערכת תבצע:
+1. זיהוי חידוש החיבור ואימות שהחיבור לשרת זמין.
+2. קבלת המצב הסמכותי העדכני של הסשן והתרגיל מהשרת.
+3. עדכון Zustand בהתאם למצב הסמכותי שהתקבל.
+4. קריאת הפעולות הממתינות מ-IndexedDB ושליחתן בסדר FIFO בקבוצות מוגבלות (Bounded Batches).
+5. הכללת `idempotency_key` בכל בקשת סנכרון.
+6. מחיקה אטומית מ-IndexedDB רק של הפעולות שהשרת אישר בהצלחה.
+7. מעבר לחיווי מקוון מלא (ענן ירוק) רק לאחר אימות החיבור לשרת.
+
+במקרה של כשל עסקי קבוע (שאינו נפתר ב-Retry), הפעולה תסומן כפנייה חריגה (Dead Letter) ללא מחיקה שקטה. בסגירת הדפדפן, הפעולות שנשמרו ב-IndexedDB יישארו זמינות לסנכרון בסשן הבא.
+
+#### ו. תלויות במודולים אחרים
+מודול זה קשור ותלוי במודולים: 5, 8, 12, 13, 14, 16, 18, 21, 29.
+
+#### ז. בדיקה קוגניטיבית
+- **תרחיש:** התלמיד מבצע פעולות (גרירה, Undo, עיגול זיכרון) בזמן ניתוק -> הממשק מציג ענן אפור, הפעולות נשמרות בתור IndexedDB עם חותמות זמן ו-`idempotency_key`. עם חידוש החיבור, הפעולות מועברות לפי הסדר, מאושרות בשרת, ונמחקות מ-IndexedDB ללא קטיעת רצף הלמידה.
+
+#### ח. הנחיות פיתוח נוקשות בשפה האנגלית (Strict Bilingual Developer Instructions)
+Implement the Offline Learning Continuity and Synchronization Module as a non-blocking resilience layer for the student learning environment. Use Zustand only for client-side UI and connection state representation. Never treat Zustand as the authoritative source for session state, exercise state, synchronization state, or server persistence. Use IndexedDB as the persistent local transaction buffer for offline actions and telemetry that must eventually reach the server. Strictly prohibit LocalStorage for transaction buffering, telemetry queues, synchronization state, or other write-heavy persistence operations. Display a small non-blocking grey cloud icon when the client is offline and a green cloud icon only after connectivity to the backend has been successfully restored and synchronization readiness has been confirmed. Never display blocking modal dialogs, intrusive network error popups, or technical error messages during ordinary temporary connectivity loss. Every queued operation must contain, at minimum, a unique idempotency key generated by the client, the original client timestamp, an anonymous student ID (1 to 12), the session identifier, the exercise or workspace identifier when applicable, the operation type, and the operation payload. Persist queue entries atomically in IndexedDB. Maintain FIFO ordering for operations within the same session and workspace. When connectivity is restored, execute the recovery protocol: 1. Detect network recovery. 2. Verify backend connectivity. 3. Fetch authoritative session state. 4. Update Zustand. 5. Read pending IndexedDB operations. 6. Submit in FIFO order with idempotency keys in bounded batches. 7. Atomically delete only acknowledged operations from IndexedDB. 8. Mark online status as healthy. For teacher-facing connectivity monitoring, use the dedicated presence heartbeat mechanism (maximum 15-second detection window) instead of inferring presence solely from client browser events.
 
 ---
 
 ## חלק ו: דשבורד המורה וניהול הכיתה
 
-### 18. מודול רדאר פדגוגי שקט (Silent Radar Module Spec)
-1. **דרישות:** תמיכה במורה כמנווט אנושי באמצעות מתן תמונת מצב אבחונית שקטה ושוויונית ללא עומס קשבי או עייפות התראות. הגריד הקבוע של שתים עשרה המשבצות השקטות (במבנה של שלוש על ארבע) משנה את צבעי רקע המשבצות באופן חלק בלבד בזמן אמת על פי החוקים הבאים: צבע ירוק מסמל פעילות תקינה ורציפה של התלמיד בפתרון התרגיל. צבע צהוב מסמל זיהוי היסוס קוגניטיבי ממושך של מעל ארבעים וחמש שניות רצופות בטור החישוב הפעיל. צבע אדום מסמל כרטיס חניכה סוקרטי צידי פעיל כעת במסך התלמיד. צבע אפור מסמל שהתלמיד מנותק מהרשת או שטרם החל את המפגש. חל איסור גורף ומחמיר על הצגת שמות התלמידים תמונותיהם או אותיות שמם על גבי המשבצות. הרדאר מציג מזהים מספריים קבועים בטווח של אחת עד שתים עשרה בלבד והצלבת הזהויות מנוהלת באופן ידני על ידי המורה ביומן כיתה פיזי המונח על שולחנה מחוץ למחשב.
-2. **אפיון:** עדכון צבעי רקע בלבד (ירוק, צהוב, אדום, אפור) במענה לנתוני טלמטריה בזמן אמת (זמן תגובה 1000ms) ללא הזזת אלמנטים או פופ-אפים. צמצום קריאות Snapshot באמצעות תגובות ממוקדות.
-3. **Strict Bilingual Developer Instructions:** Render the Silent Radar as a static 3x4 grid representing the 12 anonymous student profiles. Map incoming telemetry state data to background grid cell colors in real time with a 1000ms throttle filter: green for active progress, yellow triggered immediately upon active column hesitation exceeding 45 seconds, red triggered when a socratic card is active on the student client, and grey when the client is disconnected. Strictly forbid rendering any pupil names, initials, or avatars within the radar tiles. Display strictly numeric identifiers from 1 to 12, forcing teachers to manage identities via external physical paper logs on their desks.
-* **תרחיש בדיקה קוגניטיבי:** האם המורה מבין את משמעות צבעי הרדאר וכיצד לפעול בהתאם.
+### מודול 18: מודול רדאר פדגוגי שקט (Silent Radar Module Spec)
+#### א. הטריגר הפדגוגי
+תמיכה במורה כמנווט אנושי בכיתה ההיברידית על ידי אספקת תמונת מצב אבחונית בזמן אמת, ללא הצפה חושית או עייפות מהתראות. מניעת תיוג חברתי של תלמידים ושמירה על פרטיותם באמצעות אנונימיות מלאה בממשק המורה, תוך שיקוף מדויק של מצב הלמידה, הקושי והקישוריות לצורך קבלת החלטה פדגוגית מותאמת מחוץ ללומדה הדיגיטלית. הרדאר אינו כלי להערכת תלמידים, דירוגם או השוואתם, אלא כלי ניווט פדגוגי שקט המאפשר למורה לזהות מצבים הדורשים תשומת לב.
+
+#### ב. מצב המערכת
+דשבורד המורה יאזין בזמן אמת לשינויי מצב של תלמידי הכיתה הפעילה באמצעות מנגנון Snapshot Listener ממוקד על נתוני המצב הרלוונטיים בלבד בבסיס הנתונים Firestore. המערכת לא תאזין מחדש לכל נתוני הטלמטריה בכל שינוי, אלא רק לשדות הנדרשים להצגת מצב הרדאר.
+
+המערכת תמפה את מצב התלמיד לאחד מארבעה מצבים חזותיים בלבד:
+1. **צבע ירוק:** התלמיד נמצא בפעילות למידה תקינה ורציפה, כאשר התקבלה פעולה קוגניטיבית רלוונטית בקנבס או במקלדת בתוך 30 השניות האחרונות.
+2. **צבע צהוב:** התלמיד נמצא במצב היסוס קוגניטיבי, כאשר חלפו לפחות 45 שניות רצופות ללא פעולה קוגניטיבית רלוונטית בטור החישוב הפעיל, בהתאם לטריגרים המוגדרים במודול 12.
+3. **צבע אדום:** כרטיס החניכה הסוקרטי פעיל כעת על מסך התלמיד, בהתאם למצב הסמכותי המוגדר במודול 13.
+4. **צבע אפור:** התלמיד אינו מחובר לפי מנגנון ה-Presence Heartbeat או טרם התחיל את המפגש.
+
+**היררכיית קדימויות דטרמיניסטית:**
+כאשר יותר מתנאי אחד מתקיים בו־זמנית, תופעל היררכיית מצבים קבועה כדי למנוע סתירות חזותיות:
+$$\text{RED} > \text{GREY} > \text{YELLOW} > \text{GREEN}$$
+כלומר: מצב חניכה פעיל (אדום) מקבל קדימות על פני מצב ניתוק (אפור), ומצב ניתוק מקבל קדימות על פני היסוס (צהוב) או פעילות רגילה (ירוק).
+
+עדכוני מצב הנשלחים מלקוח התלמיד לשרת יוגבלו באמצעות **Throttle של 1,000ms לכל היותר** לעדכון מצב, כדי להפחית כתיבות מיותרות לשרת.
+מצב הניתוק ייקבע באופן סמכותי בצד השרת באמצעות מנגנון ה-Presence Heartbeat (עד 15 שניות).
+הרדאר לא יציג שום נתונים מזהים כגון שמות תלמידים, תמונות, ראשי תיבות, אותיות או אווטארים. כל משבצת תציג **מזהה מספרי אנונימי קבוע בלבד בטווח 1–12**.
+
+#### ג. אירוע המשתמש
+התלמיד מבצע פעילות למידה, מפסיק פעילות לפרק זמן המוגדר כהיסוס (45s) או נכנס למצב חניכה סוקרטי.
+לקוח התלמיד מעדכן את מצב הלמידה הרלוונטי (מוגבל ב-Throttle של 1000ms).
+מנגנון ה-Presence Heartbeat מזהה מצב קישוריות ומעדכן אותו בצד השרת.
+דשבורד המורה מקבל את שינוי המצב באמצעות Snapshot Listener ומעדכן את המשבצת האנונימית המתאימה.
+
+#### ד. התוצאה הצפויה
+המערכת תרנדר **גריד קבוע של 3×4** המכיל עד שתים־עשרה משבצות אנונימיות קבועות, הממוספרות 1–12.
+שינוי מצב של משבצת יתבצע ללא שינוי במיקום האלמנטים וללא Layout Shift. המעבר החזותי בין צבעי המשבצות יתבצע באמצעות **CSS Transition חלק של 1000ms**.
+חל איסור מוחלט על: הצגת חלונות קופצים/Modals, הודעות אזהרה המחייבות פעולה, השמעת התראות קוליות, שינוי מיקום המשבצות, הצגת שמות/פרטים מזהים, הצגת דירוגים/ציונים, או הצגת מידע טכני/Stack Traces.
+
+#### ה. חוזה נתונים והתנהגות בזמן כשל
+במקרה של ניתוק רשת זמני של לקוח המורה, הרדאר ישמור את המצב האחרון הידוע (Last Known State) ויציג חיווי קישוריות שקט ללא התראה חוסמת. עם חידוש החיבור, ה-Snapshot Listener מתחבר מחדש ומעדכן ללא טעינת דף.
+אם לקוח תלמיד מתנתק, מנגנון ה-Presence Heartbeat בשרת יעדכן את מצבו ל-disconnected בתוך 15 שניות לכל היותר, ומשבצת התלמיד תעבור לאפור באופן שקט ואוטומטי.
+
+#### ו. תלויות במודולים אחרים
+מודול זה קשור ותלוי במודולים: 4, 5, 12, 13, 17, 21, 29.
+
+#### ז. בדיקה קוגניטיבית
+- **תרחיש:** תלמיד 3 מפסיק לפעול במשך 45 שניות, ובמקביל תלמיד 5 מתנתק מהרשת.
+  - משבצת 3 משתנה מירוק לצהוב בצורה חלקה בתוך פחות משנייה מקבלת העדכון.
+  - מנגנון ה-Presence Heartbeat מזהה את ניתוק תלמיד 5 בתוך 15 שניות ומעדכן את משבצת 5 לאפור.
+  - שני השינויים מתבצעים ללא התראה קולית, ללא פופ-אפ, ללא שינוי במבנה הגריד וללא חשיפת שמות.
+
+#### ח. הנחיות פיתוח נוקשות בשפה האנגלית (Strict Developer Instructions)
+Implement the Silent Radar as a fixed 3x4 grid containing up to twelve permanent anonymous student slots (1 to 12). Never reorder, move, resize, or dynamically rearrange radar cells. Use a focused Firestore Snapshot Listener for the active class subscribing only to the student state fields required by the radar. Render exactly four visual states: 1. GREEN = active learning state with a relevant cognitive action recorded within the last 30 seconds. 2. YELLOW = cognitive hesitation state after at least 45 consecutive seconds without a relevant cognitive action in the active calculation column. 3. RED = active Socratic mentoring card state. 4. GREY = authoritative server-side disconnected state or session-not-started state. When multiple conditions are true, apply this deterministic precedence: RED > GREY > YELLOW > GREEN. The disconnected state must be determined by the server-side Presence Heartbeat with a maximum target of 15 seconds. Throttle student state writes to the server to no more frequently than once per 1000 milliseconds. Do not expose student names, initials, photographs, avatars, letters, or any other personally identifying information in radar cells. Display only permanent numeric anonymous identifiers from 1 to 12. Use CSS transitions for smooth background-state changes without causing layout shifts. The teacher dashboard must never display modal dialogs, blocking alerts, audio notifications, technical error messages, or disruptive popups.
 
 ---
 

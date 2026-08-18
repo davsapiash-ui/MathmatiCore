@@ -426,10 +426,10 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
                 className={`p-3.5 rounded-2xl border text-right transition-colors duration-1000 ease-in-out flex flex-col justify-between min-h-[110px] relative overflow-hidden shadow-sm ${
                   isDimmed ? 'opacity-30' : 'opacity-100'
                 } ${
-                  !student.isOnline
-                    ? 'bg-slate-100 dark:bg-slate-800/60 border-2 border-slate-300 dark:border-slate-700 text-slate-500'
-                    : student.isSocraticActive
+                  student.isSocraticActive
                     ? 'bg-rose-500/20 border-2 border-rose-500 text-rose-950 dark:text-rose-100'
+                    : !student.isOnline
+                    ? 'bg-slate-100 dark:bg-slate-800/60 border-2 border-slate-300 dark:border-slate-700 text-slate-500'
                     : student.hesitationSeconds >= 45
                     ? 'bg-amber-500/20 border-2 border-amber-500 text-amber-950 dark:text-amber-100'
                     : 'bg-emerald-500/15 border-2 border-emerald-500 text-emerald-950 dark:text-emerald-100'
@@ -441,15 +441,15 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
                     תלמיד {student.studentNumber}
                   </span>
                   
-                  {/* Status Icon */}
-                  {!student.isOnline ? (
-                    <span className="inline-flex items-center gap-1 bg-slate-400 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="לא מחובר">
-                      מנותק
-                    </span>
-                  ) : student.isSocraticActive ? (
+                  {/* Status Icon - Deterministic Precedence: RED > GREY > YELLOW > GREEN */}
+                  {student.isSocraticActive ? (
                     <span className="inline-flex items-center gap-1 bg-rose-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm animate-pulse" title="חניכה סוקרטית פעילה">
                       <ShieldAlert className="w-3 h-3" />
                       סוקרטי
+                    </span>
+                  ) : !student.isOnline ? (
+                    <span className="inline-flex items-center gap-1 bg-slate-400 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="לא מחובר">
+                      מנותק
                     </span>
                   ) : student.hesitationSeconds >= 45 ? (
                     <span className="inline-flex items-center gap-1 bg-amber-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="היסוס > 45 שניות">
