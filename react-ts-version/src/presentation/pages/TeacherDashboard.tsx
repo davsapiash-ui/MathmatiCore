@@ -6,6 +6,7 @@ import { UdlButton } from "@/presentation/design-system/UdlButton";
 import { AccessibleCard } from "@/presentation/design-system/AccessibleCard";
 import { DataGrid } from "@/presentation/design-system/DataGrid";
 import { useAuthStore } from "@/application/useAuthStore";
+import { useAdminStore } from "@/application/useAdminStore";
 import { useChatStore, normalizeStudentId, isTeacherOrAdminId, type ChatMessage } from "@/application/useChatStore";
 import { extractTeacherId } from "@/infrastructure/services/FirebaseSyncService";
 import { useStore, type StudentData } from "@/application/useStore";
@@ -215,6 +216,10 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
 
   useEffect(() => {
     initSync();
+    const unsubAdmin = useAdminStore.getState().initAdminSubscriptions();
+    return () => {
+      if (unsubAdmin) unsubAdmin();
+    };
   }, [initSync]);
 
   const teacherFileInputRef = useRef<HTMLInputElement>(null);
@@ -293,8 +298,6 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     });
     return () => unsub();
   }, []);
-
-
 
   const handleStartClassSession = async (sessionNum: number) => {
     const now = Date.now();
@@ -447,28 +450,34 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   }, [TEACHER_ID, user?.role]);
 
   useEffect(() => {
-    // Live subscription (a one-time get() left the badge stale until full reload).
     try {
-      // Listen to both the actual teacher ID and the fallback "teacher-1" queue 
-      // used by students who aren't explicitly linked to a teacher yet
-      const pendingRef = ref(database, `ai_pending_approvals/${TEACHER_ID}`);
-      const fallbackRef = ref(database, `ai_pending_approvals/teacher-1`);
-
-      const handleData = (snapshot: any) => {
-        const rawData = snapshot.val();
-        const data = (rawData && typeof rawData === 'object') ? rawData : {};
-        return Object.keys(data).map((key) => ({ id: key, ...data[key as keyof typeof data] }));
-      };
-
-      const unsubscribe1 = onValue(pendingRef, (snap) => {
-        setTeacherApprovals(handleData(snap));
+      const rootPendingRef = ref(database, 'ai_pending_approvals');
+      const unsubscribe = onValue(rootPendingRef, (snap) => {
+        if (!snap.exists()) {
+          setTeacherApprovals([]);
+          setFallbackApprovals([]);
+          return;
+        }
+        const raw = snap.val() || {};
+        const allList: PendingAIApproval[] = [];
+        Object.keys(raw).forEach((k) => {
+          const item = raw[k];
+          if (item && typeof item === 'object') {
+            if (item.studentId || item.suggestedRoute) {
+              allList.push({ id: k, ...item });
+            } else {
+              Object.keys(item).forEach((subK) => {
+                const subItem = item[subK];
+                if (subItem && typeof subItem === 'object') {
+                  allList.push({ id: subK, ...subItem });
+                }
+              });
+            }
+          }
+        });
+        setTeacherApprovals(allList);
       });
-      
-      const unsubscribe2 = onValue(fallbackRef, (snap) => {
-        setFallbackApprovals(handleData(snap));
-      });
-
-      return () => { unsubscribe1(); unsubscribe2(); };
+      return () => unsubscribe();
     } catch {
       SocraticEngine.getPendingApprovals(TEACHER_ID).then(setTeacherApprovals).catch(() => {});
     }

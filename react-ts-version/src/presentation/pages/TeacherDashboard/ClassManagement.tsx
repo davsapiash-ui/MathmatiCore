@@ -48,9 +48,9 @@ export function ClassManagement({
   const [studentStates, setStudentStates] = useState<StudentGateState[]>(INITIAL_GATE_STUDENTS);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  // We're working with a single default school & class based on the strict hierarchy
-  const currentClass = classes[0];
-  const currentSchool = schools.find(s => s.id === currentClass?.schoolId);
+  // We're working with a single default school & class based on the strict hierarchy with reliable fallback
+  const currentClass = classes.length > 0 ? classes[0] : { id: 'class_1', name: 'המבקרים', schoolId: 'school_bikorot', studentLimit: 12 };
+  const currentSchool = schools.find(s => s.id === currentClass?.schoolId) || schools[0] || { id: 'school_bikorot', name: 'בית ספר ביקורת' };
 
   useEffect(() => {
     const studentsRef = ref(database, 'users/students');
