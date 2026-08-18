@@ -47,13 +47,15 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
     if (!studentId && !rawStudentId) return;
 
     let cancelled = false;
+    let unsubStudent: (() => void) | null = null;
     const targetId = studentId || rawStudentId;
 
     authReady.then(() => {
       if (cancelled) return;
 
       const studentRef = ref(database, `users/students/${targetId}`);
-      const unsub = onValue(studentRef, (snap) => {
+      unsubStudent = onValue(studentRef, (snap) => {
+        if (cancelled) return;
         if (snap.exists()) {
           const val = snap.val();
           setLiveStudentData(val);
@@ -111,6 +113,17 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
 
               // Synthesize chronological snapshot progression
               const stepRatio = (idx + 1) / radarHistory.length;
+              const ws = workspaceState;
+              const hasTask = !!ws.activeTask;
+              const dynamicEquation = hasTask 
+                ? (ws.activeTask.numberA != null && ws.activeTask.numberB != null 
+                    ? `${ws.activeTask.numberA} ${ws.activeTask.isSubtraction ? '-' : '+'} ${ws.activeTask.numberB} = ?` 
+                    : ws.activeTask.titleHe || 'תרגיל פעיל')
+                : (sessionNum === 1 ? 'בניית המספר 124 וחקירת פריטה' : '128 + 35 = ?');
+              
+              const dynamicTitle = hasTask ? ws.activeTask.titleHe : (sessionNum === 1 ? 'מפגש 1: ארגז החול הדיגיטלי המונחה' : 'מפגש 4: אלגוריתם החיבור במאונך');
+              const dynamicInstruction = hasTask ? (ws.activeTask.instructionHe || details) : details;
+
               return {
                 id: item.id || `event_${idx}`,
                 timestamp: ts,
@@ -122,23 +135,23 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
                 delaySeconds: delay,
                 selfRegulationFlag,
                 stateSnapshot: {
-                  counts: {
-                    hundreds: Math.max(0, Math.round(currentCounts.hundreds * stepRatio)),
-                    tens: Math.max(0, Math.round(currentCounts.tens * (1 + (idx % 2 === 0 ? 0 : 1)))),
-                    units: Math.max(0, Math.round(currentCounts.units * (idx % 3 === 0 ? 0.6 : 1.2))),
+                  counts: item.stateSnapshot?.counts || {
+                    hundreds: Math.max(0, Math.round((currentCounts.hundreds || 0) * stepRatio)),
+                    tens: Math.max(0, Math.round((currentCounts.tens || 0) * (1 + (idx % 2 === 0 ? 0 : 1)))),
+                    units: Math.max(0, Math.round((currentCounts.units || 0) * (idx % 3 === 0 ? 0.6 : 1.2))),
                     thousands: currentCounts.thousands || 0,
                   },
-                  answerDigits: {
-                    hundreds: idx >= 3 ? String(currentCounts.hundreds || '1') : '',
-                    tens: idx >= 2 ? String(currentCounts.tens || '2') : '',
-                    units: idx >= 1 ? String(currentCounts.units || '4') : '',
+                  answerDigits: item.stateSnapshot?.answerDigits || ws.answerDigits || {
+                    hundreds: idx >= 3 ? String(currentCounts.hundreds ?? '1') : '',
+                    tens: idx >= 2 ? String(currentCounts.tens ?? '2') : '',
+                    units: idx >= 1 ? String(currentCounts.units ?? '4') : '',
                   },
-                  carryDigits: {
+                  carryDigits: item.stateSnapshot?.carryDigits || ws.carryDigits || {
                     tens: idx >= 2 ? '1' : '',
                   },
-                  taskTitle: sessionNum === 1 ? 'מפגש 1: ארגז החול הדיגיטלי המונחה' : 'מפגש 4: אלגוריתם החיבור במאונך',
-                  equation: sessionNum === 1 ? 'בניית המספר 124 וחקירת פריטה' : '128 + 35 = ?',
-                  stepInstruction: details,
+                  taskTitle: dynamicTitle,
+                  equation: dynamicEquation,
+                  stepInstruction: dynamicInstruction,
                 }
               };
             });
@@ -243,11 +256,12 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
           }
         }
       });
-
-      return () => unsub();
     });
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      if (unsubStudent) unsubStudent();
+    };
   }, [studentId, rawStudentId]);
 
   // Automated playback step timer
@@ -267,14 +281,17 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
     return () => { if (interval) clearInterval(interval); };
   }, [isPlaying, events.length, playbackSpeed]);
 
+  const wsLive = liveStudentData?.workspaceState;
   const currentEvent = events[currentEventIndex] || events[0];
   const snap = currentEvent?.stateSnapshot || {
-    counts: { units: 4, tens: 2, hundreds: 1, thousands: 0 },
-    answerDigits: { units: '4', tens: '2', hundreds: '1' },
-    carryDigits: {},
-    taskTitle: 'מפגש 1: ארגז החול הדיגיטלי',
-    equation: 'ייצוג 124 בבית המספרים',
-    stepInstruction: 'חקירה פעילה בבית המספרים',
+    counts: wsLive?.counts || { units: 4, tens: 2, hundreds: 1, thousands: 0 },
+    answerDigits: wsLive?.answerDigits || { units: '4', tens: '2', hundreds: '1' },
+    carryDigits: wsLive?.carryDigits || {},
+    taskTitle: wsLive?.activeTask?.titleHe || 'מפגש 1: ארגז החול הדיגיטלי',
+    equation: wsLive?.activeTask?.numberA != null 
+      ? `${wsLive.activeTask.numberA} ${wsLive.activeTask.isSubtraction ? '-' : '+'} ${wsLive.activeTask.numberB} = ?`
+      : 'ייצוג 124 בבית המספרים',
+    stepInstruction: wsLive?.activeTask?.instructionHe || 'חקירה פעילה בבית המספרים',
   };
 
   const currentTotalValue = (snap.counts.thousands * 1000) + (snap.counts.hundreds * 100) + (snap.counts.tens * 10) + snap.counts.units;
@@ -349,12 +366,12 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
                     <div className="text-[10px] font-bold text-slate-400 mb-1.5">הזנת ספרות התלמיד בתיבות התוצאה:</div>
                     
                     {/* Memory Circles Row */}
-                    <div className="flex gap-2 mb-1.5">
-                      <div className="w-7 h-7 rounded-full border-2 border-dashed border-purple-300 dark:border-purple-800 flex items-center justify-center text-xs font-bold text-purple-600">
-                        {snap.carryDigits?.tens || ''}
-                      </div>
+                    <div className="flex gap-2 mb-1.5" dir="ltr">
                       <div className="w-7 h-7 rounded-full border-2 border-dashed border-slate-200 dark:border-slate-800 flex items-center justify-center text-xs text-slate-300">
                         -
+                      </div>
+                      <div className="w-7 h-7 rounded-full border-2 border-dashed border-purple-300 dark:border-purple-800 flex items-center justify-center text-xs font-bold text-purple-600">
+                        {snap.carryDigits?.tens || ''}
                       </div>
                       <div className="w-7 h-7 rounded-full border-2 border-dashed border-slate-200 dark:border-slate-800 flex items-center justify-center text-xs text-slate-300">
                         -
@@ -362,7 +379,7 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
                     </div>
 
                     {/* Result Digit Boxes matching column colors */}
-                    <div className="flex gap-2">
+                    <div className="flex gap-2" dir="ltr">
                       <div className="flex flex-col items-center">
                         <span className="text-[9px] font-bold text-amber-500 mb-0.5">מאות</span>
                         <div className="w-9 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-400 flex items-center justify-center font-black text-base text-amber-700 dark:text-amber-300 font-mono shadow-sm">
@@ -408,7 +425,7 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
                   </div>
 
                   {/* 3 Columns: Hundreds, Tens, Units grounded from bottom */}
-                  <div className="grid grid-cols-3 gap-2 h-44 border border-slate-800/80 rounded-xl p-2 bg-slate-900/60">
+                  <div className="grid grid-cols-3 gap-2 h-44 border border-slate-800/80 rounded-xl p-2 bg-slate-900/60" dir="ltr">
                     
                     {/* Hundreds Column */}
                     <div className="border-l border-slate-800/80 pl-1 flex flex-col justify-between items-center">

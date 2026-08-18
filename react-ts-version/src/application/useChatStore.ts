@@ -101,7 +101,9 @@ export const useChatStore = create<ChatState>()(
     setActiveRoomId: (activeRoomId: string | null) => set({ activeRoomId }),
     
     initSync: () => {
-      const { user, role } = useAuthStore.getState();
+      const authState = typeof useAuthStore?.getState === 'function' ? useAuthStore.getState() : ({} as any);
+      const user = authState?.user;
+      const role = authState?.role;
       if (!user) return; // Only sync if authenticated
       const userId = ((user.uid || (user as any).id || '') as string).trim();
       const isStudent = role === 'student' || (!isTeacherOrAdminId(userId) && userId.startsWith('student_'));

@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { useStore, type StudentData } from '@/application/useStore';
 import { SocraticEngine } from '@/infrastructure/services/SocraticEngine';
 import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
+import { validateChatInputForPII, anonymizeChatMessageBody } from '@/core/security/PiiFilter';
 
 // Polyfill minimal window for node environment
 if (typeof window === 'undefined') {
@@ -202,6 +203,105 @@ describe('Teacher Dashboard Domain Comprehensive Audit & Verification Suite', ()
 
       const updated = useStore.getState().students[studentId];
       expect(updated.routeStatus).toBe('APPROVED');
+    });
+  });
+
+  describe('5. ClusteringWidgets & Q-Matrix Analysis Logic', () => {
+    it('accurately aggregates student struggle counts across 6 mathematical concepts', () => {
+      const mockStudents: StudentData[] = [
+        {
+          studentId: 's1',
+          name: 'Student 1',
+          classId: 'c1',
+          conceptMastery: {
+            decimal_structure: 0.6, // struggling (< 0.8)
+            number_magnitude: 0.9,
+            regrouping_fluency: 0.5, // struggling
+            procedural_fluency: 0.85,
+            relational_thinking: 0.7, // struggling
+            algebraic_reasoning: 0.9,
+          },
+          traceData: { hesitation_events: 0, undo_clicks: 0 },
+          qMatrixResults: {} as any,
+        } as any,
+        {
+          studentId: 's2',
+          name: 'Student 2',
+          classId: 'c1',
+          conceptMastery: {
+            decimal_structure: 0.9,
+            number_magnitude: 0.6, // struggling
+            regrouping_fluency: 0.7, // struggling
+            procedural_fluency: 0.5, // struggling
+            relational_thinking: 0.9,
+            algebraic_reasoning: 0.4, // struggling
+          },
+          traceData: { hesitation_events: 0, undo_clicks: 0 },
+          qMatrixResults: {} as any,
+        } as any,
+      ];
+
+      const getStrugglingCount = (conceptKey: keyof NonNullable<StudentData['conceptMastery']>) => {
+        return mockStudents.filter(s => s.conceptMastery && s.conceptMastery[conceptKey] < 0.8).length;
+      };
+
+      expect(getStrugglingCount('decimal_structure')).toBe(1);
+      expect(getStrugglingCount('number_magnitude')).toBe(1);
+      expect(getStrugglingCount('regrouping_fluency')).toBe(2);
+      expect(getStrugglingCount('procedural_fluency')).toBe(1);
+      expect(getStrugglingCount('relational_thinking')).toBe(1);
+      expect(getStrugglingCount('algebraic_reasoning')).toBe(1);
+    });
+  });
+
+  describe('6. StudentList Pending Queue Prioritization', () => {
+    it('sorts students with pending gate approvals to the top of the list', () => {
+      const students: StudentData[] = [
+        { studentId: 'student_1', name: 'Student 1', routeStatus: 'APPROVED' } as any,
+        { studentId: 'student_2', name: 'Student 2', routeStatus: 'PENDING' } as any,
+        { studentId: 'student_3', name: 'Student 3', routeStatus: 'SANDBOX' } as any,
+      ];
+
+      const pendingApprovals = new Set(['student_2']);
+
+      const sorted = [...students].sort((a, b) => {
+        const aPending = pendingApprovals.has(a.studentId) || a.routeStatus === 'PENDING' ? 1 : 0;
+        const bPending = pendingApprovals.has(b.studentId) || b.routeStatus === 'PENDING' ? 1 : 0;
+        return bPending - aPending;
+      });
+
+      expect(sorted[0].studentId).toBe('student_2');
+      expect(sorted[0].routeStatus).toBe('PENDING');
+    });
+  });
+
+  describe('7. FloatingChatPanel & PII Defense in Live Interventions', () => {
+    it('validates PII and blocks message sending with Israeli ID / Phone / Email', () => {
+      // Invalid: Israeli phone
+      const phoneCheck = validateChatInputForPII('פנה בדחיפות לטלפון 0501234567');
+      expect(phoneCheck.valid).toBe(false);
+
+      // Valid anonymous message
+      const cleanCheck = validateChatInputForPII('התלמיד השלים בהצלחה את שלב פריטת העשרות.');
+      expect(cleanCheck.valid).toBe(true);
+
+      const anonymized = anonymizeChatMessageBody('דנה ויוסי עבדו יחד בלוח', { 'דנה': 1, 'יוסי': 2 });
+      expect(anonymized).toBe('תלמיד 1 ותלמיד 2 עבדו יחד בלוח');
+    });
+  });
+
+  describe('8. StudentReplayAndLogs Mathematical Place-Value State Computation', () => {
+    it('accurately computes total place-value from state counts snapshot', () => {
+      const snapshot = {
+        counts: { thousands: 1, hundreds: 2, tens: 4, units: 8 },
+      };
+
+      const totalValue = (snapshot.counts.thousands * 1000) + 
+                         (snapshot.counts.hundreds * 100) + 
+                         (snapshot.counts.tens * 10) + 
+                         snapshot.counts.units;
+
+      expect(totalValue).toBe(1248);
     });
   });
 

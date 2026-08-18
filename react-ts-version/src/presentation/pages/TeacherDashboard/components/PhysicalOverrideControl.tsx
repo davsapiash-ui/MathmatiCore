@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { type StudentData, useStore } from '@/application/useStore';
 import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
 import { ShieldAlert, Check, RefreshCw } from 'lucide-react';
@@ -15,6 +15,14 @@ export function PhysicalOverrideControl({ student }: Props) {
   const [isASD, setIsASD] = useState<boolean>(student?.isASD || false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  useEffect(() => {
+    if (student) {
+      setRouteStatus(student.routeStatus || 'SANDBOX');
+      setDifficultyRecommendation(String(student.difficultyRecommendation || 'LEVEL_1'));
+      setIsASD(Boolean(student.isASD));
+    }
+  }, [student?.studentId, student?.routeStatus, student?.difficultyRecommendation, student?.isASD]);
 
   if (!student) return null;
 

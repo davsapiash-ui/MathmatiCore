@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { type StudentData } from '@/application/useStore';
 import { normalizeStudentId } from '@/application/useChatStore';
@@ -21,6 +21,14 @@ export function StudentSideDrawer({ student, onClose, isPendingApproval, onAppro
   const [activeTab, setActiveTab] = useState<'replays' | 'blueprint' | 'override'>(
     isPendingApproval ? 'blueprint' : 'replays'
   );
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
   if (!student) return null;
 

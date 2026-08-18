@@ -4,6 +4,7 @@ import { X, Send, Minus, Mic, ImageIcon, CheckCheck } from 'lucide-react';
 import { useChatStore, normalizeStudentId } from '@/application/useChatStore';
 import { stt } from '@/infrastructure/services/STTService';
 import { toast } from 'sonner';
+import { validateChatInputForPII, anonymizeChatMessageBody } from '@/core/security/PiiFilter';
 
 interface Props {
   student: StudentData;
@@ -33,11 +34,11 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
 
   useEffect(() => {
     // Mark as read when opened
-    const unread = studentMessages.some(m => m.senderId === student.studentId && !m.read);
+    const unread = studentMessages.some(m => normalizeStudentId(m.senderId) === normStudentId && !m.read);
     if (unread && !isMinimized) {
-      markAsRead(teacherId, student.studentId);
+      markAsRead(teacherId, normStudentId);
     }
-  }, [studentMessages, isMinimized, teacherId, student.studentId, markAsRead]);
+  }, [studentMessages, isMinimized, teacherId, normStudentId, markAsRead]);
 
   useEffect(() => {
     // Auto-scroll to bottom
@@ -48,7 +49,16 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
 
   const handleSend = () => {
     if (!inputText.trim()) return;
-    sendMessage(teacherId, 'מורה', student.studentId, inputText.trim());
+
+    // Module 22: Tier 1 Client-Side Regex Validation
+    const validation = validateChatInputForPII(inputText);
+    if (!validation.valid) {
+      toast.warning(validation.errorHe || 'הודעה מכילה פרטים מזהים (PII). יש להשתמש במזהה 1-12 בלבד.');
+      return;
+    }
+
+    const cleanText = anonymizeChatMessageBody(inputText.trim());
+    sendMessage(teacherId, 'מורה', normStudentId, cleanText);
     setInputText('');
   };
 

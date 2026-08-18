@@ -38,7 +38,7 @@ export function StudentList({ students, onSelectStudent, pendingApprovals }: Pro
                 >
                   <td className="py-4 px-6 font-bold text-slate-800 dark:text-slate-200 text-lg">
                     <div className="flex items-center gap-3">
-                      {student.name || student.studentId.replace(/^student_/, '')}
+                      {student.name || (student.studentId.startsWith('student_user') ? student.studentId.replace('student_user', 'תלמיד ') : student.studentId.startsWith('student_') ? student.studentId.replace('student_', 'תלמיד ') : student.studentId)}
                       {isPending && (
                         <span className="animate-pulse bg-amber-500 rounded-full w-2 h-2" title="ממתין לאישור" />
                       )}

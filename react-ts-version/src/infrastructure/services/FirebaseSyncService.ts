@@ -250,6 +250,9 @@ export class FirebaseSyncService {
     this.unsubscribeWorkspace = useWorkspaceStore.subscribe((state) => {
       if (this.isInitialLoad) return;
       
+      const activeTasks = getActiveTasks(state);
+      const currentTask = activeTasks[state.standardTaskIdx] || null;
+
       const syncableData: Record<string, any> = {
         sessionNumber: state.sessionNumber,
         isASD: state.isASD,
@@ -257,10 +260,23 @@ export class FirebaseSyncService {
         qflow: state.qflow,
         flowStatus: state.flowStatus,
         counts: state.counts,
-
+        answerDigits: state.answerDigits,
+        carryDigits: state.carryDigits,
+        probeAnswer: state.probeAnswer,
+        selectedChoiceId: state.selectedChoiceId,
+        isBoardLocked: state.isBoardLocked,
+        keyboardState: state.keyboardState,
         undoCount: state.undoCount,
         hesitationCount: state.hesitationCount,
         hasInteracted: state.hasInteracted,
+        activeTask: currentTask ? {
+          id: currentTask.id,
+          titleHe: currentTask.titleHe,
+          instructionHe: currentTask.instructionHe,
+          numberA: currentTask.numberA,
+          numberB: currentTask.numberB,
+          isSubtraction: currentTask.isSubtraction,
+        } : null,
       };
 
       // Protection against Socratic Engine Desync: Only sync aiTasks if explicitly set by local user action
@@ -335,6 +351,9 @@ export class FirebaseSyncService {
 
   private getSyncableWorkspaceState() {
     const state = useWorkspaceStore.getState();
+    const activeTasks = getActiveTasks(state);
+    const currentTask = activeTasks[state.standardTaskIdx] || null;
+
     return {
       sessionNumber: state.sessionNumber,
       isASD: state.isASD,
@@ -342,10 +361,23 @@ export class FirebaseSyncService {
       qflow: state.qflow,
       flowStatus: state.flowStatus,
       counts: state.counts,
-
+      answerDigits: state.answerDigits,
+      carryDigits: state.carryDigits,
+      probeAnswer: state.probeAnswer,
+      selectedChoiceId: state.selectedChoiceId,
+      isBoardLocked: state.isBoardLocked,
+      keyboardState: state.keyboardState,
       undoCount: state.undoCount,
       hesitationCount: state.hesitationCount,
       hasInteracted: state.hasInteracted,
+      activeTask: currentTask ? {
+        id: currentTask.id,
+        titleHe: currentTask.titleHe,
+        instructionHe: currentTask.instructionHe,
+        numberA: currentTask.numberA,
+        numberB: currentTask.numberB,
+        isSubtraction: currentTask.isSubtraction,
+      } : null,
       aiTasks: state.aiTasks
     };
   }
@@ -437,9 +469,14 @@ export class FirebaseSyncService {
   public async syncApproveRoute(rawStudentId: string) {
     if (!rawStudentId) return;
     const studentId = normalizeStudentId(rawStudentId);
-    await update(ref(database, `users/students/${studentId}`), { routeStatus: 'APPROVED' });
+    const gatePayload = {
+      routeStatus: 'APPROVED',
+      teacher_gate_approved: true,
+      gateApprovedAt: Date.now(),
+    };
+    await update(ref(database, `users/students/${studentId}`), gatePayload);
     if (rawStudentId !== studentId) {
-      await update(ref(database, `users/students/${rawStudentId}`), { routeStatus: 'APPROVED' }).catch(() => {});
+      await update(ref(database, `users/students/${rawStudentId}`), gatePayload).catch(() => {});
     }
   }
 

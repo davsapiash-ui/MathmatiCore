@@ -30,6 +30,7 @@ import { StudentReplayAndLogs } from "./TeacherDashboard/components/StudentRepla
 import { StudentSideDrawer } from "./TeacherDashboard/components/StudentSideDrawer";
 import { FloatingChatPanel } from "./TeacherDashboard/components/FloatingChatPanel";
 import { HeatmapGrid } from "./TeacherDashboard/components/HeatmapGrid";
+import { ClusteringWidgets } from "./TeacherDashboard/components/ClusteringWidgets";
 import { SocraticEngine, type PendingAIApproval } from "@/infrastructure/services/SocraticEngine";
 import { useTeacherTour } from "./TeacherDashboard/useTeacherTour";
 import type { RadarAlert } from "@/types/dashboard";
@@ -243,6 +244,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   const [activeTab, setActiveTab] = useState<TabType>(
     routeStudentId ? "diagnostic_reports" : "clustering",
   );
+  const [activeClusterFilter, setActiveClusterFilter] = useState<string | null>(null);
 
   const [inputText, setInputText] = useState("");
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(
@@ -1118,7 +1120,8 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
             </header>
             <HeatmapGrid
               onDrillDown={(studentId) => {
-                const student = allStudents.find(s => s.studentId === studentId);
+                const norm = normalizeStudentId(studentId);
+                const student = allStudents.find(s => s.studentId === studentId || normalizeStudentId(s.studentId) === norm);
                 if (student) setDrawerStudent(student);
               }}
             />
@@ -1137,6 +1140,15 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                 </p>
               </div>
             </header>
+
+            {/* Interactive Concept Group Widgets */}
+            <div className="mb-6">
+              <ClusteringWidgets 
+                students={allStudents} 
+                activeFilter={activeClusterFilter} 
+                onFilterChange={setActiveClusterFilter} 
+              />
+            </div>
 
             <AccessibleCard className="p-8 bg-ws-surface/80 backdrop-blur-xl mb-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] hover:shadow-xl transition-all duration-300 border border-ws-surface2 rounded-2xl relative overflow-hidden group">
               <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
@@ -1462,7 +1474,8 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
             <ClassManagement
               allStudents={allStudents}
               onDrillDown={(studentId) => {
-                const student = allStudents.find(s => s.studentId === studentId);
+                const norm = normalizeStudentId(studentId);
+                const student = allStudents.find(s => s.studentId === studentId || normalizeStudentId(s.studentId) === norm);
                 if (student) setDrawerStudent(student);
               }}
             />

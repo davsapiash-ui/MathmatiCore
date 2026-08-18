@@ -42,6 +42,13 @@ export function TeacherSidebar({
           פדגוגיה ומעקב
         </div>
         <button
+          id="tour-tab-heatmap"
+          onClick={() => handleTabChange("heatmap")}
+          className={`w-full text-right px-4 py-3 rounded-xl transition-all ${activeTab === "heatmap" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg text-ws-soft"}`}
+        >
+          מפת חום ורדאר (<span dir="ltr">Heatmap & Radar</span>)
+        </button>
+        <button
           id="tour-tab-clustering"
           onClick={() => handleTabChange("clustering")}
           className={`w-full text-right px-4 py-3 rounded-xl transition-all ${activeTab === "clustering" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg text-ws-soft"}`}
