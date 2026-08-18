@@ -1,4 +1,4 @@
-import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { onCall, HttpsError, CallableRequest } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
 
@@ -20,7 +20,7 @@ export const authenticateStudentSession = onCall(
     invoker: "public",
     cors: true,
   },
-  async (request) => {
+  async (request: CallableRequest<AuthenticateStudentRequest>) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "User must be signed in anonymously first");
     }

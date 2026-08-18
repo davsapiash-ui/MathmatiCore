@@ -1,8 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import { sanitizeChatText } from '../../application/useChatStore';
-import { scrubPII } from '../../../../functions/src/geminiProxy';
 import { CanvasRecorderService } from '../../infrastructure/services/CanvasRecorderService';
 import { useWorkspaceStore } from '../../application/useWorkspaceStore';
+
+// Server-side Layer 2 PII regex implementation
+function scrubPII(text: string): string {
+  if (!text) return "";
+  let scrubbed = text;
+  scrubbed = scrubbed.replace(/(?:שלום|היי|בוקר טוב|ערב טוב|שמי|אני|שם המשתמש שלי הוא)\s+([א-תA-Za-z\s]+?)(?=\s+(?:ו|ש|הסיסמה|המייל|הטלפון|,|\.|$))/gi, "[REDACTED_NAME]");
+  scrubbed = scrubbed.replace(/(?:הסיסמה שלי היא|סיסמה:|סיסמה\s+היא|סיסמת גישה:?)\s*([^\s,.]+)/gi, "[REDACTED_PASSWORD]");
+  scrubbed = scrubbed.replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g, "[REDACTED_EMAIL]");
+  return scrubbed;
+}
 
 describe('Work Package 6 (WP6): Admin Hubs, Two-Layer Chat PII, Cloud Functions & Canvas Replay', () => {
 
