@@ -1,4 +1,7 @@
 import { create } from 'zustand';
+import { ref, onValue } from 'firebase/database';
+import { database } from '@/infrastructure/firebase';
+import { normalizeStudentId } from '@/application/useChatStore';
 
 import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
 import type { MasteryProfile } from '@/core/QMatrix';
@@ -144,7 +147,87 @@ interface AppState {
     }
   ) => void;
   updateStudent: (studentId: string, updates: Partial<StudentData>) => void;
+  initStoreSubscriptions: () => (() => void);
 }
+
+let studentsUnsubscribe: (() => void) | null = null;
+
+export const initStoreSubscriptions = (): (() => void) => {
+  if (studentsUnsubscribe) return studentsUnsubscribe;
+
+  try {
+    const studentsRef = ref(database, 'users/students');
+    studentsUnsubscribe = onValue(studentsRef, (snapshot) => {
+      if (!snapshot.exists()) return;
+      const rawData = snapshot.val();
+      if (!rawData || typeof rawData !== 'object') return;
+
+      const current = { ...useStore.getState().students };
+      let hasChanged = false;
+
+      Object.keys(rawData).forEach((uid) => {
+        const row = rawData[uid] || {};
+        const normUid = normalizeStudentId(uid);
+        if (!normUid.startsWith('student_user')) return;
+
+        const num = normUid.replace(/[^0-9]/g, '');
+        const defaultName = num ? `תלמיד ${num}` : normUid;
+        const cleanName = row.name || row.profile?.displayName || row.studentName || defaultName;
+
+        const prev = current[normUid] || current[uid] || {};
+
+        const updated: StudentData = {
+          ...prev,
+          studentId: normUid,
+          classId: row.classId || prev.classId || 'class_1',
+          name: cleanName,
+          completedMeeting2: Boolean(row.completedMeeting2 ?? prev.completedMeeting2 ?? false),
+          highestCompletedMeeting: typeof row.highestCompletedMeeting === 'number' ? row.highestCompletedMeeting : (prev.highestCompletedMeeting || 0),
+          routeRecommendation: row.routeRecommendation || prev.routeRecommendation || null,
+          routeStatus: row.routeStatus || prev.routeStatus || null,
+          difficultyRecommendation: row.difficultyRecommendation || prev.difficultyRecommendation || null,
+          isASD: row.isASD !== undefined ? row.isASD : prev.isASD,
+          physicalOverride: Boolean(row.physicalOverride ?? prev.physicalOverride ?? false),
+          physicalOverrideActive: Boolean(row.physicalOverrideActive ?? prev.physicalOverrideActive ?? false),
+          overrideUpdatedAt: row.overrideUpdatedAt || prev.overrideUpdatedAt,
+          diagnosticReport: row.diagnosticReport || prev.diagnosticReport || null,
+          isOnline: row.isOnline !== undefined ? Boolean(row.isOnline) : (row.onlineStatus === 'active' ? true : Boolean(prev.isOnline)),
+          qMatrixResults: {
+            ...(prev.qMatrixResults || {}),
+            ...(row.qMatrixResults || {})
+          },
+          traceData: {
+            hesitation_events: Math.max(prev.traceData?.hesitation_events || 0, row.traceData?.hesitation_events || 0, row.workspaceState?.hesitationCount || 0),
+            undo_clicks: Math.max(prev.traceData?.undo_clicks || 0, row.traceData?.undo_clicks || 0, row.workspaceState?.undoCount || 0),
+            semantic_trace: row.traceData?.semantic_trace || prev.traceData?.semantic_trace || []
+          },
+          workspaceState: row.workspaceState || prev.workspaceState,
+          additionBoardEnabled: row.additionBoardEnabled !== undefined ? row.additionBoardEnabled : prev.additionBoardEnabled,
+          reflections: row.reflections || prev.reflections
+        };
+
+        current[normUid] = updated;
+        if (uid !== normUid) {
+          current[uid] = updated;
+        }
+        hasChanged = true;
+      });
+
+      if (hasChanged) {
+        useStore.setState({ students: current, firebaseLoaded: true });
+      }
+    });
+  } catch (err) {
+    console.error("Failed to initialize store subscriptions:", err);
+  }
+
+  return () => {
+    if (studentsUnsubscribe) {
+      studentsUnsubscribe();
+      studentsUnsubscribe = null;
+    }
+  };
+};
 
 // Generate 12 users for Pilot / Audit (ביקורת) environment
 const generateInitialStudents = (): Record<string, StudentData> => {
@@ -184,6 +267,7 @@ export const useStore = create<AppState>()(
       students: initialStudents,
       globalChatEnabled: true,
       firebaseLoaded: false,
+      initStoreSubscriptions: () => initStoreSubscriptions(),
       
       toggleGlobalChat: () => set((state) => ({ globalChatEnabled: !state.globalChatEnabled })),
 

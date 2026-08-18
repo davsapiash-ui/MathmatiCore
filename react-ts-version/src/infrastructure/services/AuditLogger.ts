@@ -30,7 +30,9 @@ class AuditLoggerService {
     }
 
     try {
-      await authReady;
+      if (authReady && typeof (authReady as any).then === 'function') {
+        await authReady;
+      }
       const timestamp = Date.now();
       const sanitizedDetails = maskPII(details);
       

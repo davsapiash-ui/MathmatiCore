@@ -217,8 +217,10 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   useEffect(() => {
     initSync();
     const unsubAdmin = useAdminStore.getState().initAdminSubscriptions();
+    const unsubStore = useStore.getState().initStoreSubscriptions();
     return () => {
       if (unsubAdmin) unsubAdmin();
+      if (unsubStore) unsubStore();
     };
   }, [initSync]);
 
@@ -437,6 +439,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
           } as any;
         });
         setStudents(formattedStudents);
+        useStore.setState({ students: formattedStudents, firebaseLoaded: true });
         setIsLoading(false);
       }, 300);
     }, (error) => {

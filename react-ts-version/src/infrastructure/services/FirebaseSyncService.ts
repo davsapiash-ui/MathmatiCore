@@ -197,6 +197,18 @@ export class FirebaseSyncService {
             }
           }
 
+          // Real-time synchronization of teacher physical overrides to student workspace
+          const wsOverrides: Record<string, any> = {};
+          if (data.isASD !== undefined && data.isASD !== useWorkspaceStore.getState().isASD) {
+            wsOverrides.isASD = Boolean(data.isASD);
+          }
+          if (data.workspaceState?.isBoardLocked !== undefined && data.workspaceState.isBoardLocked !== useWorkspaceStore.getState().isBoardLocked) {
+            wsOverrides.isBoardLocked = Boolean(data.workspaceState.isBoardLocked);
+          }
+          if (Object.keys(wsOverrides).length > 0) {
+            useWorkspaceStore.setState(wsOverrides);
+          }
+
           // Update the top-level useStore so StudentHub knows about route approvals and Q-Matrix
           const currentStudents = useStore.getState().students;
           const updatedStudent = {
