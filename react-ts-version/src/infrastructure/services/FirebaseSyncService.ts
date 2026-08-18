@@ -812,12 +812,14 @@ export class FirebaseSyncService {
     if (!this.unsubscribeSchools) {
       const schoolsRef = ref(database, 'schools');
       this.unsubscribeSchools = onValue(schoolsRef, (snapshot) => {
-        if (snapshot.exists()) {
-          const schoolsVal = snapshot.val();
-          const schools = schoolsVal ? Object.values(schoolsVal) as School[] : [];
-          useAdminStore.setState({ schools });
-        } else {
-          useAdminStore.setState({ schools: [] });
+        if (typeof useAdminStore?.setState === 'function') {
+          if (snapshot.exists()) {
+            const schoolsVal = snapshot.val();
+            const schools = schoolsVal ? Object.values(schoolsVal) as School[] : [];
+            useAdminStore.setState({ schools });
+          } else {
+            useAdminStore.setState({ schools: [] });
+          }
         }
       }, (error) => {
         console.error("Schools listener error:", error);
@@ -832,9 +834,11 @@ export class FirebaseSyncService {
       if (!this.unsubscribeClasses) {
         const classesRef = ref(database, 'classes');
         this.unsubscribeClasses = onValue(classesRef, (snapshot) => {
-          const classesVal = snapshot.val();
-          const classes = classesVal ? Object.values(classesVal) as ClassRoom[] : [];
-          useAdminStore.setState({ classes });
+          if (typeof useAdminStore?.setState === 'function') {
+            const classesVal = snapshot.val();
+            const classes = classesVal ? Object.values(classesVal) as ClassRoom[] : [];
+            useAdminStore.setState({ classes });
+          }
         }, (error) => {
           console.error("Classes listener error:", error);
         });
@@ -847,9 +851,11 @@ export class FirebaseSyncService {
       if (!this.unsubscribePublicClasses) {
         const publicClassesRef = ref(database, 'public_classes');
         this.unsubscribePublicClasses = onValue(publicClassesRef, (snapshot) => {
-          const classesVal = snapshot.val();
-          const classes = classesVal ? Object.values(classesVal) as ClassRoom[] : [];
-          useAdminStore.setState({ classes });
+          if (typeof useAdminStore?.setState === 'function') {
+            const classesVal = snapshot.val();
+            const classes = classesVal ? Object.values(classesVal) as ClassRoom[] : [];
+            useAdminStore.setState({ classes });
+          }
         }, (error) => {
           console.error("Public classes listener error:", error);
         });
