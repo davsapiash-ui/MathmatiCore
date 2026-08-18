@@ -158,100 +158,35 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
 
             setEvents(mapped);
           } else {
-            // High-fidelity chronological progression for Session 1 / Session 4
+            // Authentic live representation when no events are logged yet
             const now = Date.now();
+            const ws = workspaceState;
+            const currentTask = ws.activeTask;
+            const realCounts = ws.counts || { units: 0, tens: 0, hundreds: 0, thousands: 0 };
+            const hasActivity = (realCounts.units + realCounts.tens + realCounts.hundreds + realCounts.thousands > 0) || !!ws.hasInteracted;
+
             setEvents([
               { 
-                id: '1', 
-                timestamp: now - 45000, 
-                timeFormatted: '10:00:05', 
-                actionType: 'BLOCK_DRAG', 
-                actionLabelHe: 'גרירת מאה לטור המאות', 
+                id: 'live_snapshot', 
+                timestamp: now, 
+                timeFormatted: new Date(now).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' }), 
+                actionType: hasActivity ? 'BLOCK_DRAG' : 'BLOCK_DRAG', 
+                actionLabelHe: hasActivity ? 'מצב פעיל בלוח' : 'הלוח מוכן וממתין לפעילות', 
                 vraMilestone: 'ייצוג בלבני דינס', 
-                details: 'הצבת 1 מאה בלוח בית המספרים', 
-                delaySeconds: 2, 
+                details: hasActivity ? 'פעילות שוטפת בלוח בית המספרים של התלמיד' : 'טרם בוצעו פעולות במפגש זה - הלוח נקי', 
+                delaySeconds: 0, 
                 selfRegulationFlag: false,
                 stateSnapshot: {
-                  counts: { hundreds: 1, tens: 0, units: 0, thousands: 0 },
-                  answerDigits: { hundreds: '', tens: '', units: '' },
-                  taskTitle: 'מפגש 1: היכרות וחקירה בבית המספרים',
-                  equation: 'בניית המספר 124 ופריטה',
-                  stepInstruction: 'גררו 1 מאה, 2 עשרות ו-4 יחידות לבית המספרים',
+                  counts: realCounts,
+                  answerDigits: ws.answerDigits || {},
+                  carryDigits: ws.carryDigits || {},
+                  taskTitle: currentTask?.titleHe || `מפגש ${sessionNum}: מרחב עבודה פעיל`,
+                  equation: currentTask?.numberA != null 
+                    ? `${currentTask.numberA} ${currentTask.isSubtraction ? '-' : '+'} ${currentTask.numberB} = ?` 
+                    : (hasActivity ? 'ייצוג בבית המספרים' : 'ממתין להזנת תרגיל'),
+                  stepInstruction: currentTask?.instructionHe || 'גררו לבנים לבית המספרים או פתרו את התרגיל בדף התרגיל',
                 }
-              },
-              { 
-                id: '2', 
-                timestamp: now - 35000, 
-                timeFormatted: '10:00:15', 
-                actionType: 'BLOCK_DRAG', 
-                actionLabelHe: 'גרירת 2 עשרות לטור העשרות', 
-                vraMilestone: 'ייצוג בלבני דינס', 
-                details: 'הצבת 2 עשרות בלוח בית המספרים', 
-                delaySeconds: 4, 
-                selfRegulationFlag: false,
-                stateSnapshot: {
-                  counts: { hundreds: 1, tens: 2, units: 0, thousands: 0 },
-                  answerDigits: { hundreds: '', tens: '', units: '' },
-                  taskTitle: 'מפגש 1: היכרות וחקירה בבית המספרים',
-                  equation: 'בניית המספר 124 ופריטה',
-                  stepInstruction: 'הוספת 2 עשרות לטור העשרות',
-                }
-              },
-              { 
-                id: '3', 
-                timestamp: now - 25000, 
-                timeFormatted: '10:00:25', 
-                actionType: 'BLOCK_DRAG', 
-                actionLabelHe: 'גרירת 4 יחידות לטור היחידות', 
-                vraMilestone: 'ייצוג בלבני דינס', 
-                details: 'השלמת ייצוג המספר 124 בלוח', 
-                delaySeconds: 5, 
-                selfRegulationFlag: false,
-                stateSnapshot: {
-                  counts: { hundreds: 1, tens: 2, units: 4, thousands: 0 },
-                  answerDigits: { hundreds: '1', tens: '2', units: '4' },
-                  taskTitle: 'מפגש 1: היכרות וחקירה בבית המספרים',
-                  equation: '124 בלבני דינס',
-                  stepInstruction: 'הקלדת המספר 124 בתיבות התוצאה הצבעוניות',
-                }
-              },
-              { 
-                id: '4', 
-                timestamp: now - 15000, 
-                timeFormatted: '10:00:35', 
-                actionType: 'DECOMPOSE', 
-                actionLabelHe: 'פריטת עשרת אחת ל-10 יחידות', 
-                vraMilestone: 'המרה עשרונית', 
-                details: 'לחיצה על עשרת לפריטה עשרונית', 
-                delaySeconds: 6, 
-                selfRegulationFlag: false,
-                stateSnapshot: {
-                  counts: { hundreds: 1, tens: 1, units: 14, thousands: 0 },
-                  answerDigits: { hundreds: '1', tens: '1', units: '14' },
-                  carryDigits: { tens: '1' },
-                  taskTitle: 'מפגש 1: פריטה והמרה',
-                  equation: '1 מאה + 1 עשרת + 14 יחידות',
-                  stepInstruction: 'פריטת עשרת ל-10 יחידות ובדיקת שוויון הכמות',
-                }
-              },
-              { 
-                id: '5', 
-                timestamp: now - 5000, 
-                timeFormatted: '10:00:45', 
-                actionType: 'UNDO_CLICK', 
-                actionLabelHe: 'ביטול פעולה (Undo)', 
-                vraMilestone: 'ויסות עצמי שקט', 
-                details: 'לחיצה על כפתור ביטול לחזרה למצב קודם', 
-                delaySeconds: 3, 
-                selfRegulationFlag: true,
-                stateSnapshot: {
-                  counts: { hundreds: 1, tens: 2, units: 4, thousands: 0 },
-                  answerDigits: { hundreds: '1', tens: '2', units: '4' },
-                  taskTitle: 'מפגש 1: ויסות עצמי ובקרה',
-                  equation: 'חזרה לייצוג הסטנדרטי 124',
-                  stepInstruction: 'השלמת משימת היעד בהצלחה מלאה',
-                }
-              },
+              }
             ]);
           }
         }

@@ -140,6 +140,59 @@ export function ClassManagement({
     }
   };
 
+  const [isResetting, setIsResetting] = useState(false);
+  const [resetFeedback, setResetFeedback] = useState<string | null>(null);
+
+  const handleResetClassToVirginState = async () => {
+    if (!window.confirm('האם לאפס את כל נתוני תלמידי כיתת הביקורת לאפס מוחלט (התחלה נקייה לחלוטין)?')) {
+      return;
+    }
+
+    setIsResetting(true);
+    try {
+      const updates: Record<string, any> = {};
+      for (let i = 1; i <= 30; i++) {
+        const studentPayload = {
+          studentId: `student_${i}`,
+          name: `תלמיד ${i}`,
+          isOnline: false,
+          currentTaskIdx: 0,
+          activeStep: 1,
+          routeStatus: 'GREEN_PATH',
+          difficultyRecommendation: 'standard',
+          highestCompletedMeeting: 0,
+          completedMeeting2: false,
+          teacher_gate_approved: false,
+          enhanced_support_profile: false,
+          physicalOverrideActive: false,
+          radar_history: null,
+          workspaceState: {
+            sessionNumber: 1,
+            isASD: false,
+            standardTaskIdx: 0,
+            counts: { units: 0, tens: 0, hundreds: 0, thousands: 0 },
+            undoCount: 0,
+            hesitationCount: 0,
+            hasInteracted: false,
+            flowStatus: 'task'
+          }
+        };
+
+        updates[`users/students/student_${i}`] = studentPayload;
+        updates[`students/student_${i}`] = studentPayload;
+      }
+
+      await update(ref(database), updates);
+      setResetFeedback('✓ כל נתוני כיתת הביקורת אופסו בהצלחה לאפס מוחלט!');
+      setTimeout(() => setResetFeedback(null), 5000);
+    } catch (err) {
+      console.error('Failed to reset class data:', err);
+      setResetFeedback('שגיאה באיפוס: ' + (err as Error).message);
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   return (
     <div className="p-6 md:p-10 max-w-7xl mx-auto w-full h-full flex flex-col space-y-8 animate-in fade-in duration-500" dir="rtl">
       
@@ -169,13 +222,31 @@ export function ClassManagement({
             </p>
           </div>
 
-          <div className="flex items-center gap-3 bg-white/15 border border-white/25 backdrop-blur-md px-4 py-3 rounded-2xl">
-            <div className="text-center">
-              <span className="text-[11px] text-indigo-100 block font-semibold">תלמידי הפיילוט</span>
-              <span className="text-xl font-black text-white">12 / 12</span>
+          <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3">
+            <button
+              onClick={handleResetClassToVirginState}
+              disabled={isResetting}
+              className="bg-red-500/90 hover:bg-red-600 active:scale-95 text-white font-black text-xs px-4 py-2.5 rounded-xl border border-red-300/40 shadow-lg backdrop-blur-sm flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+              title="מחיקת כל הנתונים של תלמידי הכיתה והחזרתם למצב נקי לחלוטין"
+            >
+              <span>🧹</span>
+              <span>{isResetting ? 'מאפס נתונים...' : 'איפוס כל נתוני הכיתה לאפס'}</span>
+            </button>
+
+            <div className="flex items-center gap-3 bg-white/15 border border-white/25 backdrop-blur-md px-4 py-3 rounded-2xl">
+              <div className="text-center">
+                <span className="text-[11px] text-indigo-100 block font-semibold">תלמידי הפיילוט</span>
+                <span className="text-xl font-black text-white">12 / 12</span>
+              </div>
             </div>
           </div>
         </div>
+
+        {resetFeedback && (
+          <div className="mt-4 p-3 bg-white/20 border border-white/30 rounded-xl text-sm font-bold text-center text-white backdrop-blur-md animate-fade-in">
+            {resetFeedback}
+          </div>
+        )}
       </header>
 
       {/* Module 20: Teacher Gate Approvals Section */}

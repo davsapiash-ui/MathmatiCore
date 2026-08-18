@@ -265,8 +265,6 @@ export function VerticalAdditionTask({
         {colPlaces.map((place, j) => {
           if (j < firstAnswerCol) return <div key={`e${j}`} aria-hidden="true" />;
           const ansIdx = j - firstAnswerCol;
-          const isLocked = isColumnInputLocked(place);
-
           return (
             <div key={`ans${j}`} className="flex items-center justify-center">
               <input
@@ -277,12 +275,9 @@ export function VerticalAdditionTask({
                 inputMode="numeric"
                 maxLength={1}
                 value={answerDigits[place] ?? ''}
-                readOnly={isLocked}
-                onClick={isLocked ? handleLockedInteraction : undefined}
+                readOnly={false}
                 aria-label={`ספרת ה${PLACE_LABEL_HE[place]} בתשובה`}
-                className={`rounded-lg border-2 text-center font-mono font-black bg-ws-surface text-ws-ink transition-all ${
-                  isLocked ? 'opacity-60 cursor-not-allowed bg-gray-50' : 'focus:outline-none focus:ring-2 focus:ring-ws-accent'
-                }`}
+                className="rounded-lg border-2 text-center font-mono font-black bg-ws-surface text-ws-ink transition-all focus:outline-none focus:ring-2 focus:ring-ws-accent"
                 style={{ width: CELL - 12, height: CELL - 12, fontSize: CELL * 0.48, borderColor: PLACE_TINT[place], ...shakeStyle }}
                 onFocus={() => setFocusedPlace(place)}
                 onBlur={() => setFocusedPlace(null)}

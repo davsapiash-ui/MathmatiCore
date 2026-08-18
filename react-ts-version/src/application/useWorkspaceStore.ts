@@ -220,7 +220,7 @@ function resetTaskInteraction(isASD = false) {
     isBoardLocked: false,
     hasRequestedBasicHelp: false,
     taskStartTime: Date.now(),
-    keyboardState: (isASD ? 'LOCKED' : 'UNLOCKED') as KeyboardState,
+    keyboardState: 'UNLOCKED' as KeyboardState,
     isAdditionHelperOpen: false,
   };
 }
@@ -368,9 +368,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
   function startTask(_taskId: string) {
     set(resetTaskInteraction());
 
-    const s = get();
-    // Strict VRA Bridge: lock keyboard in ASD mode, UNLESS in Session 2 (pure diagnostic, no scaffolding)
-    set({ keyboardState: s.isASD && s.sessionNumber !== 2 ? 'LOCKED' : 'UNLOCKED' });
+    set({ keyboardState: 'UNLOCKED' });
 
 
   }
@@ -1579,6 +1577,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     setKeyboardSocratic: () => {
       set((s) => ({
         keyboardState: 'SOCRATIC_ONLY',
+        helpState: 'socratic',
         aiSocraticHint: s.aiSocraticHint || DEFAULT_SOCRATIC_HINT
       }));
       get().fetchSocraticHint();
@@ -1633,33 +1632,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       return remaining;
     },
 
-    isColumnInputLocked: (place, numberA, numberB, isSubtraction) => {
-      const s = get();
-      if (s.keyboardState === 'LOCKED' || s.keyboardState === 'SOCRATIC_ONLY') return true;
-
-      const aStr = String(numberA);
-      const bStr = String(numberB);
-      const cols = Math.max(aStr.length, bStr.length, 4);
-      const colPlaces: Place[] = PLACE_ORDER.slice(0, cols).reverse();
-      const colIdx = colPlaces.indexOf(place);
-      if (colIdx === -1) return false;
-
-      const padDigits = (str: string): number => {
-        const idx = colIdx - (cols - str.length);
-        return idx >= 0 ? parseInt(str[idx], 10) : 0;
-      };
-
-      const da = padDigits(aStr);
-      const db = padDigits(bStr);
-      const carry = parseInt(s.carryDigits[place] || '0', 10);
-
-      const requiresExchange = isSubtraction ? (da < db) : (da + db + carry >= 10);
-      if (requiresExchange) {
-        const conversionDone = isSubtraction ? s.hasUngrouped : s.hasGrouped;
-        if (!conversionDone && !s.carryDigits[place]) {
-          return true;
-        }
-      }
+    isColumnInputLocked: (_place, _numberA, _numberB, _isSubtraction) => {
+      // Inputs must always remain open and editable so the student is never locked out
       return false;
     },
     checkTimeExceeded: () => {
