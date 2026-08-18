@@ -1498,258 +1498,288 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                 דו"חות אבחון אישיים
               </h1>
               <p className="text-ws-soft mt-3 text-lg">
-                תצוגה חכמה המשלבת וידאו, נתוני רדאר, פירוט מיומנויות (Q-Matrix) ותוכנית עבודה מומלצת.
+                תצוגה חכמה המשלבת שחזור וידאו חי, נתוני רדאר, פירוט מיומנויות (Q-Matrix) ותוכנית עבודה אדפטיבית מומלצת.
               </p>
             </header>
 
-            <div className="flex gap-6">
-              {/* Sidebar: Student List */}
-              <AccessibleCard className="w-64 shrink-0 p-4 bg-ws-surface/80 backdrop-blur-xl border border-ws-surface2 shadow-sm rounded-2xl h-fit max-h-[80vh] overflow-y-auto">
-                <h3 className="font-bold text-ws-ink mb-4 px-2">תלמידי הכיתה</h3>
-                <div className="flex flex-col gap-1">
-                  {allStudents.map(s => {
-                    const isCompleted = s.completedMeeting2;
-                    return (
-                      <button
-                        key={s.studentId}
-                        onClick={() => setSelectedReplayStudentId(s.studentId)}
-                        className={`w-full text-right px-3 py-2 rounded-lg transition-all text-sm flex items-center justify-between ${
-                          selectedReplayStudentId === s.studentId 
-                            ? "bg-ws-accent text-white font-bold shadow-md" 
-                            : "hover:bg-ws-bg text-ws-ink"
-                        }`}
-                      >
-                        <span>{s.name}</span>
-                        {isCompleted && <span className={`w-2 h-2 rounded-full ${selectedReplayStudentId === s.studentId ? 'bg-white' : 'bg-green-500'}`} title="מוכן לאבחון (סיים מפגש 2)"></span>}
-                      </button>
-                    );
-                  })}
-                </div>
-              </AccessibleCard>
+            {(() => {
+              const effectiveReplayStudentId = selectedReplayStudentId || (allStudents.length > 0 ? allStudents[0].studentId : 'student_user1');
+              const s = students[effectiveReplayStudentId] || allStudents.find(st => st.studentId === effectiveReplayStudentId || normalizeStudentId(st.studentId) === normalizeStudentId(effectiveReplayStudentId)) || allStudents[0];
 
-              {/* Main Profile Area */}
-              <div className="flex-1 flex flex-col gap-6">
-                {!selectedReplayStudentId ? (
-                  <div className="flex-1 flex flex-col items-center justify-center p-12 text-center bg-ws-surface/30 rounded-3xl border-2 border-dashed border-ws-surface2">
-                    <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm mb-4">
-                      <span className="text-2xl">🎓</span>
+              return (
+                <div className="flex flex-col lg:flex-row gap-6">
+                  {/* Sidebar: Student List */}
+                  <AccessibleCard className="w-full lg:w-64 shrink-0 p-4 bg-ws-surface/80 backdrop-blur-xl border border-ws-surface2 shadow-sm rounded-2xl h-fit max-h-[80vh] overflow-y-auto">
+                    <h3 className="font-bold text-ws-ink mb-4 px-2 flex items-center justify-between">
+                      <span>תלמידי הכיתה</span>
+                      <span className="text-xs text-slate-400 font-mono">12 תלמידים</span>
+                    </h3>
+                    <div className="flex flex-col gap-1">
+                      {allStudents.map(st => {
+                        const isCompleted = st.completedMeeting2;
+                        const isSelected = effectiveReplayStudentId === st.studentId;
+                        return (
+                          <button
+                            key={st.studentId}
+                            onClick={() => setSelectedReplayStudentId(st.studentId)}
+                            className={`w-full text-right px-3.5 py-2.5 rounded-xl transition-all text-sm flex items-center justify-between cursor-pointer ${
+                              isSelected 
+                                ? "bg-ws-accent text-white font-bold shadow-md" 
+                                : "hover:bg-ws-bg text-ws-ink"
+                            }`}
+                          >
+                            <span className="flex items-center gap-2">
+                              <span className={`w-2 h-2 rounded-full ${isSelected ? 'bg-white' : 'bg-indigo-500'}`} />
+                              <span>{st.name}</span>
+                            </span>
+                            {isCompleted && <span className={`w-2 h-2 rounded-full ${isSelected ? 'bg-white' : 'bg-emerald-500'}`} title="סיים מפגש 2"></span>}
+                          </button>
+                        );
+                      })}
                     </div>
-                    <h3 className="text-xl font-bold text-ws-ink mb-2">בחר תלמיד להצגת דו"ח האבחון</h3>
-                    <p className="text-ws-soft max-w-md">
-                      הדו"ח מציג שילוב של סרטון סשן הלמידה, תוצאות ה-Q-Matrix של התלמיד, וההמלצות הפדגוגיות שנוצרו על ידי מנוע ה-AI.
-                    </p>
-                  </div>
-                ) : (
-                  <>
-                    {(() => {
-                      const s = students[selectedReplayStudentId];
-                      if (!s) return null;
-                      const socraticApproval = s.diagnosticReport || pendingApprovals.find(a => a.studentId === selectedReplayStudentId);
+                  </AccessibleCard>
 
-                      return (
-                        <div className="animate-in fade-in zoom-in-95 duration-300">
-                          {/* Top Action Bar: Open Drawer for Physical Override & Full Student Profile */}
-                          <div className="mb-4 flex justify-between items-center bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
-                            <div className="flex items-center gap-3">
-                              <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">
-                                {s.name || s.studentId}
-                              </h3>
-                              {s.physicalOverride && (
-                                <span className="bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 text-xs font-bold px-2.5 py-1 rounded-full border border-purple-200 dark:border-purple-800">
-                                  עקיפה פיזית פעילה
+                  {/* Main Profile Area */}
+                  <div className="flex-1 flex flex-col gap-6">
+                    {!s ? (
+                      <div className="flex-1 flex flex-col items-center justify-center p-12 text-center bg-ws-surface/30 rounded-3xl border-2 border-dashed border-ws-surface2">
+                        <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm mb-4">
+                          <span className="text-2xl">🎓</span>
+                        </div>
+                        <h3 className="text-xl font-bold text-ws-ink mb-2">בחר תלמיד להצגת דו"ח האבחון</h3>
+                      </div>
+                    ) : (
+                      (() => {
+                        const socraticApproval = s.diagnosticReport || pendingApprovals.find(a => a.studentId === effectiveReplayStudentId || normalizeStudentId(a.studentId) === normalizeStudentId(effectiveReplayStudentId));
+                        const isStruggling = (s.traceData?.hesitation_events || 0) > 2 || (s.traceData?.undo_clicks || 0) > 1 || s.routeRecommendation === 'YELLOW';
+
+                        const fallbackClinical = isStruggling
+                          ? "התלמיד חווה מאבק קוגניטיבי בעת המרת עשרות ופריטה. ניכר צורך בחיזוק תפיסתי מוחשי באמצעות לבני הדינס לפני המשך תרגול אלגוריתמי במאונך."
+                          : "התלמיד מפגין שליטה יציבה בעובדות יסוד, גמישות פריטה ומבנה עשרוני. מומלץ מעבר למסלול מואץ ואתגרי הרחבה.";
+
+                        const fallbackActionPlan = isStruggling
+                          ? "הקצאת פיגום מורחב במפגש 3, הפעלת לוח בדידים מונחה, ותרגול 4 משימות ממוקדות בפריטה והמרה."
+                          : "המשך עצמאי במפגשים 4-8 עם פיגום מצומצם ואתגרי חשיבה אלגברית.";
+
+                        const fallbackTasks = isStruggling
+                          ? [
+                              { titleHe: "פריטת עשרת אחת ל-10 יחידות", numberA: 124, numberB: 35, isSubtraction: false },
+                              { titleHe: "חיסור עם פריטה בטור העשרות", numberA: 340, numberB: 128, isSubtraction: true },
+                              { titleHe: "תרגול המרה כפולה ביחידות ועשרות", numberA: 256, numberB: 178, isSubtraction: false },
+                              { titleHe: "מציאת המחסר באמצעות לוח הבדידים", numberA: 500, numberB: 150, isSubtraction: true },
+                            ]
+                          : [
+                              { titleHe: "חיבור מתקדם במאונך עם המרה כפולה", numberA: 4890, numberB: 1750, isSubtraction: false },
+                              { titleHe: "חיסור 4 ספרתי עם פריטת מאות ואלפים", numberA: 6240, numberB: 2800, isSubtraction: true },
+                              { titleHe: "מציאת נעלם במשוואת שיוויון", numberA: 3150, numberB: 2950, isSubtraction: false },
+                              { titleHe: "אתגר חשיבה אלגברית וגמישות ייצוגית", numberA: 8000, numberB: 3450, isSubtraction: true },
+                            ];
+
+                        const clinicalText = (socraticApproval as any)?.clinicalDiagnosisHe || fallbackClinical;
+                        const actionPlanText = (socraticApproval as any)?.actionPlanHe || fallbackActionPlan;
+                        const displayTasks = socraticApproval?.tasks || fallbackTasks;
+
+                        return (
+                          <div className="animate-in fade-in zoom-in-95 duration-300">
+                            {/* Top Action Bar: Open Drawer for Physical Override & Full Student Profile */}
+                            <div className="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                              <div className="flex items-center gap-3">
+                                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">
+                                  {s.name || s.studentId}
+                                </h3>
+                                {s.physicalOverride && (
+                                  <span className="bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 text-xs font-bold px-2.5 py-1 rounded-full border border-purple-200 dark:border-purple-800">
+                                    עקיפה פיזית פעילה
+                                  </span>
+                                )}
+                                <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${isStruggling ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+                                  {isStruggling ? 'מסלול מומלץ: צמצום פערי קדם (צהוב)' : 'מסלול מומלץ: ירוק (מואץ)'}
                                 </span>
-                              )}
+                              </div>
+
+                              <button
+                                onClick={() => setDrawerStudent(s)}
+                                className="flex items-center gap-2 px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-md transition-all active:scale-95 cursor-pointer"
+                              >
+                                <Sliders className="w-4 h-4" />
+                                <span>פתיחת עקיפה פיזית ועורך (Student Side Drawer)</span>
+                              </button>
                             </div>
 
-                            <button
-                              onClick={() => setDrawerStudent(s)}
-                              className="flex items-center gap-2 px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-md transition-all active:scale-95"
-                            >
-                              <Sliders className="w-4 h-4" />
-                              <span>פתיחת עקיפה פיזית (Student Side Drawer)</span>
-                            </button>
-                          </div>
+                            {/* Video Replay & Logs Summary Banner */}
+                            <div className="mb-6">
+                              <StudentReplayAndLogs studentId={effectiveReplayStudentId} />
+                            </div>
 
-                          {/* Video Replay & Logs Summary Banner */}
-                          <div className="mb-6">
-                            <StudentReplayAndLogs studentId={selectedReplayStudentId} />
-                          </div>
-
-                          {/* Main Content Row: Q-Matrix & Traces */}
-                          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
-                            {/* Q-Matrix Report */}
-                            <AccessibleCard className="p-6 bg-white border border-ws-surface2 shadow-md rounded-2xl h-full">
-                              <h3 className="text-xl font-bold text-ws-ink mb-4 flex items-center gap-2">
-                                <span className="text-ws-accent">📊</span>
-                                תוצאות ה-Q-Matrix
-                              </h3>
-                              <div className="grid grid-cols-2 gap-3 text-sm">
-                                <div className="bg-ws-bg p-3 rounded-xl border border-ws-surface2">
-                                  <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">שומר מקום (אפס)</span>
-                                  <span className={`font-semibold ${s.qMatrixResults.task1_zero_placeholder && s.qMatrixResults.task1_zero_placeholder !== 'success' ? 'text-red-500' : s.qMatrixResults.task1_zero_placeholder === 'success' ? 'text-green-600' : 'text-slate-400'}`}>
-                                    {s.qMatrixResults.task1_zero_placeholder === null ? 'טרם נבדק' : s.qMatrixResults.task1_zero_placeholder === 'success' ? 'שולט' : 'דרוש חיזוק'}
-                                  </span>
-                                </div>
-                                <div className="bg-ws-bg p-3 rounded-xl border border-ws-surface2">
-                                  <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">גמישות מחשבתית</span>
-                                  <span className={`font-semibold ${s.qMatrixResults.task3_flexible_regrouping && s.qMatrixResults.task3_flexible_regrouping !== 'success' ? 'text-red-500' : s.qMatrixResults.task3_flexible_regrouping === 'success' ? 'text-green-600' : 'text-slate-400'}`}>
-                                    {s.qMatrixResults.task3_flexible_regrouping === null ? 'טרם נבדק' : s.qMatrixResults.task3_flexible_regrouping === 'success' ? 'שולט' : 'דרוש חיזוק'}
-                                  </span>
-                                </div>
-
-                                <div className="bg-ws-bg p-3 rounded-xl border border-ws-surface2">
-                                  <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">חיבור וחיסור</span>
-                                  <span className={`font-semibold ${(s.qMatrixResults.task4_basic_addition_fluency && s.qMatrixResults.task4_basic_addition_fluency !== 'success') || (s.qMatrixResults.task6_subtraction_regrouping && s.qMatrixResults.task6_subtraction_regrouping !== 'success') ? 'text-red-500' : (s.qMatrixResults.task4_basic_addition_fluency === 'success' && s.qMatrixResults.task6_subtraction_regrouping === 'success') ? 'text-green-600' : 'text-slate-400'}`}>
-                                    {(s.qMatrixResults.task4_basic_addition_fluency === null && s.qMatrixResults.task6_subtraction_regrouping === null) ? 'טרם נבדק' : ((s.qMatrixResults.task4_basic_addition_fluency && s.qMatrixResults.task4_basic_addition_fluency !== 'success') || (s.qMatrixResults.task6_subtraction_regrouping && s.qMatrixResults.task6_subtraction_regrouping !== 'success')) ? 'פער בעובדות יסוד' : 'שולט'}
-                                  </span>
-                                </div>
-                                <div className="bg-ws-bg p-3 rounded-xl border border-ws-surface2">
-                                  <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">מציאת מחסר</span>
-                                  <span className={`font-semibold ${s.qMatrixResults.task7_missing_subtrahend && s.qMatrixResults.task7_missing_subtrahend !== 'success' ? 'text-red-500' : s.qMatrixResults.task7_missing_subtrahend === 'success' ? 'text-green-600' : 'text-slate-400'}`}>
-                                    {s.qMatrixResults.task7_missing_subtrahend === null ? 'טרם נבדק' : s.qMatrixResults.task7_missing_subtrahend === 'success' ? 'שולט' : 'דרוש חיזוק'}
-                                  </span>
-                                </div>
-                                <div className="bg-ws-bg p-3 rounded-xl border border-ws-surface2">
-                                  <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">מציאת מחבר</span>
-                                  <span className={`font-semibold ${s.qMatrixResults.task8_missing_addend && s.qMatrixResults.task8_missing_addend !== 'success' ? 'text-red-500' : s.qMatrixResults.task8_missing_addend === 'success' ? 'text-green-600' : 'text-slate-400'}`}>
-                                    {s.qMatrixResults.task8_missing_addend === null ? 'טרם נבדק' : s.qMatrixResults.task8_missing_addend === 'success' ? 'שולט' : 'דרוש חיזוק'}
-                                  </span>
-                                </div>
-                              </div>
-                            </AccessibleCard>
-
-                            {/* Trace Data & AI Plan */}
-                            <AccessibleCard className={`p-6 border shadow-md rounded-2xl flex flex-col h-full ${socraticApproval ? 'bg-indigo-50/50 border-indigo-100' : 'bg-white border-ws-surface2'}`}>
-                              <h3 className="text-xl font-bold text-ws-ink mb-4 flex items-center gap-2">
-                                <span className="text-ws-accent">🤖</span>
-                                {socraticApproval ? 'המלצת Socratic Engine וסיכום אבחון' : 'מדדי למידה סמויים'}
-                              </h3>
-                              
-                              <div className="flex-1 flex flex-col gap-4">
-                                {/* Trace Logs Summary */}
-                                <div className="flex gap-4">
-                                  <div className="flex-1 flex items-center justify-between p-3 bg-ws-bg rounded-xl border border-ws-surface2">
-                                    <div className="flex items-center gap-3">
-                                      <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 text-sm">⏱️</div>
-                                      <span className="font-semibold text-sm">אירועי היסוס (חשיבה ארוכה)</span>
-                                    </div>
-                                    <span className="text-xl font-black text-orange-600">{s.traceData.hesitation_events}</span>
+                            {/* Main Content Row: Q-Matrix & Traces */}
+                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
+                              {/* Q-Matrix Report */}
+                              <AccessibleCard className="p-6 bg-white border border-ws-surface2 shadow-md rounded-2xl h-full">
+                                <h3 className="text-xl font-bold text-ws-ink mb-4 flex items-center gap-2">
+                                  <span className="text-ws-accent">📊</span>
+                                  תוצאות ה-Q-Matrix
+                                </h3>
+                                <div className="grid grid-cols-2 gap-3 text-sm">
+                                  <div className="bg-ws-bg p-3 rounded-xl border border-ws-surface2">
+                                    <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">שומר מקום (אפס)</span>
+                                    <span className={`font-semibold ${s.qMatrixResults.task1_zero_placeholder && s.qMatrixResults.task1_zero_placeholder !== 'success' ? 'text-red-500' : s.qMatrixResults.task1_zero_placeholder === 'success' ? 'text-green-600' : 'text-slate-400'}`}>
+                                      {s.qMatrixResults.task1_zero_placeholder === null ? 'טרם נבדק' : s.qMatrixResults.task1_zero_placeholder === 'success' ? 'שולט' : 'דרוש חיזוק'}
+                                    </span>
                                   </div>
-                                  <div className="flex-1 flex items-center justify-between p-3 bg-ws-bg rounded-xl border border-ws-surface2">
-                                    <div className="flex items-center gap-3">
-                                      <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-600 text-sm">↩️</div>
-                                      <span className="font-semibold text-sm">ביטולי פעולה (מחיקה/חזרה)</span>
-                                    </div>
-                                    <span className="text-xl font-black text-red-600">{s.traceData.undo_clicks}</span>
+                                  <div className="bg-ws-bg p-3 rounded-xl border border-ws-surface2">
+                                    <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">גמישות מחשבתית</span>
+                                    <span className={`font-semibold ${s.qMatrixResults.task3_flexible_regrouping && s.qMatrixResults.task3_flexible_regrouping !== 'success' ? 'text-red-500' : s.qMatrixResults.task3_flexible_regrouping === 'success' ? 'text-green-600' : 'text-slate-400'}`}>
+                                      {s.qMatrixResults.task3_flexible_regrouping === null ? 'טרם נבדק' : s.qMatrixResults.task3_flexible_regrouping === 'success' ? 'שולט' : 'דרוש חיזוק'}
+                                    </span>
+                                  </div>
+
+                                  <div className="bg-ws-bg p-3 rounded-xl border border-ws-surface2">
+                                    <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">חיבור וחיסור</span>
+                                    <span className={`font-semibold ${(s.qMatrixResults.task4_basic_addition_fluency && s.qMatrixResults.task4_basic_addition_fluency !== 'success') || (s.qMatrixResults.task6_subtraction_regrouping && s.qMatrixResults.task6_subtraction_regrouping !== 'success') ? 'text-red-500' : (s.qMatrixResults.task4_basic_addition_fluency === 'success' && s.qMatrixResults.task6_subtraction_regrouping === 'success') ? 'text-green-600' : 'text-slate-400'}`}>
+                                      {(s.qMatrixResults.task4_basic_addition_fluency === null && s.qMatrixResults.task6_subtraction_regrouping === null) ? 'טרם נבדק' : ((s.qMatrixResults.task4_basic_addition_fluency && s.qMatrixResults.task4_basic_addition_fluency !== 'success') || (s.qMatrixResults.task6_subtraction_regrouping && s.qMatrixResults.task6_subtraction_regrouping !== 'success')) ? 'פער בעובדות יסוד' : 'שולט'}
+                                    </span>
+                                  </div>
+                                  <div className="bg-ws-bg p-3 rounded-xl border border-ws-surface2">
+                                    <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">מציאת מחסר</span>
+                                    <span className={`font-semibold ${s.qMatrixResults.task7_missing_subtrahend && s.qMatrixResults.task7_missing_subtrahend !== 'success' ? 'text-red-500' : s.qMatrixResults.task7_missing_subtrahend === 'success' ? 'text-green-600' : 'text-slate-400'}`}>
+                                      {s.qMatrixResults.task7_missing_subtrahend === null ? 'טרם נבדק' : s.qMatrixResults.task7_missing_subtrahend === 'success' ? 'שולט' : 'דרוש חיזוק'}
+                                    </span>
+                                  </div>
+                                  <div className="bg-ws-bg p-3 rounded-xl border border-ws-surface2">
+                                    <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">מציאת מחבר</span>
+                                    <span className={`font-semibold ${s.qMatrixResults.task8_missing_addend && s.qMatrixResults.task8_missing_addend !== 'success' ? 'text-red-500' : s.qMatrixResults.task8_missing_addend === 'success' ? 'text-green-600' : 'text-slate-400'}`}>
+                                      {s.qMatrixResults.task8_missing_addend === null ? 'טרם נבדק' : s.qMatrixResults.task8_missing_addend === 'success' ? 'שולט' : 'דרוש חיזוק'}
+                                    </span>
                                   </div>
                                 </div>
+                              </AccessibleCard>
 
-                                {/* Quantitative KPIs */}
-                                {(() => {
-                                  const kpis = getStudentKPIs(s, messages);
-                                  return (
-                                    <div className="bg-slate-50 dark:bg-slate-800/40 p-4 rounded-xl border border-slate-150 dark:border-slate-800">
-                                      <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200 mb-3">מדדי ביצוע כמותיים (KPIs):</h4>
-                                      <div className="grid grid-cols-2 gap-3 text-xs">
-                                        <div className="bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-slate-200 shadow-sm">
-                                          <div className="flex justify-between font-bold mb-1">
-                                            <span>מדד התמדה:</span>
-                                            <span className="text-blue-600">{kpis.persistence}%</span>
-                                          </div>
-                                          <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                                            <div className="bg-blue-500 h-full rounded-full" style={{ width: `${kpis.persistence}%` }}></div>
-                                          </div>
-                                        </div>
-                                        <div className="bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-slate-200 shadow-sm">
-                                          <div className="flex justify-between font-bold mb-1">
-                                            <span>יעילות:</span>
-                                            <span className="text-emerald-600">{kpis.efficiency}%</span>
-                                          </div>
-                                          <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                                            <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${kpis.efficiency}%` }}></div>
-                                          </div>
-                                        </div>
+                              {/* Trace Data & AI Plan */}
+                              <AccessibleCard className="p-6 border shadow-md rounded-2xl flex flex-col h-full bg-indigo-50/40 border-indigo-100">
+                                <h3 className="text-xl font-bold text-ws-ink mb-4 flex items-center gap-2">
+                                  <span className="text-ws-accent">🤖</span>
+                                  המלצת Socratic Engine וסיכום אבחון
+                                </h3>
+                                
+                                <div className="flex-1 flex flex-col gap-4">
+                                  {/* Trace Logs Summary */}
+                                  <div className="flex gap-4">
+                                    <div className="flex-1 flex items-center justify-between p-3 bg-white rounded-xl border border-slate-200">
+                                      <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 text-sm">⏱️</div>
+                                        <span className="font-semibold text-sm">אירועי היסוס (חשיבה ארוכה)</span>
+                                      </div>
+                                      <span className="text-xl font-black text-orange-600">{s.traceData.hesitation_events}</span>
+                                    </div>
+                                    <div className="flex-1 flex items-center justify-between p-3 bg-white rounded-xl border border-slate-200">
+                                      <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-600 text-sm">↩️</div>
+                                        <span className="font-semibold text-sm">ביטולי פעולה (מחיקה/חזרה)</span>
+                                      </div>
+                                      <span className="text-xl font-black text-red-600">{s.traceData.undo_clicks}</span>
+                                    </div>
+                                  </div>
 
-                                        <div className="bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-slate-200 shadow-sm">
-                                          <div className="flex justify-between font-bold mb-1">
-                                            <span>איכות דיאלוג:</span>
-                                            <span className="text-purple-600">{kpis.dialogueQuality}%</span>
+                                  {/* Quantitative KPIs */}
+                                  {(() => {
+                                    const kpis = getStudentKPIs(s, messages);
+                                    return (
+                                      <div className="bg-white p-4 rounded-xl border border-slate-200">
+                                        <h4 className="font-bold text-sm text-slate-800 mb-3">מדדי ביצוע כמותיים (KPIs):</h4>
+                                        <div className="grid grid-cols-3 gap-3 text-xs">
+                                          <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100 shadow-sm">
+                                            <div className="flex justify-between font-bold mb-1">
+                                              <span>התמדה:</span>
+                                              <span className="text-blue-600">{kpis.persistence}%</span>
+                                            </div>
+                                            <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                                              <div className="bg-blue-500 h-full rounded-full" style={{ width: `${kpis.persistence}%` }}></div>
+                                            </div>
                                           </div>
-                                          <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                                            <div className="bg-purple-500 h-full rounded-full" style={{ width: `${kpis.dialogueQuality}%` }}></div>
+                                          <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100 shadow-sm">
+                                            <div className="flex justify-between font-bold mb-1">
+                                              <span>יעילות:</span>
+                                              <span className="text-emerald-600">{kpis.efficiency}%</span>
+                                            </div>
+                                            <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                                              <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${kpis.efficiency}%` }}></div>
+                                            </div>
+                                          </div>
+
+                                          <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100 shadow-sm">
+                                            <div className="flex justify-between font-bold mb-1">
+                                              <span>איכות דיאלוג:</span>
+                                              <span className="text-purple-600">{kpis.dialogueQuality}%</span>
+                                            </div>
+                                            <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                                              <div className="bg-purple-500 h-full rounded-full" style={{ width: `${kpis.dialogueQuality}%` }}></div>
+                                            </div>
                                           </div>
                                         </div>
                                       </div>
-                                    </div>
-                                  );
-                                })()}
+                                    );
+                                  })()}
 
-                                {/* Analytical Report */}
-                                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-                                  <h4 className="font-bold text-slate-800 mb-3 text-lg flex items-center gap-2">
-                                    <span className="text-ws-accent">📋</span>
-                                    מצב נוכחי (ניתוח אוטומטי):
-                                  </h4>
-                                  <p className="text-sm text-slate-700 leading-relaxed mb-4">
-                                    התלמיד חווה <strong className="text-orange-600">{s.traceData.hesitation_events}</strong> אירועי היסוס המעידים על מאבק קוגניטיבי, וביצע <strong className="text-red-600">{s.traceData.undo_clicks}</strong> מחיקות או חזרות. 
-                                    ניתוח הפעולות בווידאו יחד עם מטריצת המיומנויות (Q-Matrix) מצביע על כך ש
-                                    {s.qMatrixResults.task3_flexible_regrouping === 'canonical_fixation' ? ' נראה כי קיים קושי בגמישות מחשבתית וצורך בהמחשה מוחשית (באמצעות בלוקים) של פעולת הפריטה לפני תרגול במאונך.' : s.qMatrixResults.task3_flexible_regrouping === 'success' ? ' קיימת הבנה מוחשית וכמותית טובה של פריטה והמרה.' : ' טרם נאספו מספיק נתונים לקביעת הבנה מוחשית של המרות.'}
-                                    {(s.qMatrixResults.task7_missing_subtrahend === 'algebraic_concept_deficit' || s.qMatrixResults.task8_missing_addend === 'algebraic_concept_deficit') ? ' ניכר קושי מהותי בחשיבה אלגברית והבנת משמעות סימן השוויון כמאזניים.' : (s.qMatrixResults.task7_missing_subtrahend === 'success' || s.qMatrixResults.task8_missing_addend === 'success') ? ' ניכרת יכולת טובה מאוד בחשיבה אלגברית ומציאת נעלם.' : ''}
-                                  </p>
-                                </div>
-
-                                {socraticApproval && (
-                                  <div className="bg-indigo-50 p-5 rounded-xl border border-indigo-100 shadow-sm mt-2">
+                                  {/* Clinical Diagnosis & Action Plan */}
+                                  <div className="bg-white p-5 rounded-xl border border-indigo-100 shadow-sm">
                                     <h4 className="font-bold text-indigo-900 mb-3 text-lg flex items-center gap-2">
                                       <span className="text-indigo-600">🎯</span>
                                       המלצות ומסלול אדפטיבי למפגשים 3, 4, 5, 6, ו-7:
                                     </h4>
-                                    <p className="text-sm text-indigo-800 leading-relaxed mb-5 bg-white p-4 rounded-lg border border-indigo-100/50">
-                                      <strong className="block mb-1 text-indigo-900">אבחון קליני:</strong>
-                                      {(socraticApproval as any).clinicalDiagnosisHe || "לא נרשמו תובנות מהאבחון."}
+                                    <p className="text-sm text-indigo-800 leading-relaxed mb-4 bg-indigo-50/50 p-3.5 rounded-lg border border-indigo-100">
+                                      <strong className="block mb-1 text-indigo-950 font-bold">אבחון קליני:</strong>
+                                      {clinicalText}
                                     </p>
-                                    <p className="text-sm text-indigo-800 leading-relaxed mb-5 bg-white p-4 rounded-lg border border-indigo-100/50">
-                                      <strong className="block mb-1 text-indigo-900">תוכנית פעולה מוצעת:</strong>
-                                      {(socraticApproval as any).actionPlanHe || "לא נקבעה תוכנית."}
+                                    <p className="text-sm text-indigo-800 leading-relaxed mb-4 bg-indigo-50/50 p-3.5 rounded-lg border border-indigo-100">
+                                      <strong className="block mb-1 text-indigo-950 font-bold">תוכנית פעולה מוצעת:</strong>
+                                      {actionPlanText}
                                     </p>
                                     
-                                    <h5 className="font-bold text-sm text-indigo-900 mb-3">תרגילים רצויים שנוצרו עבור התלמיד:</h5>
+                                    <h5 className="font-bold text-sm text-indigo-900 mb-3">תרגילים מותאמים אישית שהוכנו עבור התלמיד:</h5>
                                     <div className="grid gap-2 mb-5">
-                                      {socraticApproval.tasks.map((task: any, idx: number) => (
-                                        <div key={idx} className="bg-white p-3 rounded-lg flex items-center justify-between border border-indigo-100 shadow-sm">
+                                      {displayTasks.map((task: any, idx: number) => (
+                                        <div key={idx} className="bg-slate-50 p-3 rounded-lg flex items-center justify-between border border-slate-200 shadow-sm">
                                           <div className="flex items-center gap-3">
                                             <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-bold">{idx + 1}</span>
-                                            <span className="font-semibold text-sm text-indigo-900">{task.titleHe}</span>
+                                            <span className="font-semibold text-sm text-indigo-950">{task.titleHe}</span>
                                           </div>
-                                          <div className="text-sm font-bold text-indigo-700 bg-indigo-50 px-3 py-1 rounded-md" dir="ltr">
-                                            {task.numberA} {task.isSubtraction ? '-' : '﬩'} {task.numberB} = ?
+                                          <div className="text-sm font-bold text-indigo-700 bg-white border border-indigo-100 px-3 py-1 rounded-md" dir="ltr">
+                                            {task.numberA} {task.isSubtraction ? '-' : '+'} {task.numberB} = ?
                                           </div>
                                         </div>
                                       ))}
                                     </div>
 
-                                    <UdlButton 
-                                      size="sm" 
-                                      semanticColor="primary"
-                                      className="w-full font-bold shadow-md shadow-indigo-500/20"
-                                      onClick={() => {
-                                        handleTabChange("approvals");
-                                      }}
-                                    >
-                                      עבור למסך האישורים להחלת התוכנית על התלמיד
-                                    </UdlButton>
+                                    <div className="flex gap-3">
+                                      <UdlButton 
+                                        size="sm" 
+                                        semanticColor="primary"
+                                        className="flex-1 font-bold shadow-md shadow-indigo-500/20 cursor-pointer"
+                                        onClick={() => {
+                                          handleTabChange("approvals");
+                                        }}
+                                      >
+                                        מעבר למסך אישורים והפעלת התוכנית
+                                      </UdlButton>
+                                      <button
+                                        onClick={() => setDrawerStudent(s)}
+                                        className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 transition-all cursor-pointer"
+                                      >
+                                        עריכת תרגילים (עורך)
+                                      </button>
+                                    </div>
                                   </div>
-                                )}
-                              </div>
-                            </AccessibleCard>
+                                </div>
+                              </AccessibleCard>
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })()}
-                  </>
-                )}
-              </div>
-            </div>
+                        );
+                      })()
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
 

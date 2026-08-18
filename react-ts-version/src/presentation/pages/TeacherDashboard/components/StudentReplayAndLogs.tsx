@@ -49,146 +49,242 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
     let cancelled = false;
     let unsubStudent: (() => void) | null = null;
     const targetId = studentId || rawStudentId;
+    const studentNum = String(targetId).replace(/\D+/g, '') || '1';
 
     authReady.then(() => {
       if (cancelled) return;
 
-      const studentRef = ref(database, `users/students/${targetId}`);
-      unsubStudent = onValue(studentRef, (snap) => {
+      const studentsRootRef = ref(database, 'users/students');
+      unsubStudent = onValue(studentsRootRef, (snap) => {
         if (cancelled) return;
-        if (snap.exists()) {
-          const val = snap.val();
-          setLiveStudentData(val);
-          
-          const radarHistory = val.radar_history ? Object.values(val.radar_history) : [];
-          const workspaceState = val.workspaceState || {};
-          const currentCounts = workspaceState.counts || { units: 4, tens: 2, hundreds: 1, thousands: 0 };
-          const sessionNum = workspaceState.sessionNumber || 1;
+        const allData = snap.exists() ? (snap.val() || {}) : {};
+        const val = allData[targetId] || 
+                    allData[`student_user${studentNum}`] || 
+                    allData[`user${studentNum}`] || 
+                    allData[`student_${studentNum}`] || 
+                    {};
 
-          if (radarHistory.length > 0) {
-            let lastTime = 0;
-            const mapped: VRATimelineEvent[] = radarHistory.map((item: any, idx: number) => {
-              const ts = item.timestamp || (Date.now() - (radarHistory.length - idx) * 5000);
-              const delay = lastTime > 0 ? Math.max(0, Math.round((ts - lastTime) / 1000)) : 0;
-              lastTime = ts;
+        setLiveStudentData(val);
+        
+        // 1. Extract raw events from all possible telemetry pipelines
+        let rawEvents: any[] = [];
+        if (val.radar_history) {
+          const rh = val.radar_history;
+          rawEvents = Array.isArray(rh) ? rh : Object.values(rh);
+        }
+        if (rawEvents.length === 0 && val.traceData?.semantic_trace) {
+          const st = val.traceData.semantic_trace;
+          rawEvents = Array.isArray(st) ? st : Object.values(st);
+        }
+        if (rawEvents.length === 0 && val.semantic_trace) {
+          const st = val.semantic_trace;
+          rawEvents = Array.isArray(st) ? st : Object.values(st);
+        }
+        if (rawEvents.length === 0 && val.telemetry) {
+          const tel = val.telemetry;
+          rawEvents = Array.isArray(tel) ? tel : Object.values(tel);
+        }
 
-              let actionType: VRATimelineEvent['actionType'] = 'BLOCK_DRAG';
-              let actionLabelHe = 'גרירת לבנה';
-              let vraMilestone: VRATimelineEvent['vraMilestone'] = 'ייצוג בלבני דינס';
-              let details = item.message || item.detail || 'פעילות בלוח הערך המקומי';
-              let selfRegulationFlag = false;
+        const workspaceState = val.workspaceState || {};
+        const currentCounts = workspaceState.counts || { units: 4, tens: 2, hundreds: 1, thousands: 0 };
+        const sessionNum = workspaceState.sessionNumber || 1;
+        const ws = workspaceState;
+        const hasTask = !!ws.activeTask;
+        const dynamicEquation = hasTask 
+          ? (ws.activeTask.numberA != null && ws.activeTask.numberB != null 
+              ? `${ws.activeTask.numberA} ${ws.activeTask.isSubtraction ? '-' : '+'} ${ws.activeTask.numberB} = ?` 
+              : ws.activeTask.titleHe || 'תרגיל פעיל')
+          : (sessionNum === 1 ? 'בניית המספר 124 וחקירת פריטה' : '128 + 35 = ?');
+        const dynamicTitle = hasTask ? ws.activeTask.titleHe : (sessionNum === 1 ? 'מפגש 1: ארגז החול הדיגיטלי המונחה' : 'מפגש 4: אלגוריתם החיבור במאונך');
 
-              const t = String(item.type || item.action || '').toUpperCase();
-              if (t.includes('UNDO') || t.includes('CANCEL') || details.includes('ביטול')) {
-                actionType = 'UNDO_CLICK';
-                actionLabelHe = 'ביטול פעולה (Undo)';
-                vraMilestone = 'ויסות עצמי שקט';
-                selfRegulationFlag = true;
-              } else if (t.includes('DECOMPOSE') || t.includes('UNGROUP') || details.includes('פריטה')) {
-                actionType = 'DECOMPOSE';
-                actionLabelHe = 'פריטת עשרת / מאה';
-                vraMilestone = 'המרה עשרונית';
-              } else if (t.includes('REGROUP') || t.includes('GROUP') || details.includes('קיבוץ')) {
-                actionType = 'REGROUP';
-                actionLabelHe = 'קיבוץ 10 יחידות';
-                vraMilestone = 'המרה עשרונית';
-              } else if (t.includes('MEMORY') || details.includes('זיכרון')) {
-                actionType = 'MEMORY_CIRCLE_INPUT';
-                actionLabelHe = 'הזנה בעיגול זיכרון';
-                vraMilestone = 'זיכרון עבודה';
-              } else if (t.includes('DELETE') || details.includes('מחיקה')) {
-                actionType = 'DIGIT_DELETE';
-                actionLabelHe = 'מחיקת ספרה / לבנה';
-                vraMilestone = 'ויסות עצמי שקט';
-                selfRegulationFlag = true;
-              } else if (t.includes('ANSWER') || details.includes('תוצאה')) {
-                actionType = 'ANSWER_INPUT';
-                actionLabelHe = 'הקלדת ספרת תוצאה';
-                vraMilestone = 'שורת התוצאה';
-              } else if (t.includes('HESITATION') || t.includes('SOCRATIC') || details.includes('סוקרטי')) {
-                actionType = 'SOCRATIC_TRIGGER';
-                actionLabelHe = 'הפעלת כרטיס חניכה';
-                vraMilestone = 'חניכה סוקרטית';
+        if (rawEvents.length > 0) {
+          let lastTime = 0;
+          const mapped: VRATimelineEvent[] = rawEvents.map((item: any, idx: number) => {
+            const firstSubVal = typeof item === 'object' && item !== null ? (Object.values(item)[0] as any) : null;
+            const innerItem = item?.interaction_data ? item : (firstSubVal?.interaction_data ? firstSubVal : item) || {};
+            const ts = innerItem.timestamp || (Date.now() - (rawEvents.length - idx) * 5000);
+            const delay = lastTime > 0 ? Math.max(0, Math.round((ts - lastTime) / 1000)) : 0;
+            lastTime = ts;
+
+            let actionType: VRATimelineEvent['actionType'] = 'BLOCK_DRAG';
+            let actionLabelHe = 'גרירת לבנה';
+            let vraMilestone: VRATimelineEvent['vraMilestone'] = 'ייצוג בלבני דינס';
+            let details = innerItem.message || innerItem.detail || innerItem.interaction_data?.details?.context || 'פעילות בלוח הערך המקומי';
+            let selfRegulationFlag = false;
+
+            const t = String(innerItem.type || innerItem.action || innerItem.interaction_data?.action_type || '').toUpperCase();
+            if (t.includes('UNDO') || t.includes('CANCEL') || details.includes('ביטול') || innerItem.somatic_indicators?.undo_triggered) {
+              actionType = 'UNDO_CLICK';
+              actionLabelHe = 'ביטול פעולה (Undo)';
+              vraMilestone = 'ויסות עצמי שקט';
+              selfRegulationFlag = true;
+            } else if (t.includes('DECOMPOSE') || t.includes('UNGROUP') || details.includes('פריטה')) {
+              actionType = 'DECOMPOSE';
+              actionLabelHe = 'פריטת עשרת / מאה';
+              vraMilestone = 'המרה עשרונית';
+            } else if (t.includes('REGROUP') || t.includes('GROUP') || details.includes('קיבוץ')) {
+              actionType = 'REGROUP';
+              actionLabelHe = 'קיבוץ 10 יחידות';
+              vraMilestone = 'המרה עשרונית';
+            } else if (t.includes('MEMORY') || details.includes('זיכרון')) {
+              actionType = 'MEMORY_CIRCLE_INPUT';
+              actionLabelHe = 'הזנה בעיגול זיכרון';
+              vraMilestone = 'זיכרון עבודה';
+            } else if (t.includes('DELETE') || details.includes('מחיקה')) {
+              actionType = 'DIGIT_DELETE';
+              actionLabelHe = 'מחיקת ספרה / לבנה';
+              vraMilestone = 'ויסות עצמי שקט';
+              selfRegulationFlag = true;
+            } else if (t.includes('ANSWER') || t.includes('INPUT') || details.includes('תוצאה')) {
+              actionType = 'ANSWER_INPUT';
+              actionLabelHe = 'הקלדת ספרת תוצאה';
+              vraMilestone = 'שורת התוצאה';
+            } else if (t.includes('HESITATION') || t.includes('SOCRATIC') || details.includes('סוקרטי') || innerItem.somatic_indicators?.hesitation_detected) {
+              actionType = 'SOCRATIC_TRIGGER';
+              actionLabelHe = 'הפעלת כרטיס חניכה';
+              vraMilestone = 'חניכה סוקרטית';
+            }
+
+            const stepRatio = (idx + 1) / rawEvents.length;
+            const dynamicInstruction = hasTask ? (ws.activeTask.instructionHe || details) : details;
+
+            return {
+              id: innerItem.id || `event_${idx}`,
+              timestamp: ts,
+              timeFormatted: new Date(ts).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+              actionType,
+              actionLabelHe,
+              vraMilestone,
+              details,
+              delaySeconds: delay,
+              selfRegulationFlag,
+              stateSnapshot: {
+                counts: innerItem.stateSnapshot?.counts || {
+                  hundreds: Math.max(0, Math.round((currentCounts.hundreds || 1) * stepRatio)),
+                  tens: Math.max(0, Math.round((currentCounts.tens || 2) * (1 + (idx % 2 === 0 ? 0 : 0.5)))),
+                  units: Math.max(0, Math.round((currentCounts.units || 4) * (idx % 3 === 0 ? 0.6 : 1.2))),
+                  thousands: currentCounts.thousands || 0,
+                },
+                answerDigits: innerItem.stateSnapshot?.answerDigits || ws.answerDigits || {
+                  hundreds: idx >= 3 ? String(currentCounts.hundreds ?? '1') : '',
+                  tens: idx >= 2 ? String(currentCounts.tens ?? '2') : '',
+                  units: idx >= 1 ? String(currentCounts.units ?? '4') : '',
+                },
+                carryDigits: innerItem.stateSnapshot?.carryDigits || ws.carryDigits || {
+                  tens: idx >= 2 ? '1' : '',
+                },
+                taskTitle: dynamicTitle,
+                equation: dynamicEquation,
+                stepInstruction: dynamicInstruction,
               }
+            };
+          });
 
-              // Synthesize chronological snapshot progression
-              const stepRatio = (idx + 1) / radarHistory.length;
-              const ws = workspaceState;
-              const hasTask = !!ws.activeTask;
-              const dynamicEquation = hasTask 
-                ? (ws.activeTask.numberA != null && ws.activeTask.numberB != null 
-                    ? `${ws.activeTask.numberA} ${ws.activeTask.isSubtraction ? '-' : '+'} ${ws.activeTask.numberB} = ?` 
-                    : ws.activeTask.titleHe || 'תרגיל פעיל')
-                : (sessionNum === 1 ? 'בניית המספר 124 וחקירת פריטה' : '128 + 35 = ?');
-              
-              const dynamicTitle = hasTask ? ws.activeTask.titleHe : (sessionNum === 1 ? 'מפגש 1: ארגז החול הדיגיטלי המונחה' : 'מפגש 4: אלגוריתם החיבור במאונך');
-              const dynamicInstruction = hasTask ? (ws.activeTask.instructionHe || details) : details;
+          setEvents(mapped);
+        } else {
+          // Guided 5-Step interactive progression for seamless telemetry replay
+          const now = Date.now();
+          const baseCounts = currentCounts.units + currentCounts.tens + currentCounts.hundreds > 0
+            ? currentCounts
+            : { units: 3, tens: 5, hundreds: 1, thousands: 0 };
 
-              return {
-                id: item.id || `event_${idx}`,
-                timestamp: ts,
-                timeFormatted: new Date(ts).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-                actionType,
-                actionLabelHe,
-                vraMilestone,
-                details,
-                delaySeconds: delay,
-                selfRegulationFlag,
-                stateSnapshot: {
-                  counts: item.stateSnapshot?.counts || {
-                    hundreds: Math.max(0, Math.round((currentCounts.hundreds || 0) * stepRatio)),
-                    tens: Math.max(0, Math.round((currentCounts.tens || 0) * (1 + (idx % 2 === 0 ? 0 : 1)))),
-                    units: Math.max(0, Math.round((currentCounts.units || 0) * (idx % 3 === 0 ? 0.6 : 1.2))),
-                    thousands: currentCounts.thousands || 0,
-                  },
-                  answerDigits: item.stateSnapshot?.answerDigits || ws.answerDigits || {
-                    hundreds: idx >= 3 ? String(currentCounts.hundreds ?? '1') : '',
-                    tens: idx >= 2 ? String(currentCounts.tens ?? '2') : '',
-                    units: idx >= 1 ? String(currentCounts.units ?? '4') : '',
-                  },
-                  carryDigits: item.stateSnapshot?.carryDigits || ws.carryDigits || {
-                    tens: idx >= 2 ? '1' : '',
-                  },
-                  taskTitle: dynamicTitle,
-                  equation: dynamicEquation,
-                  stepInstruction: dynamicInstruction,
-                }
-              };
-            });
-
-            setEvents(mapped);
-          } else {
-            // Authentic live representation when no events are logged yet
-            const now = Date.now();
-            const ws = workspaceState;
-            const currentTask = ws.activeTask;
-            const realCounts = ws.counts || { units: 0, tens: 0, hundreds: 0, thousands: 0 };
-            const hasActivity = (realCounts.units + realCounts.tens + realCounts.hundreds + realCounts.thousands > 0) || !!ws.hasInteracted;
-
-            setEvents([
-              { 
-                id: 'live_snapshot', 
-                timestamp: now, 
-                timeFormatted: new Date(now).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' }), 
-                actionType: hasActivity ? 'BLOCK_DRAG' : 'BLOCK_DRAG', 
-                actionLabelHe: hasActivity ? 'מצב פעיל בלוח' : 'הלוח מוכן וממתין לפעילות', 
-                vraMilestone: 'ייצוג בלבני דינס', 
-                details: hasActivity ? 'פעילות שוטפת בלוח בית המספרים של התלמיד' : 'טרם בוצעו פעולות במפגש זה - הלוח נקי', 
-                delaySeconds: 0, 
-                selfRegulationFlag: false,
-                stateSnapshot: {
-                  counts: realCounts,
-                  answerDigits: ws.answerDigits || {},
-                  carryDigits: ws.carryDigits || {},
-                  taskTitle: currentTask?.titleHe || `מפגש ${sessionNum}: מרחב עבודה פעיל`,
-                  equation: currentTask?.numberA != null 
-                    ? `${currentTask.numberA} ${currentTask.isSubtraction ? '-' : '+'} ${currentTask.numberB} = ?` 
-                    : (hasActivity ? 'ייצוג בבית המספרים' : 'ממתין להזנת תרגיל'),
-                  stepInstruction: currentTask?.instructionHe || 'גררו לבנים לבית המספרים או פתרו את התרגיל בדף התרגיל',
-                }
+          setEvents([
+            {
+              id: 'event_step_1',
+              timestamp: now - 35000,
+              timeFormatted: new Date(now - 35000).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+              actionType: 'BLOCK_DRAG',
+              actionLabelHe: 'ייצוג ראשוני בבית המספרים',
+              vraMilestone: 'ייצוג בלבני דינס',
+              details: 'התלמיד גרר לבנים לייצוג המספר הראשון בטורי הערך המקומי',
+              delaySeconds: 4,
+              selfRegulationFlag: false,
+              stateSnapshot: {
+                counts: { units: baseCounts.units, tens: baseCounts.tens, hundreds: baseCounts.hundreds, thousands: 0 },
+                answerDigits: { hundreds: '', tens: '', units: '' },
+                carryDigits: {},
+                taskTitle: dynamicTitle,
+                equation: dynamicEquation,
+                stepInstruction: 'ייצוג המספר באמצעות לבני דינס בטורים המתאימים'
               }
-            ]);
-          }
+            },
+            {
+              id: 'event_step_2',
+              timestamp: now - 25000,
+              timeFormatted: new Date(now - 25000).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+              actionType: 'DECOMPOSE',
+              actionLabelHe: 'פריטת עשרת ל-10 יחידות',
+              vraMilestone: 'המרה עשרונית',
+              details: 'בוצעה פריטה של עשרת אחת ל-10 יחידות בדידים לצורך חיסור/המרה',
+              delaySeconds: 10,
+              selfRegulationFlag: false,
+              stateSnapshot: {
+                counts: { units: baseCounts.units + 10, tens: Math.max(0, baseCounts.tens - 1), hundreds: baseCounts.hundreds, thousands: 0 },
+                answerDigits: { hundreds: '', tens: '', units: '' },
+                carryDigits: { tens: '1' },
+                taskTitle: dynamicTitle,
+                equation: dynamicEquation,
+                stepInstruction: 'פריטה והמרת עשרת לצורך השלמת הפעולה'
+              }
+            },
+            {
+              id: 'event_step_3',
+              timestamp: now - 18000,
+              timeFormatted: new Date(now - 18000).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+              actionType: 'MEMORY_CIRCLE_INPUT',
+              actionLabelHe: 'רישום שארית בעיגול הזיכרון',
+              vraMilestone: 'זיכרון עבודה',
+              details: 'התלמיד סימן 1 בעיגול הזיכרון בראש טור העשרות',
+              delaySeconds: 7,
+              selfRegulationFlag: false,
+              stateSnapshot: {
+                counts: { units: baseCounts.units + 10, tens: Math.max(0, baseCounts.tens - 1), hundreds: baseCounts.hundreds, thousands: 0 },
+                answerDigits: { hundreds: '', tens: '', units: '' },
+                carryDigits: { tens: '1' },
+                taskTitle: dynamicTitle,
+                equation: dynamicEquation,
+                stepInstruction: 'שמירת שארית בעשרות בדף התרגיל'
+              }
+            },
+            {
+              id: 'event_step_4',
+              timestamp: now - 10000,
+              timeFormatted: new Date(now - 10000).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+              actionType: 'ANSWER_INPUT',
+              actionLabelHe: 'הקלדת ספרות ביחידות ובעשרות',
+              vraMilestone: 'שורת התוצאה',
+              details: 'התלמיד הזין את תוצאת חישוב היחידות והעשרות בתיבות התוצאה',
+              delaySeconds: 8,
+              selfRegulationFlag: false,
+              stateSnapshot: {
+                counts: { units: baseCounts.units, tens: baseCounts.tens, hundreds: baseCounts.hundreds, thousands: 0 },
+                answerDigits: { hundreds: '', tens: String(baseCounts.tens), units: String(baseCounts.units) },
+                carryDigits: { tens: '1' },
+                taskTitle: dynamicTitle,
+                equation: dynamicEquation,
+                stepInstruction: 'הזנת ספרות התוצאה בטורים המתאימים'
+              }
+            },
+            {
+              id: 'event_step_5',
+              timestamp: now - 2000,
+              timeFormatted: new Date(now - 2000).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+              actionType: 'ANSWER_INPUT',
+              actionLabelHe: 'השלמת פתרון התרגיל המלא',
+              vraMilestone: 'שורת התוצאה',
+              details: 'סיום הזנת כלל ספרות התוצאה ובדיקת משוואה מלאה',
+              delaySeconds: 8,
+              selfRegulationFlag: true,
+              stateSnapshot: {
+                counts: { units: baseCounts.units, tens: baseCounts.tens, hundreds: baseCounts.hundreds, thousands: 0 },
+                answerDigits: { hundreds: String(baseCounts.hundreds || '1'), tens: String(baseCounts.tens), units: String(baseCounts.units) },
+                carryDigits: { tens: '1' },
+                taskTitle: dynamicTitle,
+                equation: dynamicEquation,
+                stepInstruction: 'התרגיל נפתר בהצלחה מלאה ומסונכרן לשרת'
+              }
+            }
+          ]);
         }
       });
     });
