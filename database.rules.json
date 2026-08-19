@@ -16,8 +16,8 @@
       "students": {
         ".read": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.role == 'admin' || auth.token.role == 'ADMIN')",
         "$studentId": {
-          ".read": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.role == 'admin' || auth.token.role == 'ADMIN' || auth.token.student_id == $studentId || 'student_user' + auth.token.student_id == $studentId || 'student_' + auth.token.student_id == $studentId || string(auth.token.student_id) == $studentId)",
-          ".write": "auth != null && ($studentId.matches(/^student_(user)?(1[0-2]|[1-9])$/) || $studentId.matches(/^(1[0-2]|[1-9])$/)) && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.role == 'admin' || auth.token.role == 'ADMIN' || auth.token.student_id == $studentId || 'student_user' + auth.token.student_id == $studentId || 'student_' + auth.token.student_id == $studentId || string(auth.token.student_id) == $studentId)"
+          ".read": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.role == 'admin' || auth.token.role == 'ADMIN' || auth.token.student_id == $studentId || 'student_user' + auth.token.student_id == $studentId || 'student_' + auth.token.student_id == $studentId || '' + auth.token.student_id == $studentId)",
+          ".write": "auth != null && ($studentId.matches(/^student_(user)?(1[0-2]|[1-9])$/) || $studentId.matches(/^(1[0-2]|[1-9])$/)) && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.role == 'admin' || auth.token.role == 'ADMIN' || auth.token.student_id == $studentId || 'student_user' + auth.token.student_id == $studentId || 'student_' + auth.token.student_id == $studentId || '' + auth.token.student_id == $studentId)"
         }
       },
       "teachers": {
@@ -34,23 +34,23 @@
     "students": {
       ".read": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.role == 'admin' || auth.token.role == 'ADMIN')",
       "$studentId": {
-        ".read": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.role == 'admin' || auth.token.role == 'ADMIN' || auth.token.student_id == $studentId || 'student_user' + auth.token.student_id == $studentId || 'student_' + auth.token.student_id == $studentId || string(auth.token.student_id) == $studentId)",
-        ".write": "auth != null && ($studentId.matches(/^student_(user)?(1[0-2]|[1-9])$/) || $studentId.matches(/^(1[0-2]|[1-9])$/)) && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.role == 'admin' || auth.token.role == 'ADMIN' || auth.token.student_id == $studentId || 'student_user' + auth.token.student_id == $studentId || 'student_' + auth.token.student_id == $studentId || string(auth.token.student_id) == $studentId)"
+        ".read": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.role == 'admin' || auth.token.role == 'ADMIN' || auth.token.student_id == $studentId || 'student_user' + auth.token.student_id == $studentId || 'student_' + auth.token.student_id == $studentId || '' + auth.token.student_id == $studentId)",
+        ".write": "auth != null && ($studentId.matches(/^student_(user)?(1[0-2]|[1-9])$/) || $studentId.matches(/^(1[0-2]|[1-9])$/)) && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.role == 'admin' || auth.token.role == 'ADMIN' || auth.token.student_id == $studentId || 'student_user' + auth.token.student_id == $studentId || 'student_' + auth.token.student_id == $studentId || '' + auth.token.student_id == $studentId)"
       }
     },
     "radar_alerts": {
       ".read": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.role == 'admin' || auth.token.role == 'ADMIN')",
       "$alertId": {
         ".read": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.role == 'admin' || auth.token.role == 'ADMIN')",
-        ".write": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.role == 'admin' || auth.token.role == 'ADMIN' || ((auth.token.student_id == newData.child('studentId').val() || 'student_user' + auth.token.student_id == newData.child('studentId').val() || 'student_' + auth.token.student_id == newData.child('studentId').val() || string(auth.token.student_id) == string(newData.child('studentId').val())) && (newData.child('studentId').val().matches(/^student_(user)?(1[0-2]|[1-9])$/) || newData.child('studentId').val().matches(/^(1[0-2]|[1-9])$/))))",
+        ".write": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.role == 'admin' || auth.token.role == 'ADMIN' || ((auth.token.student_id == newData.child('studentId').val() || 'student_user' + auth.token.student_id == newData.child('studentId').val() || 'student_' + auth.token.student_id == newData.child('studentId').val() || '' + auth.token.student_id == '' + newData.child('studentId').val()) && (newData.child('studentId').val().matches(/^student_(user)?(1[0-2]|[1-9])$/) || newData.child('studentId').val().matches(/^(1[0-2]|[1-9])$/))))",
         ".validate": "!newData.child('studentName').exists() && !newData.child('name').exists() && !newData.child('email').exists() && !newData.child('taz').exists() && !newData.child('rawStudentName').exists()"
       }
     },
     "chat_messages": {
       ".read": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.role == 'admin' || auth.token.role == 'ADMIN')",
       "$roomId": {
-        ".read": "auth != null && (auth.token.student_id == $roomId || 'student_user' + auth.token.student_id == $roomId || 'student_' + auth.token.student_id == $roomId || string(auth.token.student_id) == $roomId || auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.role == 'admin' || auth.token.role == 'ADMIN')",
-        ".write": "auth != null && (auth.token.student_id == $roomId || 'student_user' + auth.token.student_id == $roomId || 'student_' + auth.token.student_id == $roomId || string(auth.token.student_id) == $roomId || auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.role == 'admin' || auth.token.role == 'ADMIN')"
+        ".read": "auth != null && (auth.token.student_id == $roomId || 'student_user' + auth.token.student_id == $roomId || 'student_' + auth.token.student_id == $roomId || '' + auth.token.student_id == $roomId || auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.role == 'admin' || auth.token.role == 'ADMIN')",
+        ".write": "auth != null && (auth.token.student_id == $roomId || 'student_user' + auth.token.student_id == $roomId || 'student_' + auth.token.student_id == $roomId || '' + auth.token.student_id == $roomId || auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.role == 'admin' || auth.token.role == 'ADMIN')"
       }
     },
     "system_control": {
