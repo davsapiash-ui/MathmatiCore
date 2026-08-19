@@ -12,7 +12,8 @@ import { extractTeacherId } from "@/infrastructure/services/FirebaseSyncService"
 import { useStore, type StudentData } from "@/application/useStore";
 import { toast } from "sonner";
 import { ref, onValue, remove, set } from "firebase/database";
-import { database } from "@/infrastructure/firebase";
+import { database, auth, functions } from "@/infrastructure/firebase";
+import { httpsCallable } from "firebase/functions";
 import {
   BarChart,
   Bar,
@@ -300,12 +301,34 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     return () => unsub();
   }, []);
 
+  // Auto-sync teacher role claim on dashboard mount
+  useEffect(() => {
+    if (auth.currentUser) {
+      auth.currentUser.getIdTokenResult().then((tokenResult) => {
+        if (!tokenResult.claims.role || (tokenResult.claims.role !== "teacher" && tokenResult.claims.role !== "admin")) {
+          const syncCallable = httpsCallable(functions, "syncUserRoles");
+          syncCallable()
+            .then(() => auth.currentUser?.getIdToken(true))
+            .catch((e) => console.warn("Auto-sync role warning:", e));
+        }
+      }).catch(console.warn);
+    }
+  }, []);
+
   const handleStartClassSession = async (sessionNum: number) => {
     const now = Date.now();
     setSessionStartTime(now);
     setSelectedSessionNum(sessionNum);
     setIsClassSessionActive(true);
     try {
+      if (auth.currentUser) {
+        const tokenRes = await auth.currentUser.getIdTokenResult();
+        if (!tokenRes.claims.role || (tokenRes.claims.role !== "teacher" && tokenRes.claims.role !== "admin")) {
+          const syncCallable = httpsCallable(functions, "syncUserRoles");
+          await syncCallable();
+          await auth.currentUser.getIdToken(true);
+        }
+      }
       await set(ref(database, 'active_class_session'), {
         active: true,
         sessionNumber: sessionNum,

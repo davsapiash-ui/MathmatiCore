@@ -168,17 +168,17 @@ const BLOCK_VISUALS: Record<Place, { style?: React.CSSProperties; labelHe: strin
     Component: UnitSVG,
   },
   tens: {
-    style: { width: 'calc(var(--blk-unit) * 4.5)', maxWidth: '100%' }, // Shrink the visual width of Tens slightly
+    style: { width: 'min(38px, 100%)', maxWidth: '100%' },
     labelHe: 'עשרת — ניתן לפרוט ליחידות או להמיר למאה',
     Component: TenSVG,
   },
   hundreds: {
-    style: { width: 'var(--blk-hundred)', maxWidth: '100%' }, // Height is determined by SVG ratio
+    style: { width: 'min(68px, 100%)', maxWidth: '100%' },
     labelHe: 'מאה — ניתן לפרוט לעשרות או להמיר לאלף',
     Component: HundredSVG,
   },
   thousands: {
-    style: { width: 'var(--blk-thousand)', maxWidth: '100%' }, // Width and height are equal in isometric
+    style: { width: 'min(76px, 100%)', maxWidth: '100%' },
     labelHe: 'אלף — ניתן לפרוט למאות',
     Component: ThousandSVG,
   },

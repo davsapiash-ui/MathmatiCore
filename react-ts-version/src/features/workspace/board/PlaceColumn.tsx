@@ -120,46 +120,28 @@ export function PlaceColumn({ place }: { place: Place }) {
         style={{ touchAction: 'none' }}
         className="relative flex-1 min-h-0 p-3 pb-4 overflow-y-auto overflow-x-hidden no-scrollbar touch-none flex flex-col justify-end"
       >
-        {/* Grounded block stack anchored at the bottom */}
+        {/* Grounded block stack anchored at the bottom — horizontal flex wrap */}
         <div
-          className={`w-full mt-auto ${
-            place === 'units'
-              ? 'flex flex-row flex-wrap content-end justify-center items-end gap-1.5'
-              : 'flex flex-col items-center justify-end gap-1.5'
-          }`}
+          className="w-full mt-auto flex flex-row flex-wrap content-end justify-center items-end gap-1.5 min-w-0"
         >
-          {Array.from({ length: renderCount }).map((_, i) => {
-            let overlapStyle: React.CSSProperties = { zIndex: i };
-            if (i > 0) {
-              if (place === 'hundreds') {
-                overlapStyle.marginTop = '-16px';
-              } else if (place === 'thousands') {
-                overlapStyle.marginTop = '-20px';
-              } else if (place === 'tens') {
-                overlapStyle.marginTop = '-4px';
-              }
-            }
-
-            return (
-              <div 
-                key={`${place}-${i}`}
-                style={overlapStyle}
-                className="shrink-0 flex items-center justify-center select-none transform-gpu transition-transform"
-              >
-                <DienesBlock 
-                  id={`column-${place}-${i}`}
-                  place={place} 
-                  source="column"
-                  noEnter={i < renderCount - 1}
-                  onClick={() => {
-                    if (place !== 'units') {
-                      splitBlockClick(place);
-                    }
-                  }} 
-                />
-              </div>
-            );
-          })}
+          {Array.from({ length: renderCount }).map((_, i) => (
+            <div 
+              key={`${place}-${i}`}
+              className="shrink-0 flex items-center justify-center select-none transform-gpu transition-transform"
+            >
+              <DienesBlock 
+                id={`column-${place}-${i}`}
+                place={place} 
+                source="column"
+                noEnter={i < renderCount - 1}
+                onClick={() => {
+                  if (place !== 'units') {
+                    splitBlockClick(place);
+                  }
+                }} 
+              />
+            </div>
+          ))}
         </div>
 
         {isPreviewingDecomp && (

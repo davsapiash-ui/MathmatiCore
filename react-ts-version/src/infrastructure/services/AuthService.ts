@@ -1,5 +1,6 @@
-import { auth, database, firestore } from "@/infrastructure/firebase";
+import { auth, database, firestore, functions } from "@/infrastructure/firebase";
 import { GoogleAuthProvider, signInWithPopup, type UserCredential } from "firebase/auth";
+import { httpsCallable } from "firebase/functions";
 import { ref, get, set } from "firebase/database";
 import { doc, getDoc, collection, query, where, getDocs, setDoc } from "firebase/firestore";
 import { extractTeacherId } from "./FirebaseSyncService";
@@ -126,6 +127,15 @@ export async function executeGoogleSSO(targetRole: "teacher" | "admin"): Promise
   if (!email || !isAuthorized) {
     await auth.signOut();
     throw new Error(`גישה נדחתה: כתובת הדוא"ל (${email || "לא זוהתה"}) אינה מוגדרת כמורה במערכת. רק מורים שהוקמו במערכת על ידי מנהל רשאים להיכנס.`);
+  }
+
+  // Stamp verified teacher/admin custom claims on the token via Cloud Function
+  try {
+    const syncCallable = httpsCallable(functions, "syncUserRoles");
+    await syncCallable();
+    await user.getIdToken(true);
+  } catch (syncErr) {
+    console.warn("syncUserRoles error during Google SSO:", syncErr);
   }
 
   const teacherId = extractTeacherId(email, user.uid);

@@ -63,11 +63,11 @@ export function PlaceValueBoard({ hideValueDisplay }: { hideValueDisplay?: boole
           animate={{ flexBasis: '50%', opacity: 1 }}
           exit={{ flexBasis: 0, opacity: 0 }}
           transition={{ duration: 0.35, ease: 'easeInOut' }}
-          className="flex flex-col gap-3 overflow-visible h-full"
-          style={{ flexGrow: 0, flexShrink: 0 }}
+          className="flex flex-col gap-3 overflow-hidden h-full max-h-full min-w-0"
+          style={{ flexGrow: 0, flexShrink: 0, flexBasis: '50%', maxWidth: '50%' }}
           aria-label="טבלת ערך המקום"
         >
-          <div id="tour-place-value-board" className="flex-1 ws-card p-4 flex flex-col gap-3 hover:translate-y-0 select-none">
+          <div id="tour-place-value-board" className="flex-1 ws-card p-4 flex flex-col gap-3 hover:translate-y-0 select-none min-h-0 overflow-hidden">
             <div className="flex items-center justify-center shrink-0">
               <span className="inline-flex items-center gap-2 text-lg font-display font-black text-ws-ink bg-ws-blue-soft/50 rounded-full px-6 py-1.5 border-2 border-ws-blue/20 shadow-sm select-none">
                 <span aria-hidden="true" className="text-xl">🏠</span> בית המספרים
