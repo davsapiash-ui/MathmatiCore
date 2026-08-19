@@ -11,7 +11,7 @@ import { useChatStore, normalizeStudentId, isTeacherOrAdminId, type ChatMessage 
 import { extractTeacherId } from "@/infrastructure/services/FirebaseSyncService";
 import { useStore, type StudentData } from "@/application/useStore";
 import { toast } from "sonner";
-import { ref, onValue, remove, set } from "firebase/database";
+import { ref, onValue, remove, set, update } from "firebase/database";
 import { database, auth, functions } from "@/infrastructure/firebase";
 import { httpsCallable } from "firebase/functions";
 import {
@@ -1787,10 +1787,17 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                           className="font-bold shadow-md shadow-ws-accent/20"
                           onClick={async () => {
                             const prevRouteStatus = student.routeStatus;
-                            // Local state for this browser's UI…
                             approveRoute(student.studentId);
-                            // …AND the Firebase write the student's browser actually waits on
-                            // (approved_tasks/{studentId}) — without it meeting 3 stays locked forever.
+                            
+                            // Realtime signal for student's waiting screen
+                            const normId = normalizeStudentId(student.studentId);
+                            await update(ref(database, `users/students/${normId}`), {
+                              teacher_gate_approved: true,
+                              routeStatus: 'APPROVED',
+                              teacher_approved_at: Date.now(),
+                              teacher_approved_by: user?.uid || 'teacher'
+                            }).catch(console.error);
+
                             const allPending = [...teacherApprovals, ...fallbackApprovals];
                             const approval = allPending.find((a) => a.studentId === student.studentId);
                             if (approval) {

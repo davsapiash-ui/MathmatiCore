@@ -193,6 +193,12 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Authorized Teachers / Whitelist (Module 25)
+    match /authorizedTeachers/{email} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
     // Classes & Schools Collections
     match /schools/{schoolId} {
       allow read: if isAuthenticated();

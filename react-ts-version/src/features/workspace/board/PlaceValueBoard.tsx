@@ -41,9 +41,9 @@ export function PlaceValueBoard({ hideValueDisplay }: { hideValueDisplay?: boole
           className="flex flex-col items-center justify-center h-full w-full bg-ws-surface rounded-3xl border-2 border-ws-accent/30 shadow-xl p-8"
           style={{ flexBasis: '50%' }}
         >
-          <div className="text-6xl animate-bounce mb-4">🐝</div>
+          <div className="text-5xl mb-4">📐</div>
           <h2 className="text-2xl font-bold text-ws-ink text-center">
-            הדבורה מכינה אותך למעבר לבית המספרים המופשט!
+            מעבר לחשיבה מתמטית מופשטת!
           </h2>
         </motion.section>
       </AnimatePresence>
