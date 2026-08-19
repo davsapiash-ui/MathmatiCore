@@ -16,15 +16,15 @@ export function AdminLayout() {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen bg-ws-bg w-full font-sans text-ws-ink selection:bg-indigo-500/30 flex flex-col md:flex-row overflow-x-hidden" dir="rtl">
+      <div className="min-h-screen bg-slate-50 w-full font-sans text-slate-900 selection:bg-indigo-100 flex flex-col md:flex-row overflow-x-hidden" dir="rtl">
         
         {/* Mobile Header (Shown on screens < md) */}
-        <header className="md:hidden flex items-center justify-between p-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-30">
+        <header className="md:hidden flex items-center justify-between p-4 bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-slate-900 dark:bg-slate-800 flex items-center justify-center text-white">
+            <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center text-white">
               <Shield className="w-4 h-4" />
             </div>
-            <Logo textClassName="font-bold text-lg text-slate-900 dark:text-white" />
+            <Logo textClassName="font-bold text-lg text-slate-900" />
           </div>
           <div className="flex items-center gap-2">
             <LogoutButton className="px-3 py-1.5 text-xs rounded-xl" />
@@ -32,51 +32,51 @@ export function AdminLayout() {
         </header>
 
         {/* Mobile Navigation Tabs */}
-        <nav className="md:hidden flex overflow-x-auto p-2 bg-slate-100 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 gap-1 custom-scrollbar z-20">
-          <NavLink to="/admin" end className={({isActive}) => `px-3 py-2 text-xs font-bold whitespace-nowrap rounded-xl transition-all ${isActive ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-900"}`}>
+        <nav className="md:hidden flex overflow-x-auto p-2 bg-white border-b border-slate-200 gap-1 custom-scrollbar z-20">
+          <NavLink to="/admin" end className={({isActive}) => `px-3 py-2 text-xs font-bold whitespace-nowrap rounded-xl transition-all ${isActive ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"}`}>
             סקירה כללית
           </NavLink>
-          <NavLink to="/admin/schools" className={({isActive}) => `px-3 py-2 text-xs font-bold whitespace-nowrap rounded-xl transition-all ${isActive ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-900"}`}>
+          <NavLink to="/admin/schools" className={({isActive}) => `px-3 py-2 text-xs font-bold whitespace-nowrap rounded-xl transition-all ${isActive ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"}`}>
             מוסדות ומורים
           </NavLink>
-          <NavLink to="/admin/curriculum" className={({isActive}) => `px-3 py-2 text-xs font-bold whitespace-nowrap rounded-xl transition-all ${isActive ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-900"}`}>
+          <NavLink to="/admin/curriculum" className={({isActive}) => `px-3 py-2 text-xs font-bold whitespace-nowrap rounded-xl transition-all ${isActive ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"}`}>
             פדגוגיה
           </NavLink>
-          <NavLink to="/admin/support" className={({isActive}) => `px-3 py-2 text-xs font-bold whitespace-nowrap rounded-xl transition-all ${isActive ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-900"}`}>
+          <NavLink to="/admin/support" className={({isActive}) => `px-3 py-2 text-xs font-bold whitespace-nowrap rounded-xl transition-all ${isActive ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"}`}>
             מוקד תמיכה
           </NavLink>
-          <NavLink to="/admin/security" className={({isActive}) => `px-3 py-2 text-xs font-bold whitespace-nowrap rounded-xl transition-all ${isActive ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-900"}`}>
+          <NavLink to="/admin/security" className={({isActive}) => `px-3 py-2 text-xs font-bold whitespace-nowrap rounded-xl transition-all ${isActive ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"}`}>
             אבטחה
           </NavLink>
-          <NavLink to="/admin/chat" className={({isActive}) => `px-3 py-2 text-xs font-bold whitespace-nowrap rounded-xl transition-all ${isActive ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-900"}`}>
+          <NavLink to="/admin/chat" className={({isActive}) => `px-3 py-2 text-xs font-bold whitespace-nowrap rounded-xl transition-all ${isActive ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"}`}>
             צ'אט
           </NavLink>
-          <NavLink to="/admin/teacher-view" className={({isActive}) => `px-3 py-2 text-xs font-bold whitespace-nowrap rounded-xl transition-all ${isActive ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-900"}`}>
+          <NavLink to="/admin/teacher-view" className={({isActive}) => `px-3 py-2 text-xs font-bold whitespace-nowrap rounded-xl transition-all ${isActive ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"}`}>
             תצוגת מורה
           </NavLink>
-          <NavLink to="/admin/settings" className={({isActive}) => `px-3 py-2 text-xs font-bold whitespace-nowrap rounded-xl transition-all ${isActive ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-900"}`}>
+          <NavLink to="/admin/settings" className={({isActive}) => `px-3 py-2 text-xs font-bold whitespace-nowrap rounded-xl transition-all ${isActive ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"}`}>
             הגדרות (UDL)
           </NavLink>
         </nav>
 
         {/* Desktop Sidebar (Hidden on mobile) */}
-        <Sidebar variant="sidebar" collapsible="none" className="hidden md:flex m-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm w-64 lg:w-72 flex-shrink-0 z-20 h-[calc(100vh-2rem)] flex-col overflow-hidden sticky top-4">
-          <SidebarHeader className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
+        <Sidebar variant="sidebar" collapsible="none" className="hidden md:flex m-4 rounded-2xl border border-slate-200 bg-white shadow-sm w-64 lg:w-72 flex-shrink-0 z-20 h-[calc(100vh-2rem)] flex-col overflow-hidden sticky top-4">
+          <SidebarHeader className="p-6 border-b border-slate-100 bg-slate-50">
             <div className="flex items-center gap-3 mb-1">
-              <div className="w-10 h-10 rounded-xl bg-slate-900 dark:bg-slate-800 flex items-center justify-center text-white font-bold">
-                <Shield className="w-5 h-5 flex-shrink-0 text-indigo-400" />
+              <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold shadow-sm">
+                <Shield className="w-5 h-5 flex-shrink-0 text-white" />
               </div>
-              <Logo textClassName="text-slate-900 dark:text-white font-bold text-xl tracking-tight" />
+              <Logo textClassName="text-slate-900 font-bold text-xl tracking-tight" />
             </div>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2 tracking-widest uppercase font-bold">פורטל מנהל מערכת</p>
+            <p className="text-[11px] text-slate-500 mt-2 tracking-widest uppercase font-bold">פורטל מנהל מערכת</p>
           </SidebarHeader>
 
-          <SidebarContent className="p-4">
+          <SidebarContent className="p-4 bg-white">
             <SidebarGroup>
               <SidebarMenu className="gap-1.5">
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
-                    <NavLink id="tour-admin-overview" to="/admin" end className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 flex items-center" : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold transition-colors rounded-xl p-3.5 flex items-center"}>
+                    <NavLink id="tour-admin-overview" to="/admin" end className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 flex items-center" : "hover:bg-slate-100 text-slate-700 font-semibold transition-colors rounded-xl p-3.5 flex items-center"}>
                       <Settings className="w-5 h-5 ml-3 opacity-90" /> 
                       <span className="text-sm lg:text-base tracking-wide">סקירה כללית</span>
                     </NavLink>
@@ -85,7 +85,7 @@ export function AdminLayout() {
 
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
-                    <NavLink id="tour-admin-schools" to="/admin/schools" className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 flex items-center" : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold transition-colors rounded-xl p-3.5 flex items-center"}>
+                    <NavLink id="tour-admin-schools" to="/admin/schools" className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 flex items-center" : "hover:bg-slate-100 text-slate-700 font-semibold transition-colors rounded-xl p-3.5 flex items-center"}>
                       <GraduationCap className="w-5 h-5 ml-3 opacity-90" /> 
                       <span className="text-sm lg:text-base tracking-wide">מוסדות ומורים</span>
                     </NavLink>
@@ -94,7 +94,7 @@ export function AdminLayout() {
 
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
-                    <NavLink id="tour-admin-curriculum" to="/admin/curriculum" className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 flex items-center" : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold transition-colors rounded-xl p-3.5 flex items-center"}>
+                    <NavLink id="tour-admin-curriculum" to="/admin/curriculum" className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 flex items-center" : "hover:bg-slate-100 text-slate-700 font-semibold transition-colors rounded-xl p-3.5 flex items-center"}>
                       <Layers className="w-5 h-5 ml-3 opacity-90" /> 
                       <span className="text-sm lg:text-base tracking-wide">הגדרות פדגוגיה</span>
                     </NavLink>

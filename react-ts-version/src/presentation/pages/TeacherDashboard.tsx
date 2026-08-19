@@ -654,6 +654,22 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       .sort((a, b) => b.timestamp - a.timestamp);
   }, [firebaseAlerts, students, TEACHER_ID]);
 
+  const handleAssignIntervention = async (clusterName: string, studentList: StudentData[]) => {
+    try {
+      for (const s of studentList) {
+        const norm = normalizeStudentId(s.studentId);
+        await update(ref(database, `users/students/${norm}`), {
+          activeIntervention: clusterName,
+          interventionAssignedAt: Date.now()
+        }).catch(() => {});
+      }
+      toast.success(`פעילות "${clusterName}" הוקצתה בהצלחה ל-${studentList.length} תלמידים! 🎯`);
+    } catch (err) {
+      console.error('Error assigning intervention:', err);
+      toast.error('שגיאה בהקצאת הפעילות. בדוק חיבור לרשת.');
+    }
+  };
+
   const handleAlertResponse = (alert: RadarAlert, responseType: string, responseText: string) => {
     // 1. Record the intervention in the student's trace data
     if (alert.rawStudentId) {
@@ -669,9 +685,14 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     // 2. Execute any specific logic for the response
     if (responseType === 'HINT') {
       handleHintClick(alert.rawStudentId);
+      toast.success(`נשלח רמז אישי לתלמיד ${alert.studentId || ''}`);
+    } else if (responseType === 'PHYSICAL') {
+      toast.success(`סומן: ניגשת פיזית לתלמיד ${alert.studentId || ''}`);
+    } else if (responseType === 'ACKNOWLEDGED') {
+      toast.info('ההתראה סומנה כטופלה והוסרה');
     }
 
-    // 3. Dismiss the alert from the radar queue (without resetting the overall traceData)
+    // 3. Dismiss the alert from the radar queue
     if (alert.firebaseKey) {
       remove(ref(database, `radar_alerts/${alert.firebaseKey}`));
     }
@@ -821,10 +842,10 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-slate-50 dark:bg-slate-900">
+      <div className="flex items-center justify-center h-screen bg-slate-50">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-          <p className="text-slate-600 dark:text-slate-400 font-medium">טוען נתוני תלמידים...</p>
+          <p className="text-slate-600 font-medium">טוען נתוני תלמידים...</p>
         </div>
       </div>
     );
@@ -832,51 +853,51 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
 
   return (
     <div
-      className={`flex flex-col ${hideSidebar ? 'w-full' : 'md:flex-row min-h-screen'} bg-ws-bg font-sans text-ws-ink selection:bg-ws-accentSoft/30 overflow-x-hidden`}
+      className={`flex flex-col ${hideSidebar ? 'w-full' : 'md:flex-row min-h-screen'} bg-slate-50 font-sans text-slate-900 selection:bg-indigo-100 overflow-x-hidden`}
       dir="rtl"
     >
       {/* Top Sub-Navigation Bar when embedded inside Admin view */}
       {hideSidebar && (
-        <div className="bg-slate-900 text-white p-4 rounded-2xl mb-6 shadow-xl border border-slate-800 flex flex-wrap items-center justify-between gap-3">
+        <div className="bg-white text-slate-900 p-4 rounded-2xl mb-6 shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="font-extrabold text-sm tracking-tight text-slate-100">תצוגת מורה אדמיניסטרטיבית</span>
+            <span className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="font-extrabold text-sm tracking-tight text-slate-900">תצוגת מורה אדמיניסטרטיבית</span>
           </div>
 
           <div className="flex flex-wrap gap-1.5 overflow-x-auto custom-scrollbar py-1">
             <button
               onClick={() => handleTabChange("heatmap")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === "heatmap" ? "bg-indigo-600 text-white shadow-md" : "bg-slate-800 text-slate-300 hover:bg-slate-700"}`}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === "heatmap" ? "bg-indigo-600 text-white shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}
             >
               מפת חום ורדאר
             </button>
             <button
               onClick={() => handleTabChange("clustering")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === "clustering" ? "bg-indigo-600 text-white shadow-md" : "bg-slate-800 text-slate-300 hover:bg-slate-700"}`}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === "clustering" ? "bg-indigo-600 text-white shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}
             >
               מיפוי כיתתי (Q-Matrix)
             </button>
             <button
               onClick={() => handleTabChange("diagnostic_reports")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === "diagnostic_reports" ? "bg-indigo-600 text-white shadow-md" : "bg-slate-800 text-slate-300 hover:bg-slate-700"}`}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === "diagnostic_reports" ? "bg-indigo-600 text-white shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}
             >
               דו"חות אבחון אישיים
             </button>
             <button
               onClick={() => handleTabChange("alerts")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === "alerts" ? "bg-indigo-600 text-white shadow-md" : "bg-slate-800 text-slate-300 hover:bg-slate-700"}`}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === "alerts" ? "bg-indigo-600 text-white shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}
             >
               התראות זמן אמת ({allAlerts.length})
             </button>
             <button
               onClick={() => handleTabChange("approvals")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === "approvals" ? "bg-indigo-600 text-white shadow-md" : "bg-slate-800 text-slate-300 hover:bg-slate-700"}`}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === "approvals" ? "bg-indigo-600 text-white shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}
             >
               אישור משימות AI
             </button>
             <button
               onClick={() => handleTabChange("class_management")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === "class_management" ? "bg-indigo-600 text-white shadow-md" : "bg-slate-800 text-slate-300 hover:bg-slate-700"}`}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === "class_management" ? "bg-indigo-600 text-white shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}
             >
               ניהול כיתה ותלמידים
             </button>
@@ -1027,36 +1048,37 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
         <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-gradient-to-tl from-cyan-500/5 via-transparent to-transparent pointer-events-none -z-10 rounded-full blur-3xl"></div>
 
         {/* Class Session Control Bar */}
-        <div className="mb-6 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-5 rounded-2xl shadow-xl border border-indigo-500/30 flex flex-col md:flex-row items-center justify-between gap-4">
+        {/* Class Session Control Bar — Bright, Clean & Accessible */}
+        <div className="mb-6 bg-white text-slate-900 p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shadow-md ${isClassSessionActive ? 'bg-emerald-500 text-white animate-pulse' : 'bg-slate-800 text-slate-400'}`}>
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shadow-sm ${isClassSessionActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
               {isClassSessionActive ? '🟢' : '🏫'}
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-bold text-lg">
+                <h3 className="font-bold text-lg text-slate-900">
                   {isClassSessionActive ? `מפגש ${selectedSessionNum} פעיל בכיתה` : 'ניהול מפגש בלייב'}
                 </h3>
                 {isClassSessionActive && (
-                  <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-black px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                  <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-black px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
                     פתוח ללמידה
                   </span>
                 )}
               </div>
-              <p className="text-slate-300 text-xs mt-1">
+              <p className="text-slate-600 text-xs mt-1">
                 {isClassSessionActive
-                  ? `מפגש ${selectedSessionNum} פעיל כעת עבור התלמידים בכיתה.`
+                  ? `מפגש ${selectedSessionNum} פתוח כעת עבור התלמידים בכיתה.`
                   : 'בחר מפגש ולחץ על "הפעל מפגש" כדי לפתוח את הלמידה לתלמידים.'}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-4 w-full md:w-auto justify-end">
+          <div className="flex items-center gap-3 w-full md:w-auto justify-end">
             {isClassSessionActive ? (
               <button
                 onClick={handleEndClassSession}
-                className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm rounded-xl shadow-lg transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+                className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
               >
                 <span>⏹️</span>
                 <span>סגור מפגש</span>
@@ -1066,7 +1088,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                 <select
                   value={selectedSessionNum}
                   onChange={(e) => setSelectedSessionNum(parseInt(e.target.value, 10))}
-                  className="bg-slate-800 text-white border border-slate-700 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                  className="bg-white text-slate-800 border border-slate-300 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-sm"
                 >
                   {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
                     <option key={num} value={num}>
@@ -1077,7 +1099,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
 
                 <button
                   onClick={() => handleStartClassSession(selectedSessionNum)}
-                  className="px-6 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold text-sm rounded-xl shadow-lg transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+                  className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
                 >
                   <span>▶️</span>
                   <span>הפעל מפגש</span>
@@ -1235,23 +1257,22 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                 <UdlButton
                   semanticColor="primary"
                   className="mt-4 w-full shadow-md shadow-blue-500/20 font-bold tracking-wide py-2.5"
+                  onClick={() => handleAssignIntervention('מבנה עשרוני וערך המקום', decimalStructureGroup)}
                 >
                   הקצאת תרגול מותאם
                 </UdlButton>
               </AccessibleCard>
 
-
-
-              <AccessibleCard className="flex flex-col justify-between p-6 bg-ws-surface/80 backdrop-blur-xl shadow-md hover:shadow-xl transition-all duration-300 border border-ws-surface2 rounded-2xl relative overflow-hidden group min-h-[340px]">
+              <AccessibleCard className="flex flex-col justify-between p-6 bg-white shadow-sm hover:shadow-md transition-all duration-300 border border-slate-200 rounded-2xl relative overflow-hidden group min-h-[340px]">
                 <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-purple-500 to-indigo-500"></div>
                 <div>
-                  <h3 className="text-xl font-bold mb-3 text-ws-ink">
+                  <h3 className="text-xl font-bold mb-3 text-slate-900">
                     גמישות בהמרה ופריטה
                   </h3>
-                  <p className="text-ws-soft mb-4 text-sm leading-relaxed">
+                  <p className="text-slate-600 mb-4 text-sm leading-relaxed">
                     תלמידים המקובעים לייצוג הקנוני ומתקשים לפרוט עשרות ליחידות.
                   </p>
-                  <div className="rounded-xl overflow-y-auto max-h-[160px] border border-ws-surface2 shadow-inner">
+                  <div className="rounded-xl overflow-y-auto max-h-[160px] border border-slate-200 shadow-inner">
                     <DataGrid
                       columns={[
                         { key: "name", header: "שם תלמיד" },
@@ -1268,21 +1289,22 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                 <UdlButton
                   semanticColor="primary"
                   className="mt-4 w-full shadow-md shadow-purple-500/20 font-bold tracking-wide py-2.5"
+                  onClick={() => handleAssignIntervention('גמישות בהמרה ופריטה', regroupingFluencyGroup)}
                 >
                   הקצאת סדנת חקר
                 </UdlButton>
               </AccessibleCard>
 
-              <AccessibleCard className="flex flex-col justify-between p-6 bg-ws-surface/80 backdrop-blur-xl shadow-md hover:shadow-xl transition-all duration-300 border border-ws-surface2 rounded-2xl relative overflow-hidden group min-h-[340px]">
-                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-red-500 to-rose-500"></div>
+              <AccessibleCard className="flex flex-col justify-between p-6 bg-white shadow-sm hover:shadow-md transition-all duration-300 border border-slate-200 rounded-2xl relative overflow-hidden group min-h-[340px]">
+                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-rose-500 to-red-500"></div>
                 <div>
-                  <h3 className="text-xl font-bold mb-3 text-ws-ink">
+                  <h3 className="text-xl font-bold mb-3 text-slate-900">
                     שליטה בפרוצדורות ובעובדות
                   </h3>
-                  <p className="text-ws-soft mb-4 text-sm leading-relaxed">
+                  <p className="text-slate-600 mb-4 text-sm leading-relaxed">
                     תלמידים שזקוקים לחיזוק האלגוריתם המסורתי בחיבור וחיסור.
                   </p>
-                  <div className="rounded-xl overflow-y-auto max-h-[160px] border border-ws-surface2 shadow-inner">
+                  <div className="rounded-xl overflow-y-auto max-h-[160px] border border-slate-200 shadow-inner">
                     <DataGrid
                       columns={[
                         { key: "name", header: "שם תלמיד" },
@@ -1298,22 +1320,23 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                 </div>
                 <UdlButton
                   semanticColor="primary"
-                  className="mt-4 w-full shadow-md shadow-red-500/20 font-bold tracking-wide py-2.5"
+                  className="mt-4 w-full shadow-md shadow-rose-500/20 font-bold tracking-wide py-2.5"
+                  onClick={() => handleAssignIntervention('שליטה בפרוצדורות ובעובדות', proceduralFluencyGroup)}
                 >
                   הקצאת תרגול מותאם
                 </UdlButton>
               </AccessibleCard>
 
-              <AccessibleCard className="flex flex-col justify-between p-6 bg-ws-surface/80 backdrop-blur-xl shadow-md hover:shadow-xl transition-all duration-300 border border-ws-surface2 rounded-2xl relative overflow-hidden group min-h-[340px]">
+              <AccessibleCard className="flex flex-col justify-between p-6 bg-white shadow-sm hover:shadow-md transition-all duration-300 border border-slate-200 rounded-2xl relative overflow-hidden group min-h-[340px]">
                 <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-slate-500 to-gray-500"></div>
                 <div>
-                  <h3 className="text-xl font-bold mb-3 text-ws-ink">
+                  <h3 className="text-xl font-bold mb-3 text-slate-900">
                     חשיבה יחסית (Relational Thinking)
                   </h3>
-                  <p className="text-ws-soft mb-4 text-sm leading-relaxed">
+                  <p className="text-slate-600 mb-4 text-sm leading-relaxed">
                     תלמידים שמתקשים לגזור עובדה חדשה מתוך עובדה ידועה ללא חישוב מחדש.
                   </p>
-                  <div className="rounded-xl overflow-y-auto max-h-[160px] border border-ws-surface2 shadow-inner">
+                  <div className="rounded-xl overflow-y-auto max-h-[160px] border border-slate-200 shadow-inner">
                     <DataGrid
                       columns={[
                         { key: "name", header: "שם תלמיד" },
@@ -1330,21 +1353,22 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                 <UdlButton
                   semanticColor="primary"
                   className="mt-4 w-full shadow-md shadow-slate-500/20 font-bold tracking-wide py-2.5"
+                  onClick={() => handleAssignIntervention('חשיבה יחסית', relationalThinkingGroup)}
                 >
                   הקצה חקר יחסים
                 </UdlButton>
               </AccessibleCard>
 
-              <AccessibleCard className="flex flex-col justify-between p-6 bg-ws-surface/80 backdrop-blur-xl shadow-md hover:shadow-xl transition-all duration-300 border border-ws-surface2 rounded-2xl relative overflow-hidden group min-h-[340px]">
+              <AccessibleCard className="flex flex-col justify-between p-6 bg-white shadow-sm hover:shadow-md transition-all duration-300 border border-slate-200 rounded-2xl relative overflow-hidden group min-h-[340px]">
                 <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-amber-500 to-orange-500"></div>
                 <div>
-                  <h3 className="text-xl font-bold mb-3 text-ws-ink">
+                  <h3 className="text-xl font-bold mb-3 text-slate-900">
                     חשיבה אלגברית ומציאת נעלם
                   </h3>
-                  <p className="text-ws-soft mb-4 text-sm leading-relaxed">
+                  <p className="text-slate-600 mb-4 text-sm leading-relaxed">
                     תלמידים המתקשים להבין את סימן השוויון כמאזניים ואת הדינמיקה של משוואה.
                   </p>
-                  <div className="rounded-xl overflow-y-auto max-h-[160px] border border-ws-surface2 shadow-inner">
+                  <div className="rounded-xl overflow-y-auto max-h-[160px] border border-slate-200 shadow-inner">
                     <DataGrid
                       columns={[
                         { key: "name", header: "שם תלמיד" },
@@ -1361,6 +1385,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                 <UdlButton
                   semanticColor="primary"
                   className="mt-4 w-full shadow-md shadow-amber-500/20 font-bold tracking-wide py-2.5"
+                  onClick={() => handleAssignIntervention('חשיבה אלגברית ומציאת נעלם', algebraicReasoningGroup)}
                 >
                   הקצאת מודל מאזניים
                 </UdlButton>
