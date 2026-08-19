@@ -9,25 +9,32 @@ service cloud.firestore {
     
     // Helper function to check teacher claim (STRICT: no email != null fallback)
     function isTeacher() {
-      return isAuthenticated() && (request.auth.token.role == 'teacher' || request.auth.token.role == 'TEACHER' || request.auth.token.teacher == true);
+      return isAuthenticated() && (
+        ('role' in request.auth.token && (request.auth.token.role == 'teacher' || request.auth.token.role == 'TEACHER')) ||
+        ('teacher' in request.auth.token && request.auth.token.teacher == true)
+      );
     }
     
     // Helper function to check admin claim
     function isAdmin() {
-      return isAuthenticated() && (request.auth.token.role == 'admin' || request.auth.token.role == 'ADMIN' || request.auth.token.admin == true);
+      return isAuthenticated() && (
+        ('role' in request.auth.token && (request.auth.token.role == 'admin' || request.auth.token.role == 'ADMIN')) ||
+        ('admin' in request.auth.token && request.auth.token.admin == true)
+      );
     }
 
     // Helper function to check if authenticated as specific student (Verified Custom Claim strictly)
     function isOwningStudent(studentId) {
       return isAuthenticated() && (
-        request.auth.token.student_id != null && 
-        (request.auth.token.student_id == studentId || string(request.auth.token.student_id) == studentId)
+        'student_id' in request.auth.token && 
+        (request.auth.token.student_id == studentId || string(request.auth.token.student_id) == string(studentId))
       );
     }
 
     // Teacher class match check
     function isTeacherOfClass(classId) {
       return isTeacher() && (
+        !('class_id' in request.auth.token) || 
         request.auth.token.class_id == null || 
         request.auth.token.class_id == classId || 
         isAdmin()
