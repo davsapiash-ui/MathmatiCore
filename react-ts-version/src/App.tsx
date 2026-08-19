@@ -158,14 +158,14 @@ function App() {
         {/* App Shell wraps authenticated routes */}
         <Route element={<AppShell />}>
           <Route path="/hub" element={
-            <AuthGuard allowedRoles={["student", "admin"]}>
+            <AuthGuard allowedRoles={["student", "teacher", "admin"]}>
               <StudentHub />
             </AuthGuard>
           } />
 
           {/* Master PRD v5.0 Route Aliases */}
           <Route path="/student/lobby" element={
-            <AuthGuard allowedRoles={["student", "admin"]}>
+            <AuthGuard allowedRoles={["student", "teacher", "admin"]}>
               <StudentHub />
             </AuthGuard>
           } />
@@ -206,7 +206,7 @@ function App() {
 
         {/* Student workspace: standalone fullscreen experience */}
         <Route path="/workspace" element={
-          <AuthGuard allowedRoles={["student", "admin"]}>
+          <AuthGuard allowedRoles={["student", "teacher", "admin"]}>
             <FirebaseGate>
               <StudentWorkspacePage />
             </FirebaseGate>

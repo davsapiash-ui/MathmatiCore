@@ -138,7 +138,7 @@ export function StudentHubPage() {
 
   const handleStartActiveSession = () => {
     startSession(activeSession.id);
-    navigate('/workspace');
+    navigate(`/workspace?meeting=${activeSession.id}`);
   };
 
   return (
@@ -192,7 +192,7 @@ export function StudentHubPage() {
 
           <button
             onClick={handleStartActiveSession}
-            className="w-full h-14 min-h-[48px] bg-[hsl(var(--ws-blue))] hover:bg-[hsl(var(--ws-blue))/0.9] text-white rounded-2xl font-display font-extrabold text-lg flex items-center justify-center gap-3 shadow-lg shadow-[hsl(var(--ws-blue)/0.25)] active:scale-[0.98] transition-all cursor-pointer"
+            className="w-full h-14 min-h-[48px] bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-2xl font-display font-extrabold text-lg flex items-center justify-center gap-3 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 active:scale-[0.98] transition-all cursor-pointer"
           >
             <span>התחל פעילות</span>
             <Play className="w-5 h-5 fill-current" />
