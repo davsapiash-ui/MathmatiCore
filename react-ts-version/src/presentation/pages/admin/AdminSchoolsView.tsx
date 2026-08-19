@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useAdminStore } from "@/application/useAdminStore";
 import { AdminWizardModal } from "./AdminWizardModal";
+import { toast } from "sonner";
 
 export function AdminSchoolsView() {
   const { 
@@ -48,6 +49,9 @@ export function AdminSchoolsView() {
     const num = parseInt(limitInput, 10);
     if (!isNaN(num) && num > 0) {
       setGlobalStudentLimit(num);
+      toast.success(`מגבלת התלמידים העולמית עודכנה ל-${num} תלמידים!`);
+    } else {
+      toast.error("אנא הזן מספר תלמידים תקין (גדול מ-0)");
     }
   };
 
@@ -56,8 +60,10 @@ export function AdminSchoolsView() {
       setIsResetting(true);
       try {
         await resetInstitutionsToOfficialPilot();
+        toast.success("המערכת אופסה בהצלחה למבנה הפיילוט הרשמי (בית ספר ביקורת וכיתת המבקרים)");
       } catch (e) {
         console.error("Failed to reset pilot institutions:", e);
+        toast.error("שגיאה באיפוס מוסדות הפיילוט");
       } finally {
         setIsResetting(false);
       }
@@ -87,20 +93,20 @@ export function AdminSchoolsView() {
   return (
     <div className="p-6 md:p-10 pb-24 max-w-7xl mx-auto space-y-8" dir="rtl">
       {/* Header Banner */}
-      <header className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-indigo-900 via-slate-900 to-purple-950 p-8 text-white shadow-2xl border border-indigo-500/20">
-        <div className="absolute -top-24 -left-24 w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl pointer-events-none" />
+      <header className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-700 p-8 text-white shadow-xl border border-indigo-400/40">
+        <div className="absolute -top-24 -left-24 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
         
         <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
           <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-xs font-semibold">
-              <Sparkles className="w-3.5 h-3.5" />
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 border border-white/25 text-white text-xs font-semibold backdrop-blur-md">
+              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
               <span>ניהול מוסדי מרובה דיירים (Multi-Tenant Management)</span>
             </div>
             <h1 className="text-3xl md:text-4xl font-black tracking-tight text-white">
               פריסת מוסדות, מורים וכיתות
             </h1>
-            <p className="text-slate-300 text-sm md:text-base max-w-2xl font-light leading-relaxed">
+            <p className="text-indigo-100 text-sm md:text-base max-w-2xl font-light leading-relaxed">
               מערכת אדמיניסטרטיבית להקמה וניהול של מוסדות לימוד, שיוך מורים מובילים והגדרת כיתות לימוד בהתאם לתקני פיילוט.
             </p>
           </div>
@@ -108,11 +114,11 @@ export function AdminSchoolsView() {
           <div className="flex flex-wrap gap-3">
             <UdlButton 
               semanticColor="neutral" 
-              className="gap-2 bg-slate-800/80 hover:bg-slate-700/80 text-rose-300 hover:text-rose-200 font-bold py-3.5 px-5 rounded-2xl shadow-lg border border-rose-500/30 transition-all hover:scale-105 active:scale-95 text-xs"
+              className="gap-2 bg-rose-600 hover:bg-rose-700 text-white font-bold py-3.5 px-5 rounded-2xl shadow-lg border border-rose-400/40 transition-all hover:scale-105 active:scale-95 text-xs cursor-pointer"
               onClick={handleResetPilot}
               disabled={isResetting}
             >
-              <Trash2 className="w-4 h-4 text-rose-400" />
+              <Trash2 className="w-4 h-4 text-white" />
               <span>{isResetting ? "מאפס נתונים..." : "🧹 איפוס וניקוי לפיילוט"}</span>
             </UdlButton>
 
