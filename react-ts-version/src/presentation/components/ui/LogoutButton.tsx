@@ -8,20 +8,18 @@ interface LogoutButtonProps {
 }
 
 export function LogoutButton({ className = "", showIconOnly = false }: LogoutButtonProps) {
-  const navigate = useNavigate();
-
   const handleLogout = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     unifiedLogout();
-    navigate("/login", { replace: true });
+    window.location.href = "/login";
   };
 
   return (
     <button
       onClick={handleLogout}
       type="button"
-      className={`flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors font-bold cursor-pointer select-none ${className}`}
+      className={`relative z-20 flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors font-bold cursor-pointer select-none ${className}`}
       title={showIconOnly ? "התנתק" : undefined}
       aria-label="התנתק מהמערכת"
     >

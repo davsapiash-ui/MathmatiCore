@@ -174,7 +174,7 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
           <button
             onClick={() => {
               logout();
-              navigate('/login');
+              window.location.href = '/login';
             }}
             className="h-12 px-4 rounded-2xl text-sm font-bold text-ws-soft hover:text-red-600 hover:bg-red-50 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5"
             aria-label="התנתק"
