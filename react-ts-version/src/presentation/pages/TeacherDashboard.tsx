@@ -1056,12 +1056,6 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
               דו"חות אבחון אישיים
             </button>
             <button
-              onClick={() => handleTabChange("alerts")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === "alerts" ? "bg-indigo-600 text-white shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}
-            >
-              התראות זמן אמת ({allAlerts.length})
-            </button>
-            <button
               onClick={() => handleTabChange("approvals")}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === "approvals" ? "bg-indigo-600 text-white shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}
             >
@@ -1134,7 +1128,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
             onClick={() => handleTabChange("heatmap")}
             className={`w-full text-right px-4 py-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "heatmap" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg text-ws-soft "}`}
           >
-            מפת חום ורדאר (<span dir="ltr">Heatmap & Radar</span>)
+            רדאר פדגוגי שקט (<span dir="ltr">Silent Radar</span>)
           </button>
           <button
             id="tour-tab-clustering"
@@ -1149,17 +1143,6 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
             className={`w-full text-right px-4 py-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "diagnostic_reports" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg text-ws-soft "}`}
           >
             דו"חות אבחון אישיים
-          </button>
-          <button
-            onClick={() => handleTabChange("alerts")}
-            className={`w-full flex justify-between items-center text-right px-4 py-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "alerts" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg text-ws-soft "}`}
-          >
-            <span>התראות זמן אמת (רדאר)</span>
-            {allAlerts.length > 0 && (
-              <span className="bg-rose-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg shadow-rose-500/30 badge-alert animate-soft-heartbeat">
-                {allAlerts.length}
-              </span>
-            )}
           </button>
           <button
             onClick={() => handleTabChange("approvals")}
@@ -1566,84 +1549,6 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
           </div>
         )}
 
-        {activeTab === "alerts" && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <header className="mb-10">
-              <h1 className="text-4xl font-black bg-gradient-to-l from-slate-900 to-slate-600 dark:from-white dark:to-slate-400 bg-clip-text text-transparent tracking-tight">
-                התראות זמן אמת (רדאר)
-              </h1>
-              <p className="text-ws-soft  mt-3 text-lg">
-                זיהוי מאבקים קוגניטיביים ושיוט פסיבי ללא הפרעה לתלמיד.
-              </p>
-            </header>
-            <div className="grid gap-6">
-              {allAlerts.length === 0 ? (
-                <div className="text-center py-20 text-ws-soft bg-white/50 backdrop-blur-md rounded-2xl border-2 border-dashed border-slate-300 shadow-sm">
-                  <div className="w-16 h-16 mx-auto mb-4 bg-ws-bg rounded-full flex items-center justify-center">
-                    <ShieldAlert className="w-8 h-8 text-slate-300" />
-                  </div>
-                  <p className="text-xl font-bold text-slate-400">
-                    אין התראות חדשות. הכיתה עובדת מצוין!
-                  </p>
-                </div>
-              ) : (
-                (() => {
-                  const groupedAlerts = allAlerts.reduce((acc, alert) => {
-                    const sId = alert.studentId || "תלמיד אנונימי";
-                    if (!acc[sId]) acc[sId] = { studentId: sId, alerts: [] };
-                    acc[sId].alerts.push(alert);
-                    return acc;
-                  }, {} as Record<string, { studentId: string, alerts: typeof allAlerts }>);
-
-                  return (
-                    <div className="grid gap-6 md:grid-cols-2">
-                      {Object.values(groupedAlerts).map(group => {
-                        const isRed = group.alerts.some(a => a.type === "TAB_ESCAPE" || a.type === "PASSIVE_DRIFTING");
-                        
-                        return (
-                          <div key={group.studentId} className={`p-6 rounded-3xl border shadow-sm backdrop-blur-md transition-all hover:scale-[1.01] ${isRed ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200'}`}>
-                            <div className="flex justify-between items-start mb-4">
-                              <div className="flex items-center gap-3">
-                                <div className={`w-3 h-3 rounded-full animate-ping ${isRed ? 'bg-red-500' : 'bg-amber-500'}`}></div>
-                                <div>
-                                  <h3 className="font-bold text-xl text-slate-800">{group.studentId}</h3>
-                                  <p className="text-sm text-slate-500">{group.alerts.length} אירועים נרשמו לאחרונה</p>
-                                </div>
-                              </div>
-                              <span className={`px-3 py-1 rounded-full text-xs font-bold ${isRed ? 'bg-red-200 text-red-800' : 'bg-amber-200 text-amber-800'}`}>
-                                {isRed ? 'SOS קוגניטיבי / חוסר מיקוד' : 'התראת אוטומציה / פיגום מוזרק'}
-                              </span>
-                            </div>
-                            
-                            <div className="flex flex-col gap-2 mb-6 max-h-[150px] overflow-y-auto pr-2">
-                              {group.alerts.map((a, i) => (
-                                <div key={i} className="text-sm text-slate-600 bg-white/70 p-3 rounded-lg border border-white/50 flex justify-between items-center">
-                                  <div>
-                                    <span className="font-bold text-slate-800 ml-2">{new Date(a.timestamp).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span>
-                                    {a.type === "HESITATION" ? "מאבק קוגניטיבי (עצירה)" : a.type === "TAB_ESCAPE" ? "נטישת חלון" : a.type === "PASSIVE_DRIFTING" ? "שיוט פסיבי (מחיקות)" : a.type}
-                                  </div>
-                                  <span className="text-xs bg-slate-100 px-2 py-1 rounded text-slate-500">משימה: {a.taskId || "?"}</span>
-                                </div>
-                              ))}
-                            </div>
-                            
-                            <div className="flex gap-2">
-                              <UdlButton size="sm" semanticColor="primary" className="flex-1 shadow-md shadow-blue-500/20" onClick={() => handleAlertResponse(group.alerts[0], 'HINT', 'נשלח רמז אישי')}>שלח רמז אישי</UdlButton>
-                              <UdlButton size="sm" semanticColor="secondary" className="flex-1 bg-purple-100 hover:bg-purple-200 text-purple-700 shadow-sm" onClick={() => handleAlertResponse(group.alerts[0], 'PHYSICAL', 'ניגשתי פיזית לתלמיד')}>ניגשתי פיזית</UdlButton>
-                              <UdlButton size="sm" variant="outline" className="flex-1 bg-white/50" onClick={() => {
-                                group.alerts.forEach(a => handleAlertResponse(a, 'ACKNOWLEDGED', 'סומן כנקרא (ללא התערבות)'));
-                              }}>סמן הכל כנקרא</UdlButton>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                })()
-              )}
-            </div>
-          </div>
-        )}
 
         {activeTab === "class_management" && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
