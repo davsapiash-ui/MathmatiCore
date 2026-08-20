@@ -347,7 +347,7 @@ export function selectCanProceed(s: WorkspaceState): boolean {
   if (task.type === 'session1_intro') {
     if (task.correctAnswer === 'proceed_any' || !task.choices?.length) {
       if (task.id === 's1_sandbox_controlled') {
-        return s.blocksAddedCount >= 5 && s.hasDeletedBlock;
+        return s.hasInteracted || s.blocksAddedCount >= 1 || s.hasDeletedBlock || selectBoardValue(s) > 0;
       }
       if (task.id === 's1_t3' && (!s.hasDeletedBlock || selectBoardValue(s) !== 50)) return false;
       if (task.id === 's1_t5' && (!s.hasUngrouped || selectBoardValue(s) !== 40)) return false;
@@ -594,19 +594,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         set({ scaffoldFadeLevel: Math.min(2, get().scaffoldFadeLevel + 1) });
       }
       
-      showFeedback({ correct: true, title: feedbackTitle, sub: feedbackSub }, feedbackMs, () => {
-        advanceStandard();
-      });
+      showFeedback({ correct: true, title: feedbackTitle, sub: feedbackSub }, feedbackMs);
+      advanceStandard();
     };
 
     if (task.type === 'session1_intro') {
       if (task.correctAnswer === 'proceed_any' || !task.choices?.length) {
-        if (task.id === 's1_sandbox_controlled') {
-          if (!s.hasDeletedBlock) {
-            showFeedback({ correct: false, title: 'עוד לא סיימנו', sub: 'אנא ודאו שגררתם בלוקים ומחקתם לפחות בלוק אחד בעזרת פח המחזור.' }, 3000);
-            return;
-          }
-        }
         handleSuccess('מעולה! 🌟', 'ממשיכים הלאה.', 1500);
         return;
       }
