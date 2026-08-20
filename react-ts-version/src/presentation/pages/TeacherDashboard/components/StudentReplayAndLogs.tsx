@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { ref, onValue } from "firebase/database";
 import { database, authReady } from "@/infrastructure/firebase";
 import { normalizeStudentId } from "@/application/useChatStore";
+import { getSessionTasks } from "@/data/sessionTasks";
 import { Play, Pause, RotateCcw, Video, Activity, Clock, ShieldCheck, CheckCircle2, AlertTriangle, ArrowRight, Layers, FileText, ChevronLeft, ChevronRight } from "lucide-react";
 import { TenSVG, HundredSVG, UnitSVG, ThousandSVG } from "@/features/workspace/board/DienesBlock";
 
@@ -38,8 +39,8 @@ export const TELEMETRY_EVENT_LABELS_HE: Record<string, { label: string; mileston
   HESITATION_DETECTED: { label: 'זיהוי היסוס (45 שניות)', milestone: 'חניכה סוקרטית', defaultAction: 'SOCRATIC_TRIGGER' },
   SOCRATIC_CARD_SHOWN: { label: 'הצגת כרטיס חניכה סוקרטי', milestone: 'חניכה סוקרטית', defaultAction: 'SOCRATIC_TRIGGER' },
   SOCRATIC_OPTION_SELECTED: { label: 'בחירת תשובה בכרטיס סוקרטי', milestone: 'חניכה סוקרטית', defaultAction: 'SOCRATIC_TRIGGER' },
-  PROBLEM_COMPLETE: { label: 'השלמת משימה בהצלחה', milestone: 'שורת התוצאה', defaultAction: 'ANSWER_INPUT' },
-  REFLECTION_SUBMITTED: { label: 'הגשת רפלקציה עצמית', milestone: 'ויסות עצמי שקט', isSelfRegulation: true, defaultAction: 'UNDO_CLICK' },
+  PHYSICAL_OVERRIDE_ENABLED: { label: 'הפעלת עקיפה פיזית (VRA)', milestone: 'ויסות עצמי שקט', defaultAction: 'BLOCK_DRAG' },
+  SESSION_COMPLETE: { label: 'השלמת מפגש בהצלחה', milestone: 'שורת התוצאה', defaultAction: 'ANSWER_INPUT' },
 
   // Interaction actions & fallback synonyms
   BLOCK_DRAG: { label: 'גרירת לבנה', milestone: 'ייצוג בלבני דינס', defaultAction: 'BLOCK_DRAG' },
@@ -53,10 +54,8 @@ export const TELEMETRY_EVENT_LABELS_HE: Record<string, { label: string; mileston
 };
 
 /**
- * מודול 21: ממשק אבחון מסך מפוצל אמיתי למורה (Teacher Diagnostic Split Screen Replay)
- * צד ימין של הנגן: דף התרגיל / כרטיס המשימה המלא של התלמיד (הזנת ספרות, עיגולי זיכרון, משוואה, סטטוס).
- * צד שמאל של הנגן: לוח בית המספרים ולבני הדינס האותנטיות (עמודות צבעוניות, בדידים פיזיים, ערך חי).
- * צד ימין של המסך: טבלת ציר החלטות קוגניטיבי מסונכרנת בזמן אמת עם הנגן.
+ * מודול 10: שחזור מסך התלמיד (Diagnostic Replay Spec)
+ * מציג נתוני אמת של פעילות התלמיד מתוך הטלמטריה וה-vector_replays של Firebase.
  */
 export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: string }) {
   const studentId = normalizeStudentId(rawStudentId || '');
@@ -93,9 +92,13 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
 
         setLiveStudentData(val);
         
-        // 1. Extract raw events from all possible telemetry pipelines
+        // 1. Extract raw events from all possible telemetry pipelines (prioritizing vector_replays)
         let rawEvents: any[] = [];
-        if (val.radar_history) {
+        if (val.vector_replays) {
+          const vr = val.vector_replays;
+          rawEvents = Array.isArray(vr) ? vr : Object.values(vr);
+        }
+        if (rawEvents.length === 0 && val.radar_history) {
           const rh = val.radar_history;
           rawEvents = Array.isArray(rh) ? rh : Object.values(rh);
         }
@@ -113,16 +116,29 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
         }
 
         const workspaceState = val.workspaceState || {};
-        const currentCounts = workspaceState.counts || { units: 4, tens: 2, hundreds: 1, thousands: 0 };
+        const currentCounts = workspaceState.counts || { units: 0, tens: 0, hundreds: 0, thousands: 0 };
         const sessionNum = workspaceState.sessionNumber || 1;
+        const currentTaskIdx = Number(workspaceState.standardTaskIdx || val.currentTaskIdx || 0);
+        const sessionTasks = getSessionTasks(sessionNum as any) || [];
+        const activeCurriculumTask = sessionTasks[currentTaskIdx] || sessionTasks[0];
         const ws = workspaceState;
         const hasTask = !!ws.activeTask;
+
         const dynamicEquation = hasTask 
           ? (ws.activeTask.numberA != null && ws.activeTask.numberB != null 
               ? `${ws.activeTask.numberA} ${ws.activeTask.isSubtraction ? '-' : '+'} ${ws.activeTask.numberB} = ?` 
               : ws.activeTask.titleHe || 'תרגיל פעיל')
-          : (sessionNum === 1 ? 'בניית המספר 124 וחקירת פריטה' : '128 + 35 = ?');
-        const dynamicTitle = hasTask ? ws.activeTask.titleHe : (sessionNum === 1 ? 'מפגש 1: ארגז החול הדיגיטלי המונחה' : 'מפגש 4: אלגוריתם החיבור במאונך');
+          : activeCurriculumTask?.numberA != null && activeCurriculumTask?.numberB != null
+            ? `${activeCurriculumTask.numberA} ${activeCurriculumTask.isSubtraction ? '-' : '+'} ${activeCurriculumTask.numberB} = ?`
+            : activeCurriculumTask?.titleHe || `מפגש ${sessionNum}`;
+
+        const dynamicTitle = hasTask 
+          ? ws.activeTask.titleHe 
+          : activeCurriculumTask?.titleHe || `מפגש ${sessionNum}`;
+
+        const dynamicInstruction = hasTask
+          ? (ws.activeTask.instructionHe || 'פתרו את המשימה בלוח')
+          : (activeCurriculumTask?.instructionHe || 'ייצוג המספר באמצעות לבני דינס בטורים המתאימים');
 
         if (rawEvents.length > 0) {
           let lastTime = 0;
@@ -213,109 +229,33 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
 
           setEvents(mapped);
         } else {
-          // Guided 5-Step interactive progression for seamless telemetry replay
-          const now = Date.now();
-          const baseCounts = currentCounts.units + currentCounts.tens + currentCounts.hundreds > 0
-            ? currentCounts
-            : { units: 3, tens: 5, hundreds: 1, thousands: 0 };
-
-          setEvents([
-            {
-              id: 'event_step_1',
-              timestamp: now - 35000,
-              timeFormatted: new Date(now - 35000).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-              actionType: 'BLOCK_DRAG',
-              actionLabelHe: 'ייצוג ראשוני בבית המספרים',
-              vraMilestone: 'ייצוג בלבני דינס',
-              details: 'התלמיד גרר לבנים לייצוג המספר הראשון בטורי הערך המקומי',
-              delaySeconds: 4,
-              selfRegulationFlag: false,
-              stateSnapshot: {
-                counts: { units: baseCounts.units, tens: baseCounts.tens, hundreds: baseCounts.hundreds, thousands: 0 },
-                answerDigits: { hundreds: '', tens: '', units: '' },
-                carryDigits: {},
-                taskTitle: dynamicTitle,
-                equation: dynamicEquation,
-                stepInstruction: 'ייצוג המספר באמצעות לבני דינס בטורים המתאימים'
+          // Real live snapshot if student interacted, otherwise clean empty list (ZERO fake data)
+          if (val.workspaceState && (val.workspaceState.hasInteracted || (currentCounts.units + currentCounts.tens + currentCounts.hundreds > 0))) {
+            const now = Date.now();
+            setEvents([
+              {
+                id: 'live_snapshot',
+                timestamp: now,
+                timeFormatted: new Date(now).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                actionType: 'BLOCK_DRAG',
+                actionLabelHe: 'מצב לוח פעיל בזמן אמת',
+                vraMilestone: 'ייצוג בלבני דינס',
+                details: val.lastAction || `פעילות במשימה: ${dynamicTitle}`,
+                delaySeconds: 0,
+                selfRegulationFlag: false,
+                stateSnapshot: {
+                  counts: currentCounts,
+                  answerDigits: ws.answerDigits || { hundreds: '', tens: '', units: '' },
+                  carryDigits: ws.carryDigits || {},
+                  taskTitle: dynamicTitle,
+                  equation: dynamicEquation,
+                  stepInstruction: dynamicInstruction,
+                }
               }
-            },
-            {
-              id: 'event_step_2',
-              timestamp: now - 25000,
-              timeFormatted: new Date(now - 25000).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-              actionType: 'DECOMPOSE',
-              actionLabelHe: 'פריטת עשרת ל-10 יחידות',
-              vraMilestone: 'המרה עשרונית',
-              details: 'בוצעה פריטה של עשרת אחת ל-10 יחידות בדידים לצורך חיסור/המרה',
-              delaySeconds: 10,
-              selfRegulationFlag: false,
-              stateSnapshot: {
-                counts: { units: baseCounts.units + 10, tens: Math.max(0, baseCounts.tens - 1), hundreds: baseCounts.hundreds, thousands: 0 },
-                answerDigits: { hundreds: '', tens: '', units: '' },
-                carryDigits: { tens: '1' },
-                taskTitle: dynamicTitle,
-                equation: dynamicEquation,
-                stepInstruction: 'פריטה והמרת עשרת לצורך השלמת הפעולה'
-              }
-            },
-            {
-              id: 'event_step_3',
-              timestamp: now - 18000,
-              timeFormatted: new Date(now - 18000).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-              actionType: 'MEMORY_CIRCLE_INPUT',
-              actionLabelHe: 'רישום שארית בעיגול הזיכרון',
-              vraMilestone: 'זיכרון עבודה',
-              details: 'התלמיד סימן 1 בעיגול הזיכרון בראש טור העשרות',
-              delaySeconds: 7,
-              selfRegulationFlag: false,
-              stateSnapshot: {
-                counts: { units: baseCounts.units + 10, tens: Math.max(0, baseCounts.tens - 1), hundreds: baseCounts.hundreds, thousands: 0 },
-                answerDigits: { hundreds: '', tens: '', units: '' },
-                carryDigits: { tens: '1' },
-                taskTitle: dynamicTitle,
-                equation: dynamicEquation,
-                stepInstruction: 'שמירת שארית בעשרות בדף התרגיל'
-              }
-            },
-            {
-              id: 'event_step_4',
-              timestamp: now - 10000,
-              timeFormatted: new Date(now - 10000).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-              actionType: 'ANSWER_INPUT',
-              actionLabelHe: 'הקלדת ספרות ביחידות ובעשרות',
-              vraMilestone: 'שורת התוצאה',
-              details: 'התלמיד הזין את תוצאת חישוב היחידות והעשרות בתיבות התוצאה',
-              delaySeconds: 8,
-              selfRegulationFlag: false,
-              stateSnapshot: {
-                counts: { units: baseCounts.units, tens: baseCounts.tens, hundreds: baseCounts.hundreds, thousands: 0 },
-                answerDigits: { hundreds: '', tens: String(baseCounts.tens), units: String(baseCounts.units) },
-                carryDigits: { tens: '1' },
-                taskTitle: dynamicTitle,
-                equation: dynamicEquation,
-                stepInstruction: 'הזנת ספרות התוצאה בטורים המתאימים'
-              }
-            },
-            {
-              id: 'event_step_5',
-              timestamp: now - 2000,
-              timeFormatted: new Date(now - 2000).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-              actionType: 'ANSWER_INPUT',
-              actionLabelHe: 'השלמת פתרון התרגיל המלא',
-              vraMilestone: 'שורת התוצאה',
-              details: 'סיום הזנת כלל ספרות התוצאה ובדיקת משוואה מלאה',
-              delaySeconds: 8,
-              selfRegulationFlag: true,
-              stateSnapshot: {
-                counts: { units: baseCounts.units, tens: baseCounts.tens, hundreds: baseCounts.hundreds, thousands: 0 },
-                answerDigits: { hundreds: String(baseCounts.hundreds || '1'), tens: String(baseCounts.tens), units: String(baseCounts.units) },
-                carryDigits: { tens: '1' },
-                taskTitle: dynamicTitle,
-                equation: dynamicEquation,
-                stepInstruction: 'התרגיל נפתר בהצלחה מלאה ומסונכרן לשרת'
-              }
-            }
-          ]);
+            ]);
+          } else {
+            setEvents([]);
+          }
         }
       }, (err) => {
         console.warn('[StudentReplayAndLogs] studentsRootRef listener notice:', err);
@@ -646,35 +586,42 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {events.map((event, idx) => {
-                    const isSelected = idx === currentEventIndex;
-                    return (
-                      <tr 
-                        key={event?.id || `event_${idx}`} 
-                        onClick={() => {
-                          setIsPlaying(false);
-                          setCurrentEventIndex(idx);
-                        }}
-                        className={`cursor-pointer transition-all ${
-                          isSelected 
-                            ? 'bg-indigo-50 dark:bg-indigo-950/70 font-bold border-r-4 border-indigo-600' 
-                            : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/40'
-                        }`}
-                      >
-                        <td className="p-3 font-mono text-[11px] text-slate-400">{event?.timeFormatted ?? '--:--:--'}</td>
-                        <td className="p-3">
-                          <span className={`font-black px-2 py-0.5 rounded-md text-[10px] ${
-                            event?.vraMilestone === 'המרה עשרונית'
-                              ? 'bg-purple-100 text-purple-900 dark:bg-purple-950 dark:text-purple-200'
-                              : event?.vraMilestone === 'ויסות עצמי שקט'
-                              ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200'
-                              : event?.vraMilestone === 'זיכרון עבודה'
-                              ? 'bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-200'
-                              : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200'
-                          }`}>
-                            {event?.vraMilestone ?? 'ייצוג בלבני דינס'}
-                          </span>
-                        </td>
+                  {events.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="p-8 text-center text-slate-400 dark:text-slate-500 font-medium text-xs">
+                        טרם נרשמו פעולות שחזור עבור תלמיד זה במפגש. עם ביצוע פעולות בסביבת העבודה, הן יתועדו כאן בזמן אמת.
+                      </td>
+                    </tr>
+                  ) : (
+                    events.map((event, idx) => {
+                      const isSelected = idx === currentEventIndex;
+                      return (
+                        <tr 
+                          key={event?.id || `event_${idx}`} 
+                          onClick={() => {
+                            setIsPlaying(false);
+                            setCurrentEventIndex(idx);
+                          }}
+                          className={`cursor-pointer transition-all ${
+                            isSelected 
+                              ? 'bg-indigo-50 dark:bg-indigo-950/70 font-bold border-r-4 border-indigo-600' 
+                              : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/40'
+                          }`}
+                        >
+                          <td className="p-3 font-mono text-[11px] text-slate-400">{event?.timeFormatted ?? '--:--:--'}</td>
+                          <td className="p-3">
+                            <span className={`font-black px-2 py-0.5 rounded-md text-[10px] ${
+                              event?.vraMilestone === 'המרה עשרונית'
+                                ? 'bg-purple-100 text-purple-900 dark:bg-purple-950 dark:text-purple-200'
+                                : event?.vraMilestone === 'ויסות עצמי שקט'
+                                ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200'
+                                : event?.vraMilestone === 'זיכרון עבודה'
+                                ? 'bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-200'
+                                : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200'
+                            }`}>
+                              {event?.vraMilestone ?? 'ייצוג בלבני דינס'}
+                            </span>
+                          </td>
                         <td className="p-3 font-medium text-slate-800 dark:text-slate-200">
                           <div className="font-bold leading-snug">{event?.actionLabelHe ?? 'פעולה בלוח'}</div>
                           <div className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight mt-0.5">{event?.details ?? 'פעילות בלוח הערך המקומי'}</div>
@@ -692,8 +639,9 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
                           )}
                         </td>
                       </tr>
-                    );
-                  })}
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </div>

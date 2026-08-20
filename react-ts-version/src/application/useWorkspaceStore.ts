@@ -805,17 +805,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       }
     }
 
-    if (s.sessionNumber === 1) {
-      set({ awaitingNext: true });
-      showFeedback({ correct: true, title: 'כָּל הַכָּבוֹד! מִפְגָּשׁ 1 הוּשְׁלַם בְּהַצְלָחָה! 🎉', sub: 'עוֹבְרִים כָּעֵת אוֹטוֹמָטִית לְמִפְגָּשׁ 2...' }, 2500, () => {
-        get().initSession(2, get().isASD);
-      });
-    } else {
-      set({ awaitingNext: true, currentState: 'COMPLETE' });
-      showFeedback({ correct: true, title: 'כָּל הַכָּבוֹד! 🎉', sub: 'הִצְלַחְתֶּם בַּמְּשִׂימָה! נַעֲבֹר לַמְּשִׂימָה הַבָּאָה...' }, 2500, () => {
-        set({ flowStatus: 'sessionDone', awaitingNext: false });
-      });
-    }
+    set({ awaitingNext: true, currentState: 'COMPLETE' });
+    showFeedback({ correct: true, title: 'כָּל הַכָּבוֹד! 🎉', sub: `מִפְגָּשׁ ${s.sessionNumber} הוּשְׁלַם בְּהַצְלָחָה!` }, 2500, () => {
+      set({ flowStatus: 'sessionDone', awaitingNext: false });
+    });
   }
 
   /** Session-2 proceed (vanilla handleQTaskProceed, app.js 1112–1162). */
