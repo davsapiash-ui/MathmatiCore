@@ -2420,7 +2420,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                           <MessageCircle className="w-8 h-8 opacity-40" />
                         </div>
                         <h4 className="font-bold text-lg text-slate-700 dark:text-slate-200 mb-1">אין הודעות קודמות</h4>
-                        <p className="text-xs text-slate-500">הקלד הודעה, שלח רמז או הקלטה קולית לתלמיד.</p>
+                        <p className="text-xs text-slate-500">הקלד הודעה או שלח רמז פדגוגי לתלמיד.</p>
                       </div>
                     ) : (
                       studentMessages.map((msg) => {
@@ -2484,7 +2484,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                     שיחות פדגוגיות עם תלמידים
                   </h3>
                   <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm leading-relaxed">
-                    בחר תלמיד מהרשימה מימין כדי להציג את היסטוריית השיחה ולהעביר הנחיות, תמונות או הקלטה קולית בזמן אמת.
+                    בחר תלמיד מהרשימה מימין כדי להציג את היסטוריית השיחה ולהעביר הנחיות או רמזים פדגוגיים בזמן אמת.
                   </p>
                 </div>
               )}

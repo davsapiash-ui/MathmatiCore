@@ -57,19 +57,10 @@ export function BlockPalette({ scaffoldLevel }: { scaffoldLevel: number }) {
       {/* Manipulatives on Tray (Center) */}
       <div className="flex items-center gap-2.5 flex-1 justify-center">
         {itemsToRender.map(({ place, labelHe, subHe, scale }) => {
-          const handleAdd = () => {
-            useWorkspaceStore.getState().applyDrop({
-              source: 'palette',
-              sourcePlace: place,
-              target: { kind: 'column', place },
-            });
-          };
-
           return (
             <div
               key={place}
-              onClick={handleAdd}
-              className="relative flex flex-col items-center justify-between rounded-xl px-3 py-1.5 min-w-[84px] h-[80px] bg-slate-50/70 hover:bg-slate-100/90 border border-slate-200/80 hover:border-indigo-300 shadow-2xs hover:shadow-xs active:scale-95 transition-all cursor-pointer select-none"
+              className="relative flex flex-col items-center justify-between rounded-xl px-3 py-1.5 min-w-[84px] h-[80px] bg-slate-50/70 hover:bg-slate-100/90 border border-slate-200/80 hover:border-indigo-300 shadow-2xs hover:shadow-xs transition-all select-none"
             >
               <div 
                 className="h-11 w-full flex items-center justify-center pointer-events-auto"
@@ -80,7 +71,6 @@ export function BlockPalette({ scaffoldLevel }: { scaffoldLevel: number }) {
                   place={place}
                   source="palette"
                   noEnter
-                  onClick={handleAdd}
                 />
               </div>
 
@@ -92,7 +82,7 @@ export function BlockPalette({ scaffoldLevel }: { scaffoldLevel: number }) {
                   ({subHe})
                 </span>
               </div>
-              <span className="sr-only">{`גרור או לחץ להוספת ${PLACE_NAMES_HE[place]} לטבלה — ערך ${PLACE_VALUES[place]}`}</span>
+              <span className="sr-only">{`גרור להוספת ${PLACE_NAMES_HE[place]} לטבלה — ערך ${PLACE_VALUES[place]}`}</span>
             </div>
           );
         })}

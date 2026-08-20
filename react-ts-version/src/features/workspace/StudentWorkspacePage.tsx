@@ -697,12 +697,11 @@ export function StudentWorkspacePage() {
   const hasLocalCurrentMeeting = cachedLocal?.sessionNumber === meeting;
 
   const highestCompleted = myData?.highestCompletedMeeting ?? (myData?.completedMeeting2 ? 2 : 0);
+  const isTeacherOrAdmin = user?.role === 'teacher' || user?.role === 'admin';
   const isMatchingSessionActive =
-    meeting === 1 ||
-    hasLocalCurrentMeeting ||
+    isTeacherOrAdmin ||
     !firebaseLoaded ||
-    highestCompleted >= meeting - 1 ||
-    (isTeacherSessionActive && activeClassSession?.sessionNumber ? meeting <= Number(activeClassSession.sessionNumber) : false);
+    (isTeacherSessionActive && Number(activeClassSession?.sessionNumber) === meeting);
 
   if (!isMatchingSessionActive && !isInitializing) {
     return (
@@ -712,7 +711,7 @@ export function StudentWorkspacePage() {
           <h2 className="text-2xl font-bold mb-4 text-ws-ink">מפגש {meeting} ממתין להפעלה בכיתה</h2>
           <p className="text-ws-soft mb-8 leading-relaxed">
             {isTeacherSessionActive
-              ? `המורה מפעיל/ה כעת בכיתה את מפגש ${activeClassSession?.sessionNumber}. סביבת הלימוד תעבור אוטומטית ברגע שהמורה יפעיל את מפגש ${meeting}.`
+              ? `המורה מפעיל/ה כעת בכיתה את מפגש ${activeClassSession?.sessionNumber}. סביבת הלימוד תיפתח אוטומטית כשהמורה יפעיל את מפגש ${meeting}.`
               : 'סביבת הלימוד ממתינה להפעלת השיעור על ידי המורה בדשבורד הכיתה.'}
           </p>
           <button 

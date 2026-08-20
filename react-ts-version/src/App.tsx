@@ -181,40 +181,41 @@ function App() {
               <StudentHub />
             </AuthGuard>
           } />
-
-          <Route path="/dashboard" element={
-            <AuthGuard allowedRoles={["teacher", "admin"]}>
-              <FirebaseGate>
-              <TeacherDashboard />
-              </FirebaseGate>
-            </AuthGuard>
-          } />
-
-          <Route path="/teacher/dashboard" element={
-            <AuthGuard allowedRoles={["teacher", "admin"]}>
-              <FirebaseGate>
-              <TeacherDashboard />
-              </FirebaseGate>
-            </AuthGuard>
-          } />
-
-          {/* PRD Section 4.3 Navigation Redundancy for student reports */}
-          <Route path="/reports/student/:id" element={
-            <AuthGuard allowedRoles={["teacher", "admin"]}>
-              <FirebaseGate>
-              <TeacherDashboard />
-              </FirebaseGate>
-            </AuthGuard>
-          } />
-
-          <Route path="/dashboard/student/:id/view" element={
-            <AuthGuard allowedRoles={["teacher", "admin"]}>
-              <FirebaseGate>
-              <TeacherDashboard />
-              </FirebaseGate>
-            </AuthGuard>
-          } />
         </Route>
+
+        {/* Teacher Dashboard: standalone full-screen workstation with single scroll and dedicated sidebar */}
+        <Route path="/dashboard" element={
+          <AuthGuard allowedRoles={["teacher", "admin"]}>
+            <FirebaseGate>
+              <TeacherDashboard />
+            </FirebaseGate>
+          </AuthGuard>
+        } />
+
+        <Route path="/teacher/dashboard" element={
+          <AuthGuard allowedRoles={["teacher", "admin"]}>
+            <FirebaseGate>
+              <TeacherDashboard />
+            </FirebaseGate>
+          </AuthGuard>
+        } />
+
+        {/* PRD Section 4.3 Navigation Redundancy for student reports */}
+        <Route path="/reports/student/:id" element={
+          <AuthGuard allowedRoles={["teacher", "admin"]}>
+            <FirebaseGate>
+              <TeacherDashboard />
+            </FirebaseGate>
+          </AuthGuard>
+        } />
+
+        <Route path="/dashboard/student/:id/view" element={
+          <AuthGuard allowedRoles={["teacher", "admin"]}>
+            <FirebaseGate>
+              <TeacherDashboard />
+            </FirebaseGate>
+          </AuthGuard>
+        } />
 
         {/* Student workspace: standalone fullscreen experience */}
         <Route path="/workspace" element={
