@@ -141,6 +141,20 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
 
         <div className="relative group">
           <button
+            onClick={() => navigate('/hub')}
+            className="h-12 px-4 rounded-2xl text-sm font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 hover:scale-105 active:scale-95 transition-all shadow-sm flex items-center gap-1.5 cursor-pointer border border-slate-200/80"
+            aria-label="חזרה ללובי התלמיד"
+          >
+            <Home className="w-4 h-4 text-slate-500" />
+            <span className="hidden sm:inline font-bold">לובי</span>
+          </button>
+          <div className="absolute top-14 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 z-50 w-48 p-2 bg-slate-900/95 text-white text-[11px] rounded-xl shadow-xl backdrop-blur-md border border-white/10 text-right leading-relaxed">
+            <span>🏠 חזרה למסך הראשי של התלמיד</span>
+          </div>
+        </div>
+
+        <div className="relative group">
+          <button
             onClick={startTour}
             className="h-12 px-4 rounded-2xl text-sm font-bold text-ws-blue bg-ws-blue-soft/50 border border-ws-blue/30 hover:scale-105 active:scale-95 transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
             aria-label="הפעל הדרכה מחדש"
@@ -173,8 +187,10 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
         <div className="relative group">
           <button
             onClick={() => {
-              logout();
-              window.location.href = '/login';
+              if (window.confirm('האם ברצונכם להתנתק מהחשבון ולחזור למסך הכניסה?')) {
+                logout();
+                window.location.href = '/login';
+              }
             }}
             className="h-12 px-4 rounded-2xl text-sm font-bold text-ws-soft hover:text-red-600 hover:bg-red-50 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5"
             aria-label="התנתק"
