@@ -1669,34 +1669,17 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                     ) : (
                       (() => {
                         const socraticApproval = s.diagnosticReport || pendingApprovals.find(a => a.studentId === effectiveReplayStudentId || normalizeStudentId(a.studentId) === normalizeStudentId(effectiveReplayStudentId));
+                        const hasCompletedDiagnosticM2 = Boolean(
+                          s.completedMeeting2 || 
+                          (typeof s.highestCompletedMeeting === 'number' && s.highestCompletedMeeting >= 2) ||
+                          socraticApproval
+                        );
                         const isStruggling = (traceData.hesitation_events || 0) > 2 || (traceData.undo_clicks || 0) > 1 || s.routeRecommendation === 'YELLOW';
                         const sNum = (s.studentId || effectiveReplayStudentId).replace(/\D/g, '') || s.studentId;
 
-                        const fallbackClinical = isStruggling
-                          ? "התלמיד חווה מאבק קוגניטיבי בעת המרת עשרות ופריטה. ניכר צורך בחיזוק תפיסתי מוחשי באמצעות לבני הדינס לפני המשך תרגול אלגוריתמי במאונך."
-                          : "התלמיד מפגין שליטה יציבה בעובדות יסוד, גמישות פריטה ומבנה עשרוני. מומלץ מעבר למסלול מואץ ואתגרי הרחבה.";
-
-                        const fallbackActionPlan = isStruggling
-                          ? "הקצאת פיגום מורחב במפגש 3, הפעלת לוח בדידים מונחה, ותרגול 4 משימות ממוקדות בפריטה והמרה."
-                          : "המשך עצמאי במפגשים 4-8 עם פיגום מצומצם ואתגרי חשיבה אלגברית.";
-
-                        const fallbackTasks = isStruggling
-                          ? [
-                              { titleHe: "פריטת עשרת אחת ל-10 יחידות", numberA: 124, numberB: 35, isSubtraction: false },
-                              { titleHe: "חיסור עם פריטה בטור העשרות", numberA: 340, numberB: 128, isSubtraction: true },
-                              { titleHe: "תרגול המרה כפולה ביחידות ועשרות", numberA: 256, numberB: 178, isSubtraction: false },
-                              { titleHe: "מציאת המחסר באמצעות לוח הבדידים", numberA: 500, numberB: 150, isSubtraction: true },
-                            ]
-                          : [
-                              { titleHe: "חיבור מתקדם במאונך עם המרה כפולה", numberA: 4890, numberB: 1750, isSubtraction: false },
-                              { titleHe: "חיסור 4 ספרתי עם פריטת מאות ואלפים", numberA: 6240, numberB: 2800, isSubtraction: true },
-                              { titleHe: "מציאת נעלם במשוואת שיוויון", numberA: 3150, numberB: 2950, isSubtraction: false },
-                              { titleHe: "אתגר חשיבה אלגברית וגמישות ייצוגית", numberA: 8000, numberB: 3450, isSubtraction: true },
-                            ];
-
-                        const clinicalText = (socraticApproval as any)?.clinicalDiagnosisHe || fallbackClinical;
-                        const actionPlanText = (socraticApproval as any)?.actionPlanHe || fallbackActionPlan;
-                        const displayTasks = socraticApproval?.tasks || fallbackTasks;
+                        const clinicalText = (socraticApproval as any)?.clinicalDiagnosisHe || (s.diagnosticReport as any)?.clinicalDiagnosisHe || "";
+                        const actionPlanText = (socraticApproval as any)?.actionPlanHe || (s.diagnosticReport as any)?.actionPlanHe || "";
+                        const displayTasks = (socraticApproval as any)?.tasks || (s.diagnosticReport as any)?.tasks || [];
 
                         const q1 = getQStatus(qMatrix.task1_zero_placeholder);
                         const q3 = getQStatus(qMatrix.task3_flexible_regrouping);
@@ -1724,8 +1707,18 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                     עקיפה פיזית פעילה
                                   </span>
                                 )}
-                                <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${isStruggling ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
-                                  {isStruggling ? 'מסלול מומלץ: צמצום פערי קדם (צהוב)' : 'מסלול מומלץ: ירוק (מואץ)'}
+                                <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${
+                                  !hasCompletedDiagnosticM2
+                                    ? 'bg-slate-100 text-slate-700 border-slate-200'
+                                    : isStruggling
+                                    ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                    : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                }`}>
+                                  {!hasCompletedDiagnosticM2
+                                    ? 'מפגש 1 הושלם — ממתין לאבחון במפגש 2'
+                                    : isStruggling
+                                    ? 'מסלול מומלץ: צמצום פערי קדם (צהוב)'
+                                    : 'מסלול מומלץ: ירוק (מואץ)'}
                                 </span>
                               </div>
 
@@ -1749,7 +1742,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                               <AccessibleCard className="p-6 bg-white border border-ws-surface2 shadow-md rounded-2xl h-full">
                                 <h3 className="text-xl font-bold text-ws-ink mb-4 flex items-center gap-2">
                                   <span className="text-ws-accent">📊</span>
-                                  תוצאות ה-Q-Matrix
+                                  תוצאות ה-Q-Matrix (אבחון סמוי)
                                 </h3>
                                 <div className="grid grid-cols-2 gap-3 text-sm">
                                   <div className="bg-ws-bg p-3 rounded-xl border border-ws-surface2">
@@ -1852,42 +1845,64 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                     );
                                   })()}
 
-                                  {/* Clinical Diagnosis & Action Plan */}
-                                  <div className="bg-white p-5 rounded-xl border border-indigo-100 shadow-sm">
-                                    <h4 className="font-bold text-indigo-900 mb-3 text-lg flex items-center gap-2">
-                                      <span className="text-indigo-600">🎯</span>
-                                      המלצות ומסלול אדפטיבי למפגשים 3, 4, 5, 6, ו-7:
-                                    </h4>
-                                    <p className="text-sm text-indigo-800 leading-relaxed mb-4 bg-indigo-50/50 p-3.5 rounded-lg border border-indigo-100">
-                                      <strong className="block mb-1 text-indigo-950 font-bold">אבחון קליני:</strong>
-                                      {clinicalText}
-                                    </p>
-                                    <p className="text-sm text-indigo-800 leading-relaxed mb-4 bg-indigo-50/50 p-3.5 rounded-lg border border-indigo-100">
-                                      <strong className="block mb-1 text-indigo-950 font-bold">תוכנית פעולה מוצעת:</strong>
-                                      {actionPlanText}
-                                    </p>
-                                    
-                                    <h5 className="font-bold text-sm text-indigo-900 mb-3">תרגילים מותאמים אישית שהוכנו עבור התלמיד:</h5>
-                                    <div className="grid gap-2 mb-5">
-                                      {displayTasks.map((task: any, idx: number) => (
-                                        <div key={idx} className="bg-slate-50 p-3 rounded-lg flex items-center justify-between border border-slate-200 shadow-sm">
-                                          <div className="flex items-center gap-3">
-                                            <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-bold">{idx + 1}</span>
-                                            <span className="font-semibold text-sm text-indigo-950">{task.titleHe}</span>
-                                          </div>
-                                          <div className="text-sm font-bold text-indigo-700 bg-white border border-indigo-100 px-3 py-1 rounded-md" dir="ltr">
-                                            {task.numberA} {task.isSubtraction ? '-' : '+'} {task.numberB} = ?
-                                          </div>
-                                        </div>
-                                      ))}
+                                  {/* Clinical Diagnosis & Action Plan - Only rendered when real diagnostic exists */}
+                                  {!hasCompletedDiagnosticM2 ? (
+                                    <div className="bg-white p-5 rounded-xl border border-indigo-100 shadow-sm">
+                                      <h4 className="font-bold text-indigo-900 mb-2 text-base flex items-center gap-2">
+                                        <span className="text-indigo-600">ℹ️</span>
+                                        סטטוס מיפוי פדגוגי
+                                      </h4>
+                                      <div className="bg-indigo-50/60 p-3.5 rounded-xl border border-indigo-100 text-indigo-950 text-xs leading-relaxed">
+                                        <p className="font-bold mb-1">מפגש 1 (ארגז החול והיכרות) הושלם בהצלחה.</p>
+                                        <p className="text-indigo-800">
+                                          האבחון הפדגוגי הסמוי (Q-Matrix) והמלצת המסלול (ירוק/צהוב) ייבנו באופן אותנטי על בסיס ביצועי התלמיד במפגש 2.
+                                        </p>
+                                      </div>
                                     </div>
+                                  ) : (
+                                    <div className="bg-white p-5 rounded-xl border border-indigo-100 shadow-sm">
+                                      <h4 className="font-bold text-indigo-900 mb-3 text-lg flex items-center gap-2">
+                                        <span className="text-indigo-600">🎯</span>
+                                        המלצות ומסלול אדפטיבי למפגש 3 ואילך:
+                                      </h4>
+                                      {clinicalText && (
+                                        <p className="text-sm text-indigo-800 leading-relaxed mb-4 bg-indigo-50/50 p-3.5 rounded-lg border border-indigo-100">
+                                          <strong className="block mb-1 text-indigo-950 font-bold">אבחון קליני:</strong>
+                                          {clinicalText}
+                                        </p>
+                                      )}
+                                      {actionPlanText && (
+                                        <p className="text-sm text-indigo-800 leading-relaxed mb-4 bg-indigo-50/50 p-3.5 rounded-lg border border-indigo-100">
+                                          <strong className="block mb-1 text-indigo-950 font-bold">תוכנית פעולה מוצעת:</strong>
+                                          {actionPlanText}
+                                        </p>
+                                      )}
+                                      
+                                      {displayTasks && displayTasks.length > 0 && (
+                                        <>
+                                          <h5 className="font-bold text-sm text-indigo-900 mb-3">תרגילים מותאמים אישית שהוכנו עבור התלמיד:</h5>
+                                          <div className="grid gap-2 mb-5">
+                                            {displayTasks.map((task: any, idx: number) => (
+                                              <div key={idx} className="bg-slate-50 p-3 rounded-lg flex items-center justify-between border border-slate-200 shadow-sm">
+                                                <div className="flex items-center gap-3">
+                                                  <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-bold">{idx + 1}</span>
+                                                  <span className="font-semibold text-sm text-indigo-950">{task.titleHe}</span>
+                                                </div>
+                                                <div className="text-sm font-bold text-indigo-700 bg-white border border-indigo-100 px-3 py-1 rounded-md" dir="ltr">
+                                                  {task.numberA} {task.isSubtraction ? '-' : '+'} {task.numberB} = ?
+                                                </div>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </>
+                                      )}
 
-                                    <div className="flex gap-3">
-                                      <UdlButton 
-                                        size="sm" 
-                                        semanticColor="primary"
-                                        className="flex-1 font-bold shadow-md shadow-indigo-500/20 cursor-pointer"
-                                        onClick={() => {
+                                      <div className="flex gap-3">
+                                        <UdlButton 
+                                          size="sm" 
+                                          semanticColor="primary"
+                                          className="flex-1 font-bold shadow-md shadow-indigo-500/20 cursor-pointer"
+                                          onClick={() => {
                                           handleTabChange("approvals");
                                         }}
                                       >
@@ -1901,8 +1916,9 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                       </button>
                                     </div>
                                   </div>
-                                </div>
-                              </AccessibleCard>
+                                )}
+                              </div>
+                            </AccessibleCard>
                             </div>
                           </div>
                         );
