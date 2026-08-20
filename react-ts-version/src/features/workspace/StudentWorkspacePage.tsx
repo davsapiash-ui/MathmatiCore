@@ -74,9 +74,16 @@ export function StudentWorkspacePage() {
 
 
 
+  const counts = useWorkspaceStore((s) => s.counts);
+  const answerDigits = useWorkspaceStore((s) => s.answerDigits);
+  const carryDigits = useWorkspaceStore((s) => s.carryDigits);
+  const undoCount = useWorkspaceStore((s) => s.undoCount);
+  const hesitationCount = useWorkspaceStore((s) => s.hesitationCount);
+
   // --- Active Teacher Class Session Listener ---
   const activeClassSession = useActiveClassSession();
   const isTeacherSessionActive = activeClassSession?.active ?? false;
+  const teacherSessionNum = isTeacherSessionActive ? Number(activeClassSession?.sessionNumber) || 1 : null;
 
   const [isProjectorModeActive, setIsProjectorModeActive] = useState<boolean>(false);
   const normUid = normalizeStudentId(user?.uid || '');
@@ -167,12 +174,6 @@ export function StudentWorkspacePage() {
   // NOTE: qMatrixResults/traceData are written ONCE, at the right moment — the
   // ReflectionScreen at the end of meeting 2. A second write here used wrong result
   // keys with correct=true defaults and silently overwrote real diagnostics — removed.
-  useEffect(() => {
-    if (flowStatus === 'sessionDone') {
-      navigate('/hub');
-    }
-  }, [flowStatus, navigate]);
-
   // Keyboard: Enter = proceed (outside inputs), Ctrl/Cmd+Z = undo (vanilla app.js 1412–1416).
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -205,6 +206,57 @@ export function StudentWorkspacePage() {
     };
   }, [activeDrag]);
 
+  // Enforce strict alignment with active teacher broadcast (PRD Module 14 & 20)
+  useEffect(() => {
+    if (!activeClassSession.isLoaded) return;
+    if (!isTeacherSessionActive) {
+      navigate('/hub');
+      return;
+    }
+    if (teacherSessionNum && meeting !== teacherSessionNum) {
+      navigate(`/workspace?meeting=${teacherSessionNum}`);
+    }
+  }, [activeClassSession.isLoaded, isTeacherSessionActive, teacherSessionNum, meeting, navigate]);
+
+  // Sync workspace state and vector replays continuously to Firebase RTDB
+  useEffect(() => {
+    const uid = normUid;
+    if (!uid) return;
+
+    const totalBlocks = (counts.units || 0) + (counts.tens || 0) + (counts.hundreds || 0) + (counts.thousands || 0);
+    const hasInteracted = totalBlocks > 0 || Object.values(answerDigits || {}).some(Boolean);
+
+    const wsPayload: any = {
+      'workspaceState/counts': counts,
+      'workspaceState/answerDigits': answerDigits,
+      'workspaceState/carryDigits': carryDigits,
+      'workspaceState/undoCount': undoCount,
+      'workspaceState/hesitationCount': hesitationCount,
+      'workspaceState/hasInteracted': hasInteracted,
+      'workspaceState/sessionNumber': meeting,
+      'workspaceState/flowStatus': flowStatus,
+      lastActivityTimestamp: Date.now(),
+      lastPing: Date.now(),
+      lastAction: `פעילות בלוח במפגש ${meeting}`,
+    };
+
+    update(ref(database, `users/students/${uid}`), wsPayload).catch(() => {});
+
+    if (hasInteracted) {
+      const vectorSnapshot = {
+        id: `vec_${Date.now()}`,
+        timestamp: Date.now(),
+        sessionNumber: meeting,
+        counts,
+        answerDigits,
+        carryDigits,
+        actionType: 'BLOCK_DRAG',
+        details: `שינוי בלוח: ${counts.hundreds} מאות, ${counts.tens} עשרות, ${counts.units} יחידות`,
+      };
+      push(ref(database, `users/students/${uid}/vector_replays`), vectorSnapshot).catch(() => {});
+    }
+  }, [normUid, counts, answerDigits, carryDigits, undoCount, hesitationCount, meeting, flowStatus]);
+
   // --- RRWeb Telemetry Recording (Gated by Active Teacher Class Session) ---
   useEffect(() => {
     let stopRecording: (() => void) | undefined;
@@ -216,7 +268,8 @@ export function StudentWorkspacePage() {
     if (!uid || !isTeacherSessionActive || !activeClassSession) return;
 
     // Use teacher's active session timestamp as the unified session ID
-    const sessionId = `session_${activeClassSession.startedAt}`;
+    const sessionTs = activeClassSession.startedAt || Date.now();
+    const sessionId = `session_${sessionTs}`;
 
     // Save session metadata under student profile
     const sessionMeta = { 

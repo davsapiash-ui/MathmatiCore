@@ -81,6 +81,7 @@ export function StudentHub() {
   const currentStudent = uid ? students[uid] || students[normUid] : null;
 
   const [activeSessionId, setActiveSessionId] = useState<number>(1);
+  const [highestCompletedMeeting, setHighestCompletedMeeting] = useState<number>(0);
   const [liveRouteStatus, setLiveRouteStatus] = useState<string | null>(null);
   const [isTeacherGateApproved, setIsTeacherGateApproved] = useState<boolean>(false);
   const [hasCompletedSession2, setHasCompletedSession2] = useState<boolean>(false);
@@ -102,25 +103,19 @@ export function StudentHub() {
           const approved = val.teacher_gate_approved === true || val.routeStatus === 'APPROVED';
           setIsTeacherGateApproved(approved);
 
+          const highest = typeof val.highestCompletedMeeting === 'number' ? val.highestCompletedMeeting : 0;
+          setHighestCompletedMeeting(highest);
+
           const completedM2 = Boolean(
             val.completedMeeting2 ||
             val.session_completed === 2 ||
-            (typeof val.highestCompletedMeeting === 'number' && val.highestCompletedMeeting >= 2) ||
+            highest >= 2 ||
             val.routeStatus === 'PENDING_TEACHER_APPROVAL'
           );
           setHasCompletedSession2(completedM2);
 
           // Determine active session ID strictly: Teacher's live broadcast takes absolute precedence
-          let resolvedSession = 1;
-          if (teacherSessionNum) {
-            resolvedSession = teacherSessionNum;
-          } else if (typeof val.active_session_id === 'number') {
-            resolvedSession = val.active_session_id;
-          } else if (val.currentMeeting) {
-            resolvedSession = val.currentMeeting;
-          } else if (val.highestCompletedMeeting) {
-            resolvedSession = Math.min(8, val.highestCompletedMeeting + 1);
-          }
+          const resolvedSession = teacherSessionNum || 1;
           setActiveSessionId(resolvedSession);
         }
       },
@@ -138,6 +133,11 @@ export function StudentHub() {
 
   const activeSession = SESSIONS_CONFIG[effectiveSessionId] || SESSIONS_CONFIG[1];
 
+  // If student completed current teacher broadcasted session -> Locked waiting state
+  const isCurrentSessionFinished = Boolean(
+    isTeacherSessionActive && teacherSessionNum && highestCompletedMeeting >= teacherSessionNum
+  );
+
   // Module 20: If student completed Session 2 and attempts Session 3 without teacher approval -> Bee Flight
   const isAwaitingTeacherGate = hasCompletedSession2 && effectiveSessionId === 3 && !isTeacherGateApproved;
 
@@ -150,6 +150,8 @@ export function StudentHub() {
       e.preventDefault();
       e.stopPropagation();
     }
+    if (!isTeacherSessionActive || isCurrentSessionFinished) return;
+
     const targetSessionId = activeSession?.id || 1;
     try {
       startSession(targetSessionId);
@@ -224,8 +226,34 @@ export function StudentHub() {
               <span>ממתין לפתיחת השיעור ע״י המורה...</span>
             </div>
           </motion.div>
+        ) : isCurrentSessionFinished ? (
+          /* Student completed current active meeting -> Waiting for teacher to broadcast next meeting */
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 16 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+            className="w-full max-w-[480px] bg-white dark:bg-slate-900 border-2 border-emerald-300 dark:border-emerald-700/60 rounded-3xl p-8 shadow-xl shadow-slate-200/50 dark:shadow-none flex flex-col items-center gap-6"
+          >
+            <div className="w-20 h-20 rounded-3xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-500 flex items-center justify-center text-4xl shadow-inner animate-bounce">
+              <span aria-hidden="true">🎉</span>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <h2 className="font-display font-black text-2xl text-slate-900 dark:text-white">
+                סיימת בהצלחה את {activeSession.title}!
+              </h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400 font-medium leading-relaxed max-w-sm">
+                כל הכבוד! סיימת את משימות התחנה בהצלחה. כעת ממתינים לפתיחת התחנה הבאה על ידי המורה בדשבורד הכיתתי.
+              </p>
+            </div>
+
+            <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full text-xs font-extrabold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+              <span>ממתין להפעלת התחנה הבאה ע״י המורה ⏳</span>
+            </div>
+          </motion.div>
         ) : (
-          /* SINGLE Dynamic Active Session Card (Master PRD v5.0 Module 6) */
+          /* SINGLE Dynamic Active Session Card */
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 16 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
