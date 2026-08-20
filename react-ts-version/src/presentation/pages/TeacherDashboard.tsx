@@ -358,11 +358,15 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     setIsClassSessionActive(true);
     try {
       if (auth.currentUser) {
-        const tokenRes = await auth.currentUser.getIdTokenResult();
-        if (!tokenRes.claims.role || (tokenRes.claims.role !== "teacher" && tokenRes.claims.role !== "admin")) {
-          const syncCallable = httpsCallable(functions, "syncUserRoles");
-          await syncCallable();
-          await auth.currentUser.getIdToken(true);
+        try {
+          const tokenRes = await auth.currentUser.getIdTokenResult();
+          if (!tokenRes.claims.role || (tokenRes.claims.role !== "teacher" && tokenRes.claims.role !== "admin")) {
+            const syncCallable = httpsCallable(functions, "syncUserRoles");
+            await syncCallable();
+            await auth.currentUser.getIdToken(true);
+          }
+        } catch (roleErr) {
+          console.warn('[TeacherDashboard] Role sync notice (non-fatal):', roleErr);
         }
       }
       await set(ref(database, 'active_class_session'), {
@@ -382,14 +386,28 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     setIsClassSessionActive(false);
     setSessionStartTime(null);
     try {
+      if (auth.currentUser) {
+        try {
+          const tokenRes = await auth.currentUser.getIdTokenResult();
+          if (!tokenRes.claims.role || (tokenRes.claims.role !== "teacher" && tokenRes.claims.role !== "admin")) {
+            const syncCallable = httpsCallable(functions, "syncUserRoles");
+            await syncCallable();
+            await auth.currentUser.getIdToken(true);
+          }
+        } catch (roleErr) {
+          console.warn('[TeacherDashboard] Role sync notice (non-fatal):', roleErr);
+        }
+      }
       await set(ref(database, 'active_class_session'), {
         active: false,
+        sessionNumber: null,
         endedAt: Date.now(),
         teacherId: user?.uid || 'teacher',
       });
-      toast.info('המפגש הכיתתי נסגר.');
+      toast.info('המפגש הכיתתי נסגר בהצלחה. כלל התלמידים מועברים למצב המתנה.');
     } catch (err) {
       console.error('Error ending class session:', err);
+      toast.error('שגיאה בסגירת המפגש מול השרת.');
     }
   };
 
@@ -478,8 +496,12 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
               row.qMatrixResults || {}
             ),
             traceData: {
-              hesitation_events: Math.max(existingLocal?.traceData?.hesitation_events || 0, row.traceData?.hesitation_events || 0, row.workspaceState?.hesitationCount || 0, row.hesitating?.hesitating ? 1 : 0),
-              undo_clicks: Math.max(existingLocal?.traceData?.undo_clicks || 0, row.traceData?.undo_clicks || 0, row.workspaceState?.undoCount || 0),
+              hesitation_events: typeof row.traceData?.hesitation_events === 'number'
+                ? row.traceData.hesitation_events
+                : (typeof row.workspaceState?.hesitationCount === 'number' ? row.workspaceState.hesitationCount : (row.hesitating?.hesitating ? 1 : 0)),
+              undo_clicks: typeof row.traceData?.undo_clicks === 'number'
+                ? row.traceData.undo_clicks
+                : (typeof row.workspaceState?.undoCount === 'number' ? row.workspaceState.undoCount : 0),
             },
             completedMeeting2: row.completedMeeting2 ?? existingLocal?.completedMeeting2 ?? false,
             routeRecommendation: row.routeRecommendation ?? existingLocal?.routeRecommendation ?? null,

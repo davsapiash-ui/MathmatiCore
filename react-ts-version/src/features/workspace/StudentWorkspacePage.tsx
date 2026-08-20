@@ -632,6 +632,21 @@ export function StudentWorkspacePage() {
 
   // WP6 / Chaos Scenario 2: Soft Device Lock (נעילת מכשיר רכה — active_device_id)
   const isSupersededByOtherDevice = useWorkspaceStore((s) => s.isSupersededByOtherDevice);
+
+  const isTeacherOrAdmin = user?.role === 'teacher' || user?.role === 'admin';
+  const isMatchingSessionActive =
+    isTeacherOrAdmin ||
+    (activeClassSession.isLoaded && isTeacherSessionActive && Number(activeClassSession?.sessionNumber) === meeting);
+
+  useEffect(() => {
+    if (activeClassSession.isLoaded && activeClassSession.active && activeClassSession.sessionNumber) {
+      const activeNum = Number(activeClassSession.sessionNumber);
+      if (activeNum >= 1 && activeNum <= 8 && activeNum !== meeting && !isTeacherOrAdmin) {
+        navigate(`/workspace?meeting=${activeNum}`, { replace: true });
+      }
+    }
+  }, [activeClassSession.isLoaded, activeClassSession.active, activeClassSession.sessionNumber, meeting, isTeacherOrAdmin, navigate]);
+
   if (isSupersededByOtherDevice) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/95 backdrop-blur-md p-6 font-body text-center" dir="rtl">
@@ -707,8 +722,6 @@ export function StudentWorkspacePage() {
     }
     return <ReflectionScreen />;
   }
-  
-
 
   if (isInitializing) {
     return (
@@ -719,25 +732,17 @@ export function StudentWorkspacePage() {
     );
   }
 
-  const cachedLocal = firebaseSyncService.getLocalSessionProgress(normUid || user?.uid || '');
-  const hasLocalCurrentMeeting = cachedLocal?.sessionNumber === meeting;
-
-  const highestCompleted = myData?.highestCompletedMeeting ?? (myData?.completedMeeting2 ? 2 : 0);
-  const isTeacherOrAdmin = user?.role === 'teacher' || user?.role === 'admin';
-  const isMatchingSessionActive =
-    isTeacherOrAdmin ||
-    !firebaseLoaded ||
-    (isTeacherSessionActive && Number(activeClassSession?.sessionNumber) === meeting);
-
-  if (!isMatchingSessionActive && !isInitializing) {
+  if (!isMatchingSessionActive && !isInitializing && activeClassSession.isLoaded) {
     return (
       <div dir="rtl" className="h-screen w-full flex flex-col items-center justify-center bg-ws-bg text-ws-ink font-body p-6">
         <div className="bg-ws-surface p-10 rounded-3xl shadow-xl max-w-md text-center border border-ws-surface2">
           <div className="text-6xl mb-6 animate-pulse">🐝✨</div>
-          <h2 className="text-2xl font-bold mb-4 text-ws-ink">מפגש {meeting} ממתין להפעלה בכיתה</h2>
+          <h2 className="text-2xl font-bold mb-4 text-ws-ink">
+            {isTeacherSessionActive ? `מפגש ${meeting} אינו המפגש הפעיל` : `המפגש הכיתתי סגור`}
+          </h2>
           <p className="text-ws-soft mb-8 leading-relaxed">
             {isTeacherSessionActive
-              ? `המורה מפעיל/ה כעת בכיתה את מפגש ${activeClassSession?.sessionNumber}. סביבת הלימוד תיפתח אוטומטית כשהמורה יפעיל את מפגש ${meeting}.`
+              ? `המורה מפעיל/ה כעת בכיתה את מפגש ${activeClassSession?.sessionNumber}.`
               : 'סביבת הלימוד ממתינה להפעלת השיעור על ידי המורה בדשבורד הכיתה.'}
           </p>
           <button 

@@ -201,8 +201,12 @@ export const initStoreSubscriptions = (): (() => void) => {
               ...(row.qMatrixResults || {})
             },
             traceData: {
-              hesitation_events: Math.max(prev.traceData?.hesitation_events || 0, row.traceData?.hesitation_events || 0, row.workspaceState?.hesitationCount || 0),
-              undo_clicks: Math.max(prev.traceData?.undo_clicks || 0, row.traceData?.undo_clicks || 0, row.workspaceState?.undoCount || 0),
+              hesitation_events: typeof row.traceData?.hesitation_events === 'number'
+                ? row.traceData.hesitation_events
+                : (typeof row.workspaceState?.hesitationCount === 'number' ? row.workspaceState.hesitationCount : (prev.traceData?.hesitation_events || 0)),
+              undo_clicks: typeof row.traceData?.undo_clicks === 'number'
+                ? row.traceData.undo_clicks
+                : (typeof row.workspaceState?.undoCount === 'number' ? row.workspaceState.undoCount : (prev.traceData?.undo_clicks || 0)),
               semantic_trace: row.traceData?.semantic_trace || prev.traceData?.semantic_trace || []
             },
             workspaceState: row.workspaceState || prev.workspaceState,

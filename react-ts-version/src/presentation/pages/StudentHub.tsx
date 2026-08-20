@@ -193,34 +193,67 @@ export function StudentHub() {
           <span>מרחב הלמידה האישי שלך</span>
         </motion.div>
 
-        {/* SINGLE Dynamic Active Session Card (Master PRD v5.0 Module 6) */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 16 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-          className="w-full max-w-[480px] bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 hover:border-[hsl(var(--ws-blue))] rounded-3xl p-8 shadow-xl shadow-slate-200/50 dark:shadow-none flex flex-col items-center gap-6 transition-all"
-        >
-          <div className="w-20 h-20 rounded-3xl bg-[hsl(var(--ws-blue-soft))] text-[hsl(var(--ws-blue))] flex items-center justify-center text-4xl shadow-inner">
-            <span aria-hidden="true">{activeSession.icon}</span>
+        {/* Dynamic Class Session State: Gated strictly by Teacher's Broadcast */}
+        {!activeClassSession.isLoaded ? (
+          <div className="w-full max-w-[480px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 shadow-sm flex flex-col items-center gap-4">
+            <div className="w-8 h-8 border-3 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-xs font-bold text-slate-500">מתחבר למפגש הכיתתי...</p>
           </div>
-
-          <div className="flex flex-col gap-2">
-            <h2 className="font-display font-black text-2xl text-slate-900 dark:text-white">
-              {activeSession.title}
-            </h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium leading-relaxed max-w-sm">
-              {activeSession.desc}
-            </p>
-          </div>
-
-          <button
-            onClick={handleStartActiveSession}
-            className="w-full h-14 min-h-[48px] bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-2xl font-display font-extrabold text-lg flex items-center justify-center gap-3 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 active:scale-[0.98] transition-all cursor-pointer"
+        ) : !isTeacherSessionActive ? (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 16 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+            className="w-full max-w-[480px] bg-white dark:bg-slate-900 border-2 border-dashed border-amber-300 dark:border-amber-700/60 rounded-3xl p-8 shadow-xl shadow-slate-200/50 dark:shadow-none flex flex-col items-center gap-6"
           >
-            <span>התחל פעילות</span>
-            <Play className="w-5 h-5 fill-current" />
-          </button>
-        </motion.div>
+            <div className="w-20 h-20 rounded-3xl bg-amber-50 dark:bg-amber-950/40 text-amber-500 flex items-center justify-center text-4xl shadow-inner animate-pulse">
+              <span aria-hidden="true">⏳</span>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <h2 className="font-display font-black text-2xl text-slate-900 dark:text-white">
+                המפגש טרם נפתח על ידי המורה
+              </h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400 font-medium leading-relaxed max-w-sm">
+                השיעור יתחיל ברגע שהמורה יפעיל את המפגש בדשבורד הכיתתי. המערכת תיפתח כאן אוטומטית!
+              </p>
+            </div>
+
+            <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full text-xs font-extrabold bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60">
+              <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+              <span>ממתין לפתיחת השיעור ע״י המורה...</span>
+            </div>
+          </motion.div>
+        ) : (
+          /* SINGLE Dynamic Active Session Card (Master PRD v5.0 Module 6) */
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 16 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+            className="w-full max-w-[480px] bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 hover:border-[hsl(var(--ws-blue))] rounded-3xl p-8 shadow-xl shadow-slate-200/50 dark:shadow-none flex flex-col items-center gap-6 transition-all"
+          >
+            <div className="w-20 h-20 rounded-3xl bg-[hsl(var(--ws-blue-soft))] text-[hsl(var(--ws-blue))] flex items-center justify-center text-4xl shadow-inner">
+              <span aria-hidden="true">{activeSession.icon}</span>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <h2 className="font-display font-black text-2xl text-slate-900 dark:text-white">
+                {activeSession.title}
+              </h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400 font-medium leading-relaxed max-w-sm">
+                {activeSession.desc}
+              </p>
+            </div>
+
+            <button
+              onClick={handleStartActiveSession}
+              className="w-full h-14 min-h-[48px] bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-2xl font-display font-extrabold text-lg flex items-center justify-center gap-3 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 active:scale-[0.98] transition-all cursor-pointer"
+            >
+              <span>התחל פעילות</span>
+              <Play className="w-5 h-5 fill-current" />
+            </button>
+          </motion.div>
+        )}
       </div>
     </div>
   );
