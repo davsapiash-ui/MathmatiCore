@@ -84,37 +84,34 @@ export function BlockPalette({ scaffoldLevel }: { scaffoldLevel: number }) {
       <div className="flex items-center gap-3 flex-1 justify-center">
         {placesToRender.map((place) => {
           const theme = PALETTE_THEMES[place];
+          const handleAdd = () => {
+            useWorkspaceStore.getState().applyDrop({
+              source: 'palette',
+              sourcePlace: place,
+              target: { kind: 'column', place },
+            });
+          };
           return (
             <div
               key={place}
-              onClick={() => {
-                useWorkspaceStore.getState().applyDrop({
-                  source: 'palette',
-                  sourcePlace: place,
-                  target: { kind: 'column', place },
-                });
-              }}
-              className={`relative group flex flex-col items-center justify-between rounded-2xl px-3 pt-2 pb-1.5 min-w-[94px] h-[92px] ${theme.cardBg} border-2 ${theme.border} ${theme.activeBorder} shadow-sm hover:shadow-md hover:scale-[1.03] active:scale-95 transition-all cursor-grab active:cursor-grabbing select-none`}
+              onClick={handleAdd}
+              className={`relative flex flex-col items-center justify-between rounded-2xl px-3 py-2 min-w-[94px] h-[92px] ${theme.cardBg} border-2 ${theme.border} ${theme.activeBorder} shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-95 transition-all cursor-pointer select-none`}
             >
-              {/* Add + badge on card */}
-              <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-white/90 border border-slate-200/80 flex items-center justify-center text-[10px] font-black text-slate-500 group-hover:text-ws-accent transition-colors shadow-xs">
-                +
-              </div>
-
               <div className="h-12 w-full flex items-center justify-center pointer-events-auto">
                 <DienesBlock
                   id={`palette-${place}`}
                   place={place}
                   source="palette"
                   noEnter
+                  onClick={handleAdd}
                 />
               </div>
 
-              <div className="flex items-center gap-1 mt-0.5">
-                <span className={`text-[12px] font-black ${theme.textCol}`} aria-hidden="true">
+              <div className="flex items-center gap-1">
+                <span className={`text-[13px] font-black ${theme.textCol}`} aria-hidden="true">
                   {theme.labelHe}
                 </span>
-                <span className="text-[10px] font-bold text-slate-400">
+                <span className="text-[11px] font-bold text-slate-400">
                   ({theme.subHe})
                 </span>
               </div>
