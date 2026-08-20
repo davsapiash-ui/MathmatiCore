@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { type StudentData } from '@/application/useStore';
 import { X, Send, Minus, CheckCheck } from 'lucide-react';
-import { useChatStore, normalizeStudentId } from '@/application/useChatStore';
+import { useChatStore, normalizeStudentId, isTeacherOrAdminId } from '@/application/useChatStore';
 import { toast } from 'sonner';
 import { validateChatInputForPII, anonymizeChatMessageBody } from '@/core/security/PiiFilter';
 
@@ -22,7 +22,7 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
     initSync();
   }, [initSync]);
 
-  const normStudentId = normalizeStudentId(student.studentId);
+  const normStudentId = normalizeStudentId(student.studentId || (student as any).id);
   const studentMessages = messages.filter(
     m => normalizeStudentId(m.senderId) === normStudentId || normalizeStudentId(m.receiverId) === normStudentId
   ).sort((a, b) => a.timestamp - b.timestamp);
@@ -53,7 +53,7 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
     }
 
     const cleanText = anonymizeChatMessageBody(inputText.trim());
-    sendMessage(teacherId, 'מורה', normStudentId, cleanText);
+    sendMessage(teacherId || 'teacher', 'מורה', normStudentId, cleanText);
     setInputText('');
   };
 
@@ -91,7 +91,7 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
                 <div className="text-center text-xs text-slate-400 mt-8">אין הודעות קודמות. התחל התכתבות.</div>
               ) : (
                 studentMessages.map(msg => {
-                  const isTeacher = msg.senderId === teacherId;
+                  const isTeacher = msg.senderId === teacherId || isTeacherOrAdminId(msg.senderId) || msg.senderName === 'מורה';
                   return (
                     <div key={msg.id} className={`flex ${isTeacher ? 'justify-end' : 'justify-start'}`}>
                       <div className={`px-3.5 py-2.5 rounded-2xl max-w-[85%] text-sm shadow-sm space-y-1 ${

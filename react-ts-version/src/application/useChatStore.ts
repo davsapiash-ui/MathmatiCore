@@ -27,9 +27,6 @@ interface ChatState {
 export function isTeacherOrAdminId(id?: string | null): boolean {
   if (!id) return false;
   const clean = id.trim().toLowerCase();
-  if (clean.startsWith('student_') || clean.startsWith('student') || clean.startsWith('user_') || clean.startsWith('user')) {
-    return false;
-  }
   return (
     clean === 'admin' ||
     clean === 'teacher' ||

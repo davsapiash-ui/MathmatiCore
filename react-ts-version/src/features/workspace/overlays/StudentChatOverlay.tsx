@@ -30,18 +30,24 @@ export function StudentChatOverlay() {
   }, [initSync]);
 
   useEffect(() => {
+    const handleToggle = () => setIsOpen(prev => !prev);
+    document.addEventListener('toggle-chat', handleToggle);
+    return () => document.removeEventListener('toggle-chat', handleToggle);
+  }, []);
+
+  useEffect(() => {
     if (isOpen && user?.uid) {
       markAsRead(normUid, targetTeacherId);
     }
   }, [isOpen, user?.uid, markAsRead, normUid, targetTeacherId]);
 
   useEffect(() => {
-    if (messagesEndRef.current) {
+    if (messagesEndRef.current && isOpen) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [isOpen, messages]);
 
-  if (!isOpen || !user) return null;
+  if (!user) return null;
 
   const myMessages = messages.filter(m => 
     normalizeStudentId(m.receiverId) === normUid || normalizeStudentId(m.senderId) === normUid
@@ -98,14 +104,16 @@ export function StudentChatOverlay() {
       <button
         onClick={() => setIsOpen(!isOpen)}
         aria-label="פתח צ'אט עם המורה"
-        className="fixed bottom-6 left-6 z-40 bg-ws-accent text-white p-3 rounded-full shadow-lg hover:scale-105 active:scale-95 transition-transform flex items-center justify-center font-bold"
+        className="fixed bottom-6 left-6 z-40 bg-ws-accent hover:brightness-110 text-white p-3.5 rounded-full shadow-2xl hover:scale-110 active:scale-95 transition-all flex items-center justify-center font-bold border-2 border-white cursor-pointer"
+        title="צ'אט עם המורה"
       >
-        💬
+        <span className="text-xl">💬</span>
       </button>
 
       {/* Main Drawer Overlay */}
-      <div className="fixed bottom-20 left-6 z-40 w-80 h-96 bg-ws-surface rounded-2xl shadow-2xl border border-ws-surface2 flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200">
-        <div className="p-4 bg-ws-surface2 border-b border-ws-surface2 flex justify-between items-center shrink-0">
+      {isOpen && (
+        <div className="fixed bottom-20 left-6 z-50 w-80 sm:w-96 h-[440px] bg-ws-surface rounded-2xl shadow-2xl border-2 border-ws-surface2 flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200" dir="rtl">
+          <div className="p-4 bg-ws-surface2 border-b border-ws-surface2 flex justify-between items-center shrink-0">
           <div className="flex items-center gap-2">
             <span className="font-bold text-sm text-ws-ink">צ'אט עם המורה</span>
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -175,13 +183,14 @@ export function StudentChatOverlay() {
             />
             <button
               onClick={handleSend}
-              className="bg-ws-accent text-white rounded-full w-10 h-10 flex items-center justify-center hover:brightness-110 active:scale-95 transition-all font-bold"
+              className="bg-ws-accent text-white rounded-full w-10 h-10 flex items-center justify-center hover:brightness-110 active:scale-95 transition-all font-bold cursor-pointer"
             >
               ➤
             </button>
           </div>
         </div>
       </div>
+      )}
     </>
   );
 }
