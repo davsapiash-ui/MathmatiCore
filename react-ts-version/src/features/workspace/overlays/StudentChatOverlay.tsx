@@ -4,6 +4,7 @@ import { useAuthStore } from '@/application/useAuthStore';
 import { useStore } from '@/application/useStore';
 import { useAdminStore } from '@/application/useAdminStore';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
+import { useActiveClassSession } from '@/application/useActiveClassSession';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
 import { BellRing, Check, CheckCheck } from 'lucide-react';
 import { ref, runTransaction, set as firebaseSet } from 'firebase/database';
@@ -14,6 +15,7 @@ export function StudentChatOverlay() {
   const [text, setText] = useState('');
   const { messages, sendMessage, markAsRead, initSync } = useChatStore();
   const user = useAuthStore(s => s.user);
+  const activeSession = useActiveClassSession();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const students = useStore(s => s.students);
@@ -22,7 +24,7 @@ export function StudentChatOverlay() {
   const normUid = normalizeStudentId(user?.uid || '');
   const studentData = normUid ? (students[normUid] || students[user?.uid || '']) : null;
   const studentClass = classes.find(c => c.id === studentData?.classId);
-  const targetTeacherId = studentClass?.teacherId || '039604483';
+  const targetTeacherId = studentClass?.teacherId || activeSession?.teacherId || '1002220159';
 
   // Ensure chat is synced with Firebase on mount
   useEffect(() => {

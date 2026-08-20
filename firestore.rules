@@ -160,15 +160,15 @@ service cloud.firestore {
 
     // --- Collections Routing ---
 
-    // Students Collection: Strict Ownership & Teacher Class Guard
+    // Students Collection: Strict Ownership & Teacher Class Guard (Direct read denied for Admin, allowed for Teacher and owning Student)
     match /students/{studentId} {
-      allow read: if isTeacher() || isOwningStudent(studentId);
+      allow read: if (isTeacher() || isOwningStudent(studentId)) && !isAdmin();
       allow create, update: if (isTeacher() || isOwningStudent(studentId)) && isValidStudentDoc();
       allow delete: if isAdmin();
     }
 
     match /users/students/{studentId} {
-      allow read: if isTeacher() || isOwningStudent(studentId);
+      allow read: if (isTeacher() || isOwningStudent(studentId)) && !isAdmin();
       allow write: if (isTeacher() || isOwningStudent(studentId)) && isValidStudentDoc();
     }
 
@@ -182,10 +182,9 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Telemetry Logs: Strictly Owning Student or Teacher; Idempotency Doc ID; Schema Allowlist
+    // Telemetry Logs: Strictly Owning Student or Teacher; Idempotency Doc ID; Schema Allowlist (Direct read denied for Admin)
     match /telemetry_logs/{logId} {
-      // Direct telemetry read: allowed for teachers, allowed for owning student, BLOCKED for admin
-      allow read: if isTeacher() || (isAuthenticated() && !isAdmin());
+      allow read: if (isTeacher() || isOwningStudent(string(resource.data.student_id))) && !isAdmin();
       allow create, update: if isAuthenticated() &&
                                (isOwningStudent(string(request.resource.data.student_id))) &&
                                (request.resource.data.idempotency_key == logId) &&

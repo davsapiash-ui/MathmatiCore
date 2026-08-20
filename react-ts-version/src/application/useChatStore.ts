@@ -21,6 +21,8 @@ interface ChatState {
   setActiveRoomId: (roomId: string | null) => void;
   sendMessage: (senderId: string, senderName: string, receiverId: string, text: string) => void;
   markAsRead: (receiverId: string, senderId: string) => void;
+  clearAllMessages: () => void;
+  clearStudentMessages: (studentId: string) => void;
   initSync: () => void;
 }
 
@@ -174,14 +176,15 @@ export const useChatStore = create<ChatState>()(
 
     sendMessage: (senderId, senderName, receiverId, text) => {
       const sanitizedText = sanitizeChatText(text);
-      const roomId = computeRoomId(senderId, receiverId);
+      const targetReceiver = receiverId || '1002220159';
+      const roomId = computeRoomId(senderId, targetReceiver);
       const chatRef = ref(database, `chat_messages/${roomId}`);
       const newMsgRef = push(chatRef);
       const newMsg: ChatMessage = {
         id: newMsgRef.key || `local_${Date.now()}`,
         senderId,
         senderName,
-        receiverId,
+        receiverId: targetReceiver,
         text: sanitizedText,
         timestamp: Date.now(),
         read: false
@@ -193,7 +196,11 @@ export const useChatStore = create<ChatState>()(
       }));
 
       firebaseSet(newMsgRef, newMsg).catch((err) => {
-        console.error("Error sending message to Firebase:", err);
+        console.error("Error sending message to Firebase, rolling back:", err);
+        // Rollback optimistic update on network or permission failure
+        set((state) => ({
+          messages: state.messages.filter(m => m.id !== newMsg.id)
+        }));
       });
     },
 
@@ -216,7 +223,9 @@ export const useChatStore = create<ChatState>()(
         unreadMsgs.forEach(msg => {
           updates[`${msg.id}/read`] = true;
         });
-        update(ref(database, `chat_messages/${roomId}`), updates).catch(console.error);
+        update(ref(database, `chat_messages/${roomId}`), updates).catch((err) => {
+          console.warn("Failed to mark messages as read in DB:", err);
+        });
         
         // Optimistic local read status update
         set((state) => ({
@@ -225,6 +234,17 @@ export const useChatStore = create<ChatState>()(
           )
         }));
       }
+    },
+
+    clearAllMessages: () => set({ messages: [], unreadCount: 0 }),
+
+    clearStudentMessages: (studentId: string) => {
+      const norm = normalizeStudentId(studentId);
+      set((state) => ({
+        messages: state.messages.filter(
+          (m) => normalizeStudentId(m.senderId) !== norm && normalizeStudentId(m.receiverId) !== norm
+        ),
+      }));
     },
   })
 );

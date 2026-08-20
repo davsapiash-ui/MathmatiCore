@@ -70,7 +70,7 @@ test('Generate Real Student Telemetry and AI Report', async ({ browser }) => {
   console.log("Logging in as teacher...");
   await page.goto('http://localhost:5173/login');
   await page.locator('button').filter({ hasText: 'מורה' }).click();
-  await page.getByPlaceholder('תעודת זהות').fill('039604483');
+  await page.getByPlaceholder('תעודת זהות').fill('1002220159');
   await page.getByPlaceholder('תאריך לידה (6 ספרות, במבנה יום-חודש-שנה)').fill('290984');
   await page.locator('button').filter({ hasText: 'התחבר למערכת' }).click();
   await page.waitForURL('**/dashboard', { timeout: 15000 });

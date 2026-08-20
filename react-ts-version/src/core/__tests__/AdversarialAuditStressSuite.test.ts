@@ -125,14 +125,14 @@ describe('Master PRD v4.0 — Adversarial Audit & Stress Test Suite (R1-R5)', ()
       });
 
       it('should block Teacher from accessing admin portal (/admin) and redirect to /dashboard', () => {
-        const teacherUser = { uid: 'teacher_039604483', email: 'davidsep@edu-haifa.org.il', role: 'teacher' };
+        const teacherUser = { uid: 'teacher_1002220159', email: 'davidsep@edu-haifa.org.il', role: 'teacher' };
         const result = evaluateAuthGuard(teacherUser, 'teacher', true, ['admin']);
         expect(result.allowed).toBe(false);
         expect(result.redirect).toBe('/dashboard');
       });
 
       it('should block Teacher from accessing student hub (/hub) and redirect to /dashboard', () => {
-        const teacherUser = { uid: 'teacher_039604483', email: 'davidsep@edu-haifa.org.il', role: 'teacher' };
+        const teacherUser = { uid: 'teacher_1002220159', email: 'davidsep@edu-haifa.org.il', role: 'teacher' };
         const result = evaluateAuthGuard(teacherUser, 'teacher', true, ['student', 'admin']);
         expect(result.allowed).toBe(false);
         expect(result.redirect).toBe('/dashboard');
@@ -170,12 +170,12 @@ describe('Master PRD v4.0 — Adversarial Audit & Stress Test Suite (R1-R5)', ()
       it('should purge authentication state, student identity, workspace counts, and admin stores on multi-store logout', () => {
         // 1. Simulate active Teacher / Admin login
         useAuthStore.getState().setUser({
-          uid: 'teacher_039604483',
+          uid: 'teacher_1002220159',
           email: 'davidsep@edu-haifa.org.il',
           name: 'דוד המורה'
         }, 'teacher');
 
-        useStore.getState().login('teacher', 'teacher_039604483');
+        useStore.getState().login('teacher', 'teacher_1002220159');
 
         // Populate Workspace Store with active progress
         useWorkspaceStore.setState({
@@ -195,7 +195,7 @@ describe('Master PRD v4.0 — Adversarial Audit & Stress Test Suite (R1-R5)', ()
 
         // Verify pre-conditions
         expect(useAuthStore.getState().isAuthenticated).toBe(true);
-        expect(useAuthStore.getState().user?.uid).toBe('teacher_039604483');
+        expect(useAuthStore.getState().user?.uid).toBe('teacher_1002220159');
         expect(useStore.getState().currentUserRole).toBe('teacher');
         expect(useWorkspaceStore.getState().counts.thousands).toBe(1);
         expect(useAdminStore.getState().schools.length).toBe(1);
@@ -726,7 +726,7 @@ describe('Master PRD v4.0 — Adversarial Audit & Stress Test Suite (R1-R5)', ()
           id: '-N_PushKey123',
           senderId: 'student_user2',
           senderName: 'תלמיד 2',
-          receiverId: 'teacher_039604483',
+          receiverId: 'teacher_1002220159',
           text: 'שלום מורה, עזרה בבקשה',
           timestamp: 1000,
           read: false,
@@ -741,7 +741,7 @@ describe('Master PRD v4.0 — Adversarial Audit & Stress Test Suite (R1-R5)', ()
             id: '-N_PushKey123',
             senderId: 'student_user2',
             senderName: 'תלמיד 2',
-            receiverId: 'teacher_039604483',
+            receiverId: 'teacher_1002220159',
             text: 'שלום מורה, עזרה בבקשה',
             timestamp: 1000,
             read: true, // Marked as read by server
@@ -755,8 +755,8 @@ describe('Master PRD v4.0 — Adversarial Audit & Stress Test Suite (R1-R5)', ()
       });
 
       it('should route chat between student and teacher to normalized student room', () => {
-        expect(computeRoomId('student_user3', 'teacher_039604483')).toBe('student_user3');
-        expect(computeRoomId('teacher_039604483', 'student_user3')).toBe('student_user3');
+        expect(computeRoomId('student_user3', 'teacher_1002220159')).toBe('student_user3');
+        expect(computeRoomId('teacher_1002220159', 'student_user3')).toBe('student_user3');
         expect(computeRoomId('admin', 'student_user7')).toBe('student_user7');
       });
 

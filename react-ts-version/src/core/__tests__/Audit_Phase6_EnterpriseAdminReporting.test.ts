@@ -197,7 +197,7 @@ describe('Master PRD v5.0 — Phase 6: Enterprise Admin Console & Reporting Engi
       // Invalid ticket with Israeli ID PII
       const piiTkt = validateTicket({
         studentId: 'student_1',
-        subject: 'תמיכה עבור ת"ז 039604483',
+        subject: 'תמיכה עבור ת"ז 123456782',
         description: 'התלמיד עם טלפון 0501234567 נתקע',
       });
       expect(piiTkt.valid).toBe(false);

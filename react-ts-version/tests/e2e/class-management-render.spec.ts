@@ -10,7 +10,7 @@ test.describe('Class Management Rendering', () => {
     // Login Teacher
     await page.goto('/login');
     await page.getByRole('button', { name: 'מורה' }).click();
-    await page.getByPlaceholder('תעודת זהות').fill('039604483');
+    await page.getByPlaceholder('תעודת זהות').fill('1002220159');
     await page.getByPlaceholder('תאריך לידה (6 ספרות, במבנה יום-חודש-שנה)').fill('290984');
     await page.getByRole('button', { name: 'התחבר למערכת' }).click();
 

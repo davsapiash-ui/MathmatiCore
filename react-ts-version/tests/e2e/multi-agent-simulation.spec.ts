@@ -41,7 +41,7 @@ test.describe('Multi-Agent Behavior Simulation (12 Personas)', () => {
     // 2. TEACHER PERSONAS (3 Teachers)
     // ==========================================
     console.log('👩‍🏫 [Teachers] Orchestrating 3 teachers...');
-    const teacherIds = ['039604483', '123456789', '987654321']; // Using mock IDs
+    const teacherIds = ['1002220159', '123456789', '987654321']; // Using mock IDs
     
     for (let i = 0; i < 3; i++) {
       const tContext = await browser.newContext();

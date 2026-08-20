@@ -5,6 +5,11 @@ import { ref, get, set } from "firebase/database";
 import { doc, getDoc, collection, query, where, getDocs, setDoc } from "firebase/firestore";
 import { extractTeacherId } from "./FirebaseSyncService";
 
+function isFirestoreAvailable(): boolean {
+  if (!firestore) return false;
+  return typeof (firestore as any).type === 'string' || Boolean((firestore as any)._delegate) || Boolean((firestore as any).app);
+}
+
 /**
  * Commits an authorized teacher email to the Firestore authorizedTeachers collection.
  * Required for Module 25 instant Google SSO provisioning.
@@ -13,14 +18,22 @@ export async function addAuthorizedTeacherFirestore(email: string, role: "teache
   const normalized = email.toLowerCase().trim();
   if (!normalized) throw new Error("Email is required for teacher authorization");
 
-  const teacherDocRef = doc(firestore, "authorizedTeachers", normalized);
-  await setDoc(teacherDocRef, {
-    email: normalized,
-    role,
-    name: name || "",
-    schoolId: schoolId || "",
-    createdAt: Date.now(),
-  }, { merge: true });
+  if (!isFirestoreAvailable()) {
+    return;
+  }
+
+  try {
+    const teacherDocRef = doc(firestore, "authorizedTeachers", normalized);
+    await setDoc(teacherDocRef, {
+      email: normalized,
+      role,
+      name: name || "",
+      schoolId: schoolId || "",
+      createdAt: Date.now(),
+    }, { merge: true });
+  } catch (e) {
+    console.warn("addAuthorizedTeacherFirestore non-blocking error:", e);
+  }
 }
 
 /**
@@ -39,6 +52,10 @@ export async function isWhitelistedTeacherEmailAsync(email?: string | null): Pro
     if (normalized === "teacher.demo@edu-haifa.org.il" || normalized === "admin.demo@edu-haifa.org.il" || normalized.endsWith("@local.dev")) {
       return true;
     }
+  }
+
+  if (!isFirestoreAvailable()) {
+    return false;
   }
 
   // Authoritative Exact Match check against Firestore authorizedTeachers collection

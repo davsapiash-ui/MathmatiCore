@@ -677,6 +677,17 @@ export const useStore = create<AppState>()(
               }
             }
           }
+
+          // Clear chat messages for this student in RTDB and local useChatStore
+          const chatTargets = [
+            `chat_messages/${normId}`,
+            `chat_messages/student_${num}`,
+            `chat_messages/${num}`,
+          ];
+          for (const cp of chatTargets) {
+            await remove(ref(database, cp)).catch(() => {});
+          }
+          useChatStore.getState().clearStudentMessages(normId);
         } catch (err) {
           console.error(`Failed to reset student ${studentId} in Firebase:`, err);
         }
@@ -760,17 +771,14 @@ export const useStore = create<AppState>()(
           rootUpdates[`users/students/student_${i}`] = payload;
           rootUpdates[`users/students/${i}`] = payload;
           rootUpdates[`students/${normId}`] = payload;
-          rootUpdates[`chat_messages/${normId}`] = null;
-          rootUpdates[`chat_messages/student_${i}`] = null;
-          rootUpdates[`chat_messages/${i}`] = null;
         }
 
-        rootUpdates['chat_messages/admin'] = null;
-        rootUpdates['chat_messages/teacher'] = null;
+        rootUpdates['chat_messages'] = null;
         rootUpdates['radar_alerts'] = null;
         rootUpdates['active_class_session'] = { active: false, sessionNumber: null, timestamp: Date.now() };
 
         set({ students: cleanStudents });
+        useChatStore.getState().clearAllMessages();
 
         try {
           await update(ref(database), rootUpdates);

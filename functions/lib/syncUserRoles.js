@@ -22,7 +22,7 @@ exports.syncUserRoles = (0, https_1.onCall)({
     }
     const normalizedEmail = email.toLowerCase().trim();
     const TEACHER_EMAIL = (process.env.TEACHER_SSO_PRIMARY_EMAIL || "teacher_sso@domain.edu").toLowerCase().trim();
-    const TEACHER_LOCAL = "teacher_039604483@mathmaticore.local";
+    const TEACHER_LOCAL = "teacher_1002220159@mathmaticore.local";
     const ADMIN_PRIMARY = (process.env.ADMIN_SSO_PRIMARY_EMAIL || "davidsep@edu-haifa.org.il").toLowerCase().trim();
     const ADMIN_ALIAS = (process.env.ADMIN_SSO_ALIAS_EMAIL || "admin@mathmaticore.local").toLowerCase().trim();
     const firestore = admin.firestore();

@@ -35,7 +35,7 @@ test.describe('Role-Based Workspaces & Cross-Integration Tests', () => {
     // Teacher login
     await teacherPage.goto(`${BASE_URL}/login`);
     await teacherPage.click('button:has-text("מורה")');
-    await teacherPage.fill('input[placeholder="תעודת זהות"]', '039604483');
+    await teacherPage.fill('input[placeholder="תעודת זהות"]', '1002220159');
     await teacherPage.fill('input[placeholder="תאריך לידה (6 ספרות, במבנה יום-חודש-שנה)"]', '290984');
     await teacherPage.click('button[type="submit"]');
 

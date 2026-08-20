@@ -498,6 +498,24 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
                 traceData: realTraceData,
               });
               store.setRouteRecommendation(studentId, route);
+
+              // Phase 3: Exact PRD Module 20 & Appendix A §4 Session 2 Scoring & Path Recommendation
+              const compulsoryKeys = [
+                'task1_zero_placeholder',
+                'task3_flexible_regrouping',
+                'task4_basic_addition_fluency',
+                'task5_small_change',
+                'task6_subtraction_regrouping',
+                'task7_missing_subtrahend',
+                'task8_missing_addend'
+              ];
+              const compulsory_correct_first_attempt = compulsoryKeys.filter(k => r[k]?.correct).length;
+              const session_score_percent = Math.round((compulsory_correct_first_attempt / 7) * 100);
+              const matrix_recommended_path = session_score_percent >= 50 ? 'green_path' : 'remediation_path';
+
+              const activeClass = useAuthStore.getState().activeClass;
+              const classId = activeClass?.school_id || 'class_1';
+              firebaseSyncService.syncSession2Completion(studentId, session_score_percent, matrix_recommended_path, classId).catch(console.error);
             }
           }
         });

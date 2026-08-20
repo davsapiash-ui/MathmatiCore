@@ -1,23 +1,31 @@
 import { ref, set, get, update, runTransaction, serverTimestamp, onValue, onDisconnect, push, type DataSnapshot } from 'firebase/database';
-import { database } from '@/infrastructure/firebase';
+import { database, firestore } from '@/infrastructure/firebase';
+import { doc, setDoc } from 'firebase/firestore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useWorkspaceStore, getActiveTasks } from '@/application/useWorkspaceStore';
 import { useStore, type QMatrix, type TraceData } from '@/application/useStore';
 import { normalizeStudentId } from '@/application/useChatStore';
 import { useAdminStore, type School, type Teacher, type ClassRoom } from '@/application/useAdminStore';
 import { indexedDBQueue } from './IndexedDBQueue';
+import type { SessionDocument, PedagogicalPath } from '@/types';
 
 export function extractTeacherId(email?: string | null, uid?: string | null): string {
   if (email && typeof email === 'string') {
     const cleaned = email
       .replace(/^teacher_/, '')
       .replace(/@mathmaticore\.local$/, '');
+    if (cleaned.endsWith('@edu-haifa.org.il')) {
+      return cleaned.replace('@edu-haifa.org.il', '');
+    }
     return cleaned.replace(/[.@#$[\]]/g, '_');
   }
   if (uid && typeof uid === 'string') {
     const cleaned = uid
       .replace(/^teacher_/, '')
       .replace(/@mathmaticore\.local$/, '');
+    if (cleaned.endsWith('@edu-haifa.org.il')) {
+      return cleaned.replace('@edu-haifa.org.il', '');
+    }
     return cleaned.replace(/[.@#$[\]]/g, '_');
   }
   return 'teacher_default';
@@ -804,6 +812,57 @@ export class FirebaseSyncService {
     }
   }
 
+  public async syncSession2Completion(
+    rawStudentId: string,
+    sessionScorePercent: number,
+    recommendedPath: PedagogicalPath,
+    classId: string = 'class_1'
+  ) {
+    const studentId = normalizeStudentId(rawStudentId);
+    const studentNum = studentId.replace(/\D/g, '') || '1';
+    const now = Date.now();
+    const docId = `session_02_student_${studentNum}`;
+
+    const sessionDoc: SessionDocument = {
+      session_id: docId,
+      class_id: classId,
+      session_number: 2,
+      session_start_time: now - 1800000,
+      session_deadline_time: now + 1800000,
+      active_exercise_id: 'task8_missing_addend',
+      is_completed: true,
+      session_score_percent: sessionScorePercent,
+      teacher_gate_approved: false,
+      gate_approved_at: null,
+      gate_approved_by: null,
+      teacher_selected_path: null,
+      matrix_recommended_path: recommendedPath,
+    };
+
+    // 1. Write to RTDB users/students/${studentId}
+    try {
+      await update(ref(database, `users/students/${studentId}`), {
+        session_02_completed: true,
+        session_score_percent: sessionScorePercent,
+        matrix_recommended_path: recommendedPath,
+        teacher_gate_approved: false,
+        routeStatus: 'PENDING_TEACHER_APPROVAL',
+        updatedAt: now
+      });
+    } catch (e) {
+      console.warn('[FirebaseSyncService] RTDB Session 2 completion update warning:', e);
+    }
+
+    // 2. Write to Firestore `sessions/${docId}`
+    if (firestore && (typeof (firestore as any).type === 'string' || (firestore as any)._delegate || (firestore as any).app)) {
+      try {
+        const docRef = doc(firestore, 'sessions', docId);
+        await setDoc(docRef, sessionDoc, { merge: true });
+      } catch (err) {
+        console.warn('[FirebaseSyncService] Firestore Session 2 completion write warning:', err);
+      }
+    }
+  }
 
   public async fetchTeacherClassrooms(teacherId: string): Promise<Classroom[]> {
     const classesSnapshot = await get(ref(database, 'classes'));

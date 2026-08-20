@@ -6,6 +6,7 @@ import { database, authReady } from '@/infrastructure/firebase';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { normalizeStudentId } from '@/application/useChatStore';
+import { AuditLogger } from '@/infrastructure/services/AuditLogger';
 import { toast } from 'sonner';
 
 /**
@@ -96,6 +97,14 @@ export function ReflectionScreen() {
       };
 
       const studentId = normalizeStudentId(username);
+      
+      // Emit authoritative SRL Telemetry event per Master PRD v6.4
+      AuditLogger.log(
+        'REFLECTION_SUBMITTED',
+        studentId,
+        `שלב רפלקציה הושלם: מאמץ ${effort}, אסטרטגיות: ${strategies.join(', ')}, מדד התמדה: ${persistenceIndex}%`
+      ).catch(console.error);
+
       await update(ref(database, `users/students/${studentId}`), {
         routeStatus: 'PENDING_TEACHER_APPROVAL',
         qMatrixResults: qMatrix,

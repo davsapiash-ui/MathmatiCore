@@ -6,7 +6,7 @@ import { HeatmapGrid } from './components/HeatmapGrid';
 import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
 import { ref, onValue, update, get, remove } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
-import { normalizeStudentId } from '@/application/useChatStore';
+import { useChatStore, normalizeStudentId } from '@/application/useChatStore';
 import { toast } from 'sonner';
 
 interface StudentGateState {
@@ -214,7 +214,7 @@ export function ClassManagement({
 
       await update(ref(database), updates);
 
-      // Clear radar_alerts
+      // Clear radar_alerts and chat_messages
       try {
         const alertsSnap = await get(ref(database, 'radar_alerts'));
         if (alertsSnap.exists()) {
@@ -223,8 +223,10 @@ export function ClassManagement({
             await remove(ref(database, `radar_alerts/${key}`)).catch(() => {});
           }
         }
+        await remove(ref(database, 'chat_messages')).catch(() => {});
+        useChatStore.getState().clearAllMessages();
       } catch (err) {
-        console.warn('Could not clear radar alerts during full class reset:', err);
+        console.warn('Could not clear radar alerts or chat during full class reset:', err);
       }
 
       setResetFeedback('✓ כל נתוני כיתת הביקורת אופסו בהצלחה לאפס מוחלט!');

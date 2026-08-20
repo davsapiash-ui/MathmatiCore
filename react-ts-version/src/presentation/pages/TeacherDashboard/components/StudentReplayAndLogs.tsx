@@ -25,6 +25,33 @@ export interface VRATimelineEvent {
   };
 }
 
+export const TELEMETRY_EVENT_LABELS_HE: Record<string, { label: string; milestone: VRATimelineEvent['vraMilestone']; isSelfRegulation?: boolean; defaultAction: VRATimelineEvent['actionType'] }> = {
+  // Master PRD v6.3 Appendix A §3 - 13 Telemetry Event Types
+  SESSION_START: { label: 'תחילת מפגש למידה', milestone: 'ייצוג בלבני דינס', defaultAction: 'BLOCK_DRAG' },
+  PROBLEM_LOAD: { label: 'טעינת משימה במרחב העבודה', milestone: 'ייצוג בלבני דינס', defaultAction: 'BLOCK_DRAG' },
+  BLOCK_DRAG_COMPLETE: { label: 'גרירת לבנת דינס', milestone: 'ייצוג בלבני דינס', defaultAction: 'BLOCK_DRAG' },
+  REGROUPING_TRIGGERED: { label: 'הפעלת פריטה / קיבוץ', milestone: 'המרה עשרונית', defaultAction: 'DECOMPOSE' },
+  REGROUPING_SUCCESS: { label: 'השלמת פריטה / קיבוץ בהצלחה', milestone: 'המרה עשרונית', defaultAction: 'REGROUP' },
+  DIGIT_ENTERED: { label: 'הקלדת ספרה בתוצאה', milestone: 'שורת התוצאה', defaultAction: 'ANSWER_INPUT' },
+  DIGIT_DELETED: { label: 'מחיקת ספרה (בקרה עצמית)', milestone: 'ויסות עצמי שקט', isSelfRegulation: true, defaultAction: 'DIGIT_DELETE' },
+  UNDO_EXECUTED: { label: 'ביטול פעולה (Undo)', milestone: 'ויסות עצמי שקט', isSelfRegulation: true, defaultAction: 'UNDO_CLICK' },
+  HESITATION_DETECTED: { label: 'זיהוי היסוס (45 שניות)', milestone: 'חניכה סוקרטית', defaultAction: 'SOCRATIC_TRIGGER' },
+  SOCRATIC_CARD_SHOWN: { label: 'הצגת כרטיס חניכה סוקרטי', milestone: 'חניכה סוקרטית', defaultAction: 'SOCRATIC_TRIGGER' },
+  SOCRATIC_OPTION_SELECTED: { label: 'בחירת תשובה בכרטיס סוקרטי', milestone: 'חניכה סוקרטית', defaultAction: 'SOCRATIC_TRIGGER' },
+  PROBLEM_COMPLETE: { label: 'השלמת משימה בהצלחה', milestone: 'שורת התוצאה', defaultAction: 'ANSWER_INPUT' },
+  REFLECTION_SUBMITTED: { label: 'הגשת רפלקציה עצמית', milestone: 'ויסות עצמי שקט', isSelfRegulation: true, defaultAction: 'UNDO_CLICK' },
+
+  // Interaction actions & fallback synonyms
+  BLOCK_DRAG: { label: 'גרירת לבנה', milestone: 'ייצוג בלבני דינס', defaultAction: 'BLOCK_DRAG' },
+  DECOMPOSE: { label: 'פריטת עשרת / מאה', milestone: 'המרה עשרונית', defaultAction: 'DECOMPOSE' },
+  REGROUP: { label: 'קיבוץ 10 יחידות', milestone: 'המרה עשרונית', defaultAction: 'REGROUP' },
+  MEMORY_CIRCLE_INPUT: { label: 'הזנה בעיגול זיכרון', milestone: 'זיכרון עבודה', defaultAction: 'MEMORY_CIRCLE_INPUT' },
+  ANSWER_INPUT: { label: 'הקלדת ספרת תוצאה', milestone: 'שורת התוצאה', defaultAction: 'ANSWER_INPUT' },
+  DIGIT_DELETE: { label: 'מחיקת ספרה / לבנה', milestone: 'ויסות עצמי שקט', isSelfRegulation: true, defaultAction: 'DIGIT_DELETE' },
+  UNDO_CLICK: { label: 'ביטול פעולה (Undo)', milestone: 'ויסות עצמי שקט', isSelfRegulation: true, defaultAction: 'UNDO_CLICK' },
+  SOCRATIC_TRIGGER: { label: 'הפעלת כרטיס חניכה', milestone: 'חניכה סוקרטית', defaultAction: 'SOCRATIC_TRIGGER' },
+};
+
 /**
  * מודול 21: ממשק אבחון מסך מפוצל אמיתי למורה (Teacher Diagnostic Split Screen Replay)
  * צד ימין של הנגן: דף התרגיל / כרטיס המשימה המלא של התלמיד (הזנת ספרות, עיגולי זיכרון, משוואה, סטטוס).
@@ -106,43 +133,47 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
             const delay = lastTime > 0 ? Math.max(0, Math.round((ts - lastTime) / 1000)) : 0;
             lastTime = ts;
 
-            let actionType: VRATimelineEvent['actionType'] = 'BLOCK_DRAG';
-            let actionLabelHe = 'גרירת לבנה';
-            let vraMilestone: VRATimelineEvent['vraMilestone'] = 'ייצוג בלבני דינס';
+            const t = String(innerItem.type || innerItem.action || innerItem.interaction_data?.action_type || innerItem.actionType || '').trim().toUpperCase();
             let details = innerItem.message || innerItem.detail || innerItem.interaction_data?.details?.context || 'פעילות בלוח הערך המקומי';
-            let selfRegulationFlag = false;
+            
+            const matchedConfig = TELEMETRY_EVENT_LABELS_HE[t];
+            let actionType: VRATimelineEvent['actionType'] = matchedConfig?.defaultAction || 'BLOCK_DRAG';
+            let actionLabelHe = matchedConfig?.label || 'גרירת לבנה';
+            let vraMilestone: VRATimelineEvent['vraMilestone'] = matchedConfig?.milestone || 'ייצוג בלבני דינס';
+            let selfRegulationFlag = Boolean(matchedConfig?.isSelfRegulation);
 
-            const t = String(innerItem.type || innerItem.action || innerItem.interaction_data?.action_type || '').toUpperCase();
-            if (t.includes('UNDO') || t.includes('CANCEL') || details.includes('ביטול') || innerItem.somatic_indicators?.undo_triggered) {
-              actionType = 'UNDO_CLICK';
-              actionLabelHe = 'ביטול פעולה (Undo)';
-              vraMilestone = 'ויסות עצמי שקט';
-              selfRegulationFlag = true;
-            } else if (t.includes('DECOMPOSE') || t.includes('UNGROUP') || details.includes('פריטה')) {
-              actionType = 'DECOMPOSE';
-              actionLabelHe = 'פריטת עשרת / מאה';
-              vraMilestone = 'המרה עשרונית';
-            } else if (t.includes('REGROUP') || t.includes('GROUP') || details.includes('קיבוץ')) {
-              actionType = 'REGROUP';
-              actionLabelHe = 'קיבוץ 10 יחידות';
-              vraMilestone = 'המרה עשרונית';
-            } else if (t.includes('MEMORY') || details.includes('זיכרון')) {
-              actionType = 'MEMORY_CIRCLE_INPUT';
-              actionLabelHe = 'הזנה בעיגול זיכרון';
-              vraMilestone = 'זיכרון עבודה';
-            } else if (t.includes('DELETE') || details.includes('מחיקה')) {
-              actionType = 'DIGIT_DELETE';
-              actionLabelHe = 'מחיקת ספרה / לבנה';
-              vraMilestone = 'ויסות עצמי שקט';
-              selfRegulationFlag = true;
-            } else if (t.includes('ANSWER') || t.includes('INPUT') || details.includes('תוצאה')) {
-              actionType = 'ANSWER_INPUT';
-              actionLabelHe = 'הקלדת ספרת תוצאה';
-              vraMilestone = 'שורת התוצאה';
-            } else if (t.includes('HESITATION') || t.includes('SOCRATIC') || details.includes('סוקרטי') || innerItem.somatic_indicators?.hesitation_detected) {
-              actionType = 'SOCRATIC_TRIGGER';
-              actionLabelHe = 'הפעלת כרטיס חניכה';
-              vraMilestone = 'חניכה סוקרטית';
+            if (!matchedConfig) {
+              if (t.includes('UNDO') || t.includes('CANCEL') || details.includes('ביטול') || innerItem.somatic_indicators?.undo_triggered) {
+                actionType = 'UNDO_CLICK';
+                actionLabelHe = 'ביטול פעולה (Undo)';
+                vraMilestone = 'ויסות עצמי שקט';
+                selfRegulationFlag = true;
+              } else if (t.includes('DECOMPOSE') || t.includes('UNGROUP') || details.includes('פריטה')) {
+                actionType = 'DECOMPOSE';
+                actionLabelHe = 'פריטת עשרת / מאה';
+                vraMilestone = 'המרה עשרונית';
+              } else if (t.includes('REGROUP') || t.includes('GROUP') || details.includes('קיבוץ')) {
+                actionType = 'REGROUP';
+                actionLabelHe = 'קיבוץ 10 יחידות';
+                vraMilestone = 'המרה עשרונית';
+              } else if (t.includes('MEMORY') || details.includes('זיכרון')) {
+                actionType = 'MEMORY_CIRCLE_INPUT';
+                actionLabelHe = 'הזנה בעיגול זיכרון';
+                vraMilestone = 'זיכרון עבודה';
+              } else if (t.includes('DELETE') || details.includes('מחיקה')) {
+                actionType = 'DIGIT_DELETE';
+                actionLabelHe = 'מחיקת ספרה / לבנה';
+                vraMilestone = 'ויסות עצמי שקט';
+                selfRegulationFlag = true;
+              } else if (t.includes('ANSWER') || t.includes('INPUT') || details.includes('תוצאה')) {
+                actionType = 'ANSWER_INPUT';
+                actionLabelHe = 'הקלדת ספרת תוצאה';
+                vraMilestone = 'שורת התוצאה';
+              } else if (t.includes('HESITATION') || t.includes('SOCRATIC') || details.includes('סוקרטי') || innerItem.somatic_indicators?.hesitation_detected) {
+                actionType = 'SOCRATIC_TRIGGER';
+                actionLabelHe = 'הפעלת כרטיס חניכה';
+                vraMilestone = 'חניכה סוקרטית';
+              }
             }
 
             const stepRatio = (idx + 1) / rawEvents.length;
@@ -509,7 +540,7 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
                 {/* Bottom Workbench Palette Signifier */}
                 <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400">
                   <span className="flex items-center gap-1 font-bold">🧰 מחסן לבנים פעיל</span>
-                  <span className="text-slate-500 font-mono">{currentEvent.actionLabelHe}</span>
+                  <span className="text-slate-500 font-mono">{currentEvent?.actionLabelHe ?? 'המתנה לפעילות'}</span>
                 </div>
               </div>
             </div>
@@ -575,7 +606,7 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
                 className="w-full accent-indigo-500 cursor-pointer h-2 bg-slate-800 rounded-lg"
               />
               <div className="flex justify-between text-[10px] text-slate-400 font-mono">
-                <span>{currentEvent.timeFormatted}</span>
+                <span>{currentEvent?.timeFormatted ?? '--:--:--'}</span>
                 <span>צעד {currentEventIndex + 1} / {events.length}</span>
               </div>
             </div>
@@ -619,7 +650,7 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
                     const isSelected = idx === currentEventIndex;
                     return (
                       <tr 
-                        key={event.id} 
+                        key={event?.id || `event_${idx}`} 
                         onClick={() => {
                           setIsPlaying(false);
                           setCurrentEventIndex(idx);
@@ -630,23 +661,23 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
                             : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/40'
                         }`}
                       >
-                        <td className="p-3 font-mono text-[11px] text-slate-400">{event.timeFormatted}</td>
+                        <td className="p-3 font-mono text-[11px] text-slate-400">{event?.timeFormatted ?? '--:--:--'}</td>
                         <td className="p-3">
                           <span className={`font-black px-2 py-0.5 rounded-md text-[10px] ${
-                            event.vraMilestone === 'המרה עשרונית'
+                            event?.vraMilestone === 'המרה עשרונית'
                               ? 'bg-purple-100 text-purple-900 dark:bg-purple-950 dark:text-purple-200'
-                              : event.vraMilestone === 'ויסות עצמי שקט'
+                              : event?.vraMilestone === 'ויסות עצמי שקט'
                               ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200'
-                              : event.vraMilestone === 'זיכרון עבודה'
+                              : event?.vraMilestone === 'זיכרון עבודה'
                               ? 'bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-200'
                               : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200'
                           }`}>
-                            {event.vraMilestone}
+                            {event?.vraMilestone ?? 'ייצוג בלבני דינס'}
                           </span>
                         </td>
                         <td className="p-3 font-medium text-slate-800 dark:text-slate-200">
-                          <div className="font-bold leading-snug">{event.actionLabelHe}</div>
-                          <div className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight mt-0.5">{event.details}</div>
+                          <div className="font-bold leading-snug">{event?.actionLabelHe ?? 'פעולה בלוח'}</div>
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight mt-0.5">{event?.details ?? 'פעילות בלוח הערך המקומי'}</div>
                         </td>
                         <td className="p-3 text-center font-mono font-bold text-slate-600 dark:text-slate-400">
                           {event.delaySeconds > 0 ? `${event.delaySeconds}ש'` : '-'}

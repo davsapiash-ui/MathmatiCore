@@ -180,7 +180,7 @@ describe('Master PRD v5.0 — Phase 4: Teacher Dashboard, Silent Radar & Admin T
   describe('Module 22: Teacher Admin Chat & Two-Tier PII Protection', () => {
     it('Tier 1: Client regex validator blocks Israeli National IDs (Luhn), phones, and emails', () => {
       // 1. Valid Israeli ID
-      const validLuhnId = '039604483';
+      const validLuhnId = '123456782';
       expect(isValidIsraeliID(validLuhnId)).toBe(true);
       const resId = validateChatInputForPII(`שלום, בדוק בבקשה את תעודת הזהות ${validLuhnId}`);
       expect(resId.valid).toBe(false);

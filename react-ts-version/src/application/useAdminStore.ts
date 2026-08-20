@@ -30,15 +30,29 @@ export interface ClassRoom {
   createdAt: number;
 }
 
+export interface AdminStoreCache {
+  totalStudents: number;
+  activeClassesCount: number;
+  totalSchools: number;
+  totalTeachers: number;
+  globalStudentLimit: number;
+  systemHealth: 'OPTIMAL' | 'DEGRADED' | 'MAINTENANCE';
+  averageMasteryScore: number;
+  activityTrends: Array<{ time: string; students: number; activity: number; alerts: number }>;
+  lastAggregatedAt: number;
+}
+
 interface AdminState {
   schools: School[];
   teachers: Teacher[];
   classes: ClassRoom[];
   globalStudentLimit: number;
+  cache: AdminStoreCache | null;
   isSubscribed: boolean;
   
   // Actions
   initAdminSubscriptions: () => () => void;
+  updateStoreCache: (partial: Partial<AdminStoreCache>) => void;
   setGlobalStudentLimit: (limit: number) => void;
   
   addSchool: (name: string) => void;
@@ -70,7 +84,29 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
   teachers: [],
   classes: [],
   globalStudentLimit: 12,
+  cache: {
+    totalStudents: 12,
+    activeClassesCount: 1,
+    totalSchools: 1,
+    totalTeachers: 1,
+    globalStudentLimit: 12,
+    systemHealth: 'OPTIMAL',
+    averageMasteryScore: 82,
+    activityTrends: [
+      { time: 'שבוע 1', students: 12, activity: 48, alerts: 0 },
+      { time: 'שבוע 2', students: 12, activity: 56, alerts: 1 },
+      { time: 'שבוע 3', students: 12, activity: 64, alerts: 0 },
+      { time: 'שבוע 4', students: 12, activity: 72, alerts: 0 },
+    ],
+    lastAggregatedAt: Date.now(),
+  },
   isSubscribed: false,
+
+  updateStoreCache: (partial) => {
+    set((state) => ({
+      cache: state.cache ? { ...state.cache, ...partial, lastAggregatedAt: Date.now() } : null
+    }));
+  },
 
   initAdminSubscriptions: () => {
     // If already subscribed, return the cleanup function
@@ -145,10 +181,10 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
       createdAt: timestamp,
     };
     const cleanTeacher: Teacher = {
-      id: "davidsep_edu_haifa_org_il",
+      id: "1002220159",
       schoolId: "school_bikorot",
       name: "דוד ספיאשוילי",
-      ssoEmail: "davidsep@edu-haifa.org.il",
+      ssoEmail: "1002220159@edu-haifa.org.il",
       dob: "010190",
       licenseActive: false,
       createdAt: timestamp,
@@ -156,7 +192,7 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
     const cleanClass: ClassRoom = {
       id: "class_1",
       schoolId: "school_bikorot",
-      teacherId: "davidsep_edu_haifa_org_il",
+      teacherId: "1002220159",
       name: "המבקרים",
       studentLimit: 12,
       createdAt: timestamp,
@@ -176,7 +212,7 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
 
     const { set: firebaseSet } = await import("firebase/database");
     await firebaseSet(ref(database, 'schools'), { school_bikorot: cleanSchool });
-    await firebaseSet(ref(database, 'users/teachers'), { "davidsep_edu_haifa_org_il": cleanTeacher });
+    await firebaseSet(ref(database, 'users/teachers'), { "1002220159": cleanTeacher });
     await firebaseSet(ref(database, 'classes'), { class_1: cleanClass });
     await firebaseSet(ref(database, 'public_classes'), { class_1: cleanPublicClass });
     await firebaseSet(ref(database, 'system_control/globalStudentLimit'), 12);

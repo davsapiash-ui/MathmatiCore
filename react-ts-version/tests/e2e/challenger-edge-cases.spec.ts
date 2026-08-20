@@ -21,7 +21,7 @@ test.describe('Challenger Edge Cases', () => {
     // 2. Log in as Teacher
     await teacherPage.goto(`${BASE_URL}/login`);
     await teacherPage.locator('button').filter({ hasText: 'מורה' }).click();
-    await teacherPage.getByPlaceholder('תעודת זהות').fill('039604483');
+    await teacherPage.getByPlaceholder('תעודת זהות').fill('1002220159');
     await teacherPage.getByPlaceholder('תאריך לידה (6 ספרות, במבנה יום-חודש-שנה)').fill('290984');
     await teacherPage.locator('button').filter({ hasText: 'התחבר למערכת' }).click();
     await teacherPage.waitForURL('**/dashboard', { timeout: 15000 });
@@ -142,7 +142,7 @@ test.describe('Challenger Edge Cases', () => {
     });
     await teacherPage.goto(`${BASE_URL}/login`);
     await teacherPage.locator('button').filter({ hasText: 'מורה' }).click();
-    await teacherPage.getByPlaceholder('תעודת זהות').fill('039604483');
+    await teacherPage.getByPlaceholder('תעודת זהות').fill('1002220159');
     await teacherPage.getByPlaceholder('תאריך לידה (6 ספרות, במבנה יום-חודש-שנה)').fill('290984');
     await teacherPage.locator('button').filter({ hasText: 'התחבר למערכת' }).click();
     await teacherPage.waitForURL('**/dashboard', { timeout: 15000 });

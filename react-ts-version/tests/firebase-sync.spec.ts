@@ -87,7 +87,7 @@ test.describe('Firebase Sync Service & Admin Store Verification', () => {
 
     // Verify auto-seeded values exist in Firebase (Node side verification)
     const schoolSnap = await get(ref(db, 'schools/school_bikorot'));
-    const teacherSnap = await get(ref(db, 'users/teachers/039604483'));
+    const teacherSnap = await get(ref(db, 'users/teachers/1002220159'));
     const classSnap = await get(ref(db, 'classes/class_1'));
     const limitSnap = await get(ref(db, 'system_control/globalStudentLimit'));
 

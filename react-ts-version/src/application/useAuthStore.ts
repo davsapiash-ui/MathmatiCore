@@ -226,10 +226,14 @@ export const useAuthStore = create<AuthState>()(
       })),
 
     setUser: (user, explicitRole) => set((state) => {
-      // Validate Zero PII constraints
-      const piiCheck = validateZeroPIIPayload(user);
-      if (!piiCheck.valid) {
-        console.warn(`[Zero PII Security] Payload advisory: ${piiCheck.reason}`);
+      const activeRole = explicitRole || (typeof user.role === 'string' ? user.role : 'teacher');
+
+      // Validate Zero PII constraints strictly for anonymous students (Module 3)
+      if (activeRole === 'student') {
+        const piiCheck = validateZeroPIIPayload(user);
+        if (!piiCheck.valid) {
+          console.warn(`[Zero PII Security] Payload advisory: ${piiCheck.reason}`);
+        }
       }
 
       const timestamp = user.authTimestamp || Date.now();
@@ -247,8 +251,6 @@ export const useAuthStore = create<AuthState>()(
           authTimestamp: timestamp,
         };
       }
-
-      const activeRole = explicitRole || (typeof user.role === 'string' ? user.role : 'teacher');
 
       // Student ID Constraint Check (Strictly 1..12 Integer)
       if (activeRole === 'student') {

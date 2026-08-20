@@ -72,7 +72,7 @@ async function resetAll() {
         remove(ref(database, `users/students/${studentId}/telemetry_sessions`)),
         remove(ref(database, `approved_tasks/${studentId}`)),
         remove(ref(database, `replays/${studentId}`)),
-        remove(ref(database, `ai_pending_approvals/039604483/${studentId}`)).catch(() => {}),
+        remove(ref(database, `ai_pending_approvals/1002220159/${studentId}`)).catch(() => {}),
         remove(ref(database, `ai_pending_approvals/teacher-1/${studentId}`)).catch(() => {}),
       ]);
     }

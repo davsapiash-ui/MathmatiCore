@@ -363,10 +363,10 @@ describe('MASTER PRD v5.0: Holistic Real-Time & Multi-Tenant Synchronization Inq
   // --------------------------------------------------------------------------
   describe('5. Real-Time Chat Synchronization & Zero PII Redaction', () => {
     it('enforces PII masking on personal ID numbers, phone numbers and emails in real-time chat', () => {
-      const rawChatText = 'שלום המורה, תעודת הזהות שלי היא 039604483 והטלפון של אמא 052-1234567 והמייל test@gmail.com';
+      const rawChatText = 'שלום המורה, תעודת הזהות שלי היא 123456782 והטלפון של אמא 052-1234567 והמייל test@gmail.com';
       const sanitized = sanitizeChatText(rawChatText);
 
-      expect(sanitized).not.toContain('039604483');
+      expect(sanitized).not.toContain('123456782');
       expect(sanitized).not.toContain('052-1234567');
       expect(sanitized).not.toContain('test@gmail.com');
       expect(sanitized).toContain('[PHONE_REDACTED]');
@@ -375,7 +375,7 @@ describe('MASTER PRD v5.0: Holistic Real-Time & Multi-Tenant Synchronization Inq
 
     it('transmits chat message between student and teacher with room normalization', async () => {
       const studentId = 'student_user6';
-      const teacherId = '039604483';
+      const teacherId = '1002220159';
       const roomId = computeRoomId(studentId, teacherId);
 
       expect(roomId).toBe('student_user6');

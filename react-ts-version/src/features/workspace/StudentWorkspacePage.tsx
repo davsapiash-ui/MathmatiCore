@@ -213,7 +213,6 @@ export function StudentWorkspacePage() {
     let cancelled = false;
 
     const uid = normUid;
-    const rawUid = user?.uid;
     if (!uid || !isTeacherSessionActive || !activeClassSession) return;
 
     // Use teacher's active session timestamp as the unified session ID
@@ -226,9 +225,6 @@ export function StudentWorkspacePage() {
       lastActive: Date.now() 
     };
     update(ref(database, `users/students/${uid}`), sessionMeta).catch(console.error);
-    if (rawUid && rawUid !== uid) {
-      update(ref(database, `users/students/${rawUid}`), sessionMeta).catch(console.error);
-    }
 
     const flushTelemetry = () => {
       if (eventsQueue.length > 0) {
@@ -250,14 +246,6 @@ export function StudentWorkspacePage() {
           update(ref(database, `users/students/${uid}/telemetry_sessions/${sessionId}/metadata`), {
             [chunkKey]: metaPayload
           }).catch(console.error);
-
-          if (rawUid && rawUid !== uid) {
-            const rawChunkRef = ref(database, `users/students/${rawUid}/telemetry_sessions/${sessionId}/chunks/${chunkKey}`);
-            set(rawChunkRef, payload).catch(console.error);
-            update(ref(database, `users/students/${rawUid}/telemetry_sessions/${sessionId}/metadata`), {
-              [chunkKey]: metaPayload
-            }).catch(console.error);
-          }
         }
       }
     };
@@ -330,15 +318,19 @@ export function StudentWorkspacePage() {
   const myData = user?.uid ? (students[user.uid] || students[normalizeStudentId(user.uid)]) : null;
   const isASDMode = myData?.isASD ?? localIsASD;
 
-  // --- PRD Section 4.5: Gate Locked Limbo State Guard ---
+  // --- PRD Section 4.5 & Module 20: Gate Locked / Pending Approval Guard ---
   useEffect(() => {
-    if (myData?.routeStatus === 'GATE_LOCKED') {
+    const isApproved = Boolean(myData?.teacher_gate_approved === true || myData?.routeStatus === 'APPROVED');
+    const isSession2Done = Boolean(myData?.session_2_completed || myData?.completedMeeting2 || (myData as any)?.session_02_completed);
+    const isAwaitingGate = meeting === 3 && (myData?.routeStatus === 'GATE_LOCKED' || myData?.routeStatus === 'PENDING_TEACHER_APPROVAL' || isSession2Done) && !isApproved;
+
+    if (myData?.routeStatus === 'GATE_LOCKED' || isAwaitingGate) {
       setNetworkError(false); // Teacher lock, not a network error
       setPendingApproval(true);
-    } else if (pendingApproval && myData?.routeStatus === 'APPROVED' && !networkError) {
+    } else if (pendingApproval && isApproved && !networkError) {
       setPendingApproval(false);
     }
-  }, [myData?.routeStatus, pendingApproval, networkError]);
+  }, [myData?.routeStatus, myData?.teacher_gate_approved, myData?.session_2_completed, myData?.completedMeeting2, meeting, pendingApproval, networkError]);
 
   // Reset initialization when meeting changes
   useEffect(() => {

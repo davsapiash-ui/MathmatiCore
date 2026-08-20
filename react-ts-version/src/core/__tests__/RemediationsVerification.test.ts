@@ -102,7 +102,7 @@ describe('Remediations Verification Suite (R1 - R5)', () => {
     it('verifies maskPII masks 9-digit Israeli national IDs', () => {
       expect(maskPII(null)).toBeNull();
       expect(maskPII(undefined)).toBeNull();
-      expect(maskPII('מורה חדש: דוד (ת"ז: 039604483)')).toBe('מורה חדש: דוד (ת"ז: ***4483)');
+      expect(maskPII('מורה חדש: דוד (ת"ז: 123456782)')).toBe('מורה חדש: דוד (ת"ז: ***6782)');
       expect(maskPII('ת"ז: 123456789 ועוד ת"ז: 987654321')).toBe('ת"ז: ***6789 ועוד ת"ז: ***4321');
       expect(maskPII('אין פה תעודת זהות')).toBe('אין פה תעודת זהות');
     });

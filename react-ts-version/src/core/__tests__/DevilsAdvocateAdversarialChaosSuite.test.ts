@@ -24,7 +24,7 @@ describe("Master PRD v3.5 — Devil's Advocate Adversarial Chaos & Invariant Sui
       expect(normalizeStudentId('admin')).toBe('admin');
       expect(normalizeStudentId('teacher')).toBe('teacher');
       expect(normalizeStudentId('teacher_1002220159_edu-haifa_org_il')).toBe('teacher_1002220159_edu-haifa_org_il');
-      expect(normalizeStudentId('039604483')).toBe('039604483');
+      expect(normalizeStudentId('1002220159')).toBe('1002220159');
     });
 
     it('should always route any chat between teacher/admin and student to that student\'s normalized room', () => {

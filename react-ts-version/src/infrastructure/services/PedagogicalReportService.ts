@@ -12,11 +12,125 @@
 
 import { normalizeStudentId } from '@/application/useChatStore';
 import { containsPII } from '@/core/security/PiiFilter';
+import type { SessionDocument } from '@/types';
 
 export type PedagogicalGroupRecommendation = 
   | 'HOMOGENEOUS_PHYSICAL_TENS'
   | 'HETEROGENEOUS_GROUPING'
   | 'INDEPENDENT_CHALLENGE';
+
+export type CanonicalRoutingGroup = 
+  | 'Small homogeneous group, physical ten frames'
+  | 'Heterogeneous peer discourse, abacus'
+  | 'Independent challenge track, whiteboard';
+
+export interface PedagogicalReportPDFResult {
+  studentDisplayName: string; // "תלמיד {ID}" (1-12)
+  studentId: number;
+  score: number; // Strictly from sessionDoc.session_score_percent
+  routingGroup: CanonicalRoutingGroup;
+  routingLabelHe: string;
+  recommendationDetailsHe: string;
+  pdfHtml: string;
+}
+
+/**
+ * מחולל דוח פדגוגי מסכם (PDF / Printable HTML) לפי מודול 23 ב-Master PRD v6.5.
+ * כלל 1: קורא אך ורק session_score_percent מתוך SessionDocument (אינו מחשב אותו מחדש).
+ * כלל 2: ניתוב מתמטי מחמיר:
+ *   - ציון < 50%: Small homogeneous group, physical ten frames.
+ *   - ציון 50%-75%: Heterogeneous peer discourse, abacus.
+ *   - ציון > 75%: Independent challenge track, whiteboard.
+ * כלל 3: אנונימיות מוחלטת: "תלמיד {ID}" (1-12) בלבד, ללא שמות או אימיילים.
+ */
+export function generatePedagogicalReportPDF(sessionDoc: SessionDocument): PedagogicalReportPDFResult {
+  if (sessionDoc.session_score_percent === null || sessionDoc.session_score_percent === undefined) {
+    throw new Error('[PedagogicalReportService] session_score_percent is required in SessionDocument');
+  }
+
+  // Rule 3: Strict Anonymity - display "תלמיד {ID}" (1-12)
+  const match = sessionDoc.session_id.match(/\d+$/);
+  const studentNum = match ? parseInt(match[0], 10) : 1;
+  const clampedStudentNum = Math.min(12, Math.max(1, studentNum));
+  const studentDisplayName = `תלמיד ${clampedStudentNum}`;
+
+  // Rule 1: Read session_score_percent strictly without calculating
+  const score = sessionDoc.session_score_percent;
+
+  // Rule 2: Strict routing mapping
+  let routingGroup: CanonicalRoutingGroup;
+  let routingLabelHe: string;
+  let recommendationDetailsHe: string;
+
+  if (score < 50) {
+    routingGroup = 'Small homogeneous group, physical ten frames';
+    routingLabelHe = 'קבוצה הומוגנית קטנה, מסגרות עשר פיזיות';
+    recommendationDetailsHe = 'המלצה לעבודה בקבוצה קטנה הומוגנית עם תיווך צמוד ושימוש במסגרות עשר פיזיות לביסוס המבנה העשרוני.';
+  } else if (score <= 75) {
+    routingGroup = 'Heterogeneous peer discourse, abacus';
+    routingLabelHe = 'שיח עמיתים הטרוגני, חשבונייה';
+    recommendationDetailsHe = 'המלצה ללמידה שיתופית ושיח עמיתים הטרוגני בשילוב חשבונייה לחיזוק הגמישות בהמרות וחקר משותף.';
+  } else {
+    routingGroup = 'Independent challenge track, whiteboard';
+    routingLabelHe = 'מסלול אתגר עצמאי, לוח מחיק';
+    recommendationDetailsHe = 'המלצה למסלול אתגר וחקר עצמאי תוך שימוש בלוח מחיק ומשימות הרחבה והעמקה.';
+  }
+
+  const pdfHtml = `<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <title>דוח פדגוגי מסכם - ${studentDisplayName}</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; margin: 40px; color: #0f172a; background: #ffffff; line-height: 1.6; }
+    .header { border-bottom: 3px solid #4f46e5; padding-bottom: 16px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }
+    .badge { display: inline-block; padding: 6px 16px; border-radius: 9999px; font-weight: 800; font-size: 15px; background: #e0e7ff; color: #3730a3; }
+    .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 20px; margin-bottom: 20px; }
+    .rec-box { background: #f0fdf4; border: 2px solid #86efac; border-radius: 16px; padding: 20px; margin-bottom: 20px; }
+    .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #64748b; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <h1 style="margin: 0; font-size: 24px; font-weight: 800;">מתמטיקאור &copy; — דוח פדגוגי מסכם</h1>
+      <div style="color: #64748b; font-size: 14px;">סיום אבחון מסלול למידה</div>
+    </div>
+    <div class="badge">${studentDisplayName}</div>
+  </div>
+
+  <div class="card">
+    <div style="font-size: 13px; font-weight: 700; color: #64748b; text-transform: uppercase;">ציון סשן אבחוני (Session Score)</div>
+    <div style="font-size: 32px; font-weight: 900; color: #0f172a;">${score}%</div>
+  </div>
+
+  <div class="rec-box">
+    <div style="font-size: 18px; font-weight: 800; color: #166534; margin-bottom: 8px;">🎯 שיבוץ פדגוגי מומלץ: ${routingLabelHe}</div>
+    <div style="font-size: 13px; font-weight: 700; color: #15803d; margin-bottom: 6px;">Routing Group: ${routingGroup}</div>
+    <p style="margin: 0; color: #14532d; font-size: 15px;">${recommendationDetailsHe}</p>
+  </div>
+
+  <div class="footer">
+    מסמך זה הופק אוטומטית | שמירה מוחלטת על אנונימיות ופרטיות (Zero PII Policy)
+  </div>
+</body>
+</html>`;
+
+  // PII Guard
+  if (containsPII(pdfHtml)) {
+    throw new Error('[PedagogicalReportService] PII detected in generated PDF report!');
+  }
+
+  return {
+    studentDisplayName,
+    studentId: clampedStudentNum,
+    score,
+    routingGroup,
+    routingLabelHe,
+    recommendationDetailsHe,
+    pdfHtml,
+  };
+}
 
 export interface StudentReportData {
   studentId: string; // Anonymous ID: e.g. "student_1", "1", "student_12"

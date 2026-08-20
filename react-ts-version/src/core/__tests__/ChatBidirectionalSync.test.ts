@@ -20,9 +20,9 @@ describe('Chat Bidirectional Synchronization & Room Segregation (Module 22 & 28)
     it('correctly identifies teacher and admin identifiers', () => {
       expect(isTeacherOrAdminId('admin')).toBe(true);
       expect(isTeacherOrAdminId('teacher')).toBe(true);
-      expect(isTeacherOrAdminId('teacher_039604483')).toBe(true);
+      expect(isTeacherOrAdminId('teacher_1002220159')).toBe(true);
       expect(isTeacherOrAdminId('teacher_davidsep')).toBe(true);
-      expect(isTeacherOrAdminId('039604483')).toBe(true);
+      expect(isTeacherOrAdminId('1002220159')).toBe(true);
       expect(isTeacherOrAdminId('davidsep@edu-haifa.org.il')).toBe(true);
       expect(isTeacherOrAdminId('admin_master')).toBe(true);
     });
@@ -50,7 +50,7 @@ describe('Chat Bidirectional Synchronization & Room Segregation (Module 22 & 28)
     it('preserves teacher and admin IDs without mangling them into students', () => {
       expect(normalizeStudentId('teacher_davidsep')).toBe('teacher_davidsep');
       expect(normalizeStudentId('davidsep@edu-haifa.org.il')).toBe('davidsep@edu-haifa.org.il');
-      expect(normalizeStudentId('039604483')).toBe('039604483');
+      expect(normalizeStudentId('1002220159')).toBe('1002220159');
       expect(normalizeStudentId('admin')).toBe('admin');
     });
   });

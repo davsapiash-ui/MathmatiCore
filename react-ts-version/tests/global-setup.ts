@@ -18,7 +18,7 @@ async function globalSetup() {
   const auth = getAuth(app);
   const db = getDatabase(app);
 
-  const testTaz = '039604483';
+  const testTaz = '1002220159';
   const testDob = '290984';
   const testEmail = `teacher_${testTaz}@mathmaticore.local`;
   const testPass = `${testDob}${testTaz}`;

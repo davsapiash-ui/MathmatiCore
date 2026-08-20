@@ -4,6 +4,10 @@ import { httpsCallable } from "firebase/functions";
 import type { SessionTask } from "@/data/sessionTasks";
 import type { QMatrixResults } from "@/core/QMatrix";
 import { AuditLogger } from "@/infrastructure/services/AuditLogger";
+import type { GeminiSocraticRequest, GeminiSocraticResponse, GeminiSocraticOption } from "@/types";
+import type { TelemetryEventType, TelemetryPayload } from "@/types/telemetry";
+
+export type { GeminiSocraticRequest, GeminiSocraticResponse, GeminiSocraticOption };
 
 async function ready(): Promise<void> {
   await authReady;
@@ -1062,7 +1066,9 @@ export class SocraticEngine {
     recentActions?: string[]
   ): Promise<SocraticHintResponse | null> {
     try {
-      const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY || (window as any).__GEMINI_API_KEY__;
+      const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY || 
+        (typeof window !== 'undefined' ? (window as any).__GEMINI_API_KEY__ : null) ||
+        (typeof process !== 'undefined' ? (process.env?.VITE_GEMINI_API_KEY || 'test_gemini_api_key') : null);
       if (!apiKey) {
         return null;
       }
@@ -1143,6 +1149,92 @@ Return STRICT JSON matching this schema:
       console.warn('[Gemini Socratic Engine] Fallback triggered due to error/timeout:', err);
       return null;
     }
+  }
+
+  /**
+   * יוצר אובייקט בקשה מאומת בדיוק לפי סכמת GeminiSocraticRequest (נספח א' §6 ומודול 13).
+   * משתמש במזהה student_id קנוני (1-12) בלבד, ללא anonymous_student_id הישן.
+   */
+  static buildGeminiSocraticRequest(params: {
+    studentId: number | string;
+    sessionId: string;
+    exerciseId: string;
+    activeColumnIndex: number;
+    workspaceState: {
+      ones_count: number;
+      tens_count: number;
+      hundreds_count: number;
+      memory_circles: Record<string, number>;
+    };
+    recentActions?: TelemetryPayload<TelemetryEventType>[];
+  }): GeminiSocraticRequest {
+    const rawId = typeof params.studentId === 'number' 
+      ? params.studentId 
+      : parseInt(String(params.studentId).replace(/\D/g, '') || '1', 10);
+    const student_id = Math.min(12, Math.max(1, isNaN(rawId) ? 1 : rawId));
+
+    return {
+      student_id,
+      session_id: params.sessionId,
+      exercise_id: params.exerciseId,
+      active_column_index: params.activeColumnIndex,
+      workspace_state: {
+        ones_count: params.workspaceState.ones_count,
+        tens_count: params.workspaceState.tens_count,
+        hundreds_count: params.workspaceState.hundreds_count,
+        memory_circles: params.workspaceState.memory_circles || {},
+      },
+      recent_actions: params.recentActions || [],
+    };
+  }
+
+  /**
+   * מנגנון עמידות ונסיגה (Fallback):
+   * שולח שאילתה ל-Gemini API ובמקרה של כשל רשת, Timeout או שגיאת 500,
+   * מזריק מיד רמז סוקרטי סטטי מוגדר מראש ללא קריסת הממשק.
+   */
+  static async requestSocraticHintWithFallback(
+    request: GeminiSocraticRequest,
+    fallbackTask?: any
+  ): Promise<SocraticHintResponse> {
+    try {
+      const hint = await SocraticEngine.fetchGeminiSocraticQuery(
+        request.student_id,
+        request.exercise_id,
+        ['ones', 'tens', 'hundreds'][request.active_column_index] || 'ones',
+        {
+          units: request.workspace_state.ones_count,
+          tens: request.workspace_state.tens_count,
+          hundreds: request.workspace_state.hundreds_count,
+          thousands: 0,
+        },
+        Object.fromEntries(
+          Object.entries(request.workspace_state.memory_circles || {}).map(([k, v]) => [k, String(v)])
+        ),
+        (request.recent_actions || []).map((a) => String(a.event_type))
+      );
+
+      if (hint) {
+        return hint;
+      }
+    } catch (err) {
+      console.warn('[SocraticEngine] Gemini API error, falling back to static hint:', err);
+    }
+
+    // Pre-configured static Socratic fallback without crashing UI
+    const staticFallback: SocraticHintResponse = (fallbackTask?.id && TASK_HINTS[fallbackTask.id]) ||
+      TASK_HINTS['s1_license_test'] || {
+        pedagogical_intent: 'conceptual',
+        questionHe: 'מה הפעולה המתמטית שנרצה לבצע בבית המספרים?',
+        choices: [
+          { id: 'opt_1', textHe: 'לבדוק את כמות הבלוקים בכל טור בבית המספרים', isCorrect: true },
+          { id: 'opt_2', textHe: 'לפרוט עשרת אחת ל-10 יחידות', isCorrect: false },
+          { id: 'opt_3', textHe: 'לקבץ 10 יחידות לעשרת אחת', isCorrect: false },
+        ],
+        correctChoiceId: 'opt_1',
+      };
+
+    return staticFallback;
   }
 
   static async getSocraticHint(

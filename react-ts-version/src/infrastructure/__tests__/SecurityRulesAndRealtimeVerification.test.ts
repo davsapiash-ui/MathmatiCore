@@ -8,14 +8,14 @@ describe('SECURITY RULES & REALTIME LISTENERS AUDIT & VERIFICATION', () => {
 
   describe('1 & 2. Teacher Record & Email Slicing Alignment', () => {
     it('extracts teacher ID using exact auth email manipulation logic', () => {
-      const email1 = 'teacher_039604483@mathmaticore.local';
-      expect(extractTeacherId(email1, null)).toBe('039604483');
+      const email1 = 'teacher_1002220159@mathmaticore.local';
+      expect(extractTeacherId(email1, null)).toBe('1002220159');
 
       const email2 = 'teacher_123456789@mathmaticore.local';
       expect(extractTeacherId(email2, null)).toBe('123456789');
 
-      const email3 = 'davidsep@edu-haifa.org.il';
-      expect(extractTeacherId(email3, null)).toBe('davidsep_edu-haifa_org_il');
+      const email3 = '1002220159@edu-haifa.org.il';
+      expect(extractTeacherId(email3, null)).toBe('1002220159');
 
       const uidOnly = 'teacher_987654321';
       expect(extractTeacherId(null, uidOnly)).toBe('987654321');
@@ -23,7 +23,7 @@ describe('SECURITY RULES & REALTIME LISTENERS AUDIT & VERIFICATION', () => {
 
     it('ensures newly registered teachers have licenseActive: false by default', () => {
       const teacherData = {
-        id: '039604483',
+        id: '1002220159',
         name: 'דוד המורה',
         schoolId: 'sch_1',
       };
@@ -37,7 +37,7 @@ describe('SECURITY RULES & REALTIME LISTENERS AUDIT & VERIFICATION', () => {
       };
 
       expect(dataToSave.licenseActive).toBe(false);
-      expect(dataToSave.id).toBe('039604483');
+      expect(dataToSave.id).toBe('1002220159');
     });
 
     it('verifies database.rules.json contains the teacher security rule requiring licenseActive: false on creation', () => {
@@ -54,14 +54,14 @@ describe('SECURITY RULES & REALTIME LISTENERS AUDIT & VERIFICATION', () => {
   describe('3. Chat Room ID ($roomId) Alignment', () => {
     it('ensures computeRoomId returns student normalized UID when student is sender', () => {
       const sender = 'student_user1';
-      const receiver = '039604483';
+      const receiver = '1002220159';
       const roomId = computeRoomId(sender, receiver);
       expect(roomId).toBe('student_user1');
       expect(roomId).toBe(normalizeStudentId(sender));
     });
 
     it('ensures computeRoomId returns student normalized UID when student is receiver', () => {
-      const sender = '039604483';
+      const sender = '1002220159';
       const receiver = 'student_user2';
       const roomId = computeRoomId(sender, receiver);
       expect(roomId).toBe('student_user2');
@@ -70,7 +70,7 @@ describe('SECURITY RULES & REALTIME LISTENERS AUDIT & VERIFICATION', () => {
 
     it('ensures un-prefixed student number yields normalized student UID roomId', () => {
       const sender = '1'; // Raw student number
-      const receiver = 'teacher_039604483';
+      const receiver = 'teacher_1002220159';
       const roomId = computeRoomId(sender, receiver);
       expect(roomId).toBe('student_user1');
     });

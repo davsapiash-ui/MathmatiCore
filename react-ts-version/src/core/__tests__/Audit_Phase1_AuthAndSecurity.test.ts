@@ -138,8 +138,8 @@ describe('Master PRD v5.0 Phase 1: Core Infrastructure & Authentication (Modules
 
   describe('Module 3: Zero PII Security & Identity Masking', () => {
     it('validates Israeli National IDs correctly with Luhn-based checksum', () => {
-      expect(isValidIsraeliID('039604483')).toBe(true);
-      expect(isValidIsraeliID('39604483')).toBe(true); // padded to 9 digits
+      expect(isValidIsraeliID('123456782')).toBe(true);
+      expect(isValidIsraeliID('12345674')).toBe(true); // padded to 9 digits (012345674)
       expect(isValidIsraeliID('123456789')).toBe(false); // invalid checksum
       expect(isValidIsraeliID('000000000')).toBe(true);
       expect(isValidIsraeliID('111111111')).toBe(false);
@@ -148,17 +148,17 @@ describe('Master PRD v5.0 Phase 1: Core Infrastructure & Authentication (Modules
     it('detects PII in strings: phone numbers, national IDs, emails', () => {
       expect(containsPII('הטלפון שלי הוא 052-1234567')).toBe(true);
       expect(containsPII('פנה אל teacher@edu-haifa.org.il לקבלת סיוע')).toBe(true);
-      expect(containsPII('תעודת זהות של התלמיד 039604483')).toBe(true);
+      expect(containsPII('תעודת זהות של התלמיד 123456782')).toBe(true);
       expect(containsPII('תלמיד 5 פתר תרגיל חיבור בטורים')).toBe(false);
       expect(containsPII('אין כאן שום מידע מזהה')).toBe(false);
     });
 
     it('sanitizes strings containing PII into anonymous tokens', () => {
-      const dirty = 'משתמש: test@domain.com, טלפון: 0501234567, תז: 039604483';
+      const dirty = 'משתמש: test@domain.com, טלפון: 0501234567, תז: 123456782';
       const clean = sanitizePII(dirty);
       expect(clean).toContain('[EMAIL_REDACTED]');
       expect(clean).toContain('[PHONE_REDACTED]');
-      expect(clean).toContain('***4483');
+      expect(clean).toContain('***6782');
       expect(containsPII(clean)).toBe(false);
     });
 

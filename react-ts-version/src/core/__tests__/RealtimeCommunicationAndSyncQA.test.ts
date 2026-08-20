@@ -174,7 +174,7 @@ describe('Realtime Communication & Data Synchronization QA Suite (Master PRD v4.
       expect(isTeacherOrAdminId('admin')).toBe(true);
       expect(isTeacherOrAdminId('admin_main')).toBe(true);
       expect(isTeacherOrAdminId('davsapiash@gmail.com')).toBe(true);
-      expect(isTeacherOrAdminId('039604483')).toBe(true); // 9-digit Teudat Zehut
+      expect(isTeacherOrAdminId('1002220159')).toBe(true); // 9-digit Teudat Zehut / serial ID
 
       expect(isTeacherOrAdminId('1')).toBe(false);
       expect(isTeacherOrAdminId('student_1')).toBe(false);
@@ -339,8 +339,8 @@ describe('Realtime Communication & Data Synchronization QA Suite (Master PRD v4.
   // =========================================================================
   describe('5. Realtime Chat Rooms & Client-Side PII Redaction', () => {
     it('redacts 9-digit national IDs, Israeli phone numbers, and personal emails before dispatch', () => {
-      const textWithIdNumber = 'התלמיד עם תעודת זהות 039604483 צריך עזרה';
-      expect(sanitizeChatText(textWithIdNumber)).toBe('התלמיד עם תעודת זהות ***4483 צריך עזרה');
+      const textWithIdNumber = 'התלמיד עם תעודת זהות 123456782 צריך עזרה';
+      expect(sanitizeChatText(textWithIdNumber)).toBe('התלמיד עם תעודת זהות ***6782 צריך עזרה');
 
       const textWithPhone = 'התקשרו אלי למספר 054-1234567 או 0501234567';
       expect(sanitizeChatText(textWithPhone)).toBe('התקשרו אלי למספר [PHONE_REDACTED] או [PHONE_REDACTED]');

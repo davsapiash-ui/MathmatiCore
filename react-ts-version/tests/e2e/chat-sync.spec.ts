@@ -25,7 +25,7 @@ test.describe('Chat Synchronization', () => {
     // Login Teacher
     await teacherPage.goto('/login');
     await teacherPage.getByRole('button', { name: 'מורה' }).click();
-    await teacherPage.getByPlaceholder('תעודת זהות').fill('039604483');
+    await teacherPage.getByPlaceholder('תעודת זהות').fill('1002220159');
     await teacherPage.getByPlaceholder('תאריך לידה (6 ספרות, במבנה יום-חודש-שנה)').fill('290984');
     await teacherPage.getByRole('button', { name: 'התחבר למערכת' }).click();
 
