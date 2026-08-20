@@ -6,7 +6,7 @@ import { useStore } from '@/application/useStore';
 import { TASKS } from '@/core/QMatrix';
 import { ProgressDots } from './ProgressDots';
 import { useWorkspaceTour } from './useWorkspaceTour';
-import { RotateCcw, Home, LogOut, MessageSquare, Compass, ArrowLeft, Cloud, CloudOff } from 'lucide-react';
+import { RotateCcw, Home, LogOut, MessageSquare, Compass, ArrowLeft, Cloud, CloudOff, Eye, EyeOff } from 'lucide-react';
 
 /**
  * הסרגל העליון של מרחב הפעילות — ניווט לינארי בלבד (הבא/בטל), ללא תפריטים.
@@ -110,16 +110,16 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
               onClick={toggleBoard}
               className={`h-12 px-4 sm:px-5 rounded-2xl text-sm font-bold border-2 active:scale-95 transition-all flex items-center gap-2 shadow-sm cursor-pointer ${
                 boardOpen 
-                  ? 'text-ws-blue border-ws-blue bg-white hover:bg-ws-blue/10'
-                  : 'text-white bg-ws-blue border-ws-blue hover:brightness-110'
+                  ? 'text-ws-blue border-ws-blue/40 bg-ws-blue/5 hover:bg-ws-blue/10'
+                  : 'text-white bg-ws-blue border-ws-blue hover:brightness-110 shadow-md'
               }`}
-              aria-label={boardOpen ? 'הסתר בית המספרים' : 'פתח בית המספרים'}
+              aria-label={boardOpen ? 'הסתר בית המספרים' : 'הצג בית המספרים'}
             >
-              <Home className="w-4 h-4" />
-              <span className="hidden sm:inline">{boardOpen ? 'הסתר' : 'בית המספרים'}</span>
+              {boardOpen ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              <span className="hidden sm:inline">{boardOpen ? 'הסתר לוח' : 'הצג לוח'}</span>
             </button>
             <div className="absolute top-14 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 z-50 w-52 p-2 bg-slate-900/95 text-white text-[11px] rounded-xl shadow-xl backdrop-blur-md border border-white/10 text-right leading-relaxed">
-              <span>🏠 פתח/הסתר את קנבס המבנה העשרוני וקוביות הדינס</span>
+              <span>{boardOpen ? '👁️ הסתרת בית המספרים והגדלת שטח המשימה' : '🏠 הצגת בית המספרים וארגז הכלים'}</span>
             </div>
           </div>
         )}

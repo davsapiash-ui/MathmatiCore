@@ -59,12 +59,12 @@ export function PlaceValueBoard({ hideValueDisplay }: { hideValueDisplay?: boole
     <AnimatePresence initial={false}>
       {boardOpen && (
         <motion.section
-          initial={{ flexBasis: 0, opacity: 0 }}
-          animate={{ flexBasis: '50%', opacity: 1 }}
-          exit={{ flexBasis: 0, opacity: 0 }}
-          transition={{ duration: 0.35, ease: 'easeInOut' }}
+          key="place-value-board"
+          initial={{ opacity: 0, width: 0, flex: '0 0 0%' }}
+          animate={{ opacity: 1, width: '50%', flex: '0 0 50%' }}
+          exit={{ opacity: 0, width: 0, flex: '0 0 0%' }}
+          transition={{ duration: 0.25, ease: 'easeInOut' }}
           className="flex flex-col gap-3 overflow-hidden h-full max-h-full min-w-0"
-          style={{ flexGrow: 0, flexShrink: 0, flexBasis: '50%', maxWidth: '50%' }}
           aria-label="טבלת ערך המקום"
         >
           <div id="tour-place-value-board" className="flex-1 ws-card p-4 flex flex-col gap-3 hover:translate-y-0 select-none min-h-0 overflow-hidden">
