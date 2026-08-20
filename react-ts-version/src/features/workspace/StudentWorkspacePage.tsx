@@ -383,6 +383,8 @@ export function StudentWorkspacePage() {
       isOnline: true,
       lastPing: Date.now(),
       lastActivityTimestamp: Date.now(),
+      hasJoinedSession: true,
+      sessionJoined: true,
       lastAction: `פעיל/ה במפגש ${meeting}`,
       'workspaceState/sessionNumber': meeting,
       'workspaceState/isASD': Boolean(isASDMode),
@@ -398,18 +400,25 @@ export function StudentWorkspacePage() {
       // ignore offline mock disconnect
     }
 
+    const handleBeforeUnload = () => {
+      update(studentPresenceRef, { isOnline: false, lastPing: 0 }).catch(() => {});
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
     const interval = setInterval(() => {
       update(studentPresenceRef, {
         isOnline: true,
         lastPing: Date.now(),
         lastActivityTimestamp: Date.now(),
+        hasJoinedSession: true,
         lastAction: `פעיל/ה במפגש ${meeting}`,
         'workspaceState/sessionNumber': meeting,
       }).catch(() => {});
-    }, 5000);
+    }, 4000);
 
     return () => {
       clearInterval(interval);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
       update(studentPresenceRef, { isOnline: false, lastPing: 0 }).catch(() => {});
     };
   }, [user?.uid, meeting, isASDMode]);

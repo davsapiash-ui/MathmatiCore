@@ -141,6 +141,22 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
   // Filter state for Heatmap
   const [activeFilter, setActiveFilter] = useState<'ALL' | 'STRUGGLING' | 'LOCKED' | 'PHYSICAL_OVERRIDE'>('ALL');
 
+  // Module 18 & Session Active state: Track active class session state
+  const [isClassSessionActive, setIsClassSessionActive] = useState<boolean>(false);
+
+  useEffect(() => {
+    const sessionRef = ref(database, 'active_class_session');
+    const unsub = onValue(sessionRef, (snap) => {
+      if (snap.exists()) {
+        const val = snap.val();
+        setIsClassSessionActive(Boolean(val && val.active === true));
+      } else {
+        setIsClassSessionActive(false);
+      }
+    });
+    return () => unsub();
+  }, []);
+
   // Subscribe to live Firebase data and merge with 12 pilot student slots (sorted strictly by student ID 1..12)
   useEffect(() => {
     let throttleTimeout: NodeJS.Timeout | null = null;
@@ -149,7 +165,6 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
     const flushThrottledData = () => {
       if (!pendingData) return;
       const rawData = pendingData;
-      pendingData = null;
 
       setStudents((prev) => {
         const updated = [...prev];
@@ -160,8 +175,11 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
           const uid = `student_${studentNum}`;
           const data = rawData[uid] || rawData[`slot_${studentNum}`] || rawData[`student_user${studentNum}`] || {};
           
-          // Direct online presence check from Firebase RTDB
-          const isOnline = Boolean(data.isOnline === true || data.onlineStatus === 'active');
+          // Strict 15-second presence heartbeat validation (Module 18)
+          const lastPing = data.lastPing || data.lastActivityTimestamp || 0;
+          const hasJoinedSession = Boolean(lastPing > 0 || data.hasJoinedSession || data.sessionJoined);
+          const isHeartbeatFresh = lastPing > 0 && (now - lastPing <= 15000);
+          const isOnline = isClassSessionActive && Boolean(data.isOnline === true || data.onlineStatus === 'active') && isHeartbeatFresh;
 
           const wsState = data.workspaceState || {};
           const sessionState = data.sessionState || {};
@@ -181,6 +199,15 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
           const rawSessionNum = wsState.sessionNumber || sessionState.session_number || (data.highestCompletedMeeting ? data.highestCompletedMeeting + 1 : 1);
           const sessionNumber = Math.min(8, Math.max(1, Number(rawSessionNum) || 1));
 
+          let lastAction = 'שיעור לא פעיל';
+          if (isClassSessionActive) {
+            if (isOnline) {
+              lastAction = data.lastAction || (isSocraticActive ? 'כרטיס חניכה סוקרטי פעיל' : hesitationSeconds >= 45 ? 'היסוס מעל 45 שניות בטור הפעיל' : 'פעיל בלמידה עצמאית');
+            } else {
+              lastAction = hasJoinedSession ? 'יצא מהחלון' : 'לא מחובר';
+            }
+          }
+
           updated[i] = {
             id: uid,
             studentNumber: studentNum,
@@ -193,8 +220,8 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
             physicalOverride,
             isStruggling,
             isSocraticActive,
-            lastAction: isOnline ? (data.lastAction || (isSocraticActive ? 'כרטיס חניכה סוקרטי פעיל' : hesitationSeconds >= 45 ? 'היסוס מעל 45 שניות בטור הפעיל' : 'פעיל בלמידה עצמאית')) : 'לא מחובר',
-            isOnline: isOnline,
+            lastAction,
+            isOnline,
           };
         }
         return updated;
@@ -219,6 +246,13 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
         console.warn('[HeatmapGrid] students listener notice:', err);
       }
     );
+
+    // Periodic heartbeat check (every 3 seconds) to immediately flag offline students
+    const heartbeatTimer = setInterval(() => {
+      if (pendingData) {
+        flushThrottledData();
+      }
+    }, 3000);
 
     const alertsRef = ref(database, 'radar_alerts');
     const unsubAlerts = onValue(
@@ -252,8 +286,10 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
     return () => {
       unsubStudents();
       unsubAlerts();
+      clearInterval(heartbeatTimer);
+      if (throttleTimeout) clearTimeout(throttleTimeout);
     };
-  }, []);
+  }, [isClassSessionActive]);
 
   const handleTogglePhysicalOverride = async (student: AnonymousStudent) => {
     const updatedStatus = student.status === 'locked' ? 'active' : student.status;
@@ -420,14 +456,18 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
                   </span>
                   
                   {/* Status Icon - Deterministic Precedence: RED > GREY > YELLOW > GREEN */}
-                  {student.isSocraticActive ? (
+                  {!isClassSessionActive ? (
+                    <span className="inline-flex items-center gap-1 bg-slate-400 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="שיעור לא פעיל">
+                      שיעור לא פעיל
+                    </span>
+                  ) : student.isSocraticActive ? (
                     <span className="inline-flex items-center gap-1 bg-rose-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm animate-pulse" title="חניכה סוקרטית פעילה">
                       <ShieldAlert className="w-3 h-3" />
                       סוקרטי
                     </span>
                   ) : !student.isOnline ? (
-                    <span className="inline-flex items-center gap-1 bg-slate-400 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="לא מחובר">
-                      מנותק
+                    <span className="inline-flex items-center gap-1 bg-slate-400 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title={student.lastAction === 'יצא מהחלון' ? 'יצא מהחלון' : 'לא מחובר'}>
+                      {student.lastAction === 'יצא מהחלון' ? 'יצא מהחלון' : 'מנותק'}
                     </span>
                   ) : student.hesitationSeconds >= 45 ? (
                     <span className="inline-flex items-center gap-1 bg-amber-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="היסוס > 45 שניות">
@@ -444,7 +484,13 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
 
                 {!student.isOnline ? (
                   <div className="flex flex-col justify-center items-center py-3 text-slate-400 dark:text-slate-500">
-                    <span className="text-xs font-semibold">לא מחובר כעת</span>
+                    <span className="text-xs font-semibold">
+                      {!isClassSessionActive
+                        ? 'שיעור לא פעיל'
+                        : student.lastAction === 'יצא מהחלון'
+                        ? 'יצא מהחלון'
+                        : 'לא מחובר כעת'}
+                    </span>
                   </div>
                 ) : (
                   <>

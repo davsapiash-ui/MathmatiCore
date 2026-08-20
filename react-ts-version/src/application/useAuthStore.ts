@@ -1,10 +1,11 @@
 import { create } from "zustand";
 import { AuditLogger } from "@/infrastructure/services/AuditLogger";
-import { auth } from "@/infrastructure/firebase";
+import { auth, database } from "@/infrastructure/firebase";
+import { ref, update } from "firebase/database";
 import { useStore } from "@/application/useStore";
 import { useWorkspaceStore } from "@/application/useWorkspaceStore";
 import { useAdminStore } from "@/application/useAdminStore";
-import { useChatStore } from "@/application/useChatStore";
+import { useChatStore, normalizeStudentId } from "@/application/useChatStore";
 import { validateZeroPIIPayload } from "@/core/security/PiiFilter";
 
 export interface ClassSchema {
@@ -177,6 +178,19 @@ const initial = getStoredAuth();
  * useWorkspaceStore, useAdminStore, and useChatStore.
  */
 export function unifiedLogout() {
+  const currentUser = useAuthStore.getState().user;
+  if (currentUser?.uid) {
+    const normId = normalizeStudentId(currentUser.uid);
+    try {
+      update(ref(database, `users/students/${normId}`), { isOnline: false, lastPing: 0 }).catch(() => {});
+      if (normId !== currentUser.uid) {
+        update(ref(database, `users/students/${currentUser.uid}`), { isOnline: false, lastPing: 0 }).catch(() => {});
+      }
+    } catch (e) {
+      console.warn("Presence logout reset error:", e);
+    }
+  }
+
   clearStoredAuth();
   if (auth && typeof auth.signOut === 'function') {
     auth.signOut().catch((e) => console.warn("Firebase signOut error:", e));
