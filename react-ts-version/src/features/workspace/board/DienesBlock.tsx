@@ -163,22 +163,22 @@ export const ThousandSVG = () => {
 
 const BLOCK_VISUALS: Record<Place, { style?: React.CSSProperties; labelHe: string; Component: React.FC }> = {
   units: {
-    style: { width: 'var(--blk-unit)', height: 'var(--blk-unit)', maxWidth: '100%' },
+    style: { width: '28px', height: '28px', maxWidth: '100%' },
     labelHe: 'יחידה',
     Component: UnitSVG,
   },
   tens: {
-    style: { width: 'min(38px, 100%)', maxWidth: '100%' },
+    style: { width: '56px', height: '34px', maxWidth: '100%' },
     labelHe: 'עשרת — ניתן לפרוט ליחידות או להמיר למאה',
     Component: TenSVG,
   },
   hundreds: {
-    style: { width: 'min(68px, 100%)', maxWidth: '100%' },
+    style: { width: '74px', height: '42px', maxWidth: '100%' },
     labelHe: 'מאה — ניתן לפרוט לעשרות או להמיר לאלף',
     Component: HundredSVG,
   },
   thousands: {
-    style: { width: 'min(76px, 100%)', maxWidth: '100%' },
+    style: { width: '74px', height: '74px', maxWidth: '100%' },
     labelHe: 'אלף — ניתן לפרוט למאות',
     Component: ThousandSVG,
   },
@@ -207,7 +207,7 @@ export function DienesBlock({
 
   const inner = (
     <div
-      className="relative select-none shrink-0 inline-flex items-end justify-center"
+      className="relative select-none shrink-0 inline-flex items-center justify-center"
       style={visual.style}
     >
       <SvgElement />

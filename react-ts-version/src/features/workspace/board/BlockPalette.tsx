@@ -5,9 +5,9 @@ import { TrashZone } from './TrashZone';
 
 const PALETTE_ITEMS: { place: Place; labelHe: string; scale: number }[] = [
   { place: 'units', labelHe: 'יחידה (1)', scale: 1 },
-  { place: 'tens', labelHe: 'עשרת (10)', scale: 0.85 },
-  { place: 'hundreds', labelHe: 'מאה (100)', scale: 0.5 },
-  { place: 'thousands', labelHe: 'אלף (1000)', scale: 0.45 },
+  { place: 'tens', labelHe: 'עשרת (10)', scale: 1 },
+  { place: 'hundreds', labelHe: 'מאה (100)', scale: 0.95 },
+  { place: 'thousands', labelHe: 'אלף (1000)', scale: 0.75 },
 ];
 
 /**
@@ -29,7 +29,7 @@ export function BlockPalette({ scaffoldLevel }: { scaffoldLevel: number }) {
       id="tour-block-palette"
       role="toolbar"
       aria-label="מחסן הכלים — גררו לבנים לטבלה"
-      className="shrink-0 ws-card !rounded-2xl px-5 py-2.5 flex items-center justify-between gap-4 max-w-full overflow-x-auto no-scrollbar select-none bg-gradient-to-b from-white to-slate-50/90 border border-slate-200/90 shadow-sm"
+      className="shrink-0 ws-card !rounded-2xl px-5 py-3 flex items-center justify-between gap-4 max-w-full overflow-x-auto no-scrollbar select-none bg-gradient-to-b from-white to-slate-50/90 border border-slate-200/90 shadow-sm"
     >
       {/* Title & Legend (RTL Right side) */}
       <div className="flex items-center gap-2.5 shrink-0 select-none">
@@ -44,7 +44,7 @@ export function BlockPalette({ scaffoldLevel }: { scaffoldLevel: number }) {
         </div>
       </div>
 
-      <div className="w-px h-10 bg-slate-200/80 shrink-0" />
+      <div className="w-px h-12 bg-slate-200/80 shrink-0" />
 
       {/* Manipulatives on Tray (Center) */}
       <div className="flex items-center gap-3 flex-1 justify-center">
@@ -58,9 +58,9 @@ export function BlockPalette({ scaffoldLevel }: { scaffoldLevel: number }) {
                 target: { kind: 'column', place },
               });
             }}
-            className="relative group flex flex-col items-center justify-between rounded-xl px-4 pt-2 pb-1.5 min-w-[84px] bg-white border border-slate-200/90 shadow-sm hover:border-ws-accent hover:shadow-md hover:scale-[1.03] active:scale-95 transition-all cursor-grab active:cursor-grabbing select-none"
+            className="relative group flex flex-col items-center justify-between rounded-2xl px-3 pt-2 pb-1.5 min-w-[88px] h-[86px] bg-white border border-slate-200/90 shadow-sm hover:border-ws-accent hover:shadow-md hover:scale-[1.03] active:scale-95 transition-all cursor-grab active:cursor-grabbing select-none"
           >
-            <div className="h-10 flex items-end justify-center pointer-events-auto" style={{ transform: `scale(${scale})`, transformOrigin: 'bottom center' }}>
+            <div className="h-12 w-full flex items-center justify-center pointer-events-auto" style={{ transform: `scale(${scale})`, transformOrigin: 'center center' }}>
               <DienesBlock
                 id={`palette-${place}`}
                 place={place}
@@ -68,7 +68,7 @@ export function BlockPalette({ scaffoldLevel }: { scaffoldLevel: number }) {
                 noEnter
               />
             </div>
-            <span className="text-[11px] font-black text-slate-600 group-hover:text-ws-accent transition-colors mt-0.5" aria-hidden="true">
+            <span className="text-[11px] font-black text-slate-700 group-hover:text-ws-accent transition-colors mt-0.5" aria-hidden="true">
               {labelHe}
             </span>
             <span className="sr-only">{`גרור ${PLACE_NAMES_HE[place]} לטבלה — ערך ${PLACE_VALUES[place]}`}</span>

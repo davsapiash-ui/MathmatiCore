@@ -6,7 +6,7 @@ import {
   PointerSensor,
   MouseSensor,
   TouchSensor,
-  pointerWithin,
+  rectIntersection,
   useSensor,
   useSensors,
   type DragEndEvent,
@@ -737,7 +737,7 @@ export function StudentWorkspacePage() {
   }
 
   return (
-    <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+    <DndContext sensors={sensors} collisionDetection={rectIntersection} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div
       dir="rtl"
       className="h-[100dvh] w-full overflow-hidden font-body text-ws-ink flex flex-col relative bg-ws-bg"

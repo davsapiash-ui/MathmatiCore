@@ -62,7 +62,7 @@ export function PlaceColumn({ place }: { place: Place }) {
       id={place === 'units' ? 'tour-column-units' : undefined}
       animate={shakeControls}
       className={`flex-1 min-w-0 flex flex-col rounded-2xl border-2 border-solid transition-all duration-300 select-none ${
-        isDimmed ? 'opacity-70 brightness-[0.6] pointer-events-none' : ''
+        isDimmed ? 'opacity-85 brightness-[0.85]' : ''
       } ${isOver ? 'animate-[pulse_1.5s_ease-in-out_infinite]' : ''}`}
       style={{
         borderColor: isOver ? colors.border : `${colors.border}55`,
@@ -70,9 +70,8 @@ export function PlaceColumn({ place }: { place: Place }) {
         boxShadow: isOver 
           ? `0 0 0 4px ${colors.tint}` 
           : '0 4px 14px -6px rgba(0,0,0,0.06)',
-        filter: isDimmed ? 'brightness(0.6)' : undefined,
-        opacity: isDimmed ? 0.7 : 1,
-        pointerEvents: isDimmed ? 'none' : 'auto',
+        filter: isDimmed ? 'brightness(0.85)' : undefined,
+        opacity: isDimmed ? 0.85 : 1,
       }}
       aria-label={`טור ${PLACE_NAMES_HE[place]}`}
     >
