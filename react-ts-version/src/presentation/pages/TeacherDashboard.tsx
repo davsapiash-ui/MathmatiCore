@@ -252,7 +252,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   });
 
   const [activeTab, setActiveTab] = useState<TabType>(
-    routeStudentId ? "diagnostic_reports" : "clustering",
+    routeStudentId ? "diagnostic_reports" : "heatmap",
   );
   const [activeClusterFilter, setActiveClusterFilter] = useState<string | null>(null);
 
