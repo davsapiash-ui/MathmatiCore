@@ -18,7 +18,10 @@ vi.mock('firebase/database', () => ({
 }));
 
 vi.mock('@/infrastructure/firebase', () => ({
-  database: {}
+  database: {},
+  authReady: Promise.resolve(),
+  auth: { currentUser: null },
+  firestore: {},
 }));
 
 describe('Admin Store State Synchronization & Creation/Deletion', () => {
