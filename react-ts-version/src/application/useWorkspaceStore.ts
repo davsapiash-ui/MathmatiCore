@@ -346,12 +346,7 @@ export function selectCanProceed(s: WorkspaceState): boolean {
   if (!task) return false;
   if (task.type === 'session1_intro') {
     if (task.correctAnswer === 'proceed_any' || !task.choices?.length) {
-      if (task.id === 's1_sandbox_controlled') {
-        return s.hasInteracted || s.blocksAddedCount >= 1 || s.hasDeletedBlock || selectBoardValue(s) > 0;
-      }
-      if (task.id === 's1_t3' && (!s.hasDeletedBlock || selectBoardValue(s) !== 50)) return false;
-      if (task.id === 's1_t5' && (!s.hasUngrouped || selectBoardValue(s) !== 40)) return false;
-      return s.hasInteracted;
+      return true;
     }
     return s.selectedChoiceId !== null;
   }

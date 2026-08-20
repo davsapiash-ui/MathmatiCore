@@ -309,15 +309,12 @@ export function Login() {
                     <button
                       key={role.id}
                       onClick={() => {
-                        const now = Date.now();
-                        if (now - lastActionTime < 500) return;
-                        setLastActionTime(now);
                         setSelectedRole(role.id);
                         setSelectedStudentNum(1);
                         setStudentPassword("");
                         setErrorMsg("");
                       }}
-                      className="flex-1 flex flex-col items-center gap-2 p-5 sm:p-4 bg-slate-50 dark:bg-slate-800/60 border-2 border-slate-200 dark:border-slate-700/60 rounded-2xl text-slate-800 dark:text-slate-100 font-display font-bold transition-all hover:border-[hsl(var(--ws-blue))] hover:bg-blue-50/50 dark:hover:bg-slate-800 hover:-translate-y-1 hover:shadow-lg active:scale-[0.98] min-h-[48px]"
+                      className="flex-1 flex flex-col items-center gap-2 p-5 sm:p-4 bg-slate-50 dark:bg-slate-800/60 border-2 border-slate-200 dark:border-slate-700/60 rounded-2xl text-slate-800 dark:text-slate-100 font-display font-bold transition-all hover:border-[hsl(var(--ws-blue))] hover:bg-blue-50/50 dark:hover:bg-slate-800 hover:-translate-y-1 hover:shadow-lg active:scale-[0.98] min-h-[48px] cursor-pointer"
                     >
                       <span className="text-4xl leading-none drop-shadow-sm" aria-hidden="true">
                         {role.icon}

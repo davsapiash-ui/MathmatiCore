@@ -65,22 +65,7 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
           <span className="text-xs font-bold text-ws-soft">מרחב חקר אישי</span>
         </div>
 
-        {/* Student User Identity Badge */}
-        {user && (
-          <div className="flex items-center gap-2 bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-2xl shadow-xs">
-            <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-black text-xs flex items-center justify-center shadow-xs">
-              {user.student_id || (user.displayName ? String(user.displayName).slice(0, 1) : '🎓')}
-            </div>
-            <div className="flex flex-col text-right leading-tight">
-              <span className="text-xs font-extrabold text-slate-800 dark:text-slate-100">
-                {(user.displayName as string) || (user.student_id ? `תלמיד ${user.student_id}` : (user.name as string) || 'תלמיד')}
-              </span>
-              <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
-                {user.class_name || 'כיתת ביקורת'}
-              </span>
-            </div>
-          </div>
-        )}
+
 
         {/* Module 17: Silent Cloud Status Icon (Green=Online, Grey=Offline) */}
         <div className="flex items-center mr-1" title={isOnline ? 'מחובר לסנכרון ענן (Online)' : 'מצב לא מקוון - הנתונים נשמרים מקומית ויסונכרנו אוטומטית (Offline)'}>
