@@ -285,9 +285,9 @@ export class FirebaseSyncService {
           id: currentTask.id,
           titleHe: currentTask.titleHe,
           instructionHe: currentTask.instructionHe,
-          numberA: currentTask.numberA,
-          numberB: currentTask.numberB,
-          isSubtraction: currentTask.isSubtraction,
+          numberA: currentTask.numberA ?? null,
+          numberB: currentTask.numberB ?? null,
+          isSubtraction: currentTask.isSubtraction ?? false,
         } : null,
       };
 
@@ -317,20 +317,23 @@ export class FirebaseSyncService {
         return trimmed;
       })() : syncableData;
 
+      // Clean all undefined values to guarantee Firebase Realtime Database compatibility
+      const sanitizedPayload = JSON.parse(JSON.stringify(updatePayload, (_k, v) => (v === undefined ? null : v)));
+
       const normId = normalizeStudentId(this.currentUserId || '');
       const rawNum = (this.currentUserId || '').replace(/[^0-9]/g, '');
       const studentKeys = Array.from(new Set([this.currentUserId, normId, rawNum ? `student_user${rawNum}` : null, rawNum ? `user${rawNum}` : null].filter(Boolean) as string[]));
       
       // Save locally to prevent refresh race conditions
-      if (normId) this.saveSessionProgressLocally(normId, updatePayload);
+      if (normId) this.saveSessionProgressLocally(normId, sanitizedPayload);
       if (this.currentUserId && this.currentUserId !== normId) {
-        this.saveSessionProgressLocally(this.currentUserId, updatePayload);
+        this.saveSessionProgressLocally(this.currentUserId, sanitizedPayload);
       }
 
       studentKeys.forEach(key => {
         const studentDirectRef = ref(database, `users/students/${key}`);
         update(studentDirectRef, {
-          workspaceState: updatePayload,
+          workspaceState: sanitizedPayload,
           lastActive: serverTimestamp(),
           currentTaskIdx: state.standardTaskIdx,
           activeStep: state.standardTaskIdx + 1,
@@ -368,7 +371,7 @@ export class FirebaseSyncService {
     const activeTasks = getActiveTasks(state);
     const currentTask = activeTasks[state.standardTaskIdx] || null;
 
-    return {
+    const raw = {
       sessionNumber: state.sessionNumber,
       isASD: state.isASD,
       standardTaskIdx: state.standardTaskIdx,
@@ -388,12 +391,14 @@ export class FirebaseSyncService {
         id: currentTask.id,
         titleHe: currentTask.titleHe,
         instructionHe: currentTask.instructionHe,
-        numberA: currentTask.numberA,
-        numberB: currentTask.numberB,
-        isSubtraction: currentTask.isSubtraction,
+        numberA: currentTask.numberA ?? null,
+        numberB: currentTask.numberB ?? null,
+        isSubtraction: currentTask.isSubtraction ?? false,
       } : null,
       aiTasks: state.aiTasks
     };
+
+    return JSON.parse(JSON.stringify(raw, (_k, v) => (v === undefined ? null : v)));
   }
 
   private stopSync() {
