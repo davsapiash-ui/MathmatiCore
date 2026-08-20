@@ -587,8 +587,8 @@ export function StudentWorkspacePage() {
   }, [meeting, networkError, pendingApproval, isASDMode, initSession]);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 3 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 100, tolerance: 8 } })
   );
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -852,8 +852,7 @@ export function StudentWorkspacePage() {
 
       <DragOverlay dropAnimation={null}>
         {activeDrag ? (
-          // 15% smaller than the old 1.10 per user request — the dragged block must not dwarf the board
-          <div className="scale-[0.93] rotate-2 opacity-90 drop-shadow-2xl">
+          <div className="pointer-events-none scale-105 rotate-1 opacity-95 filter drop-shadow-[0_16px_32px_rgba(0,0,0,0.3)] select-none">
             <DienesBlock id="drag-overlay" place={activeDrag.renderPlace ?? activeDrag.place} source={activeDrag.source} isOverlay />
           </div>
         ) : null}
