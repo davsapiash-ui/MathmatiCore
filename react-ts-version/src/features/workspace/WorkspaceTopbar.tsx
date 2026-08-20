@@ -5,13 +5,12 @@ import { useWorkspaceStore, selectCanProceed, getActiveTasks } from '@/applicati
 import { useStore } from '@/application/useStore';
 import { TASKS } from '@/core/QMatrix';
 import { ProgressDots } from './ProgressDots';
-import { useWorkspaceTour } from './useWorkspaceTour';
-import { RotateCcw, Home, LogOut, MessageSquare, Compass, ArrowLeft, Cloud, CloudOff, Eye, EyeOff } from 'lucide-react';
+import { RotateCcw, Home, LogOut, MessageSquare, ArrowLeft, Cloud, CloudOff, Eye, EyeOff } from 'lucide-react';
 
 /**
  * הסרגל העליון של מרחב הפעילות — ניווט לינארי בלבד (הבא/בטל), ללא תפריטים.
  * אין שום חיווי זמן (איסור טיימרים מהאפיון).
- * כפתור Undo בגודל 48x48px מדויק לפי מודול 11 ב-PRD v5.0.
+ * כפתור Undo בגודל 48x48px מדויק לפי מודול 11 ב-PRD.
  * חיווי שקט של מצב קישוריות (Module 17): ירוק=Online, אפור=Offline ללא מודאלים.
  */
 interface WorkspaceTopbarProps {
@@ -46,7 +45,6 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
   const undo = useWorkspaceStore((s) => s.undo);
   const proceed = useWorkspaceStore((s) => s.proceed);
   const toggleBoard = useWorkspaceStore((s) => s.toggleBoard);
-  const { startTour } = useWorkspaceTour();
   const globalChatEnabled = useStore((s) => s.globalChatEnabled);
 
   const activeTaskCount = useWorkspaceStore((s) => getActiveTasks(s).length);
@@ -138,16 +136,6 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
         >
           <Home className="w-4 h-4 text-slate-500" />
           <span className="hidden sm:inline font-bold">לובי</span>
-        </button>
-
-        <button
-          onClick={startTour}
-          className="h-12 px-4 rounded-2xl text-sm font-bold text-ws-blue bg-ws-blue-soft/50 border border-ws-blue/30 hover:scale-105 active:scale-95 transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
-          aria-label="הפעל הדרכה מחדש"
-          title="הפעל הדרכה במרחב"
-        >
-          <Compass className="w-4 h-4" />
-          <span className="hidden sm:inline font-bold">הדרכה</span>
         </button>
 
         <button

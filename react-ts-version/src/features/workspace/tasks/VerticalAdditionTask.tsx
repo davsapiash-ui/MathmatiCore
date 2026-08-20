@@ -72,14 +72,6 @@ export function VerticalAdditionTask({
   const handleLockedInteraction = () => {
     setShake(true);
     setTimeout(() => setShake(false), 400);
-    setLockedClicks((prev) => {
-      const next = prev + 1;
-      if (next >= 3) {
-        setKeyboardSocratic();
-        useWorkspaceStore.getState().openAdditionHelper();
-      }
-      return next;
-    });
   };
 
   const aStr = String(numberA);
@@ -131,17 +123,6 @@ export function VerticalAdditionTask({
 
   return (
     <div className="self-center w-full max-w-md flex flex-col items-center gap-4 bg-ws-surface rounded-3xl border border-ws-surface2 shadow-[0_10px_28px_-14px_hsl(var(--ws-shadow-warm)/0.3)] p-6 relative">
-      {/* Visual Indicator for Locked State */}
-      {keyboardState === 'LOCKED' && (
-        <div className="absolute top-4 right-4 flex items-center gap-2 px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-sm font-bold animate-pulse">
-          <span>🔒</span> מקלדת נעולה - פעלו בלוח
-        </div>
-      )}
-      {keyboardState === 'SOCRATIC_ONLY' && (
-        <div className="absolute top-4 right-4 flex items-center gap-2 px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm font-bold">
-          <span>🤔</span> חושבים יחד...
-        </div>
-      )}
       {/* Notebook paper: background squares EXACTLY the size of a grid column */}
       <div
         dir="ltr"

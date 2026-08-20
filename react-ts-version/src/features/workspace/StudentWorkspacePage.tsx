@@ -78,7 +78,6 @@ export function StudentWorkspacePage() {
   const activeClassSession = useActiveClassSession();
   const isTeacherSessionActive = activeClassSession?.active ?? false;
 
-  const [teacherHint, setTeacherHint] = useState<string | null>(null);
   const [isProjectorModeActive, setIsProjectorModeActive] = useState<boolean>(false);
   const normUid = normalizeStudentId(user?.uid || '');
 
@@ -159,34 +158,6 @@ export function StudentWorkspacePage() {
 
     return () => unsubDevice();
   }, [normUid]);
-
-  const handleAcknowledgeHint = async () => {
-    setTeacherHint(null);
-    if (normUid) {
-      remove(ref(database, `users/students/${normUid}/teacher_hint`)).catch(console.error);
-    }
-    if (user?.uid && user.uid !== normUid) {
-      remove(ref(database, `users/students/${user.uid}/teacher_hint`)).catch(console.error);
-    }
-
-    let resolvedTeacherId: string = '039604483'; // default fallback
-    try {
-      const studentSnap = await get(ref(database, `users/students/${normUid}`));
-      const classId = studentSnap.val()?.classId;
-      if (classId) {
-        const classSnap = await get(ref(database, `classes/${classId}`));
-        const fbTeacherId = classSnap.val()?.teacherId;
-        if (fbTeacherId && typeof fbTeacherId === 'string') resolvedTeacherId = fbTeacherId;
-      }
-    } catch (e) {
-      console.error(e);
-    }
-
-    const chatStore = useChatStore.getState();
-    chatStore.sendMessage(normUid, (user as any)?.name || (user as any)?.displayName || 'תלמיד', resolvedTeacherId, `ראיתי את הרמז ("${teacherHint}"). תודה!`);
-    
-    setTeacherHint(null);
-  };
 
   const [activeDrag, setActiveDrag] = useState<{ place: Place; source: DragSource; renderPlace?: Place } | null>(null);
 
@@ -787,63 +758,22 @@ export function StudentWorkspacePage() {
           )}
         </main>
 
-        <AnimatePresence>
-          {teacherHint && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl border-4 border-ws-accent text-center relative"
-              >
-                <button 
-                  onClick={handleAcknowledgeHint}
-                  aria-label="סגור הודעה"
-                  className="absolute top-4 left-4 w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-all cursor-pointer"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-                <div className="text-5xl mb-4">👨‍🏫</div>
-                <h2 className="text-2xl font-black font-display text-ws-ink mb-4">הודעה מהמורה</h2>
-                <p className="text-xl text-ws-ink font-medium mb-8 bg-blue-50 p-6 rounded-2xl leading-relaxed">
-                  "{teacherHint}"
-                </p>
-                <button
-                  onClick={handleAcknowledgeHint}
-                  className="w-full h-14 rounded-2xl bg-ws-accent text-white font-black text-xl shadow-lg hover:bg-blue-600 hover:scale-[1.02] active:scale-95 transition-all"
-                >
-                  ראיתי, תודה!
-                </button>
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>
-
         <FeedbackToast />
         <HelpOverlays />
         <StudentChatOverlay />
         
-        {isAdditionBoardEnabled && (
-          <div className="fixed bottom-20 left-4 z-50 flex flex-col items-end gap-2" dir="rtl">
+        {isAdditionBoardEnabled && isAdditionHelperOpen && (
+          <div className="fixed bottom-6 left-6 z-50 flex flex-col items-end gap-2" dir="rtl">
             <AnimatePresence>
-              {isAdditionHelperOpen && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 20, scale: 0.95 }}
-                  className="mb-2 shadow-2xl"
-                >
-                  <AdditionHelper />
-                </motion.div>
-              )}
+              <motion.div
+                initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 20, scale: 0.95 }}
+                className="shadow-2xl"
+              >
+                <AdditionHelper />
+              </motion.div>
             </AnimatePresence>
-            <button
-              onClick={toggleAdditionHelper}
-              className="bg-ws-accent text-white font-bold px-4 py-3 rounded-full shadow-lg hover:bg-ws-accent/90 transition-all flex items-center gap-2 border border-ws-accent/20"
-            >
-              <span>🧮</span>
-              <span>לוח עזר לחיבור</span>
-            </button>
           </div>
         )}
       </div>

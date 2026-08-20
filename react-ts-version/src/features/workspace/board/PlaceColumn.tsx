@@ -60,10 +60,9 @@ export function PlaceColumn({ place }: { place: Place }) {
   return (
     <motion.div
       ref={setNodeRef}
-      id={place === 'units' ? 'tour-column-units' : undefined}
       animate={shakeControls}
       className={`flex-1 min-w-0 flex flex-col rounded-2xl border-2 border-solid transition-all duration-200 select-none ${
-        isDimmed ? 'opacity-85 brightness-[0.85]' : ''
+        isDimmed ? 'opacity-60 pointer-events-none' : ''
       } ${isOver ? 'scale-[1.02] shadow-xl ring-4 ring-offset-2 z-10' : 'shadow-sm'}`}
       style={{
         borderColor: isOver ? colors.border : `${colors.border}55`,
@@ -71,8 +70,8 @@ export function PlaceColumn({ place }: { place: Place }) {
         boxShadow: isOver 
           ? `0 12px 28px -6px ${colors.tint}, 0 0 0 4px ${colors.border}` 
           : '0 4px 14px -6px rgba(0,0,0,0.06)',
-        filter: isDimmed ? 'brightness(0.85)' : undefined,
-        opacity: isDimmed ? 0.85 : 1,
+        filter: isDimmed ? 'brightness(0.6)' : undefined,
+        opacity: isDimmed ? 0.6 : 1,
       }}
       aria-label={`טור ${PLACE_NAMES_HE[place]}`}
     >

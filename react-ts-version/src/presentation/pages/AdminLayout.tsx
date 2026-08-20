@@ -6,10 +6,8 @@ import { useChatStore } from "@/application/useChatStore";
 import { UdlButton } from "@/presentation/design-system/UdlButton";
 import { Logo } from "@/presentation/components/ui/Logo";
 import { LogoutButton } from "@/presentation/components/ui/LogoutButton";
-import { useAdminTour } from "./admin/useAdminTour";
 
 export function AdminLayout() {
-  useAdminTour();
   const { user } = useAuthStore();
   const { messages } = useChatStore();
   const unreadCount = messages.filter(m => m.receiverId === "admin" && !m.read).length;

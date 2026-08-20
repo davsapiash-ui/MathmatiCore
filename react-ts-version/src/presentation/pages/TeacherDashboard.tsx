@@ -36,7 +36,6 @@ import { HeatmapGrid } from "./TeacherDashboard/components/HeatmapGrid";
 import { ClusteringWidgets } from "./TeacherDashboard/components/ClusteringWidgets";
 import { TeacherApprovalGate, type GateStudentItem } from "./TeacherDashboard/components/TeacherApprovalGate";
 import { SocraticEngine, type PendingAIApproval } from "@/infrastructure/services/SocraticEngine";
-import { useTeacherTour } from "./TeacherDashboard/useTeacherTour";
 import type { RadarAlert } from "@/types/dashboard";
 import { CONCEPT_LABELS_HE } from "@/core/QMatrix";
 import { validateChatInputForPII, anonymizeChatMessageBody } from "@/core/security/PiiFilter";
@@ -213,7 +212,6 @@ function generateCoPilotResponse(
 
 export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolean }) {
   const { id: routeStudentId } = useParams<{ id: string }>();
-  useTeacherTour();
   const { user } = useAuthStore();
   const { messages, sendMessage, markAsRead, initSync } = useChatStore();
 
