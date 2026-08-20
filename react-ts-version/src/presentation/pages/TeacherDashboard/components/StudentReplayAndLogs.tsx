@@ -3,7 +3,8 @@ import { ref, onValue } from "firebase/database";
 import { database, authReady } from "@/infrastructure/firebase";
 import { normalizeStudentId } from "@/application/useChatStore";
 import { getSessionTasks } from "@/data/sessionTasks";
-import { Play, Pause, RotateCcw, Video, Activity, Clock, ShieldCheck, CheckCircle2, AlertTriangle, ArrowRight, Layers, FileText, ChevronLeft, ChevronRight } from "lucide-react";
+import { ReplayViewer } from "@/presentation/components/ReplayViewer";
+import { Play, Pause, RotateCcw, Video, Activity, Clock, ShieldCheck, CheckCircle2, AlertTriangle, ArrowRight, Layers, FileText, ChevronLeft, ChevronRight, MonitorPlay } from "lucide-react";
 import { TenSVG, HundredSVG, UnitSVG, ThousandSVG } from "@/features/workspace/board/DienesBlock";
 
 export interface VRATimelineEvent {
@@ -61,6 +62,8 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
   const studentId = normalizeStudentId(rawStudentId || '');
   const studentNum = studentId ? String(studentId).replace(/\D+/g, '') || '1' : '1';
 
+  const [viewMode, setViewMode] = useState<'video' | 'vra'>('video');
+  const [rrwebEvents, setRrwebEvents] = useState<any[]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentEventIndex, setCurrentEventIndex] = useState(0);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
@@ -91,6 +94,26 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
                     {};
 
         setLiveStudentData(val);
+
+        // Extract rrweb recordings from telemetry_sessions
+        const extractedRrweb: any[] = [];
+        if (val.telemetry_sessions) {
+          const sessions = Object.values(val.telemetry_sessions) as any[];
+          for (const s of sessions) {
+            if (s.chunks) {
+              const chunks = Object.values(s.chunks) as any[];
+              for (const c of chunks) {
+                try {
+                  const parsed = typeof c === 'string' ? JSON.parse(c) : c;
+                  if (Array.isArray(parsed)) {
+                    extractedRrweb.push(...parsed);
+                  }
+                } catch {}
+              }
+            }
+          }
+        }
+        setRrwebEvents(extractedRrweb);
         
         // 1. Extract raw events from all possible telemetry pipelines (prioritizing vector_replays)
         let rawEvents: any[] = [];
@@ -314,7 +337,32 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+            <button
+              onClick={() => setViewMode('video')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                viewMode === 'video' 
+                  ? 'bg-indigo-600 text-white shadow-md' 
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <MonitorPlay className="w-3.5 h-3.5" />
+              הקלטת מסך חיה (rrweb Video Replay)
+            </button>
+            <button
+              onClick={() => setViewMode('vra')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                viewMode === 'vra' 
+                  ? 'bg-indigo-600 text-white shadow-md' 
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5" />
+              שחזור בית המספרים (VRA State)
+            </button>
+          </div>
+
           <span className="text-xs font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 px-3.5 py-1.5 rounded-xl border border-indigo-200 dark:border-indigo-800 font-mono flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             מזהה אנונימי: {studentId || `student_${studentNum}`}
@@ -333,20 +381,40 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
             <div className="flex items-center gap-2">
               <span className="font-extrabold text-slate-200 flex items-center gap-1.5 bg-slate-900 px-3 py-1 rounded-lg border border-slate-800">
                 <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
-                שחזור קנבס התלמיד — Take {activeTakeIndex + 1}
+                {viewMode === 'video' ? 'נגן וידאו מסך תלמיד חי' : `שחזור קנבס התלמיד — Take ${activeTakeIndex + 1}`}
               </span>
               <span className="text-slate-400 font-bold hidden sm:inline">{snap.taskTitle}</span>
             </div>
             <span className="text-[11px] text-slate-400 font-mono">
-              {events.length > 0 ? `צעד ${currentEventIndex + 1} מתוך ${events.length}` : 'המתנה לפעילות'}
+              {viewMode === 'video' 
+                ? (rrwebEvents.length > 0 ? `${rrwebEvents.length} פריימים מוקלטים` : 'המתנה לפעילות')
+                : (events.length > 0 ? `צעד ${currentEventIndex + 1} מתוך ${events.length}` : 'המתנה לפעילות')
+              }
             </span>
           </div>
 
           {/* Authentic Student Screen Canvas Box */}
           <div className="relative w-full bg-slate-900/95 rounded-2xl overflow-hidden border border-slate-800 p-4 select-none">
             
-            {/* The 50/50 Dual Workspace Container */}
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-3 min-h-[320px]">
+            {viewMode === 'video' ? (
+              rrwebEvents && rrwebEvents.length >= 2 ? (
+                <div className="w-full bg-slate-950 rounded-xl overflow-hidden">
+                  <ReplayViewer events={rrwebEvents} />
+                </div>
+              ) : (
+                <div className="w-full min-h-[320px] bg-slate-900/90 rounded-2xl border border-slate-800 p-8 flex flex-col items-center justify-center gap-3 text-center">
+                  <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400">
+                    <MonitorPlay className="w-6 h-6 animate-pulse" />
+                  </div>
+                  <div className="text-sm font-bold text-white">הקלטת מסך חיה בזמן אמת (rrweb Replayer)</div>
+                  <p className="text-xs text-slate-400 max-w-md leading-relaxed">
+                    המערכת מקליטה את מסך התלמיד בסביבת העבודה. עם ביצוע פעולות בלוח (גרירת לבנים, הקלדת תוצאה), הווידאו של המסך יונפש כאן במדויק.
+                  </p>
+                </div>
+              )
+            ) : (
+              /* The 50/50 Dual Workspace Container */
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-3 min-h-[320px]">
               
               {/* Worksheet Side (Right side in RTL, 5 cols) */}
               <div className="md:col-span-5 bg-white dark:bg-slate-900 rounded-2xl p-3.5 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 flex flex-col justify-between shadow-sm">
@@ -484,6 +552,7 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
                 </div>
               </div>
             </div>
+            )}
           </div>
 
           {/* Interactive Player Controls */}
