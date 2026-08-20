@@ -613,7 +613,19 @@ export function StudentWorkspacePage() {
     setActiveDrag(null);
     const data = event.active.data.current as { source: DragSource; place: Place } | undefined;
     const over = event.over?.data.current as { kind: 'column'; place: Place } | { kind: 'trash' } | undefined;
-    if (!data || !over) return;
+    if (!data) return;
+    
+    if (!over) {
+      if (data.source === 'column') {
+        applyDrop({
+          source: 'column',
+          sourcePlace: data.place,
+          target: { kind: 'trash' },
+        });
+      }
+      return;
+    }
+
     applyDrop({
       source: data.source,
       sourcePlace: data.place,
