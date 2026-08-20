@@ -19,7 +19,7 @@ import { useSettingsStore } from '@/application/useSettingsStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useActiveClassSession } from '@/application/useActiveClassSession';
 import { database, authReady, fetchServerClockOffset } from '@/infrastructure/firebase';
-import { ref, push, onValue, remove, get, set, update } from 'firebase/database';
+import { ref, push, onValue, remove, get, set, update, onDisconnect } from 'firebase/database';
 import { useChatStore, normalizeStudentId } from '@/application/useChatStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PlaceValueBoard } from './board/PlaceValueBoard';
@@ -378,6 +378,32 @@ export function StudentWorkspacePage() {
       }
     );
     return () => unsub();
+  }, [user?.uid]);
+
+  // --- Module 18: Live Presence Heartbeat (5s interval, 15s server timeout) ---
+  useEffect(() => {
+    const uid = user?.uid;
+    if (!uid) return;
+    const normId = normalizeStudentId(uid);
+    const studentPresenceRef = ref(database, `users/students/${normId}`);
+    
+    // Set immediate online heartbeat and onDisconnect hook
+    update(studentPresenceRef, { isOnline: true, lastPing: Date.now() }).catch(() => {});
+    try {
+      onDisconnect(ref(database, `users/students/${normId}/isOnline`)).set(false);
+      onDisconnect(ref(database, `users/students/${normId}/lastPing`)).set(0);
+    } catch {
+      // ignore offline mock disconnect
+    }
+
+    const interval = setInterval(() => {
+      update(studentPresenceRef, { isOnline: true, lastPing: Date.now() }).catch(() => {});
+    }, 5000);
+
+    return () => {
+      clearInterval(interval);
+      update(studentPresenceRef, { isOnline: false, lastPing: 0 }).catch(() => {});
+    };
   }, [user?.uid]);
 
   const isAdditionBoardEnabled = liveAdditionBoardEnabled ?? (myData?.additionBoardEnabled ?? false);

@@ -153,12 +153,16 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
 
       setStudents((prev) => {
         const updated = [...prev];
+        const now = Date.now();
         
         for (let i = 0; i < 12; i++) {
           const studentNum = i + 1;
           const uid = `student_${studentNum}`;
           const data = rawData[uid] || rawData[`slot_${studentNum}`] || rawData[`student_user${studentNum}`] || {};
-          const isOnline = data.isOnline === true;
+          
+          // Strict 15-second presence heartbeat check per PRD Module 18
+          const lastPing = Number(data.lastPing || data.lastActivityTimestamp || data.lastActive || 0);
+          const isOnline = Boolean(data.isOnline) && lastPing > 0 && (now - lastPing <= 15000);
 
           const wsState = data.workspaceState || {};
           const sessionState = data.sessionState || {};
@@ -175,11 +179,14 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
           const isSocraticActive = isOnline && (wsState.helpState === 'socratic' || data.isSocraticActive === true || data.helpRequested === true);
           const isStruggling = isOnline && (hesitationSeconds >= 45 || isYellowPath || errorCount > 2 || physicalOverride || isSocraticActive);
 
+          const rawSessionNum = wsState.sessionNumber || sessionState.session_number || (data.highestCompletedMeeting ? data.highestCompletedMeeting + 1 : 1);
+          const sessionNumber = Math.min(8, Math.max(1, Number(rawSessionNum) || 1));
+
           updated[i] = {
             id: uid,
             studentNumber: studentNum,
             displayName: `תלמיד ${studentNum}`,
-            sessionNumber: wsState.sessionNumber || sessionState.session_number || (data.highestCompletedMeeting ? data.highestCompletedMeeting + 1 : 1),
+            sessionNumber,
             currentPath: isYellowPath ? 'צמצום פערים' : 'ירוק',
             status: wsState.flowStatus === 'sessionDone' ? 'completed' : (data.isBoardLocked || sessionState.status === 'locked') ? 'locked' : 'active',
             hesitationSeconds,
@@ -436,27 +443,35 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
                   )}
                 </div>
 
-                {/* Session & Path Info */}
-                <div className="flex flex-col gap-1 my-1">
-                  <div className="flex justify-between text-[11px] font-bold">
-                    <span>מפגש {student.sessionNumber}</span>
-                    <span className={`px-1.5 py-0.5 rounded-md text-[10px] ${student.currentPath === 'צמצום פערים' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200'}`}>
-                      {student.currentPath}
-                    </span>
+                {!student.isOnline ? (
+                  <div className="flex flex-col justify-center items-center py-3 text-slate-400 dark:text-slate-500">
+                    <span className="text-xs font-semibold">לא מחובר כעת</span>
                   </div>
+                ) : (
+                  <>
+                    {/* Session & Path Info */}
+                    <div className="flex flex-col gap-1 my-1">
+                      <div className="flex justify-between text-[11px] font-bold">
+                        <span>מפגש {student.sessionNumber}</span>
+                        <span className={`px-1.5 py-0.5 rounded-md text-[10px] ${student.currentPath === 'צמצום פערים' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200'}`}>
+                          {student.currentPath}
+                        </span>
+                      </div>
 
-                  {student.physicalOverride && (
-                    <span className="text-[10px] bg-purple-600 text-white font-black px-2 py-0.5 rounded-md text-center shadow-sm">
-                      תמיכת VRA פעילה
-                    </span>
-                  )}
-                </div>
+                      {student.physicalOverride && (
+                        <span className="text-[10px] bg-purple-600 text-white font-black px-2 py-0.5 rounded-md text-center shadow-sm">
+                          תמיכת VRA פעילה
+                        </span>
+                      )}
+                    </div>
 
-                {/* Real-Time Trace Metrics */}
-                <div className="text-[10px] text-slate-600 dark:text-slate-300 flex justify-between items-center pt-1 border-t border-slate-200/60 dark:border-slate-800 font-mono font-bold">
-                  <span>השהייה: {student.hesitationSeconds}ש'</span>
-                  <span>ביטולים: {student.errorCount}</span>
-                </div>
+                    {/* Real-Time Trace Metrics */}
+                    <div className="text-[10px] text-slate-600 dark:text-slate-300 flex justify-between items-center pt-1 border-t border-slate-200/60 dark:border-slate-800 font-mono font-bold">
+                      <span>השהייה: {student.hesitationSeconds}ש'</span>
+                      <span>ביטולים: {student.errorCount}</span>
+                    </div>
+                  </>
+                )}
               </button>
             );
           })}
