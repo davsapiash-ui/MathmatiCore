@@ -23,7 +23,7 @@ interface ChatMessage {
 
 /**
  * מודול 22: צ'אט הנהלה-מורים (Teacher-Admin Secure Chat)
- * אנונימיות מוחלטת (Zero PII): ללא שמות מורים, ללא ת"ז (TAZ), ללא אימיילים, וללא תמונות/ביומטריה.
+ * אנונימיות מוחלטת (Zero PII): ללא שמות מורים, ללא מזהי SSO/ת"ז, ללא אימיילים, וללא תמונות/ביומטריה.
  * שכבת אבטחה דו-שלבית:
  * 1. סינון PII צד-לקוח (containsPII).
  * 2. סינון PII צד-שרת (Cloud Function: sendTeacherAdminMessage).

@@ -14,8 +14,8 @@ export interface School {
 export interface Teacher {
   id: string;
   schoolId: string;
-  taz: string; // ID number, used as username
-  dob: string; // 6-digit date of birth (DDMMYY), used as password
+  ssoEmail: string; // Institutional Google SSO email
+  dob: string; // Optional legacy DOB fallback
   name: string;
   licenseActive: boolean;
   createdAt: number;
@@ -44,7 +44,7 @@ interface AdminState {
   addSchool: (name: string) => void;
   deleteSchool: (id: string) => void;
   
-  addTeacher: (schoolId: string, name: string, taz: string, dob: string) => void;
+  addTeacher: (schoolId: string, name: string, ssoEmail: string, dob: string) => void;
   deleteTeacher: (id: string) => void;
   
   addClassRoom: (schoolId: string, teacherId: string, name: string) => void;
@@ -148,7 +148,7 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
       id: "davidsep_edu_haifa_org_il",
       schoolId: "school_bikorot",
       name: "דוד ספיאשוילי",
-      taz: "davidsep@edu-haifa.org.il",
+      ssoEmail: "davidsep@edu-haifa.org.il",
       dob: "010190",
       licenseActive: false,
       createdAt: timestamp,
@@ -214,7 +214,7 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
       id: teacherKey,
       schoolId,
       name: teacherName.trim(),
-      taz: teacherId,
+      ssoEmail: teacherId,
       dob: teacherDob.trim() || "010190",
       licenseActive: false,
       createdAt: timestamp,
@@ -232,7 +232,7 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
     // Optimistic local state update
     set((state) => ({
       schools: [...state.schools.filter(s => s.id !== schoolId), school],
-      teachers: [...state.teachers.filter(t => t.id !== teacherKey && t.taz !== teacherId), teacher],
+      teachers: [...state.teachers.filter(t => t.id !== teacherKey && t.ssoEmail !== teacherId), teacher],
       classes: [...state.classes.filter(c => c.id !== classId), classRoom],
     }));
 
@@ -281,33 +281,33 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
     firebaseSyncService.deleteSchool(id).catch(err => console.error("Failed to delete school from Firebase", err));
   },
 
-  addTeacher: (schoolId, name, taz, dob) => {
-    AuditLogger.log("יצירת מורה", "admin", `מורה חדש: ${name} (ת"ז/דוא"ל: ${taz})`);
-    const id = taz.trim();
+  addTeacher: (schoolId, name, ssoEmail, dob) => {
+    AuditLogger.log("יצירת מורה", "admin", `מורה חדש: ${name} (דוא"ל SSO: ${ssoEmail})`);
+    const id = ssoEmail.trim();
     const teacherKey = id.replace(/[@.#$[\]]/g, '_');
     const newTeacher: Teacher = {
       id: teacherKey,
       schoolId,
       name: name.trim(),
-      taz: id,
+      ssoEmail: id,
       dob: dob.trim() || "010190",
       licenseActive: false,
       createdAt: Date.now()
     };
     set((state) => ({
-      teachers: [...state.teachers.filter(t => t.id !== teacherKey && t.taz !== id), newTeacher]
+      teachers: [...state.teachers.filter(t => t.id !== teacherKey && t.ssoEmail !== id), newTeacher]
     }));
-    firebaseSyncService.addTeacher(schoolId, name, taz, dob).catch(err => console.error("Failed to add teacher to Firebase", err));
-    if (taz.includes('@')) {
-      addAuthorizedTeacherFirestore(taz.trim(), 'teacher', name.trim(), schoolId).catch(err => console.error("Failed to add teacher to Firestore authorizedTeachers", err));
+    firebaseSyncService.addTeacher(schoolId, name, ssoEmail, dob).catch(err => console.error("Failed to add teacher to Firebase", err));
+    if (ssoEmail.includes('@')) {
+      addAuthorizedTeacherFirestore(ssoEmail.trim(), 'teacher', name.trim(), schoolId).catch(err => console.error("Failed to add teacher to Firestore authorizedTeachers", err));
     }
   },
 
   deleteTeacher: (id) => {
-    const teacher = get().teachers.find(t => t.id === id || t.taz === id);
+    const teacher = get().teachers.find(t => t.id === id || t.ssoEmail === id);
     if (teacher) AuditLogger.log("מחיקת מורה", "admin", `מורה נמחק: ${teacher.name}`);
     set((state) => ({
-      teachers: state.teachers.filter(t => t.id !== id && t.taz !== id),
+      teachers: state.teachers.filter(t => t.id !== id && t.ssoEmail !== id),
       classes: state.classes.filter(c => c.teacherId !== id && c.teacherId !== teacher?.id)
     }));
     firebaseSyncService.deleteTeacher(id).catch(err => console.error("Failed to delete teacher from Firebase", err));

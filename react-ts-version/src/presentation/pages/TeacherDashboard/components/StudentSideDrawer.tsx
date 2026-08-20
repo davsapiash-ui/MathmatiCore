@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { type StudentData } from '@/application/useStore';
 import { normalizeStudentId } from '@/application/useChatStore';
-import { X, CheckCircle, Video, ListTodo, Sliders, BellRing, Check, MessageCircle } from 'lucide-react';
+import { X, CheckCircle, Video, ListTodo, Sliders, BellRing, Check, MessageCircle, Settings } from 'lucide-react';
 import { StudentReplayAndLogs } from './StudentReplayAndLogs';
 import { BlueprintEditor } from './BlueprintEditor';
 import { PhysicalOverrideControl } from './PhysicalOverrideControl';
+import { SilentAdaptationPanel, type AdaptationSettings } from './SilentAdaptationPanel';
 import { ref, update } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
+import { toast } from 'sonner';
 
 interface Props {
   student: StudentData | null;
@@ -193,8 +195,39 @@ export function StudentSideDrawer({ student, onClose, isPendingApproval, onAppro
           )}
 
           {activeTab === 'override' && (
-            <div className="animate-in fade-in duration-300">
+            <div className="animate-in fade-in duration-300 space-y-6">
               <PhysicalOverrideControl student={student} />
+
+              {/* Module 19: Silent Adaptation Control Panel (Task-Boundary Rule) */}
+              <SilentAdaptationPanel
+                student={{
+                  studentId: student.studentId,
+                  anonymousLabel: student.name || `תלמיד ${student.studentId.replace(/\D/g, '') || ''}`,
+                  path: (sAny.pedagogicalPath === 'remediation_path' || sAny.currentPath === 'צמצום פערים') ? 'remediation_path' : 'green_path',
+                  scaffoldLevel: (sAny.scaffoldLevel ?? 0) as 0 | 1 | 2,
+                  forceAdditionHelper: Boolean(sAny.forceAdditionHelper),
+                  hesitationThresholdSeconds: sAny.hesitationThresholdSeconds || 30,
+                  applyAtTaskBoundaryOnly: true,
+                }}
+                onApplyAdaptation={async (settings: AdaptationSettings) => {
+                  const normId = normalizeStudentId(student.studentId);
+                  const rawNum = student.studentId.replace(/\D/g, '');
+                  const updatePayload = {
+                    pedagogicalPath: settings.path,
+                    currentPath: settings.path === 'green_path' ? 'ירוק' : 'צמצום פערים',
+                    scaffoldLevel: settings.scaffoldLevel,
+                    forceAdditionHelper: settings.forceAdditionHelper,
+                    hesitationThresholdSeconds: settings.hesitationThresholdSeconds,
+                    applyAtTaskBoundaryOnly: true,
+                    adaptationQueuedAt: Date.now(),
+                  };
+                  await update(ref(database, `users/students/${normId}`), updatePayload);
+                  if (normId !== rawNum) {
+                    await update(ref(database, `users/students/${rawNum}`), updatePayload).catch(() => {});
+                  }
+                  toast.success(`התאמה פדגוגית שקטה נשמרה (תחול בגבול התרגיל הבא) 🛡️`);
+                }}
+              />
             </div>
           )}
 

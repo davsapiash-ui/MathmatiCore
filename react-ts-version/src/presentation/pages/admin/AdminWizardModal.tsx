@@ -51,7 +51,7 @@ export function AdminWizardModal({
 
   // Step 2: Teacher Form
   const [teacherName, setTeacherName] = useState("");
-  const [teacherTaz, setTeacherTaz] = useState("");
+  const [teacherSsoEmail, setTeacherSsoEmail] = useState("");
   const [teacherDob, setTeacherDob] = useState("");
   const [teacherError, setTeacherError] = useState("");
 
@@ -87,7 +87,7 @@ export function AdminWizardModal({
       setTeacherError("נא להזין שם מורה.");
       return false;
     }
-    if (!teacherTaz.trim() || !teacherTaz.includes('@')) {
+    if (!teacherSsoEmail.trim() || !teacherSsoEmail.includes('@')) {
       setTeacherError("נא להזין כתובת דוא\"ל ארגונית מורשת (Google SSO).");
       return false;
     }
@@ -142,7 +142,7 @@ export function AdminWizardModal({
       await provisionFullInstitution({
         schoolName: schoolName.trim(),
         teacherName: teacherName.trim(),
-        teacherEmail: teacherTaz.trim(),
+        teacherEmail: teacherSsoEmail.trim(),
         teacherDob: teacherDob.trim() || "010190",
         className: className.trim() || "כיתת המבקרים",
         classType,
@@ -164,7 +164,7 @@ export function AdminWizardModal({
       return;
     }
     if (!validateStep2(selectedSchoolId)) return;
-    addTeacher(selectedSchoolId, teacherName.trim(), teacherTaz.trim(), teacherDob.trim() || "010190");
+    addTeacher(selectedSchoolId, teacherName.trim(), teacherSsoEmail.trim(), teacherDob.trim() || "010190");
     setIsDone(true);
   };
 
@@ -188,7 +188,7 @@ export function AdminWizardModal({
     setStep(1);
     setSchoolName("");
     setTeacherName("");
-    setTeacherTaz("");
+    setTeacherSsoEmail("");
     setTeacherDob("");
     setClassName("");
     setSchoolError("");
@@ -407,8 +407,8 @@ export function AdminWizardModal({
                           <input 
                             type="email" 
                             placeholder="teacher@edu-haifa.org.il"
-                            value={teacherTaz}
-                            onChange={(e) => { setTeacherTaz(e.target.value); setTeacherError(""); }}
+                            value={teacherSsoEmail}
+                            onChange={(e) => { setTeacherSsoEmail(e.target.value); setTeacherError(""); }}
                             className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-2xl p-3.5 text-sm focus:border-indigo-500 outline-none font-mono"
                           />
                         </div>
@@ -528,8 +528,8 @@ export function AdminWizardModal({
                             <span className="font-bold text-slate-800 dark:text-slate-100">{teacherName}</span>
                           </div>
                           <div className="pt-3 flex justify-between">
-                            <span className="text-slate-500">שם משתמש (ת"ז):</span>
-                            <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">{teacherTaz}</span>
+                            <span className="text-slate-500">דוא"ל SSO מורשה:</span>
+                            <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">{teacherSsoEmail}</span>
                           </div>
                           <div className="pt-3 flex justify-between">
                             <span className="text-slate-500">סיסמא ראשונית (DDMMYY):</span>

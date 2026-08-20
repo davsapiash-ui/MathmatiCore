@@ -148,7 +148,7 @@ export async function executeGoogleSSO(targetRole: "teacher" | "admin"): Promise
       if (!snap.exists()) {
         await set(teacherRef, {
           id: teacherId,
-          taz: teacherId,
+          ssoEmail: email,
           email: email,
           name: user.displayName || `מורה (${email})`,
           licenseActive: false,
@@ -188,7 +188,7 @@ export async function authenticateWhitelistedEmail(email: string, targetRole: "t
       if (!snap.exists()) {
         await set(teacherRef, {
           id: teacherId,
-          taz: teacherId,
+          ssoEmail: normalized,
           email: normalized,
           name: `מורה (${normalized})`,
           licenseActive: false,

@@ -1,9 +1,29 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useWorkspaceStore } from '../../application/useWorkspaceStore';
 import { useAuthStore } from '../../application/useAuthStore';
 import { SocraticEngine } from '../../infrastructure/services/SocraticEngine';
 import { firebaseSyncService } from '../../infrastructure/services/FirebaseSyncService';
 import type { Place } from '../../core/placeValue';
+
+vi.mock('@/infrastructure/firebase', () => ({
+  database: {},
+  functions: {},
+  authReady: Promise.resolve(),
+  serverNow: () => Date.now(),
+  fetchServerClockOffset: async () => 0
+}));
+
+vi.mock('firebase/database', () => ({
+  ref: vi.fn(() => ({})),
+  set: vi.fn(async () => Promise.resolve()),
+  get: vi.fn(async () => Promise.resolve({ exists: () => false, val: () => null })),
+  update: vi.fn(async () => Promise.resolve()),
+  push: vi.fn(() => ({ key: 'mock_key' })),
+  onValue: vi.fn(() => () => {}),
+  onDisconnect: vi.fn(() => ({ set: vi.fn(async () => Promise.resolve()) })),
+  runTransaction: vi.fn(async () => Promise.resolve({ committed: true })),
+  serverTimestamp: vi.fn(() => Date.now()),
+}));
 
 export interface StudentAgentReport {
   studentId: string;
@@ -19,6 +39,19 @@ export interface StudentAgentReport {
 
 describe('30-STUDENT SWARM SIMULATION & STRESS TEST', () => {
   beforeEach(() => {
+    vi.spyOn(firebaseSyncService, 'syncQMatrix').mockImplementation(async () => {});
+    vi.spyOn(firebaseSyncService, 'syncHighestCompletedMeeting').mockImplementation(async () => {});
+    vi.spyOn(firebaseSyncService, 'syncSessionState').mockImplementation(async () => {});
+    vi.spyOn(firebaseSyncService, 'syncTraceData').mockImplementation(async () => {});
+    vi.spyOn(SocraticEngine, 'getSocraticHint').mockImplementation(async (_sess, _type, _counts, _trace, enhanced) => {
+      return {
+        hint_text: enhanced ? 'שמנו לב שנוצר עומס בטור היחידות.' : 'הבט על העמודה',
+        tts_text: enhanced ? 'שמנו לב שנוצר עומס בטור היחידות.' : 'הבט על העמודה',
+        highlight_column: 'units',
+        recommended_action: 'REGROUP',
+        confidence_score: 0.95
+      } as any;
+    });
     useWorkspaceStore.getState().initSession(1, false);
   });
 

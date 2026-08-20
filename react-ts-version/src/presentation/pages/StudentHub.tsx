@@ -108,12 +108,12 @@ export function StudentHub() {
         );
         setHasCompletedSession2(completedM2);
 
-        // Determine active session ID strictly
+        // Determine active session ID strictly: Teacher's live broadcast takes absolute precedence
         let resolvedSession = 1;
-        if (typeof val.active_session_id === 'number') {
-          resolvedSession = val.active_session_id;
-        } else if (teacherSessionNum) {
+        if (teacherSessionNum) {
           resolvedSession = teacherSessionNum;
+        } else if (typeof val.active_session_id === 'number') {
+          resolvedSession = val.active_session_id;
         } else if (val.currentMeeting) {
           resolvedSession = val.currentMeeting;
         } else if (val.highestCompletedMeeting) {
@@ -125,8 +125,11 @@ export function StudentHub() {
     return () => unsub();
   }, [uid, normUid, teacherSessionNum]);
 
-  // Compute the single active session to render
-  const effectiveSessionId = Math.min(Math.max(1, activeSessionId), 8);
+  // Compute the single active session to render - teacher broadcast takes direct reactive precedence
+  const effectiveSessionId = teacherSessionNum
+    ? Math.min(Math.max(1, teacherSessionNum), 8)
+    : Math.min(Math.max(1, activeSessionId), 8);
+
   const activeSession = SESSIONS_CONFIG[effectiveSessionId] || SESSIONS_CONFIG[1];
 
   // Module 20: If student completed Session 2 and attempts Session 3 without teacher approval -> Bee Flight
@@ -202,6 +205,4 @@ export function StudentHub() {
     </div>
   );
 }
-
-export { StudentHubPage } from './student/StudentHubPage';
 

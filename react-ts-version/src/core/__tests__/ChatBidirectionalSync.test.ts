@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { 
   useChatStore, 
   normalizeStudentId, 
@@ -81,12 +81,12 @@ describe('Chat Bidirectional Synchronization & Room Segregation (Module 22 & 28)
     });
 
     it('resolves Teacher <-> Admin chat to the teacher room ID', () => {
-      const teacherTaz = '039604483';
-      const roomFromTeacher = computeRoomId(teacherTaz, 'admin');
-      const roomFromAdmin = computeRoomId('admin', teacherTaz);
+      const teacherId = 'teacher_davidsep';
+      const roomFromTeacher = computeRoomId(teacherId, 'admin');
+      const roomFromAdmin = computeRoomId('admin', teacherId);
 
-      expect(roomFromTeacher).toBe('039604483');
-      expect(roomFromAdmin).toBe('039604483');
+      expect(roomFromTeacher).toBe('teacher_davidsep');
+      expect(roomFromAdmin).toBe('teacher_davidsep');
       expect(roomFromTeacher).toBe(roomFromAdmin);
     });
   });

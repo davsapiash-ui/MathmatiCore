@@ -92,8 +92,8 @@ describe('Full System Workflow & Integration Empirical Audit Suite', () => {
       const activeSessionRules = rulesContent.rules.active_class_session;
       
       expect(activeSessionRules).toBeDefined();
-      expect(activeSessionRules['.read']).toBe(true);
-      expect(activeSessionRules['.write']).toBe('auth != null');
+      expect(activeSessionRules['.read']).toBe('auth != null');
+      expect(activeSessionRules['.write']).toContain('teacher');
     });
   });
 

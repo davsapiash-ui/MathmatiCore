@@ -77,7 +77,7 @@ export function AdminSchoolsView() {
       const schoolTeachers = teachers.filter(t => t.schoolId === s.id);
       const hasMatchingTeacher = schoolTeachers.some(t => 
         (t.name && t.name.toLowerCase().includes(query)) || 
-        (t.taz && t.taz.toLowerCase().includes(query)) ||
+        (t.ssoEmail && t.ssoEmail.toLowerCase().includes(query)) ||
         (t.id && t.id.toLowerCase().includes(query))
       );
       return (s.name && s.name.toLowerCase().includes(query)) || hasMatchingTeacher;
@@ -341,7 +341,7 @@ export function AdminSchoolsView() {
                               <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-3">
                                 <span className="flex items-center gap-1 font-mono">
                                   <KeyRound className="w-3 h-3 text-slate-400" />
-                                  דוא"ל SSO: {teacher.taz || "teacher@edu-haifa.org.il"}
+                                  דוא"ל SSO: {teacher.ssoEmail || "teacher@edu-haifa.org.il"}
                                 </span>
                               </div>
                             </div>

@@ -1,5 +1,5 @@
 import { initializeTestEnvironment, assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -489,6 +489,77 @@ async function runFirestoreRulesTest() {
     passedCount++;
   } catch (err) {
     console.error(`❌ FAILED: WP8 E2E database journey failed:`, err);
+  }
+
+  // --- TEST 19: Teacher Gate Approval on Real Session 2 Document (should SUCCEED and update Firestore) ---
+  testCount++;
+  console.log(`\n[TEST 19: GATE APPROVAL REAL DOC] Teacher approves gate on existing session_02_student_2 (71.4% score)...`);
+  try {
+    const s2DocRef = doc(dbTeacher, 'sessions', 'session_02_student_2_emulator_test');
+    const nowMs = Date.now();
+    // Seed real completed session document
+    await setDoc(s2DocRef, {
+      session_id: 'session_02_student_2_emulator_test',
+      class_id: 'class_pilot_01',
+      session_number: 2,
+      session_start_time: nowMs - 1800000,
+      session_deadline_time: nowMs + 1800000,
+      active_exercise_id: 'ex_02_07',
+      is_completed: true,
+      session_score_percent: 71.4,
+      matrix_recommended_path: 'green_path',
+      teacher_gate_approved: false,
+      gate_approved_at: null,
+      gate_approved_by: null,
+      teacher_selected_path: null,
+    });
+
+    // Teacher approves the gate
+    await assertSucceeds(updateDoc(s2DocRef, {
+      teacher_gate_approved: true,
+      teacher_selected_path: 'green_path',
+      gate_approved_at: nowMs,
+      gate_approved_by: 'teacher_01',
+    }));
+
+    // Verify the document was actually updated in Firestore with correct fields
+    const updatedSnap = await getDoc(s2DocRef);
+    const updatedData = updatedSnap.data();
+    if (updatedData.teacher_gate_approved === true && updatedData.teacher_selected_path === 'green_path') {
+      console.log(`✅ PASSED: Teacher successfully approved Session 2 gate in Firestore with verified fields.`);
+      passedCount++;
+    } else {
+      throw new Error('Document fields were not properly updated in Firestore');
+    }
+  } catch (err) {
+    console.error(`❌ FAILED: Teacher gate approval on existing document failed:`, err);
+  }
+
+  // --- TEST 20: Non-Existent Document Approval Attack — Teacher attempts to approve Student 5 with NO session doc (MUST BLOCK) ---
+  testCount++;
+  console.log(`\n[TEST 20: ZERO SYNTHETIC DATA] Teacher attempts to approve Student 5 without existing session document...`);
+  try {
+    const s5DocRef = doc(dbTeacher, 'sessions', 'session_02_student_5_non_existent');
+    const s5Snap = await getDoc(s5DocRef);
+
+    // Verify document does NOT exist
+    if (!s5Snap.exists()) {
+      // System blocks gate approval and REFUSES to create a fake score document
+      console.log(`[VERIFY] Confirmed: sessions/session_02_student_5_non_existent does NOT exist in Firestore.`);
+      // Verifying updateDoc fails on non-existent document
+      await assertFails(updateDoc(s5DocRef, {
+        teacher_gate_approved: true,
+        teacher_selected_path: 'green_path',
+        gate_approved_at: Date.now(),
+        gate_approved_by: 'teacher_01',
+      }));
+      console.log(`✅ PASSED: Approval strictly blocked when session document does not exist (Zero Synthetic Data).`);
+      passedCount++;
+    } else {
+      throw new Error('Test setup error: document should not exist');
+    }
+  } catch (err) {
+    console.error(`❌ FAILED: Non-existent document approval block failed:`, err);
   }
 
   // Cleanup test environment

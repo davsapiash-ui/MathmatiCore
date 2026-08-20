@@ -12,11 +12,11 @@ describe('PRD Section 5.6 Admin Scale Limits & Multi-Tenant Audit', () => {
         { id: 'sch_5', name: 'מוסד 5', createdAt: Date.now() },
       ],
       teachers: [
-        { id: 't_1', schoolId: 'sch_1', taz: '11111111', dob: '010190', name: 'מורה 1', licenseActive: true, createdAt: Date.now() },
-        { id: 't_2', schoolId: 'sch_2', taz: '22222222', dob: '010190', name: 'מורה 2', licenseActive: true, createdAt: Date.now() },
-        { id: 't_3', schoolId: 'sch_3', taz: '33333333', dob: '010190', name: 'מורה 3', licenseActive: true, createdAt: Date.now() },
-        { id: 't_4', schoolId: 'sch_4', taz: '44444444', dob: '010190', name: 'מורה 4', licenseActive: true, createdAt: Date.now() },
-        { id: 't_5', schoolId: 'sch_5', taz: '55555555', dob: '010190', name: 'מורה 5', licenseActive: true, createdAt: Date.now() },
+        { id: 't_1', schoolId: 'sch_1', ssoEmail: 'teacher1@edu-haifa.org.il', dob: '010190', name: 'מורה 1', licenseActive: true, createdAt: Date.now() },
+        { id: 't_2', schoolId: 'sch_2', ssoEmail: 'teacher2@edu-haifa.org.il', dob: '010190', name: 'מורה 2', licenseActive: true, createdAt: Date.now() },
+        { id: 't_3', schoolId: 'sch_3', ssoEmail: 'teacher3@edu-haifa.org.il', dob: '010190', name: 'מורה 3', licenseActive: true, createdAt: Date.now() },
+        { id: 't_4', schoolId: 'sch_4', ssoEmail: 'teacher4@edu-haifa.org.il', dob: '010190', name: 'מורה 4', licenseActive: true, createdAt: Date.now() },
+        { id: 't_5', schoolId: 'sch_5', ssoEmail: 'teacher5@edu-haifa.org.il', dob: '010190', name: 'מורה 5', licenseActive: true, createdAt: Date.now() },
       ],
       classes: [
         { id: 'c_1', schoolId: 'sch_1', teacherId: 't_1', name: 'כיתה 1', studentLimit: 35, createdAt: Date.now() },

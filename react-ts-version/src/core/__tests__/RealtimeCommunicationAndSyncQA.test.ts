@@ -145,7 +145,7 @@ describe('Realtime Communication & Data Synchronization QA Suite (Master PRD v4.
 
       // Verify each student node in Firebase RTDB is completely isolated
       pilotStudents.forEach(student => {
-        const savedSession = mockDatabaseTree[`sessions/${student.normId}`];
+        const savedSession = mockDatabaseTree[`users/students/${student.normId}/sessionState`] || mockDatabaseTree[`sessions/${student.normId}`];
         expect(savedSession).toBeDefined();
         expect(savedSession.student_id).toBe(student.normId);
         expect(savedSession.session_number).toBe(student.sessionNumber);
@@ -339,8 +339,8 @@ describe('Realtime Communication & Data Synchronization QA Suite (Master PRD v4.
   // =========================================================================
   describe('5. Realtime Chat Rooms & Client-Side PII Redaction', () => {
     it('redacts 9-digit national IDs, Israeli phone numbers, and personal emails before dispatch', () => {
-      const textWithTaz = 'התלמיד עם תעודת זהות 039604483 צריך עזרה';
-      expect(sanitizeChatText(textWithTaz)).toBe('התלמיד עם תעודת זהות ***4483 צריך עזרה');
+      const textWithIdNumber = 'התלמיד עם תעודת זהות 039604483 צריך עזרה';
+      expect(sanitizeChatText(textWithIdNumber)).toBe('התלמיד עם תעודת זהות ***4483 צריך עזרה');
 
       const textWithPhone = 'התקשרו אלי למספר 054-1234567 או 0501234567';
       expect(sanitizeChatText(textWithPhone)).toBe('התקשרו אלי למספר [PHONE_REDACTED] או [PHONE_REDACTED]');

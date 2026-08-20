@@ -24,6 +24,7 @@ export const FORBIDDEN_PII_FIELDS = [
   'phone',
   'phoneNumber',
   'taz',
+  'ssoEmail',
   'teudatZehut',
   'idNumber',
   'national_id',

@@ -356,7 +356,9 @@ export class FirebaseSyncService {
           hesitation_seconds: (state.hesitationCount || 0) * 5,
           error_count: state.undoCount || 0,
         };
-        this.syncSessionState(this.currentUserId, sessionState).catch(() => {});
+        this.syncSessionState(this.currentUserId, sessionState).catch((err) => {
+          console.warn('[FirebaseSyncService] syncSessionState notice:', err);
+        });
       }
     });
   }
@@ -418,15 +420,15 @@ export class FirebaseSyncService {
     return snapshot.val();
   }
 
-  public async authenticateTeacher(taz: string) {
-    const teacherRef = ref(database, `users/teachers/${taz}`);
+  public async authenticateTeacher(ssoEmail: string) {
+    const teacherRef = ref(database, `users/teachers/${ssoEmail}`);
     const snapshot = await get(teacherRef);
     if (!snapshot.exists()) return null;
     return snapshot.val();
   }
 
   public async registerTeacher(teacherData: Record<string, unknown>) {
-    const id = (teacherData.id || teacherData.taz || teacherData.uid) as string;
+    const id = (teacherData.id || teacherData.ssoEmail || teacherData.uid) as string;
     if (!id) throw new Error("Missing teacher ID for registration");
     const dataToSave = {
       ...teacherData,
@@ -442,9 +444,14 @@ export class FirebaseSyncService {
     if (!rawStudentId) return;
     const studentId = normalizeStudentId(rawStudentId);
     const qMatrixRef = ref(database, `users/students/${studentId}/qMatrixResults`);
-    await update(qMatrixRef, qMatrixUpdates);
+    await update(qMatrixRef, qMatrixUpdates).catch((err) => {
+      console.error(`[FirebaseSyncService] Failed to sync Q-Matrix for ${studentId}:`, err);
+      throw err;
+    });
     if (rawStudentId !== studentId) {
-      await update(ref(database, `users/students/${rawStudentId}/qMatrixResults`), qMatrixUpdates).catch(() => {});
+      await update(ref(database, `users/students/${rawStudentId}/qMatrixResults`), qMatrixUpdates).catch((err) => {
+        console.warn(`[FirebaseSyncService] Legacy Q-Matrix mirror notice for ${rawStudentId}:`, err);
+      });
     }
   }
 
@@ -452,9 +459,14 @@ export class FirebaseSyncService {
     if (!rawStudentId) return;
     const studentId = normalizeStudentId(rawStudentId);
     const traceRef = ref(database, `users/students/${studentId}/traceData`);
-    await update(traceRef, traceDataUpdates);
+    await update(traceRef, traceDataUpdates).catch((err) => {
+      console.error(`[FirebaseSyncService] Failed to sync trace data for ${studentId}:`, err);
+      throw err;
+    });
     if (rawStudentId !== studentId) {
-      await update(ref(database, `users/students/${rawStudentId}/traceData`), traceDataUpdates).catch(() => {});
+      await update(ref(database, `users/students/${rawStudentId}/traceData`), traceDataUpdates).catch((err) => {
+        console.warn(`[FirebaseSyncService] Legacy trace data mirror notice for ${rawStudentId}:`, err);
+      });
     }
   }
 
@@ -462,9 +474,14 @@ export class FirebaseSyncService {
     if (!rawStudentId) return;
     const studentId = normalizeStudentId(rawStudentId);
     const masteryRef = ref(database, `users/students/${studentId}/conceptMastery`);
-    await update(masteryRef, masteryUpdates);
+    await update(masteryRef, masteryUpdates).catch((err) => {
+      console.error(`[FirebaseSyncService] Failed to sync concept mastery for ${studentId}:`, err);
+      throw err;
+    });
     if (rawStudentId !== studentId) {
-      await update(ref(database, `users/students/${rawStudentId}/conceptMastery`), masteryUpdates).catch(() => {});
+      await update(ref(database, `users/students/${rawStudentId}/conceptMastery`), masteryUpdates).catch((err) => {
+        console.warn(`[FirebaseSyncService] Legacy concept mastery mirror notice for ${rawStudentId}:`, err);
+      });
     }
   }
 
@@ -472,9 +489,14 @@ export class FirebaseSyncService {
     if (!rawStudentId) return;
     const studentId = normalizeStudentId(rawStudentId);
     const metricsRef = ref(database, `users/students/${studentId}/live_session_metrics`);
-    await update(metricsRef, metricsUpdates);
+    await update(metricsRef, metricsUpdates).catch((err) => {
+      console.error(`[FirebaseSyncService] Failed to sync live session metrics for ${studentId}:`, err);
+      throw err;
+    });
     if (rawStudentId !== studentId) {
-      await update(ref(database, `users/students/${rawStudentId}/live_session_metrics`), metricsUpdates).catch(() => {});
+      await update(ref(database, `users/students/${rawStudentId}/live_session_metrics`), metricsUpdates).catch((err) => {
+        console.warn(`[FirebaseSyncService] Legacy metrics mirror notice for ${rawStudentId}:`, err);
+      });
     }
   }
 
@@ -486,9 +508,14 @@ export class FirebaseSyncService {
       teacher_gate_approved: true,
       gateApprovedAt: Date.now(),
     };
-    await update(ref(database, `users/students/${studentId}`), gatePayload);
+    await update(ref(database, `users/students/${studentId}`), gatePayload).catch((err) => {
+      console.error(`[FirebaseSyncService] Failed to approve gate for ${studentId}:`, err);
+      throw err;
+    });
     if (rawStudentId !== studentId) {
-      await update(ref(database, `users/students/${rawStudentId}`), gatePayload).catch(() => {});
+      await update(ref(database, `users/students/${rawStudentId}`), gatePayload).catch((err) => {
+        console.warn(`[FirebaseSyncService] Legacy gate approve mirror notice for ${rawStudentId}:`, err);
+      });
     }
   }
 
@@ -527,9 +554,14 @@ export class FirebaseSyncService {
     await update(ref(database, `users/students/${studentId}`), {
       ...studentOverridePayload,
       workspaceState: { isASD },
-    }).catch(() => {});
+    }).catch((err) => {
+      console.error(`[FirebaseSyncService] Failed to sync physical override for ${studentId}:`, err);
+      throw err;
+    });
 
-    await update(ref(database, `students/${studentId}`), studentOverridePayload).catch(() => {});
+    await update(ref(database, `students/${studentId}`), studentOverridePayload).catch((err) => {
+      console.warn(`[FirebaseSyncService] Legacy students collection mirror notice for ${studentId}:`, err);
+    });
   }
 
   // --- NEW: PRD Section 5.2 FIFO In-Memory Network Sync Queue ---
@@ -703,8 +735,9 @@ export class FirebaseSyncService {
   public async syncSessionState(studentId: string, sessionState: SessionState): Promise<void> {
     if (!studentId) return;
     const normId = normalizeStudentId(studentId);
-    await update(ref(database, `sessions/${normId}`), sessionState as any).catch(() => {});
-    await update(ref(database, `users/students/${normId}/sessionState`), sessionState as any).catch(() => {});
+    await update(ref(database, `users/students/${normId}/sessionState`), sessionState as any).catch((err) => {
+      console.warn(`[FirebaseSyncService] Failed to sync sessionState for ${normId}:`, err);
+    });
   }
 
   public async syncHighestCompletedMeeting(studentId: string, meeting: number): Promise<void> {
@@ -870,7 +903,7 @@ export class FirebaseSyncService {
       id: 'teacher_mock_1', 
       schoolId: 'school_bikorot', 
       name: 'דוד', 
-      taz: '000000000', 
+      ssoEmail: 'teacher.demo@edu-haifa.org.il', 
       dob: '010190', 
       licenseActive: false, // Security rules require licenseActive to be false upon creation
       createdAt: timestamp 
@@ -982,21 +1015,21 @@ export class FirebaseSyncService {
     await update(ref(database), updates);
   }
 
-  public async addTeacher(schoolId: string, name: string, taz: string, dob: string) {
-    const id = taz; // Use taz as ID to align with auth and security rules
+  public async addTeacher(schoolId: string, name: string, ssoEmail: string, dob: string) {
+    const id = ssoEmail; // Use ssoEmail as ID to align with auth and security rules
     const newTeacher: Teacher = {
       id,
       schoolId,
       name,
-      taz,
+      ssoEmail,
       dob,
       licenseActive: false,
       createdAt: Date.now()
     };
     await set(ref(database, `users/teachers/${id}`), newTeacher);
-    if (taz.includes('@')) {
+    if (ssoEmail.includes('@')) {
       const { addAuthorizedTeacherFirestore } = await import('./AuthService');
-      await addAuthorizedTeacherFirestore(taz, 'teacher', name, schoolId).catch(console.error);
+      await addAuthorizedTeacherFirestore(ssoEmail, 'teacher', name, schoolId).catch(console.error);
     }
   }
 

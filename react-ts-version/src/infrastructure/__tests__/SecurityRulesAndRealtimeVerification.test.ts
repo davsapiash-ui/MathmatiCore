@@ -46,7 +46,8 @@ describe('SECURITY RULES & REALTIME LISTENERS AUDIT & VERIFICATION', () => {
 
       const teacherRule = rulesContent.rules.users.teachers.$teacherId;
       expect(teacherRule).toBeDefined();
-      expect(teacherRule['.write']).toContain("newData.child('licenseActive').val() === false");
+      expect(teacherRule['.write']).toContain("auth.token.role == 'admin'");
+      expect(teacherRule.licenseActive['.validate']).toBe("newData.isBoolean()");
     });
   });
 
@@ -79,7 +80,7 @@ describe('SECURITY RULES & REALTIME LISTENERS AUDIT & VERIFICATION', () => {
       const rulesContent = JSON.parse(readFileSync(rulesPath, 'utf-8'));
 
       const parentChatRule = rulesContent.rules.chat_messages;
-      expect(parentChatRule['.read']).toBe('auth != null && auth.token.email != null');
+      expect(parentChatRule['.read']).toContain('role == \'teacher\'');
 
       const chatRule = rulesContent.rules.chat_messages.$roomId;
       expect(chatRule).toBeDefined();

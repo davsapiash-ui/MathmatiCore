@@ -54,6 +54,12 @@ describe('8-STUDENT COGNITIVE PROFILE & PATHWAY RESILIENCE SIMULATION', () => {
   const simulationResults: SimulationReport[] = [];
 
   beforeEach(() => {
+    vi.spyOn(firebaseSyncService, 'syncQMatrix').mockImplementation(async () => {});
+    vi.spyOn(firebaseSyncService, 'syncHighestCompletedMeeting').mockImplementation(async () => {});
+    vi.spyOn(firebaseSyncService, 'syncSessionState').mockImplementation(async () => {});
+    vi.spyOn(firebaseSyncService, 'syncTraceData').mockImplementation(async () => {});
+    vi.spyOn(firebaseSyncService, 'syncPhysicalOverride').mockImplementation(async () => {});
+    vi.spyOn(firebaseSyncService, 'logMilestoneEvent').mockImplementation(async () => {});
     useWorkspaceStore.getState().initSession(1, false);
     useSettingsStore.setState({ autoShowHints: false, isASDMode: false });
   });

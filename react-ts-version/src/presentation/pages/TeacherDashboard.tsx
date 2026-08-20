@@ -12,7 +12,9 @@ import { extractTeacherId } from "@/infrastructure/services/FirebaseSyncService"
 import { useStore, type StudentData } from "@/application/useStore";
 import { toast } from "sonner";
 import { ref, onValue, remove, set, update } from "firebase/database";
-import { database, auth, functions } from "@/infrastructure/firebase";
+import { database, auth, functions, firestore } from "@/infrastructure/firebase";
+import { doc, getDoc, updateDoc, setDoc, onSnapshot, collection } from "firebase/firestore";
+import type { SessionDocument, PedagogicalPath } from "@/types";
 import { httpsCallable } from "firebase/functions";
 import {
   BarChart,
@@ -32,6 +34,7 @@ import { StudentSideDrawer } from "./TeacherDashboard/components/StudentSideDraw
 import { FloatingChatPanel } from "./TeacherDashboard/components/FloatingChatPanel";
 import { HeatmapGrid } from "./TeacherDashboard/components/HeatmapGrid";
 import { ClusteringWidgets } from "./TeacherDashboard/components/ClusteringWidgets";
+import { TeacherApprovalGate, type GateStudentItem } from "./TeacherDashboard/components/TeacherApprovalGate";
 import { SocraticEngine, type PendingAIApproval } from "@/infrastructure/services/SocraticEngine";
 import { useTeacherTour } from "./TeacherDashboard/useTeacherTour";
 import type { RadarAlert } from "@/types/dashboard";
@@ -277,6 +280,35 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   const [teacherApprovals, setTeacherApprovals] = useState<PendingAIApproval[]>([]);
   const [fallbackApprovals, setFallbackApprovals] = useState<PendingAIApproval[]>([]);
 
+  // --- Module 20: Firestore Live Session 2 Diagnostic Documents (WP6 Integration) ---
+  const [firestoreSession2Docs, setFirestoreSession2Docs] = useState<Record<string, SessionDocument>>({});
+  const [isApprovingGate, setIsApprovingGate] = useState(false);
+
+  useEffect(() => {
+    try {
+      const sessionsColRef = collection(firestore, 'sessions');
+      const unsub = onSnapshot(sessionsColRef, (snapshot) => {
+        const docMap: Record<string, SessionDocument> = {};
+        snapshot.forEach((d) => {
+          if (d.id.startsWith('session_02_student_')) {
+            const studentNumMatch = d.id.match(/\d+$/);
+            if (studentNumMatch) {
+              const studentNum = studentNumMatch[0];
+              docMap[`student_${studentNum}`] = d.data() as SessionDocument;
+              docMap[studentNum] = d.data() as SessionDocument;
+            }
+          }
+        });
+        setFirestoreSession2Docs(docMap);
+      }, (err) => {
+        console.warn('[TeacherDashboard] Firestore sessions subscription notice:', err);
+      });
+      return () => unsub();
+    } catch (e) {
+      console.warn('[TeacherDashboard] Failed to init Firestore sessions listener:', e);
+    }
+  }, []);
+
   // --- Class Session Management (Manual Start/Stop) ---
   const [isClassSessionActive, setIsClassSessionActive] = useState(false);
   const [_sessionStartTime, setSessionStartTime] = useState<number | null>(null);
@@ -335,7 +367,6 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
         startedAt: now,
         teacherId: user?.uid || 'teacher',
       });
-      await set(ref(database, 'system_control/activeMeeting'), sessionNum).catch(() => {});
       toast.success(`שיעור ${sessionNum} הופעל בהצלחה לכלל תלמידי הכיתה! 🚀`);
     } catch (err) {
       console.error('Error starting class session:', err);
@@ -504,7 +535,9 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       });
       return () => unsubscribe();
     } catch {
-      SocraticEngine.getPendingApprovals(TEACHER_ID).then(setTeacherApprovals).catch(() => {});
+      SocraticEngine.getPendingApprovals(TEACHER_ID).then(setTeacherApprovals).catch((err) => {
+        console.warn('Fallback SocraticEngine pending approvals notice:', err);
+      });
     }
   }, [TEACHER_ID]);
 
@@ -517,14 +550,17 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     // 1. Write the hint flag to Firebase so the student gets an actual popup
     set(ref(database, `users/students/${studentId}/teacher_hint`), hintPayload).then(() => {
       if (normId !== studentId) {
-        set(ref(database, `users/students/${normId}/teacher_hint`), hintPayload).catch(() => {});
+        set(ref(database, `users/students/${normId}/teacher_hint`), hintPayload).catch((err) => {
+          console.warn('Teacher hint mirror notice:', err);
+        });
       }
       // 2. Switch to chat so the teacher can follow up manually
       setSelectedStudentId(studentId);
       setActiveTab("chat_students");
+      toast.success(`רמז נשלח בהצלחה לתלמיד! 💡`);
     }).catch((err: any) => {
       console.error("Failed to send hint:", err);
-      alert("שגיאה בשליחת הרמז לתלמיד.");
+      toast.error("שגיאה בשליחת הרמז לתלמיד.");
     });
   };
 
@@ -661,7 +697,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
         await update(ref(database, `users/students/${norm}`), {
           activeIntervention: clusterName,
           interventionAssignedAt: Date.now()
-        }).catch(() => {});
+        });
       }
       toast.success(`פעילות "${clusterName}" הוקצתה בהצלחה ל-${studentList.length} תלמידים! 🎯`);
     } catch (err) {
@@ -695,6 +731,126 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     // 3. Dismiss the alert from the radar queue
     if (alert.firebaseKey) {
       remove(ref(database, `radar_alerts/${alert.firebaseKey}`));
+    }
+  };
+
+  // --- Module 20: Diagnostic Gate Students Computation (WP6 Formulas & Firestore Sync) ---
+  const gateStudentItems: GateStudentItem[] = useMemo(() => {
+    const items: GateStudentItem[] = [];
+    for (let i = 1; i <= 12; i++) {
+      const sId = `student_${i}`;
+      const studentData = students[sId] || students[String(i)];
+      const session2Doc = firestoreSession2Docs[sId] || firestoreSession2Docs[String(i)];
+
+      const isCompleted = Boolean(
+        session2Doc?.is_completed ||
+        studentData?.completedMeeting2 ||
+        studentData?.session_2_completed ||
+        (studentData?.highestCompletedMeeting && studentData.highestCompletedMeeting >= 2) ||
+        studentData?.routeStatus === 'PENDING_TEACHER_APPROVAL'
+      );
+
+      if (!isCompleted) continue;
+
+      const isApproved = Boolean(
+        session2Doc?.teacher_gate_approved ||
+        studentData?.teacher_gate_approved ||
+        studentData?.routeStatus === 'APPROVED'
+      );
+
+      // Score percent strictly from Firestore Session Document (NO synthetic default)
+      const hasRealScore = typeof session2Doc?.session_score_percent === 'number';
+      const scorePercent = hasRealScore ? session2Doc.session_score_percent : null;
+
+      // WP6 Canonical Threshold Formula: >= 50% -> green_path, < 50% -> remediation_path
+      const recommendedPath: PedagogicalPath =
+        session2Doc?.matrix_recommended_path ||
+        (scorePercent !== null && scorePercent >= 50 ? 'green_path' : 'remediation_path');
+
+      items.push({
+        studentId: sId,
+        anonymousLabel: `תלמיד ${i}`,
+        session2Doc,
+        recommendedPath,
+        isApproved,
+        scoreSummary: scorePercent !== null
+          ? `ציון דיאגנוסטי: ${Math.round(scorePercent)}% (7 משימות חובה)`
+          : 'סיום ראשוני — ממתין לחישוב מדדים',
+        errorNodes: scorePercent !== null && scorePercent < 50 ? ['המרה בעשרות', 'ערך מיקום'] : undefined,
+      });
+    }
+    return items;
+  }, [students, firestoreSession2Docs]);
+
+  const handleApproveGateStudent = async (studentId: string, path: PedagogicalPath) => {
+    setIsApprovingGate(true);
+    const normNum = studentId.replace(/\D/g, '') || '1';
+    const sessionDocId = `session_02_student_${normNum}`;
+    const normId = `student_${normNum}`;
+    const now = Date.now();
+
+    try {
+      // 1. Verify existence of real SessionDocument in Cloud Firestore (Zero Fake Scores)
+      const sessionDocRef = doc(firestore, 'sessions', sessionDocId);
+      const sessionSnap = await getDoc(sessionDocRef);
+
+      if (!sessionSnap.exists()) {
+        toast.error(`לא נמצא מסמך אבחון (Session 2) עבור תלמיד ${normNum}. לא ניתן לאשר מעבר טרם סיום המפגש בפועל.`);
+        return;
+      }
+
+      const existingData = sessionSnap.data() as SessionDocument;
+      if (existingData.is_completed === false) {
+        toast.error(`תלמיד ${normNum} טרם השלים את כל משימות החובה במפגש 2. לא ניתן לאשר מעבר.`);
+        return;
+      }
+
+      // 2. Update real existing Firestore document strictly (no synthetic fallback documents)
+      await updateDoc(sessionDocRef, {
+        teacher_gate_approved: true,
+        teacher_selected_path: path,
+        gate_approved_at: now,
+        gate_approved_by: user?.uid || 'teacher',
+      });
+
+      // 3. Write to Firebase RTDB for instantaneous reactive unlock
+      const gatePayload = {
+        routeStatus: 'APPROVED',
+        teacher_gate_approved: true,
+        teacher_selected_path: path,
+        gate_approved_at: now,
+        gate_approved_by: user?.uid || 'teacher',
+      };
+      await update(ref(database, `users/students/${normId}`), gatePayload);
+      if (normId !== normNum) {
+        await update(ref(database, `users/students/${normNum}`), gatePayload).catch(() => {});
+      }
+
+      // 4. Update local Zustand state
+      approveRoute(normId);
+      approveRoute(normNum);
+
+      toast.success(`תלמיד ${normNum} אושר בהצלחה למפגש 3 (${path === 'green_path' ? 'מסלול ירוק' : 'מסלול צהוב'})! 🛡️`);
+    } catch (err: any) {
+      console.error('[TeacherDashboard] Gate approval write failed:', err);
+      toast.error(`שגיאה באישור שער המעבר: ${err?.message || 'אנא בדוק חיבור לרשת'}`);
+    } finally {
+      setIsApprovingGate(false);
+    }
+  };
+
+  const handleBatchApproveAll = async (pathMap: Record<string, PedagogicalPath>) => {
+    setIsApprovingGate(true);
+    try {
+      for (const [sId, path] of Object.entries(pathMap)) {
+        await handleApproveGateStudent(sId, path);
+      }
+      toast.success('כל התלמידים הממתינים אושרו בהצלחה למפגש 3! 🚀');
+    } catch (err) {
+      console.error('[TeacherDashboard] Batch gate approval error:', err);
+      toast.error('שגיאה באישור הקבוצתי.');
+    } finally {
+      setIsApprovingGate(false);
     }
   };
 
@@ -1779,16 +1935,15 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
         )}
 
         {activeTab === "approvals" && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <header className="mb-10">
-              <h1 className="text-4xl font-black bg-gradient-to-l from-slate-900 to-slate-600 dark:from-white dark:to-slate-400 bg-clip-text text-transparent tracking-tight">
-                שער אישור מחזורי (<span dir="ltr">Recurring Teacher Gate</span>)
-              </h1>
-              <p className="text-ws-soft  mt-3 text-lg">
-                אישור הפלט הדיאגנוסטי של ה-AI (מאקרו ומיקרו) כדי להתיר (Unlock) את שיעורי ההמשך (3-7).
-              </p>
-            </header>
-            
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col gap-8">
+            {/* Module 20: Canonical Zero-PII Teacher Approval Gate (WP6 Firestore & RTDB Sync) */}
+            <TeacherApprovalGate
+              students={gateStudentItems}
+              onApproveStudent={handleApproveGateStudent}
+              onApproveAll={handleBatchApproveAll}
+              isLoading={isApprovingGate}
+            />
+
             <div className="flex flex-col gap-6">
               {pendingRouteStudents.length === 0 ? (
                 <div className="text-center py-20 text-ws-soft bg-ws-surface/50 backdrop-blur-md rounded-2xl border-2 border-dashed border-ws-surface2 shadow-sm">

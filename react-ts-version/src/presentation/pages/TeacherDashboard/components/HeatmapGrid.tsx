@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { ref, onValue, update } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
 import { normalizeStudentId } from '@/application/useChatStore';
+import { toast } from 'sonner';
 import { 
   Activity, 
   AlertTriangle, 
@@ -11,6 +12,65 @@ import {
   Users
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+
+export type RadarStatusColor = 'RED' | 'GREY' | 'YELLOW' | 'GREEN';
+
+export function computeStudentRadarColor(
+  student: any | undefined,
+  now = Date.now(),
+  presenceTimeoutMs = 15000
+): { color: RadarStatusColor; statusText: string; isOnline: boolean } {
+  if (!student) {
+    return { color: 'GREY', statusText: 'טרם החל', isOnline: false };
+  }
+
+  const lastActivity = student.lastActivityTimestamp || student.lastPing || 0;
+  if (lastActivity === 0) {
+    return { color: 'GREY', statusText: 'טרם החל', isOnline: false };
+  }
+
+  const isOnline = now - lastActivity <= presenceTimeoutMs;
+
+  const errors = student.consecutiveErrors || student.errorCount || 0;
+  const hesitation = student.hesitationSeconds || student.hesitation_seconds || 0;
+  const isHelpActive = Boolean(student.hasRequestedBasicHelp || student.scaffoldLevel);
+  const isPassiveDrifting = Boolean(student.isPassiveDrifting || student.passive_drifting);
+
+  // Strict priority order: RED > GREY > YELLOW > GREEN
+  // 1. RED: Severe cognitive difficulty, passive drifting, or consecutive errors >= 3
+  if (errors >= 3 || isPassiveDrifting || student.hasActiveFriction) {
+    return {
+      color: 'RED',
+      statusText: errors >= 3 ? `${errors} שגיאות רצופות` : 'קושי קוגניטיבי ממושך',
+      isOnline,
+    };
+  }
+
+  // 2. GREY: Offline / disconnected (>15s presence timeout)
+  if (!isOnline) {
+    return {
+      color: 'GREY',
+      statusText: 'לא מחובר (מעל 15 שנ׳)',
+      isOnline: false,
+    };
+  }
+
+  // 3. YELLOW: Hesitation (>30s) or active scaffolding/help
+  if (hesitation >= 30 || isHelpActive) {
+    return {
+      color: 'YELLOW',
+      statusText: hesitation >= 30 ? `היסוס (${hesitation} שניות)` : 'נעזר בפיגום פדגוגי',
+      isOnline: true,
+    };
+  }
+
+  // 4. GREEN: On track / solving normally
+  return {
+    color: 'GREEN',
+    statusText: 'התקדמות תקינה',
+    isOnline: true,
+  };
+}
 
 export interface AnonymousStudent {
   id: string; // e.g. "student_1"
@@ -211,16 +271,15 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
         physicalOverrideActive: newOverrideState,
         isBoardLocked: false,
       };
-      await update(ref(database, `users/students/${student.id}`), studentPayload).catch(() => {});
+      await update(ref(database, `users/students/${student.id}`), studentPayload);
       if (normId !== student.id) {
-        await update(ref(database, `users/students/${normId}`), studentPayload).catch(() => {});
+        await update(ref(database, `users/students/${normId}`), studentPayload).catch((err) => {
+          console.warn('Mirror to normalized studentId notice:', err);
+        });
       }
-      await update(ref(database, `sessions/${student.id}`), {
-        physical_override: newOverrideState,
-        status: updatedStatus,
-      }).catch(() => {});
     } catch (e) {
       console.error('Failed to sync VRA support override to Firebase:', e);
+      toast.error('שגיאה בעדכון עקיפת תמיכה לתלמיד בשרת.');
     }
   };
 

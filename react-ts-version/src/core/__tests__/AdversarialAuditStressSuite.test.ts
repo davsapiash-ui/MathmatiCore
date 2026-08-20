@@ -189,7 +189,7 @@ describe('Master PRD v4.0 — Adversarial Audit & Stress Test Suite (R1-R5)', ()
         // Populate Admin Store
         useAdminStore.setState({
           schools: [{ id: 'sch_1', name: 'בית ספר ניסויי', createdAt: Date.now() }],
-          teachers: [{ id: 't_1', schoolId: 'sch_1', taz: '039604483', dob: '290984', name: 'דוד', licenseActive: true, createdAt: Date.now() }],
+          teachers: [{ id: 't_1', schoolId: 'sch_1', ssoEmail: 'davidsep@edu-haifa.org.il', dob: '290984', name: 'דוד', licenseActive: true, createdAt: Date.now() }],
           classes: [{ id: 'c_1', schoolId: 'sch_1', teacherId: 't_1', name: 'כיתה א', studentLimit: 12, createdAt: Date.now() }],
         });
 

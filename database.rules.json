@@ -49,8 +49,8 @@
     "chat_messages": {
       ".read": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.role == 'admin' || auth.token.role == 'ADMIN')",
       "$roomId": {
-        ".read": "auth != null && (auth.token.student_id == $roomId || 'student_user' + auth.token.student_id == $roomId || 'student_' + auth.token.student_id == $roomId || '' + auth.token.student_id == $roomId || auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.role == 'admin' || auth.token.role == 'ADMIN')",
-        ".write": "auth != null && (auth.token.student_id == $roomId || 'student_user' + auth.token.student_id == $roomId || 'student_' + auth.token.student_id == $roomId || '' + auth.token.student_id == $roomId || auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.role == 'admin' || auth.token.role == 'ADMIN')"
+        ".read": "auth != null && (auth.uid == $roomId || auth.token.student_id == $roomId || 'student_user' + auth.token.student_id == $roomId || 'student_' + auth.token.student_id == $roomId || '' + auth.token.student_id == $roomId || auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.role == 'admin' || auth.token.role == 'ADMIN')",
+        ".write": "auth != null && (auth.uid == $roomId || auth.token.student_id == $roomId || 'student_user' + auth.token.student_id == $roomId || 'student_' + auth.token.student_id == $roomId || '' + auth.token.student_id == $roomId || auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.role == 'admin' || auth.token.role == 'ADMIN')"
       }
     },
     "system_control": {

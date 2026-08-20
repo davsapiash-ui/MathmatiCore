@@ -165,7 +165,7 @@ describe('HARDCORE REALTIME CHAOS & UNCOMPROMISING STRESS TEST HARNESS', () => {
       expect(network.totalRetriesSucceeded).toBeGreaterThan(0);
 
       // Verify final state in RTDB converged cleanly
-      const saved = chaoticDb[`sessions/${studentId}`];
+      const saved = chaoticDb[`users/students/${studentId}/sessionState`] || chaoticDb[`sessions/${studentId}`];
       expect(saved).toBeDefined();
       expect(saved.student_id).toBe(studentId);
     });

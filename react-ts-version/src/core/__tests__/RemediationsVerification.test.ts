@@ -58,7 +58,7 @@ describe('Remediations Verification Suite (R1 - R5)', () => {
 
       useAdminStore.setState({
         schools: [{ id: 's1', name: 'School 1', createdAt: 100 }],
-        teachers: [{ id: 't1', schoolId: 's1', taz: '000000000', dob: '010190', name: 'T1', licenseActive: false, createdAt: 100 }],
+        teachers: [{ id: 't1', schoolId: 's1', ssoEmail: 'teacher.demo@edu-haifa.org.il', dob: '010190', name: 'T1', licenseActive: false, createdAt: 100 }],
         classes: [{ id: 'c1', schoolId: 's1', teacherId: 't1', name: 'Class 1', studentLimit: 12, createdAt: 100 }],
       });
 
