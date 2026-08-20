@@ -6,7 +6,8 @@ import { useStore } from '@/application/useStore';
 import { useChatStore, normalizeStudentId } from '@/application/useChatStore';
 import { TASKS } from '@/core/QMatrix';
 import { ProgressDots } from './ProgressDots';
-import { RotateCcw, Home, LogOut, MessageSquare, ArrowLeft, Cloud, CloudOff, Eye, EyeOff } from 'lucide-react';
+import { RotateCcw, Home, MessageSquare, ArrowLeft, Cloud, CloudOff, Eye, EyeOff } from 'lucide-react';
+import { LogoutButton } from '@/presentation/components/ui/LogoutButton';
 
 /**
  * הסרגל העליון של מרחב הפעילות — ניווט לינארי בלבד (הבא/בטל), ללא תפריטים.
@@ -65,7 +66,15 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
           <span className="text-xs font-bold text-ws-soft">מרחב חקר אישי</span>
         </div>
 
-
+        {/* Module 1 & 6: Zero-PII Student Identity Badge */}
+        <div className="flex items-center gap-2 bg-indigo-50/90 dark:bg-indigo-950/50 border border-indigo-200/80 dark:border-indigo-800/80 px-3 py-1.5 rounded-xl shadow-xs">
+          <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-indigo-500 to-purple-600 text-white flex items-center justify-center font-black text-xs">
+            {user?.student_id || (user?.uid ? user.uid.replace(/\D/g, '') : '1') || '1'}
+          </div>
+          <span className="text-xs font-black text-indigo-950 dark:text-indigo-200">
+            תלמיד {user?.student_id || (user?.uid ? user.uid.replace(/\D/g, '') : '1') || '1'}
+          </span>
+        </div>
 
         {/* Module 17: Silent Cloud Status Icon (Green=Online, Grey=Offline) */}
         <div className="flex items-center mr-1" title={isOnline ? 'מחובר לסנכרון ענן (Online)' : 'מצב לא מקוון - הנתונים נשמרים מקומית ויסונכרנו אוטומטית (Offline)'}>
@@ -106,55 +115,48 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
         {sessionNumber !== 8 && (
           <button
             onClick={toggleBoard}
-            className={`h-12 px-4 sm:px-5 rounded-2xl text-sm font-bold border-2 active:scale-95 transition-all flex items-center gap-2 shadow-sm cursor-pointer ${
+            className={`h-12 px-4 rounded-2xl text-sm font-bold transition-all cursor-pointer flex items-center gap-1.5 border shadow-sm active:scale-95 ${
               boardOpen 
-                ? 'text-ws-blue border-ws-blue/40 bg-ws-blue/5 hover:bg-ws-blue/10'
-                : 'text-white bg-ws-blue border-ws-blue hover:brightness-110 shadow-md'
+                ? 'bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-950/40 dark:border-indigo-800 dark:text-indigo-300' 
+                : 'bg-ws-surface2/60 border-ws-surface2 text-ws-ink hover:bg-ws-surface2'
             }`}
-            aria-label={boardOpen ? 'הסתר בית המספרים' : 'הצג בית המספרים'}
-            title={boardOpen ? 'הסתרת בית המספרים והגדלת שטח המשימה' : 'הצגת בית המספרים וארגז הכלים'}
+            aria-label={boardOpen ? "הסתר לוח עבודה" : "הצג לוח עבודה"}
+            title={boardOpen ? "הסתר את לוח העבודה והבלוקים" : "הצג את לוח העבודה והבלוקים"}
           >
             {boardOpen ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            <span className="hidden sm:inline">{boardOpen ? 'הסתר לוח' : 'הצג לוח'}</span>
+            <span className="hidden sm:inline">{boardOpen ? "הסתר לוח" : "הצג לוח"}</span>
           </button>
         )}
 
-        {globalChatEnabled && (() => {
-          const normUid = normalizeStudentId(user?.uid || '');
-          const unreadStudentChatCount = messages.filter(
-            (m) => normalizeStudentId(m.receiverId) === normUid && !m.read
-          ).length;
-
-          return (
-            <button
-              onClick={() => document.dispatchEvent(new CustomEvent('toggle-chat'))}
-              className={`h-12 px-4 rounded-2xl text-sm font-bold border hover:shadow-md active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer relative ${
-                unreadStudentChatCount > 0
-                  ? 'bg-rose-50 border-rose-400 text-rose-600 shadow-sm animate-pulse ring-2 ring-rose-300'
-                  : 'text-ws-accent bg-ws-surface border-ws-accent/20 hover:border-ws-accent/50'
-              }`}
-              title="צ'אט עם המורה"
-              aria-label="צ'אט עם המורה"
-            >
-              <MessageSquare className="w-4 h-4" />
-              <span className="hidden sm:inline">צ'אט</span>
-              {unreadStudentChatCount > 0 && (
-                <span className="bg-rose-500 text-white text-[11px] font-black px-1.5 py-0.5 rounded-full shadow-md">
-                  {unreadStudentChatCount}
-                </span>
-              )}
-            </button>
-          );
-        })()}
-
+        {/* Home / Lobby */}
         <button
           onClick={() => navigate('/hub')}
-          className="h-12 px-4 rounded-2xl text-sm font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 hover:scale-105 active:scale-95 transition-all shadow-sm flex items-center gap-1.5 cursor-pointer border border-slate-200/80"
-          aria-label="חזרה ללובי התלמיד"
+          className="h-12 px-4 rounded-2xl text-sm font-bold text-ws-ink bg-ws-surface2 hover:bg-ws-surface2/80 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5"
+          aria-label="חזרה לדף הבית"
           title="חזרה ללובי הראשי"
         >
-          <Home className="w-4 h-4 text-slate-500" />
-          <span className="hidden sm:inline font-bold">לובי</span>
+          <Home className="w-4 h-4" />
+          <span className="hidden sm:inline">בית</span>
+        </button>
+
+        {/* Chat Drawer Toggle (Module 22) */}
+        <button
+          id="chat-toggle-button"
+          onClick={() => document.dispatchEvent(new CustomEvent('toggle-chat'))}
+          disabled={!globalChatEnabled}
+          className={`h-12 px-4 rounded-2xl text-sm font-bold active:scale-95 transition-all flex items-center gap-1.5 relative border shadow-sm ${
+            !globalChatEnabled
+              ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed opacity-60'
+              : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 hover:text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 cursor-pointer'
+          }`}
+          aria-label={globalChatEnabled ? "פתח ערוץ שיח" : "הצ'אט מושבת זמנית"}
+          title={globalChatEnabled ? "פתיחת צ'אט מול המורה" : "הצ'אט הושבת על ידי המורה"}
+        >
+          <MessageSquare className="w-4 h-4" />
+          <span className="hidden sm:inline">צ'אט</span>
+          {messages.filter(m => !m.read && normalizeStudentId(m.receiverId) === normalizeStudentId(user?.uid || '')).length > 0 && (
+            <span className="w-2.5 h-2.5 rounded-full bg-rose-500 absolute -top-1 -right-1 animate-pulse" />
+          )}
         </button>
 
         <button
@@ -168,20 +170,8 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
           <ArrowLeft className="w-5 h-5" />
         </button>
 
-        <div className="w-px h-6 bg-ws-surface2" />
-
-        <button
-          onClick={() => {
-            logout();
-            window.location.href = '/login';
-          }}
-          className="h-12 px-4 rounded-2xl text-sm font-bold text-ws-soft hover:text-red-600 hover:bg-red-50 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5"
-          aria-label="התנתק"
-          title="התנתקות מהמערכת"
-        >
-          <LogOut className="w-4 h-4" />
-          <span className="hidden sm:inline">יציאה</span>
-        </button>
+        {/* Module 1: Clean Synchronous Logout */}
+        <LogoutButton className="h-12 px-3 rounded-2xl text-xs sm:text-sm font-bold text-ws-soft hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 border border-transparent hover:border-red-200" />
       </div>
     </nav>
   );
