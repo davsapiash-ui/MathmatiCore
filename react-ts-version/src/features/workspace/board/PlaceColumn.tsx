@@ -19,7 +19,6 @@ export function PlaceColumn({ place }: { place: Place }) {
   const errorNonce = useWorkspaceStore((s) => s.errorNonce);
   const focusedPlace = useWorkspaceStore((s) => s.focusedPlace);
   const isASD = useWorkspaceStore((s) => s.isASD);
-  const splitBlockClick = useWorkspaceStore((s) => s.splitBlockClick);
   const groupColumnClick = useWorkspaceStore((s) => s.groupColumnClick);
   const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
 
@@ -132,11 +131,6 @@ export function PlaceColumn({ place }: { place: Place }) {
                 place={place} 
                 source="column"
                 noEnter={i < renderCount - 1}
-                onClick={() => {
-                  if (place !== 'units') {
-                    splitBlockClick(place);
-                  }
-                }} 
               />
             </div>
           ))}
