@@ -26,7 +26,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { Send, MessageCircle, ShieldAlert, Sliders, Search, CheckCheck } from "lucide-react";
+import { Send, MessageCircle, ShieldAlert, Sliders, Search, Check, CheckCheck } from "lucide-react";
 
 import { ClassManagement } from "./TeacherDashboard/ClassManagement";
 import { StudentReplayAndLogs } from "./TeacherDashboard/components/StudentReplayAndLogs";
@@ -2159,7 +2159,13 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                             minute: "2-digit",
                           })}
                         </span>
-                        {isMe && <CheckCheck className={`w-3 h-3 ${msg.read ? 'text-emerald-500' : 'opacity-60'}`} />}
+                        {isMe && (
+                          msg.read ? (
+                            <span title="נקרא על ידי הנהלה"><CheckCheck className="w-3.5 h-3.5 text-emerald-500" /></span>
+                          ) : (
+                            <span title="נשלח בהצלחה"><Check className="w-3.5 h-3.5 text-slate-400" /></span>
+                          )
+                        )}
                       </div>
                     </div>
                   );
@@ -2352,7 +2358,13 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                   minute: "2-digit",
                                 })}
                               </span>
-                              {isMe && <CheckCheck className={`w-3 h-3 ${msg.read ? 'text-emerald-500' : 'opacity-60'}`} />}
+                              {isMe && (
+                                msg.read ? (
+                                  <span title="נקרא על ידי התלמיד"><CheckCheck className="w-3.5 h-3.5 text-emerald-500" /></span>
+                                ) : (
+                                  <span title="נשלח בהצלחה"><Check className="w-3.5 h-3.5 text-slate-400" /></span>
+                                )
+                              )}
                             </div>
                           </div>
                         );

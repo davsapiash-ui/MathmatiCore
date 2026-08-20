@@ -5,7 +5,7 @@ import { useStore } from '@/application/useStore';
 import { useAdminStore } from '@/application/useAdminStore';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
-import { BellRing } from 'lucide-react';
+import { BellRing, Check, CheckCheck } from 'lucide-react';
 import { ref, runTransaction, set as firebaseSet } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
 
@@ -38,8 +38,11 @@ export function StudentChatOverlay() {
   useEffect(() => {
     if (isOpen && user?.uid) {
       markAsRead(normUid, targetTeacherId);
+      // Also mark as read in general room
+      markAsRead(normUid, 'teacher');
+      markAsRead(normUid, 'admin');
     }
-  }, [isOpen, user?.uid, markAsRead, normUid, targetTeacherId]);
+  }, [isOpen, user?.uid, messages, markAsRead, normUid, targetTeacherId]);
 
   useEffect(() => {
     if (messagesEndRef.current && isOpen) {
@@ -127,9 +130,18 @@ export function StudentChatOverlay() {
                 <div className={`p-3 rounded-2xl ${isMe ? 'bg-ws-accent text-white rounded-tr-sm' : 'bg-ws-surface2 text-ws-ink rounded-tl-sm'}`}>
                   {m.text && <span className="leading-relaxed">{m.text}</span>}
                 </div>
-                <span className="text-xs text-ws-soft mt-1">
-                  {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
+                <div className="flex items-center gap-1.5 text-[11px] text-ws-soft mt-1">
+                  <span>
+                    {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                  {isMe && (
+                    m.read ? (
+                      <span title="נקרא על ידי המורה"><CheckCheck className="w-3.5 h-3.5 text-emerald-500" /></span>
+                    ) : (
+                      <span title="נשלח בהצלחה"><Check className="w-3.5 h-3.5 text-slate-400" /></span>
+                    )
+                  )}
+                </div>
               </div>
             );
           })

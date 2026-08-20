@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useWorkspaceStore, selectCanProceed, getActiveTasks } from '@/application/useWorkspaceStore';
 import { useStore } from '@/application/useStore';
+import { useChatStore, normalizeStudentId } from '@/application/useChatStore';
 import { TASKS } from '@/core/QMatrix';
 import { ProgressDots } from './ProgressDots';
 import { RotateCcw, Home, LogOut, MessageSquare, ArrowLeft, Cloud, CloudOff, Eye, EyeOff } from 'lucide-react';
@@ -46,6 +47,7 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
   const proceed = useWorkspaceStore((s) => s.proceed);
   const toggleBoard = useWorkspaceStore((s) => s.toggleBoard);
   const globalChatEnabled = useStore((s) => s.globalChatEnabled);
+  const messages = useChatStore((s) => s.messages);
 
   const activeTaskCount = useWorkspaceStore((s) => getActiveTasks(s).length);
   const totalTasks = sessionNumber === 2 ? TASKS.length : activeTaskCount;
@@ -117,16 +119,33 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
           </button>
         )}
 
-        {globalChatEnabled && (
-          <button
-            onClick={() => document.dispatchEvent(new CustomEvent('toggle-chat'))}
-            className="h-12 px-4 rounded-2xl text-sm font-bold text-ws-accent bg-ws-surface border border-ws-accent/20 hover:border-ws-accent/50 hover:shadow-md active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
-            title="צ'אט עם המורה"
-          >
-            <MessageSquare className="w-4 h-4" />
-            <span className="hidden sm:inline">צ'אט</span>
-          </button>
-        )}
+        {globalChatEnabled && (() => {
+          const normUid = normalizeStudentId(user?.uid || '');
+          const unreadStudentChatCount = messages.filter(
+            (m) => normalizeStudentId(m.receiverId) === normUid && !m.read
+          ).length;
+
+          return (
+            <button
+              onClick={() => document.dispatchEvent(new CustomEvent('toggle-chat'))}
+              className={`h-12 px-4 rounded-2xl text-sm font-bold border hover:shadow-md active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer relative ${
+                unreadStudentChatCount > 0
+                  ? 'bg-rose-50 border-rose-400 text-rose-600 shadow-sm animate-pulse ring-2 ring-rose-300'
+                  : 'text-ws-accent bg-ws-surface border-ws-accent/20 hover:border-ws-accent/50'
+              }`}
+              title="צ'אט עם המורה"
+              aria-label="צ'אט עם המורה"
+            >
+              <MessageSquare className="w-4 h-4" />
+              <span className="hidden sm:inline">צ'אט</span>
+              {unreadStudentChatCount > 0 && (
+                <span className="bg-rose-500 text-white text-[11px] font-black px-1.5 py-0.5 rounded-full shadow-md">
+                  {unreadStudentChatCount}
+                </span>
+              )}
+            </button>
+          );
+        })()}
 
         <button
           onClick={() => navigate('/hub')}
