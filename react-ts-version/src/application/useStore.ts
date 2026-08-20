@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { ref, onValue, update, get, remove, set } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
-import { normalizeStudentId } from '@/application/useChatStore';
+import { useChatStore, normalizeStudentId } from '@/application/useChatStore';
 
 import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
 import type { MasteryProfile } from '@/core/QMatrix';
