@@ -165,70 +165,10 @@ export function ClassManagement({
 
   const handleResetClassToVirginState = async () => {
     setIsResetting(true);
+    setResetFeedback(null);
+
     try {
-      const updates: Record<string, any> = {};
-      for (let i = 1; i <= 12; i++) {
-        const studentPayload = {
-          studentId: `student_user${i}`,
-          name: `תלמיד ${i}`,
-          isOnline: false,
-          onlineStatus: 'offline',
-          currentTaskIdx: 0,
-          activeStep: 1,
-          routeStatus: 'GREEN_PATH',
-          routeRecommendation: null,
-          difficultyRecommendation: 'standard',
-          highestCompletedMeeting: 0,
-          completedMeeting2: false,
-          teacher_gate_approved: false,
-          enhanced_support_profile: false,
-          physicalOverride: false,
-          physicalOverrideActive: false,
-          radar_history: null,
-          diagnosticReport: null,
-          qMatrixResults: null,
-          conceptMastery: null,
-          reflections: null,
-          traceData: { hesitation_events: 0, undo_clicks: 0, semantic_trace: [] },
-          forceReload: true,
-          lastAction: 'איפוס כיתה מלא ע״י המורה',
-          lastActivityTimestamp: Date.now(),
-          workspaceState: {
-            sessionNumber: 1,
-            isASD: false,
-            standardTaskIdx: 0,
-            counts: { units: 0, tens: 0, hundreds: 0, thousands: 0 },
-            undoCount: 0,
-            hesitationCount: 0,
-            hasInteracted: false,
-            flowStatus: 'task'
-          }
-        };
-
-        updates[`users/students/student_${i}`] = studentPayload;
-        updates[`users/students/student_user${i}`] = studentPayload;
-        updates[`users/students/${i}`] = studentPayload;
-        updates[`students/student_${i}`] = studentPayload;
-        updates[`students/student_user${i}`] = studentPayload;
-      }
-
-      await update(ref(database), updates);
-
-      // Clear radar_alerts and chat_messages
-      try {
-        const alertsSnap = await get(ref(database, 'radar_alerts'));
-        if (alertsSnap.exists()) {
-          const rawAlerts = alertsSnap.val() || {};
-          for (const key of Object.keys(rawAlerts)) {
-            await remove(ref(database, `radar_alerts/${key}`)).catch(() => {});
-          }
-        }
-        await remove(ref(database, 'chat_messages')).catch(() => {});
-        useChatStore.getState().clearAllMessages();
-      } catch (err) {
-        console.warn('Could not clear radar alerts or chat during full class reset:', err);
-      }
-
+      await useStore.getState().resetEntireSystemUsageData();
       setResetFeedback('✓ כל נתוני כיתת הביקורת אופסו בהצלחה לאפס מוחלט!');
       setTimeout(() => setResetFeedback(null), 5000);
     } catch (err) {

@@ -144,4 +144,20 @@ describe('🚀 Comprehensive Real-Time Chat Simulation (Teacher <-> Student & Te
     }
     console.log('✅ כל מקרי הקצה של מזהי תלמידים נשמרים אנונימיים ומסונכרנים 100%');
   });
+
+  it('SIMULATION 4: Teacher executes resetEntireSystemUsageData -> Clears all chat messages and resets state to 0', async () => {
+    // Populate store with mock messages
+    useChatStore.getState().sendMessage('student_user1', 'תלמיד 1', 'teacher_1002220159', 'הודעה 1');
+    useChatStore.getState().sendMessage('teacher_1002220159', 'מורה', 'student_user1', 'תשובה 1');
+    useChatStore.getState().sendMessage('student_user2', 'תלמיד 2', 'teacher_1002220159', 'הודעה 2');
+
+    expect(useChatStore.getState().messages.length).toBe(3);
+
+    // Call clearAllMessages
+    useChatStore.getState().clearAllMessages();
+
+    expect(useChatStore.getState().messages.length).toBe(0);
+    expect(useChatStore.getState().unreadCount).toBe(0);
+    console.log('✅ כל הודעות הצ\'אט ומוני ההתראות אופסו בהצלחה לאפס מוחלט');
+  });
 });

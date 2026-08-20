@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { useChatStore, normalizeStudentId } from '@/application/useChatStore';
+import { useChatStore, normalizeStudentId, isTeacherOrAdminId } from '@/application/useChatStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useStore } from '@/application/useStore';
 import { useAdminStore } from '@/application/useAdminStore';
@@ -26,10 +26,12 @@ export function StudentChatOverlay() {
   const studentClass = classes.find(c => c.id === studentData?.classId);
   const targetTeacherId = studentClass?.teacherId || activeSession?.teacherId || '1002220159';
 
-  // Ensure chat is synced with Firebase on mount
+  // Ensure chat is synced with Firebase on mount and on user authentication change
   useEffect(() => {
-    initSync();
-  }, [initSync]);
+    if (user?.uid) {
+      initSync();
+    }
+  }, [initSync, user?.uid]);
 
   useEffect(() => {
     const handleToggle = () => setIsOpen(prev => !prev);
@@ -54,8 +56,13 @@ export function StudentChatOverlay() {
 
   if (!user) return null;
 
+  // In the student's room, display all synchronized messages between student and staff
   const myMessages = messages.filter(m => 
-    normalizeStudentId(m.receiverId) === normUid || normalizeStudentId(m.senderId) === normUid
+    !m.receiverId || 
+    normalizeStudentId(m.receiverId) === normUid || 
+    normalizeStudentId(m.senderId) === normUid ||
+    isTeacherOrAdminId(m.senderId) ||
+    isTeacherOrAdminId(m.receiverId)
   );
 
   const handleSend = () => {

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { ref, onValue, update, get, remove, set } from 'firebase/database';
+import { ref, onValue, update, get, remove, set as fbSet } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
 import { useChatStore, normalizeStudentId } from '@/application/useChatStore';
 
@@ -697,6 +697,44 @@ export const useStore = create<AppState>()(
         const cleanStudents: Record<string, StudentData> = {};
         const rootUpdates: Record<string, any> = {};
 
+        // 1. Explicitly remove chat messages in RTDB
+        try {
+          await remove(ref(database, 'chat_messages')).catch(() => {});
+          for (let i = 1; i <= 12; i++) {
+            await remove(ref(database, `chat_messages/student_user${i}`)).catch(() => {});
+            await remove(ref(database, `chat_messages/student_${i}`)).catch(() => {});
+            await remove(ref(database, `chat_messages/${i}`)).catch(() => {});
+          }
+          await remove(ref(database, 'chat_messages/admin')).catch(() => {});
+          await remove(ref(database, 'chat_messages/teacher')).catch(() => {});
+          await remove(ref(database, 'chat_messages/1002220159')).catch(() => {});
+          await remove(ref(database, 'chat_messages/teacher_1002220159')).catch(() => {});
+        } catch (e) {
+          console.warn('Error clearing chat messages node:', e);
+        }
+
+        // 2. Explicitly remove radar alerts in RTDB
+        try {
+          await remove(ref(database, 'radar_alerts')).catch(() => {});
+          const alertsSnap = await get(ref(database, 'radar_alerts')).catch(() => null);
+          if (alertsSnap && alertsSnap.exists()) {
+            const rawAlerts = alertsSnap.val() || {};
+            for (const key of Object.keys(rawAlerts)) {
+              await remove(ref(database, `radar_alerts/${key}`)).catch(() => {});
+            }
+          }
+        } catch (e) {
+          console.warn('Error clearing radar alerts node:', e);
+        }
+
+        // 3. Reset active session state
+        try {
+          await fbSet(ref(database, 'active_class_session'), { active: false, sessionNumber: null, timestamp: Date.now() }).catch(() => {});
+        } catch (e) {
+          console.warn('Error resetting active_class_session:', e);
+        }
+
+        // 4. Reset students
         for (let i = 1; i <= 12; i++) {
           const normId = `student_user${i}`;
           const defaultName = `תלמיד ${i}`;
@@ -773,17 +811,13 @@ export const useStore = create<AppState>()(
           rootUpdates[`students/${normId}`] = payload;
         }
 
-        rootUpdates['chat_messages'] = null;
-        rootUpdates['radar_alerts'] = null;
-        rootUpdates['active_class_session'] = { active: false, sessionNumber: null, timestamp: Date.now() };
-
         set({ students: cleanStudents });
         useChatStore.getState().clearAllMessages();
 
         try {
           await update(ref(database), rootUpdates);
         } catch (e) {
-          console.error("Failed to batch clean usage data in Firebase:", e);
+          console.error("Failed to batch clean student data in Firebase:", e);
         }
       }
     })
