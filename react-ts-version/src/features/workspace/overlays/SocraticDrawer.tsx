@@ -56,7 +56,7 @@ export function SocraticDrawer({ isOpen, onClose }: SocraticDrawerProps) {
     if (isCorrect) {
       setFeedbackMsg({
         isCorrect: true,
-        text: 'מצוין! זו בדיוק הדרך להמשיך. יישמו זאת בבית המספרים!',
+        text: 'מצוין! זו בדיוק הדרך. בואו ננסה זאת עכשיו בבית המספרים!',
       });
       setTimeout(() => {
         handleClose();
@@ -64,9 +64,9 @@ export function SocraticDrawer({ isOpen, onClose }: SocraticDrawerProps) {
     } else {
       setFeedbackMsg({
         isCorrect: false,
-        text: 'בחירה זו אינה מובילה לפתרון. חשבו שוב מה נדרש בבית המספרים ונסו שוב בתום הנעילה.',
+        text: 'בחירה זו אינה מתאימה. קחו רגע קצר לחשוב על בית המספרים, ותוכלו לנסות שוב בעוד מספר שניות.',
       });
-      triggerSocraticPenaltyLockout('בחירה שגויה בכרטיס סוקרטי — נעילה למשך 30 שניות');
+      triggerSocraticPenaltyLockout('בחירה שגויה בכרטיס סוקרטי — השהיית חשיבה למשך 30 שניות');
     }
   };
 
@@ -120,14 +120,14 @@ export function SocraticDrawer({ isOpen, onClose }: SocraticDrawerProps) {
                 </button>
               </div>
 
-              {/* 60s Lockout Warning on Socratic Choices */}
+              {/* Serene 30s Reflection & Exploration Notice */}
               {(isSocraticCardLocked || remainingSeconds > 0) && (
-                <div className="mt-4 p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 text-rose-700 dark:text-rose-300 flex items-center gap-3">
-                  <Clock className="w-6 h-6 shrink-0 animate-spin" />
+                <div className="mt-4 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-800 dark:text-amber-200 flex items-center gap-3">
+                  <Clock className="w-6 h-6 shrink-0 text-amber-600 animate-spin" />
                   <div>
-                    <p className="font-extrabold text-sm">הכרטיס נעול למשך {remainingSeconds} שניות</p>
-                    <p className="text-xs text-rose-600/80 dark:text-rose-400/80">
-                      {socraticDistractorHint || 'הקדישו זמן לחשיבה על הבעיה לפני ניסיון נוסף.'}
+                    <p className="font-extrabold text-sm">רגע לחשיבה: הכרטיס יתחדש בעוד {remainingSeconds} שניות</p>
+                    <p className="text-xs text-amber-700/80 dark:text-amber-300/80">
+                      {socraticDistractorHint || 'קחו רגע לחקור את הלבנים בלוח ולחשוב על הצעד הבא.'}
                     </p>
                   </div>
                 </div>

@@ -193,9 +193,8 @@ export const initStoreSubscriptions = (): (() => void) => {
             isASD: row.isASD !== undefined ? row.isASD : prev.isASD,
             physicalOverride: Boolean(row.physicalOverride ?? prev.physicalOverride ?? false),
             physicalOverrideActive: Boolean(row.physicalOverrideActive ?? prev.physicalOverrideActive ?? false),
-            overrideUpdatedAt: row.overrideUpdatedAt || prev.overrideUpdatedAt,
             diagnosticReport: row.diagnosticReport || prev.diagnosticReport || null,
-            isOnline: row.isOnline !== undefined ? Boolean(row.isOnline) : (row.onlineStatus === 'active' ? true : Boolean(prev.isOnline)),
+            isOnline: Boolean(row.isOnline === true && row.lastPing && (Date.now() - row.lastPing <= 15000)),
             qMatrixResults: {
               ...(prev.qMatrixResults || {}),
               ...(row.qMatrixResults || {})
@@ -773,6 +772,8 @@ export const useStore = create<AppState>()(
             classId: 'class_1',
             isOnline: false,
             onlineStatus: 'offline',
+            hasJoinedSession: false,
+            sessionJoined: false,
             currentTaskIdx: 0,
             activeStep: 1,
             routeStatus: 'GREEN_PATH',

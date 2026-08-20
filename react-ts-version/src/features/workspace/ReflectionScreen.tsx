@@ -23,15 +23,15 @@ const EFFORT_OPTIONS = [
 ] as const;
 
 const STRATEGY_OPTIONS = [
-  { id: 'undo', icon: '↩️', nameHe: 'כפתור ביטול פעולה (Undo)', descHe: 'עצרתי לבדוק את עצמי, ביטלתי פעולה וניסיתי דרך חלופית' },
+  { id: 'undo', icon: '↩️', nameHe: 'כפתור ביטול פעולה (חזרה אחורה)', descHe: 'עצרתי לבדוק את עצמי, ביטלתי פעולה וניסיתי דרך חלופית' },
   { id: 'memory_circles', icon: '🟣', nameHe: 'עיגולי הזיכרון', descHe: 'השתמשתי בעיגולי הזיכרון בראש הטור כדי לשמור את ספרת ההמרה' },
   { id: 'socratic_hints', icon: '💡', nameHe: 'שאלות החונך הדיגיטלי', descHe: 'נעזרתי בשאלות המנחות של כרטיס החניכה כדי לחקור את מקור הקושי' },
 ] as const;
 
 const EFFORT_FEEDBACK: Record<number, { emoji: string; text: string; sub: string }> = {
-  1: { emoji: '💛', text: 'עבודה טובה ונעימה!', sub: 'כל יום של התנסות מקדם אותנו צעד נוסף בהבנה המתמטית.' },
-  2: { emoji: '⭐', text: 'הייתה עבודה מצוינת היום!', sub: 'השקעתם מחשבה ופתרתם את המשימות בסבלנות ובהבנה.' },
-  3: { emoji: '🌟', text: 'התאמצתם והתמדתם — כל הכבוד!', sub: 'הכוח שלכם הוא בהתמדה ובניסיון החוזר. זהו תהליך למידה אמיתי!' },
+  1: { emoji: '💛', text: 'עבודה טובה ונעימה!', sub: 'כל יום של התנסות מקדם אותך צעד נוסף בהבנה המתמטית.' },
+  2: { emoji: '⭐', text: 'הייתה עבודה מצוינת היום!', sub: 'השקעת מחשבה רבה ופתרת את המשימות בסבלנות ובהבנה.' },
+  3: { emoji: '🌟', text: 'התאמצת והתמדת — כל הכבוד!', sub: 'הכוח שלך הוא בהתמדה ובניסיון החוזר. זהו תהליך למידה אמיתי!' },
 };
 
 export function ReflectionScreen() {
@@ -146,12 +146,12 @@ export function ReflectionScreen() {
         aria-label="לוח רפלקציה על המפגש"
       >
         <h1 className="font-display font-black text-3xl text-ws-ink mb-1">סיום מפגש הלמידה 🎉</h1>
-        <p className="text-ws-soft font-medium mb-7">סיימתם בהצלחה את כל משימות המפגש. בואו נחשוב יחד על דרך העבודה שלכם.</p>
+        <p className="text-ws-soft font-medium mb-7">סיימת בהצלחה את כל משימות המפגש. בואו נחשוב יחד על דרך העבודה שלך.</p>
 
         {/* Step 1: 3-point visual effort scale */}
         <section aria-labelledby="effort-heading" className="mb-7">
-          <h2 id="effort-heading" className="font-display font-extrabold text-xl mb-1">שלב 1: כמה השתדלתם היום?</h2>
-          <p className="text-sm text-ws-soft mb-3">בחרו את הסמל שמתאר הכי טוב את מידת המאמץ שהשקעתם</p>
+          <h2 id="effort-heading" className="font-display font-extrabold text-xl mb-1">שלב 1: כמה השתדלת היום?</h2>
+          <p className="text-sm text-ws-soft mb-3">בחרו את הסמל שמתאר הכי טוב את מידת המאמץ שהשקעת</p>
           <div role="radiogroup" aria-required="true" className="flex gap-3 justify-center">
             {EFFORT_OPTIONS.map((opt) => (
               <button
@@ -173,8 +173,8 @@ export function ReflectionScreen() {
 
         {/* Step 2: 3 Digital strategies selection */}
         <section aria-labelledby="strategy-heading" className="mb-7">
-          <h2 id="strategy-heading" className="font-display font-extrabold text-xl mb-1">שלב 2: מה סייע לכם במהלך הלמידה?</h2>
-          <p className="text-sm text-ws-soft mb-3">סמנו את האסטרטגיות הדיגיטליות שהשתמשתם בהן:</p>
+          <h2 id="strategy-heading" className="font-display font-extrabold text-xl mb-1">שלב 2: מה סייע לך במהלך הלמידה?</h2>
+          <p className="text-sm text-ws-soft mb-3">סמנו את הכלים הדיגיטליים שעזרו לך:</p>
           <div role="group" aria-label="בחירת אסטרטגיות דיגיטליות" className="flex flex-col gap-3">
             {STRATEGY_OPTIONS.map((opt) => {
               const isSelected = strategies.includes(opt.id);
