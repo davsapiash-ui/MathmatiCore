@@ -1673,7 +1673,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       return Math.min(100, Math.max(0, Math.round((undoCount / denom) * 100)));
     },
     triggerSocraticPenaltyLockout: (hintText) => {
-      get().lockSocraticCard(60000);
+      get().lockSocraticCard(30000);
       set((s) => ({
         socraticDistractorHint: hintText || 'בחירה זו אינה מביאה לפתרון הנכון. חשבו מה הפעולה הנדרשת בבית המספרים ונסו שוב כשתום הנעילה.',
         socraticDistractorErrors: s.socraticDistractorErrors + 1,
@@ -1843,7 +1843,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       return popped;
     },
 
-    lockSocraticCard: (durationMs = 60000) => {
+    lockSocraticCard: (durationMs = 30000) => {
       const deadline = Date.now() + durationMs;
       set({ isSocraticCardLocked: true, socraticLockDeadline: deadline, socraticPenaltyLockoutUntil: deadline });
       try {

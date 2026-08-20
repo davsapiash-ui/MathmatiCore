@@ -182,13 +182,13 @@ describe('Master PRD v3.3 — 29 Modules Complete Architecture & Integration Aud
   // PART D: SOCRATIC MENTORING & GEMINI API (Modules 12-13)
   // ─────────────────────────────────────────────────────────────
   describe('Part D: Socratic Mentoring & Gemini Engine (Modules 12-13)', () => {
-    it('Module 12: Dynamic Socratic Mentoring — 60s penalty lock resilience across browser reloads (F5)', () => {
+    it('Module 12: Dynamic Socratic Mentoring — 30s penalty lock resilience across browser reloads (F5)', () => {
       // 1. Trigger wrong distractor penalty lockout
       useWorkspaceStore.getState().triggerSocraticPenaltyLockout('נסו לבדוק שוב בעזרת בית המספרים');
 
       const remaining = useWorkspaceStore.getState().getSocraticPenaltyRemaining();
-      expect(remaining).toBeGreaterThan(50);
-      expect(remaining).toBeLessThanOrEqual(60);
+      expect(remaining).toBeGreaterThan(20);
+      expect(remaining).toBeLessThanOrEqual(30);
 
       // Verify lock timestamp was persisted in storage
       const persistedUntil = (globalThis as any).localStorage.getItem('mc_socratic_penalty_until');
@@ -205,7 +205,7 @@ describe('Master PRD v3.3 — 29 Modules Complete Architecture & Integration Aud
 
       // 3. Verify lockout is STILL ACTIVE and cannot be bypassed by refresh!
       const restoredRemaining = useWorkspaceStore.getState().getSocraticPenaltyRemaining();
-      expect(restoredRemaining).toBeGreaterThan(50);
+      expect(restoredRemaining).toBeGreaterThan(20);
       expect(useWorkspaceStore.getState().socraticPenaltyLockoutUntil).toBe(savedTimestamp);
 
       // 4. Cleanup

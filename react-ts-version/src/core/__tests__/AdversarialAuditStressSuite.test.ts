@@ -589,20 +589,20 @@ describe('Master PRD v4.0 — Adversarial Audit & Stress Test Suite (R1-R5)', ()
 
         expect(mockLocalStorage.setItem).toHaveBeenCalledWith(
           'mc_socratic_penalty_until',
-          String(now + 60000)
+          String(now + 30000)
         );
-        expect(useWorkspaceStore.getState().getSocraticPenaltyRemaining()).toBe(60);
-
-        // Simulate 30s elapsed (e.g. background tab throttling)
-        vi.spyOn(Date, 'now').mockReturnValue(now + 30000);
         expect(useWorkspaceStore.getState().getSocraticPenaltyRemaining()).toBe(30);
 
-        // Simulate 59.5s elapsed
-        vi.spyOn(Date, 'now').mockReturnValue(now + 59500);
+        // Simulate 15s elapsed (e.g. background tab throttling)
+        vi.spyOn(Date, 'now').mockReturnValue(now + 15000);
+        expect(useWorkspaceStore.getState().getSocraticPenaltyRemaining()).toBe(15);
+
+        // Simulate 29.5s elapsed
+        vi.spyOn(Date, 'now').mockReturnValue(now + 29500);
         expect(useWorkspaceStore.getState().getSocraticPenaltyRemaining()).toBe(1);
 
-        // Simulate 60.1s elapsed -> Lockout cleared automatically
-        vi.spyOn(Date, 'now').mockReturnValue(now + 60100);
+        // Simulate 30.1s elapsed -> Lockout cleared automatically
+        vi.spyOn(Date, 'now').mockReturnValue(now + 30100);
         expect(useWorkspaceStore.getState().getSocraticPenaltyRemaining()).toBe(0);
         expect(useWorkspaceStore.getState().socraticPenaltyLockoutUntil).toBeNull();
       });
@@ -610,7 +610,7 @@ describe('Master PRD v4.0 — Adversarial Audit & Stress Test Suite (R1-R5)', ()
       it('should maintain 100% board interactivity (manipulatives) while digit inputs and distractors are locked', () => {
         // Setup lockout
         useWorkspaceStore.setState({
-          socraticPenaltyLockoutUntil: Date.now() + 60000,
+          socraticPenaltyLockoutUntil: Date.now() + 30000,
           keyboardState: 'SOCRATIC_ONLY',
           counts: { units: 10, tens: 0, hundreds: 0, thousands: 0 }
         });
@@ -644,9 +644,9 @@ describe('Master PRD v4.0 — Adversarial Audit & Stress Test Suite (R1-R5)', ()
           }
         }
 
-        // Lockout must be exactly baseTime + 60000
-        expect(useWorkspaceStore.getState().socraticPenaltyLockoutUntil).toBe(baseTime + 60000);
-        expect(useWorkspaceStore.getState().getSocraticPenaltyRemaining()).toBe(60);
+        // Lockout must be exactly baseTime + 30000
+        expect(useWorkspaceStore.getState().socraticPenaltyLockoutUntil).toBe(baseTime + 30000);
+        expect(useWorkspaceStore.getState().getSocraticPenaltyRemaining()).toBe(30);
       });
 
       it('should trigger passive drifting in Session 6 on 4 undos in 15 seconds', () => {

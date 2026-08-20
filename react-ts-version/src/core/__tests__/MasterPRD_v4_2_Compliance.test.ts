@@ -53,8 +53,8 @@ describe('Master PRD v4.2 Rigorous Compliance Suite', () => {
     });
   });
 
-  describe('Module 10 & 12: Socratic Mentoring & 60s Distractor Lockout', () => {
-    it('triggers a 60-second penalty lockout when a wrong distractor is selected', () => {
+  describe('Module 10 & 12: Socratic Mentoring & 30s Distractor Lockout', () => {
+    it('triggers a 30-second penalty lockout when a wrong distractor is selected', () => {
       const store = useWorkspaceStore.getState();
       expect(store.getSocraticPenaltyRemaining()).toBe(0);
 
@@ -62,7 +62,7 @@ describe('Master PRD v4.2 Rigorous Compliance Suite', () => {
       const state = useWorkspaceStore.getState();
       expect(state.socraticPenaltyLockoutUntil).not.toBeNull();
       expect(state.socraticDistractorErrors).toBe(1);
-      expect(store.getSocraticPenaltyRemaining()).toBeGreaterThan(50);
+      expect(store.getSocraticPenaltyRemaining()).toBeGreaterThan(20);
     });
 
     it('clears penalty lockout cleanly', () => {

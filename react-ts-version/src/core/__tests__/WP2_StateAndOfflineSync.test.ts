@@ -39,12 +39,12 @@ describe('Work Package 2 (WP2): Global State Management & Offline Queue Engine',
       expect(useWorkspaceStore.getState().hesitationTimerSeconds).toBe(0);
     });
 
-    it('manages Socratic card 60-second penalty lockout (Module 12)', () => {
+    it('manages Socratic card 30-second penalty lockout (Module 12)', () => {
       const store = useWorkspaceStore.getState();
       expect(store.isSocraticCardLocked).toBe(false);
       expect(store.socraticLockDeadline).toBeNull();
 
-      store.lockSocraticCard(60000);
+      store.lockSocraticCard(30000);
       const lockedState = useWorkspaceStore.getState();
       expect(lockedState.isSocraticCardLocked).toBe(true);
       expect(lockedState.socraticLockDeadline).toBeGreaterThan(Date.now());

@@ -1,7 +1,9 @@
 # מסמך דרישות מוצר (PRD Master) — פלטפורמת הלמידה ההיברידית מתמטיקאור (MathematiCore)
 
 **Version 6.4 — Corrected | Base: v6.3 | Date: August 19, 2026 | Master Production Spec for Antigravity Agent**
-* **Changelog v6.4:** ביטול והסרה מוחלטת של קלט קולי (STT) מכל ממשקי המערכת (מודול 22). תקשורת מורה-אדמין היא טקסט בלבד. אודיו לעולם אינו עוזב את המכשיר.
+* **Changelog v6.4:** 
+  1. ביטול והסרה מוחלטת של קלט קולי (STT) מכל ממשקי המערכת (מודול 22). תקשורת מורה-אדמין היא טקסט בלבד. אודיו לעולם אינו עוזב את המכשיר.
+  2. קיצור משך נעילת המסיחים בכרטיס החניכה הסוקרטי (מודול 12) מ-60 שניות ל-30 שניות (חצי דקה) לצורך ויסות מותאם וממוקד.
 
 ---
 
@@ -275,10 +277,10 @@ Maintain a client-side state stack restricted strictly to the last 10 actions. U
 1. השהיה רצופה של 45 שניות ללא פעולה קוגניטיבית בטור החישוב הפעיל.
 2. ביצוע של 4 ניסיונות הקלדה/מחיקה שגויים ברציפות באותו תרגיל.
 
-בעת זיהוי קושי, מופעל כרטיס החניכה הצידי (Socratic Card) במגירה נשלפת (Side Drawer). בעת בחירת תשובה שגויה בתוך כרטיס החניכה, המערכת מפעילה נעילה שקטה של לחצני המענה בכרטיס בלבד למשך 60 שניות (`pointer-events: none` בתוספת אינדיקטור שעון חול עדין). בזמן נעילת כרטיס החניכה, מרחב הלבנים הדיגיטליות, המקלדת, וכפתור ה-Undo נשארים פעילים וחופשיים לחלוטין לחקירה.
+בעת זיהוי קושי, מופעל כרטיס החניכה הצידי (Socratic Card) במגירה נשלפת (Side Drawer). בעת בחירת תשובה שגויה בתוך כרטיס החניכה, המערכת מפעילה נעילה שקטה של לחצני המענה בכרטיס בלבד למשך 30 שניות (`pointer-events: none` בתוספת אינדיקטור שעון חול עדין). בזמן נעילת כרטיס החניכה, מרחב הלבנים הדיגיטליות, המקלדת, וכפתור ה-Undo נשארים פעילים וחופשיים לחלוטין לחקירה.
 
 ### ג. הנחיות פיתוח נוקשות (Strict Developer Instructions)
-Implement the Socratic card in a dedicated side drawer without using popup dialogs or blocking modals. Trigger Socratic card activation strictly upon: (a) 45 seconds of continuous column hesitation, or (b) 4 consecutive digit deletions/errors in the active column — these two conditions correspond exactly to `trigger_reason: 'hesitation_45s' | 'consecutive_errors_4'` in `SocraticCardShownDetails` (Appendix A §3). Upon incorrect answer selection inside the Socratic card, immediately apply a 60-second pointer-events-disabled block exclusively to the card buttons with a serene hourglass indicator. Ensure Dienes blocks canvas interaction and the undo button remain fully functional and accessible. Send workspace telemetry JSON to initiate backend AI analysis.
+Implement the Socratic card in a dedicated side drawer without using popup dialogs or blocking modals. Trigger Socratic card activation strictly upon: (a) 45 seconds of continuous column hesitation, or (b) 4 consecutive digit deletions/errors in the active column — these two conditions correspond exactly to `trigger_reason: 'hesitation_45s' | 'consecutive_errors_4'` in `SocraticCardShownDetails` (Appendix A §3). Upon incorrect answer selection inside the Socratic card, immediately apply a 30-second pointer-events-disabled block exclusively to the card buttons with a serene hourglass indicator. Ensure Dienes blocks canvas interaction and the undo button remain fully functional and accessible. Send workspace telemetry JSON to initiate backend AI analysis.
 
 ---
 

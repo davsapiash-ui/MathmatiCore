@@ -19,7 +19,7 @@ The independent Victory Auditor performed a full 3-phase audit and issued a `VIC
    - Undo/Redo snapshot history was hardened against rapid action spamming.
 3. **R3 (Hesitation & Socratic Anti-Guessing Chaos Injections)**:
    - 45-second hesitation threshold boundary conditions (43s, 45s, 46s) verified.
-   - 60-second Socratic lockout timer persisted across tab switching and page reloads.
+   - 30-second Socratic lockout timer persisted across tab switching and page reloads.
    - Main Dienes workspace and undo buttons remain fully responsive without dropping telemetry.
 4. **R4 (Realtime Database & Network Chaos Simulation)**:
    - Offline queue capacity expanded to 500 items, verified with 1,000-burst simulations.

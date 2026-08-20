@@ -52,7 +52,7 @@ describe('Master PRD v5.0 Phase 3: Socratic Mentoring & Gemini Integration (Modu
       expect(useWorkspaceStore.getState().consecutiveDeletions).toBe(0);
     });
 
-    it('applies a strict 60-second penalty lockout upon selecting an incorrect distractor', () => {
+    it('applies a strict 30-second penalty lockout upon selecting an incorrect distractor', () => {
       expect(useWorkspaceStore.getState().socraticPenaltyLockoutUntil).toBeNull();
 
       const startTime = Date.now();
@@ -60,15 +60,15 @@ describe('Master PRD v5.0 Phase 3: Socratic Mentoring & Gemini Integration (Modu
 
       const lockUntil = useWorkspaceStore.getState().socraticPenaltyLockoutUntil;
       expect(lockUntil).not.toBeNull();
-      expect(lockUntil! - startTime).toBeGreaterThanOrEqual(59000);
-      expect(lockUntil! - startTime).toBeLessThanOrEqual(61000);
+      expect(lockUntil! - startTime).toBeGreaterThanOrEqual(29000);
+      expect(lockUntil! - startTime).toBeLessThanOrEqual(31000);
 
       const remaining = useWorkspaceStore.getState().getSocraticPenaltyRemaining();
       expect(remaining).toBeGreaterThan(0);
-      expect(remaining).toBeLessThanOrEqual(60);
+      expect(remaining).toBeLessThanOrEqual(30);
     });
 
-    it('ensures Dienes canvas interactions (applyDrop, removeBlock, undo) remain 100% active during 60s Socratic lock', () => {
+    it('ensures Dienes canvas interactions (applyDrop, removeBlock, undo) remain 100% active during 30s Socratic lock', () => {
       // Apply 60s lockout
       useWorkspaceStore.getState().triggerSocraticPenaltyLockout('נעילת כרטיס החניכה');
       expect(useWorkspaceStore.getState().getSocraticPenaltyRemaining()).toBeGreaterThan(0);

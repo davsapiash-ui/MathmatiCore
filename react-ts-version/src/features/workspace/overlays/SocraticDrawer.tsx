@@ -66,7 +66,7 @@ export function SocraticDrawer({ isOpen, onClose }: SocraticDrawerProps) {
         isCorrect: false,
         text: 'בחירה זו אינה מובילה לפתרון. חשבו שוב מה נדרש בבית המספרים ונסו שוב בתום הנעילה.',
       });
-      triggerSocraticPenaltyLockout('בחירה שגויה בכרטיס סוקרטי — נעילה למשך 60 שניות');
+      triggerSocraticPenaltyLockout('בחירה שגויה בכרטיס סוקרטי — נעילה למשך 30 שניות');
     }
   };
 
