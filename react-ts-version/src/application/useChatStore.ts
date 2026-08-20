@@ -27,13 +27,21 @@ interface ChatState {
 export function isTeacherOrAdminId(id?: string | null): boolean {
   if (!id) return false;
   const clean = id.trim().toLowerCase();
+  if (
+    clean.startsWith('student_') ||
+    clean.startsWith('user') ||
+    /^(1[0-2]|[1-9])$/.test(clean)
+  ) {
+    return false;
+  }
   return (
     clean === 'admin' ||
     clean === 'teacher' ||
     clean.startsWith('admin_') ||
     clean.startsWith('teacher_') ||
     clean.includes('@') ||
-    /^\d{8,9}$/.test(clean)
+    /^\d{8,10}$/.test(clean) ||
+    (clean.length >= 20 && !clean.includes(' ') && !clean.includes(';') && !clean.includes('<'))
   );
 }
 
