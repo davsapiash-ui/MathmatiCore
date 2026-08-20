@@ -97,8 +97,8 @@ export function TaskCard() {
             {standardTask.type === 'missing_element' && (
               <MissingElementTask
                 instructionHe={standardTask.instructionHe}
-                numberA={isASD && standardTask.asdNumberA !== undefined ? standardTask.asdNumberA : standardTask.numberA!}
-                numberB={isASD && standardTask.asdNumberB !== undefined ? standardTask.asdNumberB : standardTask.numberB!}
+                numberA={isASD && standardTask.asdNumberA !== undefined ? standardTask.asdNumberA : (standardTask.numberA ?? 0)}
+                numberB={isASD && standardTask.asdNumberB !== undefined ? standardTask.asdNumberB : (standardTask.numberB ?? 0)}
                 isSubtraction={standardTask.isSubtraction}
               />
             )}
@@ -164,8 +164,8 @@ export function TaskCard() {
                 {qTask.type === 'missing_element' && (
                   <MissingElementTask
                     instructionHe={qTask.instructionHe}
-                    numberA={isASD && qTask.asdNumberA !== undefined ? qTask.asdNumberA : qTask.numberA!}
-                    numberB={isASD && qTask.asdNumberB !== undefined ? qTask.asdNumberB : qTask.numberB!}
+                    numberA={isASD && qTask.asdNumberA !== undefined ? qTask.asdNumberA : (qTask.numberA ?? 0)}
+                    numberB={isASD && qTask.asdNumberB !== undefined ? qTask.asdNumberB : (qTask.numberB ?? 0)}
                     isSubtraction={qTask.isSubtraction}
                   />
                 )}

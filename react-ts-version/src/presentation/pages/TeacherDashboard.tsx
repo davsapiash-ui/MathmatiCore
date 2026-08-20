@@ -1675,6 +1675,15 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
               const effectiveReplayStudentId = selectedReplayStudentId || (allStudents.length > 0 ? allStudents[0].studentId : 'student_user1');
               const s = students[effectiveReplayStudentId] || allStudents.find(st => st.studentId === effectiveReplayStudentId || normalizeStudentId(st.studentId) === normalizeStudentId(effectiveReplayStudentId)) || allStudents[0];
 
+              const qMatrix = s?.qMatrixResults || {};
+              const traceData = s?.traceData || { hesitation_events: 0, undo_clicks: 0, semantic_trace: [] };
+
+              const getQStatus = (val: any) => {
+                if (val === undefined || val === null) return { text: 'טרם נבדק', color: 'text-slate-400' };
+                if (val === 'success' || val === true) return { text: 'שולט', color: 'text-green-600' };
+                return { text: 'דרוש חיזוק', color: 'text-red-500' };
+              };
+
               return (
                 <div className="flex flex-col lg:flex-row gap-6">
                   {/* Sidebar: Student List */}
@@ -1687,6 +1696,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                       {allStudents.map(st => {
                         const isCompleted = st.completedMeeting2;
                         const isSelected = effectiveReplayStudentId === st.studentId;
+                        const sNum = st.studentId.replace(/\D/g, '') || st.studentId;
                         return (
                           <button
                             key={st.studentId}
@@ -1699,7 +1709,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                           >
                             <span className="flex items-center gap-2">
                               <span className={`w-2 h-2 rounded-full ${isSelected ? 'bg-white' : 'bg-indigo-500'}`} />
-                              <span>{st.name}</span>
+                              <span>תלמיד {sNum}</span>
                             </span>
                             {isCompleted && <span className={`w-2 h-2 rounded-full ${isSelected ? 'bg-white' : 'bg-emerald-500'}`} title="סיים מפגש 2"></span>}
                           </button>
@@ -1720,7 +1730,8 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                     ) : (
                       (() => {
                         const socraticApproval = s.diagnosticReport || pendingApprovals.find(a => a.studentId === effectiveReplayStudentId || normalizeStudentId(a.studentId) === normalizeStudentId(effectiveReplayStudentId));
-                        const isStruggling = (s.traceData?.hesitation_events || 0) > 2 || (s.traceData?.undo_clicks || 0) > 1 || s.routeRecommendation === 'YELLOW';
+                        const isStruggling = (traceData.hesitation_events || 0) > 2 || (traceData.undo_clicks || 0) > 1 || s.routeRecommendation === 'YELLOW';
+                        const sNum = (s.studentId || effectiveReplayStudentId).replace(/\D/g, '') || s.studentId;
 
                         const fallbackClinical = isStruggling
                           ? "התלמיד חווה מאבק קוגניטיבי בעת המרת עשרות ופריטה. ניכר צורך בחיזוק תפיסתי מוחשי באמצעות לבני הדינס לפני המשך תרגול אלגוריתמי במאונך."
@@ -1748,13 +1759,26 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                         const actionPlanText = (socraticApproval as any)?.actionPlanHe || fallbackActionPlan;
                         const displayTasks = socraticApproval?.tasks || fallbackTasks;
 
+                        const q1 = getQStatus(qMatrix.task1_zero_placeholder);
+                        const q3 = getQStatus(qMatrix.task3_flexible_regrouping);
+                        const q4 = getQStatus(qMatrix.task4_basic_addition_fluency);
+                        const q6 = getQStatus(qMatrix.task6_subtraction_regrouping);
+                        const q7 = getQStatus(qMatrix.task7_missing_subtrahend);
+                        const q8 = getQStatus(qMatrix.task8_missing_addend);
+
+                        const q46Status = (!qMatrix.task4_basic_addition_fluency && !qMatrix.task6_subtraction_regrouping)
+                          ? { text: 'טרם נבדק', color: 'text-slate-400' }
+                          : (qMatrix.task4_basic_addition_fluency === 'success' && qMatrix.task6_subtraction_regrouping === 'success')
+                          ? { text: 'שולט', color: 'text-green-600' }
+                          : { text: 'פער בעובדות יסוד', color: 'text-red-500' };
+
                         return (
                           <div className="animate-in fade-in zoom-in-95 duration-300">
                             {/* Top Action Bar: Open Drawer for Physical Override & Full Student Profile */}
                             <div className="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
                               <div className="flex items-center gap-3">
                                 <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">
-                                  {s.name || s.studentId}
+                                  תלמיד {sNum}
                                 </h3>
                                 {s.physicalOverride && (
                                   <span className="bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 text-xs font-bold px-2.5 py-1 rounded-full border border-purple-200 dark:border-purple-800">
@@ -1791,33 +1815,33 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                 <div className="grid grid-cols-2 gap-3 text-sm">
                                   <div className="bg-ws-bg p-3 rounded-xl border border-ws-surface2">
                                     <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">שומר מקום (אפס)</span>
-                                    <span className={`font-semibold ${s.qMatrixResults.task1_zero_placeholder && s.qMatrixResults.task1_zero_placeholder !== 'success' ? 'text-red-500' : s.qMatrixResults.task1_zero_placeholder === 'success' ? 'text-green-600' : 'text-slate-400'}`}>
-                                      {s.qMatrixResults.task1_zero_placeholder === null ? 'טרם נבדק' : s.qMatrixResults.task1_zero_placeholder === 'success' ? 'שולט' : 'דרוש חיזוק'}
+                                    <span className={`font-semibold ${q1.color}`}>
+                                      {q1.text}
                                     </span>
                                   </div>
                                   <div className="bg-ws-bg p-3 rounded-xl border border-ws-surface2">
                                     <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">גמישות מחשבתית</span>
-                                    <span className={`font-semibold ${s.qMatrixResults.task3_flexible_regrouping && s.qMatrixResults.task3_flexible_regrouping !== 'success' ? 'text-red-500' : s.qMatrixResults.task3_flexible_regrouping === 'success' ? 'text-green-600' : 'text-slate-400'}`}>
-                                      {s.qMatrixResults.task3_flexible_regrouping === null ? 'טרם נבדק' : s.qMatrixResults.task3_flexible_regrouping === 'success' ? 'שולט' : 'דרוש חיזוק'}
+                                    <span className={`font-semibold ${q3.color}`}>
+                                      {q3.text}
                                     </span>
                                   </div>
 
                                   <div className="bg-ws-bg p-3 rounded-xl border border-ws-surface2">
                                     <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">חיבור וחיסור</span>
-                                    <span className={`font-semibold ${(s.qMatrixResults.task4_basic_addition_fluency && s.qMatrixResults.task4_basic_addition_fluency !== 'success') || (s.qMatrixResults.task6_subtraction_regrouping && s.qMatrixResults.task6_subtraction_regrouping !== 'success') ? 'text-red-500' : (s.qMatrixResults.task4_basic_addition_fluency === 'success' && s.qMatrixResults.task6_subtraction_regrouping === 'success') ? 'text-green-600' : 'text-slate-400'}`}>
-                                      {(s.qMatrixResults.task4_basic_addition_fluency === null && s.qMatrixResults.task6_subtraction_regrouping === null) ? 'טרם נבדק' : ((s.qMatrixResults.task4_basic_addition_fluency && s.qMatrixResults.task4_basic_addition_fluency !== 'success') || (s.qMatrixResults.task6_subtraction_regrouping && s.qMatrixResults.task6_subtraction_regrouping !== 'success')) ? 'פער בעובדות יסוד' : 'שולט'}
+                                    <span className={`font-semibold ${q46Status.color}`}>
+                                      {q46Status.text}
                                     </span>
                                   </div>
                                   <div className="bg-ws-bg p-3 rounded-xl border border-ws-surface2">
                                     <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">מציאת מחסר</span>
-                                    <span className={`font-semibold ${s.qMatrixResults.task7_missing_subtrahend && s.qMatrixResults.task7_missing_subtrahend !== 'success' ? 'text-red-500' : s.qMatrixResults.task7_missing_subtrahend === 'success' ? 'text-green-600' : 'text-slate-400'}`}>
-                                      {s.qMatrixResults.task7_missing_subtrahend === null ? 'טרם נבדק' : s.qMatrixResults.task7_missing_subtrahend === 'success' ? 'שולט' : 'דרוש חיזוק'}
+                                    <span className={`font-semibold ${q7.color}`}>
+                                      {q7.text}
                                     </span>
                                   </div>
                                   <div className="bg-ws-bg p-3 rounded-xl border border-ws-surface2">
                                     <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">מציאת מחבר</span>
-                                    <span className={`font-semibold ${s.qMatrixResults.task8_missing_addend && s.qMatrixResults.task8_missing_addend !== 'success' ? 'text-red-500' : s.qMatrixResults.task8_missing_addend === 'success' ? 'text-green-600' : 'text-slate-400'}`}>
-                                      {s.qMatrixResults.task8_missing_addend === null ? 'טרם נבדק' : s.qMatrixResults.task8_missing_addend === 'success' ? 'שולט' : 'דרוש חיזוק'}
+                                    <span className={`font-semibold ${q8.color}`}>
+                                      {q8.text}
                                     </span>
                                   </div>
                                 </div>
@@ -1838,14 +1862,14 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                         <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 text-sm">⏱️</div>
                                         <span className="font-semibold text-sm">אירועי היסוס (חשיבה ארוכה)</span>
                                       </div>
-                                      <span className="text-xl font-black text-orange-600">{s.traceData.hesitation_events}</span>
+                                      <span className="text-xl font-black text-orange-600">{traceData.hesitation_events || 0}</span>
                                     </div>
                                     <div className="flex-1 flex items-center justify-between p-3 bg-white rounded-xl border border-slate-200">
                                       <div className="flex items-center gap-3">
                                         <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-600 text-sm">↩️</div>
                                         <span className="font-semibold text-sm">ביטולי פעולה (מחיקה/חזרה)</span>
                                       </div>
-                                      <span className="text-xl font-black text-red-600">{s.traceData.undo_clicks}</span>
+                                      <span className="text-xl font-black text-red-600">{traceData.undo_clicks || 0}</span>
                                     </div>
                                   </div>
 
