@@ -372,15 +372,25 @@ export function StudentWorkspacePage() {
     return () => unsub();
   }, [user?.uid]);
 
-  // --- Module 18: Live Presence Heartbeat (5s interval, 15s server timeout) ---
+  // --- Module 18: Live Presence Heartbeat & Session Sync (5s interval, 60s server window) ---
   useEffect(() => {
     const uid = user?.uid;
     if (!uid) return;
     const normId = normalizeStudentId(uid);
     const studentPresenceRef = ref(database, `users/students/${normId}`);
     
+    const presencePayload = {
+      isOnline: true,
+      lastPing: Date.now(),
+      lastActivityTimestamp: Date.now(),
+      lastAction: `פעיל/ה במפגש ${meeting}`,
+      'workspaceState/sessionNumber': meeting,
+      'workspaceState/isASD': Boolean(isASDMode),
+      'workspaceState/flowStatus': 'task',
+    };
+
     // Set immediate online heartbeat and onDisconnect hook
-    update(studentPresenceRef, { isOnline: true, lastPing: Date.now() }).catch(() => {});
+    update(studentPresenceRef, presencePayload).catch(() => {});
     try {
       onDisconnect(ref(database, `users/students/${normId}/isOnline`)).set(false);
       onDisconnect(ref(database, `users/students/${normId}/lastPing`)).set(0);
@@ -389,14 +399,20 @@ export function StudentWorkspacePage() {
     }
 
     const interval = setInterval(() => {
-      update(studentPresenceRef, { isOnline: true, lastPing: Date.now() }).catch(() => {});
+      update(studentPresenceRef, {
+        isOnline: true,
+        lastPing: Date.now(),
+        lastActivityTimestamp: Date.now(),
+        lastAction: `פעיל/ה במפגש ${meeting}`,
+        'workspaceState/sessionNumber': meeting,
+      }).catch(() => {});
     }, 5000);
 
     return () => {
       clearInterval(interval);
       update(studentPresenceRef, { isOnline: false, lastPing: 0 }).catch(() => {});
     };
-  }, [user?.uid]);
+  }, [user?.uid, meeting, isASDMode]);
 
   const isAdditionBoardEnabled = liveAdditionBoardEnabled ?? (myData?.additionBoardEnabled ?? false);
 
