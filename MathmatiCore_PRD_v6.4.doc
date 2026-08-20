@@ -1,0 +1,314 @@
+<html xmlns:o='urn:schemas-microsoft-com:office:office'
+      xmlns:w='urn:schemas-microsoft-com:office:word'
+      xmlns='http://www.w3.org/TR/REC-html40'
+      dir='rtl'>
+<head>
+  <meta charset='utf-8'>
+  <title>MathmatiCore - מסמך דרישות מוצר (PRD Master v6.4)</title>
+  <!--[if gte mso 9]>
+  <xml>
+    <w:WordDocument>
+      <w:View>Print</w:View>
+      <w:Zoom>100</w:Zoom>
+      <w:DoNotOptimizeForBrowser/>
+    </w:WordDocument>
+  </xml>
+  <![endif]-->
+  <style>
+    @page {
+      size: A4;
+      margin: 2.5cm 2cm 2.5cm 2cm;
+    }
+    body {
+      font-family: 'Segoe UI', 'Arial', sans-serif;
+      direction: rtl;
+      text-align: right;
+      line-height: 1.6;
+      color: #1e293b;
+      background-color: #ffffff;
+      margin: 20px;
+    }
+    h1 {
+      color: #1e3a8a;
+      font-size: 22pt;
+      font-weight: bold;
+      border-bottom: 3px solid #3b82f6;
+      padding-bottom: 8px;
+      margin-top: 24px;
+      margin-bottom: 12px;
+    }
+    h2 {
+      color: #1e40af;
+      font-size: 16pt;
+      font-weight: bold;
+      border-bottom: 1.5px solid #cbd5e1;
+      padding-bottom: 6px;
+      margin-top: 20px;
+      margin-bottom: 10px;
+    }
+    h3 {
+      color: #2563eb;
+      font-size: 13pt;
+      font-weight: bold;
+      margin-top: 14px;
+      margin-bottom: 6px;
+    }
+    h4 {
+      color: #1d4ed8;
+      font-size: 11pt;
+      font-weight: bold;
+      margin-top: 10px;
+      margin-bottom: 4px;
+    }
+    p {
+      margin: 8px 0;
+      line-height: 1.6;
+      font-size: 11pt;
+    }
+    ul, ol {
+      margin-right: 24px;
+      margin-left: 0;
+      padding-right: 12px;
+      font-size: 11pt;
+    }
+    li {
+      margin-bottom: 6px;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 16px 0;
+      font-size: 10.5pt;
+      direction: rtl;
+    }
+    th {
+      background-color: #f1f5f9;
+      color: #0f172a;
+      font-weight: bold;
+      border: 1px solid #cbd5e1;
+      padding: 8px 12px;
+      text-align: right;
+    }
+    td {
+      border: 1px solid #e2e8f0;
+      padding: 8px 12px;
+      text-align: right;
+      vertical-align: top;
+    }
+    tr:nth-child(even) {
+      background-color: #f8fafc;
+    }
+    code {
+      font-family: Consolas, 'Courier New', monospace;
+      background-color: #f1f5f9;
+      color: #0f172a;
+      padding: 2px 5px;
+      border-radius: 4px;
+      font-size: 10pt;
+      direction: ltr;
+      display: inline-block;
+    }
+    pre {
+      font-family: Consolas, 'Courier New', monospace;
+      background-color: #0f172a;
+      color: #f8fafc;
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 9.5pt;
+      direction: ltr;
+      text-align: left;
+      overflow-x: auto;
+      margin: 12px 0;
+    }
+    .alert-box {
+      background-color: #eff6ff;
+      border-right: 4px solid #3b82f6;
+      padding: 12px 16px;
+      margin: 14px 0;
+      border-radius: 0 4px 4px 0;
+    }
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      font-size: 9pt;
+      font-weight: bold;
+      border-radius: 12px;
+      background-color: #dbeafe;
+      color: #1e40af;
+    }
+  </style>
+</head>
+<body dir="rtl" align="right">
+
+  <h1>מסמך דרישות מוצר (PRD Master) — פלטפורמת הלמידה ההיברידית מתמטיקאור (MathematiCore)</h1>
+  <p><strong>Version 6.4 — Corrected | Base: v6.3 | Date: August 19, 2026 | Master Production Spec for Antigravity Agent</strong></p>
+  
+  <div class="alert-box">
+    <p><strong>Changelog v6.4:</strong></p>
+    <ol>
+      <li>ביטול והסרה מוחלטת של קלט קולי (STT) מכל ממשקי המערכת (מודול 22). תקשורת מורה-אדמין היא טקסט בלבד. אודיו לעולם אינו עוזב את המכשיר.</li>
+      <li>קיצור משך נעילת המסיחים בכרטיס החניכה הסוקרטי (מודול 12) מ-60 שניות ל-30 שניות (חצי דקה) לצורך ויסות מותאם וממוקד.</li>
+    </ol>
+  </div>
+
+  <hr style="border:0; border-top: 1px solid #cbd5e1; margin: 16px 0;" />
+
+  <h2>שינויים מרכזיים מגרסה 6.0 ל-6.1</h2>
+  <p>גרסה זו נכתבה בעקבות ביקורת טכנית שמטרתה לוודא שסוכן AI יוכל לממש את המסמך ללא ניחושים. תוקנו תשע נקודות קונקרטיות:</p>
+  <ol>
+    <li><strong>סכימות payload מלאות לכל 13 סוגי אירועי הטלמטריה</strong> (מודול 5 + נספח א', סעיף 3) — הוחלף <code>details: Record&lt;string, unknown&gt;</code> הפתוח ב-<code>TelemetryDetailsMap</code>, שמגדיר טיפוס מדויק לכל <code>event_type</code>. כחלק מהתיקון נוסף שדה <code>is_correct</code> לאירוע <code>DIGIT_ENTERED</code> — בלעדיו לא הייתה דרך לחשב את מדד ה-E (שגיאות הקלדה) בנוסחת מדד ההתמדה של מודול 16.</li>
+    <li><strong>איחוד סכימת אוסף ה-<code>students</code></strong> — מודול 4, מודול 19 ונספח א' הגדירו שלוש רשימות שדות שונות (וחלקית סותרות) לאותו מסמך. אוחדו לרשימה קנונית אחת בת 9 שדות, כולל <code>school_id</code> ו-<code>support_profile_updated_at/by</code> שהיו חסרים בחלק מהמקורות.</li>
+    <li><strong>הוסר שדה <code>teacher_approval_status</code></strong> ממסמך התלמיד — הוגדר בשתי סכימות אך לא נכתב ולא נקרא באף תהליך בפועל. לוגיקת שער האישור (מודול 20) מסתמכת אך ורק על <code>teacher_gate_approved</code> ברמת מסמך הסשן, ולכן השדה המקביל ברמת התלמיד היה כפילות יתומה שיצרה שני מקורות אמת לאותו מושג.</li>
+    <li><strong>אוחד שם השדה לזיהוי תלמיד</strong> — מודול 13 (חוזה Gemini) השתמש ב-<code>anonymous_student_id</code>, בעוד כל שאר המערכת (כולל נספח א') משתמשת ב-<code>student_id</code>. אוחד ל-<code>student_id</code> בכל מקום.</li>
+    <li><strong>תוקן כיוון סף הציון בדוח הפדגוגי</strong> (מודול 23) — הגוף העברי והוראות הפיתוח האנגליות הצביעו על כיוונים הפוכים (<code>&gt;50%</code> מול <code>&lt;50%</code> לאותה המלצה). נקבע כיוון אחיד התואם את ההיגיון הפדגוגי המוצהר: ציון נמוך יותר ← תמיכה אינטנסיבית יותר.</li>
+    <li><strong>תוקן מספר שלבי פרוטוקול ההתאוששות</strong> (מודול 17) — הוראות הפיתוח ציינו "11-step handshake" בעוד הגוף העברי מפרט 5 שלבים בלבד. אוחד ל-5 שלבים.</li>
+    <li><strong>הובהרה היררכיית הצבעים ברדאר הפדגוגי</strong> (מודול 18) — ניסוח "אדום &lt; אפור..." בגוף העברי היה ניתן לפירוש כפול מול הוראות הפיתוח ("RED &gt; GREY..."). נוסח מחדש באופן חד-משמעי: "מהגבוה לנמוך בעדיפות תצוגה".</li>
+    <li><strong>נוסף שדה חסר <code>session_score_percent</code></strong> למסמך הסשן (נספח א') — מודול 23 מתבסס על "ציון" לצורך ניתוב ההמלצה הפדגוגית, אך אף סכימה במסמך לא הגדירה שדה כזה. השדה נוסף; <strong>נוסחת החישוב המדויקת שלו נותרה החלטת מוצר פתוחה</strong> (ראו הערה במודול 23) ולא הומצאה באופן חד-צדדי.</li>
+    <li><strong>נורמול שמות שדות/מצבים</strong> שהופיעו בכמה כתיבים שונים עקב היפוך כיווניות RTL/LTR בקובץ המקור — התקן היחיד מעתה הוא ההגדרות שבנספח א' והקוד האנגלי הנקי בהוראות הפיתוח.</li>
+  </ol>
+
+  <p><em>נקודה שנדונה במפורש ולא שונתה:</em> מנגנון ההזדהות המשותף של התלמידים (קוד גישה קבוע <code>10203040</code> + בחירת מזהה מתוך 1–12) הוא החלטת מוצר מכוונת עבור גרסת הפיילוט הראשונית (כיתה יחידה, ללא נתונים אישיים מאחורי החשבון).</p>
+
+  <h2>שינויים מגרסה 6.1 ל-6.2</h2>
+  <p>תוקנו ב-6.2 שתי בעיות שהתגלו כשתוכנית מימוש נבנתה בפועל מול הסכמה של 6.1:</p>
+  <ol>
+    <li><strong>תוקן שדה שאינו קיים במודול 20:</strong> הבדיקה תוארה כ"<code>session_completed == 2</code>", אבל <code>SessionDocument</code> (נספח א') אינו מכיל שדה כזה כלל, רק <code>session_number</code> ו-<code>is_completed</code> בנפרד. הבדיקה נוסחה מחדש: <code>session_number == 2 &amp;&amp; is_completed == true</code>.</li>
+    <li><strong>נסגרה החלטת נוסחת <code>session_score_percent</code>:</strong> אומצה הנוסחה שהוצעה כברירת מחדל בתוכנית המימוש: <code>(מספר תרגילי החובה שנפתרו נכון בניסיון ראשון ÷ 7) × 100</code>, מבוססת אך ורק על 7 תרגילי החובה.</li>
+  </ol>
+
+  <h2>שינויים מגרסה 6.2 ל-6.3</h2>
+  <ol>
+    <li><strong>נוסף כלל חישוב ברירת מחדל למודול 20:</strong> <code>matrix_recommended_path = 'green_path'</code> אם <code>session_score_percent &gt;= 50</code>, אחרת <code>'remediation_path'</code>.</li>
+    <li><strong>הופרד עיתוי החישוב מהפקת ה-PDF:</strong> <code>session_score_percent</code> ו-<code>matrix_recommended_path</code> ייכתבו בטריגר עצמאי על סיום מפגש (<code>is_completed → true</code>), ולא בתוך <code>generatePedagogicalReportPDF</code>.</li>
+    <li><strong>תוקן שם שדה הפוך:</strong> אוחד לצורת נספח א' (<code>green_path</code>/<code>remediation_path</code>).</li>
+  </ol>
+
+  <hr style="border:0; border-top: 1px solid #cbd5e1; margin: 16px 0;" />
+
+  <h2>תוכן עניינים ומבנה 29 המודולים</h2>
+  <ul>
+    <li>מודול 1: מודול כניסה והזדהות (Student &amp; Teacher Login Pipelines)</li>
+    <li>מודול 2: מודול מיתוג תפקידים (Role Switching &amp; Route Guards)</li>
+    <li>מודול 3: מודול אבטחה ואנונימיזציה (PII Filter &amp; Server Validation)</li>
+    <li>מודול 4: סכמת אוספי בסיס הנתונים (Firestore Collections Schema Spec)</li>
+    <li>מודול 5: סכמת נתוני מיקרו פעילות (Telemetry Payload &amp; TS Contracts)</li>
+    <li>מודול 6: מודול לובי התלמיד (Student Hub Spec)</li>
+    <li>מודול 7: מודול לוח בית המספרים הדיגיטלי (Place Value Chart Engine)</li>
+    <li>מודול 8: מודול לבני דינס וירטואליות (Dienes Blocks Engine &amp; Canvas)</li>
+    <li>מודול 9: מודול מקלדת דינמית וגשר VRA (Dynamic Keyboard &amp; VRA Bridge Spec)</li>
+    <li>מודול 10: מודול לוח חיבור אדפטיבי מבוקר (Symmetrical Addition Grid Module Spec)</li>
+    <li>מודול 11: מודול כפתור ביטול פעולה פדגוגי (Undo Action Engine Module Spec)</li>
+    <li>מודול 12: מנגנון בלימת ניחושים וחיכוך פדגוגי (Socratic Mentoring Trigger Spec)</li>
+    <li>מודול 13: ממשק החונך הדיגיטלי ומנוע החניכה (Socratic AI Engine &amp; Gemini API Contract)</li>
+    <li>מודול 14: מודול מפגשים 1 עד 8 ומנוע תרגילים (Session &amp; Worksheet Progression Spec)</li>
+    <li>מודול 15: מודול ארגז חול דיגיטלי מונחה ומצב מקרן (Sandbox &amp; Projector Mode Spec)</li>
+    <li>מודול 16: מודול לוח רפלקציה תלת־שלבי (SRL Reflection Board Spec)</li>
+    <li>מודול 17: מודול עבודה במצב לא מקוון ותור סנכרון (Offline Queue &amp; Sync Engine Spec)</li>
+    <li>מודול 18: מודול רדאר פדגוגי שקט (Silent Radar Matrix Spec)</li>
+    <li>מודול 19: מודול הקצאת התאמות פדגוגיות שקטות (Silent Adaptation Assignment Spec)</li>
+    <li>מודול 20: מודול שער אישור מורה קשיח (Teacher Approval Gate Spec)</li>
+    <li>מודול 21: מודול ממשק מסך מפוצל לאבחון מורה (Teacher Diagnostic Split-Screen Spec)</li>
+    <li>מודול 22: מודול ערוץ שיח ניהולי למורה (Teacher Admin Chat Engine Spec)</li>
+    <li>מודול 23: מודול דוחות ואנליטיקה פדגוגית (Pedagogical Analytics &amp; PDF Generator Spec)</li>
+    <li>מודול 24: מודול סקירת מערכת כוללת (Admin Overview &amp; Caching Spec)</li>
+    <li>מודול 25: מודול ניהול בתי ספר, כיתות ומורים (Schools &amp; Teachers Setup Wizard Spec)</li>
+    <li>מודול 26: מודול קטלוג תוכנית הלימודים (Curriculum Catalog &amp; Batch Spec)</li>
+    <li>מודול 27: מודול מדיניות אבטחה והגבלות גלובליות (Global Firestore Security Rules Spec)</li>
+    <li>מודול 28: מודול תמיכה ותקשורת ניהולית (Admin Support Hub Spec)</li>
+    <li>מודול 29: מודול ניהול מצב גלובלי ומכונות מצבים (Zustand &amp; State Machine Spec)</li>
+    <li>נספח א': חוזה טיפוסים מרכזי (Core TypeScript Interfaces &amp; Data Contracts)</li>
+  </ul>
+
+  <hr style="border:0; border-top: 1px solid #cbd5e1; margin: 16px 0;" />
+
+  <h2>נספח א': חוזה טיפוסים מרכזי (Core TypeScript Interfaces)</h2>
+  
+  <h3>1. Auth &amp; User Identity Schemas</h3>
+  <pre>
+export type UserRole = 'STUDENT' | 'TEACHER' | 'ADMIN';
+
+export interface AnonymousStudent {
+  student_id: number; // Strictly 1 to 12
+  class_id: string;
+  school_id: string;
+  created_at: number;
+  support_profile_id: string | null;
+  support_profile_version: number;
+  support_profile_updated_at: number | null;
+  support_profile_updated_by: string | null;
+  active_session_id: string | null;
+}
+  </pre>
+
+  <h3>2. Firestore Document Schemas</h3>
+  <pre>
+export interface ClassDocument {
+  class_id: string;
+  school_id: string;
+  class_name: 'המבקרים'; // Strictly set for pilot
+  class_type: string;
+  active_session_id: string | null;
+  projector_mode: boolean;
+  projector_mode_updated_at: number;
+  updated_by_teacher_id: string | null;
+}
+
+export interface SessionDocument {
+  session_id: string;
+  class_id: string;
+  session_number: number; // 1 to 8
+  session_start_time: number;
+  session_deadline_time: number;
+  active_exercise_id: string;
+  is_completed: boolean;
+  session_score_percent: number | null; // (compulsory exercises correct on first attempt ÷ 7) × 100
+  teacher_gate_approved: boolean;
+  gate_approved_at: number | null;
+  gate_approved_by: string | null;
+  teacher_selected_path: 'green_path' | 'remediation_path' | null;
+  matrix_recommended_path: 'green_path' | 'remediation_path' | null;
+}
+  </pre>
+
+  <h3>3. חוזה טלמטריה מוקלד (Telemetry Payload)</h3>
+  <pre>
+export interface TelemetryPayload&lt;T extends TelemetryEventType = TelemetryEventType&gt; {
+  idempotency_key: string;
+  client_timestamp: number;
+  session_id: string;
+  student_id: number; // Strictly 1-12
+  exercise_id: string;
+  event_type: T;
+  column_index?: number;
+  details: TelemetryDetailsMap[T];
+}
+  </pre>
+
+  <h3>4. מנוע חניכה סוקרטי מול Gemini API</h3>
+  <pre>
+export interface GeminiSocraticRequest {
+  student_id: number; // Strictly 1-12
+  session_id: string;
+  exercise_id: string;
+  active_column_index: number;
+  workspace_state: {
+    ones_count: number;
+    tens_count: number;
+    hundreds_count: number;
+    memory_circles: Record&lt;string, number&gt;;
+  };
+  recent_actions: TelemetryPayload&lt;TelemetryEventType&gt;[];
+}
+
+export interface GeminiSocraticResponse {
+  guiding_question: string;
+  options: [
+    { id: 'opt_1'; option_text: string; feedback_text: string; is_correct: boolean },
+    { id: 'opt_2'; option_text: string; feedback_text: string; is_correct: boolean },
+    { id: 'opt_3'; option_text: string; feedback_text: string; is_correct: boolean }
+  ];
+}
+  </pre>
+
+</body>
+</html>
