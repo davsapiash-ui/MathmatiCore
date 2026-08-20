@@ -148,6 +148,7 @@ interface AppState {
   ) => void;
   updateStudent: (studentId: string, updates: Partial<StudentData>) => void;
   resetStudentData: (studentId: string) => Promise<void>;
+  resetEntireSystemUsageData: () => Promise<void>;
   initStoreSubscriptions: () => (() => void);
 }
 
@@ -674,6 +675,103 @@ export const useStore = create<AppState>()(
           }
         } catch (err) {
           console.error(`Failed to reset student ${studentId} in Firebase:`, err);
+        }
+      },
+
+      resetEntireSystemUsageData: async () => {
+        const cleanStudents: Record<string, StudentData> = {};
+        const rootUpdates: Record<string, any> = {};
+
+        for (let i = 1; i <= 12; i++) {
+          const normId = `student_user${i}`;
+          const defaultName = `תלמיד ${i}`;
+          const cleanStudent: StudentData = {
+            studentId: normId,
+            classId: 'class_1',
+            name: defaultName,
+            completedMeeting2: false,
+            highestCompletedMeeting: 0,
+            qMatrixResults: {
+              task1_zero_placeholder: null,
+              task3_flexible_regrouping: null,
+              task4_basic_addition_fluency: null,
+              task5_small_change: null,
+              task6_subtraction_regrouping: null,
+              task7_missing_subtrahend: null,
+              task8_missing_addend: null,
+            },
+            traceData: { hesitation_events: 0, undo_clicks: 0, semantic_trace: [] },
+            routeRecommendation: null,
+            routeStatus: null,
+            liveSessionMetrics: null,
+            isOnline: false,
+            physicalOverride: false,
+            physicalOverrideActive: false,
+            diagnosticReport: null,
+            reflections: null,
+          };
+
+          cleanStudents[normId] = cleanStudent;
+          cleanStudents[`student_${i}`] = cleanStudent;
+
+          const payload = {
+            studentId: normId,
+            name: defaultName,
+            classId: 'class_1',
+            isOnline: false,
+            onlineStatus: 'offline',
+            currentTaskIdx: 0,
+            activeStep: 1,
+            routeStatus: 'GREEN_PATH',
+            routeRecommendation: null,
+            difficultyRecommendation: 'standard',
+            highestCompletedMeeting: 0,
+            completedMeeting2: false,
+            teacher_gate_approved: false,
+            enhanced_support_profile: false,
+            physicalOverride: false,
+            physicalOverrideActive: false,
+            radar_history: null,
+            diagnosticReport: null,
+            qMatrixResults: null,
+            conceptMastery: null,
+            reflections: null,
+            traceData: { hesitation_events: 0, undo_clicks: 0, semantic_trace: [] },
+            lastAction: 'לא מחובר',
+            lastActivityTimestamp: 0,
+            lastPing: 0,
+            workspaceState: {
+              sessionNumber: 1,
+              isASD: false,
+              standardTaskIdx: 0,
+              counts: { units: 0, tens: 0, hundreds: 0, thousands: 0 },
+              undoCount: 0,
+              hesitationCount: 0,
+              hasInteracted: false,
+              flowStatus: 'task'
+            }
+          };
+
+          rootUpdates[`users/students/${normId}`] = payload;
+          rootUpdates[`users/students/student_${i}`] = payload;
+          rootUpdates[`users/students/${i}`] = payload;
+          rootUpdates[`students/${normId}`] = payload;
+          rootUpdates[`chat_messages/${normId}`] = null;
+          rootUpdates[`chat_messages/student_${i}`] = null;
+          rootUpdates[`chat_messages/${i}`] = null;
+        }
+
+        rootUpdates['chat_messages/admin'] = null;
+        rootUpdates['chat_messages/teacher'] = null;
+        rootUpdates['radar_alerts'] = null;
+        rootUpdates['active_class_session'] = { active: false, sessionNumber: null, timestamp: Date.now() };
+
+        set({ students: cleanStudents });
+
+        try {
+          await update(ref(database), rootUpdates);
+        } catch (e) {
+          console.error("Failed to batch clean usage data in Firebase:", e);
         }
       }
     })

@@ -1261,6 +1261,20 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                 </button>
               </>
             )}
+
+            <button
+              onClick={async () => {
+                if (window.confirm("האם לאפס את כל נתוני השימוש במערכת (הודעות צ'אט, התראות וסטטוס תלמידים) למצב פתיחה נקי?")) {
+                  await useStore.getState().resetEntireSystemUsageData();
+                  toast.success("כל נתוני השימוש במערכת אופסו בהצלחה למצב פתיחה נקי!");
+                }
+              }}
+              className="px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 border border-slate-300/80 cursor-pointer shadow-sm"
+              title="איפוס מלא של נתוני שימוש במערכת"
+            >
+              <span>🔄</span>
+              <span>איפוס נתוני שימוש</span>
+            </button>
           </div>
         </div>
 
