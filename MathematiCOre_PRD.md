@@ -418,7 +418,7 @@ Implement Silent Radar as a static 3x4 grid representing 12 anonymous student pr
 - **תצוגת תלמיד:** זהה לחלוטין לממשק הסטנדרטי (ללא Badges, אייקונים או הודעות).
 
 ### ג. הנחיות פיתוח נוקשות (Strict Developer Instructions)
-Store support profile configuration strictly on the student document fields listed in §B (which match Appendix A's `AnonymousStudent` interface exactly as of v6.1 — do not introduce additional or renamed fields). Only authorized teachers may write this field. Pupil UI must remain visually indistinguishable from standard UI. If a profile is updated mid-exercise, apply it strictly at the next exercise transition boundary.
+Store support profile configuration strictly on the student document fields listed in §B (which match Appendix A's `AnonymousStudent` interface exactly — do not introduce additional or renamed fields). Only authorized teachers may write this field. Pupil UI must remain visually indistinguishable from standard UI. If a profile is updated mid-exercise, apply it strictly at the next exercise transition boundary.
 
 ---
 
@@ -431,17 +431,17 @@ Store support profile configuration strictly on the student document fields list
 בקר הניתוב (Route Guard) בלקוח התלמיד בודק: אם `session_number == 2` וגם `is_completed == true` וגם `teacher_gate_approved == false` (שלושתם על מסמך הסשן של מפגש 2 של אותו תלמיד), הגישה למפגש 3 נחסמת אסינכרונית והתלמיד מועבר למסך ההמתנה.
 
 - **מסך המתנה ("מעוף הדבורה"):** מציג אנימציית דבורה שלווה והודעה: "כל הכבוד מתמטיקאים! סיימתם את התחנה השנייה בהצלחה. המורה בודק את העבודה שלכם כעת, ומיד נמשיך במסע המשותף שלנו."
-- **דשבורד מורה:** טבלה אנונימית (1–12) המציגה את המלצת המטריקס האבחונית (`green_path`/`remediation_path` — שם השדה תוקן ב-v6.3 מ-`path_green`/`path_remediation` כדי להתאים לנספח א') ומתג אישור. בלחיצה, השרת מעדכן `teacher_gate_approved = true`.
+- **דשבורד מורה:** טבלה אנונימית (1–12) המציגה את המלצת המטריקס האבחונית (`green_path`/`remediation_path`) ומתג אישור. בלחיצה, השרת מעדכן `teacher_gate_approved = true`.
 
-**חישוב `matrix_recommended_path` (נוסף ב-v6.3 — ברירת מחדל מוצעת):** עד גרסה 6.2 שדה זה הופיע בסכימה (נספח א') אך שום מקום במסמך לא הגדיר איך הוא מחושב. ברירת המחדל: `matrix_recommended_path = 'green_path'` אם `session_score_percent >= 50`, אחרת `'remediation_path'` — אותו סף בדיוק כמו קו החלוקה התחתון של מודול 23.
+**חישוב `matrix_recommended_path`:** ברירת המחדל: `matrix_recommended_path = 'green_path'` אם `session_score_percent >= 50`, אחרת `'remediation_path'` — אותו סף בדיוק כמו קו החלוקה התחתון של מודול 23.
 
-**תלות בזמן חישוב (חשוב):** `session_score_percent` ו-`matrix_recommended_path` חייבים להיות מחושבים ונכתבים ל-`SessionDocument` **בטריגר עצמאי על סיום המפגש** (`is_completed` → `true`), **ולא** כתוצר לוואי של `generatePedagogicalReportPDF` (מודול 23). שער האישור כאן צריך לקרוא ערכים קיימים מיד עם סיום מפגש 2 — אם החישוב תלוי בהצלחת/סיום הפקת ה-PDF, נוצרת צימוד מיותר: כשל או עיכוב בהפקת הדוח יעכב את דשבורד האישור של המורה, בסתירה לעיקרון ההפרדה בין המודולים.
+**תלות בזמן חישוב:** `session_score_percent` ו-`matrix_recommended_path` מחושבים ונכתבים ל-`SessionDocument` **בטריגר עצמאי על סיום המפגש** (`is_completed` → `true`), **ולא** כתוצר לוואי של `generatePedagogicalReportPDF` (מודול 23). שער האישור קורא ערכים קיימים מיד עם סיום מפגש 2.
 
 ### ג. התרשתות ושחרור
 הלקוח מאזין ל-Firestore Snapshot Listener. עם אישור השרת, הנעילה משתחררת מיד (P95 ≤ 1000ms) והלובי מעודכן ללא רענון דף.
 
 ### ד. הנחיות פיתוח נוקשות (Strict Developer Instructions)
-Enforce async check in client router guards: restrict navigation access to session 3 if, on that student's session-2 `SessionDocument`, `session_number` equals 2 AND `is_completed` is true AND `teacher_gate_approved` is false. *(v6.2: corrected — `session_completed` is not a field on `SessionDocument`; the check is expressed via `session_number` + `is_completed`, both of which are.)* Redirect strictly to the positive waiting view ("מעוף הדבורה"). Atomically update approval fields (`teacher_gate_approved`, `teacher_selected_path`, `gate_approved_at`, `gate_approved_by`) in Firestore upon teacher click, unlocking student route via real-time listener under P95 ≤ 1000ms latency. Do not read or write any student-level approval field — `SessionDocument.teacher_gate_approved` is the sole source of truth. *(v6.3: compute `session_score_percent` and `matrix_recommended_path` in a dedicated `onSessionComplete`-style trigger, independent of `generatePedagogicalReportPDF` — the PDF generator should only read the already-computed value, never compute it itself. Default rule: `matrix_recommended_path = session_score_percent >= 50 ? 'green_path' : 'remediation_path'`, pending product confirmation.)*
+Enforce async check in client router guards: restrict navigation access to session 3 if, on that student's session-2 `SessionDocument`, `session_number` equals 2 AND `is_completed` is true AND `teacher_gate_approved` is false. Redirect strictly to the positive waiting view ("מעוף הדבורה"). Atomically update approval fields (`teacher_gate_approved`, `teacher_selected_path`, `gate_approved_at`, `gate_approved_by`) in Firestore upon teacher click, unlocking student route via real-time listener under P95 ≤ 1000ms latency. Do not read or write any student-level approval field — `SessionDocument.teacher_gate_approved` is the sole source of truth. Compute `session_score_percent` and `matrix_recommended_path` in a dedicated `onSessionComplete` trigger, independent of `generatePedagogicalReportPDF`. Default rule: `matrix_recommended_path = session_score_percent >= 50 ? 'green_path' : 'remediation_path'`.
 
 ---
 
@@ -513,14 +513,14 @@ Implement teacher admin chat inside a sliding side drawer triggered by an envelo
 תרגום נתוני הלמידה הדיגיטליים להמלצות פדגוגיות אופרטיביות להוראה פרונטלית והתערבות בכיתה הפיזית, תוך שמירה על אנונימיות מלאה.
 
 ### ב. מצב המערכת ומחולל הדוחות
-מחולל הדוחות פועל בצד השרת בלבד באמצעות Cloud Function (`generatePedagogicalReportPDF`). המחולל מופעל עם השלמת מפגש 2 או 8 ומפיק קובץ PDF לקריאה בלבד השמור ב-Cloud Storage ומקושר למסמך המורה. **(v6.3: הפונקציה קוראת את `session_score_percent` הקיים כבר על `SessionDocument` — היא אינה מחשבת אותו בעצמה. החישוב עצמו קורה בטריגר נפרד על סיום מפגש, ראו מודול 20 §ב, כדי שדשבורד האישור לא יהיה תלוי בהפקת ה-PDF.)**
+מחולל הדוחות פועל בצד השרת בלבד באמצעות Cloud Function (`generatePedagogicalReportPDF`). המחולל מופעל עם השלמת מפגש 2 או 8 ומפיק קובץ PDF לקריאה בלבד השמור ב-Cloud Storage ומקושר למסמך המורה. הפונקציה קוראת את `session_score_percent` הקיים כבר על `SessionDocument` (המחושב בטריגר עצמאי על סיום מפגש).
 
-**כללי הניתוב וההמלצות הפדגוגיות (מבוססים אחוזים — תוקן כיוון בגרסה 6.1):**
+**כללי הניתוב וההמלצות הפדגוגיות (מבוססים אחוזים):**
 - **ציון < 50%:** המלצה לעבודה בקבוצה הומוגנית קטנה, תיווך פרונטלי צמוד של המורה ושימוש בתבניות עשר פיזיות ומקלות מנייה.
 - **ציון 50%–75%:** המלצה לעבודה בקבוצה הטרוגנית, שיח עמיתים ופתרון בעיות משותף באמצעות חשבונייה פיזית.
 - **ציון > 75%:** המלצה לעבודה עצמאית עם משימות האתגר והעומק של כיתה ג' ושימוש בלוח מחיק פיזי וכרטיסיות מספרים.
 
-**הוכרע ב-v6.2:** נוסחת הציון: **`session_score_percent = (מספר תרגילי החובה מתוך 7 שנפתרו נכון בניסיון ראשון ÷ 7) × 100`**. "נפתר נכון בניסיון ראשון" = אירוע `PROBLEM_COMPLETE` לתרגיל זה שלא קדם לו אף `DIGIT_ENTERED` עם `is_correct: false` באותו `exercise_id`.
+נוסחת הציון: **`session_score_percent = (מספר תרגילי החובה מתוך 7 שנפתרו נכון בניסיון ראשון ÷ 7) × 100`**. "נפתר נכון בניסיון ראשון" = אירוע `PROBLEM_COMPLETE` לתרגיל זה שלא קדם לו אף `DIGIT_ENTERED` עם `is_correct: false` באותו `exercise_id`.
 
 ### ג. אירוע המשתמש
 המורה בוחרת מזהה תלמיד אנונימי (1–12) בדשבורד הדוחות ומורידה את הדוח המסכם כ-PDF.
@@ -748,11 +748,9 @@ export interface AnonymousStudent {
   created_at: number; // Client/Server timestamp
   support_profile_id: string | null;
   support_profile_version: number;
-  support_profile_updated_at: number | null; // v6.1: added — required by Module 19, missing from v6.0 appendix
-  support_profile_updated_by: string | null; // v6.1: added — teacher_id; required by Module 19
+  support_profile_updated_at: number | null;
+  support_profile_updated_by: string | null; // teacher_id
   active_session_id: string | null;
-  // v6.1: `teacher_approval_status` removed — orphaned duplicate of
-  // SessionDocument.teacher_gate_approved, never read/written by any module.
 }
 ```
 
@@ -778,15 +776,12 @@ export interface SessionDocument {
   session_deadline_time: number;
   active_exercise_id: string;
   is_completed: boolean;
-  session_score_percent: number | null; // v6.1: field added. v6.2: formula decided — see Module 23 §B:
-                                          // (compulsory exercises correct on first attempt ÷ 7) × 100
+  session_score_percent: number | null; // (compulsory exercises correct on first attempt ÷ 7) × 100
   teacher_gate_approved: boolean;
   gate_approved_at: number | null;
   gate_approved_by: string | null;
-  teacher_selected_path: 'green_path' | 'remediation_path' | null; // teacher's actual choice — may override the recommendation
-  matrix_recommended_path: 'green_path' | 'remediation_path' | null; // v6.3: default rule — 'green_path' if session_score_percent >= 50, else 'remediation_path'.
-                                                                       // Computed in a dedicated onSessionComplete trigger, NOT inside generatePedagogicalReportPDF (Module 20 §B / Module 23 §B).
-                                                                       // Proposed default, pending product confirmation.
+  teacher_selected_path: 'green_path' | 'remediation_path' | null;
+  matrix_recommended_path: 'green_path' | 'remediation_path' | null; // 'green_path' if session_score_percent >= 50, else 'remediation_path'
 }
 ```
 
@@ -808,7 +803,7 @@ export type TelemetryEventType =
   | 'PROBLEM_COMPLETE'
   | 'REFLECTION_SUBMITTED';
 
-// --- v6.1: per-event-type details schemas (replaces the open Record<string, unknown> from v6.0) ---
+// --- Per-event-type details schemas ---
 
 export interface SessionStartDetails {
   session_number: number; // 1 to 8
@@ -907,7 +902,7 @@ export interface OfflineQueueItem {
   student_id: number;
   exercise_id: string;
   operation_type: TelemetryEventType;
-  payload: TelemetryDetailsMap[TelemetryEventType]; // v6.1: typed — was Record<string, unknown> in v6.0
+  payload: TelemetryDetailsMap[TelemetryEventType];
   retry_count: number;
 }
 ```
@@ -962,7 +957,7 @@ export interface VRAWorkspaceStore {
 
 ```typescript
 export interface GeminiSocraticRequest {
-  student_id: number; // Strictly 1-12 — v6.1: renamed from anonymous_student_id for consistency
+  student_id: number; // Strictly 1-12
   session_id: string;
   exercise_id: string;
   active_column_index: number;
