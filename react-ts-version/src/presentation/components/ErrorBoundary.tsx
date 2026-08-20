@@ -9,6 +9,7 @@ interface State {
   hasError: boolean;
   error: Error | null;
   errorInfo: ErrorInfo | null;
+  copied: boolean;
 }
 
 export class ErrorBoundary extends Component<Props, State> {
@@ -16,6 +17,7 @@ export class ErrorBoundary extends Component<Props, State> {
     hasError: false,
     error: null,
     errorInfo: null,
+    copied: false,
   };
 
   public static getDerivedStateFromError(error: Error): Partial<State> {
@@ -42,6 +44,36 @@ export class ErrorBoundary extends Component<Props, State> {
 
   private handleGoHome = () => {
     window.location.href = '/login';
+  };
+
+  private handleCopyError = () => {
+    const errorText = `[MathmatiCore Error Details]\nTime: ${new Date().toISOString()}\nURL: ${window.location.href}\nError: ${this.state.error?.toString() || 'Unknown'}\nStack: ${this.state.error?.stack || ''}\nComponentStack: ${this.state.errorInfo?.componentStack || ''}`;
+    
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(errorText).then(() => {
+        this.setState({ copied: true });
+        setTimeout(() => this.setState({ copied: false }), 2500);
+      }).catch(() => {
+        this.fallbackCopy(errorText);
+      });
+    } else {
+      this.fallbackCopy(errorText);
+    }
+  };
+
+  private fallbackCopy = (text: string) => {
+    try {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      this.setState({ copied: true });
+      setTimeout(() => this.setState({ copied: false }), 2500);
+    } catch {
+      alert('לא ניתן היה להעתיק אוטומטית. אנא העתק את הטקסט באופן ידני.');
+    }
   };
 
   public render() {
@@ -87,14 +119,23 @@ export class ErrorBoundary extends Component<Props, State> {
             </div>
 
             {this.state.error && (
-              <details className="w-full text-right text-xs text-slate-400 bg-slate-50 dark:bg-slate-800/40 p-3 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-                <summary className="cursor-pointer font-bold text-slate-600 dark:text-slate-300">
-                  פרטי שגיאה טכניים
-                </summary>
-                <pre className="mt-2 p-2 bg-slate-100 dark:bg-slate-900 rounded overflow-x-auto text-[11px] font-mono text-rose-600 dark:text-rose-400" dir="ltr">
+              <div className="w-full flex flex-col gap-2 text-right">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-xs text-slate-600 dark:text-slate-300">
+                    פרטי שגיאה טכניים:
+                  </span>
+                  <button
+                    onClick={this.handleCopyError}
+                    className="text-xs px-3 py-1.5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
+                  >
+                    {this.state.copied ? '✓ הועתק ללוח!' : '📋 העתק שגיאה לשליחה'}
+                  </button>
+                </div>
+                <pre className="p-3 bg-slate-100 dark:bg-slate-900 rounded-xl overflow-x-auto text-[11px] font-mono text-rose-600 dark:text-rose-400 border border-slate-200 dark:border-slate-800 select-text max-h-48 text-left" dir="ltr">
                   {this.state.error.toString()}
+                  {this.state.error.stack ? `\n\n${this.state.error.stack}` : ''}
                 </pre>
-              </details>
+              </div>
             )}
           </div>
         </div>
