@@ -160,9 +160,8 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
           const uid = `student_${studentNum}`;
           const data = rawData[uid] || rawData[`slot_${studentNum}`] || rawData[`student_user${studentNum}`] || {};
           
-          // Presence heartbeat check (resilient 60-second window per PRD Module 18)
-          const lastPing = Number(data.lastPing || data.lastActivityTimestamp || data.lastActive || 0);
-          const isOnline = Boolean(data.isOnline) && (lastPing > 0 ? (now - lastPing <= 60000) : Boolean(data.isOnline));
+          // Direct online presence check from Firebase RTDB
+          const isOnline = Boolean(data.isOnline === true || data.onlineStatus === 'active');
 
           const wsState = data.workspaceState || {};
           const sessionState = data.sessionState || {};
