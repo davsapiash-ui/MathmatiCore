@@ -315,19 +315,19 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
   }, [isPlaying, events.length, playbackSpeed]);
 
   const wsLive = liveStudentData?.workspaceState;
-  const currentEvent = events[currentEventIndex] || events[0];
+  const currentEvent = events[currentEventIndex] || events[0] || null;
   const snap = currentEvent?.stateSnapshot || {
-    counts: wsLive?.counts || { units: 4, tens: 2, hundreds: 1, thousands: 0 },
-    answerDigits: wsLive?.answerDigits || { units: '4', tens: '2', hundreds: '1' },
+    counts: wsLive?.counts || { units: 0, tens: 0, hundreds: 0, thousands: 0 },
+    answerDigits: wsLive?.answerDigits || { units: '0', tens: '0', hundreds: '0' },
     carryDigits: wsLive?.carryDigits || {},
     taskTitle: wsLive?.activeTask?.titleHe || 'מפגש 1: ארגז החול הדיגיטלי',
     equation: wsLive?.activeTask?.numberA != null 
       ? `${wsLive.activeTask.numberA} ${wsLive.activeTask.isSubtraction ? '-' : '+'} ${wsLive.activeTask.numberB} = ?`
-      : 'ייצוג 124 בבית המספרים',
+      : 'ייצוג בבית המספרים',
     stepInstruction: wsLive?.activeTask?.instructionHe || 'חקירה פעילה בבית המספרים',
   };
 
-  const currentTotalValue = (snap.counts.thousands * 1000) + (snap.counts.hundreds * 100) + (snap.counts.tens * 10) + snap.counts.units;
+  const currentTotalValue = ((snap.counts?.thousands ?? 0) * 1000) + ((snap.counts?.hundreds ?? 0) * 100) + ((snap.counts?.tens ?? 0) * 10) + (snap.counts?.units ?? 0);
 
   return (
     <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 md:p-8 shadow-xl shadow-slate-200/50 dark:shadow-none mt-6 flex flex-col gap-6" dir="rtl">
@@ -366,7 +366,9 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
               </span>
               <span className="text-slate-400 font-bold hidden sm:inline">{snap.taskTitle}</span>
             </div>
-            <span className="text-[11px] text-slate-400 font-mono">צעד {currentEventIndex + 1} מתוך {events.length}</span>
+            <span className="text-[11px] text-slate-400 font-mono">
+              {events.length > 0 ? `צעד ${currentEventIndex + 1} מתוך ${events.length}` : 'המתנה לפעילות'}
+            </span>
           </div>
 
           {/* Authentic Student Screen Canvas Box */}
@@ -463,10 +465,10 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
                     {/* Hundreds Column */}
                     <div className="border-l border-slate-800/80 pl-1 flex flex-col justify-between items-center">
                       <span className="text-[10px] font-black text-amber-400 bg-amber-950/40 px-1.5 py-0.5 rounded">
-                        מאות ({snap.counts.hundreds})
+                        מאות ({snap.counts?.hundreds ?? 0})
                       </span>
                       <div className="flex-1 w-full flex flex-col justify-end items-center gap-1 pb-1">
-                        {Array.from({ length: Math.min(snap.counts.hundreds, 4) }).map((_, i) => (
+                        {Array.from({ length: Math.min(snap.counts?.hundreds ?? 0, 4) }).map((_, i) => (
                           <div key={`h-${i}`} className="scale-[0.55] -my-2 transform-gpu">
                             <HundredSVG />
                           </div>
@@ -477,10 +479,10 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
                     {/* Tens Column */}
                     <div className="border-l border-slate-800/80 pl-1 flex flex-col justify-between items-center">
                       <span className="text-[10px] font-black text-emerald-400 bg-emerald-950/40 px-1.5 py-0.5 rounded">
-                        עשרות ({snap.counts.tens})
+                        עשרות ({snap.counts?.tens ?? 0})
                       </span>
                       <div className="flex-1 w-full flex flex-col justify-end items-center gap-1 pb-1">
-                        {Array.from({ length: Math.min(snap.counts.tens, 10) }).map((_, i) => (
+                        {Array.from({ length: Math.min(snap.counts?.tens ?? 0, 10) }).map((_, i) => (
                           <div key={`t-${i}`} className="scale-[0.6] -my-2.5 transform-gpu">
                             <TenSVG />
                           </div>
@@ -491,10 +493,10 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
                     {/* Units Column */}
                     <div className="flex flex-col justify-between items-center">
                       <span className="text-[10px] font-black text-sky-400 bg-sky-950/40 px-1.5 py-0.5 rounded">
-                        יחידות ({snap.counts.units})
+                        יחידות ({snap.counts?.units ?? 0})
                       </span>
                       <div className="flex-1 w-full flex flex-wrap content-end justify-center items-end gap-1 pb-1">
-                        {Array.from({ length: Math.min(snap.counts.units, 15) }).map((_, i) => (
+                        {Array.from({ length: Math.min(snap.counts?.units ?? 0, 15) }).map((_, i) => (
                           <div key={`u-${i}`} className="scale-[0.8]">
                             <UnitSVG />
                           </div>
