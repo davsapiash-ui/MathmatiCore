@@ -64,42 +64,60 @@ export function AdminOverview() {
     const unsubAdmin = useAdminStore.getState().initAdminSubscriptions();
     
     const logsRef = query(ref(database, 'audit_logs'), orderByChild('timestamp'), limitToLast(30));
-    const unsubLogs = onValue(logsRef, (snapshot) => {
-      try {
-        if (snapshot.exists()) {
-          const rawData = snapshot.val();
-          const data = (rawData && typeof rawData === 'object') ? rawData : {};
-          const logsArray: AuditLogEvent[] = Object.keys(data).map(key => ({
-            id: key,
-            ...data[key]
-          }));
-          setAuditLogs(logsArray.reverse());
-        } else {
+    const unsubLogs = onValue(
+      logsRef,
+      (snapshot) => {
+        try {
+          if (snapshot.exists()) {
+            const rawData = snapshot.val();
+            const data = (rawData && typeof rawData === 'object') ? rawData : {};
+            const logsArray: AuditLogEvent[] = Object.keys(data).map(key => ({
+              id: key,
+              ...data[key]
+            }));
+            setAuditLogs(logsArray.reverse());
+          } else {
+            setAuditLogs([]);
+          }
+        } catch (e) {
+          console.error("Error processing audit logs:", e);
           setAuditLogs([]);
         }
-      } catch (e) {
-        console.error("Error processing audit logs:", e);
-        setAuditLogs([]);
+      },
+      (err) => {
+        console.warn('[AdminOverview] logsRef listener notice:', err);
       }
-    });
+    );
 
     const studentsRef = ref(database, 'users/students');
-    const unsubStudents = onValue(studentsRef, (snapshot) => {
-      if (snapshot.exists()) {
-        setTotalStudents(Object.keys(snapshot.val()).length);
-      } else {
-        setTotalStudents(0);
+    const unsubStudents = onValue(
+      studentsRef,
+      (snapshot) => {
+        if (snapshot.exists()) {
+          setTotalStudents(Object.keys(snapshot.val()).length);
+        } else {
+          setTotalStudents(0);
+        }
+      },
+      (err) => {
+        console.warn('[AdminOverview] studentsRef listener notice:', err);
       }
-    });
+    );
 
     const alertsRef = ref(database, 'radar_alerts');
-    const unsubAlerts = onValue(alertsRef, (snapshot) => {
-      if (snapshot.exists()) {
-        setAlertsCount(Object.keys(snapshot.val()).length);
-      } else {
-        setAlertsCount(0);
+    const unsubAlerts = onValue(
+      alertsRef,
+      (snapshot) => {
+        if (snapshot.exists()) {
+          setAlertsCount(Object.keys(snapshot.val()).length);
+        } else {
+          setAlertsCount(0);
+        }
+      },
+      (err) => {
+        console.warn('[AdminOverview] alertsRef listener notice:', err);
       }
-    });
+    );
 
     return () => {
       unsubAdmin();
@@ -114,22 +132,28 @@ export function AdminOverview() {
 
   useEffect(() => {
     const connectedRef = ref(database, '.info/connected');
-    const unsub = onValue(connectedRef, async (snap) => {
-      const isConn = snap.val() === true;
-      setIsFirebaseConnected(isConn);
-      if (isConn) {
-        const start = performance.now();
-        try {
-          await get(ref(database, '.info/serverTimeOffset'));
-          const duration = Math.round(performance.now() - start);
-          setLatencyMs(duration);
-        } catch {
+    const unsub = onValue(
+      connectedRef,
+      async (snap) => {
+        const isConn = snap.val() === true;
+        setIsFirebaseConnected(isConn);
+        if (isConn) {
+          const start = performance.now();
+          try {
+            await get(ref(database, '.info/serverTimeOffset'));
+            const duration = Math.round(performance.now() - start);
+            setLatencyMs(duration);
+          } catch {
+            setLatencyMs(null);
+          }
+        } else {
           setLatencyMs(null);
         }
-      } else {
-        setLatencyMs(null);
+      },
+      (err) => {
+        console.warn('[AdminOverview] connectedRef listener notice:', err);
       }
-    });
+    );
 
     const pingInterval = setInterval(async () => {
       if (isFirebaseConnected) {

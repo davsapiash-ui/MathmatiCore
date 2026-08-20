@@ -43,13 +43,25 @@ function FirebaseGate({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   useEffect(() => {
     let cancelled = false;
+    const timer = setTimeout(() => {
+      if (!cancelled) {
+        setReady(true);
+      }
+    }, 1500);
+
     authReady.then(() => {
       if (!cancelled) {
         setReady(true);
       }
+    }).catch(() => {
+      if (!cancelled) {
+        setReady(true);
+      }
     });
+
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
   }, []);
   if (!ready) {

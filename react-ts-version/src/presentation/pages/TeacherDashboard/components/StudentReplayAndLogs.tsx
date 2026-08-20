@@ -286,6 +286,8 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
             }
           ]);
         }
+      }, (err) => {
+        console.warn('[StudentReplayAndLogs] studentsRootRef listener notice:', err);
       });
     });
 

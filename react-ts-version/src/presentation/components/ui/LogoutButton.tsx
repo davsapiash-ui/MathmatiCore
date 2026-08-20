@@ -11,8 +11,13 @@ export function LogoutButton({ className = "", showIconOnly = false }: LogoutBut
   const handleLogout = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    unifiedLogout();
-    window.location.href = "/login";
+    try {
+      unifiedLogout();
+    } catch (err) {
+      console.warn('[LogoutButton] unifiedLogout notice:', err);
+    } finally {
+      window.location.replace("/login");
+    }
   };
 
   return (

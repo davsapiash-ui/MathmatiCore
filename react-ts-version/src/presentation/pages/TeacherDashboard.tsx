@@ -317,19 +317,25 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   // Sync active class session with Firebase
   useEffect(() => {
     const sessionRef = ref(database, 'active_class_session');
-    const unsub = onValue(sessionRef, (snap) => {
-      if (snap.exists()) {
-        const val = snap.val();
-        if (val && val.active) {
-          setIsClassSessionActive(true);
-          setSessionStartTime(val.startedAt || Date.now());
-          setSelectedSessionNum(val.sessionNumber || 1);
-          return;
+    const unsub = onValue(
+      sessionRef,
+      (snap) => {
+        if (snap.exists()) {
+          const val = snap.val();
+          if (val && val.active) {
+            setIsClassSessionActive(true);
+            setSessionStartTime(val.startedAt || Date.now());
+            setSelectedSessionNum(val.sessionNumber || 1);
+            return;
+          }
         }
+        setIsClassSessionActive(false);
+        setSessionStartTime(null);
+      },
+      (err) => {
+        console.warn('[TeacherDashboard] sessionRef listener notice:', err);
       }
-      setIsClassSessionActive(false);
-      setSessionStartTime(null);
-    });
+    );
     return () => unsub();
   }, []);
 
@@ -508,31 +514,37 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   useEffect(() => {
     try {
       const rootPendingRef = ref(database, 'ai_pending_approvals');
-      const unsubscribe = onValue(rootPendingRef, (snap) => {
-        if (!snap.exists()) {
-          setTeacherApprovals([]);
-          setFallbackApprovals([]);
-          return;
-        }
-        const raw = snap.val() || {};
-        const allList: PendingAIApproval[] = [];
-        Object.keys(raw).forEach((k) => {
-          const item = raw[k];
-          if (item && typeof item === 'object') {
-            if (item.studentId || item.suggestedRoute) {
-              allList.push({ id: k, ...item });
-            } else {
-              Object.keys(item).forEach((subK) => {
-                const subItem = item[subK];
-                if (subItem && typeof subItem === 'object') {
-                  allList.push({ id: subK, ...subItem });
-                }
-              });
-            }
+      const unsubscribe = onValue(
+        rootPendingRef,
+        (snap) => {
+          if (!snap.exists()) {
+            setTeacherApprovals([]);
+            setFallbackApprovals([]);
+            return;
           }
-        });
-        setTeacherApprovals(allList);
-      });
+          const raw = snap.val() || {};
+          const allList: PendingAIApproval[] = [];
+          Object.keys(raw).forEach((k) => {
+            const item = raw[k];
+            if (item && typeof item === 'object') {
+              if (item.studentId || item.suggestedRoute) {
+                allList.push({ id: k, ...item });
+              } else {
+                Object.keys(item).forEach((subK) => {
+                  const subItem = item[subK];
+                  if (subItem && typeof subItem === 'object') {
+                    allList.push({ id: subK, ...subItem });
+                  }
+                });
+              }
+            }
+          });
+          setTeacherApprovals(allList);
+        },
+        (err) => {
+          console.warn('[TeacherDashboard] rootPendingRef listener notice:', err);
+        }
+      );
       return () => unsubscribe();
     } catch {
       SocraticEngine.getPendingApprovals(TEACHER_ID).then(setTeacherApprovals).catch((err) => {
@@ -636,30 +648,36 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
 
   useEffect(() => {
     const alertsRef = ref(database, 'radar_alerts');
-    const unsub = onValue(alertsRef, (snapshot) => {
-      try {
-        const rawData = snapshot.val();
-        const data = (rawData && typeof rawData === 'object') ? rawData : null;
-        if (data) {
-          const parsed = Object.keys(data).map(key => {
-            const row = data[key as keyof typeof data];
-            const rawId = row.studentId ?? row.rawStudentId ?? row.student ?? row.username;
-            return {
-              ...row,
-              firebaseKey: key,
-              studentId: row.studentId ?? row.studentName ?? rawId ?? 'תלמיד',
-              rawStudentId: rawId,
-            };
-          }).reverse();
-          setFirebaseAlerts(parsed);
-        } else {
+    const unsub = onValue(
+      alertsRef,
+      (snapshot) => {
+        try {
+          const rawData = snapshot.val();
+          const data = (rawData && typeof rawData === 'object') ? rawData : null;
+          if (data) {
+            const parsed = Object.keys(data).map(key => {
+              const row = data[key as keyof typeof data];
+              const rawId = row.studentId ?? row.rawStudentId ?? row.student ?? row.username;
+              return {
+                ...row,
+                firebaseKey: key,
+                studentId: row.studentId ?? row.studentName ?? rawId ?? 'תלמיד',
+                rawStudentId: rawId,
+              };
+            }).reverse();
+            setFirebaseAlerts(parsed);
+          } else {
+            setFirebaseAlerts([]);
+          }
+        } catch (e) {
+          console.error("Error parsing radar alerts:", e);
           setFirebaseAlerts([]);
         }
-      } catch (e) {
-        console.error("Error parsing radar alerts:", e);
-        setFirebaseAlerts([]);
+      },
+      (err) => {
+        console.warn('[TeacherDashboard] alertsRef listener notice:', err);
       }
-    });
+    );
     return () => unsub();
   }, []);
 

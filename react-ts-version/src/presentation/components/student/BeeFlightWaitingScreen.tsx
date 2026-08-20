@@ -24,19 +24,24 @@ export function BeeFlightWaitingScreen({ onApproved }: BeeFlightWaitingScreenPro
     if (!studentId) return;
 
     const studentRef = ref(database, `users/students/${studentId}`);
-    const unsub = onValue(studentRef, (snap) => {
-      if (snap.exists()) {
-        const val = snap.val();
-        const approved = val.teacher_gate_approved === true || val.routeStatus === 'APPROVED';
-        if (approved) {
-          setIsApproved(true);
-          if (onApproved) {
-            onApproved();
+    const unsub = onValue(
+      studentRef,
+      (snap) => {
+        if (snap.exists()) {
+          const val = snap.val();
+          const approved = val.teacher_gate_approved === true || val.routeStatus === 'APPROVED';
+          if (approved) {
+            setIsApproved(true);
+            if (onApproved) {
+              onApproved();
+            }
           }
         }
+      },
+      (err) => {
+        console.warn('[BeeFlightWaitingScreen] listener notice:', err);
       }
-    });
-
+    );
     return () => unsub();
   }, [studentId, onApproved]);
 

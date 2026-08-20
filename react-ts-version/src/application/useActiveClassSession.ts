@@ -14,21 +14,27 @@ export function useActiveClassSession() {
 
   useEffect(() => {
     const sessionRef = ref(database, 'active_class_session');
-    const unsub = onValue(sessionRef, (snap) => {
-      if (snap.exists()) {
-        const val = snap.val();
-        if (val && val.active === true) {
-          setSession({
-            active: true,
-            sessionNumber: Number(val.sessionNumber || 1),
-            startedAt: Number(val.startedAt || Date.now()),
-            teacherId: val.teacherId,
-          });
-          return;
+    const unsub = onValue(
+      sessionRef,
+      (snap) => {
+        if (snap.exists()) {
+          const val = snap.val();
+          if (val && val.active === true) {
+            setSession({
+              active: true,
+              sessionNumber: Number(val.sessionNumber || 1),
+              startedAt: Number(val.startedAt || Date.now()),
+              teacherId: val.teacherId,
+            });
+            return;
+          }
         }
+        setSession(null);
+      },
+      (err) => {
+        console.warn('[useActiveClassSession] Listener notice:', err);
       }
-      setSession(null);
-    });
+    );
     return () => unsub();
   }, []);
 

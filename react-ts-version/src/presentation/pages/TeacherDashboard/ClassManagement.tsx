@@ -54,39 +54,45 @@ export function ClassManagement({
 
   useEffect(() => {
     const studentsRef = ref(database, 'users/students');
-    const unsub = onValue(studentsRef, (snapshot) => {
-      if (!snapshot.exists()) return;
-      const raw = snapshot.val() || {};
+    const unsub = onValue(
+      studentsRef,
+      (snapshot) => {
+        if (!snapshot.exists()) return;
+        const raw = snapshot.val() || {};
 
-      setStudentStates((prev) => {
-        return prev.map((s, index) => {
-          const num = index + 1;
-          const uid = `student_${num}`;
-          const data = raw[uid] || raw[`slot_${num}`] || raw[`student_user${num}`] || {};
+        setStudentStates((prev) => {
+          return prev.map((s, index) => {
+            const num = index + 1;
+            const uid = `student_${num}`;
+            const data = raw[uid] || raw[`slot_${num}`] || raw[`student_user${num}`] || {};
 
-          const session2Done = Boolean(
-            data.completedMeeting2 ||
-            data.session_completed === 2 ||
-            (typeof data.highestCompletedMeeting === 'number' && data.highestCompletedMeeting >= 2) ||
-            data.routeStatus === 'PENDING_TEACHER_APPROVAL' ||
-            data.routeStatus === 'APPROVED'
-          );
+            const session2Done = Boolean(
+              data.completedMeeting2 ||
+              data.session_completed === 2 ||
+              (typeof data.highestCompletedMeeting === 'number' && data.highestCompletedMeeting >= 2) ||
+              data.routeStatus === 'PENDING_TEACHER_APPROVAL' ||
+              data.routeStatus === 'APPROVED'
+            );
 
-          const isYellow = data.routeRecommendation === 'YELLOW' || data.sessionState?.current_path === 'remediation_path';
-          const isApproved = data.teacher_gate_approved === true || data.routeStatus === 'APPROVED';
-          const enhanced = Boolean(data.enhanced_support_profile || data.physicalOverrideActive || data.physicalOverride);
+            const isYellow = data.routeRecommendation === 'YELLOW' || data.sessionState?.current_path === 'remediation_path';
+            const isApproved = data.teacher_gate_approved === true || data.routeStatus === 'APPROVED';
+            const enhanced = Boolean(data.enhanced_support_profile || data.physicalOverrideActive || data.physicalOverride);
 
-          return {
-            id: uid,
-            studentNumber: num,
-            session2Completed: session2Done,
-            recommendedPath: isYellow ? 'צמצום פערי קדם' : 'ירוק',
-            isApproved,
-            enhancedSupport: enhanced,
-          };
+            return {
+              id: uid,
+              studentNumber: num,
+              session2Completed: session2Done,
+              recommendedPath: isYellow ? 'צמצום פערי קדם' : 'ירוק',
+              isApproved,
+              enhancedSupport: enhanced,
+            };
+          });
         });
-      });
-    });
+      },
+      (err) => {
+        console.warn('[ClassManagement] studentsRef listener notice:', err);
+      }
+    );
 
     return () => unsub();
   }, []);

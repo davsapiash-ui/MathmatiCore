@@ -196,40 +196,52 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
     };
 
     const studentsRef = ref(database, 'users/students');
-    const unsubStudents = onValue(studentsRef, (snapshot) => {
-      if (!snapshot.exists()) return;
-      pendingData = snapshot.val() || {};
+    const unsubStudents = onValue(
+      studentsRef,
+      (snapshot) => {
+        if (!snapshot.exists()) return;
+        pendingData = snapshot.val() || {};
 
-      if (!throttleTimeout) {
-        throttleTimeout = setTimeout(() => {
-          throttleTimeout = null;
-          flushThrottledData();
-        }, 1000);
+        if (!throttleTimeout) {
+          throttleTimeout = setTimeout(() => {
+            throttleTimeout = null;
+            flushThrottledData();
+          }, 1000);
+        }
+      },
+      (err) => {
+        console.warn('[HeatmapGrid] students listener notice:', err);
       }
-    });
+    );
 
     const alertsRef = ref(database, 'radar_alerts');
-    const unsubAlerts = onValue(alertsRef, (snapshot) => {
-      if (!snapshot.exists()) {
-        setFeedItems([]);
-        return;
-      }
-      const rawAlerts = snapshot.val() || {};
-      const sixtyMinsAgo = Date.now() - 60 * 60 * 1000;
-      const newItems: LiveFeedItem[] = Object.entries(rawAlerts)
-        .map(([key, val]: [string, any]) => ({
-          id: key,
-          studentId: val.studentId || val.rawStudentId || 'student_1',
-          studentName: `תלמיד ${val.studentId ? String(val.studentId).replace(/\D+/g, '') || '1' : '1'}`,
-          timestamp: val.timestamp || Date.now(),
-          message: val.type === 'HESITATION' ? 'השהייה מעל 45 שניות בטור הפעיל' : val.type === 'PASSIVE_DRIFTING' ? 'זיהוי מחיקות או ביטולים רצופים' : val.message || 'התראת רדאר שקטה בזמן אמת',
-          severity: (val.type === 'TAB_ESCAPE' || val.type === 'PASSIVE_DRIFTING' || val.type === 'CALL_FOR_HELP' ? 'alert' : 'warning') as "alert" | "warning",
-        }))
-        .filter(item => item.timestamp > sixtyMinsAgo)
-        .reverse();
+    const unsubAlerts = onValue(
+      alertsRef,
+      (snapshot) => {
+        if (!snapshot.exists()) {
+          setFeedItems([]);
+          return;
+        }
+        const rawAlerts = snapshot.val() || {};
+        const sixtyMinsAgo = Date.now() - 60 * 60 * 1000;
+        const newItems: LiveFeedItem[] = Object.entries(rawAlerts)
+          .map(([key, val]: [string, any]) => ({
+            id: key,
+            studentId: val.studentId || val.rawStudentId || 'student_1',
+            studentName: `תלמיד ${val.studentId ? String(val.studentId).replace(/\D+/g, '') || '1' : '1'}`,
+            timestamp: val.timestamp || Date.now(),
+            message: val.type === 'HESITATION' ? 'השהייה מעל 45 שניות בטור הפעיל' : val.type === 'PASSIVE_DRIFTING' ? 'זיהוי מחיקות או ביטולים רצופים' : val.message || 'התראת רדאר שקטה בזמן אמת',
+            severity: (val.type === 'TAB_ESCAPE' || val.type === 'PASSIVE_DRIFTING' || val.type === 'CALL_FOR_HELP' ? 'alert' : val.type === 'HESITATION' ? 'warning' : 'info') as 'info' | 'warning' | 'alert',
+          }))
+          .filter((item) => item.timestamp > sixtyMinsAgo)
+          .sort((a, b) => b.timestamp - a.timestamp);
 
-      setFeedItems(newItems.slice(0, 15));
-    });
+        setFeedItems(newItems.slice(0, 15));
+      },
+      (err) => {
+        console.warn('[HeatmapGrid] alerts listener notice:', err);
+      }
+    );
 
     return () => {
       unsubStudents();

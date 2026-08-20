@@ -112,10 +112,16 @@ export const useChatStore = create<ChatState>()(
 
       // Sync globalChatEnabled control flag from Firebase Realtime DB
       try {
-        onValue(ref(database, 'system_control/globalChatEnabled'), (snap) => {
-          const enabled = snap.exists() ? Boolean(snap.val()) : true;
-          set({ globalChatEnabled: enabled });
-        });
+        onValue(
+          ref(database, 'system_control/globalChatEnabled'),
+          (snap) => {
+            const enabled = snap.exists() ? Boolean(snap.val()) : true;
+            set({ globalChatEnabled: enabled });
+          },
+          (err) => {
+            console.warn('[useChatStore] globalChatEnabled listener notice:', err);
+          }
+        );
       } catch (err) {
         console.warn("Global chat status sync non-blocking warning:", err);
       }

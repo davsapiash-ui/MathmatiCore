@@ -88,25 +88,31 @@ export function StudentWorkspacePage() {
   // Module 15: Real-time Projector Mode Listener (<1000ms sync) with timestamp ordering protection
   useEffect(() => {
     const projectorRef = ref(database, 'system_control/projector_mode');
-    const unsub = onValue(projectorRef, (snap) => {
-      if (snap.exists()) {
-        const val = snap.val();
-        if (typeof val === 'object' && val !== null) {
-          const timestamp = val.projector_mode_updated_at || val.updated_at || 0;
-          if (timestamp > 0 && timestamp <= lastProjectorTimestampRef.current) {
-            return; // Ignore stale / out-of-order updates
+    const unsub = onValue(
+      projectorRef,
+      (snap) => {
+        if (snap.exists()) {
+          const val = snap.val();
+          if (typeof val === 'object' && val !== null) {
+            const timestamp = val.projector_mode_updated_at || val.updated_at || 0;
+            if (timestamp > 0 && timestamp <= lastProjectorTimestampRef.current) {
+              return; // Ignore stale / out-of-order updates
+            }
+            if (timestamp > 0) {
+              lastProjectorTimestampRef.current = timestamp;
+            }
+            setIsProjectorModeActive(Boolean(val.projector_mode ?? val.active));
+          } else {
+            setIsProjectorModeActive(Boolean(val));
           }
-          if (timestamp > 0) {
-            lastProjectorTimestampRef.current = timestamp;
-          }
-          setIsProjectorModeActive(Boolean(val.projector_mode ?? val.active));
         } else {
-          setIsProjectorModeActive(Boolean(val));
+          setIsProjectorModeActive(false);
         }
-      } else {
-        setIsProjectorModeActive(false);
+      },
+      (err) => {
+        console.warn('[StudentWorkspacePage] projectorRef listener notice:', err);
       }
-    });
+    );
     return () => unsub();
   }, []);
 
@@ -128,16 +134,22 @@ export function StudentWorkspacePage() {
 
     // 2. Real-time listener: Detect if a newer device took over ownership
     const deviceRef = ref(database, `users/students/${normUid}/active_device_id`);
-    const unsubDevice = onValue(deviceRef, (snap) => {
-      if (snap.exists()) {
-        const remoteDevId = snap.val();
-        if (remoteDevId && remoteDevId !== myDevId) {
-          // This device was superseded! Lock screen and safely halt canvas recorder to prevent Storage overwrites
-          useWorkspaceStore.getState().setSupersededByOtherDevice(true);
-          canvasRecorder.stopRecording().catch(console.error);
+    const unsubDevice = onValue(
+      deviceRef,
+      (snap) => {
+        if (snap.exists()) {
+          const remoteDevId = snap.val();
+          if (remoteDevId && remoteDevId !== myDevId) {
+            // This device was superseded! Lock screen and safely halt canvas recorder to prevent Storage overwrites
+            useWorkspaceStore.getState().setSupersededByOtherDevice(true);
+            canvasRecorder.stopRecording().catch(console.error);
+          }
         }
+      },
+      (err) => {
+        console.warn('[StudentWorkspacePage] deviceRef listener notice:', err);
       }
-    });
+    );
 
     return () => unsubDevice();
   }, [normUid]);
@@ -362,26 +374,32 @@ export function StudentWorkspacePage() {
     const uid = user?.uid;
     if (!uid) return;
     const boardRef = ref(database, `users/students/${uid}/additionBoardEnabled`);
-    const unsub = onValue(boardRef, (snap) => {
-      if (snap.exists()) {
-        const val = Boolean(snap.val());
-        setLiveAdditionBoardEnabled(val);
-        useStore.setState((s) => {
-          if (s.students[uid]) {
-            return {
-              students: {
-                ...s.students,
-                [uid]: {
-                  ...s.students[uid],
-                  additionBoardEnabled: val,
+    const unsub = onValue(
+      boardRef,
+      (snap) => {
+        if (snap.exists()) {
+          const val = Boolean(snap.val());
+          setLiveAdditionBoardEnabled(val);
+          useStore.setState((s) => {
+            if (s.students[uid]) {
+              return {
+                students: {
+                  ...s.students,
+                  [uid]: {
+                    ...s.students[uid],
+                    additionBoardEnabled: val,
+                  },
                 },
-              },
-            };
-          }
-          return s;
-        });
+              };
+            }
+            return s;
+          });
+        }
+      },
+      (err) => {
+        console.warn('[StudentWorkspacePage] boardRef listener notice:', err);
       }
-    });
+    );
     return () => unsub();
   }, [user?.uid]);
 
@@ -396,26 +414,32 @@ export function StudentWorkspacePage() {
     const overrideRef = ref(database, `users/students/${normId}/physicalOverrideActive`);
     let previousOverrideState = false;
     
-    const unsubscribe = onValue(overrideRef, (snapshot) => {
-      const isOverrideActive = snapshot.val() === true || myData?.physicalOverrideActive === true || myData?.physicalOverride === true;
-      
-      // When override is activated, immediately unlock keyboard for student
-      if (isOverrideActive && !previousOverrideState) {
-        useWorkspaceStore.getState().unlockKeyboard();
-      }
+    const unsubscribe = onValue(
+      overrideRef,
+      (snapshot) => {
+        const isOverrideActive = snapshot.val() === true || myData?.physicalOverrideActive === true || myData?.physicalOverride === true;
+        
+        // When override is activated, immediately unlock keyboard for student
+        if (isOverrideActive && !previousOverrideState) {
+          useWorkspaceStore.getState().unlockKeyboard();
+        }
 
-      // Listen for transition from TRUE to FALSE (Teardown)
-      if (previousOverrideState && !isOverrideActive) {
-        console.log("Physical Override Teardown: Cleanup Pipeline triggered.");
-        const store = useWorkspaceStore.getState();
-        // 1. Restart hesitation timer by toggling keyboard state
-        store.lockKeyboard();
-        // 2. Validate current block state against target state (VRA Bridge).
-        store.proceed(); 
+        // Listen for transition from TRUE to FALSE (Teardown)
+        if (previousOverrideState && !isOverrideActive) {
+          console.log("Physical Override Teardown: Cleanup Pipeline triggered.");
+          const store = useWorkspaceStore.getState();
+          // 1. Restart hesitation timer by toggling keyboard state
+          store.lockKeyboard();
+          // 2. Validate current block state against target state (VRA Bridge).
+          store.proceed(); 
+        }
+        
+        previousOverrideState = isOverrideActive;
+      },
+      (err) => {
+        console.warn('[StudentWorkspacePage] overrideRef listener notice:', err);
       }
-      
-      previousOverrideState = isOverrideActive;
-    });
+    );
 
     return () => unsubscribe();
   }, [user?.uid, myData?.physicalOverrideActive, myData?.physicalOverride]);

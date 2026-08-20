@@ -93,35 +93,41 @@ export function StudentHub() {
   useEffect(() => {
     if (!uid) return;
     const studentRef = ref(database, `users/students/${normUid}`);
-    const unsub = onValue(studentRef, (snap) => {
-      if (snap.exists()) {
-        const val = snap.val();
-        setLiveRouteStatus(val.routeStatus || null);
-        const approved = val.teacher_gate_approved === true || val.routeStatus === 'APPROVED';
-        setIsTeacherGateApproved(approved);
+    const unsub = onValue(
+      studentRef,
+      (snap) => {
+        if (snap.exists()) {
+          const val = snap.val();
+          setLiveRouteStatus(val.routeStatus || null);
+          const approved = val.teacher_gate_approved === true || val.routeStatus === 'APPROVED';
+          setIsTeacherGateApproved(approved);
 
-        const completedM2 = Boolean(
-          val.completedMeeting2 ||
-          val.session_completed === 2 ||
-          (typeof val.highestCompletedMeeting === 'number' && val.highestCompletedMeeting >= 2) ||
-          val.routeStatus === 'PENDING_TEACHER_APPROVAL'
-        );
-        setHasCompletedSession2(completedM2);
+          const completedM2 = Boolean(
+            val.completedMeeting2 ||
+            val.session_completed === 2 ||
+            (typeof val.highestCompletedMeeting === 'number' && val.highestCompletedMeeting >= 2) ||
+            val.routeStatus === 'PENDING_TEACHER_APPROVAL'
+          );
+          setHasCompletedSession2(completedM2);
 
-        // Determine active session ID strictly: Teacher's live broadcast takes absolute precedence
-        let resolvedSession = 1;
-        if (teacherSessionNum) {
-          resolvedSession = teacherSessionNum;
-        } else if (typeof val.active_session_id === 'number') {
-          resolvedSession = val.active_session_id;
-        } else if (val.currentMeeting) {
-          resolvedSession = val.currentMeeting;
-        } else if (val.highestCompletedMeeting) {
-          resolvedSession = Math.min(8, val.highestCompletedMeeting + 1);
+          // Determine active session ID strictly: Teacher's live broadcast takes absolute precedence
+          let resolvedSession = 1;
+          if (teacherSessionNum) {
+            resolvedSession = teacherSessionNum;
+          } else if (typeof val.active_session_id === 'number') {
+            resolvedSession = val.active_session_id;
+          } else if (val.currentMeeting) {
+            resolvedSession = val.currentMeeting;
+          } else if (val.highestCompletedMeeting) {
+            resolvedSession = Math.min(8, val.highestCompletedMeeting + 1);
+          }
+          setActiveSessionId(resolvedSession);
         }
-        setActiveSessionId(resolvedSession);
+      },
+      (err) => {
+        console.warn('[StudentHub] student listener notice:', err);
       }
-    });
+    );
     return () => unsub();
   }, [uid, normUid, teacherSessionNum]);
 
@@ -139,9 +145,23 @@ export function StudentHub() {
     return <BeeFlightWaitingScreen onApproved={() => setIsTeacherGateApproved(true)} />;
   }
 
-  const handleStartActiveSession = () => {
-    startSession(activeSession.id);
-    navigate(`/workspace?meeting=${activeSession.id}`);
+  const handleStartActiveSession = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    const targetSessionId = activeSession?.id || 1;
+    try {
+      startSession(targetSessionId);
+    } catch (err) {
+      console.warn('[StudentHub] startSession non-blocking error:', err);
+    }
+    try {
+      navigate(`/workspace?meeting=${targetSessionId}`);
+    } catch (navErr) {
+      console.warn('[StudentHub] navigate fallback:', navErr);
+      window.location.href = `/workspace?meeting=${targetSessionId}`;
+    }
   };
 
   return (
