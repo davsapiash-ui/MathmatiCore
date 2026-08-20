@@ -77,11 +77,20 @@ const getGlobalStorage = (): Storage | null => {
 
 const getStoredAuth = () => {
   try {
-    const s = getGlobalStorage();
-    if (!s) return { user: null, role: null, isAuthenticated: false, isStudentAuthenticated: false, isRoleLocked: false, showRoleSelector: false, authTimestamp: null };
-    const rawUser = s.getItem(STORAGE_KEY_USER);
-    const rawRole = s.getItem(STORAGE_KEY_ROLE);
-    const rawTime = s.getItem(STORAGE_KEY_TIMESTAMP);
+    let rawUser: string | null = null;
+    let rawRole: string | null = null;
+    let rawTime: string | null = null;
+
+    if (typeof sessionStorage !== 'undefined') {
+      rawUser = sessionStorage.getItem(STORAGE_KEY_USER);
+      rawRole = sessionStorage.getItem(STORAGE_KEY_ROLE);
+      rawTime = sessionStorage.getItem(STORAGE_KEY_TIMESTAMP);
+    }
+    if ((!rawUser || !rawRole) && typeof localStorage !== 'undefined') {
+      rawUser = localStorage.getItem(STORAGE_KEY_USER);
+      rawRole = localStorage.getItem(STORAGE_KEY_ROLE);
+      rawTime = localStorage.getItem(STORAGE_KEY_TIMESTAMP);
+    }
 
     if (rawUser && rawRole) {
       const parsed = JSON.parse(rawUser);
@@ -111,11 +120,17 @@ const getStoredAuth = () => {
 
 const setStoredAuth = (user: AuthUser, role: string, timestamp?: number) => {
   try {
-    const s = getGlobalStorage();
-    if (s) {
-      s.setItem(STORAGE_KEY_USER, JSON.stringify(user));
-      s.setItem(STORAGE_KEY_ROLE, role);
-      s.setItem(STORAGE_KEY_TIMESTAMP, (timestamp || Date.now()).toString());
+    const timeStr = (timestamp || Date.now()).toString();
+    const userStr = JSON.stringify(user);
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem(STORAGE_KEY_USER, userStr);
+      sessionStorage.setItem(STORAGE_KEY_ROLE, role);
+      sessionStorage.setItem(STORAGE_KEY_TIMESTAMP, timeStr);
+    }
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(STORAGE_KEY_USER, userStr);
+      localStorage.setItem(STORAGE_KEY_ROLE, role);
+      localStorage.setItem(STORAGE_KEY_TIMESTAMP, timeStr);
     }
   } catch (e) {
     console.error('Failed to store auth', e);
@@ -239,8 +254,8 @@ export const useAuthStore = create<AuthState>()(
           studentNum = user.student_id;
         } else {
           const rawId = (user.uid || user.id || '').toString();
-          // match student_user3, student_3, or 3
-          const match = rawId.match(/^(?:student_user|student_)?(-?\d+)$/);
+          // Extract numeric ID reliably
+          const match = rawId.match(/(\d+)/);
           studentNum = match ? parseInt(match[1], 10) : NaN;
         }
 

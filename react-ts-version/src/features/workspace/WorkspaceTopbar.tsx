@@ -92,117 +92,89 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
       <div id="tour-action-buttons" className="flex items-center gap-2 sm:gap-3 shrink-0 bg-ws-surface/50 p-1.5 rounded-full border border-ws-surface2 shadow-sm max-w-full overflow-x-auto no-scrollbar">
         {/* Undo Button (Module 11: 48x48px exact) */}
         {sessionNumber !== 8 && (
-          <div className="relative group">
-            <button
-              onClick={undo}
-              disabled={!canUndo}
-              className="w-12 h-12 min-w-[48px] min-h-[48px] rounded-2xl text-sm font-bold text-ws-ink bg-ws-surface2 hover:bg-ws-surface2/80 active:scale-95 transition-all flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-sm"
-              aria-label="בטל פעולה אחרונה"
-            >
-              <RotateCcw className="w-5 h-5" />
-            </button>
-            <div className="absolute top-14 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 z-50 w-48 p-2 bg-slate-900/95 text-white text-[11px] rounded-xl shadow-xl backdrop-blur-md border border-white/10 text-right leading-relaxed">
-              <span>↩ בטל את הגרירה או הפעולה האחרונה בקנבס</span>
-            </div>
-          </div>
+          <button
+            onClick={undo}
+            disabled={!canUndo}
+            className="w-12 h-12 min-w-[48px] min-h-[48px] rounded-2xl text-sm font-bold text-ws-ink bg-ws-surface2 hover:bg-ws-surface2/80 active:scale-95 transition-all flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-sm"
+            aria-label="בטל פעולה אחרונה"
+            title="בטל פעולה אחרונה (Undo)"
+          >
+            <RotateCcw className="w-5 h-5" />
+          </button>
         )}
 
         {sessionNumber !== 8 && (
-          <div className="relative group">
-            <button
-              onClick={toggleBoard}
-              className={`h-12 px-4 sm:px-5 rounded-2xl text-sm font-bold border-2 active:scale-95 transition-all flex items-center gap-2 shadow-sm cursor-pointer ${
-                boardOpen 
-                  ? 'text-ws-blue border-ws-blue/40 bg-ws-blue/5 hover:bg-ws-blue/10'
-                  : 'text-white bg-ws-blue border-ws-blue hover:brightness-110 shadow-md'
-              }`}
-              aria-label={boardOpen ? 'הסתר בית המספרים' : 'הצג בית המספרים'}
-            >
-              {boardOpen ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              <span className="hidden sm:inline">{boardOpen ? 'הסתר לוח' : 'הצג לוח'}</span>
-            </button>
-            <div className="absolute top-14 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 z-50 w-52 p-2 bg-slate-900/95 text-white text-[11px] rounded-xl shadow-xl backdrop-blur-md border border-white/10 text-right leading-relaxed">
-              <span>{boardOpen ? '👁️ הסתרת בית המספרים והגדלת שטח המשימה' : '🏠 הצגת בית המספרים וארגז הכלים'}</span>
-            </div>
-          </div>
+          <button
+            onClick={toggleBoard}
+            className={`h-12 px-4 sm:px-5 rounded-2xl text-sm font-bold border-2 active:scale-95 transition-all flex items-center gap-2 shadow-sm cursor-pointer ${
+              boardOpen 
+                ? 'text-ws-blue border-ws-blue/40 bg-ws-blue/5 hover:bg-ws-blue/10'
+                : 'text-white bg-ws-blue border-ws-blue hover:brightness-110 shadow-md'
+            }`}
+            aria-label={boardOpen ? 'הסתר בית המספרים' : 'הצג בית המספרים'}
+            title={boardOpen ? 'הסתרת בית המספרים והגדלת שטח המשימה' : 'הצגת בית המספרים וארגז הכלים'}
+          >
+            {boardOpen ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            <span className="hidden sm:inline">{boardOpen ? 'הסתר לוח' : 'הצג לוח'}</span>
+          </button>
         )}
 
         {globalChatEnabled && (
-          <div className="relative group">
-            <button
-              onClick={() => document.dispatchEvent(new CustomEvent('toggle-chat'))}
-              className="h-12 px-4 rounded-2xl text-sm font-bold text-ws-accent bg-ws-surface border border-ws-accent/20 hover:border-ws-accent/50 hover:shadow-md active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
-            >
-              <MessageSquare className="w-4 h-4" />
-              <span className="hidden sm:inline">צ'אט</span>
-            </button>
-            <div className="absolute top-14 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 z-50 w-52 p-2 bg-slate-900/95 text-white text-[11px] rounded-xl shadow-xl backdrop-blur-md border border-white/10 text-right leading-relaxed">
-              <span>💬 פתח חלון צ'אט והתכתבות ישירה עם המורה</span>
-            </div>
-          </div>
+          <button
+            onClick={() => document.dispatchEvent(new CustomEvent('toggle-chat'))}
+            className="h-12 px-4 rounded-2xl text-sm font-bold text-ws-accent bg-ws-surface border border-ws-accent/20 hover:border-ws-accent/50 hover:shadow-md active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
+            title="צ'אט עם המורה"
+          >
+            <MessageSquare className="w-4 h-4" />
+            <span className="hidden sm:inline">צ'אט</span>
+          </button>
         )}
 
-        <div className="relative group">
-          <button
-            onClick={() => navigate('/hub')}
-            className="h-12 px-4 rounded-2xl text-sm font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 hover:scale-105 active:scale-95 transition-all shadow-sm flex items-center gap-1.5 cursor-pointer border border-slate-200/80"
-            aria-label="חזרה ללובי התלמיד"
-          >
-            <Home className="w-4 h-4 text-slate-500" />
-            <span className="hidden sm:inline font-bold">לובי</span>
-          </button>
-          <div className="absolute top-14 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 z-50 w-48 p-2 bg-slate-900/95 text-white text-[11px] rounded-xl shadow-xl backdrop-blur-md border border-white/10 text-right leading-relaxed">
-            <span>🏠 חזרה למסך הראשי של התלמיד</span>
-          </div>
-        </div>
+        <button
+          onClick={() => navigate('/hub')}
+          className="h-12 px-4 rounded-2xl text-sm font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 hover:scale-105 active:scale-95 transition-all shadow-sm flex items-center gap-1.5 cursor-pointer border border-slate-200/80"
+          aria-label="חזרה ללובי התלמיד"
+          title="חזרה ללובי הראשי"
+        >
+          <Home className="w-4 h-4 text-slate-500" />
+          <span className="hidden sm:inline font-bold">לובי</span>
+        </button>
 
-        <div className="relative group">
-          <button
-            onClick={startTour}
-            className="h-12 px-4 rounded-2xl text-sm font-bold text-ws-blue bg-ws-blue-soft/50 border border-ws-blue/30 hover:scale-105 active:scale-95 transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
-            aria-label="הפעל הדרכה מחדש"
-          >
-            <Compass className="w-4 h-4" />
-            <span className="hidden sm:inline font-bold">הדרכה</span>
-          </button>
-          <div className="absolute top-14 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 z-50 w-52 p-2 bg-slate-900/95 text-white text-[11px] rounded-xl shadow-xl backdrop-blur-md border border-white/10 text-right leading-relaxed">
-            <span>🧭 הפעל הדרכה אינטראקטיבית מלווה במרחב</span>
-          </div>
-        </div>
+        <button
+          onClick={startTour}
+          className="h-12 px-4 rounded-2xl text-sm font-bold text-ws-blue bg-ws-blue-soft/50 border border-ws-blue/30 hover:scale-105 active:scale-95 transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
+          aria-label="הפעל הדרכה מחדש"
+          title="הפעל הדרכה במרחב"
+        >
+          <Compass className="w-4 h-4" />
+          <span className="hidden sm:inline font-bold">הדרכה</span>
+        </button>
 
-        <div className="relative group">
-          <button
-            onClick={proceed}
-            disabled={!canProceed}
-            className="h-12 px-6 rounded-2xl text-base font-display font-extrabold text-white bg-ws-accent hover:brightness-110 active:scale-95 shadow-md hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed cursor-pointer"
-            aria-label="עבור למשימה הבאה"
-          >
-            <span>התקדם</span>
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <div className="absolute top-14 left-0 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 z-50 w-52 p-2 bg-slate-900/95 text-white text-[11px] rounded-xl shadow-xl backdrop-blur-md border border-white/10 text-right leading-relaxed">
-            <span>← התקדם למשימה הבאה במפת הלמידה</span>
-          </div>
-        </div>
+        <button
+          onClick={proceed}
+          disabled={!canProceed}
+          className="h-12 px-6 rounded-2xl text-base font-display font-extrabold text-white bg-ws-accent hover:brightness-110 active:scale-95 shadow-md hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed cursor-pointer"
+          aria-label="עבור למשימה הבאה"
+          title="התקדם למשימה הבאה"
+        >
+          <span>התקדם</span>
+          <ArrowLeft className="w-5 h-5" />
+        </button>
 
         <div className="w-px h-6 bg-ws-surface2" />
 
-        <div className="relative group">
-          <button
-            onClick={() => {
-              logout();
-              window.location.href = '/login';
-            }}
-            className="h-12 px-4 rounded-2xl text-sm font-bold text-ws-soft hover:text-red-600 hover:bg-red-50 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5"
-            aria-label="התנתק"
-          >
-            <LogOut className="w-4 h-4" />
-            <span className="hidden sm:inline">יציאה</span>
-          </button>
-          <div className="absolute top-14 left-0 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 z-50 w-44 p-2 bg-slate-900/95 text-white text-[11px] rounded-xl shadow-xl backdrop-blur-md border border-white/10 text-right leading-relaxed">
-            <span>🚪 התנתקות בטוחה מהמערכת</span>
-          </div>
-        </div>
+        <button
+          onClick={() => {
+            logout();
+            window.location.href = '/login';
+          }}
+          className="h-12 px-4 rounded-2xl text-sm font-bold text-ws-soft hover:text-red-600 hover:bg-red-50 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5"
+          aria-label="התנתק"
+          title="התנתקות מהמערכת"
+        >
+          <LogOut className="w-4 h-4" />
+          <span className="hidden sm:inline">יציאה</span>
+        </button>
       </div>
     </nav>
   );

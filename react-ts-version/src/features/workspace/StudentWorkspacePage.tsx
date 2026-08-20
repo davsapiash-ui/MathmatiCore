@@ -710,13 +710,18 @@ export function StudentWorkspacePage() {
     );
   }
 
+  const cachedLocal = firebaseSyncService.getLocalSessionProgress(normUid || user?.uid || '');
+  const hasLocalCurrentMeeting = cachedLocal?.sessionNumber === meeting;
+
   const highestCompleted = myData?.highestCompletedMeeting ?? (myData?.completedMeeting2 ? 2 : 0);
   const isMatchingSessionActive =
     meeting === 1 ||
+    hasLocalCurrentMeeting ||
+    !firebaseLoaded ||
     highestCompleted >= meeting - 1 ||
     (isTeacherSessionActive && activeClassSession?.sessionNumber ? meeting <= Number(activeClassSession.sessionNumber) : false);
 
-  if (!isMatchingSessionActive) {
+  if (!isMatchingSessionActive && !isInitializing) {
     return (
       <div dir="rtl" className="h-screen w-full flex flex-col items-center justify-center bg-ws-bg text-ws-ink font-body p-6">
         <div className="bg-ws-surface p-10 rounded-3xl shadow-xl max-w-md text-center border border-ws-surface2">
