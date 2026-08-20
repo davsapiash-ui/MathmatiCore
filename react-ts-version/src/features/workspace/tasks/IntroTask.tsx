@@ -60,13 +60,15 @@ export function IntroTask({ task }: { task: SessionTask }) {
             </div>
           </div>
 
-          {(blocksAddedCount >= 5 && hasDeletedBlock) && (
+          {(blocksAddedCount >= 5 || hasDeletedBlock) && (
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="mt-2 p-4 bg-green-50 border border-green-200 rounded-xl text-center"
+              className="mt-2 p-4 bg-emerald-50 border-2 border-emerald-300 rounded-2xl text-center shadow-sm"
             >
-              <span className="text-green-700 font-bold block text-sm">🎉 כל המשימות הושלמו! לחצו על "המשך" למעלה כדי להתקדם.</span>
+              <span className="text-emerald-800 font-black block text-base">
+                ✨ מצוין! לחצו על כפתור <span className="bg-emerald-600 text-white px-2 py-0.5 rounded-lg">התקדם ←</span> בסרגל העליון כדי לעבור לשלב הבא!
+              </span>
             </motion.div>
           )}
         </div>
