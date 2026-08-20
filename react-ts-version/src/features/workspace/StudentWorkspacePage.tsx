@@ -124,25 +124,32 @@ export function StudentWorkspacePage() {
   useEffect(() => {
     if (!normUid) return;
     const myDevId = currentDeviceIdRef.current;
+    const myClaimTime = Date.now();
     useWorkspaceStore.getState().setActiveDeviceId(myDevId);
+    useWorkspaceStore.getState().setSupersededByOtherDevice(false);
 
     // 1. Claim ownership of student session for this device
     update(ref(database, `users/students/${normUid}`), {
       active_device_id: myDevId,
-      device_claimed_at: Date.now(),
+      device_claimed_at: myClaimTime,
     }).catch(console.error);
 
-    // 2. Real-time listener: Detect if a newer device took over ownership
-    const deviceRef = ref(database, `users/students/${normUid}/active_device_id`);
+    // 2. Real-time listener: Detect if a NEWER device took over ownership
+    const studentNodeRef = ref(database, `users/students/${normUid}`);
     const unsubDevice = onValue(
-      deviceRef,
+      studentNodeRef,
       (snap) => {
         if (snap.exists()) {
-          const remoteDevId = snap.val();
-          if (remoteDevId && remoteDevId !== myDevId) {
-            // This device was superseded! Lock screen and safely halt canvas recorder to prevent Storage overwrites
+          const val = snap.val();
+          const remoteDevId = val?.active_device_id;
+          const remoteClaimTime = val?.device_claimed_at || 0;
+
+          // Only lock if another newer device explicitly claimed ownership after our claim
+          if (remoteDevId && remoteDevId !== myDevId && remoteClaimTime > myClaimTime) {
             useWorkspaceStore.getState().setSupersededByOtherDevice(true);
             canvasRecorder.stopRecording().catch(console.error);
+          } else if (remoteDevId === myDevId) {
+            useWorkspaceStore.getState().setSupersededByOtherDevice(false);
           }
         }
       },
