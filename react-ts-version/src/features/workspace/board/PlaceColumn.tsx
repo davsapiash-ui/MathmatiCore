@@ -14,7 +14,7 @@ const COLUMN_COLORS: Record<Place, { header: string; border: string; tint: strin
 };
 
 export function PlaceColumn({ place }: { place: Place }) {
-  const count = useWorkspaceStore((s) => s.counts[place]);
+  const count = useWorkspaceStore((s) => s.counts?.[place] ?? 0);
   const errorPlace = useWorkspaceStore((s) => s.errorPlace);
   const errorNonce = useWorkspaceStore((s) => s.errorNonce);
   const focusedPlace = useWorkspaceStore((s) => s.focusedPlace);

@@ -28,7 +28,8 @@ export interface RegroupEvent { from: Place; to: Place; groups: number }
 export interface UngroupEvent { from: Place; to: Place }
 
 export function getValue(counts: PlaceCounts): number {
-  return PLACE_ORDER.reduce((sum, p) => sum + counts[p] * PLACE_VALUES[p], 0);
+  if (!counts) return 0;
+  return PLACE_ORDER.reduce((sum, p) => sum + (counts[p] || 0) * PLACE_VALUES[p], 0);
 }
 
 export function numberToCanonicalCounts(value: number): PlaceCounts {
