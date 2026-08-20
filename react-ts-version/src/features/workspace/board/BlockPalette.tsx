@@ -119,11 +119,6 @@ export function BlockPalette({ scaffoldLevel }: { scaffoldLevel: number }) {
                 </span>
               </div>
               <span className="sr-only">{`גרור ${PLACE_NAMES_HE[place]} לטבלה — ערך ${PLACE_VALUES[place]}`}</span>
-              
-              {/* Norman Principle: Explanatory Hover Tooltip */}
-              <div className="absolute -top-9 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 z-50 p-1.5 px-3 bg-slate-900/95 text-white text-[10px] text-center font-bold rounded-xl shadow-lg backdrop-blur-md border border-white/10 whitespace-nowrap">
-                <span>➕ לחצו או גררו להוספת {PLACE_NAMES_HE[place]}</span>
-              </div>
             </div>
           );
         })}

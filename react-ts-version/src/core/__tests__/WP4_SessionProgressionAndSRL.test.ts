@@ -34,23 +34,27 @@ describe('Work Package 4 (WP4): Session Progression (1-8), Projector Sync & SRL 
       expect(useWorkspaceStore.getState().sessionNumber).toBe(1);
     });
 
-    it('enforces 15 minutes deadline for Sessions 1-2 and 25 minutes for Sessions 3-8', () => {
+    it('enforces 15 minutes deadline for Sessions 3-7 and 25 minutes for Sessions 1, 2, 8 per PRD Module 14', () => {
       const store = useWorkspaceStore.getState();
 
-      // Session 1: 15 minutes
+      // Session 1: 25 minutes
       store.initSession(1, false);
-      expect(useWorkspaceStore.getState().sessionDurationMinutes).toBe(15);
+      expect(useWorkspaceStore.getState().sessionDurationMinutes).toBe(25);
       expect(useWorkspaceStore.getState().sessionDeadlineTime).toBeGreaterThan(Date.now());
+      expect(useWorkspaceStore.getState().getSessionRemainingSeconds()).toBeGreaterThanOrEqual(25 * 60 - 2);
+
+      // Session 2: 25 minutes
+      store.initSession(2, false);
+      expect(useWorkspaceStore.getState().sessionDurationMinutes).toBe(25);
+
+      // Session 3: 15 minutes
+      store.initSession(3, false);
+      expect(useWorkspaceStore.getState().sessionDurationMinutes).toBe(15);
       expect(useWorkspaceStore.getState().getSessionRemainingSeconds()).toBeGreaterThanOrEqual(15 * 60 - 2);
 
-      // Session 2: 15 minutes
-      store.initSession(2, false);
+      // Session 7: 15 minutes
+      store.initSession(7, false);
       expect(useWorkspaceStore.getState().sessionDurationMinutes).toBe(15);
-
-      // Session 3: 25 minutes
-      store.initSession(3, false);
-      expect(useWorkspaceStore.getState().sessionDurationMinutes).toBe(25);
-      expect(useWorkspaceStore.getState().getSessionRemainingSeconds()).toBeGreaterThanOrEqual(25 * 60 - 2);
 
       // Session 8: 25 minutes
       store.initSession(8, false);

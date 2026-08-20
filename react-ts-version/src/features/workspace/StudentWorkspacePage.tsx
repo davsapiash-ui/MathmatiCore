@@ -43,6 +43,7 @@ import { SocraticEngine } from '@/infrastructure/services/SocraticEngine';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
 import { useCognitiveHesitationRadar } from '@/application/useCognitiveHesitationRadar';
 import { tts } from '@/infrastructure/services/TTSService';
+import { toast } from 'sonner';
 import { BeeFlightWaitingScreen } from '@/presentation/components/student/BeeFlightWaitingScreen';
 import { ProjectorWaitingScreen } from '@/presentation/components/student/ProjectorWaitingScreen';
 import { ReinforcementOrChallengeScreen } from './overlays/ReinforcementOrChallengeScreen';
@@ -685,7 +686,7 @@ export function StudentWorkspacePage() {
             } catch (err: any) {
               const errMsg = String(err?.message || err);
               if (errMsg.includes('PERMISSION_DENIED') || errMsg.includes('auth')) {
-                alert('פג תוקף ההתחברות שלך (PERMISSION_DENIED). עליך להתחבר מחדש.');
+                toast.error('פג תוקף ההתחברות. מתחבר מחדש...');
                 navigate('/login');
                 return;
               }
@@ -721,12 +722,12 @@ export function StudentWorkspacePage() {
     return (
       <div dir="rtl" className="h-screen w-full flex flex-col items-center justify-center bg-ws-bg text-ws-ink font-body p-6">
         <div className="bg-ws-surface p-10 rounded-3xl shadow-xl max-w-md text-center border border-ws-surface2">
-          <div className="text-6xl mb-6 animate-pulse">🔒🧑‍🏫</div>
-          <h2 className="text-2xl font-bold mb-4 text-ws-ink">מפגש {meeting} אינו פתוח כעת</h2>
+          <div className="text-6xl mb-6 animate-pulse">🐝✨</div>
+          <h2 className="text-2xl font-bold mb-4 text-ws-ink">מפגש {meeting} ממתין להפעלה בכיתה</h2>
           <p className="text-ws-soft mb-8 leading-relaxed">
             {isTeacherSessionActive
-              ? `המורה מפעיל/ה כעת בכיתה את מפגש ${activeClassSession?.sessionNumber}. עליך להמתין שהמורה יבחר ויפעיל את מפגש ${meeting} בדשבורד המורה.`
-              : 'המורה עדיין לא הפעיל/ה את השיעור בכיתה. סביבת הלימוד תיפתח אוטומטית ברגע שהמורה יפעיל את השיעור בדשבורד המורה.'}
+              ? `המורה מפעיל/ה כעת בכיתה את מפגש ${activeClassSession?.sessionNumber}. סביבת הלימוד תעבור אוטומטית ברגע שהמורה יפעיל את מפגש ${meeting}.`
+              : 'סביבת הלימוד ממתינה להפעלת השיעור על ידי המורה בדשבורד הכיתה.'}
           </p>
           <button 
             onClick={() => navigate('/hub')}

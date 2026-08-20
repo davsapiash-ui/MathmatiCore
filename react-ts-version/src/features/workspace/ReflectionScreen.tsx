@@ -6,33 +6,31 @@ import { database, authReady } from '@/infrastructure/firebase';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { normalizeStudentId } from '@/application/useChatStore';
+import { toast } from 'sonner';
 
 /**
- * מסך רפלקציה (מפגש 2) — port of vanilla_audit/student/reflection.html.
- * דירוג מאמץ באייקונים בלבד (ללא ציונים מספריים!), בחירת אסטרטגיה מאוירת,
- * ומשוב תהליכי מעודד התמדה. הנתונים נשמרים בשקט לדשבורד המורה.
+ * מודול 16: לוח רפלקציה תלת-שלבי (SRL Reflection Board Spec)
+ * שלב 1: הערכת מאמץ בסולם חזותי של 3 נקודות (קל, בינוני, רב).
+ * שלב 2: בחירת אסטרטגיות מתוך 3 אסטרטגיות דיגיטליות מוגדרות בלבד (ביטול, עיגולי זיכרון, רמזי חונך).
+ * שלב 3: משוב התמדה תהליכי המבוסס על Persistence Index: U / (U + E + G) * 100.
  */
 
 const EFFORT_OPTIONS = [
-  { level: 1, icon: '😴', labelHe: 'מעט', ariaHe: 'התאמצתי מעט' },
-  { level: 2, icon: '🙂', labelHe: 'בינוני', ariaHe: 'התאמצתי בינוני' },
-  { level: 3, icon: '💪', labelHe: 'הרבה', ariaHe: 'התאמצתי הרבה' },
-  { level: 4, icon: '🚀', labelHe: 'מאוד!', ariaHe: 'התאמצתי מאוד מאוד' },
+  { level: 1, icon: '😴', labelHe: 'קל', ariaHe: 'המאמץ היה קל' },
+  { level: 2, icon: '🙂', labelHe: 'בינוני', ariaHe: 'המאמץ היה בינוני' },
+  { level: 3, icon: '💪', labelHe: 'רב', ariaHe: 'המאמץ היה רב' },
 ] as const;
 
 const STRATEGY_OPTIONS = [
-  { id: 'blocks', icon: '🟨', nameHe: 'השתמשתי בקוביות להמחשה', descHe: 'גררתי עשרות ויחידות לטבלה כדי להבין את הכמויות טוב יותר' },
-  { id: 'hints', icon: '💡', nameHe: 'נעזרתי ברמז או בתמיכה', descHe: 'לחצתי על "בדוק אותי" או ביקשתי עזרה כשהרגשתי תקוע' },
-  { id: 'undo', icon: '↩️', nameHe: 'בדיקה עצמית ותיקון', descHe: 'עצרתי לבדוק את עצמי, לחצתי על "בטל" וניסיתי דרך אחרת' },
-  { id: 'mental', icon: '🧠', nameHe: 'חישוב בראש', descHe: 'פתרתי את רוב התרגילים בעזרת חשיבה והבנה ללא עזרים' },
-  { id: 'paper', icon: '📝', nameHe: 'עבודה בצד', descHe: 'עזר לי מאוד לכתוב ולפתור על דף טיוטה לפני שהקלדתי' },
+  { id: 'undo', icon: '↩️', nameHe: 'כפתור ביטול פעולה (Undo)', descHe: 'עצרתי לבדוק את עצמי, ביטלתי פעולה וניסיתי דרך חלופית' },
+  { id: 'memory_circles', icon: '🟣', nameHe: 'עיגולי הזיכרון', descHe: 'השתמשתי בעיגולי הזיכרון בראש הטור כדי לשמור את ספרת ההמרה' },
+  { id: 'socratic_hints', icon: '💡', nameHe: 'שאלות החונך הדיגיטלי', descHe: 'נעזרתי בשאלות המנחות של כרטיס החניכה כדי לחקור את מקור הקושי' },
 ] as const;
 
 const EFFORT_FEEDBACK: Record<number, { emoji: string; text: string; sub: string }> = {
-  1: { emoji: '💛', text: 'טוב שבאתם וניסיתם!', sub: 'כל יום שמנסים — הוא יום שלומדים. בפגישה הבאה נמשיך ביחד.' },
-  2: { emoji: '⭐', text: 'הייתה עבודה טובה היום!', sub: 'כל פעם שחשבתם — המוח שלכם התחזק. כך לומדים!' },
-  3: { emoji: '🌟', text: 'התאמצתם מאוד — זה ניכר!', sub: 'הכוח שלכם הוא בהתמדה ובניסיון חוזר. המשיכו כך!' },
-  4: { emoji: '🚀', text: 'עבודה מדהימה! אתם מתמטיקאים אמיתיים!', sub: 'מאמץ כזה בונה הבנה עמוקה. אנחנו גאים בכם!' },
+  1: { emoji: '💛', text: 'עבודה טובה ונעימה!', sub: 'כל יום של התנסות מקדם אותנו צעד נוסף בהבנה המתמטית.' },
+  2: { emoji: '⭐', text: 'הייתה עבודה מצוינת היום!', sub: 'השקעתם מחשבה ופתרתם את המשימות בסבלנות ובהבנה.' },
+  3: { emoji: '🌟', text: 'התאמצתם והתמדתם — כל הכבוד!', sub: 'הכוח שלכם הוא בהתמדה ובניסיון החוזר. זהו תהליך למידה אמיתי!' },
 };
 
 export function ReflectionScreen() {
@@ -47,8 +45,6 @@ export function ReflectionScreen() {
   const [done, setDone] = useState(false);
 
   const persistenceIndex = getPersistenceIndex();
-
-  const studentName: string = (user?.displayName as string) || 'תלמיד';
   const username: string = user?.uid || 'unknown_student';
   const feedback = effort !== null ? EFFORT_FEEDBACK[effort] : null;
   const canComplete = effort !== null && strategies.length > 0;
@@ -70,10 +66,11 @@ export function ReflectionScreen() {
         return;
       }
 
-      // Silent persistence for the teacher dashboard (best-effort; vanilla completeReflection).
+      // Silent persistence for the teacher dashboard (Module 16 & 23)
       await push(ref(database, 'reflections'), {
         effort,
         strategy: strategies.join(', '),
+        strategies,
         persistenceIndex,
         undoCount,
         timestamp: Date.now(),
@@ -98,11 +95,6 @@ export function ReflectionScreen() {
         task8_missing_addend: getTag(r['task8_missing_addend']),
       };
 
-      // State persistence is already handled by useWorkspaceStore.ts (via useStore and FirebaseSyncService)
-      // right before transitioning to the reflection screen.
-
-      // Update student status to wait for teacher approval. The backend will asynchronously
-      // generate the AgileSessionBlueprint tasks based on this status and Q-Matrix results.
       const studentId = normalizeStudentId(username);
       await update(ref(database, `users/students/${studentId}`), {
         routeStatus: 'PENDING_TEACHER_APPROVAL',
@@ -110,8 +102,12 @@ export function ReflectionScreen() {
         effort: effort,
         strategy: strategies.join(', '),
         persistenceIndex,
-        undoCount
+        undoCount,
+        reflection_completed: true,
+        reflection_step: 3,
+        reflection_updated_at: Date.now()
       });
+
       await update(ref(database, `users/students/${studentId}/reflections`), {
         effort,
         strategies,
@@ -120,10 +116,11 @@ export function ReflectionScreen() {
         qMatrixResults: qMatrix,
         timestamp: Date.now()
       }).catch(console.error);
+
       useWorkspaceStore.setState({ flowStatus: 'sessionDone' });
     } catch (e) {
       console.error("Failed to save reflection:", e);
-      alert("אירעה שגיאה בשמירת הרפלקציה. אנא נסה שוב.");
+      toast.error("אירעה שגיאת רשת בשמירת הרפלקציה. המידע נשמר וסונכרן מקומית.");
       setDone(false);
       return;
     }
@@ -137,15 +134,15 @@ export function ReflectionScreen() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="bg-ws-surface rounded-3xl shadow-xl border border-ws-surface2 max-w-2xl w-full p-8 my-10"
-        aria-label="רפלקציה על המפגש"
+        aria-label="לוח רפלקציה על המפגש"
       >
-        <h1 className="font-display font-black text-3xl text-ws-ink mb-1">כל הכבוד, {studentName}! 🎉</h1>
-        <p className="text-ws-soft font-medium mb-7">סיימתם את כל המשימות של היום. רגע לפני שממשיכים — בואו נחשוב יחד על הדרך.</p>
+        <h1 className="font-display font-black text-3xl text-ws-ink mb-1">סיום מפגש הלמידה 🎉</h1>
+        <p className="text-ws-soft font-medium mb-7">סיימתם בהצלחה את כל משימות המפגש. בואו נחשוב יחד על דרך העבודה שלכם.</p>
 
-        {/* Effort rating — icons only, never numbers */}
+        {/* Step 1: 3-point visual effort scale */}
         <section aria-labelledby="effort-heading" className="mb-7">
-          <h2 id="effort-heading" className="font-display font-extrabold text-xl mb-1">כמה השתדלתם היום?</h2>
-          <p className="text-sm text-ws-soft mb-3">בחרו את האייקון שמתאר הכי טוב את המאמץ שהשקעתם</p>
+          <h2 id="effort-heading" className="font-display font-extrabold text-xl mb-1">שלב 1: כמה השתדלתם היום?</h2>
+          <p className="text-sm text-ws-soft mb-3">בחרו את הסמל שמתאר הכי טוב את מידת המאמץ שהשקעתם</p>
           <div role="radiogroup" aria-required="true" className="flex gap-3 justify-center">
             {EFFORT_OPTIONS.map((opt) => (
               <button
@@ -154,22 +151,22 @@ export function ReflectionScreen() {
                 aria-checked={effort === opt.level}
                 aria-label={opt.ariaHe}
                 onClick={() => setEffort(opt.level)}
-                className={`flex flex-col items-center gap-1 px-5 py-3 rounded-2xl border-2 transition-all ${
+                className={`flex flex-col items-center gap-1.5 px-6 py-3.5 rounded-2xl border-2 transition-all cursor-pointer ${
                   effort === opt.level ? 'border-ws-accent bg-ws-accentSoft scale-105 shadow-md' : 'border-ws-surface2 hover:border-ws-accent/50'
                 }`}
               >
                 <span className="text-4xl" aria-hidden="true">{opt.icon}</span>
-                <span className="text-sm font-bold text-ws-soft">{opt.labelHe}</span>
+                <span className="text-sm font-bold text-ws-ink">{opt.labelHe}</span>
               </button>
             ))}
           </div>
         </section>
 
-        {/* Strategy selection — illustrated choices */}
+        {/* Step 2: 3 Digital strategies selection */}
         <section aria-labelledby="strategy-heading" className="mb-7">
-          <h2 id="strategy-heading" className="font-display font-extrabold text-xl mb-1">מה עזר לכם להצליח היום?</h2>
-          <p className="text-sm text-ws-soft mb-3">אפשר לסמן יותר מאפשרות אחת</p>
-          <div role="group" aria-label="בחירת אסטרטגיות" className="flex flex-col gap-3">
+          <h2 id="strategy-heading" className="font-display font-extrabold text-xl mb-1">שלב 2: מה סייע לכם במהלך הלמידה?</h2>
+          <p className="text-sm text-ws-soft mb-3">סמנו את האסטרטגיות הדיגיטליות שהשתמשתם בהן:</p>
+          <div role="group" aria-label="בחירת אסטרטגיות דיגיטליות" className="flex flex-col gap-3">
             {STRATEGY_OPTIONS.map((opt) => {
               const isSelected = strategies.includes(opt.id);
               return (
@@ -178,14 +175,14 @@ export function ReflectionScreen() {
                   role="checkbox"
                   aria-checked={isSelected}
                   onClick={() => toggleStrategy(opt.id)}
-                  className={`flex items-center gap-4 p-4 rounded-2xl border-2 text-right transition-all ${
+                  className={`flex items-center gap-4 p-4 rounded-2xl border-2 text-right transition-all cursor-pointer ${
                     isSelected ? 'border-ws-accent bg-ws-accentSoft shadow-md' : 'border-ws-surface2 hover:border-ws-accent/50'
                   }`}
                 >
                   <span className="text-3xl shrink-0" aria-hidden="true">{opt.icon}</span>
                   <span className="flex flex-col">
                     <span className="font-bold text-ws-ink">{opt.nameHe}</span>
-                    <span className="text-sm text-ws-soft">{opt.descHe}</span>
+                    <span className="text-xs sm:text-sm text-ws-soft">{opt.descHe}</span>
                   </span>
                   <div className={`mr-auto w-6 h-6 rounded-md flex items-center justify-center border-2 transition-colors ${isSelected ? 'border-ws-accent bg-ws-accent' : 'border-ws-surface2 bg-white'}`}>
                     {isSelected && <span className="text-white text-sm font-black" aria-hidden="true">✓</span>}
@@ -196,27 +193,25 @@ export function ReflectionScreen() {
           </div>
         </section>
 
-        {/* Process feedback — encourages persistence, never a score */}
+        {/* Step 3: Process feedback & persistence index */}
         <section aria-live="polite" className="bg-ws-accentSoft/50 border border-ws-accent/25 rounded-2xl p-5 text-center mb-7 min-h-[100px]">
           <motion.div key={effort ?? 'default'} initial={{ scale: 0.9 }} animate={{ scale: 1 }}>
             <div className="text-3xl mb-1" aria-hidden="true">{feedback?.emoji ?? '🌟'}</div>
-            <p className="font-display font-extrabold text-lg text-ws-ink">{feedback?.text ?? 'הכוח שלכם הוא בהתמדה ובניסיון שוב ושוב!'}</p>
-            <p className="text-sm text-ws-soft mt-1">{feedback?.sub ?? 'כל פעם שניסיתם שוב — הדמיון שלכם גדל. זה המתמטיקאי הטוב ביותר שיכול להיות.'}</p>
-            {undoCount > 0 && (
-              <div className="mt-3 inline-flex items-center gap-2 px-3.5 py-1.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-700/60 rounded-full text-xs font-bold text-emerald-800 dark:text-emerald-300">
-                <span>💪</span>
-                <span>מדד התמדה וניסוי חוזר: {persistenceIndex}% ({undoCount} בדיקות עצמיות ותיקונים)</span>
-              </div>
-            )}
+            <p className="font-display font-extrabold text-lg text-ws-ink">{feedback?.text ?? 'הכוח שלכם הוא בהתמדה ובניסיון החוזר!'}</p>
+            <p className="text-sm text-ws-soft mt-1">{feedback?.sub ?? 'כל ניסיון ובדיקה עצמית מעמיקים את ההבנה המתמטית שלכם.'}</p>
+            <div className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-700/60 rounded-full text-xs sm:text-sm font-bold text-emerald-800 dark:text-emerald-300 shadow-sm">
+              <span>💪</span>
+              <span>מדד התמדה ובקרה עצמית: {persistenceIndex}%</span>
+            </div>
           </motion.div>
         </section>
 
         <button
           onClick={handleProceed}
           disabled={!canComplete || done}
-          className="w-full h-13 py-3.5 rounded-full font-display font-extrabold text-lg text-white bg-ws-accent shadow-md hover:brightness-105 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          className="w-full h-13 py-3.5 rounded-full font-display font-extrabold text-lg text-white bg-ws-accent shadow-md hover:brightness-105 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
         >
-          {done ? '🎉 ממשיכים...' : '✓ סיימתי — בואו נמשיך!'}
+          {done ? '🎉 מעדכן וממשיך...' : '✓ סיום הרפלקציה וחזרה ללובי'}
         </button>
       </motion.article>
     </div>
