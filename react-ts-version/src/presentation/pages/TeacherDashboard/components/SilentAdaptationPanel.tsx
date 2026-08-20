@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Sliders, Shield, Layers, HelpCircle, Check, Clock } from 'lucide-react';
+import { Sliders, Shield, Check, Clock } from 'lucide-react';
 
 export interface AdaptationSettings {
   studentId: string;

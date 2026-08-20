@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { type StudentData, useStore } from '@/application/useStore';
 import { normalizeStudentId } from '@/application/useChatStore';
-import { X, CheckCircle, Video, ListTodo, Sliders, BellRing, Check, MessageCircle, Settings, RotateCcw } from 'lucide-react';
+import { X, CheckCircle, Video, ListTodo, Sliders, BellRing, Check, MessageCircle, RotateCcw } from 'lucide-react';
 import { StudentReplayAndLogs } from './StudentReplayAndLogs';
 import { BlueprintEditor } from './BlueprintEditor';
 import { PhysicalOverrideControl } from './PhysicalOverrideControl';

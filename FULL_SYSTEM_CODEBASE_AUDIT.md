@@ -154,7 +154,7 @@
     4. `src/application/__tests__/AdminStoreSync.test.ts` (5 tests)
     5. `src/presentation/pages/admin/__tests__/AdminScaleLimits.test.ts` (4 tests)
     6. `src/presentation/pages/TeacherDashboard/components/__tests__/PhysicalOverrideVerification.test.ts` (7 tests)
-    7. `src/core/__tests__/ChallengerM3_2StoreImports.test.ts` (5 tests)
+    7. `src/core/__tests__/Verification_StoreImports.test.ts` (5 tests)
     8. `src/presentation/pages/TeacherDashboard/components/__tests__/TeacherDashboardDomain.test.ts` (8 tests)
     9. `src/core/__tests__/StudentDomainAudit.test.ts` (15 tests)
 - **Static Code Quality (`oxlint`):**

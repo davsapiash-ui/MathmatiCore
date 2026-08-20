@@ -24,10 +24,10 @@ MathmatiCore is an interactive mathematical education platform (React + TypeScri
 | M0 | Survey & Architecture Mapping | Survey code across R1-R5 to locate exact files, hooks, stores, and test files | none | DONE |
 | M1 | Security & State Transition Remediation | Implement R1 adversarial tests, fix RTDB rules (`database.rules.json`), route guards, Meeting 3 gate bypass in `StudentWorkspacePage.tsx`, unified logout, PII sanitization in telemetry & seeds | M0 | DONE |
 | M2 | Arithmetic Engine & VRA Invariants Remediation | Implement R2 adversarial tests, fix 0-value subtraction bug (`boardVal === 0 && target !== 0`), fix hundreds overcrowding check (`hundreds >= 10`), fix `pushSnapshot` nesting | M0 | DONE |
-| M3 | Socratic Engine & Anti-Guessing Remediation | Implement R3 adversarial tests for 43s/45s/46s hesitation boundary, 60s lockout persistence, 20-click bursts | M0 | DONE |
+| M3 | Socratic Engine & Anti-Guessing Remediation | Implement R3 adversarial tests for 43s/45s/46s hesitation boundary, 30s lockout persistence, 20-click bursts | M0 | DONE |
 | M4 | RTDB & Offline Queue Chaos Remediation | Implement R4 network chaos tests, expand offline queue limit to 500 items in `FirebaseSyncService.ts`, implement teacher gate approval rollback | M0 | DONE |
 | M5 | SRL Metrics & Analytics Remediation | Implement R5 math fuzz tests, align Persistence Index formula in `TeacherDashboard.tsx`, test reflection screen debouncing | M0 | DONE |
-| M6 | Final Verification, Adversarial Hardening & Audit | Full regression run (244 Vitest tests passed, 21 test files), Challenger stress test harnesses, Forensic Integrity Audit (CLEAN) | M1-M5 | DONE |
+| M6 | Final Verification, Adversarial Hardening & Audit | Full regression run (458 Vitest tests passed, 42 test files), Module-based test architecture, Forensic Integrity Audit (CLEAN) | M1-M5 | DONE |
 
 ## Interface Contracts
 - **Auth & Session Management**: Unified logout synchronously resets `useAuthStore`, `useStore`, `useWorkspaceStore`, `useAdminStore`, and `useChatStore`.
@@ -42,6 +42,6 @@ MathmatiCore is an interactive mathematical education platform (React + TypeScri
   - Context / State: `react-ts-version/src/application/` (stores)
   - Core Logic: `react-ts-version/src/core/`
   - Services / Firebase: `react-ts-version/src/infrastructure/services/`
-  - Test Suites: `react-ts-version/src/**/__tests__/` (21 test files, 244 passing tests)
+  - Test Suites: `react-ts-version/src/**/__tests__/` (42 test files, 458 passing tests organized strictly by PRD v6.4 modules)
 - Security Rules: `c:\Users\david\Projects\MathmatiCore\database.rules.json`
 - Agent Workspace: `.agents/`
