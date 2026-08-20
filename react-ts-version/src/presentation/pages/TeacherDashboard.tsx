@@ -486,10 +486,21 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
 
           formattedStudents[normUid] = {
             ...(existingLocal || {}),
+            ...row,
             studentId: normUid,
             classId: row.classId ?? existingLocal?.classId ?? 'live',
             name: cleanName,
             isOnline: row.isOnline === true,
+            lastPing: row.lastPing || 0,
+            lastActivityTimestamp: row.lastActivityTimestamp || 0,
+            lastAction: row.lastAction || 'לא מחובר',
+            hasJoinedSession: row.hasJoinedSession === true || row.sessionJoined === true,
+            highestCompletedMeeting: typeof row.highestCompletedMeeting === 'number' 
+              ? row.highestCompletedMeeting 
+              : (existingLocal?.highestCompletedMeeting ?? 0),
+            physicalOverride: row.physicalOverride === true || row.physicalOverrideActive === true,
+            physicalOverrideActive: row.physicalOverrideActive === true || row.physicalOverride === true,
+            workspaceState: row.workspaceState || existingLocal?.workspaceState || null,
             qMatrixResults: Object.assign(
               {},
               existingLocal?.qMatrixResults || {},
