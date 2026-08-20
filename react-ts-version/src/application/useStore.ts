@@ -774,6 +774,7 @@ export const useStore = create<AppState>()(
             onlineStatus: 'offline',
             hasJoinedSession: false,
             sessionJoined: false,
+            forceReload: true,
             currentTaskIdx: 0,
             activeStep: 1,
             routeStatus: 'GREEN_PATH',

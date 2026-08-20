@@ -425,6 +425,23 @@ export function StudentWorkspacePage() {
     return () => unsub();
   }, [user?.uid]);
 
+  // --- Real-time Teacher Reset & Force Reload Listener ---
+  useEffect(() => {
+    if (!normUid) return;
+    const studentRef = ref(database, `users/students/${normUid}`);
+    const unsub = onValue(studentRef, (snap) => {
+      if (snap.exists()) {
+        const val = snap.val();
+        if (val?.forceReload === true) {
+          update(studentRef, { forceReload: null, isOnline: false, lastPing: 0 }).catch(() => {});
+          useWorkspaceStore.getState().resetWorkspace?.();
+          window.location.href = '/hub';
+        }
+      }
+    });
+    return () => unsub();
+  }, [normUid]);
+
   // --- Module 18: Live Presence Heartbeat & Session Sync (5s interval, 60s server window) ---
   useEffect(() => {
     const uid = user?.uid;

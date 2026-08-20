@@ -6,7 +6,7 @@ import { useAuthStore } from '@/application/useAuthStore';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { useActiveClassSession } from '@/application/useActiveClassSession';
 import { normalizeStudentId } from '@/application/useChatStore';
-import { ref, onValue } from 'firebase/database';
+import { ref, onValue, update } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
 import { Play, Sparkles } from 'lucide-react';
 import { BeeFlightWaitingScreen } from '@/presentation/components/student/BeeFlightWaitingScreen';
@@ -99,6 +99,14 @@ export function StudentHub() {
       (snap) => {
         if (snap.exists()) {
           const val = snap.val();
+          if (val?.forceReload === true) {
+            update(studentRef, { forceReload: null, isOnline: false, lastPing: 0 }).catch(() => {});
+            useWorkspaceStore.getState().resetWorkspace?.();
+            setHighestCompletedMeeting(0);
+            setActiveSessionId(1);
+            return;
+          }
+
           setLiveRouteStatus(val.routeStatus || null);
           const approved = val.teacher_gate_approved === true || val.routeStatus === 'APPROVED';
           setIsTeacherGateApproved(approved);
