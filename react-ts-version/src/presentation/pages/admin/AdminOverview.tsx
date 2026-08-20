@@ -175,7 +175,6 @@ export function AdminOverview() {
   }, [isFirebaseConnected]);
 
   const handleDataCleanup = async () => {
-    if (!window.confirm("האם אתה בטוח שברצונך למחוק הקלטות וידאו ישנות (מעל 30 יום)? פעולה זו מומלצת כהכנה לתקני פרטיות ילדים ולא ניתנת לביטול.")) return;
     try {
       setIsCleaning(true);
       const replaysRef = ref(database, 'replays');
@@ -199,16 +198,16 @@ export function AdminOverview() {
         
         if (deletedCount > 0) {
           await update(replaysRef, updates);
-          alert(`נוקו בהצלחה ${deletedCount} סשנים ישנים של הקלטות לשמירה על פרטיות ילדים.`);
+          toast.success(`נוקו בהצלחה ${deletedCount} סשנים ישנים של הקלטות לשמירה על פרטיות ילדים.`);
         } else {
-          alert('לא נמצאו סשנים ישנים (מעל 30 יום) לניקוי.');
+          toast.info('לא נמצאו סשנים ישנים (מעל 30 יום) לניקוי.');
         }
       } else {
-        alert('אין נתוני הקלטות במערכת.');
+        toast.info('אין נתוני הקלטות במערכת.');
       }
     } catch (e) {
       console.error(e);
-      alert('שגיאה בניקוי נתונים. ודא שיש לך הרשאות ניהול.');
+      toast.error('שגיאה בניקוי נתונים. ודא שיש לך הרשאות ניהול.');
     } finally {
       setIsCleaning(false);
     }

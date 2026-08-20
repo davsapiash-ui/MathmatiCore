@@ -151,9 +151,6 @@ export function ClassManagement({
   const [resetFeedback, setResetFeedback] = useState<string | null>(null);
 
   const handleResetStudent = async (studentId: string, studentName: string) => {
-    if (!window.confirm(`האם לאפס את כל נתוני ${studentName} ולהתחיל מחדש כלוח נקי?`)) {
-      return;
-    }
     setUpdatingId(studentId);
     try {
       await useStore.getState().resetStudentData(studentId);
@@ -167,14 +164,10 @@ export function ClassManagement({
   };
 
   const handleResetClassToVirginState = async () => {
-    if (!window.confirm('האם לאפס את כל נתוני תלמידי כיתת הביקורת לאפס מוחלט (התחלה נקייה לחלוטין)?')) {
-      return;
-    }
-
     setIsResetting(true);
     try {
       const updates: Record<string, any> = {};
-      for (let i = 1; i <= 30; i++) {
+      for (let i = 1; i <= 12; i++) {
         const studentPayload = {
           studentId: `student_user${i}`,
           name: `תלמיד ${i}`,

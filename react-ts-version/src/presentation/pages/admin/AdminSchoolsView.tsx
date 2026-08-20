@@ -56,17 +56,15 @@ export function AdminSchoolsView() {
   };
 
   const handleResetPilot = async () => {
-    if (window.confirm("פעולה זו תנקה את כל מוסדות הבדיקה מהשרת ותאפס את המערכת למבנה הפיילוט הרשמי בלבד (בית ספר ביקורת, כיתת המבקרים, עד 12 תלמידים). האם להמשיך?")) {
-      setIsResetting(true);
-      try {
-        await resetInstitutionsToOfficialPilot();
-        toast.success("המערכת אופסה בהצלחה למבנה הפיילוט הרשמי (בית ספר ביקורת וכיתת המבקרים)");
-      } catch (e) {
-        console.error("Failed to reset pilot institutions:", e);
-        toast.error("שגיאה באיפוס מוסדות הפיילוט");
-      } finally {
-        setIsResetting(false);
-      }
+    setIsResetting(true);
+    try {
+      await resetInstitutionsToOfficialPilot();
+      toast.success("המערכת אופסה בהצלחה למבנה הפיילוט הרשמי (בית ספר ביקורת וכיתת המבקרים)");
+    } catch (e) {
+      console.error("Failed to reset pilot institutions:", e);
+      toast.error("שגיאה באיפוס מוסדות הפיילוט");
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -270,11 +268,9 @@ export function AdminSchoolsView() {
 
                   <button 
                     onClick={() => {
-                      if (window.confirm(`מחיקת המוסד "${school.name}" תמחק גם את המורים והכיתות המשויכים אליו. האם להמשיך?`)) {
-                        deleteSchool(school.id);
-                      }
+                      deleteSchool(school.id);
                     }}
-                    className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/50 hover:text-rose-600 text-slate-400 transition-colors flex items-center justify-center"
+                    className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/50 hover:text-rose-600 text-slate-400 transition-colors flex items-center justify-center cursor-pointer"
                     title="מחק מוסד"
                   >
                     <Trash2 className="w-5 h-5" />
@@ -348,11 +344,9 @@ export function AdminSchoolsView() {
 
                             <button 
                               onClick={() => {
-                                if (window.confirm(`האם למחוק את המורה "${teacher.name}"?`)) {
-                                  deleteTeacher(teacher.id);
-                                }
+                                deleteTeacher(teacher.id);
                               }}
-                              className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 p-2 rounded-xl transition-all"
+                              className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 p-2 rounded-xl transition-all cursor-pointer"
                               title="מחק מורה"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -393,11 +387,9 @@ export function AdminSchoolsView() {
 
                             <button 
                               onClick={() => {
-                                if (window.confirm(`האם למחוק את הכיתה "${cls.name}"?`)) {
-                                  deleteClassRoom(cls.id);
-                                }
+                                deleteClassRoom(cls.id);
                               }}
-                              className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 p-1.5 rounded-lg transition-all"
+                              className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 p-1.5 rounded-lg transition-all cursor-pointer"
                               title="מחק כיתה"
                             >
                               <Trash2 className="w-3.5 h-3.5" />

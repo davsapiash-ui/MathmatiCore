@@ -66,7 +66,7 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
       >
         <div className="font-bold text-sm flex items-center gap-2">
           <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></div>
-          <span>{student.name || student.studentId}</span>
+          <span>תלמיד {normStudentId.replace(/\D/g, '') || normStudentId}</span>
         </div>
         <div className="flex gap-2 text-indigo-200">
           <button className="hover:text-white transition-colors" title="מזער">

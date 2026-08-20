@@ -5,10 +5,10 @@ import { getEffectiveChoices, getEffectiveNumber } from '@/core/qmatrixFlow';
 import { ChoiceList } from './ChoiceList';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 import { InlineMath } from 'react-katex';
-import 'katex/dist/katex.min.css';
 import { getValue } from '@/core/placeValue';
 import { motion } from 'framer-motion';
 import { VisualGraphicOrganizer } from './VisualGraphicOrganizer';
+import { toast } from 'sonner';
 
 /**
  * "מעוף הדבורה" — תת-משימת אבחון לאחור: גרסה פשוטה יותר של המשימה שנכשלה.
@@ -160,7 +160,7 @@ export function BackwardDiagnosisView({ task, qflow, isASD }: { task: QMatrixTas
             <label className="cursor-pointer text-sm font-bold text-ws-accent hover:text-ws-ink transition-colors flex items-center gap-2 bg-ws-surface px-4 py-2 rounded-xl shadow-sm border border-ws-ink/10">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
               העלו פתרון כתוב (תמונה)
-              <input type="file" className="hidden" accept="image/*" aria-label="העלו פתרון כתמונה" onChange={() => alert("הפתרון הועלה בהצלחה למורה.")} />
+              <input type="file" className="hidden" accept="image/*" aria-label="העלו פתרון כתמונה" onChange={() => toast.success("הפתרון הועלה בהצלחה למורה.")} />
             </label>
           </div>
         </div>

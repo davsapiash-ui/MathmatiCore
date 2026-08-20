@@ -40,13 +40,11 @@ export function StudentSideDrawer({ student, onClose, isPendingApproval, onAppro
   const helpCount = sAny.helpCallCount || 0;
 
   const handleResetStudent = async () => {
-    if (!window.confirm(`האם לאפס את כל נתוני ${student.name || student.studentId} ולהתחיל מחדש כלוח נקי?`)) {
-      return;
-    }
     setIsResetting(true);
     try {
+      const sNum = student.studentId.replace(/\D/g, '') || student.studentId;
       await useStore.getState().resetStudentData(student.studentId);
-      toast.success(`✓ כל נתוני ${student.name || student.studentId} אופסו בהצלחה!`);
+      toast.success(`✓ נתוני תלמיד ${sNum} אופסו בהצלחה!`);
       onClose();
     } catch (err) {
       console.error('Reset error:', err);
@@ -87,7 +85,7 @@ export function StudentSideDrawer({ student, onClose, isPendingApproval, onAppro
         <div className="h-16 px-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 shrink-0">
           <div className="flex items-center gap-3">
             <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">
-              {student.name || student.studentId}
+              תלמיד {student.studentId.replace(/\D/g, '') || student.studentId}
             </h2>
             {isPendingApproval && (
               <span className="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-1 rounded-md border border-amber-200">
@@ -229,7 +227,7 @@ export function StudentSideDrawer({ student, onClose, isPendingApproval, onAppro
               <SilentAdaptationPanel
                 student={{
                   studentId: student.studentId,
-                  anonymousLabel: student.name || `תלמיד ${student.studentId.replace(/\D/g, '') || ''}`,
+                  anonymousLabel: `תלמיד ${student.studentId.replace(/\D/g, '') || ''}`,
                   path: (sAny.pedagogicalPath === 'remediation_path' || sAny.currentPath === 'צמצום פערים') ? 'remediation_path' : 'green_path',
                   scaffoldLevel: (sAny.scaffoldLevel ?? 0) as 0 | 1 | 2,
                   forceAdditionHelper: Boolean(sAny.forceAdditionHelper),

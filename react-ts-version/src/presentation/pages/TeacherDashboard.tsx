@@ -1975,7 +1975,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                   <AccessibleCard key={student.studentId} className="p-8 bg-ws-surface border border-ws-surface2 shadow-lg rounded-3xl">
                     <div className="flex justify-between items-start mb-6">
                       <div>
-                        <h3 className="text-2xl font-bold text-ws-ink">{student.name || student.studentId}</h3>
+                        <h3 className="text-2xl font-bold text-ws-ink">תלמיד {student.studentId.replace(/\D/g, '') || student.studentId}</h3>
                         <p className="text-sm text-ws-soft mt-1">מזהה: {student.studentId} | סיום מפגש 2</p>
                       </div>
                       <div className="flex gap-3">
@@ -2019,7 +2019,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                     }
                                   };
                                 });
-                                alert('שגיאה באישור המשימות ב-Firebase. הפעולה בוטלה.');
+                                toast.error('שגיאה באישור המשימות ב-Firebase. הפעולה בוטלה.');
                               }
                             }
                           }}
@@ -2040,7 +2040,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                               setEditingApproval(approval);
                               setEditedTasks([...approval.tasks]);
                               setCoPilotChat([
-                                { role: 'ai', text: `שלום! אני סוכן ה-AI. התוכנית למפגש ${approval.targetSession || '3'} עבור ${student.name} מוכנה. תוכל לערוך אותה כאן, או לבקש ממני לשנות משהו.` }
+                                { role: 'ai', text: `שלום! אני סוכן ה-AI. התוכנית למפגש ${approval.targetSession || '3'} עבור תלמיד ${student.studentId.replace(/\D/g, '') || student.studentId} מוכנה. תוכל לערוך אותה כאן, או לבקש ממני לשנות משהו.` }
                               ]);
                             }
                           }}
@@ -2325,7 +2325,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                               isSelected ? "bg-white/20 text-white" : "bg-gradient-to-tr from-indigo-500 to-purple-600"
                             }`}
                           >
-                            {(student.name || student.studentId || 'U')[0]}
+                            {(student.studentId.replace(/\D/g, '') || '1')}
                             {student.traceData?.hesitation_events > 0 && (
                               <div
                                 className="absolute -top-1 -right-1 bg-amber-500 text-white rounded-full p-0.5 shadow-md"
@@ -2337,7 +2337,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                           </div>
                           <div className="flex flex-col text-right overflow-hidden">
                             <span className={`font-bold text-sm truncate ${isSelected ? "text-white" : "text-slate-900 dark:text-white"}`}>
-                              {student.name || student.studentId}
+                              תלמיד {student.studentId.replace(/\D/g, '') || student.studentId}
                             </span>
                             <span className={`text-xs truncate ${isSelected ? "text-indigo-100" : "text-slate-400"}`}>
                               {lastStudentMsg ? (lastStudentMsg.text || '📷 תמונה מצורפת') : 'לחץ לפתיחת שיחה'}
@@ -2673,7 +2673,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                       setEditedTasks(null);
                     } catch (err) {
                       console.error(err);
-                      alert('שגיאה בדחיית המשימות');
+                      toast.error('שגיאה בדחיית המשימות');
                     }
                   }}
                 >
@@ -2687,12 +2687,12 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                       const targetTeacherId = isFallback ? "teacher-1" : TEACHER_ID;
                       try {
                         await SocraticEngine.updatePendingTasks(targetTeacherId, editingApproval.id, editedTasks);
-                        alert('טיוטה נשמרה בהצלחה. תוכל להמשיך לערוך אותה מאוחר יותר.');
+                        toast.success('טיוטה נשמרה בהצלחה.');
                         setEditingApproval(null);
                         setEditedTasks(null);
                       } catch (err) {
                         console.error(err);
-                        alert('שגיאה בשמירת הטיוטה');
+                        toast.error('שגיאה בשמירת הטיוטה');
                       }
                     }}
                   >
@@ -2705,11 +2705,12 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                       const targetTeacherId = isFallback ? "teacher-1" : TEACHER_ID;
                       try {
                         await SocraticEngine.approveTasks(targetTeacherId, editingApproval.id, editingApproval.studentId, editedTasks);
+                        toast.success('התוכנית אושרה והופעלה בהצלחה.');
                         setEditingApproval(null);
                         setEditedTasks(null);
                       } catch (err) {
                         console.error('Firebase task approval failed:', err);
-                        alert('שגיאה באישור המשימות ב-Firebase.');
+                        toast.error('שגיאה באישור המשימות ב-Firebase.');
                       }
                     }}
                   >
@@ -2754,7 +2755,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                       }
                     };
                   });
-                  alert('שגיאה באישור המשימות ב-Firebase. הפעולה בוטלה.');
+                  toast.error('שגיאה באישור המשימות ב-Firebase. הפעולה בוטלה.');
                 }
               }
             }}
