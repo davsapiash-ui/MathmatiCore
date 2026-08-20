@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { type StudentData } from '@/application/useStore';
+import { type StudentData, useStore } from '@/application/useStore';
 import { normalizeStudentId } from '@/application/useChatStore';
-import { X, CheckCircle, Video, ListTodo, Sliders, BellRing, Check, MessageCircle, Settings } from 'lucide-react';
+import { X, CheckCircle, Video, ListTodo, Sliders, BellRing, Check, MessageCircle, Settings, RotateCcw } from 'lucide-react';
 import { StudentReplayAndLogs } from './StudentReplayAndLogs';
 import { BlueprintEditor } from './BlueprintEditor';
 import { PhysicalOverrideControl } from './PhysicalOverrideControl';
@@ -23,6 +23,7 @@ export function StudentSideDrawer({ student, onClose, isPendingApproval, onAppro
   const [activeTab, setActiveTab] = useState<'replays' | 'blueprint' | 'override'>(
     isPendingApproval ? 'blueprint' : 'replays'
   );
+  const [isResetting, setIsResetting] = useState(false);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -37,6 +38,23 @@ export function StudentSideDrawer({ student, onClose, isPendingApproval, onAppro
   const sAny = student as any;
   const hasHelpRequest = sAny.helpRequested || sAny.handRaised || sAny.isStruggling;
   const helpCount = sAny.helpCallCount || 0;
+
+  const handleResetStudent = async () => {
+    if (!window.confirm(`האם לאפס את כל נתוני ${student.name || student.studentId} ולהתחיל מחדש כלוח נקי?`)) {
+      return;
+    }
+    setIsResetting(true);
+    try {
+      await useStore.getState().resetStudentData(student.studentId);
+      toast.success(`✓ כל נתוני ${student.name || student.studentId} אופסו בהצלחה!`);
+      onClose();
+    } catch (err) {
+      console.error('Reset error:', err);
+      toast.error('שגיאה באיפוס נתוני התלמיד');
+    } finally {
+      setIsResetting(false);
+    }
+  };
 
   const handleClearHelpRequest = async () => {
     if (!student.studentId) return;
@@ -82,7 +100,16 @@ export function StudentSideDrawer({ student, onClose, isPendingApproval, onAppro
               </span>
             )}
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleResetStudent}
+              disabled={isResetting}
+              className="px-2.5 py-1.5 rounded-xl border border-rose-200 hover:border-rose-400 bg-rose-50/50 hover:bg-rose-100 text-rose-700 dark:text-rose-300 text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50"
+              title="איפוס מלא של נתוני התלמיד"
+            >
+              <RotateCcw className={`w-3.5 h-3.5 ${isResetting ? 'animate-spin' : ''}`} />
+              <span>אפס נתונים</span>
+            </button>
             {onOpenChat && (
               <button 
                 onClick={() => onOpenChat(student)}

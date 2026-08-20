@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { ref, onValue } from 'firebase/database';
+import { ref, onValue, update, get, remove, set } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
 import { normalizeStudentId } from '@/application/useChatStore';
 
@@ -147,6 +147,7 @@ interface AppState {
     }
   ) => void;
   updateStudent: (studentId: string, updates: Partial<StudentData>) => void;
+  resetStudentData: (studentId: string) => Promise<void>;
   initStoreSubscriptions: () => (() => void);
 }
 
@@ -565,6 +566,115 @@ export const useStore = create<AppState>()(
             },
           },
         };
-      })
+      }),
+
+      resetStudentData: async (studentId: string) => {
+        const normId = normalizeStudentId(studentId);
+        const num = normId.replace(/\D/g, '') || '1';
+        const defaultName = `תלמיד ${num}`;
+        const cleanStudent: StudentData = {
+          studentId: normId,
+          classId: 'class_1',
+          name: defaultName,
+          completedMeeting2: false,
+          highestCompletedMeeting: 0,
+          qMatrixResults: {
+            task1_zero_placeholder: null,
+            task3_flexible_regrouping: null,
+            task4_basic_addition_fluency: null,
+            task5_small_change: null,
+            task6_subtraction_regrouping: null,
+            task7_missing_subtrahend: null,
+            task8_missing_addend: null,
+          },
+          traceData: { hesitation_events: 0, undo_clicks: 0, semantic_trace: [] },
+          routeRecommendation: null,
+          routeStatus: null,
+          liveSessionMetrics: null,
+          isOnline: false,
+          physicalOverride: false,
+          physicalOverrideActive: false,
+          diagnosticReport: null,
+          reflections: null,
+        };
+
+        // 1. Update local Zustand state
+        set((state) => ({
+          students: {
+            ...state.students,
+            [normId]: cleanStudent,
+            ...(studentId !== normId ? { [studentId]: cleanStudent } : {}),
+            [`student_${num}`]: cleanStudent,
+          }
+        }));
+
+        // 2. Clear in Firebase Realtime Database
+        try {
+          const payload = {
+            studentId: normId,
+            name: defaultName,
+            classId: 'class_1',
+            isOnline: false,
+            onlineStatus: 'offline',
+            currentTaskIdx: 0,
+            activeStep: 1,
+            routeStatus: 'GREEN_PATH',
+            routeRecommendation: null,
+            difficultyRecommendation: 'standard',
+            highestCompletedMeeting: 0,
+            completedMeeting2: false,
+            teacher_gate_approved: false,
+            enhanced_support_profile: false,
+            physicalOverride: false,
+            physicalOverrideActive: false,
+            radar_history: null,
+            diagnosticReport: null,
+            qMatrixResults: null,
+            conceptMastery: null,
+            reflections: null,
+            traceData: { hesitation_events: 0, undo_clicks: 0, semantic_trace: [] },
+            forceReload: true,
+            lastAction: 'איפוס נתוני תלמיד ע״י המורה',
+            lastActivityTimestamp: Date.now(),
+            workspaceState: {
+              sessionNumber: 1,
+              isASD: false,
+              standardTaskIdx: 0,
+              counts: { units: 0, tens: 0, hundreds: 0, thousands: 0 },
+              undoCount: 0,
+              hesitationCount: 0,
+              hasInteracted: false,
+              flowStatus: 'task'
+            }
+          };
+
+          const targetPaths = [
+            `users/students/${normId}`,
+            `users/students/student_${num}`,
+            `users/students/${num}`,
+            `students/${normId}`,
+            `students/student_${num}`,
+          ];
+
+          const updates: Record<string, any> = {};
+          targetPaths.forEach(p => { updates[p] = payload; });
+          await update(ref(database), updates);
+
+          // Clear radar alerts for this student
+          const alertsSnap = await get(ref(database, 'radar_alerts'));
+          if (alertsSnap.exists()) {
+            const rawAlerts = alertsSnap.val() || {};
+            for (const [key, val] of Object.entries(rawAlerts)) {
+              const v = val as any;
+              const matches = v?.studentId === normId || v?.rawStudentId === normId || v?.studentId === `student_${num}` || v?.rawStudentId === `student_${num}` || v?.studentName === defaultName;
+              if (matches) {
+                await remove(ref(database, `radar_alerts/${key}`)).catch(() => {});
+              }
+            }
+          }
+        } catch (err) {
+          console.error(`Failed to reset student ${studentId} in Firebase:`, err);
+        }
+      }
     })
 );

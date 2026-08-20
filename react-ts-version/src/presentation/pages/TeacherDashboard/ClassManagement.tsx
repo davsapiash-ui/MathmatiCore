@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useAdminStore } from '@/application/useAdminStore';
-import { Users, Check, Lock, Sparkles, ChevronRight, Zap, CheckCircle2, Sliders, ShieldCheck } from 'lucide-react';
+import { Users, Check, Lock, Sparkles, ChevronRight, Zap, CheckCircle2, Sliders, ShieldCheck, RotateCcw } from 'lucide-react';
 import { useStore, type StudentData } from '@/application/useStore';
 import { HeatmapGrid } from './components/HeatmapGrid';
 import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
-import { ref, onValue, update } from 'firebase/database';
+import { ref, onValue, update, get, remove } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
 import { normalizeStudentId } from '@/application/useChatStore';
+import { toast } from 'sonner';
 
 interface StudentGateState {
   id: string;
@@ -149,6 +150,22 @@ export function ClassManagement({
   const [isResetting, setIsResetting] = useState(false);
   const [resetFeedback, setResetFeedback] = useState<string | null>(null);
 
+  const handleResetStudent = async (studentId: string, studentName: string) => {
+    if (!window.confirm(`האם לאפס את כל נתוני ${studentName} ולהתחיל מחדש כלוח נקי?`)) {
+      return;
+    }
+    setUpdatingId(studentId);
+    try {
+      await useStore.getState().resetStudentData(studentId);
+      toast.success(`✓ נתוני ${studentName} אופסו בהצלחה!`);
+    } catch (err) {
+      console.error('Failed to reset student:', err);
+      toast.error('שגיאה באיפוס נתוני התלמיד');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
   const handleResetClassToVirginState = async () => {
     if (!window.confirm('האם לאפס את כל נתוני תלמידי כיתת הביקורת לאפס מוחלט (התחלה נקייה לחלוטין)?')) {
       return;
@@ -159,19 +176,30 @@ export function ClassManagement({
       const updates: Record<string, any> = {};
       for (let i = 1; i <= 30; i++) {
         const studentPayload = {
-          studentId: `student_${i}`,
+          studentId: `student_user${i}`,
           name: `תלמיד ${i}`,
           isOnline: false,
+          onlineStatus: 'offline',
           currentTaskIdx: 0,
           activeStep: 1,
           routeStatus: 'GREEN_PATH',
+          routeRecommendation: null,
           difficultyRecommendation: 'standard',
           highestCompletedMeeting: 0,
           completedMeeting2: false,
           teacher_gate_approved: false,
           enhanced_support_profile: false,
+          physicalOverride: false,
           physicalOverrideActive: false,
           radar_history: null,
+          diagnosticReport: null,
+          qMatrixResults: null,
+          conceptMastery: null,
+          reflections: null,
+          traceData: { hesitation_events: 0, undo_clicks: 0, semantic_trace: [] },
+          forceReload: true,
+          lastAction: 'איפוס כיתה מלא ע״י המורה',
+          lastActivityTimestamp: Date.now(),
           workspaceState: {
             sessionNumber: 1,
             isASD: false,
@@ -185,10 +213,27 @@ export function ClassManagement({
         };
 
         updates[`users/students/student_${i}`] = studentPayload;
+        updates[`users/students/student_user${i}`] = studentPayload;
+        updates[`users/students/${i}`] = studentPayload;
         updates[`students/student_${i}`] = studentPayload;
+        updates[`students/student_user${i}`] = studentPayload;
       }
 
       await update(ref(database), updates);
+
+      // Clear radar_alerts
+      try {
+        const alertsSnap = await get(ref(database, 'radar_alerts'));
+        if (alertsSnap.exists()) {
+          const rawAlerts = alertsSnap.val() || {};
+          for (const key of Object.keys(rawAlerts)) {
+            await remove(ref(database, `radar_alerts/${key}`)).catch(() => {});
+          }
+        }
+      } catch (err) {
+        console.warn('Could not clear radar alerts during full class reset:', err);
+      }
+
       setResetFeedback('✓ כל נתוני כיתת הביקורת אופסו בהצלחה לאפס מוחלט!');
       setTimeout(() => setResetFeedback(null), 5000);
     } catch (err) {
@@ -346,6 +391,14 @@ export function ClassManagement({
                       }`}
                     >
                       אישור צמצום פערים
+                    </button>
+                    <button
+                      onClick={() => handleResetStudent(student.id, `תלמיד ${student.studentNumber}`)}
+                      disabled={updatingId === student.id}
+                      className="p-2 rounded-xl border border-rose-200 hover:border-rose-400 bg-rose-50 hover:bg-rose-100 text-rose-600 transition-all cursor-pointer"
+                      title="איפוס מלא של נתוני התלמיד"
+                    >
+                      <RotateCcw className={`w-3.5 h-3.5 ${updatingId === student.id ? 'animate-spin' : ''}`} />
                     </button>
                   </div>
                 </div>
