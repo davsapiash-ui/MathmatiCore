@@ -81,8 +81,13 @@ export function calculateMonotonicMeetingUpdate(currentVal: any, newMeeting: num
     console.warn(`[FirebaseSyncService] Invalid non-numeric highestCompletedMeeting detected in DB:`, currentVal);
     currentNum = 0;
   }
-  if (newMeeting > currentNum) {
-    return newMeeting;
+  const parsedNew = typeof newMeeting === 'number' ? newMeeting : Number(newMeeting);
+  if (Number.isNaN(parsedNew) || parsedNew < 1) {
+    return undefined;
+  }
+  const boundedNew = Math.min(Math.floor(parsedNew), 8);
+  if (boundedNew > currentNum) {
+    return boundedNew;
   }
   return undefined;
 }
@@ -179,11 +184,19 @@ export class FirebaseSyncService {
     const studentId = normalizeStudentId(rawStudentId);
     this.currentUserId = studentId;
     const studentRef = ref(database, `users/students/${studentId}`);
-    
     // Set online presence
     const statusRef = ref(database, `users/students/${studentId}/isOnline`);
     set(statusRef, true);
-    onDisconnect(statusRef).set(false);
+    try {
+      onDisconnect(statusRef).set(false);
+      onDisconnect(ref(database, `users/students/${studentId}/lastPing`)).set(0);
+    } catch {}
+    update(studentRef, {
+      onlineStatus: 'active',
+      lastPing: Date.now(),
+      lastActivityTimestamp: Date.now(),
+      hasJoinedSession: true,
+    }).catch(() => {});
     
     this.isInitialLoad = true;
 
@@ -936,24 +949,24 @@ export class FirebaseSyncService {
 
   // --- NEW: Public and Admin Listeners ---
   private syncSharedListeners(isAuthenticated: boolean) {
-    if (!this.unsubscribeSchools) {
-      const schoolsRef = ref(database, 'schools');
-      this.unsubscribeSchools = onValue(schoolsRef, (snapshot) => {
-        if (typeof useAdminStore?.setState === 'function') {
-          if (snapshot.exists()) {
-            const schoolsVal = snapshot.val();
-            const schools = schoolsVal ? Object.values(schoolsVal) as School[] : [];
-            useAdminStore.setState({ schools });
-          } else {
-            useAdminStore.setState({ schools: [] });
-          }
-        }
-      }, (error) => {
-        console.error("Schools listener error:", error);
-      });
-    }
-
     if (isAuthenticated) {
+      if (!this.unsubscribeSchools) {
+        const schoolsRef = ref(database, 'schools');
+        this.unsubscribeSchools = onValue(schoolsRef, (snapshot) => {
+          if (typeof useAdminStore?.setState === 'function') {
+            if (snapshot.exists()) {
+              const schoolsVal = snapshot.val();
+              const schools = schoolsVal ? Object.values(schoolsVal) as School[] : [];
+              useAdminStore.setState({ schools });
+            } else {
+              useAdminStore.setState({ schools: [] });
+            }
+          }
+        }, (error) => {
+          console.warn("Schools listener notice:", error?.message || error);
+        });
+      }
+
       if (this.unsubscribePublicClasses) {
         this.unsubscribePublicClasses();
         this.unsubscribePublicClasses = null;
@@ -967,10 +980,14 @@ export class FirebaseSyncService {
             useAdminStore.setState({ classes });
           }
         }, (error) => {
-          console.error("Classes listener error:", error);
+          console.warn("Classes listener notice:", error?.message || error);
         });
       }
     } else {
+      if (this.unsubscribeSchools) {
+        this.unsubscribeSchools();
+        this.unsubscribeSchools = null;
+      }
       if (this.unsubscribeClasses) {
         this.unsubscribeClasses();
         this.unsubscribeClasses = null;
@@ -984,7 +1001,7 @@ export class FirebaseSyncService {
             useAdminStore.setState({ classes });
           }
         }, (error) => {
-          console.error("Public classes listener error:", error);
+          console.warn("Public classes listener notice:", error?.message || error);
         });
       }
     }

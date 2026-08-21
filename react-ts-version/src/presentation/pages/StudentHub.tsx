@@ -6,7 +6,7 @@ import { useAuthStore } from '@/application/useAuthStore';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { useActiveClassSession } from '@/application/useActiveClassSession';
 import { normalizeStudentId } from '@/application/useChatStore';
-import { ref, onValue, update } from 'firebase/database';
+import { ref, onValue, update, onDisconnect } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
 import { Play, Sparkles } from 'lucide-react';
 import { BeeFlightWaitingScreen } from '@/presentation/components/student/BeeFlightWaitingScreen';
@@ -133,6 +133,39 @@ export function StudentHub() {
     );
     return () => unsub();
   }, [uid, normUid, teacherSessionNum]);
+
+  // Maintain live presence heartbeat while in Student Hub / Lobby
+  useEffect(() => {
+    if (!normUid) return;
+    const studentPresenceRef = ref(database, `users/students/${normUid}`);
+
+    update(studentPresenceRef, {
+      isOnline: true,
+      onlineStatus: 'active',
+      lastPing: Date.now(),
+      lastActivityTimestamp: Date.now(),
+      hasJoinedSession: true,
+      lastAction: 'בלובי / ממתין לשיעור',
+    }).catch(() => {});
+
+    try {
+      onDisconnect(ref(database, `users/students/${normUid}/isOnline`)).set(false);
+      onDisconnect(ref(database, `users/students/${normUid}/lastPing`)).set(0);
+    } catch {}
+
+    const interval = setInterval(() => {
+      update(studentPresenceRef, {
+        isOnline: true,
+        onlineStatus: 'active',
+        lastPing: Date.now(),
+        lastActivityTimestamp: Date.now(),
+      }).catch(() => {});
+    }, 4000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [normUid]);
 
   // Compute the single active session to render - teacher broadcast takes direct reactive precedence
   const effectiveSessionId = teacherSessionNum

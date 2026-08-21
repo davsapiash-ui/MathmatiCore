@@ -181,13 +181,16 @@ export function unifiedLogout() {
   const currentUser = useAuthStore.getState().user;
   if (currentUser?.uid) {
     const normId = normalizeStudentId(currentUser.uid);
-    try {
-      update(ref(database, `users/students/${normId}`), { isOnline: false, lastPing: 0 }).catch(() => {});
-      if (normId !== currentUser.uid) {
-        update(ref(database, `users/students/${currentUser.uid}`), { isOnline: false, lastPing: 0 }).catch(() => {});
+    const isSuperseded = useWorkspaceStore.getState().isSupersededByOtherDevice;
+    if (!isSuperseded) {
+      try {
+        update(ref(database, `users/students/${normId}`), { isOnline: false, lastPing: 0 }).catch(() => {});
+        if (normId !== currentUser.uid) {
+          update(ref(database, `users/students/${currentUser.uid}`), { isOnline: false, lastPing: 0 }).catch(() => {});
+        }
+      } catch (e) {
+        console.warn("Presence logout reset error:", e);
       }
-    } catch (e) {
-      console.warn("Presence logout reset error:", e);
     }
   }
 

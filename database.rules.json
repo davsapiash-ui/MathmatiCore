@@ -5,7 +5,7 @@
       ".write": "auth != null && (auth.token.role == 'admin' || auth.token.role == 'ADMIN')"
     },
     "public_classes": {
-      ".read": "auth != null",
+      ".read": true,
       ".write": "auth != null && (auth.token.role == 'admin' || auth.token.role == 'ADMIN')"
     },
     "classes": {
@@ -83,6 +83,15 @@
     "approved_tasks": {
       ".read": "auth != null",
       ".write": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.role == 'admin' || auth.token.role == 'ADMIN')"
+    },
+    "ai_pending_approvals": {
+      ".read": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.role == 'admin' || auth.token.role == 'ADMIN' || auth.token.email.matches(/.*admin.*/) || auth.token.email.matches(/.*edu-haifa.*/) || auth.uid == '1002220159' || auth.uid == 'teacher_1002220159')",
+      ".write": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.role == 'admin' || auth.token.role == 'ADMIN' || auth.token.email.matches(/.*admin.*/) || auth.token.email.matches(/.*edu-haifa.*/) || auth.uid == '1002220159' || auth.uid == 'teacher_1002220159' || auth.token.firebase.sign_in_provider == 'anonymous')"
+    },
+    "reflections": {
+      ".read": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.role == 'admin' || auth.token.role == 'ADMIN' || auth.token.email.matches(/.*admin.*/) || auth.token.email.matches(/.*edu-haifa.*/) || auth.uid == '1002220159' || auth.uid == 'teacher_1002220159')",
+      ".write": "auth != null",
+      ".indexOn": ["timestamp"]
     }
   }
 }

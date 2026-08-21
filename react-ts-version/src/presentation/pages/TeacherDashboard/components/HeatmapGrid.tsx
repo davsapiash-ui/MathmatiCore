@@ -175,11 +175,13 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
           const uid = `student_${studentNum}`;
           const data = rawData[uid] || rawData[`slot_${studentNum}`] || rawData[`student_user${studentNum}`] || {};
           
-          // Strict 15-second presence heartbeat validation (Module 18)
+          // Robust presence check:
+          // 1. Is online flag set in RTDB?
+          // 2. Or is there fresh activity within a tolerant 60-second window (handling cross-computer clock skew)?
           const lastPing = data.lastPing || data.lastActivityTimestamp || 0;
           const hasJoinedSession = Boolean(lastPing > 0 || data.hasJoinedSession || data.sessionJoined);
-          const isHeartbeatFresh = lastPing > 0 && (now - lastPing <= 15000);
-          const isOnline = isClassSessionActive && Boolean(data.isOnline === true || data.onlineStatus === 'active') && isHeartbeatFresh;
+          const isHeartbeatFresh = lastPing > 0 && Math.abs(now - lastPing) <= 60000;
+          const isOnline = Boolean(data.isOnline === true || data.onlineStatus === 'active' || isHeartbeatFresh);
 
           const wsState = data.workspaceState || {};
           const sessionState = data.sessionState || {};

@@ -774,7 +774,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
       set({ standardTaskIdx: nextIdx, awaitingNext: false });
       const studentId = useAuthStore.getState().user?.uid;
-      if (studentId) {
+      if (studentId && !s.isSupersededByOtherDevice) {
         const normId = normalizeStudentId(studentId);
         const taskTitle = tasks[nextIdx]?.titleHe || `משימה ${nextIdx + 1}`;
         const studentPayload = {
@@ -796,7 +796,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     // Session complete
     const authUser = useAuthStore.getState().user;
     const studentId = authUser?.uid || (authUser?.student_id ? `student_user${authUser.student_id}` : 'student_user1');
-    if (studentId) {
+    if (studentId && !s.isSupersededByOtherDevice) {
       const normId = normalizeStudentId(studentId);
       useStore.getState().updateHighestCompletedMeeting(studentId, s.sessionNumber);
       useStore.getState().updateHighestCompletedMeeting(normId, s.sessionNumber);
@@ -1597,7 +1597,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       }
       
       const rawUser = useAuthStore.getState().user;
-      if (rawUser?.uid) {
+      if (rawUser?.uid && !s.isSupersededByOtherDevice) {
         const clean = rawUser.uid.trim().toLowerCase();
         const studentId = clean.startsWith('student_') ? clean : `student_${clean}`;
         AuditLogger.log('HINT_REQUESTED', studentId, 'Student clicked the hint lightbulb');

@@ -97,6 +97,14 @@ export function sanitizePII(text?: string | null): string {
   // 3. Sanitize Phones
   sanitized = sanitized.replace(PII_PHONE_REGEX, '[PHONE_REDACTED]');
 
+  // 4. Sanitize English name introductions
+  const englishNameRegex = /\b(my name is|this is)\s+([A-Za-z]+)\b/gi;
+  sanitized = sanitized.replace(englishNameRegex, '$1 [NAME_REDACTED]');
+
+  // 5. Sanitize Hebrew name introductions
+  const hebrewNameRegex = /(קוראים לי|שמי|השם שלי(?: הוא)?)\s+[א-ת]+(?:\s+[א-ת]+)?/g;
+  sanitized = sanitized.replace(hebrewNameRegex, '$1 [NAME_REDACTED]');
+
   return sanitized;
 }
 
