@@ -66,25 +66,25 @@ export function PhysicalOverrideControl({ student }: Props) {
     <div className="bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/40 rounded-xl p-4 my-6 shadow-sm">
       <div className="flex items-center gap-2 mb-3 text-amber-800 dark:text-amber-300 font-bold text-base">
         <ShieldAlert className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-        <span>עקיפה פיזית ותיווך מורה (Physical Override)</span>
+        <span>בקרת הוראה והתאמה ידנית</span>
       </div>
 
       <p className="text-xs text-slate-600 dark:text-slate-400 mb-4">
-        שליטה ידנית בהגדרות המסלול, הרמה והתאמות ה-ASD של התלמיד/ה להחלפת החלטות המערכת האוטומטית.
+        שליטה ידנית בהגדרות המסלול, רמת הקושי והתאמות הקשב של התלמיד/ה להחלפת החלטות המערכת האוטומטית.
       </p>
 
       <div className="space-y-4">
         <div>
           <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-            סטטוס מסלול לימוד (Route Status):
+            שלב למידה נוכחי:
           </label>
-          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
             {[
-              { id: 'SANDBOX', label: 'SANDBOX' },
-              { id: 'DIAGNOSTIC', label: 'DIAGNOSTIC' },
-              { id: 'ADAPTIVE', label: 'ADAPTIVE' },
-              { id: 'GATE_LOCKED', label: 'GATE_LOCKED' },
-              { id: 'APPROVED', label: 'APPROVED' },
+              { id: 'SANDBOX', label: 'ארגז חול חופשי' },
+              { id: 'DIAGNOSTIC', label: 'אבחון פעיל' },
+              { id: 'ADAPTIVE', label: 'למידה מותאמת' },
+              { id: 'GATE_LOCKED', label: 'שער ממתין לאישור' },
+              { id: 'APPROVED', label: 'מאושר להמשך' },
             ].map((item) => (
               <button
                 key={item.id}
@@ -104,13 +104,13 @@ export function PhysicalOverrideControl({ student }: Props) {
 
         <div>
           <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-            המלצת רמת קושי (Difficulty Recommendation):
+            רמת קושי:
           </label>
           <div className="grid grid-cols-3 gap-2">
             {[
-              { id: 'LEVEL_1', label: 'LEVEL_1' },
-              { id: 'LEVEL_2', label: 'LEVEL_2' },
-              { id: 'LEVEL_3', label: 'LEVEL_3' },
+              { id: 'LEVEL_1', label: 'רמה 1 (בסיס)' },
+              { id: 'LEVEL_2', label: 'רמה 2 (רגיל)' },
+              { id: 'LEVEL_3', label: 'רמה 3 (מתקדם)' },
             ].map((item) => (
               <button
                 key={item.id}
@@ -130,8 +130,8 @@ export function PhysicalOverrideControl({ student }: Props) {
 
         <div className="flex items-center justify-between bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
           <div>
-            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">התאמת ASD (isASD)</span>
-            <span className="text-[11px] text-slate-500 dark:text-slate-400">הפעלת עזרי למידה חזותיים מותאמים</span>
+            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">שקט חזותי והתאמת קשב (ASD)</span>
+            <span className="text-[11px] text-slate-500 dark:text-slate-400">הפעלת עזרי למידה חזותיים מותאמים וצמצום הסחות דעת</span>
           </div>
           <button
             type="button"

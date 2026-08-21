@@ -371,10 +371,10 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
         <div>
           <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2.5">
             <Video className="w-6 h-6 text-indigo-600" />
-            ממשק מסך מפוצל לאבחון מורה (Diagnostic Split-Screen)
+            שחזור מהלכי תלמיד ואבחון פדגוגי
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            התחקות אחר ציר ההחלטות הקוגניטיבי ושחזור מהלכי התלמיד (Screen Capture & VRA Timeline — PRD מודול 21).
+            התחקות אחר ציר ההחלטות הקוגניטיבי, שלבי הפתרון ושחזור לוח בית המספרים של התלמיד.
           </p>
         </div>
 
@@ -389,7 +389,7 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
               }`}
             >
               <MonitorPlay className="w-3.5 h-3.5" />
-              הקלטת מסך חיה (Video Replay)
+              הקלטת מסך וידאו
             </button>
             <button
               onClick={() => setViewMode('vra')}
@@ -400,7 +400,7 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
               }`}
             >
               <Layers className="w-3.5 h-3.5" />
-              שחזור בית המספרים (VRA State)
+              שחזור לוח בית המספרים
             </button>
           </div>
 
@@ -411,16 +411,16 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
         </div>
       </div>
 
-      {/* Main 50/50 Split Layout per PRD Module 21 */}
+      {/* Main 50/50 Split Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
         
-        {/* Right Side in RTL: VRA Cognitive Decision Timeline Table */}
+        {/* Right Side in RTL: Cognitive Decision Timeline Table */}
         <div className="flex flex-col gap-3.5 h-full">
           <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-700/60">
             <div className="flex items-center gap-2">
               <Activity className="w-4 h-4 text-indigo-600" />
               <h3 className="font-black text-sm text-slate-900 dark:text-white">
-                טבלת ציר החלטות קוגניטיבי (VRA Timeline)
+                טבלת ציר החלטות ופעולות
               </h3>
             </div>
             <span className="text-xs font-mono font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950 px-2.5 py-0.5 rounded-lg border border-indigo-200 dark:border-indigo-800">
@@ -511,7 +511,7 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
             <div className="flex items-center gap-2">
               <span className="font-extrabold text-slate-200 flex items-center gap-1.5 bg-slate-900 px-3 py-1 rounded-lg border border-slate-800">
                 <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
-                {viewMode === 'video' ? 'נגן וידאו מסך תלמיד (Screen Capture)' : `שחזור קנבס התלמיד — Take ${activeTakeIndex + 1}`}
+                {viewMode === 'video' ? 'נגן וידאו מסך תלמיד' : `שחזור לוח התלמיד — ניסיון ${activeTakeIndex + 1}`}
               </span>
               <span className="text-slate-400 font-bold hidden sm:inline">{snap.taskTitle}</span>
             </div>

@@ -486,7 +486,7 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
           <div className="flex items-center gap-3 flex-wrap">
             <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2.5">
               <Users className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
-              <span>רדאר פדגוגי שקט (Silent Radar)</span>
+              <span>רדאר פדגוגי שקט</span>
               <span className="text-xs bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-800 px-2.5 py-0.5 rounded-full font-bold">
                 12 תלמידים
               </span>
@@ -496,10 +496,10 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
               onClick={handleResetAllClass}
               disabled={isResettingClass}
               className="px-3 py-1.5 rounded-xl border border-rose-200 hover:border-rose-400 bg-rose-50/60 hover:bg-rose-100 dark:bg-rose-950/40 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-xs"
-              title="איפוס מוחלט של כל 12 תלמידי הכיתה"
+              title="איפוס נתוני כל תלמידי הכיתה"
             >
               <RotateCcw className={`w-3.5 h-3.5 ${isResettingClass ? 'animate-spin' : ''}`} />
-              <span>איפוס כל נתוני הכיתה לאפס</span>
+              <span>איפוס נתוני כיתה</span>
             </button>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">

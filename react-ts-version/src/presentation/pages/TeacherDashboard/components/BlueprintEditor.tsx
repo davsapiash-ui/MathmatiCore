@@ -30,12 +30,12 @@ export function BlueprintEditor({ student }: Props) {
     <div className="flex flex-col h-full bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden flex-1">
       <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex items-center gap-2">
         <Sparkles className="w-5 h-5 text-indigo-500" />
-        <h3 className="font-bold text-slate-800 dark:text-slate-200">תוכנית עבודה מומלצת (AI)</h3>
+        <h3 className="font-bold text-slate-800 dark:text-slate-200">תוכנית עבודה מותאמת אישית</h3>
       </div>
       
       <div className="flex-1 p-4 overflow-y-auto">
         <div className="mb-6">
-          <div className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">מוקד קוגניטיבי (Focus)</div>
+          <div className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">מוקד קוגניטיבי לחיזוק:</div>
           <div className="bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 px-3 py-2 rounded-lg font-mono text-sm inline-block">
             {focusConcept}
           </div>
@@ -48,7 +48,7 @@ export function BlueprintEditor({ student }: Props) {
               <thead className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-sm">
                 <tr>
                   <th className="py-2 px-4 font-medium w-1/4">תרגיל</th>
-                  <th className="py-2 px-4 font-medium">הגיון פדגוגי (Rationale)</th>
+                  <th className="py-2 px-4 font-medium">היגיון פדגוגי</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-sm">

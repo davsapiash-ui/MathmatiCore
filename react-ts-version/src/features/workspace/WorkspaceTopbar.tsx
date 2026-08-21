@@ -106,7 +106,7 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
             disabled={!canUndo}
             className="w-12 h-12 min-w-[48px] min-h-[48px] rounded-2xl text-sm font-bold text-ws-ink bg-ws-surface2 hover:bg-ws-surface2/80 active:scale-95 transition-all flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-sm"
             aria-label="בטל פעולה אחרונה"
-            title="בטל פעולה אחרונה (Undo)"
+            title="בטל פעולה אחרונה"
           >
             <RotateCcw className="w-5 h-5" />
           </button>
@@ -132,14 +132,14 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
         <button
           onClick={() => navigate('/hub')}
           className="h-12 px-4 rounded-2xl text-sm font-bold text-ws-ink bg-ws-surface2 hover:bg-ws-surface2/80 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5"
-          aria-label="חזרה לדף הבית"
+          aria-label="חזרה ללובי"
           title="חזרה ללובי הראשי"
         >
           <Home className="w-4 h-4" />
-          <span className="hidden sm:inline">בית</span>
+          <span className="hidden sm:inline">לובי</span>
         </button>
 
-        {/* Chat Drawer Toggle (Module 22) */}
+        {/* Chat Drawer Toggle */}
         <button
           id="chat-toggle-button"
           onClick={() => document.dispatchEvent(new CustomEvent('toggle-chat'))}
@@ -149,11 +149,11 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
               ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed opacity-60'
               : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 hover:text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 cursor-pointer'
           }`}
-          aria-label={globalChatEnabled ? "פתח ערוץ שיח" : "הצ'אט מושבת זמנית"}
+          aria-label={globalChatEnabled ? "פתיחת צ'אט מול המורה" : "הצ'אט מושבת זמנית"}
           title={globalChatEnabled ? "פתיחת צ'אט מול המורה" : "הצ'אט הושבת על ידי המורה"}
         >
           <MessageSquare className="w-4 h-4" />
-          <span className="hidden sm:inline">צ'אט</span>
+          <span className="hidden sm:inline">צ'אט מורה</span>
           {messages.filter(m => !m.read && normalizeStudentId(m.receiverId) === normalizeStudentId(user?.uid || '')).length > 0 && (
             <span className="w-2.5 h-2.5 rounded-full bg-rose-500 absolute -top-1 -right-1 animate-pulse" />
           )}

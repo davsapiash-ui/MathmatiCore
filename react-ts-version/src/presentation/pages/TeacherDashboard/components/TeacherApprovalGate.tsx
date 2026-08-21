@@ -74,11 +74,11 @@ export function TeacherApprovalGate({
           <div className="flex items-center gap-2">
             <span className="w-3 h-3 rounded-full bg-indigo-500 inline-block" />
             <h2 className="text-xl font-display font-black text-slate-900 dark:text-white">
-              שער אישור מעבר פדגוגי (Teacher Approval Gate — מודול 20) 🛡️
+              שער אישור מעבר למפגש 3 🛡️
             </h2>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            אישור מעבר ממפגש 2 הדיאגנוסטי למפגש 3 לפי תוצאות ה-Q-Matrix (אנונימיות מלאה — Zero PII).
+            אישור מעבר ממפגש 2 למפגש 3 ובחירת מסלול מותאם לפי תוצאות האבחון.
           </p>
         </div>
 
@@ -112,9 +112,9 @@ export function TeacherApprovalGate({
             <table className="w-full text-right border-collapse">
               <thead>
                 <tr className="bg-slate-50 dark:bg-slate-800/50 text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                  <th className="p-4">מזהה אנונימי</th>
-                  <th className="p-4">תוצאות דיאגנוסטיות (Q-Matrix)</th>
-                  <th className="p-4">המלצת האלגוריתם</th>
+                  <th className="p-4">מזהה תלמיד</th>
+                  <th className="p-4">תוצאות אבחון מיומנויות</th>
+                  <th className="p-4">מסלול מומלץ</th>
                   <th className="p-4">מסלול מאושר</th>
                   <th className="p-4 text-left">פעולה</th>
                 </tr>

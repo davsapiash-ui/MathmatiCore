@@ -26,11 +26,12 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { Send, MessageCircle, ShieldAlert, Sliders, Search, Check, CheckCheck } from "lucide-react";
+import { Send, MessageCircle, ShieldAlert, Sliders, Search, Check, CheckCheck, Sparkles, Users } from "lucide-react";
 
 import { ClassManagement } from "./TeacherDashboard/ClassManagement";
 import { StudentReplayAndLogs } from "./TeacherDashboard/components/StudentReplayAndLogs";
-import { StudentSideDrawer } from "./TeacherDashboard/components/StudentSideDrawer";
+import { StudentLearningConditionsDrawer } from "./TeacherDashboard/components/StudentLearningConditionsDrawer";
+import { TeacherGateApprovalDrawer } from "./TeacherDashboard/components/TeacherGateApprovalDrawer";
 import { FloatingChatPanel } from "./TeacherDashboard/components/FloatingChatPanel";
 import { HeatmapGrid } from "./TeacherDashboard/components/HeatmapGrid";
 import { ClusteringWidgets } from "./TeacherDashboard/components/ClusteringWidgets";
@@ -262,6 +263,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     routeStudentId || null,
   );
   const [drawerStudent, setDrawerStudent] = useState<StudentData | null>(null);
+  const [gateStudent, setGateStudent] = useState<StudentData | null>(null);
   const [floatingChatStudent, setFloatingChatStudent] = useState<StudentData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -1088,7 +1090,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
               onClick={() => handleTabChange("clustering")}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === "clustering" ? "bg-indigo-600 text-white shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}
             >
-              מיפוי כיתתי (Q-Matrix)
+              מיפוי מיומנויות כיתתי
             </button>
             <button
               onClick={() => handleTabChange("diagnostic_reports")}
@@ -1100,7 +1102,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
               onClick={() => handleTabChange("approvals")}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === "approvals" ? "bg-indigo-600 text-white shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}
             >
-              אישור משימות AI
+              אישור תוכניות ושער מעבר
             </button>
             <button
               onClick={() => handleTabChange("chat_students")}
@@ -1314,7 +1316,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                 לוח בקרה כיתתי ומפת חום בזמן אמת
               </h1>
               <p className="text-ws-soft mt-2 text-lg">
-                ניטור 12 תלמידים אנונימיים, רדאר פדגוגי שקט (Silent Radar) ותמיכת VRA דיגיטלית.
+                ניטור 12 תלמידים אנונימיים, רדאר פדגוגי שקט ומרחב למידה דיגיטלי.
               </p>
             </header>
             <HeatmapGrid
@@ -1332,7 +1334,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
             <header className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <div>
                 <h1 className="text-3xl md:text-4xl font-black bg-gradient-to-l from-slate-900 via-indigo-950 to-slate-700 dark:from-white dark:to-slate-400 bg-clip-text text-transparent tracking-tight">
-                  קיבוץ תלמידים לפי פערי למידה (Q-Matrix Clusters)
+                  קיבוץ תלמידים לפי מיומנויות ופערי למידה
                 </h1>
                 <p className="text-ws-soft mt-2 text-base md:text-lg">
                   אבחון וחלוקה אוטומטית של הכיתה ב-6 מיומנויות ליבה במתמטיקה למתן תרגול דיפרנציאלי ומותאם אישית.
@@ -1613,7 +1615,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                 דו"חות אבחון אישיים
               </h1>
               <p className="text-ws-soft mt-3 text-lg">
-                תצוגה חכמה המשלבת שחזור וידאו חי, נתוני רדאר, פירוט מיומנויות (Q-Matrix) ותוכנית עבודה אדפטיבית מומלצת.
+                תצוגה חכמה המשולבת שחזור מהלכים, נתוני רדאר, פירוט מיומנויות ותוכנית עבודה מותאמת אישית.
               </p>
             </header>
 
@@ -1636,35 +1638,31 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                   <AccessibleCard className="w-full lg:w-64 shrink-0 p-4 bg-ws-surface/80 backdrop-blur-xl border border-ws-surface2 shadow-sm rounded-2xl h-fit max-h-[80vh] overflow-y-auto">
                     <h3 className="font-bold text-ws-ink mb-4 px-2 flex items-center justify-between">
                       <span>תלמידי הכיתה</span>
-                      <span className="text-xs text-slate-400 font-mono">12 תלמידים</span>
+                      <span className="text-xs bg-ws-surface2 text-ws-soft px-2 py-0.5 rounded-full font-mono">
+                        {allStudents.length}
+                      </span>
                     </h3>
-                    <div className="flex flex-col gap-1">
-                      {allStudents.map(st => {
-                        const isCompleted = st.completedMeeting2;
-                        const isSelected = effectiveReplayStudentId === st.studentId;
-                        const sNum = st.studentId.replace(/\D/g, '') || st.studentId;
+                    <div className="space-y-1">
+                      {allStudents.map(studentItem => {
+                        const sNumItem = studentItem.studentId.replace(/\D/g, '') || studentItem.studentId;
+                        const isSelected = effectiveReplayStudentId === studentItem.studentId || 
+                                           normalizeStudentId(effectiveReplayStudentId) === normalizeStudentId(studentItem.studentId);
+                        
                         return (
                           <button
-                            key={st.studentId}
-                            onClick={() => setSelectedReplayStudentId(st.studentId)}
-                            className={`w-full text-right px-3.5 py-2.5 rounded-xl transition-all text-sm flex items-center justify-between cursor-pointer ${
-                              isSelected 
-                                ? "bg-ws-accent text-white font-bold shadow-md" 
-                                : "hover:bg-ws-bg text-ws-ink"
+                            key={studentItem.studentId}
+                            onClick={() => {
+                              setSelectedReplayStudentId(studentItem.studentId);
+                              setSelectedStudentId(studentItem.studentId);
+                            }}
+                            className={`w-full flex items-center justify-between p-3 rounded-xl text-sm font-bold transition-all text-right cursor-pointer ${
+                              isSelected
+                                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
+                                : 'text-ws-ink hover:bg-ws-bg/80'
                             }`}
                           >
-                            <span className="flex items-center gap-2">
-                              <span className={`w-2.5 h-2.5 rounded-full ${isSelected ? 'bg-white' : st.isOnline ? 'bg-emerald-500 shadow-sm animate-pulse' : 'bg-slate-300'}`} />
-                              <span>תלמיד {sNum}</span>
-                            </span>
-                            <div className="flex items-center gap-1.5">
-                              {st.isOnline && (
-                                <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-extrabold ${isSelected ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'}`}>
-                                  מחובר
-                                </span>
-                              )}
-                              {isCompleted && <span className={`w-2 h-2 rounded-full ${isSelected ? 'bg-white' : 'bg-emerald-500'}`} title="סיים מפגש 2"></span>}
-                            </div>
+                            <span>תלמיד {sNumItem}</span>
+                            <span className={`w-2 h-2 rounded-full ${studentItem.isOnline ? 'bg-emerald-400' : 'bg-slate-300'}`} />
                           </button>
                         );
                       })}
@@ -1674,9 +1672,9 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                   {/* Main Profile Area */}
                   <div className="flex-1 flex flex-col gap-6">
                     {!s ? (
-                      <div className="flex-1 flex flex-col items-center justify-center p-12 text-center bg-ws-surface/30 rounded-3xl border-2 border-dashed border-ws-surface2">
-                        <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm mb-4">
-                          <span className="text-2xl">🎓</span>
+                      <div className="p-12 text-center bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
+                        <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center mx-auto mb-4 text-slate-400">
+                          <Users className="w-8 h-8" />
                         </div>
                         <h3 className="text-xl font-bold text-ws-ink mb-2">בחר תלמיד להצגת דו"ח האבחון</h3>
                       </div>
@@ -1744,13 +1742,30 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                 </span>
                               </div>
 
-                              <button
-                                onClick={() => setDrawerStudent(s)}
-                                className="flex items-center gap-2 px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-md transition-all active:scale-95 cursor-pointer"
-                              >
-                                <Sliders className="w-4 h-4" />
-                                <span>פתיחת עקיפה פיזית ועורך (Student Side Drawer)</span>
-                              </button>
+                              <div className="flex items-center gap-2.5 flex-wrap">
+                                {/* Button 1: Learning conditions adjustment (Available across all sessions 1-8) */}
+                                <button
+                                  onClick={() => setDrawerStudent(s)}
+                                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700/70 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 font-bold text-xs rounded-xl border border-slate-200 dark:border-slate-600 shadow-sm transition-all active:scale-95 cursor-pointer"
+                                  title="התאמת רמת פיגום, עזרים ושקט חזותי"
+                                >
+                                  <Sliders className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                                  <span>התאמת תנאי למידה</span>
+                                </button>
+
+                                {/* Button 2: Teacher Gate Approval (Available ONLY when completing Session 2 / at Gate) */}
+                                {hasCompletedDiagnosticM2 && (
+                                  <button
+                                    onClick={() => setGateStudent(s)}
+                                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold text-xs rounded-xl shadow-md shadow-indigo-600/25 transition-all active:scale-95 cursor-pointer"
+                                    title="אישור מסלול ותוכנית תרגילים למפגש 3"
+                                  >
+                                    <Sparkles className="w-4 h-4 text-amber-300" />
+                                    <span>אישור תוכנית ומסלול — שער מורה</span>
+                                    <span className="bg-white/20 text-white text-[10px] px-1.5 py-0.5 rounded-md font-semibold">ממתין לאישור</span>
+                                  </button>
+                                )}
+                              </div>
                             </div>
 
                             {/* Video Replay & Logs Summary Banner */}
@@ -1928,13 +1943,14 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                           handleTabChange("approvals");
                                         }}
                                       >
-                                        מעבר למסך אישורים והפעלת התוכנית
+                                        מעבר למסך אישורים ראשי
                                       </UdlButton>
                                       <button
-                                        onClick={() => setDrawerStudent(s)}
-                                        className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 transition-all cursor-pointer"
+                                        onClick={() => setGateStudent(s)}
+                                        className="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/50 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 font-bold text-xs rounded-xl border border-indigo-200 dark:border-indigo-800 transition-all cursor-pointer flex items-center gap-1.5"
                                       >
-                                        עריכת תרגילים (עורך)
+                                        <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                                        <span>אישור שער ועריכת תרגילים</span>
                                       </button>
                                     </div>
                                   </div>
@@ -2690,7 +2706,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                     }
                   }}
                 >
-                  דחה ומחק לחלוטין
+                  דחיית תוכנית
                 </button>
                 <div className="flex gap-3">
                   <UdlButton 
@@ -2709,7 +2725,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                       }
                     }}
                   >
-                    שמור טיוטה (Save Draft)
+                    שמור טיוטה
                   </UdlButton>
                   <UdlButton 
                     semanticColor="primary"
@@ -2736,41 +2752,19 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
         )}
 
         {drawerStudent && (
-          <StudentSideDrawer
+          <StudentLearningConditionsDrawer
             student={drawerStudent}
             onClose={() => setDrawerStudent(null)}
-            isPendingApproval={drawerStudent.routeStatus === 'PENDING'}
             onOpenChat={(st) => setFloatingChatStudent(st)}
-            onApproveTasks={async (studentId: string) => {
-              const prevStudent = useStore.getState().students[studentId];
-              const prevRouteStatus = prevStudent?.routeStatus;
-              approveRoute(studentId);
-              setDrawerStudent(null);
-              const allPending = [...teacherApprovals, ...fallbackApprovals];
-              const approval = allPending.find((a) => a.studentId === studentId);
-              if (approval) {
-                try {
-                  const isFallback = fallbackApprovals.some(a => a.id === approval.id);
-                  const targetTeacherId = isFallback ? "teacher-1" : TEACHER_ID;
-                  await SocraticEngine.approveTasks(targetTeacherId, approval.id, approval.studentId, approval.tasks);
-                } catch (err) {
-                  console.error('Firebase task approval failed:', err);
-                  useStore.setState((state) => {
-                    const s = state.students[studentId];
-                    if (!s) return state;
-                    return {
-                      students: {
-                        ...state.students,
-                        [studentId]: {
-                          ...s,
-                          routeStatus: prevRouteStatus || 'PENDING_TEACHER_APPROVAL'
-                        }
-                      }
-                    };
-                  });
-                  toast.error('שגיאה באישור המשימות ב-Firebase. הפעולה בוטלה.');
-                }
-              }
+          />
+        )}
+
+        {gateStudent && (
+          <TeacherGateApprovalDrawer
+            student={gateStudent}
+            onClose={() => setGateStudent(null)}
+            onApproveSuccess={() => {
+              // Approval handled inside with toast and state updates
             }}
           />
         )}

@@ -196,7 +196,7 @@ export function AdminCurriculumView() {
               className="px-5 py-2.5 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white font-extrabold text-xs flex items-center gap-2 shadow-lg shadow-purple-600/30 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
             >
               <Send className="w-4 h-4" />
-              <span>{isBatchDistributing ? 'מפיץ מטלות...' : 'הפצה מרוכזת (Batch)'}</span>
+              <span>{isBatchDistributing ? 'מפיץ מטלות...' : 'הפצה מרוכזת לכל הכיתה'}</span>
             </button>
           </div>
         </div>
