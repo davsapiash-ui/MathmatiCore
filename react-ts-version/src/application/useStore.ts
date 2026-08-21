@@ -659,9 +659,11 @@ export const useStore = create<AppState>()(
 
           const targetPaths = [
             `users/students/${normId}`,
+            `users/students/user${num}`,
             `users/students/student_${num}`,
             `users/students/${num}`,
             `students/${normId}`,
+            `students/user${num}`,
             `students/student_${num}`,
           ];
 
@@ -675,7 +677,7 @@ export const useStore = create<AppState>()(
             const rawAlerts = alertsSnap.val() || {};
             for (const [key, val] of Object.entries(rawAlerts)) {
               const v = val as any;
-              const matches = v?.studentId === normId || v?.rawStudentId === normId || v?.studentId === `student_${num}` || v?.rawStudentId === `student_${num}` || v?.studentName === defaultName;
+              const matches = v?.studentId === normId || v?.rawStudentId === normId || v?.studentId === `student_${num}` || v?.rawStudentId === `student_${num}` || v?.studentId === `user${num}` || v?.studentName === defaultName;
               if (matches) {
                 await remove(ref(database, `radar_alerts/${key}`)).catch(() => {});
               }
@@ -685,6 +687,7 @@ export const useStore = create<AppState>()(
           // Clear chat messages for this student in RTDB and local useChatStore
           const chatTargets = [
             `chat_messages/${normId}`,
+            `chat_messages/user${num}`,
             `chat_messages/student_${num}`,
             `chat_messages/${num}`,
           ];
