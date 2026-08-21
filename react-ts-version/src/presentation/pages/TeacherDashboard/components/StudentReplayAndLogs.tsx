@@ -252,27 +252,28 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
 
           setEvents(mapped);
         } else {
-          // Real live snapshot if student interacted, otherwise clean empty list (ZERO fake data)
-          if (val.workspaceState && (val.workspaceState.hasInteracted || (currentCounts.units + currentCounts.tens + currentCounts.hundreds > 0))) {
-            const now = Date.now();
+          // Real live snapshot if student interacted or completed meeting 1
+          const isCompletedM1 = (typeof val.highestCompletedMeeting === 'number' && val.highestCompletedMeeting >= 1) || val.completedMeeting1 === true;
+          if (isCompletedM1 || (val.workspaceState && (val.workspaceState.hasInteracted || (currentCounts.units + currentCounts.tens + currentCounts.hundreds > 0)))) {
+            const now = val.lastActivityTimestamp || Date.now();
             setEvents([
               {
-                id: 'live_snapshot',
+                id: 'meeting1_completed',
                 timestamp: now,
                 timeFormatted: new Date(now).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
                 actionType: 'BLOCK_DRAG',
-                actionLabelHe: 'מצב לוח פעיל בזמן אמת',
+                actionLabelHe: isCompletedM1 ? 'סיום מפגש 1 בהצלחה' : 'מצב לוח פעיל בזמן אמת',
                 vraMilestone: 'ייצוג בלבני דינס',
-                details: val.lastAction || `פעילות במשימה: ${dynamicTitle}`,
+                details: isCompletedM1 ? 'השלמת כל שלבי מפגש 1 (ארגז החול והיכרות)' : (val.lastAction || `פעילות במשימה: ${dynamicTitle}`),
                 delaySeconds: 0,
                 selfRegulationFlag: false,
                 stateSnapshot: {
                   counts: currentCounts,
                   answerDigits: ws.answerDigits || { hundreds: '', tens: '', units: '' },
                   carryDigits: ws.carryDigits || {},
-                  taskTitle: dynamicTitle,
+                  taskTitle: isCompletedM1 ? 'מפגש 1 הושלם בהצלחה' : dynamicTitle,
                   equation: dynamicEquation,
-                  stepInstruction: dynamicInstruction,
+                  stepInstruction: isCompletedM1 ? 'כל משימות מפגש 1 הושלמו בהצלחה.' : dynamicInstruction,
                 }
               }
             ]);

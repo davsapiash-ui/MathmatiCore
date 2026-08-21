@@ -291,10 +291,16 @@ export const useAuthStore = create<AuthState>()(
           };
         }
 
-        setStoredAuth(user, 'student', timestamp);
-        AuditLogger.log("התחברות", user.uid || `student_${studentNum}`, `תלמיד ${studentNum} התחבר לכיתה ${user.class_name || state.activeClass.class_name}`);
+        const normalizedStudentUser: AuthUser = {
+          ...user,
+          uid: user.uid || (user.id as string) || `student_user${studentNum}`,
+          ...(user.student_id !== undefined ? { student_id: studentNum } : {}),
+        };
+
+        setStoredAuth(normalizedStudentUser, 'student', timestamp);
+        AuditLogger.log("התחברות", normalizedStudentUser.uid || `student_${studentNum}`, `תלמיד ${studentNum} התחבר לכיתה ${user.class_name || state.activeClass.class_name}`);
         return {
-          user: user,
+          user: normalizedStudentUser,
           role: 'student',
           isAuthenticated: true,
           isStudentAuthenticated: true,

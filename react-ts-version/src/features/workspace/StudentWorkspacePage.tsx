@@ -86,9 +86,23 @@ export function StudentWorkspacePage() {
   const teacherSessionNum = isTeacherSessionActive ? Number(activeClassSession?.sessionNumber) || 1 : null;
 
   const [isProjectorModeActive, setIsProjectorModeActive] = useState<boolean>(false);
-  const normUid = normalizeStudentId(user?.uid || '');
-
+  const effectiveStudentId = user?.uid || (user?.id as string) || (user?.student_id ? `student_user${user.student_id}` : '') || 'student_user1';
+  const normUid = normalizeStudentId(effectiveStudentId);
   const lastProjectorTimestampRef = useRef<number>(0);
+
+  // Write initial session presence and entrance event
+  useEffect(() => {
+    if (!normUid) return;
+    const startSnapshot = {
+      id: `session_start_${Date.now()}`,
+      timestamp: Date.now(),
+      sessionNumber: meeting,
+      counts: useWorkspaceStore.getState().counts,
+      actionType: 'SESSION_ENTER',
+      details: `כניסה לפעילות במפגש ${meeting}`,
+    };
+    push(ref(database, `users/students/${normUid}/vector_replays`), startSnapshot).catch(() => {});
+  }, [normUid, meeting]);
 
   // Module 15: Real-time Projector Mode Listener (<1000ms sync) with timestamp ordering protection
   useEffect(() => {

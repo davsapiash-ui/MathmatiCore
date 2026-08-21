@@ -41,7 +41,7 @@ import { QMatrixEvaluator } from '@/core/QMatrix';
 import { getSessionTasks, type SessionTask } from '@/data/sessionTasks';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
 import { SocraticEngine, type SocraticHintResponse } from '@/infrastructure/services/SocraticEngine';
-import { ref, update } from 'firebase/database';
+import { ref, update, push } from 'firebase/database';
 import { database, serverNow, fetchServerClockOffset } from '@/infrastructure/firebase';
 import { normalizeStudentId } from '@/application/useChatStore';
 import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
@@ -794,7 +794,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     }
 
     // Session complete
-    const studentId = useAuthStore.getState().user?.uid;
+    const authUser = useAuthStore.getState().user;
+    const studentId = authUser?.uid || (authUser?.student_id ? `student_user${authUser.student_id}` : 'student_user1');
     if (studentId) {
       const normId = normalizeStudentId(studentId);
       useStore.getState().updateHighestCompletedMeeting(studentId, s.sessionNumber);
@@ -803,6 +804,18 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       if (normId !== studentId) {
         firebaseSyncService.syncHighestCompletedMeeting(normId, s.sessionNumber).catch(console.error);
       }
+
+      const completionSnapshot = {
+        id: `complete_${Date.now()}`,
+        timestamp: Date.now(),
+        sessionNumber: s.sessionNumber,
+        counts: s.counts,
+        answerDigits: s.answerDigits,
+        carryDigits: s.carryDigits,
+        actionType: 'SESSION_COMPLETE',
+        details: `סיום מפגש ${s.sessionNumber} בהצלחה`,
+      };
+      push(ref(database, `users/students/${normId}/vector_replays`), completionSnapshot).catch(() => {});
     }
 
     set({ awaitingNext: true, currentState: 'COMPLETE' });
