@@ -150,8 +150,22 @@ export function StudentHub() {
 
     try {
       onDisconnect(ref(database, `users/students/${normUid}/isOnline`)).set(false);
+      onDisconnect(ref(database, `users/students/${normUid}/onlineStatus`)).set('offline');
       onDisconnect(ref(database, `users/students/${normUid}/lastPing`)).set(0);
+      onDisconnect(ref(database, `users/students/${normUid}/lastAction`)).set('לא מחובר');
     } catch {}
+
+    const handleDisconnect = () => {
+      update(studentPresenceRef, {
+        isOnline: false,
+        onlineStatus: 'offline',
+        lastPing: 0,
+        lastAction: 'לא מחובר',
+      }).catch(() => {});
+    };
+
+    window.addEventListener('beforeunload', handleDisconnect);
+    window.addEventListener('pagehide', handleDisconnect);
 
     const interval = setInterval(() => {
       update(studentPresenceRef, {
@@ -164,6 +178,9 @@ export function StudentHub() {
 
     return () => {
       clearInterval(interval);
+      window.removeEventListener('beforeunload', handleDisconnect);
+      window.removeEventListener('pagehide', handleDisconnect);
+      handleDisconnect();
     };
   }, [normUid]);
 

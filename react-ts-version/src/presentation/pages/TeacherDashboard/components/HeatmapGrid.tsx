@@ -194,21 +194,18 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
           const numObj = rawData[numKey] || {};
           const slotObj = rawData[slotKey] || {};
 
-          // Prioritize the live/online candidate
-          const candidates = [...rawMatchingObjects, userObj, uObj, stdObj, numObj, slotObj];
-          const onlineCandidate = candidates.find(c => c.isOnline === true || c.onlineStatus === 'active');
-          const freshestCandidate = [...candidates].sort((a, b) => (b.lastPing || 0) - (a.lastPing || 0))[0];
-          
-          const primary = onlineCandidate || freshestCandidate || userObj || uObj || stdObj || {};
+          // Prioritize the canonical student_user{num} candidate
+          const primary = (userObj && userObj.isOnline !== undefined) ? userObj : (stdObj && stdObj.isOnline !== undefined ? stdObj : (numObj || {}));
           const data = { ...numObj, ...slotObj, ...stdObj, ...uObj, ...userObj, ...primary };
           
-          // Robust presence check:
-          // 1. Is online flag set in RTDB on any variant?
-          // 2. Or is there fresh activity within a tolerant 90-second window?
-          const lastPing = data.lastPing || data.lastActivityTimestamp || data.lastActive || 0;
+          // Strict real-time presence:
+          // 1. Must NOT be explicitly offline
+          // 2. Must have isOnline === true AND fresh heartbeat within 12 seconds (students ping every 4s)
+          const lastPing = data.lastPing || 0;
           const hasJoinedSession = Boolean(lastPing > 0 || data.hasJoinedSession || data.sessionJoined);
-          const isHeartbeatFresh = lastPing > 0 && Math.abs(now - lastPing) <= 90000;
-          const isOnline = Boolean(data.isOnline === true || data.onlineStatus === 'active' || isHeartbeatFresh);
+          const isExplicitlyOffline = data.isOnline === false || data.onlineStatus === 'offline';
+          const isHeartbeatFresh = lastPing > 0 && Math.abs(now - lastPing) <= 12000;
+          const isOnline = Boolean(!isExplicitlyOffline && data.isOnline === true && isHeartbeatFresh);
 
           const wsState = data.workspaceState || {};
           const sessionState = data.sessionState || {};

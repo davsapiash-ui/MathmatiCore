@@ -87,11 +87,47 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
       unsubStudent = onValue(studentsRootRef, (snap) => {
         if (cancelled) return;
         const allData = snap.exists() ? (snap.val() || {}) : {};
-        const val = allData[targetId] || 
-                    allData[`student_user${studentNum}`] || 
-                    allData[`user${studentNum}`] || 
-                    allData[`student_${studentNum}`] || 
-                    {};
+        // Deterministically merge across all candidate keys for this student number
+        const matchingEntries = Object.entries(allData)
+          .filter(([k]) => {
+            const digits = k.replace(/\D/g, '');
+            return digits === String(studentNum);
+          })
+          .map(([, v]) => v);
+
+        const primaryObj = allData[`student_user${studentNum}`] || 
+                           allData[targetId] || 
+                           allData[`user${studentNum}`] || 
+                           allData[`student_${studentNum}`] || 
+                           {};
+
+        let mergedSessions: Record<string, any> = {};
+        let mergedVectorReplays: any[] = [];
+        let mergedRadarHistory: any[] = [];
+
+        for (const rawEntry of matchingEntries) {
+          const entry = rawEntry as any;
+          if (entry && typeof entry === 'object') {
+            if (entry.telemetry_sessions) {
+              mergedSessions = { ...mergedSessions, ...entry.telemetry_sessions };
+            }
+            if (entry.vector_replays) {
+              const arr = Array.isArray(entry.vector_replays) ? entry.vector_replays : Object.values(entry.vector_replays);
+              mergedVectorReplays.push(...arr);
+            }
+            if (entry.radar_history) {
+              const arr = Array.isArray(entry.radar_history) ? entry.radar_history : Object.values(entry.radar_history);
+              mergedRadarHistory.push(...arr);
+            }
+          }
+        }
+
+        const val = {
+          ...primaryObj,
+          telemetry_sessions: Object.keys(mergedSessions).length > 0 ? mergedSessions : primaryObj.telemetry_sessions,
+          vector_replays: mergedVectorReplays.length > 0 ? mergedVectorReplays : primaryObj.vector_replays,
+          radar_history: mergedRadarHistory.length > 0 ? mergedRadarHistory : primaryObj.radar_history,
+        };
 
         setLiveStudentData(val);
 
@@ -100,7 +136,7 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
         if (val.telemetry_sessions) {
           const sessions = Object.values(val.telemetry_sessions) as any[];
           for (const s of sessions) {
-            if (s.chunks) {
+            if (s && s.chunks) {
               const chunks = Object.values(s.chunks) as any[];
               for (const c of chunks) {
                 try {

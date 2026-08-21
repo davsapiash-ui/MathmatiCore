@@ -514,23 +514,27 @@ export function StudentWorkspacePage() {
     update(studentPresenceRef, presencePayload).catch(() => {});
     try {
       onDisconnect(ref(database, `users/students/${normUid}/isOnline`)).set(false);
+      onDisconnect(ref(database, `users/students/${normUid}/onlineStatus`)).set('offline');
       onDisconnect(ref(database, `users/students/${normUid}/lastPing`)).set(0);
+      onDisconnect(ref(database, `users/students/${normUid}/lastAction`)).set('לא מחובר');
     } catch {
       // ignore offline mock disconnect
     }
 
     const handleBeforeUnload = () => {
       if (canWriteWorkspaceData(normUid, isSupersededRef.current)) {
-        update(studentPresenceRef, { isOnline: false, lastPing: 0 }).catch(() => {});
+        update(studentPresenceRef, { isOnline: false, onlineStatus: 'offline', lastPing: 0, lastAction: 'לא מחובר' }).catch(() => {});
       }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('pagehide', handleBeforeUnload);
 
     const interval = setInterval(() => {
       if (!canWriteWorkspaceData(normUid, isSupersededRef.current)) return;
 
       update(studentPresenceRef, {
         isOnline: true,
+        onlineStatus: 'active',
         lastPing: Date.now(),
         lastActivityTimestamp: Date.now(),
         hasJoinedSession: true,
@@ -542,8 +546,9 @@ export function StudentWorkspacePage() {
     return () => {
       clearInterval(interval);
       window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('pagehide', handleBeforeUnload);
       if (canWriteWorkspaceData(normUid, isSupersededRef.current)) {
-        update(studentPresenceRef, { isOnline: false, lastPing: 0 }).catch(() => {});
+        update(studentPresenceRef, { isOnline: false, onlineStatus: 'offline', lastPing: 0, lastAction: 'לא מחובר' }).catch(() => {});
       }
     };
   }, [normUid, meeting, isASDMode]);
