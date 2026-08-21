@@ -29,14 +29,24 @@ export function ReplayViewer({ events, seekToTime, onEnd }: ReplayViewerProps) {
   const lastTimestamp = events && events.length > 0 ? events[events.length - 1].timestamp : 0;
   const totalDurationMs = Math.max(0, lastTimestamp - firstTimestamp);
 
-  // Initialize Replayer once when events change
+  const prevFingerprintRef = useRef<string>('');
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
+
+  // Initialize Replayer only when event content actually changes
   useEffect(() => {
     const container = containerRef.current;
     if (!events || events.length < 2 || !container) {
       if (container) container.innerHTML = "";
+      prevFingerprintRef.current = '';
       return;
     }
 
+    const currentFingerprint = `${events.length}_${events[0]?.timestamp}_${events[events.length - 1]?.timestamp}`;
+    if (replayerRef.current && prevFingerprintRef.current === currentFingerprint) {
+      return; // Stable instance - avoid destroy/rebuild to prevent ANY flicker
+    }
+
+    prevFingerprintRef.current = currentFingerprint;
     container.innerHTML = "";
 
     try {
@@ -50,6 +60,7 @@ export function ReplayViewer({ events, seekToTime, onEnd }: ReplayViewerProps) {
         speed: playbackSpeed,
         showWarning: false,
         showDebug: false,
+        UNSAFE_replayCanvas: true,
       });
 
       replayerRef.current = replayer;
@@ -64,31 +75,36 @@ export function ReplayViewer({ events, seekToTime, onEnd }: ReplayViewerProps) {
         if (onEnd) onEnd();
       });
 
-      // Responsive scaling function that eliminates letterbox voids
+      // Precise responsive scaling to show entire student screen with zero flicker
       const applyScale = () => {
         if (!container) return;
         const parentWidth = container.clientWidth || 600;
-        const scale = Math.min(1.2, parentWidth / originalWidth);
-        const effectiveHeight = Math.max(300, Math.round(originalHeight * scale));
+        const scale = parentWidth / originalWidth;
+        const effectiveHeight = Math.round(originalHeight * scale);
 
         const iframeWrapper = (container.querySelector('.replayer-wrapper') as HTMLElement) || container.querySelector('iframe')?.parentElement;
         if (iframeWrapper) {
           iframeWrapper.style.width = `${originalWidth}px`;
           iframeWrapper.style.height = `${originalHeight}px`;
-          iframeWrapper.style.transform = `scale(${scale})`;
+          iframeWrapper.style.transform = `scale(${scale}) translateZ(0)`;
           iframeWrapper.style.transformOrigin = 'top left';
           iframeWrapper.style.position = 'absolute';
           iframeWrapper.style.top = '0';
-          iframeWrapper.style.left = `${Math.max(0, (parentWidth - originalWidth * scale) / 2)}px`;
+          iframeWrapper.style.left = '0';
+          iframeWrapper.style.backfaceVisibility = 'hidden';
           container.style.height = `${effectiveHeight}px`;
           container.style.minHeight = `${effectiveHeight}px`;
         }
       };
 
-      setTimeout(applyScale, 50);
-      setTimeout(applyScale, 200);
-      window.addEventListener('resize', applyScale);
-      (container as any)._resizeListener = applyScale;
+      applyScale();
+      if (resizeObserverRef.current) {
+        resizeObserverRef.current.disconnect();
+      }
+      resizeObserverRef.current = new ResizeObserver(() => {
+        applyScale();
+      });
+      resizeObserverRef.current.observe(container);
 
     } catch (err: any) {
       console.error("rrweb Replayer failed to initialize:", err);
@@ -98,14 +114,15 @@ export function ReplayViewer({ events, seekToTime, onEnd }: ReplayViewerProps) {
     }
 
     return () => {
+      if (resizeObserverRef.current) {
+        resizeObserverRef.current.disconnect();
+        resizeObserverRef.current = null;
+      }
       if (replayerRef.current) {
         try { replayerRef.current.pause(); } catch {}
         replayerRef.current = null;
       }
       if (container) {
-        if ((container as any)._resizeListener) {
-          window.removeEventListener('resize', (container as any)._resizeListener);
-        }
         container.innerHTML = "";
       }
     };

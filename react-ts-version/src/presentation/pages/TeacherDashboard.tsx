@@ -1666,10 +1666,17 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                             }`}
                           >
                             <span className="flex items-center gap-2">
-                              <span className={`w-2 h-2 rounded-full ${isSelected ? 'bg-white' : 'bg-indigo-500'}`} />
+                              <span className={`w-2.5 h-2.5 rounded-full ${isSelected ? 'bg-white' : st.isOnline ? 'bg-emerald-500 shadow-sm animate-pulse' : 'bg-slate-300'}`} />
                               <span>תלמיד {sNum}</span>
                             </span>
-                            {isCompleted && <span className={`w-2 h-2 rounded-full ${isSelected ? 'bg-white' : 'bg-emerald-500'}`} title="סיים מפגש 2"></span>}
+                            <div className="flex items-center gap-1.5">
+                              {st.isOnline && (
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-extrabold ${isSelected ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'}`}>
+                                  מחובר
+                                </span>
+                              )}
+                              {isCompleted && <span className={`w-2 h-2 rounded-full ${isSelected ? 'bg-white' : 'bg-emerald-500'}`} title="סיים מפגש 2"></span>}
+                            </div>
                           </button>
                         );
                       })}

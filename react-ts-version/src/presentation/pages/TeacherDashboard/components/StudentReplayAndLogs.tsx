@@ -113,9 +113,12 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
             }
           }
         }
-        setRrwebEvents(extractedRrweb);
-        
-        // 1. Extract raw events from all possible telemetry pipelines (prioritizing vector_replays)
+        setRrwebEvents((prev) => {
+          if (prev.length === extractedRrweb.length && (prev[0]?.timestamp === extractedRrweb[0]?.timestamp)) {
+            return prev;
+          }
+          return extractedRrweb;
+        });
         let rawEvents: any[] = [];
         if (val.vector_replays) {
           const vr = val.vector_replays;
