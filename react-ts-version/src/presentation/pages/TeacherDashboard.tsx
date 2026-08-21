@@ -299,11 +299,11 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
         });
         setFirestoreSession2Docs(docMap);
       }, (err) => {
-        console.warn('[TeacherDashboard] Firestore sessions subscription notice:', err);
+        console.error('[TeacherDashboard] Firestore "sessions" listener error (check security rules / permissions):', err);
       });
       return () => unsub();
     } catch (e) {
-      console.warn('[TeacherDashboard] Failed to init Firestore sessions listener:', e);
+      console.error('[TeacherDashboard] Failed to init Firestore sessions listener:', e);
     }
   }, []);
 
@@ -331,7 +331,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
         setSessionStartTime(null);
       },
       (err) => {
-        console.warn('[TeacherDashboard] sessionRef listener notice:', err);
+        console.error('[TeacherDashboard] RTDB "active_class_session" listener error:', err);
       }
     );
     return () => unsub();
@@ -573,7 +573,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
           setTeacherApprovals(allList);
         },
         (err) => {
-          console.warn('[TeacherDashboard] rootPendingRef listener notice:', err);
+          console.error('[TeacherDashboard] RTDB "ai_pending_approvals" listener error:', err);
         }
       );
       return () => unsubscribe();
@@ -706,7 +706,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
         }
       },
       (err) => {
-        console.warn('[TeacherDashboard] alertsRef listener notice:', err);
+        console.error('[TeacherDashboard] RTDB "radar_alerts" listener error:', err);
       }
     );
     return () => unsub();

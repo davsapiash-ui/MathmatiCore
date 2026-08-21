@@ -245,7 +245,7 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
         }
       },
       (err) => {
-        console.warn('[HeatmapGrid] students listener notice:', err);
+        console.error('[HeatmapGrid] RTDB "users/students" listener error (Permission Denied or Network):', err);
       }
     );
 
@@ -281,7 +281,7 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
         setFeedItems(newItems.slice(0, 15));
       },
       (err) => {
-        console.warn('[HeatmapGrid] alerts listener notice:', err);
+        console.error('[HeatmapGrid] RTDB "radar_alerts" listener error:', err);
       }
     );
 
