@@ -95,7 +95,7 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
 
         setLiveStudentData(val);
 
-        // Extract rrweb recordings from telemetry_sessions
+        // Extract rrweb recordings from telemetry_sessions - strictly sort chronologically
         const extractedRrweb: any[] = [];
         if (val.telemetry_sessions) {
           const sessions = Object.values(val.telemetry_sessions) as any[];
@@ -112,6 +112,7 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
               }
             }
           }
+          extractedRrweb.sort((a, b) => (a?.timestamp || 0) - (b?.timestamp || 0));
         }
         setRrwebEvents((prev) => {
           if (prev.length === extractedRrweb.length && (prev[0]?.timestamp === extractedRrweb[0]?.timestamp)) {
@@ -467,7 +468,7 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
         </div>
 
         {/* Left Side in RTL: Screen Capture Video Player & Canvas Replay */}
-        <div className="flex flex-col gap-3.5 bg-slate-950 rounded-3xl p-5 text-white shadow-2xl border border-slate-800 overflow-hidden">
+        <div className="flex flex-col gap-3.5 bg-slate-950 rounded-3xl p-5 text-white shadow-2xl border border-slate-800 overflow-hidden h-fit sticky top-4">
           
           {/* Top Player Header */}
           <div className="flex justify-between items-center px-1 text-xs">
@@ -487,11 +488,11 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
           </div>
 
           {/* Authentic Student Screen Canvas / Video Container */}
-          <div className="relative w-full bg-slate-900/95 rounded-2xl overflow-hidden border border-slate-800 p-2 select-none min-h-[360px] flex items-center justify-center">
+          <div className="relative w-full bg-slate-900/95 rounded-2xl overflow-hidden border border-slate-800 p-1.5 select-none flex items-center justify-center">
             
             {viewMode === 'video' ? (
               rrwebEvents && rrwebEvents.length >= 2 ? (
-                <div className="w-full h-full rounded-xl overflow-hidden">
+                <div className="w-full h-auto rounded-xl overflow-hidden">
                   <ReplayViewer 
                     events={rrwebEvents} 
                     seekToTime={currentEvent?.timestamp}

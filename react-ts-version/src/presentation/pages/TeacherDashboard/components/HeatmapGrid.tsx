@@ -174,31 +174,40 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
           const studentNum = i + 1;
           const uid = `student_${studentNum}`;
           
-          // Gather all possible alias keys for this student slot
+          // Gather all possible alias keys for this student slot (user1, student_user1, student_1, 1, slot_1)
           const userKey = `student_user${studentNum}`;
+          const uKey = `user${studentNum}`;
           const numKey = String(studentNum);
           const slotKey = `slot_${studentNum}`;
           const stdKey = `student_${studentNum}`;
           
+          const rawMatchingObjects = Object.entries(rawData)
+            .filter(([k]) => {
+              const digits = k.replace(/\D/g, '');
+              return digits === String(studentNum);
+            })
+            .map(([, val]) => val);
+
           const userObj = rawData[userKey] || {};
+          const uObj = rawData[uKey] || {};
           const stdObj = rawData[stdKey] || {};
           const numObj = rawData[numKey] || {};
           const slotObj = rawData[slotKey] || {};
 
           // Prioritize the live/online candidate
-          const candidates = [userObj, stdObj, numObj, slotObj];
+          const candidates = [...rawMatchingObjects, userObj, uObj, stdObj, numObj, slotObj];
           const onlineCandidate = candidates.find(c => c.isOnline === true || c.onlineStatus === 'active');
           const freshestCandidate = [...candidates].sort((a, b) => (b.lastPing || 0) - (a.lastPing || 0))[0];
           
-          const primary = onlineCandidate || freshestCandidate || userObj || stdObj || {};
-          const data = { ...numObj, ...slotObj, ...stdObj, ...userObj, ...primary };
+          const primary = onlineCandidate || freshestCandidate || userObj || uObj || stdObj || {};
+          const data = { ...numObj, ...slotObj, ...stdObj, ...uObj, ...userObj, ...primary };
           
           // Robust presence check:
           // 1. Is online flag set in RTDB on any variant?
-          // 2. Or is there fresh activity within a tolerant 60-second window?
-          const lastPing = data.lastPing || data.lastActivityTimestamp || 0;
+          // 2. Or is there fresh activity within a tolerant 90-second window?
+          const lastPing = data.lastPing || data.lastActivityTimestamp || data.lastActive || 0;
           const hasJoinedSession = Boolean(lastPing > 0 || data.hasJoinedSession || data.sessionJoined);
-          const isHeartbeatFresh = lastPing > 0 && Math.abs(now - lastPing) <= 60000;
+          const isHeartbeatFresh = lastPing > 0 && Math.abs(now - lastPing) <= 90000;
           const isOnline = Boolean(data.isOnline === true || data.onlineStatus === 'active' || isHeartbeatFresh);
 
           const wsState = data.workspaceState || {};

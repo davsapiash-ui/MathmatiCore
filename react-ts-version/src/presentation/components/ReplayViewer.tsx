@@ -215,7 +215,7 @@ export function ReplayViewer({ events, seekToTime, onEnd }: ReplayViewerProps) {
   }
 
   return (
-    <div className="flex flex-col w-full mx-auto bg-slate-900 text-white rounded-2xl shadow-xl overflow-hidden relative h-full select-none" dir="rtl">
+    <div className="flex flex-col w-full mx-auto bg-slate-900 text-white rounded-2xl shadow-xl overflow-hidden relative select-none" dir="rtl">
       {/* Top Controls Bar */}
       <div className="w-full bg-slate-900/90 border-b border-slate-800 p-4 flex flex-wrap items-center justify-between z-10 gap-4">
         {/* Playback Actions */}
@@ -280,10 +280,10 @@ export function ReplayViewer({ events, seekToTime, onEnd }: ReplayViewerProps) {
         />
       </div>
       
-      {/* Replayer Container */}
+      {/* Replayer Container - Hugs exact screen aspect ratio */}
       <div 
         ref={containerRef} 
-        className="w-full relative flex items-center justify-center bg-slate-950 flex-1 overflow-hidden min-h-[420px]"
+        className="w-full relative overflow-hidden bg-slate-950"
       />
     </div>
   );
