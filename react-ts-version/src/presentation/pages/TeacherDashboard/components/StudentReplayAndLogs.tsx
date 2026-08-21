@@ -124,9 +124,9 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
 
         const val = {
           ...primaryObj,
-          telemetry_sessions: Object.keys(mergedSessions).length > 0 ? mergedSessions : primaryObj.telemetry_sessions,
-          vector_replays: mergedVectorReplays.length > 0 ? mergedVectorReplays : primaryObj.vector_replays,
-          radar_history: mergedRadarHistory.length > 0 ? mergedRadarHistory : primaryObj.radar_history,
+          telemetry_sessions: Object.keys(mergedSessions).length > 0 ? mergedSessions : (primaryObj as any).telemetry_sessions,
+          vector_replays: mergedVectorReplays.length > 0 ? mergedVectorReplays : (primaryObj as any).vector_replays,
+          radar_history: mergedRadarHistory.length > 0 ? mergedRadarHistory : (primaryObj as any).radar_history,
         };
 
         setLiveStudentData(val);
