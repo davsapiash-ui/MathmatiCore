@@ -610,11 +610,19 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   // Clustering Logic based on Q-Matrix
   // Memoized: a fresh array identity every render made downstream useMemos
   // (incl. the alerts list) recompute on every keystroke.
-  // Live cloud students override local demo entries with the same id.
-  const allStudents = useMemo(
-    () => Object.values(students),
-    [students]
-  );
+  const allStudents = useMemo(() => {
+    const list: StudentData[] = [];
+    for (let i = 1; i <= 12; i++) {
+      const normId = `student_user${i}`;
+      const stdId = `student_${i}`;
+      const numId = String(i);
+      const studentObj = students[normId] || students[stdId] || students[numId];
+      if (studentObj) {
+        list.push({ ...studentObj, studentId: normId, name: `תלמיד ${i}` });
+      }
+    }
+    return list;
+  }, [students]);
 
 
   const decimalStructureGroup = allStudents.filter(

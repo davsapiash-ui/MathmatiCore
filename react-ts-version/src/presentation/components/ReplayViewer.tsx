@@ -46,7 +46,7 @@ export function ReplayViewer({ events, seekToTime, onEnd }: ReplayViewerProps) {
 
       const replayer = new Replayer(events, {
         root: container,
-        mouseTail: false,
+        mouseTail: true,
         speed: playbackSpeed,
         showWarning: false,
         showDebug: false,
@@ -64,23 +64,29 @@ export function ReplayViewer({ events, seekToTime, onEnd }: ReplayViewerProps) {
         if (onEnd) onEnd();
       });
 
-      // Responsive scaling function
+      // Responsive scaling function that eliminates letterbox voids
       const applyScale = () => {
         if (!container) return;
-        const parentWidth = container.clientWidth || 900;
-        const scale = Math.min(1, parentWidth / originalWidth);
+        const parentWidth = container.clientWidth || 600;
+        const scale = Math.min(1.2, parentWidth / originalWidth);
+        const effectiveHeight = Math.max(300, Math.round(originalHeight * scale));
 
-        const iframeWrapper = container.querySelector('.replayer-wrapper') as HTMLElement || container.querySelector('iframe')?.parentElement;
+        const iframeWrapper = (container.querySelector('.replayer-wrapper') as HTMLElement) || container.querySelector('iframe')?.parentElement;
         if (iframeWrapper) {
+          iframeWrapper.style.width = `${originalWidth}px`;
+          iframeWrapper.style.height = `${originalHeight}px`;
           iframeWrapper.style.transform = `scale(${scale})`;
-          iframeWrapper.style.transformOrigin = 'top center';
-          iframeWrapper.style.position = 'relative';
-          iframeWrapper.style.margin = '0 auto';
-          container.style.height = `${originalHeight * scale + 20}px`;
+          iframeWrapper.style.transformOrigin = 'top left';
+          iframeWrapper.style.position = 'absolute';
+          iframeWrapper.style.top = '0';
+          iframeWrapper.style.left = `${Math.max(0, (parentWidth - originalWidth * scale) / 2)}px`;
+          container.style.height = `${effectiveHeight}px`;
+          container.style.minHeight = `${effectiveHeight}px`;
         }
       };
 
       setTimeout(applyScale, 50);
+      setTimeout(applyScale, 200);
       window.addEventListener('resize', applyScale);
       (container as any)._resizeListener = applyScale;
 

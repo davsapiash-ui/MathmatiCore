@@ -697,43 +697,36 @@ export const useStore = create<AppState>()(
         const rootUpdates: Record<string, any> = {};
 
         // 1. Explicitly remove chat messages in RTDB
+        // 1. Explicitly remove global auxiliary nodes in RTDB
         try {
           await remove(ref(database, 'chat_messages')).catch(() => {});
-          for (let i = 1; i <= 12; i++) {
-            await remove(ref(database, `chat_messages/student_user${i}`)).catch(() => {});
-            await remove(ref(database, `chat_messages/student_${i}`)).catch(() => {});
-            await remove(ref(database, `chat_messages/${i}`)).catch(() => {});
-          }
-          await remove(ref(database, 'chat_messages/admin')).catch(() => {});
-          await remove(ref(database, 'chat_messages/teacher')).catch(() => {});
-          await remove(ref(database, 'chat_messages/1002220159')).catch(() => {});
-          await remove(ref(database, 'chat_messages/teacher_1002220159')).catch(() => {});
-        } catch (e) {
-          console.warn('Error clearing chat messages node:', e);
-        }
-
-        // 2. Explicitly remove radar alerts in RTDB
-        try {
           await remove(ref(database, 'radar_alerts')).catch(() => {});
-          const alertsSnap = await get(ref(database, 'radar_alerts')).catch(() => null);
-          if (alertsSnap && alertsSnap.exists()) {
-            const rawAlerts = alertsSnap.val() || {};
-            for (const key of Object.keys(rawAlerts)) {
-              await remove(ref(database, `radar_alerts/${key}`)).catch(() => {});
-            }
-          }
+          await remove(ref(database, 'replays')).catch(() => {});
+          await remove(ref(database, 'sessions')).catch(() => {});
+          await remove(ref(database, 'telemetry_logs')).catch(() => {});
+          await remove(ref(database, 'approved_tasks')).catch(() => {});
+          await remove(ref(database, 'ai_pending_approvals')).catch(() => {});
+          await remove(ref(database, 'reflections')).catch(() => {});
+          await remove(ref(database, 'workspace_states')).catch(() => {});
         } catch (e) {
-          console.warn('Error clearing radar alerts node:', e);
+          console.warn('Error clearing auxiliary RTDB nodes:', e);
         }
 
-        // 3. Reset active session state
+        // 2. Reset active session state
         try {
-          await fbSet(ref(database, 'active_class_session'), { active: false, sessionNumber: null, timestamp: Date.now() }).catch(() => {});
+          await fbSet(ref(database, 'active_class_session'), { active: false, sessionNumber: 1, timestamp: Date.now() }).catch(() => {});
         } catch (e) {
           console.warn('Error resetting active_class_session:', e);
         }
 
-        // 4. Reset students
+        // 3. Completely purge and rebuild students tree in RTDB
+        try {
+          await remove(ref(database, 'users/students')).catch(() => {});
+          await remove(ref(database, 'students')).catch(() => {});
+        } catch (e) {
+          console.warn('Error purging students tree:', e);
+        }
+
         for (let i = 1; i <= 12; i++) {
           const normId = `student_user${i}`;
           const defaultName = `תלמיד ${i}`;
@@ -764,7 +757,6 @@ export const useStore = create<AppState>()(
           };
 
           cleanStudents[normId] = cleanStudent;
-          cleanStudents[`student_${i}`] = cleanStudent;
 
           const payload = {
             studentId: normId,
@@ -791,6 +783,11 @@ export const useStore = create<AppState>()(
             qMatrixResults: null,
             conceptMastery: null,
             reflections: null,
+            telemetry_sessions: null,
+            vector_replays: null,
+            sessionState: null,
+            active_device_id: null,
+            latestTelemetrySessionId: null,
             traceData: { hesitation_events: 0, undo_clicks: 0, semantic_trace: [] },
             lastAction: 'לא מחובר',
             lastActivityTimestamp: 0,
@@ -808,8 +805,6 @@ export const useStore = create<AppState>()(
           };
 
           rootUpdates[`users/students/${normId}`] = payload;
-          rootUpdates[`users/students/student_${i}`] = payload;
-          rootUpdates[`users/students/${i}`] = payload;
           rootUpdates[`students/${normId}`] = payload;
         }
 

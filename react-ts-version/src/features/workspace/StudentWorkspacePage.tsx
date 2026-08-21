@@ -305,7 +305,7 @@ export function StudentWorkspacePage() {
     }
   }, [normUid, counts, answerDigits, carryDigits, undoCount, hesitationCount, meeting, flowStatus]);
 
-  // --- RRWeb Telemetry Recording (Gated by Active Teacher Class Session) ---
+  // --- RRWeb Telemetry Recording (Authentic High-Definition Screen Capture) ---
   useEffect(() => {
     let stopRecording: (() => void) | undefined;
     let eventsQueue: any[] = [];
@@ -313,16 +313,17 @@ export function StudentWorkspacePage() {
     let cancelled = false;
 
     const uid = normUid;
-    if (!uid || !isTeacherSessionActive || !activeClassSession) return;
+    if (!uid) return;
 
-    // Use teacher's active session timestamp as the unified session ID
-    const sessionTs = activeClassSession.startedAt || Date.now();
+    // Use active class session timestamp or fallback to current student session start
+    const sessionTs = activeClassSession?.startedAt || Date.now();
+    const effectiveSessionNum = activeClassSession?.sessionNumber || meeting || 1;
     const sessionId = `session_${sessionTs}`;
 
     // Save session metadata under student profile
     const sessionMeta = { 
       latestTelemetrySessionId: sessionId, 
-      activeSessionNumber: activeClassSession.sessionNumber,
+      activeSessionNumber: effectiveSessionNum,
       lastActive: Date.now() 
     };
     update(ref(database, `users/students/${uid}`), sessionMeta).catch(console.error);
@@ -341,7 +342,7 @@ export function StudentWorkspacePage() {
           const metaPayload = {
             startTime: batch[0].timestamp,
             endTime: batch[batch.length - 1].timestamp,
-            sessionNumber: activeClassSession.sessionNumber,
+            sessionNumber: effectiveSessionNum,
           };
 
           update(ref(database, `users/students/${uid}/telemetry_sessions/${sessionId}/metadata`), {
@@ -368,19 +369,17 @@ export function StudentWorkspacePage() {
 
       stopRecording = recordFn({
         emit(event: any) {
-          // PRD V2.0 Section 7: Milestone Telemetry requirement - strip continuous coordinate streaming
-          // Source 2 in rrweb IncrementalSnapshot represents MouseMove
-          if (event && event.type === 3 && event.data && event.data.source === 2) {
-            return;
-          }
           eventsQueue.push(event);
         },
         sampling: {
-          mousemove: false,
-          mouseInteraction: false,
-          scroll: 500,
+          mousemove: 50,
+          mouseInteraction: true,
+          scroll: 150,
           input: 'last',
-        }
+        },
+        recordCanvas: true,
+        collectFonts: true,
+        inlineStylesheet: true,
       });
 
       flushInterval = setInterval(flushTelemetry, 2000);
@@ -394,7 +393,7 @@ export function StudentWorkspacePage() {
       window.removeEventListener('beforeunload', flushTelemetry);
       flushTelemetry();
     };
-  }, [user?.uid, normUid, isTeacherSessionActive, activeClassSession]);
+  }, [user?.uid, normUid, isTeacherSessionActive, activeClassSession, meeting]);
 
   // Pedagogical Radar — active during student sessions per PRD v4.2 Modules 10 & 12
   useCognitiveHesitationRadar({ 
