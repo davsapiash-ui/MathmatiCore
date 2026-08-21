@@ -52,11 +52,11 @@
       }
     },
     "chat_messages": {
-      ".read": "auth != null",
+      ".read": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'admin')",
       ".write": "auth != null",
       "$roomId": {
-        ".read": "auth != null",
-        ".write": "auth != null"
+        ".read": "auth != null && (auth.uid == $roomId || auth.token.role == 'teacher' || auth.token.role == 'admin')",
+        ".write": "auth != null && (auth.uid == $roomId || auth.token.role == 'teacher' || auth.token.role == 'admin')"
       }
     },
     "system_control": {
@@ -64,7 +64,7 @@
       ".write": "auth != null && (auth.token.role == 'admin' || auth.token.role == 'ADMIN')"
     },
     "active_class_session": {
-      ".read": true,
+      ".read": "auth != null",
       ".write": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.role == 'admin' || auth.token.role == 'ADMIN')"
     },
     "audit_logs": {

@@ -326,15 +326,15 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
 
   return (
     <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 md:p-8 shadow-xl shadow-slate-200/50 dark:shadow-none mt-6 flex flex-col gap-6" dir="rtl">
-      {/* Header */}
+      {/* Header with Title and Anonymous Student Badge */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
         <div>
           <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2.5">
             <Video className="w-6 h-6 text-indigo-600" />
-            ממשק שחזור ואבחון מסך התלמיד (Student Workspace Diagnostic Replay)
+            ממשק מסך מפוצל לאבחון מורה (Diagnostic Split-Screen)
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            הקלטת מסך מלאה ואותנטית: מציגה במקביל את <strong>בית המספרים והבדידים</strong> (שמאל) ואת <strong>דף התרגיל והקלדת התלמיד</strong> (ימין).
+            התחקות אחר ציר ההחלטות הקוגניטיבי ושחזור מהלכי התלמיד (Screen Capture & VRA Timeline — PRD מודול 21).
           </p>
         </div>
 
@@ -349,7 +349,7 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
               }`}
             >
               <MonitorPlay className="w-3.5 h-3.5" />
-              הקלטת מסך חיה (rrweb Video Replay)
+              הקלטת מסך חיה (Video Replay)
             </button>
             <button
               onClick={() => setViewMode('vra')}
@@ -371,286 +371,31 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
         </div>
       </div>
 
-      {/* Main Split Layout: Left is Real Student Workspace, Right is VRA Timeline Table */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+      {/* Main 50/50 Split Layout per PRD Module 21 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
         
-        {/* Left Side: Authentic Two-Sided Student Workspace Replay Canvas (7 cols on XL) */}
-        <div className="xl:col-span-7 flex flex-col gap-4 bg-slate-950 rounded-3xl p-5 text-white shadow-2xl border border-slate-800">
-          
-          {/* Top Status of the Recording */}
-          <div className="flex justify-between items-center px-1 text-xs">
+        {/* Right Side in RTL: VRA Cognitive Decision Timeline Table */}
+        <div className="flex flex-col gap-3.5 h-full">
+          <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-700/60">
             <div className="flex items-center gap-2">
-              <span className="font-extrabold text-slate-200 flex items-center gap-1.5 bg-slate-900 px-3 py-1 rounded-lg border border-slate-800">
-                <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
-                {viewMode === 'video' ? 'נגן וידאו מסך תלמיד חי' : `שחזור קנבס התלמיד — Take ${activeTakeIndex + 1}`}
-              </span>
-              <span className="text-slate-400 font-bold hidden sm:inline">{snap.taskTitle}</span>
-            </div>
-            <span className="text-[11px] text-slate-400 font-mono">
-              {viewMode === 'video' 
-                ? (rrwebEvents.length > 0 ? `${rrwebEvents.length} פריימים מוקלטים` : 'המתנה לפעילות')
-                : (events.length > 0 ? `צעד ${currentEventIndex + 1} מתוך ${events.length}` : 'המתנה לפעילות')
-              }
-            </span>
-          </div>
-
-          {/* Authentic Student Screen Canvas Box */}
-          <div className="relative w-full bg-slate-900/95 rounded-2xl overflow-hidden border border-slate-800 p-4 select-none">
-            
-            {viewMode === 'video' ? (
-              rrwebEvents && rrwebEvents.length >= 2 ? (
-                <div className="w-full bg-slate-950 rounded-xl overflow-hidden">
-                  <ReplayViewer events={rrwebEvents} />
-                </div>
-              ) : (
-                <div className="w-full min-h-[320px] bg-slate-900/90 rounded-2xl border border-slate-800 p-8 flex flex-col items-center justify-center gap-3 text-center">
-                  <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400">
-                    <MonitorPlay className="w-6 h-6 animate-pulse" />
-                  </div>
-                  <div className="text-sm font-bold text-white">הקלטת מסך חיה בזמן אמת (rrweb Replayer)</div>
-                  <p className="text-xs text-slate-400 max-w-md leading-relaxed">
-                    המערכת מקליטה את מסך התלמיד בסביבת העבודה. עם ביצוע פעולות בלוח (גרירת לבנים, הקלדת תוצאה), הווידאו של המסך יונפש כאן במדויק.
-                  </p>
-                </div>
-              )
-            ) : (
-              /* The 50/50 Dual Workspace Container */
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-3 min-h-[320px]">
-              
-              {/* Worksheet Side (Right side in RTL, 5 cols) */}
-              <div className="md:col-span-5 bg-white dark:bg-slate-900 rounded-2xl p-3.5 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 flex flex-col justify-between shadow-sm">
-                <div>
-                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2 mb-2">
-                    <span className="text-[11px] font-black text-indigo-600 flex items-center gap-1">
-                      <FileText className="w-3.5 h-3.5" /> דף התרגיל
-                    </span>
-                    <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold px-2 py-0.5 rounded-md">
-                      {snap.equation}
-                    </span>
-                  </div>
-
-                  <div className="bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 mb-3">
-                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 block mb-1">הוראה לתלמיד:</span>
-                    <p className="text-xs font-bold text-slate-800 dark:text-slate-100 leading-snug">
-                      {snap.stepInstruction}
-                    </p>
-                  </div>
-
-                  {/* Worksheet Vertical Solving Box with Memory Circles and Columns */}
-                  <div className="flex flex-col items-center justify-center p-3 bg-slate-50/50 dark:bg-slate-950/40 rounded-xl border border-slate-100 dark:border-slate-800">
-                    <div className="text-[10px] font-bold text-slate-400 mb-1.5">הזנת ספרות התלמיד בתיבות התוצאה:</div>
-                    
-                    {/* Memory Circles Row */}
-                    <div className="flex gap-2 mb-1.5" dir="ltr">
-                      <div className="w-7 h-7 rounded-full border-2 border-dashed border-slate-200 dark:border-slate-800 flex items-center justify-center text-xs text-slate-300">
-                        -
-                      </div>
-                      <div className="w-7 h-7 rounded-full border-2 border-dashed border-purple-300 dark:border-purple-800 flex items-center justify-center text-xs font-bold text-purple-600">
-                        {snap.carryDigits?.tens || ''}
-                      </div>
-                      <div className="w-7 h-7 rounded-full border-2 border-dashed border-slate-200 dark:border-slate-800 flex items-center justify-center text-xs text-slate-300">
-                        -
-                      </div>
-                    </div>
-
-                    {/* Result Digit Boxes matching column colors */}
-                    <div className="flex gap-2" dir="ltr">
-                      <div className="flex flex-col items-center">
-                        <span className="text-[9px] font-bold text-amber-500 mb-0.5">מאות</span>
-                        <div className="w-9 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-400 flex items-center justify-center font-black text-base text-amber-700 dark:text-amber-300 font-mono shadow-sm">
-                          {snap.answerDigits?.hundreds ?? ''}
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col items-center">
-                        <span className="text-[9px] font-bold text-emerald-500 mb-0.5">עשרות</span>
-                        <div className="w-9 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-400 flex items-center justify-center font-black text-base text-emerald-700 dark:text-emerald-300 font-mono shadow-sm">
-                          {snap.answerDigits?.tens ?? ''}
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col items-center">
-                        <span className="text-[9px] font-bold text-sky-500 mb-0.5">יחידות</span>
-                        <div className="w-9 h-10 rounded-xl bg-sky-50 dark:bg-sky-950/40 border-2 border-sky-400 flex items-center justify-center font-black text-base text-sky-700 dark:text-sky-300 font-mono shadow-sm">
-                          {snap.answerDigits?.units ?? ''}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center text-[10px] text-slate-400 font-mono">
-                  <span>סטטוס: פעיל</span>
-                  <span className="text-emerald-500 font-bold flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3" /> מסונכרן
-                  </span>
-                </div>
-              </div>
-
-              {/* Dienes Base-Ten House Side (Left side in RTL, 7 cols) */}
-              <div className="md:col-span-7 bg-slate-950 rounded-2xl p-3 border border-slate-800 flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-2">
-                    <span className="text-[11px] font-black text-slate-200 flex items-center gap-1">
-                      <Layers className="w-3.5 h-3.5 text-amber-400" /> בית המספרים הדיגיטלי
-                    </span>
-                    <span className="text-[11px] font-black text-amber-400 bg-amber-950/60 border border-amber-800/80 px-2.5 py-0.5 rounded-full font-mono">
-                      ערך: {currentTotalValue}
-                    </span>
-                  </div>
-
-                  {/* 3 Columns: Hundreds, Tens, Units grounded from bottom */}
-                  <div className="grid grid-cols-3 gap-2 h-44 border border-slate-800/80 rounded-xl p-2 bg-slate-900/60" dir="ltr">
-                    
-                    {/* Hundreds Column */}
-                    <div className="border-l border-slate-800/80 pl-1 flex flex-col justify-between items-center">
-                      <span className="text-[10px] font-black text-amber-400 bg-amber-950/40 px-1.5 py-0.5 rounded">
-                        מאות ({snap.counts?.hundreds ?? 0})
-                      </span>
-                      <div className="flex-1 w-full flex flex-col justify-end items-center gap-1 pb-1">
-                        {Array.from({ length: Math.min(snap.counts?.hundreds ?? 0, 4) }).map((_, i) => (
-                          <div key={`h-${i}`} className="scale-[0.55] -my-2 transform-gpu">
-                            <HundredSVG />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Tens Column */}
-                    <div className="border-l border-slate-800/80 pl-1 flex flex-col justify-between items-center">
-                      <span className="text-[10px] font-black text-emerald-400 bg-emerald-950/40 px-1.5 py-0.5 rounded">
-                        עשרות ({snap.counts?.tens ?? 0})
-                      </span>
-                      <div className="flex-1 w-full flex flex-col justify-end items-center gap-1 pb-1">
-                        {Array.from({ length: Math.min(snap.counts?.tens ?? 0, 10) }).map((_, i) => (
-                          <div key={`t-${i}`} className="scale-[0.6] -my-2.5 transform-gpu">
-                            <TenSVG />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Units Column */}
-                    <div className="flex flex-col justify-between items-center">
-                      <span className="text-[10px] font-black text-sky-400 bg-sky-950/40 px-1.5 py-0.5 rounded">
-                        יחידות ({snap.counts?.units ?? 0})
-                      </span>
-                      <div className="flex-1 w-full flex flex-wrap content-end justify-center items-end gap-1 pb-1">
-                        {Array.from({ length: Math.min(snap.counts?.units ?? 0, 15) }).map((_, i) => (
-                          <div key={`u-${i}`} className="scale-[0.8]">
-                            <UnitSVG />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Bottom Workbench Palette Signifier */}
-                <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400">
-                  <span className="flex items-center gap-1 font-bold">🧰 מחסן לבנים פעיל</span>
-                  <span className="text-slate-500 font-mono">{currentEvent?.actionLabelHe ?? 'המתנה לפעילות'}</span>
-                </div>
-              </div>
-            </div>
-            )}
-          </div>
-
-          {/* Interactive Player Controls */}
-          <div className="flex items-center gap-3 px-2 pt-1">
-            <button
-              onClick={() => setIsPlaying(!isPlaying)}
-              className="p-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition-all cursor-pointer shadow-md active:scale-95"
-              aria-label={isPlaying ? "השהה ניגון" : "הפעל שחזור"}
-              title={isPlaying ? "השהה" : "נגן שחזור"}
-            >
-              {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current mr-0.5" />}
-            </button>
-
-            <button
-              onClick={() => {
-                setIsPlaying(false);
-                setCurrentEventIndex(0);
-              }}
-              className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white transition-colors cursor-pointer"
-              title="חזור לתחילת ההקלטה"
-            >
-              <RotateCcw className="w-4 h-4" />
-            </button>
-
-            <button
-              onClick={() => {
-                setIsPlaying(false);
-                setCurrentEventIndex(prev => Math.max(0, prev - 1));
-              }}
-              disabled={currentEventIndex === 0}
-              className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-white transition-colors cursor-pointer"
-              title="צעד אחד אחורה"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-
-            <button
-              onClick={() => {
-                setIsPlaying(false);
-                setCurrentEventIndex(prev => Math.min(events.length - 1, prev + 1));
-              }}
-              disabled={currentEventIndex >= events.length - 1}
-              className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-white transition-colors cursor-pointer"
-              title="צעד אחד קדימה"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-
-            {/* Interactive Progress Scrubber */}
-            <div className="flex-1 flex flex-col gap-1">
-              <input
-                type="range"
-                min="0"
-                max={Math.max(0, events.length - 1)}
-                value={currentEventIndex}
-                onChange={(e) => {
-                  setIsPlaying(false);
-                  setCurrentEventIndex(Number(e.target.value));
-                }}
-                className="w-full accent-indigo-500 cursor-pointer h-2 bg-slate-800 rounded-lg"
-              />
-              <div className="flex justify-between text-[10px] text-slate-400 font-mono">
-                <span>{currentEvent?.timeFormatted ?? '--:--:--'}</span>
-                <span>צעד {currentEventIndex + 1} / {events.length}</span>
-              </div>
-            </div>
-
-            {/* Playback Speed Button */}
-            <button
-              onClick={() => setPlaybackSpeed(s => s === 1 ? 1.5 : s === 1.5 ? 2 : 1)}
-              className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-mono font-bold text-slate-300 transition-colors"
-            >
-              {playbackSpeed}x
-            </button>
-          </div>
-        </div>
-
-        {/* Right Side: Synchronized VRA Cognitive Decision Timeline Table (5 cols on XL) */}
-        <div className="xl:col-span-5 flex flex-col gap-3">
-          <div className="flex justify-between items-center">
-            <h3 className="font-black text-base text-slate-900 dark:text-white flex items-center gap-2">
               <Activity className="w-4 h-4 text-indigo-600" />
-              ציר החלטות קוגניטיבי מסונכרן (VRA Timeline)
-            </h3>
-            <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
-              {events.length} פעולות
+              <h3 className="font-black text-sm text-slate-900 dark:text-white">
+                טבלת ציר החלטות קוגניטיבי (VRA Timeline)
+              </h3>
+            </div>
+            <span className="text-xs font-mono font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950 px-2.5 py-0.5 rounded-lg border border-indigo-200 dark:border-indigo-800">
+              {events.length} אירועים מנוטרים
             </span>
           </div>
 
-          <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm bg-white dark:bg-slate-900">
-            <div className="max-h-[440px] overflow-y-auto">
+          <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm bg-white dark:bg-slate-900 flex-1">
+            <div className="max-h-[480px] overflow-y-auto">
               <table className="w-full text-right text-xs">
-                <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 font-extrabold sticky top-0 border-b border-slate-200 dark:border-slate-700 z-10">
+                <thead className="bg-slate-50 dark:bg-slate-800/90 text-slate-700 dark:text-slate-200 font-extrabold sticky top-0 border-b border-slate-200 dark:border-slate-700 z-10">
                   <tr>
                     <th className="p-3">שעה</th>
-                    <th className="p-3">שלב VRA</th>
-                    <th className="p-3">פעולה</th>
+                    <th className="p-3">שלב פדגוגי</th>
+                    <th className="p-3">פירוט פעולה</th>
                     <th className="p-3 text-center">השהייה</th>
                     <th className="p-3 text-center">בקרה</th>
                   </tr>
@@ -658,8 +403,8 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {events.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="p-8 text-center text-slate-400 dark:text-slate-500 font-medium text-xs">
-                        טרם נרשמו פעולות שחזור עבור תלמיד זה במפגש. עם ביצוע פעולות בסביבת העבודה, הן יתועדו כאן בזמן אמת.
+                      <td colSpan={5} className="p-10 text-center text-slate-400 dark:text-slate-500 font-medium text-xs">
+                        טרם נרשמו פעולות שחזור עבור תלמיד זה. עם ביצוע תרגילים במרחב הלמידה, כל הפעולות יתועדו וינותחו כאן בזמן אמת.
                       </td>
                     </tr>
                   ) : (
@@ -674,13 +419,13 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
                           }}
                           className={`cursor-pointer transition-all ${
                             isSelected 
-                              ? 'bg-indigo-50 dark:bg-indigo-950/70 font-bold border-r-4 border-indigo-600' 
+                              ? 'bg-indigo-50 dark:bg-indigo-950/80 font-bold border-r-4 border-indigo-600' 
                               : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/40'
                           }`}
                         >
                           <td className="p-3 font-mono text-[11px] text-slate-400">{event?.timeFormatted ?? '--:--:--'}</td>
                           <td className="p-3">
-                            <span className={`font-black px-2 py-0.5 rounded-md text-[10px] ${
+                            <span className={`font-black px-2 py-0.5 rounded-md text-[10px] whitespace-nowrap ${
                               event?.vraMilestone === 'המרה עשרונית'
                                 ? 'bg-purple-100 text-purple-900 dark:bg-purple-950 dark:text-purple-200'
                                 : event?.vraMilestone === 'ויסות עצמי שקט'
@@ -692,23 +437,23 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
                               {event?.vraMilestone ?? 'ייצוג בלבני דינס'}
                             </span>
                           </td>
-                        <td className="p-3 font-medium text-slate-800 dark:text-slate-200">
-                          <div className="font-bold leading-snug">{event?.actionLabelHe ?? 'פעולה בלוח'}</div>
-                          <div className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight mt-0.5">{event?.details ?? 'פעילות בלוח הערך המקומי'}</div>
-                        </td>
-                        <td className="p-3 text-center font-mono font-bold text-slate-600 dark:text-slate-400">
-                          {event.delaySeconds > 0 ? `${event.delaySeconds}ש'` : '-'}
-                        </td>
-                        <td className="p-3 text-center">
-                          {event.selfRegulationFlag ? (
-                            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300 font-bold text-[10px]" title="עדות לוויסות עצמי">
-                              ✓
-                            </span>
-                          ) : (
-                            <span className="text-slate-300 dark:text-slate-700">-</span>
-                          )}
-                        </td>
-                      </tr>
+                          <td className="p-3 font-medium text-slate-800 dark:text-slate-200">
+                            <div className="font-bold leading-snug">{event?.actionLabelHe ?? 'פעולה בלוח'}</div>
+                            <div className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight mt-0.5">{event?.details ?? 'פעילות בלוח הערך המקומי'}</div>
+                          </td>
+                          <td className="p-3 text-center font-mono font-bold text-slate-600 dark:text-slate-400">
+                            {event.delaySeconds > 0 ? `${event.delaySeconds}ש'` : '-'}
+                          </td>
+                          <td className="p-3 text-center">
+                            {event.selfRegulationFlag ? (
+                              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300 font-bold text-[10px]" title="עדות לוויסות עצמי ובקרה">
+                                ✓
+                              </span>
+                            ) : (
+                              <span className="text-slate-300 dark:text-slate-700">-</span>
+                            )}
+                          </td>
+                        </tr>
                       );
                     })
                   )}
@@ -716,6 +461,269 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
               </table>
             </div>
           </div>
+        </div>
+
+        {/* Left Side in RTL: Screen Capture Video Player & Canvas Replay */}
+        <div className="flex flex-col gap-3.5 bg-slate-950 rounded-3xl p-5 text-white shadow-2xl border border-slate-800 overflow-hidden">
+          
+          {/* Top Player Header */}
+          <div className="flex justify-between items-center px-1 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="font-extrabold text-slate-200 flex items-center gap-1.5 bg-slate-900 px-3 py-1 rounded-lg border border-slate-800">
+                <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
+                {viewMode === 'video' ? 'נגן וידאו מסך תלמיד (Screen Capture)' : `שחזור קנבס התלמיד — Take ${activeTakeIndex + 1}`}
+              </span>
+              <span className="text-slate-400 font-bold hidden sm:inline">{snap.taskTitle}</span>
+            </div>
+            <span className="text-[11px] text-slate-400 font-mono">
+              {viewMode === 'video' 
+                ? (rrwebEvents.length > 0 ? `${rrwebEvents.length} פריימים מוקלטים` : 'המתנה לפעילות')
+                : (events.length > 0 ? `צעד ${currentEventIndex + 1} מתוך ${events.length}` : 'המתנה לפעילות')
+              }
+            </span>
+          </div>
+
+          {/* Authentic Student Screen Canvas / Video Container */}
+          <div className="relative w-full bg-slate-900/95 rounded-2xl overflow-hidden border border-slate-800 p-2 select-none min-h-[360px] flex items-center justify-center">
+            
+            {viewMode === 'video' ? (
+              rrwebEvents && rrwebEvents.length >= 2 ? (
+                <div className="w-full h-full rounded-xl overflow-hidden">
+                  <ReplayViewer 
+                    events={rrwebEvents} 
+                    seekToTime={currentEvent?.timestamp}
+                  />
+                </div>
+              ) : (
+                <div className="w-full h-full min-h-[340px] bg-slate-900/90 rounded-2xl border border-slate-800 p-8 flex flex-col items-center justify-center gap-3 text-center">
+                  <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400">
+                    <MonitorPlay className="w-6 h-6 animate-pulse" />
+                  </div>
+                  <div className="text-sm font-bold text-white">הקלטת מסך חיה (rrweb Screen Capture)</div>
+                  <p className="text-xs text-slate-400 max-w-md leading-relaxed">
+                    המערכת מקליטה באופן רציף ואוטומטי את מסך התלמיד כולל תנועות עכבר, גרירות והקלדה.
+                    כאשר התלמיד יבצע משימות בשיעור, סרטון ההקלטה המלא ינוגן כאן.
+                  </p>
+                </div>
+              )
+            ) : (
+              /* The 50/50 Dual Workspace Container */
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-3 w-full min-h-[340px]">
+              
+                {/* Worksheet Side (Right side in RTL, 5 cols) */}
+                <div className="md:col-span-5 bg-white dark:bg-slate-900 rounded-2xl p-3.5 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 flex flex-col justify-between shadow-sm">
+                  <div>
+                    <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2 mb-2">
+                      <span className="text-[11px] font-black text-indigo-600 flex items-center gap-1">
+                        <FileText className="w-3.5 h-3.5" /> דף התרגיל
+                      </span>
+                      <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold px-2 py-0.5 rounded-md">
+                        {snap.equation}
+                      </span>
+                    </div>
+
+                    <div className="bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 mb-3">
+                      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 block mb-1">הוראה לתלמיד:</span>
+                      <p className="text-xs font-bold text-slate-800 dark:text-slate-100 leading-snug">
+                        {snap.stepInstruction}
+                      </p>
+                    </div>
+
+                    {/* Worksheet Vertical Solving Box with Memory Circles and Columns */}
+                    <div className="flex flex-col items-center justify-center p-3 bg-slate-50/50 dark:bg-slate-950/40 rounded-xl border border-slate-100 dark:border-slate-800">
+                      <div className="text-[10px] font-bold text-slate-400 mb-1.5">הזנת ספרות התלמיד בתיבות התוצאה:</div>
+                      
+                      {/* Memory Circles Row */}
+                      <div className="flex gap-2 mb-1.5" dir="ltr">
+                        <div className="w-7 h-7 rounded-full border-2 border-dashed border-slate-200 dark:border-slate-800 flex items-center justify-center text-xs text-slate-300">
+                          -
+                        </div>
+                        <div className="w-7 h-7 rounded-full border-2 border-dashed border-purple-300 dark:border-purple-800 flex items-center justify-center text-xs font-bold text-purple-600">
+                          {snap.carryDigits?.tens || ''}
+                        </div>
+                        <div className="w-7 h-7 rounded-full border-2 border-dashed border-slate-200 dark:border-slate-800 flex items-center justify-center text-xs text-slate-300">
+                          -
+                        </div>
+                      </div>
+
+                      {/* Result Digit Boxes matching column colors */}
+                      <div className="flex gap-2" dir="ltr">
+                        <div className="flex flex-col items-center">
+                          <span className="text-[9px] font-bold text-amber-500 mb-0.5">מאות</span>
+                          <div className="w-9 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-400 flex items-center justify-center font-black text-base text-amber-700 dark:text-amber-300 font-mono shadow-sm">
+                            {snap.answerDigits?.hundreds ?? ''}
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col items-center">
+                          <span className="text-[9px] font-bold text-emerald-500 mb-0.5">עשרות</span>
+                          <div className="w-9 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-400 flex items-center justify-center font-black text-base text-emerald-700 dark:text-emerald-300 font-mono shadow-sm">
+                            {snap.answerDigits?.tens ?? ''}
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col items-center">
+                          <span className="text-[9px] font-bold text-sky-500 mb-0.5">יחידות</span>
+                          <div className="w-9 h-10 rounded-xl bg-sky-50 dark:bg-sky-950/40 border-2 border-sky-400 flex items-center justify-center font-black text-base text-sky-700 dark:text-sky-300 font-mono shadow-sm">
+                            {snap.answerDigits?.units ?? ''}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center text-[10px] text-slate-400 font-mono">
+                    <span>סטטוס: פעיל</span>
+                    <span className="text-emerald-500 font-bold flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" /> מסונכרן
+                    </span>
+                  </div>
+                </div>
+
+                {/* Dienes Base-Ten House Side (Left side in RTL, 7 cols) */}
+                <div className="md:col-span-7 bg-slate-950 rounded-2xl p-3 border border-slate-800 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-2">
+                      <span className="text-[11px] font-black text-slate-200 flex items-center gap-1">
+                        <Layers className="w-3.5 h-3.5 text-amber-400" /> בית המספרים הדיגיטלי
+                      </span>
+                      <span className="text-[11px] font-black text-amber-400 bg-amber-950/60 border border-amber-800/80 px-2.5 py-0.5 rounded-full font-mono">
+                        ערך: {currentTotalValue}
+                      </span>
+                    </div>
+
+                    {/* 3 Columns: Hundreds, Tens, Units grounded from bottom */}
+                    <div className="grid grid-cols-3 gap-2 h-44 border border-slate-800/80 rounded-xl p-2 bg-slate-900/60" dir="ltr">
+                      
+                      {/* Hundreds Column */}
+                      <div className="border-l border-slate-800/80 pl-1 flex flex-col justify-between items-center">
+                        <span className="text-[10px] font-black text-amber-400 bg-amber-950/40 px-1.5 py-0.5 rounded">
+                          מאות ({snap.counts?.hundreds ?? 0})
+                        </span>
+                        <div className="flex-1 w-full flex flex-col justify-end items-center gap-1 pb-1">
+                          {Array.from({ length: Math.min(snap.counts?.hundreds ?? 0, 4) }).map((_, i) => (
+                            <div key={`h-${i}`} className="scale-[0.55] -my-2 transform-gpu">
+                              <HundredSVG />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Tens Column */}
+                      <div className="border-l border-slate-800/80 pl-1 flex flex-col justify-between items-center">
+                        <span className="text-[10px] font-black text-emerald-400 bg-emerald-950/40 px-1.5 py-0.5 rounded">
+                          עשרות ({snap.counts?.tens ?? 0})
+                        </span>
+                        <div className="flex-1 w-full flex flex-col justify-end items-center gap-1 pb-1">
+                          {Array.from({ length: Math.min(snap.counts?.tens ?? 0, 10) }).map((_, i) => (
+                            <div key={`t-${i}`} className="scale-[0.6] -my-2.5 transform-gpu">
+                              <TenSVG />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Units Column */}
+                      <div className="flex flex-col justify-between items-center">
+                        <span className="text-[10px] font-black text-sky-400 bg-sky-950/40 px-1.5 py-0.5 rounded">
+                          יחידות ({snap.counts?.units ?? 0})
+                        </span>
+                        <div className="flex-1 w-full flex flex-wrap content-end justify-center items-end gap-1 pb-1">
+                          {Array.from({ length: Math.min(snap.counts?.units ?? 0, 15) }).map((_, i) => (
+                            <div key={`u-${i}`} className="scale-[0.8]">
+                              <UnitSVG />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Bottom Workbench Palette Signifier */}
+                  <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400">
+                    <span className="flex items-center gap-1 font-bold">🧰 מחסן לבנים פעיל</span>
+                    <span className="text-slate-500 font-mono">{currentEvent?.actionLabelHe ?? 'המתנה לפעילות'}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Stepper / Scrubber Controls for VRA State */}
+          {viewMode === 'vra' && (
+            <div className="flex items-center gap-3 px-2 pt-1">
+              <button
+                onClick={() => setIsPlaying(!isPlaying)}
+                className="p-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition-all cursor-pointer shadow-md active:scale-95"
+                aria-label={isPlaying ? "השהה ניגון" : "הפעל שחזור"}
+                title={isPlaying ? "השהה" : "נגן שחזור"}
+              >
+                {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current mr-0.5" />}
+              </button>
+
+              <button
+                onClick={() => {
+                  setIsPlaying(false);
+                  setCurrentEventIndex(0);
+                }}
+                className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white transition-colors cursor-pointer"
+                title="חזור לתחילת ההקלטה"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={() => {
+                  setIsPlaying(false);
+                  setCurrentEventIndex(prev => Math.max(0, prev - 1));
+                }}
+                disabled={currentEventIndex === 0}
+                className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-white transition-colors cursor-pointer"
+                title="צעד אחד אחורה"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={() => {
+                  setIsPlaying(false);
+                  setCurrentEventIndex(prev => Math.min(events.length - 1, prev + 1));
+                }}
+                disabled={currentEventIndex >= events.length - 1}
+                className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-white transition-colors cursor-pointer"
+                title="צעד אחד קדימה"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+
+              {/* Interactive Progress Scrubber */}
+              <div className="flex-1 flex flex-col gap-1">
+                <input
+                  type="range"
+                  min="0"
+                  max={Math.max(0, events.length - 1)}
+                  value={currentEventIndex}
+                  onChange={(e) => {
+                    setIsPlaying(false);
+                    setCurrentEventIndex(Number(e.target.value));
+                  }}
+                  className="w-full accent-indigo-500 cursor-pointer h-2 bg-slate-800 rounded-lg"
+                />
+                <div className="flex justify-between text-[10px] text-slate-400 font-mono">
+                  <span>{currentEvent?.timeFormatted ?? '--:--:--'}</span>
+                  <span>צעד {currentEventIndex + 1} / {events.length}</span>
+                </div>
+              </div>
+
+              {/* Playback Speed Button */}
+              <button
+                onClick={() => setPlaybackSpeed(s => s === 1 ? 1.5 : s === 1.5 ? 2 : 1)}
+                className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-mono font-bold text-slate-300 transition-colors"
+              >
+                {playbackSpeed}x
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
