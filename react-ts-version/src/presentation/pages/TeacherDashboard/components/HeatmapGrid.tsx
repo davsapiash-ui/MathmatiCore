@@ -250,15 +250,8 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
     const unsubStudents = onValue(
       studentsRef,
       (snapshot) => {
-        if (!snapshot.exists()) return;
         pendingData = snapshot.val() || {};
-
-        if (!throttleTimeout) {
-          throttleTimeout = setTimeout(() => {
-            throttleTimeout = null;
-            flushThrottledData();
-          }, 1000);
-        }
+        flushThrottledData();
       },
       (err) => {
         console.error('[HeatmapGrid] RTDB "users/students" listener error (Permission Denied or Network):', err);
