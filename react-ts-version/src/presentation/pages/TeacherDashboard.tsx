@@ -1103,12 +1103,6 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
               אישור משימות AI
             </button>
             <button
-              onClick={() => handleTabChange("class_management")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === "class_management" ? "bg-indigo-600 text-white shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}
-            >
-              ניהול כיתה ותלמידים
-            </button>
-            <button
               onClick={() => handleTabChange("chat_students")}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${activeTab === "chat_students" ? "bg-indigo-600 text-white shadow-md" : "bg-slate-800 text-slate-300 hover:bg-slate-700"}`}
             >
@@ -1195,12 +1189,6 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                 {pendingRouteStudents.length}
               </span>
             )}
-          </button>
-          <button
-            onClick={() => handleTabChange("class_management")}
-            className={`w-full text-right px-4 py-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "class_management" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
-          >
-            ניהול כיתה ותלמידים
           </button>
 
           <div className="text-[10px] font-bold text-slate-400  mb-2 mt-6 px-2 uppercase tracking-widest">

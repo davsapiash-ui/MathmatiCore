@@ -9,9 +9,13 @@ import {
   CheckCircle2, 
   Lock, 
   ShieldAlert, 
-  Users
+  Users,
+  RotateCcw,
+  DoorOpen,
+  Sparkles
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useStore } from '@/application/useStore';
 
 export type RadarStatusColor = 'RED' | 'GREY' | 'YELLOW' | 'GREEN';
 
@@ -86,6 +90,8 @@ export interface AnonymousStudent {
   isSocraticActive: boolean;
   lastAction?: string;
   isOnline?: boolean;
+  isWaitingAtGate?: boolean;
+  recommendedPath?: 'ירוק' | 'צמצום פערים';
 }
 
 export interface LiveFeedItem {
@@ -232,6 +238,12 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
             lastAction = hasJoinedSession ? 'יצא מהחלון' : 'לא מחובר';
           }
 
+          const isWaitingAtGate = Boolean(
+            (data.completedMeeting2 === true || data.highestCompletedMeeting >= 2) &&
+            data.teacher_gate_approved !== true
+          );
+          const recommendedPath: 'ירוק' | 'צמצום פערים' = (data.routeRecommendation === 'YELLOW' || sessionState.current_path === 'remediation_path') ? 'צמצום פערים' : 'ירוק';
+
           updated[i] = {
             id: uid,
             studentNumber: studentNum,
@@ -246,6 +258,8 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
             isSocraticActive,
             lastAction,
             isOnline,
+            isWaitingAtGate,
+            recommendedPath,
           };
         }
         return updated;
@@ -405,6 +419,60 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
     };
   };
 
+  const [isResettingClass, setIsResettingClass] = useState(false);
+
+  const handleApproveGate = async (studentId: string, path: 'ירוק' | 'צמצום פערים') => {
+    const normId = normalizeStudentId(studentId);
+    const num = studentId.replace(/\D/g, '') || '1';
+    const isRemediation = path === 'צמצום פערים';
+
+    const gatePayload = {
+      teacher_gate_approved: true,
+      teacher_selected_path: isRemediation ? 'remediation_path' : 'green_path',
+      currentPath: path,
+      routeRecommendation: isRemediation ? 'YELLOW' : 'GREEN',
+      routeStatus: isRemediation ? 'REMEDIATION_PATH' : 'GREEN_PATH',
+      pedagogicalPath: isRemediation ? 'remediation_path' : 'green_path',
+      gateApprovedAt: Date.now(),
+      highestCompletedMeeting: 2,
+    };
+
+    try {
+      const paths = [
+        `users/students/${normId}`,
+        `users/students/student_${num}`,
+        `users/students/user${num}`,
+        `users/students/${num}`,
+      ];
+      const updates: Record<string, any> = {};
+      paths.forEach(p => { updates[p] = { ...updates[p], ...gatePayload }; });
+      await update(ref(database), updates);
+      toast.success(`✓ מסלול ${path} אושר עבור תלמיד ${num}! השער למפגש 3 נפתח.`);
+    } catch (err) {
+      console.error('Failed to approve gate:', err);
+      toast.error('שגיאה באישור שער המעבר');
+    }
+  };
+
+  const handleResetAllClass = async () => {
+    if (!window.confirm('האם אתה בטוח שברצונך לאפס את כל נתוני 12 תלמידי הכיתה לאפס מוחלט?')) {
+      return;
+    }
+    setIsResettingClass(true);
+    try {
+      await useStore.getState().resetEntireSystemUsageData();
+      toast.success('✓ כל נתוני הכיתה אופסו בהצלחה לאפס מוחלט!');
+    } catch (err) {
+      console.error('Reset all error:', err);
+      toast.error('שגיאה באיפוס נתוני הכיתה');
+    } finally {
+      setIsResettingClass(false);
+    }
+  };
+
+  // Pending Teacher Gate students
+  const pendingGateStudents = useMemo(() => students.filter(s => s.isWaitingAtGate), [students]);
+
   // Counts
   const strugglingCount = useMemo(() => students.filter(s => s.isStruggling).length, [students]);
   const lockedCount = useMemo(() => students.filter(s => s.status === 'locked').length, [students]);
@@ -415,15 +483,27 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
       {/* Module 18: Clean Header & Legend for Silent Radar Matrix */}
       <section className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2.5">
-            <Users className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
-            <span>רדאר פדגוגי שקט (Silent Radar)</span>
-            <span className="text-xs bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-800 px-2.5 py-0.5 rounded-full font-bold">
-              12 תלמידים
-            </span>
-          </h2>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2.5">
+              <Users className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+              <span>רדאר פדגוגי שקט (Silent Radar)</span>
+              <span className="text-xs bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-800 px-2.5 py-0.5 rounded-full font-bold">
+                12 תלמידים
+              </span>
+            </h2>
+
+            <button
+              onClick={handleResetAllClass}
+              disabled={isResettingClass}
+              className="px-3 py-1.5 rounded-xl border border-rose-200 hover:border-rose-400 bg-rose-50/60 hover:bg-rose-100 dark:bg-rose-950/40 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-xs"
+              title="איפוס מוחלט של כל 12 תלמידי הכיתה"
+            >
+              <RotateCcw className={`w-3.5 h-3.5 ${isResettingClass ? 'animate-spin' : ''}`} />
+              <span>איפוס כל נתוני הכיתה לאפס</span>
+            </button>
+          </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            גריד 3×4 קבוע ואנונימי. עדכוני צבע בלבד ללא הפרעה לתלמיד. לחץ על משבצת לצפייה בלוח ובפעולות.
+            מרכז בקרה אחוד. עדכוני צבע בלבד ללא הפרעה לתלמיד. לחץ על משבצת לצפייה בלוח, בהקלטות ובאישור שערים.
           </p>
         </div>
 
@@ -448,6 +528,43 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
         </div>
       </section>
 
+      {/* Progressive Disclosure: Contextual Teacher Gate Banner (Only when students are waiting) */}
+      {pendingGateStudents.length > 0 && (
+        <section className="bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-300 dark:border-amber-800 rounded-2xl p-4 shadow-md animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-2.5">
+              <span className="w-3 h-3 rounded-full bg-amber-500 animate-ping" />
+              <span className="font-extrabold text-sm text-amber-950 dark:text-amber-100 flex items-center gap-2">
+                <DoorOpen className="w-4 h-4 text-amber-600" />
+                {pendingGateStudents.length === 1 
+                  ? `תלמיד ${pendingGateStudents[0].studentNumber} סיים את שלב האבחון וממתין לאישור מסלול למפגש 3`
+                  : `${pendingGateStudents.length} תלמידים סיימו את שלב האבחון וממתינים לאישור מסלול למפגש 3`}
+              </span>
+            </div>
+            <div className="flex items-center gap-2.5 flex-wrap">
+              {pendingGateStudents.map(st => (
+                <div key={st.id} className="flex items-center gap-2 bg-white dark:bg-slate-900 px-3 py-1.5 rounded-xl border border-amber-200 dark:border-amber-800 shadow-xs">
+                  <span className="font-extrabold text-xs text-slate-800 dark:text-slate-200">תלמיד {st.studentNumber}</span>
+                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">המלצה: {st.recommendedPath}</span>
+                  <button
+                    onClick={() => handleApproveGate(st.id, 'ירוק')}
+                    className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer"
+                  >
+                    אשר ירוק
+                  </button>
+                  <button
+                    onClick={() => handleApproveGate(st.id, 'צמצום פערים')}
+                    className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer"
+                  >
+                    אשר צמצום
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Fixed 12-Slot CSS Grid (3x4) Without Layout Reflows */}
       <section className="w-full">
         <div className="grid grid-cols-3 sm:grid-cols-4 gap-4 max-w-4xl mx-auto w-full">
@@ -456,8 +573,10 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
               <button
                 key={student.id}
                 onClick={() => setSelectedStudent(student)}
-                className={`p-4 rounded-2xl border text-right transition-colors duration-500 ease-in-out flex flex-col justify-between min-h-[115px] relative overflow-hidden shadow-sm hover:shadow-md cursor-pointer ${
-                  student.isSocraticActive
+                className={`p-4 rounded-2xl border text-right transition-colors duration-500 ease-in-out flex flex-col justify-between min-h-[125px] relative overflow-hidden shadow-sm hover:shadow-md cursor-pointer ${
+                  student.isWaitingAtGate
+                    ? 'bg-amber-500/25 border-2 border-amber-500 text-amber-950 dark:text-amber-100 shadow-amber-500/10'
+                    : student.isSocraticActive
                     ? 'bg-rose-500/20 border-2 border-rose-500 text-rose-950 dark:text-rose-100'
                     : !student.isOnline
                     ? 'bg-slate-100 dark:bg-slate-800/60 border-2 border-slate-300 dark:border-slate-700 text-slate-500'
@@ -472,8 +591,13 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
                     תלמיד {student.studentNumber}
                   </span>
                   
-                  {/* Status Icon - Deterministic Precedence: SOCRATIC > OFFLINE > HESITATION > ONLINE/ACTIVE */}
-                  {student.isSocraticActive ? (
+                  {/* Status Icon - Deterministic Precedence: GATE > SOCRATIC > OFFLINE > HESITATION > ONLINE/ACTIVE */}
+                  {student.isWaitingAtGate ? (
+                    <span className="inline-flex items-center gap-1 bg-amber-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm animate-pulse" title="ממתין לאישור מסלול למפגש 3">
+                      <DoorOpen className="w-3 h-3" />
+                      שער מפגש 3
+                    </span>
+                  ) : student.isSocraticActive ? (
                     <span className="inline-flex items-center gap-1 bg-rose-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm animate-pulse" title="חניכה סוקרטית פעילה">
                       <ShieldAlert className="w-3 h-3" />
                       סוקרטי
@@ -501,7 +625,7 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
                 </div>
 
                 {!student.isOnline ? (
-                  <div className="flex flex-col justify-center items-center py-3 text-slate-400 dark:text-slate-500">
+                  <div className="flex flex-col justify-center items-center py-2 text-slate-400 dark:text-slate-500">
                     <span className="text-xs font-semibold">
                       {!isClassSessionActive
                         ? 'שיעור לא פעיל'
@@ -533,6 +657,29 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
                       <span>השהייה: {student.hesitationSeconds}ש'</span>
                       <span>ביטולים: {student.errorCount}</span>
                     </div>
+
+                    {/* In-Card Quick Gate Approval Buttons */}
+                    {student.isWaitingAtGate && (
+                      <div className="mt-2 pt-2 border-t border-amber-300/80 dark:border-amber-700/80 flex items-center justify-between gap-1 z-10" onClick={e => e.stopPropagation()}>
+                        <span className="text-[10px] font-bold text-amber-900 dark:text-amber-200">{student.recommendedPath}</span>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleApproveGate(student.id, 'ירוק')}
+                            className="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-bold transition-all shadow-xs cursor-pointer"
+                            title="אשר מסלול ירוק"
+                          >
+                            ירוק
+                          </button>
+                          <button
+                            onClick={() => handleApproveGate(student.id, 'צמצום פערים')}
+                            className="px-2 py-0.5 bg-amber-500 hover:bg-amber-600 text-white rounded text-[10px] font-bold transition-all shadow-xs cursor-pointer"
+                            title="אשר צמצום פערים"
+                          >
+                            צמצום
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </>
                 )}
               </button>
