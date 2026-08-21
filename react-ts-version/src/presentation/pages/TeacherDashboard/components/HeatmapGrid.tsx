@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ref, onValue, update } from 'firebase/database';
+import { ref, onValue, update, query, limitToLast } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
 import { normalizeStudentId } from '@/application/useChatStore';
 import { toast } from 'sonner';
@@ -254,7 +254,7 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
       }
     }, 3000);
 
-    const alertsRef = ref(database, 'radar_alerts');
+    const alertsRef = query(ref(database, 'radar_alerts'), limitToLast(50));
     const unsubAlerts = onValue(
       alertsRef,
       (snapshot) => {

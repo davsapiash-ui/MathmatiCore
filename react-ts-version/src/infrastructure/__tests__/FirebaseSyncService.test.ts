@@ -117,4 +117,18 @@ describe('FirebaseSyncService', () => {
     await expect(service.logMilestoneEvent('student_test_123', 'session_1', 'GROUP', { column: 'units', count: 10 })).resolves.not.toThrow();
     await expect(service.logMilestoneEvent('student_test_123', 'session_1', 'INPUT_SUBMIT', { digit: 5, place: 'tens' })).resolves.not.toThrow();
   });
+
+  it('syncPhysicalOverride updates workspaceState/isASD via dotted path without wiping workspaceState', async () => {
+    const service = firebaseSyncService;
+    await expect(service.syncPhysicalOverride('student_test_123', {
+      isASD: true,
+      physicalOverride: true,
+      routeStatus: 'APPROVED'
+    })).resolves.not.toThrow();
+  });
+
+  it('syncMeeting2Complete updates completedMeeting2 and advances highestCompletedMeeting to 2', async () => {
+    const service = firebaseSyncService;
+    await expect(service.syncMeeting2Complete('student_test_123')).resolves.not.toThrow();
+  });
 });

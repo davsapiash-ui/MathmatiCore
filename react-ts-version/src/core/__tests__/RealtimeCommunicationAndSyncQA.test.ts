@@ -58,9 +58,23 @@ vi.mock('firebase/database', () => {
     }),
     update: vi.fn(async (r: any, val: any) => {
       const existing = mockDatabaseTree[r._path] || {};
-      mockDatabaseTree[r._path] = typeof val === 'object' && !Array.isArray(val)
-        ? { ...existing, ...val }
+      const updated = typeof val === 'object' && !Array.isArray(val)
+        ? { ...existing }
         : val;
+      if (typeof val === 'object' && !Array.isArray(val)) {
+        for (const [k, v] of Object.entries(val)) {
+          if (k.includes('/')) {
+            const [parentKey, childKey] = k.split('/');
+            updated[parentKey] = {
+              ...(updated[parentKey] || {}),
+              [childKey]: v
+            };
+          } else {
+            updated[k] = v;
+          }
+        }
+      }
+      mockDatabaseTree[r._path] = updated;
       return Promise.resolve();
     }),
     push: vi.fn((r: any) => {
@@ -82,10 +96,29 @@ vi.mock('firebase/database', () => {
       set: vi.fn(async () => Promise.resolve())
     })),
     runTransaction: vi.fn(async (r: any, updateFn: (curr: any) => any) => {
-      const curr = mockDatabaseTree[r._path];
+      const path: string = r._path;
+      const parts = path.split('/');
+      let curr = mockDatabaseTree[path];
+      if (curr === undefined && parts.length > 1) {
+        const parentPath = parts.slice(0, -1).join('/');
+        const prop = parts[parts.length - 1];
+        if (mockDatabaseTree[parentPath]) {
+          curr = mockDatabaseTree[parentPath][prop];
+        }
+      }
       const next = updateFn(curr);
-      mockDatabaseTree[r._path] = next;
-      return Promise.resolve({ committed: true, snapshot: { val: () => next } });
+      if (next !== undefined) {
+        mockDatabaseTree[path] = next;
+        if (parts.length > 1) {
+          const parentPath = parts.slice(0, -1).join('/');
+          const prop = parts[parts.length - 1];
+          mockDatabaseTree[parentPath] = {
+            ...(mockDatabaseTree[parentPath] || {}),
+            [prop]: next
+          };
+        }
+      }
+      return Promise.resolve({ committed: next !== undefined, snapshot: { val: () => (next !== undefined ? next : curr) } });
     }),
     serverTimestamp: vi.fn(() => Date.now())
   };

@@ -11,7 +11,7 @@ import { useChatStore, normalizeStudentId, isTeacherOrAdminId, type ChatMessage 
 import { extractTeacherId } from "@/infrastructure/services/FirebaseSyncService";
 import { useStore, type StudentData } from "@/application/useStore";
 import { toast } from "sonner";
-import { ref, onValue, remove, set, update } from "firebase/database";
+import { ref, onValue, remove, set, update, query, limitToLast } from "firebase/database";
 import { database, auth, functions, firestore } from "@/infrastructure/firebase";
 import { doc, getDoc, updateDoc, setDoc, onSnapshot, collection } from "firebase/firestore";
 import type { SessionDocument, PedagogicalPath } from "@/types";
@@ -678,9 +678,9 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   const [firebaseAlerts, setFirebaseAlerts] = useState<RadarAlert[]>([]);
 
   useEffect(() => {
-    const alertsRef = ref(database, 'radar_alerts');
+    const alertsQuery = query(ref(database, 'radar_alerts'), limitToLast(50));
     const unsub = onValue(
-      alertsRef,
+      alertsQuery,
       (snapshot) => {
         try {
           const rawData = snapshot.val();

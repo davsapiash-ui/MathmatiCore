@@ -69,6 +69,24 @@ export interface TelemetryEvent {
   };
 }
 
+/**
+ * Monotonic progress updater function for highestCompletedMeeting.
+ * Ensures meeting progress moves strictly forward (monotonic).
+ * Returns the new meeting number if it is higher than currentVal, otherwise returns undefined (aborts / no-op in Firebase runTransaction).
+ * If currentVal is corrupt / NaN / invalid, logs a warning and falls back to 0 so new progress can heal the node.
+ */
+export function calculateMonotonicMeetingUpdate(currentVal: any, newMeeting: number): number | undefined {
+  let currentNum = typeof currentVal === 'number' ? currentVal : (currentVal ? Number(currentVal) : 0);
+  if (Number.isNaN(currentNum)) {
+    console.warn(`[FirebaseSyncService] Invalid non-numeric highestCompletedMeeting detected in DB:`, currentVal);
+    currentNum = 0;
+  }
+  if (newMeeting > currentNum) {
+    return newMeeting;
+  }
+  return undefined;
+}
+
 export class FirebaseSyncService {
   private static instance: FirebaseSyncService;
   private unsubscribeWorkspace: (() => void) | null = null;
@@ -566,7 +584,7 @@ export class FirebaseSyncService {
 
     await update(ref(database, `users/students/${studentId}`), {
       ...studentOverridePayload,
-      workspaceState: { isASD },
+      'workspaceState/isASD': isASD,
     }).catch((err) => {
       console.error(`[FirebaseSyncService] Failed to sync physical override for ${studentId}:`, err);
       throw err;
@@ -749,22 +767,34 @@ export class FirebaseSyncService {
     if (!studentId) return;
     const normId = normalizeStudentId(studentId);
     await update(ref(database, `users/students/${normId}/sessionState`), sessionState as any).catch((err) => {
-      console.warn(`[FirebaseSyncService] Failed to sync sessionState for ${normId}:`, err);
+      console.warn(`[FirebaseSyncService] Failed to sync sessionState for ${normId}, enqueuing to offline queue:`, err);
+      indexedDBQueue.enqueue(`users/students/${normId}/sessionState`, sessionState).catch(console.error);
     });
   }
 
   public async syncHighestCompletedMeeting(studentId: string, meeting: number): Promise<void> {
-    if (!studentId) return;
+    if (!studentId || typeof meeting !== 'number') return;
     const normId = normalizeStudentId(studentId);
-    await update(ref(database, `users/students/${studentId}`), { highestCompletedMeeting: meeting }).catch(console.error);
+
+    const updateNode = async (id: string) => {
+      const meetingRef = ref(database, `users/students/${id}/highestCompletedMeeting`);
+      await runTransaction(meetingRef, (currentVal) => {
+        return calculateMonotonicMeetingUpdate(currentVal, meeting);
+      }).catch((err) => {
+        console.error(`[FirebaseSyncService] runTransaction failed for highestCompletedMeeting on ${id}:`, err);
+      });
+    };
+
+    await updateNode(studentId);
     if (normId !== studentId) {
-      await update(ref(database, `users/students/${normId}`), { highestCompletedMeeting: meeting }).catch(console.error);
+      await updateNode(normId);
     }
   }
 
   public async syncMeeting2Complete(studentId: string): Promise<void> {
     if (!studentId) return;
     const normId = normalizeStudentId(studentId);
+    await this.syncHighestCompletedMeeting(studentId, 2);
     await update(ref(database, `users/students/${studentId}`), { completedMeeting2: true }).catch(console.error);
     if (normId !== studentId) {
       await update(ref(database, `users/students/${normId}`), { completedMeeting2: true }).catch(console.error);

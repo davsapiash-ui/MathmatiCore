@@ -49,6 +49,28 @@ import { ProjectorWaitingScreen } from '@/presentation/components/student/Projec
 import { ReinforcementOrChallengeScreen } from './overlays/ReinforcementOrChallengeScreen';
 
 /**
+ * Evaluates whether the local device is superseded by another remote device based on direct ownership in DB.
+ * Returns isSuperseded=true if the remote device ID exists and does not match the local device ID.
+ * Fail-safe: if remote device is present in DB and local device ID is missing or mismatched, locks the device.
+ */
+export function evaluateDeviceOwnership(remoteDevId?: string | null, myDevId?: string | null): { isSuperseded: boolean } {
+  if (remoteDevId && remoteDevId !== myDevId) {
+    return { isSuperseded: true };
+  }
+  return { isSuperseded: false };
+}
+
+/**
+ * Guard function to prevent any workspace state or telemetry writes if device is superseded or unauthenticated.
+ */
+export function canWriteWorkspaceData(uid: string | null | undefined, isSuperseded: boolean): boolean {
+  if (!uid || isSuperseded) {
+    return false;
+  }
+  return true;
+}
+
+/**
  * מרחב הפעילות של התלמיד — חוויית מסך מלא ממוקדת (100vh, ללא גלילה, ללא טיימרים).
  * פריסה לפי מקור האמת הוונילי: כרטיס משימה (ימין) / טבלת ערך המקום (שמאל), 50/50.
  */
@@ -139,11 +161,13 @@ export function StudentWorkspacePage() {
   const currentDeviceIdRef = useRef<string>(
     `dev_${Math.random().toString(36).substring(2, 9)}_${Date.now()}`
   );
+  const isSupersededRef = useRef<boolean>(false);
 
   useEffect(() => {
     if (!normUid) return;
     const myDevId = currentDeviceIdRef.current;
     const myClaimTime = Date.now();
+    isSupersededRef.current = false;
     useWorkspaceStore.getState().setActiveDeviceId(myDevId);
     useWorkspaceStore.getState().setSupersededByOtherDevice(false);
 
@@ -153,7 +177,7 @@ export function StudentWorkspacePage() {
       device_claimed_at: myClaimTime,
     }).catch(console.error);
 
-    // 2. Real-time listener: Detect if a NEWER device took over ownership
+    // 2. Real-time listener: Detect if another device took over ownership in DB
     const studentNodeRef = ref(database, `users/students/${normUid}`);
     const unsubDevice = onValue(
       studentNodeRef,
@@ -161,14 +185,24 @@ export function StudentWorkspacePage() {
         if (snap.exists()) {
           const val = snap.val();
           const remoteDevId = val?.active_device_id;
-          const remoteClaimTime = val?.device_claimed_at || 0;
 
-          // Only lock if another newer device explicitly claimed ownership after our claim
-          if (remoteDevId && remoteDevId !== myDevId && remoteClaimTime > myClaimTime) {
+          // Direct ownership check: if the active device recorded in DB is not me, I am locked
+          const ownership = evaluateDeviceOwnership(remoteDevId, myDevId);
+          if (ownership.isSuperseded) {
+            isSupersededRef.current = true;
             useWorkspaceStore.getState().setSupersededByOtherDevice(true);
             canvasRecorder.stopRecording().catch(console.error);
+            try {
+              onDisconnect(ref(database, `users/students/${normUid}/isOnline`)).cancel();
+              onDisconnect(ref(database, `users/students/${normUid}/lastPing`)).cancel();
+            } catch {}
           } else if (remoteDevId === myDevId) {
+            isSupersededRef.current = false;
             useWorkspaceStore.getState().setSupersededByOtherDevice(false);
+            try {
+              onDisconnect(ref(database, `users/students/${normUid}/isOnline`)).set(false);
+              onDisconnect(ref(database, `users/students/${normUid}/lastPing`)).set(0);
+            } catch {}
           }
         }
       },
@@ -235,7 +269,7 @@ export function StudentWorkspacePage() {
   // Sync workspace state and vector replays continuously to Firebase RTDB
   useEffect(() => {
     const uid = normUid;
-    if (!uid) return;
+    if (!canWriteWorkspaceData(uid, isSupersededRef.current)) return;
 
     const totalBlocks = (counts.units || 0) + (counts.tens || 0) + (counts.hundreds || 0) + (counts.thousands || 0);
     const hasInteracted = totalBlocks > 0 || Object.values(answerDigits || {}).some(Boolean);
@@ -447,7 +481,11 @@ export function StudentWorkspacePage() {
       if (snap.exists()) {
         const val = snap.val();
         if (val?.forceReload === true) {
-          update(studentRef, { forceReload: null, isOnline: false, lastPing: 0 }).catch(() => {});
+          if (canWriteWorkspaceData(normUid, isSupersededRef.current)) {
+            update(studentRef, { forceReload: null, isOnline: false, lastPing: 0 }).catch(() => {});
+          } else {
+            update(studentRef, { forceReload: null }).catch(() => {});
+          }
           useWorkspaceStore.getState().resetWorkspace?.();
           window.location.href = '/hub';
         }
@@ -458,10 +496,8 @@ export function StudentWorkspacePage() {
 
   // --- Module 18: Live Presence Heartbeat & Session Sync (5s interval, 60s server window) ---
   useEffect(() => {
-    const uid = user?.uid;
-    if (!uid) return;
-    const normId = normalizeStudentId(uid);
-    const studentPresenceRef = ref(database, `users/students/${normId}`);
+    if (!normUid) return;
+    const studentPresenceRef = ref(database, `users/students/${normUid}`);
     
     const presencePayload = {
       isOnline: true,
@@ -478,18 +514,22 @@ export function StudentWorkspacePage() {
     // Set immediate online heartbeat and onDisconnect hook
     update(studentPresenceRef, presencePayload).catch(() => {});
     try {
-      onDisconnect(ref(database, `users/students/${normId}/isOnline`)).set(false);
-      onDisconnect(ref(database, `users/students/${normId}/lastPing`)).set(0);
+      onDisconnect(ref(database, `users/students/${normUid}/isOnline`)).set(false);
+      onDisconnect(ref(database, `users/students/${normUid}/lastPing`)).set(0);
     } catch {
       // ignore offline mock disconnect
     }
 
     const handleBeforeUnload = () => {
-      update(studentPresenceRef, { isOnline: false, lastPing: 0 }).catch(() => {});
+      if (canWriteWorkspaceData(normUid, isSupersededRef.current)) {
+        update(studentPresenceRef, { isOnline: false, lastPing: 0 }).catch(() => {});
+      }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
 
     const interval = setInterval(() => {
+      if (!canWriteWorkspaceData(normUid, isSupersededRef.current)) return;
+
       update(studentPresenceRef, {
         isOnline: true,
         lastPing: Date.now(),
@@ -503,9 +543,11 @@ export function StudentWorkspacePage() {
     return () => {
       clearInterval(interval);
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      update(studentPresenceRef, { isOnline: false, lastPing: 0 }).catch(() => {});
+      if (canWriteWorkspaceData(normUid, isSupersededRef.current)) {
+        update(studentPresenceRef, { isOnline: false, lastPing: 0 }).catch(() => {});
+      }
     };
-  }, [user?.uid, meeting, isASDMode]);
+  }, [normUid, meeting, isASDMode]);
 
   const isAdditionBoardEnabled = liveAdditionBoardEnabled ?? (myData?.additionBoardEnabled ?? false);
 
