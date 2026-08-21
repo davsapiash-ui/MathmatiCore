@@ -490,10 +490,10 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
             studentId: normUid,
             classId: row.classId ?? existingLocal?.classId ?? 'live',
             name: cleanName,
-            isOnline: row.isOnline === true,
-            lastPing: row.lastPing || 0,
-            lastActivityTimestamp: row.lastActivityTimestamp || 0,
-            lastAction: row.lastAction || 'לא מחובר',
+            isOnline: Boolean(row.isOnline === true || row.onlineStatus === 'active' || (existingLocal as any)?.isOnline === true),
+            lastPing: Math.max(row.lastPing || 0, (existingLocal as any)?.lastPing || 0),
+            lastActivityTimestamp: Math.max(row.lastActivityTimestamp || 0, (existingLocal as any)?.lastActivityTimestamp || 0),
+            lastAction: (row.isOnline ? row.lastAction : (existingLocal as any)?.lastAction) || row.lastAction || (existingLocal as any)?.lastAction || 'לא מחובר',
             hasJoinedSession: row.hasJoinedSession === true || row.sessionJoined === true,
             highestCompletedMeeting: typeof row.highestCompletedMeeting === 'number' 
               ? row.highestCompletedMeeting 

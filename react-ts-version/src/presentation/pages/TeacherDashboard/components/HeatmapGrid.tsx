@@ -173,11 +173,29 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
         for (let i = 0; i < 12; i++) {
           const studentNum = i + 1;
           const uid = `student_${studentNum}`;
-          const data = rawData[uid] || rawData[`slot_${studentNum}`] || rawData[`student_user${studentNum}`] || {};
+          
+          // Gather all possible alias keys for this student slot
+          const userKey = `student_user${studentNum}`;
+          const numKey = String(studentNum);
+          const slotKey = `slot_${studentNum}`;
+          const stdKey = `student_${studentNum}`;
+          
+          const userObj = rawData[userKey] || {};
+          const stdObj = rawData[stdKey] || {};
+          const numObj = rawData[numKey] || {};
+          const slotObj = rawData[slotKey] || {};
+
+          // Prioritize the live/online candidate
+          const candidates = [userObj, stdObj, numObj, slotObj];
+          const onlineCandidate = candidates.find(c => c.isOnline === true || c.onlineStatus === 'active');
+          const freshestCandidate = [...candidates].sort((a, b) => (b.lastPing || 0) - (a.lastPing || 0))[0];
+          
+          const primary = onlineCandidate || freshestCandidate || userObj || stdObj || {};
+          const data = { ...numObj, ...slotObj, ...stdObj, ...userObj, ...primary };
           
           // Robust presence check:
-          // 1. Is online flag set in RTDB?
-          // 2. Or is there fresh activity within a tolerant 60-second window (handling cross-computer clock skew)?
+          // 1. Is online flag set in RTDB on any variant?
+          // 2. Or is there fresh activity within a tolerant 60-second window?
           const lastPing = data.lastPing || data.lastActivityTimestamp || 0;
           const hasJoinedSession = Boolean(lastPing > 0 || data.hasJoinedSession || data.sessionJoined);
           const isHeartbeatFresh = lastPing > 0 && Math.abs(now - lastPing) <= 60000;
@@ -201,13 +219,11 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
           const rawSessionNum = wsState.sessionNumber || sessionState.session_number || (data.highestCompletedMeeting ? data.highestCompletedMeeting + 1 : 1);
           const sessionNumber = Math.min(8, Math.max(1, Number(rawSessionNum) || 1));
 
-          let lastAction = 'שיעור לא פעיל';
-          if (isClassSessionActive) {
-            if (isOnline) {
-              lastAction = data.lastAction || (isSocraticActive ? 'כרטיס חניכה סוקרטי פעיל' : hesitationSeconds >= 45 ? 'היסוס מעל 45 שניות בטור הפעיל' : 'פעיל בלמידה עצמאית');
-            } else {
-              lastAction = hasJoinedSession ? 'יצא מהחלון' : 'לא מחובר';
-            }
+          let lastAction = 'לא מחובר';
+          if (isOnline) {
+            lastAction = data.lastAction || (isSocraticActive ? 'כרטיס חניכה סוקרטי פעיל' : hesitationSeconds >= 45 ? 'היסוס מעל 45 שניות בטור הפעיל' : 'פעיל בלמידה');
+          } else {
+            lastAction = hasJoinedSession ? 'יצא מהחלון' : 'לא מחובר';
           }
 
           updated[i] = {
@@ -457,12 +473,8 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
                     תלמיד {student.studentNumber}
                   </span>
                   
-                  {/* Status Icon - Deterministic Precedence: RED > GREY > YELLOW > GREEN */}
-                  {!isClassSessionActive ? (
-                    <span className="inline-flex items-center gap-1 bg-slate-400 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="שיעור לא פעיל">
-                      שיעור לא פעיל
-                    </span>
-                  ) : student.isSocraticActive ? (
+                  {/* Status Icon - Deterministic Precedence: SOCRATIC > OFFLINE > HESITATION > ONLINE/ACTIVE */}
+                  {student.isSocraticActive ? (
                     <span className="inline-flex items-center gap-1 bg-rose-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm animate-pulse" title="חניכה סוקרטית פעילה">
                       <ShieldAlert className="w-3 h-3" />
                       סוקרטי
@@ -470,6 +482,11 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
                   ) : !student.isOnline ? (
                     <span className="inline-flex items-center gap-1 bg-slate-400 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title={student.lastAction === 'יצא מהחלון' ? 'יצא מהחלון' : 'לא מחובר'}>
                       {student.lastAction === 'יצא מהחלון' ? 'יצא מהחלון' : 'מנותק'}
+                    </span>
+                  ) : !isClassSessionActive ? (
+                    <span className="inline-flex items-center gap-1 bg-emerald-600 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="מחובר בלובי">
+                      <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                      מחובר
                     </span>
                   ) : student.hesitationSeconds >= 45 ? (
                     <span className="inline-flex items-center gap-1 bg-amber-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="היסוס > 45 שניות">
