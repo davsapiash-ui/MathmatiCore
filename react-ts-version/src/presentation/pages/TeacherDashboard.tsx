@@ -1728,6 +1728,14 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                 <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">
                                   תלמיד {sNum}
                                 </h3>
+                                <span className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full border ${
+                                  s.isOnline
+                                    ? 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300'
+                                    : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400'
+                                }`}>
+                                  <span className={`w-2 h-2 rounded-full ${s.isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+                                  {s.isOnline ? 'מחובר כעת' : 'לא מחובר'}
+                                </span>
                                 {s.physicalOverride && (
                                   <span className="bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 text-xs font-bold px-2.5 py-1 rounded-full border border-purple-200 dark:border-purple-800">
                                     עקיפה פיזית פעילה
