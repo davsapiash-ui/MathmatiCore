@@ -27,7 +27,11 @@ service cloud.firestore {
     function isOwningStudent(studentId) {
       return isAuthenticated() && (
         'student_id' in request.auth.token && 
-        (request.auth.token.student_id == studentId || string(request.auth.token.student_id) == string(studentId))
+        (request.auth.token.student_id == studentId ||
+         string(request.auth.token.student_id) == string(studentId) ||
+         'student_user' + string(request.auth.token.student_id) == string(studentId) ||
+         'student_' + string(request.auth.token.student_id) == string(studentId) ||
+         'user' + string(request.auth.token.student_id) == string(studentId))
       );
     }
 
