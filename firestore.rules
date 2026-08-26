@@ -267,7 +267,8 @@ service cloud.firestore {
     match /audit_logs/{logId} {
       allow read: if isTeacher() || isAdmin();
       allow create: if isTeacher() || isAdmin() || isOwningStudent(string(request.resource.data.user_id));
-      allow update, delete: if false;
+      allow update: if false;
+      allow delete: if isAdmin();
     }
 
     // SRL Reflections (Module 16 — Session 8 Reflection)
