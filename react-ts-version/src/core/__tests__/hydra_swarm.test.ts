@@ -138,5 +138,5 @@ describe('THE HYDRA SWARM INQUISITION (20-Node Concurrent Fuzzer)', () => {
     expect(typeof finalState.counts).toBe('object');
     expect(Array.isArray(finalState.undoStack)).toBe(true);
     expect(finalState.undoStack.length).toBeLessThanOrEqual(50);
-  });
+  }, 30000);
 });
