@@ -256,19 +256,12 @@ service cloud.firestore {
 
     match /radar_alerts/{alertId} {
       allow read: if isTeacher() || isAdmin();
-      allow create: if isTeacher() || isAdmin() ||
-                       (isOwningStudent(string(request.resource.data.student_id)) &&
-                        (alertId.matches('student_user' + string(request.auth.token.student_id) + '(_.*)?') ||
-                         alertId.matches('student_' + string(request.auth.token.student_id) + '(_.*)?')));
-      allow update: if false;
-      allow delete: if isTeacher() || isAdmin();
+      allow write: if isAdmin();
     }
 
     match /audit_logs/{logId} {
       allow read: if isTeacher() || isAdmin();
-      allow create: if isTeacher() || isAdmin() || isOwningStudent(string(request.resource.data.user_id));
-      allow update: if false;
-      allow delete: if isAdmin();
+      allow write: if isAdmin();
     }
 
     // SRL Reflections (Module 16 — Session 8 Reflection)

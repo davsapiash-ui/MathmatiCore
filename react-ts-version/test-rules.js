@@ -562,6 +562,37 @@ async function runFirestoreRulesTest() {
     console.error(`❌ FAILED: Non-existent document approval block failed:`, err);
   }
 
+  // --- TEST 21: Student attempts to write to /radar_alerts (MUST FAIL 403) ---
+  testCount++;
+  console.log(`\n[TEST 21: RADAR_ALERTS LOCK-DOWN] Student attempts to write to /radar_alerts/student_2...`);
+  try {
+    await assertFails(setDoc(doc(dbStudent2, 'radar_alerts', 'student_2'), {
+      student_id: 2,
+      timestamp: Date.now(),
+      type: 'HESITATION',
+      message: 'Help needed'
+    }));
+    console.log(`✅ PASSED (403 PERMISSION_DENIED): Student write to /radar_alerts strictly blocked!`);
+    passedCount++;
+  } catch (err) {
+    console.error(`❌ FAILED: Student write to /radar_alerts was NOT blocked:`, err);
+  }
+
+  // --- TEST 22: Student attempts to write to /audit_logs (MUST FAIL 403) ---
+  testCount++;
+  console.log(`\n[TEST 22: AUDIT_LOGS LOCK-DOWN] Student attempts to write to /audit_logs/audit_s2_01...`);
+  try {
+    await assertFails(setDoc(doc(dbStudent2, 'audit_logs', 'audit_s2_01'), {
+      user_id: 'student_2',
+      action: 'LOGIN',
+      timestamp: Date.now()
+    }));
+    console.log(`✅ PASSED (403 PERMISSION_DENIED): Student write to /audit_logs strictly blocked!`);
+    passedCount++;
+  } catch (err) {
+    console.error(`❌ FAILED: Student write to /audit_logs was NOT blocked:`, err);
+  }
+
   // Cleanup test environment
   await testEnv.cleanup();
 

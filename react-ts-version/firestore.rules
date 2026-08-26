@@ -241,13 +241,13 @@ service cloud.firestore {
     }
 
     match /radar_alerts/{alertId} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated();
+      allow read: if isTeacher() || isAdmin();
+      allow write: if isAdmin();
     }
 
     match /audit_logs/{logId} {
       allow read: if isTeacher() || isAdmin();
-      allow write: if isAuthenticated();
+      allow write: if isAdmin();
     }
 
     // SRL Reflections (Module 16 — Session 8 Reflection)
