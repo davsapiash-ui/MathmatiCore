@@ -1,6 +1,6 @@
 # מסמך דרישות מוצר (PRD Master) — פלטפורמת הלמידה ההיברידית מתמטיקאור (MathematiCore)
 
-**Version 6.5 — Master Production Spec | Date: August 20, 2026**
+**Version 6.6 — Master Production Spec | Date: August 23, 2026**
 
 ---
 
@@ -9,7 +9,7 @@
 - מודול 1: מודול כניסה והזדהות (Student & Teacher Login Pipelines)
 - מודול 2: מודול מיתוג תפקידים (Role Switching & Route Guards)
 - מודול 3: מודול אבטחה ואנונימיזציה (PII Filter & Server Validation)
-- מודול 4: סכמת אוספי בסיס הנתונים (Firestore Collections Schema Spec)
+- מודול 4: סכמת בסיסי הנתונים והארכיטקטורה ההיברידית (Database Architecture & Schemas Spec)
 - מודול 5: סכמת נתוני מיקרו פעילות (Telemetry Payload & TS Contracts)
 - מודול 6: מודול לובי התלמיד (Student Hub Spec)
 - מודול 7: מודול לוח בית המספרים הדיגיטלי (Place Value Chart Engine)
@@ -108,29 +108,39 @@ Implement a fail-closed PII filter for transmission: if the PII detection logic 
 
 ---
 
-## מודול 4: סכמת אוספי בסיס הנתונים (Firestore Collections Schema Spec)
+## מודול 4: סכמת בסיסי הנתונים והארכיטקטורה ההיברידית (Database Architecture & Schemas Spec)
 
-### א. מבנה האוספים והסכמה הקשיחה
-- **הטריגר הפדגוגי:** הגדרת תשתית נתונים אנונימית הרמטית המונעת זיהוי של הלומדים ושומרת על פרטיותם המלאה.
-- **מצב המערכת:** השרת הוא מקור האמת היחיד והמוחלט. המערכת מאבטחת ואוכפת את מבנה הטבלאות באופן קשיח. הפרדה לוגית בין `classes`, `students`, `sessions`, `workspace_states`, `telemetry_logs`, ו-`interventions`. הפרדת session/workspace state מ-student identity נועדה למנוע זליגת הקשר.
-- **נתיבי הנתונים המורשים:**
-  - נתונים כיתתיים/ציבוריים: `/artifacts/{appId}/public/data/{collectionName}`
-  - נתונים פרטיים: `/artifacts/{appId}/users/{userId}/{collectionName}`
+### א. מבנה האוספים וארכיטקטורת שני בסיסי הנתונים
+- **הטריגר הפדגוגי:** הגדרת תשתית נתונים אנונימית הרמטית המונעת זיהוי של הלומדים, שומרת על פרטיותם ומבטיחה ביצועי זמן אמת ללא השהיות.
+- **מצב המערכת:** המערכת פועלת בארכיטקטורה היברידית ייעודית המשלבת שני בסיסי נתונים של Firebase, לצד קבועי קוד קשיחים:
+  1. **Firebase Realtime Database (RTDB) — שכבת זמן-אמת וסנכרון פעילות שוטפת:**
+     - `users/students/{studentId}`: סנכרון מצב מרחב העבודה ו-Presence של התלמיד בזמן אמת (`lastAction`, `activeBranch`, `isOnline`, `lastPing`, תרגיל נוכחי).
+     - `chat_messages/{roomId}`: תקשורת צ'אט מהירה בזמן אמת בין תלמיד למורה.
+     - `active_class_session`: שידור מצב סשן פעיל ומצב מקרן כיתתי (`projector_mode`).
+  2. **Cloud Firestore — שכבת מסמכים קנוניים, הרשאות ואופליין:**
+     - `sessions`: מסמכי מפגש קבועים ושער אישור מורה (`teacher_gate_approved`, `matrix_recommended_path`, `session_score_percent`).
+     - `authorizedTeachers`: אימות והרשאות מורים ומנהלים (Google SSO Whitelist).
+     - `telemetry_logs`: שמירת מטעני טלמטריה מוקלדים המסונכרנים מתור האופליין (IndexedDB).
+     - `system_control`: ניהול הגדרות וכיול רדאר פדגוגי (סף היסוס וסף מחיקות).
+     - `support_tickets`: ניהול פניות תמיכה אנונימיות למערכת.
+     - `messages`: ארכיון הודעות שיח מורה-הנהלה (Zero PII).
+  3. **קבועי קוד קשיחים (In-Code Constants — ללא תלות ב-Firestore):**
+     - קטלוג תוכנית הלימודים (`SESSIONS_CURRICULUM_CATALOG`) מוגדר כקבוע קוד קשיח בצד הלקוח (אינו collection במסד הנתונים), ומבטיח טעינה מיידית של משימות 1–8 ועמידות מלאה באופליין.
 
 ### ב. מדיניות סנכרון וביצועים (Real-Time Synchronization & Performance Spec)
 - **הטריגר הפדגוגי:** מניעת תסכול קוגניטיבי ושמירה על רציפות הלמידה באמצעות עדכונים מהירים ורכים.
-- **מצב המערכת:** Realtime interaction is local-first and event-driven. הממשק מגיב מיידית בצד הלקוח (יעד תגובה מצב מקומי ≤50ms); השרת מקבל רק אירועים לוגיים שנבחרו לפי חוזה Telemetry (יעד ביצועים P95 ≤ 150ms).
+- **מצב המערכת:** Realtime interaction is local-first and event-driven. הממשק מגיב מיידית בצד הלקוח (יעד תגובה מצב מקומי ≤50ms); שרתי ה-RTDB ו-Firestore מקבלים רק אירועים לוגיים שנבחרו לפי חוזה Telemetry (יעד ביצועים P95 ≤ 150ms).
 - **אירוע המשתמש:** פעולה לוגית בממשק.
 - **התוצאה הצפויה:** סנכרון נתונים אסינכרוני, מבוסס אירועים בלבד. אין לשדר תנועות עכבר, גרירות רציפות או שינויי פיקסלים.
 
 ### ג. הנחיות פיתוח נוקשות (Strict Developer Instructions)
-Define Firestore schemas with absolute rigidity.
+Define hybrid Firebase architecture with absolute rigidity. Use Realtime Database for live student workspace telemetry, presence heartbeat, real-time chat, and active class projector broadcasting (`active_class_session`). Use Cloud Firestore for canonical session documents (`sessions`), teacher gate approvals, authorized teacher whitelists (`authorizedTeachers`), offline queue persistence (`telemetry_logs`), system calibration (`system_control`), support tickets (`support_tickets`), and admin messages (`messages`). Maintain master curriculum definitions as hardcoded client-side constants (`SESSIONS_CURRICULUM_CATALOG`) to guarantee zero-latency offline availability.
 
-Classes collection must contain strictly: `school_id`, `class_name`, `class_type` (fields set during initial class creation — see Module 25; the full `ClassDocument` also carries `active_session_id`, `projector_mode`, `projector_mode_updated_at`, `updated_by_teacher_id`, populated by Module 15).
+Classes collection in Firestore must contain strictly: `school_id`, `class_name`, `class_type`, `active_session_id`, `projector_mode`, `projector_mode_updated_at`, `updated_by_teacher_id`.
 
-Students collection must contain strictly: `student_id` (1-12), `class_id`, `school_id`, `created_at`, `support_profile_id`, `support_profile_version`, `support_profile_updated_at`, `support_profile_updated_by`, `active_session_id`. **(v6.1: this is now the single canonical field list — it replaces the three partially-conflicting lists that existed across Module 4, Module 19 and Appendix A in v6.0. `teacher_approval_status` was removed: it was never read or written by any workflow in this spec — the actual approval gate lives exclusively on `SessionDocument.teacher_gate_approved`, see Module 20.)**
+Students collection must contain strictly: `student_id` (1-12), `class_id`, `school_id`, `created_at`, `support_profile_id`, `support_profile_version`, `support_profile_updated_at`, `support_profile_updated_by`, `active_session_id`.
 
-Restrict write operations strictly via Firestore Security Rules. Latency target P95 ≤ 150ms.
+Restrict write operations strictly via Firebase Security Rules (Firestore Rules and RTDB Rules). Latency target P95 ≤ 150ms.
 
 ---
 
@@ -292,7 +302,7 @@ Enforce rigid JSON schema validation for the Gemini API exchange matching `Gemin
 מניעת עומס קוגניטיבי ושמירה על החוסן הרגשי של תלמידי כיתה ג' באמצעות הגבלת זמן העבודה העצמאית בהתאם לסוג המפגש. עידוד סוכנות הלמידה באמצעות בחירה אקטיבית בין נתיב ביסוס לנתיב אתגר.
 
 ### ב. מצב המערכת
-השרת הוא מקור האמת היחיד והמוחלט עבור זמן המפגש ומצב התרגיל הפעיל. השרת מנהל: `session_start_time`, `session_deadline_time`, `active_exercise_id`, `session_state`, `active_session_id`.
+השרת הוא מקור האמת היחיד והמוחלט עבור זמן המפגש ומצב התרגיל הפעיל. השרת מנהל: `session_start_time`, `session_deadline_time`, `active_exercise_id`, `active_session_id`, `is_completed`.
 - מפגשים 3–7: מוגבלים ל-15 דקות נטו של עבודה עצמאית.
 - מפגשים 2 ו-8: מוגבלים ל-25 דקות נטו של עבודה עצמאית.
 
@@ -721,7 +731,7 @@ Architect admin support ticketing dashboard to display incoming streams from tea
 - `IDLE`: הסביבה מוכנה, משימה טרם נטענה.
 - `PROBLEM_ACTIVE`: תרגיל נטען, קנבס ומקלדת פעילים.
 - `REGROUPING_ACTIVE`: אירוע המרה פעיל (צירוף עשר / פריטה). המקלדת ננעלת עד לאישור המרה מוצלח.
-- `SOCRATIC_ACTIVE`: טריגר היסוס (45 שנ') או מחיקות (4) הופעלו. מגירת החניכה נפתחת. תשובה שגויה נועלת לחצנים ל-60 שניות.
+- `SOCRATIC_ACTIVE`: טריגר היסוס (45 שנ') או מחיקות (4) הופעלו. מגירת החניכה נפתחת. תשובה שגויה נועלת לחצנים ל-30 שניות.
 - `COMPLETE`: התרגיל פותר בהצלחה, מעבר לתרגיל הבא או לשער האישור.
 
 ### ג. מעבר מצבים וסנכרון אופליין

@@ -41,7 +41,7 @@ describe('SECURITY RULES & REALTIME LISTENERS AUDIT & VERIFICATION', () => {
     });
 
     it('verifies database.rules.json contains the teacher security rule requiring licenseActive: false on creation', () => {
-      const rulesPath = resolve('c:/Users/david/Projects/MathmatiCore/database.rules.json');
+      const rulesPath = resolve(__dirname, '../../../../database.rules.json');
       const rulesContent = JSON.parse(readFileSync(rulesPath, 'utf-8'));
 
       const teacherRule = rulesContent.rules.users.teachers.$teacherId;
@@ -76,7 +76,7 @@ describe('SECURITY RULES & REALTIME LISTENERS AUDIT & VERIFICATION', () => {
     });
 
     it('verifies database.rules.json chat_messages rule checks auth.uid == $roomId for student access and parent .read requires teacher/admin token', () => {
-      const rulesPath = resolve('c:/Users/david/Projects/MathmatiCore/database.rules.json');
+      const rulesPath = resolve(__dirname, '../../../../database.rules.json');
       const rulesContent = JSON.parse(readFileSync(rulesPath, 'utf-8'));
 
       const parentChatRule = rulesContent.rules.chat_messages;

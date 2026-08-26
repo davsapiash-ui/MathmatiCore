@@ -12,7 +12,7 @@ interface SocraticDrawerProps {
 /**
  * SocraticDrawer (Modules 12–13: Socratic Dialogue Non-Modal Side Drawer)
  * Non-blocking: Canvas manipulations, undo, and keyboard remain 100% active while drawer is open.
- * The ONLY lockout is on the card choices for 60s upon picking an incorrect distractor.
+ * The ONLY lockout is on the card choices for 30s upon picking an incorrect distractor.
  */
 export function SocraticDrawer({ isOpen, onClose }: SocraticDrawerProps) {
   const helpState = useWorkspaceStore((s) => s.helpState);
@@ -51,22 +51,25 @@ export function SocraticDrawer({ isOpen, onClose }: SocraticDrawerProps) {
     if (isSocraticCardLocked || remainingSeconds > 0) return;
     setSelectedChoiceId(choice.id);
 
-    const isCorrect = choice.id === aiSocraticHint?.correctChoiceId;
+    const isCorrect = choice.isCorrect !== undefined 
+      ? choice.isCorrect 
+      : (choice.id === aiSocraticHint?.correctChoiceId);
 
     if (isCorrect) {
       setFeedbackMsg({
         isCorrect: true,
-        text: 'מצוין! זו בדיוק הדרך. בואו ננסה זאת עכשיו בבית המספרים!',
+        text: choice.feedbackHe || 'מצוין! זו בדיוק הדרך. בואו ננסה זאת עכשיו בבית המספרים!',
       });
       setTimeout(() => {
         handleClose();
       }, 2500);
     } else {
+      const feedbackText = choice.feedbackHe || 'בחירה זו אינה מתאימה. קחו רגע קצר לחשוב על בית המספרים, ותוכלו לנסות שוב בעוד מספר שניות.';
       setFeedbackMsg({
         isCorrect: false,
-        text: 'בחירה זו אינה מתאימה. קחו רגע קצר לחשוב על בית המספרים, ותוכלו לנסות שוב בעוד מספר שניות.',
+        text: feedbackText,
       });
-      triggerSocraticPenaltyLockout('בחירה שגויה בכרטיס סוקרטי — השהיית חשיבה למשך 30 שניות');
+      triggerSocraticPenaltyLockout(choice.feedbackHe || 'בחירה שגויה בכרטיס סוקרטי — השהיית חשיבה למשך 30 שניות');
     }
   };
 

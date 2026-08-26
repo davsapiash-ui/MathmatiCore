@@ -150,6 +150,43 @@ describe('Work Package 4 (WP4): Session Progression (1-8), Projector Sync & SRL 
       expect(choiceTask).toBeDefined();
       expect(choiceTask?.isOptionalChoiceTask).toBe(true);
     });
+
+    it('injects tailored subtraction branch tasks for Session 5 (חיסור ופריטה)', () => {
+      const store = useWorkspaceStore.getState();
+      store.initSession(5, false);
+
+      store.selectBranch('challenge');
+      const state = useWorkspaceStore.getState();
+      const lastTask = state.dynamicTasks?.[state.dynamicTasks.length - 1];
+
+      expect(lastTask?.isSubtraction).toBe(true);
+      expect(lastTask?.requiresUngrouping).toBe(true);
+      expect(lastTask?.branchType).toBe('challenge');
+    });
+
+    it('injects tailored zero placeholder branch tasks for Session 6 (אפס כשומר מקום)', () => {
+      const store = useWorkspaceStore.getState();
+      store.initSession(6, false);
+
+      store.selectBranch('reinforcement');
+      const state = useWorkspaceStore.getState();
+      const branchTasks = state.dynamicTasks?.filter(t => t.isOptionalChoiceTask) || [];
+
+      expect(branchTasks.length).toBeGreaterThan(0);
+      expect(branchTasks.some(t => t.numberA === 506 || t.numberA === 408)).toBe(true);
+    });
+
+    it('injects tailored multiplication branch tasks for Session 8 (כפל בעשרות שלמות)', () => {
+      const store = useWorkspaceStore.getState();
+      store.initSession(8, false);
+
+      store.selectBranch('challenge');
+      const state = useWorkspaceStore.getState();
+      const branchTasks = state.dynamicTasks?.filter(t => t.isOptionalChoiceTask) || [];
+
+      expect(branchTasks.length).toBeGreaterThan(0);
+      expect(branchTasks[0].targetNode).toBe('multiplication_base');
+    });
   });
 
   describe('3. Module 15: Classroom Projector & Broadcast Sync', () => {

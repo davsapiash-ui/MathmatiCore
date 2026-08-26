@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { SocraticEngine } from '@/infrastructure/services/SocraticEngine';
+import type { GeminiSocraticRequest } from '@/types';
 
 describe('Master PRD v5.0 Phase 3: Socratic Mentoring & Gemini Integration (Modules 12, 13)', () => {
   beforeEach(() => {
@@ -129,6 +130,77 @@ describe('Master PRD v5.0 Phase 3: Socratic Mentoring & Gemini Integration (Modu
       );
       expect(fallbackHint).not.toBeNull();
       expect(fallbackHint?.choices.length).toBe(3);
+    });
+
+    it('synthesizes grounded AI prompt and parses dynamic Socratic question with feedback via callGeminiSocraticProxy Cloud Function', async () => {
+      const mockGeminiResponse = {
+        hard_evidence_log: [
+          {
+            inspected_variable: "Current Blocks",
+            exact_value_found: "Units=14",
+            rule_triggered: "Rule 1: PENDING Objective Supremacy",
+            action_taken: "Processed regrouping requirement for addition task"
+          }
+        ],
+        final_intervention: {
+          guiding_question: 'שימו לב: ישנן 14 קוביות בטור היחידות. מה הצעד הבא שנרצה לבצע?',
+          options: [
+            { id: 'opt_1', text: 'נאסוף 10 יחידות ונמיר אותן לעשרת אחת בטור העשרות', feedback: 'נכון מאוד! כעת בצעו את הקיבוץ בלוח.', is_correct: true },
+            { id: 'opt_2', text: 'נמחק 4 יחידות לפח המחזור', feedback: 'מחיקת קוביות תשנה את הכמות הכוללת.', is_correct: false },
+            { id: 'opt_3', text: 'נרשום 14 במשבצת אחת', feedback: 'בכל משבצת מותרת רק ספרה בודדת.', is_correct: false }
+          ]
+        }
+      };
+
+      vi.spyOn(SocraticEngine, 'callGeminiProxy').mockResolvedValueOnce({
+        data: mockGeminiResponse
+      } as any);
+
+      const dynamicHint = await SocraticEngine.fetchGroundedGeminiSocraticQuery({
+        currentTask: { id: 's3_t1', titleHe: 'חיבור עם המרה' },
+        targetNode: 'regrouping_fluency',
+        activeColumnName: 'יחידות',
+        counts: { units: 14, tens: 2, hundreds: 1, thousands: 0 },
+        recentActions: ['השתהות 45s'],
+        qMatrixAnchor: {
+          questionHe: 'מה עושים שיש יותר מ-9 בלוקים?',
+          choices: [{ id: 'opt_1', textHe: 'קיבוץ' }, { id: 'opt_2', textHe: 'מחיקה' }, { id: 'opt_3', textHe: 'רישום' }]
+        }
+      });
+
+      expect(dynamicHint).not.toBeNull();
+      expect(dynamicHint?.questionHe).toBe('שימו לב: ישנן 14 קוביות בטור היחידות. מה הצעד הבא שנרצה לבצע?');
+      expect(dynamicHint?.choices).toHaveLength(3);
+      expect(dynamicHint?.choices[0].isCorrect).toBe(true);
+      expect(dynamicHint?.choices[0].feedbackHe).toContain('נכון מאוד');
+      expect(dynamicHint?.choices[1].feedbackHe).toContain('מחיקת קוביות');
+    });
+
+    it('explicitly simulates Cloud Function (callGeminiSocraticProxy) timeout/network error and asserts seamless fallback to static Q-Matrix anchor', async () => {
+      // Simulate Cloud Function internal failure / timeout
+      vi.spyOn(SocraticEngine, 'callGeminiProxy').mockRejectedValueOnce(new Error('DEADLINE_EXCEEDED: Cloud Function timed out after 3500ms'));
+
+      const request: GeminiSocraticRequest = {
+        student_id: 3,
+        session_id: 'session_03_student_3',
+        exercise_id: 's3_t1',
+        active_column_index: 0,
+        workspace_state: {
+          ones_count: 14,
+          tens_count: 2,
+          hundreds_count: 1,
+          memory_circles: {},
+        },
+        recent_actions: [],
+      };
+
+      const fallbackHint = await SocraticEngine.requestSocraticHintWithFallback(request, { id: 's3_t1' });
+
+      // Verifies that requestSocraticHintWithFallback caught the Cloud Function error and gracefully returned the Q-Matrix anchor
+      expect(fallbackHint).toBeDefined();
+      expect(fallbackHint.questionHe).toBeTruthy();
+      expect(fallbackHint.choices).toHaveLength(3);
+      expect(fallbackHint.correctChoiceId).toBeDefined();
     });
 
     it('never leaks PII in Socratic payload and strictly uses anonymous integer student ID', async () => {

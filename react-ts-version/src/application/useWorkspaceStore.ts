@@ -39,6 +39,7 @@ import { CurriculumRouter } from '@/core/CurriculumRouter';
 import { syncQMatrixEvaluation } from '@/core/ExerciseValidationEngine';
 import { QMatrixEvaluator } from '@/core/QMatrix';
 import { getSessionTasks, type SessionTask } from '@/data/sessionTasks';
+import { getSessionBranchTasks } from '@/data/sessionBranchTasks';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
 import { SocraticEngine, type SocraticHintResponse } from '@/infrastructure/services/SocraticEngine';
 import { ref, update, push } from 'firebase/database';
@@ -345,6 +346,9 @@ export function selectCanProceed(s: WorkspaceState): boolean {
   const task = selectStandardTask(s);
   if (!task) return false;
   if (task.type === 'session1_intro') {
+    if (task.id === 's1_sandbox_controlled') {
+      return s.blocksAddedCount >= 5 && s.hasDeletedBlock;
+    }
     if (task.correctAnswer === 'proceed_any' || !task.choices?.length) {
       return true;
     }
@@ -612,6 +616,19 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     };
 
     if (task.type === 'session1_intro') {
+      if (task.id === 's1_sandbox_controlled') {
+        if (s.blocksAddedCount < 5 || !s.hasDeletedBlock) {
+          handleFailure(
+            'sandbox_incomplete',
+            'עֲדַיִן לֹא הִשְׁלַמְתֶּם אֶת הַמְּשִׂימָה 🛠️',
+            'יֵשׁ לִגְרֹר לְפָחוֹת 5 פְּרִיטִים לְבֵית הַמִּסְפָּרִים וּלִמְחֹק לְפָחוֹת פְּרִיט אֶחָד (לַפַּח אוֹ מִחוּץ לַלּוּחַ).',
+            3500
+          );
+          return;
+        }
+        handleSuccess('כָּל הַכָּבוֹד! 🌟', 'הִשְׁלַמְתֶּם אֶת אִמּוּן אַרְגַּז הַחוֹל וְקִבַּלְתֶּם אֶת רִשְׁיוֹן הַחוֹקֵר!', 2500);
+        return;
+      }
       if (task.correctAnswer === 'proceed_any' || !task.choices?.length) {
         handleSuccess('מעולה! 🌟', 'ממשיכים הלאה.', 1500);
         return;
@@ -760,9 +777,22 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     const tasks = getActiveTasks(s);
     const nextIdx = s.standardTaskIdx + 1;
 
-    // Module 14: After completing 7 mandatory tasks in guided sessions (3..7), present Reinforcement vs Challenge choice
-    if (s.sessionNumber >= 3 && s.sessionNumber <= 7 && nextIdx === 7 && !s.selectedBranch) {
+    // Module 14: After completing mandatory tasks across all sessions (1..8), present Reinforcement vs Challenge choice if not yet branched
+    if (nextIdx >= tasks.length && !s.selectedBranch) {
       set({ flowStatus: 'choice_branch', awaitingNext: false });
+      const studentId = useAuthStore.getState().user?.uid;
+      if (studentId && !s.isSupersededByOtherDevice) {
+        const normId = normalizeStudentId(studentId);
+        const studentPayload = {
+          lastAction: 'השלים משימות חובה — בוחר מסלול (ביסוס/אתגר)',
+          lastActivityTimestamp: Date.now(),
+          onlineStatus: 'active',
+        };
+        update(ref(database, `users/students/${studentId}`), studentPayload).catch(console.error);
+        if (normId !== studentId) {
+          update(ref(database, `users/students/${normId}`), studentPayload).catch(console.error);
+        }
+      }
       return;
     }
 
@@ -1048,57 +1078,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     selectBranch: (branch: 'reinforcement' | 'challenge') => {
       const s = get();
       const currentTasks = getActiveTasks(s);
-      const branchTasks: SessionTask[] = branch === 'reinforcement' ? [
-        {
-          id: `branch_reinforce_${s.sessionNumber}_1`,
-          type: 'vertical_addition',
-          titleHe: 'משימת ביסוס 1 (רשות)',
-          instructionHe: 'פתרו את התרגיל הבא בבית המספרים:',
-          targetNode: 'q_matrix_q4_addition',
-          scaffoldLevel: 1,
-          numberA: 24,
-          numberB: 18,
-          isOptionalChoiceTask: true,
-          branchType: 'reinforcement',
-        },
-        {
-          id: `branch_reinforce_${s.sessionNumber}_2`,
-          type: 'vertical_addition',
-          titleHe: 'משימת ביסוס 2 (רשות)',
-          instructionHe: 'פתרו תרגיל נוסף לחיזוק:',
-          targetNode: 'q_matrix_q4_addition',
-          scaffoldLevel: 1,
-          numberA: 35,
-          numberB: 27,
-          isOptionalChoiceTask: true,
-          branchType: 'reinforcement',
-        }
-      ] : [
-        {
-          id: `branch_challenge_${s.sessionNumber}_1`,
-          type: 'vertical_addition',
-          titleHe: 'אתגר חשיבה 1 (רשות)',
-          instructionHe: 'אתגר במספרים תלת-ספרתיים:',
-          targetNode: 'q_matrix_q4_addition',
-          scaffoldLevel: 0,
-          numberA: 148,
-          numberB: 275,
-          isOptionalChoiceTask: true,
-          branchType: 'challenge',
-        },
-        {
-          id: `branch_challenge_${s.sessionNumber}_2`,
-          type: 'vertical_addition',
-          titleHe: 'אתגר חשיבה 2 (רשות)',
-          instructionHe: 'אתגר מסכם ברמת מורכבות גבוהה:',
-          targetNode: 'q_matrix_q4_addition',
-          scaffoldLevel: 0,
-          numberA: 389,
-          numberB: 456,
-          isOptionalChoiceTask: true,
-          branchType: 'challenge',
-        }
-      ];
+      const branchTasks = getSessionBranchTasks(s.sessionNumber, branch);
 
       set({
         selectedBranch: branch,
@@ -1107,6 +1087,23 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         flowStatus: 'task',
         awaitingNext: false,
       });
+
+      const studentId = useAuthStore.getState().user?.uid;
+      if (studentId && !s.isSupersededByOtherDevice) {
+        const normId = normalizeStudentId(studentId);
+        const branchLabel = branch === 'reinforcement' ? 'נתיב ביסוס 🛡️' : 'נתיב אתגר 🚀';
+        const studentPayload = {
+          activeBranch: branch,
+          lastAction: `בחר ${branchLabel} (משימות רשות)`,
+          lastActivityTimestamp: Date.now(),
+          onlineStatus: 'active',
+        };
+        update(ref(database, `users/students/${studentId}`), studentPayload).catch(console.error);
+        if (normId !== studentId) {
+          update(ref(database, `users/students/${normId}`), studentPayload).catch(console.error);
+        }
+      }
+
       startTask(branchTasks[0].id);
     },
 
@@ -1554,12 +1551,21 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           undo_clicks: s.undoCount,
           hesitation_events: s.hesitationCount,
         };
+
+        const recentActions = [
+          s.hesitationCount > 0 ? `השתהות ${s.hesitationTimerSeconds}s` : null,
+          s.undoCount > 0 ? `לחיצות ביטול: ${s.undoCount}` : null,
+          s.consecutiveErrorCount > 0 ? `שגיאות רצופות: ${s.consecutiveErrorCount}` : null,
+        ].filter(Boolean) as string[];
         
         const hint = await SocraticEngine.getSocraticHint(
           currentTask || {},
           targetNode,
           s.counts,
-          traceData
+          traceData,
+          false,
+          s.activeColumnIndex || 0,
+          recentActions
         );
         
         if (hint) {
@@ -1836,7 +1842,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const shouldOpenAddition = nextSec >= 30 && !state.isAdditionHelperOpen && state.sessionNumber !== 2;
 
         // Module 12: Trigger 1 — 45 seconds of hesitation triggers Socratic coach across ALL sessions
-        if (nextSec >= 45 && state.currentState !== 'SOCRATIC_ACTIVE' && !state.isSocraticCardLocked && state.sessionNumber !== 2) {
+        const currentTask = selectStandardTask(state);
+        const isSandbox = currentTask?.id === 's1_sandbox_controlled' || currentTask?.type === 'session1_intro';
+        if (nextSec >= 45 && state.currentState !== 'SOCRATIC_ACTIVE' && !state.isSocraticCardLocked && state.sessionNumber !== 2 && !isSandbox) {
           setTimeout(() => {
             get().fetchSocraticHint();
             set({ helpState: 'socratic', currentState: 'SOCRATIC_ACTIVE' });

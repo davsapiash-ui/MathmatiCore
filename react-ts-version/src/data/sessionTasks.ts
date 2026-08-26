@@ -191,7 +191,7 @@ export const SESSION3_TASKS: SessionTask[] = [
     type: 'addition_simple',
     numberA: 4890, numberB: 1750, correctAnswer: 6640,
     titleHe: 'המרה כפולה - גם וגם!',
-    instructionHe: 'תרגיל אתגר: 4890 + 1750. כאן תבצעו המרה גם בטור היחידות וגם בטור העשרות. בהצלחה!',
+    instructionHe: 'תרגיל אתגר: 4890 + 1750. כאן תבצעו המרה גם בטור העשרות וגם בטור המאות. בהצלחה!',
     requiresGrouping: true,
     targetNode: 'regrouping_fluency',
   },
@@ -557,9 +557,9 @@ export const SESSION7_TASKS: SessionTask[] = [
   {
     id: 's7_t3',
     type: 'missing_element',
-    numberA: 4500, numberB: 1500, correctAnswer: 6000,
-    titleHe: 'בעיית חקר: גילוי הספרה החסרה',
-    instructionHe: 'לפניכם תרגיל עם ספרה חסרה: 4,5__0 + 1,500 = 6,000. גלו מהי הספרה החסרה בטור העשרות!',
+    numberA: 4500, numberB: 6000, correctAnswer: 1500,
+    titleHe: 'בעיית חקר: גילוי המספר החסר',
+    instructionHe: 'לפניכם תרגיל: 4,500 + [ ? ] = 6,000. גלו מהו המספר החסר כדי להשלים את המשוואה!',
     targetNode: 'relational_thinking',
   },
   {

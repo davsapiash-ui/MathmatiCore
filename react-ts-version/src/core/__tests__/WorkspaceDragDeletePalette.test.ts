@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { useWorkspaceStore } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, selectCanProceed } from '@/application/useWorkspaceStore';
 import { resolveDrop, type DropInput } from '@/core/placeValue';
 
 describe('Workspace Drag-and-Drop & Trash Deletion Suite', () => {
@@ -97,5 +97,54 @@ describe('Workspace Drag-and-Drop & Trash Deletion Suite', () => {
     expect(useWorkspaceStore.getState().counts.tens).toBe(0);
     expect(useWorkspaceStore.getState().counts.units).toBe(10);
     expect(useWorkspaceStore.getState().hasUngrouped).toBe(true);
+  });
+
+  it('enforces that s1_sandbox_controlled requires BOTH 5 blocks added AND at least 1 deleted to proceed', () => {
+    const store = useWorkspaceStore.getState();
+    // Initially, cannot proceed
+    expect(selectCanProceed(useWorkspaceStore.getState())).toBe(false);
+
+    // Add 5 blocks from palette
+    for (let i = 0; i < 5; i++) {
+      store.applyDrop({
+        source: 'palette',
+        sourcePlace: 'tens',
+        target: { kind: 'column', place: 'tens' },
+      });
+    }
+    expect(useWorkspaceStore.getState().blocksAddedCount).toBe(5);
+    expect(useWorkspaceStore.getState().hasDeletedBlock).toBe(false);
+    // Still cannot proceed because deletion step is incomplete!
+    expect(selectCanProceed(useWorkspaceStore.getState())).toBe(false);
+
+    // Delete 1 block
+    store.applyDrop({
+      source: 'column',
+      sourcePlace: 'tens',
+      target: { kind: 'trash' },
+    });
+    expect(useWorkspaceStore.getState().hasDeletedBlock).toBe(true);
+
+    // Now BOTH steps are complete -> can proceed!
+    expect(selectCanProceed(useWorkspaceStore.getState())).toBe(true);
+  });
+
+  it('suppresses overcrowding Socratic hint during s1_sandbox_controlled even when > 9 blocks are in a column', async () => {
+    const { SocraticEngine } = await import('@/infrastructure/services/SocraticEngine');
+    const task = {
+      id: 's1_sandbox_controlled',
+      type: 'session1_intro',
+      titleHe: 'ארגז חול: אימון טכני',
+      instructionHe: 'גררו 5 פריטים ומחקו 1',
+    };
+
+    // 12 tens on the board during sandbox
+    const counts = { units: 1, tens: 12, hundreds: 1, thousands: 0 };
+    const hint = await SocraticEngine.getSocraticHint(task, 'general', counts);
+
+    expect(hint).toBeDefined();
+    // Must NOT ask about overcrowding (12 tens)
+    expect(hint?.questionHe).not.toContain('12 עשרות');
+    expect(hint?.questionHe).toContain('בוא נסתכל על רשימת המשימות שלנו בצד');
   });
 });

@@ -60,7 +60,7 @@ export function IntroTask({ task }: { task: SessionTask }) {
             </div>
           </div>
 
-          {(blocksAddedCount >= 5 || hasDeletedBlock) && (
+          {(blocksAddedCount >= 5 && hasDeletedBlock) && (
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}

@@ -89,6 +89,7 @@ export interface AnonymousStudent {
   isStruggling: boolean;
   isSocraticActive: boolean;
   lastAction?: string;
+  activeBranch?: 'reinforcement' | 'challenge' | null;
   isOnline?: boolean;
   isWaitingAtGate?: boolean;
   recommendedPath?: 'ירוק' | 'צמצום פערים';
@@ -243,6 +244,7 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
             data.teacher_gate_approved !== true
           );
           const recommendedPath: 'ירוק' | 'צמצום פערים' = (data.routeRecommendation === 'YELLOW' || sessionState.current_path === 'remediation_path') ? 'צמצום פערים' : 'ירוק';
+          const activeBranch = data.activeBranch || wsState.selectedBranch || null;
 
           updated[i] = {
             id: uid,
@@ -257,6 +259,7 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
             isStruggling,
             isSocraticActive,
             lastAction,
+            activeBranch,
             isOnline,
             isWaitingAtGate,
             recommendedPath,
@@ -610,6 +613,14 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
                     <span className="inline-flex items-center gap-1 bg-emerald-600 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="מחובר בלובי">
                       <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
                       מחובר
+                    </span>
+                  ) : student.activeBranch === 'challenge' ? (
+                    <span className="inline-flex items-center gap-1 bg-purple-600 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="מבצע משימות אתגר (לומד מהיר)">
+                      🚀 אתגר
+                    </span>
+                  ) : student.activeBranch === 'reinforcement' ? (
+                    <span className="inline-flex items-center gap-1 bg-emerald-700 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="מבצע משימות ביסוס">
+                      🛡️ ביסוס
                     </span>
                   ) : student.hesitationSeconds >= 45 ? (
                     <span className="inline-flex items-center gap-1 bg-amber-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="היסוס > 45 שניות">

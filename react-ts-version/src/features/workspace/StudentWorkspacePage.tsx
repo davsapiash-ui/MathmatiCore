@@ -400,7 +400,9 @@ export function StudentWorkspacePage() {
     isActive: true,
     onHesitationDetected: () => {
       const ws = useWorkspaceStore.getState();
-      if (ws.flowStatus === 'task') {
+      const currentTask = ws.sessionNumber === 2 ? null : getActiveTasks(ws)[ws.standardTaskIdx];
+      const isSandbox = currentTask?.id === 's1_sandbox_controlled' || currentTask?.type === 'session1_intro';
+      if (ws.flowStatus === 'task' && !isSandbox) {
         ws.setKeyboardSocratic();
       }
     }
@@ -817,7 +819,7 @@ export function StudentWorkspacePage() {
     return <ProjectorWaitingScreen />;
   }
 
-  // Module 14: Post-7 Mandatory Tasks Choice Point (Reinforcement vs Challenge)
+  // Module 14: Post-Mandatory Tasks Choice Point (Reinforcement vs Challenge)
   if (flowStatus === 'choice_branch') {
     return (
       <ReinforcementOrChallengeScreen
@@ -825,7 +827,7 @@ export function StudentWorkspacePage() {
           useWorkspaceStore.getState().selectBranch(branch);
         }}
         onSkipToFinish={() => {
-          useWorkspaceStore.setState({ flowStatus: 'sessionDone' });
+          useWorkspaceStore.setState({ flowStatus: 'reflection' });
         }}
       />
     );

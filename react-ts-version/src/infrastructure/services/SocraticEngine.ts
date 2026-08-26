@@ -55,15 +55,30 @@ const TASK_HINTS: Record<string, SocraticHintResponse> = {
   // This entry exists only as a fallback safety net
   's1_sandbox_controlled': {
     pedagogical_intent: "procedural",
-    tts_text: "גרור לפחות 5 פריטים לבית המספרים ומחק פריט אחד לפח המחזור.",
+    tts_text: "בוא נסתכל על רשימת המשימות שלנו בצד. איזו פעולה נשאר לנו לעשות כדי לעבור לשלב הבא?",
     suggested_highlight: "tour-place-value-board",
-    questionHe: "מה צריך לעשות כדי שכפתור 'התקדם' יידלק?",
+    questionHe: "בוא נסתכל על רשימת המשימות שלנו בצד. איזו פעולה נשאר לנו לעשות כדי לעבור לשלב הבא?",
     choices: [
-      { id: "opt_1", textHe: "לגרור לפחות 5 פריטים לבית המספרים ולמחוק פריט אחד לפח" },
-      { id: "opt_2", textHe: "להקליד מספר בתיבת התשובה" },
-      { id: "opt_3", textHe: "ללחוץ על כפתור סיום ישירות" }
+      {
+        id: "1",
+        textHe: "לגרור את אחד הפריטים מהלוח אל פח המחזור",
+        feedbackHe: "בדיוק! זו המשימה שעוד נשארה לנו כדי לסיים את האימון הטכני.",
+        isCorrect: true
+      },
+      {
+        id: "2",
+        textHe: "לקבץ 10 עשרות ולהמיר אותן למאה אחת",
+        feedbackHe: "זה נכון מבחינה מתמטית, אבל שים לב להוראות המשימה כרגע. אנחנו מתאמנים על שימוש בכלים במערכת, לא על פתרון תרגיל.",
+        isCorrect: false
+      },
+      {
+        id: "3",
+        textHe: "לגרור עוד פריטים לבית המספרים",
+        feedbackHe: "את המשימה הזו כבר סיימנו בהצלחה (מסומן לידה 'וי' ירוק). בדוק מה המשימה שעליה יש סימן שעון חול.",
+        isCorrect: false
+      }
     ],
-    correctChoiceId: "opt_1"
+    correctChoiceId: "1"
   },
 
   // Task: בניית מספרים עגולים — 420 = 4 מאות + 2 עשרות
@@ -807,6 +822,11 @@ export class SocraticEngine {
   ): SocraticHintResponse | null {
     if (!counts) return null;
 
+    // Sandbox / technical training or intro tasks must not trigger regrouping / arithmetic mentoring
+    if (currentTask?.id === 's1_sandbox_controlled' || currentTask?.type === 'session1_intro') {
+      return null;
+    }
+
     // 1. Overcrowding Check (>= 10 blocks in a column)
     if (counts.units >= 10) {
       return {
@@ -1050,12 +1070,157 @@ export class SocraticEngine {
   }
 
   /**
-   * Gemini Socratic Query API (Master PRD v5.0 Module 13)
-   * Strictly enforces:
-   * - System persona bound to 'Socratic Mentor' in digital VRA model.
-   * - Absolutely forbids direct answers or CRA terminology.
-   * - Rigid JSON Schema: { guiding_question: string, options: [{ id: "A", text: string }, { id: "B", text: string }, { id: "C", text: string }] }
-   * - Fallback to pre-defined static hints if API fails or times out (>5000ms).
+   * Grounded Hybrid Socratic Query via Gemini (Modules 12–13)
+   * Feeds both the Q-Matrix baseline reference and live board state into Gemini
+   * to generate a coherent, context-tailored Socratic question and 3 closed options.
+   */
+  static async fetchGroundedGeminiSocraticQuery(params: {
+    currentTask: any;
+    targetNode: string;
+    activeColumnName: string;
+    counts: { units: number; tens: number; hundreds: number; thousands: number };
+    recentActions?: string[];
+    qMatrixAnchor: SocraticHintResponse;
+  }): Promise<SocraticHintResponse | null> {
+    try {
+      const { currentTask, targetNode, activeColumnName, counts, recentActions, qMatrixAnchor } = params;
+
+      // Extract mission objectives
+      const pendingObjectives: string[] = [];
+      const completedObjectives: string[] = [];
+
+      if (currentTask?.id === 's1_sandbox_controlled' || currentTask?.type === 'session1_intro') {
+        const totalAdded = (counts.units || 0) + (counts.tens || 0) + (counts.hundreds || 0) + (counts.thousands || 0);
+        if (totalAdded >= 5) {
+          completedObjectives.push("גרירת לפחות 5 פריטים לבית המספרים (5/5)");
+        } else {
+          pendingObjectives.push(`גרירת לפחות 5 פריטים לבית המספרים (${totalAdded}/5)`);
+        }
+
+        const hasDeleteAction = recentActions?.some(a => a.toLowerCase().includes('delete') || a.includes('מחיק') || a.includes('trash'));
+        if (hasDeleteAction) {
+          completedObjectives.push("מחיקת פריט לפח המחזור");
+        } else {
+          pendingObjectives.push("מחיקת לפחות פריט אחד (לפח המחזור או מחוץ ללוח)");
+        }
+      } else {
+        if (currentTask?.requiresGrouping) {
+          const hasOvercrowded = counts.units >= 10 || counts.tens >= 10;
+          if (hasOvercrowded) {
+            pendingObjectives.push("ביצוע קיבוץ (המרה) של 10 בלוקים");
+          } else {
+            completedObjectives.push("קיבוץ בלוקים בטורים");
+          }
+        }
+        if (currentTask?.requiresUngrouping) {
+          pendingObjectives.push("ביצוע פריטה מטור שכן");
+        }
+        if (currentTask?.type === 'vertical_addition' || currentTask?.type === 'addition_simple') {
+          pendingObjectives.push("הקלדת התוצאה בתיבת המענה");
+        }
+      }
+
+      const prompt = `
+System Role: You are a strict execution engine for MathmatiCore. You do not make assumptions. You process data based strictly on rigid rules. Before generating any educational response, you MUST output a hard evidence log proving exactly which variables triggered your decision.
+
+INPUT STREAMS (The Live Snapshot):
+- [Mission State]:
+  Task Title: "${currentTask.titleHe || currentTask.id || 'Math Task'}"
+  PENDING Objectives: ${JSON.stringify(pendingObjectives)} 
+  COMPLETED Objectives: ${JSON.stringify(completedObjectives)}
+- [Live Telemetry & Board State]:
+  Active Tool: "${activeColumnName}"
+  Current Blocks: Ones=${counts.units}, Tens=${counts.tens}, Hundreds=${counts.hundreds}
+  Last Actions: ${JSON.stringify(recentActions || [])}
+- [Pedagogical Anchor (Q-Matrix)]:
+  Target Concept: "${targetNode}"
+  Expected Logical Path: ${JSON.stringify(qMatrixAnchor.choices)}
+
+STRICT RULES:
+1. PENDING Objective Supremacy: If PENDING Objectives contain ANY technical/UI tasks (e.g., delete, drag, open tool), ALL pedagogical math logic (e.g., regrouping, >9 blocks) MUST be completely suppressed and ignored.
+2. Socratic Constraint: Do not give the direct command. Formulate a question pointing to the missing action based ONLY on the active constraint.
+
+EXECUTION PROTOCOL & PROOF REQUIREMENT:
+You must return a JSON object with a "hard_evidence_log" array. Each object in this array must map a specific input variable to the rule it triggered, proving your logical path.
+
+OUTPUT SCHEMA (Return ONLY valid JSON):
+{
+  "hard_evidence_log": [
+    {
+      "inspected_variable": "<String: e.g., 'PENDING Objectives'>",
+      "exact_value_found": "<String: Quote the exact data found in the input>",
+      "rule_triggered": "<String: Which strict rule does this activate?>",
+      "action_taken": "<String: What are you forced to do or forced to ignore based on this?>"
+    }
+  ],
+  "final_intervention": {
+    "guiding_question": "<String in Hebrew: Socratic question mediating the forced action>",
+    "options": [
+      { "id": "1", "text": "<String in Hebrew>", "feedback": "<String in Hebrew>", "is_correct": <Boolean> },
+      { "id": "2", "text": "<String in Hebrew>", "feedback": "<String in Hebrew>", "is_correct": <Boolean> },
+      { "id": "3", "text": "<String in Hebrew>", "feedback": "<String in Hebrew>", "is_correct": <Boolean> }
+    ]
+  }
+}
+`;
+
+      const res = await SocraticEngine.callGeminiProxy({
+        prompt,
+        context: JSON.stringify({
+          task: currentTask.titleHe || currentTask.id,
+          targetNode,
+          counts,
+          activeColumn: activeColumnName
+        })
+      });
+
+      const data = res?.data;
+      if (!data) return null;
+
+      const parsed = typeof data === 'string' ? JSON.parse(data) : (data?.rawText ? JSON.parse(data.rawText) : data);
+      const guidingQuestion = parsed.final_intervention?.guiding_question || parsed.guiding_question;
+      const optionsList = parsed.final_intervention?.options || parsed.options;
+
+      if (!guidingQuestion || !Array.isArray(optionsList) || optionsList.length !== 3) {
+        console.warn('[Gemini Proxy] Schema validation failed for response:', parsed);
+        return null;
+      }
+
+      if (parsed.hard_evidence_log && Array.isArray(parsed.hard_evidence_log)) {
+        console.log('[Gemini Socratic Engine] Hard Evidence Log:', parsed.hard_evidence_log);
+      }
+
+      const correctOpt = optionsList.find((o: any) => o.is_correct === true) || optionsList[0];
+
+      return {
+        questionHe: guidingQuestion,
+        choices: optionsList.map((opt: { id?: string; text: string; feedback?: string; is_correct?: boolean }, idx: number) => ({
+          id: opt.id || `opt_${idx + 1}`,
+          textHe: opt.text,
+          feedbackHe: opt.feedback,
+          isCorrect: Boolean(opt.is_correct),
+        })),
+        correctChoiceId: correctOpt.id || 'opt_1',
+      };
+    } catch (err) {
+      console.warn('[Gemini Socratic Engine] Cloud Function proxy query fallback triggered:', err);
+      return null;
+    }
+  }
+
+  /**
+   * Secure Cloud Function Proxy caller for Gemini Socratic queries.
+   */
+  public static async callGeminiProxy(data: { prompt: string; context?: string; history?: any[] }): Promise<{ data: any }> {
+    const fn = httpsCallable<{ prompt: string; context?: string; history?: any[] }, any>(
+      functions,
+      "callGeminiSocraticProxy"
+    );
+    return fn(data);
+  }
+
+  /**
+   * Legacy fetchGeminiSocraticQuery alias for backward-compatibility.
    */
   static async fetchGeminiSocraticQuery(
     studentIdNum: number,
@@ -1065,90 +1230,15 @@ export class SocraticEngine {
     memoryCircles?: Partial<Record<string, string>>,
     recentActions?: string[]
   ): Promise<SocraticHintResponse | null> {
-    try {
-      const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY || 
-        (typeof window !== 'undefined' ? (window as any).__GEMINI_API_KEY__ : null) ||
-        (typeof process !== 'undefined' ? (process.env?.VITE_GEMINI_API_KEY || 'test_gemini_api_key') : null);
-      if (!apiKey) {
-        return null;
-      }
-
-      const prompt = `
-Context: Student #${studentIdNum} is working on math task "${taskId}" at active place-value column "${activeColumn}".
-Current Dienes block counts: ${JSON.stringify(counts)}.
-Memory circle inputs: ${JSON.stringify(memoryCircles || {})}.
-Recent student interactions: ${JSON.stringify(recentActions || [])}.
-
-Provide a guiding question and exactly 3 closed options to help the student self-correct using place-value blocks.
-Option A must be the optimal correct action. Option B and C must be plausible structural distractors.
-`;
-
-      const systemInstruction = `You are the Socratic Mentor for the digital Virtual Representation (VRA) learning platform 'MathematiCOre'.
-Your role is to offer one short, single-line guiding question and exactly three closed choices (A, B, C) to guide the student toward self-correction using the place-value board and Dienes blocks.
-ABSOLUTELY FORBIDDEN:
-- Do NOT provide the direct answer or final calculation.
-- Do NOT use CRA terminology (such as 'מוחשי', 'ייצוגי', 'מופשט').
-- Do NOT provide more or less than 3 options.
-Return STRICT JSON matching this schema:
-{
-  "guiding_question": "שאלה מנחה קצרה בת שורה אחת בלבד",
-  "options": [
-    {"id": "A", "text": "מסיח אופטימלי נכון עם משוב חיובי קצר"},
-    {"id": "B", "text": "מסיח שגוי א עם רמז מבני עדין"},
-    {"id": "C", "text": "מסיח שגוי ב עם רמז מבני עדין"}
-  ]
-}`;
-
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          signal: controller.signal,
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            systemInstruction: { parts: [{ text: systemInstruction }] },
-            generationConfig: {
-              responseMimeType: 'application/json',
-              temperature: 0.2,
-            },
-          }),
-        }
-      );
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        console.warn(`[Gemini API] Request failed with status ${response.status}`);
-        return null;
-      }
-
-      const data = await response.json();
-      const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!rawText) return null;
-
-      const parsed = JSON.parse(rawText);
-      if (!parsed.guiding_question || !Array.isArray(parsed.options) || parsed.options.length !== 3) {
-        console.warn('[Gemini API] Schema validation failed for response:', parsed);
-        return null;
-      }
-
-      return {
-        questionHe: parsed.guiding_question,
-        choices: parsed.options.map((opt: { id: string; text: string }, idx: number) => ({
-          id: opt.id || (idx === 0 ? 'A' : idx === 1 ? 'B' : 'C'),
-          textHe: opt.text,
-          isCorrect: idx === 0 || opt.id === 'A',
-        })),
-        correctChoiceId: 'A',
-      };
-    } catch (err) {
-      console.warn('[Gemini Socratic Engine] Fallback triggered due to error/timeout:', err);
-      return null;
-    }
+    const qMatrixAnchor = TASK_HINTS[taskId] || GENERAL_FALLBACK;
+    return SocraticEngine.fetchGroundedGeminiSocraticQuery({
+      currentTask: { id: taskId, titleHe: `Student #${studentIdNum}` },
+      targetNode: taskId,
+      activeColumnName: activeColumn,
+      counts,
+      recentActions,
+      qMatrixAnchor
+    });
   }
 
   /**
@@ -1197,31 +1287,6 @@ Return STRICT JSON matching this schema:
     request: GeminiSocraticRequest,
     fallbackTask?: any
   ): Promise<SocraticHintResponse> {
-    try {
-      const hint = await SocraticEngine.fetchGeminiSocraticQuery(
-        request.student_id,
-        request.exercise_id,
-        ['ones', 'tens', 'hundreds'][request.active_column_index] || 'ones',
-        {
-          units: request.workspace_state.ones_count,
-          tens: request.workspace_state.tens_count,
-          hundreds: request.workspace_state.hundreds_count,
-          thousands: 0,
-        },
-        Object.fromEntries(
-          Object.entries(request.workspace_state.memory_circles || {}).map(([k, v]) => [k, String(v)])
-        ),
-        (request.recent_actions || []).map((a) => String(a.event_type))
-      );
-
-      if (hint) {
-        return hint;
-      }
-    } catch (err) {
-      console.warn('[SocraticEngine] Gemini API error, falling back to static hint:', err);
-    }
-
-    // Pre-configured static Socratic fallback without crashing UI
     const staticFallback: SocraticHintResponse = (fallbackTask?.id && TASK_HINTS[fallbackTask.id]) ||
       TASK_HINTS['s1_license_test'] || {
         pedagogical_intent: 'conceptual',
@@ -1234,48 +1299,84 @@ Return STRICT JSON matching this schema:
         correctChoiceId: 'opt_1',
       };
 
+    try {
+      const hint = await SocraticEngine.fetchGroundedGeminiSocraticQuery({
+        currentTask: fallbackTask || { id: request.exercise_id },
+        targetNode: request.exercise_id,
+        activeColumnName: ['יחידות', 'עשרות', 'מאות'][request.active_column_index] || 'יחידות',
+        counts: {
+          units: request.workspace_state.ones_count,
+          tens: request.workspace_state.tens_count,
+          hundreds: request.workspace_state.hundreds_count,
+          thousands: 0,
+        },
+        recentActions: (request.recent_actions || []).map((a) => String(a.event_type)),
+        qMatrixAnchor: staticFallback
+      });
+
+      if (hint) {
+        return hint;
+      }
+    } catch (err) {
+      console.warn('[SocraticEngine] Gemini API error, falling back to static hint:', err);
+    }
+
     return staticFallback;
   }
 
   static async getSocraticHint(
-    _currentTask: any,
+    currentTask: any,
     targetNode: string,
-    _counts: { units: number; tens: number; hundreds: number; thousands: number },
-    _traceData?: { hesitation_events: number; undo_clicks: number },
-    _enhancedCognitiveSupport: boolean = false
+    counts: { units: number; tens: number; hundreds: number; thousands: number },
+    traceData?: { hesitation_events: number; undo_clicks: number },
+    _enhancedCognitiveSupport: boolean = false,
+    activeColumnIndex: number = 0,
+    recentActions: string[] = []
   ): Promise<SocraticHintResponse | null> {
     await ready();
 
-    // 1. Real-Time Live Board Anomaly Evaluation (Highest Priority)
-    const liveHint = SocraticEngine.analyzeLiveBoardState(_currentTask, targetNode, _counts);
-    if (liveHint) {
-      return liveHint;
+    // 1. Live Board Anomaly Evaluation (Highest Priority)
+    const liveBoardHint = SocraticEngine.analyzeLiveBoardState(currentTask, targetNode, counts);
+
+    const taskId: string | undefined = currentTask?.id;
+    const taskType: string | undefined = currentTask?.type;
+
+    // 2. Select the most accurate Q-Matrix baseline anchor
+    const qMatrixAnchor: SocraticHintResponse = 
+      liveBoardHint ||
+      (taskId && TASK_HINTS[taskId]) ||
+      (taskType === 'session1_intro' ? TASK_HINTS['s1_sandbox_controlled'] : null) ||
+      (targetNode && NODE_HINTS[targetNode]) ||
+      this.localHintCache.get(`${currentTask?.sessionNumber || 1}_${targetNode}`) ||
+      GENERAL_FALLBACK;
+
+    // 3. Map active column index
+    const colNames = ['יחידות', 'עשרות', 'מאות', 'אלפים'];
+    const activeColumnName = colNames[activeColumnIndex] || 'יחידות';
+
+    // 4. Grounded AI Socratic Query (Synthesize live board numbers with Q-Matrix anchor)
+    try {
+      const dynamicAiHint = await SocraticEngine.fetchGroundedGeminiSocraticQuery({
+        currentTask: currentTask || {},
+        targetNode: targetNode || 'general',
+        activeColumnName,
+        counts,
+        recentActions: recentActions.length > 0 ? recentActions : [
+          `Hesitations: ${traceData?.hesitation_events || 0}`,
+          `Undos: ${traceData?.undo_clicks || 0}`
+        ],
+        qMatrixAnchor
+      });
+
+      if (dynamicAiHint) {
+        return dynamicAiHint;
+      }
+    } catch (err) {
+      console.warn('[SocraticEngine] Dynamic AI hint synthesis notice, using baseline anchor:', err);
     }
 
-    const taskId: string | undefined = _currentTask?.id;
-    const taskType: string | undefined = _currentTask?.type;
-
-    // 2. Exact task-ID match (most specific)
-    if (taskId && TASK_HINTS[taskId]) {
-      return TASK_HINTS[taskId];
-    }
-
-    // 3. Session 1 intro type (sandbox tasks without specific ID match)
-    if (taskType === 'session1_intro') {
-      return TASK_HINTS['s1_sandbox_controlled'];
-    }
-
-    // 4. Target-node fallback (task-agnostic but node-specific)
-    if (targetNode && NODE_HINTS[targetNode]) {
-      return NODE_HINTS[targetNode];
-    }
-
-    // 5. Cached node hint
-    const cached = this.localHintCache.get(`${_currentTask?.sessionNumber || 1}_${targetNode}`);
-    if (cached) return cached;
-
-    // 6. General fallback
-    return GENERAL_FALLBACK;
+    // 5. Fallback: Return the grounded Q-Matrix anchor
+    return qMatrixAnchor;
   }
 
   static async generateAndQueueTasks(

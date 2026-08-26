@@ -23,7 +23,7 @@ export function MissingElementTask({
   const showFeedback = useWorkspaceStore((s) => s.showFeedback);
   const user = useAuthStore((s) => s.user);
 
-  const sign = isSubtraction ? '-' : '﬩';
+  const sign = isSubtraction ? '-' : '+';
   const speechText = isSubtraction 
     ? `${instructionHe}. כמה צריך לחסר מ-${numberA} כדי להגיע ל-${numberB}?`
     : `${instructionHe}. כמה צריך להוסיף ל-${numberA} כדי להגיע ל-${numberB}?`;
@@ -45,11 +45,11 @@ export function MissingElementTask({
         <input
           type="text"
           inputMode="numeric"
-          maxLength={3}
+          maxLength={6}
           value={probeAnswer}
           onChange={(e) => setProbeAnswer(e.target.value.replace(/[^0-9]/g, ''))}
           aria-label="הזינו את המספר החסר"
-          className="w-24 h-20 rounded-2xl border-4 border-ws-accent text-center font-mono font-black text-4xl bg-ws-surface focus:outline-none focus:ring-4 focus:ring-ws-accent/30 focus:border-ws-accent shadow-inner text-ws-ink"
+          className="w-28 h-20 rounded-2xl border-4 border-ws-accent text-center font-mono font-black text-4xl bg-ws-surface focus:outline-none focus:ring-4 focus:ring-ws-accent/30 focus:border-ws-accent shadow-inner text-ws-ink"
         />
         <span className="font-mono font-black text-5xl text-ws-ink">
           =

@@ -1,32 +1,32 @@
 {
   "rules": {
     "schools": {
-      ".read": true,
+      ".read": "auth != null",
       ".write": "auth != null && (auth.token.role == 'admin' || auth.token.role == 'ADMIN')"
     },
     "public_classes": {
-      ".read": true,
+      ".read": "auth != null",
       ".write": "auth != null && (auth.token.role == 'admin' || auth.token.role == 'ADMIN')"
     },
     "classes": {
-      ".read": true,
+      ".read": "auth != null",
       ".write": "auth != null && (auth.token.role == 'admin' || auth.token.role == 'ADMIN' || auth.token.role == 'teacher' || auth.token.role == 'TEACHER')"
     },
     "users": {
-      ".read": true,
+      ".read": "auth != null",
       ".write": "auth != null",
       "students": {
-        ".read": true,
+        ".read": "auth != null",
         ".write": "auth != null",
         "$studentId": {
-          ".read": true,
+          ".read": "auth != null",
           ".write": "auth != null && ($studentId.matches(/^student_(user)?(1[0-2]|[1-9])$/) || $studentId.matches(/^(1[0-2]|[1-9])$/))"
         }
       },
       "teachers": {
-        ".read": true,
+        ".read": "auth != null",
         "$teacherId": {
-          ".read": true,
+          ".read": "auth != null",
           ".write": "auth != null && (auth.token.role == 'admin' || auth.token.role == 'ADMIN' || (auth.token.email != null && auth.token.email.matches(/.*admin.*/)) || auth.uid == $teacherId)",
           "licenseActive": {
             ".validate": "newData.isBoolean()"
@@ -35,18 +35,18 @@
       }
     },
     "students": {
-      ".read": true,
+      ".read": "auth != null",
       ".write": "auth != null",
       "$studentId": {
-        ".read": true,
+        ".read": "auth != null",
         ".write": "auth != null && ($studentId.matches(/^student_(user)?(1[0-2]|[1-9])$/) || $studentId.matches(/^(1[0-2]|[1-9])$/))"
       }
     },
     "radar_alerts": {
-      ".read": true,
+      ".read": "auth != null",
       ".write": "auth != null",
       "$alertId": {
-        ".read": true,
+        ".read": "auth != null",
         ".write": "auth != null",
         ".validate": "!newData.child('studentName').exists() && !newData.child('name').exists() && !newData.child('email').exists() && !newData.child('taz').exists() && !newData.child('rawStudentName').exists()"
       }
@@ -60,7 +60,7 @@
       }
     },
     "system_control": {
-      ".read": true,
+      ".read": "auth != null",
       ".write": "auth != null && (auth.token.role == 'admin' || auth.token.role == 'ADMIN')"
     },
     "active_class_session": {
@@ -68,29 +68,29 @@
       ".write": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.role == 'admin' || auth.token.role == 'ADMIN')"
     },
     "audit_logs": {
-      ".read": true,
+      ".read": "auth != null",
       ".write": "auth != null",
       ".indexOn": ["timestamp"]
     },
     "sessions": {
-      ".read": true,
+      ".read": "auth != null",
       ".write": "auth != null",
       ".indexOn": ["timestamp"]
     },
     "replays": {
-      ".read": true,
+      ".read": "auth != null",
       ".write": "auth != null"
     },
     "approved_tasks": {
-      ".read": true,
+      ".read": "auth != null",
       ".write": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.role == 'admin' || auth.token.role == 'ADMIN')"
     },
     "ai_pending_approvals": {
-      ".read": true,
+      ".read": "auth != null",
       ".write": "auth != null"
     },
     "reflections": {
-      ".read": true,
+      ".read": "auth != null",
       ".write": "auth != null",
       ".indexOn": ["timestamp"]
     }

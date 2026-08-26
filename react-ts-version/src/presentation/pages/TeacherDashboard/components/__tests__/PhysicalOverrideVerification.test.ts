@@ -46,7 +46,7 @@ describe('Physical Override Empirical Verification Suite', () => {
 
   describe('2. Firebase Update Payload & Security Rules Compatibility', () => {
     it('verifies top-level "students/" path exists in database.rules.json root', () => {
-      const rulesPath = path.resolve('c:/Users/david/Projects/MathmatiCore/database.rules.json');
+      const rulesPath = path.resolve(__dirname, '../../../../../../../database.rules.json');
       const rulesJson = JSON.parse(fs.readFileSync(rulesPath, 'utf8'));
 
       const rootRules = rulesJson.rules;
@@ -84,7 +84,7 @@ describe('Physical Override Empirical Verification Suite', () => {
     });
 
     it('verifies multi-path atomic update succeeds with top-level "students/" rule', () => {
-      const rulesPath = path.resolve('c:/Users/david/Projects/MathmatiCore/database.rules.json');
+      const rulesPath = path.resolve(__dirname, '../../../../../../../database.rules.json');
       const rulesJson = JSON.parse(fs.readFileSync(rulesPath, 'utf8'));
 
       const rootRules = rulesJson.rules;

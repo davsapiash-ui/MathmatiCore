@@ -33,7 +33,7 @@ export function ReinforcementOrChallengeScreen({
         {/* Badge */}
         <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-extrabold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300">
           <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-          <span>השלמתם בהצלחה את 7 משימות החובה במפגש {sessionNumber}!</span>
+          <span>השלמתם בהצלחה את משימות החובה במפגש {sessionNumber}!</span>
         </div>
 
         <div>

@@ -17,7 +17,7 @@ describe('Remediations Verification Suite (R1 - R5)', () => {
 
   describe('R1: Security, Auth, & PII Remediations', () => {
     it('verifies database.rules.json has no root .read/.write and no || true in chat_messages', () => {
-      const rulesPath = resolve('c:/Users/david/Projects/MathmatiCore/database.rules.json');
+      const rulesPath = resolve(__dirname, '../../../../database.rules.json');
       const raw = readFileSync(rulesPath, 'utf-8');
       const json = JSON.parse(raw);
 
