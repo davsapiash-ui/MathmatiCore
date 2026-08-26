@@ -61,7 +61,7 @@ export function PlaceColumn({ place }: { place: Place }) {
       ref={setNodeRef}
       animate={shakeControls}
       className={`flex-1 min-w-0 flex flex-col rounded-2xl border-2 border-solid transition-all duration-200 select-none ${
-        isDimmed ? 'opacity-60 pointer-events-none' : ''
+        isDimmed ? 'opacity-60' : ''
       } ${isOver ? 'scale-[1.02] shadow-xl ring-4 ring-offset-2 z-10' : 'shadow-sm'}`}
       style={{
         borderColor: isOver ? colors.border : `${colors.border}55`,

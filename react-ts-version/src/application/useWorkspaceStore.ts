@@ -358,7 +358,12 @@ export function selectCanProceed(s: WorkspaceState): boolean {
     return s.q3Reps.length >= 2;
   }
   if (task.type === 'addition_simple' || task.type === 'vertical_addition') {
-    return s.hasInteracted || answerDigitsToNumber(s.answerDigits) !== null;
+    const hasDigits = answerDigitsToNumber(s.answerDigits) !== null;
+    if (s.sessionNumber === 8) {
+      return hasDigits;
+    }
+    const hasBoardBlocks = selectBoardValue(s) > 0;
+    return hasBoardBlocks && hasDigits;
   }
   if (!s.hasInteracted) return false;
   return true;
@@ -1160,6 +1165,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         carryDigits: saved.carryDigits ?? {},
         probeAnswer: saved.probeAnswer ?? '',
         q3Reps: saved.q3Reps ?? [],
+        hasDeletedBlock: saved.standardTaskIdx === 0 && sanitized === 1 ? false : (saved.hasDeletedBlock ?? false),
+        blocksAddedCount: saved.standardTaskIdx === 0 && sanitized === 1 ? 0 : (saved.blocksAddedCount ?? 0),
         focusedPlace: null,
         undoStack: saved.undoStack ?? [],
         currentState: 'PROBLEM_ACTIVE',
