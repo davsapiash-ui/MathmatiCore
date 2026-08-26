@@ -31,6 +31,14 @@ service cloud.firestore {
       );
     }
 
+    // Helper function to check session ownership (sessionId format: session_{num}_student_{studentId})
+    function isOwningSession(sessionId) {
+      return isAuthenticated() && (
+        'student_id' in request.auth.token &&
+        sessionId.matches('.*_student_' + string(request.auth.token.student_id) + '($|_.*)')
+      );
+    }
+
     // Teacher class match check
     function isTeacherOfClass(classId) {
       return isTeacher() && (
@@ -175,12 +183,12 @@ service cloud.firestore {
       allow write: if (isTeacher() || isOwningStudent(studentId)) && isValidStudentDoc();
     }
 
-    // Sessions Collection: Students can create/update sessions, but ONLY teachers can approve teacher_gate_approved
+    // Sessions Collection: Students can create/update their OWN session, but ONLY teachers can approve teacher_gate_approved
     match /sessions/{sessionId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isValidSessionDoc() &&
+      allow read: if isTeacher() || isAdmin() || isOwningSession(sessionId);
+      allow create: if (isTeacher() || isOwningSession(sessionId)) && isValidSessionDoc() &&
                        (isTeacher() || request.resource.data.teacher_gate_approved == false);
-      allow update: if isAuthenticated() && isValidSessionDoc() &&
+      allow update: if (isTeacher() || isOwningSession(sessionId)) && isValidSessionDoc() &&
                        (isTeacher() || request.resource.data.teacher_gate_approved == resource.data.teacher_gate_approved);
       allow delete: if isAdmin();
     }
@@ -234,25 +242,33 @@ service cloud.firestore {
 
     // Workspace States & Radar Logs
     match /workspace_states/{stateId} {
-      allow read: if isTeacher() || isAuthenticated();
-      allow write: if isAuthenticated() && request.resource.data.keys().hasOnly([
-        'student_id', 'session_id', 'exercise_id', 'active_column_index', 'ones_count', 'tens_count', 'hundreds_count', 'memory_circles', 'updated_at'
-      ]);
+      allow read: if isTeacher() || isAdmin() || isOwningStudent(string(resource.data.student_id));
+      allow create, update: if (isTeacher() || isOwningStudent(string(request.resource.data.student_id))) &&
+                               request.resource.data.keys().hasOnly([
+                                 'student_id', 'session_id', 'exercise_id', 'active_column_index', 'ones_count', 'tens_count', 'hundreds_count', 'memory_circles', 'updated_at'
+                               ]);
+      allow delete: if isAdmin();
     }
 
     match /radar_alerts/{alertId} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated();
+      allow read: if isTeacher() || isAdmin();
+      allow create: if isTeacher() || isAdmin() ||
+                       (isOwningStudent(string(request.resource.data.student_id)) &&
+                        (alertId.matches('student_user' + string(request.auth.token.student_id) + '(_.*)?') ||
+                         alertId.matches('student_' + string(request.auth.token.student_id) + '(_.*)?')));
+      allow update: if false;
+      allow delete: if isTeacher() || isAdmin();
     }
 
     match /audit_logs/{logId} {
       allow read: if isTeacher() || isAdmin();
-      allow write: if isAuthenticated();
+      allow create: if isTeacher() || isAdmin() || isOwningStudent(string(request.resource.data.user_id));
+      allow update, delete: if false;
     }
 
     // SRL Reflections (Module 16 — Session 8 Reflection)
     // Only the owning student may write their own reflection document.
-    // Schema is strictly enforced: no extra fields, no cross-student writes.
+    // Schema is strictly enforced: no extra fields, no cross-student writes, create-only.
     function isValidSRLReflectionDoc() {
       let data = request.resource.data;
       return data.keys().hasOnly([
@@ -317,8 +333,9 @@ service cloud.firestore {
 
     match /srl_reflections/{reflectionId} {
       allow read: if isTeacher() || isOwningStudent(string(resource.data.student_id));
-      allow create, update: if isOwningStudent(string(request.resource.data.student_id)) &&
-                               isValidSRLReflectionDoc();
+      allow create: if isOwningStudent(string(request.resource.data.student_id)) &&
+                       isValidSRLReflectionDoc();
+      allow update: if false;
       allow delete: if isAdmin();
     }
   }
