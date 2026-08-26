@@ -69,8 +69,8 @@
     "sessions": {
       ".read": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true || auth.token.role == 'admin' || auth.token.role == 'ADMIN' || auth.token.admin == true)",
       "$sessionId": {
-        ".read": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true || auth.token.role == 'admin' || auth.token.role == 'ADMIN' || auth.token.admin == true || $sessionId.contains('student_' + auth.token.student_id) || $sessionId.contains('student_user' + auth.token.student_id) || $sessionId.contains('' + auth.token.student_id))",
-        ".write": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true || auth.token.role == 'admin' || auth.token.role == 'ADMIN' || auth.token.admin == true || $sessionId.contains('student_' + auth.token.student_id) || $sessionId.contains('student_user' + auth.token.student_id) || $sessionId.contains('' + auth.token.student_id))"
+        ".read": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true || auth.token.role == 'admin' || auth.token.role == 'ADMIN' || auth.token.admin == true || $sessionId.endsWith('_student_' + auth.token.student_id) || $sessionId.endsWith('student_user' + auth.token.student_id) || $sessionId == 'student_' + auth.token.student_id || $sessionId == 'student_user' + auth.token.student_id)",
+        ".write": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true || auth.token.role == 'admin' || auth.token.role == 'ADMIN' || auth.token.admin == true || $sessionId.endsWith('_student_' + auth.token.student_id) || $sessionId.endsWith('student_user' + auth.token.student_id) || $sessionId == 'student_' + auth.token.student_id || $sessionId == 'student_user' + auth.token.student_id)"
       },
       ".indexOn": ["timestamp"]
     },
@@ -92,8 +92,8 @@
     "reflections": {
       ".read": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true || auth.token.role == 'admin' || auth.token.role == 'ADMIN' || auth.token.admin == true)",
       "$reflectionId": {
-        ".read": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true || auth.token.role == 'admin' || auth.token.role == 'ADMIN' || auth.token.admin == true || $reflectionId.contains('student_' + auth.token.student_id) || $reflectionId.contains('student_user' + auth.token.student_id) || $reflectionId.contains('' + auth.token.student_id))",
-        ".write": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true || auth.token.role == 'admin' || auth.token.role == 'ADMIN' || auth.token.admin == true || $reflectionId.contains('student_' + auth.token.student_id) || $reflectionId.contains('student_user' + auth.token.student_id) || $reflectionId.contains('' + auth.token.student_id))"
+        ".read": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true || auth.token.role == 'admin' || auth.token.role == 'ADMIN' || auth.token.admin == true || $reflectionId.endsWith('_student_' + auth.token.student_id) || $reflectionId.endsWith('student_user' + auth.token.student_id) || $reflectionId == 'student_' + auth.token.student_id || $reflectionId == 'student_user' + auth.token.student_id)",
+        ".write": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true || auth.token.role == 'admin' || auth.token.role == 'ADMIN' || auth.token.admin == true || $reflectionId.endsWith('_student_' + auth.token.student_id) || $reflectionId.endsWith('student_user' + auth.token.student_id) || $reflectionId == 'student_' + auth.token.student_id || $reflectionId == 'student_user' + auth.token.student_id)"
       },
       ".indexOn": ["timestamp"]
     }
