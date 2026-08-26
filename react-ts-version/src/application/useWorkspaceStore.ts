@@ -359,9 +359,6 @@ export function selectCanProceed(s: WorkspaceState): boolean {
   }
   if (task.type === 'addition_simple' || task.type === 'vertical_addition') {
     const hasDigits = answerDigitsToNumber(s.answerDigits) !== null;
-    if (s.sessionNumber === 8) {
-      return hasDigits;
-    }
     const hasBoardBlocks = selectBoardValue(s) > 0;
     return hasBoardBlocks && hasDigits;
   }
