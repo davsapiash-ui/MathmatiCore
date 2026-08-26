@@ -1,10 +1,34 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { useChatStore } from '@/application/useChatStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useAdminStore } from '@/application/useAdminStore';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
 import type { SessionDocument } from '@/types';
+
+// Mock Firebase RTDB methods and auth for deterministic and offline unit testing
+vi.mock('firebase/database', () => ({
+  ref: vi.fn(() => ({})),
+  set: vi.fn(() => Promise.resolve()),
+  get: vi.fn(() => Promise.resolve({
+    exists: () => false,
+    val: () => null
+  })),
+  update: vi.fn(() => Promise.resolve()),
+  push: vi.fn(() => Promise.resolve({ key: 'mock_push_key_123' })),
+  onValue: vi.fn(),
+  onDisconnect: vi.fn(() => ({ set: vi.fn() })),
+  runTransaction: vi.fn(async (_ref, updateFn) => { if (typeof updateFn === 'function') return updateFn(0); }),
+  serverTimestamp: vi.fn(() => Date.now())
+}));
+
+vi.mock('@/infrastructure/firebase', () => ({
+  database: {},
+  authReady: Promise.resolve(true),
+  auth: { currentUser: null },
+  firestore: {},
+}));
+
 
 describe('PHASE 3 EMPIRICAL AUDIT & INTEGRATION TEST SUITE (PRD v6.4)', () => {
   beforeEach(() => {
