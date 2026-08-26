@@ -8,9 +8,10 @@ async function runFirestoreRulesTest() {
   console.log(`--- FIRESTORE SECURITY RULES UNIT TEST (@firebase/rules-unit-testing) ---`);
   console.log(`===============================================================\n`);
 
-  const localRules = path.resolve('firestore.rules');
   const parentRules = path.resolve('../firestore.rules');
-  const rulesPath = fs.existsSync(localRules) ? localRules : parentRules;
+  const localRules = path.resolve('firestore.rules');
+  const rulesPath = fs.existsSync(parentRules) ? parentRules : localRules;
+  console.log(`[CONFIG] Loading canonical Firestore rules from: ${rulesPath}`);
   const rules = fs.readFileSync(rulesPath, 'utf8');
 
   // Initialize test environment with local emulator
