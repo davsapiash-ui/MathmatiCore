@@ -45,8 +45,19 @@ import { SocraticEngine, type SocraticHintResponse } from '@/infrastructure/serv
 import { ref, update, push } from 'firebase/database';
 import { database, serverNow, fetchServerClockOffset } from '@/infrastructure/firebase';
 import { normalizeStudentId } from '@/application/useChatStore';
-import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
+import { firebaseSyncService, emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
+import type { TelemetryEventType } from '@/types/telemetry';
 import type { VRAWorkspaceState } from '@/types';
+
+export function placeToColumnIndex(place: Place | string): number {
+  switch (place) {
+    case 'units': return 0;
+    case 'tens': return 1;
+    case 'hundreds': return 2;
+    case 'thousands': return 3;
+    default: return 0;
+  }
+}
 
 const UNDO_STACK_CAP = 10;
 
@@ -70,6 +81,11 @@ export interface FeedbackState {
   correct: boolean;
   title: string;
   sub?: string;
+}
+
+export interface UndoFrame {
+  counts: PlaceCounts;
+  actionType?: TelemetryEventType | null;
 }
 
 interface WorkspaceState {
@@ -97,7 +113,8 @@ interface WorkspaceState {
 
   // board
   counts: PlaceCounts;
-  undoStack: { counts: PlaceCounts }[];
+  undoStack: UndoFrame[];
+  regroupTriggerTimestamps: Record<number, number>;
   undoCount: number;
   /** Covert hesitation counter (radar) — mirrored to traceData at reflection. */
   hesitationCount: number;
@@ -127,6 +144,7 @@ interface WorkspaceState {
   socraticPenaltyLockoutUntil: number | null;
   socraticDistractorHint: string | null;
   typedErrorCount: number;
+  hasDigitErrorInTask: boolean;
   socraticDistractorErrors: number;
   lastInteractionTime: number;
 
@@ -235,7 +253,8 @@ function getStoredSocraticLockDeadline(): number | null {
 function resetTaskInteraction(isASD = false) {
   return {
     counts: { ...EMPTY_COUNTS },
-    undoStack: [] as { counts: PlaceCounts }[],
+    undoStack: [] as UndoFrame[],
+    regroupTriggerTimestamps: {} as Record<number, number>,
     hasInteracted: false,
     hasDeletedBlock: false,
     blocksAddedCount: 0,
@@ -257,6 +276,7 @@ function resetTaskInteraction(isASD = false) {
     hasRequestedBasicHelp: false,
     taskStartTime: Date.now(),
     keyboardState: 'UNLOCKED' as KeyboardState,
+    hasDigitErrorInTask: false,
     isAdditionHelperOpen: false,
   };
 }
@@ -379,10 +399,56 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     }, ms);
   }
 
-  function createNextUndoStack(currentStack: { counts: PlaceCounts }[], counts: PlaceCounts): { counts: PlaceCounts }[] {
-    const stack = [...currentStack, { counts: { ...counts } }];
+  function createNextUndoStack(
+    currentStack: UndoFrame[],
+    counts: PlaceCounts,
+    actionType: TelemetryEventType = 'BLOCK_DRAG_COMPLETE'
+  ): UndoFrame[] {
+    const stack = [...currentStack, { counts: { ...counts }, actionType }];
     if (stack.length > UNDO_STACK_CAP) stack.shift();
     return stack;
+  }
+
+  function computeExpectedDigitForColumn(
+    task: any,
+    place: Place,
+    isASD: boolean = false,
+    isCarry: boolean = false
+  ): number | null {
+    if (!task) return null;
+
+    if (isCarry) {
+      if (!task.numberA || !task.numberB || task.isSubtraction) return 0;
+      const { a, b } = effectiveArithmetic(task, isASD);
+      const uA = a % 10;
+      const uB = b % 10;
+      const carryToTens = (uA + uB) >= 10 ? 1 : 0;
+      if (place === 'tens') return carryToTens;
+
+      const tA = Math.floor(a / 10) % 10;
+      const tB = Math.floor(b / 10) % 10;
+      const carryToHundreds = (tA + tB + carryToTens) >= 10 ? 1 : 0;
+      if (place === 'hundreds') return carryToHundreds;
+
+      const hA = Math.floor(a / 100) % 10;
+      const hB = Math.floor(b / 100) % 10;
+      const carryToThousands = (hA + hB + carryToHundreds) >= 10 ? 1 : 0;
+      if (place === 'thousands') return carryToThousands;
+      return 0;
+    }
+
+    if (typeof task.correctAnswer === 'number') {
+      const colIdx = placeToColumnIndex(place);
+      return Math.floor(Math.abs(task.correctAnswer) / Math.pow(10, colIdx)) % 10;
+    }
+
+    if (task.numberA !== undefined) {
+      const { target } = effectiveArithmetic(task, isASD);
+      const colIdx = placeToColumnIndex(place);
+      return Math.floor(Math.abs(target) / Math.pow(10, colIdx)) % 10;
+    }
+
+    return null;
   }
 
   /** Flash a constraint violation on a column, then clear the tint (shake lasts 400ms). */
@@ -394,9 +460,24 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     }, 500);
   }
 
-  function startTask(_taskId: string) {
+  function startTask(taskId: string) {
     set(resetTaskInteraction());
-    set({ keyboardState: 'UNLOCKED', currentState: 'PROBLEM_ACTIVE' });
+    set({ keyboardState: 'UNLOCKED', currentState: 'PROBLEM_ACTIVE', taskStartTime: Date.now() });
+
+    if (taskId) {
+      const s = get();
+      const studentId = useAuthStore.getState().user?.uid || 'student_1';
+      emitTelemetry({
+        session_id: `session_${s.sessionNumber}_student_${studentId}`,
+        student_id: studentId,
+        exercise_id: taskId,
+        event_type: 'PROBLEM_LOAD',
+        details: {
+          exercise_template_id: taskId,
+          path_type: s.selectedBranch === 'challenge' ? 'challenge' : s.selectedBranch === 'reinforcement' ? 'consolidation' : 'compulsory',
+        },
+      }).catch(console.error);
+    }
   }
 
   /** Session-2 transition script (vanilla onQTaskComplete, app.js 813–873). */
@@ -515,7 +596,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
                 'task7_missing_subtrahend',
                 'task8_missing_addend'
               ];
-              const compulsory_correct_first_attempt = compulsoryKeys.filter(k => r[k]?.correct).length;
+              // Module 23: "correct on first attempt" means PROBLEM_COMPLETE was not preceded by any DIGIT_ENTERED with is_correct === false.
+              // Events with is_correct === null are ignored entirely.
+              const compulsory_correct_first_attempt = compulsoryKeys.filter(k => r[k]?.correct === true && r[k]?.had_digit_error !== true).length;
               const session_score_percent = Math.round((compulsory_correct_first_attempt / 7) * 100);
               const matrix_recommended_path = session_score_percent >= 50 ? 'green_path' : 'remediation_path';
 
@@ -583,7 +666,20 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       get().resetConsecutiveErrors();
       set({ awaitingNext: true });
 
-      const studentId = useAuthStore.getState().user?.uid;
+      const studentId = useAuthStore.getState().user?.uid || 'student_1';
+      const durationMs = Math.max(0, Date.now() - (s.taskStartTime || Date.now()));
+      emitTelemetry({
+        session_id: `session_${s.sessionNumber}_student_${studentId}`,
+        student_id: studentId,
+        exercise_id: task.id,
+        event_type: 'PROBLEM_COMPLETE',
+        details: {
+          total_duration_ms: durationMs,
+          undo_count: s.undoCount,
+          error_count: s.consecutiveErrorCount || 0,
+        },
+      }).catch(console.error);
+
       // Module 14: Choice branch tasks are strictly excluded from baseline Q-Matrix mastery
       if (studentId && !task.isOptionalChoiceTask) {
         const qKey = (task as any).qMatrixKey || (task as any).targetNode || task.id;
@@ -805,7 +901,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       }
 
       set({ standardTaskIdx: nextIdx, awaitingNext: false });
-      const studentId = useAuthStore.getState().user?.uid;
+      const studentId = useAuthStore.getState().user?.uid || 'student_1';
       if (studentId && !s.isSupersededByOtherDevice) {
         const normId = normalizeStudentId(studentId);
         const taskTitle = tasks[nextIdx]?.titleHe || `משימה ${nextIdx + 1}`;
@@ -821,6 +917,21 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           update(ref(database, `users/students/${normId}`), studentPayload).catch(console.error);
         }
       }
+
+      const nextTask = tasks[nextIdx];
+      if (nextTask) {
+        emitTelemetry({
+          session_id: `session_${s.sessionNumber}_student_${studentId}`,
+          student_id: studentId,
+          exercise_id: nextTask.id,
+          event_type: 'PROBLEM_LOAD',
+          details: {
+            exercise_template_id: nextTask.id,
+            path_type: nextTask.isOptionalChoiceTask ? (s.selectedBranch === 'challenge' ? 'challenge' : 'consolidation') : 'compulsory',
+          },
+        }).catch(console.error);
+      }
+
       startTask(tasks[nextIdx].id);
       return;
     }
@@ -836,18 +947,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       if (normId !== studentId) {
         firebaseSyncService.syncHighestCompletedMeeting(normId, s.sessionNumber).catch(console.error);
       }
-
-      const completionSnapshot = {
-        id: `complete_${Date.now()}`,
-        timestamp: Date.now(),
-        sessionNumber: s.sessionNumber,
-        counts: s.counts,
-        answerDigits: s.answerDigits,
-        carryDigits: s.carryDigits,
-        actionType: 'SESSION_COMPLETE',
-        details: `סיום מפגש ${s.sessionNumber} בהצלחה`,
-      };
-      push(ref(database, `users/students/${normId}/vector_replays`), completionSnapshot).catch(() => {});
     }
 
     set({ awaitingNext: true, currentState: 'COMPLETE' });
@@ -920,9 +1019,22 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         }
       } else {
         get().resetConsecutiveErrors();
+        const studentId = useAuthStore.getState().user?.uid || 'student_1';
+        const durationMs = Math.max(0, Date.now() - (s.taskStartTime || Date.now()));
+        emitTelemetry({
+          session_id: `session_2_student_${studentId}`,
+          student_id: studentId,
+          exercise_id: task.id,
+          event_type: 'PROBLEM_COMPLETE',
+          details: {
+            total_duration_ms: durationMs,
+            undo_count: s.undoCount,
+            error_count: s.consecutiveErrorCount || 0,
+          },
+        }).catch(console.error);
       }
       set({ awaitingNext: true });
-      const { state, event } = recordResult(s.qflow, evalResult);
+      const { state, event } = recordResult(s.qflow, { ...evalResult, had_digit_error: s.hasDigitErrorInTask === true });
       set({ qflow: state });
       handleQFlowEvent(event);
     }
@@ -956,6 +1068,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     counts: { ...EMPTY_COUNTS },
     undoStack: [],
+    regroupTriggerTimestamps: {},
     undoCount: 0,
     hesitationCount: 0,
     boardOpen: true,
@@ -988,6 +1101,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     aiSocraticHint: null,
     socraticDistractorHint: null,
     typedErrorCount: 0,
+    hasDigitErrorInTask: false,
     socraticDistractorErrors: 0,
     lastInteractionTime: Date.now(),
     aiTasks: null,
@@ -1068,6 +1182,21 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         currentState: 'PROBLEM_ACTIVE',
         ...resetTaskInteraction(isASD),
       });
+
+      const initialTask = sanitized === 2 ? getCurrentQTask(qflow) : getSessionTasks(sanitized as any)[startingTaskIdx ?? 0];
+      const studentId = useAuthStore.getState().user?.uid || 'student_1';
+      if (initialTask) {
+        emitTelemetry({
+          session_id: `session_${sanitized}_student_${studentId}`,
+          student_id: studentId,
+          exercise_id: initialTask.id,
+          event_type: 'PROBLEM_LOAD',
+          details: {
+            exercise_template_id: initialTask.id,
+            path_type: 'compulsory',
+          },
+        }).catch(console.error);
+      }
     },
 
     getSessionRemainingSeconds: () => {
@@ -1166,6 +1295,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         blocksAddedCount: saved.standardTaskIdx === 0 && sanitized === 1 ? 0 : (saved.blocksAddedCount ?? 0),
         focusedPlace: null,
         undoStack: saved.undoStack ?? [],
+        regroupTriggerTimestamps: {},
         currentState: 'PROBLEM_ACTIVE',
       });
     },
@@ -1203,21 +1333,69 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           return s;
         }
         
-        const stack = [...s.undoStack, { counts: { ...s.counts } }];
-        if (stack.length > UNDO_STACK_CAP) stack.shift();
         const isDelete = result.removed && input.target.kind === 'trash';
         const isUngroup = !!result.ungroupEvent;
         const isGroup = result.regroupEvents && result.regroupEvents.length > 0;
         const isFromStore = input.source === 'palette';
         const addedCount = isFromStore ? (s.blocksAddedCount + 1) : s.blocksAddedCount;
 
+        const actionType: TelemetryEventType = (isGroup || isUngroup) ? 'REGROUPING_SUCCESS' : 'BLOCK_DRAG_COMPLETE';
+        const stack = [...s.undoStack, { counts: { ...s.counts }, actionType }];
+        if (stack.length > UNDO_STACK_CAP) stack.shift();
+
+        const studentId = useAuthStore.getState().user?.uid || 'student_1';
+        const currentTask = getActiveTasks(s)[s.standardTaskIdx] || null;
+        const sessionId = `session_${s.sessionNumber}_student_${studentId}`;
+        const taskId = currentTask?.id || `ex_${s.sessionNumber}_01`;
+
+        const updatedTriggerTimestamps = { ...s.regroupTriggerTimestamps };
+
         if (isGroup || isUngroup) {
           get().transitionTo('REGROUPING_ACTIVE');
+          const regroupCol = placeToColumnIndex(input.target.kind === 'column' ? input.target.place : (input.sourcePlace || 'units'));
+          const regroupType = isUngroup ? 'decomposition' : 'composition';
+          const triggerTime = s.regroupTriggerTimestamps?.[regroupCol];
+          const durationMs = triggerTime ? Math.max(0, Date.now() - triggerTime) : null;
+          delete updatedTriggerTimestamps[regroupCol];
+
+          emitTelemetry({
+            session_id: sessionId,
+            student_id: studentId,
+            exercise_id: taskId,
+            event_type: 'REGROUPING_TRIGGERED',
+            column_index: regroupCol,
+            details: { regrouping_type: regroupType },
+          }).catch(console.error);
+
+          emitTelemetry({
+            session_id: sessionId,
+            student_id: studentId,
+            exercise_id: taskId,
+            event_type: 'REGROUPING_SUCCESS',
+            column_index: regroupCol,
+            details: { regrouping_type: regroupType, duration_ms: durationMs },
+          }).catch(console.error);
+        } else if (input.target.kind === 'column') {
+          const targetColIdx = placeToColumnIndex(input.target.place);
+          const sourceColIdx = input.sourcePlace ? placeToColumnIndex(input.sourcePlace) : null;
+          const blockVal = input.target.place === 'thousands' ? 1000 : input.target.place === 'hundreds' ? 100 : input.target.place === 'tens' ? 10 : 1;
+          emitTelemetry({
+            session_id: sessionId,
+            student_id: studentId,
+            exercise_id: taskId,
+            event_type: 'BLOCK_DRAG_COMPLETE',
+            column_index: targetColIdx,
+            details: {
+              block_value: blockVal,
+              source_column_index: sourceColIdx,
+            },
+          }).catch(console.error);
         }
 
         return { 
           counts: result.counts,
           undoStack: stack,
+          regroupTriggerTimestamps: updatedTriggerTimestamps,
           hasInteracted: true,
           blocksAddedCount: addedCount,
           // Module 11: Block deletion is NOT counted as Undo
@@ -1238,7 +1416,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           flagConstraintError(place);
           return state;
         }
-        const undoStack = createNextUndoStack(state.undoStack, state.counts);
+        const undoStack = createNextUndoStack(state.undoStack, state.counts, 'BLOCK_DRAG_COMPLETE');
 
         const studentId = useAuthStore.getState().user?.uid;
         if (studentId) {
@@ -1268,7 +1446,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const hasBlocks = state.counts.units > 0 || state.counts.tens > 0 || state.counts.hundreds > 0 || state.counts.thousands > 0;
         if (!hasBlocks) return state;
 
-        const undoStack = createNextUndoStack(state.undoStack, state.counts);
+        const undoStack = createNextUndoStack(state.undoStack, state.counts, 'BLOCK_DRAG_COMPLETE');
         const studentId = useAuthStore.getState().user?.uid;
         if (studentId) {
           useStore.getState().logSemanticEvent(studentId, {
@@ -1279,11 +1457,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           });
         }
 
-        return {
+        return { 
           counts: { ...EMPTY_COUNTS },
           undoStack,
           hasInteracted: true,
-          hasDeletedBlock: true,
+          hasDeletedBlock: true, 
         };
       });
     },
@@ -1296,11 +1474,38 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           flagConstraintError(place);
           return state;
         }
-        const undoStack = createNextUndoStack(state.undoStack, state.counts);
+        const undoStack = createNextUndoStack(state.undoStack, state.counts, 'REGROUPING_SUCCESS');
 
-        const studentId = useAuthStore.getState().user?.uid;
+        const studentId = useAuthStore.getState().user?.uid || 'student_1';
+        const task = getActiveTasks(state)[state.standardTaskIdx] || null;
+        const sessionId = `session_${state.sessionNumber}_student_${studentId}`;
+        const taskId = task?.id || `ex_${state.sessionNumber}_01`;
+        const colIdx = placeToColumnIndex(place);
+
+        const updatedTriggerTimestamps = { ...state.regroupTriggerTimestamps };
+        const triggerTime = state.regroupTriggerTimestamps?.[colIdx];
+        const durationMs = triggerTime ? Math.max(0, Date.now() - triggerTime) : null;
+        delete updatedTriggerTimestamps[colIdx];
+
+        emitTelemetry({
+          session_id: sessionId,
+          student_id: studentId,
+          exercise_id: taskId,
+          event_type: 'REGROUPING_TRIGGERED',
+          column_index: colIdx,
+          details: { regrouping_type: 'decomposition' },
+        }).catch(console.error);
+
+        emitTelemetry({
+          session_id: sessionId,
+          student_id: studentId,
+          exercise_id: taskId,
+          event_type: 'REGROUPING_SUCCESS',
+          column_index: colIdx,
+          details: { regrouping_type: 'decomposition', duration_ms: durationMs },
+        }).catch(console.error);
+
         if (studentId) {
-          const task = getActiveTasks(state)[state.standardTaskIdx] || null;
           useStore.getState().logSemanticEvent(studentId, {
             action: 'block_split',
             element: `${place}_block`,
@@ -1316,6 +1521,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         return {
           counts: res.counts,
           undoStack,
+          regroupTriggerTimestamps: updatedTriggerTimestamps,
           hasInteracted: true,
           hasUngrouped: true,
           keyboardState: state.keyboardState === 'LOCKED' ? ('UNLOCKED' as KeyboardState) : state.keyboardState,
@@ -1331,11 +1537,38 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           flagConstraintError(place);
           return state;
         }
-        const undoStack = createNextUndoStack(state.undoStack, state.counts);
+        const undoStack = createNextUndoStack(state.undoStack, state.counts, 'REGROUPING_SUCCESS');
 
-        const studentId = useAuthStore.getState().user?.uid;
+        const studentId = useAuthStore.getState().user?.uid || 'student_1';
+        const task = getActiveTasks(state)[state.standardTaskIdx] || null;
+        const sessionId = `session_${state.sessionNumber}_student_${studentId}`;
+        const taskId = task?.id || `ex_${state.sessionNumber}_01`;
+        const colIdx = placeToColumnIndex(place);
+
+        const updatedTriggerTimestamps = { ...state.regroupTriggerTimestamps };
+        const triggerTime = state.regroupTriggerTimestamps?.[colIdx];
+        const durationMs = triggerTime ? Math.max(0, Date.now() - triggerTime) : null;
+        delete updatedTriggerTimestamps[colIdx];
+
+        emitTelemetry({
+          session_id: sessionId,
+          student_id: studentId,
+          exercise_id: taskId,
+          event_type: 'REGROUPING_TRIGGERED',
+          column_index: colIdx,
+          details: { regrouping_type: 'composition' },
+        }).catch(console.error);
+
+        emitTelemetry({
+          session_id: sessionId,
+          student_id: studentId,
+          exercise_id: taskId,
+          event_type: 'REGROUPING_SUCCESS',
+          column_index: colIdx,
+          details: { regrouping_type: 'composition', duration_ms: durationMs },
+        }).catch(console.error);
+
         if (studentId) {
-          const task = getActiveTasks(state)[state.standardTaskIdx] || null;
           useStore.getState().logSemanticEvent(studentId, {
             action: 'blocks_grouped',
             element: `${place}_column`,
@@ -1351,6 +1584,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         return {
           counts: res.counts,
           undoStack,
+          regroupTriggerTimestamps: updatedTriggerTimestamps,
           hasInteracted: true,
           hasGrouped: true,
           keyboardState: state.keyboardState === 'LOCKED' ? ('UNLOCKED' as KeyboardState) : state.keyboardState,
@@ -1365,10 +1599,26 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const snapshot = stack.pop();
         if (!snapshot) return s;
 
+        const studentId = useAuthStore.getState().user?.uid || 'student_1';
+        const task = getActiveTasks(s)[s.standardTaskIdx] || null;
+        const sessionId = `session_${s.sessionNumber}_student_${studentId}`;
+        const taskId = task?.id || `ex_${s.sessionNumber}_01`;
+        const depthBefore = Math.min(10, Math.max(1, s.undoStack.length));
+        const revertedType = snapshot.actionType || null;
+
+        emitTelemetry({
+          session_id: sessionId,
+          student_id: studentId,
+          exercise_id: taskId,
+          event_type: 'UNDO_EXECUTED',
+          details: {
+            undo_stack_depth_before: depthBefore,
+            reverted_event_type: revertedType,
+          },
+        }).catch(console.error);
+
         // Module 11: Undo does NOT trigger any penalty (no Socratic card popup, no timeout lockout, no PASSIVE_DRIFTING)
-        const studentId = useAuthStore.getState().user?.uid;
         if (studentId) {
-          const task = getActiveTasks(s)[s.standardTaskIdx] || null;
           useStore.getState().logSemanticEvent(studentId, {
             action: 'undo',
             element: 'undo_button',
@@ -1412,6 +1662,51 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const isDelete = val === '' && Boolean(s.answerDigits[place]);
         const nextDeletions = isDelete ? s.consecutiveDeletions + 1 : (val !== '' ? 0 : s.consecutiveDeletions);
 
+        const studentId = useAuthStore.getState().user?.uid || 'student_1';
+        const task = getActiveTasks(s)[s.standardTaskIdx] || null;
+        const sessionId = `session_${s.sessionNumber}_student_${studentId}`;
+        const taskId = task?.id || `ex_${s.sessionNumber}_01`;
+        const colIdx = placeToColumnIndex(place);
+
+        if (val !== '') {
+          const numVal = parseInt(val, 10);
+          if (!isNaN(numVal) && numVal >= 0 && numVal <= 9) {
+            const expectedDigit = computeExpectedDigitForColumn(task, place, s.isASD, false);
+            const isCorrect = expectedDigit !== null ? numVal === expectedDigit : null;
+            emitTelemetry({
+              session_id: sessionId,
+              student_id: studentId,
+              exercise_id: taskId,
+              event_type: 'DIGIT_ENTERED',
+              column_index: colIdx,
+              details: {
+                digit_value: numVal,
+                is_correct: isCorrect,
+              },
+            }).catch(console.error);
+
+            return {
+              answerDigits: { ...s.answerDigits, [place]: val },
+              hasInteracted: true,
+              consecutiveDeletions: 0,
+              hasDigitErrorInTask: isCorrect === false ? true : s.hasDigitErrorInTask,
+              typedErrorCount: isCorrect === false ? s.typedErrorCount + 1 : s.typedErrorCount,
+            };
+          }
+        } else if (isDelete) {
+          const deletedVal = s.answerDigits[place] ? parseInt(s.answerDigits[place], 10) : null;
+          emitTelemetry({
+            session_id: sessionId,
+            student_id: studentId,
+            exercise_id: taskId,
+            event_type: 'DIGIT_DELETED',
+            column_index: colIdx,
+            details: {
+              deleted_digit_value: isNaN(deletedVal as number) ? null : deletedVal,
+            },
+          }).catch(console.error);
+        }
+
         if (val !== '' && s.helpState === 'socratic') {
           setTimeout(() => {
             if (get().helpState === 'socratic') {
@@ -1443,6 +1738,51 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     setCarryDigit: (place, val) => {
       set((s) => {
+        const isDelete = val === '' && Boolean(s.carryDigits[place]);
+        const studentId = useAuthStore.getState().user?.uid || 'student_1';
+        const task = getActiveTasks(s)[s.standardTaskIdx] || null;
+        const sessionId = `session_${s.sessionNumber}_student_${studentId}`;
+        const taskId = task?.id || `ex_${s.sessionNumber}_01`;
+        const colIdx = placeToColumnIndex(place);
+
+        if (val !== '') {
+          const numVal = parseInt(val, 10);
+          if (!isNaN(numVal) && numVal >= 0 && numVal <= 9) {
+            const expectedCarry = computeExpectedDigitForColumn(task, place, s.isASD, true);
+            const isCorrect = expectedCarry !== null ? numVal === expectedCarry : null;
+            emitTelemetry({
+              session_id: sessionId,
+              student_id: studentId,
+              exercise_id: taskId,
+              event_type: 'DIGIT_ENTERED',
+              column_index: colIdx,
+              details: {
+                digit_value: numVal,
+                is_correct: isCorrect,
+              },
+            }).catch(console.error);
+
+            return {
+              carryDigits: { ...s.carryDigits, [place]: val },
+              hasInteracted: true,
+              hasDigitErrorInTask: isCorrect === false ? true : s.hasDigitErrorInTask,
+              typedErrorCount: isCorrect === false ? s.typedErrorCount + 1 : s.typedErrorCount,
+            };
+          }
+        } else if (isDelete) {
+          const deletedVal = s.carryDigits[place] ? parseInt(s.carryDigits[place], 10) : null;
+          emitTelemetry({
+            session_id: sessionId,
+            student_id: studentId,
+            exercise_id: taskId,
+            event_type: 'DIGIT_DELETED',
+            column_index: colIdx,
+            details: {
+              deleted_digit_value: isNaN(deletedVal as number) ? null : deletedVal,
+            },
+          }).catch(console.error);
+        }
+
         if (val !== '' && s.helpState === 'socratic') {
           setTimeout(() => {
             if (get().helpState === 'socratic') {
@@ -1452,19 +1792,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         }
         return { carryDigits: { ...s.carryDigits, [place]: val }, hasInteracted: true };
       });
-
-      const studentId = useAuthStore.getState().user?.uid;
-      if (studentId) {
-        const s = get();
-        const task = getActiveTasks(s)[s.standardTaskIdx] || null;
-        useStore.getState().logSemanticEvent(studentId, {
-          action: 'carry_changed',
-          element: `carry_digit_${place}`,
-          context: val ? `Typed carry ${val} in ${place}` : `Cleared carry in ${place}`,
-          ...(task?.targetNode ? { q_matrix_node: task.targetNode } : {}),
-          state_snapshot: `Current carries: ${JSON.stringify(s.carryDigits)}, Board Value: ${selectBoardValue(s)}`
-        });
-      }
     },
 
     setProbeAnswer: (v) => {
@@ -1532,7 +1859,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const s = get();
       const result = resolveDrop(s.counts, { source: 'column', sourcePlace: 'tens', target: { kind: 'column', place: 'units' } }, selectScaffoldLevel(s));
       if (result.ok) {
-        const undoStack = createNextUndoStack(s.undoStack, s.counts);
+        const undoStack = createNextUndoStack(s.undoStack, s.counts, 'REGROUPING_SUCCESS');
         get().transitionTo('REGROUPING_ACTIVE');
         set({ counts: result.counts, undoStack, hasInteracted: true, hasUngrouped: true });
       }

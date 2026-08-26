@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useWorkspaceStore } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, getActiveTasks, placeToColumnIndex } from '@/application/useWorkspaceStore';
+import { useAuthStore } from '@/application/useAuthStore';
 import { HelpCircle, Clock, X, CheckCircle2, AlertCircle } from 'lucide-react';
 import type { SocraticChoice } from '@/infrastructure/services/SocraticEngine';
+import { emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
 
 interface SocraticDrawerProps {
   isOpen?: boolean;
@@ -26,8 +28,42 @@ export function SocraticDrawer({ isOpen, onClose }: SocraticDrawerProps) {
   const [remainingSeconds, setRemainingSeconds] = useState<number>(0);
   const [selectedChoiceId, setSelectedChoiceId] = useState<string | null>(null);
   const [feedbackMsg, setFeedbackMsg] = useState<{ isCorrect: boolean; text: string } | null>(null);
+  const hasEmittedShowRef = useRef(false);
 
   const isDrawerOpen = isOpen !== undefined ? isOpen : (helpState === 'socratic' || helpState === 'friction');
+
+  useEffect(() => {
+    if (isDrawerOpen && !hasEmittedShowRef.current) {
+      hasEmittedShowRef.current = true;
+      const wsState = useWorkspaceStore.getState();
+      const studentId = useAuthStore.getState().user?.uid || 'student_1';
+      const currentTask = getActiveTasks(wsState)[wsState.standardTaskIdx] || null;
+      const colIdx = wsState.focusedPlace ? placeToColumnIndex(wsState.focusedPlace) : 0;
+      
+      const triggerReason: 'hesitation_45s' | 'consecutive_errors_4' | 'consecutive_undos_3' = 
+        wsState.consecutiveErrorCount >= 4 
+          ? 'consecutive_errors_4' 
+          : wsState.undoCount >= 3 
+          ? 'consecutive_undos_3' 
+          : 'hesitation_45s';
+
+      const errorCat = wsState.aiSocraticHint?.error_category ?? null;
+
+      emitTelemetry({
+        session_id: `session_${wsState.sessionNumber}_student_${studentId}`,
+        student_id: studentId,
+        exercise_id: currentTask?.id || `ex_${wsState.sessionNumber}_01`,
+        event_type: 'SOCRATIC_CARD_SHOWN',
+        column_index: colIdx,
+        details: {
+          trigger_reason: triggerReason,
+          error_category: errorCat,
+        },
+      }).catch(console.error);
+    } else if (!isDrawerOpen) {
+      hasEmittedShowRef.current = false;
+    }
+  }, [isDrawerOpen]);
 
   useEffect(() => {
     const updateCountdown = () => {
@@ -54,6 +90,22 @@ export function SocraticDrawer({ isOpen, onClose }: SocraticDrawerProps) {
     const isCorrect = choice.isCorrect !== undefined 
       ? choice.isCorrect 
       : (choice.id === aiSocraticHint?.correctChoiceId);
+
+    const wsState = useWorkspaceStore.getState();
+    const studentId = useAuthStore.getState().user?.uid || 'student_1';
+    const currentTask = getActiveTasks(wsState)[wsState.standardTaskIdx] || null;
+    const optionKey = (choice.id === 'opt_2' ? 'opt_2' : choice.id === 'opt_3' ? 'opt_3' : 'opt_1') as 'opt_1' | 'opt_2' | 'opt_3';
+
+    emitTelemetry({
+      session_id: `session_${wsState.sessionNumber}_student_${studentId}`,
+      student_id: studentId,
+      exercise_id: currentTask?.id || `ex_${wsState.sessionNumber}_01`,
+      event_type: 'SOCRATIC_OPTION_SELECTED',
+      details: {
+        option_id: optionKey,
+        is_correct: Boolean(isCorrect),
+      },
+    }).catch(console.error);
 
     if (isCorrect) {
       setFeedbackMsg({

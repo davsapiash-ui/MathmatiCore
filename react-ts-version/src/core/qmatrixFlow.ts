@@ -11,6 +11,7 @@ import { TASKS } from '@/core/QMatrix';
 export interface QTaskResult {
   correct: boolean;
   detail: string;
+  had_digit_error?: boolean;
   subtaskCorrect?: boolean;
   subtaskDetail?: string;
   secondAttemptCorrect?: boolean;
@@ -46,14 +47,14 @@ export function getCurrentQTask(state: QMatrixFlowState): QMatrixTask | null {
 /** Record an evaluation result (vanilla handleTaskResult). Returns new state + the feedback event. */
 export function recordResult(
   state: QMatrixFlowState,
-  evalResult: { correct: boolean; detail: string }
+  evalResult: { correct: boolean; detail: string; had_digit_error?: boolean }
 ): { state: QMatrixFlowState; event: QFlowEvent } {
   const task = getCurrentQTask(state);
   if (!task) return { state, event: { type: 'all_complete' } };
   const results = { ...state.results };
 
   if (state.phase === 'primary') {
-    results[task.id] = { correct: evalResult.correct, detail: evalResult.detail };
+    results[task.id] = { correct: evalResult.correct, detail: evalResult.detail, had_digit_error: evalResult.had_digit_error };
     return {
       state: { ...state, results },
       event: { type: 'primary_done', taskId: task.id, correct: evalResult.correct },

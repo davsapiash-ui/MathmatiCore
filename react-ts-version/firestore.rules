@@ -109,11 +109,14 @@ service cloud.firestore {
                        data.event_type is string &&
                        data.details is map;
 
-      let validColumnRule = (isColumnScopedEvent(data.event_type) && ('column_index' in data) && data.column_index in [0, 1, 2]) ||
+      let validColumnRule = (isColumnScopedEvent(data.event_type) && ('column_index' in data) && data.column_index in [0, 1, 2, 3]) ||
                             (isNonColumnEvent(data.event_type) && (!('column_index' in data) || data.column_index == null)) ||
                             (data.event_type == 'UNDO_EXECUTED');
 
-      return hasPermittedKeys && validTypes && validColumnRule;
+      let validDigitEntered = (data.event_type != 'DIGIT_ENTERED') ||
+                              (!('is_correct' in data.details) || data.details.is_correct is bool || data.details.is_correct == null);
+
+      return hasPermittedKeys && validTypes && validColumnRule && validDigitEntered;
     }
 
     // 3. Session Document Schema Allowlist (Module 14 / Appendix A §2)

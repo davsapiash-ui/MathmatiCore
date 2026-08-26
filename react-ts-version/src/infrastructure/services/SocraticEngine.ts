@@ -23,6 +23,7 @@ export interface SocraticChoice {
 
 export interface SocraticHintResponse {
   pedagogical_intent?: "conceptual" | "procedural" | "focus";
+  error_category?: 'calculation' | 'procedural' | 'conceptual' | null;
   tts_text?: string;
   suggested_highlight?: string | null;
   questionHe: string;

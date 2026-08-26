@@ -7,6 +7,7 @@ import { useAuthStore } from '@/application/useAuthStore';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { normalizeStudentId } from '@/application/useChatStore';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
+import { emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
 import { toast } from 'sonner';
 
 /**
@@ -98,12 +99,33 @@ export function ReflectionScreen() {
 
       const studentId = normalizeStudentId(username);
       
-      // Emit authoritative SRL Telemetry event per Master PRD v6.4
-      AuditLogger.log(
-        'REFLECTION_SUBMITTED',
-        studentId,
-        `שלב רפלקציה הושלם: מאמץ ${effort}, אסטרטגיות: ${strategies.join(', ')}, מדד התמדה: ${persistenceIndex}%`
-      ).catch(console.error);
+      // Emit authoritative SRL Telemetry event per Master PRD v7.0 (Appendix A §3 & Module 16)
+      const effortMap: Record<number, 'LOW' | 'MEDIUM' | 'HIGH'> = {
+        1: 'LOW',
+        2: 'MEDIUM',
+        3: 'HIGH',
+      };
+      const strategyMap: Record<string, 'UNDO_BUTTON' | 'MEMORY_CIRCLES' | 'SOCRATIC_CARD'> = {
+        undo: 'UNDO_BUTTON',
+        memory_circles: 'MEMORY_CIRCLES',
+        socratic_hints: 'SOCRATIC_CARD',
+      };
+      const mappedStrategies = strategies
+        .map((s) => strategyMap[s])
+        .filter((s): s is 'UNDO_BUTTON' | 'MEMORY_CIRCLES' | 'SOCRATIC_CARD' => Boolean(s));
+
+      emitTelemetry({
+        session_id: `session_8_student_${studentId}`,
+        student_id: studentId,
+        exercise_id: 'reflection_meeting_8',
+        event_type: 'REFLECTION_SUBMITTED',
+        details: {
+          reflection_step: 3,
+          effort_score: effort !== null ? effortMap[effort] || null : null,
+          selected_strategies: mappedStrategies.length > 0 ? mappedStrategies : null,
+          persistence_index: persistenceIndex !== undefined ? persistenceIndex : null,
+        },
+      }).catch(console.error);
 
       await update(ref(database, `users/students/${studentId}`), {
         routeStatus: 'PENDING_TEACHER_APPROVAL',

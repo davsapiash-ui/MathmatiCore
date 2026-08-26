@@ -450,15 +450,6 @@ export const useStore = create<AppState>()(
           students[studentId] = { ...students[studentId], traceData: newTraceData };
           
           firebaseSyncService.syncTraceData(studentId, { semantic_trace: updatedTrace }).catch(console.error);
-          
-          // Also log individually to the vector_replays branch
-          firebaseSyncService.logVectorReplayEvent(
-            studentId,
-            newEvent.session_id || "session_unknown",
-            newEvent.interaction_data.action_type,
-            newEvent.interaction_data.details,
-            newEvent.somatic_indicators
-          ).catch(console.error);
         }
         return { students };
       }),

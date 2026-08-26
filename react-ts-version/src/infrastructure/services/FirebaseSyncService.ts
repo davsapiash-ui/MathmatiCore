@@ -8,6 +8,16 @@ import { normalizeStudentId } from '@/application/useChatStore';
 import { useAdminStore, type School, type Teacher, type ClassRoom } from '@/application/useAdminStore';
 import { indexedDBQueue } from './IndexedDBQueue';
 import type { SessionDocument, PedagogicalPath } from '@/types';
+import {
+  type TelemetryPayload,
+  type TelemetryEventType,
+  type TelemetryDetailsMap,
+  type HesitationDetectedDetails,
+  type SocraticCardShownDetails,
+  type SocraticOptionSelectedDetails,
+  type UndoExecutedDetails,
+  validateTelemetryColumnIndexRule,
+} from '@/types/telemetry';
 
 export function extractTeacherId(email?: string | null, uid?: string | null): string {
   if (email && typeof email === 'string') {
@@ -741,38 +751,115 @@ export class FirebaseSyncService {
     }
   }
 
-  // --- NEW: PRD Section 6 Vector Replay Schema ---
-  public async logVectorReplayEvent(
-    studentId: string, 
-    sessionId: string, 
-    actionType: string, 
-    details: any, 
-    somaticIndicators: { hesitation_detected: boolean, undo_triggered: boolean }
-  ) {
-    if (!studentId) return;
-    const replayEvent = {
-      event_type: "vector_replay",
-      session_id: sessionId,
-      timestamp: Date.now(),
-      interaction_data: {
-        action_type: actionType,
-        details: details
-      },
-      somatic_indicators: somaticIndicators
-    };
-    
-    const refPath = `users/students/${studentId}/vector_replays`;
-    
-    if (!this.isOnline) {
-      this.enqueueOfflineTransaction(refPath, replayEvent);
-      return;
+  // --- Module 5 & Module 17: Canonical Telemetry Emitter ---
+  /**
+   * Unified single entry point for all 13 telemetry event types.
+   * 1. Constructs typed TelemetryPayload<T> with UUID idempotency_key.
+   * 2. Validates column_index rule per Module 5 §C.
+   * 3. Performs RTDB live-state write to users/students/{studentId} (Presence, lastAction, error_category, etc.).
+   * 4. Enqueues payload into IndexedDB FIFO queue for resilient sync to Firestore telemetry_logs.
+   */
+  public async emitTelemetry<T extends TelemetryEventType>(event: {
+    session_id: string;
+    student_id?: number | string;
+    exercise_id: string;
+    event_type: T;
+    column_index?: number;
+    details: TelemetryDetailsMap[T];
+  }): Promise<TelemetryPayload<T>> {
+    // 1. Resolve numeric student_id (Strictly 1-12)
+    let numStudentId = 1;
+    if (typeof event.student_id === 'number') {
+      numStudentId = Math.min(12, Math.max(1, event.student_id));
+    } else if (typeof event.student_id === 'string') {
+      const parsed = parseInt(event.student_id.replace(/\D/g, ''), 10);
+      numStudentId = !isNaN(parsed) && parsed >= 1 && parsed <= 12 ? parsed : 1;
+    } else if (this.currentUserId) {
+      const parsed = parseInt(this.currentUserId.replace(/\D/g, ''), 10);
+      numStudentId = !isNaN(parsed) && parsed >= 1 && parsed <= 12 ? parsed : 1;
     }
 
-    try {
-      await push(ref(database, refPath), replayEvent);
-    } catch {
-      this.enqueueOfflineTransaction(refPath, replayEvent);
+    const normUid = `student_user${numStudentId}`;
+    const rawStudentUid = `student_${numStudentId}`;
+
+    // 2. Generate UUID idempotency_key
+    const idempotency_key = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `telemetry_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
+    // 3. Build TelemetryPayload<T>
+    const payload: TelemetryPayload<T> = {
+      idempotency_key,
+      client_timestamp: Date.now(),
+      session_id: event.session_id || 'session_1',
+      student_id: numStudentId,
+      exercise_id: event.exercise_id || 'ex_1',
+      event_type: event.event_type,
+      ...(event.column_index !== undefined ? { column_index: event.column_index } : {}),
+      details: event.details,
+    };
+
+    // 4. Validate column_index rule (Module 5 §C)
+    const validation = validateTelemetryColumnIndexRule(payload);
+    if (!validation.isValid) {
+      console.warn(`[FirebaseSyncService] Telemetry validation warning for ${event.event_type}:`, validation.reason);
     }
+
+    // 5. Unified RTDB live-state snapshot update (Module 4 & Module 18)
+    const rtdbLiveUpdate: Record<string, any> = {
+      lastPing: Date.now(),
+      lastActivityTimestamp: Date.now(),
+      onlineStatus: 'active',
+    };
+
+    // Derive Hebrew lastAction label
+    const eventLabels: Record<TelemetryEventType, string> = {
+      SESSION_START: 'תחילת מפגש למידה',
+      PROBLEM_LOAD: 'טעינת תרגיל במרחב העבודה',
+      BLOCK_DRAG_COMPLETE: 'גרירת לבנה בלוח',
+      REGROUPING_TRIGGERED: 'הפעלת המרה / פריטה',
+      REGROUPING_SUCCESS: 'השלמת פריטה / קיבוץ בהצלחה',
+      DIGIT_ENTERED: 'הקלדת ספרה',
+      DIGIT_DELETED: 'מחיקת ספרה (בקרה עצמית)',
+      UNDO_EXECUTED: 'ביטול פעולה (Undo)',
+      HESITATION_DETECTED: 'היסוס קוגניטיבי (45 שנ׳)',
+      SOCRATIC_CARD_SHOWN: 'הצגת כרטיס חניכה סוקרטי',
+      SOCRATIC_OPTION_SELECTED: 'בחירת תשובה בכרטיס חניכה',
+      PROBLEM_COMPLETE: 'השלמת תרגיל בהצלחה',
+      REFLECTION_SUBMITTED: 'הגשת רפלקציה SRL',
+    };
+    rtdbLiveUpdate.lastAction = eventLabels[event.event_type] || event.event_type;
+
+    // Special event-driven RTDB state mappings
+    if (event.event_type === 'HESITATION_DETECTED') {
+      rtdbLiveUpdate.hesitationSeconds = (event.details as HesitationDetectedDetails).hesitation_seconds;
+    } else if (event.event_type === 'SOCRATIC_CARD_SHOWN') {
+      rtdbLiveUpdate.isSocraticActive = true;
+      const details = event.details as SocraticCardShownDetails;
+      if (details.error_category) {
+        rtdbLiveUpdate.error_category = details.error_category;
+      }
+    } else if (event.event_type === 'SOCRATIC_OPTION_SELECTED') {
+      const details = event.details as SocraticOptionSelectedDetails;
+      if (details.is_correct) {
+        rtdbLiveUpdate.isSocraticActive = false;
+      }
+    } else if (event.event_type === 'UNDO_EXECUTED') {
+      rtdbLiveUpdate['workspaceState/undoCount'] = (event.details as UndoExecutedDetails).undo_stack_depth_before;
+    }
+
+    // Write live snapshot to RTDB for both student aliases
+    update(ref(database, `users/students/${normUid}`), rtdbLiveUpdate).catch(() => {});
+    if (normUid !== rawStudentUid) {
+      update(ref(database, `users/students/${rawStudentUid}`), rtdbLiveUpdate).catch(() => {});
+    }
+
+    // 6. Enqueue into IndexedDB FIFO queue (Module 17) -> syncs to Firestore telemetry_logs
+    await indexedDBQueue.enqueue(payload).catch((err) => {
+      console.error('[FirebaseSyncService] Failed to enqueue telemetry payload to IndexedDB:', err);
+    });
+
+    return payload;
   }
 
   // --- PRD v4 Task 1 Implementation Functions ---
@@ -1246,5 +1333,9 @@ export const syncQMatrix = (studentId: string, qMatrixUpdates: any) =>
 
 export const syncConceptMastery = (studentId: string, masteryUpdates: any) =>
   firebaseSyncService.syncConceptMastery(studentId, masteryUpdates);
+
+export const emitTelemetry = <T extends TelemetryEventType>(
+  event: Parameters<FirebaseSyncService['emitTelemetry']>[0]
+) => firebaseSyncService.emitTelemetry(event as any);
 
 

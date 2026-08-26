@@ -119,6 +119,7 @@ export interface GeminiSocraticOption {
 
 export interface GeminiSocraticResponse {
   guiding_question: string;
+  error_category?: 'calculation' | 'procedural' | 'conceptual' | null;
   options: [GeminiSocraticOption, GeminiSocraticOption, GeminiSocraticOption];
 }
 

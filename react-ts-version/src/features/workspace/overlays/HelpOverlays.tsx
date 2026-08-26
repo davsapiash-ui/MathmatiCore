@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useWorkspaceStore, type SupportType, getActiveTasks } from '@/application/useWorkspaceStore';
+import { useAuthStore } from '@/application/useAuthStore';
 import { SUPPORT_CONTENT, getDynamicSocraticHint } from '@/data/sessionTasks';
 import type { SocraticChoice } from '@/infrastructure/services/SocraticEngine';
+import { emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
 
 /**
  * זרימת העזרה — "חיכוך מטא-קוגניטיבי יצרני":
@@ -266,6 +268,23 @@ function SocraticPenaltyLockOptions({ onClose }: { onClose: () => void }) {
     if (lockSeconds > 0) return;
     setSelectedOpt(opt.id);
     setFeedbackHint(opt.hint);
+
+    const wsState = useWorkspaceStore.getState();
+    const studentId = useAuthStore.getState().user?.uid || 'student_1';
+    const currentTask = getActiveTasks(wsState)[wsState.standardTaskIdx] || null;
+    const optionKey = (opt.id === 'opt_2' || opt.id === 'B' ? 'opt_2' : opt.id === 'opt_3' || opt.id === 'C' ? 'opt_3' : 'opt_1') as 'opt_1' | 'opt_2' | 'opt_3';
+
+    emitTelemetry({
+      session_id: `session_${wsState.sessionNumber}_student_${studentId}`,
+      student_id: studentId,
+      exercise_id: currentTask?.id || `ex_${wsState.sessionNumber}_01`,
+      event_type: 'SOCRATIC_OPTION_SELECTED',
+      details: {
+        option_id: optionKey,
+        is_correct: Boolean(opt.correct),
+      },
+    }).catch(console.error);
+
     if (!opt.correct) {
       // PRD v4.2 Module 12: 60-second penalty lock on wrong distractor in Socratic Card
       triggerSocraticPenaltyLockout(opt.hint);

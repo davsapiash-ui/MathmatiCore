@@ -1,4 +1,4 @@
-// Telemetry and Offline Queue Contracts per Master PRD v6.3 (Appendix A §3 & Module 5)
+// Telemetry and Offline Queue Contracts per Master PRD v7.0 (Appendix A §3 & Module 5)
 
 export type TelemetryEventType =
   | 'SESSION_START'
@@ -15,7 +15,7 @@ export type TelemetryEventType =
   | 'PROBLEM_COMPLETE'
   | 'REFLECTION_SUBMITTED';
 
-// --- Per-event-type details schemas (Master PRD v6.3 Appendix A §3) ---
+// --- Per-event-type details schemas (Master PRD v7.0 Appendix A §3) ---
 
 export interface SessionStartDetails {
   session_number: number; // 1 to 8
@@ -27,7 +27,7 @@ export interface ProblemLoadDetails {
 }
 
 export interface BlockDragCompleteDetails {
-  block_value: number; // 1, 10, or 100
+  block_value: number; // Strictly 1, 10, 100, or 1000
   source_column_index: number | null; // populated only for cross-column drags (regrouping)
 }
 
@@ -37,12 +37,12 @@ export interface RegroupingTriggeredDetails {
 
 export interface RegroupingSuccessDetails {
   regrouping_type: 'decomposition' | 'composition';
-  duration_ms: number;
+  duration_ms: number | null;
 }
 
 export interface DigitEnteredDetails {
   digit_value: number; // 0-9
-  is_correct: boolean; // required — sole source for computing E in Persistence Index (Module 16)
+  is_correct: boolean | null; // nullable when exercise has no defined target digit for column
 }
 
 export interface DigitDeletedDetails {
@@ -51,7 +51,7 @@ export interface DigitDeletedDetails {
 
 export interface UndoExecutedDetails {
   undo_stack_depth_before: number; // 1-10
-  reverted_event_type: TelemetryEventType;
+  reverted_event_type: TelemetryEventType | null;
 }
 
 export interface HesitationDetectedDetails {
@@ -59,7 +59,8 @@ export interface HesitationDetectedDetails {
 }
 
 export interface SocraticCardShownDetails {
-  trigger_reason: 'hesitation_45s' | 'consecutive_errors_4';
+  trigger_reason: 'hesitation_45s' | 'consecutive_errors_4' | 'consecutive_undos_3';
+  error_category: 'calculation' | 'procedural' | 'conceptual' | null;
 }
 
 export interface SocraticOptionSelectedDetails {
@@ -123,7 +124,7 @@ export interface TelemetryPayload<T extends TelemetryEventType = TelemetryEventT
   student_id: number; // Strictly 1-12
   exercise_id: string;
   event_type: T;
-  column_index?: number; // 0: Ones, 1: Tens, 2: Hundreds — required for column-scoped events, omitted otherwise
+  column_index?: number; // 0: Ones, 1: Tens, 2: Hundreds, 3: Thousands — required for column-scoped events, omitted otherwise
   details: TelemetryDetailsMap[T];
 }
 
@@ -150,7 +151,7 @@ export function validateTelemetryColumnIndexRule<T extends TelemetryEventType>(
   if (isColumnScoped && (payload.column_index === undefined || payload.column_index === null)) {
     return {
       isValid: false,
-      reason: `Event type '${payload.event_type}' requires a valid column_index (0, 1, or 2).`,
+      reason: `Event type '${payload.event_type}' requires a valid column_index (0, 1, 2, or 3).`,
     };
   }
 
@@ -161,10 +162,10 @@ export function validateTelemetryColumnIndexRule<T extends TelemetryEventType>(
     };
   }
 
-  if (payload.column_index !== undefined && ![0, 1, 2].includes(payload.column_index)) {
+  if (payload.column_index !== undefined && ![0, 1, 2, 3].includes(payload.column_index)) {
     return {
       isValid: false,
-      reason: `column_index must be strictly 0 (Ones), 1 (Tens), or 2 (Hundreds). Received: ${payload.column_index}`,
+      reason: `column_index must be strictly 0 (Ones), 1 (Tens), 2 (Hundreds), or 3 (Thousands). Received: ${payload.column_index}`,
     };
   }
 

@@ -31,7 +31,7 @@ import { FeedbackToast } from './overlays/FeedbackToast';
 import { HelpOverlays } from './overlays/HelpOverlays';
 import { ReflectionScreen } from './ReflectionScreen';
 import { Session8ReflectionScreen } from '@/presentation/components/student/Session8ReflectionScreen';
-import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
+import { firebaseSyncService, emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
 import { useStore } from '@/application/useStore';
 import { X } from 'lucide-react';
 
@@ -112,18 +112,19 @@ export function StudentWorkspacePage() {
   const normUid = normalizeStudentId(effectiveStudentId);
   const lastProjectorTimestampRef = useRef<number>(0);
 
-  // Write initial session presence and entrance event
+  // Write initial session presence and emit canonical SESSION_START event (Module 5 & 14)
   useEffect(() => {
     if (!normUid) return;
-    const startSnapshot = {
-      id: `session_start_${Date.now()}`,
-      timestamp: Date.now(),
-      sessionNumber: meeting,
-      counts: useWorkspaceStore.getState().counts,
-      actionType: 'SESSION_ENTER',
-      details: `כניסה לפעילות במפגש ${meeting}`,
-    };
-    push(ref(database, `users/students/${normUid}/vector_replays`), startSnapshot).catch(() => {});
+    const sessionId = `session_${meeting}_student_${normUid}`;
+    emitTelemetry({
+      session_id: sessionId,
+      student_id: normUid,
+      exercise_id: `ex_${meeting}_01`,
+      event_type: 'SESSION_START',
+      details: {
+        session_number: meeting,
+      },
+    }).catch(console.error);
   }, [normUid, meeting]);
 
   // Module 15: Real-time Projector Mode Listener (<1000ms sync) with timestamp ordering protection
@@ -289,20 +290,6 @@ export function StudentWorkspacePage() {
     };
 
     update(ref(database, `users/students/${uid}`), wsPayload).catch(() => {});
-
-    if (hasInteracted) {
-      const vectorSnapshot = {
-        id: `vec_${Date.now()}`,
-        timestamp: Date.now(),
-        sessionNumber: meeting,
-        counts,
-        answerDigits,
-        carryDigits,
-        actionType: 'BLOCK_DRAG',
-        details: `שינוי בלוח: ${counts.hundreds} מאות, ${counts.tens} עשרות, ${counts.units} יחידות`,
-      };
-      push(ref(database, `users/students/${uid}/vector_replays`), vectorSnapshot).catch(() => {});
-    }
   }, [normUid, counts, answerDigits, carryDigits, undoCount, hesitationCount, meeting, flowStatus]);
 
   // --- RRWeb Telemetry Recording (Authentic High-Definition Screen Capture) ---
