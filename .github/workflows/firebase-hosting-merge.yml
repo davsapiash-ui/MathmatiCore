@@ -24,6 +24,10 @@ jobs:
         working-directory: react-ts-version
         run: npm ci --legacy-peer-deps
 
+      - name: Test
+        working-directory: react-ts-version
+        run: npm test
+
       - name: Build
         working-directory: react-ts-version
         run: npm run build
@@ -42,5 +46,5 @@ jobs:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MATHIMATICORE }}
 
       - name: Deploy to Firebase Hosting
-        run: npx --yes firebase-tools@13 deploy --only hosting --project mathimaticore --non-interactive
+        run: npx --yes firebase-tools@13 deploy --only hosting,database,firestore:rules --project mathimaticore --non-interactive
 
