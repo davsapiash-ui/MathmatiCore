@@ -42,7 +42,7 @@
       ".read": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true || auth.token.role == 'admin' || auth.token.role == 'ADMIN' || auth.token.admin == true)",
       "$alertId": {
         ".read": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true || auth.token.role == 'admin' || auth.token.role == 'ADMIN' || auth.token.admin == true)",
-        ".write": "auth != null",
+        ".write": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true || auth.token.role == 'admin' || auth.token.role == 'ADMIN' || auth.token.admin == true || (newData.child('studentId').val() == 'student_user' + auth.token.student_id || newData.child('studentId').val() == 'student_' + auth.token.student_id || newData.child('rawStudentId').val() == 'student_user' + auth.token.student_id || newData.child('rawStudentId').val() == 'student_' + auth.token.student_id || $alertId.contains('student_user' + auth.token.student_id) || $alertId.contains('student_' + auth.token.student_id)))",
         ".validate": "!newData.child('studentName').exists() && !newData.child('name').exists() && !newData.child('email').exists() && !newData.child('taz').exists() && !newData.child('rawStudentName').exists()"
       }
     },
@@ -63,7 +63,10 @@
     },
     "audit_logs": {
       ".read": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true || auth.token.role == 'admin' || auth.token.role == 'ADMIN' || auth.token.admin == true)",
-      ".write": "auth != null",
+      "$logId": {
+        ".read": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true || auth.token.role == 'admin' || auth.token.role == 'ADMIN' || auth.token.admin == true)",
+        ".write": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true || auth.token.role == 'admin' || auth.token.role == 'ADMIN' || auth.token.admin == true || newData.child('user_id').val() == 'student_user' + auth.token.student_id || newData.child('user_id').val() == 'student_' + auth.token.student_id || newData.child('user_id').val() == auth.uid)"
+      },
       ".indexOn": ["timestamp"]
     },
     "sessions": {
