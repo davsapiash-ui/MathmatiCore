@@ -4,7 +4,7 @@
 MathmatiCore is a hybrid mathematics learning platform for 3rd-grade students (including ASD support and special education).
 - **Frontend Path**: `react-ts-version` (React 19, Vite, TypeScript, Tailwind CSS, Framer Motion, KaTeX)
 - **Backend / Cloud Functions**: `functions` (Firebase Cloud Functions, TypeScript, Gemini SDK)
-- **Architecture**: Zero-PII Policy (Anonymous Student IDs 1-30), Offline FIFO Queue, 50KB Payload limit per telemetry chunk.
+- **Architecture**: Zero-PII Policy (Anonymous Student IDs 1-12), Offline FIFO Queue, 50KB Payload limit per telemetry chunk.
 
 ## Key Developer Commands
 All frontend commands should be executed inside the `react-ts-version` directory:
@@ -15,7 +15,7 @@ All frontend commands should be executed inside the `react-ts-version` directory
 - **Verify Component**: `npm run verify-component`
 
 ## Architecture & Guidelines for Claude Code
-1. **Zero-PII Policy**: Never store or stream PII. Use student anonymous IDs (`1`-`30`) only.
+1. **Zero-PII Policy**: Never store or stream PII. Use student anonymous IDs (`1`-`12`) only.
 2. **Offline-First & Telemetry**: Telemetry chunks must be kept under 50KB and buffered in an offline FIFO queue when network drops.
 3. **8-Session Progression**:
    - Session 1: Sandbox

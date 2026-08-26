@@ -10,6 +10,6 @@ MathmatiCore Frontend (React 19 + TypeScript + Vite + Tailwind CSS + Framer Moti
 - **Run Code Linter**: `npm run lint`
 
 ## Code Standards
-- Zero-PII Policy (Anonymous IDs 1-30).
+- Zero-PII Policy (Anonymous IDs 1-12).
 - Offline First FIFO telemetry queue (<50KB payload).
 - Always verify `npm test` and `npm run build` before finalizing changes.

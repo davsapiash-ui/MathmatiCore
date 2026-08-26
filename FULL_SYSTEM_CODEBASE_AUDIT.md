@@ -15,7 +15,7 @@
 | **Frontend UI & Session Flow** | `[IMPLEMENTED]` | `src/features/workspace/` | Verified with `tsc --noEmit` & `vitest` |
 | **State Machine & VRA Engine** | `[IMPLEMENTED]` | `src/application/useWorkspaceStore.ts` | 63 Unit Tests Passed |
 | **Backend & Firebase Services** | `[IMPLEMENTED]` | `src/infrastructure/services/FirebaseSyncService.ts` | Verified Realtime Sync & 50KB Guard |
-| **Database Schemas & Zero-PII** | `[IMPLEMENTED]` | `src/application/useStore.ts` | Anonymous IDs 1–30, School Routing |
+| **Database Schemas & Zero-PII** | `[IMPLEMENTED]` | `src/application/useStore.ts` | Anonymous IDs 1–12, School Routing |
 | **AI Mentoring (Socratic)** | `[IMPLEMENTED]` | `src/features/workspace/overlays/HelpOverlays.tsx` | 3 Closed Options & 30s Lockout Timer |
 | **Telemetry & Offline FIFO** | `[IMPLEMENTED]` | `src/infrastructure/services/FirebaseSyncService.ts` | Max 10 Queue Buffer & Network Listener |
 
@@ -128,7 +128,7 @@
 ### 5.1 Anonymous Student Document
 - **Status:** `[IMPLEMENTED]`
 - **File Citations:**
-  - `src/application/useStore.ts:45-65` (`StudentData` schema: `student_anonymous_id: 1-30`, `school_code`, zero PII stored)
+  - `src/application/useStore.ts:45-65` (`StudentData` schema: `student_anonymous_id: 1-12`, `school_code`, zero PII stored)
 
 ### 5.2 Exercise Telemetry & Reflection Documents
 - **Status:** `[IMPLEMENTED]`
