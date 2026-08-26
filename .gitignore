@@ -12,6 +12,7 @@ database-debug.log
 # Build artifacts & debug leftovers
 dist/
 *.log
+*.zip
 build_output*
 dev_output*
 full_build_output*
