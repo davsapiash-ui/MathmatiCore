@@ -2,13 +2,15 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { type StudentData, useStore } from '@/application/useStore';
 import { normalizeStudentId } from '@/application/useChatStore';
-import { X, CheckCircle, Video, ListTodo, Sliders, BellRing, Check, MessageCircle, RotateCcw } from 'lucide-react';
+import { X, CheckCircle, Video, ListTodo, Sliders, BellRing, Check, MessageCircle, RotateCcw, FileText } from 'lucide-react';
 import { StudentReplayAndLogs } from './StudentReplayAndLogs';
 import { BlueprintEditor } from './BlueprintEditor';
 import { PhysicalOverrideControl } from './PhysicalOverrideControl';
 import { SilentAdaptationPanel, type AdaptationSettings } from './SilentAdaptationPanel';
 import { ref, update } from 'firebase/database';
-import { database } from '@/infrastructure/firebase';
+import { database, functions } from '@/infrastructure/firebase';
+import { httpsCallable } from 'firebase/functions';
+import { pedagogicalReportService } from '@/infrastructure/services/PedagogicalReportService';
 import { toast } from 'sonner';
 
 interface Props {
@@ -24,6 +26,7 @@ export function StudentSideDrawer({ student, onClose, isPendingApproval, onAppro
     isPendingApproval ? 'blueprint' : 'replays'
   );
   const [isResetting, setIsResetting] = useState(false);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -38,6 +41,77 @@ export function StudentSideDrawer({ student, onClose, isPendingApproval, onAppro
   const sAny = student as any;
   const hasHelpRequest = sAny.helpRequested || sAny.handRaised || sAny.isStruggling;
   const helpCount = sAny.helpCallCount || 0;
+
+  const handleGenerateReport = async (overrideSessionNum?: number) => {
+    setIsGeneratingReport(true);
+    try {
+      const rawNum = student.studentId.replace(/\D/g, '') || '1';
+      // Module 23: Determine target diagnostic session dynamically: Session 2 (Gate) or Session 8 (Final)
+      const targetSession = overrideSessionNum || (isPendingApproval ? 2 : (sAny.sessionNumber || student.current_session || student.workspaceState?.sessionNumber || 8));
+      const sessionId = `session_${targetSession}_student_${rawNum}`;
+      const generateReportCallable = httpsCallable(functions, 'generatePedagogicalReportPDF');
+      const res: any = await generateReportCallable({ 
+        sessionId,
+        sessionNumber: targetSession,
+      });
+
+      if (!res.data || !res.data.report) {
+        throw new Error('Server failed to return valid pedagogical report data.');
+      }
+
+      const sReport = res.data.report;
+      const downloadUrl = res.data.downloadUrl;
+      const isDegraded = res.data.status === 'DEGRADED_JSON_ONLY' || !res.data.pdf_stored;
+
+      // Explicit Notification: Alert if PDF storage was degraded
+      if (isDegraded) {
+        toast.warning(`שים לב: שמירת ה-PDF ב-Cloud Storage לא הושלמה (${res.data.error_message || 'שגיאת אחסון'}). מוצגת תצוגת דוח מקומית זמנית בלבד.`, { duration: 6000 });
+      }
+
+      // Primary Delivery: If authoritative Cloud Storage PDF URL exists, open/download it directly
+      if (!isDegraded && downloadUrl && typeof downloadUrl === 'string' && downloadUrl.startsWith('http')) {
+        window.open(downloadUrl, '_blank');
+        toast.success(`✓ קובץ PDF אותנטי (מפגש ${targetSession}) נשמר והורד מ-Cloud Storage בהצלחה!`);
+      } else {
+        // Fallback presentation preview (or degraded fallback)
+        const html = pedagogicalReportService.generatePrintableHtml({
+          studentId: student.studentId,
+          displayId: sReport.student_id || parseInt(rawNum, 10),
+          sessionNumber: sReport.session_number || targetSession,
+          finalScore: sReport.score_percent || 0,
+          persistenceIndex: 100,
+          undoCount: 0,
+          errorCount: 0,
+          guessCount: 0,
+          routeType: sReport.matrix_recommended_path === 'green_path' ? 'GREEN' : 'YELLOW_REMEDIATION_PATH',
+          groupRecommendation: (sReport.score_percent < 50 ? 'HOMOGENEOUS_PHYSICAL_TENS' : sReport.score_percent <= 75 ? 'HETEROGENEOUS_GROUPING' : 'INDEPENDENT_CHALLENGE'),
+          recommendationLabelHebrew: sReport.routing_label_he || 'שיבוץ מותאם',
+          recommendationDetailsHebrew: sReport.recommendation_details_he || '',
+          completedMilestones: [
+            'זיהוי המבנה העשרוני בתחום ה-10,000',
+            'ביצוע המרות כפל בעשרות שלמות',
+            'הפעלת בקרה עצמית ושימוש ב-Undo',
+          ],
+          exerciseNarratives: sReport.exercise_narratives,
+          timestamp: sReport.generated_at || Date.now(),
+        });
+
+        const win = window.open('', '_blank');
+        if (win) {
+          win.document.write(html);
+          win.document.close();
+        }
+        if (!isDegraded) {
+          toast.success(`דוח פדגוגי עבור תלמיד ${rawNum} (מפגש ${targetSession}) הופק בהצלחה!`);
+        }
+      }
+    } catch (err: any) {
+      console.error('Pedagogical report error:', err);
+      toast.error('הפקת הדוח הפדגוגי נכשלה. נסה שוב מאוחר יותר.');
+    } finally {
+      setIsGeneratingReport(false);
+    }
+  };
 
   const handleResetStudent = async () => {
     setIsResetting(true);
@@ -99,6 +173,38 @@ export function StudentSideDrawer({ student, onClose, isPendingApproval, onAppro
             )}
           </div>
           <div className="flex items-center gap-2">
+            {isPendingApproval ? (
+              <button
+                onClick={() => handleGenerateReport(2)}
+                disabled={isGeneratingReport}
+                className="px-2.5 py-1.5 rounded-xl border border-indigo-200 hover:border-indigo-400 bg-indigo-50/50 hover:bg-indigo-100 text-indigo-700 dark:text-indigo-300 text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50"
+                title="הפק דוח פדגוגי מסכם למפגש 2 (שער אישור)"
+              >
+                <FileText className={`w-3.5 h-3.5 ${isGeneratingReport ? 'animate-spin' : ''}`} />
+                <span>דוח מפגש 2</span>
+              </button>
+            ) : (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => handleGenerateReport(2)}
+                  disabled={isGeneratingReport}
+                  className="px-2 py-1.5 rounded-xl border border-slate-200 hover:border-indigo-300 bg-slate-50 hover:bg-indigo-50 text-slate-700 dark:text-slate-300 text-xs font-bold transition-all flex items-center gap-1 disabled:opacity-50"
+                  title="הפק דוח פדגוגי למפגש 2 (שער ניתוב)"
+                >
+                  <FileText className="w-3 h-3 text-indigo-500" />
+                  <span>דוח 2</span>
+                </button>
+                <button
+                  onClick={() => handleGenerateReport(8)}
+                  disabled={isGeneratingReport}
+                  className="px-2 py-1.5 rounded-xl border border-indigo-200 hover:border-indigo-400 bg-indigo-50/50 hover:bg-indigo-100 text-indigo-700 dark:text-indigo-300 text-xs font-bold transition-all flex items-center gap-1 disabled:opacity-50"
+                  title="הפק דוח פדגוגי מסכם למפגש 8"
+                >
+                  <FileText className="w-3 h-3 text-indigo-500" />
+                  <span>דוח 8</span>
+                </button>
+              </div>
+            )}
             <button
               onClick={handleResetStudent}
               disabled={isResetting}

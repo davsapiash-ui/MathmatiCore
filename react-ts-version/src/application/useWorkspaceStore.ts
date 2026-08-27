@@ -44,6 +44,7 @@ import { AuditLogger } from '@/infrastructure/services/AuditLogger';
 import { SocraticEngine, type SocraticHintResponse } from '@/infrastructure/services/SocraticEngine';
 import { ref, update, push } from 'firebase/database';
 import { database, serverNow, fetchServerClockOffset } from '@/infrastructure/firebase';
+import { throttledRtdbUpdate } from '@/infrastructure/services/ThrottledRtdbWriter';
 import { normalizeStudentId } from '@/application/useChatStore';
 import { firebaseSyncService, emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
 import type { TelemetryEventType } from '@/types/telemetry';
@@ -96,6 +97,7 @@ interface WorkspaceState {
   socraticLockDeadline: number | null;
   hesitationTimerSeconds: number;
   consecutiveErrorCount: number;
+  consecutiveUndoCount: number;
   genericUndoStack: Array<Record<string, unknown>>;
 
   // session / flow
@@ -271,6 +273,7 @@ function resetTaskInteraction(isASD = false) {
     hesitationCount: 0,
     hesitationTimerSeconds: 0,
     consecutiveErrorCount: 0,
+    consecutiveUndoCount: 0,
     undoTimestamps: [],
     isBoardLocked: false,
     hasRequestedBasicHelp: false,
@@ -875,22 +878,43 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     const tasks = getActiveTasks(s);
     const nextIdx = s.standardTaskIdx + 1;
 
-    // Module 14: After completing mandatory tasks across all sessions (1..8), present Reinforcement vs Challenge choice if not yet branched
+    // Module 14: Choice screen (Reinforcement vs Challenge) must only be triggered in Sessions 3–7
     if (nextIdx >= tasks.length && !s.selectedBranch) {
-      set({ flowStatus: 'choice_branch', awaitingNext: false });
-      const studentId = useAuthStore.getState().user?.uid;
+      if (s.sessionNumber >= 3 && s.sessionNumber <= 7) {
+        set({ flowStatus: 'choice_branch', awaitingNext: false });
+        const studentId = useAuthStore.getState().user?.uid;
+        if (studentId && !s.isSupersededByOtherDevice) {
+          const normId = normalizeStudentId(studentId);
+          const studentPayload = {
+            lastAction: 'השלים משימות חובה — בוחר מסלול (ביסוס/אתגר)',
+            lastActivityTimestamp: Date.now(),
+            onlineStatus: 'active',
+          };
+          throttledRtdbUpdate(`users/students/${studentId}`, studentPayload).catch(console.error);
+          if (normId !== studentId) {
+            throttledRtdbUpdate(`users/students/${normId}`, studentPayload).catch(console.error);
+          }
+        }
+        return;
+      }
+
+      // For sessions 1, 2, and 8: route directly to session completion / quiet end screen
+      const authUser = useAuthStore.getState().user;
+      const studentId = authUser?.uid || (authUser?.student_id ? `student_user${authUser.student_id}` : 'student_user1');
       if (studentId && !s.isSupersededByOtherDevice) {
         const normId = normalizeStudentId(studentId);
-        const studentPayload = {
-          lastAction: 'השלים משימות חובה — בוחר מסלול (ביסוס/אתגר)',
-          lastActivityTimestamp: Date.now(),
-          onlineStatus: 'active',
-        };
-        update(ref(database, `users/students/${studentId}`), studentPayload).catch(console.error);
+        useStore.getState().updateHighestCompletedMeeting(studentId, s.sessionNumber);
+        useStore.getState().updateHighestCompletedMeeting(normId, s.sessionNumber);
+        firebaseSyncService.syncHighestCompletedMeeting(studentId, s.sessionNumber).catch(console.error);
         if (normId !== studentId) {
-          update(ref(database, `users/students/${normId}`), studentPayload).catch(console.error);
+          firebaseSyncService.syncHighestCompletedMeeting(normId, s.sessionNumber).catch(console.error);
         }
       }
+
+      set({ awaitingNext: true, currentState: 'COMPLETE' });
+      showFeedback({ correct: true, title: 'כָּל הַכָּבוֹד! 🎉', sub: `מִפְגָּשׁ ${s.sessionNumber} הוּשְׁלַם בְּהַצְלָחָה!` }, 2500, () => {
+        set({ flowStatus: 'sessionDone', awaitingNext: false });
+      });
       return;
     }
 
@@ -912,9 +936,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           lastActivityTimestamp: Date.now(),
           onlineStatus: 'active',
         };
-        update(ref(database, `users/students/${studentId}`), studentPayload).catch(console.error);
+        throttledRtdbUpdate(`users/students/${studentId}`, studentPayload).catch(console.error);
         if (normId !== studentId) {
-          update(ref(database, `users/students/${normId}`), studentPayload).catch(console.error);
+          throttledRtdbUpdate(`users/students/${normId}`, studentPayload).catch(console.error);
         }
       }
 
@@ -1051,6 +1075,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     socraticPenaltyLockoutUntil: initialDeadline,
     hesitationTimerSeconds: 0,
     consecutiveErrorCount: 0,
+    consecutiveUndoCount: 0,
     genericUndoStack: [],
 
     sessionNumber: 1,
@@ -1229,9 +1254,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           lastActivityTimestamp: Date.now(),
           onlineStatus: 'active',
         };
-        update(ref(database, `users/students/${studentId}`), studentPayload).catch(console.error);
+        throttledRtdbUpdate(`users/students/${studentId}`, studentPayload).catch(console.error);
         if (normId !== studentId) {
-          update(ref(database, `users/students/${normId}`), studentPayload).catch(console.error);
+          throttledRtdbUpdate(`users/students/${normId}`, studentPayload).catch(console.error);
         }
       }
 
@@ -1617,7 +1642,17 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           },
         }).catch(console.error);
 
-        // Module 11: Undo does NOT trigger any penalty (no Socratic card popup, no timeout lockout, no PASSIVE_DRIFTING)
+        const nextConsecutiveUndos = (s.consecutiveUndoCount || 0) + 1;
+
+        // Module 12(c): 3 consecutive UNDO_EXECUTED actions within a single exercise trigger Socratic coach, ONLY in Session 8
+        if (nextConsecutiveUndos >= 3 && s.sessionNumber === 8 && s.currentState !== 'SOCRATIC_ACTIVE' && !s.isSocraticCardLocked) {
+          setTimeout(() => {
+            get().fetchSocraticHint();
+            set({ helpState: 'socratic', currentState: 'SOCRATIC_ACTIVE' });
+          }, 0);
+        }
+
+        // Module 11: Undo does NOT trigger any penalty (no scoring penalty, no timeout lockout, no PASSIVE_DRIFTING)
         if (studentId) {
           useStore.getState().logSemanticEvent(studentId, {
             action: 'undo',
@@ -1632,6 +1667,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           counts: snapshot.counts, 
           undoStack: stack, 
           undoCount: s.undoCount + 1,
+          consecutiveUndoCount: nextConsecutiveUndos,
           undoTimestamps: [],
           keyboardState: stateReducer(s.keyboardState, { type: 'UNDO_CLICK' })
         };
@@ -1951,8 +1987,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           lastAction: 'תלמיד לחץ על נורת העזרה!',
           last_alert: 'תלמיד לחץ על נורת העזרה!',
         };
-        update(ref(database, `users/students/${studentId}`), studentHelpPayload).catch(console.error);
-        update(ref(database, `users/students/${studentId}/helpHistory/${helpKey}`), {
+        throttledRtdbUpdate(`users/students/${studentId}`, studentHelpPayload).catch(console.error);
+        throttledRtdbUpdate(`users/students/${studentId}/helpHistory/${helpKey}`, {
           timestamp: Date.now(),
           sessionNumber: s.sessionNumber || 1,
           type: 'HINT_REQUESTED',
@@ -2153,6 +2189,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         socraticPenaltyLockoutUntil: null,
         hesitationTimerSeconds: 0,
         consecutiveErrorCount: 0,
+        consecutiveUndoCount: 0,
         genericUndoStack: [],
       });
     },

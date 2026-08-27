@@ -43,7 +43,7 @@ export function SocraticDrawer({ isOpen, onClose }: SocraticDrawerProps) {
       const triggerReason: 'hesitation_45s' | 'consecutive_errors_4' | 'consecutive_undos_3' = 
         wsState.consecutiveErrorCount >= 4 
           ? 'consecutive_errors_4' 
-          : wsState.undoCount >= 3 
+          : (wsState.sessionNumber === 8 && (wsState.consecutiveUndoCount ?? 0) >= 3)
           ? 'consecutive_undos_3' 
           : 'hesitation_45s';
 

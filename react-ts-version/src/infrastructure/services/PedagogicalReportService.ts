@@ -24,6 +24,68 @@ export type CanonicalRoutingGroup =
   | 'Heterogeneous peer discourse, abacus'
   | 'Independent challenge track, whiteboard';
 
+export const EXACT_AI_FALLBACK_TEXT = "הניתוח הפדגוגי המפורט אינו זמין כעת. ההמלצות שלהלן מבוססות על מדדי הביצוע.";
+
+const COLUMN_NAMES_HE = ["אחדות", "עשרות", "מאות", "אלפים"];
+
+/**
+ * Generates deterministic, chronological Exercise Narratives for compulsory exercises (Module 23).
+ * Constructed from telemetry events without invoking the AI engine.
+ */
+export function generateExerciseNarrativeFromEvents(telemetryDocs: Record<string, any>[] = []): string[] {
+  const narratives: string[] = [];
+  const exerciseMap: Record<string, any[]> = {};
+
+  // 1. Order events chronologically by client_timestamp
+  const sorted = [...telemetryDocs].sort((a, b) => (a.client_timestamp || 0) - (b.client_timestamp || 0));
+  for (const doc of sorted) {
+    const exId = doc.exercise_id || "ex_1";
+    if (!exerciseMap[exId]) exerciseMap[exId] = [];
+    exerciseMap[exId].push(doc);
+  }
+
+  let exerciseIdx = 1;
+  for (const [exId, events] of Object.entries(exerciseMap)) {
+    let regroupCount = 0;
+    let regroupCols: number[] = [];
+    let dragCount = 0;
+    let digitsEntered = 0;
+    let undoCount = 0;
+    let firstAttemptCorrect = true;
+
+    for (const ev of events) {
+      if (ev.event_type === 'BLOCK_DRAG_COMPLETE') dragCount++;
+      if (ev.event_type === 'REGROUPING_SUCCESS') {
+        regroupCount++;
+        if (ev.column_index !== undefined && ev.column_index !== null) {
+          regroupCols.push(ev.column_index);
+        }
+      }
+      if (ev.event_type === 'DIGIT_ENTERED') {
+        digitsEntered++;
+        if (ev.details?.is_correct === false) {
+          firstAttemptCorrect = false;
+        }
+      }
+      if (ev.event_type === 'UNDO_EXECUTED') undoCount++;
+    }
+
+    const colText = regroupCols.length > 0
+      ? `בטור ה${COLUMN_NAMES_HE[regroupCols[0]] || 'עשרות'}`
+      : 'ללא צורך בפריטה מורכבת';
+
+    const narrative = `משימת חובה ${exerciseIdx} (${exId}): הלומד ביצע ${dragCount} גרירות בלוקים, ${regroupCount > 0 ? `ביצע המרה עשרונית ${colText}` : 'שמר על המבנה העשרוני'}, הזין ${digitsEntered} ספרות ללוח והפעיל ${undoCount} פעולות ביטול (Undo) לבקרה עצמית. התרגיל הושלם ${firstAttemptCorrect ? 'בהצלחה בניסיון הראשון' : 'לאחר בקרה ותיקון שגיאה'}.`;
+    narratives.push(narrative);
+    exerciseIdx++;
+  }
+
+  if (narratives.length === 0) {
+    narratives.push("לא נרשמו אירועי טלמטריה עבור משימות החובה במפגש זה.");
+  }
+
+  return narratives;
+}
+
 export interface PedagogicalReportPDFResult {
   studentDisplayName: string; // "תלמיד {ID}" (1-12)
   studentId: number;
@@ -31,6 +93,7 @@ export interface PedagogicalReportPDFResult {
   routingGroup: CanonicalRoutingGroup;
   routingLabelHe: string;
   recommendationDetailsHe: string;
+  exerciseNarratives: string[];
   pdfHtml: string;
 }
 
@@ -43,7 +106,10 @@ export interface PedagogicalReportPDFResult {
  *   - ציון > 75%: Independent challenge track, whiteboard.
  * כלל 3: אנונימיות מוחלטת: "תלמיד {ID}" (1-12) בלבד, ללא שמות או אימיילים.
  */
-export function generatePedagogicalReportPDF(sessionDoc: SessionDocument): PedagogicalReportPDFResult {
+export function generatePedagogicalReportPDF(
+  sessionDoc: SessionDocument,
+  telemetryOrNarratives?: Record<string, any>[] | string[]
+): PedagogicalReportPDFResult {
   if (sessionDoc.session_score_percent === null || sessionDoc.session_score_percent === undefined) {
     throw new Error('[PedagogicalReportService] session_score_percent is required in SessionDocument');
   }
@@ -75,6 +141,27 @@ export function generatePedagogicalReportPDF(sessionDoc: SessionDocument): Pedag
     routingLabelHe = 'מסלול אתגר עצמאי, לוח מחיק';
     recommendationDetailsHe = 'המלצה למסלול אתגר וחקר עצמאי תוך שימוש בלוח מחיק ומשימות הרחבה והעמקה.';
   }
+
+  // Resolve dynamic Exercise Narratives
+  let exerciseNarratives: string[];
+  if (Array.isArray(telemetryOrNarratives) && typeof telemetryOrNarratives[0] === 'string') {
+    exerciseNarratives = telemetryOrNarratives as string[];
+  } else if (Array.isArray(telemetryOrNarratives)) {
+    exerciseNarratives = generateExerciseNarrativeFromEvents(telemetryOrNarratives as Record<string, any>[]);
+  } else {
+    exerciseNarratives = generateExerciseNarrativeFromEvents([]);
+  }
+
+  const exerciseNarrativeSection = `
+  <div class="card" style="margin-bottom: 20px;">
+    <div style="font-size: 14px; font-weight: 800; color: #0f172a; margin-bottom: 8px;">📖 סיפור התרגילים הכרונולוגי (Exercise Narrative)</div>
+    ${exerciseNarratives.map(n => `<p style="margin: 0 0 8px 0; color: #334155; font-size: 13px; line-height: 1.6;">${n}</p>`).join('')}
+  </div>
+
+  <div class="card" style="margin-bottom: 20px; background: #fffbeb; border-color: #fde68a;">
+    <div style="font-size: 14px; font-weight: 800; color: #92400e; margin-bottom: 6px;">🤖 ניתוח פדגוגי מעמיק (AI Insights)</div>
+    <p style="margin: 0; color: #78350f; font-size: 13px;">${EXACT_AI_FALLBACK_TEXT}</p>
+  </div>`;
 
   const pdfHtml = `<!DOCTYPE html>
 <html lang="he" dir="rtl">
@@ -110,6 +197,8 @@ export function generatePedagogicalReportPDF(sessionDoc: SessionDocument): Pedag
     <p style="margin: 0; color: #14532d; font-size: 15px;">${recommendationDetailsHe}</p>
   </div>
 
+  ${exerciseNarrativeSection}
+
   <div class="footer">
     מסמך זה הופק אוטומטית | שמירה מוחלטת על אנונימיות ופרטיות (Zero PII Policy)
   </div>
@@ -128,6 +217,7 @@ export function generatePedagogicalReportPDF(sessionDoc: SessionDocument): Pedag
     routingGroup,
     routingLabelHe,
     recommendationDetailsHe,
+    exerciseNarratives,
     pdfHtml,
   };
 }
@@ -146,6 +236,7 @@ export interface StudentReportData {
   recommendationLabelHebrew: string;
   recommendationDetailsHebrew: string;
   completedMilestones: string[];
+  exerciseNarratives?: string[];
   timestamp: number;
 }
 
@@ -204,6 +295,8 @@ export class PedagogicalReportService {
     guessCount?: number;
     routeType?: 'GREEN' | 'YELLOW_REMEDIATION_PATH';
     completedMilestones?: string[];
+    exerciseNarratives?: string[];
+    telemetryEvents?: Record<string, any>[];
   }): StudentReportData {
     const rawId = params.studentId;
     const norm = normalizeStudentId(rawId);
@@ -219,6 +312,8 @@ export class PedagogicalReportService {
     const persistenceIndex = denom === 0 ? 100 : Math.min(100, Math.max(0, Math.round((U / denom) * 100)));
 
     const { recommendation, labelHebrew, detailsHebrew } = this.calculateGroupingRecommendation(score);
+
+    const narratives = params.exerciseNarratives || generateExerciseNarrativeFromEvents(params.telemetryEvents || []);
 
     const report: StudentReportData = {
       studentId: `student_${clampedDisplayId}`,
@@ -238,6 +333,7 @@ export class PedagogicalReportService {
         'ביצוע המרות כפל בעשרות שלמות',
         'הפעלת בקרה עצמית ושימוש ב-Undo',
       ],
+      exerciseNarratives: narratives,
       timestamp: Date.now(),
     };
 
@@ -254,6 +350,10 @@ export class PedagogicalReportService {
    * יצירת מסמך HTML/PDF מותאם להדפסה ושמירה
    */
   public generatePrintableHtml(report: StudentReportData): string {
+    const narratives = report.exerciseNarratives && report.exerciseNarratives.length > 0
+      ? report.exerciseNarratives
+      : ["לא נרשמו אירועי טלמטריה עבור משימות החובה במפגש זה."];
+
     return `<!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -301,6 +401,12 @@ export class PedagogicalReportService {
   <div class="rec-box">
     <div class="rec-title">🎯 המלצה פדגוגית לשיבוץ והמשך למידה: ${report.recommendationLabelHebrew}</div>
     <p style="margin: 0; color: #14532d; font-size: 15px;">${report.recommendationDetailsHebrew}</p>
+  </div>
+
+  <!-- Exercise Narrative (placed BEFORE AI section) -->
+  <div class="card" style="margin-bottom: 30px;">
+    <div class="card-title">📖 סיפור התרגילים הכרונולוגי (Exercise Narrative)</div>
+    ${narratives.map(n => `<p style="margin: 0 0 8px 0; color: #334155; font-size: 13px; line-height: 1.6;">${n}</p>`).join('')}
   </div>
 
   <div class="card" style="margin-bottom: 30px;">

@@ -1,0 +1,47 @@
+﻿rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check teacher claim
+    function isTeacher() {
+      return isAuthenticated() && (
+        ('role' in request.auth.token && (request.auth.token.role == 'teacher' || request.auth.token.role == 'TEACHER')) ||
+        ('teacher' in request.auth.token && request.auth.token.teacher == true)
+      );
+    }
+    
+    // Helper function to check admin claim
+    function isAdmin() {
+      return isAuthenticated() && (
+        ('role' in request.auth.token && (request.auth.token.role == 'admin' || request.auth.token.role == 'ADMIN')) ||
+        ('admin' in request.auth.token && request.auth.token.admin == true)
+      );
+    }
+
+    // Teacher class match check
+    function isTeacherOfClass(classId) {
+      return isTeacher() && (
+        !('class_id' in request.auth.token) || 
+        request.auth.token.class_id == null || 
+        request.auth.token.class_id == classId || 
+        isAdmin()
+      );
+    }
+
+    // Pedagogical Reports (Module 23 & 27: Strict Class-Scoped Read-Only Access)
+    match /reports/{classId}/{allPaths=**} {
+      allow read: if isTeacherOfClass(classId);
+      allow write: if false; // Writes restricted strictly to Cloud Functions Admin SDK
+    }
+
+    // Default deny for all other storage paths
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

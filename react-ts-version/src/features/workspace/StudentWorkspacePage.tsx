@@ -911,15 +911,15 @@ export function StudentWorkspacePage() {
 
         <WorkspaceTopbar isDragging={activeDrag !== null} />
 
-        {/* Main 50/50 workspace (or centered in Session 8) */}
-        <main className={`flex flex-row flex-1 overflow-hidden p-5 gap-5 max-w-[1600px] mx-auto w-full box-border ${sessionNumber === 8 ? 'justify-center items-center' : ''}`}>
+        {/* Main 50/50 workspace (or centered in Session 2 & 8) */}
+        <main className={`flex flex-row flex-1 overflow-hidden p-5 gap-5 max-w-[1600px] mx-auto w-full box-border ${(sessionNumber === 2 || sessionNumber === 8) ? 'justify-center items-center' : ''}`}>
           {/* Task card */}
-          <div className={`flex-1 min-h-0 min-w-0 flex flex-col ${sessionNumber === 8 ? 'max-w-3xl flex-none h-auto' : ''}`}>
+          <div className={`flex-1 min-h-0 min-w-0 flex flex-col ${(sessionNumber === 2 || sessionNumber === 8) ? 'max-w-3xl flex-none h-auto' : ''}`}>
             <TaskCard />
           </div>
 
-          {/* Place-value board (left in RTL, hidden in Session 8) */}
-          {sessionNumber !== 8 && (
+          {/* Place-value board (hidden/unmounted in Session 2 and Session 8) */}
+          {sessionNumber !== 2 && sessionNumber !== 8 && (
             <PlaceValueBoard />
           )}
         </main>

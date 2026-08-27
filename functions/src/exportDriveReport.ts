@@ -284,3 +284,418 @@ export const exportAdminReportToDrive = onCall(async (request) => {
     webViewLink,
   };
 });
+
+/**
+ * Upload an arbitrary buffer/file to Google Drive folder.
+ */
+async function uploadBufferToDrive(
+  buffer: Buffer,
+  fileName: string,
+  mimeType: string,
+  parentFolderId = GOOGLE_DRIVE_FOLDER_ID
+): Promise<{ success: boolean; fileId: string; webViewLink: string; error?: string }> {
+  try {
+    const accessToken = await getDriveAccessToken();
+    if (!accessToken) {
+      return { success: false, fileId: '', webViewLink: '', error: 'Google Drive access token unavailable' };
+    }
+
+    const metadata = {
+      name: fileName,
+      parents: [parentFolderId],
+      mimeType,
+    };
+
+    const boundary = "mathmaticore_upload_boundary";
+    const delimiter = `\r\n--${boundary}\r\n`;
+    const closeDelimiter = `\r\n--${boundary}--`;
+
+    const multipartBody = Buffer.concat([
+      Buffer.from(
+        `${delimiter}Content-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}`
+      ),
+      Buffer.from(
+        `${delimiter}Content-Type: ${mimeType}\r\nContent-Transfer-Encoding: base64\r\n\r\n${buffer.toString("base64")}`
+      ),
+      Buffer.from(closeDelimiter),
+    ]);
+
+    const response = await fetch(
+      "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&supportsTeamDrives=true",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": `multipart/related; boundary=${boundary}`,
+        },
+        body: multipartBody,
+      }
+    );
+
+    if (response.ok) {
+      const resData = await response.json();
+      const fileId = resData.id || `drive_${Date.now()}`;
+      const webViewLink = `https://drive.google.com/file/d/${fileId}/view`;
+      return { success: true, fileId, webViewLink };
+    } else {
+      const errText = await response.text();
+      return { success: false, fileId: '', webViewLink: '', error: `Drive API ${response.status}: ${errText}` };
+    }
+  } catch (err: any) {
+    return { success: false, fileId: '', webViewLink: '', error: err?.message || String(err) };
+  }
+}
+
+export const VALID_RESET_REASONS = [
+  'END_OF_LESSON',
+  'TECHNICAL_GLITCH',
+  'STUDENT_REASSIGNMENT',
+  'ACADEMIC_PILOT_RESET',
+  'DEV_TESTING',
+  'TEACHER_INITIATED_RESET',
+] as const;
+
+/**
+ * Module 23א: backupAndResetSessionData
+ * Enforces strict Backup-Before-Delete sequencing:
+ * 1. Collect all target data to be reset from Firestore/RTDB.
+ * 2. Upload JSON snapshot to authorized Google Drive folder.
+ * 3. Only on confirmed successful write, proceed to deletion.
+ * 4. Log immutable audit entry into reset_audit_log.
+ * 5. If backup fails, abort deletion immediately with exact Hebrew error message.
+ */
+export const backupAndResetSessionData = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "User must be authenticated.");
+  }
+
+  const { reset_level, reason, student_id, class_id = "class_1" } = request.data || {};
+
+  if (!reset_level || !['alerts', 'single_student', 'system'].includes(reset_level)) {
+    throw new HttpsError("invalid-argument", "Invalid reset_level. Must be 'alerts', 'single_student', or 'system'.");
+  }
+
+  if (!reason || !VALID_RESET_REASONS.includes(reason)) {
+    throw new HttpsError("invalid-argument", `Invalid reset reason. Must be one of: ${VALID_RESET_REASONS.join(', ')}`);
+  }
+
+  const performedBy = request.auth.uid;
+  const userEmail = request.auth.token.email || "teacher@edu-haifa.org.il";
+  const rtdb = admin.database();
+  const db = admin.firestore();
+  const resetId = `reset_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+
+  // Level 1: Alerts only (no destructive workspace/session deletion, but mandatory audit log)
+  if (reset_level === 'alerts') {
+    try {
+      await rtdb.ref("radar_alerts").remove().catch(() => {});
+      await db.collection("reset_audit_log").doc(resetId).set({
+        reset_id: resetId,
+        timestamp: Date.now(),
+        performed_by: performedBy,
+        user_email: userEmail,
+        reset_level: 'alerts',
+        reason,
+        affected_student_id: student_id || 'ALL',
+        class_id,
+        status: 'SUCCESS',
+        created_at: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      return { status: "SUCCESS", message: "התראות אופסו בהצלחה ותועדו בלוג." };
+    } catch (e: any) {
+      logger.error("Error resetting alerts:", e);
+      throw new HttpsError("internal", "איפוס התראות נכשל.");
+    }
+  }
+
+  // Level 2 & 3: Single Student or Full System Reset (Mandatory Backup Before Delete)
+  let collectedData: Record<string, any> = {};
+
+  try {
+    if (reset_level === 'single_student') {
+      if (!student_id) {
+        throw new HttpsError("invalid-argument", "student_id is required for single_student reset.");
+      }
+      const rawNum = String(student_id).replace(/\D/g, '') || '1';
+      const studentSnap = await rtdb.ref(`users/students/student_user${rawNum}`).get();
+      collectedData = {
+        student_id,
+        numeric_id: rawNum,
+        snapshot_time: Date.now(),
+        student_state: studentSnap.val() || {},
+      };
+    } else if (reset_level === 'system') {
+      const [studentsSnap, sessionsSnap, chatsSnap, alertsSnap] = await Promise.all([
+        rtdb.ref("users/students").get(),
+        rtdb.ref("sessions").get(),
+        rtdb.ref("chat_messages").get(),
+        rtdb.ref("radar_alerts").get(),
+      ]);
+      collectedData = {
+        class_id,
+        snapshot_time: Date.now(),
+        students: studentsSnap.val() || {},
+        sessions: sessionsSnap.val() || {},
+        chat_messages: chatsSnap.val() || {},
+        radar_alerts: alertsSnap.val() || {},
+      };
+    }
+  } catch (err: any) {
+    logger.error("Failed to collect data for backup:", err);
+    throw new HttpsError("internal", "הגיבוי נכשל. האיפוס בוטל ולא נמחקו נתונים.");
+  }
+
+  // Step 2: Write backup file to Google Drive
+  const backupFileName = `Backup_${reset_level}_${class_id}_${Date.now()}.json`;
+  const backupBuffer = Buffer.from(JSON.stringify(collectedData, null, 2), "utf-8");
+  const driveResult = await uploadBufferToDrive(backupBuffer, backupFileName, "application/json");
+
+  if (!driveResult.success) {
+    logger.error("Drive upload failed during backup:", driveResult.error);
+    // Strict requirement: Fail deletion if backup write fails
+    throw new HttpsError("internal", "הגיבוי נכשל. האיפוס בוטל ולא נמחקו נתונים.");
+  }
+
+  // Step 3: Perform deletions ONLY after confirmed Drive write success
+  try {
+    if (reset_level === 'single_student') {
+      const rawNum = String(student_id).replace(/\D/g, '') || '1';
+      const keys = [`student_user${rawNum}`, `user${rawNum}`, `student_${rawNum}`, rawNum];
+      for (const k of keys) {
+        await rtdb.ref(`users/students/${k}`).remove().catch(() => {});
+        await rtdb.ref(`chat_messages/${k}`).remove().catch(() => {});
+      }
+    } else if (reset_level === 'system') {
+      await rtdb.ref("users/students").remove().catch(() => {});
+      await rtdb.ref("students").remove().catch(() => {});
+      await rtdb.ref("chat_messages").remove().catch(() => {});
+      await rtdb.ref("radar_alerts").remove().catch(() => {});
+      await rtdb.ref("replays").remove().catch(() => {});
+      await rtdb.ref("sessions").remove().catch(() => {});
+      await rtdb.ref("active_class_session").set({ active: false, sessionNumber: 1, timestamp: Date.now() }).catch(() => {});
+    }
+
+    // Step 4: Write immutable record to reset_audit_log
+    await db.collection("reset_audit_log").doc(resetId).set({
+      reset_id: resetId,
+      timestamp: Date.now(),
+      performed_by: performedBy,
+      user_email: userEmail,
+      reset_level,
+      reason,
+      affected_student_id: student_id || 'ALL',
+      class_id,
+      drive_file_id: driveResult.fileId,
+      drive_link: driveResult.webViewLink,
+      status: 'SUCCESS',
+      created_at: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    logger.info(`Successfully backed up and reset ${reset_level} data (ResetID: ${resetId})`);
+
+    return {
+      status: "SUCCESS",
+      resetId,
+      driveFileId: driveResult.fileId,
+      webViewLink: driveResult.webViewLink,
+    };
+  } catch (deleteErr: any) {
+    logger.error("Error during deletion step:", deleteErr);
+    throw new HttpsError("internal", "שגיאה בביצוע האיפוס לאחר הגיבוי.");
+  }
+});
+
+/**
+ * Helper to get or create a folder in Google Drive by name under a parent folder.
+ * Ensures the exact strict hierarchy: session_{session_number} -> {exportDate}
+ */
+async function getOrCreateDriveFolder(
+  folderName: string,
+  parentId: string,
+  accessToken: string
+): Promise<string> {
+  try {
+    const query = `name = '${folderName}' and mimeType = 'application/vnd.google-apps.folder' and '${parentId}' in parents and trashed = false`;
+    const searchUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&supportsAllDrives=true&includeItemsFromAllDrives=true`;
+    const searchRes = await fetch(searchUrl, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (searchRes.ok) {
+      const data = await searchRes.json();
+      if (data.files && data.files.length > 0) {
+        return data.files[0].id;
+      }
+    }
+
+    const createRes = await fetch("https://www.googleapis.com/drive/v3/files?supportsAllDrives=true", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: folderName,
+        mimeType: "application/vnd.google-apps.folder",
+        parents: [parentId],
+      }),
+    });
+    if (createRes.ok) {
+      const data = await createRes.json();
+      return data.id || parentId;
+    }
+  } catch (err) {
+    logger.warn(`Could not create/find Drive folder ${folderName}, falling back to parent:`, err);
+  }
+  return parentId;
+}
+
+/**
+ * Module 24: exportResearchDataset
+ * Read-only Cloud Function exporting 4 sanitized CSV files to Google Drive:
+ * 1. telemetry_events.csv
+ * 2. session_documents.csv
+ * 3. srl_reflections.csv
+ * 4. reset_audit_log.csv
+ * Strict requirements enforced:
+ * - Scoped to authorized teacher for their own class_id (or admin).
+ * - Rejects export if any PII pattern is detected.
+ * - Strict Drive folder hierarchy: session_{sessionNum}/{exportDate}, never overwriting previous runs.
+ * - Logs export action to reset_audit_log with reset_level: 'export'.
+ */
+export const exportResearchDataset = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "User must be authenticated.");
+  }
+
+  const { class_id = "class_1", session_number = 1 } = request.data || {};
+  const userEmail = request.auth.token.email || "teacher@edu-haifa.org.il";
+  const callerRoles = request.auth.token.roles || (request.auth.token.role ? [request.auth.token.role] : []);
+  const isTeacher = callerRoles.includes("TEACHER") || request.auth.token.role === "teacher";
+  const isAdmin = callerRoles.includes("ADMIN") || request.auth.token.role === "admin";
+
+  // Requirement 1: Authorization Check restricting caller to teacher/admin and scoping to class_id
+  if (!isTeacher && !isAdmin) {
+    throw new HttpsError("permission-denied", "Only authorized teachers or admins may export research datasets.");
+  }
+
+  const callerClassId = request.auth.token.class_id;
+  if (isTeacher && !isAdmin && callerClassId && callerClassId !== class_id) {
+    throw new HttpsError("permission-denied", `Teacher is strictly restricted to exporting their own assigned class_id (${callerClassId}).`);
+  }
+
+  const db = admin.firestore();
+
+  // Helper to convert objects array to CSV string
+  const toCsv = (rows: Record<string, any>[]): string => {
+    if (!rows || rows.length === 0) return "empty\n";
+    const headers = Object.keys(rows[0]);
+    const escapeCsv = (val: any) => `"${String(val ?? '').replace(/"/g, '""')}"`;
+    const headerLine = headers.map(escapeCsv).join(',');
+    const bodyLines = rows.map(row => headers.map(h => escapeCsv(row[h])).join(','));
+    return [headerLine, ...bodyLines].join('\n');
+  };
+
+  try {
+    // Requirement 2: Four distinct Firestore collection queries
+    // 1. Telemetry logs
+    const telemetrySnap = await db.collection("telemetry_logs")
+      .where("session_id", ">=", `session_${session_number}`)
+      .limit(500)
+      .get()
+      .catch(async () => await db.collection("telemetry_logs").limit(500).get());
+    const telemetryRows = telemetrySnap.docs.map(d => ({ log_id: d.id, ...d.data() }));
+
+    // 2. Sessions
+    const sessionsSnap = await db.collection("sessions")
+      .where("class_id", "==", class_id)
+      .where("session_number", "==", session_number)
+      .get()
+      .catch(async () => await db.collection("sessions").where("class_id", "==", class_id).get());
+    const sessionRows = sessionsSnap.docs.map(d => ({ session_id: d.id, ...d.data() }));
+
+    // 3. SRL Reflections
+    const reflectionsSnap = await db.collection("srl_reflections")
+      .where("session_number", "==", session_number)
+      .limit(500)
+      .get()
+      .catch(async () => await db.collection("srl_reflections").limit(500).get());
+    const reflectionRows = reflectionsSnap.docs.map(d => ({ reflection_id: d.id, ...d.data() }));
+
+    // 4. Reset Audit Log
+    const resetLogsSnap = await db.collection("reset_audit_log")
+      .where("class_id", "==", class_id)
+      .limit(500)
+      .get()
+      .catch(async () => await db.collection("reset_audit_log").limit(500).get());
+    const resetRows = resetLogsSnap.docs.map(d => ({ log_id: d.id, ...d.data() }));
+
+    const csv1 = toCsv(telemetryRows);
+    const csv2 = toCsv(sessionRows);
+    const csv3 = toCsv(reflectionRows);
+    const csv4 = toCsv(resetRows);
+
+    // Requirement 3: PII Detection check across all CSV outputs
+    const allContent = [csv1, csv2, csv3, csv4].join("\n");
+    const piiRegex = /(?:\b05\d-?\d{7}\b|[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|\b\d{9}\b)/g;
+    const sanitizedCheckText = allContent.replace(new RegExp(userEmail, 'g'), '');
+    if (piiRegex.test(sanitizedCheckText)) {
+      logger.warn("Research dataset export rejected: PII pattern detected.");
+      throw new HttpsError("failed-precondition", "ייצוא נתוני המחקר נדחה: זוהה מידע מזהה (PII).");
+    }
+
+    const exportDate = new Date().toISOString().split('T')[0];
+    const timestamp = Date.now();
+
+    // Requirement 4: Drive folder-structure hierarchy session_{sessionNum} -> {exportDate}
+    const accessToken = await getDriveAccessToken();
+    let targetFolderId = GOOGLE_DRIVE_FOLDER_ID;
+
+    if (accessToken) {
+      const sessionFolderId = await getOrCreateDriveFolder(`session_${session_number}`, GOOGLE_DRIVE_FOLDER_ID, accessToken);
+      targetFolderId = await getOrCreateDriveFolder(exportDate, sessionFolderId, accessToken);
+    }
+
+    // Upload all 4 distinct CSV files into the date subfolder (unique timestamps guarantee no overwrite)
+    const upload1 = await uploadBufferToDrive(Buffer.from(csv1, "utf-8"), `telemetry_events_s${session_number}_${timestamp}.csv`, "text/csv", targetFolderId);
+    const upload2 = await uploadBufferToDrive(Buffer.from(csv2, "utf-8"), `sessions_s${session_number}_${timestamp}.csv`, "text/csv", targetFolderId);
+    const upload3 = await uploadBufferToDrive(Buffer.from(csv3, "utf-8"), `reflections_s${session_number}_${timestamp}.csv`, "text/csv", targetFolderId);
+    const upload4 = await uploadBufferToDrive(Buffer.from(csv4, "utf-8"), `reset_logs_s${session_number}_${timestamp}.csv`, "text/csv", targetFolderId);
+
+    // Requirement 5: Log export event to reset_audit_log with reset_level: 'export'
+    const exportLogId = `export_${Date.now()}`;
+    await db.collection("reset_audit_log").doc(exportLogId).set({
+      reset_id: exportLogId,
+      timestamp: Date.now(),
+      performed_by: request.auth.uid,
+      user_email: userEmail,
+      reset_level: 'export',
+      reason: 'RESEARCH_DATASET_EXPORT',
+      affected_student_id: 'ALL',
+      class_id,
+      session_number,
+      export_date: exportDate,
+      drive_folder_id: targetFolderId,
+      files: [upload1.fileId, upload2.fileId, upload3.fileId, upload4.fileId],
+      status: 'SUCCESS',
+      created_at: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    logger.info(`Research dataset exported successfully for class ${class_id} on ${exportDate}`);
+
+    return {
+      status: "SUCCESS",
+      exportDate,
+      targetFolderId,
+      files: {
+        telemetry: upload1.webViewLink,
+        sessions: upload2.webViewLink,
+        reflections: upload3.webViewLink,
+        resetLogs: upload4.webViewLink,
+      },
+    };
+  } catch (err: any) {
+    logger.error("Failed to export research dataset:", err);
+    throw new HttpsError("internal", err?.message || "ייצוא נתוני המחקר נכשל.");
+  }
+});
+

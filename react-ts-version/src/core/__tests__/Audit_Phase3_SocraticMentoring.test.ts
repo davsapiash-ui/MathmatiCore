@@ -143,6 +143,7 @@ describe('Master PRD v5.0 Phase 3: Socratic Mentoring & Gemini Integration (Modu
           }
         ],
         final_intervention: {
+          error_category: 'procedural',
           guiding_question: 'שימו לב: ישנן 14 קוביות בטור היחידות. מה הצעד הבא שנרצה לבצע?',
           options: [
             { id: 'opt_1', text: 'נאסוף 10 יחידות ונמיר אותן לעשרת אחת בטור העשרות', feedback: 'נכון מאוד! כעת בצעו את הקיבוץ בלוח.', is_correct: true },

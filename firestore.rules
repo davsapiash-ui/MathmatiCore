@@ -264,6 +264,13 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Reset Audit Logs (Module 23א: Immutable Audit Log for All Data Resets & Dataset Exports)
+    match /reset_audit_log/{logId} {
+      allow read: if isTeacher() || isAdmin();
+      allow create: if isTeacher() || isAdmin();
+      allow update, delete: if false; // Strict requirement: log is immutable and cannot be deleted
+    }
+
     // SRL Reflections (Module 16 — Session 8 Reflection)
     // Only the owning student may write their own reflection document.
     // Schema is strictly enforced: no extra fields, no cross-student writes, create-only.
@@ -335,6 +342,12 @@ service cloud.firestore {
                        isValidSRLReflectionDoc();
       allow update: if false;
       allow delete: if isAdmin();
+    }
+
+    // Pedagogical Reports (Module 23 & 27: Strict Class-Scoped Read-Only Access)
+    match /reports/{reportId} {
+      allow read: if isTeacherOfClass(resource.data.class_id);
+      allow write: if false; // Writes restricted strictly to Cloud Functions Admin SDK
     }
   }
 }

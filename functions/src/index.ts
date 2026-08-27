@@ -225,11 +225,11 @@ export { callGeminiSocraticProxy } from "./geminiProxy";
 export { validateAndStoreTelemetry } from "./transactionGuard";
 
 // Export the Google Drive Admin PDF Report module
-export { exportAdminReportToDrive } from "./exportDriveReport";
+export { exportAdminReportToDrive, backupAndResetSessionData, exportResearchDataset } from "./exportDriveReport";
 
 // Export WP6 Cloud Functions (Module 14, 20, 22, 24, 27)
 export { onSessionCompleteTrigger, createSessionWithServerDeadline } from "./sessionTrigger";
-export { generatePedagogicalReportPDF } from "./pedagogicalReport";
+export { generatePedagogicalReportPDF, getPedagogicalReportDownloadUrl } from "./pedagogicalReport";
 export { hourlyAdminAggregator } from "./adminAggregator";
 export { sendTeacherAdminMessage } from "./teacherAdminChat";
 

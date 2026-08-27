@@ -76,6 +76,15 @@ export function computeStudentRadarColor(
   };
 }
 
+export function getCognitiveGlyph(errorCategory: 'calculation' | 'procedural' | 'conceptual' | string | null | undefined): { glyph: 'ח' | 'ר' | 'מ'; title: string } | null {
+  if (!errorCategory) return null;
+  const norm = String(errorCategory).toLowerCase().trim();
+  if (norm === 'calculation') return { glyph: 'ח', title: 'שגיאת חישוב בסיסי (ח)' };
+  if (norm === 'procedural') return { glyph: 'ר', title: 'שגיאת מיומנות רכיב / אלגוריתם (ר)' };
+  if (norm === 'conceptual') return { glyph: 'מ', title: 'שגיאת מבנה עשרוני / מושגי (מ)' };
+  return null;
+}
+
 export interface AnonymousStudent {
   id: string; // e.g. "student_1"
   studentNumber: number; // 1-12
@@ -88,6 +97,7 @@ export interface AnonymousStudent {
   physicalOverride: boolean; // VRA virtual support override
   isStruggling: boolean;
   isSocraticActive: boolean;
+  errorCategory?: 'calculation' | 'procedural' | 'conceptual' | null;
   lastAction?: string;
   activeBranch?: 'reinforcement' | 'challenge' | null;
   isOnline?: boolean;
@@ -129,6 +139,7 @@ const INITIAL_MOCK_FEED: LiveFeedItem[] = [];
 interface HeatmapGridProps {
   /** Called when teacher clicks Drill Down — parent opens full StudentSideDrawer */
   onDrillDown?: (studentId: string) => void;
+  initialStudents?: AnonymousStudent[];
 }
 
 /**
@@ -140,8 +151,8 @@ interface HeatmapGridProps {
  * - אדום: כרטיס חניכה סוקרטי פעיל
  * - אפור: מנותק / לא החל
  */
-export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
-  const [students, setStudents] = useState<AnonymousStudent[]>(INITIAL_MOCK_STUDENTS);
+export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps = {}) {
+  const [students, setStudents] = useState<AnonymousStudent[]>(initialStudents || INITIAL_MOCK_STUDENTS);
   const [feedItems, setFeedItems] = useState<LiveFeedItem[]>(INITIAL_MOCK_FEED);
   const [selectedStudent, setSelectedStudent] = useState<AnonymousStudent | null>(null);
 
@@ -244,7 +255,8 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
             data.teacher_gate_approved !== true
           );
           const recommendedPath: 'ירוק' | 'צמצום פערים' = (data.routeRecommendation === 'YELLOW' || sessionState.current_path === 'remediation_path') ? 'צמצום פערים' : 'ירוק';
-          const activeBranch = data.activeBranch || wsState.selectedBranch || null;
+          const errorCategory = data.error_category || data.errorCategory || wsState.aiSocraticHint?.error_category || wsState.errorCategory || null;
+          const activeBranch = data.selectedBranch || wsState.selectedBranch || null;
 
           updated[i] = {
             id: uid,
@@ -258,6 +270,7 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
             physicalOverride,
             isStruggling,
             isSocraticActive,
+            errorCategory,
             lastAction,
             activeBranch,
             isOnline,
@@ -590,9 +603,25 @@ export function HeatmapGrid({ onDrillDown }: HeatmapGridProps = {}) {
               >
                 {/* Top Badge Row */}
                 <div className="flex justify-between items-start w-full">
-                  <span className="font-black text-xs tracking-tight text-slate-900 dark:text-slate-100">
-                    תלמיד {student.studentNumber}
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-black text-xs tracking-tight text-slate-900 dark:text-slate-100">
+                      תלמיד {student.studentNumber}
+                    </span>
+                    {/* Module 18(e) Cognitive Glyph (ח/ר/מ) - static, unmoving, non-blinking */}
+                    {(() => {
+                      const glyphInfo = getCognitiveGlyph(student.errorCategory);
+                      if (!glyphInfo) return null;
+                      return (
+                        <span
+                          data-testid={`glyph-student-${student.studentNumber}`}
+                          className="inline-flex items-center justify-center w-4 h-4 text-[10px] font-black rounded bg-slate-900/10 dark:bg-white/10 text-slate-900 dark:text-slate-100 border border-slate-400/40 select-none"
+                          title={glyphInfo.title}
+                        >
+                          {glyphInfo.glyph}
+                        </span>
+                      );
+                    })()}
+                  </div>
                   
                   {/* Status Icon - Deterministic Precedence: GATE > SOCRATIC > OFFLINE > HESITATION > ONLINE/ACTIVE */}
                   {student.isWaitingAtGate ? (

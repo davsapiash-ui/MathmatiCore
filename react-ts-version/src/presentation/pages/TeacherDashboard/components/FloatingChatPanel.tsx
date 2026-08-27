@@ -45,16 +45,22 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
   const handleSend = () => {
     if (!inputText.trim()) return;
 
-    // Module 22: Tier 1 Client-Side Regex Validation
-    const validation = validateChatInputForPII(inputText);
-    if (!validation.valid) {
-      toast.warning(validation.errorHe || 'הודעה מכילה פרטים מזהים (PII). יש להשתמש במזהה 1-12 בלבד.');
-      return;
-    }
+    // Module 22: Tier 1 Client-Side Regex Validation (Fail-Closed Architecture)
+    try {
+      const validation = validateChatInputForPII(inputText);
+      if (!validation.valid) {
+        toast.warning(validation.errorHe || 'הודעה מכילה פרטים מזהים (PII). יש להשתמש במזהה 1-12 בלבד.');
+        return;
+      }
 
-    const cleanText = anonymizeChatMessageBody(inputText.trim());
-    sendMessage(teacherId || 'teacher', 'מורה', normStudentId, cleanText);
-    setInputText('');
+      const cleanText = anonymizeChatMessageBody(inputText.trim());
+      sendMessage(teacherId || 'teacher', 'מורה', normStudentId, cleanText);
+      setInputText('');
+    } catch (err) {
+      console.error('[Module 3/22 Fail-Closed] PII scanning error caught:', err);
+      toast.error('שגיאה בבדיקת אבטחה (PII). שליחת ההודעה נחסמה להגנה על פרטיות התלמידים.');
+      return; // Fail-Closed: Strictly blocks message transmission
+    }
   };
 
   return (

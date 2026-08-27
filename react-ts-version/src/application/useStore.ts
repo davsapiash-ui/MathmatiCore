@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { ref, onValue, update, get, remove, set as fbSet } from 'firebase/database';
-import { database } from '@/infrastructure/firebase';
+import { database, functions } from '@/infrastructure/firebase';
+import { httpsCallable } from 'firebase/functions';
+import { toast } from 'sonner';
 import { useChatStore, normalizeStudentId } from '@/application/useChatStore';
 
 import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
@@ -563,10 +565,30 @@ export const useStore = create<AppState>()(
         };
       }),
 
-      resetStudentData: async (studentId: string) => {
+      resetStudentData: async (studentId: string, reason = 'TEACHER_INITIATED_RESET') => {
         const normId = normalizeStudentId(studentId);
         const num = normId.replace(/\D/g, '') || '1';
         const defaultName = `תלמיד ${num}`;
+
+        // Module 23א: Step 1 & 2 - Call server-side Backup-Before-Delete Cloud Function
+        try {
+          const backupResetCallable = httpsCallable(functions, 'backupAndResetSessionData');
+          const result = await backupResetCallable({
+            reset_level: 'single_student',
+            reason,
+            student_id: normId,
+            class_id: 'class_1',
+          });
+          const resData = result.data as any;
+          if (!resData || resData.status !== 'SUCCESS') {
+            throw new Error('הגיבוי נכשל. האיפוס בוטל ולא נמחקו נתונים.');
+          }
+        } catch (err: any) {
+          console.error('[Module 23א] Backup-before-delete failed for single student:', err);
+          toast.error('הגיבוי נכשל. האיפוס בוטל ולא נמחקו נתונים.');
+          return; // CRITICAL: Stop execution immediately — no local state or DB deletion
+        }
+
         const cleanStudent: StudentData = {
           studentId: normId,
           classId: 'class_1',
@@ -593,7 +615,7 @@ export const useStore = create<AppState>()(
           reflections: null,
         };
 
-        // 1. Update local Zustand state
+        // Update local Zustand state only after confirmed backup & server deletion
         set((state) => ({
           students: {
             ...state.students,
@@ -603,128 +625,30 @@ export const useStore = create<AppState>()(
           }
         }));
 
-        // 2. Clear in Firebase Realtime Database
-        try {
-          const payload = {
-            studentId: normId,
-            name: defaultName,
-            classId: 'class_1',
-            isOnline: false,
-            onlineStatus: 'offline',
-            currentTaskIdx: 0,
-            activeStep: 1,
-            routeStatus: 'GREEN_PATH',
-            routeRecommendation: null,
-            difficultyRecommendation: 'standard',
-            highestCompletedMeeting: 0,
-            completedMeeting2: false,
-            teacher_gate_approved: false,
-            enhanced_support_profile: false,
-            physicalOverride: false,
-            physicalOverrideActive: false,
-            radar_history: null,
-            diagnosticReport: null,
-            qMatrixResults: null,
-            conceptMastery: null,
-            reflections: null,
-            telemetry_sessions: null,
-            vector_replays: null,
-            sessionState: null,
-            active_device_id: null,
-            latestTelemetrySessionId: null,
-            traceData: { hesitation_events: 0, undo_clicks: 0, semantic_trace: [] },
-            forceReload: true,
-            lastAction: 'איפוס נתוני תלמיד ע״י המורה',
-            lastActivityTimestamp: Date.now(),
-            workspaceState: {
-              sessionNumber: 1,
-              isASD: false,
-              standardTaskIdx: 0,
-              counts: { units: 0, tens: 0, hundreds: 0, thousands: 0 },
-              undoCount: 0,
-              hesitationCount: 0,
-              hasInteracted: false,
-              flowStatus: 'task'
-            }
-          };
-
-          const targetPaths = [
-            `users/students/${normId}`,
-            `users/students/user${num}`,
-            `users/students/student_${num}`,
-            `users/students/${num}`,
-            `students/${normId}`,
-            `students/user${num}`,
-            `students/student_${num}`,
-          ];
-
-          const updates: Record<string, any> = {};
-          targetPaths.forEach(p => { updates[p] = payload; });
-          await update(ref(database), updates);
-
-          // Clear radar alerts for this student
-          const alertsSnap = await get(ref(database, 'radar_alerts'));
-          if (alertsSnap.exists()) {
-            const rawAlerts = alertsSnap.val() || {};
-            for (const [key, val] of Object.entries(rawAlerts)) {
-              const v = val as any;
-              const matches = v?.studentId === normId || v?.rawStudentId === normId || v?.studentId === `student_${num}` || v?.rawStudentId === `student_${num}` || v?.studentId === `user${num}` || v?.studentName === defaultName;
-              if (matches) {
-                await remove(ref(database, `radar_alerts/${key}`)).catch(() => {});
-              }
-            }
-          }
-
-          // Clear chat messages for this student in RTDB and local useChatStore
-          const chatTargets = [
-            `chat_messages/${normId}`,
-            `chat_messages/user${num}`,
-            `chat_messages/student_${num}`,
-            `chat_messages/${num}`,
-          ];
-          for (const cp of chatTargets) {
-            await remove(ref(database, cp)).catch(() => {});
-          }
-          useChatStore.getState().clearStudentMessages(normId);
-        } catch (err) {
-          console.error(`Failed to reset student ${studentId} in Firebase:`, err);
-        }
+        useChatStore.getState().clearStudentMessages(normId);
+        toast.success(`נתוני ${defaultName} אופסו בהצלחה לאחר גיבוי.`);
       },
 
-      resetEntireSystemUsageData: async () => {
+      resetEntireSystemUsageData: async (reason = 'TEACHER_INITIATED_RESET') => {
+        // Module 23א: Step 1 & 2 - Call server-side Backup-Before-Delete Cloud Function for System
+        try {
+          const backupResetCallable = httpsCallable(functions, 'backupAndResetSessionData');
+          const result = await backupResetCallable({
+            reset_level: 'system',
+            reason,
+            class_id: 'class_1',
+          });
+          const resData = result.data as any;
+          if (!resData || resData.status !== 'SUCCESS') {
+            throw new Error('הגיבוי נכשל. האיפוס בוטל ולא נמחקו נתונים.');
+          }
+        } catch (err: any) {
+          console.error('[Module 23א] Backup-before-delete failed for system:', err);
+          toast.error('הגיבוי נכשל. האיפוס בוטל ולא נמחקו נתונים.');
+          return; // CRITICAL: Stop execution immediately — no local state or DB deletion
+        }
+
         const cleanStudents: Record<string, StudentData> = {};
-        const rootUpdates: Record<string, any> = {};
-
-        // 1. Explicitly remove chat messages in RTDB
-        // 1. Explicitly remove global auxiliary nodes in RTDB
-        try {
-          await remove(ref(database, 'chat_messages')).catch(() => {});
-          await remove(ref(database, 'radar_alerts')).catch(() => {});
-          await remove(ref(database, 'replays')).catch(() => {});
-          await remove(ref(database, 'sessions')).catch(() => {});
-          await remove(ref(database, 'telemetry_logs')).catch(() => {});
-          await remove(ref(database, 'approved_tasks')).catch(() => {});
-          await remove(ref(database, 'ai_pending_approvals')).catch(() => {});
-          await remove(ref(database, 'reflections')).catch(() => {});
-          await remove(ref(database, 'workspace_states')).catch(() => {});
-        } catch (e) {
-          console.warn('Error clearing auxiliary RTDB nodes:', e);
-        }
-
-        // 2. Reset active session state
-        try {
-          await fbSet(ref(database, 'active_class_session'), { active: false, sessionNumber: 1, timestamp: Date.now() }).catch(() => {});
-        } catch (e) {
-          console.warn('Error resetting active_class_session:', e);
-        }
-
-        // 3. Completely purge and rebuild students tree in RTDB
-        try {
-          await remove(ref(database, 'users/students')).catch(() => {});
-          await remove(ref(database, 'students')).catch(() => {});
-        } catch (e) {
-          console.warn('Error purging students tree:', e);
-        }
 
         for (let i = 1; i <= 12; i++) {
           const normId = `student_user${i}`;
@@ -754,67 +678,13 @@ export const useStore = create<AppState>()(
             diagnosticReport: null,
             reflections: null,
           };
-
           cleanStudents[normId] = cleanStudent;
-
-          const payload = {
-            studentId: normId,
-            name: defaultName,
-            classId: 'class_1',
-            isOnline: false,
-            onlineStatus: 'offline',
-            hasJoinedSession: false,
-            sessionJoined: false,
-            forceReload: true,
-            currentTaskIdx: 0,
-            activeStep: 1,
-            routeStatus: 'GREEN_PATH',
-            routeRecommendation: null,
-            difficultyRecommendation: 'standard',
-            highestCompletedMeeting: 0,
-            completedMeeting2: false,
-            teacher_gate_approved: false,
-            enhanced_support_profile: false,
-            physicalOverride: false,
-            physicalOverrideActive: false,
-            radar_history: null,
-            diagnosticReport: null,
-            qMatrixResults: null,
-            conceptMastery: null,
-            reflections: null,
-            telemetry_sessions: null,
-            vector_replays: null,
-            sessionState: null,
-            active_device_id: null,
-            latestTelemetrySessionId: null,
-            traceData: { hesitation_events: 0, undo_clicks: 0, semantic_trace: [] },
-            lastAction: 'לא מחובר',
-            lastActivityTimestamp: 0,
-            lastPing: 0,
-            workspaceState: {
-              sessionNumber: 1,
-              isASD: false,
-              standardTaskIdx: 0,
-              counts: { units: 0, tens: 0, hundreds: 0, thousands: 0 },
-              undoCount: 0,
-              hesitationCount: 0,
-              hasInteracted: false,
-              flowStatus: 'task'
-            }
-          };
-
-          rootUpdates[`users/students/${normId}`] = payload;
-          rootUpdates[`students/${normId}`] = payload;
+          cleanStudents[`student_${i}`] = cleanStudent;
         }
 
         set({ students: cleanStudents });
         useChatStore.getState().clearAllMessages();
-
-        try {
-          await update(ref(database), rootUpdates);
-        } catch (e) {
-          console.error("Failed to batch clean student data in Firebase:", e);
-        }
+        toast.success('כל נתוני המערכת אופסו בהצלחה לאחר גיבוי מלא לדרייב.');
       }
     })
 );

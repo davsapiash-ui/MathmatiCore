@@ -245,11 +245,33 @@ export const useAuthStore = create<AuthState>()(
     setUser: (user, explicitRole) => set((state) => {
       const activeRole = explicitRole || (typeof user.role === 'string' ? user.role : 'teacher');
 
-      // Validate Zero PII constraints strictly for anonymous students (Module 3)
+      // Validate Zero PII constraints strictly for anonymous students (Module 3 - Fail Closed)
       if (activeRole === 'student') {
-        const piiCheck = validateZeroPIIPayload(user);
-        if (!piiCheck.valid) {
-          console.warn(`[Zero PII Security] Payload advisory: ${piiCheck.reason}`);
+        try {
+          const piiCheck = validateZeroPIIPayload(user);
+          if (!piiCheck.valid) {
+            console.error(`[Zero PII Security Fail-Closed] Student authentication rejected: ${piiCheck.reason}`);
+            return {
+              user: null,
+              role: null,
+              isAuthenticated: false,
+              isStudentAuthenticated: false,
+              isRoleLocked: true,
+              showRoleSelector: false,
+              authTimestamp: null,
+            };
+          }
+        } catch (piiErr) {
+          console.error('[Zero PII Security Fail-Closed] Scanning error, blocking login:', piiErr);
+          return {
+            user: null,
+            role: null,
+            isAuthenticated: false,
+            isStudentAuthenticated: false,
+            isRoleLocked: true,
+            showRoleSelector: false,
+            authTimestamp: null,
+          };
         }
       }
 

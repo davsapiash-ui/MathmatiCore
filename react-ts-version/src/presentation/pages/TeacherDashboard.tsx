@@ -989,45 +989,57 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   const handleSendAdmin = () => {
     if (!inputText.trim() || !user) return;
 
-    // Module 22: Tier 1 Client-Side Regex Validation
-    const validation = validateChatInputForPII(inputText);
-    if (!validation.valid) {
-      toast.warning(validation.errorHe || 'הודעה מכילה פרטים מזהים (PII). יש להשתמש במזהה 1-12 בלבד.');
+    // Module 22: Tier 1 Client-Side Regex Validation (Fail-Closed Architecture)
+    try {
+      const validation = validateChatInputForPII(inputText);
+      if (!validation.valid) {
+        toast.warning(validation.errorHe || 'הודעה מכילה פרטים מזהים (PII). יש להשתמש במזהה 1-12 בלבד.');
+        return;
+      }
+
+      // Module 22: Tier 2 Sanitization / Anonymization Service
+      const cleanText = anonymizeChatMessageBody(inputText.trim());
+
+      sendMessage(
+        user.uid as string,
+        (user.displayName as string) || "מורה",
+        "admin",
+        cleanText,
+      );
+      setInputText("");
+    } catch (err) {
+      console.error('[Module 3/22 Fail-Closed] PII scanning error caught:', err);
+      toast.error('שגיאה בבדיקת אבטחה (PII). שליחת ההודעה נחסמה להגנה על פרטיות התלמידים.');
       return;
     }
-
-    // Module 22: Tier 2 Sanitization / Anonymization Service
-    const cleanText = anonymizeChatMessageBody(inputText.trim());
-
-    sendMessage(
-      user.uid as string,
-      (user.displayName as string) || "מורה",
-      "admin",
-      cleanText,
-    );
-    setInputText("");
   };
 
   const handleSendStudent = () => {
     if (!inputText.trim() || !user || !selectedStudentId) return;
 
-    // Module 22: Tier 1 Client-Side Regex Validation
-    const validation = validateChatInputForPII(inputText);
-    if (!validation.valid) {
-      toast.warning(validation.errorHe || 'הודעה מכילה פרטים מזהים (PII). יש להשתמש במזהה 1-12 בלבד.');
+    // Module 22: Tier 1 Client-Side Regex Validation (Fail-Closed Architecture)
+    try {
+      const validation = validateChatInputForPII(inputText);
+      if (!validation.valid) {
+        toast.warning(validation.errorHe || 'הודעה מכילה פרטים מזהים (PII). יש להשתמש במזהה 1-12 בלבד.');
+        return;
+      }
+
+      const cleanText = anonymizeChatMessageBody(inputText.trim());
+      const targetId = normalizeStudentId(selectedStudentId);
+
+      sendMessage(
+        user.uid as string,
+        (user.displayName as string) || "מורה",
+        targetId,
+        cleanText,
+      );
+      setInputText("");
+    } catch (err) {
+      console.error('[Module 3/22 Fail-Closed] PII scanning error caught:', err);
+      toast.error('שגיאה בבדיקת אבטחה (PII). שליחת ההודעה נחסמה להגנה על פרטיות התלמידים.');
       return;
     }
-
-    const cleanText = anonymizeChatMessageBody(inputText.trim());
-    const targetId = normalizeStudentId(selectedStudentId);
-
-    sendMessage(
-      user.uid as string,
-      (user.displayName as string) || "מורה",
-      targetId,
-      cleanText,
-    );
-    setInputText("");
   };
 
   const unreadAdminCount = useMemo(() => {

@@ -1155,6 +1155,7 @@ OUTPUT SCHEMA (Return ONLY valid JSON):
     }
   ],
   "final_intervention": {
+    "error_category": "<String: 'calculation' | 'procedural' | 'conceptual'>",
     "guiding_question": "<String in Hebrew: Socratic question mediating the forced action>",
     "options": [
       { "id": "1", "text": "<String in Hebrew>", "feedback": "<String in Hebrew>", "is_correct": <Boolean> },
@@ -1181,11 +1182,18 @@ OUTPUT SCHEMA (Return ONLY valid JSON):
       const parsed = typeof data === 'string' ? JSON.parse(data) : (data?.rawText ? JSON.parse(data.rawText) : data);
       const guidingQuestion = parsed.final_intervention?.guiding_question || parsed.guiding_question;
       const optionsList = parsed.final_intervention?.options || parsed.options;
+      const rawErrorCategory = parsed.final_intervention?.error_category || parsed.error_category;
 
-      if (!guidingQuestion || !Array.isArray(optionsList) || optionsList.length !== 3) {
-        console.warn('[Gemini Proxy] Schema validation failed for response:', parsed);
+      const validCategories = ['calculation', 'procedural', 'conceptual'];
+      const isValidCategory = typeof rawErrorCategory === 'string' && validCategories.includes(rawErrorCategory.toLowerCase());
+
+      // Module 13(a): Rigid validation — missing guiding_question, wrong options count, or missing/invalid error_category MUST fail validation
+      if (!guidingQuestion || !Array.isArray(optionsList) || optionsList.length !== 3 || !isValidCategory) {
+        console.warn('[Gemini Proxy] Schema validation failed for response (missing required fields or invalid error_category):', parsed);
         return null;
       }
+
+      const errorCategory = rawErrorCategory.toLowerCase() as 'calculation' | 'procedural' | 'conceptual';
 
       if (parsed.hard_evidence_log && Array.isArray(parsed.hard_evidence_log)) {
         console.log('[Gemini Socratic Engine] Hard Evidence Log:', parsed.hard_evidence_log);
@@ -1194,6 +1202,8 @@ OUTPUT SCHEMA (Return ONLY valid JSON):
       const correctOpt = optionsList.find((o: any) => o.is_correct === true) || optionsList[0];
 
       return {
+        pedagogical_intent: errorCategory === 'conceptual' ? 'conceptual' : 'procedural',
+        error_category: errorCategory,
         questionHe: guidingQuestion,
         choices: optionsList.map((opt: { id?: string; text: string; feedback?: string; is_correct?: boolean }, idx: number) => ({
           id: opt.id || `opt_${idx + 1}`,
