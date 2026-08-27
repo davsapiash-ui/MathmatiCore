@@ -121,7 +121,8 @@ export function createPedagogicalReportPdfBuffer(report: Record<string, any>): P
       doc.moveDown(1.5);
 
       // Footer
-      const footerText = `Generated automatically on ${new Date(report.generated_at).toISOString()} | MathematiCore Autonomous Engine v7.0`;
+      const genTime = report.generated_at ? new Date(report.generated_at) : new Date();
+      const footerText = `Generated automatically on ${genTime.toISOString()} | MathematiCore Autonomous Engine v7.0`;
       doc.fontSize(8).fillColor("#94a3b8").text(footerText, 40, 780, { align: "center", width: 515 });
 
       doc.end();
