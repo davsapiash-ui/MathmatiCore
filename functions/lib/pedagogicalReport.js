@@ -5,6 +5,7 @@ exports.createPedagogicalReportPdfBuffer = createPedagogicalReportPdfBuffer;
 const https_1 = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
+const exportDriveReport_1 = require("./exportDriveReport");
 const PDFDocument = require("pdfkit");
 exports.EXACT_AI_FALLBACK_TEXT = "הניתוח הפדגוגי המפורט אינו זמין כעת. ההמלצות שלהלן מבוססות על מדדי הביצוע.";
 const COLUMN_NAMES_HE = ["אחדות", "עשרות", "מאות", "אלפים"];
@@ -193,6 +194,7 @@ exports.generatePedagogicalReportPDF = (0, https_1.onCall)(async (request) => {
     const storageFilePath = `reports/${classId}/session_${resolvedSessionNumber}/student_${clampedStudentNum}_${Date.now()}.pdf`;
     let storageSuccess = false;
     let storageErrorMessage = "";
+    let driveMirrorUrl = null;
     try {
         const pdfBuffer = await createPedagogicalReportPdfBuffer(report);
         const bucket = admin.storage().bucket();
@@ -239,6 +241,26 @@ exports.generatePedagogicalReportPDF = (0, https_1.onCall)(async (request) => {
         });
         storageSuccess = true;
         logger.info(`Authoritative pedagogical PDF generated and stored at ${storageFilePath}`);
+        // Module 23 Drive mirror: archive a copy of the same PDF in the shared Drive folder.
+        // Best-effort only — a Drive failure must never fail or degrade report generation.
+        try {
+            const driveFileName = `PedagogicalReport_session${resolvedSessionNumber}_student${clampedStudentNum}_${Date.now()}.pdf`;
+            const driveResult = await (0, exportDriveReport_1.uploadBufferToDrive)(pdfBuffer, driveFileName, "application/pdf");
+            if (driveResult.success) {
+                driveMirrorUrl = driveResult.webViewLink;
+                await db.collection("reports").doc(`rep_${sessionId}`).set({
+                    drive_file_id: driveResult.fileId,
+                    drive_file_url: driveResult.webViewLink,
+                }, { merge: true });
+                logger.info(`Pedagogical PDF mirrored to shared Drive folder: ${driveResult.fileId}`);
+            }
+            else {
+                logger.warn(`Drive mirror skipped (non-fatal): ${driveResult.error}`);
+            }
+        }
+        catch (driveErr) {
+            logger.warn(`Drive mirror failed (non-fatal): ${(driveErr === null || driveErr === void 0 ? void 0 : driveErr.message) || driveErr}`);
+        }
     }
     catch (storageErr) {
         storageErrorMessage = (storageErr === null || storageErr === void 0 ? void 0 : storageErr.message) || "Storage write error";
@@ -260,6 +282,7 @@ exports.generatePedagogicalReportPDF = (0, https_1.onCall)(async (request) => {
         report,
         downloadUrl: pdfUrl,
         storagePath: storageFilePath,
+        driveMirrorUrl,
     };
 });
 /**

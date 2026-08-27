@@ -1,6 +1,7 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
+import { uploadBufferToDrive } from "./exportDriveReport";
 const PDFDocument = require("pdfkit");
 
 export const EXACT_AI_FALLBACK_TEXT = "הניתוח הפדגוגי המפורט אינו זמין כעת. ההמלצות שלהלן מבוססות על מדדי הביצוע.";
@@ -215,6 +216,7 @@ export const generatePedagogicalReportPDF = onCall(async (request) => {
   const storageFilePath = `reports/${classId}/session_${resolvedSessionNumber}/student_${clampedStudentNum}_${Date.now()}.pdf`;
   let storageSuccess = false;
   let storageErrorMessage = "";
+  let driveMirrorUrl: string | null = null;
 
   try {
     const pdfBuffer = await createPedagogicalReportPdfBuffer(report);
@@ -266,6 +268,25 @@ export const generatePedagogicalReportPDF = onCall(async (request) => {
 
     storageSuccess = true;
     logger.info(`Authoritative pedagogical PDF generated and stored at ${storageFilePath}`);
+
+    // Module 23 Drive mirror: archive a copy of the same PDF in the shared Drive folder.
+    // Best-effort only — a Drive failure must never fail or degrade report generation.
+    try {
+      const driveFileName = `PedagogicalReport_session${resolvedSessionNumber}_student${clampedStudentNum}_${Date.now()}.pdf`;
+      const driveResult = await uploadBufferToDrive(pdfBuffer, driveFileName, "application/pdf");
+      if (driveResult.success) {
+        driveMirrorUrl = driveResult.webViewLink;
+        await db.collection("reports").doc(`rep_${sessionId}`).set({
+          drive_file_id: driveResult.fileId,
+          drive_file_url: driveResult.webViewLink,
+        }, { merge: true });
+        logger.info(`Pedagogical PDF mirrored to shared Drive folder: ${driveResult.fileId}`);
+      } else {
+        logger.warn(`Drive mirror skipped (non-fatal): ${driveResult.error}`);
+      }
+    } catch (driveErr: any) {
+      logger.warn(`Drive mirror failed (non-fatal): ${driveErr?.message || driveErr}`);
+    }
   } catch (storageErr: any) {
     storageErrorMessage = storageErr?.message || "Storage write error";
     logger.error(`Failed to store PDF in Cloud Storage:`, storageErr);
@@ -288,6 +309,7 @@ export const generatePedagogicalReportPDF = onCall(async (request) => {
     report,
     downloadUrl: pdfUrl,
     storagePath: storageFilePath,
+    driveMirrorUrl,
   };
 });
 

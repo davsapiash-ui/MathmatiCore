@@ -286,9 +286,10 @@ export const exportAdminReportToDrive = onCall(async (request) => {
 });
 
 /**
- * Upload an arbitrary buffer/file to Google Drive folder.
+ * Upload an arbitrary buffer/file to the shared Google Drive folder.
+ * Exported for reuse by the pedagogical report generator (Module 23 Drive mirror).
  */
-async function uploadBufferToDrive(
+export async function uploadBufferToDrive(
   buffer: Buffer,
   fileName: string,
   mimeType: string,

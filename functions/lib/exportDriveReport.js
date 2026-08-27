@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.exportResearchDataset = exports.backupAndResetSessionData = exports.VALID_RESET_REASONS = exports.exportAdminReportToDrive = void 0;
+exports.uploadBufferToDrive = uploadBufferToDrive;
 const https_1 = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
@@ -257,7 +258,8 @@ exports.exportAdminReportToDrive = (0, https_1.onCall)(async (request) => {
     };
 });
 /**
- * Upload an arbitrary buffer/file to Google Drive folder.
+ * Upload an arbitrary buffer/file to the shared Google Drive folder.
+ * Exported for reuse by the pedagogical report generator (Module 23 Drive mirror).
  */
 async function uploadBufferToDrive(buffer, fileName, mimeType, parentFolderId = GOOGLE_DRIVE_FOLDER_ID) {
     try {
