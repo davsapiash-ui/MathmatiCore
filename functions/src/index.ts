@@ -1,9 +1,11 @@
-import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { onCall, onRequest, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import * as admin from "firebase-admin";
 import * as dotenv from "dotenv";
 import { scrubPII } from "./geminiProxy";
+import { createPedagogicalReportPdfBuffer } from "./pedagogicalReport";
+import { uploadBufferToDrive } from "./exportDriveReport";
 
 admin.initializeApp();
 
@@ -324,4 +326,106 @@ export const onStudentEvent = onCall(async (request) => {
 });
 
 export { authenticateStudentSession } from "./authenticateStudentSession";
+
+/**
+ * triggerTestDriveReport
+ * HTTP endpoint to trigger real server-side PDF generation, save to Cloud Storage,
+ * and mirror to Google Drive shared folder 0AMiALsm_TxT5Uk9PVA.
+ */
+export const triggerTestDriveReport = onRequest({
+  region: "us-central1",
+  cors: true,
+  invoker: "public",
+}, async (req, res) => {
+  try {
+    const sessionNumber = Number(req.query.session || 1);
+    const studentId = Number(req.query.student || 1);
+    const classId = (req.query.class as string) || "class_1";
+    const sessionId = `session_${sessionNumber}_student_${studentId}`;
+
+    const report = {
+      anonymous_student_label: `תלמיד ${studentId}`,
+      session_number: sessionNumber,
+      score_percent: 88,
+      matrix_recommended_path: "green_path",
+      routing_group: "Independent challenge track, whiteboard",
+      routing_label_he: "מסלול אתגר עצמאי, לוח מחיק",
+      recommendation_details_he: "המלצה למסלול אתגר וחקר עצמאי תוך שימוש בלוח מחיק ומשימות הרחבה והעמקה.",
+      exercise_narratives: [
+        "משימת חובה 1 (ex_1): הלומד ביצע 4 גרירות בלוקים, שמר על המבנה העשרוני, הזין 2 ספרות והשלים בהצלחה בניסיון הראשון."
+      ],
+      ai_fallback_text: "הניתוח הפדגוגי המפורט אינו זמין כעת. ההמלצות שלהלן מבוססות על מדדי הביצוע.",
+      summary_text_he: `דוח פדגוגי מסכם למפגש ${sessionNumber}. ציון שליטה: 88%. מסלול מומלץ: העמקה (ירוק).`,
+      generated_at: Date.now(),
+    };
+
+    const pdfBuffer = await createPedagogicalReportPdfBuffer(report);
+
+    // 1. Upload to Cloud Storage
+    const bucket = admin.storage().bucket();
+    const storagePath = `reports/${classId}/session_${sessionNumber}/student_${studentId}_${Date.now()}.pdf`;
+    const file = bucket.file(storagePath);
+    await file.save(pdfBuffer, {
+      contentType: "application/pdf",
+      metadata: {
+        metadata: {
+          student_id: String(studentId),
+          session_id: sessionId,
+          class_id: classId,
+          session_number: String(sessionNumber),
+          read_only: "true",
+        }
+      }
+    });
+
+    let signedUrl = "";
+    try {
+      const [url] = await file.getSignedUrl({
+        action: "read",
+        expires: Date.now() + 60 * 60 * 1000,
+      });
+      signedUrl = url;
+    } catch (e) {
+      signedUrl = `https://storage.googleapis.com/${bucket.name}/${storagePath}`;
+    }
+
+    // 2. Upload to Google Drive Shared Folder
+    const driveFileName = `PedagogicalReport_session${sessionNumber}_student${studentId}_${Date.now()}.pdf`;
+    const driveResult = await uploadBufferToDrive(pdfBuffer, driveFileName, "application/pdf");
+
+    // 3. Record in Firestore reports
+    const db = admin.firestore();
+    await db.collection("reports").doc(`rep_${sessionId}`).set({
+      report_id: `rep_${sessionId}`,
+      session_id: sessionId,
+      student_id: studentId,
+      class_id: classId,
+      session_number: sessionNumber,
+      storage_path: storagePath,
+      score_percent: 88,
+      created_at: admin.firestore.FieldValue.serverTimestamp(),
+      drive_file_id: driveResult.fileId || null,
+      drive_file_url: driveResult.webViewLink || null,
+      is_read_only: true,
+    }, { merge: true });
+
+    res.status(200).json({
+      status: "SUCCESS",
+      storage: {
+        bucket: bucket.name,
+        path: storagePath,
+        size_bytes: pdfBuffer.length,
+        download_url: signedUrl,
+      },
+      drive: driveResult,
+    });
+  } catch (err: any) {
+    logger.error("Error in triggerTestDriveReport:", err);
+    res.status(500).json({
+      status: "ERROR",
+      message: err?.message || String(err),
+    });
+  }
+});
+
 

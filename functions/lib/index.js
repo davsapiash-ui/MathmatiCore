@@ -1,12 +1,14 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.authenticateStudentSession = exports.onStudentEvent = exports.verifyTeacherSSO = exports.sendTeacherAdminMessage = exports.hourlyAdminAggregator = exports.getPedagogicalReportDownloadUrl = exports.generatePedagogicalReportPDF = exports.createSessionWithServerDeadline = exports.onSessionCompleteTrigger = exports.exportResearchDataset = exports.backupAndResetSessionData = exports.exportAdminReportToDrive = exports.validateAndStoreTelemetry = exports.callGeminiSocraticProxy = exports.syncUserRoles = exports.generateSocraticMapping = exports.generateSocraticHint = void 0;
+exports.triggerTestDriveReport = exports.authenticateStudentSession = exports.onStudentEvent = exports.verifyTeacherSSO = exports.sendTeacherAdminMessage = exports.hourlyAdminAggregator = exports.getPedagogicalReportDownloadUrl = exports.generatePedagogicalReportPDF = exports.createSessionWithServerDeadline = exports.onSessionCompleteTrigger = exports.exportResearchDataset = exports.backupAndResetSessionData = exports.exportAdminReportToDrive = exports.validateAndStoreTelemetry = exports.callGeminiSocraticProxy = exports.syncUserRoles = exports.generateSocraticMapping = exports.generateSocraticHint = void 0;
 const https_1 = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
 const generative_ai_1 = require("@google/generative-ai");
 const admin = require("firebase-admin");
 const dotenv = require("dotenv");
 const geminiProxy_1 = require("./geminiProxy");
+const pedagogicalReport_1 = require("./pedagogicalReport");
+const exportDriveReport_1 = require("./exportDriveReport");
 admin.initializeApp();
 // Load local .env file explicitly to guarantee key loading in emulator
 dotenv.config();
@@ -197,17 +199,17 @@ Object.defineProperty(exports, "callGeminiSocraticProxy", { enumerable: true, ge
 var transactionGuard_1 = require("./transactionGuard");
 Object.defineProperty(exports, "validateAndStoreTelemetry", { enumerable: true, get: function () { return transactionGuard_1.validateAndStoreTelemetry; } });
 // Export the Google Drive Admin PDF Report module
-var exportDriveReport_1 = require("./exportDriveReport");
-Object.defineProperty(exports, "exportAdminReportToDrive", { enumerable: true, get: function () { return exportDriveReport_1.exportAdminReportToDrive; } });
-Object.defineProperty(exports, "backupAndResetSessionData", { enumerable: true, get: function () { return exportDriveReport_1.backupAndResetSessionData; } });
-Object.defineProperty(exports, "exportResearchDataset", { enumerable: true, get: function () { return exportDriveReport_1.exportResearchDataset; } });
+var exportDriveReport_2 = require("./exportDriveReport");
+Object.defineProperty(exports, "exportAdminReportToDrive", { enumerable: true, get: function () { return exportDriveReport_2.exportAdminReportToDrive; } });
+Object.defineProperty(exports, "backupAndResetSessionData", { enumerable: true, get: function () { return exportDriveReport_2.backupAndResetSessionData; } });
+Object.defineProperty(exports, "exportResearchDataset", { enumerable: true, get: function () { return exportDriveReport_2.exportResearchDataset; } });
 // Export WP6 Cloud Functions (Module 14, 20, 22, 24, 27)
 var sessionTrigger_1 = require("./sessionTrigger");
 Object.defineProperty(exports, "onSessionCompleteTrigger", { enumerable: true, get: function () { return sessionTrigger_1.onSessionCompleteTrigger; } });
 Object.defineProperty(exports, "createSessionWithServerDeadline", { enumerable: true, get: function () { return sessionTrigger_1.createSessionWithServerDeadline; } });
-var pedagogicalReport_1 = require("./pedagogicalReport");
-Object.defineProperty(exports, "generatePedagogicalReportPDF", { enumerable: true, get: function () { return pedagogicalReport_1.generatePedagogicalReportPDF; } });
-Object.defineProperty(exports, "getPedagogicalReportDownloadUrl", { enumerable: true, get: function () { return pedagogicalReport_1.getPedagogicalReportDownloadUrl; } });
+var pedagogicalReport_2 = require("./pedagogicalReport");
+Object.defineProperty(exports, "generatePedagogicalReportPDF", { enumerable: true, get: function () { return pedagogicalReport_2.generatePedagogicalReportPDF; } });
+Object.defineProperty(exports, "getPedagogicalReportDownloadUrl", { enumerable: true, get: function () { return pedagogicalReport_2.getPedagogicalReportDownloadUrl; } });
 var adminAggregator_1 = require("./adminAggregator");
 Object.defineProperty(exports, "hourlyAdminAggregator", { enumerable: true, get: function () { return adminAggregator_1.hourlyAdminAggregator; } });
 var teacherAdminChat_1 = require("./teacherAdminChat");
@@ -286,4 +288,99 @@ exports.onStudentEvent = (0, https_1.onCall)(async (request) => {
 });
 var authenticateStudentSession_1 = require("./authenticateStudentSession");
 Object.defineProperty(exports, "authenticateStudentSession", { enumerable: true, get: function () { return authenticateStudentSession_1.authenticateStudentSession; } });
+/**
+ * triggerTestDriveReport
+ * HTTP endpoint to trigger real server-side PDF generation, save to Cloud Storage,
+ * and mirror to Google Drive shared folder 0AMiALsm_TxT5Uk9PVA.
+ */
+exports.triggerTestDriveReport = (0, https_1.onRequest)({
+    region: "us-central1",
+    cors: true,
+    invoker: "public",
+}, async (req, res) => {
+    try {
+        const sessionNumber = Number(req.query.session || 1);
+        const studentId = Number(req.query.student || 1);
+        const classId = req.query.class || "class_1";
+        const sessionId = `session_${sessionNumber}_student_${studentId}`;
+        const report = {
+            anonymous_student_label: `תלמיד ${studentId}`,
+            session_number: sessionNumber,
+            score_percent: 88,
+            matrix_recommended_path: "green_path",
+            routing_group: "Independent challenge track, whiteboard",
+            routing_label_he: "מסלול אתגר עצמאי, לוח מחיק",
+            recommendation_details_he: "המלצה למסלול אתגר וחקר עצמאי תוך שימוש בלוח מחיק ומשימות הרחבה והעמקה.",
+            exercise_narratives: [
+                "משימת חובה 1 (ex_1): הלומד ביצע 4 גרירות בלוקים, שמר על המבנה העשרוני, הזין 2 ספרות והשלים בהצלחה בניסיון הראשון."
+            ],
+            ai_fallback_text: "הניתוח הפדגוגי המפורט אינו זמין כעת. ההמלצות שלהלן מבוססות על מדדי הביצוע.",
+            summary_text_he: `דוח פדגוגי מסכם למפגש ${sessionNumber}. ציון שליטה: 88%. מסלול מומלץ: העמקה (ירוק).`,
+            generated_at: Date.now(),
+        };
+        const pdfBuffer = await (0, pedagogicalReport_1.createPedagogicalReportPdfBuffer)(report);
+        // 1. Upload to Cloud Storage
+        const bucket = admin.storage().bucket();
+        const storagePath = `reports/${classId}/session_${sessionNumber}/student_${studentId}_${Date.now()}.pdf`;
+        const file = bucket.file(storagePath);
+        await file.save(pdfBuffer, {
+            contentType: "application/pdf",
+            metadata: {
+                metadata: {
+                    student_id: String(studentId),
+                    session_id: sessionId,
+                    class_id: classId,
+                    session_number: String(sessionNumber),
+                    read_only: "true",
+                }
+            }
+        });
+        let signedUrl = "";
+        try {
+            const [url] = await file.getSignedUrl({
+                action: "read",
+                expires: Date.now() + 60 * 60 * 1000,
+            });
+            signedUrl = url;
+        }
+        catch (e) {
+            signedUrl = `https://storage.googleapis.com/${bucket.name}/${storagePath}`;
+        }
+        // 2. Upload to Google Drive Shared Folder
+        const driveFileName = `PedagogicalReport_session${sessionNumber}_student${studentId}_${Date.now()}.pdf`;
+        const driveResult = await (0, exportDriveReport_1.uploadBufferToDrive)(pdfBuffer, driveFileName, "application/pdf");
+        // 3. Record in Firestore reports
+        const db = admin.firestore();
+        await db.collection("reports").doc(`rep_${sessionId}`).set({
+            report_id: `rep_${sessionId}`,
+            session_id: sessionId,
+            student_id: studentId,
+            class_id: classId,
+            session_number: sessionNumber,
+            storage_path: storagePath,
+            score_percent: 88,
+            created_at: admin.firestore.FieldValue.serverTimestamp(),
+            drive_file_id: driveResult.fileId || null,
+            drive_file_url: driveResult.webViewLink || null,
+            is_read_only: true,
+        }, { merge: true });
+        res.status(200).json({
+            status: "SUCCESS",
+            storage: {
+                bucket: bucket.name,
+                path: storagePath,
+                size_bytes: pdfBuffer.length,
+                download_url: signedUrl,
+            },
+            drive: driveResult,
+        });
+    }
+    catch (err) {
+        logger.error("Error in triggerTestDriveReport:", err);
+        res.status(500).json({
+            status: "ERROR",
+            message: (err === null || err === void 0 ? void 0 : err.message) || String(err),
+        });
+    }
+});
 //# sourceMappingURL=index.js.map
