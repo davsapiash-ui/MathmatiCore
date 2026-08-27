@@ -32,6 +32,16 @@ export function BlockPalette({ scaffoldLevel }: { scaffoldLevel: number }) {
     ? PALETTE_ITEMS.filter(item => item.place !== 'thousands')
     : PALETTE_ITEMS;
 
+  const applyDrop = useWorkspaceStore((s) => s.applyDrop);
+
+  const handleItemClick = (place: Place) => {
+    applyDrop({
+      source: 'palette',
+      sourcePlace: place,
+      target: { kind: 'column', place },
+    });
+  };
+
   return (
     <div
       id="tour-block-palette"
@@ -60,7 +70,9 @@ export function BlockPalette({ scaffoldLevel }: { scaffoldLevel: number }) {
           return (
             <div
               key={place}
-              className="relative flex flex-col items-center justify-between rounded-xl px-3 py-1.5 min-w-[84px] h-[80px] bg-slate-50/70 hover:bg-slate-100/90 border border-slate-200/80 hover:border-indigo-300 shadow-2xs hover:shadow-xs transition-all select-none"
+              onClick={() => handleItemClick(place)}
+              className="relative flex flex-col items-center justify-between rounded-xl px-3 py-1.5 min-w-[84px] h-[80px] bg-slate-50/70 hover:bg-slate-100/90 border border-slate-200/80 hover:border-indigo-300 shadow-2xs hover:shadow-xs transition-all select-none cursor-pointer active:scale-95"
+              title={`לחצו או גררו להוספת ${labelHe} לטבלה`}
             >
               <div 
                 className="h-11 w-full flex items-center justify-center pointer-events-auto"
@@ -71,10 +83,11 @@ export function BlockPalette({ scaffoldLevel }: { scaffoldLevel: number }) {
                   place={place}
                   source="palette"
                   noEnter
+                  onClick={() => handleItemClick(place)}
                 />
               </div>
 
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 pointer-events-none">
                 <span className="text-[12px] font-black text-slate-700 leading-none" aria-hidden="true">
                   {labelHe}
                 </span>
@@ -82,7 +95,7 @@ export function BlockPalette({ scaffoldLevel }: { scaffoldLevel: number }) {
                   ({subHe})
                 </span>
               </div>
-              <span className="sr-only">{`גרור להוספת ${PLACE_NAMES_HE[place]} לטבלה — ערך ${PLACE_VALUES[place]}`}</span>
+              <span className="sr-only">{`גרור או לחץ להוספת ${PLACE_NAMES_HE[place]} לטבלה — ערך ${PLACE_VALUES[place]}`}</span>
             </div>
           );
         })}

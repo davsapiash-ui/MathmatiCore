@@ -239,11 +239,27 @@ function SocraticPenaltyLockOptions({ onClose }: { onClose: () => void }) {
     return () => clearInterval(interval);
   }, [socraticPenaltyLockoutUntil, getSocraticPenaltyRemaining]);
 
-  const defaultChoices: SocraticChoice[] = [
-    { id: 'A', textHe: 'נאסוף 10 יחידות מטור היחידות ונמיר אותן לעשרת אחת בטור העשרות.', isCorrect: true, feedbackHe: 'תשובה נכונה! כעת בצעו את ההמרה בלוח הדינס.' },
-    { id: 'B', textHe: 'נמחק 10 יחידות מטור היחידות מבלי להוסיף עשרת.', isCorrect: false, feedbackHe: 'רמז: מחיקת בלוקים משנה את ערך המספר! עלינו לשמר את הכמות הכוללת בעזרת המרה. אפשר להשתמש בביטול ↩️.' },
-    { id: 'C', textHe: 'נעביר קובייה אחת בלבד לטור העשרות.', isCorrect: false, feedbackHe: 'רמז: 1 עשרת שווה בדיוק ל-10 יחידות. העברת קובייה אחת בלבד אינה שקולה לעשרת. אפשר להשתמש בביטול ↩️.' },
-  ];
+  const wsState = useWorkspaceStore.getState();
+  const currentTask = getActiveTasks(wsState)[wsState.standardTaskIdx] || null;
+  const isSubtraction = currentTask?.isSubtraction || (currentTask?.exercise && String(currentTask.exercise).includes('-'));
+
+  const defaultChoices: SocraticChoice[] = isSubtraction
+    ? [
+        { id: 'A', textHe: 'נפרוט בלוק מהטור הגבוה השכן (מאה לעשרות / עשרת ליחידות) כדי שנוכל לחסר.', isCorrect: true, feedbackHe: 'תשובה נכונה! לחצו על הבלוק בבית המספרים כדי לפרוט אותו.' },
+        { id: 'B', textHe: 'נחסר את המספר הקטן מהגדול גם אם הוא למטה, ללא פריטה.', isCorrect: false, feedbackHe: 'רמז: בחיסור חובה לחסר את המספר התחתון מהעליון. אם חסר — יש לפרוט!' },
+        { id: 'C', textHe: 'נוסיף בלוקים חדשים מהמחסן אל המספר הראשון.', isCorrect: false, feedbackHe: 'רמז: בחיסור בונים רק את המספר הראשון ומוציאים מתוכו בלוקים לפח.' },
+      ]
+    : (currentTask?.id === 's1_t8' || (currentTask?.numberA && currentTask?.numberB && Math.floor((currentTask.numberA % 100) / 10) + Math.floor((currentTask.numberB % 100) / 10) >= 10))
+    ? [
+        { id: 'A', textHe: 'נקבץ 10 עשרות לטור המאות (מאה אחת) ונשאיר את שאר העשרות בטור העשרות.', isCorrect: true, feedbackHe: 'תשובה נכונה! קבצו 10 עשרות למאה אחת בטור המאות.' },
+        { id: 'B', textHe: 'נמחק 10 עשרות לפח המחזור מבלי להוסיף מאה.', isCorrect: false, feedbackHe: 'רמז: מחיקת בלוקים משנה את ערך המספר הכולל. יש להמיר למאה!' },
+        { id: 'C', textHe: 'נרשום מספר דו-ספרתי בתוך משבצת העשרות.', isCorrect: false, feedbackHe: 'רמז: בכל משבצת בבית המספרים מותרת ספרה אחת בלבד (0 עד 9).' },
+      ]
+    : [
+        { id: 'A', textHe: 'נבדוק את הטורים מימין לשמאל: אם יש 10 בלוקים בטור, נקבץ אותם לטור הבא.', isCorrect: true, feedbackHe: 'תשובה נכונה! כעת בצעו את הפעולה בלוח הדינס.' },
+        { id: 'B', textHe: 'נמחק בלוקים לפח מבלי לבצע קיבוץ או המרה.', isCorrect: false, feedbackHe: 'רמז: מחיקת בלוקים משנה את ערך המספר הכולל! אפשר להשתמש בביטול ↩️.' },
+        { id: 'C', textHe: 'נרשום מספר דו-ספרתי בתוך משבצת יחידה.', isCorrect: false, feedbackHe: 'רמז: בכל משבצת מותרת ספרה אחת בלבד (0 עד 9).' },
+      ];
 
   const rawChoices: SocraticChoice[] = (aiSocraticHint?.choices && aiSocraticHint.choices.length > 0)
     ? aiSocraticHint.choices

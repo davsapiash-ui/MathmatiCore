@@ -111,7 +111,7 @@ export function PlaceColumn({ place }: { place: Place }) {
 
       {/* Drop zone container — blocks ground at the bottom base of the column */}
       <div
-        id={`column-${place}`}
+        id={`column-${place}-dropzone`}
         role="group"
         aria-label={`אזור גרירה — ${PLACE_NAMES_HE[place]}`}
         style={{ touchAction: 'none' }}
