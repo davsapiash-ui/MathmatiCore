@@ -241,7 +241,7 @@ function SocraticPenaltyLockOptions({ onClose }: { onClose: () => void }) {
 
   const wsState = useWorkspaceStore.getState();
   const currentTask = getActiveTasks(wsState)[wsState.standardTaskIdx] || null;
-  const isSubtraction = currentTask?.isSubtraction || (currentTask?.exercise && String(currentTask.exercise).includes('-'));
+  const isSubtraction = Boolean(currentTask?.isSubtraction || (typeof (currentTask as any)?.exercise === 'string' && (currentTask as any).exercise.includes('-')));
 
   const defaultChoices: SocraticChoice[] = isSubtraction
     ? [
