@@ -15,6 +15,7 @@
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
     "@types/pdfkit": "^0.17.6",
+    "bidi-js": "^1.0.3",
     "dotenv": "^17.4.2",
     "firebase-admin": "^12.1.0",
     "firebase-functions": "^5.0.0",

@@ -5,23 +5,49 @@ import * as path from "path";
 import * as fs from "fs";
 import { uploadBufferToDrive } from "./exportDriveReport";
 const PDFDocument = require("pdfkit");
+const bidiFactory = require("bidi-js");
+const bidi = bidiFactory();
 
 /**
- * Reverses Hebrew text segments for LTR rendering engines like PDFKit,
- * while preserving numbers, brackets, and punctuation.
+ * Standard Unicode Bidirectional Algorithm (UAX #9) with line-wrapping
+ * for rendering clean, natural Hebrew in PDFKit without character reversal or word transposition.
  */
-export function shapeRtl(text: string): string {
+export function wrapAndBidi(text: string, maxChars = 75): string {
   if (!text) return "";
-  return text.split("\n").map(line => {
-    if (!/[\u0590-\u05FF]/.test(line)) return line;
-    const words = line.split(" ");
-    return words.map(w => {
-      if (/[\u0590-\u05FF]/.test(w)) {
-        return w.split("").reverse().join("");
+  const resultLines: string[] = [];
+  const rawLines = text.split("\n");
+  for (const rawLine of rawLines) {
+    const words = rawLine.split(" ");
+    let currentLine = "";
+    for (const word of words) {
+      if ((currentLine + " " + word).trim().length > maxChars) {
+        if (currentLine) {
+          try {
+            const levels = bidi.getEmbeddingLevels(currentLine, "rtl");
+            resultLines.push(bidi.getReorderedString(currentLine, levels));
+          } catch {
+            resultLines.push(currentLine);
+          }
+        }
+        currentLine = word;
+      } else {
+        currentLine = currentLine ? currentLine + " " + word : word;
       }
-      return w;
-    }).reverse().join(" ");
-  }).join("\n");
+    }
+    if (currentLine) {
+      try {
+        const levels = bidi.getEmbeddingLevels(currentLine, "rtl");
+        resultLines.push(bidi.getReorderedString(currentLine, levels));
+      } catch {
+        resultLines.push(currentLine);
+      }
+    }
+  }
+  return resultLines.join("\n");
+}
+
+export function shapeRtl(text: string): string {
+  return wrapAndBidi(text, 120);
 }
 
 export const EXACT_AI_FALLBACK_TEXT = "הניתוח הפדגוגי המפורט אינו זמין כעת. ההמלצות שלהלן מבוססות על מדדי הביצוע.";
@@ -141,7 +167,7 @@ export function createPedagogicalReportPdfBuffer(report: Record<string, any>): P
       doc.moveDown(0.4);
       if (report.exercise_narratives && Array.isArray(report.exercise_narratives)) {
         for (const narrative of report.exercise_narratives) {
-          doc.fontSize(10).fillColor("#334155").text(shapeRtl(`* ${narrative}`), { align: "right", lineGap: 3 });
+          doc.fontSize(10).fillColor("#334155").text(wrapAndBidi(`* ${narrative}`, 75), { align: "right", lineGap: 3 });
           doc.moveDown(0.3);
         }
       }
@@ -150,7 +176,7 @@ export function createPedagogicalReportPdfBuffer(report: Record<string, any>): P
       // AI Insights / Exact Fallback
       doc.fontSize(14).fillColor("#92400e").text(shapeRtl("3. תובנות קוגניטיביות פדגוגיות"), { align: "right" });
       doc.moveDown(0.3);
-      doc.fontSize(10).fillColor("#78350f").text(shapeRtl(report.ai_fallback_text || EXACT_AI_FALLBACK_TEXT), { align: "right", lineGap: 3 });
+      doc.fontSize(10).fillColor("#78350f").text(wrapAndBidi(report.ai_fallback_text || EXACT_AI_FALLBACK_TEXT, 75), { align: "right", lineGap: 3 });
       doc.moveDown(1.5);
 
       // Footer

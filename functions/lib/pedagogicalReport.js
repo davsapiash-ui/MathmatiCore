@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getPedagogicalReportDownloadUrl = exports.generatePedagogicalReportPDF = exports.EXACT_AI_FALLBACK_TEXT = void 0;
+exports.wrapAndBidi = wrapAndBidi;
 exports.shapeRtl = shapeRtl;
 exports.createPedagogicalReportPdfBuffer = createPedagogicalReportPdfBuffer;
 const https_1 = require("firebase-functions/v2/https");
@@ -10,24 +11,51 @@ const path = require("path");
 const fs = require("fs");
 const exportDriveReport_1 = require("./exportDriveReport");
 const PDFDocument = require("pdfkit");
+const bidiFactory = require("bidi-js");
+const bidi = bidiFactory();
 /**
- * Reverses Hebrew text segments for LTR rendering engines like PDFKit,
- * while preserving numbers, brackets, and punctuation.
+ * Standard Unicode Bidirectional Algorithm (UAX #9) with line-wrapping
+ * for rendering clean, natural Hebrew in PDFKit without character reversal or word transposition.
  */
-function shapeRtl(text) {
+function wrapAndBidi(text, maxChars = 75) {
     if (!text)
         return "";
-    return text.split("\n").map(line => {
-        if (!/[\u0590-\u05FF]/.test(line))
-            return line;
-        const words = line.split(" ");
-        return words.map(w => {
-            if (/[\u0590-\u05FF]/.test(w)) {
-                return w.split("").reverse().join("");
+    const resultLines = [];
+    const rawLines = text.split("\n");
+    for (const rawLine of rawLines) {
+        const words = rawLine.split(" ");
+        let currentLine = "";
+        for (const word of words) {
+            if ((currentLine + " " + word).trim().length > maxChars) {
+                if (currentLine) {
+                    try {
+                        const levels = bidi.getEmbeddingLevels(currentLine, "rtl");
+                        resultLines.push(bidi.getReorderedString(currentLine, levels));
+                    }
+                    catch (_a) {
+                        resultLines.push(currentLine);
+                    }
+                }
+                currentLine = word;
             }
-            return w;
-        }).reverse().join(" ");
-    }).join("\n");
+            else {
+                currentLine = currentLine ? currentLine + " " + word : word;
+            }
+        }
+        if (currentLine) {
+            try {
+                const levels = bidi.getEmbeddingLevels(currentLine, "rtl");
+                resultLines.push(bidi.getReorderedString(currentLine, levels));
+            }
+            catch (_b) {
+                resultLines.push(currentLine);
+            }
+        }
+    }
+    return resultLines.join("\n");
+}
+function shapeRtl(text) {
+    return wrapAndBidi(text, 120);
 }
 exports.EXACT_AI_FALLBACK_TEXT = "הניתוח הפדגוגי המפורט אינו זמין כעת. ההמלצות שלהלן מבוססות על מדדי הביצוע.";
 const COLUMN_NAMES_HE = ["אחדות", "עשרות", "מאות", "אלפים"];
@@ -134,7 +162,7 @@ function createPedagogicalReportPdfBuffer(report) {
             doc.moveDown(0.4);
             if (report.exercise_narratives && Array.isArray(report.exercise_narratives)) {
                 for (const narrative of report.exercise_narratives) {
-                    doc.fontSize(10).fillColor("#334155").text(shapeRtl(`* ${narrative}`), { align: "right", lineGap: 3 });
+                    doc.fontSize(10).fillColor("#334155").text(wrapAndBidi(`* ${narrative}`, 75), { align: "right", lineGap: 3 });
                     doc.moveDown(0.3);
                 }
             }
@@ -142,7 +170,7 @@ function createPedagogicalReportPdfBuffer(report) {
             // AI Insights / Exact Fallback
             doc.fontSize(14).fillColor("#92400e").text(shapeRtl("3. תובנות קוגניטיביות פדגוגיות"), { align: "right" });
             doc.moveDown(0.3);
-            doc.fontSize(10).fillColor("#78350f").text(shapeRtl(report.ai_fallback_text || exports.EXACT_AI_FALLBACK_TEXT), { align: "right", lineGap: 3 });
+            doc.fontSize(10).fillColor("#78350f").text(wrapAndBidi(report.ai_fallback_text || exports.EXACT_AI_FALLBACK_TEXT, 75), { align: "right", lineGap: 3 });
             doc.moveDown(1.5);
             // Footer
             const genTime = report.generated_at ? new Date(report.generated_at) : new Date();
