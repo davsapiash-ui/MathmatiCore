@@ -1166,15 +1166,22 @@ OUTPUT SCHEMA (Return ONLY valid JSON):
 }
 `;
 
-      const res = await SocraticEngine.callGeminiProxy({
-        prompt,
-        context: JSON.stringify({
-          task: currentTask.titleHe || currentTask.id,
-          targetNode,
-          counts,
-          activeColumn: activeColumnName
-        })
-      });
+      const timeoutPromise = new Promise<{ data: any }>((_, reject) =>
+        setTimeout(() => reject(new Error('Gemini Socratic Proxy timeout')), 2000)
+      );
+
+      const res = await Promise.race([
+        SocraticEngine.callGeminiProxy({
+          prompt,
+          context: JSON.stringify({
+            task: currentTask.titleHe || currentTask.id,
+            targetNode,
+            counts,
+            activeColumn: activeColumnName
+          })
+        }),
+        timeoutPromise
+      ]);
 
       const data = res?.data;
       if (!data) return null;
@@ -1350,6 +1357,9 @@ OUTPUT SCHEMA (Return ONLY valid JSON):
 
     // 1. Live Board Anomaly Evaluation (Highest Priority)
     const liveBoardHint = SocraticEngine.analyzeLiveBoardState(currentTask, targetNode, counts);
+    if (liveBoardHint) {
+      return liveBoardHint;
+    }
 
     const taskId: string | undefined = currentTask?.id;
     const taskType: string | undefined = currentTask?.type;
