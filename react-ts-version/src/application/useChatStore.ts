@@ -21,6 +21,7 @@ interface ChatState {
   setActiveRoomId: (roomId: string | null) => void;
   sendMessage: (senderId: string, senderName: string, receiverId: string, text: string) => void;
   markAsRead: (receiverId: string, senderId: string) => void;
+  markAllAsRead: () => void;
   clearAllMessages: () => void;
   clearStudentMessages: (studentId: string) => void;
   initSync: () => void;
@@ -208,13 +209,31 @@ export const useChatStore = create<ChatState>()(
       const { messages } = get();
       const normReceiver = normalizeStudentId(receiverId);
       const normSender = normalizeStudentId(senderId);
+      const isReceiverStaff = isTeacherOrAdminId(receiverId);
+      const isSenderStaff = isTeacherOrAdminId(senderId);
       
       const unreadMsgs = messages.filter(msg => {
+        if (msg.read) return false;
         const msgRecv = normalizeStudentId(msg.receiverId);
         const msgSend = normalizeStudentId(msg.senderId);
-        return (msgRecv === normReceiver || msg.receiverId === receiverId) &&
-               (msgSend === normSender || msg.senderId === senderId) &&
-               !msg.read;
+
+        if (isReceiverStaff && !isSenderStaff) {
+          // Teacher/Staff reading messages from a Student (senderId is student)
+          const isFromTargetStudent = msgSend === normSender || msg.senderId === senderId;
+          const isToStaff = isTeacherOrAdminId(msg.receiverId) || msgRecv === normReceiver || !msg.receiverId || msg.receiverId === 'teacher' || msg.receiverId === '1002220159';
+          return isFromTargetStudent && isToStaff;
+        } else if (!isReceiverStaff && isSenderStaff) {
+          // Student reading messages from Staff (senderId is staff)
+          const isToStudent = msgRecv === normReceiver || msg.receiverId === receiverId;
+          const isFromStaff = isTeacherOrAdminId(msg.senderId) || msgSend === normSender || msg.senderId === 'teacher' || msg.senderId === 'admin';
+          return isToStudent && isFromStaff;
+        } else {
+          // General / Staff <-> Staff
+          return (
+            (msgRecv === normReceiver || msg.receiverId === receiverId || isTeacherOrAdminId(msg.receiverId)) &&
+            (msgSend === normSender || msg.senderId === senderId)
+          );
+        }
       });
 
       if (unreadMsgs.length > 0) {
@@ -234,6 +253,30 @@ export const useChatStore = create<ChatState>()(
           )
         }));
       }
+    },
+
+    markAllAsRead: () => {
+      const { messages } = get();
+      const unreadMsgs = messages.filter(m => !m.read);
+      if (unreadMsgs.length === 0) return;
+
+      const roomUpdates: Record<string, Record<string, any>> = {};
+      unreadMsgs.forEach(msg => {
+        const roomId = computeRoomId(msg.senderId, msg.receiverId);
+        if (!roomUpdates[roomId]) roomUpdates[roomId] = {};
+        roomUpdates[roomId][`${msg.id}/read`] = true;
+      });
+
+      Object.entries(roomUpdates).forEach(([roomId, updates]) => {
+        update(ref(database, `chat_messages/${roomId}`), updates).catch((err) => {
+          console.warn(`Failed to mark all as read for room ${roomId}:`, err);
+        });
+      });
+
+      set((state) => ({
+        messages: state.messages.map(m => ({ ...m, read: true })),
+        unreadCount: 0
+      }));
     },
 
     clearAllMessages: () => set({ messages: [], unreadCount: 0 }),

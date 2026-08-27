@@ -215,7 +215,7 @@ function generateCoPilotResponse(
 export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolean }) {
   const { id: routeStudentId } = useParams<{ id: string }>();
   const { user } = useAuthStore();
-  const { messages, sendMessage, markAsRead, initSync } = useChatStore();
+  const { messages, sendMessage, markAsRead, markAllAsRead, initSync } = useChatStore();
 
   useEffect(() => {
     initSync();
@@ -963,16 +963,26 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     return chatMessages.sort((a, b) => a.timestamp - b.timestamp);
   }, [messages, user, selectedStudentId]);
 
-  const processedMessages = useRef<Set<string>>(new Set());
+  // Auto-select student with unread messages when opening Student Chat
+  useEffect(() => {
+    if (activeTab === "chat_students" && !selectedStudentId && allStudents.length > 0) {
+      const studentWithUnread = allStudents.find((s) => {
+        const normId = normalizeStudentId(s.studentId);
+        return messages.some((m) => normalizeStudentId(m.senderId) === normId && !m.read);
+      });
+      if (studentWithUnread) {
+        setSelectedStudentId(studentWithUnread.studentId);
+      }
+    }
+  }, [activeTab, selectedStudentId, allStudents, messages]);
 
   useEffect(() => {
     if (!user) return;
     
     // Process admin messages
     if (activeTab === "chat_admin" && user.role !== "admin") {
-      const unreadAdmin = messages.filter(m => m.senderId === "admin" && m.receiverId === user.uid && !m.read && !processedMessages.current.has(m.id));
+      const unreadAdmin = messages.filter(m => m.senderId === "admin" && !m.read);
       if (unreadAdmin.length > 0) {
-        unreadAdmin.forEach(m => processedMessages.current.add(m.id));
         markAsRead(user.uid as string, "admin");
       }
     }
@@ -980,9 +990,8 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     // Process student messages
     if (activeTab === "chat_students" && selectedStudentId && user.role !== "admin") {
       const targetId = normalizeStudentId(selectedStudentId);
-      const unreadStudent = messages.filter(m => normalizeStudentId(m.senderId) === targetId && !m.read && !processedMessages.current.has(m.id));
+      const unreadStudent = messages.filter(m => normalizeStudentId(m.senderId) === targetId && !m.read);
       if (unreadStudent.length > 0) {
-        unreadStudent.forEach(m => processedMessages.current.add(m.id));
         markAsRead(user.uid as string, targetId);
       }
     }
@@ -1063,11 +1072,13 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
 
   const unreadStudentsCount = useMemo(() => {
     if (!user) return 0;
+    const validStudentIds = new Set(allStudents.map((s) => normalizeStudentId(s.studentId)));
     return messages.filter((m) => {
       if (m.read) return false;
-      return !isTeacherOrAdminId(m.senderId) || m.senderId.startsWith("student_");
+      const normSender = normalizeStudentId(m.senderId);
+      return validStudentIds.has(normSender);
     }).length;
-  }, [messages, user]);
+  }, [messages, user, allStudents]);
 
   if (isLoading) {
     return (
@@ -2306,9 +2317,20 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                   <h3 className="font-bold text-lg text-slate-900 dark:text-white">
                     שיחות עם תלמידים
                   </h3>
-                  <span className="text-xs font-bold px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 rounded-full border border-indigo-200/50 dark:border-indigo-800/40">
-                    {filteredChatStudents.length} תלמידים
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {unreadStudentsCount > 0 && (
+                      <button
+                        onClick={() => markAllAsRead()}
+                        className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 hover:underline transition-colors px-1"
+                        title="סמן את כל ההודעות כנקראו"
+                      >
+                        סמן הכל כנקרא
+                      </button>
+                    )}
+                    <span className="text-xs font-bold px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 rounded-full border border-indigo-200/50 dark:border-indigo-800/40">
+                      {filteredChatStudents.length} תלמידים
+                    </span>
+                  </div>
                 </div>
 
                 {/* Search Bar */}

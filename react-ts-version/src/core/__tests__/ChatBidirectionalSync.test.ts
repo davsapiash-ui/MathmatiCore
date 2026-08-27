@@ -112,5 +112,40 @@ describe('Chat Bidirectional Synchronization & Room Segregation (Module 22 & 28)
       useChatStore.setState({ globalChatEnabled: false });
       expect(useChatStore.getState().globalChatEnabled).toBe(false);
     });
+
+    it('marks messages as read even with asymmetric teacher IDs (e.g. sent to "teacher", read by "1002220159")', () => {
+      useChatStore.setState({
+        messages: [
+          {
+            id: 'msg_1',
+            senderId: 'student_user2',
+            senderName: 'תלמיד 2',
+            receiverId: 'teacher',
+            text: 'צריך עזרה',
+            timestamp: Date.now(),
+            read: false
+          }
+        ]
+      });
+
+      // Teacher logged in with teacher_1002220159 marks as read
+      useChatStore.getState().markAsRead('teacher_1002220159', 'student_user2');
+      const messages = useChatStore.getState().messages;
+      expect(messages[0].read).toBe(true);
+    });
+
+    it('markAllAsRead marks every unread message across all rooms as read', () => {
+      useChatStore.setState({
+        messages: [
+          { id: 'm1', senderId: 'student_user1', senderName: 'תלמיד 1', receiverId: 'teacher', text: '1', timestamp: 1, read: false },
+          { id: 'm2', senderId: 'student_user3', senderName: 'תלמיד 3', receiverId: '1002220159', text: '2', timestamp: 2, read: false },
+          { id: 'm3', senderId: 'student_orphan', senderName: 'תלמיד', receiverId: 'admin', text: '3', timestamp: 3, read: false }
+        ]
+      });
+
+      useChatStore.getState().markAllAsRead();
+      const messages = useChatStore.getState().messages;
+      expect(messages.every(m => m.read === true)).toBe(true);
+    });
   });
 });
