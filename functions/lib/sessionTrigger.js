@@ -11,7 +11,10 @@ const admin = require("firebase-admin");
  * Formula: (correct_first_attempt_mandatory_tasks / 7) * 100
  * Threshold: Score >= 50% -> 'green_path', Score < 50% -> 'remediation_path'
  */
-exports.onSessionCompleteTrigger = (0, firestore_1.onDocumentWritten)("sessions/{sessionId}", async (event) => {
+exports.onSessionCompleteTrigger = (0, firestore_1.onDocumentWritten)({
+    document: "sessions/{sessionId}",
+    region: "us-central1",
+}, async (event) => {
     var _a, _b, _c, _d, _e, _f;
     const afterData = (_b = (_a = event.data) === null || _a === void 0 ? void 0 : _a.after) === null || _b === void 0 ? void 0 : _b.data();
     const beforeData = (_d = (_c = event.data) === null || _c === void 0 ? void 0 : _c.before) === null || _d === void 0 ? void 0 : _d.data();

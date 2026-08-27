@@ -157,22 +157,6 @@ service cloud.firestore {
       data.teacher_gate_approved is bool;
     }
 
-    // 4. Class Document Schema Allowlist (Module 4 / Module 25)
-    function isValidClassDoc() {
-      let data = request.resource.data;
-      return data.keys().hasOnly([
-        'class_id',
-        'school_id',
-        'class_name',
-        'class_type',
-        'active_session_id',
-        'projector_mode',
-        'projector_mode_updated_at',
-        'updated_by_teacher_id'
-      ]) &&
-      data.class_name == 'המבקרים';
-    }
-
     // --- Collections Routing ---
 
     // Students Collection: Strict Ownership & Teacher Class Guard (Direct read denied for Admin, allowed for Teacher and owning Student)

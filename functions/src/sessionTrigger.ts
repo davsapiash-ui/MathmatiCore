@@ -9,7 +9,10 @@ import * as admin from "firebase-admin";
  * Formula: (correct_first_attempt_mandatory_tasks / 7) * 100
  * Threshold: Score >= 50% -> 'green_path', Score < 50% -> 'remediation_path'
  */
-export const onSessionCompleteTrigger = onDocumentWritten("sessions/{sessionId}", async (event) => {
+export const onSessionCompleteTrigger = onDocumentWritten({
+  document: "sessions/{sessionId}",
+  region: "us-central1",
+}, async (event) => {
   const afterData = event.data?.after?.data();
   const beforeData = event.data?.before?.data();
 
