@@ -220,6 +220,7 @@ describe('Work Package 1 (WP1): Types & Security Contracts Verification', () => 
           ones_count: 14,
           tens_count: 2,
           hundreds_count: 1,
+          thousands_count: 0,
           memory_circles: { 0: 0, 1: 0, 2: 0 },
         },
         recent_actions: [],

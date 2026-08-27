@@ -1254,7 +1254,7 @@ OUTPUT SCHEMA (Return ONLY valid JSON):
 
   /**
    * יוצר אובייקט בקשה מאומת בדיוק לפי סכמת GeminiSocraticRequest (נספח א' §6 ומודול 13).
-   * משתמש במזהה student_id קנוני (1-12) בלבד, ללא anonymous_student_id הישן.
+   * משתמש במזהה student_id קנוני (1-12) בלבד.
    */
   static buildGeminiSocraticRequest(params: {
     studentId: number | string;
@@ -1265,6 +1265,7 @@ OUTPUT SCHEMA (Return ONLY valid JSON):
       ones_count: number;
       tens_count: number;
       hundreds_count: number;
+      thousands_count?: number;
       memory_circles: Record<string, number>;
     };
     recentActions?: TelemetryPayload<TelemetryEventType>[];
@@ -1283,6 +1284,7 @@ OUTPUT SCHEMA (Return ONLY valid JSON):
         ones_count: params.workspaceState.ones_count,
         tens_count: params.workspaceState.tens_count,
         hundreds_count: params.workspaceState.hundreds_count,
+        thousands_count: params.workspaceState.thousands_count || 0,
         memory_circles: params.workspaceState.memory_circles || {},
       },
       recent_actions: params.recentActions || [],

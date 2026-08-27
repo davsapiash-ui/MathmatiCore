@@ -105,6 +105,7 @@ export interface GeminiSocraticRequest {
     ones_count: number;
     tens_count: number;
     hundreds_count: number;
+    thousands_count: number;
     memory_circles: Record<string, number>;
   };
   recent_actions: TelemetryPayload<TelemetryEventType>[];

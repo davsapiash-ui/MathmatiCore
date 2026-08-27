@@ -292,17 +292,17 @@ export const onStudentEvent = onCall(async (request) => {
     throw new HttpsError("unauthenticated", "User must be authenticated.");
   }
 
-  const { session_id, anonymous_student_id, interaction_data, somatic_indicators } = request.data || {};
+  const { session_id, student_id, interaction_data, somatic_indicators } = request.data || {};
 
-  if (!session_id || anonymous_student_id === undefined) {
-    throw new HttpsError("invalid-argument", "Missing required payload parameters.");
+  if (!session_id || student_id === undefined) {
+    throw new HttpsError("invalid-argument", "Missing required payload parameters: session_id and student_id.");
   }
 
   // Enforce PII Scrubbing: Stripping any text fields not explicitly allowed
   const cleanPayload = {
     event_type: "vector_replay",
     session_id,
-    anonymous_student_id, // 1 - 35
+    student_id: Number(student_id), // Strictly 1 - 12
     timestamp: Date.now(),
     interaction_data: {
       action_type: interaction_data?.action_type || "vector_replay",

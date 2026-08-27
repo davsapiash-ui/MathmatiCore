@@ -1151,7 +1151,20 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       set({ pendingSupportProfileId: profileId });
     },
 
-    setAITasks: (tasks) => set({ aiTasks: tasks }),
+    setAITasks: (newTasks) => {
+      set((state) => {
+        if (!newTasks || newTasks.length === 0) return { aiTasks: newTasks };
+        const currentActiveTasks = getActiveTasks(state);
+        // PRD v7.0 Module 26: Apply changes exclusively to pending or unstarted worksheets to prevent workspace corruption during live sessions
+        const currentIdx = state.standardTaskIdx;
+        if (currentActiveTasks.length > 0 && currentIdx < currentActiveTasks.length) {
+          const preservedCurrentAndPast = currentActiveTasks.slice(0, currentIdx + 1);
+          const pendingUpdates = newTasks.slice(currentIdx + 1);
+          return { aiTasks: [...preservedCurrentAndPast, ...pendingUpdates] };
+        }
+        return { aiTasks: newTasks };
+      });
+    },
 
     startSession: (meeting: number) => {
       get().initSession(sanitizeSessionNumber(meeting), get().isASD);
