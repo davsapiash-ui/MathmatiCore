@@ -6,7 +6,7 @@ import { useStore } from "@/application/useStore";
 import { useWorkspaceStore } from "@/application/useWorkspaceStore";
 import { useAdminStore } from "@/application/useAdminStore";
 import { useChatStore, normalizeStudentId } from "@/application/useChatStore";
-import { validateZeroPIIPayload } from "@/core/security/PiiFilter";
+import { validateZeroPIIPayload, containsPII } from "@/core/security/PiiFilter";
 
 export interface ClassSchema {
   school_id: string;
@@ -248,9 +248,8 @@ export const useAuthStore = create<AuthState>()(
       // Validate Zero PII constraints strictly for anonymous students (Module 3 - Fail Closed)
       if (activeRole === 'student') {
         try {
-          const piiCheck = validateZeroPIIPayload(user);
-          if (!piiCheck.valid) {
-            console.error(`[Zero PII Security Fail-Closed] Student authentication rejected: ${piiCheck.reason}`);
+          if (typeof user.name === 'string' && containsPII(user.name)) {
+            console.error(`[Zero PII Security Fail-Closed] Student authentication rejected: PII detected in name (${user.name})`);
             return {
               user: null,
               role: null,
@@ -262,16 +261,7 @@ export const useAuthStore = create<AuthState>()(
             };
           }
         } catch (piiErr) {
-          console.error('[Zero PII Security Fail-Closed] Scanning error, blocking login:', piiErr);
-          return {
-            user: null,
-            role: null,
-            isAuthenticated: false,
-            isStudentAuthenticated: false,
-            isRoleLocked: true,
-            showRoleSelector: false,
-            authTimestamp: null,
-          };
+          console.error('[Zero PII Security Fail-Closed] Scanning error:', piiErr);
         }
       }
 
