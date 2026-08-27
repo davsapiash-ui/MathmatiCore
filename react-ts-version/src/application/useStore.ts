@@ -70,7 +70,6 @@ export interface StudentData {
   highestCompletedMeeting?: number;
   current_session?: number;
   teacher_gate_approved?: boolean;
-  enhanced_cognitive_support_profile?: boolean;
   routeRecommendation: RoutePath | null;
   routeStatus: RouteStatus | string | null;
   difficultyRecommendation?: string | number | null;

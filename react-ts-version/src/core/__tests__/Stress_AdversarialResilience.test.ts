@@ -68,15 +68,21 @@ describe('Challenger 2 — Concurrency, Network Chaos, & SRL Metrics Adversarial
         expect(queue[j].payload.sequenceId).toBe(500 + j);
       }
 
-      // Invariant 3: localStorage persistence must match the 500-item capped queue exactly
-      const rawStored = mockLocalStorage.setItem.mock.calls[mockLocalStorage.setItem.mock.calls.length - 1][1];
-      const parsedStored = JSON.parse(rawStored);
-      expect(parsedStored.length).toBe(500);
-      expect(parsedStored[0].payload.sequenceId).toBe(500);
-      expect(parsedStored[499].payload.sequenceId).toBe(999);
+      // Invariant 3 (PRD v7.0 Module 17): the sync queue must NEVER persist to localStorage —
+      // IndexedDB is the sole durable buffer. Enqueueing must not produce any localStorage write.
+      const queueWrites = mockLocalStorage.setItem.mock.calls.filter(
+        (call: any[]) => call[0] === 'mathmaticore_offline_queue'
+      );
+      expect(queueWrites.length).toBe(0);
+
+      // Invariant 4 (PRD v7.0 Module 17 §C step 5): every queued transaction carries a unique
+      // idempotency key, so flush retries overwrite instead of duplicating telemetry.
+      const keys = queue.map((item: any) => item.idempotency_key);
+      expect(keys.every((k: string) => typeof k === 'string' && k.length > 0)).toBe(true);
+      expect(new Set(keys).size).toBe(queue.length);
     });
 
-    it('should truncate and preserve latest 500 items when loading oversized 1,000-item queue from localStorage', () => {
+    it('should migrate (truncate to latest 500) a legacy 1,000-item localStorage queue and remove the legacy key', () => {
       const syncService = firebaseSyncService as any;
 
       // Simulate external/previous session storing 1,000 items in localStorage
@@ -93,6 +99,9 @@ describe('Challenger 2 — Concurrency, Network Chaos, & SRL Metrics Adversarial
       expect(queue.length).toBe(500);
       expect(queue[0].payload.seq).toBe(500);
       expect(queue[499].payload.seq).toBe(999);
+
+      // PRD v7.0 Module 17: the legacy localStorage key must be removed after migration
+      expect(mockStorage['mathmaticore_offline_queue']).toBeUndefined();
     });
 
     it('should survive corrupted and non-array storage payloads without crashing', () => {

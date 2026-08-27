@@ -116,6 +116,12 @@ export class FirebaseSyncService {
 
   private constructor() {
     this.setupNetworkListeners();
+    // Module 17: RTDB delivery path for queue items recovered from IndexedDB after a reload.
+    // The deterministic child key keeps redelivery idempotent (overwrite, never duplicate).
+    indexedDBQueue.registerSyncHandler(async (refPath, payload) => {
+      const key = payload?.idempotency_key || this.generateQueueIdempotencyKey();
+      await set(ref(database, `${refPath}/${key}`), payload);
+    });
     // Delay initialization to avoid circular dependency with stores
     setTimeout(() => this.init(), 0);
   }
@@ -618,8 +624,8 @@ export class FirebaseSyncService {
     });
   }
 
-  // --- NEW: PRD Section 5.2 FIFO In-Memory Network Sync Queue ---
-  private offlineTelemetryQueue: Array<{ refPath: string, payload: any }> = [];
+  // --- Module 17: FIFO Offline Sync Queue (IndexedDB persistence; LocalStorage is strictly forbidden for queues) ---
+  private offlineTelemetryQueue: Array<{ refPath: string, payload: any, idempotency_key: string }> = [];
   private isOnline: boolean = typeof navigator !== 'undefined' ? navigator.onLine : true;
 
   private setupNetworkListeners() {
@@ -634,57 +640,74 @@ export class FirebaseSyncService {
     }
   }
 
+  private generateQueueIdempotencyKey(): string {
+    return typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `idem_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+  }
+
+  /**
+   * Legacy migration only (Module 17): drains a queue persisted by older client
+   * versions into localStorage, then removes the key. New writes never touch
+   * localStorage — IndexedDB is the sole durable buffer for the sync queue.
+   */
   private loadOfflineQueueFromStorage() {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') return;
     try {
       const raw = localStorage.getItem('mathmaticore_offline_queue');
       if (raw) {
         const items = JSON.parse(raw);
         if (Array.isArray(items)) {
-          this.offlineTelemetryQueue = items.slice(-500);
+          this.offlineTelemetryQueue = items
+            .slice(-500)
+            .filter((it: any) => it && typeof it.refPath === 'string')
+            .map((it: any) => ({
+              refPath: it.refPath,
+              payload: it.payload,
+              idempotency_key: it.idempotency_key || this.generateQueueIdempotencyKey(),
+            }));
         }
+        localStorage.removeItem('mathmaticore_offline_queue');
       }
     } catch (e) {
-      console.warn("Failed to load offline telemetry queue from storage:", e);
-    }
-  }
-
-  private saveOfflineQueueToStorage() {
-    if (typeof window === 'undefined') return;
-    try {
-      localStorage.setItem('mathmaticore_offline_queue', JSON.stringify(this.offlineTelemetryQueue));
-    } catch (e) {
-      console.warn("Failed to save offline telemetry queue to storage:", e);
+      console.warn("Failed to migrate legacy offline telemetry queue:", e);
     }
   }
 
   private enqueueOfflineTransaction(refPath: string, payload: any) {
-    this.offlineTelemetryQueue.push({ refPath, payload });
-    // Expand offline queue capacity to 500 items to handle large bursts without dropping telemetry
+    const idempotency_key = payload?.idempotency_key || this.generateQueueIdempotencyKey();
+    this.offlineTelemetryQueue.push({ refPath, payload, idempotency_key });
+    // Queue capacity is 500 items in strict FIFO order; oldest transaction drops on overflow
     if (this.offlineTelemetryQueue.length > 500) {
       this.offlineTelemetryQueue.shift();
       console.warn("Offline telemetry queue exceeded 500 items. Dropping oldest transaction.");
     }
-    this.saveOfflineQueueToStorage();
-    indexedDBQueue.enqueue(refPath, payload).catch(() => {});
+    // Module 17: durable persistence goes to IndexedDB only, carrying the idempotency key
+    indexedDBQueue.enqueue(refPath, { ...payload, idempotency_key }).catch(() => {});
   }
 
   private async flushOfflineQueue() {
     this.loadOfflineQueueFromStorage();
-    if (this.offlineTelemetryQueue.length === 0) return;
+    if (this.offlineTelemetryQueue.length === 0) {
+      indexedDBQueue.flushQueue().catch(() => {});
+      return;
+    }
     console.log(`Flushing ${this.offlineTelemetryQueue.length} transactions from offline queue.`);
     const queueToFlush = [...this.offlineTelemetryQueue];
     this.offlineTelemetryQueue = [];
-    this.saveOfflineQueueToStorage();
-    
+
     for (const transaction of queueToFlush) {
       try {
-        await push(ref(database, transaction.refPath), transaction.payload);
+        // Idempotent write: the deterministic child key makes retries overwrite instead of duplicate
+        await set(ref(database, `${transaction.refPath}/${transaction.idempotency_key}`), transaction.payload);
       } catch (e) {
         console.error("Failed to flush transaction, re-queueing:", e);
-        this.enqueueOfflineTransaction(transaction.refPath, transaction.payload);
+        this.enqueueOfflineTransaction(transaction.refPath, { ...transaction.payload, idempotency_key: transaction.idempotency_key });
       }
     }
+
+    // Drain items persisted in IndexedDB; shared idempotency keys make this a no-op for already-sent events
+    indexedDBQueue.flushQueue().catch(() => {});
   }
 
   // --- PRD V2.0 Section 7: Offline-First Resilience (Session Progress Cache) ---

@@ -230,13 +230,19 @@ export class IndexedDBQueue {
         const fallbackItems = [...this.memoryFallback];
         for (const item of fallbackItems) {
           try {
-            if (item.payload && item.payload.event_type && item.idempotency_key) {
+            // refPath items belong to RTDB via the registered sync handler; only
+            // typed TelemetryPayload items (no refPath) go to Firestore telemetry_logs.
+            if (item.refPath) {
+              if (!this.syncCallback) {
+                // No delivery route registered yet — keep the item queued; never drop unsent data
+                break;
+              }
+              await this.syncCallback(item.refPath, item.payload);
+            } else if (item.payload && item.payload.event_type && item.idempotency_key) {
               await setDoc(doc(firestore, 'telemetry_logs', item.idempotency_key), {
                 ...item.payload,
                 synced_at: Date.now(),
               });
-            } else if (this.syncCallback && item.refPath) {
-              await this.syncCallback(item.refPath, item.payload);
             }
             this.memoryFallback = this.memoryFallback.filter((i) => i.idempotency_key !== item.idempotency_key);
           } catch (err) {
@@ -288,14 +294,21 @@ export class IndexedDBQueue {
         // Step 3, 4, 5: Write to Firestore telemetry_logs and delete on server Ack
         for (const item of batchItems) {
           try {
-            if (item.payload && item.payload.event_type && item.idempotency_key) {
+            // refPath items belong to RTDB via the registered sync handler; only
+            // typed TelemetryPayload items (no refPath) go to Firestore telemetry_logs.
+            if (item.refPath) {
+              if (!this.syncCallback) {
+                // No delivery route registered yet — keep the item queued; never delete unsent data
+                hasMore = false;
+                break;
+              }
+              await this.syncCallback(item.refPath, item.payload);
+            } else if (item.payload && item.payload.event_type && item.idempotency_key) {
               // Firestore Canonical Telemetry Write
               await setDoc(doc(firestore, 'telemetry_logs', item.idempotency_key), {
                 ...item.payload,
                 synced_at: Date.now(),
               });
-            } else if (this.syncCallback && item.refPath) {
-              await this.syncCallback(item.refPath, item.payload);
             }
 
             // Step 4: Atomic delete from IndexedDB upon server Ack

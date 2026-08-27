@@ -50,7 +50,8 @@ exports.createSessionWithServerDeadline = (0, https_1.onCall)(async (request) =>
     if (!student_id || !class_id || !session_number) {
         throw new https_1.HttpsError("invalid-argument", "Missing required session parameters.");
     }
-    const durationMinutes = (session_number <= 2 || session_number === 8) ? 25 : 15;
+    // PRD v7.0 Module 14 §B: Session 1 = 20 min sandbox, Sessions 2 & 8 = 25 min, Sessions 3-7 = 15 min
+    const durationMinutes = session_number === 1 ? 20 : (session_number === 2 || session_number === 8) ? 25 : 15;
     const deadlineTimeMs = Date.now() + durationMinutes * 60 * 1000;
     const sessionId = `session_${String(session_number).padStart(2, "0")}_student_${student_id}`;
     const db = admin.firestore();
