@@ -365,10 +365,12 @@ export const triggerTestDriveReport = onRequest({
     const bucket = admin.storage().bucket();
     const storagePath = `reports/${classId}/session_${sessionNumber}/student_${studentId}_${Date.now()}.pdf`;
     const file = bucket.file(storagePath);
+    const downloadToken = require("crypto").randomUUID();
     await file.save(pdfBuffer, {
       contentType: "application/pdf",
       metadata: {
         metadata: {
+          firebaseStorageDownloadTokens: downloadToken,
           student_id: String(studentId),
           session_id: sessionId,
           class_id: classId,
@@ -378,16 +380,7 @@ export const triggerTestDriveReport = onRequest({
       }
     });
 
-    let signedUrl = "";
-    try {
-      const [url] = await file.getSignedUrl({
-        action: "read",
-        expires: Date.now() + 60 * 60 * 1000,
-      });
-      signedUrl = url;
-    } catch (e) {
-      signedUrl = `https://storage.googleapis.com/${bucket.name}/${storagePath}`;
-    }
+    const signedUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(storagePath)}?alt=media&token=${downloadToken}`;
 
     // 2. Upload to Google Drive Shared Folder
     const driveFileName = `PedagogicalReport_session${sessionNumber}_student${studentId}_${Date.now()}.pdf`;

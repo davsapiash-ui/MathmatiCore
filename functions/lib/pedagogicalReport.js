@@ -1,12 +1,34 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getPedagogicalReportDownloadUrl = exports.generatePedagogicalReportPDF = exports.EXACT_AI_FALLBACK_TEXT = void 0;
+exports.shapeRtl = shapeRtl;
 exports.createPedagogicalReportPdfBuffer = createPedagogicalReportPdfBuffer;
 const https_1 = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
+const path = require("path");
+const fs = require("fs");
 const exportDriveReport_1 = require("./exportDriveReport");
 const PDFDocument = require("pdfkit");
+/**
+ * Reverses Hebrew text segments for LTR rendering engines like PDFKit,
+ * while preserving numbers, brackets, and punctuation.
+ */
+function shapeRtl(text) {
+    if (!text)
+        return "";
+    return text.split("\n").map(line => {
+        if (!/[\u0590-\u05FF]/.test(line))
+            return line;
+        const words = line.split(" ");
+        return words.map(w => {
+            if (/[\u0590-\u05FF]/.test(w)) {
+                return w.split("").reverse().join("");
+            }
+            return w;
+        }).reverse().join(" ");
+    }).join("\n");
+}
 exports.EXACT_AI_FALLBACK_TEXT = "הניתוח הפדגוגי המפורט אינו זמין כעת. ההמלצות שלהלן מבוססות על מדדי הביצוע.";
 const COLUMN_NAMES_HE = ["אחדות", "עשרות", "מאות", "אלפים"];
 /**
@@ -74,46 +96,58 @@ function createPedagogicalReportPdfBuffer(report) {
             doc.on("data", (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
             doc.on("end", () => resolve(Buffer.concat(chunks)));
             doc.on("error", (err) => reject(err));
+            const fontCandidates = [
+                path.join(__dirname, "../fonts/Arial.ttf"),
+                path.join(__dirname, "fonts/Arial.ttf"),
+                path.join(process.cwd(), "fonts/Arial.ttf"),
+                "C:\\Windows\\Fonts\\arial.ttf",
+            ];
+            for (const f of fontCandidates) {
+                if (fs.existsSync(f)) {
+                    doc.font(f);
+                    break;
+                }
+            }
             // Header
-            doc.fontSize(22).fillColor("#1e1b4b").text("MathematiCore - Pedagogical Report", { align: "center" });
+            doc.fontSize(22).fillColor("#1e1b4b").text(shapeRtl("MathematiCore - דוח פדגוגי מסכם"), { align: "center" });
             doc.moveDown(0.4);
-            doc.fontSize(12).fillColor("#475569").text(`Confidential Student Assessment | Zero PII Policy`, { align: "center" });
+            doc.fontSize(11).fillColor("#475569").text(shapeRtl("הערכה פדגוגית חסויה | מדיניות אפס מידע מזהה (Zero PII)"), { align: "center" });
             doc.moveDown(1);
             // Metadata summary card
             doc.rect(40, doc.y, 515, 60).fillAndStroke("#f8fafc", "#cbd5e1");
-            doc.fillColor("#0f172a").fontSize(12);
+            doc.fillColor("#0f172a").fontSize(11);
             const cardY = doc.y + 12;
-            doc.text(`Student: ${report.anonymous_student_label}`, 55, cardY);
-            doc.text(`Session: ${report.session_number}`, 220, cardY);
-            doc.text(`Session Score: ${report.score_percent}%`, 380, cardY);
-            doc.text(`Path: ${report.matrix_recommended_path === 'green_path' ? 'Green Track (Advanced)' : 'Remediation Path (Yellow)'}`, 55, cardY + 22);
+            doc.text(shapeRtl(`לומד: ${report.anonymous_student_label}`), 390, cardY, { width: 150, align: "right" });
+            doc.text(shapeRtl(`מפגש: ${report.session_number}`), 260, cardY, { width: 110, align: "right" });
+            doc.text(shapeRtl(`ציון שליטה: ${report.score_percent}%`), 70, cardY, { width: 170, align: "right" });
+            doc.text(shapeRtl(`מסלול מומלץ: ${report.matrix_recommended_path === 'green_path' ? 'מסלול העמקה (ירוק)' : 'מסלול ביסוס ומענה מותאם (צהוב)'}`), 55, cardY + 25, { width: 490, align: "right" });
             doc.y = cardY + 60;
             doc.moveDown(1);
             // Grouping Recommendation
-            doc.fontSize(14).fillColor("#166534").text("1. Pedagogical Routing Recommendation");
+            doc.fontSize(14).fillColor("#166534").text(shapeRtl("1. המלצת ניתוב פדגוגי"), { align: "right" });
             doc.moveDown(0.3);
-            doc.fontSize(11).fillColor("#14532d").text(`Routing Group: ${report.routing_group}`);
-            doc.fontSize(10).fillColor("#334155").text(`Details: ${report.recommendation_details_he || report.routing_label_he}`);
+            doc.fontSize(11).fillColor("#14532d").text(shapeRtl(`קבוצת למידה: ${report.routing_label_he || report.routing_group}`), { align: "right" });
+            doc.fontSize(10).fillColor("#334155").text(shapeRtl(`פירוט פדגוגי: ${report.recommendation_details_he || report.routing_label_he}`), { align: "right", lineGap: 3 });
             doc.moveDown(1);
             // Chronological Exercise Narratives
-            doc.fontSize(14).fillColor("#1e293b").text("2. Chronological Exercise Narratives");
+            doc.fontSize(14).fillColor("#1e293b").text(shapeRtl("2. סיפור התרגילים הכרונולוגי (Exercise Narratives)"), { align: "right" });
             doc.moveDown(0.4);
             if (report.exercise_narratives && Array.isArray(report.exercise_narratives)) {
                 for (const narrative of report.exercise_narratives) {
-                    doc.fontSize(10).fillColor("#334155").text(`* ${narrative}`, { lineGap: 3 });
+                    doc.fontSize(10).fillColor("#334155").text(shapeRtl(`* ${narrative}`), { align: "right", lineGap: 3 });
                     doc.moveDown(0.3);
                 }
             }
             doc.moveDown(1);
             // AI Insights / Exact Fallback
-            doc.fontSize(14).fillColor("#92400e").text("3. Pedagogical Cognitive Insights");
+            doc.fontSize(14).fillColor("#92400e").text(shapeRtl("3. תובנות קוגניטיביות פדגוגיות"), { align: "right" });
             doc.moveDown(0.3);
-            doc.fontSize(10).fillColor("#78350f").text(report.ai_fallback_text || exports.EXACT_AI_FALLBACK_TEXT, { lineGap: 3 });
+            doc.fontSize(10).fillColor("#78350f").text(shapeRtl(report.ai_fallback_text || exports.EXACT_AI_FALLBACK_TEXT), { align: "right", lineGap: 3 });
             doc.moveDown(1.5);
             // Footer
             const genTime = report.generated_at ? new Date(report.generated_at) : new Date();
-            const footerText = `Generated automatically on ${genTime.toISOString()} | MathematiCore Autonomous Engine v7.0`;
-            doc.fontSize(8).fillColor("#94a3b8").text(footerText, 40, 780, { align: "center", width: 515 });
+            const footerText = `נוצר אוטומטית בתאריך ${genTime.toLocaleDateString("he-IL")} | מנוע MathematiCore v7.0`;
+            doc.fontSize(8).fillColor("#94a3b8").text(shapeRtl(footerText), 40, 780, { align: "center", width: 515 });
             doc.end();
         }
         catch (renderErr) {
@@ -200,10 +234,12 @@ exports.generatePedagogicalReportPDF = (0, https_1.onCall)(async (request) => {
         const pdfBuffer = await createPedagogicalReportPdfBuffer(report);
         const bucket = admin.storage().bucket();
         const file = bucket.file(storageFilePath);
+        const downloadToken = require("crypto").randomUUID();
         await file.save(pdfBuffer, {
             contentType: "application/pdf",
             metadata: {
                 metadata: {
+                    firebaseStorageDownloadTokens: downloadToken,
                     student_id: String(clampedStudentNum),
                     session_id: sessionId,
                     class_id: classId,
@@ -212,16 +248,7 @@ exports.generatePedagogicalReportPDF = (0, https_1.onCall)(async (request) => {
                 },
             },
         });
-        try {
-            const [signedUrl] = await file.getSignedUrl({
-                action: "read",
-                expires: Date.now() + 60 * 60 * 1000, // 1 hour initial signed URL
-            });
-            pdfUrl = signedUrl;
-        }
-        catch (signErr) {
-            pdfUrl = `https://storage.googleapis.com/${bucket.name}/${storageFilePath}`;
-        }
+        pdfUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(storageFilePath)}?alt=media&token=${downloadToken}`;
         // Link permanent storage PDF path and timestamp to SessionDocument
         await db.collection("sessions").doc(sessionId).set({
             pedagogical_report_pdf_path: storageFilePath,
