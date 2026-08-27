@@ -45,10 +45,10 @@ jobs:
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MATHIMATICORE }}
 
-      - name: Deploy to Firebase Hosting & Firestore Rules
-        run: npx --yes firebase-tools@13 deploy --only hosting,firestore:rules --project mathimaticore --non-interactive
+      - name: Deploy to Firebase Hosting
+        run: npx --yes firebase-tools@13 deploy --only hosting --project mathimaticore --non-interactive
 
-      - name: Deploy Firebase RTDB Rules & Functions
+      - name: Deploy Firebase Rules & Functions
         continue-on-error: true
-        run: npx --yes firebase-tools@13 deploy --only database,functions --project mathimaticore --non-interactive
+        run: npx --yes firebase-tools@13 deploy --only firestore:rules,database,functions --project mathimaticore --non-interactive
 
