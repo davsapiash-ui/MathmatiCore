@@ -246,6 +246,7 @@ export function VerticalAdditionTask({
         {colPlaces.map((place, j) => {
           if (j < firstAnswerCol) return <div key={`e${j}`} aria-hidden="true" />;
           const ansIdx = j - firstAnswerCol;
+          const isLocked = isColumnInputLocked(place);
           return (
             <div key={`ans${j}`} className="flex items-center justify-center">
               <input
@@ -256,13 +257,34 @@ export function VerticalAdditionTask({
                 inputMode="numeric"
                 maxLength={1}
                 value={answerDigits[place] ?? ''}
-                readOnly={false}
+                readOnly={isLocked}
                 aria-label={`ספרת ה${PLACE_LABEL_HE[place]} בתשובה`}
-                className="rounded-lg border-2 text-center font-mono font-black bg-ws-surface text-ws-ink transition-all focus:outline-none focus:ring-2 focus:ring-ws-accent"
+                aria-disabled={isLocked}
+                className={`rounded-lg border-2 text-center font-mono font-black bg-ws-surface text-ws-ink transition-all focus:outline-none focus:ring-2 focus:ring-ws-accent ${
+                  isLocked ? 'cursor-not-allowed opacity-75' : ''
+                }`}
                 style={{ width: CELL - 12, height: CELL - 12, fontSize: CELL * 0.48, borderColor: PLACE_TINT[place], ...shakeStyle }}
-                onFocus={() => setFocusedPlace(place)}
+                onFocus={() => {
+                  if (isLocked) {
+                    setShake(true);
+                    setTimeout(() => setShake(false), 500);
+                  }
+                  setFocusedPlace(place);
+                }}
                 onBlur={() => setFocusedPlace(null)}
+                onKeyDown={(e) => {
+                  if (isLocked) {
+                    e.preventDefault();
+                    setShake(true);
+                    setTimeout(() => setShake(false), 500);
+                  }
+                }}
                 onChange={(e) => {
+                  if (isLocked) {
+                    setShake(true);
+                    setTimeout(() => setShake(false), 500);
+                    return;
+                  }
                   const v = e.target.value.replace(/[^0-9]/g, '').slice(-1);
                   setAnswerDigit(place, v);
                   // Advance leftward to the next-higher place (natural carrying direction).

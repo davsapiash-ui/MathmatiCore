@@ -302,12 +302,11 @@ async function uploadBufferToDrive(buffer, fileName, mimeType, parentFolderId = 
     }
 }
 exports.VALID_RESET_REASONS = [
-    'END_OF_LESSON',
-    'TECHNICAL_GLITCH',
-    'STUDENT_REASSIGNMENT',
-    'ACADEMIC_PILOT_RESET',
-    'DEV_TESTING',
-    'TEACHER_INITIATED_RESET',
+    'technical_fault',
+    'student_stuck',
+    'restart_session',
+    'test_run',
+    'other',
 ];
 /**
  * Module 23א: backupAndResetSessionData
@@ -322,15 +321,20 @@ exports.backupAndResetSessionData = (0, https_1.onCall)(async (request) => {
     if (!request.auth) {
         throw new https_1.HttpsError("unauthenticated", "User must be authenticated.");
     }
-    const { reset_level, reason, student_id, class_id = "class_1" } = request.data || {};
+    const { reset_level, reason, reason_note = null, student_id, class_id = "class_1" } = request.data || {};
     if (!reset_level || !['alerts', 'single_student', 'system'].includes(reset_level)) {
         throw new https_1.HttpsError("invalid-argument", "Invalid reset_level. Must be 'alerts', 'single_student', or 'system'.");
     }
     if (!reason || !exports.VALID_RESET_REASONS.includes(reason)) {
         throw new https_1.HttpsError("invalid-argument", `Invalid reset reason. Must be one of: ${exports.VALID_RESET_REASONS.join(', ')}`);
     }
+    // PRD v7.0 Module 23א §F: Deny admin role access to learning-data resets
+    const userRole = request.auth.token.role || (request.auth.token.admin ? 'admin' : 'teacher');
+    if ((userRole === 'admin' || userRole === 'ADMIN') && (reset_level === 'single_student' || reset_level === 'system')) {
+        logger.warn(`Admin ${request.auth.uid} attempted destructive learning data reset (${reset_level}), denied.`);
+        throw new https_1.HttpsError("permission-denied", "Admin role is strictly forbidden from resetting learning data per Module 23א.");
+    }
     const performedBy = request.auth.uid;
-    const userEmail = request.auth.token.email || "teacher@edu-haifa.org.il";
     const rtdb = admin.database();
     const db = admin.firestore();
     const resetId = `reset_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
@@ -338,18 +342,20 @@ exports.backupAndResetSessionData = (0, https_1.onCall)(async (request) => {
     if (reset_level === 'alerts') {
         try {
             await rtdb.ref("radar_alerts").remove().catch(() => { });
-            await db.collection("reset_audit_log").doc(resetId).set({
+            const auditEntry = {
                 reset_id: resetId,
-                timestamp: Date.now(),
-                performed_by: performedBy,
-                user_email: userEmail,
                 reset_level: 'alerts',
-                reason,
-                affected_student_id: student_id || 'ALL',
+                performed_by_teacher_id: performedBy,
+                performed_at: Date.now(),
                 class_id,
-                status: 'SUCCESS',
-                created_at: admin.firestore.FieldValue.serverTimestamp(),
-            });
+                affected_student_ids: student_id ? [parseInt(String(student_id).replace(/\D/g, '') || '1', 10)] : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+                backup_file_url: null,
+                backup_status: 'not_required',
+                reset_reason: reason,
+                reason_note,
+                records_deleted_count: 0,
+            };
+            await db.collection("reset_audit_log").doc(resetId).set(Object.assign(Object.assign({}, auditEntry), { created_at: admin.firestore.FieldValue.serverTimestamp() }));
             return { status: "SUCCESS", message: "התראות אופסו בהצלחה ותועדו בלוג." };
         }
         catch (e) {
@@ -401,9 +407,26 @@ exports.backupAndResetSessionData = (0, https_1.onCall)(async (request) => {
     if (!driveResult.success) {
         logger.error("Drive upload failed during backup:", driveResult.error);
         // Strict requirement: Fail deletion if backup write fails
+        const failedEntry = {
+            reset_id: resetId,
+            reset_level,
+            performed_by_teacher_id: performedBy,
+            performed_at: Date.now(),
+            class_id,
+            affected_student_ids: reset_level === 'single_student'
+                ? [parseInt(String(student_id).replace(/\D/g, '') || '1', 10)]
+                : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+            backup_file_url: null,
+            backup_status: 'failed',
+            reset_reason: reason,
+            reason_note,
+            records_deleted_count: 0,
+        };
+        await db.collection("reset_audit_log").doc(resetId).set(Object.assign(Object.assign({}, failedEntry), { created_at: admin.firestore.FieldValue.serverTimestamp() })).catch(() => { });
         throw new https_1.HttpsError("internal", "הגיבוי נכשל. האיפוס בוטל ולא נמחקו נתונים.");
     }
     // Step 3: Perform deletions ONLY after confirmed Drive write success
+    let deletedCount = 0;
     try {
         if (reset_level === 'single_student') {
             const rawNum = String(student_id).replace(/\D/g, '') || '1';
@@ -411,6 +434,7 @@ exports.backupAndResetSessionData = (0, https_1.onCall)(async (request) => {
             for (const k of keys) {
                 await rtdb.ref(`users/students/${k}`).remove().catch(() => { });
                 await rtdb.ref(`chat_messages/${k}`).remove().catch(() => { });
+                deletedCount++;
             }
         }
         else if (reset_level === 'system') {
@@ -421,22 +445,26 @@ exports.backupAndResetSessionData = (0, https_1.onCall)(async (request) => {
             await rtdb.ref("replays").remove().catch(() => { });
             await rtdb.ref("sessions").remove().catch(() => { });
             await rtdb.ref("active_class_session").set({ active: false, sessionNumber: 1, timestamp: Date.now() }).catch(() => { });
+            deletedCount = 12;
         }
-        // Step 4: Write immutable record to reset_audit_log
-        await db.collection("reset_audit_log").doc(resetId).set({
+        // Step 4: Write immutable canonical ResetAuditEntry record to reset_audit_log
+        const affectedStudentIds = reset_level === 'single_student'
+            ? [parseInt(String(student_id).replace(/\D/g, '') || '1', 10)]
+            : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+        const auditEntry = {
             reset_id: resetId,
-            timestamp: Date.now(),
-            performed_by: performedBy,
-            user_email: userEmail,
             reset_level,
-            reason,
-            affected_student_id: student_id || 'ALL',
+            performed_by_teacher_id: performedBy,
+            performed_at: Date.now(),
             class_id,
-            drive_file_id: driveResult.fileId,
-            drive_link: driveResult.webViewLink,
-            status: 'SUCCESS',
-            created_at: admin.firestore.FieldValue.serverTimestamp(),
-        });
+            affected_student_ids: affectedStudentIds,
+            backup_file_url: driveResult.webViewLink || null,
+            backup_status: 'success',
+            reset_reason: reason,
+            reason_note,
+            records_deleted_count: deletedCount,
+        };
+        await db.collection("reset_audit_log").doc(resetId).set(Object.assign(Object.assign({}, auditEntry), { created_at: admin.firestore.FieldValue.serverTimestamp() }));
         logger.info(`Successfully backed up and reset ${reset_level} data (ResetID: ${resetId})`);
         return {
             status: "SUCCESS",

@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '@/application/useStore';
+import { ResetConfirmationModal } from './ResetConfirmationModal';
 
 export type RadarStatusColor = 'RED' | 'GREY' | 'YELLOW' | 'GREEN';
 
@@ -470,20 +471,10 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
     }
   };
 
-  const handleResetAllClass = async () => {
-    if (!window.confirm('האם אתה בטוח שברצונך לאפס את כל נתוני 12 תלמידי הכיתה לאפס מוחלט?')) {
-      return;
-    }
-    setIsResettingClass(true);
-    try {
-      await useStore.getState().resetEntireSystemUsageData();
-      toast.success('✓ כל נתוני הכיתה אופסו בהצלחה לאפס מוחלט!');
-    } catch (err) {
-      console.error('Reset all error:', err);
-      toast.error('שגיאה באיפוס נתוני הכיתה');
-    } finally {
-      setIsResettingClass(false);
-    }
+  const [isClassResetModalOpen, setIsClassResetModalOpen] = useState(false);
+
+  const handleResetAllClass = () => {
+    setIsClassResetModalOpen(true);
   };
 
   // Pending Teacher Gate students
@@ -853,6 +844,23 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
           </div>
         )}
       </AnimatePresence>
+      <ResetConfirmationModal
+        isOpen={isClassResetModalOpen}
+        onClose={() => setIsClassResetModalOpen(false)}
+        resetLevel="system"
+        onConfirm={async (reason, reasonNote) => {
+          setIsResettingClass(true);
+          try {
+            await useStore.getState().resetEntireSystemUsageData(reason);
+            toast.success('✓ כל נתוני הכיתה אופסו בהצלחה לאפס מוחלט לאחר גיבוי מלא!');
+          } catch (err) {
+            console.error('Reset all error:', err);
+            toast.error('שגיאה באיפוס נתוני הכיתה');
+          } finally {
+            setIsResettingClass(false);
+          }
+        }}
+      />
     </div>
   );
 }

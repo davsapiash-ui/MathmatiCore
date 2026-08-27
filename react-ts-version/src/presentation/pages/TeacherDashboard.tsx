@@ -36,6 +36,7 @@ import { FloatingChatPanel } from "./TeacherDashboard/components/FloatingChatPan
 import { HeatmapGrid } from "./TeacherDashboard/components/HeatmapGrid";
 import { ClusteringWidgets } from "./TeacherDashboard/components/ClusteringWidgets";
 import { TeacherApprovalGate, type GateStudentItem } from "./TeacherDashboard/components/TeacherApprovalGate";
+import { ResetConfirmationModal } from "./TeacherDashboard/components/ResetConfirmationModal";
 import { SocraticEngine, type PendingAIApproval } from "@/infrastructure/services/SocraticEngine";
 import type { RadarAlert } from "@/types/dashboard";
 import { CONCEPT_LABELS_HE } from "@/core/QMatrix";
@@ -265,6 +266,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   const [drawerStudent, setDrawerStudent] = useState<StudentData | null>(null);
   const [gateStudent, setGateStudent] = useState<StudentData | null>(null);
   const [floatingChatStudent, setFloatingChatStudent] = useState<StudentData | null>(null);
+  const [isSystemResetModalOpen, setIsSystemResetModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   // Update active tab and selected student based on route params (PRD 4.3 Navigation Redundancy)
@@ -1306,14 +1308,9 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
             )}
 
             <button
-              onClick={async () => {
-                if (window.confirm("האם לאפס את כל נתוני השימוש במערכת (הודעות צ'אט, התראות וסטטוס תלמידים) למצב פתיחה נקי?")) {
-                  await useStore.getState().resetEntireSystemUsageData();
-                  toast.success("כל נתוני השימוש במערכת אופסו בהצלחה למצב פתיחה נקי!");
-                }
-              }}
+              onClick={() => setIsSystemResetModalOpen(true)}
               className="px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 border border-slate-300/80 cursor-pointer shadow-sm"
-              title="איפוס מלא של נתוני שימוש במערכת"
+              title="איפוס מבוקר של נתוני שימוש במערכת"
             >
               <span>🔄</span>
               <span>איפוס נתוני שימוש</span>
@@ -2787,6 +2784,15 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
             teacherId={(user?.uid as string) || TEACHER_ID}
           />
         )}
+        <ResetConfirmationModal
+          isOpen={isSystemResetModalOpen}
+          onClose={() => setIsSystemResetModalOpen(false)}
+          resetLevel="system"
+          onConfirm={async (reason, reasonNote) => {
+            await useStore.getState().resetEntireSystemUsageData(reason);
+            toast.success("כל נתוני השימוש במערכת אופסו בהצלחה לאחר גיבוי מלא!");
+          }}
+        />
       </main>
     </div>
   );

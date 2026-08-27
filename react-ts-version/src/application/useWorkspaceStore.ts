@@ -329,7 +329,12 @@ export function getActiveTasks(s: WorkspaceState): SessionTask[] {
   if (s.sessionNumber === 2) return [];
   if (s.dynamicTasks) return s.dynamicTasks;
   if (s.sessionNumber >= 3 && s.aiTasks) return s.aiTasks;
-  return getSessionTasks(s.sessionNumber as any) ?? [];
+  const authUser = useAuthStore.getState().user;
+  const student = authUser?.uid ? useStore.getState().students[authUser.uid] : null;
+  const rawPath = s.selectedBranch || (student as any)?.pedagogicalPath;
+  const path: 'green_path' | 'remediation_path' =
+    rawPath === 'remediation_path' ? 'remediation_path' : 'green_path';
+  return getSessionTasks(s.sessionNumber as any, path) ?? [];
 }
 
 export function selectStandardTask(s: WorkspaceState): SessionTask | null {
@@ -2051,6 +2056,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     closeAdditionHelper: () => set({ isAdditionHelperOpen: false }),
     toggleAdditionHelper: () => set((s) => ({ isAdditionHelperOpen: !s.isAdditionHelperOpen })),
     setKeyboardSocratic: () => {
+      if (get().sessionNumber === 2) return; // PRD v7.0 Module 12 & 14: Socratic card completely disabled in Session 2
       set((s) => ({
         keyboardState: 'SOCRATIC_ONLY',
         helpState: 'socratic',
@@ -2098,6 +2104,17 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     isColumnInputLocked: (place, numberA, numberB, isSubtraction) => {
       const s = get();
+      // PRD v7.0 Module 14: In sessions 2 and 8, the keyboard lock is disabled for every learner regardless of profile
+      if (s.sessionNumber === 2 || s.sessionNumber === 8) return false;
+
+      // PRD v7.0 Module 9: Lock columns requiring regrouping ONLY when support_profile_id === 'enhanced_cognitive_support'.
+      // For every other learner the dynamic keyboard remains fully open at all times.
+      const authUser = useAuthStore.getState().user;
+      const supportProfile = (authUser as any)?.support_profile_id ?? (s as any).support_profile_id;
+      if (supportProfile !== 'enhanced_cognitive_support') {
+        return false;
+      }
+
       if (s.keyboardState === 'LOCKED' || s.keyboardState === 'SOCRATIC_ONLY') return true;
 
       const aStr = String(numberA);
@@ -2207,9 +2224,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     tickHesitationTimer: () => {
       set((state) => {
         const nextSec = state.hesitationTimerSeconds + 1;
-        const shouldOpenAddition = nextSec >= 30 && !state.isAdditionHelperOpen && state.sessionNumber !== 2;
+        const authUser = useAuthStore.getState().user;
+        const supportProfile = (authUser as any)?.support_profile_id ?? (state as any).support_profile_id;
+        const hasEnhancedSupport = supportProfile === 'enhanced_cognitive_support';
+        const shouldOpenAddition = nextSec >= 30 && !state.isAdditionHelperOpen && state.sessionNumber !== 2 && state.sessionNumber !== 8 && hasEnhancedSupport;
 
-        // Module 12: Trigger 1 — 45 seconds of hesitation triggers Socratic coach across ALL sessions
+        // Module 12: Trigger 1 — 45 seconds of hesitation triggers Socratic coach across ALL sessions (except session 2)
         const currentTask = selectStandardTask(state);
         const isSandbox = currentTask?.id === 's1_sandbox_controlled' || currentTask?.type === 'session1_intro';
         if (nextSec >= 45 && state.currentState !== 'SOCRATIC_ACTIVE' && !state.isSocraticCardLocked && state.sessionNumber !== 2 && !isSandbox) {

@@ -133,6 +133,7 @@ describe('Work Package 3 (WP3): Student Learning Space & VRA Engine Comprehensiv
   describe('4. Module 9: DynamicKeyboard & Conditional Regrouping Lock', () => {
     it('locks keyboard when dynamic exchange is required but not yet performed', () => {
       const store = useWorkspaceStore.getState();
+      useWorkspaceStore.setState({ support_profile_id: 'enhanced_cognitive_support' } as any);
       // In addition 17 + 8: units need exchange (7+8=15 >= 10). Without grouping, column is locked.
       const isLocked = store.isColumnInputLocked('units', 17, 8, false);
       expect(isLocked).toBe(true);
@@ -140,7 +141,7 @@ describe('Work Package 3 (WP3): Student Learning Space & VRA Engine Comprehensiv
 
     it('unlocks keyboard after regrouping/grouping operation completes', () => {
       const store = useWorkspaceStore.getState();
-      useWorkspaceStore.setState({ hasGrouped: true });
+      useWorkspaceStore.setState({ support_profile_id: 'enhanced_cognitive_support', hasGrouped: true } as any);
 
       const isLocked = store.isColumnInputLocked('units', 17, 8, false);
       expect(isLocked).toBe(false);
@@ -148,6 +149,7 @@ describe('Work Package 3 (WP3): Student Learning Space & VRA Engine Comprehensiv
 
     it('locks keyboard in subtraction when ungrouping/exchange is required and not performed', () => {
       const store = useWorkspaceStore.getState();
+      useWorkspaceStore.setState({ support_profile_id: 'enhanced_cognitive_support' } as any);
       // In subtraction 52 - 17: units need ungrouping (2 < 7).
       const isLocked = store.isColumnInputLocked('units', 52, 17, true);
       expect(isLocked).toBe(true);
@@ -186,24 +188,36 @@ describe('Work Package 3 (WP3): Student Learning Space & VRA Engine Comprehensiv
       expect(useWorkspaceStore.getState().isAdditionHelperOpen).toBe(false);
     });
 
-    it('triggers adaptive addition grid appearance at exactly 30s hesitation as intermediate scaffold', () => {
+    it('triggers adaptive addition grid appearance at exactly 30s hesitation strictly for enhanced_cognitive_support profile', () => {
       const store = useWorkspaceStore.getState();
-      store.initSession(1, false);
+      store.initSession(3, false);
+      useWorkspaceStore.setState({ support_profile_id: 'enhanced_cognitive_support' } as any);
 
-      expect(store.isAdditionHelperOpen).toBe(false);
-      expect(store.hesitationTimerSeconds).toBe(0);
+      expect(useWorkspaceStore.getState().isAdditionHelperOpen).toBe(false);
+      expect(useWorkspaceStore.getState().hesitationTimerSeconds).toBe(0);
 
       // Tick hesitation to 29s
       for (let i = 0; i < 29; i++) {
-        store.tickHesitationTimer();
+        useWorkspaceStore.getState().tickHesitationTimer();
       }
       expect(useWorkspaceStore.getState().hesitationTimerSeconds).toBe(29);
       expect(useWorkspaceStore.getState().isAdditionHelperOpen).toBe(false);
 
-      // Tick 30th second -> triggers addition helper
-      store.tickHesitationTimer();
+      // Tick 30th second -> triggers addition helper for enhanced profile
+      useWorkspaceStore.getState().tickHesitationTimer();
       expect(useWorkspaceStore.getState().hesitationTimerSeconds).toBe(30);
       expect(useWorkspaceStore.getState().isAdditionHelperOpen).toBe(true);
+    });
+
+    it('does NOT trigger adaptive addition grid at 30s for standard learners without enhanced support', () => {
+      const store = useWorkspaceStore.getState();
+      store.initSession(1, false);
+      useWorkspaceStore.setState({ support_profile_id: null } as any);
+
+      for (let i = 0; i < 35; i++) {
+        useWorkspaceStore.getState().tickHesitationTimer();
+      }
+      expect(useWorkspaceStore.getState().isAdditionHelperOpen).toBe(false);
     });
   });
 

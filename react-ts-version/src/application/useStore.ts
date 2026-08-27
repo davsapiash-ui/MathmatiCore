@@ -150,7 +150,7 @@ interface AppState {
   ) => void;
   updateStudent: (studentId: string, updates: Partial<StudentData>) => void;
   resetStudentData: (studentId: string) => Promise<void>;
-  resetEntireSystemUsageData: () => Promise<void>;
+  resetEntireSystemUsageData: (reason?: any) => Promise<void>;
   initStoreSubscriptions: () => (() => void);
 }
 
@@ -629,7 +629,7 @@ export const useStore = create<AppState>()(
         toast.success(`נתוני ${defaultName} אופסו בהצלחה לאחר גיבוי.`);
       },
 
-      resetEntireSystemUsageData: async (reason = 'TEACHER_INITIATED_RESET') => {
+      resetEntireSystemUsageData: async (reason: 'technical_fault' | 'student_stuck' | 'restart_session' | 'test_run' | 'other' = 'restart_session') => {
         // Module 23א: Step 1 & 2 - Call server-side Backup-Before-Delete Cloud Function for System
         try {
           const backupResetCallable = httpsCallable(functions, 'backupAndResetSessionData');

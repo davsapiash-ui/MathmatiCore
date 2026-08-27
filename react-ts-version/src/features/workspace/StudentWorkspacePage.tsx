@@ -542,7 +542,10 @@ export function StudentWorkspacePage() {
     };
   }, [normUid, meeting, isASDMode]);
 
-  const isAdditionBoardEnabled = liveAdditionBoardEnabled ?? (myData?.additionBoardEnabled ?? false);
+  // PRD v7.0 Module 10: Load adaptive addition grid strictly and only when support_profile_id === 'enhanced_cognitive_support'.
+  // For every other learner the grid must not mount, render or exist in the DOM.
+  const hasEnhancedSupport = (user as any)?.support_profile_id === 'enhanced_cognitive_support' || (myData as any)?.support_profile_id === 'enhanced_cognitive_support';
+  const isAdditionBoardEnabled = hasEnhancedSupport && sessionNumber !== 2 && sessionNumber !== 8;
 
   // --- PRD Section 4.5: Physical Override Listener and Teardown Pipeline ---
   useEffect(() => {

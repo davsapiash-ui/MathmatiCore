@@ -149,3 +149,29 @@ export interface CognitiveProfile {
   enhanced_support: boolean;
   scope: 'STUDENT' | 'CLASS';
 }
+
+// --- 6. Data Reset, Backup & Audit Trail Schemas (Module 23א) ---
+
+export const VALID_RESET_REASONS = [
+  'technical_fault',
+  'student_stuck',
+  'restart_session',
+  'test_run',
+  'other',
+] as const;
+
+export type ResetReason = typeof VALID_RESET_REASONS[number];
+
+export interface ResetAuditEntry {
+  reset_id: string;
+  reset_level: 'alerts' | 'single_student' | 'system';
+  performed_by_teacher_id: string;
+  performed_at: number;
+  class_id: string;
+  affected_student_ids: number[];
+  backup_file_url: string | null;
+  backup_status: 'success' | 'failed' | 'not_required';
+  reset_reason: ResetReason;
+  reason_note: string | null;
+  records_deleted_count: number;
+}
