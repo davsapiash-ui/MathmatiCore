@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { database } from '@/infrastructure/firebase';
-import { ref, onValue, set as firebaseSet, push, update } from 'firebase/database';
+import { ref, onValue, set as firebaseSet, push, update, remove } from 'firebase/database';
 import { useAuthStore } from "@/application/useAuthStore";
 
 export interface ChatMessage {
@@ -279,7 +279,16 @@ export const useChatStore = create<ChatState>()(
       }));
     },
 
-    clearAllMessages: () => set({ messages: [], unreadCount: 0 }),
+    clearAllMessages: () => {
+      set({ messages: [], unreadCount: 0 });
+      try {
+        remove(ref(database, 'chat_messages')).catch((err) => {
+          console.warn("Failed to remove chat_messages from DB:", err);
+        });
+      } catch (e) {
+        console.warn("Chat clear DB error:", e);
+      }
+    },
 
     clearStudentMessages: (studentId: string) => {
       const norm = normalizeStudentId(studentId);
@@ -288,6 +297,13 @@ export const useChatStore = create<ChatState>()(
           (m) => normalizeStudentId(m.senderId) !== norm && normalizeStudentId(m.receiverId) !== norm
         ),
       }));
+      try {
+        remove(ref(database, `chat_messages/${norm}`)).catch((err) => {
+          console.warn("Failed to delete student chat messages from DB:", err);
+        });
+      } catch (e) {
+        console.warn("Error deleting student chat room:", e);
+      }
     },
   })
 );

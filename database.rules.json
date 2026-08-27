@@ -48,6 +48,7 @@
     },
     "chat_messages": {
       ".read": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true || auth.token.role == 'admin' || auth.token.role == 'ADMIN' || auth.token.admin == true)",
+      ".write": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true || auth.token.role == 'admin' || auth.token.role == 'ADMIN' || auth.token.admin == true)",
       "$roomId": {
         ".read": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true || auth.token.role == 'admin' || auth.token.role == 'ADMIN' || auth.token.admin == true || auth.uid == $roomId || $roomId == 'student_user' + auth.token.student_id || $roomId == 'student_' + auth.token.student_id || $roomId == '' + auth.token.student_id)",
         ".write": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true || auth.token.role == 'admin' || auth.token.role == 'ADMIN' || auth.token.admin == true || auth.uid == $roomId || $roomId == 'student_user' + auth.token.student_id || $roomId == 'student_' + auth.token.student_id || $roomId == '' + auth.token.student_id)"
