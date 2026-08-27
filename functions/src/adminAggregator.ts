@@ -1,16 +1,17 @@
-import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 
 /**
  * hourlyAdminAggregator (Module 24: Store Cache & Admin Aggregator)
  * Aggregates statistics across all schools, classrooms and sessions into store_cache/admin_metrics.
+ * Runs on a recurring schedule once every 60 minutes.
  */
-export const hourlyAdminAggregator = onCall(async (request) => {
-  if (!request.auth) {
-    throw new HttpsError("unauthenticated", "User must be authenticated.");
-  }
-
+export const hourlyAdminAggregator = onSchedule({
+  schedule: "every 60 minutes",
+  timeZone: "Asia/Jerusalem",
+  region: "us-central1",
+}, async (event) => {
   const db = admin.firestore();
 
   const [schoolsSnap, classesSnap, sessionsSnap] = await Promise.all([
@@ -46,6 +47,6 @@ export const hourlyAdminAggregator = onCall(async (request) => {
 
   await db.collection("store_cache").doc("admin_metrics").set(aggregatedMetrics, { merge: true });
 
-  logger.info("Updated admin_metrics cache successfully", aggregatedMetrics);
-  return { status: "SUCCESS", metrics: aggregatedMetrics };
+  logger.info("Updated admin_metrics cache successfully via hourly schedule", aggregatedMetrics);
 });
+

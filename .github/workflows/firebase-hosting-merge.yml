@@ -45,7 +45,6 @@ jobs:
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MATHIMATICORE }}
 
-      # Security rules (Firestore and Realtime Database) are deployed manually because the CI service account lacks Firebase Rules / Database Management permissions.
-      - name: Deploy to Firebase Hosting
-        run: npx --yes firebase-tools@13 deploy --only hosting --project mathimaticore --non-interactive
+      - name: Deploy to Firebase (Hosting, Functions, Firestore Rules, RTDB Rules)
+        run: npx --yes firebase-tools@13 deploy --only hosting,functions,firestore:rules,database --project mathimaticore --non-interactive
 

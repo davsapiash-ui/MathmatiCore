@@ -1,17 +1,19 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.hourlyAdminAggregator = void 0;
-const https_1 = require("firebase-functions/v2/https");
+const scheduler_1 = require("firebase-functions/v2/scheduler");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
 /**
  * hourlyAdminAggregator (Module 24: Store Cache & Admin Aggregator)
  * Aggregates statistics across all schools, classrooms and sessions into store_cache/admin_metrics.
+ * Runs on a recurring schedule once every 60 minutes.
  */
-exports.hourlyAdminAggregator = (0, https_1.onCall)(async (request) => {
-    if (!request.auth) {
-        throw new https_1.HttpsError("unauthenticated", "User must be authenticated.");
-    }
+exports.hourlyAdminAggregator = (0, scheduler_1.onSchedule)({
+    schedule: "every 60 minutes",
+    timeZone: "Asia/Jerusalem",
+    region: "us-central1",
+}, async (event) => {
     const db = admin.firestore();
     const [schoolsSnap, classesSnap, sessionsSnap] = await Promise.all([
         db.collection("schools").get(),
@@ -40,7 +42,6 @@ exports.hourlyAdminAggregator = (0, https_1.onCall)(async (request) => {
         completion_rate_percent: totalSessions > 0 ? Math.round((completedSessions / totalSessions) * 100) : 0,
     };
     await db.collection("store_cache").doc("admin_metrics").set(aggregatedMetrics, { merge: true });
-    logger.info("Updated admin_metrics cache successfully", aggregatedMetrics);
-    return { status: "SUCCESS", metrics: aggregatedMetrics };
+    logger.info("Updated admin_metrics cache successfully via hourly schedule", aggregatedMetrics);
 });
 //# sourceMappingURL=adminAggregator.js.map

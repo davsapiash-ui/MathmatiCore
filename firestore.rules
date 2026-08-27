@@ -198,6 +198,31 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // 4. Class Document Schema Allowlist (Module 4 / Module 25)
+    function isValidClassDoc() {
+      let data = request.resource.data;
+      return data.keys().hasOnly([
+        'class_id',
+        'school_id',
+        'class_name',
+        'class_type',
+        'teacher_id',
+        'active_session_id',
+        'projector_mode',
+        'projector_mode_updated_at',
+        'student_count',
+        'students',
+        'updated_by_teacher_id',
+        'created_at',
+        'updated_at'
+      ]) &&
+      data.class_id is string && data.class_id.size() > 0 &&
+      data.school_id is string && data.school_id.size() > 0 &&
+      data.class_name == 'המבקרים' &&
+      data.class_type is string && data.class_type.size() > 0 &&
+      (!('student_count' in data) || (data.student_count is int && data.student_count >= 0 && data.student_count <= 12));
+    }
+
     // Classes & Schools Collections
     match /schools/{schoolId} {
       allow read: if isAuthenticated();
@@ -206,7 +231,8 @@ service cloud.firestore {
 
     match /classes/{classId} {
       allow read: if isAuthenticated();
-      allow write: if isTeacherOfClass(classId) || isAdmin();
+      allow create, update: if (isTeacherOfClass(classId) || isAdmin()) && isValidClassDoc();
+      allow delete: if isAdmin();
     }
 
     // Teacher-Admin Messages (Module 22: Direct client create is BLOCKED; writes permitted exclusively via sendTeacherAdminMessage Cloud Function)
