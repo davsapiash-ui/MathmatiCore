@@ -8,25 +8,25 @@ describe('Work Package 5 (WP5): Teacher Dashboard, Silent Radar Matrix, Gate App
   describe('1. Module 18: Silent Radar Matrix & Strict Priority Order (RED > GREY > YELLOW > GREEN)', () => {
     const now = 1000000;
 
-    it('assigns RED status to a student with >=3 consecutive errors (highest priority)', () => {
+    it('assigns RED status when Socratic mentoring card is active on student screen (highest priority)', () => {
       const student: any = {
         studentId: 'student_1',
-        consecutiveErrors: 3,
+        isSocraticActive: true,
         lastActivityTimestamp: now - 5000, // Online (5s ago)
-        hesitationSeconds: 35,
+        hesitationSeconds: 10,
       };
 
       const res = computeStudentRadarColor(student, now, 15000);
       expect(res.color).toBe('RED');
-      expect(res.statusText).toContain('3 שגיאות רצופות');
+      expect(res.statusText).toContain('כרטיס חניכה סוקרטי פעיל');
     });
 
     it('assigns GREY status to a student who is offline (>15s presence timeout), overriding YELLOW', () => {
       const student: any = {
         studentId: 'student_2',
-        consecutiveErrors: 0,
+        isSocraticActive: false,
         lastActivityTimestamp: now - 20000, // Offline (20s ago > 15s timeout)
-        hesitationSeconds: 40, // Hesitation would be YELLOW if online, but offline takes precedence
+        hesitationSeconds: 50, // Hesitation would be YELLOW if online, but offline takes precedence
       };
 
       const res = computeStudentRadarColor(student, now, 15000);
@@ -35,12 +35,12 @@ describe('Work Package 5 (WP5): Teacher Dashboard, Silent Radar Matrix, Gate App
       expect(res.statusText).toContain('לא מחובר');
     });
 
-    it('assigns YELLOW status to an online student hesitating for >=30 seconds', () => {
+    it('assigns YELLOW status to an online student hesitating for >=45 seconds without action', () => {
       const student: any = {
         studentId: 'student_3',
-        consecutiveErrors: 0,
+        isSocraticActive: false,
         lastActivityTimestamp: now - 3000, // Online (3s ago)
-        hesitationSeconds: 35,
+        hesitationSeconds: 45,
       };
 
       const res = computeStudentRadarColor(student, now, 15000);
@@ -49,25 +49,25 @@ describe('Work Package 5 (WP5): Teacher Dashboard, Silent Radar Matrix, Gate App
       expect(res.statusText).toContain('היסוס');
     });
 
-    it('assigns GREEN status to an online student progressing normally', () => {
+    it('assigns GREEN status to an online student with cognitive event within last 30 seconds', () => {
       const student: any = {
         studentId: 'student_4',
-        consecutiveErrors: 0,
-        lastActivityTimestamp: now - 2000, // Online
+        isSocraticActive: false,
+        lastActivityTimestamp: now - 2000, // Online (2s ago)
         hesitationSeconds: 10,
       };
 
       const res = computeStudentRadarColor(student, now, 15000);
       expect(res.color).toBe('GREEN');
       expect(res.isOnline).toBe(true);
-      expect(res.statusText).toBe('התקדמות תקינה');
+      expect(res.statusText).toContain('התקדמות תקינה');
     });
 
     it('proves strict priority order: RED > GREY > YELLOW > GREEN', () => {
       // RED beats GREY
       const redAndOffline: any = {
         studentId: 's1',
-        consecutiveErrors: 4,
+        isSocraticActive: true,
         lastActivityTimestamp: now - 30000, // Offline
       };
       expect(computeStudentRadarColor(redAndOffline, now, 15000).color).toBe('RED');
@@ -75,7 +75,7 @@ describe('Work Package 5 (WP5): Teacher Dashboard, Silent Radar Matrix, Gate App
       // GREY beats YELLOW
       const yellowAndOffline: any = {
         studentId: 's2',
-        consecutiveErrors: 0,
+        isSocraticActive: false,
         hesitationSeconds: 45,
         lastActivityTimestamp: now - 30000, // Offline
       };
@@ -84,8 +84,8 @@ describe('Work Package 5 (WP5): Teacher Dashboard, Silent Radar Matrix, Gate App
       // YELLOW beats GREEN
       const yellowAndOnline: any = {
         studentId: 's3',
-        consecutiveErrors: 0,
-        hesitationSeconds: 32,
+        isSocraticActive: false,
+        hesitationSeconds: 48,
         lastActivityTimestamp: now - 2000, // Online
       };
       expect(computeStudentRadarColor(yellowAndOnline, now, 15000).color).toBe('YELLOW');
@@ -106,7 +106,7 @@ describe('Work Package 5 (WP5): Teacher Dashboard, Silent Radar Matrix, Gate App
     it('assigns GREEN status to an active connected student without alerts', () => {
       const student: any = {
         studentId: 'student_active',
-        consecutiveErrors: 0,
+        isSocraticActive: false,
         lastActivityTimestamp: now - 4000, // Online within 15s
         hesitationSeconds: 5,
       };
@@ -114,7 +114,7 @@ describe('Work Package 5 (WP5): Teacher Dashboard, Silent Radar Matrix, Gate App
       const res = computeStudentRadarColor(student, now, 15000);
       expect(res.color).toBe('GREEN');
       expect(res.isOnline).toBe(true);
-      expect(res.statusText).toBe('התקדמות תקינה');
+      expect(res.statusText).toContain('התקדמות תקינה');
     });
   });
 

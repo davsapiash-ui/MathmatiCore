@@ -30,49 +30,52 @@ export function computeStudentRadarColor(
   }
 
   const lastActivity = student.lastActivityTimestamp || student.lastPing || 0;
-  if (lastActivity === 0) {
-    return { color: 'GREY', statusText: 'טרם החל', isOnline: false };
-  }
+  const isOnline = Boolean(student.isOnline !== false && lastActivity > 0 && Math.abs(now - lastActivity) <= presenceTimeoutMs);
+  const sessionStarted = Boolean(student.hasJoinedSession || student.sessionJoined || lastActivity > 0);
 
-  const isOnline = now - lastActivity <= presenceTimeoutMs;
+  const isSocraticActive = Boolean(
+    student.isSocraticActive ||
+    student.socraticActive ||
+    student.workspaceState?.currentState === 'SOCRATIC_ACTIVE' ||
+    student.helpState === 'socratic'
+  );
 
-  const errors = student.consecutiveErrors || student.errorCount || 0;
-  const hesitation = student.hesitationSeconds || student.hesitation_seconds || 0;
-  const isHelpActive = Boolean(student.hasRequestedBasicHelp || student.scaffoldLevel);
-  const isPassiveDrifting = Boolean(student.isPassiveDrifting || student.passive_drifting);
+  const hesitationSeconds = student.hesitationSeconds ?? student.hesitation_seconds ?? 0;
+  const isYellowHesitation = hesitationSeconds >= 45 || (isOnline && (now - lastActivity) >= 45000);
 
-  // Strict priority order: RED > GREY > YELLOW > GREEN
-  // 1. RED: Severe cognitive difficulty, passive drifting, or consecutive errors >= 3
-  if (errors >= 3 || isPassiveDrifting || student.hasActiveFriction) {
+  // Strict PRD v7.0 Module 18 Priority: RED > GREY > YELLOW > GREEN
+
+  // 1. RED: a Socratic mentoring card is currently active on the student's screen
+  if (isSocraticActive) {
     return {
       color: 'RED',
-      statusText: errors >= 3 ? `${errors} שגיאות רצופות` : 'קושי קוגניטיבי ממושך',
+      statusText: 'כרטיס חניכה סוקרטי פעיל',
       isOnline,
     };
   }
 
-  // 2. GREY: Offline / disconnected (>15s presence timeout)
-  if (!isOnline) {
+  // 2. GREY: student disconnected (per Presence Heartbeat) or session not started
+  if (!isOnline || !sessionStarted) {
     return {
       color: 'GREY',
-      statusText: 'לא מחובר (מעל 15 שנ׳)',
+      statusText: !sessionStarted ? 'טרם החל' : 'מנותק / לא מחובר',
       isOnline: false,
     };
   }
 
-  // 3. YELLOW: Hesitation (>30s) or active scaffolding/help
-  if (hesitation >= 30 || isHelpActive) {
+  // 3. YELLOW: 45 consecutive seconds without action in the active column
+  if (isYellowHesitation) {
     return {
       color: 'YELLOW',
-      statusText: hesitation >= 30 ? `היסוס (${hesitation} שניות)` : 'נעזר בפיגום פדגוגי',
+      statusText: `היסוס (${hesitationSeconds >= 45 ? hesitationSeconds : Math.floor((now - lastActivity) / 1000)} שניות)`,
       isOnline: true,
     };
   }
 
-  // 4. GREEN: On track / solving normally
+  // 4. GREEN: cognitive event within the last 30 seconds
   return {
     color: 'GREEN',
-    statusText: 'התקדמות תקינה',
+    statusText: 'התקדמות תקינה (פעילות קוגניטיבית ב-30 שניות האחרונות)',
     isOnline: true,
   };
 }

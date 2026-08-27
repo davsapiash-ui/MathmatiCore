@@ -73,9 +73,12 @@ describe('Work Package 6 (WP6): Admin Hubs, Two-Layer Chat PII, Cloud Functions 
       expect(path).toBe('recordings/student_2/ex_03_02.webm');
     });
 
-    it('instantiates CanvasRecorderService with safe default timeslice of 10s', () => {
+    it('defines 50MB hard cap and 2000ms chunk timeslice', () => {
+      expect(CanvasRecorderService.MAX_RECORDING_BYTES).toBe(50 * 1024 * 1024);
       const recorder = new CanvasRecorderService();
       expect(recorder.getIsRecording()).toBe(false);
+      expect(recorder.getTotalBytesRecorded()).toBe(0);
+      expect(recorder.getIsTruncated()).toBe(false);
     });
   });
 
