@@ -5,7 +5,6 @@ import { normalizeStudentId } from '@/application/useChatStore';
 import { X, CheckCircle, Video, ListTodo, Sliders, BellRing, Check, MessageCircle, RotateCcw, FileText } from 'lucide-react';
 import { StudentReplayAndLogs } from './StudentReplayAndLogs';
 import { BlueprintEditor } from './BlueprintEditor';
-import { PhysicalOverrideControl } from './PhysicalOverrideControl';
 import { SilentAdaptationPanel, type AdaptationSettings } from './SilentAdaptationPanel';
 import { ref, update } from 'firebase/database';
 import { database, functions } from '@/infrastructure/firebase';
@@ -22,7 +21,7 @@ interface Props {
 }
 
 export function StudentSideDrawer({ student, onClose, isPendingApproval, onApproveTasks, onOpenChat }: Props) {
-  const [activeTab, setActiveTab] = useState<'replays' | 'blueprint' | 'override'>(
+  const [activeTab, setActiveTab] = useState<'replays' | 'blueprint' | 'adaptations'>(
     isPendingApproval ? 'blueprint' : 'replays'
   );
   const [isResetting, setIsResetting] = useState(false);
@@ -264,15 +263,15 @@ export function StudentSideDrawer({ student, onClose, isPendingApproval, onAppro
             אבחון והקלטות
           </button>
           <button
-            onClick={() => setActiveTab('override')}
+            onClick={() => setActiveTab('adaptations')}
             className={`flex items-center gap-2 px-4 py-3 font-medium transition-colors border-b-2 text-sm whitespace-nowrap ${
-              activeTab === 'override'
-                ? 'border-amber-500 text-amber-700 dark:text-amber-400'
+              activeTab === 'adaptations'
+                ? 'border-indigo-500 text-indigo-700 dark:text-indigo-400'
                 : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
             }`}
           >
-            <Sliders className="w-4 h-4 text-amber-500" />
-            עקיפה פיזית (Physical Override)
+            <Sliders className="w-4 h-4 text-indigo-500" />
+            התאמות פדגוגיות (UDL)
           </button>
           <button
             onClick={() => setActiveTab('blueprint')}
@@ -317,18 +316,13 @@ export function StudentSideDrawer({ student, onClose, isPendingApproval, onAppro
                   </p>
                 </div>
               )}
-              
-              {/* Physical Override Controls inside Replay Tab */}
-              <PhysicalOverrideControl student={student} />
 
               <StudentReplayAndLogs studentId={student.studentId} />
             </div>
           )}
 
-          {activeTab === 'override' && (
+          {activeTab === 'adaptations' && (
             <div className="animate-in fade-in duration-300 space-y-6">
-              <PhysicalOverrideControl student={student} />
-
               {/* Module 19: Silent Adaptation Control Panel (Task-Boundary Rule) */}
               <SilentAdaptationPanel
                 student={{

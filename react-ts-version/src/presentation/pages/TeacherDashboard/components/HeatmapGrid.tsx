@@ -98,7 +98,7 @@ export interface AnonymousStudent {
   status: 'active' | 'locked' | 'completed';
   hesitationSeconds: number;
   errorCount: number;
-  physicalOverride: boolean; // VRA virtual support override
+  enhancedSupport: boolean;
   isStruggling: boolean;
   isSocraticActive: boolean;
   errorCategory?: 'calculation' | 'procedural' | 'conceptual' | null;
@@ -130,7 +130,7 @@ const INITIAL_MOCK_STUDENTS: AnonymousStudent[] = Array.from({ length: 12 }, (_,
     status: 'active' as const,
     hesitationSeconds: 0,
     errorCount: 0,
-    physicalOverride: false,
+    enhancedSupport: false,
     isStruggling: false,
     isSocraticActive: false,
     lastAction: '',
@@ -161,7 +161,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
   const [selectedStudent, setSelectedStudent] = useState<AnonymousStudent | null>(null);
 
   // Filter state for Heatmap
-  const [activeFilter, setActiveFilter] = useState<'ALL' | 'STRUGGLING' | 'LOCKED' | 'PHYSICAL_OVERRIDE'>('ALL');
+  const [activeFilter, setActiveFilter] = useState<'ALL' | 'STRUGGLING' | 'LOCKED'>('ALL');
 
   // Module 18 & Session Active state: Track active class session state
   const [isClassSessionActive, setIsClassSessionActive] = useState<boolean>(false);
@@ -239,10 +239,10 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
           const hesitationSeconds = isOnline && hesitationEvents ? hesitationEvents * 45 : (sessionState.hesitation_seconds || 0);
           const errorCount = isOnline ? Math.max(wsState.undoCount || 0, data.traceData?.undo_clicks || 0, sessionState.error_count || 0) : 0;
           const isYellowPath = data.routeRecommendation === 'YELLOW' || sessionState.current_path === 'remediation_path';
-          const physicalOverride = Boolean(data.physicalOverrideActive || data.physicalOverride || sessionState.physical_override || data.enhanced_support_profile);
+          const enhancedSupport = Boolean(data.enhanced_support_profile || data.isASD);
 
           const isSocraticActive = isOnline && (wsState.helpState === 'socratic' || data.isSocraticActive === true || data.helpRequested === true);
-          const isStruggling = isOnline && (hesitationSeconds >= 45 || isYellowPath || errorCount > 2 || physicalOverride || isSocraticActive);
+          const isStruggling = isOnline && (hesitationSeconds >= 45 || isYellowPath || errorCount > 2 || enhancedSupport || isSocraticActive);
 
           const rawSessionNum = wsState.sessionNumber || sessionState.session_number || (data.highestCompletedMeeting ? data.highestCompletedMeeting + 1 : 1);
           const sessionNumber = Math.min(8, Math.max(1, Number(rawSessionNum) || 1));
@@ -271,7 +271,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
             status: wsState.flowStatus === 'sessionDone' ? 'completed' : (data.isBoardLocked || sessionState.status === 'locked') ? 'locked' : 'active',
             hesitationSeconds,
             errorCount,
-            physicalOverride,
+            enhancedSupport,
             isStruggling,
             isSocraticActive,
             errorCategory,
@@ -342,63 +342,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
     };
   }, [isClassSessionActive]);
 
-  const handleTogglePhysicalOverride = async (student: AnonymousStudent) => {
-    const updatedStatus = student.status === 'locked' ? 'active' : student.status;
-    const newOverrideState = !student.physicalOverride;
-
-    // Update local grid state
-    setStudents((prev) =>
-      prev.map((s) =>
-        s.id === student.id
-          ? {
-              ...s,
-              physicalOverride: newOverrideState,
-              status: updatedStatus,
-              isStruggling: newOverrideState || s.hesitationSeconds >= 45 || s.errorCount > 2,
-            }
-          : s
-      )
-    );
-
-    if (selectedStudent && selectedStudent.id === student.id) {
-      setSelectedStudent({
-        ...selectedStudent,
-        physicalOverride: newOverrideState,
-        status: updatedStatus,
-      });
-    }
-
-    // Persist to Firebase
-    try {
-      const normId = normalizeStudentId(student.id);
-      const studentPayload = {
-        physicalOverride: newOverrideState,
-        physicalOverrideActive: newOverrideState,
-        isBoardLocked: false,
-      };
-      await update(ref(database, `users/students/${student.id}`), studentPayload);
-      if (normId !== student.id) {
-        await update(ref(database, `users/students/${normId}`), studentPayload).catch((err) => {
-          console.warn('Mirror to normalized studentId notice:', err);
-        });
-      }
-    } catch (e) {
-      console.error('Failed to sync VRA support override to Firebase:', e);
-      toast.error('שגיאה בעדכון עקיפת תמיכה לתלמיד בשרת.');
-    }
-  };
-
   const getPedagogicalRecommendations = (student: AnonymousStudent) => {
-    if (student.physicalOverride) {
-      return {
-        category: 'תמיכת VRA דיגיטלית / עקיפת מורה מודרכת',
-        questions: [
-          'מה הפעולה שהתלמיד מנסה לבצע בלבני הדינס הווירטואליות?',
-          'האם נדרשת הכוונה נוספת להמחשת עקרון ההמרה העשרונית?',
-          'כיצד לחבר בין הייצוג הווירטואלי בלוח לרישום המספרי המופשט?'
-        ]
-      };
-    }
     if (student.errorCount >= 3 || student.lastAction?.includes('ללא פריטה')) {
       return {
         category: 'קושי בפריטה והמרה עשרונית',
@@ -416,6 +360,16 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
           'איזה צעד ראשון שקלת לבצע? מה גורם לך להתלבט בטור הפעיל?',
           'איזה כלי עזר בלוח בית המספרים יכול לעזור לך להתחיל?',
           'האם תרצה שנבדוק יחד דוגמה פשוטה יותר במספרים קטנים?'
+        ]
+      };
+    }
+    if (student.isSocraticActive) {
+      return {
+        category: 'חניכה סוקרטית פעילה',
+        questions: [
+          'התלמיד מתמודד עם שאלת חקר מנחה.',
+          'מומלץ לאפשר לו לחשוב עצמאית לפני התערבות פרונטלית.',
+          'בדקי האם שאלת החונך מכוונת אותו למקור השגיאה.'
         ]
       };
     }
@@ -486,7 +440,6 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
   // Counts
   const strugglingCount = useMemo(() => students.filter(s => s.isStruggling).length, [students]);
   const lockedCount = useMemo(() => students.filter(s => s.status === 'locked').length, [students]);
-  const physicalOverrideCount = useMemo(() => students.filter(s => s.physicalOverride).length, [students]);
 
   return (
     <div className="flex flex-col gap-6" dir="rtl">
@@ -678,12 +631,6 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                           {student.currentPath}
                         </span>
                       </div>
-
-                      {student.physicalOverride && (
-                        <span className="text-[10px] bg-purple-600 text-white font-black px-2 py-0.5 rounded-md text-center shadow-sm">
-                          תמיכת VRA פעילה
-                        </span>
-                      )}
                     </div>
 
                     {/* Real-Time Trace Metrics */}
@@ -796,30 +743,6 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                     </div>
                   );
                 })()}
-
-                {/* VRA Support Override Toggle */}
-                <div className="p-5 rounded-2xl bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800 mb-6">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h4 className="font-black text-sm text-purple-950 dark:text-purple-200">
-                        תמיכת VRA דיגיטלית (Digital Manipulatives Override)
-                      </h4>
-                      <p className="text-xs text-purple-700 dark:text-purple-400 mt-0.5">
-                        מאפשר פתיחת לבני דינס וירטואליות וסיוע ויזואלי מוגבר לתלמיד
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => handleTogglePhysicalOverride(selectedStudent)}
-                      className={`px-4 py-2 rounded-xl text-xs font-black transition-all shadow-md ${
-                        selectedStudent.physicalOverride
-                          ? 'bg-purple-600 text-white shadow-purple-600/30 hover:bg-purple-700'
-                          : 'bg-white text-purple-700 border-2 border-purple-300 hover:bg-purple-50'
-                      }`}
-                    >
-                      {selectedStudent.physicalOverride ? 'פעיל (בטל)' : 'הפעל תמיכה'}
-                    </button>
-                  </div>
-                </div>
               </div>
 
               {/* Action Buttons */}

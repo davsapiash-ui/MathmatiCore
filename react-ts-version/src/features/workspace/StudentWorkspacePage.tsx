@@ -547,44 +547,6 @@ export function StudentWorkspacePage() {
   const hasEnhancedSupport = (user as any)?.support_profile_id === 'enhanced_cognitive_support' || (myData as any)?.support_profile_id === 'enhanced_cognitive_support';
   const isAdditionBoardEnabled = hasEnhancedSupport && sessionNumber !== 2 && sessionNumber !== 8;
 
-  // --- PRD Section 4.5: Physical Override Listener and Teardown Pipeline ---
-  useEffect(() => {
-    const uid = user?.uid;
-    if (!uid) return;
-    const normId = normalizeStudentId(uid);
-    
-    const overrideRef = ref(database, `users/students/${normId}/physicalOverrideActive`);
-    let previousOverrideState = false;
-    
-    const unsubscribe = onValue(
-      overrideRef,
-      (snapshot) => {
-        const isOverrideActive = snapshot.val() === true || myData?.physicalOverrideActive === true || myData?.physicalOverride === true;
-        
-        // When override is activated, immediately unlock keyboard for student
-        if (isOverrideActive && !previousOverrideState) {
-          useWorkspaceStore.getState().unlockKeyboard();
-        }
-
-        // Listen for transition from TRUE to FALSE (Teardown)
-        if (previousOverrideState && !isOverrideActive) {
-          console.log("Physical Override Teardown: Cleanup Pipeline triggered.");
-          const store = useWorkspaceStore.getState();
-          // 1. Restart hesitation timer by toggling keyboard state
-          store.lockKeyboard();
-          // 2. Validate current block state against target state (VRA Bridge).
-          store.proceed(); 
-        }
-        
-        previousOverrideState = isOverrideActive;
-      },
-      (err) => {
-        console.warn('[StudentWorkspacePage] overrideRef listener notice:', err);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [user?.uid, myData?.physicalOverrideActive, myData?.physicalOverride]);
 
   useEffect(() => {
     if (isInitialized) return;

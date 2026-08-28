@@ -40,7 +40,7 @@ export const TELEMETRY_EVENT_LABELS_HE: Record<string, { label: string; mileston
   HESITATION_DETECTED: { label: 'זיהוי היסוס (45 שניות)', milestone: 'חניכה סוקרטית', defaultAction: 'SOCRATIC_TRIGGER' },
   SOCRATIC_CARD_SHOWN: { label: 'הצגת כרטיס חניכה סוקרטי', milestone: 'חניכה סוקרטית', defaultAction: 'SOCRATIC_TRIGGER' },
   SOCRATIC_OPTION_SELECTED: { label: 'בחירת תשובה בכרטיס סוקרטי', milestone: 'חניכה סוקרטית', defaultAction: 'SOCRATIC_TRIGGER' },
-  PHYSICAL_OVERRIDE_ENABLED: { label: 'הפעלת עקיפה פיזית (VRA)', milestone: 'ויסות עצמי שקט', defaultAction: 'BLOCK_DRAG' },
+  SILENT_ADAPTATION_APPLIED: { label: 'החלת התאמה פדגוגית שקטה (UDL)', milestone: 'ויסות עצמי שקט', defaultAction: 'BLOCK_DRAG' },
   SESSION_COMPLETE: { label: 'השלמת מפגש בהצלחה', milestone: 'שורת התוצאה', defaultAction: 'ANSWER_INPUT' },
 
   // Interaction actions & fallback synonyms
