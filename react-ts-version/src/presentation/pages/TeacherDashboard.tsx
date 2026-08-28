@@ -11,7 +11,7 @@ import { useChatStore, normalizeStudentId, isTeacherOrAdminId, type ChatMessage 
 import { extractTeacherId } from "@/infrastructure/services/FirebaseSyncService";
 import { useStore, type StudentData } from "@/application/useStore";
 import { toast } from "sonner";
-import { ref, onValue, remove, set, update, query, limitToLast } from "firebase/database";
+import { ref, onValue, remove, set, update, query, limitToLast, onDisconnect } from "firebase/database";
 import { database, auth, functions, firestore } from "@/infrastructure/firebase";
 import { doc, getDoc, updateDoc, setDoc, onSnapshot, collection } from "firebase/firestore";
 import type { SessionDocument, PedagogicalPath } from "@/types";
@@ -355,6 +355,81 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     }
   }, []);
 
+  // Teacher Presence & Automatic Session Closure on Disconnect / Window Close
+  useEffect(() => {
+    const teacherId = user?.uid || 'teacher';
+    const teacherPresenceRef = ref(database, `users/teachers/${teacherId}`);
+    const activeSessionRef = ref(database, 'active_class_session');
+
+    // 1. Mark teacher online
+    update(teacherPresenceRef, {
+      isOnline: true,
+      onlineStatus: 'active',
+      lastPing: Date.now(),
+      lastActive: Date.now(),
+    }).catch(() => {});
+
+    // 2. Set up Firebase Server-Side onDisconnect hooks
+    try {
+      onDisconnect(teacherPresenceRef).update({
+        isOnline: false,
+        onlineStatus: 'offline',
+        lastPing: 0,
+        lastActive: Date.now(),
+      });
+      // If teacher disconnects without closing session, automatically close the active session
+      onDisconnect(activeSessionRef).set({
+        active: false,
+        sessionNumber: null,
+        endedAt: Date.now(),
+        teacherId: teacherId,
+      });
+    } catch (e) {
+      console.warn('[TeacherDashboard] onDisconnect registration notice:', e);
+    }
+
+    // 3. Keep heartbeat active every 5s
+    const pingInterval = setInterval(() => {
+      update(teacherPresenceRef, {
+        isOnline: true,
+        onlineStatus: 'active',
+        lastPing: Date.now(),
+        lastActive: Date.now(),
+      }).catch(() => {});
+    }, 5000);
+
+    // 4. Handle client-side browser/tab close (beforeunload / pagehide)
+    const handleTeacherUnload = () => {
+      try {
+        update(teacherPresenceRef, {
+          isOnline: false,
+          onlineStatus: 'offline',
+          lastPing: 0,
+          lastActive: Date.now(),
+        }).catch(() => {});
+
+        set(activeSessionRef, {
+          active: false,
+          sessionNumber: null,
+          endedAt: Date.now(),
+          teacherId: teacherId,
+        }).catch(() => {});
+      } catch (e) {
+        console.warn('[TeacherDashboard] Unload cleanup notice:', e);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleTeacherUnload);
+    window.addEventListener('pagehide', handleTeacherUnload);
+
+    return () => {
+      clearInterval(pingInterval);
+      window.removeEventListener('beforeunload', handleTeacherUnload);
+      window.removeEventListener('pagehide', handleTeacherUnload);
+      handleTeacherUnload();
+    };
+  }, [user?.uid]);
+
   const handleStartClassSession = async (sessionNum: number) => {
     const now = Date.now();
     setSessionStartTime(now);
@@ -379,6 +454,16 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
         startedAt: now,
         teacherId: user?.uid || 'teacher',
       });
+      try {
+        onDisconnect(ref(database, 'active_class_session')).set({
+          active: false,
+          sessionNumber: null,
+          endedAt: Date.now(),
+          teacherId: user?.uid || 'teacher',
+        });
+      } catch (discErr) {
+        console.warn('[TeacherDashboard] onDisconnect attach notice:', discErr);
+      }
       toast.success(`שיעור ${sessionNum} הופעל בהצלחה לכלל תלמידי הכיתה! 🚀`);
     } catch (err) {
       console.error('Error starting class session:', err);
