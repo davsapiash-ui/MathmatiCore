@@ -11,7 +11,13 @@ import { BlockPalette } from './BlockPalette';
  * Column order in RTL: units rightmost → thousands leftmost (standard Hebrew notation).
  * 50% of the workspace when open; collapsible via the topbar toggle.
  */
-export function PlaceValueBoard({ hideValueDisplay }: { hideValueDisplay?: boolean }) {
+export function PlaceValueBoard({ 
+  hideValueDisplay,
+  fullWidth = false,
+}: { 
+  hideValueDisplay?: boolean;
+  fullWidth?: boolean;
+}) {
   const boardOpen = useWorkspaceStore((s) => s.boardOpen);
   const scaffoldFadeLevel = useWorkspaceStore((s) => s.scaffoldFadeLevel);
   const scaffoldLevel = useWorkspaceStore(selectScaffoldLevel);
@@ -39,7 +45,7 @@ export function PlaceValueBoard({ hideValueDisplay }: { hideValueDisplay?: boole
           exit={{ opacity: 0, scale: 0.95 }}
           transition={{ duration: 0.5 }}
           className="flex flex-col items-center justify-center h-full w-full bg-ws-surface rounded-3xl border-2 border-ws-accent/30 shadow-xl p-8"
-          style={{ flexBasis: '50%' }}
+          style={{ flexBasis: fullWidth ? '100%' : '50%' }}
         >
           <div className="text-5xl mb-4">📐</div>
           <h2 className="text-2xl font-bold text-ws-ink text-center">
@@ -61,10 +67,14 @@ export function PlaceValueBoard({ hideValueDisplay }: { hideValueDisplay?: boole
         <motion.section
           key="place-value-board"
           initial={{ opacity: 0, width: 0, flex: '0 0 0%' }}
-          animate={{ opacity: 1, width: '50%', flex: '0 0 50%' }}
+          animate={{ 
+            opacity: 1, 
+            width: fullWidth ? '100%' : '50%', 
+            flex: fullWidth ? '1 1 100%' : '0 0 50%' 
+          }}
           exit={{ opacity: 0, width: 0, flex: '0 0 0%' }}
           transition={{ duration: 0.25, ease: 'easeInOut' }}
-          className="flex flex-col gap-3 overflow-hidden h-full max-h-full min-w-0"
+          className="flex flex-col gap-3 overflow-hidden h-full max-h-full min-w-0 w-full"
           aria-label="טבלת ערך המקום"
         >
           <div id="tour-place-value-board" className="flex-1 ws-card p-4 flex flex-col gap-3 hover:translate-y-0 select-none min-h-0 overflow-hidden">
