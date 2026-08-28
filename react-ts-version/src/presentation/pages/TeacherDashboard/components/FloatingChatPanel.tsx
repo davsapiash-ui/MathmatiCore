@@ -71,7 +71,7 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
         onClick={() => setIsMinimized(!isMinimized)}
       >
         <div className="font-bold text-sm flex items-center gap-2">
-          <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></div>
+          <div className={`w-2.5 h-2.5 rounded-full ${student?.isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-slate-400'}`}></div>
           <span>תלמיד {normStudentId.replace(/\D/g, '') || normStudentId}</span>
         </div>
         <div className="flex gap-2 text-indigo-200">

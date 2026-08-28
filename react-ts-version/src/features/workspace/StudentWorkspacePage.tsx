@@ -630,12 +630,12 @@ export function StudentWorkspacePage() {
             return;
           }
 
-          const canRestore = myData?.workspaceState?.sessionNumber === meeting && myData?.workspaceState?.flowStatus === 'task';
+          const canRestore = myData?.workspaceState?.sessionNumber === meeting && Boolean(myData?.workspaceState?.flowStatus);
           if (canRestore && myData?.workspaceState) {
             restoreSession(myData.workspaceState);
           } else {
             const localSaved = firebaseSyncService.getLocalSessionProgress(normId || username);
-            if (localSaved && localSaved.sessionNumber === meeting && localSaved.flowStatus === 'task') {
+            if (localSaved && localSaved.sessionNumber === meeting && Boolean(localSaved.flowStatus)) {
               restoreSession(localSaved);
             } else {
               initSession(meeting, isASDMode, tasks || null, 0);
@@ -652,12 +652,12 @@ export function StudentWorkspacePage() {
           setIsInitializing(false);
         }
       } else {
-        const canRestore = myData?.workspaceState?.sessionNumber === meeting && myData?.workspaceState?.flowStatus === 'task';
+        const canRestore = myData?.workspaceState?.sessionNumber === meeting && Boolean(myData?.workspaceState?.flowStatus);
         if (canRestore && myData?.workspaceState) {
           restoreSession(myData.workspaceState);
         } else {
           const localSaved = firebaseSyncService.getLocalSessionProgress(normUid || user?.uid || '');
-          if (localSaved && localSaved.sessionNumber === meeting && localSaved.flowStatus === 'task') {
+          if (localSaved && localSaved.sessionNumber === meeting && Boolean(localSaved.flowStatus)) {
             restoreSession(localSaved);
           } else {
             initSession(meeting, isASDMode, null, 0);
@@ -673,7 +673,7 @@ export function StudentWorkspacePage() {
     } else {
       // Check if local cache has current meeting state for instantaneous restoration
       const cached = firebaseSyncService.getLocalSessionProgress(normUid || user?.uid || '');
-      if (cached && cached.sessionNumber === meeting && cached.flowStatus === 'task') {
+      if (cached && cached.sessionNumber === meeting && Boolean(cached.flowStatus)) {
         restoreSession(cached);
         setIsInitialized(true);
         setIsInitializing(false);
@@ -860,6 +860,32 @@ export function StudentWorkspacePage() {
       />;
     }
     return <ReflectionScreen />;
+  }
+
+  // Module 14: Session complete screen
+  if (flowStatus === 'sessionDone') {
+    return (
+      <div dir="rtl" className="h-screen w-full flex flex-col items-center justify-center bg-ws-bg text-ws-ink font-body p-6 animate-in fade-in duration-300">
+        <div className="bg-ws-surface p-10 rounded-3xl shadow-2xl max-w-md w-full text-center border-2 border-ws-surface2 space-y-6">
+          <div className="text-6xl animate-bounce">🎉✨</div>
+          <h1 className="text-3xl font-display font-black text-ws-ink">
+            כל הכבוד, מתמטיקאים!
+          </h1>
+          <p className="text-base text-ws-soft leading-relaxed">
+            השלמתם את מפגש {sessionNumber} בהצלחה רבה!
+          </p>
+          <div className="pt-4 flex flex-col gap-3">
+            <button
+              onClick={() => navigate('/hub')}
+              className="w-full py-4 bg-ws-accent text-white font-display font-extrabold text-lg rounded-2xl hover:brightness-105 active:scale-95 transition-all cursor-pointer shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+            >
+              <span>חזרה ללובי התלמיד</span>
+              <span>🏠</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (isInitializing) {

@@ -2428,19 +2428,23 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                           (filteredChatStudents.find((s) => s.studentId === selectedStudentId)?.name || selectedStudentId || 'U')[0]
                         }
                       </div>
-                      <div>
-                        <h3 className="font-bold text-base text-slate-900 dark:text-white">
-                          {
-                            filteredChatStudents.find((s) => s.studentId === selectedStudentId)?.name || selectedStudentId
-                          }
-                        </h3>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                          <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                            תלמיד פעיל
-                          </span>
-                        </div>
-                      </div>
+                      {(() => {
+                        const currentStudent = filteredChatStudents.find((s) => s.studentId === selectedStudentId);
+                        const isStudentOnline = Boolean(currentStudent?.isOnline);
+                        return (
+                          <div>
+                            <h3 className="font-bold text-base text-slate-900 dark:text-white">
+                              {currentStudent?.name || selectedStudentId}
+                            </h3>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className={`w-2 h-2 rounded-full ${isStudentOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`}></span>
+                              <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                                {isStudentOnline ? 'מחובר/ת כעת' : 'מנותק/ת'}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
 

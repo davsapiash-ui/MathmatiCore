@@ -4,17 +4,13 @@ import { useAuthStore } from '@/application/useAuthStore';
 import { useStore } from '@/application/useStore';
 import { useAdminStore } from '@/application/useAdminStore';
 import { useActiveClassSession } from '@/application/useActiveClassSession';
-import { AuditLogger } from '@/infrastructure/services/AuditLogger';
-import { BellRing, Check, CheckCheck, Send, Sparkles, HelpCircle } from 'lucide-react';
-import { ref, runTransaction, push, update, set as firebaseSet } from 'firebase/database';
-import { database } from '@/infrastructure/firebase';
+import { Check, CheckCheck, Send, HelpCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { validateChatInputForPII, anonymizeChatMessageBody } from '@/core/security/PiiFilter';
 
 export function StudentChatOverlay() {
   const [isOpen, setIsOpen] = useState(false);
   const [text, setText] = useState('');
-  const [callCooldown, setCallCooldown] = useState(false);
   const { messages, sendMessage, markAsRead, initSync } = useChatStore();
   const user = useAuthStore(s => s.user);
   const activeSession = useActiveClassSession();
@@ -66,8 +62,8 @@ export function StudentChatOverlay() {
     isTeacherOrAdminId(m.receiverId)
   );
 
-  const handleSend = (customText?: string) => {
-    const textToSend = (customText || text).trim();
+  const handleSend = () => {
+    const textToSend = text.trim();
     if (!textToSend || !user?.uid) return;
 
     try {
@@ -85,91 +81,17 @@ export function StudentChatOverlay() {
         targetTeacherId as string, 
         cleanText
       );
-      if (!customText) setText('');
+      setText('');
     } catch (err) {
       console.error('[StudentChat] PII check error:', err);
       toast.error('שגיאה בבדיקת אבטחה.');
     }
   };
 
-  const handleCallTeacher = async () => {
-    if (!user?.uid || callCooldown) return;
-    const studentId = normUid;
-    const studentNum = studentId.replace(/\D+/g, '') || '1';
-    
-    setCallCooldown(true);
-    setTimeout(() => setCallCooldown(false), 15000);
-
-    AuditLogger.log(
-      "CALL_FOR_HELP", 
-      studentId, 
-      "Student explicitly called for teacher help via the silent button."
-    );
-
-    // 1. Root radar_alerts write for Teacher Dashboard & Heatmap live feed
-    try {
-      const alertsRef = ref(database, 'radar_alerts');
-      await push(alertsRef, {
-        studentId,
-        rawStudentId: studentId,
-        type: 'CALL_FOR_HELP',
-        message: `קריאה לעזרה: תלמיד ${studentNum} ביקש עזרה בכיתה 🙋‍♂️`,
-        timestamp: Date.now(),
-        acknowledged: false,
-        teacherId: targetTeacherId
-      });
-    } catch (e) {
-      console.warn("Failed to push radar alert:", e);
-    }
-
-    // 2. Class-specific tracking & student RTDB status
-    try {
-      const studentHelpRef = ref(database, `classes/${studentClass?.id || 'demo'}/students/${studentId}/help_calls_count`);
-      runTransaction(studentHelpRef, (current) => (current || 0) + 1).catch(() => {});
-
-      await update(ref(database, `users/students/${studentId}`), {
-        helpRequested: true,
-        radarStatus: 'RED',
-        lastActive: Date.now()
-      });
-    } catch (e) {
-      console.warn("Failed to update student help status in RTDB:", e);
-    }
-
-    // 3. Send automated chat notice
-    sendMessage(
-      studentId, 
-      `תלמיד ${studentNum}`, 
-      targetTeacherId as string, 
-      '🙋‍♂️ קראתי למורה לקבלת עזרה בתרגיל.'
-    );
-
-    // 4. Update local state
-    useStore.setState(state => ({
-      students: {
-        ...state.students,
-        [studentId]: {
-          ...(state.students[studentId] || {}),
-          radarStatus: 'RED',
-          helpRequested: true,
-          lastActive: Date.now()
-        } as any
-      }
-    }));
-
-    toast.success('הקריאה נשלחה למורה בהצלחה! 🙋‍♂️ המורה בדרך אלייך.');
-  };
-
-  const quickPrompts = [
-    '💡 אשמח לרמז',
-    '🙋‍♂️ אני צריך עזרה',
-    '❓ לא הבנתי את השלב הזה',
-  ];
-
   if (!isOpen) return null;
 
   return (
-    <div className="fixed bottom-6 left-6 z-50 w-80 sm:w-96 h-[500px] bg-ws-surface rounded-3xl shadow-2xl border-2 border-ws-surface2 flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200" dir="rtl">
+    <div className="fixed bottom-6 left-6 z-50 w-80 sm:w-96 h-[440px] bg-ws-surface rounded-3xl shadow-2xl border-2 border-ws-surface2 flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200" dir="rtl">
       {/* Header */}
       <div className="p-4 bg-ws-surface2 border-b border-ws-surface2 flex justify-between items-center shrink-0">
         <div className="flex items-center gap-2">
@@ -191,7 +113,7 @@ export function StudentChatOverlay() {
           <div className="text-center text-ws-soft text-sm my-auto flex flex-col items-center gap-2">
             <HelpCircle className="w-8 h-8 opacity-40 text-ws-accent" />
             <p>אין הודעות קודמות.</p>
-            <p className="text-xs">כתבו למורה או לחצו על רמז מהיר כדי להתחיל.</p>
+            <p className="text-xs">כתבו הודעה למורה כדי להתחיל.</p>
           </div>
         ) : (
           myMessages.map(m => {
@@ -218,50 +140,6 @@ export function StudentChatOverlay() {
           })
         )}
         <div ref={messagesEndRef} />
-      </div>
-
-      {/* Quick Prompts Chips */}
-      <div className="px-3 py-2 bg-slate-50 dark:bg-slate-900/50 border-t border-ws-surface2 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
-        {quickPrompts.map((prompt) => (
-          <button
-            key={prompt}
-            onClick={() => handleSend(prompt)}
-            className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600 transition-all shrink-0 cursor-pointer shadow-xs active:scale-95"
-          >
-            {prompt}
-          </button>
-        ))}
-      </div>
-
-      {/* Call-For-Teacher Banner */}
-      <div className="px-4 py-2.5 bg-amber-50 dark:bg-amber-950/40 border-t border-b border-amber-200 dark:border-amber-900/50 flex items-center justify-between gap-2 shrink-0">
-        <div className="flex items-center gap-2 text-xs font-bold text-amber-900 dark:text-amber-200">
-          <span>🙋‍♂️</span>
-          <span>זקוק לעזרה בכיתה?</span>
-        </div>
-        <button
-          onClick={handleCallTeacher}
-          disabled={callCooldown}
-          className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold text-white shadow-md transition-all flex items-center gap-1.5 cursor-pointer ${
-            callCooldown
-              ? 'bg-emerald-600 shadow-emerald-600/30'
-              : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-amber-500/30 hover:scale-105 active:scale-95'
-          }`}
-          aria-label="קרא למורה אלייך"
-          title="שליחת קריאה למורה לרדאר הכיתתי"
-        >
-          {callCooldown ? (
-            <>
-              <Check className="w-3.5 h-3.5" />
-              <span>הקריאה נשלחה! ✓</span>
-            </>
-          ) : (
-            <>
-              <BellRing className="w-3.5 h-3.5" />
-              <span>קרא למורה</span>
-            </>
-          )}
-        </button>
       </div>
 
       {/* Input Box */}
