@@ -1962,7 +1962,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const rawUser = useAuthStore.getState().user;
       if (rawUser?.uid && !s.isSupersededByOtherDevice) {
         const clean = rawUser.uid.trim().toLowerCase();
-        const studentId = clean.startsWith('student_') ? clean : `student_${clean}`;
+        const studentId = normalizeStudentId(clean) || (clean.startsWith('student_') ? clean : `student_${clean}`);
         AuditLogger.log('HINT_REQUESTED', studentId, 'Student clicked the hint lightbulb');
 
         const alertId = `${studentId}_help_${Date.now()}`;

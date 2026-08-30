@@ -517,6 +517,17 @@ export const backupAndResetSessionData = onCall(async (request) => {
         await rtdb.ref(`chat_messages/${k}`).remove().catch(() => {});
         deletedCount++;
       }
+      // Clear student session documents in Firestore
+      try {
+        const studentDocs = await db.collection("sessions")
+          .where("student_id", "in", [rawNum, parseInt(rawNum, 10), `student_user${rawNum}`])
+          .get();
+        if (!studentDocs.empty) {
+          const batch = db.batch();
+          studentDocs.docs.forEach((d) => batch.delete(d.ref));
+          await batch.commit().catch(() => {});
+        }
+      } catch (_fsErr) {}
     } else if (reset_level === 'system') {
       await rtdb.ref("users/students").remove().catch(() => {});
       await rtdb.ref("students").remove().catch(() => {});
@@ -524,7 +535,22 @@ export const backupAndResetSessionData = onCall(async (request) => {
       await rtdb.ref("radar_alerts").remove().catch(() => {});
       await rtdb.ref("replays").remove().catch(() => {});
       await rtdb.ref("sessions").remove().catch(() => {});
-      await rtdb.ref("active_class_session").set({ active: false, sessionNumber: 1, timestamp: Date.now() }).catch(() => {});
+      await rtdb.ref("telemetry_sessions").remove().catch(() => {});
+      await rtdb.ref("system_control/projector_mode").set({ active: false, projector_mode: false, projector_mode_updated_at: Date.now() }).catch(() => {});
+      await rtdb.ref("active_class_session").set({ active: true, sessionNumber: 1, timestamp: Date.now() }).catch(() => {});
+
+      // Clear all usage data collections in Firestore completely
+      const usageCollections = ["sessions", "telemetry_events", "telemetry_logs", "reports", "srl_reflections"];
+      for (const collName of usageCollections) {
+        try {
+          const snap = await db.collection(collName).limit(500).get();
+          if (!snap.empty) {
+            const batch = db.batch();
+            snap.docs.forEach((doc) => batch.delete(doc.ref));
+            await batch.commit().catch(() => {});
+          }
+        } catch (_collErr) {}
+      }
       deletedCount = 12;
     }
 

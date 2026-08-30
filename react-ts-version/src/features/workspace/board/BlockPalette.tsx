@@ -70,7 +70,6 @@ export function BlockPalette({ scaffoldLevel }: { scaffoldLevel: number }) {
           return (
             <div
               key={place}
-              onClick={() => handleItemClick(place)}
               className="relative flex flex-col items-center justify-between rounded-xl px-3 py-1.5 min-w-[84px] h-[80px] bg-slate-50/70 hover:bg-slate-100/90 border border-slate-200/80 hover:border-indigo-300 shadow-2xs hover:shadow-xs transition-all select-none cursor-pointer active:scale-95"
               title={`לחצו או גררו להוספת ${labelHe} לטבלה`}
             >
@@ -87,7 +86,10 @@ export function BlockPalette({ scaffoldLevel }: { scaffoldLevel: number }) {
                 />
               </div>
 
-              <div className="flex items-center gap-1 pointer-events-none">
+              <div 
+                className="flex items-center gap-1 cursor-pointer"
+                onClick={() => handleItemClick(place)}
+              >
                 <span className="text-[12px] font-black text-slate-700 leading-none" aria-hidden="true">
                   {labelHe}
                 </span>

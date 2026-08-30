@@ -257,15 +257,19 @@ export class FirebaseSyncService {
           if (data.isASD !== undefined && data.isASD !== useWorkspaceStore.getState().isASD) {
             wsOverrides.isASD = Boolean(data.isASD);
           }
-          if (data.workspaceState?.isBoardLocked !== undefined && data.workspaceState.isBoardLocked !== useWorkspaceStore.getState().isBoardLocked) {
-            wsOverrides.isBoardLocked = Boolean(data.workspaceState.isBoardLocked);
+          const targetBoardLocked = data.workspaceState?.isBoardLocked !== undefined
+            ? Boolean(data.workspaceState.isBoardLocked)
+            : (data.isBoardLocked !== undefined ? Boolean(data.isBoardLocked) : undefined);
+          if (targetBoardLocked !== undefined && targetBoardLocked !== useWorkspaceStore.getState().isBoardLocked) {
+            wsOverrides.isBoardLocked = targetBoardLocked;
           }
           if (Object.keys(wsOverrides).length > 0) {
             useWorkspaceStore.setState(wsOverrides);
           }
 
-          // Update the top-level useStore so StudentHub knows about route approvals and Q-Matrix
+          // Update the top-level useStore so StudentHub knows about route approvals, adaptations, and Q-Matrix
           const currentStudents = useStore.getState().students;
+          const additionEnabled = Boolean(data.additionBoardEnabled || data.forceAdditionHelper);
           const updatedStudent = {
             ...(currentStudents[studentId] || currentStudents[rawStudentId] || {}),
             // Merge Firebase data: qMatrixResults, traceData, route info
@@ -281,7 +285,12 @@ export class FirebaseSyncService {
             ...(data.overrideUpdatedAt !== undefined && { overrideUpdatedAt: data.overrideUpdatedAt }),
             ...(data.isOnline !== undefined && { isOnline: data.isOnline }),
             ...(data.workspaceState && { workspaceState: data.workspaceState }),
-            ...(data.additionBoardEnabled !== undefined && { additionBoardEnabled: data.additionBoardEnabled }),
+            ...(data.additionBoardEnabled !== undefined || data.forceAdditionHelper !== undefined ? { additionBoardEnabled: additionEnabled } : {}),
+            ...(data.forceAdditionHelper !== undefined && { forceAdditionHelper: data.forceAdditionHelper }),
+            ...(data.scaffoldLevel !== undefined && { scaffoldLevel: data.scaffoldLevel }),
+            ...(data.pedagogicalPath !== undefined && { pedagogicalPath: data.pedagogicalPath }),
+            ...(data.teacher_gate_approved !== undefined && { teacher_gate_approved: data.teacher_gate_approved }),
+            ...(targetBoardLocked !== undefined && { isBoardLocked: targetBoardLocked }),
           };
           useStore.setState({
             students: {

@@ -165,6 +165,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
 
   // Module 18 & Session Active state: Track active class session state
   const [isClassSessionActive, setIsClassSessionActive] = useState<boolean>(false);
+  const [activeSessionNum, setActiveSessionNum] = useState<number | null>(null);
 
   useEffect(() => {
     const sessionRef = ref(database, 'active_class_session');
@@ -172,8 +173,10 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
       if (snap.exists()) {
         const val = snap.val();
         setIsClassSessionActive(Boolean(val && val.active === true));
+        setActiveSessionNum(val?.sessionNumber ? Number(val.sessionNumber) : null);
       } else {
         setIsClassSessionActive(false);
+        setActiveSessionNum(null);
       }
     });
     return () => unsub();
@@ -239,12 +242,13 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
           const hesitationSeconds = isOnline && hesitationEvents ? hesitationEvents * 45 : (sessionState.hesitation_seconds || 0);
           const errorCount = isOnline ? Math.max(wsState.undoCount || 0, data.traceData?.undo_clicks || 0, sessionState.error_count || 0) : 0;
           const isYellowPath = data.routeRecommendation === 'YELLOW' || sessionState.current_path === 'remediation_path';
-          const enhancedSupport = Boolean(data.enhanced_support_profile || data.isASD);
+          const enhancedSupport = Boolean(data.enhanced_support_profile || data.isASD || data.forceAdditionHelper || data.additionBoardEnabled);
 
           const isSocraticActive = isOnline && (wsState.helpState === 'socratic' || data.isSocraticActive === true || data.helpRequested === true);
           const isStruggling = isOnline && (hesitationSeconds >= 45 || isYellowPath || errorCount > 2 || enhancedSupport || isSocraticActive);
 
-          const rawSessionNum = wsState.sessionNumber || sessionState.session_number || (data.highestCompletedMeeting ? data.highestCompletedMeeting + 1 : 1);
+          const activeBroadcastSession = isClassSessionActive && activeSessionNum ? activeSessionNum : null;
+          const rawSessionNum = wsState.sessionNumber || sessionState.session_number || activeBroadcastSession || (data.highestCompletedMeeting ? Math.min(8, data.highestCompletedMeeting + 1) : 1);
           const sessionNumber = Math.min(8, Math.max(1, Number(rawSessionNum) || 1));
 
           let lastAction = 'לא מחובר';
@@ -262,13 +266,20 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
           const errorCategory = data.error_category || data.errorCategory || wsState.aiSocraticHint?.error_category || wsState.errorCategory || null;
           const activeBranch = data.selectedBranch || wsState.selectedBranch || null;
 
+          const isCurrentlyInWorkspace = Boolean(isOnline && wsState.sessionNumber === sessionNumber);
+          const status = (isCurrentlyInWorkspace && wsState.flowStatus === 'sessionDone')
+            ? 'completed'
+            : (data.isBoardLocked || sessionState.status === 'locked')
+            ? 'locked'
+            : 'active';
+
           updated[i] = {
             id: uid,
             studentNumber: studentNum,
             displayName: `תלמיד ${studentNum}`,
             sessionNumber,
             currentPath: isYellowPath ? 'צמצום פערים' : 'ירוק',
-            status: wsState.flowStatus === 'sessionDone' ? 'completed' : (data.isBoardLocked || sessionState.status === 'locked') ? 'locked' : 'active',
+            status,
             hesitationSeconds,
             errorCount,
             enhancedSupport,

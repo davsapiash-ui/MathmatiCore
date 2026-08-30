@@ -6,9 +6,11 @@ import {
   PointerSensor,
   MouseSensor,
   TouchSensor,
+  pointerWithin,
   rectIntersection,
   useSensor,
   useSensors,
+  type CollisionDetection,
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core';
@@ -404,7 +406,7 @@ export function StudentWorkspacePage() {
   // Retrieve saved progress from Firebase (synced into useStore)
   const students = useStore((s) => s.students);
   const firebaseLoaded = useStore((s) => s.firebaseLoaded);
-  const myData = user?.uid ? (students[user.uid] || students[normalizeStudentId(user.uid)]) : null;
+  const myData = normUid ? (students[normUid] || (user?.uid ? students[user.uid] : null)) : null;
   const isASDMode = myData?.isASD ?? localIsASD;
 
   // --- PRD Section 4.5 & Module 20: Gate Locked / Pending Approval Guard ---
@@ -426,40 +428,51 @@ export function StudentWorkspacePage() {
     setIsInitialized(false);
   }, [meeting]);
 
-  // Real-time additionBoardEnabled listener
+  // Real-time additionBoardEnabled & teacher adaptations listener (bound to canonical normUid)
   const [liveAdditionBoardEnabled, setLiveAdditionBoardEnabled] = useState<boolean | null>(null);
   useEffect(() => {
-    const uid = user?.uid;
-    if (!uid) return;
-    const boardRef = ref(database, `users/students/${uid}/additionBoardEnabled`);
+    if (!normUid) return;
+    const studentRef = ref(database, `users/students/${normUid}`);
     const unsub = onValue(
-      boardRef,
+      studentRef,
       (snap) => {
         if (snap.exists()) {
-          const val = Boolean(snap.val());
-          setLiveAdditionBoardEnabled(val);
+          const val = snap.val() || {};
+          const boardVal = Boolean(val.additionBoardEnabled || val.forceAdditionHelper);
+          setLiveAdditionBoardEnabled(boardVal);
+
+          // Direct lock / unlock sync from teacher
+          const isLocked = val.workspaceState?.isBoardLocked ?? val.isBoardLocked;
+          if (isLocked !== undefined && isLocked !== useWorkspaceStore.getState().isBoardLocked) {
+            useWorkspaceStore.setState({ isBoardLocked: Boolean(isLocked) });
+          }
+
           useStore.setState((s) => {
-            if (s.students[uid]) {
-              return {
-                students: {
-                  ...s.students,
-                  [uid]: {
-                    ...s.students[uid],
-                    additionBoardEnabled: val,
-                  },
+            const existing = s.students[normUid] || {};
+            return {
+              students: {
+                ...s.students,
+                [normUid]: {
+                  ...existing,
+                  additionBoardEnabled: boardVal,
+                  forceAdditionHelper: Boolean(val.forceAdditionHelper),
+                  isBoardLocked: isLocked !== undefined ? Boolean(isLocked) : existing.isBoardLocked,
+                  scaffoldLevel: val.scaffoldLevel !== undefined ? val.scaffoldLevel : existing.scaffoldLevel,
+                  pedagogicalPath: val.pedagogicalPath || existing.pedagogicalPath,
+                  routeStatus: val.routeStatus || existing.routeStatus,
+                  teacher_gate_approved: val.teacher_gate_approved !== undefined ? val.teacher_gate_approved : existing.teacher_gate_approved,
                 },
-              };
-            }
-            return s;
+              },
+            };
           });
         }
       },
       (err) => {
-        console.warn('[StudentWorkspacePage] boardRef listener notice:', err);
+        console.warn('[StudentWorkspacePage] studentRef adaptations listener notice:', err);
       }
     );
     return () => unsub();
-  }, [user?.uid]);
+  }, [normUid]);
 
   // --- Real-time Teacher Reset & Force Reload Listener ---
   useEffect(() => {
@@ -475,6 +488,8 @@ export function StudentWorkspacePage() {
             update(studentRef, { forceReload: null }).catch(() => {});
           }
           useWorkspaceStore.getState().resetWorkspace?.();
+          firebaseSyncService.clearLocalSessionProgress(normUid);
+          if (user?.uid) firebaseSyncService.clearLocalSessionProgress(user.uid);
           window.location.href = '/hub';
         }
       }
@@ -542,9 +557,13 @@ export function StudentWorkspacePage() {
     };
   }, [normUid, meeting, isASDMode]);
 
-  // PRD v7.0 Module 10: Load adaptive addition grid strictly and only when support_profile_id === 'enhanced_cognitive_support'.
+  // PRD v7.0 Module 10: Load adaptive addition grid strictly and only when support_profile_id === 'enhanced_cognitive_support' or teacher enabled.
   // For every other learner the grid must not mount, render or exist in the DOM.
-  const hasEnhancedSupport = (user as any)?.support_profile_id === 'enhanced_cognitive_support' || (myData as any)?.support_profile_id === 'enhanced_cognitive_support';
+  const hasEnhancedSupport = (user as any)?.support_profile_id === 'enhanced_cognitive_support' || 
+    (myData as any)?.support_profile_id === 'enhanced_cognitive_support' ||
+    liveAdditionBoardEnabled === true || 
+    myData?.additionBoardEnabled === true || 
+    myData?.forceAdditionHelper === true;
   const isAdditionBoardEnabled = hasEnhancedSupport && sessionNumber !== 2 && sessionNumber !== 8;
 
 
@@ -582,7 +601,7 @@ export function StudentWorkspacePage() {
           const routeStatus = myData?.routeStatus;
           const highestCompleted = myData?.highestCompletedMeeting ?? (myData?.completedMeeting2 ? 2 : 0);
 
-          const isAllowedMeeting3 = teacherSessionAllowsMeeting3 || (highestCompleted >= 2 && routeStatus === 'APPROVED' && Boolean(tasks));
+          const isAllowedMeeting3 = teacherSessionAllowsMeeting3 || (highestCompleted >= 2 && routeStatus === 'APPROVED' && Boolean(tasks)) || Boolean(myData?.physicalOverride || (myData as any)?.physicalOverrideActive);
 
           // If prerequisite completion or active teacher session requirement is not met, lock and show waiting screen
           if (!isAllowedMeeting3) {
@@ -592,12 +611,12 @@ export function StudentWorkspacePage() {
             return;
           }
 
-          const canRestore = myData?.workspaceState?.sessionNumber === meeting && Boolean(myData?.workspaceState?.flowStatus);
+          const canRestore = myData?.workspaceState?.sessionNumber === meeting && Boolean(myData?.workspaceState?.flowStatus) && myData?.workspaceState?.flowStatus !== 'sessionDone';
           if (canRestore && myData?.workspaceState) {
             restoreSession(myData.workspaceState);
           } else {
             const localSaved = firebaseSyncService.getLocalSessionProgress(normId || username);
-            if (localSaved && localSaved.sessionNumber === meeting && Boolean(localSaved.flowStatus)) {
+            if (localSaved && localSaved.sessionNumber === meeting && Boolean(localSaved.flowStatus) && localSaved.flowStatus !== 'sessionDone') {
               restoreSession(localSaved);
             } else {
               initSession(meeting, isASDMode, tasks || null, 0);
@@ -614,12 +633,12 @@ export function StudentWorkspacePage() {
           setIsInitializing(false);
         }
       } else {
-        const canRestore = myData?.workspaceState?.sessionNumber === meeting && Boolean(myData?.workspaceState?.flowStatus);
+        const canRestore = myData?.workspaceState?.sessionNumber === meeting && Boolean(myData?.workspaceState?.flowStatus) && myData?.workspaceState?.flowStatus !== 'sessionDone';
         if (canRestore && myData?.workspaceState) {
           restoreSession(myData.workspaceState);
         } else {
           const localSaved = firebaseSyncService.getLocalSessionProgress(normUid || user?.uid || '');
-          if (localSaved && localSaved.sessionNumber === meeting && Boolean(localSaved.flowStatus)) {
+          if (localSaved && localSaved.sessionNumber === meeting && Boolean(localSaved.flowStatus) && localSaved.flowStatus !== 'sessionDone') {
             restoreSession(localSaved);
           } else {
             initSession(meeting, isASDMode, null, 0);
@@ -685,8 +704,17 @@ export function StudentWorkspacePage() {
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 3 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 3 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 100, tolerance: 8 } })
   );
+
+  const collisionDetectionStrategy: CollisionDetection = (args) => {
+    const pointerCollisions = pointerWithin(args);
+    if (pointerCollisions && pointerCollisions.length > 0) {
+      return pointerCollisions;
+    }
+    return rectIntersection(args);
+  };
 
   const handleDragStart = (event: DragStartEvent) => {
     const data = event.active.data.current as { source: DragSource; place: Place; renderPlace?: Place } | undefined;
@@ -838,8 +866,17 @@ export function StudentWorkspacePage() {
           </p>
           <div className="pt-4 flex flex-col gap-3">
             <button
+              onClick={() => {
+                initSession(meeting, isASDMode, null, 0);
+              }}
+              className="w-full py-3.5 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 font-display font-extrabold text-base rounded-2xl hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2 border border-slate-300 dark:border-slate-700"
+            >
+              <span>תרגול נוסף בתחנה זו</span>
+              <span>🔄</span>
+            </button>
+            <button
               onClick={() => navigate('/hub')}
-              className="w-full py-4 bg-ws-accent text-white font-display font-extrabold text-lg rounded-2xl hover:brightness-105 active:scale-95 transition-all cursor-pointer shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+              className="w-full py-3.5 bg-ws-accent text-white font-display font-extrabold text-base rounded-2xl hover:brightness-105 active:scale-95 transition-all cursor-pointer shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
             >
               <span>חזרה ללובי התלמיד</span>
               <span>🏠</span>
@@ -888,7 +925,7 @@ export function StudentWorkspacePage() {
   }
 
   return (
-    <DndContext sensors={sensors} collisionDetection={rectIntersection} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+    <DndContext sensors={sensors} collisionDetection={collisionDetectionStrategy} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div
       dir="rtl"
       className="h-[100dvh] w-full overflow-hidden font-body text-ws-ink flex flex-col relative bg-ws-bg"

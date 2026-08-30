@@ -82,6 +82,7 @@ export function TeacherGateApprovalDrawer({ student, onClose, onApproveSuccess }
       // 2. Prepare Firebase update payload
       const pathPayload = {
         routeStatus: 'APPROVED',
+        teacher_gate_approved: true,
         pedagogicalPath: selectedPath,
         currentPath: selectedPath === 'green_path' ? 'ירוק' : 'צמצום פערים',
         approvedAt: Date.now(),

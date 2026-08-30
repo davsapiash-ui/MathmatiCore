@@ -8,6 +8,7 @@ import { useActiveClassSession } from '@/application/useActiveClassSession';
 import { normalizeStudentId } from '@/application/useChatStore';
 import { ref, onValue, update, onDisconnect } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
+import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
 import { Play, Sparkles } from 'lucide-react';
 import { BeeFlightWaitingScreen } from '@/presentation/components/student/BeeFlightWaitingScreen';
 import { ProjectorWaitingScreen } from '@/presentation/components/student/ProjectorWaitingScreen';
@@ -102,8 +103,13 @@ export function StudentHub() {
           if (val?.forceReload === true) {
             update(studentRef, { forceReload: null, isOnline: false, lastPing: 0 }).catch(() => {});
             useWorkspaceStore.getState().resetWorkspace?.();
+            firebaseSyncService.clearLocalSessionProgress(normUid);
+            if (uid) firebaseSyncService.clearLocalSessionProgress(uid);
             setHighestCompletedMeeting(0);
-            setActiveSessionId(1);
+            setHasCompletedSession2(false);
+            setIsTeacherGateApproved(false);
+            setLiveRouteStatus(null);
+            setActiveSessionId(teacherSessionNum || 1);
             return;
           }
 
@@ -191,11 +197,6 @@ export function StudentHub() {
 
   const activeSession = SESSIONS_CONFIG[effectiveSessionId] || SESSIONS_CONFIG[1];
 
-  // If student completed current teacher broadcasted session -> Locked waiting state
-  const isCurrentSessionFinished = Boolean(
-    isTeacherSessionActive && teacherSessionNum && highestCompletedMeeting >= teacherSessionNum
-  );
-
   // Module 20: If student completed Session 2 and attempts Session 3 without teacher approval -> Bee Flight
   const isAwaitingTeacherGate = hasCompletedSession2 && effectiveSessionId === 3 && !isTeacherGateApproved;
 
@@ -208,7 +209,7 @@ export function StudentHub() {
       e.preventDefault();
       e.stopPropagation();
     }
-    if (!isTeacherSessionActive || isCurrentSessionFinished) return;
+    if (!isTeacherSessionActive) return;
 
     const targetSessionId = activeSession?.id || 1;
     try {
@@ -284,32 +285,6 @@ export function StudentHub() {
               <span>ממתין לפתיחת השיעור ע״י המורה...</span>
             </div>
           </motion.div>
-        ) : isCurrentSessionFinished ? (
-          /* Student completed current active meeting -> Waiting for teacher to broadcast next meeting */
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 16 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-            className="w-full max-w-[480px] bg-white dark:bg-slate-900 border-2 border-emerald-300 dark:border-emerald-700/60 rounded-3xl p-8 shadow-xl shadow-slate-200/50 dark:shadow-none flex flex-col items-center gap-6"
-          >
-            <div className="w-20 h-20 rounded-3xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-500 flex items-center justify-center text-4xl shadow-inner animate-bounce">
-              <span aria-hidden="true">🎉</span>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <h2 className="font-display font-black text-2xl text-slate-900 dark:text-white">
-                סיימת בהצלחה את {activeSession.title}!
-              </h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400 font-medium leading-relaxed max-w-sm">
-                כל הכבוד! סיימת את משימות התחנה בהצלחה. כעת ממתינים לפתיחת התחנה הבאה על ידי המורה בדשבורד הכיתתי.
-              </p>
-            </div>
-
-            <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full text-xs font-extrabold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-              <span>ממתין להפעלת התחנה הבאה ע״י המורה ⏳</span>
-            </div>
-          </motion.div>
         ) : (
           /* SINGLE Dynamic Active Session Card */
           <motion.div
@@ -335,7 +310,7 @@ export function StudentHub() {
               onClick={handleStartActiveSession}
               className="w-full h-14 min-h-[48px] bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-2xl font-display font-extrabold text-lg flex items-center justify-center gap-3 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 active:scale-[0.98] transition-all cursor-pointer"
             >
-              <span>התחל פעילות</span>
+              <span>{highestCompletedMeeting >= effectiveSessionId ? 'היכנס לפעילות' : 'התחל פעילות'}</span>
               <Play className="w-5 h-5 fill-current" />
             </button>
           </motion.div>

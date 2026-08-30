@@ -47,7 +47,7 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
   const undo = useWorkspaceStore((s) => s.undo);
   const proceed = useWorkspaceStore((s) => s.proceed);
   const toggleBoard = useWorkspaceStore((s) => s.toggleBoard);
-  const globalChatEnabled = useStore((s) => s.globalChatEnabled);
+  const globalChatEnabled = useChatStore((s) => s.globalChatEnabled);
   const messages = useChatStore((s) => s.messages);
 
   const activeTaskCount = useWorkspaceStore((s) => getActiveTasks(s).length);

@@ -6,6 +6,7 @@ import type { QMatrixResults } from "@/core/QMatrix";
 import { AuditLogger } from "@/infrastructure/services/AuditLogger";
 import type { GeminiSocraticRequest, GeminiSocraticResponse, GeminiSocraticOption } from "@/types";
 import type { TelemetryEventType, TelemetryPayload } from "@/types/telemetry";
+import { normalizeStudentId } from "@/application/useChatStore";
 
 export type { GeminiSocraticRequest, GeminiSocraticResponse, GeminiSocraticOption };
 
@@ -1502,12 +1503,23 @@ OUTPUT SCHEMA (Return ONLY valid JSON):
 
   static async approveTasks(teacherId: string, approvalId: string, studentId: string, tasks: SessionTask[]): Promise<void> {
     await ready();
-    const approvedRef = ref(database, `approved_tasks/${studentId}`);
+    const normId = normalizeStudentId(studentId);
+    const approvedRef = ref(database, `approved_tasks/${normId}`);
     await set(approvedRef, tasks);
+    if (studentId !== normId) {
+      await set(ref(database, `approved_tasks/${studentId}`), tasks).catch(() => {});
+    }
     const pendingRef = ref(database, `ai_pending_approvals/${teacherId}/${approvalId}`);
     await remove(pendingRef);
-    const statusRef = ref(database, `users/students/${studentId}/routeStatus`);
-    await set(statusRef, "APPROVED");
+    const approvalPayload = {
+      routeStatus: "APPROVED",
+      teacher_gate_approved: true,
+      gateApprovedAt: Date.now(),
+    };
+    await update(ref(database, `users/students/${normId}`), approvalPayload).catch(() => {});
+    if (studentId !== normId) {
+      await update(ref(database, `users/students/${studentId}`), approvalPayload).catch(() => {});
+    }
   }
 
   static async updatePendingTasks(teacherId: string, approvalId: string, updatedTasks: SessionTask[]): Promise<void> {

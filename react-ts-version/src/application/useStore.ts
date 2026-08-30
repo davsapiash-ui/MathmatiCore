@@ -95,6 +95,13 @@ export interface StudentData {
   };
   liveSessionMetrics?: Record<string, any> | null;
   additionBoardEnabled?: boolean;
+  forceAdditionHelper?: boolean;
+  scaffoldLevel?: number;
+  pedagogicalPath?: string;
+  isBoardLocked?: boolean;
+  helpRequested?: boolean;
+  handRaised?: boolean;
+  isStruggling?: boolean;
   reflections?: any;
 }
 
@@ -218,7 +225,17 @@ export const initStoreSubscriptions = (): (() => void) => {
               semantic_trace: row.traceData?.semantic_trace || prev.traceData?.semantic_trace || []
             },
             workspaceState: row.workspaceState || prev.workspaceState,
-            additionBoardEnabled: row.additionBoardEnabled !== undefined ? row.additionBoardEnabled : prev.additionBoardEnabled,
+            additionBoardEnabled: row.additionBoardEnabled !== undefined || row.forceAdditionHelper !== undefined
+              ? Boolean(row.additionBoardEnabled || row.forceAdditionHelper)
+              : prev.additionBoardEnabled,
+            forceAdditionHelper: Boolean(row.forceAdditionHelper ?? prev.forceAdditionHelper ?? false),
+            scaffoldLevel: row.scaffoldLevel !== undefined ? row.scaffoldLevel : prev.scaffoldLevel,
+            pedagogicalPath: row.pedagogicalPath || prev.pedagogicalPath,
+            teacher_gate_approved: row.teacher_gate_approved !== undefined ? row.teacher_gate_approved : prev.teacher_gate_approved,
+            isBoardLocked: row.isBoardLocked !== undefined ? Boolean(row.isBoardLocked) : prev.isBoardLocked,
+            helpRequested: Boolean(row.helpRequested ?? prev.helpRequested ?? false),
+            handRaised: Boolean(row.handRaised ?? prev.handRaised ?? false),
+            isStruggling: Boolean(row.isStruggling ?? prev.isStruggling ?? false),
             reflections: row.reflections || prev.reflections
           };
 
@@ -593,15 +610,28 @@ export const useStore = create<AppState>()(
         // Direct RTDB Reset for guaranteed real-time responsiveness
         try {
           const cleanPayload = {
+            completedMeeting1: false,
             completedMeeting2: false,
+            completedMeeting3: false,
+            completedMeeting4: false,
+            completedMeeting5: false,
+            completedMeeting6: false,
+            completedMeeting7: false,
+            completedMeeting8: false,
+            session_1_completed: false,
+            session_2_completed: false,
+            session_3_completed: false,
             highestCompletedMeeting: 0,
             session_completed: 0,
+            workspaceState: null,
+            sessionState: null,
             routeStatus: null,
             routeRecommendation: null,
             teacher_gate_approved: false,
             forceReload: true,
             lastAction: 'אופס ע״י המורה',
-            lastPing: Date.now(),
+            lastPing: 0,
+            isOnline: false,
             activeSessionId: 1,
             qMatrixResults: null,
             traceData: null,
@@ -610,11 +640,26 @@ export const useStore = create<AppState>()(
             enhanced_support_profile: false,
             physicalOverride: false,
             physicalOverrideActive: false,
+            forceAdditionHelper: false,
+            additionBoardEnabled: false,
+            scaffoldLevel: 0,
+            pedagogicalPath: 'green_path',
+            isBoardLocked: false,
+            helpRequested: false,
+            handRaised: false,
+            isStruggling: false,
           };
           await update(ref(database, `users/students/${normId}`), cleanPayload).catch(() => {});
           await update(ref(database, `users/students/student_${num}`), cleanPayload).catch(() => {});
+          await update(ref(database, `users/students/user${num}`), cleanPayload).catch(() => {});
+          await update(ref(database, `users/students/${num}`), cleanPayload).catch(() => {});
           await update(ref(database, `users/students/${studentId}`), cleanPayload).catch(() => {});
           await remove(ref(database, `chat_messages/${normId}`)).catch(() => {});
+          firebaseSyncService.clearLocalSessionProgress(normId);
+          firebaseSyncService.clearLocalSessionProgress(studentId);
+          firebaseSyncService.clearLocalSessionProgress(`student_${num}`);
+          firebaseSyncService.clearLocalSessionProgress(`user${num}`);
+          firebaseSyncService.clearLocalSessionProgress(num);
         } catch (rtdbErr) {
           console.error('[useStore] Direct RTDB reset notice:', rtdbErr);
         }
@@ -676,15 +721,28 @@ export const useStore = create<AppState>()(
         try {
           for (let i = 1; i <= 12; i++) {
             const cleanPayload = {
+              completedMeeting1: false,
               completedMeeting2: false,
+              completedMeeting3: false,
+              completedMeeting4: false,
+              completedMeeting5: false,
+              completedMeeting6: false,
+              completedMeeting7: false,
+              completedMeeting8: false,
+              session_1_completed: false,
+              session_2_completed: false,
+              session_3_completed: false,
               highestCompletedMeeting: 0,
               session_completed: 0,
+              workspaceState: null,
+              sessionState: null,
               routeStatus: null,
               routeRecommendation: null,
               teacher_gate_approved: false,
               forceReload: true,
               lastAction: 'אופס ע״י המורה',
-              lastPing: Date.now(),
+              lastPing: 0,
+              isOnline: false,
               activeSessionId: 1,
               qMatrixResults: null,
               traceData: null,
@@ -693,15 +751,40 @@ export const useStore = create<AppState>()(
               enhanced_support_profile: false,
               physicalOverride: false,
               physicalOverrideActive: false,
+              forceAdditionHelper: false,
+              additionBoardEnabled: false,
+              scaffoldLevel: 0,
+              pedagogicalPath: 'green_path',
+              isBoardLocked: false,
+              helpRequested: false,
+              handRaised: false,
+              isStruggling: false,
             };
             await update(ref(database, `users/students/student_user${i}`), cleanPayload).catch(() => {});
             await update(ref(database, `users/students/student_${i}`), cleanPayload).catch(() => {});
+            await update(ref(database, `users/students/user${i}`), cleanPayload).catch(() => {});
+            await update(ref(database, `users/students/${i}`), cleanPayload).catch(() => {});
+            firebaseSyncService.clearLocalSessionProgress(`student_user${i}`);
+            firebaseSyncService.clearLocalSessionProgress(`student_${i}`);
+            firebaseSyncService.clearLocalSessionProgress(`user${i}`);
+            firebaseSyncService.clearLocalSessionProgress(`${i}`);
           }
           await remove(ref(database, 'chat_messages')).catch(() => {});
           await remove(ref(database, 'radar_alerts')).catch(() => {});
           await remove(ref(database, 'replays')).catch(() => {});
           await remove(ref(database, 'sessions')).catch(() => {});
+          await remove(ref(database, 'telemetry_sessions')).catch(() => {});
+          await fbSet(ref(database, 'system_control/projector_mode'), { active: false, projector_mode: false, projector_mode_updated_at: Date.now() }).catch(() => {});
           await fbSet(ref(database, 'active_class_session'), { active: true, sessionNumber: 1, timestamp: Date.now() }).catch(() => {});
+          
+          if (typeof window !== 'undefined') {
+            Object.keys(localStorage).forEach((k) => {
+              if (k.startsWith('mathmaticore_') || k.startsWith('offline_queue_')) {
+                localStorage.removeItem(k);
+              }
+            });
+          }
+          useWorkspaceStore.getState().resetWorkspace?.();
         } catch (rtdbErr) {
           console.error('[useStore] Direct RTDB class reset notice:', rtdbErr);
         }
