@@ -9,6 +9,7 @@ import { StudentHub } from "@/presentation/pages/StudentHub";
 import { TeacherDashboard } from "@/presentation/pages/TeacherDashboard";
 import { ProjectorSandboxPage } from "@/presentation/pages/ProjectorSandboxPage";
 import { AppShell } from "@/presentation/components/layout/AppShell";
+import { Toaster } from "sonner";
 import { RoleSelectionModal } from "@/presentation/components/RoleSelectionModal";
 
 import { AdminLayout } from "@/presentation/pages/AdminLayout";
@@ -163,6 +164,8 @@ function App() {
 
   return (
     <BrowserRouter>
+      {/* Toast host: without it every toast.success/error in the app is a no-op */}
+      <Toaster position="top-center" richColors closeButton dir="rtl" />
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<RoleRouter />} />
