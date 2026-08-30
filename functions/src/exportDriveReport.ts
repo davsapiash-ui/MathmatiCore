@@ -475,13 +475,35 @@ export const backupAndResetSessionData = onCall(async (request) => {
     throw new HttpsError("internal", "הגיבוי נכשל. האיפוס בוטל ולא נמחקו נתונים.");
   }
 
-  // Step 2: Write backup file to Google Drive
+  // Step 2: Write backup file to Google Drive or Firestore Backup Vault
   const backupFileName = `Backup_${reset_level}_${class_id}_${Date.now()}.json`;
   const backupBuffer = Buffer.from(JSON.stringify(collectedData, null, 2), "utf-8");
-  const driveResult = await uploadBufferToDrive(backupBuffer, backupFileName, "application/json");
+  let driveResult = await uploadBufferToDrive(backupBuffer, backupFileName, "application/json");
+
+  // Fallback: If Google Drive upload was unreachable, write to Firestore system_backups collection
+  if (!driveResult.success) {
+    logger.warn("Drive upload unavailable, writing backup to Firestore system_backups:", driveResult.error);
+    try {
+      await db.collection("system_backups").doc(resetId).set({
+        reset_id: resetId,
+        reset_level,
+        class_id,
+        performed_by_teacher_id: performedBy,
+        created_at: admin.firestore.FieldValue.serverTimestamp(),
+        backup_data: collectedData,
+      });
+      driveResult = {
+        success: true,
+        fileId: resetId,
+        webViewLink: `firestore://system_backups/${resetId}`,
+      };
+    } catch (fsBackupErr) {
+      logger.error("Firestore backup fallback error:", fsBackupErr);
+    }
+  }
 
   if (!driveResult.success) {
-    logger.error("Drive upload failed during backup:", driveResult.error);
+    logger.error("All backup channels failed during reset:", driveResult.error);
     // Strict requirement: Fail deletion if backup write fails
     const failedEntry: ResetAuditEntry = {
       reset_id: resetId,

@@ -1136,11 +1136,13 @@ You MUST follow the HOLISTIC PEDAGOGICAL TRIAD:
 2. Representational State in Numbers House (בית המספרים): Exact blocks in each column, and whether regrouping/decomposition was performed in the visual blocks.
 3. Student Progress & Steps: What steps have been completed (e.g. ones column solved), what is typed in the inputs/memory circles, and what caused the difficulty (hesitation or errors)?
 
-STRICT RULES:
-1. NEVER refer to בית המספרים in isolation without connecting it to the numbers in the exercise and the active column.
-2. Formulate a gentle Socratic guiding question in Hebrew connecting the active column step with the visual blocks state.
-3. Return exactly 3 closed choices with pedagogical feedback for each option.
-4. Output MUST be valid JSON with "hard_evidence_log" and "final_intervention".
+STRICT PEDAGOGICAL & HEBREW SYNTAX RULES:
+1. HEBREW SYNTAX & GRAMMAR: Write in natural, grammatically flawless Hebrew adapted for 3rd-grade elementary students (ages 8-9). Use precise gender and number agreement (e.g., 4 מאות, 2 עשרות, 5 יחידות, 10 עשרות). Keep sentences simple, friendly, and empowering.
+2. OFFICIAL TERMINOLOGY: Use official Ministry of Education terms: "פריטה" (subtraction decomposition), "קיבוץ"/"הקבצה" (addition regrouping), "בית המספרים" (place value chart), "טור היחידות/העשרות/המאות", "עיגולי הזיכרון", "פח האשפה".
+3. HOLISTIC SYNTHESIS: NEVER refer to בית המספרים in isolation without connecting it to the numbers in the exercise, the active column, and the student's current step.
+4. CLOSED SOCRATIC FORMAT: Formulate a gentle Socratic guiding question in Hebrew connecting the active column calculation with the visual blocks state.
+5. Provide exactly 3 closed choices with clear, encouraging pedagogical feedback for each option.
+6. Output MUST be valid JSON with "hard_evidence_log" and "final_intervention".
 
 INPUT DATA (Live Snapshot):
 - [Pillar 1: Exercise & Algorithm]:
