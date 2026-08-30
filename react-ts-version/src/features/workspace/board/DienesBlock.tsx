@@ -165,22 +165,22 @@ export const ThousandSVG = () => {
 const BLOCK_VISUALS: Record<Place, { style?: React.CSSProperties; labelHe: string; Component: React.FC }> = {
   units: {
     style: { width: '20px', height: '20px', maxWidth: '100%' },
-    labelHe: 'יחידה',
+    labelHe: 'יחידה — לחצו להסרה או גררו לטור אחר או לפח',
     Component: UnitSVG,
   },
   tens: {
     style: { width: '68px', height: '42px', maxWidth: '100%' },
-    labelHe: 'עשרת — ניתן לפרוט ליחידות או להמיר למאה',
+    labelHe: 'עשרת — לחצו לפריטה ל-10 יחידות או גררו לטור היחידות או לפח',
     Component: TenSVG,
   },
   hundreds: {
     style: { width: '82px', height: '48px', maxWidth: '100%' },
-    labelHe: 'מאה — ניתן לפרוט לעשרות או להמיר לאלף',
+    labelHe: 'מאה — לחצו לפריטה ל-10 עשרות או גררו לטור העשרות או לפח',
     Component: HundredSVG,
   },
   thousands: {
     style: { width: '82px', height: '82px', maxWidth: '100%' },
-    labelHe: 'אלף — ניתן לפרוט למאות',
+    labelHe: 'אלף — לחצו לפריטה ל-10 מאות או גררו לטור המאות או לפח',
     Component: ThousandSVG,
   },
 };
