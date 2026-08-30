@@ -7,6 +7,7 @@ import { useWorkspaceStore } from "@/application/useWorkspaceStore";
 import { useAdminStore } from "@/application/useAdminStore";
 import { useChatStore, normalizeStudentId } from "@/application/useChatStore";
 import { validateZeroPIIPayload, containsPII } from "@/core/security/PiiFilter";
+import { indexedDBQueue } from "@/infrastructure/services/IndexedDBQueue";
 
 export interface ClassSchema {
   school_id: string;
@@ -195,6 +196,7 @@ export function unifiedLogout() {
   }
 
   clearStoredAuth();
+  indexedDBQueue.clearAll().catch((e) => console.warn("IndexedDB clear error:", e));
   if (auth && typeof auth.signOut === 'function') {
     auth.signOut().catch((e) => console.warn("Firebase signOut error:", e));
   }

@@ -357,6 +357,7 @@ export class FirebaseSyncService {
         undoCount: state.undoCount,
         hesitationCount: state.hesitationCount,
         hasInteracted: state.hasInteracted,
+        helpRequested: Boolean(state.helpRequested),
         activeTask: currentTask ? {
           id: currentTask.id,
           titleHe: currentTask.titleHe,

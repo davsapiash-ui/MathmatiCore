@@ -1,4 +1,4 @@
-// Core TypeScript Interfaces & Data Contracts — Master PRD v6.3 (Appendix A)
+// Core TypeScript Interfaces & Data Contracts — Master PRD v07 (Appendix A)
 
 export * from './telemetry';
 export * from './dashboard';
@@ -12,7 +12,7 @@ export interface AnonymousStudent {
   class_id: string;
   school_id: string;
   created_at: number; // Client/Server timestamp
-  support_profile_id: string | null;
+  support_profile_id: 'enhanced_cognitive_support' | null;
   support_profile_version: number;
   support_profile_updated_at: number | null; // required by Module 19
   support_profile_updated_by: string | null; // teacher_id; required by Module 19
@@ -46,8 +46,25 @@ export interface SessionDocument {
   teacher_gate_approved: boolean;
   gate_approved_at: number | null;
   gate_approved_by: string | null;
-  teacher_selected_path: PedagogicalPath | null;
-  matrix_recommended_path: PedagogicalPath | null;
+  teacher_selected_path: 'green_path' | 'remediation_path' | null;
+  matrix_recommended_path: 'green_path' | 'remediation_path' | null;
+}
+
+export interface ExerciseTemplate {
+  exercise_template_id: string;
+  session_number: number; // 1 to 8
+  order_index: number; // 1 to 7 for compulsory
+  learning_path: 'green_path' | 'remediation_path';
+  path_type: 'compulsory' | 'consolidation' | 'challenge';
+  operation: 'addition' | 'subtraction' | 'representation' | 'inquiry';
+  operand_a: number;
+  operand_b: number | null;
+  expected_result: number;
+  required_regroupings: number; // 0 to 3
+  regrouping_columns: number[]; // column indices requiring regrouping
+  label: string;
+  blocks_visible: boolean;
+  socratic_enabled: boolean;
 }
 
 // --- 3. SRL Reflection Board Schemas (Appendix A §4) ---
@@ -75,10 +92,11 @@ export type VRAWorkspaceState =
 
 export interface VRAWorkspaceStore {
   currentState: VRAWorkspaceState;
-  activeColumnIndex: number; // 0: Ones, 1: Tens, 2: Hundreds
+  activeColumnIndex: number; // 0: Ones, 1: Tens, 2: Hundreds, 3: Thousands
   onesCount: number;
   tensCount: number;
   hundredsCount: number;
+  thousandsCount: number;
   memoryCircles: Record<number, number>;
   undoStack: Array<Record<string, unknown>>; // Restricted to max 10
   hesitationTimerSeconds: number;
@@ -119,9 +137,26 @@ export interface GeminiSocraticOption {
 }
 
 export interface GeminiSocraticResponse {
+  error_category: 'calculation' | 'procedural' | 'conceptual';
   guiding_question: string;
-  error_category?: 'calculation' | 'procedural' | 'conceptual' | null;
   options: [GeminiSocraticOption, GeminiSocraticOption, GeminiSocraticOption];
+}
+
+// --- 6. Gemini Pedagogical Report Contract (Appendix A §7 & Module 23) ---
+
+export interface GeminiReportRequest {
+  student_id: number; // Strictly 1-12
+  session_id: string;
+  session_number: number;
+  session_score_percent: number;
+  recommendation_tier: 'below_50' | 'between_50_75' | 'above_75';
+  failed_exercises: ExerciseTemplate[];
+  telemetry_summary: TelemetryPayload<TelemetryEventType>[];
+}
+
+export interface GeminiReportResponse {
+  knowledge_gaps: string[];
+  teaching_recommendations: string[];
 }
 
 // --- Legacy / Compatibility Helpers for Existing Stores ---
@@ -151,7 +186,7 @@ export interface CognitiveProfile {
   scope: 'STUDENT' | 'CLASS';
 }
 
-// --- 6. Data Reset, Backup & Audit Trail Schemas (Module 23א) ---
+// --- 7. Data Reset, Backup & Audit Trail Schemas (Module 23א) ---
 
 export const VALID_RESET_REASONS = [
   'technical_fault',
@@ -165,7 +200,7 @@ export type ResetReason = typeof VALID_RESET_REASONS[number];
 
 export interface ResetAuditEntry {
   reset_id: string;
-  reset_level: 'alerts' | 'single_student' | 'system';
+  reset_level: 'alerts' | 'single_student' | 'system' | 'export';
   performed_by_teacher_id: string;
   performed_at: number;
   class_id: string;

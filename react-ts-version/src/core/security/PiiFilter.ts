@@ -56,26 +56,32 @@ export function isValidIsraeliID(id: string | number): boolean {
 export function containsPII(text?: string | null): boolean {
   if (!text || typeof text !== 'string') return false;
 
-  // 1. Check Emails
-  PII_EMAIL_REGEX.lastIndex = 0;
-  if (PII_EMAIL_REGEX.test(text)) return true;
+  try {
+    // 1. Check Emails
+    PII_EMAIL_REGEX.lastIndex = 0;
+    if (PII_EMAIL_REGEX.test(text)) return true;
 
-  // 2. Check 9-digit IDs
-  PII_NATIONAL_ID_REGEX.lastIndex = 0;
-  const idMatches = text.match(PII_NATIONAL_ID_REGEX);
-  if (idMatches) {
-    for (const match of idMatches) {
-      if (isValidIsraeliID(match)) {
-        return true;
+    // 2. Check 9-digit IDs
+    PII_NATIONAL_ID_REGEX.lastIndex = 0;
+    const idMatches = text.match(PII_NATIONAL_ID_REGEX);
+    if (idMatches) {
+      for (const match of idMatches) {
+        if (isValidIsraeliID(match)) {
+          return true;
+        }
       }
     }
+
+    // 3. Check Phones
+    PII_PHONE_REGEX.lastIndex = 0;
+    if (PII_PHONE_REGEX.test(text)) return true;
+
+    return false;
+  } catch (err) {
+    // Fail-Closed: any error during scanning treats the text as potentially containing PII
+    console.error('[PiiFilter] Error during containsPII scan (failing closed):', err);
+    return true;
   }
-
-  // 3. Check Phones
-  PII_PHONE_REGEX.lastIndex = 0;
-  if (PII_PHONE_REGEX.test(text)) return true;
-
-  return false;
 }
 
 /**
@@ -119,46 +125,51 @@ export function validateZeroPIIPayload(payload: unknown): { valid: boolean; reas
     return { valid: true };
   }
 
-  const obj = payload as Record<string, unknown>;
+  try {
+    const obj = payload as Record<string, unknown>;
 
-  // Check student_id constraint
-  if ('student_id' in obj) {
-    const sId = obj.student_id;
-    if (typeof sId !== 'number' || !Number.isInteger(sId) || sId < 1 || sId > 12) {
-      return {
-        valid: false,
-        reason: `Constraint violation: student_id must be an integer between 1 and 12 (received: ${sId})`
-      };
-    }
-  }
-
-  // Check forbidden PII keys
-  for (const key of Object.keys(obj)) {
-    const lowerKey = key.toLowerCase();
-    if (FORBIDDEN_PII_FIELDS.some((f) => f.toLowerCase() === lowerKey)) {
-      return {
-        valid: false,
-        reason: `Security violation: Forbidden PII field '${key}' detected in payload`
-      };
-    }
-
-    const value = obj[key];
-    if (typeof value === 'string') {
-      if (containsPII(value)) {
+    // Check student_id constraint
+    if ('student_id' in obj) {
+      const sId = obj.student_id;
+      if (typeof sId !== 'number' || !Number.isInteger(sId) || sId < 1 || sId > 12) {
         return {
           valid: false,
-          reason: `Security violation: PII detected in value for field '${key}'`
+          reason: `Constraint violation: student_id must be an integer between 1 and 12 (received: ${sId})`
         };
       }
-    } else if (typeof value === 'object' && value !== null) {
-      const nestedCheck = validateZeroPIIPayload(value);
-      if (!nestedCheck.valid) {
-        return nestedCheck;
+    }
+
+    // Check forbidden PII keys
+    for (const key of Object.keys(obj)) {
+      const lowerKey = key.toLowerCase();
+      if (FORBIDDEN_PII_FIELDS.some((f) => f.toLowerCase() === lowerKey)) {
+        return {
+          valid: false,
+          reason: `Security violation: Forbidden PII field '${key}' detected in payload`
+        };
+      }
+
+      const value = obj[key];
+      if (typeof value === 'string') {
+        if (containsPII(value)) {
+          return {
+            valid: false,
+            reason: `Security violation: PII detected in value for field '${key}'`
+          };
+        }
+      } else if (typeof value === 'object' && value !== null) {
+        const nestedCheck = validateZeroPIIPayload(value);
+        if (!nestedCheck.valid) {
+          return nestedCheck;
+        }
       }
     }
-  }
 
-  return { valid: true };
+    return { valid: true };
+  } catch (err) {
+    console.error('[PiiFilter] Error during validateZeroPIIPayload (failing closed):', err);
+    return { valid: false, reason: 'Fail-closed: Runtime error during PII validation' };
+  }
 }
 
 /**

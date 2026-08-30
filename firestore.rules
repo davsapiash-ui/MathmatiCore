@@ -346,6 +346,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Curriculum Catalog (Module 4 & Module 26: Canonical Exercise Templates)
+    match /curriculum_catalog/{templateId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
     match /srl_reflections/{reflectionId} {
       allow read: if isTeacher() || isOwningStudent(string(resource.data.student_id));
       allow create: if isOwningStudent(string(request.resource.data.student_id)) &&

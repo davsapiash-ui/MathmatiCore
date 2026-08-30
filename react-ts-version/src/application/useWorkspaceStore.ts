@@ -164,6 +164,7 @@ interface WorkspaceState {
   successStreak: number;
   keyboardState: KeyboardState;
   isAdditionHelperOpen: boolean;
+  helpRequested: boolean;
   pendingSupportProfileId: string | null;
   activeSupportProfileId: string | null;
   activeDeviceId: string | null;
@@ -173,6 +174,8 @@ interface WorkspaceState {
   setActiveDeviceId: (id: string) => void;
   setSupersededByOtherDevice: (superseded: boolean) => void;
   setPendingSupportProfile: (profileId: string | null) => void;
+  setHelpRequested: (val: boolean) => void;
+  toggleHelpRequested: () => void;
   openAdditionHelper: () => void;
   closeAdditionHelper: () => void;
   toggleAdditionHelper: () => void;
@@ -1110,6 +1113,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     dynamicTasks: null,
     nodeStrikes: {},
     successStreak: 0,
+    helpRequested: false,
     pendingSupportProfileId: null,
     activeSupportProfileId: null,
     activeDeviceId: null,
@@ -1117,6 +1121,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     setActiveDeviceId: (id) => set({ activeDeviceId: id }),
     setSupersededByOtherDevice: (superseded) => set({ isSupersededByOtherDevice: superseded }),
+    setHelpRequested: (val) => set({ helpRequested: val }),
+    toggleHelpRequested: () => set((state) => ({ helpRequested: !state.helpRequested })),
 
     setPendingSupportProfile: (profileId) => {
       // Module 19: Stores pending support profile without altering the active workspace/board/keyboard state
@@ -1370,7 +1376,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           const regroupCol = placeToColumnIndex(input.target.kind === 'column' ? input.target.place : (input.sourcePlace || 'units'));
           const regroupType = isUngroup ? 'decomposition' : 'composition';
           const triggerTime = s.regroupTriggerTimestamps?.[regroupCol];
-          const durationMs = triggerTime ? Math.max(0, Date.now() - triggerTime) : null;
+          const durationMs = triggerTime ? Math.max(0, Date.now() - triggerTime) : 0;
           delete updatedTriggerTimestamps[regroupCol];
 
           emitTelemetry({
@@ -1499,7 +1505,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
         const updatedTriggerTimestamps = { ...state.regroupTriggerTimestamps };
         const triggerTime = state.regroupTriggerTimestamps?.[colIdx];
-        const durationMs = triggerTime ? Math.max(0, Date.now() - triggerTime) : null;
+        const durationMs = triggerTime ? Math.max(0, Date.now() - triggerTime) : 0;
         delete updatedTriggerTimestamps[colIdx];
 
         emitTelemetry({
@@ -1562,7 +1568,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
         const updatedTriggerTimestamps = { ...state.regroupTriggerTimestamps };
         const triggerTime = state.regroupTriggerTimestamps?.[colIdx];
-        const durationMs = triggerTime ? Math.max(0, Date.now() - triggerTime) : null;
+        const durationMs = triggerTime ? Math.max(0, Date.now() - triggerTime) : 0;
         delete updatedTriggerTimestamps[colIdx];
 
         emitTelemetry({
@@ -1619,7 +1625,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const sessionId = `session_${s.sessionNumber}_student_${studentId}`;
         const taskId = task?.id || `ex_${s.sessionNumber}_01`;
         const depthBefore = Math.min(10, Math.max(1, s.undoStack.length));
-        const revertedType = snapshot.actionType || null;
+        const revertedType: TelemetryEventType = snapshot.actionType || 'BLOCK_DRAG_COMPLETE';
 
         emitTelemetry({
           session_id: sessionId,

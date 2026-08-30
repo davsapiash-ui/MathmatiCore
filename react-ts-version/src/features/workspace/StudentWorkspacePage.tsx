@@ -558,14 +558,14 @@ export function StudentWorkspacePage() {
     };
   }, [normUid, meeting, isASDMode]);
 
-  // PRD v7.0 Module 10: Load adaptive addition grid strictly and only when support_profile_id === 'enhanced_cognitive_support' or teacher enabled.
-  // For every other learner the grid must not mount, render or exist in the DOM.
-  const studentHasEnhancedSupport = hasEnhancedSupportProfile(user as Record<string, unknown> | null) ||
-    hasEnhancedSupportProfile(myData as Record<string, unknown> | null) ||
-    liveAdditionBoardEnabled === true ||
-    myData?.additionBoardEnabled === true ||
-    myData?.forceAdditionHelper === true;
-  const isAdditionBoardEnabled = studentHasEnhancedSupport && sessionNumber !== 2 && sessionNumber !== 8;
+  // PRD v7.1 Module 10: Load adaptive addition grid strictly and only when the
+  // authoritative support profile is 'enhanced_cognitive_support' (shared
+  // contract in core/supportProfile.ts, honoring the legacy boolean on live
+  // records). No manual teacher toggle during a live session. For every other
+  // learner the grid must not mount, render or exist in the DOM.
+  const hasEnhancedSupport = hasEnhancedSupportProfile(user as Record<string, unknown> | null) ||
+    hasEnhancedSupportProfile(myData as Record<string, unknown> | null);
+  const isAdditionBoardEnabled = hasEnhancedSupport && sessionNumber !== 2 && sessionNumber !== 8;
 
 
   useEffect(() => {
