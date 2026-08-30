@@ -344,6 +344,21 @@ exports.backupAndResetSessionData = (0, https_1.onCall)(async (request) => {
     if (reset_level === 'alerts') {
         try {
             await rtdb.ref("radar_alerts").remove().catch(() => { });
+            // Clear the per-student alert flags too — the alerts feed alone isn't
+            // the whole radar state; each student's own record carries its own
+            // help/hand/struggling flags that must return to default as well.
+            const alertClearPayload = {
+                helpRequested: false,
+                handRaised: false,
+                isStruggling: false,
+                isSocraticActive: false,
+                last_alert: null,
+            };
+            const studentAliases = [];
+            for (let i = 1; i <= 12; i++) {
+                studentAliases.push(`student_user${i}`, `student_${i}`, `${i}`);
+            }
+            await Promise.all(studentAliases.map((alias) => rtdb.ref(`users/students/${alias}`).update(alertClearPayload).catch(() => { })));
             const auditEntry = {
                 reset_id: resetId,
                 reset_level: 'alerts',

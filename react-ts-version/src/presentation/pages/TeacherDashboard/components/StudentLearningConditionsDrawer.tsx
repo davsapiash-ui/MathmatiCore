@@ -16,9 +16,11 @@ import {
   Layers
 } from 'lucide-react';
 import { StudentReplayAndLogs } from './StudentReplayAndLogs';
+import { ResetConfirmationModal } from './ResetConfirmationModal';
 import { ref, update } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
 import { toast } from 'sonner';
+import type { ResetReason } from '@/types';
 
 interface Props {
   student: StudentData | null;
@@ -30,6 +32,7 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat }
   const [activeTab, setActiveTab] = useState<'scaffolding' | 'accessibility' | 'hesitation' | 'replay'>('scaffolding');
   const [isResetting, setIsResetting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
 
   // Form State
   const sAny = (student || {}) as any;
@@ -107,14 +110,12 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat }
     }
   };
 
-  const handleResetStudent = async () => {
-    if (!window.confirm(`האם לאפס את נתוני הפעילות של תלמיד ${studentNum}? פעולה זו תאפשר לתלמיד להתחיל את המפגש מחדש.`)) {
-      return;
-    }
+  const handleConfirmResetStudent = async (reason: ResetReason, reasonNote?: string) => {
     setIsResetting(true);
     try {
-      await useStore.getState().resetStudentData(student.studentId);
+      await useStore.getState().resetStudentData(student.studentId, reason, reasonNote);
       toast.success(`✓ נתוני תלמיד ${studentNum} אופסו בהצלחה!`);
+      setIsResetModalOpen(false);
       onClose();
     } catch (err) {
       console.error('Reset error:', err);
@@ -178,7 +179,7 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat }
 
           <div className="flex items-center gap-1.5">
             <button
-              onClick={handleResetStudent}
+              onClick={() => setIsResetModalOpen(true)}
               disabled={isResetting}
               className="px-2.5 py-1.5 rounded-xl border border-rose-200 hover:border-rose-300 bg-rose-50/70 hover:bg-rose-100 text-rose-700 dark:text-rose-300 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
               title="איפוס מלא של נתוני התלמיד"
@@ -452,6 +453,16 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat }
           </div>
         </div>
       </div>
+
+      {/* PRD v7.1 Module 23א §ה: level 2+ resets must never be single-click. */}
+      <ResetConfirmationModal
+        isOpen={isResetModalOpen}
+        onClose={() => setIsResetModalOpen(false)}
+        resetLevel="single_student"
+        targetStudentId={student.studentId}
+        targetStudentName={`תלמיד ${studentNum}`}
+        onConfirm={handleConfirmResetStudent}
+      />
     </>,
     document.body
   );

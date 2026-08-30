@@ -6,11 +6,13 @@ import { X, CheckCircle, Video, ListTodo, Sliders, BellRing, Check, MessageCircl
 import { StudentReplayAndLogs } from './StudentReplayAndLogs';
 import { BlueprintEditor } from './BlueprintEditor';
 import { SilentAdaptationPanel, type AdaptationSettings } from './SilentAdaptationPanel';
+import { ResetConfirmationModal } from './ResetConfirmationModal';
 import { ref, update } from 'firebase/database';
 import { database, functions } from '@/infrastructure/firebase';
 import { httpsCallable } from 'firebase/functions';
 import { pedagogicalReportService } from '@/infrastructure/services/PedagogicalReportService';
 import { toast } from 'sonner';
+import type { ResetReason } from '@/types';
 
 interface Props {
   student: StudentData | null;
@@ -26,6 +28,7 @@ export function StudentSideDrawer({ student, onClose, isPendingApproval, onAppro
   );
   const [isResetting, setIsResetting] = useState(false);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -112,12 +115,13 @@ export function StudentSideDrawer({ student, onClose, isPendingApproval, onAppro
     }
   };
 
-  const handleResetStudent = async () => {
+  const handleConfirmResetStudent = async (reason: ResetReason, reasonNote?: string) => {
     setIsResetting(true);
     try {
       const sNum = student.studentId.replace(/\D/g, '') || student.studentId;
-      await useStore.getState().resetStudentData(student.studentId);
+      await useStore.getState().resetStudentData(student.studentId, reason, reasonNote);
       toast.success(`✓ נתוני תלמיד ${sNum} אופסו בהצלחה!`);
+      setIsResetModalOpen(false);
       onClose();
     } catch (err) {
       console.error('Reset error:', err);
@@ -205,7 +209,7 @@ export function StudentSideDrawer({ student, onClose, isPendingApproval, onAppro
               </div>
             )}
             <button
-              onClick={handleResetStudent}
+              onClick={() => setIsResetModalOpen(true)}
               disabled={isResetting}
               className="px-2.5 py-1.5 rounded-xl border border-rose-200 hover:border-rose-400 bg-rose-50/50 hover:bg-rose-100 text-rose-700 dark:text-rose-300 text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50"
               title="איפוס מלא של נתוני התלמיד"
@@ -375,6 +379,16 @@ export function StudentSideDrawer({ student, onClose, isPendingApproval, onAppro
           )}
         </div>
       </div>
+
+      {/* PRD v7.1 Module 23א §ה: level 2+ resets must never be single-click. */}
+      <ResetConfirmationModal
+        isOpen={isResetModalOpen}
+        onClose={() => setIsResetModalOpen(false)}
+        resetLevel="single_student"
+        targetStudentId={student.studentId}
+        targetStudentName={`תלמיד ${student.studentId.replace(/\D/g, '') || student.studentId}`}
+        onConfirm={handleConfirmResetStudent}
+      />
     </>,
     document.body
   );
