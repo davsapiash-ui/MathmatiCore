@@ -703,21 +703,13 @@ export function StudentWorkspacePage() {
   }, [meeting, networkError, pendingApproval, isASDMode, initSession]);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 100, tolerance: 8 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 3 } })
   );
 
   const collisionDetectionStrategy: CollisionDetection = (args) => {
     const pointerCollisions = pointerWithin(args);
     if (pointerCollisions && pointerCollisions.length > 0) {
       return pointerCollisions;
-    }
-    // When dragging from a column, if the pointer is in empty space outside droppables,
-    // do not force-intersect with the huge source column. Return empty collisions so handleDragEnd
-    // treats it as dropped outside into trash.
-    const activeData = args.active.data.current as { source?: DragSource } | undefined;
-    if (activeData?.source === 'column') {
-      return [];
     }
     return rectIntersection(args);
   };

@@ -249,7 +249,7 @@ export function DienesBlock({
       tabIndex={0}
       aria-label={visual.labelHe}
       style={{ touchAction: 'none' }}
-      className={`touch-none cursor-grab active:cursor-grabbing outline-none focus-visible:ring-2 focus-visible:ring-ws-accent rounded-[3px] hover:brightness-110 active:scale-95 ${hitPadding} ${isDragging ? 'opacity-30' : ''}`}
+      className={`touch-none cursor-grab active:cursor-grabbing outline-none focus-visible:ring-2 focus-visible:ring-ws-accent rounded-[3px] hover:brightness-110 ${hitPadding} ${isDragging ? 'opacity-30' : ''}`}
       onPointerDown={handlePointerDown}
       onClick={handleAction}
       onKeyDown={(e) => {

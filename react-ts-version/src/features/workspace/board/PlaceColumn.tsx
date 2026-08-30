@@ -21,6 +21,7 @@ export function PlaceColumn({ place }: { place: Place }) {
   const isASD = useWorkspaceStore((s) => s.isASD);
   const groupColumnClick = useWorkspaceStore((s) => s.groupColumnClick);
   const splitBlockClick = useWorkspaceStore((s) => s.splitBlockClick);
+  const removeBlockClick = useWorkspaceStore((s) => s.removeBlockClick);
   const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
 
   const { setNodeRef, isOver } = useDroppable({
@@ -61,14 +62,14 @@ export function PlaceColumn({ place }: { place: Place }) {
     <motion.div
       ref={setNodeRef}
       animate={shakeControls}
-      className={`flex-1 min-w-0 flex flex-col rounded-2xl border-2 border-solid transition-all duration-200 select-none ${
+      className={`flex-1 min-w-0 flex flex-col rounded-2xl border-2 border-solid transition-colors duration-150 select-none ${
         isDimmed ? 'opacity-60' : ''
-      } ${isOver ? 'scale-[1.02] shadow-xl ring-4 ring-offset-2 z-10' : 'shadow-sm'}`}
+      } ${isOver ? 'ring-4 ring-offset-1 z-10' : 'shadow-sm'}`}
       style={{
         borderColor: isOver ? colors.border : `${colors.border}55`,
         backgroundColor: isOver ? colors.headerBg : isError ? colors.tint : 'hsl(var(--ws-surface))',
         boxShadow: isOver 
-          ? `0 12px 28px -6px ${colors.tint}, 0 0 0 4px ${colors.border}` 
+          ? `0 12px 28px -6px ${colors.tint}, 0 0 0 3px ${colors.border}` 
           : '0 4px 14px -6px rgba(0,0,0,0.06)',
         filter: isDimmed ? 'brightness(0.6)' : undefined,
         opacity: isDimmed ? 0.6 : 1,
@@ -115,10 +116,6 @@ export function PlaceColumn({ place }: { place: Place }) {
         id={`column-${place}-dropzone`}
         role="group"
         aria-label={`אזור גרירה — ${PLACE_NAMES_HE[place]}`}
-        // PRD v7.1 Module 7 §א: columns outside the current calculation focus are
-        // dimmed to brightness(0.6) AND have their pointer events locked. Memory
-        // circles live outside this column body, so they stay open to input in
-        // every state, as the same section requires.
         style={{ touchAction: 'none' }}
         className="relative flex-1 min-h-0 p-3 pb-4 overflow-y-auto overflow-x-hidden no-scrollbar touch-none flex flex-col justify-end"
       >
@@ -129,14 +126,20 @@ export function PlaceColumn({ place }: { place: Place }) {
           {Array.from({ length: renderCount }).map((_, i) => (
             <div 
               key={`${place}-${i}`}
-              className="shrink-0 flex items-center justify-center select-none transform-gpu transition-transform"
+              className="shrink-0 flex items-center justify-center select-none"
             >
               <DienesBlock 
                 id={`column-${place}-${i}`}
                 place={place} 
                 source="column"
                 noEnter={i < renderCount - 1}
-                onClick={place !== 'units' ? () => splitBlockClick(place) : undefined}
+                onClick={() => {
+                  if (place === 'units') {
+                    removeBlockClick('units');
+                  } else {
+                    splitBlockClick(place);
+                  }
+                }}
               />
             </div>
           ))}
