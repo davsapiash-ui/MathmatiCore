@@ -883,6 +883,14 @@ export class FirebaseSyncService {
       const details = event.details as SocraticCardShownDetails;
       if (details.error_category) {
         rtdbLiveUpdate.error_category = details.error_category;
+        // PRD v7.1 Module 18: the radar detail layer shows the learner's
+        // classification DISTRIBUTION for the current session, so every
+        // classification is tallied per session, not just the latest one.
+        const sessionNum = useWorkspaceStore.getState().sessionNumber || 1;
+        runTransaction(
+          ref(database, `users/students/${normUid}/errorCategoryDistribution/session_${sessionNum}/${details.error_category}`),
+          (current) => (typeof current === 'number' ? current : 0) + 1
+        ).catch(() => {});
       }
     } else if (event.event_type === 'SOCRATIC_OPTION_SELECTED') {
       const details = event.details as SocraticOptionSelectedDetails;

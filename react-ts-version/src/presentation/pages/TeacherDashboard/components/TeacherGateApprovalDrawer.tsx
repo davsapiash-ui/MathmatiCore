@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { type StudentData, useStore } from '@/application/useStore';
+import { useAuthStore } from '@/application/useAuthStore';
+import { approveTeacherGate } from '@/core/teacherGate';
 import { normalizeStudentId } from '@/application/useChatStore';
 import { SocraticEngine } from '@/infrastructure/services/SocraticEngine';
 import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
@@ -72,37 +74,18 @@ export function TeacherGateApprovalDrawer({ student, onClose, onApproveSuccess }
   const handleApprove = async () => {
     setIsApproving(true);
     try {
-      const studentId = student.studentId;
-      const normId = normalizeStudentId(studentId);
-      const rawNum = studentId.replace(/\D/g, '');
+      // PRD v7.1 Module 20: the session-2 SessionDocument in Firestore is the sole
+      // source of truth; approveTeacherGate performs the authoritative write and
+      // mirrors to RTDB only so the learner's listener unlocks immediately.
+      const teacherId = useAuthStore.getState().user?.uid || null;
+      const result = await approveTeacherGate(student.studentId, selectedPath, teacherId);
 
-      // 1. Update Zustand store
-      useStore.getState().approveRoute(studentId);
-
-      // 2. Prepare Firebase update payload
-      const pathPayload = {
-        routeStatus: 'APPROVED',
-        teacher_gate_approved: true,
-        pedagogicalPath: selectedPath,
-        currentPath: selectedPath === 'green_path' ? 'ירוק' : 'צמצום פערים',
-        approvedAt: Date.now(),
-        highestCompletedMeeting: Math.max(Number(student.highestCompletedMeeting) || 0, 2),
-        unlockedSession: 3,
-        physicalOverrideActive: false,
-      };
-
-      // 3. Write to Firebase RTDB
-      await update(ref(database, `users/students/${normId}`), pathPayload);
-      if (normId !== rawNum && rawNum) {
-        await update(ref(database, `users/students/${rawNum}`), pathPayload).catch(() => {});
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
       }
 
-      // 4. Sync physical override state to Approved
-      await firebaseSyncService.syncPhysicalOverride(studentId, {
-        routeStatus: 'APPROVED',
-        physicalOverride: false,
-      });
-
+      useStore.getState().approveRoute(student.studentId);
       toast.success(`✓ שער המורה אושר! תלמיד ${studentNum} הועבר למסלול ${selectedPath === 'green_path' ? 'ירוק (מואץ)' : 'צהוב (צמצום פערים)'} ונפתח למפגש 3 🚀`);
       if (onApproveSuccess) onApproveSuccess();
       onClose();

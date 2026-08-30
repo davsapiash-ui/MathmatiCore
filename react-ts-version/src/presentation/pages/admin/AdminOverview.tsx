@@ -30,8 +30,17 @@ import {
   ResponsiveContainer
 } from "recharts";
 import { ref, onValue, query, orderByChild, limitToLast, get, update } from "firebase/database";
-import { database } from "@/infrastructure/firebase";
+import { doc, onSnapshot } from "firebase/firestore";
+import { database, firestore } from "@/infrastructure/firebase";
 import type { AuditLogEvent } from "@/infrastructure/services/AuditLogger";
+
+/** Module 24: per-session aggregates served from store_cache/admin_metrics. */
+type SessionBreakdown = Record<string, {
+  created: number;
+  completed: number;
+  completion_rate_percent: number;
+  average_score_percent: number;
+}>;
 
 const mockGrowthData6M = [
   { time: 'ינואר', students: 120, activity: 450, alerts: 12 },
@@ -57,8 +66,19 @@ export function AdminOverview() {
   const [timeRange, setTimeRange] = useState<"6M" | "30D">("6M");
 
   const [totalStudents, setTotalStudents] = useState<number>(0);
-  const [alertsCount, setAlertsCount] = useState<number>(0);
+  // Module 24 §ב/§ה: cache-sourced metrics and the quiet last-updated indicator
+  const [cacheUpdatedAt, setCacheUpdatedAt] = useState<number | null>(null);
+  const [sessionBreakdown, setSessionBreakdown] = useState<SessionBreakdown>({});
   const [isCleaning, setIsCleaning] = useState(false);
+
+  // Class-wide completion rate, derived from the cached per-session aggregates only.
+  const completionRatePercent = useMemo(() => {
+    const rows = Object.values(sessionBreakdown);
+    if (rows.length === 0) return 0;
+    const created = rows.reduce((sum, r) => sum + (r.created || 0), 0);
+    const completed = rows.reduce((sum, r) => sum + (r.completed || 0), 0);
+    return created > 0 ? Math.round((completed / created) * 100) : 0;
+  }, [sessionBreakdown]);
 
   useEffect(() => {
     const unsubAdmin = useAdminStore.getState().initAdminSubscriptions();
@@ -89,41 +109,29 @@ export function AdminOverview() {
       }
     );
 
-    const studentsRef = ref(database, 'users/students');
-    const unsubStudents = onValue(
-      studentsRef,
-      (snapshot) => {
-        if (snapshot.exists()) {
-          setTotalStudents(Object.keys(snapshot.val()).length);
-        } else {
-          setTotalStudents(0);
-        }
+    // PRD v7.1 Module 24 §ב: the admin console reads EXCLUSIVELY from the
+    // store_cache aggregate document and is blocked from live per-student or
+    // per-telemetry queries. §ה: on a cache read failure keep the last known
+    // cached state and surface a quiet last-updated indicator.
+    const cacheRef = doc(firestore, 'store_cache', 'admin_metrics');
+    const unsubCache = onSnapshot(
+      cacheRef,
+      (snap) => {
+        if (!snap.exists()) return;
+        const data = snap.data() as Record<string, unknown>;
+        setTotalStudents(Number(data.total_students) || 0);
+        setCacheUpdatedAt(Number(data.updated_at) || null);
+        setSessionBreakdown((data.session_breakdown as SessionBreakdown) || {});
       },
       (err) => {
-        console.warn('[AdminOverview] studentsRef listener notice:', err);
-      }
-    );
-
-    const alertsRef = ref(database, 'radar_alerts');
-    const unsubAlerts = onValue(
-      alertsRef,
-      (snapshot) => {
-        if (snapshot.exists()) {
-          setAlertsCount(Object.keys(snapshot.val()).length);
-        } else {
-          setAlertsCount(0);
-        }
-      },
-      (err) => {
-        console.warn('[AdminOverview] alertsRef listener notice:', err);
+        console.warn('[AdminOverview] store_cache listener notice:', err);
       }
     );
 
     return () => {
       unsubAdmin();
       unsubLogs();
-      unsubStudents();
-      unsubAlerts();
+      unsubCache();
     };
   }, []);
 
@@ -224,7 +232,6 @@ export function AdminOverview() {
       schoolsCount: schools.length,
       teachersCount: teachers.length,
       studentsCount: totalStudents,
-      alertsCount: alertsCount,
       targetFolderId: "0AMiALsm_TxT5Uk9PVA",
       serviceAccount: "1002220159@edu-haifa.org.il"
     };
@@ -243,8 +250,7 @@ export function AdminOverview() {
           schoolsCount: schools.length,
           teachersCount: teachers.length,
           studentsCount: totalStudents,
-          alertsCount: alertsCount,
-        });
+            });
       } catch (cfErr) {
         console.warn("Cloud function drive upload notice:", cfErr);
       }
@@ -352,6 +358,17 @@ export function AdminOverview() {
         </div>
       </header>
 
+      {/* Module 24 §ב/§ה: quiet indicator naming the cache and its last update.
+          The console renders aggregates only — never a live per-student query. */}
+      <div className="flex items-center justify-end gap-2 text-[11px] font-semibold text-slate-400 dark:text-slate-500">
+        <Clock className="w-3.5 h-3.5" />
+        <span>
+          {cacheUpdatedAt
+            ? `מדדים מצטברים ממטמון האגרגציה · עודכן ${new Date(cacheUpdatedAt).toLocaleString('he-IL')}`
+            : 'מדדים מצטברים ממטמון האגרגציה · ממתין לעדכון השעתי הראשון'}
+        </span>
+      </div>
+
       {/* Metrics Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <AccessibleCard className="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl relative overflow-hidden group hover:border-blue-500/50 transition-all">
@@ -409,11 +426,11 @@ export function AdminOverview() {
           <div className="absolute top-0 right-0 w-2 h-full bg-gradient-to-b from-amber-500 to-orange-600" />
           <div className="flex justify-between items-start">
             <div className="space-y-1">
-              <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">התראות רדאר בזמן אמת</p>
-              <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{alertsCount}</h3>
+              <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">שיעור השלמת מפגשים</p>
+              <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{completionRatePercent}%</h3>
               <div className="flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400 font-semibold pt-1">
                 <ShieldAlert className="w-3.5 h-3.5" />
-                <span>דורש ניטור מורה</span>
+                <span>מדד מצטבר ממטמון האגרגציה</span>
               </div>
             </div>
             <div className="w-12 h-12 rounded-2xl bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-500/20">

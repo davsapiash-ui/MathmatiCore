@@ -19,6 +19,17 @@ export interface ActiveClassSessionRecord {
   teacherDisconnectedAt?: number | null;
 }
 
+/**
+ * PRD v7.1 Module 14 §ב — net working minutes per session.
+ * Session 1 sandbox: 20 · Sessions 2 and 8: 25 · Sessions 3-7: 15.
+ * Module 14 §ב1 derives the teacher deadline popup's X from this, never a constant.
+ */
+export function getSessionDurationMinutes(sessionNumber: number): number {
+  if (sessionNumber === 1) return 20;
+  if (sessionNumber >= 3 && sessionNumber <= 7) return 15;
+  return 25; // sessions 2 and 8
+}
+
 /** True when the session is open AND the teacher-disconnect grace has not expired. */
 export function isClassSessionLive(
   val: ActiveClassSessionRecord | null | undefined,

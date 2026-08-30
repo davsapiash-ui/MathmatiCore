@@ -106,6 +106,8 @@ export interface AnonymousStudent {
   isSocraticActive: boolean;
   helpRequested: boolean;
   errorCategory?: 'calculation' | 'procedural' | 'conceptual' | null;
+  /** Module 18: per-session tally of error_category classifications for this learner */
+  errorCategoryDistribution?: { calculation: number; procedural: number; conceptual: number };
   lastAction?: string;
   activeBranch?: 'reinforcement' | 'challenge' | null;
   isOnline?: boolean;
@@ -280,6 +282,13 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
           );
           const recommendedPath: 'ירוק' | 'צמצום פערים' = (data.routeRecommendation === 'YELLOW' || sessionState.current_path === 'remediation_path') ? 'צמצום פערים' : 'ירוק';
           const errorCategory = data.error_category || data.errorCategory || wsState.aiSocraticHint?.error_category || wsState.errorCategory || null;
+          // Module 18: classification distribution for the CURRENT session only
+          const rawDistribution = data.errorCategoryDistribution?.[`session_${sessionNumber}`] || {};
+          const errorCategoryDistribution = {
+            calculation: Number(rawDistribution.calculation) || 0,
+            procedural: Number(rawDistribution.procedural) || 0,
+            conceptual: Number(rawDistribution.conceptual) || 0,
+          };
           const activeBranch = data.selectedBranch || wsState.selectedBranch || null;
 
           const isCurrentlyInWorkspace = Boolean(isOnline && wsState.sessionNumber === sessionNumber);
@@ -294,6 +303,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
             studentNumber: studentNum,
             displayName: `תלמיד ${studentNum}`,
             sessionNumber,
+            errorCategoryDistribution,
             currentPath: isYellowPath ? 'צמצום פערים' : 'ירוק',
             status,
             hesitationSeconds,
@@ -457,6 +467,8 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
   };
 
   const [isClassResetModalOpen, setIsClassResetModalOpen] = useState(false);
+  const [isAlertsResetModalOpen, setIsAlertsResetModalOpen] = useState(false);
+  const [isResettingAlerts, setIsResettingAlerts] = useState(false);
 
   const handleResetAllClass = () => {
     setIsClassResetModalOpen(true);
@@ -483,15 +495,29 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
               </span>
             </h2>
 
-            <button
-              onClick={handleResetAllClass}
-              disabled={isResettingClass}
-              className="px-3 py-1.5 rounded-xl border border-rose-200 hover:border-rose-400 bg-rose-50/60 hover:bg-rose-100 dark:bg-rose-950/40 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-xs"
-              title="איפוס נתוני כל תלמידי הכיתה"
-            >
-              <RotateCcw className={`w-3.5 h-3.5 ${isResettingClass ? 'animate-spin' : ''}`} />
-              <span>איפוס נתוני כיתה</span>
-            </button>
+            <div className="flex items-center gap-2">
+              {/* Module 23א level 1 — Alerts Reset. Strictly separate from the
+                  level-3 system reset; never merged into one action. */}
+              <button
+                onClick={() => setIsAlertsResetModalOpen(true)}
+                disabled={isResettingAlerts}
+                className="px-3 py-1.5 rounded-xl border border-amber-200 hover:border-amber-400 bg-amber-50/60 hover:bg-amber-100 dark:bg-amber-950/40 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-xs"
+                title="איפוס התראות הרדאר בלבד — אינו נוגע בנתוני למידה"
+              >
+                <RotateCcw className={`w-3.5 h-3.5 ${isResettingAlerts ? 'animate-spin' : ''}`} />
+                <span>איפוס התראות</span>
+              </button>
+
+              <button
+                onClick={handleResetAllClass}
+                disabled={isResettingClass}
+                className="px-3 py-1.5 rounded-xl border border-rose-200 hover:border-rose-400 bg-rose-50/60 hover:bg-rose-100 dark:bg-rose-950/40 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-xs"
+                title="איפוס נתוני כל תלמידי הכיתה"
+              >
+                <RotateCcw className={`w-3.5 h-3.5 ${isResettingClass ? 'animate-spin' : ''}`} />
+                <span>איפוס נתוני כיתה</span>
+              </button>
+            </div>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             מרכז בקרה אחוד. עדכוני צבע בלבד ללא הפרעה לתלמיד. לחץ על משבצת לצפייה בלוח, בהקלטות ובאישור שערים.
@@ -756,6 +782,54 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                   </div>
                 </div>
 
+                {/* PRD v7.1 Module 18: classification distribution for the current session,
+                    so the teacher can tell a calculation slip from a conceptual gap. */}
+                {(() => {
+                  const dist = selectedStudent.errorCategoryDistribution || { calculation: 0, procedural: 0, conceptual: 0 };
+                  const total = dist.calculation + dist.procedural + dist.conceptual;
+                  const rows = [
+                    { key: 'calculation', glyph: 'ח', label: 'טעות חישוב בסיסי', count: dist.calculation, bar: 'bg-sky-500' },
+                    { key: 'procedural', glyph: 'ר', label: 'טעות מיומנות רכיב (סדר האלגוריתם)', count: dist.procedural, bar: 'bg-violet-500' },
+                    { key: 'conceptual', glyph: 'מ', label: 'טעות מושגית (מבנה עשרוני)', count: dist.conceptual, bar: 'bg-rose-500' },
+                  ];
+                  return (
+                    <div className="mb-6 p-4 rounded-2xl bg-white dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700">
+                      <div className="flex items-baseline justify-between mb-3">
+                        <span className="text-sm font-extrabold text-slate-800 dark:text-slate-100">
+                          התפלגות סיווגי הטעות במפגש {selectedStudent.sessionNumber}
+                        </span>
+                        <span className="text-xs font-bold text-slate-400">{total} סיווגים</span>
+                      </div>
+                      {total === 0 ? (
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          לא נרשמו סיווגי טעות עבור לומד זה במפגש הנוכחי.
+                        </p>
+                      ) : (
+                        <div className="space-y-2.5">
+                          {rows.map((row) => (
+                            <div key={row.key} className="flex items-center gap-3">
+                              <span
+                                className="inline-flex items-center justify-center w-6 h-6 shrink-0 text-xs font-black rounded-md bg-slate-900/10 dark:bg-white/10 text-slate-900 dark:text-slate-100 border border-slate-400/40"
+                                aria-hidden="true"
+                              >
+                                {row.glyph}
+                              </span>
+                              <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 flex-1">{row.label}</span>
+                              <div className="w-28 h-2 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                                <div
+                                  className={`h-full ${row.bar}`}
+                                  style={{ width: `${total > 0 ? Math.round((row.count / total) * 100) : 0}%` }}
+                                />
+                              </div>
+                              <span className="text-xs font-black text-slate-800 dark:text-slate-100 w-6 text-left">{row.count}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
                 {/* Pedagogical Recommendations */}
                 {(() => {
                   const rec = getPedagogicalRecommendations(selectedStudent);
@@ -805,6 +879,24 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
           </div>
         )}
       </AnimatePresence>
+      {/* Module 23א level 1 — alerts only; no backup required, audit still written */}
+      <ResetConfirmationModal
+        isOpen={isAlertsResetModalOpen}
+        onClose={() => setIsAlertsResetModalOpen(false)}
+        resetLevel="alerts"
+        onConfirm={async (reason, reasonNote) => {
+          setIsResettingAlerts(true);
+          try {
+            await useStore.getState().resetRadarAlerts(reason, reasonNote);
+          } catch (err) {
+            console.error('Alerts reset error:', err);
+            toast.error('שגיאה באיפוס ההתראות');
+          } finally {
+            setIsResettingAlerts(false);
+          }
+        }}
+      />
+
       <ResetConfirmationModal
         isOpen={isClassResetModalOpen}
         onClose={() => setIsClassResetModalOpen(false)}
