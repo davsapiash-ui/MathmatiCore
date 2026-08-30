@@ -119,12 +119,31 @@ export interface GeminiSocraticRequest {
   session_id: string;
   exercise_id: string;
   active_column_index: number;
+  exercise_context?: {
+    operation: 'addition' | 'subtraction';
+    number_a: number;
+    number_b: number;
+    session_id: string;
+    session_topic: string;
+    active_column: 'units' | 'tens' | 'hundreds' | 'thousands';
+    active_column_index: number;
+    target_sub_problem: string;
+  };
   workspace_state: {
     ones_count: number;
     tens_count: number;
     hundreds_count: number;
     thousands_count: number;
     memory_circles: Record<string, number>;
+    is_regrouped_in_canvas?: boolean;
+  };
+  student_progress_state?: {
+    completed_columns: string[];
+    current_column_input: string | null;
+    memory_circles_state: Record<string, number>;
+    trigger_reason: 'hesitation_45s' | 'consecutive_errors_4' | 'consecutive_undos_3';
+    consecutive_errors_count: number;
+    recent_actions: TelemetryPayload<TelemetryEventType>[];
   };
   recent_actions: TelemetryPayload<TelemetryEventType>[];
 }

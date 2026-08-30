@@ -1080,6 +1080,7 @@ export class SocraticEngine {
   /**
    * Grounded Hybrid Socratic Query via Gemini (Modules 12–13)
    * Feeds both the Q-Matrix baseline reference and live board state into Gemini
+   * under the Holistic Pedagogical Triad (Exercise + Board State + Student Progress)
    * to generate a coherent, context-tailored Socratic question and 3 closed options.
    */
   static async fetchGroundedGeminiSocraticQuery(params: {
@@ -1129,41 +1130,46 @@ export class SocraticEngine {
       }
 
       const prompt = `
-System Role: You are a strict execution engine for MathmatiCore. You do not make assumptions. You process data based strictly on rigid rules. Before generating any educational response, you MUST output a hard evidence log proving exactly which variables triggered your decision.
-
-INPUT STREAMS (The Live Snapshot):
-- [Mission State]:
-  Task Title: "${currentTask.titleHe || currentTask.id || 'Math Task'}"
-  PENDING Objectives: ${JSON.stringify(pendingObjectives)} 
-  COMPLETED Objectives: ${JSON.stringify(completedObjectives)}
-- [Live Telemetry & Board State]:
-  Active Tool: "${activeColumnName}"
-  Current Blocks: Ones=${counts.units}, Tens=${counts.tens}, Hundreds=${counts.hundreds}
-  Last Actions: ${JSON.stringify(recentActions || [])}
-- [Pedagogical Anchor (Q-Matrix)]:
-  Target Concept: "${targetNode}"
-  Expected Logical Path: ${JSON.stringify(qMatrixAnchor.choices)}
+System Role: You are the Socratic Pedagogical Engine for MathmatiCore.
+You MUST follow the HOLISTIC PEDAGOGICAL TRIAD:
+1. Exercise & Algorithm: What exercise is being solved, which column is active, and what is the exact math operation?
+2. Representational State in Numbers House (בית המספרים): Exact blocks in each column, and whether regrouping/decomposition was performed in the visual blocks.
+3. Student Progress & Steps: What steps have been completed (e.g. ones column solved), what is typed in the inputs/memory circles, and what caused the difficulty (hesitation or errors)?
 
 STRICT RULES:
-1. PENDING Objective Supremacy: If PENDING Objectives contain ANY technical/UI tasks (e.g., delete, drag, open tool), ALL pedagogical math logic (e.g., regrouping, >9 blocks) MUST be completely suppressed and ignored.
-2. Socratic Constraint: Do not give the direct command. Formulate a question pointing to the missing action based ONLY on the active constraint.
+1. NEVER refer to בית המספרים in isolation without connecting it to the numbers in the exercise and the active column.
+2. Formulate a gentle Socratic guiding question in Hebrew connecting the active column step with the visual blocks state.
+3. Return exactly 3 closed choices with pedagogical feedback for each option.
+4. Output MUST be valid JSON with "hard_evidence_log" and "final_intervention".
 
-EXECUTION PROTOCOL & PROOF REQUIREMENT:
-You must return a JSON object with a "hard_evidence_log" array. Each object in this array must map a specific input variable to the rule it triggered, proving your logical path.
+INPUT DATA (Live Snapshot):
+- [Pillar 1: Exercise & Algorithm]:
+  Task Title: "${currentTask.titleHe || currentTask.id || 'Math Task'}"
+  Numbers: ${currentTask.numberA !== undefined ? `A=${currentTask.numberA}, B=${currentTask.numberB}` : 'General'}
+  Active Column: "${activeColumnName}"
+  Pending Objectives: ${JSON.stringify(pendingObjectives)} 
+  Completed Objectives: ${JSON.stringify(completedObjectives)}
+- [Pillar 2: Dienes Blocks in בית המספרים]:
+  Current Blocks: Ones=${counts.units}, Tens=${counts.tens}, Hundreds=${counts.hundreds}, Thousands=${counts.thousands || 0}
+- [Pillar 3: Student Actions & State]:
+  Last Actions: ${JSON.stringify(recentActions || [])}
+- [Pedagogical Baseline]:
+  Target Concept: "${targetNode}"
+  Expected Logical Path: ${JSON.stringify(qMatrixAnchor.choices)}
 
 OUTPUT SCHEMA (Return ONLY valid JSON):
 {
   "hard_evidence_log": [
     {
-      "inspected_variable": "<String: e.g., 'PENDING Objectives'>",
+      "inspected_variable": "<String: e.g., 'Exercise numbers and live blocks in active column'>",
       "exact_value_found": "<String: Quote the exact data found in the input>",
       "rule_triggered": "<String: Which strict rule does this activate?>",
-      "action_taken": "<String: What are you forced to do or forced to ignore based on this?>"
+      "action_taken": "<String: What pedagogical guidance is formulated?>"
     }
   ],
   "final_intervention": {
     "error_category": "<String: 'calculation' | 'procedural' | 'conceptual'>",
-    "guiding_question": "<String in Hebrew: Socratic question mediating the forced action>",
+    "guiding_question": "<String in Hebrew: Socratic question mediating the forced action, directly referencing the exercise and board state>",
     "options": [
       { "id": "1", "text": "<String in Hebrew>", "feedback": "<String in Hebrew>", "is_correct": <Boolean> },
       { "id": "2", "text": "<String in Hebrew>", "feedback": "<String in Hebrew>", "is_correct": <Boolean> },
@@ -1182,6 +1188,7 @@ OUTPUT SCHEMA (Return ONLY valid JSON):
           prompt,
           context: JSON.stringify({
             task: currentTask.titleHe || currentTask.id,
+            numbers: { a: currentTask.numberA, b: currentTask.numberB },
             targetNode,
             counts,
             activeColumn: activeColumnName
@@ -1268,19 +1275,38 @@ OUTPUT SCHEMA (Return ONLY valid JSON):
 
   /**
    * יוצר אובייקט בקשה מאומת בדיוק לפי סכמת GeminiSocraticRequest (נספח א' §6 ומודול 13).
-   * משתמש במזהה student_id קנוני (1-12) בלבד.
+   * משתמש במזהה student_id קנוני (1-12) בלבד ומעביר את כל רכיבי השילוש הפדגוגי ההוליסטי.
    */
   static buildGeminiSocraticRequest(params: {
     studentId: number | string;
     sessionId: string;
     exerciseId: string;
     activeColumnIndex: number;
+    exerciseContext?: {
+      operation: 'addition' | 'subtraction';
+      number_a: number;
+      number_b: number;
+      session_id: string;
+      session_topic: string;
+      active_column: 'units' | 'tens' | 'hundreds' | 'thousands';
+      active_column_index: number;
+      target_sub_problem: string;
+    };
     workspaceState: {
       ones_count: number;
       tens_count: number;
       hundreds_count: number;
       thousands_count?: number;
-      memory_circles: Record<string, number>;
+      memory_circles?: Record<string, number>;
+      is_regrouped_in_canvas?: boolean;
+    };
+    studentProgressState?: {
+      completed_columns: string[];
+      current_column_input: string | null;
+      memory_circles_state: Record<string, number>;
+      trigger_reason: 'hesitation_45s' | 'consecutive_errors_4' | 'consecutive_undos_3';
+      consecutive_errors_count: number;
+      recent_actions: TelemetryPayload<TelemetryEventType>[];
     };
     recentActions?: TelemetryPayload<TelemetryEventType>[];
   }): GeminiSocraticRequest {
@@ -1294,13 +1320,16 @@ OUTPUT SCHEMA (Return ONLY valid JSON):
       session_id: params.sessionId,
       exercise_id: params.exerciseId,
       active_column_index: params.activeColumnIndex,
+      exercise_context: params.exerciseContext,
       workspace_state: {
         ones_count: params.workspaceState.ones_count,
         tens_count: params.workspaceState.tens_count,
         hundreds_count: params.workspaceState.hundreds_count,
         thousands_count: params.workspaceState.thousands_count || 0,
         memory_circles: params.workspaceState.memory_circles || {},
+        is_regrouped_in_canvas: params.workspaceState.is_regrouped_in_canvas,
       },
+      student_progress_state: params.studentProgressState,
       recent_actions: params.recentActions || [],
     };
   }
@@ -1317,6 +1346,7 @@ OUTPUT SCHEMA (Return ONLY valid JSON):
     const staticFallback: SocraticHintResponse = (fallbackTask?.id && TASK_HINTS[fallbackTask.id]) ||
       TASK_HINTS['s1_license_test'] || {
         pedagogical_intent: 'conceptual',
+        error_category: 'conceptual',
         questionHe: 'מה הפעולה המתמטית שנרצה לבצע בבית המספרים?',
         choices: [
           { id: 'opt_1', textHe: 'לבדוק את כמות הבלוקים בכל טור בבית המספרים', isCorrect: true },

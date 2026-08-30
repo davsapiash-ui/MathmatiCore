@@ -96,8 +96,7 @@ export function PlaceColumn({ place }: { place: Place }) {
         <motion.div 
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="p-1.5 flex justify-center border-b border-ws-surface2/60 bg-ws-bg/40 shrink-0"
-          style={{ pointerEvents: isDimmed ? 'none' : undefined }}
+          className="p-1.5 flex justify-center border-b border-ws-surface2/60 bg-ws-bg/40 shrink-0 pointer-events-auto"
         >
           <button
             onClick={() => groupColumnClick(place)}

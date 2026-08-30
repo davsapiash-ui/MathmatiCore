@@ -135,5 +135,106 @@ describe('Verification Suite: Module 12(c) and Module 13(a)', () => {
       expect(result.questionHe).toBe('מה הצעד הבא לאחר קיבוץ 10 יחידות?');
       expect(result.error_category).toBe('procedural');
     });
+
+    it('enforces the Holistic Pedagogical Triad across exercise context, workspace state, and student progress', async () => {
+      const callSpy = vi.spyOn(SocraticEngine, 'callGeminiProxy').mockResolvedValueOnce({
+        data: JSON.stringify({
+          hard_evidence_log: [
+            {
+              inspected_variable: 'Exercise numbers and live blocks in active column',
+              exact_value_found: '425 - 162, Tens column, 2 tens on board',
+              rule_triggered: 'Deficit in subtraction column requires decomposition',
+              action_taken: 'Formulate decomposition guiding question'
+            }
+          ],
+          final_intervention: {
+            error_category: 'procedural',
+            guiding_question: 'בתרגיל חיסור 425 פחות 162, בעמודת העשרות יש 2 עשרות וצריך להחסיר 6. כיצד נקבל עוד עשרות בבית המספרים?',
+            options: [
+              { id: '1', text: 'נפרוט מאה אחת מטור המאות ל-10 עשרות', feedback: 'נכון מאוד!', is_correct: true },
+              { id: '2', text: 'נחסיר הפוך 6 פחות 2', feedback: 'לא נכון', is_correct: false },
+              { id: '3', text: 'נמחק את טור המאות לפח', feedback: 'לא נכון', is_correct: false }
+            ]
+          }
+        })
+      });
+
+      const request = SocraticEngine.buildGeminiSocraticRequest({
+        studentId: 3,
+        sessionId: 'session_4_student_3',
+        exerciseId: 's4_t2',
+        activeColumnIndex: 1,
+        exerciseContext: {
+          operation: 'subtraction',
+          number_a: 425,
+          number_b: 162,
+          session_id: 'session_4',
+          session_topic: 'חיסור עם פריטת עשרות',
+          active_column: 'tens',
+          active_column_index: 1,
+          target_sub_problem: '2 - 6',
+        },
+        workspaceState: {
+          ones_count: 5,
+          tens_count: 2,
+          hundreds_count: 4,
+          thousands_count: 0,
+          memory_circles: {},
+          is_regrouped_in_canvas: false,
+        },
+        studentProgressState: {
+          completed_columns: ['units'],
+          current_column_input: null,
+          memory_circles_state: {},
+          trigger_reason: 'hesitation_45s',
+          consecutive_errors_count: 0,
+          recent_actions: [],
+        },
+      });
+
+      expect(request.student_id).toBe(3);
+      expect(request.exercise_context?.number_a).toBe(425);
+      expect(request.exercise_context?.number_b).toBe(162);
+      expect(request.exercise_context?.active_column).toBe('tens');
+      expect(request.student_progress_state?.completed_columns).toContain('units');
+      expect(request.workspace_state.is_regrouped_in_canvas).toBe(false);
+
+      const result = await SocraticEngine.fetchGroundedGeminiSocraticQuery({
+        currentTask: {
+          id: 's4_t2',
+          titleHe: 'חיסור פריטת עשרות',
+          numberA: 425,
+          numberB: 162,
+          requiresUngrouping: true,
+        },
+        targetNode: 'subtraction_regrouping',
+        activeColumnName: 'עשרות',
+        counts: { units: 5, tens: 2, hundreds: 4, thousands: 0 },
+        recentActions: ['השלמת יחידות בהצלחה', 'השתהות 45 שניות בטור עשרות'],
+        qMatrixAnchor: {
+          pedagogical_intent: 'procedural',
+          error_category: 'procedural',
+          questionHe: 'מה הצעד הבא בחיסור?',
+          choices: [
+            { id: 'opt_1', textHe: 'לפרוט מאה לעשרות', isCorrect: true },
+            { id: 'opt_2', textHe: 'להחסיר הפוך', isCorrect: false },
+            { id: 'opt_3', textHe: 'למחוק בלוקים', isCorrect: false },
+          ],
+          correctChoiceId: 'opt_1',
+        },
+      });
+
+      expect(callSpy).toHaveBeenCalled();
+      const passedPrompt = (callSpy.mock.calls[0][0] as any).prompt;
+      expect(passedPrompt).toContain('425');
+      expect(passedPrompt).toContain('162');
+      expect(passedPrompt).toContain('עשרות');
+      expect(passedPrompt).toContain('HOLISTIC PEDAGOGICAL TRIAD');
+
+      expect(result).toBeDefined();
+      expect(result?.questionHe).toContain('425 פחות 162');
+      expect(result?.error_category).toBe('procedural');
+      expect(result?.choices).toHaveLength(3);
+    });
   });
 });
