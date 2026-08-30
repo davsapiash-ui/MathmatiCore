@@ -39,6 +39,7 @@ import { CurriculumRouter } from '@/core/CurriculumRouter';
 import { syncQMatrixEvaluation } from '@/core/ExerciseValidationEngine';
 import { QMatrixEvaluator } from '@/core/QMatrix';
 import { getSessionTasks, type SessionTask } from '@/data/sessionTasks';
+import { curriculumCatalog } from '@/infrastructure/services/CurriculumCatalogService';
 import { getSessionBranchTasks } from '@/data/sessionBranchTasks';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
 import { SocraticEngine, type SocraticHintResponse } from '@/infrastructure/services/SocraticEngine';
@@ -1150,8 +1151,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     initSession: (meeting, isASD, initialAITasks, startingTaskIdx, existingDeadline) => {
       const sanitized = sanitizeSessionNumber(meeting);
-      // Master PRD v6.4 Module 14: Sessions 3-7 are 15 min; Sessions 2 & 8 (and Session 1) are 25 min
-      const durationMin = (sanitized >= 3 && sanitized <= 7) ? 15 : 25;
+      // PRD v7.1 Module 26: promote pending curriculum-catalog updates only at
+      // session initialization — a live exercise is never disturbed.
+      curriculumCatalog.activateForSession();
+      // PRD v7.1 Module 14 §ב: Session 1 sandbox = 20 min; Sessions 3-7 = 15 min; Sessions 2 & 8 = 25 min
+      const durationMin = sanitized === 1 ? 20 : (sanitized >= 3 && sanitized <= 7) ? 15 : 25;
 
       let deadline = existingDeadline || null;
       if (!deadline && typeof localStorage !== 'undefined') {

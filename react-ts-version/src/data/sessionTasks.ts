@@ -16,6 +16,7 @@
 
 import { TASKS as QMATRIX_TASKS } from '@/core/QMatrix';
 import type { QMatrixTask } from '@/core/QMatrix';
+import { curriculumCatalog } from '@/infrastructure/services/CurriculumCatalogService';
 
 /* ── Types ── */
 
@@ -1071,13 +1072,39 @@ export const SESSIONS: Record<1 | 3 | 4 | 5 | 6 | 7 | 8, SessionTask[]> = {
   8: SESSION8_TASKS,
 };
 
+/**
+ * PRD v7.1 Modules 4/26: the hardcoded banks in their canonical Firestore
+ * `curriculum_catalog` document layout — used by the admin publish action to
+ * seed/refresh the server catalog. Always reads the hardcoded constants,
+ * never the live overrides.
+ */
+export function getHardcodedCatalogBanks(): Array<{
+  id: string;
+  session_number: number;
+  learning_path: 'green_path' | 'remediation_path' | null;
+  tasks: SessionTask[];
+}> {
+  const banks: Array<{ id: string; session_number: number; learning_path: 'green_path' | 'remediation_path' | null; tasks: SessionTask[] }> = [
+    { id: 'session_1', session_number: 1, learning_path: null, tasks: SESSIONS[1] },
+  ];
+  for (const n of [3, 4, 5, 6, 7] as const) {
+    banks.push({ id: `session_${n}_green_path`, session_number: n, learning_path: 'green_path', tasks: SESSIONS_BY_PATH[n].green_path });
+    banks.push({ id: `session_${n}_remediation_path`, session_number: n, learning_path: 'remediation_path', tasks: SESSIONS_BY_PATH[n].remediation_path });
+  }
+  banks.push({ id: 'session_8', session_number: 8, learning_path: null, tasks: SESSIONS[8] });
+  return banks;
+}
+
 export function getSessionTasks(
   meeting: 1 | 3 | 4 | 5 | 6 | 7 | 8,
   path: 'green_path' | 'remediation_path' = 'green_path'
 ): SessionTask[] {
-  if (meeting >= 3 && meeting <= 7) {
-    const selected = SESSIONS_BY_PATH[meeting as 3 | 4 | 5 | 6 | 7];
-    return selected?.[path] || selected?.green_path || [];
-  }
-  return SESSIONS[meeting] || [];
+  const hardcoded = (meeting >= 3 && meeting <= 7)
+    ? (SESSIONS_BY_PATH[meeting as 3 | 4 | 5 | 6 | 7]?.[path] || SESSIONS_BY_PATH[meeting as 3 | 4 | 5 | 6 | 7]?.green_path || [])
+    : (SESSIONS[meeting] || []);
+
+  // PRD v7.1 Modules 4/26: a bank published to the Firestore curriculum_catalog
+  // (cached in IndexedDB, promoted only at session init) overrides the hardcoded
+  // bank; the hardcoded constants remain the guaranteed offline fallback.
+  return curriculumCatalog.getActiveBank(meeting, meeting >= 3 && meeting <= 7 ? path : null) ?? hardcoded;
 }

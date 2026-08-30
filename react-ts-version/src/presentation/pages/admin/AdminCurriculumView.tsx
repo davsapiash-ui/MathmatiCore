@@ -19,6 +19,7 @@ import { useAdminStore } from "@/application/useAdminStore";
 import { doc, setDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/infrastructure/firebase";
 import { toast } from "sonner";
+import { getHardcodedCatalogBanks } from "@/data/sessionTasks";
 
 interface SessionCurriculumItem {
   sessionId: number;
@@ -131,6 +132,35 @@ export function AdminCurriculumView() {
     }
   };
 
+  // PRD v7.1 Modules 4/26: publish the canonical task banks to the Firestore
+  // curriculum_catalog collection. Clients cache the banks in IndexedDB and
+  // apply updates only to sessions that have not started yet.
+  const [isPublishingCatalog, setIsPublishingCatalog] = useState(false);
+  const handlePublishCatalog = async () => {
+    try {
+      setIsPublishingCatalog(true);
+      const banks = getHardcodedCatalogBanks();
+      const publishedAt = Date.now();
+      await Promise.all(
+        banks.map((bank) =>
+          setDoc(doc(db, 'curriculum_catalog', bank.id), {
+            session_number: bank.session_number,
+            learning_path: bank.learning_path,
+            updated_at: publishedAt,
+            // JSON round-trip strips undefined optional fields Firestore rejects
+            tasks: JSON.parse(JSON.stringify(bank.tasks)),
+          })
+        )
+      );
+      toast.success(`קטלוג תוכנית הלימודים פורסם ל-Firestore: ${banks.length} מאגרי משימות! 📚`);
+    } catch (e) {
+      console.error(e);
+      toast.error('שגיאה בפרסום קטלוג תוכנית הלימודים.');
+    } finally {
+      setIsPublishingCatalog(false);
+    }
+  };
+
   const handleBatchDistribute = async () => {
     try {
       setIsBatchDistributing(true);
@@ -197,6 +227,15 @@ export function AdminCurriculumView() {
             >
               <Send className="w-4 h-4" />
               <span>{isBatchDistributing ? 'מפיץ מטלות...' : 'הפצה מרוכזת לכל הכיתה'}</span>
+            </button>
+
+            <button
+              onClick={handlePublishCatalog}
+              disabled={isPublishingCatalog}
+              className="px-5 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs flex items-center gap-2 shadow-lg shadow-indigo-600/30 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+            >
+              <BookOpen className="w-4 h-4" />
+              <span>{isPublishingCatalog ? 'מפרסם קטלוג...' : 'פרסום קטלוג ל-Firestore'}</span>
             </button>
           </div>
         </div>
