@@ -361,15 +361,10 @@ export function selectCanProceed(s: WorkspaceState): boolean {
   if (s.sessionNumber === 2) {
     const task = getCurrentQTask(s.qflow);
     if (!task) return false;
-    if (!s.hasInteracted) return false;
-    if ((task.type === 'place_value_zero' || task.type === 'small_change') && !s.selectedChoiceId) return false;
-    if (task.type === 'missing_element' && !s.probeAnswer) return false;
-    if (task.type === 'vertical_addition') {
-      const subtask = isSubtaskActive(s.qflow);
-      if (subtask && !s.probeAnswer) return false;
-      if (!subtask && answerDigitsToNumber(s.answerDigits) === null) return false;
-    }
-    return true;
+    const hasDigits = answerDigitsToNumber(s.answerDigits) !== null;
+    const hasSingleValue = Boolean(s.probeAnswer && s.probeAnswer.trim().length > 0);
+    const hasPartialDigits = Boolean(s.answerDigits.tens || s.answerDigits.units || s.answerDigits.hundreds);
+    return Boolean(hasDigits || hasSingleValue || hasPartialDigits || s.hasInteracted);
   }
   const task = selectStandardTask(s);
   if (!task) return false;
@@ -560,13 +555,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
               };
               
               const realQMatrix = {
-                task1_zero_placeholder: getTag(r['task1_zero_placeholder']),
-                task3_flexible_regrouping: getTag(r['task3_flexible_regrouping']),
-                task4_basic_addition_fluency: getTag(r['task4_basic_addition_fluency']),
-                task5_small_change: getTag(r['task5_small_change']),
-                task6_subtraction_regrouping: getTag(r['task6_subtraction_regrouping']),
-                task7_missing_subtrahend: getTag(r['task7_missing_subtrahend']),
-                task8_missing_addend: getTag(r['task8_missing_addend']),
+                task1_read_write_zero: getTag(r['task1_read_write_zero']),
+                task2_digit_value: getTag(r['task2_digit_value']),
+                task3_subtraction_regrouping: getTag(r['task3_subtraction_regrouping']),
+                task4_decompose_number: getTag(r['task4_decompose_number']),
+                task5_units_to_tens: getTag(r['task5_units_to_tens']),
+                task6_vertical_addition: getTag(r['task6_vertical_addition']),
+                task7_subtraction_zero_tens: getTag(r['task7_subtraction_zero_tens']),
               };
               store.updateQMatrix(studentId, realQMatrix);
               syncQMatrixEvaluation(studentId, realQMatrix).catch(console.error);
@@ -991,46 +986,23 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     if (!task || s.awaitingNext) return;
     const subtask = isSubtaskActive(s.qflow);
 
-    let evalResult: { correct: boolean; detail: string } | null = null;
-
-    switch (task.type) {
-      case 'place_value_zero': {
-        if (!s.selectedChoiceId) return;
-        const r = QMatrixEvaluator.evaluateQ1(task, s.selectedChoiceId, s.counts, s.qflow.phase, s.qflow.subphase, s.isASD);
-        evalResult = { correct: r.correct, detail: r.detail };
-        break;
-      }
-
-      case 'flexible_decomp': {
-        if (s.q3Reps.length < 2) {
-          showFeedback({ correct: false, title: 'נִדְרָשִׁים שְׁנֵי יִצּוּגִים שׁוֹנִים', sub: 'הוֹסִיפוּ יִצּוּג שֵׁנִי!' }, 1800);
-          return;
-        }
-        const r = QMatrixEvaluator.evaluateQ3(task, s.q3Reps, s.qflow.phase, s.qflow.subphase, s.isASD);
-        evalResult = { correct: r.correct, detail: r.detail };
-        break;
-      }
-      case 'vertical_addition': {
-        const answer = subtask ? (s.probeAnswer ? parseInt(s.probeAnswer, 10) : null) : answerDigitsToNumber(s.answerDigits);
-        if (answer === null || Number.isNaN(answer)) return;
-        const r = QMatrixEvaluator.evaluateQ4(task, answer, s.qflow.phase, s.qflow.subphase, s.isASD);
-        evalResult = { correct: r.correct, detail: r.detail };
-        break;
-      }
-      case 'small_change': {
-        if (!s.selectedChoiceId) return;
-        const r = QMatrixEvaluator.evaluateQ5(task, s.selectedChoiceId, s.qflow.phase, s.qflow.subphase);
-        evalResult = { correct: r.correct, detail: r.detail };
-        break;
-      }
-      case 'missing_element': {
-        const answer = s.probeAnswer ? parseInt(s.probeAnswer, 10) : null;
-        if (answer === null || Number.isNaN(answer)) return;
-        const r = QMatrixEvaluator.evaluateQ7(task, answer, s.qflow.phase, s.qflow.subphase, s.isASD);
-        evalResult = { correct: r.correct, detail: r.detail };
-        break;
+    let answer: number | null = null;
+    if (subtask) {
+      answer = s.probeAnswer ? parseInt(s.probeAnswer, 10) : null;
+    } else {
+      answer = answerDigitsToNumber(s.answerDigits);
+      if ((answer === null || isNaN(answer)) && s.probeAnswer) {
+        answer = parseInt(s.probeAnswer, 10);
       }
     }
+
+    if (answer === null || Number.isNaN(answer)) {
+      showFeedback({ correct: false, title: 'נָא לְהַקְלִיד תְּשׁוּבָה', sub: 'הַקְלִידוּ אֶת הַתְּשׁוּבָה בַּתֵּיבוֹת' }, 1500);
+      return;
+    }
+
+    const isCorrect = answer === task.correctAnswer;
+    const evalResult = { correct: isCorrect, detail: isCorrect ? '' : 'wrong_answer' };
 
     if (evalResult) {
       if (!evalResult.correct) {

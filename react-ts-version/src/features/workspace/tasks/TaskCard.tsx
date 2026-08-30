@@ -11,6 +11,8 @@ import { FlexibleDecompTask } from './FlexibleDecompTask';
 import { SmallChangeTask } from './SmallChangeTask';
 import { BackwardDiagnosisView } from './BackwardDiagnosisView';
 
+import { PlaceValueInputBoxes } from './PlaceValueInputBoxes';
+
 /**
  * כרטיס המשימה — כותרת, הוראה (עם הקראה), וגוף דינמי לפי סוג המשימה והשלב.
  * UDL: ריבוי אמצעי ייצוג — טקסט + הקראה + ייצוג חזותי.
@@ -85,8 +87,6 @@ export function TaskCard() {
               <FlexibleDecompTask targetNumber={standardTask.numberA ?? 0} />
             )}
 
-
-
             {standardTask.type === 'small_change' && (
               <SmallChangeTask
                 givenHe={standardTask.givenHe ?? ''}
@@ -126,47 +126,49 @@ export function TaskCard() {
                 exit={{ opacity: 0, x: 20 }}
                 className="flex flex-col gap-4"
               >
+                {/* 1. קריאה וכתיבה של מספר תלת-ספרתי */}
                 {qTask.type === 'place_value_zero' && (
-                  <div className="flex flex-col gap-4">
-                    <div className="self-center bg-ws-accentSoft rounded-3xl px-10 py-5 border border-ws-accent/30">
-                      <span className="font-display font-black text-6xl text-ws-accent tabular-nums">
-                        {getEffectiveNumber(qTask, qflow, isASD)}
-                      </span>
-                    </div>
-                    <ChoiceList choices={getEffectiveChoices(qTask, qflow)} />
-                  </div>
+                  <PlaceValueInputBoxes
+                    mode="three_digits"
+                    givenText={qTask.givenHe}
+                    labels={{ hundreds: 'מאות', tens: 'עשרות', units: 'יחידות' }}
+                  />
                 )}
 
-
-
-                {qTask.type === 'flexible_decomp' && (
-                  <FlexibleDecompTask targetNumber={getEffectiveNumber(qTask, qflow, isASD) ?? 0} />
+                {/* 2. זיהוי וייצוג ערך ספרה */}
+                {qTask.type === 'digit_value' && (
+                  <PlaceValueInputBoxes
+                    mode="single_value"
+                    highlightNumber={String(qTask.number ?? 742)}
+                    highlightIndex={qTask.highlightIndex ?? 1}
+                  />
                 )}
 
-                {qTask.type === 'vertical_addition' &&
-                  (() => {
-                    const { a, b, target } = effectiveArithmetic(qTask, isASD);
-                    // isSubtraction must flow through — task6 (52−18) rendered "+" without it.
-                    return (
-                      <VerticalAdditionTask
-                        numberA={a}
-                        numberB={b}
-                        isSubtraction={qTask.isSubtraction}
-                        answerLength={String(Math.abs(target)).length}
-                      />
-                    );
-                  })()}
-
-                {qTask.type === 'small_change' && (
-                  <SmallChangeTask givenHe={qTask.givenHe ?? ''} questionHe={qTask.questionHe ?? ''} choices={qTask.choices ?? []} />
+                {/* 4. פירוק מספר תלת-ספרתי לרכיביו */}
+                {qTask.type === 'number_breakdown' && (
+                  <PlaceValueInputBoxes
+                    mode="three_digits"
+                    givenText={qTask.givenHe}
+                    labels={{ hundreds: 'מאות', tens: 'עשרות', units: 'יחידות' }}
+                  />
                 )}
 
-                {qTask.type === 'missing_element' && (
-                  <MissingElementTask
-                    instructionHe={qTask.instructionHe}
-                    numberA={isASD && qTask.asdNumberA !== undefined ? qTask.asdNumberA : (qTask.numberA ?? 0)}
-                    numberB={isASD && qTask.asdNumberB !== undefined ? qTask.asdNumberB : (qTask.numberB ?? 0)}
+                {/* 5. המרה עצמאית בין עזרים וירטואליים */}
+                {qTask.type === 'conversion' && (
+                  <PlaceValueInputBoxes
+                    mode="two_digits"
+                    givenText={qTask.givenHe}
+                    labels={{ tens: 'עשרות', units: 'יחידות' }}
+                  />
+                )}
+
+                {/* 3, 6, 7. חישוב במאונך (חיבור או חיסור) */}
+                {qTask.type === 'vertical_addition' && (
+                  <VerticalAdditionTask
+                    numberA={qTask.numberA ?? 0}
+                    numberB={qTask.numberB ?? 0}
                     isSubtraction={qTask.isSubtraction}
+                    answerLength={String(Math.abs(qTask.correctAnswer ?? 0)).length}
                   />
                 )}
               </motion.div>
@@ -177,3 +179,4 @@ export function TaskCard() {
     </AccessibleCard>
   );
 }
+

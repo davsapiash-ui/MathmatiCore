@@ -398,35 +398,8 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       }).catch(() => {});
     }, 5000);
 
-    // 4. Handle client-side browser/tab close (beforeunload / pagehide)
-    const handleTeacherUnload = () => {
-      try {
-        update(teacherPresenceRef, {
-          isOnline: false,
-          onlineStatus: 'offline',
-          lastPing: 0,
-          lastActive: Date.now(),
-        }).catch(() => {});
-
-        set(activeSessionRef, {
-          active: false,
-          sessionNumber: null,
-          endedAt: Date.now(),
-          teacherId: teacherId,
-        }).catch(() => {});
-      } catch (e) {
-        console.warn('[TeacherDashboard] Unload cleanup notice:', e);
-      }
-    };
-
-    window.addEventListener('beforeunload', handleTeacherUnload);
-    window.addEventListener('pagehide', handleTeacherUnload);
-
     return () => {
       clearInterval(pingInterval);
-      window.removeEventListener('beforeunload', handleTeacherUnload);
-      window.removeEventListener('pagehide', handleTeacherUnload);
-      handleTeacherUnload();
     };
   }, [user?.uid]);
 

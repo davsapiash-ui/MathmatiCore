@@ -10,13 +10,21 @@ import type { MasteryProfile } from '@/core/QMatrix';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 
 export interface QMatrix {
-  task1_zero_placeholder: string | null;
-  task3_flexible_regrouping: string | null;
-  task4_basic_addition_fluency: string | null;
-  task5_small_change: string | null;
-  task6_subtraction_regrouping: string | null;
-  task7_missing_subtrahend: string | null;
-  task8_missing_addend: string | null;
+  task1_read_write_zero?: string | null;
+  task2_digit_value?: string | null;
+  task3_subtraction_regrouping?: string | null;
+  task4_decompose_number?: string | null;
+  task5_units_to_tens?: string | null;
+  task6_vertical_addition?: string | null;
+  task7_subtraction_zero_tens?: string | null;
+  task1_zero_placeholder?: string | null;
+  task3_flexible_regrouping?: string | null;
+  task4_basic_addition_fluency?: string | null;
+  task5_small_change?: string | null;
+  task6_subtraction_regrouping_legacy?: string | null;
+  task7_missing_subtrahend?: string | null;
+  task8_missing_addend?: string | null;
+  [key: string]: string | null | undefined;
 }
 
 export interface SemanticEvent {

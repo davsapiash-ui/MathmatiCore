@@ -431,21 +431,38 @@ export interface GeminiSocraticResponse {
 
 # **מודול 15: מודול ארגז חול דיגיטלי מונחה ומצב מקרן** *(Sandbox & Projector Mode Spec)*
 
-## **א. הטריגר הפדגוגי**
+## **א. הטריגר הפדגוגי והרציונל הלמידתי**
 
-ניהול הלמידה ההיברידית בכיתה בצורה רכה וצפויה. הפעלת מצב מקרן יוצרת מעבר קוגניטיבי מבוקר המכוון את קשב הלומדים להסבר המורה תוך מניעת עומס מפוצל.
+ניהול הלמידה ההיברידית בכיתה בצורה רכה, צפויה ומובנית, המבוססת באופן בלעדי על מודל VRA הדיגיטלי (וירטואלי, ייצוגי, מופשט). הרציונל הפדגוגי של מצב מקרן הוא מניעת עומס קוגניטיבי מפוצל (Split-Attention Effect) והפחתת הצפה חושית במהלך שלבי ההקניה הפרונטלית במליאה. 
 
-## **ב. מצב המערכת**
+במבנה זרימת השיעור ההיברידי:
+* **מפגש 1:** המורה משתמשת במקרן לצורך אוריינטציה כיתתית ראשונית והדגמת אינטראקציית לבני הדינס הווירטואליות.
+* **מפגשים 3 עד 7:** כל מפגש נפתח בשלב הקניה פרונטלי מונחה בן 10 דקות. במהלך שלב זה, מסכי כל התלמידים ננעלים באמצעות מצב מקרן כדי למקד את מלוא הקשב במקרן הכיתתי ובהסבר המורה, תוך שמירה על עקרונות העיצוב האוניברסלי ללמידה (UDL) ומניעת חרדה או הצפה אצל לומדים על הרצף האוטיסטי (ASD).
 
-השרת הוא מקור האמת היחיד למצב המקרן ברמת class\_id ו-active\_session\_id. שדות שרת: projector\_mode (boolean), projector\_mode\_updated\_at (timestamp), updated\_by\_teacher\_id. כאשר מצב מקרן פעיל, סביבת התלמיד עוברת למצב צפייה חסום ואטום. חל איסור מוחלט על הצגת מסכים Null או לבנים, איפוס מרחב העבודה המקומי, או טעינה מחדש של הדפדפן.
+## **ב. ארכיטקטורה טכנולוגית ומצב המערכת**
 
-## **ג. התוצאה הצפויה והתנהגות ויזואלית**
+השרת הוא מקור האמת היחיד והמוחלט למצב המקרן ברמת הכיתה (`class_id`) והמפגש הפעיל (`active_session_id`). 
+* **נתיב הנתונים בשרת:** בסיס הנתונים בזמן אמת של פיירבייס (Firebase Realtime Database) מנהל את המצב תחת הנתיב `active_class_session`.
+* **שדות הסנכרון:**
+  * `projector_mode` (boolean): מצב השידור הפעיל (אמת בעת שידור, שקר בעת שחרור).
+  * `projector_mode_updated_at` (timestamp): חותמת זמן מדויקת למניעת דריסת נתונים ישנים.
+  * `updated_by_teacher_id` (string): מזהה המורה המפעילה.
+* **סנכרון בזמן אמת:** סנכרון המצב מתבצע בזמן אמת אל מכשירי התלמידים באמצעות מאזין ייעודי (`onValue`). יעד זמן התגובה להפעלה או לכיבוי המצב הוא שווה או נמוך משנייה אחת (P95 ≤ 1000ms).
+* **ניהול מצב לקוח מנותק:** באפליקציית התלמיד, מצב המקרן מנוהל באמצעות חנות Zustand מופרדת ייעודית בשם `useTeacherStore`, המבודדת את מצב השליטה הכיתתי ממצב העבודה השוטף של הלומד.
 
-הצגת מסך המתנה אטום הכולל איור מקרן שליו והטקסט: "הקשיבו להסבר של המורה על גבי המקרן". מרחב העבודה נשמר בזיכרון המקומי אך מוסתר לחלוטין. עם כיבוי המקרן, הסביבה משתחררת מיד (P95 ≤ 1000ms) לאותו מצב מדויק.
+## **ג. חוויית משתמש, נכסים חזותיים וכללי תקינות ממשק**
+
+* **נעילת מצב פעיל:** כאשר הערך של `projector_mode` הוא אמת, ממשק התלמיד עובר למסך המתנה אטום לחלוטין ושליו.
+* **נכסים חזותיים וניסוח מחייב:** המסך מציג איור מקרן רגוע ואת הטקסט המדויק: **"הקשיבו להסבר של המורה על גבי המקרן"**.
+* **כללי תקינות מחמירים לממשק המשתמש (UI Safety Rules):**
+  1. **מניעת הבהובי מסך:** חל איסור מוחלט על הצגת מסכים ריקים, לבנים או ערכי Null במהלך מעברי המצב.
+  2. **שימור מלא של זיכרון העבודה המקומי:** מצב מרחב העבודה של התלמיד בחנות `useWorkspaceStore` נשמר במלואו בזיכרון המקומי של הדפדפן. משתנים אינם מתאפסים, הלבנים בלוח אינן נמחקות, והספרות שהוזנו נשארות שלמות.
+  3. **איסור טעינה מחדש:** חל איסור מוחלט על ביצוע רענון דף (Page Reload) או אתחול הרכיבים.
+  4. **שחרור מהיר ורציף:** עם כיבוי המצב (כאשר `projector_mode` משתנה לשקר), הממשק משתחרר בתוך פחות משנייה אחת (P95 ≤ 1000ms) ומחזיר את הלומדים בדיוק אל מצב העבודה המקורי שלהם ללא כל אובדן נתונים.
 
 **הנחיות פיתוח נוקשות (Strict Developer Instructions)**
 
-*Eradicate all rendering of null or blank screen states when projector mode is active. Restrict projector mode state strictly to class\_id and active\_session\_id context. Render a serene, fully opaque wait screen displaying "הקשיבו להסבר של המורה על גבי המקרן" without deletion. Persist current Zustand state. Synchronize boolean state via real-time Firestore listener with target P95 ≤ 1000ms. Ignore outdated updates using timestamp validation.*
+*Eradicate all rendering of null or blank screen states when projector mode is active. Restrict projector mode state strictly to class_id and active_session_id context within active_class_session in Firebase Realtime Database. Render a serene, fully opaque wait screen displaying "הקשיבו להסבר של המורה על גבי המקרן" without deletion. Persist current Zustand state in useWorkspaceStore while decoupling the projector listener in useTeacherStore. Synchronize boolean state via real-time listener with target latency P95 <= 1000ms. Ignore outdated updates using timestamp validation. Restore exact canvas and input state immediately upon deactivation without page reloads.*
 
 # **מודול 16: מודול לוח רפלקציה תלת־שלבי** *(SRL Reflection Board Spec)*
 

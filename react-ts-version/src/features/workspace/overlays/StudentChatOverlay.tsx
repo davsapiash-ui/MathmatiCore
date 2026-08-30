@@ -88,10 +88,26 @@ export function StudentChatOverlay() {
     }
   };
 
+  const handleCallTeacher = () => {
+    if (!user?.uid) return;
+    const studentNum = normUid.replace(/\D+/g, '') || '1';
+    sendMessage(
+      normUid,
+      (user.displayName as string) || `תלמיד ${studentNum}`,
+      targetTeacherId as string,
+      'המורה, אני צריך עזרה בכיתה! 🙋‍♂️'
+    );
+    toast.success('הקריאה נשלחה למורה בהצלחה! 🔔');
+  };
+
+  const handleQuickPrompt = (promptText: string) => {
+    setText(promptText);
+  };
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed bottom-6 left-6 z-50 w-80 sm:w-96 h-[440px] bg-ws-surface rounded-3xl shadow-2xl border-2 border-ws-surface2 flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200" dir="rtl">
+    <div className="fixed bottom-6 left-6 z-50 w-80 sm:w-96 h-[480px] bg-ws-surface rounded-3xl shadow-2xl border-2 border-ws-surface2 flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200" dir="rtl">
       {/* Header */}
       <div className="p-4 bg-ws-surface2 border-b border-ws-surface2 flex justify-between items-center shrink-0">
         <div className="flex items-center gap-2">
@@ -107,13 +123,26 @@ export function StudentChatOverlay() {
         </button>
       </div>
 
+      {/* Call Teacher Action Banner */}
+      <div className="bg-amber-50 dark:bg-amber-950/40 border-b border-amber-200 dark:border-amber-900/50 p-2.5 px-4 flex items-center justify-between gap-2 shrink-0">
+        <span className="text-xs font-medium text-amber-900 dark:text-amber-200">
+          זקוק לעזרה מיידית?
+        </span>
+        <button
+          onClick={handleCallTeacher}
+          className="bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-sm flex items-center gap-1.5 transition-all cursor-pointer"
+        >
+          <span>קרא למורה 🔔</span>
+        </button>
+      </div>
+
       {/* Messages Scroll Area */}
       <div className="flex-1 overflow-y-auto no-scrollbar p-4 flex flex-col gap-3">
         {myMessages.length === 0 ? (
           <div className="text-center text-ws-soft text-sm my-auto flex flex-col items-center gap-2">
             <HelpCircle className="w-8 h-8 opacity-40 text-ws-accent" />
             <p>אין הודעות קודמות.</p>
-            <p className="text-xs">כתבו הודעה למורה כדי להתחיל.</p>
+            <p className="text-xs">כתבו הודעה למורה או לחצו על קריאה למורה.</p>
           </div>
         ) : (
           myMessages.map(m => {
@@ -140,6 +169,22 @@ export function StudentChatOverlay() {
           })
         )}
         <div ref={messagesEndRef} />
+      </div>
+
+      {/* Quick Prompts */}
+      <div className="px-3 py-1.5 bg-slate-50 dark:bg-slate-900 border-t border-ws-surface2 flex gap-1.5 overflow-x-auto no-scrollbar shrink-0">
+        <button
+          onClick={() => handleQuickPrompt('אני צריך עזרה בתרגיל הזה')}
+          className="text-[11px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-full px-2.5 py-1 whitespace-nowrap hover:border-ws-accent transition-colors cursor-pointer"
+        >
+          אני צריך עזרה בתרגיל
+        </button>
+        <button
+          onClick={() => handleQuickPrompt('לא הבנתי את ההוראה')}
+          className="text-[11px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-full px-2.5 py-1 whitespace-nowrap hover:border-ws-accent transition-colors cursor-pointer"
+        >
+          לא הבנתי את ההוראה
+        </button>
       </div>
 
       {/* Input Box */}
