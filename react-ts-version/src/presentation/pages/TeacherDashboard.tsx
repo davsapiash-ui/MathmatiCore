@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import { ref, onValue, remove, set, update, query, limitToLast, onDisconnect, serverTimestamp } from "firebase/database";
 import { isClassSessionLive } from "@/core/classSession";
 import { database, auth, functions, firestore } from "@/infrastructure/firebase";
-import { doc, getDoc, updateDoc, setDoc, onSnapshot, collection } from "firebase/firestore";
+import { doc, getDoc, updateDoc, setDoc, onSnapshot, collection, writeBatch } from "firebase/firestore";
 import type { SessionDocument, PedagogicalPath } from "@/types";
 import { httpsCallable } from "firebase/functions";
 import {
@@ -38,6 +38,8 @@ import { HeatmapGrid } from "./TeacherDashboard/components/HeatmapGrid";
 import { ClusteringWidgets } from "./TeacherDashboard/components/ClusteringWidgets";
 import { TeacherApprovalGate, type GateStudentItem } from "./TeacherDashboard/components/TeacherApprovalGate";
 import { ResetConfirmationModal } from "./TeacherDashboard/components/ResetConfirmationModal";
+import { SessionActivationModal, type SessionRow } from "./TeacherDashboard/components/SessionActivationModal";
+import { getSessionDurationMinutes } from "@/core/classSession";
 import { SocraticEngine, type PendingAIApproval } from "@/infrastructure/services/SocraticEngine";
 import type { RadarAlert } from "@/types/dashboard";
 import { CONCEPT_LABELS_HE } from "@/core/QMatrix";
@@ -316,6 +318,10 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   const [isClassSessionActive, setIsClassSessionActive] = useState(false);
   const [_sessionStartTime, setSessionStartTime] = useState<number | null>(null);
   const [selectedSessionNum, setSelectedSessionNum] = useState<number>(1);
+  // Module 14 §ב0: activation goes through an explicit confirmation window
+  const [pendingActivationSession, setPendingActivationSession] = useState<number | null>(null);
+  // Module 14 §ב1: teacher-only, one-time-per-session deadline notice
+  const [deadlineNotice, setDeadlineNotice] = useState<{ sessionNumber: number; minutes: number } | null>(null);
 
   // Sync active class session with Firebase.
   // A session with a teacherDisconnectedAt stamp older than 5 minutes counts as
@@ -352,6 +358,34 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       clearInterval(graceTimer);
     };
   }, []);
+
+  // PRD v7.1 Module 14 §ב1: on reaching session_deadline_time the LEARNER's screen
+  // changes in no way; the teacher dashboard alone surfaces a one-time dismissible
+  // popup "עברו X דקות", where X is derived from the session's configured duration
+  // (20 / 25 / 15) and never a hardcoded constant. Once dismissed it never returns,
+  // so the shown-marker is persisted per session activation.
+  useEffect(() => {
+    if (!isClassSessionActive || !_sessionStartTime) return;
+
+    const minutes = getSessionDurationMinutes(selectedSessionNum);
+    const deadlineAt = _sessionStartTime + minutes * 60 * 1000;
+    const seenKey = `mathmaticore_deadline_notice_${selectedSessionNum}_${_sessionStartTime}`;
+
+    const evaluate = () => {
+      if (Date.now() < deadlineAt) return;
+      try {
+        if (localStorage.getItem(seenKey) === '1') return;
+        localStorage.setItem(seenKey, '1');
+      } catch {
+        // Storage unavailable: still show once for this mount.
+      }
+      setDeadlineNotice({ sessionNumber: selectedSessionNum, minutes });
+    };
+
+    evaluate();
+    const timer = setInterval(evaluate, 15000);
+    return () => clearInterval(timer);
+  }, [isClassSessionActive, _sessionStartTime, selectedSessionNum]);
 
   // Auto-sync teacher role claim on dashboard mount
   useEffect(() => {
@@ -436,6 +470,26 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
           console.warn('[TeacherDashboard] Role sync notice (non-fatal):', roleErr);
         }
       }
+      // PRD v7.1 Module 14 §ב0: the server updates active_session_id on the
+      // ClassDocument and on every student document in the class as ONE atomic
+      // operation for all learners simultaneously — never per single learner.
+      const activeSessionId = `session_0${sessionNum}`;
+      const classId = useAdminStore.getState().classes[0]?.id || 'class_1';
+      const batch = writeBatch(firestore);
+      batch.set(
+        doc(firestore, 'classes', classId),
+        { active_session_id: activeSessionId, updated_by_teacher_id: user?.uid || null },
+        { merge: true }
+      );
+      for (let studentNum = 1; studentNum <= 12; studentNum++) {
+        batch.set(
+          doc(firestore, 'students', `student_user${studentNum}`),
+          { active_session_id: activeSessionId },
+          { merge: true }
+        );
+      }
+      await batch.commit();
+
       await set(ref(database, 'active_class_session'), {
         active: true,
         sessionNumber: sessionNum,
@@ -702,6 +756,20 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     return list;
   }, [students]);
 
+
+  // Module 14 §ב0: the picker must show all eight sessions AND the state of each.
+  // active = currently open; completed = every learner passed it; pending = otherwise.
+  const sessionRows: SessionRow[] = useMemo(() => {
+    return [1, 2, 3, 4, 5, 6, 7, 8].map((sessionNumber) => {
+      if (isClassSessionActive && selectedSessionNum === sessionNumber) {
+        return { sessionNumber, state: 'active' as const };
+      }
+      const everyoneCompleted =
+        allStudents.length > 0 &&
+        allStudents.every((s) => (Number(s.highestCompletedMeeting) || 0) >= sessionNumber);
+      return { sessionNumber, state: everyoneCompleted ? ('completed' as const) : ('pending' as const) };
+    });
+  }, [allStudents, isClassSessionActive, selectedSessionNum]);
 
   const decimalStructureGroup = allStudents.filter(
     (s) => s.conceptMastery && s.conceptMastery.decimal_structure < 0.5
@@ -1375,15 +1443,15 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                   onChange={(e) => setSelectedSessionNum(parseInt(e.target.value, 10))}
                   className="bg-white text-slate-800 border border-slate-300 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-sm"
                 >
-                  {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
-                    <option key={num} value={num}>
-                      מפגש {num}
+                  {sessionRows.map(({ sessionNumber, state }) => (
+                    <option key={sessionNumber} value={sessionNumber}>
+                      {`מפגש ${sessionNumber} — ${state === 'active' ? 'פעיל כעת' : state === 'completed' ? 'הושלם' : 'טרם נפתח'}`}
                     </option>
                   ))}
                 </select>
 
                 <button
-                  onClick={() => handleStartClassSession(selectedSessionNum)}
+                  onClick={() => setPendingActivationSession(selectedSessionNum)}
                   className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
                 >
                   <span>▶️</span>
@@ -2884,6 +2952,40 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
             teacherId={(user?.uid as string) || TEACHER_ID}
           />
         )}
+
+        {/* Module 14 §ב0: explicit confirmation before opening a session for the class */}
+        <SessionActivationModal
+          isOpen={pendingActivationSession !== null}
+          sessionNumber={pendingActivationSession}
+          sessions={sessionRows}
+          onClose={() => setPendingActivationSession(null)}
+          onConfirm={(sessionNum) => {
+            setPendingActivationSession(null);
+            handleStartClassSession(sessionNum);
+          }}
+        />
+
+        {/* Module 14 §ב1: teacher-only one-time deadline notice */}
+        {deadlineNotice !== null && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" dir="rtl">
+            <div className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm" onClick={() => setDeadlineNotice(null)} />
+            <div className="relative w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 text-center space-y-4">
+              <p className="text-2xl font-black text-slate-900 dark:text-white">
+                עברו {deadlineNotice.minutes} דקות
+              </p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                זמן היעד של מפגש {deadlineNotice.sessionNumber} חלף. הלומדים ממשיכים לעבוד ללא הפרעה — ההודעה מיועדת לך בלבד.
+              </p>
+              <button
+                onClick={() => setDeadlineNotice(null)}
+                className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm cursor-pointer"
+              >
+                הבנתי
+              </button>
+            </div>
+          </div>
+        )}
+
         <ResetConfirmationModal
           isOpen={isSystemResetModalOpen}
           onClose={() => setIsSystemResetModalOpen(false)}

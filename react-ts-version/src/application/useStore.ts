@@ -1,7 +1,9 @@
 import { create } from 'zustand';
 import { ref, onValue, update, get, remove, set as fbSet } from 'firebase/database';
-import { database, functions } from '@/infrastructure/firebase';
+import { database, functions, firestore } from '@/infrastructure/firebase';
+import { doc, setDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
+import { useAuthStore } from '@/application/useAuthStore';
 import { toast } from 'sonner';
 import { useChatStore, normalizeStudentId } from '@/application/useChatStore';
 
@@ -167,6 +169,8 @@ interface AppState {
   updateStudent: (studentId: string, updates: Partial<StudentData>) => void;
   resetStudentData: (studentId: string) => Promise<void>;
   resetEntireSystemUsageData: (reason?: any) => Promise<void>;
+  /** Module 23א level 1: clears radar alerts only, never learning data. */
+  resetRadarAlerts: (reason?: any, reasonNote?: string) => Promise<void>;
   initStoreSubscriptions: () => (() => void);
 }
 
@@ -599,7 +603,9 @@ export const useStore = create<AppState>()(
         const num = normId.replace(/\D/g, '') || '1';
         const defaultName = `תלמיד ${num}`;
 
-        // Module 23א: Step 1 & 2 - Call server-side Backup-Before-Delete Cloud Function
+        // PRD v7.1 Module 23א §ג: backup-before-delete is a HARD gate. Collect,
+        // write the backup, await acknowledgment — and only then delete. If the
+        // backup fails for any reason the deletion must not happen at all.
         try {
           const backupResetCallable = httpsCallable(functions, 'backupAndResetSessionData');
           await backupResetCallable({
@@ -609,7 +615,9 @@ export const useStore = create<AppState>()(
             class_id: 'class_1',
           });
         } catch (err: any) {
-          console.warn('[Module 23א] Backup function warning (falling back to direct client reset):', err);
+          console.error('[Module 23א] Backup failed — reset aborted, no data deleted:', err);
+          toast.error('הגיבוי נכשל. האיפוס בוטל ולא נמחקו נתונים.');
+          throw new Error('BACKUP_FAILED_RESET_ABORTED');
         }
 
         // Direct RTDB Reset for guaranteed real-time responsiveness
@@ -710,8 +718,64 @@ export const useStore = create<AppState>()(
         toast.success(`נתוני ${defaultName} אופסו בהצלחה!`);
       },
 
+      /**
+       * PRD v7.1 Module 23א §ב level 1 — Alerts Reset.
+       * Clears the pedagogical radar state and returns all twelve cells to their
+       * default. Touches NO learning data, telemetry or session document, and
+       * requires no backup. Still writes a ResetAuditEntry with the chosen
+       * reason, because §ד mandates an audit record for every reset without
+       * exception — including this one.
+       */
+      resetRadarAlerts: async (
+        reason: 'technical_fault' | 'student_stuck' | 'restart_session' | 'test_run' | 'other' = 'restart_session',
+        reasonNote?: string
+      ) => {
+        const teacherId = useAuthStore.getState().user?.uid || 'teacher';
+        const resetId = `reset_alerts_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+        // 1. Clear radar alert feed and the per-student alert flags only.
+        await remove(ref(database, 'radar_alerts')).catch(() => {});
+        const alertClearPayload = {
+          helpRequested: false,
+          handRaised: false,
+          isStruggling: false,
+          isSocraticActive: false,
+          last_alert: null,
+        };
+        for (let i = 1; i <= 12; i++) {
+          await Promise.all(
+            [`student_user${i}`, `student_${i}`, `${i}`].map((alias) =>
+              update(ref(database, `users/students/${alias}`), alertClearPayload).catch(() => {})
+            )
+          );
+        }
+
+        // 2. Mandatory immutable audit entry (§ד) — never deleted by any reset.
+        try {
+          await setDoc(doc(firestore, 'reset_audit_log', resetId), {
+            reset_id: resetId,
+            reset_level: 'alerts',
+            performed_by_teacher_id: teacherId,
+            performed_at: Date.now(),
+            class_id: 'class_1',
+            affected_student_ids: Array.from({ length: 12 }, (_, i) => i + 1),
+            backup_file_url: null,
+            backup_status: 'not_required',
+            reset_reason: reason,
+            reason_note: reasonNote || null,
+            records_deleted_count: 0,
+          });
+        } catch (err) {
+          console.error('[Module 23א] Failed writing alerts-reset audit entry:', err);
+        }
+
+        toast.success('התראות הרדאר אופסו. נתוני הלמידה לא נגעו כלל.');
+      },
+
       resetEntireSystemUsageData: async (reason: 'technical_fault' | 'student_stuck' | 'restart_session' | 'test_run' | 'other' = 'restart_session') => {
-        // Module 23א: Step 1 & 2 - Call server-side Backup-Before-Delete Cloud Function for System
+        // PRD v7.1 Module 23א §ג + §ז: backup-before-delete is a HARD gate for a
+        // system reset too. A failed backup aborts the deletion entirely — the
+        // pilot's research evidence is never destroyed without a stored copy.
         try {
           const backupResetCallable = httpsCallable(functions, 'backupAndResetSessionData');
           await backupResetCallable({
@@ -720,7 +784,9 @@ export const useStore = create<AppState>()(
             class_id: 'class_1',
           });
         } catch (err: any) {
-          console.warn('[Module 23א] Backup function warning (falling back to direct client reset):', err);
+          console.error('[Module 23א] Backup failed — system reset aborted, no data deleted:', err);
+          toast.error('הגיבוי נכשל. האיפוס בוטל ולא נמחקו נתונים.');
+          throw new Error('BACKUP_FAILED_RESET_ABORTED');
         }
 
         // Direct RTDB Reset for all 12 students and sessions

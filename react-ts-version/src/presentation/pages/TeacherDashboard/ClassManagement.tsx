@@ -8,6 +8,7 @@ import { ref, onValue, update, get, remove } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
 import { useChatStore, normalizeStudentId } from '@/application/useChatStore';
 import { useAuthStore } from '@/application/useAuthStore';
+import { approveTeacherGate } from '@/core/teacherGate';
 import { hasEnhancedSupport, buildSupportProfilePayload } from '@/core/supportProfile';
 import { toast } from 'sonner';
 
@@ -131,20 +132,22 @@ export function ClassManagement({
     const path = chosenPath || student.recommendedPath;
 
     try {
-      const gatePayload = {
-        teacher_gate_approved: true,
-        routeStatus: 'APPROVED',
-        routeRecommendation: path === 'צמצום פערי קדם' ? 'YELLOW' : 'GREEN',
-        gateApprovedAt: Date.now(),
-      };
-
-      await update(ref(database, `users/students/${student.id}`), gatePayload);
-      const normId = normalizeStudentId(student.id);
-      if (normId !== student.id) {
-        await update(ref(database, `users/students/${normId}`), gatePayload);
+      // PRD v7.1 Module 20: approval is written to the session-2 SessionDocument
+      // in Firestore — the sole source of truth — never to a student-level flag.
+      const teacherId = useAuthStore.getState().user?.uid || null;
+      const result = await approveTeacherGate(
+        student.id,
+        path === 'צמצום פערי קדם' ? 'remediation_path' : 'green_path',
+        teacherId
+      );
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
       }
+      toast.success(`✓ שער המורה אושר עבור תלמיד ${student.studentNumber}`);
     } catch (err) {
       console.error('Failed to approve teacher gate:', err);
+      toast.error('שגיאה באישור שער המורה');
     } finally {
       setUpdatingId(null);
     }
