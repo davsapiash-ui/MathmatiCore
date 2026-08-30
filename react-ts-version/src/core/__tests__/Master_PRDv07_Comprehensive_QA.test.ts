@@ -116,7 +116,7 @@ describe('MASTER PRD v07 COMPREHENSIVE QA & AUDIT SUITE', () => {
         exercise_id: 's1_t1',
         event_type: 'BLOCK_DRAG_COMPLETE',
         column_index: 0,
-        details: { block_value: 1, source_column_index: null, target_column_index: 0 },
+        details: { block_value: 1, source_column_index: null },
       };
       expect(validateTelemetryColumnIndexRule(validColEvent).isValid).toBe(true);
 
@@ -134,7 +134,7 @@ describe('MASTER PRD v07 COMPREHENSIVE QA & AUDIT SUITE', () => {
         student_id: 1,
         exercise_id: 's1_t1',
         event_type: 'SESSION_START',
-        details: { session_number: 1, support_profile_id: null },
+        details: { session_number: 1 },
       };
       expect(validateTelemetryColumnIndexRule(validNonColEvent).isValid).toBe(true);
 
@@ -228,7 +228,7 @@ describe('MASTER PRD v07 COMPREHENSIVE QA & AUDIT SUITE', () => {
       for (let i = 1; i <= 15; i++) {
         store.applyDrop({
           source: 'palette',
-          item: { id: `u_${i}`, place: 'units', value: 1 },
+          sourcePlace: 'units',
           target: { kind: 'column', place: 'units' },
         });
       }
