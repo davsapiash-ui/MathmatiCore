@@ -80,8 +80,6 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat }
         forceAdditionHelper,
         isASD,
         hesitationThresholdSeconds,
-        physicalOverride: true,
-        physicalOverrideActive: true,
         applyAtTaskBoundaryOnly: true,
         adaptationQueuedAt: Date.now(),
         overrideUpdatedAt: Date.now(),

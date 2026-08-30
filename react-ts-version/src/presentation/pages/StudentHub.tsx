@@ -12,6 +12,7 @@ import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncServi
 import { Play, Sparkles } from 'lucide-react';
 import { BeeFlightWaitingScreen } from '@/presentation/components/student/BeeFlightWaitingScreen';
 import { ProjectorWaitingScreen } from '@/presentation/components/student/ProjectorWaitingScreen';
+import { useProjectorMode } from '@/application/useProjectorMode';
 
 interface ActiveSessionConfig {
   id: number;
@@ -89,6 +90,8 @@ export function StudentHub() {
 
   // Realtime Active Class Session from Teacher
   const activeClassSession = useActiveClassSession();
+  // Module 15: real-time projector broadcast reaches the lobby too
+  const isProjectorModeActive = useProjectorMode();
   const isTeacherSessionActive = Boolean(activeClassSession && activeClassSession.active);
   const teacherSessionNum = isTeacherSessionActive ? Number(activeClassSession?.sessionNumber) || 1 : null;
 
@@ -199,6 +202,11 @@ export function StudentHub() {
 
   // Module 20: If student completed Session 2 and attempts Session 3 without teacher approval -> Bee Flight
   const isAwaitingTeacherGate = hasCompletedSession2 && effectiveSessionId === 3 && !isTeacherGateApproved;
+
+  // Module 15: projector broadcast covers every student surface, the lobby included
+  if (isProjectorModeActive) {
+    return <ProjectorWaitingScreen />;
+  }
 
   if (isAwaitingTeacherGate) {
     return <BeeFlightWaitingScreen onApproved={() => setIsTeacherGateApproved(true)} />;

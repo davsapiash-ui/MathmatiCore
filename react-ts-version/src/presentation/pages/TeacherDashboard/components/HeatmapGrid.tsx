@@ -17,6 +17,9 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '@/application/useStore';
 import { ResetConfirmationModal } from './ResetConfirmationModal';
+import { hasEnhancedSupport } from '@/core/supportProfile';
+import { resolveRadarColor, RADAR_CELL_CLASSES } from '@/core/radarColor';
+import { isClassSessionLive } from '@/core/classSession';
 
 export type RadarStatusColor = 'RED' | 'GREY' | 'YELLOW' | 'GREEN';
 
@@ -101,6 +104,7 @@ export interface AnonymousStudent {
   enhancedSupport: boolean;
   isStruggling: boolean;
   isSocraticActive: boolean;
+  helpRequested: boolean;
   errorCategory?: 'calculation' | 'procedural' | 'conceptual' | null;
   lastAction?: string;
   activeBranch?: 'reinforcement' | 'challenge' | null;
@@ -133,6 +137,7 @@ const INITIAL_MOCK_STUDENTS: AnonymousStudent[] = Array.from({ length: 12 }, (_,
     enhancedSupport: false,
     isStruggling: false,
     isSocraticActive: false,
+    helpRequested: false,
     lastAction: '',
     isOnline: false,
   };
@@ -169,17 +174,25 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
 
   useEffect(() => {
     const sessionRef = ref(database, 'active_class_session');
+    let lastVal: Record<string, unknown> | null = null;
+
+    // 5-minute teacher-disconnect grace window (core/classSession.ts); the
+    // interval re-evaluates expiry since it produces no server event.
+    const applySessionState = () => {
+      const live = isClassSessionLive(lastVal);
+      setIsClassSessionActive(live);
+      setActiveSessionNum(live && lastVal?.sessionNumber ? Number(lastVal.sessionNumber) : null);
+    };
+
     const unsub = onValue(sessionRef, (snap) => {
-      if (snap.exists()) {
-        const val = snap.val();
-        setIsClassSessionActive(Boolean(val && val.active === true));
-        setActiveSessionNum(val?.sessionNumber ? Number(val.sessionNumber) : null);
-      } else {
-        setIsClassSessionActive(false);
-        setActiveSessionNum(null);
-      }
+      lastVal = snap.exists() ? snap.val() : null;
+      applySessionState();
     });
-    return () => unsub();
+    const graceTimer = setInterval(applySessionState, 30000);
+    return () => {
+      unsub();
+      clearInterval(graceTimer);
+    };
   }, []);
 
   // Subscribe to live Firebase data and merge with 12 pilot student slots (sorted strictly by student ID 1..12)
@@ -242,10 +255,13 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
           const hesitationSeconds = isOnline && hesitationEvents ? hesitationEvents * 45 : (sessionState.hesitation_seconds || 0);
           const errorCount = isOnline ? Math.max(wsState.undoCount || 0, data.traceData?.undo_clicks || 0, sessionState.error_count || 0) : 0;
           const isYellowPath = data.routeRecommendation === 'YELLOW' || sessionState.current_path === 'remediation_path';
-          const enhancedSupport = Boolean(data.enhanced_support_profile || data.isASD || data.forceAdditionHelper || data.additionBoardEnabled);
+          const enhancedSupport = hasEnhancedSupport(data) || Boolean(data.isASD || data.forceAdditionHelper || data.additionBoardEnabled);
 
-          const isSocraticActive = isOnline && (wsState.helpState === 'socratic' || data.isSocraticActive === true || data.helpRequested === true);
-          const isStruggling = isOnline && (hesitationSeconds >= 45 || isYellowPath || errorCount > 2 || enhancedSupport || isSocraticActive);
+          // PRD v7.1 Module 18: helpRequested (call-teacher) is its own BLUE signal,
+          // separate from an active Socratic card (RED).
+          const helpRequested = data.helpRequested === true || data.handRaised === true;
+          const isSocraticActive = isOnline && (wsState.helpState === 'socratic' || data.isSocraticActive === true);
+          const isStruggling = isOnline && (hesitationSeconds >= 45 || isYellowPath || errorCount > 2 || enhancedSupport || isSocraticActive || helpRequested);
 
           const activeBroadcastSession = isClassSessionActive && activeSessionNum ? activeSessionNum : null;
           const rawSessionNum = wsState.sessionNumber || sessionState.session_number || activeBroadcastSession || (data.highestCompletedMeeting ? Math.min(8, data.highestCompletedMeeting + 1) : 1);
@@ -285,6 +301,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
             enhancedSupport,
             isStruggling,
             isSocraticActive,
+            helpRequested,
             errorCategory,
             lastAction,
             activeBranch,
@@ -481,8 +498,12 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
           </p>
         </div>
 
-        {/* 4-Color Status Legend per PRD Module 18 */}
+        {/* 5-Color Status Legend per PRD v7.1 Module 18 (BLUE > RED > GREY > YELLOW > GREEN) */}
         <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-2xl border border-slate-200/60 dark:border-slate-700">
+          <div className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded-full bg-blue-500 shadow-sm animate-pulse" />
+            <span>קריאה לעזרה</span>
+          </div>
           <div className="flex items-center gap-1.5">
             <span className="w-3 h-3 rounded-full bg-emerald-500 shadow-sm" />
             <span>תקין</span>
@@ -548,15 +569,18 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                 key={student.id}
                 onClick={() => setSelectedStudent(student)}
                 className={`p-4 rounded-2xl border text-right transition-colors duration-500 ease-in-out flex flex-col justify-between min-h-[125px] relative overflow-hidden shadow-sm hover:shadow-md cursor-pointer ${
-                  student.isWaitingAtGate
+                  // PRD v7.1 Module 18: BLUE > RED > GREY > YELLOW > GREEN.
+                  // Gate-waiting keeps its custom banner style below the BLUE help call.
+                  student.helpRequested
+                    ? RADAR_CELL_CLASSES.BLUE
+                    : student.isWaitingAtGate
                     ? 'bg-amber-500/25 border-2 border-amber-500 text-amber-950 dark:text-amber-100 shadow-amber-500/10'
-                    : student.isSocraticActive
-                    ? 'bg-rose-500/20 border-2 border-rose-500 text-rose-950 dark:text-rose-100'
-                    : !student.isOnline
-                    ? 'bg-slate-100 dark:bg-slate-800/60 border-2 border-slate-300 dark:border-slate-700 text-slate-500'
-                    : student.hesitationSeconds >= 45
-                    ? 'bg-amber-500/20 border-2 border-amber-500 text-amber-950 dark:text-amber-100'
-                    : 'bg-emerald-500/15 border-2 border-emerald-500 text-emerald-950 dark:text-emerald-100'
+                    : RADAR_CELL_CLASSES[resolveRadarColor({
+                        helpRequested: student.helpRequested,
+                        socraticActive: student.isSocraticActive,
+                        isOnline: Boolean(student.isOnline),
+                        hesitationSeconds: student.hesitationSeconds,
+                      })]
                 }`}
               >
                 {/* Top Badge Row */}

@@ -7,6 +7,8 @@ import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncServi
 import { ref, onValue, update, get, remove } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
 import { useChatStore, normalizeStudentId } from '@/application/useChatStore';
+import { useAuthStore } from '@/application/useAuthStore';
+import { hasEnhancedSupport, buildSupportProfilePayload } from '@/core/supportProfile';
 import { toast } from 'sonner';
 
 interface StudentGateState {
@@ -16,6 +18,7 @@ interface StudentGateState {
   recommendedPath: 'ירוק' | 'צמצום פערי קדם';
   isApproved: boolean;
   enhancedSupport: boolean;
+  supportProfileVersion: number;
 }
 
 const INITIAL_GATE_STUDENTS: StudentGateState[] = Array.from({ length: 12 }, (_, index) => {
@@ -27,6 +30,7 @@ const INITIAL_GATE_STUDENTS: StudentGateState[] = Array.from({ length: 12 }, (_,
     recommendedPath: 'ירוק',
     isApproved: false,
     enhancedSupport: false,
+    supportProfileVersion: 0,
   };
 });
 
@@ -77,7 +81,7 @@ export function ClassManagement({
 
             const isYellow = data.routeRecommendation === 'YELLOW' || data.sessionState?.current_path === 'remediation_path';
             const isApproved = data.teacher_gate_approved === true || data.routeStatus === 'APPROVED';
-            const enhanced = Boolean(data.enhanced_support_profile || data.physicalOverrideActive || data.physicalOverride);
+            const enhanced = hasEnhancedSupport(data);
 
             return {
               id: uid,
@@ -86,6 +90,7 @@ export function ClassManagement({
               recommendedPath: isYellow ? 'צמצום פערי קדם' : 'ירוק',
               isApproved,
               enhancedSupport: enhanced,
+              supportProfileVersion: typeof data.support_profile_version === 'number' ? data.support_profile_version : 0,
             };
           });
         });
@@ -104,11 +109,9 @@ export function ClassManagement({
     setUpdatingId(student.id);
 
     try {
-      const studentPayload = {
-        enhanced_support_profile: nextVal,
-        physicalOverride: nextVal,
-        physicalOverrideActive: nextVal,
-      };
+      // PRD v7.1 Module 19 §B: support_profile_id is the authoritative server field.
+      const teacherId = useAuthStore.getState().user?.uid || null;
+      const studentPayload = buildSupportProfilePayload(nextVal, teacherId, student.supportProfileVersion);
 
       await update(ref(database, `users/students/${student.id}`), studentPayload);
       const normId = normalizeStudentId(student.id);

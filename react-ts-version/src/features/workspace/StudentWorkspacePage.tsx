@@ -47,6 +47,7 @@ import { useCognitiveHesitationRadar } from '@/application/useCognitiveHesitatio
 import { tts } from '@/infrastructure/services/TTSService';
 import { toast } from 'sonner';
 import { BeeFlightWaitingScreen } from '@/presentation/components/student/BeeFlightWaitingScreen';
+import { hasEnhancedSupport as hasEnhancedSupportProfile } from '@/core/supportProfile';
 import { ProjectorWaitingScreen } from '@/presentation/components/student/ProjectorWaitingScreen';
 import { ReinforcementOrChallengeScreen } from './overlays/ReinforcementOrChallengeScreen';
 
@@ -559,12 +560,12 @@ export function StudentWorkspacePage() {
 
   // PRD v7.0 Module 10: Load adaptive addition grid strictly and only when support_profile_id === 'enhanced_cognitive_support' or teacher enabled.
   // For every other learner the grid must not mount, render or exist in the DOM.
-  const hasEnhancedSupport = (user as any)?.support_profile_id === 'enhanced_cognitive_support' || 
-    (myData as any)?.support_profile_id === 'enhanced_cognitive_support' ||
-    liveAdditionBoardEnabled === true || 
-    myData?.additionBoardEnabled === true || 
+  const studentHasEnhancedSupport = hasEnhancedSupportProfile(user as Record<string, unknown> | null) ||
+    hasEnhancedSupportProfile(myData as Record<string, unknown> | null) ||
+    liveAdditionBoardEnabled === true ||
+    myData?.additionBoardEnabled === true ||
     myData?.forceAdditionHelper === true;
-  const isAdditionBoardEnabled = hasEnhancedSupport && sessionNumber !== 2 && sessionNumber !== 8;
+  const isAdditionBoardEnabled = studentHasEnhancedSupport && sessionNumber !== 2 && sessionNumber !== 8;
 
 
   useEffect(() => {
