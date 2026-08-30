@@ -456,10 +456,12 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
 
   const handleStartClassSession = async (sessionNum: number) => {
     const now = Date.now();
-    setSessionStartTime(now);
-    setSelectedSessionNum(sessionNum);
-    setIsClassSessionActive(true);
+    const activeSessionId = `session_0${sessionNum}`;
+    const classId = useAdminStore.getState().classes[0]?.id || 'class_1';
+    const schoolId = useAdminStore.getState().classes[0]?.schoolId || 'school_bikorot';
+
     try {
+      // 1. Synchronize custom claims if needed
       if (auth.currentUser) {
         try {
           const tokenRes = await auth.currentUser.getIdTokenResult();
@@ -472,32 +474,15 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
           console.warn('[TeacherDashboard] Role sync notice (non-fatal):', roleErr);
         }
       }
-      // PRD v7.1 Module 14 §ב0: the server updates active_session_id on the
-      // ClassDocument and on every student document in the class as ONE atomic
-      // operation for all learners simultaneously — never per single learner.
-      const activeSessionId = `session_0${sessionNum}`;
-      const classId = useAdminStore.getState().classes[0]?.id || 'class_1';
-      const batch = writeBatch(firestore);
-      batch.set(
-        doc(firestore, 'classes', classId),
-        { active_session_id: activeSessionId, updated_by_teacher_id: user?.uid || null },
-        { merge: true }
-      );
-      for (let studentNum = 1; studentNum <= 12; studentNum++) {
-        batch.set(
-          doc(firestore, 'students', `student_user${studentNum}`),
-          { active_session_id: activeSessionId },
-          { merge: true }
-        );
-      }
-      await batch.commit();
 
+      // 2. Primary Realtime Database Broadcast (Instant client sync for all 12 student pods <1000ms)
       await set(ref(database, 'active_class_session'), {
         active: true,
         sessionNumber: sessionNum,
         startedAt: now,
         teacherId: user?.uid || 'teacher',
       });
+
       // 5-minute grace: (re)arm only the disconnect stamp; never a whole-session
       // close hook. The set() above already cleared any stale stamp value.
       try {
@@ -505,16 +490,67 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       } catch (discErr) {
         console.warn('[TeacherDashboard] onDisconnect stamp notice:', discErr);
       }
+
+      // 3. Secondary Firestore atomic batch update for class & student documents (PRD v7.1 Module 14 §ב0)
+      try {
+        const batch = writeBatch(firestore);
+        batch.set(
+          doc(firestore, 'classes', classId),
+          {
+            class_id: classId,
+            school_id: schoolId,
+            class_name: 'המבקרים',
+            class_type: 'כיתת ביקורת',
+            teacher_id: user?.uid || 'teacher',
+            active_session_id: activeSessionId,
+            updated_by_teacher_id: user?.uid || null,
+            student_count: 12,
+            updated_at: now,
+          },
+          { merge: true }
+        );
+
+        for (let studentNum = 1; studentNum <= 12; studentNum++) {
+          batch.set(
+            doc(firestore, 'students', `student_user${studentNum}`),
+            {
+              student_id: studentNum,
+              class_id: classId,
+              school_id: schoolId,
+              created_at: now,
+              support_profile_id: `profile_student_${studentNum}`,
+              support_profile_version: 1,
+              active_session_id: activeSessionId,
+            },
+            { merge: true }
+          );
+        }
+        await batch.commit();
+      } catch (firestoreErr) {
+        console.warn('[TeacherDashboard] Firestore class session sync notice (non-blocking for live broadcast):', firestoreErr);
+      }
+
+      setSessionStartTime(now);
+      setSelectedSessionNum(sessionNum);
+      setIsClassSessionActive(true);
       toast.success(`שיעור ${sessionNum} הופעל בהצלחה לכלל תלמידי הכיתה! 🚀`);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error starting class session:', err);
-      toast.error('שגיאה בהפעלת המפגש מול השרת. אנא בדוק חיבור לרשת.');
+      // Clean rollback of optimistic state
+      setIsClassSessionActive(false);
+      setSessionStartTime(null);
+
+      const errCode = String(err?.code || '');
+      const errMsg = String(err?.message || '');
+      if (errCode.includes('permission-denied') || errMsg.includes('PERMISSION_DENIED') || errMsg.includes('permission')) {
+        toast.error('ההרשאה נדחתה על ידי השרת. ודא שהתחברת לחשבון מורה מורשה.');
+      } else {
+        toast.error('שגיאה בהפעלת המפגש מול השרת. אנא בדוק חיבור לרשת.');
+      }
     }
   };
 
   const handleEndClassSession = async () => {
-    setIsClassSessionActive(false);
-    setSessionStartTime(null);
     try {
       if (auth.currentUser) {
         try {
@@ -534,6 +570,8 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
         endedAt: Date.now(),
         teacherId: user?.uid || 'teacher',
       });
+      setIsClassSessionActive(false);
+      setSessionStartTime(null);
       toast.info('המפגש הכיתתי נסגר בהצלחה. כלל התלמידים מועברים למצב המתנה.');
     } catch (err) {
       console.error('Error ending class session:', err);
