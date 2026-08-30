@@ -55,6 +55,7 @@
     --ws-blue-2: 208 90% 60%;       /* gradient partner */
     --ws-blue-soft: 214 95% 94%;
     --ws-teal: 174 65% 41%;         /* playful pop */
+    --ws-gold: 40 92% 50%;          /* warm amber/gold */
     --ws-success: 150 65% 38%;
     --ws-danger: 4 78% 55%;
     --ws-shadow-warm: 220 45% 40%;
@@ -126,6 +127,7 @@
     --ws-blue-2: 221 83% 75%;
     --ws-blue-soft: 221 40% 15%;
     --ws-teal: 174 65% 50%;
+    --ws-gold: 40 90% 50%;
     --ws-success: 150 65% 45%;
     --ws-danger: 4 78% 65%;
     --ws-shadow-warm: 240 20% 2%;

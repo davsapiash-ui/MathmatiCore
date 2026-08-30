@@ -6,6 +6,7 @@ import { useAdminStore } from "@/application/useAdminStore";
 import { useStore } from "@/application/useStore";
 import { executeGoogleSSO, mockSimulatedSSO } from "@/infrastructure/services/AuthService";
 import { tts } from "@/infrastructure/services/TTSService";
+import { Logo } from "@/presentation/components/ui/Logo";
 import { Button } from "@/components/ui/button";
 import { auth, functions } from "@/infrastructure/firebase";
 import { signInAnonymously } from "firebase/auth";
@@ -266,19 +267,13 @@ export function Login() {
           initial={{ opacity: 0, y: -16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="flex items-center gap-3.5 cursor-default select-none"
+          className="cursor-default select-none"
         >
-          <div className="w-13 h-13 rounded-2xl bg-gradient-to-tr from-[hsl(var(--ws-blue))] to-[hsl(var(--ws-gold))] flex items-center justify-center text-white shadow-xl shadow-[hsl(var(--ws-blue)/0.2)] text-2xl font-black p-3">
-            M
-          </div>
-          <div className="text-right">
-            <h1 className="font-display font-black text-3xl text-slate-900 dark:text-white tracking-tight leading-tight">
-              מתמטיקאור &copy;
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium">
-              סביבת למידה היברידית במודל VRA דיגיטלי
-            </p>
-          </div>
+          <Logo
+            size="xl"
+            subtitle="סביבת למידה היברידית במודל VRA דיגיטלי"
+            asTitle
+          />
         </motion.div>
 
         {/* Main Card */}

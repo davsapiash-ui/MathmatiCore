@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { useAuthStore } from "@/application/useAuthStore";
 import { motion } from "framer-motion";
 import { Blocks, MessageCircleQuestion, LayoutDashboard, ArrowLeft } from "lucide-react";
+import { Logo } from "@/presentation/components/ui/Logo";
 
 const FEATURES = [
   {
@@ -46,14 +47,7 @@ export function LandingPage() {
 
       {/* Navbar - Glassmorphic */}
       <nav className="relative z-10 w-full max-w-6xl mx-auto flex justify-between items-center px-6 py-4 mt-6 rounded-3xl bg-[hsl(var(--ws-surface)/0.6)] backdrop-blur-xl border border-[hsl(var(--ws-surface-2)/0.5)] shadow-[0_4px_30px_rgba(0,0,0,0.03)]">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[hsl(var(--ws-blue))] to-[hsl(var(--ws-teal))] flex items-center justify-center rotate-[-4deg] shadow-md shadow-[hsl(var(--ws-blue)/0.2)]">
-            <span className="text-2xl font-black leading-none font-display text-white">מ</span>
-          </div>
-          <span className="text-2xl font-display font-black text-ws-ink tracking-tight">
-            מתמטיקאור &copy;
-          </span>
-        </div>
+        <Logo size="lg" to="/" />
         <div className="flex items-center gap-4">
           <button
             onClick={() => window.open("https://github.com/MathmatiCore", "_blank")}

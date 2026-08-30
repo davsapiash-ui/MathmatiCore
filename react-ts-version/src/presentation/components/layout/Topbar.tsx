@@ -5,6 +5,7 @@ import { UdlButton } from '@/presentation/design-system/UdlButton';
 import { motion } from 'framer-motion';
 import { useChatStore } from '@/application/useChatStore';
 import { LogoutButton } from '@/presentation/components/ui/LogoutButton';
+import { Logo } from '@/presentation/components/ui/Logo';
 
 /** כותרת פשוטה שנגזרת מהנתיב הנוכחי — במקום פירורי לחם מזויפים. */
 function titleForPath(pathname: string): string {
@@ -25,21 +26,7 @@ export function Topbar() {
   return (
     <header className="h-18 sm:h-20 bg-white/80 dark:bg-slate-900/60 backdrop-blur-xl border-b border-slate-200/60 dark:border-slate-800 flex items-center justify-between px-6 sm:px-8 z-10 sticky top-0 shadow-sm transition-colors duration-300">
       {/* Brand / Page Title */}
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center font-black text-white shadow-md text-lg rotate-[-4deg]">
-          מ
-        </div>
-        <div className="flex flex-col text-right">
-          <span className="font-display font-black text-xl text-slate-900 dark:text-white tracking-tight leading-tight">
-            מתמטיקאור &copy;
-          </span>
-          {title && (
-            <span className="text-xs font-bold text-slate-400 dark:text-slate-500">
-              {title}
-            </span>
-          )}
-        </div>
-      </div>
+      <Logo size="md" subtitle={title} />
 
       <div className="flex items-center gap-3 sm:gap-4">
         {/* User Profile */}

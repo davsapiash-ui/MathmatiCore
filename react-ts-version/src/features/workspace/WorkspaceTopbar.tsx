@@ -8,6 +8,7 @@ import { TASKS } from '@/core/QMatrix';
 import { ProgressDots } from './ProgressDots';
 import { RotateCcw, Home, MessageSquare, ArrowLeft, Cloud, CloudOff, Eye, EyeOff } from 'lucide-react';
 import { LogoutButton } from '@/presentation/components/ui/LogoutButton';
+import { Logo } from '@/presentation/components/ui/Logo';
 
 /**
  * הסרגל העליון של מרחב הפעילות — ניווט לינארי בלבד (הבא/בטל), ללא תפריטים.
@@ -58,13 +59,7 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
     <nav className="h-[72px] shrink-0 bg-ws-surface/90 backdrop-saturate-150 border-b border-ws-surface2 shadow-[0_4px_20px_-8px_hsl(var(--ws-shadow-warm)/0.25)] flex items-center justify-between px-5 gap-4 z-20">
       {/* Brand + Student Identity + Silent Cloud Status Icon */}
       <div className="flex items-center gap-3 shrink-0">
-        <div className="w-11 h-11 rounded-2xl ws-brand flex items-center justify-center font-display font-black text-xl rotate-[-4deg]">
-          מ
-        </div>
-        <div className="hidden md:flex flex-col leading-tight">
-          <span className="text-lg font-display font-extrabold tracking-tight text-ws-ink">מתמטיקאור &copy;</span>
-          <span className="text-xs font-bold text-ws-soft">מרחב חקר אישי</span>
-        </div>
+        <Logo size="md" subtitle="מרחב חקר אישי" to="/hub" />
 
         {/* Module 1 & 6: Zero-PII Student Identity Badge */}
         <div className="flex items-center gap-2 bg-indigo-50/90 dark:bg-indigo-950/50 border border-indigo-200/80 dark:border-indigo-800/80 px-3 py-1.5 rounded-xl shadow-xs">

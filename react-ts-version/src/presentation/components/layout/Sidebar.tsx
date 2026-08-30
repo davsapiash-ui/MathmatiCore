@@ -23,11 +23,8 @@ export function Sidebar() {
 
   return (
     <aside className="w-64 bg-white/70 dark:bg-slate-900/40 backdrop-blur-xl border-l border-white/20 dark:border-white/5 flex flex-col h-full shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-20 transition-all duration-300">
-      <div className="h-20 flex items-center gap-3 px-6 border-b border-slate-200/50 dark:border-slate-700/50 bg-white/40 dark:bg-slate-800/40">
-        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-display font-black text-lg rotate-[-4deg] shrink-0 shadow-lg shadow-indigo-500/25">
-          M
-        </div>
-        <Logo textClassName="font-display text-ws-ink" />
+      <div className="h-20 flex items-center px-6 border-b border-slate-200/50 dark:border-slate-700/50 bg-white/40 dark:bg-slate-800/40">
+        <Logo size="md" to={isStudent ? "/hub" : "/dashboard"} textClassName="font-display text-ws-ink" />
       </div>
 
       <nav className="flex-1 py-8 px-4 flex flex-col gap-2 overflow-y-auto no-scrollbar">
