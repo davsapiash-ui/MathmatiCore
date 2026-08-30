@@ -168,16 +168,16 @@ describe('Telemetry Pipeline End-to-End Verification per PRD v7.0', () => {
     }
   );
 
-  it('verifies null case handling for measured fields per PRD rules', async () => {
+  it('verifies measured fields per PRD Appendix A rules', async () => {
     const regroupNullPayload = await firebaseSyncService.emitTelemetry({
       session_id: 'session_1_student_1',
       student_id: 1,
       exercise_id: 'ex_1',
       event_type: 'REGROUPING_SUCCESS',
       column_index: 1,
-      details: { regrouping_type: 'decomposition', duration_ms: null },
+      details: { regrouping_type: 'decomposition', duration_ms: 1200 },
     });
-    expect(regroupNullPayload.details.duration_ms).toBeNull();
+    expect(regroupNullPayload.details.duration_ms).toBe(1200);
 
     const socraticNullCatPayload = await firebaseSyncService.emitTelemetry({
       session_id: 'session_1_student_1',
@@ -194,9 +194,9 @@ describe('Telemetry Pipeline End-to-End Verification per PRD v7.0', () => {
       student_id: 1,
       exercise_id: 'ex_1',
       event_type: 'UNDO_EXECUTED',
-      details: { undo_stack_depth_before: 1, reverted_event_type: null },
+      details: { undo_stack_depth_before: 1, reverted_event_type: 'BLOCK_DRAG_COMPLETE' },
     });
-    expect(undoNullRevertedPayload.details.reverted_event_type).toBeNull();
+    expect(undoNullRevertedPayload.details.reverted_event_type).toBe('BLOCK_DRAG_COMPLETE');
 
     const digitNullCorrectPayload = await firebaseSyncService.emitTelemetry({
       session_id: 'session_1_student_1',

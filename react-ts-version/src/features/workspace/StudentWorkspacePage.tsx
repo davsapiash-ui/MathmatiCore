@@ -557,13 +557,10 @@ export function StudentWorkspacePage() {
     };
   }, [normUid, meeting, isASDMode]);
 
-  // PRD v7.0 Module 10: Load adaptive addition grid strictly and only when support_profile_id === 'enhanced_cognitive_support' or teacher enabled.
-  // For every other learner the grid must not mount, render or exist in the DOM.
+  // PRD v07 Module 10: Load adaptive addition grid strictly and only when support_profile_id === 'enhanced_cognitive_support'.
+  // For every other learner the grid must not mount, render or exist in the DOM. Provide no manual teacher toggle to open it during a live session.
   const hasEnhancedSupport = (user as any)?.support_profile_id === 'enhanced_cognitive_support' || 
-    (myData as any)?.support_profile_id === 'enhanced_cognitive_support' ||
-    liveAdditionBoardEnabled === true || 
-    myData?.additionBoardEnabled === true || 
-    myData?.forceAdditionHelper === true;
+    (myData as any)?.support_profile_id === 'enhanced_cognitive_support';
   const isAdditionBoardEnabled = hasEnhancedSupport && sessionNumber !== 2 && sessionNumber !== 8;
 
 

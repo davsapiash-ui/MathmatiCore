@@ -343,6 +343,22 @@ export class IndexedDBQueue {
   public getOnlineStatus(): boolean {
     return this.isOnline;
   }
+
+  public async clearAll(): Promise<void> {
+    this.memoryFallback = [];
+    if (!this.db) return;
+    return new Promise((resolve) => {
+      try {
+        const tx = this.db!.transaction([STORE_NAME, LEGACY_STORE_NAME], 'readwrite');
+        tx.objectStore(STORE_NAME).clear();
+        tx.objectStore(LEGACY_STORE_NAME).clear();
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => resolve();
+      } catch {
+        resolve();
+      }
+    });
+  }
 }
 
 export const indexedDBQueue = IndexedDBQueue.getInstance();

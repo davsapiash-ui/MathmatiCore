@@ -37,12 +37,12 @@ export interface RegroupingTriggeredDetails {
 
 export interface RegroupingSuccessDetails {
   regrouping_type: 'decomposition' | 'composition';
-  duration_ms: number | null;
+  duration_ms: number;
 }
 
 export interface DigitEnteredDetails {
   digit_value: number; // 0-9
-  is_correct: boolean | null; // nullable when exercise has no defined target digit for column
+  is_correct: boolean | null; // null when the exercise defines no target digit for that column
 }
 
 export interface DigitDeletedDetails {
@@ -51,7 +51,7 @@ export interface DigitDeletedDetails {
 
 export interface UndoExecutedDetails {
   undo_stack_depth_before: number; // 1-10
-  reverted_event_type: TelemetryEventType | null;
+  reverted_event_type: TelemetryEventType;
 }
 
 export interface HesitationDetectedDetails {

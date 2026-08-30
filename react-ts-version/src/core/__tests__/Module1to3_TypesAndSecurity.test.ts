@@ -22,7 +22,7 @@ describe('Work Package 1 (WP1): Types & Security Contracts Verification', () => 
         class_id: 'class_pilot_01',
         school_id: 'school_control_01',
         created_at: 1723980000000,
-        support_profile_id: 'prof_scaffold_low',
+        support_profile_id: 'enhanced_cognitive_support',
         support_profile_version: 1,
         support_profile_updated_at: 1723980000000,
         support_profile_updated_by: 'teacher_01',
@@ -227,6 +227,7 @@ describe('Work Package 1 (WP1): Types & Security Contracts Verification', () => 
       };
 
       const response: GeminiSocraticResponse = {
+        error_category: 'conceptual',
         guiding_question: 'האם יש לנו יותר מ-9 יחידות בעמודת היחידות?',
         options: [
           {
