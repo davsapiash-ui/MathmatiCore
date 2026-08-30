@@ -1,5 +1,4 @@
 import { createPortal } from 'react-dom';
-import { getSessionDurationMinutes } from '@/core/classSession';
 
 /**
  * PRD v7.1 Module 14 §ב0 — Session Activation.
@@ -16,18 +15,6 @@ export interface SessionRow {
   state: SessionState;
 }
 
-const STATE_LABEL: Record<SessionState, string> = {
-  active: 'פעיל כעת',
-  completed: 'הושלם',
-  pending: 'טרם נפתח',
-};
-
-const STATE_CLASS: Record<SessionState, string> = {
-  active: 'bg-emerald-100 text-emerald-800 border-emerald-300',
-  completed: 'bg-slate-100 text-slate-700 border-slate-300',
-  pending: 'bg-white text-slate-500 border-slate-200',
-};
-
 interface Props {
   isOpen: boolean;
   sessionNumber: number | null;
@@ -41,7 +28,6 @@ export function SessionActivationModal({ isOpen, sessionNumber, sessions, onClos
 
   const row = sessions.find((s) => s.sessionNumber === sessionNumber);
   const isReopen = row?.state === 'completed';
-  const durationMinutes = getSessionDurationMinutes(sessionNumber);
 
   return createPortal(
     <>
@@ -62,33 +48,18 @@ export function SessionActivationModal({ isOpen, sessionNumber, sessions, onClos
             </p>
           </div>
 
-          <div className="px-6 py-5 space-y-4">
+          {/* Content is limited to what §ב0 states: the session stays active until
+              another is opened, and reopening a completed session is permitted and
+              destroys no data. The eight-session state list lives in the picker. */}
+          <div className="px-6 py-5">
             <ul className="text-sm text-slate-700 dark:text-slate-300 space-y-2 list-disc pr-5">
-              <li>משך העבודה העצמאית שהוגדר למפגש זה: <strong>{durationMinutes} דקות</strong>.</li>
-              <li>המפגש יישאר פעיל עד שתפתחי מפגש אחר או תסגרי אותו.</li>
+              <li>המפגש יישאר פעיל עד שתפתחי מפגש אחר.</li>
               {isReopen && (
                 <li className="text-emerald-700 dark:text-emerald-400">
-                  מפגש זה כבר הושלם. פתיחה חוזרת מותרת ואינה מוחקת נתונים קיימים.
+                  מפגש זה כבר הושלם. חזרה אליו אפשרית ומותרת, ואינה מוחקת נתונים קיימים.
                 </li>
               )}
             </ul>
-
-            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-3">
-              <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">מצב שמונת המפגשים</p>
-              <div className="grid grid-cols-4 gap-2">
-                {sessions.map((s) => (
-                  <div
-                    key={s.sessionNumber}
-                    className={`rounded-xl border px-2 py-1.5 text-center ${STATE_CLASS[s.state]} ${
-                      s.sessionNumber === sessionNumber ? 'ring-2 ring-indigo-500' : ''
-                    }`}
-                  >
-                    <div className="text-sm font-black">{s.sessionNumber}</div>
-                    <div className="text-[10px] font-semibold">{STATE_LABEL[s.state]}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
 
           <div className="px-6 py-4 bg-slate-50 dark:bg-slate-900/60 border-t border-slate-100 dark:border-slate-800 flex gap-3 justify-end">

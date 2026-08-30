@@ -2970,11 +2970,9 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
           <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" dir="rtl">
             <div className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm" onClick={() => setDeadlineNotice(null)} />
             <div className="relative w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 text-center space-y-4">
+              {/* §ב1 specifies this popup's text exactly: "עברו X דקות" — nothing more. */}
               <p className="text-2xl font-black text-slate-900 dark:text-white">
                 עברו {deadlineNotice.minutes} דקות
-              </p>
-              <p className="text-sm text-slate-500 dark:text-slate-400">
-                זמן היעד של מפגש {deadlineNotice.sessionNumber} חלף. הלומדים ממשיכים לעבוד ללא הפרעה — ההודעה מיועדת לך בלבד.
               </p>
               <button
                 onClick={() => setDeadlineNotice(null)}
