@@ -5,6 +5,7 @@ import { useAuthStore } from '@/application/useAuthStore';
 import { useWorkspaceStore, getActiveTasks } from '@/application/useWorkspaceStore';
 import { useStore, type QMatrix, type TraceData } from '@/application/useStore';
 import { normalizeStudentId } from '@/application/useChatStore';
+import { hasEnhancedSupport, ENHANCED_SUPPORT_PROFILE_ID } from '@/core/supportProfile';
 import { useAdminStore, type School, type Teacher, type ClassRoom } from '@/application/useAdminStore';
 import { indexedDBQueue } from './IndexedDBQueue';
 import type { SessionDocument, PedagogicalPath } from '@/types';
@@ -252,10 +253,18 @@ export class FirebaseSyncService {
             }
           }
 
-          // Real-time synchronization of teacher physical overrides to student workspace
+          // Real-time synchronization of teacher adaptations to student workspace
           const wsOverrides: Record<string, any> = {};
           if (data.isASD !== undefined && data.isASD !== useWorkspaceStore.getState().isASD) {
             wsOverrides.isASD = Boolean(data.isASD);
+          }
+          // PRD v7.1 Modules 9/19: propagate the authoritative support profile so the
+          // keyboard lock and adaptive addition grid react live to the teacher toggle.
+          if (data.support_profile_id !== undefined || data.enhanced_support_profile !== undefined) {
+            const resolvedProfile = hasEnhancedSupport(data) ? ENHANCED_SUPPORT_PROFILE_ID : null;
+            if (resolvedProfile !== (useWorkspaceStore.getState() as any).support_profile_id) {
+              wsOverrides.support_profile_id = resolvedProfile;
+            }
           }
           const targetBoardLocked = data.workspaceState?.isBoardLocked !== undefined
             ? Boolean(data.workspaceState.isBoardLocked)
@@ -291,6 +300,9 @@ export class FirebaseSyncService {
             ...(data.pedagogicalPath !== undefined && { pedagogicalPath: data.pedagogicalPath }),
             ...(data.teacher_gate_approved !== undefined && { teacher_gate_approved: data.teacher_gate_approved }),
             ...(targetBoardLocked !== undefined && { isBoardLocked: targetBoardLocked }),
+            ...((data.support_profile_id !== undefined || data.enhanced_support_profile !== undefined) && {
+              support_profile_id: hasEnhancedSupport(data) ? ENHANCED_SUPPORT_PROFILE_ID : null,
+            }),
           };
           useStore.setState({
             students: {

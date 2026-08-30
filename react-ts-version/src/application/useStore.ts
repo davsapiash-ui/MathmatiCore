@@ -7,6 +7,7 @@ import { useChatStore, normalizeStudentId } from '@/application/useChatStore';
 
 import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
 import type { MasteryProfile } from '@/core/QMatrix';
+import { hasEnhancedSupport, ENHANCED_SUPPORT_PROFILE_ID } from '@/core/supportProfile';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 
 export interface QMatrix {
@@ -96,6 +97,7 @@ export interface StudentData {
   liveSessionMetrics?: Record<string, any> | null;
   additionBoardEnabled?: boolean;
   forceAdditionHelper?: boolean;
+  support_profile_id?: string | null;
   scaffoldLevel?: number;
   pedagogicalPath?: string;
   isBoardLocked?: boolean;
@@ -229,6 +231,9 @@ export const initStoreSubscriptions = (): (() => void) => {
               ? Boolean(row.additionBoardEnabled || row.forceAdditionHelper)
               : prev.additionBoardEnabled,
             forceAdditionHelper: Boolean(row.forceAdditionHelper ?? prev.forceAdditionHelper ?? false),
+            support_profile_id: row.support_profile_id !== undefined || row.enhanced_support_profile !== undefined
+              ? (hasEnhancedSupport(row) ? ENHANCED_SUPPORT_PROFILE_ID : null)
+              : (prev.support_profile_id ?? null),
             scaffoldLevel: row.scaffoldLevel !== undefined ? row.scaffoldLevel : prev.scaffoldLevel,
             pedagogicalPath: row.pedagogicalPath || prev.pedagogicalPath,
             teacher_gate_approved: row.teacher_gate_approved !== undefined ? row.teacher_gate_approved : prev.teacher_gate_approved,
@@ -638,6 +643,7 @@ export const useStore = create<AppState>()(
             diagnosticReport: null,
             reflections: null,
             enhanced_support_profile: false,
+            support_profile_id: null,
             physicalOverride: false,
             physicalOverrideActive: false,
             forceAdditionHelper: false,
@@ -749,6 +755,7 @@ export const useStore = create<AppState>()(
               diagnosticReport: null,
               reflections: null,
               enhanced_support_profile: false,
+            support_profile_id: null,
               physicalOverride: false,
               physicalOverrideActive: false,
               forceAdditionHelper: false,
@@ -775,7 +782,9 @@ export const useStore = create<AppState>()(
           await remove(ref(database, 'sessions')).catch(() => {});
           await remove(ref(database, 'telemetry_sessions')).catch(() => {});
           await fbSet(ref(database, 'system_control/projector_mode'), { active: false, projector_mode: false, projector_mode_updated_at: Date.now() }).catch(() => {});
-          await fbSet(ref(database, 'active_class_session'), { active: true, sessionNumber: 1, timestamp: Date.now() }).catch(() => {});
+          // PRD v7.1 Module 14: session activation is exclusively a teacher action.
+          // A system reset must leave NO active session; the teacher reopens explicitly.
+          await fbSet(ref(database, 'active_class_session'), { active: false, sessionNumber: null, endedAt: Date.now() }).catch(() => {});
           
           if (typeof window !== 'undefined') {
             Object.keys(localStorage).forEach((k) => {

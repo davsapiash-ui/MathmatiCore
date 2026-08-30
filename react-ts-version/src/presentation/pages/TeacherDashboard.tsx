@@ -11,7 +11,8 @@ import { useChatStore, normalizeStudentId, isTeacherOrAdminId, type ChatMessage 
 import { extractTeacherId } from "@/infrastructure/services/FirebaseSyncService";
 import { useStore, type StudentData } from "@/application/useStore";
 import { toast } from "sonner";
-import { ref, onValue, remove, set, update, query, limitToLast, onDisconnect } from "firebase/database";
+import { ref, onValue, remove, set, update, query, limitToLast, onDisconnect, serverTimestamp } from "firebase/database";
+import { isClassSessionLive } from "@/core/classSession";
 import { database, auth, functions, firestore } from "@/infrastructure/firebase";
 import { doc, getDoc, updateDoc, setDoc, onSnapshot, collection } from "firebase/firestore";
 import type { SessionDocument, PedagogicalPath } from "@/types";
@@ -316,29 +317,40 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   const [_sessionStartTime, setSessionStartTime] = useState<number | null>(null);
   const [selectedSessionNum, setSelectedSessionNum] = useState<number>(1);
 
-  // Sync active class session with Firebase
+  // Sync active class session with Firebase.
+  // A session with a teacherDisconnectedAt stamp older than 5 minutes counts as
+  // closed (core/classSession.ts); the interval re-evaluates the grace window
+  // since its expiry produces no server event.
   useEffect(() => {
     const sessionRef = ref(database, 'active_class_session');
+    let lastVal: Record<string, unknown> | null = null;
+
+    const applySessionState = () => {
+      if (lastVal && isClassSessionLive(lastVal)) {
+        setIsClassSessionActive(true);
+        setSessionStartTime((lastVal.startedAt as number) || Date.now());
+        setSelectedSessionNum((lastVal.sessionNumber as number) || 1);
+        return;
+      }
+      setIsClassSessionActive(false);
+      setSessionStartTime(null);
+    };
+
     const unsub = onValue(
       sessionRef,
       (snap) => {
-        if (snap.exists()) {
-          const val = snap.val();
-          if (val && val.active) {
-            setIsClassSessionActive(true);
-            setSessionStartTime(val.startedAt || Date.now());
-            setSelectedSessionNum(val.sessionNumber || 1);
-            return;
-          }
-        }
-        setIsClassSessionActive(false);
-        setSessionStartTime(null);
+        lastVal = snap.exists() ? snap.val() : null;
+        applySessionState();
       },
       (err) => {
         console.error('[TeacherDashboard] RTDB "active_class_session" listener error:', err);
       }
     );
-    return () => unsub();
+    const graceTimer = setInterval(applySessionState, 30000);
+    return () => {
+      unsub();
+      clearInterval(graceTimer);
+    };
   }, []);
 
   // Auto-sync teacher role claim on dashboard mount
@@ -355,21 +367,29 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     }
   }, []);
 
-  // Teacher Presence & Automatic Session Closure on Disconnect / Window Close
+  // Teacher Presence heartbeat + 5-minute session grace window.
+  // PRD v7.1 Module 14: an opened session must survive a momentary teacher
+  // disconnect (refresh, network blip, laptop sleep). Instead of closing the
+  // session on disconnect, the server stamps teacherDisconnectedAt; clients
+  // treat the session as closed only after 5 continuous offline minutes
+  // (see core/classSession.ts), and the stamp is cleared on every reconnect.
   useEffect(() => {
     const teacherId = user?.uid || 'teacher';
     const teacherPresenceRef = ref(database, `users/teachers/${teacherId}`);
     const activeSessionRef = ref(database, 'active_class_session');
+    const disconnectStampRef = ref(database, 'active_class_session/teacherDisconnectedAt');
 
-    // 1. Mark teacher online
+    // 1. Mark teacher online and clear any stale disconnect stamp
     update(teacherPresenceRef, {
       isOnline: true,
       onlineStatus: 'active',
       lastPing: Date.now(),
       lastActive: Date.now(),
     }).catch(() => {});
+    set(disconnectStampRef, null).catch(() => {});
 
-    // 2. Set up Firebase Server-Side onDisconnect hooks
+    // 2. onDisconnect hooks: release presence and stamp the disconnect time.
+    //    Cancel any legacy whole-session close hook an older client left armed.
     try {
       onDisconnect(teacherPresenceRef).update({
         isOnline: false,
@@ -377,13 +397,8 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
         lastPing: 0,
         lastActive: Date.now(),
       });
-      // If teacher disconnects without closing session, automatically close the active session
-      onDisconnect(activeSessionRef).set({
-        active: false,
-        sessionNumber: null,
-        endedAt: Date.now(),
-        teacherId: teacherId,
-      });
+      onDisconnect(activeSessionRef).cancel();
+      onDisconnect(disconnectStampRef).set(serverTimestamp());
     } catch (e) {
       console.warn('[TeacherDashboard] onDisconnect registration notice:', e);
     }
@@ -427,15 +442,12 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
         startedAt: now,
         teacherId: user?.uid || 'teacher',
       });
+      // 5-minute grace: (re)arm only the disconnect stamp; never a whole-session
+      // close hook. The set() above already cleared any stale stamp value.
       try {
-        onDisconnect(ref(database, 'active_class_session')).set({
-          active: false,
-          sessionNumber: null,
-          endedAt: Date.now(),
-          teacherId: user?.uid || 'teacher',
-        });
+        onDisconnect(ref(database, 'active_class_session/teacherDisconnectedAt')).set(serverTimestamp());
       } catch (discErr) {
-        console.warn('[TeacherDashboard] onDisconnect attach notice:', discErr);
+        console.warn('[TeacherDashboard] onDisconnect stamp notice:', discErr);
       }
       toast.success(`שיעור ${sessionNum} הופעל בהצלחה לכלל תלמידי הכיתה! 🚀`);
     } catch (err) {

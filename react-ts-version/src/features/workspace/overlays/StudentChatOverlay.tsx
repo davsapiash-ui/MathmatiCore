@@ -7,6 +7,8 @@ import { useActiveClassSession } from '@/application/useActiveClassSession';
 import { Check, CheckCheck, Send, HelpCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { validateChatInputForPII, anonymizeChatMessageBody } from '@/core/security/PiiFilter';
+import { ref, update } from 'firebase/database';
+import { database } from '@/infrastructure/firebase';
 
 export function StudentChatOverlay() {
   const [isOpen, setIsOpen] = useState(false);
@@ -91,9 +93,31 @@ export function StudentChatOverlay() {
   const handleCallTeacher = () => {
     if (!user?.uid) return;
     const studentNum = normUid.replace(/\D+/g, '') || '1';
+
+    // PRD v7.1 Module 18: a help call must reach the Silent Radar (BLUE state),
+    // not just the chat thread — write helpRequested + a radar_alerts entry.
+    const now = Date.now();
+    update(ref(database, `users/students/${normUid}`), {
+      helpRequested: true,
+      handRaised: true,
+      isStruggling: true,
+      lastHelpTimestamp: now,
+      lastAction: 'תלמיד קרא למורה מהצ׳אט! 🔔',
+      last_alert: 'תלמיד קרא למורה מהצ׳אט!',
+    }).catch(console.error);
+    update(ref(database, `radar_alerts/${normUid}_help_${now}`), {
+      studentId: normUid,
+      rawStudentId: normUid,
+      timestamp: now,
+      type: 'HELP_CALL',
+      message: `תלמיד ${studentNum} קרא למורה מהצ׳אט`,
+      severity: 'warning',
+      persistent: true,
+    }).catch(console.error);
+
     sendMessage(
       normUid,
-      (user.displayName as string) || `תלמיד ${studentNum}`,
+      `תלמיד ${studentNum}`,
       targetTeacherId as string,
       'המורה, אני צריך עזרה בכיתה! 🙋‍♂️'
     );

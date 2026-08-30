@@ -47,6 +47,7 @@ import { useCognitiveHesitationRadar } from '@/application/useCognitiveHesitatio
 import { tts } from '@/infrastructure/services/TTSService';
 import { toast } from 'sonner';
 import { BeeFlightWaitingScreen } from '@/presentation/components/student/BeeFlightWaitingScreen';
+import { hasEnhancedSupport as hasEnhancedSupportProfile } from '@/core/supportProfile';
 import { ProjectorWaitingScreen } from '@/presentation/components/student/ProjectorWaitingScreen';
 import { ReinforcementOrChallengeScreen } from './overlays/ReinforcementOrChallengeScreen';
 
@@ -557,10 +558,13 @@ export function StudentWorkspacePage() {
     };
   }, [normUid, meeting, isASDMode]);
 
-  // PRD v07 Module 10: Load adaptive addition grid strictly and only when support_profile_id === 'enhanced_cognitive_support'.
-  // For every other learner the grid must not mount, render or exist in the DOM. Provide no manual teacher toggle to open it during a live session.
-  const hasEnhancedSupport = (user as any)?.support_profile_id === 'enhanced_cognitive_support' || 
-    (myData as any)?.support_profile_id === 'enhanced_cognitive_support';
+  // PRD v7.1 Module 10: Load adaptive addition grid strictly and only when the
+  // authoritative support profile is 'enhanced_cognitive_support' (shared
+  // contract in core/supportProfile.ts, honoring the legacy boolean on live
+  // records). No manual teacher toggle during a live session. For every other
+  // learner the grid must not mount, render or exist in the DOM.
+  const hasEnhancedSupport = hasEnhancedSupportProfile(user as Record<string, unknown> | null) ||
+    hasEnhancedSupportProfile(myData as Record<string, unknown> | null);
   const isAdditionBoardEnabled = hasEnhancedSupport && sessionNumber !== 2 && sessionNumber !== 8;
 
 

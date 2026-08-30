@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ref, onValue } from 'firebase/database';
 import { onAuthStateChanged } from 'firebase/auth';
 import { database, auth, authReady } from '@/infrastructure/firebase';
+import { isClassSessionLive, type ActiveClassSessionRecord } from '@/core/classSession';
 
 export interface ActiveClassSession {
   active: boolean;
@@ -19,10 +20,35 @@ export function useActiveClassSession() {
     isLoaded: false,
   });
 
+  const lastValRef = useRef<ActiveClassSessionRecord | null>(null);
+
   useEffect(() => {
     let unsubDB: (() => void) | null = null;
     let isSubscribed = true;
     let retryTimer: NodeJS.Timeout | null = null;
+
+    // Session is live only while the teacher-disconnect 5-minute grace window
+    // has not expired (core/classSession.ts).
+    const applySessionState = () => {
+      if (!isSubscribed) return;
+      const val = lastValRef.current;
+      if (val && isClassSessionLive(val)) {
+        setSession({
+          active: true,
+          sessionNumber: Number(val.sessionNumber || 1),
+          startedAt: Number(val.startedAt || Date.now()),
+          teacherId: val.teacherId,
+          isLoaded: true,
+        });
+        return;
+      }
+      setSession({
+        active: false,
+        sessionNumber: null,
+        startedAt: null,
+        isLoaded: true,
+      });
+    };
 
     const setupListener = () => {
       if (!isSubscribed) return;
@@ -36,25 +62,8 @@ export function useActiveClassSession() {
           sessionRef,
           (snap) => {
             if (!isSubscribed) return;
-            if (snap.exists()) {
-              const val = snap.val();
-              if (val && val.active === true) {
-                setSession({
-                  active: true,
-                  sessionNumber: Number(val.sessionNumber || 1),
-                  startedAt: Number(val.startedAt || Date.now()),
-                  teacherId: val.teacherId,
-                  isLoaded: true,
-                });
-                return;
-              }
-            }
-            setSession({
-              active: false,
-              sessionNumber: null,
-              startedAt: null,
-              isLoaded: true,
-            });
+            lastValRef.current = snap.exists() ? snap.val() : null;
+            applySessionState();
           },
           (err) => {
             console.warn('[useActiveClassSession] Listener notice:', err);
@@ -72,8 +81,9 @@ export function useActiveClassSession() {
       }
     };
 
-    // 1. Initial setup
+    // 1. Initial setup + periodic grace-window re-check (expiry emits no server event)
     setupListener();
+    const graceTimer = setInterval(applySessionState, 30000);
 
     // 2. Re-attach on authReady resolution
     authReady.then(() => {
@@ -96,6 +106,7 @@ export function useActiveClassSession() {
 
     return () => {
       isSubscribed = false;
+      clearInterval(graceTimer);
       if (retryTimer) clearTimeout(retryTimer);
       if (unsubDB) unsubDB();
       if (unsubAuth) unsubAuth();
