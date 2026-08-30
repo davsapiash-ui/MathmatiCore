@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useWorkspaceStore, getActiveTasks, placeToColumnIndex } from '@/application/useWorkspaceStore';
 import { useAuthStore } from '@/application/useAuthStore';
-import { HelpCircle, Clock, X, CheckCircle2, AlertCircle } from 'lucide-react';
+import { HelpCircle, Hourglass, X, CheckCircle2, AlertCircle } from 'lucide-react';
 import type { SocraticChoice } from '@/infrastructure/services/SocraticEngine';
 import { emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
 
@@ -178,7 +178,8 @@ export function SocraticDrawer({ isOpen, onClose }: SocraticDrawerProps) {
               {/* Serene 30s Reflection & Exploration Notice */}
               {(isSocraticCardLocked || remainingSeconds > 0) && (
                 <div className="mt-4 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-800 dark:text-amber-200 flex items-center gap-3">
-                  <Clock className="w-6 h-6 shrink-0 text-amber-600 animate-spin" />
+                  {/* §ב specifies a subtle hourglass indicator — not a spinner. */}
+                  <Hourglass className="w-6 h-6 shrink-0 text-amber-600" />
                   <div>
                     <p className="font-extrabold text-sm">רגע לחשיבה: הכרטיס יתחדש בעוד {remainingSeconds} שניות</p>
                     <p className="text-xs text-amber-700/80 dark:text-amber-300/80">

@@ -137,7 +137,8 @@ export function Login() {
         }
         // Fallback for pilot passcode if Cloud Function is not yet deployed or unavailable
         console.warn("Cloud function authenticateStudentSession unavailable, checking pilot fallback:", fnErr);
-        if (trimmedPasscode !== "10203040" && trimmedPasscode !== "1234") {
+        // PRD v7.1 Module 25 §ב3: 10203040 is the one fixed pilot passcode.
+        if (trimmedPasscode !== "10203040") {
           throw fnErr;
         }
       }

@@ -769,7 +769,7 @@ export const useStore = create<AppState>()(
           console.error('[Module 23א] Failed writing alerts-reset audit entry:', err);
         }
 
-        toast.success('התראות הרדאר אופסו. נתוני הלמידה לא נגעו כלל.');
+        toast.success('התראות הרדאר אופסו. לא נגענו בנתוני הלמידה.');
       },
 
       resetEntireSystemUsageData: async (reason: 'technical_fault' | 'student_stuck' | 'restart_session' | 'test_run' | 'other' = 'restart_session') => {
