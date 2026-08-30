@@ -219,7 +219,7 @@ export function DienesBlock({
 
   if (isOverlay) return inner;
 
-  const hitPadding = place === 'units' ? 'p-2 -m-1' : '';
+  const hitPadding = place === 'units' ? 'p-3 -m-1.5' : 'p-1 -m-0.5';
 
   const handlePointerDown = (e: React.PointerEvent) => {
     pointerDownPosRef.current = { x: e.clientX, y: e.clientY };
@@ -250,9 +250,13 @@ export function DienesBlock({
       aria-label={visual.labelHe}
       style={{ touchAction: 'none' }}
       className={`touch-none cursor-grab active:cursor-grabbing outline-none focus-visible:ring-2 focus-visible:ring-ws-accent rounded-[3px] hover:brightness-110 ${hitPadding} ${isDragging ? 'opacity-30' : ''}`}
-      onPointerDown={handlePointerDown}
+      onPointerDown={(e) => {
+        listeners?.onPointerDown?.(e);
+        handlePointerDown(e);
+      }}
       onClick={handleAction}
       onKeyDown={(e) => {
+        listeners?.onKeyDown?.(e);
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           handleAction(e);

@@ -2006,7 +2006,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         }).catch(console.error);
       }
 
-      set({ helpState: 'friction', frictionTriggerSource: 'lightbulb', aiSocraticHint: null });
+      const initialHint = currentTask ? SocraticEngine.getSynchronousTaskHint(currentTask, s.counts) : null;
+      set({ helpState: 'friction', frictionTriggerSource: 'lightbulb', aiSocraticHint: initialHint });
       get().transitionTo('SOCRATIC_ACTIVE');
       get().fetchSocraticHint();
     },

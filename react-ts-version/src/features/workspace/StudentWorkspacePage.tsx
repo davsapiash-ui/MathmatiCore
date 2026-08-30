@@ -659,16 +659,8 @@ export function StudentWorkspacePage() {
         setIsInitialized(true);
         setIsInitializing(false);
       } else {
-        // Extended grace period for Firebase to sync so server progress is never prematurely overwritten
-        const timer = setTimeout(() => {
-          if (!cancelled && !isInitialized) {
-            runInit();
-          }
-        }, 1500);
-        return () => {
-          cancelled = true;
-          clearTimeout(timer);
-        };
+        // Fast init fallback without arbitrary delay
+        runInit();
       }
     }
 
@@ -703,7 +695,8 @@ export function StudentWorkspacePage() {
   }, [meeting, networkError, pendingApproval, isASDMode, initSession]);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 3 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 3 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 0, tolerance: 4 } })
   );
 
   const collisionDetectionStrategy: CollisionDetection = (args) => {

@@ -24,10 +24,10 @@ export function HelpOverlays() {
   const chooseSupport = useWorkspaceStore((s) => s.chooseSupport);
   const closeHelp = useWorkspaceStore((s) => s.closeHelp);
 
-  // The deliberate 3000ms pause (vanilla hintFrictionTimer, app.js 1185–1234).
+  // Fast, smooth transition (300ms) for snappy help response without lag.
   useEffect(() => {
     if (helpState !== 'friction') return;
-    const t = window.setTimeout(helpFrictionDone, 3000);
+    const t = window.setTimeout(helpFrictionDone, 300);
     return () => window.clearTimeout(t);
   }, [helpState, helpFrictionDone]);
 
