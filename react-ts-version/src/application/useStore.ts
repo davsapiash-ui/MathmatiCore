@@ -1,9 +1,7 @@
 import { create } from 'zustand';
 import { ref, onValue, update, get, remove, set as fbSet } from 'firebase/database';
-import { database, functions, firestore } from '@/infrastructure/firebase';
-import { doc, setDoc } from 'firebase/firestore';
+import { database, functions } from '@/infrastructure/firebase';
 import { httpsCallable } from 'firebase/functions';
-import { useAuthStore } from '@/application/useAuthStore';
 import { toast } from 'sonner';
 import { useChatStore, normalizeStudentId } from '@/application/useChatStore';
 
@@ -11,6 +9,7 @@ import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncServi
 import type { MasteryProfile } from '@/core/QMatrix';
 import { hasEnhancedSupport, ENHANCED_SUPPORT_PROFILE_ID } from '@/core/supportProfile';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
+import type { ResetReason } from '@/types';
 
 export interface QMatrix {
   task1_read_write_zero?: string | null;
@@ -167,10 +166,10 @@ interface AppState {
     }
   ) => void;
   updateStudent: (studentId: string, updates: Partial<StudentData>) => void;
-  resetStudentData: (studentId: string) => Promise<void>;
-  resetEntireSystemUsageData: (reason?: any) => Promise<void>;
+  resetStudentData: (studentId: string, reason: ResetReason, reasonNote?: string) => Promise<void>;
+  resetEntireSystemUsageData: (reason: ResetReason) => Promise<void>;
   /** Module 23א level 1: clears radar alerts only, never learning data. */
-  resetRadarAlerts: (reason?: any, reasonNote?: string) => Promise<void>;
+  resetRadarAlerts: (reason: ResetReason, reasonNote?: string) => Promise<void>;
   initStoreSubscriptions: () => (() => void);
 }
 
@@ -598,7 +597,7 @@ export const useStore = create<AppState>()(
         };
       }),
 
-      resetStudentData: async (studentId: string, reason = 'TEACHER_INITIATED_RESET') => {
+      resetStudentData: async (studentId: string, reason: ResetReason, reasonNote?: string) => {
         const normId = normalizeStudentId(studentId);
         const num = normId.replace(/\D/g, '') || '1';
         const defaultName = `תלמיד ${num}`;
@@ -611,6 +610,7 @@ export const useStore = create<AppState>()(
           await backupResetCallable({
             reset_level: 'single_student',
             reason,
+            reason_note: reasonNote || null,
             student_id: normId,
             class_id: 'class_1',
           });
@@ -721,60 +721,34 @@ export const useStore = create<AppState>()(
       /**
        * PRD v7.1 Module 23א §ב level 1 — Alerts Reset.
        * Clears the pedagogical radar state and returns all twelve cells to their
-       * default. Touches NO learning data, telemetry or session document, and
-       * requires no backup. Still writes a ResetAuditEntry with the chosen
-       * reason, because §ד mandates an audit record for every reset without
-       * exception — including this one.
+       * default. Touches NO learning data, telemetry or session document.
+       * Delegates entirely to the server callable, which is the single source
+       * of truth for both the RTDB clear and the mandatory §ד audit entry —
+       * the client no longer duplicates that logic or writes audit entries
+       * directly via the client Firestore SDK.
        */
-      resetRadarAlerts: async (
-        reason: 'technical_fault' | 'student_stuck' | 'restart_session' | 'test_run' | 'other' = 'restart_session',
-        reasonNote?: string
-      ) => {
-        const teacherId = useAuthStore.getState().user?.uid || 'teacher';
-        const resetId = `reset_alerts_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-
-        // 1. Clear radar alert feed and the per-student alert flags only.
-        await remove(ref(database, 'radar_alerts')).catch(() => {});
-        const alertClearPayload = {
-          helpRequested: false,
-          handRaised: false,
-          isStruggling: false,
-          isSocraticActive: false,
-          last_alert: null,
-        };
-        for (let i = 1; i <= 12; i++) {
-          await Promise.all(
-            [`student_user${i}`, `student_${i}`, `${i}`].map((alias) =>
-              update(ref(database, `users/students/${alias}`), alertClearPayload).catch(() => {})
-            )
-          );
-        }
-
-        // 2. Mandatory immutable audit entry (§ד) — never deleted by any reset.
+      resetRadarAlerts: async (reason: ResetReason, reasonNote?: string) => {
         try {
-          await setDoc(doc(firestore, 'reset_audit_log', resetId), {
-            reset_id: resetId,
+          const backupResetCallable = httpsCallable(functions, 'backupAndResetSessionData');
+          await backupResetCallable({
             reset_level: 'alerts',
-            performed_by_teacher_id: teacherId,
-            performed_at: Date.now(),
-            class_id: 'class_1',
-            affected_student_ids: Array.from({ length: 12 }, (_, i) => i + 1),
-            backup_file_url: null,
-            backup_status: 'not_required',
-            reset_reason: reason,
+            reason,
             reason_note: reasonNote || null,
-            records_deleted_count: 0,
+            class_id: 'class_1',
           });
-        } catch (err) {
-          console.error('[Module 23א] Failed writing alerts-reset audit entry:', err);
+        } catch (err: any) {
+          console.error('[Module 23א] Alerts reset failed:', err);
+          toast.error('איפוס ההתראות נכשל.');
+          throw new Error('ALERTS_RESET_FAILED');
         }
 
         toast.success('התראות הרדאר אופסו. לא נגענו בנתוני הלמידה.');
       },
 
-      resetEntireSystemUsageData: async (reason: 'technical_fault' | 'student_stuck' | 'restart_session' | 'test_run' | 'other' = 'restart_session') => {
+      resetEntireSystemUsageData: async (reason: ResetReason) => {
         // PRD v7.1 Module 23א §ג + §ז: backup-before-delete is a HARD gate for a
-        // system reset too. A failed backup aborts the deletion entirely — the
+        // system reset too. A failed backup must abort the deletion entirely —
+        // no partial deletion is ever permitted.
         try {
           const backupResetCallable = httpsCallable(functions, 'backupAndResetSessionData');
           await backupResetCallable({
@@ -783,7 +757,9 @@ export const useStore = create<AppState>()(
             class_id: 'class_1',
           });
         } catch (err: any) {
-          console.warn('[Module 23א] Cloud Function backup warning, executing client-side reset fallback:', err);
+          console.error('[Module 23א] Backup failed — system reset aborted, no data deleted:', err);
+          toast.error('הגיבוי נכשל. האיפוס בוטל ולא נמחקו נתונים.');
+          throw new Error('BACKUP_FAILED_RESET_ABORTED');
         }
 
         // Direct RTDB Reset for all 12 students and sessions

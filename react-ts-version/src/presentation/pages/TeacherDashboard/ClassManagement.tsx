@@ -3,6 +3,7 @@ import { useAdminStore } from '@/application/useAdminStore';
 import { Users, Check, Lock, Sparkles, ChevronRight, Zap, CheckCircle2, Sliders, ShieldCheck, RotateCcw } from 'lucide-react';
 import { useStore, type StudentData } from '@/application/useStore';
 import { HeatmapGrid } from './components/HeatmapGrid';
+import { ResetConfirmationModal } from './components/ResetConfirmationModal';
 import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
 import { ref, onValue, update, get, remove } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
@@ -11,6 +12,7 @@ import { useAuthStore } from '@/application/useAuthStore';
 import { approveTeacherGate } from '@/core/teacherGate';
 import { hasEnhancedSupport, buildSupportProfilePayload } from '@/core/supportProfile';
 import { toast } from 'sonner';
+import type { ResetReason } from '@/types';
 
 interface StudentGateState {
   id: string;
@@ -155,11 +157,15 @@ export function ClassManagement({
 
   const [isResetting, setIsResetting] = useState(false);
   const [resetFeedback, setResetFeedback] = useState<string | null>(null);
+  const [studentToReset, setStudentToReset] = useState<{ id: string; name: string } | null>(null);
+  const [isSystemResetModalOpen, setIsSystemResetModalOpen] = useState(false);
 
-  const handleResetStudent = async (studentId: string, studentName: string) => {
+  const handleConfirmResetStudent = async (reason: ResetReason, reasonNote?: string) => {
+    if (!studentToReset) return;
+    const { id: studentId, name: studentName } = studentToReset;
     setUpdatingId(studentId);
     try {
-      await useStore.getState().resetStudentData(studentId);
+      await useStore.getState().resetStudentData(studentId, reason, reasonNote);
       toast.success(`✓ נתוני ${studentName} אופסו בהצלחה!`);
     } catch (err) {
       console.error('Failed to reset student:', err);
@@ -169,12 +175,12 @@ export function ClassManagement({
     }
   };
 
-  const handleResetClassToVirginState = async () => {
+  const handleConfirmResetClassToVirginState = async (reason: ResetReason) => {
     setIsResetting(true);
     setResetFeedback(null);
 
     try {
-      await useStore.getState().resetEntireSystemUsageData();
+      await useStore.getState().resetEntireSystemUsageData(reason);
       setResetFeedback('✓ כל נתוני כיתת הביקורת אופסו בהצלחה לאפס מוחלט!');
       setTimeout(() => setResetFeedback(null), 5000);
     } catch (err) {
@@ -216,7 +222,7 @@ export function ClassManagement({
 
           <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3">
             <button
-              onClick={handleResetClassToVirginState}
+              onClick={() => setIsSystemResetModalOpen(true)}
               disabled={isResetting}
               className="bg-red-500/90 hover:bg-red-600 active:scale-95 text-white font-black text-xs px-4 py-2.5 rounded-xl border border-red-300/40 shadow-lg backdrop-blur-sm flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50"
               title="מחיקת כל הנתונים של תלמידי הכיתה והחזרתם למצב נקי לחלוטין"
@@ -334,7 +340,7 @@ export function ClassManagement({
                       אישור צמצום פערים
                     </button>
                     <button
-                      onClick={() => handleResetStudent(student.id, `תלמיד ${student.studentNumber}`)}
+                      onClick={() => setStudentToReset({ id: student.id, name: `תלמיד ${student.studentNumber}` })}
                       disabled={updatingId === student.id}
                       className="p-2 rounded-xl border border-rose-200 hover:border-rose-400 bg-rose-50 hover:bg-rose-100 text-rose-600 transition-all cursor-pointer"
                       title="איפוס מלא של נתוני התלמיד"
@@ -405,6 +411,29 @@ export function ClassManagement({
 
       {/* Heatmap Grid Component */}
       <HeatmapGrid onDrillDown={onDrillDown} />
+
+      {/* PRD v7.1 Module 23א §ה: level 2+ resets must never be single-click. */}
+      <ResetConfirmationModal
+        isOpen={studentToReset !== null}
+        onClose={() => setStudentToReset(null)}
+        resetLevel="single_student"
+        targetStudentId={studentToReset?.id}
+        targetStudentName={studentToReset?.name}
+        onConfirm={async (reason, reasonNote) => {
+          await handleConfirmResetStudent(reason, reasonNote);
+          setStudentToReset(null);
+        }}
+      />
+
+      <ResetConfirmationModal
+        isOpen={isSystemResetModalOpen}
+        onClose={() => setIsSystemResetModalOpen(false)}
+        resetLevel="system"
+        onConfirm={async (reason) => {
+          await handleConfirmResetClassToVirginState(reason);
+          setIsSystemResetModalOpen(false);
+        }}
+      />
     </div>
   );
 }
