@@ -28,10 +28,10 @@ export function TrashZone() {
           }
         }}
         aria-label="פח אשפה — גררו לכאן לבנים למחיקה או לחצו לניקוי הלוח"
-        className={`relative flex flex-col items-center justify-center px-3.5 py-1.5 rounded-2xl transition-all duration-200 select-none cursor-pointer active:scale-95 ${
+        className={`relative flex flex-col items-center justify-center min-w-[72px] h-[76px] px-3 py-1.5 rounded-2xl transition-all duration-200 select-none cursor-pointer touch-none active:scale-95 ${
           isOver
-            ? 'bg-red-100/90 scale-110 shadow-[0_0_24px_rgba(239,68,68,0.4)] ring-2 ring-red-400 ring-offset-2'
-            : 'hover:bg-red-50/60'
+            ? 'bg-red-100/95 scale-110 shadow-[0_0_24px_rgba(239,68,68,0.45)] ring-2 ring-red-400 ring-offset-2'
+            : 'hover:bg-red-50/70 bg-slate-50/50'
         }`}
       >
         {/* Subtle drop target floor ring */}

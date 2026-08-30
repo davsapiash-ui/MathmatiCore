@@ -43,6 +43,12 @@ export interface PendingAIApproval {
   targetSession: string;
 }
 
+export function normalizeTaskIdForHints(id?: string): string {
+  if (!id) return '';
+  // Normalize e.g. s3_g_t1 or s3_r_t1 -> s3_t1
+  return id.replace(/^(s\d+)_[gr]_t(\d+)$/, '$1_t$2');
+}
+
 // ─────────────────────────────────────────────────────────────
 // TASK-LEVEL SOCRATIC HINT MAP
 // Each entry is keyed by task ID (exact match from sessionTasks.ts).
@@ -841,7 +847,7 @@ export class SocraticEngine {
             id: "opt_1", 
             textHe: "נאסוף 10 יחידות מטור היחידות ונמיר אותן לעשרת אחת בטור העשרות", 
             isCorrect: true, 
-            feedbackHe: "תשובה נכונה! כעת בצעו את הקיבוץ בלוח הדינס." 
+            feedbackHe: "תשובה נכונה! לחצו על כפתור הקבץ (10) שבראש טור היחידות." 
           },
           { 
             id: "opt_2", 
@@ -871,7 +877,7 @@ export class SocraticEngine {
             id: "opt_1", 
             textHe: "נאסוף 10 עשרות ונקבץ אותן למאה אחת בטור המאות", 
             isCorrect: true, 
-            feedbackHe: "נכון מאוד! גררו 10 עשרות לטור המאות להמרה למאה אחת." 
+            feedbackHe: "נכון מאוד! לחצו על כפתור הקבץ (10) שבראש טור העשרות כדי להמיר למאה אחת." 
           },
           { 
             id: "opt_2", 
@@ -901,7 +907,7 @@ export class SocraticEngine {
             id: "opt_1", 
             textHe: "נאסוף 10 מאות ונקבץ אותן לאלף אחד בטור האלפים", 
             isCorrect: true, 
-            feedbackHe: "מצוין! קבצו 10 מאות לאלף אחד בטור האלפים." 
+            feedbackHe: "מצוין! לחצו על כפתור הקבץ (10) שבראש טור המאות לקבצן לאלף אחד." 
           },
           { 
             id: "opt_2", 
@@ -1345,6 +1351,85 @@ OUTPUT SCHEMA (Return ONLY valid JSON):
     return staticFallback;
   }
 
+  /**
+   * Resolves a fully calibrated Socratic hint synchronously (0ms) based on the exact active task,
+   * live counts, and mathematical operands without awaiting remote network requests.
+   */
+  public static getSynchronousTaskHint(
+    currentTask?: any,
+    counts?: { units: number; tens: number; hundreds: number; thousands: number }
+  ): SocraticHintResponse {
+    const currentCounts = counts || { units: 0, tens: 0, hundreds: 0, thousands: 0 };
+    const taskId: string | undefined = currentTask?.id;
+    const taskType: string | undefined = currentTask?.type;
+    const targetNode: string = currentTask?.targetNode || (currentTask?.requiresGrouping ? 'regrouping_fluency' : currentTask?.requiresUngrouping ? 'subtraction_regrouping' : 'basic_addition_fluency');
+
+    // 1. Live Board Evaluation (overcrowding >=10 in any column or subtraction deficit)
+    const liveHint = SocraticEngine.analyzeLiveBoardState(currentTask, targetNode, currentCounts);
+    if (liveHint) return liveHint;
+
+    // 2. Direct lookup in TASK_HINTS with exact ID or normalized ID (e.g. s3_g_t1 -> s3_t1)
+    const normalizedId = normalizeTaskIdForHints(taskId);
+    if (taskId && TASK_HINTS[taskId]) return TASK_HINTS[taskId];
+    if (normalizedId && TASK_HINTS[normalizedId]) return TASK_HINTS[normalizedId];
+
+    if (taskType === 'session1_intro') return TASK_HINTS['s1_sandbox_controlled'];
+
+    // 3. Mathematical operand-specific calculation
+    const numA = currentTask?.numberA;
+    const numB = currentTask?.numberB;
+    const isSub = currentTask?.isSubtraction || (currentTask?.type === 'vertical_addition' && currentTask?.isSubtraction);
+
+    if (numA !== undefined && numB !== undefined && !isSub) {
+      const unitsSum = (numA % 10) + (numB % 10);
+      const tensSum = Math.floor((numA % 100) / 10) + Math.floor((numB % 100) / 10);
+
+      if (tensSum >= 10 || currentTask?.requiresGrouping) {
+        return {
+          pedagogical_intent: "procedural",
+          error_category: "procedural",
+          questionHe: `בתרגיל ${numA} + ${numB}, בטור העשרות הצטברו יותר מ-9 עשרות. מה הצעד הבא שנבצע?`,
+          choices: [
+            { id: "opt_1", textHe: "נקבץ 10 עשרות למאה אחת בטור המאות (ונשאיר את שאר העשרות בטור העשרות)", isCorrect: true, feedbackHe: "נכון מאוד! 10 עשרות שוות בדיוק למאה אחת בטור המאות." },
+            { id: "opt_2", textHe: "נמחק 10 עשרות לפח מבלי להוסיף מאה", isCorrect: false, feedbackHe: "רמז: מחיקת בלוקים לפח משנה את ערך המספר הכולל!" },
+            { id: "opt_3", textHe: "נרשום מספר דו-ספרתי במשבצת העשרות", isCorrect: false, feedbackHe: "רמז: בכל משבצת בבית המספרים מותרת ספרה אחת בלבד (0 עד 9)." }
+          ],
+          correctChoiceId: "opt_1"
+        };
+      } else if (unitsSum >= 10) {
+        return {
+          pedagogical_intent: "procedural",
+          error_category: "procedural",
+          questionHe: `בתרגיל ${numA} + ${numB}, בטור היחידות הצטברו ${unitsSum} יחידות (יותר מ-9). מה עלינו לעשות?`,
+          choices: [
+            { id: "opt_1", textHe: "נקבץ 10 יחידות לעשרת אחת בטור העשרות", isCorrect: true, feedbackHe: "מדויק! 10 יחידות מומרות לעשרת אחת." },
+            { id: "opt_2", textHe: "נמחק 10 יחידות לפח המחזור", isCorrect: false, feedbackHe: "רמז: יש להמיר לעשרת כדי לשמור על הכמות הכוללת." },
+            { id: "opt_3", textHe: "נרשום את שתי הספרות במשבצת היחידות", isCorrect: false, feedbackHe: "רמז: בכל משבצת מותרת רק ספרה אחת." }
+          ],
+          correctChoiceId: "opt_1"
+        };
+      }
+    }
+
+    if (numA !== undefined && numB !== undefined && isSub) {
+      return {
+        pedagogical_intent: "procedural",
+        error_category: "procedural",
+        questionHe: `בחיסור ${numA} − ${numB}, כיצד נבצע את החיסור בבית המספרים?`,
+        choices: [
+          { id: "opt_1", textHe: `בונים את ${numA} בלוח ומוציאים מתוכו את חלקי המספר ${numB}`, isCorrect: true, feedbackHe: "נכון מאוד! בחיסור בונים רק את המספר הגדול וגורעים ממנו." },
+          { id: "opt_2", textHe: `בונים גם את ${numA} וגם את ${numB} בלוח`, isCorrect: false, feedbackHe: "רמז: בחיסור אין צורך לבנות את שני המספרים." },
+          { id: "opt_3", textHe: "מחסירים מלמטה למעלה ללא פריטה", isCorrect: false, feedbackHe: "רמז: בחיסור אנו גורעים רק מהכמות הקיימת." }
+        ],
+        correctChoiceId: "opt_1"
+      };
+    }
+
+    if (targetNode && NODE_HINTS[targetNode]) return NODE_HINTS[targetNode];
+
+    return GENERAL_FALLBACK;
+  }
+
   static async getSocraticHint(
     currentTask: any,
     targetNode: string,
@@ -1356,29 +1441,14 @@ OUTPUT SCHEMA (Return ONLY valid JSON):
   ): Promise<SocraticHintResponse | null> {
     await ready();
 
-    // 1. Live Board Anomaly Evaluation (Highest Priority)
-    const liveBoardHint = SocraticEngine.analyzeLiveBoardState(currentTask, targetNode, counts);
-    if (liveBoardHint) {
-      return liveBoardHint;
-    }
+    // 1. Resolve synchronous baseline anchor
+    const baselineAnchor = SocraticEngine.getSynchronousTaskHint(currentTask, counts);
 
-    const taskId: string | undefined = currentTask?.id;
-    const taskType: string | undefined = currentTask?.type;
-
-    // 2. Select the most accurate Q-Matrix baseline anchor
-    const qMatrixAnchor: SocraticHintResponse = 
-      liveBoardHint ||
-      (taskId && TASK_HINTS[taskId]) ||
-      (taskType === 'session1_intro' ? TASK_HINTS['s1_sandbox_controlled'] : null) ||
-      (targetNode && NODE_HINTS[targetNode]) ||
-      this.localHintCache.get(`${currentTask?.sessionNumber || 1}_${targetNode}`) ||
-      GENERAL_FALLBACK;
-
-    // 3. Map active column index
+    // 2. Map active column index
     const colNames = ['יחידות', 'עשרות', 'מאות', 'אלפים'];
     const activeColumnName = colNames[activeColumnIndex] || 'יחידות';
 
-    // 4. Grounded AI Socratic Query (Synthesize live board numbers with Q-Matrix anchor)
+    // 3. Grounded AI Socratic Query (Synthesize live board numbers with Q-Matrix anchor)
     try {
       const dynamicAiHint = await SocraticEngine.fetchGroundedGeminiSocraticQuery({
         currentTask: currentTask || {},
@@ -1389,7 +1459,7 @@ OUTPUT SCHEMA (Return ONLY valid JSON):
           `Hesitations: ${traceData?.hesitation_events || 0}`,
           `Undos: ${traceData?.undo_clicks || 0}`
         ],
-        qMatrixAnchor
+        qMatrixAnchor: baselineAnchor
       });
 
       if (dynamicAiHint) {
@@ -1399,8 +1469,8 @@ OUTPUT SCHEMA (Return ONLY valid JSON):
       console.warn('[SocraticEngine] Dynamic AI hint synthesis notice, using baseline anchor:', err);
     }
 
-    // 5. Fallback: Return the grounded Q-Matrix anchor
-    return qMatrixAnchor;
+    // 4. Fallback: Return the grounded baseline anchor
+    return baselineAnchor;
   }
 
   static async generateAndQueueTasks(

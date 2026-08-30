@@ -20,6 +20,7 @@ export function PlaceColumn({ place }: { place: Place }) {
   const focusedPlace = useWorkspaceStore((s) => s.focusedPlace);
   const isASD = useWorkspaceStore((s) => s.isASD);
   const groupColumnClick = useWorkspaceStore((s) => s.groupColumnClick);
+  const splitBlockClick = useWorkspaceStore((s) => s.splitBlockClick);
   const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
 
   const { setNodeRef, isOver } = useDroppable({
@@ -119,7 +120,7 @@ export function PlaceColumn({ place }: { place: Place }) {
         // dimmed to brightness(0.6) AND have their pointer events locked. Memory
         // circles live outside this column body, so they stay open to input in
         // every state, as the same section requires.
-        style={{ touchAction: 'none', pointerEvents: isDimmed ? 'none' : undefined }}
+        style={{ touchAction: 'none' }}
         className="relative flex-1 min-h-0 p-3 pb-4 overflow-y-auto overflow-x-hidden no-scrollbar touch-none flex flex-col justify-end"
       >
         {/* Grounded block stack anchored at the bottom — horizontal flex wrap */}
@@ -136,6 +137,7 @@ export function PlaceColumn({ place }: { place: Place }) {
                 place={place} 
                 source="column"
                 noEnter={i < renderCount - 1}
+                onClick={place !== 'units' ? () => splitBlockClick(place) : undefined}
               />
             </div>
           ))}

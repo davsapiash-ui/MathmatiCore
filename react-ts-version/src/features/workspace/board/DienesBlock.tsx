@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { motion } from 'framer-motion';
 import type { Place, DragSource } from '@/core/placeValue';
@@ -202,12 +203,14 @@ export function DienesBlock({
     disabled: isOverlay,
   });
 
+  const pointerDownPosRef = useRef<{ x: number; y: number } | null>(null);
+
   const visual = BLOCK_VISUALS[place];
   const SvgElement = visual.Component;
 
   const inner = (
     <div
-      className="relative select-none shrink-0 inline-flex items-center justify-center"
+      className="relative select-none shrink-0 inline-flex items-center justify-center pointer-events-none"
       style={visual.style}
     >
       <SvgElement />
@@ -218,7 +221,19 @@ export function DienesBlock({
 
   const hitPadding = place === 'units' ? 'p-2 -m-1' : '';
 
-  const handleAction = () => {
+  const handlePointerDown = (e: React.PointerEvent) => {
+    pointerDownPosRef.current = { x: e.clientX, y: e.clientY };
+  };
+
+  const handleAction = (e?: React.MouseEvent | React.KeyboardEvent) => {
+    if (e && 'clientX' in e && pointerDownPosRef.current) {
+      const dx = Math.abs(e.clientX - pointerDownPosRef.current.x);
+      const dy = Math.abs(e.clientY - pointerDownPosRef.current.y);
+      if (dx > 5 || dy > 5) {
+        // Pointer moved during drag gesture — suppress in-place click action
+        return;
+      }
+    }
     if (onClick) onClick();
     else if (onSplit) onSplit();
     else if (onRemove) onRemove();
@@ -235,11 +250,12 @@ export function DienesBlock({
       aria-label={visual.labelHe}
       style={{ touchAction: 'none' }}
       className={`touch-none cursor-grab active:cursor-grabbing outline-none focus-visible:ring-2 focus-visible:ring-ws-accent rounded-[3px] hover:brightness-110 active:scale-95 ${hitPadding} ${isDragging ? 'opacity-30' : ''}`}
+      onPointerDown={handlePointerDown}
       onClick={handleAction}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          handleAction();
+          handleAction(e);
         }
       }}
     >

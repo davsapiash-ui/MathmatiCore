@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useWorkspaceStore, getActiveTasks, placeToColumnIndex } from '@/application/useWorkspaceStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { HelpCircle, Hourglass, X, CheckCircle2, AlertCircle } from 'lucide-react';
-import type { SocraticChoice } from '@/infrastructure/services/SocraticEngine';
+import { SocraticEngine, type SocraticChoice } from '@/infrastructure/services/SocraticEngine';
 import { emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
 
 interface SocraticDrawerProps {
@@ -125,15 +125,9 @@ export function SocraticDrawer({ isOpen, onClose }: SocraticDrawerProps) {
     }
   };
 
-  const hint = aiSocraticHint || {
-    questionHe: 'מה הפעולה המתמטית שנרצה לבצע בבית המספרים?',
-    choices: [
-      { id: 'opt_1', textHe: 'לבדוק את מספר הבלוקים בכל טור בבית המספרים ולחשב מחדש' },
-      { id: 'opt_2', textHe: 'לפרוט עשרת אחת ל-10 יחידות' },
-      { id: 'opt_3', textHe: 'לקבץ 10 יחידות לעשרת אחת' },
-    ],
-    correctChoiceId: 'opt_1',
-  };
+  const wsState = useWorkspaceStore.getState();
+  const currentTask = getActiveTasks(wsState)[wsState.standardTaskIdx] || null;
+  const hint = aiSocraticHint || SocraticEngine.getSynchronousTaskHint(currentTask, wsState.counts);
 
   return (
     <AnimatePresence>

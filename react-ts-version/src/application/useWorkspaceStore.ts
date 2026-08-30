@@ -2052,11 +2052,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     toggleAdditionHelper: () => set((s) => ({ isAdditionHelperOpen: !s.isAdditionHelperOpen })),
     setKeyboardSocratic: () => {
       if (get().sessionNumber === 2) return; // PRD v7.0 Module 12 & 14: Socratic card completely disabled in Session 2
-      set((s) => ({
+      const s = get();
+      const currentTask = selectStandardTask(s);
+      const initialHint = SocraticEngine.getSynchronousTaskHint(currentTask, s.counts);
+      set((st) => ({
         keyboardState: 'SOCRATIC_ONLY',
         helpState: 'socratic',
         currentState: 'SOCRATIC_ACTIVE',
-        aiSocraticHint: s.aiSocraticHint || DEFAULT_SOCRATIC_HINT
+        aiSocraticHint: initialHint || st.aiSocraticHint
       }));
       get().fetchSocraticHint();
     },
@@ -2228,9 +2231,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const currentTask = selectStandardTask(state);
         const isSandbox = currentTask?.id === 's1_sandbox_controlled' || currentTask?.type === 'session1_intro';
         if (nextSec >= 45 && state.currentState !== 'SOCRATIC_ACTIVE' && !state.isSocraticCardLocked && state.sessionNumber !== 2 && !isSandbox) {
+          const initialHint = SocraticEngine.getSynchronousTaskHint(currentTask, state.counts);
           setTimeout(() => {
             get().fetchSocraticHint();
-            set({ helpState: 'socratic', currentState: 'SOCRATIC_ACTIVE' });
+            set({ helpState: 'socratic', currentState: 'SOCRATIC_ACTIVE', aiSocraticHint: initialHint });
           }, 0);
         }
         return { 
@@ -2290,9 +2294,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       set((state) => {
         const nextErrors = state.consecutiveErrorCount + 1;
         if (nextErrors >= 4 && state.currentState !== 'SOCRATIC_ACTIVE' && !state.isSocraticCardLocked && state.sessionNumber !== 2) {
+          const currentTask = selectStandardTask(state);
+          const initialHint = SocraticEngine.getSynchronousTaskHint(currentTask, state.counts);
           setTimeout(() => {
             get().fetchSocraticHint();
-            set({ helpState: 'socratic', currentState: 'SOCRATIC_ACTIVE' });
+            set({ helpState: 'socratic', currentState: 'SOCRATIC_ACTIVE', aiSocraticHint: initialHint });
           }, 0);
         }
         return { 
