@@ -27,7 +27,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { Send, MessageCircle, ShieldAlert, Sliders, Search, Check, CheckCheck, Sparkles, Users } from "lucide-react";
+import { Send, MessageCircle, ShieldAlert, Sliders, Search, Check, CheckCheck, Sparkles, Users, Mail } from "lucide-react";
 
 import { ClassManagement } from "./TeacherDashboard/ClassManagement";
 import { StudentReplayAndLogs } from "./TeacherDashboard/components/StudentReplayAndLogs";
@@ -1286,6 +1286,8 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
               onClick={() => handleTabChange("chat_admin")}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${activeTab === "chat_admin" ? "bg-indigo-600 text-white shadow-md" : "bg-slate-800 text-slate-300 hover:bg-slate-700"}`}
             >
+              {/* Module 22 §ב: the consultation channel opens from an envelope icon */}
+              <Mail className="w-3.5 h-3.5" />
               <span>צ'אט הנהלה</span>
               {unreadAdminCount > 0 && (
                 <span className="bg-indigo-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full shadow-md animate-bounce">

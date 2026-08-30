@@ -96,6 +96,7 @@ export function PlaceColumn({ place }: { place: Place }) {
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           className="p-1.5 flex justify-center border-b border-ws-surface2/60 bg-ws-bg/40 shrink-0"
+          style={{ pointerEvents: isDimmed ? 'none' : undefined }}
         >
           <button
             onClick={() => groupColumnClick(place)}
@@ -114,7 +115,11 @@ export function PlaceColumn({ place }: { place: Place }) {
         id={`column-${place}-dropzone`}
         role="group"
         aria-label={`אזור גרירה — ${PLACE_NAMES_HE[place]}`}
-        style={{ touchAction: 'none' }}
+        // PRD v7.1 Module 7 §א: columns outside the current calculation focus are
+        // dimmed to brightness(0.6) AND have their pointer events locked. Memory
+        // circles live outside this column body, so they stay open to input in
+        // every state, as the same section requires.
+        style={{ touchAction: 'none', pointerEvents: isDimmed ? 'none' : undefined }}
         className="relative flex-1 min-h-0 p-3 pb-4 overflow-y-auto overflow-x-hidden no-scrollbar touch-none flex flex-col justify-end"
       >
         {/* Grounded block stack anchored at the bottom — horizontal flex wrap */}
