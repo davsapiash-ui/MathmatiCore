@@ -95,7 +95,6 @@ type TabType =
   | "clustering"
   | "alerts"
   | "diagnostic_reports"
-  | "chat_admin"
   | "chat_students"
   | "class_management"
   | "approvals";
@@ -322,6 +321,9 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   const [pendingActivationSession, setPendingActivationSession] = useState<number | null>(null);
   // Module 14 §ב1: teacher-only, one-time-per-session deadline notice
   const [deadlineNotice, setDeadlineNotice] = useState<{ sessionNumber: number; minutes: number } | null>(null);
+  // Module 22 §ב: the admin consultation channel lives in a sliding side drawer
+  // opened by the envelope icon — not in a dashboard tab.
+  const [isAdminChatDrawerOpen, setIsAdminChatDrawerOpen] = useState(false);
 
   // Sync active class session with Firebase.
   // A session with a teacherDisconnectedAt stamp older than 5 minutes counts as
@@ -1063,7 +1065,6 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       | "clustering"
       | "alerts"
       | "diagnostic_reports"
-      | "chat_admin"
       | "chat_students"
       | "class_management"
       | "approvals",
@@ -1122,7 +1123,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     if (!user) return;
     
     // Process admin messages
-    if (activeTab === "chat_admin" && user.role !== "admin") {
+    if (isAdminChatDrawerOpen && user.role !== "admin") {
       const unreadAdmin = messages.filter(m => m.senderId === "admin" && !m.read);
       if (unreadAdmin.length > 0) {
         markAsRead(user.uid as string, "admin");
@@ -1137,7 +1138,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
         markAsRead(user.uid as string, targetId);
       }
     }
-  }, [activeTab, selectedStudentId, messages, user, markAsRead]);
+  }, [isAdminChatDrawerOpen, activeTab, selectedStudentId, messages, user, markAsRead]);
 
   const handleSendAdmin = () => {
     if (!inputText.trim() || !user) return;
@@ -1283,8 +1284,8 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
               )}
             </button>
             <button
-              onClick={() => handleTabChange("chat_admin")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${activeTab === "chat_admin" ? "bg-indigo-600 text-white shadow-md" : "bg-slate-800 text-slate-300 hover:bg-slate-700"}`}
+              onClick={() => setIsAdminChatDrawerOpen(true)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${isAdminChatDrawerOpen ? "bg-indigo-600 text-white shadow-md" : "bg-slate-800 text-slate-300 hover:bg-slate-700"}`}
             >
               {/* Module 22 §ב: the consultation channel opens from an envelope icon */}
               <Mail className="w-3.5 h-3.5" />
@@ -1378,10 +1379,10 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
             )}
           </button>
           <button
-            onClick={() => handleTabChange("chat_admin")}
-            className={`w-full flex justify-between items-center text-right px-4 py-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "chat_admin" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
+            onClick={() => setIsAdminChatDrawerOpen(true)}
+            className={`w-full flex justify-between items-center text-right px-4 py-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${isAdminChatDrawerOpen ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
           >
-            <span>צ'אט הנהלה</span>
+            <span className="flex items-center gap-2"><Mail className="w-4 h-4" />צ'אט הנהלה</span>
             {unreadAdminCount > 0 && (
               <span className="bg-indigo-600 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-lg shadow-indigo-600/30 animate-bounce">
                 {unreadAdminCount}
@@ -2357,13 +2358,26 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
         )}
 
         {/* ADMIN CHAT */}
-        {activeTab === "chat_admin" && (
-          <div className="h-[calc(100vh-110px)] max-h-[calc(100vh-110px)] flex flex-col bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden animate-in fade-in duration-300">
+        {/* PRD v7.1 Module 22 §ב: the consultation channel is a sliding side
+            drawer opened by the envelope icon in the toolbar — never a page tab. */}
+        {isAdminChatDrawerOpen && (
+          <>
+            <div
+              className="fixed inset-0 bg-slate-950/50 backdrop-blur-sm z-[9998] animate-in fade-in"
+              onClick={() => setIsAdminChatDrawerOpen(false)}
+            />
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="ערוץ שיח ניהולי"
+              dir="rtl"
+              className="fixed top-0 right-0 bottom-0 z-[9999] w-full sm:w-[520px] h-[100dvh] flex flex-col bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden animate-in slide-in-from-right duration-300"
+            >
             {/* Header */}
             <div className="p-4 sm:p-5 bg-slate-50 dark:bg-slate-850 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-sm z-10 shrink-0">
               <div className="flex items-center gap-4">
                 <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white flex items-center justify-center shadow-lg shadow-amber-500/20 shrink-0">
-                  <ShieldAlert className="w-6 h-6" />
+                  <Mail className="w-6 h-6" />
                 </div>
                 <div>
                   <h3 className="font-bold text-lg text-slate-900 dark:text-white">
@@ -2377,6 +2391,13 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                   </div>
                 </div>
               </div>
+              <button
+                onClick={() => setIsAdminChatDrawerOpen(false)}
+                aria-label="סגירת ערוץ השיח"
+                className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white font-bold cursor-pointer shrink-0"
+              >
+                ✕
+              </button>
             </div>
 
             {/* Chat Messages View */}
@@ -2446,7 +2467,8 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                 <Send className="w-4 h-4 -mr-0.5" />
               </button>
             </div>
-          </div>
+            </div>
+          </>
         )}
 
         {/* STUDENTS CHAT */}

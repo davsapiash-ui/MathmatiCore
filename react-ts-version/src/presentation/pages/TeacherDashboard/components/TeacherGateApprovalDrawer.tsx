@@ -3,9 +3,6 @@ import { createPortal } from 'react-dom';
 import { type StudentData, useStore } from '@/application/useStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { approveTeacherGate } from '@/core/teacherGate';
-import { normalizeStudentId } from '@/application/useChatStore';
-import { SocraticEngine } from '@/infrastructure/services/SocraticEngine';
-import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
 import { 
   X, 
   Sparkles, 
@@ -19,8 +16,6 @@ import {
   ArrowRight,
   ListTodo
 } from 'lucide-react';
-import { ref, update } from 'firebase/database';
-import { database } from '@/infrastructure/firebase';
 import { toast } from 'sonner';
 
 interface Props {
