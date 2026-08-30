@@ -294,11 +294,11 @@ describe('MASTER PRD v07 COMPREHENSIVE QA & AUDIT SUITE', () => {
   });
 
   describe('QA Pillar 5: Modules 14-16, 20 (8 Sessions Flow, Early Finishers, SRL Reflection, Approval Gate)', () => {
-    it('verifies 15min deadline for Sessions 3-7 and 25min for Sessions 1, 2, 8', () => {
+    it('verifies 20min for Session 1 sandbox, 15min for Sessions 3-7, 25min for Sessions 2 and 8 (PRD v7.1 Module 14 §ב)', () => {
       const store = useWorkspaceStore.getState();
 
       store.initSession(1, false);
-      expect(useWorkspaceStore.getState().sessionDurationMinutes).toBe(25);
+      expect(useWorkspaceStore.getState().sessionDurationMinutes).toBe(20);
 
       store.initSession(2, false);
       expect(useWorkspaceStore.getState().sessionDurationMinutes).toBe(25);

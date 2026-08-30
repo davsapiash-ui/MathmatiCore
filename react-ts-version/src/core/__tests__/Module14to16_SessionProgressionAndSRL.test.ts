@@ -34,14 +34,14 @@ describe('Work Package 4 (WP4): Session Progression (1-8), Projector Sync & SRL 
       expect(useWorkspaceStore.getState().sessionNumber).toBe(1);
     });
 
-    it('enforces 15 minutes deadline for Sessions 3-7 and 25 minutes for Sessions 1, 2, 8 per PRD Module 14', () => {
+    it('enforces 20 min for Session 1 sandbox, 15 min for Sessions 3-7, 25 min for Sessions 2 and 8 per PRD v7.1 Module 14', () => {
       const store = useWorkspaceStore.getState();
 
-      // Session 1: 25 minutes
+      // Session 1 sandbox: 20 minutes (PRD v7.1 Module 14 §ב)
       store.initSession(1, false);
-      expect(useWorkspaceStore.getState().sessionDurationMinutes).toBe(25);
+      expect(useWorkspaceStore.getState().sessionDurationMinutes).toBe(20);
       expect(useWorkspaceStore.getState().sessionDeadlineTime).toBeGreaterThan(Date.now());
-      expect(useWorkspaceStore.getState().getSessionRemainingSeconds()).toBeGreaterThanOrEqual(25 * 60 - 2);
+      expect(useWorkspaceStore.getState().getSessionRemainingSeconds()).toBeGreaterThanOrEqual(20 * 60 - 2);
 
       // Session 2: 25 minutes
       store.initSession(2, false);
