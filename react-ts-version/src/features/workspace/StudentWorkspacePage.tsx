@@ -4,7 +4,6 @@ import {
   DndContext,
   DragOverlay,
   PointerSensor,
-  TouchSensor,
   pointerWithin,
   rectIntersection,
   useSensor,
@@ -938,7 +937,7 @@ export function StudentWorkspacePage() {
 
           {/* Place-value board (hidden/unmounted in Session 2 and Session 8) */}
           {sessionNumber !== 2 && sessionNumber !== 8 && (
-            <PlaceValueBoard />
+            <PlaceValueBoard activeDragPlace={activeDrag?.place ?? null} />
           )}
         </main>
 

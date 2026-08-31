@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
-import { PLACE_ORDER } from '@/core/placeValue';
+import { PLACE_ORDER, type Place } from '@/core/placeValue';
 import { useWorkspaceStore, selectScaffoldLevel } from '@/application/useWorkspaceStore';
 import { PlaceColumn } from './PlaceColumn';
 import { ValueDisplay } from './ValueDisplay';
@@ -11,12 +11,14 @@ import { BlockPalette } from './BlockPalette';
  * Column order in RTL: units rightmost → thousands leftmost (standard Hebrew notation).
  * 50% of the workspace when open; collapsible via the topbar toggle.
  */
-export function PlaceValueBoard({ 
+export function PlaceValueBoard({
   hideValueDisplay,
   fullWidth = false,
-}: { 
+  activeDragPlace = null,
+}: {
   hideValueDisplay?: boolean;
   fullWidth?: boolean;
+  activeDragPlace?: Place | null;
 }) {
   const boardOpen = useWorkspaceStore((s) => s.boardOpen);
   const scaffoldFadeLevel = useWorkspaceStore((s) => s.scaffoldFadeLevel);
@@ -87,7 +89,7 @@ export function PlaceValueBoard({
             {/* Place-value columns with permanent clear solid borders */}
             <div dir="rtl" className="flex-1 flex flex-row gap-2 min-h-0 select-none" role="group" aria-label="טורי ערך המקום">
               {placesToRender.map((place) => (
-                <PlaceColumn key={place} place={place} />
+                <PlaceColumn key={place} place={place} activeDragPlace={activeDragPlace} />
               ))}
             </div>
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { authReady, auth } from "@/infrastructure/firebase";
 import { Login } from "@/presentation/pages/Login";
@@ -6,24 +6,46 @@ import { isWhitelistedTeacherEmail } from "@/infrastructure/services/AuthService
 import { LandingPage } from "@/presentation/pages/LandingPage";
 import { StudentWorkspacePage } from "@/features/workspace/StudentWorkspacePage";
 import { StudentHub } from "@/presentation/pages/StudentHub";
-import { TeacherDashboard } from "@/presentation/pages/TeacherDashboard";
-import { ProjectorSandboxPage } from "@/presentation/pages/ProjectorSandboxPage";
 import { AppShell } from "@/presentation/components/layout/AppShell";
 import { Toaster } from "sonner";
 import { RoleSelectionModal } from "@/presentation/components/RoleSelectionModal";
-
-import { AdminLayout } from "@/presentation/pages/AdminLayout";
-import { AdminOverview } from "@/presentation/pages/admin/AdminOverview";
-import { AdminSchoolsView } from "@/presentation/pages/admin/AdminSchoolsView";
-import { AdminCurriculumView } from "@/presentation/pages/admin/AdminCurriculumView";
-import { AdminSecurityView } from "@/presentation/pages/admin/AdminSecurityView";
-import { AdminSettingsView } from "@/presentation/pages/admin/AdminSettingsView";
-import { AdminChatView } from "@/presentation/pages/admin/AdminChatView";
-import { AdminSupportHubView } from "@/presentation/pages/admin/AdminSupportHubView";
 import { useAuthStore } from "@/application/useAuthStore";
 import { SocraticEngine } from "./infrastructure/services/SocraticEngine";
-
 import { useStore } from "@/application/useStore";
+
+// Teacher/Admin surfaces are code-split out of the student bundle: a student
+// opening /workspace should never pay for downloading the teacher dashboard,
+// charting libraries, and admin panels it never renders.
+const TeacherDashboard = lazy(() =>
+  import("@/presentation/pages/TeacherDashboard").then((m) => ({ default: m.TeacherDashboard }))
+);
+const ProjectorSandboxPage = lazy(() =>
+  import("@/presentation/pages/ProjectorSandboxPage").then((m) => ({ default: m.ProjectorSandboxPage }))
+);
+const AdminLayout = lazy(() =>
+  import("@/presentation/pages/AdminLayout").then((m) => ({ default: m.AdminLayout }))
+);
+const AdminOverview = lazy(() =>
+  import("@/presentation/pages/admin/AdminOverview").then((m) => ({ default: m.AdminOverview }))
+);
+const AdminSchoolsView = lazy(() =>
+  import("@/presentation/pages/admin/AdminSchoolsView").then((m) => ({ default: m.AdminSchoolsView }))
+);
+const AdminCurriculumView = lazy(() =>
+  import("@/presentation/pages/admin/AdminCurriculumView").then((m) => ({ default: m.AdminCurriculumView }))
+);
+const AdminSecurityView = lazy(() =>
+  import("@/presentation/pages/admin/AdminSecurityView").then((m) => ({ default: m.AdminSecurityView }))
+);
+const AdminSettingsView = lazy(() =>
+  import("@/presentation/pages/admin/AdminSettingsView").then((m) => ({ default: m.AdminSettingsView }))
+);
+const AdminChatView = lazy(() =>
+  import("@/presentation/pages/admin/AdminChatView").then((m) => ({ default: m.AdminChatView }))
+);
+const AdminSupportHubView = lazy(() =>
+  import("@/presentation/pages/admin/AdminSupportHubView").then((m) => ({ default: m.AdminSupportHubView }))
+);
 
 // Expose SocraticEngine and Auth for E2E proof testing
 if (import.meta.env.MODE === 'development' || import.meta.env.MODE === 'test') {
@@ -166,6 +188,13 @@ function App() {
     <BrowserRouter>
       {/* Toast host: without it every toast.success/error in the app is a no-op */}
       <Toaster position="top-center" richColors closeButton dir="rtl" />
+      <Suspense
+        fallback={
+          <div dir="rtl" className="flex h-screen items-center justify-center bg-ws-bg text-ws-soft font-bold">
+            טוען…
+          </div>
+        }
+      >
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<RoleRouter />} />
@@ -257,6 +286,7 @@ function App() {
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useDroppable, useDndContext } from '@dnd-kit/core';
+import { useDroppable } from '@dnd-kit/core';
 import { motion, useAnimationControls, AnimatePresence } from 'framer-motion';
 import { MAX_VISIBLE_BLOCKS, PLACE_NAMES_HE, type Place } from '@/core/placeValue';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
@@ -13,7 +13,7 @@ const COLUMN_COLORS: Record<Place, { header: string; border: string; tint: strin
   thousands: { header: 'var(--block-thousand-dark)', border: 'var(--block-thousand)', tint: 'rgba(239,68,68,0.08)', headerBg: 'rgba(239,68,68,0.14)' },
 };
 
-export function PlaceColumn({ place }: { place: Place }) {
+export function PlaceColumn({ place, activeDragPlace }: { place: Place; activeDragPlace?: Place | null }) {
   const count = useWorkspaceStore((s) => s.counts?.[place] ?? 0);
   const errorPlace = useWorkspaceStore((s) => s.errorPlace);
   const errorNonce = useWorkspaceStore((s) => s.errorNonce);
@@ -29,11 +29,11 @@ export function PlaceColumn({ place }: { place: Place }) {
     data: { kind: 'column', place },
   });
 
-  const { active } = useDndContext();
-  const activePlace = active?.data.current?.place as Place | undefined;
-  
-  // Show preview of 10 units when dragging a tens rod over the units column
-  const isPreviewingDecomp = isOver && place === 'units' && activePlace === 'tens';
+  // Show preview of 10 units when dragging a tens rod over the units column.
+  // activeDragPlace comes from local component state (set once per drag start/end),
+  // not from dnd-kit's useDndContext — that context re-renders every column on
+  // every pointer-move frame during a drag, which was the source of drag lag.
+  const isPreviewingDecomp = isOver && place === 'units' && activeDragPlace === 'tens';
 
   const scaffoldFadeLevel = useWorkspaceStore((s) => s.scaffoldFadeLevel);
 
