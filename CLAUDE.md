@@ -1,5 +1,16 @@
 # MathmatiCore — Claude Code Context & Instructions
 
+## Product Spec (PRD)
+The **only** authoritative requirements document is
+`מסמכי אפיון/07- 2.MathematiCore_PRD_v07 הסופי.md`. Every other PRD/spec/plan/audit
+file previously in this repo (multiple conflicting PRD versions from v2.0
+through v7.1, plus a fabricated "100% compliance" audit that cited files
+that don't exist in the codebase) was deleted because the repo had
+accumulated fixes made against different, contradictory spec revisions —
+that drift was a real source of regressions. Do not create new PRD/spec/plan
+documents at the repo root; if requirements need to change, edit the one
+canonical file above.
+
 ## Project Overview
 MathmatiCore is a hybrid mathematics learning platform for 3rd-grade students (including ASD support and special education).
 - **Frontend Path**: `react-ts-version` (React 19, Vite, TypeScript, Tailwind CSS, Framer Motion, KaTeX)
