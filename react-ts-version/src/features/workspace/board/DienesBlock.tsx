@@ -203,8 +203,6 @@ export function DienesBlock({
     disabled: isOverlay,
   });
 
-  const pointerDownPosRef = useRef<{ x: number; y: number } | null>(null);
-
   const visual = BLOCK_VISUALS[place];
   const SvgElement = visual.Component;
 
@@ -221,19 +219,7 @@ export function DienesBlock({
 
   const hitPadding = place === 'units' ? 'p-3 -m-1.5' : 'p-1 -m-0.5';
 
-  const handlePointerDown = (e: React.PointerEvent) => {
-    pointerDownPosRef.current = { x: e.clientX, y: e.clientY };
-  };
-
-  const handleAction = (e?: React.MouseEvent | React.KeyboardEvent) => {
-    if (e && 'clientX' in e && pointerDownPosRef.current) {
-      const dx = Math.abs(e.clientX - pointerDownPosRef.current.x);
-      const dy = Math.abs(e.clientY - pointerDownPosRef.current.y);
-      if (dx > 5 || dy > 5) {
-        // Pointer moved during drag gesture — suppress in-place click action
-        return;
-      }
-    }
+  const handleAction = (_e?: React.MouseEvent | React.KeyboardEvent) => {
     if (onClick) onClick();
     else if (onSplit) onSplit();
     else if (onRemove) onRemove();
@@ -250,10 +236,6 @@ export function DienesBlock({
       aria-label={visual.labelHe}
       style={{ touchAction: 'none' }}
       className={`touch-none cursor-grab active:cursor-grabbing outline-none focus-visible:ring-2 focus-visible:ring-ws-accent rounded-[3px] hover:brightness-110 ${hitPadding} ${isDragging ? 'opacity-30' : ''}`}
-      onPointerDown={(e) => {
-        listeners?.onPointerDown?.(e);
-        handlePointerDown(e);
-      }}
       onClick={handleAction}
       onKeyDown={(e) => {
         listeners?.onKeyDown?.(e);

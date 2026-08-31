@@ -43,8 +43,7 @@ export function ProjectorSandboxPage() {
   const [isBroadcasting, setIsBroadcasting] = useState(true);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 3 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 100, tolerance: 8 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
   );
 
   // אתחול סשן נקי ללוח בהתאם לטווח הנבחר

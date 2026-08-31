@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { type StudentData } from '@/application/useStore';
-import { X, Send, Minus, CheckCheck } from 'lucide-react';
+import { X, Send, Minus, CheckCheck, Trash2 } from 'lucide-react';
 import { useChatStore, normalizeStudentId, isTeacherOrAdminId } from '@/application/useChatStore';
 import { toast } from 'sonner';
 import { validateChatInputForPII, anonymizeChatMessageBody } from '@/core/security/PiiFilter';
@@ -15,7 +15,7 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
   const [isMinimized, setIsMinimized] = useState(false);
   const [inputText, setInputText] = useState('');
 
-  const { messages, sendMessage, markAsRead, initSync } = useChatStore();
+  const { messages, sendMessage, markAsRead, initSync, clearStudentMessages } = useChatStore();
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -41,6 +41,14 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [studentMessages, isMinimized]);
+
+  const handleClearChat = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (window.confirm('האם למחוק את כל היסטוריית השיחה עם תלמיד זה?')) {
+      clearStudentMessages(normStudentId);
+      toast.success('היסטוריית הצ׳אט נמחקה בהצלחה');
+    }
+  };
 
   const handleSend = () => {
     if (!inputText.trim()) return;
@@ -75,6 +83,13 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
           <span>תלמיד {normStudentId.replace(/\D/g, '') || normStudentId}</span>
         </div>
         <div className="flex gap-2 text-indigo-200">
+          <button 
+            onClick={handleClearChat}
+            className="hover:text-red-200 transition-colors p-0.5 rounded"
+            title="נקה היסטוריית שיחה"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
           <button className="hover:text-white transition-colors" title="מזער">
             <Minus className="w-4 h-4" />
           </button>

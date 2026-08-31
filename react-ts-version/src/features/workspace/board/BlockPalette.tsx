@@ -37,34 +37,12 @@ function PaletteItemCard({
     data: { source: 'palette', place, renderPlace: place },
   });
 
-  const pointerDownPosRef = useRef<{ x: number; y: number } | null>(null);
-
-  const handlePointerDown = (e: React.PointerEvent) => {
-    pointerDownPosRef.current = { x: e.clientX, y: e.clientY };
-  };
-
-  const handleClick = (e: React.MouseEvent) => {
-    if (pointerDownPosRef.current) {
-      const dx = Math.abs(e.clientX - pointerDownPosRef.current.x);
-      const dy = Math.abs(e.clientY - pointerDownPosRef.current.y);
-      if (dx > 5 || dy > 5) {
-        // Pointer moved during drag gesture — suppress in-place click action
-        return;
-      }
-    }
-    onClick();
-  };
-
   return (
     <div
       ref={setNodeRef}
       {...attributes}
       {...listeners}
-      onPointerDown={(e) => {
-        listeners?.onPointerDown?.(e);
-        handlePointerDown(e);
-      }}
-      onClick={handleClick}
+      onClick={onClick}
       role="button"
       tabIndex={0}
       style={{ touchAction: 'none' }}

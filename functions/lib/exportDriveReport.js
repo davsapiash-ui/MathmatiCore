@@ -267,27 +267,39 @@ async function uploadBufferToDrive(buffer, fileName, mimeType, parentFolderId = 
         if (!accessToken) {
             return { success: false, fileId: '', webViewLink: '', error: 'Google Drive access token unavailable' };
         }
-        const metadata = {
-            name: fileName,
-            parents: [parentFolderId],
-            mimeType,
+        const performUpload = async (parents) => {
+            const metadata = {
+                name: fileName,
+                mimeType,
+            };
+            if (parents && parents.length > 0) {
+                metadata.parents = parents;
+            }
+            const boundary = "mathmaticore_upload_boundary";
+            const delimiter = `\r\n--${boundary}\r\n`;
+            const closeDelimiter = `\r\n--${boundary}--`;
+            const multipartBody = Buffer.concat([
+                Buffer.from(`${delimiter}Content-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}`),
+                Buffer.from(`${delimiter}Content-Type: ${mimeType}\r\nContent-Transfer-Encoding: base64\r\n\r\n${buffer.toString("base64")}`),
+                Buffer.from(closeDelimiter),
+            ]);
+            const response = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&supportsTeamDrives=true", {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                    "Content-Type": `multipart/related; boundary=${boundary}`,
+                },
+                body: multipartBody,
+            });
+            return response;
         };
-        const boundary = "mathmaticore_upload_boundary";
-        const delimiter = `\r\n--${boundary}\r\n`;
-        const closeDelimiter = `\r\n--${boundary}--`;
-        const multipartBody = Buffer.concat([
-            Buffer.from(`${delimiter}Content-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}`),
-            Buffer.from(`${delimiter}Content-Type: ${mimeType}\r\nContent-Transfer-Encoding: base64\r\n\r\n${buffer.toString("base64")}`),
-            Buffer.from(closeDelimiter),
-        ]);
-        const response = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&supportsTeamDrives=true", {
-            method: "POST",
-            headers: {
-                Authorization: `Bearer ${accessToken}`,
-                "Content-Type": `multipart/related; boundary=${boundary}`,
-            },
-            body: multipartBody,
-        });
+        // Primary attempt: upload to target Shared Drive folder
+        let response = await performUpload([parentFolderId]);
+        // Fallback: If folder is restricted/missing (404/403/400), upload directly to Drive
+        if (!response.ok && (response.status === 404 || response.status === 403 || response.status === 400)) {
+            logger.warn(`Target folder ${parentFolderId} returned ${response.status}, retrying upload to Google Drive root...`);
+            response = await performUpload();
+        }
         if (response.ok) {
             const resData = await response.json();
             const fileId = resData.id || `drive_${Date.now()}`;

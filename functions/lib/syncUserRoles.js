@@ -32,10 +32,7 @@ exports.syncUserRoles = (0, https_1.onCall)({
     let roles = [];
     let resolvedUid = request.auth.uid;
     // Check hardcoded pilot addresses
-    if (normalizedEmail === ADMIN_PRIMARY ||
-        normalizedEmail === ADMIN_ALIAS ||
-        normalizedEmail.startsWith("davidsep") ||
-        normalizedEmail.startsWith("davsapiash")) {
+    if (normalizedEmail === ADMIN_PRIMARY || normalizedEmail === ADMIN_ALIAS) {
         isAuthorizedAdmin = true;
     }
     else if (normalizedEmail === TEACHER_EMAIL || normalizedEmail === TEACHER_LOCAL || normalizedEmail === "1002220159@edu-haifa.org.il") {

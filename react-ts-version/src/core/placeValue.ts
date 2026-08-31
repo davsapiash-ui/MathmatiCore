@@ -170,10 +170,10 @@ export function resolveDrop(counts: PlaceCounts, input: DropInput, _scaffoldLeve
     // Adjacent lower: instant decomposition of a fresh palette block (+10 low).
     if (srcIdx - tgtIdx === 1) {
       const res = addUngroupedFromPalette(counts, input.sourcePlace);
-      if (!res) return { ok: false, reason: 'silent' };
+      if (!res) return { ok: false, reason: 'constraint', place: targetPlace };
       return { ok: true, counts: res.counts, regroupEvents: [], ungroupEvent: res.event };
     }
-    return { ok: false, reason: 'silent' };
+    return { ok: false, reason: 'constraint', place: targetPlace };
   }
 
   // source === 'column'
@@ -182,10 +182,10 @@ export function resolveDrop(counts: PlaceCounts, input: DropInput, _scaffoldLeve
   // פריטה: adjacent lower only.
   if (srcIdx - tgtIdx === 1) {
     const res = ungroupBlock(counts, input.sourcePlace);
-    if (!res) return { ok: false, reason: 'silent' };
+    if (!res) return { ok: false, reason: 'constraint', place: targetPlace };
     return { ok: true, counts: res.counts, regroupEvents: [], ungroupEvent: res.event };
   }
 
   // Non-adjacent or upward drag: rejected (regrouping must use the explicit "הקבץ" button per PRD).
-  return { ok: false, reason: 'silent' };
+  return { ok: false, reason: 'constraint', place: targetPlace };
 }

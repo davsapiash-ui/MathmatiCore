@@ -695,8 +695,7 @@ export function StudentWorkspacePage() {
   }, [meeting, networkError, pendingApproval, isASDMode, initSession]);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 3 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 0, tolerance: 4 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
   );
 
   const collisionDetectionStrategy: CollisionDetection = (args) => {
