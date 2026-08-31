@@ -15,7 +15,6 @@ import {
 import { useNavigate } from 'react-router-dom';
 import type { DragSource, Place } from '@/core/placeValue';
 import { useWorkspaceStore, getActiveTasks, type SessionNumber } from '@/application/useWorkspaceStore';
-import { useSettingsStore } from '@/application/useSettingsStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useActiveClassSession } from '@/application/useActiveClassSession';
 import { database, authReady, fetchServerClockOffset } from '@/infrastructure/firebase';
@@ -36,7 +35,7 @@ import { useStore } from '@/application/useStore';
 import { X } from 'lucide-react';
 
 import { StudentChatOverlay } from './overlays/StudentChatOverlay';
-import { AdditionHelper } from './board/AdditionHelper';
+import { AdaptiveAdditionGrid } from './board/AdaptiveAdditionGrid';
 import { canvasRecorder } from '@/infrastructure/services/CanvasRecorderService';
 
 import { SocraticEngine } from '@/infrastructure/services/SocraticEngine';
@@ -81,7 +80,6 @@ export function StudentWorkspacePage() {
   const meeting = (Number.isNaN(meetingRaw) ? 1 : Math.min(8, Math.max(1, meetingRaw))) as SessionNumber;
 
   const navigate = useNavigate();
-  const { isASDMode: localIsASD } = useSettingsStore();
   const initSession = useWorkspaceStore((s) => s.initSession);
   const restoreSession = useWorkspaceStore((s) => s.restoreSession);
   const applyDrop = useWorkspaceStore((s) => s.applyDrop);
@@ -406,7 +404,7 @@ export function StudentWorkspacePage() {
   const students = useStore((s) => s.students);
   const firebaseLoaded = useStore((s) => s.firebaseLoaded);
   const myData = normUid ? (students[normUid] || (user?.uid ? students[user.uid] : null)) : null;
-  const isASDMode = myData?.isASD ?? localIsASD;
+  const isASDMode = myData?.isASD ?? false;
 
   // --- PRD Section 4.5 & Module 20: Gate Locked / Pending Approval Guard ---
   useEffect(() => {
@@ -958,16 +956,8 @@ export function StudentWorkspacePage() {
         
         {isAdditionBoardEnabled && isAdditionHelperOpen && (
           <div className="fixed bottom-6 left-6 z-50 flex flex-col items-end gap-2" dir="rtl">
-            <AnimatePresence>
-              <motion.div
-                initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 20, scale: 0.95 }}
-                className="shadow-2xl"
-              >
-                <AdditionHelper />
-              </motion.div>
-            </AnimatePresence>
+            {/* AdaptiveAdditionGrid animates its own entrance/exit (Module 10) */}
+            <AdaptiveAdditionGrid />
           </div>
         )}
       </div>

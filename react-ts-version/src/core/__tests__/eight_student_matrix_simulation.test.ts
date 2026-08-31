@@ -61,7 +61,7 @@ describe('8-STUDENT COGNITIVE PROFILE & PATHWAY RESILIENCE SIMULATION', () => {
     vi.spyOn(firebaseSyncService, 'syncPhysicalOverride').mockImplementation(async () => {});
     vi.spyOn(firebaseSyncService, 'logMilestoneEvent').mockImplementation(async () => {});
     useWorkspaceStore.getState().initSession(1, false);
-    useSettingsStore.setState({ autoShowHints: false, isASDMode: false });
+    useSettingsStore.setState({ autoShowHints: false });
   });
 
   // =========================================================================
@@ -314,7 +314,6 @@ describe('8-STUDENT COGNITIVE PROFILE & PATHWAY RESILIENCE SIMULATION', () => {
   it('Simulates Student 4: ASD Profile -> Locked Keyboard -> Dienes Split Transition -> Sensory Regulation', async () => {
     const studentId = 'student_04_asd';
     useAuthStore.getState().setUser({ uid: studentId, name: 'תלמיד 4 (ASD)' }, 'student');
-    useSettingsStore.setState({ isASDMode: true });
 
     const completedSessions: number[] = [];
 
@@ -349,7 +348,6 @@ describe('8-STUDENT COGNITIVE PROFILE & PATHWAY RESILIENCE SIMULATION', () => {
       finalStatus: 'SUCCESS_ALL_PATHWAYS_VERIFIED',
     });
 
-    expect(useSettingsStore.getState().isASDMode).toBe(true);
     expect(completedSessions.length).toBe(8);
   });
 

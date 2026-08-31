@@ -138,7 +138,7 @@ describe('Student Domain Verification & Audit Suite', () => {
         'features/workspace/board/PlaceValueBoard.tsx',
         'features/workspace/board/DienesBlock.tsx',
         'features/workspace/board/PlaceColumn.tsx',
-        'features/workspace/board/AdditionHelper.tsx',
+        'features/workspace/board/AdaptiveAdditionGrid.tsx',
         'features/workspace/board/BlockPalette.tsx',
         'features/workspace/ReflectionScreen.tsx',
         'features/workspace/WorkspaceTopbar.tsx',
