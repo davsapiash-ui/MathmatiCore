@@ -693,8 +693,19 @@ export function StudentWorkspacePage() {
     };
   }, [meeting, networkError, pendingApproval, isASDMode, initSession]);
 
+  // Distance stays 0-delay (drag still starts the instant the pointer moves
+  // past the threshold, per PRD Module 5's "immediate" requirement) but 6px
+  // was tight enough that an intended click/tap — especially a child's
+  // less-precise tap, or ordinary mouse/trackpad jitter — regularly crossed
+  // it. Once dnd-kit's distance constraint activates it swallows the click
+  // event for that gesture (see AbstractPointerSensor.handleStart in
+  // @dnd-kit/core), so the intended click action never ran and the drag
+  // itself usually resolved to a no-op or, worse, a delete (see
+  // handleDragEnd below) — that's the "click vs. drag conflict" / stuck
+  // feeling. 10px is still effectively instant but meaningfully more
+  // forgiving of natural jitter.
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 10 } })
   );
 
   const collisionDetectionStrategy: CollisionDetection = (args) => {
@@ -731,13 +742,13 @@ export function StudentWorkspacePage() {
     if (!data) return;
     
     if (!over) {
-      if (data.source === 'column') {
-        applyDrop({
-          source: 'column',
-          sourcePlace: data.place,
-          target: { kind: 'trash' },
-        });
-      }
+      // Releasing outside any droppable (board or trash) is treated as an
+      // aborted gesture, not a delete. This used to auto-delete column
+      // blocks, but that made an accidental micro-drag — e.g. a click that
+      // just barely crossed the activation distance — silently destroy the
+      // block instead of doing nothing. TrashZone is the one deliberate,
+      // clearly-labeled way to delete by dragging; clicking a block
+      // (removeBlockClick / splitBlockClick) covers the rest.
       return;
     }
 
