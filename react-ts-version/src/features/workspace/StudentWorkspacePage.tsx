@@ -36,7 +36,7 @@ import { useStore } from '@/application/useStore';
 import { X } from 'lucide-react';
 
 import { StudentChatOverlay } from './overlays/StudentChatOverlay';
-import { AdditionHelper } from './board/AdditionHelper';
+import { AdaptiveAdditionGrid } from './board/AdaptiveAdditionGrid';
 import { canvasRecorder } from '@/infrastructure/services/CanvasRecorderService';
 
 import { SocraticEngine } from '@/infrastructure/services/SocraticEngine';
@@ -958,16 +958,8 @@ export function StudentWorkspacePage() {
         
         {isAdditionBoardEnabled && isAdditionHelperOpen && (
           <div className="fixed bottom-6 left-6 z-50 flex flex-col items-end gap-2" dir="rtl">
-            <AnimatePresence>
-              <motion.div
-                initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 20, scale: 0.95 }}
-                className="shadow-2xl"
-              >
-                <AdditionHelper />
-              </motion.div>
-            </AnimatePresence>
+            {/* AdaptiveAdditionGrid animates its own entrance/exit (Module 10) */}
+            <AdaptiveAdditionGrid />
           </div>
         )}
       </div>
