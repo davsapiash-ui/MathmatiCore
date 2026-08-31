@@ -15,7 +15,6 @@ import {
 import { useNavigate } from 'react-router-dom';
 import type { DragSource, Place } from '@/core/placeValue';
 import { useWorkspaceStore, getActiveTasks, type SessionNumber } from '@/application/useWorkspaceStore';
-import { useSettingsStore } from '@/application/useSettingsStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useActiveClassSession } from '@/application/useActiveClassSession';
 import { database, authReady, fetchServerClockOffset } from '@/infrastructure/firebase';
@@ -81,7 +80,6 @@ export function StudentWorkspacePage() {
   const meeting = (Number.isNaN(meetingRaw) ? 1 : Math.min(8, Math.max(1, meetingRaw))) as SessionNumber;
 
   const navigate = useNavigate();
-  const { isASDMode: localIsASD } = useSettingsStore();
   const initSession = useWorkspaceStore((s) => s.initSession);
   const restoreSession = useWorkspaceStore((s) => s.restoreSession);
   const applyDrop = useWorkspaceStore((s) => s.applyDrop);
@@ -406,7 +404,7 @@ export function StudentWorkspacePage() {
   const students = useStore((s) => s.students);
   const firebaseLoaded = useStore((s) => s.firebaseLoaded);
   const myData = normUid ? (students[normUid] || (user?.uid ? students[user.uid] : null)) : null;
-  const isASDMode = myData?.isASD ?? localIsASD;
+  const isASDMode = myData?.isASD ?? false;
 
   // --- PRD Section 4.5 & Module 20: Gate Locked / Pending Approval Guard ---
   useEffect(() => {

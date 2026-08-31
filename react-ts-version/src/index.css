@@ -190,34 +190,6 @@
   
   h3 { font-size: 1.5rem; line-height: 1.3; }
   @media (min-width: 1024px) { h3 { font-size: 1.75rem; line-height: 1.3; } }
-
-  /* ASD Mode Global Toggles (Reduce Motion & Visual Noise) */
-  body.asd-mode-active {
-    --ws-ink: 215 16% 47%;
-    --ws-ink-soft: 215 16% 47%;
-    --foreground: 215 16% 47%;
-  }
-
-  body.asd-mode-active * {
-    /* Dim highly contrasting borders */
-    border-color: rgba(150, 150, 150, 0.2) !important;
-  }
-  
-  body.asd-mode-active.dark {
-    --ws-ink: 215 20% 65%;
-    --ws-ink-soft: 215 20% 65%;
-    --foreground: 215 20% 65%;
-  }
-
-  body.asd-mode-active *,
-  body.asd-mode-active ::before,
-  body.asd-mode-active ::after {
-    /* Disable all CSS transitions and animations */
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
 }
 
 @layer components {

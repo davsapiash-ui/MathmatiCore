@@ -56,7 +56,6 @@ if (import.meta.env.MODE === 'development' || import.meta.env.MODE === 'test') {
   (window as any).firebaseAuth = auth;
   (window as any).useStore = useStore;
 }
-import { useSettingsStore } from "@/application/useSettingsStore";
 import { useIdleTimeout } from "@/application/useIdleTimeout";
 
 /**
@@ -174,16 +173,6 @@ function RoleRouter() {
 }
 
 function App() {
-  const { isASDMode } = useSettingsStore();
-
-  useEffect(() => {
-    if (isASDMode) {
-      document.body.classList.add("asd-mode-active");
-    } else {
-      document.body.classList.remove("asd-mode-active");
-    }
-  }, [isASDMode]);
-
   return (
     <BrowserRouter>
       {/* Toast host: without it every toast.success/error in the app is a no-op */}

@@ -29,7 +29,7 @@ describe('Full System Workflow & Integration Empirical Audit Suite', () => {
   beforeEach(() => {
     (globalThis as any).sessionStorage.clear();
     useAuthStore.setState({ user: null, role: null, isAuthenticated: false });
-    useSettingsStore.setState({ autoShowHints: false, isASDMode: false });
+    useSettingsStore.setState({ autoShowHints: false });
   });
 
   describe('1. Student Auth Session Persistence (Refresh F5 Resilience)', () => {
