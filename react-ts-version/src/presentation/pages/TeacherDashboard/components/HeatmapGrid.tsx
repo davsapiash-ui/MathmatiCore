@@ -1,18 +1,21 @@
 import { useState, useEffect, useMemo } from 'react';
 import { ref, onValue, update, query, limitToLast } from 'firebase/database';
-import { database } from '@/infrastructure/firebase';
-import { normalizeStudentId } from '@/application/useChatStore';
+import { database, functions } from '@/infrastructure/firebase';
+import { httpsCallable } from 'firebase/functions';
+import { useAuthStore } from '@/application/useAuthStore';
+import { approveTeacherGate } from '@/core/teacherGate';
 import { toast } from 'sonner';
-import { 
-  Activity, 
-  AlertTriangle, 
-  CheckCircle2, 
-  Lock, 
-  ShieldAlert, 
+import {
+  Activity,
+  AlertTriangle,
+  CheckCircle2,
+  Lock,
+  ShieldAlert,
   Users,
   RotateCcw,
   DoorOpen,
-  Sparkles
+  Sparkles,
+  FileDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '@/application/useStore';
@@ -20,68 +23,13 @@ import { ResetConfirmationModal } from './ResetConfirmationModal';
 import { hasEnhancedSupport } from '@/core/supportProfile';
 import { resolveRadarColor, RADAR_CELL_CLASSES } from '@/core/radarColor';
 import { isClassSessionLive } from '@/core/classSession';
+import { getHesitationThresholdSeconds, useHesitationThresholdSeconds } from '@/core/hesitationCalibration';
 
-export type RadarStatusColor = 'RED' | 'GREY' | 'YELLOW' | 'GREEN';
-
-export function computeStudentRadarColor(
-  student: any | undefined,
-  now = Date.now(),
-  presenceTimeoutMs = 15000
-): { color: RadarStatusColor; statusText: string; isOnline: boolean } {
-  if (!student) {
-    return { color: 'GREY', statusText: 'טרם החל', isOnline: false };
-  }
-
-  const lastActivity = student.lastActivityTimestamp || student.lastPing || 0;
-  const isOnline = Boolean(student.isOnline !== false && lastActivity > 0 && Math.abs(now - lastActivity) <= presenceTimeoutMs);
-  const sessionStarted = Boolean(student.hasJoinedSession || student.sessionJoined || lastActivity > 0);
-
-  const isSocraticActive = Boolean(
-    student.isSocraticActive ||
-    student.socraticActive ||
-    student.workspaceState?.currentState === 'SOCRATIC_ACTIVE' ||
-    student.helpState === 'socratic'
-  );
-
-  const hesitationSeconds = student.hesitationSeconds ?? student.hesitation_seconds ?? 0;
-  const isYellowHesitation = hesitationSeconds >= 45 || (isOnline && (now - lastActivity) >= 45000);
-
-  // Strict PRD v7.0 Module 18 Priority: RED > GREY > YELLOW > GREEN
-
-  // 1. RED: a Socratic mentoring card is currently active on the student's screen
-  if (isSocraticActive) {
-    return {
-      color: 'RED',
-      statusText: 'כרטיס חניכה סוקרטי פעיל',
-      isOnline,
-    };
-  }
-
-  // 2. GREY: student disconnected (per Presence Heartbeat) or session not started
-  if (!isOnline || !sessionStarted) {
-    return {
-      color: 'GREY',
-      statusText: !sessionStarted ? 'טרם החל' : 'מנותק / לא מחובר',
-      isOnline: false,
-    };
-  }
-
-  // 3. YELLOW: 45 consecutive seconds without action in the active column
-  if (isYellowHesitation) {
-    return {
-      color: 'YELLOW',
-      statusText: `היסוס (${hesitationSeconds >= 45 ? hesitationSeconds : Math.floor((now - lastActivity) / 1000)} שניות)`,
-      isOnline: true,
-    };
-  }
-
-  // 4. GREEN: cognitive event within the last 30 seconds
-  return {
-    color: 'GREEN',
-    statusText: 'התקדמות תקינה (פעילות קוגניטיבית ב-30 שניות האחרונות)',
-    isOnline: true,
-  };
-}
+// Radar status color resolution lives in core/radarColor.ts (resolveRadarColor)
+// — the full BLUE > RED > GREY > YELLOW > GREEN priority actually rendered
+// below. An earlier, unused duplicate of this logic here omitted BLUE
+// entirely and was tested as if it were the real thing; see
+// core/__tests__/RadarColorPrecedence.test.ts for the real coverage.
 
 export function getCognitiveGlyph(errorCategory: 'calculation' | 'procedural' | 'conceptual' | string | null | undefined): { glyph: 'ח' | 'ר' | 'מ'; title: string } | null {
   if (!errorCategory) return null;
@@ -180,6 +128,13 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
   const [isClassSessionActive, setIsClassSessionActive] = useState<boolean>(false);
   const [activeSessionNum, setActiveSessionNum] = useState<number | null>(null);
 
+  // Module 26: keeps the shared calibration listener alive while this radar is
+  // mounted. The throttled RTDB callback below reads the live value itself via
+  // getHesitationThresholdSeconds() rather than this hook's return value,
+  // since that callback is defined once inside a mount-only effect and would
+  // otherwise close over a stale threshold.
+  useHesitationThresholdSeconds();
+
   useEffect(() => {
     const sessionRef = ref(database, 'active_class_session');
     let lastVal: Record<string, unknown> | null = null;
@@ -260,7 +215,8 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
             data.traceData?.hesitation_events || 0,
             data.radar?.hesitations || 0
           );
-          const hesitationSeconds = isOnline && hesitationEvents ? hesitationEvents * 45 : (sessionState.hesitation_seconds || 0);
+          const hesitationThreshold = getHesitationThresholdSeconds();
+          const hesitationSeconds = isOnline && hesitationEvents ? hesitationEvents * hesitationThreshold : (sessionState.hesitation_seconds || 0);
           const errorCount = isOnline ? Math.max(wsState.undoCount || 0, data.traceData?.undo_clicks || 0, sessionState.error_count || 0) : 0;
           const isYellowPath = data.routeRecommendation === 'YELLOW' || sessionState.current_path === 'remediation_path';
           const enhancedSupport = hasEnhancedSupport(data) || Boolean(data.isASD || data.forceAdditionHelper || data.additionBoardEnabled);
@@ -269,7 +225,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
           // separate from an active Socratic card (RED).
           const helpRequested = data.helpRequested === true || data.handRaised === true;
           const isSocraticActive = isOnline && (wsState.helpState === 'socratic' || data.isSocraticActive === true);
-          const isStruggling = isOnline && (hesitationSeconds >= 45 || isYellowPath || errorCount > 2 || enhancedSupport || isSocraticActive || helpRequested);
+          const isStruggling = isOnline && (hesitationSeconds >= hesitationThreshold || isYellowPath || errorCount > 2 || enhancedSupport || isSocraticActive || helpRequested);
 
           const activeBroadcastSession = isClassSessionActive && activeSessionNum ? activeSessionNum : null;
           const rawSessionNum = wsState.sessionNumber || sessionState.session_number || activeBroadcastSession || (data.highestCompletedMeeting ? Math.min(8, data.highestCompletedMeeting + 1) : 1);
@@ -277,7 +233,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
 
           let lastAction = 'לא מחובר';
           if (isOnline) {
-            lastAction = data.lastAction || (isSocraticActive ? 'כרטיס חניכה סוקרטי פעיל' : hesitationSeconds >= 45 ? 'היסוס מעל 45 שניות בטור הפעיל' : 'פעיל בלמידה');
+            lastAction = data.lastAction || (isSocraticActive ? 'כרטיס חניכה סוקרטי פעיל' : hesitationSeconds >= hesitationThreshold ? `היסוס מעל ${hesitationThreshold} שניות בטור הפעיל` : 'פעיל בלמידה');
           } else {
             lastAction = hasJoinedSession ? 'יצא מהחלון' : 'לא מחובר';
           }
@@ -365,7 +321,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
             studentId: val.studentId || val.rawStudentId || 'student_1',
             studentName: `תלמיד ${val.studentId ? String(val.studentId).replace(/\D+/g, '') || '1' : '1'}`,
             timestamp: val.timestamp || Date.now(),
-            message: val.type === 'HESITATION' ? 'השהייה מעל 45 שניות בטור הפעיל' : val.type === 'PASSIVE_DRIFTING' ? 'זיהוי מחיקות או ביטולים רצופים' : val.message || 'התראת רדאר שקטה בזמן אמת',
+            message: val.type === 'HESITATION' ? `השהייה מעל ${getHesitationThresholdSeconds()} שניות בטור הפעיל` : val.type === 'PASSIVE_DRIFTING' ? 'זיהוי מחיקות או ביטולים רצופים' : val.message || 'התראת רדאר שקטה בזמן אמת',
             severity: (val.type === 'TAB_ESCAPE' || val.type === 'PASSIVE_DRIFTING' || val.type === 'CALL_FOR_HELP' ? 'alert' : val.type === 'HESITATION' ? 'warning' : 'info') as 'info' | 'warning' | 'alert',
           }))
           .filter((item) => item.timestamp > sixtyMinsAgo)
@@ -397,9 +353,9 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
         ]
       };
     }
-    if (student.hesitationSeconds >= 45) {
+    if (student.hesitationSeconds >= getHesitationThresholdSeconds()) {
       return {
-        category: 'עומס קוגניטיבי / השהייה מעל 45 שניות',
+        category: `עומס קוגניטיבי / השהייה מעל ${getHesitationThresholdSeconds()} שניות`,
         questions: [
           'איזה צעד ראשון שקלת לבצע? מה גורם לך להתלבט בטור הפעיל?',
           'איזה כלי עזר בלוח בית המספרים יכול לעזור לך להתחיל?',
@@ -438,33 +394,48 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
   };
 
   const [isResettingClass, setIsResettingClass] = useState(false);
+  const [isExportingDataset, setIsExportingDataset] = useState(false);
+
+  const handleExportResearchDataset = async () => {
+    setIsExportingDataset(true);
+    try {
+      const exportFn = httpsCallable(functions, 'exportResearchDataset');
+      const res: any = await exportFn({ class_id: 'class_1', session_number: 1 });
+      if (res?.data?.status === 'SUCCESS') {
+        toast.success('ייצוא נתוני המחקר הושלם ונשמר ב-Drive.');
+      } else {
+        toast.warning('הייצוא הסתיים אך ללא אישור מפורש מהשרת. בדקו את תיקיית Drive.');
+      }
+    } catch (err: any) {
+      console.error('[Module 24] Research dataset export failed:', err);
+      toast.error(err?.message?.includes('PII') ? err.message : 'ייצוא נתוני המחקר נכשל. נסו שוב מאוחר יותר.');
+    } finally {
+      setIsExportingDataset(false);
+    }
+  };
 
   const handleApproveGate = async (studentId: string, path: 'ירוק' | 'צמצום פערים') => {
-    const normId = normalizeStudentId(studentId);
     const num = studentId.replace(/\D/g, '') || '1';
     const isRemediation = path === 'צמצום פערים';
 
-    const gatePayload = {
-      teacher_gate_approved: true,
-      teacher_selected_path: isRemediation ? 'remediation_path' : 'green_path',
-      currentPath: path,
-      routeRecommendation: isRemediation ? 'YELLOW' : 'GREEN',
-      routeStatus: isRemediation ? 'REMEDIATION_PATH' : 'GREEN_PATH',
-      pedagogicalPath: isRemediation ? 'remediation_path' : 'green_path',
-      gateApprovedAt: Date.now(),
-      highestCompletedMeeting: 2,
-    };
-
     try {
-      const paths = [
-        `users/students/${normId}`,
-        `users/students/student_${num}`,
-        `users/students/user${num}`,
-        `users/students/${num}`,
-      ];
-      const updates: Record<string, any> = {};
-      paths.forEach(p => { updates[p] = { ...updates[p], ...gatePayload }; });
-      await update(ref(database), updates);
+      // PRD v7.1 Module 20: the session-2 SessionDocument in Firestore is the
+      // sole source of truth — this quick-approve button used to write RTDB
+      // aliases directly and never touch it, silently diverging from the
+      // canonical record every other approval surface relies on. Route
+      // through the one shared implementation instead.
+      const teacherId = useAuthStore.getState().user?.uid || null;
+      const result = await approveTeacherGate(studentId, isRemediation ? 'remediation_path' : 'green_path', teacherId);
+
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+
+      useStore.getState().approveRoute(`student_user${num}`);
+      useStore.getState().approveRoute(`student_${num}`);
+      useStore.getState().approveRoute(num);
+
       toast.success(`✓ מסלול ${path} אושר עבור תלמיד ${num}! השער למפגש 3 נפתח.`);
     } catch (err) {
       console.error('Failed to approve gate:', err);
@@ -502,6 +473,19 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
             </h2>
 
             <div className="flex items-center gap-2">
+              {/* Module 24 §ב — teacher-triggered raw research dataset export.
+                  exportResearchDataset already existed server-side; this was
+                  the only UI affordance for it anywhere in the app. */}
+              <button
+                onClick={handleExportResearchDataset}
+                disabled={isExportingDataset}
+                className="px-3 py-1.5 rounded-xl border border-indigo-200 hover:border-indigo-400 bg-indigo-50/60 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-xs"
+                title="ייצוא נתוני מחקר גולמיים ואנונימיים (טלמטריה, מפגשים, רפלקציות, לוג איפוסים) ל-Drive"
+              >
+                <FileDown className={`w-3.5 h-3.5 ${isExportingDataset ? 'animate-pulse' : ''}`} />
+                <span>{isExportingDataset ? 'מייצא...' : 'ייצוא נתוני מחקר'}</span>
+              </button>
+
               {/* Module 23א level 1 — Alerts Reset. Strictly separate from the
                   level-3 system reset; never merged into one action. */}
               <button
@@ -542,7 +526,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-3 h-3 rounded-full bg-amber-400 shadow-sm" />
-            <span>היסוס (45 שנ׳)</span>
+            <span>היסוס ({getHesitationThresholdSeconds()} שנ׳)</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-3 h-3 rounded-full bg-rose-500 shadow-sm animate-pulse" />
@@ -665,8 +649,8 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                     <span className="inline-flex items-center gap-1 bg-emerald-700 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="מבצע משימות ביסוס">
                       🛡️ ביסוס
                     </span>
-                  ) : student.hesitationSeconds >= 45 ? (
-                    <span className="inline-flex items-center gap-1 bg-amber-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="היסוס > 45 שניות">
+                  ) : student.hesitationSeconds >= getHesitationThresholdSeconds() ? (
+                    <span className="inline-flex items-center gap-1 bg-amber-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title={`היסוס > ${getHesitationThresholdSeconds()} שניות`}>
                       <AlertTriangle className="w-3 h-3" />
                       היסוס
                     </span>

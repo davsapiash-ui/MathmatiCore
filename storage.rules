@@ -39,6 +39,12 @@ service firebase.storage {
       allow write: if false; // Writes restricted strictly to Cloud Functions Admin SDK
     }
 
+    // Module 23א: Reset Backup Vault (Cloud Storage fallback for backupAndResetSessionData)
+    match /backups/{classId}/{allPaths=**} {
+      allow read: if isTeacherOfClass(classId) || isAdmin();
+      allow write: if false; // Writes restricted strictly to Cloud Functions Admin SDK
+    }
+
     // Default deny for all other storage paths
     match /{allPaths=**} {
       allow read, write: if false;

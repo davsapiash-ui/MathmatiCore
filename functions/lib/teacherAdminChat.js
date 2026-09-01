@@ -35,7 +35,17 @@ exports.sendTeacherAdminMessage = (0, https_1.onCall)(async (request) => {
     if (!receiver_id || !message_body) {
         throw new https_1.HttpsError("invalid-argument", "Missing receiver_id or message_body.");
     }
-    const senderId = request.auth.uid;
+    // Canonical chat addressing (Module 22): the management side is always the
+    // literal id "admin", and a teacher is always the email-derived key the
+    // admin console lists them under (useAdminStore.addTeacher). Stamping the
+    // raw auth uid here instead matched neither UI's filters, so messages that
+    // were written successfully still showed up on neither end.
+    const callerRole = request.auth.token.role;
+    const isAdminSender = callerRole === "admin" || callerRole === "ADMIN" || request.auth.token.admin === true;
+    const callerEmail = request.auth.token.email;
+    const senderId = isAdminSender
+        ? "admin"
+        : (callerEmail ? String(callerEmail).trim().replace(/[@.#$[\]]/g, "_") : request.auth.uid);
     const db = admin.firestore();
     // Layer 2A: Ephemeral in-memory student name map (passed only during active teacher session, never stored in DB)
     const knownNameMap = {};

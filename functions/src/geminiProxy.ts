@@ -1,6 +1,6 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GEMINI_MODEL_ID, GEMINI_SECRETS, getGeminiClient } from "./geminiConfig";
 
 /**
  * Robust Regex Engine for PII Scrubbing
@@ -43,6 +43,7 @@ export function scrubPII(text: string): string {
  * Mediates and enforces the Zero-Chatbot Policy and zero-trust security.
  */
 export const callGeminiSocraticProxy = onCall(
+  GEMINI_SECRETS,
   async (request) => {
     // 1. Verify Authentication
     if (!request.auth) {
@@ -75,17 +76,12 @@ export const callGeminiSocraticProxy = onCall(
     const scrubbedContext = scrubPII(typeof context === "string" ? context : JSON.stringify(context || {}));
     const scrubbedHistory = history ? JSON.parse(scrubPII(JSON.stringify(history))) : [];
 
-    // 4. API Key Security (Load from Env / Secret Manager)
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      logger.error("GEMINI_API_KEY is not configured on the server.");
-      throw new HttpsError("internal", "AI Service configuration is missing.");
-    }
+    // 4. API Key Security (bound Secret Manager secret — see geminiConfig.ts)
+    const ai = getGeminiClient();
 
     try {
-      const ai = new GoogleGenerativeAI(apiKey);
       const model = ai.getGenerativeModel({
-        model: 'gemini-3.7-flash',
+        model: GEMINI_MODEL_ID,
         generationConfig: {
           temperature: 0.2,
           responseMimeType: "application/json"

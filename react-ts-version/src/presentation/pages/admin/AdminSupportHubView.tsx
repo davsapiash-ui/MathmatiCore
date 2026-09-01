@@ -7,21 +7,18 @@ import {
   CheckCircle2, 
   Clock, 
   AlertCircle, 
-  MessageSquare, 
-  Send, 
-  Building, 
-  GraduationCap, 
-  UserCheck, 
+  MessageSquare,
+  Building,
+  GraduationCap,
+  UserCheck,
   Tag,
-  RefreshCw,
-  Plus
+  RefreshCw
 } from 'lucide-react';
 import { AccessibleCard } from '@/presentation/design-system/AccessibleCard';
 import { UdlButton } from '@/presentation/design-system/UdlButton';
 import { useAdminStore } from '@/application/useAdminStore';
-import { collection, onSnapshot, addDoc, updateDoc, doc } from 'firebase/firestore';
+import { collection, onSnapshot, updateDoc, doc } from 'firebase/firestore';
 import { db } from '@/infrastructure/firebase';
-import { containsPII } from '@/core/security/PiiFilter';
 import { toast } from 'sonner';
 
 export interface SupportTicket {
@@ -68,44 +65,63 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }>
 
 /**
  * מודול 28: מרכז תמיכה וקריאות שירות לאדמין (Admin Support Hub)
- * מבוסס Cloud Firestore (/support_tickets) עם חוקי אבטחה ופרטיות מוחלטת (Zero PII, תלמידים 1-12 בלבד).
+ * מוזן מאוסף Firestore /messages — ערוץ השיח מורה↔הנהלה (מודול 22) — עם
+ * אנונימיזציה בשכבת התצוגה (Zero PII, תלמידים 1-12 בלבד).
  */
 export function AdminSupportHubView() {
-  const { schools, classes } = useAdminStore();
+  const { schools, teachers } = useAdminStore();
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSchool, setSelectedSchool] = useState<string>('ALL');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
-  
+
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
-  const [replyMessage, setReplyMessage] = useState('');
-  const [isSubmittingReply, setIsSubmittingReply] = useState(false);
 
-  // New Ticket Modal State
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [newSubject, setNewSubject] = useState('');
-  const [newDescription, setNewDescription] = useState('');
-  const [newCategory, setNewCategory] = useState<'PEDAGOGICAL' | 'TECHNICAL' | 'ACCOMMODATION_ASD' | 'GENERAL'>('PEDAGOGICAL');
-  const [newPriority, setNewPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'>('MEDIUM');
-  const [newStudentId, setNewStudentId] = useState<string>('1');
-
-  // Real-time Firestore listener for tickets
+  // Module 28 §ב: "מרכז הפניות מציג למנהל המערכת הודעות נכנסות מערוצי השיח של
+  // המורים (מודול 22)" — the hub's feed IS the teacher chat channel. It used to
+  // read a support_tickets collection that nothing in the repo ever wrote to
+  // except this file's own "new ticket" button, so it could only ever show
+  // inquiries the admin typed on a teacher's behalf. It now listens to the
+  // Firestore `messages` collection that sendTeacherAdminMessage writes,
+  // already server-side PII-scrubbed (Module 22 Tier 2).
   useEffect(() => {
-    const ticketsCol = collection(db, 'support_tickets');
-    const unsub = onSnapshot(ticketsCol, (snapshot) => {
-      const loaded: SupportTicket[] = snapshot.docs.map((docSnap) => ({
-        id: docSnap.id,
-        ...(docSnap.data() as Omit<SupportTicket, 'id'>),
-      }));
-      // Sort newest first
-      setTickets(loaded.sort((a, b) => (b.created_at || 0) - (a.created_at || 0)));
+    const messagesCol = collection(db, 'messages');
+    const unsub = onSnapshot(messagesCol, (snapshot) => {
+      const teacherLabels = new Map(teachers.map((t, idx) => [t.id, `מורה ${idx + 1}`]));
+
+      const inquiries: SupportTicket[] = snapshot.docs
+        .map((docSnap): Record<string, any> => ({ id: docSnap.id, ...docSnap.data() }))
+        .filter((m) => m.receiver_id === 'admin')
+        .map((m) => {
+          const body = String(m.message_body || '');
+          const schoolId = m.school_id || 'school_pilot_01';
+          return {
+            id: m.id,
+            school_id: schoolId,
+            school_name: schools.find((s) => s.id === schoolId)?.name || 'בית ספר ביקורת',
+            class_id: m.class_id || 'class_1',
+            class_name: m.class_name || 'המבקרים',
+            // Zero-PII display layer: never render the raw sender key, which is
+            // derived from the teacher's institutional email address.
+            teacher_id: teacherLabels.get(m.sender_id) || 'מורה',
+            subject: body.length > 60 ? `${body.slice(0, 60)}…` : body || 'פנייה ללא תוכן',
+            category: 'GENERAL' as const,
+            priority: 'MEDIUM' as const,
+            status: m.read ? ('RESOLVED' as const) : ('OPEN' as const),
+            description: body,
+            created_at: Number(m.timestamp) || 0,
+            updated_at: Number(m.timestamp) || 0,
+          };
+        });
+
+      setTickets(inquiries.sort((a, b) => (b.created_at || 0) - (a.created_at || 0)));
     }, (err) => {
-      console.error('Firestore support_tickets listener error:', err);
+      console.error('Firestore messages listener error:', err);
     });
 
     return () => unsub();
-  }, []);
+  }, [schools, teachers]);
 
   const filteredTickets = useMemo(() => {
     return tickets.filter((t) => {
@@ -123,98 +139,21 @@ export function AdminSupportHubView() {
     });
   }, [tickets, searchQuery, selectedSchool, selectedStatus, selectedCategory]);
 
+  // `read` is the only field firestore.rules lets a reader update on a message
+  // (messages/{id}: affectedKeys().hasOnly(['read'])), and it is what drives
+  // Module 28's silent badge indicator — so "handled" maps onto it directly.
   const handleUpdateStatus = async (ticketId: string, nextStatus: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED') => {
     try {
-      await updateDoc(doc(db, 'support_tickets', ticketId), {
-        status: nextStatus,
-        updated_at: Date.now(),
+      await updateDoc(doc(db, 'messages', ticketId), {
+        read: nextStatus !== 'OPEN',
       });
-      toast.success(`סטטוס הקריאה עודכן ל-${STATUS_CONFIG[nextStatus].label}`);
+      toast.success(`סטטוס הפנייה עודכן ל-${STATUS_CONFIG[nextStatus].label}`);
       if (selectedTicket && selectedTicket.id === ticketId) {
         setSelectedTicket(prev => prev ? { ...prev, status: nextStatus } : null);
       }
     } catch (e) {
       console.error(e);
       toast.error('שגיאה בעדכון סטטוס הקריאה');
-    }
-  };
-
-  const handleSendReply = async () => {
-    if (!selectedTicket || !replyMessage.trim()) return;
-
-    if (containsPII(replyMessage)) {
-      toast.error('הודעתך כוללת פרטים מזהים (PII). נא להשתמש במזהה תלמיד 1-12 בלבד.');
-      return;
-    }
-
-    try {
-      setIsSubmittingReply(true);
-      const newResponses = [
-        ...(selectedTicket.responses || []),
-        {
-          author: 'מנהל מערכת',
-          message: replyMessage.trim(),
-          timestamp: Date.now(),
-        }
-      ];
-
-      await updateDoc(doc(db, 'support_tickets', selectedTicket.id), {
-        responses: newResponses,
-        updated_at: Date.now(),
-      });
-
-      setReplyMessage('');
-      setSelectedTicket(prev => prev ? { ...prev, responses: newResponses } : null);
-      toast.success('התגובה נשלחה בהצלחה ב-Firestore!');
-    } catch (e) {
-      console.error(e);
-      toast.error('שגיאה בשליחת תגובה');
-    } finally {
-      setIsSubmittingReply(false);
-    }
-  };
-
-  const handleCreateTicket = async () => {
-    if (!newSubject.trim() || !newDescription.trim()) {
-      toast.error('נא למלא נושא ותיאור לקריאה');
-      return;
-    }
-
-    if (containsPII(newSubject) || containsPII(newDescription)) {
-      toast.error('הקריאה מכילה מידע מזהה (PII). המערכת שומרת על פרטיות מוחלטת (1-12 בלבד).');
-      return;
-    }
-
-    try {
-      const targetSchool = schools[0];
-      const targetClass = classes[0];
-
-      const ticketPayload: Omit<SupportTicket, 'id'> = {
-        school_id: targetSchool?.id || 'sch_1',
-        school_name: targetSchool?.name || 'בית ספר ביקורת',
-        class_id: targetClass?.id || 'cls_1',
-        class_name: targetClass?.name || 'המבקרים',
-        student_id: `student_${newStudentId}`,
-        teacher_id: 'teacher_01',
-        subject: newSubject.trim(),
-        category: newCategory,
-        priority: newPriority,
-        status: 'OPEN',
-        description: newDescription.trim(),
-        created_at: Date.now(),
-        updated_at: Date.now(),
-        responses: [],
-      };
-
-      await addDoc(collection(db, 'support_tickets'), ticketPayload);
-
-      setIsCreateModalOpen(false);
-      setNewSubject('');
-      setNewDescription('');
-      toast.success('קריאת התמיכה נוצרה ונשמרה ב-Firestore בהצלחה!');
-    } catch (e) {
-      console.error(e);
-      toast.error('שגיאה ביצירת הקריאה');
     }
   };
 
@@ -237,13 +176,6 @@ export function AdminSupportHubView() {
             </p>
           </div>
 
-          <button
-            onClick={() => setIsCreateModalOpen(true)}
-            className="px-5 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-sm flex items-center gap-2 shadow-lg shadow-indigo-600/30 active:scale-95 transition-all cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span>פתיחת קריאה חדשה</span>
-          </button>
         </div>
       </header>
 
@@ -425,25 +357,10 @@ export function AdminSupportHubView() {
                 </div>
               </div>
 
-              {/* Reply Input */}
-              <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                <textarea
-                  rows={3}
-                  value={replyMessage}
-                  onChange={(e) => setReplyMessage(e.target.value)}
-                  placeholder="כתוב תגובה למורה / מנהל המוסד (ללא פרטים מזהים)..."
-                  className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-                />
-
-                <button
-                  disabled={!replyMessage.trim() || isSubmittingReply}
-                  onClick={handleSendReply}
-                  className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 shadow-md disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>שלח תגובה</span>
-                </button>
-              </div>
+              <p className="text-[11px] text-slate-400 leading-relaxed pt-2 border-t border-slate-100 dark:border-slate-800">
+                מענה למורה נשלח בערוץ השיח הניהולי (מודול 22) תחת "צ׳אט מורים" — שם ההודעה
+                עוברת את שכבת האנונימיזציה בצד השרת לפני הכתיבה.
+              </p>
             </div>
           ) : (
             <div className="p-8 text-center bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 text-slate-400">
@@ -454,84 +371,6 @@ export function AdminSupportHubView() {
         </div>
       </div>
 
-      {/* New Ticket Modal */}
-      {isCreateModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4" dir="rtl">
-          <div className="max-w-lg w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-2xl space-y-4">
-            <h2 className="text-xl font-black text-slate-900 dark:text-white">
-              פתיחת קריאת תמיכה חדשה
-            </h2>
-
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="font-bold block mb-1">נושא הקריאה</label>
-                <input
-                  type="text"
-                  value={newSubject}
-                  onChange={(e) => setNewSubject(e.target.value)}
-                  placeholder="למשל: בקשת התאמת רמת קושי עבור תלמיד 5"
-                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="font-bold block mb-1">קטגוריה</label>
-                  <select
-                    value={newCategory}
-                    onChange={(e: any) => setNewCategory(e.target.value)}
-                    className="w-full p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
-                  >
-                    <option value="PEDAGOGICAL">פדגוגיה</option>
-                    <option value="ACCOMMODATION_ASD">התאמות UDL</option>
-                    <option value="TECHNICAL">טכני</option>
-                    <option value="GENERAL">כללי</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="font-bold block mb-1">מזהה תלמיד (1-12 אנונימי)</label>
-                  <select
-                    value={newStudentId}
-                    onChange={(e) => setNewStudentId(e.target.value)}
-                    className="w-full p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-mono font-bold"
-                  >
-                    {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
-                      <option key={n} value={n.toString()}>תלמיד {n}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="font-bold block mb-1">תיאור הפנייה והצורך</label>
-                <textarea
-                  rows={4}
-                  value={newDescription}
-                  onChange={(e) => setNewDescription(e.target.value)}
-                  placeholder="פרט את המקרה והסיוע הנדרש..."
-                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 resize-none"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 pt-2">
-              <button
-                onClick={() => setIsCreateModalOpen(false)}
-                className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 text-xs font-bold cursor-pointer"
-              >
-                ביטול
-              </button>
-              <button
-                onClick={handleCreateTicket}
-                className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs cursor-pointer shadow-md"
-              >
-                צור ושגר קריאה
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

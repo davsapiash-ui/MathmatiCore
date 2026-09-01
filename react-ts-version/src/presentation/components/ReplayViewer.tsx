@@ -7,6 +7,8 @@ interface ReplayViewerProps {
   events: any[];
   seekToTime?: number;
   onEnd?: () => void;
+  /** Fires on every progress tick with the current absolute event timestamp (ms epoch), so a parent can auto-highlight the matching decision-table row as playback advances. */
+  onProgress?: (absoluteTimestampMs: number) => void;
 }
 
 function formatTime(ms: number): string {
@@ -17,7 +19,7 @@ function formatTime(ms: number): string {
   return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 }
 
-export function ReplayViewer({ events, seekToTime, onEnd }: ReplayViewerProps) {
+export function ReplayViewer({ events, seekToTime, onEnd, onProgress }: ReplayViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const replayerRef = useRef<any>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -128,6 +130,12 @@ export function ReplayViewer({ events, seekToTime, onEnd }: ReplayViewerProps) {
     };
   }, [events]);
 
+  // Keep the latest onProgress in a ref so the polling interval below doesn't
+  // need to be torn down and recreated whenever the parent re-renders with a
+  // fresh inline callback.
+  const onProgressRef = useRef(onProgress);
+  onProgressRef.current = onProgress;
+
   // Track progress timer smoothly
   useEffect(() => {
     if (isPlaying) {
@@ -136,6 +144,10 @@ export function ReplayViewer({ events, seekToTime, onEnd }: ReplayViewerProps) {
           try {
             const current = replayerRef.current.getCurrentTime();
             setCurrentTimeMs(current);
+            // PRD Module 21 §ב: the bidirectional table<->player link requires
+            // the decision table to auto-highlight the matching row as the
+            // player advances, not just seek the player when a row is clicked.
+            onProgressRef.current?.(firstTimestamp + current);
           } catch {}
         }
       }, 250);
@@ -146,7 +158,7 @@ export function ReplayViewer({ events, seekToTime, onEnd }: ReplayViewerProps) {
     return () => {
       if (progressTimerRef.current) clearInterval(progressTimerRef.current);
     };
-  }, [isPlaying]);
+  }, [isPlaying, firstTimestamp]);
 
   // Handle external seek requests (e.g. clicking an event in the radar history)
   useEffect(() => {

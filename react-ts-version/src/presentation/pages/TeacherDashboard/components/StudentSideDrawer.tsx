@@ -50,7 +50,11 @@ export function StudentSideDrawer({ student, onClose, isPendingApproval, onAppro
       const rawNum = student.studentId.replace(/\D/g, '') || '1';
       // Module 23: Determine target diagnostic session dynamically: Session 2 (Gate) or Session 8 (Final)
       const targetSession = overrideSessionNum || (isPendingApproval ? 2 : (sAny.sessionNumber || student.current_session || student.workspaceState?.sessionNumber || 8));
-      const sessionId = `session_${targetSession}_student_${rawNum}`;
+      // Firestore SessionDocuments are written zero-padded (session_02_student_N —
+      // see FirebaseSyncService.syncSession2Completion / core/teacherGate.ts).
+      // An unpadded id here always missed that doc and made every report request
+      // fail with "not found".
+      const sessionId = `session_${String(targetSession).padStart(2, '0')}_student_${rawNum}`;
       const generateReportCallable = httpsCallable(functions, 'generatePedagogicalReportPDF');
       const res: any = await generateReportCallable({ 
         sessionId,
@@ -341,15 +345,24 @@ export function StudentSideDrawer({ student, onClose, isPendingApproval, onAppro
                 onApplyAdaptation={async (settings: AdaptationSettings) => {
                   const normId = normalizeStudentId(student.studentId);
                   const rawNum = student.studentId.replace(/\D/g, '');
-                  const updatePayload = {
+                  // PRD Module 19 §ב "Safe Application Boundary": a mid-exercise
+                  // profile change must be held as a Pending Adaptation and applied
+                  // only at the next exercise transition — never live-pushed onto
+                  // the student's active fields, which is what writing straight to
+                  // pedagogicalPath/scaffoldLevel/forceAdditionHelper here used to
+                  // do (the workspace's own RTDB listener mirrors those fields into
+                  // live state the instant they change). The student side applies
+                  // this queued object in useWorkspaceStore's startTask(), the one
+                  // choke point every task transition passes through.
+                  const pendingAdaptation = {
                     pedagogicalPath: settings.path,
                     currentPath: settings.path === 'green_path' ? 'ירוק' : 'צמצום פערים',
                     scaffoldLevel: settings.scaffoldLevel,
                     forceAdditionHelper: settings.forceAdditionHelper,
                     hesitationThresholdSeconds: settings.hesitationThresholdSeconds,
-                    applyAtTaskBoundaryOnly: true,
-                    adaptationQueuedAt: Date.now(),
+                    queuedAt: Date.now(),
                   };
+                  const updatePayload = { pendingAdaptation };
                   await update(ref(database, `users/students/${normId}`), updatePayload);
                   if (normId !== rawNum) {
                     await update(ref(database, `users/students/${rawNum}`), updatePayload).catch(() => {});

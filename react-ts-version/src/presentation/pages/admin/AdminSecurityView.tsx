@@ -1,26 +1,79 @@
 import { AccessibleCard } from "@/presentation/design-system/AccessibleCard";
-import { UdlButton } from "@/presentation/design-system/UdlButton";
-import { Key, Clock, Fingerprint, ShieldCheck } from "lucide-react";
+import { Key, Clock, Fingerprint, ShieldCheck, CheckCircle2, MinusCircle } from "lucide-react";
+import { STUDENT_WINDOW_CLOSE_TIMEOUT_MS } from "@/application/useAuthStore";
+
+const STAFF_IDLE_TIMEOUT_MINUTES = 30; // useIdleTimeout.ts IDLE_TIMEOUT_MS
+const STUDENT_IDLE_TIMEOUT_MINUTES = Math.round(STUDENT_WINDOW_CLOSE_TIMEOUT_MS / 60000);
+
+/**
+ * Module 27 is a *server-side* spec: every rule it defines is enforced in
+ * firestore.rules / database.rules.json / storage.rules and deployed through
+ * CI, and §ב.6 requires private API keys to live only in Google Cloud Secret
+ * Manager. Nothing in it asks for an in-app editor, and this console has no
+ * mechanism to change any of it.
+ *
+ * This screen therefore reports the policy that is actually in force. It
+ * previously rendered an editable-looking control panel — "הגדרות", "הוסף
+ * אינטגרציה", "עדכן מדיניות זמן", "ניהול הרשאות ברמת שרת" — where not one
+ * control had an onClick, the session inputs had no onChange, and the student
+ * timeout shown (15 minutes) did not match the 5 the app actually enforces.
+ */
+function StatusRow({
+  active,
+  title,
+  detail,
+}: {
+  active: boolean;
+  title: string;
+  detail: string;
+}) {
+  return (
+    <div className="flex items-start gap-3 p-4 border border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50 dark:bg-slate-950/60">
+      <div
+        className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+          active
+            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+            : "bg-slate-400/10 text-slate-400"
+        }`}
+      >
+        {active ? <CheckCircle2 className="w-5 h-5" /> : <MinusCircle className="w-5 h-5" />}
+      </div>
+      <div className="space-y-1">
+        <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-white text-sm flex-wrap">
+          <span>{title}</span>
+          <span
+            className={`text-[10px] px-2 py-0.5 rounded-md font-bold ${
+              active
+                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+                : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+            }`}
+          >
+            {active ? "אכיפה פעילה" : "לא מוגדר"}
+          </span>
+        </div>
+        <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">{detail}</p>
+      </div>
+    </div>
+  );
+}
 
 export function AdminSecurityView() {
   return (
     <div className="p-6 md:p-10 pb-24 max-w-7xl mx-auto space-y-8" dir="rtl">
-      {/* Header Banner */}
       <header className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-8 text-white shadow-2xl border border-indigo-500/20">
         <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-xs font-semibold">
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>אבטחת מידע, SSO והרשאות מערכת</span>
-            </div>
-            <h1 className="text-3xl md:text-4xl font-black tracking-tight text-white">
-              ניהול אבטחה וזהויות
-            </h1>
-            <p className="text-slate-300 text-sm md:text-base font-light">
-              אינטגרציות SSO, ניהול מנגנוני Session, ומדיניות הרשאות RBAC ברמת Firebase Server.
-            </p>
+        <div className="relative z-10 space-y-2">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-xs font-semibold">
+            <ShieldCheck className="w-3.5 h-3.5" />
+            <span>מדיניות אבטחה נאכפת בצד השרת</span>
           </div>
+          <h1 className="text-3xl md:text-4xl font-black tracking-tight text-white">
+            ניהול אבטחה וזהויות
+          </h1>
+          <p className="text-slate-300 text-sm md:text-base font-light max-w-3xl">
+            תצוגת סטטוס בלבד. כללי ההרשאות נאכפים ב-Firestore Rules, ב-Realtime DB Rules
+            וב-Storage Rules, ונפרסים דרך צינור ה-CI — לא מתוך הקונסולה הזו.
+          </p>
         </div>
       </header>
 
@@ -29,38 +82,24 @@ export function AdminSecurityView() {
           <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
             <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
               <Fingerprint className="w-5 h-5 text-indigo-500" />
-              הזדהות אחידה (SSO Integrations)
+              הזדהות אחידה (SSO)
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              הגדרת ממשקי הזדהות אחידה לבתי ספר ומחוזות לימוד למניעת צורך בסיסמאות מקומיות.
+              מנגנוני ההזדהות הפעילים בפועל עבור צוות ההוראה.
             </p>
           </div>
 
           <div className="space-y-4">
-            <div className="flex justify-between items-center p-4 border border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50 dark:bg-slate-950/60">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-white text-sm">
-                  <span>Google Workspace for Education</span>
-                  <span className="text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 px-2 py-0.5 rounded-md font-bold">
-                    פעיל ומאובטח
-                  </span>
-                </div>
-                <p className="text-xs text-slate-500">מגבלת דומיין קשיחה: @edu-haifa.org.il</p>
-              </div>
-              <UdlButton variant="outline" semanticColor="neutral" className="text-xs font-bold rounded-xl px-4 py-2">
-                הגדרות
-              </UdlButton>
-            </div>
-
-            <div className="flex justify-between items-center p-4 border border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50 dark:bg-slate-950/60">
-              <div className="space-y-1">
-                <p className="font-bold text-slate-900 dark:text-white text-sm">הזדהות אחידה - משרד החינוך (מנב"סנט)</p>
-                <p className="text-xs text-slate-500">סטטוס: ממתין למפתחות API רשמיים</p>
-              </div>
-              <UdlButton semanticColor="primary" className="text-xs font-bold rounded-xl px-4 py-2 bg-indigo-600 text-white">
-                הוסף אינטגרציה
-              </UdlButton>
-            </div>
+            <StatusRow
+              active
+              title="Google Workspace for Education"
+              detail="הרשאת מורה ניתנת אך ורק בהתאמה מדויקת של כתובת הדוא״ל מול אוסף authorizedTeachers ב-Firestore. אין אישור אוטומטי לפי סיומת דומיין."
+            />
+            <StatusRow
+              active={false}
+              title='הזדהות אחידה — משרד החינוך (מנב"סנט)'
+              detail="לא מחוברת. אין אינטגרציה פעילה או מפתחות רשומים במערכת."
+            />
           </div>
         </AccessibleCard>
 
@@ -69,52 +108,62 @@ export function AdminSecurityView() {
             <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
               <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Clock className="w-5 h-5 text-amber-500" />
-                מדיניות זמן Session וניתוק אוטומטי
+                מדיניות ניתוק אוטומטי
               </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                הערכים שהאפליקציה אוכפת בפועל בכל התחברות.
+              </p>
             </div>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                  ניתוק אוטומטי למורים (דקות חוסר פעילות)
-                </label>
-                <input 
-                  type="number" 
-                  defaultValue="30" 
-                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl p-3 text-sm font-bold focus:border-indigo-500 outline-none" 
-                />
+
+            <div className="space-y-3">
+              <div className="flex justify-between items-center p-4 border border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50 dark:bg-slate-950/60">
+                <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                  צוות (מורים ומנהלים)
+                </span>
+                <span className="text-sm font-black text-indigo-600 dark:text-indigo-400 tabular-nums">
+                  {STAFF_IDLE_TIMEOUT_MINUTES} דקות חוסר פעילות
+                </span>
               </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                  ניתוק אוטומטי לתלמידים (דקות חוסר פעילות)
-                </label>
-                <input 
-                  type="number" 
-                  defaultValue="15" 
-                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl p-3 text-sm font-bold focus:border-indigo-500 outline-none" 
-                />
+              <div className="flex justify-between items-center p-4 border border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50 dark:bg-slate-950/60">
+                <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                  תלמידים
+                </span>
+                <span className="text-sm font-black text-indigo-600 dark:text-indigo-400 tabular-nums">
+                  {STUDENT_IDLE_TIMEOUT_MINUTES} דקות חוסר פעילות או סגירת חלון
+                </span>
               </div>
-              <UdlButton semanticColor="secondary" className="w-full justify-center py-3 rounded-xl font-bold">
-                עדכן מדיניות זמן
-              </UdlButton>
             </div>
           </AccessibleCard>
 
           <AccessibleCard className="p-6 md:p-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl space-y-4">
-            <h2 className="text-xl font-bold text-rose-600 dark:text-rose-400 flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
-              <Key className="w-5 h-5" />
-              בקרת גישה והרשאות (RBAC)
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+              <Key className="w-5 h-5 text-rose-500" />
+              בקרת גישה, סודות ומפתחות
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-              גישה ישירה לעדכון תפקידים (Roles) במסד הנתונים הראשי ב-Firebase Security Rules.
+
+            <ul className="space-y-2.5 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+              <li className="flex gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                <span>תלמיד קורא אך ורק את מסמך התלמיד שלו, וכותב טלמטריה רק כאשר student_id תואם את מזהה ה-Auth שלו (1–12).</span>
+              </li>
+              <li className="flex gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                <span>מורה קורא נתוני כיתה משויכת בלבד, ורשאי לכתוב שדות אישור שער ופרופיל תמיכה — וחסום משינוי הגדרות ניהול גלובליות.</span>
+              </li>
+              <li className="flex gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                <span>מפתח ה-Gemini מוחזק ב-Google Cloud Secret Manager ומוזרק לפונקציות בלבד — לעולם לא נחשף ללקוח.</span>
+              </li>
+              <li className="flex gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                <span>כתיבת דוחות פדגוגיים וגיבויי איפוס מתבצעת אך ורק ב-Admin SDK מצד השרת; ללקוח יש קריאה בלבד.</span>
+              </li>
+            </ul>
+
+            <p className="text-[11px] text-slate-400 dark:text-slate-500 border-t border-slate-100 dark:border-slate-800 pt-3 leading-relaxed">
+              שינוי כללי ההרשאות מתבצע בקבצי firestore.rules · database.rules.json · storage.rules
+              ונפרס אוטומטית במיזוג לענף הראשי.
             </p>
-            <UdlButton 
-              variant="outline" 
-              semanticColor="neutral" 
-              className="w-full justify-center py-3 border-rose-200 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 font-bold rounded-xl text-xs"
-            >
-              ניהול הרשאות ברמת שרת (Realtime DB & Firestore Rules)
-            </UdlButton>
           </AccessibleCard>
         </div>
       </div>

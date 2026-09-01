@@ -4,7 +4,7 @@ exports.callGeminiSocraticProxy = void 0;
 exports.scrubPII = scrubPII;
 const https_1 = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
-const generative_ai_1 = require("@google/generative-ai");
+const geminiConfig_1 = require("./geminiConfig");
 /**
  * Robust Regex Engine for PII Scrubbing
  * Active scrubbing of:
@@ -38,7 +38,7 @@ function scrubPII(text) {
  * Exclusive gateway for all client-side AI analysis requests.
  * Mediates and enforces the Zero-Chatbot Policy and zero-trust security.
  */
-exports.callGeminiSocraticProxy = (0, https_1.onCall)(async (request) => {
+exports.callGeminiSocraticProxy = (0, https_1.onCall)(geminiConfig_1.GEMINI_SECRETS, async (request) => {
     // 1. Verify Authentication
     if (!request.auth) {
         throw new https_1.HttpsError("unauthenticated", "Client must be authenticated to call the AI proxy.");
@@ -59,16 +59,11 @@ exports.callGeminiSocraticProxy = (0, https_1.onCall)(async (request) => {
     const scrubbedPrompt = scrubPII(prompt || "");
     const scrubbedContext = scrubPII(typeof context === "string" ? context : JSON.stringify(context || {}));
     const scrubbedHistory = history ? JSON.parse(scrubPII(JSON.stringify(history))) : [];
-    // 4. API Key Security (Load from Env / Secret Manager)
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-        logger.error("GEMINI_API_KEY is not configured on the server.");
-        throw new https_1.HttpsError("internal", "AI Service configuration is missing.");
-    }
+    // 4. API Key Security (bound Secret Manager secret — see geminiConfig.ts)
+    const ai = (0, geminiConfig_1.getGeminiClient)();
     try {
-        const ai = new generative_ai_1.GoogleGenerativeAI(apiKey);
         const model = ai.getGenerativeModel({
-            model: 'gemini-3.7-flash',
+            model: geminiConfig_1.GEMINI_MODEL_ID,
             generationConfig: {
                 temperature: 0.2,
                 responseMimeType: "application/json"

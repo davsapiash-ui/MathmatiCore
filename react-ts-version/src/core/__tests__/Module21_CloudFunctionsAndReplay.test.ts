@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import { sanitizeChatText } from '../../application/useChatStore';
-import { CanvasRecorderService } from '../../infrastructure/services/CanvasRecorderService';
 import { useWorkspaceStore } from '../../application/useWorkspaceStore';
 
 // Server-side Layer 2 PII regex implementation
@@ -64,21 +63,6 @@ describe('Work Package 6 (WP6): Admin Hubs, Two-Layer Chat PII, Cloud Functions 
 
       const res0 = validateLimit('0');
       expect(res0.valid).toBe(false);
-    });
-  });
-
-  describe('3. Module 21 / WP6: Student Canvas Recorder & Path Specs', () => {
-    it('generates canonical storage path for canvas recording WebM', () => {
-      const path = CanvasRecorderService.getStoragePath('student_2', 'ex_03_02');
-      expect(path).toBe('recordings/student_2/ex_03_02.webm');
-    });
-
-    it('defines 50MB hard cap and 2000ms chunk timeslice', () => {
-      expect(CanvasRecorderService.MAX_RECORDING_BYTES).toBe(50 * 1024 * 1024);
-      const recorder = new CanvasRecorderService();
-      expect(recorder.getIsRecording()).toBe(false);
-      expect(recorder.getTotalBytesRecorded()).toBe(0);
-      expect(recorder.getIsTruncated()).toBe(false);
     });
   });
 

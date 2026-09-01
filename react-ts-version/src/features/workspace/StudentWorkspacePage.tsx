@@ -8,7 +8,6 @@ import {
   KeyboardSensor,
   pointerWithin,
   rectIntersection,
-  closestCenter,
   useSensor,
   useSensors,
   type CollisionDetection,
@@ -39,7 +38,6 @@ import { X } from 'lucide-react';
 
 import { StudentChatOverlay } from './overlays/StudentChatOverlay';
 import { AdaptiveAdditionGrid } from './board/AdaptiveAdditionGrid';
-import { canvasRecorder } from '@/infrastructure/services/CanvasRecorderService';
 
 import { SocraticEngine } from '@/infrastructure/services/SocraticEngine';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
@@ -194,7 +192,6 @@ export function StudentWorkspacePage() {
           if (ownership.isSuperseded) {
             isSupersededRef.current = true;
             useWorkspaceStore.getState().setSupersededByOtherDevice(true);
-            canvasRecorder.stopRecording().catch(console.error);
             try {
               onDisconnect(ref(database, `users/students/${normUid}/isOnline`)).cancel();
               onDisconnect(ref(database, `users/students/${normUid}/lastPing`)).cancel();
@@ -445,6 +442,13 @@ export function StudentWorkspacePage() {
           const isLocked = val.workspaceState?.isBoardLocked ?? val.isBoardLocked;
           if (isLocked !== undefined && isLocked !== useWorkspaceStore.getState().isBoardLocked) {
             useWorkspaceStore.setState({ isBoardLocked: Boolean(isLocked) });
+          }
+
+          // Module 19 §ב: stage a teacher-queued differentiation change without
+          // applying it — useWorkspaceStore's startTask() applies (and clears)
+          // this only at the next task boundary, never mid-exercise.
+          if (val.pendingAdaptation !== undefined) {
+            useWorkspaceStore.setState({ pendingAdaptation: val.pendingAdaptation || null });
           }
 
           useStore.setState((s) => {
@@ -731,14 +735,21 @@ export function StudentWorkspacePage() {
       );
       return specific ? [specific] : pointerCollisions;
     }
-    const centerCollisions = closestCenter(args);
-    if (centerCollisions && centerCollisions.length > 0) {
-      const specific = centerCollisions.find(
+    // rectIntersection only matches a droppable the dragged block's rect
+    // actually overlaps. closestCenter used to sit here instead, but it has
+    // no distance cutoff — it always names *some* "nearest" droppable even
+    // while the pointer is nowhere near the board (still over the palette,
+    // mid-transit, etc.), which lit up the wrong column and popped the trash
+    // lid open with nothing near it, and could even route a drop that far
+    // away to that bogus target on release.
+    const rectCollisions = rectIntersection(args);
+    if (rectCollisions && rectCollisions.length > 0) {
+      const specific = rectCollisions.find(
         (c) => String(c.id).startsWith('column-') || c.id === 'trash'
       );
-      return specific ? [specific] : centerCollisions;
+      return specific ? [specific] : rectCollisions;
     }
-    return rectIntersection(args);
+    return [];
   };
 
   const handleDragStart = (event: DragStartEvent) => {

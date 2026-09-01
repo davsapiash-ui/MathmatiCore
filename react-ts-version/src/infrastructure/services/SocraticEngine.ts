@@ -49,6 +49,9 @@ export function normalizeTaskIdForHints(id?: string): string {
   return id.replace(/^(s\d+)_[gr]_t(\d+)$/, '$1_t$2');
 }
 
+/** Ceiling on how long a learner waits for an AI hint before the static one is served (Module 13 §4). */
+const SOCRATIC_PROXY_TIMEOUT_MS = 8000;
+
 // ─────────────────────────────────────────────────────────────
 // TASK-LEVEL SOCRATIC HINT MAP
 // Each entry is keyed by task ID (exact match from sessionTasks.ts).
@@ -1248,7 +1251,11 @@ OUTPUT SCHEMA (Return ONLY valid JSON):
   public static async callGeminiProxy(data: { prompt: string; context?: string; history?: any[] }): Promise<{ data: any }> {
     const fn = httpsCallable<{ prompt: string; context?: string; history?: any[] }, any>(
       functions,
-      "callGeminiSocraticProxy"
+      "callGeminiSocraticProxy",
+      // Module 13: a hung AI call must yield to the static Socratic hint quickly.
+      // The SDK's 70s default leaves a 3rd-grader staring at a spinner mid-exercise
+      // when the far cheaper, pedagogically valid fallback is already on hand.
+      { timeout: SOCRATIC_PROXY_TIMEOUT_MS }
     );
     return fn(data);
   }

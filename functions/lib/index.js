@@ -3,9 +3,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.triggerExecutiveDriveReport = exports.triggerTestDriveReport = exports.authenticateStudentSession = exports.onStudentEvent = exports.verifyTeacherSSO = exports.sendTeacherAdminMessage = exports.hourlyAdminAggregator = exports.getPedagogicalReportDownloadUrl = exports.generatePedagogicalReportPDF = exports.createSessionWithServerDeadline = exports.onSessionCompleteTrigger = exports.exportResearchDataset = exports.backupAndResetSessionData = exports.exportAdminReportToDrive = exports.validateAndStoreTelemetry = exports.callGeminiSocraticProxy = exports.syncUserRoles = exports.generateSocraticMapping = exports.generateSocraticHint = void 0;
 const https_1 = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
-const generative_ai_1 = require("@google/generative-ai");
 const admin = require("firebase-admin");
 const dotenv = require("dotenv");
+const geminiConfig_1 = require("./geminiConfig");
 const geminiProxy_1 = require("./geminiProxy");
 const pedagogicalReport_1 = require("./pedagogicalReport");
 const exportDriveReport_1 = require("./exportDriveReport");
@@ -166,9 +166,9 @@ exports.generateSocraticHint = (0, https_1.onCall)(async (request) => {
 /**
  * Cloud Function for Teacher Diagnostic Mapping.
  * Evaluates student diagnostic data using Gemini LLM to create teacher action plans.
- * Uses valid supported model identifier 'gemini-2.5-flash'.
+ * Model id and credential come from geminiConfig.ts.
  */
-exports.generateSocraticMapping = (0, https_1.onCall)(async (request) => {
+exports.generateSocraticMapping = (0, https_1.onCall)(geminiConfig_1.GEMINI_SECRETS, async (request) => {
     if (!request.auth) {
         throw new https_1.HttpsError("unauthenticated", "User must be authenticated");
     }
@@ -191,9 +191,9 @@ exports.generateSocraticMapping = (0, https_1.onCall)(async (request) => {
         throw new https_1.HttpsError("invalid-argument", `Payload size (${totalPayloadSize} chars) exceeds the safety threshold of 50,000 characters. Request rejected.`);
     }
     try {
-        const ai = new generative_ai_1.GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+        const ai = (0, geminiConfig_1.getGeminiClient)();
         const model = ai.getGenerativeModel({
-            model: 'gemini-3.7-flash',
+            model: geminiConfig_1.GEMINI_MODEL_ID,
             generationConfig: {
                 temperature: 0.4,
                 responseMimeType: "application/json"

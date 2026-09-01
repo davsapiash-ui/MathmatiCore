@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import { ref, onValue, remove, set, update, query, limitToLast, onDisconnect, serverTimestamp } from "firebase/database";
 import { isClassSessionLive } from "@/core/classSession";
 import { database, auth, functions, firestore } from "@/infrastructure/firebase";
-import { doc, getDoc, updateDoc, setDoc, onSnapshot, collection, writeBatch } from "firebase/firestore";
+import { doc, onSnapshot, collection, writeBatch } from "firebase/firestore";
 import type { SessionDocument, PedagogicalPath } from "@/types";
 import { httpsCallable } from "firebase/functions";
 import {
@@ -44,6 +44,7 @@ import { SocraticEngine, type PendingAIApproval } from "@/infrastructure/service
 import type { RadarAlert } from "@/types/dashboard";
 import { CONCEPT_LABELS_HE } from "@/core/QMatrix";
 import { validateChatInputForPII, anonymizeChatMessageBody } from "@/core/security/PiiFilter";
+import { approveTeacherGate } from "@/core/teacherGate";
 
 const getStudentKPIs = (student: StudentData, messages: ChatMessage[]) => {
   const undo = student.traceData?.undo_clicks || 0;
@@ -982,7 +983,10 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     const items: GateStudentItem[] = [];
     for (let i = 1; i <= 12; i++) {
       const sId = `student_${i}`;
-      const studentData = students[sId] || students[String(i)];
+      // students[] is keyed by normalizeStudentId (student_user{N}); student_{N}
+      // and bare {N} are only populated when something separately wrote those
+      // RTDB alias paths too, so the canonical key must be checked first.
+      const studentData = students[`student_user${i}`] || students[sId] || students[String(i)];
       const session2Doc = firestoreSession2Docs[sId] || firestoreSession2Docs[String(i)];
 
       const isCompleted = Boolean(
@@ -1028,49 +1032,29 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   const handleApproveGateStudent = async (studentId: string, path: PedagogicalPath) => {
     setIsApprovingGate(true);
     const normNum = studentId.replace(/\D/g, '') || '1';
-    const sessionDocId = `session_02_student_${normNum}`;
-    const normId = `student_${normNum}`;
-    const now = Date.now();
 
     try {
-      // 1. Verify existence of real SessionDocument in Cloud Firestore (Zero Fake Scores)
-      const sessionDocRef = doc(firestore, 'sessions', sessionDocId);
-      const sessionSnap = await getDoc(sessionDocRef);
+      // Every approval surface must go through the one canonical implementation
+      // (core/teacherGate.ts) so the Firestore SessionDocument stays the sole
+      // source of truth and the RTDB mirror always reaches student_user{N} —
+      // the exact key the student's own live listener reads (see
+      // normalizeStudentId / StudentWorkspacePage). A hand-duplicated write
+      // here that missed that key previously left the student stuck on the
+      // approval-waiting screen even though Firestore showed "approved".
+      const result = await approveTeacherGate(studentId, path, user?.uid || null);
 
-      if (!sessionSnap.exists()) {
-        toast.error(`לא נמצא מסמך אבחון (Session 2) עבור תלמיד ${normNum}. לא ניתן לאשר מעבר טרם סיום המפגש בפועל.`);
+      if (!result.ok) {
+        toast.error(result.message);
         return;
       }
 
-      const existingData = sessionSnap.data() as SessionDocument;
-      if (existingData.is_completed === false) {
-        toast.error(`תלמיד ${normNum} טרם השלים את כל משימות החובה במפגש 2. לא ניתן לאשר מעבר.`);
-        return;
-      }
-
-      // 2. Update real existing Firestore document strictly (no synthetic fallback documents)
-      await updateDoc(sessionDocRef, {
-        teacher_gate_approved: true,
-        teacher_selected_path: path,
-        gate_approved_at: now,
-        gate_approved_by: user?.uid || 'teacher',
-      });
-
-      // 3. Write to Firebase RTDB for instantaneous reactive unlock
-      const gatePayload = {
-        routeStatus: 'APPROVED',
-        teacher_gate_approved: true,
-        teacher_selected_path: path,
-        gate_approved_at: now,
-        gate_approved_by: user?.uid || 'teacher',
-      };
-      await update(ref(database, `users/students/${normId}`), gatePayload);
-      if (normId !== normNum) {
-        await update(ref(database, `users/students/${normNum}`), gatePayload).catch(() => {});
-      }
-
-      // 4. Update local Zustand state
-      approveRoute(normId);
+      // Optimistic local Zustand update — cover every alias this codebase's
+      // RTDB writes fan out to (student_userN, student_N, bare N), since
+      // whichever of those actually exist as separate entries in local state
+      // should reflect the approval immediately without waiting on the RTDB
+      // round trip.
+      approveRoute(`student_user${normNum}`);
+      approveRoute(`student_${normNum}`);
       approveRoute(normNum);
 
       toast.success(`תלמיד ${normNum} אושר בהצלחה למפגש 3 (${path === 'green_path' ? 'מסלול ירוק' : 'מסלול צהוב'})! 🛡️`);
@@ -1111,17 +1095,44 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     setInputText("");
   };
 
-  // For Admin Chat
-  const adminMessages = useMemo(() => {
-    if (!user) return [];
-    return messages
-      .filter(
-        (m) =>
-          (m.senderId === user.uid && m.receiverId === "admin") ||
-          (m.senderId === "admin" && m.receiverId === user.uid),
-      )
-      .sort((a, b) => a.timestamp - b.timestamp);
-  }, [messages, user]);
+  // For Admin Chat — Module 22 lives in Firestore `messages` (written only by
+  // the sendTeacherAdminMessage callable), not in the RTDB chat store used for
+  // teacher<->student chat. Reading the RTDB store here meant admin replies
+  // could never appear no matter how many were sent.
+  const [adminMessages, setAdminMessages] = useState<ChatMessage[]>([]);
+  useEffect(() => {
+    if (!user?.uid) return;
+    // The admin console lists teachers under an email-derived key, and that is
+    // what it addresses replies to — the raw auth uid never appears there.
+    const teacherKey = user.email ? String(user.email).trim().replace(/[@.#$[\]]/g, '_') : user.uid;
+    const isMine = (id: string) => id === teacherKey || id === user.uid;
+
+    const unsub = onSnapshot(collection(firestore, "messages"), (snapshot) => {
+      const mine = snapshot.docs
+        .map((d) => {
+          const raw = d.data() as any;
+          return {
+            id: d.id,
+            senderId: raw.sender_id,
+            senderName: raw.sender_id === 'admin' ? 'הנהלה' : 'מורה',
+            receiverId: raw.receiver_id,
+            text: raw.message_body,
+            timestamp: raw.timestamp,
+            read: Boolean(raw.read),
+          } as ChatMessage;
+        })
+        .filter(
+          (m) =>
+            (isMine(m.senderId) && m.receiverId === "admin") ||
+            (m.senderId === "admin" && isMine(m.receiverId)),
+        )
+        .sort((a, b) => a.timestamp - b.timestamp);
+      setAdminMessages(mine);
+    }, (err) => {
+      console.error('[Module 22] Firestore admin-chat listener error:', err);
+    });
+    return () => unsub();
+  }, [user?.uid, user?.email]);
 
   // For Student Chat
   const [studentSearchQuery, setStudentSearchQuery] = useState("");
@@ -1178,31 +1189,41 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     }
   }, [isAdminChatDrawerOpen, activeTab, selectedStudentId, messages, user, markAsRead]);
 
-  const handleSendAdmin = () => {
+  const handleSendAdmin = async () => {
     if (!inputText.trim() || !user) return;
 
     // Module 22: Tier 1 Client-Side Regex Validation (Fail-Closed Architecture)
+    let cleanText: string;
     try {
       const validation = validateChatInputForPII(inputText);
       if (!validation.valid) {
         toast.warning(validation.errorHe || 'הודעה מכילה פרטים מזהים (PII). יש להשתמש במזהה 1-12 בלבד.');
         return;
       }
-
-      // Module 22: Tier 2 Sanitization / Anonymization Service
-      const cleanText = anonymizeChatMessageBody(inputText.trim());
-
-      sendMessage(
-        user.uid as string,
-        (user.displayName as string) || "מורה",
-        "admin",
-        cleanText,
-      );
-      setInputText("");
+      cleanText = anonymizeChatMessageBody(inputText.trim());
     } catch (err) {
       console.error('[Module 3/22 Fail-Closed] PII scanning error caught:', err);
       toast.error('שגיאה בבדיקת אבטחה (PII). שליחת ההודעה נחסמה להגנה על פרטיות התלמידים.');
       return;
+    }
+
+    // Module 22: Tier 2 anonymization is a *server-side* guarantee, and the
+    // admin console reads this channel from Firestore `messages`. Writing
+    // straight to RTDB here (as this used to) skipped the roster-based name
+    // substitution entirely and dropped the message into a store no admin
+    // ever reads — it looked sent and reached nobody.
+    try {
+      const sendFn = httpsCallable(functions, "sendTeacherAdminMessage");
+      await sendFn({
+        receiver_id: "admin",
+        message_body: cleanText,
+        school_id: useAuthStore.getState().activeClass?.school_id || "school_pilot_01",
+        class_name: "המבקרים",
+      });
+      setInputText("");
+    } catch (err) {
+      console.error('[Module 22] Failed to send teacher-admin message:', err);
+      toast.error('שגיאה בשליחת ההודעה להנהלה. בדקו את חיבור הרשת ונסו שוב.');
     }
   };
 

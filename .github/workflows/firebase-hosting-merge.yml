@@ -50,5 +50,5 @@ jobs:
 
       - name: Deploy Firebase Rules & Functions
         continue-on-error: true
-        run: npx --yes firebase-tools@13 deploy --only firestore:rules,database,functions --project mathimaticore --non-interactive
+        run: npx --yes firebase-tools@13 deploy --only firestore:rules,database,storage,functions --project mathimaticore --non-interactive
 
