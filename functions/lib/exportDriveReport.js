@@ -429,13 +429,39 @@ exports.backupAndResetSessionData = (0, https_1.onCall)(async (request) => {
         logger.error("Failed to collect data for backup:", err);
         throw new https_1.HttpsError("internal", "הגיבוי נכשל. האיפוס בוטל ולא נמחקו נתונים.");
     }
-    // Step 2: Write backup file to Google Drive or Firestore Backup Vault
+    // Step 2: Write backup file to Google Drive, falling back to this project's
+    // own Cloud Storage bucket, and only as a last resort to a Firestore doc.
     const backupFileName = `Backup_${reset_level}_${class_id}_${Date.now()}.json`;
     const backupBuffer = Buffer.from(JSON.stringify(collectedData, null, 2), "utf-8");
     let driveResult = await uploadBufferToDrive(backupBuffer, backupFileName, "application/json");
-    // Fallback: If Google Drive upload was unreachable, write to Firestore system_backups collection
+    // Fallback 1: Google Drive needs external OAuth (domain-wide delegation for
+    // SERVICE_ACCOUNT_EMAIL) that isn't guaranteed to be provisioned in every
+    // environment. This project's own Cloud Storage bucket needs no such setup
+    // — it's reached with the same Admin SDK credentials already used
+    // elsewhere in this codebase (see pedagogicalReport.ts) — and has no
+    // meaningful size ceiling, unlike the 1MiB-per-document Firestore fallback
+    // below, which used to silently swallow a full system snapshot and abort
+    // every reset behind the backup-before-delete gate.
     if (!driveResult.success) {
-        logger.warn("Drive upload unavailable, writing backup to Firestore system_backups:", driveResult.error);
+        logger.warn("Drive upload unavailable, writing backup to Cloud Storage:", driveResult.error);
+        try {
+            const storagePath = `backups/${class_id}/${resetId}.json`;
+            const bucket = admin.storage().bucket();
+            await bucket.file(storagePath).save(backupBuffer, { contentType: "application/json" });
+            driveResult = {
+                success: true,
+                fileId: resetId,
+                webViewLink: `gs://${bucket.name}/${storagePath}`,
+            };
+        }
+        catch (storageErr) {
+            logger.error("Cloud Storage backup fallback error:", (storageErr === null || storageErr === void 0 ? void 0 : storageErr.message) || storageErr);
+        }
+    }
+    // Fallback 2: only reached if both Drive and this project's own Storage
+    // bucket failed. Kept as a last resort, not a primary path.
+    if (!driveResult.success) {
+        logger.warn("Cloud Storage unavailable, writing backup to Firestore system_backups:", driveResult.error);
         try {
             await db.collection("system_backups").doc(resetId).set({
                 reset_id: resetId,
