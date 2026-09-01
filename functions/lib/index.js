@@ -166,7 +166,7 @@ exports.generateSocraticHint = (0, https_1.onCall)(async (request) => {
 /**
  * Cloud Function for Teacher Diagnostic Mapping.
  * Evaluates student diagnostic data using Gemini LLM to create teacher action plans.
- * Uses valid supported model identifier 'gemini-2.5-flash'.
+ * Model id and credential come from geminiConfig.ts.
  */
 exports.generateSocraticMapping = (0, https_1.onCall)(geminiConfig_1.GEMINI_SECRETS, async (request) => {
     if (!request.auth) {

@@ -83,19 +83,25 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
     authReady.then(() => {
       if (cancelled) return;
 
-      const studentsRootRef = ref(database, 'users/students');
-      unsubStudent = onValue(studentsRootRef, (snap) => {
-        if (cancelled) return;
-        const allData = snap.exists() ? (snap.val() || {}) : {};
-        // Deterministically merge across all candidate keys for this student number
-        const matchingEntries = Object.entries(allData)
-          .filter(([k]) => {
-            const digits = k.replace(/\D/g, '');
-            return digits === String(studentNum);
-          })
-          .map(([, v]) => v);
+      // Listen only on this student's own alias nodes. This used to subscribe
+      // to the entire users/students root, so a telemetry chunk written by any
+      // student in the class (every ~2s during a live session) re-downloaded
+      // and re-parsed the whole student database in every open replay panel.
+      const aliasKeys = Array.from(new Set([
+        `student_user${studentNum}`,
+        `student_${studentNum}`,
+        `user${studentNum}`,
+        String(studentNum),
+        String(targetId),
+      ].filter(Boolean)));
 
-        const primaryObj = allData[`student_user${studentNum}`] || 
+      const allData: Record<string, any> = {};
+
+      const handleStudentData = () => {
+        if (cancelled) return;
+        const matchingEntries = Object.values(allData).filter(Boolean);
+
+        const primaryObj = allData[`student_user${studentNum}`] ||
                            allData[targetId] || 
                            allData[`user${studentNum}`] || 
                            allData[`student_${studentNum}`] || 
@@ -321,9 +327,21 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
             setEvents([]);
           }
         }
-      }, (err) => {
-        console.warn('[StudentReplayAndLogs] studentsRootRef listener notice:', err);
-      });
+      };
+
+      const unsubs = aliasKeys.map((alias) =>
+        onValue(
+          ref(database, `users/students/${alias}`),
+          (snap) => {
+            allData[alias] = snap.exists() ? snap.val() : undefined;
+            handleStudentData();
+          },
+          (err) => {
+            console.warn(`[StudentReplayAndLogs] listener notice for ${alias}:`, err);
+          }
+        )
+      );
+      unsubStudent = () => unsubs.forEach((off) => { try { off(); } catch {} });
     });
 
     return () => {

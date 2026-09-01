@@ -1095,17 +1095,44 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     setInputText("");
   };
 
-  // For Admin Chat
-  const adminMessages = useMemo(() => {
-    if (!user) return [];
-    return messages
-      .filter(
-        (m) =>
-          (m.senderId === user.uid && m.receiverId === "admin") ||
-          (m.senderId === "admin" && m.receiverId === user.uid),
-      )
-      .sort((a, b) => a.timestamp - b.timestamp);
-  }, [messages, user]);
+  // For Admin Chat — Module 22 lives in Firestore `messages` (written only by
+  // the sendTeacherAdminMessage callable), not in the RTDB chat store used for
+  // teacher<->student chat. Reading the RTDB store here meant admin replies
+  // could never appear no matter how many were sent.
+  const [adminMessages, setAdminMessages] = useState<ChatMessage[]>([]);
+  useEffect(() => {
+    if (!user?.uid) return;
+    // The admin console lists teachers under an email-derived key, and that is
+    // what it addresses replies to — the raw auth uid never appears there.
+    const teacherKey = user.email ? String(user.email).trim().replace(/[@.#$[\]]/g, '_') : user.uid;
+    const isMine = (id: string) => id === teacherKey || id === user.uid;
+
+    const unsub = onSnapshot(collection(firestore, "messages"), (snapshot) => {
+      const mine = snapshot.docs
+        .map((d) => {
+          const raw = d.data() as any;
+          return {
+            id: d.id,
+            senderId: raw.sender_id,
+            senderName: raw.sender_id === 'admin' ? 'הנהלה' : 'מורה',
+            receiverId: raw.receiver_id,
+            text: raw.message_body,
+            timestamp: raw.timestamp,
+            read: Boolean(raw.read),
+          } as ChatMessage;
+        })
+        .filter(
+          (m) =>
+            (isMine(m.senderId) && m.receiverId === "admin") ||
+            (m.senderId === "admin" && isMine(m.receiverId)),
+        )
+        .sort((a, b) => a.timestamp - b.timestamp);
+      setAdminMessages(mine);
+    }, (err) => {
+      console.error('[Module 22] Firestore admin-chat listener error:', err);
+    });
+    return () => unsub();
+  }, [user?.uid, user?.email]);
 
   // For Student Chat
   const [studentSearchQuery, setStudentSearchQuery] = useState("");
@@ -1162,31 +1189,41 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     }
   }, [isAdminChatDrawerOpen, activeTab, selectedStudentId, messages, user, markAsRead]);
 
-  const handleSendAdmin = () => {
+  const handleSendAdmin = async () => {
     if (!inputText.trim() || !user) return;
 
     // Module 22: Tier 1 Client-Side Regex Validation (Fail-Closed Architecture)
+    let cleanText: string;
     try {
       const validation = validateChatInputForPII(inputText);
       if (!validation.valid) {
         toast.warning(validation.errorHe || 'הודעה מכילה פרטים מזהים (PII). יש להשתמש במזהה 1-12 בלבד.');
         return;
       }
-
-      // Module 22: Tier 2 Sanitization / Anonymization Service
-      const cleanText = anonymizeChatMessageBody(inputText.trim());
-
-      sendMessage(
-        user.uid as string,
-        (user.displayName as string) || "מורה",
-        "admin",
-        cleanText,
-      );
-      setInputText("");
+      cleanText = anonymizeChatMessageBody(inputText.trim());
     } catch (err) {
       console.error('[Module 3/22 Fail-Closed] PII scanning error caught:', err);
       toast.error('שגיאה בבדיקת אבטחה (PII). שליחת ההודעה נחסמה להגנה על פרטיות התלמידים.');
       return;
+    }
+
+    // Module 22: Tier 2 anonymization is a *server-side* guarantee, and the
+    // admin console reads this channel from Firestore `messages`. Writing
+    // straight to RTDB here (as this used to) skipped the roster-based name
+    // substitution entirely and dropped the message into a store no admin
+    // ever reads — it looked sent and reached nobody.
+    try {
+      const sendFn = httpsCallable(functions, "sendTeacherAdminMessage");
+      await sendFn({
+        receiver_id: "admin",
+        message_body: cleanText,
+        school_id: useAuthStore.getState().activeClass?.school_id || "school_pilot_01",
+        class_name: "המבקרים",
+      });
+      setInputText("");
+    } catch (err) {
+      console.error('[Module 22] Failed to send teacher-admin message:', err);
+      toast.error('שגיאה בשליחת ההודעה להנהלה. בדקו את חיבור הרשת ונסו שוב.');
     }
   };
 
