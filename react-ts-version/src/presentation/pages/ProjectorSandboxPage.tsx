@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   DndContext,
   DragOverlay,
-  PointerSensor,
+  MouseSensor,
   TouchSensor,
   pointerWithin,
   useSensor,
@@ -43,7 +43,8 @@ export function ProjectorSandboxPage() {
   const [isBroadcasting, setIsBroadcasting] = useState(true);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
+    useSensor(MouseSensor, { activationConstraint: { distance: 3 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } })
   );
 
   // אתחול סשן נקי ללוח בהתאם לטווח הנבחר

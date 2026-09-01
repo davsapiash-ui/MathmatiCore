@@ -173,7 +173,9 @@ export function resolveDrop(counts: PlaceCounts, input: DropInput, _scaffoldLeve
       if (!res) return { ok: false, reason: 'constraint', place: targetPlace };
       return { ok: true, counts: res.counts, regroupEvents: [], ungroupEvent: res.event };
     }
-    return { ok: false, reason: 'constraint', place: targetPlace };
+    // Any other drop of a palette block onto the board routes safely to its own column
+    const { counts: next, events } = addBlock(counts, input.sourcePlace, autoGroup);
+    return { ok: true, counts: next, regroupEvents: events };
   }
 
   // source === 'column'

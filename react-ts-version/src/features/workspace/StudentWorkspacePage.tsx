@@ -3,7 +3,9 @@ import { useSearchParams } from 'react-router-dom';
 import {
   DndContext,
   DragOverlay,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
+  KeyboardSensor,
   pointerWithin,
   rectIntersection,
   closestCenter,
@@ -706,7 +708,18 @@ export function StudentWorkspacePage() {
   // feeling. 10px is still effectively instant but meaningfully more
   // forgiving of natural jitter.
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } })
+    useSensor(MouseSensor, {
+      activationConstraint: {
+        distance: 3,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 150,
+        tolerance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor)
   );
 
   const collisionDetectionStrategy: CollisionDetection = (args) => {
