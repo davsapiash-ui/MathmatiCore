@@ -710,11 +710,18 @@ export function StudentWorkspacePage() {
   const collisionDetectionStrategy: CollisionDetection = (args) => {
     const pointerCollisions = pointerWithin(args);
     if (pointerCollisions && pointerCollisions.length > 0) {
-      return pointerCollisions;
+      // Prioritize specific columns and trash over the full board container
+      const specific = pointerCollisions.find(
+        (c) => String(c.id).startsWith('column-') || c.id === 'trash'
+      );
+      return specific ? [specific] : pointerCollisions;
     }
     const centerCollisions = closestCenter(args);
     if (centerCollisions && centerCollisions.length > 0) {
-      return centerCollisions;
+      const specific = centerCollisions.find(
+        (c) => String(c.id).startsWith('column-') || c.id === 'trash'
+      );
+      return specific ? [specific] : centerCollisions;
     }
     return rectIntersection(args);
   };
@@ -741,24 +748,36 @@ export function StudentWorkspacePage() {
   const handleDragEnd = (event: DragEndEvent) => {
     setActiveDrag(null);
     const data = event.active.data.current as { source: DragSource; place: Place } | undefined;
-    const over = event.over?.data.current as { kind: 'column'; place: Place } | { kind: 'trash' } | undefined;
+    const over = event.over?.data.current as { kind: 'column'; place: Place } | { kind: 'trash' } | { kind: 'board' } | undefined;
     if (!data) return;
     
     if (!over) {
-      // Releasing outside any droppable (board or trash) is treated as an
-      // aborted gesture, not a delete. This used to auto-delete column
-      // blocks, but that made an accidental micro-drag — e.g. a click that
-      // just barely crossed the activation distance — silently destroy the
-      // block instead of doing nothing. TrashZone is the one deliberate,
-      // clearly-labeled way to delete by dragging; clicking a block
-      // (removeBlockClick / splitBlockClick) covers the rest.
+      return;
+    }
+
+    if (over.kind === 'trash') {
+      applyDrop({
+        source: data.source,
+        sourcePlace: data.place,
+        target: { kind: 'trash' },
+      });
+      return;
+    }
+
+    if (over.kind === 'board') {
+      // Smart Routing: dropping anywhere on the numbers house routes block to its designated column
+      applyDrop({
+        source: data.source,
+        sourcePlace: data.place,
+        target: { kind: 'column', place: data.place },
+      });
       return;
     }
 
     applyDrop({
       source: data.source,
       sourcePlace: data.place,
-      target: over.kind === 'trash' ? { kind: 'trash' } : { kind: 'column', place: over.place },
+      target: { kind: 'column', place: over.place },
     });
   };
 

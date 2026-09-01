@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
+import { useDroppable } from '@dnd-kit/core';
 import { PLACE_ORDER, type Place } from '@/core/placeValue';
 import { useWorkspaceStore, selectScaffoldLevel } from '@/application/useWorkspaceStore';
 import { PlaceColumn } from './PlaceColumn';
@@ -26,6 +27,11 @@ export function PlaceValueBoard({
   const restoreScaffolds = useWorkspaceStore((s) => s.restoreScaffolds);
   const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
   const [showSession8Priming, setShowSession8Priming] = useState(true);
+
+  const { setNodeRef: setBoardRef } = useDroppable({
+    id: 'place-value-board-dropzone',
+    data: { kind: 'board' },
+  });
 
   useEffect(() => {
     if (sessionNumber === 8) {
@@ -79,7 +85,11 @@ export function PlaceValueBoard({
           className="flex flex-col gap-3 overflow-hidden h-full max-h-full min-w-0 w-full"
           aria-label="טבלת ערך המקום"
         >
-          <div id="tour-place-value-board" className="flex-1 ws-card p-4 flex flex-col gap-3 hover:translate-y-0 select-none min-h-0 overflow-hidden">
+          <div
+            id="tour-place-value-board"
+            ref={setBoardRef}
+            className="flex-1 ws-card p-4 flex flex-col gap-3 hover:translate-y-0 select-none min-h-0 overflow-hidden"
+          >
             <div className="flex items-center justify-center shrink-0">
               <span className="inline-flex items-center gap-2 text-lg font-display font-black text-ws-ink bg-ws-blue-soft/50 rounded-full px-6 py-1.5 border-2 border-ws-blue/20 shadow-sm select-none">
                 <span aria-hidden="true" className="text-xl">🏠</span> בית המספרים
