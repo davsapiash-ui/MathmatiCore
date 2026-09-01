@@ -48,7 +48,11 @@ jobs:
       - name: Deploy to Firebase Hosting
         run: npx --yes firebase-tools@13 deploy --only hosting --project mathimaticore --non-interactive
 
+      # No continue-on-error here. This step had been failing in ~3 seconds on
+      # every merge for months — "Missing permissions required for functions
+      # deploy… iam.serviceAccounts.ActAs" — while the workflow still reported
+      # success, so no Cloud Function or security rule ever reached production
+      # and nothing surfaced it. A failed backend deploy must fail the run.
       - name: Deploy Firebase Rules & Functions
-        continue-on-error: true
         run: npx --yes firebase-tools@13 deploy --only firestore:rules,database,storage,functions --project mathimaticore --non-interactive
 
