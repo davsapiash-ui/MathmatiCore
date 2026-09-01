@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { ref, onValue, update, query, limitToLast } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
-import { normalizeStudentId } from '@/application/useChatStore';
+import { useAuthStore } from '@/application/useAuthStore';
+import { approveTeacherGate } from '@/core/teacherGate';
 import { toast } from 'sonner';
 import { 
   Activity, 
@@ -440,31 +441,27 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
   const [isResettingClass, setIsResettingClass] = useState(false);
 
   const handleApproveGate = async (studentId: string, path: 'ירוק' | 'צמצום פערים') => {
-    const normId = normalizeStudentId(studentId);
     const num = studentId.replace(/\D/g, '') || '1';
     const isRemediation = path === 'צמצום פערים';
 
-    const gatePayload = {
-      teacher_gate_approved: true,
-      teacher_selected_path: isRemediation ? 'remediation_path' : 'green_path',
-      currentPath: path,
-      routeRecommendation: isRemediation ? 'YELLOW' : 'GREEN',
-      routeStatus: isRemediation ? 'REMEDIATION_PATH' : 'GREEN_PATH',
-      pedagogicalPath: isRemediation ? 'remediation_path' : 'green_path',
-      gateApprovedAt: Date.now(),
-      highestCompletedMeeting: 2,
-    };
-
     try {
-      const paths = [
-        `users/students/${normId}`,
-        `users/students/student_${num}`,
-        `users/students/user${num}`,
-        `users/students/${num}`,
-      ];
-      const updates: Record<string, any> = {};
-      paths.forEach(p => { updates[p] = { ...updates[p], ...gatePayload }; });
-      await update(ref(database), updates);
+      // PRD v7.1 Module 20: the session-2 SessionDocument in Firestore is the
+      // sole source of truth — this quick-approve button used to write RTDB
+      // aliases directly and never touch it, silently diverging from the
+      // canonical record every other approval surface relies on. Route
+      // through the one shared implementation instead.
+      const teacherId = useAuthStore.getState().user?.uid || null;
+      const result = await approveTeacherGate(studentId, isRemediation ? 'remediation_path' : 'green_path', teacherId);
+
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+
+      useStore.getState().approveRoute(`student_user${num}`);
+      useStore.getState().approveRoute(`student_${num}`);
+      useStore.getState().approveRoute(num);
+
       toast.success(`✓ מסלול ${path} אושר עבור תלמיד ${num}! השער למפגש 3 נפתח.`);
     } catch (err) {
       console.error('Failed to approve gate:', err);

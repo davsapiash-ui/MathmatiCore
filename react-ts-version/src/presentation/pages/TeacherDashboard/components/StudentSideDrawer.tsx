@@ -50,7 +50,11 @@ export function StudentSideDrawer({ student, onClose, isPendingApproval, onAppro
       const rawNum = student.studentId.replace(/\D/g, '') || '1';
       // Module 23: Determine target diagnostic session dynamically: Session 2 (Gate) or Session 8 (Final)
       const targetSession = overrideSessionNum || (isPendingApproval ? 2 : (sAny.sessionNumber || student.current_session || student.workspaceState?.sessionNumber || 8));
-      const sessionId = `session_${targetSession}_student_${rawNum}`;
+      // Firestore SessionDocuments are written zero-padded (session_02_student_N —
+      // see FirebaseSyncService.syncSession2Completion / core/teacherGate.ts).
+      // An unpadded id here always missed that doc and made every report request
+      // fail with "not found".
+      const sessionId = `session_${String(targetSession).padStart(2, '0')}_student_${rawNum}`;
       const generateReportCallable = httpsCallable(functions, 'generatePedagogicalReportPDF');
       const res: any = await generateReportCallable({ 
         sessionId,

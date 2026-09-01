@@ -529,9 +529,25 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
             {viewMode === 'video' ? (
               rrwebEvents && rrwebEvents.length >= 2 ? (
                 <div className="w-full h-auto rounded-xl overflow-hidden">
-                  <ReplayViewer 
-                    events={rrwebEvents} 
+                  <ReplayViewer
+                    events={rrwebEvents}
                     seekToTime={currentEvent?.timestamp}
+                    onProgress={(absoluteTimestampMs) => {
+                      // PRD Module 21 §ב: as the player advances, the matching
+                      // decision-table row must auto-highlight — this is the
+                      // reverse direction of the click-to-seek binding above.
+                      if (events.length === 0) return;
+                      let closestIdx = 0;
+                      let closestDelta = Infinity;
+                      for (let i = 0; i < events.length; i++) {
+                        const delta = Math.abs((events[i]?.timestamp ?? 0) - absoluteTimestampMs);
+                        if (delta < closestDelta) {
+                          closestDelta = delta;
+                          closestIdx = i;
+                        }
+                      }
+                      setCurrentEventIndex((prev) => (prev === closestIdx ? prev : closestIdx));
+                    }}
                   />
                 </div>
               ) : (

@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import { ref, onValue, remove, set, update, query, limitToLast, onDisconnect, serverTimestamp } from "firebase/database";
 import { isClassSessionLive } from "@/core/classSession";
 import { database, auth, functions, firestore } from "@/infrastructure/firebase";
-import { doc, getDoc, updateDoc, setDoc, onSnapshot, collection, writeBatch } from "firebase/firestore";
+import { doc, onSnapshot, collection, writeBatch } from "firebase/firestore";
 import type { SessionDocument, PedagogicalPath } from "@/types";
 import { httpsCallable } from "firebase/functions";
 import {
@@ -44,6 +44,7 @@ import { SocraticEngine, type PendingAIApproval } from "@/infrastructure/service
 import type { RadarAlert } from "@/types/dashboard";
 import { CONCEPT_LABELS_HE } from "@/core/QMatrix";
 import { validateChatInputForPII, anonymizeChatMessageBody } from "@/core/security/PiiFilter";
+import { approveTeacherGate } from "@/core/teacherGate";
 
 const getStudentKPIs = (student: StudentData, messages: ChatMessage[]) => {
   const undo = student.traceData?.undo_clicks || 0;
@@ -982,7 +983,10 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     const items: GateStudentItem[] = [];
     for (let i = 1; i <= 12; i++) {
       const sId = `student_${i}`;
-      const studentData = students[sId] || students[String(i)];
+      // students[] is keyed by normalizeStudentId (student_user{N}); student_{N}
+      // and bare {N} are only populated when something separately wrote those
+      // RTDB alias paths too, so the canonical key must be checked first.
+      const studentData = students[`student_user${i}`] || students[sId] || students[String(i)];
       const session2Doc = firestoreSession2Docs[sId] || firestoreSession2Docs[String(i)];
 
       const isCompleted = Boolean(
@@ -1028,49 +1032,29 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   const handleApproveGateStudent = async (studentId: string, path: PedagogicalPath) => {
     setIsApprovingGate(true);
     const normNum = studentId.replace(/\D/g, '') || '1';
-    const sessionDocId = `session_02_student_${normNum}`;
-    const normId = `student_${normNum}`;
-    const now = Date.now();
 
     try {
-      // 1. Verify existence of real SessionDocument in Cloud Firestore (Zero Fake Scores)
-      const sessionDocRef = doc(firestore, 'sessions', sessionDocId);
-      const sessionSnap = await getDoc(sessionDocRef);
+      // Every approval surface must go through the one canonical implementation
+      // (core/teacherGate.ts) so the Firestore SessionDocument stays the sole
+      // source of truth and the RTDB mirror always reaches student_user{N} —
+      // the exact key the student's own live listener reads (see
+      // normalizeStudentId / StudentWorkspacePage). A hand-duplicated write
+      // here that missed that key previously left the student stuck on the
+      // approval-waiting screen even though Firestore showed "approved".
+      const result = await approveTeacherGate(studentId, path, user?.uid || null);
 
-      if (!sessionSnap.exists()) {
-        toast.error(`לא נמצא מסמך אבחון (Session 2) עבור תלמיד ${normNum}. לא ניתן לאשר מעבר טרם סיום המפגש בפועל.`);
+      if (!result.ok) {
+        toast.error(result.message);
         return;
       }
 
-      const existingData = sessionSnap.data() as SessionDocument;
-      if (existingData.is_completed === false) {
-        toast.error(`תלמיד ${normNum} טרם השלים את כל משימות החובה במפגש 2. לא ניתן לאשר מעבר.`);
-        return;
-      }
-
-      // 2. Update real existing Firestore document strictly (no synthetic fallback documents)
-      await updateDoc(sessionDocRef, {
-        teacher_gate_approved: true,
-        teacher_selected_path: path,
-        gate_approved_at: now,
-        gate_approved_by: user?.uid || 'teacher',
-      });
-
-      // 3. Write to Firebase RTDB for instantaneous reactive unlock
-      const gatePayload = {
-        routeStatus: 'APPROVED',
-        teacher_gate_approved: true,
-        teacher_selected_path: path,
-        gate_approved_at: now,
-        gate_approved_by: user?.uid || 'teacher',
-      };
-      await update(ref(database, `users/students/${normId}`), gatePayload);
-      if (normId !== normNum) {
-        await update(ref(database, `users/students/${normNum}`), gatePayload).catch(() => {});
-      }
-
-      // 4. Update local Zustand state
-      approveRoute(normId);
+      // Optimistic local Zustand update — cover every alias this codebase's
+      // RTDB writes fan out to (student_userN, student_N, bare N), since
+      // whichever of those actually exist as separate entries in local state
+      // should reflect the approval immediately without waiting on the RTDB
+      // round trip.
+      approveRoute(`student_user${normNum}`);
+      approveRoute(`student_${normNum}`);
       approveRoute(normNum);
 
       toast.success(`תלמיד ${normNum} אושר בהצלחה למפגש 3 (${path === 'green_path' ? 'מסלול ירוק' : 'מסלול צהוב'})! 🛡️`);

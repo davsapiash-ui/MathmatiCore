@@ -208,14 +208,53 @@ export const generatePedagogicalReportPDF = onCall(async (request) => {
 
   const db = admin.firestore();
   const sessionDoc = await db.collection("sessions").doc(sessionId).get();
-
-  if (!sessionDoc.exists) {
-    throw new HttpsError("not-found", `Session ${sessionId} not found.`);
-  }
-
-  const sessionData = sessionDoc.data() || {};
   const studentId = sessionId.split("_").pop() || "1";
   const clampedStudentNum = Math.min(12, Math.max(1, parseInt(studentId.replace(/\D/g, '') || '1', 10)));
+
+  let sessionData: Record<string, any>;
+  if (sessionDoc.exists) {
+    sessionData = sessionDoc.data() || {};
+  } else {
+    // Module 23 requires this report at Session 2 OR Session 8 completion, but
+    // only Session 2 ever gets a Firestore SessionDocument written
+    // (FirebaseSyncService.syncSession2Completion writes session_02_student_N
+    // — an exact-match lookup here will miss any caller that doesn't use that
+    // same zero-padded id). Session 8 has no equivalent writer at all. Rather
+    // than fail outright, fall back to computing the same score straight from
+    // the compulsory Q-Matrix results already synced to RTDB per-task for
+    // every session (FirebaseSyncService.syncQMatrix), which is reliably
+    // present regardless of session number or id formatting.
+    const rtdb = admin.database();
+    const aliasSnaps = await Promise.all(
+      [`student_user${clampedStudentNum}`, `student_${clampedStudentNum}`, `${clampedStudentNum}`].map((alias) =>
+        rtdb.ref(`users/students/${alias}`).get()
+      )
+    );
+    const studentSnap = aliasSnaps.find((snap) => snap.exists());
+
+    if (!studentSnap) {
+      throw new HttpsError("not-found", `Session ${sessionId} not found.`);
+    }
+
+    const studentVal = studentSnap.val() || {};
+    const qResults = studentVal.qMatrixResults || {};
+    const compulsoryKeys = [
+      "task1_read_write_zero", "task2_digit_value", "task3_subtraction_regrouping",
+      "task4_decompose_number", "task5_units_to_tens", "task6_vertical_addition",
+      "task7_subtraction_zero_tens",
+    ];
+    const correctCount = compulsoryKeys.filter((k) => qResults[k] === "success").length;
+    const computedScore = Math.round((correctCount / compulsoryKeys.length) * 100);
+
+    sessionData = {
+      session_number: Number(sessionNumber) || (studentVal.highestCompletedMeeting >= 8 ? 8 : 2),
+      is_completed: true,
+      session_score_percent: computedScore,
+      matrix_recommended_path: computedScore >= 50 ? "green_path" : "remediation_path",
+      teacher_selected_path: studentVal.teacher_selected_path || null,
+      teacher_gate_approved: Boolean(studentVal.teacher_gate_approved),
+    };
+  }
   const resolvedSessionNumber = Number(sessionNumber) || sessionData.session_number || (sessionId.includes("_2_") || sessionId.includes("_02_") ? 2 : 8);
 
   // Read telemetry logs for Exercise Narrative construction

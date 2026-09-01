@@ -1,8 +1,8 @@
 import { onCall, onRequest, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import * as admin from "firebase-admin";
 import * as dotenv from "dotenv";
+import { GEMINI_MODEL_ID, GEMINI_SECRETS, getGeminiClient } from "./geminiConfig";
 import { scrubPII } from "./geminiProxy";
 import { createPedagogicalReportPdfBuffer } from "./pedagogicalReport";
 import { uploadBufferToDrive } from "./exportDriveReport";
@@ -181,9 +181,10 @@ export const generateSocraticHint = onCall(
 /**
  * Cloud Function for Teacher Diagnostic Mapping.
  * Evaluates student diagnostic data using Gemini LLM to create teacher action plans.
- * Uses valid supported model identifier 'gemini-2.5-flash'.
+ * Model id and credential come from geminiConfig.ts.
  */
 export const generateSocraticMapping = onCall(
+  GEMINI_SECRETS,
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "User must be authenticated");
@@ -214,9 +215,9 @@ export const generateSocraticMapping = onCall(
     }
 
     try {
-      const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+      const ai = getGeminiClient();
       const model = ai.getGenerativeModel({
-        model: 'gemini-3.7-flash',
+        model: GEMINI_MODEL_ID,
         generationConfig: {
           temperature: 0.4,
           responseMimeType: "application/json"
