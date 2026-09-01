@@ -64,18 +64,19 @@ export function recordResult(
   const prev: QTaskResult = results[task.id] ?? { correct: false, detail: '' };
     if (state.subphase === 'subtask') {
       const updated: QTaskResult = { ...prev, subtaskCorrect: evalResult.correct, subtaskDetail: evalResult.detail };
-      if (task.id === 'task1_zero_placeholder') {
+      if (task.id === 'task1_read_write_zero' || task.id === 'task1_zero_placeholder') {
         updated.tag = evalResult.correct ? 'zero_placeholder_hundreds_error' : 'zero_placeholder_global_error';
-
-      } else if (task.id === 'task3_flexible_regrouping') {
-        updated.tag = evalResult.correct ? 'canonical_fixation' : 'regrouping_deficit';
-      } else if (task.id === 'task4_basic_addition_fluency') {
-        updated.tag = evalResult.correct ? 'procedural_error' : 'basic_facts_deficit';
-      } else if (task.id === 'task5_small_change') {
-        updated.tag = evalResult.correct ? 'small_change_confusion' : 'directional_error';
-      } else if (task.id === 'task6_subtraction_regrouping') {
+      } else if (task.id === 'task2_digit_value') {
+        updated.tag = evalResult.correct ? 'digit_value_procedural_error' : 'digit_value_conceptual_error';
+      } else if (task.id === 'task3_subtraction_regrouping' || task.id === 'task6_subtraction_regrouping') {
         updated.tag = evalResult.correct ? 'regrouping_anxiety' : 'subtraction_operation_deficit';
-      } else if (task.id === 'task7_missing_subtrahend') {
+      } else if (task.id === 'task4_decompose_number' || task.id === 'task3_flexible_regrouping') {
+        updated.tag = evalResult.correct ? 'canonical_fixation' : 'regrouping_deficit';
+      } else if (task.id === 'task5_units_to_tens' || task.id === 'task5_small_change') {
+        updated.tag = evalResult.correct ? 'small_change_confusion' : 'directional_error';
+      } else if (task.id === 'task6_vertical_addition' || task.id === 'task4_basic_addition_fluency') {
+        updated.tag = evalResult.correct ? 'procedural_error' : 'basic_facts_deficit';
+      } else if (task.id === 'task7_subtraction_zero_tens' || task.id === 'task7_missing_subtrahend') {
         updated.tag = evalResult.correct ? 'computational_fluency_deficit' : 'algebraic_concept_deficit';
       } else if (task.id === 'task8_missing_addend') {
         updated.tag = evalResult.correct ? 'inverse_operation_gap' : 'missing_addend_deficit';

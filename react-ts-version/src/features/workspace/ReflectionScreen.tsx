@@ -88,12 +88,21 @@ export function ReflectionScreen() {
       };
 
       const qMatrix: any = {
-        task1_zero_placeholder: getTag(r['task1_zero_placeholder']),
-        task3_flexible_regrouping: getTag(r['task3_flexible_regrouping']),
-        task4_basic_addition_fluency: getTag(r['task4_basic_addition_fluency']),
-        task5_small_change: getTag(r['task5_small_change']),
-        task6_subtraction_regrouping: getTag(r['task6_subtraction_regrouping']),
-        task7_missing_subtrahend: getTag(r['task7_missing_subtrahend']),
+        // Canonical 7 tasks (PRD v7.0)
+        task1_read_write_zero: getTag(r['task1_read_write_zero'] || r['task1_zero_placeholder']),
+        task2_digit_value: getTag(r['task2_digit_value']),
+        task3_subtraction_regrouping: getTag(r['task3_subtraction_regrouping'] || r['task6_subtraction_regrouping']),
+        task4_decompose_number: getTag(r['task4_decompose_number'] || r['task3_flexible_regrouping']),
+        task5_units_to_tens: getTag(r['task5_units_to_tens'] || r['task5_small_change']),
+        task6_vertical_addition: getTag(r['task6_vertical_addition'] || r['task4_basic_addition_fluency']),
+        task7_subtraction_zero_tens: getTag(r['task7_subtraction_zero_tens'] || r['task7_missing_subtrahend']),
+        // Legacy keys for backward compatibility
+        task1_zero_placeholder: getTag(r['task1_zero_placeholder'] || r['task1_read_write_zero']),
+        task3_flexible_regrouping: getTag(r['task3_flexible_regrouping'] || r['task4_decompose_number']),
+        task4_basic_addition_fluency: getTag(r['task4_basic_addition_fluency'] || r['task6_vertical_addition']),
+        task5_small_change: getTag(r['task5_small_change'] || r['task5_units_to_tens']),
+        task6_subtraction_regrouping: getTag(r['task6_subtraction_regrouping'] || r['task3_subtraction_regrouping']),
+        task7_missing_subtrahend: getTag(r['task7_missing_subtrahend'] || r['task7_subtraction_zero_tens']),
         task8_missing_addend: getTag(r['task8_missing_addend']),
       };
 

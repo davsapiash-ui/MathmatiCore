@@ -87,7 +87,7 @@ export function TeacherApprovalGate({
             type="button"
             onClick={handleBatchApprove}
             disabled={isLoading || approvingId === 'ALL'}
-            className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-2xl shadow-md shadow-indigo-600/20 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+            className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-extrabold text-xs rounded-2xl shadow-lg shadow-indigo-600/25 active:scale-[0.97] transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
           >
             <UserCheck className="w-4 h-4" />
             <span>אישור כל {waitingStudents.length} התלמידים הממתינים</span>
@@ -173,7 +173,7 @@ export function TeacherApprovalGate({
                           type="button"
                           onClick={() => handleSingleApprove(st.studentId)}
                           disabled={isBusy}
-                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow transition-all cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
+                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-sm transition-all cursor-pointer disabled:opacity-50 active:scale-[0.97] inline-flex items-center gap-1.5"
                         >
                           <CheckCircle2 className="w-3.5 h-3.5" />
                           <span>{isBusy ? 'מאשר...' : 'אשר מעבר'}</span>

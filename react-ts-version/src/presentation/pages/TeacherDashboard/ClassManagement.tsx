@@ -253,7 +253,7 @@ export function ClassManagement({
           <div>
             <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
               <ShieldCheck className="w-6 h-6 text-indigo-600" />
-              שער אישור מורה למפגש 3 (Teacher Gate)
+              שער אישור מורה למפגש 3
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
               בסיום מפגש 2, התלמידים ממתינים במסך "מעוף הדבורה". אישור המורה כאן משחרר את הנתיב מיידית (פחות משנייה אחת).
@@ -320,7 +320,7 @@ export function ClassManagement({
                     <button
                       onClick={() => handleApproveGate(student, 'ירוק')}
                       disabled={updatingId === student.id}
-                      className={`flex-1 py-2 px-3 rounded-xl font-extrabold text-xs transition-all cursor-pointer ${
+                      className={`flex-1 py-2 px-3 rounded-xl font-extrabold text-xs transition-all cursor-pointer active:scale-[0.97] ${
                         isApproved && student.recommendedPath === 'ירוק'
                           ? 'bg-emerald-600 text-white shadow-md'
                           : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-200'
@@ -331,7 +331,7 @@ export function ClassManagement({
                     <button
                       onClick={() => handleApproveGate(student, 'צמצום פערי קדם')}
                       disabled={updatingId === student.id}
-                      className={`flex-1 py-2 px-3 rounded-xl font-extrabold text-xs transition-all cursor-pointer ${
+                      className={`flex-1 py-2 px-3 rounded-xl font-extrabold text-xs transition-all cursor-pointer active:scale-[0.97] ${
                         isApproved && student.recommendedPath === 'צמצום פערי קדם'
                           ? 'bg-amber-600 text-white shadow-md'
                           : 'bg-amber-100 text-amber-800 hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-200'
@@ -342,7 +342,7 @@ export function ClassManagement({
                     <button
                       onClick={() => setStudentToReset({ id: student.id, name: `תלמיד ${student.studentNumber}` })}
                       disabled={updatingId === student.id}
-                      className="p-2 rounded-xl border border-rose-200 hover:border-rose-400 bg-rose-50 hover:bg-rose-100 text-rose-600 transition-all cursor-pointer"
+                      className="p-2 rounded-xl border border-rose-200 hover:border-rose-400 bg-rose-50 hover:bg-rose-100 text-rose-600 transition-all cursor-pointer active:scale-[0.97]"
                       title="איפוס מלא של נתוני התלמיד"
                     >
                       <RotateCcw className={`w-3.5 h-3.5 ${updatingId === student.id ? 'animate-spin' : ''}`} />

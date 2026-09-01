@@ -576,7 +576,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
               const hesitations = get().hesitationCount;
               const undos = get().undoCount;
               const efficiency = Math.max(0, 100 - (undos * 5) - (hesitations * 10));
-              const persistence = Math.min(100, 50 + (hesitations * 5) + (undos * 2));
+              const persistence = get().getPersistenceIndex();
 
               const realTraceData = { 
                 hesitation_events: hesitations, 
@@ -595,17 +595,25 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
               // Phase 3: Exact PRD Module 20 & Appendix A §4 Session 2 Scoring & Path Recommendation
               const compulsoryKeys = [
-                'task1_zero_placeholder',
-                'task3_flexible_regrouping',
-                'task4_basic_addition_fluency',
-                'task5_small_change',
-                'task6_subtraction_regrouping',
-                'task7_missing_subtrahend',
-                'task8_missing_addend'
+                'task1_read_write_zero',
+                'task2_digit_value',
+                'task3_subtraction_regrouping',
+                'task4_decompose_number',
+                'task5_units_to_tens',
+                'task6_vertical_addition',
+                'task7_subtraction_zero_tens',
               ];
               // Module 23: "correct on first attempt" means PROBLEM_COMPLETE was not preceded by any DIGIT_ENTERED with is_correct === false.
               // Events with is_correct === null are ignored entirely.
-              const compulsory_correct_first_attempt = compulsoryKeys.filter(k => r[k]?.correct === true && r[k]?.had_digit_error !== true).length;
+              const compulsory_correct_first_attempt = compulsoryKeys.filter(k => {
+                const res = r[k] || (k === 'task1_read_write_zero' ? r['task1_zero_placeholder'] :
+                  k === 'task3_subtraction_regrouping' ? r['task6_subtraction_regrouping'] :
+                  k === 'task4_decompose_number' ? r['task3_flexible_regrouping'] :
+                  k === 'task5_units_to_tens' ? r['task5_small_change'] :
+                  k === 'task6_vertical_addition' ? r['task4_basic_addition_fluency'] :
+                  k === 'task7_subtraction_zero_tens' ? r['task7_missing_subtrahend'] : undefined);
+                return res?.correct === true && res?.had_digit_error !== true;
+              }).length;
               const session_score_percent = Math.round((compulsory_correct_first_attempt / 7) * 100);
               const matrix_recommended_path = session_score_percent >= 50 ? 'green_path' : 'remediation_path';
 

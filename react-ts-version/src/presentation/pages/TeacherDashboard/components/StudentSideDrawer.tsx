@@ -275,7 +275,7 @@ export function StudentSideDrawer({ student, onClose, isPendingApproval, onAppro
             }`}
           >
             <Sliders className="w-4 h-4 text-indigo-500" />
-            התאמות פדגוגיות (UDL)
+            התאמות פדגוגיות ונגישות
           </button>
           <button
             onClick={() => setActiveTab('blueprint')}
@@ -294,7 +294,7 @@ export function StudentSideDrawer({ student, onClose, isPendingApproval, onAppro
           {activeTab === 'replays' && (
             <div className="animate-in fade-in duration-300 space-y-6">
               <div>
-                <h3 className="font-bold text-lg mb-4 text-slate-800 dark:text-slate-200">נתוני אבחון AI (Q-Matrix)</h3>
+                <h3 className="font-bold text-lg mb-4 text-slate-800 dark:text-slate-200">נתוני אבחון ומיפוי מיומנויות</h3>
                 <div className="grid grid-cols-2 gap-4 mb-6">
                   {Object.entries(student.conceptMastery || {}).map(([key, val]) => (
                     <div key={key} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3 rounded-xl flex justify-between items-center shadow-sm">
@@ -368,7 +368,7 @@ export function StudentSideDrawer({ student, onClose, isPendingApproval, onAppro
                 <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-800 flex justify-end">
                   <button
                     onClick={() => onApproveTasks(student.studentId)}
-                    className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-md transition-all active:scale-95"
+                    className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-extrabold text-sm rounded-xl shadow-lg shadow-indigo-600/25 active:scale-[0.97] transition-all cursor-pointer"
                   >
                     <CheckCircle className="w-5 h-5" />
                     אשר תוכנית למפגש הבא

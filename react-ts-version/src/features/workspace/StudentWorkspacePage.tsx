@@ -6,6 +6,7 @@ import {
   PointerSensor,
   pointerWithin,
   rectIntersection,
+  closestCenter,
   useSensor,
   useSensors,
   type CollisionDetection,
@@ -703,13 +704,17 @@ export function StudentWorkspacePage() {
   // feeling. 10px is still effectively instant but meaningfully more
   // forgiving of natural jitter.
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 10 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } })
   );
 
   const collisionDetectionStrategy: CollisionDetection = (args) => {
     const pointerCollisions = pointerWithin(args);
     if (pointerCollisions && pointerCollisions.length > 0) {
       return pointerCollisions;
+    }
+    const centerCollisions = closestCenter(args);
+    if (centerCollisions && centerCollisions.length > 0) {
+      return centerCollisions;
     }
     return rectIntersection(args);
   };

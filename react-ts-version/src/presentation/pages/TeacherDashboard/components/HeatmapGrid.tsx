@@ -86,9 +86,15 @@ export function computeStudentRadarColor(
 export function getCognitiveGlyph(errorCategory: 'calculation' | 'procedural' | 'conceptual' | string | null | undefined): { glyph: 'ח' | 'ר' | 'מ'; title: string } | null {
   if (!errorCategory) return null;
   const norm = String(errorCategory).toLowerCase().trim();
-  if (norm === 'calculation') return { glyph: 'ח', title: 'שגיאת חישוב בסיסי (ח)' };
-  if (norm === 'procedural') return { glyph: 'ר', title: 'שגיאת מיומנות רכיב / אלגוריתם (ר)' };
-  if (norm === 'conceptual') return { glyph: 'מ', title: 'שגיאת מבנה עשרוני / מושגי (מ)' };
+  if (norm === 'calculation' || norm === 'computational' || norm === 'facts' || norm === 'basic_facts') {
+    return { glyph: 'ח', title: 'שגיאת חישוב בסיסי (ח)' };
+  }
+  if (norm === 'procedural' || norm === 'regrouping' || norm === 'algorithm' || norm === 'steps') {
+    return { glyph: 'ר', title: 'שגיאת מיומנות רכיב / אלגוריתם (ר)' };
+  }
+  if (norm === 'conceptual' || norm === 'place_value' || norm === 'decimal_structure' || norm === 'structure') {
+    return { glyph: 'מ', title: 'שגיאת מבנה עשרוני / מושגי (מ)' };
+  }
   return null;
 }
 
@@ -863,14 +869,14 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                       setSelectedStudent(null);
                       onDrillDown(sid);
                     }}
-                    className="flex-1 py-3 px-4 rounded-xl bg-indigo-600 text-white font-bold text-sm shadow-md hover:bg-indigo-700 transition-all text-center"
+                    className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-extrabold text-sm shadow-lg shadow-indigo-600/25 active:scale-[0.97] transition-all text-center cursor-pointer"
                   >
-                    מעבר לניתוח מעמיק (Drill Down)
+                    מעבר לניתוח מעמיק
                   </button>
                 )}
                 <button
                   onClick={() => setSelectedStudent(null)}
-                  className="py-3 px-5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-sm hover:bg-slate-200 transition-all"
+                  className="py-3 px-5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-sm hover:bg-slate-200 transition-all active:scale-[0.97] cursor-pointer"
                 >
                   סגירה
                 </button>

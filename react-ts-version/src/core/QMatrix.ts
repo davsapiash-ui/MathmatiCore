@@ -281,6 +281,7 @@ export const CONCEPT_LABELS_HE: Record<CognitiveConcept, string> = {
 };
 
 export const Q_MATRIX_MAPPING: Record<string, CognitiveConcept[]> = {
+  // Canonical 7 Tasks (PRD v7.0)
   task1_read_write_zero: ['decimal_structure'],
   task2_digit_value: ['decimal_structure'],
   task3_subtraction_regrouping: ['procedural_fluency', 'regrouping_fluency'],
@@ -288,6 +289,14 @@ export const Q_MATRIX_MAPPING: Record<string, CognitiveConcept[]> = {
   task5_units_to_tens: ['regrouping_fluency'],
   task6_vertical_addition: ['procedural_fluency', 'regrouping_fluency'],
   task7_subtraction_zero_tens: ['decimal_structure', 'procedural_fluency', 'regrouping_fluency'],
+  // Legacy Aliases (Backward Compatibility)
+  task1_zero_placeholder: ['decimal_structure'],
+  task3_flexible_regrouping: ['decimal_structure', 'regrouping_fluency'],
+  task4_basic_addition_fluency: ['procedural_fluency', 'regrouping_fluency'],
+  task5_small_change: ['regrouping_fluency'],
+  task6_subtraction_regrouping_legacy: ['procedural_fluency', 'regrouping_fluency'],
+  task7_missing_subtrahend: ['algebraic_reasoning', 'relational_thinking'],
+  task8_missing_addend: ['algebraic_reasoning', 'relational_thinking'],
 };
 
 export type MasteryProfile = Record<CognitiveConcept, number>;

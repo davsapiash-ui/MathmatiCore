@@ -1,6 +1,4 @@
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
-import { useAuthStore } from '@/application/useAuthStore';
-import { useChatStore } from '@/application/useChatStore';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 
 /**
@@ -20,8 +18,6 @@ export function MissingElementTask({
 }) {
   const probeAnswer = useWorkspaceStore((s) => s.probeAnswer);
   const setProbeAnswer = useWorkspaceStore((s) => s.setProbeAnswer);
-  const showFeedback = useWorkspaceStore((s) => s.showFeedback);
-  const user = useAuthStore((s) => s.user);
 
   const sign = isSubtraction ? '-' : '+';
   const speechText = isSubtraction 

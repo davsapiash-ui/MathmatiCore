@@ -1370,14 +1370,14 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
             onClick={() => handleTabChange("heatmap")}
             className={`w-full text-right px-4 py-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "heatmap" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg text-ws-soft "}`}
           >
-            רדאר פדגוגי שקט (<span dir="ltr">Silent Radar</span>)
+            רדאר פדגוגי שקט
           </button>
           <button
             id="tour-tab-clustering"
             onClick={() => handleTabChange("clustering")}
             className={`w-full text-right px-4 py-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "clustering" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
           >
-            מיפוי כיתתי (<span dir="ltr">Q-Matrix</span>)
+            מיפוי מיומנויות כיתתי
           </button>
           <button
             id="tour-tab-reports"
@@ -1390,7 +1390,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
             onClick={() => handleTabChange("approvals")}
             className={`w-full flex justify-between items-center text-right px-4 py-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "approvals" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg text-ws-soft "}`}
           >
-            <span>אישור משימות <span dir="ltr">AI</span></span>
+            <span>אישור תוכניות ושער מעבר</span>
             {pendingRouteStudents.length > 0 && (
               <span className="bg-ws-accent text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg">
                 {pendingRouteStudents.length}

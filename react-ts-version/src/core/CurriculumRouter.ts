@@ -14,16 +14,27 @@ export class CurriculumRouter {
     // 1. Check Q-Matrix Core Competencies
     // If ANY of the primary diagnostic tasks have an error tag (not 'success' and not null),
     // the student needs the YELLOW path (Scaffolding).
+    const checkFailed = (tag?: string | null) => tag !== undefined && tag !== null && tag !== 'success';
+
     const failedCoreTask = (
-      (q.task1_zero_placeholder !== 'success' && q.task1_zero_placeholder !== null) ||
-      (q.task3_flexible_regrouping !== 'success' && q.task3_flexible_regrouping !== null) ||
-      (q.task4_basic_addition_fluency !== 'success' && q.task4_basic_addition_fluency !== null) ||
-      (q.task6_subtraction_regrouping !== 'success' && q.task6_subtraction_regrouping !== null)
+      // Canonical 7 Tasks (PRD v7.0)
+      checkFailed(q.task1_read_write_zero) ||
+      checkFailed(q.task2_digit_value) ||
+      checkFailed(q.task3_subtraction_regrouping) ||
+      checkFailed(q.task4_decompose_number) ||
+      checkFailed(q.task5_units_to_tens) ||
+      checkFailed(q.task6_vertical_addition) ||
+      checkFailed(q.task7_subtraction_zero_tens) ||
+      // Legacy Fallback Keys
+      checkFailed(q.task1_zero_placeholder) ||
+      checkFailed(q.task3_flexible_regrouping) ||
+      checkFailed(q.task4_basic_addition_fluency) ||
+      checkFailed(q.task6_subtraction_regrouping_legacy)
     );
 
     // 2. Trace Data Analysis (Silent Radar)
     // If the student struggled silently (high hesitation or extreme undo usage)
-    const silentStruggle = t.hesitation_events >= 10 || t.undo_clicks >= 15;
+    const silentStruggle = (t.hesitation_events || 0) >= 10 || (t.undo_clicks || 0) >= 15;
 
     if (failedCoreTask || silentStruggle) {
       return 'YELLOW';

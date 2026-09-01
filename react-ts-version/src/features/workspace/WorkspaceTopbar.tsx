@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useWorkspaceStore, selectCanProceed, getActiveTasks } from '@/application/useWorkspaceStore';
-import { useStore } from '@/application/useStore';
 import { useChatStore, normalizeStudentId } from '@/application/useChatStore';
 import { TASKS } from '@/core/QMatrix';
 import { ProgressDots } from './ProgressDots';
@@ -22,7 +21,6 @@ interface WorkspaceTopbarProps {
 
 export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
   const navigate = useNavigate();
-  const logout = useAuthStore((s) => s.logout);
 
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
 

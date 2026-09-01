@@ -24,13 +24,11 @@ function PaletteItemCard({
   labelHe,
   subHe,
   scale,
-  onClick,
 }: {
   place: Place;
   labelHe: string;
   subHe: string;
   scale: number;
-  onClick: () => void;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `palette-${place}`,
@@ -42,14 +40,12 @@ function PaletteItemCard({
       ref={setNodeRef}
       {...attributes}
       {...listeners}
-      onClick={onClick}
-      role="button"
       tabIndex={0}
       style={{ touchAction: 'none' }}
       className={`relative flex flex-col items-center justify-between rounded-xl px-3 py-1.5 min-w-[84px] h-[80px] bg-slate-50/70 hover:bg-slate-100/90 border border-slate-200/80 hover:border-indigo-300 shadow-2xs hover:shadow-xs transition-all select-none cursor-grab active:cursor-grabbing ${
         isDragging ? 'opacity-30' : ''
       }`}
-      title={`לחצו או גררו להוספת ${labelHe} לטבלה`}
+      title={`גררו ${labelHe} לטבלה`}
     >
       <div
         className="h-11 w-full flex items-center justify-center pointer-events-none"
@@ -71,14 +67,14 @@ function PaletteItemCard({
           ({subHe})
         </span>
       </div>
-      <span className="sr-only">{`גרור או לחץ להוספת ${PLACE_NAMES_HE[place]} לטבלה — ערך ${PLACE_VALUES[place]}`}</span>
+      <span className="sr-only">{`גרור ${PLACE_NAMES_HE[place]} לטבלה — ערך ${PLACE_VALUES[place]}`}</span>
     </div>
   );
 }
 
 /**
  * מחסן הכלים (Block Palette) — מגש לבני דינס אותנטי, נקי ומינימליסטי.
- * תואם PRD v6.4 מודול 5: גרירה ולחיצה מיידית (0ms), ללא הסחות דעת, באדג'ים או טולטיפים מעמיסים.
+ * תואם PRD: גרירה ייעודית וחלקה לבית המספרים (ללא תלות בלחיצות מקומיות).
  * מוסתר לחלוטין ברמת פיגום 3 (scaffoldLevel >= 3).
  */
 export function BlockPalette({ scaffoldLevel }: { scaffoldLevel: number }) {
@@ -91,21 +87,11 @@ export function BlockPalette({ scaffoldLevel }: { scaffoldLevel: number }) {
     ? PALETTE_ITEMS.filter((item) => item.place !== 'thousands')
     : PALETTE_ITEMS;
 
-  const applyDrop = useWorkspaceStore((s) => s.applyDrop);
-
-  const handleItemClick = (place: Place) => {
-    applyDrop({
-      source: 'palette',
-      sourcePlace: place,
-      target: { kind: 'column', place },
-    });
-  };
-
   return (
     <div
       id="tour-block-palette"
       role="toolbar"
-      aria-label="מחסן הכלים — גררו או לחצו להוספת לבנים לטבלה"
+      aria-label="מחסן הכלים — גררו לבנים לטבלה"
       className="shrink-0 ws-card !rounded-2xl px-5 py-2.5 flex items-center justify-between gap-4 max-w-full overflow-x-auto no-scrollbar select-none bg-white/95 border border-slate-200/90 shadow-sm"
     >
       {/* Title & Legend (RTL Right side) */}
@@ -132,7 +118,6 @@ export function BlockPalette({ scaffoldLevel }: { scaffoldLevel: number }) {
             labelHe={labelHe}
             subHe={subHe}
             scale={scale}
-            onClick={() => handleItemClick(place)}
           />
         ))}
       </div>

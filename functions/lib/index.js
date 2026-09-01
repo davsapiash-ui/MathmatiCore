@@ -18,6 +18,64 @@ dotenv.config();
  * to be strictly selected from deterministic pre-approved templates.
  */
 const STATIC_QMATRIX_HINTS = {
+    // Canonical 7 Tasks (PRD v7.0)
+    task1_read_write_zero: {
+        questionHe: "כאשר אין קוביות בעמודה מסוימת, איזה מספר נרשום בבית המספרים?",
+        choices: [
+            { id: "choice_1", textHe: "נרשום 0 כדי לשמור על ערך המקום" },
+            { id: "choice_2", textHe: "נשאיר ריק ללא כל ספרה" },
+            { id: "choice_3", textHe: "נרשום 1 בעמודה" }
+        ]
+    },
+    task2_digit_value: {
+        questionHe: "כיצד נקבע את ערכה של ספרה מסוימת בתוך המספר?",
+        choices: [
+            { id: "choice_1", textHe: "לפי העמודה שבה היא ממוקמת (יחידות, עשרות, מאות)" },
+            { id: "choice_2", textHe: "לפי גודל הספרה עצמה בלבד" },
+            { id: "choice_3", textHe: "לפי מספר הקוביות הכולל בלוח" }
+        ]
+    },
+    task3_subtraction_regrouping: {
+        questionHe: "כשאין מספיק יחידות להחסיר, מאיפה ניתן לפרוט?",
+        choices: [
+            { id: "choice_1", textHe: "נפרוט עשרת אחת מטור העשרות ל-10 יחידות" },
+            { id: "choice_2", textHe: "נחסיר הפוך מהמספר הקטן" },
+            { id: "choice_3", textHe: "נרשום 0 בתשובה" }
+        ]
+    },
+    task4_decompose_number: {
+        questionHe: "איך עוד אפשר לייצג את המספר באמצעות עשרות ויחידות?",
+        choices: [
+            { id: "choice_1", textHe: "לפרוט עשרת אחת ל-10 יחידות" },
+            { id: "choice_2", textHe: "לקבץ 10 יחידות לעשרת אחת" },
+            { id: "choice_3", textHe: "להוסיף קובייה חדשה ללוח" }
+        ]
+    },
+    task5_units_to_tens: {
+        questionHe: "כמה עשרות נקבל מ-20 יחידות בודדות?",
+        choices: [
+            { id: "choice_1", textHe: "2 עשרות שלמות" },
+            { id: "choice_2", textHe: "20 עשרות" },
+            { id: "choice_3", textHe: "עשרת אחת בלבד" }
+        ]
+    },
+    task6_vertical_addition: {
+        questionHe: "כאשר יש יותר מ-9 יחידות בעמודה, מה עלינו לבצע?",
+        choices: [
+            { id: "choice_1", textHe: "לקבץ 10 יחידות לעשרת אחת ולהעביר לעמודת העשרות" },
+            { id: "choice_2", textHe: "לרשום מספר דו-ספרתי באותה משבצת" },
+            { id: "choice_3", textHe: "למחוק את היחידות העודפות" }
+        ]
+    },
+    task7_subtraction_zero_tens: {
+        questionHe: "כאשר טור העשרות הוא 0 וצריך לפרוט, מאיזה טור נפרוט תחילה?",
+        choices: [
+            { id: "choice_1", textHe: "נפרוט 1 מאה ל-10 עשרות, ואז נפרוט עשרת אחת ליחידות" },
+            { id: "choice_2", textHe: "נחסיר ישר מטור המאות" },
+            { id: "choice_3", textHe: "נרשום 0 בטור העשרות" }
+        ]
+    },
+    // Legacy Task Keys (Backward Compatibility)
     task1_zero_placeholder: {
         questionHe: "כאשר אין קוביות בעמודה מסוימת, איזה מספר נרשום בבית המספרים?",
         choices: [

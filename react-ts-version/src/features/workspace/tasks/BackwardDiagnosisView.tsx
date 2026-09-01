@@ -45,8 +45,8 @@ export function BackwardDiagnosisView({ task, qflow, isASD }: { task: QMatrixTas
           🤖
         </div>
         <div className="flex-1">
-          <h2 className="text-2xl font-display font-black text-amber-600">אוי, בוט הסתבך!</h2>
-          <p className="text-amber-800/80 font-medium">בואו נעזור לרובוט שלנו לפתור את השלב הזה כדי שיוכל להמשיך...</p>
+          <h2 className="text-2xl font-display font-black text-amber-600">בדיקה מונחית ומענה מותאם</h2>
+          <p className="text-amber-800/80 font-medium">בואו נפתור יחד שלב זה בעזרת חקירה פשוטה כדי להתקדם...</p>
         </div>
       </div>
 
@@ -149,11 +149,11 @@ export function BackwardDiagnosisView({ task, qflow, isASD }: { task: QMatrixTas
           <input
             type="text"
             inputMode="numeric"
-            maxLength={3}
+            maxLength={6}
             value={probeAnswer}
             onChange={(e) => setProbeAnswer(e.target.value.replace(/[^0-9]/g, ''))}
             aria-label="תשובה"
-            className="w-24 h-16 rounded-xl border-2 border-ws-accent text-center font-mono font-black text-4xl bg-ws-surface focus:outline-none focus:ring-2"
+            className="w-28 h-16 rounded-xl border-2 border-ws-accent text-center font-mono font-black text-4xl bg-ws-surface focus:outline-none focus:ring-2"
           />
           {/* UDL Alternative Expression: Upload Draft */}
           <div className="mt-2 flex justify-center w-full">
