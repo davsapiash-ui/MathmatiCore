@@ -16,7 +16,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import type { DragSource, Place } from '@/core/placeValue';
 import { useWorkspaceStore, getActiveTasks, type SessionNumber } from '@/application/useWorkspaceStore';
-import { useAuthStore } from '@/application/useAuthStore';
+import { useAuthStore, stampStudentWindowClosed, touchStudentActivity } from '@/application/useAuthStore';
 import { useActiveClassSession } from '@/application/useActiveClassSession';
 import { database, authReady, fetchServerClockOffset } from '@/infrastructure/firebase';
 import { ref, push, onValue, remove, get, set, update, onDisconnect } from 'firebase/database';
@@ -524,6 +524,7 @@ export function StudentWorkspacePage() {
     }
 
     const handleBeforeUnload = () => {
+      stampStudentWindowClosed();
       if (canWriteWorkspaceData(normUid, isSupersededRef.current)) {
         update(studentPresenceRef, { isOnline: false, onlineStatus: 'offline', lastPing: 0, lastAction: 'לא מחובר' }).catch(() => {});
       }
@@ -532,6 +533,7 @@ export function StudentWorkspacePage() {
     window.addEventListener('pagehide', handleBeforeUnload);
 
     const interval = setInterval(() => {
+      touchStudentActivity();
       if (!canWriteWorkspaceData(normUid, isSupersededRef.current)) return;
 
       update(studentPresenceRef, {

@@ -1,14 +1,23 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { useAuthStore, JWT_EXPIRY_MS } from './useAuthStore';
+import {
+  useAuthStore,
+  STUDENT_WINDOW_CLOSE_TIMEOUT_MS,
+  touchStudentActivity,
+  stampStudentWindowClosed,
+} from './useAuthStore';
 import { useNavigate } from 'react-router-dom';
 
-const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes inactivity
+const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes inactivity for staff
 
 export function useIdleTimeout() {
-  const { user, isAuthenticated, logout, isTokenExpired } = useAuthStore();
+  const { user, role, isAuthenticated, logout, isTokenExpired } = useAuthStore();
   const navigate = useNavigate();
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tokenCheckIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const activeRole = role || (user?.role as string) || '';
+  const isStudent = activeRole === 'student';
+  const currentIdleTimeout = isStudent ? STUDENT_WINDOW_CLOSE_TIMEOUT_MS : IDLE_TIMEOUT_MS;
 
   const handleLogout = useCallback((reason?: string) => {
     logout();
@@ -19,18 +28,26 @@ export function useIdleTimeout() {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
+    if (isStudent) {
+      touchStudentActivity();
+    }
     timeoutRef.current = setTimeout(() => {
       if (isAuthenticated) {
-        handleLogout("התנתקת עקב חוסר פעילות.");
+        handleLogout(isStudent ? 'החיבור נותק לאחר 5 דקות של חוסר פעילות.' : 'התנתקת עקב חוסר פעילות.');
       }
-    }, IDLE_TIMEOUT_MS);
-  }, [isAuthenticated, handleLogout]);
+    }, currentIdleTimeout);
+  }, [isAuthenticated, isStudent, currentIdleTimeout, handleLogout]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
 
+    // Initial activity touch
+    if (isStudent) {
+      touchStudentActivity();
+    }
+
     // 1. Inactivity Reset Listeners
-    const events = ['mousemove', 'keydown', 'wheel', 'mousedown', 'touchstart', 'touchmove'];
+    const events = ['mousemove', 'keydown', 'wheel', 'mousedown', 'touchstart', 'touchmove', 'click', 'scroll'];
     
     const handleActivity = () => {
       resetTimeout();
@@ -43,16 +60,45 @@ export function useIdleTimeout() {
     // Start initial inactivity timeout
     resetTimeout();
 
-    // 2. Continuous 8-Hour Token Expiry Check (Master PRD v5.0 Module 2)
-    const checkExpiry = () => {
-      if (isTokenExpired()) {
-        handleLogout("פג תוקף אסימון ההתחברות (8 שעות). אנא בצע כניסה מחודשת.");
+    // 2. Window close & background visibility handling for 5-minute disconnect
+    const handleWindowUnload = () => {
+      if (isStudent) {
+        stampStudentWindowClosed();
       }
     };
 
-    // Check periodically every minute
-    tokenCheckIntervalRef.current = setInterval(checkExpiry, 60 * 1000);
-    // Also check immediately on mount
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        if (isStudent) {
+          stampStudentWindowClosed();
+        }
+      } else if (document.visibilityState === 'visible') {
+        if (isStudent) {
+          if (isTokenExpired()) {
+            handleLogout('החיבור נותק לאחר 5 דקות מסגירת החלון / שהייה ברקע.');
+            return;
+          }
+          touchStudentActivity();
+          resetTimeout();
+        }
+      }
+    };
+
+    window.addEventListener('beforeunload', handleWindowUnload);
+    window.addEventListener('pagehide', handleWindowUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // 3. Periodic Expiry Check (every 10s for student, every 60s for others)
+    const checkExpiry = () => {
+      if (isTokenExpired()) {
+        handleLogout(isStudent ? 'החיבור נותק לאחר 5 דקות מסגירת החלון / חוסר פעילות.' : 'פג תוקף אסימון ההתחברות (8 שעות). אנא בצע כניסה מחודשת.');
+      } else if (isStudent) {
+        touchStudentActivity();
+      }
+    };
+
+    const checkIntervalMs = isStudent ? 10 * 1000 : 60 * 1000;
+    tokenCheckIntervalRef.current = setInterval(checkExpiry, checkIntervalMs);
     checkExpiry();
 
     return () => {
@@ -65,6 +111,9 @@ export function useIdleTimeout() {
       events.forEach(event => {
         window.removeEventListener(event, handleActivity);
       });
+      window.removeEventListener('beforeunload', handleWindowUnload);
+      window.removeEventListener('pagehide', handleWindowUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [isAuthenticated, handleLogout, resetTimeout, isTokenExpired]);
+  }, [isAuthenticated, isStudent, currentIdleTimeout, handleLogout, resetTimeout, isTokenExpired]);
 }

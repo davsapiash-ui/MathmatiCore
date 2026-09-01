@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useStore } from '@/application/useStore';
-import { useAuthStore } from '@/application/useAuthStore';
+import { useAuthStore, stampStudentWindowClosed, touchStudentActivity } from '@/application/useAuthStore';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { useActiveClassSession } from '@/application/useActiveClassSession';
 import { normalizeStudentId } from '@/application/useChatStore';
@@ -165,6 +165,7 @@ export function StudentHub() {
     } catch {}
 
     const handleDisconnect = () => {
+      stampStudentWindowClosed();
       update(studentPresenceRef, {
         isOnline: false,
         onlineStatus: 'offline',
@@ -177,6 +178,7 @@ export function StudentHub() {
     window.addEventListener('pagehide', handleDisconnect);
 
     const interval = setInterval(() => {
+      touchStudentActivity();
       update(studentPresenceRef, {
         isOnline: true,
         onlineStatus: 'active',

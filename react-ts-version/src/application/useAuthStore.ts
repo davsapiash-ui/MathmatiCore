@@ -63,9 +63,33 @@ const DEFAULT_CLASS: ClassSchema = {
 // 8 hours continuous token limit per Master PRD v5.0 Module 2
 export const JWT_EXPIRY_MS = 8 * 60 * 60 * 1000;
 
-const STORAGE_KEY_USER = 'mc_auth_user';
-const STORAGE_KEY_ROLE = 'mc_auth_role';
-const STORAGE_KEY_TIMESTAMP = 'mc_auth_time';
+// 5 minutes student window-close / inactivity disconnect limit
+export const STUDENT_WINDOW_CLOSE_TIMEOUT_MS = 5 * 60 * 1000;
+
+export const STORAGE_KEY_USER = 'mc_auth_user';
+export const STORAGE_KEY_ROLE = 'mc_auth_role';
+export const STORAGE_KEY_TIMESTAMP = 'mc_auth_time';
+export const STORAGE_KEY_STUDENT_LAST_ACTIVE = 'mc_student_last_active';
+export const STORAGE_KEY_STUDENT_WINDOW_CLOSED = 'mc_student_window_closed';
+
+export function touchStudentActivity() {
+  try {
+    const now = Date.now().toString();
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(STORAGE_KEY_STUDENT_LAST_ACTIVE, now);
+      localStorage.removeItem(STORAGE_KEY_STUDENT_WINDOW_CLOSED);
+    }
+  } catch {}
+}
+
+export function stampStudentWindowClosed() {
+  try {
+    const now = Date.now().toString();
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(STORAGE_KEY_STUDENT_WINDOW_CLOSED, now);
+    }
+  } catch {}
+}
 
 const getGlobalStorage = (): Storage | null => {
   try {
@@ -82,6 +106,8 @@ const getStoredAuth = () => {
     let rawUser: string | null = null;
     let rawRole: string | null = null;
     let rawTime: string | null = null;
+    let rawLastActive: string | null = null;
+    let rawWindowClosed: string | null = null;
 
     if (typeof sessionStorage !== 'undefined') {
       rawUser = sessionStorage.getItem(STORAGE_KEY_USER);
@@ -93,13 +119,33 @@ const getStoredAuth = () => {
       rawRole = localStorage.getItem(STORAGE_KEY_ROLE);
       rawTime = localStorage.getItem(STORAGE_KEY_TIMESTAMP);
     }
+    if (typeof localStorage !== 'undefined') {
+      rawLastActive = localStorage.getItem(STORAGE_KEY_STUDENT_LAST_ACTIVE);
+      rawWindowClosed = localStorage.getItem(STORAGE_KEY_STUDENT_WINDOW_CLOSED);
+    }
 
     if (rawUser && rawRole) {
       const parsed = JSON.parse(rawUser);
       const authTime = rawTime ? parseInt(rawTime, 10) : Date.now();
+      const now = Date.now();
+
+      // Student 5-minute disconnect check (after window closure or inactivity)
+      if (rawRole === 'student') {
+        const lastClosed = rawWindowClosed ? parseInt(rawWindowClosed, 10) : null;
+        const lastActive = rawLastActive ? parseInt(rawLastActive, 10) : null;
+
+        if (lastClosed && now - lastClosed > STUDENT_WINDOW_CLOSE_TIMEOUT_MS) {
+          clearStoredAuth();
+          return { user: null, role: null, isAuthenticated: false, isStudentAuthenticated: false, isRoleLocked: false, showRoleSelector: false, authTimestamp: null };
+        }
+        if (lastActive && now - lastActive > STUDENT_WINDOW_CLOSE_TIMEOUT_MS) {
+          clearStoredAuth();
+          return { user: null, role: null, isAuthenticated: false, isStudentAuthenticated: false, isRoleLocked: false, showRoleSelector: false, authTimestamp: null };
+        }
+      }
 
       // Check 8-hour token expiration
-      if (Date.now() - authTime > JWT_EXPIRY_MS) {
+      if (now - authTime > JWT_EXPIRY_MS) {
         clearStoredAuth();
         return { user: null, role: null, isAuthenticated: false, isStudentAuthenticated: false, isRoleLocked: false, showRoleSelector: false, authTimestamp: null };
       }
@@ -145,6 +191,8 @@ const clearStoredAuth = () => {
       STORAGE_KEY_USER,
       STORAGE_KEY_ROLE,
       STORAGE_KEY_TIMESTAMP,
+      STORAGE_KEY_STUDENT_LAST_ACTIVE,
+      STORAGE_KEY_STUDENT_WINDOW_CLOSED,
       'mathmaticore_auth_user',
       'mathmaticore_auth_role',
       'mathmaticore_auth_time',
@@ -231,9 +279,27 @@ export const useAuthStore = create<AuthState>()(
     activeClass: DEFAULT_CLASS,
 
     isTokenExpired: () => {
+      const role = get().role || get().user?.role;
+      const now = Date.now();
+
+      if (role === 'student') {
+        try {
+          const lastClosedStr = localStorage.getItem(STORAGE_KEY_STUDENT_WINDOW_CLOSED);
+          if (lastClosedStr) {
+            const lastClosed = parseInt(lastClosedStr, 10);
+            if (now - lastClosed > STUDENT_WINDOW_CLOSE_TIMEOUT_MS) return true;
+          }
+          const lastActiveStr = localStorage.getItem(STORAGE_KEY_STUDENT_LAST_ACTIVE);
+          if (lastActiveStr) {
+            const lastActive = parseInt(lastActiveStr, 10);
+            if (now - lastActive > STUDENT_WINDOW_CLOSE_TIMEOUT_MS) return true;
+          }
+        } catch {}
+      }
+
       const authTime = get().authTimestamp ?? get().user?.authTimestamp;
       if (!authTime) return false;
-      return Date.now() - authTime > JWT_EXPIRY_MS;
+      return now - authTime > JWT_EXPIRY_MS;
     },
 
     setClass: (classInfo) =>
@@ -315,6 +381,7 @@ export const useAuthStore = create<AuthState>()(
         };
 
         setStoredAuth(normalizedStudentUser, 'student', timestamp);
+        touchStudentActivity();
         AuditLogger.log("התחברות", normalizedStudentUser.uid || `student_${studentNum}`, `תלמיד ${studentNum} התחבר לכיתה ${user.class_name || state.activeClass.class_name}`);
         return {
           user: normalizedStudentUser,
