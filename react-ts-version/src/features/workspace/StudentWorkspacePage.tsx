@@ -8,7 +8,6 @@ import {
   KeyboardSensor,
   pointerWithin,
   rectIntersection,
-  closestCenter,
   useSensor,
   useSensors,
   type CollisionDetection,
@@ -731,14 +730,21 @@ export function StudentWorkspacePage() {
       );
       return specific ? [specific] : pointerCollisions;
     }
-    const centerCollisions = closestCenter(args);
-    if (centerCollisions && centerCollisions.length > 0) {
-      const specific = centerCollisions.find(
+    // rectIntersection only matches a droppable the dragged block's rect
+    // actually overlaps. closestCenter used to sit here instead, but it has
+    // no distance cutoff — it always names *some* "nearest" droppable even
+    // while the pointer is nowhere near the board (still over the palette,
+    // mid-transit, etc.), which lit up the wrong column and popped the trash
+    // lid open with nothing near it, and could even route a drop that far
+    // away to that bogus target on release.
+    const rectCollisions = rectIntersection(args);
+    if (rectCollisions && rectCollisions.length > 0) {
+      const specific = rectCollisions.find(
         (c) => String(c.id).startsWith('column-') || c.id === 'trash'
       );
-      return specific ? [specific] : centerCollisions;
+      return specific ? [specific] : rectCollisions;
     }
-    return rectIntersection(args);
+    return [];
   };
 
   const handleDragStart = (event: DragStartEvent) => {
