@@ -131,6 +131,17 @@ interface WorkspaceState {
   taskStartTime: number;
   undoTimestamps: number[];
   isBoardLocked: boolean;
+  /** Module 19 §ב Safe Application Boundary: a teacher-queued differentiation
+   * change (path/scaffold/addition-helper), staged from RTDB
+   * users/students/{id}/pendingAdaptation and applied only in startTask(),
+   * never mid-exercise. */
+  pendingAdaptation: {
+    pedagogicalPath?: 'green_path' | 'remediation_path';
+    currentPath?: string;
+    scaffoldLevel?: 0 | 1 | 2;
+    forceAdditionHelper?: boolean;
+    queuedAt?: number;
+  } | null;
   hasRequestedBasicHelp: boolean;
   hasInteracted: boolean;
   hasDeletedBlock: boolean;
@@ -467,9 +478,47 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     }, 500);
   }
 
+  /**
+   * Module 19 §ב Safe Application Boundary: applies a teacher-queued
+   * differentiation change staged via RTDB users/students/{id}/pendingAdaptation
+   * (see StudentSideDrawer's onApplyAdaptation). Called only from startTask()
+   * — the one choke point every new task passes through, regardless of
+   * whether it arrived via the Session-2 qflow or the standard task list —
+   * so a change made mid-exercise never lands before the exercise ends.
+   */
+  function applyPendingAdaptationAtBoundary() {
+    const pending = get().pendingAdaptation;
+    if (!pending) return;
+
+    const studentId = useAuthStore.getState().user?.uid;
+    if (!studentId) return;
+    const normId = normalizeStudentId(studentId);
+
+    const liveFields = {
+      pedagogicalPath: pending.pedagogicalPath,
+      currentPath: pending.currentPath,
+      scaffoldLevel: pending.scaffoldLevel,
+      forceAdditionHelper: pending.forceAdditionHelper,
+      additionBoardEnabled: pending.forceAdditionHelper,
+    };
+
+    useStore.setState((s) => {
+      const existing = s.students[normId];
+      if (!existing) return s;
+      return { students: { ...s.students, [normId]: { ...existing, ...liveFields } } };
+    });
+
+    set({ pendingAdaptation: null });
+
+    update(ref(database, `users/students/${normId}`), { ...liveFields, pendingAdaptation: null }).catch((err) => {
+      console.error('[Module 19] Failed to commit boundary-applied adaptation:', err);
+    });
+  }
+
   function startTask(taskId: string) {
     set(resetTaskInteraction());
     set({ keyboardState: 'UNLOCKED', currentState: 'PROBLEM_ACTIVE', taskStartTime: Date.now() });
+    applyPendingAdaptationAtBoundary();
 
     if (taskId) {
       const s = get();
@@ -1095,6 +1144,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     hasInteracted: false,
     undoTimestamps: [],
     isBoardLocked: false,
+    pendingAdaptation: null,
     hasRequestedBasicHelp: false,
     taskStartTime: Date.now(),
     hasDeletedBlock: false,
@@ -2181,6 +2231,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         hasInteracted: false,
         undoTimestamps: [],
         isBoardLocked: false,
+        pendingAdaptation: null,
         hasRequestedBasicHelp: false,
         taskStartTime: Date.now(),
         hasDeletedBlock: false,

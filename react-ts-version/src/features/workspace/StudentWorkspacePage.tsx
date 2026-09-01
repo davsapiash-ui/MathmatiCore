@@ -444,6 +444,13 @@ export function StudentWorkspacePage() {
             useWorkspaceStore.setState({ isBoardLocked: Boolean(isLocked) });
           }
 
+          // Module 19 §ב: stage a teacher-queued differentiation change without
+          // applying it — useWorkspaceStore's startTask() applies (and clears)
+          // this only at the next task boundary, never mid-exercise.
+          if (val.pendingAdaptation !== undefined) {
+            useWorkspaceStore.setState({ pendingAdaptation: val.pendingAdaptation || null });
+          }
+
           useStore.setState((s) => {
             const existing = s.students[normUid] || {};
             return {
