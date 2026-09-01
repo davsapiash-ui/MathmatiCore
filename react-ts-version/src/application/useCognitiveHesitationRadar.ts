@@ -5,8 +5,7 @@ import { AuditLogger } from '@/infrastructure/services/AuditLogger';
 import { database } from '@/infrastructure/firebase';
 import { ref, set } from 'firebase/database';
 import { emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
-
-const HESITATION_THRESHOLD_MS = 45 * 1000; // 45 seconds per PRD v7.0 Module 10 & 12
+import { getHesitationThresholdSeconds, useHesitationThresholdSeconds } from '@/core/hesitationCalibration';
 
 interface UseCognitiveHesitationRadarProps {
   isActive: boolean;
@@ -29,6 +28,13 @@ export function useCognitiveHesitationRadar({
   useEffect(() => { onHesitationRef.current = onHesitationDetected; }, [onHesitationDetected]);
 
   const lastActivityRef = useRef<number>(Date.now());
+  // Module 26: subscribes this hook to the admin-configured threshold
+  // (system_control/trace_calibration, default 45s per PRD). The return
+  // value itself isn't needed here — resetTimeout reads the live value
+  // directly at fire time via getHesitationThresholdSeconds() below — this
+  // call just keeps the shared listener alive for as long as this hook is
+  // mounted.
+  useHesitationThresholdSeconds();
 
   const resetTimeout = useCallback(() => {
     if (timeoutRef.current) {
@@ -56,7 +62,10 @@ export function useCognitiveHesitationRadar({
       const currentTask = currentTasks[wsState.standardTaskIdx];
       const activePlace = wsState.focusedPlace || 'units';
       const colIndex = activePlace === 'thousands' ? 3 : activePlace === 'hundreds' ? 2 : activePlace === 'tens' ? 1 : 0;
-      const measuredSeconds = Math.max(45, Math.round((Date.now() - lastActivityRef.current) / 1000));
+      const measuredSeconds = Math.max(
+        getHesitationThresholdSeconds(),
+        Math.round((Date.now() - lastActivityRef.current) / 1000)
+      );
 
       // Canonical HESITATION_DETECTED telemetry event (Module 5 §C & Appendix A §3)
       emitTelemetry({
@@ -79,7 +88,7 @@ export function useCognitiveHesitationRadar({
       if (onHesitationRef.current) {
         onHesitationRef.current();
       }
-    }, HESITATION_THRESHOLD_MS);
+    }, getHesitationThresholdSeconds() * 1000);
   }, [isActive]); // ← onHesitationDetected intentionally removed from deps
 
   useEffect(() => {

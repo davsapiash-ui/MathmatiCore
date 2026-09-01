@@ -1,53 +1,76 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useAdminStore } from '@/application/useAdminStore';
 
-describe('PRD Section 5.6 Admin Scale Limits & Multi-Tenant Audit', () => {
+// Mock Firebase RTDB methods (mirrors application/__tests__/AdminStoreSync.test.ts)
+vi.mock('firebase/database', () => ({
+  ref: vi.fn(() => ({})),
+  set: vi.fn(() => Promise.resolve()),
+  get: vi.fn(() => Promise.resolve({ exists: () => false, val: () => null })),
+  update: vi.fn(() => Promise.resolve()),
+  push: vi.fn(() => ({ key: 'mock_push_key_123' })),
+  onValue: vi.fn(),
+  onDisconnect: vi.fn(() => ({ set: vi.fn() })),
+  runTransaction: vi.fn(async (_ref, updateFn) => { if (typeof updateFn === 'function') return updateFn(0); }),
+  serverTimestamp: vi.fn(() => Date.now()),
+}));
+
+vi.mock('@/infrastructure/firebase', () => ({
+  database: {},
+  authReady: Promise.resolve(),
+  auth: { currentUser: null },
+  firestore: {},
+}));
+
+/**
+ * Module 25 Admin Scale Limits.
+ *
+ * The suite this replaced (title: "PRD Section 5.6 Admin Scale Limits") cited
+ * a PRD subsection that doesn't exist (grep -n "5\.6" on the PRD returns
+ * nothing) and injected its own 5-school/5-teacher/35-student-per-class
+ * fixture via setState, then asserted that fixture against itself — it could
+ * not fail, and 35 directly contradicts the PRD's hard 12-student cap
+ * (Module 25 §ב.2). This version exercises the real store mutators instead.
+ */
+describe('Module 25: Admin Scale Limits', () => {
   beforeEach(() => {
     useAdminStore.setState({
-      schools: [
-        { id: 'sch_1', name: 'מוסד 1', createdAt: Date.now() },
-        { id: 'sch_2', name: 'מוסד 2', createdAt: Date.now() },
-        { id: 'sch_3', name: 'מוסד 3', createdAt: Date.now() },
-        { id: 'sch_4', name: 'מוסד 4', createdAt: Date.now() },
-        { id: 'sch_5', name: 'מוסד 5', createdAt: Date.now() },
-      ],
-      teachers: [
-        { id: 't_1', schoolId: 'sch_1', ssoEmail: 'teacher1@edu-haifa.org.il', dob: '010190', name: 'מורה 1', licenseActive: true, createdAt: Date.now() },
-        { id: 't_2', schoolId: 'sch_2', ssoEmail: 'teacher2@edu-haifa.org.il', dob: '010190', name: 'מורה 2', licenseActive: true, createdAt: Date.now() },
-        { id: 't_3', schoolId: 'sch_3', ssoEmail: 'teacher3@edu-haifa.org.il', dob: '010190', name: 'מורה 3', licenseActive: true, createdAt: Date.now() },
-        { id: 't_4', schoolId: 'sch_4', ssoEmail: 'teacher4@edu-haifa.org.il', dob: '010190', name: 'מורה 4', licenseActive: true, createdAt: Date.now() },
-        { id: 't_5', schoolId: 'sch_5', ssoEmail: 'teacher5@edu-haifa.org.il', dob: '010190', name: 'מורה 5', licenseActive: true, createdAt: Date.now() },
-      ],
-      classes: [
-        { id: 'c_1', schoolId: 'sch_1', teacherId: 't_1', name: 'כיתה 1', studentLimit: 35, createdAt: Date.now() },
-        { id: 'c_2', schoolId: 'sch_1', teacherId: 't_1', name: 'כיתה 2', studentLimit: 35, createdAt: Date.now() },
-        { id: 'c_3', schoolId: 'sch_1', teacherId: 't_1', name: 'כיתה 3', studentLimit: 35, createdAt: Date.now() },
-        { id: 'c_4', schoolId: 'sch_1', teacherId: 't_1', name: 'כיתה 4', studentLimit: 35, createdAt: Date.now() },
-        { id: 'c_5', schoolId: 'sch_1', teacherId: 't_1', name: 'כיתה 5', studentLimit: 35, createdAt: Date.now() },
-      ],
-      globalStudentLimit: 35,
+      schools: [],
+      teachers: [],
+      classes: [],
+      globalStudentLimit: 12,
     });
   });
 
-  it('enforces maximum 5 schools limit (PRD 5.6)', () => {
-    const { schools } = useAdminStore.getState();
-    expect(schools.length).toBeLessThanOrEqual(5);
+  it('resetInstitutionsToOfficialPilot() produces exactly the PRD-mandated single school/class structure', async () => {
+    await useAdminStore.getState().resetInstitutionsToOfficialPilot();
+    const state = useAdminStore.getState();
+
+    expect(state.schools).toHaveLength(1);
+    expect(state.schools[0].name).toBe('בית ספר ביקורת');
+
+    expect(state.classes).toHaveLength(1);
+    expect(state.classes[0].name).toBe('המבקרים');
+    expect(state.classes[0].studentLimit).toBe(12);
+
+    expect(state.globalStudentLimit).toBe(12);
   });
 
-  it('enforces maximum 5 total teachers limit (PRD 5.6)', () => {
-    const { teachers } = useAdminStore.getState();
-    expect(teachers.length).toBeLessThanOrEqual(5);
-  });
+  it('addClassRoom() always caps a new class at the current globalStudentLimit, regardless of caller intent', () => {
+    useAdminStore.getState().addSchool('בית ספר ביקורת');
+    const schoolId = useAdminStore.getState().schools[0].id;
+    useAdminStore.getState().addTeacher(schoolId, 'מורה מוביל', 'teacher@edu-haifa.org.il', '010190');
+    const teacherId = 'teacher@edu-haifa.org.il';
 
-  it('enforces 1 lead teacher per school environment (PRD 5.6)', () => {
-    const { teachers } = useAdminStore.getState();
-    const teachersPerSchool = teachers.filter(t => t.schoolId === 'sch_1');
-    expect(teachersPerSchool.length).toBe(1);
-  });
+    useAdminStore.getState().addClassRoom(schoolId, teacherId, 'המבקרים');
 
-  it('enforces maximum 5 classes per teacher limit (PRD 5.6)', () => {
-    const { classes } = useAdminStore.getState();
-    const teacherClasses = classes.filter(c => c.teacherId === 't_1');
-    expect(teacherClasses.length).toBeLessThanOrEqual(5);
+    const created = useAdminStore.getState().classes[0];
+    expect(created.studentLimit).toBe(12);
+
+    // Module 25 §ב.2: the 12-cap tracks globalStudentLimit, which the pilot
+    // reset above always restores to 12 — it is not a value the class-creation
+    // call can override on its own.
+    useAdminStore.getState().setGlobalStudentLimit(6);
+    useAdminStore.getState().addClassRoom(schoolId, teacherId, 'כיתה נוספת');
+    expect(useAdminStore.getState().classes[1].studentLimit).toBe(6);
   });
 });

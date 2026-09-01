@@ -38,7 +38,6 @@ import { X } from 'lucide-react';
 
 import { StudentChatOverlay } from './overlays/StudentChatOverlay';
 import { AdaptiveAdditionGrid } from './board/AdaptiveAdditionGrid';
-import { canvasRecorder } from '@/infrastructure/services/CanvasRecorderService';
 
 import { SocraticEngine } from '@/infrastructure/services/SocraticEngine';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
@@ -193,7 +192,6 @@ export function StudentWorkspacePage() {
           if (ownership.isSuperseded) {
             isSupersededRef.current = true;
             useWorkspaceStore.getState().setSupersededByOtherDevice(true);
-            canvasRecorder.stopRecording().catch(console.error);
             try {
               onDisconnect(ref(database, `users/students/${normUid}/isOnline`)).cancel();
               onDisconnect(ref(database, `users/students/${normUid}/lastPing`)).cancel();

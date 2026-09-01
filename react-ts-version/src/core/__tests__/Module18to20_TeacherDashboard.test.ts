@@ -1,122 +1,17 @@
 import { describe, it, expect, vi } from 'vitest';
-import { computeStudentRadarColor } from '../../presentation/pages/TeacherDashboard/components/HeatmapGrid';
 import type { StudentData } from '../../application/useStore';
 import type { AdaptationSettings } from '../../presentation/pages/TeacherDashboard/components/SilentAdaptationPanel';
 
+// Module 18's real priority-order coverage (BLUE > RED > GREY > YELLOW > GREEN,
+// against resolveRadarColor in core/radarColor.ts — the function HeatmapGrid.tsx
+// actually renders) lives in core/__tests__/RadarColorPrecedence.test.ts. This
+// file previously duplicated that section against a second, unused
+// implementation (computeStudentRadarColor) whose own priority-order comment
+// omitted BLUE — a real gap the tests never caught because they exercised the
+// wrong function. That dead function has been deleted; see
+// RadarColorPrecedence.test.ts for Module 18 itself.
+
 describe('Work Package 5 (WP5): Teacher Dashboard, Silent Radar Matrix, Gate Approval & Adaptation Suite', () => {
-
-  describe('1. Module 18: Silent Radar Matrix & Strict Priority Order (RED > GREY > YELLOW > GREEN)', () => {
-    const now = 1000000;
-
-    it('assigns RED status when Socratic mentoring card is active on student screen (highest priority)', () => {
-      const student: any = {
-        studentId: 'student_1',
-        isSocraticActive: true,
-        lastActivityTimestamp: now - 5000, // Online (5s ago)
-        hesitationSeconds: 10,
-      };
-
-      const res = computeStudentRadarColor(student, now, 15000);
-      expect(res.color).toBe('RED');
-      expect(res.statusText).toContain('כרטיס חניכה סוקרטי פעיל');
-    });
-
-    it('assigns GREY status to a student who is offline (>15s presence timeout), overriding YELLOW', () => {
-      const student: any = {
-        studentId: 'student_2',
-        isSocraticActive: false,
-        lastActivityTimestamp: now - 20000, // Offline (20s ago > 15s timeout)
-        hesitationSeconds: 50, // Hesitation would be YELLOW if online, but offline takes precedence
-      };
-
-      const res = computeStudentRadarColor(student, now, 15000);
-      expect(res.color).toBe('GREY');
-      expect(res.isOnline).toBe(false);
-      expect(res.statusText).toContain('לא מחובר');
-    });
-
-    it('assigns YELLOW status to an online student hesitating for >=45 seconds without action', () => {
-      const student: any = {
-        studentId: 'student_3',
-        isSocraticActive: false,
-        lastActivityTimestamp: now - 3000, // Online (3s ago)
-        hesitationSeconds: 45,
-      };
-
-      const res = computeStudentRadarColor(student, now, 15000);
-      expect(res.color).toBe('YELLOW');
-      expect(res.isOnline).toBe(true);
-      expect(res.statusText).toContain('היסוס');
-    });
-
-    it('assigns GREEN status to an online student with cognitive event within last 30 seconds', () => {
-      const student: any = {
-        studentId: 'student_4',
-        isSocraticActive: false,
-        lastActivityTimestamp: now - 2000, // Online (2s ago)
-        hesitationSeconds: 10,
-      };
-
-      const res = computeStudentRadarColor(student, now, 15000);
-      expect(res.color).toBe('GREEN');
-      expect(res.isOnline).toBe(true);
-      expect(res.statusText).toContain('התקדמות תקינה');
-    });
-
-    it('proves strict priority order: RED > GREY > YELLOW > GREEN', () => {
-      // RED beats GREY
-      const redAndOffline: any = {
-        studentId: 's1',
-        isSocraticActive: true,
-        lastActivityTimestamp: now - 30000, // Offline
-      };
-      expect(computeStudentRadarColor(redAndOffline, now, 15000).color).toBe('RED');
-
-      // GREY beats YELLOW
-      const yellowAndOffline: any = {
-        studentId: 's2',
-        isSocraticActive: false,
-        hesitationSeconds: 45,
-        lastActivityTimestamp: now - 30000, // Offline
-      };
-      expect(computeStudentRadarColor(yellowAndOffline, now, 15000).color).toBe('GREY');
-
-      // YELLOW beats GREEN
-      const yellowAndOnline: any = {
-        studentId: 's3',
-        isSocraticActive: false,
-        hesitationSeconds: 48,
-        lastActivityTimestamp: now - 2000, // Online
-      };
-      expect(computeStudentRadarColor(yellowAndOnline, now, 15000).color).toBe('YELLOW');
-    });
-
-    it('assigns GREY status to a student who has not started yet (lastActivity === 0)', () => {
-      const student: any = {
-        studentId: 'student_unstarted',
-        lastActivityTimestamp: 0,
-      };
-
-      const res = computeStudentRadarColor(student, now, 15000);
-      expect(res.color).toBe('GREY');
-      expect(res.isOnline).toBe(false);
-      expect(res.statusText).toBe('טרם החל');
-    });
-
-    it('assigns GREEN status to an active connected student without alerts', () => {
-      const student: any = {
-        studentId: 'student_active',
-        isSocraticActive: false,
-        lastActivityTimestamp: now - 4000, // Online within 15s
-        hesitationSeconds: 5,
-      };
-
-      const res = computeStudentRadarColor(student, now, 15000);
-      expect(res.color).toBe('GREEN');
-      expect(res.isOnline).toBe(true);
-      expect(res.statusText).toContain('התקדמות תקינה');
-    });
-  });
 
   describe('2. Module 19: Silent Adaptation Panel & Canonical Schema Compliance', () => {
     it('strictly enforces applyAtTaskBoundaryOnly invariant on all adaptation configurations', () => {

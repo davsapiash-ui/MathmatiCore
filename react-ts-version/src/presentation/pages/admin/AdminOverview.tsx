@@ -18,15 +18,13 @@ import {
 import { UdlButton } from "@/presentation/design-system/UdlButton";
 import { toast } from "sonner";
 import { useAdminStore } from "@/application/useAdminStore";
-import { 
-  AreaChart, 
-  Area, 
+import {
   BarChart,
   Bar,
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   ResponsiveContainer
 } from "recharts";
 import { ref, onValue, query, orderByChild, limitToLast, get, update } from "firebase/database";
@@ -42,28 +40,11 @@ type SessionBreakdown = Record<string, {
   average_score_percent: number;
 }>;
 
-const mockGrowthData6M = [
-  { time: 'ינואר', students: 120, activity: 450, alerts: 12 },
-  { time: 'פברואר', students: 180, activity: 680, alerts: 8 },
-  { time: 'מרץ', students: 290, activity: 1100, alerts: 15 },
-  { time: 'אפריל', students: 420, activity: 1650, alerts: 9 },
-  { time: 'מאי', students: 580, activity: 2200, alerts: 18 },
-  { time: 'יוני', students: 750, activity: 3100, alerts: 6 },
-];
-
-const mockGrowthData30D = [
-  { time: 'שבוע 1', students: 600, activity: 2400, alerts: 5 },
-  { time: 'שבוע 2', students: 650, activity: 2600, alerts: 7 },
-  { time: 'שבוע 3', students: 710, activity: 2890, alerts: 4 },
-  { time: 'שבוע 4', students: 750, activity: 3100, alerts: 6 },
-];
-
 export function AdminOverview() {
   const { schools, teachers, classes } = useAdminStore();
   const [auditLogs, setAuditLogs] = useState<AuditLogEvent[]>([]);
   const [logSearch, setLogSearch] = useState("");
   const [logFilter, setLogFilter] = useState<string>("ALL");
-  const [timeRange, setTimeRange] = useState<"6M" | "30D">("6M");
 
   const [totalStudents, setTotalStudents] = useState<number>(0);
   // Module 24 §ב/§ה: cache-sourced metrics and the quiet last-updated indicator
@@ -307,7 +288,20 @@ export function AdminOverview() {
     });
   }, [schools, teachers, classes]);
 
-  const chartData = timeRange === "6M" ? mockGrowthData6M : mockGrowthData30D;
+  // Module 24 §ב: real per-session rows only — sessions absent from the cache
+  // render an honest "no data yet" state rather than a fabricated number.
+  const pedagogicalSessionRows = useMemo(() => {
+    return [3, 4, 5, 6, 7, 8].map((session) => {
+      const row = sessionBreakdown[String(session)];
+      return {
+        session,
+        title: `מפגש ${session}`,
+        hasData: Boolean(row),
+        completionRate: row ? `${Math.round(row.completion_rate_percent)}%` : null,
+        averageScore: row ? `${Math.round(row.average_score_percent)}%` : null,
+      };
+    });
+  }, [sessionBreakdown]);
 
   return (
     <div className="p-6 md:p-10 pb-24 max-w-7xl mx-auto space-y-8" dir="rtl">
@@ -461,96 +455,36 @@ export function AdminOverview() {
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-          {[
-            { session: 3, title: 'מפגש 3', completionRate: '92%', hesitationAvg: '28s', greenRatio: '85%' },
-            { session: 4, title: 'מפגש 4', completionRate: '88%', hesitationAvg: '34s', greenRatio: '78%' },
-            { session: 5, title: 'מפגש 5', completionRate: '84%', hesitationAvg: '41s', greenRatio: '72%' },
-            { session: 6, title: 'מפגש 6', completionRate: '81%', hesitationAvg: '39s', greenRatio: '75%' },
-            { session: 7, title: 'מפגש 7', completionRate: '79%', hesitationAvg: '44s', greenRatio: '70%' },
-            { session: 8, title: 'מפגש 8', completionRate: '95%', hesitationAvg: '26s', greenRatio: '88%' },
-          ].map((stat) => (
+          {pedagogicalSessionRows.map((stat) => (
             <div key={stat.session} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 flex flex-col gap-2">
               <div className="flex justify-between items-center">
                 <span className="font-extrabold text-xs text-slate-900 dark:text-white">{stat.title}</span>
-                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950 px-1.5 py-0.5 rounded">
-                  {stat.completionRate}
-                </span>
+                {stat.hasData && (
+                  <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950 px-1.5 py-0.5 rounded">
+                    {stat.completionRate}
+                  </span>
+                )}
               </div>
-              <div className="text-[11px] text-slate-500 space-y-0.5">
-                <div>ממוצע השהייה: <span className="font-bold text-slate-800 dark:text-slate-200">{stat.hesitationAvg}</span></div>
-                <div>מסלול ירוק: <span className="font-bold text-indigo-600 dark:text-indigo-400">{stat.greenRatio}</span></div>
-              </div>
+              {stat.hasData ? (
+                <div className="text-[11px] text-slate-500 space-y-0.5">
+                  <div>שיעור השלמה: <span className="font-bold text-slate-800 dark:text-slate-200">{stat.completionRate}</span></div>
+                  <div>ציון ממוצע: <span className="font-bold text-indigo-600 dark:text-indigo-400">{stat.averageScore}</span></div>
+                </div>
+              ) : (
+                <div className="text-[11px] text-slate-400 italic">אין נתונים עדיין</div>
+              )}
             </div>
           ))}
         </div>
       </AccessibleCard>
 
-      {/* Advanced Data Visualization Section */}
-      <div className="grid lg:grid-cols-3 gap-8">
-        {/* Main Area Chart */}
-        <AccessibleCard className="lg:col-span-2 p-6 md:p-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl space-y-6">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-indigo-500" />
-                צמיחת נפח הפעילות והתלמידים במערכת
-              </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                מגמות שימוש במערכת לאורך זמן (אינטראקציות לוח מול תלמידים פעילים)
-              </p>
-            </div>
-
-            <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs font-bold">
-              <button 
-                onClick={() => setTimeRange("6M")}
-                className={`px-3 py-1.5 rounded-lg transition-all ${timeRange === "6M" ? "bg-indigo-600 text-white shadow" : "text-slate-500 hover:text-slate-900 dark:hover:text-white"}`}
-              >
-                6 חודשים
-              </button>
-              <button 
-                onClick={() => setTimeRange("30D")}
-                className={`px-3 py-1.5 rounded-lg transition-all ${timeRange === "30D" ? "bg-indigo-600 text-white shadow" : "text-slate-500 hover:text-slate-900 dark:hover:text-white"}`}
-              >
-                30 ימים
-              </button>
-            </div>
-          </div>
-
-          <div className="h-80 w-full" dir="ltr">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorStudentsGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.7}/>
-                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.0}/>
-                  </linearGradient>
-                  <linearGradient id="colorActivityGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.7}/>
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.2} />
-                <XAxis dataKey="time" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'rgba(15, 23, 42, 0.95)', 
-                    borderRadius: '16px', 
-                    border: '1px solid rgba(255,255,255,0.1)', 
-                    color: '#fff',
-                    boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.3)' 
-                  }}
-                  itemStyle={{ fontWeight: 'bold' }}
-                />
-                <Area type="monotone" dataKey="activity" name="נפח אינטראקציות" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorActivityGrad)" />
-                <Area type="monotone" dataKey="students" name="תלמידים פעילים" stroke="#8b5cf6" strokeWidth={3} fillOpacity={1} fill="url(#colorStudentsGrad)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </AccessibleCard>
-
-        {/* Secondary School Distribution & Compliance Card */}
-        <div className="space-y-6">
+      {/* School distribution & privacy compliance. A "צמיחת נפח הפעילות"
+          historical growth chart used to sit alongside these, but it rendered
+          fabricated fixture numbers (up to 750 "active students" against this
+          pilot's hard 12-student cap) — store_cache/admin_metrics carries no
+          real historical time series to replace it with, so it's gone rather
+          than kept fake (Module 24 §ב: never fabricate). */}
+      <div className="grid md:grid-cols-2 gap-8">
           <AccessibleCard className="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl flex flex-col justify-between space-y-4">
             <div>
               <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
@@ -620,7 +554,6 @@ export function AdminOverview() {
               </div>
             </div>
           </AccessibleCard>
-        </div>
       </div>
 
       {/* Enhanced Audit Log Table */}

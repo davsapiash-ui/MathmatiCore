@@ -55,9 +55,10 @@ export function AdminWizardModal({
   const [teacherDob, setTeacherDob] = useState("");
   const [teacherError, setTeacherError] = useState("");
 
-  // Step 3: Class Form (Module 25: Strict 12-student limit per class)
-  const [className, setClassName] = useState("");
-  const [classType, setClassType] = useState<string>("המבקרים");
+  // Step 3: Class Form (Module 25 §ב.1: class_name is fixed by spec, never
+  // user-entered — the pilot's single class is named "המבקרים", full stop).
+  const PILOT_CLASS_NAME = "המבקרים";
+  const [classType, setClassType] = useState<string>("קבוצת ביקורת פיילוט");
   const [studentLimit, setStudentLimit] = useState("12");
   const [classError, setClassError] = useState("");
 
@@ -75,7 +76,7 @@ export function AdminWizardModal({
       return false;
     }
     if (schools.length >= 5) {
-      setSchoolError("המערכת הגיעה למגבלת הפיילוט המרבית של 5 מוסדות חינוך (סעיף 5.6 באפיון).");
+      setSchoolError("המערכת הגיעה למגבלת הפיילוט המרבית של 5 מוסדות חינוך (מודול 25).");
       return false;
     }
     return true;
@@ -92,12 +93,12 @@ export function AdminWizardModal({
       return false;
     }
     if (teachers.length >= 5) {
-      setTeacherError("המערכת הגיעה למגבלת הפיילוט המרבית של 5 מורים בסך הכל (סעיף 5.6 באפיון).");
+      setTeacherError("המערכת הגיעה למגבלת הפיילוט המרבית של 5 מורים בסך הכל (מודול 25).");
       return false;
     }
     const schoolTeachers = teachers.filter(t => t.schoolId === targetSchoolId);
     if (schoolTeachers.length >= 1) {
-      setTeacherError("לפי מפרט הפיילוט (סעיף 5.6), מוגדר מורה מוביל אחד בלבד לכל מוסד חינוכי.");
+      setTeacherError("לפי מפרט הפיילוט (מודול 25), מוגדר מורה מוביל אחד בלבד לכל מוסד חינוכי.");
       return false;
     }
     return true;
@@ -112,7 +113,7 @@ export function AdminWizardModal({
     }
     const teacherClasses = classes.filter(c => c.teacherId === targetTeacherId);
     if (teacherClasses.length >= 5) {
-      setClassError("מורה זה הגיע למגבלת הפיילוט המרבית של 5 כיתות (סעיף 5.6 באפיון).");
+      setClassError("מורה זה הגיע למגבלת הפיילוט המרבית של 5 כיתות (מודול 25).");
       return false;
     }
     return true;
@@ -144,7 +145,7 @@ export function AdminWizardModal({
         teacherName: teacherName.trim(),
         teacherEmail: teacherSsoEmail.trim(),
         teacherDob: teacherDob.trim() || "010190",
-        className: className.trim() || "כיתת המבקרים",
+        className: PILOT_CLASS_NAME,
         classType,
         studentLimit: parseInt(studentLimit, 10) || 12,
       });
@@ -180,7 +181,7 @@ export function AdminWizardModal({
     }
     const teacherId = schoolTeachers[0].id;
     if (!validateStep3(teacherId)) return;
-    addClassRoom(selectedSchoolId, teacherId, className.trim());
+    addClassRoom(selectedSchoolId, teacherId, PILOT_CLASS_NAME);
     setIsDone(true);
   };
 
@@ -190,7 +191,6 @@ export function AdminWizardModal({
     setTeacherName("");
     setTeacherSsoEmail("");
     setTeacherDob("");
-    setClassName("");
     setSchoolError("");
     setTeacherError("");
     setClassError("");
@@ -235,7 +235,7 @@ export function AdminWizardModal({
                       : "אשף הקמת מוסד חינוכי חדש"}
                   </h2>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    תקני פיילוט ומבנה מוסדי (סעיף 5.6 באפיון)
+                    תקני פיילוט ומבנה מוסדי (מודול 25)
                   </p>
                 </div>
               </div>
@@ -381,7 +381,7 @@ export function AdminWizardModal({
                         <div>
                           <h4 className="font-bold text-sm text-emerald-950 dark:text-emerald-200">שיוך מורה מוביל (Lead Teacher)</h4>
                           <p className="text-xs text-emerald-800/80 dark:text-emerald-300/80 mt-0.5">
-                            הזדהות המורה תתבצע באופן שקט ומאובטח באמצעות Google SSO והדוא"ל הארגוני המורשה בלבד (סעיף 5.5 באפיון).
+                            הזדהות המורה תתבצע באופן שקט ומאובטח באמצעות Google SSO והדוא"ל הארגוני המורשה בלבד.
                           </p>
                         </div>
                       </div>
@@ -448,7 +448,7 @@ export function AdminWizardModal({
                         <div>
                           <h4 className="font-bold text-sm text-cyan-950 dark:text-cyan-200">הגדרת כיתת לימוד ראשונה</h4>
                           <p className="text-xs text-cyan-800/80 dark:text-cyan-300/80 mt-0.5">
-                            הכיתה תשויך למורה המוביל. מורה יחיד יכול לנהל עד 5 כיתות (סעיף 5.6).
+                            הכיתה תשויך למורה המוביל.
                           </p>
                         </div>
                       </div>
@@ -456,15 +456,12 @@ export function AdminWizardModal({
                       <div className="space-y-4">
                         <div>
                           <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1">
-                            שם הכיתה <span className="text-rose-500">*</span>
+                            שם הכיתה
                           </label>
-                          <input 
-                            type="text" 
-                            placeholder="לדוגמה: ה'3"
-                            value={className}
-                            onChange={(e) => { setClassName(e.target.value); setClassError(""); }}
-                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-2xl p-3.5 text-sm focus:border-indigo-500 outline-none"
-                          />
+                          <div className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-2xl p-3.5 text-sm font-bold flex items-center justify-between">
+                            <span>{PILOT_CLASS_NAME}</span>
+                            <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500">קבוע לפי מודול 25</span>
+                          </div>
                         </div>
 
                         <div>
@@ -476,7 +473,7 @@ export function AdminWizardModal({
                             onChange={(e) => setClassType(e.target.value)}
                             className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-2xl p-3.5 text-sm focus:border-indigo-500 outline-none font-bold"
                           >
-                            <option value="המבקרים">המבקרים (קבוצת ביקורת פיילוט)</option>
+                            <option value="קבוצת ביקורת פיילוט">קבוצת ביקורת פיילוט</option>
                             <option value="כיתת פיילוט סטנדרטית">כיתת פיילוט סטנדרטית</option>
                             <option value="כיתת תמיכה מוגברת (UDL)">כיתת תמיכה מוגברת (UDL)</option>
                           </select>
@@ -537,7 +534,7 @@ export function AdminWizardModal({
                           </div>
                           <div className="pt-3 flex justify-between">
                             <span className="text-slate-500">כיתה ראשונה:</span>
-                            <span className="font-bold text-cyan-600 dark:text-cyan-400">{className}</span>
+                            <span className="font-bold text-cyan-600 dark:text-cyan-400">{PILOT_CLASS_NAME}</span>
                           </div>
                           <div className="pt-3 flex justify-between">
                             <span className="text-slate-500">תפוסה מירבית:</span>
