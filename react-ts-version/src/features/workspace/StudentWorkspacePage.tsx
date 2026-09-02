@@ -744,8 +744,17 @@ export function StudentWorkspacePage() {
   // forgiving of natural jitter.
   const sensors = useSensors(
     useSensor(MouseSensor, {
+      // 10px, matching the reasoning in the comment above. A later "native
+      // MouseSensor" change had quietly dropped this to 3px — tighter even than
+      // the 6px the comment already calls too tight — which reintroduced the
+      // exact failure it describes: on a laptop, the tiny jitter between
+      // pressing on a block and holding still crosses a 3px threshold, so
+      // dnd-kit starts a drag and then instantly ends it as a no-op the moment
+      // the pointer settles. To the student that reads as a block that flickers
+      // and refuses to lift. 10px makes the pickup deliberate and stable while
+      // still starting the drag the instant a real drag gesture begins.
       activationConstraint: {
-        distance: 3,
+        distance: 10,
       },
     }),
     useSensor(TouchSensor, {
