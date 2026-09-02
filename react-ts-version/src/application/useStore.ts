@@ -51,7 +51,13 @@ export interface TraceData {
 }
 
 export type RoutePath = 'GREEN' | 'YELLOW';
-export type RouteStatus = 'PENDING' | 'APPROVED' | 'PENDING_TEACHER_APPROVAL' | 'SANDBOX' | 'DIAGNOSTIC' | 'ADAPTIVE';
+/**
+ * PENDING              — the curriculum router produced a plan; teacher review pending.
+ * PLAN_APPROVED        — the teacher accepted the AI plan. The gate is NOT open.
+ * PENDING_TEACHER_APPROVAL — the learner finished session 2 and is waiting at the gate.
+ * APPROVED             — the teacher gate is open (written only by core/teacherGate.ts).
+ */
+export type RouteStatus = 'PENDING' | 'PLAN_APPROVED' | 'APPROVED' | 'PENDING_TEACHER_APPROVAL' | 'SANDBOX' | 'DIAGNOSTIC' | 'ADAPTIVE';
 
 export interface DiagnosticReport {
   studentId: string;
@@ -547,11 +553,16 @@ export const useStore = create<AppState>()(
         return { students };
       }),
 
+      // Local optimistic mirror ONLY — this never writes to Firebase. The
+      // authoritative gate write (Firestore SessionDocument + RTDB transport
+      // mirror) belongs to core/teacherGate.ts, and every caller of this action
+      // performs that write first, then calls this so the dashboard reflects the
+      // decision without waiting on the round trip. It used to also fire
+      // syncApproveRoute(), which re-approved the gate in RTDB with no path and
+      // no Firestore record, so calling it alone was enough to fake an approval.
       approveRoute: (studentId) => set((state) => {
         const student = state.students[studentId];
         if (!student) return state;
-        // Also write to Firebase so the student's device is notified via the onValue listener
-        firebaseSyncService.syncApproveRoute(studentId).catch(console.error);
         return {
           students: {
             ...state.students,

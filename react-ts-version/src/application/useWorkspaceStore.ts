@@ -237,7 +237,6 @@ interface WorkspaceState {
   // Canonical VRA handlers (Module 29 / Appendix A §5)
   transitionTo: (newState: VRAWorkspaceState) => void;
   resetHesitationTimer: () => void;
-  tickHesitationTimer: () => void;
   pushUndoSnapshot: (snapshot: Record<string, unknown>) => void;
   popUndoSnapshot: () => Record<string, unknown> | null;
   lockSocraticCard: (durationMs?: number) => void;
@@ -2278,32 +2277,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       set({ hesitationTimerSeconds: 0, lastInteractionTime: Date.now() });
     },
 
-    // Module 10 (30s) & Module 12 (45s): Pedagogical Hesitation Triggers
-    tickHesitationTimer: () => {
-      set((state) => {
-        const nextSec = state.hesitationTimerSeconds + 1;
-        const authUser = useAuthStore.getState().user;
-        const supportProfile = (authUser as any)?.support_profile_id ?? (state as any).support_profile_id;
-        const hasEnhancedSupport = supportProfile === 'enhanced_cognitive_support';
-        const shouldOpenAddition = nextSec >= 30 && !state.isAdditionHelperOpen && state.sessionNumber !== 2 && state.sessionNumber !== 8 && hasEnhancedSupport;
-
-        // Module 12: Trigger 1 — 45 seconds of hesitation triggers Socratic coach across ALL sessions (except session 2)
-        const currentTask = selectStandardTask(state);
-        const isSandbox = currentTask?.id === 's1_sandbox_controlled' || currentTask?.type === 'session1_intro';
-        if (nextSec >= 45 && state.currentState !== 'SOCRATIC_ACTIVE' && !state.isSocraticCardLocked && state.sessionNumber !== 2 && !isSandbox) {
-          const initialHint = SocraticEngine.getSynchronousTaskHint(currentTask, state.counts);
-          setTimeout(() => {
-            get().fetchSocraticHint();
-            set({ helpState: 'socratic', currentState: 'SOCRATIC_ACTIVE', aiSocraticHint: initialHint });
-          }, 0);
-        }
-        return { 
-          hesitationTimerSeconds: nextSec,
-          hesitationCount: nextSec >= 45 ? state.hesitationCount + 1 : state.hesitationCount,
-          ...(shouldOpenAddition ? { isAdditionHelperOpen: true } : {})
-        };
-      });
-    },
+    // Module 10 (30s) & Module 12 (45s): the pedagogical hesitation hierarchy is
+    // owned by useCognitiveHesitationRadar, which measures real inactivity and
+    // consults src/core/hesitationStages.ts. A `tickHesitationTimer` action
+    // once duplicated both stages here, but nothing ever called it — no
+    // component drove a per-second tick — so the duplicate silently diverged
+    // from the live behaviour while tests kept asserting against it. Do not
+    // reintroduce a second owner of these thresholds.
 
     pushUndoSnapshot: (snapshot: Record<string, unknown>) => {
       set((state) => {

@@ -6,6 +6,7 @@ import { database } from '@/infrastructure/firebase';
 import { ref, set } from 'firebase/database';
 import { emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
 import { getHesitationThresholdSeconds, useHesitationThresholdSeconds } from '@/core/hesitationCalibration';
+import { GRID_STAGE_SECONDS, shouldOpenAdaptiveGrid } from '@/core/hesitationStages';
 
 interface UseCognitiveHesitationRadarProps {
   isActive: boolean;
@@ -14,15 +15,32 @@ interface UseCognitiveHesitationRadarProps {
 
 /**
  * A silent pedagogical radar that tracks time between clicks/interactions.
- * Sends a silent alert to the teacher dashboard if the student 
- * exhibits 45 seconds of continuous cognitive hesitation.
- * Ensures NO visual indication is shown to the student.
+ *
+ * It owns the entire Module 10 / Module 12 hesitation hierarchy, in two stages
+ * measured from the same "last cognitive action" mark:
+ *
+ *   30s — Module 10: the adaptive addition grid opens, but only for learners
+ *         carrying the `enhanced_cognitive_support` profile. Standard learners
+ *         get no visible support at this stage.
+ *   45s (Module 26 calibrated threshold) — Module 12: the silent teacher alert
+ *         is emitted and the Socratic coach is offered.
+ *
+ * Both stages are silent from the learner's perspective until they fire, and
+ * neither is shown as a countdown. This hook is the single owner of the
+ * hierarchy: earlier revisions also carried an ad-hoc 45s timer inside
+ * VerticalAdditionTask (which collapsed both stages onto one deadline and
+ * double-fired the Socratic transition) and a `tickHesitationTimer` store
+ * action that nothing ever called. Both are gone; do not reintroduce a
+ * competing timer.
  */
 export function useCognitiveHesitationRadar({ 
   isActive, 
   onHesitationDetected 
 }: UseCognitiveHesitationRadarProps) {
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Module 10's 30s grid stage runs on its own deadline so that reaching it
+  // never consumes or delays the 45s Socratic stage below.
+  const gridTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Store callback in a ref so changes to it don't reset the timer
   const onHesitationRef = useRef(onHesitationDetected);
   useEffect(() => { onHesitationRef.current = onHesitationDetected; }, [onHesitationDetected]);
@@ -40,9 +58,31 @@ export function useCognitiveHesitationRadar({
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
+    if (gridTimeoutRef.current) {
+      clearTimeout(gridTimeoutRef.current);
+    }
     lastActivityRef.current = Date.now();
     
     if (!isActive) return;
+
+    // Module 10 — stage 1 (30s): open the adaptive addition grid. The rule for
+    // who receives it lives in shouldOpenAdaptiveGrid(); this timer only
+    // decides when to ask.
+    gridTimeoutRef.current = setTimeout(() => {
+      const wsState = useWorkspaceStore.getState();
+      const authUser = useAuthStore.getState().user;
+      const supportProfileId =
+        (authUser as any)?.support_profile_id ?? (wsState as any).support_profile_id;
+      if (
+        shouldOpenAdaptiveGrid({
+          supportProfileId,
+          sessionNumber: wsState.sessionNumber,
+          isAdditionHelperOpen: wsState.isAdditionHelperOpen,
+        })
+      ) {
+        wsState.openAdditionHelper();
+      }
+    }, GRID_STAGE_SECONDS * 1000);
 
     timeoutRef.current = setTimeout(() => {
       // Trigger silent dashboard alert payload
@@ -79,7 +119,15 @@ export function useCognitiveHesitationRadar({
         },
       }).catch(console.error);
 
-      useWorkspaceStore.setState((s: any) => ({ hesitationCount: s.hesitationCount + 1 }));
+      // hesitationTimerSeconds carries the measured duration into the Socratic
+      // prompt's trace summary ("השתהות Ns"). Nothing else advances it — the
+      // store's per-second ticker was dead code — so writing it here is what
+      // keeps that summary from always reading 0s. recordUserInteraction() and
+      // resetHesitationTimer() zero it again on the next cognitive action.
+      useWorkspaceStore.setState((s: any) => ({
+        hesitationCount: s.hesitationCount + 1,
+        hesitationTimerSeconds: measuredSeconds,
+      }));
       set(ref(database, `users/students/${userId}/hesitating`), {
         hesitating: true,
         timestamp: Date.now()
@@ -95,6 +143,9 @@ export function useCognitiveHesitationRadar({
     if (!isActive) {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
+      }
+      if (gridTimeoutRef.current) {
+        clearTimeout(gridTimeoutRef.current);
       }
       return;
     }
@@ -117,6 +168,9 @@ export function useCognitiveHesitationRadar({
     return () => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
+      }
+      if (gridTimeoutRef.current) {
+        clearTimeout(gridTimeoutRef.current);
       }
       events.forEach(event => {
         window.removeEventListener(event, handleActivity, { capture: true });

@@ -27,13 +27,14 @@ describe('Work Package 2 (WP2): Global State Management & Offline Queue Engine',
       expect(useWorkspaceStore.getState().currentState).toBe('COMPLETE');
     });
 
-    it('manages hesitation timer and resets only upon cognitive interaction', () => {
+    it('manages hesitation measurement and resets only upon cognitive interaction', () => {
       const store = useWorkspaceStore.getState();
       expect(store.hesitationTimerSeconds).toBe(0);
 
-      store.tickHesitationTimer();
-      store.tickHesitationTimer();
-      expect(useWorkspaceStore.getState().hesitationTimerSeconds).toBe(2);
+      // useCognitiveHesitationRadar writes the measured duration when a stage
+      // fires; the store's job is to hold it and clear it on real interaction.
+      useWorkspaceStore.setState({ hesitationTimerSeconds: 45 } as any);
+      expect(useWorkspaceStore.getState().hesitationTimerSeconds).toBe(45);
 
       store.resetHesitationTimer();
       expect(useWorkspaceStore.getState().hesitationTimerSeconds).toBe(0);

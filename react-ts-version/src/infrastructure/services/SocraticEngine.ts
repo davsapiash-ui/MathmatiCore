@@ -1620,14 +1620,25 @@ OUTPUT SCHEMA (Return ONLY valid JSON):
     }
     const pendingRef = ref(database, `ai_pending_approvals/${teacherId}/${approvalId}`);
     await remove(pendingRef);
-    const approvalPayload = {
-      routeStatus: "APPROVED",
-      teacher_gate_approved: true,
-      gateApprovedAt: Date.now(),
-    };
-    await update(ref(database, `users/students/${normId}`), approvalPayload).catch(() => {});
+
+    // Approving the AI-generated PLAN is not approving the TEACHER GATE.
+    // This used to raise the gate flag and mark the route approved straight in
+    // RTDB, which opened session 3 without ever touching the
+    // session-2 SessionDocument in Firestore — so the learner passed the gate
+    // with no verified session-2 completion and, worse, with no
+    // teacher_selected_path/pedagogicalPath at all, which left the task engine
+    // falling back to the green_path bank even for learners the router had
+    // routed to remediation. Module 20 makes the Firestore SessionDocument the
+    // sole source of truth, and core/teacherGate.ts its only writer.
+    //
+    // PLAN_APPROVED records exactly what happened here — the teacher reviewed
+    // and accepted the plan — and deliberately matches none of the unlock
+    // checks. The gate is opened separately, with an explicit path, from the
+    // approval-gate surfaces in the dashboard.
+    const planPayload = { routeStatus: 'PLAN_APPROVED', planApprovedAt: Date.now() };
+    await update(ref(database, `users/students/${normId}`), planPayload).catch(() => {});
     if (studentId !== normId) {
-      await update(ref(database, `users/students/${studentId}`), approvalPayload).catch(() => {});
+      await update(ref(database, `users/students/${studentId}`), planPayload).catch(() => {});
     }
   }
 

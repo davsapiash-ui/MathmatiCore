@@ -9,7 +9,6 @@ import {
   CheckCircle2, 
   TrendingUp, 
   ShieldCheck, 
-  Edit3, 
   BrainCircuit, 
   Compass, 
   Layers,
@@ -38,7 +37,6 @@ export function TeacherGateApprovalDrawer({ student, onClose, onApproveSuccess }
   const diagnosticReport = student?.diagnosticReport || sAny.diagnosticReport;
   const initialTasks = diagnosticReport?.tasks || [];
   const [tasks, setTasks] = useState<any[]>(initialTasks);
-  const [isEditingTasks, setIsEditingTasks] = useState(false);
 
   useEffect(() => {
     if (student) {
@@ -245,14 +243,13 @@ export function TeacherGateApprovalDrawer({ student, onClose, onApproveSuccess }
                 <ListTodo className="w-4 h-4 text-indigo-600" />
                 <span>3. מערך תרגילים מוכן למפגש 3 ({tasks.length} תרגילים):</span>
               </label>
-              <button
-                type="button"
-                onClick={() => setIsEditingTasks(!isEditingTasks)}
-                className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 font-bold cursor-pointer"
-              >
-                <Edit3 className="w-3.5 h-3.5" />
-                <span>{isEditingTasks ? 'סיום עריכה' : 'עריכת תרגילים'}</span>
-              </button>
+              {/* An "עריכת תרגילים" toggle used to sit here. It only flipped a
+                  local boolean that nothing read — the task list below stayed
+                  read-only either way — so it promised an editing mode the
+                  drawer does not have. Editing the plan is a real capability,
+                  and it lives in the approvals tab's plan card ("דחייה / עריכה"),
+                  which opens the AI co-pilot editor. This drawer approves the
+                  gate and chooses the path; it does not author tasks. */}
             </div>
 
             {tasks.length > 0 ? (

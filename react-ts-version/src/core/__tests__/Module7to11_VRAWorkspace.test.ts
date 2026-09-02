@@ -1,5 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useWorkspaceStore } from '../../application/useWorkspaceStore';
+import {
+  GRID_STAGE_SECONDS,
+  DEFAULT_SOCRATIC_STAGE_SECONDS,
+  shouldOpenAdaptiveGrid,
+} from '@/core/hesitationStages';
 import { resolveDrop, EMPTY_COUNTS } from '../../core/placeValue';
 import { stateReducer } from '../../machines/vraMachine';
 import { SocraticEngine } from '../../infrastructure/services/SocraticEngine';
@@ -188,51 +193,37 @@ describe('Work Package 3 (WP3): Student Learning Space & VRA Engine Comprehensiv
       expect(useWorkspaceStore.getState().isAdditionHelperOpen).toBe(false);
     });
 
-    it('triggers adaptive addition grid appearance at exactly 30s hesitation strictly for enhanced_cognitive_support profile', () => {
-      const store = useWorkspaceStore.getState();
-      store.initSession(3, false);
-      useWorkspaceStore.setState({ support_profile_id: 'enhanced_cognitive_support' } as any);
-
-      expect(useWorkspaceStore.getState().isAdditionHelperOpen).toBe(false);
-      expect(useWorkspaceStore.getState().hesitationTimerSeconds).toBe(0);
-
-      // Tick hesitation to 29s
-      for (let i = 0; i < 29; i++) {
-        useWorkspaceStore.getState().tickHesitationTimer();
-      }
-      expect(useWorkspaceStore.getState().hesitationTimerSeconds).toBe(29);
-      expect(useWorkspaceStore.getState().isAdditionHelperOpen).toBe(false);
-
-      // Tick 30th second -> triggers addition helper for enhanced profile
-      useWorkspaceStore.getState().tickHesitationTimer();
-      expect(useWorkspaceStore.getState().hesitationTimerSeconds).toBe(30);
-      expect(useWorkspaceStore.getState().isAdditionHelperOpen).toBe(true);
+    it('gates the adaptive addition grid stage on the enhanced_cognitive_support profile', () => {
+      expect(GRID_STAGE_SECONDS).toBe(30);
+      expect(
+        shouldOpenAdaptiveGrid({
+          supportProfileId: 'enhanced_cognitive_support',
+          sessionNumber: 3,
+          isAdditionHelperOpen: false,
+        })
+      ).toBe(true);
+      expect(
+        shouldOpenAdaptiveGrid({
+          supportProfileId: null,
+          sessionNumber: 3,
+          isAdditionHelperOpen: false,
+        })
+      ).toBe(false);
     });
 
-    it('does NOT trigger adaptive addition grid at 30s for standard learners without enhanced support', () => {
-      const store = useWorkspaceStore.getState();
-      store.initSession(1, false);
-      useWorkspaceStore.setState({ support_profile_id: null } as any);
-
-      for (let i = 0; i < 35; i++) {
-        useWorkspaceStore.getState().tickHesitationTimer();
-      }
-      expect(useWorkspaceStore.getState().isAdditionHelperOpen).toBe(false);
+    it('opens the adaptive grid strictly before the Socratic stage', () => {
+      // Module 10's grid is an intermediate step, not a synonym for Module 12's
+      // coach. Collapsing the two onto one deadline is the regression that the
+      // removed VerticalAdditionTask timer used to cause.
+      expect(GRID_STAGE_SECONDS).toBeLessThan(DEFAULT_SOCRATIC_STAGE_SECONDS);
     });
   });
 
   describe('6. Modules 12 & 13: Socratic Mentoring & 60s Penalty Lockout Scope', () => {
-    it('triggers Socratic coach after 45s of hesitation across sessions', () => {
-      const store = useWorkspaceStore.getState();
-      store.initSession(1, false);
-
-      // Fast forward hesitation timer
-      for (let i = 0; i < 45; i++) {
-        useWorkspaceStore.getState().tickHesitationTimer();
-      }
-
-      expect(useWorkspaceStore.getState().hesitationTimerSeconds).toBe(45);
-      expect(useWorkspaceStore.getState().hesitationCount).toBeGreaterThanOrEqual(1);
+    it('keeps the Socratic stage at the PRD default of 45s', () => {
+      // The live deadline is useCognitiveHesitationRadar's, calibrated through
+      // Module 26; this pins the default the calibration falls back to.
+      expect(DEFAULT_SOCRATIC_STAGE_SECONDS).toBe(45);
     });
 
     it('triggers Socratic coach after 4 consecutive errors', () => {
