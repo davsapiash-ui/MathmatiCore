@@ -96,12 +96,18 @@ export interface GeminiReportResponse {
  * The PRD's expected outcome for this module is a PDF produced in under a
  * second, while the same module mandates an AI-authored analysis layer and an
  * explicit timeout fallback. Those two cannot both hold on a cold model call,
- * so the timeout is the knob that decides which one gives: short enough that a
- * stalled engine never holds the teacher's download hostage, long enough that
- * a healthy call normally lands. On expiry the report ships complete with
- * layer 1 and the fixed fallback sentence, exactly as the spec prescribes.
+ * so the timeout is the knob that decides which one gives, and the product
+ * owner resolved it in favour of the analysis: a teacher pulling a summary
+ * report on one learner is not in a hurry, and a report that actually names
+ * the knowledge gaps is worth the wait. On expiry the report still ships
+ * complete with layer 1 and the fixed fallback sentence, exactly as the spec
+ * prescribes.
+ *
+ * This is a per-report ceiling on a single teacher click — reports are
+ * generated one learner at a time (Module 23 §ג), so it never compounds across
+ * a class.
  */
-export const AI_ANALYSIS_TIMEOUT_MS = 8000;
+export const AI_ANALYSIS_TIMEOUT_MS = 10000;
 
 const COLUMN_NAMES_HE = ["אחדות", "עשרות", "מאות", "אלפים"];
 
