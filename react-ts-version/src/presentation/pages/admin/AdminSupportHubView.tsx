@@ -5,7 +5,6 @@ import {
   Search, 
   Filter, 
   CheckCircle2, 
-  Clock, 
   AlertCircle, 
   MessageSquare,
   Building,
@@ -30,9 +29,14 @@ export interface SupportTicket {
   student_id?: string; // Strictly 1-12 or student_X
   teacher_id: string; // Anonymous teacher ID (e.g., teacher_01)
   subject: string;
-  category: 'PEDAGOGICAL' | 'TECHNICAL' | 'ACCOMMODATION_ASD' | 'GENERAL';
-  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
-  status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED';
+  /**
+   * Module 28 asks for a clean, chronological table of teacher inquiries — no
+   * categories, no priorities, no triage workflow. The status here is not a
+   * free field either: firestore.rules lets a reader change exactly one key on
+   * a message (`read`), which is also what drives the module's silent badge.
+   * So the only two states that can be represented truthfully are these.
+   */
+  status: 'OPEN' | 'RESOLVED';
   description: string;
   created_at: number;
   updated_at: number;
@@ -43,23 +47,8 @@ export interface SupportTicket {
   }>;
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  PEDAGOGICAL: 'פדגוגיה והתאמת מסלול',
-  TECHNICAL: 'טכני / חוסן סנכרון',
-  ACCOMMODATION_ASD: 'התאמות UDL / נגישות',
-  GENERAL: 'כללי ובירורים',
-};
-
-const PRIORITY_COLORS: Record<string, string> = {
-  LOW: 'bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-300',
-  MEDIUM: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300',
-  HIGH: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300',
-  URGENT: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300',
-};
-
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
   OPEN: { label: 'פתוחה', color: 'text-amber-600 bg-amber-50 dark:bg-amber-950/30 border-amber-200', icon: AlertCircle },
-  IN_PROGRESS: { label: 'בטיפול', color: 'text-blue-600 bg-blue-50 dark:bg-blue-950/30 border-blue-200', icon: Clock },
   RESOLVED: { label: 'נפתרה', color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200', icon: CheckCircle2 },
 };
 
@@ -74,7 +63,6 @@ export function AdminSupportHubView() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSchool, setSelectedSchool] = useState<string>('ALL');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
-  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
 
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
 
@@ -106,8 +94,6 @@ export function AdminSupportHubView() {
             // derived from the teacher's institutional email address.
             teacher_id: teacherLabels.get(m.sender_id) || 'מורה',
             subject: body.length > 60 ? `${body.slice(0, 60)}…` : body || 'פנייה ללא תוכן',
-            category: 'GENERAL' as const,
-            priority: 'MEDIUM' as const,
             status: m.read ? ('RESOLVED' as const) : ('OPEN' as const),
             description: body,
             created_at: Number(m.timestamp) || 0,
@@ -133,16 +119,14 @@ export function AdminSupportHubView() {
       
       const matchesSchool = selectedSchool === 'ALL' || t.school_id === selectedSchool;
       const matchesStatus = selectedStatus === 'ALL' || t.status === selectedStatus;
-      const matchesCategory = selectedCategory === 'ALL' || t.category === selectedCategory;
-
-      return matchesSearch && matchesSchool && matchesStatus && matchesCategory;
+      return matchesSearch && matchesSchool && matchesStatus;
     });
-  }, [tickets, searchQuery, selectedSchool, selectedStatus, selectedCategory]);
+  }, [tickets, searchQuery, selectedSchool, selectedStatus]);
 
   // `read` is the only field firestore.rules lets a reader update on a message
   // (messages/{id}: affectedKeys().hasOnly(['read'])), and it is what drives
   // Module 28's silent badge indicator — so "handled" maps onto it directly.
-  const handleUpdateStatus = async (ticketId: string, nextStatus: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED') => {
+  const handleUpdateStatus = async (ticketId: string, nextStatus: 'OPEN' | 'RESOLVED') => {
     try {
       await updateDoc(doc(db, 'messages', ticketId), {
         read: nextStatus !== 'OPEN',
@@ -201,22 +185,15 @@ export function AdminSupportHubView() {
           >
             <option value="ALL">כל הסטטוסים</option>
             <option value="OPEN">פתוחה</option>
-            <option value="IN_PROGRESS">בטיפול</option>
             <option value="RESOLVED">נפתרה</option>
           </select>
 
-          {/* Category Filter */}
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold"
-          >
-            <option value="ALL">כל הקטגוריות</option>
-            <option value="PEDAGOGICAL">פדגוגיה</option>
-            <option value="ACCOMMODATION_ASD">התאמות UDL</option>
-            <option value="TECHNICAL">טכני</option>
-            <option value="GENERAL">כללי</option>
-          </select>
+          {/* A category filter stood here with four options. Teacher inquiries
+              arrive through Module 22's chat and carry no category at all, so
+              every ticket was stamped 'GENERAL' on arrival and three of the four
+              options could never match a single row. Module 28 asks for the
+              table to be organised by school and class, which is what the
+              remaining filters do. */}
         </div>
       </div>
 
@@ -250,14 +227,6 @@ export function AdminSupportHubView() {
                       <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border flex items-center gap-1 ${statusCfg.color}`}>
                         <StatusIcon className="w-3 h-3" />
                         <span>{statusCfg.label}</span>
-                      </span>
-
-                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${PRIORITY_COLORS[ticket.priority]}`}>
-                        עדיפות {ticket.priority}
-                      </span>
-
-                      <span className="text-xs font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-lg">
-                        {CATEGORY_LABELS[ticket.category] || ticket.category}
                       </span>
 
                       {ticket.student_id && (
@@ -310,12 +279,6 @@ export function AdminSupportHubView() {
                     פרטי קריאה
                   </h2>
                   <div className="flex gap-1.5">
-                    <button
-                      onClick={() => handleUpdateStatus(selectedTicket.id, 'IN_PROGRESS')}
-                      className="px-2.5 py-1 text-xs font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg cursor-pointer transition-all"
-                    >
-                      בטיפול
-                    </button>
                     <button
                       onClick={() => handleUpdateStatus(selectedTicket.id, 'RESOLVED')}
                       className="px-2.5 py-1 text-xs font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg cursor-pointer transition-all"
