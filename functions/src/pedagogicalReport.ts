@@ -4,6 +4,13 @@ import * as admin from "firebase-admin";
 import * as path from "path";
 import * as fs from "fs";
 import { uploadBufferToDrive } from "./exportDriveReport";
+import { GEMINI_SECRETS } from "./geminiConfig";
+import {
+  buildFailedExercises,
+  buildTelemetrySummary,
+  generateReportAnalysis,
+  resolveRecommendationTier,
+} from "./reportAnalysis";
 const PDFDocument = require("pdfkit");
 const bidiFactory = require("bidi-js");
 const bidi = bidiFactory();
@@ -55,8 +62,21 @@ export const EXACT_AI_FALLBACK_TEXT = "הניתוח הפדגוגי המפורט 
 const COLUMN_NAMES_HE = ["אחדות", "עשרות", "מאות", "אלפים"];
 
 /**
- * Generates deterministic, chronological Exercise Narratives for compulsory exercises (Module 23).
- * Constructed from telemetry events without invoking the AI engine.
+ * Module 23 — the opening chapter of the report: the Exercise Narrative.
+ *
+ * Written server-side from the telemetry sequence using fixed phrasing
+ * templates, never by the AI engine, and it precedes the engine's analysis so
+ * the teacher reads it as context for that analysis.
+ *
+ * The spec is explicit that each paragraph names concrete numbers and columns
+ * and NOT aggregate measures alone, and that it weaves in, in the order they
+ * actually occurred: the canvas representation, regrouping or decomposition,
+ * digits entered in the memory circles and the result row, deletions, undos,
+ * prolonged hesitations, and the appearance of a Socratic card. An earlier
+ * revision emitted one fixed sentence per exercise with counters plugged into
+ * it ("performed 12 drags, entered 4 digits, used 2 undos"), which is exactly
+ * the aggregate-only form the spec rules out, and it dropped deletions,
+ * hesitations and Socratic cards entirely.
  */
 function generateExerciseNarrativeFromEvents(telemetryDocs: Record<string, any>[]): string[] {
   const narratives: string[] = [];
@@ -70,38 +90,112 @@ function generateExerciseNarrativeFromEvents(telemetryDocs: Record<string, any>[
     exerciseMap[exId].push(doc);
   }
 
+  const ORDINALS_HE = [
+    "הראשון", "השני", "השלישי", "הרביעי", "החמישי", "השישי", "השביעי",
+    "השמיני", "התשיעי", "העשירי",
+  ];
+  const colName = (idx: number | null | undefined) =>
+    typeof idx === "number" && COLUMN_NAMES_HE[idx] ? COLUMN_NAMES_HE[idx] : null;
+
   let exerciseIdx = 1;
   for (const [exId, events] of Object.entries(exerciseMap)) {
-    let regroupCount = 0;
-    let regroupCols: number[] = [];
-    let dragCount = 0;
-    let digitsEntered = 0;
-    let undoCount = 0;
+    // Each clause is emitted only if that thing actually happened, in the order
+    // it happened, so the paragraph reads as this learner's actual run rather
+    // than a fixed sentence with counters plugged into it.
+    const clauses: string[] = [];
+    let representedColumns: number[] = [];
+    let pendingDigits: { col: number | null; wrong: number }[] = [];
     let firstAttemptCorrect = true;
+    let completed = false;
+
+    const flushDigits = () => {
+      if (pendingDigits.length === 0) return;
+      const wrong = pendingDigits.filter((d) => d.wrong > 0);
+      const cols = Array.from(
+        new Set(pendingDigits.map((d) => colName(d.col)).filter(Boolean))
+      ) as string[];
+      const where = cols.length > 0 ? ` בטור ה${cols.join(" ובטור ה")}` : "";
+      if (wrong.length > 0) {
+        clauses.push(`הזין ספרות שגויות${where} (${wrong.length} פעמים)`);
+      } else {
+        clauses.push(`הזין את הספרות${where}`);
+      }
+      pendingDigits = [];
+    };
 
     for (const ev of events) {
-      if (ev.event_type === 'BLOCK_DRAG_COMPLETE') dragCount++;
-      if (ev.event_type === 'REGROUPING_SUCCESS') {
-        regroupCount++;
-        if (ev.column_index !== undefined && ev.column_index !== null) {
-          regroupCols.push(ev.column_index);
+      const col = typeof ev.column_index === "number" ? ev.column_index : null;
+      switch (ev.event_type) {
+        case "BLOCK_DRAG_COMPLETE": {
+          const value = ev.details?.block_value;
+          if (typeof value === "number") representedColumns.push(value);
+          break;
         }
-      }
-      if (ev.event_type === 'DIGIT_ENTERED') {
-        digitsEntered++;
-        if (ev.details?.is_correct === false) {
-          firstAttemptCorrect = false;
+        case "REGROUPING_SUCCESS": {
+          flushDigits();
+          const type = ev.details?.regrouping_type;
+          const verb = type === "decomposition" ? "ביצע פריטה" : "ביצע הקבצה";
+          const where = colName(col);
+          clauses.push(where ? `${verb} מטור ה${where}` : verb);
+          break;
         }
+        case "DIGIT_ENTERED": {
+          const isCorrect = ev.details?.is_correct;
+          if (isCorrect === false) firstAttemptCorrect = false;
+          pendingDigits.push({ col, wrong: isCorrect === false ? 1 : 0 });
+          break;
+        }
+        case "DIGIT_DELETED": {
+          flushDigits();
+          const where = colName(col);
+          clauses.push(where ? `מחק את הספרה בטור ה${where}` : "מחק ספרה");
+          break;
+        }
+        case "UNDO_EXECUTED": {
+          flushDigits();
+          clauses.push("ביטל את הפעולה האחרונה");
+          break;
+        }
+        case "HESITATION_DETECTED": {
+          flushDigits();
+          const seconds = ev.details?.hesitation_seconds;
+          clauses.push(
+            typeof seconds === "number" ? `השתהה ${Math.round(seconds)} שניות` : "השתהה זמן ממושך"
+          );
+          break;
+        }
+        case "SOCRATIC_CARD_SHOWN": {
+          flushDigits();
+          clauses.push("קיבל כרטיס חניכה");
+          break;
+        }
+        case "PROBLEM_COMPLETE": {
+          flushDigits();
+          completed = true;
+          break;
+        }
+        default:
+          break;
       }
-      if (ev.event_type === 'UNDO_EXECUTED') undoCount++;
+    }
+    flushDigits();
+
+    // The canvas representation opens the paragraph, naming the actual block
+    // values dragged rather than a drag tally.
+    if (representedColumns.length > 0) {
+      const distinct = Array.from(new Set(representedColumns)).sort((a, b) => b - a);
+      clauses.unshift(`ייצג את המספרים בקנבס באמצעות בלוקים של ${distinct.join(", ")}`);
     }
 
-    const colText = regroupCols.length > 0
-      ? `בטור ה${COLUMN_NAMES_HE[regroupCols[0]] || 'עשרות'}`
-      : 'ללא צורך בפריטה מורכבת';
+    const ordinal = ORDINALS_HE[exerciseIdx - 1] || `ה-${exerciseIdx}`;
+    const ending = completed
+      ? firstAttemptCorrect
+        ? "והשלים את התרגיל בניסיון הראשון"
+        : "והשלים את התרגיל לאחר תיקון"
+      : "ולא השלים את התרגיל";
 
-    const narrative = `משימת חובה ${exerciseIdx} (${exId}): הלומד ביצע ${dragCount} גרירות בלוקים, ${regroupCount > 0 ? `ביצע המרה עשרונית ${colText}` : 'שמר על המבנה העשרוני'}, הזין ${digitsEntered} ספרות ללוח והפעיל ${undoCount} פעולות ביטול (Undo) לבקרה עצמית. התרגיל הושלם ${firstAttemptCorrect ? 'בהצלחה בניסיון הראשון' : 'לאחר בקרה ותיקון שגיאה'}.`;
-    narratives.push(narrative);
+    const body = clauses.length > 0 ? clauses.join(", ") + ", " : "";
+    narratives.push(`בתרגיל ${ordinal} (${exId}) הלומד ${body}${ending}.`);
     exerciseIdx++;
   }
 
@@ -173,10 +267,36 @@ export function createPedagogicalReportPdfBuffer(report: Record<string, any>): P
       }
       doc.moveDown(1);
 
-      // AI Insights / Exact Fallback
+      // AI Insights (Module 23 layer 2) / Exact Fallback
       doc.fontSize(14).fillColor("#92400e").text(shapeRtl("3. תובנות קוגניטיביות פדגוגיות"), { align: "right" });
       doc.moveDown(0.3);
-      doc.fontSize(10).fillColor("#78350f").text(wrapAndBidi(report.ai_fallback_text || EXACT_AI_FALLBACK_TEXT, 75), { align: "right", lineGap: 3 });
+      const gaps: string[] = Array.isArray(report.knowledge_gaps) ? report.knowledge_gaps : [];
+      const teaching: string[] = Array.isArray(report.teaching_recommendations)
+        ? report.teaching_recommendations
+        : [];
+
+      if (gaps.length > 0 || teaching.length > 0) {
+        if (gaps.length > 0) {
+          doc.fontSize(11).fillColor("#92400e").text(shapeRtl("פערי ידע שאותרו:"), { align: "right" });
+          doc.moveDown(0.2);
+          for (const gap of gaps) {
+            doc.fontSize(10).fillColor("#78350f").text(wrapAndBidi(`* ${gap}`, 75), { align: "right", lineGap: 3 });
+            doc.moveDown(0.2);
+          }
+          doc.moveDown(0.4);
+        }
+        if (teaching.length > 0) {
+          doc.fontSize(11).fillColor("#92400e").text(shapeRtl("המלצות הוראה להמשך העבודה בכיתה:"), { align: "right" });
+          doc.moveDown(0.2);
+          for (const rec of teaching) {
+            doc.fontSize(10).fillColor("#78350f").text(wrapAndBidi(`* ${rec}`, 75), { align: "right", lineGap: 3 });
+            doc.moveDown(0.2);
+          }
+        }
+      } else {
+        // The PRD fixes this sentence verbatim for the engine-unavailable case.
+        doc.fontSize(10).fillColor("#78350f").text(wrapAndBidi(report.ai_fallback_text || EXACT_AI_FALLBACK_TEXT, 75), { align: "right", lineGap: 3 });
+      }
       doc.moveDown(1.5);
 
       // Footer
@@ -196,7 +316,7 @@ export function createPedagogicalReportPdfBuffer(report: Record<string, any>): P
  * Computes metrics, builds deterministic Exercise Narratives, renders an authoritative
  * binary PDF, stores it in Cloud Storage, and returns signed download link + structured data.
  */
-export const generatePedagogicalReportPDF = onCall(async (request) => {
+export const generatePedagogicalReportPDF = onCall(GEMINI_SECRETS, async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "User must be authenticated.");
   }
@@ -288,6 +408,85 @@ export const generatePedagogicalReportPDF = onCall(async (request) => {
     recommendationDetailsHe = 'המלצה ללמידה שיתופית ושיח עמיתים הטרוגני בשילוב חשבונייה לחיזוק הגמישות בהמרות וחקר משותף.';
   }
 
+  // ---- Module 23 layer 2: the AI-authored verbal analysis. ----
+  // Layer 1 (routingGroup / routingLabelHe / recommendationDetailsHe above) is
+  // already decided and is never revisited here; the tier is passed to the
+  // engine only as a constraint it may not contradict. A null result — engine
+  // unavailable, timed out, or malformed — leaves ai_analysis absent and the
+  // renderer falls back to the exact sentence the PRD fixes. Report generation
+  // never fails because of the engine.
+  const recommendationTier = resolveRecommendationTier(score);
+
+  // Exercises the learner actually erred on, and the columns those errors fell
+  // in, taken from the telemetry rather than assumed from the score.
+  const failedExerciseIds: string[] = [];
+  const regroupingColumnsByExercise: Record<string, number[]> = {};
+  for (const doc of telemetryDocs) {
+    const exId = String((doc as any).exercise_id || "");
+    if (!exId) continue;
+    const isWrongDigit =
+      (doc as any).event_type === "DIGIT_ENTERED" &&
+      (doc as any).details?.is_correct === false;
+    if (isWrongDigit && !failedExerciseIds.includes(exId)) failedExerciseIds.push(exId);
+    if (
+      (doc as any).event_type === "REGROUPING_SUCCESS" ||
+      (doc as any).event_type === "REGROUPING_TRIGGERED"
+    ) {
+      const col = (doc as any).column_index;
+      if (typeof col === "number") {
+        const cols = regroupingColumnsByExercise[exId] || [];
+        if (!cols.includes(col)) cols.push(col);
+        regroupingColumnsByExercise[exId] = cols;
+      }
+    }
+  }
+
+  // Module 26 keeps the canonical task banks in Firestore; read the bank that
+  // matches this learner's approved path so the failed exercises carry their
+  // real operands and labels. Absent bank is not an error — buildFailedExercises
+  // then describes only what the telemetry proves.
+  const analysisPath: "green_path" | "remediation_path" | null =
+    sessionData.teacher_selected_path === "green_path" ||
+    sessionData.teacher_selected_path === "remediation_path"
+      ? sessionData.teacher_selected_path
+      : sessionData.matrix_recommended_path === "remediation_path"
+      ? "remediation_path"
+      : null;
+
+  let catalogTasks: Record<string, any>[] = [];
+  try {
+    const bankId =
+      resolvedSessionNumber >= 3 && resolvedSessionNumber <= 7 && analysisPath
+        ? `session_${resolvedSessionNumber}_${analysisPath}`
+        : `session_${resolvedSessionNumber}`;
+    const bankDoc = await db.collection("curriculum_catalog").doc(bankId).get();
+    if (bankDoc.exists) {
+      const tasks = (bankDoc.data() || {}).tasks;
+      if (Array.isArray(tasks)) catalogTasks = tasks;
+    }
+  } catch (err) {
+    logger.warn("[Module23] Curriculum catalog unavailable for report analysis.", {
+      session_id: sessionId,
+      error: String(err),
+    });
+  }
+
+  const aiAnalysis = await generateReportAnalysis({
+    student_id: clampedStudentNum,
+    session_id: sessionId,
+    session_number: resolvedSessionNumber,
+    session_score_percent: score,
+    recommendation_tier: recommendationTier,
+    failed_exercises: buildFailedExercises(
+      failedExerciseIds,
+      regroupingColumnsByExercise,
+      catalogTasks,
+      resolvedSessionNumber,
+      analysisPath
+    ),
+    telemetry_summary: buildTelemetrySummary(telemetryDocs),
+  });
+
   // Assemble pedagogical report data payload
   const report = {
     report_id: `rep_${sessionId}`,
@@ -306,6 +505,10 @@ export const generatePedagogicalReportPDF = onCall(async (request) => {
     support_profile_id: studentData?.support_profile_id || "default",
     support_profile_version: studentData?.support_profile_version || 1,
     exercise_narratives: exerciseNarratives,
+    recommendation_tier: recommendationTier,
+    knowledge_gaps: aiAnalysis?.knowledge_gaps || [],
+    teaching_recommendations: aiAnalysis?.teaching_recommendations || [],
+    ai_analysis_available: Boolean(aiAnalysis),
     ai_fallback_text: EXACT_AI_FALLBACK_TEXT,
     summary_text_he: `דוח פדגוגי מסכם למפגש ${resolvedSessionNumber}. ציון שליטה: ${score}%. מסלול מומלץ: ${score >= 50 ? 'העמקה (ירוק)' : 'ביסוס ומענה מותאם (צהוב - remediation_path)'}.`
   };
