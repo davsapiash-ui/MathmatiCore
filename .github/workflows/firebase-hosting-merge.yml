@@ -48,7 +48,27 @@ jobs:
       - name: Deploy to Firebase Hosting
         run: npx --yes firebase-tools@13 deploy --only hosting --project mathimaticore --non-interactive
 
-      - name: Deploy Firebase Rules & Functions
-        continue-on-error: true
-        run: npx --yes firebase-tools@13 deploy --only firestore:rules,database,storage,functions --project mathimaticore --non-interactive
+      # No continue-on-error here. This step had been failing in ~3 seconds on
+      # every merge for months — "Missing permissions required for functions
+      # deploy… iam.serviceAccounts.ActAs" — while the workflow still reported
+      # success, so no Cloud Function or security rule ever reached production
+      # and nothing surfaced it. A failed backend deploy must fail the run.
+      # Split per target so one blocked surface no longer takes the others down
+      # with it. The combined command aborted on its first failing target, so a
+      # single missing permission kept every rule set and every function on the
+      # ground. The database target is last on purpose: the deploy account can
+      # now act as the functions runtime account, but still cannot read the
+      # RTDB instance, so everything above it goes live while that one fails
+      # loudly until the account is granted Firebase Realtime Database Admin.
+      - name: Deploy Firestore rules
+        run: npx --yes firebase-tools@13 deploy --only firestore:rules --project mathimaticore --non-interactive
+
+      - name: Deploy Storage rules
+        run: npx --yes firebase-tools@13 deploy --only storage --project mathimaticore --non-interactive
+
+      - name: Deploy Cloud Functions
+        run: npx --yes firebase-tools@13 deploy --only functions --project mathimaticore --non-interactive
+
+      - name: Deploy Realtime Database rules
+        run: npx --yes firebase-tools@13 deploy --only database --project mathimaticore --non-interactive
 
