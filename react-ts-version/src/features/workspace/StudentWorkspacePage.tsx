@@ -1009,11 +1009,21 @@ export function StudentWorkspacePage() {
       dir="rtl"
       className="h-[100dvh] w-full overflow-hidden font-body text-ws-ink flex flex-col relative bg-ws-bg"
     >
-      {/* Flat vector background shapes — playful world energy, zero visual noise */}
-        <div aria-hidden="true" className="absolute inset-0 pointer-events-none overflow-hidden animate-breathe">
-          <div className="absolute -top-24 -left-24 w-[420px] h-[420px] rounded-full bg-indigo-500/5 mix-blend-multiply dark:mix-blend-screen" />
-          <div className="absolute -bottom-32 -right-20 w-[380px] h-[380px] rounded-full bg-teal-500/5 mix-blend-multiply dark:mix-blend-screen" />
-          <div className="absolute top-[30%] right-[42%] w-16 h-16 rounded-2xl rotate-12 bg-blue-500/5 mix-blend-multiply dark:mix-blend-screen" />
+      {/* Flat vector background shapes — playful world energy, zero visual noise.
+            These were animated (animate-breathe) AND blended (mix-blend-multiply).
+            A continuous transform animation on this full-viewport layer forced the
+            compositor to repaint the whole region every frame, and the blend mode
+            made that repaint uncacheable — together they roughly halved the frame
+            rate (measured 60fps -> ~30fps, 2 -> 60+ janky frames per 180). On a
+            laptop that surfaced as the drag "not lifting", the flicker on pickup,
+            and the cursor lagging from arrow to grab. The shapes are decorative at
+            5% opacity, so they stay exactly as they look — just static and
+            unblended, which restores a smooth 60fps and makes block dragging
+            responsive again. */}
+        <div aria-hidden="true" className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute -top-24 -left-24 w-[420px] h-[420px] rounded-full bg-indigo-500/5" />
+          <div className="absolute -bottom-32 -right-20 w-[380px] h-[380px] rounded-full bg-teal-500/5" />
+          <div className="absolute top-[30%] right-[42%] w-16 h-16 rounded-2xl rotate-12 bg-blue-500/5" />
         </div>
 
         <WorkspaceTopbar isDragging={activeDrag !== null} />
