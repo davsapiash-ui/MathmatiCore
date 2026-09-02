@@ -20,14 +20,17 @@ describe('Work Package 5 (WP5): Teacher Dashboard, Silent Radar Matrix, Gate App
         anonymousLabel: 'תלמיד 5',
         path: 'remediation_path',
         scaffoldLevel: 0,
-        forceAdditionHelper: true,
-        hesitationThresholdSeconds: 25,
         applyAtTaskBoundaryOnly: true,
       };
 
       expect(adaptation.applyAtTaskBoundaryOnly).toBe(true);
       expect(adaptation.path).toBe('remediation_path');
       expect(adaptation.scaffoldLevel).toBe(0);
+      // Module 10 forbids a manual teacher toggle for the adaptive grid, and
+      // Module 26 owns the one calibrated hesitation value for the cohort, so
+      // neither belongs on a per-learner adaptation.
+      expect('forceAdditionHelper' in adaptation).toBe(false);
+      expect('hesitationThresholdSeconds' in adaptation).toBe(false);
     });
 
     it('proves that canonical support profile document matches Firestore rules allowlist keys', () => {

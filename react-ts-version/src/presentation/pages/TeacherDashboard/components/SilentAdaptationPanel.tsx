@@ -6,8 +6,10 @@ export interface AdaptationSettings {
   anonymousLabel: string;
   path: 'green_path' | 'remediation_path';
   scaffoldLevel: 0 | 1 | 2; // 0: full, 1: mid, 2: low
-  forceAdditionHelper: boolean;
-  hesitationThresholdSeconds: number; // default 30
+  // No forceAdditionHelper and no per-learner hesitation threshold: Module 10
+  // forbids a manual teacher toggle for the adaptive grid, and Module 26 owns
+  // the single calibrated hesitation value for the whole cohort. Both fields
+  // were also inert — the learner's workspace reads neither.
   applyAtTaskBoundaryOnly: boolean; // MUST be true per PRD Module 19
   queuedChangesPending?: boolean;
 }
@@ -123,30 +125,6 @@ export function SilentAdaptationPanel({
             <option value={1}>רמה 1 — פיגום בינוני (תוויות בלבד, ללא רשת מקדימה)</option>
             <option value={2}>רמה 2 — חקר עצמאי מלא (ללא עזרים ראשוניים)</option>
           </select>
-        </div>
-
-        {/* Hesitation Threshold */}
-        <div className="flex flex-col gap-2">
-          <div className="flex justify-between items-center text-xs">
-            <span className="font-black text-slate-700 dark:text-slate-300">סף זיהוי היסוס (שניות):</span>
-            <span className="font-extrabold text-indigo-600 dark:text-indigo-400">
-              {currentSettings.hesitationThresholdSeconds} שנ׳
-            </span>
-          </div>
-          <input
-            type="range"
-            min={15}
-            max={60}
-            step={5}
-            value={currentSettings.hesitationThresholdSeconds}
-            onChange={(e) =>
-              setCurrentSettings((s) => ({
-                ...s,
-                hesitationThresholdSeconds: parseInt(e.target.value, 10),
-              }))
-            }
-            className="w-full accent-indigo-600 cursor-pointer"
-          />
         </div>
 
         {/* Submit */}

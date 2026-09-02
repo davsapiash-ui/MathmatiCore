@@ -29,7 +29,7 @@ interface Props {
 }
 
 export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat }: Props) {
-  const [activeTab, setActiveTab] = useState<'scaffolding' | 'accessibility' | 'hesitation' | 'replay'>('scaffolding');
+  const [activeTab, setActiveTab] = useState<'scaffolding' | 'accessibility' | 'replay'>('scaffolding');
   const [isResetting, setIsResetting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
@@ -39,23 +39,15 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat }
   const [scaffoldLevel, setScaffoldLevel] = useState<0 | 1 | 2>(
     (sAny.scaffoldLevel ?? 0) as 0 | 1 | 2
   );
-  const [forceAdditionHelper, setForceAdditionHelper] = useState<boolean>(
-    Boolean(sAny.forceAdditionHelper)
-  );
   const [isASD, setIsASD] = useState<boolean>(
     Boolean(student?.isASD || sAny.isASD)
-  );
-  const [hesitationThresholdSeconds, setHesitationThresholdSeconds] = useState<number>(
-    sAny.hesitationThresholdSeconds || 30
   );
 
   useEffect(() => {
     if (student) {
       const s = student as any;
       setScaffoldLevel((s.scaffoldLevel ?? 0) as 0 | 1 | 2);
-      setForceAdditionHelper(Boolean(s.forceAdditionHelper));
       setIsASD(Boolean(student.isASD || s.isASD));
-      setHesitationThresholdSeconds(s.hesitationThresholdSeconds || 30);
     }
   }, [student]);
 
@@ -80,9 +72,7 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat }
       const rawNum = student.studentId.replace(/\D/g, '');
       const updatePayload = {
         scaffoldLevel,
-        forceAdditionHelper,
         isASD,
-        hesitationThresholdSeconds,
         applyAtTaskBoundaryOnly: true,
         adaptationQueuedAt: Date.now(),
         overrideUpdatedAt: Date.now(),
@@ -230,7 +220,6 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat }
           {[
             { id: 'scaffolding', label: 'רמת עזרה ופיגום', icon: Layers },
             { id: 'accessibility', label: 'שקט חזותי ונגישות', icon: EyeOff },
-            { id: 'hesitation', label: 'סף זמן לרמז', icon: Clock },
             { id: 'replay', label: 'שחזור מהלכים', icon: Video },
           ].map((tab) => {
             const Icon = tab.icon;
@@ -320,25 +309,14 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat }
                   })}
                 </div>
 
-                {/* Additional Helpers */}
-                <div className="pt-3 border-t border-slate-200 dark:border-slate-700">
-                  <label className="flex items-center justify-between p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer">
-                    <div>
-                      <span className="font-bold text-xs text-slate-800 dark:text-slate-200 block">
-                        הפעלת עזר חיבור מתמטי (Addition Helper)
-                      </span>
-                      <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                        מציג לתלמיד כפתור עזר המציג פירוק כמותי בעת חיבור מאות ועשרות.
-                      </span>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={forceAdditionHelper}
-                      onChange={(e) => setForceAdditionHelper(e.target.checked)}
-                      className="w-5 h-5 text-indigo-600 rounded-md focus:ring-indigo-500 cursor-pointer"
-                    />
-                  </label>
-                </div>
+                {/* Module 10 forbids a manual teacher toggle for the adaptive
+                    addition grid: "אין למורה אפשרות לפתוח את הלוח באופן ידני
+                    במהלך שיעור פעיל". The grid loads strictly for learners whose
+                    support_profile_id is 'enhanced_cognitive_support', and opens
+                    on the 30s hesitation stage alone. A switch here also never
+                    worked — StudentWorkspacePage gates rendering on the support
+                    profile and never reads the flag this wrote — so it promised
+                    the teacher a control the learner's screen ignored. */}
               </div>
             </div>
           )}
@@ -377,48 +355,16 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat }
             </div>
           )}
 
-          {/* TAB 3: HESITATION THRESHOLD */}
-          {activeTab === 'hesitation' && (
-            <div className="space-y-6 animate-in fade-in duration-200">
-              <div className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-4">
-                <div>
-                  <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-amber-600" />
-                    סף זמן היסוס לתמיכה סוקרטית
-                  </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                    קביעת משך הזמן ללא פעילות שהמערכת תמתין לפני שתציע לתלמיד רמז מכוון.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { sec: 15, label: '15 שניות', desc: 'תמיכה מהירה (לתלמיד חסר ביטחון)' },
-                    { sec: 30, label: '30 שניות', desc: 'מאוזן (ברירת מחדל פדגוגית)' },
-                    { sec: 60, label: '60 שניות', desc: 'מרחב חשיבה ארוך (לתלמיד עצמאי)' },
-                  ].map((item) => {
-                    const isSelected = hesitationThresholdSeconds === item.sec;
-                    return (
-                      <button
-                        key={item.sec}
-                        type="button"
-                        onClick={() => setHesitationThresholdSeconds(item.sec)}
-                        className={`p-3.5 rounded-xl border-2 text-center transition-all cursor-pointer ${
-                          isSelected
-                            ? 'border-amber-600 bg-amber-50/60 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 font-bold shadow-sm'
-                            : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300'
-                        }`}
-                      >
-                        <span className="block text-sm font-black mb-1">{item.label}</span>
-                        <span className="text-[11px] text-slate-500 dark:text-slate-400 block leading-tight">{item.desc}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
-
+          {/* A per-learner "hesitation threshold" tab stood here, offering 15 /
+              30 / 60 seconds. The learner never saw any of it: the radar hook
+              and the dashboard's radar colouring both read the single
+              admin-calibrated value from Module 26
+              (getHesitationThresholdSeconds), so the choice was written to the
+              student record and then ignored by everything that matters. The
+              spec has no per-learner threshold either — Module 10 fixes the
+              stages at 30s and 45s, and Module 26 owns the one calibratable
+              value, for the whole cohort. Calibration lives in the admin
+              catalog screen. */}
           {/* TAB 4: REPLAY & TRACES */}
           {activeTab === 'replay' && (
             <div className="space-y-6 animate-in fade-in duration-200">
