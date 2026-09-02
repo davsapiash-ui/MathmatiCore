@@ -338,8 +338,6 @@ export function StudentSideDrawer({ student, onClose, isPendingApproval, onAppro
                   anonymousLabel: `תלמיד ${student.studentId.replace(/\D/g, '') || ''}`,
                   path: (sAny.pedagogicalPath === 'remediation_path' || sAny.currentPath === 'צמצום פערים') ? 'remediation_path' : 'green_path',
                   scaffoldLevel: (sAny.scaffoldLevel ?? 0) as 0 | 1 | 2,
-                  forceAdditionHelper: Boolean(sAny.forceAdditionHelper),
-                  hesitationThresholdSeconds: sAny.hesitationThresholdSeconds || 30,
                   applyAtTaskBoundaryOnly: true,
                 }}
                 onApplyAdaptation={async (settings: AdaptationSettings) => {
@@ -349,7 +347,7 @@ export function StudentSideDrawer({ student, onClose, isPendingApproval, onAppro
                   // profile change must be held as a Pending Adaptation and applied
                   // only at the next exercise transition — never live-pushed onto
                   // the student's active fields, which is what writing straight to
-                  // pedagogicalPath/scaffoldLevel/forceAdditionHelper here used to
+                  // pedagogicalPath and scaffoldLevel here used to
                   // do (the workspace's own RTDB listener mirrors those fields into
                   // live state the instant they change). The student side applies
                   // this queued object in useWorkspaceStore's startTask(), the one
@@ -358,8 +356,6 @@ export function StudentSideDrawer({ student, onClose, isPendingApproval, onAppro
                     pedagogicalPath: settings.path,
                     currentPath: settings.path === 'green_path' ? 'ירוק' : 'צמצום פערים',
                     scaffoldLevel: settings.scaffoldLevel,
-                    forceAdditionHelper: settings.forceAdditionHelper,
-                    hesitationThresholdSeconds: settings.hesitationThresholdSeconds,
                     queuedAt: Date.now(),
                   };
                   const updatePayload = { pendingAdaptation };
