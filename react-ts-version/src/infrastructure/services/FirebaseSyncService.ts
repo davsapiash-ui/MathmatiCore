@@ -582,24 +582,12 @@ export class FirebaseSyncService {
     }
   }
 
-  public async syncApproveRoute(rawStudentId: string) {
-    if (!rawStudentId) return;
-    const studentId = normalizeStudentId(rawStudentId);
-    const gatePayload = {
-      routeStatus: 'APPROVED',
-      teacher_gate_approved: true,
-      gateApprovedAt: Date.now(),
-    };
-    await update(ref(database, `users/students/${studentId}`), gatePayload).catch((err) => {
-      console.error(`[FirebaseSyncService] Failed to approve gate for ${studentId}:`, err);
-      throw err;
-    });
-    if (rawStudentId !== studentId) {
-      await update(ref(database, `users/students/${rawStudentId}`), gatePayload).catch((err) => {
-        console.warn(`[FirebaseSyncService] Legacy gate approve mirror notice for ${rawStudentId}:`, err);
-      });
-    }
-  }
+  // syncApproveRoute() was removed deliberately. It wrote teacher_gate_approved
+  // and routeStatus:'APPROVED' to RTDB with no Firestore write, no session-2
+  // completion check and no pedagogical path — a second, unverified gate
+  // approval competing with Module 20's single source of truth. Every gate
+  // approval now goes through core/teacherGate.ts, which writes the
+  // SessionDocument first and mirrors to RTDB only as transport.
 
   public async syncPhysicalOverride(
     studentId: string,

@@ -833,11 +833,15 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
 
 
 
+  // Module 26: the curriculum router has produced a plan for these learners and
+  // the teacher has not yet reviewed it. Distinct from the Module 20 gate — a
+  // reviewed plan (PLAN_APPROVED) still leaves the gate closed.
   const pendingRouteStudents = allStudents.filter(
     (s) => s.routeStatus === 'PENDING',
   );
 
   const approveRoute = useStore((s) => s.approveRoute);
+  const updateStudent = useStore((s) => s.updateStudent);
 
   // Aggregate data for Chart
   const qMatrixData = useMemo(() => {
@@ -1028,6 +1032,9 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     }
     return items;
   }, [students, firestoreSession2Docs]);
+
+  const pendingApprovalsBadgeCount =
+    pendingRouteStudents.length + gateStudentItems.filter((g) => !g.isApproved).length;
 
   const handleApproveGateStudent = async (studentId: string, path: PedagogicalPath) => {
     setIsApprovingGate(true);
@@ -1412,9 +1419,11 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
             className={`w-full flex justify-between items-center text-right px-4 py-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "approvals" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg text-ws-soft "}`}
           >
             <span>אישור תוכניות ושער מעבר</span>
-            {pendingRouteStudents.length > 0 && (
+            {/* The tab holds two distinct queues — learners waiting at the Module 20
+                gate, and AI plans waiting for review — so the badge counts both. */}
+            {pendingApprovalsBadgeCount > 0 && (
               <span className="bg-ws-accent text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg">
-                {pendingRouteStudents.length}
+                {pendingApprovalsBadgeCount}
               </span>
             )}
           </button>
@@ -2215,6 +2224,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                       <div>
                         <h3 className="text-2xl font-bold text-ws-ink">תלמיד {student.studentId.replace(/\D/g, '') || student.studentId}</h3>
                         <p className="text-sm text-ws-soft mt-1">מזהה: {student.studentId} | סיום מפגש 2</p>
+                        <p className="text-xs text-ws-soft mt-1">אישור התוכנית שומר את המשימות בלבד — פתיחת המפגש נעשית בשער המורה שלמעלה, יחד עם בחירת המסלול.</p>
                       </div>
                       <div className="flex gap-3">
                         <UdlButton 
@@ -2222,50 +2232,40 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                           size="sm" 
                           className="font-bold shadow-md shadow-ws-accent/20"
                           onClick={async () => {
+                            // This approves the AI-generated PLAN only. It used to
+                            // also write teacher_gate_approved/routeStatus:'APPROVED'
+                            // straight to RTDB, opening session 3 with no Firestore
+                            // SessionDocument write, no session-2 completion check and
+                            // no pedagogical path — so a learner routed to remediation
+                            // still received the green_path bank. The gate is opened
+                            // above, in "שער המורה", where the path is chosen.
                             const prevRouteStatus = student.routeStatus;
-                            approveRoute(student.studentId);
-                            
-                            // Realtime signal for student's waiting screen
-                            const normId = normalizeStudentId(student.studentId);
-                            await update(ref(database, `users/students/${normId}`), {
-                              teacher_gate_approved: true,
-                              routeStatus: 'APPROVED',
-                              teacher_approved_at: Date.now(),
-                              teacher_approved_by: user?.uid || 'teacher'
-                            }).catch(console.error);
-
                             const allPending = [...teacherApprovals, ...fallbackApprovals];
                             const approval = allPending.find((a) => a.studentId === student.studentId);
-                            if (approval) {
-                              try {
-                                const isFallback = fallbackApprovals.some(a => a.id === approval.id);
-                                const targetTeacherId = isFallback ? "teacher-1" : TEACHER_ID;
-                                await SocraticEngine.approveTasks(targetTeacherId, approval.id, approval.studentId, approval.tasks);
-                              } catch (err) {
-                                console.error('Firebase task approval failed:', err);
-                                // Optimistic rollback
-                                useStore.setState((state) => {
-                                  const s = state.students[student.studentId];
-                                  if (!s) return state;
-                                  return {
-                                    students: {
-                                      ...state.students,
-                                      [student.studentId]: {
-                                        ...s,
-                                        routeStatus: prevRouteStatus || 'PENDING_TEACHER_APPROVAL'
-                                      }
-                                    }
-                                  };
-                                });
-                                toast.error('שגיאה באישור המשימות ב-Firebase. הפעולה בוטלה.');
-                              }
+                            if (!approval) {
+                              toast.error('לא נמצאה תוכנית ממתינה לאישור עבור תלמיד זה.');
+                              return;
+                            }
+                            try {
+                              const isFallback = fallbackApprovals.some(a => a.id === approval.id);
+                              const targetTeacherId = isFallback ? "teacher-1" : TEACHER_ID;
+                              await SocraticEngine.approveTasks(targetTeacherId, approval.id, approval.studentId, approval.tasks);
+                              setTeacherApprovals(prev => prev.filter(a => a.id !== approval.id));
+                              setFallbackApprovals(prev => prev.filter(a => a.id !== approval.id));
+                              updateStudent(student.studentId, { routeStatus: 'PLAN_APPROVED' });
+                              toast.success('התוכנית אושרה ונשמרה. לפתיחת המפגש יש לאשר את שער המורה למעלה ולבחור מסלול.');
+                            } catch (err) {
+                              console.error('Firebase task approval failed:', err);
+                              // Optimistic rollback
+                              updateStudent(student.studentId, { routeStatus: prevRouteStatus || 'PENDING' });
+                              toast.error('שגיאה באישור המשימות ב-Firebase. הפעולה בוטלה.');
                             }
                           }}
                         >
                           {(() => {
                             const allPending = [...teacherApprovals, ...fallbackApprovals];
                             const approval = allPending.find((a) => a.studentId === student.studentId) as any;
-                            return `אישור ופתיחת שיעור ${approval?.targetSession || '3'}`;
+                            return `אישור תוכנית המשימות למפגש ${approval?.targetSession || '3'}`;
                           })()}
                         </UdlButton>
                         <UdlButton 

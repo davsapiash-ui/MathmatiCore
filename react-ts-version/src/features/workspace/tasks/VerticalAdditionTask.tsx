@@ -44,7 +44,6 @@ export function VerticalAdditionTask({
   const setCarryDigit = useWorkspaceStore((s) => s.setCarryDigit);
   const setFocusedPlace = useWorkspaceStore((s) => s.setFocusedPlace);
   const keyboardState = useWorkspaceStore((s) => s.keyboardState);
-  const setKeyboardSocratic = useWorkspaceStore((s) => s.setKeyboardSocratic);
   const hasGrouped = useWorkspaceStore((s) => s.hasGrouped);
   const isStoreColumnLocked = useWorkspaceStore((s) => s.isColumnInputLocked);
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
@@ -58,16 +57,13 @@ export function VerticalAdditionTask({
     }
   }, [keyboardState]);
 
-  useEffect(() => {
-    let timer: number;
-    if (keyboardState === 'LOCKED') {
-      timer = window.setTimeout(() => {
-        setKeyboardSocratic();
-        useWorkspaceStore.getState().openAdditionHelper();
-      }, 45000); // 45s cognitive hesitation trigger per PRD v3.3
-    }
-    return () => clearTimeout(timer);
-  }, [keyboardState, setKeyboardSocratic]);
+  // The hesitation hierarchy is NOT timed here. This component used to run its
+  // own 45s timer that opened the addition grid and switched the keyboard to
+  // Socratic at the same instant — collapsing Module 10's 30s grid stage and
+  // Module 12's 45s Socratic stage onto one deadline, firing both from a
+  // keyboard-lock state rather than from actual learner inactivity, and racing
+  // the radar hook into a double Socratic transition. useCognitiveHesitationRadar
+  // is the single owner of both stages; see its header.
 
   const handleLockedInteraction = () => {
     setShake(true);
