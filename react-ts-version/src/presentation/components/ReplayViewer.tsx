@@ -6,6 +6,8 @@ import { Play, Pause, RotateCcw } from "lucide-react";
 interface ReplayViewerProps {
   events: any[];
   seekToTime?: number;
+  /** Bumped per seek request so seeking twice to the same timestamp still fires. */
+  seekNonce?: number;
   onEnd?: () => void;
   /** Fires on every progress tick with the current absolute event timestamp (ms epoch), so a parent can auto-highlight the matching decision-table row as playback advances. */
   onProgress?: (absoluteTimestampMs: number) => void;
@@ -19,7 +21,7 @@ function formatTime(ms: number): string {
   return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 }
 
-export function ReplayViewer({ events, seekToTime, onEnd, onProgress }: ReplayViewerProps) {
+export function ReplayViewer({ events, seekToTime, seekNonce, onEnd, onProgress }: ReplayViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const replayerRef = useRef<any>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -172,7 +174,7 @@ export function ReplayViewer({ events, seekToTime, onEnd, onProgress }: ReplayVi
         console.warn("Could not seek player:", err);
       }
     }
-  }, [seekToTime, events, firstTimestamp, totalDurationMs]);
+  }, [seekToTime, seekNonce, events, firstTimestamp, totalDurationMs]);
 
   const togglePlay = () => {
     if (!replayerRef.current) return;

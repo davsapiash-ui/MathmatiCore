@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { ref, onValue } from "firebase/database";
 import { database, authReady } from "@/infrastructure/firebase";
 import { normalizeStudentId } from "@/application/useChatStore";
@@ -58,6 +58,9 @@ export const TELEMETRY_EVENT_LABELS_HE: Record<string, { label: string; mileston
  * מודול 10: שחזור מסך התלמיד (Diagnostic Replay Spec)
  * מציג נתוני אמת של פעילות התלמיד מתוך הטלמטריה וה-vector_replays של Firebase.
  */
+/** One navigable segment of the replay timeline, covering a single exercise. */
+type ExerciseChapter = { exerciseId: string; start: number; end: number };
+
 export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: string }) {
   const studentId = normalizeStudentId(rawStudentId || '');
   const studentNum = studentId ? String(studentId).replace(/\D+/g, '') || '1' : '1';
@@ -66,6 +69,22 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
   const [rrwebEvents, setRrwebEvents] = useState<any[]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentEventIndex, setCurrentEventIndex] = useState(0);
+  /**
+   * A seek is an explicit request from the teacher, never a derived value.
+   * seekToTime used to be wired straight to the highlighted row's timestamp, so
+   * the auto-highlight this component performs as the player advances fed back
+   * in and yanked playback to the row it had just highlighted. Module 21 needs
+   * both directions live at once, which only works if the player-to-table
+   * direction stays read-only. The nonce makes re-seeking to the same timestamp
+   * (clicking one chapter twice) still register as a new request.
+   */
+  const [seekRequest, setSeekRequest] = useState<{ t: number; nonce: number } | null>(null);
+  const [chapters, setChapters] = useState<ExerciseChapter[]>([]);
+  const [recordingTruncated, setRecordingTruncated] = useState(false);
+  const requestSeek = useCallback((timestamp?: number) => {
+    if (typeof timestamp !== 'number') return;
+    setSeekRequest((prev) => ({ t: timestamp, nonce: (prev?.nonce ?? 0) + 1 }));
+  }, []);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [events, setEvents] = useState<VRATimelineEvent[]>([]);
   const [activeTakeIndex, setActiveTakeIndex] = useState(0);
@@ -162,6 +181,39 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
           }
           return extractedRrweb;
         });
+
+        // Module 21: the timeline is one continuous session, visually split into
+        // chapters by exercise_id. Chunk metadata carries that id, so adjacent
+        // chunks sharing one exercise collapse into a single navigable chapter.
+        const chunkMeta: { start: number; end: number; exerciseId: string }[] = [];
+        let sawTruncation = false;
+        if (val.telemetry_sessions) {
+          for (const sess of Object.values(val.telemetry_sessions) as any[]) {
+            if (!sess) continue;
+            if (sess.recording_truncated) sawTruncation = true;
+            if (!sess.metadata) continue;
+            for (const m of Object.values(sess.metadata) as any[]) {
+              if (!m || typeof m.startTime !== 'number' || !m.exercise_id) continue;
+              chunkMeta.push({
+                start: m.startTime,
+                end: typeof m.endTime === 'number' ? m.endTime : m.startTime,
+                exerciseId: String(m.exercise_id),
+              });
+            }
+          }
+        }
+        chunkMeta.sort((a, b) => a.start - b.start);
+        const merged: ExerciseChapter[] = [];
+        for (const c of chunkMeta) {
+          const last = merged[merged.length - 1];
+          if (last && last.exerciseId === c.exerciseId) {
+            last.end = Math.max(last.end, c.end);
+          } else {
+            merged.push({ exerciseId: c.exerciseId, start: c.start, end: c.end });
+          }
+        }
+        setChapters(merged);
+        setRecordingTruncated(sawTruncation);
         let rawEvents: any[] = [];
         if (val.vector_replays) {
           const vr = val.vector_replays;
@@ -474,6 +526,7 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
                           onClick={() => {
                             setIsPlaying(false);
                             setCurrentEventIndex(idx);
+                            requestSeek(events[idx]?.timestamp);
                           }}
                           className={`cursor-pointer transition-all ${
                             isSelected 
@@ -549,7 +602,8 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
                 <div className="w-full h-auto rounded-xl overflow-hidden">
                   <ReplayViewer
                     events={rrwebEvents}
-                    seekToTime={currentEvent?.timestamp}
+                    seekToTime={seekRequest?.t}
+                    seekNonce={seekRequest?.nonce}
                     onProgress={(absoluteTimestampMs) => {
                       // PRD Module 21 §ב: as the player advances, the matching
                       // decision-table row must auto-highlight — this is the
@@ -567,6 +621,45 @@ export function StudentReplayAndLogs({ studentId: rawStudentId }: { studentId: s
                       setCurrentEventIndex((prev) => (prev === closestIdx ? prev : closestIdx));
                     }}
                   />
+                  {chapters.length > 0 && (
+                    <div className="mt-2 px-1 pb-1">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[10px] font-bold text-slate-400 tracking-wide">
+                          ציר זמן לפי תרגילים
+                        </span>
+                        {recordingTruncated && (
+                          <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-md px-2 py-0.5">
+                            ההקלטה נקטעה בתקרת 50MB
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex gap-1 w-full" dir="rtl">
+                        {chapters.map((ch, i) => {
+                          const span = Math.max(1, ch.end - ch.start);
+                          const isActive =
+                            typeof currentEvent?.timestamp === 'number' &&
+                            currentEvent.timestamp >= ch.start &&
+                            currentEvent.timestamp <= ch.end;
+                          return (
+                            <button
+                              key={`${ch.exerciseId}-${ch.start}-${i}`}
+                              type="button"
+                              onClick={() => requestSeek(ch.start)}
+                              title={`${ch.exerciseId} — קפיצה לתחילת התרגיל`}
+                              style={{ flexGrow: span }}
+                              className={`h-6 min-w-[36px] rounded-md text-[10px] font-bold truncate px-1.5 transition-colors border ${
+                                isActive
+                                  ? 'bg-indigo-500 border-indigo-400 text-white'
+                                  : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'
+                              }`}
+                            >
+                              {ch.exerciseId}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="w-full h-full min-h-[340px] bg-slate-900/90 rounded-2xl border border-slate-800 p-8 flex flex-col items-center justify-center gap-3 text-center">
