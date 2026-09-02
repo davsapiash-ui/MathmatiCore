@@ -620,13 +620,21 @@ export class FirebaseSyncService {
 
     const isPhysical = overrideData.physicalOverride ?? true;
     const isASD = overrideData.isASD ?? false;
-    const routeStatus = overrideData.routeStatus ?? 'APPROVED';
-    const difficultyRec = overrideData.difficultyRecommendation ?? 'REGULAR';
     const updatedAt = overrideData.overrideUpdatedAt ?? Date.now();
 
+    // routeStatus is the teacher-gate decision (Module 20) and is owned by
+    // core/teacherGate.ts. This function used to default a missing routeStatus
+    // to 'APPROVED' and write it unconditionally, so saving unrelated learning
+    // conditions (scaffold, ASD, addition helper) for a learner still
+    // PENDING_TEACHER_APPROVAL silently unlocked them into session 3 with no
+    // gate decision ever made — and left Firestore (no teacher_gate_approved)
+    // disagreeing with RTDB. Gate fields are written only when the caller
+    // explicitly supplies them; the same applies to difficultyRecommendation.
     const studentOverridePayload = {
-      routeStatus: routeStatus,
-      difficultyRecommendation: difficultyRec,
+      ...(overrideData.routeStatus !== undefined && { routeStatus: overrideData.routeStatus }),
+      ...(overrideData.difficultyRecommendation !== undefined && {
+        difficultyRecommendation: overrideData.difficultyRecommendation,
+      }),
       isASD: isASD,
       physicalOverride: isPhysical,
       physicalOverrideActive: overrideData.physicalOverrideActive ?? isPhysical,
@@ -1267,7 +1275,14 @@ export class FirebaseSyncService {
   }
 
   public async addTeacher(schoolId: string, name: string, ssoEmail: string, dob: string) {
-    const id = ssoEmail; // Use ssoEmail as ID to align with auth and security rules
+    // A raw email contains '.', which Firebase RTDB rejects as a key segment
+    // (ref() throws, so the write never happened and the caller's .catch
+    // swallowed it — the teacher looked created in local state but had no
+    // users/teachers record at all). Sanitize to the same key shape every
+    // other teacher-lookup path already uses: useAdminStore's own
+    // addClassRoom/approveGate, TeacherDashboard's own-identity lookup, and
+    // the teacherAdminChat Cloud Function.
+    const id = ssoEmail.trim().replace(/[@.#$[\]]/g, '_');
     const newTeacher: Teacher = {
       id,
       schoolId,

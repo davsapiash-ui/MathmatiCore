@@ -400,7 +400,10 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
     setIsExportingDataset(true);
     try {
       const exportFn = httpsCallable(functions, 'exportResearchDataset');
-      const res: any = await exportFn({ class_id: 'class_1', session_number: 1 });
+      // Module 24 exports per session on demand; this was pinned to 1, so the
+      // control could only ever export session 1 regardless of what the class
+      // was actually running. Follow the live broadcast the grid already tracks.
+      const res: any = await exportFn({ class_id: 'class_1', session_number: activeSessionNum ?? 1 });
       if (res?.data?.status === 'SUCCESS') {
         toast.success('ייצוא נתוני המחקר הושלם ונשמר ב-Drive.');
       } else {
@@ -596,6 +599,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                         socraticActive: student.isSocraticActive,
                         isOnline: Boolean(student.isOnline),
                         hesitationSeconds: student.hesitationSeconds,
+                        hesitationThresholdSeconds: getHesitationThresholdSeconds(),
                       })]
                 }`}
               >

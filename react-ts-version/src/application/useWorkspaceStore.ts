@@ -2361,9 +2361,15 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
             set({ helpState: 'socratic', currentState: 'SOCRATIC_ACTIVE', aiSocraticHint: initialHint });
           }, 0);
         }
+        // Module 16 §ב derives the persistence index's E term exclusively from
+        // DIGIT_ENTERED events with is_correct: false — that is already counted
+        // at the two digit-entry sites (setAnswerDigit / setCarryDigit). This
+        // path fires on any wrong final submission, including block-manipulation
+        // failures that are not digit entries, so bumping typedErrorCount here
+        // inflated the denominator and understated the score shown to the
+        // learner on the Session 8 reflection board.
         return { 
           consecutiveErrorCount: nextErrors, 
-          typedErrorCount: state.typedErrorCount + 1, 
           lastInteractionTime: Date.now() 
         };
       });

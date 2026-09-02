@@ -72,7 +72,15 @@ export function ClassManagement({
           return prev.map((s, index) => {
             const num = index + 1;
             const uid = `student_${num}`;
-            const data = raw[uid] || raw[`slot_${num}`] || raw[`student_user${num}`] || {};
+            // student_user{N} is the canonical node every live student write
+            // (session-2 completion, route recommendation, highest meeting)
+            // lands on. student_{N} is only a write-side mirror alias touched
+            // by gate approval and the enhanced-support toggle, so once either
+            // ran it became a permanent tiny node that this first-truthy pick
+            // preferred forever — leaving the card stuck on "טרם השלים מפגש 2"
+            // after the learner had actually finished and was waiting at the
+            // gate. Prefer the node the learner actually updates.
+            const data = raw[`student_user${num}`] || raw[uid] || raw[`slot_${num}`] || {};
 
             const session2Done = Boolean(
               data.completedMeeting2 ||

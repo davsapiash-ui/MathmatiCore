@@ -1,55 +1,95 @@
 import { AccessibleCard } from "@/presentation/design-system/AccessibleCard";
-import { Palette, Activity } from "lucide-react";
+import { Palette, Activity, ArrowLeft, Info } from "lucide-react";
+import { Link } from "react-router-dom";
+
+/**
+ * The PRD defines no admin settings screen, and this one previously presented
+ * two controls that did nothing at all:
+ *
+ *  - a contrast / theme dropdown with no bound value and no change handler.
+ *    Beyond the missing handler there is no theme mechanism to drive: the
+ *    Tailwind config enables class-based dark mode, but nothing in the app
+ *    ever adds or removes that class, so the dark styling is never activated.
+ *  - an "איסוף נתוני קושי בזמן אמת" switch rendered checked-by-default with no
+ *    change handler and no persistence — flipping it changed nothing and was
+ *    not saved.
+ *
+ * Both are removed rather than wired, because neither is a PRD-specified admin
+ * capability, and inventing a global theme override or a radar kill-switch
+ * would contradict the spec (accessibility is per-learner under Module 19, and
+ * the radar's only calibrated input is Module 26's threshold). This screen now
+ * states where each concern is actually configured, so the console stops
+ * advertising controls the system does not have.
+ */
+function PointerRow({
+  icon,
+  title,
+  body,
+  to,
+  linkLabel,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  body: string;
+  to?: string;
+  linkLabel?: string;
+}) {
+  return (
+    <div className="flex items-start gap-4 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60">
+      <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+        {icon}
+      </div>
+      <div className="space-y-2">
+        <h3 className="font-bold text-slate-900 dark:text-white text-sm">{title}</h3>
+        <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">{body}</p>
+        {to && linkLabel && (
+          <Link
+            to={to}
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
+          >
+            <span>{linkLabel}</span>
+            <ArrowLeft className="w-3.5 h-3.5" />
+          </Link>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export function AdminSettingsView() {
   return (
-    <div className="p-8 pb-20 max-w-6xl mx-auto" dir="rtl">
-      <header className="mb-8 border-b pb-4">
-        <h1 className="text-3xl font-black text-slate-800 dark:text-slate-100">הגדרות נגישות ופדגוגיה (UDL)</h1>
-        <p className="text-slate-500 mt-2">ניהול הכלים האוניברסליים ללמידה וניטור התלמידים מתוך מסמך האפיון</p>
+    <div className="p-6 md:p-10 pb-24 max-w-5xl mx-auto space-y-8" dir="rtl">
+      <header className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-8 text-white shadow-2xl border border-indigo-500/20">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative z-10 space-y-2">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-xs font-semibold">
+            <Info className="w-3.5 h-3.5" />
+            <span>תצוגת מידע — אין כאן הגדרות לשינוי</span>
+          </div>
+          <h1 className="text-3xl md:text-4xl font-black tracking-tight text-white">
+            נגישות ורדאר פדגוגי
+          </h1>
+          <p className="text-slate-300 text-sm md:text-base font-light max-w-3xl">
+            ההתאמות האישיות והכיול הפדגוגי אינם מנוהלים מכאן. המסך מפנה למקום שבו
+            כל אחד מהם באמת נקבע.
+          </p>
+        </div>
       </header>
 
-      <div className="grid md:grid-cols-2 gap-8">
-        <AccessibleCard className="p-6 bg-white dark:bg-slate-900 border-t-4 border-t-emerald-500 shadow-sm">
-          <h2 className="text-xl font-bold mb-6 flex items-center gap-2 border-b pb-2">
-            <Palette className="w-5 h-5 text-emerald-500" />
-            ערכת נושא ונגישות צבעים
-          </h2>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                התאמת קונטרסט
-              </label>
-              <select className="w-full border-2 border-slate-200 dark:border-slate-700 rounded-lg p-2 bg-transparent text-sm">
-                <option value="light">מצב יום (ברירת מחדל)</option>
-                <option value="dark">מצב לילה (הפחתת סינוור)</option>
-                <option value="high-contrast">ניגודיות גבוהה (ללקויי ראייה)</option>
-              </select>
-            </div>
-          </div>
-        </AccessibleCard>
-
-        <AccessibleCard className="p-6 bg-white dark:bg-slate-900 border-t-4 border-t-blue-500 md:col-span-2 shadow-sm">
-          <h2 className="text-xl font-bold mb-4 flex items-center gap-2 border-b pb-2 text-blue-600">
-            <Activity className="w-5 h-5" />
-            הגדרות רדאר פדגוגי שקט (Trace Data)
-          </h2>
-          <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
-            שליטה על אלגוריתם ה-Q-Matrix והניטור הסמוי בממשק התלמיד. מערכת זו עוקבת אחר אירועי היסוס (Hesitation), מחיקות, וזמני השהייה כדי לספק תובנות למורה מבלי להלחיץ את התלמיד (ללא טיימרים גלויים).
-          </p>
-          
-          <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
-            <div className="flex flex-col">
-              <span className="font-bold text-slate-800 dark:text-slate-200">איסוף נתוני קושי בזמן אמת</span>
-              <span className="text-xs text-slate-500 mt-1">מפעיל התראות לדשבורד המורה במקרים של מאבק קוגניטיבי (Cognitive Struggle).</span>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input type="checkbox" className="sr-only peer" defaultChecked />
-              <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-blue-600"></div>
-            </label>
-          </div>
-        </AccessibleCard>
-      </div>
+      <AccessibleCard className="p-6 md:p-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl space-y-4">
+        <PointerRow
+          icon={<Palette className="w-5 h-5" />}
+          title="נגישות והתאמות אישיות (UDL)"
+          body="ההתאמות ניתנות לכל לומד בנפרד — פרופיל התמיכה ותנאי הלמידה נקבעים על ידי המורה בדשבורד הכיתה, ומוחלים על הלומד בגבול המשימה הבאה. אין במערכת הגדרת ערכת נושא גלובלית שדורסת את כלל המשתמשים."
+        />
+        <PointerRow
+          icon={<Activity className="w-5 h-5" />}
+          title="רדאר פדגוגי שקט (Trace Data)"
+          body="הרדאר פועל תמיד ואינו ניתן לכיבוי — הוא מזין את התראות המאבק הקוגניטיבי בדשבורד המורה. הערך היחיד שניתן לכייל הוא סף ההיסוס בשניות, והוא נקרא בזמן אמת על ידי הרדאר החי."
+          to="/admin/curriculum"
+          linkLabel="למסך קטלוג וכיול"
+        />
+      </AccessibleCard>
     </div>
   );
 }

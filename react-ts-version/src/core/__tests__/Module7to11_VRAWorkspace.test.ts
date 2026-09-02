@@ -245,7 +245,13 @@ describe('Work Package 3 (WP3): Student Learning Space & VRA Engine Comprehensiv
       store.incrementConsecutiveErrors();
 
       expect(useWorkspaceStore.getState().consecutiveErrorCount).toBe(4);
-      expect(useWorkspaceStore.getState().typedErrorCount).toBe(4);
+      // Module 16 §ב: the persistence index's E term is derived exclusively
+      // from DIGIT_ENTERED events with is_correct: false (setAnswerDigit /
+      // setCarryDigit). Consecutive-error tracking is Module 12's Socratic
+      // trigger and must not bump typedErrorCount — doing so counted block
+      // manipulation failures as typed digit errors and understated the score
+      // shown on the Session 8 reflection board.
+      expect(useWorkspaceStore.getState().typedErrorCount).toBe(0);
     });
 
     it('enforces 60-second penalty lockout strictly on Socratic card buttons while Canvas & Undo remain active', () => {
