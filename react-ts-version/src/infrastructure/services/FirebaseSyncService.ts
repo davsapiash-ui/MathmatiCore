@@ -1267,7 +1267,14 @@ export class FirebaseSyncService {
   }
 
   public async addTeacher(schoolId: string, name: string, ssoEmail: string, dob: string) {
-    const id = ssoEmail; // Use ssoEmail as ID to align with auth and security rules
+    // A raw email contains '.', which Firebase RTDB rejects as a key segment
+    // (ref() throws, so the write never happened and the caller's .catch
+    // swallowed it — the teacher looked created in local state but had no
+    // users/teachers record at all). Sanitize to the same key shape every
+    // other teacher-lookup path already uses: useAdminStore's own
+    // addClassRoom/approveGate, TeacherDashboard's own-identity lookup, and
+    // the teacherAdminChat Cloud Function.
+    const id = ssoEmail.trim().replace(/[@.#$[\]]/g, '_');
     const newTeacher: Teacher = {
       id,
       schoolId,

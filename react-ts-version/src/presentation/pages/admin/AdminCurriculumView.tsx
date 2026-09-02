@@ -10,7 +10,6 @@ import {
   BookOpen, 
   Layers, 
   Sparkles, 
-  Send, 
   Award,
   ChevronDown,
   ChevronUp
@@ -102,7 +101,7 @@ const SESSIONS_CURRICULUM_CATALOG: SessionCurriculumItem[] = [
  * מבוסס Cloud Firestore תחת חוקי אבטחה קפדניים (/system_control, /classes).
  */
 export function AdminCurriculumView() {
-  const { schools, classes } = useAdminStore();
+  const { schools } = useAdminStore();
   const [hesitationThreshold, setHesitationThreshold] = useState<number>(45);
   const [undoThreshold, setUndoThreshold] = useState<number>(4);
   const [isSaved, setIsSaved] = useState(false);
@@ -111,8 +110,6 @@ export function AdminCurriculumView() {
   const [fluencyEnabled, setFluencyEnabled] = useState(true);
 
   const [expandedSession, setExpandedSession] = useState<number | null>(1);
-  const [selectedBatchSession, setSelectedBatchSession] = useState<number>(1);
-  const [isBatchDistributing, setIsBatchDistributing] = useState(false);
 
   const handleSaveCalibration = async () => {
     try {
@@ -161,33 +158,6 @@ export function AdminCurriculumView() {
     }
   };
 
-  const handleBatchDistribute = async () => {
-    try {
-      setIsBatchDistributing(true);
-      
-      // 1. Update global active batch session in Firestore system_control
-      await setDoc(doc(db, 'system_control', 'active_curriculum'), {
-        active_batch_session: selectedBatchSession,
-        batch_assigned_at: Date.now(),
-      }, { merge: true });
-
-      // 2. Update active session across class documents in Firestore
-      const updatePromises = classes.map((cls) =>
-        setDoc(doc(db, 'classes', cls.id), {
-          active_session_id: `session_0${selectedBatchSession}`,
-        }, { merge: true })
-      );
-      await Promise.all(updatePromises);
-
-      toast.success(`מפגש ${selectedBatchSession} (7 משימות חובה + אתגר) הופץ ב-Firestore לכל ${classes.length || 1} הכיתות במערכת! 🚀`);
-    } catch (e) {
-      console.error(e);
-      toast.error("שגיאה בהפצת המטלות המרוכזת.");
-    } finally {
-      setIsBatchDistributing(false);
-    }
-  };
-
   return (
     <div className="p-6 md:p-10 pb-24 max-w-7xl mx-auto space-y-8" dir="rtl">
       {/* Header Banner */}
@@ -207,28 +177,17 @@ export function AdminCurriculumView() {
             </p>
           </div>
 
+          {/* Module 14 requires session activation to be an explicit, per-class
+              teacher confirmation from the teacher dashboard — never an admin
+              broadcast to every class at once. A prior "batch distribute"
+              control here wrote to Firestore session fields nothing in the
+              client ever reads (students only follow the teacher's own RTDB
+              class-session broadcast), so it silently did nothing while showing
+              a success toast, and it conflicted with Module 14's teacher-only
+              rule had it been wired to work. Removed rather than connected.
+              Publishing the curriculum catalog content itself (the exercise
+              banks) is the legitimate Module 26 action below. */}
           <div className="flex items-center gap-3">
-            <select
-              value={selectedBatchSession}
-              onChange={(e) => setSelectedBatchSession(parseInt(e.target.value, 10))}
-              className="px-4 py-2.5 rounded-2xl bg-purple-900/60 border border-purple-400/40 text-white font-bold text-xs"
-            >
-              {SESSIONS_CURRICULUM_CATALOG.map((s) => (
-                <option key={s.sessionId} value={s.sessionId}>
-                  שגר מפגש {s.sessionId}
-                </option>
-              ))}
-            </select>
-
-            <button
-              onClick={handleBatchDistribute}
-              disabled={isBatchDistributing}
-              className="px-5 py-2.5 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white font-extrabold text-xs flex items-center gap-2 shadow-lg shadow-purple-600/30 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
-            >
-              <Send className="w-4 h-4" />
-              <span>{isBatchDistributing ? 'מפיץ מטלות...' : 'הפצה מרוכזת לכל הכיתה'}</span>
-            </button>
-
             <button
               onClick={handlePublishCatalog}
               disabled={isPublishingCatalog}

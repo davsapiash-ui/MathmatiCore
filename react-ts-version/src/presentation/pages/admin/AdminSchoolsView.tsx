@@ -18,6 +18,13 @@ import { useAdminStore } from "@/application/useAdminStore";
 import { AdminWizardModal } from "./AdminWizardModal";
 import { toast } from "sonner";
 
+/**
+ * The hard ceiling Module 25 §ב.2 puts in the server rules: firestore.rules
+ * pins student_id to 1..12 and student_count to <= 12, and anonymous learner
+ * identities are the fixed set 1-12. No client control can raise it.
+ */
+const MAX_STUDENTS_PER_CLASS = 12;
+
 export function AdminSchoolsView() {
   const { 
     schools, 
@@ -45,13 +52,19 @@ export function AdminSchoolsView() {
   const [wizardMode, setWizardMode] = useState<"full_setup" | "add_teacher" | "add_class">("full_setup");
   const [targetSchoolId, setTargetSchoolId] = useState<string | null>(null);
 
+  // Module 25 §ב.2 puts the real capacity ceiling in the server security rules:
+  // firestore.rules pins student_id to 1..12 and student_count to <= 12. This
+  // input used to accept any positive number, so an admin could "set" a limit of
+  // 20 and be told it was saved while the server kept rejecting anything past 12
+  // — the control promised a capacity the system will never grant. Clamping it to
+  // the range the server actually enforces keeps the two in agreement.
   const handleSaveLimit = () => {
     const num = parseInt(limitInput, 10);
-    if (!isNaN(num) && num > 0) {
+    if (!isNaN(num) && num >= 1 && num <= MAX_STUDENTS_PER_CLASS) {
       setGlobalStudentLimit(num);
       toast.success(`מגבלת התלמידים העולמית עודכנה ל-${num} תלמידים!`);
     } else {
-      toast.error("אנא הזן מספר תלמידים תקין (גדול מ-0)");
+      toast.error(`אנא הזן מספר תלמידים תקין (בין 1 ל-${MAX_STUDENTS_PER_CLASS})`);
     }
   };
 
