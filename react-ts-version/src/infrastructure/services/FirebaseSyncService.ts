@@ -620,13 +620,21 @@ export class FirebaseSyncService {
 
     const isPhysical = overrideData.physicalOverride ?? true;
     const isASD = overrideData.isASD ?? false;
-    const routeStatus = overrideData.routeStatus ?? 'APPROVED';
-    const difficultyRec = overrideData.difficultyRecommendation ?? 'REGULAR';
     const updatedAt = overrideData.overrideUpdatedAt ?? Date.now();
 
+    // routeStatus is the teacher-gate decision (Module 20) and is owned by
+    // core/teacherGate.ts. This function used to default a missing routeStatus
+    // to 'APPROVED' and write it unconditionally, so saving unrelated learning
+    // conditions (scaffold, ASD, addition helper) for a learner still
+    // PENDING_TEACHER_APPROVAL silently unlocked them into session 3 with no
+    // gate decision ever made — and left Firestore (no teacher_gate_approved)
+    // disagreeing with RTDB. Gate fields are written only when the caller
+    // explicitly supplies them; the same applies to difficultyRecommendation.
     const studentOverridePayload = {
-      routeStatus: routeStatus,
-      difficultyRecommendation: difficultyRec,
+      ...(overrideData.routeStatus !== undefined && { routeStatus: overrideData.routeStatus }),
+      ...(overrideData.difficultyRecommendation !== undefined && {
+        difficultyRecommendation: overrideData.difficultyRecommendation,
+      }),
       isASD: isASD,
       physicalOverride: isPhysical,
       physicalOverrideActive: overrideData.physicalOverrideActive ?? isPhysical,

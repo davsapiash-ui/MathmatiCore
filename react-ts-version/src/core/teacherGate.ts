@@ -72,9 +72,23 @@ export async function approveTeacherGate(
 
   // Mirror to RTDB purely so the student's live listener unlocks within P95 ≤ 1000ms.
   // This mirror is a transport, never a second source of truth.
+  //
+  // pedagogicalPath is the field the live task engine actually consults:
+  // getActiveTasks() in useWorkspaceStore selects the sessions 3-7 bank from
+  // student.pedagogicalPath, and every RTDB→store hydration path (useStore,
+  // StudentWorkspacePage, FirebaseSyncService) forwards only that name. The
+  // PRD-canonical teacher_selected_path was mirrored here but read by nothing
+  // on the client, so a remediation_path approval never reached the engine
+  // and the learner was always handed the green_path (10,000-range) bank —
+  // exactly what Module 26 forbids ("חל איסור מוחלט על טעינת תרגילים ממאגר
+  // שאינו תואם למסלול המאושר"). Carrying the decision under the engine's own
+  // key makes the gate the initial path assignment; Module 19's later
+  // silent-adaptation override writes the same field at a task boundary,
+  // which is the intended precedence.
   const mirror = {
     teacher_gate_approved: true,
     teacher_selected_path: path,
+    pedagogicalPath: path,
     gate_approved_at: now,
     gate_approved_by: teacherId || 'teacher',
     routeStatus: 'APPROVED',

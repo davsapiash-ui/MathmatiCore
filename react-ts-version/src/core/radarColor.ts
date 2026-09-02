@@ -15,13 +15,20 @@ export interface RadarColorInput {
   socraticActive: boolean;
   isOnline: boolean;
   hesitationSeconds: number;
+  /**
+   * Module 26 calibration threshold. Defaults to the PRD's 45s so existing
+   * callers keep their behaviour; the live grid passes the admin-calibrated
+   * value so the cell colour agrees with the badge and label computed from the
+   * same threshold beside it.
+   */
+  hesitationThresholdSeconds?: number;
 }
 
 export function resolveRadarColor(input: RadarColorInput): RadarColor {
   if (input.helpRequested) return 'BLUE';
   if (input.socraticActive) return 'RED';
   if (!input.isOnline) return 'GREY';
-  if (input.hesitationSeconds >= 45) return 'YELLOW';
+  if (input.hesitationSeconds >= (input.hesitationThresholdSeconds ?? 45)) return 'YELLOW';
   return 'GREEN';
 }
 
