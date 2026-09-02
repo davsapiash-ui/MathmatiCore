@@ -54,6 +54,9 @@ import { ReinforcementOrChallengeScreen } from './overlays/ReinforcementOrChalle
  * Returns isSuperseded=true if the remote device ID exists and does not match the local device ID.
  * Fail-safe: if remote device is present in DB and local device ID is missing or mismatched, locks the device.
  */
+/** Module 21: 50MB of replay recording per learner per meeting, then a silent stop. */
+const RECORDING_BYTE_CAP = 50 * 1024 * 1024;
+
 export function evaluateDeviceOwnership(remoteDevId?: string | null, myDevId?: string | null): { isSuperseded: boolean } {
   if (remoteDevId && remoteDevId !== myDevId) {
     return { isSuperseded: true };
@@ -314,28 +317,56 @@ export function StudentWorkspacePage() {
     };
     update(ref(database, `users/students/${uid}`), sessionMeta).catch(console.error);
 
-    const flushTelemetry = () => {
-      if (eventsQueue.length > 0) {
-        const batch = [...eventsQueue];
-        eventsQueue = [];
-        
-        const newChunkRef = push(ref(database, `users/students/${uid}/telemetry_sessions/${sessionId}/chunks`));
-        const chunkKey = newChunkRef.key;
-        if (chunkKey) {
-          const payload = JSON.stringify(batch);
-          set(newChunkRef, payload).catch(err => console.error('Telemetry push failed:', err));
-          
-          const metaPayload = {
-            startTime: batch[0].timestamp,
-            endTime: batch[batch.length - 1].timestamp,
-            sessionNumber: effectiveSessionNum,
-          };
+    // Module 21 caps a learner's recording at 50MB per meeting: on reaching it the
+    // recording stops silently, recording_truncated is flagged, and learning goes
+    // on untouched on the learner's side.
+    let recordedBytes = 0;
+    let truncated = false;
 
-          update(ref(database, `users/students/${uid}/telemetry_sessions/${sessionId}/metadata`), {
-            [chunkKey]: metaPayload
-          }).catch(console.error);
-        }
+    /** The exercise the learner is on right now, which chapters the replay timeline. */
+    const currentExerciseId = (): string => {
+      const ws = useWorkspaceStore.getState();
+      // Same derivation the telemetry writers already use, so a chunk's
+      // exercise_id lines up exactly with the decision-table rows beside it.
+      return getActiveTasks(ws)[ws.standardTaskIdx]?.id || `ex_${ws.sessionNumber}_01`;
+    };
+
+    const flushTelemetry = () => {
+      if (truncated || eventsQueue.length === 0) return;
+
+      const batch = [...eventsQueue];
+      eventsQueue = [];
+
+      const payload = JSON.stringify(batch);
+      const payloadBytes = new Blob([payload]).size;
+
+      if (recordedBytes + payloadBytes > RECORDING_BYTE_CAP) {
+        truncated = true;
+        if (stopRecording) stopRecording();
+        if (flushInterval) clearInterval(flushInterval);
+        update(ref(database, `users/students/${uid}/telemetry_sessions/${sessionId}`), {
+          recording_truncated: true,
+        }).catch(console.error);
+        return;
       }
+
+      const newChunkRef = push(ref(database, `users/students/${uid}/telemetry_sessions/${sessionId}/chunks`));
+      const chunkKey = newChunkRef.key;
+      if (!chunkKey) return;
+
+      recordedBytes += payloadBytes;
+      set(newChunkRef, payload).catch(err => console.error('Telemetry push failed:', err));
+
+      const metaPayload = {
+        startTime: batch[0].timestamp,
+        endTime: batch[batch.length - 1].timestamp,
+        sessionNumber: effectiveSessionNum,
+        exercise_id: currentExerciseId(),
+      };
+
+      update(ref(database, `users/students/${uid}/telemetry_sessions/${sessionId}/metadata`), {
+        [chunkKey]: metaPayload
+      }).catch(console.error);
     };
 
     // Load rrweb asynchronously
