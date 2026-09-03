@@ -8,6 +8,8 @@ import { ChoiceList } from './ChoiceList';
 import { VerticalAdditionTask } from './VerticalAdditionTask';
 import { MissingElementTask } from './MissingElementTask';
 import { FlexibleDecompTask } from './FlexibleDecompTask';
+import { RepresentationTask } from './RepresentationTask';
+import { digitAt, type Place } from '@/core/placeValue';
 import { SmallChangeTask } from './SmallChangeTask';
 import { BackwardDiagnosisView } from './BackwardDiagnosisView';
 
@@ -74,18 +76,27 @@ export function TaskCard() {
             {(standardTask.type === 'addition_simple' || standardTask.type === 'vertical_addition') &&
               (() => {
                 const { a, b, target } = effectiveArithmetic(standardTask, isASD);
+                // Skeleton exercises (מסמך 03): result digits the exercise reveals are shown fixed.
+                const revealedResult: Partial<Record<Place, string>> = {};
+                for (const place of standardTask.revealedResultDigits ?? []) {
+                  revealedResult[place] = String(digitAt(target, place));
+                }
                 return (
                   <VerticalAdditionTask
                     numberA={a}
                     numberB={b}
                     isSubtraction={standardTask.isSubtraction}
                     answerLength={String(Math.abs(target)).length}
+                    hiddenA={standardTask.hiddenDigits?.a}
+                    hiddenB={standardTask.hiddenDigits?.b}
+                    revealedResult={revealedResult}
                   />
                 );
               })()}
             {standardTask.type === 'flexible_decomp' && (
               <FlexibleDecompTask targetNumber={standardTask.numberA ?? 0} />
             )}
+            {standardTask.type === 'representation' && <RepresentationTask task={standardTask} />}
 
             {standardTask.type === 'small_change' && (
               <SmallChangeTask

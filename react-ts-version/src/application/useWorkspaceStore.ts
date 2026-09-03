@@ -18,6 +18,9 @@ import {
   type DropInput,
   type Place,
   type PlaceCounts,
+  countsEqual,
+  describeCountsHe,
+  digitAt,
 } from '@/core/placeValue';
 import {
   advance,
@@ -154,6 +157,8 @@ interface WorkspaceState {
   carryDigits: Partial<Record<Place, string>>;
   probeAnswer: string;
   q3Reps: PlaceCounts[];
+  /** Skeleton exercises (מסמך 03): digits the learner types into hidden operand cells. */
+  operandDigits: { a: Partial<Record<Place, string>>; b: Partial<Record<Place, string>> };
   aiSocraticHint: SocraticHintResponse | null;
   socraticPenaltyLockoutUntil: number | null;
   socraticDistractorHint: string | null;
@@ -212,6 +217,9 @@ interface WorkspaceState {
   setAnswerDigit: (place: Place, val: string) => void;
   setCarryDigit: (place: Place, val: string) => void;
   setProbeAnswer: (v: string) => void;
+  setOperandDigit: (which: 'a' | 'b', place: Place, val: string) => void;
+  /** representation tasks, enhanced profile only: the result row opens once the board shows the prescribed blocks. */
+  isRepresentationInputLocked: () => boolean;
   checkTimeExceeded: () => void;
   /** "החזרת עזרים" — bidirectional scaffold fading per spec: temporarily restore faded aids. */
   restoreScaffolds: () => void;
@@ -281,6 +289,7 @@ function resetTaskInteraction(isASD = false) {
     carryDigits: {} as Partial<Record<Place, string>>,
     probeAnswer: '',
     q3Reps: [] as PlaceCounts[],
+    operandDigits: { a: {}, b: {} } as { a: Partial<Record<Place, string>>; b: Partial<Record<Place, string>> },
     focusedPlace: null as Place | null,
     undoCount: 0,
     consecutiveDeletions: 0,
@@ -343,12 +352,59 @@ export function getActiveTasks(s: WorkspaceState): SessionTask[] {
   if (s.sessionNumber === 2) return [];
   if (s.dynamicTasks) return s.dynamicTasks;
   if (s.sessionNumber >= 3 && s.aiTasks) return s.aiTasks;
+  return getSessionTasks(s.sessionNumber as any, resolveLearningPath()) ?? [];
+}
+
+/**
+ * The learner's approved learning path (PRD Module 20/26): the teacher-selected
+ * path on the student record; green_path until one is approved.
+ */
+export function resolveLearningPath(): 'green_path' | 'remediation_path' {
   const authUser = useAuthStore.getState().user;
   const student = authUser?.uid ? useStore.getState().students[authUser.uid] : null;
-  const rawPath = s.selectedBranch || (student as any)?.pedagogicalPath;
-  const path: 'green_path' | 'remediation_path' =
-    rawPath === 'remediation_path' ? 'remediation_path' : 'green_path';
-  return getSessionTasks(s.sessionNumber as any, path) ?? [];
+  const rawPath = (student as any)?.pedagogicalPath;
+  return rawPath === 'remediation_path' ? 'remediation_path' : 'green_path';
+}
+
+/* ── מסמך 03 exercise-shape helpers (skeletons, representations) ── */
+
+/** Digits the learner must type into hidden operand cells, and whether each is right. */
+export function hiddenDigitsStatus(
+  s: Pick<WorkspaceState, 'operandDigits'>,
+  task: SessionTask | null,
+  a: number,
+  b: number
+): { complete: boolean; correct: boolean } {
+  if (!task?.hiddenDigits) return { complete: true, correct: true };
+  let complete = true;
+  let correct = true;
+  const check = (which: 'a' | 'b', value: number) => {
+    for (const place of task.hiddenDigits?.[which] ?? []) {
+      const typed = s.operandDigits[which][place];
+      if (typed === undefined || typed === '') { complete = false; correct = false; continue; }
+      if (parseInt(typed, 10) !== digitAt(value, place)) correct = false;
+    }
+  };
+  check('a', a);
+  check('b', b);
+  return { complete, correct };
+}
+
+/** Answer digits with the exercise's revealed result digits overlaid (skeleton exercises). */
+export function effectiveAnswerDigits(
+  s: Pick<WorkspaceState, 'answerDigits'>,
+  task: SessionTask | null,
+  target: number
+): Partial<Record<Place, string>> {
+  if (!task?.revealedResultDigits?.length) return s.answerDigits;
+  const out: Partial<Record<Place, string>> = { ...s.answerDigits };
+  for (const place of task.revealedResultDigits) out[place] = String(digitAt(target, place));
+  return out;
+}
+
+/** Exact board a representation task prescribes (places it does not list must be empty). */
+export function requiredCountsOf(task: SessionTask): PlaceCounts {
+  return { ...EMPTY_COUNTS, ...(task.requiredCounts ?? {}) };
 }
 
 export function selectStandardTask(s: WorkspaceState): SessionTask | null {
@@ -368,7 +424,8 @@ export function selectCanProceed(s: WorkspaceState): boolean {
     if (!task) return false;
 
     if (task.type === 'addition_simple' || task.type === 'vertical_addition') {
-      return answerDigitsToNumber(s.answerDigits) !== null;
+      const { a, b, target } = effectiveArithmetic(task, s.isASD);
+      return answerDigitsToNumber(effectiveAnswerDigits(s, task, target)) !== null && hiddenDigitsStatus(s, task, a, b).complete;
     }
     return s.hasInteracted;
   }
@@ -395,9 +452,13 @@ export function selectCanProceed(s: WorkspaceState): boolean {
     return s.q3Reps.length >= 2;
   }
   if (task.type === 'addition_simple' || task.type === 'vertical_addition') {
-    const hasDigits = answerDigitsToNumber(s.answerDigits) !== null;
+    const { a, b, target } = effectiveArithmetic(task, s.isASD);
+    const hasDigits = answerDigitsToNumber(effectiveAnswerDigits(s, task, target)) !== null;
     const hasBoardBlocks = selectBoardValue(s) > 0;
-    return hasBoardBlocks && hasDigits;
+    return hasBoardBlocks && hasDigits && hiddenDigitsStatus(s, task, a, b).complete;
+  }
+  if (task.type === 'representation') {
+    return selectBoardValue(s) > 0 && answerDigitsToNumber(s.answerDigits) !== null;
   }
   if (!s.hasInteracted) return false;
   return true;
@@ -842,8 +903,20 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         }
       }
 
-      const hasTypedDigits = Object.keys(s.answerDigits).some(
-        (k) => s.answerDigits[k as Place] !== undefined && s.answerDigits[k as Place] !== ''
+      const { a: opA, b: opB } = effectiveArithmetic(task, s.isASD);
+      const hidden = hiddenDigitsStatus(s, task, opA, opB);
+      if (!hidden.complete) {
+        handleFailure('missing_answer', 'הַקְלָדַת תְּשׁוּבָה ✏️', 'כתבו את הספרה החסרה בתיבה הריקה כדי להמשיך.', 3000);
+        return;
+      }
+      if (!hidden.correct) {
+        handleFailure('wrong_numeric', 'כִּמְעַט... 🧐', 'הספרה החסרה שכתבתם אינה נכונה. בדקו שוב בעזרת הלבנים בלוח.', 2800);
+        return;
+      }
+
+      const typedDigits = effectiveAnswerDigits(s, task, target);
+      const hasTypedDigits = Object.keys(typedDigits).some(
+        (k) => typedDigits[k as Place] !== undefined && typedDigits[k as Place] !== ''
       );
 
       if (!hasTypedDigits) {
@@ -856,7 +929,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         return;
       }
 
-      const ansVal = answerDigitsToNumber(s.answerDigits);
+      const ansVal = answerDigitsToNumber(typedDigits);
       if (ansVal !== target) {
         if (s.sessionNumber === 8) {
           handleFailure('wrong_numeric', 'נסו שוב 🤔', 'התשובה שהזנתם אינה נכונה. בדקו שוב!', 2800);
@@ -914,7 +987,36 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       return;
     }
 
+    if (task.type === 'representation') {
+      const required = requiredCountsOf(task);
+      if (!countsEqual(s.counts, required)) {
+        handleFailure(
+          'wrong_representation',
+          'בּוֹאוּ נְדַיֵּק אֶת הַמִּבְנֶה 🔍',
+          `הלוח צריך להציג בדיוק: ${describeCountsHe(required)}. כרגע יש בו: ${describeCountsHe(s.counts)}.`,
+          3500
+        );
+        return;
+      }
+      const typed = answerDigitsToNumber(s.answerDigits);
+      if (typed === null) {
+        handleFailure('missing_answer', 'הַקְלָדַת תְּשׁוּבָה ✏️', 'הלוח מסודר בדיוק כנדרש! כעת כתבו את המספר בשורת התוצאה.', 3000);
+        return;
+      }
+      if (typed !== (task.numberA ?? 0)) {
+        handleFailure('wrong_numeric', 'כִּמְעַט... 🧐', 'המספר שכתבתם אינו תואם לכמות שבלוח. בדקו שוב!', 2800);
+        return;
+      }
+      handleSuccess('כָּל הַכָּבוֹד! 🌟', 'ייצגתם את המספר בדיוק כפי שנדרש, והמספר שכתבתם תואם ללוח.', 2500);
+      return;
+    }
+
     if (task.type === 'flexible_decomp') {
+      if (task.requireEvenTens && s.q3Reps.some((r) => r.tens % 2 !== 0)) {
+        handleFailure('odd_tens', 'בּוֹאוּ נִבְדֹּק אֶת הָעֲשָׂרוֹת 🤔', 'בכל דרך מספר העשרות צריך להיות זוגי. נסו שוב!', 2800);
+        set({ q3Reps: [] });
+        return;
+      }
       if (s.q3Reps.length < 2) {
         showFeedback({ correct: false, title: 'נִדְרָשִׁים שְׁנֵי יִצּוּגִים שׁוֹנִים', sub: 'הוֹסִיפוּ יִצּוּג שֵׁנִי!' }, 1800);
         return;
@@ -1156,6 +1258,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     carryDigits: {},
     probeAnswer: '',
     q3Reps: [],
+    operandDigits: { a: {}, b: {} },
 
     feedback: null,
     feedbackNonce: 0,
@@ -1291,7 +1394,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     selectBranch: (branch: 'reinforcement' | 'challenge') => {
       const s = get();
       const currentTasks = getActiveTasks(s);
-      const branchTasks = getSessionBranchTasks(s.sessionNumber, branch);
+      const branchTasks = getSessionBranchTasks(s.sessionNumber, branch, resolveLearningPath());
+      if (branchTasks.length === 0) return;
 
       set({
         selectedBranch: branch,
@@ -1373,6 +1477,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         carryDigits: saved.carryDigits ?? {},
         probeAnswer: saved.probeAnswer ?? '',
         q3Reps: saved.q3Reps ?? [],
+        operandDigits: saved.operandDigits ?? { a: {}, b: {} },
         hasDeletedBlock: saved.standardTaskIdx === 0 && sanitized === 1 ? false : (saved.hasDeletedBlock ?? false),
         blocksAddedCount: saved.standardTaskIdx === 0 && sanitized === 1 ? 0 : (saved.blocksAddedCount ?? 0),
         focusedPlace: null,
@@ -1914,9 +2019,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const task = getCurrentQTask(s.qflow);
         target = task ? getEffectiveNumber(task, s.qflow, s.isASD) : undefined;
       } else {
-        const tasks = getSessionTasks(s.sessionNumber);
-        const task = tasks[s.standardTaskIdx];
+        const task = getActiveTasks(s)[s.standardTaskIdx];
         target = task?.numberA;
+        if (task?.requireEvenTens && s.counts.tens % 2 !== 0) {
+          showFeedback({ correct: false, title: 'בּוֹאוּ נִבְדֹּק אֶת הָעֲשָׂרוֹת 🤔', sub: 'בדרך הזאת מספר העשרות צריך להיות זוגי. נסו לפרוט או להקבץ עשרת אחת.' }, 3200);
+          return;
+        }
       }
 
       if (target !== undefined && value !== target) {
@@ -2156,6 +2264,63 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         return 0;
       }
       return remaining;
+    },
+
+    setOperandDigit: (which, place, val) => {
+      const clean = val.replace(/[^0-9]/g, '').slice(-1);
+      const s = get();
+      const task = getActiveTasks(s)[s.standardTaskIdx] || null;
+      const studentId = useAuthStore.getState().user?.uid || 'student_1';
+      if (clean !== '' && task) {
+        const { a, b } = effectiveArithmetic(task, s.isASD);
+        const expected = digitAt(which === 'a' ? a : b, place);
+        const isCorrect = parseInt(clean, 10) === expected;
+        emitTelemetry({
+          session_id: `session_${s.sessionNumber}_student_${studentId}`,
+          student_id: studentId,
+          exercise_id: task.id,
+          event_type: 'DIGIT_ENTERED',
+          column_index: placeToColumnIndex(place),
+          details: { digit_value: parseInt(clean, 10), is_correct: isCorrect },
+        }).catch(console.error);
+        set({
+          operandDigits: { ...s.operandDigits, [which]: { ...s.operandDigits[which], [place]: clean } },
+          hasInteracted: true,
+          consecutiveDeletions: 0,
+          hasDigitErrorInTask: isCorrect ? s.hasDigitErrorInTask : true,
+          typedErrorCount: isCorrect ? s.typedErrorCount : s.typedErrorCount + 1,
+        });
+        return;
+      }
+      const wasSet = Boolean(s.operandDigits[which][place]);
+      if (wasSet && task) {
+        emitTelemetry({
+          session_id: `session_${s.sessionNumber}_student_${studentId}`,
+          student_id: studentId,
+          exercise_id: task.id,
+          event_type: 'DIGIT_DELETED',
+          column_index: placeToColumnIndex(place),
+          details: { deleted_digit_value: parseInt(s.operandDigits[which][place] as string, 10) },
+        }).catch(console.error);
+      }
+      set({
+        operandDigits: { ...s.operandDigits, [which]: { ...s.operandDigits[which], [place]: '' } },
+        hasInteracted: true,
+        consecutiveDeletions: wasSet ? s.consecutiveDeletions + 1 : s.consecutiveDeletions,
+      });
+    },
+
+    isRepresentationInputLocked: () => {
+      const s = get();
+      if (s.sessionNumber === 2 || s.sessionNumber === 8) return false;
+      // PRD Module 9: the lock exists for enhanced_cognitive_support only; every other learner's row stays open.
+      const authUser = useAuthStore.getState().user;
+      const supportProfile = (authUser as any)?.support_profile_id ?? (s as any).support_profile_id;
+      if (supportProfile !== 'enhanced_cognitive_support') return false;
+      const task = getActiveTasks(s)[s.standardTaskIdx] || null;
+      if (!task || task.type !== 'representation') return false;
+      // מסמך 03 §3.3: the row opens only after the virtual conversion — i.e. once the board shows the prescribed blocks.
+      return !countsEqual(s.counts, requiredCountsOf(task));
     },
 
     isColumnInputLocked: (place, numberA, numberB, isSubtraction) => {

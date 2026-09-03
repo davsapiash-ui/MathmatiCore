@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useWorkspaceStore } from '../../application/useWorkspaceStore';
 import { SESSION1_TASKS, SESSION3_TASKS } from '../../data/sessionTasks';
+import { getSessionBranchTasks } from '../../data/sessionBranchTasks';
 import type { SessionDocument } from '../../types';
 
 describe('Work Package 4 (WP4): Session Progression (1-8), Projector Sync & SRL Reflection Suite', () => {
@@ -164,28 +165,21 @@ describe('Work Package 4 (WP4): Session Progression (1-8), Projector Sync & SRL 
       expect(lastTask?.branchType).toBe('challenge');
     });
 
-    it('injects tailored zero placeholder branch tasks for Session 6 (אפס כשומר מקום)', () => {
-      const store = useWorkspaceStore.getState();
-      store.initSession(6, false);
-
-      store.selectBranch('reinforcement');
-      const state = useWorkspaceStore.getState();
-      const branchTasks = state.dynamicTasks?.filter(t => t.isOptionalChoiceTask) || [];
-
-      expect(branchTasks.length).toBeGreaterThan(0);
-      expect(branchTasks.some(t => t.numberA === 506 || t.numberA === 408)).toBe(true);
+    it('injects the zero-placeholder branch bank of Session 6 (מסמך 03 §3.6: 305−102, 250−130 | 600−247 per remediation; 4,050−1,020, 3,006−1,004 | 8,000−2,376 per green)', () => {
+      const rem = [...getSessionBranchTasks(6, 'reinforcement', 'remediation_path'), ...getSessionBranchTasks(6, 'challenge', 'remediation_path')];
+      expect(rem.map((t) => [t.numberA, t.numberB])).toEqual([[305, 102], [250, 130], [600, 247]]);
+      const green = [...getSessionBranchTasks(6, 'reinforcement', 'green_path'), ...getSessionBranchTasks(6, 'challenge', 'green_path')];
+      expect(green.map((t) => [t.numberA, t.numberB])).toEqual([[4050, 1020], [3006, 1004], [8000, 2376]]);
+      for (const t of [...rem, ...green]) {
+        expect(t.isSubtraction).toBe(true);
+        expect(t.targetNode).toBe('zero_placeholder');
+        expect(t.isOptionalChoiceTask).toBe(true);
+      }
     });
 
-    it('injects tailored multiplication branch tasks for Session 8 (כפל בעשרות שלמות)', () => {
-      const store = useWorkspaceStore.getState();
-      store.initSession(8, false);
-
-      store.selectBranch('challenge');
-      const state = useWorkspaceStore.getState();
-      const branchTasks = state.dynamicTasks?.filter(t => t.isOptionalChoiceTask) || [];
-
-      expect(branchTasks.length).toBeGreaterThan(0);
-      expect(branchTasks[0].targetNode).toBe('multiplication_base');
+    it('offers no branch bank in Session 8 — the choice screen exists in sessions 3–7 only (PRD Module 14 §ג)', () => {
+      expect(getSessionBranchTasks(8, 'reinforcement')).toEqual([]);
+      expect(getSessionBranchTasks(8, 'challenge')).toEqual([]);
     });
   });
 

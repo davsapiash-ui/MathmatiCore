@@ -15,9 +15,10 @@ import type { SessionTask } from '@/data/sessionTasks';
 describe('Modules 4/26: curriculum catalog contract', () => {
   const task = (id: string): SessionTask => ({ id, type: 'addition_simple', titleHe: `משימה ${id}`, instructionHe: 'הוראה' });
 
-  it('bank ids: sessions 3-7 are split per learning path; 1 and 8 are single banks', () => {
+  it('bank ids: sessions 3-8 are split per learning path (מסמך 03 §3.8); session 1 is a single bank', () => {
     expect(catalogBankId(1)).toBe('session_1');
-    expect(catalogBankId(8)).toBe('session_8');
+    expect(catalogBankId(8)).toBe('session_8_green_path');
+    expect(catalogBankId(8, 'remediation_path')).toBe('session_8_remediation_path');
     expect(catalogBankId(3, 'green_path')).toBe('session_3_green_path');
     expect(catalogBankId(5, 'remediation_path')).toBe('session_5_remediation_path');
     expect(catalogBankId(7, null)).toBe('session_7_green_path');
@@ -42,13 +43,12 @@ describe('Modules 4/26: curriculum catalog contract', () => {
     expect(resolveCatalogBank(new Map([['session_3_green_path', []]]), 3, 'green_path', fallback)[0].id).toBe('hard_1');
   });
 
-  it('hardcoded seed covers all banks: session 1, 8, and both paths for 3-7 (12 banks)', () => {
+  it('hardcoded seed covers all banks: session 1 and both paths for 3-8 (13 banks)', () => {
     const banks = getHardcodedCatalogBanks();
-    expect(banks).toHaveLength(12);
+    expect(banks).toHaveLength(13);
     const ids = banks.map((b) => b.id);
     expect(ids).toContain('session_1');
-    expect(ids).toContain('session_8');
-    for (const n of [3, 4, 5, 6, 7]) {
+    for (const n of [3, 4, 5, 6, 7, 8]) {
       expect(ids).toContain(`session_${n}_green_path`);
       expect(ids).toContain(`session_${n}_remediation_path`);
     }
