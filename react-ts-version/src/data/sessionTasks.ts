@@ -316,8 +316,10 @@ export const SESSION5_REMEDIATION_TASKS: SessionTask[] = [
 export const SESSION5_GREEN_TASKS: SessionTask[] = [
   subtraction('s5_g_t1', 5432, 2118, 'פריטה פשוטה בטור היחידות בתחום הרבבה', S5_SUB('5,432 − 2,118', true)),
   subtraction('s5_g_t2', 6543, 1227, 'פריטה ביחידות עם נוכחות אלפים', S5_SUB('6,543 − 1,227', true)),
-  subtraction('s5_g_t3', 7651, 3325, 'פריטה מטור העשרות ליחידות', S5_SUB('7,651 − 3,325', true)),
-  subtraction('s5_g_t4', 8762, 4439, 'פריטה מטור העשרות ליחידות בתחום הרבבה', S5_SUB('8,762 − 4,439', true)),
+  // ★ owner-approved replacement (3.9.2026): the document's 7,651 − 3,325 borrows in the units, not the tens.
+  subtraction('s5_g_t3', 7651, 3381, 'פריטה בטור העשרות בלבד', S5_SUB('7,651 − 3,381', true)),
+  // ★ owner-approved replacement (3.9.2026): the document's 8,762 − 4,439 borrows in the units, not the hundreds.
+  subtraction('s5_g_t4', 8762, 4932, 'פריטה בטור המאות בלבד', S5_SUB('8,762 − 4,932', true)),
   subtraction('s5_g_t5', 6284, 1157, 'פריטה פשוטה בטור היחידות בתחום הרבבה', S5_SUB('6,284 − 1,157', true)),
   subtraction('s5_g_t6', 3845, 1517, 'פריטה פשוטה ביחידות, כל הספרות שונות מאפס', S5_SUB('3,845 − 1,517', true)),
   // ★ chosen: מסמך 03 describes an inquiry comparing near exercises, without numbers.
@@ -325,12 +327,12 @@ export const SESSION5_GREEN_TASKS: SessionTask[] = [
     id: 's5_g_t7', type: 'small_change',
     titleHe: 'משימת חקר של הרכבי פריטה משתנים',
     instructionHe: 'השוו בין שני תרגילים קרובים וגלו כיצד פריטה בטור העשרות משפיעה על הטורים הבאים.',
-    givenHe: '7,651 − 3,325 = 4,326',
-    questionHe: 'מה ישתנה אם נחליף רק את ספרת העשרות של המחוסר: 7,681 − 3,325?',
+    givenHe: '7,651 − 3,381 = 4,270',
+    questionHe: 'מה ישתנה אם נחליף רק את ספרת העשרות של המחוסר: 7,691 − 3,381?',
     choices: [
-      { id: 'א', textHe: 'הפריטה מטור העשרות תישאר, וספרת העשרות בתוצאה תגדל ב-3: 4,356', correct: true },
-      { id: 'ב', textHe: 'לא תידרש יותר פריטה, והתוצאה תהיה 4,366' },
-      { id: 'ג', textHe: 'רק ספרת העשרות תשתנה ל-8, והתוצאה תהיה 4,386' },
+      { id: 'א', textHe: 'לא תידרש יותר פריטה, כי 9 עשרות גדולות מ-8, והתוצאה תהיה 4,310', correct: true },
+      { id: 'ב', textHe: 'הפריטה מטור המאות תישאר, והתוצאה תהיה 4,210' },
+      { id: 'ג', textHe: 'רק ספרת העשרות בתוצאה תשתנה, והתוצאה תהיה 4,280' },
     ],
     correctAnswer: 'א',
     targetNode: 'relational_thinking',
