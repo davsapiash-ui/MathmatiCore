@@ -49,6 +49,19 @@ export function normalizeTaskIdForHints(id?: string): string {
   return id.replace(/^(s\d+)_[gr]_t(\d+)$/, '$1_t$2');
 }
 
+/**
+ * Static-card keys for a session 3–8 exercise id (compulsory or early-finisher):
+ * the path-specific card first (`s3_r_card`), then the session card (`s3_card`).
+ * מסמך 03 writes one Socratic card per session, so every exercise of a session
+ * shares it; only session 3 differs by path (34 tens vs 34 hundreds).
+ */
+export function sessionCardKeysForTaskId(id?: string): string[] {
+  const m = id ? /^s([3-8])_(?:([gr])_)?(?:t\d+|reinforce_\d+|challenge_\d+)$/.exec(id) : null;
+  if (!m) return [];
+  const [, session, path] = m;
+  return path ? [`s${session}_${path}_card`, `s${session}_card`] : [`s${session}_card`];
+}
+
 /** Ceiling on how long a learner waits for an AI hint before the static one is served (Module 13 §4). */
 const SOCRATIC_PROXY_TIMEOUT_MS = 8000;
 
@@ -162,495 +175,115 @@ const TASK_HINTS: Record<string, SocraticHintResponse> = {
     correctChoiceId: "opt_1"
   },
 
-  // ── Session 3 — קיבוץ וחיבור עם המרות ────────────────────
-
-  's3_t1': {
-    pedagogical_intent: "procedural",
-    tts_text: "חברו 146 + 235: כאשר טור היחידות מגיע ל-10 ומעלה — קבצו אותם לעשרת אחת.",
-    suggested_highlight: "tour-column-units",
-    questionHe: "מה עושים כש-6 יחידות + 5 יחידות = 11 יחידות?",
-    choices: [
-      { id: "opt_1", textHe: "אוספים 10 יחידות ומקבצים אותן לעשרת אחת — נשארת יחידה אחת" },
-      { id: "opt_2", textHe: "כותבים 11 בטור היחידות" },
-      { id: "opt_3", textHe: "מוחקים יחידה אחת" }
-    ],
-    correctChoiceId: "opt_1"
-  },
-
-  's3_t2': {
-    pedagogical_intent: "procedural",
-    tts_text: "כשמחברים 7 עשרות + 2 עשרות = 9 עשרות — אין קיבוץ. אבל בדקו את טור היחידות.",
-    suggested_highlight: "tour-column-tens",
-    questionHe: "בניתם את שני המספרים — מה בודקים קודם?",
-    choices: [
-      { id: "opt_1", textHe: "מתחילים מטור היחידות — בודקים האם יש 10 יחידות או יותר" },
-      { id: "opt_2", textHe: "מתחילים מטור המאות — הוא הגדול ביותר" },
-      { id: "opt_3", textHe: "רושמים מיד את התוצאה בלי לבדוק" }
-    ],
-    correctChoiceId: "opt_1"
-  },
-
-  's3_t3': {
+  // ── Sessions 3–8 — the Socratic cards written in מסמך 03 (one card per session,
+  //    served for every exercise of that session; session 3 has a card per path). ──
+  // מסמך 03 §3.3
+  's3_r_card':   {
     pedagogical_intent: "conceptual",
-    tts_text: "8 יחידות + 5 יחידות = 13 יחידות. קבצו 10 ונשמרת 3.",
-    suggested_highlight: "tour-column-units",
-    questionHe: "מה קורה כשבטור היחידות מצטברים 13 יחידות?",
+    error_category: "conceptual",
+    tts_text: 'בואו נחשוב רגע יחד: האם שקלתם את ערך המיקום של הספרות?',
+    suggested_highlight: "tour-column-tens",
+    questionHe: 'בואו נחשוב רגע יחד: האם שקלתם את ערך המיקום של הספרות?',
     choices: [
-      { id: "opt_1", textHe: "אוספים 10 ממוחקים לעשרת — נשארות 3 יחידות" },
-      { id: "opt_2", textHe: "כותבים 13 בטור היחידות" },
-      { id: "opt_3", textHe: "מוחקים 3 יחידות" }
+      { id: "opt_1", textHe: 'נשתמש ב-34 עשרות', isCorrect: true, feedbackHe: 'נכון מאוד! צברתם את הכמות המדויקת בלוח הלבנים.' },
+      { id: "opt_2", textHe: 'נשתמש ב-3 מאות ו-4 עשרות', isCorrect: false, feedbackHe: 'רמז: זהו הייצוג הסטנדרטי הרגיל. אנו מבקשים לייצג את המספר באמצעות עשרות בלבד.' },
+      { id: "opt_3", textHe: 'נשתמש ב-340 יחידות בודדות', isCorrect: false, feedbackHe: 'רמז: ייצוג זה צפוף ומעמיס מדי על הלוח. השתמשו בעמודת העשרות.' }
     ],
     correctChoiceId: "opt_1"
   },
-
-  's3_t4': {
+  's3_g_card':   {
     pedagogical_intent: "conceptual",
-    tts_text: "5 עשרות + 8 עשרות = 13 עשרות. קבצו 10 עשרות למאה אחת.",
-    suggested_highlight: "tour-column-tens",
-    questionHe: "מה קורה כשבטור העשרות יש 13 עשרות?",
+    error_category: "conceptual",
+    tts_text: 'בואו נחשוב רגע יחד: האם שקלתם את ערך המיקום של הספרות?',
+    suggested_highlight: "tour-column-hundreds",
+    questionHe: 'בואו נחשוב רגע יחד: האם שקלתם את ערך המיקום של הספרות?',
     choices: [
-      { id: "opt_1", textHe: "אוספים 10 עשרות להמרה למאה אחת — נשארות 3 עשרות" },
-      { id: "opt_2", textHe: "כותבים 13 בטור העשרות" },
-      { id: "opt_3", textHe: "מוחקים 3 עשרות" }
+      { id: "opt_1", textHe: 'נשתמש ב-34 מאות', isCorrect: true, feedbackHe: 'נכון מאוד! צברתם את הכמות המדויקת בלוח הלבנים.' },
+      { id: "opt_2", textHe: 'נשתמש ב-3 אלפים ו-4 מאות', isCorrect: false, feedbackHe: 'רמז: זהו הייצוג הסטנדרטי הרגיל. אנו מבקשים לייצג את המספר באמצעות מאות בלבד.' },
+      { id: "opt_3", textHe: 'נשתמש ב-3,400 יחידות בודדות', isCorrect: false, feedbackHe: 'רמז: ייצוג זה צפוף ומעמיס מדי על הלוח. השתמשו בעמודת המאות.' }
     ],
     correctChoiceId: "opt_1"
   },
-
-  's3_t5': {
-    pedagogical_intent: "procedural",
-    tts_text: "תרגיל עם המרה כפולה: בדקו גם את טור היחידות וגם את טור העשרות.",
-    suggested_highlight: "tour-place-value-board",
-    questionHe: "מהיכן מתחילים ב-4890 + 1750?",
-    choices: [
-      { id: "opt_1", textHe: "תמיד מתחילים מטור הימני ביותר (יחידות) ועובדים שמאלה" },
-      { id: "opt_2", textHe: "מתחילים מהמספר הגדול" },
-      { id: "opt_3", textHe: "מחברים הכל בראש בלי לוח" }
-    ],
-    correctChoiceId: "opt_1"
-  },
-
-  's3_t6': {
+  's3_card':   {
     pedagogical_intent: "conceptual",
-    tts_text: "גמישות ייצוגית: אפשר לפרט 4 מאות ל-3 מאות + 10 עשרות — הכמות הכוללת לא משתנה.",
+    error_category: "conceptual",
+    tts_text: 'בואו נחשוב רגע יחד: האם שקלתם את ערך המיקום של הספרות?',
     suggested_highlight: "tour-column-hundreds",
-    questionHe: "כיצד מייצגים 452 בשתי דרכים שונות?",
+    questionHe: 'בואו נחשוב רגע יחד: האם שקלתם את ערך המיקום של הספרות?',
     choices: [
-      { id: "opt_1", textHe: "פורטים מאה אחת ל-10 עשרות (4מ'→3מ'+15ע') — הכמות שמורה" },
-      { id: "opt_2", textHe: "מוסיפים עוד בלוקים לייצוג" },
-      { id: "opt_3", textHe: "כל מספר יש לו רק ייצוג אחד" }
+      { id: "opt_1", textHe: 'נשתמש ב-34 מאות', isCorrect: true, feedbackHe: 'נכון מאוד! צברתם את הכמות המדויקת בלוח הלבנים.' },
+      { id: "opt_2", textHe: 'נשתמש ב-3 אלפים ו-4 מאות', isCorrect: false, feedbackHe: 'רמז: זהו הייצוג הסטנדרטי הרגיל. אנו מבקשים לייצג את המספר באמצעות מאות בלבד.' },
+      { id: "opt_3", textHe: 'נשתמש ב-3,400 יחידות בודדות', isCorrect: false, feedbackHe: 'רמז: ייצוג זה צפוף ומעמיס מדי על הלוח. השתמשו בעמודת המאות.' }
     ],
     correctChoiceId: "opt_1"
   },
-
-  's3_t7': {
+  // מסמך 03 §3.4
+  's4_card':   {
     pedagogical_intent: "procedural",
-    tts_text: "320 + 480: בדקו את טור העשרות — 2 + 8 = 10 עשרות, כלומר מאה שלמה.",
-    suggested_highlight: "tour-column-tens",
-    questionHe: "מה קורה כשמחברים 2 עשרות + 8 עשרות?",
-    choices: [
-      { id: "opt_1", textHe: "מתקבלות 10 עשרות = מאה אחת שלמה, טור העשרות מתרוקן" },
-      { id: "opt_2", textHe: "כותבים 10 בטור העשרות" },
-      { id: "opt_3", textHe: "מוחקים 2 עשרות" }
-    ],
-    correctChoiceId: "opt_1"
-  },
-
-  // ── Session 4 — חיבור במאונך ──────────────────────────────
-
-  's4_t1': {
-    pedagogical_intent: "procedural",
-    tts_text: "פתרו 342 + 125 במאונך: התחילו מטור היחידות ועלו שמאלה.",
+    error_category: "procedural",
+    tts_text: 'בואו נחשוב רגע יחד: נצברו עשר יחידות בטור. מה עושים איתן?',
     suggested_highlight: "tour-column-units",
-    questionHe: "מאיפה מתחילים בחיבור במאונך?",
+    questionHe: 'בואו נחשוב רגע יחד: נצברו עשר יחידות בטור. מה עושים איתן?',
     choices: [
-      { id: "opt_1", textHe: "תמיד מהטור הימני ביותר — טור היחידות" },
-      { id: "opt_2", textHe: "מהמספר הגדול ביותר" },
-      { id: "opt_3", textHe: "מטור המאות" }
+      { id: "opt_1", textHe: 'מקבצים 10 יחידות לעשרת אחת ומעבירים אותה שמאלה לטור העשרות', isCorrect: true, feedbackHe: 'נכון מאוד! בואו נלחץ על הקבץ ונצפה בעשרת הנודדת שמאלה.' },
+      { id: "opt_2", textHe: 'משאירים את כולן בטור היחידות', isCorrect: false, feedbackHe: 'רמז: טור היחידות קטן וצפוף. הוא יכול להכיל רק ספרה אחת בין 0 ל-9.' },
+      { id: "opt_3", textHe: 'מוחקים את היחידות המיותרות', isCorrect: false, feedbackHe: 'רמז: מומלץ לשמור על הקוביות. הכמות המתמטית נשמרת תמיד.' }
     ],
     correctChoiceId: "opt_1"
   },
-
-  's4_t2': {
+  // מסמך 03 §3.5
+  's5_card':   {
     pedagogical_intent: "procedural",
-    tts_text: "4 + 6 = 10 יחידות: רשמו 0 ביחידות והעבירו 1 לעשרות.",
-    suggested_highlight: "tour-column-units",
-    questionHe: "4 יחידות + 6 יחידות = 10 — מה כותבים בתיבת היחידות?",
-    choices: [
-      { id: "opt_1", textHe: "0 ביחידות + 1 כשארית בראש טור העשרות" },
-      { id: "opt_2", textHe: "10 ביחידות" },
-      { id: "opt_3", textHe: "1 ביחידות" }
-    ],
-    correctChoiceId: "opt_1"
-  },
-
-  's4_t3': {
-    pedagogical_intent: "procedural",
-    tts_text: "425 + 198 — המרה כפולה: קודם ביחידות ואז בעשרות.",
-    suggested_highlight: "tour-column-units",
-    questionHe: "יש שתי המרות בתרגיל הזה — מה הסדר הנכון?",
-    choices: [
-      { id: "opt_1", textHe: "קודם מסכמים יחידות ומעבירים שארית, אחר כך עשרות" },
-      { id: "opt_2", textHe: "מסכמים הכל ואז מעבירים שאריות" },
-      { id: "opt_3", textHe: "בתרגיל הזה אין שאריות" }
-    ],
-    correctChoiceId: "opt_1"
-  },
-
-  's4_t4': {
-    pedagogical_intent: "focus",
-    tts_text: "הקפידו לרשום את השארית בתיבות העליונות כדי לא לאבד אותה בחיסוב.",
+    error_category: "procedural",
+    tts_text: 'בואו נחשוב רגע יחד: אין מספיק יחידות כדי להחסיר. מה עושים?',
     suggested_highlight: "tour-column-tens",
-    questionHe: "מדוע חשוב לרשום את השארית בתיבה העליונה?",
+    questionHe: 'בואו נחשוב רגע יחד: אין מספיק יחידות כדי להחסיר. מה עושים?',
     choices: [
-      { id: "opt_1", textHe: "כדי לא לשכוח להוסיף אותה בסכימת הטור הבא" },
-      { id: "opt_2", textHe: "זה סתם מנהג — אפשר לזכור בראש" },
-      { id: "opt_3", textHe: "כדי שהתרגיל יראה מסודר" }
+      { id: "opt_1", textHe: 'פורטים עשרת אחת לעשר יחידות בודדות ומעבירים אותן לטור היחידות', isCorrect: true, feedbackHe: 'נכון מאוד! בואו נלחץ על כפתור הפריטה ונצפה בעשרת המתפרקת ליחידות.' },
+      { id: "opt_2", textHe: 'מחסירים את המספר הקטן מהמספר הגדול בטור היחידות', isCorrect: false, feedbackHe: 'רמז: בואו נשמור על סדר התרגיל ונחסיר את המחסר מהמחוסר.' },
+      { id: "opt_3", textHe: 'כותבים את התשובה בטור העשרות תחילה', isCorrect: false, feedbackHe: 'רמז: באלגוריתם הטורי מומלץ להתחיל מטור היחידות.' }
     ],
     correctChoiceId: "opt_1"
   },
-
-  's4_t5': {
-    pedagogical_intent: "procedural",
-    tts_text: "1,530 + 2,870 — עבדו טור אחרי טור מימין לשמאל.",
-    suggested_highlight: "tour-place-value-board",
-    questionHe: "בתרגיל עם אלפים — מה הסדר?",
-    choices: [
-      { id: "opt_1", textHe: "יחידות ← עשרות ← מאות ← אלפים, עם שאריות בכל פעם" },
-      { id: "opt_2", textHe: "אלפים קודם — הם הגדולים" },
-      { id: "opt_3", textHe: "אין חשיבות לסדר" }
-    ],
-    correctChoiceId: "opt_1"
-  },
-
-  's4_t6': {
-    pedagogical_intent: "procedural",
-    tts_text: "3,450 + 2,680: בדקו שכל שארית נרשמה לפני שעוברים לטור הבא.",
-    suggested_highlight: "tour-place-value-board",
-    questionHe: "מה בודקים לפני שעוברים לטור הבא?",
-    choices: [
-      { id: "opt_1", textHe: "שרשמנו את השארית בראש הטור הבא" },
-      { id: "opt_2", textHe: "שהמספרים בלוח מדויקים" },
-      { id: "opt_3", textHe: "שמחקנו את כל הבלוקים" }
-    ],
-    correctChoiceId: "opt_1"
-  },
-
-  's4_t7': {
-    pedagogical_intent: "focus",
-    tts_text: "4,890 + 3,510: הראו שליטה מלאה — רשמו כל שארית בזמן.",
-    suggested_highlight: "tour-place-value-board",
-    questionHe: "מה מבדיל בין פתרון נכון לשגוי בחיבור במאונך?",
-    choices: [
-      { id: "opt_1", textHe: "רישום מדויק של כל שארית בכל טור" },
-      { id: "opt_2", textHe: "מהירות החישוב" },
-      { id: "opt_3", textHe: "מספר הבלוקים בלוח" }
-    ],
-    correctChoiceId: "opt_1"
-  },
-
-  // ── Session 5 — חיסור עם פריטה ─────────────────────────────
-
-  's5_t1': {
-    pedagogical_intent: "procedural",
-    tts_text: "4,500 - 1,200: בנו 4,500 בלוח, הוציאו 1 מאות ו-2 אלפים לפח.",
-    suggested_highlight: "tour-column-thousands",
-    questionHe: "איך מחסירים 1,200 מ-4,500 בלוח?",
-    choices: [
-      { id: "opt_1", textHe: "בונים 4,500 ומוחקים 1 אלף + 2 מאות לפח המחזור" },
-      { id: "opt_2", textHe: "בונים גם 4,500 וגם 1,200 ומשווים" },
-      { id: "opt_3", textHe: "רושמים 3,300 ישירות בלי לוח" }
-    ],
-    correctChoiceId: "opt_1"
-  },
-
-  's5_t2': {
-    pedagogical_intent: "procedural",
-    tts_text: "3,800 - 2,400: הוציאו 2 אלפים + 4 מאות מהלוח.",
-    suggested_highlight: "tour-column-hundreds",
-    questionHe: "מה מוציאים מהלוח כדי לחסר 2,400?",
-    choices: [
-      { id: "opt_1", textHe: "2 בלוקים מטור האלפים + 4 בלוקים מטור המאות" },
-      { id: "opt_2", textHe: "24 בלוקים מטור היחידות" },
-      { id: "opt_3", textHe: "מוחקים את הכל ומתחילים מחדש" }
-    ],
-    correctChoiceId: "opt_1"
-  },
-
-  's5_t3': {
-    pedagogical_intent: "procedural",
-    tts_text: "5,240 - 1,800: חסרות מאות — פרטו אלף אחד ל-10 מאות.",
-    suggested_highlight: "tour-column-hundreds",
-    questionHe: "חסרות לנו מאות לחיסור — מה עושים?",
-    choices: [
-      { id: "opt_1", textHe: "פורטים אלף אחד מטור האלפים — הופך ל-10 מאות" },
-      { id: "opt_2", textHe: "מוסיפים מאות מהמחסן" },
-      { id: "opt_3", textHe: "חוסרים מלמטה למעלה" }
-    ],
-    correctChoiceId: "opt_1"
-  },
-
-  's5_t4': {
-    pedagogical_intent: "procedural",
-    tts_text: "6,350 - 2,480: חסרות עשרות — פרטו מאה אחת ל-10 עשרות.",
-    suggested_highlight: "tour-column-tens",
-    questionHe: "חסרות לנו עשרות — מה עושים?",
-    choices: [
-      { id: "opt_1", textHe: "פורטים מאה אחת מטור המאות — הופכת ל-10 עשרות" },
-      { id: "opt_2", textHe: "פורטים אלף מטור האלפים" },
-      { id: "opt_3", textHe: "ממשיכים בלי פריטה" }
-    ],
-    correctChoiceId: "opt_1"
-  },
-
-  's5_t5': {
-    pedagogical_intent: "procedural",
-    tts_text: "4,120 - 1,950: פריטה כפולה — קודם עשרות, אחר כך מאות.",
-    suggested_highlight: "tour-place-value-board",
-    questionHe: "יש פה פריטה כפולה — מה הסדר?",
-    choices: [
-      { id: "opt_1", textHe: "מתחילים מהצורך הקטן ביותר: קודם פורטים לעשרות ואז למאות" },
-      { id: "opt_2", textHe: "פורטים מהאלפים ישירות ליחידות" },
-      { id: "opt_3", textHe: "אין צורך בסדר ספציפי" }
-    ],
-    correctChoiceId: "opt_1"
-  },
-
-  's5_t6': {
-    pedagogical_intent: "focus",
-    tts_text: "7,200 - 3,850: בדקו כל טור לפני החיסור — האם יש מספיק בלוקים?",
-    suggested_highlight: "tour-place-value-board",
-    questionHe: "איך בודקים לפני שמחסירים?",
-    choices: [
-      { id: "opt_1", textHe: "בודקים שבכל טור יש מספיק בלוקים לחיסור — אחרת פורטים" },
-      { id: "opt_2", textHe: "בונים את המספר ומחסירים כרגיל" },
-      { id: "opt_3", textHe: "בודקים רק את טור היחידות" }
-    ],
-    correctChoiceId: "opt_1"
-  },
-
-  's5_t7': {
-    pedagogical_intent: "procedural",
-    tts_text: "8,500 - 4,920: הראו שליטה בפריטה מדורגת.",
-    suggested_highlight: "tour-place-value-board",
-    questionHe: "מה הצעד הראשון ב-8,500 - 4,920?",
-    choices: [
-      { id: "opt_1", textHe: "בודקים טור העשרות: יש לנו 0 עשרות, פורטים מאה" },
-      { id: "opt_2", textHe: "מתחילים מטור האלפים" },
-      { id: "opt_3", textHe: "כותבים את התוצאה ישירות" }
-    ],
-    correctChoiceId: "opt_1"
-  },
-
-  // ── Session 6 — אפס כשומר מקום ─────────────────────────────
-
-  's6_t1': {
-    pedagogical_intent: "procedural",
-    tts_text: "6,200 - 3,500: חסרות מאות, פרטו אלף אחד ל-10 מאות.",
-    suggested_highlight: "tour-column-thousands",
-    questionHe: "יש לנו 2 מאות — אנחנו צריכים לחסר 5 מאות — מה עושים?",
-    choices: [
-      { id: "opt_1", textHe: "פורטים אלף אחד ל-10 מאות — עכשיו יש לנו 12 מאות" },
-      { id: "opt_2", textHe: "חוסרים בלי פריטה" },
-      { id: "opt_3", textHe: "מוסיפים מאות מהמחסן" }
-    ],
-    correctChoiceId: "opt_1"
-  },
-
-  's6_t2': {
-    pedagogical_intent: "procedural",
-    tts_text: "5,000 - 1,800: שלושה אפסים עוקבים — פרטו שלב אחר שלב.",
-    suggested_highlight: "tour-column-thousands",
-    questionHe: "כאשר יש אפסים עוקבים בטורים — מה הדרך הנכונה לפרוט?",
-    choices: [
-      { id: "opt_1", textHe: "פורטים אלף ל-10 מאות, ואז מאה ל-10 עשרות — שלב אחרי שלב" },
-      { id: "opt_2", textHe: "פורטים ישירות מאלפים ליחידות" },
-      { id: "opt_3", textHe: "אי אפשר לחסר כשיש אפסים" }
-    ],
-    correctChoiceId: "opt_1"
-  },
-
-  's6_t3': {
+  // מסמך 03 §3.6
+  's6_card':   {
     pedagogical_intent: "conceptual",
-    tts_text: "4,005 - 1,230: אפס בטור המאות ובטור העשרות — פרטו מאלפים.",
-    suggested_highlight: "tour-column-thousands",
-    questionHe: "יש לנו 0 בטור המאות ו-0 בעשרות — כיצד מחסירים?",
-    choices: [
-      { id: "opt_1", textHe: "פורטים מטור האלפים — הוא היחיד שיש בו ערך" },
-      { id: "opt_2", textHe: "מוסיפים ערכים לטורים הריקים" },
-      { id: "opt_3", textHe: "אי אפשר לחסר" }
-    ],
-    correctChoiceId: "opt_1"
-  },
-
-  's6_t4': {
-    pedagogical_intent: "focus",
-    tts_text: "7,000 - 3,450: כל הטורים אפס — פרטו שלב שלב מהאלפים.",
-    suggested_highlight: "tour-column-thousands",
-    questionHe: "7,000 עם שלושה אפסים — מה הצעד הראשון?",
-    choices: [
-      { id: "opt_1", textHe: "פורטים 1 אלף ל-10 מאות, ואז פורטים שוב כנדרש" },
-      { id: "opt_2", textHe: "חוסרים ישירות — 7-3 = 4" },
-      { id: "opt_3", textHe: "מוסיפים ספרות לטורים הריקים" }
-    ],
-    correctChoiceId: "opt_1"
-  },
-
-  's6_t5': {
-    pedagogical_intent: "procedural",
-    tts_text: "3,040 - 1,580: אפס בטור העשרות — פרטו מאה ל-10 עשרות.",
+    error_category: "conceptual",
+    tts_text: 'בואו נחשוב רגע יחד: איך פורטים כשבטור העשרות יש אפס?',
     suggested_highlight: "tour-column-hundreds",
-    questionHe: "0 עשרות בלוח — כיצד מחסירים 8 עשרות?",
+    questionHe: 'בואו נחשוב רגע יחד: איך פורטים כשבטור העשרות יש אפס?',
     choices: [
-      { id: "opt_1", textHe: "פורטים מאה אחת ל-10 עשרות" },
-      { id: "opt_2", textHe: "פורטים ישירות מהאלפים לעשרות" },
-      { id: "opt_3", textHe: "חוסרים 0 - 8 = 0" }
+      { id: "opt_1", textHe: 'פרטו תחילה לבנת מאה אחת לעשר עשרות בטור העשרות', isCorrect: true, feedbackHe: 'מצוין! כעת בואו נלחץ על לבנת המאה ונצפה בעשרות הנוצרות על הלוח.' },
+      { id: "opt_2", textHe: 'התעלמו מהאפס והמשיכו לטור הבא', isCorrect: false, feedbackHe: 'רמז: ספרת האפס היא שומר מקום חשוב. בואו נתחשב בה בחישוב.' },
+      { id: "opt_3", textHe: 'הוסיפו עשרת אחת לטור היחידות ללא פריטה', isCorrect: false, feedbackHe: 'רמז: בואו נשמור על ערך המספר המקורי תמיד.' }
     ],
     correctChoiceId: "opt_1"
   },
-
-  's6_t6': {
+  // מסמך 03 §3.7
+  's7_card':   {
     pedagogical_intent: "procedural",
-    tts_text: "8,000 - 4,260: שלושה אפסים — פרטו שלב אחרי שלב.",
-    suggested_highlight: "tour-column-thousands",
-    questionHe: "8,000 עם אפסים עוקבים — מה הסדר הנכון לפריטה?",
-    choices: [
-      { id: "opt_1", textHe: "1 אלף → 10 מאות, ואחר כך 1 מאה → 10 עשרות" },
-      { id: "opt_2", textHe: "פורטים הכל מיד ליחידות" },
-      { id: "opt_3", textHe: "לא ניתן לפרוט" }
-    ],
-    correctChoiceId: "opt_1"
-  },
-
-  's6_t7': {
-    pedagogical_intent: "focus",
-    tts_text: "9,005 - 4,520: שמרו על ערך המקום של כל ספרה לאורך כל הפריטה.",
-    suggested_highlight: "tour-place-value-board",
-    questionHe: "מה קורה לכמות הכוללת כאשר אנחנו פורטים?",
-    choices: [
-      { id: "opt_1", textHe: "הכמות הכוללת לא משתנה — רק הייצוג שלה משתנה" },
-      { id: "opt_2", textHe: "הכמות גדלה בגלל הפריטה" },
-      { id: "opt_3", textHe: "הכמות קטנה בגלל הפריטה" }
-    ],
-    correctChoiceId: "opt_1"
-  },
-
-  // ── Session 7 — בעיות חקר ────────────────────────────────
-
-  's7_t1': {
-    pedagogical_intent: "procedural",
-    tts_text: "7,890 + 1,250: בדקו את כל הטורים — יש המרה בטור העשרות.",
+    error_category: "procedural",
+    tts_text: 'בואו נחשוב רגע יחד: איך נגלה כמה יחידות או עשרות חסרות כדי להגיע לתוצאה?',
     suggested_highlight: "tour-column-tens",
-    questionHe: "מה קורה כש-9 עשרות + 5 עשרות = 14 עשרות?",
+    questionHe: 'בואו נחשוב רגע יחד: איך נגלה כמה יחידות או עשרות חסרות כדי להגיע לתוצאה?',
     choices: [
-      { id: "opt_1", textHe: "10 עשרות הופכות למאה — נשארות 4 עשרות" },
-      { id: "opt_2", textHe: "כותבים 14 בטור העשרות" },
-      { id: "opt_3", textHe: "מוחקים 4 עשרות" }
+      { id: "opt_1", textHe: 'ניעזר בלבני הדינס משמאל: נבדוק כמה עשרות יש לנו כעת וכמה חסרות כדי להגיע לתוצאה הרשומה בלוח בית המספרים', isCorrect: true, feedbackHe: 'מדויק! בואו נבצע את הבדיקה על הלוח ונכתוב את הספרה החסרה.' },
+      { id: "opt_2", textHe: 'ננחש מספר אקראי ונכתוב אותו בתיבת התשובה', isCorrect: false, feedbackHe: 'רמז: בואו נשתמש בלוח הלבנים כדי להוכיח את התשובה בבטחה.' },
+      { id: "opt_3", textHe: 'נעבור לפתור את הטור הבא תחילה', isCorrect: false, feedbackHe: 'רמז: באלגוריתם הטורי מומלץ להתקדם לפי הסדר כדי לנהל נכון את ההמרות בעיגולי הזיכרון.' }
     ],
     correctChoiceId: "opt_1"
   },
-
-  's7_t2': {
+  // מסמך 03 §3.8
+  's8_card':   {
     pedagogical_intent: "procedural",
-    tts_text: "8,120 - 4,560: פריטה כפולה — קודם עשרות ואחר כך מאות.",
-    suggested_highlight: "tour-place-value-board",
-    questionHe: "יש פריטה כפולה — מה הצעד הראשון?",
-    choices: [
-      { id: "opt_1", textHe: "בודקים קודם את טור העשרות — אם חסר, פורטים מאה" },
-      { id: "opt_2", textHe: "פורטים מיד מהאלפים ליחידות" },
-      { id: "opt_3", textHe: "מחסירים הכל מהזיכרון" }
-    ],
-    correctChoiceId: "opt_1"
-  },
-
-  's7_t3': {
-    pedagogical_intent: "conceptual",
-    tts_text: "4,5__0 + 1,500 = 6,000 — איזה ספרה בטור העשרות משלימה את הסכום?",
-    suggested_highlight: "tour-column-tens",
-    questionHe: "איך מוצאים ספרה חסרה בתרגיל חיבור?",
-    choices: [
-      { id: "opt_1", textHe: "מחסירים מהתוצאה את הידוע: 6,000 - 4,500 - 1,500 = 0, כלומר הספרה 0" },
-      { id: "opt_2", textHe: "מנחשים ספרה שתיראה נכון" },
-      { id: "opt_3", textHe: "בודקים כל ספרה מ-0 עד 9 בסדר" }
-    ],
-    correctChoiceId: "opt_1"
-  },
-
-  's7_t4': {
-    pedagogical_intent: "conceptual",
-    tts_text: "פרטו מאה ל-10 עשרות — וספרו אם הכמות הכוללת שמרה על עצמה.",
-    suggested_highlight: "tour-place-value-board",
-    questionHe: "מה קורה לכמות הכוללת כשפורטים מאה ל-10 עשרות?",
-    choices: [
-      { id: "opt_1", textHe: "הכמות שמורה — רק הייצוג השתנה" },
-      { id: "opt_2", textHe: "הכמות גדלה ב-9" },
-      { id: "opt_3", textHe: "הכמות קטנה במאה" }
-    ],
-    correctChoiceId: "opt_1"
-  },
-
-  's7_t5': {
-    pedagogical_intent: "focus",
-    tts_text: "5,200 - 2,300: תלמיד קיבל 3,100 — בדקו איזה טור חושב בטעות.",
-    suggested_highlight: "tour-column-hundreds",
-    questionHe: "איפה נפלה שגיאה ב-5,200 - 2,300 = 3,100?",
-    choices: [
-      { id: "opt_1", textHe: "בטור המאות: 2 - 3 לא ניתן, היה צריך לפרוט" },
-      { id: "opt_2", textHe: "בטור האלפים: 5 - 2 = 3 זה נכון" },
-      { id: "opt_3", textHe: "אין שגיאה — 3,100 נכון" }
-    ],
-    correctChoiceId: "opt_1"
-  },
-
-  's7_t6': {
-    pedagogical_intent: "procedural",
-    tts_text: "6,540 + 2,880: בצעו המרות, ואז בדקו בפעולה הפוכה.",
+    error_category: "procedural",
+    tts_text: 'בואו נחשוב רגע יחד: כיצד תפתרו את התרגיל כאשר אין לכם לבני דינס על המסך?',
     suggested_highlight: "tour-column-units",
-    questionHe: "איך בודקים שהתשובה לחיבור נכונה?",
+    questionHe: 'בואו נחשוב רגע יחד: כיצד תפתרו את התרגיל כאשר אין לכם לבני דינס על המסך?',
     choices: [
-      { id: "opt_1", textHe: "מחסירים את אחד המחוברים מהתוצאה — אם מקבלים את השני, נכון" },
-      { id: "opt_2", textHe: "מחשבים שוב את אותו תרגיל" },
-      { id: "opt_3", textHe: "משווים לתשובה של חבר" }
-    ],
-    correctChoiceId: "opt_1"
-  },
-
-  's7_t7': {
-    pedagogical_intent: "focus",
-    tts_text: "9,990 - 4,440: פרטו לפי הצורך ובדקו שימור כמות.",
-    suggested_highlight: "tour-place-value-board",
-    questionHe: "מה מוכיח ששמרנו על ערך המקום לאורך כל הפריטה?",
-    choices: [
-      { id: "opt_1", textHe: "הסכום של הנשאר + שחוסרנו = המספר המקורי" },
-      { id: "opt_2", textHe: "שמספר הבלוקים בלוח גדל" },
-      { id: "opt_3", textHe: "שהתשובה עגולה" }
-    ],
-    correctChoiceId: "opt_1"
-  },
-
-  // ── Session 8 — אבחון מסכם ───────────────────────────────
-
-  's8_t1': {
-    pedagogical_intent: "procedural",
-    tts_text: "6,400 + 2,700: בדקו את טור המאות — 4 + 7 = 11 מאות.",
-    suggested_highlight: "tour-column-hundreds",
-    questionHe: "4 מאות + 7 מאות = 11 מאות — מה עושים?",
-    choices: [
-      { id: "opt_1", textHe: "10 מאות הופכות לאלף — נשארת מאה אחת" },
-      { id: "opt_2", textHe: "כותבים 11 בטור המאות" },
-      { id: "opt_3", textHe: "מוחקים מאה אחת" }
-    ],
-    correctChoiceId: "opt_1"
-  },
-
-  's8_t2': {
-    pedagogical_intent: "procedural",
-    tts_text: "9,000 - 4,300: שלושה אפסים — פרטו שלב אחרי שלב.",
-    suggested_highlight: "tour-column-thousands",
-    questionHe: "9,000 עם אפסים עוקבים — מה הצעד הראשון?",
-    choices: [
-      { id: "opt_1", textHe: "פורטים אלף ל-10 מאות, ואז מאה ל-10 עשרות לפי הצורך" },
-      { id: "opt_2", textHe: "חוסרים ישירות — 9-4 = 5" },
-      { id: "opt_3", textHe: "לא ניתן לחסר מ-0" }
+      { id: "opt_1", textHe: 'נתבונן בלוח בית המספרים וניעזר בעיגולי הזיכרון בראש הטורים כדי לנהל את ההמרה או הפריטה בשלבים', isCorrect: true, feedbackHe: 'מצוין! התקדמו טור אחר טור ורשמו את המעברים בעיגולי הזיכרון.' },
+      { id: "opt_2", textHe: 'ננחש את התוצאה הסופית ונקליד אותה מיד', isCorrect: false, feedbackHe: 'רמז: הימנעו מניחושים מהירים. פתרו את התרגיל בצורה מסודרת מימין לשמאל.' },
+      { id: "opt_3", textHe: 'נמתין שהמערכת תציג לנו את התשובה הנכונה', isCorrect: false, feedbackHe: 'רמז: המערכת לא תציג תשובות מוכנות. האוטונומיה היא שלכם, נסו לפתור שלב אחר שלב.' }
     ],
     correctChoiceId: "opt_1"
   }
@@ -1411,6 +1044,9 @@ OUTPUT SCHEMA (Return ONLY valid JSON):
     const normalizedId = normalizeTaskIdForHints(taskId);
     if (taskId && TASK_HINTS[taskId]) return TASK_HINTS[taskId];
     if (normalizedId && TASK_HINTS[normalizedId]) return TASK_HINTS[normalizedId];
+    for (const key of sessionCardKeysForTaskId(taskId)) {
+      if (TASK_HINTS[key]) return TASK_HINTS[key];
+    }
 
     if (taskType === 'session1_intro') return TASK_HINTS['s1_sandbox_controlled'];
 
