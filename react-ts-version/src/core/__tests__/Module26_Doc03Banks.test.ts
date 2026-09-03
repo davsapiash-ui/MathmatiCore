@@ -45,7 +45,7 @@ const DOC03_S3_BRANCH_NUMBERS = [270, 320, 3600, 4200];
 
 const PATHS: LearningPath[] = ['remediation_path', 'green_path'];
 const pairOf = (t: SessionTask): Pair => [t.numberA ?? NaN, t.isSubtraction ? '-' : '+', t.numberB ?? NaN];
-const branchFlat = (session: 4 | 5 | 6 | 7) => {
+const branchFlat = (session: 3 | 4 | 5 | 6 | 7) => {
   const b = SESSION_BRANCH_TASKS[session];
   return [...b.remediation_path.reinforcement, ...b.remediation_path.challenge, ...b.green_path.reinforcement, ...b.green_path.challenge];
 };
