@@ -250,6 +250,9 @@ export const SESSION3_TASKS: SessionTask[] = SESSION3_GREEN_TASKS;
 
 /* ══════════════════════════════════════════════════════════════════════════
  * מפגש 4 — אלגוריתם החיבור במאונך והמרה פשוטה (הקבצה) — מסמך 03 §3.4
+ * Titles describe the arithmetic that actually happens; where the document's label
+ * disagreed with its own numbers (owner decision 3.9.2026: keep the numbers), the
+ * title here follows the numbers. See מסמכי אפיון/סטיות_מהאפיון.md.
  * ══════════════════════════════════════════════════════════════════════════ */
 
 export const SESSION4_REMEDIATION_TASKS: SessionTask[] = [
@@ -257,7 +260,7 @@ export const SESSION4_REMEDIATION_TASKS: SessionTask[] = [
   addition('s4_r_t2', 128, 35, 'המרה פשוטה ראשונה ביחידות בתחום המאה', S4_ADD('128 + 35', true)),
   addition('s4_r_t3', 247, 135, 'המרה ביחידות עם נוכחות מאות', S4_ADD('247 + 135', true)),
   addition('s4_r_t4', 456, 281, 'המרה בטור העשרות בתחום האלף', S4_ADD('456 + 281', true)),
-  addition('s4_r_t5', 354, 128, 'המרה פשוטה בטור העשרות', S4_ADD('354 + 128', true)),
+  addition('s4_r_t5', 354, 128, 'המרה פשוטה ביחידות המעבירה עשרת לטור העשרות', S4_ADD('354 + 128', true)),
   addition('s4_r_t6', 507, 125, 'המרה ביחידות עם אפס בטור העשרות', S4_ADD('507 + 125', true)),
   // ★ chosen: מסמך 03 names the task ("ספרה חסרה בטור התוצאה") without numbers.
   missingResultDigit('s4_r_t7', 328, 145, false, 'tens',
@@ -271,7 +274,7 @@ export const SESSION4_GREEN_TASKS: SessionTask[] = [
   addition('s4_g_t2', 2356, 1427, 'המרה ביחידות עם נוכחות אלפים', S4_ADD('2,356 + 1,427', true)),
   addition('s4_g_t3', 3456, 2183, 'המרה בטור העשרות בלבד', S4_ADD('3,456 + 2,183', true)),
   addition('s4_g_t4', 4821, 1534, 'המרה בטור המאות בלבד', S4_ADD('4,821 + 1,534', true)),
-  addition('s4_g_t5', 5678, 2453, 'המרה כפולה מעורבת בתחום הרבבה', S4_ADD('5,678 + 2,453', true)),
+  addition('s4_g_t5', 5678, 2453, 'שרשרת המרות ביחידות, בעשרות ובמאות בתחום הרבבה', S4_ADD('5,678 + 2,453', true)),
   addition('s4_g_t6', 7045, 1283, 'חישוב המרה עם אפסים כשומרי מקום', S4_ADD('7,045 + 1,283', true)),
   // ★ chosen: מסמך 03 describes an inquiry comparing near exercises, without numbers.
   withOpts({
@@ -313,10 +316,10 @@ export const SESSION5_REMEDIATION_TASKS: SessionTask[] = [
 export const SESSION5_GREEN_TASKS: SessionTask[] = [
   subtraction('s5_g_t1', 5432, 2118, 'פריטה פשוטה בטור היחידות בתחום הרבבה', S5_SUB('5,432 − 2,118', true)),
   subtraction('s5_g_t2', 6543, 1227, 'פריטה ביחידות עם נוכחות אלפים', S5_SUB('6,543 − 1,227', true)),
-  subtraction('s5_g_t3', 7651, 3325, 'פריטה בטור העשרות בלבד', S5_SUB('7,651 − 3,325', true)),
-  subtraction('s5_g_t4', 8762, 4439, 'פריטה בטור המאות בלבד', S5_SUB('8,762 − 4,439', true)),
+  subtraction('s5_g_t3', 7651, 3325, 'פריטה מטור העשרות ליחידות', S5_SUB('7,651 − 3,325', true)),
+  subtraction('s5_g_t4', 8762, 4439, 'פריטה מטור העשרות ליחידות בתחום הרבבה', S5_SUB('8,762 − 4,439', true)),
   subtraction('s5_g_t5', 6284, 1157, 'פריטה פשוטה בטור היחידות בתחום הרבבה', S5_SUB('6,284 − 1,157', true)),
-  subtraction('s5_g_t6', 3845, 1517, 'חישוב פריטה עם אפסים כשומרי מקום', S5_SUB('3,845 − 1,517', true)),
+  subtraction('s5_g_t6', 3845, 1517, 'פריטה פשוטה ביחידות, כל הספרות שונות מאפס', S5_SUB('3,845 − 1,517', true)),
   // ★ chosen: מסמך 03 describes an inquiry comparing near exercises, without numbers.
   withOpts({
     id: 's5_g_t7', type: 'small_change',
