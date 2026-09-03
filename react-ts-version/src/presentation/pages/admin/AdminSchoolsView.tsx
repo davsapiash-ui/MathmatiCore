@@ -178,6 +178,33 @@ export function AdminSchoolsView() {
         </div>
       </header>
 
+      {/* Same reasoning as the wizard's banner: a learner's identity across the
+          whole system is their number alone (student_user{1..12}), with no class
+          in it, so a second class would collide with the first. Teachers are
+          keyed by email and are unaffected — see AdminWizardModal. */}
+      <div className="rounded-2xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-5">
+        <div className="flex items-start gap-4">
+          <div className="w-9 h-9 rounded-xl bg-amber-100 dark:bg-amber-900/60 border border-amber-300 dark:border-amber-800 flex items-center justify-center text-amber-700 dark:text-amber-300 shrink-0 text-base font-black">
+            !
+          </div>
+          <div className="space-y-1.5">
+            <h2 className="text-sm font-extrabold text-amber-900 dark:text-amber-200">
+              ניהול מוסדות וכיתות — הכנה לעתיד, אינו פעיל בפיילוט
+            </h2>
+            <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed max-w-3xl">
+              המסך מוכן לתמיכה בריבוי מוסדות וכיתות, אך היכולת אינה פעילה בגרסה הנוכחית.
+              תלמיד מזוהה במערכת לפי מספרו בלבד (1–12), ללא שיוך לכיתה, ולכן כיתה שנייה
+              תשתף בטעות נתונים עם הכיתה הקיימת — התקדמות, מסלול מאושר ודוחות.
+              הפיילוט פועל עם מוסד אחד וכיתה אחת: "המבקרים".
+            </p>
+            <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed font-semibold">
+              הוספת מורים לכיתה הקיימת כן נתמכת במלואה: מורה מזוהה לפי כתובת המייל שלה,
+              וכל מורה מורשית רואה את אותם 12 הלומדים.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Global Capacity Settings & Search Bar */}
       <div className="grid md:grid-cols-3 gap-6">
         {/* Capacity Settings Panel */}

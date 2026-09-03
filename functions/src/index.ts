@@ -530,7 +530,11 @@ export const triggerExecutiveDriveReport = onRequest({
       doc.fillColor("#14532d").fontSize(11);
       const sY = doc.y + 12;
       doc.text("✓ Zero PII Sanitization Gateway: 100% ENFORCED (Zero data leaks)", 55, sY);
-      doc.text("✓ Ministry SSO Domain Constraint: ENFORCED (@edu-haifa.org.il)", 55, sY + 20);
+      // Teacher access is whitelist-only (Firestore authorizedTeachers), with no
+      // domain-suffix rule — the product owner's decision so external course
+      // reviewers can be admitted. verifyTeacherSSO below still carries a domain
+      // check, but nothing calls it; claiming it is enforced would be false.
+      doc.text("✓ Teacher SSO Access: WHITELIST-ONLY (authorizedTeachers, exact email match)", 55, sY + 20);
       doc.text("✓ 30-Day Video Replay Retention: COMPLIANT", 55, sY + 40);
       doc.y = sY + 65;
       doc.moveDown(1);

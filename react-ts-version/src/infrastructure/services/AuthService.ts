@@ -124,6 +124,15 @@ export interface AuthenticatedUserPayload {
   email: string;
   displayName: string;
   role: "teacher" | "admin";
+  /**
+   * True when this session was authorised at login against the authoritative
+   * whitelist (Firestore `authorizedTeachers`, the list the admin console
+   * manages). The route guards in App.tsx trust this instead of re-deriving
+   * authorisation from the hardcoded fallback list — that list knows two
+   * pilot emails only, and re-checking against it logged every admin-added
+   * teacher straight back out after a successful login.
+   */
+  whitelistVerified?: boolean;
 }
 
 /**
@@ -181,7 +190,8 @@ export async function executeGoogleSSO(targetRole: "teacher" | "admin"): Promise
     uid,
     email,
     displayName: user.displayName || `${targetRole === "teacher" ? "מורה" : "מנהל מערכת"} (${email})`,
-    role: targetRole
+    role: targetRole,
+    whitelistVerified: true
   };
 }
 
@@ -221,7 +231,8 @@ export async function authenticateWhitelistedEmail(email: string, targetRole: "t
     uid,
     email: normalized,
     displayName: `${targetRole === "teacher" ? "מורה" : "מנהל מערכת"} (${normalized})`,
-    role: targetRole
+    role: targetRole,
+    whitelistVerified: true
   };
 }
 

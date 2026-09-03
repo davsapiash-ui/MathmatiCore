@@ -118,10 +118,20 @@ function AuthGuard({ allowedRoles, children }: { allowedRoles: string[]; childre
   
   const activeRole = (typeof role === "string" ? role : (user.role as string)) || "teacher";
 
-  // Whitelist exact match enforcement for teachers & admins
+  // Whitelist enforcement for teachers & admins.
+  //
+  // Login already authorised this session against the authoritative list
+  // (Firestore authorizedTeachers — see AuthService.isWhitelistedTeacherEmailAsync)
+  // and stamped whitelistVerified on the user. The synchronous
+  // isWhitelistedTeacherEmail() is only the hardcoded fallback: it knows the two
+  // pilot emails plus dev accounts. Re-checking every session against that
+  // fallback alone logged each admin-added teacher straight back out a moment
+  // after a successful login, with no message. The server remains the security
+  // boundary regardless: Firestore rules and every callable check the custom
+  // claims syncUserRoles stamps from the same authorizedTeachers collection.
   if (activeRole === "teacher" || activeRole === "admin") {
     const email = ((user.email as string) || (auth.currentUser?.email as string) || "").toLowerCase().trim();
-    if (!isWhitelistedTeacherEmail(email)) {
+    if (user.whitelistVerified !== true && !isWhitelistedTeacherEmail(email)) {
       logout();
       return <Navigate to="/login" replace />;
     }
@@ -154,7 +164,8 @@ function RoleRouter() {
       const activeRole = (typeof role === "string" ? role : (user.role as string)) || "teacher";
       if (activeRole === "teacher" || activeRole === "admin") {
         const email = ((user.email as string) || (auth.currentUser?.email as string) || "").toLowerCase().trim();
-        if (!isWhitelistedTeacherEmail(email)) {
+        // Same rule as AuthGuard above: trust the login-time verification.
+        if (user.whitelistVerified !== true && !isWhitelistedTeacherEmail(email)) {
           logout();
           return;
         }

@@ -250,6 +250,40 @@ export function AdminWizardModal({
               </button>
             </div>
 
+            {/* A learner is identified across the whole system by their number
+                alone (student_user{1..12}) — the class and school they belong
+                to are stored elsewhere and are not part of that identity. One
+                class works perfectly; a second class would hand its "student 3"
+                the same identity as the first class's, and the two would share
+                progress, approved path and reports.
+                Adding TEACHERS is unaffected: a teacher is identified by email,
+                which is globally unique, and the dashboard shows every
+                authorised teacher the same twelve learners. So this notice is
+                shown for school and class creation only. */}
+            {(mode === "full_setup" || mode === "add_class") && !isDone && (
+              <div className="mx-8 mt-6 rounded-2xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-900/60 border border-amber-300 dark:border-amber-800 flex items-center justify-center text-amber-700 dark:text-amber-300 shrink-0 text-sm font-black">
+                    !
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-extrabold text-amber-900 dark:text-amber-200">
+                      הכנה לעתיד — אינו פעיל בפיילוט
+                    </p>
+                    <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
+                      המסכים כאן מוכנים לתמיכה בריבוי מוסדות וכיתות, אך היכולת אינה פעילה
+                      בגרסה הנוכחית. תלמיד מזוהה במערכת לפי מספרו בלבד (1–12), ללא שיוך
+                      לכיתה, ולכן כיתה שנייה תשתף בטעות נתונים עם הכיתה הקיימת — התקדמות,
+                      מסלול מאושר ודוחות. הפיילוט פועל עם כיתה אחת: "המבקרים".
+                    </p>
+                    <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed font-semibold">
+                      הוספת מורים לכיתה הקיימת כן נתמכת במלואה ואינה מושפעת מכך.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Stepper Progress Bar (Only in full setup) */}
             {mode === "full_setup" && !isDone && (
               <div className="px-8 pt-6 pb-2 bg-slate-50/30 dark:bg-slate-900/30">
