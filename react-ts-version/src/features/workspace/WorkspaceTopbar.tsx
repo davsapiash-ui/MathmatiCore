@@ -5,15 +5,24 @@ import { useWorkspaceStore, selectCanProceed, getActiveTasks } from '@/applicati
 import { useChatStore, normalizeStudentId } from '@/application/useChatStore';
 import { TASKS } from '@/core/QMatrix';
 import { ProgressDots } from './ProgressDots';
-import { RotateCcw, Home, MessageSquare, ArrowLeft, Cloud, CloudOff, Eye, EyeOff } from 'lucide-react';
+import { RotateCcw, Home, ArrowLeft, Cloud, CloudOff, HandHelping } from 'lucide-react';
 import { LogoutButton } from '@/presentation/components/ui/LogoutButton';
 import { Logo } from '@/presentation/components/ui/Logo';
 
 /**
- * הסרגל העליון של מרחב הפעילות — ניווט לינארי בלבד (הבא/בטל), ללא תפריטים.
- * אין שום חיווי זמן (איסור טיימרים מהאפיון).
- * כפתור Undo בגודל 48x48px מדויק לפי מודול 11 ב-PRD.
- * חיווי שקט של מצב קישוריות (Module 17): ירוק=Online, אפור=Offline ללא מודאלים.
+ * הסרגל העליון של מרחב הפעילות.
+ *
+ * מסמך 04 §3 (נראות, עקביות) governs this bar:
+ *  - "סרגל הכלים העליון יכיל רק כפתורי ניווט בסיסיים ושקטים" — so the board
+ *    show/hide toggle and the teacher-chat button are gone. Board visibility is
+ *    decided by the session (PRD Module 14), not by the learner; the chat opens
+ *    from its own drawer, not from this bar.
+ *  - "לחצן עזרה שקט… נראותו הקבועה בסרגל הכלים העליון" — the silent help button,
+ *    which had no UI at all, sits here permanently.
+ *  - "כפתור חזור ללובי ממוקם תמיד בפינה השמאלית העליונה" — the lobby button is
+ *    the last element, alone in the left corner (RTL end).
+ * No time indicator anywhere (visible timers are forbidden).
+ * Undo is exactly 48x48px per PRD Module 11.
  */
 interface WorkspaceTopbarProps {
   isDragging?: boolean;
@@ -42,12 +51,10 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
   const qflow = useWorkspaceStore((s) => s.qflow);
   const canUndo = useWorkspaceStore((s) => s.undoStack.length > 0) && !isDragging;
   const canProceed = useWorkspaceStore(selectCanProceed);
-  const boardOpen = useWorkspaceStore((s) => s.boardOpen);
   const undo = useWorkspaceStore((s) => s.undo);
   const proceed = useWorkspaceStore((s) => s.proceed);
-  const toggleBoard = useWorkspaceStore((s) => s.toggleBoard);
-  const globalChatEnabled = useChatStore((s) => s.globalChatEnabled);
-  const messages = useChatStore((s) => s.messages);
+  const requestSilentHelp = useWorkspaceStore((s) => s.requestSilentHelp);
+  const hasRequestedHelp = useWorkspaceStore((s) => s.hasRequestedBasicHelp);
 
   const activeTaskCount = useWorkspaceStore((s) => getActiveTasks(s).length);
   const totalTasks = sessionNumber === 2 ? TASKS.length : activeTaskCount;
@@ -60,11 +67,11 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
         <Logo size="md" subtitle="מרחב חקר אישי" to="/hub" />
 
         {/* Module 1 & 6: Zero-PII Student Identity Badge */}
-        <div className="flex items-center gap-2 bg-indigo-50/90 dark:bg-indigo-950/50 border border-indigo-200/80 dark:border-indigo-800/80 px-3 py-1.5 rounded-xl shadow-xs">
-          <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-indigo-500 to-purple-600 text-white flex items-center justify-center font-black text-xs">
+        <div className="flex items-center gap-2 bg-ws-accentSoft border border-ws-accent/25 px-3 py-1.5 rounded-xl shadow-xs">
+          <div className="w-6 h-6 rounded-lg bg-ws-accent text-white flex items-center justify-center font-black text-xs">
             {user?.student_id || (user?.uid ? user.uid.replace(/\D/g, '') : '1') || '1'}
           </div>
-          <span className="text-xs font-black text-indigo-950 dark:text-indigo-200">
+          <span className="text-xs font-black text-ws-ink">
             תלמיד {user?.student_id || (user?.uid ? user.uid.replace(/\D/g, '') : '1') || '1'}
           </span>
         </div>
@@ -92,7 +99,19 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
 
       {/* Actions */}
       <div id="tour-action-buttons" className="flex items-center gap-2 sm:gap-3 shrink-0 bg-ws-surface/50 p-1.5 rounded-full border border-ws-surface2 shadow-sm max-w-full overflow-x-auto no-scrollbar">
-        {/* Undo Button (Module 11: 48x48px exact) */}
+        {/* Proceed — the one forward action */}
+        <button
+          onClick={proceed}
+          disabled={!canProceed}
+          className="h-12 px-6 rounded-2xl text-base font-display font-extrabold text-white bg-ws-accent hover:brightness-110 active:scale-95 shadow-md hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed cursor-pointer"
+          aria-label="עבור למשימה הבאה"
+          title="התקדם למשימה הבאה"
+        >
+          <span>התקדם</span>
+          <ArrowLeft className="w-5 h-5" />
+        </button>
+
+        {/* Undo (PRD Module 11: exactly 48x48px, never punitive) */}
         {sessionNumber !== 8 && (
           <button
             onClick={undo}
@@ -105,67 +124,35 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
           </button>
         )}
 
-        {sessionNumber !== 8 && (
-          <button
-            onClick={toggleBoard}
-            className={`h-12 px-4 rounded-2xl text-sm font-bold transition-all cursor-pointer flex items-center gap-1.5 border shadow-sm active:scale-95 ${
-              boardOpen 
-                ? 'bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-950/40 dark:border-indigo-800 dark:text-indigo-300' 
-                : 'bg-ws-surface2/60 border-ws-surface2 text-ws-ink hover:bg-ws-surface2'
-            }`}
-            aria-label={boardOpen ? "הסתר לוח עבודה" : "הצג לוח עבודה"}
-            title={boardOpen ? "הסתר את לוח העבודה והבלוקים" : "הצג את לוח העבודה והבלוקים"}
-          >
-            {boardOpen ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            <span className="hidden sm:inline">{boardOpen ? "הסתר לוח" : "הצג לוח"}</span>
-          </button>
-        )}
-
-        {/* Home / Lobby */}
+        {/* Silent help (מסמך 04): a quiet signal to the teacher — no overlay, no
+            badge that marks the learner out to the class */}
         <button
-          onClick={() => navigate('/hub')}
-          className="h-12 px-4 rounded-2xl text-sm font-bold text-ws-ink bg-ws-surface2 hover:bg-ws-surface2/80 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5"
-          aria-label="חזרה ללובי"
-          title="חזרה ללובי הראשי"
-        >
-          <Home className="w-4 h-4" />
-          <span className="hidden sm:inline">לובי</span>
-        </button>
-
-        {/* Chat Drawer Toggle */}
-        <button
-          id="chat-toggle-button"
-          onClick={() => document.dispatchEvent(new CustomEvent('toggle-chat'))}
-          disabled={!globalChatEnabled}
-          className={`h-12 px-4 rounded-2xl text-sm font-bold active:scale-95 transition-all flex items-center gap-1.5 relative border shadow-sm ${
-            !globalChatEnabled
-              ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed opacity-60'
-              : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 hover:text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 cursor-pointer'
+          onClick={requestSilentHelp}
+          className={`w-12 h-12 min-w-[48px] min-h-[48px] rounded-2xl transition-all flex items-center justify-center cursor-pointer border shadow-sm active:scale-95 ${
+            hasRequestedHelp
+              ? 'bg-ws-accentSoft border-ws-accent/40 text-ws-accent'
+              : 'bg-ws-surface border-ws-surface2 text-ws-soft hover:text-ws-accent hover:border-ws-accent/40'
           }`}
-          aria-label={globalChatEnabled ? "פתיחת צ'אט מול המורה" : "הצ'אט מושבת זמנית"}
-          title={globalChatEnabled ? "פתיחת צ'אט מול המורה" : "הצ'אט הושבת על ידי המורה"}
+          aria-label="קריאה שקטה למורה"
+          title="קריאה שקטה למורה"
         >
-          <MessageSquare className="w-4 h-4" />
-          <span className="hidden sm:inline">צ'אט מורה</span>
-          {messages.filter(m => !m.read && normalizeStudentId(m.receiverId) === normalizeStudentId(user?.uid || '')).length > 0 && (
-            <span className="w-2.5 h-2.5 rounded-full bg-rose-500 absolute -top-1 -right-1 animate-pulse" />
-          )}
-        </button>
-
-        <button
-          onClick={proceed}
-          disabled={!canProceed}
-          className="h-12 px-6 rounded-2xl text-base font-display font-extrabold text-white bg-ws-accent hover:brightness-110 active:scale-95 shadow-md hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed cursor-pointer"
-          aria-label="עבור למשימה הבאה"
-          title="התקדם למשימה הבאה"
-        >
-          <span>התקדם</span>
-          <ArrowLeft className="w-5 h-5" />
+          <HandHelping className="w-5 h-5" />
         </button>
 
         {/* Module 1: Clean Synchronous Logout */}
         <LogoutButton className="h-12 px-3 rounded-2xl text-xs sm:text-sm font-bold text-ws-soft hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 border border-transparent hover:border-red-200" />
       </div>
+
+      {/* מסמך 04 §3ו: the lobby button sits always in the top-left corner, on every activity screen */}
+      <button
+        onClick={() => navigate('/hub')}
+        className="h-12 px-4 rounded-2xl text-sm font-bold text-ws-ink bg-ws-surface2 hover:bg-ws-surface2/80 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 shrink-0"
+        aria-label="חזרה ללובי"
+        title="חזרה ללובי הראשי"
+      >
+        <Home className="w-4 h-4" />
+        <span className="hidden sm:inline">לובי</span>
+      </button>
     </nav>
   );
 }

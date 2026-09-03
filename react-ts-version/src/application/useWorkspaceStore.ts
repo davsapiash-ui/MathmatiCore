@@ -243,6 +243,12 @@ interface WorkspaceState {
   demoUngroup: () => void;
   proceed: () => void;
   requestHelp: () => void;
+  /**
+   * מסמך 04 §2א/§5: the silent help button — "שליחת אות מצוקה חרישי למורה ללא
+   * תיוג חברתי בכיתה". It signals the teacher and nothing else: no overlay, no
+   * coaching card, no interruption to the learner's work.
+   */
+  requestSilentHelp: () => void;
   helpFrictionDone: () => void;
   chooseSupport: (type: SupportType) => void;
   closeHelp: () => void;
@@ -2250,6 +2256,34 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       set({ helpState: 'friction', frictionTriggerSource: 'lightbulb', aiSocraticHint: initialHint });
       get().transitionTo('SOCRATIC_ACTIVE');
       get().fetchSocraticHint();
+    },
+
+    requestSilentHelp: () => {
+      const s = get();
+      const rawUser = useAuthStore.getState().user;
+      if (!rawUser?.uid || s.isSupersededByOtherDevice) return;
+
+      const clean = rawUser.uid.trim().toLowerCase();
+      const studentId = normalizeStudentId(clean) || (clean.startsWith('student_') ? clean : `student_${clean}`);
+      AuditLogger.log('HELP_REQUESTED', studentId, 'Student pressed the silent help button');
+
+      // PRD Module 18: helpRequested is the BLUE radar signal, the highest
+      // priority in the cell-colour hierarchy.
+      throttledRtdbUpdate(`users/students/${studentId}`, {
+        helpRequested: true,
+        lastHelpTimestamp: Date.now(),
+        lastAction: 'ביקש עזרה מהמורה',
+      }).catch(console.error);
+      throttledRtdbUpdate(`users/students/${studentId}/helpHistory/help_${Date.now()}`, {
+        timestamp: Date.now(),
+        sessionNumber: s.sessionNumber || 1,
+        type: 'SILENT_HELP',
+        status: 'pending',
+      }).catch(console.error);
+
+      set({ hasRequestedBasicHelp: true });
+      // A calm, brief acknowledgement so the learner knows the signal was sent.
+      showFeedback({ correct: true, title: 'המורה יודעת 🤝', sub: 'הסימן נשלח בשקט. אפשר להמשיך לעבוד.' }, 2600);
     },
 
     helpFrictionDone: () => {
