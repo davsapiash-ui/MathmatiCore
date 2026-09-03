@@ -50,6 +50,28 @@ export function normalizeTaskIdForHints(id?: string): string {
 }
 
 /**
+ * PRD Module 13 (חוק ברזל — השילוש הפדגוגי ההוליסטי): a guiding question may not
+ * float free of the exercise. מסמך 03 writes one card per session, so when that
+ * card is the only thing left to serve, name the exercise inside its question.
+ */
+export function groundCardInExercise(card: SocraticHintResponse, currentTask?: any): SocraticHintResponse {
+  const a = currentTask?.numberA;
+  const b = currentTask?.numberB;
+  let context: string | null = null;
+  if (typeof a === 'number' && typeof b === 'number') {
+    context = `בתרגיל ${a.toLocaleString('he-IL')} ${currentTask?.isSubtraction ? 'פחות' : 'ועוד'} ${b.toLocaleString('he-IL')}`;
+  } else if (typeof a === 'number') {
+    context = `בתרגיל על המספר ${a.toLocaleString('he-IL')}`;
+  }
+  if (!context) return card;
+  return {
+    ...card,
+    questionHe: `${context}: ${card.questionHe}`,
+    tts_text: card.tts_text ? `${context}: ${card.tts_text}` : card.tts_text,
+  };
+}
+
+/**
  * Static-card keys for a session 3–8 exercise id (compulsory or early-finisher):
  * the path-specific card first (`s3_r_card`), then the session card (`s3_card`).
  * מסמך 03 writes one Socratic card per session, so every exercise of a session
@@ -946,7 +968,7 @@ OUTPUT SCHEMA (Return ONLY valid JSON):
       completed_columns: string[];
       current_column_input: string | null;
       memory_circles_state: Record<string, number>;
-      trigger_reason: 'hesitation_45s' | 'consecutive_errors_4' | 'consecutive_undos_3';
+      trigger_reason: 'hesitation_45s' | 'consecutive_errors_4' | 'consecutive_undos_3' | 'conversion_not_performed';
       consecutive_errors_count: number;
       recent_actions: TelemetryPayload<TelemetryEventType>[];
     };
@@ -1044,9 +1066,6 @@ OUTPUT SCHEMA (Return ONLY valid JSON):
     const normalizedId = normalizeTaskIdForHints(taskId);
     if (taskId && TASK_HINTS[taskId]) return TASK_HINTS[taskId];
     if (normalizedId && TASK_HINTS[normalizedId]) return TASK_HINTS[normalizedId];
-    for (const key of sessionCardKeysForTaskId(taskId)) {
-      if (TASK_HINTS[key]) return TASK_HINTS[key];
-    }
 
     if (taskType === 'session1_intro') return TASK_HINTS['s1_sandbox_controlled'];
 
@@ -1098,6 +1117,16 @@ OUTPUT SCHEMA (Return ONLY valid JSON):
         ],
         correctChoiceId: "opt_1"
       };
+    }
+
+    // 4. The מסמך 03 session card, grounded in this exercise. It comes AFTER the
+    //    operand-specific computation above: PRD Module 13's holistic-triad rule
+    //    forbids a guiding question detached from the exercise and the live board,
+    //    so a card written per session is the last resort, never the first answer,
+    //    and it is served naming the exercise the learner is actually on.
+    for (const key of sessionCardKeysForTaskId(taskId)) {
+      const card = TASK_HINTS[key];
+      if (card) return groundCardInExercise(card, currentTask);
     }
 
     if (targetNode && NODE_HINTS[targetNode]) return NODE_HINTS[targetNode];

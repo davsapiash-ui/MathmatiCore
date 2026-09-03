@@ -80,6 +80,20 @@ export type SessionNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 export type SupportType = 'metacognitive' | 'socratic' | 'worked_example';
 export type HelpState = 'closed' | 'friction' | 'palette' | SupportType;
 export type FlowStatus = 'task' | 'choice_branch' | 'reflection' | 'sessionDone';
+
+/**
+ * מסמך 03 §3.3–3.8 names three triggers for the coaching card: 45 seconds of
+ * hesitation in the active column, four consecutive deletions, and a required
+ * conversion the learner did not perform. PRD Appendix A lists only the first
+ * two plus session 8's three consecutive undos; 'conversion_not_performed' is
+ * the fourth value that carries מסמך 03's third trigger (see the deviations
+ * register). PRD Module 12: none of them may fire in session 2.
+ */
+export type SocraticTriggerReason =
+  | 'hesitation_45s'
+  | 'consecutive_errors_4'
+  | 'consecutive_undos_3'
+  | 'conversion_not_performed';
 export type KeyboardState = 'LOCKED' | 'UNLOCKED' | 'SOCRATIC_ONLY';
 
 export interface FeedbackState {
@@ -157,6 +171,8 @@ interface WorkspaceState {
   carryDigits: Partial<Record<Place, string>>;
   probeAnswer: string;
   q3Reps: PlaceCounts[];
+  /** Which of מסמך 03's triggers opened the coaching card (null when it is closed). */
+  socraticTriggerReason: SocraticTriggerReason | null;
   /** Skeleton exercises (מסמך 03): digits the learner types into hidden operand cells. */
   operandDigits: { a: Partial<Record<Place, string>>; b: Partial<Record<Place, string>> };
   aiSocraticHint: SocraticHintResponse | null;
@@ -236,6 +252,8 @@ interface WorkspaceState {
   unlockKeyboard: () => void;
   lockKeyboard: () => void;
   setKeyboardSocratic: () => void;
+  /** מסמך 03: open the coaching card, recording which trigger did it. */
+  openSocraticCard: (reason: SocraticTriggerReason) => void;
   triggerSocraticPenaltyLockout: (hintText?: string) => void;
   clearSocraticPenaltyLockout: () => void;
   getSocraticPenaltyRemaining: () => number;
@@ -290,6 +308,7 @@ function resetTaskInteraction(isASD = false) {
     probeAnswer: '',
     q3Reps: [] as PlaceCounts[],
     operandDigits: { a: {}, b: {} } as { a: Partial<Record<Place, string>>; b: Partial<Record<Place, string>> },
+    socraticTriggerReason: null as SocraticTriggerReason | null,
     focusedPlace: null as Place | null,
     undoCount: 0,
     consecutiveDeletions: 0,
@@ -400,6 +419,25 @@ export function effectiveAnswerDigits(
   const out: Partial<Record<Place, string>> = { ...s.answerDigits };
   for (const place of task.revealedResultDigits) out[place] = String(digitAt(target, place));
   return out;
+}
+
+/**
+ * מסמך 03: a column "requires a conversion" when the vertical algorithm cannot
+ * be completed there without one — a carry in addition, a decomposition in
+ * subtraction. Shared by the keyboard lock (Module 9) and by the third coaching
+ * trigger, so both agree on what a required conversion is.
+ */
+export function columnRequiresConversion(
+  place: Place,
+  numberA: number,
+  numberB: number,
+  isSubtraction: boolean | undefined,
+  carryDigit: string | undefined
+): boolean {
+  const da = digitAt(numberA, place);
+  const db = digitAt(numberB, place);
+  const carry = parseInt(carryDigit || '0', 10) || 0;
+  return isSubtraction ? da < db : da + db + carry >= 10;
 }
 
 /** Exact board a representation task prescribes (places it does not list must be empty). */
@@ -1259,6 +1297,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     probeAnswer: '',
     q3Reps: [],
     operandDigits: { a: {}, b: {} },
+    socraticTriggerReason: null,
 
     feedback: null,
     feedbackNonce: 0,
@@ -1883,10 +1922,40 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
               },
             }).catch(console.error);
 
+            // מסמך 03, trigger 3: a required conversion the learner did not perform.
+            // Wrong digit, in a column the algorithm cannot finish without a carry
+            // or a decomposition, with no conversion made on the canvas yet.
+            if (isCorrect === false && task) {
+              const { a, b } = effectiveArithmetic(task, s.isASD);
+              const conversionDone = task.isSubtraction ? s.hasUngrouped : s.hasGrouped;
+              if (
+                !conversionDone &&
+                !s.carryDigits[place] &&
+                columnRequiresConversion(place, a, b, task.isSubtraction, s.carryDigits[place])
+              ) {
+                setTimeout(() => get().openSocraticCard('conversion_not_performed'), 0);
+              }
+            }
+
+            if (isCorrect === false) {
+              setTimeout(() => {
+                if (get().consecutiveDeletions >= 4) get().openSocraticCard('consecutive_errors_4');
+              }, 0);
+            }
+
             return {
               answerDigits: { ...s.answerDigits, [place]: val },
               hasInteracted: true,
-              consecutiveDeletions: 0,
+              // מסמך 03 counts "four consecutive deletions"; PRD Module 12 counts
+              // "4 consecutive wrong typing attempts or deletions". One failed
+              // attempt must count once, so a wrong digit typed into an empty
+              // cell leaves the streak to the erasure that follows it, while a
+              // wrong digit typed OVER an existing one is a second attempt and
+              // counts here. A correct digit is productive and restarts it.
+              consecutiveDeletions:
+                isCorrect === false
+                  ? s.consecutiveDeletions + (s.answerDigits[place] ? 1 : 0)
+                  : 0,
               hasDigitErrorInTask: isCorrect === false ? true : s.hasDigitErrorInTask,
               typedErrorCount: isCorrect === false ? s.typedErrorCount + 1 : s.typedErrorCount,
             };
@@ -1911,6 +1980,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
               get().closeHelp();
             }
           }, 3000);
+        }
+
+        // מסמך 03, trigger 2: four consecutive deletions in the active column.
+        // The count was kept but never read, so this trigger did not exist.
+        if (nextDeletions >= 4) {
+          setTimeout(() => get().openSocraticCard('consecutive_errors_4'), 0);
         }
 
         return {
@@ -2217,15 +2292,24 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     closeAdditionHelper: () => set({ isAdditionHelperOpen: false }),
     toggleAdditionHelper: () => set((s) => ({ isAdditionHelperOpen: !s.isAdditionHelperOpen })),
     setKeyboardSocratic: () => {
-      if (get().sessionNumber === 2) return; // PRD v7.0 Module 12 & 14: Socratic card completely disabled in Session 2
+      get().openSocraticCard('hesitation_45s');
+    },
+
+    openSocraticCard: (reason) => {
       const s = get();
+      // PRD Module 12 & 14: the card is disabled outright in session 2, and never
+      // reopens over an open card or during the 30s wrong-answer lockout.
+      if (s.sessionNumber === 2) return;
+      if (s.currentState === 'SOCRATIC_ACTIVE' || s.helpState === 'socratic') return;
+      if (s.isSocraticCardLocked) return;
       const currentTask = selectStandardTask(s);
       const initialHint = SocraticEngine.getSynchronousTaskHint(currentTask, s.counts);
       set((st) => ({
         keyboardState: 'SOCRATIC_ONLY',
         helpState: 'socratic',
         currentState: 'SOCRATIC_ACTIVE',
-        aiSocraticHint: initialHint || st.aiSocraticHint
+        socraticTriggerReason: reason,
+        aiSocraticHint: initialHint || st.aiSocraticHint,
       }));
       get().fetchSocraticHint();
     },
@@ -2350,11 +2434,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         return idx >= 0 ? parseInt(str[idx], 10) : 0;
       };
 
-      const da = padDigits(aStr);
-      const db = padDigits(bStr);
-      const carry = parseInt(s.carryDigits[place] || '0', 10);
-
-      const requiresExchange = isSubtraction ? (da < db) : (da + db + carry >= 10);
+      const requiresExchange = columnRequiresConversion(place, numberA, numberB, isSubtraction, s.carryDigits[place]);
       if (requiresExchange) {
         const conversionDone = isSubtraction ? s.hasUngrouped : s.hasGrouped;
         if (!conversionDone && !s.carryDigits[place]) {
@@ -2498,13 +2578,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     incrementConsecutiveErrors: () => {
       set((state) => {
         const nextErrors = state.consecutiveErrorCount + 1;
-        if (nextErrors >= 4 && state.currentState !== 'SOCRATIC_ACTIVE' && !state.isSocraticCardLocked && state.sessionNumber !== 2) {
-          const currentTask = selectStandardTask(state);
-          const initialHint = SocraticEngine.getSynchronousTaskHint(currentTask, state.counts);
-          setTimeout(() => {
-            get().fetchSocraticHint();
-            set({ helpState: 'socratic', currentState: 'SOCRATIC_ACTIVE', aiSocraticHint: initialHint });
-          }, 0);
+        if (nextErrors >= 4) {
+          setTimeout(() => get().openSocraticCard('consecutive_errors_4'), 0);
         }
         // Module 16 §ב derives the persistence index's E term exclusively from
         // DIGIT_ENTERED events with is_correct: false — that is already counted

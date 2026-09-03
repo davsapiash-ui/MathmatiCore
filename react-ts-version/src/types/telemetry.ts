@@ -59,7 +59,7 @@ export interface HesitationDetectedDetails {
 }
 
 export interface SocraticCardShownDetails {
-  trigger_reason: 'hesitation_45s' | 'consecutive_errors_4' | 'consecutive_undos_3';
+  trigger_reason: 'hesitation_45s' | 'consecutive_errors_4' | 'consecutive_undos_3' | 'conversion_not_performed';
   error_category: 'calculation' | 'procedural' | 'conceptual' | null;
 }
 
