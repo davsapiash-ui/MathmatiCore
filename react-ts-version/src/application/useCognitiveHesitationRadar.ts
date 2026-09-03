@@ -150,16 +150,36 @@ export function useCognitiveHesitationRadar({
       return;
     }
 
-    // Events that indicate active engagement
-    const events = ['mousedown', 'touchstart', 'keydown', 'dragstart'];
-    
-    const handleActivity = () => {
-      resetTimeout();
-    };
+    // Module 10 §ב: "הטיימר מתאפס על פעולות קוגניטיביות בלבד (גרירת לבנים,
+    // הקלדה, המרה). תנועות עכבר אינן מאפסות את הטיימר."
+    //
+    // This used to listen for mousedown/touchstart/keydown/dragstart on the
+    // window, which reset the clock on ANY click anywhere — including a click
+    // on empty background. That inverted the module's intent: a learner who is
+    // stuck and fidgeting with the mouse never reached 30s, so the adaptive
+    // grid and the Socratic card never opened for exactly the learner who
+    // needed them, while a learner sitting still and thinking got them.
+    //
+    // Instead of guessing intent from input events, watch the task state the
+    // three cognitive actions actually change:
+    //   counts        — block placement, decomposition and grouping
+    //   answerDigits  — digits typed into the result row
+    //   carryDigits   — digits typed into the memory circles
+    //   selectedChoiceId — the learner answering a closed-choice task, which
+    //                   offers no drag, typing or conversion at all and would
+    //                   otherwise sit permanently at "hesitating"
+    // A mouse move, a stray click, or a click on a lobby button changes none of
+    // these, so none of them resets the clock — which is the rule.
+    const selectCognitiveState = (s: any) =>
+      `${JSON.stringify(s.counts)}|${JSON.stringify(s.answerDigits)}|${JSON.stringify(s.carryDigits)}|${s.selectedChoiceId ?? ''}`;
 
-    events.forEach(event => {
-      // capture phase to catch it early
-      window.addEventListener(event, handleActivity, { passive: true, capture: true });
+    let lastSignature = selectCognitiveState(useWorkspaceStore.getState());
+    const unsubscribe = useWorkspaceStore.subscribe((state: any) => {
+      const next = selectCognitiveState(state);
+      if (next !== lastSignature) {
+        lastSignature = next;
+        resetTimeout();
+      }
     });
 
     // Start initial timeout
@@ -172,9 +192,7 @@ export function useCognitiveHesitationRadar({
       if (gridTimeoutRef.current) {
         clearTimeout(gridTimeoutRef.current);
       }
-      events.forEach(event => {
-        window.removeEventListener(event, handleActivity, { capture: true });
-      });
+      unsubscribe();
     };
   }, [isActive, resetTimeout]);
 }

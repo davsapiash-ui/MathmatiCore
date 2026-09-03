@@ -108,7 +108,10 @@ export function AdminWizardModal({
     setClassError("");
     const limitNum = parseInt(studentLimit, 10);
     if (isNaN(limitNum) || limitNum < 1 || limitNum > 12) {
-      setClassError("לפי מפרט המערכת (מודול 25), כיתה מכילה לכל היותר 12 תלמידים אנונימיים (תלמיד 1 עד תלמיד 12). הוספת תלמיד 13 חסומה.");
+      // Module 25 §ה fixes this sentence verbatim as the rollback message shown
+      // when the class is at capacity, the same way §ג of Module 15 fixes the
+      // projector text and Module 23 fixes the AI fallback sentence.
+      setClassError("ההרשמה חסומה. כיתת המחקר הגיעה לתפוסה מלאה של 12 לומדים.");
       return false;
     }
     const teacherClasses = classes.filter(c => c.teacherId === targetTeacherId);
