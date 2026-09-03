@@ -309,9 +309,15 @@ ${JSON.stringify(req.telemetry_summary)}
 }
 
 /**
- * A response missing either array, or carrying anything but non-empty strings,
- * is malformed — treated exactly like a failed call rather than rendered
- * half-populated.
+ * A response missing either array is malformed and is treated exactly like a
+ * failed call, so the report falls back to the fixed sentence rather than
+ * rendering half of a section.
+ *
+ * Junk *inside* an otherwise well-formed array is handled differently, and
+ * deliberately: a non-string or blank entry is dropped and the rest are kept.
+ * Three real knowledge gaps plus one stray number is still three real gaps for
+ * the teacher, and discarding them all would be the worse trade. Only a
+ * response that yields nothing usable at all falls back.
  */
 export function parseAnalysisResponse(
   text: string,
@@ -327,13 +333,14 @@ export function parseAnalysisResponse(
     return null;
   }
 
+  // Returns null only when the field is not an array at all — that is the
+  // malformed case. An array with unusable entries returns the usable ones.
   const clean = (value: unknown): string[] | null => {
     if (!Array.isArray(value)) return null;
-    const items = value
+    return value
       .filter((item): item is string => typeof item === "string")
       .map((item) => item.trim())
       .filter((item) => item.length > 0);
-    return items.length === value.length ? items : items;
   };
 
   const gaps = clean(parsed?.knowledge_gaps);

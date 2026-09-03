@@ -30,12 +30,18 @@ const TIER_FRAMEWORK_HE = {
  * The PRD's expected outcome for this module is a PDF produced in under a
  * second, while the same module mandates an AI-authored analysis layer and an
  * explicit timeout fallback. Those two cannot both hold on a cold model call,
- * so the timeout is the knob that decides which one gives: short enough that a
- * stalled engine never holds the teacher's download hostage, long enough that
- * a healthy call normally lands. On expiry the report ships complete with
- * layer 1 and the fixed fallback sentence, exactly as the spec prescribes.
+ * so the timeout is the knob that decides which one gives, and the product
+ * owner resolved it in favour of the analysis: a teacher pulling a summary
+ * report on one learner is not in a hurry, and a report that actually names
+ * the knowledge gaps is worth the wait. On expiry the report still ships
+ * complete with layer 1 and the fixed fallback sentence, exactly as the spec
+ * prescribes.
+ *
+ * This is a per-report ceiling on a single teacher click — reports are
+ * generated one learner at a time (Module 23 §ג), so it never compounds across
+ * a class.
  */
-exports.AI_ANALYSIS_TIMEOUT_MS = 8000;
+exports.AI_ANALYSIS_TIMEOUT_MS = 10000;
 const COLUMN_NAMES_HE = ["אחדות", "עשרות", "מאות", "אלפים"];
 /**
  * Builds the exercise templates for the exercises the learner actually erred
@@ -208,9 +214,15 @@ ${JSON.stringify(req.telemetry_summary)}
     }
 }
 /**
- * A response missing either array, or carrying anything but non-empty strings,
- * is malformed — treated exactly like a failed call rather than rendered
- * half-populated.
+ * A response missing either array is malformed and is treated exactly like a
+ * failed call, so the report falls back to the fixed sentence rather than
+ * rendering half of a section.
+ *
+ * Junk *inside* an otherwise well-formed array is handled differently, and
+ * deliberately: a non-string or blank entry is dropped and the rest are kept.
+ * Three real knowledge gaps plus one stray number is still three real gaps for
+ * the teacher, and discarding them all would be the worse trade. Only a
+ * response that yields nothing usable at all falls back.
  */
 function parseAnalysisResponse(text, sessionId = "") {
     let parsed;
@@ -223,14 +235,15 @@ function parseAnalysisResponse(text, sessionId = "") {
         });
         return null;
     }
+    // Returns null only when the field is not an array at all — that is the
+    // malformed case. An array with unusable entries returns the usable ones.
     const clean = (value) => {
         if (!Array.isArray(value))
             return null;
-        const items = value
+        return value
             .filter((item) => typeof item === "string")
             .map((item) => item.trim())
             .filter((item) => item.length > 0);
-        return items.length === value.length ? items : items;
     };
     const gaps = clean(parsed === null || parsed === void 0 ? void 0 : parsed.knowledge_gaps);
     const recommendations = clean(parsed === null || parsed === void 0 ? void 0 : parsed.teaching_recommendations);
