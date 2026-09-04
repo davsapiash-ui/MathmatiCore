@@ -2,10 +2,7 @@ import { useState } from "react";
 import { AccessibleCard } from "@/presentation/design-system/AccessibleCard";
 import { UdlButton } from "@/presentation/design-system/UdlButton";
 import { 
-  Brain, 
   SlidersHorizontal, 
-  ToggleLeft, 
-  ToggleRight, 
   CheckCircle2, 
   BookOpen, 
   Layers, 
@@ -106,9 +103,6 @@ export function AdminCurriculumView() {
   const [undoThreshold, setUndoThreshold] = useState<number>(4);
   const [isSaved, setIsSaved] = useState(false);
 
-  const [regroupingEnabled, setRegroupingEnabled] = useState(true);
-  const [fluencyEnabled, setFluencyEnabled] = useState(true);
-
   const [expandedSession, setExpandedSession] = useState<number | null>(1);
 
   const handleSaveCalibration = async () => {
@@ -116,8 +110,6 @@ export function AdminCurriculumView() {
       await setDoc(doc(db, 'system_control', 'trace_calibration'), {
         hesitation_threshold_seconds: hesitationThreshold,
         undo_threshold_clicks: undoThreshold,
-        regrouping_enabled: regroupingEnabled,
-        fluency_enabled: fluencyEnabled,
         updated_at: Date.now(),
       }, { merge: true });
       setIsSaved(true);
@@ -356,63 +348,6 @@ export function AdminCurriculumView() {
             >
               שמור הגדרות כיול
             </UdlButton>
-          </div>
-        </AccessibleCard>
-
-        {/* Diagnostic Modules Panel */}
-        <AccessibleCard className="p-6 md:p-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl space-y-6">
-          <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <Brain className="w-5 h-5 text-purple-500" />
-              ניהול מודולים מאבחנים (Diagnostic Modules)
-            </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              הפעלה וניהול של אלגוריתמי האבחון הפעילים במטריצת Q-Matrix
-            </p>
-          </div>
-          
-          <div className="space-y-4">
-            <div className="flex justify-between items-center p-4 bg-slate-50 dark:bg-slate-950/60 rounded-2xl border border-slate-200 dark:border-slate-800 transition-all hover:border-emerald-300">
-              <div className="space-y-1">
-                <p className="font-bold text-sm text-slate-900 dark:text-white">גמישות בהמרת עשרות (Regrouping Flexibility)</p>
-                <p className="text-xs text-slate-500 leading-relaxed">
-                  אלגוריתם המנתח את יכולת הלומד לזהות ולהמיר קבוצה של 10 יחידות לעשרת אחת שלמה.
-                </p>
-              </div>
-              <button onClick={() => setRegroupingEnabled(!regroupingEnabled)} className="shrink-0 mr-4 cursor-pointer">
-                {regroupingEnabled ? (
-                  <ToggleRight className="w-10 h-10 text-emerald-500" />
-                ) : (
-                  <ToggleLeft className="w-10 h-10 text-slate-400" />
-                )}
-              </button>
-            </div>
-
-            <div className="flex justify-between items-center p-4 bg-slate-50 dark:bg-slate-950/60 rounded-2xl border border-slate-200 dark:border-slate-800 transition-all hover:border-emerald-300">
-              <div className="space-y-1">
-                <p className="font-bold text-sm text-slate-900 dark:text-white">שטף חיבור בסיסי (Basic Addition Fluency)</p>
-                <p className="text-xs text-slate-500 leading-relaxed">
-                  מיפוי אוטומטי של שגיאות שיטתיות בחישוב עובדות יסוד בתחום ה-20 (קשיי שליפה).
-                </p>
-              </div>
-              <button onClick={() => setFluencyEnabled(!fluencyEnabled)} className="shrink-0 mr-4 cursor-pointer">
-                {fluencyEnabled ? (
-                  <ToggleRight className="w-10 h-10 text-emerald-500" />
-                ) : (
-                  <ToggleLeft className="w-10 h-10 text-slate-400" />
-                )}
-              </button>
-            </div>
-
-            <div className="flex justify-between items-center opacity-60 p-4 bg-slate-50 dark:bg-slate-950/60 rounded-2xl border border-slate-200 dark:border-slate-800">
-              <div className="space-y-1">
-                <p className="font-bold text-sm text-slate-800 dark:text-slate-200">אסטרטגיות חיסור מורחב (בפיתוח)</p>
-                <p className="text-xs text-slate-500 leading-relaxed">
-                  הערכה קוגניטיבית של יכולת פריטת עשרות כהכנה לחיסור במאונך.
-                </p>
-              </div>
-              <ToggleLeft className="w-10 h-10 text-slate-400 cursor-not-allowed shrink-0 mr-4" />
-            </div>
           </div>
         </AccessibleCard>
       </div>
