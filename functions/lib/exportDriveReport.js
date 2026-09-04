@@ -342,11 +342,22 @@ exports.backupAndResetSessionData = (0, https_1.onCall)(async (request) => {
     if (!reason || !exports.VALID_RESET_REASONS.includes(reason)) {
         throw new https_1.HttpsError("invalid-argument", `Invalid reset reason. Must be one of: ${exports.VALID_RESET_REASONS.join(', ')}`);
     }
-    // PRD v7.0 Module 23א §F: Deny admin role access to learning-data resets
-    const userRole = request.auth.token.role || (request.auth.token.admin ? 'admin' : 'teacher');
-    if ((userRole === 'admin' || userRole === 'ADMIN') && (reset_level === 'single_student' || reset_level === 'system')) {
-        logger.warn(`Admin ${request.auth.uid} attempted destructive learning data reset (${reset_level}), denied.`);
-        throw new https_1.HttpsError("permission-denied", "Admin role is strictly forbidden from resetting learning data per Module 23א.");
+    // PRD Module 23א §F: learning-data resets belong to the class teacher; a
+    // system-admin identity is blocked (class-isolation principle).
+    //
+    // The check is on the TEACHER claim, not on the presence of an admin claim.
+    // syncUserRoles stamps the owner's dual identity as
+    // { role: 'admin', admin: true, teacher: true }, and the old test
+    // (`role === 'admin'` → deny) rejected that identity even when it was
+    // acting as the teacher of class_1 — so every level-2/3 reset the owner
+    // ran failed, and the client reported it as a backup failure.
+    const token = request.auth.token;
+    const isTeacherIdentity = token.teacher === true ||
+        token.role === 'teacher' ||
+        (Array.isArray(token.roles) && token.roles.includes('TEACHER'));
+    if (!isTeacherIdentity && (reset_level === 'single_student' || reset_level === 'system')) {
+        logger.warn(`Non-teacher identity ${request.auth.uid} (role=${String(token.role)}) attempted a ${reset_level} reset, denied.`);
+        throw new https_1.HttpsError("permission-denied", "איפוס נתוני למידה מותר למורת הכיתה בלבד (מודול 23א).");
     }
     const performedBy = request.auth.uid;
     const rtdb = admin.database();

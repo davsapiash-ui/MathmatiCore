@@ -96,6 +96,21 @@ describe('Module 23א: backup-before-delete hard gate (regression for Antigravit
       expect(mockSet).not.toHaveBeenCalled();
     });
 
+    it('reports a server permission denial as such, not as a backup failure, and deletes nothing', async () => {
+      const denied = Object.assign(new Error('איפוס נתוני למידה מותר למורת הכיתה בלבד (מודול 23א).'), {
+        code: 'functions/permission-denied',
+      });
+      mockCallable.mockRejectedValueOnce(denied);
+
+      await expect(
+        useStore.getState().resetEntireSystemUsageData('technical_fault')
+      ).rejects.toThrow('RESET_PERMISSION_DENIED');
+
+      expect(mockUpdate).not.toHaveBeenCalled();
+      expect(mockRemove).not.toHaveBeenCalled();
+      expect(mockSet).not.toHaveBeenCalled();
+    });
+
     it('proceeds with the full class RTDB wipe once the backup callable succeeds', async () => {
       mockCallable.mockResolvedValueOnce({ data: { status: 'SUCCESS' } });
 
