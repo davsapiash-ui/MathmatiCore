@@ -520,7 +520,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
         {/* 5-Color Status Legend per PRD v7.1 Module 18 (BLUE > RED > GREY > YELLOW > GREEN) */}
         <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-2xl border border-slate-200/60 dark:border-slate-700">
           <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full bg-blue-500 shadow-sm animate-pulse" />
+            <span className="w-3 h-3 rounded-full bg-blue-500 shadow-sm animate-radar-call" />
             <span>קריאה לעזרה</span>
           </div>
           <div className="flex items-center gap-1.5">
@@ -532,7 +532,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
             <span>היסוס ({getHesitationThresholdSeconds()} שנ׳)</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full bg-rose-500 shadow-sm animate-pulse" />
+            <span className="w-3 h-3 rounded-full bg-rose-500 shadow-sm" />
             <span>כרטיס סוקרטי</span>
           </div>
           <div className="flex items-center gap-1.5">
@@ -547,7 +547,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
         <section className="bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-300 dark:border-amber-800 rounded-2xl p-4 shadow-md animate-in fade-in slide-in-from-top-2 duration-300">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-2.5">
-              <span className="w-3 h-3 rounded-full bg-amber-500 animate-ping" />
+              <span className="w-3 h-3 rounded-full bg-amber-500" />
               <span className="font-extrabold text-sm text-amber-950 dark:text-amber-100 flex items-center gap-2">
                 <DoorOpen className="w-4 h-4 text-amber-600" />
                 {pendingGateStudents.length === 1 
@@ -579,7 +579,11 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
         </section>
       )}
 
-      {/* Fixed 12-Slot CSS Grid (3x4) Without Layout Reflows */}
+      {/* Fixed 12-Slot CSS Grid (3x4) Without Layout Reflows.
+          PRD Module 18 / מסמך 04 §3ב: the cells carry meaning in colour alone —
+          nothing here blinks, moves or resizes. The pulses that used to sit on
+          "מחובר" and "פעיל" ran on most of the class at once, so the quiet grid
+          the teacher is meant to read at a glance was never quiet. */}
       <section className="w-full">
         <div className="grid grid-cols-3 sm:grid-cols-4 gap-4 max-w-4xl mx-auto w-full">
           {students.map((student) => {
@@ -627,12 +631,12 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                   
                   {/* Status Icon - Deterministic Precedence: GATE > SOCRATIC > OFFLINE > HESITATION > ONLINE/ACTIVE */}
                   {student.isWaitingAtGate ? (
-                    <span className="inline-flex items-center gap-1 bg-amber-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm animate-pulse" title="ממתין לאישור מסלול למפגש 3">
+                    <span className="inline-flex items-center gap-1 bg-amber-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="ממתין לאישור מסלול למפגש 3">
                       <DoorOpen className="w-3 h-3" />
                       שער מפגש 3
                     </span>
                   ) : student.isSocraticActive ? (
-                    <span className="inline-flex items-center gap-1 bg-rose-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm animate-pulse" title="חניכה סוקרטית פעילה">
+                    <span className="inline-flex items-center gap-1 bg-rose-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="חניכה סוקרטית פעילה">
                       <ShieldAlert className="w-3 h-3" />
                       סוקרטי
                     </span>
@@ -642,7 +646,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                     </span>
                   ) : !isClassSessionActive ? (
                     <span className="inline-flex items-center gap-1 bg-emerald-600 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="מחובר בלובי">
-                      <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                      <span className="w-2 h-2 rounded-full bg-white" />
                       מחובר
                     </span>
                   ) : student.activeBranch === 'challenge' ? (
@@ -660,7 +664,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-1 bg-emerald-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="פעיל ותקין">
-                      <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                      <span className="w-2 h-2 rounded-full bg-white" />
                       פעיל
                     </span>
                   )}

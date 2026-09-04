@@ -349,6 +349,16 @@
     animation: soft-heartbeat 3s ease-in-out infinite;
   }
 
+  /* מסמך 04 §3ב: the teacher's radar shows "חיוויי צבע חלקים ואיטיים" — a slow,
+     smooth breath for the one signal that is a live call for the teacher, never
+     the quick pulse that turns the whole grid into noise. */
+  .animate-radar-call {
+    animation: radar-call 2s ease-in-out infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .animate-radar-call { animation: none; }
+  }
+
   .transition-math-snap {
     transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), 
                 opacity 0.3s ease;
@@ -436,4 +446,9 @@
 
 .touch-manipulation {
   touch-action: manipulation;
+}
+
+@keyframes radar-call {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
 }
