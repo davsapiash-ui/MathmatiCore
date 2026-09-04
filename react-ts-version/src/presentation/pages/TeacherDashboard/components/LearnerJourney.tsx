@@ -1,18 +1,24 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Video, ListOrdered, AlertTriangle, RotateCcw } from 'lucide-react';
+import { Video, ListOrdered, AlertTriangle, RotateCcw, Sparkles, FileText, Loader2 } from 'lucide-react';
 import { ReplayViewer } from '@/presentation/components/ReplayViewer';
 import {
+  AI_FALLBACK_TEXT,
+  REPORT_PROCESSING_TEXT,
   describeEvent,
   exerciseTitle,
   fetchLearnerEvents,
+  fetchMeetingReport,
+  fetchMeetingReportUrl,
   formatClock,
   formatDate,
   formatDuration,
+  generateMeetingReport,
   groupEventsBySession,
   parseRecordingEvents,
   subscribeLearnerRecordings,
   SESSION_NAMES_HE,
   type JourneyEvent,
+  type MeetingReport,
   type RecordingSession,
 } from '@/infrastructure/services/LearnerJourneyService';
 
@@ -133,6 +139,56 @@ export function LearnerJourney({ studentId }: Props) {
 
   const sessionsWithData = SESSION_NUMBERS.filter((n) => (eventsBySession.get(n)?.length ?? 0) > 0 || (recordingsBySession.get(n)?.length ?? 0) > 0).length;
 
+  // Module 23 (owner decision, register item 7): the AI report of the selected
+  // meeting. The meeting's telemetry session_id is the key the server needs.
+  const meetingSessionId = sessionEvents.length > 0 ? sessionEvents[0].sessionId : null;
+  const [report, setReport] = useState<MeetingReport | null>(null);
+  const [reportState, setReportState] = useState<'idle' | 'loading' | 'generating' | 'opening' | 'error'>('idle');
+  const [reportError, setReportError] = useState<string>('');
+
+  useEffect(() => {
+    let cancelled = false;
+    setReport(null);
+    setReportError('');
+    if (!meetingSessionId) { setReportState('idle'); return; }
+    setReportState('loading');
+    fetchMeetingReport(meetingSessionId)
+      .then((r) => { if (!cancelled) { setReport(r); setReportState('idle'); } })
+      .catch((err) => {
+        if (cancelled) return;
+        setReportError(err instanceof Error ? err.message : String(err));
+        setReportState('error');
+      });
+    return () => { cancelled = true; };
+  }, [meetingSessionId]);
+
+  const requestReport = async () => {
+    if (!meetingSessionId || selectedSession === null) return;
+    setReportState('generating');
+    setReportError('');
+    try {
+      const r = await generateMeetingReport({ studentNum, sessionNumber: selectedSession, sessionId: meetingSessionId });
+      setReport(r);
+      setReportState('idle');
+    } catch (err) {
+      setReportError(err instanceof Error ? err.message : String(err));
+      setReportState('error');
+    }
+  };
+
+  const openReportPdf = async () => {
+    if (!report) return;
+    try {
+      setReportState('opening');
+      const url = report.downloadUrl ?? (await fetchMeetingReportUrl(report.sessionId));
+      window.open(url, '_blank', 'noopener');
+      setReportState('idle');
+    } catch (err) {
+      setReportError(err instanceof Error ? err.message : String(err));
+      setReportState('error');
+    }
+  };
+
   return (
     <div className="space-y-5" dir="rtl">
       {/* Header */}
@@ -237,6 +293,112 @@ export function LearnerJourney({ studentId }: Props) {
               })}
             </div>
           )}
+
+          {/* Module 23: the AI report of this meeting */}
+          <div className="bg-ws-surface border border-ws-surface2 rounded-2xl p-4 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-sm font-black text-ws-ink">
+                <Sparkles className="w-4 h-4 text-amber-500" />
+                דוח הבינה · מפגש {selectedSession}
+                {report?.generatedAt && (
+                  <span className="text-[11px] font-bold text-ws-soft">הופק {formatDate(report.generatedAt)} {formatClock(report.generatedAt)}</span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {report && (
+                  <button
+                    type="button"
+                    onClick={openReportPdf}
+                    disabled={reportState === 'opening' || reportState === 'generating'}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border border-ws-surface2 bg-ws-bg text-ws-ink hover:border-ws-accent/40 cursor-pointer disabled:opacity-50"
+                  >
+                    {reportState === 'opening' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />}
+                    פתיחת ה-PDF
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={requestReport}
+                  disabled={!meetingSessionId || reportState === 'generating' || reportState === 'loading'}
+                  title={meetingSessionId ? 'הבינה מנתחת את הפעולות המתועדות של המפגש הזה' : 'אין פעולות מתועדות במפגש זה, אין מה לנתח'}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {reportState === 'generating' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-amber-300" />}
+                  {reportState === 'generating' ? 'הבינה מנתחת… עד כ-20 שניות' : report ? 'הפקה מחדש' : `הפק דוח למפגש ${selectedSession}`}
+                </button>
+              </div>
+            </div>
+
+            {reportState === 'error' && (
+              <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-200">
+                <div>{REPORT_PROCESSING_TEXT}</div>
+                {reportError && <div className="font-normal mt-1 opacity-80">{reportError}</div>}
+              </div>
+            )}
+
+            {!report && reportState !== 'error' && (
+              <p className="text-xs text-ws-soft">
+                {!meetingSessionId
+                  ? 'אין פעולות מתועדות במפגש זה, ולכן אין דוח.'
+                  : reportState === 'loading'
+                    ? 'בודק אם כבר יש דוח למפגש זה…'
+                    : 'עדיין לא הופק דוח למפגש זה. הדוח נבנה מהפעולות המתועדות של המפגש: ציון ניסיון ראשון, קבוצת עבודה מומלצת, סיפור התרגילים, פערי ידע והמלצות הוראה.'}
+              </p>
+            )}
+
+            {report && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 text-xs">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3 p-3 rounded-xl bg-ws-bg border border-ws-surface2">
+                    <div className="text-2xl font-black text-ws-ink" dir="ltr">{report.scorePercent}%</div>
+                    <div>
+                      <div className="font-bold text-ws-ink">ציון ניסיון ראשון</div>
+                      <div className="text-ws-soft">
+                        {report.scoreSource === 'session_document'
+                          ? 'ממסמך המפגש'
+                          : report.scoreSource === 'telemetry_first_attempt'
+                            ? `מחושב מ-${report.telemetryEventCount} פעולות מתועדות`
+                            : 'מתוצאות האבחון'}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-100">
+                    <div className="font-black mb-1">קבוצת עבודה מומלצת: {report.routingLabelHe}</div>
+                    <div>{report.recommendationDetailsHe}</div>
+                  </div>
+                  {report.exerciseNarratives.length > 0 && (
+                    <div className="p-3 rounded-xl bg-ws-bg border border-ws-surface2">
+                      <div className="font-black text-ws-ink mb-1">מה קרה בכל תרגיל</div>
+                      <ul className="space-y-1 text-ws-ink">
+                        {report.exerciseNarratives.map((n, i) => <li key={i}>• {n}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+                <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-950 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-100 space-y-2">
+                  <div className="font-black">ניתוח הבינה</div>
+                  {report.aiAnalysisAvailable ? (
+                    <>
+                      <div>
+                        <div className="font-bold mb-1">פערי ידע שאותרו</div>
+                        {report.knowledgeGaps.length > 0
+                          ? <ul className="space-y-1">{report.knowledgeGaps.map((g, i) => <li key={i}>• {g}</li>)}</ul>
+                          : <div className="opacity-80">לא אותרו פערים בפעולות המתועדות.</div>}
+                      </div>
+                      <div>
+                        <div className="font-bold mb-1">המלצות הוראה להמשך</div>
+                        {report.teachingRecommendations.length > 0
+                          ? <ul className="space-y-1">{report.teachingRecommendations.map((r, i) => <li key={i}>• {r}</li>)}</ul>
+                          : <div className="opacity-80">אין המלצות נוספות.</div>}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="opacity-90">{AI_FALLBACK_TEXT}</div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Split screen: table (right in RTL) + player (left) */}
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">

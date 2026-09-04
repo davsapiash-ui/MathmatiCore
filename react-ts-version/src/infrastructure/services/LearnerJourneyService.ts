@@ -16,8 +16,9 @@
  * moment in the recording can be matched by timestamp.
  */
 import { ref, onValue } from 'firebase/database';
-import { collection, getDocs, query, where } from 'firebase/firestore';
-import { database, firestore, authReady } from '@/infrastructure/firebase';
+import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
+import { database, firestore, functions, authReady } from '@/infrastructure/firebase';
 import type { TelemetryEventType } from '@/types/telemetry';
 import { getSessionTasks } from '@/data/sessionTasks';
 import { TASKS as DIAGNOSTIC_TASKS } from '@/core/QMatrix';
@@ -344,4 +345,88 @@ export function formatDuration(ms: number): string {
   const s = Math.max(0, Math.round(ms / 1000));
   const m = Math.floor(s / 60);
   return `${String(m).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+}
+
+// ─── Module 23 — the AI report for one meeting ──────────────────────────────
+//
+// Owner decision (2026-09-04, register item 7): the teacher can ask for the
+// pedagogical report of ANY meeting of a learner, from this page. The server
+// (generatePedagogicalReportPDF) builds it from that meeting's own telemetry:
+// layer 1 (score, working group) by the PRD percentage rule, layer 2 (knowledge
+// gaps, teaching recommendations) by the AI engine, plus the exercise narrative.
+
+/** PRD Module 23 §ד: the only text shown while a report is not ready. */
+export const REPORT_PROCESSING_TEXT = 'הדוח בעיבוד כעת, אנא נסו שוב בעוד מספר רגעים';
+/** PRD Module 23 §ב: the only text shown when the AI layer is unavailable. */
+export const AI_FALLBACK_TEXT = 'הניתוח הפדגוגי המפורט אינו זמין כעת. ההמלצות שלהלן מבוססות על מדדי הביצוע.';
+
+export interface MeetingReport {
+  reportId: string;
+  sessionId: string;
+  sessionNumber: number;
+  scorePercent: number;
+  /** Where the score came from: the meeting's session document, or the PRD first-attempt rule over its telemetry. */
+  scoreSource: string;
+  routingLabelHe: string;
+  recommendationDetailsHe: string;
+  exerciseNarratives: string[];
+  knowledgeGaps: string[];
+  teachingRecommendations: string[];
+  aiAnalysisAvailable: boolean;
+  telemetryEventCount: number;
+  generatedAt: number | null;
+  /** Direct PDF link when the server just produced it; otherwise fetched on demand. */
+  downloadUrl: string | null;
+}
+
+const strList = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
+
+function reportFromData(d: Record<string, any>, sessionId: string, downloadUrl: string | null): MeetingReport {
+  return {
+    reportId: String(d.report_id ?? `rep_${sessionId}`),
+    sessionId: String(d.session_id ?? sessionId),
+    sessionNumber: Number(d.session_number) || 0,
+    scorePercent: Number(d.score_percent) || 0,
+    scoreSource: String(d.score_source ?? ''),
+    routingLabelHe: String(d.routing_label_he ?? ''),
+    recommendationDetailsHe: String(d.recommendation_details_he ?? ''),
+    exerciseNarratives: strList(d.exercise_narratives),
+    knowledgeGaps: strList(d.knowledge_gaps),
+    teachingRecommendations: strList(d.teaching_recommendations),
+    aiAnalysisAvailable: d.ai_analysis_available === true,
+    telemetryEventCount: Number(d.telemetry_event_count) || 0,
+    generatedAt: typeof d.generated_at === 'number' ? d.generated_at : null,
+    downloadUrl,
+  };
+}
+
+/** The report already produced for this meeting, if any (Firestore reports/rep_{sessionId}). */
+export async function fetchMeetingReport(sessionId: string): Promise<MeetingReport | null> {
+  await authReady;
+  const snap = await getDoc(doc(firestore, 'reports', `rep_${sessionId}`));
+  if (!snap.exists()) return null;
+  return reportFromData(snap.data() as Record<string, any>, sessionId, null);
+}
+
+/** Asks the server to build (or rebuild) the report for one meeting. Takes up to ~20 seconds. */
+export async function generateMeetingReport(params: { studentNum: number; sessionNumber: number; sessionId: string }): Promise<MeetingReport> {
+  const call = httpsCallable(functions, 'generatePedagogicalReportPDF', { timeout: 120_000 });
+  const res = await call({
+    sessionId: params.sessionId,
+    classId: 'class_1',
+    sessionNumber: params.sessionNumber,
+    studentId: params.studentNum,
+  });
+  const data = (res.data ?? {}) as Record<string, any>;
+  if (!data.report) throw new Error('השרת לא החזיר דוח');
+  return reportFromData(data.report, params.sessionId, typeof data.downloadUrl === 'string' ? data.downloadUrl : null);
+}
+
+/** A fresh one-hour link to the stored PDF of a meeting's report. */
+export async function fetchMeetingReportUrl(sessionId: string): Promise<string> {
+  const call = httpsCallable(functions, 'getPedagogicalReportDownloadUrl');
+  const res = await call({ sessionId });
+  const url = (res.data as Record<string, any> | undefined)?.downloadUrl;
+  if (typeof url !== 'string' || !url) throw new Error('לא התקבל קישור לקובץ');
+  return url;
 }
