@@ -32,14 +32,24 @@ export function VerticalAdditionTask({
   numberB,
   isSubtraction,
   answerLength,
+  hiddenA = [],
+  hiddenB = [],
+  revealedResult = {},
 }: {
   numberA: number;
   numberB: number;
   isSubtraction?: boolean;
   answerLength: number;
+  /** Skeleton exercise (מסמך 03): operand digits the learner discovers and types instead of reading. */
+  hiddenA?: Place[];
+  hiddenB?: Place[];
+  /** Skeleton exercise: result digits given up-front, shown fixed instead of as inputs. */
+  revealedResult?: Partial<Record<Place, string>>;
 }) {
   const answerDigits = useWorkspaceStore((s) => s.answerDigits);
   const setAnswerDigit = useWorkspaceStore((s) => s.setAnswerDigit);
+  const operandDigits = useWorkspaceStore((s) => s.operandDigits);
+  const setOperandDigit = useWorkspaceStore((s) => s.setOperandDigit);
   const carryDigits = useWorkspaceStore((s) => s.carryDigits);
   const setCarryDigit = useWorkspaceStore((s) => s.setCarryDigit);
   const setFocusedPlace = useWorkspaceStore((s) => s.setFocusedPlace);
@@ -117,6 +127,36 @@ export function VerticalAdditionTask({
 
   const shakeStyle = shake ? { transform: 'translateX(4px)' } : {};
 
+  /** A hidden operand digit: an input in the operand's own square (skeleton exercises). */
+  const operandInput = (which: 'a' | 'b', place: Place, key: string, extra?: React.CSSProperties) => (
+    <div key={key} className="flex items-center justify-center" style={extra}>
+      <input
+        type="text"
+        inputMode="numeric"
+        maxLength={1}
+        value={operandDigits[which][place] ?? ''}
+        aria-label={`ספרת ה${PLACE_LABEL_HE[place]} החסרה ב${which === 'a' ? 'מספר הראשון' : 'מספר השני'}`}
+        className="rounded-lg border-2 border-dashed text-center font-mono font-black bg-ws-accentSoft/40 text-ws-ink transition-all focus:outline-none focus:ring-2 focus:ring-ws-accent"
+        style={{ width: CELL - 12, height: CELL - 12, fontSize: CELL * 0.48, borderColor: PLACE_TINT[place] }}
+        onFocus={() => setFocusedPlace(place)}
+        onBlur={() => setFocusedPlace(null)}
+        onChange={(e) => setOperandDigit(which, place, e.target.value)}
+      />
+    </div>
+  );
+
+  /** A result digit the exercise reveals: fixed, not typed (skeleton exercises). */
+  const revealedCell = (d: string, place: Place, key: string) => (
+    <div
+      key={key}
+      className="flex items-center justify-center rounded-lg border-2 font-mono font-black text-ws-ink/80 bg-ws-surface2/40"
+      style={{ width: CELL - 12, height: CELL - 12, fontSize: CELL * 0.48, borderColor: PLACE_TINT[place], margin: 'auto' }}
+      aria-label={`ספרת ה${PLACE_LABEL_HE[place]} בתשובה, נתונה: ${d}`}
+    >
+      {d}
+    </div>
+  );
+
   return (
     <div className="self-center w-full max-w-md flex flex-col items-center gap-4 bg-ws-surface rounded-3xl border border-ws-surface2 shadow-[0_10px_28px_-14px_hsl(var(--ws-shadow-warm)/0.3)] p-6 relative">
       {/* Notebook paper: background squares EXACTLY the size of a grid column */}
@@ -161,7 +201,9 @@ export function VerticalAdditionTask({
 
         {/* Row 1 — first operand */}
         <div aria-hidden="true" />
-        {digitsA.map((d, j) => digitCell(d, `a${j}`, colPlaces[j]))}
+        {digitsA.map((d, j) =>
+          d !== null && hiddenA.includes(colPlaces[j]) ? operandInput('a', colPlaces[j], `a${j}`) : digitCell(d, `a${j}`, colPlaces[j])
+        )}
 
         {/* Row 2 — second operand + operator; thick result line under both */}
         {(() => {
@@ -231,6 +273,9 @@ export function VerticalAdditionTask({
                     </div>
                   );
                 }
+                if (d !== null && hiddenB.includes(colPlaces[j])) {
+                  return operandInput('b', colPlaces[j], `b${j}`, { borderBottom: '4px solid hsl(var(--ws-ink))' });
+                }
                 return digitCell(d, `b${j}`, undefined, { borderBottom: '4px solid hsl(var(--ws-ink))' });
               })}
             </>
@@ -242,6 +287,10 @@ export function VerticalAdditionTask({
         {colPlaces.map((place, j) => {
           if (j < firstAnswerCol) return <div key={`e${j}`} aria-hidden="true" />;
           const ansIdx = j - firstAnswerCol;
+          const revealed = revealedResult[place];
+          if (revealed !== undefined) {
+            return <div key={`ans${j}`} className="flex items-center justify-center">{revealedCell(revealed, place, `rev${j}`)}</div>;
+          }
           const isLocked = isColumnInputLocked(place);
           return (
             <div key={`ans${j}`} className="flex items-center justify-center">

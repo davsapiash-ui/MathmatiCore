@@ -33,7 +33,8 @@ export interface CatalogBankDoc {
 }
 
 export function catalogBankId(sessionNumber: number, path?: LearningPath | null): string {
-  if (sessionNumber >= 3 && sessionNumber <= 7) {
+  // מסמך 03 §3.3–3.8: sessions 3–8 each carry two banks (green / remediation).
+  if (sessionNumber >= 3 && sessionNumber <= 8) {
     return `session_${sessionNumber}_${path === 'remediation_path' ? 'remediation_path' : 'green_path'}`;
   }
   return `session_${sessionNumber}`;

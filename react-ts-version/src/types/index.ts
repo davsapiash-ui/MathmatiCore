@@ -141,7 +141,7 @@ export interface GeminiSocraticRequest {
     completed_columns: string[];
     current_column_input: string | null;
     memory_circles_state: Record<string, number>;
-    trigger_reason: 'hesitation_45s' | 'consecutive_errors_4' | 'consecutive_undos_3';
+    trigger_reason: 'hesitation_45s' | 'consecutive_errors_4' | 'consecutive_undos_3' | 'conversion_not_performed';
     consecutive_errors_count: number;
     recent_actions: TelemetryPayload<TelemetryEventType>[];
   };

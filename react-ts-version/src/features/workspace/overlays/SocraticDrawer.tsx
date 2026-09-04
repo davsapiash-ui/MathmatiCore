@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useWorkspaceStore, getActiveTasks, placeToColumnIndex } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, getActiveTasks, placeToColumnIndex, type SocraticTriggerReason } from '@/application/useWorkspaceStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { HelpCircle, Hourglass, X, CheckCircle2, AlertCircle } from 'lucide-react';
 import { SocraticEngine, type SocraticChoice } from '@/infrastructure/services/SocraticEngine';
@@ -40,12 +40,16 @@ export function SocraticDrawer({ isOpen, onClose }: SocraticDrawerProps) {
       const currentTask = getActiveTasks(wsState)[wsState.standardTaskIdx] || null;
       const colIdx = wsState.focusedPlace ? placeToColumnIndex(wsState.focusedPlace) : 0;
       
-      const triggerReason: 'hesitation_45s' | 'consecutive_errors_4' | 'consecutive_undos_3' = 
-        wsState.consecutiveErrorCount >= 4 
-          ? 'consecutive_errors_4' 
-          : (wsState.sessionNumber === 8 && (wsState.consecutiveUndoCount ?? 0) >= 3)
-          ? 'consecutive_undos_3' 
-          : 'hesitation_45s';
+      // The store records which of מסמך 03's triggers opened the card; this used
+      // to re-derive it from counters and so mislabelled every card that a
+      // deletion streak or an unperformed conversion had opened.
+      const triggerReason: SocraticTriggerReason =
+        wsState.socraticTriggerReason ??
+        (wsState.consecutiveErrorCount >= 4
+          ? 'consecutive_errors_4'
+          : wsState.sessionNumber === 8 && (wsState.consecutiveUndoCount ?? 0) >= 3
+          ? 'consecutive_undos_3'
+          : 'hesitation_45s');
 
       const errorCat = wsState.aiSocraticHint?.error_category ?? null;
 

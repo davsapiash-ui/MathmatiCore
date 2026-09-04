@@ -5,15 +5,23 @@ import { useWorkspaceStore, selectCanProceed, getActiveTasks } from '@/applicati
 import { useChatStore, normalizeStudentId } from '@/application/useChatStore';
 import { TASKS } from '@/core/QMatrix';
 import { ProgressDots } from './ProgressDots';
-import { RotateCcw, Home, MessageSquare, ArrowLeft, Cloud, CloudOff, Eye, EyeOff } from 'lucide-react';
+import { RotateCcw, Home, MessageSquare, ArrowLeft, Cloud, CloudOff, Eye, EyeOff, HandHelping } from 'lucide-react';
 import { LogoutButton } from '@/presentation/components/ui/LogoutButton';
 import { Logo } from '@/presentation/components/ui/Logo';
 
 /**
- * הסרגל העליון של מרחב הפעילות — ניווט לינארי בלבד (הבא/בטל), ללא תפריטים.
- * אין שום חיווי זמן (איסור טיימרים מהאפיון).
- * כפתור Undo בגודל 48x48px מדויק לפי מודול 11 ב-PRD.
- * חיווי שקט של מצב קישוריות (Module 17): ירוק=Online, אפור=Offline ללא מודאלים.
+ * הסרגל העליון של מרחב הפעילות.
+ *
+ * מסמך 04 §3 (נראות, עקביות) governs this bar:
+ *  - "לחצן עזרה שקט… נראותו הקבועה בסרגל הכלים העליון מקנה להם ביטחון וסוכנות
+ *    למידה בכל רגע נתון" — a call-teacher button did exist, but only inside the
+ *    chat overlay, so reaching it took opening a window first. The silent help
+ *    button is now permanent and visible here, as the document requires. The
+ *    board toggle and the chat button stay exactly as they were.
+ *  - "כפתור חזור ללובי ממוקם תמיד בפינה השמאלית העליונה" — the lobby button is
+ *    the last element, alone in the left corner (RTL end).
+ * No time indicator anywhere (visible timers are forbidden).
+ * Undo is exactly 48x48px per PRD Module 11.
  */
 interface WorkspaceTopbarProps {
   isDragging?: boolean;
@@ -46,6 +54,8 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
   const undo = useWorkspaceStore((s) => s.undo);
   const proceed = useWorkspaceStore((s) => s.proceed);
   const toggleBoard = useWorkspaceStore((s) => s.toggleBoard);
+  const requestSilentHelp = useWorkspaceStore((s) => s.requestSilentHelp);
+  const hasRequestedHelp = useWorkspaceStore((s) => s.hasRequestedBasicHelp);
   const globalChatEnabled = useChatStore((s) => s.globalChatEnabled);
   const messages = useChatStore((s) => s.messages);
 
@@ -60,11 +70,11 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
         <Logo size="md" subtitle="מרחב חקר אישי" to="/hub" />
 
         {/* Module 1 & 6: Zero-PII Student Identity Badge */}
-        <div className="flex items-center gap-2 bg-indigo-50/90 dark:bg-indigo-950/50 border border-indigo-200/80 dark:border-indigo-800/80 px-3 py-1.5 rounded-xl shadow-xs">
-          <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-indigo-500 to-purple-600 text-white flex items-center justify-center font-black text-xs">
+        <div className="flex items-center gap-2 bg-ws-accentSoft border border-ws-accent/25 px-3 py-1.5 rounded-xl shadow-xs">
+          <div className="w-6 h-6 rounded-lg bg-ws-accent text-white flex items-center justify-center font-black text-xs">
             {user?.student_id || (user?.uid ? user.uid.replace(/\D/g, '') : '1') || '1'}
           </div>
-          <span className="text-xs font-black text-indigo-950 dark:text-indigo-200">
+          <span className="text-xs font-black text-ws-ink">
             תלמיד {user?.student_id || (user?.uid ? user.uid.replace(/\D/g, '') : '1') || '1'}
           </span>
         </div>
@@ -105,6 +115,21 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
           </button>
         )}
 
+        {/* מסמך 04 §2א/§5: the silent help signal, permanently visible so the
+            learner never has to open a window to reach it. */}
+        <button
+          onClick={requestSilentHelp}
+          className={`w-12 h-12 min-w-[48px] min-h-[48px] rounded-2xl transition-all flex items-center justify-center cursor-pointer border shadow-sm active:scale-95 ${
+            hasRequestedHelp
+              ? 'bg-amber-50 border-amber-300 text-amber-600 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-400'
+              : 'bg-ws-surface border-ws-surface2 text-ws-soft hover:text-ws-accent hover:border-ws-accent/40'
+          }`}
+          aria-label="קריאה שקטה למורה"
+          title="קריאה שקטה למורה"
+        >
+          <HandHelping className="w-5 h-5" />
+        </button>
+
         {sessionNumber !== 8 && (
           <button
             onClick={toggleBoard}
@@ -120,17 +145,6 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
             <span className="hidden sm:inline">{boardOpen ? "הסתר לוח" : "הצג לוח"}</span>
           </button>
         )}
-
-        {/* Home / Lobby */}
-        <button
-          onClick={() => navigate('/hub')}
-          className="h-12 px-4 rounded-2xl text-sm font-bold text-ws-ink bg-ws-surface2 hover:bg-ws-surface2/80 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5"
-          aria-label="חזרה ללובי"
-          title="חזרה ללובי הראשי"
-        >
-          <Home className="w-4 h-4" />
-          <span className="hidden sm:inline">לובי</span>
-        </button>
 
         {/* Chat Drawer Toggle */}
         <button
@@ -166,6 +180,17 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
         {/* Module 1: Clean Synchronous Logout */}
         <LogoutButton className="h-12 px-3 rounded-2xl text-xs sm:text-sm font-bold text-ws-soft hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 border border-transparent hover:border-red-200" />
       </div>
+
+      {/* מסמך 04 §3ו: the lobby button sits always in the top-left corner, on every activity screen */}
+      <button
+        onClick={() => navigate('/hub')}
+        className="h-12 px-4 rounded-2xl text-sm font-bold text-ws-ink bg-ws-surface2 hover:bg-ws-surface2/80 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 shrink-0"
+        aria-label="חזרה ללובי"
+        title="חזרה ללובי הראשי"
+      >
+        <Home className="w-4 h-4" />
+        <span className="hidden sm:inline">לובי</span>
+      </button>
     </nav>
   );
 }

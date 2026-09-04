@@ -191,3 +191,33 @@ export function resolveDrop(counts: PlaceCounts, input: DropInput, _scaffoldLeve
   // Non-adjacent or upward drag: rejected (regrouping must use the explicit "הקבץ" button per PRD).
   return { ok: false, reason: 'constraint', place: targetPlace };
 }
+
+/** Digit of `value` at `place` (0 when the number does not reach that place). */
+export function digitAt(value: number, place: Place): number {
+  return Math.floor(Math.abs(value) / PLACE_VALUES[place]) % 10;
+}
+
+export function countsEqual(a: PlaceCounts, b: PlaceCounts): boolean {
+  return PLACE_ORDER.every((p) => (a[p] || 0) === (b[p] || 0));
+}
+
+const SINGULAR_HE: Record<Place, string> = {
+  units: 'יחידה אחת',
+  tens: 'עשרת אחת',
+  hundreds: 'מאה אחת',
+  thousands: 'אלף אחד',
+};
+
+/**
+ * Hebrew description of a board representation, high place first —
+ * "2 אלפים, 14 מאות ו-13 עשרות". Places with zero blocks are omitted.
+ */
+export function describeCountsHe(counts: Partial<PlaceCounts>): string {
+  const parts = [...PLACE_ORDER]
+    .reverse()
+    .filter((p) => (counts[p] || 0) > 0)
+    .map((p) => (counts[p] === 1 ? SINGULAR_HE[p] : `${counts[p]} ${PLACE_NAMES_HE[p]}`));
+  if (parts.length === 0) return 'לוח ריק';
+  if (parts.length === 1) return parts[0];
+  return `${parts.slice(0, -1).join(', ')} ו-${parts[parts.length - 1]}`;
+}

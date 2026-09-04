@@ -1,524 +1,183 @@
 /**
- * sessionBranchTasks.ts — Catalog of tailored Reinforcement & Challenge branch tasks (Sessions 1–8).
- * 
- * Module 14: Post-Mandatory Task Choice Point (מדיניות סיום מוקדם ולומדים מהירים)
- * All tasks here are marked `isOptionalChoiceTask: true` and excluded from baseline Q-Matrix mastery metrics.
+ * sessionBranchTasks.ts — early-finisher exercises (מדיניות סיום מוקדם ומענה ללומדים מהירים).
+ *
+ * Source: מסמך 03 §3.3–3.7, "מאגר תרגילי הבחירה": for each of sessions 3–7 and
+ * for each learning path, two reinforcement exercises (נתיב החזרה והביסוס) and
+ * one challenge exercise (נתיב האתגר והעומק). Numbers are the document's.
+ * PRD v7.2 Module 14 §ג: the choice screen exists in sessions 3–7 only, so no
+ * branch bank exists for sessions 1, 2 or 8.
+ *
+ * Every task here is `isOptionalChoiceTask: true` and excluded from the
+ * baseline mastery metrics (PRD Module 14 §ג, מסמך 03 "לוגיקת ניתוח הנתונים").
  */
 
-import type { SessionTask } from './sessionTasks';
+import { addition, subtraction, skeleton, representation, flexible, S4_ADD, S5_SUB, S6_SUB, FLEX_HOWTO } from './taskBuilders';
+import type { SessionTask, LearningPath } from './sessionTasks';
 
-export const SESSION_BRANCH_TASKS: Record<number, { reinforcement: SessionTask[]; challenge: SessionTask[] }> = {
-  // ── Session 1: היכרות ותפעול ארגז חול דיגיטלי ──
-  1: {
-    reinforcement: [
-      {
-        id: 's1_branch_reinforce_1',
-        type: 'addition_simple',
-        numberA: 300,
-        numberB: 40,
-        correctAnswer: 340,
-        titleHe: 'ביסוס 1: בניית מספרים עגולים',
-        instructionHe: 'בנו בבית המספרים את המספר 340 (3 מאות ו-4 עשרות) והקלידו את התוצאה.',
-        scaffoldLevel: 1,
-        isOptionalChoiceTask: true,
-        branchType: 'reinforcement',
-      },
-      {
-        id: 's1_branch_reinforce_2',
-        type: 'addition_simple',
-        numberA: 500,
-        numberB: 60,
-        correctAnswer: 560,
-        titleHe: 'ביסוס 2: הרכבת מאות ועשרות',
-        instructionHe: 'בנו את המספר 560 בבית המספרים ורשמו את התשובה.',
-        scaffoldLevel: 1,
-        isOptionalChoiceTask: true,
-        branchType: 'reinforcement',
-      },
-    ],
-    challenge: [
-      {
-        id: 's1_branch_challenge_1',
-        type: 'addition_simple',
-        numberA: 1200,
-        numberB: 350,
-        correctAnswer: 1550,
-        titleHe: 'אתגר 1: בניית מספרים בתחום האלף',
-        instructionHe: 'גררו בלוק של אלף, 5 מאות ו-5 עשרות לבניית המספר 1,550!',
-        scaffoldLevel: 0,
-        isOptionalChoiceTask: true,
-        branchType: 'challenge',
-      },
-      {
-        id: 's1_branch_challenge_2',
-        type: 'flexible_decomp',
-        numberA: 120,
-        correctAnswer: 120,
-        titleHe: 'אתגר 2: חקר גמישות בלבני דינס',
-        instructionHe: 'בנו את המספר 120 בשתי דרכים שונות: פעם עם מאה ועשרות, ופעם באמצעות עשרות בלבד (12 עשרות).',
-        scaffoldLevel: 0,
-        requiresUngrouping: true,
-        isOptionalChoiceTask: true,
-        branchType: 'challenge',
-      },
-    ],
-  },
+export type BranchType = 'reinforcement' | 'challenge';
+export type BranchSession = 3 | 4 | 5 | 6 | 7;
+export interface BranchBank {
+  reinforcement: SessionTask[];
+  challenge: SessionTask[];
+}
 
-  // ── Session 2: אבחון מיפוי וערך המקום ──
-  2: {
-    reinforcement: [
-      {
-        id: 's2_branch_reinforce_1',
-        type: 'addition_simple',
-        numberA: 250,
-        numberB: 130,
-        correctAnswer: 380,
-        titleHe: 'ביסוס: חיבור עשרות ומאות',
-        instructionHe: 'חברו בבית המספרים: 250 + 130 ללא המרות.',
-        scaffoldLevel: 1,
-        isOptionalChoiceTask: true,
-        branchType: 'reinforcement',
-      },
-      {
-        id: 's2_branch_reinforce_2',
-        type: 'flexible_decomp',
-        numberA: 340,
-        correctAnswer: 340,
-        titleHe: 'ביסוס: פירוק מונחה',
-        instructionHe: 'בנו את המספר 340 בשתי צורות ייצוג שונות בלוח.',
-        scaffoldLevel: 1,
-        requiresUngrouping: true,
-        isOptionalChoiceTask: true,
-        branchType: 'reinforcement',
-      },
-    ],
-    challenge: [
-      {
-        id: 's2_branch_challenge_1',
-        type: 'flexible_decomp',
-        numberA: 1450,
-        correctAnswer: 1450,
-        titleHe: 'אתגר: פירוק מרובה בתחום הרבבה',
-        instructionHe: 'בנו את המספר 1,450 בדרך סטנדרטית (אלף, 4 מאות, 5 עשרות) ופעם נוספת באמצעות 14 מאות ו-5 עשרות.',
-        scaffoldLevel: 0,
-        requiresUngrouping: true,
-        isOptionalChoiceTask: true,
-        branchType: 'challenge',
-      },
-      {
-        id: 's2_branch_challenge_2',
-        type: 'addition_simple',
-        numberA: 1650,
-        numberB: 850,
-        correctAnswer: 2500,
-        titleHe: 'אתגר: השלמה לאלפים עגולים',
-        instructionHe: 'חברו 1,650 + 850 עם המרה כפולה ובדקו את המספר העגול שמתקבל בלוח.',
-        scaffoldLevel: 0,
-        requiresGrouping: true,
-        isOptionalChoiceTask: true,
-        branchType: 'challenge',
-      },
-    ],
-  },
+const R = { branchType: 'reinforcement' as const };
+const C = { branchType: 'challenge' as const };
 
-  // ── Session 3: ערך המקום והמרות בחיבור ──
+export const SESSION_BRANCH_TASKS: Record<BranchSession, Record<LearningPath, BranchBank>> = {
+  // ── מפגש 3: ערך המקום וגמישות ייצוגית ──
   3: {
-    reinforcement: [
-      {
-        id: 's3_branch_reinforce_1',
-        type: 'addition_simple',
-        numberA: 145,
-        numberB: 238,
-        correctAnswer: 383,
-        titleHe: 'ביסוס 1: המרה ביחידות',
-        instructionHe: 'פתרו 145 + 238: קבצו 10 יחידות לעשרת אחת בעזרת כפתור "הקבץ (10)" או בגרירה.',
-        scaffoldLevel: 1,
-        requiresGrouping: true,
-        targetNode: 'regrouping_fluency',
-        isOptionalChoiceTask: true,
-        branchType: 'reinforcement',
-      },
-      {
-        id: 's3_branch_reinforce_2',
-        type: 'addition_simple',
-        numberA: 260,
-        numberB: 180,
-        correctAnswer: 440,
-        titleHe: 'ביסוס 2: המרה בעשרות',
-        instructionHe: 'פתרו 260 + 180: קבצו 10 עשרות למאה אחת.',
-        scaffoldLevel: 1,
-        requiresGrouping: true,
-        targetNode: 'regrouping_fluency',
-        isOptionalChoiceTask: true,
-        branchType: 'reinforcement',
-      },
-    ],
-    challenge: [
-      {
-        id: 's3_branch_challenge_1',
-        type: 'addition_simple',
-        numberA: 3450,
-        numberB: 2780,
-        correctAnswer: 6230,
-        titleHe: 'אתגר 1: המרה כפולה בתחום הרבבה',
-        instructionHe: 'חברו 3,450 + 2,780: בצעו המרה בעשרות והמרה במאות כדי להגיע לתוצאה המדויקת.',
-        scaffoldLevel: 0,
-        requiresGrouping: true,
-        targetNode: 'regrouping_fluency',
-        isOptionalChoiceTask: true,
-        branchType: 'challenge',
-      },
-      {
-        id: 's3_branch_challenge_2',
-        type: 'flexible_decomp',
-        numberA: 2300,
-        correctAnswer: 2300,
-        titleHe: 'אתגר 2: פירוק גמיש באלפים',
-        instructionHe: 'הציגו את המספר 2,300 כ-2 אלפים ו-3 מאות, ולאחר מכן כ-1 אלף ו-13 מאות.',
-        scaffoldLevel: 0,
-        requiresUngrouping: true,
-        targetNode: 'flexible_regrouping',
-        isOptionalChoiceTask: true,
-        branchType: 'challenge',
-      },
-    ],
+    remediation_path: {
+      reinforcement: [
+        representation('s3_r_reinforce_1', 270, { hundreds: 2, tens: 7 },
+          'ביסוס 1: ייצוג 270 בדרך הרגילה',
+          'גררו לבנים לייצוג המספר 270 בדרך הרגילה: 2 מאות ו-7 עשרות, וכתבו את המספר בשורת התוצאה!', R),
+        representation('s3_r_reinforce_2', 270, { tens: 27 },
+          'ביסוס 2: 270 בעשרות בלבד',
+          'ייצגו את המספר 270 באמצעות 27 עשרות בלבד, וכתבו את המספר בשורת התוצאה!', R),
+      ],
+      challenge: [
+        flexible('s3_r_challenge_1', 320,
+          'אתגר: כל הדרכים לייצג את 320',
+          `מצאו דרכים שונות לייצג את המספר 320 באמצעות מאות ועשרות בלבד. ${FLEX_HOWTO}`, C),
+      ],
+    },
+    green_path: {
+      reinforcement: [
+        representation('s3_g_reinforce_1', 3600, { thousands: 3, hundreds: 6 },
+          'ביסוס 1: ייצוג 3,600 בדרך הרגילה',
+          'גררו לבנים לייצוג המספר 3,600 בדרך הרגילה: 3 אלפים ו-6 מאות, וכתבו את המספר בשורת התוצאה!', R),
+        representation('s3_g_reinforce_2', 3600, { hundreds: 36 },
+          'ביסוס 2: 3,600 במאות בלבד',
+          'ייצגו את המספר 3,600 באמצעות 36 מאות בלבד, וכתבו את המספר בשורת התוצאה!', R),
+      ],
+      challenge: [
+        flexible('s3_g_challenge_1', 4200,
+          'אתגר: כל הדרכים לייצג את 4,200',
+          `מצאו דרכים שונות לייצג את המספר 4,200 באמצעות אלפים, מאות ועשרות. ${FLEX_HOWTO}`, C),
+      ],
+    },
   },
 
-  // ── Session 4: אלגוריתם החיבור במאונך ──
+  // ── מפגש 4: אלגוריתם החיבור במאונך והמרה פשוטה ──
   4: {
-    reinforcement: [
-      {
-        id: 's4_branch_reinforce_1',
-        type: 'vertical_addition',
-        numberA: 147,
-        numberB: 235,
-        correctAnswer: 382,
-        titleHe: 'ביסוס 1: חיבור במאונך עם המרה',
-        instructionHe: 'פתרו במאונך: 147 + 235. רשמו 1 בתיבת הזיכרון שבראש טור העשרות.',
-        scaffoldLevel: 1,
-        requiresGrouping: true,
-        targetNode: 'procedural_fluency',
-        isOptionalChoiceTask: true,
-        branchType: 'reinforcement',
-      },
-      {
-        id: 's4_branch_reinforce_2',
-        type: 'vertical_addition',
-        numberA: 356,
-        numberB: 182,
-        correctAnswer: 538,
-        titleHe: 'ביסוס 2: המרה מעשרות למאות',
-        instructionHe: 'פתרו במאונך: 356 + 182 והקלידו את התוצאה.',
-        scaffoldLevel: 1,
-        requiresGrouping: true,
-        targetNode: 'procedural_fluency',
-        isOptionalChoiceTask: true,
-        branchType: 'reinforcement',
-      },
-    ],
-    challenge: [
-      {
-        id: 's4_branch_challenge_1',
-        type: 'vertical_addition',
-        numberA: 3678,
-        numberB: 2456,
-        correctAnswer: 6134,
-        titleHe: 'אתגר 1: חיבור 4-ספרתי עם המרות מרובות',
-        instructionHe: 'אתגר במאונך: 3,678 + 2,456. הקפידו על תיבות הזיכרון בכל הטורים!',
-        scaffoldLevel: 0,
-        requiresGrouping: true,
-        targetNode: 'procedural_fluency',
-        isOptionalChoiceTask: true,
-        branchType: 'challenge',
-      },
-      {
-        id: 's4_branch_challenge_2',
-        type: 'vertical_addition',
-        numberA: 5689,
-        numberB: 3745,
-        correctAnswer: 9434,
-        titleHe: 'אתגר 2: חיבור רב-ספרתי מתקדם',
-        instructionHe: 'פתרו במאונך: 5,689 + 3,745.',
-        scaffoldLevel: 0,
-        requiresGrouping: true,
-        targetNode: 'procedural_fluency',
-        isOptionalChoiceTask: true,
-        branchType: 'challenge',
-      },
-    ],
+    remediation_path: {
+      reinforcement: [
+        addition('s4_r_reinforce_1', 236, 41, 'ביסוס 1: חיבור ללא המרה', S4_ADD('236 + 41', false), R),
+        addition('s4_r_reinforce_2', 165, 27, 'ביסוס 2: המרה אחת בטור היחידות', S4_ADD('165 + 27', true), R),
+      ],
+      challenge: [
+        addition('s4_r_challenge_1', 278, 156, 'אתגר: שתי המרות עוקבות', S4_ADD('278 + 156', true), C),
+      ],
+    },
+    green_path: {
+      reinforcement: [
+        addition('s4_g_reinforce_1', 2341, 125, 'ביסוס 1: חיבור ללא המרה', S4_ADD('2,341 + 125', false), R),
+        addition('s4_g_reinforce_2', 3528, 164, 'ביסוס 2: המרה אחת בטור היחידות', S4_ADD('3,528 + 164', true), R),
+      ],
+      challenge: [
+        addition('s4_g_challenge_1', 4687, 2459, 'אתגר: שלוש המרות רצופות', S4_ADD('4,687 + 2,459', true), C),
+      ],
+    },
   },
 
-  // ── Session 5: אלגוריתם החיסור במאונך ופריטה ──
+  // ── מפגש 5: אלגוריתם החיסור במאונך והמרה פשוטה (פריטה) ──
   5: {
-    reinforcement: [
-      {
-        id: 's5_branch_reinforce_1',
-        type: 'vertical_addition',
-        isSubtraction: true,
-        numberA: 342,
-        numberB: 128,
-        correctAnswer: 214,
-        titleHe: 'ביסוס 1: חיסור עם פריטה ביחידות',
-        instructionHe: 'בצעו פריטה של עשרת אחת ל-10 יחידות בלוח, והקלידו את התוצאה.',
-        scaffoldLevel: 1,
-        requiresUngrouping: true,
-        targetNode: 'procedural_fluency',
-        isOptionalChoiceTask: true,
-        branchType: 'reinforcement',
-      },
-      {
-        id: 's5_branch_reinforce_2',
-        type: 'vertical_addition',
-        isSubtraction: true,
-        numberA: 520,
-        numberB: 160,
-        correctAnswer: 360,
-        titleHe: 'ביסוס 2: פריטה מעשרות למאות',
-        instructionHe: 'פתרו: 520 פחות 160 באמצעות פריטת מאה אחת ל-10 עשרות.',
-        scaffoldLevel: 1,
-        requiresUngrouping: true,
-        targetNode: 'procedural_fluency',
-        isOptionalChoiceTask: true,
-        branchType: 'reinforcement',
-      },
-    ],
-    challenge: [
-      {
-        id: 's5_branch_challenge_1',
-        type: 'vertical_addition',
-        isSubtraction: true,
-        numberA: 534,
-        numberB: 278,
-        correctAnswer: 256,
-        titleHe: 'אתגר 1: חיסור עם פריטה כפולה',
-        instructionHe: 'פתרו במאונך: 534 פחות 278. כאן נדרשת פריטה גם בעשרות וגם במאות!',
-        scaffoldLevel: 0,
-        requiresUngrouping: true,
-        targetNode: 'procedural_fluency',
-        isOptionalChoiceTask: true,
-        branchType: 'challenge',
-      },
-      {
-        id: 's5_branch_challenge_2',
-        type: 'vertical_addition',
-        isSubtraction: true,
-        numberA: 6432,
-        numberB: 1879,
-        correctAnswer: 4553,
-        titleHe: 'אתגר 2: חיסור 4-ספרתי מורכב',
-        instructionHe: 'פתרו במאונך: 6,432 פחות 1,879.',
-        scaffoldLevel: 0,
-        requiresUngrouping: true,
-        targetNode: 'procedural_fluency',
-        isOptionalChoiceTask: true,
-        branchType: 'challenge',
-      },
-    ],
+    remediation_path: {
+      reinforcement: [
+        subtraction('s5_r_reinforce_1', 86, 34, 'ביסוס 1: חיסור ללא פריטה', S5_SUB('86 − 34', false), R),
+        subtraction('s5_r_reinforce_2', 72, 48, 'ביסוס 2: פריטה אחת בטור היחידות', S5_SUB('72 − 48', true), R),
+      ],
+      challenge: [
+        subtraction('s5_r_challenge_1', 523, 187, 'אתגר: שתי פריטות עוקבות', S5_SUB('523 − 187', true), C),
+      ],
+    },
+    green_path: {
+      reinforcement: [
+        subtraction('s5_g_reinforce_1', 5879, 2431, 'ביסוס 1: חיסור ללא פריטה', S5_SUB('5,879 − 2,431', false), R),
+        subtraction('s5_g_reinforce_2', 6352, 1128, 'ביסוס 2: פריטה אחת בטור היחידות', S5_SUB('6,352 − 1,128', true), R),
+      ],
+      challenge: [
+        subtraction('s5_g_challenge_1', 7214, 3568, 'אתגר: שלוש פריטות רצופות', S5_SUB('7,214 − 3,568', true), C),
+      ],
+    },
   },
 
-  // ── Session 6: אתגר האפס כשומר מקום ומעבר מעל אפסים ──
+  // ── מפגש 6: אתגר האפס כשומר מקום ──
   6: {
-    reinforcement: [
-      {
-        id: 's6_branch_reinforce_1',
-        type: 'vertical_addition',
-        isSubtraction: true,
-        numberA: 506,
-        numberB: 234,
-        correctAnswer: 272,
-        titleHe: 'ביסוס 1: פריטה מעל אפס בעשרות',
-        instructionHe: 'במספר 506 טור העשרות ריק (0). פרטו מאה אחת ל-10 עשרות, ואז המשיכו בחיסור.',
-        scaffoldLevel: 1,
-        requiresUngrouping: true,
-        targetNode: 'flexible_regrouping',
-        isOptionalChoiceTask: true,
-        branchType: 'reinforcement',
-      },
-      {
-        id: 's6_branch_reinforce_2',
-        type: 'vertical_addition',
-        isSubtraction: true,
-        numberA: 408,
-        numberB: 153,
-        correctAnswer: 255,
-        titleHe: 'ביסוס 2: אפס כשומר מקום',
-        instructionHe: 'פתרו במאונך: 408 פחות 153.',
-        scaffoldLevel: 1,
-        requiresUngrouping: true,
-        targetNode: 'flexible_regrouping',
-        isOptionalChoiceTask: true,
-        branchType: 'reinforcement',
-      },
-    ],
-    challenge: [
-      {
-        id: 's6_branch_challenge_1',
-        type: 'vertical_addition',
-        isSubtraction: true,
-        numberA: 4005,
-        numberB: 1256,
-        correctAnswer: 2749,
-        titleHe: 'אתגר 1: מעבר מעל שני אפסים',
-        instructionHe: 'אתגר הפריטה הכפולה: 4,005 פחות 1,256. פרטו מהאלפים למאות, מהמאות לעשרות, ומהעשרות ליחידות!',
-        scaffoldLevel: 0,
-        requiresUngrouping: true,
-        targetNode: 'flexible_regrouping',
-        isOptionalChoiceTask: true,
-        branchType: 'challenge',
-      },
-      {
-        id: 's6_branch_challenge_2',
-        type: 'vertical_addition',
-        isSubtraction: true,
-        numberA: 3000,
-        numberB: 1425,
-        correctAnswer: 1575,
-        titleHe: 'אתגר 2: חיסור מאלפים שלמים',
-        instructionHe: 'פתרו במאונך: 3,000 פחות 1,425.',
-        scaffoldLevel: 0,
-        requiresUngrouping: true,
-        targetNode: 'flexible_regrouping',
-        isOptionalChoiceTask: true,
-        branchType: 'challenge',
-      },
-    ],
+    remediation_path: {
+      reinforcement: [
+        subtraction('s6_r_reinforce_1', 305, 102, 'ביסוס 1: קריאת האפס כשומר מקום, ללא פריטה', S6_SUB('305 − 102'), { ...R, targetNode: 'zero_placeholder' }),
+        subtraction('s6_r_reinforce_2', 250, 130, 'ביסוס 2: חיסור ללא פריטה', S6_SUB('250 − 130'), { ...R, targetNode: 'zero_placeholder' }),
+      ],
+      challenge: [
+        subtraction('s6_r_challenge_1', 600, 247, 'אתגר: פריטה כפולה דרך שני אפסים עוקבים', S6_SUB('600 − 247'), { ...C, targetNode: 'zero_placeholder' }),
+      ],
+    },
+    green_path: {
+      reinforcement: [
+        subtraction('s6_g_reinforce_1', 4050, 1020, 'ביסוס 1: חיסור ללא פריטה עם אפסים', S6_SUB('4,050 − 1,020'), { ...R, targetNode: 'zero_placeholder' }),
+        subtraction('s6_g_reinforce_2', 3006, 1004, 'ביסוס 2: חיסור ללא פריטה עם אפסים', S6_SUB('3,006 − 1,004'), { ...R, targetNode: 'zero_placeholder' }),
+      ],
+      challenge: [
+        subtraction('s6_g_challenge_1', 8000, 2376, 'אתגר: פריטה משולשת רצופה דרך שלושה אפסים', S6_SUB('8,000 − 2,376'), { ...C, targetNode: 'zero_placeholder' }),
+      ],
+    },
   },
 
-  // ── Session 7: פתרון בעיות חקר וספרות חסרות ──
+  // ── מפגש 7: פתרון בעיות חקר ואינטגרציה ──
+  // מסמך 03 describes these skeletons without numbers; the numbers below are ★ chosen.
   7: {
-    reinforcement: [
-      {
-        id: 's7_branch_reinforce_1',
-        type: 'vertical_addition',
-        numberA: 245,
-        numberB: 155,
-        correctAnswer: 400,
-        titleHe: 'ביסוס 1: השלמה למספר עגול',
-        instructionHe: 'מצאו את המספר המשלים: 245 + 155 = ?',
-        scaffoldLevel: 1,
-        requiresGrouping: true,
-        targetNode: 'strategic_competence',
-        isOptionalChoiceTask: true,
-        branchType: 'reinforcement',
-      },
-      {
-        id: 's7_branch_reinforce_2',
-        type: 'addition_simple',
-        numberA: 320,
-        numberB: 180,
-        correctAnswer: 500,
-        titleHe: 'ביסוס 2: זיהוי תבניות מספריות',
-        instructionHe: 'חברו 320 + 180 והסבירו מדוע קיבלנו 500 בדיוק.',
-        scaffoldLevel: 1,
-        targetNode: 'strategic_competence',
-        isOptionalChoiceTask: true,
-        branchType: 'reinforcement',
-      },
-    ],
-    challenge: [
-      {
-        id: 's7_branch_challenge_1',
-        type: 'vertical_addition',
-        numberA: 458,
-        numberB: 374,
-        correctAnswer: 832,
-        titleHe: 'אתגר 1: חקר ספרות חסרות',
-        instructionHe: 'פתרו את התרגיל 458 + 374 וגלו אילו ספרות נדרשות להשלמת השוויון.',
-        scaffoldLevel: 0,
-        requiresGrouping: true,
-        targetNode: 'strategic_competence',
-        isOptionalChoiceTask: true,
-        branchType: 'challenge',
-      },
-      {
-        id: 's7_branch_challenge_2',
-        type: 'vertical_addition',
-        isSubtraction: true,
-        numberA: 1000,
-        numberB: 357,
-        correctAnswer: 643,
-        titleHe: 'אתגר 2: הוכחה ופירוק אלף',
-        instructionHe: 'הוכיחו ש-1,000 פחות 357 שווה ל-643 באמצעות פריטה מלאה בלוח.',
-        scaffoldLevel: 0,
-        requiresUngrouping: true,
-        targetNode: 'strategic_competence',
-        isOptionalChoiceTask: true,
-        branchType: 'challenge',
-      },
-    ],
-  },
-
-  // ── Session 8: כפל בעשרות שלמות ואבחון מסכם ──
-  8: {
-    reinforcement: [
-      {
-        id: 's8_branch_reinforce_1',
-        type: 'addition_simple',
-        numberA: 40,
-        numberB: 40,
-        correctAnswer: 80,
-        titleHe: 'ביסוס 1: כפל כחיבור חוזר',
-        instructionHe: 'פתרו 2 כפול 40 (40 + 40) בבית המספרים.',
-        scaffoldLevel: 1,
-        targetNode: 'multiplication_base',
-        isOptionalChoiceTask: true,
-        branchType: 'reinforcement',
-      },
-      {
-        id: 's8_branch_reinforce_2',
-        type: 'addition_simple',
-        numberA: 60,
-        numberB: 60,
-        correctAnswer: 120,
-        titleHe: 'ביסוס 2: כפל בעשרות עם המרה',
-        instructionHe: 'פתרו 2 כפול 60 (60 + 60) וקבצו 10 עשרות למאה אחת.',
-        scaffoldLevel: 1,
-        requiresGrouping: true,
-        targetNode: 'multiplication_base',
-        isOptionalChoiceTask: true,
-        branchType: 'reinforcement',
-      },
-    ],
-    challenge: [
-      {
-        id: 's8_branch_challenge_1',
-        type: 'addition_simple',
-        numberA: 140,
-        numberB: 140,
-        correctAnswer: 280,
-        titleHe: 'אתגר 1: כפל מספרים דו-ספרתיים בעשרות',
-        instructionHe: 'חשבו: 2 כפול 140 (140 + 140) בלוח והסבירו את דרך הפתרון.',
-        scaffoldLevel: 0,
-        targetNode: 'multiplication_base',
-        isOptionalChoiceTask: true,
-        branchType: 'challenge',
-      },
-      {
-        id: 's8_branch_challenge_2',
-        type: 'addition_simple',
-        numberA: 250,
-        numberB: 250,
-        correctAnswer: 500,
-        titleHe: 'אתגר 2: חוק הפילוג וכפל מהיר',
-        instructionHe: 'חשבו: 2 כפול 250 (250 + 250) ובדקו את ההמרה הישירה ל-5 מאות שלמות.',
-        scaffoldLevel: 0,
-        requiresGrouping: true,
-        targetNode: 'multiplication_base',
-        isOptionalChoiceTask: true,
-        branchType: 'challenge',
-      },
-    ],
+    remediation_path: {
+      reinforcement: [
+        skeleton('s7_r_reinforce_1', 412, 253, false, { a: ['units'] },
+          'ביסוס 1: ספרת יחידות חסרה בחיבור ללא המרה',
+          'בתרגיל 41▢ + 253 = 665 חסרה ספרת היחידות של המחובר הראשון. גלו אותה בעזרת הלבנים וכתבו אותה בתיבה הריקה.',
+          { ...R, targetNode: 'relational_thinking' }),
+        skeleton('s7_r_reinforce_2', 467, 213, true, { a: ['tens'] },
+          'ביסוס 2: ספרת עשרות חסרה בחיסור ללא פריטה',
+          'בתרגיל 4▢7 − 213 = 254 חסרה ספרת העשרות של המחוסר. גלו אותה בעזרת הלבנים וכתבו אותה בתיבה הריקה.',
+          { ...R, targetNode: 'relational_thinking' }),
+      ],
+      challenge: [
+        skeleton('s7_r_challenge_1', 415, 258, false, { a: ['hundreds', 'tens', 'units'] },
+          'אתגר: תרגיל שלד עם שלוש ספרות חסרות',
+          'בתרגיל ▢▢▢ + 258 = 673 חסרות שלוש ספרות של המחובר הראשון, בטורים שונים. גלו אותן באמצעות מניפולציה בלבני הדינס וכתבו אותן בתיבות הריקות.',
+          { ...C, targetNode: 'relational_thinking' }),
+      ],
+    },
+    green_path: {
+      reinforcement: [
+        skeleton('s7_g_reinforce_1', 5538, 1246, false, { a: ['hundreds', 'units'] },
+          'ביסוס 1: שתי ספרות חסרות בחיבור עם המרה אחת',
+          'בתרגיל 5,▢3▢ + 1,246 = 6,784 חסרות שתי ספרות של המחובר הראשון. גלו אותן בעזרת הלבנים וכתבו אותן בתיבות הריקות.',
+          { ...R, targetNode: 'relational_thinking' }),
+        flexible('s7_g_reinforce_2', 2500,
+          'ביסוס 2: 25 מאות שוות ל-2 אלפים ו-5 מאות',
+          'הוכיחו בלבנים ש-25 מאות שוות בדיוק ל-2 אלפים ו-5 מאות: בנו 25 מאות ולחצו "הוספת ייצוג", ואז הקבצו והוסיפו את הייצוג הרגיל.',
+          { ...R, targetNode: 'relational_thinking' }),
+      ],
+      challenge: [
+        skeleton('s7_g_challenge_1', 8003, 2587, true, { a: ['thousands', 'hundreds', 'tens', 'units'] },
+          'אתגר: תרגיל שלד בתחום הרבבה עם ארבע ספרות חסרות',
+          'בתרגיל ▢,▢▢▢ − 2,587 = 5,416 חסרות ארבע ספרות של המחוסר. הפיצוח דורש שרשרת פריטות עוקבות. גלו את הספרות בעזרת הלבנים וכתבו אותן בתיבות הריקות.',
+          { ...C, targetNode: 'relational_thinking' }),
+      ],
+    },
   },
 };
 
 /**
- * Retrieves the pedagogical branch tasks (Reinforcement or Challenge) for a given session.
- * Falls back to session 3 tasks if session number is out of bounds.
+ * The early-finisher bank for a session, branch and learning path.
+ * Sessions outside 3–7 have no choice screen (PRD Module 14 §ג) and return [].
  */
 export function getSessionBranchTasks(
   sessionNumber: number,
-  branch: 'reinforcement' | 'challenge'
+  branch: BranchType,
+  path: LearningPath = 'green_path'
 ): SessionTask[] {
-  const sessionConfig = SESSION_BRANCH_TASKS[sessionNumber] || SESSION_BRANCH_TASKS[3];
-  return sessionConfig[branch] || sessionConfig.reinforcement;
+  const session = SESSION_BRANCH_TASKS[sessionNumber as BranchSession];
+  if (!session) return [];
+  const bank = session[path] ?? session.green_path;
+  return bank[branch] ?? bank.reinforcement;
 }
