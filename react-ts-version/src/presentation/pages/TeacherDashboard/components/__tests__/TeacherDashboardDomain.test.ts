@@ -290,7 +290,7 @@ describe('Teacher Dashboard Domain Comprehensive Audit & Verification Suite', ()
     });
   });
 
-  describe('8. StudentReplayAndLogs Mathematical Place-Value State Computation', () => {
+  describe('8. Place-value total from a board-state snapshot', () => {
     it('accurately computes total place-value from state counts snapshot', () => {
       const snapshot = {
         counts: { thousands: 1, hundreds: 2, tens: 4, units: 8 },

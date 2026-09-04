@@ -275,6 +275,11 @@ export function ReplayViewer({ events, seekToTime, seekNonce, onEnd, onProgress 
             <span className="text-slate-500 mx-1.5">/</span>
             <span className="text-slate-400">{formatTime(totalDurationMs)}</span>
           </div>
+          {/* The learner's own clock at the playhead — the same clock the
+              decision table shows, so a row and a frame can be matched. */}
+          <div className="text-xs font-mono bg-slate-800/60 px-3 py-1.5 rounded-xl border border-slate-700/50 text-slate-300" dir="ltr" title="שעון התלמיד בנקודה הנוכחית">
+            {firstTimestamp ? new Date(firstTimestamp + currentTimeMs).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '--:--:--'}
+          </div>
 
           <div className="text-xs text-slate-400 font-mono bg-slate-800/60 px-3 py-1.5 rounded-xl border border-slate-700/50" dir="ltr">
             {events.length} frames

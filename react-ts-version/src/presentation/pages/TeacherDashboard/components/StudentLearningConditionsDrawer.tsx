@@ -15,7 +15,7 @@ import {
   BellRing, 
   Layers
 } from 'lucide-react';
-import { StudentReplayAndLogs } from './StudentReplayAndLogs';
+import { LearnerJourney } from './LearnerJourney';
 import { ResetConfirmationModal } from './ResetConfirmationModal';
 import { ref, update } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
@@ -369,7 +369,7 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat }
           {activeTab === 'replay' && (
             <div className="space-y-6 animate-in fade-in duration-200">
               <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700">
-                <StudentReplayAndLogs studentId={student.studentId} />
+                <LearnerJourney studentId={student.studentId} />
               </div>
             </div>
           )}

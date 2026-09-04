@@ -183,7 +183,9 @@ service cloud.firestore {
 
     // Telemetry Logs: Strictly Owning Student or Teacher; Idempotency Doc ID; Schema Allowlist (Direct read denied for Admin)
     match /telemetry_logs/{logId} {
-      allow read: if (isTeacher() || isOwningStudent(string(resource.data.student_id))) && !isAdmin();
+      // Module 24 blocks system admins from individual telemetry. A dual identity
+      // (teacher + admin) reads as the teacher; only an admin-only identity is blocked.
+      allow read: if isTeacher() || (isOwningStudent(string(resource.data.student_id)) && !isAdmin());
       allow create: if isAuthenticated() &&
                        (isOwningStudent(string(request.resource.data.student_id))) &&
                        (request.resource.data.idempotency_key == logId) &&

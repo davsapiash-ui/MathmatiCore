@@ -33,6 +33,7 @@ import { HelpOverlays } from './overlays/HelpOverlays';
 import { ReflectionScreen } from './ReflectionScreen';
 import { Session8ReflectionScreen } from '@/presentation/components/student/Session8ReflectionScreen';
 import { firebaseSyncService, emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
+import { indexedDBQueue } from '@/infrastructure/services/IndexedDBQueue';
 import { useStore } from '@/application/useStore';
 import { X } from 'lucide-react';
 
@@ -355,8 +356,8 @@ export function StudentWorkspacePage() {
       if (!chunkKey) return;
 
       recordedBytes += payloadBytes;
-      set(newChunkRef, payload).catch(err => console.error('Telemetry push failed:', err));
-
+      const chunksPath = `users/students/${uid}/telemetry_sessions/${sessionId}/chunks`;
+      const metadataPath = `users/students/${uid}/telemetry_sessions/${sessionId}/metadata`;
       const metaPayload = {
         startTime: batch[0].timestamp,
         endTime: batch[batch.length - 1].timestamp,
@@ -364,9 +365,17 @@ export function StudentWorkspacePage() {
         exercise_id: currentExerciseId(),
       };
 
-      update(ref(database, `users/students/${uid}/telemetry_sessions/${sessionId}/metadata`), {
-        [chunkKey]: metaPayload
-      }).catch(console.error);
+      // Module 21: a chunk whose write fails is queued (Module 17) and re-sent
+      // under the same key when the connection returns — never dropped. The
+      // queued form is { data } and the replay reader accepts both shapes.
+      set(newChunkRef, payload).catch((err) => {
+        console.warn('[Recording] chunk write failed, queued for retry:', err);
+        indexedDBQueue.enqueue(chunksPath, { idempotency_key: chunkKey, data: payload }).catch(console.error);
+      });
+      update(ref(database, metadataPath), { [chunkKey]: metaPayload }).catch((err) => {
+        console.warn('[Recording] chunk metadata write failed, queued for retry:', err);
+        indexedDBQueue.enqueue(metadataPath, { idempotency_key: chunkKey, ...metaPayload }).catch(console.error);
+      });
     };
 
     // Load rrweb asynchronously
