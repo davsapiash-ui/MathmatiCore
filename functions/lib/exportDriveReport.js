@@ -2,6 +2,9 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.exportResearchDataset = exports.backupAndResetSessionData = exports.VALID_RESET_REASONS = exports.exportAdminReportToDrive = void 0;
 exports.uploadBufferToDrive = uploadBufferToDrive;
+exports.buildResetScope = buildResetScope;
+exports.collectResetBackup = collectResetBackup;
+exports.executeResetDeletion = executeResetDeletion;
 const https_1 = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
@@ -325,10 +328,14 @@ exports.VALID_RESET_REASONS = [
 /**
  * Module 23א: backupAndResetSessionData
  * Enforces strict Backup-Before-Delete sequencing:
- * 1. Collect all target data to be reset from Firestore/RTDB.
- * 2. Upload JSON snapshot to authorized Google Drive folder.
- * 3. Only on confirmed successful write, proceed to deletion.
- * 4. Log immutable audit entry into reset_audit_log.
+ * 1. Build the reset scope (buildResetScope) and collect ALL of it — every
+ *    RTDB node and every Firestore document, no page limits — into one
+ *    structured snapshot (collectResetBackup).
+ * 2. Upload the JSON snapshot to the shared Drive folder (Cloud Storage and
+ *    Firestore as fallbacks).
+ * 3. Only on confirmed successful write, delete that same scope
+ *    (executeResetDeletion), counting what was deleted.
+ * 4. Log an immutable audit entry into reset_audit_log with the real count.
  * 5. If backup fails, abort deletion immediately with exact Hebrew error message.
  */
 // A system-level backup reads every learner record, every session and the
@@ -338,7 +345,7 @@ exports.VALID_RESET_REASONS = [
 // that has been used; the function then died mid-flight and the client saw a
 // bare "internal" with no message. Give it room, and turn anything that still
 // escapes the guarded steps into an error that says what happened.
-const RESET_RUNTIME = { timeoutSeconds: 540, memory: "1GiB" };
+const RESET_RUNTIME = { timeoutSeconds: 540, memory: "2GiB" };
 exports.backupAndResetSessionData = (0, https_1.onCall)(RESET_RUNTIME, async (request) => {
     try {
         return await runBackupAndReset(request);
@@ -407,7 +414,9 @@ async function runBackupAndReset(request) {
                 performed_by_teacher_id: performedBy,
                 performed_at: Date.now(),
                 class_id,
-                affected_student_ids: student_id ? [parseInt(String(student_id).replace(/\D/g, '') || '1', 10)] : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+                affected_student_ids: /\d/.test(String(student_id !== null && student_id !== void 0 ? student_id : ''))
+                    ? [parseInt(String(student_id).replace(/\D/g, ''), 10)]
+                    : [...ALL_STUDENT_IDS],
                 backup_file_url: null,
                 backup_status: 'not_required',
                 reset_reason: reason,
@@ -422,38 +431,31 @@ async function runBackupAndReset(request) {
             throw new https_1.HttpsError("internal", "איפוס התראות נכשל.");
         }
     }
-    // Level 2 & 3: Single Student or Full System Reset (Mandatory Backup Before Delete)
-    let collectedData = {};
+    // ───────────────────────────────────────────────────────────────────────
+    // Levels 2 & 3 — backup-before-delete (PRD Module 23א §ג).
+    //
+    // One manifest (the reset "scope") says exactly what a reset covers. The
+    // backup reads that manifest, the deletion deletes that same manifest, and
+    // the audit entry counts what was actually deleted — so what is backed up
+    // and what is deleted can never drift apart, and nothing is deleted that
+    // was not first written to the backup file.
+    // ───────────────────────────────────────────────────────────────────────
+    const rawNum = reset_level === 'single_student' ? String(student_id !== null && student_id !== void 0 ? student_id : '').replace(/\D/g, '') : '';
+    if (reset_level === 'single_student' && (!rawNum || parseInt(rawNum, 10) < 1 || parseInt(rawNum, 10) > 12)) {
+        throw new https_1.HttpsError("invalid-argument", "student_id (1-12) is required for single_student reset.");
+    }
+    const affectedStudentIds = reset_level === 'single_student' ? [parseInt(rawNum, 10)] : [...ALL_STUDENT_IDS];
+    const scope = buildResetScope(reset_level, rawNum);
+    // Step 1: collect everything in scope into one structured snapshot.
+    let backup;
     try {
-        if (reset_level === 'single_student') {
-            if (!student_id) {
-                throw new https_1.HttpsError("invalid-argument", "student_id is required for single_student reset.");
-            }
-            const rawNum = String(student_id).replace(/\D/g, '') || '1';
-            const studentSnap = await rtdb.ref(`users/students/student_user${rawNum}`).get();
-            collectedData = {
-                student_id,
-                numeric_id: rawNum,
-                snapshot_time: Date.now(),
-                student_state: studentSnap.val() || {},
-            };
-        }
-        else if (reset_level === 'system') {
-            const [studentsSnap, sessionsSnap, chatsSnap, alertsSnap] = await Promise.all([
-                rtdb.ref("users/students").get(),
-                rtdb.ref("sessions").get(),
-                rtdb.ref("chat_messages").get(),
-                rtdb.ref("radar_alerts").get(),
-            ]);
-            collectedData = {
-                class_id,
-                snapshot_time: Date.now(),
-                students: studentsSnap.val() || {},
-                sessions: sessionsSnap.val() || {},
-                chat_messages: chatsSnap.val() || {},
-                radar_alerts: alertsSnap.val() || {},
-            };
-        }
+        backup = await collectResetBackup(rtdb, db, scope, {
+            reset_id: resetId,
+            reset_level,
+            class_id,
+            affected_student_ids: affectedStudentIds,
+            performed_by_teacher_id: performedBy,
+        });
     }
     catch (err) {
         logger.error("Failed to collect data for backup:", err);
@@ -461,9 +463,10 @@ async function runBackupAndReset(request) {
     }
     // Step 2: Write backup file to Google Drive, falling back to this project's
     // own Cloud Storage bucket, and only as a last resort to a Firestore doc.
-    const backupFileName = `Backup_${reset_level}_${class_id}_${Date.now()}.json`;
-    const backupBuffer = Buffer.from(JSON.stringify(collectedData), "utf-8");
-    logger.info(`Reset ${resetId}: ${reset_level} backup is ${backupBuffer.length} bytes`);
+    const backupFileName = `Backup_${reset_level}_${class_id}_${backup.snapshot_time}.json`;
+    const backupBuffer = Buffer.from(JSON.stringify(backup), "utf-8");
+    logger.info(`Reset ${resetId}: ${reset_level} backup is ${backupBuffer.length} bytes, ` +
+        `${backup.counts.total} records (rtdb=${JSON.stringify(backup.counts.realtime_database)}, firestore=${JSON.stringify(backup.counts.firestore)})`);
     // The Drive upload holds a base64 copy of the whole snapshot in memory; past
     // this size go straight to this project's own bucket, which streams.
     const DRIVE_MAX_BYTES = 30 * 1024 * 1024;
@@ -495,7 +498,9 @@ async function runBackupAndReset(request) {
         }
     }
     // Fallback 2: only reached if both Drive and this project's own Storage
-    // bucket failed. Kept as a last resort, not a primary path.
+    // bucket failed. Kept as a last resort, not a primary path. A full class
+    // snapshot is usually above Firestore's 1MiB document limit, in which case
+    // this fails too and the reset is aborted below — as the PRD requires.
     if (!driveResult.success) {
         logger.warn("Cloud Storage unavailable, writing backup to Firestore system_backups:", driveResult.error);
         try {
@@ -505,7 +510,7 @@ async function runBackupAndReset(request) {
                 class_id,
                 performed_by_teacher_id: performedBy,
                 created_at: admin.firestore.FieldValue.serverTimestamp(),
-                backup_data: collectedData,
+                backup_data: backup,
             });
             driveResult = {
                 success: true,
@@ -526,9 +531,7 @@ async function runBackupAndReset(request) {
             performed_by_teacher_id: performedBy,
             performed_at: Date.now(),
             class_id,
-            affected_student_ids: reset_level === 'single_student'
-                ? [parseInt(String(student_id).replace(/\D/g, '') || '1', 10)]
-                : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+            affected_student_ids: affectedStudentIds,
             backup_file_url: null,
             backup_status: 'failed',
             reset_reason: reason,
@@ -538,92 +541,230 @@ async function runBackupAndReset(request) {
         await db.collection("reset_audit_log").doc(resetId).set(Object.assign(Object.assign({}, failedEntry), { created_at: admin.firestore.FieldValue.serverTimestamp() })).catch(() => { });
         throw new https_1.HttpsError("internal", "הגיבוי נכשל. האיפוס בוטל ולא נמחקו נתונים.");
     }
-    // Step 3: Perform deletions ONLY after confirmed Drive write success
-    let deletedCount = 0;
-    try {
-        if (reset_level === 'single_student') {
-            const rawNum = String(student_id).replace(/\D/g, '') || '1';
-            const keys = [`student_user${rawNum}`, `user${rawNum}`, `student_${rawNum}`, rawNum];
-            for (const k of keys) {
-                await rtdb.ref(`users/students/${k}`).remove().catch(() => { });
-                await rtdb.ref(`chat_messages/${k}`).remove().catch(() => { });
+    // Step 3: delete ONLY after the backup write was confirmed — the very same
+    // scope that was just backed up, and every record of it (no page limits).
+    const deletion = await executeResetDeletion(rtdb, db, scope);
+    if (reset_level === 'system') {
+        // A class that starts over has no projector and — Module 14: session
+        // activation is exclusively a teacher action — no active session.
+        await rtdb.ref("system_control/projector_mode").set({ active: false, projector_mode: false, projector_mode_updated_at: Date.now() }).catch((e) => deletion.failures.push(`system_control/projector_mode: ${(e === null || e === void 0 ? void 0 : e.message) || e}`));
+        await rtdb.ref("active_class_session").set({ active: false, sessionNumber: null, endedAt: Date.now() }).catch((e) => deletion.failures.push(`active_class_session: ${(e === null || e === void 0 ? void 0 : e.message) || e}`));
+    }
+    // Step 4: Write immutable canonical ResetAuditEntry record to reset_audit_log,
+    // with the real number of records deleted.
+    const auditEntry = {
+        reset_id: resetId,
+        reset_level,
+        performed_by_teacher_id: performedBy,
+        performed_at: Date.now(),
+        class_id,
+        affected_student_ids: affectedStudentIds,
+        backup_file_url: driveResult.webViewLink || null,
+        backup_status: 'success',
+        reset_reason: reason,
+        reason_note,
+        records_deleted_count: deletion.total,
+    };
+    await db.collection("reset_audit_log").doc(resetId).set(Object.assign(Object.assign({}, auditEntry), { created_at: admin.firestore.FieldValue.serverTimestamp() })).catch((auditErr) => logger.error("Failed to write reset audit entry:", auditErr));
+    if (deletion.failures.length > 0) {
+        // The backup is safe and most of the scope is gone; say exactly what is
+        // not, instead of reporting a clean reset.
+        logger.error(`Reset ${resetId}: deletion incomplete —`, deletion.failures);
+        throw new https_1.HttpsError("internal", `הגיבוי נשמר, אך חלק מהנתונים לא נמחקו: ${deletion.failures.join('; ')}. ניתן להריץ את האיפוס שוב.`);
+    }
+    logger.info(`Successfully backed up and reset ${reset_level} data (ResetID: ${resetId}): ` +
+        `${deletion.total} records deleted (rtdb=${JSON.stringify(deletion.realtime_database)}, firestore=${JSON.stringify(deletion.firestore)})`);
+    return {
+        status: "SUCCESS",
+        resetId,
+        driveFileId: driveResult.fileId,
+        webViewLink: driveResult.webViewLink,
+        backedUpRecords: backup.counts.total,
+        deletedRecords: deletion.total,
+    };
+}
+// ─── Reset scope, backup and deletion helpers (Module 23א) ───────────────────
+const ALL_STUDENT_IDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+/** Every key a learner record has been stored under over the project's history. */
+function studentAliases(rawNum) {
+    return [`student_user${rawNum}`, `student_${rawNum}`, `user${rawNum}`, rawNum];
+}
+/**
+ * Firestore collections that hold learning data (PRD Module 23א §ג: "כלל
+ * נתוני הטלמטריה, מסמכי הסשן, מצבי מרחב העבודה ונתוני הרפלקציה"). Each one
+ * carries the learner's anonymous number in `student_id`. reset_audit_log is
+ * deliberately absent: §ד forbids any reset from touching it.
+ */
+const LEARNING_COLLECTIONS = ["sessions", "telemetry_logs", "telemetry_events", "reports", "srl_reflections"];
+/**
+ * Level 2 (single learner): the learner's RTDB record (workspace state,
+ * meeting progress, Q-matrix, recordings), their chat, and their Firestore
+ * session documents are deleted. Their telemetry, reports and reflections
+ * are backed up with the rest but kept — the PRD (§ב.2) restarts the learner's
+ * meeting, it does not erase the research evidence of a single learner.
+ *
+ * Level 3 (system): every learning-data node and collection, for all learners.
+ */
+function buildResetScope(level, rawNum) {
+    if (level === 'single_student') {
+        const aliases = studentAliases(rawNum);
+        const studentValues = Array.from(new Set([rawNum, parseInt(rawNum, 10), ...aliases]));
+        return {
+            rtdbPaths: [
+                ...aliases.map((a) => `users/students/${a}`),
+                ...aliases.map((a) => `chat_messages/${a}`),
                 // Leftover of the removed AI-plan subsystem; wiped so an old per-learner
                 // task list can never resurface.
-                await rtdb.ref(`approved_tasks/${k}`).remove().catch(() => { });
-                deletedCount++;
-            }
-            // Clear student session documents in Firestore
-            try {
-                const studentDocs = await db.collection("sessions")
-                    .where("student_id", "in", [rawNum, parseInt(rawNum, 10), `student_user${rawNum}`])
-                    .get();
-                if (!studentDocs.empty) {
-                    const batch = db.batch();
-                    studentDocs.docs.forEach((d) => batch.delete(d.ref));
-                    await batch.commit().catch(() => { });
-                }
-            }
-            catch (_fsErr) { }
-        }
-        else if (reset_level === 'system') {
-            await rtdb.ref("users/students").remove().catch(() => { });
-            await rtdb.ref("students").remove().catch(() => { });
-            await rtdb.ref("chat_messages").remove().catch(() => { });
-            await rtdb.ref("radar_alerts").remove().catch(() => { });
-            await rtdb.ref("replays").remove().catch(() => { });
-            await rtdb.ref("sessions").remove().catch(() => { });
-            await rtdb.ref("telemetry_sessions").remove().catch(() => { });
+                ...aliases.map((a) => `approved_tasks/${a}`),
+            ],
+            firestore: LEARNING_COLLECTIONS.map((collection) => ({
+                collection,
+                studentValues,
+                backupOnly: collection !== "sessions",
+            })),
+        };
+    }
+    return {
+        rtdbPaths: [
+            "users/students",
+            "students",
+            "chat_messages",
+            "radar_alerts",
+            "replays",
+            "sessions",
+            "telemetry_sessions",
             // Leftovers of the removed AI-plan subsystem (per-learner task lists and
             // teacher approval queues); wiped so nothing stale can resurface.
-            await rtdb.ref("approved_tasks").remove().catch(() => { });
-            await rtdb.ref("ai_pending_approvals").remove().catch(() => { });
-            await rtdb.ref("system_control/projector_mode").set({ active: false, projector_mode: false, projector_mode_updated_at: Date.now() }).catch(() => { });
-            await rtdb.ref("active_class_session").set({ active: true, sessionNumber: 1, timestamp: Date.now() }).catch(() => { });
-            // Clear all usage data collections in Firestore completely
-            const usageCollections = ["sessions", "telemetry_events", "telemetry_logs", "reports", "srl_reflections"];
-            for (const collName of usageCollections) {
-                try {
-                    const snap = await db.collection(collName).limit(500).get();
-                    if (!snap.empty) {
-                        const batch = db.batch();
-                        snap.docs.forEach((doc) => batch.delete(doc.ref));
-                        await batch.commit().catch(() => { });
-                    }
-                }
-                catch (_collErr) { }
-            }
-            deletedCount = 12;
+            "approved_tasks",
+            "ai_pending_approvals",
+        ],
+        firestore: LEARNING_COLLECTIONS.map((collection) => ({ collection })),
+    };
+}
+/** Firestore values that JSON.stringify would mangle, made plain and reversible. */
+function toPlainJson(value) {
+    if (value === null || value === undefined)
+        return null;
+    if (value instanceof admin.firestore.Timestamp)
+        return value.toDate().toISOString();
+    if (value instanceof admin.firestore.DocumentReference)
+        return { __document_path: value.path };
+    if (value instanceof admin.firestore.GeoPoint)
+        return { latitude: value.latitude, longitude: value.longitude };
+    if (Buffer.isBuffer(value))
+        return { __bytes_base64: value.toString("base64") };
+    if (Array.isArray(value))
+        return value.map(toPlainJson);
+    if (typeof value === "object") {
+        const out = {};
+        for (const [k, v] of Object.entries(value))
+            out[k] = toPlainJson(v);
+        return out;
+    }
+    return value;
+}
+const FIRESTORE_PAGE = 500;
+// 2,000 pages × 500 = one million documents; far beyond a pilot class, and a
+// hard stop against looping forever should a query misbehave.
+const FIRESTORE_MAX_PAGES = 2000;
+function scopedQuery(db, entry) {
+    const base = db.collection(entry.collection);
+    return entry.studentValues && entry.studentValues.length > 0
+        ? base.where("student_id", "in", entry.studentValues)
+        : base;
+}
+/** Reads every document the entry covers — no page limit — as plain JSON. */
+async function readCollectionFully(db, entry) {
+    const docs = [];
+    const query = scopedQuery(db, entry).orderBy(admin.firestore.FieldPath.documentId()).limit(FIRESTORE_PAGE);
+    let last = null;
+    for (let page = 0; page < FIRESTORE_MAX_PAGES; page++) {
+        const pageQuery = last ? query.startAfter(last) : query;
+        const snap = await pageQuery.get();
+        if (snap.empty)
+            break;
+        for (const d of snap.docs)
+            docs.push({ id: d.id, data: toPlainJson(d.data()) });
+        last = snap.docs[snap.docs.length - 1];
+        if (snap.size < FIRESTORE_PAGE)
+            break;
+    }
+    return docs;
+}
+/** Deletes every document the entry covers, page by page, and returns how many. */
+async function deleteCollectionFully(db, entry) {
+    let deleted = 0;
+    const query = scopedQuery(db, entry).limit(FIRESTORE_PAGE);
+    for (let page = 0; page < FIRESTORE_MAX_PAGES; page++) {
+        const snap = await query.get();
+        if (snap.empty)
+            break;
+        const batch = db.batch();
+        snap.docs.forEach((d) => batch.delete(d.ref));
+        await batch.commit();
+        deleted += snap.size;
+        if (snap.size < FIRESTORE_PAGE)
+            break;
+    }
+    return deleted;
+}
+/**
+ * Step 1 of a reset: read the whole scope into one snapshot. Any read failure
+ * throws, so a partial snapshot is never written as if it were complete.
+ */
+async function collectResetBackup(rtdb, db, scope, meta) {
+    const now = Date.now();
+    const backup = Object.assign(Object.assign({ backup_format: "mathmaticore-reset-backup/2" }, meta), { snapshot_time: now, snapshot_time_iso: new Date(now).toISOString(), realtime_database: {}, firestore: {}, counts: { realtime_database: {}, firestore: {}, total: 0 } });
+    for (const path of scope.rtdbPaths) {
+        const snap = await rtdb.ref(path).get();
+        const value = snap.val();
+        backup.realtime_database[path] = value !== null && value !== void 0 ? value : null;
+        // A node with children counts its children (learners, messages, alerts);
+        // a leaf counts as one record; a missing node as zero.
+        const count = !snap.exists() ? 0 : snap.hasChildren() ? snap.numChildren() : 1;
+        backup.counts.realtime_database[path] = count;
+        backup.counts.total += count;
+    }
+    for (const entry of scope.firestore) {
+        const docs = await readCollectionFully(db, entry);
+        backup.firestore[entry.collection] = docs;
+        backup.counts.firestore[entry.collection] = docs.length;
+        backup.counts.total += docs.length;
+    }
+    return backup;
+}
+/**
+ * Step 3 of a reset: delete the whole scope. One failing item does not stop
+ * the others, but it is recorded and reported — never swallowed.
+ */
+async function executeResetDeletion(rtdb, db, scope) {
+    const counts = { realtime_database: {}, firestore: {}, total: 0, failures: [] };
+    for (const path of scope.rtdbPaths) {
+        try {
+            const snap = await rtdb.ref(path).get();
+            const count = !snap.exists() ? 0 : snap.hasChildren() ? snap.numChildren() : 1;
+            if (count > 0)
+                await rtdb.ref(path).remove();
+            counts.realtime_database[path] = count;
+            counts.total += count;
         }
-        // Step 4: Write immutable canonical ResetAuditEntry record to reset_audit_log
-        const affectedStudentIds = reset_level === 'single_student'
-            ? [parseInt(String(student_id).replace(/\D/g, '') || '1', 10)]
-            : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-        const auditEntry = {
-            reset_id: resetId,
-            reset_level,
-            performed_by_teacher_id: performedBy,
-            performed_at: Date.now(),
-            class_id,
-            affected_student_ids: affectedStudentIds,
-            backup_file_url: driveResult.webViewLink || null,
-            backup_status: 'success',
-            reset_reason: reason,
-            reason_note,
-            records_deleted_count: deletedCount,
-        };
-        await db.collection("reset_audit_log").doc(resetId).set(Object.assign(Object.assign({}, auditEntry), { created_at: admin.firestore.FieldValue.serverTimestamp() }));
-        logger.info(`Successfully backed up and reset ${reset_level} data (ResetID: ${resetId})`);
-        return {
-            status: "SUCCESS",
-            resetId,
-            driveFileId: driveResult.fileId,
-            webViewLink: driveResult.webViewLink,
-        };
+        catch (err) {
+            counts.failures.push(`${path}: ${(err === null || err === void 0 ? void 0 : err.message) || String(err)}`);
+        }
     }
-    catch (deleteErr) {
-        logger.error("Error during deletion step:", deleteErr);
-        throw new https_1.HttpsError("internal", "שגיאה בביצוע האיפוס לאחר הגיבוי.");
+    for (const entry of scope.firestore) {
+        if (entry.backupOnly)
+            continue;
+        try {
+            const n = await deleteCollectionFully(db, entry);
+            counts.firestore[entry.collection] = n;
+            counts.total += n;
+        }
+        catch (err) {
+            counts.failures.push(`${entry.collection}: ${(err === null || err === void 0 ? void 0 : err.message) || String(err)}`);
+        }
     }
+    return counts;
 }
 /**
  * Helper to get or create a folder in Google Drive by name under a parent folder.
