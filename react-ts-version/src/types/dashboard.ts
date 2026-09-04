@@ -18,16 +18,6 @@ export interface RadarAlert {
   reason?: string;
 }
 
-export interface PendingApproval {
-  id: string;
-  studentId: string;
-  studentName: string;
-  timestamp: number;
-  clinicalDiagnosisHe: string;
-  actionPlanHe: string;
-  tasks: any[]; // SessionTask[]
-}
-
 export interface ChatMessage {
   id?: string;
   senderId: string;

@@ -37,10 +37,8 @@ import { FloatingChatPanel } from "./TeacherDashboard/components/FloatingChatPan
 import { HeatmapGrid } from "./TeacherDashboard/components/HeatmapGrid";
 import { ClusteringWidgets } from "./TeacherDashboard/components/ClusteringWidgets";
 import { TeacherApprovalGate, type GateStudentItem } from "./TeacherDashboard/components/TeacherApprovalGate";
-import { ResetConfirmationModal } from "./TeacherDashboard/components/ResetConfirmationModal";
 import { SessionActivationModal, type SessionRow } from "./TeacherDashboard/components/SessionActivationModal";
 import { getSessionDurationMinutes } from "@/core/classSession";
-import { SocraticEngine, type PendingAIApproval } from "@/infrastructure/services/SocraticEngine";
 import type { RadarAlert } from "@/types/dashboard";
 import { CONCEPT_LABELS_HE } from "@/core/QMatrix";
 import { validateChatInputForPII, anonymizeChatMessageBody } from "@/core/security/PiiFilter";
@@ -100,120 +98,6 @@ type TabType =
   | "class_management"
   | "approvals";
 
-/**
- * Analyzes teacher's query to generate contextual AI responses and dynamic plan updates.
- */
-function generateCoPilotResponse(
-  query: string,
-  currentTasks: any[],
-  studentName: string
-): { aiResponse: string; updatedTasks?: any[] } {
-  const trimmedQuery = query.trim();
-  const lowerQuery = trimmedQuery.toLowerCase();
-
-  // 1. Exercise additions (e.g. הוסף תרגיל, להוסיף משימה, add exercise)
-  if (/הוסף|להוסיף|הוספה|תרגיל נוסף|משימה חדשה|תרגילים נוספים|add/i.test(lowerQuery)) {
-    const newTaskIndex = (currentTasks?.length || 0) + 1;
-    const numA = Math.floor(Math.random() * 400) + 100;
-    const numB = Math.floor(Math.random() * 400) + 100;
-    const newTask = {
-      id: `custom_ai_${Date.now()}`,
-      type: 'vertical_addition',
-      titleHe: `תרגיל מותאם אישית ${newTaskIndex}`,
-      instructionHe: `תרגיל נוסף שנבנה על פי בקשתך עבור ${studentName}`,
-      numberA: numA,
-      numberB: numB,
-      scaffoldLevel: 1,
-      correctAnswer: numA + numB
-    };
-    const newTasks = [...(currentTasks || []), newTask];
-    return {
-      aiResponse: `הוספתי תרגיל חדש ("${newTask.titleHe}") לתוכנית הלמידה עבור ${studentName}. כעת התוכנית כוללת ${newTasks.length} משימות.`,
-      updatedTasks: newTasks
-    };
-  }
-
-  // 2. Difficulty / Scaffolding adjustments (e.g. הקל/הורד קושי/רמה/פיגום vs הקשה/העלה קושי/אתגר)
-  if (/רמה|קושי|להקל|קל|פשוט|פיגום|scaffold|סיוע|עזרה|תמיכה|להקשות|קשה|אתגר/i.test(lowerQuery)) {
-    const wantsEasier = /להקל|קל|פשוט|פיגום|scaffold|סיוע|עזרה|תמיכה|הורד|להוריד/i.test(lowerQuery);
-    if (currentTasks && currentTasks.length > 0) {
-      const updatedTasks = currentTasks.map((task: any) => {
-        const currentScaffold = typeof task.scaffoldLevel === 'number' ? task.scaffoldLevel : 0;
-        const newScaffold = wantsEasier 
-          ? Math.min(2, currentScaffold + 1) 
-          : Math.max(0, currentScaffold - 1);
-        return { ...task, scaffoldLevel: newScaffold };
-      });
-      const scaffoldDesc = wantsEasier ? 'תמיכה מוגברת (פיגום מורחב)' : 'אתגר מוגבר (פיגום מצומצם)';
-      return {
-        aiResponse: `עדכנתי את רמת התמיכה והפיגום בכל ${updatedTasks.length} התרגילים עבור ${studentName} לרמת ${scaffoldDesc}.`,
-        updatedTasks
-      };
-    }
-    return {
-      aiResponse: `ניתחתי את בקשתך להתאמת רמת הקושי עבור ${studentName}. התוכנית תותאם ברגע שתחולל משימות.`
-    };
-  }
-
-  // 3. Removal / Deletion of tasks (e.g. מחק, הסר, הורד תרגיל, delete, remove)
-  if (/מחק|להסיר|הסר|הורד|להוריד|צמצם|להפחית|delete|remove/i.test(lowerQuery)) {
-    if (currentTasks && currentTasks.length > 1) {
-      const updatedTasks = currentTasks.slice(0, currentTasks.length - 1);
-      return {
-        aiResponse: `הסרתי את המשימה האחרונה מתוכנית הלמידה של ${studentName}. כעת נותרו ${updatedTasks.length} משימות.`,
-        updatedTasks
-      };
-    }
-    if (currentTasks && currentTasks.length === 1) {
-      return {
-        aiResponse: `קיים תרגיל יחיד בתוכנית של ${studentName}. מומלץ לא למחוק את כל המשימות כדי לשמור על רצף למידה.`
-      };
-    }
-    return {
-      aiResponse: `אין משימות קיימות למחיקה בתוכנית של ${studentName}.`
-    };
-  }
-
-  // 4. Topic / Skill Focus Areas (e.g. חיבור, חיסור, כפל, חילוק, שברים, focus)
-  if (/חיבור|חיסור|כפל|חילוק|שברים|משוואות|גיאומטריה|נושא|דגש|חיזוק|focus/i.test(lowerQuery)) {
-    let topicName = 'מיומנויות יסוד';
-    if (lowerQuery.includes('חיבור')) topicName = 'חיבור';
-    else if (lowerQuery.includes('חיסור')) topicName = 'חיסור';
-    else if (lowerQuery.includes('כפל')) topicName = 'כפל';
-    else if (lowerQuery.includes('חילוק')) topicName = 'חילוק';
-    else if (lowerQuery.includes('שברים')) topicName = 'שברים';
-
-    if (currentTasks && currentTasks.length > 0) {
-      const updatedTasks = currentTasks.map((t: any) => ({
-        ...t,
-        titleHe: `${t.titleHe ? t.titleHe.split(' - ')[0] : 'תרגיל'} - דגש ${topicName}`,
-        instructionHe: `פתור את התרגיל תוך התמקדות במיומנות ${topicName} עבור ${studentName}`
-      }));
-      return {
-        aiResponse: `התאמתי את משימות הלימוד עבור ${studentName} להתמקדות בנושא ${topicName}. כותרות והוראות המשימות עודכנו בעורך.`,
-        updatedTasks
-      };
-    }
-    return {
-      aiResponse: `רשמתי לפניי להתמקד בנושא ${topicName} עבור ${studentName} במפגש הקרוב.`
-    };
-  }
-
-  // 5. General Plan Modifications / Adjustments (e.g. עדכן, שנה, ערוך, תוכנית, התאמה)
-  if (/עדכן|שנה|ערוך|תקן|התאם|סדר|תוכנית|שינוי|תוכניות|update|plan|modify/i.test(lowerQuery)) {
-    const count = currentTasks?.length || 0;
-    return {
-      aiResponse: `עדכנתי את תוכנית הלמידה עבור ${studentName} בהתאם להנחיה "${trimmedQuery}". התוכנית כוללת כעת ${count} משימות מותאמות.`
-    };
-  }
-
-  // 6. Contextual Dynamic Fallback (Extracting key phrases from prompt)
-  const words = trimmedQuery.split(/\s+/).filter(w => w.length > 2);
-  const keywordSummary = words.length > 0 ? `בנושא "${words.slice(0, 3).join(' ')}"` : '';
-  return {
-    aiResponse: `קיבלתי את הבקשה ${keywordSummary} עבור ${studentName}. עדכנתי את הגדרות ה-Co-Pilot והתאמתי את תוכנית הלימודים בהתאם.`
-  };
-}
 
 export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolean }) {
   const { id: routeStudentId } = useParams<{ id: string }>();
@@ -269,7 +153,6 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   const [drawerStudent, setDrawerStudent] = useState<StudentData | null>(null);
   const [gateStudent, setGateStudent] = useState<StudentData | null>(null);
   const [floatingChatStudent, setFloatingChatStudent] = useState<StudentData | null>(null);
-  const [isSystemResetModalOpen, setIsSystemResetModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   // Update active tab and selected student based on route params (PRD 4.3 Navigation Redundancy)
@@ -281,9 +164,6 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       // Clean up the URL so it doesn't stay if they close it, or leave it. The PRD just says we support it.
     }
   }, [routeStudentId]);
-
-  const [teacherApprovals, setTeacherApprovals] = useState<PendingAIApproval[]>([]);
-  const [fallbackApprovals, setFallbackApprovals] = useState<PendingAIApproval[]>([]);
 
   // --- Module 20: Firestore Live Session 2 Diagnostic Documents (WP6 Integration) ---
   const [firestoreSession2Docs, setFirestoreSession2Docs] = useState<Record<string, SessionDocument>>({});
@@ -581,24 +461,8 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   };
 
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const [editingApproval, setEditingApproval] = useState<PendingAIApproval | null>(null);
-  const [editedTasks, setEditedTasks] = useState<any[] | null>(null);
-  const [coPilotChat, setCoPilotChat] = useState<{ role: 'ai' | 'teacher', text: string }[]>([
-    { role: 'ai', text: 'שלום מורה! אני עוזר הפדגוגיה הדיגיטלי שלך. תוכל לבקש ממני להתאים את מסלול הלימוד של תלמיד, לשנות דרגת קושי או להוסיף רמזים מותאמים אישית.' }
-  ]);
-  const [_inputPrompt, _setInputPrompt] = useState('');
-  const [coPilotInput, setCoPilotInput] = useState('');
-  const [_isProcessingAI, _setIsProcessingAI] = useState(false);
-
-  const pendingApprovals = useMemo(() => {
-    const map = new Map<string, PendingAIApproval>();
-    teacherApprovals.forEach(a => map.set(a.id, a));
-    fallbackApprovals.forEach(a => map.set(a.id, a));
-    return Array.from(map.values());
-  }, [teacherApprovals, fallbackApprovals]);
-
   // Multi-Tenant context: TEACHER_ID is the canonical ID of the logged-in teacher (e.g. "12345" if rawUid is "teacher_12345" or "12345")
-  // All student queries and pending AI approval paths map under this ID.
+  // All student queries map under this ID.
   const TEACHER_ID = useMemo(() => {
     return extractTeacherId(user?.email, (user?.uid || user?.id) as string);
   }, [user]);
@@ -686,7 +550,6 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
             completedMeeting2: row.completedMeeting2 ?? existingLocal?.completedMeeting2 ?? false,
             routeRecommendation: row.routeRecommendation ?? existingLocal?.routeRecommendation ?? null,
             routeStatus: row.routeStatus ?? existingLocal?.routeStatus ?? null,
-            diagnosticReport: row.diagnosticReport ?? existingLocal?.diagnosticReport ?? null,
             additionBoardEnabled: Boolean(row.additionBoardEnabled || row.forceAdditionHelper || existingLocal?.additionBoardEnabled),
             forceAdditionHelper: Boolean(row.forceAdditionHelper || existingLocal?.forceAdditionHelper),
             scaffoldLevel: row.scaffoldLevel !== undefined ? row.scaffoldLevel : existingLocal?.scaffoldLevel,
@@ -714,48 +577,6 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       unsubscribe();
     };
   }, [TEACHER_ID, user?.role]);
-
-  useEffect(() => {
-    try {
-      const rootPendingRef = ref(database, 'ai_pending_approvals');
-      const unsubscribe = onValue(
-        rootPendingRef,
-        (snap) => {
-          if (!snap.exists()) {
-            setTeacherApprovals([]);
-            setFallbackApprovals([]);
-            return;
-          }
-          const raw = snap.val() || {};
-          const allList: PendingAIApproval[] = [];
-          Object.keys(raw).forEach((k) => {
-            const item = raw[k];
-            if (item && typeof item === 'object') {
-              if (item.studentId || item.suggestedRoute) {
-                allList.push({ id: k, ...item });
-              } else {
-                Object.keys(item).forEach((subK) => {
-                  const subItem = item[subK];
-                  if (subItem && typeof subItem === 'object') {
-                    allList.push({ id: subK, ...subItem });
-                  }
-                });
-              }
-            }
-          });
-          setTeacherApprovals(allList);
-        },
-        (err) => {
-          console.error('[TeacherDashboard] RTDB "ai_pending_approvals" listener error:', err);
-        }
-      );
-      return () => unsubscribe();
-    } catch {
-      SocraticEngine.getPendingApprovals(TEACHER_ID).then(setTeacherApprovals).catch((err) => {
-        console.warn('Fallback SocraticEngine pending approvals notice:', err);
-      });
-    }
-  }, [TEACHER_ID]);
 
   const handleHintClick = (studentId: string) => {
     const normId = normalizeStudentId(studentId);
@@ -831,17 +652,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     (s) => s.conceptMastery && s.conceptMastery.algebraic_reasoning < 0.5
   );
 
-
-
-  // Module 26: the curriculum router has produced a plan for these learners and
-  // the teacher has not yet reviewed it. Distinct from the Module 20 gate — a
-  // reviewed plan (PLAN_APPROVED) still leaves the gate closed.
-  const pendingRouteStudents = allStudents.filter(
-    (s) => s.routeStatus === 'PENDING',
-  );
-
   const approveRoute = useStore((s) => s.approveRoute);
-  const updateStudent = useStore((s) => s.updateStudent);
 
   // Aggregate data for Chart
   const qMatrixData = useMemo(() => {
@@ -1033,8 +844,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     return items;
   }, [students, firestoreSession2Docs]);
 
-  const pendingApprovalsBadgeCount =
-    pendingRouteStudents.length + gateStudentItems.filter((g) => !g.isApproved).length;
+  const pendingApprovalsBadgeCount = gateStudentItems.filter((g) => !g.isApproved).length;
 
   const handleApproveGateStudent = async (studentId: string, path: PedagogicalPath) => {
     setIsApprovingGate(true);
@@ -1336,7 +1146,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
               onClick={() => handleTabChange("approvals")}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === "approvals" ? "bg-indigo-600 text-white shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}
             >
-              אישור תוכניות ושער מעבר
+              שער מעבר
             </button>
             <button
               onClick={() => handleTabChange("chat_students")}
@@ -1418,9 +1228,8 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
             onClick={() => handleTabChange("approvals")}
             className={`w-full flex justify-between items-center text-right px-4 py-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "approvals" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg text-ws-soft "}`}
           >
-            <span>אישור תוכניות ושער מעבר</span>
-            {/* The tab holds two distinct queues — learners waiting at the Module 20
-                gate, and AI plans waiting for review — so the badge counts both. */}
+            <span>שער מעבר</span>
+            {/* Badge: learners waiting at the Module 20 gate. */}
             {pendingApprovalsBadgeCount > 0 && (
               <span className="bg-ws-accent text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg">
                 {pendingApprovalsBadgeCount}
@@ -1528,14 +1337,6 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
               </>
             )}
 
-            <button
-              onClick={() => setIsSystemResetModalOpen(true)}
-              className="px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 border border-slate-300/80 cursor-pointer shadow-sm"
-              title="איפוס מבוקר של נתוני שימוש במערכת"
-            >
-              <span>🔄</span>
-              <span>איפוס נתוני שימוש</span>
-            </button>
           </div>
         </div>
 
@@ -1910,18 +1711,12 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                       </div>
                     ) : (
                       (() => {
-                        const socraticApproval = s.diagnosticReport || pendingApprovals.find(a => a.studentId === effectiveReplayStudentId || normalizeStudentId(a.studentId) === normalizeStudentId(effectiveReplayStudentId));
                         const hasCompletedDiagnosticM2 = Boolean(
                           s.completedMeeting2 || 
-                          (typeof s.highestCompletedMeeting === 'number' && s.highestCompletedMeeting >= 2) ||
-                          socraticApproval
+                          (typeof s.highestCompletedMeeting === 'number' && s.highestCompletedMeeting >= 2)
                         );
                         const isStruggling = (traceData.hesitation_events || 0) > 2 || (traceData.undo_clicks || 0) > 1 || s.routeRecommendation === 'YELLOW';
                         const sNum = (s.studentId || effectiveReplayStudentId).replace(/\D/g, '') || s.studentId;
-
-                        const clinicalText = (socraticApproval as any)?.clinicalDiagnosisHe || (s.diagnosticReport as any)?.clinicalDiagnosisHe || "";
-                        const actionPlanText = (socraticApproval as any)?.actionPlanHe || (s.diagnosticReport as any)?.actionPlanHe || "";
-                        const displayTasks = (socraticApproval as any)?.tasks || (s.diagnosticReport as any)?.tasks || [];
 
                         const q1 = getQStatus(qMatrix.task1_zero_placeholder);
                         const q3 = getQStatus(qMatrix.task3_flexible_regrouping);
@@ -2132,38 +1927,6 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                         <span className="text-indigo-600">🎯</span>
                                         המלצות ומסלול אדפטיבי למפגש 3 ואילך:
                                       </h4>
-                                      {clinicalText && (
-                                        <p className="text-sm text-indigo-800 leading-relaxed mb-4 bg-indigo-50/50 p-3.5 rounded-lg border border-indigo-100">
-                                          <strong className="block mb-1 text-indigo-950 font-bold">אבחון קליני:</strong>
-                                          {clinicalText}
-                                        </p>
-                                      )}
-                                      {actionPlanText && (
-                                        <p className="text-sm text-indigo-800 leading-relaxed mb-4 bg-indigo-50/50 p-3.5 rounded-lg border border-indigo-100">
-                                          <strong className="block mb-1 text-indigo-950 font-bold">תוכנית פעולה מוצעת:</strong>
-                                          {actionPlanText}
-                                        </p>
-                                      )}
-                                      
-                                      {displayTasks && displayTasks.length > 0 && (
-                                        <>
-                                          <h5 className="font-bold text-sm text-indigo-900 mb-3">תרגילים מותאמים אישית שהוכנו עבור התלמיד:</h5>
-                                          <div className="grid gap-2 mb-5">
-                                            {displayTasks.map((task: any, idx: number) => (
-                                              <div key={idx} className="bg-slate-50 p-3 rounded-lg flex items-center justify-between border border-slate-200 shadow-sm">
-                                                <div className="flex items-center gap-3">
-                                                  <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-bold">{idx + 1}</span>
-                                                  <span className="font-semibold text-sm text-indigo-950">{task.titleHe}</span>
-                                                </div>
-                                                <div className="text-sm font-bold text-indigo-700 bg-white border border-indigo-100 px-3 py-1 rounded-md" dir="ltr">
-                                                  {task.numberA} {task.isSubtraction ? '-' : '+'} {task.numberB} = ?
-                                                </div>
-                                              </div>
-                                            ))}
-                                          </div>
-                                        </>
-                                      )}
-
                                       <div className="flex gap-3">
                                         <UdlButton 
                                           size="sm" 
@@ -2209,207 +1972,6 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
               isLoading={isApprovingGate}
             />
 
-            <div className="flex flex-col gap-6">
-              {pendingRouteStudents.length === 0 ? (
-                <div className="text-center py-20 text-ws-soft bg-ws-surface/50 backdrop-blur-md rounded-2xl border-2 border-dashed border-ws-surface2 shadow-sm">
-                  <div className="w-16 h-16 mx-auto mb-4 bg-ws-bg rounded-full flex items-center justify-center">
-                    <ShieldAlert className="w-8 h-8 text-ws-soft" />
-                  </div>
-                  <p className="text-xl font-bold">אין תלמידים הממתינים לאישור מסלול.</p>
-                </div>
-              ) : (
-                pendingRouteStudents.map(student => (
-                  <AccessibleCard key={student.studentId} className="p-8 bg-ws-surface border border-ws-surface2 shadow-lg rounded-3xl">
-                    <div className="flex justify-between items-start mb-6">
-                      <div>
-                        <h3 className="text-2xl font-bold text-ws-ink">תלמיד {student.studentId.replace(/\D/g, '') || student.studentId}</h3>
-                        <p className="text-sm text-ws-soft mt-1">מזהה: {student.studentId} | סיום מפגש 2</p>
-                        <p className="text-xs text-ws-soft mt-1">אישור התוכנית שומר את המשימות בלבד — פתיחת המפגש נעשית בשער המורה שלמעלה, יחד עם בחירת המסלול.</p>
-                      </div>
-                      <div className="flex gap-3">
-                        <UdlButton 
-                          semanticColor="primary" 
-                          size="sm" 
-                          className="font-bold shadow-md shadow-ws-accent/20"
-                          onClick={async () => {
-                            // This approves the AI-generated PLAN only. It used to
-                            // also write teacher_gate_approved/routeStatus:'APPROVED'
-                            // straight to RTDB, opening session 3 with no Firestore
-                            // SessionDocument write, no session-2 completion check and
-                            // no pedagogical path — so a learner routed to remediation
-                            // still received the green_path bank. The gate is opened
-                            // above, in "שער המורה", where the path is chosen.
-                            const prevRouteStatus = student.routeStatus;
-                            const allPending = [...teacherApprovals, ...fallbackApprovals];
-                            const approval = allPending.find((a) => a.studentId === student.studentId);
-                            if (!approval) {
-                              toast.error('לא נמצאה תוכנית ממתינה לאישור עבור תלמיד זה.');
-                              return;
-                            }
-                            try {
-                              const isFallback = fallbackApprovals.some(a => a.id === approval.id);
-                              const targetTeacherId = isFallback ? "teacher-1" : TEACHER_ID;
-                              await SocraticEngine.approveTasks(targetTeacherId, approval.id, approval.studentId, approval.tasks);
-                              setTeacherApprovals(prev => prev.filter(a => a.id !== approval.id));
-                              setFallbackApprovals(prev => prev.filter(a => a.id !== approval.id));
-                              updateStudent(student.studentId, { routeStatus: 'PLAN_APPROVED' });
-                              toast.success('התוכנית אושרה ונשמרה. לפתיחת המפגש יש לאשר את שער המורה למעלה ולבחור מסלול.');
-                            } catch (err) {
-                              console.error('Firebase task approval failed:', err);
-                              // Optimistic rollback
-                              updateStudent(student.studentId, { routeStatus: prevRouteStatus || 'PENDING' });
-                              toast.error('שגיאה באישור המשימות ב-Firebase. הפעולה בוטלה.');
-                            }
-                          }}
-                        >
-                          {(() => {
-                            const allPending = [...teacherApprovals, ...fallbackApprovals];
-                            const approval = allPending.find((a) => a.studentId === student.studentId) as any;
-                            return `אישור תוכנית המשימות למפגש ${approval?.targetSession || '3'}`;
-                          })()}
-                        </UdlButton>
-                        <UdlButton 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => {
-                            const allPending = [...teacherApprovals, ...fallbackApprovals];
-                            const approval = allPending.find((a) => a.studentId === student.studentId);
-                            if (approval) {
-                              setEditingApproval(approval);
-                              setEditedTasks([...approval.tasks]);
-                              setCoPilotChat([
-                                { role: 'ai', text: `שלום! אני סוכן ה-AI. התוכנית למפגש ${approval.targetSession || '3'} עבור תלמיד ${student.studentId.replace(/\D/g, '') || student.studentId} מוכנה. תוכל לערוך אותה כאן, או לבקש ממני לשנות משהו.` }
-                              ]);
-                            }
-                          }}
-                        >
-                          דחייה / עריכה
-                        </UdlButton>
-                      </div>
-                    </div>
-                    
-                    <div className="bg-ws-accentSoft/30 p-5 rounded-2xl border border-ws-accent/10 mb-6">
-                      <h4 className="font-bold text-ws-accent mb-2 flex items-center gap-2">
-                        <MessageCircle className="w-5 h-5" />
-                        המלצת נתב הלמידה (Curriculum Router):
-                      </h4>
-                      <p className="text-ws-ink font-medium leading-relaxed">
-                        מערכת הניתוב ממליצה על שיבוץ התלמיד ל<strong>{student.routeRecommendation === 'YELLOW' ? 'מסלול צהוב (מבוסס תמיכה)' : 'מסלול ירוק (אתגר מתקדם)'}</strong>.<br/>
-                        {student.routeRecommendation === 'YELLOW' 
-                          ? 'המלצה זו מבוססת על זיהוי פערי ליבה (כגון חוסר שליטה בעובדות יסוד או היסוסים מרובים) במהלך מפגש האבחון. התלמיד יקבל פיגומים (Scaffolding) מותאמים במפגש 3.' 
-                          : 'התלמיד הפגין שליטה טובה במיומנויות הבסיס וללא סימני מאבק קוגניטיבי מהותיים. מפגש 3 יאתגר אותו בבעיות מתקדמות ללא פיגומים מיותרים.'}
-                      </p>
-                    </div>
-
-                    {/* Quantitative KPIs */}
-                    {(() => {
-                      const kpis = getStudentKPIs(student, messages);
-                      return (
-                        <div className="mb-6 bg-slate-50 dark:bg-slate-800/40 p-5 rounded-2xl border border-slate-100 dark:border-slate-850">
-                          <h4 className="font-bold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
-                            <span>📈</span>
-                            מדדי ביצוע כמותיים (KPIs):
-                          </h4>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200/60 dark:border-slate-800 shadow-sm flex flex-col justify-between">
-                              <span className="text-xs text-ws-soft block mb-1">מדד התמדה (Persistence)</span>
-                              <div className="flex items-baseline gap-2">
-                                <span className="text-2xl font-black text-slate-900 dark:text-white">{kpis.hasData ? `${kpis.persistence}%` : 'טרם החל'}</span>
-                              </div>
-                              <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full mt-2 overflow-hidden">
-                                <div className="bg-blue-500 h-full rounded-full" style={{ width: `${kpis.hasData ? kpis.persistence : 0}%` }}></div>
-                              </div>
-                            </div>
-                            <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200/60 dark:border-slate-800 shadow-sm flex flex-col justify-between">
-                              <span className="text-xs text-ws-soft block mb-1">יעילות (Efficiency)</span>
-                              <div className="flex items-baseline gap-2">
-                                <span className="text-2xl font-black text-slate-900 dark:text-white">{kpis.hasData ? `${kpis.efficiency}%` : 'טרם החל'}</span>
-                              </div>
-                              <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full mt-2 overflow-hidden">
-                                <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${kpis.hasData ? kpis.efficiency : 0}%` }}></div>
-                              </div>
-                            </div>
-
-                            <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200/60 dark:border-slate-800 shadow-sm flex flex-col justify-between">
-                              <span className="text-xs text-ws-soft block mb-1">איכות דיאלוג (Dialogue)</span>
-                              <div className="flex items-baseline gap-2">
-                                <span className="text-2xl font-black text-slate-900 dark:text-white">{kpis.hasData ? `${kpis.dialogueQuality}%` : 'טרם החל'}</span>
-                              </div>
-                              <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full mt-2 overflow-hidden">
-                                <div className="bg-purple-500 h-full rounded-full" style={{ width: `${kpis.hasData ? kpis.dialogueQuality : 0}%` }}></div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })()}
-
-                    {/* AI Socratic Engine Diagnosis: Macro and Micro */}
-                    {(() => {
-                      const approval = pendingApprovals.find(a => a.studentId === student.studentId) as any;
-                      // Support both legacy (clinicalDiagnosisHe) and new (macroBlueprintHe)
-                      if (!approval || (!approval.macroBlueprintHe && !approval.clinicalDiagnosisHe)) return null;
-                      
-                      const macroText = approval.macroBlueprintHe || approval.clinicalDiagnosisHe;
-                      const microText = approval.microBlueprintHe || approval.actionPlanHe;
-
-                      return (
-                        <div className="flex flex-col gap-3 mb-5">
-                          {/* MACRO VIEW */}
-                          <div className="bg-blue-50/80 border border-blue-200 rounded-2xl p-5">
-                            <h4 className="font-bold text-blue-900 mb-2 flex items-center gap-2 text-sm">
-                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-                              תחזית מאקרו (מעוף הציפור למפגשים 3-7):
-                            </h4>
-                            <p className="text-blue-900 text-sm leading-relaxed">{macroText}</p>
-                          </div>
-                          
-                          {/* MICRO VIEW */}
-                          <div className="bg-emerald-50/80 border border-emerald-200 rounded-2xl p-5">
-                            <h4 className="font-bold text-emerald-900 mb-2 flex items-center gap-2 text-sm">
-                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-                              תוכנית מיקרו (עבודת נמלה לשיעור הקרוב):
-                            </h4>
-                            <p className="text-emerald-900 text-sm leading-relaxed">{microText}</p>
-                          </div>
-                          
-                          {/* VIDEO BOOKMARKS PLACEHOLDER */}
-                          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex items-center gap-3">
-                            <div className="bg-slate-200 p-2 rounded-full">
-                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-600"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
-                            </div>
-                            <div className="text-sm">
-                              <strong className="text-slate-700 block">סימניות וידאו (Semantic Bookmarks)</strong>
-                              <span className="text-slate-500">ה-AI סימן אירועי היסוס קריטיים במפגש הקודם (זמינים בלשונית ה-Replays לבחינה).</span>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })()}
-
-                    <h4 className="font-bold text-lg mb-3">מדדי אבחון קריטיים (Q-Matrix):</h4>
-                    <div className="grid gap-3">
-                        <div className="bg-ws-bg p-4 rounded-xl flex items-center justify-between border border-ws-surface2">
-                          <div>
-                            <span className="font-semibold">מאבק קוגניטיבי סמוי</span>
-                          </div>
-                          <div className="text-sm font-bold text-ws-soft">
-                            {student.traceData?.hesitation_events || 0} היסוסים, {student.traceData?.undo_clicks || 0} חזרות
-                          </div>
-                        </div>
-                        <div className="bg-ws-bg p-4 rounded-xl flex items-center justify-between border border-ws-surface2">
-                          <div>
-                            <span className="font-semibold">בסיס עשרוני וחיבור</span>
-                          </div>
-                          <div className={`text-sm font-bold ${(student.qMatrixResults?.task4_basic_addition_fluency && student.qMatrixResults.task4_basic_addition_fluency !== 'success') ? 'text-red-500' : 'text-green-500'}`}>
-                            {(student.qMatrixResults?.task4_basic_addition_fluency && student.qMatrixResults.task4_basic_addition_fluency !== 'success') ? 'נכשל' : 'תקין'}
-                          </div>
-                        </div>
-                    </div>
-                  </AccessibleCard>
-                ))
-              )}
-            </div>
           </div>
         )}
 
@@ -2755,259 +2317,6 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
             </div>
           </div>
         )}
-        {/* AI Co-Pilot Modal */}
-        {editingApproval && editedTasks && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200 p-4">
-            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col overflow-hidden border border-slate-200" dir="rtl">
-              
-              <div className="flex-none bg-gradient-to-l from-indigo-900 to-indigo-700 text-white p-5 flex justify-between items-center shadow-md z-10">
-                <div>
-                  <h2 className="text-2xl font-black flex items-center gap-2">
-                    <MessageCircle className="w-6 h-6 text-indigo-300" />
-                    Teacher-AI Co-Pilot
-                  </h2>
-                  <p className="text-indigo-200 text-sm mt-1">
-                    עריכת התוכנית למפגש הבא עבור {editingApproval.studentName}
-                  </p>
-                </div>
-                <button 
-                  onClick={() => { setEditingApproval(null); setEditedTasks(null); }}
-                  className="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors"
-                >
-                  ✖
-                </button>
-              </div>
-
-              <div className="flex-1 flex overflow-hidden">
-                {/* Right side: Blueprint Editor (Tasks) */}
-                <div className="flex-1 bg-slate-50 border-l border-slate-200 overflow-y-auto p-6">
-                  <div className="flex justify-between items-center mb-6">
-                    <h3 className="font-bold text-xl text-slate-800">עורך תוכנית הלמידה (Blueprint)</h3>
-                    <UdlButton 
-                      size="sm"
-                      onClick={() => {
-                        const newTask = {
-                          id: `custom_${Date.now()}`,
-                          type: 'vertical_addition',
-                          titleHe: 'תרגיל מותאם אישית',
-                          instructionHe: 'פתרו את התרגיל:',
-                          numberA: 1000,
-                          numberB: 1000,
-                          correctAnswer: 2000
-                        };
-                        setEditedTasks([...editedTasks, newTask]);
-                      }}
-                    >
-                      + הוסף תרגיל
-                    </UdlButton>
-                  </div>
-                  
-                  <div className="flex flex-col gap-4">
-                    {editedTasks.map((task, idx) => (
-                      <div key={task.id || idx} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-3">
-                        <div className="flex justify-between items-center">
-                          <span className="font-bold text-indigo-700 bg-indigo-50 px-2 py-1 rounded">שלב {idx + 1}: {task.type}</span>
-                          <button 
-                            onClick={() => {
-                              const newTasks = [...editedTasks];
-                              newTasks.splice(idx, 1);
-                              setEditedTasks(newTasks);
-                            }}
-                            className="text-red-500 hover:text-red-700 text-sm font-bold"
-                          >
-                            מחק
-                          </button>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-1">כותרת המשימה</label>
-                            <input 
-                              type="text" 
-                              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm"
-                              value={task.titleHe || ''}
-                              onChange={(e) => {
-                                const newTasks = [...editedTasks];
-                                newTasks[idx].titleHe = e.target.value;
-                                setEditedTasks(newTasks);
-                              }}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-1">הוראה לתלמיד</label>
-                            <input 
-                              type="text" 
-                              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm"
-                              value={task.instructionHe || ''}
-                              onChange={(e) => {
-                                const newTasks = [...editedTasks];
-                                newTasks[idx].instructionHe = e.target.value;
-                                setEditedTasks(newTasks);
-                              }}
-                            />
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-3 gap-4">
-                          <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-1">מספר א'</label>
-                            <input 
-                              type="number" 
-                              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm"
-                              value={task.numberA || ''}
-                              onChange={(e) => {
-                                const newTasks = [...editedTasks];
-                                newTasks[idx].numberA = parseInt(e.target.value, 10);
-                                setEditedTasks(newTasks);
-                              }}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-1">מספר ב'</label>
-                            <input 
-                              type="number" 
-                              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm"
-                              value={task.numberB || ''}
-                              onChange={(e) => {
-                                const newTasks = [...editedTasks];
-                                newTasks[idx].numberB = parseInt(e.target.value, 10);
-                                setEditedTasks(newTasks);
-                              }}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-1">רמת פיגום (Scaffold)</label>
-                            <select 
-                              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm"
-                              value={task.scaffoldLevel || 0}
-                              onChange={(e) => {
-                                const newTasks = [...editedTasks];
-                                newTasks[idx].scaffoldLevel = parseInt(e.target.value, 10);
-                                setEditedTasks(newTasks);
-                              }}
-                            >
-                              <option value={0}>ללא פיגום (0)</option>
-                              <option value={1}>פיגום חלקי (1)</option>
-                              <option value={2}>פיגום מלא (2)</option>
-                            </select>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Left side: Chat with AI */}
-                <div className="w-[400px] flex flex-col bg-white">
-                  <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
-                    {coPilotChat.map((msg, i) => (
-                      <div key={i} className={`flex flex-col max-w-[90%] ${msg.role === 'teacher' ? 'self-start items-start' : 'self-end items-end'}`}>
-                        <div className={`px-4 py-3 rounded-2xl shadow-sm text-sm ${msg.role === 'teacher' ? 'bg-indigo-600 text-white rounded-tr-sm' : 'bg-slate-100 text-slate-800 rounded-tl-sm'}`}>
-                          {msg.text}
-                        </div>
-                        <span className="text-[10px] text-slate-400 mt-1 px-1 font-bold">
-                          {msg.role === 'teacher' ? 'את/ה' : 'Co-Pilot AI'}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                  
-                  <div className="p-4 border-t border-slate-200 bg-slate-50">
-                    <form 
-                      className="flex gap-2"
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        if (!coPilotInput.trim()) return;
-                        const userQuery = coPilotInput.trim();
-                        const newChat = [...coPilotChat, { role: 'teacher' as const, text: userQuery }];
-                        setCoPilotChat(newChat);
-                        setCoPilotInput('');
-                        
-                        const studentName = editingApproval?.studentName || 'התלמיד/ה';
-                        const { aiResponse, updatedTasks } = generateCoPilotResponse(userQuery, editedTasks || [], studentName);
-                        if (updatedTasks) {
-                          setEditedTasks(updatedTasks);
-                        }
-
-                        setCoPilotChat(prev => [...prev, { role: 'ai' as const, text: aiResponse }]);
-                      }}
-                    >
-                      <input 
-                        type="text"
-                        className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-                        placeholder="בקש מה-AI לשנות משהו..."
-                        value={coPilotInput}
-                        onChange={(e) => setCoPilotInput(e.target.value)}
-                      />
-                      <button type="submit" className="bg-indigo-600 text-white w-10 h-10 rounded-xl flex items-center justify-center hover:bg-indigo-700 transition-colors">
-                        <Send className="w-4 h-4" />
-                      </button>
-                    </form>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex-none p-5 border-t border-slate-200 bg-slate-50 flex justify-between items-center">
-                <button 
-                  className="px-6 py-2 rounded-xl text-red-600 font-bold hover:bg-red-50 transition-colors"
-                  onClick={async () => {
-                    const isFallback = fallbackApprovals.some(a => a.id === editingApproval.id);
-                    const targetTeacherId = isFallback ? "teacher-1" : TEACHER_ID;
-                    try {
-                      await SocraticEngine.rejectTasks(targetTeacherId, editingApproval.id);
-                      setTeacherApprovals(prev => prev.filter(a => a.id !== editingApproval.id));
-                      setFallbackApprovals(prev => prev.filter(a => a.id !== editingApproval.id));
-                      setEditingApproval(null);
-                      setEditedTasks(null);
-                    } catch (err) {
-                      console.error(err);
-                      toast.error('שגיאה בדחיית המשימות');
-                    }
-                  }}
-                >
-                  דחיית תוכנית
-                </button>
-                <div className="flex gap-3">
-                  <UdlButton 
-                    variant="outline"
-                    onClick={async () => {
-                      const isFallback = fallbackApprovals.some(a => a.id === editingApproval.id);
-                      const targetTeacherId = isFallback ? "teacher-1" : TEACHER_ID;
-                      try {
-                        await SocraticEngine.updatePendingTasks(targetTeacherId, editingApproval.id, editedTasks);
-                        toast.success('טיוטה נשמרה בהצלחה.');
-                        setEditingApproval(null);
-                        setEditedTasks(null);
-                      } catch (err) {
-                        console.error(err);
-                        toast.error('שגיאה בשמירת הטיוטה');
-                      }
-                    }}
-                  >
-                    שמור טיוטה
-                  </UdlButton>
-                  <UdlButton 
-                    semanticColor="primary"
-                    onClick={async () => {
-                      const isFallback = fallbackApprovals.some(a => a.id === editingApproval.id);
-                      const targetTeacherId = isFallback ? "teacher-1" : TEACHER_ID;
-                      try {
-                        await SocraticEngine.approveTasks(targetTeacherId, editingApproval.id, editingApproval.studentId, editedTasks);
-                        toast.success('התוכנית אושרה והופעלה בהצלחה.');
-                        setEditingApproval(null);
-                        setEditedTasks(null);
-                      } catch (err) {
-                        console.error('Firebase task approval failed:', err);
-                        toast.error('שגיאה באישור המשימות ב-Firebase.');
-                      }
-                    }}
-                  >
-                    אשר והפעל תוכנית
-                  </UdlButton>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
         {drawerStudent && (
           <StudentLearningConditionsDrawer
             student={drawerStudent}
@@ -3064,15 +2373,6 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
           </div>
         )}
 
-        <ResetConfirmationModal
-          isOpen={isSystemResetModalOpen}
-          onClose={() => setIsSystemResetModalOpen(false)}
-          resetLevel="system"
-          onConfirm={async (reason, reasonNote) => {
-            await useStore.getState().resetEntireSystemUsageData(reason);
-            toast.success("כל נתוני השימוש במערכת אופסו בהצלחה לאחר גיבוי מלא!");
-          }}
-        />
       </main>
     </div>
   );

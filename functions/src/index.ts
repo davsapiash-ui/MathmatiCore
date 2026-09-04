@@ -2,8 +2,6 @@ import { onCall, onRequest, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import * as dotenv from "dotenv";
-import { GEMINI_MODEL_ID, GEMINI_SECRETS, getGeminiClient } from "./geminiConfig";
-import { scrubPII } from "./geminiProxy";
 import { createPedagogicalReportPdfBuffer } from "./pedagogicalReport";
 import { uploadBufferToDrive } from "./exportDriveReport";
 
@@ -174,104 +172,6 @@ export const generateSocraticHint = onCall(
     } catch (error) {
       logger.error("Error retrieving Socratic hint", error);
       throw new HttpsError("internal", "Failed to retrieve Socratic hint.");
-    }
-  }
-);
-
-/**
- * Cloud Function for Teacher Diagnostic Mapping.
- * Evaluates student diagnostic data using Gemini LLM to create teacher action plans.
- * Model id and credential come from geminiConfig.ts.
- */
-export const generateSocraticMapping = onCall(
-  GEMINI_SECRETS,
-  async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "User must be authenticated");
-    }
-
-    const { studentId, teacherId, qMatrix, conceptMastery, traceData } = request.data;
-    if (!studentId || !teacherId || !qMatrix || !conceptMastery) {
-      throw new HttpsError("invalid-argument", "Missing required fields");
-    }
-
-    // PRD 5.4: PII Scrubbing Middleware before hitting Gemini
-    const scrubbedName = "[REDACTED_NAME]";
-    const scrubbedQMatrix = scrubPII(JSON.stringify(qMatrix));
-    const scrubbedConceptMastery = scrubPII(JSON.stringify(conceptMastery));
-    const scrubbedTrace = scrubPII(JSON.stringify(traceData || {}));
-
-    // Security: Strict Payload Size Guard — reject oversized/injected payloads before LLM call
-    const totalPayloadSize = scrubbedQMatrix.length + scrubbedConceptMastery.length + scrubbedTrace.length;
-    if (totalPayloadSize > 50000) {
-      logger.warn("generateSocraticMapping: Payload size exceeded safety threshold.", {
-        studentId,
-        payloadSize: totalPayloadSize,
-      });
-      throw new HttpsError(
-        "invalid-argument",
-        `Payload size (${totalPayloadSize} chars) exceeds the safety threshold of 50,000 characters. Request rejected.`
-      );
-    }
-
-    try {
-      const ai = getGeminiClient();
-      const model = ai.getGenerativeModel({
-        model: GEMINI_MODEL_ID,
-        generationConfig: {
-          temperature: 0.4,
-          responseMimeType: "application/json"
-        },
-        systemInstruction: `You are a strict, pedagogical Socratic Math Tutor evaluating a 3rd-grade student's diagnostic test.
-Your task is to analyze the student's Q-Matrix errors and Concept Mastery scores to generate a personalized learning pathway.
-CRITICAL RULES:
-1. Always output VALID JSON matching the specified schema exactly.
-2. All textual responses must be in high-quality Hebrew.
-3. The generated 'tasks' array should provide 1 to 3 targeted math tasks based on their specific weaknesses.
-JSON SCHEMA:
-{
-  "macroBlueprintHe": "string (A bird's-eye view analysis of their performance and what sessions 3-7 will look like)",
-  "microBlueprintHe": "string (Specific actionable focus for the next immediate session)",
-  "isYellowPath": "boolean (true if mastery < 0.5 in core areas, false otherwise)",
-  "tasks": [
-    {
-      "id": "string (unique id like gen_t1)",
-      "type": "string ('vertical_addition', 'small_change', or 'missing_element')",
-      "titleHe": "string",
-      "instructionHe": "string",
-      "numberA": "number",
-      "numberB": "number (optional depending on task type)",
-      "correctAnswer": "number or string",
-      "scaffoldLevel": "number (1 for normal, 2 for high anxiety)"
-    }
-  ]
-}`
-      });
-
-      const userPrompt = `
-Student Name: ${scrubbedName}
-Q-Matrix Diagnostic Results: ${scrubbedQMatrix}
-Concept Mastery Scores: ${scrubbedConceptMastery}
-Trace Data (Hesitations/Undos): ${scrubbedTrace}
-
-Generate the pedagogical mapping JSON.`;
-
-      const response = await model.generateContent(userPrompt);
-      const textResponse = response.response.text();
-      
-      let parsedResponse;
-      try {
-        parsedResponse = JSON.parse(textResponse);
-      } catch (e) {
-        throw new Error("LLM did not return valid JSON");
-      }
-
-      logger.info(`Generated Socratic Mapping for student ${studentId}`);
-      return parsedResponse;
-
-    } catch (error) {
-      logger.error("Error generating Socratic mapping", error);
-      throw new HttpsError("internal", "Failed to generate mapping.");
     }
   }
 );

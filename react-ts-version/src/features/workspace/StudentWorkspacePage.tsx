@@ -626,19 +626,18 @@ export function StudentWorkspacePage() {
               setIsInitializing(false);
               return;
             }
-            initSession(meeting, isASDMode, null, 0);
+            initSession(meeting, isASDMode, 0);
             setIsInitialized(true);
             setIsInitializing(false);
             return;
           }
           const normId = normalizeStudentId(username);
-          const tasks = (await SocraticEngine.getApprovedTasks(username)) || (await SocraticEngine.getApprovedTasks(normId));
           if (cancelled) return;
 
           const routeStatus = myData?.routeStatus;
           const highestCompleted = myData?.highestCompletedMeeting ?? (myData?.completedMeeting2 ? 2 : 0);
 
-          const isAllowedMeeting3 = teacherSessionAllowsMeeting3 || (highestCompleted >= 2 && routeStatus === 'APPROVED' && Boolean(tasks)) || Boolean(myData?.physicalOverride || (myData as any)?.physicalOverrideActive);
+          const isAllowedMeeting3 = teacherSessionAllowsMeeting3 || (highestCompleted >= 2 && routeStatus === 'APPROVED') || Boolean(myData?.physicalOverride || (myData as any)?.physicalOverrideActive);
 
           // If prerequisite completion or active teacher session requirement is not met, lock and show waiting screen
           if (!isAllowedMeeting3) {
@@ -656,7 +655,7 @@ export function StudentWorkspacePage() {
             if (localSaved && localSaved.sessionNumber === meeting && Boolean(localSaved.flowStatus) && localSaved.flowStatus !== 'sessionDone') {
               restoreSession(localSaved);
             } else {
-              initSession(meeting, isASDMode, tasks || null, 0);
+              initSession(meeting, isASDMode, 0);
             }
           }
           setIsInitialized(true);
@@ -678,7 +677,7 @@ export function StudentWorkspacePage() {
           if (localSaved && localSaved.sessionNumber === meeting && Boolean(localSaved.flowStatus) && localSaved.flowStatus !== 'sessionDone') {
             restoreSession(localSaved);
           } else {
-            initSession(meeting, isASDMode, null, 0);
+            initSession(meeting, isASDMode, 0);
           }
         }
         setIsInitialized(true);
@@ -706,30 +705,9 @@ export function StudentWorkspacePage() {
     };
   }, [meeting, firebaseLoaded, isInitialized, myData, initSession, restoreSession, isASDMode, activeClassSession, isTeacherSessionActive]);
 
-  // Fix 5: Auto-Retry Polling when Network Error occurs
-  useEffect(() => {
-    let pollInterval: number | undefined;
-    if (meeting === 3 && networkError && pendingApproval) {
-      pollInterval = window.setInterval(async () => {
-        const username = useAuthStore.getState().user?.uid;
-        if (!username) return;
-        try {
-          const tasks = await SocraticEngine.getApprovedTasks(username);
-          if (tasks) {
-            clearInterval(pollInterval);
-            setNetworkError(false);
-            setPendingApproval(false);
-            initSession(meeting, isASDMode, tasks, 0);
-          }
-        } catch (err) {
-          console.log("Auto-poll retry failed, waiting 5s...", err);
-        }
-      }, 5000);
-    }
-    return () => {
-      if (pollInterval) clearInterval(pollInterval);
-    };
-  }, [meeting, networkError, pendingApproval, isASDMode, initSession]);
+  // The learner's own RTDB listener re-runs initialisation when the gate
+  // opens; there is no separate task list to poll for any more (tasks come
+  // from the session banks per learning path, never from a per-learner node).
 
   // Distance stays 0-delay (drag still starts the instant the pointer moves
   // past the threshold, per PRD Module 5's "immediate" requirement) but 6px
@@ -955,7 +933,7 @@ export function StudentWorkspacePage() {
           <div className="pt-4 flex flex-col gap-3">
             <button
               onClick={() => {
-                initSession(meeting, isASDMode, null, 0);
+                initSession(meeting, isASDMode, 0);
               }}
               className="w-full py-3.5 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 font-display font-extrabold text-base rounded-2xl hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2 border border-slate-300 dark:border-slate-700"
             >

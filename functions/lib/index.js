@@ -1,12 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.triggerExecutiveDriveReport = exports.triggerTestDriveReport = exports.authenticateStudentSession = exports.onStudentEvent = exports.verifyTeacherSSO = exports.sendTeacherAdminMessage = exports.hourlyAdminAggregator = exports.getPedagogicalReportDownloadUrl = exports.generatePedagogicalReportPDF = exports.createSessionWithServerDeadline = exports.onSessionCompleteTrigger = exports.exportResearchDataset = exports.backupAndResetSessionData = exports.exportAdminReportToDrive = exports.validateAndStoreTelemetry = exports.callGeminiSocraticProxy = exports.syncUserRoles = exports.generateSocraticMapping = exports.generateSocraticHint = void 0;
+exports.triggerExecutiveDriveReport = exports.triggerTestDriveReport = exports.authenticateStudentSession = exports.onStudentEvent = exports.verifyTeacherSSO = exports.sendTeacherAdminMessage = exports.hourlyAdminAggregator = exports.getPedagogicalReportDownloadUrl = exports.generatePedagogicalReportPDF = exports.createSessionWithServerDeadline = exports.onSessionCompleteTrigger = exports.exportResearchDataset = exports.backupAndResetSessionData = exports.exportAdminReportToDrive = exports.validateAndStoreTelemetry = exports.callGeminiSocraticProxy = exports.syncUserRoles = exports.generateSocraticHint = void 0;
 const https_1 = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
 const dotenv = require("dotenv");
-const geminiConfig_1 = require("./geminiConfig");
-const geminiProxy_1 = require("./geminiProxy");
 const pedagogicalReport_1 = require("./pedagogicalReport");
 const exportDriveReport_1 = require("./exportDriveReport");
 admin.initializeApp();
@@ -163,96 +161,12 @@ exports.generateSocraticHint = (0, https_1.onCall)(async (request) => {
         throw new https_1.HttpsError("internal", "Failed to retrieve Socratic hint.");
     }
 });
-/**
- * Cloud Function for Teacher Diagnostic Mapping.
- * Evaluates student diagnostic data using Gemini LLM to create teacher action plans.
- * Model id and credential come from geminiConfig.ts.
- */
-exports.generateSocraticMapping = (0, https_1.onCall)(geminiConfig_1.GEMINI_SECRETS, async (request) => {
-    if (!request.auth) {
-        throw new https_1.HttpsError("unauthenticated", "User must be authenticated");
-    }
-    const { studentId, teacherId, qMatrix, conceptMastery, traceData } = request.data;
-    if (!studentId || !teacherId || !qMatrix || !conceptMastery) {
-        throw new https_1.HttpsError("invalid-argument", "Missing required fields");
-    }
-    // PRD 5.4: PII Scrubbing Middleware before hitting Gemini
-    const scrubbedName = "[REDACTED_NAME]";
-    const scrubbedQMatrix = (0, geminiProxy_1.scrubPII)(JSON.stringify(qMatrix));
-    const scrubbedConceptMastery = (0, geminiProxy_1.scrubPII)(JSON.stringify(conceptMastery));
-    const scrubbedTrace = (0, geminiProxy_1.scrubPII)(JSON.stringify(traceData || {}));
-    // Security: Strict Payload Size Guard — reject oversized/injected payloads before LLM call
-    const totalPayloadSize = scrubbedQMatrix.length + scrubbedConceptMastery.length + scrubbedTrace.length;
-    if (totalPayloadSize > 50000) {
-        logger.warn("generateSocraticMapping: Payload size exceeded safety threshold.", {
-            studentId,
-            payloadSize: totalPayloadSize,
-        });
-        throw new https_1.HttpsError("invalid-argument", `Payload size (${totalPayloadSize} chars) exceeds the safety threshold of 50,000 characters. Request rejected.`);
-    }
-    try {
-        const ai = (0, geminiConfig_1.getGeminiClient)();
-        const model = ai.getGenerativeModel({
-            model: geminiConfig_1.GEMINI_MODEL_ID,
-            generationConfig: {
-                temperature: 0.4,
-                responseMimeType: "application/json"
-            },
-            systemInstruction: `You are a strict, pedagogical Socratic Math Tutor evaluating a 3rd-grade student's diagnostic test.
-Your task is to analyze the student's Q-Matrix errors and Concept Mastery scores to generate a personalized learning pathway.
-CRITICAL RULES:
-1. Always output VALID JSON matching the specified schema exactly.
-2. All textual responses must be in high-quality Hebrew.
-3. The generated 'tasks' array should provide 1 to 3 targeted math tasks based on their specific weaknesses.
-JSON SCHEMA:
-{
-  "macroBlueprintHe": "string (A bird's-eye view analysis of their performance and what sessions 3-7 will look like)",
-  "microBlueprintHe": "string (Specific actionable focus for the next immediate session)",
-  "isYellowPath": "boolean (true if mastery < 0.5 in core areas, false otherwise)",
-  "tasks": [
-    {
-      "id": "string (unique id like gen_t1)",
-      "type": "string ('vertical_addition', 'small_change', or 'missing_element')",
-      "titleHe": "string",
-      "instructionHe": "string",
-      "numberA": "number",
-      "numberB": "number (optional depending on task type)",
-      "correctAnswer": "number or string",
-      "scaffoldLevel": "number (1 for normal, 2 for high anxiety)"
-    }
-  ]
-}`
-        });
-        const userPrompt = `
-Student Name: ${scrubbedName}
-Q-Matrix Diagnostic Results: ${scrubbedQMatrix}
-Concept Mastery Scores: ${scrubbedConceptMastery}
-Trace Data (Hesitations/Undos): ${scrubbedTrace}
-
-Generate the pedagogical mapping JSON.`;
-        const response = await model.generateContent(userPrompt);
-        const textResponse = response.response.text();
-        let parsedResponse;
-        try {
-            parsedResponse = JSON.parse(textResponse);
-        }
-        catch (e) {
-            throw new Error("LLM did not return valid JSON");
-        }
-        logger.info(`Generated Socratic Mapping for student ${studentId}`);
-        return parsedResponse;
-    }
-    catch (error) {
-        logger.error("Error generating Socratic mapping", error);
-        throw new https_1.HttpsError("internal", "Failed to generate mapping.");
-    }
-});
 // Export the Role Synchronization module
 var syncUserRoles_1 = require("./syncUserRoles");
 Object.defineProperty(exports, "syncUserRoles", { enumerable: true, get: function () { return syncUserRoles_1.syncUserRoles; } });
 // Export the Gemini Proxy from the new module
-var geminiProxy_2 = require("./geminiProxy");
-Object.defineProperty(exports, "callGeminiSocraticProxy", { enumerable: true, get: function () { return geminiProxy_2.callGeminiSocraticProxy; } });
+var geminiProxy_1 = require("./geminiProxy");
+Object.defineProperty(exports, "callGeminiSocraticProxy", { enumerable: true, get: function () { return geminiProxy_1.callGeminiSocraticProxy; } });
 // Export the Transaction Guard module
 var transactionGuard_1 = require("./transactionGuard");
 Object.defineProperty(exports, "validateAndStoreTelemetry", { enumerable: true, get: function () { return transactionGuard_1.validateAndStoreTelemetry; } });

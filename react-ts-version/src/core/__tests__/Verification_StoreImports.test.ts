@@ -23,7 +23,6 @@ describe('Empirical Verification: Static Imports & Zustand Store Initialization'
 
     expect(SocraticEngine).toBeDefined();
     expect(typeof SocraticEngine.getSocraticHint).toBe('function');
-    expect(typeof SocraticEngine.getApprovedTasks).toBe('function');
 
     expect(useWorkspaceStore).toBeDefined();
     expect(typeof useWorkspaceStore.getState).toBe('function');

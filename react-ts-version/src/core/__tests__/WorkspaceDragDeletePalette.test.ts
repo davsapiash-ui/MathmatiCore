@@ -4,7 +4,7 @@ import { resolveDrop, type DropInput } from '@/core/placeValue';
 
 describe('Workspace Drag-and-Drop & Trash Deletion Suite', () => {
   beforeEach(() => {
-    useWorkspaceStore.getState().initSession(1, false, null, 0);
+    useWorkspaceStore.getState().initSession(1, false, 0);
   });
 
   it('correctly resolves dropping a column block into the trash zone', () => {

@@ -9,11 +9,9 @@ import {
   CheckCircle2, 
   TrendingUp, 
   ShieldCheck, 
-  BrainCircuit, 
   Compass, 
   Layers,
-  ArrowRight,
-  ListTodo
+  ArrowRight
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -33,11 +31,6 @@ export function TeacherGateApprovalDrawer({ student, onClose, onApproveSuccess }
     : 'green_path';
   const [selectedPath, setSelectedPath] = useState<'green_path' | 'remediation_path'>(defaultPath);
 
-  // Diagnostic tasks from AI or student state
-  const diagnosticReport = student?.diagnosticReport || sAny.diagnosticReport;
-  const initialTasks = diagnosticReport?.tasks || [];
-  const [tasks, setTasks] = useState<any[]>(initialTasks);
-
   useEffect(() => {
     if (student) {
       const s = student as any;
@@ -45,7 +38,6 @@ export function TeacherGateApprovalDrawer({ student, onClose, onApproveSuccess }
         ? 'remediation_path'
         : 'green_path';
       setSelectedPath(path);
-      setTasks(student.diagnosticReport?.tasks || s.diagnosticReport?.tasks || []);
     }
   }, [student]);
 
@@ -60,9 +52,6 @@ export function TeacherGateApprovalDrawer({ student, onClose, onApproveSuccess }
   if (!student) return null;
 
   const studentNum = student.studentId.replace(/\D/g, '') || student.studentId;
-  const clinicalDiagnosis = diagnosticReport?.clinicalDiagnosisHe || "התלמיד סיים בהצלחה את מפגש 2 הדיאגנוסטי. מנוע ה-AI ניתח את דפוסי הגרירה והמחיקה ובנה מערך תרגילים מותאם.";
-  const actionPlan = diagnosticReport?.actionPlanHe || "חיזוק מיומנות ההמרה עם אפס בעשרות ומעבר הדרגתי לתרגילים מורכבים יותר במפגש 3.";
-  const focusConcept = diagnosticReport?.focusConcept || (selectedPath === 'green_path' ? 'שליטה מתקדמת והרחבת מבנה עשרוני' : 'צמצום פערי המרה ושומר מקום (אפס)');
 
   const handleApprove = async () => {
     setIsApproving(true);
@@ -197,93 +186,6 @@ export function TeacherGateApprovalDrawer({ student, onClose, onApproveSuccess }
                 </p>
               </div>
             </div>
-          </div>
-
-          {/* STEP 2: AI CLINICAL DIAGNOSIS & RATIONALE */}
-          <div className="bg-slate-50 dark:bg-slate-800/60 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3">
-            <div className="flex items-center gap-2 text-indigo-900 dark:text-indigo-200 font-bold text-sm">
-              <BrainCircuit className="w-4 h-4 text-indigo-600" />
-              <span>2. ניתוח אבחוני והיגיון פדגוגי (AI Diagnostic Blueprint)</span>
-            </div>
-
-            <div className="space-y-2 text-xs">
-              <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
-                <span className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                  🎯 מוקד קוגניטיבי:
-                </span>
-                <span className="text-indigo-700 dark:text-indigo-400 font-semibold font-mono">
-                  {focusConcept}
-                </span>
-              </div>
-
-              <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
-                <span className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                  📋 אבחון קליני:
-                </span>
-                <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
-                  {clinicalDiagnosis}
-                </p>
-              </div>
-
-              <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
-                <span className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                  💡 תוכנית פעולה מוצעת:
-                </span>
-                <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
-                  {actionPlan}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* STEP 3: EXERCISES BLUEPRINT */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-black text-slate-700 dark:text-slate-300 flex items-center gap-1.5 uppercase tracking-wide">
-                <ListTodo className="w-4 h-4 text-indigo-600" />
-                <span>3. מערך תרגילים מוכן למפגש 3 ({tasks.length} תרגילים):</span>
-              </label>
-              {/* An "עריכת תרגילים" toggle used to sit here. It only flipped a
-                  local boolean that nothing read — the task list below stayed
-                  read-only either way — so it promised an editing mode the
-                  drawer does not have. Editing the plan is a real capability,
-                  and it lives in the approvals tab's plan card ("דחייה / עריכה"),
-                  which opens the AI co-pilot editor. This drawer approves the
-                  gate and chooses the path; it does not author tasks. */}
-            </div>
-
-            {tasks.length > 0 ? (
-              <div className="space-y-2">
-                {tasks.map((task: any, idx: number) => (
-                  <div 
-                    key={idx} 
-                    className="p-3.5 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3 shadow-sm"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 flex items-center justify-center text-xs font-bold shrink-0">
-                        {idx + 1}
-                      </span>
-                      <div>
-                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
-                          {task.titleHe || `תרגיל ${idx + 1}`}
-                        </span>
-                        <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                          {task.rationale || 'התאמה אדפטיבית לפי תוצאות האבחון.'}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="font-mono text-sm font-bold bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-lg text-indigo-700 dark:text-indigo-400 shrink-0" dir="ltr">
-                      {task.equation || (task.numberA ? `${task.numberA} ${task.isSubtraction ? '-' : '+'} ${task.numberB} = ?` : '245 + 137 = ?')}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 text-center text-xs text-slate-500">
-                מערך תרגילי ברירת המחדל מוכן להפעלה ישירה.
-              </div>
-            )}
           </div>
 
         </div>

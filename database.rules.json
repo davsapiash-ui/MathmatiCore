@@ -85,14 +85,6 @@
         ".write": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true || auth.token.role == 'admin' || auth.token.role == 'ADMIN' || auth.token.admin == true || $studentId == 'student_user' + auth.token.student_id || $studentId == 'student_' + auth.token.student_id || $studentId == '' + auth.token.student_id)"
       }
     },
-    "approved_tasks": {
-      ".read": "auth != null",
-      ".write": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.role == 'admin' || auth.token.role == 'ADMIN')"
-    },
-    "ai_pending_approvals": {
-      ".read": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true || auth.token.role == 'admin' || auth.token.role == 'ADMIN' || auth.token.admin == true)",
-      ".write": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true || auth.token.role == 'admin' || auth.token.role == 'ADMIN' || auth.token.admin == true)"
-    },
     "reflections": {
       ".read": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true || auth.token.role == 'admin' || auth.token.role == 'ADMIN' || auth.token.admin == true)",
       "$reflectionId": {
