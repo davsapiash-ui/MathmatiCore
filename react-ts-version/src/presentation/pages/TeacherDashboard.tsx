@@ -40,54 +40,9 @@ import { TeacherApprovalGate, type GateStudentItem } from "./TeacherDashboard/co
 import { SessionActivationModal, type SessionRow } from "./TeacherDashboard/components/SessionActivationModal";
 import { getSessionDurationMinutes } from "@/core/classSession";
 import type { RadarAlert } from "@/types/dashboard";
-import { CONCEPT_LABELS_HE } from "@/core/QMatrix";
+import { CONCEPT_LABELS_HE, TASKS as DIAGNOSTIC_TASKS } from "@/core/QMatrix";
 import { validateChatInputForPII, anonymizeChatMessageBody } from "@/core/security/PiiFilter";
 import { approveTeacherGate } from "@/core/teacherGate";
-
-const getStudentKPIs = (student: StudentData, messages: ChatMessage[]) => {
-  const undo = student.traceData?.undo_clicks || 0;
-  const hesitation = student.traceData?.hesitation_events || 0;
-  const errors = (student as any).errorCount || (student as any).errors || 0;
-  const guesses = (student as any).guessCount || (student as any).distractorClicks || 0;
-  const hasHistory = (student.highestCompletedMeeting || 0) > 0 || Boolean(student.completedMeeting2) || undo > 0 || hesitation > 0 || errors > 0;
-
-  if (!hasHistory) {
-    return {
-      hasData: false,
-      persistence: 0,
-      efficiency: 0,
-      dialogueQuality: 0,
-    };
-  }
-
-  // SRL Canonical Persistence Ratio: (U / (U + E + G)) * 100 with safe 0/0/0 handling
-  const safeU = Math.max(0, undo);
-  const safeE = Math.max(0, errors);
-  const safeG = Math.max(0, guesses);
-  const denominator = safeU + safeE + safeG;
-  const persistence = denominator <= 0 ? 100 : Math.min(100, Math.max(0, Math.round((safeU / denominator) * 100)));
-
-  const meeting2Bonus = student.completedMeeting2 ? 10 : 0;
-  const efficiencyScore = 90 - 2.5 * (undo + hesitation) + meeting2Bonus;
-  const efficiency = Math.round(Math.max(0, Math.min(100, efficiencyScore)));
-
-  const teacherMsgs = messages.filter(msg => msg.receiverId === student.studentId && msg.senderId !== student.studentId);
-  let dialogueQuality = 0;
-  if (teacherMsgs.length > 0) {
-    const keywords = ["איך", "כיצד", "למה", "מדוע", "אסטרטגיה", "שלב", "דרך", "מחשבה", "פריטה", "קיבוץ", "המרה"];
-    const matchingMsgs = teacherMsgs.filter(msg => 
-      keywords.some(keyword => msg.text.includes(keyword))
-    );
-    dialogueQuality = Math.round((matchingMsgs.length / teacherMsgs.length) * 100);
-  }
-
-  return {
-    hasData: true,
-    persistence,
-    efficiency,
-    dialogueQuality
-  };
-};
 
 type TabType =
   | "heatmap"
@@ -1719,19 +1674,6 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                         const isStruggling = (traceData.hesitation_events || 0) > 2 || (traceData.undo_clicks || 0) > 1 || s.routeRecommendation === 'YELLOW';
                         const sNum = (s.studentId || effectiveReplayStudentId).replace(/\D/g, '') || s.studentId;
 
-                        const q1 = getQStatus(qMatrix.task1_zero_placeholder);
-                        const q3 = getQStatus(qMatrix.task3_flexible_regrouping);
-                        const q4 = getQStatus(qMatrix.task4_basic_addition_fluency);
-                        const q6 = getQStatus(qMatrix.task6_subtraction_regrouping);
-                        const q7 = getQStatus(qMatrix.task7_missing_subtrahend);
-                        const q8 = getQStatus(qMatrix.task8_missing_addend);
-
-                        const q46Status = (!qMatrix.task4_basic_addition_fluency && !qMatrix.task6_subtraction_regrouping)
-                          ? { text: 'טרם נבדק', color: 'text-slate-400' }
-                          : (qMatrix.task4_basic_addition_fluency === 'success' && qMatrix.task6_subtraction_regrouping === 'success')
-                          ? { text: 'שולט', color: 'text-green-600' }
-                          : { text: 'פער בעובדות יסוד', color: 'text-red-500' };
-
                         return (
                           <div className="animate-in fade-in zoom-in-95 duration-300">
                             {/* Top Action Bar: Open Drawer for Physical Override & Full Student Profile */}
@@ -1803,50 +1745,32 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
                               {/* Q-Matrix Report */}
                               <AccessibleCard className="p-6 bg-white border border-ws-surface2 shadow-md rounded-2xl h-full">
-                                <h3 className="text-xl font-bold text-ws-ink mb-4 flex items-center gap-2">
+                                <h3 className="text-xl font-bold text-ws-ink mb-1 flex items-center gap-2">
                                   <span className="text-ws-accent">📊</span>
-                                  תוצאות ה-Q-Matrix (אבחון סמוי)
+                                  תוצאות האבחון הסמוי (מפגש 2)
                                 </h3>
-                                <div className="grid grid-cols-2 gap-3 text-sm">
-                                  <div className="bg-ws-bg p-3 rounded-xl border border-ws-surface2">
-                                    <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">שומר מקום (אפס)</span>
-                                    <span className={`font-semibold ${q1.color}`}>
-                                      {q1.text}
-                                    </span>
-                                  </div>
-                                  <div className="bg-ws-bg p-3 rounded-xl border border-ws-surface2">
-                                    <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">גמישות מחשבתית</span>
-                                    <span className={`font-semibold ${q3.color}`}>
-                                      {q3.text}
-                                    </span>
-                                  </div>
-
-                                  <div className="bg-ws-bg p-3 rounded-xl border border-ws-surface2">
-                                    <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">חיבור וחיסור</span>
-                                    <span className={`font-semibold ${q46Status.color}`}>
-                                      {q46Status.text}
-                                    </span>
-                                  </div>
-                                  <div className="bg-ws-bg p-3 rounded-xl border border-ws-surface2">
-                                    <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">מציאת מחסר</span>
-                                    <span className={`font-semibold ${q7.color}`}>
-                                      {q7.text}
-                                    </span>
-                                  </div>
-                                  <div className="bg-ws-bg p-3 rounded-xl border border-ws-surface2">
-                                    <span className="block text-ws-soft mb-1 text-xs font-bold uppercase">מציאת מחבר</span>
-                                    <span className={`font-semibold ${q8.color}`}>
-                                      {q8.text}
-                                    </span>
-                                  </div>
+                                <p className="text-xs text-ws-soft mb-4">שבע שאלות האבחון של מסמך 03. "שולט" = נפתר נכון בניסיון הראשון.</p>
+                                <div className="grid grid-cols-1 gap-2 text-sm">
+                                  {DIAGNOSTIC_TASKS.map((task, i) => {
+                                    const status = getQStatus((qMatrix as Record<string, unknown>)[task.id]);
+                                    return (
+                                      <div key={task.id} className="flex items-center justify-between gap-3 bg-ws-bg px-3 py-2 rounded-xl border border-ws-surface2">
+                                        <span className="text-ws-ink text-xs font-bold">
+                                          <span className="text-ws-soft ml-1">{i + 1}.</span>
+                                          {task.titleHe}
+                                        </span>
+                                        <span className={`font-semibold text-xs whitespace-nowrap ${status.color}`}>{status.text}</span>
+                                      </div>
+                                    );
+                                  })}
                                 </div>
                               </AccessibleCard>
 
                               {/* Trace Data & AI Plan */}
                               <AccessibleCard className="p-6 border shadow-md rounded-2xl flex flex-col h-full bg-indigo-50/40 border-indigo-100">
                                 <h3 className="text-xl font-bold text-ws-ink mb-4 flex items-center gap-2">
-                                  <span className="text-ws-accent">🤖</span>
-                                  המלצת Socratic Engine וסיכום אבחון
+                                  <span className="text-ws-accent">🧭</span>
+                                  סיכום האבחון והמסלול
                                 </h3>
                                 
                                 <div className="flex-1 flex flex-col gap-4">
@@ -1867,46 +1791,6 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                       <span className="text-xl font-black text-red-600">{traceData.undo_clicks || 0}</span>
                                     </div>
                                   </div>
-
-                                  {/* Quantitative KPIs */}
-                                  {(() => {
-                                    const kpis = getStudentKPIs(s, messages);
-                                    return (
-                                      <div className="bg-white p-4 rounded-xl border border-slate-200">
-                                        <h4 className="font-bold text-sm text-slate-800 mb-3">מדדי ביצוע כמותיים (KPIs):</h4>
-                                        <div className="grid grid-cols-3 gap-3 text-xs">
-                                          <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100 shadow-sm">
-                                            <div className="flex justify-between font-bold mb-1">
-                                              <span>התמדה:</span>
-                                              <span className="text-blue-600">{kpis.persistence}%</span>
-                                            </div>
-                                            <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                                              <div className="bg-blue-500 h-full rounded-full" style={{ width: `${kpis.persistence}%` }}></div>
-                                            </div>
-                                          </div>
-                                          <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100 shadow-sm">
-                                            <div className="flex justify-between font-bold mb-1">
-                                              <span>יעילות:</span>
-                                              <span className="text-emerald-600">{kpis.efficiency}%</span>
-                                            </div>
-                                            <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                                              <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${kpis.efficiency}%` }}></div>
-                                            </div>
-                                          </div>
-
-                                          <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100 shadow-sm">
-                                            <div className="flex justify-between font-bold mb-1">
-                                              <span>איכות דיאלוג:</span>
-                                              <span className="text-purple-600">{kpis.dialogueQuality}%</span>
-                                            </div>
-                                            <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                                              <div className="bg-purple-500 h-full rounded-full" style={{ width: `${kpis.dialogueQuality}%` }}></div>
-                                            </div>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    );
-                                  })()}
 
                                   {/* Clinical Diagnosis & Action Plan - Only rendered when real diagnostic exists */}
                                   {!hasCompletedDiagnosticM2 ? (

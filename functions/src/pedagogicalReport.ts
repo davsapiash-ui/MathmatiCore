@@ -233,7 +233,7 @@ export function createPedagogicalReportPdfBuffer(report: Record<string, any>): P
       }
 
       // Header
-      doc.fontSize(22).fillColor("#1e1b4b").text(shapeRtl("MathematiCore - דוח פדגוגי מסכם"), { align: "center" });
+      doc.fontSize(22).fillColor("#1e1b4b").text(shapeRtl(report.title_he || "MathematiCore - דוח פדגוגי מסכם"), { align: "center" });
       doc.moveDown(0.4);
       doc.fontSize(11).fillColor("#475569").text(shapeRtl("הערכה פדגוגית חסויה | מדיניות אפס מידע מזהה (Zero PII)"), { align: "center" });
       doc.moveDown(1);
@@ -311,52 +311,176 @@ export function createPedagogicalReportPdfBuffer(report: Record<string, any>): P
   });
 }
 
+/** "session_3_student_user4" / "session_03_student_4" → 3; anything else → null. */
+export function sessionNumberFromId(sessionId: string): number | null {
+  const m = /^session_0?(\d)(?:_|$)/.exec(String(sessionId || ""));
+  if (!m) return null;
+  const n = parseInt(m[1], 10);
+  return n >= 1 && n <= 8 ? n : null;
+}
+
+const TELEMETRY_PAGE = 500;
+const TELEMETRY_MAX_PAGES = 200; // 100,000 events — far beyond one learner's meeting.
+
+/**
+ * Every telemetry event of one meeting, in the order the learner produced
+ * them. A meeting is a few hundred events; the old single page of 100 cut the
+ * narrative and the analysis off after the first exercise or two.
+ */
+async function readAllTelemetryForSession(
+  db: admin.firestore.Firestore,
+  sessionId: string
+): Promise<Record<string, any>[]> {
+  const docs: Record<string, any>[] = [];
+  const base = db.collection("telemetry_logs")
+    .where("session_id", "==", sessionId)
+    .orderBy(admin.firestore.FieldPath.documentId())
+    .limit(TELEMETRY_PAGE);
+  let last: admin.firestore.QueryDocumentSnapshot | null = null;
+  for (let page = 0; page < TELEMETRY_MAX_PAGES; page++) {
+    const pageQuery: admin.firestore.Query = last ? base.startAfter(last) : base;
+    const snap: admin.firestore.QuerySnapshot = await pageQuery.get();
+    if (snap.empty) break;
+    for (const d of snap.docs) docs.push(d.data());
+    last = snap.docs[snap.docs.length - 1];
+    if (snap.size < TELEMETRY_PAGE) break;
+  }
+  docs.sort((a, b) => (a.client_timestamp || 0) - (b.client_timestamp || 0));
+  return docs;
+}
+
+/**
+ * PRD Module 23 §ב, applied to one meeting's telemetry:
+ * "נפתר נכון בניסיון ראשון" = a PROBLEM_COMPLETE for the exercise with no
+ * earlier DIGIT_ENTERED whose is_correct === false in the same exercise_id;
+ * is_correct === null is ignored entirely. Score = correct ÷ compulsory × 100.
+ *
+ * `compulsoryTotal` is the meeting's number of compulsory exercises (7 for the
+ * diagnostic meeting, the bank's count otherwise). When it is unknown, the
+ * exercises the learner actually opened are the denominator.
+ */
+export function computeFirstAttemptScore(
+  telemetryDocs: Record<string, any>[],
+  compulsoryTotal: number | null
+): { scorePercent: number; correctFirstAttempt: number; attempted: number; denominator: number } {
+  const wrongBeforeComplete = new Set<string>();
+  const completedFirstTry = new Set<string>();
+  const attempted = new Set<string>();
+  for (const ev of telemetryDocs) {
+    const exId = String(ev?.exercise_id || "");
+    if (!exId) continue;
+    attempted.add(exId);
+    if (ev.event_type === "DIGIT_ENTERED" && ev.details?.is_correct === false) {
+      wrongBeforeComplete.add(exId);
+    } else if (ev.event_type === "PROBLEM_COMPLETE" && !wrongBeforeComplete.has(exId)) {
+      completedFirstTry.add(exId);
+    }
+  }
+  const denominator = compulsoryTotal && compulsoryTotal > 0 ? compulsoryTotal : Math.max(1, attempted.size);
+  const correct = Math.min(completedFirstTry.size, denominator);
+  return {
+    scorePercent: Math.round((correct / denominator) * 100),
+    correctFirstAttempt: correct,
+    attempted: attempted.size,
+    denominator,
+  };
+}
+
+const DIAGNOSTIC_COMPULSORY_COUNT = 7;
+
 /**
  * generatePedagogicalReportPDF (Module 23: Pedagogical Reporting Engine)
  * Computes metrics, builds deterministic Exercise Narratives, renders an authoritative
  * binary PDF, stores it in Cloud Storage, and returns signed download link + structured data.
+ *
+ * Owner decision (2026-09-04, register item 7): the teacher may request this
+ * report for ANY meeting (1–8) of a learner from "דו"חות אבחון אישיים", not
+ * only after meetings 2 and 8. The caller passes the meeting's telemetry
+ * session_id, the meeting number and the learner number explicitly; the
+ * score comes from the meeting's SessionDocument when one exists and is
+ * otherwise computed from the meeting's own telemetry by the PRD rule.
  */
 export const generatePedagogicalReportPDF = onCall(GEMINI_SECRETS, async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "User must be authenticated.");
   }
 
-  const { sessionId, classId = "class_1", sessionNumber } = request.data || {};
-  if (!sessionId) {
+  const { sessionId, classId = "class_1", sessionNumber, studentId: explicitStudentId } = request.data || {};
+  if (!sessionId || typeof sessionId !== "string") {
     throw new HttpsError("invalid-argument", "Missing sessionId.");
   }
 
   const db = admin.firestore();
   const sessionDoc = await db.collection("sessions").doc(sessionId).get();
-  const studentId = sessionId.split("_").pop() || "1";
-  const clampedStudentNum = Math.min(12, Math.max(1, parseInt(studentId.replace(/\D/g, '') || '1', 10)));
+  const studentDigits = String(explicitStudentId ?? sessionId.split("_").pop() ?? "").replace(/\D/g, "");
+  if (!studentDigits) {
+    throw new HttpsError("invalid-argument", "Missing studentId (1-12).");
+  }
+  const studentId = studentDigits;
+  const clampedStudentNum = Math.min(12, Math.max(1, parseInt(studentDigits, 10)));
+
+  const resolvedSessionNumber =
+    Number(sessionNumber) ||
+    Number(sessionDoc.exists ? sessionDoc.data()?.session_number : 0) ||
+    sessionNumberFromId(sessionId) ||
+    2;
+
+  // Every telemetry event of this meeting, for the narrative, the score and the analysis.
+  const telemetryDocs = await readAllTelemetryForSession(db, sessionId);
+  const exerciseNarratives = generateExerciseNarrativeFromEvents(telemetryDocs);
+
+  // The learner's live record: the approved path and gate state live there
+  // for every meeting, whether or not a SessionDocument was written.
+  const rtdb = admin.database();
+  const aliasSnaps = await Promise.all(
+    [`student_user${clampedStudentNum}`, `student_${clampedStudentNum}`, `${clampedStudentNum}`].map((alias) =>
+      rtdb.ref(`users/students/${alias}`).get()
+    )
+  );
+  const studentVal = aliasSnaps.find((snap) => snap.exists())?.val() || {};
 
   let sessionData: Record<string, any>;
-  if (sessionDoc.exists) {
+  let scoreSource: "session_document" | "telemetry_first_attempt" | "q_matrix";
+  if (sessionDoc.exists && sessionDoc.data()?.session_score_percent !== undefined && sessionDoc.data()?.session_score_percent !== null) {
     sessionData = sessionDoc.data() || {};
-  } else {
-    // Module 23 requires this report at Session 2 OR Session 8 completion, but
-    // only Session 2 ever gets a Firestore SessionDocument written
-    // (FirebaseSyncService.syncSession2Completion writes session_02_student_N
-    // — an exact-match lookup here will miss any caller that doesn't use that
-    // same zero-padded id). Session 8 has no equivalent writer at all. Rather
-    // than fail outright, fall back to computing the same score straight from
-    // the compulsory Q-Matrix results already synced to RTDB per-task for
-    // every session (FirebaseSyncService.syncQMatrix), which is reliably
-    // present regardless of session number or id formatting.
-    const rtdb = admin.database();
-    const aliasSnaps = await Promise.all(
-      [`student_user${clampedStudentNum}`, `student_${clampedStudentNum}`, `${clampedStudentNum}`].map((alias) =>
-        rtdb.ref(`users/students/${alias}`).get()
-      )
-    );
-    const studentSnap = aliasSnaps.find((snap) => snap.exists());
-
-    if (!studentSnap) {
-      throw new HttpsError("not-found", `Session ${sessionId} not found.`);
+    scoreSource = "session_document";
+  } else if (telemetryDocs.length > 0) {
+    // No SessionDocument (meetings other than 2 never get one): the PRD score
+    // rule applied to this meeting's own telemetry.
+    let compulsoryTotal: number | null = resolvedSessionNumber === 2 ? DIAGNOSTIC_COMPULSORY_COUNT : null;
+    if (compulsoryTotal === null) {
+      try {
+        const path = studentVal.teacher_selected_path === "remediation_path" || studentVal.pedagogicalPath === "remediation_path"
+          ? "remediation_path" : "green_path";
+        const bankIds = resolvedSessionNumber >= 3 && resolvedSessionNumber <= 8
+          ? [`session_${resolvedSessionNumber}_${path}`, `session_${resolvedSessionNumber}`]
+          : [`session_${resolvedSessionNumber}`];
+        for (const bankId of bankIds) {
+          const bankDoc = await db.collection("curriculum_catalog").doc(bankId).get();
+          const tasks = bankDoc.exists ? (bankDoc.data() || {}).tasks : null;
+          if (Array.isArray(tasks) && tasks.length > 0) {
+            compulsoryTotal = tasks.filter((t: any) => t && t.isOptionalChoiceTask !== true).length || tasks.length;
+            break;
+          }
+        }
+      } catch (err) {
+        logger.warn("[Module23] Curriculum catalog unavailable for compulsory count.", { session_id: sessionId, error: String(err) });
+      }
     }
-
-    const studentVal = studentSnap.val() || {};
+    const first = computeFirstAttemptScore(telemetryDocs, compulsoryTotal);
+    sessionData = {
+      session_number: resolvedSessionNumber,
+      is_completed: telemetryDocs.some((d) => d.event_type === "SESSION_END" || d.event_type === "PROBLEM_COMPLETE"),
+      session_score_percent: first.scorePercent,
+      matrix_recommended_path: first.scorePercent >= 50 ? "green_path" : "remediation_path",
+      teacher_selected_path: studentVal.teacher_selected_path || null,
+      teacher_gate_approved: Boolean(studentVal.teacher_gate_approved),
+      first_attempt: first,
+    };
+    scoreSource = "telemetry_first_attempt";
+  } else if (resolvedSessionNumber === 2 && studentVal.qMatrixResults) {
+    // Diagnostic meeting with no telemetry reachable: the per-task Q-matrix
+    // results synced to RTDB carry the same first-attempt verdicts.
     const qResults = studentVal.qMatrixResults || {};
     const compulsoryKeys = [
       "task1_read_write_zero", "task2_digit_value", "task3_subtraction_regrouping",
@@ -365,26 +489,18 @@ export const generatePedagogicalReportPDF = onCall(GEMINI_SECRETS, async (reques
     ];
     const correctCount = compulsoryKeys.filter((k) => qResults[k] === "success").length;
     const computedScore = Math.round((correctCount / compulsoryKeys.length) * 100);
-
     sessionData = {
-      session_number: Number(sessionNumber) || (studentVal.highestCompletedMeeting >= 8 ? 8 : 2),
+      session_number: 2,
       is_completed: true,
       session_score_percent: computedScore,
       matrix_recommended_path: computedScore >= 50 ? "green_path" : "remediation_path",
       teacher_selected_path: studentVal.teacher_selected_path || null,
       teacher_gate_approved: Boolean(studentVal.teacher_gate_approved),
     };
+    scoreSource = "q_matrix";
+  } else {
+    throw new HttpsError("not-found", `אין פעולות מתועדות למפגש ${resolvedSessionNumber} של תלמיד ${clampedStudentNum}; אין מה לנתח.`);
   }
-  const resolvedSessionNumber = Number(sessionNumber) || sessionData.session_number || (sessionId.includes("_2_") || sessionId.includes("_02_") ? 2 : 8);
-
-  // Read telemetry logs for Exercise Narrative construction
-  const telemetrySnap = await db.collection("telemetry_logs")
-    .where("session_id", "==", sessionId)
-    .limit(100)
-    .get();
-
-  const telemetryDocs = telemetrySnap.docs.map(d => d.data());
-  const exerciseNarratives = generateExerciseNarrativeFromEvents(telemetryDocs);
 
   // Read student record if available
   const studentDoc = await db.collection("students").doc(studentId).get();
@@ -490,12 +606,17 @@ export const generatePedagogicalReportPDF = onCall(GEMINI_SECRETS, async (reques
   // Assemble pedagogical report data payload
   const report = {
     report_id: `rep_${sessionId}`,
+    session_id: sessionId,
     generated_at: Date.now(),
+    title_he: `MathematiCore - דוח פדגוגי למפגש ${resolvedSessionNumber}`,
     anonymous_student_label: `תלמיד ${clampedStudentNum}`,
     student_id: clampedStudentNum,
     session_number: resolvedSessionNumber,
     is_completed: Boolean(sessionData.is_completed),
     score_percent: score,
+    score_source: scoreSource,
+    first_attempt: sessionData.first_attempt || null,
+    telemetry_event_count: telemetryDocs.length,
     matrix_recommended_path: sessionData.matrix_recommended_path || (score >= 50 ? "green_path" : "remediation_path"),
     teacher_selected_path: sessionData.teacher_selected_path || null,
     teacher_gate_approved: Boolean(sessionData.teacher_gate_approved),
@@ -510,7 +631,7 @@ export const generatePedagogicalReportPDF = onCall(GEMINI_SECRETS, async (reques
     teaching_recommendations: aiAnalysis?.teaching_recommendations || [],
     ai_analysis_available: Boolean(aiAnalysis),
     ai_fallback_text: EXACT_AI_FALLBACK_TEXT,
-    summary_text_he: `דוח פדגוגי מסכם למפגש ${resolvedSessionNumber}. ציון שליטה: ${score}%. מסלול מומלץ: ${score >= 50 ? 'העמקה (ירוק)' : 'ביסוס ומענה מותאם (צהוב - remediation_path)'}.`
+    summary_text_he: `דוח פדגוגי למפגש ${resolvedSessionNumber}. ציון שליטה: ${score}%. מסלול מומלץ: ${score >= 50 ? 'העמקה (ירוק)' : 'ביסוס ומענה מותאם (צהוב - remediation_path)'}.`
   };
 
   // Render authoritative server-side PDF binary & Upload to Cloud Storage
@@ -557,7 +678,16 @@ export const generatePedagogicalReportPDF = onCall(GEMINI_SECRETS, async (reques
       session_number: resolvedSessionNumber,
       storage_path: storageFilePath,
       score_percent: score,
+      score_source: scoreSource,
       routing_group: routingGroup,
+      routing_label_he: routingLabelHe,
+      recommendation_details_he: recommendationDetailsHe,
+      exercise_narratives: exerciseNarratives,
+      knowledge_gaps: report.knowledge_gaps,
+      teaching_recommendations: report.teaching_recommendations,
+      ai_analysis_available: report.ai_analysis_available,
+      telemetry_event_count: telemetryDocs.length,
+      generated_at: report.generated_at,
       created_at: admin.firestore.FieldValue.serverTimestamp(),
       is_read_only: true,
     });
@@ -638,8 +768,8 @@ export const getPedagogicalReportDownloadUrl = onCall(async (request) => {
 
   // Teacher authorization check against class_id
   const callerRoles = request.auth.token.roles || (request.auth.token.role ? [request.auth.token.role] : []);
-  const isTeacher = callerRoles.includes("TEACHER") || request.auth.token.role === "teacher";
-  const isAdmin = callerRoles.includes("ADMIN") || request.auth.token.role === "admin";
+  const isTeacher = callerRoles.includes("TEACHER") || request.auth.token.role === "teacher" || request.auth.token.teacher === true;
+  const isAdmin = callerRoles.includes("ADMIN") || request.auth.token.role === "admin" || request.auth.token.admin === true;
   const callerClassId = request.auth.token.class_id;
 
   if (!isTeacher && !isAdmin) {
