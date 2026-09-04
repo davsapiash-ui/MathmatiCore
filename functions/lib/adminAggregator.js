@@ -6,11 +6,17 @@ const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
 /**
  * hourlyAdminAggregator (Module 24: Store Cache & Admin Aggregator)
- * Aggregates statistics across all schools, classrooms and sessions into store_cache/admin_metrics.
- * Runs on a recurring schedule once every 60 minutes.
+ * Aggregates statistics across all schools, classrooms and sessions into store_cache/admin_metrics,
+ * so the admin console reads one cached document instead of running live queries.
+ *
+ * Schedule: once a day at 14:30 Israel time — after the school day, before anyone opens the
+ * admin console. The PRD (Module 24 §ב) says once an hour; the product owner chose daily on
+ * 2026-09-04 because the pilot runs one or two lessons a week and an hourly pass recomputed
+ * unchanged data 23 times out of 24 (מסמכי אפיון/סטיות_מהאפיון.md, item 5). The export name is
+ * kept: renaming a deployed function creates a new one and orphans the old.
  */
 exports.hourlyAdminAggregator = (0, scheduler_1.onSchedule)({
-    schedule: "every 60 minutes",
+    schedule: "every day 14:30",
     timeZone: "Asia/Jerusalem",
     region: "us-central1",
 }, async (event) => {
