@@ -163,10 +163,7 @@ export function ClassManagement({
     }
   };
 
-  const [isResetting, setIsResetting] = useState(false);
-  const [resetFeedback, setResetFeedback] = useState<string | null>(null);
   const [studentToReset, setStudentToReset] = useState<{ id: string; name: string } | null>(null);
-  const [isSystemResetModalOpen, setIsSystemResetModalOpen] = useState(false);
 
   const handleConfirmResetStudent = async (reason: ResetReason, reasonNote?: string) => {
     if (!studentToReset) return;
@@ -180,22 +177,6 @@ export function ClassManagement({
       toast.error('שגיאה באיפוס נתוני התלמיד');
     } finally {
       setUpdatingId(null);
-    }
-  };
-
-  const handleConfirmResetClassToVirginState = async (reason: ResetReason) => {
-    setIsResetting(true);
-    setResetFeedback(null);
-
-    try {
-      await useStore.getState().resetEntireSystemUsageData(reason);
-      setResetFeedback('✓ כל נתוני כיתת הביקורת אופסו בהצלחה לאפס מוחלט!');
-      setTimeout(() => setResetFeedback(null), 5000);
-    } catch (err) {
-      console.error('Failed to reset class data:', err);
-      setResetFeedback('שגיאה באיפוס: ' + (err as Error).message);
-    } finally {
-      setIsResetting(false);
     }
   };
 
@@ -229,16 +210,6 @@ export function ClassManagement({
           </div>
 
           <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3">
-            <button
-              onClick={() => setIsSystemResetModalOpen(true)}
-              disabled={isResetting}
-              className="bg-red-500/90 hover:bg-red-600 active:scale-95 text-white font-black text-xs px-4 py-2.5 rounded-xl border border-red-300/40 shadow-lg backdrop-blur-sm flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50"
-              title="מחיקת כל הנתונים של תלמידי הכיתה והחזרתם למצב נקי לחלוטין"
-            >
-              <span>🧹</span>
-              <span>{isResetting ? 'מאפס נתונים...' : 'איפוס כל נתוני הכיתה לאפס'}</span>
-            </button>
-
             <div className="flex items-center gap-3 bg-white/15 border border-white/25 backdrop-blur-md px-4 py-3 rounded-2xl">
               <div className="text-center">
                 <span className="text-[11px] text-indigo-100 block font-semibold">תלמידי הפיילוט</span>
@@ -248,11 +219,6 @@ export function ClassManagement({
           </div>
         </div>
 
-        {resetFeedback && (
-          <div className="mt-4 p-3 bg-white/20 border border-white/30 rounded-xl text-sm font-bold text-center text-white backdrop-blur-md animate-fade-in">
-            {resetFeedback}
-          </div>
-        )}
       </header>
 
       {/* Module 20: Teacher Gate Approvals Section */}
@@ -433,15 +399,6 @@ export function ClassManagement({
         }}
       />
 
-      <ResetConfirmationModal
-        isOpen={isSystemResetModalOpen}
-        onClose={() => setIsSystemResetModalOpen(false)}
-        resetLevel="system"
-        onConfirm={async (reason) => {
-          await handleConfirmResetClassToVirginState(reason);
-          setIsSystemResetModalOpen(false);
-        }}
-      />
     </div>
   );
 }
