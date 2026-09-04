@@ -1711,10 +1711,11 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                       </div>
                     ) : (
                       (() => {
-                        const hasCompletedDiagnosticM2 = Boolean(
-                          s.completedMeeting2 || 
-                          (typeof s.highestCompletedMeeting === 'number' && s.highestCompletedMeeting >= 2)
-                        );
+                        // Progress comes only from what the learner actually finished (highestCompletedMeeting,
+                        // written by the learner's own session-complete transaction and zeroed by a reset).
+                        const highestDone = typeof s.highestCompletedMeeting === 'number' ? s.highestCompletedMeeting : 0;
+                        const hasCompletedDiagnosticM2 = Boolean(s.completedMeeting2 || highestDone >= 2);
+                        const hasStarted = hasCompletedDiagnosticM2 || highestDone >= 1;
                         const isStruggling = (traceData.hesitation_events || 0) > 2 || (traceData.undo_clicks || 0) > 1 || s.routeRecommendation === 'YELLOW';
                         const sNum = (s.studentId || effectiveReplayStudentId).replace(/\D/g, '') || s.studentId;
 
@@ -1760,7 +1761,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                     : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                 }`}>
                                   {!hasCompletedDiagnosticM2
-                                    ? 'מפגש 1 הושלם — ממתין לאבחון במפגש 2'
+                                    ? (hasStarted ? 'מפגש 1 הושלם — ממתין לאבחון במפגש 2' : 'טרם התחיל — אין נתונים')
                                     : isStruggling
                                     ? 'מסלול מומלץ: צמצום פערי קדם (צהוב)'
                                     : 'מסלול מומלץ: ירוק (מואץ)'}
@@ -1783,10 +1784,10 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                   <button
                                     onClick={() => setGateStudent(s)}
                                     className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold text-xs rounded-xl shadow-md shadow-indigo-600/25 transition-all active:scale-95 cursor-pointer"
-                                    title="אישור מסלול ותוכנית תרגילים למפגש 3"
+                                    title="אישור מסלול למפגש 3 — שער מעבר"
                                   >
                                     <Sparkles className="w-4 h-4 text-amber-300" />
-                                    <span>אישור תוכנית ומסלול — שער מורה</span>
+                                    <span>אישור מסלול — שער מעבר</span>
                                     <span className="bg-white/20 text-white text-[10px] px-1.5 py-0.5 rounded-md font-semibold">ממתין לאישור</span>
                                   </button>
                                 )}
@@ -1915,9 +1916,11 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                         סטטוס מיפוי פדגוגי
                                       </h4>
                                       <div className="bg-indigo-50/60 p-3.5 rounded-xl border border-indigo-100 text-indigo-950 text-xs leading-relaxed">
-                                        <p className="font-bold mb-1">מפגש 1 (ארגז החול והיכרות) הושלם בהצלחה.</p>
+                                        <p className="font-bold mb-1">
+                                          {hasStarted ? 'מפגש 1 (ארגז החול והיכרות) הושלם.' : 'התלמיד עדיין לא סיים אף מפגש.'}
+                                        </p>
                                         <p className="text-indigo-800">
-                                          האבחון הפדגוגי הסמוי (Q-Matrix) והמלצת המסלול (ירוק/צהוב) ייבנו באופן אותנטי על בסיס ביצועי התלמיד במפגש 2.
+                                          האבחון הסמוי והמלצת המסלול (ירוק/צהוב) ייבנו רק מביצועי התלמיד במפגש 2.
                                         </p>
                                       </div>
                                     </div>
@@ -1943,7 +1946,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                         className="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/50 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 font-bold text-xs rounded-xl border border-indigo-200 dark:border-indigo-800 transition-all cursor-pointer flex items-center gap-1.5"
                                       >
                                         <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                                        <span>אישור שער ועריכת תרגילים</span>
+                                        <span>אישור שער מעבר</span>
                                       </button>
                                     </div>
                                   </div>
