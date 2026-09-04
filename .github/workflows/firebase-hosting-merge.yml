@@ -71,7 +71,7 @@ jobs:
 
       - name: Deploy Cloud Functions
         if: '!cancelled()'
-        run: npx --yes firebase-tools@13 deploy --only functions --project mathimaticore --non-interactive
+        run: npx --yes firebase-tools@13 deploy --only functions --project mathimaticore --non-interactive --force
 
       - name: Deploy Realtime Database rules
         if: '!cancelled()'

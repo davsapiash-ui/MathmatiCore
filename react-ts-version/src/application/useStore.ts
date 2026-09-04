@@ -58,25 +58,10 @@ export interface TraceData {
 export type RoutePath = 'GREEN' | 'YELLOW';
 /**
  * PENDING              — the curriculum router produced a plan; teacher review pending.
- * PLAN_APPROVED        — the teacher accepted the AI plan. The gate is NOT open.
  * PENDING_TEACHER_APPROVAL — the learner finished session 2 and is waiting at the gate.
  * APPROVED             — the teacher gate is open (written only by core/teacherGate.ts).
  */
-export type RouteStatus = 'PENDING' | 'PLAN_APPROVED' | 'APPROVED' | 'PENDING_TEACHER_APPROVAL' | 'SANDBOX' | 'DIAGNOSTIC' | 'ADAPTIVE';
-
-export interface DiagnosticReport {
-  studentId: string;
-  studentName: string;
-  timestamp: number;
-  clinicalDiagnosisHe: string;
-  actionPlanHe: string;
-  tasks: unknown[];
-  qMatrixResults: QMatrix;
-  traceData: TraceData;
-  effort: number | null;
-  strategy: string | null;
-  conceptMastery?: MasteryProfile;
-}
+export type RouteStatus = 'PENDING' | 'APPROVED' | 'PENDING_TEACHER_APPROVAL' | 'SANDBOX' | 'DIAGNOSTIC' | 'ADAPTIVE';
 
 export interface StudentData {
   studentId: string;
@@ -98,7 +83,6 @@ export interface StudentData {
   physicalOverride?: boolean;
   physicalOverrideActive?: boolean;
   overrideUpdatedAt?: number;
-  diagnosticReport?: DiagnosticReport | null;
   conceptMastery?: MasteryProfile;
   isOnline?: boolean;
   workspaceState?: {
@@ -225,7 +209,6 @@ export const initStoreSubscriptions = (): (() => void) => {
             isASD: row.isASD !== undefined ? row.isASD : prev.isASD,
             physicalOverride: Boolean(row.physicalOverride ?? prev.physicalOverride ?? false),
             physicalOverrideActive: Boolean(row.physicalOverrideActive ?? prev.physicalOverrideActive ?? false),
-            diagnosticReport: row.diagnosticReport || prev.diagnosticReport || null,
             isOnline: Boolean(row.isOnline === true && row.lastPing && (Date.now() - row.lastPing <= 15000)),
             qMatrixResults: {
               ...(prev.qMatrixResults || {}),
@@ -671,7 +654,6 @@ export const useStore = create<AppState>()(
             activeSessionId: 1,
             qMatrixResults: null,
             traceData: null,
-            diagnosticReport: null,
             reflections: null,
             enhanced_support_profile: false,
             support_profile_id: null,
@@ -723,7 +705,6 @@ export const useStore = create<AppState>()(
           isOnline: false,
           physicalOverride: false,
           physicalOverrideActive: false,
-          diagnosticReport: null,
           reflections: null,
         };
 
@@ -824,7 +805,6 @@ export const useStore = create<AppState>()(
               activeSessionId: 1,
               qMatrixResults: null,
               traceData: null,
-              diagnosticReport: null,
               reflections: null,
               enhanced_support_profile: false,
             support_profile_id: null,
@@ -897,7 +877,6 @@ export const useStore = create<AppState>()(
             isOnline: false,
             physicalOverride: false,
             physicalOverrideActive: false,
-            diagnosticReport: null,
             reflections: null,
           };
           cleanStudents[normId] = cleanStudent;

@@ -68,7 +68,7 @@ describe('Work Package 4 (WP4): Session Progression (1-8), Projector Sync & SRL 
       const pastDeadline = fixedStartTime + 10 * 60 * 1000; // 10 minutes remaining
 
       // Simulate existing session with 10 min left
-      store.initSession(3, false, null, 0, pastDeadline);
+      store.initSession(3, false, 0, pastDeadline);
       expect(useWorkspaceStore.getState().sessionDeadlineTime).toBe(pastDeadline);
       expect(useWorkspaceStore.getState().getSessionRemainingSeconds()).toBeLessThanOrEqual(10 * 60);
 

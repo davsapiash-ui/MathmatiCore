@@ -102,7 +102,7 @@ const INITIAL_MOCK_STUDENTS: AnonymousStudent[] = Array.from({ length: 12 }, (_,
 const INITIAL_MOCK_FEED: LiveFeedItem[] = [];
 
 interface HeatmapGridProps {
-  /** Called when teacher clicks Drill Down — parent opens full StudentSideDrawer */
+  /** Called when teacher clicks Drill Down — parent opens the learner drawer */
   onDrillDown?: (studentId: string) => void;
   initialStudents?: AnonymousStudent[];
 }

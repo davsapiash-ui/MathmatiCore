@@ -239,20 +239,6 @@ export class FirebaseSyncService {
             return;
           }
 
-          if (data.workspaceState?.aiTasks && Array.isArray(data.workspaceState.aiTasks)) {
-            // Check if server aiTasks is newer than local aiTasks (Merge Conflict Resolution)
-            const localAiTasks = useWorkspaceStore.getState().aiTasks;
-            const serverTimestamp = data.workspaceState.aiTasksUpdatedAt || 0;
-            const localTimestamp = (useWorkspaceStore.getState() as any).aiTasksUpdatedAt || 0;
-
-            if (!localAiTasks || serverTimestamp >= localTimestamp) {
-              useWorkspaceStore.setState({
-                aiTasks: data.workspaceState.aiTasks,
-                ...(data.workspaceState.dynamicTasks ? { dynamicTasks: data.workspaceState.dynamicTasks } : {})
-              });
-            }
-          }
-
           // Real-time synchronization of teacher adaptations to student workspace
           const wsOverrides: Record<string, any> = {};
           if (data.isASD !== undefined && data.isASD !== useWorkspaceStore.getState().isASD) {
@@ -368,22 +354,14 @@ export class FirebaseSyncService {
         } : null,
       };
 
-      // Protection against Socratic Engine Desync: Only sync aiTasks if explicitly set by local user action
-      if (state.aiTasks && Array.isArray(state.aiTasks) && state.aiTasks.length > 0) {
-        syncableData.aiTasks = state.aiTasks;
-      }
-
       // PRD Section 5.2: Enforce <50KB payload limit for Transient State Sync
       const MAX_PAYLOAD_BYTES = 50 * 1024; // 50KB
       const payloadJson = JSON.stringify(syncableData);
       const updatePayload = payloadJson.length > MAX_PAYLOAD_BYTES ? (() => {
         console.warn(
-          `[FirebaseSyncService] Payload size ${payloadJson.length} bytes exceeds 50KB limit. Trimming aiTasks and qflow history.`
+          `[FirebaseSyncService] Payload size ${payloadJson.length} bytes exceeds 50KB limit. Trimming qflow history.`
         );
         const trimmed = { ...syncableData };
-        if (trimmed.aiTasks && Array.isArray(trimmed.aiTasks) && trimmed.aiTasks.length > 5) {
-          trimmed.aiTasks = trimmed.aiTasks.slice(-5);
-        }
         if (trimmed.qflow && typeof trimmed.qflow === 'object' && trimmed.qflow.results) {
           const keys = Object.keys(trimmed.qflow.results);
           if (keys.length > 20) {
@@ -472,7 +450,6 @@ export class FirebaseSyncService {
         numberB: currentTask.numberB ?? null,
         isSubtraction: currentTask.isSubtraction ?? false,
       } : null,
-      aiTasks: state.aiTasks
     };
 
     return JSON.parse(JSON.stringify(raw, (_k, v) => (v === undefined ? null : v)));

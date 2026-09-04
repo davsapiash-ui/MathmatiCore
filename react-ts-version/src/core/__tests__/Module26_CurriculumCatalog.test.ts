@@ -58,31 +58,4 @@ describe('Module 26: מודול קטלוג תוכנית הלימודים (Canoni
       expect(t.isCompulsory).toBe(true);
     });
   });
-
-  it('guarantees catalog/task updates only mutate pending tasks, preserving currently active exercise', () => {
-    useWorkspaceStore.getState().resetWorkspace();
-    useWorkspaceStore.getState().initSession(3, false);
-
-    const initialActive = selectStandardTask(useWorkspaceStore.getState());
-    expect(initialActive).toBeDefined();
-
-    // Student is active on task index 0
-    expect(useWorkspaceStore.getState().standardTaskIdx).toBe(0);
-
-    const replacementTasks: any = [
-      { id: 'mutated_0', titleHe: 'Mutated 0', instructionHe: 'Do not overwrite active' },
-      { id: 'mutated_1', titleHe: 'Mutated 1', instructionHe: 'Pending task' },
-    ];
-
-    useWorkspaceStore.getState().setAITasks(replacementTasks);
-
-    // Active task at index 0 remains unmutated
-    const currentActiveAfterUpdate = selectStandardTask(useWorkspaceStore.getState());
-    expect(currentActiveAfterUpdate?.id).toBe(initialActive?.id);
-    expect(currentActiveAfterUpdate?.id).not.toBe('mutated_0');
-
-    // Pending task at index 1 receives the update
-    const allTasks = useWorkspaceStore.getState().aiTasks;
-    expect(allTasks?.[1]?.id).toBe('mutated_1');
-  });
 });

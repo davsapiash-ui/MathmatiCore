@@ -24,16 +24,6 @@ describe('Module 20: single-writer invariant for the teacher gate', () => {
     expect(src).toContain('pedagogicalPath: path');
   });
 
-  it('SocraticEngine.approveTasks approves the plan without opening the gate', () => {
-    const src = read('infrastructure/services/SocraticEngine.ts');
-    const start = src.indexOf('static async approveTasks(');
-    expect(start).toBeGreaterThan(-1);
-    const body = src.slice(start, src.indexOf('static async updatePendingTasks(', start));
-    expect(body).toContain("routeStatus: 'PLAN_APPROVED'");
-    expect(body).not.toContain('teacher_gate_approved');
-    expect(body).not.toContain('"APPROVED"');
-  });
-
   it('FirebaseSyncService no longer carries a second gate-approval writer', () => {
     const src = read('infrastructure/services/FirebaseSyncService.ts');
     expect(src).not.toContain('public async syncApproveRoute');

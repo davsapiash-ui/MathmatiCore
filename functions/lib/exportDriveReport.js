@@ -547,6 +547,9 @@ async function runBackupAndReset(request) {
             for (const k of keys) {
                 await rtdb.ref(`users/students/${k}`).remove().catch(() => { });
                 await rtdb.ref(`chat_messages/${k}`).remove().catch(() => { });
+                // Leftover of the removed AI-plan subsystem; wiped so an old per-learner
+                // task list can never resurface.
+                await rtdb.ref(`approved_tasks/${k}`).remove().catch(() => { });
                 deletedCount++;
             }
             // Clear student session documents in Firestore
@@ -570,6 +573,10 @@ async function runBackupAndReset(request) {
             await rtdb.ref("replays").remove().catch(() => { });
             await rtdb.ref("sessions").remove().catch(() => { });
             await rtdb.ref("telemetry_sessions").remove().catch(() => { });
+            // Leftovers of the removed AI-plan subsystem (per-learner task lists and
+            // teacher approval queues); wiped so nothing stale can resurface.
+            await rtdb.ref("approved_tasks").remove().catch(() => { });
+            await rtdb.ref("ai_pending_approvals").remove().catch(() => { });
             await rtdb.ref("system_control/projector_mode").set({ active: false, projector_mode: false, projector_mode_updated_at: Date.now() }).catch(() => { });
             await rtdb.ref("active_class_session").set({ active: true, sessionNumber: 1, timestamp: Date.now() }).catch(() => { });
             // Clear all usage data collections in Firestore completely

@@ -337,7 +337,7 @@ describe('Challenger 1 — Adversarial Stress & Fuzz Suite: Arithmetic & VRA Eng
   describe('4. 0-Value Difference Checks & Boundary Operations', () => {
 
     it('validates 0-value difference without empty_board rejection', () => {
-      useWorkspaceStore.getState().initSession(1, false, null, 0);
+      useWorkspaceStore.getState().initSession(1, false, 0);
 
       // Simulate a task where target = 0 (e.g. 5 - 5 = 0)
       useWorkspaceStore.setState({
@@ -397,7 +397,7 @@ describe('Challenger 1 — Adversarial Stress & Fuzz Suite: Arithmetic & VRA Eng
   describe('5. Rapid Undo Hammering & State Stack Integrity', () => {
 
     it('preserves exact history and bounds undo stack at UNDO_STACK_CAP (50) under 100 rapid operations', () => {
-      useWorkspaceStore.getState().initSession(1, false, null, 0);
+      useWorkspaceStore.getState().initSession(1, false, 0);
 
       // Perform 60 rapid block additions and operations
       for (let i = 0; i < 60; i++) {
@@ -426,7 +426,7 @@ describe('Challenger 1 — Adversarial Stress & Fuzz Suite: Arithmetic & VRA Eng
     });
 
     it('correctly reverts complex split and group sequences with undo', () => {
-      useWorkspaceStore.getState().initSession(1, false, null, 0);
+      useWorkspaceStore.getState().initSession(1, false, 0);
 
       // Initial state: 1 ten, 0 units
       useWorkspaceStore.setState({
@@ -467,7 +467,7 @@ describe('Challenger 1 — Adversarial Stress & Fuzz Suite: Arithmetic & VRA Eng
     });
 
     it('triggers Socratic passive drifting on rapid undo spamming (>= 3 undos within 15s)', () => {
-      useWorkspaceStore.getState().initSession(1, false, null, 0);
+      useWorkspaceStore.getState().initSession(1, false, 0);
 
       // Setup initial snapshots
       useWorkspaceStore.setState({
@@ -628,7 +628,7 @@ describe('Challenger 1 — Adversarial Stress & Fuzz Suite: Arithmetic & VRA Eng
   describe('7. Board Lock Immutability & Penalty Lockout Hardening', () => {
 
     it('strictly prevents all block modifications and undos when isBoardLocked is true', () => {
-      useWorkspaceStore.getState().initSession(1, false, null, 0);
+      useWorkspaceStore.getState().initSession(1, false, 0);
       useWorkspaceStore.setState({
         counts: { units: 5, tens: 5, hundreds: 5, thousands: 5 },
         isBoardLocked: true,
@@ -691,7 +691,7 @@ describe('Challenger 1 — Adversarial Stress & Fuzz Suite: Arithmetic & VRA Eng
   describe('8. 4-Digit Multi-Step Arithmetic Integration & Gate Stress', () => {
 
     it('correctly validates multi-gate vertical addition with carries and memory boxes', () => {
-      useWorkspaceStore.getState().initSession(3, false, null, 0);
+      useWorkspaceStore.getState().initSession(3, false, 0);
 
       // Task: 4890 + 1750 = 6640
       const mockTask = {
@@ -722,7 +722,7 @@ describe('Challenger 1 — Adversarial Stress & Fuzz Suite: Arithmetic & VRA Eng
     });
 
     it('rejects vertical addition when answer digits do not match board value', () => {
-      useWorkspaceStore.getState().initSession(3, false, null, 0);
+      useWorkspaceStore.getState().initSession(3, false, 0);
 
       useWorkspaceStore.setState({
         counts: { units: 0, tens: 4, hundreds: 6, thousands: 6 }, // 6640

@@ -190,7 +190,6 @@ interface WorkspaceState {
   frictionTriggerSource: 'lightbulb' | 'mistake' | null;
 
   /** Teacher-approved AI-generated task list (Socratic Engine); overrides session tasks when set. */
-  aiTasks: SessionTask[] | null;
   /** Dynamically injected tasks for the current session (Micro-Agility engine). Takes precedence if length > 0. */
   dynamicTasks: SessionTask[] | null;
   nodeStrikes: Record<string, number>;
@@ -214,7 +213,7 @@ interface WorkspaceState {
   toggleAdditionHelper: () => void;
   injectTask: (task: SessionTask, position: 'next' | 'end') => void;
   startSession: (meeting: number) => void;
-  initSession: (meeting: SessionNumber, isASD: boolean, aiTasks?: SessionTask[] | null, startingTaskIdx?: number, existingDeadline?: number | null) => void;
+  initSession: (meeting: SessionNumber, isASD: boolean, startingTaskIdx?: number, existingDeadline?: number | null) => void;
   restoreSession: (savedState: any) => void;
   getSessionRemainingSeconds: () => number;
   selectBranch: (branch: 'reinforcement' | 'challenge') => void;
@@ -252,7 +251,6 @@ interface WorkspaceState {
   helpFrictionDone: () => void;
   chooseSupport: (type: SupportType) => void;
   closeHelp: () => void;
-  setAITasks: (tasks: SessionTask[] | null) => void;
   showFeedback: (feedback: FeedbackState, ms: number, then?: () => void) => void;
   fetchSocraticHint: () => Promise<void>;
   unlockKeyboard: () => void;
@@ -376,7 +374,6 @@ export function getActiveTasks(s: WorkspaceState): SessionTask[] {
   // Session 2 runs through the Q-Matrix flow — it has no standard task list.
   if (s.sessionNumber === 2) return [];
   if (s.dynamicTasks) return s.dynamicTasks;
-  if (s.sessionNumber >= 3 && s.aiTasks) return s.aiTasks;
   return getSessionTasks(s.sessionNumber as any, resolveLearningPath()) ?? [];
 }
 
@@ -585,7 +582,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
   /**
    * Module 19 §ב Safe Application Boundary: applies a teacher-queued
    * differentiation change staged via RTDB users/students/{id}/pendingAdaptation
-   * (see StudentSideDrawer's onApplyAdaptation). Called only from startTask()
+   * (see the learner drawer's onApplyAdaptation). Called only from startTask()
    * — the one choke point every new task passes through, regardless of
    * whether it arrived via the Session-2 qflow or the standard task list —
    * so a change made mid-exercise never lands before the exercise ends.
@@ -1315,7 +1312,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     hasDigitErrorInTask: false,
     socraticDistractorErrors: 0,
     lastInteractionTime: Date.now(),
-    aiTasks: null,
     dynamicTasks: null,
     nodeStrikes: {},
     successStreak: 0,
@@ -1335,26 +1331,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       set({ pendingSupportProfileId: profileId });
     },
 
-    setAITasks: (newTasks) => {
-      set((state) => {
-        if (!newTasks || newTasks.length === 0) return { aiTasks: newTasks };
-        const currentActiveTasks = getActiveTasks(state);
-        // PRD v7.0 Module 26: Apply changes exclusively to pending or unstarted worksheets to prevent workspace corruption during live sessions
-        const currentIdx = state.standardTaskIdx;
-        if (currentActiveTasks.length > 0 && currentIdx < currentActiveTasks.length) {
-          const preservedCurrentAndPast = currentActiveTasks.slice(0, currentIdx + 1);
-          const pendingUpdates = newTasks.slice(currentIdx + 1);
-          return { aiTasks: [...preservedCurrentAndPast, ...pendingUpdates] };
-        }
-        return { aiTasks: newTasks };
-      });
-    },
-
     startSession: (meeting: number) => {
       get().initSession(sanitizeSessionNumber(meeting), get().isASD);
     },
 
-    initSession: (meeting, isASD, initialAITasks, startingTaskIdx, existingDeadline) => {
+    initSession: (meeting, isASD, startingTaskIdx, existingDeadline) => {
       const sanitized = sanitizeSessionNumber(meeting);
       // PRD v7.1 Module 26: promote pending curriculum-catalog updates only at
       // session initialization — a live exercise is never disturbed.
@@ -1393,7 +1374,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         sessionDurationMinutes: durationMin,
         sessionDeadlineTime: deadline,
         selectedBranch: null,
-        aiTasks: initialAITasks ?? null,
         dynamicTasks: null,
         nodeStrikes: {},
         successStreak: 0,
@@ -1502,7 +1482,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         taskStartTime: saved.taskStartTime ?? Date.now(),
         sessionStartTimeMs: saved.sessionStartTimeMs ?? Date.now(),
         isTimeExceeded: saved.isTimeExceeded ?? false,
-        aiTasks: saved.aiTasks ?? null,
         dynamicTasks: null,
         nodeStrikes: {},
         successStreak: 0,
@@ -2531,7 +2510,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         typedErrorCount: 0,
         socraticDistractorErrors: 0,
         lastInteractionTime: Date.now(),
-        aiTasks: null,
         dynamicTasks: null,
         nodeStrikes: {},
         successStreak: 0,

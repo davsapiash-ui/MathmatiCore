@@ -111,7 +111,7 @@ describe('Remediations Verification Suite (R1 - R5)', () => {
   describe('R2: Arithmetic Engine & VRA Invariant Remediations', () => {
     it('allows 0-value subtraction / difference without empty_board rejection', () => {
       const ws = useWorkspaceStore.getState();
-      ws.initSession(1, false, null, 0);
+      ws.initSession(1, false, 0);
 
       // Set counts to 0 (empty board representing 0)
       useWorkspaceStore.setState({
