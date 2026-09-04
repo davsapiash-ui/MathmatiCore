@@ -30,7 +30,7 @@ import {
 import { Send, MessageCircle, ShieldAlert, Sliders, Search, Check, CheckCheck, Sparkles, Users, Mail } from "lucide-react";
 
 import { ClassManagement } from "./TeacherDashboard/ClassManagement";
-import { StudentReplayAndLogs } from "./TeacherDashboard/components/StudentReplayAndLogs";
+import { LearnerJourney } from "./TeacherDashboard/components/LearnerJourney";
 import { StudentLearningConditionsDrawer } from "./TeacherDashboard/components/StudentLearningConditionsDrawer";
 import { TeacherGateApprovalDrawer } from "./TeacherDashboard/components/TeacherGateApprovalDrawer";
 import { FloatingChatPanel } from "./TeacherDashboard/components/FloatingChatPanel";
@@ -1795,7 +1795,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
 
                             {/* Video Replay & Logs Summary Banner */}
                             <div className="mb-6">
-                              <StudentReplayAndLogs studentId={effectiveReplayStudentId} />
+                              <LearnerJourney studentId={effectiveReplayStudentId} />
                             </div>
 
                             {/* Main Content Row: Q-Matrix & Traces */}
