@@ -1,4 +1,4 @@
-import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { onCall, HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import { GoogleAuth } from "google-auth-library";
@@ -395,7 +395,29 @@ export interface ResetAuditEntry {
  * 4. Log immutable audit entry into reset_audit_log.
  * 5. If backup fails, abort deletion immediately with exact Hebrew error message.
  */
-export const backupAndResetSessionData = onCall(async (request) => {
+// A system-level backup reads every learner record, every session and the
+// whole chat log out of RTDB, serialises them, and (for Drive) base64-encodes
+// the result — several copies of the snapshot in memory at once. The callable
+// defaults (60 s, 256 MiB) were enough for an empty class and not for a class
+// that has been used; the function then died mid-flight and the client saw a
+// bare "internal" with no message. Give it room, and turn anything that still
+// escapes the guarded steps into an error that says what happened.
+const RESET_RUNTIME = { timeoutSeconds: 540, memory: "1GiB" as const };
+
+export const backupAndResetSessionData = onCall(RESET_RUNTIME, async (request) => {
+  try {
+    return await runBackupAndReset(request);
+  } catch (err: any) {
+    if (err instanceof HttpsError) throw err;
+    logger.error("backupAndResetSessionData failed outside its guarded steps:", err);
+    throw new HttpsError(
+      "internal",
+      `שגיאה פנימית באיפוס: ${err?.message || String(err)}. לא נמחקו נתונים.`
+    );
+  }
+});
+
+async function runBackupAndReset(request: CallableRequest<any>) {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "User must be authenticated.");
   }
@@ -524,8 +546,15 @@ export const backupAndResetSessionData = onCall(async (request) => {
   // Step 2: Write backup file to Google Drive, falling back to this project's
   // own Cloud Storage bucket, and only as a last resort to a Firestore doc.
   const backupFileName = `Backup_${reset_level}_${class_id}_${Date.now()}.json`;
-  const backupBuffer = Buffer.from(JSON.stringify(collectedData, null, 2), "utf-8");
-  let driveResult = await uploadBufferToDrive(backupBuffer, backupFileName, "application/json");
+  const backupBuffer = Buffer.from(JSON.stringify(collectedData), "utf-8");
+  logger.info(`Reset ${resetId}: ${reset_level} backup is ${backupBuffer.length} bytes`);
+
+  // The Drive upload holds a base64 copy of the whole snapshot in memory; past
+  // this size go straight to this project's own bucket, which streams.
+  const DRIVE_MAX_BYTES = 30 * 1024 * 1024;
+  let driveResult = backupBuffer.length <= DRIVE_MAX_BYTES
+    ? await uploadBufferToDrive(backupBuffer, backupFileName, "application/json")
+    : { success: false, fileId: '', webViewLink: '', error: `backup of ${backupBuffer.length} bytes is above the Drive multipart ceiling` };
 
   // Fallback 1: Google Drive needs external OAuth (domain-wide delegation for
   // SERVICE_ACCOUNT_EMAIL) that isn't guaranteed to be provisioned in every
@@ -684,7 +713,7 @@ export const backupAndResetSessionData = onCall(async (request) => {
     logger.error("Error during deletion step:", deleteErr);
     throw new HttpsError("internal", "שגיאה בביצוע האיפוס לאחר הגיבוי.");
   }
-});
+}
 
 /**
  * Helper to get or create a folder in Google Drive by name under a parent folder.

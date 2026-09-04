@@ -11,6 +11,11 @@ import { hasEnhancedSupport, ENHANCED_SUPPORT_PROFILE_ID } from '@/core/supportP
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import type { ResetReason } from '@/types';
 
+// The reset callable backs up the whole class before it deletes anything; the
+// server side is allowed 540 s for that, so the client must wait as long
+// instead of giving up at the SDK's 70 s default.
+const RESET_CALLABLE_TIMEOUT_MS = 540_000;
+
 export interface QMatrix {
   task1_read_write_zero?: string | null;
   task2_digit_value?: string | null;
@@ -617,7 +622,7 @@ export const useStore = create<AppState>()(
         // write the backup, await acknowledgment — and only then delete. If the
         // backup fails for any reason the deletion must not happen at all.
         try {
-          const backupResetCallable = httpsCallable(functions, 'backupAndResetSessionData');
+          const backupResetCallable = httpsCallable(functions, 'backupAndResetSessionData', { timeout: RESET_CALLABLE_TIMEOUT_MS });
           await backupResetCallable({
             reset_level: 'single_student',
             reason,
@@ -747,7 +752,7 @@ export const useStore = create<AppState>()(
        */
       resetRadarAlerts: async (reason: ResetReason, reasonNote?: string) => {
         try {
-          const backupResetCallable = httpsCallable(functions, 'backupAndResetSessionData');
+          const backupResetCallable = httpsCallable(functions, 'backupAndResetSessionData', { timeout: RESET_CALLABLE_TIMEOUT_MS });
           await backupResetCallable({
             reset_level: 'alerts',
             reason,
@@ -768,7 +773,7 @@ export const useStore = create<AppState>()(
         // system reset too. A failed backup must abort the deletion entirely —
         // no partial deletion is ever permitted.
         try {
-          const backupResetCallable = httpsCallable(functions, 'backupAndResetSessionData');
+          const backupResetCallable = httpsCallable(functions, 'backupAndResetSessionData', { timeout: RESET_CALLABLE_TIMEOUT_MS });
           await backupResetCallable({
             reset_level: 'system',
             reason,
