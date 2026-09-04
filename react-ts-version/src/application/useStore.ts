@@ -626,8 +626,15 @@ export const useStore = create<AppState>()(
             class_id: 'class_1',
           });
         } catch (err: any) {
+          const code: string = typeof err?.code === 'string' ? err.code : '';
+          const serverMessage: string = typeof err?.message === 'string' ? err.message : '';
+          if (code.endsWith('permission-denied')) {
+            console.error('[Module 23א] Student reset denied by the server, no data deleted:', err);
+            toast.error(serverMessage || 'אין הרשאה לאיפוס. לא נמחקו נתונים.');
+            throw new Error('RESET_PERMISSION_DENIED');
+          }
           console.error('[Module 23א] Backup failed — reset aborted, no data deleted:', err);
-          toast.error('הגיבוי נכשל. האיפוס בוטל ולא נמחקו נתונים.');
+          toast.error(serverMessage ? `הגיבוי נכשל: ${serverMessage}. האיפוס בוטל ולא נמחקו נתונים.` : 'הגיבוי נכשל. האיפוס בוטל ולא נמחקו נתונים.');
           throw new Error('BACKUP_FAILED_RESET_ABORTED');
         }
 
@@ -768,8 +775,18 @@ export const useStore = create<AppState>()(
             class_id: 'class_1',
           });
         } catch (err: any) {
+          // The server rejects for more reasons than a failed backup (no
+          // permission, bad argument, timeout). Say which one, so a denied
+          // reset is not reported as a backup failure.
+          const code: string = typeof err?.code === 'string' ? err.code : '';
+          const serverMessage: string = typeof err?.message === 'string' ? err.message : '';
+          if (code.endsWith('permission-denied')) {
+            console.error('[Module 23א] System reset denied by the server, no data deleted:', err);
+            toast.error(serverMessage || 'אין הרשאה לאיפוס. לא נמחקו נתונים.');
+            throw new Error('RESET_PERMISSION_DENIED');
+          }
           console.error('[Module 23א] Backup failed — system reset aborted, no data deleted:', err);
-          toast.error('הגיבוי נכשל. האיפוס בוטל ולא נמחקו נתונים.');
+          toast.error(serverMessage ? `הגיבוי נכשל: ${serverMessage}. האיפוס בוטל ולא נמחקו נתונים.` : 'הגיבוי נכשל. האיפוס בוטל ולא נמחקו נתונים.');
           throw new Error('BACKUP_FAILED_RESET_ABORTED');
         }
 
