@@ -4,14 +4,13 @@ exports.getPedagogicalReportDownloadUrl = exports.generatePedagogicalReportPDF =
 exports.wrapAndBidi = wrapAndBidi;
 exports.shapeRtl = shapeRtl;
 exports.createPedagogicalReportPdfBuffer = createPedagogicalReportPdfBuffer;
-exports.sessionNumberFromId = sessionNumberFromId;
-exports.computeFirstAttemptScore = computeFirstAttemptScore;
 const https_1 = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
 const path = require("path");
 const fs = require("fs");
 const exportDriveReport_1 = require("./exportDriveReport");
+const meetingMetrics_1 = require("./meetingMetrics");
 const geminiConfig_1 = require("./geminiConfig");
 const reportAnalysis_1 = require("./reportAnalysis");
 const PDFDocument = require("pdfkit");
@@ -294,14 +293,6 @@ function createPedagogicalReportPdfBuffer(report) {
         }
     });
 }
-/** "session_3_student_user4" / "session_03_student_4" → 3; anything else → null. */
-function sessionNumberFromId(sessionId) {
-    const m = /^session_0?(\d)(?:_|$)/.exec(String(sessionId || ""));
-    if (!m)
-        return null;
-    const n = parseInt(m[1], 10);
-    return n >= 1 && n <= 8 ? n : null;
-}
 const TELEMETRY_PAGE = 500;
 const TELEMETRY_MAX_PAGES = 200; // 100,000 events — far beyond one learner's meeting.
 /**
@@ -330,43 +321,6 @@ async function readAllTelemetryForSession(db, sessionId) {
     docs.sort((a, b) => (a.client_timestamp || 0) - (b.client_timestamp || 0));
     return docs;
 }
-/**
- * PRD Module 23 §ב, applied to one meeting's telemetry:
- * "נפתר נכון בניסיון ראשון" = a PROBLEM_COMPLETE for the exercise with no
- * earlier DIGIT_ENTERED whose is_correct === false in the same exercise_id;
- * is_correct === null is ignored entirely. Score = correct ÷ compulsory × 100.
- *
- * `compulsoryTotal` is the meeting's number of compulsory exercises (7 for the
- * diagnostic meeting, the bank's count otherwise). When it is unknown, the
- * exercises the learner actually opened are the denominator.
- */
-function computeFirstAttemptScore(telemetryDocs, compulsoryTotal) {
-    var _a;
-    const wrongBeforeComplete = new Set();
-    const completedFirstTry = new Set();
-    const attempted = new Set();
-    for (const ev of telemetryDocs) {
-        const exId = String((ev === null || ev === void 0 ? void 0 : ev.exercise_id) || "");
-        if (!exId)
-            continue;
-        attempted.add(exId);
-        if (ev.event_type === "DIGIT_ENTERED" && ((_a = ev.details) === null || _a === void 0 ? void 0 : _a.is_correct) === false) {
-            wrongBeforeComplete.add(exId);
-        }
-        else if (ev.event_type === "PROBLEM_COMPLETE" && !wrongBeforeComplete.has(exId)) {
-            completedFirstTry.add(exId);
-        }
-    }
-    const denominator = compulsoryTotal && compulsoryTotal > 0 ? compulsoryTotal : Math.max(1, attempted.size);
-    const correct = Math.min(completedFirstTry.size, denominator);
-    return {
-        scorePercent: Math.round((correct / denominator) * 100),
-        correctFirstAttempt: correct,
-        attempted: attempted.size,
-        denominator,
-    };
-}
-const DIAGNOSTIC_COMPULSORY_COUNT = 7;
 /**
  * generatePedagogicalReportPDF (Module 23: Pedagogical Reporting Engine)
  * Computes metrics, builds deterministic Exercise Narratives, renders an authoritative
@@ -398,7 +352,7 @@ exports.generatePedagogicalReportPDF = (0, https_1.onCall)(geminiConfig_1.GEMINI
     const clampedStudentNum = Math.min(12, Math.max(1, parseInt(studentDigits, 10)));
     const resolvedSessionNumber = Number(sessionNumber) ||
         Number(sessionDoc.exists ? (_b = sessionDoc.data()) === null || _b === void 0 ? void 0 : _b.session_number : 0) ||
-        sessionNumberFromId(sessionId) ||
+        (0, meetingMetrics_1.sessionNumberFromId)(sessionId) ||
         2;
     // Every telemetry event of this meeting, for the narrative, the score and the analysis.
     const telemetryDocs = await readAllTelemetryForSession(db, sessionId);
@@ -417,7 +371,7 @@ exports.generatePedagogicalReportPDF = (0, https_1.onCall)(geminiConfig_1.GEMINI
     else if (telemetryDocs.length > 0) {
         // No SessionDocument (meetings other than 2 never get one): the PRD score
         // rule applied to this meeting's own telemetry.
-        let compulsoryTotal = resolvedSessionNumber === 2 ? DIAGNOSTIC_COMPULSORY_COUNT : null;
+        let compulsoryTotal = resolvedSessionNumber === 2 ? meetingMetrics_1.DIAGNOSTIC_COMPULSORY_COUNT : null;
         if (compulsoryTotal === null) {
             try {
                 const path = studentVal.teacher_selected_path === "remediation_path" || studentVal.pedagogicalPath === "remediation_path"
@@ -438,7 +392,7 @@ exports.generatePedagogicalReportPDF = (0, https_1.onCall)(geminiConfig_1.GEMINI
                 logger.warn("[Module23] Curriculum catalog unavailable for compulsory count.", { session_id: sessionId, error: String(err) });
             }
         }
-        const first = computeFirstAttemptScore(telemetryDocs, compulsoryTotal);
+        const first = (0, meetingMetrics_1.computeFirstAttemptScore)(telemetryDocs, compulsoryTotal);
         sessionData = {
             session_number: resolvedSessionNumber,
             is_completed: telemetryDocs.some((d) => d.event_type === "SESSION_END" || d.event_type === "PROBLEM_COMPLETE"),

@@ -4,6 +4,7 @@ import * as admin from "firebase-admin";
 import * as path from "path";
 import * as fs from "fs";
 import { DRIVE_FOLDERS, resolveDriveFolder, uploadBufferToDrive } from "./exportDriveReport";
+import { DIAGNOSTIC_COMPULSORY_COUNT, computeFirstAttemptScore, sessionNumberFromId } from "./meetingMetrics";
 import { GEMINI_SECRETS } from "./geminiConfig";
 import {
   buildFailedExercises,
@@ -311,14 +312,6 @@ export function createPedagogicalReportPdfBuffer(report: Record<string, any>): P
   });
 }
 
-/** "session_3_student_user4" / "session_03_student_4" → 3; anything else → null. */
-export function sessionNumberFromId(sessionId: string): number | null {
-  const m = /^session_0?(\d)(?:_|$)/.exec(String(sessionId || ""));
-  if (!m) return null;
-  const n = parseInt(m[1], 10);
-  return n >= 1 && n <= 8 ? n : null;
-}
-
 const TELEMETRY_PAGE = 500;
 const TELEMETRY_MAX_PAGES = 200; // 100,000 events — far beyond one learner's meeting.
 
@@ -348,45 +341,6 @@ async function readAllTelemetryForSession(
   docs.sort((a, b) => (a.client_timestamp || 0) - (b.client_timestamp || 0));
   return docs;
 }
-
-/**
- * PRD Module 23 §ב, applied to one meeting's telemetry:
- * "נפתר נכון בניסיון ראשון" = a PROBLEM_COMPLETE for the exercise with no
- * earlier DIGIT_ENTERED whose is_correct === false in the same exercise_id;
- * is_correct === null is ignored entirely. Score = correct ÷ compulsory × 100.
- *
- * `compulsoryTotal` is the meeting's number of compulsory exercises (7 for the
- * diagnostic meeting, the bank's count otherwise). When it is unknown, the
- * exercises the learner actually opened are the denominator.
- */
-export function computeFirstAttemptScore(
-  telemetryDocs: Record<string, any>[],
-  compulsoryTotal: number | null
-): { scorePercent: number; correctFirstAttempt: number; attempted: number; denominator: number } {
-  const wrongBeforeComplete = new Set<string>();
-  const completedFirstTry = new Set<string>();
-  const attempted = new Set<string>();
-  for (const ev of telemetryDocs) {
-    const exId = String(ev?.exercise_id || "");
-    if (!exId) continue;
-    attempted.add(exId);
-    if (ev.event_type === "DIGIT_ENTERED" && ev.details?.is_correct === false) {
-      wrongBeforeComplete.add(exId);
-    } else if (ev.event_type === "PROBLEM_COMPLETE" && !wrongBeforeComplete.has(exId)) {
-      completedFirstTry.add(exId);
-    }
-  }
-  const denominator = compulsoryTotal && compulsoryTotal > 0 ? compulsoryTotal : Math.max(1, attempted.size);
-  const correct = Math.min(completedFirstTry.size, denominator);
-  return {
-    scorePercent: Math.round((correct / denominator) * 100),
-    correctFirstAttempt: correct,
-    attempted: attempted.size,
-    denominator,
-  };
-}
-
-const DIAGNOSTIC_COMPULSORY_COUNT = 7;
 
 /**
  * generatePedagogicalReportPDF (Module 23: Pedagogical Reporting Engine)

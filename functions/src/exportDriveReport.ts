@@ -2,6 +2,7 @@ import { onCall, HttpsError, type CallableRequest } from "firebase-functions/v2/
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import { GoogleAuth } from "google-auth-library";
+import { computeFirstAttemptScore, readAllDocs, resolveCompulsoryTotal, sessionNumberFromId, summarizeMeeting } from "./meetingMetrics";
 
 const GOOGLE_DRIVE_FOLDER_ID = "0AMiALsm_TxT5Uk9PVA";
 const SERVICE_ACCOUNT_EMAIL = "1002220159@edu-haifa.org.il";
@@ -792,6 +793,8 @@ export function buildResetScope(level: 'single_student' | 'system', rawNum: stri
       "replays",
       "sessions",
       "telemetry_sessions",
+      // Learners' reflections are also pushed to this shared node (ReflectionScreen).
+      "reflections",
       // Leftovers of the removed AI-plan subsystem (per-learner task lists and
       // teacher approval queues); wiped so nothing stale can resurface.
       "approved_tasks",
@@ -1014,110 +1017,262 @@ async function getOrCreateDriveFolder(
 
 /**
  * Module 24: exportResearchDataset
- * Read-only Cloud Function exporting 4 sanitized CSV files to Google Drive:
- * 1. telemetry_events.csv
- * 2. session_documents.csv
- * 3. srl_reflections.csv
- * 4. reset_audit_log.csv
- * Strict requirements enforced:
- * - Scoped to authorized teacher for their own class_id (or admin).
- * - Rejects export if any PII pattern is detected.
- * - Strict Drive folder hierarchy: session_{sessionNum}/{exportDate}, never overwriting previous runs.
- * - Logs export action to reset_audit_log with reset_level: 'export'.
+ *
+ * Owner decision (5.9.2026): the research is the whole environment and the
+ * whole process — every meeting, every learner, every action — not only the
+ * routing decision of meetings 2 and 8. So this export is complete by
+ * construction: no page caps, every meeting, every source the learner writes
+ * to. Five CSV files (UTF-8 with BOM so Hebrew opens cleanly in Excel):
+ *
+ *   פעולות      — one row per telemetry event (the raw material)
+ *   מפגשים      — one row per learner × meeting: first-attempt score (PRD
+ *                 rule), counters (wrong digits, undos, deletions, hesitations,
+ *                 coaching cards, regroupings), active minutes, recording
+ *                 minutes, session-document score and path where one exists
+ *   הקלטות      — one row per screen recording (start, end, minutes, chunks, truncated)
+ *   רפלקציות    — every reflection, from Firestore and from the learners' RTDB nodes
+ *   יומן_איפוסים — every reset audit entry
+ *
+ * Still enforced: teacher/admin only, scoped to the caller's class; PII scan
+ * over every file; Drive hierarchy under "02 נתוני מחקר"; an audit entry.
+ * `session_number` narrows the export to one meeting; omit it (or pass "all")
+ * for the whole process.
  */
-export const exportResearchDataset = onCall(async (request) => {
+const EXPORT_RUNTIME = { timeoutSeconds: 540, memory: "1GiB" as const };
+
+export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "User must be authenticated.");
   }
 
-  const { class_id = "class_1", session_number = 1 } = request.data || {};
+  const { class_id = "class_1" } = request.data || {};
+  const rawSession = request.data?.session_number;
+  const scopedSession: number | null =
+    rawSession === undefined || rawSession === null || rawSession === "all" ? null : Number(rawSession) || null;
   const userEmail = request.auth.token.email || "teacher@edu-haifa.org.il";
-  const callerRoles = request.auth.token.roles || (request.auth.token.role ? [request.auth.token.role] : []);
-  const isTeacher = callerRoles.includes("TEACHER") || request.auth.token.role === "teacher";
-  const isAdmin = callerRoles.includes("ADMIN") || request.auth.token.role === "admin";
+  const token: Record<string, any> = request.auth.token;
+  const callerRoles: string[] = Array.isArray(token.roles) ? token.roles : (token.role ? [token.role] : []);
+  const isTeacher = callerRoles.includes("TEACHER") || token.role === "teacher" || token.teacher === true;
+  const isAdmin = callerRoles.includes("ADMIN") || token.role === "admin" || token.admin === true;
 
   // Requirement 1: Authorization Check restricting caller to teacher/admin and scoping to class_id
   if (!isTeacher && !isAdmin) {
     throw new HttpsError("permission-denied", "Only authorized teachers or admins may export research datasets.");
   }
 
-  const callerClassId = request.auth.token.class_id;
+  const callerClassId = token.class_id;
   if (isTeacher && !isAdmin && callerClassId && callerClassId !== class_id) {
     throw new HttpsError("permission-denied", `Teacher is strictly restricted to exporting their own assigned class_id (${callerClassId}).`);
   }
 
   const db = admin.firestore();
+  const rtdb = admin.database();
 
-  // Helper to convert objects array to CSV string
-  const toCsv = (rows: Record<string, any>[]): string => {
-    if (!rows || rows.length === 0) return "empty\n";
-    const headers = Object.keys(rows[0]);
-    const escapeCsv = (val: any) => `"${String(val ?? '').replace(/"/g, '""')}"`;
-    const headerLine = headers.map(escapeCsv).join(',');
-    const bodyLines = rows.map(row => headers.map(h => escapeCsv(row[h])).join(','));
-    return [headerLine, ...bodyLines].join('\n');
+  const toCsv = (rows: Record<string, any>[], columns?: string[]): string => {
+    if (!rows || rows.length === 0) return "﻿empty\n";
+    const headerSet = new Set<string>();
+    rows.forEach((r) => Object.keys(r).forEach((k) => headerSet.add(k)));
+    const headers = columns ?? Array.from(headerSet);
+    const cell = (val: any) => {
+      const text = val === null || val === undefined ? "" : typeof val === "object" ? JSON.stringify(val) : String(val);
+      return `"${text.replace(/"/g, '""')}"`;
+    };
+    const headerLine = headers.map(cell).join(",");
+    const bodyLines = rows.map((row) => headers.map((h) => cell(row[h])).join(","));
+    return "﻿" + [headerLine, ...bodyLines].join("\n");
+  };
+  const iso = (t: unknown) => (typeof t === "number" && t > 0 ? new Date(t).toISOString() : "");
+  const studentNumber = (v: unknown): number | null => {
+    const n = parseInt(String(v ?? "").replace(/\D/g, ""), 10);
+    return Number.isFinite(n) && n >= 1 && n <= 12 ? n : null;
   };
 
   try {
-    // Requirement 2: Four distinct Firestore collection queries
-    // 1. Telemetry logs
-    const telemetrySnap = await db.collection("telemetry_logs")
-      .where("session_id", ">=", `session_${session_number}`)
-      .limit(500)
-      .get()
-      .catch(async () => await db.collection("telemetry_logs").limit(500).get());
-    const telemetryRows = telemetrySnap.docs.map(d => ({ log_id: d.id, ...d.data() }));
+    // ── 1. Every telemetry event (optionally one meeting) ──────────────────
+    const allTelemetry = await readAllDocs(db.collection("telemetry_logs"));
+    const telemetry = allTelemetry
+      .map(({ id, data }) => ({ id, data, session_number: sessionNumberFromId(String(data.session_id || "")) }))
+      .filter((e) => scopedSession === null || e.session_number === scopedSession)
+      .sort((a, b) => (a.data.client_timestamp || 0) - (b.data.client_timestamp || 0));
 
-    // 2. Sessions
-    const sessionsSnap = await db.collection("sessions")
-      .where("class_id", "==", class_id)
-      .where("session_number", "==", session_number)
-      .get()
-      .catch(async () => await db.collection("sessions").where("class_id", "==", class_id).get());
-    const sessionRows = sessionsSnap.docs.map(d => ({ session_id: d.id, ...d.data() }));
+    const telemetryRows = telemetry.map(({ id, data, session_number }) => {
+      const d = data.details && typeof data.details === "object" ? data.details : {};
+      return {
+        log_id: id,
+        student_id: studentNumber(data.student_id) ?? data.student_id ?? "",
+        session_number: session_number ?? "",
+        session_id: data.session_id ?? "",
+        exercise_id: data.exercise_id ?? "",
+        event_type: data.event_type ?? "",
+        column_index: typeof data.column_index === "number" ? data.column_index : "",
+        client_timestamp: data.client_timestamp ?? "",
+        client_time_iso: iso(data.client_timestamp),
+        is_correct: d.is_correct === undefined ? "" : d.is_correct,
+        digit_value: d.digit_value ?? "",
+        deleted_digit_value: d.deleted_digit_value ?? "",
+        block_value: d.block_value ?? "",
+        regrouping_type: d.regrouping_type ?? "",
+        hesitation_seconds: d.hesitation_seconds ?? "",
+        trigger_reason: d.trigger_reason ?? "",
+        error_category: d.error_category ?? "",
+        undo_stack_depth_before: d.undo_stack_depth_before ?? "",
+        reverted_event_type: d.reverted_event_type ?? "",
+        details_json: d,
+      };
+    });
 
-    // 3. SRL Reflections
-    const reflectionsSnap = await db.collection("srl_reflections")
-      .where("session_number", "==", session_number)
-      .limit(500)
-      .get()
-      .catch(async () => await db.collection("srl_reflections").limit(500).get());
-    const reflectionRows = reflectionsSnap.docs.map(d => ({ reflection_id: d.id, ...d.data() }));
+    // ── 2. One row per learner × meeting ───────────────────────────────────
+    const sessionDocs = await readAllDocs(db.collection("sessions").where("class_id", "==", class_id))
+      .catch(async () => readAllDocs(db.collection("sessions")));
+    const sessionDocByKey = new Map<string, Record<string, any>>();
+    for (const { data } of sessionDocs) {
+      const n = studentNumber(data.student_id);
+      const m = Number(data.session_number) || sessionNumberFromId(String(data.session_id || "")) || null;
+      if (n !== null && m !== null) sessionDocByKey.set(`${n}:${m}`, data);
+    }
 
-    // 4. Reset Audit Log
-    const resetLogsSnap = await db.collection("reset_audit_log")
-      .where("class_id", "==", class_id)
-      .limit(500)
-      .get()
-      .catch(async () => await db.collection("reset_audit_log").limit(500).get());
-    const resetRows = resetLogsSnap.docs.map(d => ({ log_id: d.id, ...d.data() }));
+    const studentsSnap = await rtdb.ref("users/students").get();
+    const studentsNode: Record<string, any> = studentsSnap.val() || {};
+    const learnerPath = new Map<number, "green_path" | "remediation_path">();
+    const recordingRows: Record<string, any>[] = [];
+    const recordingMinutesByKey = new Map<string, { minutes: number; truncated: boolean }>();
+    const rtdbReflectionRows: Record<string, any>[] = [];
+    for (const [key, raw] of Object.entries(studentsNode)) {
+      const n = studentNumber(key);
+      if (n === null || !raw || typeof raw !== "object") continue;
+      const node = raw as Record<string, any>;
+      const path = node.teacher_selected_path === "remediation_path" || node.pedagogicalPath === "remediation_path" ? "remediation_path" : "green_path";
+      if (!learnerPath.has(n)) learnerPath.set(n, path);
 
-    const csv1 = toCsv(telemetryRows);
-    const csv2 = toCsv(sessionRows);
-    const csv3 = toCsv(reflectionRows);
-    const csv4 = toCsv(resetRows);
+      const recordings = node.telemetry_sessions && typeof node.telemetry_sessions === "object" ? node.telemetry_sessions : {};
+      for (const [recId, rec] of Object.entries(recordings as Record<string, any>)) {
+        if (!rec || typeof rec !== "object") continue;
+        const metas = Object.values((rec.metadata && typeof rec.metadata === "object" ? rec.metadata : {}) as Record<string, any>)
+          .filter((m) => m && typeof m.startTime === "number");
+        const start = metas.length ? Math.min(...metas.map((m) => m.startTime)) : null;
+        const end = metas.length ? Math.max(...metas.map((m) => (typeof m.endTime === "number" ? m.endTime : m.startTime))) : null;
+        const meeting = metas.find((m) => typeof m.sessionNumber === "number")?.sessionNumber ?? null;
+        if (scopedSession !== null && meeting !== scopedSession) continue;
+        const minutes = start !== null && end !== null ? Math.round(((end - start) / 60000) * 10) / 10 : 0;
+        const chunks = rec.chunks && typeof rec.chunks === "object" ? Object.keys(rec.chunks).length : 0;
+        const truncated = rec.recording_truncated === true;
+        recordingRows.push({
+          student_id: n, session_number: meeting ?? "", recording_id: recId, start_iso: iso(start), end_iso: iso(end),
+          minutes, chunks, exercises: Array.from(new Set(metas.map((m) => m.exercise_id).filter(Boolean))).join("|"), truncated,
+        });
+        if (meeting !== null) {
+          const k = `${n}:${meeting}`;
+          const prev = recordingMinutesByKey.get(k) ?? { minutes: 0, truncated: false };
+          recordingMinutesByKey.set(k, { minutes: Math.round((prev.minutes + minutes) * 10) / 10, truncated: prev.truncated || truncated });
+        }
+      }
+
+      if (node.reflections && typeof node.reflections === "object") {
+        for (const [refKey, ref] of Object.entries(node.reflections as Record<string, any>)) {
+          rtdbReflectionRows.push({ source: "rtdb_student", student_id: n, reflection_id: refKey, ...(ref && typeof ref === "object" ? ref : { value: ref }) });
+        }
+      }
+    }
+
+    const byLearnerMeeting = new Map<string, Record<string, any>[]>();
+    for (const e of telemetry) {
+      const n = studentNumber(e.data.student_id);
+      if (n === null || e.session_number === null) continue;
+      const k = `${n}:${e.session_number}`;
+      byLearnerMeeting.set(k, [...(byLearnerMeeting.get(k) ?? []), e.data]);
+    }
+    const compulsoryCache = new Map<string, number | null>();
+    const meetingRows: Record<string, any>[] = [];
+    for (const [k, events] of Array.from(byLearnerMeeting.entries()).sort()) {
+      const [nStr, mStr] = k.split(":");
+      const n = Number(nStr);
+      const m = Number(mStr);
+      const path = learnerPath.get(n) ?? "green_path";
+      const compulsory = await resolveCompulsoryTotal(db, m, path, compulsoryCache);
+      const score = computeFirstAttemptScore(events, compulsory);
+      const summary = summarizeMeeting(events);
+      const sessionDoc = sessionDocByKey.get(k);
+      const rec = recordingMinutesByKey.get(k);
+      meetingRows.push({
+        student_id: n,
+        session_number: m,
+        first_event_iso: iso(summary.first_event_at),
+        last_event_iso: iso(summary.last_event_at),
+        active_minutes: summary.active_minutes,
+        events: summary.events,
+        exercises_attempted: summary.exercises_attempted,
+        exercises_completed: summary.exercises_completed,
+        compulsory_total: score.denominator,
+        correct_first_attempt: score.correctFirstAttempt,
+        first_attempt_score_percent: score.scorePercent,
+        digits_entered: summary.digits_entered,
+        wrong_digits: summary.wrong_digits,
+        deletions: summary.deletions,
+        undos: summary.undos,
+        hesitations: summary.hesitations,
+        hesitation_seconds_total: summary.hesitation_seconds_total,
+        regroupings: summary.regroupings,
+        socratic_cards: summary.socratic_cards,
+        reflection_submitted: summary.reflection_submitted,
+        recording_minutes: rec?.minutes ?? 0,
+        recording_truncated: rec?.truncated ?? false,
+        learning_path: path,
+        session_doc_score_percent: sessionDoc?.session_score_percent ?? "",
+        session_doc_recommended_path: sessionDoc?.matrix_recommended_path ?? "",
+        session_doc_teacher_path: sessionDoc?.teacher_selected_path ?? "",
+        teacher_gate_approved: sessionDoc?.teacher_gate_approved ?? "",
+      });
+    }
+
+    // ── 3. Reflections: Firestore + the learners' RTDB nodes + the shared node ──
+    const fsReflections = await readAllDocs(db.collection("srl_reflections"));
+    const sharedReflectionsSnap = await rtdb.ref("reflections").get();
+    const sharedReflections: Record<string, any> = sharedReflectionsSnap.val() || {};
+    const reflectionRows: Record<string, any>[] = [
+      ...fsReflections.map(({ id, data }) => ({ source: "firestore", reflection_id: id, ...data })),
+      ...Object.entries(sharedReflections).map(([id, r]) => ({ source: "rtdb_shared", reflection_id: id, ...(r && typeof r === "object" ? r : { value: r }) })),
+      ...rtdbReflectionRows,
+    ].filter((r) => scopedSession === null || Number(r.session_number) === scopedSession || sessionNumberFromId(String(r.session_id || "")) === scopedSession);
+
+    // ── 4. Every reset audit entry ──────────────────────────────────────────
+    const resetLogs = await readAllDocs(db.collection("reset_audit_log").where("class_id", "==", class_id))
+      .catch(async () => readAllDocs(db.collection("reset_audit_log")));
+    const resetRows = resetLogs.map(({ id, data }) => ({ log_id: id, ...data }));
+
+    const files: Array<{ name: string; csv: string; rows: number }> = [
+      { name: "פעולות", csv: toCsv(telemetryRows), rows: telemetryRows.length },
+      { name: "מפגשים", csv: toCsv(meetingRows), rows: meetingRows.length },
+      { name: "הקלטות", csv: toCsv(recordingRows), rows: recordingRows.length },
+      { name: "רפלקציות", csv: toCsv(reflectionRows), rows: reflectionRows.length },
+      { name: "יומן_איפוסים", csv: toCsv(resetRows), rows: resetRows.length },
+    ];
 
     // Requirement 3: PII Detection check across all CSV outputs
-    const allContent = [csv1, csv2, csv3, csv4].join("\n");
+    const allContent = files.map((f) => f.csv).join("\n");
     const piiRegex = /(?:\b05\d-?\d{7}\b|[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|\b\d{9}\b)/g;
-    const sanitizedCheckText = allContent.replace(new RegExp(userEmail, 'g'), '');
+    const sanitizedCheckText = allContent.split(userEmail).join("");
     if (piiRegex.test(sanitizedCheckText)) {
       logger.warn("Research dataset export rejected: PII pattern detected.");
       throw new HttpsError("failed-precondition", "ייצוא נתוני המחקר נדחה: זוהה מידע מזהה (PII).");
     }
 
-    const exportDate = new Date().toISOString().split('T')[0];
-    const timestamp = Date.now();
+    const exportDate = new Date().toISOString().split("T")[0];
+    const stamp = new Date().toISOString().slice(0, 16).replace("T", "_").replace(":", "-");
+    const scopeLabel = scopedSession === null ? "כל המפגשים" : `מפגש ${scopedSession}`;
 
-    // Requirement 4: Drive folder-structure hierarchy session_{sessionNum} -> {exportDate},
-    // under the research-data folder.
-    const targetFolderId = await resolveDriveFolder([DRIVE_FOLDERS.researchData, `session_${session_number}`, exportDate]);
+    // Requirement 4: Drive folder hierarchy: 02 נתוני מחקר / {scope} / {date}
+    const targetFolderId = await resolveDriveFolder([DRIVE_FOLDERS.researchData, scopeLabel, exportDate]);
 
-    // Upload all 4 distinct CSV files into the date subfolder (unique timestamps guarantee no overwrite)
-    const upload1 = await uploadBufferToDrive(Buffer.from(csv1, "utf-8"), `telemetry_events_s${session_number}_${timestamp}.csv`, "text/csv", targetFolderId);
-    const upload2 = await uploadBufferToDrive(Buffer.from(csv2, "utf-8"), `sessions_s${session_number}_${timestamp}.csv`, "text/csv", targetFolderId);
-    const upload3 = await uploadBufferToDrive(Buffer.from(csv3, "utf-8"), `reflections_s${session_number}_${timestamp}.csv`, "text/csv", targetFolderId);
-    const upload4 = await uploadBufferToDrive(Buffer.from(csv4, "utf-8"), `reset_logs_s${session_number}_${timestamp}.csv`, "text/csv", targetFolderId);
+    const uploads: Record<string, string> = {};
+    const uploadedIds: string[] = [];
+    for (const f of files) {
+      const res = await uploadBufferToDrive(Buffer.from(f.csv, "utf-8"), `${f.name}_${stamp}.csv`, "text/csv", targetFolderId);
+      uploads[f.name] = res.success ? res.webViewLink : `failed: ${res.error}`;
+      if (res.success) uploadedIds.push(res.fileId);
+    }
+    if (uploadedIds.length === 0) {
+      throw new HttpsError("internal", `הייצוא נבנה (${files.map((f) => `${f.name}: ${f.rows}`).join(", ")}) אך הכתיבה לדרייב נכשלה: ${uploads[files[0].name]}`);
+    }
 
     // Requirement 5: Log export event to reset_audit_log with reset_level: 'export'
     const exportLogId = `export_${Date.now()}`;
@@ -1126,32 +1281,31 @@ export const exportResearchDataset = onCall(async (request) => {
       timestamp: Date.now(),
       performed_by: request.auth.uid,
       user_email: userEmail,
-      reset_level: 'export',
-      reason: 'RESEARCH_DATASET_EXPORT',
-      affected_student_id: 'ALL',
+      reset_level: "export",
+      reason: "RESEARCH_DATASET_EXPORT",
+      affected_student_id: "ALL",
       class_id,
-      session_number,
+      session_number: scopedSession ?? "all",
       export_date: exportDate,
       drive_folder_id: targetFolderId,
-      files: [upload1.fileId, upload2.fileId, upload3.fileId, upload4.fileId],
-      status: 'SUCCESS',
+      files: uploadedIds,
+      row_counts: Object.fromEntries(files.map((f) => [f.name, f.rows])),
+      status: "SUCCESS",
       created_at: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    logger.info(`Research dataset exported successfully for class ${class_id} on ${exportDate}`);
+    logger.info(`Research dataset exported for class ${class_id} (${scopeLabel}) on ${exportDate}: ${files.map((f) => `${f.name}=${f.rows}`).join(", ")}`);
 
     return {
       status: "SUCCESS",
       exportDate,
+      scope: scopedSession ?? "all",
       targetFolderId,
-      files: {
-        telemetry: upload1.webViewLink,
-        sessions: upload2.webViewLink,
-        reflections: upload3.webViewLink,
-        resetLogs: upload4.webViewLink,
-      },
+      rowCounts: Object.fromEntries(files.map((f) => [f.name, f.rows])),
+      files: uploads,
     };
   } catch (err: any) {
+    if (err instanceof HttpsError) throw err;
     logger.error("Failed to export research dataset:", err);
     throw new HttpsError("internal", err?.message || "ייצוא נתוני המחקר נכשל.");
   }
