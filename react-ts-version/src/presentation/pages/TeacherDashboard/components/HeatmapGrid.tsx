@@ -399,13 +399,15 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
   const handleExportResearchDataset = async () => {
     setIsExportingDataset(true);
     try {
-      const exportFn = httpsCallable(functions, 'exportResearchDataset');
-      // Module 24 exports per session on demand; this was pinned to 1, so the
-      // control could only ever export session 1 regardless of what the class
-      // was actually running. Follow the live broadcast the grid already tracks.
-      const res: any = await exportFn({ class_id: 'class_1', session_number: activeSessionNum ?? 1 });
+      const exportFn = httpsCallable(functions, 'exportResearchDataset', { timeout: 540_000 });
+      // Owner decision (5.9.2026): the research is the whole process, so the
+      // export covers every meeting of every learner, not just the live one.
+      const res: any = await exportFn({ class_id: 'class_1', session_number: 'all' });
       if (res?.data?.status === 'SUCCESS') {
-        toast.success('ייצוא נתוני המחקר הושלם ונשמר ב-Drive.');
+        const counts = res.data.rowCounts && typeof res.data.rowCounts === 'object'
+          ? Object.entries(res.data.rowCounts as Record<string, number>).map(([k, v]) => `${k}: ${v}`).join(' · ')
+          : '';
+        toast.success(`ייצוא נתוני המחקר (כל המפגשים) נשמר בדרייב, תיקייה "02 נתוני מחקר". ${counts}`);
       } else {
         toast.warning('הייצוא הסתיים אך ללא אישור מפורש מהשרת. בדקו את תיקיית Drive.');
       }

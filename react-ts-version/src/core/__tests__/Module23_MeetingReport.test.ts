@@ -12,6 +12,7 @@ import { resolve } from 'path';
  * tsconfig (see Module23_ReportAnalysis).
  */
 const server = readFileSync(resolve(__dirname, '../../../../functions/src/pedagogicalReport.ts'), 'utf-8');
+const metrics = readFileSync(resolve(__dirname, '../../../../functions/src/meetingMetrics.ts'), 'utf-8');
 const service = readFileSync(resolve(__dirname, '../../infrastructure/services/LearnerJourneyService.ts'), 'utf-8');
 const journey = readFileSync(resolve(__dirname, '../../presentation/pages/TeacherDashboard/components/LearnerJourney.tsx'), 'utf-8');
 
@@ -24,11 +25,12 @@ describe('Module 23 — report for every meeting (server)', () => {
 
   it('applies the PRD first-attempt rule when the meeting has no session document', () => {
     // "PROBLEM_COMPLETE … שלא קדם לו אף DIGIT_ENTERED עם is_correct === false באותו exercise_id"
-    expect(server).toContain('export function computeFirstAttemptScore(');
-    expect(server).toMatch(/ev\.event_type === "DIGIT_ENTERED" && ev\.details\?\.is_correct === false/);
-    expect(server).toMatch(/ev\.event_type === "PROBLEM_COMPLETE" && !wrongBeforeComplete\.has\(exId\)/);
+    expect(metrics).toContain('export function computeFirstAttemptScore(');
+    expect(metrics).toMatch(/ev\.event_type === "DIGIT_ENTERED" && ev\.details\?\.is_correct === false/);
+    expect(metrics).toMatch(/ev\.event_type === "PROBLEM_COMPLETE" && !wrongBeforeComplete\.has\(exId\)/);
+    expect(metrics).toContain('export const DIAGNOSTIC_COMPULSORY_COUNT = 7;');
+    expect(server).toMatch(/const first = computeFirstAttemptScore\(telemetryDocs, compulsoryTotal\);/);
     expect(server).toMatch(/scoreSource = "telemetry_first_attempt"/);
-    expect(server).toContain('const DIAGNOSTIC_COMPULSORY_COUNT = 7;');
   });
 
   it('takes the learner number and the meeting number explicitly, and never silently falls back to learner 1', () => {
