@@ -3,7 +3,7 @@ import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import * as path from "path";
 import * as fs from "fs";
-import { uploadBufferToDrive } from "./exportDriveReport";
+import { DRIVE_FOLDERS, resolveDriveFolder, uploadBufferToDrive } from "./exportDriveReport";
 import { GEMINI_SECRETS } from "./geminiConfig";
 import {
   buildFailedExercises,
@@ -698,8 +698,9 @@ export const generatePedagogicalReportPDF = onCall(GEMINI_SECRETS, async (reques
     // Module 23 Drive mirror: archive a copy of the same PDF in the shared Drive folder.
     // Best-effort only — a Drive failure must never fail or degrade report generation.
     try {
-      const driveFileName = `PedagogicalReport_session${resolvedSessionNumber}_student${clampedStudentNum}_${Date.now()}.pdf`;
-      const driveResult = await uploadBufferToDrive(pdfBuffer, driveFileName, "application/pdf");
+      const driveFileName = `דוח_תלמיד${clampedStudentNum}_מפגש${resolvedSessionNumber}_${new Date().toISOString().slice(0, 16).replace("T", "_").replace(":", "-")}.pdf`;
+      const driveFolderId = await resolveDriveFolder([DRIVE_FOLDERS.learnerReports, `מפגש ${resolvedSessionNumber}`]);
+      const driveResult = await uploadBufferToDrive(pdfBuffer, driveFileName, "application/pdf", driveFolderId);
       if (driveResult.success) {
         driveMirrorUrl = driveResult.webViewLink;
         await db.collection("reports").doc(`rep_${sessionId}`).set({

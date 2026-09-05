@@ -648,8 +648,9 @@ exports.generatePedagogicalReportPDF = (0, https_1.onCall)(geminiConfig_1.GEMINI
         // Module 23 Drive mirror: archive a copy of the same PDF in the shared Drive folder.
         // Best-effort only — a Drive failure must never fail or degrade report generation.
         try {
-            const driveFileName = `PedagogicalReport_session${resolvedSessionNumber}_student${clampedStudentNum}_${Date.now()}.pdf`;
-            const driveResult = await (0, exportDriveReport_1.uploadBufferToDrive)(pdfBuffer, driveFileName, "application/pdf");
+            const driveFileName = `דוח_תלמיד${clampedStudentNum}_מפגש${resolvedSessionNumber}_${new Date().toISOString().slice(0, 16).replace("T", "_").replace(":", "-")}.pdf`;
+            const driveFolderId = await (0, exportDriveReport_1.resolveDriveFolder)([exportDriveReport_1.DRIVE_FOLDERS.learnerReports, `מפגש ${resolvedSessionNumber}`]);
+            const driveResult = await (0, exportDriveReport_1.uploadBufferToDrive)(pdfBuffer, driveFileName, "application/pdf", driveFolderId);
             if (driveResult.success) {
                 driveMirrorUrl = driveResult.webViewLink;
                 await db.collection("reports").doc(`rep_${sessionId}`).set({

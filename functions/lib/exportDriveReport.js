@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.exportResearchDataset = exports.backupAndResetSessionData = exports.VALID_RESET_REASONS = exports.exportAdminReportToDrive = void 0;
+exports.exportResearchDataset = exports.backupAndResetSessionData = exports.VALID_RESET_REASONS = exports.DRIVE_FOLDERS = exports.exportAdminReportToDrive = void 0;
+exports.resolveDriveFolder = resolveDriveFolder;
 exports.uploadBufferToDrive = uploadBufferToDrive;
 exports.buildResetScope = buildResetScope;
 exports.collectResetBackup = collectResetBackup;
@@ -188,9 +189,10 @@ exports.exportAdminReportToDrive = (0, https_1.onCall)(async (request) => {
     try {
         const accessToken = await getDriveAccessToken();
         if (accessToken) {
+            const adminFolderId = await resolveDriveFolder([exports.DRIVE_FOLDERS.adminReports]);
             const metadata = {
                 name: fileName,
-                parents: [GOOGLE_DRIVE_FOLDER_ID],
+                parents: [adminFolderId],
                 mimeType: "application/pdf",
             };
             const boundary = "mathmaticore_pdf_boundary";
@@ -260,6 +262,40 @@ exports.exportAdminReportToDrive = (0, https_1.onCall)(async (request) => {
         webViewLink,
     };
 });
+/**
+ * Layout of the shared Drive folder (owner decision, 5.9.2026). Everything the
+ * system writes lands in one of these, never in the root, so the research
+ * material (learner reports, research CSVs, reset backups) is separated from
+ * the admin's system report. Folders are created on first use, by name, under
+ * GOOGLE_DRIVE_FOLDER_ID, so nothing has to be prepared by hand.
+ */
+exports.DRIVE_FOLDERS = {
+    learnerReports: "01 דוחות תלמידים",
+    researchData: "02 נתוני מחקר",
+    resetBackups: "03 גיבויי איפוס",
+    adminReports: "04 דוחות מנהל",
+};
+/**
+ * Resolves (creating as needed) a folder path under the shared Drive folder,
+ * e.g. ["01 דוחות תלמידים", "מפגש 3"]. Falls back to the root folder when
+ * Drive is unreachable, so an upload still has somewhere to go.
+ */
+async function resolveDriveFolder(pathSegments) {
+    try {
+        const accessToken = await getDriveAccessToken();
+        if (!accessToken)
+            return GOOGLE_DRIVE_FOLDER_ID;
+        let parentId = GOOGLE_DRIVE_FOLDER_ID;
+        for (const segment of pathSegments) {
+            parentId = await getOrCreateDriveFolder(segment, parentId, accessToken);
+        }
+        return parentId;
+    }
+    catch (err) {
+        logger.warn("Drive folder resolution failed, using the shared root folder:", (err === null || err === void 0 ? void 0 : err.message) || err);
+        return GOOGLE_DRIVE_FOLDER_ID;
+    }
+}
 /**
  * Upload an arbitrary buffer/file to the shared Google Drive folder.
  * Exported for reuse by the pedagogical report generator (Module 23 Drive mirror).
@@ -471,7 +507,7 @@ async function runBackupAndReset(request) {
     // this size go straight to this project's own bucket, which streams.
     const DRIVE_MAX_BYTES = 30 * 1024 * 1024;
     let driveResult = backupBuffer.length <= DRIVE_MAX_BYTES
-        ? await uploadBufferToDrive(backupBuffer, backupFileName, "application/json")
+        ? await uploadBufferToDrive(backupBuffer, backupFileName, "application/json", await resolveDriveFolder([exports.DRIVE_FOLDERS.resetBackups]))
         : { success: false, fileId: '', webViewLink: '', error: `backup of ${backupBuffer.length} bytes is above the Drive multipart ceiling` };
     // Fallback 1: Google Drive needs external OAuth (domain-wide delegation for
     // SERVICE_ACCOUNT_EMAIL) that isn't guaranteed to be provisioned in every
@@ -890,13 +926,9 @@ exports.exportResearchDataset = (0, https_1.onCall)(async (request) => {
         }
         const exportDate = new Date().toISOString().split('T')[0];
         const timestamp = Date.now();
-        // Requirement 4: Drive folder-structure hierarchy session_{sessionNum} -> {exportDate}
-        const accessToken = await getDriveAccessToken();
-        let targetFolderId = GOOGLE_DRIVE_FOLDER_ID;
-        if (accessToken) {
-            const sessionFolderId = await getOrCreateDriveFolder(`session_${session_number}`, GOOGLE_DRIVE_FOLDER_ID, accessToken);
-            targetFolderId = await getOrCreateDriveFolder(exportDate, sessionFolderId, accessToken);
-        }
+        // Requirement 4: Drive folder-structure hierarchy session_{sessionNum} -> {exportDate},
+        // under the research-data folder.
+        const targetFolderId = await resolveDriveFolder([exports.DRIVE_FOLDERS.researchData, `session_${session_number}`, exportDate]);
         // Upload all 4 distinct CSV files into the date subfolder (unique timestamps guarantee no overwrite)
         const upload1 = await uploadBufferToDrive(Buffer.from(csv1, "utf-8"), `telemetry_events_s${session_number}_${timestamp}.csv`, "text/csv", targetFolderId);
         const upload2 = await uploadBufferToDrive(Buffer.from(csv2, "utf-8"), `sessions_s${session_number}_${timestamp}.csv`, "text/csv", targetFolderId);
