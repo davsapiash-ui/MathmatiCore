@@ -23,6 +23,27 @@ export const GRID_STAGE_SECONDS = 30;
 /** Module 12: PRD default for the Socratic stage, before Module 26 calibration. */
 export const DEFAULT_SOCRATIC_STAGE_SECONDS = 45;
 
+/**
+ * The pedagogical matrix (מסמך 05, owner decision 6.9.2026, register item 13):
+ * the board "loads with a soft fade of exactly two and a half seconds" and
+ * "disappears by itself exactly three seconds after a successful digit or
+ * answer input by the learner, to prevent visual overload for learners on
+ * the autistic spectrum". Both apply only once the profile gate above held.
+ */
+export const GRID_FADE_IN_SECONDS = 2.5;
+export const GRID_AUTO_HIDE_SECONDS = 3;
+
+export interface AdaptiveGridAutoHideInput {
+  isAdditionHelperOpen: boolean;
+  /** The DIGIT_ENTERED verdict: true, false, or null when the column has no expected digit. */
+  isCorrect: boolean | null;
+}
+
+/** Only a correct digit starts the 3-second auto-hide; a wrong or unverifiable one leaves the board. */
+export function shouldAutoHideAdaptiveGrid(input: AdaptiveGridAutoHideInput): boolean {
+  return input.isAdditionHelperOpen && input.isCorrect === true;
+}
+
 export interface AdaptiveGridStageInput {
   /** The learner's Module 19 support profile, from auth or the workspace store. */
   supportProfileId?: string | null;

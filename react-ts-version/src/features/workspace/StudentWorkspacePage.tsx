@@ -1044,11 +1044,17 @@ export function StudentWorkspacePage() {
         {/* Teacher paused the meeting: wait in place, board untouched underneath. */}
         {activeClassSession.status === 'paused' && !isTeacherOrAdmin && <SessionPausedOverlay />}
         
-        {isAdditionBoardEnabled && isAdditionHelperOpen && (
-          <div className="fixed bottom-6 left-6 z-50 flex flex-col items-end gap-2" dir="rtl">
-            {/* AdaptiveAdditionGrid animates its own entrance/exit (Module 10) */}
-            <AdaptiveAdditionGrid />
-          </div>
+        {/* Module 10 + the matrix (register item 13): the grid fades in over
+            2.5s and hides itself 3s after a correct digit. AnimatePresence
+            here lets the exit animation play after the store closes it. */}
+        {isAdditionBoardEnabled && (
+          <AnimatePresence>
+            {isAdditionHelperOpen && (
+              <div key="adaptive-addition-grid" className="fixed bottom-6 left-6 z-50 flex flex-col items-end gap-2" dir="rtl">
+                <AdaptiveAdditionGrid />
+              </div>
+            )}
+          </AnimatePresence>
         )}
       </div>
 
