@@ -26,7 +26,7 @@ describe('Module 23א — one scope for backup and deletion', () => {
   });
 
   it('covers every learning-data collection, and never the audit log (§ד)', () => {
-    expect(fn).toContain('const LEARNING_COLLECTIONS = ["sessions", "telemetry_logs", "telemetry_events", "reports", "srl_reflections"] as const;');
+    expect(fn).toContain('const LEARNING_COLLECTIONS = ["sessions", "telemetry_logs", "telemetry_events", "reports", "class_reports", "srl_reflections"] as const;');
     expect(fn).not.toMatch(/LEARNING_COLLECTIONS = \[[^\]]*reset_audit_log/);
   });
 

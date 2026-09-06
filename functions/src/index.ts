@@ -191,6 +191,8 @@ export { exportAdminReportToDrive, backupAndResetSessionData, exportResearchData
 // Export WP6 Cloud Functions (Module 14, 20, 22, 24, 27)
 export { onSessionCompleteTrigger, createSessionWithServerDeadline } from "./sessionTrigger";
 export { generatePedagogicalReportPDF, getPedagogicalReportDownloadUrl } from "./pedagogicalReport";
+// Module 23, owner decision 6.9.2026 (register item 12): a class report for every meeting.
+export { generateClassMeetingReport } from "./classReport";
 export { hourlyAdminAggregator } from "./adminAggregator";
 export { sendTeacherAdminMessage } from "./teacherAdminChat";
 

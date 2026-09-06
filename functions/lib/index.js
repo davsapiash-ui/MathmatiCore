@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.triggerExecutiveDriveReport = exports.triggerTestDriveReport = exports.authenticateStudentSession = exports.onStudentEvent = exports.verifyTeacherSSO = exports.sendTeacherAdminMessage = exports.hourlyAdminAggregator = exports.getPedagogicalReportDownloadUrl = exports.generatePedagogicalReportPDF = exports.createSessionWithServerDeadline = exports.onSessionCompleteTrigger = exports.exportResearchDataset = exports.backupAndResetSessionData = exports.exportAdminReportToDrive = exports.validateAndStoreTelemetry = exports.callGeminiSocraticProxy = exports.syncUserRoles = exports.generateSocraticHint = void 0;
+exports.triggerExecutiveDriveReport = exports.triggerTestDriveReport = exports.authenticateStudentSession = exports.onStudentEvent = exports.verifyTeacherSSO = exports.sendTeacherAdminMessage = exports.hourlyAdminAggregator = exports.generateClassMeetingReport = exports.getPedagogicalReportDownloadUrl = exports.generatePedagogicalReportPDF = exports.createSessionWithServerDeadline = exports.onSessionCompleteTrigger = exports.exportResearchDataset = exports.backupAndResetSessionData = exports.exportAdminReportToDrive = exports.validateAndStoreTelemetry = exports.callGeminiSocraticProxy = exports.syncUserRoles = exports.generateSocraticHint = void 0;
 const https_1 = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
@@ -182,6 +182,9 @@ Object.defineProperty(exports, "createSessionWithServerDeadline", { enumerable: 
 var pedagogicalReport_2 = require("./pedagogicalReport");
 Object.defineProperty(exports, "generatePedagogicalReportPDF", { enumerable: true, get: function () { return pedagogicalReport_2.generatePedagogicalReportPDF; } });
 Object.defineProperty(exports, "getPedagogicalReportDownloadUrl", { enumerable: true, get: function () { return pedagogicalReport_2.getPedagogicalReportDownloadUrl; } });
+// Module 23, owner decision 6.9.2026 (register item 12): a class report for every meeting.
+var classReport_1 = require("./classReport");
+Object.defineProperty(exports, "generateClassMeetingReport", { enumerable: true, get: function () { return classReport_1.generateClassMeetingReport; } });
 var adminAggregator_1 = require("./adminAggregator");
 Object.defineProperty(exports, "hourlyAdminAggregator", { enumerable: true, get: function () { return adminAggregator_1.hourlyAdminAggregator; } });
 var teacherAdminChat_1 = require("./teacherAdminChat");

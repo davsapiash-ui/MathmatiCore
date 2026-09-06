@@ -367,5 +367,11 @@ service cloud.firestore {
       allow read: if isTeacherOfClass(resource.data.class_id);
       allow write: if false; // Writes restricted strictly to Cloud Functions Admin SDK
     }
+
+    // Module 23 — the class report of one meeting (generateClassMeetingReport).
+    match /class_reports/{reportId} {
+      allow read: if isTeacherOfClass(resource.data.class_id);
+      allow write: if false; // Writes restricted strictly to Cloud Functions Admin SDK
+    }
   }
 }

@@ -31,6 +31,7 @@ import { Send, MessageCircle, ShieldAlert, Sliders, Search, Check, CheckCheck, S
 
 import { ClassManagement } from "./TeacherDashboard/ClassManagement";
 import { LearnerJourney } from "./TeacherDashboard/components/LearnerJourney";
+import { ClassMeetingReportPanel } from "./TeacherDashboard/components/ClassMeetingReportPanel";
 import { StudentLearningConditionsDrawer } from "./TeacherDashboard/components/StudentLearningConditionsDrawer";
 import { TeacherGateApprovalDrawer } from "./TeacherDashboard/components/TeacherGateApprovalDrawer";
 import { FloatingChatPanel } from "./TeacherDashboard/components/FloatingChatPanel";
@@ -1688,6 +1689,12 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                 תצוגה חכמה המשולבת שחזור מהלכים, נתוני רדאר, פירוט מיומנויות ותוכנית עבודה מותאמת אישית.
               </p>
             </header>
+
+            {/* Module 23, owner decision 6.9.2026 (register item 12): every
+                meeting has a class report beside the learner reports. */}
+            <div className="mb-6">
+              <ClassMeetingReportPanel />
+            </div>
 
             {(() => {
               const effectiveReplayStudentId = selectedReplayStudentId || (allStudents.length > 0 ? allStudents[0].studentId : 'student_user1');
