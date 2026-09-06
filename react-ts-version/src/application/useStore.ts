@@ -836,7 +836,7 @@ export const useStore = create<AppState>()(
           await fbSet(ref(database, 'system_control/projector_mode'), { active: false, projector_mode: false, projector_mode_updated_at: Date.now() }).catch(() => {});
           // PRD v7.1 Module 14: session activation is exclusively a teacher action.
           // A system reset must leave NO active session; the teacher reopens explicitly.
-          await fbSet(ref(database, 'active_class_session'), { active: false, sessionNumber: null, endedAt: Date.now() }).catch(() => {});
+          await fbSet(ref(database, 'active_class_session'), { active: false, status: 'closed', sessionNumber: null, endedAt: Date.now() }).catch(() => {});
           
           if (typeof window !== 'undefined') {
             Object.keys(localStorage).forEach((k) => {

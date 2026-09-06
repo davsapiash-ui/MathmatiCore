@@ -12,7 +12,7 @@ import { extractTeacherId } from "@/infrastructure/services/FirebaseSyncService"
 import { useStore, type StudentData } from "@/application/useStore";
 import { toast } from "sonner";
 import { ref, onValue, remove, set, update, query, limitToLast, onDisconnect, serverTimestamp } from "firebase/database";
-import { isClassSessionLive } from "@/core/classSession";
+import { getClassSessionStatus, isClassSessionLive, type ClassSessionStatus } from "@/core/classSession";
 import { database, auth, functions, firestore } from "@/infrastructure/firebase";
 import { doc, onSnapshot, collection, writeBatch } from "firebase/firestore";
 import type { SessionDocument, PedagogicalPath } from "@/types";
@@ -151,6 +151,10 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
 
   // --- Class Session Management (Manual Start/Stop) ---
   const [isClassSessionActive, setIsClassSessionActive] = useState(false);
+  // Owner decision (6.9.2026, register item 10): start / pause / close, each
+  // reaching the learners live. 'paused' keeps the meeting open with the
+  // learners waiting in place.
+  const [classSessionStatus, setClassSessionStatus] = useState<ClassSessionStatus>('closed');
   const [_sessionStartTime, setSessionStartTime] = useState<number | null>(null);
   const [selectedSessionNum, setSelectedSessionNum] = useState<number>(1);
   // Module 14 §ב0: activation goes through an explicit confirmation window
@@ -172,11 +176,13 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     const applySessionState = () => {
       if (lastVal && isClassSessionLive(lastVal)) {
         setIsClassSessionActive(true);
+        setClassSessionStatus(getClassSessionStatus(lastVal));
         setSessionStartTime((lastVal.startedAt as number) || Date.now());
         setSelectedSessionNum((lastVal.sessionNumber as number) || 1);
         return;
       }
       setIsClassSessionActive(false);
+      setClassSessionStatus('closed');
       setSessionStartTime(null);
     };
 
@@ -314,6 +320,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       // 2. Primary Realtime Database Broadcast (Instant client sync for all 12 student pods <1000ms)
       await set(ref(database, 'active_class_session'), {
         active: true,
+        status: 'active',
         sessionNumber: sessionNum,
         startedAt: now,
         teacherId: user?.uid || 'teacher',
@@ -402,16 +409,42 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       }
       await set(ref(database, 'active_class_session'), {
         active: false,
+        status: 'closed',
         sessionNumber: null,
         endedAt: Date.now(),
         teacherId: user?.uid || 'teacher',
       });
       setIsClassSessionActive(false);
+      setClassSessionStatus('closed');
       setSessionStartTime(null);
-      toast.info('המפגש הכיתתי נסגר בהצלחה. כלל התלמידים מועברים למצב המתנה.');
+      toast.info('המפגש נסגר. כל התלמידים רואים עכשיו "המורה סגרה את המפגש".');
     } catch (err) {
       console.error('Error ending class session:', err);
       toast.error('שגיאה בסגירת המפגש מול השרת.');
+    }
+  };
+
+  // Pause keeps the meeting open (active: true) and stamps status: 'paused';
+  // every learner's screen shows the waiting overlay in place. Resume clears it.
+  const handlePauseClassSession = async () => {
+    try {
+      await update(ref(database, 'active_class_session'), { status: 'paused', pausedAt: Date.now() });
+      setClassSessionStatus('paused');
+      toast.info('המפגש הושהה. כל התלמידים רואים עכשיו "המורה עצרה את הפעילות לרגע".');
+    } catch (err) {
+      console.error('Error pausing class session:', err);
+      toast.error('שגיאה בהשהיית המפגש מול השרת.');
+    }
+  };
+
+  const handleResumeClassSession = async () => {
+    try {
+      await update(ref(database, 'active_class_session'), { status: 'active', pausedAt: null, resumedAt: Date.now() });
+      setClassSessionStatus('active');
+      toast.success('המפגש ממשיך. התלמידים חזרו לעבודה מאותה נקודה.');
+    } catch (err) {
+      console.error('Error resuming class session:', err);
+      toast.error('שגיאה בהמשך המפגש מול השרת.');
     }
   };
 
@@ -1236,38 +1269,71 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
         {/* Class Session Control Bar — Bright, Clean & Accessible */}
         <div className="mb-6 bg-white text-slate-900 p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shadow-sm ${isClassSessionActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
-              {isClassSessionActive ? '🟢' : '🏫'}
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shadow-sm ${
+              classSessionStatus === 'active' ? 'bg-emerald-100 text-emerald-700' : classSessionStatus === 'paused' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'
+            }`}>
+              {classSessionStatus === 'active' ? '🟢' : classSessionStatus === 'paused' ? '⏸️' : '🏫'}
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="font-bold text-lg text-slate-900">
-                  {isClassSessionActive ? `מפגש ${selectedSessionNum} פעיל בכיתה` : 'ניהול מפגש בלייב'}
+                  {classSessionStatus === 'active'
+                    ? `מפגש ${selectedSessionNum} פעיל בכיתה`
+                    : classSessionStatus === 'paused'
+                      ? `מפגש ${selectedSessionNum} מושהה`
+                      : 'ניהול מפגש בלייב'}
                 </h3>
-                {isClassSessionActive && (
+                {classSessionStatus === 'active' && (
                   <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-black px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
                     פתוח ללמידה
                   </span>
                 )}
+                {classSessionStatus === 'paused' && (
+                  <span className="bg-amber-50 text-amber-700 border border-amber-200 text-xs font-black px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                    התלמידים ממתינים
+                  </span>
+                )}
               </div>
               <p className="text-slate-600 text-xs mt-1">
-                {isClassSessionActive
+                {classSessionStatus === 'active'
                   ? `מפגש ${selectedSessionNum} פתוח כעת עבור התלמידים בכיתה.`
-                  : 'בחר מפגש ולחץ על "הפעל מפגש" כדי לפתוח את הלמידה לתלמידים.'}
+                  : classSessionStatus === 'paused'
+                    ? 'העבודה של התלמידים שמורה. "המשך מפגש" מחזיר אותם לאותה נקודה.'
+                    : 'בחר מפגש ולחץ על "הפעל מפגש" כדי לפתוח את הלמידה לתלמידים.'}
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-3 w-full md:w-auto justify-end">
             {isClassSessionActive ? (
-              <button
-                onClick={handleEndClassSession}
-                className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
-              >
-                <span>⏹️</span>
-                <span>סגור מפגש</span>
-              </button>
+              <>
+                {classSessionStatus === 'paused' ? (
+                  <button
+                    onClick={handleResumeClassSession}
+                    className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+                  >
+                    <span>▶️</span>
+                    <span>המשך מפגש</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={handlePauseClassSession}
+                    className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+                  >
+                    <span>⏸️</span>
+                    <span>עצור מפגש</span>
+                  </button>
+                )}
+                <button
+                  onClick={handleEndClassSession}
+                  className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+                >
+                  <span>⏹️</span>
+                  <span>סגור מפגש</span>
+                </button>
+              </>
             ) : (
               <>
                 <select
