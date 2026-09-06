@@ -299,6 +299,7 @@ export const DRIVE_FOLDERS = {
   researchData: "02 נתוני מחקר",
   resetBackups: "03 גיבויי איפוס",
   adminReports: "04 דוחות מנהל",
+  classReports: "05 דוחות כיתה",
 } as const;
 
 /**
@@ -740,7 +741,7 @@ function studentAliases(rawNum: string): string[] {
  * carries the learner's anonymous number in `student_id`. reset_audit_log is
  * deliberately absent: §ד forbids any reset from touching it.
  */
-const LEARNING_COLLECTIONS = ["sessions", "telemetry_logs", "telemetry_events", "reports", "srl_reflections"] as const;
+const LEARNING_COLLECTIONS = ["sessions", "telemetry_logs", "telemetry_events", "reports", "class_reports", "srl_reflections"] as const;
 
 interface FirestoreScopeEntry {
   collection: string;

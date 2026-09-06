@@ -275,6 +275,7 @@ exports.DRIVE_FOLDERS = {
     researchData: "02 נתוני מחקר",
     resetBackups: "03 גיבויי איפוס",
     adminReports: "04 דוחות מנהל",
+    classReports: "05 דוחות כיתה",
 };
 /**
  * Resolves (creating as needed) a folder path under the shared Drive folder,
@@ -632,7 +633,7 @@ function studentAliases(rawNum) {
  * carries the learner's anonymous number in `student_id`. reset_audit_log is
  * deliberately absent: §ד forbids any reset from touching it.
  */
-const LEARNING_COLLECTIONS = ["sessions", "telemetry_logs", "telemetry_events", "reports", "srl_reflections"];
+const LEARNING_COLLECTIONS = ["sessions", "telemetry_logs", "telemetry_events", "reports", "class_reports", "srl_reflections"];
 /**
  * Level 2 (single learner): the learner's RTDB record (workspace state,
  * meeting progress, Q-matrix, recordings), their chat, and their Firestore
