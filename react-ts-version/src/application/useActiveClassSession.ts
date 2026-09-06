@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ref, onValue } from 'firebase/database';
+import { ref, onValue, get } from 'firebase/database';
 import { onAuthStateChanged } from 'firebase/auth';
 import { database, auth, authReady } from '@/infrastructure/firebase';
 import { isClassSessionLive, type ActiveClassSessionRecord } from '@/core/classSession';
@@ -85,6 +85,27 @@ export function useActiveClassSession() {
     setupListener();
     const graceTimer = setInterval(applySessionState, 30000);
 
+    // 1b. Self-healing read. The realtime listener is the primary signal, but a
+    // learner's tab can lose it silently (socket dropped and not yet
+    // re-established, tab throttled in the background, listener detached
+    // during a token refresh). Then the teacher closes the session and the
+    // learner keeps working as if nothing happened. A fresh read every 15s and
+    // on every return to the foreground bounds that to seconds, at one small
+    // read per learner.
+    const refreshFromServer = () => {
+      if (!isSubscribed) return;
+      get(ref(database, 'active_class_session'))
+        .then((snap) => {
+          if (!isSubscribed) return;
+          lastValRef.current = snap.exists() ? snap.val() : null;
+          applySessionState();
+        })
+        .catch(() => { /* the listener and the next tick will try again */ });
+    };
+    const refreshTimer = setInterval(refreshFromServer, 15000);
+    const onVisible = () => { if (document.visibilityState === 'visible') refreshFromServer(); };
+    document.addEventListener('visibilitychange', onVisible);
+
     // 2. Re-attach on authReady resolution
     authReady.then(() => {
       if (isSubscribed) setupListener();
@@ -107,6 +128,8 @@ export function useActiveClassSession() {
     return () => {
       isSubscribed = false;
       clearInterval(graceTimer);
+      clearInterval(refreshTimer);
+      document.removeEventListener('visibilitychange', onVisible);
       if (retryTimer) clearTimeout(retryTimer);
       if (unsubDB) unsubDB();
       if (unsubAuth) unsubAuth();

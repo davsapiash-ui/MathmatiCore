@@ -123,7 +123,11 @@ export function HelpOverlays() {
             animate={{ opacity: 1, x: 0, scale: 1 }}
             exit={{ opacity: 0, x: -30, scale: 0.95 }}
             transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-            className="fixed bottom-4 left-4 z-40 max-w-sm sm:max-w-md w-[92vw] sm:w-[420px] bg-ws-surface rounded-3xl shadow-2xl border-2 border-indigo-200 dark:border-indigo-800/80 p-6 pointer-events-auto max-h-[85vh] overflow-y-auto"
+            /* Sits ABOVE the block palette (the bottom ~10rem of the board), never
+               on it: anchored at bottom-4 the card covered the palette, and the
+               learner could not pick up blocks while it was open. The columns'
+               upper part stays reachable for drops; the palette stays visible. */
+            className="fixed bottom-40 left-4 z-40 max-w-sm sm:max-w-md w-[92vw] sm:w-[420px] bg-ws-surface rounded-3xl shadow-2xl border-2 border-indigo-200 dark:border-indigo-800/80 p-6 pointer-events-auto max-h-[calc(100dvh-14rem)] overflow-y-auto"
             role="region"
             aria-label="חונך דיגיטלי סוקרטי"
             dir="rtl"

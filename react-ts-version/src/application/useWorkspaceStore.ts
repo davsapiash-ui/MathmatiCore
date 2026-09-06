@@ -2316,6 +2316,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       if (s.currentState === 'SOCRATIC_ACTIVE' || s.helpState === 'socratic') return;
       if (s.isSocraticCardLocked) return;
       const currentTask = selectStandardTask(s);
+      // An exercise that is already solved has nothing left to coach: a learner
+      // who typed the right result and paused before pressing "התקדם" was
+      // getting a card about a regrouping the exercise never needed.
+      if (currentTask && (currentTask.type === 'addition_simple' || currentTask.type === 'vertical_addition')) {
+        const { a, b, target } = effectiveArithmetic(currentTask, s.isASD);
+        const typed = answerDigitsToNumber(effectiveAnswerDigits(s, currentTask, target));
+        if (typed === target && hiddenDigitsStatus(s, currentTask, a, b).complete) return;
+      }
       const initialHint = SocraticEngine.getSynchronousTaskHint(currentTask, s.counts);
       set((st) => ({
         keyboardState: 'SOCRATIC_ONLY',
