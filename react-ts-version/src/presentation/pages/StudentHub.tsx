@@ -316,13 +316,20 @@ export function StudentHub() {
               </p>
             </div>
 
-            <button
-              onClick={handleStartActiveSession}
-              className="w-full h-14 min-h-[48px] bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-2xl font-display font-extrabold text-lg flex items-center justify-center gap-3 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 active:scale-[0.98] transition-all cursor-pointer"
-            >
-              <span>{highestCompletedMeeting >= effectiveSessionId ? 'היכנס לפעילות' : 'התחל פעילות'}</span>
-              <Play className="w-5 h-5 fill-current" />
-            </button>
+            {activeClassSession.status === 'paused' ? (
+              <div className="w-full inline-flex items-center justify-center gap-2.5 px-5 py-3.5 rounded-2xl text-sm font-extrabold bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60">
+                <span aria-hidden="true">⏸️</span>
+                <span>המורה עצרה את הפעילות לרגע. חכו…</span>
+              </div>
+            ) : (
+              <button
+                onClick={handleStartActiveSession}
+                className="w-full h-14 min-h-[48px] bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-2xl font-display font-extrabold text-lg flex items-center justify-center gap-3 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 active:scale-[0.98] transition-all cursor-pointer"
+              >
+                <span>{highestCompletedMeeting >= effectiveSessionId ? 'היכנס לפעילות' : 'התחל פעילות'}</span>
+                <Play className="w-5 h-5 fill-current" />
+              </button>
+            )}
           </motion.div>
         )}
       </div>

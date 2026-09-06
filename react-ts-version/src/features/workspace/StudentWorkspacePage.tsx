@@ -48,6 +48,7 @@ import { toast } from 'sonner';
 import { BeeFlightWaitingScreen } from '@/presentation/components/student/BeeFlightWaitingScreen';
 import { hasEnhancedSupport as hasEnhancedSupportProfile } from '@/core/supportProfile';
 import { ProjectorWaitingScreen } from '@/presentation/components/student/ProjectorWaitingScreen';
+import { SessionPausedOverlay } from '@/presentation/components/student/SessionPausedOverlay';
 import { ReinforcementOrChallengeScreen } from './overlays/ReinforcementOrChallengeScreen';
 
 /**
@@ -258,13 +259,12 @@ export function StudentWorkspacePage() {
     };
   }, [activeDrag]);
 
-  // Enforce strict alignment with active teacher broadcast (PRD Module 14 & 20)
+  // Enforce strict alignment with active teacher broadcast (PRD Module 14 & 20).
+  // A closed meeting is shown IN PLACE (the "המפגש הכיתתי סגור" screen below),
+  // not by bouncing the learner to the lobby: the owner wants every teacher
+  // action — start, pause, close — to change the learner's screen where it is.
   useEffect(() => {
-    if (!activeClassSession.isLoaded) return;
-    if (!isTeacherSessionActive) {
-      navigate('/hub');
-      return;
-    }
+    if (!activeClassSession.isLoaded || !isTeacherSessionActive) return;
     if (teacherSessionNum && meeting !== teacherSessionNum) {
       navigate(`/workspace?meeting=${teacherSessionNum}`);
     }
@@ -977,12 +977,12 @@ export function StudentWorkspacePage() {
         <div className="bg-ws-surface p-10 rounded-3xl shadow-xl max-w-md text-center border border-ws-surface2">
           <div className="text-6xl mb-6 animate-pulse">🐝✨</div>
           <h2 className="text-2xl font-bold mb-4 text-ws-ink">
-            {isTeacherSessionActive ? `מפגש ${meeting} אינו המפגש הפעיל` : `המפגש הכיתתי סגור`}
+            {isTeacherSessionActive ? `מפגש ${meeting} אינו המפגש הפעיל` : `המורה סגרה את המפגש`}
           </h2>
           <p className="text-ws-soft mb-8 leading-relaxed">
             {isTeacherSessionActive
               ? `המורה מפעיל/ה כעת בכיתה את מפגש ${activeClassSession?.sessionNumber}.`
-              : 'סביבת הלימוד ממתינה להפעלת השיעור על ידי המורה בדשבורד הכיתה.'}
+              : 'העבודה שלכם נשמרה. כשהמורה תפתח מפגש, הוא יופיע כאן מיד.'}
           </p>
           <button 
             onClick={() => navigate('/hub')}
@@ -1040,6 +1040,9 @@ export function StudentWorkspacePage() {
         <FeedbackToast />
         <HelpOverlays />
         <StudentChatOverlay />
+
+        {/* Teacher paused the meeting: wait in place, board untouched underneath. */}
+        {activeClassSession.status === 'paused' && !isTeacherOrAdmin && <SessionPausedOverlay />}
         
         {isAdditionBoardEnabled && isAdditionHelperOpen && (
           <div className="fixed bottom-6 left-6 z-50 flex flex-col items-end gap-2" dir="rtl">

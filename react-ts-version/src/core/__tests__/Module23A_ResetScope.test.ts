@@ -54,7 +54,7 @@ describe('Module 23א — one scope for backup and deletion', () => {
   });
 
   it('a system reset leaves no active session (Module 14) on the server side too', () => {
-    expect(fn).toMatch(/rtdb\.ref\("active_class_session"\)\.set\(\{ active: false, sessionNumber: null, endedAt: Date\.now\(\) \}\)/);
+    expect(fn).toMatch(/rtdb\.ref\("active_class_session"\)\.set\(\{ active: false, status: "closed", sessionNumber: null, endedAt: Date\.now\(\) \}\)/);
     expect(fn).not.toMatch(/active_class_session"\)\.set\(\{ active: true/);
   });
 

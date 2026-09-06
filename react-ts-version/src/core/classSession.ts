@@ -11,10 +11,20 @@
 
 export const TEACHER_DISCONNECT_GRACE_MS = 5 * 60 * 1000;
 
+/**
+ * Owner decision (6.9.2026, register item 10): a meeting has three teacher
+ * controls — start, pause, close — and every one of them reaches the learner's
+ * screen live, in place. `active` stays the on/off flag older readers and the
+ * database rules know; `status` carries the pause.
+ */
+export type ClassSessionStatus = 'active' | 'paused' | 'closed';
+
 export interface ActiveClassSessionRecord {
   active?: boolean;
+  status?: ClassSessionStatus;
   sessionNumber?: number | null;
   startedAt?: number | null;
+  pausedAt?: number | null;
   teacherId?: string;
   teacherDisconnectedAt?: number | null;
 }
@@ -28,6 +38,19 @@ export function getSessionDurationMinutes(sessionNumber: number): number {
   if (sessionNumber === 1) return 20;
   if (sessionNumber >= 3 && sessionNumber <= 7) return 15;
   return 25; // sessions 2 and 8
+}
+
+/**
+ * The learner-facing state of the class session: 'active' (work), 'paused'
+ * (the teacher stopped the meeting for a moment; learners wait in place) or
+ * 'closed' (no meeting, or the teacher-disconnect grace expired).
+ */
+export function getClassSessionStatus(
+  val: ActiveClassSessionRecord | null | undefined,
+  now: number = Date.now()
+): ClassSessionStatus {
+  if (!isClassSessionLive(val, now)) return 'closed';
+  return val?.status === 'paused' ? 'paused' : 'active';
 }
 
 /** True when the session is open AND the teacher-disconnect grace has not expired. */

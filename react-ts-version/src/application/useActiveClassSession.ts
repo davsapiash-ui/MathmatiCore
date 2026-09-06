@@ -2,10 +2,13 @@ import { useState, useEffect, useRef } from 'react';
 import { ref, onValue, get } from 'firebase/database';
 import { onAuthStateChanged } from 'firebase/auth';
 import { database, auth, authReady } from '@/infrastructure/firebase';
-import { isClassSessionLive, type ActiveClassSessionRecord } from '@/core/classSession';
+import { getClassSessionStatus, isClassSessionLive, type ActiveClassSessionRecord, type ClassSessionStatus } from '@/core/classSession';
 
 export interface ActiveClassSession {
+  /** The meeting is open (active or paused). */
   active: boolean;
+  /** 'active' | 'paused' | 'closed' — see core/classSession.ts. */
+  status: ClassSessionStatus;
   sessionNumber: number | null;
   startedAt: number | null;
   teacherId?: string;
@@ -15,6 +18,7 @@ export interface ActiveClassSession {
 export function useActiveClassSession() {
   const [session, setSession] = useState<ActiveClassSession>({
     active: false,
+    status: 'closed',
     sessionNumber: null,
     startedAt: null,
     isLoaded: false,
@@ -35,6 +39,7 @@ export function useActiveClassSession() {
       if (val && isClassSessionLive(val)) {
         setSession({
           active: true,
+          status: getClassSessionStatus(val),
           sessionNumber: Number(val.sessionNumber || 1),
           startedAt: Number(val.startedAt || Date.now()),
           teacherId: val.teacherId,
@@ -44,6 +49,7 @@ export function useActiveClassSession() {
       }
       setSession({
         active: false,
+        status: 'closed',
         sessionNumber: null,
         startedAt: null,
         isLoaded: true,
