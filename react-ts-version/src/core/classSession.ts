@@ -12,6 +12,21 @@
 export const TEACHER_DISCONNECT_GRACE_MS = 5 * 60 * 1000;
 
 /**
+ * Owner decision (6.9.2026, register item 11): a meeting the teacher never
+ * closed closes by itself 45 minutes after activation. Until then nothing
+ * closes on its own and the learner sees no timer and no message (PRD Module
+ * 14 §ב1); the per-meeting working time (20 / 25 / 15 minutes) only raises the
+ * teacher's "עברו X דקות" popup.
+ */
+export const SESSION_HARD_CAP_MS = 45 * 60 * 1000;
+
+/** When the meeting closes by itself, or null when it has no start stamp. */
+export function getSessionAutoCloseAt(val: ActiveClassSessionRecord | null | undefined): number | null {
+  const startedAt = typeof val?.startedAt === 'number' ? val.startedAt : null;
+  return startedAt && startedAt > 0 ? startedAt + SESSION_HARD_CAP_MS : null;
+}
+
+/**
  * Owner decision (6.9.2026, register item 10): a meeting has three teacher
  * controls — start, pause, close — and every one of them reaches the learner's
  * screen live, in place. `active` stays the on/off flag older readers and the
@@ -63,5 +78,7 @@ export function isClassSessionLive(
   if (disconnectedAt && disconnectedAt > 0 && now - disconnectedAt > TEACHER_DISCONNECT_GRACE_MS) {
     return false;
   }
+  const autoCloseAt = getSessionAutoCloseAt(val);
+  if (autoCloseAt !== null && now >= autoCloseAt) return false;
   return true;
 }

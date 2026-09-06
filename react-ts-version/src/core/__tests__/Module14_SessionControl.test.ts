@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { getClassSessionStatus, isClassSessionLive, TEACHER_DISCONNECT_GRACE_MS } from '@/core/classSession';
+import { getClassSessionStatus, getSessionAutoCloseAt, isClassSessionLive, SESSION_HARD_CAP_MS, TEACHER_DISCONNECT_GRACE_MS } from '@/core/classSession';
 
 /**
  * PRD Module 14 §ב0 as amended by the product owner on 6.9.2026 (register
@@ -31,6 +31,33 @@ describe('Module 14 — class session status', () => {
     const now = 10_000_000;
     const rec = { active: true, status: 'paused' as const, teacherDisconnectedAt: now - TEACHER_DISCONNECT_GRACE_MS - 1 };
     expect(getClassSessionStatus(rec, now)).toBe('closed');
+  });
+});
+
+describe('Module 14 — the 45-minute hard cap (register item 11)', () => {
+  const startedAt = 1_800_000_000_000;
+
+  it('is exactly 45 minutes from activation', () => {
+    expect(SESSION_HARD_CAP_MS).toBe(45 * 60 * 1000);
+    expect(getSessionAutoCloseAt({ active: true, startedAt })).toBe(startedAt + SESSION_HARD_CAP_MS);
+    expect(getSessionAutoCloseAt({ active: true })).toBeNull();
+  });
+
+  it('before 45 minutes nothing closes by itself — not at 20, 25 or 15 minutes either', () => {
+    for (const minutes of [15, 20, 25, 44]) {
+      expect(isClassSessionLive({ active: true, startedAt }, startedAt + minutes * 60 * 1000)).toBe(true);
+    }
+  });
+
+  it('at 45 minutes the meeting counts as closed for every client', () => {
+    expect(isClassSessionLive({ active: true, startedAt }, startedAt + SESSION_HARD_CAP_MS)).toBe(false);
+    expect(getClassSessionStatus({ active: true, status: 'paused', startedAt }, startedAt + SESSION_HARD_CAP_MS + 1)).toBe('closed');
+  });
+
+  it('the teacher client records the automatic close once, and the learner gets no timer or message', () => {
+    expect(teacher).toMatch(/endedBy: 'auto_45min'/);
+    expect(teacher).toContain('המפגש נסגר אוטומטית: עברו 45 דקות מההפעלה.');
+    expect(learner).not.toMatch(/auto_45min|SESSION_HARD_CAP_MS|עברו \d+ דקות/);
   });
 });
 

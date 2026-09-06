@@ -12,7 +12,7 @@ import { extractTeacherId } from "@/infrastructure/services/FirebaseSyncService"
 import { useStore, type StudentData } from "@/application/useStore";
 import { toast } from "sonner";
 import { ref, onValue, remove, set, update, query, limitToLast, onDisconnect, serverTimestamp } from "firebase/database";
-import { getClassSessionStatus, isClassSessionLive, type ClassSessionStatus } from "@/core/classSession";
+import { getClassSessionStatus, getSessionAutoCloseAt, isClassSessionLive, type ClassSessionStatus } from "@/core/classSession";
 import { database, auth, functions, firestore } from "@/infrastructure/firebase";
 import { doc, onSnapshot, collection, writeBatch } from "firebase/firestore";
 import type { SessionDocument, PedagogicalPath } from "@/types";
@@ -173,6 +173,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     const sessionRef = ref(database, 'active_class_session');
     let lastVal: Record<string, unknown> | null = null;
 
+    let autoClosedStart: number | null = null;
     const applySessionState = () => {
       if (lastVal && isClassSessionLive(lastVal)) {
         setIsClassSessionActive(true);
@@ -180,6 +181,23 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
         setSessionStartTime((lastVal.startedAt as number) || Date.now());
         setSelectedSessionNum((lastVal.sessionNumber as number) || 1);
         return;
+      }
+      // 45-minute hard cap (core/classSession.ts): every client already treats
+      // the meeting as closed; the teacher's client, the one allowed to write,
+      // also records the close so the shared record says so. Once per start.
+      const autoCloseAt = getSessionAutoCloseAt(lastVal);
+      const startedAt = typeof lastVal?.startedAt === 'number' ? lastVal.startedAt : null;
+      if (lastVal?.active === true && autoCloseAt !== null && Date.now() >= autoCloseAt && startedAt !== autoClosedStart) {
+        autoClosedStart = startedAt;
+        set(sessionRef, {
+          active: false,
+          status: 'closed',
+          sessionNumber: null,
+          endedAt: Date.now(),
+          endedBy: 'auto_45min',
+          teacherId: (lastVal.teacherId as string) || 'teacher',
+        }).catch(() => {});
+        toast.info('המפגש נסגר אוטומטית: עברו 45 דקות מההפעלה.');
       }
       setIsClassSessionActive(false);
       setClassSessionStatus('closed');
