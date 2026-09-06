@@ -580,11 +580,16 @@ export class SocraticEngine {
                           targetNode === 'subtraction_regrouping';
 
     let subtrahend = currentTask?.numberB;
-    if (!subtrahend && typeof currentTask?.exercise === 'string' && currentTask.exercise.includes('-')) {
+    let minuend: number | undefined = typeof currentTask?.numberA === 'number' ? currentTask.numberA : undefined;
+    if (typeof currentTask?.exercise === 'string' && currentTask.exercise.includes('-')) {
       const parts = currentTask.exercise.split('-');
-      if (parts[1]) {
+      if (!subtrahend && parts[1]) {
         const parsed = parseInt(parts[1].trim(), 10);
         if (!isNaN(parsed)) subtrahend = parsed;
+      }
+      if (minuend === undefined && parts[0]) {
+        const parsed = parseInt(parts[0].replace(/\D/g, ''), 10);
+        if (!isNaN(parsed)) minuend = parsed;
       }
     }
 
@@ -592,9 +597,56 @@ export class SocraticEngine {
       const unitsB = subtrahend % 10;
       const tensB = Math.floor((subtrahend % 100) / 10);
       const hundredsB = Math.floor((subtrahend % 1000) / 100);
+      const boardValue = counts.units + counts.tens * 10 + counts.hundreds * 100 + counts.thousands * 1000;
 
-      // Check Units Deficit
-      if (unitsB > 0 && counts.units < unitsB) {
+      // Nothing on the canvas yet: the only sensible coaching is "build the first
+      // number". A deficit read off an empty board ("יש לנו 0 עשרות") is nonsense.
+      if (boardValue === 0) {
+        return {
+          pedagogical_intent: "procedural",
+          tts_text: `בחיסור בונים בבית המספרים רק את המספר הראשון${minuend !== undefined ? ` (${minuend})` : ''}, ואחר כך מוציאים ממנו.`,
+          suggested_highlight: "tour-palette",
+          questionHe: `בית המספרים עדיין ריק. בחיסור, מה בונים קודם?`,
+          choices: [
+            {
+              id: "opt_1",
+              textHe: `נבנה רק את המספר הראשון${minuend !== undefined ? ` (${minuend})` : ''} מהמחסן, ואחר כך נוציא ממנו ${subtrahend} לפח המחזור`,
+              isCorrect: true,
+              feedbackHe: "נכון! גררו קוביות מהמחסן עד שהלוח מראה את המספר הראשון, ורק אז הוציאו ממנו."
+            },
+            {
+              id: "opt_2",
+              textHe: "נבנה את שני המספרים בבית המספרים ונחבר אותם",
+              isCorrect: false,
+              feedbackHe: "רמז: בחיסור לא בונים את שני המספרים. בונים את הראשון ומוציאים ממנו את השני."
+            },
+            {
+              id: "opt_3",
+              textHe: "נקליד את התוצאה בלי לבנות כלום",
+              isCorrect: false,
+              feedbackHe: "רמז: קודם מייצגים את המספר בקוביות, ורק אחר כך כותבים את התוצאה."
+            }
+          ],
+          correctChoiceId: "opt_1"
+        };
+      }
+
+      // A deficit is a property of the exercise (the minuend's digit is smaller
+      // than the subtrahend's, after any borrow the column to its right needs),
+      // not of whatever happens to be on the board right now. Reading it off the
+      // board turned "470 − 250 with 2 tens left after removing 5" into a
+      // demand to decompose a hundred. When the minuend is unknown the old
+      // board-only reading is all there is.
+      const digitsKnown = minuend !== undefined;
+      const unitsA = digitsKnown ? minuend! % 10 : counts.units;
+      const tensA = digitsKnown ? Math.floor((minuend! % 100) / 10) : counts.tens;
+      const hundredsA = digitsKnown ? Math.floor((minuend! % 1000) / 100) : counts.hundreds;
+      const needUnits = unitsA < unitsB;
+      const needTens = tensA - (needUnits ? 1 : 0) < tensB;
+      const needHundreds = hundredsA - (needTens ? 1 : 0) < hundredsB;
+
+      // Check Units Deficit — real for this exercise, and not yet resolved on the board.
+      if (needUnits && unitsB > 0 && counts.units < unitsB) {
         return {
           pedagogical_intent: "procedural",
           tts_text: `יש לנו ${counts.units} יחידות בלוח ואנו צריכים להחסיר ${unitsB}. פרטו עשרת אחת ל-10 יחידות.`,
@@ -625,7 +677,7 @@ export class SocraticEngine {
       }
 
       // Check Tens Deficit
-      if (tensB > 0 && counts.tens < tensB) {
+      if (needTens && tensB > 0 && counts.tens < tensB) {
         return {
           pedagogical_intent: "procedural",
           tts_text: `יש לנו ${counts.tens} עשרות ואנו צריכים להחסיר ${tensB}. פרטו מאה אחת ל-10 עשרות.`,
@@ -656,7 +708,7 @@ export class SocraticEngine {
       }
 
       // Check Hundreds Deficit
-      if (hundredsB > 0 && counts.hundreds < hundredsB) {
+      if (needHundreds && hundredsB > 0 && counts.hundreds < hundredsB) {
         return {
           pedagogical_intent: "procedural",
           tts_text: `יש לנו ${counts.hundreds} מאות ואנו צריכים להחסיר ${hundredsB}. פרטו אלף אחד ל-10 מאות.`,

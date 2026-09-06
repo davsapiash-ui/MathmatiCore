@@ -34,7 +34,7 @@ describe('Realtime Socratic Engine & Live Board State Analyzer', () => {
     expect(distractorOpt?.isCorrect).toBe(false);
   });
 
-  it('2. Dynamically detects deficit in units for subtraction task 425 - 162', async () => {
+  it('2. Dynamically detects the tens deficit of 425 - 162 once 425 is on the board', async () => {
     const task = {
       id: 's1_t10',
       exercise: '425 - 162',
@@ -45,16 +45,59 @@ describe('Realtime Socratic Engine & Live Board State Analyzer', () => {
       instructionHe: 'החסירו 162 מתוך 425'
     };
 
-    // Live counts on the board: units = 1 (needs 2 units for 162)
-    const counts = { units: 1, tens: 2, hundreds: 4, thousands: 0 };
+    // 425 built as-is: 2 tens on the board, 6 tens to remove — a hundred must be decomposed.
+    const counts = { units: 5, tens: 2, hundreds: 4, thousands: 0 };
 
     const hint = await SocraticEngine.getSocraticHint(task, 'subtraction_regrouping', counts);
 
     expect(hint).toBeDefined();
-    expect(hint?.suggested_highlight).toBe('tour-column-tens');
-    expect(hint?.questionHe).toContain('1 יחידות');
-    expect(hint?.questionHe).toContain('2 יחידות');
-    expect(hint?.choices[0].textHe).toContain('עשרת אחת מטור העשרות כדי לפרוט');
+    expect(hint?.suggested_highlight).toBe('tour-column-hundreds');
+    expect(hint?.questionHe).toContain('2 עשרות');
+    expect(hint?.questionHe).toContain('6 עשרות');
+    expect(hint?.choices[0].textHe).toContain('מאה אחת מטור המאות כדי לפרוט');
+  });
+
+  describe('2b. A deficit belongs to the exercise, not to whatever is on the board (470 - 250, sandbox)', () => {
+    const task = {
+      id: 's1_t9',
+      type: 'vertical_addition',
+      isSubtraction: true,
+      numberA: 470,
+      numberB: 250,
+      instructionHe: 'בנו רק את המספר הראשון (470). מתוכו, מחקו 250',
+    };
+
+    it('empty board → "build the first number" card, never "יש לנו 0 עשרות"', () => {
+      const hint = SocraticEngine.analyzeLiveBoardState(task, 'basic_addition_fluency', { units: 0, tens: 0, hundreds: 0, thousands: 0 });
+      expect(hint).not.toBeNull();
+      expect(hint?.questionHe).toContain('בית המספרים עדיין ריק');
+      expect(hint?.questionHe).not.toContain('0 עשרות');
+      expect(hint?.choices.find((c) => c.id === hint?.correctChoiceId)?.textHe).toContain('470');
+      expect(hint?.choices.find((c) => c.id === hint?.correctChoiceId)?.textHe).toContain('250');
+    });
+
+    it('470 built (7 tens ≥ 5) → no deficit card', () => {
+      expect(SocraticEngine.analyzeLiveBoardState(task, 'basic_addition_fluency', { units: 0, tens: 7, hundreds: 4, thousands: 0 })).toBeNull();
+    });
+
+    it('250 already removed (board shows 220) → still no deficit card', () => {
+      expect(SocraticEngine.analyzeLiveBoardState(task, 'basic_addition_fluency', { units: 0, tens: 2, hundreds: 2, thousands: 0 })).toBeNull();
+    });
+
+    it('405 - 132: the tens deficit is real (0 < 3) and is reported from the built number', () => {
+      const t = { id: 'task7', isSubtraction: true, numberA: 405, numberB: 132 };
+      const hint = SocraticEngine.analyzeLiveBoardState(t, 'subtraction_regrouping', { units: 5, tens: 0, hundreds: 4, thousands: 0 });
+      expect(hint?.suggested_highlight).toBe('tour-column-hundreds');
+      expect(hint?.questionHe).toContain('0 עשרות');
+      expect(hint?.questionHe).toContain('3 עשרות');
+    });
+
+    it('a borrow that the units column consumes is counted: 42 - 15 needs the tens, not the hundreds', () => {
+      const t = { id: 'task3', isSubtraction: true, numberA: 42, numberB: 15 };
+      const hint = SocraticEngine.analyzeLiveBoardState(t, 'subtraction_regrouping', { units: 2, tens: 4, hundreds: 0, thousands: 0 });
+      expect(hint?.suggested_highlight).toBe('tour-column-tens');
+      expect(hint?.questionHe).toContain('2 יחידות');
+    });
   });
 
   it('3. Dynamically detects overcrowding in units (>= 10) in addition', async () => {
