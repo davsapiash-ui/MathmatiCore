@@ -12,51 +12,8 @@ import {
   generateReportAnalysis,
   resolveRecommendationTier,
 } from "./reportAnalysis";
+import { rtlText } from "./hebrewPdf";
 const PDFDocument = require("pdfkit");
-const bidiFactory = require("bidi-js");
-const bidi = bidiFactory();
-
-/**
- * Standard Unicode Bidirectional Algorithm (UAX #9) with line-wrapping
- * for rendering clean, natural Hebrew in PDFKit without character reversal or word transposition.
- */
-export function wrapAndBidi(text: string, maxChars = 75): string {
-  if (!text) return "";
-  const resultLines: string[] = [];
-  const rawLines = text.split("\n");
-  for (const rawLine of rawLines) {
-    const words = rawLine.split(" ");
-    let currentLine = "";
-    for (const word of words) {
-      if ((currentLine + " " + word).trim().length > maxChars) {
-        if (currentLine) {
-          try {
-            const levels = bidi.getEmbeddingLevels(currentLine, "rtl");
-            resultLines.push(bidi.getReorderedString(currentLine, levels));
-          } catch {
-            resultLines.push(currentLine);
-          }
-        }
-        currentLine = word;
-      } else {
-        currentLine = currentLine ? currentLine + " " + word : word;
-      }
-    }
-    if (currentLine) {
-      try {
-        const levels = bidi.getEmbeddingLevels(currentLine, "rtl");
-        resultLines.push(bidi.getReorderedString(currentLine, levels));
-      } catch {
-        resultLines.push(currentLine);
-      }
-    }
-  }
-  return resultLines.join("\n");
-}
-
-export function shapeRtl(text: string): string {
-  return wrapAndBidi(text, 120);
-}
 
 export const EXACT_AI_FALLBACK_TEXT = "הניתוח הפדגוגי המפורט אינו זמין כעת. ההמלצות שלהלן מבוססות על מדדי הביצוע.";
 
@@ -234,42 +191,51 @@ export function createPedagogicalReportPdfBuffer(report: Record<string, any>): P
       }
 
       // Header
-      doc.fontSize(22).fillColor("#1e1b4b").text(shapeRtl(report.title_he || "MathematiCore - דוח פדגוגי מסכם"), { align: "center" });
+      doc.fontSize(22).fillColor("#1e1b4b");
+      rtlText(doc, report.title_he || "MathematiCore - דוח פדגוגי מסכם", { align: "center" });
       doc.moveDown(0.4);
-      doc.fontSize(11).fillColor("#475569").text(shapeRtl("הערכה פדגוגית חסויה | מדיניות אפס מידע מזהה (Zero PII)"), { align: "center" });
+      doc.fontSize(11).fillColor("#475569");
+      rtlText(doc, "הערכה פדגוגית חסויה | מדיניות אפס מידע מזהה (Zero PII)", { align: "center" });
       doc.moveDown(1);
 
       // Metadata summary card
       doc.rect(40, doc.y, 515, 60).fillAndStroke("#f8fafc", "#cbd5e1");
       doc.fillColor("#0f172a").fontSize(11);
       const cardY = doc.y + 12;
-      doc.text(shapeRtl(`לומד: ${report.anonymous_student_label}`), 390, cardY, { width: 150, align: "right" });
-      doc.text(shapeRtl(`מפגש: ${report.session_number}`), 260, cardY, { width: 110, align: "right" });
-      doc.text(shapeRtl(`ציון שליטה: ${report.score_percent}%`), 70, cardY, { width: 170, align: "right" });
-      doc.text(shapeRtl(`מסלול מומלץ: ${report.matrix_recommended_path === 'green_path' ? 'מסלול העמקה (ירוק)' : 'מסלול ביסוס ומענה מותאם (צהוב)'}`), 55, cardY + 25, { width: 490, align: "right" });
+      rtlText(doc, `לומד: ${report.anonymous_student_label}`, 390, cardY, { width: 150 });
+      rtlText(doc, `מפגש: ${report.session_number}`, 260, cardY, { width: 110 });
+      rtlText(doc, `ציון שליטה: ${report.score_percent}%`, 70, cardY, { width: 170 });
+      rtlText(doc, `מסלול מומלץ: ${report.matrix_recommended_path === 'green_path' ? 'מסלול העמקה (ירוק)' : 'מסלול ביסוס ומענה מותאם (צהוב)'}`, 55, cardY + 25, { width: 490 });
+      doc.x = 40;
       doc.y = cardY + 60;
       doc.moveDown(1);
 
       // Grouping Recommendation
-      doc.fontSize(14).fillColor("#166534").text(shapeRtl("1. המלצת ניתוב פדגוגי"), { align: "right" });
+      doc.fontSize(14).fillColor("#166534");
+      rtlText(doc, "1. המלצת ניתוב פדגוגי");
       doc.moveDown(0.3);
-      doc.fontSize(11).fillColor("#14532d").text(shapeRtl(`קבוצת למידה: ${report.routing_label_he || report.routing_group}`), { align: "right" });
-      doc.fontSize(10).fillColor("#334155").text(shapeRtl(`פירוט פדגוגי: ${report.recommendation_details_he || report.routing_label_he}`), { align: "right", lineGap: 3 });
+      doc.fontSize(11).fillColor("#14532d");
+      rtlText(doc, `קבוצת למידה: ${report.routing_label_he || report.routing_group}`);
+      doc.fontSize(10).fillColor("#334155");
+      rtlText(doc, `פירוט פדגוגי: ${report.recommendation_details_he || report.routing_label_he}`, { lineGap: 3 });
       doc.moveDown(1);
 
       // Chronological Exercise Narratives
-      doc.fontSize(14).fillColor("#1e293b").text(shapeRtl("2. סיפור התרגילים הכרונולוגי (Exercise Narratives)"), { align: "right" });
+      doc.fontSize(14).fillColor("#1e293b");
+      rtlText(doc, "2. סיפור התרגילים הכרונולוגי (Exercise Narratives)");
       doc.moveDown(0.4);
       if (report.exercise_narratives && Array.isArray(report.exercise_narratives)) {
         for (const narrative of report.exercise_narratives) {
-          doc.fontSize(10).fillColor("#334155").text(wrapAndBidi(`* ${narrative}`, 75), { align: "right", lineGap: 3 });
+          doc.fontSize(10).fillColor("#334155");
+          rtlText(doc, `• ${narrative}`, { lineGap: 3 });
           doc.moveDown(0.3);
         }
       }
       doc.moveDown(1);
 
       // AI Insights (Module 23 layer 2) / Exact Fallback
-      doc.fontSize(14).fillColor("#92400e").text(shapeRtl("3. תובנות קוגניטיביות פדגוגיות"), { align: "right" });
+      doc.fontSize(14).fillColor("#92400e");
+      rtlText(doc, "3. תובנות קוגניטיביות פדגוגיות");
       doc.moveDown(0.3);
       const gaps: string[] = Array.isArray(report.knowledge_gaps) ? report.knowledge_gaps : [];
       const teaching: string[] = Array.isArray(report.teaching_recommendations)
@@ -278,32 +244,38 @@ export function createPedagogicalReportPdfBuffer(report: Record<string, any>): P
 
       if (gaps.length > 0 || teaching.length > 0) {
         if (gaps.length > 0) {
-          doc.fontSize(11).fillColor("#92400e").text(shapeRtl("פערי ידע שאותרו:"), { align: "right" });
+          doc.fontSize(11).fillColor("#92400e");
+          rtlText(doc, "פערי ידע שאותרו:");
           doc.moveDown(0.2);
           for (const gap of gaps) {
-            doc.fontSize(10).fillColor("#78350f").text(wrapAndBidi(`* ${gap}`, 75), { align: "right", lineGap: 3 });
+            doc.fontSize(10).fillColor("#78350f");
+            rtlText(doc, `• ${gap}`, { lineGap: 3 });
             doc.moveDown(0.2);
           }
           doc.moveDown(0.4);
         }
         if (teaching.length > 0) {
-          doc.fontSize(11).fillColor("#92400e").text(shapeRtl("המלצות הוראה להמשך העבודה בכיתה:"), { align: "right" });
+          doc.fontSize(11).fillColor("#92400e");
+          rtlText(doc, "המלצות הוראה להמשך העבודה בכיתה:");
           doc.moveDown(0.2);
           for (const rec of teaching) {
-            doc.fontSize(10).fillColor("#78350f").text(wrapAndBidi(`* ${rec}`, 75), { align: "right", lineGap: 3 });
+            doc.fontSize(10).fillColor("#78350f");
+            rtlText(doc, `• ${rec}`, { lineGap: 3 });
             doc.moveDown(0.2);
           }
         }
       } else {
         // The PRD fixes this sentence verbatim for the engine-unavailable case.
-        doc.fontSize(10).fillColor("#78350f").text(wrapAndBidi(report.ai_fallback_text || EXACT_AI_FALLBACK_TEXT, 75), { align: "right", lineGap: 3 });
+        doc.fontSize(10).fillColor("#78350f");
+        rtlText(doc, report.ai_fallback_text || EXACT_AI_FALLBACK_TEXT, { lineGap: 3 });
       }
       doc.moveDown(1.5);
 
       // Footer
       const genTime = report.generated_at ? new Date(report.generated_at) : new Date();
       const footerText = `נוצר אוטומטית בתאריך ${genTime.toLocaleDateString("he-IL")} | מנוע MathematiCore v7.0`;
-      doc.fontSize(8).fillColor("#94a3b8").text(shapeRtl(footerText), 40, 780, { align: "center", width: 515 });
+      doc.fontSize(8).fillColor("#94a3b8");
+      rtlText(doc, footerText, 40, Math.max(doc.y + 10, 780), { width: 515, align: "center" });
 
       doc.end();
     } catch (renderErr) {
