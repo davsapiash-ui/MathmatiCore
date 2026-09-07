@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
+import { GRID_AUTO_HIDE_SECONDS, GRID_FADE_IN_SECONDS } from '@/core/hesitationStages';
 import { X, Sparkles } from 'lucide-react';
 
 interface AdaptiveAdditionGridProps {
@@ -10,14 +11,32 @@ interface AdaptiveAdditionGridProps {
 
 /**
  * AdaptiveAdditionGrid (Module 10: Adaptive Addition Support Grid)
- * Appears dynamically after 30s cognitive hesitation as an intermediate pedagogical scaffold.
+ * Appears after 30s cognitive hesitation as an intermediate pedagogical scaffold,
+ * for enhanced_cognitive_support learners only (the gate is in the radar hook).
  * Features dual-axis (row/column) coordinate illumination and exact intersection sum calculation.
+ *
+ * The pedagogical matrix (מסמך 05, register item 13) fixes the two timings:
+ * a soft fade-in of exactly 2.5 seconds, and an automatic hide exactly 3
+ * seconds after the learner's correct digit, so the board never lingers over
+ * a learner on the autistic spectrum who no longer needs it. The exit
+ * animation runs under the page's AnimatePresence, so this component must be
+ * mounted inside one.
  */
 export function AdaptiveAdditionGrid({ onSelection, onClose }: AdaptiveAdditionGridProps) {
   const [activeRow, setActiveRow] = useState<number | null>(null);
   const [activeCol, setActiveCol] = useState<number | null>(null);
 
   const closeAdditionHelper = useWorkspaceStore((s) => s.closeAdditionHelper);
+  const lastCorrectDigitAt = useWorkspaceStore((s) => s.lastCorrectDigitAt);
+
+  // Matrix: hide exactly 3s after a successful digit input. A later correct
+  // digit restarts the countdown; unmounting cancels it.
+  useEffect(() => {
+    if (lastCorrectDigitAt === null) return;
+    const remaining = Math.max(0, GRID_AUTO_HIDE_SECONDS * 1000 - (Date.now() - lastCorrectDigitAt));
+    const timer = setTimeout(() => closeAdditionHelper(), remaining);
+    return () => clearTimeout(timer);
+  }, [lastCorrectDigitAt, closeAdditionHelper]);
 
   const digits = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
 
@@ -55,17 +74,17 @@ export function AdaptiveAdditionGrid({ onSelection, onClose }: AdaptiveAdditionG
   };
 
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0, scale: 0.92, y: 16 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.9, y: 16 }}
-        transition={{ duration: 0.3 }}
-        dir="rtl"
-        className="bg-white dark:bg-slate-900 border-2 border-amber-300 dark:border-amber-700/60 rounded-3xl p-5 shadow-2xl max-w-md w-full select-none"
-        role="dialog"
-        aria-label="לוח עזר אדפטיבי לחיבור"
-      >
+    <motion.div
+      initial={{ opacity: 0, scale: 0.96, y: 12 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.96, y: 12, transition: { duration: 0.6, ease: 'easeInOut' } }}
+      transition={{ duration: GRID_FADE_IN_SECONDS, ease: 'easeInOut' }}
+      dir="rtl"
+      className="bg-white dark:bg-slate-900 border-2 border-amber-300 dark:border-amber-700/60 rounded-3xl p-5 shadow-2xl max-w-md w-full select-none"
+      role="dialog"
+      aria-label="לוח עזר אדפטיבי לחיבור"
+      data-testid="adaptive-addition-grid"
+    >
         <div className="flex justify-between items-center mb-3">
           <div className="flex items-center gap-2">
             <span className="p-2 rounded-xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400">
@@ -159,8 +178,7 @@ export function AdaptiveAdditionGrid({ onSelection, onClose }: AdaptiveAdditionG
             </tbody>
           </table>
         </div>
-      </motion.div>
-    </AnimatePresence>
+    </motion.div>
   );
 }
 
