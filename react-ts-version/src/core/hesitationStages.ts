@@ -24,25 +24,12 @@ export const GRID_STAGE_SECONDS = 30;
 export const DEFAULT_SOCRATIC_STAGE_SECONDS = 45;
 
 /**
- * The pedagogical matrix (מסמך 05, owner decision 6.9.2026, register item 13):
- * the board "loads with a soft fade of exactly two and a half seconds" and
- * "disappears by itself exactly three seconds after a successful digit or
- * answer input by the learner, to prevent visual overload for learners on
- * the autistic spectrum". Both apply only once the profile gate above held.
+ * Owner decision (7.9.2026, register item 13): the board fades in softly over
+ * 2 seconds and stays until the learner closes it with the X. The matrix's
+ * automatic hide 3 seconds after a correct digit was built and then rejected:
+ * a board that vanishes mid-exercise surprises exactly the learner it serves.
  */
-export const GRID_FADE_IN_SECONDS = 2.5;
-export const GRID_AUTO_HIDE_SECONDS = 3;
-
-export interface AdaptiveGridAutoHideInput {
-  isAdditionHelperOpen: boolean;
-  /** The DIGIT_ENTERED verdict: true, false, or null when the column has no expected digit. */
-  isCorrect: boolean | null;
-}
-
-/** Only a correct digit starts the 3-second auto-hide; a wrong or unverifiable one leaves the board. */
-export function shouldAutoHideAdaptiveGrid(input: AdaptiveGridAutoHideInput): boolean {
-  return input.isAdditionHelperOpen && input.isCorrect === true;
-}
+export const GRID_FADE_IN_SECONDS = 2;
 
 export interface AdaptiveGridStageInput {
   /** The learner's Module 19 support profile, from auth or the workspace store. */

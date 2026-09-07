@@ -196,11 +196,6 @@ interface WorkspaceState {
   successStreak: number;
   keyboardState: KeyboardState;
   isAdditionHelperOpen: boolean;
-  /**
-   * Module 10 + the matrix (register item 13): the learner's clock at the last
-   * correct DIGIT_ENTERED. The adaptive grid hides itself 3 seconds after it.
-   */
-  lastCorrectDigitAt: number | null;
   helpRequested: boolean;
   pendingSupportProfileId: string | null;
   activeSupportProfileId: string | null;
@@ -332,7 +327,6 @@ function resetTaskInteraction(isASD = false) {
     keyboardState: 'UNLOCKED' as KeyboardState,
     hasDigitErrorInTask: false,
     isAdditionHelperOpen: false,
-    lastCorrectDigitAt: null,
   };
 }
 
@@ -1288,7 +1282,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     errorNonce: 0,
     focusedPlace: null,
     isAdditionHelperOpen: false,
-    lastCorrectDigitAt: null,
 
     hasInteracted: false,
     undoTimestamps: [],
@@ -1950,8 +1943,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
                   : 0,
               hasDigitErrorInTask: isCorrect === false ? true : s.hasDigitErrorInTask,
               typedErrorCount: isCorrect === false ? s.typedErrorCount + 1 : s.typedErrorCount,
-              // Module 10 / matrix: a correct digit starts the grid's 3s auto-hide.
-              lastCorrectDigitAt: isCorrect === true ? Date.now() : s.lastCorrectDigitAt,
             };
           }
         } else if (isDelete) {
@@ -2034,7 +2025,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
               hasInteracted: true,
               hasDigitErrorInTask: isCorrect === false ? true : s.hasDigitErrorInTask,
               typedErrorCount: isCorrect === false ? s.typedErrorCount + 1 : s.typedErrorCount,
-              lastCorrectDigitAt: isCorrect === true ? Date.now() : s.lastCorrectDigitAt,
             };
           }
         } else if (isDelete) {
@@ -2404,7 +2394,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           consecutiveDeletions: 0,
           hasDigitErrorInTask: isCorrect ? s.hasDigitErrorInTask : true,
           typedErrorCount: isCorrect ? s.typedErrorCount : s.typedErrorCount + 1,
-          lastCorrectDigitAt: isCorrect ? Date.now() : s.lastCorrectDigitAt,
         });
         return;
       }
@@ -2504,7 +2493,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         errorNonce: 0,
         focusedPlace: null,
         isAdditionHelperOpen: false,
-        lastCorrectDigitAt: null,
         hasInteracted: false,
         undoTimestamps: [],
         isBoardLocked: false,
