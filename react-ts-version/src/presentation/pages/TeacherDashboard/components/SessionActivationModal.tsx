@@ -28,6 +28,7 @@ export function SessionActivationModal({ isOpen, sessionNumber, sessions, onClos
 
   const row = sessions.find((s) => s.sessionNumber === sessionNumber);
   const isReopen = row?.state === 'completed';
+  const currentlyActive = sessions.find((s) => s.state === 'active' && s.sessionNumber !== sessionNumber);
 
   return createPortal(
     <>
@@ -53,6 +54,11 @@ export function SessionActivationModal({ isOpen, sessionNumber, sessions, onClos
               destroys no data. The eight-session state list lives in the picker. */}
           <div className="px-6 py-5">
             <ul className="text-sm text-slate-700 dark:text-slate-300 space-y-2 list-disc pr-5">
+              {currentlyActive && (
+                <li className="text-amber-700 dark:text-amber-400">
+                  מפגש {currentlyActive.sessionNumber} הפעיל כעת ייסגר, וכל הלומדים יעברו למפגש {sessionNumber} מיד.
+                </li>
+              )}
               <li>המפגש יישאר פעיל עד שתפתחי מפגש אחר.</li>
               {isReopen && (
                 <li className="text-emerald-700 dark:text-emerald-400">

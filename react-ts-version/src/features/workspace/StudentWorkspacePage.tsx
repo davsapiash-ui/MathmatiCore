@@ -941,15 +941,6 @@ export function StudentWorkspacePage() {
           </p>
           <div className="pt-4 flex flex-col gap-3">
             <button
-              onClick={() => {
-                initSession(meeting, isASDMode, 0);
-              }}
-              className="w-full py-3.5 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 font-display font-extrabold text-base rounded-2xl hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2 border border-slate-300 dark:border-slate-700"
-            >
-              <span>תרגול נוסף בתחנה זו</span>
-              <span>🔄</span>
-            </button>
-            <button
               onClick={() => navigate('/hub')}
               className="w-full py-3.5 bg-ws-accent text-white font-display font-extrabold text-base rounded-2xl hover:brightness-105 active:scale-95 transition-all cursor-pointer shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
             >
