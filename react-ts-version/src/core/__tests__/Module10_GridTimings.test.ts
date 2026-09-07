@@ -1,60 +1,30 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { useWorkspaceStore, getActiveTasks } from '@/application/useWorkspaceStore';
-import { useAuthStore } from '@/application/useAuthStore';
-import { GRID_AUTO_HIDE_SECONDS, GRID_FADE_IN_SECONDS, shouldAutoHideAdaptiveGrid } from '@/core/hesitationStages';
+import { GRID_FADE_IN_SECONDS } from '@/core/hesitationStages';
 
 /**
- * The pedagogical matrix (מסמך 05), owner decision 6.9.2026 (register item 13):
- * "המערכת תטען את הלוח באנימציית עמעום רכה של בדיוק שתי שניות וחצי … תעלים
- * את הלוח באופן אוטומטי בדיוק שלוש שניות לאחר זיהוי אירוע קלט מוצלח של
- * בחירת ספרה או תשובה". Only for enhanced_cognitive_support (PRD Module 10).
+ * Owner decision 7.9.2026 (register item 13): the adaptive addition grid
+ * fades in over 2 seconds and stays until the learner closes it with the X.
+ * The matrix's automatic hide 3 seconds after a correct digit was built,
+ * then rejected by the owner ("עדיף להשאיר את הלוח עם כפתור סגירה").
+ * Profile gate and 30s stage: unchanged (Module10_AdaptiveGrid.test.ts).
  */
 const grid = readFileSync(resolve(__dirname, '../../features/workspace/board/AdaptiveAdditionGrid.tsx'), 'utf-8');
 const page = readFileSync(resolve(__dirname, '../../features/workspace/StudentWorkspacePage.tsx'), 'utf-8');
+const store = readFileSync(resolve(__dirname, '../../application/useWorkspaceStore.ts'), 'utf-8');
 
-describe('Module 10 — matrix timings of the adaptive addition grid', () => {
-  beforeEach(() => {
-    useWorkspaceStore.getState().resetWorkspace();
-    useAuthStore.setState({ user: null });
-  });
-
-  it('fades in over exactly 2.5 seconds and hides 3 seconds after a correct digit', () => {
-    expect(GRID_FADE_IN_SECONDS).toBe(2.5);
-    expect(GRID_AUTO_HIDE_SECONDS).toBe(3);
+describe('Module 10 — adaptive addition grid: slow fade-in, closed by the learner only', () => {
+  it('fades in over 2 seconds', () => {
+    expect(GRID_FADE_IN_SECONDS).toBe(2);
     expect(grid).toMatch(/transition=\{\{ duration: GRID_FADE_IN_SECONDS/);
-    expect(grid).toMatch(/GRID_AUTO_HIDE_SECONDS \* 1000 - \(Date\.now\(\) - lastCorrectDigitAt\)/);
-    expect(grid).toMatch(/const timer = setTimeout\(\(\) => closeAdditionHelper\(\), remaining\);/);
   });
 
-  it('only a correct digit starts the auto-hide; a wrong or unverifiable one leaves the board', () => {
-    expect(shouldAutoHideAdaptiveGrid({ isAdditionHelperOpen: true, isCorrect: true })).toBe(true);
-    expect(shouldAutoHideAdaptiveGrid({ isAdditionHelperOpen: true, isCorrect: false })).toBe(false);
-    expect(shouldAutoHideAdaptiveGrid({ isAdditionHelperOpen: true, isCorrect: null })).toBe(false);
-    expect(shouldAutoHideAdaptiveGrid({ isAdditionHelperOpen: false, isCorrect: true })).toBe(false);
-  });
-
-  it('the store stamps the learner\'s clock on a correct result digit and not on a wrong one', () => {
-    const store = useWorkspaceStore.getState();
-    store.initSession(3, false);
-    expect(useWorkspaceStore.getState().lastCorrectDigitAt).toBeNull();
-
-    // A wrong digit: the stamp stays null.
-    const before = Date.now();
-    const s = useWorkspaceStore.getState();
-    const task = getActiveTasks(s)[s.standardTaskIdx] as { correctAnswer?: number | string } | undefined;
-    const target = typeof task?.correctAnswer === 'number' ? task.correctAnswer : null;
-    if (target === null) return; // no arithmetic task in this bank; nothing to assert
-    const unitsDigit = target % 10;
-    const wrong = (unitsDigit + 1) % 10;
-    useWorkspaceStore.getState().setAnswerDigit('units', String(wrong));
-    expect(useWorkspaceStore.getState().lastCorrectDigitAt).toBeNull();
-
-    useWorkspaceStore.getState().setAnswerDigit('units', String(unitsDigit));
-    const at = useWorkspaceStore.getState().lastCorrectDigitAt;
-    expect(at).not.toBeNull();
-    expect(at as number).toBeGreaterThanOrEqual(before);
+  it('has the X and nothing else closes it', () => {
+    expect(grid).toContain('aria-label="סגור לוח עזר"');
+    expect(grid).not.toMatch(/setTimeout\([^)]*closeAdditionHelper/);
+    expect(grid).not.toMatch(/AUTO_HIDE|lastCorrectDigitAt/);
+    expect(store).not.toContain('lastCorrectDigitAt');
   });
 
   it('the exit animation is owned by the page so the board fades out after the store closes it', () => {

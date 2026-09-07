@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
-import { GRID_AUTO_HIDE_SECONDS, GRID_FADE_IN_SECONDS } from '@/core/hesitationStages';
+import { GRID_FADE_IN_SECONDS } from '@/core/hesitationStages';
 import { X, Sparkles } from 'lucide-react';
 
 interface AdaptiveAdditionGridProps {
@@ -15,28 +15,16 @@ interface AdaptiveAdditionGridProps {
  * for enhanced_cognitive_support learners only (the gate is in the radar hook).
  * Features dual-axis (row/column) coordinate illumination and exact intersection sum calculation.
  *
- * The pedagogical matrix (מסמך 05, register item 13) fixes the two timings:
- * a soft fade-in of exactly 2.5 seconds, and an automatic hide exactly 3
- * seconds after the learner's correct digit, so the board never lingers over
- * a learner on the autistic spectrum who no longer needs it. The exit
- * animation runs under the page's AnimatePresence, so this component must be
- * mounted inside one.
+ * Owner decision (7.9.2026, register item 13): a soft fade-in of 2 seconds,
+ * and the board stays until the learner closes it with the X. Nothing closes
+ * it automatically. The exit animation runs under the page's AnimatePresence,
+ * so this component must be mounted inside one.
  */
 export function AdaptiveAdditionGrid({ onSelection, onClose }: AdaptiveAdditionGridProps) {
   const [activeRow, setActiveRow] = useState<number | null>(null);
   const [activeCol, setActiveCol] = useState<number | null>(null);
 
   const closeAdditionHelper = useWorkspaceStore((s) => s.closeAdditionHelper);
-  const lastCorrectDigitAt = useWorkspaceStore((s) => s.lastCorrectDigitAt);
-
-  // Matrix: hide exactly 3s after a successful digit input. A later correct
-  // digit restarts the countdown; unmounting cancels it.
-  useEffect(() => {
-    if (lastCorrectDigitAt === null) return;
-    const remaining = Math.max(0, GRID_AUTO_HIDE_SECONDS * 1000 - (Date.now() - lastCorrectDigitAt));
-    const timer = setTimeout(() => closeAdditionHelper(), remaining);
-    return () => clearTimeout(timer);
-  }, [lastCorrectDigitAt, closeAdditionHelper]);
 
   const digits = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
 
