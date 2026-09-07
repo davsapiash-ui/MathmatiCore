@@ -12,7 +12,8 @@ import {
   summarizeMeeting,
   type MeetingSummary,
 } from "./meetingMetrics";
-import { EXACT_AI_FALLBACK_TEXT, wrapAndBidi, shapeRtl } from "./pedagogicalReport";
+import { EXACT_AI_FALLBACK_TEXT } from "./pedagogicalReport";
+import { rtlText } from "./hebrewPdf";
 import { resolveRecommendationTier, type RecommendationTier } from "./reportAnalysis";
 import { GEMINI_MODEL_ID, GEMINI_SECRETS, getGeminiClient } from "./geminiConfig";
 const PDFDocument = require("pdfkit");
@@ -492,27 +493,32 @@ export function createClassReportPdfBuffer(report: Record<string, any>): Promise
 
       const a: ClassAggregates = report.aggregates;
       const rows: ClassLearnerRow[] = report.learners;
-      const line = (text: string, size = 10, color = "#334155", maxChars = 80) => {
-        doc.fontSize(size).fillColor(color).text(wrapAndBidi(text, maxChars), { align: "right", lineGap: 3 });
+      const line = (text: string, size = 10, color = "#334155", indentRight = 0) => {
+        doc.fontSize(size).fillColor(color);
+        rtlText(doc, text, { lineGap: 3, indentRight });
       };
       const heading = (text: string, color = "#1e293b") => {
         doc.moveDown(0.8);
-        doc.fontSize(14).fillColor(color).text(shapeRtl(text), { align: "right" });
+        doc.fontSize(14).fillColor(color);
+        rtlText(doc, text);
         doc.moveDown(0.3);
       };
 
-      doc.fontSize(22).fillColor("#1e1b4b").text(shapeRtl(report.title_he), { align: "center" });
+      doc.fontSize(22).fillColor("#1e1b4b");
+      rtlText(doc, report.title_he, { align: "center" });
       doc.moveDown(0.4);
-      doc.fontSize(11).fillColor("#475569").text(shapeRtl("דוח כיתתי חסוי | מדיניות אפס מידע מזהה (Zero PII) | לומדים מזוהים במספר בלבד"), { align: "center" });
+      doc.fontSize(11).fillColor("#475569");
+      rtlText(doc, "דוח כיתתי חסוי | מדיניות אפס מידע מזהה (Zero PII) | לומדים מזוהים במספר בלבד", { align: "center" });
       doc.moveDown(1);
 
       doc.rect(40, doc.y, 515, 60).fillAndStroke("#f8fafc", "#cbd5e1");
       doc.fillColor("#0f172a").fontSize(11);
       const cardY = doc.y + 12;
-      doc.text(shapeRtl(`מפגש: ${report.session_number}`), 400, cardY, { width: 140, align: "right" });
-      doc.text(shapeRtl(`לומדים עם נתונים: ${a.learners_with_data} מתוך 12`), 200, cardY, { width: 190, align: "right" });
-      doc.text(shapeRtl(`ציון ממוצע: ${a.score_mean}%`), 55, cardY, { width: 140, align: "right" });
-      doc.text(shapeRtl(`חציון: ${a.score_median}% | טווח: ${a.score_min}%–${a.score_max}% | מסלול ירוק: ${a.paths.green_path} | מסלול ביסוס: ${a.paths.remediation_path}`), 55, cardY + 25, { width: 490, align: "right" });
+      rtlText(doc, `מפגש: ${report.session_number}`, 400, cardY, { width: 140 });
+      rtlText(doc, `לומדים עם נתונים: ${a.learners_with_data} מתוך 12`, 200, cardY, { width: 190 });
+      rtlText(doc, `ציון ממוצע: ${a.score_mean}%`, 55, cardY, { width: 140 });
+      rtlText(doc, `חציון: ${a.score_median}% | טווח: ${a.score_min}%–${a.score_max}% | מסלול ירוק: ${a.paths.green_path} | מסלול ביסוס: ${a.paths.remediation_path}`, 55, cardY + 25, { width: 490 });
+      doc.x = 40;
       doc.y = cardY + 60;
 
       heading("1. קבוצות עבודה לפי כלל האחוזים (שכבה 1, דטרמיניסטית)", "#166534");
@@ -539,14 +545,14 @@ export function createClassReportPdfBuffer(report: Record<string, any>): Promise
       }
 
       heading("4. טבלת הלומדים (כל מה שנמדד ליחיד)");
-      line("לומד | ציון | נכון בניסיון ראשון | תרגילים | ספרות שגויות (א/ע/מ/אל) | מחיקות | ביטולים | היסוסים | המרות | כרטיסים | דקות | רפלקציה", 8, "#64748b", 120);
+      line("לומד | ציון | נכון בניסיון ראשון | תרגילים | ספרות שגויות (א/ע/מ/אל) | מחיקות | ביטולים | היסוסים | המרות | כרטיסים | דקות | רפלקציה", 8, "#64748b");
       for (const r of rows) {
         line(
           `תלמיד ${r.student_id} | ${r.score_percent}% | ${r.correct_first_attempt}/${r.compulsory_total} | ${r.exercises_completed}/${r.exercises_attempted} | ${r.wrong_digits} (${r.wrong_digits_units}/${r.wrong_digits_tens}/${r.wrong_digits_hundreds}/${r.wrong_digits_thousands}) | ${r.deletions} | ${r.undos} | ${r.hesitations} | ${r.regroupings} | ${r.socratic_cards} | ${r.active_minutes} | ${r.reflection_submitted ? "כן" : "לא"}`,
-          9, "#0f172a", 120
+          9, "#0f172a"
         );
         const outcomes = Object.entries(r.exercise_outcomes).map(([id, o]) => `${id}: ${OUTCOME_HE[o]}`).join(", ");
-        if (outcomes) line(`    ${outcomes}`, 8, "#64748b", 120);
+        if (outcomes) line(outcomes, 8, "#64748b", 16);
       }
 
       heading("5. ניתוח הבינה: דפוסים כיתתיים והמלצות הוראה", "#92400e");
@@ -555,12 +561,12 @@ export function createClassReportPdfBuffer(report: Record<string, any>): Promise
       if (patterns.length > 0 || teaching.length > 0) {
         if (patterns.length > 0) {
           line("דפוסים כיתתיים שאותרו:", 11, "#92400e");
-          for (const p of patterns) line(`* ${p}`, 10, "#78350f");
+          for (const p of patterns) line(`• ${p}`, 10, "#78350f");
         }
         if (teaching.length > 0) {
           doc.moveDown(0.3);
           line("המלצות הוראה לכיתה:", 11, "#92400e");
-          for (const t of teaching) line(`* ${t}`, 10, "#78350f");
+          for (const t of teaching) line(`• ${t}`, 10, "#78350f");
         }
       } else {
         line(EXACT_AI_FALLBACK_TEXT, 10, "#78350f");
@@ -568,7 +574,8 @@ export function createClassReportPdfBuffer(report: Record<string, any>): Promise
 
       doc.moveDown(1.5);
       const genTime = report.generated_at ? new Date(report.generated_at) : new Date();
-      doc.fontSize(8).fillColor("#94a3b8").text(shapeRtl(`נוצר אוטומטית בתאריך ${genTime.toLocaleDateString("he-IL")} | מנוע MathematiCore v7.0`), { align: "center" });
+      doc.fontSize(8).fillColor("#94a3b8");
+      rtlText(doc, `נוצר אוטומטית בתאריך ${genTime.toLocaleDateString("he-IL")} | מנוע MathematiCore v7.0`, { align: "center" });
       doc.end();
     } catch (err) {
       reject(err);
