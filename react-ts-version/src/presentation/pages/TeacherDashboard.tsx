@@ -158,6 +158,9 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   const [classSessionStatus, setClassSessionStatus] = useState<ClassSessionStatus>('closed');
   const [_sessionStartTime, setSessionStartTime] = useState<number | null>(null);
   const [selectedSessionNum, setSelectedSessionNum] = useState<number>(1);
+  // Module 14 §ב0: the eight-session picker is always visible, so its choice must
+  // not be the live session number (that only changes on a confirmed activation).
+  const [pickedSessionNum, setPickedSessionNum] = useState<number>(1);
   // Module 14 §ב0: activation goes through an explicit confirmation window
   const [pendingActivationSession, setPendingActivationSession] = useState<number | null>(null);
   // Module 14 §ב1: teacher-only, one-time-per-session deadline notice
@@ -175,14 +178,23 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     let lastVal: Record<string, unknown> | null = null;
 
     let autoClosedStart: number | null = null;
+    let lastLiveSessionNum: number | null = null;
     const applySessionState = () => {
       if (lastVal && isClassSessionLive(lastVal)) {
+        const liveNum = (lastVal.sessionNumber as number) || 1;
         setIsClassSessionActive(true);
         setClassSessionStatus(getClassSessionStatus(lastVal));
         setSessionStartTime((lastVal.startedAt as number) || Date.now());
-        setSelectedSessionNum((lastVal.sessionNumber as number) || 1);
+        setSelectedSessionNum(liveNum);
+        // Follow the live session in the picker only when it actually changes,
+        // so a pause/resume write never discards a choice the teacher is making.
+        if (liveNum !== lastLiveSessionNum) {
+          lastLiveSessionNum = liveNum;
+          setPickedSessionNum(liveNum);
+        }
         return;
       }
+      lastLiveSessionNum = null;
       // 45-minute hard cap (core/classSession.ts): every client already treats
       // the meeting as closed; the teacher's client, the one allowed to write,
       // also records the close so the shared record says so. Once per start.
@@ -394,6 +406,8 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
 
       setSessionStartTime(now);
       setSelectedSessionNum(sessionNum);
+      setPickedSessionNum(sessionNum);
+      setClassSessionStatus('active');
       setIsClassSessionActive(true);
       toast.success(`שיעור ${sessionNum} הופעל בהצלחה לכלל תלמידי הכיתה! 🚀`);
     } catch (err: any) {
@@ -1326,7 +1340,31 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
           </div>
 
           <div className="flex items-center gap-3 w-full md:w-auto justify-end">
-            {isClassSessionActive ? (
+            {/* Module 14 §ב0: the picker shows all eight sessions and their state at all
+                times. Opening another session replaces the active one directly — a
+                session stays active until the teacher opens a different one. */}
+            <select
+              value={pickedSessionNum}
+              onChange={(e) => setPickedSessionNum(parseInt(e.target.value, 10))}
+              className="bg-white text-slate-800 border border-slate-300 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-sm"
+            >
+              {sessionRows.map(({ sessionNumber, state }) => (
+                <option key={sessionNumber} value={sessionNumber}>
+                  {`מפגש ${sessionNumber} — ${state === 'active' ? 'פעיל כעת' : state === 'completed' ? 'הושלם' : 'טרם נפתח'}`}
+                </option>
+              ))}
+            </select>
+
+            <button
+              onClick={() => setPendingActivationSession(pickedSessionNum)}
+              disabled={isClassSessionActive && pickedSessionNum === selectedSessionNum}
+              title={isClassSessionActive && pickedSessionNum === selectedSessionNum ? 'מפגש זה כבר פעיל כעת' : `פתיחת מפגש ${pickedSessionNum} לכלל הכיתה`}
+              className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed disabled:hover:bg-slate-300 text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+            >
+              <span>▶️</span>
+              <span>הפעל מפגש</span>
+            </button>
+            {isClassSessionActive && (
               <>
                 {classSessionStatus === 'paused' ? (
                   <button
@@ -1351,28 +1389,6 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                 >
                   <span>⏹️</span>
                   <span>סגור מפגש</span>
-                </button>
-              </>
-            ) : (
-              <>
-                <select
-                  value={selectedSessionNum}
-                  onChange={(e) => setSelectedSessionNum(parseInt(e.target.value, 10))}
-                  className="bg-white text-slate-800 border border-slate-300 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-sm"
-                >
-                  {sessionRows.map(({ sessionNumber, state }) => (
-                    <option key={sessionNumber} value={sessionNumber}>
-                      {`מפגש ${sessionNumber} — ${state === 'active' ? 'פעיל כעת' : state === 'completed' ? 'הושלם' : 'טרם נפתח'}`}
-                    </option>
-                  ))}
-                </select>
-
-                <button
-                  onClick={() => setPendingActivationSession(selectedSessionNum)}
-                  className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
-                >
-                  <span>▶️</span>
-                  <span>הפעל מפגש</span>
                 </button>
               </>
             )}
