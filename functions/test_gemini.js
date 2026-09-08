@@ -12,14 +12,18 @@ async function testGemini() {
   console.log("Testing Gemini API connection...");
   const apiKey = process.env.GEMINI_API_KEY;
   
-  if (!apiKey || apiKey === "YOUR_API_KEY_HERE") {
+  if (!apiKey || apiKey.trim() === "" || apiKey === "YOUR_API_KEY_HERE") {
     console.error("❌ API Key not found or still set to default placeholder in .env");
     process.exit(1);
+  }
+  if (!/^AIza[0-9A-Za-z_-]{35}$/.test(apiKey.trim())) {
+    console.warn("⚠️  GEMINI_API_KEY does not look like a Google API key (expected AIza… 39 chars) — check for a paste error.");
   }
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-3.7-flash" });
+    // Same model id as functions/src/geminiConfig.ts (GEMINI_MODEL_ID) so this smoke test proves the deployed path.
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     
     console.log("Sending prompt to Gemini: 'Say hello in Hebrew'...");
     const result = await model.generateContent("Say hello in Hebrew. Just the word, nothing else.");

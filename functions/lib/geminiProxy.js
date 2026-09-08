@@ -1,10 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.callGeminiSocraticProxy = void 0;
+exports.callGeminiSocraticProxy = exports.SOCRATIC_TOTAL_BUDGET_MS = exports.SOCRATIC_AI_TIMEOUT_MS = void 0;
 exports.scrubPII = scrubPII;
 const https_1 = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
 const geminiConfig_1 = require("./geminiConfig");
+const aiMonitoring_1 = require("./aiMonitoring");
+const socraticContract_1 = require("./socraticContract");
 /**
  * Robust Regex Engine for PII Scrubbing
  * Active scrubbing of:
@@ -34,77 +36,191 @@ function scrubPII(text) {
     return scrubbed;
 }
 /**
+ * Server-side ceiling on one model call. The learner's client abandons the
+ * proxy at 8s (SocraticEngine.SOCRATIC_PROXY_TIMEOUT_MS) and shows the static
+ * card, so a slower answer helps nobody; keeping the server ceiling under that
+ * lets a single retry still fit when the first attempt came back fast.
+ */
+exports.SOCRATIC_AI_TIMEOUT_MS = 6500;
+/** Total budget for both attempts; a retry only starts if it can finish inside this. */
+exports.SOCRATIC_TOTAL_BUDGET_MS = 7500;
+const MIN_RETRY_WINDOW_MS = 2500;
+async function generateOnce(prompt, facts, timeoutMs) {
+    var _a;
+    const ai = (0, geminiConfig_1.getGeminiClient)();
+    const model = ai.getGenerativeModel({
+        model: geminiConfig_1.GEMINI_MODEL_ID,
+        generationConfig: {
+            temperature: 0.2,
+            responseMimeType: "application/json",
+            // Structured output: the SDK enum values are the same lowercase strings
+            // the plain-object schema uses, so the cast is only a nominal one.
+            responseSchema: socraticContract_1.SOCRATIC_RESPONSE_SCHEMA,
+        },
+        systemInstruction: socraticContract_1.SOCRATIC_SYSTEM_INSTRUCTION,
+    });
+    let raw;
+    try {
+        const result = await (0, geminiConfig_1.withGeminiTimeout)(model.generateContent(prompt), timeoutMs);
+        raw = result.response.text();
+    }
+    catch (err) {
+        const code = (0, geminiConfig_1.classifyGeminiError)(err);
+        logger.warn("[socratic-proxy] model call failed", { code, error: String((_a = err === null || err === void 0 ? void 0 : err.message) !== null && _a !== void 0 ? _a : err) });
+        return { ok: false, outcome: code, detail: code };
+    }
+    const validated = (0, socraticContract_1.validateSocraticResponse)(raw, facts);
+    if (validated.ok)
+        return { ok: true, value: validated.value, raw };
+    const reason = validated.reason;
+    const outcome = reason.startsWith("final answer")
+        ? "answer_leak"
+        : reason.startsWith("forbidden")
+            ? "forbidden_term"
+            : reason.startsWith("response is not JSON")
+                ? "not_json"
+                : "schema_reject";
+    logger.warn("[socratic-proxy] response rejected", { reason, raw_length: raw.length });
+    return { ok: false, outcome, detail: reason, raw };
+}
+/**
+ * Runs the model once and, when the first answer was rejected by the validator
+ * and there is still room inside the learner's timeout, once more with the
+ * rejection reason appended so the model can correct itself. Transport
+ * failures (timeout, auth, quota) are never retried: they will not get better
+ * in two seconds and the static card is already waiting on the client.
+ */
+async function generateWithRetry(prompt, facts) {
+    const started = Date.now();
+    const first = await generateOnce(prompt, facts, exports.SOCRATIC_AI_TIMEOUT_MS);
+    if (first.ok)
+        return Object.assign(Object.assign({}, first), { attempts: 1 });
+    const retryable = first.outcome === "schema_reject" || first.outcome === "answer_leak" || first.outcome === "forbidden_term" || first.outcome === "not_json";
+    const remaining = exports.SOCRATIC_TOTAL_BUDGET_MS - (Date.now() - started);
+    if (!retryable || remaining < MIN_RETRY_WINDOW_MS)
+        return Object.assign(Object.assign({}, first), { attempts: 1 });
+    const correction = `${prompt}\n\nYOUR PREVIOUS ANSWER WAS REJECTED: ${first.detail}. Fix exactly that and return the JSON again.`;
+    const second = await generateOnce(correction, facts, remaining);
+    return Object.assign(Object.assign({}, second), { attempts: 2 });
+}
+function fallbackError(outcome, message) {
+    // The client treats every non-OK as "serve the static card"; the code just
+    // tells it (and the logs) why.
+    switch (outcome) {
+        case "timeout":
+            return new https_1.HttpsError("deadline-exceeded", message);
+        case "misconfigured":
+        case "auth":
+            return new https_1.HttpsError("failed-precondition", message);
+        case "quota":
+            return new https_1.HttpsError("resource-exhausted", message);
+        default:
+            return new https_1.HttpsError("internal", message);
+    }
+}
+/**
  * callGeminiSocraticProxy
  * Exclusive gateway for all client-side AI analysis requests.
  * Mediates and enforces the Zero-Chatbot Policy and zero-trust security.
+ *
+ * Two request shapes are accepted:
+ *   - `socratic_request` (+ optional `anchor`): the PRD Appendix A §6
+ *     GeminiSocraticRequest. The prompt is built server-side from validated
+ *     numbers only — this is the path the current client uses.
+ *   - `prompt` / `context` / `history`: the pre-contract free-text path, kept
+ *     for older clients. It is PII-scrubbed and its answer is validated with
+ *     the same validator (minus the leak check, which needs the operands).
  */
-exports.callGeminiSocraticProxy = (0, https_1.onCall)(geminiConfig_1.GEMINI_SECRETS, async (request) => {
+exports.callGeminiSocraticProxy = (0, https_1.onCall)(Object.assign(Object.assign({}, geminiConfig_1.GEMINI_SECRETS), { timeoutSeconds: 30 }), async (request) => {
+    var _a, _b;
     // 1. Verify Authentication
     if (!request.auth) {
         throw new https_1.HttpsError("unauthenticated", "Client must be authenticated to call the AI proxy.");
     }
     const data = request.data || {};
-    const { prompt, history, context, isChatbotAttempt, requestedAction } = data;
+    const { prompt, history, context, isChatbotAttempt, requestedAction, socratic_request, anchor } = data;
     // 2. Enforce Socratic Constraint (Zero-Chatbot Policy)
     // Reject any payload that attempts open-ended chat or violates strict Socratic mapping
     if (isChatbotAttempt || requestedAction === "open_chat" || requestedAction === "free_text") {
         logger.warn(`User ${request.auth.uid} attempted open-ended chat, violating Zero-Chatbot Policy.`);
         throw new https_1.HttpsError("failed-precondition", "Zero-Chatbot Policy Violation: Open-ended chat requests are strictly forbidden. Only closed-ended Socratic items and prompts are allowed.");
     }
-    if (!prompt && !context) {
-        throw new https_1.HttpsError("invalid-argument", "Missing required payload fields (prompt or context).");
+    // 3. Credential check up front, so a missing key is one clear log line
+    //    and one clear monitoring row instead of an SDK stack trace per call.
+    const keyStatus = (0, geminiConfig_1.getGeminiKeyStatus)();
+    if (!keyStatus.configured) {
+        (0, aiMonitoring_1.recordAiCall)({ feature: socratic_request ? "socratic" : "socratic_legacy", outcome: "misconfigured", latency_ms: 0, model_id: geminiConfig_1.GEMINI_MODEL_ID, detail: (_a = keyStatus.problem) !== null && _a !== void 0 ? _a : "missing" });
+        throw fallbackError("misconfigured", "AI Service configuration is missing.");
     }
-    // 3. Regex-Based PII Scrubbing
-    // Scrub the incoming payload components before they hit the LLM
-    const scrubbedPrompt = scrubPII(prompt || "");
+    // ---------------------------------------------------------------
+    // Structured path (PRD contract)
+    // ---------------------------------------------------------------
+    if (socratic_request !== undefined) {
+        const started = Date.now();
+        const validated = (0, socraticContract_1.validateSocraticRequest)(socratic_request);
+        if (!validated.ok) {
+            (0, aiMonitoring_1.recordAiCall)({ feature: "socratic", outcome: "invalid_request", latency_ms: 0, model_id: geminiConfig_1.GEMINI_MODEL_ID, detail: validated.reason });
+            throw new https_1.HttpsError("invalid-argument", `Invalid socratic_request: ${validated.reason}`);
+        }
+        const req = validated.value;
+        const facts = (0, socraticContract_1.deriveSocraticFacts)(req);
+        const safeAnchor = (0, socraticContract_1.validateSocraticAnchor)(anchor);
+        const builtPrompt = (0, socraticContract_1.buildSocraticPrompt)(req, facts, safeAnchor);
+        const attempt = await generateWithRetry(builtPrompt, facts);
+        const latency = Date.now() - started;
+        const base = {
+            feature: "socratic",
+            latency_ms: latency,
+            model_id: geminiConfig_1.GEMINI_MODEL_ID,
+            student_id: req.student_id,
+            session_id: req.session_id,
+            exercise_id: req.exercise_id,
+            trigger_reason: (_b = facts.trigger_reason) !== null && _b !== void 0 ? _b : undefined,
+            attempts: attempt.attempts,
+        };
+        if (!attempt.ok) {
+            (0, aiMonitoring_1.recordAiCall)(Object.assign(Object.assign({}, base), { outcome: attempt.outcome, detail: attempt.detail }));
+            throw fallbackError(attempt.outcome, `Socratic engine unavailable (${attempt.outcome}).`);
+        }
+        (0, aiMonitoring_1.recordAiCall)(Object.assign(Object.assign({}, base), { outcome: "ok", error_category: attempt.value.error_category }));
+        return Object.assign(Object.assign({}, attempt.value), { final_intervention: (0, socraticContract_1.toLegacyIntervention)(attempt.value), meta: {
+                source: "gemini",
+                model_id: geminiConfig_1.GEMINI_MODEL_ID,
+                latency_ms: latency,
+                attempts: attempt.attempts,
+                suggested_category: facts.suggested_category,
+            } });
+    }
+    // ---------------------------------------------------------------
+    // Legacy free-text path
+    // ---------------------------------------------------------------
+    if (!prompt && !context) {
+        throw new https_1.HttpsError("invalid-argument", "Missing required payload fields (socratic_request, prompt or context).");
+    }
+    const started = Date.now();
+    // Regex-based PII scrubbing before anything reaches the model.
+    const scrubbedPrompt = scrubPII(String(prompt || ""));
     const scrubbedContext = scrubPII(typeof context === "string" ? context : JSON.stringify(context || {}));
-    const scrubbedHistory = history ? JSON.parse(scrubPII(JSON.stringify(history))) : [];
-    // 4. API Key Security (bound Secret Manager secret — see geminiConfig.ts)
-    const ai = (0, geminiConfig_1.getGeminiClient)();
+    let scrubbedHistory = [];
     try {
-        const model = ai.getGenerativeModel({
-            model: geminiConfig_1.GEMINI_MODEL_ID,
-            generationConfig: {
-                temperature: 0.2,
-                responseMimeType: "application/json"
-            },
-            systemInstruction: `You are the MathmatiCore Socratic Pedagogical Engine.
-You operate strictly under the HOLISTIC PEDAGOGICAL TRIAD:
-1. Exercise & Algorithm: Mathematical operation (addition/subtraction), operands, active column, and specific step.
-2. Visual / Dienes Board State: Virtual block counts, place value representation, and canvas decomposition/composition state.
-3. Student Progress & Step History: Completed columns, memory circles, input attempts, and the trigger reason (hesitation/errors).
-
-STRICT PEDAGOGICAL & HEBREW SYNTAX RULES:
-- HEBREW SYNTAX & GRAMMAR: Write in natural, grammatically flawless Hebrew adapted for 3rd-grade elementary students (ages 8-9). Use precise gender and number agreement (e.g., 4 מאות, 2 עשרות, 5 יחידות, 10 עשרות). Keep sentences simple, friendly, empowering, and free of complex or awkward syntax.
-- OFFICIAL TERMINOLOGY: Use standard Ministry of Education math terms: "פריטה" (decomposition in subtraction), "קיבוץ" / "הקבצה" (regrouping in addition), "בית המספרים" (place value chart), "טור היחידות / העשרות / המאות", "עיגולי הזיכרון", "פח האשפה".
-- HOLISTIC SYNTHESIS: NEVER analyze or mention "בית המספרים" or blocks in isolation! Always synthesize the blocks with the arithmetic exercise and the student's current step.
-- CLOSED SOCRATIC FORMAT: Formulate a clear, empowering Socratic guiding question in Hebrew connecting the active column calculation with the visual board state. Provide exactly 3 closed options with clear, encouraging pedagogical feedback for each option.
-- STRICT DIAGNOSTIC CLASSIFICATION: Classify the error strictly as "calculation", "procedural", or "conceptual" in "error_category".
-- ZERO CHATBOT & PRIVACY: Strictly forbidden from acting as an open chatbot, exposing PII, or revealing the direct final answer. Output ONLY valid JSON.`
-        });
-        // Construct the secure, scrubbed prompt payload
-        const securePayload = `
+        scrubbedHistory = history ? JSON.parse(scrubPII(JSON.stringify(history))) : [];
+    }
+    catch (_c) {
+        scrubbedHistory = [];
+    }
+    const securePayload = `
       Context: ${scrubbedContext}
       Prompt: ${scrubbedPrompt}
       History: ${JSON.stringify(scrubbedHistory)}
       `;
-        const response = await model.generateContent(securePayload);
-        const textResponse = response.response.text();
-        // Return the LLM response to the client
-        let parsedResponse;
-        try {
-            parsedResponse = JSON.parse(textResponse);
-        }
-        catch (e) {
-            // Fallback if not valid json
-            parsedResponse = { rawText: textResponse };
-        }
-        logger.info(`Successfully proxied Socratic request for user ${request.auth.uid}`);
-        return parsedResponse;
+    const attempt = await generateWithRetry(securePayload, null);
+    const latency = Date.now() - started;
+    if (!attempt.ok) {
+        (0, aiMonitoring_1.recordAiCall)({ feature: "socratic_legacy", outcome: attempt.outcome, latency_ms: latency, model_id: geminiConfig_1.GEMINI_MODEL_ID, detail: attempt.detail, attempts: attempt.attempts });
+        throw fallbackError(attempt.outcome, "Failed to process the request through the Socratic Proxy.");
     }
-    catch (error) {
-        logger.error("Error communicating with Gemini API", error);
-        throw new https_1.HttpsError("internal", "Failed to process the request through the Socratic Proxy.");
-    }
+    (0, aiMonitoring_1.recordAiCall)({ feature: "socratic_legacy", outcome: "ok", latency_ms: latency, model_id: geminiConfig_1.GEMINI_MODEL_ID, error_category: attempt.value.error_category, attempts: attempt.attempts });
+    logger.info(`Successfully proxied Socratic request for user ${request.auth.uid}`);
+    return Object.assign(Object.assign({}, attempt.value), { final_intervention: (0, socraticContract_1.toLegacyIntervention)(attempt.value), meta: { source: "gemini", model_id: geminiConfig_1.GEMINI_MODEL_ID, latency_ms: latency, attempts: attempt.attempts } });
 });
 //# sourceMappingURL=geminiProxy.js.map

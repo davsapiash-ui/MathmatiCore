@@ -225,11 +225,20 @@ describe('Verification Suite: Module 12(c) and Module 13(a)', () => {
       });
 
       expect(callSpy).toHaveBeenCalled();
-      const passedPrompt = (callSpy.mock.calls[0][0] as any).prompt;
-      expect(passedPrompt).toContain('425');
-      expect(passedPrompt).toContain('162');
-      expect(passedPrompt).toContain('עשרות');
-      expect(passedPrompt).toContain('HOLISTIC PEDAGOGICAL TRIAD');
+      // The triad now travels as the PRD Appendix A §6 contract, not as prose:
+      // the server builds the prompt from these numbers (functions/src/socraticContract.ts).
+      const payload = callSpy.mock.calls[0][0] as any;
+      const wire = payload.socratic_request;
+      expect(wire).toBeDefined();
+      expect(wire.exercise_context.number_a).toBe(425);            // pillar 1: exercise
+      expect(wire.exercise_context.number_b).toBe(162);
+      expect(wire.exercise_context.operation).toBe('subtraction');
+      expect(wire.exercise_context.active_column).toBe('tens');
+      expect(wire.exercise_context.target_sub_problem).toBe('2 - 6');
+      expect(wire.workspace_state).toMatchObject({ ones_count: 5, tens_count: 2, hundreds_count: 4 }); // pillar 2: board
+      expect(wire.student_progress_state.trigger_reason).toBe('hesitation_45s'); // pillar 3: monitored steps
+      expect(payload.anchor.questionHe).toBeTruthy();
+      expect(payload.prompt).toBeUndefined();                     // no client free text reaches the model
 
       expect(result).toBeDefined();
       expect(result?.questionHe).toContain('425 פחות 162');
