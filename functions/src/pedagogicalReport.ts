@@ -13,9 +13,11 @@ import {
   resolveRecommendationTier,
 } from "./reportAnalysis";
 import { rtlText } from "./hebrewPdf";
+import { CHROMIUM_PDF_RUNTIME, renderHtmlToPdf, renderWithFallback } from "./htmlPdf";
+import { EXACT_AI_FALLBACK_TEXT_HE, pedagogicalReportHtml, reportFooterTemplate } from "./reportHtml";
 const PDFDocument = require("pdfkit");
 
-export const EXACT_AI_FALLBACK_TEXT = "הניתוח הפדגוגי המפורט אינו זמין כעת. ההמלצות שלהלן מבוססות על מדדי הביצוע.";
+export const EXACT_AI_FALLBACK_TEXT = EXACT_AI_FALLBACK_TEXT_HE;
 
 const COLUMN_NAMES_HE = ["אחדות", "עשרות", "מאות", "אלפים"];
 
@@ -165,9 +167,23 @@ function generateExerciseNarrativeFromEvents(telemetryDocs: Record<string, any>[
 }
 
 /**
- * Renders server-side binary PDF buffer using PDFKit (Module 23).
+ * Renders the report to a PDF buffer (Module 23): HTML printed by headless
+ * Chromium, with the pdfkit renderer below as the rollback path
+ * (PDF_ENGINE=pdfkit, or automatically if Chromium fails). See htmlPdf.ts.
  */
 export function createPedagogicalReportPdfBuffer(report: Record<string, any>): Promise<Buffer> {
+  return renderWithFallback(
+    "pedagogicalReport",
+    () => renderHtmlToPdf(pedagogicalReportHtml(report), { footerTemplate: reportFooterTemplate(report.generated_at) }),
+    () => createPedagogicalReportPdfBufferWithPdfkit(report)
+  );
+}
+
+/**
+ * Legacy renderer: pdfkit + the hebrewPdf bidi workaround. Kept verbatim as
+ * the rollback path for the Chromium renderer above.
+ */
+export function createPedagogicalReportPdfBufferWithPdfkit(report: Record<string, any>): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     try {
       const doc = new PDFDocument({ size: "A4", margin: 40 });
@@ -326,7 +342,7 @@ async function readAllTelemetryForSession(
  * score comes from the meeting's SessionDocument when one exists and is
  * otherwise computed from the meeting's own telemetry by the PRD rule.
  */
-export const generatePedagogicalReportPDF = onCall(GEMINI_SECRETS, async (request) => {
+export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROMIUM_PDF_RUNTIME }, async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "User must be authenticated.");
   }

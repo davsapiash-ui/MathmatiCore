@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getPedagogicalReportDownloadUrl = exports.generatePedagogicalReportPDF = exports.EXACT_AI_FALLBACK_TEXT = void 0;
 exports.createPedagogicalReportPdfBuffer = createPedagogicalReportPdfBuffer;
+exports.createPedagogicalReportPdfBufferWithPdfkit = createPedagogicalReportPdfBufferWithPdfkit;
 const https_1 = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
@@ -12,8 +13,10 @@ const meetingMetrics_1 = require("./meetingMetrics");
 const geminiConfig_1 = require("./geminiConfig");
 const reportAnalysis_1 = require("./reportAnalysis");
 const hebrewPdf_1 = require("./hebrewPdf");
+const htmlPdf_1 = require("./htmlPdf");
+const reportHtml_1 = require("./reportHtml");
 const PDFDocument = require("pdfkit");
-exports.EXACT_AI_FALLBACK_TEXT = "הניתוח הפדגוגי המפורט אינו זמין כעת. ההמלצות שלהלן מבוססות על מדדי הביצוע.";
+exports.EXACT_AI_FALLBACK_TEXT = reportHtml_1.EXACT_AI_FALLBACK_TEXT_HE;
 const COLUMN_NAMES_HE = ["אחדות", "עשרות", "מאות", "אלפים"];
 /**
  * Module 23 — the opening chapter of the report: the Exercise Narrative.
@@ -151,9 +154,18 @@ function generateExerciseNarrativeFromEvents(telemetryDocs) {
     return narratives;
 }
 /**
- * Renders server-side binary PDF buffer using PDFKit (Module 23).
+ * Renders the report to a PDF buffer (Module 23): HTML printed by headless
+ * Chromium, with the pdfkit renderer below as the rollback path
+ * (PDF_ENGINE=pdfkit, or automatically if Chromium fails). See htmlPdf.ts.
  */
 function createPedagogicalReportPdfBuffer(report) {
+    return (0, htmlPdf_1.renderWithFallback)("pedagogicalReport", () => (0, htmlPdf_1.renderHtmlToPdf)((0, reportHtml_1.pedagogicalReportHtml)(report), { footerTemplate: (0, reportHtml_1.reportFooterTemplate)(report.generated_at) }), () => createPedagogicalReportPdfBufferWithPdfkit(report));
+}
+/**
+ * Legacy renderer: pdfkit + the hebrewPdf bidi workaround. Kept verbatim as
+ * the rollback path for the Chromium renderer above.
+ */
+function createPedagogicalReportPdfBufferWithPdfkit(report) {
     return new Promise((resolve, reject) => {
         try {
             const doc = new PDFDocument({ size: "A4", margin: 40 });
@@ -301,7 +313,7 @@ async function readAllTelemetryForSession(db, sessionId) {
  * score comes from the meeting's SessionDocument when one exists and is
  * otherwise computed from the meeting's own telemetry by the PRD rule.
  */
-exports.generatePedagogicalReportPDF = (0, https_1.onCall)(geminiConfig_1.GEMINI_SECRETS, async (request) => {
+exports.generatePedagogicalReportPDF = (0, https_1.onCall)(Object.assign(Object.assign({}, geminiConfig_1.GEMINI_SECRETS), htmlPdf_1.CHROMIUM_PDF_RUNTIME), async (request) => {
     var _a, _b, _c, _d, _e, _f;
     if (!request.auth) {
         throw new https_1.HttpsError("unauthenticated", "User must be authenticated.");

@@ -14,6 +14,8 @@ import {
 } from "./meetingMetrics";
 import { EXACT_AI_FALLBACK_TEXT } from "./pedagogicalReport";
 import { rtlText } from "./hebrewPdf";
+import { CHROMIUM_PDF_RUNTIME, renderHtmlToPdf, renderWithFallback } from "./htmlPdf";
+import { CLASS_REPORT_PDF_OPTIONS, OUTCOME_HE, TIER_LABEL_HE, classReportHtml, reportFooterTemplate } from "./reportHtml";
 import { resolveRecommendationTier, type RecommendationTier } from "./reportAnalysis";
 import { GEMINI_MODEL_ID, GEMINI_SECRETS, getGeminiClient } from "./geminiConfig";
 const PDFDocument = require("pdfkit");
@@ -42,17 +44,11 @@ const PDFDocument = require("pdfkit");
  * carrying every number so the dashboard shows the report without regenerating.
  */
 
-export const CLASS_REPORT_RUNTIME = { ...GEMINI_SECRETS, timeoutSeconds: 540, memory: "1GiB" as const };
+export const CLASS_REPORT_RUNTIME = { ...GEMINI_SECRETS, ...CHROMIUM_PDF_RUNTIME, timeoutSeconds: 540 };
 export const CLASS_AI_ANALYSIS_TIMEOUT_MS = 20000;
 
 const ALL_STUDENT_IDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 const COLUMN_NAMES_HE = ["אחדות", "עשרות", "מאות", "אלפים"];
-
-const TIER_LABEL_HE: Record<RecommendationTier, string> = {
-  below_50: "קבוצה הומוגנית קטנה, תבניות עשר פיזיות (ציון מתחת ל-50%)",
-  between_50_75: "קבוצה הטרוגנית, שיח עמיתים וחשבונייה (ציון 50%–75%)",
-  above_75: "עבודה עצמאית, לוח מחיק וכרטיסיות מספרים (ציון מעל 75%)",
-};
 
 export type ExerciseOutcome = "first_try" | "after_correction" | "incomplete";
 
@@ -464,13 +460,24 @@ export function buildClassCsv(rows: ClassLearnerRow[], exercises: ClassExerciseR
   return "﻿" + [headers.map(cell).join(","), ...lines].join("\n");
 }
 
-const OUTCOME_HE: Record<ExerciseOutcome, string> = {
-  first_try: "ניסיון ראשון",
-  after_correction: "אחרי תיקון",
-  incomplete: "לא הושלם",
-};
-
+/**
+ * Renders the class report to a PDF buffer: HTML printed by headless Chromium,
+ * with the pdfkit renderer below as the rollback path (PDF_ENGINE=pdfkit, or
+ * automatically if Chromium fails). See htmlPdf.ts.
+ */
 export function createClassReportPdfBuffer(report: Record<string, any>): Promise<Buffer> {
+  return renderWithFallback(
+    "classReport",
+    () => renderHtmlToPdf(classReportHtml(report), { ...CLASS_REPORT_PDF_OPTIONS, footerTemplate: reportFooterTemplate(report.generated_at) }),
+    () => createClassReportPdfBufferWithPdfkit(report)
+  );
+}
+
+/**
+ * Legacy renderer: pdfkit + the hebrewPdf bidi workaround. Kept verbatim as
+ * the rollback path for the Chromium renderer above.
+ */
+export function createClassReportPdfBufferWithPdfkit(report: Record<string, any>): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     try {
       const doc = new PDFDocument({ size: "A4", margin: 40 });
