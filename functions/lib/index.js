@@ -6,6 +6,7 @@ const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
 const dotenv = require("dotenv");
 const pedagogicalReport_1 = require("./pedagogicalReport");
+const htmlPdf_1 = require("./htmlPdf");
 const exportDriveReport_1 = require("./exportDriveReport");
 admin.initializeApp();
 // Load local .env file explicitly to guarantee key loading in emulator
@@ -268,11 +269,7 @@ Object.defineProperty(exports, "authenticateStudentSession", { enumerable: true,
  * HTTP endpoint to trigger real server-side PDF generation, save to Cloud Storage,
  * and mirror to Google Drive shared folder 0AMiALsm_TxT5Uk9PVA.
  */
-exports.triggerTestDriveReport = (0, https_1.onRequest)({
-    region: "us-central1",
-    cors: true,
-    invoker: "public",
-}, async (req, res) => {
+exports.triggerTestDriveReport = (0, https_1.onRequest)(Object.assign({ region: "us-central1", cors: true, invoker: "public" }, htmlPdf_1.CHROMIUM_PDF_RUNTIME), async (req, res) => {
     try {
         const sessionNumber = Number(req.query.session || 1);
         const studentId = Number(req.query.student || 1);

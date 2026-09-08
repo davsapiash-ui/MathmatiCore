@@ -7,6 +7,7 @@ exports.generateClassAnalysis = generateClassAnalysis;
 exports.parseClassAnalysis = parseClassAnalysis;
 exports.buildClassCsv = buildClassCsv;
 exports.createClassReportPdfBuffer = createClassReportPdfBuffer;
+exports.createClassReportPdfBufferWithPdfkit = createClassReportPdfBufferWithPdfkit;
 const https_1 = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
@@ -16,6 +17,8 @@ const exportDriveReport_1 = require("./exportDriveReport");
 const meetingMetrics_1 = require("./meetingMetrics");
 const pedagogicalReport_1 = require("./pedagogicalReport");
 const hebrewPdf_1 = require("./hebrewPdf");
+const htmlPdf_1 = require("./htmlPdf");
+const reportHtml_1 = require("./reportHtml");
 const reportAnalysis_1 = require("./reportAnalysis");
 const geminiConfig_1 = require("./geminiConfig");
 const PDFDocument = require("pdfkit");
@@ -42,15 +45,10 @@ const PDFDocument = require("pdfkit");
  * "05 דוחות כיתה / מפגש N", and a Firestore document class_reports/{class}_session_{N}
  * carrying every number so the dashboard shows the report without regenerating.
  */
-exports.CLASS_REPORT_RUNTIME = Object.assign(Object.assign({}, geminiConfig_1.GEMINI_SECRETS), { timeoutSeconds: 540, memory: "1GiB" });
+exports.CLASS_REPORT_RUNTIME = Object.assign(Object.assign(Object.assign({}, geminiConfig_1.GEMINI_SECRETS), htmlPdf_1.CHROMIUM_PDF_RUNTIME), { timeoutSeconds: 540 });
 exports.CLASS_AI_ANALYSIS_TIMEOUT_MS = 20000;
 const ALL_STUDENT_IDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 const COLUMN_NAMES_HE = ["אחדות", "עשרות", "מאות", "אלפים"];
-const TIER_LABEL_HE = {
-    below_50: "קבוצה הומוגנית קטנה, תבניות עשר פיזיות (ציון מתחת ל-50%)",
-    between_50_75: "קבוצה הטרוגנית, שיח עמיתים וחשבונייה (ציון 50%–75%)",
-    above_75: "עבודה עצמאית, לוח מחיק וכרטיסיות מספרים (ציון מעל 75%)",
-};
 const round1 = (n) => Math.round(n * 10) / 10;
 function studentNumber(v) {
     const n = parseInt(String(v !== null && v !== void 0 ? v : "").replace(/\D/g, ""), 10);
@@ -231,9 +229,9 @@ function buildClassSystemInstruction() {
     return `אתה מנתח פדגוגי של מערכת MathematiCore, המנתח את נתוני הביצוע של כיתה ג' שלמה במפגש אחד בחשבון (ערך מיקום, הקבצה, פריטה וחישוב במאונך).
 
 חלוקת הלומדים לקבוצות עבודה כבר נקבעה בשרת לפי כלל אחוזים דטרמיניסטי, והיא סופית:
-- ציון מתחת ל-50%: ${TIER_LABEL_HE.below_50}
-- ציון 50%–75%: ${TIER_LABEL_HE.between_50_75}
-- ציון מעל 75%: ${TIER_LABEL_HE.above_75}
+- ציון מתחת ל-50%: ${reportHtml_1.TIER_LABEL_HE.below_50}
+- ציון 50%–75%: ${reportHtml_1.TIER_LABEL_HE.between_50_75}
+- ציון מעל 75%: ${reportHtml_1.TIER_LABEL_HE.above_75}
 
 חוקים מחייבים:
 1. חל עליך איסור מוחלט לשנות, לסתור, או להמליץ בניגוד לחלוקה שלמעלה. אל תעביר לומד מקבוצה לקבוצה ואל תציע עזרי המחשה הסותרים אותה.
@@ -361,12 +359,19 @@ function buildClassCsv(rows, exercises) {
     ].map(cell).join(","));
     return "﻿" + [headers.map(cell).join(","), ...lines].join("\n");
 }
-const OUTCOME_HE = {
-    first_try: "ניסיון ראשון",
-    after_correction: "אחרי תיקון",
-    incomplete: "לא הושלם",
-};
+/**
+ * Renders the class report to a PDF buffer: HTML printed by headless Chromium,
+ * with the pdfkit renderer below as the rollback path (PDF_ENGINE=pdfkit, or
+ * automatically if Chromium fails). See htmlPdf.ts.
+ */
 function createClassReportPdfBuffer(report) {
+    return (0, htmlPdf_1.renderWithFallback)("classReport", () => (0, htmlPdf_1.renderHtmlToPdf)((0, reportHtml_1.classReportHtml)(report), Object.assign(Object.assign({}, reportHtml_1.CLASS_REPORT_PDF_OPTIONS), { footerTemplate: (0, reportHtml_1.reportFooterTemplate)(report.generated_at) })), () => createClassReportPdfBufferWithPdfkit(report));
+}
+/**
+ * Legacy renderer: pdfkit + the hebrewPdf bidi workaround. Kept verbatim as
+ * the rollback path for the Chromium renderer above.
+ */
+function createClassReportPdfBufferWithPdfkit(report) {
     return new Promise((resolve, reject) => {
         try {
             const doc = new PDFDocument({ size: "A4", margin: 40 });
@@ -415,7 +420,7 @@ function createClassReportPdfBuffer(report) {
             heading("1. קבוצות עבודה לפי כלל האחוזים (שכבה 1, דטרמיניסטית)", "#166534");
             for (const tier of ["below_50", "between_50_75", "above_75"]) {
                 const ids = a.tiers[tier];
-                line(`${TIER_LABEL_HE[tier]}: ${ids.length > 0 ? ids.map((id) => `תלמיד ${id}`).join(", ") : "אין"}`, 10, "#14532d");
+                line(`${reportHtml_1.TIER_LABEL_HE[tier]}: ${ids.length > 0 ? ids.map((id) => `תלמיד ${id}`).join(", ") : "אין"}`, 10, "#14532d");
             }
             if (a.learners_without_data.length > 0) {
                 line(`ללא פעולות מתועדות במפגש זה: ${a.learners_without_data.map((id) => `תלמיד ${id}`).join(", ")}`, 9, "#64748b");
@@ -437,7 +442,7 @@ function createClassReportPdfBuffer(report) {
             line("לומד | ציון | נכון בניסיון ראשון | תרגילים | ספרות שגויות (א/ע/מ/אל) | מחיקות | ביטולים | היסוסים | המרות | כרטיסים | דקות | רפלקציה", 8, "#64748b");
             for (const r of rows) {
                 line(`תלמיד ${r.student_id} | ${r.score_percent}% | ${r.correct_first_attempt}/${r.compulsory_total} | ${r.exercises_completed}/${r.exercises_attempted} | ${r.wrong_digits} (${r.wrong_digits_units}/${r.wrong_digits_tens}/${r.wrong_digits_hundreds}/${r.wrong_digits_thousands}) | ${r.deletions} | ${r.undos} | ${r.hesitations} | ${r.regroupings} | ${r.socratic_cards} | ${r.active_minutes} | ${r.reflection_submitted ? "כן" : "לא"}`, 9, "#0f172a");
-                const outcomes = Object.entries(r.exercise_outcomes).map(([id, o]) => `${id}: ${OUTCOME_HE[o]}`).join(", ");
+                const outcomes = Object.entries(r.exercise_outcomes).map(([id, o]) => `${id}: ${reportHtml_1.OUTCOME_HE[o]}`).join(", ");
                 if (outcomes)
                     line(outcomes, 8, "#64748b", 16);
             }
