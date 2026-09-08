@@ -2,8 +2,8 @@ import { auth, database, firestore, functions } from "@/infrastructure/firebase"
 import { GoogleAuthProvider, signInWithPopup, type UserCredential } from "firebase/auth";
 import { httpsCallable } from "firebase/functions";
 import { ref, get, set } from "firebase/database";
-import { doc, getDoc, collection, query, where, getDocs, setDoc } from "firebase/firestore";
-import { extractTeacherId } from "./FirebaseSyncService";
+import { doc, getDoc, collection, query, where, getDocs, setDoc, deleteDoc } from "firebase/firestore";
+import { extractTeacherId, teacherRecordKey } from "./FirebaseSyncService";
 
 function isFirestoreAvailable(): boolean {
   if (!firestore) return false;
@@ -22,18 +22,25 @@ export async function addAuthorizedTeacherFirestore(email: string, role: "teache
     return;
   }
 
-  try {
-    const teacherDocRef = doc(firestore, "authorizedTeachers", normalized);
-    await setDoc(teacherDocRef, {
-      email: normalized,
-      role,
-      name: name || "",
-      schoolId: schoolId || "",
-      createdAt: Date.now(),
-    }, { merge: true });
-  } catch (e) {
-    console.warn("addAuthorizedTeacherFirestore non-blocking error:", e);
-  }
+  // Deliberately NOT swallowed: this document is the teacher's key to the
+  // door (Module 1 §ג + deviation 1). A denied write used to be logged as a
+  // "non-blocking" warning while the wizard reported success, and the new
+  // teacher was then refused at Google sign-in with no way to tell why.
+  const teacherDocRef = doc(firestore, "authorizedTeachers", normalized);
+  await setDoc(teacherDocRef, {
+    email: normalized,
+    role,
+    name: name || "",
+    schoolId: schoolId || "",
+    createdAt: Date.now(),
+  }, { merge: true });
+}
+
+/** Revokes a teacher's login: removes the whitelist document syncUserRoles stamps claims from. */
+export async function removeAuthorizedTeacherFirestore(email: string): Promise<void> {
+  const normalized = email.toLowerCase().trim();
+  if (!normalized || !isFirestoreAvailable()) return;
+  await deleteDoc(doc(firestore, "authorizedTeachers", normalized));
 }
 
 /**
@@ -85,8 +92,9 @@ export async function isWhitelistedTeacherEmailAsync(email?: string | null): Pro
     const teachersSnap = await get(ref(database, 'users/teachers'));
     if (teachersSnap.exists()) {
       const teachersObj = teachersSnap.val();
-      const match = Object.values(teachersObj).some((t: any) => 
-        t?.email && t.email.toLowerCase().trim() === normalized
+      // Admin-created records carry ssoEmail; login-created ones carried email.
+      const match = Object.values(teachersObj).some((t: any) =>
+        [t?.ssoEmail, t?.email].some((e) => typeof e === 'string' && e.toLowerCase().trim() === normalized)
       );
       if (match) return true;
     }
@@ -117,6 +125,37 @@ export function isWhitelistedTeacherEmail(email?: string | null): boolean {
   }
 
   return false;
+}
+
+/**
+ * Creates the RTDB teacher record at login only when the admin has not
+ * already created one — under the SAME key the admin console uses
+ * (teacherRecordKey). This path used to key by extractTeacherId, so a teacher
+ * the admin registered as "1002220159_edu-haifa_org_il" got a second,
+ * school-less record "1002220159" on first sign-in, which the console then
+ * counted as another teacher. Non-blocking: the security rules only let an
+ * admin write here, so for a plain teacher this is a no-op by design.
+ */
+async function ensureTeacherRecord(email: string, displayName: string): Promise<void> {
+  const key = teacherRecordKey(email);
+  const legacyKey = extractTeacherId(email, null);
+  try {
+    const [current, legacy] = await Promise.all([
+      get(ref(database, `users/teachers/${key}`)),
+      legacyKey !== key ? get(ref(database, `users/teachers/${legacyKey}`)) : Promise.resolve(null),
+    ]);
+    if (current.exists() || (legacy && legacy.exists())) return;
+    await set(ref(database, `users/teachers/${key}`), {
+      id: key,
+      ssoEmail: email,
+      email,
+      name: displayName,
+      licenseActive: false,
+      createdAt: Date.now()
+    });
+  } catch (e) {
+    console.warn("Teacher record sync non-blocking warning:", e);
+  }
 }
 
 export interface AuthenticatedUserPayload {
@@ -168,22 +207,7 @@ export async function executeGoogleSSO(targetRole: "teacher" | "admin"): Promise
   const uid = targetRole === "teacher" ? `teacher_${teacherId}` : `admin_${teacherId}`;
 
   if (targetRole === "teacher") {
-    try {
-      const teacherRef = ref(database, `users/teachers/${teacherId}`);
-      const snap = await get(teacherRef);
-      if (!snap.exists()) {
-        await set(teacherRef, {
-          id: teacherId,
-          ssoEmail: email,
-          email: email,
-          name: user.displayName || `מורה (${email})`,
-          licenseActive: false,
-          createdAt: Date.now()
-        });
-      }
-    } catch (e) {
-      console.warn("Teacher record sync non-blocking warning:", e);
-    }
+    await ensureTeacherRecord(email, user.displayName || `מורה (${email})`);
   }
 
   return {
@@ -209,22 +233,7 @@ export async function authenticateWhitelistedEmail(email: string, targetRole: "t
   const uid = targetRole === "teacher" ? `teacher_${teacherId}` : `admin_${teacherId}`;
 
   if (targetRole === "teacher") {
-    try {
-      const teacherRef = ref(database, `users/teachers/${teacherId}`);
-      const snap = await get(teacherRef);
-      if (!snap.exists()) {
-        await set(teacherRef, {
-          id: teacherId,
-          ssoEmail: normalized,
-          email: normalized,
-          name: `מורה (${normalized})`,
-          licenseActive: false,
-          createdAt: Date.now()
-        });
-      }
-    } catch (e) {
-      console.warn("Teacher record sync non-blocking warning:", e);
-    }
+    await ensureTeacherRecord(normalized, `מורה (${normalized})`);
   }
 
   return {

@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { AuditLogger } from "@/infrastructure/services/AuditLogger";
 import { firebaseSyncService } from "@/infrastructure/services/FirebaseSyncService";
 import { addAuthorizedTeacherFirestore } from "@/infrastructure/services/AuthService";
+import { teacherRecordKey } from "@/infrastructure/services/FirebaseSyncService";
 import { ref, onValue, update, type Unsubscribe } from "firebase/database";
 import { database } from "@/infrastructure/firebase";
 
@@ -58,8 +59,9 @@ interface AdminState {
   addSchool: (name: string) => void;
   deleteSchool: (id: string) => void;
   
-  addTeacher: (schoolId: string, name: string, ssoEmail: string, dob: string) => void;
-  deleteTeacher: (id: string) => void;
+  /** Resolves once the RTDB record AND the login whitelist are written; rejects (and rolls back) otherwise. */
+  addTeacher: (schoolId: string, name: string, ssoEmail: string, dob: string) => Promise<Teacher>;
+  deleteTeacher: (id: string) => Promise<void>;
   
   addClassRoom: (schoolId: string, teacherId: string, name: string) => void;
   deleteClassRoom: (id: string) => void;
@@ -75,6 +77,32 @@ interface AdminState {
   }) => Promise<{ school: School; teacher: Teacher; classRoom: ClassRoom }>;
 
   resetInstitutionsToOfficialPilot: () => Promise<void>;
+}
+
+/**
+ * users/teachers also receives presence stubs ({isOnline, lastPing}) from the
+ * teacher dashboard and login-time records that carry `email` instead of
+ * `ssoEmail`. Only a record with an e-mail is a teacher the console can show,
+ * count, or address; presence stubs are dropped rather than counted as staff.
+ */
+export function normalizeTeacherRecords(val: Record<string, unknown>): Teacher[] {
+  const out: Teacher[] = [];
+  for (const [key, raw] of Object.entries(val || {})) {
+    if (!raw || typeof raw !== 'object') continue;
+    const r = raw as Partial<Teacher> & { email?: string };
+    const email = typeof r.ssoEmail === 'string' && r.ssoEmail ? r.ssoEmail : typeof r.email === 'string' ? r.email : '';
+    if (!email) continue;
+    out.push({
+      id: r.id || key,
+      schoolId: r.schoolId || '',
+      ssoEmail: email.toLowerCase().trim(),
+      dob: r.dob || '',
+      name: r.name || `מורה (${email})`,
+      licenseActive: Boolean(r.licenseActive),
+      createdAt: typeof r.createdAt === 'number' ? r.createdAt : 0,
+    });
+  }
+  return out;
 }
 
 let adminUnsubscribes: Unsubscribe[] = [];
@@ -134,8 +162,7 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
       const unsubTeachers = onValue(teachersRef, (snap) => {
         if (snap.exists()) {
           const val = snap.val() || {};
-          const teachers = Object.values(val) as Teacher[];
-          set({ teachers });
+          set({ teachers: normalizeTeacherRecords(val) });
         } else {
           set({ teachers: [] });
         }
@@ -180,11 +207,13 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
       name: "בית ספר ביקורת",
       createdAt: timestamp,
     };
+    const pilotTeacherEmail = "1002220159@edu-haifa.org.il";
+    const pilotTeacherKey = teacherRecordKey(pilotTeacherEmail);
     const cleanTeacher: Teacher = {
-      id: "1002220159",
+      id: pilotTeacherKey,
       schoolId: "school_bikorot",
       name: "דוד ספיאשוילי",
-      ssoEmail: "1002220159@edu-haifa.org.il",
+      ssoEmail: pilotTeacherEmail,
       dob: "010190",
       licenseActive: false,
       createdAt: timestamp,
@@ -192,7 +221,7 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
     const cleanClass: ClassRoom = {
       id: "class_1",
       schoolId: "school_bikorot",
-      teacherId: "1002220159",
+      teacherId: pilotTeacherKey,
       name: "המבקרים",
       studentLimit: 12,
       createdAt: timestamp,
@@ -212,10 +241,12 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
 
     const { set: firebaseSet } = await import("firebase/database");
     await firebaseSet(ref(database, 'schools'), { school_bikorot: cleanSchool });
-    await firebaseSet(ref(database, 'users/teachers'), { "1002220159": cleanTeacher });
+    await firebaseSet(ref(database, 'users/teachers'), { [pilotTeacherKey]: cleanTeacher });
     await firebaseSet(ref(database, 'classes'), { class_1: cleanClass });
     await firebaseSet(ref(database, 'public_classes'), { class_1: cleanPublicClass });
     await firebaseSet(ref(database, 'system_control/globalStudentLimit'), 12);
+    // The reset must leave the pilot teacher able to sign in.
+    await addAuthorizedTeacherFirestore(pilotTeacherEmail, 'teacher', cleanTeacher.name, cleanSchool.id).catch(console.error);
 
     AuditLogger.log("איפוס מוסדות לפיילוט", "admin", "כל המוסדות נוקו ואופסו למבנה הפיילוט הרשמי (בית ספר ביקורת, כיתת המבקרים)");
   },
@@ -236,8 +267,8 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
   }) => {
     const timestamp = Date.now();
     const schoolId = `school_${timestamp}`;
-    const teacherId = teacherEmail.trim();
-    const teacherKey = teacherId.replace(/[@.#$[\]]/g, '_');
+    const teacherId = teacherEmail.trim().toLowerCase();
+    const teacherKey = teacherRecordKey(teacherId);
     const classId = `class_${timestamp}`;
 
     const school: School = {
@@ -281,9 +312,10 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
 
     await update(ref(database), updates);
 
-    // Whitelist in Firestore for Google SSO
+    // Whitelist in Firestore for Google SSO — this is what lets the teacher in,
+    // so a failure here fails the wizard instead of being logged and forgotten.
     if (teacherEmail.includes('@')) {
-      await addAuthorizedTeacherFirestore(teacherEmail.trim(), 'teacher', teacherName.trim(), schoolId).catch(console.error);
+      await addAuthorizedTeacherFirestore(teacherId, 'teacher', teacherName.trim(), schoolId);
     }
 
     AuditLogger.log("הקמת מוסד מלאה", "admin", `מוסד: ${schoolName}, מורה: ${teacherName}, כיתה: ${className}`);
@@ -317,10 +349,10 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
     firebaseSyncService.deleteSchool(id).catch(err => console.error("Failed to delete school from Firebase", err));
   },
 
-  addTeacher: (schoolId, name, ssoEmail, dob) => {
-    AuditLogger.log("יצירת מורה", "admin", `מורה חדש: ${name} (דוא"ל SSO: ${ssoEmail})`);
-    const id = ssoEmail.trim();
-    const teacherKey = id.replace(/[@.#$[\]]/g, '_');
+  addTeacher: async (schoolId, name, ssoEmail, dob) => {
+    const id = ssoEmail.trim().toLowerCase();
+    const teacherKey = teacherRecordKey(id);
+    const previous = get().teachers;
     const newTeacher: Teacher = {
       id: teacherKey,
       schoolId,
@@ -330,23 +362,40 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
       licenseActive: false,
       createdAt: Date.now()
     };
+    // Optimistic: the card shows the teacher at once; a failed write below rolls it back.
     set((state) => ({
       teachers: [...state.teachers.filter(t => t.id !== teacherKey && t.ssoEmail !== id), newTeacher]
     }));
-    firebaseSyncService.addTeacher(schoolId, name, ssoEmail, dob).catch(err => console.error("Failed to add teacher to Firebase", err));
-    if (ssoEmail.includes('@')) {
-      addAuthorizedTeacherFirestore(ssoEmail.trim(), 'teacher', name.trim(), schoolId).catch(err => console.error("Failed to add teacher to Firestore authorizedTeachers", err));
+    try {
+      const saved = await firebaseSyncService.addTeacher(schoolId, newTeacher.name, id, newTeacher.dob);
+      AuditLogger.log("יצירת מורה", "admin", `מורה חדש: ${newTeacher.name} (דוא"ל SSO: ${id})`);
+      return saved;
+    } catch (err) {
+      set({ teachers: previous });
+      console.error("Failed to add teacher", err);
+      throw err;
     }
   },
 
-  deleteTeacher: (id) => {
+  deleteTeacher: async (id) => {
     const teacher = get().teachers.find(t => t.id === id || t.ssoEmail === id);
-    if (teacher) AuditLogger.log("מחיקת מורה", "admin", `מורה נמחק: ${teacher.name}`);
+    const key = teacher?.id ?? id;
+    const previous = { teachers: get().teachers, classes: get().classes };
+    // A class is never deleted with its teacher (see FirebaseSyncService.deleteTeacher):
+    // it is handed to another teacher of the same school when there is one.
+    const successor = get().teachers.find(t => t.id !== key && t.schoolId === teacher?.schoolId);
     set((state) => ({
-      teachers: state.teachers.filter(t => t.id !== id && t.ssoEmail !== id),
-      classes: state.classes.filter(c => c.teacherId !== id && c.teacherId !== teacher?.id)
+      teachers: state.teachers.filter(t => t.id !== key && t.ssoEmail !== id),
+      classes: state.classes.map(c => c.teacherId === key && successor ? { ...c, teacherId: successor.id } : c),
     }));
-    firebaseSyncService.deleteTeacher(id).catch(err => console.error("Failed to delete teacher from Firebase", err));
+    try {
+      await firebaseSyncService.deleteTeacher(key);
+      if (teacher) AuditLogger.log("מחיקת מורה", "admin", `מורה נמחק: ${teacher.name}`);
+    } catch (err) {
+      set(previous);
+      console.error("Failed to delete teacher from Firebase", err);
+      throw err;
+    }
   },
 
   addClassRoom: (schoolId, teacherId, name) => {
