@@ -68,7 +68,14 @@ export function AdminSchoolsView() {
     }
   };
 
+  // One click on a trash icon used to wipe a whole school — teachers, the
+  // pilot class the twelve learners log in through, and their login rights —
+  // with no confirmation and no undo. Deletion is irreversible, so it asks.
+  const confirmAction = (message: string) =>
+    typeof window === "undefined" || typeof window.confirm !== "function" ? true : window.confirm(message);
+
   const handleResetPilot = async () => {
+    if (!confirmAction("לאפס את כל המוסדות למבנה הפיילוט הרשמי?\nכל המורות שנוספו יימחקו (כולל הרשאות הכניסה שלהן) ויישארו רק \"בית ספר ביקורת\", המורה המובילה וכיתת \"המבקרים\". פעולה זו אינה הפיכה.")) return;
     setIsResetting(true);
     try {
       await resetInstitutionsToOfficialPilot();
@@ -94,6 +101,29 @@ export function AdminSchoolsView() {
       return (s.name && s.name.toLowerCase().includes(query)) || hasMatchingTeacher;
     });
   }, [schools, teachers, searchQuery]);
+
+  const handleDeleteSchool = (school: { id: string; name: string }) => {
+    const teacherCount = teachers.filter((t) => t.schoolId === school.id).length;
+    const classCount = classes.filter((c) => c.schoolId === school.id).length;
+    if (!confirmAction(`למחוק את המוסד "${school.name}"?\nיימחקו יחד איתו ${teacherCount} מורות (כולל הרשאת הכניסה שלהן) ו-${classCount} כיתות. פעולה זו אינה הפיכה.`)) return;
+    Promise.resolve(deleteSchool(school.id))
+      .then(() => toast.success(`המוסד "${school.name}" נמחק.`))
+      .catch(() => toast.error("מחיקת המוסד נכשלה בשרת."));
+  };
+
+  const handleDeleteTeacher = (teacher: { id: string; name: string; ssoEmail: string }) => {
+    if (!confirmAction(`להסיר את המורה ${teacher.name} (${teacher.ssoEmail})?\nהרשאת הכניסה שלה תבוטל מיד. הכיתות אינן נמחקות.`)) return;
+    deleteTeacher(teacher.id)
+      .then(() => toast.success(`המורה ${teacher.name} הוסרה והרשאת הכניסה שלה בוטלה.`))
+      .catch(() => toast.error("הסרת המורה נכשלה בשרת. ודא שאתה מחובר כמנהל מערכת."));
+  };
+
+  const handleDeleteClass = (cls: { id: string; name: string }) => {
+    if (!confirmAction(`למחוק את הכיתה "${cls.name}"?\nהלומדים לא יוכלו להיכנס לכיתה זו. פעולה זו אינה הפיכה.`)) return;
+    Promise.resolve(deleteClassRoom(cls.id))
+      .then(() => toast.success(`הכיתה "${cls.name}" נמחקה.`))
+      .catch(() => toast.error("מחיקת הכיתה נכשלה בשרת."));
+  };
 
   const openWizard = (mode: "full_setup" | "add_teacher" | "add_class", schoolId: string | null = null) => {
     setWizardMode(mode);
@@ -159,7 +189,7 @@ export function AdminSchoolsView() {
           <div className="bg-white/5 backdrop-blur-md border border-white/10 p-4 rounded-2xl flex items-center justify-between">
             <div>
               <span className="text-xs text-slate-300 block">סגל מורים רשום</span>
-              <span className="text-2xl font-black text-emerald-300">{teachers.length} / 5</span>
+              <span className="text-2xl font-black text-emerald-300">{teachers.length}</span>
             </div>
             <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-300">
               <Users className="w-5 h-5" />
@@ -307,9 +337,7 @@ export function AdminSchoolsView() {
                   </div>
 
                   <button 
-                    onClick={() => {
-                      deleteSchool(school.id);
-                    }}
+                    onClick={() => handleDeleteSchool(school)}
                     className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/50 hover:text-rose-600 text-slate-400 transition-colors flex items-center justify-center cursor-pointer"
                     title="מחק מוסד"
                   >
@@ -323,9 +351,9 @@ export function AdminSchoolsView() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="bg-indigo-50/40 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/40 p-4 rounded-2xl flex items-center justify-between">
                       <div>
-                        <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-1">מורים מובילים</span>
+                        <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-1">מורות רשומות</span>
                         <span className="text-3xl font-black text-indigo-600 dark:text-indigo-400">
-                          {schoolTeachers.length} / 1
+                          {schoolTeachers.length}
                         </span>
                       </div>
                       <Users className="w-7 h-7 text-indigo-400/60" />
@@ -348,18 +376,16 @@ export function AdminSchoolsView() {
                       <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400">
                         סגל מורים פעיל:
                       </h4>
-                      {schoolTeachers.length === 0 && (
-                        <button 
-                          onClick={() => openWizard("add_teacher", school.id)}
-                          className="text-xs text-indigo-600 dark:text-indigo-400 font-bold hover:underline"
-                        >
-                          + הוסף מורה מוביל
-                        </button>
-                      )}
+                      <button 
+                        onClick={() => openWizard("add_teacher", school.id)}
+                        className="text-xs text-indigo-600 dark:text-indigo-400 font-bold hover:underline"
+                      >
+                        + הוסף מורה
+                      </button>
                     </div>
 
                     {schoolTeachers.length === 0 ? (
-                      <p className="text-xs text-slate-400 italic py-2">טרם שויך מורה מוביל למוסד זה.</p>
+                      <p className="text-xs text-slate-400 italic py-2">טרם נרשמה מורה למוסד זה.</p>
                     ) : (
                       <div className="space-y-2">
                         {schoolTeachers.map((teacher) => (
@@ -370,22 +396,26 @@ export function AdminSchoolsView() {
                             <div className="space-y-0.5">
                               <div className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
                                 <span>{teacher.name}</span>
-                                <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-300 dark:border-emerald-800">
-                                  מורה מוביל
-                                </span>
+                                {schoolClasses.some((c) => c.teacherId === teacher.id) ? (
+                                  <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-300 dark:border-emerald-800">
+                                    מורה מובילה
+                                  </span>
+                                ) : (
+                                  <span className="bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-slate-300 dark:border-slate-700">
+                                    מורה מורשית
+                                  </span>
+                                )}
                               </div>
                               <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-3">
                                 <span className="flex items-center gap-1 font-mono">
                                   <KeyRound className="w-3 h-3 text-slate-400" />
-                                  דוא"ל SSO: {teacher.ssoEmail || "teacher@edu-haifa.org.il"}
+                                  דוא"ל SSO: {teacher.ssoEmail}
                                 </span>
                               </div>
                             </div>
 
                             <button 
-                              onClick={() => {
-                                deleteTeacher(teacher.id);
-                              }}
+                              onClick={() => handleDeleteTeacher(teacher)}
                               className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 p-2 rounded-xl transition-all cursor-pointer"
                               title="מחק מורה"
                             >
@@ -426,9 +456,7 @@ export function AdminSchoolsView() {
                             </div>
 
                             <button 
-                              onClick={() => {
-                                deleteClassRoom(cls.id);
-                              }}
+                              onClick={() => handleDeleteClass(cls)}
                               className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 p-1.5 rounded-lg transition-all cursor-pointer"
                               title="מחק כיתה"
                             >

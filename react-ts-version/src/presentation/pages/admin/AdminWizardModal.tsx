@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -66,6 +66,32 @@ export function AdminWizardModal({
   const [isDone, setIsDone] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // The modal stays mounted between openings, so useState's initial values
+  // only ever reflected the FIRST button pressed: "רישום מורה" on a school
+  // card opened with a stale step/school from the previous use, and the
+  // school <select> could sit on "" when the schools list arrived after
+  // mount — which then failed with "יש לבחור מוסד חינוכי". Re-derive the
+  // entry state from the props every time the wizard opens.
+  useEffect(() => {
+    if (!isOpen) return;
+    setStep(mode === "add_teacher" ? 2 : mode === "add_class" ? 3 : 1);
+    setSelectedSchoolId(initialTargetSchoolId || (schools[0]?.id ?? ""));
+    setSchoolName("");
+    setTeacherName("");
+    setTeacherSsoEmail("");
+    setTeacherDob("");
+    setSchoolError("");
+    setTeacherError("");
+    setClassError("");
+    setIsDone(false);
+    setIsSubmitting(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, mode, initialTargetSchoolId]);
+
+  useEffect(() => {
+    if (isOpen && !selectedSchoolId && schools[0]?.id) setSelectedSchoolId(schools[0].id);
+  }, [isOpen, selectedSchoolId, schools]);
+
   if (!isOpen) return null;
 
   // Validation functions
@@ -82,23 +108,25 @@ export function AdminWizardModal({
     return true;
   };
 
-  const validateStep2 = (targetSchoolId: string) => {
+  // Module 25 §ב + deviation 1 (מסמכי אפיון/סטיות_מהאפיון.md): the admin
+  // adds every authorised teacher here, and every one of them sees the same
+  // twelve learners. The PRD caps students (12) and names the single class —
+  // it sets no cap on teachers. The former "one lead teacher per school" and
+  // "5 teachers total" rules were invented, and the first of them made this
+  // very button refuse the second teacher of the pilot school.
+  const validateStep2 = (_targetSchoolId: string) => {
     setTeacherError("");
     if (!teacherName.trim()) {
       setTeacherError("נא להזין שם מורה.");
       return false;
     }
-    if (!teacherSsoEmail.trim() || !teacherSsoEmail.includes('@')) {
-      setTeacherError("נא להזין כתובת דוא\"ל ארגונית מורשת (Google SSO).");
+    const email = teacherSsoEmail.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setTeacherError("נא להזין כתובת דוא\"ל תקינה — זו הכתובת שאיתה המורה תיכנס דרך Google.");
       return false;
     }
-    if (teachers.length >= 5) {
-      setTeacherError("המערכת הגיעה למגבלת הפיילוט המרבית של 5 מורים בסך הכל (מודול 25).");
-      return false;
-    }
-    const schoolTeachers = teachers.filter(t => t.schoolId === targetSchoolId);
-    if (schoolTeachers.length >= 1) {
-      setTeacherError("לפי מפרט הפיילוט (מודול 25), מוגדר מורה מוביל אחד בלבד לכל מוסד חינוכי.");
+    if (teachers.some(t => (t.ssoEmail || "").toLowerCase() === email)) {
+      setTeacherError("כתובת דוא\"ל זו כבר רשומה במערכת כמורה.");
       return false;
     }
     return true;
@@ -162,14 +190,26 @@ export function AdminWizardModal({
     }
   };
 
-  const handleQuickAddTeacher = () => {
-    if (!selectedSchoolId) {
+  const handleQuickAddTeacher = async () => {
+    const schoolId = selectedSchoolId || schools[0]?.id || "";
+    if (!schoolId) {
       setTeacherError("יש לבחור מוסד חינוכי.");
       return;
     }
-    if (!validateStep2(selectedSchoolId)) return;
-    addTeacher(selectedSchoolId, teacherName.trim(), teacherSsoEmail.trim(), teacherDob.trim() || "010190");
-    setIsDone(true);
+    if (!validateStep2(schoolId)) return;
+    setIsSubmitting(true);
+    try {
+      // Resolves only after the RTDB record and the login whitelist are both
+      // written; a rejected write (rules, network) shows here instead of a
+      // success screen for a teacher who could not actually sign in.
+      await addTeacher(schoolId, teacherName.trim(), teacherSsoEmail.trim().toLowerCase(), teacherDob.trim() || "010190");
+      setIsDone(true);
+    } catch (err) {
+      console.error("Failed to register teacher:", err);
+      setTeacherError("רישום המורה נכשל בשרת. ודא שאתה מחובר כמנהל מערכת ונסה שוב. " + ((err as Error)?.message || ""));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleQuickAddClass = () => {
@@ -232,7 +272,7 @@ export function AdminWizardModal({
                 <div>
                   <h2 className="text-xl font-extrabold text-slate-900 dark:text-white">
                     {mode === "add_teacher" 
-                      ? "רישום מורה מוביל למוסד" 
+                      ? "רישום מורה למוסד" 
                       : mode === "add_class" 
                       ? "הקמת כיתת לימוד" 
                       : "אשף הקמת מוסד חינוכי חדש"}
@@ -344,7 +384,9 @@ export function AdminWizardModal({
                     {mode === "add_teacher" ? "המורה נרשם בהצלחה!" : mode === "add_class" ? "הכיתה הוקמה בהצלחה!" : "המוסד הוקם בהצלחה!"}
                   </h3>
                   <p className="text-slate-600 dark:text-slate-400 text-sm max-w-md mx-auto">
-                    הנתונים נקלטו במערכת וסונכרנו מול מסד הנתונים. המורה והכיתות מוכנים לעבודה.
+                    {mode === "add_teacher"
+                      ? `הרשומה והרשאת הכניסה נשמרו בשרת. המורה יכולה להיכנס עכשיו דרך "כניסת מורים" עם הכתובת ${teacherSsoEmail.trim().toLowerCase()}.`
+                      : "הנתונים נקלטו במערכת וסונכרנו מול מסד הנתונים. המורה והכיתות מוכנים לעבודה."}
                   </p>
                   <div className="pt-4">
                     <UdlButton 
@@ -416,9 +458,10 @@ export function AdminWizardModal({
                       <div className="bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/40 p-4 rounded-2xl flex items-start gap-3">
                         <Users className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
                         <div>
-                          <h4 className="font-bold text-sm text-emerald-950 dark:text-emerald-200">שיוך מורה מוביל (Lead Teacher)</h4>
+                          <h4 className="font-bold text-sm text-emerald-950 dark:text-emerald-200">רישום מורה מורשית</h4>
                           <p className="text-xs text-emerald-800/80 dark:text-emerald-300/80 mt-0.5">
-                            הזדהות המורה תתבצע באופן שקט ומאובטח באמצעות Google SSO והדוא"ל הארגוני המורשה בלבד.
+                            המורה תיכנס למערכת בלחיצה על "כניסת מורים" והזדהות Google עם הכתובת המדויקת שתירשם כאן.
+                            אין סיסמה נפרדת. כל מורה רשומה רואה את אותם 12 הלומדים של כיתת "המבקרים".
                           </p>
                         </div>
                       </div>
@@ -566,10 +609,6 @@ export function AdminWizardModal({
                             <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">{teacherSsoEmail}</span>
                           </div>
                           <div className="pt-3 flex justify-between">
-                            <span className="text-slate-500">סיסמא ראשונית (DDMMYY):</span>
-                            <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{teacherDob || "010190"}</span>
-                          </div>
-                          <div className="pt-3 flex justify-between">
                             <span className="text-slate-500">כיתה ראשונה:</span>
                             <span className="font-bold text-cyan-600 dark:text-cyan-400">{PILOT_CLASS_NAME}</span>
                           </div>
@@ -626,9 +665,10 @@ export function AdminWizardModal({
                   <UdlButton 
                     semanticColor="primary" 
                     onClick={handleQuickAddTeacher}
-                    className="gap-2 px-8 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold shadow-lg"
+                    disabled={isSubmitting}
+                    className="gap-2 px-8 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold shadow-lg disabled:opacity-50"
                   >
-                    שמור מורה במערכת
+                    {isSubmitting ? "שומר בשרת..." : "שמור מורה במערכת"}
                   </UdlButton>
                 ) : (
                   <UdlButton 

@@ -64,7 +64,7 @@ function pct(part: number, whole: number): string {
   return `${Math.round((part / whole) * 100)}%`;
 }
 
-export function summarizeFeature(c: FeatureCounters | undefined) {
+function summarizeFeature(c: FeatureCounters | undefined) {
   const calls = c?.calls ?? 0;
   const ok = c?.ok ?? 0;
   const avg = calls > 0 && c?.latency_sum_ms ? Math.round(c.latency_sum_ms / calls) : null;

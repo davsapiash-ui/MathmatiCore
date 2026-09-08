@@ -24,7 +24,7 @@
         ".read": "auth != null",
         "$teacherId": {
           ".read": "auth != null",
-          ".write": "auth != null && (auth.token.role == 'admin' || auth.token.role == 'ADMIN' || (auth.token.email != null && auth.token.email.matches(/.*admin.*/)) || auth.uid == $teacherId)",
+          ".write": "auth != null && (auth.token.role == 'admin' || auth.token.role == 'ADMIN' || auth.uid == $teacherId)",
           "licenseActive": {
             ".validate": "newData.isBoolean()"
           }

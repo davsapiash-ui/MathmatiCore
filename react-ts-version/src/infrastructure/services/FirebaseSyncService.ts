@@ -20,6 +20,18 @@ import {
   validateTelemetryColumnIndexRule,
 } from '@/types/telemetry';
 
+/**
+ * The ONE key a teacher's record lives under in RTDB users/teachers, and the
+ * id the admin console, the teacher-admin chat (sendTeacherAdminMessage and
+ * the dashboard's own filter) and the class documents all agree on: the
+ * e-mail with RTDB's forbidden characters replaced. Every path that used to
+ * derive its own variant (local part for @edu-haifa, raw uid, "teacher_"
+ * prefix) produced a second, orphaned record for the same person.
+ */
+export function teacherRecordKey(email: string): string {
+  return String(email || '').toLowerCase().trim().replace(/[@.#$[\]]/g, '_');
+}
+
 export function extractTeacherId(email?: string | null, uid?: string | null): string {
   if (email && typeof email === 'string') {
     const cleaned = email
@@ -1237,50 +1249,80 @@ export class FirebaseSyncService {
     });
 
     await update(ref(database), updates);
+
+    // The whitelist is what admits a teacher at login; a deleted school's
+    // teachers must not keep a working key.
+    const { removeAuthorizedTeacherFirestore } = await import('./AuthService');
+    for (const t of schoolTeachers) {
+      const email = t.ssoEmail || (t as { email?: string }).email;
+      if (email && email.includes('@')) {
+        await removeAuthorizedTeacherFirestore(email).catch(console.error);
+      }
+    }
   }
 
-  public async addTeacher(schoolId: string, name: string, ssoEmail: string, dob: string) {
+  public async addTeacher(schoolId: string, name: string, ssoEmail: string, dob: string): Promise<Teacher> {
     // A raw email contains '.', which Firebase RTDB rejects as a key segment
     // (ref() throws, so the write never happened and the caller's .catch
     // swallowed it — the teacher looked created in local state but had no
-    // users/teachers record at all). Sanitize to the same key shape every
-    // other teacher-lookup path already uses: useAdminStore's own
-    // addClassRoom/approveGate, TeacherDashboard's own-identity lookup, and
-    // the teacherAdminChat Cloud Function.
-    const id = ssoEmail.trim().replace(/[@.#$[\]]/g, '_');
+    // users/teachers record at all). teacherRecordKey is the one key shape
+    // every teacher-lookup path uses.
+    const email = ssoEmail.trim().toLowerCase();
+    const id = teacherRecordKey(email);
     const newTeacher: Teacher = {
       id,
       schoolId,
       name,
-      ssoEmail,
+      ssoEmail: email,
       dob,
       licenseActive: false,
       createdAt: Date.now()
     };
     await set(ref(database, `users/teachers/${id}`), newTeacher);
-    if (ssoEmail.includes('@')) {
+    // Module 25 / deviation 1: the Firestore whitelist IS the teacher's key
+    // to the door (isWhitelistedTeacherEmailAsync + syncUserRoles read it).
+    // A failure here must reach the admin, not a console nobody watches.
+    if (email.includes('@')) {
       const { addAuthorizedTeacherFirestore } = await import('./AuthService');
-      await addAuthorizedTeacherFirestore(ssoEmail, 'teacher', name, schoolId).catch(console.error);
+      await addAuthorizedTeacherFirestore(email, 'teacher', name, schoolId);
     }
+    return newTeacher;
   }
 
+  /**
+   * Removes a teacher everywhere a login could still succeed from: the RTDB
+   * record AND the Firestore whitelist (deleting only the record used to leave
+   * the door open — syncUserRoles kept stamping teacher claims from the
+   * whitelist doc). Classes are NOT deleted with the teacher: the pilot's one
+   * class is where twelve learners log in, and losing it because a staff
+   * member left is the wrong trade. A class the teacher owned is handed to
+   * another teacher of the same school when there is one.
+   */
   public async deleteTeacher(teacherId: string) {
-    // Fetch the latest classes list from Firebase via get()
-    const classesSnapshot = await get(ref(database, 'classes'));
-    const classesVal = classesSnapshot.val() || {};
-    const classes = Object.values(classesVal) as ClassRoom[];
+    const [teacherSnap, teachersSnap, classesSnapshot] = await Promise.all([
+      get(ref(database, `users/teachers/${teacherId}`)),
+      get(ref(database, 'users/teachers')),
+      get(ref(database, 'classes')),
+    ]);
+    const record = (teacherSnap.val() || null) as Teacher | null;
+    const allTeachers = Object.values(teachersSnap.val() || {}) as Teacher[];
+    const classes = Object.values(classesSnapshot.val() || {}) as ClassRoom[];
 
-    const updates: Record<string, null> = {};
+    const updates: Record<string, unknown> = {};
     updates[`users/teachers/${teacherId}`] = null;
 
-    // Cascade delete classes belonging to this teacher (from both classes and public_classes)
-    const teacherClasses = classes.filter(c => c.teacherId === teacherId);
-    teacherClasses.forEach(c => {
-      updates[`classes/${c.id}`] = null;
-      updates[`public_classes/${c.id}`] = null;
+    const successor = allTeachers.find(t => t && t.id !== teacherId && record && t.schoolId === record.schoolId && typeof t.ssoEmail === 'string');
+    classes.filter(c => c.teacherId === teacherId).forEach(c => {
+      if (successor) updates[`classes/${c.id}/teacherId`] = successor.id;
     });
 
     await update(ref(database), updates);
+
+    const email = record?.ssoEmail || (record as { email?: string } | null)?.email;
+    if (email && email.includes('@')) {
+      const { removeAuthorizedTeacherFirestore } = await import('./AuthService');
+      await removeAuthorizedTeacherFirestore(email);
+    }
   }
 
   public async addClassRoom(schoolId: string, teacherId: string, name: string, preferredId?: string): Promise<ClassRoom> {

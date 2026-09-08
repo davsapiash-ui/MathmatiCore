@@ -20,7 +20,11 @@ describe('Admin console — wiring that silently did nothing', () => {
     const body = addTeacher.slice(0, addTeacher.indexOf('public async deleteTeacher'));
 
     expect(body.includes('const id = ssoEmail;')).toBe(false);
-    expect(body.includes("replace(/[@.#$[\\]]/g, '_')")).toBe(true);
+    // One canonical key for every path (admin console, login-time record,
+    // teacher-admin chat) — see FirebaseSyncService.teacherRecordKey.
+    expect(body.includes('const id = teacherRecordKey(email);')).toBe(true);
+    expect(sync.includes("export function teacherRecordKey(email: string): string")).toBe(true);
+    expect(sync.includes("replace(/[@.#$[\\]]/g, '_')")).toBe(true);
   });
 
   it('does not let the admin batch-activate a session for every class', () => {

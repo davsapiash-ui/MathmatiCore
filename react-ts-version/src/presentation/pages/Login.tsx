@@ -189,6 +189,11 @@ export function Login() {
           email: authenticatedUser.email,
           role: targetRole,
           displayName: authenticatedUser.displayName,
+          // The route guards (App.tsx) trust this stamp; without it every
+          // admin-added teacher was bounced back to /login right after a
+          // successful sign-in, because the synchronous fallback list only
+          // knows the two hard-coded pilot accounts.
+          whitelistVerified: authenticatedUser.whitelistVerified === true,
         },
         targetRole
       );
