@@ -3,6 +3,7 @@ import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import * as dotenv from "dotenv";
 import { createPedagogicalReportPdfBuffer } from "./pedagogicalReport";
+import { CHROMIUM_PDF_RUNTIME } from "./htmlPdf";
 import { uploadBufferToDrive } from "./exportDriveReport";
 
 admin.initializeApp();
@@ -297,6 +298,7 @@ export const triggerTestDriveReport = onRequest({
   region: "us-central1",
   cors: true,
   invoker: "public",
+  ...CHROMIUM_PDF_RUNTIME,
 }, async (req, res) => {
   try {
     const sessionNumber = Number(req.query.session || 1);
