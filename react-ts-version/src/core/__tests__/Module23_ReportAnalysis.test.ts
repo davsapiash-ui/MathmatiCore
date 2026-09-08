@@ -59,18 +59,26 @@ describe('Module 23: pedagogical report, layer 2 (AI verbal analysis)', () => {
   });
 
   it('keeps the fallback sentence verbatim, and only for the unavailable case', () => {
-    expect(report).toContain(
-      'export const EXACT_AI_FALLBACK_TEXT = "הניתוח הפדגוגי המפורט אינו זמין כעת. ההמלצות שלהלן מבוססות על מדדי הביצוע.";'
+    // The sentence lives once, in the HTML template module, and the report
+    // module re-exports it so both PDF renderers (Chromium and the pdfkit
+    // rollback path) print the same words.
+    const html = fnSrc('reportHtml.ts');
+    expect(html).toContain(
+      'export const EXACT_AI_FALLBACK_TEXT_HE =\n  "הניתוח הפדגוגי המפורט אינו זמין כעת. ההמלצות שלהלן מבוססות על מדדי הביצוע.";'
     );
-    // The renderer prefers the analysis and falls back only when both arrays are empty.
+    expect(report).toContain('export const EXACT_AI_FALLBACK_TEXT = EXACT_AI_FALLBACK_TEXT_HE;');
+    // Both renderers prefer the analysis and fall back only when both arrays are empty.
+    expect(html).toContain('if (gaps.length > 0 || teaching.length > 0) {');
+    expect(html).toContain('report.ai_fallback_text || EXACT_AI_FALLBACK_TEXT_HE');
     expect(report).toContain('if (gaps.length > 0 || teaching.length > 0) {');
     expect(report).toContain('report.ai_fallback_text || EXACT_AI_FALLBACK_TEXT');
   });
 
   it('binds the Gemini credential to the report function', () => {
     // A v2 handler only receives the secret when it declares it; without this
-    // the key reads back undefined and every report silently falls back.
-    expect(report).toContain('onCall(GEMINI_SECRETS, async (request)');
+    // the key reads back undefined and every report silently falls back. The
+    // options also carry the Chromium runtime (memory/timeout) for the PDF print.
+    expect(report).toContain('onCall({ ...GEMINI_SECRETS, ...CHROMIUM_PDF_RUNTIME }, async (request)');
   });
 
   it('keeps layer 1 deterministic and free of engine involvement', () => {
