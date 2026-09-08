@@ -36,7 +36,6 @@ export function AdminWizardModal({
     teachers, 
     classes, 
     globalStudentLimit, 
-    addSchool, 
     addTeacher, 
     addClassRoom,
     provisionFullInstitution 
@@ -224,7 +223,7 @@ export function AdminWizardModal({
     }
     const teacherId = schoolTeachers[0].id;
     if (!validateStep3(teacherId)) return;
-    addClassRoom(selectedSchoolId, teacherId, PILOT_CLASS_NAME);
+    addClassRoom(selectedSchoolId, teacherId, PILOT_CLASS_NAME, classType);
     setIsDone(true);
   };
 
@@ -563,17 +562,27 @@ export function AdminWizardModal({
                           <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1">
                             מגבלת תלמידים מרבית לכיתה זו (מקסימום 12 לפי מודול 25)
                           </label>
-                          <input 
-                            type="number"
-                            min="1"
-                            max="12"
-                            value={studentLimit}
-                            onChange={(e) => {
-                              const val = Math.min(12, Math.max(1, parseInt(e.target.value, 10) || 12));
-                              setStudentLimit(val.toString());
-                            }}
-                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-2xl p-3.5 text-sm focus:border-indigo-500 outline-none font-bold"
-                          />
+                          {mode === "add_class" ? (
+                            // A class added here always takes the global limit
+                            // (useAdminStore.addClassRoom) — an editable field
+                            // that the save ignored promised a capacity it never set.
+                            <div className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-2xl p-3.5 text-sm font-bold flex items-center justify-between">
+                              <span>{globalStudentLimit} תלמידים</span>
+                              <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500">לפי המגבלה הגלובלית במסך המוסדות</span>
+                            </div>
+                          ) : (
+                            <input 
+                              type="number"
+                              min="1"
+                              max="12"
+                              value={studentLimit}
+                              onChange={(e) => {
+                                const val = Math.min(12, Math.max(1, parseInt(e.target.value, 10) || 12));
+                                setStudentLimit(val.toString());
+                              }}
+                              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-2xl p-3.5 text-sm focus:border-indigo-500 outline-none font-bold"
+                            />
+                          )}
                         </div>
 
                         {classError && (

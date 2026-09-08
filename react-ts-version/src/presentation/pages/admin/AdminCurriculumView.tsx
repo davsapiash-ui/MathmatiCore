@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AccessibleCard } from "@/presentation/design-system/AccessibleCard";
 import { UdlButton } from "@/presentation/design-system/UdlButton";
 import { 
@@ -7,109 +7,107 @@ import {
   BookOpen, 
   Layers, 
   Sparkles, 
-  Award,
   ChevronDown,
   ChevronUp
 } from "lucide-react";
-import { useAdminStore } from "@/application/useAdminStore";
-import { doc, setDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "@/infrastructure/firebase";
 import { toast } from "sonner";
-import { getHardcodedCatalogBanks } from "@/data/sessionTasks";
+import { getHardcodedCatalogBanks, SESSION1_TASKS, SESSION2_TASKS, SESSIONS_BY_PATH, type SessionTask } from "@/data/sessionTasks";
+import { getSessionBranchTasks } from "@/data/sessionBranchTasks";
+import { DEFAULT_HESITATION_THRESHOLD_SECONDS } from "@/core/hesitationCalibration";
+
+interface PathBank {
+  label: string;
+  compulsory: string[];
+  reinforcement: string[];
+  challenge: string[];
+}
 
 interface SessionCurriculumItem {
   sessionId: number;
   sessionTitle: string;
-  mandatoryTasksCount: number;
-  challengeTasksCount: number;
-  mandatoryTopics: string[];
-  challengeTopics: string[];
+  banks: PathBank[];
 }
 
-const SESSIONS_CURRICULUM_CATALOG: SessionCurriculumItem[] = [
-  {
+const SESSION_TITLES: Record<number, string> = {
+  1: "מפגש 1: ארגז חול — היכרות עם בית המספרים",
+  2: "מפגש 2: אבחון (Q-Matrix) — שבע משימות אבחון",
+  3: "מפגש 3: שיעור VRA אדפטיבי",
+  4: "מפגש 4: שיעור VRA אדפטיבי",
+  5: "מפגש 5: שיעור VRA אדפטיבי",
+  6: "מפגש 6: שיעור VRA אדפטיבי",
+  7: "מפגש 7: שיעור VRA אדפטיבי",
+  8: "מפגש 8: חוקר-על — סיכום ורפלקציית SRL",
+};
+
+const titles = (tasks: Array<{ titleHe?: string }>) => tasks.map((t) => t.titleHe || "").filter(Boolean);
+
+/**
+ * The catalog shown here is derived from the banks the learners actually get
+ * (sessionTasks / sessionBranchTasks — the same constants "פרסום קטלוג"
+ * publishes). It used to be a hand-written list that described sessions 5–7
+ * as multiplication lessons and session 3 as "מעבר תחום ה-10,000", none of
+ * which exists in the banks or in the PRD's Module 14 progression.
+ */
+export function buildSessionCatalog(): SessionCurriculumItem[] {
+  const items: SessionCurriculumItem[] = [];
+  items.push({
     sessionId: 1,
-    sessionTitle: "מפגש 1: היכרות עם מרחב החקר והמבנה העשרוני",
-    mandatoryTasksCount: 7,
-    challengeTasksCount: 3,
-    mandatoryTopics: ["גרירת לבני יחידות ועשרות", "המרה מוחשית בבית המספרים", "ייצוג מספרים עד 1,000"],
-    challengeTopics: ["המרה מהירה ללא תמיכת רשת", "חידות ייצוג מספרי"],
-  },
-  {
+    sessionTitle: SESSION_TITLES[1],
+    banks: [{ label: "מסלול אחיד", compulsory: titles(SESSION1_TASKS), reinforcement: [], challenge: [] }],
+  });
+  items.push({
     sessionId: 2,
-    sessionTitle: "מפגש 2: שער חיבור ומטריצת Q-Matrix דיאגנוסטית",
-    mandatoryTasksCount: 7,
-    challengeTasksCount: 3,
-    mandatoryTopics: ["5 משימות אבחון Q-Matrix", "חיבור עם המרה ללא שארית", "הזנה בעיגולי זיכרון"],
-    challengeTopics: ["משימות הרחבה (רבה)", "חישוב בעל פה"],
-  },
-  {
-    sessionId: 3,
-    sessionTitle: "מפגש 3: מעבר תחום ה-10,000 וחיבור רב-שלבי",
-    mandatoryTasksCount: 7,
-    challengeTasksCount: 3,
-    mandatoryTopics: ["עמודת אלפים", "חיבור 3 מחוברים", "המרה כפולה (יחידות ועשרות)"],
-    challengeTopics: ["מסלול אתגר רב-שלבי", "משוואות חסרות"],
-  },
-  {
-    sessionId: 4,
-    sessionTitle: "מפגש 4: גמישות בהמרות ואסטרטגיות פריטה",
-    mandatoryTasksCount: 7,
-    challengeTasksCount: 3,
-    mandatoryTopics: ["המרה הלוך ושוב", "ייצוג שווה-ערך", "ביקורת ובקרה עצמית ב-Undo"],
-    challengeTopics: ["פירוק מבנה עשרוני מורכב", "חידות ערך מקום"],
-  },
-  {
-    sessionId: 5,
-    sessionTitle: "מפגש 5: כפל בסיסי ומשמעות העשרת השלמה",
-    mandatoryTasksCount: 7,
-    challengeTasksCount: 3,
-    mandatoryTopics: ["כפל פי 10", "הזזת עמודות שמאלה", "דפוסים במבנה העשרוני"],
-    challengeTopics: ["כפל פי 20 ו-30", "מציאת גורם חסר"],
-  },
-  {
-    sessionId: 6,
-    sessionTitle: "מפגש 6: כפל פי 100 ומאות שלמות",
-    mandatoryTasksCount: 7,
-    challengeTasksCount: 3,
-    mandatoryTopics: ["כפל פי 100", "הזזה כפולה בעמודות", "קישור בין חיבור לכפל"],
-    challengeTopics: ["כפל עשרות במאות", "אומדן תוצאה"],
-  },
-  {
-    sessionId: 7,
-    sessionTitle: "מפגש 7: שילוב פעולות ומשוואות מבנה עשרוני",
-    mandatoryTasksCount: 7,
-    challengeTasksCount: 3,
-    mandatoryTopics: ["חיבור וכפל משולב", "סדר פעולות אינטואיטיבי", "בקרת שגיאות"],
-    challengeTopics: ["משוואות אתגר מתקדמות", "חקר דפוסים"],
-  },
-  {
-    sessionId: 8,
-    sessionTitle: "מפגש 8: מפגש מסכם, רפלקציית SRL והערכה",
-    mandatoryTasksCount: 7,
-    challengeTasksCount: 3,
-    mandatoryTopics: ["משימות סיכום מקיפות", "חישוב מדד התמדה SRL", "שאלון רפלקציה 3 שלבים"],
-    challengeTopics: ["משימות רבה מתקדמות", "חזקות בסיס 10"],
-  },
-];
+    sessionTitle: SESSION_TITLES[2],
+    banks: [{ label: "מסלול אחיד", compulsory: titles(SESSION2_TASKS), reinforcement: [], challenge: [] }],
+  });
+  for (const n of [3, 4, 5, 6, 7, 8] as const) {
+    const byPath = SESSIONS_BY_PATH[n];
+    const banks: PathBank[] = (["green_path", "remediation_path"] as const).map((path) => ({
+      label: path === "green_path" ? "מסלול ירוק (עד 10,000)" : "מסלול ביסוס (עד 1,000)",
+      compulsory: titles((byPath?.[path] ?? []) as SessionTask[]),
+      reinforcement: titles(getSessionBranchTasks(n, "reinforcement", path)),
+      challenge: titles(getSessionBranchTasks(n, "challenge", path)),
+    }));
+    items.push({ sessionId: n, sessionTitle: SESSION_TITLES[n], banks });
+  }
+  return items;
+}
 
 /**
  * מודול 26: קטלוג תכנית הלימודים וחלוקת מטלות מרוכזת (Curriculum Catalog & Batch Assignment)
  * מבוסס Cloud Firestore תחת חוקי אבטחה קפדניים (/system_control, /classes).
  */
 export function AdminCurriculumView() {
-  const { schools } = useAdminStore();
-  const [hesitationThreshold, setHesitationThreshold] = useState<number>(45);
-  const [undoThreshold, setUndoThreshold] = useState<number>(4);
+  const [hesitationThreshold, setHesitationThreshold] = useState<number>(DEFAULT_HESITATION_THRESHOLD_SECONDS);
   const [isSaved, setIsSaved] = useState(false);
+  const [isSavingCalibration, setIsSavingCalibration] = useState(false);
+  const sessionCatalog = useMemo(() => buildSessionCatalog(), []);
 
   const [expandedSession, setExpandedSession] = useState<number | null>(1);
 
+  // Show the value that is actually in force. The slider used to start at 45
+  // on every visit regardless of what had been saved, so an admin who set 60
+  // saw "45" the next day and could not tell whether the save had held.
+  useEffect(() => {
+    getDoc(doc(db, 'system_control', 'trace_calibration'))
+      .then((snap) => {
+        const raw = snap.exists() ? snap.data()?.hesitation_threshold_seconds : undefined;
+        if (typeof raw === 'number' && raw > 0) setHesitationThreshold(raw);
+      })
+      .catch((err) => console.warn('[AdminCurriculumView] calibration read notice:', err));
+  }, []);
+
+  // Only the hesitation threshold is read by anyone (core/hesitationCalibration.ts
+  // feeds the student trigger and the teacher radar). The former "consecutive
+  // deletions" slider wrote undo_threshold_clicks, which nothing reads: the
+  // PRD fixes that trigger at four (Module 12), so the slider is gone.
   const handleSaveCalibration = async () => {
+    setIsSavingCalibration(true);
     try {
       await setDoc(doc(db, 'system_control', 'trace_calibration'), {
         hesitation_threshold_seconds: hesitationThreshold,
-        undo_threshold_clicks: undoThreshold,
         updated_at: Date.now(),
       }, { merge: true });
       setIsSaved(true);
@@ -117,7 +115,9 @@ export function AdminCurriculumView() {
       toast.success('הגדרות הכיול נשמרו ב-Firestore בהצלחה!');
     } catch (e) {
       console.error(e);
-      toast.error('שגיאה בשמירת הגדרות הכיול.');
+      toast.error('שגיאה בשמירת הגדרות הכיול. ודא שאתה מחובר כמנהל מערכת.');
+    } finally {
+      setIsSavingCalibration(false);
     }
   };
 
@@ -165,7 +165,7 @@ export function AdminCurriculumView() {
               קטלוג פדגוגי וכיול מנוע הלמידה
             </h1>
             <p className="text-slate-300 text-sm md:text-base font-light">
-              ניהול 7 משימות החובה ונתיבי האתגר (רבה), הפצה מרוכזת לכיתות וכיול ספי ה-Trace Data.
+              המאגרים בפועל של 8 המפגשים (חובה, ביסוס ואתגר, לפי מסלול), פרסום הקטלוג ל-Firestore וכיול סף ההיסוס של הרדאר.
             </p>
           </div>
 
@@ -198,10 +198,10 @@ export function AdminCurriculumView() {
           <div>
             <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
               <Layers className="w-5 h-5 text-purple-600" />
-              קטלוג מפגשי הלמידה (7 משימות יסוד + נתיבי אתגר)
+              קטלוג מפגשי הלמידה (משימות חובה + משימות בחירה לפי מסלול)
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              סקירה וניהול של מבנה המפגשים, משימות החובה ומסלולי ההעמקה
+              מה שהלומדים מקבלים בפועל — נגזר מהמאגרים שמפורסמים בכפתור "פרסום קטלוג"
             </p>
           </div>
           <span className="text-xs font-bold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950 px-3 py-1.5 rounded-xl border border-purple-200 dark:border-purple-800">
@@ -210,17 +210,21 @@ export function AdminCurriculumView() {
         </div>
 
         <div className="space-y-3">
-          {SESSIONS_CURRICULUM_CATALOG.map((item) => {
+          {sessionCatalog.map((item) => {
             const isExpanded = expandedSession === item.sessionId;
+            const compulsoryCount = item.banks[0]?.compulsory.length ?? 0;
+            const branchCount = (item.banks[0]?.reinforcement.length ?? 0) + (item.banks[0]?.challenge.length ?? 0);
 
             return (
               <div 
                 key={item.sessionId}
                 className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 overflow-hidden transition-all"
               >
-                <div 
+                <button
+                  type="button"
                   onClick={() => setExpandedSession(isExpanded ? null : item.sessionId)}
-                  className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-100/60 dark:hover:bg-slate-800/40"
+                  aria-expanded={isExpanded}
+                  className="w-full text-right p-4 flex items-center justify-between cursor-pointer hover:bg-slate-100/60 dark:hover:bg-slate-800/40"
                 >
                   <div className="flex items-center gap-3">
                     <span className="w-8 h-8 rounded-xl bg-purple-600 text-white font-black text-xs flex items-center justify-center">
@@ -231,9 +235,13 @@ export function AdminCurriculumView() {
                         {item.sessionTitle}
                       </h3>
                       <div className="flex items-center gap-3 text-[11px] text-slate-500 mt-0.5">
-                        <span>7 משימות יסוד חובה</span>
-                        <span>•</span>
-                        <span>3 משימות אתגר והעמקה</span>
+                        <span>{compulsoryCount} משימות חובה{item.banks.length > 1 ? " בכל מסלול" : ""}</span>
+                        {branchCount > 0 && (
+                          <>
+                            <span>•</span>
+                            <span>{branchCount} משימות בחירה (ביסוס / אתגר)</span>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -241,33 +249,50 @@ export function AdminCurriculumView() {
                   <div className="text-slate-400">
                     {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                   </div>
-                </div>
+                </button>
 
                 {isExpanded && (
-                  <div className="p-4 pt-0 border-t border-slate-100 dark:border-slate-800/80 grid md:grid-cols-2 gap-4 mt-2">
-                    <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 space-y-1.5">
-                      <div className="text-xs font-bold text-indigo-600 flex items-center gap-1">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>משימות חובה ויסוד (Foundation):</span>
-                      </div>
-                      <ul className="text-xs text-slate-600 dark:text-slate-300 space-y-1 list-disc list-inside pr-1">
-                        {item.mandatoryTopics.map((t, idx) => (
-                          <li key={idx}>{t}</li>
-                        ))}
-                      </ul>
-                    </div>
+                  <div className="p-4 pt-0 border-t border-slate-100 dark:border-slate-800/80 space-y-3 mt-2">
+                    {item.banks.map((bank) => (
+                      <div key={bank.label} className="grid md:grid-cols-2 gap-4">
+                        <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 space-y-1.5">
+                          <div className="text-xs font-bold text-indigo-600 flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>{bank.label}: משימות חובה ({bank.compulsory.length})</span>
+                          </div>
+                          <ol className="text-xs text-slate-600 dark:text-slate-300 space-y-1 list-decimal list-inside pr-1">
+                            {bank.compulsory.map((t, idx) => (
+                              <li key={idx}>{t}</li>
+                            ))}
+                          </ol>
+                        </div>
 
-                    <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 space-y-1.5">
-                      <div className="text-xs font-bold text-amber-600 flex items-center gap-1">
-                        <Sparkles className="w-3.5 h-3.5" />
-                        <span>משימות הרחבה ואתגר (Rabbah Challenge):</span>
+                        <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 space-y-1.5">
+                          <div className="text-xs font-bold text-amber-600 flex items-center gap-1">
+                            <Sparkles className="w-3.5 h-3.5" />
+                            <span>משימות בחירה לאחר 7 החובה</span>
+                          </div>
+                          {bank.reinforcement.length === 0 && bank.challenge.length === 0 ? (
+                            <p className="text-xs text-slate-400">אין משימות בחירה במפגש זה.</p>
+                          ) : (
+                            <div className="text-xs text-slate-600 dark:text-slate-300 space-y-2">
+                              {bank.reinforcement.length > 0 && (
+                                <div>
+                                  <div className="font-bold text-emerald-700 dark:text-emerald-300">ביסוס ({bank.reinforcement.length})</div>
+                                  <ul className="list-disc list-inside pr-1">{bank.reinforcement.map((t, idx) => <li key={idx}>{t}</li>)}</ul>
+                                </div>
+                              )}
+                              {bank.challenge.length > 0 && (
+                                <div>
+                                  <div className="font-bold text-amber-700 dark:text-amber-300">אתגר ({bank.challenge.length})</div>
+                                  <ul className="list-disc list-inside pr-1">{bank.challenge.map((t, idx) => <li key={idx}>{t}</li>)}</ul>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <ul className="text-xs text-slate-600 dark:text-slate-300 space-y-1 list-disc list-inside pr-1">
-                        {item.challengeTopics.map((t, idx) => (
-                          <li key={idx}>{t}</li>
-                        ))}
-                      </ul>
-                    </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -312,28 +337,6 @@ export function AdminCurriculumView() {
               </p>
             </div>
 
-            <div className="bg-slate-50 dark:bg-slate-950/60 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3">
-              <div className="flex justify-between items-center">
-                <label className="font-bold text-sm text-slate-800 dark:text-slate-200">
-                  סף זיהוי מחיקות רצופות (Consecutive Deletions)
-                </label>
-                <span className="font-black text-indigo-600 dark:text-indigo-400 text-base font-mono bg-indigo-50 dark:bg-indigo-950 px-3 py-1 rounded-xl border border-indigo-200 dark:border-indigo-800">
-                  {undoThreshold} פעולות
-                </span>
-              </div>
-              <input 
-                type="range" 
-                min="1" 
-                max="10" 
-                value={undoThreshold}
-                onChange={(e) => setUndoThreshold(parseInt(e.target.value, 10))}
-                className="w-full accent-indigo-600 h-2 bg-slate-200 dark:bg-slate-800 rounded-lg cursor-pointer" 
-              />
-              <p className="text-xs text-slate-500 leading-relaxed">
-                מספר הפעולות הרצופות של מחיקה אשר יסווגו את הלומד כזקוק לחניכה סוקרטית.
-              </p>
-            </div>
-
             {isSaved && (
               <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-xs font-bold rounded-xl flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4" />
@@ -343,10 +346,11 @@ export function AdminCurriculumView() {
 
             <UdlButton 
               semanticColor="primary" 
-              className="w-full justify-center py-3.5 rounded-2xl font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/25 cursor-pointer"
+              className="w-full justify-center py-3.5 rounded-2xl font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/25 cursor-pointer disabled:opacity-50"
               onClick={handleSaveCalibration}
+              disabled={isSavingCalibration}
             >
-              שמור הגדרות כיול
+              {isSavingCalibration ? 'שומר...' : 'שמור הגדרות כיול'}
             </UdlButton>
           </div>
         </AccessibleCard>

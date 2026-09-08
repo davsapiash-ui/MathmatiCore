@@ -1325,7 +1325,7 @@ export class FirebaseSyncService {
     }
   }
 
-  public async addClassRoom(schoolId: string, teacherId: string, name: string, preferredId?: string): Promise<ClassRoom> {
+  public async addClassRoom(schoolId: string, teacherId: string, name: string, preferredId?: string, classType?: string): Promise<ClassRoom> {
     const id = preferredId || push(ref(database, 'classes')).key;
     if (!id) throw new Error("Failed to generate class ID");
     const limit = useAdminStore.getState().globalStudentLimit;
@@ -1335,7 +1335,8 @@ export class FirebaseSyncService {
       teacherId,
       name,
       studentLimit: limit,
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      ...(classType ? { classType } : {}),
     };
     const updates: Record<string, any> = {};
     updates[`classes/${id}`] = newClass;

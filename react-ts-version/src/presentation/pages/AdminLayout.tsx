@@ -1,16 +1,39 @@
+import { useEffect, useState } from "react";
 import { Outlet, NavLink } from "react-router-dom";
+import { collection, onSnapshot, query, where } from "firebase/firestore";
+import { firestore } from "@/infrastructure/firebase";
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarGroup, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
 import { Settings, Shield, Users, Layers, GraduationCap, Bell, UserCircle, LifeBuoy } from "lucide-react";
 import { useAuthStore } from "@/application/useAuthStore";
-import { useChatStore } from "@/application/useChatStore";
-import { UdlButton } from "@/presentation/design-system/UdlButton";
 import { Logo } from "@/presentation/components/ui/Logo";
 import { LogoutButton } from "@/presentation/components/ui/LogoutButton";
 
+/**
+ * Unread teacher→admin messages. Module 22 stores this channel in Firestore
+ * `messages` (written only by the sendTeacherAdminMessage callable). The bell
+ * used to count the RTDB teacher↔student chat store instead, where nothing is
+ * ever addressed to "admin", so it stayed at zero no matter what teachers sent.
+ */
+function useUnreadAdminMessages(): number {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    try {
+      const q = query(collection(firestore, "messages"), where("receiver_id", "==", "admin"), where("read", "==", false));
+      const unsub = onSnapshot(q, (snap) => setCount(snap.size), (err) => {
+        console.warn("[AdminLayout] unread messages listener notice:", err);
+      });
+      return () => unsub();
+    } catch (err) {
+      console.warn("[AdminLayout] unread messages listener notice:", err);
+      return undefined;
+    }
+  }, []);
+  return count;
+}
+
 export function AdminLayout() {
   const { user } = useAuthStore();
-  const { messages } = useChatStore();
-  const unreadCount = messages.filter(m => m.receiverId === "admin" && !m.read).length;
+  const unreadCount = useUnreadAdminMessages();
 
   return (
     <SidebarProvider>
@@ -182,16 +205,22 @@ export function AdminLayout() {
 
             {/* User Details & Actions */}
             <div className="flex items-center gap-3">
-              {/* Notification Bell */}
+              {/* Notification Bell — opens the teacher chat, where the unread messages are */}
               <div className="relative group">
-                <UdlButton variant="ghost" size="icon" aria-label="התראות מערכת" className="relative text-slate-600 dark:text-slate-300 hover:text-slate-900 rounded-full transition-transform hover:scale-105 active:scale-95 cursor-pointer">
+                <NavLink
+                  to="/admin/chat"
+                  aria-label={unreadCount > 0 ? `${unreadCount} הודעות ממורים שלא נקראו` : "הודעות ממורים"}
+                  className="relative inline-flex items-center justify-center w-10 h-10 text-slate-600 dark:text-slate-300 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-transform hover:scale-105 active:scale-95 cursor-pointer"
+                >
                   <Bell className="w-5 h-5" />
                   {unreadCount > 0 && (
-                    <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-rose-500 border-2 border-white dark:border-slate-900 rounded-full animate-pulse" />
+                    <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-rose-500 text-white text-[10px] font-black rounded-full border-2 border-white dark:border-slate-900 flex items-center justify-center">
+                      {unreadCount}
+                    </span>
                   )}
-                </UdlButton>
+                </NavLink>
                 <div className="absolute top-12 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 z-50 w-52 p-2 bg-slate-900/95 text-white text-[11px] rounded-xl shadow-xl backdrop-blur-md border border-white/10 text-right leading-relaxed">
-                  <span>🔔 התראות מערכת והודעות שלא נקראו ({unreadCount})</span>
+                  <span>🔔 הודעות ממורים שלא נקראו ({unreadCount})</span>
                 </div>
               </div>
 
@@ -203,7 +232,7 @@ export function AdminLayout() {
                 <div className="flex flex-col items-start leading-tight">
                   <span className="text-xs font-black text-slate-800 dark:text-slate-100">{(user?.displayName as string) || "מנהל מערכת"}</span>
                   <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="text-[10px] font-semibold text-slate-500">{user?.email || "admin@edu-haifa.org.il"}</span>
+                    {user?.email ? <span className="text-[10px] font-semibold text-slate-500">{user.email as string}</span> : null}
                     <span className="bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-[10px] font-black px-2 py-0.5 rounded-full border border-indigo-200 dark:border-indigo-800">
                       מנהל מערכת
                     </span>
@@ -215,12 +244,6 @@ export function AdminLayout() {
               <LogoutButton className="bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 dark:text-rose-400 rounded-full px-3.5 py-2 text-xs font-bold transition-all border border-rose-200/60 dark:border-rose-800/40 shadow-sm" />
             </div>
           </header>
-
-          {/* Ghost Mode Indicator */}
-          <div className="bg-amber-500/10 border border-amber-500/40 text-amber-700 dark:text-amber-400 rounded-2xl px-4 py-2.5 mb-4 flex items-center justify-center gap-3 text-xs md:text-sm font-bold shadow-sm backdrop-blur-md">
-            <span className="text-lg">👻</span>
-            <span>מצב רפאים (Ghost Mode) פעיל: הפעולות שלך אינן נרשמות ואינן נראות למשתמשים אחרים.</span>
-          </div>
 
           {/* Ambient Glow Backgrounds */}
           <div className="fixed top-0 left-1/4 w-[600px] h-[600px] bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none -z-10"></div>
