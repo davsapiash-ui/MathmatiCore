@@ -3,8 +3,7 @@ import { useAdminStore } from "@/application/useAdminStore";
 import { UdlButton } from "@/presentation/design-system/UdlButton";
 import { UdlSpeechButton } from "@/presentation/design-system/UdlSpeechButton";
 import { Send, UserCircle2, Users, ShieldCheck } from "lucide-react";
-import { useAuthStore } from "@/application/useAuthStore";
-import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, doc, updateDoc } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { db, functions } from "@/infrastructure/firebase";
 import { containsPII } from "@/core/security/PiiFilter";
@@ -29,8 +28,7 @@ interface ChatMessage {
  * 2. סינון PII צד-שרת (Cloud Function: sendTeacherAdminMessage).
  */
 export function AdminChatView() {
-  const { teachers } = useAdminStore();
-  const { user } = useAuthStore();
+  const { teachers, schools } = useAdminStore();
   
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [selectedTeacherId, setSelectedTeacherId] = useState<string | null>(null);
@@ -55,18 +53,36 @@ export function AdminChatView() {
     return () => unsub();
   }, []);
 
-  // Standardized anonymous teacher representation (Zero PII)
+  // Module 22's anonymisation protects STUDENTS (server-side name → "תלמיד N").
+  // Teachers are staff the admin registered by name, so the list shows the
+  // name and school instead of the e-mail-derived record key it used to print
+  // ("מורה מוסמך (dana_school_org_il)"), which was both unreadable and the
+  // one thing that actually resembled personal data on this screen.
   const anonymousTeachers = useMemo(() => {
     return teachers.map((t, idx) => {
-      const anonId = t.id || `teacher_${String(idx + 1).padStart(2, "0")}`;
-      const anonLabel = `מורה מוסמך (${anonId})`;
+      const id = t.id || `teacher_${String(idx + 1).padStart(2, "0")}`;
+      const schoolName = schools.find((s) => s.id === t.schoolId)?.name;
       return {
-        id: anonId,
-        label: anonLabel,
+        id,
+        label: t.name || `מורה ${idx + 1}`,
+        subtitle: schoolName || "",
         schoolId: t.schoolId || "school_pilot_01",
       };
     });
-  }, [teachers]);
+  }, [teachers, schools]);
+
+  // Opening a conversation reads it: mark that teacher's incoming messages as
+  // read (the only field firestore.rules lets us change on a message). Without
+  // this the "ממתין למענה" badges and the bell never cleared from here — only
+  // from the support hub's "handled" button.
+  useEffect(() => {
+    if (!selectedTeacherId) return;
+    const unread = messages.filter((m) => m.sender_id === selectedTeacherId && m.receiver_id === "admin" && !m.read);
+    if (unread.length === 0) return;
+    Promise.all(unread.map((m) => updateDoc(doc(db, "messages", m.id), { read: true }))).catch((err) => {
+      console.warn("[AdminChatView] mark-as-read notice:", err);
+    });
+  }, [selectedTeacherId, messages]);
 
   const selectedTeacher = useMemo(() => 
     anonymousTeachers.find(t => t.id === selectedTeacherId), 
@@ -95,9 +111,11 @@ export function AdminChatView() {
 
   const filteredTeachers = useMemo(() => {
     return teacherChatMeta.filter(({ teacher, isUnanswered, unreadCount }) => {
-      const matchesSearch = !searchQuery.trim() || 
-        teacher.label.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        teacher.id.includes(searchQuery);
+      const q = searchQuery.trim().toLowerCase();
+      const matchesSearch = !q ||
+        teacher.label.toLowerCase().includes(q) ||
+        teacher.subtitle.toLowerCase().includes(q) ||
+        teacher.id.toLowerCase().includes(q);
 
       if (!matchesSearch) return false;
 
@@ -169,7 +187,7 @@ export function AdminChatView() {
 
           <div className="flex items-center gap-1 text-[11px] text-emerald-600 font-bold bg-emerald-50 dark:bg-emerald-950/50 p-2 rounded-xl border border-emerald-200 dark:border-emerald-800">
             <ShieldCheck className="w-4 h-4 shrink-0" />
-            <span>סינון PII דו-שכבתי מופעל (אנונימיות מוחלטת)</span>
+            <span>סינון PII דו-שכבתי מופעל: שמות תלמידים מוחלפים במזהים 1–12</span>
           </div>
 
           {/* Search Input */}
@@ -177,8 +195,8 @@ export function AdminChatView() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder='חפש מזהה מורה אנונימי (teacher_XX)...'
-            className="w-full px-3.5 py-2 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-slate-200 shadow-sm font-mono"
+            placeholder="חיפוש לפי שם מורה או מוסד..."
+            className="w-full px-3.5 py-2 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-slate-200 shadow-sm"
           />
 
           {/* Filter Chips */}
@@ -238,7 +256,7 @@ export function AdminChatView() {
                           </span>
                         )}
                       </div>
-                      <div className="text-xs text-slate-500 font-mono mt-0.5">מזהה: {teacher.id}</div>
+                      {teacher.subtitle && <div className="text-xs text-slate-500 mt-0.5">{teacher.subtitle}</div>}
                       {lastMsg && (
                         <div className="text-xs text-slate-400 truncate max-w-[150px] mt-1">
                           {lastMsg.message_body}
@@ -274,7 +292,7 @@ export function AdminChatView() {
               <UserCircle2 className="w-10 h-10 text-slate-400" />
               <div>
                 <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100">{selectedTeacher.label}</h3>
-                <p className="text-xs text-slate-500 font-mono">מזהה אנונימי: {selectedTeacher.id}</p>
+                {selectedTeacher.subtitle && <p className="text-xs text-slate-500">{selectedTeacher.subtitle}</p>}
               </div>
             </div>
 

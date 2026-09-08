@@ -5,7 +5,6 @@ import {
   Users, 
   GraduationCap, 
   ShieldAlert, 
-  Trash2, 
   Lock, 
   CheckCircle2, 
   Search, 
@@ -27,7 +26,7 @@ import {
   Tooltip,
   ResponsiveContainer
 } from "recharts";
-import { ref, onValue, query, orderByChild, limitToLast, get, update } from "firebase/database";
+import { ref, onValue, query, orderByChild, limitToLast, get } from "firebase/database";
 import { doc, onSnapshot } from "firebase/firestore";
 import { database, firestore } from "@/infrastructure/firebase";
 import type { AuditLogEvent } from "@/infrastructure/services/AuditLogger";
@@ -50,7 +49,6 @@ export function AdminOverview() {
   // Module 24 §ב/§ה: cache-sourced metrics and the quiet last-updated indicator
   const [cacheUpdatedAt, setCacheUpdatedAt] = useState<number | null>(null);
   const [sessionBreakdown, setSessionBreakdown] = useState<SessionBreakdown>({});
-  const [isCleaning, setIsCleaning] = useState(false);
 
   // Class-wide completion rate, derived from the cached per-session aggregates only.
   const completionRatePercent = useMemo(() => {
@@ -163,99 +161,50 @@ export function AdminOverview() {
     };
   }, [isFirebaseConnected]);
 
-  const handleDataCleanup = async () => {
-    try {
-      setIsCleaning(true);
-      const replaysRef = ref(database, 'replays');
-      const snapshot = await get(replaysRef);
-      if (snapshot.exists()) {
-        const replays = snapshot.val();
-        const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
-        const now = Date.now();
-        const updates: Record<string, any> = {};
-        let deletedCount = 0;
-        
-        Object.keys(replays).forEach(uid => {
-          Object.keys(replays[uid]).forEach(timestampStr => {
-            const timestamp = parseInt(timestampStr, 10);
-            if (!isNaN(timestamp) && now - timestamp > THIRTY_DAYS) {
-              updates[`${uid}/${timestampStr}`] = null;
-              deletedCount++;
-            }
-          });
-        });
-        
-        if (deletedCount > 0) {
-          await update(replaysRef, updates);
-          toast.success(`נוקו בהצלחה ${deletedCount} סשנים ישנים של הקלטות לשמירה על פרטיות ילדים.`);
-        } else {
-          toast.info('לא נמצאו סשנים ישנים (מעל 30 יום) לניקוי.');
-        }
-      } else {
-        toast.info('אין נתוני הקלטות במערכת.');
-      }
-    } catch (e) {
-      console.error(e);
-      toast.error('שגיאה בניקוי נתונים. ודא שיש לך הרשאות ניהול.');
-    } finally {
-      setIsCleaning(false);
-    }
-  };
-
   const [isExportingReport, setIsExportingReport] = useState(false);
 
   const handleExportReport = async () => {
     setIsExportingReport(true);
     toast.info("מייצר דוח מנהלים ומשגר ל-Google Drive...");
-    const reportData = {
-      timestamp: Date.now(),
-      isoDate: new Date().toISOString(),
-      schoolsCount: schools.length,
-      teachersCount: teachers.length,
-      studentsCount: totalStudents,
-      targetFolderId: "0AMiALsm_TxT5Uk9PVA",
-      serviceAccount: "1002220159@edu-haifa.org.il"
-    };
-
     try {
-      // 1. Log report metadata to Realtime Database
-      const { push, ref: dbRef } = await import("firebase/database");
-      await push(dbRef(database, 'reports'), reportData);
-
-      // 2. Attempt Cloud Function export
-      try {
-        const { getFunctions, httpsCallable } = await import("firebase/functions");
-        const functions = getFunctions();
-        const exportDrive = httpsCallable<any, any>(functions, 'exportAdminReportToDrive');
-        await exportDrive({
-          schoolsCount: schools.length,
-          teachersCount: teachers.length,
-          studentsCount: totalStudents,
-            });
-      } catch (cfErr) {
-        console.warn("Cloud function drive upload notice:", cfErr);
-      }
-
-      // 3. Display success toast & open Google Drive folder
+      // The only thing that produces the report is the callable. This used to
+      // push a copy of the metrics to an RTDB node (`reports`) that no rule
+      // permits, so the write was denied, the catch fired, and the toast said
+      // "שגיאה בהפקת הדוח" before the function was ever called — while a
+      // second try/catch around the callable turned every server failure
+      // into a success toast with a hard-coded Drive link.
+      const { httpsCallable } = await import("firebase/functions");
+      const { functions } = await import("@/infrastructure/firebase");
+      const exportDrive = httpsCallable<
+        { schoolsCount: number; teachersCount: number; studentsCount: number },
+        { status: string; fileName: string; webViewLink: string }
+      >(functions, "exportAdminReportToDrive", { timeout: 120_000 });
+      const res = await exportDrive({
+        schoolsCount: schools.length,
+        teachersCount: teachers.length,
+        studentsCount: totalStudents,
+      });
+      const link = res.data?.webViewLink;
       toast.success(
         <div className="flex flex-col gap-1">
-          <span className="font-bold">הדוח נוצר ושוייך ל-Google Drive! ☁️</span>
-          <span className="text-xs">שויך לתיקייה: 0AMiALsm_TxT5Uk9PVA</span>
-          <span className="text-xs">Service Account: 1002220159@edu-haifa.org.il</span>
-          <a
-            href="https://drive.google.com/drive/folders/0AMiALsm_TxT5Uk9PVA"
-            target="_blank"
-            rel="noreferrer"
-            className="text-xs text-blue-500 underline font-bold mt-1"
-          >
-            פתיחת תיקיית Google Drive 🗁
-          </a>
+          <span className="font-bold">הדוח נוצר והועלה ל-Google Drive ☁️</span>
+          {res.data?.fileName && <span className="text-xs font-mono" dir="ltr">{res.data.fileName}</span>}
+          {link && (
+            <a href={link} target="_blank" rel="noreferrer" className="text-xs text-blue-500 underline font-bold mt-1">
+              פתיחה ב-Google Drive
+            </a>
+          )}
         </div>,
         { duration: 10000 }
       );
-    } catch (err: any) {
-      console.warn("Report generation notice:", err);
-      toast.error("שגיאה בהפקת הדוח. ודא חיבור לרשת.");
+    } catch (err) {
+      console.error("Admin report export failed:", err);
+      const code = (err as { code?: string })?.code ?? "";
+      toast.error(
+        code.includes("unauthenticated") || code.includes("permission")
+          ? "הפקת הדוח נדחתה: נדרש תפקיד מנהל מערכת."
+          : "הפקת הדוח נכשלה בשרת. בדוק את חיבור הרשת ונסה שוב."
+      );
     } finally {
       setIsExportingReport(false);
     }
@@ -530,26 +479,24 @@ export function AdminOverview() {
                 </div>
               </div>
 
+              {/* Module 21: recordings are DOM/canvas only — no camera, no
+                  microphone, no audio ever leaves the device. Module 24 blocks
+                  the admin from per-student telemetry; deleting learner data is
+                  the teacher's Module 23A reset (backupAndResetSessionData),
+                  which backs up first. The former "30-day recording cleanup"
+                  button here read an RTDB node (`replays`) that nothing writes,
+                  so it could only ever answer "אין נתוני הקלטות". */}
               <div className="flex items-start gap-3">
                 <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center shrink-0">
                   <ShieldAlert className="w-5 h-5" />
                 </div>
-                <div className="space-y-2 flex-1">
-                  <h4 className="font-bold text-slate-800 dark:text-slate-200">תקני פרטיות ילדים (COPPA & GDPR)</h4>
+                <div className="space-y-1 flex-1">
+                  <h4 className="font-bold text-slate-800 dark:text-slate-200">הקלטות ומחיקת נתוני לומדים</h4>
                   <p className="text-slate-500 leading-relaxed">
-                    מחיקת נתוני הקלטות וידאו וקול של קטינים בני יותר מ-30 יום.
+                    ההקלטות מתעדות שינויי מסך וקנבס בלבד — ללא מצלמה, מיקרופון או שמע (מודול 21).
+                    מנהל המערכת אינו ניגש לנתוני לומד פרטניים (מודול 24); איפוס ומחיקה של נתוני
+                    כיתה מתבצעים על ידי המורה מדשבורד הכיתה, עם גיבוי אוטומטי לדרייב לפני המחיקה (מודול 23א).
                   </p>
-                  <UdlButton 
-                    semanticColor="danger" 
-                    variant="outline"
-                    size="sm"
-                    onClick={handleDataCleanup}
-                    disabled={isCleaning}
-                    className="w-full justify-center gap-2 text-xs py-2 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800 rounded-xl font-bold hover:bg-rose-100"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    {isCleaning ? 'מנקה נתונים...' : 'הרץ ניקוי היסטוריית הקלטות (30 יום)'}
-                  </UdlButton>
                 </div>
               </div>
             </div>

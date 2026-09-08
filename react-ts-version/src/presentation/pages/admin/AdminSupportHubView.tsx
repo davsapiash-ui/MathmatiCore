@@ -1,20 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { 
   LifeBuoy, 
   Search, 
-  Filter, 
   CheckCircle2, 
   AlertCircle, 
   MessageSquare,
-  Building,
-  GraduationCap,
-  UserCheck,
-  Tag,
-  RefreshCw
 } from 'lucide-react';
-import { AccessibleCard } from '@/presentation/design-system/AccessibleCard';
-import { UdlButton } from '@/presentation/design-system/UdlButton';
 import { useAdminStore } from '@/application/useAdminStore';
 import { collection, onSnapshot, updateDoc, doc } from 'firebase/firestore';
 import { db } from '@/infrastructure/firebase';

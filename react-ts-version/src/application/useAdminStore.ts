@@ -29,6 +29,8 @@ export interface ClassRoom {
   name: string;
   studentLimit: number;
   createdAt: number;
+  /** Module 4 / 25 class_type (e.g. "קבוצת ביקורת פיילוט"); optional for records created before it was persisted. */
+  classType?: string;
 }
 
 export interface AdminStoreCache {
@@ -63,7 +65,7 @@ interface AdminState {
   addTeacher: (schoolId: string, name: string, ssoEmail: string, dob: string) => Promise<Teacher>;
   deleteTeacher: (id: string) => Promise<void>;
   
-  addClassRoom: (schoolId: string, teacherId: string, name: string) => void;
+  addClassRoom: (schoolId: string, teacherId: string, name: string, classType?: string) => void;
   deleteClassRoom: (id: string) => void;
 
   provisionFullInstitution: (params: {
@@ -263,6 +265,7 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
     teacherEmail,
     teacherDob = "010190",
     className,
+    classType,
     studentLimit = 12,
   }) => {
     const timestamp = Date.now();
@@ -294,6 +297,7 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
       name: className.trim() || "כיתת המבקרים",
       studentLimit: Math.min(12, Math.max(1, studentLimit)),
       createdAt: timestamp,
+      ...(classType ? { classType } : {}),
     };
 
     // Optimistic local state update
@@ -398,7 +402,7 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
     }
   },
 
-  addClassRoom: (schoolId, teacherId, name) => {
+  addClassRoom: (schoolId, teacherId, name, classType) => {
     AuditLogger.log("יצירת כיתה", "admin", `כיתה חדשה: ${name}`);
     const tempId = `class_${Date.now()}`;
     const limit = get().globalStudentLimit;
@@ -408,10 +412,11 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
       teacherId,
       name: name.trim(),
       studentLimit: limit,
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      ...(classType ? { classType } : {}),
     };
     set((state) => ({ classes: [...state.classes, newClass] }));
-    firebaseSyncService.addClassRoom(schoolId, teacherId, name, tempId).then((realClass) => {
+    firebaseSyncService.addClassRoom(schoolId, teacherId, name, tempId, classType).then((realClass) => {
       if (realClass && realClass.id !== tempId) {
         set((state) => ({
           classes: state.classes.map(c => c.id === tempId ? realClass : c)
