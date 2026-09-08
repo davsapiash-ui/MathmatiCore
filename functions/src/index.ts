@@ -183,6 +183,9 @@ export { syncUserRoles } from "./syncUserRoles";
 // Export the Gemini Proxy from the new module
 export { callGeminiSocraticProxy } from "./geminiProxy";
 
+// Module 13 / 27: AI engine health & call counters for the admin console (staff only).
+export { getAiServiceStatus } from "./aiMonitoring";
+
 // Export the Transaction Guard module
 export { validateAndStoreTelemetry } from "./transactionGuard";
 

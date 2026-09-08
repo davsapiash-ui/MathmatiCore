@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.triggerExecutiveDriveReport = exports.triggerTestDriveReport = exports.authenticateStudentSession = exports.onStudentEvent = exports.verifyTeacherSSO = exports.sendTeacherAdminMessage = exports.hourlyAdminAggregator = exports.generateClassMeetingReport = exports.getPedagogicalReportDownloadUrl = exports.generatePedagogicalReportPDF = exports.createSessionWithServerDeadline = exports.onSessionCompleteTrigger = exports.exportResearchDataset = exports.backupAndResetSessionData = exports.exportAdminReportToDrive = exports.validateAndStoreTelemetry = exports.callGeminiSocraticProxy = exports.syncUserRoles = exports.generateSocraticHint = void 0;
+exports.triggerExecutiveDriveReport = exports.triggerTestDriveReport = exports.authenticateStudentSession = exports.onStudentEvent = exports.verifyTeacherSSO = exports.sendTeacherAdminMessage = exports.hourlyAdminAggregator = exports.generateClassMeetingReport = exports.getPedagogicalReportDownloadUrl = exports.generatePedagogicalReportPDF = exports.createSessionWithServerDeadline = exports.onSessionCompleteTrigger = exports.exportResearchDataset = exports.backupAndResetSessionData = exports.exportAdminReportToDrive = exports.validateAndStoreTelemetry = exports.getAiServiceStatus = exports.callGeminiSocraticProxy = exports.syncUserRoles = exports.generateSocraticHint = void 0;
 const https_1 = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
@@ -168,6 +168,9 @@ Object.defineProperty(exports, "syncUserRoles", { enumerable: true, get: functio
 // Export the Gemini Proxy from the new module
 var geminiProxy_1 = require("./geminiProxy");
 Object.defineProperty(exports, "callGeminiSocraticProxy", { enumerable: true, get: function () { return geminiProxy_1.callGeminiSocraticProxy; } });
+// Module 13 / 27: AI engine health & call counters for the admin console (staff only).
+var aiMonitoring_1 = require("./aiMonitoring");
+Object.defineProperty(exports, "getAiServiceStatus", { enumerable: true, get: function () { return aiMonitoring_1.getAiServiceStatus; } });
 // Export the Transaction Guard module
 var transactionGuard_1 = require("./transactionGuard");
 Object.defineProperty(exports, "validateAndStoreTelemetry", { enumerable: true, get: function () { return transactionGuard_1.validateAndStoreTelemetry; } });

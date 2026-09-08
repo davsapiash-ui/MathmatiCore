@@ -45,7 +45,7 @@ import { getSessionTasks, type SessionTask } from '@/data/sessionTasks';
 import { curriculumCatalog } from '@/infrastructure/services/CurriculumCatalogService';
 import { getSessionBranchTasks } from '@/data/sessionBranchTasks';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
-import { SocraticEngine, type SocraticHintResponse } from '@/infrastructure/services/SocraticEngine';
+import { SocraticEngine, type SocraticHintResponse, type SocraticMonitoringSnapshot } from '@/infrastructure/services/SocraticEngine';
 import { ref, update, push } from 'firebase/database';
 import { database, serverNow, fetchServerClockOffset } from '@/infrastructure/firebase';
 import { throttledRtdbUpdate } from '@/infrastructure/services/ThrottledRtdbWriter';
@@ -2150,14 +2150,36 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           s.consecutiveErrorCount > 0 ? `שגיאות רצופות: ${s.consecutiveErrorCount}` : null,
         ].filter(Boolean) as string[];
         
+        // PRD Module 13, pillar 3: the engine gets what the platform MONITORED —
+        // the trigger, the streaks, the memory circles and the typed digits —
+        // not a prose summary of them. Operands are ASD-effective so "completed
+        // columns" is judged against the exercise actually on screen.
+        const hasOperands = currentTask && typeof currentTask.numberA === 'number' && typeof currentTask.numberB === 'number';
+        const eff = hasOperands ? effectiveArithmetic(currentTask, s.isASD) : null;
+        const authUid = useAuthStore.getState().user?.uid;
+        const monitoring: SocraticMonitoringSnapshot = {
+          studentId: authUid ? normalizeStudentId(authUid) : undefined,
+          sessionNumber: s.sessionNumber,
+          triggerReason: s.socraticTriggerReason ?? null,
+          consecutiveErrors: s.consecutiveErrorCount || 0,
+          consecutiveUndos: s.consecutiveUndoCount || 0,
+          hesitationSeconds: s.hesitationTimerSeconds || 0,
+          memoryCircles: s.carryDigits,
+          answerDigits: s.answerDigits,
+          operands: eff ? { a: eff.a, b: eff.b, isSubtraction: Boolean(currentTask?.isSubtraction) } : null,
+          activeColumnIndex: s.focusedPlace ? placeToColumnIndex(s.focusedPlace) : (s.activeColumnIndex || 0),
+          hasRegroupedInCanvas: Boolean(s.hasUngrouped || s.hasGrouped),
+        };
+
         const hint = await SocraticEngine.getSocraticHint(
           currentTask || {},
           targetNode,
           s.counts,
           traceData,
           false,
-          s.activeColumnIndex || 0,
-          recentActions
+          monitoring.activeColumnIndex ?? 0,
+          recentActions,
+          monitoring
         );
         
         if (hint) {

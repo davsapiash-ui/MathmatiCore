@@ -7,8 +7,18 @@ import { AuditLogger } from "@/infrastructure/services/AuditLogger";
 import type { GeminiSocraticRequest, GeminiSocraticResponse, GeminiSocraticOption } from "@/types";
 import type { TelemetryEventType, TelemetryPayload } from "@/types/telemetry";
 import { normalizeStudentId } from "@/application/useChatStore";
+import { digitAt, type Place } from "@/core/placeValue";
 
 export type { GeminiSocraticRequest, GeminiSocraticResponse, GeminiSocraticOption };
+
+/** Wire payload of callGeminiSocraticProxy: the PRD contract, plus the legacy free-text fields older servers read. */
+export interface SocraticProxyPayload {
+  socratic_request?: GeminiSocraticRequest;
+  anchor?: { questionHe: string; pedagogical_intent?: string; choices: { id: string; textHe: string; isCorrect?: boolean }[] };
+  prompt?: string;
+  context?: string;
+  history?: any[];
+}
 
 async function ready(): Promise<void> {
   await authReady;
@@ -74,7 +84,129 @@ export function sessionCardKeysForTaskId(id?: string): string[] {
 }
 
 /** Ceiling on how long a learner waits for an AI hint before the static one is served (Module 13 §4). */
-const SOCRATIC_PROXY_TIMEOUT_MS = 8000;
+export const SOCRATIC_PROXY_TIMEOUT_MS = 8000;
+
+export type SocraticTriggerReasonWire =
+  | 'hesitation_45s'
+  | 'consecutive_errors_4'
+  | 'consecutive_undos_3'
+  | 'conversion_not_performed';
+
+/**
+ * Pillar 3 of PRD Module 13's triad — what the platform has MONITORED about
+ * the learner's steps on this exercise. The store fills it from live state
+ * (useWorkspaceStore.fetchSocraticHint); the engine turns it into the
+ * student_progress_state of the GeminiSocraticRequest so the model reasons
+ * over facts instead of a prose summary of them.
+ */
+export interface SocraticMonitoringSnapshot {
+  studentId?: number | string;
+  sessionNumber?: number;
+  triggerReason?: SocraticTriggerReasonWire | null;
+  consecutiveErrors?: number;
+  consecutiveUndos?: number;
+  hesitationSeconds?: number;
+  /** Memory-circle (carry) digits per place, as typed. */
+  memoryCircles?: Partial<Record<string, string | number>>;
+  /** Result-row digits per place, as typed. */
+  answerDigits?: Partial<Record<string, string>>;
+  /** Effective operands (ASD-adjusted) so completed columns are judged against what is on screen. */
+  operands?: { a: number; b: number; isSubtraction: boolean } | null;
+  activeColumnIndex?: number;
+  hasRegroupedInCanvas?: boolean;
+  recentEvents?: TelemetryPayload<TelemetryEventType>[];
+}
+
+const WIRE_COLUMNS: Place[] = ['units', 'tens', 'hundreds', 'thousands'];
+
+/** Terminology PRD Module 13 forbids in anything a learner reads; mirrored from functions/src/socraticContract.ts. */
+const FORBIDDEN_TERMS_HE = [
+  'שבירה', 'לשבור', 'שוברים', 'נשבור',
+  'הלוואה', 'ללוות', 'לווים', 'נלווה', 'להלוות',
+  'נשיאה', 'נושאים', 'לשאת',
+  'אבקוס', 'חשבונייה', 'מקלות', 'חרוזים', 'אצבעות', 'מטבעות', 'גפרורים', 'קשיות',
+];
+
+/**
+ * Client-side copy of the server's two hard content rules (defence in depth —
+ * the proxy already enforces them, but a card is shown to a child, so the
+ * client refuses to render a leaked answer or a forbidden term even if a
+ * stale or third-party server let one through).
+ */
+export function socraticTextViolation(
+  texts: string[],
+  operands?: { a: number; b: number; isSubtraction: boolean } | null
+): string | null {
+  for (const t of texts) {
+    for (const term of FORBIDDEN_TERMS_HE) if (t.includes(term)) return `forbidden term: ${term}`;
+  }
+  if (operands) {
+    const answer = operands.isSubtraction ? operands.a - operands.b : operands.a + operands.b;
+    const exempt = answer === 10 || answer === 100 || answer === 1000 || answer === operands.a || answer === operands.b;
+    if (!exempt) {
+      const re = new RegExp(`(^|[^0-9])${answer}(?![0-9])`);
+      if (texts.some((t) => re.test(t))) return 'final answer leaked';
+    }
+  }
+  return null;
+}
+
+/** Same operation inference analyzeLiveBoardState uses, so the AI and the static engine never disagree on the sign. */
+export function inferIsSubtraction(task: any, targetNode?: string): boolean {
+  if (!task) return targetNode === 'subtraction_regrouping';
+  return Boolean(task.isSubtraction) ||
+    task.requiresUngrouping === true ||
+    targetNode === 'subtraction_regrouping' ||
+    (typeof task.instructionHe === 'string' && (task.instructionHe.includes('חסר') || task.instructionHe.includes('הפחת'))) ||
+    (typeof task.exercise === 'string' && task.exercise.includes('-'));
+}
+
+/** Columns whose typed result digit already matches the exercise — "what is solved" in pillar 3. */
+export function completedColumnsFrom(
+  answerDigits: Partial<Record<string, string>> | undefined,
+  operands: { a: number; b: number; isSubtraction: boolean } | null | undefined
+): Place[] {
+  if (!answerDigits || !operands) return [];
+  const target = operands.isSubtraction ? operands.a - operands.b : operands.a + operands.b;
+  return WIRE_COLUMNS.filter((place) => {
+    const typed = answerDigits[place];
+    if (typed === undefined || typed === '') return false;
+    return parseInt(typed, 10) === digitAt(target, place);
+  });
+}
+
+function toWireMemoryCircles(raw?: Partial<Record<string, string | number>>): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (!raw) return out;
+  for (const [k, v] of Object.entries(raw)) {
+    const n = typeof v === 'string' ? parseInt(v, 10) : v;
+    if (typeof n === 'number' && Number.isInteger(n) && n >= 0 && n <= 9) out[k] = n;
+  }
+  return out;
+}
+
+/** Minimal PRD-schema telemetry events synthesised from the store's counters when no buffer is available. */
+function synthesiseRecentEvents(
+  m: SocraticMonitoringSnapshot,
+  sessionId: string,
+  studentId: number,
+  exerciseId: string
+): TelemetryPayload<TelemetryEventType>[] {
+  if (m.recentEvents && m.recentEvents.length > 0) return m.recentEvents.slice(-30);
+  const col = m.activeColumnIndex ?? 0;
+  const now = Date.now();
+  const events: TelemetryPayload<TelemetryEventType>[] = [];
+  if ((m.hesitationSeconds ?? 0) >= 45) {
+    events.push({ session_id: sessionId, student_id: studentId, exercise_id: exerciseId, event_type: 'HESITATION_DETECTED', column_index: col, timestamp: now, details: { hesitation_seconds: m.hesitationSeconds } } as any);
+  }
+  for (let i = 0; i < Math.min(m.consecutiveUndos ?? 0, 5); i++) {
+    events.push({ session_id: sessionId, student_id: studentId, exercise_id: exerciseId, event_type: 'UNDO_EXECUTED', column_index: col, timestamp: now, details: { undo_stack_depth_before: i + 1, reverted_event_type: 'DIGIT_ENTERED' } } as any);
+  }
+  for (let i = 0; i < Math.min(m.consecutiveErrors ?? 0, 5); i++) {
+    events.push({ session_id: sessionId, student_id: studentId, exercise_id: exerciseId, event_type: 'DIGIT_ENTERED', column_index: col, timestamp: now, details: { digit_value: 0, is_correct: false } } as any);
+  }
+  return events;
+}
 
 // ─────────────────────────────────────────────────────────────
 // TASK-LEVEL SOCRATIC HINT MAP
@@ -789,129 +921,155 @@ export class SocraticEngine {
     counts: { units: number; tens: number; hundreds: number; thousands: number };
     recentActions?: string[];
     qMatrixAnchor: SocraticHintResponse;
+    monitoring?: SocraticMonitoringSnapshot;
   }): Promise<SocraticHintResponse | null> {
     try {
       const { currentTask, targetNode, activeColumnName, counts, recentActions, qMatrixAnchor } = params;
+      const monitoring: SocraticMonitoringSnapshot = params.monitoring ?? {};
 
-      // Extract mission objectives
-      const pendingObjectives: string[] = [];
-      const completedObjectives: string[] = [];
-
+      // Sandbox / intro tasks are never AI-coached (Module 12): nothing to diagnose.
       if (currentTask?.id === 's1_sandbox_controlled' || currentTask?.type === 'session1_intro') {
-        const totalAdded = (counts.units || 0) + (counts.tens || 0) + (counts.hundreds || 0) + (counts.thousands || 0);
-        if (totalAdded >= 5) {
-          completedObjectives.push("גרירת לפחות 5 פריטים לבית המספרים (5/5)");
-        } else {
-          pendingObjectives.push(`גרירת לפחות 5 פריטים לבית המספרים (${totalAdded}/5)`);
-        }
-
-        const hasDeleteAction = recentActions?.some(a => a.toLowerCase().includes('delete') || a.includes('מחיק') || a.includes('trash'));
-        if (hasDeleteAction) {
-          completedObjectives.push("מחיקת פריט לפח המחזור");
-        } else {
-          pendingObjectives.push("מחיקת לפחות פריט אחד (לפח המחזור או מחוץ ללוח)");
-        }
-      } else {
-        if (currentTask?.requiresGrouping) {
-          const hasOvercrowded = counts.units >= 10 || counts.tens >= 10;
-          if (hasOvercrowded) {
-            pendingObjectives.push("ביצוע קיבוץ (המרה) של 10 בלוקים");
-          } else {
-            completedObjectives.push("קיבוץ בלוקים בטורים");
-          }
-        }
-        if (currentTask?.requiresUngrouping) {
-          pendingObjectives.push("ביצוע פריטה מטור שכן");
-        }
-        if (currentTask?.type === 'vertical_addition' || currentTask?.type === 'addition_simple') {
-          pendingObjectives.push("הקלדת התוצאה בתיבת המענה");
-        }
+        return null;
       }
 
-      const prompt = `
-System Role: You are the Socratic Pedagogical Engine for MathmatiCore.
-You MUST follow the HOLISTIC PEDAGOGICAL TRIAD:
-1. Exercise & Algorithm: What exercise is being solved, which column is active, and what is the exact math operation?
-2. Representational State in Numbers House (בית המספרים): Exact blocks in each column, and whether regrouping/decomposition was performed in the visual blocks.
-3. Student Progress & Steps: What steps have been completed (e.g. ones column solved), what is typed in the inputs/memory circles, and what caused the difficulty (hesitation or errors)?
+      // ── Pillar 1: the exercise ─────────────────────────────────────────
+      const colIdx = Math.max(0, Math.min(3, monitoring.activeColumnIndex ?? Math.max(0, ['יחידות', 'עשרות', 'מאות', 'אלפים'].indexOf(activeColumnName))));
+      const activeColumn = WIRE_COLUMNS[colIdx];
+      const operands: { a: number; b: number; isSubtraction: boolean } | null =
+        monitoring.operands ??
+        (typeof currentTask?.numberA === 'number' && typeof currentTask?.numberB === 'number'
+          ? { a: currentTask.numberA, b: currentTask.numberB, isSubtraction: inferIsSubtraction(currentTask, targetNode) }
+          : null);
 
-STRICT PEDAGOGICAL & HEBREW SYNTAX RULES:
-1. HEBREW SYNTAX & GRAMMAR: Write in natural, grammatically flawless Hebrew adapted for 3rd-grade elementary students (ages 8-9). Use precise gender and number agreement (e.g., 4 מאות, 2 עשרות, 5 יחידות, 10 עשרות). Keep sentences simple, friendly, and empowering.
-2. OFFICIAL TERMINOLOGY: Use official Ministry of Education terms: "פריטה" (subtraction decomposition), "קיבוץ"/"הקבצה" (addition regrouping), "בית המספרים" (place value chart), "טור היחידות/העשרות/המאות", "עיגולי הזיכרון", "פח האשפה".
-3. HOLISTIC SYNTHESIS: NEVER refer to בית המספרים in isolation without connecting it to the numbers in the exercise, the active column, and the student's current step.
-4. CLOSED SOCRATIC FORMAT: Formulate a gentle Socratic guiding question in Hebrew connecting the active column calculation with the visual blocks state.
-5. Provide exactly 3 closed choices with clear, encouraging pedagogical feedback for each option.
-6. Output MUST be valid JSON with "hard_evidence_log" and "final_intervention".
+      const rawStudent = monitoring.studentId ?? normalizeStudentId(String(currentTask?.studentId ?? '1'));
+      const studentNum = typeof rawStudent === 'number' ? rawStudent : parseInt(String(rawStudent).replace(/\D/g, '') || '1', 10);
+      const studentId = Math.min(12, Math.max(1, Number.isNaN(studentNum) ? 1 : studentNum));
+      const sessionNumber = monitoring.sessionNumber ?? (parseInt(String(currentTask?.id ?? '').replace(/^s(\d+).*/, '$1'), 10) || 0);
+      const sessionId = `session_${sessionNumber || 'x'}_student_${studentId}`;
+      const exerciseId = String(currentTask?.id ?? targetNode ?? 'unknown').slice(0, 64);
 
-INPUT DATA (Live Snapshot):
-- [Pillar 1: Exercise & Algorithm]:
-  Task Title: "${currentTask.titleHe || currentTask.id || 'Math Task'}"
-  Numbers: ${currentTask.numberA !== undefined ? `A=${currentTask.numberA}, B=${currentTask.numberB}` : 'General'}
-  Active Column: "${activeColumnName}"
-  Pending Objectives: ${JSON.stringify(pendingObjectives)} 
-  Completed Objectives: ${JSON.stringify(completedObjectives)}
-- [Pillar 2: Dienes Blocks in בית המספרים]:
-  Current Blocks: Ones=${counts.units}, Tens=${counts.tens}, Hundreds=${counts.hundreds}, Thousands=${counts.thousands || 0}
-- [Pillar 3: Student Actions & State]:
-  Last Actions: ${JSON.stringify(recentActions || [])}
-- [Pedagogical Baseline]:
-  Target Concept: "${targetNode}"
-  Expected Logical Path: ${JSON.stringify(qMatrixAnchor.choices)}
+      let exerciseContext: GeminiSocraticRequest['exercise_context'];
+      if (operands && operands.a >= 0 && operands.b >= 0 && !(operands.isSubtraction && operands.b > operands.a)) {
+        const da = digitAt(operands.a, activeColumn);
+        const db = digitAt(operands.b, activeColumn);
+        exerciseContext = {
+          operation: operands.isSubtraction ? 'subtraction' : 'addition',
+          number_a: operands.a,
+          number_b: operands.b,
+          session_id: sessionId,
+          session_topic: String(currentTask?.titleHe ?? '').slice(0, 120),
+          active_column: activeColumn,
+          active_column_index: colIdx,
+          target_sub_problem: operands.isSubtraction ? `${da} - ${db}` : `${da} + ${db}`,
+        };
+      }
 
-OUTPUT SCHEMA (Return ONLY valid JSON):
-{
-  "hard_evidence_log": [
-    {
-      "inspected_variable": "<String: e.g., 'Exercise numbers and live blocks in active column'>",
-      "exact_value_found": "<String: Quote the exact data found in the input>",
-      "rule_triggered": "<String: Which strict rule does this activate?>",
-      "action_taken": "<String: What pedagogical guidance is formulated?>"
-    }
-  ],
-  "final_intervention": {
-    "error_category": "<String: 'calculation' | 'procedural' | 'conceptual'>",
-    "guiding_question": "<String in Hebrew: Socratic question mediating the forced action, directly referencing the exercise and board state>",
-    "options": [
-      { "id": "1", "text": "<String in Hebrew>", "feedback": "<String in Hebrew>", "is_correct": <Boolean> },
-      { "id": "2", "text": "<String in Hebrew>", "feedback": "<String in Hebrew>", "is_correct": <Boolean> },
-      { "id": "3", "text": "<String in Hebrew>", "feedback": "<String in Hebrew>", "is_correct": <Boolean> }
-    ]
-  }
-}
-`;
+      // ── Pillar 3: what was monitored ───────────────────────────────────
+      const memoryCircles = toWireMemoryCircles(monitoring.memoryCircles);
+      const completedColumns = completedColumnsFrom(monitoring.answerDigits, operands);
+      const currentInput = monitoring.answerDigits?.[activeColumn] ?? null;
+      const triggerReason: SocraticTriggerReasonWire =
+        monitoring.triggerReason ??
+        ((monitoring.consecutiveErrors ?? 0) >= 4
+          ? 'consecutive_errors_4'
+          : (monitoring.consecutiveUndos ?? 0) >= 3
+          ? 'consecutive_undos_3'
+          : 'hesitation_45s');
+      const recentEvents = synthesiseRecentEvents(monitoring, sessionId, studentId, exerciseId);
 
-      const timeoutPromise = new Promise<{ data: any }>((_, reject) =>
-        setTimeout(() => reject(new Error('Gemini Socratic Proxy timeout')), 2000)
-      );
+      const socraticRequest = SocraticEngine.buildGeminiSocraticRequest({
+        studentId,
+        sessionId,
+        exerciseId,
+        activeColumnIndex: colIdx,
+        exerciseContext,
+        workspaceState: {
+          ones_count: counts.units || 0,
+          tens_count: counts.tens || 0,
+          hundreds_count: counts.hundreds || 0,
+          thousands_count: counts.thousands || 0,
+          memory_circles: memoryCircles,
+          is_regrouped_in_canvas: monitoring.hasRegroupedInCanvas,
+        },
+        studentProgressState: {
+          completed_columns: completedColumns,
+          current_column_input: currentInput && /^\d{1,4}$/.test(currentInput) ? currentInput : null,
+          memory_circles_state: memoryCircles,
+          trigger_reason: triggerReason,
+          consecutive_errors_count: monitoring.consecutiveErrors ?? 0,
+          recent_actions: recentEvents,
+        },
+        recentActions: recentEvents,
+      });
+
+      // The static card is the pedagogical baseline the model must improve on, never contradict.
+      const anchor = {
+        questionHe: qMatrixAnchor.questionHe,
+        pedagogical_intent: qMatrixAnchor.pedagogical_intent,
+        choices: (qMatrixAnchor.choices || []).slice(0, 3).map((c) => ({
+          id: c.id,
+          textHe: c.textHe,
+          isCorrect: c.isCorrect ?? (qMatrixAnchor.correctChoiceId ? c.id === qMatrixAnchor.correctChoiceId : undefined),
+        })),
+      };
+
+      // Both guards use the same ceiling: the callable's own timeout, and a
+      // local race so a hung transport can never outlive the static fallback.
+      let raceTimer: ReturnType<typeof setTimeout> | undefined;
+      const timeoutPromise = new Promise<{ data: any }>((_, reject) => {
+        raceTimer = setTimeout(() => reject(new Error('Gemini Socratic Proxy timeout')), SOCRATIC_PROXY_TIMEOUT_MS);
+      });
 
       const res = await Promise.race([
         SocraticEngine.callGeminiProxy({
-          prompt,
-          context: JSON.stringify({
-            task: currentTask.titleHe || currentTask.id,
-            numbers: { a: currentTask.numberA, b: currentTask.numberB },
-            targetNode,
-            counts,
-            activeColumn: activeColumnName
-          })
+          socratic_request: socraticRequest,
+          anchor,
+          // Legacy hint for pre-contract servers: the node the Q-Matrix flagged and the prose actions.
+          context: JSON.stringify({ targetNode, recentActions: recentActions ?? [] }),
         }),
-        timeoutPromise
-      ]);
+        timeoutPromise,
+      ]).finally(() => {
+        if (raceTimer) clearTimeout(raceTimer);
+      });
 
       const data = res?.data;
       if (!data) return null;
 
       const parsed = typeof data === 'string' ? JSON.parse(data) : (data?.rawText ? JSON.parse(data.rawText) : data);
-      const guidingQuestion = parsed.final_intervention?.guiding_question || parsed.guiding_question;
-      const optionsList = parsed.final_intervention?.options || parsed.options;
-      const rawErrorCategory = parsed.final_intervention?.error_category || parsed.error_category;
+      // PRD shape (guiding_question / options[].option_text) or the older
+      // final_intervention wrapper — both are read, the PRD shape wins.
+      const body = parsed?.guiding_question ? parsed : (parsed?.final_intervention ?? parsed);
+      const guidingQuestion = body?.guiding_question;
+      const optionsList = body?.options;
+      const rawErrorCategory = body?.error_category;
 
       const validCategories = ['calculation', 'procedural', 'conceptual'];
       const isValidCategory = typeof rawErrorCategory === 'string' && validCategories.includes(rawErrorCategory.toLowerCase());
 
       // Module 13(a): Rigid validation — missing guiding_question, wrong options count, or missing/invalid error_category MUST fail validation
-      if (!guidingQuestion || !Array.isArray(optionsList) || optionsList.length !== 3 || !isValidCategory) {
+      if (typeof guidingQuestion !== 'string' || !guidingQuestion.trim() || !Array.isArray(optionsList) || optionsList.length !== 3 || !isValidCategory) {
         console.warn('[Gemini Proxy] Schema validation failed for response (missing required fields or invalid error_category):', parsed);
+        return null;
+      }
+
+      const choices = optionsList.map((opt: any, idx: number) => ({
+        id: `opt_${idx + 1}`,
+        textHe: String(opt?.option_text ?? opt?.text ?? ''),
+        feedbackHe: typeof (opt?.feedback_text ?? opt?.feedback) === 'string' ? String(opt.feedback_text ?? opt.feedback) : undefined,
+        isCorrect: opt?.is_correct === true,
+      }));
+
+      if (choices.some((c: { textHe: string }) => !c.textHe.trim()) || choices.filter((c: { isCorrect: boolean }) => c.isCorrect).length !== 1) {
+        console.warn('[Gemini Proxy] Options rejected: every option needs text and exactly one must be correct.');
+        return null;
+      }
+
+      const violation = socraticTextViolation(
+        [guidingQuestion, ...choices.flatMap((c: { textHe: string; feedbackHe?: string }) => [c.textHe, c.feedbackHe ?? ''])],
+        operands
+      );
+      if (violation) {
+        console.warn('[Gemini Proxy] Response rejected by content rule:', violation);
         return null;
       }
 
@@ -921,19 +1079,14 @@ OUTPUT SCHEMA (Return ONLY valid JSON):
         console.log('[Gemini Socratic Engine] Hard Evidence Log:', parsed.hard_evidence_log);
       }
 
-      const correctOpt = optionsList.find((o: any) => o.is_correct === true) || optionsList[0];
+      const correctOpt = choices.find((c: { isCorrect: boolean }) => c.isCorrect) || choices[0];
 
       return {
         pedagogical_intent: errorCategory === 'conceptual' ? 'conceptual' : 'procedural',
         error_category: errorCategory,
         questionHe: guidingQuestion,
-        choices: optionsList.map((opt: { id?: string; text: string; feedback?: string; is_correct?: boolean }, idx: number) => ({
-          id: opt.id || `opt_${idx + 1}`,
-          textHe: opt.text,
-          feedbackHe: opt.feedback,
-          isCorrect: Boolean(opt.is_correct),
-        })),
-        correctChoiceId: correctOpt.id || 'opt_1',
+        choices,
+        correctChoiceId: correctOpt.id,
       };
     } catch (err) {
       console.warn('[Gemini Socratic Engine] Cloud Function proxy query fallback triggered:', err);
@@ -944,8 +1097,8 @@ OUTPUT SCHEMA (Return ONLY valid JSON):
   /**
    * Secure Cloud Function Proxy caller for Gemini Socratic queries.
    */
-  public static async callGeminiProxy(data: { prompt: string; context?: string; history?: any[] }): Promise<{ data: any }> {
-    const fn = httpsCallable<{ prompt: string; context?: string; history?: any[] }, any>(
+  public static async callGeminiProxy(data: SocraticProxyPayload): Promise<{ data: any }> {
+    const fn = httpsCallable<SocraticProxyPayload, any>(
       functions,
       "callGeminiSocraticProxy",
       // Module 13: a hung AI call must yield to the static Socratic hint quickly.
@@ -1073,7 +1226,20 @@ OUTPUT SCHEMA (Return ONLY valid JSON):
           thousands: 0,
         },
         recentActions: (request.recent_actions || []).map((a) => String(a.event_type)),
-        qMatrixAnchor: staticFallback
+        qMatrixAnchor: staticFallback,
+        monitoring: {
+          studentId: request.student_id,
+          sessionNumber: parseInt(String(request.session_id).replace(/^session_(\d+).*/, '$1'), 10) || undefined,
+          activeColumnIndex: request.active_column_index,
+          triggerReason: request.student_progress_state?.trigger_reason ?? null,
+          consecutiveErrors: request.student_progress_state?.consecutive_errors_count ?? 0,
+          memoryCircles: request.workspace_state.memory_circles,
+          hasRegroupedInCanvas: request.workspace_state.is_regrouped_in_canvas,
+          operands: request.exercise_context
+            ? { a: request.exercise_context.number_a, b: request.exercise_context.number_b, isSubtraction: request.exercise_context.operation === 'subtraction' }
+            : null,
+          recentEvents: request.recent_actions,
+        },
       });
 
       if (hint) {
@@ -1182,7 +1348,8 @@ OUTPUT SCHEMA (Return ONLY valid JSON):
     traceData?: { hesitation_events: number; undo_clicks: number },
     _enhancedCognitiveSupport: boolean = false,
     activeColumnIndex: number = 0,
-    recentActions: string[] = []
+    recentActions: string[] = [],
+    monitoring?: SocraticMonitoringSnapshot
   ): Promise<SocraticHintResponse | null> {
     await ready();
 
@@ -1204,7 +1371,13 @@ OUTPUT SCHEMA (Return ONLY valid JSON):
           `Hesitations: ${traceData?.hesitation_events || 0}`,
           `Undos: ${traceData?.undo_clicks || 0}`
         ],
-        qMatrixAnchor: baselineAnchor
+        qMatrixAnchor: baselineAnchor,
+        monitoring: {
+          activeColumnIndex,
+          hesitationSeconds: traceData?.hesitation_events ? 45 : 0,
+          consecutiveUndos: traceData?.undo_clicks,
+          ...(monitoring ?? {}),
+        },
       });
 
       if (dynamicAiHint) {

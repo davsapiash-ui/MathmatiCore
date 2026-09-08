@@ -1,6 +1,7 @@
 import { AccessibleCard } from "@/presentation/design-system/AccessibleCard";
 import { Key, Clock, Fingerprint, ShieldCheck, CheckCircle2, MinusCircle } from "lucide-react";
 import { STUDENT_WINDOW_CLOSE_TIMEOUT_MS } from "@/application/useAuthStore";
+import { AiEngineStatusCard } from "./AiEngineStatusCard";
 
 const STAFF_IDLE_TIMEOUT_MINUTES = 30; // useIdleTimeout.ts IDLE_TIMEOUT_MS
 const STUDENT_IDLE_TIMEOUT_MINUTES = Math.round(STUDENT_WINDOW_CLOSE_TIMEOUT_MS / 60000);
@@ -165,6 +166,10 @@ export function AdminSecurityView() {
               ונפרס אוטומטית במיזוג לענף הראשי.
             </p>
           </AccessibleCard>
+
+          <div className="md:col-span-2">
+            <AiEngineStatusCard />
+          </div>
         </div>
       </div>
     </div>
