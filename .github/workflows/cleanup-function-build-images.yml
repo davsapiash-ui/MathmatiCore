@@ -1,0 +1,65 @@
+# Deletes the Cloud Functions build images that `firebase deploy` leaves behind
+# when its own cleanup fails ("Unhandled error cleaning up build images"), and
+# installs the Firebase cleanup policy so the registry prunes itself from now on.
+#
+# Cloud Run keeps its own copy of every deployed container image, so deleting
+# the registry copies does not affect the running functions; the next deploy
+# simply rebuilds them.
+name: Clean up Cloud Functions build images
+on:
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MATHIMATICORE }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: mathimaticore
+
+      - name: Delete Artifact Registry build images (gcf-artifacts)
+        run: |
+          set -euo pipefail
+          repo="us-central1-docker.pkg.dev/mathimaticore/gcf-artifacts"
+          echo "Listing images in $repo"
+          images=$(gcloud artifacts docker images list "$repo" --include-tags --format='value(package,version)' 2>/dev/null || true)
+          if [ -z "$images" ]; then echo "Nothing to delete in $repo"; exit 0; fi
+          echo "$images" | while read -r pkg digest; do
+            [ -z "$pkg" ] && continue
+            echo "Deleting $pkg@$digest"
+            gcloud artifacts docker images delete "$pkg@$digest" --delete-tags --quiet
+          done
+          echo "Remaining:"; gcloud artifacts docker images list "$repo" --format='value(package)' || true
+
+      - name: Delete legacy Container Registry build images (us.gcr.io/mathimaticore/gcf)
+        run: |
+          set -euo pipefail
+          root="us.gcr.io/mathimaticore/gcf"
+          repos=$(gcloud container images list --repository="$root" --format='value(name)' 2>/dev/null || true)
+          if [ -z "$repos" ]; then echo "Nothing under $root"; exit 0; fi
+          # Repositories nest by region and function; walk two levels deep.
+          all=""
+          for r in $repos; do
+            all="$all $r $(gcloud container images list --repository="$r" --format='value(name)' 2>/dev/null || true)"
+          done
+          for r in $all; do
+            digests=$(gcloud container images list-tags "$r" --format='value(digest)' 2>/dev/null || true)
+            for d in $digests; do
+              echo "Deleting $r@$d"
+              gcloud container images delete "$r@$d" --force-delete-tags --quiet
+            done
+          done
+
+      - name: Install the Firebase artifact cleanup policy (prune images older than 1 day)
+        run: npx --yes firebase-tools@13 functions:artifacts:setpolicy --project mathimaticore --location us-central1 --days 1 --force --non-interactive
