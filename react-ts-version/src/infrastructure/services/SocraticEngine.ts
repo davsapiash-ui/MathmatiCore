@@ -1076,7 +1076,7 @@ export class SocraticEngine {
       const errorCategory = rawErrorCategory.toLowerCase() as 'calculation' | 'procedural' | 'conceptual';
 
       if (parsed.hard_evidence_log && Array.isArray(parsed.hard_evidence_log)) {
-        console.log('[Gemini Socratic Engine] Hard Evidence Log:', parsed.hard_evidence_log);
+        console.info('[Gemini Socratic Engine] Hard Evidence Log:', parsed.hard_evidence_log);
       }
 
       const correctOpt = choices.find((c: { isCorrect: boolean }) => c.isCorrect) || choices[0];

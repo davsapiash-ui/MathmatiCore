@@ -720,7 +720,7 @@ export class FirebaseSyncService {
       indexedDBQueue.flushQueue().catch(() => {});
       return;
     }
-    console.log(`Flushing ${this.offlineTelemetryQueue.length} transactions from offline queue.`);
+    console.info(`Flushing ${this.offlineTelemetryQueue.length} transactions from offline queue.`);
     const queueToFlush = [...this.offlineTelemetryQueue];
     this.offlineTelemetryQueue = [];
 
@@ -1188,7 +1188,7 @@ export class FirebaseSyncService {
       updates[`system_control/globalStudentLimit`] = 12;
       
       await update(ref(database), updates);
-      console.log("Auto-seeding completed successfully.");
+      console.info("Auto-seeding completed successfully.");
     } catch (err) {
       console.error("Auto-seeding failed:", err);
     }
