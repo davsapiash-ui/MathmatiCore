@@ -492,8 +492,9 @@ export function StudentWorkspacePage() {
   const isASDMode = myData?.isASD ?? false;
 
   // --- PRD Section 4.5 & Module 20: Gate Locked / Pending Approval Guard ---
+  const isGateApproved = Boolean(myData?.teacher_gate_approved === true || myData?.routeStatus === 'APPROVED');
   useEffect(() => {
-    const isApproved = Boolean(myData?.teacher_gate_approved === true || myData?.routeStatus === 'APPROVED');
+    const isApproved = isGateApproved;
     const isSession2Done = Boolean(myData?.session_2_completed || myData?.completedMeeting2 || (myData as any)?.session_02_completed);
     const isAwaitingGate = meeting === 3 && (myData?.routeStatus === 'GATE_LOCKED' || myData?.routeStatus === 'PENDING_TEACHER_APPROVAL' || isSession2Done) && !isApproved;
 
@@ -503,7 +504,7 @@ export function StudentWorkspacePage() {
     } else if (pendingApproval && isApproved && !networkError) {
       setPendingApproval(false);
     }
-  }, [myData?.routeStatus, myData?.teacher_gate_approved, myData?.session_2_completed, myData?.completedMeeting2, meeting, pendingApproval, networkError]);
+  }, [isGateApproved, myData?.routeStatus, myData?.session_2_completed, myData?.completedMeeting2, meeting, pendingApproval, networkError]);
 
   // Reset initialization when meeting changes
   useEffect(() => {
@@ -993,6 +994,14 @@ export function StudentWorkspacePage() {
       />;
     }
     return <ReflectionScreen />;
+  }
+
+  // Module 20 §ב: finishing the diagnostic meeting lands on the waiting screen.
+  // The learner cannot go anywhere from here — the teacher's gate approval and
+  // the opening of meeting 3 are both hers. The screen listens for the
+  // approval and returns the learner to the lobby the moment it lands.
+  if (flowStatus === 'sessionDone' && sessionNumber === 2 && !isGateApproved) {
+    return <BeeFlightWaitingScreen onApproved={() => navigate('/hub')} />;
   }
 
   // Module 14: Session complete screen
