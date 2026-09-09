@@ -76,13 +76,19 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat }
         applyAtTaskBoundaryOnly: true,
         adaptationQueuedAt: Date.now(),
         overrideUpdatedAt: Date.now(),
+        // Module 20: saving learning conditions must NEVER touch the gate.
+        // Passed explicitly so no downstream default can flip it to true.
+        physicalOverride: false as const,
       };
 
-      // 1. Sync to Firebase
+      // 1. Sync to Firebase. The raw RTDB updates deliberately exclude
+      // physicalOverride so this save neither grants nor revokes a gate
+      // decision that was made elsewhere.
+      const { physicalOverride: _noGateChange, ...rtdbPayload } = updatePayload;
       await firebaseSyncService.syncPhysicalOverride(student.studentId, updatePayload);
-      await update(ref(database, `users/students/${normId}`), updatePayload);
+      await update(ref(database, `users/students/${normId}`), rtdbPayload);
       if (normId !== rawNum && rawNum) {
-        await update(ref(database, `users/students/${rawNum}`), updatePayload).catch(() => {});
+        await update(ref(database, `users/students/${rawNum}`), rtdbPayload).catch(() => {});
       }
 
       // 2. Update local state
@@ -103,13 +109,13 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat }
   const handleConfirmResetStudent = async (reason: ResetReason, reasonNote?: string) => {
     setIsResetting(true);
     try {
+      // The store toasts its own success/failure once.
       await useStore.getState().resetStudentData(student.studentId, reason, reasonNote);
-      toast.success(`✓ נתוני תלמיד ${studentNum} אופסו בהצלחה!`);
       setIsResetModalOpen(false);
       onClose();
     } catch (err) {
       console.error('Reset error:', err);
-      toast.error('שגיאה באיפוס נתוני התלמיד');
+      throw err; // keep the confirmation dialog open — nothing was reset
     } finally {
       setIsResetting(false);
     }
@@ -127,10 +133,13 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat }
       isStruggling: false,
       lastAction: 'המורה סימן את בקשת העזרה כטופלה',
     };
-    ids.forEach((id) => {
-      update(ref(database, `users/students/${id}`), studentClearPayload).catch(console.error);
-    });
-    toast.success('בקשת העזרה סומנה כטופלה');
+    try {
+      await Promise.all(ids.map((id) => update(ref(database, `users/students/${id}`), studentClearPayload)));
+      toast.success('בקשת העזרה סומנה כטופלה');
+    } catch (err) {
+      console.error('Failed to clear help request:', err);
+      toast.error('סימון הטיפול נדחה בשרת. נסו שוב.');
+    }
   };
 
   return createPortal(

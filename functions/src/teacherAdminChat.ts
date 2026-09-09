@@ -31,6 +31,17 @@ export const sendTeacherAdminMessage = onCall(async (request) => {
     throw new HttpsError("unauthenticated", "User must be authenticated.");
   }
 
+  // Module 22 is a staff channel. firestore.rules blocks direct client writes
+  // to /messages on the assumption this callable guards entry — without this
+  // check any signed-in student token could post into the teacher-admin chat.
+  const token = request.auth.token as Record<string, unknown>;
+  const tokenRoles: string[] = Array.isArray(token.roles) ? (token.roles as string[]) : token.role ? [String(token.role)] : [];
+  const lowered = tokenRoles.map((r) => r.toLowerCase());
+  const isStaff = lowered.includes("teacher") || lowered.includes("admin") || token.teacher === true || token.admin === true;
+  if (!isStaff) {
+    throw new HttpsError("permission-denied", "Only teachers and admins may use this channel.");
+  }
+
   const { receiver_id, message_body, school_id, class_name, class_id = "class_1", ephemeral_name_map } = request.data || {};
   if (!receiver_id || !message_body) {
     throw new HttpsError("invalid-argument", "Missing receiver_id or message_body.");

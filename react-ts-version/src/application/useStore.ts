@@ -162,7 +162,7 @@ interface AppState {
   ) => void;
   updateStudent: (studentId: string, updates: Partial<StudentData>) => void;
   resetStudentData: (studentId: string, reason: ResetReason, reasonNote?: string) => Promise<void>;
-  resetEntireSystemUsageData: (reason: ResetReason) => Promise<void>;
+  resetEntireSystemUsageData: (reason: ResetReason, reasonNote?: string) => Promise<void>;
   /** Module 23א level 1: clears radar alerts only, never learning data. */
   resetRadarAlerts: (reason: ResetReason, reasonNote?: string) => Promise<void>;
   initStoreSubscriptions: () => (() => void);
@@ -749,7 +749,7 @@ export const useStore = create<AppState>()(
         toast.success('התראות הרדאר אופסו. לא נגענו בנתוני הלמידה.');
       },
 
-      resetEntireSystemUsageData: async (reason: ResetReason) => {
+      resetEntireSystemUsageData: async (reason: ResetReason, reasonNote?: string) => {
         // PRD v7.1 Module 23א §ג + §ז: backup-before-delete is a HARD gate for a
         // system reset too. A failed backup must abort the deletion entirely —
         // no partial deletion is ever permitted.
@@ -758,6 +758,7 @@ export const useStore = create<AppState>()(
           await backupResetCallable({
             reset_level: 'system',
             reason,
+            reason_note: reasonNote || '',
             class_id: 'class_1',
           });
         } catch (err: any) {

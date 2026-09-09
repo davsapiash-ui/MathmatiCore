@@ -9,8 +9,10 @@ interface Props {
 }
 
 export function ClusteringWidgets({ students, onFilterChange, activeFilter }: Props) {
-  const getStrugglingCount = (conceptKey: keyof NonNullable<StudentData['conceptMastery']>) => {
-    return students.filter(s => s.conceptMastery && s.conceptMastery[conceptKey] < 0.8).length;
+  // Threshold unified with the group cards below (they filter at mastery < 0.5);
+  // this widget used < 0.8, so its counts disagreed with its own lists.
+const getStrugglingCount = (conceptKey: keyof NonNullable<StudentData['conceptMastery']>) => {
+    return students.filter(s => s.conceptMastery && s.conceptMastery[conceptKey] < 0.5).length;
   };
 
   const widgets = [

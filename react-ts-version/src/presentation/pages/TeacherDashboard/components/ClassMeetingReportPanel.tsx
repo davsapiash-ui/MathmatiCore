@@ -19,6 +19,11 @@ const OUTCOME_HE = { first_try: 'ניסיון ראשון', after_correction: 'א
  * everything the individual report measures, aggregated. The numbers come
  * from the server's class_reports document; nothing here is computed.
  */
+const isMissingReport = (err: unknown): boolean => {
+  const code = String((err as { code?: string })?.code ?? '');
+  return code.includes('permission-denied') || code.includes('not-found');
+};
+
 export function ClassMeetingReportPanel() {
   const [selectedSession, setSelectedSession] = useState<number>(2);
   const [report, setReport] = useState<ClassMeetingReport | null>(null);
@@ -34,6 +39,9 @@ export function ClassMeetingReportPanel() {
       .then((r) => { if (!cancelled) { setReport(r); setState('idle'); } })
       .catch((err) => {
         if (cancelled) return;
+        // A missing report doc is denied by the rules (resource.data deref) —
+        // surface it as "no report yet", not as an error banner.
+        if (isMissingReport(err)) { setReport(null); setState('idle'); return; }
         setError(err instanceof Error ? err.message : String(err));
         setState('error');
       });

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { database } from '@/infrastructure/firebase';
 import { ref, onValue, set as firebaseSet, push, update, remove } from 'firebase/database';
+import { toast } from 'sonner';
 import { useAuthStore } from "@/application/useAuthStore";
 
 export interface ChatMessage {
@@ -23,7 +24,7 @@ interface ChatState {
   markAsRead: (receiverId: string, senderId: string) => void;
   markAllAsRead: () => void;
   clearAllMessages: () => void;
-  clearStudentMessages: (studentId: string) => void;
+  clearStudentMessages: (studentId: string) => Promise<void>;
   initSync: () => void;
 }
 
@@ -177,7 +178,13 @@ export const useChatStore = create<ChatState>()(
 
     sendMessage: (senderId, senderName, receiverId, text) => {
       const sanitizedText = sanitizeChatText(text);
-      const targetReceiver = receiverId || '1002220159';
+      // No fallback recipient: the old default was a hard-coded personal id,
+      // and a message with no addressee should never be sent at all.
+      if (!receiverId) {
+        console.error('[useChatStore] sendMessage called without a receiver; dropped.');
+        return;
+      }
+      const targetReceiver = receiverId;
       const roomId = computeRoomId(senderId, targetReceiver);
       const chatRef = ref(database, `chat_messages/${roomId}`);
       const newMsgRef = push(chatRef);
@@ -202,6 +209,7 @@ export const useChatStore = create<ChatState>()(
         set((state) => ({
           messages: state.messages.filter(m => m.id !== newMsg.id)
         }));
+        toast.error('שליחת ההודעה נכשלה מול השרת. ההודעה הוסרה — נסו שוב.');
       });
     },
 
@@ -297,13 +305,9 @@ export const useChatStore = create<ChatState>()(
           (m) => normalizeStudentId(m.senderId) !== norm && normalizeStudentId(m.receiverId) !== norm
         ),
       }));
-      try {
-        remove(ref(database, `chat_messages/${norm}`)).catch((err) => {
-          console.warn("Failed to delete student chat messages from DB:", err);
-        });
-      } catch (e) {
-        console.warn("Error deleting student chat room:", e);
-      }
+      // Returned so the caller can toast the REAL outcome; a denied delete
+      // re-hydrates through the live listener anyway.
+      return remove(ref(database, `chat_messages/${norm}`));
     },
   })
 );

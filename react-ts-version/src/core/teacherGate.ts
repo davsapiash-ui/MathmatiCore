@@ -93,8 +93,22 @@ export async function approveTeacherGate(
     gate_approved_by: teacherId || 'teacher',
     routeStatus: 'APPROVED',
   };
+  // The canonical alias (student_user{N}) is the one the learner's live
+  // listener reads — if that write is rejected, the learner stays stuck on
+  // the waiting screen, so it must fail the approval loudly. The legacy
+  // aliases are best-effort back-compat only.
+  try {
+    await update(ref(database, `users/students/student_user${num}`), mirror);
+  } catch (err) {
+    console.error('[teacherGate] canonical RTDB mirror failed:', err);
+    return {
+      ok: false,
+      reason: 'write_failed',
+      message: 'האישור נכתב ב-Firestore אך שחרור מסך התלמיד נכשל. בדוק חיבור לרשת ונסה שוב.',
+    };
+  }
   await Promise.all(
-    [`student_user${num}`, `student_${num}`, num].map((alias) =>
+    [`student_${num}`, num].map((alias) =>
       update(ref(database, `users/students/${alias}`), mirror).catch(() => {})
     )
   );

@@ -7,11 +7,11 @@ import { AccessibleCard } from "@/presentation/design-system/AccessibleCard";
 import { DataGrid } from "@/presentation/design-system/DataGrid";
 import { useAuthStore } from "@/application/useAuthStore";
 import { useAdminStore } from "@/application/useAdminStore";
-import { useChatStore, normalizeStudentId, isTeacherOrAdminId, type ChatMessage } from "@/application/useChatStore";
+import { useChatStore, normalizeStudentId, type ChatMessage } from "@/application/useChatStore";
 import { extractTeacherId } from "@/infrastructure/services/FirebaseSyncService";
 import { useStore, type StudentData } from "@/application/useStore";
 import { toast } from "sonner";
-import { ref, onValue, remove, set, update, query, limitToLast, onDisconnect, serverTimestamp } from "firebase/database";
+import { ref, onValue, set, update, onDisconnect, serverTimestamp } from "firebase/database";
 import { getClassSessionStatus, getSessionAutoCloseAt, isClassSessionLive, type ClassSessionStatus } from "@/core/classSession";
 import { database, auth, functions, firestore } from "@/infrastructure/firebase";
 import { doc, onSnapshot, collection, writeBatch } from "firebase/firestore";
@@ -40,7 +40,6 @@ import { ClusteringWidgets } from "./TeacherDashboard/components/ClusteringWidge
 import { TeacherApprovalGate, type GateStudentItem } from "./TeacherDashboard/components/TeacherApprovalGate";
 import { SessionActivationModal, type SessionRow } from "./TeacherDashboard/components/SessionActivationModal";
 import { getSessionDurationMinutes } from "@/core/classSession";
-import type { RadarAlert } from "@/types/dashboard";
 import { CONCEPT_LABELS_HE, TASKS as DIAGNOSTIC_TASKS } from "@/core/QMatrix";
 import { validateChatInputForPII, anonymizeChatMessageBody } from "@/core/security/PiiFilter";
 import { approveTeacherGate } from "@/core/teacherGate";
@@ -48,7 +47,6 @@ import { approveTeacherGate } from "@/core/teacherGate";
 type TabType =
   | "heatmap"
   | "clustering"
-  | "alerts"
   | "diagnostic_reports"
   | "chat_students"
   | "class_management"
@@ -70,14 +68,6 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     };
   }, [initSync]);
 
-  const teacherFileInputRef = useRef<HTMLInputElement>(null);
-  const adminFileInputRef = useRef<HTMLInputElement>(null);
-  const [sendingImage, setSendingImage] = useState(false);
-
-  const _handleToggleGlobalChat = (enabled: boolean) => {
-    useStore.setState({ globalChatEnabled: enabled });
-    set(ref(database, 'system_control/globalChatEnabled'), enabled).catch(console.error);
-  };
   const [students, setStudents] = useState<Record<string, StudentData>>(() => {
     const allSt = useStore.getState().students;
     const initial: Record<string, StudentData> = {};
@@ -100,6 +90,9 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   const [activeClusterFilter, setActiveClusterFilter] = useState<string | null>(null);
 
   const [inputText, setInputText] = useState("");
+  // The admin drawer used to share inputText with the student chat, so a
+  // half-typed message to one leaked into the other.
+  const [adminInputText, setAdminInputText] = useState("");
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(
     routeStudentId || null,
   );
@@ -385,6 +378,9 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
         );
 
         for (let studentNum = 1; studentNum <= 12; studentNum++) {
+          // Module 19: support_profile_id/version belong to the silent
+          // adaptation flow — stamping fixed values here on every activation
+          // reset any adjusted profile back to its default.
           batch.set(
             doc(firestore, 'students', `student_user${studentNum}`),
             {
@@ -392,8 +388,6 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
               class_id: classId,
               school_id: schoolId,
               created_at: now,
-              support_profile_id: `profile_student_${studentNum}`,
-              support_profile_version: 1,
               active_session_id: activeSessionId,
             },
             { merge: true }
@@ -401,7 +395,11 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
         }
         await batch.commit();
       } catch (firestoreErr) {
-        console.warn('[TeacherDashboard] Firestore class session sync notice (non-blocking for live broadcast):', firestoreErr);
+        // The RTDB broadcast (what unlocks the learners) already succeeded, so
+        // this is a warning, not a rollback — but the teacher must know the
+        // canonical class/student documents did not take the update.
+        console.warn('[TeacherDashboard] Firestore class session sync failed:', firestoreErr);
+        toast.warning('המפגש שודר לתלמידים, אך עדכון מסמכי הכיתה בשרת נדחה. ודא שהחשבון משויך לכיתה.');
       }
 
       setSessionStartTime(now);
@@ -599,29 +597,6 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     };
   }, [TEACHER_ID, user?.role]);
 
-  const handleHintClick = (studentId: string) => {
-    const normId = normalizeStudentId(studentId);
-    const hintPayload = {
-      timestamp: Date.now(),
-      message: "המורה שלח/ה לך רמז: נסה/י להשתמש בלוח העשרות כדי לפרוט."
-    };
-    // 1. Write the hint flag to Firebase so the student gets an actual popup
-    set(ref(database, `users/students/${studentId}/teacher_hint`), hintPayload).then(() => {
-      if (normId !== studentId) {
-        set(ref(database, `users/students/${normId}/teacher_hint`), hintPayload).catch((err) => {
-          console.warn('Teacher hint mirror notice:', err);
-        });
-      }
-      // 2. Switch to chat so the teacher can follow up manually
-      setSelectedStudentId(studentId);
-      setActiveTab("chat_students");
-      toast.success(`רמז נשלח בהצלחה לתלמיד! 💡`);
-    }).catch((err: any) => {
-      console.error("Failed to send hint:", err);
-      toast.error("שגיאה בשליחת הרמז לתלמיד.");
-    });
-  };
-
   // Clustering Logic based on Q-Matrix
   // Memoized: a fresh array identity every render made downstream useMemos
   // (incl. the alerts list) recompute on every keystroke.
@@ -704,116 +679,6 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     ];
   }, [allStudents]);
 
-  // Generate trace data alerts
-
-  const [firebaseAlerts, setFirebaseAlerts] = useState<RadarAlert[]>([]);
-
-  useEffect(() => {
-    const alertsQuery = query(ref(database, 'radar_alerts'), limitToLast(50));
-    const unsub = onValue(
-      alertsQuery,
-      (snapshot) => {
-        try {
-          const rawData = snapshot.val();
-          const data = (rawData && typeof rawData === 'object') ? rawData : null;
-          if (data) {
-            const parsed = Object.keys(data).map(key => {
-              const row = data[key as keyof typeof data];
-              const rawId = row.studentId ?? row.rawStudentId ?? row.student ?? row.username;
-              return {
-                ...row,
-                firebaseKey: key,
-                studentId: row.studentId ?? row.studentName ?? rawId ?? 'תלמיד',
-                rawStudentId: rawId,
-              };
-            }).reverse();
-            setFirebaseAlerts(parsed);
-          } else {
-            setFirebaseAlerts([]);
-          }
-        } catch (e) {
-          console.error("Error parsing radar alerts:", e);
-          setFirebaseAlerts([]);
-        }
-      },
-      (err) => {
-        console.error('[TeacherDashboard] RTDB "radar_alerts" listener error:', err);
-      }
-    );
-    return () => unsub();
-  }, []);
-
-  const allAlerts = useMemo(() => {
-    // Only show firebase alerts from the last 90 minutes for real-time relevance
-    const ninetyMinsAgo = Date.now() - 90 * 60 * 1000;
-    return firebaseAlerts
-      .filter(a => a.timestamp > ninetyMinsAgo)
-      .map(a => {
-        const actualStudent = students[a.rawStudentId] || Object.values(students).find((s: StudentData) => s.studentId === a.rawStudentId || s.name === a.rawStudentId);
-        return {
-          ...a,
-          studentId: actualStudent?.name ?? a.studentId,
-        };
-      })
-      .filter(a => {
-        const actualStudent = students[a.rawStudentId] || Object.values(students).find((s: StudentData) => s.studentId === a.rawStudentId || s.name === a.rawStudentId);
-        // Only show alerts for students in this teacher's class
-        const isMyStudent = !!actualStudent;
-        
-        // Anti-leakage: must belong to this teacher (fallback to true for legacy alerts without teacherId, but reset will clean them)
-        const aAny = a as any;
-        const isMyTeacher = aAny.teacherId ? aAny.teacherId === TEACHER_ID : true;
-        
-        // Help alerts and radar calls stay persistent even if student disconnected!
-        return isMyStudent && isMyTeacher;
-      })
-      .sort((a, b) => b.timestamp - a.timestamp);
-  }, [firebaseAlerts, students, TEACHER_ID]);
-
-  const handleAssignIntervention = async (clusterName: string, studentList: StudentData[]) => {
-    try {
-      for (const s of studentList) {
-        const norm = normalizeStudentId(s.studentId);
-        await update(ref(database, `users/students/${norm}`), {
-          activeIntervention: clusterName,
-          interventionAssignedAt: Date.now()
-        });
-      }
-      toast.success(`פעילות "${clusterName}" הוקצתה בהצלחה ל-${studentList.length} תלמידים! 🎯`);
-    } catch (err) {
-      console.error('Error assigning intervention:', err);
-      toast.error('שגיאה בהקצאת הפעילות. בדוק חיבור לרשת.');
-    }
-  };
-
-  const handleAlertResponse = (alert: RadarAlert, responseType: string, responseText: string) => {
-    // 1. Record the intervention in the student's trace data
-    if (alert.rawStudentId) {
-      const interventionId = Date.now().toString();
-      set(ref(database, `users/students/${alert.rawStudentId}/traceData/interventions/${interventionId}`), {
-        timestamp: Date.now(),
-        alertType: alert.type || 'UNKNOWN',
-        responseType,
-        responseText
-      });
-    }
-
-    // 2. Execute any specific logic for the response
-    if (responseType === 'HINT') {
-      handleHintClick(alert.rawStudentId);
-      toast.success(`נשלח רמז אישי לתלמיד ${alert.studentId || ''}`);
-    } else if (responseType === 'PHYSICAL') {
-      toast.success(`סומן: ניגשת פיזית לתלמיד ${alert.studentId || ''}`);
-    } else if (responseType === 'ACKNOWLEDGED') {
-      toast.info('ההתראה סומנה כטופלה והוסרה');
-    }
-
-    // 3. Dismiss the alert from the radar queue
-    if (alert.firebaseKey) {
-      remove(ref(database, `radar_alerts/${alert.firebaseKey}`));
-    }
-  };
-
   // --- Module 20: Diagnostic Gate Students Computation (WP6 Formulas & Firestore Sync) ---
   const gateStudentItems: GateStudentItem[] = useMemo(() => {
     const items: GateStudentItem[] = [];
@@ -859,7 +724,14 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
         scoreSummary: scorePercent !== null
           ? `ציון דיאגנוסטי: ${Math.round(scorePercent)}% (7 משימות חובה)`
           : 'סיום ראשוני — ממתין לחישוב מדדים',
-        errorNodes: scorePercent !== null && scorePercent < 50 ? ['המרה בעשרות', 'ערך מיקום'] : undefined,
+        // Real failed diagnostic tasks from the learner's own Q-Matrix results —
+        // this used to be two hard-coded strings shown identically for every
+        // struggling learner, presented as per-student analysis.
+        errorNodes: (() => {
+          const qm = (studentData?.qMatrixResults ?? {}) as Record<string, boolean | null>;
+          const failed = DIAGNOSTIC_TASKS.filter((t) => qm[t.id] === false).map((t) => t.titleHe);
+          return failed.length > 0 ? failed : undefined;
+        })(),
       });
     }
     return items;
@@ -867,7 +739,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
 
   const pendingApprovalsBadgeCount = gateStudentItems.filter((g) => !g.isApproved).length;
 
-  const handleApproveGateStudent = async (studentId: string, path: PedagogicalPath) => {
+  const handleApproveGateStudent = async (studentId: string, path: PedagogicalPath): Promise<boolean> => {
     setIsApprovingGate(true);
     const normNum = studentId.replace(/\D/g, '') || '1';
 
@@ -883,7 +755,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
 
       if (!result.ok) {
         toast.error(result.message);
-        return;
+        return false;
       }
 
       // Optimistic local Zustand update — cover every alias this codebase's
@@ -896,24 +768,35 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       approveRoute(normNum);
 
       toast.success(`תלמיד ${normNum} אושר בהצלחה למפגש 3 (${path === 'green_path' ? 'מסלול ירוק' : 'מסלול צהוב'})! 🛡️`);
+      return true;
     } catch (err: any) {
       console.error('[TeacherDashboard] Gate approval write failed:', err);
       toast.error(`שגיאה באישור שער המעבר: ${err?.message || 'אנא בדוק חיבור לרשת'}`);
+      return false;
     } finally {
       setIsApprovingGate(false);
     }
   };
 
   const handleBatchApproveAll = async (pathMap: Record<string, PedagogicalPath>) => {
+    const entries = Object.entries(pathMap);
+    if (entries.length === 0) {
+      toast.info('אין תלמידים הממתינים לאישור.');
+      return;
+    }
     setIsApprovingGate(true);
     try {
-      for (const [sId, path] of Object.entries(pathMap)) {
-        await handleApproveGateStudent(sId, path);
+      // The old version toasted "כולם אושרו בהצלחה" unconditionally — even when
+      // every single approval failed (each failure toasts and returns quietly).
+      let succeeded = 0;
+      for (const [sId, path] of entries) {
+        if (await handleApproveGateStudent(sId, path)) succeeded++;
       }
-      toast.success('כל התלמידים הממתינים אושרו בהצלחה למפגש 3! 🚀');
-    } catch (err) {
-      console.error('[TeacherDashboard] Batch gate approval error:', err);
-      toast.error('שגיאה באישור הקבוצתי.');
+      if (succeeded === entries.length) {
+        toast.success(`כל ${succeeded} התלמידים הממתינים אושרו בהצלחה למפגש 3! 🚀`);
+      } else if (succeeded > 0) {
+        toast.warning(`אושרו ${succeeded} מתוך ${entries.length} תלמידים. עבור השאר הוצגה שגיאה מפורטת.`);
+      }
     } finally {
       setIsApprovingGate(false);
     }
@@ -923,7 +806,6 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     tab:
       | "heatmap"
       | "clustering"
-      | "alerts"
       | "diagnostic_reports"
       | "chat_students"
       | "class_management"
@@ -1028,17 +910,17 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   }, [isAdminChatDrawerOpen, activeTab, selectedStudentId, messages, user, markAsRead]);
 
   const handleSendAdmin = async () => {
-    if (!inputText.trim() || !user) return;
+    if (!adminInputText.trim() || !user) return;
 
     // Module 22: Tier 1 Client-Side Regex Validation (Fail-Closed Architecture)
     let cleanText: string;
     try {
-      const validation = validateChatInputForPII(inputText);
+      const validation = validateChatInputForPII(adminInputText);
       if (!validation.valid) {
         toast.warning(validation.errorHe || 'הודעה מכילה פרטים מזהים (PII). יש להשתמש במזהה 1-12 בלבד.');
         return;
       }
-      cleanText = anonymizeChatMessageBody(inputText.trim());
+      cleanText = anonymizeChatMessageBody(adminInputText.trim());
     } catch (err) {
       console.error('[Module 3/22 Fail-Closed] PII scanning error caught:', err);
       toast.error('שגיאה בבדיקת אבטחה (PII). שליחת ההודעה נחסמה להגנה על פרטיות התלמידים.');
@@ -1093,22 +975,13 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     }
   };
 
-  const unreadAdminCount = useMemo(() => {
-    if (!user) return 0;
-    const userUid = (user.uid || "").toLowerCase().trim();
-    const userEmail = (user.email || "").toLowerCase().trim();
-    return messages.filter((m) => {
-      if (m.senderId !== "admin" || m.read) return false;
-      const recv = (m.receiverId || "").toLowerCase().trim();
-      return (
-        recv === userUid ||
-        recv === userEmail ||
-        recv.includes(userUid) ||
-        userUid.includes(recv) ||
-        isTeacherOrAdminId(recv)
-      );
-    }).length;
-  }, [messages, user]);
+  // Counted from the Firestore admin channel (adminMessages) — the RTDB chat
+  // store this used to filter never contains admin messages, so the badge was
+  // permanently zero.
+  const unreadAdminCount = useMemo(
+    () => adminMessages.filter((m) => m.senderId === 'admin' && !m.read).length,
+    [adminMessages]
+  );
 
   const unreadStudentsCount = useMemo(() => {
     if (!user) return 0;
@@ -1256,6 +1129,13 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                 {pendingApprovalsBadgeCount}
               </span>
             )}
+          </button>
+
+          <button
+            onClick={() => handleTabChange("class_management")}
+            className={`w-full flex justify-between items-center text-right px-4 py-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "class_management" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
+          >
+            <span>ניהול כיתה ותנאי למידה</span>
           </button>
 
           <div className="text-[10px] font-bold text-slate-400  mb-2 mt-6 px-2 uppercase tracking-widest">
@@ -1518,6 +1398,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
             </AccessibleCard>
 
             <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-6 pb-6">
+              {(!activeClusterFilter || activeClusterFilter === 'decimal_structure') && (
               <AccessibleCard className="flex flex-col justify-between p-6 bg-ws-surface/80 backdrop-blur-xl shadow-md hover:shadow-xl transition-all duration-300 border border-ws-surface2 rounded-2xl relative overflow-hidden group min-h-[340px]">
                 <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-500 to-cyan-500"></div>
                 <div>
@@ -1541,15 +1422,10 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                     />
                   </div>
                 </div>
-                <UdlButton
-                  semanticColor="primary"
-                  className="mt-4 w-full shadow-md shadow-blue-500/20 font-bold tracking-wide py-2.5"
-                  onClick={() => handleAssignIntervention('מבנה עשרוני וערך המקום', decimalStructureGroup)}
-                >
-                  הקצאת תרגול מותאם
-                </UdlButton>
               </AccessibleCard>
+              )}
 
+              {(!activeClusterFilter || activeClusterFilter === 'regrouping_fluency') && (
               <AccessibleCard className="flex flex-col justify-between p-6 bg-white shadow-sm hover:shadow-md transition-all duration-300 border border-slate-200 rounded-2xl relative overflow-hidden group min-h-[340px]">
                 <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-purple-500 to-indigo-500"></div>
                 <div>
@@ -1573,15 +1449,10 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                     />
                   </div>
                 </div>
-                <UdlButton
-                  semanticColor="primary"
-                  className="mt-4 w-full shadow-md shadow-purple-500/20 font-bold tracking-wide py-2.5"
-                  onClick={() => handleAssignIntervention('גמישות בהמרה ופריטה', regroupingFluencyGroup)}
-                >
-                  הקצאת סדנת חקר
-                </UdlButton>
               </AccessibleCard>
+              )}
 
+              {(!activeClusterFilter || activeClusterFilter === 'procedural_fluency') && (
               <AccessibleCard className="flex flex-col justify-between p-6 bg-white shadow-sm hover:shadow-md transition-all duration-300 border border-slate-200 rounded-2xl relative overflow-hidden group min-h-[340px]">
                 <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-rose-500 to-red-500"></div>
                 <div>
@@ -1605,15 +1476,10 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                     />
                   </div>
                 </div>
-                <UdlButton
-                  semanticColor="primary"
-                  className="mt-4 w-full shadow-md shadow-rose-500/20 font-bold tracking-wide py-2.5"
-                  onClick={() => handleAssignIntervention('שליטה בפרוצדורות ובעובדות', proceduralFluencyGroup)}
-                >
-                  הקצאת תרגול מותאם
-                </UdlButton>
               </AccessibleCard>
+              )}
 
+              {(!activeClusterFilter || activeClusterFilter === 'relational_thinking') && (
               <AccessibleCard className="flex flex-col justify-between p-6 bg-white shadow-sm hover:shadow-md transition-all duration-300 border border-slate-200 rounded-2xl relative overflow-hidden group min-h-[340px]">
                 <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-slate-500 to-gray-500"></div>
                 <div>
@@ -1637,15 +1503,10 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                     />
                   </div>
                 </div>
-                <UdlButton
-                  semanticColor="primary"
-                  className="mt-4 w-full shadow-md shadow-slate-500/20 font-bold tracking-wide py-2.5"
-                  onClick={() => handleAssignIntervention('חשיבה יחסית', relationalThinkingGroup)}
-                >
-                  הקצה חקר יחסים
-                </UdlButton>
               </AccessibleCard>
+              )}
 
+              {(!activeClusterFilter || activeClusterFilter === 'algebraic_reasoning') && (
               <AccessibleCard className="flex flex-col justify-between p-6 bg-white shadow-sm hover:shadow-md transition-all duration-300 border border-slate-200 rounded-2xl relative overflow-hidden group min-h-[340px]">
                 <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-amber-500 to-orange-500"></div>
                 <div>
@@ -1669,14 +1530,8 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                     />
                   </div>
                 </div>
-                <UdlButton
-                  semanticColor="primary"
-                  className="mt-4 w-full shadow-md shadow-amber-500/20 font-bold tracking-wide py-2.5"
-                  onClick={() => handleAssignIntervention('חשיבה אלגברית ומציאת נעלם', algebraicReasoningGroup)}
-                >
-                  הקצאת מודל מאזניים
-                </UdlButton>
               </AccessibleCard>
+              )}
             </div>
           </div>
         )}
@@ -1837,7 +1692,9 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                   >
                                     <Sparkles className="w-4 h-4 text-amber-300" />
                                     <span>אישור מסלול — שער מעבר</span>
-                                    <span className="bg-white/20 text-white text-[10px] px-1.5 py-0.5 rounded-md font-semibold">ממתין לאישור</span>
+                                    {!(s.routeStatus === 'APPROVED' || (s as any).teacher_gate_approved) && (
+                                      <span className="bg-white/20 text-white text-[10px] px-1.5 py-0.5 rounded-md font-semibold">ממתין לאישור</span>
+                                    )}
                                   </button>
                                 )}
                               </div>
@@ -2020,7 +1877,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                     <MessageCircle className="w-8 h-8 opacity-40" />
                   </div>
                   <h4 className="font-bold text-lg text-slate-700 dark:text-slate-200 mb-1">אין הודעות קודמות</h4>
-                  <p className="text-xs text-slate-500">תוכל להקליד פנייה חדשה או לשלוח צילום מסך למנהל המערכת.</p>
+                  <p className="text-xs text-slate-500">תוכל להקליד פנייה חדשה למנהל המערכת.</p>
                 </div>
               ) : (
                 adminMessages.map((msg) => {
@@ -2064,8 +1921,8 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
             <div className="p-3.5 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center gap-2.5 shrink-0 z-20">
               <input
                 type="text"
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
+                value={adminInputText}
+                onChange={(e) => setAdminInputText(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSendAdmin()}
                 placeholder="הקלד הודעה למנהל המערכת..."
                 className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-slate-900 dark:text-white"
@@ -2073,7 +1930,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
 
               <button
                 onClick={handleSendAdmin}
-                disabled={!inputText.trim()}
+                disabled={!adminInputText.trim()}
                 className="rounded-full w-10 h-10 flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white transition-all disabled:opacity-40 shadow-md shrink-0"
               >
                 <Send className="w-4 h-4 -mr-0.5" />

@@ -15,7 +15,7 @@ export interface GateStudentItem {
 
 interface TeacherApprovalGateProps {
   students: GateStudentItem[];
-  onApproveStudent: (studentId: string, path: 'green_path' | 'remediation_path') => Promise<void>;
+  onApproveStudent: (studentId: string, path: 'green_path' | 'remediation_path') => Promise<boolean | void>;
   onApproveAll: (pathMap: Record<string, 'green_path' | 'remediation_path'>) => Promise<void>;
   isLoading?: boolean;
 }
@@ -32,13 +32,16 @@ export function TeacherApprovalGate({
   isLoading = false,
 }: TeacherApprovalGateProps) {
   const [approvingId, setApprovingId] = useState<string | null>(null);
-  const [selectedPaths, setSelectedPaths] = useState<Record<string, 'green_path' | 'remediation_path'>>(() => {
-    const initial: Record<string, 'green_path' | 'remediation_path'> = {};
-    students.forEach((s) => {
-      initial[s.studentId] = s.recommendedPath;
-    });
-    return initial;
-  });
+  // Manual path overrides only. The effective path for a learner is the
+  // override if the teacher touched the select, else the LIVE recommendation.
+  // This state used to be seeded once from the students prop — which is empty
+  // on first render (the gate list arrives from an async Firestore listener) —
+  // and `|| 'green_path'` then silently approved a struggling learner onto the
+  // green (10,000-range) bank, the exact routing Module 26 forbids.
+  const [selectedPaths, setSelectedPaths] = useState<Record<string, 'green_path' | 'remediation_path'>>({});
+
+  const effectivePath = (s: GateStudentItem): 'green_path' | 'remediation_path' =>
+    selectedPaths[s.studentId] ?? s.recommendedPath;
 
   const waitingStudents = students.filter((s) => !s.isApproved);
   const approvedStudents = students.filter((s) => s.isApproved);
@@ -48,10 +51,11 @@ export function TeacherApprovalGate({
   };
 
   const handleSingleApprove = async (studentId: string) => {
+    const st = students.find((x) => x.studentId === studentId);
+    if (!st) return;
     setApprovingId(studentId);
     try {
-      const path = selectedPaths[studentId] || 'green_path';
-      await onApproveStudent(studentId, path);
+      await onApproveStudent(studentId, effectivePath(st));
     } finally {
       setApprovingId(null);
     }
@@ -60,7 +64,13 @@ export function TeacherApprovalGate({
   const handleBatchApprove = async () => {
     setApprovingId('ALL');
     try {
-      await onApproveAll(selectedPaths);
+      // Built at click time from the learners actually waiting — never from a
+      // stale map, and never re-approving already-approved learners.
+      const pathMap: Record<string, 'green_path' | 'remediation_path'> = {};
+      waitingStudents.forEach((s) => {
+        pathMap[s.studentId] = effectivePath(s);
+      });
+      await onApproveAll(pathMap);
     } finally {
       setApprovingId(null);
     }

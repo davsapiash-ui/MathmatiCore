@@ -45,8 +45,11 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
   const handleClearChat = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (window.confirm('האם למחוק את כל היסטוריית השיחה עם תלמיד זה?')) {
-      clearStudentMessages(normStudentId);
-      toast.success('היסטוריית הצ׳אט נמחקה בהצלחה');
+      // Toast only once the server delete actually lands — the old version
+      // announced success while the RTDB remove could be silently denied.
+      Promise.resolve(clearStudentMessages(normStudentId))
+        .then(() => toast.success('היסטוריית הצ׳אט נמחקה בהצלחה'))
+        .catch(() => toast.error('מחיקת ההיסטוריה נדחתה בשרת.'));
     }
   };
 
@@ -90,7 +93,12 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
           >
             <Trash2 className="w-4 h-4" />
           </button>
-          <button className="hover:text-white transition-colors" title="מזער">
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setIsMinimized((v) => !v); }}
+            className="hover:text-white transition-colors"
+            title="מזער"
+          >
             <Minus className="w-4 h-4" />
           </button>
           <button 

@@ -43,12 +43,24 @@ exports.onSessionCompleteTrigger = (0, firestore_1.onDocumentWritten)({
  * Stamping authoritative session_deadline_time on the server side (Module 14).
  */
 exports.createSessionWithServerDeadline = (0, https_1.onCall)(async (request) => {
+    var _a;
     if (!request.auth) {
         throw new https_1.HttpsError("unauthenticated", "User must be authenticated.");
     }
     const { student_id, class_id, session_number } = request.data || {};
     if (!student_id || !class_id || !session_number) {
         throw new https_1.HttpsError("invalid-argument", "Missing required session parameters.");
+    }
+    // A session document may be stamped only by staff, or by the learner it
+    // belongs to (auth.token.student_id 1-12). Without this, any signed-in
+    // identity could create/overwrite any learner's session deadline.
+    const token = request.auth.token;
+    const roles = Array.isArray(token.roles) ? token.roles : token.role ? [String(token.role)] : [];
+    const lowered = roles.map((r) => r.toLowerCase());
+    const isStaff = lowered.includes("teacher") || lowered.includes("admin") || token.teacher === true || token.admin === true;
+    const ownStudent = String((_a = token.student_id) !== null && _a !== void 0 ? _a : "") === String(student_id);
+    if (!isStaff && !ownStudent) {
+        throw new https_1.HttpsError("permission-denied", "Not authorized for this learner's session.");
     }
     // PRD v7.0 Module 14 §B: Session 1 = 20 min sandbox, Sessions 2 & 8 = 25 min, Sessions 3-7 = 15 min
     const durationMinutes = session_number === 1 ? 20 : (session_number === 2 || session_number === 8) ? 25 : 15;
