@@ -4,11 +4,12 @@ import { Tooltip } from '@base-ui/react/tooltip';
 interface UdlTooltipProps {
   children: React.ReactNode;
   content: string;
+  delay?: number;
 }
 
-export function UdlTooltip({ children, content }: UdlTooltipProps) {
+export function UdlTooltip({ children, content, delay = 150 }: UdlTooltipProps) {
   return (
-    <Tooltip.Provider delay={300}>
+    <Tooltip.Provider delay={delay}>
       <Tooltip.Root>
         <Tooltip.Trigger render={children as React.ReactElement} />
         <Tooltip.Portal>

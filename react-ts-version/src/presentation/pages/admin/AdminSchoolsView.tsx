@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { UdlButton } from "@/presentation/design-system/UdlButton";
+import { UdlTooltip } from "@/presentation/design-system/UdlTooltip";
 import { 
   Plus, 
   Users, 
@@ -378,7 +379,7 @@ export function AdminSchoolsView() {
                       </h4>
                       <button 
                         onClick={() => openWizard("add_teacher", school.id)}
-                        className="text-xs text-indigo-600 dark:text-indigo-400 font-bold hover:underline"
+                        className="text-xs text-indigo-600 dark:text-indigo-400 font-bold hover:underline cursor-pointer"
                       >
                         + הוסף מורה
                       </button>
@@ -433,12 +434,17 @@ export function AdminSchoolsView() {
                       <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400">
                         כיתות לימוד במוסד:
                       </h4>
-                      <button 
-                        onClick={() => openWizard("add_class", school.id)}
-                        className="text-xs text-cyan-600 dark:text-cyan-400 font-bold hover:underline"
-                      >
-                        + הוסף כיתה
-                      </button>
+                      <UdlTooltip content="לא זמין בשלב פיתוח">
+                        <span className="inline-block cursor-not-allowed" tabIndex={0}>
+                          <button 
+                            type="button"
+                            disabled
+                            className="text-xs text-slate-400 dark:text-slate-500 font-bold opacity-60 cursor-not-allowed pointer-events-none"
+                          >
+                            + הוסף כיתה
+                          </button>
+                        </span>
+                      </UdlTooltip>
                     </div>
 
                     {schoolClasses.length === 0 ? (
@@ -472,21 +478,25 @@ export function AdminSchoolsView() {
                   <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex gap-3 mt-auto">
                     <UdlButton 
                       semanticColor="neutral" 
-                      className="flex-1 justify-center gap-2 bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950 hover:text-indigo-600 dark:hover:text-indigo-400 text-xs font-bold py-3 rounded-xl transition-all"
+                      className="flex-1 justify-center gap-2 bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950 hover:text-indigo-600 dark:hover:text-indigo-400 text-xs font-bold py-3 rounded-xl transition-all cursor-pointer"
                       onClick={() => openWizard("add_teacher", school.id)}
                     >
                       <Users className="w-4 h-4" />
                       רישום מורה
                     </UdlButton>
 
-                    <UdlButton 
-                      semanticColor="neutral" 
-                      className="flex-1 justify-center gap-2 bg-slate-100 dark:bg-slate-800 hover:bg-cyan-50 dark:hover:bg-cyan-950 hover:text-cyan-600 dark:hover:text-cyan-400 text-xs font-bold py-3 rounded-xl transition-all"
-                      onClick={() => openWizard("add_class", school.id)}
-                    >
-                      <Plus className="w-4 h-4" />
-                      הקמת כיתה
-                    </UdlButton>
+                    <UdlTooltip content="לא זמין בשלב פיתוח">
+                      <span className="flex-1 inline-flex cursor-not-allowed" tabIndex={0}>
+                        <UdlButton 
+                          disabled
+                          semanticColor="neutral" 
+                          className="w-full justify-center gap-2 bg-slate-100/60 dark:bg-slate-800/40 text-slate-400 dark:text-slate-500 text-xs font-bold py-3 rounded-xl cursor-not-allowed opacity-60 pointer-events-none"
+                        >
+                          <Plus className="w-4 h-4" />
+                          הקמת כיתה
+                        </UdlButton>
+                      </span>
+                    </UdlTooltip>
                   </div>
                 </div>
               </motion.div>
