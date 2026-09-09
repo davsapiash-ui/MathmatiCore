@@ -29,7 +29,7 @@ interface Props {
   onOpenFullJourney?: (studentId: string) => void;
 }
 
-export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat }: Props) {
+export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, onOpenFullJourney }: Props) {
   const [activeTab, setActiveTab] = useState<'scaffolding' | 'accessibility' | 'replay'>('scaffolding');
   const [isResetting, setIsResetting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
