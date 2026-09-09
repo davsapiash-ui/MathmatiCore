@@ -53,7 +53,11 @@ export function HelpOverlays() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            /* Every overlay here releases the pointer the instant it starts
+               leaving: a fading element is invisible long before AnimatePresence
+               unmounts it, and with pointer events still on it kept swallowing
+               the learner's drags onto the number house. */
+            exit={{ opacity: 0, pointerEvents: 'none' }}
             className="fixed inset-0 z-50 bg-ws-ink/50 backdrop-blur-sm flex flex-col items-center justify-center gap-4"
             role="status"
             aria-live="polite"
@@ -78,7 +82,7 @@ export function HelpOverlays() {
           <motion.div
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
-            exit={{ y: '100%' }}
+            exit={{ y: '100%', pointerEvents: 'none' }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
             className="fixed bottom-0 inset-x-0 z-50 bg-ws-surface rounded-t-3xl shadow-[0_-12px_40px_rgba(0,0,0,0.18)] border-t border-ws-surface2 p-6"
             role="dialog"
@@ -121,7 +125,7 @@ export function HelpOverlays() {
           <motion.aside
             initial={{ opacity: 0, x: -30, scale: 0.95 }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
-            exit={{ opacity: 0, x: -30, scale: 0.95 }}
+            exit={{ opacity: 0, x: -30, scale: 0.95, pointerEvents: 'none' }}
             transition={{ type: 'spring', stiffness: 300, damping: 25 }}
             /* Sits ABOVE the block palette (the bottom ~10rem of the board), never
                on it: anchored at bottom-4 the card covered the palette, and the
@@ -183,7 +187,7 @@ export function HelpOverlays() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            exit={{ opacity: 0, pointerEvents: 'none' }}
             className="fixed inset-0 z-50 bg-ws-ink/50 backdrop-blur-sm flex items-center justify-center p-6"
             role="dialog"
             aria-modal="true"
@@ -193,7 +197,7 @@ export function HelpOverlays() {
             <motion.div
               initial={{ scale: 0.92, y: 16 }}
               animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.92, y: 16 }}
+              exit={{ scale: 0.92, y: 16, pointerEvents: 'none' }}
               className="bg-ws-surface rounded-3xl shadow-2xl max-w-lg w-full p-8 relative"
             >
               <h2 className="font-display font-black text-2xl text-ws-ink mb-5">{content.titleHe}</h2>

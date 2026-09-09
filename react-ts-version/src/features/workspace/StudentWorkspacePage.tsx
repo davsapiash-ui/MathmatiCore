@@ -58,6 +58,11 @@ import { ReinforcementOrChallengeScreen } from './overlays/ReinforcementOrChalle
  */
 /** Module 21: 50MB of replay recording per learner per meeting, then a silent stop. */
 const RECORDING_BYTE_CAP = 50 * 1024 * 1024;
+/**
+ * How long the workspace waits for the learner's Firebase record before it
+ * starts a meeting from scratch when no local copy of that meeting exists.
+ */
+export const FIREBASE_RESTORE_GRACE_MS = 6000;
 
 export function evaluateDeviceOwnership(remoteDevId?: string | null, myDevId?: string | null): { isSuperseded: boolean } {
   if (remoteDevId && remoteDevId !== myDevId) {
@@ -694,6 +699,7 @@ export function StudentWorkspacePage() {
       }
     };
 
+    let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
     if (firebaseLoaded) {
       runInit();
     } else {
@@ -704,13 +710,22 @@ export function StudentWorkspacePage() {
         setIsInitialized(true);
         setIsInitializing(false);
       } else {
-        // Fast init fallback without arbitrary delay
-        runInit();
+        // No local copy of this meeting: wait for the learner's Firebase
+        // record before deciding. Starting a fresh session here right away —
+        // as this used to — put the learner on exercise 1 while the real
+        // progress was still loading, and the sync then pushed that fresh
+        // state over the saved one. The record's arrival re-runs this effect
+        // (firebaseLoaded); the timer only covers a connection that never
+        // answers, so an offline learner is not left on the loader.
+        fallbackTimer = setTimeout(() => {
+          if (!cancelled) runInit();
+        }, FIREBASE_RESTORE_GRACE_MS);
       }
     }
 
     return () => {
       cancelled = true;
+      if (fallbackTimer) clearTimeout(fallbackTimer);
     };
   }, [meeting, firebaseLoaded, isInitialized, myData, initSession, restoreSession, isASDMode, activeClassSession, isTeacherSessionActive]);
 
@@ -783,18 +798,26 @@ export function StudentWorkspacePage() {
     const data = event.active.data.current as { source: DragSource; place: Place; renderPlace?: Place } | undefined;
     if (data) setActiveDrag({ place: data.place, source: data.source, renderPlace: data.renderPlace });
 
-    // Semantic Event Injection
-    const studentId = useAuthStore.getState().user?.uid;
-    if (studentId && data) {
-      const s = useWorkspaceStore.getState();
-      const task = getActiveTasks(s)[s.standardTaskIdx] || null;
-      useStore.getState().logSemanticEvent(studentId, {
-        action: 'drag_started',
-        element: data.source === 'palette' ? 'palette_block' : `${data.place}_block`,
-        context: 'User picked up a block',
-        ...(task?.targetNode ? { q_matrix_node: task.targetNode } : {}),
-        state_snapshot: `Units: ${s.counts.units}, Tens: ${s.counts.tens}, Hundreds: ${s.counts.hundreds}, Thousands: ${s.counts.thousands}`
-      });
+    // Semantic Event Injection. dnd-kit calls this handler BEFORE it commits
+    // the drag (setStatus / dispatch DragStart run after onDragStart in the
+    // same batch), so anything thrown here leaves the block sitting on the
+    // palette with no drag and no error the learner can see. Telemetry is a
+    // side record of the drag, never a precondition for it.
+    try {
+      const studentId = useAuthStore.getState().user?.uid;
+      if (studentId && data) {
+        const s = useWorkspaceStore.getState();
+        const task = getActiveTasks(s)[s.standardTaskIdx] || null;
+        useStore.getState().logSemanticEvent(studentId, {
+          action: 'drag_started',
+          element: data.source === 'palette' ? 'palette_block' : `${data.place}_block`,
+          context: 'User picked up a block',
+          ...(task?.targetNode ? { q_matrix_node: task.targetNode } : {}),
+          state_snapshot: `Units: ${s.counts.units}, Tens: ${s.counts.tens}, Hundreds: ${s.counts.hundreds}, Thousands: ${s.counts.thousands}`
+        });
+      }
+    } catch (err) {
+      console.error('[StudentWorkspacePage] drag_started telemetry failed (drag continues):', err);
     }
   };
 
@@ -808,30 +831,37 @@ export function StudentWorkspacePage() {
       return;
     }
 
-    if (over.kind === 'trash') {
+    // Same rule as handleDragStart: a failure inside the drop's own telemetry
+    // must surface in the console, not as a block that silently refuses to
+    // land — the learner cannot tell a rejected drop from a broken one.
+    try {
+      if (over.kind === 'trash') {
+        applyDrop({
+          source: data.source,
+          sourcePlace: data.place,
+          target: { kind: 'trash' },
+        });
+        return;
+      }
+
+      if (over.kind === 'board') {
+        // Smart Routing: dropping anywhere on the numbers house routes block to its designated column
+        applyDrop({
+          source: data.source,
+          sourcePlace: data.place,
+          target: { kind: 'column', place: data.place },
+        });
+        return;
+      }
+
       applyDrop({
         source: data.source,
         sourcePlace: data.place,
-        target: { kind: 'trash' },
+        target: { kind: 'column', place: over.place },
       });
-      return;
+    } catch (err) {
+      console.error('[StudentWorkspacePage] drop failed:', err);
     }
-
-    if (over.kind === 'board') {
-      // Smart Routing: dropping anywhere on the numbers house routes block to its designated column
-      applyDrop({
-        source: data.source,
-        sourcePlace: data.place,
-        target: { kind: 'column', place: data.place },
-      });
-      return;
-    }
-
-    applyDrop({
-      source: data.source,
-      sourcePlace: data.place,
-      target: { kind: 'column', place: over.place },
-    });
   };
 
   // WP6 / Chaos Scenario 2: Soft Device Lock (נעילת מכשיר רכה — active_device_id)

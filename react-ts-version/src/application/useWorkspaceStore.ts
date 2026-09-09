@@ -1488,7 +1488,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         successStreak: 0,
         awaitingNext: false,
         boardOpen: true,
-        keyboardState: saved.keyboardState ?? (saved.isASD ? 'LOCKED' : 'UNLOCKED'),
+        // The card itself is not restored (helpState closes below), so a
+        // keyboard saved mid-card as SOCRATIC_ONLY resumes as the Module 9 lock
+        // it came from rather than as a state no action can leave.
+        keyboardState: saved.keyboardState === 'SOCRATIC_ONLY' ? 'LOCKED' : (saved.keyboardState ?? (saved.isASD ? 'LOCKED' : 'UNLOCKED')),
         scaffoldFadeLevel: 0,
         errorPlace: null,
         feedback: null,
@@ -2316,7 +2319,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     },
 
     closeHelp: () => {
-      set({ helpState: 'closed' });
+      set((s) => ({
+        helpState: 'closed',
+        // A card closed without a correct answer hands the keyboard back to
+        // the Module 9 lock it came from; SOCRATIC_ONLY with no card open is a
+        // dead end (vraMachine leaves it only on SOCRATIC_SUCCESS). A correct
+        // answer already unlocked the keyboard before this runs.
+        ...(s.keyboardState === 'SOCRATIC_ONLY' ? { keyboardState: 'LOCKED' as KeyboardState } : {}),
+      }));
       if (get().currentState === 'SOCRATIC_ACTIVE') {
         get().transitionTo('PROBLEM_ACTIVE');
       }
@@ -2349,7 +2359,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       }
       const initialHint = SocraticEngine.getSynchronousTaskHint(currentTask, s.counts);
       set((st) => ({
-        keyboardState: 'SOCRATIC_ONLY',
+        // Module 12: the card is non-blocking — the board, undo and the
+        // keyboard stay live while it is open. Only a keyboard that Module 9
+        // already LOCKED moves to SOCRATIC_ONLY (vraMachine: LOCKED →
+        // SOCRATIC_ONLY on hesitation); an open keyboard is never touched.
+        // Forcing SOCRATIC_ONLY from UNLOCKED left the learner in a state that
+        // nothing but a correct card answer could leave, so closing the card
+        // any other way — or reloading with it open — froze the answer row.
+        keyboardState: st.keyboardState === 'LOCKED' ? ('SOCRATIC_ONLY' as KeyboardState) : st.keyboardState,
         helpState: 'socratic',
         currentState: 'SOCRATIC_ACTIVE',
         socraticTriggerReason: reason,
