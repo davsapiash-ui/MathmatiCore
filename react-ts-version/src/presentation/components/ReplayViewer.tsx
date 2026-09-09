@@ -288,7 +288,7 @@ export function ReplayViewer({ events, seekToTime, seekNonce, onEnd, onProgress 
       </div>
 
       {/* Timeline Scrubber */}
-      <div className="w-full bg-slate-850 px-5 py-2.5 border-b border-slate-800 flex items-center gap-3">
+      <div dir="ltr" className="w-full bg-slate-850 px-5 py-2.5 border-b border-slate-800 flex items-center gap-3">
         <input 
           type="range"
           min={0}

@@ -227,7 +227,7 @@ export function LearnerJourney({ studentId }: Props) {
       )}
 
       {/* Meeting strip */}
-      <div className="grid grid-cols-4 lg:grid-cols-8 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
         {SESSION_NUMBERS.map((n) => {
           const evs = eventsBySession.get(n) ?? [];
           const recs = recordingsBySession.get(n) ?? [];
@@ -410,7 +410,7 @@ export function LearnerJourney({ studentId }: Props) {
           </div>
 
           {/* Split screen: table (right in RTL) + player (left) */}
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
             <div className="bg-ws-surface border border-ws-surface2 rounded-2xl overflow-hidden">
               <div className="px-4 py-3 border-b border-ws-surface2 flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm font-black text-ws-ink">

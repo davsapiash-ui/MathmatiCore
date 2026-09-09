@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { FileDown, FileText, Loader2, Sparkles, Users } from 'lucide-react';
+import { FileDown, FileText, Loader2, Sparkles, Users, ChevronDown, ChevronUp } from 'lucide-react';
 import { AI_FALLBACK_TEXT, REPORT_PROCESSING_TEXT, formatClock, formatDate } from '@/infrastructure/services/LearnerJourneyService';
 import {
   fetchClassReport,
@@ -27,6 +27,7 @@ const isMissingReport = (err: unknown): boolean => {
 export function ClassMeetingReportPanel() {
   const [selectedSession, setSelectedSession] = useState<number>(2);
   const [report, setReport] = useState<ClassMeetingReport | null>(null);
+  const [isExpanded, setIsExpanded] = useState<boolean>(false);
   const [state, setState] = useState<'idle' | 'loading' | 'generating' | 'error'>('idle');
   const [error, setError] = useState<string>('');
 
@@ -121,6 +122,17 @@ export function ClassMeetingReportPanel() {
             {state === 'generating' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-amber-300" />}
             {state === 'generating' ? 'קורא את כל הפעולות של המפגש… עד כדקה' : report ? 'הפקה מחדש' : `הפק דוח כיתה למפגש ${selectedSession}`}
           </button>
+          {report && (
+            <button
+              type="button"
+              onClick={() => setIsExpanded((prev) => !prev)}
+              className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border border-ws-surface2 bg-ws-bg text-ws-ink hover:border-ws-accent/40 cursor-pointer transition-colors"
+              title={isExpanded ? 'כווץ פירוט כיתתי' : 'הצג פירוט כיתתי מלא'}
+            >
+              {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              <span>{isExpanded ? 'כווץ פירוט' : 'הצג פירוט כיתתי מלא'}</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -149,7 +161,9 @@ export function ClassMeetingReportPanel() {
             <Stat label="כרטיסי חניכה" value={String(report.socraticCardsTotal)} sub={`היסוסים ${report.hesitationsTotal} · ביטולים ${report.undosTotal} · מחיקות ${report.deletionsTotal}`} />
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          {/* Detailed Section (Collapsible - kept mounted to preserve subscriptions & state) */}
+          <div className={isExpanded ? "space-y-3 pt-1" : "hidden"}>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             <div className="space-y-2">
               {/* Layer 1: working groups */}
               <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-100">
@@ -256,6 +270,7 @@ export function ClassMeetingReportPanel() {
           <div className="text-[11px] text-ws-soft">
             {report.telemetryEventCount} פעולות מתועדות · {report.regroupingsTotal} המרות · {report.reflectionsSubmitted} רפלקציות · זמן פעילות ממוצע {report.activeMinutesMean} דקות
             {report.drivePdfUrl && <> · <a href={report.drivePdfUrl} target="_blank" rel="noopener noreferrer" className="underline">עותק בדרייב</a></>}
+          </div>
           </div>
         </div>
       )}

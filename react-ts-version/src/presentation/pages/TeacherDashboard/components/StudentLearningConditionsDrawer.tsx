@@ -13,9 +13,9 @@ import {
   RotateCcw, 
   Check, 
   BellRing, 
-  Layers
+  Layers,
+  ExternalLink
 } from 'lucide-react';
-import { LearnerJourney } from './LearnerJourney';
 import { ResetConfirmationModal } from './ResetConfirmationModal';
 import { ref, update } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
@@ -26,6 +26,7 @@ interface Props {
   student: StudentData | null;
   onClose: () => void;
   onOpenChat?: (student: StudentData) => void;
+  onOpenFullJourney?: (studentId: string) => void;
 }
 
 export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat }: Props) {
@@ -389,8 +390,34 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat }
           {/* TAB 4: REPLAY & TRACES */}
           {activeTab === 'replay' && (
             <div className="space-y-6 animate-in fade-in duration-200">
-              <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700">
-                <LearnerJourney studentId={student.studentId} />
+              <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 text-center space-y-4 shadow-sm">
+                <div className="w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 flex items-center justify-center mx-auto text-2xl shadow-inner">
+                  <Video className="w-7 h-7 text-indigo-600 dark:text-indigo-400" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900 dark:text-slate-100">
+                    מסע הלמידה ושחזור מהלכים — תלמיד {studentNum}
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 max-w-sm mx-auto leading-relaxed">
+                    תצוגת המסע המלאה כוללת את נגן שחזור הקנבס, ציר ההחלטות מטלמטריה ודוחות הניתוח לכל 8 המפגשים בתצוגת מסך מפוצל רחבה.
+                  </p>
+                </div>
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onOpenFullJourney) {
+                        onOpenFullJourney(student.studentId);
+                      } else {
+                        onClose();
+                      }
+                    }}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold text-xs shadow-md shadow-indigo-600/20 active:scale-95 transition-all cursor-pointer"
+                  >
+                    <span>פתח מסע לומד מלא בדשבורד</span>
+                    <ExternalLink className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </div>
           )}

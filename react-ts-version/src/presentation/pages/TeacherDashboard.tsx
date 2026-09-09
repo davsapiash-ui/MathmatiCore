@@ -105,6 +105,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   const [gateStudent, setGateStudent] = useState<StudentData | null>(null);
   const [floatingChatStudent, setFloatingChatStudent] = useState<StudentData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [diagnosticSelectedSession, setDiagnosticSelectedSession] = useState<number>(2);
 
   // Update active tab and selected student based on route params (PRD 4.3 Navigation Redundancy)
   useEffect(() => {
@@ -1755,29 +1756,71 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                             </div>
 
                             {/* Main Content Row: Q-Matrix & Traces */}
+                            <div className="mb-3 flex items-center justify-between flex-wrap gap-2">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-xs font-bold text-ws-soft ml-1">מפגש לבחינת רובריקות ומיומנויות:</span>
+                                {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
+                                  <button
+                                    key={num}
+                                    type="button"
+                                    onClick={() => setDiagnosticSelectedSession(num)}
+                                    className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                                      diagnosticSelectedSession === num
+                                        ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/20'
+                                        : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-50'
+                                    }`}
+                                  >
+                                    {num === 2 ? 'מפגש 2 (אבחון סמוי)' : `מפגש ${num}`}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
                             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
                               {/* Q-Matrix Report */}
-                              <AccessibleCard className="p-6 bg-white border border-ws-surface2 shadow-md rounded-2xl h-full">
-                                <h3 className="text-xl font-bold text-ws-ink mb-1 flex items-center gap-2">
-                                  <span className="text-ws-accent">📊</span>
-                                  תוצאות האבחון הסמוי (מפגש 2)
-                                </h3>
-                                <p className="text-xs text-ws-soft mb-4">שבע שאלות האבחון של מסמך 03. "שולט" = נפתר נכון בניסיון הראשון.</p>
-                                <div className="grid grid-cols-1 gap-2 text-sm">
-                                  {DIAGNOSTIC_TASKS.map((task, i) => {
-                                    const status = getQStatus((qMatrix as Record<string, unknown>)[task.id]);
-                                    return (
-                                      <div key={task.id} className="flex items-center justify-between gap-3 bg-ws-bg px-3 py-2 rounded-xl border border-ws-surface2">
-                                        <span className="text-ws-ink text-xs font-bold">
-                                          <span className="text-ws-soft ml-1">{i + 1}.</span>
-                                          {task.titleHe}
-                                        </span>
-                                        <span className={`font-semibold text-xs whitespace-nowrap ${status.color}`}>{status.text}</span>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </AccessibleCard>
+                              {diagnosticSelectedSession === 2 ? (
+                                <AccessibleCard className="p-6 bg-white border border-ws-surface2 shadow-md rounded-2xl h-full">
+                                  <h3 className="text-xl font-bold text-ws-ink mb-1 flex items-center gap-2">
+                                    <span className="text-ws-accent">📊</span>
+                                    תוצאות האבחון הסמוי (מפגש 2)
+                                  </h3>
+                                  <p className="text-xs text-ws-soft mb-4">שבע שאלות האבחון של מסמך 03. "שולט" = נפתר נכון בניסיון הראשון.</p>
+                                  <div className="grid grid-cols-1 gap-2 text-sm">
+                                    {DIAGNOSTIC_TASKS.map((task, i) => {
+                                      const status = getQStatus((qMatrix as Record<string, unknown>)[task.id]);
+                                      return (
+                                        <div key={task.id} className="flex items-center justify-between gap-3 bg-ws-bg px-3 py-2 rounded-xl border border-ws-surface2">
+                                          <span className="text-ws-ink text-xs font-bold">
+                                            <span className="text-ws-soft ml-1">{i + 1}.</span>
+                                            {task.titleHe}
+                                          </span>
+                                          <span className={`font-semibold text-xs whitespace-nowrap ${status.color}`}>{status.text}</span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </AccessibleCard>
+                              ) : (
+                                <AccessibleCard className="p-6 bg-white border border-ws-surface2 shadow-md rounded-2xl h-full flex flex-col justify-center items-center text-center">
+                                  <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 flex items-center justify-center mb-3 text-xl">
+                                    📊
+                                  </div>
+                                  <h4 className="text-base font-bold text-ws-ink mb-1">
+                                    מיפוי מיומנויות — מפגש {diagnosticSelectedSession}
+                                  </h4>
+                                  <p className="text-xs text-ws-soft max-w-sm mb-4 leading-relaxed">
+                                    רובריקת שבע משימות האבחון (Q-Matrix) מיוחסת למפגש 2. במפגש {diagnosticSelectedSession} המעקב מבוסס על ציר ההחלטות ודוח הבינה המופיעים למעלה.
+                                  </p>
+                                  <button
+                                    type="button"
+                                    onClick={() => setDiagnosticSelectedSession(2)}
+                                    className="text-xs font-bold px-3.5 py-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-all cursor-pointer flex items-center gap-1.5"
+                                  >
+                                    <span>מעבר לרובריקת אבחון מפגש 2</span>
+                                    <span className="text-indigo-500">←</span>
+                                  </button>
+                                </AccessibleCard>
+                              )}
 
                               {/* Trace Data & AI Plan */}
                               <AccessibleCard className="p-6 border shadow-md rounded-2xl flex flex-col h-full bg-indigo-50/40 border-indigo-100">
@@ -2223,6 +2266,12 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
             student={drawerStudent}
             onClose={() => setDrawerStudent(null)}
             onOpenChat={(st) => setFloatingChatStudent(st)}
+            onOpenFullJourney={(sId) => {
+              setSelectedStudentId(sId);
+              setSelectedReplayStudentId(sId);
+              setActiveTab("diagnostic_reports");
+              setDrawerStudent(null);
+            }}
           />
         )}
 
