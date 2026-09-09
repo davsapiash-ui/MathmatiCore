@@ -130,8 +130,8 @@ describe('QA Battery 3: State Isolation & Leak Check (TeacherDashboard)', () => 
           schoolId: 'school_bikorot',
           name: 'המבקרים',
           teacherId: 'teacher_test_01',
-          activeSessionId: 'session_01',
-          studentCount: 12,
+          studentLimit: 12,
+          createdAt: Date.now(),
         },
       ],
     });

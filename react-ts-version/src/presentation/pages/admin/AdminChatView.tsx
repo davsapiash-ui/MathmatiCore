@@ -159,10 +159,10 @@ export function AdminChatView() {
       });
 
       setInputText("");
-      toast.success("ההודעה נשלחה בהצלחה ונבדקה בשכבת ה-PII!");
+      toast.success("ההודעה נשלחה בהצלחה לאחר אימות פרטיות (Zero PII).");
     } catch (err: any) {
       console.error("Failed to send teacher-admin message:", err);
-      toast.error("שגיאה בשליחת ההודעה דרך ענן הפיירבייס.");
+      toast.error("שגיאה בשליחת ההודעה לשרת.");
     } finally {
       setIsSending(false);
     }
@@ -176,18 +176,18 @@ export function AdminChatView() {
           <div className="flex justify-between items-center">
             <h2 className="font-black text-lg text-slate-800 dark:text-slate-100 flex items-center gap-2">
               <Users className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-              <span>ערוצי תקשורת הנהלה-מורים</span>
+              <span>ערוץ פניות מורים והנהלה</span>
             </h2>
             {unansweredTotal > 0 && (
               <span className="bg-rose-500 text-white text-xs font-black px-2.5 py-1 rounded-full shadow-md animate-pulse">
-                {unansweredTotal} שלא נענו
+                {unansweredTotal} ממתינות למענה
               </span>
             )}
           </div>
 
           <div className="flex items-center gap-1 text-[11px] text-emerald-600 font-bold bg-emerald-50 dark:bg-emerald-950/50 p-2 rounded-xl border border-emerald-200 dark:border-emerald-800">
             <ShieldCheck className="w-4 h-4 shrink-0" />
-            <span>סינון PII דו-שכבתי מופעל: שמות תלמידים מוחלפים במזהים 1–12</span>
+            <span>מנגנון הגנת פרטיות פעיל: שמות התלמידים מוחלפים במספרים 1–12</span>
           </div>
 
           {/* Search Input */}
@@ -211,13 +211,13 @@ export function AdminChatView() {
               onClick={() => setFilterTab("UNANSWERED")}
               className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${filterTab === "UNANSWERED" ? 'bg-rose-600 text-white shadow-sm' : 'bg-slate-200/60 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'}`}
             >
-              שלא נענו ({unansweredTotal})
+              ממתינות למענה ({unansweredTotal})
             </button>
             <button
               onClick={() => setFilterTab("ANSWERED")}
               className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${filterTab === "ANSWERED" ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-200/60 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'}`}
             >
-              נענו
+              טופלו
             </button>
           </div>
         </div>
@@ -252,7 +252,7 @@ export function AdminChatView() {
                         </span>
                         {isUnanswered && (
                           <span className="text-[10px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-200 px-1.5 py-0.5 rounded-md">
-                            ממתין למענה
+                            ממתינה למענה
                           </span>
                         )}
                       </div>
@@ -299,7 +299,7 @@ export function AdminChatView() {
             {/* Messages */}
             <div className="flex-1 p-6 overflow-y-auto flex flex-col gap-4">
               {conversationMessages.length === 0 ? (
-                <div className="m-auto text-slate-400 text-sm">אין הודעות. שלח הודעה כדי להתחיל שיחה.</div>
+                <div className="m-auto text-slate-400 text-sm">אין הודעות בערוץ זה. ניתן לשלוח הודעה כדי לפתוח בשיחה.</div>
               ) : (
                 conversationMessages.map(msg => {
                   const isAdmin = msg.sender_id === "admin";
@@ -330,7 +330,7 @@ export function AdminChatView() {
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                  placeholder="הקלד הודעה ללא פרטים מזהים..."
+                  placeholder="הקלדת הודעה (ללא פרטים מזהים)..."
                   className="flex-1 bg-slate-100 dark:bg-slate-900 border-none rounded-full px-6 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-slate-800 dark:text-slate-100 shadow-inner"
                 />
                 <UdlButton 
@@ -347,7 +347,7 @@ export function AdminChatView() {
         ) : (
           <div className="flex-1 flex items-center justify-center flex-col text-slate-400 gap-4">
             <Users className="w-16 h-16 opacity-20" />
-            <p>בחר מורה מהרשימה כדי להתחיל שיחה</p>
+            <p>יש לבחור מורה מהרשימה לצפייה בשיחה או למענה</p>
           </div>
         )}
       </div>

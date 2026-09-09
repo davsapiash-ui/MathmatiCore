@@ -476,38 +476,6 @@ export function Login() {
                       <span className="text-2xl">🌐</span>
                       <span>{isLoggingIn ? "מאמת נתונים מול Google..." : `כניסה באמצעות Google SSO`}</span>
                     </Button>
-
-                    {/* Quick Evaluation / Authorized Test Access */}
-                    <div className="mt-1 pt-3 border-t border-dashed border-slate-200 dark:border-slate-800">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={async () => {
-                          setIsLoggingIn(true);
-                          setErrorMsg("");
-                          const testEmail = selectedRole === "admin" ? "admin.demo@edu-haifa.org.il" : "davidsep@edu-haifa.org.il";
-                          const testUid = selectedRole === "admin" ? "admin_evaluator" : "teacher_evaluator";
-                          const displayName = selectedRole === "admin" ? "מנהל מערכת (הערכה)" : "מורה מוביל (הערכה)";
-                          setUser(
-                            {
-                              uid: testUid,
-                              email: testEmail,
-                              role: selectedRole,
-                              displayName,
-                            },
-                            selectedRole
-                          );
-                          login(selectedRole, testUid);
-                          setIsLoggingIn(false);
-                          navigate(selectedRole === "teacher" ? "/dashboard" : "/admin", { replace: true });
-                        }}
-                        disabled={isLoggingIn}
-                        className="w-full border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/40 hover:bg-slate-100 font-bold text-xs min-h-[44px]"
-                      >
-                        ⚡ כניסה ישירה כמורשה לבדיקה ({selectedRole === "teacher" ? "מורה" : "מנהל"})
-                      </Button>
-                    </div>
                   </div>
                 )}
               </motion.div>

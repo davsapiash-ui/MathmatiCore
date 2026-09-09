@@ -89,7 +89,7 @@ export function AdminLayout() {
               </div>
               <Logo textClassName="text-slate-900 font-bold text-xl tracking-tight" />
             </div>
-            <p className="text-[11px] text-slate-500 mt-2 tracking-widest uppercase font-bold">פורטל מנהל מערכת</p>
+            <p className="text-[11px] text-slate-500 mt-2 tracking-widest uppercase font-bold">ממשק ניהול מערכת</p>
           </SidebarHeader>
 
           <SidebarContent className="p-4 bg-white">
@@ -117,7 +117,7 @@ export function AdminLayout() {
                   <SidebarMenuButton asChild>
                     <NavLink id="tour-admin-curriculum" to="/admin/curriculum" className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 flex items-center" : "hover:bg-slate-100 text-slate-700 font-semibold transition-colors rounded-xl p-3.5 flex items-center"}>
                       <Layers className="w-5 h-5 ml-3 opacity-90" /> 
-                      <span className="text-sm lg:text-base tracking-wide">הגדרות פדגוגיה</span>
+                      <span className="text-sm lg:text-base tracking-wide">תוכנית לימודים ופדגוגיה</span>
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -126,7 +126,7 @@ export function AdminLayout() {
                   <SidebarMenuButton asChild>
                     <NavLink id="tour-admin-support" to="/admin/support" className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 flex items-center" : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold transition-colors rounded-xl p-3.5 flex items-center"}>
                       <LifeBuoy className="w-5 h-5 ml-3 opacity-90" /> 
-                      <span className="text-sm lg:text-base tracking-wide">מוקד תמיכה וקריאות</span>
+                      <span className="text-sm lg:text-base tracking-wide">מוקד תמיכה ופניות</span>
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -144,7 +144,7 @@ export function AdminLayout() {
                   <SidebarMenuButton asChild>
                     <NavLink id="tour-admin-chat" to="/admin/chat" className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 flex items-center" : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold transition-colors rounded-xl p-3.5 flex items-center"}>
                       <Users className="w-5 h-5 ml-3 opacity-90" /> 
-                      <span className="text-sm lg:text-base tracking-wide">צ'אט הודעות</span>
+                      <span className="text-sm lg:text-base tracking-wide">ערוץ פניות מורים</span>
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -162,7 +162,7 @@ export function AdminLayout() {
                   <SidebarMenuButton asChild>
                     <NavLink id="tour-admin-settings" to="/admin/settings" className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 flex items-center" : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold transition-colors rounded-xl p-3.5 flex items-center"}>
                       <Settings className="w-5 h-5 ml-3 opacity-90" /> 
-                      <span className="text-sm lg:text-base tracking-wide">מערכת ונגישות (UDL)</span>
+                      <span className="text-sm lg:text-base tracking-wide">נגישות ופדגוגיה מותאמת (UDL)</span>
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -197,7 +197,7 @@ export function AdminLayout() {
               </div>
               <div>
                 <h1 className="font-display font-black text-xl md:text-2xl text-slate-900 dark:text-white tracking-tight">
-                  פורטל מנהל מערכת
+                  ממשק ניהול מערכת
                 </h1>
                 <p className="text-xs text-slate-500 font-medium">ניהול מוסדות, מורים, פדגוגיה ואבטחה</p>
               </div>

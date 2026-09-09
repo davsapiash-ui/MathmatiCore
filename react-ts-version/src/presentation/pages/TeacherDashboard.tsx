@@ -1607,7 +1607,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                 דו"חות אבחון אישיים
               </h1>
               <p className="text-ws-soft mt-3 text-lg">
-                תצוגה חכמה המשולבת שחזור מהלכים, נתוני רדאר, פירוט מיומנויות ותוכנית עבודה מותאמת אישית.
+                תצוגה פדגוגית המשלבת שחזור מהלכים, נתוני רדאר, מיפוי מיומנויות והמלצות להוראה מותאמת אישית.
               </p>
             </header>
 
@@ -1674,7 +1674,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                         <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center mx-auto mb-4 text-slate-400">
                           <Users className="w-8 h-8" />
                         </div>
-                        <h3 className="text-xl font-bold text-ws-ink mb-2">בחר תלמיד להצגת דו"ח האבחון</h3>
+                        <h3 className="text-xl font-bold text-ws-ink mb-2">יש לבחור תלמיד מהרשימה להצגת מסע הלמידה ודוח האבחון</h3>
                       </div>
                     ) : (
                       (() => {
@@ -1704,7 +1704,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                 </span>
                                 {s.physicalOverride && (
                                   <span className="bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 text-xs font-bold px-2.5 py-1 rounded-full border border-purple-200 dark:border-purple-800">
-                                    עקיפה פיזית פעילה
+                                    התאמת תנאים ידנית פעילה
                                   </span>
                                 )}
                                 <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${
@@ -1782,9 +1782,9 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                 <AccessibleCard className="p-6 bg-white border border-ws-surface2 shadow-md rounded-2xl h-full">
                                   <h3 className="text-xl font-bold text-ws-ink mb-1 flex items-center gap-2">
                                     <span className="text-ws-accent">📊</span>
-                                    תוצאות האבחון הסמוי (מפגש 2)
+                                    תוצאות מיפוי מיומנויות היסוד (מפגש 2)
                                   </h3>
-                                  <p className="text-xs text-ws-soft mb-4">שבע שאלות האבחון של מסמך 03. "שולט" = נפתר נכון בניסיון הראשון.</p>
+                                  <p className="text-xs text-ws-soft mb-4">שבע משימות אבחון למיפוי מיומנויות יסוד. 'שליטה' מעידה על פתרון מדויק בניסיון ראשון.</p>
                                   <div className="grid grid-cols-1 gap-2 text-sm">
                                     {DIAGNOSTIC_TASKS.map((task, i) => {
                                       const status = getQStatus((qMatrix as Record<string, unknown>)[task.id]);
@@ -1809,14 +1809,14 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                     מיפוי מיומנויות — מפגש {diagnosticSelectedSession}
                                   </h4>
                                   <p className="text-xs text-ws-soft max-w-sm mb-4 leading-relaxed">
-                                    רובריקת שבע משימות האבחון (Q-Matrix) מיוחסת למפגש 2. במפגש {diagnosticSelectedSession} המעקב מבוסס על ציר ההחלטות ודוח הבינה המופיעים למעלה.
+                                    מחוון משימות היסוד מיועד למפגש 2 (מיפוי ראשוני). במפגש {diagnosticSelectedSession} המעקב מתבסס על ציר ההחלטות ועל דוח הלמידה המוצגים למעלה.
                                   </p>
                                   <button
                                     type="button"
                                     onClick={() => setDiagnosticSelectedSession(2)}
                                     className="text-xs font-bold px-3.5 py-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-all cursor-pointer flex items-center gap-1.5"
                                   >
-                                    <span>מעבר לרובריקת אבחון מפגש 2</span>
+                                    <span>צפייה במחוון משימות מפגש 2</span>
                                     <span className="text-indigo-500">←</span>
                                   </button>
                                 </AccessibleCard>
@@ -1842,7 +1842,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                     <div className="flex-1 flex items-center justify-between p-3 bg-white rounded-xl border border-slate-200">
                                       <div className="flex items-center gap-3">
                                         <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-600 text-sm">↩️</div>
-                                        <span className="font-semibold text-sm">ביטולי פעולה (מחיקה/חזרה)</span>
+                                        <span className="font-semibold text-sm">פעולות בקרה וויסות עצמי (מחיקה/חזרה)</span>
                                       </div>
                                       <span className="text-xl font-black text-red-600">{traceData.undo_clicks || 0}</span>
                                     </div>
@@ -1868,7 +1868,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                     <div className="bg-white p-5 rounded-xl border border-indigo-100 shadow-sm">
                                       <h4 className="font-bold text-indigo-900 mb-3 text-lg flex items-center gap-2">
                                         <span className="text-indigo-600">🎯</span>
-                                        המלצות ומסלול אדפטיבי למפגש 3 ואילך:
+                                        המלצות פדגוגיות ומסלול מותאם למפגש 3 ואילך:
                                       </h4>
                                       <div className="flex gap-3">
                                         <UdlButton 
@@ -1879,7 +1879,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                           handleTabChange("approvals");
                                         }}
                                       >
-                                        מעבר למסך אישורים ראשי
+                                        מעבר לשער אישור מסלולים
                                       </UdlButton>
                                       <button
                                         onClick={() => setGateStudent(s)}

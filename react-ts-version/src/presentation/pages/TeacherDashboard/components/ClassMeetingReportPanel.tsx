@@ -120,7 +120,7 @@ export function ClassMeetingReportPanel() {
             className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {state === 'generating' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-amber-300" />}
-            {state === 'generating' ? 'קורא את כל הפעולות של המפגש… עד כדקה' : report ? 'הפקה מחדש' : `הפק דוח כיתה למפגש ${selectedSession}`}
+            {state === 'generating' ? 'מעבד את כל פעולות המפגש… (עד דקה)' : report ? 'הפקה מחדש' : `הפק דוח כיתה למפגש ${selectedSession}`}
           </button>
           {report && (
             <button
@@ -167,7 +167,7 @@ export function ClassMeetingReportPanel() {
             <div className="space-y-2">
               {/* Layer 1: working groups */}
               <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-100">
-                <div className="font-black mb-1">קבוצות עבודה לפי כלל האחוזים</div>
+                <div className="font-black mb-1">חלוקה לקבוצות למידה דיפרנציאליות (לפי רמת הישג)</div>
                 <ul className="space-y-1">
                   {TIER_ORDER.map((tier) => (
                     <li key={tier}>
@@ -184,7 +184,7 @@ export function ClassMeetingReportPanel() {
               {/* Exercises */}
               {report.exercises.length > 0 && (
                 <div className="p-3 rounded-xl bg-ws-bg border border-ws-surface2 overflow-x-auto">
-                  <div className="font-black text-ws-ink mb-1">תרגילים: כמה פתרו בניסיון ראשון</div>
+                  <div className="font-black text-ws-ink mb-1">התפלגות הצלחה בניסיון ראשון לפי תרגיל</div>
                   <table className="w-full text-[11px]">
                     <thead className="text-ws-soft">
                       <tr><th className="text-right">תרגיל</th><th>פתחו</th><th>סיימו</th><th>ניסיון ראשון</th><th>שגויות</th><th>כרטיסים</th><th>היסוסים</th></tr>
@@ -209,7 +209,7 @@ export function ClassMeetingReportPanel() {
 
             {/* Layer 2 */}
             <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-950 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-100 space-y-2">
-              <div className="font-black">ניתוח הבינה לכיתה</div>
+              <div className="font-black">תובנות פדגוגיות כיתתיות</div>
               {report.aiAnalysisAvailable ? (
                 <>
                   <div>
@@ -233,7 +233,7 @@ export function ClassMeetingReportPanel() {
 
           {/* Per-learner table: every individual measurement */}
           <div className="p-3 rounded-xl bg-ws-bg border border-ws-surface2 overflow-x-auto">
-            <div className="font-black text-ws-ink mb-1">טבלת הלומדים: כל מה שנמדד לכל תלמיד</div>
+            <div className="font-black text-ws-ink mb-1">טבלת נתונים מרוכזת: כלל המדדים לפי תלמיד</div>
             <table className="w-full text-[11px] whitespace-nowrap">
               <thead className="text-ws-soft">
                 <tr>

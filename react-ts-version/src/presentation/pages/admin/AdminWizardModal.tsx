@@ -119,7 +119,7 @@ export function AdminWizardModal({
     }
     const email = teacherSsoEmail.trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setTeacherError("נא להזין כתובת דוא\"ל תקינה — זו הכתובת שאיתה המורה תיכנס דרך Google.");
+      setTeacherError("נא להזין כתובת דוא\"ל תקינה — כתובת זו תשמש את המורה בהתחברות דרך Google.");
       return false;
     }
     if (teachers.some(t => (t.ssoEmail || "").toLowerCase() === email)) {
@@ -141,7 +141,7 @@ export function AdminWizardModal({
     }
     const teacherClasses = classes.filter(c => c.teacherId === targetTeacherId);
     if (teacherClasses.length >= 5) {
-      setClassError("מורה זה הגיע למגבלת הפיילוט המרבית של 5 כיתות (מודול 25).");
+      setClassError("מורה זה הגיע למכסת הפיילוט המרבית של 5 כיתות (מודול 25).");
       return false;
     }
     return true;
@@ -203,7 +203,7 @@ export function AdminWizardModal({
       setIsDone(true);
     } catch (err) {
       console.error("Failed to register teacher:", err);
-      setTeacherError("רישום המורה נכשל בשרת. ודא שאתה מחובר כמנהל מערכת ונסה שוב. " + ((err as Error)?.message || ""));
+      setTeacherError("רישום המורה נכשל בשרת. נא לוודא הרשאת מנהל מערכת ולנסות שוב. " + ((err as Error)?.message || ""));
     } finally {
       setIsSubmitting(false);
     }
@@ -217,7 +217,7 @@ export function AdminWizardModal({
     }
     const schoolTeachers = teachers.filter(t => t.schoolId === selectedSchoolId);
     if (schoolTeachers.length === 0) {
-      setClassError("יש להגדיר מורה מוביל למוסד לפני הקמת כיתה.");
+      setClassError("יש להגדיר מורה למוסד לפני הקמת כיתה.");
       return;
     }
     const teacherId = schoolTeachers[0].id;
@@ -319,16 +319,16 @@ export function AdminWizardModal({
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm font-extrabold text-amber-900 dark:text-amber-200">
-                      הכנה לעתיד — אינו פעיל בפיילוט
+                      ניהול מוסדות וכיתות — הערת פיילוט
                     </p>
                     <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
-                      המסכים כאן מוכנים לתמיכה בריבוי מוסדות וכיתות, אך היכולת אינה פעילה
-                      בגרסה הנוכחית. תלמיד מזוהה במערכת לפי מספרו בלבד (1–12), ללא שיוך
-                      לכיתה, ולכן כיתה שנייה תשתף בטעות נתונים עם הכיתה הקיימת — התקדמות,
-                      מסלול מאושר ודוחות. הפיילוט פועל עם כיתה אחת: "המבקרים".
+                      המסכים כאן ערוכים לתמיכה בריבוי מוסדות וכיתות, אך יכולת זו אינה פעילה
+                      בגרסת הפיילוט הנוכחית. תלמיד מזוהה במערכת לפי מספרו הסידורי בלבד (1–12), ללא שיוך
+                      מזהה לכיתה, ולכן כיתה נוספת תחפוף בנתוניה עם הכיתה הקיימת (התקדמות, מסלול מאושר ודוחות).
+                      הפיילוט פועל עם כיתת מחקר אחת: "המבקרים".
                     </p>
                     <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed font-semibold">
-                      הוספת מורים לכיתה הקיימת כן נתמכת במלואה ואינה מושפעת מכך.
+                      הוספת מורים לכיתה הקיימת נתמכת במלואה ואינה מושפעת מכך.
                     </p>
                   </div>
                 </div>
@@ -349,8 +349,8 @@ export function AdminWizardModal({
                   {/* Step Indicators */}
                   {[
                     { num: 1, title: "פרטי מוסד", icon: Building },
-                    { num: 2, title: "מורה מוביל", icon: UserPlus },
-                    { num: 3, title: "כיתה ראשונה", icon: BookOpen },
+                    { num: 2, title: "פרטי מורה", icon: UserPlus },
+                    { num: 3, title: "הגדרת כיתה", icon: BookOpen },
                     { num: 4, title: "סיכום ואישור", icon: CheckCircle2 },
                   ].map((s) => {
                     const IconComponent = s.icon;
@@ -392,12 +392,12 @@ export function AdminWizardModal({
                     <CheckCircle2 className="w-10 h-10" />
                   </div>
                   <h3 className="text-2xl font-black text-slate-900 dark:text-white">
-                    {mode === "add_teacher" ? "המורה נרשם בהצלחה!" : mode === "add_class" ? "הכיתה הוקמה בהצלחה!" : "המוסד הוקם בהצלחה!"}
+                    {mode === "add_teacher" ? "המורה נרשמה בהצלחה במערכת!" : mode === "add_class" ? "הכיתה הוקמה בהצלחה!" : "המוסד הוקם בהצלחה!"}
                   </h3>
                   <p className="text-slate-600 dark:text-slate-400 text-sm max-w-md mx-auto">
                     {mode === "add_teacher"
-                      ? `הרשומה והרשאת הכניסה נשמרו בשרת. המורה יכולה להיכנס עכשיו דרך "כניסת מורים" עם הכתובת ${teacherSsoEmail.trim().toLowerCase()}.`
-                      : "הנתונים נקלטו במערכת וסונכרנו מול מסד הנתונים. המורה והכיתות מוכנים לעבודה."}
+                      ? `הרשומה והרשאת הגישה נשמרו בשרת. המורה יכולה להתחבר כעת דרך "כניסת מורים" באמצעות הכתובת ${teacherSsoEmail.trim().toLowerCase()}.`
+                      : "הנתונים נקלטו במערכת וסונכרנו בהצלחה. המורה והכיתה מוכנים לתחילת עבודה."}
                   </p>
                   <div className="pt-4">
                     <UdlButton 
@@ -572,7 +572,7 @@ export function AdminWizardModal({
 
                         <div>
                           <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1">
-                            מגבלת תלמידים מרבית לכיתה זו (מקסימום 12 לפי מודול 25)
+                            מכסת תלמידים מרבית לכיתה זו (עד 12 תלמידים לפי מודול 25)
                           </label>
                           {mode === "add_class" ? (
                             // A class added here always takes the global limit
@@ -580,13 +580,13 @@ export function AdminWizardModal({
                             // that the save ignored promised a capacity it never set.
                             <div className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-2xl p-3.5 text-sm font-bold flex items-center justify-between">
                               <span>{globalStudentLimit} תלמידים</span>
-                              <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500">לפי המגבלה הגלובלית במסך המוסדות</span>
+                              <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500">בהתאם למכסה המרבית שהוגדרה במסך המוסדות</span>
                             </div>
                           ) : (
                             <input 
-                              type="number"
-                              min="1"
-                              max="12"
+                              type="number" 
+                              min="1" 
+                              max="12" 
                               value={studentLimit}
                               onChange={(e) => {
                                 const val = Math.min(12, Math.max(1, parseInt(e.target.value, 10) || 12));
@@ -613,7 +613,7 @@ export function AdminWizardModal({
                       <div className="bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 space-y-4">
                         <h4 className="font-extrabold text-base text-slate-900 dark:text-white flex items-center gap-2">
                           <ShieldCheck className="w-5 h-5 text-indigo-500" />
-                          אישור תצורת הקמה מוסדית
+                          אישור פרטי ההקמה המוסדית
                         </h4>
 
                         <div className="space-y-3 divide-y divide-slate-200 dark:divide-slate-800 text-sm">
@@ -622,7 +622,7 @@ export function AdminWizardModal({
                             <span className="font-bold text-slate-800 dark:text-slate-100">{schoolName}</span>
                           </div>
                           <div className="pt-3 flex justify-between">
-                            <span className="text-slate-500">מורה מוביל:</span>
+                            <span className="text-slate-500">מורה אחראי:</span>
                             <span className="font-bold text-slate-800 dark:text-slate-100">{teacherName}</span>
                           </div>
                           <div className="pt-3 flex justify-between">
@@ -634,7 +634,7 @@ export function AdminWizardModal({
                             <span className="font-bold text-cyan-600 dark:text-cyan-400">{PILOT_CLASS_NAME}</span>
                           </div>
                           <div className="pt-3 flex justify-between">
-                            <span className="text-slate-500">תפוסה מירבית:</span>
+                            <span className="text-slate-500">מכסת תלמידים:</span>
                             <span className="font-bold text-slate-800 dark:text-slate-200">{studentLimit} תלמידים</span>
                           </div>
                         </div>
@@ -678,7 +678,7 @@ export function AdminWizardModal({
                       disabled={isSubmitting}
                       className="gap-2 px-8 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-500/25 font-bold disabled:opacity-50"
                     >
-                      {isSubmitting ? "מקים מוסד ומסנכרן מול השרת..." : "הקם מוסד ומורה מוביל"}
+                      {isSubmitting ? "מקים מוסד ומסנכרן מול השרת..." : "הקמת מוסד ושיוך מורה"}
                       <CheckCircle2 className="w-5 h-5" />
                     </UdlButton>
                   )
@@ -689,7 +689,7 @@ export function AdminWizardModal({
                     disabled={isSubmitting}
                     className="gap-2 px-8 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold shadow-lg disabled:opacity-50"
                   >
-                    {isSubmitting ? "שומר בשרת..." : "שמור מורה במערכת"}
+                    {isSubmitting ? "שומר בשרת..." : "שמירת מורה במערכת"}
                   </UdlButton>
                 ) : (
                   <UdlButton 
@@ -698,7 +698,7 @@ export function AdminWizardModal({
                     disabled={isSubmitting}
                     className="gap-2 px-8 py-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold shadow-lg disabled:opacity-50"
                   >
-                    {isSubmitting ? "מקים כיתה..." : "הקם כיתה"}
+                    {isSubmitting ? "מקים כיתה..." : "הקמת כיתה"}
                   </UdlButton>
                 )}
               </div>

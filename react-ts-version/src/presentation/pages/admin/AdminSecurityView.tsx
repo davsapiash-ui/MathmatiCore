@@ -66,14 +66,13 @@ export function AdminSecurityView() {
         <div className="relative z-10 space-y-2">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-xs font-semibold">
             <ShieldCheck className="w-3.5 h-3.5" />
-            <span>מדיניות אבטחה נאכפת בצד השרת</span>
+            <span>מדיניות אבטחה והרשאות שרת</span>
           </div>
           <h1 className="text-3xl md:text-4xl font-black tracking-tight text-white">
             ניהול אבטחה וזהויות
           </h1>
           <p className="text-slate-300 text-sm md:text-base font-light max-w-3xl">
-            תצוגת סטטוס בלבד. כללי ההרשאות נאכפים ב-Firestore Rules, ב-Realtime DB Rules
-            וב-Storage Rules, ונפרסים דרך צינור ה-CI — לא מתוך הקונסולה הזו.
+            תצוגת מצב בלבד. כללי האבטחה וההרשאות נאכפים ברמת מסדי הנתונים והאחסון בענן (Firestore, Realtime DB, Storage), ומוחלים אוטומטית בתהליך הפריסה המאובטח.
           </p>
         </div>
       </header>
@@ -86,7 +85,7 @@ export function AdminSecurityView() {
               הזדהות אחידה (SSO)
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              מנגנוני ההזדהות הפעילים בפועל עבור צוות ההוראה.
+              מנגנוני ההזדהות המאובטחים הפעילים עבור צוות ההוראה.
             </p>
           </div>
 
@@ -99,7 +98,7 @@ export function AdminSecurityView() {
             <StatusRow
               active={false}
               title='הזדהות אחידה — משרד החינוך (מנב"סנט)'
-              detail="לא מחוברת. אין אינטגרציה פעילה או מפתחות רשומים במערכת."
+              detail="אינה מחוברת. אין ממשק פעיל או מפתחות גישה מוגדרים במערכת."
             />
           </div>
         </AccessibleCard>
@@ -109,10 +108,10 @@ export function AdminSecurityView() {
             <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
               <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Clock className="w-5 h-5 text-amber-500" />
-                מדיניות ניתוק אוטומטי
+                מדיניות ניתוק בעת חוסר פעילות
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                הערכים שהאפליקציה אוכפת בפועל בכל התחברות.
+                פרקי הזמן הנאכפים במערכת לשמירה על אבטחת החשבון.
               </p>
             </div>
 
@@ -139,31 +138,30 @@ export function AdminSecurityView() {
           <AccessibleCard className="p-6 md:p-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl space-y-4">
             <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
               <Key className="w-5 h-5 text-rose-500" />
-              בקרת גישה, סודות ומפתחות
+              בקרת גישה ומפתחות הצפנה
             </h2>
 
             <ul className="space-y-2.5 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
               <li className="flex gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                <span>תלמיד קורא אך ורק את מסמך התלמיד שלו, וכותב טלמטריה רק כאשר student_id תואם את מזהה ה-Auth שלו (1–12).</span>
+                <span>תלמיד רשאי לצפות אך ורק בנתוני הלמידה האישיים שלו, ולשלוח נתונים אך ורק תחת מזהה הכניסה המאומת שלו (1–12).</span>
               </li>
               <li className="flex gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                <span>מורה קורא נתוני כיתה משויכת בלבד, ורשאי לכתוב שדות אישור שער ופרופיל תמיכה — וחסום משינוי הגדרות ניהול גלובליות.</span>
+                <span>מורה מורשה לצפות בנתוני כיתתו המשויכת בלבד, לאשר מעבר שער ולעדכן פרופילי תמיכה (UDL) — ואינו מורשה לשנות הגדרות מערכת גלובליות.</span>
               </li>
               <li className="flex gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                <span>מפתח ה-Gemini מוחזק ב-Google Cloud Secret Manager ומוזרק לפונקציות בלבד — לעולם לא נחשף ללקוח.</span>
+                <span>מפתח הגישה ל-Gemini מנוהל בצורה מאובטחת בענן (Secret Manager), מוזן לשירותי השרת בלבד ואינו נחשף לעולם לדפדפן הלקוח.</span>
               </li>
               <li className="flex gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                <span>כתיבת דוחות פדגוגיים וגיבויי איפוס מתבצעת אך ורק ב-Admin SDK מצד השרת; ללקוח יש קריאה בלבד.</span>
+                <span>הפקת דוחות פדגוגיים ויצירת גיבויי איפוס מתבצעות אך ורק באמצעות שירותי השרת המאובטחים; בדפדפן מתאפשרת קריאה בלבד.</span>
               </li>
             </ul>
 
             <p className="text-[11px] text-slate-400 dark:text-slate-500 border-t border-slate-100 dark:border-slate-800 pt-3 leading-relaxed">
-              שינוי כללי ההרשאות מתבצע בקבצי firestore.rules · database.rules.json · storage.rules
-              ונפרס אוטומטית במיזוג לענף הראשי.
+              עדכון כללי ההרשאות מתבצע בקובצי האבטחה ונפרס באופן אוטומטי ומבוקר בענן.
             </p>
           </AccessibleCard>
 

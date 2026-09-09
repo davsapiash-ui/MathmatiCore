@@ -165,7 +165,7 @@ export function AdminOverview() {
 
   const handleExportReport = async () => {
     setIsExportingReport(true);
-    toast.info("מייצר דוח מנהלים ומשגר ל-Google Drive...");
+    toast.info("מפיק דוח ניהולי ומעלה ל-Google Drive...");
     try {
       // The only thing that produces the report is the callable. This used to
       // push a copy of the metrics to an RTDB node (`reports`) that no rule
@@ -187,7 +187,7 @@ export function AdminOverview() {
       const link = res.data?.webViewLink;
       toast.success(
         <div className="flex flex-col gap-1">
-          <span className="font-bold">הדוח נוצר והועלה ל-Google Drive ☁️</span>
+          <span className="font-bold">הדוח הופק בהצלחה והועלה ל-Google Drive ☁️</span>
           {res.data?.fileName && <span className="text-xs font-mono" dir="ltr">{res.data.fileName}</span>}
           {link && (
             <a href={link} target="_blank" rel="noreferrer" className="text-xs text-blue-500 underline font-bold mt-1">
@@ -261,13 +261,13 @@ export function AdminOverview() {
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/15 border border-white/25 text-white text-xs font-bold shadow-sm backdrop-blur-md">
               <Zap className="w-4 h-4 text-amber-300" />
-              <span>מרכז שליטה אדמיניסטרטיבי בזמן אמת</span>
+              <span>לוח בקרה ניהולי בזמן אמת</span>
             </div>
             <h1 className="text-3xl md:text-4xl font-black tracking-tight text-white drop-shadow-sm">
               סקירה כללית ומדדי מערכת
             </h1>
             <p className="text-indigo-100 text-sm md:text-base font-normal">
-              ניטור פעילות פלטפורמת MathmatiCore, נפח למידה, אבטחת מידע ותקני פרטיות.
+              מעקב אחר פעילות הלמידה במערכת MathmatiCore, היקף השימוש, אבטחת מידע ותקני פרטיות.
             </p>
           </div>
 
@@ -280,7 +280,7 @@ export function AdminOverview() {
               title="הפקת דוח PDF והעלאה ישירה למרחב השיתופי ב-Google Drive"
             >
               <UploadCloud className="w-4 h-4" />
-              <span>{isExportingReport ? "מעלה ל-Drive..." : "שליחת דוח ישירות ל-Google Drive ☁️"}</span>
+              <span>{isExportingReport ? "מעלה דוח ל-Google Drive..." : "הפקת דוח והעלאה ל-Google Drive ☁️"}</span>
             </UdlButton>
 
             <div className={`flex items-center gap-2.5 backdrop-blur-md border px-4 py-2.5 rounded-2xl text-xs font-bold text-white shadow-md transition-all ${
@@ -293,8 +293,8 @@ export function AdminOverview() {
               }`} />
               <span>
                 {isFirebaseConnected 
-                  ? `סנכרון Realtime DB פעיל${latencyMs !== null ? ` (${latencyMs}ms)` : ''}` 
-                  : 'תקשורת Realtime DB מנותקת'}
+                  ? `סנכרון נתונים פעיל בזמן אמת${latencyMs !== null ? ` (${latencyMs} מ״ש)` : ''}` 
+                  : 'חיבור נתונים בזמן אמת מנותק'}
               </span>
             </div>
           </div>
@@ -307,8 +307,8 @@ export function AdminOverview() {
         <Clock className="w-3.5 h-3.5" />
         <span>
           {cacheUpdatedAt
-            ? `מדדים מצטברים ממטמון האגרגציה · עודכן ${new Date(cacheUpdatedAt).toLocaleString('he-IL')}`
-            : 'מדדים מצטברים ממטמון האגרגציה · ממתין לעדכון השעתי הראשון'}
+            ? `נתונים מצטברים (מרוכזים) · עודכן לאחרונה ב-${new Date(cacheUpdatedAt).toLocaleString('he-IL')}`
+            : 'נתונים מצטברים (מרוכזים) · ממתין לעדכון ראשון'}
         </span>
       </div>
 
@@ -322,7 +322,7 @@ export function AdminOverview() {
               <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{schools.length}</h3>
               <div className="flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold pt-1">
                 <TrendingUp className="w-3.5 h-3.5" />
-                <span>תקן פיילוט מוגדר</span>
+                <span>בהתאם לתקן הפיילוט</span>
               </div>
             </div>
             <div className="w-12 h-12 rounded-2xl bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center border border-blue-500/20">
@@ -356,7 +356,7 @@ export function AdminOverview() {
               <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{totalStudents}</h3>
               <div className="flex items-center gap-1 text-[11px] text-indigo-600 dark:text-indigo-400 font-semibold pt-1">
                 <Activity className="w-3.5 h-3.5" />
-                <span>פעילים בענן</span>
+                <span>רשומים לפיילוט</span>
               </div>
             </div>
             <div className="w-12 h-12 rounded-2xl bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center border border-purple-500/20">
@@ -373,7 +373,7 @@ export function AdminOverview() {
               <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{completionRatePercent}%</h3>
               <div className="flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400 font-semibold pt-1">
                 <ShieldAlert className="w-3.5 h-3.5" />
-                <span>מדד מצטבר ממטמון האגרגציה</span>
+                <span>מדד מרוכז ממסד הנתונים</span>
               </div>
             </div>
             <div className="w-12 h-12 rounded-2xl bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-500/20">
@@ -389,16 +389,16 @@ export function AdminOverview() {
           <div>
             <h2 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
               <BarChart3 className="w-5 h-5 text-indigo-600" />
-              מדדי אגרגציה פדגוגיים מרוכזים (מפגשים 3–8)
+              תמונת מצב פדגוגית מרוכזת (מפגשים 3–8)
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              נתונים מצטברים בלבד (ללא חשיפת נתוני טלמטריה פרטניים להגנת פרטיות קוגניטיבית)
+              נתונים מצרפיים בלבד (ללא חשיפת נתוני למידה פרטניים, להגנה על פרטיות הלומד)
             </p>
           </div>
 
           <div className="flex items-center gap-2">
             <span className="px-3 py-1 bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-bold text-xs rounded-xl border border-indigo-200 dark:border-indigo-800">
-              אנונימיות מוחלטת (Zero PII)
+              אנונימיות מלאה (Zero PII)
             </span>
           </div>
         </div>
@@ -438,10 +438,10 @@ export function AdminOverview() {
             <div>
               <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <BarChart3 className="w-5 h-5 text-purple-500" />
-                תפוסת מוסדות וכיתות
+                התפלגות כיתות ומורים לפי מוסד
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                תפוסת מורים וכיתות לכל מוסד מוקם
+                מספר המורים והכיתות בכל מוסד חינוכי
               </p>
             </div>
 
@@ -475,7 +475,7 @@ export function AdminOverview() {
                 </div>
                 <div>
                   <h4 className="font-bold text-slate-800 dark:text-slate-200">הצפנת נתונים במנוחה (At Rest)</h4>
-                  <p className="text-slate-500">פעיל ותקין ברמת Firebase Realtime DB</p>
+                  <p className="text-slate-500">הצפנה פעילה ברמת מסד הנתונים</p>
                 </div>
               </div>
 
@@ -495,7 +495,7 @@ export function AdminOverview() {
                   <p className="text-slate-500 leading-relaxed">
                     ההקלטות מתעדות שינויי מסך וקנבס בלבד — ללא מצלמה, מיקרופון או שמע (מודול 21).
                     מנהל המערכת אינו ניגש לנתוני לומד פרטניים (מודול 24); איפוס ומחיקה של נתוני
-                    כיתה מתבצעים על ידי המורה מדשבורד הכיתה, עם גיבוי אוטומטי לדרייב לפני המחיקה (מודול 23א).
+                    כיתה מתבצעים על ידי המורה מלוח הבקרה של הכיתה, עם גיבוי אוטומטי ל-Google Drive לפני המחיקה (מודול 23א).
                   </p>
                 </div>
               </div>
@@ -512,7 +512,7 @@ export function AdminOverview() {
               יומן אירועי אבטחה וביקורת (Audit Log)
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              תיעוד רציף של פעולות אדמיניסטרטיביות, שינויי מגבלות והקמת מוסדות
+              תיעוד רציף של פעולות ניהוליות, עדכון מכסות והקמת מוסדות
             </p>
           </div>
 
@@ -522,7 +522,7 @@ export function AdminOverview() {
               <Search className="w-4 h-4 text-slate-400" />
               <input 
                 type="text" 
-                placeholder="חפש ביומן אירועים..."
+                placeholder="חיפוש ביומן אירועים..."
                 value={logSearch}
                 onChange={(e) => setLogSearch(e.target.value)}
                 className="bg-transparent border-none text-slate-900 dark:text-white text-xs focus:outline-none w-36"
@@ -540,7 +540,7 @@ export function AdminOverview() {
                 onClick={() => setLogFilter("ADMIN")}
                 className={`px-3 py-1 rounded-lg transition-all ${logFilter === "ADMIN" ? "bg-indigo-600 text-white shadow" : "text-slate-500"}`}
               >
-                אדמין
+                הנהלה
               </button>
               <button 
                 onClick={() => setLogFilter("TEACHER")}

@@ -166,13 +166,13 @@ export function AdminSchoolsView() {
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 border border-white/25 text-white text-xs font-semibold backdrop-blur-md">
               <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-              <span>ניהול מוסדי מרובה דיירים (Multi-Tenant Management)</span>
+              <span>ניהול מוסדות, סגלי הוראה וכיתות</span>
             </div>
             <h1 className="text-3xl md:text-4xl font-black tracking-tight text-white">
               פריסת מוסדות, מורים וכיתות
             </h1>
             <p className="text-indigo-100 text-sm md:text-base max-w-2xl font-light leading-relaxed">
-              מערכת אדמיניסטרטיבית להקמה וניהול של מוסדות לימוד, שיוך מורים מובילים והגדרת כיתות לימוד בהתאם לתקני פיילוט.
+              מערכת ניהול להקמה ולליווי של מוסדות לימוד, שיוך מורים והגדרת כיתות בהתאם לתקן הפיילוט.
             </p>
           </div>
 
@@ -184,7 +184,7 @@ export function AdminSchoolsView() {
               disabled={isResetting}
             >
               <Trash2 className="w-4 h-4 text-white" />
-              <span>{isResetting ? "מאפס נתונים..." : "🧹 איפוס וניקוי לפיילוט"}</span>
+              <span>{isResetting ? "מאפס נתונים..." : "איפוס נתונים למבנה הפיילוט הרשמי"}</span>
             </UdlButton>
 
             <UdlButton 
@@ -202,7 +202,7 @@ export function AdminSchoolsView() {
         <div className="mt-8 pt-6 border-t border-white/10 grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-white/5 backdrop-blur-md border border-white/10 p-4 rounded-2xl flex items-center justify-between">
             <div>
-              <span className="text-xs text-slate-300 block">מוסדות חינוך מוקמים</span>
+              <span className="text-xs text-slate-300 block">מוסדות חינוך פעילים</span>
               <span className="text-2xl font-black text-indigo-300">{schools.length} / 5</span>
             </div>
             <div className="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-300">
@@ -243,17 +243,16 @@ export function AdminSchoolsView() {
           </div>
           <div className="space-y-1.5">
             <h2 className="text-sm font-extrabold text-amber-900 dark:text-amber-200">
-              ניהול מוסדות וכיתות — הכנה לעתיד, אינו פעיל בפיילוט
+              ניהול מוסדות וכיתות — הערת פיילוט
             </h2>
             <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed max-w-3xl">
-              המסך מוכן לתמיכה בריבוי מוסדות וכיתות, אך היכולת אינה פעילה בגרסה הנוכחית.
-              תלמיד מזוהה במערכת לפי מספרו בלבד (1–12), ללא שיוך לכיתה, ולכן כיתה שנייה
-              תשתף בטעות נתונים עם הכיתה הקיימת — התקדמות, מסלול מאושר ודוחות.
-              הפיילוט פועל עם מוסד אחד וכיתה אחת: "המבקרים".
+              המסך ערוך לתמיכה בריבוי מוסדות וכיתות, אך יכולת זו אינה פעילה בגרסת הפיילוט הנוכחית.
+              תלמיד מזוהה במערכת לפי מספרו הסידורי בלבד (1–12), ללא שיוך מזהה לכיתה, ולכן כיתה נוספת
+              תחפוף בנתוניה עם הכיתה הקיימת (התקדמות, מסלול מאושר ודוחות). הפיילוט פועל עם כיתת מחקר אחת: "המבקרים".
             </p>
             <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed font-semibold">
-              הוספת מורים לכיתה הקיימת כן נתמכת במלואה: מורה מזוהה לפי כתובת המייל שלה,
-              וכל מורה מורשית רואה את אותם 12 הלומדים.
+              הוספת מורים לכיתה הקיימת נתמכת במלואה: כל מורה מזוהה באמצעות כתובת הדוא"ל שלה,
+              וכל המורים המורשים צופים באותם 12 תלמידי הכיתה.
             </p>
           </div>
         </div>
@@ -269,10 +268,10 @@ export function AdminSchoolsView() {
             </div>
             <div>
               <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-                מגבלת תפוסת תלמידים גלובלית
+                מכסת תלמידים מרבית לכיתה
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                מספר התלמידים המרבי המורשה להרשמה לכל כיתת לימוד רגילה
+                מספר התלמידים המרבי המורשה להשתתפות בכל כיתת לימוד (עד 12 תלמידים לפי מודול 25)
               </p>
             </div>
           </div>
@@ -289,7 +288,7 @@ export function AdminSchoolsView() {
               className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-3 rounded-xl shadow-md transition-all shrink-0" 
               onClick={handleSaveLimit}
             >
-              עדכן מגבלה
+              עדכון מכסה
             </UdlButton>
           </div>
         </div>
@@ -380,7 +379,7 @@ export function AdminSchoolsView() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="bg-indigo-50/40 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/40 p-4 rounded-2xl flex items-center justify-between">
                       <div>
-                        <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-1">מורות רשומות</span>
+                        <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-1">סגל הוראה רשום</span>
                         <span className="text-3xl font-black text-indigo-600 dark:text-indigo-400">
                           {schoolTeachers.length}
                         </span>
@@ -414,7 +413,7 @@ export function AdminSchoolsView() {
                     </div>
 
                     {schoolTeachers.length === 0 ? (
-                      <p className="text-xs text-slate-400 italic py-2">טרם נרשמה מורה למוסד זה.</p>
+                      <p className="text-xs text-slate-400 italic py-2">טרם נרשמו מורים למוסד זה.</p>
                     ) : (
                       <div className="space-y-2">
                         {schoolTeachers.map((teacher) => (
@@ -467,14 +466,14 @@ export function AdminSchoolsView() {
                       <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400">
                         כיתות לימוד במוסד:
                       </h4>
-                      <UdlTooltip content="לא זמין בשלב פיתוח">
+                      <UdlTooltip content="אינו זמין בגרסת הפיילוט">
                         <span className="inline-block cursor-not-allowed" tabIndex={0}>
                           <button 
                             type="button"
                             disabled
                             className="text-xs text-slate-400 dark:text-slate-500 font-bold opacity-60 cursor-not-allowed pointer-events-none"
                           >
-                            + הוסף כיתה
+                            + הוספת כיתה
                           </button>
                         </span>
                       </UdlTooltip>
@@ -523,7 +522,7 @@ export function AdminSchoolsView() {
                       רישום מורה
                     </UdlButton>
 
-                    <UdlTooltip content="לא זמין בשלב פיתוח">
+                    <UdlTooltip content="אינו זמין בגרסת הפיילוט">
                       <span className="flex-1 inline-flex cursor-not-allowed" tabIndex={0}>
                         <UdlButton 
                           disabled

@@ -399,7 +399,7 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat }
                     מסע הלמידה ושחזור מהלכים — תלמיד {studentNum}
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 max-w-sm mx-auto leading-relaxed">
-                    תצוגת המסע המלאה כוללת את נגן שחזור הקנבס, ציר ההחלטות מטלמטריה ודוחות הניתוח לכל 8 המפגשים בתצוגת מסך מפוצל רחבה.
+                    התצוגה המלאה כוללת שחזור ויזואלי של לוח התלמיד, ציר החלטות מפורט ודוחות למידה לכל שמונת המפגשים בתצוגת מסך מפוצל.
                   </p>
                 </div>
                 <div className="pt-2">
@@ -414,7 +414,7 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat }
                     }}
                     className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold text-xs shadow-md shadow-indigo-600/20 active:scale-95 transition-all cursor-pointer"
                   >
-                    <span>פתח מסע לומד מלא בדשבורד</span>
+                    <span>מעבר למסע לומד ושחזור מלא</span>
                     <ExternalLink className="w-4 h-4" />
                   </button>
                 </div>

@@ -205,7 +205,7 @@ export function LearnerJourney({ studentId }: Props) {
         <div>
           <h3 className="text-lg font-black text-ws-ink">מסע הלמידה של תלמיד {studentNum}</h3>
           <p className="text-xs text-ws-soft">
-            {sessionsWithData} מתוך 8 מפגשים עם נתונים · {events.length} פעולות מתועדות · {recordings.length} הקלטות
+            נתונים זמינים עבור {sessionsWithData} מתוך 8 מפגשים · {events.length} פעולות מתועדות · {recordings.length} הקלטות
           </p>
         </div>
         <button
@@ -308,7 +308,7 @@ export function LearnerJourney({ studentId }: Props) {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-sm font-black text-ws-ink">
                 <Sparkles className="w-4 h-4 text-amber-500" />
-                דוח הבינה · מפגש {selectedSession}
+                דוח תובנות פדגוגיות · מפגש {selectedSession}
                 {report?.generatedAt && (
                   <span className="text-[11px] font-bold text-ws-soft">הופק {formatDate(report.generatedAt)} {formatClock(report.generatedAt)}</span>
                 )}
@@ -333,7 +333,7 @@ export function LearnerJourney({ studentId }: Props) {
                   className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {reportState === 'generating' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-amber-300" />}
-                  {reportState === 'generating' ? 'הבינה מנתחת… עד כ-20 שניות' : report ? 'הפקה מחדש' : `הפק דוח למפגש ${selectedSession}`}
+                  {reportState === 'generating' ? 'הדוח בעיבוד… (כ-20 שניות)' : report ? 'הפקה מחדש' : `הפק דוח למפגש ${selectedSession}`}
                 </button>
               </div>
             </div>
@@ -351,7 +351,7 @@ export function LearnerJourney({ studentId }: Props) {
                   ? 'אין פעולות מתועדות במפגש זה, ולכן אין דוח.'
                   : reportState === 'loading'
                     ? 'בודק אם כבר יש דוח למפגש זה…'
-                    : 'עדיין לא הופק דוח למפגש זה. הדוח נבנה מהפעולות המתועדות של המפגש: ציון ניסיון ראשון, קבוצת עבודה מומלצת, סיפור התרגילים, פערי ידע והמלצות הוראה.'}
+                    : 'עדיין לא הופק דוח למפגש זה. הדוח נבנה מכלל הפעולות המתועדות במפגש: שיעור ההצלחה בניסיון ראשון, קבוצת עבודה מומלצת, מהלך הפתרון בכל תרגיל, מוקדי קושי שאותרו והמלצות להמשך ההוראה.'}
               </p>
             )}
 
@@ -361,7 +361,7 @@ export function LearnerJourney({ studentId }: Props) {
                   <div className="flex items-center gap-3 p-3 rounded-xl bg-ws-bg border border-ws-surface2">
                     <div className="text-2xl font-black text-ws-ink" dir="ltr">{report.scorePercent}%</div>
                     <div>
-                      <div className="font-bold text-ws-ink">ציון ניסיון ראשון</div>
+                      <div className="font-bold text-ws-ink">הצלחה בניסיון ראשון</div>
                       <div className="text-ws-soft">
                         {report.scoreSource === 'session_document'
                           ? 'ממסמך המפגש'
@@ -377,7 +377,7 @@ export function LearnerJourney({ studentId }: Props) {
                   </div>
                   {report.exerciseNarratives.length > 0 && (
                     <div className="p-3 rounded-xl bg-ws-bg border border-ws-surface2">
-                      <div className="font-black text-ws-ink mb-1">מה קרה בכל תרגיל</div>
+                      <div className="font-black text-ws-ink mb-1">מהלך הפתרון לפי תרגילים</div>
                       <ul className="space-y-1 text-ws-ink">
                         {report.exerciseNarratives.map((n, i) => <li key={i}>• {n}</li>)}
                       </ul>
@@ -385,11 +385,11 @@ export function LearnerJourney({ studentId }: Props) {
                   )}
                 </div>
                 <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-950 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-100 space-y-2">
-                  <div className="font-black">ניתוח הבינה</div>
+                  <div className="font-black">תובנות פדגוגיות וניתוח למידה</div>
                   {report.aiAnalysisAvailable ? (
                     <>
                       <div>
-                        <div className="font-bold mb-1">פערי ידע שאותרו</div>
+                        <div className="font-bold mb-1">מוקדי קושי והבנה שאותרו</div>
                         {report.knowledgeGaps.length > 0
                           ? <ul className="space-y-1">{report.knowledgeGaps.map((g, i) => <li key={i}>• {g}</li>)}</ul>
                           : <div className="opacity-80">לא אותרו פערים בפעולות המתועדות.</div>}
@@ -469,7 +469,7 @@ export function LearnerJourney({ studentId }: Props) {
               <div className="flex items-center justify-between text-xs px-1">
                 <span className="font-black flex items-center gap-1.5">
                   <Video className="w-4 h-4 text-indigo-300" />
-                  הקלטת המסך · מפגש {selectedSession}
+                  שחזור לוח התלמיד · מפגש {selectedSession}
                 </span>
                 <span className="text-slate-400 font-mono" dir="ltr">
                   {sessionRecordings.length > 0 ? `${sessionRecordings.reduce((s, r) => s + r.chunkCount, 0)} chunks` : ''}

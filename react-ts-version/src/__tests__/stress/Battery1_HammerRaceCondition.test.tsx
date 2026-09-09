@@ -161,8 +161,8 @@ describe('QA Battery 1: Hammer & Race-Condition Testing (Multi-Clicks & In-Fligh
           schoolId: 'school_bikorot',
           name: 'המבקרים',
           teacherId: 'teacher_test_01',
-          activeSessionId: 'session_01',
-          studentCount: 12,
+          studentLimit: 12,
+          createdAt: Date.now(),
         },
       ],
     });

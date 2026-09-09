@@ -141,10 +141,10 @@ export function AdminCurriculumView() {
           })
         )
       );
-      toast.success(`קטלוג תוכנית הלימודים פורסם ל-Firestore: ${banks.length} מאגרי משימות! 📚`);
+      toast.success(`תוכנית הלימודים פורסמה בהצלחה: ${banks.length} מאגרי משימות עודכנו במסד הנתונים! 📚`);
     } catch (e) {
       console.error(e);
-      toast.error('שגיאה בפרסום קטלוג תוכנית הלימודים.');
+      toast.error('שגיאה בפרסום תוכנית הלימודים.');
     } finally {
       setIsPublishingCatalog(false);
     }
@@ -159,13 +159,13 @@ export function AdminCurriculumView() {
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/20 border border-purple-400/30 text-purple-300 text-xs font-semibold">
               <BookOpen className="w-3.5 h-3.5" />
-              <span>מודול 26: קטלוג תכנית הלימודים והפצה מרוכזת (Batch)</span>
+              <span>תוכנית הלימודים והפצה מרוכזת (מודול 26)</span>
             </div>
             <h1 className="text-3xl md:text-4xl font-black tracking-tight text-white">
               קטלוג פדגוגי וכיול מנוע הלמידה
             </h1>
             <p className="text-slate-300 text-sm md:text-base font-light">
-              המאגרים בפועל של 8 המפגשים (חובה, ביסוס ואתגר, לפי מסלול), פרסום הקטלוג ל-Firestore וכיול סף ההיסוס של הרדאר.
+              מאגרי המשימות של 8 המפגשים (משימות חובה, ביסוס ואתגר לפי מסלול), פרסום התוכן למסד הנתונים וכיול סף ההיסוס של רדאר הלמידה.
             </p>
           </div>
 
@@ -186,7 +186,7 @@ export function AdminCurriculumView() {
               className="px-5 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs flex items-center gap-2 shadow-lg shadow-indigo-600/30 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
             >
               <BookOpen className="w-4 h-4" />
-              <span>{isPublishingCatalog ? 'מפרסם קטלוג...' : 'פרסום קטלוג ל-Firestore'}</span>
+              <span>{isPublishingCatalog ? 'מפרסם תוכנית לימודים...' : 'פרסום תוכנית הלימודים'}</span>
             </button>
           </div>
         </div>
@@ -201,7 +201,7 @@ export function AdminCurriculumView() {
               קטלוג מפגשי הלמידה (משימות חובה + משימות בחירה לפי מסלול)
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              מה שהלומדים מקבלים בפועל — נגזר מהמאגרים שמפורסמים בכפתור "פרסום קטלוג"
+              מבנה המשימות המוצג לתלמידים — נגזר ישירות ממאגרי התוכן המפורסמים במערכת
             </p>
           </div>
           <span className="text-xs font-bold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950 px-3 py-1.5 rounded-xl border border-purple-200 dark:border-purple-800">
@@ -318,7 +318,7 @@ export function AdminCurriculumView() {
             <div className="bg-slate-50 dark:bg-slate-950/60 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3">
               <div className="flex justify-between items-center">
                 <label className="font-bold text-sm text-slate-800 dark:text-slate-200">
-                  סף זיהוי השהייה (Hesitation Threshold)
+                  סף זיהוי השהיה וחשיבה (Hesitation Threshold)
                 </label>
                 <span className="font-black text-indigo-600 dark:text-indigo-400 text-base font-mono bg-indigo-50 dark:bg-indigo-950 px-3 py-1 rounded-xl border border-indigo-200 dark:border-indigo-800">
                   {hesitationThreshold} שניות
@@ -333,14 +333,14 @@ export function AdminCurriculumView() {
                 className="w-full accent-indigo-600 h-2 bg-slate-200 dark:bg-slate-800 rounded-lg cursor-pointer" 
               />
               <p className="text-xs text-slate-500 leading-relaxed">
-                משך הזמן המרבי (בשניות) שבו הלומד אינו מבצע פעולה יצרנית, בטרם המערכת מתעדת אירוע של "מאבק קוגניטיבי" (Cognitive Struggle).
+                משך הזמן המרבי (בשניות) שבו הלומד משתהה ללא פעולה במרחב הלמידה, בטרם המערכת מתעדת מצב של התלבטות ומאמץ קוגניטיבי.
               </p>
             </div>
 
             {isSaved && (
               <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-xs font-bold rounded-xl flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4" />
-                <span>הגדרות הכיול נשמרו בהצלחה ויוחלו על ניטור הלייב!</span>
+                <span>הגדרות הכיול נשמרו בהצלחה ויוחלו על לוח הבקרה בזמן אמת!</span>
               </div>
             )}
 
@@ -350,7 +350,7 @@ export function AdminCurriculumView() {
               onClick={handleSaveCalibration}
               disabled={isSavingCalibration}
             >
-              {isSavingCalibration ? 'שומר...' : 'שמור הגדרות כיול'}
+              {isSavingCalibration ? 'שומר...' : 'שמירת הגדרות כיול'}
             </UdlButton>
           </div>
         </AccessibleCard>

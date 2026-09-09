@@ -48,7 +48,7 @@ describe('Module 20: the approval gate cannot be bypassed or mis-routed', () => 
 
   it('the canonical RTDB mirror must land or the approval fails loudly', () => {
     expect(gateCore).toMatch(/await update\(ref\(database, `users\/students\/student_user\$\{num\}`\), mirror\);/);
-    expect(gateCore.includes("reason: 'write_failed',\n      message: 'האישור נכתב ב-Firestore")).toBe(true);
+    expect(gateCore).toMatch(/reason:\s*'write_failed',\s*message:\s*'האישור נכתב ב-Firestore/);
   });
 
   it('generating a report no longer bricks the gate: the session allowlist carries the report fields', () => {

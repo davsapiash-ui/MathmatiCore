@@ -219,9 +219,9 @@ export function ReplayViewer({ events, seekToTime, seekNonce, onEnd, onProgress 
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
             </svg>
           </div>
-          <p className="text-slate-800 dark:text-slate-200 font-bold text-xl">אין מספיק נתוני הקלטה עבור סשן זה</p>
+          <p className="text-slate-800 dark:text-slate-200 font-bold text-xl">אין די נתוני הקלטה עבור מפגש זה</p>
           <p className="text-slate-500 text-sm leading-relaxed">
-            המערכת מקליטה את מסך התלמיד באופן אוטומטי בעת ביצוע משימות בשיעור. ברגע שהתלמיד יבצע פעולות על הלוח, ההקלטה תופיע כאן ברציפות.
+            המערכת מקליטה את מסך התלמיד באופן אוטומטי במהלך העבודה. עם ביצוע פעולות על גבי הלוח, השחזור יוצג כאן במלואו.
           </p>
         </div>
       </div>
@@ -245,7 +245,7 @@ export function ReplayViewer({ events, seekToTime, seekNonce, onEnd, onProgress 
           <button 
             onClick={handleRestart}
             className="w-10 h-10 bg-slate-800 hover:bg-slate-700 active:scale-95 rounded-xl flex items-center justify-center text-slate-300 hover:text-white transition-all cursor-pointer"
-            title="חזור לתחילת הסשן"
+            title="חזרה לתחילת המפגש"
           >
             <RotateCcw className="w-4 h-4" />
           </button>

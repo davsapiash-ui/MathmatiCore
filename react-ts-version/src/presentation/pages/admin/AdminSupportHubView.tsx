@@ -141,13 +141,13 @@ export function AdminSupportHubView() {
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-xs font-semibold">
               <LifeBuoy className="w-3.5 h-3.5" />
-              <span>מודול 28: מוקד תמיכה טכנו-פדגוגי מרכזי</span>
+              <span>מוקד תמיכה וסיוע פדגוגי (מודול 28)</span>
             </div>
             <h1 className="text-3xl md:text-4xl font-black tracking-tight text-white">
-              קריאות תמיכה וסיוע בית-ספרי
+              פניות תמיכה וסיוע לצוותי ההוראה
             </h1>
             <p className="text-slate-300 text-sm md:text-base font-light">
-              ניהול ומעקב בזמן אמת אחר פניות מורים, בקשות התאמת מסלול וסיוע טכנולוגי (אנונימי 1-12).
+              מעקב בזמן אמת אחר פניות מורים, בקשות להתאמת מסלול וסיוע במערכת (תוך שמירה על פרטיות התלמידים 1–12).
             </p>
           </div>
 
@@ -160,7 +160,7 @@ export function AdminSupportHubView() {
           <Search className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="חיפוש קריאה לפי נושא, מזהה תלמיד או תיאור..."
+            placeholder="חיפוש פנייה לפי נושא, מספר תלמיד או תיאור..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-4 pr-10 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -195,7 +195,7 @@ export function AdminSupportHubView() {
           {filteredTickets.length === 0 ? (
             <div className="p-12 text-center bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 text-slate-400">
               <LifeBuoy className="w-12 h-12 mx-auto mb-3 opacity-30" />
-              <p className="font-bold text-base">לא נמצאו קריאות תמיכה תואמות</p>
+              <p className="font-bold text-base">לא נמצאו פניות תמיכה תואמות</p>
             </div>
           ) : (
             filteredTickets.map((ticket) => {
@@ -267,14 +267,14 @@ export function AdminSupportHubView() {
               <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
                 <div className="flex justify-between items-start gap-2">
                   <h2 className="font-extrabold text-lg text-slate-900 dark:text-white">
-                    פרטי קריאה
+                    פרטי הפנייה
                   </h2>
                   <div className="flex gap-1.5">
                     <button
                       onClick={() => handleUpdateStatus(selectedTicket.id, 'RESOLVED')}
                       className="px-2.5 py-1 text-xs font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg cursor-pointer transition-all"
                     >
-                      פתור
+                      סמן כנפתרה
                     </button>
                   </div>
                 </div>
@@ -306,20 +306,19 @@ export function AdminSupportHubView() {
                       </div>
                     ))
                   ) : (
-                    <p className="text-xs text-slate-400 italic">טרם נוספו תגובות לקריאה זו.</p>
+                    <p className="text-xs text-slate-400 italic">טרם נוספו תגובות לפנייה זו.</p>
                   )}
                 </div>
               </div>
 
               <p className="text-[11px] text-slate-400 leading-relaxed pt-2 border-t border-slate-100 dark:border-slate-800">
-                מענה למורה נשלח בערוץ השיח הניהולי (מודול 22) תחת "צ׳אט מורים" — שם ההודעה
-                עוברת את שכבת האנונימיזציה בצד השרת לפני הכתיבה.
+                מענה למורה נשלח דרך "ערוץ פניות מורים" — כל הודעה עוברת סינון פרטיות קפדני (Zero PII) בצד השרת טרם שליחתה.
               </p>
             </div>
           ) : (
             <div className="p-8 text-center bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 text-slate-400">
               <MessageSquare className="w-10 h-10 mx-auto mb-2 opacity-30" />
-              <p className="text-xs font-bold">בחר קריאה מהרשימה לצפייה בפרטים ובמענה</p>
+              <p className="text-xs font-bold">יש לבחור פנייה מהרשימה לצפייה בפרטים ובמענה</p>
             </div>
           )}
         </div>
