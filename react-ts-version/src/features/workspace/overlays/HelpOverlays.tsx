@@ -32,9 +32,9 @@ export function HelpOverlays() {
   }, [helpState, helpFrictionDone]);
 
   const aiSocraticHint = useWorkspaceStore((s) => s.aiSocraticHint);
-  const isModal = helpState === 'metacognitive' || helpState === 'worked_example' || (helpState === 'socratic' && !aiSocraticHint);
+  const hasStaticContent = helpState === 'metacognitive' || helpState === 'worked_example' || (helpState === 'socratic' && !aiSocraticHint);
   
-  let content = isModal ? { ...SUPPORT_CONTENT[helpState as SupportType] } : null;
+  let content = hasStaticContent ? { ...SUPPORT_CONTENT[helpState as SupportType] } : null;
   if (content && helpState === 'socratic') {
     const s = useWorkspaceStore.getState();
     const task = getActiveTasks(s)[s.standardTaskIdx];
@@ -119,68 +119,77 @@ export function HelpOverlays() {
         )}
       </AnimatePresence>
 
-      {/* Socratic content side-panel (Quiet side drawer, NO blocking popup/backdrop per PRD v4.2 Modules 10 & 12) */}
+      {/* Socratic content card: non-intrusive floating card (NO blocking backdrop per PRD v4.2 Modules 10 & 12) */}
       <AnimatePresence>
         {helpState === 'socratic' && (
-          <motion.aside
-            initial={{ opacity: 0, x: -30, scale: 0.95 }}
-            animate={{ opacity: 1, x: 0, scale: 1 }}
-            exit={{ opacity: 0, x: -30, scale: 0.95, pointerEvents: 'none' }}
-            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-            /* Sits ABOVE the block palette (the bottom ~10rem of the board), never
-               on it: anchored at bottom-4 the card covered the palette, and the
-               learner could not pick up blocks while it was open. The columns'
-               upper part stays reachable for drops; the palette stays visible. */
-            className="fixed bottom-40 left-4 z-40 max-w-sm sm:max-w-md w-[92vw] sm:w-[420px] bg-ws-surface rounded-3xl shadow-2xl border-2 border-indigo-200 dark:border-indigo-800/80 p-6 pointer-events-auto max-h-[calc(100dvh-14rem)] overflow-y-auto"
-            role="region"
-            aria-label="חונך דיגיטלי סוקרטי"
+          <motion.div
+            key="socratic-overlay-wrapper"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, pointerEvents: 'none' }}
+            className="fixed inset-0 z-40 pointer-events-none flex items-start justify-center pt-16 sm:pt-20 px-4"
             dir="rtl"
+            data-testid="socratic-overlay-wrapper"
           >
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <span className="text-2xl" aria-hidden="true">💡</span>
-                <h2 className="font-display font-black text-lg sm:text-xl text-ws-ink leading-tight">
-                  {aiSocraticHint?.questionHe || content?.titleHe || 'שאלה מנחה לחשיבה'}
-                </h2>
-              </div>
-              <button
-                onClick={closeHelp}
-                aria-label="סגור חלונית עזרה"
-                className="w-8 h-8 rounded-full bg-ws-surface2 hover:bg-ws-surface2/80 text-ws-soft font-bold flex items-center justify-center text-sm transition-colors shrink-0"
-              >
-                ✕
-              </button>
-            </div>
-
-            {content?.kind === 'equivalence' && (
-              /* Visual 10 ↔ ten-units equivalence (vanilla socratic graphic) */
-              <div className="flex items-center justify-center gap-4 mb-4 bg-ws-surface2/50 rounded-2xl p-3" dir="ltr" aria-hidden="true">
-                <div className="w-[80px] h-[10px] rounded-[2px]" style={{ backgroundColor: 'var(--block-ten)' }} />
-                <span className="font-black text-xl text-ws-soft">=</span>
-                <div className="flex gap-0.5">
-                  {Array.from({ length: 10 }).map((_, i) => (
-                    <span key={i} className="w-2.5 h-2.5 rounded-[1px] inline-block" style={{ backgroundColor: 'var(--block-unit)' }} />
-                  ))}
+            <motion.aside
+              initial={{ opacity: 0, y: -20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -20, scale: 0.95, pointerEvents: 'none' }}
+              transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+              /* Floats cleanly docked near top-center / above board columns so active
+                 place-value columns and the bottom block palette remain 100% visible and unblocked.
+                 Outer wrapper has pointer-events-none; only this card has pointer-events-auto. */
+              className="pointer-events-auto max-w-sm sm:max-w-md w-[92vw] sm:w-[440px] bg-ws-surface rounded-3xl shadow-2xl border-2 border-indigo-200 dark:border-indigo-800/80 p-6 max-h-[calc(100dvh-6rem)] overflow-y-auto"
+              role="region"
+              aria-label="חונך דיגיטלי סוקרטי"
+              data-testid="socratic-card"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl" aria-hidden="true">💡</span>
+                  <h2 className="font-display font-black text-lg sm:text-xl text-ws-ink leading-tight">
+                    {aiSocraticHint?.questionHe || content?.titleHe || 'שאלה מנחה לחשיבה'}
+                  </h2>
                 </div>
+                <button
+                  onClick={closeHelp}
+                  aria-label="סגור חלונית עזרה"
+                  className="w-8 h-8 rounded-full bg-ws-surface2 hover:bg-ws-surface2/80 text-ws-soft font-bold flex items-center justify-center text-sm transition-colors shrink-0"
+                >
+                  ✕
+                </button>
               </div>
-            )}
 
-            {content?.lines && content.lines.length > 0 && !aiSocraticHint && (
-              <ul className="flex flex-col gap-2 mb-3">
-                {content.lines.map((line, i) => (
-                  <li key={i} className="flex items-start gap-2 text-base text-ws-ink leading-relaxed font-semibold">
-                    <span className="text-ws-accent font-black shrink-0 mt-0.5" aria-hidden="true">
-                      {content.kind === 'checklist' ? '✔' : content.kind === 'worked_example' ? `${i + 1}.` : '•'}
-                    </span>
-                    {line}
-                  </li>
-                ))}
-              </ul>
-            )}
+              {content?.kind === 'equivalence' && (
+                /* Visual 10 ↔ ten-units equivalence (vanilla socratic graphic) */
+                <div className="flex items-center justify-center gap-4 mb-4 bg-ws-surface2/50 rounded-2xl p-3" dir="ltr" aria-hidden="true">
+                  <div className="w-[80px] h-[10px] rounded-[2px]" style={{ backgroundColor: 'var(--block-ten)' }} />
+                  <span className="font-black text-xl text-ws-soft">=</span>
+                  <div className="flex gap-0.5">
+                    {Array.from({ length: 10 }).map((_, i) => (
+                      <span key={i} className="w-2.5 h-2.5 rounded-[1px] inline-block" style={{ backgroundColor: 'var(--block-unit)' }} />
+                    ))}
+                  </div>
+                </div>
+              )}
 
-            {/* 3 Closed Dynamic Options for Socratic Mentoring */}
-            <SocraticPenaltyLockOptions onClose={closeHelp} />
-          </motion.aside>
+              {content?.lines && content.lines.length > 0 && !aiSocraticHint && (
+                <ul className="flex flex-col gap-2 mb-3">
+                  {content.lines.map((line, i) => (
+                    <li key={i} className="flex items-start gap-2 text-base text-ws-ink leading-relaxed font-semibold">
+                      <span className="text-ws-accent font-black shrink-0 mt-0.5" aria-hidden="true">
+                        {content.kind === 'checklist' ? '✔' : content.kind === 'worked_example' ? `${i + 1}.` : '•'}
+                      </span>
+                      {line}
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {/* 3 Closed Dynamic Options for Socratic Mentoring */}
+              <SocraticPenaltyLockOptions onClose={closeHelp} />
+            </motion.aside>
+          </motion.div>
         )}
 
         {content && helpState !== 'socratic' && (

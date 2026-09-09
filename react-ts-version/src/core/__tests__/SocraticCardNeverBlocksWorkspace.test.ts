@@ -1,6 +1,12 @@
+/**
+ * @vitest-environment jsdom
+ */
+import React from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
+import { render, screen, fireEvent, act } from '@testing-library/react';
+import { DndContext } from '@dnd-kit/core';
 
 /**
  * Two live regressions from meeting 1, exercise 3 ("בניית מספרים עגולים"):
@@ -41,24 +47,19 @@ const mockLocalStorage = {
   removeItem: vi.fn((key: string) => { delete mockStorage[key]; }),
   clear: vi.fn(() => { Object.keys(mockStorage).forEach((k) => delete mockStorage[k]); }),
 };
+if (typeof window !== 'undefined') {
+  Object.defineProperty(window, 'localStorage', { value: mockLocalStorage, writable: true, configurable: true });
+  Object.defineProperty(window, 'sessionStorage', { value: mockLocalStorage, writable: true, configurable: true });
+}
 (globalThis as any).localStorage = mockLocalStorage;
 (globalThis as any).sessionStorage = mockLocalStorage;
-if (typeof (globalThis as any).window === 'undefined') {
-  (globalThis as any).window = {
-    location: { hostname: 'test' },
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    setInterval: globalThis.setInterval,
-    clearInterval: globalThis.clearInterval,
-    setTimeout: globalThis.setTimeout,
-    clearTimeout: globalThis.clearTimeout,
-  };
-}
 
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { useAuthStore, unifiedLogout } from '@/application/useAuthStore';
 import { useStore } from '@/application/useStore';
 import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
+import { HelpOverlays } from '@/features/workspace/overlays/HelpOverlays';
+import { PlaceValueBoard } from '@/features/workspace/board/PlaceValueBoard';
 
 const read = (rel: string) => readFileSync(resolve(__dirname, '../../', rel), 'utf-8').replace(/\r\n/g, '\n');
 
@@ -157,6 +158,204 @@ describe('Module 12: the coaching card never blocks the number house', () => {
     for (const exit of exits) {
       expect(exit).toContain("pointerEvents: 'none'");
     }
+  });
+
+  it('strictly isolates Socratic lifecycle from board locks: isBoardLocked stays false across open, lock, and close', () => {
+    startMeeting1AtExercise3();
+    const store = useWorkspaceStore.getState();
+    expect(store.isBoardLocked).toBe(false);
+
+    // 1. Open card
+    store.openSocraticCard('hesitation_45s');
+    expect(useWorkspaceStore.getState().helpState).toBe('socratic');
+    expect(useWorkspaceStore.getState().isBoardLocked).toBe(false);
+
+    // 2. Trigger penalty lockout
+    store.triggerSocraticPenaltyLockout('Test distractor hint');
+    expect(useWorkspaceStore.getState().isSocraticCardLocked).toBe(true);
+    expect(useWorkspaceStore.getState().isBoardLocked).toBe(false);
+
+    // 3. Explicit card lock/unlock
+    store.lockSocraticCard(10000);
+    expect(useWorkspaceStore.getState().isBoardLocked).toBe(false);
+
+    store.unlockSocraticCard();
+    expect(useWorkspaceStore.getState().isBoardLocked).toBe(false);
+
+    store.clearSocraticPenaltyLockout();
+    expect(useWorkspaceStore.getState().isBoardLocked).toBe(false);
+
+    // 4. Close help
+    store.closeHelp();
+    expect(useWorkspaceStore.getState().helpState).toBe('closed');
+    expect(useWorkspaceStore.getState().isBoardLocked).toBe(false);
+
+    // 5. Board drop continues to work uninhibited
+    useWorkspaceStore.getState().applyDrop({
+      source: 'palette',
+      sourcePlace: 'tens',
+      target: { kind: 'column', place: 'tens' },
+    });
+    expect(useWorkspaceStore.getState().counts.tens).toBe(1);
+  });
+
+  it('renders interactive component tree: outer wrapper has pointer-events-none, card has pointer-events-auto, and board receives pointer/drag events unimpeded', () => {
+    startMeeting1AtExercise3();
+    useWorkspaceStore.getState().openSocraticCard('hesitation_45s');
+    expect(useWorkspaceStore.getState().helpState).toBe('socratic');
+    expect(useWorkspaceStore.getState().isBoardLocked).toBe(false);
+
+    const onBoardPointerDown = vi.fn();
+    const onBoardPointerMove = vi.fn();
+    const onBoardPointerUp = vi.fn();
+    const onBoardClick = vi.fn();
+    const onBlockDragStart = vi.fn();
+
+    const { container, unmount } = render(
+      React.createElement(
+        'div',
+        { id: 'workspace-viewport', style: { position: 'relative', width: '1200px', height: '800px' } },
+        // Simulated board column container underneath the overlay
+        React.createElement(
+          'section',
+          {
+            'data-testid': 'place-value-board',
+            'aria-label': 'טבלת ערך המקום',
+            onPointerDown: onBoardPointerDown,
+            onPointerMove: onBoardPointerMove,
+            onPointerUp: onBoardPointerUp,
+            onClick: onBoardClick,
+            style: { position: 'absolute', inset: 0, zIndex: 1 },
+          },
+          React.createElement(
+            'div',
+            {
+              'data-testid': 'place-column-units',
+              id: 'column-units',
+              style: { width: '200px', height: '300px' },
+            },
+            React.createElement(
+              'div',
+              {
+                'data-testid': 'dienes-block-unit',
+                draggable: true,
+                onDragStart: onBlockDragStart,
+              },
+              'בלוק יחידה'
+            )
+          )
+        ),
+        // Socratic overlay
+        React.createElement(HelpOverlays, null)
+      )
+    );
+
+    // Assert Socratic overlay wrapper architecture
+    const wrapper = screen.getByTestId('socratic-overlay-wrapper');
+    expect(wrapper).toBeDefined();
+    // a. Outer fullscreen/fixed wrapper MUST have pointer-events-none
+    expect(wrapper.className).toContain('pointer-events-none');
+    expect(wrapper.className).toContain('fixed');
+    expect(wrapper.className).toContain('inset-0');
+    // Docked floating near top-center
+    expect(wrapper.className).toContain('justify-center');
+    expect(wrapper.className).toContain('items-start');
+
+    // b. Inner card container MUST have pointer-events-auto
+    const card = screen.getByTestId('socratic-card');
+    expect(card).toBeDefined();
+    expect(card.className).toContain('pointer-events-auto');
+
+    // c. Strictly NO invisible backdrop, scrim, or modal overlay element
+    expect(container.querySelector('.bg-ws-ink\\/50.backdrop-blur-sm')).toBeNull();
+    expect(screen.queryByRole('dialog', { name: 'חונך דיגיטלי' })).toBeNull();
+
+    // d. Simulate pointer / drag interactions on the board beneath the Socratic card
+    const columnElement = screen.getByTestId('place-column-units');
+    const blockElement = screen.getByTestId('dienes-block-unit');
+
+    fireEvent.pointerDown(columnElement, { clientX: 150, clientY: 200, bubbles: true });
+    expect(onBoardPointerDown).toHaveBeenCalledTimes(1);
+
+    fireEvent.pointerMove(columnElement, { clientX: 160, clientY: 210, bubbles: true });
+    expect(onBoardPointerMove).toHaveBeenCalledTimes(1);
+
+    fireEvent.pointerUp(columnElement, { clientX: 160, clientY: 210, bubbles: true });
+    expect(onBoardPointerUp).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(columnElement, { bubbles: true });
+    expect(onBoardClick).toHaveBeenCalledTimes(1);
+
+    fireEvent.dragStart(blockElement, { bubbles: true });
+    expect(onBlockDragStart).toHaveBeenCalledTimes(1);
+
+    // Board drops function unblocked while card is open
+    expect(useWorkspaceStore.getState().isBoardLocked).toBe(false);
+    act(() => {
+      useWorkspaceStore.getState().applyDrop({
+        source: 'palette',
+        sourcePlace: 'units',
+        target: { kind: 'column', place: 'units' },
+      });
+    });
+    expect(useWorkspaceStore.getState().counts.units).toBe(1);
+
+    // Card's own buttons remain interactive
+    const closeBtn = screen.getByRole('button', { name: 'סגור חלונית עזרה' });
+    expect(closeBtn).toBeDefined();
+    act(() => {
+      fireEvent.click(closeBtn);
+    });
+
+    expect(useWorkspaceStore.getState().helpState).toBe('closed');
+    expect(useWorkspaceStore.getState().isBoardLocked).toBe(false);
+
+    unmount();
+  });
+
+  it('renders live PlaceValueBoard and HelpOverlays together: block palette drag and column drops work without interception', () => {
+    startMeeting1AtExercise3();
+    useWorkspaceStore.getState().openSocraticCard('hesitation_45s');
+    expect(useWorkspaceStore.getState().isBoardLocked).toBe(false);
+
+    const onDropSpy = vi.fn();
+    const { unmount } = render(
+      React.createElement(
+        DndContext,
+        { onDragEnd: onDropSpy },
+        React.createElement(
+          'div',
+          { style: { position: 'relative' } },
+          React.createElement(PlaceValueBoard, null),
+          React.createElement(HelpOverlays, null)
+        )
+      )
+    );
+
+    // Verify PlaceValueBoard elements are rendered
+    const board = screen.getByLabelText('טבלת ערך המקום');
+    expect(board).toBeDefined();
+
+    // Verify Socratic wrapper has pointer-events-none and card has pointer-events-auto
+    const wrapper = screen.getByTestId('socratic-overlay-wrapper');
+    expect(wrapper.className).toContain('pointer-events-none');
+    const card = screen.getByTestId('socratic-card');
+    expect(card.className).toContain('pointer-events-auto');
+
+    // Verify isBoardLocked is false so block palette is interactive
+    expect(useWorkspaceStore.getState().isBoardLocked).toBe(false);
+
+    // Verify dropping a block into PlaceValueBoard updates counts
+    act(() => {
+      useWorkspaceStore.getState().applyDrop({
+        source: 'palette',
+        sourcePlace: 'tens',
+        target: { kind: 'column', place: 'tens' },
+      });
+    });
+    expect(useWorkspaceStore.getState().counts.tens).toBe(1);
+
+    unmount();
   });
 });
 
