@@ -6,7 +6,7 @@ import { useStore } from "@/application/useStore";
 import { useWorkspaceStore } from "@/application/useWorkspaceStore";
 import { useAdminStore } from "@/application/useAdminStore";
 import { useChatStore, normalizeStudentId } from "@/application/useChatStore";
-import { validateZeroPIIPayload, containsPII } from "@/core/security/PiiFilter";
+import { containsPII } from "@/core/security/PiiFilter";
 import { indexedDBQueue } from "@/infrastructure/services/IndexedDBQueue";
 
 export interface ClassSchema {
@@ -90,16 +90,6 @@ export function stampStudentWindowClosed() {
     }
   } catch {}
 }
-
-const getGlobalStorage = (): Storage | null => {
-  try {
-    if (typeof sessionStorage !== 'undefined') return sessionStorage;
-    if (typeof localStorage !== 'undefined') return localStorage;
-    return null;
-  } catch {
-    return null;
-  }
-};
 
 const getStoredAuth = () => {
   try {

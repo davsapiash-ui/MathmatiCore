@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { useStore } from '@/application/useStore';
 import { useAuthStore, stampStudentWindowClosed, touchStudentActivity } from '@/application/useAuthStore';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { useActiveClassSession } from '@/application/useActiveClassSession';
@@ -75,16 +74,13 @@ const SESSIONS_CONFIG: Record<number, ActiveSessionConfig> = {
 export function StudentHub() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
-  const students = useStore((s) => s.students);
-  const startSession = useWorkspaceStore((s) => s.startSession);
 
   const uid = user?.uid || '';
   const normUid = normalizeStudentId(uid);
-  const currentStudent = uid ? students[uid] || students[normUid] : null;
 
   const [activeSessionId, setActiveSessionId] = useState<number>(1);
   const [highestCompletedMeeting, setHighestCompletedMeeting] = useState<number>(0);
-  const [liveRouteStatus, setLiveRouteStatus] = useState<string | null>(null);
+  const [, setLiveRouteStatus] = useState<string | null>(null);
   const [isTeacherGateApproved, setIsTeacherGateApproved] = useState<boolean>(false);
   const [hasCompletedSession2, setHasCompletedSession2] = useState<boolean>(false);
 

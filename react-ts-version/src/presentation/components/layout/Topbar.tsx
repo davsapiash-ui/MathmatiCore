@@ -1,9 +1,5 @@
 import { useAuthStore } from '@/application/useAuthStore';
 import { useLocation } from 'react-router-dom';
-import { Bell, UserCircle } from 'lucide-react';
-import { UdlButton } from '@/presentation/design-system/UdlButton';
-import { motion } from 'framer-motion';
-import { useChatStore } from '@/application/useChatStore';
 import { LogoutButton } from '@/presentation/components/ui/LogoutButton';
 import { Logo } from '@/presentation/components/ui/Logo';
 
@@ -19,9 +15,6 @@ export function Topbar() {
   const { user } = useAuthStore();
   const { pathname } = useLocation();
   const title = titleForPath(pathname);
-  
-  const { messages } = useChatStore();
-  const unreadCount = messages.filter(m => m.receiverId === user?.uid && !m.read).length;
 
   return (
     <header className="h-18 sm:h-20 bg-white/80 dark:bg-slate-900/60 backdrop-blur-xl border-b border-slate-200/60 dark:border-slate-800 flex items-center justify-between px-6 sm:px-8 z-10 sticky top-0 shadow-sm transition-colors duration-300">

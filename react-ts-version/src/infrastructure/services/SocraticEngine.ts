@@ -1,9 +1,5 @@
-import { ref, push, set, get, remove, serverTimestamp, update } from "firebase/database";
-import { database, functions, authReady } from "@/infrastructure/firebase";
+import { functions, authReady } from "@/infrastructure/firebase";
 import { httpsCallable } from "firebase/functions";
-import type { SessionTask } from "@/data/sessionTasks";
-import type { QMatrixResults } from "@/core/QMatrix";
-import { AuditLogger } from "@/infrastructure/services/AuditLogger";
 import type { GeminiSocraticRequest, GeminiSocraticResponse, GeminiSocraticOption } from "@/types";
 import type { TelemetryEventType, TelemetryPayload } from "@/types/telemetry";
 import { normalizeStudentId } from "@/application/useChatStore";

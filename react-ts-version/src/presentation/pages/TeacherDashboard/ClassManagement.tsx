@@ -1,13 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useAdminStore } from '@/application/useAdminStore';
-import { Users, Check, Lock, Sparkles, ChevronRight, Zap, CheckCircle2, Sliders, ShieldCheck, RotateCcw } from 'lucide-react';
+import { Users, Sparkles, ChevronRight, Zap, CheckCircle2, Sliders, ShieldCheck, RotateCcw } from 'lucide-react';
 import { useStore, type StudentData } from '@/application/useStore';
 import { HeatmapGrid } from './components/HeatmapGrid';
 import { ResetConfirmationModal } from './components/ResetConfirmationModal';
-import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
-import { ref, onValue, update, get, remove } from 'firebase/database';
+import { ref, onValue, update } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
-import { useChatStore, normalizeStudentId } from '@/application/useChatStore';
+import { normalizeStudentId } from '@/application/useChatStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { approveTeacherGate } from '@/core/teacherGate';
 import { hasEnhancedSupport, buildSupportProfilePayload } from '@/core/supportProfile';
@@ -45,20 +43,13 @@ const INITIAL_GATE_STUDENTS: StudentGateState[] = Array.from({ length: 12 }, (_,
  * 4. אכיפת מגבלת 12 תלמידים פעילים לכיתת המבקרים תחת בית ספר ביקורת.
  */
 export function ClassManagement({ 
-  allStudents, 
   onDrillDown 
 }: { 
   allStudents: StudentData[]; 
   onDrillDown?: (studentId: string) => void 
 }) {
-  const classes = useAdminStore(s => s.classes);
-  const schools = useAdminStore(s => s.schools);
   const [studentStates, setStudentStates] = useState<StudentGateState[]>(INITIAL_GATE_STUDENTS);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
-
-  // We're working with a single default school & class based on the strict hierarchy with reliable fallback
-  const currentClass = classes.length > 0 ? classes[0] : { id: 'class_1', name: 'המבקרים', schoolId: 'school_bikorot', studentLimit: 12 };
-  const currentSchool = schools.find(s => s.id === currentClass?.schoolId) || schools[0] || { id: 'school_bikorot', name: 'בית ספר ביקורת' };
 
   useEffect(() => {
     const studentsRef = ref(database, 'users/students');

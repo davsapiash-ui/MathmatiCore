@@ -179,7 +179,7 @@ export const useTeacherStore = create<TeacherDashboardState>((set, get) => ({
     });
   },
 
-  approveTeacherGate: (studentId: number, selectedPath: PedagogicalPath, teacherId: string) => {
+  approveTeacherGate: (studentId: number, selectedPath: PedagogicalPath, _teacherId: string) => {
     if (studentId < 1 || studentId > 12) return;
     set((state) => {
       const current = state.studentsGrid[studentId];
@@ -197,7 +197,7 @@ export const useTeacherStore = create<TeacherDashboardState>((set, get) => ({
     });
   },
 
-  assignSupportProfile: (studentId: number, profileId: string | null, teacherId: string) => {
+  assignSupportProfile: (studentId: number, profileId: string | null, _teacherId: string) => {
     if (studentId < 1 || studentId > 12) return;
     set((state) => {
       const current = state.studentsGrid[studentId];

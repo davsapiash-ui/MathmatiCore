@@ -22,9 +22,7 @@ export function PlaceValueBoard({
   activeDragPlace?: Place | null;
 }) {
   const boardOpen = useWorkspaceStore((s) => s.boardOpen);
-  const scaffoldFadeLevel = useWorkspaceStore((s) => s.scaffoldFadeLevel);
   const scaffoldLevel = useWorkspaceStore(selectScaffoldLevel);
-  const restoreScaffolds = useWorkspaceStore((s) => s.restoreScaffolds);
   const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
   const isBoardLocked = useWorkspaceStore((s) => s.isBoardLocked);
   const [showSession8Priming, setShowSession8Priming] = useState(true);

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useDroppable } from '@dnd-kit/core';
-import { motion, useAnimationControls, AnimatePresence } from 'framer-motion';
+import { motion, useAnimationControls } from 'framer-motion';
 import { MAX_VISIBLE_BLOCKS, PLACE_NAMES_HE, type Place } from '@/core/placeValue';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { DienesBlock } from './DienesBlock';
@@ -18,7 +18,6 @@ export function PlaceColumn({ place, activeDragPlace }: { place: Place; activeDr
   const errorPlace = useWorkspaceStore((s) => s.errorPlace);
   const errorNonce = useWorkspaceStore((s) => s.errorNonce);
   const focusedPlace = useWorkspaceStore((s) => s.focusedPlace);
-  const isASD = useWorkspaceStore((s) => s.isASD);
   const groupColumnClick = useWorkspaceStore((s) => s.groupColumnClick);
   const splitBlockClick = useWorkspaceStore((s) => s.splitBlockClick);
   const removeBlockClick = useWorkspaceStore((s) => s.removeBlockClick);
@@ -35,7 +34,6 @@ export function PlaceColumn({ place, activeDragPlace }: { place: Place; activeDr
   // every pointer-move frame during a drag, which was the source of drag lag.
   const isPreviewingDecomp = isOver && place === 'units' && activeDragPlace === 'tens';
 
-  const scaffoldFadeLevel = useWorkspaceStore((s) => s.scaffoldFadeLevel);
 
   const colors = COLUMN_COLORS[place];
   const renderCount = Math.min(count, MAX_VISIBLE_BLOCKS);
@@ -55,8 +53,6 @@ export function PlaceColumn({ place, activeDragPlace }: { place: Place; activeDr
       shakeControls.start({ x: [0, -8, 8, -6, 6, -3, 3, 0], transition: { duration: 0.4 } });
     }
   }, [errorNonce, isError, shakeControls]);
-
-  const isHighlighted = scaffoldFadeLevel === 0;
 
   return (
     <motion.div

@@ -768,7 +768,7 @@ export class FirebaseSyncService {
     if (typeof window === 'undefined' || !studentId) return;
     try {
       localStorage.removeItem(`mathmaticore_session_cache_${studentId}`);
-    } catch (_e) {
+    } catch {
       // ignore
     }
   }
@@ -797,7 +797,7 @@ export class FirebaseSyncService {
     try {
       const milestoneRef = push(ref(database, `users/students/${studentId}/milestones`));
       await set(milestoneRef, milestonePayload);
-    } catch (_e) {
+    } catch {
       this.enqueueOfflineTransaction(`users/students/${studentId}/milestones`, milestonePayload);
     }
   }
@@ -1431,7 +1431,7 @@ export const syncQMatrix = (studentId: string, qMatrixUpdates: any) =>
 export const syncConceptMastery = (studentId: string, masteryUpdates: any) =>
   firebaseSyncService.syncConceptMastery(studentId, masteryUpdates);
 
-export const emitTelemetry = <T extends TelemetryEventType>(
+export const emitTelemetry = (
   event: Parameters<FirebaseSyncService['emitTelemetry']>[0]
 ) => firebaseSyncService.emitTelemetry(event as any);
 

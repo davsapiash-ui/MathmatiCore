@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { ref, onValue, update, get, remove, set as fbSet } from 'firebase/database';
+import { ref, onValue, update, remove, set as fbSet } from 'firebase/database';
 import { database, functions } from '@/infrastructure/firebase';
 import { httpsCallable } from 'firebase/functions';
 import { toast } from 'sonner';

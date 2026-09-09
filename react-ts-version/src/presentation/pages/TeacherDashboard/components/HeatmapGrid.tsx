@@ -1,21 +1,17 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { ref, onValue, update, query, limitToLast } from 'firebase/database';
+import { ref, onValue } from 'firebase/database';
 import { database, functions } from '@/infrastructure/firebase';
 import { httpsCallable } from 'firebase/functions';
 import { useAuthStore } from '@/application/useAuthStore';
 import { approveTeacherGate } from '@/core/teacherGate';
 import { toast } from 'sonner';
 import {
-  Activity,
   AlertTriangle,
-  CheckCircle2,
-  Lock,
   ShieldAlert,
   Users,
   RotateCcw,
   DoorOpen,
-  Sparkles,
   FileDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -110,9 +106,6 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
   const [students, setStudents] = useState<AnonymousStudent[]>(initialStudents || INITIAL_MOCK_STUDENTS);
   const [selectedStudent, setSelectedStudent] = useState<AnonymousStudent | null>(null);
 
-  // Filter state for Heatmap
-  const [activeFilter, setActiveFilter] = useState<'ALL' | 'STRUGGLING' | 'LOCKED'>('ALL');
-
   // Module 18 & Session Active state: Track active class session state
   const [isClassSessionActive, setIsClassSessionActive] = useState<boolean>(false);
   const [activeSessionNum, setActiveSessionNum] = useState<number | null>(null);
@@ -171,13 +164,6 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
           const slotKey = `slot_${studentNum}`;
           const stdKey = `student_${studentNum}`;
           
-          const rawMatchingObjects = Object.entries(rawData)
-            .filter(([k]) => {
-              const digits = k.replace(/\D/g, '');
-              return digits === String(studentNum);
-            })
-            .map(([, val]) => val);
-
           const userObj = rawData[userKey] || {};
           const uObj = rawData[uKey] || {};
           const stdObj = rawData[stdKey] || {};
@@ -426,10 +412,6 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
 
   // Pending Teacher Gate students
   const pendingGateStudents = useMemo(() => students.filter(s => s.isWaitingAtGate), [students]);
-
-  // Counts
-  const strugglingCount = useMemo(() => students.filter(s => s.isStruggling).length, [students]);
-  const lockedCount = useMemo(() => students.filter(s => s.status === 'locked').length, [students]);
 
   return (
     <div className="flex flex-col gap-6" dir="rtl">

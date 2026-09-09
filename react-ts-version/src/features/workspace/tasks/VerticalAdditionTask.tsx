@@ -54,7 +54,6 @@ export function VerticalAdditionTask({
   const setCarryDigit = useWorkspaceStore((s) => s.setCarryDigit);
   const setFocusedPlace = useWorkspaceStore((s) => s.setFocusedPlace);
   const keyboardState = useWorkspaceStore((s) => s.keyboardState);
-  const hasGrouped = useWorkspaceStore((s) => s.hasGrouped);
   const isStoreColumnLocked = useWorkspaceStore((s) => s.isColumnInputLocked);
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -74,11 +73,6 @@ export function VerticalAdditionTask({
   // keyboard-lock state rather than from actual learner inactivity, and racing
   // the radar hook into a double Socratic transition. useCognitiveHesitationRadar
   // is the single owner of both stages; see its header.
-
-  const handleLockedInteraction = () => {
-    setShake(true);
-    setTimeout(() => setShake(false), 400);
-  };
 
   const aStr = String(numberA);
   const bStr = String(numberB);

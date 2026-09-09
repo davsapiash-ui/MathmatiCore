@@ -185,8 +185,8 @@ export class QMatrixEvaluator {
   static evaluateGeneric(
     task: QMatrixTask,
     answer: number | null,
-    phase: TaskPhase = "primary",
-    subphase: CorrectionSubphase = "subtask"
+    _phase: TaskPhase = "primary",
+    _subphase: CorrectionSubphase = "subtask"
   ) {
     if (answer === null || Number.isNaN(answer)) {
       return { correct: false, detail: "missing_answer", triggerBackward: false };

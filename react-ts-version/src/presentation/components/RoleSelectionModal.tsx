@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { ShieldCheck, GraduationCap, ArrowRight } from "lucide-react";
 
 export function RoleSelectionModal() {
-  const { user, selectRole, logout } = useAuthStore();
+  const { selectRole, logout } = useAuthStore();
   const navigate = useNavigate();
 
   const handleSelectRole = (role: "teacher" | "admin") => {

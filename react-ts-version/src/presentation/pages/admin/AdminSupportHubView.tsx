@@ -52,7 +52,7 @@ export function AdminSupportHubView() {
   const { schools, teachers } = useAdminStore();
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedSchool, setSelectedSchool] = useState<string>('ALL');
+  const [selectedSchool] = useState<string>('ALL');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
 
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
