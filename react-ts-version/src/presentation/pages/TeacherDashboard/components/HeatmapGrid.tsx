@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { ref, onValue, update, query, limitToLast } from 'firebase/database';
 import { database, functions } from '@/infrastructure/firebase';
@@ -379,9 +379,11 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
   };
 
   const [approvingStudentId, setApprovingStudentId] = useState<string | null>(null);
+  const approvingStudentIdRef = useRef<string | null>(null);
 
   const handleApproveGate = async (studentId: string, path: 'ירוק' | 'צמצום פערים') => {
-    if (approvingStudentId) return;
+    if (approvingStudentId || approvingStudentIdRef.current) return;
+    approvingStudentIdRef.current = studentId;
     setApprovingStudentId(studentId);
     const num = studentId.replace(/\D/g, '') || '1';
     const isRemediation = path === 'צמצום פערים';
@@ -409,6 +411,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
       console.error('Failed to approve gate:', err);
       toast.error('שגיאה באישור שער המעבר');
     } finally {
+      approvingStudentIdRef.current = null;
       setApprovingStudentId(null);
     }
   };
@@ -562,9 +565,17 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
         <div className="grid grid-cols-3 sm:grid-cols-4 gap-4 max-w-4xl mx-auto w-full">
           {students.map((student) => {
             return (
-              <button
+              <div
+                role="button"
+                tabIndex={0}
                 key={student.id}
                 onClick={() => setSelectedStudent(student)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setSelectedStudent(student);
+                  }
+                }}
                 className={`p-4 rounded-2xl border text-right transition-colors duration-500 ease-in-out flex flex-col justify-between min-h-[125px] relative overflow-hidden shadow-sm hover:shadow-md cursor-pointer ${
                   // PRD v7.1 Module 18: BLUE > RED > GREY > YELLOW > GREEN.
                   // Gate-waiting keeps its custom banner style below the BLUE help call.
@@ -700,7 +711,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                     )}
                   </>
                 )}
-              </button>
+              </div>
             );
           })}
         </div>

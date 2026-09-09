@@ -94,6 +94,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   // half-typed message to one leaked into the other.
   const [adminInputText, setAdminInputText] = useState("");
   const [isSendingAdmin, setIsSendingAdmin] = useState(false);
+  const isSendingAdminRef = useRef(false);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(
     routeStudentId || null,
   );
@@ -163,6 +164,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   // opened by the envelope icon — not in a dashboard tab.
   const [isAdminChatDrawerOpen, setIsAdminChatDrawerOpen] = useState(false);
   const [isUpdatingSession, setIsUpdatingSession] = useState(false);
+  const isUpdatingSessionRef = useRef(false);
   const [isStartingSession, setIsStartingSession] = useState(false);
 
   // Sync active class session with Firebase.
@@ -430,7 +432,8 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   };
 
   const handleEndClassSession = async () => {
-    if (isUpdatingSession) return;
+    if (isUpdatingSession || isUpdatingSessionRef.current) return;
+    isUpdatingSessionRef.current = true;
     setIsUpdatingSession(true);
     try {
       if (auth.currentUser) {
@@ -460,6 +463,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       console.error('Error ending class session:', err);
       toast.error('שגיאה בסגירת המפגש מול השרת.');
     } finally {
+      isUpdatingSessionRef.current = false;
       setIsUpdatingSession(false);
     }
   };
@@ -467,7 +471,8 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   // Pause keeps the meeting open (active: true) and stamps status: 'paused';
   // every learner's screen shows the waiting overlay in place. Resume clears it.
   const handlePauseClassSession = async () => {
-    if (isUpdatingSession) return;
+    if (isUpdatingSession || isUpdatingSessionRef.current) return;
+    isUpdatingSessionRef.current = true;
     setIsUpdatingSession(true);
     try {
       await update(ref(database, 'active_class_session'), { status: 'paused', pausedAt: Date.now() });
@@ -477,12 +482,14 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       console.error('Error pausing class session:', err);
       toast.error('שגיאה בהשהיית המפגש מול השרת.');
     } finally {
+      isUpdatingSessionRef.current = false;
       setIsUpdatingSession(false);
     }
   };
 
   const handleResumeClassSession = async () => {
-    if (isUpdatingSession) return;
+    if (isUpdatingSession || isUpdatingSessionRef.current) return;
+    isUpdatingSessionRef.current = true;
     setIsUpdatingSession(true);
     try {
       await update(ref(database, 'active_class_session'), { status: 'active', pausedAt: null, resumedAt: Date.now() });
@@ -492,6 +499,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       console.error('Error resuming class session:', err);
       toast.error('שגיאה בהמשך המפגש מול השרת.');
     } finally {
+      isUpdatingSessionRef.current = false;
       setIsUpdatingSession(false);
     }
   };
@@ -927,7 +935,9 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   }, [isAdminChatDrawerOpen, activeTab, selectedStudentId, messages, user, markAsRead]);
 
   const handleSendAdmin = async () => {
-    if (!adminInputText.trim() || !user || isSendingAdmin) return;
+    if (!adminInputText.trim() || !user || isSendingAdmin || isSendingAdminRef.current) return;
+    isSendingAdminRef.current = true;
+    setIsSendingAdmin(true);
 
     // Module 22: Tier 1 Client-Side Regex Validation (Fail-Closed Architecture)
     let cleanText: string;
@@ -935,12 +945,16 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       const validation = validateChatInputForPII(adminInputText);
       if (!validation.valid) {
         toast.warning(validation.errorHe || 'הודעה מכילה פרטים מזהים (PII). יש להשתמש במזהה 1-12 בלבד.');
+        isSendingAdminRef.current = false;
+        setIsSendingAdmin(false);
         return;
       }
       cleanText = anonymizeChatMessageBody(adminInputText.trim());
     } catch (err) {
       console.error('[Module 3/22 Fail-Closed] PII scanning error caught:', err);
       toast.error('שגיאה בבדיקת אבטחה (PII). שליחת ההודעה נחסמה להגנה על פרטיות התלמידים.');
+      isSendingAdminRef.current = false;
+      setIsSendingAdmin(false);
       return;
     }
 
@@ -950,7 +964,6 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     // substitution entirely and dropped the message into a store no admin
     // ever reads — it looked sent and reached nobody.
     try {
-      setIsSendingAdmin(true);
       const sendFn = httpsCallable(functions, "sendTeacherAdminMessage");
       await sendFn({
         receiver_id: "admin",
@@ -963,6 +976,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       console.error('[Module 22] Failed to send teacher-admin message:', err);
       toast.error('שגיאה בשליחת ההודעה להנהלה. בדקו את חיבור הרשת ונסו שוב.');
     } finally {
+      isSendingAdminRef.current = false;
       setIsSendingAdmin(false);
     }
   };

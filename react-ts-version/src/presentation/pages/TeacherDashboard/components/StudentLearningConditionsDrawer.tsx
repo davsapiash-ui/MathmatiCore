@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { type StudentData, useStore } from '@/application/useStore';
 import { normalizeStudentId } from '@/application/useChatStore';
@@ -33,6 +33,7 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat }
   const [isResetting, setIsResetting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isClearingHelp, setIsClearingHelp] = useState(false);
+  const isClearingHelpRef = useRef(false);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
 
   // Form State
@@ -123,7 +124,8 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat }
   };
 
   const handleClearHelpRequest = async () => {
-    if (!student.studentId || isClearingHelp) return;
+    if (!student.studentId || isClearingHelp || isClearingHelpRef.current) return;
+    isClearingHelpRef.current = true;
     setIsClearingHelp(true);
     const normId = normalizeStudentId(student.studentId);
     const rawNum = student.studentId.replace(/[^0-9]/g, '');
@@ -143,6 +145,7 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat }
       toast.error('סימון הטיפול נדחה בשרת. נסו שוב.');
     } finally {
       setIsClearingHelp(false);
+      isClearingHelpRef.current = false;
     }
   };
 
