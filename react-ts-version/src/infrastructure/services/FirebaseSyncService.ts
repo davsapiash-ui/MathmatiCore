@@ -339,6 +339,8 @@ export class FirebaseSyncService {
       const activeTasks = getActiveTasks(state);
       const currentTask = activeTasks[state.standardTaskIdx] || null;
 
+      // Teacher-controlled authority fields (isBoardLocked, pendingAdaptation, support_profile_id)
+      // are strictly omitted so the student client never overwrites teacher controls in RTDB.
       const syncableData: Record<string, any> = {
         sessionNumber: state.sessionNumber,
         isASD: state.isASD,
@@ -350,7 +352,6 @@ export class FirebaseSyncService {
         carryDigits: state.carryDigits,
         probeAnswer: state.probeAnswer,
         selectedChoiceId: state.selectedChoiceId,
-        isBoardLocked: state.isBoardLocked,
         keyboardState: state.keyboardState,
         undoCount: state.undoCount,
         hesitationCount: state.hesitationCount,
@@ -386,6 +387,15 @@ export class FirebaseSyncService {
 
       // Clean all undefined values to guarantee Firebase Realtime Database compatibility
       const sanitizedPayload = JSON.parse(JSON.stringify(updatePayload, (_k, v) => (v === undefined ? null : v)));
+
+      // Authority Guard: Student client must NEVER write or overwrite teacher-controlled state in RTDB
+      delete sanitizedPayload.isBoardLocked;
+      delete sanitizedPayload.pendingAdaptation;
+      delete sanitizedPayload.support_profile_id;
+      delete sanitizedPayload.enhanced_support_profile;
+      delete sanitizedPayload.teacher_gate_approved;
+      delete sanitizedPayload.routeStatus;
+      delete sanitizedPayload.physicalOverride;
 
       const normId = normalizeStudentId(this.currentUserId || '');
       const rawNum = (this.currentUserId || '').replace(/[^0-9]/g, '');

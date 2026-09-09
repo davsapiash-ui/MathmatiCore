@@ -425,12 +425,28 @@ export function StudentWorkspacePage() {
   const isAdditionHelperOpen = useWorkspaceStore((s) => s.isAdditionHelperOpen);
   const toggleAdditionHelper = useWorkspaceStore((s) => s.toggleAdditionHelper);
 
-  // Active overlay detection: when projector, teacher pause/close, gate lock, or sessionDone are active
+  // Tab switching & background throttling detection (Module 10 & 18)
+  const [isTabHidden, setIsTabHidden] = useState<boolean>(
+    typeof document !== 'undefined' ? document.hidden : false
+  );
+
+  useEffect(() => {
+    const handleVisChange = () => {
+      setIsTabHidden(document.hidden);
+    };
+    document.addEventListener('visibilitychange', handleVisChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisChange);
+    };
+  }, []);
+
+  // Active overlay or background tab detection: when projector, teacher pause/close, gate lock, sessionDone, or tab is hidden
   const isOverlayActive = isProjectorModeActive || 
     activeClassSession.status === 'paused' || 
     activeClassSession.status === 'closed' || 
     pendingApproval || 
-    flowStatus === 'sessionDone';
+    flowStatus === 'sessionDone' ||
+    isTabHidden;
 
   // Pedagogical Radar — active during real student problem solving, strictly PAUSED during overlays
   useCognitiveHesitationRadar({ 
@@ -586,16 +602,23 @@ export function StudentWorkspacePage() {
       'workspaceState/flowStatus': 'task',
     };
 
-    // Set immediate online heartbeat and onDisconnect hook
-    update(studentPresenceRef, presencePayload).catch(() => {});
-    try {
-      onDisconnect(ref(database, `users/students/${normUid}/isOnline`)).set(false);
-      onDisconnect(ref(database, `users/students/${normUid}/onlineStatus`)).set('offline');
-      onDisconnect(ref(database, `users/students/${normUid}/lastPing`)).set(0);
-      onDisconnect(ref(database, `users/students/${normUid}/lastAction`)).set('לא מחובר');
-    } catch {
-      // ignore offline mock disconnect
-    }
+    // Re-arm presence and server-side onDisconnect hooks on every connection cycle (PRD Module 18)
+    const connectedRef = ref(database, '.info/connected');
+    const unsubConnected = onValue(connectedRef, (snap) => {
+      if (snap.val() === true) {
+        if (!canWriteWorkspaceData(normUid, isSupersededRef.current)) return;
+
+        update(studentPresenceRef, presencePayload).catch(() => {});
+        try {
+          onDisconnect(ref(database, `users/students/${normUid}/isOnline`)).set(false);
+          onDisconnect(ref(database, `users/students/${normUid}/onlineStatus`)).set('offline');
+          onDisconnect(ref(database, `users/students/${normUid}/lastPing`)).set(0);
+          onDisconnect(ref(database, `users/students/${normUid}/lastAction`)).set('לא מחובר');
+        } catch {
+          // ignore offline mock disconnect
+        }
+      }
+    });
 
     const handleBeforeUnload = () => {
       stampStudentWindowClosed();
@@ -622,6 +645,7 @@ export function StudentWorkspacePage() {
     }, 4000);
 
     return () => {
+      unsubConnected();
       clearInterval(interval);
       window.removeEventListener('beforeunload', handleBeforeUnload);
       window.removeEventListener('pagehide', handleBeforeUnload);
