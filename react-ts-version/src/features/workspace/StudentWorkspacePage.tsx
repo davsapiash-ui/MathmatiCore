@@ -796,17 +796,11 @@ export function StudentWorkspacePage() {
   // forgiving of natural jitter.
   // Unified PointerSensor: seamlessly supports mouse, trackpad, touchscreen,
   // and stylus across all devices and operating systems without delay.
-  // 8px threshold prevents accidental jitter without any perceived latency.
+  // 6px threshold allows immediate pickup without competing TouchSensor conflicts.
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8,
-      },
-    }),
-    useSensor(TouchSensor, {
-      activationConstraint: {
-        delay: 50,
-        tolerance: 15,
+        distance: 6,
       },
     }),
     useSensor(KeyboardSensor)

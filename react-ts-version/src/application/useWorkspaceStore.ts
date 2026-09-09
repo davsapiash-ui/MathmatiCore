@@ -497,10 +497,10 @@ export function selectCanProceed(s: WorkspaceState): boolean {
     const { a, b, target } = effectiveArithmetic(task, s.isASD);
     const hasDigits = answerDigitsToNumber(effectiveAnswerDigits(s, task, target)) !== null;
     const hasBoardBlocks = selectBoardValue(s) > 0;
-    return hasBoardBlocks && hasDigits && hiddenDigitsStatus(s, task, a, b).complete;
+    return (hasBoardBlocks || hasDigits || s.hasInteracted) && hiddenDigitsStatus(s, task, a, b).complete;
   }
   if (task.type === 'representation') {
-    return selectBoardValue(s) > 0 && answerDigitsToNumber(s.answerDigits) !== null;
+    return selectBoardValue(s) > 0 || answerDigitsToNumber(s.answerDigits) !== null || s.hasInteracted;
   }
   if (!s.hasInteracted) return false;
   return true;
@@ -918,7 +918,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           handleFailure(
             'empty_board',
             'בְּנִיַּת הַמִּסְפָּר בַּבַּיִת 🧱',
-            'עֲדַיִן לֹא הִנַּחְתֶּם קֻבִּיּוֹת בְּבֵית הַמְּסִפָּרִים. גִּרְרוּ אֶת קֻבִּיּוֹת הַדִּינֶס כְּדֵי לִבְנוֹת אֶת הַמִּסְפָּר!',
+            'עֲדַיִן לֹא הִנַּחְתֶּם קֻבִּיּוֹת בְּבֵית הַמְּסִפָּרִים. לַחֲצוּ אוֹ גִּרְרוּ אֶת קֻבִּיּוֹת הַדִּינֶס מֵאַרְגַּז הַכֵּלִים כְּדֵי לִבְנוֹת אֶת הַמִּסְפָּר!',
             3500
           );
           return;

@@ -60,6 +60,7 @@ export function PlaceColumn({ place, activeDragPlace }: { place: Place; activeDr
 
   return (
     <motion.div
+      id={`column-${place}`}
       ref={setNodeRef}
       animate={shakeControls}
       className={`flex-1 min-w-0 flex flex-col rounded-2xl border-2 border-solid transition-colors duration-150 select-none ${

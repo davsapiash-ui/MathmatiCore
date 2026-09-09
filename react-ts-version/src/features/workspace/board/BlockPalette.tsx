@@ -35,17 +35,35 @@ function PaletteItemCard({
     data: { source: 'palette', place, renderPlace: place },
   });
 
+  const applyDrop = useWorkspaceStore((s) => s.applyDrop);
+
+  const handleTapToAdd = () => {
+    if (isDragging) return;
+    applyDrop({
+      source: 'palette',
+      sourcePlace: place,
+      target: { kind: 'column', place },
+    });
+  };
+
   return (
     <div
       ref={setNodeRef}
       {...attributes}
       {...listeners}
       tabIndex={0}
+      onClick={handleTapToAdd}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleTapToAdd();
+        }
+      }}
       style={{ touchAction: 'none' }}
-      className={`relative flex flex-col items-center justify-between rounded-xl px-3 py-1.5 min-w-[84px] h-[80px] bg-slate-50/70 hover:bg-slate-100/90 border border-slate-200/80 hover:border-indigo-300 shadow-2xs hover:shadow-xs transition-all select-none cursor-grab active:cursor-grabbing ${
-        isDragging ? 'opacity-30' : ''
+      className={`relative flex flex-col items-center justify-between rounded-xl px-3 py-1.5 min-w-[84px] h-[80px] bg-slate-50/70 hover:bg-slate-100/90 border border-slate-200/80 hover:border-indigo-300 shadow-2xs hover:shadow-xs transition-all select-none cursor-pointer active:scale-95 touch-manipulation ${
+        isDragging ? 'opacity-30 pointer-events-none' : ''
       }`}
-      title={`גררו ${labelHe} לטבלה`}
+      title={`לחצו או גררו ${labelHe} לטבלה`}
     >
       <div
         className="h-11 w-full flex items-center justify-center pointer-events-none"
@@ -67,7 +85,7 @@ function PaletteItemCard({
           ({subHe})
         </span>
       </div>
-      <span className="sr-only">{`גרור ${PLACE_NAMES_HE[place]} לטבלה — ערך ${PLACE_VALUES[place]}`}</span>
+      <span className="sr-only">{`לחץ או גרור ${PLACE_NAMES_HE[place]} לטבלה — ערך ${PLACE_VALUES[place]}`}</span>
     </div>
   );
 }
