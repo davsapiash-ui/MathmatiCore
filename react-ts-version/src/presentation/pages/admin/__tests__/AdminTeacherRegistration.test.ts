@@ -85,6 +85,16 @@ describe('Module 25: registering a second teacher for the pilot school', () => {
     expect(wizard.includes('כבר רשומה במערכת כמורה')).toBe(true);
   });
 
+  it('mounts through createPortal OUTSIDE AnimatePresence, so the dialog actually appears', () => {
+    // A React portal is not a "valid element" to AnimatePresence's child
+    // filter. The old nesting <AnimatePresence>{createPortal(...)}</AnimatePresence>
+    // silently dropped the whole dialog: every wizard button (רישום מורה,
+    // הקמת מוסד) set isOpen=true and nothing ever rendered. Verified in a
+    // real browser (Playwright) on 2026-09-09.
+    expect(wizard).toMatch(/return createPortal\(\s*<AnimatePresence>/);
+    expect(wizard).not.toMatch(/<AnimatePresence>\s*\{isOpen &&\s*createPortal\(/);
+  });
+
   it('the wizard re-derives its step and target school every time it opens', () => {
     expect(wizard).toMatch(/useEffect\(\(\) => \{\s*if \(!isOpen\) return;\s*setStep\(mode === "add_teacher" \? 2/);
     expect(wizard.includes('setSelectedSchoolId(initialTargetSchoolId || (schools[0]?.id ?? ""))')).toBe(true);

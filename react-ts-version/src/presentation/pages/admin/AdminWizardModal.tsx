@@ -91,8 +91,6 @@ export function AdminWizardModal({
     if (isOpen && !selectedSchoolId && schools[0]?.id) setSelectedSchoolId(schools[0].id);
   }, [isOpen, selectedSchoolId, schools]);
 
-  if (!isOpen) return null;
-
   // Validation functions
   const validateStep1 = () => {
     setSchoolError("");
@@ -240,10 +238,13 @@ export function AdminWizardModal({
     onClose();
   };
 
-  return (
+  // createPortal must be OUTSIDE AnimatePresence: a React portal is not a
+  // "valid element" to AnimatePresence's child filter, so with the old
+  // nesting (<AnimatePresence>{createPortal(...)}</AnimatePresence>) the
+  // whole dialog was silently dropped and no wizard button ever opened it.
+  return createPortal(
     <AnimatePresence>
-      {isOpen &&
-        createPortal(
+      {isOpen && (
           <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6" dir="rtl">
           {/* Backdrop */}
           <motion.div 
@@ -691,9 +692,9 @@ export function AdminWizardModal({
               </div>
             )}
           </motion.div>
-        </div>,
-        document.body
+        </div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }
