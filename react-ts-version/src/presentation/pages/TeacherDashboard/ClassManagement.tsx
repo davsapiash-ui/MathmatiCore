@@ -10,7 +10,7 @@ import { useAuthStore } from '@/application/useAuthStore';
 import { approveTeacherGate } from '@/core/teacherGate';
 import { hasEnhancedSupport, buildSupportProfilePayload } from '@/core/supportProfile';
 import { toast } from 'sonner';
-import type { ResetReason } from '@/types';
+import type { ResetReason, SingleStudentResetScope } from '@/types';
 
 interface StudentGateState {
   id: string;
@@ -43,10 +43,13 @@ const INITIAL_GATE_STUDENTS: StudentGateState[] = Array.from({ length: 12 }, (_,
  * 4. אכיפת מגבלת 12 תלמידים פעילים לכיתת המבקרים תחת בית ספר ביקורת.
  */
 export function ClassManagement({ 
-  onDrillDown 
+  onDrillDown,
+  activeSessionNumber = null,
 }: { 
   allStudents: StudentData[]; 
-  onDrillDown?: (studentId: string) => void 
+  onDrillDown?: (studentId: string) => void;
+  /** The meeting the teacher currently has open (Module 14), for the level-2 reset dialog. */
+  activeSessionNumber?: number | null;
 }) {
   const [studentStates, setStudentStates] = useState<StudentGateState[]>(INITIAL_GATE_STUDENTS);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -159,13 +162,17 @@ export function ClassManagement({
 
   const [studentToReset, setStudentToReset] = useState<{ id: string; name: string } | null>(null);
 
-  const handleConfirmResetStudent = async (reason: ResetReason, reasonNote?: string) => {
+  const handleConfirmResetStudent = async (
+    reason: ResetReason,
+    reasonNote?: string,
+    options?: { scope: SingleStudentResetScope; sessionNumber: number | null }
+  ) => {
     if (!studentToReset) return;
     const { id: studentId, name: studentName } = studentToReset;
     setUpdatingId(studentId);
     try {
       // The store toasts its own success/failure once.
-      await useStore.getState().resetStudentData(studentId, reason, reasonNote);
+      await useStore.getState().resetStudentData(studentId, reason, reasonNote, options);
     } catch (err) {
       console.error(`Failed to reset ${studentName}:`, err);
       throw err; // keep the confirmation dialog open — nothing was reset
@@ -387,8 +394,9 @@ export function ClassManagement({
         resetLevel="single_student"
         targetStudentId={studentToReset?.id}
         targetStudentName={studentToReset?.name}
-        onConfirm={async (reason, reasonNote) => {
-          await handleConfirmResetStudent(reason, reasonNote);
+        activeSessionNumber={activeSessionNumber}
+        onConfirm={async (reason, reasonNote, options) => {
+          await handleConfirmResetStudent(reason, reasonNote, options);
           setStudentToReset(null);
         }}
       />

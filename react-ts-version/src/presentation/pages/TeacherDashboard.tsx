@@ -1591,6 +1591,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <ClassManagement
               allStudents={allStudents}
+              activeSessionNumber={isClassSessionActive ? selectedSessionNum : null}
               onDrillDown={(studentId) => {
                 const norm = normalizeStudentId(studentId);
                 const student = allStudents.find(s => s.studentId === studentId || normalizeStudentId(s.studentId) === norm);
@@ -2264,6 +2265,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
         {drawerStudent && (
           <StudentLearningConditionsDrawer
             student={drawerStudent}
+            activeSessionNumber={isClassSessionActive ? selectedSessionNum : null}
             onClose={() => setDrawerStudent(null)}
             onOpenChat={(st) => setFloatingChatStudent(st)}
             onOpenFullJourney={(sId) => {

@@ -422,7 +422,19 @@ export interface ResetAuditEntry {
   reset_reason: ResetReason;
   reason_note: string | null;
   records_deleted_count: number;
+  /** Level 2 only: what the teacher chose to reset (PRD §ב.2 default is the active meeting). */
+  reset_scope?: SingleStudentResetScope;
+  /** Level 2 with reset_scope 'active_session': the meeting that was restarted. */
+  session_number?: number | null;
 }
+
+/**
+ * PRD Module 23א §ב.2 restarts "the active meeting" of one learner; the
+ * product owner (9.9.2026) asked that the teacher be able to choose between
+ * that and a complete reset of the learner. 'active_session' is the default.
+ */
+export type SingleStudentResetScope = 'active_session' | 'full_student';
+export const SINGLE_STUDENT_RESET_SCOPES: readonly SingleStudentResetScope[] = ['active_session', 'full_student'];
 
 /**
  * Module 23א: backupAndResetSessionData
@@ -464,7 +476,7 @@ async function runBackupAndReset(request: CallableRequest<any>) {
     throw new HttpsError("unauthenticated", "User must be authenticated.");
   }
 
-  const { reset_level, reason, reason_note = null, student_id, class_id = "class_1" } = request.data || {};
+  const { reset_level, reason, reason_note = null, student_id, class_id = "class_1", reset_scope, session_number } = request.data || {};
 
   if (!reset_level || !['alerts', 'single_student', 'system'].includes(reset_level)) {
     throw new HttpsError("invalid-argument", "Invalid reset_level. Must be 'alerts', 'single_student', or 'system'.");
@@ -472,6 +484,9 @@ async function runBackupAndReset(request: CallableRequest<any>) {
 
   if (!reason || !VALID_RESET_REASONS.includes(reason)) {
     throw new HttpsError("invalid-argument", `Invalid reset reason. Must be one of: ${VALID_RESET_REASONS.join(', ')}`);
+  }
+  if (reset_scope !== undefined && !SINGLE_STUDENT_RESET_SCOPES.includes(reset_scope)) {
+    throw new HttpsError("invalid-argument", "Invalid reset_scope. Must be 'active_session' or 'full_student'.");
   }
 
   // PRD Module 23א §F: learning-data resets belong to the class teacher; a
@@ -564,7 +579,14 @@ async function runBackupAndReset(request: CallableRequest<any>) {
     throw new HttpsError("invalid-argument", "student_id (1-12) is required for single_student reset.");
   }
   const affectedStudentIds = reset_level === 'single_student' ? [parseInt(rawNum, 10)] : [...ALL_STUDENT_IDS];
-  const scope = buildResetScope(reset_level, rawNum);
+  // Level 2 defaults to the PRD's "restart the active meeting"; the teacher may
+  // ask for the whole learner instead. The meeting is the one the teacher has
+  // open (Module 14), unless the request names it.
+  const singleScope: SingleStudentResetScope = reset_level === 'single_student' ? (reset_scope || 'active_session') : 'full_student';
+  const activeSessionNumber = reset_level === 'single_student' && singleScope === 'active_session'
+    ? await resolveActiveSessionNumber(rtdb, rawNum, session_number)
+    : null;
+  const scope = buildResetScope(reset_level, rawNum, singleScope, activeSessionNumber);
 
   // Step 1: collect everything in scope into one structured snapshot.
   let backup: ResetBackupFile;
@@ -661,6 +683,7 @@ async function runBackupAndReset(request: CallableRequest<any>) {
       reset_reason: reason,
       reason_note,
       records_deleted_count: 0,
+      ...(reset_level === 'single_student' ? { reset_scope: singleScope, session_number: activeSessionNumber } : {}),
     };
     await db.collection("reset_audit_log").doc(resetId).set({
       ...failedEntry,
@@ -699,6 +722,7 @@ async function runBackupAndReset(request: CallableRequest<any>) {
     reset_reason: reason,
     reason_note,
     records_deleted_count: deletion.total,
+    ...(reset_level === 'single_student' ? { reset_scope: singleScope, session_number: activeSessionNumber } : {}),
   };
 
   await db.collection("reset_audit_log").doc(resetId).set({
@@ -728,7 +752,40 @@ async function runBackupAndReset(request: CallableRequest<any>) {
     webViewLink: driveResult.webViewLink,
     backedUpRecords: backup.counts.total,
     deletedRecords: deletion.total,
+    ...(reset_level === 'single_student' ? { resetScope: singleScope, sessionNumber: activeSessionNumber } : {}),
   };
+}
+
+/**
+ * The meeting a level-2 'active_session' reset restarts: the number the client
+ * sent (the teacher's dashboard knows the open meeting), else the class's
+ * open meeting (Module 14 active_class_session), else the meeting the learner
+ * record points at, else meeting 1.
+ */
+export async function resolveActiveSessionNumber(
+  rtdb: admin.database.Database,
+  rawNum: string,
+  requested: unknown
+): Promise<number> {
+  const valid = (n: unknown): number | null => {
+    const v = Number(n);
+    return Number.isInteger(v) && v >= 1 && v <= 8 ? v : null;
+  };
+  const fromRequest = valid(requested);
+  if (fromRequest) return fromRequest;
+  try {
+    const classSnap = await rtdb.ref("active_class_session/sessionNumber").get();
+    const fromClass = valid(classSnap.val());
+    if (fromClass) return fromClass;
+  } catch { /* fall through */ }
+  for (const alias of studentAliases(rawNum)) {
+    try {
+      const learnerSnap = await rtdb.ref(`users/students/${alias}/activeSessionId`).get();
+      const fromLearner = valid(learnerSnap.val());
+      if (fromLearner) return fromLearner;
+    } catch { /* try the next alias */ }
+  }
+  return 1;
 }
 
 // ─── Reset scope, backup and deletion helpers (Module 23א) ───────────────────
@@ -754,24 +811,113 @@ interface FirestoreScopeEntry {
   studentValues?: Array<string | number>;
   /** Backed up but not deleted (see buildResetScope). */
   backupOnly?: boolean;
+  /**
+   * When set, only documents of this meeting are deleted (by id
+   * "session_N_student_…" or by their session_number field); the rest of the
+   * entry is still backed up.
+   */
+  sessionNumber?: number;
+}
+
+/** An RTDB node that is reset field-by-field instead of removed (level 2, active meeting only). */
+interface RtdbFieldReset {
+  path: string;
+  values: Record<string, unknown>;
 }
 
 interface ResetScope {
   /** RTDB paths, removed whole. A learner's screen recordings live under users/students/<id>/telemetry_sessions and are covered there. */
   rtdbPaths: string[];
+  /** RTDB paths that are backed up whole but only partially reset (see fieldResets). */
+  rtdbBackupOnlyPaths?: string[];
+  fieldResets?: RtdbFieldReset[];
   firestore: FirestoreScopeEntry[];
 }
 
 /**
- * Level 2 (single learner): the learner's RTDB record (workspace state,
- * meeting progress, Q-matrix, recordings), their chat, and their Firestore
- * session documents are deleted. Their telemetry, reports and reflections
- * are backed up with the rest but kept — the PRD (§ב.2) restarts the learner's
- * meeting, it does not erase the research evidence of a single learner.
+ * The learner-record fields that belong to one meeting (PRD 23א §ב.2: "מצב
+ * מרחב העבודה ואת התקדמות המפגש הפעיל"). Everything else on the record —
+ * earlier meetings, support profile, recordings, chat — stays.
+ */
+export function buildActiveSessionResetValues(sessionNumber: number, current: Record<string, unknown> | null): Record<string, unknown> {
+  const highest = Number(current?.highestCompletedMeeting) || 0;
+  const completedNum = Number(current?.session_completed) || 0;
+  const values: Record<string, unknown> = {
+    workspaceState: null,
+    sessionState: null,
+    [`completedMeeting${sessionNumber}`]: false,
+    [`session_${sessionNumber}_completed`]: false,
+    highestCompletedMeeting: Math.min(highest, sessionNumber - 1),
+    session_completed: completedNum >= sessionNumber ? sessionNumber - 1 : completedNum,
+    activeSessionId: sessionNumber,
+    isBoardLocked: false,
+    helpRequested: false,
+    handRaised: false,
+    isStruggling: false,
+    isSocraticActive: false,
+    forceReload: true,
+    lastAction: `המפגש ${sessionNumber} אופס ע״י המורה`,
+  };
+  if (sessionNumber === 2) {
+    // The diagnostic meeting's own outputs (Modules 19–20) are part of its progress.
+    Object.assign(values, {
+      qMatrixResults: null,
+      traceData: null,
+      routeStatus: null,
+      routeRecommendation: null,
+      teacher_gate_approved: false,
+      session_score_percent: null,
+      matrix_recommended_path: null,
+    });
+  }
+  if (sessionNumber === 8) {
+    // Meeting 8 is the reflection board (Module 16).
+    Object.assign(values, { reflections: null });
+  }
+  return values;
+}
+
+/**
+ * Level 2 (single learner), 'active_session' (PRD §ב.2, the default): the
+ * learner's whole record is backed up, but only the fields of the active
+ * meeting are reset (buildActiveSessionResetValues) and only that meeting's
+ * Firestore session documents are deleted. Earlier meetings, recordings, chat,
+ * telemetry, reports and reflections stay.
+ *
+ * Level 2, 'full_student' (teacher's choice): the learner's RTDB record
+ * (workspace state, meeting progress, Q-matrix, recordings), their chat, and
+ * all their Firestore session documents are deleted. Their telemetry, reports
+ * and reflections are backed up with the rest but kept — even a full reset
+ * does not erase the research evidence of a single learner.
  *
  * Level 3 (system): every learning-data node and collection, for all learners.
  */
-export function buildResetScope(level: 'single_student' | 'system', rawNum: string): ResetScope {
+export function buildResetScope(
+  level: 'single_student' | 'system',
+  rawNum: string,
+  singleScope: SingleStudentResetScope = 'full_student',
+  activeSessionNumber: number | null = null
+): ResetScope {
+  if (level === 'single_student' && singleScope === 'active_session') {
+    const aliases = studentAliases(rawNum);
+    const studentValues = Array.from(new Set<string | number>([rawNum, parseInt(rawNum, 10), ...aliases]));
+    const sessionNumber = activeSessionNumber ?? 1;
+    return {
+      rtdbPaths: [],
+      rtdbBackupOnlyPaths: [
+        ...aliases.map((a) => `users/students/${a}`),
+        ...aliases.map((a) => `chat_messages/${a}`),
+      ],
+      // Values are computed against the live record at deletion time (see executeResetDeletion).
+      fieldResets: aliases.map((a) => ({ path: `users/students/${a}`, values: { __activeSessionNumber: sessionNumber } })),
+      firestore: LEARNING_COLLECTIONS.map((collection) => ({
+        collection,
+        studentValues,
+        backupOnly: collection !== "sessions",
+        ...(collection === "sessions" ? { sessionNumber } : {}),
+      })),
+    };
+  }
   if (level === 'single_student') {
     const aliases = studentAliases(rawNum);
     const studentValues = Array.from(new Set<string | number>([rawNum, parseInt(rawNum, 10), ...aliases]));
@@ -911,7 +1057,7 @@ export async function collectResetBackup(
     counts: { realtime_database: {}, firestore: {}, total: 0 },
   };
 
-  for (const path of scope.rtdbPaths) {
+  for (const path of [...scope.rtdbPaths, ...(scope.rtdbBackupOnlyPaths || [])]) {
     const snap = await rtdb.ref(path).get();
     const value = snap.val();
     backup.realtime_database[path] = value ?? null;
@@ -963,10 +1109,29 @@ export async function executeResetDeletion(
     }
   }
 
+  for (const reset of scope.fieldResets || []) {
+    try {
+      const snap = await rtdb.ref(reset.path).get();
+      if (!snap.exists()) { counts.realtime_database[reset.path] = 0; continue; }
+      const sessionNumber = Number(reset.values.__activeSessionNumber);
+      const values = Number.isInteger(sessionNumber)
+        ? buildActiveSessionResetValues(sessionNumber, snap.val())
+        : reset.values;
+      await rtdb.ref(reset.path).update(values);
+      // One record: the learner's meeting state, reset in place.
+      counts.realtime_database[reset.path] = 1;
+      counts.total += 1;
+    } catch (err: any) {
+      counts.failures.push(`${reset.path}: ${err?.message || String(err)}`);
+    }
+  }
+
   for (const entry of scope.firestore) {
     if (entry.backupOnly) continue;
     try {
-      const n = await deleteCollectionFully(db, entry);
+      const n = entry.sessionNumber
+        ? await deleteSessionDocsOfMeeting(db, entry, entry.sessionNumber)
+        : await deleteCollectionFully(db, entry);
       counts.firestore[entry.collection] = n;
       counts.total += n;
     } catch (err: any) {
@@ -975,6 +1140,22 @@ export async function executeResetDeletion(
   }
 
   return counts;
+}
+
+/** Deletes only the entry's documents that belong to one meeting, and returns how many. */
+async function deleteSessionDocsOfMeeting(db: admin.firestore.Firestore, entry: FirestoreScopeEntry, sessionNumber: number): Promise<number> {
+  const docs = await scopedQuery(db, entry).get();
+  const targets = docs.docs.filter((d) => {
+    const data = d.data() || {};
+    const fromField = Number(data.session_number);
+    return sessionNumberFromId(d.id) === sessionNumber || fromField === sessionNumber;
+  });
+  for (let i = 0; i < targets.length; i += FIRESTORE_PAGE) {
+    const batch = db.batch();
+    targets.slice(i, i + FIRESTORE_PAGE).forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+  }
+  return targets.length;
 }
 
 /**

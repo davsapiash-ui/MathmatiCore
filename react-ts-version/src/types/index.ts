@@ -217,6 +217,13 @@ export const VALID_RESET_REASONS = [
 
 export type ResetReason = typeof VALID_RESET_REASONS[number];
 
+/**
+ * PRD Module 23א §ב.2: a single-learner reset restarts "the active meeting".
+ * The product owner (9.9.2026) asked that the teacher choose between that
+ * (the default) and a complete reset of the learner.
+ */
+export type SingleStudentResetScope = 'active_session' | 'full_student';
+
 export interface ResetAuditEntry {
   reset_id: string;
   reset_level: 'alerts' | 'single_student' | 'system' | 'export';
@@ -229,4 +236,8 @@ export interface ResetAuditEntry {
   reset_reason: ResetReason;
   reason_note: string | null;
   records_deleted_count: number;
+  /** Level 2 only: what the teacher chose to reset. */
+  reset_scope?: SingleStudentResetScope;
+  /** Level 2, 'active_session': the meeting that was restarted. */
+  session_number?: number | null;
 }

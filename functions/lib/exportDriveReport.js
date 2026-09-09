@@ -1,8 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.exportResearchDataset = exports.backupAndResetSessionData = exports.VALID_RESET_REASONS = exports.DRIVE_FOLDERS = exports.exportAdminReportToDrive = void 0;
+exports.exportResearchDataset = exports.backupAndResetSessionData = exports.SINGLE_STUDENT_RESET_SCOPES = exports.VALID_RESET_REASONS = exports.DRIVE_FOLDERS = exports.exportAdminReportToDrive = void 0;
 exports.resolveDriveFolder = resolveDriveFolder;
 exports.uploadBufferToDrive = uploadBufferToDrive;
+exports.resolveActiveSessionNumber = resolveActiveSessionNumber;
+exports.buildActiveSessionResetValues = buildActiveSessionResetValues;
 exports.buildResetScope = buildResetScope;
 exports.collectResetBackup = collectResetBackup;
 exports.executeResetDeletion = executeResetDeletion;
@@ -364,6 +366,7 @@ exports.VALID_RESET_REASONS = [
     'test_run',
     'other',
 ];
+exports.SINGLE_STUDENT_RESET_SCOPES = ['active_session', 'full_student'];
 /**
  * Module 23א: backupAndResetSessionData
  * Enforces strict Backup-Before-Delete sequencing:
@@ -400,12 +403,15 @@ async function runBackupAndReset(request) {
     if (!request.auth) {
         throw new https_1.HttpsError("unauthenticated", "User must be authenticated.");
     }
-    const { reset_level, reason, reason_note = null, student_id, class_id = "class_1" } = request.data || {};
+    const { reset_level, reason, reason_note = null, student_id, class_id = "class_1", reset_scope, session_number } = request.data || {};
     if (!reset_level || !['alerts', 'single_student', 'system'].includes(reset_level)) {
         throw new https_1.HttpsError("invalid-argument", "Invalid reset_level. Must be 'alerts', 'single_student', or 'system'.");
     }
     if (!reason || !exports.VALID_RESET_REASONS.includes(reason)) {
         throw new https_1.HttpsError("invalid-argument", `Invalid reset reason. Must be one of: ${exports.VALID_RESET_REASONS.join(', ')}`);
+    }
+    if (reset_scope !== undefined && !exports.SINGLE_STUDENT_RESET_SCOPES.includes(reset_scope)) {
+        throw new https_1.HttpsError("invalid-argument", "Invalid reset_scope. Must be 'active_session' or 'full_student'.");
     }
     // PRD Module 23א §F: learning-data resets belong to the class teacher; a
     // system-admin identity is blocked (class-isolation principle).
@@ -484,7 +490,14 @@ async function runBackupAndReset(request) {
         throw new https_1.HttpsError("invalid-argument", "student_id (1-12) is required for single_student reset.");
     }
     const affectedStudentIds = reset_level === 'single_student' ? [parseInt(rawNum, 10)] : [...ALL_STUDENT_IDS];
-    const scope = buildResetScope(reset_level, rawNum);
+    // Level 2 defaults to the PRD's "restart the active meeting"; the teacher may
+    // ask for the whole learner instead. The meeting is the one the teacher has
+    // open (Module 14), unless the request names it.
+    const singleScope = reset_level === 'single_student' ? (reset_scope || 'active_session') : 'full_student';
+    const activeSessionNumber = reset_level === 'single_student' && singleScope === 'active_session'
+        ? await resolveActiveSessionNumber(rtdb, rawNum, session_number)
+        : null;
+    const scope = buildResetScope(reset_level, rawNum, singleScope, activeSessionNumber);
     // Step 1: collect everything in scope into one structured snapshot.
     let backup;
     try {
@@ -564,19 +577,7 @@ async function runBackupAndReset(request) {
     if (!driveResult.success) {
         logger.error("All backup channels failed during reset:", driveResult.error);
         // Strict requirement: Fail deletion if backup write fails
-        const failedEntry = {
-            reset_id: resetId,
-            reset_level,
-            performed_by_teacher_id: performedBy,
-            performed_at: Date.now(),
-            class_id,
-            affected_student_ids: affectedStudentIds,
-            backup_file_url: null,
-            backup_status: 'failed',
-            reset_reason: reason,
-            reason_note,
-            records_deleted_count: 0,
-        };
+        const failedEntry = Object.assign({ reset_id: resetId, reset_level, performed_by_teacher_id: performedBy, performed_at: Date.now(), class_id, affected_student_ids: affectedStudentIds, backup_file_url: null, backup_status: 'failed', reset_reason: reason, reason_note, records_deleted_count: 0 }, (reset_level === 'single_student' ? { reset_scope: singleScope, session_number: activeSessionNumber } : {}));
         await db.collection("reset_audit_log").doc(resetId).set(Object.assign(Object.assign({}, failedEntry), { created_at: admin.firestore.FieldValue.serverTimestamp() })).catch(() => { });
         throw new https_1.HttpsError("internal", "הגיבוי נכשל. האיפוס בוטל ולא נמחקו נתונים.");
     }
@@ -595,19 +596,7 @@ async function runBackupAndReset(request) {
     }
     // Step 4: Write immutable canonical ResetAuditEntry record to reset_audit_log,
     // with the real number of records deleted.
-    const auditEntry = {
-        reset_id: resetId,
-        reset_level,
-        performed_by_teacher_id: performedBy,
-        performed_at: Date.now(),
-        class_id,
-        affected_student_ids: affectedStudentIds,
-        backup_file_url: driveResult.webViewLink || null,
-        backup_status: 'success',
-        reset_reason: reason,
-        reason_note,
-        records_deleted_count: deletion.total,
-    };
+    const auditEntry = Object.assign({ reset_id: resetId, reset_level, performed_by_teacher_id: performedBy, performed_at: Date.now(), class_id, affected_student_ids: affectedStudentIds, backup_file_url: driveResult.webViewLink || null, backup_status: 'success', reset_reason: reason, reason_note, records_deleted_count: deletion.total }, (reset_level === 'single_student' ? { reset_scope: singleScope, session_number: activeSessionNumber } : {}));
     await db.collection("reset_audit_log").doc(resetId).set(Object.assign(Object.assign({}, auditEntry), { created_at: admin.firestore.FieldValue.serverTimestamp() })).catch((auditErr) => logger.error("Failed to write reset audit entry:", auditErr));
     if (deletion.failures.length > 0) {
         // The backup is safe and most of the scope is gone; say exactly what is
@@ -617,14 +606,39 @@ async function runBackupAndReset(request) {
     }
     logger.info(`Successfully backed up and reset ${reset_level} data (ResetID: ${resetId}): ` +
         `${deletion.total} records deleted (rtdb=${JSON.stringify(deletion.realtime_database)}, firestore=${JSON.stringify(deletion.firestore)})`);
-    return {
-        status: "SUCCESS",
-        resetId,
-        driveFileId: driveResult.fileId,
-        webViewLink: driveResult.webViewLink,
-        backedUpRecords: backup.counts.total,
-        deletedRecords: deletion.total,
+    return Object.assign({ status: "SUCCESS", resetId, driveFileId: driveResult.fileId, webViewLink: driveResult.webViewLink, backedUpRecords: backup.counts.total, deletedRecords: deletion.total }, (reset_level === 'single_student' ? { resetScope: singleScope, sessionNumber: activeSessionNumber } : {}));
+}
+/**
+ * The meeting a level-2 'active_session' reset restarts: the number the client
+ * sent (the teacher's dashboard knows the open meeting), else the class's
+ * open meeting (Module 14 active_class_session), else the meeting the learner
+ * record points at, else meeting 1.
+ */
+async function resolveActiveSessionNumber(rtdb, rawNum, requested) {
+    const valid = (n) => {
+        const v = Number(n);
+        return Number.isInteger(v) && v >= 1 && v <= 8 ? v : null;
     };
+    const fromRequest = valid(requested);
+    if (fromRequest)
+        return fromRequest;
+    try {
+        const classSnap = await rtdb.ref("active_class_session/sessionNumber").get();
+        const fromClass = valid(classSnap.val());
+        if (fromClass)
+            return fromClass;
+    }
+    catch ( /* fall through */_a) { /* fall through */ }
+    for (const alias of studentAliases(rawNum)) {
+        try {
+            const learnerSnap = await rtdb.ref(`users/students/${alias}/activeSessionId`).get();
+            const fromLearner = valid(learnerSnap.val());
+            if (fromLearner)
+                return fromLearner;
+        }
+        catch ( /* try the next alias */_b) { /* try the next alias */ }
+    }
+    return 1;
 }
 // ─── Reset scope, backup and deletion helpers (Module 23א) ───────────────────
 const ALL_STUDENT_IDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
@@ -640,15 +654,79 @@ function studentAliases(rawNum) {
  */
 const LEARNING_COLLECTIONS = ["sessions", "telemetry_logs", "telemetry_events", "reports", "class_reports", "srl_reflections"];
 /**
- * Level 2 (single learner): the learner's RTDB record (workspace state,
- * meeting progress, Q-matrix, recordings), their chat, and their Firestore
- * session documents are deleted. Their telemetry, reports and reflections
- * are backed up with the rest but kept — the PRD (§ב.2) restarts the learner's
- * meeting, it does not erase the research evidence of a single learner.
+ * The learner-record fields that belong to one meeting (PRD 23א §ב.2: "מצב
+ * מרחב העבודה ואת התקדמות המפגש הפעיל"). Everything else on the record —
+ * earlier meetings, support profile, recordings, chat — stays.
+ */
+function buildActiveSessionResetValues(sessionNumber, current) {
+    const highest = Number(current === null || current === void 0 ? void 0 : current.highestCompletedMeeting) || 0;
+    const completedNum = Number(current === null || current === void 0 ? void 0 : current.session_completed) || 0;
+    const values = {
+        workspaceState: null,
+        sessionState: null,
+        [`completedMeeting${sessionNumber}`]: false,
+        [`session_${sessionNumber}_completed`]: false,
+        highestCompletedMeeting: Math.min(highest, sessionNumber - 1),
+        session_completed: completedNum >= sessionNumber ? sessionNumber - 1 : completedNum,
+        activeSessionId: sessionNumber,
+        isBoardLocked: false,
+        helpRequested: false,
+        handRaised: false,
+        isStruggling: false,
+        isSocraticActive: false,
+        forceReload: true,
+        lastAction: `המפגש ${sessionNumber} אופס ע״י המורה`,
+    };
+    if (sessionNumber === 2) {
+        // The diagnostic meeting's own outputs (Modules 19–20) are part of its progress.
+        Object.assign(values, {
+            qMatrixResults: null,
+            traceData: null,
+            routeStatus: null,
+            routeRecommendation: null,
+            teacher_gate_approved: false,
+            session_score_percent: null,
+            matrix_recommended_path: null,
+        });
+    }
+    if (sessionNumber === 8) {
+        // Meeting 8 is the reflection board (Module 16).
+        Object.assign(values, { reflections: null });
+    }
+    return values;
+}
+/**
+ * Level 2 (single learner), 'active_session' (PRD §ב.2, the default): the
+ * learner's whole record is backed up, but only the fields of the active
+ * meeting are reset (buildActiveSessionResetValues) and only that meeting's
+ * Firestore session documents are deleted. Earlier meetings, recordings, chat,
+ * telemetry, reports and reflections stay.
+ *
+ * Level 2, 'full_student' (teacher's choice): the learner's RTDB record
+ * (workspace state, meeting progress, Q-matrix, recordings), their chat, and
+ * all their Firestore session documents are deleted. Their telemetry, reports
+ * and reflections are backed up with the rest but kept — even a full reset
+ * does not erase the research evidence of a single learner.
  *
  * Level 3 (system): every learning-data node and collection, for all learners.
  */
-function buildResetScope(level, rawNum) {
+function buildResetScope(level, rawNum, singleScope = 'full_student', activeSessionNumber = null) {
+    if (level === 'single_student' && singleScope === 'active_session') {
+        const aliases = studentAliases(rawNum);
+        const studentValues = Array.from(new Set([rawNum, parseInt(rawNum, 10), ...aliases]));
+        const sessionNumber = activeSessionNumber !== null && activeSessionNumber !== void 0 ? activeSessionNumber : 1;
+        return {
+            rtdbPaths: [],
+            rtdbBackupOnlyPaths: [
+                ...aliases.map((a) => `users/students/${a}`),
+                ...aliases.map((a) => `chat_messages/${a}`),
+            ],
+            // Values are computed against the live record at deletion time (see executeResetDeletion).
+            fieldResets: aliases.map((a) => ({ path: `users/students/${a}`, values: { __activeSessionNumber: sessionNumber } })),
+            firestore: LEARNING_COLLECTIONS.map((collection) => (Object.assign({ collection,
+                studentValues, backupOnly: collection !== "sessions" }, (collection === "sessions" ? { sessionNumber } : {})))),
+        };
+    }
     if (level === 'single_student') {
         const aliases = studentAliases(rawNum);
         const studentValues = Array.from(new Set([rawNum, parseInt(rawNum, 10), ...aliases]));
@@ -760,7 +838,7 @@ async function deleteCollectionFully(db, entry) {
 async function collectResetBackup(rtdb, db, scope, meta) {
     const now = Date.now();
     const backup = Object.assign(Object.assign({ backup_format: "mathmaticore-reset-backup/2" }, meta), { snapshot_time: now, snapshot_time_iso: new Date(now).toISOString(), realtime_database: {}, firestore: {}, counts: { realtime_database: {}, firestore: {}, total: 0 } });
-    for (const path of scope.rtdbPaths) {
+    for (const path of [...scope.rtdbPaths, ...(scope.rtdbBackupOnlyPaths || [])]) {
         const snap = await rtdb.ref(path).get();
         const value = snap.val();
         backup.realtime_database[path] = value !== null && value !== void 0 ? value : null;
@@ -797,11 +875,33 @@ async function executeResetDeletion(rtdb, db, scope) {
             counts.failures.push(`${path}: ${(err === null || err === void 0 ? void 0 : err.message) || String(err)}`);
         }
     }
+    for (const reset of scope.fieldResets || []) {
+        try {
+            const snap = await rtdb.ref(reset.path).get();
+            if (!snap.exists()) {
+                counts.realtime_database[reset.path] = 0;
+                continue;
+            }
+            const sessionNumber = Number(reset.values.__activeSessionNumber);
+            const values = Number.isInteger(sessionNumber)
+                ? buildActiveSessionResetValues(sessionNumber, snap.val())
+                : reset.values;
+            await rtdb.ref(reset.path).update(values);
+            // One record: the learner's meeting state, reset in place.
+            counts.realtime_database[reset.path] = 1;
+            counts.total += 1;
+        }
+        catch (err) {
+            counts.failures.push(`${reset.path}: ${(err === null || err === void 0 ? void 0 : err.message) || String(err)}`);
+        }
+    }
     for (const entry of scope.firestore) {
         if (entry.backupOnly)
             continue;
         try {
-            const n = await deleteCollectionFully(db, entry);
+            const n = entry.sessionNumber
+                ? await deleteSessionDocsOfMeeting(db, entry, entry.sessionNumber)
+                : await deleteCollectionFully(db, entry);
             counts.firestore[entry.collection] = n;
             counts.total += n;
         }
@@ -810,6 +910,21 @@ async function executeResetDeletion(rtdb, db, scope) {
         }
     }
     return counts;
+}
+/** Deletes only the entry's documents that belong to one meeting, and returns how many. */
+async function deleteSessionDocsOfMeeting(db, entry, sessionNumber) {
+    const docs = await scopedQuery(db, entry).get();
+    const targets = docs.docs.filter((d) => {
+        const data = d.data() || {};
+        const fromField = Number(data.session_number);
+        return (0, meetingMetrics_1.sessionNumberFromId)(d.id) === sessionNumber || fromField === sessionNumber;
+    });
+    for (let i = 0; i < targets.length; i += FIRESTORE_PAGE) {
+        const batch = db.batch();
+        targets.slice(i, i + FIRESTORE_PAGE).forEach((d) => batch.delete(d.ref));
+        await batch.commit();
+    }
+    return targets.length;
 }
 /**
  * Helper to get or create a folder in Google Drive by name under a parent folder.

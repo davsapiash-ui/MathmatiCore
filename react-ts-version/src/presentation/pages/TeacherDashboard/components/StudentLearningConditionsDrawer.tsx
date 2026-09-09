@@ -19,16 +19,18 @@ import { ResetConfirmationModal } from './ResetConfirmationModal';
 import { ref, update } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
 import { toast } from 'sonner';
-import type { ResetReason } from '@/types';
+import type { ResetReason, SingleStudentResetScope } from '@/types';
 
 interface Props {
   student: StudentData | null;
   onClose: () => void;
   onOpenChat?: (student: StudentData) => void;
   onOpenFullJourney?: (studentId: string) => void;
+  /** The meeting the teacher currently has open (Module 14), for the level-2 reset dialog. */
+  activeSessionNumber?: number | null;
 }
 
-export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, onOpenFullJourney }: Props) {
+export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, onOpenFullJourney, activeSessionNumber = null }: Props) {
   const [activeTab, setActiveTab] = useState<'scaffolding' | 'accessibility' | 'replay'>('scaffolding');
   const [isResetting, setIsResetting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -108,11 +110,15 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
     }
   };
 
-  const handleConfirmResetStudent = async (reason: ResetReason, reasonNote?: string) => {
+  const handleConfirmResetStudent = async (
+    reason: ResetReason,
+    reasonNote?: string,
+    options?: { scope: SingleStudentResetScope; sessionNumber: number | null }
+  ) => {
     setIsResetting(true);
     try {
       // The store toasts its own success/failure once.
-      await useStore.getState().resetStudentData(student.studentId, reason, reasonNote);
+      await useStore.getState().resetStudentData(student.studentId, reason, reasonNote, options);
       setIsResetModalOpen(false);
       onClose();
     } catch (err) {
@@ -454,6 +460,7 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
         resetLevel="single_student"
         targetStudentId={student.studentId}
         targetStudentName={`תלמיד ${studentNum}`}
+        activeSessionNumber={activeSessionNumber}
         onConfirm={handleConfirmResetStudent}
       />
     </>,

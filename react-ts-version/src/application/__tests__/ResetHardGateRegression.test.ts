@@ -71,15 +71,40 @@ describe('Module 23א: backup-before-delete hard gate (regression for Antigravit
       expect(mockRemove).not.toHaveBeenCalled();
     });
 
-    it('proceeds with the RTDB reset once the backup callable succeeds', async () => {
+    it('defaults to the active meeting only (PRD 23א §ב.2) and leaves the learner record to the server', async () => {
       mockCallable.mockResolvedValueOnce({ data: { status: 'SUCCESS' } });
 
       await useStore.getState().resetStudentData('student_1', 'technical_fault');
 
       expect(mockCallable).toHaveBeenCalledWith(
-        expect.objectContaining({ reset_level: 'single_student', reason: 'technical_fault' })
+        expect.objectContaining({ reset_level: 'single_student', reason: 'technical_fault', reset_scope: 'active_session', session_number: null })
+      );
+      // The server resets the meeting's fields in place; the client must not
+      // wipe the whole record on top of it.
+      expect(mockUpdate).not.toHaveBeenCalled();
+      expect(mockRemove).not.toHaveBeenCalled();
+    });
+
+    it('sends the open meeting number so the server restarts that meeting', async () => {
+      mockCallable.mockResolvedValueOnce({ data: { status: 'SUCCESS' } });
+
+      await useStore.getState().resetStudentData('student_1', 'student_stuck', undefined, { scope: 'active_session', sessionNumber: 4 });
+
+      expect(mockCallable).toHaveBeenCalledWith(
+        expect.objectContaining({ reset_scope: 'active_session', session_number: 4 })
+      );
+    });
+
+    it("wipes the learner's record locally too when the teacher chose a full reset", async () => {
+      mockCallable.mockResolvedValueOnce({ data: { status: 'SUCCESS' } });
+
+      await useStore.getState().resetStudentData('student_1', 'technical_fault', undefined, { scope: 'full_student' });
+
+      expect(mockCallable).toHaveBeenCalledWith(
+        expect.objectContaining({ reset_level: 'single_student', reset_scope: 'full_student' })
       );
       expect(mockUpdate).toHaveBeenCalled();
+      expect(mockRemove).toHaveBeenCalled();
     });
   });
 

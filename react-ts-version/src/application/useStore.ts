@@ -9,7 +9,7 @@ import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncServi
 import type { MasteryProfile } from '@/core/QMatrix';
 import { hasEnhancedSupport, ENHANCED_SUPPORT_PROFILE_ID } from '@/core/supportProfile';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
-import type { ResetReason } from '@/types';
+import type { ResetReason, SingleStudentResetScope } from '@/types';
 
 // The reset callable backs up the whole class before it deletes anything; the
 // server side is allowed 540 s for that, so the client must wait as long
@@ -118,6 +118,12 @@ export interface SemanticEventLegacy {
 
 export type LogEventPayload = SemanticEventLegacy | Omit<SemanticEvent, 'timestamp' | 'event_type'>;
 
+export interface SingleStudentResetOptions {
+  scope?: SingleStudentResetScope;
+  /** The meeting to restart (1–8) when scope is 'active_session'; the server falls back to the open class meeting. */
+  sessionNumber?: number | null;
+}
+
 interface AppState {
   currentUserRole: 'student' | 'teacher' | 'admin' | null;
   currentUserId: string | null;
@@ -161,7 +167,11 @@ interface AppState {
     }
   ) => void;
   updateStudent: (studentId: string, updates: Partial<StudentData>) => void;
-  resetStudentData: (studentId: string, reason: ResetReason, reasonNote?: string) => Promise<void>;
+  /**
+   * PRD Module 23א §ב.2 (level 2). Without options: restart the class's active
+   * meeting for this learner only. `scope: 'full_student'` wipes the learner.
+   */
+  resetStudentData: (studentId: string, reason: ResetReason, reasonNote?: string, options?: SingleStudentResetOptions) => Promise<void>;
   resetEntireSystemUsageData: (reason: ResetReason, reasonNote?: string) => Promise<void>;
   /** Module 23א level 1: clears radar alerts only, never learning data. */
   resetRadarAlerts: (reason: ResetReason, reasonNote?: string) => Promise<void>;
@@ -598,10 +608,13 @@ export const useStore = create<AppState>()(
         };
       }),
 
-      resetStudentData: async (studentId: string, reason: ResetReason, reasonNote?: string) => {
+      resetStudentData: async (studentId: string, reason: ResetReason, reasonNote?: string, options?: SingleStudentResetOptions) => {
         const normId = normalizeStudentId(studentId);
         const num = normId.replace(/\D/g, '') || '1';
         const defaultName = `תלמיד ${num}`;
+        // PRD Module 23א §ב.2: the default restarts the active meeting only.
+        const scope: SingleStudentResetScope = options?.scope || 'active_session';
+        const requestedSession = options?.sessionNumber && options.sessionNumber >= 1 && options.sessionNumber <= 8 ? options.sessionNumber : null;
 
         // PRD v7.1 Module 23א §ג: backup-before-delete is a HARD gate. Collect,
         // write the backup, await acknowledgment — and only then delete. If the
@@ -614,6 +627,8 @@ export const useStore = create<AppState>()(
             reason_note: reasonNote || null,
             student_id: normId,
             class_id: 'class_1',
+            reset_scope: scope,
+            session_number: requestedSession,
           });
         } catch (err: any) {
           const code: string = typeof err?.code === 'string' ? err.code : '';
@@ -626,6 +641,40 @@ export const useStore = create<AppState>()(
           console.error('[Module 23א] Backup failed — reset aborted, no data deleted:', err);
           toast.error(serverMessage ? `הגיבוי נכשל: ${serverMessage}. האיפוס בוטל ולא נמחקו נתונים.` : 'הגיבוי נכשל. האיפוס בוטל ולא נמחקו נתונים.');
           throw new Error('BACKUP_FAILED_RESET_ABORTED');
+        }
+
+        if (scope === 'active_session') {
+          // The server already reset the meeting's fields in place and set
+          // forceReload; here only the local mirrors are cleared so the teacher's
+          // view and the learner's cached progress follow immediately.
+          for (const id of [normId, studentId, `student_${num}`, `user${num}`, num]) {
+            firebaseSyncService.clearLocalSessionProgress(id);
+          }
+          const sessionLabel = requestedSession ? `מפגש ${requestedSession}` : 'המפגש הנוכחי';
+          set((state) => {
+            const existing = state.students[normId] || state.students[studentId];
+            if (!existing) return {};
+            const sessionNum = requestedSession ?? 0;
+            const patched: StudentData = {
+              ...existing,
+              highestCompletedMeeting: sessionNum > 0 ? Math.min(existing.highestCompletedMeeting || 0, sessionNum - 1) : existing.highestCompletedMeeting,
+              ...(sessionNum === 2 ? { completedMeeting2: false, routeStatus: null, routeRecommendation: null, qMatrixResults: {
+                task1_read_write_zero: null, task2_digit_value: null, task3_subtraction_regrouping: null, task4_decompose_number: null,
+                task5_units_to_tens: null, task6_vertical_addition: null, task7_subtraction_zero_tens: null,
+              } } : {}),
+              ...(sessionNum === 8 ? { reflections: null } : {}),
+              liveSessionMetrics: null,
+            };
+            return {
+              students: {
+                ...state.students,
+                [normId]: patched,
+                ...(studentId !== normId ? { [studentId]: patched } : {}),
+              },
+            };
+          });
+          toast.success(`${defaultName} הוחזר/ה לתחילת ${sessionLabel}. שאר המפגשים נשמרו.`);
+          return;
         }
 
         // Direct RTDB Reset for guaranteed real-time responsiveness
