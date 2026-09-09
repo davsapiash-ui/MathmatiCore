@@ -244,24 +244,3 @@ export async function authenticateWhitelistedEmail(email: string, targetRole: "t
     whitelistVerified: true
   };
 }
-
-/**
- * Simulated SSO Mock for Local Development and Automated Tests.
- * Strictly active in development / test environments to prevent security regressions in Production.
- */
-export async function mockSimulatedSSO(targetRole: "teacher" | "admin", customEmail?: string): Promise<AuthenticatedUserPayload> {
-  if (!import.meta.env.DEV && import.meta.env.MODE !== "test") {
-    throw new Error("Simulated SSO is strictly disabled in production environments.");
-  }
-
-  const email = customEmail || (targetRole === "teacher" ? "teacher.demo@edu-haifa.org.il" : "admin.demo@edu-haifa.org.il");
-  const teacherId = extractTeacherId(email, `mock_${targetRole}_id`);
-  const uid = `${targetRole}_${teacherId}`;
-
-  return {
-    uid,
-    email,
-    displayName: `${targetRole === "teacher" ? "מורה (סביבת פיתוח)" : "מנהל מערכת (סביבת פיתוח)"}`,
-    role: targetRole
-  };
-}

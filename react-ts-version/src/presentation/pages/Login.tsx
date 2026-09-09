@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "@/application/useAuthStore";
 import { useAdminStore } from "@/application/useAdminStore";
 import { useStore } from "@/application/useStore";
-import { executeGoogleSSO, mockSimulatedSSO } from "@/infrastructure/services/AuthService";
+import { executeGoogleSSO } from "@/infrastructure/services/AuthService";
 import { tts } from "@/infrastructure/services/TTSService";
 import { Logo } from "@/presentation/components/ui/Logo";
 import { Button } from "@/components/ui/button";
@@ -241,34 +241,6 @@ export function Login() {
     }
   };
 
-  // Simulated SSO Mock (Active strictly in Development mode)
-  const handleDevMockSSO = async (targetRole: "teacher" | "admin") => {
-    if (!import.meta.env.DEV) return;
-    setIsLoggingIn(true);
-    setErrorMsg("");
-
-    try {
-      const mockUser = await mockSimulatedSSO(targetRole);
-
-      setUser(
-        {
-          uid: mockUser.uid,
-          email: mockUser.email,
-          role: targetRole,
-          displayName: mockUser.displayName,
-        },
-        targetRole
-      );
-
-      login(targetRole, mockUser.uid);
-      setIsLoggingIn(false);
-      navigate(targetRole === "teacher" ? "/dashboard" : "/admin", { replace: true });
-    } catch (err: unknown) {
-      console.error("Mock SSO Error:", err);
-      setIsLoggingIn(false);
-      setErrorMsg("הזדהות פיתוח נכשלה.");
-    }
-  };
 
   const roleTitle =
     selectedRole === "student"
