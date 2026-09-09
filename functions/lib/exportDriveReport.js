@@ -11,6 +11,7 @@ const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
 const google_auth_library_1 = require("google-auth-library");
 const meetingMetrics_1 = require("./meetingMetrics");
+const adminAggregator_1 = require("./adminAggregator");
 const GOOGLE_DRIVE_FOLDER_ID = "0AMiALsm_TxT5Uk9PVA";
 const SERVICE_ACCOUNT_EMAIL = "1002220159@edu-haifa.org.il";
 /**
@@ -587,6 +588,10 @@ async function runBackupAndReset(request) {
         // activation is exclusively a teacher action — no active session.
         await rtdb.ref("system_control/projector_mode").set({ active: false, projector_mode: false, projector_mode_updated_at: Date.now() }).catch((e) => deletion.failures.push(`system_control/projector_mode: ${(e === null || e === void 0 ? void 0 : e.message) || e}`));
         await rtdb.ref("active_class_session").set({ active: false, status: "closed", sessionNumber: null, endedAt: Date.now() }).catch((e) => deletion.failures.push(`active_class_session: ${(e === null || e === void 0 ? void 0 : e.message) || e}`));
+        // Module 24's store_cache/admin_metrics is derived from the data just
+        // deleted; recompute it now so the admin console does not keep showing
+        // the pre-reset summary until the next scheduled run.
+        await (0, adminAggregator_1.recomputeAdminMetrics)(db).catch((e) => deletion.failures.push(`store_cache/admin_metrics: ${(e === null || e === void 0 ? void 0 : e.message) || e}`));
     }
     // Step 4: Write immutable canonical ResetAuditEntry record to reset_audit_log,
     // with the real number of records deleted.

@@ -63,6 +63,20 @@ describe('Module 23א — one scope for backup and deletion', () => {
     expect(fn).toMatch(/if \(entry\.backupOnly\) continue;/);
   });
 
+  it('a system reset recomputes the admin cache the deleted data fed (Module 24 store_cache)', () => {
+    // PRD 23א §ב.3: a system reset "מוחק את כלל נתוני הלמידה"; store_cache/admin_metrics
+    // is derived from them, so it must not keep the pre-reset summary until 14:30 next day.
+    const agg = readFileSync(resolve(__dirname, '../../../../functions/src/adminAggregator.ts'), 'utf-8');
+    expect(agg).toMatch(/export async function recomputeAdminMetrics\(db: admin\.firestore\.Firestore\)/);
+    expect(fn).toMatch(/import \{ recomputeAdminMetrics \} from "\.\/adminAggregator";/);
+    const systemBlock = fn.indexOf("if (reset_level === 'system') {", fn.indexOf('const deletion = await executeResetDeletion'));
+    expect(systemBlock).toBeGreaterThan(-1);
+    const recompute = fn.indexOf('await recomputeAdminMetrics(db)', systemBlock);
+    expect(recompute).toBeGreaterThan(systemBlock);
+    // Runs only after deletion, and a failure is reported like any other incomplete step.
+    expect(fn.slice(recompute, recompute + 200)).toContain('deletion.failures.push(`store_cache/admin_metrics:');
+  });
+
   it('refuses a single-learner reset without a learner number instead of defaulting to learner 1', () => {
     expect(fn).not.toMatch(/replace\(\/\\D\/g, ''\) \|\| '1'/);
     expect(fn).toContain('student_id (1-12) is required for single_student reset.');

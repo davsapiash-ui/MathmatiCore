@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.hourlyAdminAggregator = void 0;
+exports.recomputeAdminMetrics = recomputeAdminMetrics;
 const scheduler_1 = require("firebase-functions/v2/scheduler");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
@@ -19,8 +20,19 @@ exports.hourlyAdminAggregator = (0, scheduler_1.onSchedule)({
     schedule: "every day 14:30",
     timeZone: "Asia/Jerusalem",
     region: "us-central1",
-}, async (event) => {
-    const db = admin.firestore();
+}, async () => {
+    const aggregatedMetrics = await recomputeAdminMetrics(admin.firestore());
+    logger.info("Updated admin_metrics cache successfully via daily schedule", aggregatedMetrics);
+});
+/**
+ * Recomputes store_cache/admin_metrics from the live collections and writes it.
+ *
+ * Shared by the daily schedule above and by the Module 23א system reset: the
+ * cache is a derivative of the learning data, so a reset that "מוחק את כלל
+ * נתוני הלמידה" (PRD 23א §ב.3) must not leave the admin console showing the
+ * pre-reset summary until 14:30 the next day.
+ */
+async function recomputeAdminMetrics(db) {
     const [schoolsSnap, classesSnap, sessionsSnap, studentsSnap] = await Promise.all([
         db.collection("schools").get(),
         db.collection("classes").get(),
@@ -70,6 +82,6 @@ exports.hourlyAdminAggregator = (0, scheduler_1.onSchedule)({
         session_breakdown: sessionBreakdown,
     };
     await db.collection("store_cache").doc("admin_metrics").set(aggregatedMetrics, { merge: true });
-    logger.info("Updated admin_metrics cache successfully via hourly schedule", aggregatedMetrics);
-});
+    return aggregatedMetrics;
+}
 //# sourceMappingURL=adminAggregator.js.map

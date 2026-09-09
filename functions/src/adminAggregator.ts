@@ -17,8 +17,20 @@ export const hourlyAdminAggregator = onSchedule({
   schedule: "every day 14:30",
   timeZone: "Asia/Jerusalem",
   region: "us-central1",
-}, async (event) => {
-  const db = admin.firestore();
+}, async () => {
+  const aggregatedMetrics = await recomputeAdminMetrics(admin.firestore());
+  logger.info("Updated admin_metrics cache successfully via daily schedule", aggregatedMetrics);
+});
+
+/**
+ * Recomputes store_cache/admin_metrics from the live collections and writes it.
+ *
+ * Shared by the daily schedule above and by the Module 23א system reset: the
+ * cache is a derivative of the learning data, so a reset that "מוחק את כלל
+ * נתוני הלמידה" (PRD 23א §ב.3) must not leave the admin console showing the
+ * pre-reset summary until 14:30 the next day.
+ */
+export async function recomputeAdminMetrics(db: admin.firestore.Firestore) {
 
   const [schoolsSnap, classesSnap, sessionsSnap, studentsSnap] = await Promise.all([
     db.collection("schools").get(),
@@ -78,7 +90,6 @@ export const hourlyAdminAggregator = onSchedule({
   };
 
   await db.collection("store_cache").doc("admin_metrics").set(aggregatedMetrics, { merge: true });
-
-  logger.info("Updated admin_metrics cache successfully via hourly schedule", aggregatedMetrics);
-});
+  return aggregatedMetrics;
+}
 
