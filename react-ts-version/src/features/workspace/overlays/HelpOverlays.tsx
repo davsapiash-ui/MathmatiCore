@@ -326,6 +326,12 @@ function SocraticPenaltyLockOptions({ onClose }: { onClose: () => void }) {
       if (state.keyboardState === 'SOCRATIC_ONLY') {
         state.unlockKeyboard();
       }
+      // PRD Module 12: Smooth auto-dismiss after affirmative feedback display
+      setTimeout(() => {
+        if (useWorkspaceStore.getState().helpState === 'socratic') {
+          useWorkspaceStore.getState().closeHelp();
+        }
+      }, 1200);
     }
   };
 

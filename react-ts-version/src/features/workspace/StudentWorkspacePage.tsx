@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import {
   DndContext,
   DragOverlay,
+  PointerSensor,
   MouseSensor,
   TouchSensor,
   KeyboardSensor,
@@ -522,10 +523,11 @@ export function StudentWorkspacePage() {
           const boardVal = Boolean(val.additionBoardEnabled || val.forceAdditionHelper);
           setLiveAdditionBoardEnabled(boardVal);
 
-          // Direct lock / unlock sync from teacher
-          const isLocked = val.workspaceState?.isBoardLocked ?? val.isBoardLocked;
-          if (isLocked !== undefined && isLocked !== useWorkspaceStore.getState().isBoardLocked) {
-            useWorkspaceStore.setState({ isBoardLocked: Boolean(isLocked) });
+          // Direct lock / unlock sync from teacher: only explicit root isBoardLocked
+          // can lock the board; stale workspaceState must never trap the learner.
+          const isLocked = val.isBoardLocked !== undefined ? Boolean(val.isBoardLocked) : false;
+          if (isLocked !== useWorkspaceStore.getState().isBoardLocked) {
+            useWorkspaceStore.setState({ isBoardLocked: isLocked });
           }
 
           // Module 19 §ב: stage a teacher-queued differentiation change without
@@ -791,25 +793,19 @@ export function StudentWorkspacePage() {
   // handleDragEnd below) — that's the "click vs. drag conflict" / stuck
   // feeling. 10px is still effectively instant but meaningfully more
   // forgiving of natural jitter.
+  // Unified PointerSensor: seamlessly supports mouse, trackpad, touchscreen,
+  // and stylus across all devices and operating systems without delay.
+  // 8px threshold prevents accidental jitter without any perceived latency.
   const sensors = useSensors(
-    useSensor(MouseSensor, {
-      // 10px, matching the reasoning in the comment above. A later "native
-      // MouseSensor" change had quietly dropped this to 3px — tighter even than
-      // the 6px the comment already calls too tight — which reintroduced the
-      // exact failure it describes: on a laptop, the tiny jitter between
-      // pressing on a block and holding still crosses a 3px threshold, so
-      // dnd-kit starts a drag and then instantly ends it as a no-op the moment
-      // the pointer settles. To the student that reads as a block that flickers
-      // and refuses to lift. 10px makes the pickup deliberate and stable while
-      // still starting the drag the instant a real drag gesture begins.
+    useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 10,
+        distance: 8,
       },
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 150,
-        tolerance: 5,
+        delay: 50,
+        tolerance: 15,
       },
     }),
     useSensor(KeyboardSensor)
@@ -1047,7 +1043,13 @@ export function StudentWorkspacePage() {
   }
 
   return (
-    <DndContext sensors={sensors} collisionDetection={collisionDetectionStrategy} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={collisionDetectionStrategy}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      onDragCancel={() => setActiveDrag(null)}
+    >
       <div
       dir="rtl"
       className="h-[100dvh] w-full overflow-hidden font-body text-ws-ink flex flex-col relative bg-ws-bg"

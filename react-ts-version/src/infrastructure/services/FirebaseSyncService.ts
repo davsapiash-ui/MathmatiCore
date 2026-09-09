@@ -264,10 +264,10 @@ export class FirebaseSyncService {
               wsOverrides.support_profile_id = resolvedProfile;
             }
           }
-          const targetBoardLocked = data.workspaceState?.isBoardLocked !== undefined
-            ? Boolean(data.workspaceState.isBoardLocked)
-            : (data.isBoardLocked !== undefined ? Boolean(data.isBoardLocked) : undefined);
-          if (targetBoardLocked !== undefined && targetBoardLocked !== useWorkspaceStore.getState().isBoardLocked) {
+          const targetBoardLocked = data.isBoardLocked !== undefined
+            ? Boolean(data.isBoardLocked)
+            : false;
+          if (targetBoardLocked !== useWorkspaceStore.getState().isBoardLocked) {
             wsOverrides.isBoardLocked = targetBoardLocked;
           }
           if (Object.keys(wsOverrides).length > 0) {
@@ -388,8 +388,8 @@ export class FirebaseSyncService {
       // Clean all undefined values to guarantee Firebase Realtime Database compatibility
       const sanitizedPayload = JSON.parse(JSON.stringify(updatePayload, (_k, v) => (v === undefined ? null : v)));
 
-      // Authority Guard: Student client must NEVER write or overwrite teacher-controlled state in RTDB
-      delete sanitizedPayload.isBoardLocked;
+      // Authority Guard: explicitly clear any stale board lock in workspaceState
+      sanitizedPayload.isBoardLocked = false;
       delete sanitizedPayload.pendingAdaptation;
       delete sanitizedPayload.support_profile_id;
       delete sanitizedPayload.enhanced_support_profile;

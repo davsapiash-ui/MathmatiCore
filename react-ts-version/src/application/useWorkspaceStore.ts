@@ -1493,6 +1493,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         successStreak: 0,
         awaitingNext: false,
         boardOpen: true,
+        isBoardLocked: false,
         // The card itself is not restored (helpState closes below), so a
         // keyboard saved mid-card as SOCRATIC_ONLY resumes as the Module 9 lock
         // it came from rather than as a state no action can leave.

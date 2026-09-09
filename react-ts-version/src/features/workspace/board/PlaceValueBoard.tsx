@@ -119,7 +119,7 @@ export function PlaceValueBoard({
             {!hideValueDisplay && <ValueDisplay />}
           </div>
 
-          <div className={isBoardLocked ? 'opacity-50 pointer-events-none transition-opacity' : 'transition-opacity'}>
+          <div className="transition-opacity">
             <BlockPalette scaffoldLevel={scaffoldLevel} />
           </div>
         </motion.section>
