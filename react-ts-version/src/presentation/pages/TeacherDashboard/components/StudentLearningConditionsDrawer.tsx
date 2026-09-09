@@ -32,6 +32,7 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat }
   const [activeTab, setActiveTab] = useState<'scaffolding' | 'accessibility' | 'replay'>('scaffolding');
   const [isResetting, setIsResetting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isClearingHelp, setIsClearingHelp] = useState(false);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
 
   // Form State
@@ -122,7 +123,8 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat }
   };
 
   const handleClearHelpRequest = async () => {
-    if (!student.studentId) return;
+    if (!student.studentId || isClearingHelp) return;
+    setIsClearingHelp(true);
     const normId = normalizeStudentId(student.studentId);
     const rawNum = student.studentId.replace(/[^0-9]/g, '');
     const ids = Array.from(new Set([student.studentId, normId, rawNum, `student_user${rawNum}`].filter(Boolean)));
@@ -139,6 +141,8 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat }
     } catch (err) {
       console.error('Failed to clear help request:', err);
       toast.error('סימון הטיפול נדחה בשרת. נסו שוב.');
+    } finally {
+      setIsClearingHelp(false);
     }
   };
 
@@ -216,10 +220,15 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat }
             </div>
             <button
               onClick={handleClearHelpRequest}
-              className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition-all flex items-center gap-1 shadow-sm shrink-0 cursor-pointer"
+              disabled={isClearingHelp}
+              className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 disabled:bg-amber-400 disabled:cursor-not-allowed text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm shrink-0 cursor-pointer"
             >
-              <Check className="w-3.5 h-3.5" />
-              <span>סמן כטופל</span>
+              {isClearingHelp ? (
+                <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Check className="w-3.5 h-3.5" />
+              )}
+              <span>{isClearingHelp ? 'מעדכן...' : 'סמן כטופל'}</span>
             </button>
           </div>
         )}

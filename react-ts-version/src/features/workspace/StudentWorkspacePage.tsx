@@ -1033,7 +1033,9 @@ export function StudentWorkspacePage() {
         <StudentChatOverlay />
 
         {/* Teacher paused the meeting: wait in place, board untouched underneath. */}
-        {activeClassSession.status === 'paused' && !isTeacherOrAdmin && <SessionPausedOverlay />}
+        <AnimatePresence>
+          {activeClassSession.status === 'paused' && !isTeacherOrAdmin && <SessionPausedOverlay />}
+        </AnimatePresence>
         
         {/* Module 10 + the matrix (register item 13): the grid fades in over
             2.5s and hides itself 3s after a correct digit. AnimatePresence
@@ -1041,9 +1043,7 @@ export function StudentWorkspacePage() {
         {isAdditionBoardEnabled && (
           <AnimatePresence>
             {isAdditionHelperOpen && (
-              <div key="adaptive-addition-grid" className="fixed bottom-6 left-6 z-50 flex flex-col items-end gap-2" dir="rtl">
-                <AdaptiveAdditionGrid />
-              </div>
+              <AdaptiveAdditionGrid key="adaptive-grid" />
             )}
           </AnimatePresence>
         )}

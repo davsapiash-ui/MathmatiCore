@@ -19,11 +19,12 @@ interface Props {
   isOpen: boolean;
   sessionNumber: number | null;
   sessions: SessionRow[];
+  isStarting?: boolean;
   onClose: () => void;
   onConfirm: (sessionNumber: number) => void;
 }
 
-export function SessionActivationModal({ isOpen, sessionNumber, sessions, onClose, onConfirm }: Props) {
+export function SessionActivationModal({ isOpen, sessionNumber, sessions, isStarting = false, onClose, onConfirm }: Props) {
   if (!isOpen || sessionNumber === null) return null;
 
   const row = sessions.find((s) => s.sessionNumber === sessionNumber);
@@ -32,7 +33,10 @@ export function SessionActivationModal({ isOpen, sessionNumber, sessions, onClos
 
   return createPortal(
     <>
-      <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-[9998]" onClick={onClose} />
+      <div
+        className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-[9998]"
+        onClick={isStarting ? undefined : onClose}
+      />
       <div
         role="dialog"
         aria-modal="true"
@@ -71,15 +75,24 @@ export function SessionActivationModal({ isOpen, sessionNumber, sessions, onClos
           <div className="px-6 py-4 bg-slate-50 dark:bg-slate-900/60 border-t border-slate-100 dark:border-slate-800 flex gap-3 justify-end">
             <button
               onClick={onClose}
-              className="px-5 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold text-sm cursor-pointer"
+              disabled={isStarting}
+              className="px-5 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               ביטול
             </button>
             <button
               onClick={() => onConfirm(sessionNumber)}
-              className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-sm cursor-pointer"
+              disabled={isStarting}
+              className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 disabled:cursor-not-allowed text-white font-bold text-sm shadow-sm cursor-pointer flex items-center gap-2"
             >
-              אישור ופתיחת המפגש
+              {isStarting ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>פותח מפגש...</span>
+                </>
+              ) : (
+                <span>אישור ופתיחת המפגש</span>
+              )}
             </button>
           </div>
         </div>

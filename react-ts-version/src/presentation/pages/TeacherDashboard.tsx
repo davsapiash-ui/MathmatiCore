@@ -162,6 +162,8 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   // Module 22 §ב: the admin consultation channel lives in a sliding side drawer
   // opened by the envelope icon — not in a dashboard tab.
   const [isAdminChatDrawerOpen, setIsAdminChatDrawerOpen] = useState(false);
+  const [isUpdatingSession, setIsUpdatingSession] = useState(false);
+  const [isStartingSession, setIsStartingSession] = useState(false);
 
   // Sync active class session with Firebase.
   // A session with a teacherDisconnectedAt stamp older than 5 minutes counts as
@@ -409,6 +411,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       setClassSessionStatus('active');
       setIsClassSessionActive(true);
       toast.success(`שיעור ${sessionNum} הופעל בהצלחה לכלל תלמידי הכיתה! 🚀`);
+      return true;
     } catch (err: any) {
       console.error('Error starting class session:', err);
       // Clean rollback of optimistic state
@@ -422,10 +425,13 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       } else {
         toast.error('שגיאה בהפעלת המפגש מול השרת. אנא בדוק חיבור לרשת.');
       }
+      return false;
     }
   };
 
   const handleEndClassSession = async () => {
+    if (isUpdatingSession) return;
+    setIsUpdatingSession(true);
     try {
       if (auth.currentUser) {
         try {
@@ -453,12 +459,16 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     } catch (err) {
       console.error('Error ending class session:', err);
       toast.error('שגיאה בסגירת המפגש מול השרת.');
+    } finally {
+      setIsUpdatingSession(false);
     }
   };
 
   // Pause keeps the meeting open (active: true) and stamps status: 'paused';
   // every learner's screen shows the waiting overlay in place. Resume clears it.
   const handlePauseClassSession = async () => {
+    if (isUpdatingSession) return;
+    setIsUpdatingSession(true);
     try {
       await update(ref(database, 'active_class_session'), { status: 'paused', pausedAt: Date.now() });
       setClassSessionStatus('paused');
@@ -466,10 +476,14 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     } catch (err) {
       console.error('Error pausing class session:', err);
       toast.error('שגיאה בהשהיית המפגש מול השרת.');
+    } finally {
+      setIsUpdatingSession(false);
     }
   };
 
   const handleResumeClassSession = async () => {
+    if (isUpdatingSession) return;
+    setIsUpdatingSession(true);
     try {
       await update(ref(database, 'active_class_session'), { status: 'active', pausedAt: null, resumedAt: Date.now() });
       setClassSessionStatus('active');
@@ -477,6 +491,8 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     } catch (err) {
       console.error('Error resuming class session:', err);
       toast.error('שגיאה בהמשך המפגש מול השרת.');
+    } finally {
+      setIsUpdatingSession(false);
     }
   };
 
@@ -1241,7 +1257,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
 
             <button
               onClick={() => setPendingActivationSession(pickedSessionNum)}
-              disabled={isClassSessionActive && pickedSessionNum === selectedSessionNum}
+              disabled={(isClassSessionActive && pickedSessionNum === selectedSessionNum) || isUpdatingSession || isStartingSession}
               title={isClassSessionActive && pickedSessionNum === selectedSessionNum ? 'מפגש זה כבר פעיל כעת' : `פתיחת מפגש ${pickedSessionNum} לכלל הכיתה`}
               className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed disabled:hover:bg-slate-300 text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
             >
@@ -1253,25 +1269,40 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                 {classSessionStatus === 'paused' ? (
                   <button
                     onClick={handleResumeClassSession}
-                    className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+                    disabled={isUpdatingSession}
+                    className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
                   >
-                    <span>▶️</span>
+                    {isUpdatingSession ? (
+                      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <span>▶️</span>
+                    )}
                     <span>המשך מפגש</span>
                   </button>
                 ) : (
                   <button
                     onClick={handlePauseClassSession}
-                    className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+                    disabled={isUpdatingSession}
+                    className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
                   >
-                    <span>⏸️</span>
+                    {isUpdatingSession ? (
+                      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <span>⏸️</span>
+                    )}
                     <span>עצור מפגש</span>
                   </button>
                 )}
                 <button
                   onClick={handleEndClassSession}
-                  className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+                  disabled={isUpdatingSession}
+                  className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
                 >
-                  <span>⏹️</span>
+                  {isUpdatingSession ? (
+                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <span>⏹️</span>
+                  )}
                   <span>סגור מפגש</span>
                 </button>
               </>
@@ -2203,10 +2234,22 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
           isOpen={pendingActivationSession !== null}
           sessionNumber={pendingActivationSession}
           sessions={sessionRows}
-          onClose={() => setPendingActivationSession(null)}
-          onConfirm={(sessionNum) => {
-            setPendingActivationSession(null);
-            handleStartClassSession(sessionNum);
+          isStarting={isStartingSession}
+          onClose={() => {
+            if (!isStartingSession) {
+              setPendingActivationSession(null);
+            }
+          }}
+          onConfirm={async (sessionNum) => {
+            setIsStartingSession(true);
+            try {
+              const success = await handleStartClassSession(sessionNum);
+              if (success) {
+                setPendingActivationSession(null);
+              }
+            } finally {
+              setIsStartingSession(false);
+            }
           }}
         />
 

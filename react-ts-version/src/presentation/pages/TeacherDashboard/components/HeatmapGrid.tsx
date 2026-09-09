@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { ref, onValue, update, query, limitToLast } from 'firebase/database';
 import { database, functions } from '@/infrastructure/firebase';
 import { httpsCallable } from 'firebase/functions';
@@ -377,7 +378,11 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
     }
   };
 
+  const [approvingStudentId, setApprovingStudentId] = useState<string | null>(null);
+
   const handleApproveGate = async (studentId: string, path: 'ירוק' | 'צמצום פערים') => {
+    if (approvingStudentId) return;
+    setApprovingStudentId(studentId);
     const num = studentId.replace(/\D/g, '') || '1';
     const isRemediation = path === 'צמצום פערים';
 
@@ -403,6 +408,8 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
     } catch (err) {
       console.error('Failed to approve gate:', err);
       toast.error('שגיאה באישור שער המעבר');
+    } finally {
+      setApprovingStudentId(null);
     }
   };
 
@@ -516,24 +523,31 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
               </span>
             </div>
             <div className="flex items-center gap-2.5 flex-wrap">
-              {pendingGateStudents.map(st => (
-                <div key={st.id} className="flex items-center gap-2 bg-white dark:bg-slate-900 px-3 py-1.5 rounded-xl border border-amber-200 dark:border-amber-800 shadow-xs">
-                  <span className="font-extrabold text-xs text-slate-800 dark:text-slate-200">תלמיד {st.studentNumber}</span>
-                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">המלצה: {st.recommendedPath}</span>
-                  <button
-                    onClick={() => handleApproveGate(st.id, 'ירוק')}
-                    className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer"
-                  >
-                    אשר ירוק
-                  </button>
-                  <button
-                    onClick={() => handleApproveGate(st.id, 'צמצום פערים')}
-                    className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer"
-                  >
-                    אשר צמצום
-                  </button>
-                </div>
-              ))}
+              {pendingGateStudents.map(st => {
+                const isApprovingThis = approvingStudentId === st.id;
+                return (
+                  <div key={st.id} className="flex items-center gap-2 bg-white dark:bg-slate-900 px-3 py-1.5 rounded-xl border border-amber-200 dark:border-amber-800 shadow-xs">
+                    <span className="font-extrabold text-xs text-slate-800 dark:text-slate-200">תלמיד {st.studentNumber}</span>
+                    <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">המלצה: {st.recommendedPath}</span>
+                    <button
+                      onClick={() => handleApproveGate(st.id, 'ירוק')}
+                      disabled={Boolean(approvingStudentId)}
+                      className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
+                    >
+                      {isApprovingThis && <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                      <span>אשר ירוק</span>
+                    </button>
+                    <button
+                      onClick={() => handleApproveGate(st.id, 'צמצום פערים')}
+                      disabled={Boolean(approvingStudentId)}
+                      className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
+                    >
+                      {isApprovingThis && <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                      <span>אשר צמצום</span>
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </section>
@@ -665,17 +679,21 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                         <div className="flex items-center gap-1">
                           <button
                             onClick={() => handleApproveGate(student.id, 'ירוק')}
-                            className="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-bold transition-all shadow-xs cursor-pointer"
+                            disabled={Boolean(approvingStudentId)}
+                            className="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded text-[10px] font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
                             title="אשר מסלול ירוק"
                           >
-                            ירוק
+                            {approvingStudentId === student.id && <span className="w-2.5 h-2.5 border border-white border-t-transparent rounded-full animate-spin" />}
+                            <span>ירוק</span>
                           </button>
                           <button
                             onClick={() => handleApproveGate(student.id, 'צמצום פערים')}
-                            className="px-2 py-0.5 bg-amber-500 hover:bg-amber-600 text-white rounded text-[10px] font-bold transition-all shadow-xs cursor-pointer"
+                            disabled={Boolean(approvingStudentId)}
+                            className="px-2 py-0.5 bg-amber-500 hover:bg-amber-600 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded text-[10px] font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
                             title="אשר צמצום פערים"
                           >
-                            צמצום
+                            {approvingStudentId === student.id && <span className="w-2.5 h-2.5 border border-white border-t-transparent rounded-full animate-spin" />}
+                            <span>צמצום</span>
                           </button>
                         </div>
                       </div>
@@ -689,17 +707,29 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
       </section>
 
       {/* Drill-Down View / Student Detail Drawer */}
-      <AnimatePresence>
-        {selectedStudent && (
-          <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-50 flex items-center justify-end">
-            <motion.div 
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="w-full max-w-xl h-full bg-white dark:bg-slate-900 shadow-2xl p-6 md:p-8 overflow-y-auto flex flex-col justify-between border-r border-slate-200 dark:border-slate-800" 
-              dir="rtl"
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {selectedStudent && (
+            <motion.div
+              key="student-detail-drawer-container"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-end"
             >
+              <div
+                className="fixed inset-0 bg-slate-950/60 backdrop-blur-md"
+                onClick={() => setSelectedStudent(null)}
+              />
+              <motion.div 
+                key="student-detail-drawer-panel"
+                initial={{ x: '100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '100%' }}
+                transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                className="relative z-10 w-full max-w-xl h-full bg-white dark:bg-slate-900 shadow-2xl p-6 md:p-8 overflow-y-auto flex flex-col justify-between border-r border-slate-200 dark:border-slate-800" 
+                dir="rtl"
+              >
               <div>
                 <div className="flex justify-between items-center pb-4 mb-6 border-b border-slate-200 dark:border-slate-800">
                   <div className="flex items-center gap-3.5">
@@ -834,9 +864,11 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                 </button>
               </div>
             </motion.div>
-          </div>
+          </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>,
+      document.body
+    )}
       {/* Module 23א level 1 — alerts only; no backup required, audit still written */}
       <ResetConfirmationModal
         isOpen={isAlertsResetModalOpen}

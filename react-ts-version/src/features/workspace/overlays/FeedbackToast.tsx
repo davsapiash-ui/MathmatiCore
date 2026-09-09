@@ -10,6 +10,7 @@ import { useWorkspaceStore } from '@/application/useWorkspaceStore';
  */
 export function FeedbackToast() {
   const feedback = useWorkspaceStore((s) => s.feedback);
+  const feedbackNonce = useWorkspaceStore((s) => s.feedbackNonce);
   const isASD = useWorkspaceStore((s) => s.isASD);
 
   useEffect(() => {
@@ -27,6 +28,7 @@ export function FeedbackToast() {
     <AnimatePresence>
       {feedback && (
         <motion.div
+          key={feedback.nonce || feedbackNonce || `${feedback.title}-${feedback.correct}`}
           role="status"
           aria-live="assertive"
           initial={{ y: -80, opacity: 0, scale: 0.95 }}

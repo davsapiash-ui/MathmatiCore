@@ -100,6 +100,7 @@ export interface FeedbackState {
   correct: boolean;
   title: string;
   sub?: string;
+  nonce?: number | string;
 }
 
 export interface UndoFrame {

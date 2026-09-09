@@ -103,27 +103,50 @@ export function AdminSchoolsView() {
     });
   }, [schools, teachers, searchQuery]);
 
-  const handleDeleteSchool = (school: { id: string; name: string }) => {
+  const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
+
+  const handleDeleteSchool = async (school: { id: string; name: string }) => {
+    if (isDeletingId) return;
     const teacherCount = teachers.filter((t) => t.schoolId === school.id).length;
     const classCount = classes.filter((c) => c.schoolId === school.id).length;
     if (!confirmAction(`למחוק את המוסד "${school.name}"?\nיימחקו יחד איתו ${teacherCount} מורות (כולל הרשאת הכניסה שלהן) ו-${classCount} כיתות. פעולה זו אינה הפיכה.`)) return;
-    Promise.resolve(deleteSchool(school.id))
-      .then(() => toast.success(`המוסד "${school.name}" נמחק.`))
-      .catch(() => toast.error("מחיקת המוסד נכשלה בשרת."));
+    setIsDeletingId(school.id);
+    try {
+      await Promise.resolve(deleteSchool(school.id));
+      toast.success(`המוסד "${school.name}" נמחק.`);
+    } catch {
+      toast.error("מחיקת המוסד נכשלה בשרת.");
+    } finally {
+      setIsDeletingId(null);
+    }
   };
 
-  const handleDeleteTeacher = (teacher: { id: string; name: string; ssoEmail: string }) => {
+  const handleDeleteTeacher = async (teacher: { id: string; name: string; ssoEmail: string }) => {
+    if (isDeletingId) return;
     if (!confirmAction(`להסיר את המורה ${teacher.name} (${teacher.ssoEmail})?\nהרשאת הכניסה שלה תבוטל מיד. הכיתות אינן נמחקות.`)) return;
-    deleteTeacher(teacher.id)
-      .then(() => toast.success(`המורה ${teacher.name} הוסרה והרשאת הכניסה שלה בוטלה.`))
-      .catch(() => toast.error("הסרת המורה נכשלה בשרת. ודא שאתה מחובר כמנהל מערכת."));
+    setIsDeletingId(teacher.id);
+    try {
+      await deleteTeacher(teacher.id);
+      toast.success(`המורה ${teacher.name} הוסרה והרשאת הכניסה שלה בוטלה.`);
+    } catch {
+      toast.error("הסרת המורה נכשלה בשרת. ודא שאתה מחובר כמנהל מערכת.");
+    } finally {
+      setIsDeletingId(null);
+    }
   };
 
-  const handleDeleteClass = (cls: { id: string; name: string }) => {
+  const handleDeleteClass = async (cls: { id: string; name: string }) => {
+    if (isDeletingId) return;
     if (!confirmAction(`למחוק את הכיתה "${cls.name}"?\nהלומדים לא יוכלו להיכנס לכיתה זו. פעולה זו אינה הפיכה.`)) return;
-    Promise.resolve(deleteClassRoom(cls.id))
-      .then(() => toast.success(`הכיתה "${cls.name}" נמחקה.`))
-      .catch(() => toast.error("מחיקת הכיתה נכשלה בשרת."));
+    setIsDeletingId(cls.id);
+    try {
+      await Promise.resolve(deleteClassRoom(cls.id));
+      toast.success(`הכיתה "${cls.name}" נמחקה.`);
+    } catch {
+      toast.error("מחיקת הכיתה נכשלה בשרת.");
+    } finally {
+      setIsDeletingId(null);
+    }
   };
 
   const openWizard = (mode: "full_setup" | "add_teacher" | "add_class", schoolId: string | null = null) => {
@@ -339,10 +362,15 @@ export function AdminSchoolsView() {
 
                   <button 
                     onClick={() => handleDeleteSchool(school)}
-                    className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/50 hover:text-rose-600 text-slate-400 transition-colors flex items-center justify-center cursor-pointer"
+                    disabled={isDeletingId === school.id}
+                    className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/50 hover:text-rose-600 disabled:opacity-50 disabled:cursor-not-allowed text-slate-400 transition-colors flex items-center justify-center cursor-pointer"
                     title="מחק מוסד"
                   >
-                    <Trash2 className="w-5 h-5" />
+                    {isDeletingId === school.id ? (
+                      <span className="w-4 h-4 border-2 border-rose-500 border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Trash2 className="w-5 h-5" />
+                    )}
                   </button>
                 </div>
 
@@ -417,10 +445,15 @@ export function AdminSchoolsView() {
 
                             <button 
                               onClick={() => handleDeleteTeacher(teacher)}
-                              className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 p-2 rounded-xl transition-all cursor-pointer"
+                              disabled={isDeletingId === teacher.id}
+                              className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 disabled:opacity-50 disabled:cursor-not-allowed p-2 rounded-xl transition-all cursor-pointer"
                               title="מחק מורה"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              {isDeletingId === teacher.id ? (
+                                <span className="w-4 h-4 border-2 border-rose-500 border-t-transparent rounded-full animate-spin" />
+                              ) : (
+                                <Trash2 className="w-4 h-4" />
+                              )}
                             </button>
                           </div>
                         ))}
@@ -463,10 +496,15 @@ export function AdminSchoolsView() {
 
                             <button 
                               onClick={() => handleDeleteClass(cls)}
-                              className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 p-1.5 rounded-lg transition-all cursor-pointer"
+                              disabled={isDeletingId === cls.id}
+                              className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 disabled:opacity-50 disabled:cursor-not-allowed p-1.5 rounded-lg transition-all cursor-pointer"
                               title="מחק כיתה"
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              {isDeletingId === cls.id ? (
+                                <span className="w-3.5 h-3.5 border-2 border-rose-500 border-t-transparent rounded-full animate-spin" />
+                              ) : (
+                                <Trash2 className="w-3.5 h-3.5" />
+                              )}
                             </button>
                           </div>
                         ))}

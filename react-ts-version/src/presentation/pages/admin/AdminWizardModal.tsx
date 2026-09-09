@@ -251,18 +251,23 @@ export function AdminWizardModal({
   return createPortal(
     <AnimatePresence>
       {isOpen && (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6" dir="rtl">
+        <motion.div
+          key="admin-wizard-container"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6"
+          dir="rtl"
+        >
           {/* Backdrop */}
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+          <div 
             onClick={resetAndClose}
             className="fixed inset-0 bg-slate-950/70 backdrop-blur-md"
           />
 
           {/* Modal Container */}
           <motion.div 
+            key="admin-wizard-box"
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -699,7 +704,7 @@ export function AdminWizardModal({
               </div>
             )}
           </motion.div>
-        </div>
+        </motion.div>
       )}
     </AnimatePresence>,
     document.body

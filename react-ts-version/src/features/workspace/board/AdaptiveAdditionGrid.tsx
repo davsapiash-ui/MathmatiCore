@@ -7,6 +7,7 @@ import { X, Sparkles } from 'lucide-react';
 interface AdaptiveAdditionGridProps {
   onSelection?: (sum: number) => void;
   onClose?: () => void;
+  className?: string;
 }
 
 /**
@@ -20,7 +21,7 @@ interface AdaptiveAdditionGridProps {
  * it automatically. The exit animation runs under the page's AnimatePresence,
  * so this component must be mounted inside one.
  */
-export function AdaptiveAdditionGrid({ onSelection, onClose }: AdaptiveAdditionGridProps) {
+export function AdaptiveAdditionGrid({ onSelection, onClose, className = '' }: AdaptiveAdditionGridProps) {
   const [activeRow, setActiveRow] = useState<number | null>(null);
   const [activeCol, setActiveCol] = useState<number | null>(null);
 
@@ -63,12 +64,13 @@ export function AdaptiveAdditionGrid({ onSelection, onClose }: AdaptiveAdditionG
 
   return (
     <motion.div
+      key="adaptive-grid"
       initial={{ opacity: 0, scale: 0.96, y: 12 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.96, y: 12, transition: { duration: 0.6, ease: 'easeInOut' } }}
       transition={{ duration: GRID_FADE_IN_SECONDS, ease: 'easeInOut' }}
       dir="rtl"
-      className="bg-white dark:bg-slate-900 border-2 border-amber-300 dark:border-amber-700/60 rounded-3xl p-5 shadow-2xl max-w-md w-full select-none"
+      className={`fixed bottom-6 left-6 z-50 bg-white dark:bg-slate-900 border-2 border-amber-300 dark:border-amber-700/60 rounded-3xl p-5 shadow-2xl max-w-md w-full select-none ${className}`}
       role="dialog"
       aria-label="לוח עזר אדפטיבי לחיבור"
       data-testid="adaptive-addition-grid"
