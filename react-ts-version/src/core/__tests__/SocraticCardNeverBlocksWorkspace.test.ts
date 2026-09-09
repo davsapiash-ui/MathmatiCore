@@ -60,7 +60,7 @@ import { useAuthStore, unifiedLogout } from '@/application/useAuthStore';
 import { useStore } from '@/application/useStore';
 import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
 
-const read = (rel: string) => readFileSync(resolve(__dirname, '../../', rel), 'utf-8');
+const read = (rel: string) => readFileSync(resolve(__dirname, '../../', rel), 'utf-8').replace(/\r\n/g, '\n');
 
 function startMeeting1AtExercise3() {
   useWorkspaceStore.getState().resetWorkspace();

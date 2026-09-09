@@ -8,9 +8,10 @@ import { executeGoogleSSO, mockSimulatedSSO } from "@/infrastructure/services/Au
 import { tts } from "@/infrastructure/services/TTSService";
 import { Logo } from "@/presentation/components/ui/Logo";
 import { Button } from "@/components/ui/button";
-import { auth, functions } from "@/infrastructure/firebase";
+import { auth, functions, database } from "@/infrastructure/firebase";
 import { signInAnonymously } from "firebase/auth";
 import { httpsCallable } from "firebase/functions";
+import { ref, get } from "firebase/database";
 
 const ROLES = [
   { id: "student" as const, icon: "🎓", label: "תלמיד" },
@@ -163,7 +164,24 @@ export function Login() {
 
       login("student", studentUid);
       setIsLoggingIn(false);
-      navigate("/student/lobby", { replace: true });
+
+      // Deviation 10 & Session Resumption: Direct entry to teacher's active meeting
+      try {
+        const sessionSnap = await get(ref(database, 'active_class_session'));
+        if (sessionSnap.exists()) {
+          const sessionVal = sessionSnap.val();
+          const isLive = Boolean(sessionVal?.active) && sessionVal?.status !== 'closed';
+          const sessNum = Number(sessionVal?.sessionNumber);
+          if (isLive && sessNum >= 1 && sessNum <= 8) {
+            navigate(`/workspace?meeting=${sessNum}`, { replace: true });
+            return;
+          }
+        }
+      } catch (sessErr) {
+        console.warn('Could not check active_class_session on student login:', sessErr);
+      }
+
+      navigate("/hub", { replace: true });
     } catch (err: unknown) {
       console.error("Student Login Error (Invalid code or server rejection):", err);
       setIsLoggingIn(false);

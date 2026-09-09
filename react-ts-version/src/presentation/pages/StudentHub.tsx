@@ -205,6 +205,13 @@ export function StudentHub() {
   // Module 20: If student completed Session 2 and attempts Session 3 without teacher approval -> Bee Flight
   const isAwaitingTeacherGate = hasCompletedSession2 && effectiveSessionId === 3 && !isTeacherGateApproved;
 
+  // Deviation 10: When teacher opens/starts session, auto-navigate waiting student into workspace
+  useEffect(() => {
+    if (isTeacherSessionActive && teacherSessionNum && activeClassSession?.status === 'active' && !isAwaitingTeacherGate && !isProjectorModeActive) {
+      navigate(`/workspace?meeting=${teacherSessionNum}`, { replace: true });
+    }
+  }, [isTeacherSessionActive, teacherSessionNum, activeClassSession?.status, isAwaitingTeacherGate, isProjectorModeActive, navigate]);
+
   // Module 15: projector broadcast covers every student surface, the lobby included
   if (isProjectorModeActive) {
     return <ProjectorWaitingScreen />;
@@ -222,11 +229,6 @@ export function StudentHub() {
     if (!isTeacherSessionActive) return;
 
     const targetSessionId = activeSession?.id || 1;
-    try {
-      startSession(targetSessionId);
-    } catch (err) {
-      console.warn('[StudentHub] startSession non-blocking error:', err);
-    }
     try {
       navigate(`/workspace?meeting=${targetSessionId}`);
     } catch (navErr) {

@@ -26,6 +26,7 @@ export function PlaceValueBoard({
   const scaffoldLevel = useWorkspaceStore(selectScaffoldLevel);
   const restoreScaffolds = useWorkspaceStore((s) => s.restoreScaffolds);
   const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
+  const isBoardLocked = useWorkspaceStore((s) => s.isBoardLocked);
   const [showSession8Priming, setShowSession8Priming] = useState(true);
 
   const { setNodeRef: setBoardRef } = useDroppable({
@@ -96,6 +97,18 @@ export function PlaceValueBoard({
               </span>
             </div>
 
+            {/* Board locked indicator */}
+            {isBoardLocked && (
+              <div 
+                role="status"
+                aria-live="polite"
+                className="bg-amber-500/15 border border-amber-500/30 text-amber-900 dark:text-amber-200 px-4 py-2 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 shadow-xs shrink-0 animate-in fade-in"
+              >
+                <span aria-hidden="true">🔒</span>
+                <span>לוח הפעילות נעול זמנית על ידי המורה</span>
+              </div>
+            )}
+
             {/* Place-value columns with permanent clear solid borders */}
             <div dir="rtl" className="flex-1 flex flex-row gap-2 min-h-0 select-none" role="group" aria-label="טורי ערך המקום">
               {placesToRender.map((place) => (
@@ -106,7 +119,9 @@ export function PlaceValueBoard({
             {!hideValueDisplay && <ValueDisplay />}
           </div>
 
-          <BlockPalette scaffoldLevel={scaffoldLevel} />
+          <div className={isBoardLocked ? 'opacity-50 pointer-events-none transition-opacity' : 'transition-opacity'}>
+            <BlockPalette scaffoldLevel={scaffoldLevel} />
+          </div>
         </motion.section>
       )}
     </AnimatePresence>

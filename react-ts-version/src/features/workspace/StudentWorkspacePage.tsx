@@ -49,6 +49,7 @@ import { BeeFlightWaitingScreen } from '@/presentation/components/student/BeeFli
 import { hasEnhancedSupport as hasEnhancedSupportProfile } from '@/core/supportProfile';
 import { ProjectorWaitingScreen } from '@/presentation/components/student/ProjectorWaitingScreen';
 import { SessionPausedOverlay } from '@/presentation/components/student/SessionPausedOverlay';
+import { SessionClosedOverlay } from '@/presentation/components/student/SessionClosedOverlay';
 import { ReinforcementOrChallengeScreen } from './overlays/ReinforcementOrChallengeScreen';
 
 /**
@@ -98,6 +99,7 @@ export function StudentWorkspacePage() {
   const flowStatus = useWorkspaceStore((s) => s.flowStatus);
   const aiSocraticHint = useWorkspaceStore((s) => s.aiSocraticHint);
   const user = useAuthStore((s) => s.user);
+  const isTeacherOrAdmin = user?.role === 'teacher' || user?.role === 'admin';
 
   // PRD V2.0 Section 7 NFR: Pre-fetch Socratic hints upon loading to guarantee <200ms latency
   useEffect(() => {
@@ -264,16 +266,6 @@ export function StudentWorkspacePage() {
     };
   }, [activeDrag]);
 
-  // Enforce strict alignment with active teacher broadcast (PRD Module 14 & 20).
-  // A closed meeting is shown IN PLACE (the "המפגש הכיתתי סגור" screen below),
-  // not by bouncing the learner to the lobby: the owner wants every teacher
-  // action — start, pause, close — to change the learner's screen where it is.
-  useEffect(() => {
-    if (!activeClassSession.isLoaded || !isTeacherSessionActive) return;
-    if (teacherSessionNum && meeting !== teacherSessionNum) {
-      navigate(`/workspace?meeting=${teacherSessionNum}`);
-    }
-  }, [activeClassSession.isLoaded, isTeacherSessionActive, teacherSessionNum, meeting, navigate]);
 
   // Sync workspace state and vector replays continuously to Firebase RTDB
   useEffect(() => {
@@ -426,9 +418,23 @@ export function StudentWorkspacePage() {
     };
   }, [user?.uid, normUid, isTeacherSessionActive, activeClassSession, meeting]);
 
-  // Pedagogical Radar — active during student sessions per PRD v4.2 Modules 10 & 12
+  const [isInitializing, setIsInitializing] = useState(true);
+  const [pendingApproval, setPendingApproval] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [networkError, setNetworkError] = useState(false);
+  const isAdditionHelperOpen = useWorkspaceStore((s) => s.isAdditionHelperOpen);
+  const toggleAdditionHelper = useWorkspaceStore((s) => s.toggleAdditionHelper);
+
+  // Active overlay detection: when projector, teacher pause/close, gate lock, or sessionDone are active
+  const isOverlayActive = isProjectorModeActive || 
+    activeClassSession.status === 'paused' || 
+    activeClassSession.status === 'closed' || 
+    pendingApproval || 
+    flowStatus === 'sessionDone';
+
+  // Pedagogical Radar — active during real student problem solving, strictly PAUSED during overlays
   useCognitiveHesitationRadar({ 
-    isActive: true,
+    isActive: !isOverlayActive && !isTeacherOrAdmin,
     onHesitationDetected: () => {
       const ws = useWorkspaceStore.getState();
       const currentTask = ws.sessionNumber === 2 ? null : getActiveTasks(ws)[ws.standardTaskIdx];
@@ -438,12 +444,29 @@ export function StudentWorkspacePage() {
       }
     }
   });
-  const [isInitializing, setIsInitializing] = useState(true);
-  const [pendingApproval, setPendingApproval] = useState(false);
-  const [isInitialized, setIsInitialized] = useState(false);
-  const [networkError, setNetworkError] = useState(false);
-  const isAdditionHelperOpen = useWorkspaceStore((s) => s.isAdditionHelperOpen);
-  const toggleAdditionHelper = useWorkspaceStore((s) => s.toggleAdditionHelper);
+
+  // Problem-duration telemetry: pause elapsed timer during projector, paused, or closed overlays
+  const overlayStartRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (isOverlayActive) {
+      if (overlayStartRef.current === null) {
+        overlayStartRef.current = Date.now();
+      }
+    } else {
+      if (overlayStartRef.current !== null) {
+        const pausedDurationMs = Date.now() - overlayStartRef.current;
+        overlayStartRef.current = null;
+        if (pausedDurationMs > 0) {
+          const currentStartTime = useWorkspaceStore.getState().taskStartTime;
+          if (currentStartTime) {
+            useWorkspaceStore.setState({
+              taskStartTime: currentStartTime + pausedDurationMs,
+            });
+          }
+        }
+      }
+    }
+  }, [isOverlayActive]);
 
   // Retrieve saved progress from Firebase (synced into useStore)
   const students = useStore((s) => s.students);
@@ -867,7 +890,6 @@ export function StudentWorkspacePage() {
   // WP6 / Chaos Scenario 2: Soft Device Lock (נעילת מכשיר רכה — active_device_id)
   const isSupersededByOtherDevice = useWorkspaceStore((s) => s.isSupersededByOtherDevice);
 
-  const isTeacherOrAdmin = user?.role === 'teacher' || user?.role === 'admin';
   const isMatchingSessionActive =
     isTeacherOrAdmin ||
     (activeClassSession.isLoaded && isTeacherSessionActive && Number(activeClassSession?.sessionNumber) === meeting);
@@ -899,10 +921,6 @@ export function StudentWorkspacePage() {
     );
   }
 
-  // Module 15: If teacher activated Projector Mode, render serene waiting screen immediately (<1000ms)
-  if (isProjectorModeActive) {
-    return <ProjectorWaitingScreen />;
-  }
 
   // Module 14: Post-Mandatory Tasks Choice Point (Reinforcement vs Challenge)
   if (flowStatus === 'choice_branch') {
@@ -969,14 +987,12 @@ export function StudentWorkspacePage() {
           <p className="text-base text-ws-soft leading-relaxed">
             השלמתם את מפגש {sessionNumber} בהצלחה רבה!
           </p>
-          <div className="pt-4 flex flex-col gap-3">
-            <button
-              onClick={() => navigate('/hub')}
-              className="w-full py-3.5 bg-ws-accent text-white font-display font-extrabold text-base rounded-2xl hover:brightness-105 active:scale-95 transition-all cursor-pointer shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
-            >
-              <span>חזרה ללובי התלמיד</span>
-              <span>🏠</span>
-            </button>
+          <div className="pt-4 flex flex-col gap-2">
+            <div className="inline-flex items-center justify-center gap-2 py-3 px-6 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-200 dark:border-emerald-800 text-sm">
+              <span>העבודה נשמרה בבטחה</span>
+              <span>✓</span>
+            </div>
+            <p className="text-xs text-ws-soft">כשהמורה תפתח את המפגש הבא, נמשיך יחד.</p>
           </div>
         </div>
       </div>
@@ -992,26 +1008,12 @@ export function StudentWorkspacePage() {
     );
   }
 
-  if (!isMatchingSessionActive && !isInitializing && activeClassSession.isLoaded) {
+  // Teacher switched to another meeting: brief quiet transition indicator while URL syncs
+  if (!isTeacherOrAdmin && activeClassSession.isLoaded && isTeacherSessionActive && Number(activeClassSession?.sessionNumber) !== meeting) {
     return (
-      <div dir="rtl" className="h-screen w-full flex flex-col items-center justify-center bg-ws-bg text-ws-ink font-body p-6">
-        <div className="bg-ws-surface p-10 rounded-3xl shadow-xl max-w-md text-center border border-ws-surface2">
-          <div className="text-6xl mb-6 animate-pulse">🐝✨</div>
-          <h2 className="text-2xl font-bold mb-4 text-ws-ink">
-            {isTeacherSessionActive ? `מפגש ${meeting} אינו המפגש הפעיל` : `המורה סגרה את המפגש`}
-          </h2>
-          <p className="text-ws-soft mb-8 leading-relaxed">
-            {isTeacherSessionActive
-              ? `המורה מפעיל/ה כעת בכיתה את מפגש ${activeClassSession?.sessionNumber}.`
-              : 'העבודה שלכם נשמרה. כשהמורה תפתח מפגש, הוא יופיע כאן מיד.'}
-          </p>
-          <button 
-            onClick={() => navigate('/hub')}
-            className="w-full py-4 bg-ws-accent text-white font-bold rounded-2xl hover:brightness-105 transition-all cursor-pointer shadow-md"
-          >
-            חזרה ללובי התלמיד
-          </button>
-        </div>
+      <div dir="rtl" className="h-screen w-full flex flex-col items-center justify-center bg-ws-bg text-ws-ink font-body">
+        <div className="animate-spin text-4xl mb-4">⏳</div>
+        <h2 className="text-xl font-bold text-ws-ink">עוברים למפגש {activeClassSession?.sessionNumber}...</h2>
       </div>
     );
   }
@@ -1062,9 +1064,22 @@ export function StudentWorkspacePage() {
         <HelpOverlays />
         <StudentChatOverlay />
 
+        {/* Module 15: Projector Mode In-Place Overlay */}
+        <AnimatePresence>
+          {isProjectorModeActive && <ProjectorWaitingScreen />}
+        </AnimatePresence>
+
         {/* Teacher paused the meeting: wait in place, board untouched underneath. */}
         <AnimatePresence>
           {activeClassSession.status === 'paused' && !isTeacherOrAdmin && <SessionPausedOverlay />}
+        </AnimatePresence>
+
+        {/* Teacher closed the meeting: wait in place, board untouched underneath (Deviation 10) */}
+        {/* המורה סגרה את המפגש */}
+        <AnimatePresence>
+          {activeClassSession.status === 'closed' && !isTeacherOrAdmin && activeClassSession.isLoaded && (
+            <SessionClosedOverlay />
+          )}
         </AnimatePresence>
         
         {/* Module 10 + the matrix (register item 13): the grid fades in over

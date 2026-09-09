@@ -8,9 +8,15 @@ import { motion } from 'framer-motion';
  */
 export function ProjectorWaitingScreen() {
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.25 }}
       dir="rtl"
-      className="relative min-h-[calc(100vh-72px)] w-full flex flex-col items-center justify-center p-6 bg-slate-50 dark:bg-slate-950 font-body text-slate-900 dark:text-slate-100 select-none overflow-hidden"
+      role="status"
+      aria-live="polite"
+      className="fixed inset-0 z-[200] w-full h-full flex flex-col items-center justify-center p-6 bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-sm font-body text-slate-900 dark:text-slate-100 select-none overflow-hidden"
     >
       {/* Serene Ambient Background */}
       <div aria-hidden="true" className="absolute inset-0 pointer-events-none overflow-hidden bg-slate-50 dark:bg-slate-950">
@@ -84,6 +90,6 @@ export function ProjectorWaitingScreen() {
           ))}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

@@ -1333,7 +1333,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     },
 
     startSession: (meeting: number) => {
-      get().initSession(sanitizeSessionNumber(meeting), get().isASD);
+      const sanitized = sanitizeSessionNumber(meeting);
+      const current = get();
+      if (current.sessionNumber === sanitized && current.standardTaskIdx > 0 && current.flowStatus !== 'sessionDone') {
+        return;
+      }
+      get().initSession(sanitized, get().isASD);
     },
 
     initSession: (meeting, isASD, startingTaskIdx, existingDeadline) => {

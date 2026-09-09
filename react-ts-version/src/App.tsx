@@ -1,6 +1,7 @@
 import { useEffect, useState, lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
-import { authReady, auth } from "@/infrastructure/firebase";
+import { authReady, auth, database } from "@/infrastructure/firebase";
+import { ref, get } from "firebase/database";
 import { Login } from "@/presentation/pages/Login";
 import { isWhitelistedTeacherEmail } from "@/infrastructure/services/AuthService";
 import { LandingPage } from "@/presentation/pages/LandingPage";
@@ -172,7 +173,22 @@ function RoleRouter() {
       }
       if (activeRole === "admin") navigate("/admin", { replace: true });
       else if (activeRole === "teacher") navigate("/dashboard", { replace: true });
-      else if (activeRole === "student") navigate("/hub", { replace: true });
+      else if (activeRole === "student") {
+        get(ref(database, 'active_class_session')).then((sessionSnap) => {
+          if (sessionSnap.exists()) {
+            const sessionVal = sessionSnap.val();
+            const isLive = Boolean(sessionVal?.active) && sessionVal?.status !== 'closed';
+            const sessNum = Number(sessionVal?.sessionNumber);
+            if (isLive && sessNum >= 1 && sessNum <= 8) {
+              navigate(`/workspace?meeting=${sessNum}`, { replace: true });
+              return;
+            }
+          }
+          navigate("/hub", { replace: true });
+        }).catch(() => {
+          navigate("/hub", { replace: true });
+        });
+      }
     }
   }, [isAuthenticated, user, role, showRoleSelector, navigate, logout]);
 

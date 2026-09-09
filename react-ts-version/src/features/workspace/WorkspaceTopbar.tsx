@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useWorkspaceStore, selectCanProceed, getActiveTasks } from '@/application/useWorkspaceStore';
 import { useChatStore, normalizeStudentId } from '@/application/useChatStore';
 import { TASKS } from '@/core/QMatrix';
 import { ProgressDots } from './ProgressDots';
-import { RotateCcw, Home, MessageSquare, ArrowLeft, Cloud, CloudOff, Eye, EyeOff, HandHelping } from 'lucide-react';
+import { RotateCcw, MessageSquare, ArrowLeft, Cloud, CloudOff, Eye, EyeOff, HandHelping } from 'lucide-react';
 import { LogoutButton } from '@/presentation/components/ui/LogoutButton';
 import { Logo } from '@/presentation/components/ui/Logo';
 
@@ -28,8 +27,6 @@ interface WorkspaceTopbarProps {
 }
 
 export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
-  const navigate = useNavigate();
-
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
 
   useEffect(() => {
@@ -67,7 +64,7 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
     <nav className="h-[72px] shrink-0 bg-ws-surface/90 backdrop-saturate-150 border-b border-ws-surface2 shadow-[0_4px_20px_-8px_hsl(var(--ws-shadow-warm)/0.25)] flex items-center justify-between px-5 gap-4 z-20">
       {/* Brand + Student Identity + Silent Cloud Status Icon */}
       <div className="flex items-center gap-3 shrink-0">
-        <Logo size="md" subtitle="מרחב חקר אישי" to="/hub" />
+        <Logo size="md" subtitle="מרחב חקר אישי" />
 
         {/* Module 1 & 6: Zero-PII Student Identity Badge */}
         <div className="flex items-center gap-2 bg-ws-accentSoft border border-ws-accent/25 px-3 py-1.5 rounded-xl shadow-xs">
@@ -180,17 +177,6 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
         {/* Module 1: Clean Synchronous Logout */}
         <LogoutButton className="h-12 px-3 rounded-2xl text-xs sm:text-sm font-bold text-ws-soft hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 border border-transparent hover:border-red-200" />
       </div>
-
-      {/* מסמך 04 §3ו: the lobby button sits always in the top-left corner, on every activity screen */}
-      <button
-        onClick={() => navigate('/hub')}
-        className="h-12 px-4 rounded-2xl text-sm font-bold text-ws-ink bg-ws-surface2 hover:bg-ws-surface2/80 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 shrink-0"
-        aria-label="חזרה ללובי"
-        title="חזרה ללובי הראשי"
-      >
-        <Home className="w-4 h-4" />
-        <span className="hidden sm:inline">לובי</span>
-      </button>
     </nav>
   );
 }
