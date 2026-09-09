@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { CheckCircle2, ShieldCheck, AlertCircle, ArrowRight, Sparkles, UserCheck } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Sparkles, UserCheck } from 'lucide-react';
 import type { SessionDocument } from '@/types';
 
 export interface GateStudentItem {

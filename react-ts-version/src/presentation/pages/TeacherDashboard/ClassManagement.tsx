@@ -1,18 +1,16 @@
 import { useState, useEffect } from 'react';
-import { useAdminStore } from '@/application/useAdminStore';
-import { Users, Check, Lock, Sparkles, ChevronRight, Zap, CheckCircle2, Sliders, ShieldCheck, RotateCcw } from 'lucide-react';
+import { Users, Sparkles, ChevronRight, Zap, CheckCircle2, Sliders, ShieldCheck, RotateCcw } from 'lucide-react';
 import { useStore, type StudentData } from '@/application/useStore';
 import { HeatmapGrid } from './components/HeatmapGrid';
 import { ResetConfirmationModal } from './components/ResetConfirmationModal';
-import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
-import { ref, onValue, update, get, remove } from 'firebase/database';
+import { ref, onValue, update } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
-import { useChatStore, normalizeStudentId } from '@/application/useChatStore';
+import { normalizeStudentId } from '@/application/useChatStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { approveTeacherGate } from '@/core/teacherGate';
 import { hasEnhancedSupport, buildSupportProfilePayload } from '@/core/supportProfile';
 import { toast } from 'sonner';
-import type { ResetReason } from '@/types';
+import type { ResetReason, SingleStudentResetScope } from '@/types';
 
 interface StudentGateState {
   id: string;
@@ -45,20 +43,16 @@ const INITIAL_GATE_STUDENTS: StudentGateState[] = Array.from({ length: 12 }, (_,
  * 4. אכיפת מגבלת 12 תלמידים פעילים לכיתת המבקרים תחת בית ספר ביקורת.
  */
 export function ClassManagement({ 
-  allStudents, 
-  onDrillDown 
+  onDrillDown,
+  activeSessionNumber = null,
 }: { 
   allStudents: StudentData[]; 
-  onDrillDown?: (studentId: string) => void 
+  onDrillDown?: (studentId: string) => void;
+  /** The meeting the teacher currently has open (Module 14), for the level-2 reset dialog. */
+  activeSessionNumber?: number | null;
 }) {
-  const classes = useAdminStore(s => s.classes);
-  const schools = useAdminStore(s => s.schools);
   const [studentStates, setStudentStates] = useState<StudentGateState[]>(INITIAL_GATE_STUDENTS);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
-
-  // We're working with a single default school & class based on the strict hierarchy with reliable fallback
-  const currentClass = classes.length > 0 ? classes[0] : { id: 'class_1', name: 'המבקרים', schoolId: 'school_bikorot', studentLimit: 12 };
-  const currentSchool = schools.find(s => s.id === currentClass?.schoolId) || schools[0] || { id: 'school_bikorot', name: 'בית ספר ביקורת' };
 
   useEffect(() => {
     const studentsRef = ref(database, 'users/students');
@@ -168,13 +162,17 @@ export function ClassManagement({
 
   const [studentToReset, setStudentToReset] = useState<{ id: string; name: string } | null>(null);
 
-  const handleConfirmResetStudent = async (reason: ResetReason, reasonNote?: string) => {
+  const handleConfirmResetStudent = async (
+    reason: ResetReason,
+    reasonNote?: string,
+    options?: { scope: SingleStudentResetScope; sessionNumber: number | null }
+  ) => {
     if (!studentToReset) return;
     const { id: studentId, name: studentName } = studentToReset;
     setUpdatingId(studentId);
     try {
       // The store toasts its own success/failure once.
-      await useStore.getState().resetStudentData(studentId, reason, reasonNote);
+      await useStore.getState().resetStudentData(studentId, reason, reasonNote, options);
     } catch (err) {
       console.error(`Failed to reset ${studentName}:`, err);
       throw err; // keep the confirmation dialog open — nothing was reset
@@ -396,8 +394,9 @@ export function ClassManagement({
         resetLevel="single_student"
         targetStudentId={studentToReset?.id}
         targetStudentName={studentToReset?.name}
-        onConfirm={async (reason, reasonNote) => {
-          await handleConfirmResetStudent(reason, reasonNote);
+        activeSessionNumber={activeSessionNumber}
+        onConfirm={async (reason, reasonNote, options) => {
+          await handleConfirmResetStudent(reason, reasonNote, options);
           setStudentToReset(null);
         }}
       />

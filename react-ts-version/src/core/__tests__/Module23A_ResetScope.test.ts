@@ -20,7 +20,7 @@ const fn = readFileSync(resolve(__dirname, '../../../../functions/src/exportDriv
 
 describe('Module 23א — one scope for backup and deletion', () => {
   it('the backup reads the scope and the deletion deletes the same scope', () => {
-    expect(fn).toMatch(/const scope = buildResetScope\(reset_level, rawNum\);/);
+    expect(fn).toMatch(/const scope = buildResetScope\(reset_level, rawNum, singleScope, activeSessionNumber\);/);
     expect(fn).toMatch(/backup = await collectResetBackup\(rtdb, db, scope,/);
     expect(fn).toMatch(/const deletion = await executeResetDeletion\(rtdb, db, scope\);/);
   });
@@ -61,6 +61,58 @@ describe('Module 23א — one scope for backup and deletion', () => {
   it('a single-learner reset backs up all of that learner but deletes only the meeting state (§ב.2)', () => {
     expect(fn).toMatch(/backupOnly: collection !== "sessions",/);
     expect(fn).toMatch(/if \(entry\.backupOnly\) continue;/);
+  });
+
+  it("a single-learner reset restarts the active meeting by default; a full wipe is the teacher's explicit choice", () => {
+    expect(fn).toContain("const singleScope: SingleStudentResetScope = reset_level === 'single_student' ? (reset_scope || 'active_session') : 'full_student';");
+    expect(fn).toMatch(/if \(level === 'single_student' && singleScope === 'active_session'\) \{/);
+    // The whole learner is still backed up, nothing of theirs is removed whole.
+    expect(fn).toMatch(/rtdbPaths: \[\],\s*rtdbBackupOnlyPaths: \[/);
+    // Only the meeting's own session documents go.
+    expect(fn).toMatch(/collection === "sessions" \? \{ sessionNumber \} : \{\}/);
+    expect(fn).toMatch(/entry\.sessionNumber\s*\? await deleteSessionDocsOfMeeting\(db, entry, entry\.sessionNumber\)/);
+    // The audit entry records which scope and which meeting.
+    expect(fn).toMatch(/reset_scope: singleScope, session_number: activeSessionNumber/);
+  });
+
+  it('the active-meeting reset touches only that meeting\'s fields on the learner record', () => {
+    const start = fn.indexOf('export function buildActiveSessionResetValues');
+    const end = fn.indexOf('export function buildResetScope', start);
+    const body = fn.slice(start, end);
+    expect(body).toContain('workspaceState: null');
+    expect(body).toContain('sessionState: null');
+    expect(body).toContain('[`completedMeeting${sessionNumber}`]: false');
+    expect(body).toContain('highestCompletedMeeting: Math.min(highest, sessionNumber - 1)');
+    expect(body).toContain('if (sessionNumber === 2)');
+    expect(body).toContain('if (sessionNumber === 8)');
+    // Recordings, chat and the support profile are not meeting progress.
+    expect(body).not.toContain('telemetry_sessions');
+    expect(body).not.toContain('chat_messages');
+    expect(body).not.toContain('support_profile_id');
+    expect(body).not.toContain('enhanced_support_profile');
+  });
+
+  it('the meeting to restart is the requested one, else the open class meeting, else the learner\'s, else 1', () => {
+    const start = fn.indexOf('export async function resolveActiveSessionNumber');
+    const body = fn.slice(start, start + 1500);
+    expect(body.indexOf('valid(requested)')).toBeGreaterThan(-1);
+    expect(body.indexOf('active_class_session/sessionNumber')).toBeGreaterThan(body.indexOf('valid(requested)'));
+    expect(body.indexOf('/activeSessionId')).toBeGreaterThan(body.indexOf('active_class_session/sessionNumber'));
+    expect(body).toMatch(/return 1;\s*\}/);
+  });
+
+  it('a system reset recomputes the admin cache the deleted data fed (Module 24 store_cache)', () => {
+    // PRD 23א §ב.3: a system reset "מוחק את כלל נתוני הלמידה"; store_cache/admin_metrics
+    // is derived from them, so it must not keep the pre-reset summary until 14:30 next day.
+    const agg = readFileSync(resolve(__dirname, '../../../../functions/src/adminAggregator.ts'), 'utf-8');
+    expect(agg).toMatch(/export async function recomputeAdminMetrics\(db: admin\.firestore\.Firestore\)/);
+    expect(fn).toMatch(/import \{ recomputeAdminMetrics \} from "\.\/adminAggregator";/);
+    const systemBlock = fn.indexOf("if (reset_level === 'system') {", fn.indexOf('const deletion = await executeResetDeletion'));
+    expect(systemBlock).toBeGreaterThan(-1);
+    const recompute = fn.indexOf('await recomputeAdminMetrics(db)', systemBlock);
+    expect(recompute).toBeGreaterThan(systemBlock);
+    // Runs only after deletion, and a failure is reported like any other incomplete step.
+    expect(fn.slice(recompute, recompute + 200)).toContain('deletion.failures.push(`store_cache/admin_metrics:');
   });
 
   it('refuses a single-learner reset without a learner number instead of defaulting to learner 1', () => {

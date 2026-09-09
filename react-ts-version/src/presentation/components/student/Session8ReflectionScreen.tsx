@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckSquare, Square, RotateCcw, Brain, HelpCircle, Layers, Award, Sparkles, ArrowLeft } from 'lucide-react';
+import { CheckSquare, Square, RotateCcw, Brain, HelpCircle, Award, Sparkles, ArrowLeft } from 'lucide-react';
 
 interface Session8ReflectionScreenProps {
   onComplete: (focusArea: string) => void;

@@ -40,14 +40,13 @@ import { useStore } from '@/application/useStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { CurriculumRouter } from '@/core/CurriculumRouter';
 import { syncQMatrixEvaluation } from '@/core/ExerciseValidationEngine';
-import { QMatrixEvaluator } from '@/core/QMatrix';
 import { getSessionTasks, type SessionTask } from '@/data/sessionTasks';
 import { curriculumCatalog } from '@/infrastructure/services/CurriculumCatalogService';
 import { getSessionBranchTasks } from '@/data/sessionBranchTasks';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
 import { SocraticEngine, type SocraticHintResponse, type SocraticMonitoringSnapshot } from '@/infrastructure/services/SocraticEngine';
-import { ref, update, push } from 'firebase/database';
-import { database, serverNow, fetchServerClockOffset } from '@/infrastructure/firebase';
+import { ref, update } from 'firebase/database';
+import { database, serverNow } from '@/infrastructure/firebase';
 import { throttledRtdbUpdate } from '@/infrastructure/services/ThrottledRtdbWriter';
 import { normalizeStudentId } from '@/application/useChatStore';
 import { firebaseSyncService, emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
@@ -297,7 +296,7 @@ function getStoredSocraticLockDeadline(): number | null {
 
 /* ── Pure helpers ── */
 
-function resetTaskInteraction(isASD = false) {
+function resetTaskInteraction(_isASD = false) {
   return {
     counts: { ...EMPTY_COUNTS },
     undoStack: [] as UndoFrame[],
@@ -2495,11 +2494,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const colPlaces: Place[] = PLACE_ORDER.slice(0, cols).reverse();
       const colIdx = colPlaces.indexOf(place);
       if (colIdx === -1) return false;
-
-      const padDigits = (str: string): number => {
-        const idx = colIdx - (cols - str.length);
-        return idx >= 0 ? parseInt(str[idx], 10) : 0;
-      };
 
       const requiresExchange = columnRequiresConversion(place, numberA, numberB, isSubtraction, s.carryDigits[place]);
       if (requiresExchange) {

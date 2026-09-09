@@ -1,6 +1,4 @@
-import { useRef } from 'react';
 import { useDraggable } from '@dnd-kit/core';
-import { motion } from 'framer-motion';
 import type { Place, DragSource } from '@/core/placeValue';
 
 /**
@@ -194,8 +192,7 @@ export function DienesBlock({
   interactive: _interactive,
   onClick,
   onRemove, 
-  onSplit, 
-  noEnter 
+  onSplit
 }: DienesBlockProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id,

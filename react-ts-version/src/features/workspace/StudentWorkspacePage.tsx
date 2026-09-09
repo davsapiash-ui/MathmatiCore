@@ -4,8 +4,6 @@ import {
   DndContext,
   DragOverlay,
   PointerSensor,
-  MouseSensor,
-  TouchSensor,
   KeyboardSensor,
   pointerWithin,
   rectIntersection,
@@ -21,9 +19,9 @@ import { useWorkspaceStore, getActiveTasks, type SessionNumber } from '@/applica
 import { useAuthStore, stampStudentWindowClosed, touchStudentActivity } from '@/application/useAuthStore';
 import { useActiveClassSession } from '@/application/useActiveClassSession';
 import { database, authReady, fetchServerClockOffset } from '@/infrastructure/firebase';
-import { ref, push, onValue, remove, get, set, update, onDisconnect } from 'firebase/database';
-import { useChatStore, normalizeStudentId } from '@/application/useChatStore';
-import { motion, AnimatePresence } from 'framer-motion';
+import { ref, push, onValue, set, update, onDisconnect } from 'firebase/database';
+import { normalizeStudentId } from '@/application/useChatStore';
+import { AnimatePresence } from 'framer-motion';
 import { PlaceValueBoard } from './board/PlaceValueBoard';
 
 import { DienesBlock } from './board/DienesBlock';
@@ -36,7 +34,6 @@ import { Session8ReflectionScreen } from '@/presentation/components/student/Sess
 import { firebaseSyncService, emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
 import { indexedDBQueue } from '@/infrastructure/services/IndexedDBQueue';
 import { useStore } from '@/application/useStore';
-import { X } from 'lucide-react';
 
 import { StudentChatOverlay } from './overlays/StudentChatOverlay';
 import { AdaptiveAdditionGrid } from './board/AdaptiveAdditionGrid';
@@ -44,7 +41,6 @@ import { AdaptiveAdditionGrid } from './board/AdaptiveAdditionGrid';
 import { SocraticEngine } from '@/infrastructure/services/SocraticEngine';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
 import { useCognitiveHesitationRadar } from '@/application/useCognitiveHesitationRadar';
-import { tts } from '@/infrastructure/services/TTSService';
 import { toast } from 'sonner';
 import { BeeFlightWaitingScreen } from '@/presentation/components/student/BeeFlightWaitingScreen';
 import { hasEnhancedSupport as hasEnhancedSupportProfile } from '@/core/supportProfile';
@@ -98,7 +94,6 @@ export function StudentWorkspacePage() {
   const applyDrop = useWorkspaceStore((s) => s.applyDrop);
   const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
   const flowStatus = useWorkspaceStore((s) => s.flowStatus);
-  const aiSocraticHint = useWorkspaceStore((s) => s.aiSocraticHint);
   const user = useAuthStore((s) => s.user);
   const isTeacherOrAdmin = user?.role === 'teacher' || user?.role === 'admin';
 
@@ -118,7 +113,6 @@ export function StudentWorkspacePage() {
   // --- Active Teacher Class Session Listener ---
   const activeClassSession = useActiveClassSession();
   const isTeacherSessionActive = activeClassSession?.active ?? false;
-  const teacherSessionNum = isTeacherSessionActive ? Number(activeClassSession?.sessionNumber) || 1 : null;
 
   const [isProjectorModeActive, setIsProjectorModeActive] = useState<boolean>(false);
   const effectiveStudentId = user?.uid || (user?.id as string) || (user?.student_id ? `student_user${user.student_id}` : '') || 'student_user1';
@@ -424,7 +418,6 @@ export function StudentWorkspacePage() {
   const [isInitialized, setIsInitialized] = useState(false);
   const [networkError, setNetworkError] = useState(false);
   const isAdditionHelperOpen = useWorkspaceStore((s) => s.isAdditionHelperOpen);
-  const toggleAdditionHelper = useWorkspaceStore((s) => s.toggleAdditionHelper);
 
   // Tab switching & background throttling detection (Module 10 & 18)
   const [isTabHidden, setIsTabHidden] = useState<boolean>(
@@ -512,7 +505,7 @@ export function StudentWorkspacePage() {
   }, [meeting]);
 
   // Real-time additionBoardEnabled & teacher adaptations listener (bound to canonical normUid)
-  const [liveAdditionBoardEnabled, setLiveAdditionBoardEnabled] = useState<boolean | null>(null);
+  const [, setLiveAdditionBoardEnabled] = useState<boolean | null>(null);
   useEffect(() => {
     if (!normUid) return;
     const studentRef = ref(database, `users/students/${normUid}`);
@@ -904,10 +897,6 @@ export function StudentWorkspacePage() {
 
   // WP6 / Chaos Scenario 2: Soft Device Lock (נעילת מכשיר רכה — active_device_id)
   const isSupersededByOtherDevice = useWorkspaceStore((s) => s.isSupersededByOtherDevice);
-
-  const isMatchingSessionActive =
-    isTeacherOrAdmin ||
-    (activeClassSession.isLoaded && isTeacherSessionActive && Number(activeClassSession?.sessionNumber) === meeting);
 
   useEffect(() => {
     if (activeClassSession.isLoaded && activeClassSession.active && activeClassSession.sessionNumber) {

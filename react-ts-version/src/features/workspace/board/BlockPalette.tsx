@@ -1,4 +1,3 @@
-import { useRef } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { PLACE_VALUES, PLACE_NAMES_HE, type Place } from '@/core/placeValue';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';

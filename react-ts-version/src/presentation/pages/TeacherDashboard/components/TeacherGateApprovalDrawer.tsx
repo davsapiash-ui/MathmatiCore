@@ -7,11 +7,7 @@ import {
   X, 
   Sparkles, 
   CheckCircle2, 
-  TrendingUp, 
-  ShieldCheck, 
-  Compass, 
-  Layers,
-  ArrowRight
+  Compass
 } from 'lucide-react';
 import { toast } from 'sonner';
 

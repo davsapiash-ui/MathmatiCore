@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, ShieldAlert, RefreshCw, X, Check } from 'lucide-react';
-import type { ResetReason } from '@/types';
+import type { ResetReason, SingleStudentResetScope } from '@/types';
 
 export interface ResetConfirmationModalProps {
   isOpen: boolean;
@@ -9,7 +9,13 @@ export interface ResetConfirmationModalProps {
   resetLevel: 'alerts' | 'single_student' | 'system';
   targetStudentId?: string;
   targetStudentName?: string;
-  onConfirm: (reason: ResetReason, reasonNote?: string) => Promise<void>;
+  /** Level 2: the meeting the teacher currently has open (Module 14), if any. */
+  activeSessionNumber?: number | null;
+  /**
+   * Level 2: `scope` is what the teacher chose (PRD 23א §ב.2 default is the
+   * active meeting), `sessionNumber` the meeting the class has open, if any.
+   */
+  onConfirm: (reason: ResetReason, reasonNote?: string, options?: { scope: SingleStudentResetScope; sessionNumber: number | null }) => Promise<void>;
 }
 
 const REASON_LABELS: Record<ResetReason, string> = {
@@ -26,6 +32,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
   resetLevel,
   targetStudentId,
   targetStudentName,
+  activeSessionNumber: activeSessionProp,
   onConfirm,
 }) => {
   const [selectedReason, setSelectedReason] = useState<ResetReason>('restart_session');
@@ -33,6 +40,9 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [doubleConfirmed, setDoubleConfirmed] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
+  // PRD Module 23א §ב.2: the default is the active meeting only.
+  const [scope, setScope] = useState<SingleStudentResetScope>('active_session');
+  const activeSessionNumber = activeSessionProp && activeSessionProp >= 1 && activeSessionProp <= 8 ? activeSessionProp : null;
 
   if (!isOpen) return null;
 
@@ -41,6 +51,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
     setStep(1);
     setDoubleConfirmed(false);
     setReasonNote('');
+    setScope('active_session');
     onClose();
   };
 
@@ -55,7 +66,11 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
 
     setIsSubmitting(true);
     try {
-      await onConfirm(selectedReason, reasonNote.trim() || undefined);
+      await onConfirm(
+        selectedReason,
+        reasonNote.trim() || undefined,
+        resetLevel === 'single_student' ? { scope, sessionNumber: activeSessionNumber } : undefined
+      );
       handleClose();
     } catch (e) {
       console.error('Reset execution failed:', e);
@@ -66,6 +81,8 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
 
   const isLevel3 = resetLevel === 'system';
   const isLevel2 = resetLevel === 'single_student';
+  const isFullStudent = isLevel2 && scope === 'full_student';
+  const meetingLabel = activeSessionNumber ? `מפגש ${activeSessionNumber}` : 'המפגש הנוכחי';
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in" dir="rtl">
@@ -108,11 +125,20 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                 <li>יירשם תיעוד בלתי-מחיק ביומן הביקורת reset_audit_log.</li>
               </>
             )}
-            {isLevel2 && (
+            {isLevel2 && !isFullStudent && (
               <>
                 <li className="text-amber-700 dark:text-amber-300 font-semibold">יבוצע גיבוי מלא של נתוני {targetStudentName || targetStudentId} אל Google Drive.</li>
-                <li>יימחקו מצב מרחב העבודה והתקדמות המפגש הפעיל של לומד זה בלבד.</li>
-                <li>הלומד יוחזר לתחילת המפגש הפעיל.</li>
+                <li>יימחקו מצב מרחב העבודה והתקדמות {meetingLabel} של לומד זה בלבד.</li>
+                <li>הלומד יוחזר לתחילת {meetingLabel}. מפגשים קודמים, הקלטות והודעות צ'אט נשמרים.</li>
+                {!activeSessionNumber && <li>אין מפגש פתוח כרגע: יאופס המפגש שהלומד נמצא בו.</li>}
+                <li>יירשם תיעוד בלתי-מחיק ביומן הביקורת reset_audit_log.</li>
+              </>
+            )}
+            {isFullStudent && (
+              <>
+                <li className="text-amber-700 dark:text-amber-300 font-semibold">יבוצע גיבוי מלא של נתוני {targetStudentName || targetStudentId} אל Google Drive.</li>
+                <li className="text-red-700 dark:text-red-300 font-semibold">יימחקו כל ההתקדמות בכל 8 המפגשים, תוצאות האבחון, ההקלטות והודעות הצ'אט של לומד זה.</li>
+                <li>הלומד יחזור למצב התחלה נקי, כאילו לא נכנס למערכת מעולם.</li>
                 <li>יירשם תיעוד בלתי-מחיק ביומן הביקורת reset_audit_log.</li>
               </>
             )}
@@ -129,6 +155,43 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
         {/* Step 1: Mandatory Reason Selector */}
         {step === 1 && (
           <div className="space-y-4 mb-6">
+            {isLevel2 && (
+              <fieldset>
+                <legend className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  מה לאפס?
+                </legend>
+                <div className="space-y-2" role="radiogroup" aria-label="היקף האיפוס">
+                  <label className={`flex items-start gap-3 cursor-pointer p-3 rounded-xl border transition-colors ${scope === 'active_session' ? 'border-amber-400 bg-amber-50/60 dark:bg-amber-950/30' : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40'}`}>
+                    <input
+                      type="radio"
+                      name="reset-scope"
+                      value="active_session"
+                      checked={scope === 'active_session'}
+                      onChange={() => setScope('active_session')}
+                      className="mt-0.5 w-4 h-4 text-amber-600 focus:ring-amber-500"
+                    />
+                    <span className="text-xs">
+                      <span className="block font-bold text-slate-800 dark:text-slate-200">{meetingLabel} בלבד (ברירת המחדל)</span>
+                      <span className="block text-slate-500 dark:text-slate-400">הלומד מתחיל את {meetingLabel} מההתחלה. כל שאר המפגשים נשמרים.</span>
+                    </span>
+                  </label>
+                  <label className={`flex items-start gap-3 cursor-pointer p-3 rounded-xl border transition-colors ${scope === 'full_student' ? 'border-red-400 bg-red-50/60 dark:bg-red-950/30' : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40'}`}>
+                    <input
+                      type="radio"
+                      name="reset-scope"
+                      value="full_student"
+                      checked={scope === 'full_student'}
+                      onChange={() => setScope('full_student')}
+                      className="mt-0.5 w-4 h-4 text-red-600 focus:ring-red-500"
+                    />
+                    <span className="text-xs">
+                      <span className="block font-bold text-slate-800 dark:text-slate-200">איפוס מוחלט של הלומד</span>
+                      <span className="block text-slate-500 dark:text-slate-400">כל 8 המפגשים, תוצאות האבחון וההקלטות נמחקים. הלומד מתחיל מאפס.</span>
+                    </span>
+                  </label>
+                </div>
+              </fieldset>
+            )}
             <div>
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                 סיבת האיפוס (שדה חובה):

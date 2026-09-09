@@ -6,7 +6,6 @@ import { database, authReady } from '@/infrastructure/firebase';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { normalizeStudentId } from '@/application/useChatStore';
-import { AuditLogger } from '@/infrastructure/services/AuditLogger';
 import { emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
 import { toast } from 'sonner';
 
