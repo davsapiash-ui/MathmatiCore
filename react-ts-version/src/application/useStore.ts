@@ -427,7 +427,9 @@ export const useStore = create<AppState>()(
       logSemanticEvent: (studentId, event) => set((state) => {
         const students = { ...state.students };
         if (students[studentId]) {
-          const currentTrace = students[studentId].traceData.semantic_trace || [];
+          // A record merged from a partial RTDB snapshot (or reset by the
+          // teacher, which nulls traceData) may carry no traceData yet.
+          const currentTrace = students[studentId].traceData?.semantic_trace || [];
           let newEvent: SemanticEvent;
           
           if ('interaction_data' in event) {
@@ -474,7 +476,7 @@ export const useStore = create<AppState>()(
           // Limit trace length to 40 events to guarantee < 50KB payload budget per PRD 5.2 & 6
           const MAX_VECTOR_TRACE_LENGTH = 40;
           const updatedTrace = [...currentTrace, newEvent].slice(-MAX_VECTOR_TRACE_LENGTH);
-          const newTraceData = { ...students[studentId].traceData, semantic_trace: updatedTrace };
+          const newTraceData = { ...(students[studentId].traceData || { hesitation_events: 0, undo_clicks: 0 }), semantic_trace: updatedTrace };
           students[studentId] = { ...students[studentId], traceData: newTraceData };
           
           firebaseSyncService.syncTraceData(studentId, { semantic_trace: updatedTrace }).catch(console.error);

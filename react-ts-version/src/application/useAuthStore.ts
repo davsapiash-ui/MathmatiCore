@@ -248,10 +248,12 @@ export function unifiedLogout() {
   if (auth && typeof auth.signOut === 'function') {
     auth.signOut().catch((e) => console.warn("Firebase signOut error:", e));
   }
-  useStore.getState().logout();
-  useWorkspaceStore.getState().resetWorkspace?.();
-  useAdminStore.setState({ schools: [], teachers: [], classes: [], globalStudentLimit: 12 });
-  useChatStore.setState({ messages: [], activeRoomId: null, unreadCount: 0 });
+  // The auth store is cleared FIRST. FirebaseSyncService listens to it and
+  // tears down its workspace → RTDB subscription synchronously on sign-out;
+  // only then is the workspace reset. Resetting before that, as this used to,
+  // pushed the blank session-1 state (exercise 1, empty board) through the
+  // live subscription over the learner's saved progress — in RTDB and in the
+  // local cache — so the next sign-in restarted meeting 1 from the beginning.
   useAuthStore.setState((state) => {
     const username = state.user?.name || state.user?.email || "Unknown";
     AuditLogger.log("התנתקות", state.user?.uid || "unknown_uid", `משתמש התנתק: ${username}`);
@@ -265,6 +267,10 @@ export function unifiedLogout() {
       authTimestamp: null,
     };
   });
+  useStore.getState().logout();
+  useWorkspaceStore.getState().resetWorkspace?.();
+  useAdminStore.setState({ schools: [], teachers: [], classes: [], globalStudentLimit: 12 });
+  useChatStore.setState({ messages: [], activeRoomId: null, unreadCount: 0 });
 }
 
 export const useAuthStore = create<AuthState>()(
