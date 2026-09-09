@@ -99,7 +99,7 @@ export function ClassMeetingReportPanel() {
               className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border border-ws-surface2 bg-ws-bg text-ws-ink hover:border-ws-accent/40 cursor-pointer"
             >
               <FileText className="w-3.5 h-3.5" />
-              פתיחת ה-PDF
+              פתח PDF
             </button>
           )}
           {report?.csvUrl && (
@@ -120,7 +120,7 @@ export function ClassMeetingReportPanel() {
             className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {state === 'generating' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-amber-300" />}
-            {state === 'generating' ? 'מעבד את כל פעולות המפגש… (עד דקה)' : report ? 'הפקה מחדש' : `הפק דוח כיתה למפגש ${selectedSession}`}
+            {state === 'generating' ? 'מעבד את כל פעולות המפגש… (עד דקה)' : report ? 'הפק מחדש' : `הפק דוח כיתה למפגש ${selectedSession}`}
           </button>
           {report && (
             <button
@@ -147,7 +147,7 @@ export function ClassMeetingReportPanel() {
         <p className="text-xs text-ws-soft">
           {state === 'loading'
             ? 'בודק אם כבר יש דוח כיתה למפגש זה…'
-            : 'עדיין לא הופק דוח כיתה למפגש זה. הדוח נבנה מכל הפעולות המתועדות של כל התלמידים במפגש: ציון ניסיון ראשון לכל תלמיד, חלוקה לקבוצות עבודה, טעויות לפי טור, ביטולים, היסוסים, כרטיסי חניכה, הצלחה בכל תרגיל, וניתוח כיתתי של הבינה. הקובץ נשמר גם בדרייב, תיקייה "05 דוחות כיתה".'}
+            : 'עדיין לא הופק דוח כיתה למפגש זה. הדוח נבנה מכל הפעולות המתועדות של כל התלמידים במפגש: שיעור ההצלחה בניסיון ראשון לכל תלמיד, חלוקה לקבוצות למידה, טעויות לפי טור, ביטולים, היסוסים, כרטיסי חניכה, הצלחה בכל תרגיל, ותובנות פדגוגיות כיתתיות. הקובץ נשמר גם בדרייב, תיקייה "05 דוחות כיתה".'}
         </p>
       )}
 
@@ -156,7 +156,7 @@ export function ClassMeetingReportPanel() {
           {/* Class picture */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             <Stat label="תלמידים עם נתונים" value={`${report.learnersWithData} / 12`} />
-            <Stat label="ציון ניסיון ראשון ממוצע" value={`${report.scoreMean}%`} sub={`חציון ${report.scoreMedian}% · טווח ${report.scoreMin}%–${report.scoreMax}%`} />
+            <Stat label="הצלחה ממוצעת בניסיון ראשון" value={`${report.scoreMean}%`} sub={`חציון ${report.scoreMedian}% · טווח ${report.scoreMin}%–${report.scoreMax}%`} />
             <Stat label="ספרות שגויות" value={String(report.wrongDigitsTotal)} sub={`אחדות ${report.wrongDigitsByColumn.units} · עשרות ${report.wrongDigitsByColumn.tens} · מאות ${report.wrongDigitsByColumn.hundreds}`} />
             <Stat label="כרטיסי חניכה" value={String(report.socraticCardsTotal)} sub={`היסוסים ${report.hesitationsTotal} · ביטולים ${report.undosTotal} · מחיקות ${report.deletionsTotal}`} />
           </div>
@@ -212,6 +212,7 @@ export function ClassMeetingReportPanel() {
               <div className="font-black">תובנות פדגוגיות כיתתיות</div>
               {report.aiAnalysisAvailable ? (
                 <>
+                  <div className="text-[11px] font-bold opacity-70">נותח אוטומטית מהפעולות המתועדות. ההחלטה הפדגוגית נותרת בידי המורה.</div>
                   <div>
                     <div className="font-bold mb-1">דפוסים כיתתיים</div>
                     {report.classPatterns.length > 0

@@ -1758,7 +1758,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                             {/* Main Content Row: Q-Matrix & Traces */}
                             <div className="mb-3 flex items-center justify-between flex-wrap gap-2">
                               <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="text-xs font-bold text-ws-soft ml-1">מפגש לבחינת רובריקות ומיומנויות:</span>
+                                <span className="text-xs font-bold text-ws-soft ml-1">מפגש לבחינת מחוונים ומיומנויות:</span>
                                 {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
                                   <button
                                     key={num}
@@ -1770,7 +1770,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                         : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-50'
                                     }`}
                                   >
-                                    {num === 2 ? 'מפגש 2 (אבחון סמוי)' : `מפגש ${num}`}
+                                    {num === 2 ? 'מפגש 2 (מיפוי יסוד)' : `מפגש ${num}`}
                                   </button>
                                 ))}
                               </div>
@@ -1784,7 +1784,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                     <span className="text-ws-accent">📊</span>
                                     תוצאות מיפוי מיומנויות היסוד (מפגש 2)
                                   </h3>
-                                  <p className="text-xs text-ws-soft mb-4">שבע משימות אבחון למיפוי מיומנויות יסוד. 'שליטה' מעידה על פתרון מדויק בניסיון ראשון.</p>
+                                  <p className="text-xs text-ws-soft mb-4">שבע משימות אבחון למיפוי מיומנויות יסוד. "שליטה" מעידה על פתרון מדויק בניסיון ראשון.</p>
                                   <div className="grid grid-cols-1 gap-2 text-sm">
                                     {DIAGNOSTIC_TASKS.map((task, i) => {
                                       const status = getQStatus((qMatrix as Record<string, unknown>)[task.id]);
@@ -1860,7 +1860,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                           {hasStarted ? 'מפגש 1 (ארגז החול והיכרות) הושלם.' : 'התלמיד עדיין לא סיים אף מפגש.'}
                                         </p>
                                         <p className="text-indigo-800">
-                                          האבחון הסמוי והמלצת המסלול (ירוק/צהוב) ייבנו רק מביצועי התלמיד במפגש 2.
+                                          מיפוי מיומנויות היסוד, שאינו מוצג לתלמיד כמבחן, והמלצת המסלול (ירוק/צהוב) ייבנו רק מביצועי התלמיד במפגש 2.
                                         </p>
                                       </div>
                                     </div>

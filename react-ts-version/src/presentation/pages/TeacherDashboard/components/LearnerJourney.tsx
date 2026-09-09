@@ -322,18 +322,18 @@ export function LearnerJourney({ studentId }: Props) {
                     className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border border-ws-surface2 bg-ws-bg text-ws-ink hover:border-ws-accent/40 cursor-pointer disabled:opacity-50"
                   >
                     {reportState === 'opening' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />}
-                    פתיחת ה-PDF
+                    פתח PDF
                   </button>
                 )}
                 <button
                   type="button"
                   onClick={requestReport}
                   disabled={!meetingSessionId || reportState === 'generating' || reportState === 'loading'}
-                  title={meetingSessionId ? 'הבינה מנתחת את הפעולות המתועדות של המפגש הזה' : 'אין פעולות מתועדות במפגש זה, אין מה לנתח'}
+                  title={meetingSessionId ? 'ניתוח אוטומטי של הפעולות המתועדות במפגש זה' : 'אין פעולות מתועדות במפגש זה, אין מה לנתח'}
                   className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {reportState === 'generating' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-amber-300" />}
-                  {reportState === 'generating' ? 'הדוח בעיבוד… (כ-20 שניות)' : report ? 'הפקה מחדש' : `הפק דוח למפגש ${selectedSession}`}
+                  {reportState === 'generating' ? 'הדוח בעיבוד… (כ-20 שניות)' : report ? 'הפק מחדש' : `הפק דוח למפגש ${selectedSession}`}
                 </button>
               </div>
             </div>
@@ -351,7 +351,7 @@ export function LearnerJourney({ studentId }: Props) {
                   ? 'אין פעולות מתועדות במפגש זה, ולכן אין דוח.'
                   : reportState === 'loading'
                     ? 'בודק אם כבר יש דוח למפגש זה…'
-                    : 'עדיין לא הופק דוח למפגש זה. הדוח נבנה מכלל הפעולות המתועדות במפגש: שיעור ההצלחה בניסיון ראשון, קבוצת עבודה מומלצת, מהלך הפתרון בכל תרגיל, מוקדי קושי שאותרו והמלצות להמשך ההוראה.'}
+                    : 'עדיין לא הופק דוח למפגש זה. הדוח נבנה מכלל הפעולות המתועדות במפגש: שיעור ההצלחה בניסיון ראשון, קבוצת למידה מומלצת, מהלך הפתרון בכל תרגיל, מוקדי קושי שאותרו והמלצות להמשך ההוראה.'}
               </p>
             )}
 
@@ -372,7 +372,7 @@ export function LearnerJourney({ studentId }: Props) {
                     </div>
                   </div>
                   <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-100">
-                    <div className="font-black mb-1">קבוצת עבודה מומלצת: {report.routingLabelHe}</div>
+                    <div className="font-black mb-1">קבוצת למידה מומלצת: {report.routingLabelHe}</div>
                     <div>{report.recommendationDetailsHe}</div>
                   </div>
                   {report.exerciseNarratives.length > 0 && (
@@ -388,6 +388,7 @@ export function LearnerJourney({ studentId }: Props) {
                   <div className="font-black">תובנות פדגוגיות וניתוח למידה</div>
                   {report.aiAnalysisAvailable ? (
                     <>
+                      <div className="text-[11px] font-bold opacity-70">נותח אוטומטית מהפעולות המתועדות. ההחלטה הפדגוגית נותרת בידי המורה.</div>
                       <div>
                         <div className="font-bold mb-1">מוקדי קושי והבנה שאותרו</div>
                         {report.knowledgeGaps.length > 0

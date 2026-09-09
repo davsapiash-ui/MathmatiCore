@@ -187,7 +187,7 @@ export function generatePedagogicalReportPDF(
   </div>
 
   <div class="card">
-    <div style="font-size: 13px; font-weight: 700; color: #64748b; text-transform: uppercase;">ציון סשן אבחוני (Session Score)</div>
+    <div style="font-size: 13px; font-weight: 700; color: #64748b; text-transform: uppercase;">ציון מפגש אבחוני (Session Score)</div>
     <div style="font-size: 32px; font-weight: 900; color: #0f172a;">${score}%</div>
   </div>
 
