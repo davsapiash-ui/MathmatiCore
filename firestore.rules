@@ -148,7 +148,9 @@ service cloud.firestore {
         'gate_approved_by',
         'teacher_selected_path',
         'matrix_recommended_path',
-        'evaluated_at'
+        'evaluated_at',
+        'pedagogical_report_pdf_path',
+        'pedagogical_report_generated_at'
       ]) &&
       data.session_id is string &&
       data.class_id is string &&

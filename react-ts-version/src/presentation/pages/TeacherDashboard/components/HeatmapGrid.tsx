@@ -69,15 +69,6 @@ export interface AnonymousStudent {
   recommendedPath?: 'ירוק' | 'צמצום פערים';
 }
 
-export interface LiveFeedItem {
-  id: string;
-  studentId: string;
-  studentName: string;
-  timestamp: number;
-  message: string;
-  severity: 'info' | 'warning' | 'alert';
-}
-
 // Fixed 12-slot pilot structure (1 to 12) strictly without layout shifts
 const INITIAL_MOCK_STUDENTS: AnonymousStudent[] = Array.from({ length: 12 }, (_, index) => {
   const studentNum = index + 1;
@@ -99,8 +90,6 @@ const INITIAL_MOCK_STUDENTS: AnonymousStudent[] = Array.from({ length: 12 }, (_,
   };
 });
 
-const INITIAL_MOCK_FEED: LiveFeedItem[] = [];
-
 interface HeatmapGridProps {
   /** Called when teacher clicks Drill Down — parent opens the learner drawer */
   onDrillDown?: (studentId: string) => void;
@@ -118,7 +107,6 @@ interface HeatmapGridProps {
  */
 export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps = {}) {
   const [students, setStudents] = useState<AnonymousStudent[]>(initialStudents || INITIAL_MOCK_STUDENTS);
-  const [feedItems, setFeedItems] = useState<LiveFeedItem[]>(INITIAL_MOCK_FEED);
   const [selectedStudent, setSelectedStudent] = useState<AnonymousStudent | null>(null);
 
   // Filter state for Heatmap
@@ -305,38 +293,8 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
       }
     }, 3000);
 
-    const alertsRef = query(ref(database, 'radar_alerts'), limitToLast(50));
-    const unsubAlerts = onValue(
-      alertsRef,
-      (snapshot) => {
-        if (!snapshot.exists()) {
-          setFeedItems([]);
-          return;
-        }
-        const rawAlerts = snapshot.val() || {};
-        const sixtyMinsAgo = Date.now() - 60 * 60 * 1000;
-        const newItems: LiveFeedItem[] = Object.entries(rawAlerts)
-          .map(([key, val]: [string, any]) => ({
-            id: key,
-            studentId: val.studentId || val.rawStudentId || 'student_1',
-            studentName: `תלמיד ${val.studentId ? String(val.studentId).replace(/\D+/g, '') || '1' : '1'}`,
-            timestamp: val.timestamp || Date.now(),
-            message: val.type === 'HESITATION' ? `השהייה מעל ${getHesitationThresholdSeconds()} שניות בטור הפעיל` : val.type === 'PASSIVE_DRIFTING' ? 'זיהוי מחיקות או ביטולים רצופים' : val.message || 'התראת רדאר שקטה בזמן אמת',
-            severity: (val.type === 'TAB_ESCAPE' || val.type === 'PASSIVE_DRIFTING' || val.type === 'CALL_FOR_HELP' ? 'alert' : val.type === 'HESITATION' ? 'warning' : 'info') as 'info' | 'warning' | 'alert',
-          }))
-          .filter((item) => item.timestamp > sixtyMinsAgo)
-          .sort((a, b) => b.timestamp - a.timestamp);
-
-        setFeedItems(newItems.slice(0, 15));
-      },
-      (err) => {
-        console.error('[HeatmapGrid] RTDB "radar_alerts" listener error:', err);
-      }
-    );
-
     return () => {
       unsubStudents();
-      unsubAlerts();
       clearInterval(heartbeatTimer);
       if (throttleTimeout) clearTimeout(throttleTimeout);
     };
@@ -891,6 +849,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
           } catch (err) {
             console.error('Alerts reset error:', err);
             toast.error('שגיאה באיפוס ההתראות');
+            throw err; // keep the dialog open — the reset did NOT happen
           } finally {
             setIsResettingAlerts(false);
           }
@@ -904,11 +863,13 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
         onConfirm={async (reason, reasonNote) => {
           setIsResettingClass(true);
           try {
-            await useStore.getState().resetEntireSystemUsageData(reason);
-            toast.success('✓ כל נתוני הכיתה אופסו בהצלחה לאפס מוחלט לאחר גיבוי מלא!');
+            // The store toasts its own outcome; the reason note now reaches the
+            // immutable audit log for the most destructive reset too.
+            await useStore.getState().resetEntireSystemUsageData(reason, reasonNote);
           } catch (err) {
             console.error('Reset all error:', err);
             toast.error('שגיאה באיפוס נתוני הכיתה');
+            throw err; // keep the dialog open — the reset did NOT happen
           } finally {
             setIsResettingClass(false);
           }

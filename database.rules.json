@@ -60,7 +60,7 @@
     },
     "active_class_session": {
       ".read": "auth != null",
-      ".write": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.role == 'admin' || auth.token.role == 'ADMIN')"
+      ".write": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true || auth.token.role == 'admin' || auth.token.role == 'ADMIN' || auth.token.admin == true)"
     },
     "audit_logs": {
       ".read": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true || auth.token.role == 'admin' || auth.token.role == 'ADMIN' || auth.token.admin == true)",

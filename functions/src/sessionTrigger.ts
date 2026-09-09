@@ -56,6 +56,18 @@ export const createSessionWithServerDeadline = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "Missing required session parameters.");
   }
 
+  // A session document may be stamped only by staff, or by the learner it
+  // belongs to (auth.token.student_id 1-12). Without this, any signed-in
+  // identity could create/overwrite any learner's session deadline.
+  const token = request.auth.token as Record<string, unknown>;
+  const roles: string[] = Array.isArray(token.roles) ? (token.roles as string[]) : token.role ? [String(token.role)] : [];
+  const lowered = roles.map((r) => r.toLowerCase());
+  const isStaff = lowered.includes("teacher") || lowered.includes("admin") || token.teacher === true || token.admin === true;
+  const ownStudent = String(token.student_id ?? "") === String(student_id);
+  if (!isStaff && !ownStudent) {
+    throw new HttpsError("permission-denied", "Not authorized for this learner's session.");
+  }
+
   // PRD v7.0 Module 14 §B: Session 1 = 20 min sandbox, Sessions 2 & 8 = 25 min, Sessions 3-7 = 15 min
   const durationMinutes = session_number === 1 ? 20 : (session_number === 2 || session_number === 8) ? 25 : 15;
   const deadlineTimeMs = Date.now() + durationMinutes * 60 * 1000;

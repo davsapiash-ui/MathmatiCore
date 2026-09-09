@@ -131,6 +131,9 @@ export function ClassManagement({
       }
     } catch (err) {
       console.error('Failed to update enhanced support profile:', err);
+      // The switch renders from the live listener, so a denied write looked
+      // identical to a successful no-op — the teacher must be told.
+      toast.error('עדכון פרופיל התמיכה נדחה בשרת. נסו שוב.');
     } finally {
       setUpdatingId(null);
     }
@@ -170,11 +173,11 @@ export function ClassManagement({
     const { id: studentId, name: studentName } = studentToReset;
     setUpdatingId(studentId);
     try {
+      // The store toasts its own success/failure once.
       await useStore.getState().resetStudentData(studentId, reason, reasonNote);
-      toast.success(`✓ נתוני ${studentName} אופסו בהצלחה!`);
     } catch (err) {
-      console.error('Failed to reset student:', err);
-      toast.error('שגיאה באיפוס נתוני התלמיד');
+      console.error(`Failed to reset ${studentName}:`, err);
+      throw err; // keep the confirmation dialog open — nothing was reset
     } finally {
       setUpdatingId(null);
     }

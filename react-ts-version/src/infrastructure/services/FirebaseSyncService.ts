@@ -595,7 +595,11 @@ export class FirebaseSyncService {
       ? { physicalOverride: overrideInput }
       : overrideInput;
 
-    const isPhysical = overrideData.physicalOverride ?? true;
+    // Module 20: the gate override is NEVER implied. The old `?? true` default
+    // meant that saving any learning-conditions payload (ASD toggle, scaffold
+    // level) silently stamped physicalOverride: true — and the student route
+    // guard treats that flag as a full bypass of the teacher approval gate.
+    const isPhysical = overrideData.physicalOverride ?? false;
     const isASD = overrideData.isASD ?? false;
     const updatedAt = overrideData.overrideUpdatedAt ?? Date.now();
 
@@ -607,14 +611,21 @@ export class FirebaseSyncService {
     // gate decision ever made — and left Firestore (no teacher_gate_approved)
     // disagreeing with RTDB. Gate fields are written only when the caller
     // explicitly supplies them; the same applies to difficultyRecommendation.
+    // The gate flags are written ONLY when the caller explicitly supplies
+    // them — a learning-conditions save must neither grant nor revoke a gate
+    // decision made elsewhere.
+    const gateFlagsSupplied =
+      overrideData.physicalOverride !== undefined || overrideData.physicalOverrideActive !== undefined;
     const studentOverridePayload = {
       ...(overrideData.routeStatus !== undefined && { routeStatus: overrideData.routeStatus }),
       ...(overrideData.difficultyRecommendation !== undefined && {
         difficultyRecommendation: overrideData.difficultyRecommendation,
       }),
       isASD: isASD,
-      physicalOverride: isPhysical,
-      physicalOverrideActive: overrideData.physicalOverrideActive ?? isPhysical,
+      ...(gateFlagsSupplied && {
+        physicalOverride: isPhysical,
+        physicalOverrideActive: overrideData.physicalOverrideActive ?? isPhysical,
+      }),
       overrideUpdatedAt: updatedAt,
     };
 

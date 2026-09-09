@@ -34,6 +34,11 @@ const SESSION_NUMBERS = [1, 2, 3, 4, 5, 6, 7, 8] as const;
  * meeting (chapters per exercise) beside the decision table built from the
  * learner's own telemetry events. Nothing on this screen is estimated.
  */
+const isMissingReport = (err: unknown): boolean => {
+  const code = String((err as { code?: string })?.code ?? '');
+  return code.includes('permission-denied') || code.includes('not-found');
+};
+
 export function LearnerJourney({ studentId }: Props) {
   const studentNum = useMemo(() => {
     const n = parseInt(String(studentId).replace(/\D/g, ''), 10);
@@ -156,6 +161,10 @@ export function LearnerJourney({ studentId }: Props) {
       .then((r) => { if (!cancelled) { setReport(r); setReportState('idle'); } })
       .catch((err) => {
         if (cancelled) return;
+        // firestore.rules dereferences resource.data on reads, so a report that
+        // simply does not exist yet comes back as permission-denied — that is
+        // the "no report yet" state, not a failure.
+        if (isMissingReport(err)) { setReport(null); setReportState('idle'); return; }
         setReportError(err instanceof Error ? err.message : String(err));
         setReportState('error');
       });
