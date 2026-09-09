@@ -210,6 +210,7 @@ export function AdminWizardModal({
   };
 
   const handleQuickAddClass = () => {
+    if (isSubmitting) return;
     if (!selectedSchoolId) {
       setClassError("יש לבחור מוסד חינוכי.");
       return;
@@ -221,8 +222,13 @@ export function AdminWizardModal({
     }
     const teacherId = schoolTeachers[0].id;
     if (!validateStep3(teacherId)) return;
-    addClassRoom(selectedSchoolId, teacherId, PILOT_CLASS_NAME, classType);
-    setIsDone(true);
+    setIsSubmitting(true);
+    try {
+      addClassRoom(selectedSchoolId, teacherId, PILOT_CLASS_NAME, classType);
+      setIsDone(true);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const resetAndClose = () => {
@@ -684,9 +690,10 @@ export function AdminWizardModal({
                   <UdlButton 
                     semanticColor="primary" 
                     onClick={handleQuickAddClass}
-                    className="gap-2 px-8 py-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold shadow-lg"
+                    disabled={isSubmitting}
+                    className="gap-2 px-8 py-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold shadow-lg disabled:opacity-50"
                   >
-                    הקם כיתה
+                    {isSubmitting ? "מקים כיתה..." : "הקם כיתה"}
                   </UdlButton>
                 )}
               </div>

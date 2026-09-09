@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AlertTriangle, ShieldAlert, RefreshCw, X, Check } from 'lucide-react';
 import type { ResetReason } from '@/types';
 
@@ -66,7 +67,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
   const isLevel3 = resetLevel === 'system';
   const isLevel2 = resetLevel === 'single_student';
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in" dir="rtl">
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-lg w-full shadow-2xl relative">
         <button
@@ -223,6 +224,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

@@ -93,6 +93,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   // The admin drawer used to share inputText with the student chat, so a
   // half-typed message to one leaked into the other.
   const [adminInputText, setAdminInputText] = useState("");
+  const [isSendingAdmin, setIsSendingAdmin] = useState(false);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(
     routeStudentId || null,
   );
@@ -910,7 +911,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   }, [isAdminChatDrawerOpen, activeTab, selectedStudentId, messages, user, markAsRead]);
 
   const handleSendAdmin = async () => {
-    if (!adminInputText.trim() || !user) return;
+    if (!adminInputText.trim() || !user || isSendingAdmin) return;
 
     // Module 22: Tier 1 Client-Side Regex Validation (Fail-Closed Architecture)
     let cleanText: string;
@@ -933,6 +934,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     // substitution entirely and dropped the message into a store no admin
     // ever reads — it looked sent and reached nobody.
     try {
+      setIsSendingAdmin(true);
       const sendFn = httpsCallable(functions, "sendTeacherAdminMessage");
       await sendFn({
         receiver_id: "admin",
@@ -940,10 +942,12 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
         school_id: useAuthStore.getState().activeClass?.school_id || "school_pilot_01",
         class_name: "המבקרים",
       });
-      setInputText("");
+      setAdminInputText("");
     } catch (err) {
       console.error('[Module 22] Failed to send teacher-admin message:', err);
       toast.error('שגיאה בשליחת ההודעה להנהלה. בדקו את חיבור הרשת ונסו שוב.');
+    } finally {
+      setIsSendingAdmin(false);
     }
   };
 
@@ -1925,13 +1929,14 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                 onChange={(e) => setAdminInputText(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSendAdmin()}
                 placeholder="הקלד הודעה למנהל המערכת..."
-                className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-slate-900 dark:text-white"
+                disabled={isSendingAdmin}
+                className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-slate-900 dark:text-white disabled:opacity-60"
               />
 
               <button
                 onClick={handleSendAdmin}
-                disabled={!adminInputText.trim()}
-                className="rounded-full w-10 h-10 flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white transition-all disabled:opacity-40 shadow-md shrink-0"
+                disabled={!adminInputText.trim() || isSendingAdmin}
+                className="rounded-full w-10 h-10 flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white transition-all disabled:opacity-40 shadow-md shrink-0 cursor-pointer disabled:cursor-not-allowed"
               >
                 <Send className="w-4 h-4 -mr-0.5" />
               </button>
