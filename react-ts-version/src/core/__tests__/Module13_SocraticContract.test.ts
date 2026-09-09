@@ -23,7 +23,8 @@ import { SocraticEngine, socraticTextViolation, completedColumnsFrom, inferIsSub
  * proxy and the credential module are pinned from source the way
  * Module23_ReportAnalysis does, because they import the Functions SDK.
  */
-const fnSrc = (rel: string) => readFileSync(resolve(__dirname, '../../../../functions/src/', rel), 'utf-8');
+const fnSrc = (rel: string) =>
+  readFileSync(resolve(__dirname, '../../../../functions/src/', rel), 'utf-8').replace(/\r\n/g, '\n');
 
 const subtraction425_162: SocraticRequest = {
   student_id: 3,

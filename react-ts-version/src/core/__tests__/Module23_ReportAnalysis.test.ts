@@ -22,7 +22,7 @@ import { resolve } from 'path';
  * its own tsconfig and cannot be imported into the frontend bundle.
  */
 const fnSrc = (rel: string) =>
-  readFileSync(resolve(__dirname, '../../../../functions/src/', rel), 'utf-8');
+  readFileSync(resolve(__dirname, '../../../../functions/src/', rel), 'utf-8').replace(/\r\n/g, '\n');
 
 describe('Module 23: pedagogical report, layer 2 (AI verbal analysis)', () => {
   const analysis = fnSrc('reportAnalysis.ts');
