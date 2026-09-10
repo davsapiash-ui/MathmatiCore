@@ -41,7 +41,7 @@ export function TaskCard() {
   const taskKey = `${sessionNumber}-${qTask?.id ?? standardTask?.id ?? ''}-${subtask ? 'sub' : qflow.subphase}-${standardTaskIdx}`;
 
   return (
-    <AccessibleCard id="tour-task-card" className="flex-1 min-w-0 p-8 overflow-y-auto no-scrollbar relative border-none rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-white/95">
+    <AccessibleCard id="tour-task-card" className="flex-1 min-w-0 p-8 overflow-y-auto no-scrollbar relative border-none rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-white/95 dark:bg-slate-900/95">
       {/* Soft decorative corner glow — warmth without noise */}
       <div
         aria-hidden="true"

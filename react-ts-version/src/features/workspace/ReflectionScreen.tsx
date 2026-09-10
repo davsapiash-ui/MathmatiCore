@@ -228,7 +228,7 @@ export function ReflectionScreen() {
                     <span className="font-bold text-ws-ink">{opt.nameHe}</span>
                     <span className="text-xs sm:text-sm text-ws-soft">{opt.descHe}</span>
                   </span>
-                  <div className={`mr-auto w-6 h-6 rounded-md flex items-center justify-center border-2 transition-colors ${isSelected ? 'border-ws-accent bg-ws-accent' : 'border-ws-surface2 bg-white'}`}>
+                  <div className={`mr-auto w-6 h-6 rounded-md flex items-center justify-center border-2 transition-colors ${isSelected ? 'border-ws-accent bg-ws-accent' : 'border-ws-surface2 bg-white dark:bg-slate-800'}`}>
                     {isSelected && <span className="text-white text-sm font-black" aria-hidden="true">✓</span>}
                   </div>
                 </button>

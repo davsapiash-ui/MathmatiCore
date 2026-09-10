@@ -54,7 +54,7 @@ export function IntroTask({ task }: { task: SessionTask }) {
                   מחקו לפחות פריט אחד (לפח או מחוץ ללוח)
                 </span>
               </div>
-              <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-100 text-ws-soft">
+              <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-ws-soft">
                 {hasDeletedBlock ? 'בוצע!' : 'טרם בוצע'}
               </span>
             </div>
@@ -64,7 +64,7 @@ export function IntroTask({ task }: { task: SessionTask }) {
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="mt-2 p-4 bg-emerald-50 border-2 border-emerald-300 rounded-2xl text-center shadow-sm"
+              className="mt-2 p-4 bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-300 dark:border-emerald-800 rounded-2xl text-center shadow-sm"
             >
               <span className="text-emerald-800 font-black block text-base">
                 ✨ מצוין! לחצו על כפתור <span className="bg-emerald-600 text-white px-2 py-0.5 rounded-lg">התקדם ←</span> בסרגל העליון כדי לעבור לשלב הבא!

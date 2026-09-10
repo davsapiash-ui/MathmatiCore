@@ -55,7 +55,7 @@ export function InteractiveTutorialPointer({ isActive, onSkip }: InteractiveTuto
         <UdlButton 
           variant="secondary" 
           onClick={onSkip}
-          className="bg-white/90 hover:bg-white shadow-xl border-2 border-indigo-100 text-indigo-700 rounded-full pl-3 pr-5"
+          className="bg-white/90 dark:bg-slate-900/90 hover:bg-white dark:hover:bg-slate-900 shadow-xl border-2 border-indigo-100 dark:border-indigo-900 text-indigo-700 rounded-full pl-3 pr-5"
         >
           <X className="w-4 h-4 ml-2" />
           דלג על ההדרכה
@@ -77,9 +77,9 @@ export function InteractiveTutorialPointer({ isActive, onSkip }: InteractiveTuto
         </div>
         
         {/* Tooltip Bubble */}
-        <div className="mt-4 bg-white border-2 border-indigo-200 shadow-2xl rounded-2xl p-4 min-w-[280px] max-w-[320px] text-center relative pointer-events-auto animate-in zoom-in duration-300 flex flex-col gap-3">
+        <div className="mt-4 bg-white dark:bg-slate-900 border-2 border-indigo-200 dark:border-indigo-800 shadow-2xl rounded-2xl p-4 min-w-[280px] max-w-[320px] text-center relative pointer-events-auto animate-in zoom-in duration-300 flex flex-col gap-3">
           {/* Arrow pointing up to the cursor */}
-          <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-white border-t-2 border-l-2 border-indigo-200 rotate-45 pointer-events-none" />
+          <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-white dark:bg-slate-900 border-t-2 border-l-2 border-indigo-200 rotate-45 pointer-events-none" />
           <p className="text-indigo-900 font-bold text-lg leading-tight">
             {currentStep.text}
           </p>

@@ -77,8 +77,11 @@ export function PlaceValueInputBoxes({
 
       {mode === 'single_value' ? (
         <div className="flex flex-col items-center gap-2">
-          <label className="text-base font-bold text-ws-ink/70">ערך הספרה:</label>
+          {/* התווית לא הייתה מקושרת לתיבה, ולכן הקראה הכריזה על שדה
+              בלי שם. */}
+          <label htmlFor="pv-single-value" className="text-base font-bold text-ws-ink/70">ערך הספרה:</label>
           <input
+            id="pv-single-value"
             ref={singleRef}
             type="text"
             inputMode="numeric"
@@ -93,14 +96,14 @@ export function PlaceValueInputBoxes({
               }
             }}
             placeholder="?"
-            className="w-32 h-16 text-center font-display font-black text-3xl text-indigo-600 bg-white border-2 border-indigo-400 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-100 rounded-2xl outline-none shadow-sm transition-all"
+            className="w-32 h-16 text-center font-display font-black text-3xl text-indigo-600 dark:text-indigo-300 bg-white dark:bg-slate-800 border-2 border-indigo-400 dark:border-indigo-600 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-100 rounded-2xl outline-none shadow-sm transition-all"
           />
         </div>
       ) : (
         <div className="flex items-center justify-center gap-4 md:gap-6">
           {mode === 'three_digits' && (
             <div className="flex flex-col items-center gap-1.5">
-              <span className="text-sm font-bold text-amber-700 dark:text-amber-300">
+              <span id="pv-label-hundreds" className="text-sm font-bold text-amber-700 dark:text-amber-300">
                 {labels.hundreds || 'מאות'}
               </span>
               <input
@@ -109,14 +112,15 @@ export function PlaceValueInputBoxes({
                 inputMode="numeric"
                 maxLength={1}
                 value={answerDigits.hundreds ?? ''}
+                aria-labelledby="pv-label-hundreds"
                 onChange={(e) => handleDigitChange('hundreds', e.target.value, tensRef)}
-                className="w-16 h-16 md:w-20 md:h-20 text-center font-display font-black text-3xl md:text-4xl text-amber-900 bg-amber-50/70 border-2 border-amber-300 focus:border-amber-500 focus:ring-4 focus:ring-amber-100 rounded-2xl outline-none shadow-sm transition-all"
+                className="w-16 h-16 md:w-20 md:h-20 text-center font-display font-black text-3xl md:text-4xl text-amber-900 dark:text-amber-100 bg-amber-50/70 dark:bg-amber-950/40 border-2 border-amber-300 dark:border-amber-700 focus:border-amber-500 focus:ring-4 focus:ring-amber-100 rounded-2xl outline-none shadow-sm transition-all"
               />
             </div>
           )}
 
           <div className="flex flex-col items-center gap-1.5">
-            <span className="text-sm font-bold text-blue-700 dark:text-blue-300">
+            <span id="pv-label-tens" className="text-sm font-bold text-blue-700 dark:text-blue-300">
               {labels.tens || 'עשרות'}
             </span>
             <input
@@ -125,13 +129,14 @@ export function PlaceValueInputBoxes({
               inputMode="numeric"
               maxLength={1}
               value={answerDigits.tens ?? ''}
+              aria-labelledby="pv-label-tens"
               onChange={(e) => handleDigitChange('tens', e.target.value, unitsRef)}
-              className="w-16 h-16 md:w-20 md:h-20 text-center font-display font-black text-3xl md:text-4xl text-blue-900 bg-blue-50/70 border-2 border-blue-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 rounded-2xl outline-none shadow-sm transition-all"
+              className="w-16 h-16 md:w-20 md:h-20 text-center font-display font-black text-3xl md:text-4xl text-blue-900 dark:text-blue-100 bg-blue-50/70 dark:bg-blue-950/40 border-2 border-blue-300 dark:border-blue-700 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 rounded-2xl outline-none shadow-sm transition-all"
             />
           </div>
 
           <div className="flex flex-col items-center gap-1.5">
-            <span className="text-sm font-bold text-emerald-700 dark:text-emerald-300">
+            <span id="pv-label-units" className="text-sm font-bold text-emerald-700 dark:text-emerald-300">
               {labels.units || 'יחידות'}
             </span>
             <input
@@ -140,8 +145,9 @@ export function PlaceValueInputBoxes({
               inputMode="numeric"
               maxLength={1}
               value={answerDigits.units ?? ''}
+              aria-labelledby="pv-label-units"
               onChange={(e) => handleDigitChange('units', e.target.value)}
-              className="w-16 h-16 md:w-20 md:h-20 text-center font-display font-black text-3xl md:text-4xl text-emerald-900 bg-emerald-50/70 border-2 border-emerald-300 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 rounded-2xl outline-none shadow-sm transition-all"
+              className="w-16 h-16 md:w-20 md:h-20 text-center font-display font-black text-3xl md:text-4xl text-emerald-900 dark:text-emerald-100 bg-emerald-50/70 dark:bg-emerald-950/40 border-2 border-emerald-300 dark:border-emerald-700 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 rounded-2xl outline-none shadow-sm transition-all"
             />
           </div>
         </div>

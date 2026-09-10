@@ -38,20 +38,20 @@ export function BackwardDiagnosisView({ task, qflow, isASD }: { task: QMatrixTas
       initial={{ scale: 0.9, opacity: 0, y: 20 }}
       animate={{ scale: 1, opacity: 1, y: 0 }}
       transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-      className="flex flex-col gap-4 mt-2 bg-yellow-50/80 p-6 rounded-[2rem] border-4 border-yellow-200/50 shadow-inner"
+      className="flex flex-col gap-4 mt-2 bg-yellow-50/80 dark:bg-amber-950/30 p-6 rounded-[2rem] border-4 border-yellow-200/50 dark:border-amber-800/40 shadow-inner"
     >
       <div className="flex items-center gap-4 mb-2">
-        <div className="w-16 h-16 rounded-full bg-white shadow-md flex items-center justify-center text-4xl animate-bounce">
+        <div className="w-16 h-16 rounded-full bg-white dark:bg-slate-800 shadow-md flex items-center justify-center text-4xl animate-bounce">
           🤖
         </div>
         <div className="flex-1">
-          <h2 className="text-2xl font-display font-black text-amber-600">בדיקה מונחית ומענה מותאם</h2>
-          <p className="text-amber-800/80 font-medium">בואו נפתור יחד שלב זה בעזרת חקירה פשוטה כדי להתקדם...</p>
+          <h2 className="text-2xl font-display font-black text-amber-700 dark:text-amber-300">בדיקה מונחית ומענה מותאם</h2>
+          <p className="text-amber-800/80 dark:text-amber-200/80 font-medium">בואו נפתור יחד שלב זה בעזרת חקירה פשוטה כדי להתקדם...</p>
         </div>
       </div>
 
       {instruction && (
-        <div className="flex items-start gap-3 bg-white/70 p-4 rounded-2xl">
+        <div className="flex items-start gap-3 bg-white/70 dark:bg-slate-900/60 p-4 rounded-2xl">
           <p className="text-lg font-bold text-ws-ink leading-relaxed flex-1">{instruction}</p>
           <UdlSpeechButton text={instruction} />
         </div>

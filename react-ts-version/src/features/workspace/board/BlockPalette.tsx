@@ -61,7 +61,7 @@ function PaletteItemCard({
         }
       }}
       style={{ touchAction: 'none' }}
-      className={`relative flex flex-col items-center justify-between rounded-xl px-3 py-1.5 min-w-[84px] h-[80px] bg-slate-50/70 hover:bg-slate-100/90 border border-slate-200/80 hover:border-indigo-300 shadow-2xs hover:shadow-xs transition-all select-none cursor-pointer active:scale-95 touch-manipulation ${
+      className={`relative flex flex-col items-center justify-between rounded-xl px-3 py-1.5 min-w-[84px] h-[80px] bg-slate-50/70 dark:bg-slate-800/70 hover:bg-slate-100/90 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700 hover:border-indigo-300 shadow-2xs hover:shadow-xs transition-all select-none cursor-pointer active:scale-95 touch-manipulation ${
         isDragging ? 'opacity-30 pointer-events-none' : ''
       }`}
       title={`לחצו או גררו ${labelHe} לטבלה`}
@@ -79,7 +79,7 @@ function PaletteItemCard({
       </div>
 
       <div className="flex items-center gap-1 pointer-events-none">
-        <span className="text-[12px] font-black text-slate-700 leading-none" aria-hidden="true">
+        <span className="text-[12px] font-black text-slate-700 dark:text-slate-200 leading-none" aria-hidden="true">
           {labelHe}
         </span>
         <span className="text-[10px] font-bold text-slate-400 leading-none">
@@ -111,7 +111,7 @@ export function BlockPalette({ scaffoldLevel }: { scaffoldLevel: number }) {
       id="tour-block-palette"
       role="toolbar"
       aria-label="מחסן הכלים — גררו לבנים לטבלה"
-      className="shrink-0 ws-card !rounded-2xl px-5 py-2.5 flex items-center justify-between gap-4 max-w-full overflow-x-auto no-scrollbar select-none bg-white/95 border border-slate-200/90 shadow-sm"
+      className="shrink-0 ws-card !rounded-2xl px-5 py-2.5 flex items-center justify-between gap-4 max-w-full overflow-x-auto no-scrollbar select-none bg-white/95 dark:bg-slate-900/95 border border-slate-200/90 dark:border-slate-800 shadow-sm"
     >
       {/* Title & Legend (RTL Right side) */}
       <div className="flex items-center gap-2.5 shrink-0 select-none">
