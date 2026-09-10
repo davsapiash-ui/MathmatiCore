@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { useDismissableOverlay } from '@/hooks/useDismissableOverlay';
 import { type StudentData, useStore } from '@/application/useStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { approveTeacherGate } from '@/core/teacherGate';
@@ -37,13 +38,9 @@ export function TeacherGateApprovalDrawer({ student, onClose, onApproveSuccess }
     }
   }, [student]);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+  // מסמך העיצוב §1.2: Escape סוגר, הפוקוס נלכד בתוך המגירה, ובסגירה חוזר
+  // לאלמנט שממנו היא נפתחה.
+  const drawerRef = useDismissableOverlay<HTMLDivElement>(Boolean(student), onClose);
 
   if (!student) return null;
 
@@ -85,6 +82,10 @@ export function TeacherGateApprovalDrawer({ student, onClose, onApproveSuccess }
       
       {/* Drawer */}
       <div 
+        ref={drawerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`אישור מסלול למפגש 3 — תלמיד ${studentNum}`}
         className="fixed top-0 right-0 w-full sm:w-[620px] h-[100dvh] bg-white dark:bg-slate-900 shadow-2xl z-[9999] flex flex-col transform transition-transform duration-300 border-l border-slate-200 dark:border-slate-800 animate-in slide-in-from-right" 
         dir="rtl"
       >

@@ -77,7 +77,7 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
         </div>
 
         {/* Module 17: Silent Cloud Status Icon (Green=Online, Grey=Offline) */}
-        <div className="flex items-center mr-1" title={isOnline ? 'מחובר לסנכרון ענן (Online)' : 'מצב לא מקוון - הנתונים נשמרים מקומית ויסונכרנו אוטומטית (Offline)'}>
+        <div className="flex items-center mr-1" title={isOnline ? 'מחובר. העבודה שלך נשמרת.' : 'אין כרגע חיבור לרשת. העבודה שלך נשמרת כאן ותיסנכרן לבד כשהחיבור יחזור.'}>
           {isOnline ? (
             <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-1 rounded-full border border-emerald-200 dark:border-emerald-800">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />

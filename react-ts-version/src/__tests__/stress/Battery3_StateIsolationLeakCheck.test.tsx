@@ -151,7 +151,10 @@ describe('QA Battery 3: State Isolation & Leak Check (TeacherDashboard)', () => 
     }, { timeout: 3000 });
 
     // 1. Navigate to Student Chat tab
-    const studentChatTabBtn = screen.getByRole('button', { name: /צ'אט עם תלמידים/i });
+    // The dashboard's tab bars are now marked up as real tablists (role="tab"
+    // with aria-selected), per design rule 1.2 — a plain <button> told a screen
+    // reader nothing about which screen was open.
+    const studentChatTabBtn = screen.getByRole('tab', { name: /צ'אט עם תלמידים/i });
     fireEvent.click(studentChatTabBtn);
 
     // 2. Select student 1 from the conversation list

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { useDismissableOverlay } from '@/hooks/useDismissableOverlay';
 import { type StudentData, useStore } from '@/application/useStore';
 import { normalizeStudentId } from '@/application/useChatStore';
 import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
@@ -55,13 +56,9 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
     }
   }, [student]);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+  // מסמך העיצוב §1.2: Escape סוגר, הפוקוס נלכד בתוך המגירה, ובסגירה חוזר
+  // לאלמנט שממנו היא נפתחה.
+  const drawerRef = useDismissableOverlay<HTMLDivElement>(Boolean(student), onClose);
 
   if (!student) return null;
 
@@ -164,8 +161,12 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
       />
       
       {/* Drawer */}
-      <div 
-        className="fixed top-0 right-0 w-full sm:w-[580px] h-[100dvh] bg-white dark:bg-slate-900 shadow-2xl z-[9999] flex flex-col transform transition-transform duration-300 border-l border-slate-200 dark:border-slate-800 animate-in slide-in-from-right" 
+      <div
+        ref={drawerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`התאמת תנאי למידה — תלמיד ${studentNum}`}
+        className="fixed top-0 right-0 w-full sm:w-[580px] h-[100dvh] bg-white dark:bg-slate-900 shadow-2xl z-[9999] flex flex-col transform transition-transform duration-300 border-l border-slate-200 dark:border-slate-800 animate-in slide-in-from-right"
         dir="rtl"
       >
         {/* Mobile handle */}

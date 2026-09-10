@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useDismissableOverlay } from '@/hooks/useDismissableOverlay';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, ShieldAlert, RefreshCw, X, Check } from 'lucide-react';
 import type { ResetReason, SingleStudentResetScope } from '@/types';
@@ -44,6 +45,9 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
   const [scope, setScope] = useState<SingleStudentResetScope>('active_session');
   const activeSessionNumber = activeSessionProp && activeSessionProp >= 1 && activeSessionProp <= 8 ? activeSessionProp : null;
 
+  // מסמך העיצוב §1.2: Escape סוגר, הפוקוס נלכד בחלון, ובסגירה חוזר למקומו.
+  const dialogRef = useDismissableOverlay<HTMLDivElement>(isOpen, onClose);
+
   if (!isOpen) return null;
 
   const handleClose = () => {
@@ -85,7 +89,14 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
   const meetingLabel = activeSessionNumber ? `מפגש ${activeSessionNumber}` : 'המפגש הנוכחי';
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in" dir="rtl">
+    <div
+      ref={dialogRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="אישור איפוס נתונים"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in"
+      dir="rtl"
+    >
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-lg w-full shadow-2xl relative">
         <button
           onClick={handleClose}
@@ -108,7 +119,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                 : 'איפוס התראות רדאר (רמה 1)'}
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              מודול 23א: גיבוי מקדים מלא ותיעוד מחייב ביומן הביקורת (Audit Trail)
+              לפני האיפוס נשמר גיבוי מלא, והפעולה נרשמת ביומן הפעולות של הכיתה
             </p>
           </div>
         </div>

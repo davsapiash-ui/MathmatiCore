@@ -206,7 +206,7 @@ export function ClassManagement({
               ניהול כיתה, פרופילים ושער מורה
             </h1>
             <p className="text-indigo-100 text-sm md:text-base font-medium max-w-2xl">
-              הגדרת פרופילי תמיכה סמויים (Module 19), שער אישור מעבר למפגש 3 (Module 20), ואכיפת מגבלת 12 תלמידים.
+              הגדרת תמיכה שקטה לכל לומד, אישור מסלול המעבר למפגש 3, ושמירה על כיתה של עד 12 לומדים.
             </p>
           </div>
 
@@ -336,7 +336,7 @@ export function ClassManagement({
           <div>
             <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
               <Sliders className="w-6 h-6 text-purple-600" />
-              פרופילי תמיכה קוגניטיביים סמויים (Module 19)
+              תמיכה קוגניטיבית שקטה
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
               הפעלת פרופיל תמיכה מוגבר נועלת את המקלדת בשורת התוצאה עד להמרה בלבני הדינס. הפעולה סמויה ב-100% ללא תיוג בממשק התלמיד.
