@@ -250,6 +250,19 @@ export function ReflectionScreen() {
           </motion.div>
         </section>
 
+        {/* כפתור מעומעם בלי הסבר הוא מבוי סתום לילד בכיתה ג'. שתי הדרישות
+            כתובות בשלבים למעלה, אבל ברגע שהוא מנסה ללחוץ ולא קורה כלום הוא
+            צריך לדעת מה חסר — כאן, ליד הכפתור. */}
+        {!canComplete && !done && (
+          <p role="status" className="mb-2 text-center text-sm font-bold text-amber-700 dark:text-amber-300">
+            {effort === null && strategies.length === 0
+              ? 'כדי לסיים: בחרו כמה השתדלתם, וסמנו לפחות כלי אחד שעזר לכם.'
+              : effort === null
+                ? 'עוד רגע! נשאר לבחור כמה השתדלתם היום.'
+                : 'עוד רגע! נשאר לסמן לפחות כלי אחד שעזר לכם.'}
+          </p>
+        )}
+
         <button
           onClick={handleProceed}
           disabled={!canComplete || done}

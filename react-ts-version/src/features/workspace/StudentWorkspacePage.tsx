@@ -21,7 +21,7 @@ import { useActiveClassSession } from '@/application/useActiveClassSession';
 import { database, authReady, fetchServerClockOffset } from '@/infrastructure/firebase';
 import { ref, push, onValue, set, update, onDisconnect } from 'firebase/database';
 import { normalizeStudentId } from '@/application/useChatStore';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, MotionConfig } from 'framer-motion';
 import { PlaceValueBoard } from './board/PlaceValueBoard';
 
 import { DienesBlock } from './board/DienesBlock';
@@ -1041,6 +1041,11 @@ export function StudentWorkspacePage() {
   }
 
   return (
+    // מצב שקט חזותי חייב לכסות גם את framer-motion, לא רק כיתות CSS:
+    // מסכי ההמתנה (המורה השהתה / סגרה, מצב מקרן) מנפישים ב-repeat: Infinity
+    // דרך סגנון מוטבע, והמשיכו לפעום מול ילד שהמורה סימנה כרגיש חושית.
+    // 'always' מכבה תנועת תמרה וגודל ומשאיר מעברי שקיפות רגועים.
+    <MotionConfig reducedMotion={isASDMode ? 'always' : 'user'}>
     <DndContext
       sensors={sensors}
       collisionDetection={collisionDetectionStrategy}
@@ -1132,5 +1137,6 @@ export function StudentWorkspacePage() {
         ) : null}
       </DragOverlay>
     </DndContext>
+    </MotionConfig>
   );
 }

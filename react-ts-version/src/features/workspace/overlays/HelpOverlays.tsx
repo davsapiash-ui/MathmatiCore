@@ -367,7 +367,8 @@ function SocraticPenaltyLockOptions({ onClose }: { onClose: () => void }) {
       })}
 
       {lockSeconds > 0 && (
-        <div className="bg-amber-500/15 border border-amber-500/40 rounded-2xl p-3 text-center text-amber-900 dark:text-amber-200 text-xs sm:text-sm font-bold animate-pulse space-y-1">
+        <div role="status"
+          className="bg-amber-500/15 border border-amber-500/40 rounded-2xl p-3 text-center text-amber-900 dark:text-amber-200 text-xs sm:text-sm font-bold space-y-1">
           <div className="flex items-center justify-center gap-1.5 text-base font-black">
             <span>⏳</span>
             <span>החלונית נעולה לחשיבה: {lockSeconds} שניות</span>

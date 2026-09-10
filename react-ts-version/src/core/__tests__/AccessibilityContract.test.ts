@@ -77,6 +77,15 @@ describe('מסמך העיצוב §1.3 — מצב שקט חזותי', () => {
   it('העדפת תנועה מופחתת של מערכת ההפעלה מכובדת גלובלית', () => {
     expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)[\s\S]{0,200}animation-duration: 0\.01ms/);
   });
+
+  it('מצב השקט מכסה גם תנועת framer-motion, לא רק כיתות CSS', () => {
+    // מסכי ההמתנה מנפישים ב-repeat: Infinity דרך סגנון מוטבע ב-JavaScript.
+    // כלל ה-CSS לא נוגע בהם כלל, ולכן הם המשיכו לפעום מול ילד רגיש חושית
+    // וגם מול מי שביקש תנועה מופחתת במערכת ההפעלה.
+    expect(read('src/main.tsx')).toContain('reducedMotion="user"');
+    expect(read('src/features/workspace/StudentWorkspacePage.tsx'))
+      .toContain("reducedMotion={isASDMode ? 'always' : 'user'}");
+  });
 });
 
 describe('מסמך העיצוב §1.1 — אף פעם לא צבע בלבד', () => {
@@ -95,6 +104,30 @@ describe('מסמך העיצוב §1.1 — אף פעם לא צבע בלבד', () 
   it('תגית הודעה חדשה אומרת מה היא, ולא רק מאירה באדום', () => {
     const topbar = read('src/features/workspace/WorkspaceTopbar.tsx');
     expect(topbar).toContain('יש הודעה חדשה מהמורה');
+  });
+
+  it('מונה הטור מוכרז עם שם הטור ולא כמספר ערום', () => {
+    // אזור ההכרזה קרא את תוכן התגית בלבד, ולכן לומד שנעזר בהקראה שמע
+    // "3", "4", "3" בלי לדעת על איזה טור מדובר.
+    const column = read('src/features/workspace/board/PlaceColumn.tsx');
+    expect(column).toMatch(/aria-live="polite" className="sr-only"/);
+    expect(column).toMatch(/\$\{PLACE_NAMES_HE\[place\]\}: \$\{count\}/);
+  });
+});
+
+describe('כפתור מושבת אומר מה חסר', () => {
+  it('סיום הרפלקציה מסביר לילד מה נשאר לבחור', () => {
+    const reflection = read('src/features/workspace/ReflectionScreen.tsx');
+    expect(reflection).toContain('נשאר לבחור כמה השתדלתם היום');
+    expect(reflection).toContain('נשאר לסמן לפחות כלי אחד שעזר לכם');
+  });
+
+  it('נעילת חלונית החניכה מסבירה למה, כמה זמן, ומה כן אפשר לעשות', () => {
+    const help = read('src/features/workspace/overlays/HelpOverlays.tsx');
+    expect(help).toContain('החלונית נעולה לחשיבה');
+    expect(help).toContain('לוח הדינס וכפתור הביטול');
+    // הודעת ההמתנה עצמה לא מהבהבת — היא מוצגת ברגע של תסכול.
+    expect(help).not.toMatch(/החלונית נעולה[\s\S]{0,400}animate-pulse/);
   });
 });
 
