@@ -380,11 +380,15 @@ function SocraticPenaltyLockOptions({ onClose }: { onClose: () => void }) {
       )}
 
       {feedbackHint && (
-        <div className={`rounded-2xl p-3 text-xs sm:text-sm font-semibold ${
+        <div
+          role="status"
+          aria-live="assertive"
+          className={`rounded-2xl p-3 text-xs sm:text-sm font-semibold ${
           selectedOpt && options.find(o => o.id === selectedOpt)?.correct 
             ? 'bg-emerald-50 text-emerald-950 dark:bg-emerald-950/50 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-800' 
             : 'bg-rose-50 text-rose-950 dark:bg-rose-950/50 dark:text-rose-200 border border-rose-300 dark:border-rose-800'
-        }`}>
+        }`}
+        >
           💡 {feedbackHint}
         </div>
       )}

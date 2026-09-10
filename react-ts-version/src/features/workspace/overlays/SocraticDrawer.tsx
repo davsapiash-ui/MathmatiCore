@@ -178,7 +178,7 @@ export function SocraticDrawer({ isOpen, onClose }: SocraticDrawerProps) {
 
                 <button
                   onClick={handleClose}
-                  className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 flex items-center justify-center transition-all cursor-pointer"
+                  className="w-11 h-11 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 flex items-center justify-center transition-all cursor-pointer"
                   aria-label="סגור חלונית"
                 >
                   <X className="w-5 h-5" />
@@ -187,7 +187,10 @@ export function SocraticDrawer({ isOpen, onClose }: SocraticDrawerProps) {
 
               {/* Serene 30s Reflection & Exploration Notice */}
               {(isSocraticCardLocked || remainingSeconds > 0) && (
-                <div className="mt-4 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-800 dark:text-amber-200 flex items-center gap-3">
+                <div
+                  role="status"
+                  className="mt-4 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-800 dark:text-amber-200 flex items-center gap-3"
+                >
                   {/* §ב specifies a subtle hourglass indicator — not a spinner. */}
                   <Hourglass className="w-6 h-6 shrink-0 text-amber-600" />
                   <div>
@@ -236,6 +239,8 @@ export function SocraticDrawer({ isOpen, onClose }: SocraticDrawerProps) {
               {/* Feedback Alert */}
               {feedbackMsg && (
                 <div
+                  role="status"
+                  aria-live="assertive"
                   className={`mt-6 p-4 rounded-2xl border flex items-center gap-3 ${
                     feedbackMsg.isCorrect
                       ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 text-emerald-800 dark:text-emerald-200'

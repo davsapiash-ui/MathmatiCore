@@ -139,12 +139,47 @@ describe('כפתור מושבת אומר מה חסר', () => {
   });
 });
 
+describe('משוב פדגוגי נאמר, לא רק מצויר', () => {
+  // הרגע שבו הילד מקבל תשובה על הבחירה שלו הוא הרגע הלימודי עצמו.
+  // הוא הופיע במסך בלי שום הכרזה, כך שילד שנעזר בהקראה בחר אפשרות
+  // ולא קיבל שום סימן שמשהו קרה.
+  it.each([
+    ['src/features/workspace/overlays/SocraticDrawer.tsx', 'feedbackMsg'],
+    ['src/features/workspace/overlays/HelpOverlays.tsx', 'feedbackHint'],
+  ])('%s מכריז על המשוב', (file, marker) => {
+    const src = read(file);
+    expect(src).toContain(marker);
+    expect(src).toMatch(/role="status"\s*\n\s*aria-live="assertive"/);
+  });
+
+  it('נעילת ההמתנה בכרטיס החניכה מוכרזת גם היא', () => {
+    const drawer = read('src/features/workspace/overlays/SocraticDrawer.tsx');
+    expect(drawer).toMatch(/role="status"[\s\S]{0,600}רגע לחשיבה/);
+  });
+});
+
+describe('מודול 13 — כלל הברזל חל על כל כרטיס, לא רק על תשובת הבינה', () => {
+  it('כל כרטיס שיוצא מהמנוע עובר את שער התוכן', () => {
+    const engine = read('src/infrastructure/services/SocraticEngine.ts');
+    expect(engine).toContain('private static enforceIronRule');
+    // getSynchronousTaskHint הוא הפתח היחיד לכרטיסים הסטטיים, והוא עוטף
+    // את הפתרון בשער.
+    expect(engine).toMatch(/getSynchronousTaskHint[\s\S]{0,400}enforceIronRule\(/);
+  });
+});
+
 describe('מסמך העיצוב §2.3 — אפס מונחי פיתוח בממשק', () => {
   const SURFACES = [
     'src/presentation/pages/TeacherDashboard/ClassManagement.tsx',
     'src/presentation/pages/TeacherDashboard/components/ResetConfirmationModal.tsx',
     'src/presentation/pages/TeacherDashboard/components/SilentAdaptationPanel.tsx',
     'src/features/workspace/WorkspaceTopbar.tsx',
+    'src/presentation/pages/admin/AdminWizardModal.tsx',
+    'src/presentation/pages/admin/AdminSchoolsView.tsx',
+    'src/presentation/pages/admin/AdminOverview.tsx',
+    'src/presentation/pages/admin/AdminCurriculumView.tsx',
+    'src/presentation/pages/admin/AdminSupportHubView.tsx',
+    'src/presentation/pages/admin/AiEngineStatusCard.tsx',
   ];
 
   it.each(SURFACES)('%s אינו מציג מספרי מודולים או מונחי פיתוח למשתמש', (file) => {
@@ -155,6 +190,8 @@ describe('מסמך העיצוב §2.3 — אפס מונחי פיתוח בממש�
       .filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l))
       .join('\n');
     expect(visible).not.toMatch(/>[^<]*\(Module \d+\)/);
+    expect(visible).not.toMatch(/>[^<]*\(מודול \d+/);
+    expect(visible).not.toMatch(/["'][^"']*\(מודול \d+/);
     expect(visible).not.toMatch(/>[^<]*Audit Trail/);
     expect(visible).not.toMatch(/'[^']*\((?:Online|Offline)\)'/);
   });
