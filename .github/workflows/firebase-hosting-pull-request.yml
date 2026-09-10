@@ -18,6 +18,20 @@ jobs:
         with:
           node-version: '24'
       - run: cd react-ts-version && npm ci --legacy-peer-deps && npm test && npm run build
+
+      # The merge workflow builds the Cloud Functions and deploys them, the
+      # security rules included. This job did not, so a type error under
+      # functions/ passed review green and only failed during the deploy that
+      # runs after the merge. Building it here costs a minute and moves that
+      # failure back to the pull request, where it can still be fixed.
+      - name: Install functions dependencies
+        working-directory: functions
+        run: npm ci || npm install
+
+      - name: Build functions
+        working-directory: functions
+        run: npm run build
+
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
