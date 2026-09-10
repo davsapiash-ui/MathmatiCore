@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { readFileSync, readdirSync } from 'fs';
+import { resolve } from 'path';
 import { useAuthStore, currentStudentNumber, currentStudentUid } from '@/application/useAuthStore';
 import { resolveTelemetryStudentId } from '@/infrastructure/services/FirebaseSyncService';
 
@@ -79,5 +81,52 @@ describe('זיהוי לומד: כל 12 התלמידים, ואף אחד מעבר 
       seen.add(uid);
     }
     expect(seen.size).toBe(12);
+  });
+});
+
+describe('אין ניחוש זהות בשום מקום בקוד', () => {
+  const read = (p: string) => readFileSync(resolve(__dirname, '../../..', p), 'utf-8');
+
+  /**
+   * הסריקה הזאת היא הבדיקה האמיתית. שלושה סבבי תיקון ידניים השאירו בכל
+   * פעם מופע אחד או שניים של אותה נפילה — "אם לא הצלחתי לזהות, זה תלמיד
+   * 1". כאן זה נבדק אוטומטית על כל קובץ מקור, כך שמופע חדש ייפול בבדיקות
+   * ולא ייתגלה בסבב ידני נוסף.
+   */
+  const SOURCE_DIRS = ['src/features', 'src/application', 'src/presentation', 'src/infrastructure', 'src/core'];
+
+  const walk = (dir: string): string[] => {
+    const out: string[] = [];
+    for (const entry of readdirSync(resolve(__dirname, '../../..', dir), { withFileTypes: true })) {
+      const rel = `${dir}/${entry.name}`;
+      if (entry.isDirectory()) {
+        if (entry.name === '__tests__') continue;
+        out.push(...walk(rel));
+      } else if (/\.(ts|tsx)$/.test(entry.name)) {
+        out.push(rel);
+      }
+    }
+    return out;
+  };
+
+  const files = SOURCE_DIRS.flatMap(walk);
+
+  it('סורק קבצי מקור אמיתיים', () => {
+    expect(files.length).toBeGreaterThan(50);
+  });
+
+  it.each([
+    ["|| 'student_1'", /\|\|\s*'student_1'/],
+    ["|| 'student_user1'", /\|\|\s*'student_user1'/],
+    ['|| "student_1"', /\|\|\s*"student_1"/],
+  ])('אף קובץ אינו נופל ל-%s', (_label, pattern) => {
+    const offenders = files.filter((f) => {
+      const src = read(f)
+        .split('\n')
+        .filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l))
+        .join('\n');
+      return pattern.test(src);
+    });
+    expect(offenders).toEqual([]);
   });
 });

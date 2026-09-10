@@ -108,7 +108,7 @@ export function SocraticDrawer({ isOpen, onClose }: SocraticDrawerProps) {
       : (choice.id === aiSocraticHint?.correctChoiceId);
 
     const wsState = useWorkspaceStore.getState();
-    const studentId = useAuthStore.getState().user?.uid || 'student_1';
+    const studentId = currentStudentUid();
     const currentTask = getActiveTasks(wsState)[wsState.standardTaskIdx] || null;
     const optionKey = (choice.id === 'opt_2' ? 'opt_2' : choice.id === 'opt_3' ? 'opt_3' : 'opt_1') as 'opt_1' | 'opt_2' | 'opt_3';
 

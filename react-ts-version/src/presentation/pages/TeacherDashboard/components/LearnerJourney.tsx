@@ -40,9 +40,11 @@ const isMissingReport = (err: unknown): boolean => {
 };
 
 export function LearnerJourney({ studentId }: Props) {
+  // מזהה שאינו נפתר החזיר עד כה 1, ולכן המורה הייתה רואה את מסע הלמידה
+  // המלא של תלמיד 1 — הקלטות מסך וכל הטלמטריה — תחת שם של ילד אחר.
   const studentNum = useMemo(() => {
     const n = parseInt(String(studentId).replace(/\D/g, ''), 10);
-    return Number.isFinite(n) && n >= 1 && n <= 12 ? n : 1;
+    return Number.isFinite(n) && n >= 1 && n <= 12 ? n : null;
   }, [studentId]);
 
   const [recordings, setRecordings] = useState<RecordingSession[]>([]);
@@ -58,6 +60,7 @@ export function LearnerJourney({ studentId }: Props) {
 
   // Recordings: live from RTDB.
   useEffect(() => {
+    if (studentNum === null) return;
     setRecordingError('');
     return subscribeLearnerRecordings(studentNum, setRecordings, (err) => {
       setRecordingError(err instanceof Error ? err.message : String(err));
@@ -66,6 +69,7 @@ export function LearnerJourney({ studentId }: Props) {
 
   // Events: one read of the learner's telemetry.
   useEffect(() => {
+    if (studentNum === null) return;
     let cancelled = false;
     setEventsState('loading');
     setEventsError('');
@@ -172,7 +176,7 @@ export function LearnerJourney({ studentId }: Props) {
   }, [meetingSessionId]);
 
   const requestReport = async () => {
-    if (!meetingSessionId || selectedSession === null) return;
+    if (!meetingSessionId || selectedSession === null || studentNum === null) return;
     setReportState('generating');
     setReportError('');
     try {
@@ -197,6 +201,17 @@ export function LearnerJourney({ studentId }: Props) {
       setReportState('error');
     }
   };
+
+  if (studentNum === null) {
+    return (
+      <section dir="rtl" role="alert" className="rounded-2xl border-2 border-rose-300 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/30 p-6">
+        <h3 className="font-black text-rose-950 dark:text-rose-100">לא ניתן להציג את מסע הלמידה</h3>
+        <p className="text-sm text-rose-900/80 dark:text-rose-200/80 mt-1">
+          מזהה הלומד שהתקבל אינו אחד מ-12 תלמידי הכיתה. לא מוצג כאן מידע, כדי שלא יוצג מידע של תלמיד אחר.
+        </p>
+      </section>
+    );
+  }
 
   return (
     <div className="space-y-5" dir="rtl">

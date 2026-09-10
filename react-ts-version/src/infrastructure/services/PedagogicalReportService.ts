@@ -114,10 +114,19 @@ export function generatePedagogicalReportPDF(
     throw new Error('[PedagogicalReportService] session_score_percent is required in SessionDocument');
   }
 
-  // Rule 3: Strict Anonymity - display "תלמיד {ID}" (1-12)
+  // Rule 3: Strict Anonymity - display "תלמיד {ID}" (1-12).
+  // A session id that does not yield a pilot number used to fall back to 1,
+  // which produced a full pedagogical report headed "תלמיד 1" describing a
+  // different child's work — and that report reaches the teacher and the
+  // research record. Refuse instead, exactly as a missing score does.
   const match = sessionDoc.session_id.match(/\d+$/);
-  const studentNum = match ? parseInt(match[0], 10) : 1;
-  const clampedStudentNum = Math.min(12, Math.max(1, studentNum));
+  const studentNum = match ? parseInt(match[0], 10) : NaN;
+  if (!Number.isInteger(studentNum) || studentNum < 1 || studentNum > 12) {
+    throw new Error(
+      `[PedagogicalReportService] Cannot resolve a pilot student number (1-12) from session_id '${sessionDoc.session_id}'.`
+    );
+  }
+  const clampedStudentNum = studentNum;
   const studentDisplayName = `תלמיד ${clampedStudentNum}`;
 
   // Rule 1: Read session_score_percent strictly without calculating
@@ -298,11 +307,17 @@ export class PedagogicalReportService {
     exerciseNarratives?: string[];
     telemetryEvents?: Record<string, any>[];
   }): StudentReportData {
+    // כמו למעלה: מזהה שאינו נפתר למספר פיילוט לא הופך ל"תלמיד 1".
     const rawId = params.studentId;
     const norm = normalizeStudentId(rawId);
     const numericMatch = norm.match(/\d+/);
-    const displayId = numericMatch ? parseInt(numericMatch[0], 10) : 1;
-    const clampedDisplayId = Math.min(12, Math.max(1, displayId));
+    const displayId = numericMatch ? parseInt(numericMatch[0], 10) : NaN;
+    if (!Number.isInteger(displayId) || displayId < 1 || displayId > 12) {
+      throw new Error(
+        `[PedagogicalReportService] Cannot resolve a pilot student number (1-12) from '${rawId}'.`
+      );
+    }
+    const clampedDisplayId = displayId;
 
     const score = Math.max(0, Math.min(100, Math.round(params.score)));
     const U = Math.max(0, params.undoCount || 0);

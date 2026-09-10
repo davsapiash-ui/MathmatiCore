@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useDismissableOverlay } from '@/hooks/useDismissableOverlay';
 import { useChatStore, normalizeStudentId, isTeacherOrAdminId } from '@/application/useChatStore';
-import { useAuthStore } from '@/application/useAuthStore';
+import { useAuthStore, currentStudentUid } from '@/application/useAuthStore';
 import { useStore } from '@/application/useStore';
 import { useAdminStore } from '@/application/useAdminStore';
 import { useActiveClassSession } from '@/application/useActiveClassSession';
@@ -28,8 +28,11 @@ export function StudentChatOverlay() {
   const students = useStore(s => s.students);
   const classes = useAdminStore(s => s.classes);
   
-  const normUid = normalizeStudentId(user?.uid || '');
-  const studentData = normUid ? (students[normUid] || students[user?.uid || '']) : null;
+  // חדר הצ'אט נגזר מהמזהה הקנוני. normalizeStudentId על מזהה Auth גולמי
+  // תופס את הספרה הראשונה שבו וממפה אותה לתלמיד כלשהו — כלומר ההודעות
+  // של ילד אחד היו יכולות להיכנס לשיחה של ילד אחר עם המורה.
+  const normUid = currentStudentUid();
+  const studentData = normUid ? students[normUid] : null;
   const studentClass = classes.find(c => c.id === studentData?.classId);
   const targetTeacherId = studentClass?.teacherId || activeSession?.teacherId || '1002220159';
 

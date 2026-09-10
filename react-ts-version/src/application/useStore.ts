@@ -333,15 +333,18 @@ export const useStore = create<AppState>()(
 
         const newState: Partial<AppState> = { currentUserRole: role, currentUserId: id, firebaseLoaded: false };
         if (role === 'student' && !state.students[id]) {
-          // Auto-initialize new student (strictly within 1..12 range)
+          // Auto-initialize new student (strictly within 1..12 range).
+          // מזהה שאין בו מספר פיילוט לא מקבל את השם "תלמיד 1" — שם כזה
+          // גורם לרשומה זרה להיראות כמו רשומה של ילד קיים בכיתה.
           const numMatch = id.match(/\d+/);
-          const studentNum = numMatch ? parseInt(numMatch[0], 10) : 1;
+          const parsedNum = numMatch ? parseInt(numMatch[0], 10) : NaN;
+          const studentNum = Number.isInteger(parsedNum) && parsedNum >= 1 && parsedNum <= 12 ? parsedNum : null;
           newState.students = {
             ...state.students,
             [id]: {
               studentId: id,
               classId: 'class_1',
-              name: `תלמיד ${studentNum}`,
+              name: studentNum === null ? 'לומד לא מזוהה' : `תלמיד ${studentNum}`,
               completedMeeting2: false,
               highestCompletedMeeting: 0,
               qMatrixResults: {

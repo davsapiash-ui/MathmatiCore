@@ -1688,7 +1688,10 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
             </div>
 
             {(() => {
-              const effectiveReplayStudentId = selectedReplayStudentId || (allStudents.length > 0 ? allStudents[0].studentId : 'student_user1');
+              // כיתה ריקה מציגה את מצב הבחירה הריק שלמטה. ברירת מחדל ל'student_user1'
+              // הייתה גורמת לכך שאם במקרה קיימת רשומה מקומית לתלמיד 1, הדוח שלו
+              // היה נפתח בלי שאיש בחר בו.
+              const effectiveReplayStudentId = selectedReplayStudentId || allStudents[0]?.studentId || '';
               const s = students[effectiveReplayStudentId] || allStudents.find(st => st.studentId === effectiveReplayStudentId || normalizeStudentId(st.studentId) === normalizeStudentId(effectiveReplayStudentId)) || allStudents[0];
 
               const qMatrix = s?.qMatrixResults || {};
