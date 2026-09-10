@@ -40,7 +40,13 @@ import { ClusteringWidgets } from "./TeacherDashboard/components/ClusteringWidge
 import { TeacherApprovalGate, type GateStudentItem } from "./TeacherDashboard/components/TeacherApprovalGate";
 import { SessionActivationModal, type SessionRow } from "./TeacherDashboard/components/SessionActivationModal";
 import { getSessionDurationMinutes } from "@/core/classSession";
-import { CONCEPT_LABELS_HE, TASKS as DIAGNOSTIC_TASKS } from "@/core/QMatrix";
+import {
+  CONCEPT_LABELS_HE,
+  TASKS as DIAGNOSTIC_TASKS,
+  getFailedDiagnosticTasks,
+  getQTaskStatus,
+  readQTaskValue,
+} from "@/core/QMatrix";
 import { validateChatInputForPII, anonymizeChatMessageBody } from "@/core/security/PiiFilter";
 import { approveTeacherGate } from "@/core/teacherGate";
 
@@ -750,12 +756,16 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
         scoreSummary: scorePercent !== null
           ? `ציון דיאגנוסטי: ${Math.round(scorePercent)}% (7 משימות חובה)`
           : 'סיום ראשוני — ממתין לחישוב מדדים',
-        // Real failed diagnostic tasks from the learner's own Q-Matrix results —
-        // this used to be two hard-coded strings shown identically for every
-        // struggling learner, presented as per-student analysis.
+        // Real failed diagnostic tasks from the learner's own Q-Matrix results.
+        // The values the learner's flow writes are strings ('success', or the
+        // name of a diagnostic error node) or null — never the boolean `false`
+        // this used to compare against, which is why the list was always empty
+        // and the teacher approved a path with no evidence behind it.
+        // getFailedDiagnosticTasks is the one shared reading of that value.
         errorNodes: (() => {
-          const qm = (studentData?.qMatrixResults ?? {}) as Record<string, boolean | null>;
-          const failed = DIAGNOSTIC_TASKS.filter((t) => qm[t.id] === false).map((t) => t.titleHe);
+          const failed = getFailedDiagnosticTasks(
+            studentData?.qMatrixResults as Record<string, unknown> | undefined
+          ).map((t) => t.titleHe);
           return failed.length > 0 ? failed : undefined;
         })(),
       });
@@ -1625,10 +1635,19 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
               const qMatrix = s?.qMatrixResults || {};
               const traceData = s?.traceData || { hesitation_events: 0, undo_clicks: 0, semantic_trace: [] };
 
-              const getQStatus = (val: any) => {
-                if (val === undefined || val === null) return { text: 'טרם נבדק', color: 'text-slate-400' };
-                if (val === 'success' || val === true) return { text: 'שולט', color: 'text-green-600' };
-                return { text: 'דרוש חיזוק', color: 'text-red-500' };
+              // מסמך העיצוב §1.1: אסור להעביר סטטוס בצבע בלבד — צבע, אייקון
+              // וטקסט עברי מפורש, שלושתם יחד. הקריאה עצמה עוברת דרך
+              // getQTaskStatus כדי ששלושת המצבים יזוהו כאן בדיוק כמו בשער
+              // המעבר (מודול 20).
+              const getQStatus = (val: unknown) => {
+                switch (getQTaskStatus(val)) {
+                  case 'not_attempted':
+                    return { text: 'טרם ניגש', icon: '—', color: 'text-slate-400 dark:text-slate-500' };
+                  case 'mastered':
+                    return { text: 'שולט', icon: '✓', color: 'text-emerald-700 dark:text-emerald-400' };
+                  default:
+                    return { text: 'דרוש חיזוק', icon: '▲', color: 'text-rose-700 dark:text-rose-400' };
+                }
               };
 
               return (
@@ -1788,14 +1807,19 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                   <p className="text-xs text-ws-soft mb-4">שבע משימות אבחון למיפוי מיומנויות יסוד. 'שליטה' מעידה על פתרון מדויק בניסיון ראשון.</p>
                                   <div className="grid grid-cols-1 gap-2 text-sm">
                                     {DIAGNOSTIC_TASKS.map((task, i) => {
-                                      const status = getQStatus((qMatrix as Record<string, unknown>)[task.id]);
+                                      const status = getQStatus(
+                                        readQTaskValue(qMatrix as Record<string, unknown>, task.id)
+                                      );
                                       return (
                                         <div key={task.id} className="flex items-center justify-between gap-3 bg-ws-bg px-3 py-2 rounded-xl border border-ws-surface2">
                                           <span className="text-ws-ink text-xs font-bold">
                                             <span className="text-ws-soft ml-1">{i + 1}.</span>
                                             {task.titleHe}
                                           </span>
-                                          <span className={`font-semibold text-xs whitespace-nowrap ${status.color}`}>{status.text}</span>
+                                          <span className={`font-semibold text-xs whitespace-nowrap flex items-center gap-1 ${status.color}`}>
+                                            <span aria-hidden="true">{status.icon}</span>
+                                            {status.text}
+                                          </span>
                                         </div>
                                       );
                                     })}

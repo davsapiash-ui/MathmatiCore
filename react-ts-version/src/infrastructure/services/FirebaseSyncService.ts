@@ -115,6 +115,43 @@ export function calculateMonotonicMeetingUpdate(currentVal: any, newMeeting: num
   return undefined;
 }
 
+/** מספר תלמיד תקף לפיילוט: מספר שלם בין 1 ל-12 בלבד. */
+function asPilotStudentNumber(value: unknown): number | null {
+  const n = typeof value === 'number' ? value : Number(value);
+  return Number.isInteger(n) && n >= 1 && n <= 12 ? n : null;
+}
+
+/**
+ * מודול 5 / חוקי Firestore §4: student_id באירוע טלמטריה חייב להיות בדיוק
+ * מספר התלמיד המאומת (1-12).
+ *
+ * מקורות לפי סדר אמינות:
+ *   1. מספר שהמזמין העביר במפורש.
+ *   2. השדה student_id של המשתמש המחובר — עבר אימות 1-12 בכניסה.
+ *   3. מחרוזת מזהה בצורה המוכרת student_user{N} / student_{N} / {N}.
+ *
+ * מזהה שאינו באחת מהצורות האלה (למשל מזהה Auth אקראי שבמקרה יש בו ספרה)
+ * מחזיר null. עדיף חור בנתונים על פני נתון שמיוחס לילד הלא נכון.
+ */
+export function resolveTelemetryStudentId(
+  explicit: number | string | undefined,
+  currentUserId: string | null
+): number | null {
+  const fromExplicitNumber = asPilotStudentNumber(explicit);
+  if (typeof explicit === 'number') return fromExplicitNumber;
+
+  const fromAuth = asPilotStudentNumber(useAuthStore.getState().user?.student_id);
+  if (fromAuth !== null) return fromAuth;
+
+  const parseKnownShape = (raw: string | undefined | null): number | null => {
+    if (!raw) return null;
+    const m = /^(?:student_user|student_|user)?(\d{1,2})$/.exec(String(raw).trim().toLowerCase());
+    return m ? asPilotStudentNumber(parseInt(m[1], 10)) : null;
+  };
+
+  return parseKnownShape(explicit as string | undefined) ?? parseKnownShape(currentUserId);
+}
+
 export class FirebaseSyncService {
   private static instance: FirebaseSyncService;
   private unsubscribeWorkspace: (() => void) | null = null;
@@ -817,17 +854,19 @@ export class FirebaseSyncService {
     event_type: T;
     column_index?: number;
     details: TelemetryDetailsMap[T];
-  }): Promise<TelemetryPayload<T>> {
-    // 1. Resolve numeric student_id (Strictly 1-12)
-    let numStudentId = 1;
-    if (typeof event.student_id === 'number') {
-      numStudentId = Math.min(12, Math.max(1, event.student_id));
-    } else if (typeof event.student_id === 'string') {
-      const parsed = parseInt(event.student_id.replace(/\D/g, ''), 10);
-      numStudentId = !isNaN(parsed) && parsed >= 1 && parsed <= 12 ? parsed : 1;
-    } else if (this.currentUserId) {
-      const parsed = parseInt(this.currentUserId.replace(/\D/g, ''), 10);
-      numStudentId = !isNaN(parsed) && parsed >= 1 && parsed <= 12 ? parsed : 1;
+  }): Promise<TelemetryPayload<T> | null> {
+    // 1. Resolve the numeric student_id (strictly 1-12, per Module 5 and the
+    //    Firestore rule that telemetry_logs.student_id must equal the
+    //    authenticated learner). This must never guess: filing one learner's
+    //    events under another corrupts the research record silently, and no
+    //    later pass can tell which rows were mis-attributed.
+    const numStudentId = resolveTelemetryStudentId(event.student_id, this.currentUserId);
+    if (numStudentId === null) {
+      console.error(
+        `[FirebaseSyncService] Telemetry dropped: cannot resolve a pilot student id (1-12) for event '${event.event_type}'.`,
+        { student_id: event.student_id, currentUserId: this.currentUserId }
+      );
+      return null;
     }
 
     const normUid = `student_user${numStudentId}`;
