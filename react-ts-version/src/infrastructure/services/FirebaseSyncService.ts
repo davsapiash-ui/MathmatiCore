@@ -1250,9 +1250,7 @@ export class FirebaseSyncService {
     const initialTeacher = { 
       id: 'teacher_mock_1', 
       schoolId: 'school_bikorot', 
-      name: 'דוד', 
       ssoEmail: 'teacher.demo@edu-haifa.org.il', 
-      dob: '010190', 
       licenseActive: false, // Security rules require licenseActive to be false upon creation
       createdAt: timestamp 
     };
@@ -1373,7 +1371,7 @@ export class FirebaseSyncService {
     }
   }
 
-  public async addTeacher(schoolId: string, name: string, ssoEmail: string, dob: string): Promise<Teacher> {
+  public async addTeacher(schoolId: string, ssoEmail: string): Promise<Teacher> {
     // A raw email contains '.', which Firebase RTDB rejects as a key segment
     // (ref() throws, so the write never happened and the caller's .catch
     // swallowed it — the teacher looked created in local state but had no
@@ -1384,9 +1382,7 @@ export class FirebaseSyncService {
     const newTeacher: Teacher = {
       id,
       schoolId,
-      name,
       ssoEmail: email,
-      dob,
       licenseActive: false,
       createdAt: Date.now()
     };
@@ -1396,7 +1392,7 @@ export class FirebaseSyncService {
     // A failure here must reach the admin, not a console nobody watches.
     if (email.includes('@')) {
       const { addAuthorizedTeacherFirestore } = await import('./AuthService');
-      await addAuthorizedTeacherFirestore(email, 'teacher', name, schoolId);
+      await addAuthorizedTeacherFirestore(email, 'teacher', schoolId);
     }
     return newTeacher;
   }

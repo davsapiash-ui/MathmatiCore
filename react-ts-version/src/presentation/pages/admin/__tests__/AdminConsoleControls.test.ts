@@ -73,8 +73,11 @@ describe('Admin chat', () => {
     expect(chat.includes('updateDoc(doc(db, "messages", m.id), { read: true })')).toBe(true);
   });
 
-  it('labels teachers by name and school, never by the e-mail-derived key', () => {
-    expect(chat.includes('label: t.name ||')).toBe(true);
+  it('labels teachers by their whitelisted e-mail, never by the mangled record key', () => {
+    // שם המורה אינו נשמר עוד בשום מקום; הזהות היחידה היא כתובת הדוא"ל
+    // שברשימה הלבנה, והיא גם מה שהמנהל רואה ברשימת השיחות.
+    expect(chat.includes('label: t.ssoEmail ||')).toBe(true);
+    expect(chat.includes('label: t.name')).toBe(false);
     expect(chat.includes('מורה מוסמך (${anonId})')).toBe(false);
     expect(chat.includes('מזהה אנונימי: {selectedTeacher.id}')).toBe(false);
   });

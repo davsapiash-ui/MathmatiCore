@@ -12,12 +12,17 @@ export interface School {
   createdAt: number;
 }
 
+/**
+ * זהות המורה היא כתובת הדוא"ל המוסדית ברשימה הלבנה — ותו לא.
+ * שדות `name` ו-`dob` הוסרו: שם המורה אינו נדרש לשום החלטה במערכת,
+ * ו-`dob` מעולם לא נאסף בפועל (התיבה לא הייתה מחוברת לשום קלט, כך
+ * שנשמר בו אותו ערך קבוע לכל מורה). צומת `users/teachers` נקרא בידי
+ * כל משתמש מחובר, ולכן ככל שנשמר בו פחות — כך טוב יותר.
+ */
 export interface Teacher {
   id: string;
   schoolId: string;
-  ssoEmail: string; // Institutional Google SSO email
-  dob: string; // Optional legacy DOB fallback
-  name: string;
+  ssoEmail: string; // Institutional Google SSO email — the sole teacher identity
   licenseActive: boolean;
   createdAt: number;
 }
@@ -62,7 +67,7 @@ interface AdminState {
   deleteSchool: (id: string) => Promise<void>;
   
   /** Resolves once the RTDB record AND the login whitelist are written; rejects (and rolls back) otherwise. */
-  addTeacher: (schoolId: string, name: string, ssoEmail: string, dob: string) => Promise<Teacher>;
+  addTeacher: (schoolId: string, ssoEmail: string) => Promise<Teacher>;
   deleteTeacher: (id: string) => Promise<void>;
   
   addClassRoom: (schoolId: string, teacherId: string, name: string, classType?: string) => Promise<void>;
@@ -70,9 +75,7 @@ interface AdminState {
 
   provisionFullInstitution: (params: {
     schoolName: string;
-    teacherName: string;
     teacherEmail: string;
-    teacherDob?: string;
     className: string;
     classType?: string;
     studentLimit?: number;
@@ -98,8 +101,6 @@ export function normalizeTeacherRecords(val: Record<string, unknown>): Teacher[]
       id: r.id || key,
       schoolId: r.schoolId || '',
       ssoEmail: email.toLowerCase().trim(),
-      dob: r.dob || '',
-      name: r.name || `מורה (${email})`,
       licenseActive: Boolean(r.licenseActive),
       createdAt: typeof r.createdAt === 'number' ? r.createdAt : 0,
     });
@@ -214,9 +215,7 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
     const cleanTeacher: Teacher = {
       id: pilotTeacherKey,
       schoolId: "school_bikorot",
-      name: "דוד ספיאשוילי",
       ssoEmail: pilotTeacherEmail,
-      dob: "010190",
       licenseActive: false,
       createdAt: timestamp,
     };
@@ -250,7 +249,7 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
     // The reset must leave the pilot teacher able to sign in. A swallowed
     // failure here left the console showing a teacher who exists but cannot
     // log in — and the reset reported success. Let it surface.
-    await addAuthorizedTeacherFirestore(pilotTeacherEmail, 'teacher', cleanTeacher.name, cleanSchool.id);
+    await addAuthorizedTeacherFirestore(pilotTeacherEmail, 'teacher', cleanSchool.id);
 
     AuditLogger.log("איפוס מוסדות לפיילוט", "admin", "כל המוסדות נוקו ואופסו למבנה הפיילוט הרשמי (בית ספר ביקורת, כיתת המבקרים)");
   },
@@ -272,9 +271,7 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
 
   provisionFullInstitution: async ({
     schoolName,
-    teacherName,
     teacherEmail,
-    teacherDob = "010190",
     className,
     classType,
     studentLimit = 12,
@@ -294,9 +291,7 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
     const teacher: Teacher = {
       id: teacherKey,
       schoolId,
-      name: teacherName.trim(),
       ssoEmail: teacherId,
-      dob: teacherDob.trim() || "010190",
       licenseActive: false,
       createdAt: timestamp,
     };
@@ -330,10 +325,10 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
     // Whitelist in Firestore for Google SSO — this is what lets the teacher in,
     // so a failure here fails the wizard instead of being logged and forgotten.
     if (teacherEmail.includes('@')) {
-      await addAuthorizedTeacherFirestore(teacherId, 'teacher', teacherName.trim(), schoolId);
+      await addAuthorizedTeacherFirestore(teacherId, 'teacher', schoolId);
     }
 
-    AuditLogger.log("הקמת מוסד מלאה", "admin", `מוסד: ${schoolName}, מורה: ${teacherName}, כיתה: ${className}`);
+    AuditLogger.log("הקמת מוסד מלאה", "admin", `מוסד: ${schoolName}, מורה: ${teacherId}, כיתה: ${className}`);
     return { school, teacher, classRoom };
   },
 
@@ -376,16 +371,14 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
     }
   },
 
-  addTeacher: async (schoolId, name, ssoEmail, dob) => {
+  addTeacher: async (schoolId, ssoEmail) => {
     const id = ssoEmail.trim().toLowerCase();
     const teacherKey = teacherRecordKey(id);
     const previous = get().teachers;
     const newTeacher: Teacher = {
       id: teacherKey,
       schoolId,
-      name: name.trim(),
       ssoEmail: id,
-      dob: dob.trim() || "010190",
       licenseActive: false,
       createdAt: Date.now()
     };
@@ -394,8 +387,8 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
       teachers: [...state.teachers.filter(t => t.id !== teacherKey && t.ssoEmail !== id), newTeacher]
     }));
     try {
-      const saved = await firebaseSyncService.addTeacher(schoolId, newTeacher.name, id, newTeacher.dob);
-      AuditLogger.log("יצירת מורה", "admin", `מורה חדש: ${newTeacher.name} (דוא"ל SSO: ${id})`);
+      const saved = await firebaseSyncService.addTeacher(schoolId, id);
+      AuditLogger.log("יצירת מורה", "admin", `מורה חדש (דוא"ל SSO): ${id}`);
       return saved;
     } catch (err) {
       set({ teachers: previous });
@@ -417,7 +410,7 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
     }));
     try {
       await firebaseSyncService.deleteTeacher(key);
-      if (teacher) AuditLogger.log("מחיקת מורה", "admin", `מורה נמחק: ${teacher.name}`);
+      if (teacher) AuditLogger.log("מחיקת מורה", "admin", `מורה נמחק: ${teacher.ssoEmail}`);
     } catch (err) {
       set(previous);
       console.error("Failed to delete teacher from Firebase", err);

@@ -1023,7 +1023,8 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
 
       sendMessage(
         user.uid as string,
-        (user.displayName as string) || "מורה",
+        // שם המורה אינו נשמר בשום מקום במערכת; ההודעה נושאת תפקיד, לא שם.
+        "מורה",
         targetId,
         cleanText,
       );
