@@ -152,6 +152,73 @@ export function resolveTelemetryStudentId(
   return parseKnownShape(explicit as string | undefined) ?? parseKnownShape(currentUserId);
 }
 
+/** מגבלת המטען לעדכון בודד, לפי מודול 5. */
+export const MAX_PAYLOAD_BYTES = 50 * 1024;
+
+/** גודל אמיתי בבייטים של UTF-8. */
+export function payloadByteSize(value: unknown): number {
+  const json = JSON.stringify(value) ?? '';
+  if (typeof TextEncoder !== 'undefined') return new TextEncoder().encode(json).length;
+  // סביבות ללא TextEncoder: אומדן שמרני, לא הערכת חסר.
+  return unescape(encodeURIComponent(json)).length;
+}
+
+/**
+ * מחזיר מטען שגודלו בפועל אינו עולה על 50KB.
+ *
+ * הגרסה הקודמת מדדה את אורך המחרוזת ולא את מספר הבייטים. במסך שכולו
+ * עברית כל תו הוא שני בייטים ב-UTF-8, ולכן מטען שנמדד כ-40KB יכול היה
+ * להיות 75KB בפועל ולעבור את הבדיקה. בנוסף היא קיצצה את qflow.results
+ * לעשרים המפתחות האחרונים — אבל יש שם שבע משימות בלבד, כך שהתנאי לא
+ * התקיים אף פעם, והמטען נכתב כמות שהוא.
+ *
+ * כאן הקיצוץ נמדד מחדש אחרי כל שלב, ואם גם אחריו המטען חורג — נשמר
+ * הגרעין המינימלי שמאפשר שחזור מצב, ונרשמת שגיאה. אין מצב שבו מטען
+ * חורג נכתב בשקט.
+ */
+export function enforceMaxPayloadBytes(data: Record<string, any>): Record<string, any> {
+  if (payloadByteSize(data) <= MAX_PAYLOAD_BYTES) return data;
+
+  console.warn(
+    `[FirebaseSyncService] Payload is ${payloadByteSize(data)} bytes, over the ${MAX_PAYLOAD_BYTES}-byte limit. Trimming.`
+  );
+
+  // 1. הכבד ביותר בדרך כלל: תיאור המשימה הנוכחית במלל.
+  const trimmed: Record<string, any> = { ...data };
+  if (trimmed.currentTask && typeof trimmed.currentTask === 'object') {
+    const { id, numberA, numberB, isSubtraction } = trimmed.currentTask;
+    trimmed.currentTask = { id, numberA, numberB, isSubtraction };
+  }
+  if (payloadByteSize(trimmed) <= MAX_PAYLOAD_BYTES) return trimmed;
+
+  // 2. היסטוריית זרימת האבחון, החדשות ביותר תחילה.
+  const results = trimmed.qflow?.results;
+  if (results && typeof results === 'object') {
+    const keys = Object.keys(results);
+    for (let keep = Math.floor(keys.length / 2); keep >= 1; keep = Math.floor(keep / 2)) {
+      const recent = keys.slice(-keep);
+      trimmed.qflow = { ...trimmed.qflow, results: Object.fromEntries(recent.map((k) => [k, results[k]])) };
+      if (payloadByteSize(trimmed) <= MAX_PAYLOAD_BYTES) return trimmed;
+    }
+  }
+
+  // 3. גרעין מינימלי לשחזור מצב. עדיף מטען חלקי שנרשם מעל למגבלה שנחצתה.
+  const core = {
+    sessionNumber: data.sessionNumber,
+    standardTaskIdx: data.standardTaskIdx,
+    flowStatus: data.flowStatus,
+    keyboardState: data.keyboardState,
+    undoCount: data.undoCount,
+    hesitationCount: data.hesitationCount,
+    hasInteracted: data.hasInteracted,
+    isASD: data.isASD,
+  };
+  console.error(
+    '[FirebaseSyncService] Payload still over the limit after trimming; syncing the minimal state core only.'
+  );
+  return core;
+}
+
 export class FirebaseSyncService {
   private static instance: FirebaseSyncService;
   private unsubscribeWorkspace: (() => void) | null = null;
@@ -404,23 +471,8 @@ export class FirebaseSyncService {
         } : null,
       };
 
-      // PRD Section 5.2: Enforce <50KB payload limit for Transient State Sync
-      const MAX_PAYLOAD_BYTES = 50 * 1024; // 50KB
-      const payloadJson = JSON.stringify(syncableData);
-      const updatePayload = payloadJson.length > MAX_PAYLOAD_BYTES ? (() => {
-        console.warn(
-          `[FirebaseSyncService] Payload size ${payloadJson.length} bytes exceeds 50KB limit. Trimming qflow history.`
-        );
-        const trimmed = { ...syncableData };
-        if (trimmed.qflow && typeof trimmed.qflow === 'object' && trimmed.qflow.results) {
-          const keys = Object.keys(trimmed.qflow.results);
-          if (keys.length > 20) {
-            const recentKeys = keys.slice(-20);
-            trimmed.qflow = { ...trimmed.qflow, results: Object.fromEntries(recentKeys.map(k => [k, trimmed.qflow.results[k]])) };
-          }
-        }
-        return trimmed;
-      })() : syncableData;
+      // מודול 5: "Validate payload size (≤50KB) before every update".
+      const updatePayload = enforceMaxPayloadBytes(syncableData);
 
       // Clean all undefined values to guarantee Firebase Realtime Database compatibility
       const sanitizedPayload = JSON.parse(JSON.stringify(updatePayload, (_k, v) => (v === undefined ? null : v)));

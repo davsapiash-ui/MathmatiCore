@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
+import { payloadByteSize, enforceMaxPayloadBytes, MAX_PAYLOAD_BYTES } from '@/infrastructure/services/FirebaseSyncService';
 
 /**
  * חוזה הנגישות של מסמך העיצוב (DESIGN_SYSTEM_RULES.md), כפי שהוא מיושם
@@ -115,5 +116,39 @@ describe('מסמך העיצוב §2.3 — אפס מונחי פיתוח בממש�
     expect(visible).not.toMatch(/>[^<]*\(Module \d+\)/);
     expect(visible).not.toMatch(/>[^<]*Audit Trail/);
     expect(visible).not.toMatch(/'[^']*\((?:Online|Offline)\)'/);
+  });
+});
+
+describe('מודול 5 — מגבלת מטען של 50KB', () => {
+  it('מודדת בייטים אמיתיים של UTF-8, לא תווים', () => {
+    // עברית היא שני בייטים לתו. המדידה הקודמת ספרה תווים, ולכן מטען
+    // עברי כפול מגודלו עבר את הבדיקה.
+    const hebrew = { t: 'א'.repeat(1000) };
+    expect(payloadByteSize(hebrew)).toBeGreaterThan(JSON.stringify(hebrew).length);
+  });
+
+  it('מטען קטן עובר כמות שהוא', () => {
+    const small = { sessionNumber: 3, counts: { units: 4 } };
+    expect(enforceMaxPayloadBytes(small)).toBe(small);
+  });
+
+  it('מטען חורג מוחזר מתחת למגבלה, תמיד', () => {
+    const huge = {
+      sessionNumber: 4,
+      standardTaskIdx: 2,
+      flowStatus: 'active',
+      keyboardState: 'UNLOCKED',
+      undoCount: 1,
+      hesitationCount: 0,
+      hasInteracted: true,
+      isASD: false,
+      currentTask: { id: 'ex_1', titleHe: 'כ'.repeat(30000), instructionHe: 'ה'.repeat(30000) },
+      qflow: { results: Object.fromEntries(Array.from({ length: 60 }, (_, i) => [`task${i}`, { detail: 'ד'.repeat(2000) }])) },
+    };
+    const out = enforceMaxPayloadBytes(huge);
+    expect(payloadByteSize(out)).toBeLessThanOrEqual(MAX_PAYLOAD_BYTES);
+    // הגרעין שמאפשר לשחזר את מצב הלומד שורד בכל מקרה.
+    expect(out.sessionNumber).toBe(4);
+    expect(out.standardTaskIdx).toBe(2);
   });
 });

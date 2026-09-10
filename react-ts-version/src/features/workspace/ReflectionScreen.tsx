@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ref, push, update } from 'firebase/database';
 import { database, authReady } from '@/infrastructure/firebase';
-import { useAuthStore } from '@/application/useAuthStore';
+import { useAuthStore, currentStudentUid } from '@/application/useAuthStore';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { normalizeStudentId } from '@/application/useChatStore';
+import { Q_FAIL_TAG } from '@/core/QMatrix';
 import { emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
 import { toast } from 'sonner';
 
@@ -46,7 +47,7 @@ export function ReflectionScreen() {
   const [done, setDone] = useState(false);
 
   const persistenceIndex = getPersistenceIndex();
-  const username: string = user?.uid || 'unknown_student';
+  const username: string = currentStudentUid();
   const feedback = effort !== null ? EFFORT_FEEDBACK[effort] : null;
   const canComplete = effort !== null && strategies.length > 0;
 
@@ -79,11 +80,15 @@ export function ReflectionScreen() {
       });
 
       const r = qflow.results;
+      // אותה הגדרה בדיוק כמו במרחב העבודה: ערך ריק פירושו "לא ניגש"
+      // בלבד, וכישלון בלי צומת שגיאה מסווג נרשם כ-Q_FAIL_TAG. עותק שני
+      // של הכלל הזה כאן היה מייצר שוב את המצב שבו משימה שנכשלה נראית
+      // למורה כמשימה שהילד מעולם לא הגיע אליה.
       const getTag = (taskResult: any) => {
         if (!taskResult) return null;
         if (taskResult.tag) return taskResult.tag;
         if (taskResult.correct) return 'success';
-        return null;
+        return Q_FAIL_TAG;
       };
 
       const qMatrix: any = {
@@ -105,7 +110,7 @@ export function ReflectionScreen() {
         task8_missing_addend: getTag(r['task8_missing_addend']),
       };
 
-      const studentId = normalizeStudentId(username);
+      const studentId = currentStudentUid();
       
       // Emit authoritative SRL Telemetry event per Master PRD v7.0 (Appendix A §3 & Module 16)
       const effortMap: Record<number, 'LOW' | 'MEDIUM' | 'HIGH'> = {
