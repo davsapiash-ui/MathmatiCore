@@ -295,7 +295,7 @@ service cloud.firestore {
         'session_id',
         'session_number',
         'effort_level',
-        'focus_area',
+        'selected_strategies',
         'persistence_index',
         'undo_count',
         'error_count',
@@ -305,8 +305,9 @@ service cloud.firestore {
       data.student_id is int && data.student_id >= 1 && data.student_id <= 12 &&
       data.session_id is string &&
       data.session_number is int && data.session_number == 8 &&
-      data.effort_level is string &&
-      data.persistence_index is number &&
+      data.effort_level in ['LOW', 'MEDIUM', 'HIGH'] &&
+      data.selected_strategies is list &&
+      data.persistence_index is number && data.persistence_index >= 0 && data.persistence_index <= 100 &&
       data.submitted_at is number;
     }
 

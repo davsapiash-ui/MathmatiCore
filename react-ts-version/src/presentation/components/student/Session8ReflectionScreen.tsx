@@ -1,9 +1,14 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckSquare, Square, RotateCcw, Brain, HelpCircle, Award, Sparkles, ArrowLeft } from 'lucide-react';
+import type { SRLReflectionResult } from '@/core/srlReflection';
 
 interface Session8ReflectionScreenProps {
-  onComplete: (focusArea: string) => void;
+  /**
+   * מקבל את שלושת שלבי הרפלקציה במלואם. עד כה הועברה רק רמת המאמץ, תחת
+   * השם focusArea, והיא נכתבה לשדה צבע המסלול — כך שכל השאר אבד.
+   */
+  onComplete: (result: SRLReflectionResult) => void;
   metrics?: {
     fastestTaskType?: string;
     slowestTaskType?: string;
@@ -56,7 +61,14 @@ export function Session8ReflectionScreen({ onComplete, metrics }: Session8Reflec
   const handleComplete = () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
-    onComplete(effortLevel || 'MEDIUM');
+    onComplete({
+      effortLevel,
+      strategies: selectedStrategies,
+      persistenceIndex: persistenceRatio,
+      undoCount: U,
+      errorCount: E,
+      guessCount: G,
+    });
   };
 
   return (

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ref, push, update } from 'firebase/database';
+import { ref, set, update } from 'firebase/database';
 import { database, authReady } from '@/infrastructure/firebase';
 import { useAuthStore, currentStudentUid } from '@/application/useAuthStore';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
@@ -68,8 +68,13 @@ export function ReflectionScreen() {
         return;
       }
 
-      // Silent persistence for the teacher dashboard (Module 16 & 23)
-      await push(ref(database, 'reflections'), {
+      // Silent persistence for the teacher dashboard (Module 16 & 23).
+      // push() מייצר מפתח אקראי, וחוקי מסד הנתונים דורשים שמזהה הרפלקציה
+      // יסתיים ב-_student_{מספר} כדי שהלומד יורשה לכתוב אותו. כלומר כל
+      // רפלקציה שנכתבה כאן נדחתה בשקט (ה-catch רק רשם ליומן), והצומת
+      // המשותף — שגיבוי מודול 23א וייצוא המחקר קוראים — נשאר ריק.
+      const studentNumber = username.replace(/\D/g, '') || '1';
+      await set(ref(database, `reflections/reflection_02_student_${studentNumber}`), {
         effort,
         strategy: strategies.join(', '),
         strategies,
