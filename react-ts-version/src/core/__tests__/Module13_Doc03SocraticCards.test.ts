@@ -71,6 +71,9 @@ describe('Module 13: static Socratic cards come from מסמך 03', () => {
     expect(everyExercise.length).toBeGreaterThan(60);
   });
 
+  // כל תרגיל עובר דרך getSocraticHint, שמנסה קודם קריאה למנוע החניכה
+  // ונופל לכרטיס הסטטי בתום הזמן. כפול 60 ומשהו תרגילים זה חורג מברירת
+  // המחדל של 5 שניות ב-CI, ולכן הזמן מוקצב במפורש.
   it('no card in any exercise leaks the final answer or a forbidden term', async () => {
     const leaks: string[] = [];
 
@@ -92,7 +95,7 @@ describe('Module 13: static Socratic cards come from מסמך 03', () => {
     }
 
     expect(leaks).toEqual([]);
-  });
+  }, 60_000);
 
   it('a card that would leak is replaced, not shown', () => {
     // כרטיס שמפר את הכלל מוחלף בכרטיס הכללי — עדיף רמז רחב על פני
