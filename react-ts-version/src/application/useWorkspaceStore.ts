@@ -37,7 +37,7 @@ import {
 import { stateReducer } from '@/machines/vraMachine';
 import { computeCognitiveMastery, Q_FAIL_TAG } from '@/core/QMatrix';
 import { useStore } from '@/application/useStore';
-import { useAuthStore } from '@/application/useAuthStore';
+import { useAuthStore, currentStudentUid } from '@/application/useAuthStore';
 import { CurriculumRouter } from '@/core/CurriculumRouter';
 import { syncQMatrixEvaluation } from '@/core/ExerciseValidationEngine';
 import { getSessionTasks, type SessionTask } from '@/data/sessionTasks';
@@ -359,21 +359,6 @@ function sanitizeSessionNumber(n: any): SessionNumber {
   const parsed = parseInt(n, 10);
   if (isNaN(parsed) || parsed < 1 || parsed > 8) return 1;
   return parsed as SessionNumber;
-}
-
-/**
- * מזהה הלומד המחובר בצורה הקנונית student_user{N}.
- *
- * מודול 5 מחייב student_id בטווח 1-12 בלבד. שדה student_id של המשתמש עבר
- * אימות בכניסה, ולכן הוא המקור העדיף על פני מזהה ה-Auth הגולמי. אם אין
- * לומד מחובר מוחזרת מחרוזת ריקה — לא מזהה מומצא של "תלמיד 1", שהיה גורם
- * לרישום פעילות של ילד אחד תחת ילד אחר.
- */
-function currentStudentUid(): string {
-  const u = useAuthStore.getState().user;
-  const n = Number(u?.student_id);
-  if (Number.isInteger(n) && n >= 1 && n <= 12) return `student_user${n}`;
-  return (u?.uid as string) || '';
 }
 
 export function selectScaffoldLevel(s: WorkspaceState): number {

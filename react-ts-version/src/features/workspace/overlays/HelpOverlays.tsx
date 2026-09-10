@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useWorkspaceStore, type SupportType, getActiveTasks } from '@/application/useWorkspaceStore';
-import { useAuthStore } from '@/application/useAuthStore';
+import { useAuthStore, currentStudentUid } from '@/application/useAuthStore';
 import { SUPPORT_CONTENT, getDynamicSocraticHint } from '@/data/sessionTasks';
 import type { SocraticChoice } from '@/infrastructure/services/SocraticEngine';
 import { emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
@@ -96,7 +96,7 @@ export function HelpOverlays() {
                 <button
                   onClick={closeHelp}
                   aria-label="סגור חלון עזרה"
-                  className="w-9 h-9 rounded-full bg-ws-surface2 hover:bg-ws-surface2/70 font-bold text-ws-soft"
+                  className="w-11 h-11 rounded-full bg-ws-surface2 hover:bg-ws-surface2/70 font-bold text-ws-soft"
                 >
                   ✕
                 </button>
@@ -154,7 +154,7 @@ export function HelpOverlays() {
                 <button
                   onClick={closeHelp}
                   aria-label="סגור חלונית עזרה"
-                  className="w-8 h-8 rounded-full bg-ws-surface2 hover:bg-ws-surface2/80 text-ws-soft font-bold flex items-center justify-center text-sm transition-colors shrink-0"
+                  className="w-11 h-11 rounded-full bg-ws-surface2 hover:bg-ws-surface2/80 text-ws-soft font-bold flex items-center justify-center text-sm transition-colors shrink-0"
                 >
                   ✕
                 </button>
@@ -303,7 +303,7 @@ function SocraticPenaltyLockOptions({ onClose }: { onClose: () => void }) {
     setFeedbackHint(opt.hint);
 
     const wsState = useWorkspaceStore.getState();
-    const studentId = useAuthStore.getState().user?.uid || 'student_1';
+    const studentId = currentStudentUid();
     const currentTask = getActiveTasks(wsState)[wsState.standardTaskIdx] || null;
     const optionKey = (opt.id === 'opt_2' || opt.id === 'B' ? 'opt_2' : opt.id === 'opt_3' || opt.id === 'C' ? 'opt_3' : 'opt_1') as 'opt_1' | 'opt_2' | 'opt_3';
 
@@ -391,7 +391,7 @@ function SocraticPenaltyLockOptions({ onClose }: { onClose: () => void }) {
       <button
         onClick={onClose}
         disabled={lockSeconds > 0}
-        className={`mt-2 w-full h-10 rounded-full font-display font-extrabold text-sm transition-all ${
+        className={`mt-2 w-full h-11 rounded-full font-display font-extrabold text-sm transition-all ${
           lockSeconds > 0
             ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed opacity-60'
             : 'bg-ws-accent text-white hover:brightness-105 shadow-md'

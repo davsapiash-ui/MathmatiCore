@@ -50,7 +50,9 @@ function PaletteItemCard({
       ref={setNodeRef}
       {...attributes}
       {...listeners}
+      role="button"
       tabIndex={0}
+      aria-label={`הוספת ${labelHe} לטבלה`}
       onClick={handleTapToAdd}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {

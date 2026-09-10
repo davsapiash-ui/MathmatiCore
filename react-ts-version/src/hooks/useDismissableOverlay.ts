@@ -27,14 +27,17 @@ const FOCUSABLE = [
 export function useDismissableOverlay<T extends HTMLElement>(
   isOpen: boolean,
   onClose: () => void,
-  options: { autoFocus?: boolean } = {}
+  options: { autoFocus?: boolean; trapFocus?: boolean } = {}
 ) {
   const containerRef = useRef<T | null>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
-  const { autoFocus = true } = options;
+  // חלון חוסם לוכד פוקוס. פאנל צדדי לא-חוסם (כמו מגירת החניכה, שהלומד
+  // אמור להמשיך לעבוד על הלוח לצידה) אינו לוכד ואינו חוטף פוקוס — לכידה
+  // שם הייתה כולאת את הילד מחוץ ללוח שלו.
+  const { autoFocus = true, trapFocus = true } = options;
 
   useEffect(() => {
     if (!isOpen) return;
@@ -64,7 +67,7 @@ export function useDismissableOverlay<T extends HTMLElement>(
         onCloseRef.current();
         return;
       }
-      if (e.key !== 'Tab') return;
+      if (e.key !== 'Tab' || !trapFocus) return;
 
       const items = focusables();
       if (items.length === 0) return;
@@ -86,9 +89,13 @@ export function useDismissableOverlay<T extends HTMLElement>(
     return () => {
       window.removeEventListener('keydown', handleKeyDown, true);
       if (focusFrame !== null) cancelAnimationFrame(focusFrame);
-      previouslyFocused.current?.focus?.();
+      // Restore focus only if this overlay actually holds it. A non-blocking
+      // panel that never took focus must not yank it away from wherever the
+      // learner is working when it closes.
+      const focusIsInside = containerRef.current?.contains(document.activeElement);
+      if (autoFocus || focusIsInside) previouslyFocused.current?.focus?.();
     };
-  }, [isOpen, autoFocus]);
+  }, [isOpen, autoFocus, trapFocus]);
 
   return containerRef;
 }

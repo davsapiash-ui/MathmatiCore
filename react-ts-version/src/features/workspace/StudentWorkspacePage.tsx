@@ -16,7 +16,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import type { DragSource, Place } from '@/core/placeValue';
 import { useWorkspaceStore, getActiveTasks, type SessionNumber } from '@/application/useWorkspaceStore';
-import { useAuthStore, stampStudentWindowClosed, touchStudentActivity } from '@/application/useAuthStore';
+import { useAuthStore, stampStudentWindowClosed, touchStudentActivity, currentStudentUid } from '@/application/useAuthStore';
 import { useActiveClassSession } from '@/application/useActiveClassSession';
 import { database, authReady, fetchServerClockOffset } from '@/infrastructure/firebase';
 import { ref, push, onValue, set, update, onDisconnect } from 'firebase/database';
@@ -115,8 +115,12 @@ export function StudentWorkspacePage() {
   const isTeacherSessionActive = activeClassSession?.active ?? false;
 
   const [isProjectorModeActive, setIsProjectorModeActive] = useState<boolean>(false);
-  const effectiveStudentId = user?.uid || (user?.id as string) || (user?.student_id ? `student_user${user.student_id}` : '') || 'student_user1';
-  const normUid = normalizeStudentId(effectiveStudentId);
+  // מודול 1: מזהה הלומד נגזר מ-student_id שאומת בכניסה (1-12), ולא ממזהה
+  // ה-Auth הגולמי. הנפילה הקודמת ל-'student_user1' גרמה לכך שלומד שמזההו
+  // לא נפתר קרא וכתב לתוך הצומת של תלמיד 1 — נוכחות, מצב לוח והכול.
+  // מחרוזת ריקה כאן פירושה "אין לומד מזוהה", וכל האפקטים למטה יוצאים בלי
+  // לגעת בשום צומת.
+  const normUid = currentStudentUid();
   const lastProjectorTimestampRef = useRef<number>(0);
 
   // Write initial session presence and emit canonical SESSION_START event (Module 5 & 14)
@@ -245,7 +249,7 @@ export function StudentWorkspacePage() {
     
     const onVisibilityChange = () => {
       if (document.hidden) {
-        const studentId = normalizeStudentId(useAuthStore.getState().user?.uid || '');
+        const studentId = currentStudentUid();
         if (studentId) {
           AuditLogger.log('TAB_ESCAPE', studentId, 'Student switched to another tab or window');
         }
@@ -672,7 +676,9 @@ export function StudentWorkspacePage() {
           // תרחיש 1 — שעון עקום: קריאת offset שרת פעם אחת לפני כל חישוב deadline
           await fetchServerClockOffset();
 
-          const username = useAuthStore.getState().user?.uid;
+          // מזהה קנוני בלבד. מזהה שאינו נפתר למספר תלמיד 1-12 נחשב
+          // "אין לומד מזוהה", ולא נופל לתלמיד כלשהו.
+          const username = currentStudentUid();
           const activeSessionNum = isTeacherSessionActive ? (Number(activeClassSession?.sessionNumber) || 1) : null;
           const teacherSessionAllowsMeeting3 = isTeacherSessionActive && activeSessionNum !== null && activeSessionNum >= 3;
 
@@ -688,7 +694,7 @@ export function StudentWorkspacePage() {
             setIsInitializing(false);
             return;
           }
-          const normId = normalizeStudentId(username);
+          const normId = username;
           if (cancelled) return;
 
           const routeStatus = myData?.routeStatus;

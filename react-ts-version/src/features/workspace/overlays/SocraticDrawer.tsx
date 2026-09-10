@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useWorkspaceStore, getActiveTasks, placeToColumnIndex, type SocraticTriggerReason } from '@/application/useWorkspaceStore';
-import { useAuthStore } from '@/application/useAuthStore';
+import { useAuthStore, currentStudentUid } from '@/application/useAuthStore';
 import { HelpCircle, Hourglass, X, CheckCircle2, AlertCircle } from 'lucide-react';
+import { useDismissableOverlay } from '@/hooks/useDismissableOverlay';
 import { SocraticEngine, type SocraticChoice } from '@/infrastructure/services/SocraticEngine';
 import { emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
 
@@ -36,7 +37,7 @@ export function SocraticDrawer({ isOpen, onClose }: SocraticDrawerProps) {
     if (isDrawerOpen && !hasEmittedShowRef.current) {
       hasEmittedShowRef.current = true;
       const wsState = useWorkspaceStore.getState();
-      const studentId = useAuthStore.getState().user?.uid || 'student_1';
+      const studentId = currentStudentUid();
       const currentTask = getActiveTasks(wsState)[wsState.standardTaskIdx] || null;
       const colIdx = wsState.focusedPlace ? placeToColumnIndex(wsState.focusedPlace) : 0;
       
@@ -79,6 +80,17 @@ export function SocraticDrawer({ isOpen, onClose }: SocraticDrawerProps) {
     const interval = setInterval(updateCountdown, 1000);
     return () => clearInterval(interval);
   }, [getSocraticPenaltyRemaining, isSocraticCardLocked]);
+
+  // מסמך העיצוב §1.2: כל מגירה נסגרת ב-Escape. הסגירה כאן זהה לכפתור
+  // הסגירה עצמו — כולל נעילת ההמתנה, כדי שהמקלדת לא תעקוף את מנגנון
+  // ההשהיה הפדגוגי.
+  const drawerRef = useDismissableOverlay<HTMLDivElement>(
+    isDrawerOpen,
+    () => handleClose(),
+    // מגירה לא-חוסמת: הלומד ממשיך לעבוד על הלוח לצידה, ולכן היא אינה
+    // לוכדת פוקוס ואינה מושכת אליה את הפוקוס כשהיא נפתחת.
+    { trapFocus: false, autoFocus: false }
+  );
 
   const handleClose = () => {
     setSelectedChoiceId(null);

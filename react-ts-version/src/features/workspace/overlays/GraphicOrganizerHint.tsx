@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import type { SocraticHintResponse } from '@/infrastructure/services/SocraticEngine';
 import { Bot, X, CheckCircle2, Sparkles, BellOff, Lightbulb, Lock } from 'lucide-react';
 import { clsx } from 'clsx';
+import { useDismissableOverlay } from '@/hooks/useDismissableOverlay';
 import { useSettingsStore } from '@/application/useSettingsStore';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 
@@ -22,6 +23,12 @@ export const GraphicOrganizerHint: React.FC<GraphicOrganizerHintProps> = ({ hint
 
   const [penaltyRemaining, setPenaltyRemaining] = useState(() => getSocraticPenaltyRemaining());
   const isPenaltyLocked = penaltyRemaining > 0;
+
+  // מסמך העיצוב §1.2: Escape סוגר — באותם תנאים בדיוק שכפתור הסגירה
+  // פועל בהם, כדי שהמקלדת לא תעקוף את נעילת ההשהיה.
+  const hintRef = useDismissableOverlay<HTMLDivElement>(true, () => {
+    if (!isPenaltyLocked) onClose();
+  });
 
   const correctId = hint.correctChoiceId || 'opt_1';
 
@@ -63,8 +70,11 @@ export const GraphicOrganizerHint: React.FC<GraphicOrganizerHintProps> = ({ hint
   };
 
   return (
-    <div 
-      className="fixed bottom-6 right-6 z-[100] pointer-events-none" 
+    <div
+      ref={hintRef}
+      role="dialog"
+      aria-label="רמז מאורגן"
+      className="fixed bottom-6 right-6 z-[100] pointer-events-none"
       dir="rtl"
     >
       <div 
