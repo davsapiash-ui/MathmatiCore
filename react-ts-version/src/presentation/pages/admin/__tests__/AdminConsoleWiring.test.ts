@@ -48,8 +48,12 @@ describe('Admin console — wiring that silently did nothing', () => {
     const view = read('../AdminSchoolsView.tsx');
 
     expect(view.includes('MAX_STUDENTS_PER_CLASS = 12')).toBe(true);
-    expect(view.includes('num <= MAX_STUDENTS_PER_CLASS')).toBe(true);
+    // הניסוח יכול להיות תנאי חיובי או שמירת סף — מה שנבדק הוא שהתקרה
+    // נאכפת, ולא איך היא כתובה.
+    expect(view).toMatch(/num (?:<=|>) MAX_STUDENTS_PER_CLASS/);
     expect(view.includes('!isNaN(num) && num > 0')).toBe(false);
+    // וגם: ההודעה למנהל נאמרת רק אחרי שהשרת אישר.
+    expect(view).toMatch(/await setGlobalStudentLimit\(num\);[\s\S]{0,120}toast\.success/);
   });
 
   it('the settings screen no longer renders controls with no handler', () => {

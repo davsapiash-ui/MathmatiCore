@@ -187,7 +187,7 @@ export function AiEngineStatusCard() {
           )}
 
           <p className="text-[11px] text-slate-400 dark:text-slate-500 border-t border-slate-100 dark:border-slate-800 pt-3 leading-relaxed">
-            כל קריאה שאינה "תקינה" פירושה שהלומד קיבל את הכרטיס הסטטי המובנה (מודול 13 §4). המפתח מוחלף בפקודה
+            כל קריאה שאינה "תקינה" פירושה שהלומד קיבל את כרטיס החניכה המובנה במקום ניתוח חי. המפתח מוחלף בפקודה
             <span className="font-mono mx-1" dir="ltr">firebase functions:secrets:set GEMINI_API_KEY</span>
             ולעולם אינו נחשף ללקוח.
           </p>

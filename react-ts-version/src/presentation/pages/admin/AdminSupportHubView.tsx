@@ -141,7 +141,7 @@ export function AdminSupportHubView() {
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-xs font-semibold">
               <LifeBuoy className="w-3.5 h-3.5" />
-              <span>מוקד תמיכה וסיוע פדגוגי (מודול 28)</span>
+              <span>מוקד תמיכה וסיוע פדגוגי</span>
             </div>
             <h1 className="text-3xl md:text-4xl font-black tracking-tight text-white">
               פניות תמיכה וסיוע לצוותי ההוראה

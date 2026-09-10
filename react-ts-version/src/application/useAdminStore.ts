@@ -56,17 +56,17 @@ interface AdminState {
   // Actions
   initAdminSubscriptions: () => () => void;
   updateStoreCache: (partial: Partial<AdminStoreCache>) => void;
-  setGlobalStudentLimit: (limit: number) => void;
+  setGlobalStudentLimit: (limit: number) => Promise<void>;
   
   addSchool: (name: string) => void;
-  deleteSchool: (id: string) => void;
+  deleteSchool: (id: string) => Promise<void>;
   
   /** Resolves once the RTDB record AND the login whitelist are written; rejects (and rolls back) otherwise. */
   addTeacher: (schoolId: string, name: string, ssoEmail: string, dob: string) => Promise<Teacher>;
   deleteTeacher: (id: string) => Promise<void>;
   
-  addClassRoom: (schoolId: string, teacherId: string, name: string, classType?: string) => void;
-  deleteClassRoom: (id: string) => void;
+  addClassRoom: (schoolId: string, teacherId: string, name: string, classType?: string) => Promise<void>;
+  deleteClassRoom: (id: string) => Promise<void>;
 
   provisionFullInstitution: (params: {
     schoolName: string;
@@ -247,16 +247,27 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
     await firebaseSet(ref(database, 'classes'), { class_1: cleanClass });
     await firebaseSet(ref(database, 'public_classes'), { class_1: cleanPublicClass });
     await firebaseSet(ref(database, 'system_control/globalStudentLimit'), 12);
-    // The reset must leave the pilot teacher able to sign in.
-    await addAuthorizedTeacherFirestore(pilotTeacherEmail, 'teacher', cleanTeacher.name, cleanSchool.id).catch(console.error);
+    // The reset must leave the pilot teacher able to sign in. A swallowed
+    // failure here left the console showing a teacher who exists but cannot
+    // log in — and the reset reported success. Let it surface.
+    await addAuthorizedTeacherFirestore(pilotTeacherEmail, 'teacher', cleanTeacher.name, cleanSchool.id);
 
     AuditLogger.log("איפוס מוסדות לפיילוט", "admin", "כל המוסדות נוקו ואופסו למבנה הפיילוט הרשמי (בית ספר ביקורת, כיתת המבקרים)");
   },
 
-  setGlobalStudentLimit: (limit) => {
-    AuditLogger.log("עדכון מגבלת תלמידים", "admin", `מגבלה גלובלית חדשה: ${limit}`);
+  setGlobalStudentLimit: async (limit) => {
+    const previous = get().globalStudentLimit;
     set({ globalStudentLimit: limit });
-    firebaseSyncService.setGlobalStudentLimit(limit).catch(err => console.error("Failed to set global student limit in Firebase", err));
+    try {
+      await firebaseSyncService.setGlobalStudentLimit(limit);
+      AuditLogger.log("עדכון מגבלת תלמידים", "admin", `מגבלה גלובלית חדשה: ${limit}`);
+    } catch (err) {
+      // המגבלה נשמרה במסך אבל לא בשרת — כיתות חדשות היו נפתחות במגבלה
+      // הישנה בזמן שהמנהל רואה את החדשה.
+      set({ globalStudentLimit: previous });
+      console.error("Failed to set global student limit in Firebase", err);
+      throw err;
+    }
   },
 
   provisionFullInstitution: async ({
@@ -342,15 +353,27 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
     });
   },
 
-  deleteSchool: (id) => {
+  // מחיקת מוסד מסירה יחד איתו את המורות שלו — ואת הרשאות הכניסה שלהן.
+  // עד כה המחיקה בוצעה מקומית והכתיבה לשרת נשלחה בלי להמתין לה, כך
+  // שכשל בשרת הותיר את המנהל עם הודעת "נמחק" בזמן שהמוסד, המורות
+  // וההרשאות שלהן ממשיכים להתקיים. אותו דפוס בדיוק כמו deleteTeacher:
+  // עדכון אופטימי, החזרה לאחור בכשל, וזריקת השגיאה החוצה.
+  deleteSchool: async (id) => {
     const school = get().schools.find(s => s.id === id);
-    if (school) AuditLogger.log("מחיקת מוסד", "admin", `מוסד נמחק: ${school.name}`);
+    const previous = { schools: get().schools, teachers: get().teachers, classes: get().classes };
     set((state) => ({
       schools: state.schools.filter(s => s.id !== id),
       teachers: state.teachers.filter(t => t.schoolId !== id),
       classes: state.classes.filter(c => c.schoolId !== id)
     }));
-    firebaseSyncService.deleteSchool(id).catch(err => console.error("Failed to delete school from Firebase", err));
+    try {
+      await firebaseSyncService.deleteSchool(id);
+      if (school) AuditLogger.log("מחיקת מוסד", "admin", `מוסד נמחק: ${school.name}`);
+    } catch (err) {
+      set(previous);
+      console.error("Failed to delete school from Firebase", err);
+      throw err;
+    }
   },
 
   addTeacher: async (schoolId, name, ssoEmail, dob) => {
@@ -402,8 +425,7 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
     }
   },
 
-  addClassRoom: (schoolId, teacherId, name, classType) => {
-    AuditLogger.log("יצירת כיתה", "admin", `כיתה חדשה: ${name}`);
+  addClassRoom: async (schoolId, teacherId, name, classType) => {
     const tempId = `class_${Date.now()}`;
     const limit = get().globalStudentLimit;
     const newClass: ClassRoom = {
@@ -416,22 +438,33 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
       ...(classType ? { classType } : {}),
     };
     set((state) => ({ classes: [...state.classes, newClass] }));
-    firebaseSyncService.addClassRoom(schoolId, teacherId, name, tempId, classType).then((realClass) => {
+    try {
+      const realClass = await firebaseSyncService.addClassRoom(schoolId, teacherId, name, tempId, classType);
       if (realClass && realClass.id !== tempId) {
-        set((state) => ({
-          classes: state.classes.map(c => c.id === tempId ? realClass : c)
-        }));
+        set((state) => ({ classes: state.classes.map(c => c.id === tempId ? realClass : c) }));
       }
-    }).catch(err => console.error("Failed to add class to Firebase", err));
+      AuditLogger.log("יצירת כיתה", "admin", `כיתה חדשה: ${name}`);
+    } catch (err) {
+      // כיתה שנכשלה בשרת נעלמת מהמסך במקום להישאר ככיתה מדומה שמורה
+      // תשובץ אליה ולא תמצא בה דבר.
+      set((state) => ({ classes: state.classes.filter(c => c.id !== tempId) }));
+      console.error("Failed to add class to Firebase", err);
+      throw err;
+    }
   },
 
-  deleteClassRoom: (id) => {
+  deleteClassRoom: async (id) => {
     const classRoom = get().classes.find(c => c.id === id);
-    if (classRoom) AuditLogger.log("מחיקת כיתה", "admin", `כיתה נמחקה: ${classRoom.name}`);
-    set((state) => ({
-      classes: state.classes.filter(c => c.id !== id)
-    }));
-    firebaseSyncService.deleteClassRoom(id).catch(err => console.error("Failed to delete class from Firebase", err));
+    const previous = get().classes;
+    set((state) => ({ classes: state.classes.filter(c => c.id !== id) }));
+    try {
+      await firebaseSyncService.deleteClassRoom(id);
+      if (classRoom) AuditLogger.log("מחיקת כיתה", "admin", `כיתה נמחקה: ${classRoom.name}`);
+    } catch (err) {
+      set({ classes: previous });
+      console.error("Failed to delete class from Firebase", err);
+      throw err;
+    }
   }
 }));
 

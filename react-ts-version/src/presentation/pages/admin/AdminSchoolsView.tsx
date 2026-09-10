@@ -59,13 +59,19 @@ export function AdminSchoolsView() {
   // 20 and be told it was saved while the server kept rejecting anything past 12
   // — the control promised a capacity the system will never grant. Clamping it to
   // the range the server actually enforces keeps the two in agreement.
-  const handleSaveLimit = () => {
+  const handleSaveLimit = async () => {
     const num = parseInt(limitInput, 10);
-    if (!isNaN(num) && num >= 1 && num <= MAX_STUDENTS_PER_CLASS) {
-      setGlobalStudentLimit(num);
-      toast.success(`מגבלת התלמידים העולמית עודכנה ל-${num} תלמידים!`);
-    } else {
+    if (isNaN(num) || num < 1 || num > MAX_STUDENTS_PER_CLASS) {
       toast.error(`אנא הזן מספר תלמידים תקין (בין 1 ל-${MAX_STUDENTS_PER_CLASS})`);
+      return;
+    }
+    try {
+      // ההודעה נאמרה קודם בלי קשר לתוצאה בשרת, ולכן מגבלה שנדחתה נראתה
+      // כאילו נשמרה בזמן שכיתות חדשות המשיכו להיפתח במגבלה הישנה.
+      await setGlobalStudentLimit(num);
+      toast.success(`מגבלת התלמידים העולמית עודכנה ל-${num} תלמידים!`);
+    } catch {
+      toast.error('עדכון המגבלה נדחה בשרת. ודא שאתה מחובר כמנהל מערכת.');
     }
   };
 
@@ -112,7 +118,7 @@ export function AdminSchoolsView() {
     if (!confirmAction(`למחוק את המוסד "${school.name}"?\nיימחקו יחד איתו ${teacherCount} מורות (כולל הרשאת הכניסה שלהן) ו-${classCount} כיתות. פעולה זו אינה הפיכה.`)) return;
     setIsDeletingId(school.id);
     try {
-      await Promise.resolve(deleteSchool(school.id));
+      await deleteSchool(school.id);
       toast.success(`המוסד "${school.name}" נמחק.`);
     } catch {
       toast.error("מחיקת המוסד נכשלה בשרת.");
@@ -140,7 +146,7 @@ export function AdminSchoolsView() {
     if (!confirmAction(`למחוק את הכיתה "${cls.name}"?\nהלומדים לא יוכלו להיכנס לכיתה זו. פעולה זו אינה הפיכה.`)) return;
     setIsDeletingId(cls.id);
     try {
-      await Promise.resolve(deleteClassRoom(cls.id));
+      await deleteClassRoom(cls.id);
       toast.success(`הכיתה "${cls.name}" נמחקה.`);
     } catch {
       toast.error("מחיקת הכיתה נכשלה בשרת.");
@@ -271,7 +277,7 @@ export function AdminSchoolsView() {
                 מכסת תלמידים מרבית לכיתה
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                מספר התלמידים המרבי המורשה להשתתפות בכל כיתת לימוד (עד 12 תלמידים לפי מודול 25)
+                מספר התלמידים המרבי המורשה להשתתפות בכל כיתת לימוד (עד 12 תלמידים)
               </p>
             </div>
           </div>

@@ -159,7 +159,7 @@ export function AdminCurriculumView() {
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/20 border border-purple-400/30 text-purple-300 text-xs font-semibold">
               <BookOpen className="w-3.5 h-3.5" />
-              <span>תוכנית הלימודים והפצה מרוכזת (מודול 26)</span>
+              <span>תוכנית הלימודים והפצה מרוכזת</span>
             </div>
             <h1 className="text-3xl md:text-4xl font-black tracking-tight text-white">
               קטלוג פדגוגי וכיול מנוע הלמידה
