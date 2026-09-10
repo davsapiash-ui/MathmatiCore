@@ -82,9 +82,17 @@ describe('מסמך העיצוב §1.3 — מצב שקט חזותי', () => {
     // מסכי ההמתנה מנפישים ב-repeat: Infinity דרך סגנון מוטבע ב-JavaScript.
     // כלל ה-CSS לא נוגע בהם כלל, ולכן הם המשיכו לפעום מול ילד רגיש חושית
     // וגם מול מי שביקש תנועה מופחתת במערכת ההפעלה.
-    expect(read('src/main.tsx')).toContain('reducedMotion="user"');
+    expect(read('src/App.tsx')).toContain("reducedMotion={isQuiet ? 'always' : 'user'}");
     expect(read('src/features/workspace/StudentWorkspacePage.tsx'))
       .toContain("reducedMotion={isASDMode ? 'always' : 'user'}");
+  });
+
+  it('מצב השקט הוא תכונה של הלומד וחל על כל מסך שהוא רואה', () => {
+    // הגרסה הראשונה סימנה רק את מרחב העבודה, ולכן הלובי — המסך שילד
+    // רגיש חושית מבלה בו הכי הרבה זמן בהמתנה — נשאר פועם.
+    const hook = read('src/hooks/useQuietMode.ts');
+    expect(hook).toContain("root.setAttribute('data-quiet', 'true')");
+    expect(read('src/App.tsx')).toContain('useQuietMode()');
   });
 });
 
