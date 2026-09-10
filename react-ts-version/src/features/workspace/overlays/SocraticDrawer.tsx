@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useWorkspaceStore, getActiveTasks, placeToColumnIndex, type SocraticTriggerReason } from '@/application/useWorkspaceStore';
-import { useAuthStore } from '@/application/useAuthStore';
+import { useAuthStore, currentStudentUid } from '@/application/useAuthStore';
 import { HelpCircle, Hourglass, X, CheckCircle2, AlertCircle } from 'lucide-react';
+import { useDismissableOverlay } from '@/hooks/useDismissableOverlay';
 import { SocraticEngine, type SocraticChoice } from '@/infrastructure/services/SocraticEngine';
 import { emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
 
@@ -36,7 +37,7 @@ export function SocraticDrawer({ isOpen, onClose }: SocraticDrawerProps) {
     if (isDrawerOpen && !hasEmittedShowRef.current) {
       hasEmittedShowRef.current = true;
       const wsState = useWorkspaceStore.getState();
-      const studentId = useAuthStore.getState().user?.uid || 'student_1';
+      const studentId = currentStudentUid();
       const currentTask = getActiveTasks(wsState)[wsState.standardTaskIdx] || null;
       const colIdx = wsState.focusedPlace ? placeToColumnIndex(wsState.focusedPlace) : 0;
       
@@ -80,6 +81,17 @@ export function SocraticDrawer({ isOpen, onClose }: SocraticDrawerProps) {
     return () => clearInterval(interval);
   }, [getSocraticPenaltyRemaining, isSocraticCardLocked]);
 
+  // מסמך העיצוב §1.2: כל מגירה נסגרת ב-Escape. הסגירה כאן זהה לכפתור
+  // הסגירה עצמו — כולל נעילת ההמתנה, כדי שהמקלדת לא תעקוף את מנגנון
+  // ההשהיה הפדגוגי.
+  const drawerRef = useDismissableOverlay<HTMLDivElement>(
+    isDrawerOpen,
+    () => handleClose(),
+    // מגירה לא-חוסמת: הלומד ממשיך לעבוד על הלוח לצידה, ולכן היא אינה
+    // לוכדת פוקוס ואינה מושכת אליה את הפוקוס כשהיא נפתחת.
+    { trapFocus: false, autoFocus: false }
+  );
+
   const handleClose = () => {
     setSelectedChoiceId(null);
     setFeedbackMsg(null);
@@ -96,7 +108,7 @@ export function SocraticDrawer({ isOpen, onClose }: SocraticDrawerProps) {
       : (choice.id === aiSocraticHint?.correctChoiceId);
 
     const wsState = useWorkspaceStore.getState();
-    const studentId = useAuthStore.getState().user?.uid || 'student_1';
+    const studentId = currentStudentUid();
     const currentTask = getActiveTasks(wsState)[wsState.standardTaskIdx] || null;
     const optionKey = (choice.id === 'opt_2' ? 'opt_2' : choice.id === 'opt_3' ? 'opt_3' : 'opt_1') as 'opt_1' | 'opt_2' | 'opt_3';
 
@@ -166,7 +178,7 @@ export function SocraticDrawer({ isOpen, onClose }: SocraticDrawerProps) {
 
                 <button
                   onClick={handleClose}
-                  className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 flex items-center justify-center transition-all cursor-pointer"
+                  className="w-11 h-11 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 flex items-center justify-center transition-all cursor-pointer"
                   aria-label="סגור חלונית"
                 >
                   <X className="w-5 h-5" />
@@ -175,7 +187,10 @@ export function SocraticDrawer({ isOpen, onClose }: SocraticDrawerProps) {
 
               {/* Serene 30s Reflection & Exploration Notice */}
               {(isSocraticCardLocked || remainingSeconds > 0) && (
-                <div className="mt-4 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-800 dark:text-amber-200 flex items-center gap-3">
+                <div
+                  role="status"
+                  className="mt-4 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-800 dark:text-amber-200 flex items-center gap-3"
+                >
                   {/* §ב specifies a subtle hourglass indicator — not a spinner. */}
                   <Hourglass className="w-6 h-6 shrink-0 text-amber-600" />
                   <div>
@@ -224,6 +239,8 @@ export function SocraticDrawer({ isOpen, onClose }: SocraticDrawerProps) {
               {/* Feedback Alert */}
               {feedbackMsg && (
                 <div
+                  role="status"
+                  aria-live="assertive"
                   className={`mt-6 p-4 rounded-2xl border flex items-center gap-3 ${
                     feedbackMsg.isCorrect
                       ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 text-emerald-800 dark:text-emerald-200'

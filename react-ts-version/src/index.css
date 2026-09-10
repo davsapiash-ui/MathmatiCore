@@ -5,6 +5,75 @@
 @import "tailwindcss/utilities";
 
 @layer base {
+  /*
+   * מסמך העיצוב §1.2 (ניווט מקלדת מלא): "טבעת פוקוס בולטת ונקייה" על כל
+   * אלמנט לחיץ, בלי יוצא מן הכלל.
+   *
+   * זה נכתב כאן ולא ככיתה שמוסיפים לכל כפתור בנפרד, כי בדיוק ההוספה
+   * הידנית היא שנכשלה: בדשבורד המורה היו עשרות כפתורים בלי שום טבעת
+   * פוקוס, ומורה שמנווטת במקלדת לא ראתה איפה היא עומדת. כלל על שם
+   * האלמנט הוא ברירת מחדל אוטומטית לכל כפתור קיים ולכל כפתור עתידי.
+   *
+   * הסלקטור הזה חלש בכוונה (specificity של אלמנט), כך שכל מסך שכבר הגדיר
+   * לעצמו focus-visible:ring-* של Tailwind ממשיך לנצח אותו.
+   */
+  button:focus-visible,
+  a:focus-visible,
+  select:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  summary:focus-visible,
+  [role="button"]:focus-visible,
+  [role="tab"]:focus-visible,
+  [tabindex]:not([tabindex="-1"]):focus-visible {
+    outline: 3px solid rgb(99 102 241);
+    outline-offset: 2px;
+    border-radius: inherit;
+  }
+  .dark button:focus-visible,
+  .dark a:focus-visible,
+  .dark select:focus-visible,
+  .dark input:focus-visible,
+  .dark textarea:focus-visible,
+  .dark summary:focus-visible,
+  .dark [role="button"]:focus-visible,
+  .dark [role="tab"]:focus-visible,
+  .dark [tabindex]:not([tabindex="-1"]):focus-visible {
+    outline-color: rgb(165 180 252);
+  }
+
+  /*
+   * מסמך העיצוב §1.3 — "מצב שקט חזותי": כיבוי אנימציות רקע ורעש ויזואלי
+   * ללומדים עם רגישות חושית או הפרעות קשב.
+   *
+   * המורה מסמנת את הלומד בתנאי הלמידה, והסימון נכתב כ-data-quiet על שורש
+   * מרחב העבודה. כאן נכבית כל תנועה חוזרת ונשנית בתוכו. תנועה שמלמדת —
+   * היד המנחה בהדרכה, חגיגת הסיום — מסומנת motion-essential ונשארת.
+   */
+  [data-quiet='true'] .animate-pulse,
+  [data-quiet='true'] .animate-bounce,
+  [data-quiet='true'] .animate-ping,
+  [data-quiet='true'] .animate-breathe,
+  [data-quiet='true'] .animate-soft-heartbeat,
+  [data-quiet='true'] .animate-radar-call {
+    animation: none !important;
+  }
+  [data-quiet='true'] .motion-essential {
+    animation: revert !important;
+  }
+
+  /* מסמך העיצוב §1.3: אפס הבהובים תזזיתיים למי שביקש תנועה מופחתת. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
   :root {
     --background: 240 20% 98%; /* Frost White */
     --foreground: 220 30% 12%; /* Deep Navy Slate */
@@ -193,6 +262,34 @@
 }
 
 @layer components {
+  /*
+   * מסמך העיצוב §1.2 (פעולה והבעה מותאמת).
+   *
+   * שתי המחלקות הבאות מרכזות שתי דרישות שהיו כתובות במסמך אך כמעט לא יושמו
+   * בדשבורד המורה: טבעת פוקוס בולטת על כל אלמנט לחיץ, ומטרת מגע של 44
+   * פיקסל לפחות. במקום לחזור על אותן מחלקות Tailwind בכל כפתור (ולשכוח
+   * ברובם), כל כפתור מקבל את .ui-focusable, וכל כפתור שהמורה נוגעת בו
+   * במהלך שיעור מקבל בנוסף את .ui-touch.
+   */
+  .ui-focusable:focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 2px hsl(var(--ws-surface, 0 0% 100%)),
+      0 0 0 6px rgb(99 102 241 / 0.45);
+    border-radius: inherit;
+  }
+  .dark .ui-focusable:focus-visible {
+    box-shadow:
+      0 0 0 2px rgb(15 23 42),
+      0 0 0 6px rgb(129 140 248 / 0.55);
+  }
+
+  /* מטרת מגע מינימלית 44x44 — טאבלט המורה בכיתה, לא עכבר על שולחן. */
+  .ui-touch {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
   /* Modern Glassmorphism Utils */
   .glass-card {
     background-color: rgba(255, 255, 255, 0.7);

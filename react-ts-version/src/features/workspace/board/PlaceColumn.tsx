@@ -79,13 +79,19 @@ export function PlaceColumn({ place, activeDragPlace }: { place: Place; activeDr
       >
         <span>{PLACE_NAMES_HE[place]}</span>
         <span
-          aria-live="polite"
+          aria-hidden="true"
           className={`absolute left-3 min-w-[22px] h-[22px] px-1 rounded-full text-xs font-black text-white inline-flex items-center justify-center transition-all ${
             count > 0 ? 'opacity-100 scale-100' : 'opacity-0 scale-50'
           }`}
           style={{ backgroundColor: colors.header }}
         >
           {count > 0 ? count : ''}
+        </span>
+        {/* אזור ההכרזה קרא עד כה את תוכן התגית בלבד — מספר ערום. לומד
+            שנעזר בהקראה שמע "3", "4", "3" בלי לדעת על איזה טור מדובר.
+            כאן נאמר מה השתנה ובאיזה טור. */}
+        <span aria-live="polite" className="sr-only">
+          {count > 0 ? `${PLACE_NAMES_HE[place]}: ${count}` : `${PLACE_NAMES_HE[place]}: ריק`}
         </span>
       </div>
 

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
+import { getQTaskStatus, getFailedDiagnosticTasks, Q_FAIL_TAG } from '@/core/QMatrix';
 
 /**
  * Teacher-dashboard control audit — each case pins a control that used to look
@@ -58,7 +59,58 @@ describe('Module 20: the approval gate cannot be bypassed or mis-routed', () => 
 
   it('gate strengths come from the learner\'s real Q-Matrix results, not two hard-coded strings', () => {
     expect(dash.includes("['המרה בעשרות', 'ערך מיקום']")).toBe(false);
-    expect(dash.includes('qm[t.id] === false')).toBe(true);
+    // The previous assertion pinned the literal `qm[t.id] === false`, which is
+    // exactly the comparison that never matched: the learner's flow writes
+    // strings ('success' / an error-node name) or null, never a boolean. The
+    // list was therefore always empty while this test stayed green. The
+    // behaviour is now covered by the Q-Matrix status cases below.
+    expect(dash.includes('qm[t.id] === false')).toBe(false);
+    expect(dash.includes('getFailedDiagnosticTasks(')).toBe(true);
+  });
+});
+
+describe('Module 20: reading a diagnostic task result', () => {
+  it('treats an error-node tag and a plain fail alike — both are "needs support"', () => {
+    expect(getQTaskStatus('regrouping_deficit')).toBe('needs_support');
+    expect(getQTaskStatus(Q_FAIL_TAG)).toBe('needs_support');
+    expect(getQTaskStatus('wrong_answer')).toBe('needs_support');
+  });
+
+  it('counts only success as mastered, and only an absent value as not attempted', () => {
+    expect(getQTaskStatus('success')).toBe('mastered');
+    expect(getQTaskStatus(null)).toBe('not_attempted');
+    expect(getQTaskStatus(undefined)).toBe('not_attempted');
+    expect(getQTaskStatus('')).toBe('not_attempted');
+  });
+
+  it('never reports a boolean false as mastered or missing', () => {
+    // The shape that used to be compared against; whatever arrives, a value
+    // that is present and is not a success must read as needing support.
+    expect(getQTaskStatus(false)).toBe('needs_support');
+  });
+
+  it('lists exactly the compulsory tasks the learner attempted and failed', () => {
+    const failed = getFailedDiagnosticTasks({
+      task1_read_write_zero: 'success',
+      task2_digit_value: 'digit_value_conceptual_error',
+      task3_subtraction_regrouping: Q_FAIL_TAG,
+      task4_decompose_number: null,
+    }).map((t) => t.id);
+
+    expect(failed).toContain('task2_digit_value');
+    expect(failed).toContain('task3_subtraction_regrouping');
+    expect(failed).not.toContain('task1_read_write_zero');
+    expect(failed).not.toContain('task4_decompose_number');
+  });
+
+  it('reads a result stored under a legacy task key', () => {
+    const failed = getFailedDiagnosticTasks({ task3_flexible_regrouping: 'regrouping_deficit' }).map((t) => t.id);
+    expect(failed).toContain('task4_decompose_number');
+  });
+
+  it('returns nothing for a learner who has not started the diagnostic', () => {
+    expect(getFailedDiagnosticTasks({})).toHaveLength(0);
+    expect(getFailedDiagnosticTasks(null)).toHaveLength(0);
   });
 });
 

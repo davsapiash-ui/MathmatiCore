@@ -1,4 +1,5 @@
 import { createPortal } from 'react-dom';
+import { useDismissableOverlay } from '@/hooks/useDismissableOverlay';
 
 /**
  * PRD v7.1 Module 14 §ב0 — Session Activation.
@@ -25,6 +26,10 @@ interface Props {
 }
 
 export function SessionActivationModal({ isOpen, sessionNumber, sessions, isStarting = false, onClose, onConfirm }: Props) {
+  // מסמך העיצוב §1.2. בזמן ההפעלה עצמה החלון אינו נסגר ב-Escape, בדיוק כמו
+  // שהוא אינו נסגר בלחיצה על הרקע — כדי שלא ייסגר באמצע שידור לכיתה.
+  const dialogRef = useDismissableOverlay<HTMLDivElement>(isOpen, isStarting ? () => {} : onClose);
+
   if (!isOpen || sessionNumber === null) return null;
 
   const row = sessions.find((s) => s.sessionNumber === sessionNumber);
@@ -38,8 +43,10 @@ export function SessionActivationModal({ isOpen, sessionNumber, sessions, isStar
         onClick={isStarting ? undefined : onClose}
       />
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
+        aria-label={`אישור פתיחת מפגש ${sessionNumber} לכלל הכיתה`}
         dir="rtl"
         className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-none"
       >

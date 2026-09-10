@@ -216,6 +216,35 @@ const initial = getStoredAuth();
  * Unified logout utility to synchronously reset useAuthStore, useStore,
  * useWorkspaceStore, useAdminStore, and useChatStore.
  */
+/**
+ * מספר התלמיד המחובר (1-12), או null אם אי אפשר לקבוע אותו.
+ *
+ * שדה student_id עבר אימות 1-12 בכניסה, ולכן הוא המקור. מזהה ה-Auth הגולמי
+ * משמש רק כשהוא בצורה מוכרת (student_user{N} / student_{N} / {N}); מזהה
+ * אקראי שבמקרה יש בו ספרה לא ייחשב כמספר תלמיד. זו בדיוק הנקודה שבה לומד
+ * אחד היה יכול להיכתב על נתוני לומד אחר.
+ */
+export function currentStudentNumber(): number | null {
+  const u = useAuthStore.getState().user;
+  const fromField = Number(u?.student_id);
+  if (Number.isInteger(fromField) && fromField >= 1 && fromField <= 12) return fromField;
+
+  const raw = String(u?.uid ?? u?.id ?? '').trim().toLowerCase();
+  const m = /^(?:student_user|student_|user)?(\d{1,2})$/.exec(raw);
+  if (!m) return null;
+  const n = parseInt(m[1], 10);
+  return n >= 1 && n <= 12 ? n : null;
+}
+
+/**
+ * מזהה הלומד המחובר בצורה הקנונית student_user{N}, או מחרוזת ריקה.
+ * מחרוזת ריקה חייבת להיבדק על ידי הקורא — אסור להמשיך עם מזהה מומצא.
+ */
+export function currentStudentUid(): string {
+  const n = currentStudentNumber();
+  return n === null ? '' : `student_user${n}`;
+}
+
 export function unifiedLogout() {
   const currentUser = useAuthStore.getState().user;
   if (currentUser?.uid) {

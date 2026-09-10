@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { SocraticEngine, sessionCardKeysForTaskId } from '@/infrastructure/services/SocraticEngine';
+import {
+  SocraticEngine,
+  sessionCardKeysForTaskId,
+  socraticTextViolation,
+  inferIsSubtraction,
+} from '@/infrastructure/services/SocraticEngine';
+import { SESSIONS_BY_PATH, type SessionTask } from '@/data/sessionTasks';
 
 /**
  * מסמך 03 §3.3–3.8 writes one Socratic card per session (question + three
@@ -45,10 +51,63 @@ describe('Module 13: static Socratic cards come from מסמך 03', () => {
     }
   });
 
-  it('never leaks a final numeric answer inside the card (Module 13 iron rule)', async () => {
-    for (const id of ['s4_g_t5', 's5_g_t3', 's6_r_t7', 's8_g_t6']) {
-      const hint = (await SocraticEngine.getSocraticHint({ id, type: 'vertical_addition' } as any, 'procedural_fluency', EMPTY))!;
-      for (const c of hint.choices) expect(c.textHe, id).not.toMatch(/\d{3,}/);
+  /**
+   * הבדיקה הקודמת כאן בדקה ארבעה מזהי תרגיל, והכלל שבדקה היה "אין מספר
+   * בן שלוש ספרות" — כלל שגם פוסל אזכור לגיטימי של אחד המחוברים, וגם
+   * לא בודק את שאלת ההנחיה עצמה, וגם אינו בודק את התשובה בפועל.
+   *
+   * הכלל האמיתי כבר כתוב בקוד כפונקציה (socraticTextViolation). כאן הוא
+   * מורץ על כל תרגיל בכל מפגש, בשני המסלולים, על הכרטיס השלם — שאלה,
+   * אפשרויות ומשוב.
+   */
+  const everyExercise: { session: number; path: string; task: SessionTask }[] = [];
+  for (const [session, banks] of Object.entries(SESSIONS_BY_PATH)) {
+    for (const [path, tasks] of Object.entries(banks)) {
+      for (const task of tasks) everyExercise.push({ session: Number(session), path, task });
     }
+  }
+
+  it('covers every exercise in every meeting, both paths', () => {
+    expect(everyExercise.length).toBeGreaterThan(60);
+  });
+
+  // כל תרגיל עובר דרך getSocraticHint, שמנסה קודם קריאה למנוע החניכה
+  // ונופל לכרטיס הסטטי בתום הזמן. כפול 60 ומשהו תרגילים זה חורג מברירת
+  // המחדל של 5 שניות ב-CI, ולכן הזמן מוקצב במפורש.
+  it('no card in any exercise leaks the final answer or a forbidden term', async () => {
+    const leaks: string[] = [];
+
+    for (const { session, path, task } of everyExercise) {
+      const hint = await SocraticEngine.getSocraticHint(task as any, (task as any).targetNode ?? 'procedural_fluency', EMPTY);
+      if (!hint) continue;
+
+      const a = Number((task as any).numberA);
+      const b = Number((task as any).numberB);
+      const operands = Number.isFinite(a) && Number.isFinite(b)
+        ? { a, b, isSubtraction: inferIsSubtraction(task) }
+        : null;
+
+      const violation = socraticTextViolation(
+        [hint.questionHe, ...hint.choices.flatMap((c) => [c.textHe, c.feedbackHe ?? ''])],
+        operands
+      );
+      if (violation) leaks.push(`מפגש ${session} / ${path} / ${(task as any).id}: ${violation}`);
+    }
+
+    expect(leaks).toEqual([]);
+  }, 60_000);
+
+  it('a card that would leak is replaced, not shown', () => {
+    // כרטיס שמפר את הכלל מוחלף בכרטיס הכללי — עדיף רמז רחב על פני
+    // מסירת התשובה לילד.
+    const leaky = SocraticEngine.getSynchronousTaskHint(
+      { id: 'unknown_task_for_test', numberA: 40, numberB: 20, type: 'vertical_addition' } as any,
+      { units: 0, tens: 0, hundreds: 0, thousands: 0 }
+    );
+    const violation = socraticTextViolation(
+      [leaky.questionHe, ...leaky.choices.flatMap((c) => [c.textHe, c.feedbackHe ?? ''])],
+      { a: 40, b: 20, isSubtraction: false }
+    );
+    expect(violation).toBeNull();
   });
 });

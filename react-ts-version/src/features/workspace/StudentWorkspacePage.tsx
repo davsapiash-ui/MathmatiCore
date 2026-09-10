@@ -16,12 +16,12 @@ import {
 import { useNavigate } from 'react-router-dom';
 import type { DragSource, Place } from '@/core/placeValue';
 import { useWorkspaceStore, getActiveTasks, type SessionNumber } from '@/application/useWorkspaceStore';
-import { useAuthStore, stampStudentWindowClosed, touchStudentActivity } from '@/application/useAuthStore';
+import { useAuthStore, stampStudentWindowClosed, touchStudentActivity, currentStudentUid } from '@/application/useAuthStore';
 import { useActiveClassSession } from '@/application/useActiveClassSession';
 import { database, authReady, fetchServerClockOffset } from '@/infrastructure/firebase';
 import { ref, push, onValue, set, update, onDisconnect } from 'firebase/database';
 import { normalizeStudentId } from '@/application/useChatStore';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, MotionConfig } from 'framer-motion';
 import { PlaceValueBoard } from './board/PlaceValueBoard';
 
 import { DienesBlock } from './board/DienesBlock';
@@ -115,8 +115,12 @@ export function StudentWorkspacePage() {
   const isTeacherSessionActive = activeClassSession?.active ?? false;
 
   const [isProjectorModeActive, setIsProjectorModeActive] = useState<boolean>(false);
-  const effectiveStudentId = user?.uid || (user?.id as string) || (user?.student_id ? `student_user${user.student_id}` : '') || 'student_user1';
-  const normUid = normalizeStudentId(effectiveStudentId);
+  // מודול 1: מזהה הלומד נגזר מ-student_id שאומת בכניסה (1-12), ולא ממזהה
+  // ה-Auth הגולמי. הנפילה הקודמת ל-'student_user1' גרמה לכך שלומד שמזההו
+  // לא נפתר קרא וכתב לתוך הצומת של תלמיד 1 — נוכחות, מצב לוח והכול.
+  // מחרוזת ריקה כאן פירושה "אין לומד מזוהה", וכל האפקטים למטה יוצאים בלי
+  // לגעת בשום צומת.
+  const normUid = currentStudentUid();
   const lastProjectorTimestampRef = useRef<number>(0);
 
   // Write initial session presence and emit canonical SESSION_START event (Module 5 & 14)
@@ -245,7 +249,7 @@ export function StudentWorkspacePage() {
     
     const onVisibilityChange = () => {
       if (document.hidden) {
-        const studentId = normalizeStudentId(useAuthStore.getState().user?.uid || '');
+        const studentId = currentStudentUid();
         if (studentId) {
           AuditLogger.log('TAB_ESCAPE', studentId, 'Student switched to another tab or window');
         }
@@ -672,7 +676,9 @@ export function StudentWorkspacePage() {
           // תרחיש 1 — שעון עקום: קריאת offset שרת פעם אחת לפני כל חישוב deadline
           await fetchServerClockOffset();
 
-          const username = useAuthStore.getState().user?.uid;
+          // מזהה קנוני בלבד. מזהה שאינו נפתר למספר תלמיד 1-12 נחשב
+          // "אין לומד מזוהה", ולא נופל לתלמיד כלשהו.
+          const username = currentStudentUid();
           const activeSessionNum = isTeacherSessionActive ? (Number(activeClassSession?.sessionNumber) || 1) : null;
           const teacherSessionAllowsMeeting3 = isTeacherSessionActive && activeSessionNum !== null && activeSessionNum >= 3;
 
@@ -688,7 +694,7 @@ export function StudentWorkspacePage() {
             setIsInitializing(false);
             return;
           }
-          const normId = normalizeStudentId(username);
+          const normId = username;
           if (cancelled) return;
 
           const routeStatus = myData?.routeStatus;
@@ -992,7 +998,7 @@ export function StudentWorkspacePage() {
     return (
       <div dir="rtl" className="h-screen w-full flex flex-col items-center justify-center bg-ws-bg text-ws-ink font-body p-6 animate-in fade-in duration-300">
         <div className="bg-ws-surface p-10 rounded-3xl shadow-2xl max-w-md w-full text-center border-2 border-ws-surface2 space-y-6">
-          <div className="text-6xl animate-bounce">🎉✨</div>
+          <div className="text-6xl animate-bounce motion-essential">🎉✨</div>
           <h1 className="text-3xl font-display font-black text-ws-ink">
             כל הכבוד, מתמטיקאים!
           </h1>
@@ -1035,6 +1041,11 @@ export function StudentWorkspacePage() {
   }
 
   return (
+    // מצב שקט חזותי חייב לכסות גם את framer-motion, לא רק כיתות CSS:
+    // מסכי ההמתנה (המורה השהתה / סגרה, מצב מקרן) מנפישים ב-repeat: Infinity
+    // דרך סגנון מוטבע, והמשיכו לפעום מול ילד שהמורה סימנה כרגיש חושית.
+    // 'always' מכבה תנועת תמרה וגודל ומשאיר מעברי שקיפות רגועים.
+    <MotionConfig reducedMotion={isASDMode ? 'always' : 'user'}>
     <DndContext
       sensors={sensors}
       collisionDetection={collisionDetectionStrategy}
@@ -1044,6 +1055,12 @@ export function StudentWorkspacePage() {
     >
       <div
       dir="rtl"
+      // מסמך העיצוב §1.3 ("מצב שקט חזותי"): המורה כבר מסמנת רגישות חושית
+      // בתנאי הלמידה, אבל הסימון הזה לא השפיע על שום דבר במסך הילד. כאן
+      // הוא מכבה את התנועה הדקורטיבית — פעימות, ריצודים והבהובים — בלי
+      // לגעת בתנועה שמלמדת (היד המנחה, חגיגת הסיום), שמסומנת
+      // motion-essential.
+      data-quiet={isASDMode ? 'true' : undefined}
       className="h-[100dvh] w-full overflow-hidden font-body text-ws-ink flex flex-col relative bg-ws-bg"
     >
       {/* Flat vector background shapes — playful world energy, zero visual noise.
@@ -1120,5 +1137,6 @@ export function StudentWorkspacePage() {
         ) : null}
       </DragOverlay>
     </DndContext>
+    </MotionConfig>
   );
 }

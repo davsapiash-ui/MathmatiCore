@@ -60,7 +60,7 @@ export function SilentAdaptationPanel({
               התאמות פדגוגיות שקטות — {student.anonymousLabel}
             </h3>
             <span className="text-xs text-slate-500 dark:text-slate-400">
-              שינויים יחולו באופן שקט בגבול התרגיל הבא (Module 19 Task Boundary Rule)
+              השינוי ייכנס לתוקף בשקט רק במעבר לתרגיל הבא, ולא באמצע תרגיל שהלומד עובד עליו
             </span>
           </div>
         </div>

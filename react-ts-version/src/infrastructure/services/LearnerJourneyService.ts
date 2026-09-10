@@ -311,7 +311,33 @@ export function subscribeLearnerRecordings(
 }
 
 /** All typed telemetry events of one learner, oldest first. */
-export async function fetchLearnerEvents(studentNum: number): Promise<JourneyEvent[]> {
+/**
+ * מטמון קצר-טווח לפי מספר תלמיד.
+ *
+ * הקריאה כאן מושכת את כל אירועי הטלמטריה של הלומד — נספח א׳ §3 נועל את
+ * סכמת האירוע, ואין בה שדה מספר-מפגש שאפשר לסנן לפיו בשרת, ולכן הסינון
+ * למפגש נעשה בדפדפן. בלי מטמון, כל מעבר בין תלמידים ברשימה משך שוב את כל
+ * ההיסטוריה של אותו ילד מ-Firestore. המטמון לא משנה שום נתון — הוא רק
+ * מונע קריאה חוזרת של אותם מסמכים בדיוק בתוך אותה ישיבת עבודה של המורה.
+ */
+const EVENTS_CACHE_TTL_MS = 60_000;
+const learnerEventsCache = new Map<number, { at: number; events: JourneyEvent[] }>();
+
+/** מנקה את המטמון — לאחר איפוס נתונים, או כשהמורה מבקשת רענון מפורש. */
+export function invalidateLearnerEventsCache(studentNum?: number): void {
+  if (studentNum === undefined) learnerEventsCache.clear();
+  else learnerEventsCache.delete(studentNum);
+}
+
+export async function fetchLearnerEvents(
+  studentNum: number,
+  options: { forceRefresh?: boolean } = {}
+): Promise<JourneyEvent[]> {
+  const cached = learnerEventsCache.get(studentNum);
+  if (!options.forceRefresh && cached && Date.now() - cached.at < EVENTS_CACHE_TTL_MS) {
+    return cached.events;
+  }
+
   await authReady;
   const snap = await getDocs(query(collection(firestore, 'telemetry_logs'), where('student_id', '==', studentNum)));
   const events: JourneyEvent[] = [];
@@ -330,6 +356,7 @@ export async function fetchLearnerEvents(studentNum: number): Promise<JourneyEve
     });
   });
   events.sort((a, b) => a.timestamp - b.timestamp);
+  learnerEventsCache.set(studentNum, { at: Date.now(), events });
   return events;
 }
 

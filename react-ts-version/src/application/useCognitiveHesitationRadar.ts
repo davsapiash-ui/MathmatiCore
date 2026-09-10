@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { useAuthStore } from './useAuthStore';
+import { useAuthStore, currentStudentUid } from './useAuthStore';
 import { useWorkspaceStore, getActiveTasks } from '@/application/useWorkspaceStore';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
 import { database } from '@/infrastructure/firebase';
@@ -86,9 +86,11 @@ export function useCognitiveHesitationRadar({
 
     timeoutRef.current = setTimeout(() => {
       // Trigger silent dashboard alert payload
-      const { user } = useAuthStore.getState();
-      const userId = user?.uid || user?.id;
-      
+      // מזהה קנוני (student_user{N}) — זה גם הצומת שהרדאר של המורה קורא
+      // ממנו. מזהה Auth גולמי היה נכתב לנתיב שהדשבורד לא מסתכל עליו, ואז
+      // ההיסוס פשוט לא היה מגיע למורה.
+      const userId = currentStudentUid();
+
       if (!userId) return;
 
       AuditLogger.log(

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams } from "react-router-dom";
+import { useDismissableOverlay } from "@/hooks/useDismissableOverlay";
 import { Logo } from "@/presentation/components/ui/Logo";
 import { LogoutButton } from "@/presentation/components/ui/LogoutButton";
 import { UdlButton } from "@/presentation/design-system/UdlButton";
@@ -40,7 +41,13 @@ import { ClusteringWidgets } from "./TeacherDashboard/components/ClusteringWidge
 import { TeacherApprovalGate, type GateStudentItem } from "./TeacherDashboard/components/TeacherApprovalGate";
 import { SessionActivationModal, type SessionRow } from "./TeacherDashboard/components/SessionActivationModal";
 import { getSessionDurationMinutes } from "@/core/classSession";
-import { CONCEPT_LABELS_HE, TASKS as DIAGNOSTIC_TASKS } from "@/core/QMatrix";
+import {
+  CONCEPT_LABELS_HE,
+  TASKS as DIAGNOSTIC_TASKS,
+  getFailedDiagnosticTasks,
+  getQTaskStatus,
+  readQTaskValue,
+} from "@/core/QMatrix";
 import { validateChatInputForPII, anonymizeChatMessageBody } from "@/core/security/PiiFilter";
 import { approveTeacherGate } from "@/core/teacherGate";
 
@@ -164,6 +171,13 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   // Module 22 §ב: the admin consultation channel lives in a sliding side drawer
   // opened by the envelope icon — not in a dashboard tab.
   const [isAdminChatDrawerOpen, setIsAdminChatDrawerOpen] = useState(false);
+  // מסמך העיצוב §1.2: המגירה הוגדרה כחלון מודאלי אבל לא נסגרה ב-Escape,
+  // לא לכדה פוקוס ולא החזירה אותו — כך שהמורה המשיכה לטייל במקלדת בין
+  // כפתורי הדשבורד שמאחוריה.
+  const adminChatDrawerRef = useDismissableOverlay<HTMLDivElement>(
+    isAdminChatDrawerOpen,
+    () => setIsAdminChatDrawerOpen(false)
+  );
   const [isUpdatingSession, setIsUpdatingSession] = useState(false);
   const isUpdatingSessionRef = useRef(false);
   const [isStartingSession, setIsStartingSession] = useState(false);
@@ -674,6 +688,13 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     (s) => s.conceptMastery && s.conceptMastery.algebraic_reasoning < 0.5
   );
 
+  // כמה תלמידים כבר סיימו את מפגש האבחון ויש להם פרופיל שליטה. בלי המספר
+  // הזה גרף שמציג אפס נראה בדיוק כמו כיתה בלי פערים.
+  const studentsWithMastery = useMemo(
+    () => allStudents.filter((s) => Boolean(s.conceptMastery)).length,
+    [allStudents]
+  );
+
   const approveRoute = useStore((s) => s.approveRoute);
 
   // Aggregate data for Chart
@@ -750,12 +771,16 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
         scoreSummary: scorePercent !== null
           ? `ציון דיאגנוסטי: ${Math.round(scorePercent)}% (7 משימות חובה)`
           : 'סיום ראשוני — ממתין לחישוב מדדים',
-        // Real failed diagnostic tasks from the learner's own Q-Matrix results —
-        // this used to be two hard-coded strings shown identically for every
-        // struggling learner, presented as per-student analysis.
+        // Real failed diagnostic tasks from the learner's own Q-Matrix results.
+        // The values the learner's flow writes are strings ('success', or the
+        // name of a diagnostic error node) or null — never the boolean `false`
+        // this used to compare against, which is why the list was always empty
+        // and the teacher approved a path with no evidence behind it.
+        // getFailedDiagnosticTasks is the one shared reading of that value.
         errorNodes: (() => {
-          const qm = (studentData?.qMatrixResults ?? {}) as Record<string, boolean | null>;
-          const failed = DIAGNOSTIC_TASKS.filter((t) => qm[t.id] === false).map((t) => t.titleHe);
+          const failed = getFailedDiagnosticTasks(
+            studentData?.qMatrixResults as Record<string, unknown> | undefined
+          ).map((t) => t.titleHe);
           return failed.length > 0 ? failed : undefined;
         })(),
       });
@@ -1046,40 +1071,50 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     >
       {/* Top Sub-Navigation Bar when embedded inside Admin view */}
       {hideSidebar && (
-        <div className="bg-white text-slate-900 p-4 rounded-2xl mb-6 shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-3">
+        <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 p-4 rounded-2xl mb-6 shadow-sm border border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <span className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse" />
             <span className="font-extrabold text-sm tracking-tight text-slate-900">תצוגת מורה אדמיניסטרטיבית</span>
           </div>
 
-          <div className="flex flex-wrap gap-1.5 overflow-x-auto custom-scrollbar py-1">
+          <div role="tablist" aria-label="מסכי דשבורד המורה" className="flex flex-wrap gap-1.5 overflow-x-auto custom-scrollbar py-1">
             <button
               onClick={() => handleTabChange("heatmap")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === "heatmap" ? "bg-indigo-600 text-white shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}
+              role="tab"
+              aria-selected={activeTab === "heatmap"}
+              className={`px-3 py-2.5 min-h-11 rounded-xl text-xs font-bold transition-all ${activeTab === "heatmap" ? "bg-indigo-600 text-white shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}
             >
               מפת חום ורדאר
             </button>
             <button
               onClick={() => handleTabChange("clustering")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === "clustering" ? "bg-indigo-600 text-white shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}
+              role="tab"
+              aria-selected={activeTab === "clustering"}
+              className={`px-3 py-2.5 min-h-11 rounded-xl text-xs font-bold transition-all ${activeTab === "clustering" ? "bg-indigo-600 text-white shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}
             >
               מיפוי מיומנויות כיתתי
             </button>
             <button
               onClick={() => handleTabChange("diagnostic_reports")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === "diagnostic_reports" ? "bg-indigo-600 text-white shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}
+              role="tab"
+              aria-selected={activeTab === "diagnostic_reports"}
+              className={`px-3 py-2.5 min-h-11 rounded-xl text-xs font-bold transition-all ${activeTab === "diagnostic_reports" ? "bg-indigo-600 text-white shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}
             >
               דו"חות אבחון אישיים
             </button>
             <button
               onClick={() => handleTabChange("approvals")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === "approvals" ? "bg-indigo-600 text-white shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}
+              role="tab"
+              aria-selected={activeTab === "approvals"}
+              className={`px-3 py-2.5 min-h-11 rounded-xl text-xs font-bold transition-all ${activeTab === "approvals" ? "bg-indigo-600 text-white shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}
             >
               שער מעבר
             </button>
             <button
               onClick={() => handleTabChange("chat_students")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${activeTab === "chat_students" ? "bg-indigo-600 text-white shadow-md" : "bg-slate-800 text-slate-300 hover:bg-slate-700"}`}
+              role="tab"
+              aria-selected={activeTab === "chat_students"}
+              className={`px-3 py-2.5 min-h-11 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${activeTab === "chat_students" ? "bg-indigo-600 text-white shadow-md" : "bg-slate-800 text-slate-300 hover:bg-slate-700"}`}
             >
               <span>צ'אט תלמידים</span>
               {unreadStudentsCount > 0 && (
@@ -1090,7 +1125,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
             </button>
             <button
               onClick={() => setIsAdminChatDrawerOpen(true)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${isAdminChatDrawerOpen ? "bg-indigo-600 text-white shadow-md" : "bg-slate-800 text-slate-300 hover:bg-slate-700"}`}
+              className={`px-3 py-2.5 min-h-11 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${isAdminChatDrawerOpen ? "bg-indigo-600 text-white shadow-md" : "bg-slate-800 text-slate-300 hover:bg-slate-700"}`}
             >
               {/* Module 22 §ב: the consultation channel opens from an envelope icon */}
               <Mail className="w-3.5 h-3.5" />
@@ -1128,13 +1163,15 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
           </div>
         </div>
 
-        <nav className="flex-1 p-4 flex flex-col gap-2">
+        <nav role="tablist" aria-orientation="vertical" aria-label="מסכי דשבורד המורה" className="flex-1 p-4 flex flex-col gap-2">
           <div className="text-[10px] font-bold text-slate-400  mb-2 mt-2 px-2 uppercase tracking-widest">
             פדגוגיה ומעקב
           </div>
           <button
             id="tour-tab-heatmap"
             onClick={() => handleTabChange("heatmap")}
+              role="tab"
+              aria-selected={activeTab === "heatmap"}
             className={`w-full text-right px-4 py-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "heatmap" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg text-ws-soft "}`}
           >
             רדאר פדגוגי שקט
@@ -1142,6 +1179,8 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
           <button
             id="tour-tab-clustering"
             onClick={() => handleTabChange("clustering")}
+              role="tab"
+              aria-selected={activeTab === "clustering"}
             className={`w-full text-right px-4 py-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "clustering" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
           >
             מיפוי מיומנויות כיתתי
@@ -1149,12 +1188,16 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
           <button
             id="tour-tab-reports"
             onClick={() => handleTabChange("diagnostic_reports")}
+              role="tab"
+              aria-selected={activeTab === "diagnostic_reports"}
             className={`w-full text-right px-4 py-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "diagnostic_reports" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg text-ws-soft "}`}
           >
             דו"חות אבחון אישיים
           </button>
           <button
             onClick={() => handleTabChange("approvals")}
+              role="tab"
+              aria-selected={activeTab === "approvals"}
             className={`w-full flex justify-between items-center text-right px-4 py-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "approvals" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg text-ws-soft "}`}
           >
             <span>שער מעבר</span>
@@ -1168,6 +1211,8 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
 
           <button
             onClick={() => handleTabChange("class_management")}
+              role="tab"
+              aria-selected={activeTab === "class_management"}
             className={`w-full flex justify-between items-center text-right px-4 py-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "class_management" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
           >
             <span>ניהול כיתה ותנאי למידה</span>
@@ -1179,6 +1224,8 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
           <button
             id="tour-tab-chat"
             onClick={() => handleTabChange("chat_students")}
+              role="tab"
+              aria-selected={activeTab === "chat_students"}
             className={`w-full flex justify-between items-center text-right px-4 py-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "chat_students" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
           >
             <span>צ'אט עם תלמידים</span>
@@ -1215,7 +1262,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
 
         {/* Class Session Control Bar */}
         {/* Class Session Control Bar — Bright, Clean & Accessible */}
-        <div className="mb-6 bg-white text-slate-900 p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="mb-6 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shadow-sm ${
               classSessionStatus === 'active' ? 'bg-emerald-100 text-emerald-700' : classSessionStatus === 'paused' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'
@@ -1224,7 +1271,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-bold text-lg text-slate-900">
+                <h3 className="font-bold text-lg text-slate-900 dark:text-slate-100">
                   {classSessionStatus === 'active'
                     ? `מפגש ${selectedSessionNum} פעיל בכיתה`
                     : classSessionStatus === 'paused'
@@ -1261,7 +1308,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
             <select
               value={pickedSessionNum}
               onChange={(e) => setPickedSessionNum(parseInt(e.target.value, 10))}
-              className="bg-white text-slate-800 border border-slate-300 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-sm"
+              className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-sm"
             >
               {sessionRows.map(({ sessionNumber, state }) => (
                 <option key={sessionNumber} value={sessionNumber}>
@@ -1357,7 +1404,29 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                   אבחון וחלוקה אוטומטית של הכיתה ב-6 מיומנויות ליבה במתמטיקה למתן תרגול דיפרנציאלי ומותאם אישית.
                 </p>
               </div>
+              {/* המסך הזה נבנה על פרופיל השליטה, שנוצר בסיום מפגש האבחון.
+                  קודם לכן הוא הציג טבלאות ריקות ועמודות אפס בלי לומר למורה
+                  אם אין נתונים או שאין בעיות. */}
+              <div className="shrink-0 text-xs font-bold px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                מבוסס על {studentsWithMastery} מתוך {allStudents.length || 12} תלמידים
+              </div>
             </header>
+
+            {studentsWithMastery === 0 && (
+              <div
+                role="status"
+                className="mb-6 flex items-start gap-3 rounded-2xl border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30 p-5"
+              >
+                <span aria-hidden="true" className="text-2xl leading-none">▲</span>
+                <div>
+                  <p className="font-bold text-amber-950 dark:text-amber-100">מיפוי המיומנויות עדיין ריק</p>
+                  <p className="text-sm text-amber-900/80 dark:text-amber-200/80 mt-1">
+                    המיפוי נוצר לכל תלמיד בסיום מפגש האבחון (מפגש 2). כל עוד אף תלמיד לא סיים אותו,
+                    הקבוצות והגרף שלמטה ריקים — זה אינו אומר שאין פערים.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Interactive Concept Group Widgets */}
             <div className="mb-6">
@@ -1476,16 +1545,16 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
               )}
 
               {(!activeClusterFilter || activeClusterFilter === 'regrouping_fluency') && (
-              <AccessibleCard className="flex flex-col justify-between p-6 bg-white shadow-sm hover:shadow-md transition-all duration-300 border border-slate-200 rounded-2xl relative overflow-hidden group min-h-[340px]">
+              <AccessibleCard className="flex flex-col justify-between p-6 bg-white dark:bg-slate-900 shadow-sm hover:shadow-md transition-all duration-300 border border-slate-200 dark:border-slate-800 rounded-2xl relative overflow-hidden group min-h-[340px]">
                 <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-purple-500 to-indigo-500"></div>
                 <div>
-                  <h3 className="text-xl font-bold mb-3 text-slate-900">
+                  <h3 className="text-xl font-bold mb-3 text-slate-900 dark:text-slate-100">
                     גמישות בהמרה ופריטה
                   </h3>
-                  <p className="text-slate-600 mb-4 text-sm leading-relaxed">
+                  <p className="text-slate-600 dark:text-slate-400 mb-4 text-sm leading-relaxed">
                     תלמידים המקובעים לייצוג הקנוני ומתקשים לפרוט עשרות ליחידות.
                   </p>
-                  <div className="rounded-xl overflow-y-auto max-h-[160px] border border-slate-200 shadow-inner">
+                  <div className="rounded-xl overflow-y-auto max-h-[160px] border border-slate-200 dark:border-slate-800 shadow-inner">
                     <DataGrid
                       columns={[
                         { key: "name", header: "שם תלמיד" },
@@ -1503,16 +1572,16 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
               )}
 
               {(!activeClusterFilter || activeClusterFilter === 'procedural_fluency') && (
-              <AccessibleCard className="flex flex-col justify-between p-6 bg-white shadow-sm hover:shadow-md transition-all duration-300 border border-slate-200 rounded-2xl relative overflow-hidden group min-h-[340px]">
+              <AccessibleCard className="flex flex-col justify-between p-6 bg-white dark:bg-slate-900 shadow-sm hover:shadow-md transition-all duration-300 border border-slate-200 dark:border-slate-800 rounded-2xl relative overflow-hidden group min-h-[340px]">
                 <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-rose-500 to-red-500"></div>
                 <div>
-                  <h3 className="text-xl font-bold mb-3 text-slate-900">
+                  <h3 className="text-xl font-bold mb-3 text-slate-900 dark:text-slate-100">
                     שליטה בפרוצדורות ובעובדות
                   </h3>
-                  <p className="text-slate-600 mb-4 text-sm leading-relaxed">
+                  <p className="text-slate-600 dark:text-slate-400 mb-4 text-sm leading-relaxed">
                     תלמידים שזקוקים לחיזוק האלגוריתם המסורתי בחיבור וחיסור.
                   </p>
-                  <div className="rounded-xl overflow-y-auto max-h-[160px] border border-slate-200 shadow-inner">
+                  <div className="rounded-xl overflow-y-auto max-h-[160px] border border-slate-200 dark:border-slate-800 shadow-inner">
                     <DataGrid
                       columns={[
                         { key: "name", header: "שם תלמיד" },
@@ -1530,16 +1599,16 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
               )}
 
               {(!activeClusterFilter || activeClusterFilter === 'relational_thinking') && (
-              <AccessibleCard className="flex flex-col justify-between p-6 bg-white shadow-sm hover:shadow-md transition-all duration-300 border border-slate-200 rounded-2xl relative overflow-hidden group min-h-[340px]">
+              <AccessibleCard className="flex flex-col justify-between p-6 bg-white dark:bg-slate-900 shadow-sm hover:shadow-md transition-all duration-300 border border-slate-200 dark:border-slate-800 rounded-2xl relative overflow-hidden group min-h-[340px]">
                 <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-slate-500 to-gray-500"></div>
                 <div>
-                  <h3 className="text-xl font-bold mb-3 text-slate-900">
+                  <h3 className="text-xl font-bold mb-3 text-slate-900 dark:text-slate-100">
                     חשיבה יחסית (Relational Thinking)
                   </h3>
-                  <p className="text-slate-600 mb-4 text-sm leading-relaxed">
+                  <p className="text-slate-600 dark:text-slate-400 mb-4 text-sm leading-relaxed">
                     תלמידים שמתקשים לגזור עובדה חדשה מתוך עובדה ידועה ללא חישוב מחדש.
                   </p>
-                  <div className="rounded-xl overflow-y-auto max-h-[160px] border border-slate-200 shadow-inner">
+                  <div className="rounded-xl overflow-y-auto max-h-[160px] border border-slate-200 dark:border-slate-800 shadow-inner">
                     <DataGrid
                       columns={[
                         { key: "name", header: "שם תלמיד" },
@@ -1557,16 +1626,16 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
               )}
 
               {(!activeClusterFilter || activeClusterFilter === 'algebraic_reasoning') && (
-              <AccessibleCard className="flex flex-col justify-between p-6 bg-white shadow-sm hover:shadow-md transition-all duration-300 border border-slate-200 rounded-2xl relative overflow-hidden group min-h-[340px]">
+              <AccessibleCard className="flex flex-col justify-between p-6 bg-white dark:bg-slate-900 shadow-sm hover:shadow-md transition-all duration-300 border border-slate-200 dark:border-slate-800 rounded-2xl relative overflow-hidden group min-h-[340px]">
                 <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-amber-500 to-orange-500"></div>
                 <div>
-                  <h3 className="text-xl font-bold mb-3 text-slate-900">
+                  <h3 className="text-xl font-bold mb-3 text-slate-900 dark:text-slate-100">
                     חשיבה אלגברית ומציאת נעלם
                   </h3>
-                  <p className="text-slate-600 mb-4 text-sm leading-relaxed">
+                  <p className="text-slate-600 dark:text-slate-400 mb-4 text-sm leading-relaxed">
                     תלמידים המתקשים להבין את סימן השוויון כמאזניים ואת הדינמיקה של משוואה.
                   </p>
-                  <div className="rounded-xl overflow-y-auto max-h-[160px] border border-slate-200 shadow-inner">
+                  <div className="rounded-xl overflow-y-auto max-h-[160px] border border-slate-200 dark:border-slate-800 shadow-inner">
                     <DataGrid
                       columns={[
                         { key: "name", header: "שם תלמיד" },
@@ -1619,16 +1688,28 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
             </div>
 
             {(() => {
-              const effectiveReplayStudentId = selectedReplayStudentId || (allStudents.length > 0 ? allStudents[0].studentId : 'student_user1');
+              // כיתה ריקה מציגה את מצב הבחירה הריק שלמטה. ברירת מחדל ל'student_user1'
+              // הייתה גורמת לכך שאם במקרה קיימת רשומה מקומית לתלמיד 1, הדוח שלו
+              // היה נפתח בלי שאיש בחר בו.
+              const effectiveReplayStudentId = selectedReplayStudentId || allStudents[0]?.studentId || '';
               const s = students[effectiveReplayStudentId] || allStudents.find(st => st.studentId === effectiveReplayStudentId || normalizeStudentId(st.studentId) === normalizeStudentId(effectiveReplayStudentId)) || allStudents[0];
 
               const qMatrix = s?.qMatrixResults || {};
               const traceData = s?.traceData || { hesitation_events: 0, undo_clicks: 0, semantic_trace: [] };
 
-              const getQStatus = (val: any) => {
-                if (val === undefined || val === null) return { text: 'טרם נבדק', color: 'text-slate-400' };
-                if (val === 'success' || val === true) return { text: 'שולט', color: 'text-green-600' };
-                return { text: 'דרוש חיזוק', color: 'text-red-500' };
+              // מסמך העיצוב §1.1: אסור להעביר סטטוס בצבע בלבד — צבע, אייקון
+              // וטקסט עברי מפורש, שלושתם יחד. הקריאה עצמה עוברת דרך
+              // getQTaskStatus כדי ששלושת המצבים יזוהו כאן בדיוק כמו בשער
+              // המעבר (מודול 20).
+              const getQStatus = (val: unknown) => {
+                switch (getQTaskStatus(val)) {
+                  case 'not_attempted':
+                    return { text: 'טרם ניגש', icon: '—', color: 'text-slate-400 dark:text-slate-500' };
+                  case 'mastered':
+                    return { text: 'שולט', icon: '✓', color: 'text-emerald-700 dark:text-emerald-400' };
+                  default:
+                    return { text: 'דרוש חיזוק', icon: '▲', color: 'text-rose-700 dark:text-rose-400' };
+                }
               };
 
               return (
@@ -1780,7 +1861,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
                               {/* Q-Matrix Report */}
                               {diagnosticSelectedSession === 2 ? (
-                                <AccessibleCard className="p-6 bg-white border border-ws-surface2 shadow-md rounded-2xl h-full">
+                                <AccessibleCard className="p-6 bg-white dark:bg-slate-900 border border-ws-surface2 shadow-md rounded-2xl h-full">
                                   <h3 className="text-xl font-bold text-ws-ink mb-1 flex items-center gap-2">
                                     <span className="text-ws-accent">📊</span>
                                     תוצאות מיפוי מיומנויות היסוד (מפגש 2)
@@ -1788,21 +1869,26 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                   <p className="text-xs text-ws-soft mb-4">שבע משימות אבחון למיפוי מיומנויות יסוד. 'שליטה' מעידה על פתרון מדויק בניסיון ראשון.</p>
                                   <div className="grid grid-cols-1 gap-2 text-sm">
                                     {DIAGNOSTIC_TASKS.map((task, i) => {
-                                      const status = getQStatus((qMatrix as Record<string, unknown>)[task.id]);
+                                      const status = getQStatus(
+                                        readQTaskValue(qMatrix as Record<string, unknown>, task.id)
+                                      );
                                       return (
                                         <div key={task.id} className="flex items-center justify-between gap-3 bg-ws-bg px-3 py-2 rounded-xl border border-ws-surface2">
                                           <span className="text-ws-ink text-xs font-bold">
                                             <span className="text-ws-soft ml-1">{i + 1}.</span>
                                             {task.titleHe}
                                           </span>
-                                          <span className={`font-semibold text-xs whitespace-nowrap ${status.color}`}>{status.text}</span>
+                                          <span className={`font-semibold text-xs whitespace-nowrap flex items-center gap-1 ${status.color}`}>
+                                            <span aria-hidden="true">{status.icon}</span>
+                                            {status.text}
+                                          </span>
                                         </div>
                                       );
                                     })}
                                   </div>
                                 </AccessibleCard>
                               ) : (
-                                <AccessibleCard className="p-6 bg-white border border-ws-surface2 shadow-md rounded-2xl h-full flex flex-col justify-center items-center text-center">
+                                <AccessibleCard className="p-6 bg-white dark:bg-slate-900 border border-ws-surface2 shadow-md rounded-2xl h-full flex flex-col justify-center items-center text-center">
                                   <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 flex items-center justify-center mb-3 text-xl">
                                     📊
                                   </div>
@@ -1833,14 +1919,14 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                 <div className="flex-1 flex flex-col gap-4">
                                   {/* Trace Logs Summary */}
                                   <div className="flex gap-4">
-                                    <div className="flex-1 flex items-center justify-between p-3 bg-white rounded-xl border border-slate-200">
+                                    <div className="flex-1 flex items-center justify-between p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
                                       <div className="flex items-center gap-3">
                                         <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 text-sm">⏱️</div>
                                         <span className="font-semibold text-sm">אירועי היסוס (חשיבה ארוכה)</span>
                                       </div>
                                       <span className="text-xl font-black text-orange-600">{traceData.hesitation_events || 0}</span>
                                     </div>
-                                    <div className="flex-1 flex items-center justify-between p-3 bg-white rounded-xl border border-slate-200">
+                                    <div className="flex-1 flex items-center justify-between p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
                                       <div className="flex items-center gap-3">
                                         <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-600 text-sm">↩️</div>
                                         <span className="font-semibold text-sm">פעולות בקרה וויסות עצמי (מחיקה/חזרה)</span>
@@ -1851,7 +1937,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
 
                                   {/* Clinical Diagnosis & Action Plan - Only rendered when real diagnostic exists */}
                                   {!hasCompletedDiagnosticM2 ? (
-                                    <div className="bg-white p-5 rounded-xl border border-indigo-100 shadow-sm">
+                                    <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-indigo-100 dark:border-indigo-900 shadow-sm">
                                       <h4 className="font-bold text-indigo-900 mb-2 text-base flex items-center gap-2">
                                         <span className="text-indigo-600">ℹ️</span>
                                         סטטוס מיפוי פדגוגי
@@ -1866,7 +1952,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                       </div>
                                     </div>
                                   ) : (
-                                    <div className="bg-white p-5 rounded-xl border border-indigo-100 shadow-sm">
+                                    <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-indigo-100 dark:border-indigo-900 shadow-sm">
                                       <h4 className="font-bold text-indigo-900 mb-3 text-lg flex items-center gap-2">
                                         <span className="text-indigo-600">🎯</span>
                                         המלצות פדגוגיות ומסלול מותאם למפגש 3 ואילך:
@@ -1929,6 +2015,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
               onClick={() => setIsAdminChatDrawerOpen(false)}
             />
             <div
+              ref={adminChatDrawerRef}
               role="dialog"
               aria-modal="true"
               aria-label="ערוץ שיח ניהולי"

@@ -339,3 +339,61 @@ export function computeCognitiveMastery(results: Record<string, string | null>):
 
   return profile as MasteryProfile;
 }
+
+/**
+ * מודול 20: שלושת המצבים שמשימת אבחון יכולה להיות בהם.
+ *
+ * הערך עצמו נכתב על ידי זרימת האבחון של הלומד (core/qmatrixFlow.ts) ל-
+ * QMatrixResults, והוא תמיד מחרוזת או null — לעולם לא בוליאני. כל מסך
+ * שמציג תוצאות אבחון חייב לקרוא אותו דרך getQTaskStatus, כדי ששלושת
+ * המצבים לא יתפרשו אחרת במסך אחר.
+ */
+export type QTaskStatus = 'not_attempted' | 'mastered' | 'needs_support';
+
+/** התיוג שנרשם כשהלומד ניגש למשימה, נכשל, ולא סווג לו צומת שגיאה מסוים. */
+export const Q_FAIL_TAG = 'fail';
+
+/**
+ * מפתחות ישנים שנכתבו בגרסאות קודמות לאותן שבע משימות חובה.
+ * מפתח קנוני -> המפתח הישן שעשוי להופיע במקומו ברשומות קיימות.
+ */
+export const Q_LEGACY_TASK_ALIASES: Record<string, string> = {
+  task1_read_write_zero: 'task1_zero_placeholder',
+  task3_subtraction_regrouping: 'task6_subtraction_regrouping',
+  task4_decompose_number: 'task3_flexible_regrouping',
+  task5_units_to_tens: 'task5_small_change',
+  task6_vertical_addition: 'task4_basic_addition_fluency',
+  task7_subtraction_zero_tens: 'task7_missing_subtrahend',
+};
+
+/** קורא את ערך המשימה מהמפתח הקנוני, ואם אין — מהמפתח הישן. */
+export function readQTaskValue(
+  results: Record<string, unknown> | null | undefined,
+  taskId: string
+): unknown {
+  const r = results ?? {};
+  if (r[taskId] !== undefined && r[taskId] !== null) return r[taskId];
+  const legacy = Q_LEGACY_TASK_ALIASES[taskId];
+  return legacy ? r[legacy] : undefined;
+}
+
+/**
+ * המרת ערך גולמי מ-QMatrixResults לאחד משלושת המצבים.
+ * ריק/חסר = לא ניגש. 'success' = שולט. כל ערך אחר (שם צומת שגיאה או 'fail')
+ * = ניגש ולא פתר, כלומר דרוש חיזוק.
+ */
+export function getQTaskStatus(value: unknown): QTaskStatus {
+  if (value === null || value === undefined || value === '') return 'not_attempted';
+  if (value === true || value === 'success' || value === 'correct') return 'mastered';
+  return 'needs_support';
+}
+
+/**
+ * שבע משימות החובה שהלומד ניגש אליהן ולא פתר — מה שהמורה צריכה לראות
+ * לפני שהיא מאשרת מסלול בשער המעבר למפגש 3 (מודול 20).
+ */
+export function getFailedDiagnosticTasks(
+  results: Record<string, unknown> | null | undefined
+): QMatrixTask[] {
+  return TASKS.filter((t) => getQTaskStatus(readQTaskValue(results, t.id)) === 'needs_support');
+}

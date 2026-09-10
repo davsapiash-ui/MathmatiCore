@@ -1252,7 +1252,47 @@ export class SocraticEngine {
    * Resolves a fully calibrated Socratic hint synchronously (0ms) based on the exact active task,
    * live counts, and mathematical operands without awaiting remote network requests.
    */
+  /**
+   * מודול 13, כלל הברזל: כרטיס חניכה לעולם אינו מוסר את התוצאה הסופית.
+   *
+   * socraticTextViolation נאכף עד כה על תשובת הבינה בלבד. הכרטיסים
+   * הסטטיים — מה שהלומד מקבל בכל פעם שהבינה אינה זמינה, וזה המצב הנפוץ
+   * ולא החריג — עקפו אותו לגמרי. חלקם מחושבים מהמספרים של התרגיל עצמו,
+   * ו-groundCardInExercise מזריק את המספרים לתוך טקסט כתוב, כך שדווקא
+   * שם ההזלגה סבירה יותר.
+   *
+   * השער עובר עכשיו על כל כרטיס שיוצא מכאן. כרטיס שמפר את הכלל מוחלף
+   * בכרטיס הכללי, שאינו מכיל מספרים כלל — עדיף רמז רחב על פני מסירת
+   * התשובה לילד.
+   */
+  private static enforceIronRule(card: SocraticHintResponse, currentTask?: any): SocraticHintResponse {
+    const a = Number(currentTask?.numberA);
+    const b = Number(currentTask?.numberB);
+    const operands = Number.isFinite(a) && Number.isFinite(b)
+      ? { a, b, isSubtraction: inferIsSubtraction(currentTask) }
+      : null;
+
+    const violation = socraticTextViolation(
+      [card.questionHe, ...card.choices.flatMap((c) => [c.textHe, c.feedbackHe ?? ''])],
+      operands
+    );
+    if (!violation) return card;
+
+    console.warn('[SocraticEngine] Static card rejected by the Module 13 iron rule:', violation, currentTask?.id);
+    return GENERAL_FALLBACK;
+  }
+
   public static getSynchronousTaskHint(
+    currentTask?: any,
+    counts?: { units: number; tens: number; hundreds: number; thousands: number }
+  ): SocraticHintResponse {
+    return SocraticEngine.enforceIronRule(
+      SocraticEngine.resolveStaticHint(currentTask, counts),
+      currentTask
+    );
+  }
+
+  private static resolveStaticHint(
     currentTask?: any,
     counts?: { units: number; tens: number; hundreds: number; thousands: number }
   ): SocraticHintResponse {

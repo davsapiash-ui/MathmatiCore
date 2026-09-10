@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { useDismissableOverlay } from "@/hooks/useDismissableOverlay";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Building, 
@@ -99,7 +100,7 @@ export function AdminWizardModal({
       return false;
     }
     if (schools.length >= 5) {
-      setSchoolError("המערכת הגיעה למגבלת הפיילוט המרבית של 5 מוסדות חינוך (מודול 25).");
+      setSchoolError("המערכת הגיעה למגבלת הפיילוט המרבית של 5 מוסדות חינוך.");
       return false;
     }
     return true;
@@ -141,7 +142,7 @@ export function AdminWizardModal({
     }
     const teacherClasses = classes.filter(c => c.teacherId === targetTeacherId);
     if (teacherClasses.length >= 5) {
-      setClassError("מורה זה הגיע למכסת הפיילוט המרבית של 5 כיתות (מודול 25).");
+      setClassError("מורה זו הגיעה למכסת הפיילוט המרבית של 5 כיתות.");
       return false;
     }
     return true;
@@ -209,7 +210,7 @@ export function AdminWizardModal({
     }
   };
 
-  const handleQuickAddClass = () => {
+  const handleQuickAddClass = async () => {
     if (isSubmitting) return;
     if (!selectedSchoolId) {
       setClassError("יש לבחור מוסד חינוכי.");
@@ -224,8 +225,16 @@ export function AdminWizardModal({
     if (!validateStep3(teacherId)) return;
     setIsSubmitting(true);
     try {
-      addClassRoom(selectedSchoolId, teacherId, PILOT_CLASS_NAME, classType);
+      // ההקמה נחשבה כמוצלחת עוד לפני שהשרת ענה. כיתה שנדחתה בשרת
+      // הופיעה במסך כאילו נוצרה, ומורה ששובצה אליה לא מצאה בה דבר.
+      await addClassRoom(selectedSchoolId, teacherId, PILOT_CLASS_NAME, classType);
       setIsDone(true);
+    } catch (err) {
+      setClassError(
+        err instanceof Error && err.message
+          ? `הקמת הכיתה נדחתה בשרת: ${err.message}`
+          : 'הקמת הכיתה נדחתה בשרת. בדקו את החיבור ונסו שוב.'
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -243,6 +252,11 @@ export function AdminWizardModal({
     setIsDone(false);
     onClose();
   };
+
+  // מסמך העיצוב §1.2: החלון היחיד באדמין שיוצר מוסדות, מורות וכיתות
+  // נפתח בלי Escape, בלי סימון חלון ובלי לכידת פוקוס. מנהל שמנווט
+  // במקלדת המשיך לטייל בין הכפתורים שמאחוריו בזמן שהאשף פתוח.
+  const wizardRef = useDismissableOverlay<HTMLDivElement>(isOpen, resetAndClose);
 
   // createPortal must be OUTSIDE AnimatePresence: a React portal is not a
   // "valid element" to AnimatePresence's child filter, so with the old
@@ -268,6 +282,10 @@ export function AdminWizardModal({
           {/* Modal Container */}
           <motion.div 
             key="admin-wizard-box"
+            ref={wizardRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label={mode === "add_teacher" ? "רישום מורה למוסד" : mode === "add_class" ? "הקמת כיתת לימוד" : "אשף הקמת מוסד חינוכי חדש"}
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -289,7 +307,7 @@ export function AdminWizardModal({
                       : "אשף הקמת מוסד חינוכי חדש"}
                   </h2>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    תקני פיילוט ומבנה מוסדי (מודול 25)
+                    תקני פיילוט ומבנה מוסדי
                   </p>
                 </div>
               </div>
@@ -551,7 +569,7 @@ export function AdminWizardModal({
                           </label>
                           <div className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-2xl p-3.5 text-sm font-bold flex items-center justify-between">
                             <span>{PILOT_CLASS_NAME}</span>
-                            <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500">קבוע לפי מודול 25</span>
+                            <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500">קבוע לפי תקן הפיילוט</span>
                           </div>
                         </div>
 
@@ -572,7 +590,7 @@ export function AdminWizardModal({
 
                         <div>
                           <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1">
-                            מכסת תלמידים מרבית לכיתה זו (עד 12 תלמידים לפי מודול 25)
+                            מכסת תלמידים מרבית לכיתה זו (עד 12 תלמידים)
                           </label>
                           {mode === "add_class" ? (
                             // A class added here always takes the global limit

@@ -78,7 +78,7 @@ export function ClassMeetingReportPanel() {
                 key={n}
                 type="button"
                 onClick={() => setSelectedSession(n)}
-                className={`w-7 h-7 rounded-lg text-xs font-black transition-colors cursor-pointer ${
+                className={`w-11 h-11 rounded-lg text-sm font-black transition-colors cursor-pointer ${
                   selectedSession === n ? 'bg-indigo-600 text-white' : 'bg-ws-bg text-ws-soft hover:text-ws-ink'
                 }`}
                 aria-pressed={selectedSession === n}

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useAuthStore } from '@/application/useAuthStore';
+import { currentStudentNumber, currentStudentUid } from '@/application/useAuthStore';
 import { useWorkspaceStore, selectCanProceed, getActiveTasks } from '@/application/useWorkspaceStore';
 import { useChatStore, normalizeStudentId } from '@/application/useChatStore';
 import { TASKS } from '@/core/QMatrix';
@@ -41,7 +41,7 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
     };
   }, []);
 
-  const user = useAuthStore((s) => s.user);
+  const studentNumber = currentStudentNumber();
   const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
   const standardTaskIdx = useWorkspaceStore((s) => s.standardTaskIdx);
   const qflow = useWorkspaceStore((s) => s.qflow);
@@ -66,21 +66,30 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
       <div className="flex items-center gap-3 shrink-0">
         <Logo size="md" subtitle="מרחב חקר אישי" />
 
-        {/* Module 1 & 6: Zero-PII Student Identity Badge */}
-        <div className="flex items-center gap-2 bg-ws-accentSoft border border-ws-accent/25 px-3 py-1.5 rounded-xl shadow-xs">
-          <div className="w-6 h-6 rounded-lg bg-ws-accent text-white flex items-center justify-center font-black text-xs">
-            {user?.student_id || (user?.uid ? user.uid.replace(/\D/g, '') : '1') || '1'}
+        {/* מודול 1 ו-6: תג זהות אנונימי. המספר נגזר מ-student_id שאומת
+            בכניסה — לא מניקוי ספרות ממזהה ה-Auth, שהיה מציג "תלמיד 1"
+            לכל לומד שמזההו לא נפתר. */}
+        {studentNumber !== null && (
+          <div className="flex items-center gap-2 bg-ws-accentSoft border border-ws-accent/25 px-3 py-1.5 rounded-xl shadow-xs">
+            <div className="w-6 h-6 rounded-lg bg-ws-accent text-white flex items-center justify-center font-black text-xs">
+              {studentNumber}
+            </div>
+            <span className="text-xs font-black text-ws-ink">
+              תלמיד {studentNumber}
+            </span>
           </div>
-          <span className="text-xs font-black text-ws-ink">
-            תלמיד {user?.student_id || (user?.uid ? user.uid.replace(/\D/g, '') : '1') || '1'}
-          </span>
-        </div>
+        )}
 
         {/* Module 17: Silent Cloud Status Icon (Green=Online, Grey=Offline) */}
-        <div className="flex items-center mr-1" title={isOnline ? 'מחובר לסנכרון ענן (Online)' : 'מצב לא מקוון - הנתונים נשמרים מקומית ויסונכרנו אוטומטית (Offline)'}>
+        <div
+          className="flex items-center mr-1"
+          role="status"
+          aria-label={isOnline ? 'מחובר. העבודה שלך נשמרת.' : 'אין כרגע חיבור לרשת. העבודה שלך נשמרת כאן ותיסנכרן לבד כשהחיבור יחזור.'}
+          title={isOnline ? 'מחובר. העבודה שלך נשמרת.' : 'אין כרגע חיבור לרשת. העבודה שלך נשמרת כאן ותיסנכרן לבד כשהחיבור יחזור.'}
+        >
           {isOnline ? (
             <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-1 rounded-full border border-emerald-200 dark:border-emerald-800">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span aria-hidden="true" className="w-2 h-2 rounded-full bg-emerald-500" />
               <Cloud className="w-3.5 h-3.5" />
             </span>
           ) : (
@@ -158,8 +167,13 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
         >
           <MessageSquare className="w-4 h-4" />
           <span className="hidden sm:inline">צ'אט מורה</span>
-          {messages.filter(m => !m.read && normalizeStudentId(m.receiverId) === normalizeStudentId(user?.uid || '')).length > 0 && (
-            <span className="w-2.5 h-2.5 rounded-full bg-rose-500 absolute -top-1 -right-1 animate-pulse" />
+          {messages.filter(m => !m.read && normalizeStudentId(m.receiverId) === currentStudentUid()).length > 0 && (
+            <>
+              {/* מסמך העיצוב §1.1 ו-§1.3: הנקודה לבדה לא אמרה כלום למי
+                  שנעזר בהקראה, וההבהוב הפר את השקט החזותי. */}
+              <span aria-hidden="true" className="w-2.5 h-2.5 rounded-full bg-rose-500 absolute -top-1 -right-1" />
+              <span className="sr-only">יש הודעה חדשה מהמורה</span>
+            </>
           )}
         </button>
 

@@ -87,6 +87,38 @@ const INITIAL_MOCK_STUDENTS: AnonymousStudent[] = Array.from({ length: 12 }, (_,
   };
 });
 
+/**
+ * מסמך העיצוב §1.1: מצב שמועבר בצבע חייב להגיע גם כטקסט מפורש.
+ * התאים עצמם עומדים בזה חזותית (צבע + אייקון + תגית), אבל לקורא מסך הם
+ * הוקראו כרצף תגיות בלי שם ובלי סדר. כאן נבנה משפט אחד שאומר על מי
+ * מדובר ומה מצבו, באותו סדר עדיפויות שהתא מצייר.
+ */
+export function describeRadarCell(
+  student: AnonymousStudent,
+  isSessionActive: boolean,
+  hesitationThresholdSeconds: number
+): string {
+  const parts: string[] = [`תלמיד ${student.studentNumber}`];
+
+  if (student.helpRequested) parts.push('קורא לעזרה');
+  else if (student.isWaitingAtGate) parts.push('סיים אבחון וממתין לאישור מסלול למפגש 3');
+  else if (student.isSocraticActive) parts.push('כרטיס חניכה סוקרטי פעיל');
+  else if (!student.isOnline) parts.push(student.lastAction === 'יצא מהחלון' ? 'יצא מהחלון' : 'לא מחובר');
+  else if (!isSessionActive) parts.push('מחובר וממתין בלובי');
+  else if (student.hesitationSeconds >= hesitationThresholdSeconds) {
+    parts.push(`מהסס מעל ${hesitationThresholdSeconds} שניות`);
+  } else if (student.activeBranch === 'challenge') parts.push('עובד על משימות אתגר');
+  else if (student.activeBranch === 'reinforcement') parts.push('עובד על משימות ביסוס');
+  else parts.push('פעיל ותקין');
+
+  const glyph = getCognitiveGlyph(student.errorCategory);
+  if (glyph) parts.push(glyph.title);
+  if (student.enhancedSupport) parts.push('תמיכה מוגברת פעילה');
+
+  parts.push('להצגת הלוח והפרטים');
+  return parts.join('. ');
+}
+
 interface HeatmapGridProps {
   /** Called when teacher clicks Drill Down — parent opens the learner drawer */
   onDrillDown?: (studentId: string) => void;
@@ -434,7 +466,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
               <button
                 onClick={handleExportResearchDataset}
                 disabled={isExportingDataset}
-                className="px-3 py-1.5 rounded-xl border border-indigo-200 hover:border-indigo-400 bg-indigo-50/60 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-xs"
+                className="px-3 py-2.5 min-h-11 rounded-xl border border-indigo-200 hover:border-indigo-400 bg-indigo-50/60 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-xs"
                 title="ייצוא נתוני מחקר גולמיים ואנונימיים (טלמטריה, מפגשים, רפלקציות, לוג איפוסים) ל-Drive"
               >
                 <FileDown className={`w-3.5 h-3.5 ${isExportingDataset ? 'animate-pulse' : ''}`} />
@@ -446,7 +478,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
               <button
                 onClick={() => setIsAlertsResetModalOpen(true)}
                 disabled={isResettingAlerts}
-                className="px-3 py-1.5 rounded-xl border border-amber-200 hover:border-amber-400 bg-amber-50/60 hover:bg-amber-100 dark:bg-amber-950/40 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-xs"
+                className="px-3 py-2.5 min-h-11 rounded-xl border border-amber-200 hover:border-amber-400 bg-amber-50/60 hover:bg-amber-100 dark:bg-amber-950/40 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-xs"
                 title="איפוס התראות הרדאר בלבד — אינו נוגע בנתוני למידה"
               >
                 <RotateCcw className={`w-3.5 h-3.5 ${isResettingAlerts ? 'animate-spin' : ''}`} />
@@ -456,7 +488,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
               <button
                 onClick={handleResetAllClass}
                 disabled={isResettingClass}
-                className="px-3 py-1.5 rounded-xl border border-rose-200 hover:border-rose-400 bg-rose-50/60 hover:bg-rose-100 dark:bg-rose-950/40 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-xs"
+                className="px-3 py-2.5 min-h-11 rounded-xl border border-rose-200 hover:border-rose-400 bg-rose-50/60 hover:bg-rose-100 dark:bg-rose-950/40 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-xs"
                 title="איפוס נתוני כל תלמידי הכיתה"
               >
                 <RotateCcw className={`w-3.5 h-3.5 ${isResettingClass ? 'animate-spin' : ''}`} />
@@ -511,7 +543,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
               {pendingGateStudents.map(st => {
                 const isApprovingThis = approvingStudentId === st.id;
                 return (
-                  <div key={st.id} className="flex items-center gap-2 bg-white dark:bg-slate-900 px-3 py-1.5 rounded-xl border border-amber-200 dark:border-amber-800 shadow-xs">
+                  <div key={st.id} className="flex items-center gap-2 bg-white dark:bg-slate-900 px-3 py-2.5 min-h-11 rounded-xl border border-amber-200 dark:border-amber-800 shadow-xs">
                     <span className="font-extrabold text-xs text-slate-800 dark:text-slate-200">תלמיד {st.studentNumber}</span>
                     <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">המלצה: {st.recommendedPath}</span>
                     <button
@@ -551,6 +583,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                 role="button"
                 tabIndex={0}
                 key={student.id}
+                aria-label={describeRadarCell(student, isClassSessionActive, getHesitationThresholdSeconds())}
                 onClick={() => setSelectedStudent(student)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {

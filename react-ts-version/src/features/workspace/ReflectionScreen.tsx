@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ref, push, update } from 'firebase/database';
 import { database, authReady } from '@/infrastructure/firebase';
-import { useAuthStore } from '@/application/useAuthStore';
+import { useAuthStore, currentStudentUid } from '@/application/useAuthStore';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { normalizeStudentId } from '@/application/useChatStore';
+import { Q_FAIL_TAG } from '@/core/QMatrix';
 import { emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
 import { toast } from 'sonner';
 
@@ -46,7 +47,7 @@ export function ReflectionScreen() {
   const [done, setDone] = useState(false);
 
   const persistenceIndex = getPersistenceIndex();
-  const username: string = user?.uid || 'unknown_student';
+  const username: string = currentStudentUid();
   const feedback = effort !== null ? EFFORT_FEEDBACK[effort] : null;
   const canComplete = effort !== null && strategies.length > 0;
 
@@ -79,11 +80,15 @@ export function ReflectionScreen() {
       });
 
       const r = qflow.results;
+      // אותה הגדרה בדיוק כמו במרחב העבודה: ערך ריק פירושו "לא ניגש"
+      // בלבד, וכישלון בלי צומת שגיאה מסווג נרשם כ-Q_FAIL_TAG. עותק שני
+      // של הכלל הזה כאן היה מייצר שוב את המצב שבו משימה שנכשלה נראית
+      // למורה כמשימה שהילד מעולם לא הגיע אליה.
       const getTag = (taskResult: any) => {
         if (!taskResult) return null;
         if (taskResult.tag) return taskResult.tag;
         if (taskResult.correct) return 'success';
-        return null;
+        return Q_FAIL_TAG;
       };
 
       const qMatrix: any = {
@@ -105,7 +110,7 @@ export function ReflectionScreen() {
         task8_missing_addend: getTag(r['task8_missing_addend']),
       };
 
-      const studentId = normalizeStudentId(username);
+      const studentId = currentStudentUid();
       
       // Emit authoritative SRL Telemetry event per Master PRD v7.0 (Appendix A §3 & Module 16)
       const effortMap: Record<number, 'LOW' | 'MEDIUM' | 'HIGH'> = {
@@ -223,7 +228,7 @@ export function ReflectionScreen() {
                     <span className="font-bold text-ws-ink">{opt.nameHe}</span>
                     <span className="text-xs sm:text-sm text-ws-soft">{opt.descHe}</span>
                   </span>
-                  <div className={`mr-auto w-6 h-6 rounded-md flex items-center justify-center border-2 transition-colors ${isSelected ? 'border-ws-accent bg-ws-accent' : 'border-ws-surface2 bg-white'}`}>
+                  <div className={`mr-auto w-6 h-6 rounded-md flex items-center justify-center border-2 transition-colors ${isSelected ? 'border-ws-accent bg-ws-accent' : 'border-ws-surface2 bg-white dark:bg-slate-800'}`}>
                     {isSelected && <span className="text-white text-sm font-black" aria-hidden="true">✓</span>}
                   </div>
                 </button>
@@ -244,6 +249,19 @@ export function ReflectionScreen() {
             </div>
           </motion.div>
         </section>
+
+        {/* כפתור מעומעם בלי הסבר הוא מבוי סתום לילד בכיתה ג'. שתי הדרישות
+            כתובות בשלבים למעלה, אבל ברגע שהוא מנסה ללחוץ ולא קורה כלום הוא
+            צריך לדעת מה חסר — כאן, ליד הכפתור. */}
+        {!canComplete && !done && (
+          <p role="status" className="mb-2 text-center text-sm font-bold text-amber-700 dark:text-amber-300">
+            {effort === null && strategies.length === 0
+              ? 'כדי לסיים: בחרו כמה השתדלתם, וסמנו לפחות כלי אחד שעזר לכם.'
+              : effort === null
+                ? 'עוד רגע! נשאר לבחור כמה השתדלתם היום.'
+                : 'עוד רגע! נשאר לסמן לפחות כלי אחד שעזר לכם.'}
+          </p>
+        )}
 
         <button
           onClick={handleProceed}

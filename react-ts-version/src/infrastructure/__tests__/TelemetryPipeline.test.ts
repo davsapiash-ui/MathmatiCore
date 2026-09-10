@@ -143,7 +143,10 @@ describe('Telemetry Pipeline End-to-End Verification per PRD v7.0', () => {
         details,
       });
 
-      // 1. Validate payload structure
+      // 1. Validate payload structure. A resolvable pilot id (1-12) must
+      //    always produce a payload; null means the event was dropped.
+      expect(payload).not.toBeNull();
+      if (!payload) return;
       expect(payload.idempotency_key).toBeDefined();
       expect(payload.event_type).toBe(eventType);
       expect(payload.student_id).toBe(1);
@@ -177,7 +180,7 @@ describe('Telemetry Pipeline End-to-End Verification per PRD v7.0', () => {
       column_index: 1,
       details: { regrouping_type: 'decomposition', duration_ms: 1200 },
     });
-    expect(regroupNullPayload.details.duration_ms).toBe(1200);
+    expect(regroupNullPayload!.details.duration_ms).toBe(1200);
 
     const socraticNullCatPayload = await firebaseSyncService.emitTelemetry({
       session_id: 'session_1_student_1',
@@ -187,7 +190,7 @@ describe('Telemetry Pipeline End-to-End Verification per PRD v7.0', () => {
       column_index: 1,
       details: { trigger_reason: 'consecutive_errors_4', error_category: null },
     });
-    expect(socraticNullCatPayload.details.error_category).toBeNull();
+    expect(socraticNullCatPayload!.details.error_category).toBeNull();
 
     const undoNullRevertedPayload = await firebaseSyncService.emitTelemetry({
       session_id: 'session_1_student_1',
@@ -196,7 +199,7 @@ describe('Telemetry Pipeline End-to-End Verification per PRD v7.0', () => {
       event_type: 'UNDO_EXECUTED',
       details: { undo_stack_depth_before: 1, reverted_event_type: 'BLOCK_DRAG_COMPLETE' },
     });
-    expect(undoNullRevertedPayload.details.reverted_event_type).toBe('BLOCK_DRAG_COMPLETE');
+    expect(undoNullRevertedPayload!.details.reverted_event_type).toBe('BLOCK_DRAG_COMPLETE');
 
     const digitNullCorrectPayload = await firebaseSyncService.emitTelemetry({
       session_id: 'session_1_student_1',
@@ -206,6 +209,6 @@ describe('Telemetry Pipeline End-to-End Verification per PRD v7.0', () => {
       column_index: 0,
       details: { digit_value: 4, is_correct: null },
     });
-    expect(digitNullCorrectPayload.details.is_correct).toBeNull();
+    expect(digitNullCorrectPayload!.details.is_correct).toBeNull();
   });
 });

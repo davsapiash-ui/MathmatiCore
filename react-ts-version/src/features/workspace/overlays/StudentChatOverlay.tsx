@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
+import { useDismissableOverlay } from '@/hooks/useDismissableOverlay';
 import { useChatStore, normalizeStudentId, isTeacherOrAdminId } from '@/application/useChatStore';
-import { useAuthStore } from '@/application/useAuthStore';
+import { useAuthStore, currentStudentUid } from '@/application/useAuthStore';
 import { useStore } from '@/application/useStore';
 import { useAdminStore } from '@/application/useAdminStore';
 import { useActiveClassSession } from '@/application/useActiveClassSession';
@@ -12,6 +13,12 @@ import { database } from '@/infrastructure/firebase';
 
 export function StudentChatOverlay() {
   const [isOpen, setIsOpen] = useState(false);
+
+  // מסמך העיצוב §1.2: Escape סוגר. הפאנל אינו חוסם את הלוח, ולכן אינו
+  // לוכד פוקוס — אבל כן מקבל אותו בפתיחה, כי הלומד פתח אותו כדי לכתוב.
+  const panelRef = useDismissableOverlay<HTMLDivElement>(isOpen, () => setIsOpen(false), {
+    trapFocus: false,
+  });
   const [text, setText] = useState('');
   const { messages, sendMessage, markAsRead, initSync } = useChatStore();
   const user = useAuthStore(s => s.user);
@@ -21,8 +28,11 @@ export function StudentChatOverlay() {
   const students = useStore(s => s.students);
   const classes = useAdminStore(s => s.classes);
   
-  const normUid = normalizeStudentId(user?.uid || '');
-  const studentData = normUid ? (students[normUid] || students[user?.uid || '']) : null;
+  // חדר הצ'אט נגזר מהמזהה הקנוני. normalizeStudentId על מזהה Auth גולמי
+  // תופס את הספרה הראשונה שבו וממפה אותה לתלמיד כלשהו — כלומר ההודעות
+  // של ילד אחד היו יכולות להיכנס לשיחה של ילד אחר עם המורה.
+  const normUid = currentStudentUid();
+  const studentData = normUid ? students[normUid] : null;
   const studentClass = classes.find(c => c.id === studentData?.classId);
   const targetTeacherId = studentClass?.teacherId || activeSession?.teacherId || '1002220159';
 
@@ -131,16 +141,22 @@ export function StudentChatOverlay() {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed bottom-6 left-6 z-50 w-80 sm:w-96 h-[480px] bg-ws-surface rounded-3xl shadow-2xl border-2 border-ws-surface2 flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200" dir="rtl">
+    <div
+      ref={panelRef}
+      role="dialog"
+      aria-label="הודעות עם המורה"
+      className="fixed bottom-6 left-6 z-50 w-80 sm:w-96 h-[480px] bg-ws-surface rounded-3xl shadow-2xl border-2 border-ws-surface2 flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200"
+      dir="rtl"
+    >
       {/* Header */}
       <div className="p-4 bg-ws-surface2 border-b border-ws-surface2 flex justify-between items-center shrink-0">
         <div className="flex items-center gap-2">
           <span className="font-bold text-sm text-ws-ink">צ'אט עם המורה</span>
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+          <span aria-hidden="true" className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
         </div>
         <button 
           onClick={() => setIsOpen(false)}
-          className="text-ws-soft hover:text-ws-ink text-sm font-bold p-1 px-2 rounded-lg hover:bg-ws-surface transition-colors cursor-pointer"
+          className="text-ws-soft hover:text-ws-ink text-sm font-bold min-w-11 min-h-11 px-3 rounded-lg hover:bg-ws-surface transition-colors cursor-pointer"
           aria-label="סגור חלון צ'אט"
         >
           ✕
@@ -154,7 +170,7 @@ export function StudentChatOverlay() {
         </span>
         <button
           onClick={handleCallTeacher}
-          className="bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-sm flex items-center gap-1.5 transition-all cursor-pointer"
+          className="bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xs font-bold px-4 min-h-11 rounded-full shadow-sm flex items-center gap-1.5 transition-all cursor-pointer"
         >
           <span>קרא למורה 🔔</span>
         </button>
@@ -199,13 +215,13 @@ export function StudentChatOverlay() {
       <div className="px-3 py-1.5 bg-slate-50 dark:bg-slate-900 border-t border-ws-surface2 flex gap-1.5 overflow-x-auto no-scrollbar shrink-0">
         <button
           onClick={() => handleQuickPrompt('אני צריך עזרה בתרגיל הזה')}
-          className="text-[11px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-full px-2.5 py-1 whitespace-nowrap hover:border-ws-accent transition-colors cursor-pointer"
+          className="text-[11px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-full px-3.5 min-h-11 flex items-center whitespace-nowrap hover:border-ws-accent transition-colors cursor-pointer"
         >
           אני צריך עזרה בתרגיל
         </button>
         <button
           onClick={() => handleQuickPrompt('לא הבנתי את ההוראה')}
-          className="text-[11px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-full px-2.5 py-1 whitespace-nowrap hover:border-ws-accent transition-colors cursor-pointer"
+          className="text-[11px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-full px-3.5 min-h-11 flex items-center whitespace-nowrap hover:border-ws-accent transition-colors cursor-pointer"
         >
           לא הבנתי את ההוראה
         </button>
@@ -225,7 +241,7 @@ export function StudentChatOverlay() {
           <button
             onClick={() => handleSend()}
             disabled={!text.trim()}
-            className="bg-ws-accent disabled:opacity-40 text-white rounded-full w-10 h-10 flex items-center justify-center hover:brightness-110 active:scale-95 transition-all font-bold cursor-pointer shrink-0 shadow-sm"
+            className="bg-ws-accent disabled:opacity-40 text-white rounded-full w-11 h-11 flex items-center justify-center hover:brightness-110 active:scale-95 transition-all font-bold cursor-pointer shrink-0 shadow-sm"
           >
             <Send className="w-4 h-4 -mr-0.5" />
           </button>

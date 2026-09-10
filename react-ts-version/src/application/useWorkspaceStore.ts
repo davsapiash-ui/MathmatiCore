@@ -35,9 +35,9 @@ import {
   type QMatrixFlowState,
 } from '@/core/qmatrixFlow';
 import { stateReducer } from '@/machines/vraMachine';
-import { computeCognitiveMastery } from '@/core/QMatrix';
+import { computeCognitiveMastery, Q_FAIL_TAG } from '@/core/QMatrix';
 import { useStore } from '@/application/useStore';
-import { useAuthStore } from '@/application/useAuthStore';
+import { useAuthStore, currentStudentUid } from '@/application/useAuthStore';
 import { CurriculumRouter } from '@/core/CurriculumRouter';
 import { syncQMatrixEvaluation } from '@/core/ExerciseValidationEngine';
 import { getSessionTasks, type SessionTask } from '@/data/sessionTasks';
@@ -623,7 +623,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     if (taskId) {
       const s = get();
-      const studentId = useAuthStore.getState().user?.uid || 'student_1';
+      const studentId = currentStudentUid();
       emitTelemetry({
         session_id: `session_${s.sessionNumber}_student_${studentId}`,
         student_id: studentId,
@@ -701,11 +701,15 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
             const student = store.students[studentId];
             if (student) {
               const r = get().qflow.results;
+              // מודול 20: ערך ריק פירושו "הלומד לא ניגש למשימה" בלבד.
+              // לומד שניגש ונכשל בלי שסווג לו צומת שגיאה נרשם כ-Q_FAIL_TAG,
+              // אחרת כישלון היה נראה למורה בדוח האבחון בדיוק כמו משימה
+              // שהילד מעולם לא הגיע אליה.
               const getTag = (taskResult: any) => {
                 if (!taskResult) return null;
                 if (taskResult.tag) return taskResult.tag;
                 if (taskResult.correct) return 'success';
-                return null;
+                return Q_FAIL_TAG;
               };
               
               const realQMatrix = {
@@ -831,7 +835,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       get().resetConsecutiveErrors();
       set({ awaitingNext: true });
 
-      const studentId = useAuthStore.getState().user?.uid || 'student_1';
+      const studentId = currentStudentUid();
       const durationMs = Math.max(0, Date.now() - (s.taskStartTime || Date.now()));
       emitTelemetry({
         session_id: `session_${s.sessionNumber}_student_${studentId}`,
@@ -1102,8 +1106,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       }
 
       // For sessions 1, 2, and 8: route directly to session completion / quiet end screen
-      const authUser = useAuthStore.getState().user;
-      const studentId = authUser?.uid || (authUser?.student_id ? `student_user${authUser.student_id}` : 'student_user1');
+      const studentId = currentStudentUid();
       if (studentId && !s.isSupersededByOtherDevice) {
         const normId = normalizeStudentId(studentId);
         useStore.getState().updateHighestCompletedMeeting(studentId, s.sessionNumber);
@@ -1128,7 +1131,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       }
 
       set({ standardTaskIdx: nextIdx, awaitingNext: false });
-      const studentId = useAuthStore.getState().user?.uid || 'student_1';
+      const studentId = currentStudentUid();
       if (studentId && !s.isSupersededByOtherDevice) {
         const normId = normalizeStudentId(studentId);
         const taskTitle = tasks[nextIdx]?.titleHe || `משימה ${nextIdx + 1}`;
@@ -1164,8 +1167,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     }
 
     // Session complete
-    const authUser = useAuthStore.getState().user;
-    const studentId = authUser?.uid || (authUser?.student_id ? `student_user${authUser.student_id}` : 'student_user1');
+    const studentId = currentStudentUid();
     if (studentId && !s.isSupersededByOtherDevice) {
       const normId = normalizeStudentId(studentId);
       useStore.getState().updateHighestCompletedMeeting(studentId, s.sessionNumber);
@@ -1223,7 +1225,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         }
       } else {
         get().resetConsecutiveErrors();
-        const studentId = useAuthStore.getState().user?.uid || 'student_1';
+        const studentId = currentStudentUid();
         const durationMs = Math.max(0, Date.now() - (s.taskStartTime || Date.now()));
         emitTelemetry({
           session_id: `session_2_student_${studentId}`,
@@ -1399,7 +1401,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       });
 
       const initialTask = sanitized === 2 ? getCurrentQTask(qflow) : getSessionTasks(sanitized as any)[startingTaskIdx ?? 0];
-      const studentId = useAuthStore.getState().user?.uid || 'student_1';
+      const studentId = currentStudentUid();
       if (initialTask) {
         emitTelemetry({
           session_id: `session_${sanitized}_student_${studentId}`,
@@ -1563,7 +1565,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const stack = [...s.undoStack, { counts: { ...s.counts }, actionType }];
         if (stack.length > UNDO_STACK_CAP) stack.shift();
 
-        const studentId = useAuthStore.getState().user?.uid || 'student_1';
+        const studentId = currentStudentUid();
         const currentTask = getActiveTasks(s)[s.standardTaskIdx] || null;
         const sessionId = `session_${s.sessionNumber}_student_${studentId}`;
         const taskId = currentTask?.id || `ex_${s.sessionNumber}_01`;
@@ -1696,7 +1698,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         }
         const undoStack = createNextUndoStack(state.undoStack, state.counts, 'REGROUPING_SUCCESS');
 
-        const studentId = useAuthStore.getState().user?.uid || 'student_1';
+        const studentId = currentStudentUid();
         const task = getActiveTasks(state)[state.standardTaskIdx] || null;
         const sessionId = `session_${state.sessionNumber}_student_${studentId}`;
         const taskId = task?.id || `ex_${state.sessionNumber}_01`;
@@ -1759,7 +1761,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         }
         const undoStack = createNextUndoStack(state.undoStack, state.counts, 'REGROUPING_SUCCESS');
 
-        const studentId = useAuthStore.getState().user?.uid || 'student_1';
+        const studentId = currentStudentUid();
         const task = getActiveTasks(state)[state.standardTaskIdx] || null;
         const sessionId = `session_${state.sessionNumber}_student_${studentId}`;
         const taskId = task?.id || `ex_${state.sessionNumber}_01`;
@@ -1819,7 +1821,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const snapshot = stack.pop();
         if (!snapshot) return s;
 
-        const studentId = useAuthStore.getState().user?.uid || 'student_1';
+        const studentId = currentStudentUid();
         const task = getActiveTasks(s)[s.standardTaskIdx] || null;
         const sessionId = `session_${s.sessionNumber}_student_${studentId}`;
         const taskId = task?.id || `ex_${s.sessionNumber}_01`;
@@ -1893,7 +1895,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const isDelete = val === '' && Boolean(s.answerDigits[place]);
         const nextDeletions = isDelete ? s.consecutiveDeletions + 1 : (val !== '' ? 0 : s.consecutiveDeletions);
 
-        const studentId = useAuthStore.getState().user?.uid || 'student_1';
+        const studentId = currentStudentUid();
         const task = getActiveTasks(s)[s.standardTaskIdx] || null;
         const sessionId = `session_${s.sessionNumber}_student_${studentId}`;
         const taskId = task?.id || `ex_${s.sessionNumber}_01`;
@@ -2006,7 +2008,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     setCarryDigit: (place, val) => {
       set((s) => {
         const isDelete = val === '' && Boolean(s.carryDigits[place]);
-        const studentId = useAuthStore.getState().user?.uid || 'student_1';
+        const studentId = currentStudentUid();
         const task = getActiveTasks(s)[s.standardTaskIdx] || null;
         const sessionId = `session_${s.sessionNumber}_student_${studentId}`;
         const taskId = task?.id || `ex_${s.sessionNumber}_01`;
@@ -2420,7 +2422,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const clean = val.replace(/[^0-9]/g, '').slice(-1);
       const s = get();
       const task = getActiveTasks(s)[s.standardTaskIdx] || null;
-      const studentId = useAuthStore.getState().user?.uid || 'student_1';
+      const studentId = currentStudentUid();
       if (clean !== '' && task) {
         const { a, b } = effectiveArithmetic(task, s.isASD);
         const expected = digitAt(which === 'a' ? a : b, place);

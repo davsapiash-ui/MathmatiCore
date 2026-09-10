@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useWorkspaceStore } from '../../application/useWorkspaceStore';
 import { useTeacherStore, calculateRadarColor } from '../../application/useTeacherStore';
-import { OfflineSyncEngine } from '../../infrastructure/OfflineSyncEngine';
+import { indexedDBQueue } from '../../infrastructure/services/IndexedDBQueue';
 import type { TelemetryPayload } from '../../types';
 
 describe('Work Package 2 (WP2): Global State Management & Offline Queue Engine', () => {
@@ -172,9 +172,35 @@ describe('Work Package 2 (WP2): Global State Management & Offline Queue Engine',
   });
 
   describe('3. Offline Sync Engine & Idempotency Rules (Module 17)', () => {
-    it('instantiates OfflineSyncEngine with initial connection state tracking', () => {
-      const engine = new OfflineSyncEngine();
-      expect(['ONLINE_SYNCED', 'ONLINE_SYNCING', 'OFFLINE']).toContain(engine.getConnectionState());
+    it('the live queue is the only offline engine, and it tracks connectivity', () => {
+      // There used to be a second, fully written engine (OfflineSyncEngine)
+      // that nothing but this test referenced. It carried the retry handling
+      // the engine actually in use lacked, so the spec looked implemented
+      // while the real path had no retries at all. It has been removed.
+      expect(typeof indexedDBQueue.getOnlineStatus()).toBe('boolean');
+      expect(typeof indexedDBQueue.getPendingCount()).toBe('number');
+    });
+
+    it('queues a telemetry event with every field Module 17 §ב names', async () => {
+      await indexedDBQueue.enqueue({
+        idempotency_key: 'idemp-shape-001',
+        client_timestamp: 1700000000000,
+        session_id: 'session_4_student_user7',
+        student_id: 7,
+        exercise_id: 'ex_compulsory_02',
+        event_type: 'DIGIT_ENTERED',
+        column_index: 1,
+        details: { digit_value: 4, is_correct: true },
+      } as any);
+
+      const queued = (await indexedDBQueue.getAll()).find((i) => i.idempotency_key === 'idemp-shape-001');
+      expect(queued).toBeDefined();
+      expect(queued!.session_id).toBe('session_4_student_user7');
+      expect(queued!.student_id).toBe(7);
+      expect(queued!.exercise_id).toBe('ex_compulsory_02');
+      expect(queued!.operation_type).toBe('DIGIT_ENTERED');
+      expect(queued!.client_timestamp).toBe(1700000000000);
+      expect(queued!.retry_count).toBe(0);
     });
 
     it('structures telemetry queue payloads with unique idempotency_key for Firestore Doc ID', () => {
