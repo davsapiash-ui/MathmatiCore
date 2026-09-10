@@ -69,7 +69,7 @@ export function LearnerJourney({ studentId }: Props) {
     let cancelled = false;
     setEventsState('loading');
     setEventsError('');
-    fetchLearnerEvents(studentNum)
+    fetchLearnerEvents(studentNum, { forceRefresh: reloadNonce > 0 })
       .then((list) => { if (!cancelled) { setEvents(list); setEventsState('ready'); } })
       .catch((err) => {
         if (cancelled) return;

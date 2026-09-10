@@ -688,6 +688,13 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     (s) => s.conceptMastery && s.conceptMastery.algebraic_reasoning < 0.5
   );
 
+  // כמה תלמידים כבר סיימו את מפגש האבחון ויש להם פרופיל שליטה. בלי המספר
+  // הזה גרף שמציג אפס נראה בדיוק כמו כיתה בלי פערים.
+  const studentsWithMastery = useMemo(
+    () => allStudents.filter((s) => Boolean(s.conceptMastery)).length,
+    [allStudents]
+  );
+
   const approveRoute = useStore((s) => s.approveRoute);
 
   // Aggregate data for Chart
@@ -1397,7 +1404,29 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                   אבחון וחלוקה אוטומטית של הכיתה ב-6 מיומנויות ליבה במתמטיקה למתן תרגול דיפרנציאלי ומותאם אישית.
                 </p>
               </div>
+              {/* המסך הזה נבנה על פרופיל השליטה, שנוצר בסיום מפגש האבחון.
+                  קודם לכן הוא הציג טבלאות ריקות ועמודות אפס בלי לומר למורה
+                  אם אין נתונים או שאין בעיות. */}
+              <div className="shrink-0 text-xs font-bold px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                מבוסס על {studentsWithMastery} מתוך {allStudents.length || 12} תלמידים
+              </div>
             </header>
+
+            {studentsWithMastery === 0 && (
+              <div
+                role="status"
+                className="mb-6 flex items-start gap-3 rounded-2xl border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30 p-5"
+              >
+                <span aria-hidden="true" className="text-2xl leading-none">▲</span>
+                <div>
+                  <p className="font-bold text-amber-950 dark:text-amber-100">מיפוי המיומנויות עדיין ריק</p>
+                  <p className="text-sm text-amber-900/80 dark:text-amber-200/80 mt-1">
+                    המיפוי נוצר לכל תלמיד בסיום מפגש האבחון (מפגש 2). כל עוד אף תלמיד לא סיים אותו,
+                    הקבוצות והגרף שלמטה ריקים — זה אינו אומר שאין פערים.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Interactive Concept Group Widgets */}
             <div className="mb-6">

@@ -4,6 +4,7 @@ import { database, functions } from '@/infrastructure/firebase';
 import { httpsCallable } from 'firebase/functions';
 import { toast } from 'sonner';
 import { useChatStore, normalizeStudentId } from '@/application/useChatStore';
+import { invalidateLearnerEventsCache } from '@/infrastructure/services/LearnerJourneyService';
 
 import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
 import type { MasteryProfile } from '@/core/QMatrix';
@@ -611,6 +612,9 @@ export const useStore = create<AppState>()(
       resetStudentData: async (studentId: string, reason: ResetReason, reasonNote?: string, options?: SingleStudentResetOptions) => {
         const normId = normalizeStudentId(studentId);
         const num = normId.replace(/\D/g, '') || '1';
+        // המורה חייבת לראות מיד שהנתונים נמחקו. בלי זה מסע הלמידה היה
+        // ממשיך להציג את האירועים מהמטמון אחרי איפוס.
+        invalidateLearnerEventsCache(parseInt(num, 10));
         const defaultName = `תלמיד ${num}`;
         // PRD Module 23א §ב.2: the default restarts the active meeting only.
         const scope: SingleStudentResetScope = options?.scope || 'active_session';
@@ -801,6 +805,8 @@ export const useStore = create<AppState>()(
       },
 
       resetEntireSystemUsageData: async (reason: ResetReason, reasonNote?: string) => {
+        // איפוס מערכת מוחק את הטלמטריה של כל 12 התלמידים.
+        invalidateLearnerEventsCache();
         // PRD v7.1 Module 23א §ג + §ז: backup-before-delete is a HARD gate for a
         // system reset too. A failed backup must abort the deletion entirely —
         // no partial deletion is ever permitted.
