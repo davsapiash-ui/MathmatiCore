@@ -22,9 +22,8 @@ const rules = JSON.parse(repo('database.rules.json')) as {
   rules: Record<string, any>;
 };
 
-const GATE_FIELDS = [
-  'routeStatus',
-  'teacher_gate_approved',
+// שדות שהלומד אינו רשאי לגעת בהם כלל — החלטת המורה מתחילתה ועד סופה.
+const TEACHER_ONLY_FIELDS = [
   'teacher_selected_path',
   'pedagogicalPath',
   'physicalOverride',
@@ -36,19 +35,40 @@ const studentNodes: Array<[string, any]> = [
   ['students/$studentId', rules.rules.students.$studentId],
 ];
 
+const STAFF_MARKERS = ["auth.token.role == 'teacher'", "auth.token.role == 'admin'"];
+
 describe('מודול 20 — שער המעבר נאכף בשרת, לא רק בדפדפן', () => {
   for (const [label, node] of studentNodes) {
     describe(label, () => {
-      for (const field of GATE_FIELDS) {
+      for (const field of TEACHER_ONLY_FIELDS) {
         it(`לומד אינו יכול לשנות את ${field}`, () => {
           const validate = node?.[field]?.['.validate'];
           expect(typeof validate).toBe('string');
-          // או שהכותב הוא צוות, או שהערך נשאר בדיוק כפי שהיה.
-          expect(validate).toContain("auth.token.role == 'teacher'");
-          expect(validate).toContain("auth.token.role == 'admin'");
-          expect(validate).toContain('newData.val() == data.val()');
+          for (const marker of STAFF_MARKERS) expect(validate).toContain(marker);
+          // או שהכותב הוא צוות, או שהערך נשאר בדיוק כפי שהיה. אין אפשרות שלישית.
+          // אין אפשרות שלישית: הסעיף היחיד שאינו "צוות" הוא "הערך לא השתנה".
+          expect(validate.trim().endsWith('|| newData.val() == data.val()')).toBe(true);
+          expect(validate.split('newData.')).toHaveLength(2);
         });
       }
+
+      it('לומד רשאי לבקש אישור מעבר, ולעולם לא להעניק אותו לעצמו', () => {
+        // מודול 20: סיום מפגש 2 בצד הלומד כותב PENDING_TEACHER_APPROVAL —
+        // זו בקשה, לא החלטה. APPROVED שמור לצוות בלבד.
+        const validate = node?.routeStatus?.['.validate'];
+        expect(typeof validate).toBe('string');
+        for (const marker of STAFF_MARKERS) expect(validate).toContain(marker);
+        expect(validate).toContain("newData.val() == 'PENDING_TEACHER_APPROVAL'");
+        expect(validate).not.toContain("'APPROVED'");
+      });
+
+      it('לומד רשאי לאפס את דגל האישור, ולעולם לא להדליק אותו', () => {
+        const validate = node?.teacher_gate_approved?.['.validate'];
+        expect(typeof validate).toBe('string');
+        for (const marker of STAFF_MARKERS) expect(validate).toContain(marker);
+        expect(validate).toContain('newData.val() == false');
+        expect(validate).not.toContain('newData.val() == true');
+      });
 
       it('התקדמות המפגשים נשארת מונוטונית ובטווח 0 עד 8', () => {
         const validate = node?.highestCompletedMeeting?.['.validate'];
@@ -62,9 +82,20 @@ describe('מודול 20 — שער המעבר נאכף בשרת, לא רק בד�
 
   it('הלקוח ממשיך לנקות את שדות השער מכל סנכרון של הלומד', () => {
     const sync = src('infrastructure/services/FirebaseSyncService.ts');
-    expect(sync).toContain("delete sanitizedPayload.teacher_gate_approved;");
-    expect(sync).toContain("delete sanitizedPayload.routeStatus;");
-    expect(sync).toContain("delete sanitizedPayload.physicalOverride;");
+    expect(sync).toContain('delete sanitizedPayload.teacher_gate_approved;');
+    expect(sync).toContain('delete sanitizedPayload.routeStatus;');
+    expect(sync).toContain('delete sanitizedPayload.physicalOverride;');
+  });
+
+  it('סיום מפגש 2 בצד הלומד כותב בדיוק את שני הערכים שהחוקים מתירים לו', () => {
+    // הבדיקה הזו היא הצד השני של החוקים: אם מישהו ישנה כאן את הערך
+    // ל-APPROVED, הכתיבה תידחה בשרת בשקט והמורה לא יראה את הילד ממתין.
+    const sync = src('infrastructure/services/FirebaseSyncService.ts');
+    const fn = sync.slice(sync.indexOf('public async syncSession2Completion'));
+    const body = fn.slice(0, fn.indexOf('public async fetchTeacherClassrooms'));
+    expect(body).toContain("routeStatus: 'PENDING_TEACHER_APPROVAL'");
+    expect(body).toContain('teacher_gate_approved: false');
+    expect(body).not.toContain("'APPROVED'");
   });
 });
 
