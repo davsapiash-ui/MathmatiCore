@@ -26,6 +26,13 @@ exports.authenticateStudentSession = (0, https_1.onCall)({
     if (typeof passcode !== "string" || passcode.trim() !== FIXED_CLASS_PASSCODE) {
         throw new https_1.HttpsError("permission-denied", "Invalid class access code");
     }
+    // 3. class_id is written into a signed custom claim, and that claim is read
+    //    as a security input elsewhere (isTeacherOfClass in the rules, the
+    //    research export's class scoping). It used to be whatever the caller
+    //    sent — any string, or an object. The pilot has one class.
+    if (typeof classId !== "string" || !/^[A-Za-z0-9_-]{1,40}$/.test(classId)) {
+        throw new https_1.HttpsError("invalid-argument", "class_id is not a valid class identifier.");
+    }
     const uid = request.auth.uid;
     logger.info(`Stamping Custom Claims for Anonymous Student ${studentId} (UID: ${uid})`);
     // 3. Stamp Custom Claims directly on the Firebase Auth user

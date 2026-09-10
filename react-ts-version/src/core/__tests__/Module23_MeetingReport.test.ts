@@ -18,9 +18,12 @@ const journey = readFileSync(resolve(__dirname, '../../presentation/pages/Teache
 
 describe('Module 23 — report for every meeting (server)', () => {
   it('reads the whole meeting, not a single page of 100 events', () => {
-    expect(server).not.toMatch(/where\("session_id", "==", sessionId\)\s*\.limit\(100\)/);
-    expect(server).toMatch(/async function readAllTelemetryForSession/);
-    expect(server).toMatch(/for \(let page = 0; page < TELEMETRY_MAX_PAGES; page\+\+\)/);
+    // The reader now lives in meetingMetrics so the completion trigger can
+    // compute the score from the same events the report reads.
+    expect(metrics).not.toMatch(/where\("session_id", "==", sessionId\)\s*\.limit\(100\)/);
+    expect(metrics).toMatch(/export async function readAllTelemetryForSession/);
+    expect(metrics).toMatch(/for \(let page = 0; page < TELEMETRY_MAX_PAGES; page\+\+\)/);
+    expect(server).toContain('readAllTelemetryForSession(db, sessionId)');
   });
 
   it('applies the PRD first-attempt rule when the meeting has no session document', () => {

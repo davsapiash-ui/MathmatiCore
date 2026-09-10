@@ -71,10 +71,13 @@ export const syncUserRoles = onCall(
 
       // Ensure doc exists in authorizedTeachers collection
       try {
+        // No name. The product owner's decision, recorded in the deviations
+        // register: a teacher's only stored identity is the whitelisted
+        // e-mail. This line re-created the field on every admin sign-in, in
+        // the one collection every authenticated user can read.
         await firestore.collection("authorizedTeachers").doc(normalizedEmail).set({
           email: normalizedEmail,
           role: "admin",
-          name: "David Sep (Admin)",
           updatedAt: Date.now()
         }, { merge: true });
       } catch (e) {

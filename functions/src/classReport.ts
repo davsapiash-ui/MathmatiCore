@@ -1,4 +1,5 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { requireTeacherForIndividualData } from "./callerIdentity";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import * as path from "path";
@@ -55,11 +56,12 @@ export type ExerciseOutcome = "first_try" | "after_correction" | "incomplete";
 export interface ClassLearnerRow {
   student_id: number;
   learning_path: "green_path" | "remediation_path";
-  score_percent: number;
+  /** null when this meeting's compulsory count is unknown — there is no score to state. */
+  score_percent: number | null;
   score_source: "session_document" | "telemetry_first_attempt";
-  recommendation_tier: RecommendationTier;
-  compulsory_total: number;
-  correct_first_attempt: number;
+  recommendation_tier: RecommendationTier | null;
+  compulsory_total: number | null;
+  correct_first_attempt: number | null;
   exercises_attempted: number;
   exercises_completed: number;
   events: number;
@@ -106,10 +108,12 @@ export interface ClassExerciseRow {
 export interface ClassAggregates {
   learners_with_data: number;
   learners_without_data: number[];
-  score_mean: number;
-  score_median: number;
-  score_min: number;
-  score_max: number;
+  /** Learners whose meeting has data but whose compulsory count is unknown: no score stated. */
+  learners_without_score: number[];
+  score_mean: number | null;
+  score_median: number | null;
+  score_min: number | null;
+  score_max: number | null;
   tiers: Record<RecommendationTier, number[]>;
   paths: { green_path: number; remediation_path: number };
   active_minutes_mean: number;
@@ -192,7 +196,7 @@ export function buildLearnerRow(
     learning_path: learningPath,
     score_percent: score,
     score_source: docScore !== null ? "session_document" : "telemetry_first_attempt",
-    recommendation_tier: resolveRecommendationTier(score),
+    recommendation_tier: score === null ? null : resolveRecommendationTier(score),
     compulsory_total: first.denominator,
     correct_first_attempt: first.correctFirstAttempt,
     exercises_attempted: summary.exercises_attempted,
@@ -227,10 +231,17 @@ export function buildLearnerRow(
   };
 }
 
+/** A percentage that may not have been measured. Never printed as a bare number. */
+const pct = (value: number | null): string => (value === null ? "לא נמדד" : `${value}%`);
+
 /** The class picture: the same measurements, summed and distributed across the learners. */
 export function aggregateClass(rows: ClassLearnerRow[], eventsByLearner: Map<number, Record<string, any>[]>): ClassAggregates {
-  const scores = rows.map((r) => r.score_percent).sort((a, b) => a - b);
-  const n = rows.length;
+  // Only learners whose score could actually be computed enter the class
+  // statistics. Averaging a fabricated 0% or 100% into the class mean was the
+  // same defect one level up.
+  const scored = rows.filter((r) => r.score_percent !== null);
+  const scores = scored.map((r) => r.score_percent as number).sort((a, b) => a - b);
+  const n = scores.length;
   const median = n === 0 ? 0 : n % 2 === 1 ? scores[(n - 1) / 2] : (scores[n / 2 - 1] + scores[n / 2]) / 2;
   const sum = (pick: (r: ClassLearnerRow) => number) => rows.reduce((acc, r) => acc + pick(r), 0);
   const mergeCounts = (pick: (r: ClassLearnerRow) => Record<string, number>): Record<string, number> => {
@@ -239,7 +250,7 @@ export function aggregateClass(rows: ClassLearnerRow[], eventsByLearner: Map<num
     return out;
   };
   const tiers: Record<RecommendationTier, number[]> = { below_50: [], between_50_75: [], above_75: [] };
-  for (const r of rows) tiers[r.recommendation_tier].push(r.student_id);
+  for (const r of rows) if (r.recommendation_tier) tiers[r.recommendation_tier].push(r.student_id);
 
   // Per exercise: how many learners opened it, finished it, finished it first try,
   // and how much trouble it caused (wrong digits, cards, hesitations).
@@ -273,12 +284,13 @@ export function aggregateClass(rows: ClassLearnerRow[], eventsByLearner: Map<num
 
   const withData = new Set(rows.map((r) => r.student_id));
   return {
-    learners_with_data: n,
+    learners_with_data: rows.length,
     learners_without_data: ALL_STUDENT_IDS.filter((id) => !withData.has(id)),
-    score_mean: n === 0 ? 0 : round1(sum((r) => r.score_percent) / n),
-    score_median: round1(median),
-    score_min: n === 0 ? 0 : scores[0],
-    score_max: n === 0 ? 0 : scores[n - 1],
+    learners_without_score: rows.filter((r) => r.score_percent === null).map((r) => r.student_id),
+    score_mean: n === 0 ? null : round1(scores.reduce((a, b) => a + b, 0) / n),
+    score_median: n === 0 ? null : round1(median),
+    score_min: n === 0 ? null : scores[0],
+    score_max: n === 0 ? null : scores[n - 1],
     tiers,
     paths: {
       green_path: rows.filter((r) => r.learning_path === "green_path").length,
@@ -523,8 +535,8 @@ export function createClassReportPdfBufferWithPdfkit(report: Record<string, any>
       const cardY = doc.y + 12;
       rtlText(doc, `מפגש: ${report.session_number}`, 400, cardY, { width: 140 });
       rtlText(doc, `לומדים עם נתונים: ${a.learners_with_data} מתוך 12`, 200, cardY, { width: 190 });
-      rtlText(doc, `ציון ממוצע: ${a.score_mean}%`, 55, cardY, { width: 140 });
-      rtlText(doc, `חציון: ${a.score_median}% | טווח: ${a.score_min}%–${a.score_max}% | מסלול ירוק: ${a.paths.green_path} | מסלול ביסוס: ${a.paths.remediation_path}`, 55, cardY + 25, { width: 490 });
+      rtlText(doc, `ציון ממוצע: ${pct(a.score_mean)}`, 55, cardY, { width: 140 });
+      rtlText(doc, `חציון: ${pct(a.score_median)} | טווח: ${pct(a.score_min)}–${pct(a.score_max)} | מסלול ירוק: ${a.paths.green_path} | מסלול ביסוס: ${a.paths.remediation_path}`, 55, cardY + 25, { width: 490 });
       doc.x = 40;
       doc.y = cardY + 60;
 
@@ -598,20 +610,20 @@ export const generateClassMeetingReport = onCall(CLASS_REPORT_RUNTIME, async (re
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "User must be authenticated.");
   }
+  // The class report is a table of individual learner rows: each child's
+  // score, wrong digits by column, hesitations and per-exercise outcomes.
+  // Module 24 §ב blocks a system administrator from exactly that, and the
+  // Firestore rules already say so — but the Admin SDK bypasses them, so the
+  // check has to live here. A dual teacher+admin identity still passes.
+  requireTeacherForIndividualData(request.auth.token as Record<string, unknown>);
   const token: Record<string, any> = request.auth.token;
-  const callerRoles: string[] = Array.isArray(token.roles) ? token.roles : token.role ? [token.role] : [];
-  const isTeacher = callerRoles.includes("TEACHER") || token.role === "teacher" || token.teacher === true;
-  const isAdmin = callerRoles.includes("ADMIN") || token.role === "admin" || token.admin === true;
-  if (!isTeacher && !isAdmin) {
-    throw new HttpsError("permission-denied", "Only teachers or admins may generate a class report.");
-  }
 
   const { classId = "class_1" } = request.data || {};
   const sessionNumber = Number(request.data?.sessionNumber);
   if (!Number.isInteger(sessionNumber) || sessionNumber < 1 || sessionNumber > 8) {
     throw new HttpsError("invalid-argument", "sessionNumber must be 1-8.");
   }
-  if (isTeacher && !isAdmin && token.class_id && token.class_id !== classId) {
+  if (token.class_id && token.class_id !== classId) {
     throw new HttpsError("permission-denied", "Teacher is restricted to their own class.");
   }
 

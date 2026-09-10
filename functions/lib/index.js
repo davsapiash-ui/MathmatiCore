@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.authenticateStudentSession = exports.onStudentEvent = exports.verifyTeacherSSO = exports.sendTeacherAdminMessage = exports.hourlyAdminAggregator = exports.generateClassMeetingReport = exports.getPedagogicalReportDownloadUrl = exports.generatePedagogicalReportPDF = exports.createSessionWithServerDeadline = exports.onSessionCompleteTrigger = exports.exportResearchDataset = exports.backupAndResetSessionData = exports.exportAdminReportToDrive = exports.validateAndStoreTelemetry = exports.getAiServiceStatus = exports.callGeminiSocraticProxy = exports.syncUserRoles = exports.generateSocraticHint = void 0;
+exports.authenticateStudentSession = exports.onStudentEvent = exports.verifyTeacherSSO = exports.sendTeacherAdminMessage = exports.hourlyAdminAggregator = exports.generateClassMeetingReport = exports.getPedagogicalReportDownloadUrl = exports.generatePedagogicalReportPDF = exports.createSessionWithServerDeadline = exports.onSessionCompleteTrigger = exports.exportResearchDataset = exports.backupAndResetSessionData = exports.exportAdminReportToDrive = exports.getAiServiceStatus = exports.callGeminiSocraticProxy = exports.syncUserRoles = exports.generateSocraticHint = void 0;
 const https_1 = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
@@ -169,8 +169,11 @@ Object.defineProperty(exports, "callGeminiSocraticProxy", { enumerable: true, ge
 var aiMonitoring_1 = require("./aiMonitoring");
 Object.defineProperty(exports, "getAiServiceStatus", { enumerable: true, get: function () { return aiMonitoring_1.getAiServiceStatus; } });
 // Export the Transaction Guard module
-var transactionGuard_1 = require("./transactionGuard");
-Object.defineProperty(exports, "validateAndStoreTelemetry", { enumerable: true, get: function () { return transactionGuard_1.validateAndStoreTelemetry; } });
+// validateAndStoreTelemetry was removed. It validated the payload, stored
+// nothing — the storage line was a commented-out sketch — logged "ingested"
+// and returned { success: true }. An offline client that trusted that answer
+// dequeued and dropped the event. No client called it; the live telemetry
+// path is onStudentEvent, which stores and checks ownership.
 // Export the Google Drive Admin PDF Report module
 var exportDriveReport_1 = require("./exportDriveReport");
 Object.defineProperty(exports, "exportAdminReportToDrive", { enumerable: true, get: function () { return exportDriveReport_1.exportAdminReportToDrive; } });

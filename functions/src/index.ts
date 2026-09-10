@@ -184,7 +184,11 @@ export { callGeminiSocraticProxy } from "./geminiProxy";
 export { getAiServiceStatus } from "./aiMonitoring";
 
 // Export the Transaction Guard module
-export { validateAndStoreTelemetry } from "./transactionGuard";
+// validateAndStoreTelemetry was removed. It validated the payload, stored
+// nothing — the storage line was a commented-out sketch — logged "ingested"
+// and returned { success: true }. An offline client that trusted that answer
+// dequeued and dropped the event. No client called it; the live telemetry
+// path is onStudentEvent, which stores and checks ownership.
 
 // Export the Google Drive Admin PDF Report module
 export { exportAdminReportToDrive, backupAndResetSessionData, exportResearchDataset } from "./exportDriveReport";

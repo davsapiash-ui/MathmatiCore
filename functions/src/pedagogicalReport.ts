@@ -1,10 +1,11 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { requireTeacherForIndividualData } from "./callerIdentity";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import * as path from "path";
 import * as fs from "fs";
 import { DRIVE_FOLDERS, resolveDriveFolder, uploadBufferToDrive } from "./exportDriveReport";
-import { DIAGNOSTIC_COMPULSORY_COUNT, computeFirstAttemptScore, sessionNumberFromId } from "./meetingMetrics";
+import { DIAGNOSTIC_COMPULSORY_COUNT, computeFirstAttemptScore, readAllTelemetryForSession, sessionNumberFromId } from "./meetingMetrics";
 import { GEMINI_SECRETS } from "./geminiConfig";
 import {
   buildFailedExercises,
@@ -300,35 +301,7 @@ export function createPedagogicalReportPdfBufferWithPdfkit(report: Record<string
   });
 }
 
-const TELEMETRY_PAGE = 500;
-const TELEMETRY_MAX_PAGES = 200; // 100,000 events — far beyond one learner's meeting.
 
-/**
- * Every telemetry event of one meeting, in the order the learner produced
- * them. A meeting is a few hundred events; the old single page of 100 cut the
- * narrative and the analysis off after the first exercise or two.
- */
-async function readAllTelemetryForSession(
-  db: admin.firestore.Firestore,
-  sessionId: string
-): Promise<Record<string, any>[]> {
-  const docs: Record<string, any>[] = [];
-  const base = db.collection("telemetry_logs")
-    .where("session_id", "==", sessionId)
-    .orderBy(admin.firestore.FieldPath.documentId())
-    .limit(TELEMETRY_PAGE);
-  let last: admin.firestore.QueryDocumentSnapshot | null = null;
-  for (let page = 0; page < TELEMETRY_MAX_PAGES; page++) {
-    const pageQuery: admin.firestore.Query = last ? base.startAfter(last) : base;
-    const snap: admin.firestore.QuerySnapshot = await pageQuery.get();
-    if (snap.empty) break;
-    for (const d of snap.docs) docs.push(d.data());
-    last = snap.docs[snap.docs.length - 1];
-    if (snap.size < TELEMETRY_PAGE) break;
-  }
-  docs.sort((a, b) => (a.client_timestamp || 0) - (b.client_timestamp || 0));
-  return docs;
-}
 
 /**
  * generatePedagogicalReportPDF (Module 23: Pedagogical Reporting Engine)
@@ -347,6 +320,15 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     throw new HttpsError("unauthenticated", "User must be authenticated.");
   }
 
+  // Being signed in was the only gate here. The Admin SDK bypasses the
+  // Firestore rules, so nothing else stood between a learner's token and any
+  // other learner's full individual report — score, narrative, knowledge-gap
+  // analysis and a permanent download link. Module 23 §ג gives this action to
+  // the teacher, and Module 24 §ב blocks a system admin from an individual
+  // learner's documents; the product owner's identity carries both claims and
+  // is unaffected.
+  requireTeacherForIndividualData(request.auth.token as Record<string, unknown>);
+
   const { sessionId, classId = "class_1", sessionNumber, studentId: explicitStudentId } = request.data || {};
   if (!sessionId || typeof sessionId !== "string") {
     throw new HttpsError("invalid-argument", "Missing sessionId.");
@@ -361,11 +343,18 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
   const studentId = studentDigits;
   const clampedStudentNum = Math.min(12, Math.max(1, parseInt(studentDigits, 10)));
 
+  // A meeting number that cannot be resolved used to default to 2, which
+  // titled the report "meeting 2", filed it under meeting 2, and fixed the
+  // denominator at the diagnostic meeting's seven exercises. That is an
+  // invented fact about a real child; refuse instead.
   const resolvedSessionNumber =
     Number(sessionNumber) ||
     Number(sessionDoc.exists ? sessionDoc.data()?.session_number : 0) ||
     sessionNumberFromId(sessionId) ||
-    2;
+    0;
+  if (!Number.isInteger(resolvedSessionNumber) || resolvedSessionNumber < 1 || resolvedSessionNumber > 8) {
+    throw new HttpsError("invalid-argument", "לא ניתן לקבוע לאיזה מפגש שייך הדוח. יש להעביר מספר מפגש בין 1 ל-8.");
+  }
 
   // Every telemetry event of this meeting, for the narrative, the score and the analysis.
   const telemetryDocs = await readAllTelemetryForSession(db, sessionId);
@@ -410,6 +399,17 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
       }
     }
     const first = computeFirstAttemptScore(telemetryDocs, compulsoryTotal);
+    // Without the meeting's compulsory count there is no denominator, and a
+    // percentage over "whatever the learner happened to open" is not a
+    // measurement. The old code returned one anyway: one exercise opened and
+    // solved read as 100%, a session with no exercise events read as 0% and
+    // routed the child to a remediation group on the strength of nothing.
+    if (first.scorePercent === null) {
+      throw new HttpsError(
+        "failed-precondition",
+        `לא ניתן לחשב ציון למפגש ${resolvedSessionNumber} של תלמיד ${clampedStudentNum}: מאגר תרגילי החובה של המפגש אינו זמין. הדוח לא הופק.`
+      );
+    }
     sessionData = {
       session_number: resolvedSessionNumber,
       is_completed: telemetryDocs.some((d) => d.event_type === "SESSION_END" || d.event_type === "PROBLEM_COMPLETE"),
@@ -710,16 +710,10 @@ export const getPedagogicalReportDownloadUrl = onCall(async (request) => {
   }
 
   // Teacher authorization check against class_id
-  const callerRoles = request.auth.token.roles || (request.auth.token.role ? [request.auth.token.role] : []);
-  const isTeacher = callerRoles.includes("TEACHER") || request.auth.token.role === "teacher" || request.auth.token.teacher === true;
-  const isAdmin = callerRoles.includes("ADMIN") || request.auth.token.role === "admin" || request.auth.token.admin === true;
+  requireTeacherForIndividualData(request.auth.token as Record<string, unknown>);
   const callerClassId = request.auth.token.class_id;
 
-  if (!isTeacher && !isAdmin) {
-    throw new HttpsError("permission-denied", "Unauthorized access.");
-  }
-
-  if (isTeacher && !isAdmin && callerClassId && callerClassId !== data.class_id) {
+  if (callerClassId && callerClassId !== data.class_id) {
     throw new HttpsError("permission-denied", "Access denied: teacher not assigned to this class.");
   }
 

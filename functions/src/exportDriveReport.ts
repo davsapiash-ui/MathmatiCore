@@ -1,4 +1,5 @@
 import { onCall, HttpsError, type CallableRequest } from "firebase-functions/v2/https";
+import { requireAdmin } from "./callerIdentity";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import { GoogleAuth } from "google-auth-library";
@@ -44,26 +45,13 @@ function createPDFBuffer(data: {
     `(- Total Active Enrolled Students: ${data.studentsCount}) Tj`,
     "0 -18 Td",
     `(- Active Realtime Pedagogical Radar Alerts: ${data.alertsCount}) Tj`,
-    "0 -28 Td",
-    "/F1 14 Tf",
-    "(2. SECURITY & PRIVACY COMPLIANCE AUDIT) Tj",
-    "/F1 11 Tf",
-    "0 -22 Td",
-    "(- PII Regex Gateway: ENFORCED \(Zero PII Leaks\)) Tj",
-    "0 -18 Td",
-    "(- 30-Day Video Replay Retention: COMPLIANT) Tj",
-    "0 -18 Td",
-    "(- Domain Constraints: ENFORCED \(@edu-haifa.org.il\)) Tj",
-    "0 -18 Td",
-    "(- Fail-Safe Firebase Auth & Role Whitelist: ACTIVE) Tj",
-    "0 -28 Td",
-    "/F1 14 Tf",
-    "(3. TARGET GOOGLE DRIVE STORAGE METADATA) Tj",
-    "/F1 11 Tf",
-    "0 -22 Td",
-    `(- Target Shared Folder ID: ${GOOGLE_DRIVE_FOLDER_ID}) Tj`,
-    "0 -18 Td",
-    `(- Destination Drive Folder: Shared Drive MathmatiCore Reports) Tj`,
+    // A "SECURITY & PRIVACY COMPLIANCE AUDIT" section used to sit here: four
+    // hardcoded lines reading ENFORCED / COMPLIANT / ACTIVE, measured from
+    // nothing. Two were untrue — the 30-day replay retention job does not
+    // exist, and the institutional domain restriction was deliberately waived
+    // by the product owner (approved deviation 1). A governance report that
+    // certifies controls nobody checked is worse than no report. The counts
+    // above are real values the caller measured; nothing else is asserted.
     "ET"
   ];
 
@@ -181,6 +169,13 @@ export const exportAdminReportToDrive = onCall(async (request) => {
     throw new HttpsError("unauthenticated", "User must be authenticated to export reports.");
   }
 
+  // Being signed in was the only gate. The login screen opens an anonymous
+  // session before a child identifies, so any visitor could write PDFs into
+  // the shared institutional Drive folder, append documents to /reports that
+  // teachers read, and read back the folder id and the institutional address
+  // from the response. This is the governance report: it belongs to the admin.
+  requireAdmin(request.auth.token as Record<string, unknown>);
+
   const userEmail = request.auth.token.email || "admin@mathmaticore.local";
   const { schoolsCount = 0, teachersCount = 0, studentsCount = 0, alertsCount = 0 } = request.data || {};
 
@@ -198,8 +193,10 @@ export const exportAdminReportToDrive = onCall(async (request) => {
     generatedBy: userEmail,
   });
 
-  let driveFileId = `drive_${Date.now()}`;
-  let webViewLink = `https://drive.google.com/drive/folders/${GOOGLE_DRIVE_FOLDER_ID}`;
+  let driveFileId = "";
+  let webViewLink = "";
+  let uploaded = false;
+  let auditLogged = false;
 
   try {
     const accessToken = await getDriveAccessToken();
@@ -240,9 +237,10 @@ export const exportAdminReportToDrive = onCall(async (request) => {
 
       if (response.ok) {
         const resData = await response.json();
-        driveFileId = resData.id || driveFileId;
         if (resData.id) {
+          driveFileId = resData.id;
           webViewLink = `https://drive.google.com/file/d/${resData.id}/view`;
+          uploaded = true;
         }
         logger.info(`Successfully uploaded PDF report to Google Drive: ${driveFileId}`);
       } else {
@@ -274,17 +272,25 @@ export const exportAdminReportToDrive = onCall(async (request) => {
         alertsCount,
       },
     });
+    auditLogged = true;
   } catch (dbErr) {
     logger.warn("Report Firestore log note:", dbErr);
+  }
+
+  // The Drive upload and the audit write are both allowed to fail above, and
+  // both were swallowed while this returned SUCCESS with a placeholder file id
+  // and a link to a file that does not exist. Say what actually happened, and
+  // do not hand the caller the folder id or the institutional address.
+  if (!uploaded) {
+    throw new HttpsError("unavailable", "הדוח נוצר אך העלאתו ל-Drive נכשלה. לא נשמר קובץ.");
   }
 
   return {
     status: "SUCCESS",
     fileName,
     fileId: driveFileId,
-    driveFolderId: GOOGLE_DRIVE_FOLDER_ID,
-    serviceAccount: SERVICE_ACCOUNT_EMAIL,
     webViewLink,
+    auditLogged,
   };
 });
 

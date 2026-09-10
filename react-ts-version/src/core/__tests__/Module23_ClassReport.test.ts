@@ -43,8 +43,12 @@ describe('Module 23 — class report per meeting (server)', () => {
   });
 
   it('aggregates the class: tiers by the PRD percentage rule, per-exercise first-try success, error columns', () => {
-    expect(server).toMatch(/recommendation_tier: resolveRecommendationTier\(score\)/);
-    expect(server).toMatch(/tiers\[r\.recommendation_tier\]\.push\(r\.student_id\)/);
+    // A learner whose compulsory count is unknown has no score, and therefore
+    // no tier. Placing them in one would be an invented measurement.
+    expect(server).toMatch(/recommendation_tier: score === null \? null : resolveRecommendationTier\(score\)/);
+    expect(server).toMatch(/if \(r\.recommendation_tier\) tiers\[r\.recommendation_tier\]\.push\(r\.student_id\)/);
+    expect(server).toContain('learners_without_score');
+    expect(server).toContain('לא נמדד');
     expect(server).toMatch(/first_try_percent: row\.attempted > 0 \? Math\.round\(\(row\.first_try \/ row\.attempted\) \* 100\) : 0/);
     expect(server).toMatch(/learners_without_data: ALL_STUDENT_IDS\.filter/);
     expect(server).toContain('score_median');

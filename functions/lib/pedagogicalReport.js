@@ -4,6 +4,7 @@ exports.getPedagogicalReportDownloadUrl = exports.generatePedagogicalReportPDF =
 exports.createPedagogicalReportPdfBuffer = createPedagogicalReportPdfBuffer;
 exports.createPedagogicalReportPdfBufferWithPdfkit = createPedagogicalReportPdfBufferWithPdfkit;
 const https_1 = require("firebase-functions/v2/https");
+const callerIdentity_1 = require("./callerIdentity");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
 const path = require("path");
@@ -273,34 +274,6 @@ function createPedagogicalReportPdfBufferWithPdfkit(report) {
         }
     });
 }
-const TELEMETRY_PAGE = 500;
-const TELEMETRY_MAX_PAGES = 200; // 100,000 events — far beyond one learner's meeting.
-/**
- * Every telemetry event of one meeting, in the order the learner produced
- * them. A meeting is a few hundred events; the old single page of 100 cut the
- * narrative and the analysis off after the first exercise or two.
- */
-async function readAllTelemetryForSession(db, sessionId) {
-    const docs = [];
-    const base = db.collection("telemetry_logs")
-        .where("session_id", "==", sessionId)
-        .orderBy(admin.firestore.FieldPath.documentId())
-        .limit(TELEMETRY_PAGE);
-    let last = null;
-    for (let page = 0; page < TELEMETRY_MAX_PAGES; page++) {
-        const pageQuery = last ? base.startAfter(last) : base;
-        const snap = await pageQuery.get();
-        if (snap.empty)
-            break;
-        for (const d of snap.docs)
-            docs.push(d.data());
-        last = snap.docs[snap.docs.length - 1];
-        if (snap.size < TELEMETRY_PAGE)
-            break;
-    }
-    docs.sort((a, b) => (a.client_timestamp || 0) - (b.client_timestamp || 0));
-    return docs;
-}
 /**
  * generatePedagogicalReportPDF (Module 23: Pedagogical Reporting Engine)
  * Computes metrics, builds deterministic Exercise Narratives, renders an authoritative
@@ -318,6 +291,14 @@ exports.generatePedagogicalReportPDF = (0, https_1.onCall)(Object.assign(Object.
     if (!request.auth) {
         throw new https_1.HttpsError("unauthenticated", "User must be authenticated.");
     }
+    // Being signed in was the only gate here. The Admin SDK bypasses the
+    // Firestore rules, so nothing else stood between a learner's token and any
+    // other learner's full individual report — score, narrative, knowledge-gap
+    // analysis and a permanent download link. Module 23 §ג gives this action to
+    // the teacher, and Module 24 §ב blocks a system admin from an individual
+    // learner's documents; the product owner's identity carries both claims and
+    // is unaffected.
+    (0, callerIdentity_1.requireTeacherForIndividualData)(request.auth.token);
     const { sessionId, classId = "class_1", sessionNumber, studentId: explicitStudentId } = request.data || {};
     if (!sessionId || typeof sessionId !== "string") {
         throw new https_1.HttpsError("invalid-argument", "Missing sessionId.");
@@ -330,12 +311,19 @@ exports.generatePedagogicalReportPDF = (0, https_1.onCall)(Object.assign(Object.
     }
     const studentId = studentDigits;
     const clampedStudentNum = Math.min(12, Math.max(1, parseInt(studentDigits, 10)));
+    // A meeting number that cannot be resolved used to default to 2, which
+    // titled the report "meeting 2", filed it under meeting 2, and fixed the
+    // denominator at the diagnostic meeting's seven exercises. That is an
+    // invented fact about a real child; refuse instead.
     const resolvedSessionNumber = Number(sessionNumber) ||
         Number(sessionDoc.exists ? (_b = sessionDoc.data()) === null || _b === void 0 ? void 0 : _b.session_number : 0) ||
         (0, meetingMetrics_1.sessionNumberFromId)(sessionId) ||
-        2;
+        0;
+    if (!Number.isInteger(resolvedSessionNumber) || resolvedSessionNumber < 1 || resolvedSessionNumber > 8) {
+        throw new https_1.HttpsError("invalid-argument", "לא ניתן לקבוע לאיזה מפגש שייך הדוח. יש להעביר מספר מפגש בין 1 ל-8.");
+    }
     // Every telemetry event of this meeting, for the narrative, the score and the analysis.
-    const telemetryDocs = await readAllTelemetryForSession(db, sessionId);
+    const telemetryDocs = await (0, meetingMetrics_1.readAllTelemetryForSession)(db, sessionId);
     const exerciseNarratives = generateExerciseNarrativeFromEvents(telemetryDocs);
     // The learner's live record: the approved path and gate state live there
     // for every meeting, whether or not a SessionDocument was written.
@@ -373,6 +361,14 @@ exports.generatePedagogicalReportPDF = (0, https_1.onCall)(Object.assign(Object.
             }
         }
         const first = (0, meetingMetrics_1.computeFirstAttemptScore)(telemetryDocs, compulsoryTotal);
+        // Without the meeting's compulsory count there is no denominator, and a
+        // percentage over "whatever the learner happened to open" is not a
+        // measurement. The old code returned one anyway: one exercise opened and
+        // solved read as 100%, a session with no exercise events read as 0% and
+        // routed the child to a remediation group on the strength of nothing.
+        if (first.scorePercent === null) {
+            throw new https_1.HttpsError("failed-precondition", `לא ניתן לחשב ציון למפגש ${resolvedSessionNumber} של תלמיד ${clampedStudentNum}: מאגר תרגילי החובה של המפגש אינו זמין. הדוח לא הופק.`);
+        }
         sessionData = {
             session_number: resolvedSessionNumber,
             is_completed: telemetryDocs.some((d) => d.event_type === "SESSION_END" || d.event_type === "PROBLEM_COMPLETE"),
@@ -647,14 +643,9 @@ exports.getPedagogicalReportDownloadUrl = (0, https_1.onCall)(async (request) =>
         throw new https_1.HttpsError("not-found", "Storage path not found on report document.");
     }
     // Teacher authorization check against class_id
-    const callerRoles = request.auth.token.roles || (request.auth.token.role ? [request.auth.token.role] : []);
-    const isTeacher = callerRoles.includes("TEACHER") || request.auth.token.role === "teacher" || request.auth.token.teacher === true;
-    const isAdmin = callerRoles.includes("ADMIN") || request.auth.token.role === "admin" || request.auth.token.admin === true;
+    (0, callerIdentity_1.requireTeacherForIndividualData)(request.auth.token);
     const callerClassId = request.auth.token.class_id;
-    if (!isTeacher && !isAdmin) {
-        throw new https_1.HttpsError("permission-denied", "Unauthorized access.");
-    }
-    if (isTeacher && !isAdmin && callerClassId && callerClassId !== data.class_id) {
+    if (callerClassId && callerClassId !== data.class_id) {
         throw new https_1.HttpsError("permission-denied", "Access denied: teacher not assigned to this class.");
     }
     const bucket = admin.storage().bucket();

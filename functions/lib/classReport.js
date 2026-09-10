@@ -9,6 +9,7 @@ exports.buildClassCsv = buildClassCsv;
 exports.createClassReportPdfBuffer = createClassReportPdfBuffer;
 exports.createClassReportPdfBufferWithPdfkit = createClassReportPdfBufferWithPdfkit;
 const https_1 = require("firebase-functions/v2/https");
+const callerIdentity_1 = require("./callerIdentity");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
 const path = require("path");
@@ -103,7 +104,7 @@ function buildLearnerRow(studentId, events, compulsoryTotal, learningPath, sessi
         learning_path: learningPath,
         score_percent: score,
         score_source: docScore !== null ? "session_document" : "telemetry_first_attempt",
-        recommendation_tier: (0, reportAnalysis_1.resolveRecommendationTier)(score),
+        recommendation_tier: score === null ? null : (0, reportAnalysis_1.resolveRecommendationTier)(score),
         compulsory_total: first.denominator,
         correct_first_attempt: first.correctFirstAttempt,
         exercises_attempted: summary.exercises_attempted,
@@ -137,11 +138,17 @@ function buildLearnerRow(studentId, events, compulsoryTotal, learningPath, sessi
         teacher_gate_approved: Boolean(sessionDoc === null || sessionDoc === void 0 ? void 0 : sessionDoc.teacher_gate_approved),
     };
 }
+/** A percentage that may not have been measured. Never printed as a bare number. */
+const pct = (value) => (value === null ? "לא נמדד" : `${value}%`);
 /** The class picture: the same measurements, summed and distributed across the learners. */
 function aggregateClass(rows, eventsByLearner) {
     var _a, _b;
-    const scores = rows.map((r) => r.score_percent).sort((a, b) => a - b);
-    const n = rows.length;
+    // Only learners whose score could actually be computed enter the class
+    // statistics. Averaging a fabricated 0% or 100% into the class mean was the
+    // same defect one level up.
+    const scored = rows.filter((r) => r.score_percent !== null);
+    const scores = scored.map((r) => r.score_percent).sort((a, b) => a - b);
+    const n = scores.length;
     const median = n === 0 ? 0 : n % 2 === 1 ? scores[(n - 1) / 2] : (scores[n / 2 - 1] + scores[n / 2]) / 2;
     const sum = (pick) => rows.reduce((acc, r) => acc + pick(r), 0);
     const mergeCounts = (pick) => {
@@ -153,7 +160,8 @@ function aggregateClass(rows, eventsByLearner) {
     };
     const tiers = { below_50: [], between_50_75: [], above_75: [] };
     for (const r of rows)
-        tiers[r.recommendation_tier].push(r.student_id);
+        if (r.recommendation_tier)
+            tiers[r.recommendation_tier].push(r.student_id);
     // Per exercise: how many learners opened it, finished it, finished it first try,
     // and how much trouble it caused (wrong digits, cards, hesitations).
     const perExercise = new Map();
@@ -191,12 +199,13 @@ function aggregateClass(rows, eventsByLearner) {
         .sort((a, b) => a.exercise_id.localeCompare(b.exercise_id, undefined, { numeric: true }));
     const withData = new Set(rows.map((r) => r.student_id));
     return {
-        learners_with_data: n,
+        learners_with_data: rows.length,
         learners_without_data: ALL_STUDENT_IDS.filter((id) => !withData.has(id)),
-        score_mean: n === 0 ? 0 : round1(sum((r) => r.score_percent) / n),
-        score_median: round1(median),
-        score_min: n === 0 ? 0 : scores[0],
-        score_max: n === 0 ? 0 : scores[n - 1],
+        learners_without_score: rows.filter((r) => r.score_percent === null).map((r) => r.student_id),
+        score_mean: n === 0 ? null : round1(scores.reduce((a, b) => a + b, 0) / n),
+        score_median: n === 0 ? null : round1(median),
+        score_min: n === 0 ? null : scores[0],
+        score_max: n === 0 ? null : scores[n - 1],
         tiers,
         paths: {
             green_path: rows.filter((r) => r.learning_path === "green_path").length,
@@ -413,8 +422,8 @@ function createClassReportPdfBufferWithPdfkit(report) {
             const cardY = doc.y + 12;
             (0, hebrewPdf_1.rtlText)(doc, `מפגש: ${report.session_number}`, 400, cardY, { width: 140 });
             (0, hebrewPdf_1.rtlText)(doc, `לומדים עם נתונים: ${a.learners_with_data} מתוך 12`, 200, cardY, { width: 190 });
-            (0, hebrewPdf_1.rtlText)(doc, `ציון ממוצע: ${a.score_mean}%`, 55, cardY, { width: 140 });
-            (0, hebrewPdf_1.rtlText)(doc, `חציון: ${a.score_median}% | טווח: ${a.score_min}%–${a.score_max}% | מסלול ירוק: ${a.paths.green_path} | מסלול ביסוס: ${a.paths.remediation_path}`, 55, cardY + 25, { width: 490 });
+            (0, hebrewPdf_1.rtlText)(doc, `ציון ממוצע: ${pct(a.score_mean)}`, 55, cardY, { width: 140 });
+            (0, hebrewPdf_1.rtlText)(doc, `חציון: ${pct(a.score_median)} | טווח: ${pct(a.score_min)}–${pct(a.score_max)} | מסלול ירוק: ${a.paths.green_path} | מסלול ביסוס: ${a.paths.remediation_path}`, 55, cardY + 25, { width: 490 });
             doc.x = 40;
             doc.y = cardY + 60;
             heading("1. קבוצות עבודה לפי כלל האחוזים (שכבה 1, דטרמיניסטית)", "#166534");
@@ -484,19 +493,19 @@ exports.generateClassMeetingReport = (0, https_1.onCall)(exports.CLASS_REPORT_RU
     if (!request.auth) {
         throw new https_1.HttpsError("unauthenticated", "User must be authenticated.");
     }
+    // The class report is a table of individual learner rows: each child's
+    // score, wrong digits by column, hesitations and per-exercise outcomes.
+    // Module 24 §ב blocks a system administrator from exactly that, and the
+    // Firestore rules already say so — but the Admin SDK bypasses them, so the
+    // check has to live here. A dual teacher+admin identity still passes.
+    (0, callerIdentity_1.requireTeacherForIndividualData)(request.auth.token);
     const token = request.auth.token;
-    const callerRoles = Array.isArray(token.roles) ? token.roles : token.role ? [token.role] : [];
-    const isTeacher = callerRoles.includes("TEACHER") || token.role === "teacher" || token.teacher === true;
-    const isAdmin = callerRoles.includes("ADMIN") || token.role === "admin" || token.admin === true;
-    if (!isTeacher && !isAdmin) {
-        throw new https_1.HttpsError("permission-denied", "Only teachers or admins may generate a class report.");
-    }
     const { classId = "class_1" } = request.data || {};
     const sessionNumber = Number((_a = request.data) === null || _a === void 0 ? void 0 : _a.sessionNumber);
     if (!Number.isInteger(sessionNumber) || sessionNumber < 1 || sessionNumber > 8) {
         throw new https_1.HttpsError("invalid-argument", "sessionNumber must be 1-8.");
     }
-    if (isTeacher && !isAdmin && token.class_id && token.class_id !== classId) {
+    if (token.class_id && token.class_id !== classId) {
         throw new https_1.HttpsError("permission-denied", "Teacher is restricted to their own class.");
     }
     const db = admin.firestore();
