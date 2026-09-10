@@ -998,7 +998,7 @@ export function StudentWorkspacePage() {
     return (
       <div dir="rtl" className="h-screen w-full flex flex-col items-center justify-center bg-ws-bg text-ws-ink font-body p-6 animate-in fade-in duration-300">
         <div className="bg-ws-surface p-10 rounded-3xl shadow-2xl max-w-md w-full text-center border-2 border-ws-surface2 space-y-6">
-          <div className="text-6xl animate-bounce">🎉✨</div>
+          <div className="text-6xl animate-bounce motion-essential">🎉✨</div>
           <h1 className="text-3xl font-display font-black text-ws-ink">
             כל הכבוד, מתמטיקאים!
           </h1>
@@ -1050,6 +1050,12 @@ export function StudentWorkspacePage() {
     >
       <div
       dir="rtl"
+      // מסמך העיצוב §1.3 ("מצב שקט חזותי"): המורה כבר מסמנת רגישות חושית
+      // בתנאי הלמידה, אבל הסימון הזה לא השפיע על שום דבר במסך הילד. כאן
+      // הוא מכבה את התנועה הדקורטיבית — פעימות, ריצודים והבהובים — בלי
+      // לגעת בתנועה שמלמדת (היד המנחה, חגיגת הסיום), שמסומנת
+      // motion-essential.
+      data-quiet={isASDMode ? 'true' : undefined}
       className="h-[100dvh] w-full overflow-hidden font-body text-ws-ink flex flex-col relative bg-ws-bg"
     >
       {/* Flat vector background shapes — playful world energy, zero visual noise.

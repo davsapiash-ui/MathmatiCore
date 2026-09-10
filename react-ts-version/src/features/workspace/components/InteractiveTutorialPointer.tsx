@@ -71,7 +71,7 @@ export function InteractiveTutorialPointer({ isActive, onSkip }: InteractiveTuto
           transform: 'translate(-50%, -50%)'
         }}
       >
-        <div className="relative animate-bounce pointer-events-none">
+        <div className="relative animate-bounce motion-essential pointer-events-none">
           <MousePointer2 className="w-12 h-12 text-indigo-600 fill-indigo-100 -rotate-12 drop-shadow-lg" />
           <Sparkles className="w-5 h-5 text-amber-400 absolute -top-2 -right-4 animate-pulse" />
         </div>

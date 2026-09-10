@@ -149,7 +149,7 @@ export function StudentChatOverlay() {
       <div className="p-4 bg-ws-surface2 border-b border-ws-surface2 flex justify-between items-center shrink-0">
         <div className="flex items-center gap-2">
           <span className="font-bold text-sm text-ws-ink">צ'אט עם המורה</span>
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+          <span aria-hidden="true" className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
         </div>
         <button 
           onClick={() => setIsOpen(false)}

@@ -42,6 +42,26 @@
     outline-color: rgb(165 180 252);
   }
 
+  /*
+   * מסמך העיצוב §1.3 — "מצב שקט חזותי": כיבוי אנימציות רקע ורעש ויזואלי
+   * ללומדים עם רגישות חושית או הפרעות קשב.
+   *
+   * המורה מסמנת את הלומד בתנאי הלמידה, והסימון נכתב כ-data-quiet על שורש
+   * מרחב העבודה. כאן נכבית כל תנועה חוזרת ונשנית בתוכו. תנועה שמלמדת —
+   * היד המנחה בהדרכה, חגיגת הסיום — מסומנת motion-essential ונשארת.
+   */
+  [data-quiet='true'] .animate-pulse,
+  [data-quiet='true'] .animate-bounce,
+  [data-quiet='true'] .animate-ping,
+  [data-quiet='true'] .animate-breathe,
+  [data-quiet='true'] .animate-soft-heartbeat,
+  [data-quiet='true'] .animate-radar-call {
+    animation: none !important;
+  }
+  [data-quiet='true'] .motion-essential {
+    animation: revert !important;
+  }
+
   /* מסמך העיצוב §1.3: אפס הבהובים תזזיתיים למי שביקש תנועה מופחתת. */
   @media (prefers-reduced-motion: reduce) {
     *,

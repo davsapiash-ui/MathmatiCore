@@ -81,10 +81,15 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
         )}
 
         {/* Module 17: Silent Cloud Status Icon (Green=Online, Grey=Offline) */}
-        <div className="flex items-center mr-1" title={isOnline ? 'מחובר. העבודה שלך נשמרת.' : 'אין כרגע חיבור לרשת. העבודה שלך נשמרת כאן ותיסנכרן לבד כשהחיבור יחזור.'}>
+        <div
+          className="flex items-center mr-1"
+          role="status"
+          aria-label={isOnline ? 'מחובר. העבודה שלך נשמרת.' : 'אין כרגע חיבור לרשת. העבודה שלך נשמרת כאן ותיסנכרן לבד כשהחיבור יחזור.'}
+          title={isOnline ? 'מחובר. העבודה שלך נשמרת.' : 'אין כרגע חיבור לרשת. העבודה שלך נשמרת כאן ותיסנכרן לבד כשהחיבור יחזור.'}
+        >
           {isOnline ? (
             <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-1 rounded-full border border-emerald-200 dark:border-emerald-800">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span aria-hidden="true" className="w-2 h-2 rounded-full bg-emerald-500" />
               <Cloud className="w-3.5 h-3.5" />
             </span>
           ) : (
@@ -163,7 +168,12 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
           <MessageSquare className="w-4 h-4" />
           <span className="hidden sm:inline">צ'אט מורה</span>
           {messages.filter(m => !m.read && normalizeStudentId(m.receiverId) === currentStudentUid()).length > 0 && (
-            <span className="w-2.5 h-2.5 rounded-full bg-rose-500 absolute -top-1 -right-1 animate-pulse" />
+            <>
+              {/* מסמך העיצוב §1.1 ו-§1.3: הנקודה לבדה לא אמרה כלום למי
+                  שנעזר בהקראה, וההבהוב הפר את השקט החזותי. */}
+              <span aria-hidden="true" className="w-2.5 h-2.5 rounded-full bg-rose-500 absolute -top-1 -right-1" />
+              <span className="sr-only">יש הודעה חדשה מהמורה</span>
+            </>
           )}
         </button>
 

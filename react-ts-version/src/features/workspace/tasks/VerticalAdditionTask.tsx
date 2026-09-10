@@ -102,13 +102,26 @@ export function VerticalAdditionTask({
   };
 
   const digitCell = (d: string | null, key: string, place?: Place, extra?: React.CSSProperties) => {
-    const isStriked = isSubtraction && place && carryDigits[place];
-    
+    const isStriked = Boolean(isSubtraction && place && carryDigits[place]);
+
+    // מסמך העיצוב §1.1: אסור להעביר מידע בצבע בלבד. "הספרה הזאת נפרטה"
+    // הועבר עד כה אך ורק בקו אדום מצויר, בתוך תא שכולו aria-hidden — כך
+    // שלומד שאינו מבחין באדום, או שנעזר בהקראה, לא קיבל את המידע כלל.
+    // הקו נשאר, ולצידו סימון טקסטואלי מפורש להקראה ושינוי צורת הספרה
+    // עצמה (דהויה וקו חוצה) שאינו תלוי בגוון.
     return (
       <div
         key={key}
-        aria-hidden="true"
-        className="relative flex items-center justify-center font-mono font-black text-ws-ink leading-none"
+        aria-hidden={isStriked && d ? undefined : 'true'}
+        role={isStriked && d ? 'text' : undefined}
+        aria-label={
+          isStriked && d
+            ? `הספרה ${d}${place ? ` בטור ה${PLACE_LABEL_HE[place]}` : ''} — נפרטה`
+            : undefined
+        }
+        className={`relative flex items-center justify-center font-mono font-black text-ws-ink leading-none ${
+          isStriked && d ? 'opacity-60' : ''
+        }`}
         style={{ fontSize: CELL * 0.6, ...extra }}
       >
         {d}
