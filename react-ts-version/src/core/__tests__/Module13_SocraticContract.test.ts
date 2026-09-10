@@ -287,6 +287,35 @@ describe('Module 13: proxy and credential hardening (pinned from source)', () =>
     expect(proxy).toContain('recordAiCall({ ...base, outcome: "ok", error_category: attempt.value.error_category })');
   });
 
+  it('accepts one request shape only — the free-text path is gone', () => {
+    // הנתיב הישן העביר טקסט חופשי של הקורא אל המודל. זו בדיוק השיחה
+    // הפתוחה שמודול 13 אוסר, והשומר שמעליו תפס רק קורא שהצהיר על כך
+    // בעצמו בשדות הבקשה. שום לקוח לא השתמש בו.
+    expect(proxy).toContain('Missing required payload field: socratic_request.');
+    expect(proxy).not.toContain('Legacy free-text path');
+    expect(proxy).not.toContain('socratic_legacy');
+    expect(proxy).not.toMatch(/const securePayload/);
+
+    const engine = readFileSync(
+      resolve(__dirname, '../../infrastructure/services/SocraticEngine.ts'),
+      'utf-8'
+    );
+    const payloadType = engine.slice(engine.indexOf('export interface SocraticProxyPayload'));
+    const body = payloadType.slice(0, payloadType.indexOf('}'));
+    expect(body).not.toMatch(/\bprompt\?:/);
+    expect(body).not.toMatch(/\bcontext\?:/);
+    expect(body).not.toMatch(/\bhistory\?:/);
+  });
+
+  it('a learner may ask for a hint about their own work only', () => {
+    // בלי הבדיקה הזו, כל משתמש מאומת — כולל ההתחברות האנונימית שמסך
+    // הכניסה פותח לפני שילד מזדהה — יכול לשרוף את מכסת המודל של הפרויקט
+    // ולרשום שורות ניטור על שם כל אחד מ-12 הלומדים.
+    expect(proxy).toContain('callerStudentId !== req.student_id');
+    expect(proxy).toContain('permission-denied');
+    expect(proxy).toMatch(/callerRole === "teacher" \|\| callerRole === "admin"/);
+  });
+
   it('keeps the Zero-Chatbot policy and the legacy PII scrub', () => {
     expect(proxy).toContain('Zero-Chatbot Policy Violation');
     expect(proxy).toContain('export function scrubPII');

@@ -50,9 +50,10 @@ export function AdminWizardModal({
   const [schoolError, setSchoolError] = useState("");
 
   // Step 2: Teacher Form
-  const [teacherName, setTeacherName] = useState("");
+  // זהות המורה היא כתובת הדוא"ל המורשית בלבד. שדה "שם מלא" הוסר: השם לא
+  // שימש שום החלטה במערכת, ורק נשמר בצומת שכל משתמש מחובר קורא. שדה תאריך
+  // הלידה הוסר גם הוא — הוא מעולם לא היה מחובר לקלט, ולכן שמר קבוע.
   const [teacherSsoEmail, setTeacherSsoEmail] = useState("");
-  const [teacherDob, setTeacherDob] = useState("");
   const [teacherError, setTeacherError] = useState("");
 
   // Step 3: Class Form (Module 25 §ב.1: class_name is fixed by spec, never
@@ -77,9 +78,7 @@ export function AdminWizardModal({
     setStep(mode === "add_teacher" ? 2 : mode === "add_class" ? 3 : 1);
     setSelectedSchoolId(initialTargetSchoolId || (schools[0]?.id ?? ""));
     setSchoolName("");
-    setTeacherName("");
     setTeacherSsoEmail("");
-    setTeacherDob("");
     setSchoolError("");
     setTeacherError("");
     setClassError("");
@@ -114,10 +113,6 @@ export function AdminWizardModal({
   // very button refuse the second teacher of the pilot school.
   const validateStep2 = (_targetSchoolId: string) => {
     setTeacherError("");
-    if (!teacherName.trim()) {
-      setTeacherError("נא להזין שם מורה.");
-      return false;
-    }
     const email = teacherSsoEmail.trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       setTeacherError("נא להזין כתובת דוא\"ל תקינה — כתובת זו תשמש את המורה בהתחברות דרך Google.");
@@ -171,9 +166,7 @@ export function AdminWizardModal({
     try {
       await provisionFullInstitution({
         schoolName: schoolName.trim(),
-        teacherName: teacherName.trim(),
         teacherEmail: teacherSsoEmail.trim(),
-        teacherDob: teacherDob.trim() || "010190",
         className: PILOT_CLASS_NAME,
         classType,
         studentLimit: parseInt(studentLimit, 10) || 12,
@@ -200,7 +193,7 @@ export function AdminWizardModal({
       // Resolves only after the RTDB record and the login whitelist are both
       // written; a rejected write (rules, network) shows here instead of a
       // success screen for a teacher who could not actually sign in.
-      await addTeacher(schoolId, teacherName.trim(), teacherSsoEmail.trim().toLowerCase(), teacherDob.trim() || "010190");
+      await addTeacher(schoolId, teacherSsoEmail.trim().toLowerCase());
       setIsDone(true);
     } catch (err) {
       console.error("Failed to register teacher:", err);
@@ -243,9 +236,7 @@ export function AdminWizardModal({
   const resetAndClose = () => {
     setStep(1);
     setSchoolName("");
-    setTeacherName("");
     setTeacherSsoEmail("");
-    setTeacherDob("");
     setSchoolError("");
     setTeacherError("");
     setClassError("");
@@ -498,19 +489,6 @@ export function AdminWizardModal({
                       <div className="space-y-4">
                         <div>
                           <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1">
-                            שם מלא של המורה <span className="text-rose-500">*</span>
-                          </label>
-                          <input 
-                            type="text" 
-                            placeholder="ישראל ישראלי"
-                            value={teacherName}
-                            onChange={(e) => { setTeacherName(e.target.value); setTeacherError(""); }}
-                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-2xl p-3.5 text-sm focus:border-indigo-500 outline-none"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1">
                             כתובת דוא"ל ארגונית (Google SSO) <span className="text-rose-500">*</span>
                           </label>
                           <input 
@@ -640,11 +618,7 @@ export function AdminWizardModal({
                             <span className="font-bold text-slate-800 dark:text-slate-100">{schoolName}</span>
                           </div>
                           <div className="pt-3 flex justify-between">
-                            <span className="text-slate-500">מורה אחראי:</span>
-                            <span className="font-bold text-slate-800 dark:text-slate-100">{teacherName}</span>
-                          </div>
-                          <div className="pt-3 flex justify-between">
-                            <span className="text-slate-500">דוא"ל SSO מורשה:</span>
+                            <span className="text-slate-500">מורה אחראי (דוא"ל SSO מורשה):</span>
                             <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">{teacherSsoEmail}</span>
                           </div>
                           <div className="pt-3 flex justify-between">

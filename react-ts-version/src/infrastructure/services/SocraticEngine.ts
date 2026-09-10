@@ -7,13 +7,15 @@ import { digitAt, type Place } from "@/core/placeValue";
 
 export type { GeminiSocraticRequest, GeminiSocraticResponse, GeminiSocraticOption };
 
-/** Wire payload of callGeminiSocraticProxy: the PRD contract, plus the legacy free-text fields older servers read. */
+/**
+ * Wire payload of callGeminiSocraticProxy — the Module 13 §ב contract, and
+ * nothing else. The free-text fields (prompt/context/history) were removed
+ * together with the server path that read them: forwarding caller prose to
+ * the model is the open-ended chat Module 13 forbids.
+ */
 export interface SocraticProxyPayload {
   socratic_request?: GeminiSocraticRequest;
   anchor?: { questionHe: string; pedagogical_intent?: string; choices: { id: string; textHe: string; isCorrect?: boolean }[] };
-  prompt?: string;
-  context?: string;
-  history?: any[];
 }
 
 async function ready(): Promise<void> {
@@ -1020,8 +1022,6 @@ export class SocraticEngine {
         SocraticEngine.callGeminiProxy({
           socratic_request: socraticRequest,
           anchor,
-          // Legacy hint for pre-contract servers: the node the Q-Matrix flagged and the prose actions.
-          context: JSON.stringify({ targetNode, recentActions: recentActions ?? [] }),
         }),
         timeoutPromise,
       ]).finally(() => {

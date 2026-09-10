@@ -64,7 +64,7 @@ export function AdminChatView() {
       const schoolName = schools.find((s) => s.id === t.schoolId)?.name;
       return {
         id,
-        label: t.name || `מורה ${idx + 1}`,
+        label: t.ssoEmail || `מורה ${idx + 1}`,
         subtitle: schoolName || "",
         schoolId: t.schoolId || "school_pilot_01",
       };

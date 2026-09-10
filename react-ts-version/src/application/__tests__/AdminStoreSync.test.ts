@@ -52,10 +52,9 @@ describe('Admin Store State Synchronization & Creation/Deletion', () => {
     useAdminStore.getState().addSchool('בית ספר בגין');
     const schoolId = useAdminStore.getState().schools[0].id;
 
-    useAdminStore.getState().addTeacher(schoolId, 'מורה דוד', 'teacher.david@edu-haifa.org.il', '290984');
+    useAdminStore.getState().addTeacher(schoolId, 'teacher.david@edu-haifa.org.il');
     const stateWithTeacher = useAdminStore.getState();
     expect(stateWithTeacher.teachers).toHaveLength(1);
-    expect(stateWithTeacher.teachers[0].name).toBe('מורה דוד');
     expect(stateWithTeacher.teachers[0].ssoEmail).toBe('teacher.david@edu-haifa.org.il');
 
     useAdminStore.getState().deleteTeacher('teacher.david@edu-haifa.org.il');
@@ -66,7 +65,7 @@ describe('Admin Store State Synchronization & Creation/Deletion', () => {
     useAdminStore.getState().addSchool('מוסד פיילוט');
     const schoolId = useAdminStore.getState().schools[0].id;
 
-    useAdminStore.getState().addTeacher(schoolId, 'מורה שרה', '123456789', '010190');
+    useAdminStore.getState().addTeacher(schoolId, '123456789');
     const teacherId = '123456789';
 
     useAdminStore.getState().addClassRoom(schoolId, teacherId, 'כיתה ד1');
@@ -84,7 +83,7 @@ describe('Admin Store State Synchronization & Creation/Deletion', () => {
     useAdminStore.getState().addSchool('מוסד משולב');
     const schoolId = useAdminStore.getState().schools[0].id;
 
-    useAdminStore.getState().addTeacher(schoolId, 'מורה ראשי', '987654321', '010190');
+    useAdminStore.getState().addTeacher(schoolId, '987654321');
     useAdminStore.getState().addClassRoom(schoolId, '987654321', 'כיתה א1');
 
     expect(useAdminStore.getState().schools).toHaveLength(1);

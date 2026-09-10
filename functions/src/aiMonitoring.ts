@@ -20,7 +20,7 @@ import { GEMINI_SECRETS, getGeminiKeyStatus } from "./geminiConfig";
  * learner; every other value means the static fallback was served instead and
  * says why. The ratio of ok to everything else IS the health of the engine.
  */
-export type AiFeature = "socratic" | "socratic_legacy" | "report_analysis" | "class_report";
+export type AiFeature = "socratic" | "report_analysis" | "class_report";
 
 export type AiOutcome =
   | "ok"

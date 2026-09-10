@@ -101,7 +101,6 @@ export function AdminSchoolsView() {
     return schools.filter(s => {
       const schoolTeachers = teachers.filter(t => t.schoolId === s.id);
       const hasMatchingTeacher = schoolTeachers.some(t => 
-        (t.name && t.name.toLowerCase().includes(query)) || 
         (t.ssoEmail && t.ssoEmail.toLowerCase().includes(query)) ||
         (t.id && t.id.toLowerCase().includes(query))
       );
@@ -127,13 +126,13 @@ export function AdminSchoolsView() {
     }
   };
 
-  const handleDeleteTeacher = async (teacher: { id: string; name: string; ssoEmail: string }) => {
+  const handleDeleteTeacher = async (teacher: { id: string; ssoEmail: string }) => {
     if (isDeletingId) return;
-    if (!confirmAction(`להסיר את המורה ${teacher.name} (${teacher.ssoEmail})?\nהרשאת הכניסה שלה תבוטל מיד. הכיתות אינן נמחקות.`)) return;
+    if (!confirmAction(`להסיר את המורה ${teacher.ssoEmail}?\nהרשאת הכניסה שלה תבוטל מיד. הכיתות אינן נמחקות.`)) return;
     setIsDeletingId(teacher.id);
     try {
       await deleteTeacher(teacher.id);
-      toast.success(`המורה ${teacher.name} הוסרה והרשאת הכניסה שלה בוטלה.`);
+      toast.success(`המורה ${teacher.ssoEmail} הוסרה והרשאת הכניסה שלה בוטלה.`);
     } catch {
       toast.error("הסרת המורה נכשלה בשרת. ודא שאתה מחובר כמנהל מערכת.");
     } finally {
@@ -429,7 +428,7 @@ export function AdminSchoolsView() {
                           >
                             <div className="space-y-0.5">
                               <div className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                                <span>{teacher.name}</span>
+                                <span className="font-mono">{teacher.ssoEmail}</span>
                                 {schoolClasses.some((c) => c.teacherId === teacher.id) ? (
                                   <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-300 dark:border-emerald-800">
                                     מורה מובילה

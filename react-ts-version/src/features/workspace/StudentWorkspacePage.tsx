@@ -17,6 +17,7 @@ import { useNavigate } from 'react-router-dom';
 import type { DragSource, Place } from '@/core/placeValue';
 import { useWorkspaceStore, getActiveTasks, type SessionNumber } from '@/application/useWorkspaceStore';
 import { useAuthStore, stampStudentWindowClosed, touchStudentActivity, currentStudentUid } from '@/application/useAuthStore';
+import { submitSRLReflection } from '@/core/srlReflection';
 import { useActiveClassSession } from '@/application/useActiveClassSession';
 import { database, authReady, fetchServerClockOffset } from '@/infrastructure/firebase';
 import { ref, push, onValue, set, update, onDisconnect } from 'firebase/database';
@@ -962,23 +963,15 @@ export function StudentWorkspacePage() {
           errorCount,
           guessCount
         }}
-        onComplete={async (focusArea) => {
-          if (user?.uid) {
-            try {
-              await firebaseSyncService.syncRouteRecommendation(user.uid, focusArea);
-              navigate('/hub');
-            } catch (err: any) {
-              const errMsg = String(err?.message || err);
-              if (errMsg.includes('PERMISSION_DENIED') || errMsg.includes('auth')) {
-                toast.error('פג תוקף ההתחברות. מתחבר מחדש...');
-                navigate('/login');
-                return;
-              }
-              navigate('/hub');
-            }
-          } else {
-            navigate('/hub');
+        onComplete={async (result) => {
+          // מודול 16: הרפלקציה נשמרת. הקריאה הקודמת כאן כתבה את רמת המאמץ
+          // לתוך routeRecommendation — שדה צבע המסלול שהמורה רואה — וגם
+          // דרסה את routeStatus ל-'PENDING', כלומר ביטלה את החלטת השער.
+          const outcome = await submitSRLReflection(currentStudentUid(), result);
+          if (!outcome.ok) {
+            toast.error('אירעה שגיאת רשת בשמירת הרפלקציה.');
           }
+          navigate('/hub');
         }}
       />;
     }

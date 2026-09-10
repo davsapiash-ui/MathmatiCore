@@ -166,14 +166,14 @@ describe('useAdminStore teacher lifecycle (mocked Firebase)', () => {
     vi.mocked(update).mockClear();
     useAdminStore.setState({
       schools: [{ id: 'school_1', name: 'בית ספר ביקורת', createdAt: 1 }],
-      teachers: [{ id: 'lead_school_org_il', schoolId: 'school_1', ssoEmail: 'lead@school.org.il', dob: '', name: 'מובילה', licenseActive: false, createdAt: 1 }],
+      teachers: [{ id: 'lead_school_org_il', schoolId: 'school_1', ssoEmail: 'lead@school.org.il', licenseActive: false, createdAt: 1 }],
       classes: [{ id: 'class_1', schoolId: 'school_1', teacherId: 'lead_school_org_il', name: 'המבקרים', studentLimit: 12, createdAt: 1 }],
       globalStudentLimit: 12,
     });
   });
 
   it('addTeacher writes the login whitelist and resolves with the canonical record', async () => {
-    const saved = await useAdminStore.getState().addTeacher('school_1', 'דנה', 'Dana@School.org.il', '');
+    const saved = await useAdminStore.getState().addTeacher('school_1', 'Dana@School.org.il');
     expect(saved.id).toBe('dana_school_org_il');
     expect(saved.ssoEmail).toBe('dana@school.org.il');
     expect(useAdminStore.getState().teachers).toHaveLength(2);
@@ -187,7 +187,7 @@ describe('useAdminStore teacher lifecycle (mocked Firebase)', () => {
 
   it('addTeacher rolls back and rejects when the whitelist write is denied', async () => {
     firestoreMock.setDoc.mockRejectedValueOnce(new Error('permission-denied'));
-    await expect(useAdminStore.getState().addTeacher('school_1', 'דנה', 'dana@school.org.il', '')).rejects.toThrow('permission-denied');
+    await expect(useAdminStore.getState().addTeacher('school_1', 'dana@school.org.il')).rejects.toThrow('permission-denied');
     expect(useAdminStore.getState().teachers.map((t) => t.id)).toEqual(['lead_school_org_il']);
   });
 
@@ -195,7 +195,7 @@ describe('useAdminStore teacher lifecycle (mocked Firebase)', () => {
     useAdminStore.setState({
       teachers: [
         ...useAdminStore.getState().teachers,
-        { id: 'second_school_org_il', schoolId: 'school_1', ssoEmail: 'second@school.org.il', dob: '', name: 'שנייה', licenseActive: false, createdAt: 2 },
+        { id: 'second_school_org_il', schoolId: 'school_1', ssoEmail: 'second@school.org.il', licenseActive: false, createdAt: 2 },
       ],
     });
     await useAdminStore.getState().deleteTeacher('lead_school_org_il');
@@ -224,7 +224,7 @@ describe('useAdminStore teacher lifecycle (mocked Firebase)', () => {
   });
 
   it('firebaseSyncService.addTeacher keys by teacherRecordKey and whitelists the e-mail', async () => {
-    const t = await firebaseSyncService.addTeacher('school_1', 'דנה', 'Dana@School.org.il', '');
+    const t = await firebaseSyncService.addTeacher('school_1', 'Dana@School.org.il');
     expect(t.id).toBe('dana_school_org_il');
     expect(firestoreMock.setDoc).toHaveBeenCalledTimes(1);
   });

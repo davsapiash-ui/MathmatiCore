@@ -58,7 +58,7 @@ describe('Module 25: Admin Scale Limits', () => {
   it('addClassRoom() always caps a new class at the current globalStudentLimit, regardless of caller intent', () => {
     useAdminStore.getState().addSchool('בית ספר ביקורת');
     const schoolId = useAdminStore.getState().schools[0].id;
-    useAdminStore.getState().addTeacher(schoolId, 'מורה מוביל', 'teacher@edu-haifa.org.il', '010190');
+    useAdminStore.getState().addTeacher(schoolId, 'teacher@edu-haifa.org.il');
     const teacherId = 'teacher@edu-haifa.org.il';
 
     useAdminStore.getState().addClassRoom(schoolId, teacherId, 'המבקרים');

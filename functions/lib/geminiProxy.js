@@ -123,13 +123,15 @@ function fallbackError(outcome, message) {
  * Exclusive gateway for all client-side AI analysis requests.
  * Mediates and enforces the Zero-Chatbot Policy and zero-trust security.
  *
- * Two request shapes are accepted:
- *   - `socratic_request` (+ optional `anchor`): the PRD Appendix A §6
- *     GeminiSocraticRequest. The prompt is built server-side from validated
- *     numbers only — this is the path the current client uses.
- *   - `prompt` / `context` / `history`: the pre-contract free-text path, kept
- *     for older clients. It is PII-scrubbed and its answer is validated with
- *     the same validator (minus the leak check, which needs the operands).
+ * One request shape is accepted: `socratic_request` (+ optional `anchor`),
+ * the Module 13 §ב GeminiSocraticRequest. The prompt is built server-side from
+ * validated numbers only.
+ *
+ * The pre-contract free-text path (`prompt` / `context` / `history`) was
+ * removed. It forwarded arbitrary caller text to the model — which is the
+ * open-ended chat Module 13 forbids, and the guard above only caught callers
+ * who declared the intent in the payload. No client used it: SocraticEngine
+ * has always sent socratic_request.
  */
 exports.callGeminiSocraticProxy = (0, https_1.onCall)(Object.assign(Object.assign({}, geminiConfig_1.GEMINI_SECRETS), { timeoutSeconds: 30 }), async (request) => {
     var _a, _b;
@@ -138,7 +140,7 @@ exports.callGeminiSocraticProxy = (0, https_1.onCall)(Object.assign(Object.assig
         throw new https_1.HttpsError("unauthenticated", "Client must be authenticated to call the AI proxy.");
     }
     const data = request.data || {};
-    const { prompt, history, context, isChatbotAttempt, requestedAction, socratic_request, anchor } = data;
+    const { isChatbotAttempt, requestedAction, socratic_request, anchor } = data;
     // 2. Enforce Socratic Constraint (Zero-Chatbot Policy)
     // Reject any payload that attempts open-ended chat or violates strict Socratic mapping
     if (isChatbotAttempt || requestedAction === "open_chat" || requestedAction === "free_text") {
@@ -149,20 +151,32 @@ exports.callGeminiSocraticProxy = (0, https_1.onCall)(Object.assign(Object.assig
     //    and one clear monitoring row instead of an SDK stack trace per call.
     const keyStatus = (0, geminiConfig_1.getGeminiKeyStatus)();
     if (!keyStatus.configured) {
-        (0, aiMonitoring_1.recordAiCall)({ feature: socratic_request ? "socratic" : "socratic_legacy", outcome: "misconfigured", latency_ms: 0, model_id: geminiConfig_1.GEMINI_MODEL_ID, detail: (_a = keyStatus.problem) !== null && _a !== void 0 ? _a : "missing" });
+        (0, aiMonitoring_1.recordAiCall)({ feature: "socratic", outcome: "misconfigured", latency_ms: 0, model_id: geminiConfig_1.GEMINI_MODEL_ID, detail: (_a = keyStatus.problem) !== null && _a !== void 0 ? _a : "missing" });
         throw fallbackError("misconfigured", "AI Service configuration is missing.");
     }
-    // ---------------------------------------------------------------
-    // Structured path (PRD contract)
-    // ---------------------------------------------------------------
-    if (socratic_request !== undefined) {
-        const started = Date.now();
+    if (socratic_request === undefined) {
+        throw new https_1.HttpsError("invalid-argument", "Missing required payload field: socratic_request.");
+    }
+    const started = Date.now();
+    {
         const validated = (0, socraticContract_1.validateSocraticRequest)(socratic_request);
         if (!validated.ok) {
             (0, aiMonitoring_1.recordAiCall)({ feature: "socratic", outcome: "invalid_request", latency_ms: 0, model_id: geminiConfig_1.GEMINI_MODEL_ID, detail: validated.reason });
             throw new https_1.HttpsError("invalid-argument", `Invalid socratic_request: ${validated.reason}`);
         }
         const req = validated.value;
+        // A learner may ask for a hint about their own work only. Without this,
+        // any authenticated caller — including the anonymous session the login
+        // screen opens before a child identifies — could spend the project's
+        // model quota and file monitoring rows against any of the twelve
+        // learners. Staff may ask on a learner's behalf.
+        const callerRole = String(request.auth.token.role || "");
+        const isStaff = callerRole === "teacher" || callerRole === "admin";
+        const callerStudentId = Number(request.auth.token.student_id);
+        if (!isStaff && callerStudentId !== req.student_id) {
+            (0, aiMonitoring_1.recordAiCall)({ feature: "socratic", outcome: "invalid_request", latency_ms: 0, model_id: geminiConfig_1.GEMINI_MODEL_ID, detail: "caller_student_mismatch" });
+            throw new https_1.HttpsError("permission-denied", "A learner may only request a hint for their own work.");
+        }
         const facts = (0, socraticContract_1.deriveSocraticFacts)(req);
         const safeAnchor = (0, socraticContract_1.validateSocraticAnchor)(anchor);
         const builtPrompt = (0, socraticContract_1.buildSocraticPrompt)(req, facts, safeAnchor);
@@ -191,36 +205,5 @@ exports.callGeminiSocraticProxy = (0, https_1.onCall)(Object.assign(Object.assig
                 suggested_category: facts.suggested_category,
             } });
     }
-    // ---------------------------------------------------------------
-    // Legacy free-text path
-    // ---------------------------------------------------------------
-    if (!prompt && !context) {
-        throw new https_1.HttpsError("invalid-argument", "Missing required payload fields (socratic_request, prompt or context).");
-    }
-    const started = Date.now();
-    // Regex-based PII scrubbing before anything reaches the model.
-    const scrubbedPrompt = scrubPII(String(prompt || ""));
-    const scrubbedContext = scrubPII(typeof context === "string" ? context : JSON.stringify(context || {}));
-    let scrubbedHistory = [];
-    try {
-        scrubbedHistory = history ? JSON.parse(scrubPII(JSON.stringify(history))) : [];
-    }
-    catch (_c) {
-        scrubbedHistory = [];
-    }
-    const securePayload = `
-      Context: ${scrubbedContext}
-      Prompt: ${scrubbedPrompt}
-      History: ${JSON.stringify(scrubbedHistory)}
-      `;
-    const attempt = await generateWithRetry(securePayload, null);
-    const latency = Date.now() - started;
-    if (!attempt.ok) {
-        (0, aiMonitoring_1.recordAiCall)({ feature: "socratic_legacy", outcome: attempt.outcome, latency_ms: latency, model_id: geminiConfig_1.GEMINI_MODEL_ID, detail: attempt.detail, attempts: attempt.attempts });
-        throw fallbackError(attempt.outcome, "Failed to process the request through the Socratic Proxy.");
-    }
-    (0, aiMonitoring_1.recordAiCall)({ feature: "socratic_legacy", outcome: "ok", latency_ms: latency, model_id: geminiConfig_1.GEMINI_MODEL_ID, error_category: attempt.value.error_category, attempts: attempt.attempts });
-    logger.info(`Successfully proxied Socratic request for user ${request.auth.uid}`);
-    return Object.assign(Object.assign({}, attempt.value), { final_intervention: (0, socraticContract_1.toLegacyIntervention)(attempt.value), meta: { source: "gemini", model_id: geminiConfig_1.GEMINI_MODEL_ID, latency_ms: latency, attempts: attempt.attempts } });
 });
 //# sourceMappingURL=geminiProxy.js.map

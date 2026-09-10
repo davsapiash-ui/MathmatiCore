@@ -14,7 +14,7 @@ function isFirestoreAvailable(): boolean {
  * Commits an authorized teacher email to the Firestore authorizedTeachers collection.
  * Required for Module 25 instant Google SSO provisioning.
  */
-export async function addAuthorizedTeacherFirestore(email: string, role: "teacher" | "admin" = "teacher", name?: string, schoolId?: string): Promise<void> {
+export async function addAuthorizedTeacherFirestore(email: string, role: "teacher" | "admin" = "teacher", schoolId?: string): Promise<void> {
   const normalized = email.toLowerCase().trim();
   if (!normalized) throw new Error("Email is required for teacher authorization");
 
@@ -30,7 +30,6 @@ export async function addAuthorizedTeacherFirestore(email: string, role: "teache
   await setDoc(teacherDocRef, {
     email: normalized,
     role,
-    name: name || "",
     schoolId: schoolId || "",
     createdAt: Date.now(),
   }, { merge: true });
@@ -136,7 +135,7 @@ export function isWhitelistedTeacherEmail(email?: string | null): boolean {
  * counted as another teacher. Non-blocking: the security rules only let an
  * admin write here, so for a plain teacher this is a no-op by design.
  */
-async function ensureTeacherRecord(email: string, displayName: string): Promise<void> {
+async function ensureTeacherRecord(email: string): Promise<void> {
   const key = teacherRecordKey(email);
   const legacyKey = extractTeacherId(email, null);
   try {
@@ -149,7 +148,6 @@ async function ensureTeacherRecord(email: string, displayName: string): Promise<
       id: key,
       ssoEmail: email,
       email,
-      name: displayName,
       licenseActive: false,
       createdAt: Date.now()
     });
@@ -207,7 +205,7 @@ export async function executeGoogleSSO(targetRole: "teacher" | "admin"): Promise
   const uid = targetRole === "teacher" ? `teacher_${teacherId}` : `admin_${teacherId}`;
 
   if (targetRole === "teacher") {
-    await ensureTeacherRecord(email, user.displayName || `מורה (${email})`);
+    await ensureTeacherRecord(email);
   }
 
   return {
@@ -233,7 +231,7 @@ export async function authenticateWhitelistedEmail(email: string, targetRole: "t
   const uid = targetRole === "teacher" ? `teacher_${teacherId}` : `admin_${teacherId}`;
 
   if (targetRole === "teacher") {
-    await ensureTeacherRecord(normalized, `מורה (${normalized})`);
+    await ensureTeacherRecord(normalized);
   }
 
   return {

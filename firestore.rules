@@ -73,7 +73,32 @@ service cloud.firestore {
       data.class_id is string &&
       data.school_id is string &&
       data.created_at is number &&
-      data.support_profile_version is int;
+      // הגרסה נבדקת כשהיא קיימת. הדרישה שתהיה תמיד חסמה את מסמכי התלמידים
+      // כולם: המורה יוצרת אותם בהפעלת מפגש בלי השדה הזה (בכוונה — מודול 19
+      // מנהל אותו, וכתיבת ערך קבוע בכל הפעלה הייתה מאפסת פרופיל מותאם),
+      // ולכן כל יצירה נדחתה והאוסף נשאר ריק. הדוח הפדגוגי ומצבור הניהול
+      // קוראים בדיוק את המסמכים האלה.
+      (!('support_profile_version' in data) || data.support_profile_version is int);
+    }
+
+    // מודול 19 §ב: "Only authorized teachers may write this field". פרופיל
+    // התמיכה הוא החלטה שקטה של המורה, והדוח הפדגוגי קורא אותו מהמסמך הזה.
+    function supportProfileKeys() {
+      return [
+        'support_profile_id',
+        'support_profile_version',
+        'support_profile_updated_at',
+        'support_profile_updated_by'
+      ];
+    }
+
+    function writerMayTouchSupportProfileOnCreate() {
+      return isTeacher() || !request.resource.data.keys().hasAny(supportProfileKeys());
+    }
+
+    function writerMayTouchSupportProfileOnUpdate() {
+      return isTeacher() ||
+             !request.resource.data.diff(resource.data).affectedKeys().hasAny(supportProfileKeys());
     }
 
     // 2. Telemetry Log Schema Allowlist (Module 5 & Appendix A §3)
@@ -159,27 +184,44 @@ service cloud.firestore {
       data.teacher_gate_approved is bool;
     }
 
+    // מודול 20: המסלול שהמורה בחרה וחותמות האישור הן החלטה שלה. לומד רשאי
+    // רק להשאיר אותן כפי שהן, או לרוקן אותן — לעולם לא לקבוע אותן.
+    function gateDecisionFieldsAreEmpty() {
+      return request.resource.data.get('teacher_selected_path', null) == null &&
+             request.resource.data.get('gate_approved_at', null) == null &&
+             request.resource.data.get('gate_approved_by', null) == null;
+    }
+
     // --- Collections Routing ---
 
     // Students Collection: Strict Ownership & Teacher Class Guard (Direct read denied for Admin, allowed for Teacher and owning Student)
     match /students/{studentId} {
       allow read: if (isTeacher() || isOwningStudent(studentId)) && !isAdmin();
-      allow create, update: if (isTeacher() || isOwningStudent(studentId)) && isValidStudentDoc();
+      allow create: if (isTeacher() || isOwningStudent(studentId)) && isValidStudentDoc() &&
+                       writerMayTouchSupportProfileOnCreate();
+      allow update: if (isTeacher() || isOwningStudent(studentId)) && isValidStudentDoc() &&
+                       writerMayTouchSupportProfileOnUpdate();
       allow delete: if isAdmin();
     }
 
     match /users/students/{studentId} {
       allow read: if (isTeacher() || isOwningStudent(studentId)) && !isAdmin();
-      allow write: if (isTeacher() || isOwningStudent(studentId)) && isValidStudentDoc();
+      allow create: if (isTeacher() || isOwningStudent(studentId)) && isValidStudentDoc() &&
+                       writerMayTouchSupportProfileOnCreate();
+      allow update: if (isTeacher() || isOwningStudent(studentId)) && isValidStudentDoc() &&
+                       writerMayTouchSupportProfileOnUpdate();
+      allow delete: if isAdmin();
     }
 
     // Sessions Collection: Students can create/update their OWN session, but ONLY teachers can approve teacher_gate_approved
     match /sessions/{sessionId} {
       allow read: if isTeacher() || isAdmin() || isOwningSession(sessionId);
       allow create: if (isTeacher() || isOwningSession(sessionId)) && isValidSessionDoc() &&
-                       (isTeacher() || request.resource.data.teacher_gate_approved == false);
+                       (isTeacher() || request.resource.data.teacher_gate_approved == false) &&
+                       (isTeacher() || gateDecisionFieldsAreEmpty());
       allow update: if (isTeacher() || isOwningSession(sessionId)) && isValidSessionDoc() &&
-                       (isTeacher() || request.resource.data.teacher_gate_approved == resource.data.teacher_gate_approved);
+                       (isTeacher() || request.resource.data.teacher_gate_approved == resource.data.teacher_gate_approved) &&
+                       (isTeacher() || gateDecisionFieldsAreEmpty());
       allow delete: if isAdmin();
     }
 
@@ -295,7 +337,7 @@ service cloud.firestore {
         'session_id',
         'session_number',
         'effort_level',
-        'focus_area',
+        'selected_strategies',
         'persistence_index',
         'undo_count',
         'error_count',
@@ -305,8 +347,9 @@ service cloud.firestore {
       data.student_id is int && data.student_id >= 1 && data.student_id <= 12 &&
       data.session_id is string &&
       data.session_number is int && data.session_number == 8 &&
-      data.effort_level is string &&
-      data.persistence_index is number &&
+      data.effort_level in ['LOW', 'MEDIUM', 'HIGH'] &&
+      data.selected_strategies is list &&
+      data.persistence_index is number && data.persistence_index >= 0 && data.persistence_index <= 100 &&
       data.submitted_at is number;
     }
 
