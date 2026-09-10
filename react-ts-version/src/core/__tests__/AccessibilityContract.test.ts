@@ -230,3 +230,36 @@ describe('מודול 5 — מגבלת מטען של 50KB', () => {
     expect(out.standardTaskIdx).toBe(2);
   });
 });
+
+describe('מצב השקט מול סטייה 13 שאושרה — לוח החיבור', () => {
+  /**
+   * סטייה 13 במרשם: הלוח מופיע בעמעום של 2 שניות דווקא כדי למנוע עומס
+   * חזותי אצל לומדים על הרצף האוטיסטי, ונסגר אך ורק בלחיצת התלמיד.
+   *
+   * מצב השקט שנוסף כאן מכוון בדיוק לאותה אוכלוסייה, ולכן הוא עלול לבטל
+   * בשקט את מה שהסטייה אישרה. הוא אינו מבטל: framer מדכא במצב תנועה
+   * מופחתת אך ורק מפתחות מיקום ותמרה (positionalKeys), ו-opacity אינו
+   * אחד מהם — כך שהעמעום שורד. הבדיקות כאן נועלות את שלושת התנאים
+   * שההסתמכות הזאת עומדת עליהם.
+   */
+  const grid = read('src/features/workspace/board/AdaptiveAdditionGrid.tsx');
+
+  it('משך העמעום שאושר לא השתנה', () => {
+    expect(read('src/core/hesitationStages.ts')).toContain('GRID_FADE_IN_SECONDS = 2');
+  });
+
+  it('ההופעה מונפשת דרך opacity, ולכן אינה מדוכאת במצב תנועה מופחתת', () => {
+    expect(grid).toMatch(/initial=\{\{ opacity: 0/);
+    expect(grid).toMatch(/animate=\{\{ opacity: 1/);
+    expect(grid).toContain('duration: GRID_FADE_IN_SECONDS');
+  });
+
+  it('שום דבר אינו סוגר את הלוח אוטומטית — רק התלמיד', () => {
+    expect(grid).toContain('onClick={handleClose}');
+    expect(grid).not.toMatch(/setTimeout\([\s\S]{0,120}handleClose/);
+  });
+
+  it('כפתור הסגירה, שהוא הדרך היחידה לצאת, עומד במטרת המגע', () => {
+    expect(grid).toMatch(/onClick=\{handleClose\}\s*\n\s*className="w-11 h-11/);
+  });
+});
