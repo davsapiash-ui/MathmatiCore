@@ -21,21 +21,38 @@ exports.syncUserRoles = (0, https_1.onCall)({
         throw new https_1.HttpsError("invalid-argument", "Email is required for role sync");
     }
     const normalizedEmail = email.toLowerCase().trim();
-    const TEACHER_EMAIL = (process.env.TEACHER_SSO_PRIMARY_EMAIL || "teacher_sso@domain.edu").toLowerCase().trim();
-    const TEACHER_LOCAL = "teacher_1002220159@mathmaticore.local";
-    const ADMIN_PRIMARY = (process.env.ADMIN_SSO_PRIMARY_EMAIL || "davidsep@edu-haifa.org.il").toLowerCase().trim();
-    const ADMIN_ALIAS = (process.env.ADMIN_SSO_ALIAS_EMAIL || "admin@mathmaticore.local").toLowerCase().trim();
+    // The two pilot identities are a deliberate, documented fallback: they
+    // guarantee the product owner and the lecturer are never locked out of
+    // their own system if Firestore is unreachable. See the deviations
+    // register. Everyone else goes through authorizedTeachers, which is what
+    // makes deleting a teacher actually revoke her login.
+    //
+    // What was removed: "teacher_sso@domain.edu" was the DEFAULT when
+    // TEACHER_SSO_PRIMARY_EMAIL is unset — a registrable address on a domain
+    // this project does not own, granting teacher claims to whoever holds it.
+    // "admin@mathmaticore.local" was the same shape for admin, and
+    // "teacher_1002220159@mathmaticore.local" a third. An env var that is
+    // actually set is the owner's own configuration and is still honoured; a
+    // guessable default is not.
+    const PILOT_ADMIN_EMAIL = "davidsep@edu-haifa.org.il";
+    const PILOT_TEACHER_EMAIL = "1002220159@edu-haifa.org.il";
+    const envEmail = (name) => {
+        const raw = (process.env[name] || "").toLowerCase().trim();
+        return raw.includes("@") ? raw : null;
+    };
+    const teacherFallbacks = new Set([PILOT_TEACHER_EMAIL, envEmail("TEACHER_SSO_PRIMARY_EMAIL")].filter(Boolean));
+    const adminFallbacks = new Set([PILOT_ADMIN_EMAIL, envEmail("ADMIN_SSO_PRIMARY_EMAIL"), envEmail("ADMIN_SSO_ALIAS_EMAIL")].filter(Boolean));
     const firestore = admin.firestore();
     let isAuthorizedTeacher = false;
     let isAuthorizedAdmin = false;
     let claims = {};
     let roles = [];
     let resolvedUid = request.auth.uid;
-    // Check hardcoded pilot addresses
-    if (normalizedEmail === ADMIN_PRIMARY || normalizedEmail === ADMIN_ALIAS) {
+    // Check the documented pilot fallback addresses
+    if (adminFallbacks.has(normalizedEmail)) {
         isAuthorizedAdmin = true;
     }
-    else if (normalizedEmail === TEACHER_EMAIL || normalizedEmail === TEACHER_LOCAL || normalizedEmail === "1002220159@edu-haifa.org.il") {
+    else if (teacherFallbacks.has(normalizedEmail)) {
         isAuthorizedTeacher = true;
     }
     else {

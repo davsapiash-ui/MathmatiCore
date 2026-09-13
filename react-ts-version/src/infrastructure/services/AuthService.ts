@@ -108,15 +108,20 @@ export function isWhitelistedTeacherEmail(email?: string | null): boolean {
   if (!email) return false;
   const normalized = email.toLowerCase().trim();
 
-  if (normalized.endsWith("@mathmaticore.local")) return true;
+  // The two pilot identities: a documented fallback so the owner and the
+  // lecturer are never locked out of their own system. See the deviations
+  // register.
   if (normalized === "davidsep@edu-haifa.org.il" || normalized === "1002220159@edu-haifa.org.il") return true;
 
   if (import.meta.env.DEV || import.meta.env.MODE === "test") {
+    // "@mathmaticore.local" used to be accepted unconditionally, in
+    // production too — a domain wildcard, sitting directly under a comment
+    // saying domain wildcards are prohibited. It belongs here, with the other
+    // development accounts.
     if (
       normalized === "teacher.demo@edu-haifa.org.il" ||
       normalized === "admin.demo@edu-haifa.org.il" ||
-      normalized === "teacher@mathmaticore.local" ||
-      normalized === "admin@mathmaticore.local" ||
+      normalized.endsWith("@mathmaticore.local") ||
       normalized.endsWith("@local.dev")
     ) {
       return true;

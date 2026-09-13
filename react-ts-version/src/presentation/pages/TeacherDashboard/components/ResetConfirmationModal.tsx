@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useDismissableOverlay } from '@/hooks/useDismissableOverlay';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, ShieldAlert, RefreshCw, X, Check } from 'lucide-react';
@@ -45,19 +45,28 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
   const [scope, setScope] = useState<SingleStudentResetScope>('active_session');
   const activeSessionNumber = activeSessionProp && activeSessionProp >= 1 && activeSessionProp <= 8 ? activeSessionProp : null;
 
-  // מסמך העיצוב §1.2: Escape סוגר, הפוקוס נלכד בחלון, ובסגירה חוזר למקומו.
-  const dialogRef = useDismissableOverlay<HTMLDivElement>(isOpen, onClose);
-
-  if (!isOpen) return null;
-
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     if (isSubmitting) return;
     setStep(1);
     setDoubleConfirmed(false);
     setReasonNote('');
     setScope('active_session');
     onClose();
-  };
+  }, [isSubmitting, onClose]);
+
+  // מסמך העיצוב §1.2: Escape סוגר, הפוקוס נלכד בחלון, ובסגירה חוזר למקומו.
+  //
+  // Escape קרא קודם ל-onClose הגולמי ולא ל-handleClose, וכל שלושת המשתמשים
+  // משאירים את הרכיב מורכב ומחליפים רק את isOpen — כך שהמצב המקומי שרד.
+  // איפוס מערכת: להיכנס, ללחוץ "המשך לשלב אישור סופי", לסמן את האישור
+  // הכפול, ואז Escape. בפתיחה הבאה step עדיין 2, כלומר שדה החובה "סיבת
+  // האיפוס" אינו מוצג כלל, האישור הכפול כבר מסומן, והכפתור הראשי הוא כבר
+  // "בצע איפוס מבוקר" — לחיצה אחת מוחקת את כל 12 הלומדים, עם הסיבה הקודמת
+  // ביומן הביקורת. וברמה 2: בחירת "איפוס מוחלט של הלומד" שרדה גם היא, כך
+  // שהחלון כבר לא נפתח על ברירת המחדל שמודול 23א §ב.2 מחייב.
+  const dialogRef = useDismissableOverlay<HTMLDivElement>(isOpen, handleClose);
+
+  if (!isOpen) return null;
 
   const handleExecute = async () => {
     if (resetLevel === 'system' && step === 1) {

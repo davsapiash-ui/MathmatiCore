@@ -79,3 +79,29 @@ describe('מודול 14 §ב1 — לומד אינו מנותק', () => {
     expect(idle).toContain("handleLogout('התנתקת עקב חוסר פעילות.')");
   });
 });
+
+describe('מודול 23א — דיאלוג האיפוס אינו זוכר מצב אחרי Escape', () => {
+  const modal = readFileSync(
+    resolve(__dirname, '../../presentation/pages/TeacherDashboard/components/ResetConfirmationModal.tsx'),
+    'utf-8'
+  );
+
+  it('Escape מנקה את המצב, ולא רק סוגר', () => {
+    // Escape קרא ל-onClose הגולמי. שלושת המשתמשים משאירים את הרכיב מורכב
+    // ומחליפים רק isOpen, כך שהמצב שרד: פתיחה חוזרת של איפוס מערכת דילגה על
+    // שדה החובה "סיבת האיפוס" עם האישור הכפול כבר מסומן — לחיצה אחת מוחקת
+    // את כל 12 הלומדים.
+    expect(modal).toContain('useDismissableOverlay<HTMLDivElement>(isOpen, handleClose)');
+    expect(modal).not.toContain('useDismissableOverlay<HTMLDivElement>(isOpen, onClose)');
+  });
+
+  it('הניקוי מאפס את כל ארבעת השדות, כולל ברירת המחדל של ההיקף', () => {
+    const fn = modal.slice(modal.indexOf('const handleClose'));
+    const body = fn.slice(0, fn.indexOf('}, ['));
+    expect(body).toContain('setStep(1)');
+    expect(body).toContain('setDoubleConfirmed(false)');
+    expect(body).toContain('setReasonNote(\'\')');
+    // מודול 23א §ב.2: ברירת המחדל היא המפגש הנוכחי בלבד.
+    expect(body).toContain("setScope('active_session')");
+  });
+});

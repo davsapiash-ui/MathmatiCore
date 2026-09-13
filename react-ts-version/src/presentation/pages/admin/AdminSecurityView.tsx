@@ -93,7 +93,7 @@ export function AdminSecurityView() {
             <StatusRow
               active
               title="Google Workspace for Education"
-              detail="הרשאת מורה ניתנת אך ורק בהתאמה מדויקת של כתובת הדוא״ל מול אוסף authorizedTeachers ב-Firestore. אין אישור אוטומטי לפי סיומת דומיין."
+              detail="הרשאת מורה ניתנת בהתאמה מדויקת של כתובת הדוא״ל מול אוסף authorizedTeachers ב-Firestore. אין אישור אוטומטי לפי סיומת דומיין. חריג מתועד: שתי כתובות הפיילוט של בעל המערכת נשארות מורשות גם אם Firestore אינו זמין, כדי למנוע נעילה מוחלטת."
             />
             <StatusRow
               active={false}
