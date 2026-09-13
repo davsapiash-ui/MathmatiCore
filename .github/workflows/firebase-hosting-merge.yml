@@ -36,6 +36,10 @@ jobs:
         working-directory: functions
         run: npm ci || npm install
 
+      - name: Test functions
+        working-directory: functions
+        run: npm test
+
       - name: Build functions
         working-directory: functions
         run: npm run build
