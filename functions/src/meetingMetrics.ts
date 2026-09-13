@@ -6,6 +6,24 @@ import * as admin from "firebase-admin";
  * (Module 24) so both describe a meeting with the same numbers.
  */
 
+/**
+ * "session_02_student_4" / "session_3_student_user4" → 4; anything else → null.
+ *
+ * No session document carries a student_id field — the client writes the
+ * SessionDocument type, which has none, and the Firestore schema does not
+ * allow one. The learner is in the document id. Both the class report and
+ * the research export read `data.student_id`, got undefined, and so never
+ * attached a single session document to a learner: score_source was never
+ * "session_document", and four research columns were empty for all twelve
+ * learners in every meeting.
+ */
+export function studentNumberFromSessionId(sessionId: string): number | null {
+  const m = /_student_(?:user)?(\d{1,2})$/.exec(String(sessionId || ""));
+  if (!m) return null;
+  const n = parseInt(m[1], 10);
+  return Number.isInteger(n) && n >= 1 && n <= 12 ? n : null;
+}
+
 /** "session_3_student_user4" / "session_03_student_4" → 3; anything else → null. */
 export function sessionNumberFromId(sessionId: string): number | null {
   const m = /^session_0?(\d)(?:_|$)/.exec(String(sessionId || ""));

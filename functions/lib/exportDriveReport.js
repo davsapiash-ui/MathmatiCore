@@ -169,7 +169,7 @@ exports.exportAdminReportToDrive = (0, https_1.onCall)(async (request) => {
     // teachers read, and read back the folder id and the institutional address
     // from the response. This is the governance report: it belongs to the admin.
     (0, callerIdentity_1.requireAdmin)(request.auth.token);
-    const userEmail = request.auth.token.email || "admin@mathmaticore.local";
+    const userEmail = request.auth.token.email || "";
     const { schoolsCount = 0, teachersCount = 0, studentsCount = 0, alertsCount = 0 } = request.data || {};
     const timestampStr = new Date().toISOString();
     const fileName = `MathmatiCore_Admin_Report_${Date.now()}.pdf`;
@@ -994,24 +994,23 @@ async function getOrCreateDriveFolder(folderName, parentId, accessToken) {
  */
 const EXPORT_RUNTIME = { timeoutSeconds: 540, memory: "1GiB" };
 exports.exportResearchDataset = (0, https_1.onCall)(EXPORT_RUNTIME, async (request) => {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o;
     if (!request.auth) {
         throw new https_1.HttpsError("unauthenticated", "User must be authenticated.");
     }
     const { class_id = "class_1" } = request.data || {};
     const rawSession = (_a = request.data) === null || _a === void 0 ? void 0 : _a.session_number;
     const scopedSession = rawSession === undefined || rawSession === null || rawSession === "all" ? null : Number(rawSession) || null;
-    const userEmail = request.auth.token.email || "teacher@edu-haifa.org.il";
+    const userEmail = request.auth.token.email || "";
     const token = request.auth.token;
-    const callerRoles = Array.isArray(token.roles) ? token.roles : (token.role ? [token.role] : []);
-    const isTeacher = callerRoles.includes("TEACHER") || token.role === "teacher" || token.teacher === true;
-    const isAdmin = callerRoles.includes("ADMIN") || token.role === "admin" || token.admin === true;
-    // Requirement 1: Authorization Check restricting caller to teacher/admin and scoping to class_id
-    if (!isTeacher && !isAdmin) {
-        throw new https_1.HttpsError("permission-denied", "Only authorized teachers or admins may export research datasets.");
-    }
+    // PRD: "callable exclusively by authorized teachers scoped to their own
+    // class_id", and Module 24 blocks a system administrator from individual
+    // telemetry — which is most of what this export is. An admin-only identity
+    // used to pass and to skip the class scope as well. The product owner's
+    // identity carries both claims and is unaffected.
+    (0, callerIdentity_1.requireTeacherForIndividualData)(token);
     const callerClassId = token.class_id;
-    if (isTeacher && !isAdmin && callerClassId && callerClassId !== class_id) {
+    if (callerClassId && callerClassId !== class_id) {
         throw new https_1.HttpsError("permission-denied", `Teacher is strictly restricted to exporting their own assigned class_id (${callerClassId}).`);
     }
     const db = admin.firestore();
@@ -1065,7 +1064,9 @@ exports.exportResearchDataset = (0, https_1.onCall)(EXPORT_RUNTIME, async (reque
                 error_category: (_o = d.error_category) !== null && _o !== void 0 ? _o : "",
                 undo_stack_depth_before: (_p = d.undo_stack_depth_before) !== null && _p !== void 0 ? _p : "",
                 reverted_event_type: (_q = d.reverted_event_type) !== null && _q !== void 0 ? _q : "",
-                details_json: d,
+                // details_json used to carry the whole untyped details object. Every
+                // field the research needs is a typed column above; a free-text field
+                // a client parked in details went straight into the dataset.
             };
         });
         // ── 2. One row per learner × meeting ───────────────────────────────────
@@ -1073,7 +1074,7 @@ exports.exportResearchDataset = (0, https_1.onCall)(EXPORT_RUNTIME, async (reque
             .catch(async () => (0, meetingMetrics_1.readAllDocs)(db.collection("sessions")));
         const sessionDocByKey = new Map();
         for (const { data } of sessionDocs) {
-            const n = studentNumber(data.student_id);
+            const n = (_b = studentNumber(data.student_id)) !== null && _b !== void 0 ? _b : (0, meetingMetrics_1.studentNumberFromSessionId)(String(data.session_id || ""));
             const m = Number(data.session_number) || (0, meetingMetrics_1.sessionNumberFromId)(String(data.session_id || "")) || null;
             if (n !== null && m !== null)
                 sessionDocByKey.set(`${n}:${m}`, data);
@@ -1100,7 +1101,7 @@ exports.exportResearchDataset = (0, https_1.onCall)(EXPORT_RUNTIME, async (reque
                     .filter((m) => m && typeof m.startTime === "number");
                 const start = metas.length ? Math.min(...metas.map((m) => m.startTime)) : null;
                 const end = metas.length ? Math.max(...metas.map((m) => (typeof m.endTime === "number" ? m.endTime : m.startTime))) : null;
-                const meeting = (_c = (_b = metas.find((m) => typeof m.sessionNumber === "number")) === null || _b === void 0 ? void 0 : _b.sessionNumber) !== null && _c !== void 0 ? _c : null;
+                const meeting = (_d = (_c = metas.find((m) => typeof m.sessionNumber === "number")) === null || _c === void 0 ? void 0 : _c.sessionNumber) !== null && _d !== void 0 ? _d : null;
                 if (scopedSession !== null && meeting !== scopedSession)
                     continue;
                 const minutes = start !== null && end !== null ? Math.round(((end - start) / 60000) * 10) / 10 : 0;
@@ -1112,7 +1113,7 @@ exports.exportResearchDataset = (0, https_1.onCall)(EXPORT_RUNTIME, async (reque
                 });
                 if (meeting !== null) {
                     const k = `${n}:${meeting}`;
-                    const prev = (_d = recordingMinutesByKey.get(k)) !== null && _d !== void 0 ? _d : { minutes: 0, truncated: false };
+                    const prev = (_e = recordingMinutesByKey.get(k)) !== null && _e !== void 0 ? _e : { minutes: 0, truncated: false };
                     recordingMinutesByKey.set(k, { minutes: Math.round((prev.minutes + minutes) * 10) / 10, truncated: prev.truncated || truncated });
                 }
             }
@@ -1128,7 +1129,7 @@ exports.exportResearchDataset = (0, https_1.onCall)(EXPORT_RUNTIME, async (reque
             if (n === null || e.session_number === null)
                 continue;
             const k = `${n}:${e.session_number}`;
-            byLearnerMeeting.set(k, [...((_e = byLearnerMeeting.get(k)) !== null && _e !== void 0 ? _e : []), e.data]);
+            byLearnerMeeting.set(k, [...((_f = byLearnerMeeting.get(k)) !== null && _f !== void 0 ? _f : []), e.data]);
         }
         const compulsoryCache = new Map();
         const meetingRows = [];
@@ -1136,7 +1137,7 @@ exports.exportResearchDataset = (0, https_1.onCall)(EXPORT_RUNTIME, async (reque
             const [nStr, mStr] = k.split(":");
             const n = Number(nStr);
             const m = Number(mStr);
-            const path = (_f = learnerPath.get(n)) !== null && _f !== void 0 ? _f : "green_path";
+            const path = (_g = learnerPath.get(n)) !== null && _g !== void 0 ? _g : "green_path";
             const compulsory = await (0, meetingMetrics_1.resolveCompulsoryTotal)(db, m, path, compulsoryCache);
             const score = (0, meetingMetrics_1.computeFirstAttemptScore)(events, compulsory);
             const summary = (0, meetingMetrics_1.summarizeMeeting)(events);
@@ -1163,28 +1164,62 @@ exports.exportResearchDataset = (0, https_1.onCall)(EXPORT_RUNTIME, async (reque
                 regroupings: summary.regroupings,
                 socratic_cards: summary.socratic_cards,
                 reflection_submitted: summary.reflection_submitted,
-                recording_minutes: (_g = rec === null || rec === void 0 ? void 0 : rec.minutes) !== null && _g !== void 0 ? _g : 0,
-                recording_truncated: (_h = rec === null || rec === void 0 ? void 0 : rec.truncated) !== null && _h !== void 0 ? _h : false,
+                recording_minutes: (_h = rec === null || rec === void 0 ? void 0 : rec.minutes) !== null && _h !== void 0 ? _h : 0,
+                recording_truncated: (_j = rec === null || rec === void 0 ? void 0 : rec.truncated) !== null && _j !== void 0 ? _j : false,
                 learning_path: path,
-                session_doc_score_percent: (_j = sessionDoc === null || sessionDoc === void 0 ? void 0 : sessionDoc.session_score_percent) !== null && _j !== void 0 ? _j : "",
-                session_doc_recommended_path: (_k = sessionDoc === null || sessionDoc === void 0 ? void 0 : sessionDoc.matrix_recommended_path) !== null && _k !== void 0 ? _k : "",
-                session_doc_teacher_path: (_l = sessionDoc === null || sessionDoc === void 0 ? void 0 : sessionDoc.teacher_selected_path) !== null && _l !== void 0 ? _l : "",
-                teacher_gate_approved: (_m = sessionDoc === null || sessionDoc === void 0 ? void 0 : sessionDoc.teacher_gate_approved) !== null && _m !== void 0 ? _m : "",
+                session_doc_score_percent: (_k = sessionDoc === null || sessionDoc === void 0 ? void 0 : sessionDoc.session_score_percent) !== null && _k !== void 0 ? _k : "",
+                session_doc_recommended_path: (_l = sessionDoc === null || sessionDoc === void 0 ? void 0 : sessionDoc.matrix_recommended_path) !== null && _l !== void 0 ? _l : "",
+                session_doc_teacher_path: (_m = sessionDoc === null || sessionDoc === void 0 ? void 0 : sessionDoc.teacher_selected_path) !== null && _m !== void 0 ? _m : "",
+                teacher_gate_approved: (_o = sessionDoc === null || sessionDoc === void 0 ? void 0 : sessionDoc.teacher_gate_approved) !== null && _o !== void 0 ? _o : "",
             });
         }
         // ── 3. Reflections: Firestore + the learners' RTDB nodes + the shared node ──
         const fsReflections = await (0, meetingMetrics_1.readAllDocs)(db.collection("srl_reflections"));
         const sharedReflectionsSnap = await rtdb.ref("reflections").get();
         const sharedReflections = sharedReflectionsSnap.val() || {};
+        // Only the Module 16 fields leave the building. Every reflection source
+        // used to be spread wholesale into the CSV, and a reflection is where a
+        // child types; the PII check below only knows phone numbers, e-mails and
+        // nine-digit ids, so a Hebrew first name passed straight through.
+        const REFLECTION_FIELDS = [
+            "student_id", "session_id", "session_number", "effort_level", "selected_strategies",
+            "persistence_index", "undo_count", "error_count", "guess_count", "submitted_at",
+            "effort", "strategies", "persistenceIndex", "undoCount", "timestamp",
+        ];
+        const pickReflection = (source, id, raw) => {
+            var _a, _b, _c;
+            const r = raw && typeof raw === "object" ? raw : {};
+            const out = { source, reflection_id: id };
+            for (const f of REFLECTION_FIELDS) {
+                const v = r[f];
+                if (v === undefined)
+                    continue;
+                out[f] = Array.isArray(v) ? v.map(String).join("|") : typeof v === "object" && v !== null ? "" : v;
+            }
+            if (out.student_id === undefined)
+                out.student_id = (_c = studentNumber((_b = (_a = r.student) === null || _a === void 0 ? void 0 : _a.id) !== null && _b !== void 0 ? _b : r.student_id)) !== null && _c !== void 0 ? _c : "";
+            return out;
+        };
         const reflectionRows = [
-            ...fsReflections.map(({ id, data }) => (Object.assign({ source: "firestore", reflection_id: id }, data))),
-            ...Object.entries(sharedReflections).map(([id, r]) => (Object.assign({ source: "rtdb_shared", reflection_id: id }, (r && typeof r === "object" ? r : { value: r })))),
-            ...rtdbReflectionRows,
+            ...fsReflections.map(({ id, data }) => pickReflection("firestore", id, data)),
+            ...Object.entries(sharedReflections).map(([id, r]) => pickReflection("rtdb_shared", id, r)),
+            ...rtdbReflectionRows.map((r) => { var _a, _b; return pickReflection(String((_a = r.source) !== null && _a !== void 0 ? _a : "rtdb_student"), String((_b = r.reflection_id) !== null && _b !== void 0 ? _b : ""), r); }),
         ].filter((r) => scopedSession === null || Number(r.session_number) === scopedSession || (0, meetingMetrics_1.sessionNumberFromId)(String(r.session_id || "")) === scopedSession);
         // ── 4. Every reset audit entry ──────────────────────────────────────────
         const resetLogs = await (0, meetingMetrics_1.readAllDocs)(db.collection("reset_audit_log").where("class_id", "==", class_id))
             .catch(async () => (0, meetingMetrics_1.readAllDocs)(db.collection("reset_audit_log")));
-        const resetRows = resetLogs.map(({ id, data }) => (Object.assign({ log_id: id }, data)));
+        // The reset log records who performed each reset by e-mail. That is the
+        // one column of this export that is a person; it stays in Firestore for
+        // audit and does not go to Drive. PRD: anonymous ids 1-12 only.
+        const resetRows = resetLogs.map(({ id, data }) => {
+            const row = { log_id: id };
+            for (const [k, v] of Object.entries(data)) {
+                if (/email|performed_by/i.test(k))
+                    continue;
+                row[k] = v;
+            }
+            return row;
+        });
         const files = [
             { name: "פעולות", csv: toCsv(telemetryRows), rows: telemetryRows.length },
             { name: "מפגשים", csv: toCsv(meetingRows), rows: meetingRows.length },
@@ -1195,8 +1230,9 @@ exports.exportResearchDataset = (0, https_1.onCall)(EXPORT_RUNTIME, async (reque
         // Requirement 3: PII Detection check across all CSV outputs
         const allContent = files.map((f) => f.csv).join("\n");
         const piiRegex = /(?:\b05\d-?\d{7}\b|[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|\b\d{9}\b)/g;
-        const sanitizedCheckText = allContent.split(userEmail).join("");
-        if (piiRegex.test(sanitizedCheckText)) {
+        // The caller's own address used to be excused from this check — and then
+        // exported. Nothing in these files may be an address, the caller's included.
+        if (piiRegex.test(allContent)) {
             logger.warn("Research dataset export rejected: PII pattern detected.");
             throw new https_1.HttpsError("failed-precondition", "ייצוא נתוני המחקר נדחה: זוהה מידע מזהה (PII).");
         }

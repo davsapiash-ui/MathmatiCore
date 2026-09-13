@@ -1,9 +1,9 @@
 import { onCall, HttpsError, type CallableRequest } from "firebase-functions/v2/https";
-import { requireAdmin } from "./callerIdentity";
+import { requireAdmin, requireTeacherForIndividualData } from "./callerIdentity";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import { GoogleAuth } from "google-auth-library";
-import { computeFirstAttemptScore, readAllDocs, resolveCompulsoryTotal, sessionNumberFromId, summarizeMeeting } from "./meetingMetrics";
+import { computeFirstAttemptScore, readAllDocs, resolveCompulsoryTotal, sessionNumberFromId, studentNumberFromSessionId, summarizeMeeting } from "./meetingMetrics";
 import { recomputeAdminMetrics } from "./adminAggregator";
 
 const GOOGLE_DRIVE_FOLDER_ID = "0AMiALsm_TxT5Uk9PVA";
@@ -176,7 +176,7 @@ export const exportAdminReportToDrive = onCall(async (request) => {
   // from the response. This is the governance report: it belongs to the admin.
   requireAdmin(request.auth.token as Record<string, unknown>);
 
-  const userEmail = request.auth.token.email || "admin@mathmaticore.local";
+  const userEmail = request.auth.token.email || "";
   const { schoolsCount = 0, teachersCount = 0, studentsCount = 0, alertsCount = 0 } = request.data || {};
 
   const timestampStr = new Date().toISOString();
@@ -1242,19 +1242,18 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
   const rawSession = request.data?.session_number;
   const scopedSession: number | null =
     rawSession === undefined || rawSession === null || rawSession === "all" ? null : Number(rawSession) || null;
-  const userEmail = request.auth.token.email || "teacher@edu-haifa.org.il";
+  const userEmail = request.auth.token.email || "";
   const token: Record<string, any> = request.auth.token;
-  const callerRoles: string[] = Array.isArray(token.roles) ? token.roles : (token.role ? [token.role] : []);
-  const isTeacher = callerRoles.includes("TEACHER") || token.role === "teacher" || token.teacher === true;
-  const isAdmin = callerRoles.includes("ADMIN") || token.role === "admin" || token.admin === true;
 
-  // Requirement 1: Authorization Check restricting caller to teacher/admin and scoping to class_id
-  if (!isTeacher && !isAdmin) {
-    throw new HttpsError("permission-denied", "Only authorized teachers or admins may export research datasets.");
-  }
+  // PRD: "callable exclusively by authorized teachers scoped to their own
+  // class_id", and Module 24 blocks a system administrator from individual
+  // telemetry — which is most of what this export is. An admin-only identity
+  // used to pass and to skip the class scope as well. The product owner's
+  // identity carries both claims and is unaffected.
+  requireTeacherForIndividualData(token);
 
   const callerClassId = token.class_id;
-  if (isTeacher && !isAdmin && callerClassId && callerClassId !== class_id) {
+  if (callerClassId && callerClassId !== class_id) {
     throw new HttpsError("permission-denied", `Teacher is strictly restricted to exporting their own assigned class_id (${callerClassId}).`);
   }
 
@@ -1310,7 +1309,9 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
         error_category: d.error_category ?? "",
         undo_stack_depth_before: d.undo_stack_depth_before ?? "",
         reverted_event_type: d.reverted_event_type ?? "",
-        details_json: d,
+        // details_json used to carry the whole untyped details object. Every
+        // field the research needs is a typed column above; a free-text field
+        // a client parked in details went straight into the dataset.
       };
     });
 
@@ -1319,7 +1320,7 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
       .catch(async () => readAllDocs(db.collection("sessions")));
     const sessionDocByKey = new Map<string, Record<string, any>>();
     for (const { data } of sessionDocs) {
-      const n = studentNumber(data.student_id);
+      const n = studentNumber(data.student_id) ?? studentNumberFromSessionId(String(data.session_id || ""));
       const m = Number(data.session_number) || sessionNumberFromId(String(data.session_id || "")) || null;
       if (n !== null && m !== null) sessionDocByKey.set(`${n}:${m}`, data);
     }
@@ -1421,16 +1422,46 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
     const fsReflections = await readAllDocs(db.collection("srl_reflections"));
     const sharedReflectionsSnap = await rtdb.ref("reflections").get();
     const sharedReflections: Record<string, any> = sharedReflectionsSnap.val() || {};
+    // Only the Module 16 fields leave the building. Every reflection source
+    // used to be spread wholesale into the CSV, and a reflection is where a
+    // child types; the PII check below only knows phone numbers, e-mails and
+    // nine-digit ids, so a Hebrew first name passed straight through.
+    const REFLECTION_FIELDS = [
+      "student_id", "session_id", "session_number", "effort_level", "selected_strategies",
+      "persistence_index", "undo_count", "error_count", "guess_count", "submitted_at",
+      "effort", "strategies", "persistenceIndex", "undoCount", "timestamp",
+    ] as const;
+    const pickReflection = (source: string, id: string, raw: unknown): Record<string, any> => {
+      const r = raw && typeof raw === "object" ? (raw as Record<string, any>) : {};
+      const out: Record<string, any> = { source, reflection_id: id };
+      for (const f of REFLECTION_FIELDS) {
+        const v = r[f];
+        if (v === undefined) continue;
+        out[f] = Array.isArray(v) ? v.map(String).join("|") : typeof v === "object" && v !== null ? "" : v;
+      }
+      if (out.student_id === undefined) out.student_id = studentNumber(r.student?.id ?? r.student_id) ?? "";
+      return out;
+    };
     const reflectionRows: Record<string, any>[] = [
-      ...fsReflections.map(({ id, data }) => ({ source: "firestore", reflection_id: id, ...data })),
-      ...Object.entries(sharedReflections).map(([id, r]) => ({ source: "rtdb_shared", reflection_id: id, ...(r && typeof r === "object" ? r : { value: r }) })),
-      ...rtdbReflectionRows,
+      ...fsReflections.map(({ id, data }) => pickReflection("firestore", id, data)),
+      ...Object.entries(sharedReflections).map(([id, r]) => pickReflection("rtdb_shared", id, r)),
+      ...rtdbReflectionRows.map((r) => pickReflection(String(r.source ?? "rtdb_student"), String(r.reflection_id ?? ""), r)),
     ].filter((r) => scopedSession === null || Number(r.session_number) === scopedSession || sessionNumberFromId(String(r.session_id || "")) === scopedSession);
 
     // ── 4. Every reset audit entry ──────────────────────────────────────────
     const resetLogs = await readAllDocs(db.collection("reset_audit_log").where("class_id", "==", class_id))
       .catch(async () => readAllDocs(db.collection("reset_audit_log")));
-    const resetRows = resetLogs.map(({ id, data }) => ({ log_id: id, ...data }));
+    // The reset log records who performed each reset by e-mail. That is the
+    // one column of this export that is a person; it stays in Firestore for
+    // audit and does not go to Drive. PRD: anonymous ids 1-12 only.
+    const resetRows = resetLogs.map(({ id, data }) => {
+      const row: Record<string, any> = { log_id: id };
+      for (const [k, v] of Object.entries(data)) {
+        if (/email|performed_by/i.test(k)) continue;
+        row[k] = v;
+      }
+      return row;
+    });
 
     const files: Array<{ name: string; csv: string; rows: number }> = [
       { name: "פעולות", csv: toCsv(telemetryRows), rows: telemetryRows.length },
@@ -1443,8 +1474,9 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
     // Requirement 3: PII Detection check across all CSV outputs
     const allContent = files.map((f) => f.csv).join("\n");
     const piiRegex = /(?:\b05\d-?\d{7}\b|[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|\b\d{9}\b)/g;
-    const sanitizedCheckText = allContent.split(userEmail).join("");
-    if (piiRegex.test(sanitizedCheckText)) {
+    // The caller's own address used to be excused from this check — and then
+    // exported. Nothing in these files may be an address, the caller's included.
+    if (piiRegex.test(allContent)) {
       logger.warn("Research dataset export rejected: PII pattern detected.");
       throw new HttpsError("failed-precondition", "ייצוא נתוני המחקר נדחה: זוהה מידע מזהה (PII).");
     }

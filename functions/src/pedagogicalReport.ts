@@ -358,6 +358,23 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
 
   // Every telemetry event of this meeting, for the narrative, the score and the analysis.
   const telemetryDocs = await readAllTelemetryForSession(db, sessionId);
+
+  // The student number in the heading came from the caller and was never
+  // checked against the events actually read. A stale or mistyped call
+  // {sessionId of learner 3, studentId: 7} produced a PDF headed "תלמיד 7"
+  // whose score, narrative and analysis were learner 3's, filed under 7 —
+  // one document mixing two children. Module 23 §ז: the PDF carries the
+  // identifier of the learner it describes.
+  const foreign = telemetryDocs.find((d) => {
+    const n = Number(d?.student_id);
+    return Number.isInteger(n) && n >= 1 && n <= 12 && n !== clampedStudentNum;
+  });
+  if (foreign) {
+    throw new HttpsError(
+      "invalid-argument",
+      `הפעולות המתועדות במפגש ${sessionId} שייכות לתלמיד ${foreign.student_id}, לא לתלמיד ${clampedStudentNum}. הדוח לא הופק.`
+    );
+  }
   const exerciseNarratives = generateExerciseNarrativeFromEvents(telemetryDocs);
 
   // The learner's live record: the approved path and gate state live there

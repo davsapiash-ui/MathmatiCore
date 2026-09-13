@@ -10,6 +10,7 @@ import {
   readAllDocs,
   resolveCompulsoryTotal,
   sessionNumberFromId,
+  studentNumberFromSessionId,
   summarizeMeeting,
   type MeetingSummary,
 } from "./meetingMetrics";
@@ -679,7 +680,7 @@ export const generateClassMeetingReport = onCall(CLASS_REPORT_RUNTIME, async (re
     .catch(async () => readAllDocs(db.collection("sessions")));
   const sessionDocByLearner = new Map<number, Record<string, any>>();
   for (const { data } of sessionDocs) {
-    const n = studentNumber(data.student_id);
+    const n = studentNumber(data.student_id) ?? studentNumberFromSessionId(String(data.session_id || ""));
     const m = Number(data.session_number) || sessionNumberFromId(String(data.session_id || ""));
     if (n !== null && m === sessionNumber) sessionDocByLearner.set(n, data);
   }

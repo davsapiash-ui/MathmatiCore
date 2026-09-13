@@ -489,7 +489,7 @@ function createClassReportPdfBufferWithPdfkit(report) {
 // The callable.
 // ---------------------------------------------------------------------------
 exports.generateClassMeetingReport = (0, https_1.onCall)(exports.CLASS_REPORT_RUNTIME, async (request) => {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p;
     if (!request.auth) {
         throw new https_1.HttpsError("unauthenticated", "User must be authenticated.");
     }
@@ -562,7 +562,7 @@ exports.generateClassMeetingReport = (0, https_1.onCall)(exports.CLASS_REPORT_RU
         .catch(async () => (0, meetingMetrics_1.readAllDocs)(db.collection("sessions")));
     const sessionDocByLearner = new Map();
     for (const { data } of sessionDocs) {
-        const n = studentNumber(data.student_id);
+        const n = (_f = studentNumber(data.student_id)) !== null && _f !== void 0 ? _f : (0, meetingMetrics_1.studentNumberFromSessionId)(String(data.session_id || ""));
         const m = Number(data.session_number) || (0, meetingMetrics_1.sessionNumberFromId)(String(data.session_id || ""));
         if (n !== null && m === sessionNumber)
             sessionDocByLearner.set(n, data);
@@ -573,15 +573,15 @@ exports.generateClassMeetingReport = (0, https_1.onCall)(exports.CLASS_REPORT_RU
         const n = studentNumber(data.student_id);
         const m = Number(data.session_number) || (0, meetingMetrics_1.sessionNumberFromId)(String(data.session_id || ""));
         if (n !== null && m === sessionNumber)
-            reflectionsByLearner.set(n, ((_f = reflectionsByLearner.get(n)) !== null && _f !== void 0 ? _f : 0) + 1);
+            reflectionsByLearner.set(n, ((_g = reflectionsByLearner.get(n)) !== null && _g !== void 0 ? _g : 0) + 1);
     }
     // ── 4. One row per learner, then the class ──────────────────────────────
     const compulsoryCache = new Map();
     const learners = [];
     for (const n of Array.from(eventsByLearner.keys()).sort((a, b) => a - b)) {
-        const pathOf = (_g = learnerPath.get(n)) !== null && _g !== void 0 ? _g : "green_path";
+        const pathOf = (_h = learnerPath.get(n)) !== null && _h !== void 0 ? _h : "green_path";
         const compulsory = await (0, meetingMetrics_1.resolveCompulsoryTotal)(db, sessionNumber, pathOf, compulsoryCache);
-        learners.push(buildLearnerRow(n, (_h = eventsByLearner.get(n)) !== null && _h !== void 0 ? _h : [], compulsory, pathOf, (_j = sessionDocByLearner.get(n)) !== null && _j !== void 0 ? _j : null, (_k = recordingByLearner.get(n)) !== null && _k !== void 0 ? _k : null, (_l = reflectionsByLearner.get(n)) !== null && _l !== void 0 ? _l : 0));
+        learners.push(buildLearnerRow(n, (_j = eventsByLearner.get(n)) !== null && _j !== void 0 ? _j : [], compulsory, pathOf, (_k = sessionDocByLearner.get(n)) !== null && _k !== void 0 ? _k : null, (_l = recordingByLearner.get(n)) !== null && _l !== void 0 ? _l : null, (_m = reflectionsByLearner.get(n)) !== null && _m !== void 0 ? _m : 0));
     }
     const aggregates = aggregateClass(learners, eventsByLearner);
     // ── 5. Layer 2 ──────────────────────────────────────────────────────────
@@ -597,8 +597,8 @@ exports.generateClassMeetingReport = (0, https_1.onCall)(exports.CLASS_REPORT_RU
         telemetry_event_count: telemetryEventCount,
         learners,
         aggregates,
-        class_patterns: (_m = analysis === null || analysis === void 0 ? void 0 : analysis.class_patterns) !== null && _m !== void 0 ? _m : [],
-        teaching_recommendations: (_o = analysis === null || analysis === void 0 ? void 0 : analysis.teaching_recommendations) !== null && _o !== void 0 ? _o : [],
+        class_patterns: (_o = analysis === null || analysis === void 0 ? void 0 : analysis.class_patterns) !== null && _o !== void 0 ? _o : [],
+        teaching_recommendations: (_p = analysis === null || analysis === void 0 ? void 0 : analysis.teaching_recommendations) !== null && _p !== void 0 ? _p : [],
         ai_analysis_available: Boolean(analysis),
         ai_fallback_text: pedagogicalReport_1.EXACT_AI_FALLBACK_TEXT,
     };
