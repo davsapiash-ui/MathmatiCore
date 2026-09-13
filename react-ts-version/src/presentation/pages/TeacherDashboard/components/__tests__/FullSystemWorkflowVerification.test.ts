@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useAuthStore } from '@/application/useAuthStore';
-import { useSettingsStore } from '@/application/useSettingsStore';
 import type { StudentData } from '@/application/useStore';
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -29,7 +28,6 @@ describe('Full System Workflow & Integration Empirical Audit Suite', () => {
   beforeEach(() => {
     (globalThis as any).sessionStorage.clear();
     useAuthStore.setState({ user: null, role: null, isAuthenticated: false });
-    useSettingsStore.setState({ autoShowHints: false });
   });
 
   describe('1. Student Auth Session Persistence (Refresh F5 Resilience)', () => {
@@ -94,20 +92,6 @@ describe('Full System Workflow & Integration Empirical Audit Suite', () => {
       expect(activeSessionRules).toBeDefined();
       expect(activeSessionRules['.read']).toBe('auth != null');
       expect(activeSessionRules['.write']).toContain('teacher');
-    });
-  });
-
-  describe('4. Settings Store Auto Show Hints Policy', () => {
-    it('defaults autoShowHints to false to prevent unprompted popup interruptions', () => {
-      expect(useSettingsStore.getState().autoShowHints).toBe(false);
-    });
-
-    it('allows toggling autoShowHints state', () => {
-      useSettingsStore.getState().toggleAutoShowHints();
-      expect(useSettingsStore.getState().autoShowHints).toBe(true);
-
-      useSettingsStore.getState().setAutoShowHints(false);
-      expect(useSettingsStore.getState().autoShowHints).toBe(false);
     });
   });
 

@@ -25,7 +25,6 @@ const OVERLAYS = [
   'src/presentation/pages/TeacherDashboard/components/SessionActivationModal.tsx',
   'src/presentation/pages/TeacherDashboard.tsx',
   'src/features/workspace/overlays/SocraticDrawer.tsx',
-  'src/features/workspace/overlays/GraphicOrganizerHint.tsx',
   'src/features/workspace/overlays/StudentChatOverlay.tsx',
 ];
 

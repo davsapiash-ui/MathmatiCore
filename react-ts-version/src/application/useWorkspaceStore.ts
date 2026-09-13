@@ -248,6 +248,8 @@ interface WorkspaceState {
   addRepresentation: () => void;
   demoUngroup: () => void;
   proceed: () => void;
+  /** "סיום המפגש כעת" from the early-finisher screen; records completion like every other exit. */
+  finishMeetingEarly: () => void;
   requestHelp: () => void;
   /**
    * מסמך 04 §2א/§5: the silent help button — "שליחת אות מצוקה חרישי למורה ללא
@@ -789,6 +791,27 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     void s;
   }
 
+  /**
+   * The early-finisher screen's "finish the meeting now" link. The two other
+   * ways out of a finished task list both record highestCompletedMeeting; this
+   * one set flowStatus and nothing else, so a learner who completed all seven
+   * compulsory tasks and took the link was recorded as never having finished.
+   */
+  function finishMeetingEarly() {
+    const s = get();
+    const studentId = currentStudentUid();
+    if (studentId && !s.isSupersededByOtherDevice) {
+      const normId = normalizeStudentId(studentId);
+      useStore.getState().updateHighestCompletedMeeting(studentId, s.sessionNumber);
+      useStore.getState().updateHighestCompletedMeeting(normId, s.sessionNumber);
+      firebaseSyncService.syncHighestCompletedMeeting(studentId, s.sessionNumber).catch(console.error);
+      if (normId !== studentId) {
+        firebaseSyncService.syncHighestCompletedMeeting(normId, s.sessionNumber).catch(console.error);
+      }
+    }
+    set({ flowStatus: 'reflection' });
+  }
+
   /** Sessions 1/3/4 proceed (vanilla handleSession1Proceed, app.js 999–1110). */
   function proceedStandard() {
     const s = get();
@@ -1019,7 +1042,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     }
 
     if (task.type === 'small_change') {
-      if (!s.selectedChoiceId) return;
+      if (!s.selectedChoiceId) {
+        // "התקדם" is enabled by any board touch in meetings 3-5, so a press
+        // with no option chosen used to do nothing at all — no message.
+        showFeedback({ correct: false, title: 'בַּחֲרוּ תְּשׁוּבָה', sub: 'סַמְּנוּ אַחַת מֵהָאֶפְשָׁרֻיּוֹת, וְאָז לַחֲצוּ "הִתְקַדֵּם".' }, 1800);
+        return;
+      }
       if (s.selectedChoiceId !== task.correctAnswer) {
         handleFailure('wrong_choice', 'נסו שוב 🤔', 'התשובה שבחרתם אינה נכונה.', 2500);
         return;
@@ -1030,7 +1058,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     if (task.type === 'missing_element') {
       const answer = s.probeAnswer ? parseInt(s.probeAnswer, 10) : null;
-      if (answer === null || Number.isNaN(answer)) return;
+      if (answer === null || Number.isNaN(answer)) {
+        showFeedback({ correct: false, title: 'נָא לְהַקְלִיד תְּשׁוּבָה', sub: 'כִּתְבוּ אֶת הַחֵלֶק הֶחָסֵר בַּתֵּיבָה, וְאָז לַחֲצוּ "הִתְקַדֵּם".' }, 1800);
+        return;
+      }
       if (answer !== task.correctAnswer) {
         handleFailure('wrong_answer', 'נסו שוב 🤔', 'המספר שהזנתם אינו נכון.', 2500);
         return;
@@ -2135,11 +2166,22 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         }
       }
 
+      // The second representation has to be a different one. With the board
+      // kept between the two (below), pressing the button twice must not count.
+      if (s.q3Reps.length === 1 && countsEqual(s.counts, s.q3Reps[0])) {
+        showFeedback({ correct: false, title: 'זוֹ אוֹתָהּ דֶּרֶךְ 🤔', sub: 'הַרְאוּ אֶת אוֹתוֹ מִסְפָּר בְּדֶרֶךְ שׁוֹנָה: פִּרְטוּ אוֹ הַקְבִּיצוּ, וְאָז הוֹסִיפוּ.' }, 3200);
+        return;
+      }
+
       const q3Reps = [...s.q3Reps, { ...s.counts }];
       set({ q3Reps, hasInteracted: true });
-      if (q3Reps.length < 2) {
-        set({ counts: { ...EMPTY_COUNTS }, undoStack: [] });
-      }
+      // The board used to be wiped here, and the undo stack with it. Three
+      // exercises tell the child: "build 12 tens and 5 units, press add, THEN
+      // regroup 10 tens into a hundred and add the second representation".
+      // The child pressed the button and had nothing left to regroup — and
+      // the instruction's promise that undo is available was false at that
+      // exact moment (PRD Module 11 keeps the last 10 actions). The blocks
+      // stay; the child transforms them.
     },
 
     restoreScaffolds: () => {
@@ -2156,6 +2198,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       }
     },
 
+    finishMeetingEarly,
     proceed: () => {
       const s = get();
       if (s.awaitingNext || s.flowStatus !== 'task' || !selectCanProceed(s)) return;
@@ -2240,7 +2283,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const currentTask = getActiveTasks(s)[s.standardTaskIdx];
       if (currentTask?.type === 'session1_intro' || currentTask?.id === 's1_sandbox_controlled') {
         showFeedback(
-          { correct: true, title: 'טיפ 💡', sub: 'גרור לפחות 5 פריטים לבית המספרים ומחק פריט אחד לפח המחזור — כפתור "התקדם" ייפתח אוטומטית!' },
+          { correct: true, title: 'טיפ 💡', sub: 'גררו לפחות 5 לבנים לבית המספרים ומחקו לבנה אחת בפח האשפה — כפתור "התקדם" ייפתח אוטומטית!' },
           5000
         );
         return;

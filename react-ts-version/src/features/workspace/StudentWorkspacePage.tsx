@@ -941,7 +941,7 @@ export function StudentWorkspacePage() {
           useWorkspaceStore.getState().selectBranch(branch);
         }}
         onSkipToFinish={() => {
-          useWorkspaceStore.setState({ flowStatus: 'reflection' });
+          useWorkspaceStore.getState().finishMeetingEarly();
         }}
       />
     );

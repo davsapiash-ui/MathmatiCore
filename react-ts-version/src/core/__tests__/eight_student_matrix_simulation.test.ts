@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useWorkspaceStore } from '../../application/useWorkspaceStore';
 import { useAuthStore } from '../../application/useAuthStore';
-import { useSettingsStore } from '../../application/useSettingsStore';
 import { stateReducer } from '../../machines/vraMachine';
 import { CurriculumRouter } from '../../core/CurriculumRouter';
 import { computeCognitiveMastery } from '../../core/QMatrix';
@@ -61,7 +60,6 @@ describe('8-STUDENT COGNITIVE PROFILE & PATHWAY RESILIENCE SIMULATION', () => {
     vi.spyOn(firebaseSyncService, 'syncPhysicalOverride').mockImplementation(async () => {});
     vi.spyOn(firebaseSyncService, 'logMilestoneEvent').mockImplementation(async () => {});
     useWorkspaceStore.getState().initSession(1, false);
-    useSettingsStore.setState({ autoShowHints: false });
   });
 
   // =========================================================================
