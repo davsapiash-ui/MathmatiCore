@@ -108,6 +108,30 @@ await check('הלומד ממשיך לכתוב את מצב העבודה הרגי�
   assertSucceeds(update(ref(ldb, node), { onlineStatus: 'active', currentTaskIdx: 2 }))
 );
 
+console.log('\nRTDB — מצב מקרן (מודול 15)');
+await check('המורה מדליקה ומכבה את המקרן', async () => {
+  await assertSucceeds(
+    set(ref(tdb, 'system_control/projector_mode'), {
+      projector_mode: true,
+      projector_mode_updated_at: 1,
+      updated_by_teacher_id: 'teacher_1',
+    })
+  );
+  await assertSucceeds(
+    set(ref(tdb, 'system_control/projector_mode'), {
+      projector_mode: false,
+      projector_mode_updated_at: 2,
+      updated_by_teacher_id: 'teacher_1',
+    })
+  );
+});
+await check('לומד אינו משנה את מצב המקרן', () =>
+  assertFails(set(ref(ldb, 'system_control/projector_mode'), { projector_mode: true }))
+);
+await check('שאר system_control נשאר סגור בפני המורה', () =>
+  assertFails(set(ref(tdb, 'system_control/globalStudentLimit'), 99))
+);
+
 console.log('\nRTDB — רפלקציה');
 await check('מזהה רפלקציה דטרמיניסטי מתקבל', () =>
   assertSucceeds(

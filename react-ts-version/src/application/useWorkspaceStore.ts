@@ -1192,8 +1192,20 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     const subtask = isSubtaskActive(s.qflow);
 
     let answer: number | null = null;
+    let expected: number | null = task.correctAnswer ?? null;
     if (subtask) {
       answer = s.probeAnswer ? parseInt(s.probeAnswer, 10) : null;
+      // The probe is its own, smaller exercise. Task 3 shows 40 − 10 while the
+      // task it belongs to is 42 − 15, and the child's answer used to be
+      // compared against 27 — so the correct answer 30 was marked wrong, and
+      // typing 27 was marked right. The verdict feeds the diagnostic tag, the
+      // Q-matrix and the teacher's gate decision, so it has to be graded
+      // against the probe's own answer.
+      const diag = task.backwardDiagnosis;
+      const probeExpected = s.isASD && diag?.asdProbeAnswer !== undefined
+        ? diag.asdProbeAnswer
+        : diag?.probeAnswer;
+      if (probeExpected !== undefined) expected = probeExpected;
     } else {
       answer = answerDigitsToNumber(s.answerDigits);
       if ((answer === null || isNaN(answer)) && s.probeAnswer) {
@@ -1206,7 +1218,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       return;
     }
 
-    const isCorrect = answer === task.correctAnswer;
+    const isCorrect = expected !== null && answer === expected;
     const evalResult = { correct: isCorrect, detail: isCorrect ? '' : 'wrong_answer' };
 
     if (evalResult) {

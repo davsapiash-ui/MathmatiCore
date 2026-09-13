@@ -8,7 +8,6 @@ import { InlineMath } from 'react-katex';
 import { getValue } from '@/core/placeValue';
 import { motion } from 'framer-motion';
 import { VisualGraphicOrganizer } from './VisualGraphicOrganizer';
-import { toast } from 'sonner';
 
 /**
  * "מעוף הדבורה" — תת-משימת אבחון לאחור: גרסה פשוטה יותר של המשימה שנכשלה.
@@ -32,6 +31,19 @@ export function BackwardDiagnosisView({ task, qflow, isASD }: { task: QMatrixTas
 
   const effProbeA = isASD && diag.asdProbeA !== undefined ? diag.asdProbeA : diag.probeA;
   const effProbeB = isASD && diag.asdProbeB !== undefined ? diag.asdProbeB : diag.probeB;
+
+  // Four of the seven diagnostic tasks reach the correction round with none of
+  // the specialised branches below matching: subtaskChoices, showAutoUngroup
+  // and visualHint are declared on the interface but set on no task, and only
+  // tasks 3, 6 and 7 carry a probe. Those four rendered a robot, a sentence,
+  // and no control of any kind — "התקדם" stays disabled without an answer, so
+  // the child's only way out was to log out, and re-entry landed back here.
+  const hasProbeBranch = effProbeA !== undefined && (task.type === 'vertical_addition' || task.type === 'missing_element');
+  const hasSpecialisedBranch =
+    Boolean(diag.subtaskChoices && task.type === 'place_value_zero') ||
+    Boolean(diag.showAutoUngroup && task.type === 'flexible_decomp') ||
+    hasProbeBranch ||
+    Boolean(diag.visualHint && task.type === 'small_change');
 
   return (
     <motion.div 
@@ -155,14 +167,30 @@ export function BackwardDiagnosisView({ task, qflow, isASD }: { task: QMatrixTas
             aria-label="תשובה"
             className="w-28 h-16 rounded-xl border-2 border-ws-accent text-center font-mono font-black text-4xl bg-ws-surface focus:outline-none focus:ring-2"
           />
-          {/* UDL Alternative Expression: Upload Draft */}
-          <div className="mt-2 flex justify-center w-full">
-            <label className="cursor-pointer text-sm font-bold text-ws-accent hover:text-ws-ink transition-colors flex items-center gap-2 bg-ws-surface px-4 py-2 rounded-xl shadow-sm border border-ws-ink/10">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
-              העלו פתרון כתוב (תמונה)
-              <input type="file" className="hidden" accept="image/*" aria-label="העלו פתרון כתמונה" onChange={() => toast.success("הפתרון הועלה בהצלחה למורה.")} />
-            </label>
-          </div>
+          {/* The "upload your written solution" control was removed. No handler
+              read the chosen file, nothing was uploaded and no telemetry was
+              emitted — it only showed the child a success message, so a child
+              who photographed their work believed the teacher had received it.
+              Better nothing than a promise the system does not keep. */}
+        </div>
+      )}
+
+      {/* No specialised branch matched: a plain answer box, so the correction
+          round always has a way forward. */}
+      {!hasSpecialisedBranch && (
+        <div className="flex flex-col items-center gap-3">
+          <label htmlFor="q-probe-answer" className="text-lg font-bold text-ws-ink">
+            כתבו כאן את התשובה:
+          </label>
+          <input
+            id="q-probe-answer"
+            type="text"
+            inputMode="numeric"
+            maxLength={6}
+            value={probeAnswer}
+            onChange={(e) => setProbeAnswer(e.target.value.replace(/[^0-9]/g, ''))}
+            className="w-36 h-16 rounded-xl border-2 border-ws-accent text-center font-mono font-black text-4xl bg-ws-surface focus:outline-none focus:ring-2"
+          />
         </div>
       )}
 
