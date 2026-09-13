@@ -100,6 +100,13 @@ export interface FeedbackState {
   title: string;
   sub?: string;
   nonce?: number | string;
+  /**
+   * מפגש 2 הוא אבחון: הילד אינו אמור לדעת אם צדק, ולכן כל תשובה קיבלה
+   * `correct: true`. אבל `correct` הוא גם מה שמפעיל את הקונפטי ואת המסגרת
+   * הירוקה — כך שילד שטעה קיבל חגיגה של 150 חלקיקים. `neutral` מפריד בין
+   * השניים: אישור שקט שהתשובה נקלטה, בלי לחגוג ובלי לשפוט.
+   */
+  neutral?: boolean;
 }
 
 export interface UndoFrame {
@@ -642,7 +649,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     const s = get();
     switch (event.type) {
       case 'primary_done':
-        showFeedback({ correct: true, title: 'הַתְּשׁוּבָה הִתְקַבְּלָה! 👍', sub: 'עוֹבְרִים לַמְּשִׂימָה הַבָּאָה...' }, 1500, () => {
+        showFeedback({ correct: true, neutral: true, title: 'הַתְּשׁוּבָה הִתְקַבְּלָה! 👍', sub: 'עוֹבְרִים לַמְּשִׂימָה הַבָּאָה...' }, 1500, () => {
           const { state, event: next } = advance(get().qflow);
           set({ qflow: state });
           if (next) handleQFlowEvent(next);
@@ -671,7 +678,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         );
         break;
       case 'start_retry':
-        showFeedback({ correct: true, title: 'מְנַסִּים שׁוּב! 🔄', sub: 'הִנֵּה הַמְּשִׂימָה הַמְּקוֹרִית. נַסּוּ לִפְתֹּר אוֹתָהּ כָּעֵת:' }, 1800, () => {
+        showFeedback({ correct: true, neutral: true, title: 'מְנַסִּים שׁוּב! 🔄', sub: 'הִנֵּה הַמְּשִׂימָה הַמְּקוֹרִית. נַסּוּ לִפְתֹּר אוֹתָהּ כָּעֵת:' }, 1800, () => {
           startTask(event.taskId);
           set({ awaitingNext: false });
         });

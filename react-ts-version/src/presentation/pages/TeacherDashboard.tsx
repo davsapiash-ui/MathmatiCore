@@ -598,6 +598,16 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
               existingLocal?.qMatrixResults || {},
               row.qMatrixResults || {}
             ),
+            // The learner's browser computes the mastery profile at the end of
+            // meeting 2 and syncs it (useStore.updateConceptMastery →
+            // syncConceptMastery). This builder never carried it onto the row,
+            // so s.conceptMastery was undefined for every learner on the
+            // teacher's screen — and every consumer guards on it. The result:
+            // all six clustering widgets counted 0 and hid themselves, the
+            // class skills chart skipped every learner and drew six empty
+            // bars, and the "learners with a mastery profile" counter read 0.
+            // The tab looked like a class that had never been assessed.
+            conceptMastery: row.conceptMastery || existingLocal?.conceptMastery || undefined,
             traceData: {
               hesitation_events: typeof row.traceData?.hesitation_events === 'number'
                 ? row.traceData.hesitation_events
