@@ -112,6 +112,11 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   const [gateStudent, setGateStudent] = useState<StudentData | null>(null);
   const [floatingChatStudent, setFloatingChatStudent] = useState<StudentData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  // onValue fires its error callback for a permission rejection, but for a
+  // database that never answers (captive portal, blocked websocket, a
+  // wrong databaseURL) it fires nothing at all — and the spinner below has no
+  // other way out. The teacher stood in front of the class watching it turn.
+  const [loadTimedOut, setLoadTimedOut] = useState(false);
   const [diagnosticSelectedSession, setDiagnosticSelectedSession] = useState<number>(2);
 
   // Update active tab and selected student based on route params (PRD 4.3 Navigation Redundancy)
@@ -528,7 +533,15 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
 
   useEffect(() => {
     const studentsRef = ref(database, 'users/students');
+    const watchdog = setTimeout(() => {
+      setIsLoading((still) => {
+        if (still) setLoadTimedOut(true);
+        return false;
+      });
+    }, 15000);
     const unsubscribe = onValue(studentsRef, (snapshot) => {
+      clearTimeout(watchdog);
+      setLoadTimedOut(false);
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
       }
@@ -639,9 +652,12 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       }, 300);
     }, (error) => {
       console.error("Firebase permission denied or network error on users/students:", error);
+      clearTimeout(watchdog);
+      setLoadTimedOut(true);
       setIsLoading(false);
     });
     return () => {
+      clearTimeout(watchdog);
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
       unsubscribe();
     };
@@ -1078,8 +1094,21 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   return (
     <div
       className={`flex flex-col ${hideSidebar ? 'w-full' : 'md:flex-row min-h-screen'} bg-slate-50 font-sans text-slate-900 selection:bg-indigo-100 overflow-x-hidden`}
+      data-load-timed-out={loadTimedOut ? 'true' : undefined}
       dir="rtl"
     >
+      {loadTimedOut && (
+        <div role="alert" className="w-full bg-rose-50 border-b border-rose-200 text-rose-800 text-sm font-bold px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+          <span>לא התקבלה תשובה ממסד הנתונים. מה שמוצג כאן עלול להיות לא מעודכן — בדקו את החיבור לאינטרנט.</span>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 min-h-10 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold cursor-pointer"
+          >
+            נסו שוב
+          </button>
+        </div>
+      )}
       {/* Top Sub-Navigation Bar when embedded inside Admin view */}
       {hideSidebar && (
         <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 p-4 rounded-2xl mb-6 shadow-sm border border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">

@@ -5,6 +5,7 @@ import { useAuthStore } from "@/application/useAuthStore";
 import { useAdminStore } from "@/application/useAdminStore";
 import { useStore } from "@/application/useStore";
 import { executeGoogleSSO } from "@/infrastructure/services/AuthService";
+import { UdlSpeechButton } from "@/presentation/design-system/UdlSpeechButton";
 import { tts } from "@/infrastructure/services/TTSService";
 import { Logo } from "@/presentation/components/ui/Logo";
 import { Button } from "@/components/ui/button";
@@ -238,7 +239,11 @@ export function Login() {
       } else if (code === "auth/network-request-failed" || msg.includes("network-request-failed")) {
         setErrorMsg("שגיאת תקשורת ברשת. אנא בדוק את החיבור לאינטרנט ונסה שוב.");
       } else {
-        setErrorMsg(err?.message || "התחברות Google SSO נכשלה. רק מורים מורשים רשאים להיכנס.");
+        // Our own refusals are written in Hebrew and say what to do. Anything
+        // else is a Firebase internal ("auth/internal-error (auth/…)") that
+        // tells the teacher nothing.
+        const ours = /[\u05D0-\u05EA]/.test(msg);
+        setErrorMsg(ours ? msg : "ההתחברות נכשלה. נסו שוב; אם זה חוזר, פנו למנהל המערכת.");
       }
     }
   };
@@ -391,7 +396,7 @@ export function Login() {
                     {/* Step 3: Student ID Selection Dropdown (1-12) */}
                     <div className="flex flex-col gap-1 text-right">
                       <label className="text-xs font-black text-slate-700 dark:text-slate-300">
-                        מזהה תלמיד
+                        המספר שלי בכיתה
                       </label>
                       <select
                         value={selectedStudentNum}
@@ -433,11 +438,11 @@ export function Login() {
                           placeholder="••••••••"
                           className="w-full bg-slate-50 dark:bg-slate-950 border-2 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl p-3.5 text-center text-xl font-bold tracking-widest focus:border-[hsl(var(--ws-blue))] outline-none transition-all shadow-inner min-h-[48px] placeholder:text-slate-300 dark:placeholder:text-slate-700"
                           autoComplete="off"
-                          autoFocus
                         />
                       </motion.div>
-                      <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 text-center block mt-1">
-                        הזן את קוד הגישה שקיבלת מהמורה
+                      <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 text-center flex items-center justify-center gap-2 mt-1">
+                        <span>כתבו את קוד הגישה שקיבלתם מהמורה</span>
+                        <UdlSpeechButton text="בחרו את המספר שלכם בכיתה, כתבו את קוד הגישה שקיבלתם מהמורה, ולחצו כניסה." />
                       </span>
                     </div>
 
@@ -448,7 +453,7 @@ export function Login() {
                       disabled={isLoggingIn || !selectedStudentNum}
                       className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl font-extrabold text-base transition-all shadow-md active:scale-95 bg-[hsl(var(--ws-blue))] text-white hover:brightness-105 disabled:opacity-50 mt-2 min-h-[48px] cursor-pointer"
                     >
-                      <span>{isLoggingIn ? "מאמת נתונים..." : "כניסה לסביבה"}</span>
+                      <span>{isLoggingIn ? "רגע, בודקים..." : "כניסה"}</span>
                     </Button>
                   </form>
                 )}

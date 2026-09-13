@@ -3,6 +3,7 @@ import { ref, onValue } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
 import { useAuthStore } from '@/application/useAuthStore';
 import { normalizeStudentId } from '@/application/useChatStore';
+import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 
 interface BeeFlightWaitingScreenProps {
   onApproved?: () => void;
@@ -64,6 +65,7 @@ export function BeeFlightWaitingScreen({ onApproved }: BeeFlightWaitingScreenPro
         @media (prefers-reduced-motion: reduce) {
           .bee-flight { animation: none; }
         }
+        [data-quiet='true'] .bee-flight { animation: none; }
       `}</style>
       <div className="relative z-10 w-full max-w-md bg-white dark:bg-slate-900 p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col items-center gap-6 text-center">
         <div aria-hidden="true" className="h-20 flex items-center justify-center">
@@ -73,6 +75,7 @@ export function BeeFlightWaitingScreen({ onApproved }: BeeFlightWaitingScreenPro
         <p className="text-base text-slate-700 dark:text-slate-200 font-semibold leading-relaxed">
           כל הכבוד מתמטיקאים! סיימתם את התחנה השנייה בהצלחה. המורה בודק את העבודה שלכם כעת, ומיד נמשיך במסע המשותף שלנו.
         </p>
+        <UdlSpeechButton text="כל הכבוד מתמטיקאים! סיימתם את התחנה השנייה בהצלחה. המורה בודק את העבודה שלכם כעת, ומיד נמשיך במסע המשותף שלנו." />
       </div>
     </div>
   );

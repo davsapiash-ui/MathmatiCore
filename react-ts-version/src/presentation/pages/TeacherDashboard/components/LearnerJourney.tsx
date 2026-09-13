@@ -4,6 +4,7 @@ import { ReplayViewer } from '@/presentation/components/ReplayViewer';
 import {
   AI_FALLBACK_TEXT,
   REPORT_PROCESSING_TEXT,
+  describeReportError,
   describeEvent,
   exerciseTitle,
   fetchLearnerEvents,
@@ -169,7 +170,7 @@ export function LearnerJourney({ studentId }: Props) {
         // simply does not exist yet comes back as permission-denied — that is
         // the "no report yet" state, not a failure.
         if (isMissingReport(err)) { setReport(null); setReportState('idle'); return; }
-        setReportError(err instanceof Error ? err.message : String(err));
+        setReportError(describeReportError(err).message);
         setReportState('error');
       });
     return () => { cancelled = true; };
@@ -184,7 +185,7 @@ export function LearnerJourney({ studentId }: Props) {
       setReport(r);
       setReportState('idle');
     } catch (err) {
-      setReportError(err instanceof Error ? err.message : String(err));
+      setReportError(describeReportError(err).message);
       setReportState('error');
     }
   };
@@ -197,7 +198,7 @@ export function LearnerJourney({ studentId }: Props) {
       window.open(url, '_blank', 'noopener');
       setReportState('idle');
     } catch (err) {
-      setReportError(err instanceof Error ? err.message : String(err));
+      setReportError(describeReportError(err).message);
       setReportState('error');
     }
   };
@@ -355,8 +356,7 @@ export function LearnerJourney({ studentId }: Props) {
 
             {reportState === 'error' && (
               <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-200">
-                <div>{REPORT_PROCESSING_TEXT}</div>
-                {reportError && <div className="font-normal mt-1 opacity-80">{reportError}</div>}
+                <div>{reportError || REPORT_PROCESSING_TEXT}</div>
               </div>
             )}
 

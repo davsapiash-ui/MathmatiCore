@@ -531,7 +531,15 @@ exports.generateClassMeetingReport = (0, https_1.onCall)(exports.CLASS_REPORT_RU
     const studentsNode = studentsSnap.val() || {};
     const learnerPath = new Map();
     const recordingByLearner = new Map();
-    for (const [key, raw] of Object.entries(studentsNode)) {
+    // users/students can hold a learner under several keys (student_user3,
+    // student_3, 3 — the reset writes all three). The live client writes the
+    // canonical student_userN; a stale alias must not win the path by turning up
+    // first in key order.
+    const studentEntries = Object.entries(studentsNode).sort(([a], [b]) => {
+        const rank = (k) => (/^student_user\d+$/.test(k) ? 0 : /^student_\d+$/.test(k) ? 1 : 2);
+        return rank(a) - rank(b);
+    });
+    for (const [key, raw] of studentEntries) {
         const n = studentNumber(key);
         if (n === null || !raw || typeof raw !== "object")
             continue;

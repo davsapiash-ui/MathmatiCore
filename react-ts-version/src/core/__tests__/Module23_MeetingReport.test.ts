@@ -63,7 +63,8 @@ describe('Module 23 — report for every meeting (teacher page)', () => {
   it('shows the PRD texts: processing fallback and AI-unavailable fallback', () => {
     expect(service).toContain("export const REPORT_PROCESSING_TEXT = 'הדוח בעיבוד כעת, אנא נסו שוב בעוד מספר רגעים';");
     expect(service).toContain("export const AI_FALLBACK_TEXT = 'הניתוח הפדגוגי המפורט אינו זמין כעת. ההמלצות שלהלן מבוססות על מדדי הביצוע.';");
-    expect(journey).toMatch(/reportState === 'error' && \([\s\S]*?\{REPORT_PROCESSING_TEXT\}/);
+    expect(journey).toMatch(/reportState === 'error' && \([\s\S]*?\{reportError \|\| REPORT_PROCESSING_TEXT\}/);
+    expect(journey).toContain('describeReportError(err).message');
     expect(journey).toMatch(/report\.aiAnalysisAvailable \? \([\s\S]*?\{AI_FALLBACK_TEXT\}/);
   });
 

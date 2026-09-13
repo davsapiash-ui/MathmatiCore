@@ -70,7 +70,12 @@ export const syncUserRoles = onCall(
           }
         }
       } catch (err) {
-        logger.warn(`Could not fetch authorizedTeachers doc for ${normalizedEmail}:`, err);
+        // A read that failed is not a teacher who is not on the list. Falling
+        // through stamped "guest" over her existing teacher claims on a
+        // Firestore hiccup — a silent demotion the client then swallowed with
+        // a console.warn. Refuse instead; her current token stays as it is.
+        logger.error(`Could not fetch authorizedTeachers doc for ${normalizedEmail}:`, err);
+        throw new HttpsError("unavailable", "לא ניתן לאמת את ההרשאה כרגע. ההרשאות הקיימות נשמרות; נסו שוב בעוד רגע.");
       }
     }
 

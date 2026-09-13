@@ -171,7 +171,6 @@ describe('מסמך העיצוב §2.3 — אפס מונחי פיתוח בממש�
   const SURFACES = [
     'src/presentation/pages/TeacherDashboard/ClassManagement.tsx',
     'src/presentation/pages/TeacherDashboard/components/ResetConfirmationModal.tsx',
-    'src/presentation/pages/TeacherDashboard/components/SilentAdaptationPanel.tsx',
     'src/features/workspace/WorkspaceTopbar.tsx',
     'src/presentation/pages/admin/AdminWizardModal.tsx',
     'src/presentation/pages/admin/AdminSchoolsView.tsx',

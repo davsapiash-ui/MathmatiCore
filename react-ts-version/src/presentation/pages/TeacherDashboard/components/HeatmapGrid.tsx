@@ -63,7 +63,7 @@ export interface AnonymousStudent {
   activeBranch?: 'reinforcement' | 'challenge' | null;
   isOnline?: boolean;
   isWaitingAtGate?: boolean;
-  recommendedPath?: 'ירוק' | 'צמצום פערים';
+  recommendedPath?: 'ירוק' | 'צמצום פערים' | 'טרם נקבעה';
 }
 
 // Fixed 12-slot pilot structure (1 to 12) strictly without layout shifts
@@ -249,7 +249,13 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
             (data.completedMeeting2 === true || data.highestCompletedMeeting >= 2) &&
             data.teacher_gate_approved !== true
           );
-          const recommendedPath: 'ירוק' | 'צמצום פערים' = (data.routeRecommendation === 'YELLOW' || sessionState.current_path === 'remediation_path') ? 'צמצום פערים' : 'ירוק';
+          // A learner with no recommendation on record has no recommendation.
+          // This used to read "ירוק" for them — a green light the diagnostic
+          // never gave, next to the approve button.
+          const recommendedPath: 'ירוק' | 'צמצום פערים' | 'טרם נקבעה' =
+            (data.routeRecommendation === 'YELLOW' || sessionState.current_path === 'remediation_path') ? 'צמצום פערים'
+            : (data.routeRecommendation === 'GREEN' || sessionState.current_path === 'green_path') ? 'ירוק'
+            : 'טרם נקבעה';
           const errorCategory = data.error_category || data.errorCategory || wsState.aiSocraticHint?.error_category || wsState.errorCategory || null;
           // Module 18: classification distribution for the CURRENT session only
           const rawDistribution = data.errorCategoryDistribution?.[`session_${sessionNumber}`] || {};

@@ -651,7 +651,15 @@ export const generateClassMeetingReport = onCall(CLASS_REPORT_RUNTIME, async (re
   const studentsNode: Record<string, any> = studentsSnap.val() || {};
   const learnerPath = new Map<number, "green_path" | "remediation_path">();
   const recordingByLearner = new Map<number, { minutes: number; truncated: boolean }>();
-  for (const [key, raw] of Object.entries(studentsNode)) {
+  // users/students can hold a learner under several keys (student_user3,
+  // student_3, 3 — the reset writes all three). The live client writes the
+  // canonical student_userN; a stale alias must not win the path by turning up
+  // first in key order.
+  const studentEntries = Object.entries(studentsNode).sort(([a], [b]) => {
+    const rank = (k: string) => (/^student_user\d+$/.test(k) ? 0 : /^student_\d+$/.test(k) ? 1 : 2);
+    return rank(a) - rank(b);
+  });
+  for (const [key, raw] of studentEntries) {
     const n = studentNumber(key);
     if (n === null || !raw || typeof raw !== "object") continue;
     const node = raw as Record<string, any>;

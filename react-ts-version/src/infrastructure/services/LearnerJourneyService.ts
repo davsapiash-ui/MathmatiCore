@@ -384,6 +384,31 @@ export function formatDuration(ms: number): string {
 
 /** PRD Module 23 §ד: the only text shown while a report is not ready. */
 export const REPORT_PROCESSING_TEXT = 'הדוח בעיבוד כעת, אנא נסו שוב בעוד מספר רגעים';
+/**
+ * PRD Module 23 §ד names one text for a report that is not ready yet. Both
+ * report panels showed it for every failure — a "not-found" with the server's
+ * own Hebrew explanation ("אין פעולות מתועדות למפגש…") came out as "try again
+ * in a few moments", and the teacher tried again, and again. A refusal is
+ * final and says why; only a transient failure is "processing".
+ */
+export function describeReportError(err: unknown): { final: boolean; message: string } {
+  const code = String((err as { code?: string } | null)?.code ?? '').replace(/^functions\//, '');
+  const raw = err instanceof Error ? err.message : String(err ?? '');
+  const finalCodes = new Set(['not-found', 'invalid-argument', 'permission-denied', 'failed-precondition', 'unauthenticated']);
+  if (finalCodes.has(code)) {
+    const hebrew = /[\u05D0-\u05EA]/.test(raw);
+    return {
+      final: true,
+      message: hebrew
+        ? raw
+        : code === 'permission-denied' || code === 'unauthenticated'
+          ? 'אין לך הרשאה להפיק את הדוח הזה.'
+          : 'לא ניתן להפיק דוח למפגש הזה.',
+    };
+  }
+  return { final: false, message: REPORT_PROCESSING_TEXT };
+}
+
 /** PRD Module 23 §ב: the only text shown when the AI layer is unavailable. */
 export const AI_FALLBACK_TEXT = 'הניתוח הפדגוגי המפורט אינו זמין כעת. ההמלצות שלהלן מבוססות על מדדי הביצוע.';
 

@@ -1510,8 +1510,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       if (!saved) return;
       const storedDeadline = getStoredSocraticLockDeadline();
       const sanitized = sanitizeSessionNumber(saved.sessionNumber);
-      // Master PRD v6.4 Module 14: Sessions 3-7 are 15 min; Sessions 2 & 8 (and Session 1) are 25 min
-      const durationMin = (sanitized >= 3 && sanitized <= 7) ? 15 : 25;
+      // PRD Module 14 §ב — the same table initSession uses: meeting 1 is 20
+      // minutes, 3-7 are 15, 2 and 8 are 25. This copy said 25 for meeting 1,
+      // so a refresh mid-sandbox handed the teacher a "עברו 25 דקות" popup
+      // five minutes late.
+      const durationMin = sanitized === 1 ? 20 : (sanitized >= 3 && sanitized <= 7) ? 15 : 25;
       let sessionDeadline = saved.sessionDeadlineTime || null;
       if (!sessionDeadline && typeof localStorage !== 'undefined') {
         const stored = localStorage.getItem(`mathmaticore_session_${sanitized}_deadline`);

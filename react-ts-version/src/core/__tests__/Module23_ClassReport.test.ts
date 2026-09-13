@@ -95,7 +95,10 @@ describe('Module 23 — class report per meeting (teacher page)', () => {
     for (const field of ['tiers', 'exercises', 'learners', 'pdfUrl', 'csvUrl', 'classPatterns', 'teachingRecommendations', 'wrongDigitsByColumn']) {
       expect(panel).toContain(`report.${field}`);
     }
-    expect(panel).toMatch(/state === 'error' && \([\s\S]*?\{REPORT_PROCESSING_TEXT\}/);
+    // A final refusal (not-found, permission) shows the server's own reason;
+    // only a transient failure falls back to the PRD "processing" text.
+    expect(panel).toMatch(/state === 'error' && \([\s\S]*?\{error \|\| REPORT_PROCESSING_TEXT\}/);
+    expect(panel).toContain('describeReportError(err).message');
     expect(panel).toMatch(/report\.aiAnalysisAvailable \? \([\s\S]*?\{AI_FALLBACK_TEXT\}/);
   });
 });
