@@ -50,8 +50,10 @@ export async function isWhitelistedTeacherEmailAsync(email?: string | null): Pro
   if (!email) return false;
   const normalized = email.toLowerCase().trim();
 
-  // Master pilot administrator & teacher initial exact authorization
-  if (normalized === "davidsep@edu-haifa.org.il" || normalized === "1002220159@edu-haifa.org.il") return true;
+  // The two pilot addresses used to short-circuit this check. They are in
+  // the whitelist like everyone else, and hardcoding them meant deleting a
+  // teacher could not revoke her login (deviation 15). authorizedTeachers is
+  // the single source of truth.
 
   // Development/Test simulated accounts
   if (import.meta.env.DEV || import.meta.env.MODE === "test") {
@@ -108,15 +110,20 @@ export function isWhitelistedTeacherEmail(email?: string | null): boolean {
   if (!email) return false;
   const normalized = email.toLowerCase().trim();
 
-  if (normalized.endsWith("@mathmaticore.local")) return true;
-  if (normalized === "davidsep@edu-haifa.org.il" || normalized === "1002220159@edu-haifa.org.il") return true;
+  // No hardcoded production addresses. This is the synchronous route guard,
+  // reached only when a session is missing the whitelistVerified stamp that
+  // every successful login writes — that is, a session that never authorised
+  // against the real list, and which should be sent back to the login screen.
 
   if (import.meta.env.DEV || import.meta.env.MODE === "test") {
+    // "@mathmaticore.local" used to be accepted unconditionally, in
+    // production too — a domain wildcard, sitting directly under a comment
+    // saying domain wildcards are prohibited. It belongs here, with the other
+    // development accounts.
     if (
       normalized === "teacher.demo@edu-haifa.org.il" ||
       normalized === "admin.demo@edu-haifa.org.il" ||
-      normalized === "teacher@mathmaticore.local" ||
-      normalized === "admin@mathmaticore.local" ||
+      normalized.endsWith("@mathmaticore.local") ||
       normalized.endsWith("@local.dev")
     ) {
       return true;

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useDismissableOverlay } from '@/hooks/useDismissableOverlay';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useWorkspaceStore, type SupportType, getActiveTasks } from '@/application/useWorkspaceStore';
 import { useAuthStore, currentStudentUid } from '@/application/useAuthStore';
@@ -23,6 +24,15 @@ export function HelpOverlays() {
   const helpFrictionDone = useWorkspaceStore((s) => s.helpFrictionDone);
   const chooseSupport = useWorkspaceStore((s) => s.chooseSupport);
   const closeHelp = useWorkspaceStore((s) => s.closeHelp);
+  // מסמך העיצוב §1.2: כל חלון מודאלי נסגר ב-Escape. שלושת חלונות העזרה לא
+  // האזינו למקש כלל; שניים מהם חוסמים את המסך.
+  const paletteRef = useDismissableOverlay<HTMLDivElement>(helpState === 'palette', closeHelp);
+  // The blocking content modal is the metacognitive hint or the worked
+  // example; the Socratic card is non-blocking by design and stays out.
+  const contentRef = useDismissableOverlay<HTMLDivElement>(
+    helpState === 'metacognitive' || helpState === 'worked_example',
+    closeHelp
+  );
 
   // Fast, smooth transition (300ms) for snappy help response without lag.
   useEffect(() => {
@@ -84,6 +94,7 @@ export function HelpOverlays() {
             animate={{ y: 0 }}
             exit={{ y: '100%', pointerEvents: 'none' }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            ref={paletteRef}
             className="fixed bottom-0 inset-x-0 z-50 bg-ws-surface rounded-t-3xl shadow-[0_-12px_40px_rgba(0,0,0,0.18)] border-t border-ws-surface2 p-6"
             role="dialog"
             aria-modal="true"
@@ -197,6 +208,7 @@ export function HelpOverlays() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0, pointerEvents: 'none' }}
+            ref={contentRef}
             className="fixed inset-0 z-50 bg-ws-ink/50 backdrop-blur-sm flex items-center justify-center p-6"
             role="dialog"
             aria-modal="true"
@@ -269,7 +281,7 @@ function SocraticPenaltyLockOptions({ onClose }: { onClose: () => void }) {
     : (currentTask?.id === 's1_t8' || (currentTask?.numberA && currentTask?.numberB && Math.floor((currentTask.numberA % 100) / 10) + Math.floor((currentTask.numberB % 100) / 10) >= 10))
     ? [
         { id: 'A', textHe: 'נקבץ 10 עשרות לטור המאות (מאה אחת) ונשאיר את שאר העשרות בטור העשרות.', isCorrect: true, feedbackHe: 'תשובה נכונה! קבצו 10 עשרות למאה אחת בטור המאות.' },
-        { id: 'B', textHe: 'נמחק 10 עשרות לפח המחזור מבלי להוסיף מאה.', isCorrect: false, feedbackHe: 'רמז: מחיקת בלוקים משנה את ערך המספר הכולל. יש להמיר למאה!' },
+        { id: 'B', textHe: 'נמחק 10 עשרות בפח האשפה מבלי להוסיף מאה.', isCorrect: false, feedbackHe: 'רמז: מחיקת בלוקים משנה את ערך המספר הכולל. יש להמיר למאה!' },
         { id: 'C', textHe: 'נרשום מספר דו-ספרתי בתוך משבצת העשרות.', isCorrect: false, feedbackHe: 'רמז: בכל משבצת בבית המספרים מותרת ספרה אחת בלבד (0 עד 9).' },
       ]
     : [
@@ -393,16 +405,14 @@ function SocraticPenaltyLockOptions({ onClose }: { onClose: () => void }) {
         </div>
       )}
 
+      {/* PRD Module 12 §ב locks "לחצני המענה בכרטיס בלבד" for 30 seconds. The
+          close button was locked too, so the child could not dismiss the card
+          for the whole penalty. The answer buttons stay locked; this does not. */}
       <button
         onClick={onClose}
-        disabled={lockSeconds > 0}
-        className={`mt-2 w-full h-11 rounded-full font-display font-extrabold text-sm transition-all ${
-          lockSeconds > 0
-            ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed opacity-60'
-            : 'bg-ws-accent text-white hover:brightness-105 shadow-md'
-        }`}
+        className="mt-2 w-full h-11 rounded-full font-display font-extrabold text-sm transition-all bg-ws-accent text-white hover:brightness-105 shadow-md"
       >
-        {lockSeconds > 0 ? `חלונית נעולה (${lockSeconds}ש')` : 'הבנתי, סגור חלונית'}
+        {lockSeconds > 0 ? `סגור לעת עתה (המענה ייפתח בעוד ${lockSeconds}ש')` : 'הבנתי, סגור חלונית'}
       </button>
     </div>
   );

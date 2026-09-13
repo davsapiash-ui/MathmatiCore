@@ -21,21 +21,34 @@ exports.syncUserRoles = (0, https_1.onCall)({
         throw new https_1.HttpsError("invalid-argument", "Email is required for role sync");
     }
     const normalizedEmail = email.toLowerCase().trim();
-    const TEACHER_EMAIL = (process.env.TEACHER_SSO_PRIMARY_EMAIL || "teacher_sso@domain.edu").toLowerCase().trim();
-    const TEACHER_LOCAL = "teacher_1002220159@mathmaticore.local";
-    const ADMIN_PRIMARY = (process.env.ADMIN_SSO_PRIMARY_EMAIL || "davidsep@edu-haifa.org.il").toLowerCase().trim();
-    const ADMIN_ALIAS = (process.env.ADMIN_SSO_ALIAS_EMAIL || "admin@mathmaticore.local").toLowerCase().trim();
+    // authorizedTeachers is the single source of truth. Five hardcoded
+    // bypasses used to sit here, three of them guessable —
+    // "teacher_sso@domain.edu" was the DEFAULT when the env var is unset, on a
+    // domain this project does not own. They are gone, and so is the pilot
+    // pair: the product owner confirmed both addresses are in the whitelist,
+    // and keeping them hardcoded meant deleting a teacher could not actually
+    // revoke her login (deviation 15).
+    //
+    // The emergency hatch is the environment variables, which are the owner's
+    // own configuration rather than a value anyone can guess. They are honoured
+    // only when they look like an address.
+    const envEmail = (name) => {
+        const raw = (process.env[name] || "").toLowerCase().trim();
+        return raw.includes("@") ? raw : null;
+    };
+    const teacherFallbacks = new Set([envEmail("TEACHER_SSO_PRIMARY_EMAIL")].filter(Boolean));
+    const adminFallbacks = new Set([envEmail("ADMIN_SSO_PRIMARY_EMAIL"), envEmail("ADMIN_SSO_ALIAS_EMAIL")].filter(Boolean));
     const firestore = admin.firestore();
     let isAuthorizedTeacher = false;
     let isAuthorizedAdmin = false;
     let claims = {};
     let roles = [];
     let resolvedUid = request.auth.uid;
-    // Check hardcoded pilot addresses
-    if (normalizedEmail === ADMIN_PRIMARY || normalizedEmail === ADMIN_ALIAS) {
+    // Check the documented pilot fallback addresses
+    if (adminFallbacks.has(normalizedEmail)) {
         isAuthorizedAdmin = true;
     }
-    else if (normalizedEmail === TEACHER_EMAIL || normalizedEmail === TEACHER_LOCAL || normalizedEmail === "1002220159@edu-haifa.org.il") {
+    else if (teacherFallbacks.has(normalizedEmail)) {
         isAuthorizedTeacher = true;
     }
     else {
@@ -53,7 +66,12 @@ exports.syncUserRoles = (0, https_1.onCall)({
             }
         }
         catch (err) {
-            logger.warn(`Could not fetch authorizedTeachers doc for ${normalizedEmail}:`, err);
+            // A read that failed is not a teacher who is not on the list. Falling
+            // through stamped "guest" over her existing teacher claims on a
+            // Firestore hiccup — a silent demotion the client then swallowed with
+            // a console.warn. Refuse instead; her current token stays as it is.
+            logger.error(`Could not fetch authorizedTeachers doc for ${normalizedEmail}:`, err);
+            throw new https_1.HttpsError("unavailable", "לא ניתן לאמת את ההרשאה כרגע. ההרשאות הקיימות נשמרות; נסו שוב בעוד רגע.");
         }
     }
     if (isAuthorizedAdmin) {
@@ -68,10 +86,13 @@ exports.syncUserRoles = (0, https_1.onCall)({
         resolvedUid = UNIFIED_ADMIN_UID;
         // Ensure doc exists in authorizedTeachers collection
         try {
+            // No name. The product owner's decision, recorded in the deviations
+            // register: a teacher's only stored identity is the whitelisted
+            // e-mail. This line re-created the field on every admin sign-in, in
+            // the one collection every authenticated user can read.
             await firestore.collection("authorizedTeachers").doc(normalizedEmail).set({
                 email: normalizedEmail,
                 role: "admin",
-                name: "David Sep (Admin)",
                 updatedAt: Date.now()
             }, { merge: true });
         }

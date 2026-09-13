@@ -113,7 +113,15 @@ export function ReplayViewer({ events, seekToTime, seekNonce, onEnd, onProgress 
     } catch (err: any) {
       console.error("rrweb Replayer failed to initialize:", err);
       if (container) {
-        container.innerHTML = `<div class="p-6 bg-red-50 text-red-700 rounded-2xl m-4 font-bold text-center">שגיאה בטעינת נגן ההקלטות: ${err.message || 'Unknown error'}</div>`;
+        // The exception text is for the console. Interpolating it into
+        // innerHTML put a raw stack fragment on the teacher's screen — and
+        // markup, had the recording carried any.
+        container.replaceChildren();
+        const notice = document.createElement('div');
+        notice.setAttribute('role', 'alert');
+        notice.className = 'p-6 bg-red-50 text-red-700 rounded-2xl m-4 font-bold text-center';
+        notice.textContent = 'לא הצלחנו להפעיל את ההקלטה הזו. נסו לרענן את הדף; אם זה חוזר, ייתכן שההקלטה פגומה.';
+        container.appendChild(notice);
       }
     }
 

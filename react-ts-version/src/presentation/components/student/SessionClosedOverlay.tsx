@@ -1,4 +1,5 @@
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
+import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 import { LogoutButton } from '@/presentation/components/ui/LogoutButton';
 
 /**
@@ -9,6 +10,11 @@ import { LogoutButton } from '@/presentation/components/ui/LogoutButton';
  * כפתור התנתקות נגיש מאפשר לתלמיד להתנתק בצורה מסודרת בסיום יום הלימודים.
  */
 export function SessionClosedOverlay() {
+  // מצב שקט: MotionConfig מכבה תנועות תמרה, אך לא לולאת שקיפות אינסופית —
+  // הנקודות המשיכו לפעום מול ילד שהמורה סימנה כרגיש חושית. כאן הן עומדות.
+  const reduceMotion = useReducedMotion();
+  const loop = (frames: Record<string, number[]>, transition: Record<string, unknown>) =>
+    reduceMotion ? {} : { animate: frames, transition };
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -36,13 +42,13 @@ export function SessionClosedOverlay() {
           <p className="text-base text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
             העבודה שלכם נשמרה בבטחה. כשהמורה תפתח מפגש חדש, הפעילות תתחדש כאן מיד.
           </p>
+          <UdlSpeechButton text="המורה סגרה את המפגש. העבודה שלכם נשמרה בבטחה. כשהמורה תפתח מפגש חדש, הפעילות תתחדש כאן מיד." className="self-center" />
         </div>
         <div className="flex items-center gap-2 pt-1" aria-hidden="true">
           {[0, 1, 2].map((i) => (
             <motion.div
               key={i}
-              animate={{ scale: [1, 1.3, 1], opacity: [0.4, 1, 0.4] }}
-              transition={{ duration: 1.8, repeat: Infinity, delay: i * 0.35, ease: 'easeInOut' }}
+              {...loop({ scale: [1, 1.3, 1], opacity: [0.4, 1, 0.4] }, { duration: 1.8, repeat: Infinity, delay: i * 0.35, ease: 'easeInOut' })}
               className="w-2.5 h-2.5 rounded-full bg-indigo-500 dark:bg-indigo-400"
             />
           ))}

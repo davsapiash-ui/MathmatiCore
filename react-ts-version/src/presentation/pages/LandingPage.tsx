@@ -50,12 +50,6 @@ export function LandingPage() {
         <Logo size="lg" to="/" />
         <div className="flex items-center gap-4">
           <button
-            onClick={() => window.open("https://github.com/MathmatiCore", "_blank")}
-            className="hidden md:inline-flex items-center px-6 py-2.5 rounded-full font-display font-bold text-ws-soft hover:text-ws-ink hover:bg-[hsl(var(--ws-surface-2)/0.6)] transition-all duration-300"
-          >
-            אודות המערכת
-          </button>
-          <button
             onClick={() => navigate("/login")}
             className="inline-flex items-center px-7 py-2.5 rounded-full font-display font-bold text-white bg-gradient-to-r from-[hsl(var(--ws-blue))] to-[hsl(var(--ws-teal))] shadow-lg shadow-[hsl(var(--ws-blue)/0.25)] hover:shadow-[hsl(var(--ws-blue)/0.4)] hover:brightness-105 active:scale-[0.98] transition-all duration-300"
           >

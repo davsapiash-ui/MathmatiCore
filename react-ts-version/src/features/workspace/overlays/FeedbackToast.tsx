@@ -14,7 +14,7 @@ export function FeedbackToast() {
   const isASD = useWorkspaceStore((s) => s.isASD);
 
   useEffect(() => {
-    if (feedback?.correct && !isASD) {
+    if (feedback?.correct && !feedback.neutral && !isASD) {
       confetti({
         particleCount: 150,
         spread: 70,
@@ -36,17 +36,17 @@ export function FeedbackToast() {
           exit={{ y: -80, opacity: 0 }}
           transition={{ type: 'spring', stiffness: 350, damping: 25 }}
           className={`fixed top-24 left-1/2 -translate-x-1/2 z-50 min-w-[340px] max-w-[540px] rounded-3xl px-6 py-5 flex items-start gap-4 bg-ws-surface border-2 shadow-[0_24px_48px_-16px_hsl(var(--ws-shadow-warm)/0.45)] ${
-            feedback.correct ? 'border-ws-success/50' : 'border-ws-accent/50'
+            feedback.neutral ? 'border-ws-ink/20' : feedback.correct ? 'border-ws-success/50' : 'border-ws-accent/50'
           }`}
           dir="rtl"
         >
           <span
             className={`shrink-0 w-12 h-12 rounded-2xl flex items-center justify-center text-2xl ${
-              feedback.correct ? 'bg-green-50' : 'bg-ws-accentSoft'
+              feedback.neutral ? 'bg-ws-surface2' : feedback.correct ? 'bg-green-50' : 'bg-ws-accentSoft'
             }`}
             aria-hidden="true"
           >
-            {feedback.correct ? '🌟' : '🤔'}
+            {feedback.neutral ? '👍' : feedback.correct ? '🌟' : '🤔'}
           </span>
           <div className="pt-0.5">
             <p className="font-display font-extrabold text-xl text-ws-ink leading-snug">{feedback.title}</p>

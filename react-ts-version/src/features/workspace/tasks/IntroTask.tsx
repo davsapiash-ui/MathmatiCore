@@ -51,7 +51,7 @@ export function IntroTask({ task }: { task: SessionTask }) {
                   {hasDeletedBlock ? '✅' : '⏳'}
                 </span>
                 <span className={`text-base font-semibold ${hasDeletedBlock ? 'text-ws-soft line-through' : 'text-ws-ink'}`}>
-                  מחקו לפחות פריט אחד (לפח או מחוץ ללוח)
+                  מחקו לפחות לבנה אחת (גררו אותה לפח האשפה)
                 </span>
               </div>
               <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-ws-soft">

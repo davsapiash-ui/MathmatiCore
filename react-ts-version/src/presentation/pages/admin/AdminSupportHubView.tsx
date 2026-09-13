@@ -52,7 +52,6 @@ export function AdminSupportHubView() {
   const { schools, teachers } = useAdminStore();
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedSchool] = useState<string>('ALL');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
 
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
@@ -108,11 +107,10 @@ export function AdminSupportHubView() {
         t.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (t.student_id && t.student_id.includes(searchQuery));
       
-      const matchesSchool = selectedSchool === 'ALL' || t.school_id === selectedSchool;
       const matchesStatus = selectedStatus === 'ALL' || t.status === selectedStatus;
-      return matchesSearch && matchesSchool && matchesStatus;
+      return matchesSearch && matchesStatus;
     });
-  }, [tickets, searchQuery, selectedSchool, selectedStatus]);
+  }, [tickets, searchQuery, selectedStatus]);
 
   // `read` is the only field firestore.rules lets a reader update on a message
   // (messages/{id}: affectedKeys().hasOnly(['read'])), and it is what drives
@@ -272,7 +270,7 @@ export function AdminSupportHubView() {
                   <div className="flex gap-1.5">
                     <button
                       onClick={() => handleUpdateStatus(selectedTicket.id, 'RESOLVED')}
-                      className="px-2.5 py-1 text-xs font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg cursor-pointer transition-all"
+                      className="px-4 py-2.5 min-h-10 text-xs font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg cursor-pointer transition-all"
                     >
                       סמן כנפתרה
                     </button>

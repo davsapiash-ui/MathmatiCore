@@ -100,6 +100,13 @@ export interface FeedbackState {
   title: string;
   sub?: string;
   nonce?: number | string;
+  /**
+   * מפגש 2 הוא אבחון: הילד אינו אמור לדעת אם צדק, ולכן כל תשובה קיבלה
+   * `correct: true`. אבל `correct` הוא גם מה שמפעיל את הקונפטי ואת המסגרת
+   * הירוקה — כך שילד שטעה קיבל חגיגה של 150 חלקיקים. `neutral` מפריד בין
+   * השניים: אישור שקט שהתשובה נקלטה, בלי לחגוג ובלי לשפוט.
+   */
+  neutral?: boolean;
 }
 
 export interface UndoFrame {
@@ -241,6 +248,8 @@ interface WorkspaceState {
   addRepresentation: () => void;
   demoUngroup: () => void;
   proceed: () => void;
+  /** "סיום המפגש כעת" from the early-finisher screen; records completion like every other exit. */
+  finishMeetingEarly: () => void;
   requestHelp: () => void;
   /**
    * מסמך 04 §2א/§5: the silent help button — "שליחת אות מצוקה חרישי למורה ללא
@@ -642,7 +651,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     const s = get();
     switch (event.type) {
       case 'primary_done':
-        showFeedback({ correct: true, title: 'הַתְּשׁוּבָה הִתְקַבְּלָה! 👍', sub: 'עוֹבְרִים לַמְּשִׂימָה הַבָּאָה...' }, 1500, () => {
+        showFeedback({ correct: true, neutral: true, title: 'הַתְּשׁוּבָה הִתְקַבְּלָה! 👍', sub: 'עוֹבְרִים לַמְּשִׂימָה הַבָּאָה...' }, 1500, () => {
           const { state, event: next } = advance(get().qflow);
           set({ qflow: state });
           if (next) handleQFlowEvent(next);
@@ -671,7 +680,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         );
         break;
       case 'start_retry':
-        showFeedback({ correct: true, title: 'מְנַסִּים שׁוּב! 🔄', sub: 'הִנֵּה הַמְּשִׂימָה הַמְּקוֹרִית. נַסּוּ לִפְתֹּר אוֹתָהּ כָּעֵת:' }, 1800, () => {
+        showFeedback({ correct: true, neutral: true, title: 'מְנַסִּים שׁוּב! 🔄', sub: 'הִנֵּה הַמְּשִׂימָה הַמְּקוֹרִית. נַסּוּ לִפְתֹּר אוֹתָהּ כָּעֵת:' }, 1800, () => {
           startTask(event.taskId);
           set({ awaitingNext: false });
         });
@@ -780,6 +789,27 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         break;
     }
     void s;
+  }
+
+  /**
+   * The early-finisher screen's "finish the meeting now" link. The two other
+   * ways out of a finished task list both record highestCompletedMeeting; this
+   * one set flowStatus and nothing else, so a learner who completed all seven
+   * compulsory tasks and took the link was recorded as never having finished.
+   */
+  function finishMeetingEarly() {
+    const s = get();
+    const studentId = currentStudentUid();
+    if (studentId && !s.isSupersededByOtherDevice) {
+      const normId = normalizeStudentId(studentId);
+      useStore.getState().updateHighestCompletedMeeting(studentId, s.sessionNumber);
+      useStore.getState().updateHighestCompletedMeeting(normId, s.sessionNumber);
+      firebaseSyncService.syncHighestCompletedMeeting(studentId, s.sessionNumber).catch(console.error);
+      if (normId !== studentId) {
+        firebaseSyncService.syncHighestCompletedMeeting(normId, s.sessionNumber).catch(console.error);
+      }
+    }
+    set({ flowStatus: 'reflection' });
   }
 
   /** Sessions 1/3/4 proceed (vanilla handleSession1Proceed, app.js 999–1110). */
@@ -1012,7 +1042,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     }
 
     if (task.type === 'small_change') {
-      if (!s.selectedChoiceId) return;
+      if (!s.selectedChoiceId) {
+        // "התקדם" is enabled by any board touch in meetings 3-5, so a press
+        // with no option chosen used to do nothing at all — no message.
+        showFeedback({ correct: false, title: 'בַּחֲרוּ תְּשׁוּבָה', sub: 'סַמְּנוּ אַחַת מֵהָאֶפְשָׁרֻיּוֹת, וְאָז לַחֲצוּ "הִתְקַדֵּם".' }, 1800);
+        return;
+      }
       if (s.selectedChoiceId !== task.correctAnswer) {
         handleFailure('wrong_choice', 'נסו שוב 🤔', 'התשובה שבחרתם אינה נכונה.', 2500);
         return;
@@ -1023,7 +1058,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     if (task.type === 'missing_element') {
       const answer = s.probeAnswer ? parseInt(s.probeAnswer, 10) : null;
-      if (answer === null || Number.isNaN(answer)) return;
+      if (answer === null || Number.isNaN(answer)) {
+        showFeedback({ correct: false, title: 'נָא לְהַקְלִיד תְּשׁוּבָה', sub: 'כִּתְבוּ אֶת הַחֵלֶק הֶחָסֵר בַּתֵּיבָה, וְאָז לַחֲצוּ "הִתְקַדֵּם".' }, 1800);
+        return;
+      }
       if (answer !== task.correctAnswer) {
         handleFailure('wrong_answer', 'נסו שוב 🤔', 'המספר שהזנתם אינו נכון.', 2500);
         return;
@@ -1192,8 +1230,20 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     const subtask = isSubtaskActive(s.qflow);
 
     let answer: number | null = null;
+    let expected: number | null = task.correctAnswer ?? null;
     if (subtask) {
       answer = s.probeAnswer ? parseInt(s.probeAnswer, 10) : null;
+      // The probe is its own, smaller exercise. Task 3 shows 40 − 10 while the
+      // task it belongs to is 42 − 15, and the child's answer used to be
+      // compared against 27 — so the correct answer 30 was marked wrong, and
+      // typing 27 was marked right. The verdict feeds the diagnostic tag, the
+      // Q-matrix and the teacher's gate decision, so it has to be graded
+      // against the probe's own answer.
+      const diag = task.backwardDiagnosis;
+      const probeExpected = s.isASD && diag?.asdProbeAnswer !== undefined
+        ? diag.asdProbeAnswer
+        : diag?.probeAnswer;
+      if (probeExpected !== undefined) expected = probeExpected;
     } else {
       answer = answerDigitsToNumber(s.answerDigits);
       if ((answer === null || isNaN(answer)) && s.probeAnswer) {
@@ -1206,7 +1256,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       return;
     }
 
-    const isCorrect = answer === task.correctAnswer;
+    const isCorrect = expected !== null && answer === expected;
     const evalResult = { correct: isCorrect, detail: isCorrect ? '' : 'wrong_answer' };
 
     if (evalResult) {
@@ -1460,8 +1510,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       if (!saved) return;
       const storedDeadline = getStoredSocraticLockDeadline();
       const sanitized = sanitizeSessionNumber(saved.sessionNumber);
-      // Master PRD v6.4 Module 14: Sessions 3-7 are 15 min; Sessions 2 & 8 (and Session 1) are 25 min
-      const durationMin = (sanitized >= 3 && sanitized <= 7) ? 15 : 25;
+      // PRD Module 14 §ב — the same table initSession uses: meeting 1 is 20
+      // minutes, 3-7 are 15, 2 and 8 are 25. This copy said 25 for meeting 1,
+      // so a refresh mid-sandbox handed the teacher a "עברו 25 דקות" popup
+      // five minutes late.
+      const durationMin = sanitized === 1 ? 20 : (sanitized >= 3 && sanitized <= 7) ? 15 : 25;
       let sessionDeadline = saved.sessionDeadlineTime || null;
       if (!sessionDeadline && typeof localStorage !== 'undefined') {
         const stored = localStorage.getItem(`mathmaticore_session_${sanitized}_deadline`);
@@ -2116,11 +2169,22 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         }
       }
 
+      // The second representation has to be a different one. With the board
+      // kept between the two (below), pressing the button twice must not count.
+      if (s.q3Reps.length === 1 && countsEqual(s.counts, s.q3Reps[0])) {
+        showFeedback({ correct: false, title: 'זוֹ אוֹתָהּ דֶּרֶךְ 🤔', sub: 'הַרְאוּ אֶת אוֹתוֹ מִסְפָּר בְּדֶרֶךְ שׁוֹנָה: פִּרְטוּ אוֹ הַקְבִּיצוּ, וְאָז הוֹסִיפוּ.' }, 3200);
+        return;
+      }
+
       const q3Reps = [...s.q3Reps, { ...s.counts }];
       set({ q3Reps, hasInteracted: true });
-      if (q3Reps.length < 2) {
-        set({ counts: { ...EMPTY_COUNTS }, undoStack: [] });
-      }
+      // The board used to be wiped here, and the undo stack with it. Three
+      // exercises tell the child: "build 12 tens and 5 units, press add, THEN
+      // regroup 10 tens into a hundred and add the second representation".
+      // The child pressed the button and had nothing left to regroup — and
+      // the instruction's promise that undo is available was false at that
+      // exact moment (PRD Module 11 keeps the last 10 actions). The blocks
+      // stay; the child transforms them.
     },
 
     restoreScaffolds: () => {
@@ -2137,6 +2201,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       }
     },
 
+    finishMeetingEarly,
     proceed: () => {
       const s = get();
       if (s.awaitingNext || s.flowStatus !== 'task' || !selectCanProceed(s)) return;
@@ -2221,7 +2286,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const currentTask = getActiveTasks(s)[s.standardTaskIdx];
       if (currentTask?.type === 'session1_intro' || currentTask?.id === 's1_sandbox_controlled') {
         showFeedback(
-          { correct: true, title: 'טיפ 💡', sub: 'גרור לפחות 5 פריטים לבית המספרים ומחק פריט אחד לפח המחזור — כפתור "התקדם" ייפתח אוטומטית!' },
+          { correct: true, title: 'טיפ 💡', sub: 'גררו לפחות 5 לבנים לבית המספרים ומחקו לבנה אחת בפח האשפה — כפתור "התקדם" ייפתח אוטומטית!' },
           5000
         );
         return;

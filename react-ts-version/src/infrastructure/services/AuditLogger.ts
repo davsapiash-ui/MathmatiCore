@@ -35,18 +35,26 @@ class AuditLoggerService {
       }
       const timestamp = Date.now();
       const sanitizedDetails = maskPII(details);
-      
-      // Global audit log
-      const logsRef = ref(database, 'audit_logs');
-      await push(logsRef, {
-        action,
-        user_id: userId,
-        details: sanitizedDetails || null,
-        timestamp: serverTimestamp(),
-      });
 
       const cleanId = (userId || '').trim().toLowerCase();
       const isStudentEvent = cleanId.startsWith('student_') || (!['admin', 'teacher', 'unknown_uid'].includes(cleanId) && !cleanId.includes('@'));
+
+      // The global audit log is what the admin console shows under "יומן
+      // אירועי אבטחה וביקורת". Every learner event — each wrong answer with
+      // its task id, each help request, each hesitation — was pushed into it,
+      // and in a live lesson those arrive far faster than admin actions, so
+      // the last-30 window was all children. Module 24 §ב blocks the system
+      // administrator from individual learner telemetry. Learner events go to
+      // the teacher's radar (below) and nowhere else.
+      if (!isStudentEvent) {
+        const logsRef = ref(database, 'audit_logs');
+        await push(logsRef, {
+          action,
+          user_id: userId,
+          details: sanitizedDetails || null,
+          timestamp: serverTimestamp(),
+        });
+      }
 
       if (isStudentEvent) {
         // Student personal radar history (for Teacher Dashboard timeline)

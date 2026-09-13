@@ -203,19 +203,19 @@ export function AdminChatView() {
           <div className="flex gap-1.5 pt-1">
             <button
               onClick={() => setFilterTab("ALL")}
-              className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${filterTab === "ALL" ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-200/60 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'}`}
+              className={`flex-1 py-2.5 min-h-10 text-xs font-bold rounded-lg transition-all ${filterTab === "ALL" ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-200/60 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'}`}
             >
               הכל ({anonymousTeachers.length})
             </button>
             <button
               onClick={() => setFilterTab("UNANSWERED")}
-              className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${filterTab === "UNANSWERED" ? 'bg-rose-600 text-white shadow-sm' : 'bg-slate-200/60 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'}`}
+              className={`flex-1 py-2.5 min-h-10 text-xs font-bold rounded-lg transition-all ${filterTab === "UNANSWERED" ? 'bg-rose-600 text-white shadow-sm' : 'bg-slate-200/60 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'}`}
             >
               ממתינות למענה ({unansweredTotal})
             </button>
             <button
               onClick={() => setFilterTab("ANSWERED")}
-              className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${filterTab === "ANSWERED" ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-200/60 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'}`}
+              className={`flex-1 py-2.5 min-h-10 text-xs font-bold rounded-lg transition-all ${filterTab === "ANSWERED" ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-200/60 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'}`}
             >
               טופלו
             </button>
@@ -285,7 +285,7 @@ export function AdminChatView() {
             <div className="p-4 bg-white/90 dark:bg-slate-950/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 flex items-center gap-3 shadow-sm z-10">
               <button 
                 onClick={() => setSelectedTeacherId(null)}
-                className="md:hidden mr-2 text-slate-500 hover:text-slate-700"
+                className="md:hidden mr-2 p-2 min-h-10 min-w-10 flex items-center justify-center rounded-lg text-slate-500 hover:text-slate-700"
               >
                 &rarr; חזור
               </button>

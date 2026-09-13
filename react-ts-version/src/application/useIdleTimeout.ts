@@ -29,11 +29,20 @@ export function useIdleTimeout() {
       clearTimeout(timeoutRef.current);
     }
     if (isStudent) {
+      // A learner is never signed out for sitting still. The timer used to run
+      // for them too, on a five-minute constant whose actual job is presence
+      // detection, and it fired in exactly the situations the product asks a
+      // child to stop touching the screen: the teacher explaining at the
+      // projector, a paused session, or a third-grader thinking about
+      // 7,651 − 3,381. PRD Module 14 §ב1: "חל איסור מוחלט על ... ניתוק הלומד".
+      // Presence is still stamped, so the teacher's dashboard shows them idle,
+      // and a genuinely closed window is still handled below.
       touchStudentActivity();
+      return;
     }
     timeoutRef.current = setTimeout(() => {
       if (isAuthenticated) {
-        handleLogout(isStudent ? 'החיבור נותק לאחר 5 דקות של חוסר פעילות.' : 'התנתקת עקב חוסר פעילות.');
+        handleLogout('התנתקת עקב חוסר פעילות.');
       }
     }, currentIdleTimeout);
   }, [isAuthenticated, isStudent, currentIdleTimeout, handleLogout]);

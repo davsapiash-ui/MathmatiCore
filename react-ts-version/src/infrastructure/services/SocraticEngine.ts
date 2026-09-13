@@ -226,7 +226,7 @@ const TASK_HINTS: Record<string, SocraticHintResponse> = {
     choices: [
       {
         id: "1",
-        textHe: "לגרור את אחד הפריטים מהלוח אל פח המחזור",
+        textHe: "לגרור את אחד הפריטים מהלוח אל פח האשפה",
         feedbackHe: "בדיוק! זו המשימה שעוד נשארה לנו כדי לסיים את האימון הטכני.",
         isCorrect: true
       },
@@ -291,11 +291,11 @@ const TASK_HINTS: Record<string, SocraticHintResponse> = {
   // Task: חיסור — 470 − 250 (ללא פריטה)
   's1_t9': {
     pedagogical_intent: "procedural",
-    tts_text: "בחיסור, בונים רק את המספר הגדול ומוציאים ממנו בלוקים לפח המחזור.",
+    tts_text: "בחיסור, בונים רק את המספר הגדול ומוציאים ממנו בלוקים לפח האשפה.",
     suggested_highlight: "tour-column-hundreds",
     questionHe: "איך מבצעים חיסור 470 − 250 בבית המספרים?",
     choices: [
-      { id: "opt_1", textHe: "בונים 470 בלבד ומוחקים 2 מאות + 5 עשרות לפח המחזור" },
+      { id: "opt_1", textHe: "בונים 470 בלבד ומוחקים 2 מאות + 5 עשרות לפח האשפה" },
       { id: "opt_2", textHe: "בונים גם 470 וגם 250 ואז משווים" },
       { id: "opt_3", textHe: "כותבים 470 - 250 ישירות בתיבת התשובה" }
     ],
@@ -658,7 +658,7 @@ export class SocraticEngine {
           },
           { 
             id: "opt_2", 
-            textHe: "נמחק עשרות מיותרות לפח המחזור", 
+            textHe: "נמחק עשרות מיותרות לפח האשפה", 
             isCorrect: false, 
             feedbackHe: "רמז: אסור למחוק בלוקים ללא המרה כדי לא לאבד מהערך הכולל של המספר." 
           },
@@ -694,7 +694,7 @@ export class SocraticEngine {
           },
           { 
             id: "opt_3", 
-            textHe: "נמחק מאות לפח המחזור", 
+            textHe: "נמחק מאות לפח האשפה", 
             isCorrect: false, 
             feedbackHe: "רמז: שמרו על הכמות הכוללת בעזרת קיבוץ לאלפים." 
           }
@@ -740,7 +740,7 @@ export class SocraticEngine {
           choices: [
             {
               id: "opt_1",
-              textHe: `נבנה רק את המספר הראשון${minuend !== undefined ? ` (${minuend})` : ''} מהמחסן, ואחר כך נוציא ממנו ${subtrahend} לפח המחזור`,
+              textHe: `נבנה רק את המספר הראשון${minuend !== undefined ? ` (${minuend})` : ''} מהמחסן, ואחר כך נוציא ממנו ${subtrahend} לפח האשפה`,
               isCorrect: true,
               feedbackHe: "נכון! גררו קוביות מהמחסן עד שהלוח מראה את המספר הראשון, ורק אז הוציאו ממנו."
             },
@@ -828,7 +828,7 @@ export class SocraticEngine {
             },
             { 
               id: "opt_3", 
-              textHe: "נמחק את ספרת המאות לפח המחזור", 
+              textHe: "נמחק את ספרת המאות לפח האשפה", 
               isCorrect: false, 
               feedbackHe: "רמז: מחיקת מאות ללא פריטה תקטין את המספר במקום לשמר את הכמות הכוללת." 
             }
@@ -1340,7 +1340,7 @@ export class SocraticEngine {
           questionHe: `בתרגיל ${numA} + ${numB}, בטור היחידות הצטברו ${unitsSum} יחידות (יותר מ-9). מה עלינו לעשות?`,
           choices: [
             { id: "opt_1", textHe: "נקבץ 10 יחידות לעשרת אחת בטור העשרות", isCorrect: true, feedbackHe: "מדויק! 10 יחידות מומרות לעשרת אחת." },
-            { id: "opt_2", textHe: "נמחק 10 יחידות לפח המחזור", isCorrect: false, feedbackHe: "רמז: יש להמיר לעשרת כדי לשמור על הכמות הכוללת." },
+            { id: "opt_2", textHe: "נמחק 10 יחידות לפח האשפה", isCorrect: false, feedbackHe: "רמז: יש להמיר לעשרת כדי לשמור על הכמות הכוללת." },
             { id: "opt_3", textHe: "נרשום את שתי הספרות במשבצת היחידות", isCorrect: false, feedbackHe: "רמז: בכל משבצת מותרת רק ספרה אחת." }
           ],
           correctChoiceId: "opt_1"

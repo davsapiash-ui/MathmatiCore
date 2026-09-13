@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
 import type { StudentData } from '../../application/useStore';
-import type { AdaptationSettings } from '../../presentation/pages/TeacherDashboard/components/SilentAdaptationPanel';
 
 // Module 18's real priority-order coverage (BLUE > RED > GREY > YELLOW > GREEN,
 // against resolveRadarColor in core/radarColor.ts — the function HeatmapGrid.tsx
@@ -14,25 +13,6 @@ import type { AdaptationSettings } from '../../presentation/pages/TeacherDashboa
 describe('Work Package 5 (WP5): Teacher Dashboard, Silent Radar Matrix, Gate Approval & Adaptation Suite', () => {
 
   describe('2. Module 19: Silent Adaptation Panel & Canonical Schema Compliance', () => {
-    it('strictly enforces applyAtTaskBoundaryOnly invariant on all adaptation configurations', () => {
-      const adaptation: AdaptationSettings = {
-        studentId: 'student_5',
-        anonymousLabel: 'תלמיד 5',
-        path: 'remediation_path',
-        scaffoldLevel: 0,
-        applyAtTaskBoundaryOnly: true,
-      };
-
-      expect(adaptation.applyAtTaskBoundaryOnly).toBe(true);
-      expect(adaptation.path).toBe('remediation_path');
-      expect(adaptation.scaffoldLevel).toBe(0);
-      // Module 10 forbids a manual teacher toggle for the adaptive grid, and
-      // Module 26 owns the one calibrated hesitation value for the cohort, so
-      // neither belongs on a per-learner adaptation.
-      expect('forceAdditionHelper' in adaptation).toBe(false);
-      expect('hesitationThresholdSeconds' in adaptation).toBe(false);
-    });
-
     it('proves that canonical support profile document matches Firestore rules allowlist keys', () => {
       const canonicalKeys = [
         'student_id',

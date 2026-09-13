@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { FileDown, FileText, Loader2, Sparkles, Users, ChevronDown, ChevronUp } from 'lucide-react';
-import { AI_FALLBACK_TEXT, REPORT_PROCESSING_TEXT, formatClock, formatDate } from '@/infrastructure/services/LearnerJourneyService';
+import { AI_FALLBACK_TEXT, REPORT_PROCESSING_TEXT, describeReportError, formatClock, formatDate } from '@/infrastructure/services/LearnerJourneyService';
 import {
   fetchClassReport,
   generateClassReport,
@@ -43,7 +43,7 @@ export function ClassMeetingReportPanel() {
         // A missing report doc is denied by the rules (resource.data deref) —
         // surface it as "no report yet", not as an error banner.
         if (isMissingReport(err)) { setReport(null); setState('idle'); return; }
-        setError(err instanceof Error ? err.message : String(err));
+        setError(describeReportError(err).message);
         setState('error');
       });
     return () => { cancelled = true; };
@@ -57,7 +57,7 @@ export function ClassMeetingReportPanel() {
       setReport(r);
       setState('idle');
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(describeReportError(err).message);
       setState('error');
     }
   };
@@ -138,8 +138,7 @@ export function ClassMeetingReportPanel() {
 
       {state === 'error' && (
         <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-200">
-          <div>{REPORT_PROCESSING_TEXT}</div>
-          {error && <div className="font-normal mt-1 opacity-80">{error}</div>}
+          <div>{error || REPORT_PROCESSING_TEXT}</div>
         </div>
       )}
 

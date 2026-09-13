@@ -23,7 +23,7 @@ import {
   RotateCcw, 
   LogOut 
 } from 'lucide-react';
-import { ref, set } from 'firebase/database';
+import { ref, set, onDisconnect } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
 
 /**
@@ -40,7 +40,11 @@ export function ProjectorSandboxPage() {
   
   const [activeDrag, setActiveDrag] = useState<{ place: Place; source: DragSource; renderPlace?: Place } | null>(null);
   const [selectedRange, setSelectedRange] = useState<'1000' | '10000'>('1000');
-  const [isBroadcasting, setIsBroadcasting] = useState(true);
+  // Opening this page used to start broadcasting immediately: preparing a demo
+  // mid-lesson blanked all twelve screens before the teacher had arranged
+  // anything. Broadcasting now starts when she says so.
+  const [isBroadcasting, setIsBroadcasting] = useState(false);
+  const [broadcastError, setBroadcastError] = useState(false);
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 3 } }),
@@ -56,18 +60,36 @@ export function ProjectorSandboxPage() {
   // סנכרון מצב שידור מקרן מול Firebase RTDB
   useEffect(() => {
     const projectorRef = ref(database, 'system_control/projector_mode');
+    const release = {
+      projector_mode: false,
+      projector_mode_updated_at: Date.now(),
+      updated_by_teacher_id: user?.uid || 'teacher',
+    };
+
+    // Closing the tab is the natural way to finish — and a React cleanup does
+    // not run for that, nor for a laptop going to sleep or the network
+    // dropping. Without this the flag stayed true in the database and all
+    // twelve learners sat on a waiting screen that has no button on it, with a
+    // refresh reproducing it. The server releases the class on disconnect.
+    onDisconnect(projectorRef).set(release).catch(() => {});
+
     set(projectorRef, {
       projector_mode: isBroadcasting,
       projector_mode_updated_at: Date.now(),
       updated_by_teacher_id: user?.uid || 'teacher',
-    }).catch(console.error);
+    })
+      .then(() => setBroadcastError(false))
+      .catch((err) => {
+        // A rejected write used to reach console.error only, while the badge
+        // kept announcing "שידור פעיל" — the teacher explained at the board
+        // while the children carried on playing.
+        console.error('[Projector] broadcast write rejected:', err);
+        setBroadcastError(true);
+      });
 
     return () => {
-      set(projectorRef, {
-        projector_mode: false,
-        projector_mode_updated_at: Date.now(),
-        updated_by_teacher_id: user?.uid || 'teacher',
-      }).catch(console.error);
+      onDisconnect(projectorRef).cancel().catch(() => {});
+      set(projectorRef, release).catch(console.error);
     };
   }, [isBroadcasting, user?.uid]);
 
@@ -80,7 +102,7 @@ export function ProjectorSandboxPage() {
       updated_by_teacher_id: user?.uid || 'teacher',
     }).catch(console.error);
 
-    navigate('/teacher');
+    navigate('/dashboard');
   };
 
   const handleResetBoard = () => {
@@ -182,6 +204,18 @@ export function ProjectorSandboxPage() {
             <span className={`w-2 h-2 rounded-full ${isBroadcasting ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
             <span>{isBroadcasting ? 'שידור פעיל (תלמידים בהמתנה)' : 'שידור מושהה (תלמידים פעילים)'}</span>
           </button>
+
+          {/* The badge above states what the teacher asked for. This states
+              what the server accepted — they used to be assumed identical. */}
+          {broadcastError && (
+            <div
+              role="alert"
+              className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-700"
+            >
+              <span aria-hidden="true">⚠</span>
+              <span>השידור לא נשמר בשרת. מסכי התלמידים לא השתנו.</span>
+            </div>
+          )}
         </div>
 
         {/* שמאל: כפתורי פעולה למורה (נקה לוח, חזרה לדשבורד, יציאה) */}

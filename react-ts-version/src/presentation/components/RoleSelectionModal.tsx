@@ -2,10 +2,14 @@ import { motion } from "framer-motion";
 import { useAuthStore } from "@/application/useAuthStore";
 import { useNavigate } from "react-router-dom";
 import { ShieldCheck, GraduationCap, ArrowRight } from "lucide-react";
+import { useDismissableOverlay } from "@/hooks/useDismissableOverlay";
 
 export function RoleSelectionModal() {
   const { selectRole, logout } = useAuthStore();
   const navigate = useNavigate();
+  // מסמך העיצוב §1.2: חלון מודאלי נסגר ב-Escape. הפעולה המבטלת כאן היא
+  // "ביטול והתנתקות" — זה מה ש-Escape עושה.
+  const dialogRef = useDismissableOverlay<HTMLDivElement>(true, logout);
 
   const handleSelectRole = (role: "teacher" | "admin") => {
     selectRole(role);
@@ -22,6 +26,10 @@ export function RoleSelectionModal() {
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 backdrop-blur-sm p-4"
     >
       <motion.div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="role-selection-title"
         initial={{ opacity: 0, scale: 0.95, y: 16 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.2 }}
@@ -30,7 +38,7 @@ export function RoleSelectionModal() {
         <div>
           <div className="flex items-center justify-between pb-4 mb-6 border-b border-slate-100 dark:border-slate-800">
             <div>
-              <h2 className="font-display font-extrabold text-2xl text-slate-900 dark:text-white">
+              <h2 id="role-selection-title" className="font-display font-extrabold text-2xl text-slate-900 dark:text-white">
                 בחירת תפקיד במערכת
               </h2>
               <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">

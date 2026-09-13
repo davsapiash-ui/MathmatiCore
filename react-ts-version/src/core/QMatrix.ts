@@ -80,7 +80,7 @@ export const TASKS: QMatrixTask[] = [
     expectedBlocks: { hundreds: 6, tens: 0, units: 5 },
     backwardDiagnosis: {
       triggerOn: "wrong_answer",
-      probeInstructionHe: "בואו נבדוק: שש מאות וחמש מכיל 6 מאות, 0 עשרות ו-5 יחידות.",
+      probeInstructionHe: "שש מאות וחמש. שאלו את עצמכם: כמה מאות? כמה עשרות? כמה יחידות? טור שאין בו כלום מקבל 0.",
       probeAnswer: 605,
     },
   },
@@ -96,7 +96,7 @@ export const TASKS: QMatrixTask[] = [
     correctAnswer: 40,
     backwardDiagnosis: {
       triggerOn: "wrong_answer",
-      probeInstructionHe: "הספרה 4 נמצאת בטור העשרות, ולכן ערכה הוא 4 עשרות (40).",
+      probeInstructionHe: "בדקו באיזה טור יושבת הספרה 4. ערך הספרה הוא מספר הפריטים בטור כפול ערך הטור.",
       probeAnswer: 40,
     },
   },
@@ -114,7 +114,7 @@ export const TASKS: QMatrixTask[] = [
       probeA: 40,
       probeB: 10,
       probeAnswer: 30,
-      probeInstructionHe: "בואו נבדוק: 42 פחות 15 שווה 27.",
+      probeInstructionHe: "נתאמן קודם על המספרים העגולים — בלי היחידות — ואז נחזור לתרגיל המלא.",
     },
   },
   {
@@ -127,7 +127,7 @@ export const TASKS: QMatrixTask[] = [
     expectedBlocks: { hundreds: 5, tens: 6, units: 3 },
     backwardDiagnosis: {
       triggerOn: "wrong_answer",
-      probeInstructionHe: "חמש מאות ששים ושלוש = 5 מאות, 6 עשרות, 3 יחידות.",
+      probeInstructionHe: "חמש מאות שישים ושלוש. פרקו בראש: כמה מאות, כמה עשרות וכמה יחידות — ואז כתבו את המספר.",
       probeAnswer: 563,
     },
   },
@@ -141,7 +141,7 @@ export const TASKS: QMatrixTask[] = [
     expectedBlocks: { tens: 2, units: 5 },
     backwardDiagnosis: {
       triggerOn: "wrong_answer",
-      probeInstructionHe: "25 יחידות מורכבות מ-2 עשרות ו-5 יחידות בודדות.",
+      probeInstructionHe: "כל 10 יחידות מתקבצות לעשרת אחת. כמה עשרות שלמות מסתתרות כאן, וכמה יחידות נשארות?",
       probeAnswer: 25,
     },
   },
@@ -159,7 +159,7 @@ export const TASKS: QMatrixTask[] = [
       probeA: 120,
       probeB: 80,
       probeAnswer: 200,
-      probeInstructionHe: "124 + 85 = 209.",
+      probeInstructionHe: "נתאמן קודם על המספרים העגולים — בלי היחידות — ואז נחזור לתרגיל המלא.",
     },
   },
   {
@@ -176,7 +176,7 @@ export const TASKS: QMatrixTask[] = [
       probeA: 400,
       probeB: 130,
       probeAnswer: 270,
-      probeInstructionHe: "405 פחות 132 שווה 273.",
+      probeInstructionHe: "נתאמן קודם על המספרים העגולים — בלי היחידות — ואז נחזור לתרגיל המלא.",
     },
   },
 ];

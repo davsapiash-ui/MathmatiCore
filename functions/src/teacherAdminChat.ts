@@ -61,9 +61,17 @@ export const sendTeacherAdminMessage = onCall(async (request) => {
   const db = admin.firestore();
 
   // Layer 2A: Ephemeral in-memory student name map (passed only during active teacher session, never stored in DB)
+  // Bounded: the pilot has twelve learners, so twelve names is the ceiling.
+  // The map came straight off the request and every entry became a regex
+  // over the whole message — an unbounded client-chosen loop.
   const knownNameMap: Record<string, number | string> = {};
   if (ephemeral_name_map && typeof ephemeral_name_map === 'object') {
-    Object.assign(knownNameMap, ephemeral_name_map);
+    for (const [name, num] of Object.entries(ephemeral_name_map as Record<string, unknown>).slice(0, 12)) {
+      const n = Number(num);
+      if (typeof name === 'string' && name.length >= 2 && name.length <= 40 && Number.isInteger(n) && n >= 1 && n <= 12) {
+        knownNameMap[name] = n;
+      }
+    }
   }
 
   // Cognitive pattern check: "תלמיד {X} המכונה {שם}" -> "תלמיד {X}"

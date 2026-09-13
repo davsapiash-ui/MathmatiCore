@@ -9,6 +9,7 @@ exports.buildClassCsv = buildClassCsv;
 exports.createClassReportPdfBuffer = createClassReportPdfBuffer;
 exports.createClassReportPdfBufferWithPdfkit = createClassReportPdfBufferWithPdfkit;
 const https_1 = require("firebase-functions/v2/https");
+const callerIdentity_1 = require("./callerIdentity");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
 const path = require("path");
@@ -103,7 +104,7 @@ function buildLearnerRow(studentId, events, compulsoryTotal, learningPath, sessi
         learning_path: learningPath,
         score_percent: score,
         score_source: docScore !== null ? "session_document" : "telemetry_first_attempt",
-        recommendation_tier: (0, reportAnalysis_1.resolveRecommendationTier)(score),
+        recommendation_tier: score === null ? null : (0, reportAnalysis_1.resolveRecommendationTier)(score),
         compulsory_total: first.denominator,
         correct_first_attempt: first.correctFirstAttempt,
         exercises_attempted: summary.exercises_attempted,
@@ -137,11 +138,17 @@ function buildLearnerRow(studentId, events, compulsoryTotal, learningPath, sessi
         teacher_gate_approved: Boolean(sessionDoc === null || sessionDoc === void 0 ? void 0 : sessionDoc.teacher_gate_approved),
     };
 }
+/** A percentage that may not have been measured. Never printed as a bare number. */
+const pct = (value) => (value === null ? "לא נמדד" : `${value}%`);
 /** The class picture: the same measurements, summed and distributed across the learners. */
 function aggregateClass(rows, eventsByLearner) {
     var _a, _b;
-    const scores = rows.map((r) => r.score_percent).sort((a, b) => a - b);
-    const n = rows.length;
+    // Only learners whose score could actually be computed enter the class
+    // statistics. Averaging a fabricated 0% or 100% into the class mean was the
+    // same defect one level up.
+    const scored = rows.filter((r) => r.score_percent !== null);
+    const scores = scored.map((r) => r.score_percent).sort((a, b) => a - b);
+    const n = scores.length;
     const median = n === 0 ? 0 : n % 2 === 1 ? scores[(n - 1) / 2] : (scores[n / 2 - 1] + scores[n / 2]) / 2;
     const sum = (pick) => rows.reduce((acc, r) => acc + pick(r), 0);
     const mergeCounts = (pick) => {
@@ -153,7 +160,8 @@ function aggregateClass(rows, eventsByLearner) {
     };
     const tiers = { below_50: [], between_50_75: [], above_75: [] };
     for (const r of rows)
-        tiers[r.recommendation_tier].push(r.student_id);
+        if (r.recommendation_tier)
+            tiers[r.recommendation_tier].push(r.student_id);
     // Per exercise: how many learners opened it, finished it, finished it first try,
     // and how much trouble it caused (wrong digits, cards, hesitations).
     const perExercise = new Map();
@@ -191,12 +199,13 @@ function aggregateClass(rows, eventsByLearner) {
         .sort((a, b) => a.exercise_id.localeCompare(b.exercise_id, undefined, { numeric: true }));
     const withData = new Set(rows.map((r) => r.student_id));
     return {
-        learners_with_data: n,
+        learners_with_data: rows.length,
         learners_without_data: ALL_STUDENT_IDS.filter((id) => !withData.has(id)),
-        score_mean: n === 0 ? 0 : round1(sum((r) => r.score_percent) / n),
-        score_median: round1(median),
-        score_min: n === 0 ? 0 : scores[0],
-        score_max: n === 0 ? 0 : scores[n - 1],
+        learners_without_score: rows.filter((r) => r.score_percent === null).map((r) => r.student_id),
+        score_mean: n === 0 ? null : round1(scores.reduce((a, b) => a + b, 0) / n),
+        score_median: n === 0 ? null : round1(median),
+        score_min: n === 0 ? null : scores[0],
+        score_max: n === 0 ? null : scores[n - 1],
         tiers,
         paths: {
             green_path: rows.filter((r) => r.learning_path === "green_path").length,
@@ -413,8 +422,8 @@ function createClassReportPdfBufferWithPdfkit(report) {
             const cardY = doc.y + 12;
             (0, hebrewPdf_1.rtlText)(doc, `מפגש: ${report.session_number}`, 400, cardY, { width: 140 });
             (0, hebrewPdf_1.rtlText)(doc, `לומדים עם נתונים: ${a.learners_with_data} מתוך 12`, 200, cardY, { width: 190 });
-            (0, hebrewPdf_1.rtlText)(doc, `ציון ממוצע: ${a.score_mean}%`, 55, cardY, { width: 140 });
-            (0, hebrewPdf_1.rtlText)(doc, `חציון: ${a.score_median}% | טווח: ${a.score_min}%–${a.score_max}% | מסלול ירוק: ${a.paths.green_path} | מסלול ביסוס: ${a.paths.remediation_path}`, 55, cardY + 25, { width: 490 });
+            (0, hebrewPdf_1.rtlText)(doc, `ציון ממוצע: ${pct(a.score_mean)}`, 55, cardY, { width: 140 });
+            (0, hebrewPdf_1.rtlText)(doc, `חציון: ${pct(a.score_median)} | טווח: ${pct(a.score_min)}–${pct(a.score_max)} | מסלול ירוק: ${a.paths.green_path} | מסלול ביסוס: ${a.paths.remediation_path}`, 55, cardY + 25, { width: 490 });
             doc.x = 40;
             doc.y = cardY + 60;
             heading("1. קבוצות עבודה לפי כלל האחוזים (שכבה 1, דטרמיניסטית)", "#166534");
@@ -480,23 +489,23 @@ function createClassReportPdfBufferWithPdfkit(report) {
 // The callable.
 // ---------------------------------------------------------------------------
 exports.generateClassMeetingReport = (0, https_1.onCall)(exports.CLASS_REPORT_RUNTIME, async (request) => {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p;
     if (!request.auth) {
         throw new https_1.HttpsError("unauthenticated", "User must be authenticated.");
     }
+    // The class report is a table of individual learner rows: each child's
+    // score, wrong digits by column, hesitations and per-exercise outcomes.
+    // Module 24 §ב blocks a system administrator from exactly that, and the
+    // Firestore rules already say so — but the Admin SDK bypasses them, so the
+    // check has to live here. A dual teacher+admin identity still passes.
+    (0, callerIdentity_1.requireTeacherForIndividualData)(request.auth.token);
     const token = request.auth.token;
-    const callerRoles = Array.isArray(token.roles) ? token.roles : token.role ? [token.role] : [];
-    const isTeacher = callerRoles.includes("TEACHER") || token.role === "teacher" || token.teacher === true;
-    const isAdmin = callerRoles.includes("ADMIN") || token.role === "admin" || token.admin === true;
-    if (!isTeacher && !isAdmin) {
-        throw new https_1.HttpsError("permission-denied", "Only teachers or admins may generate a class report.");
-    }
     const { classId = "class_1" } = request.data || {};
     const sessionNumber = Number((_a = request.data) === null || _a === void 0 ? void 0 : _a.sessionNumber);
     if (!Number.isInteger(sessionNumber) || sessionNumber < 1 || sessionNumber > 8) {
         throw new https_1.HttpsError("invalid-argument", "sessionNumber must be 1-8.");
     }
-    if (isTeacher && !isAdmin && token.class_id && token.class_id !== classId) {
+    if (token.class_id && token.class_id !== classId) {
         throw new https_1.HttpsError("permission-denied", "Teacher is restricted to their own class.");
     }
     const db = admin.firestore();
@@ -522,7 +531,15 @@ exports.generateClassMeetingReport = (0, https_1.onCall)(exports.CLASS_REPORT_RU
     const studentsNode = studentsSnap.val() || {};
     const learnerPath = new Map();
     const recordingByLearner = new Map();
-    for (const [key, raw] of Object.entries(studentsNode)) {
+    // users/students can hold a learner under several keys (student_user3,
+    // student_3, 3 — the reset writes all three). The live client writes the
+    // canonical student_userN; a stale alias must not win the path by turning up
+    // first in key order.
+    const studentEntries = Object.entries(studentsNode).sort(([a], [b]) => {
+        const rank = (k) => (/^student_user\d+$/.test(k) ? 0 : /^student_\d+$/.test(k) ? 1 : 2);
+        return rank(a) - rank(b);
+    });
+    for (const [key, raw] of studentEntries) {
         const n = studentNumber(key);
         if (n === null || !raw || typeof raw !== "object")
             continue;
@@ -553,7 +570,7 @@ exports.generateClassMeetingReport = (0, https_1.onCall)(exports.CLASS_REPORT_RU
         .catch(async () => (0, meetingMetrics_1.readAllDocs)(db.collection("sessions")));
     const sessionDocByLearner = new Map();
     for (const { data } of sessionDocs) {
-        const n = studentNumber(data.student_id);
+        const n = (_f = studentNumber(data.student_id)) !== null && _f !== void 0 ? _f : (0, meetingMetrics_1.studentNumberFromSessionId)(String(data.session_id || ""));
         const m = Number(data.session_number) || (0, meetingMetrics_1.sessionNumberFromId)(String(data.session_id || ""));
         if (n !== null && m === sessionNumber)
             sessionDocByLearner.set(n, data);
@@ -564,15 +581,15 @@ exports.generateClassMeetingReport = (0, https_1.onCall)(exports.CLASS_REPORT_RU
         const n = studentNumber(data.student_id);
         const m = Number(data.session_number) || (0, meetingMetrics_1.sessionNumberFromId)(String(data.session_id || ""));
         if (n !== null && m === sessionNumber)
-            reflectionsByLearner.set(n, ((_f = reflectionsByLearner.get(n)) !== null && _f !== void 0 ? _f : 0) + 1);
+            reflectionsByLearner.set(n, ((_g = reflectionsByLearner.get(n)) !== null && _g !== void 0 ? _g : 0) + 1);
     }
     // ── 4. One row per learner, then the class ──────────────────────────────
     const compulsoryCache = new Map();
     const learners = [];
     for (const n of Array.from(eventsByLearner.keys()).sort((a, b) => a - b)) {
-        const pathOf = (_g = learnerPath.get(n)) !== null && _g !== void 0 ? _g : "green_path";
+        const pathOf = (_h = learnerPath.get(n)) !== null && _h !== void 0 ? _h : "green_path";
         const compulsory = await (0, meetingMetrics_1.resolveCompulsoryTotal)(db, sessionNumber, pathOf, compulsoryCache);
-        learners.push(buildLearnerRow(n, (_h = eventsByLearner.get(n)) !== null && _h !== void 0 ? _h : [], compulsory, pathOf, (_j = sessionDocByLearner.get(n)) !== null && _j !== void 0 ? _j : null, (_k = recordingByLearner.get(n)) !== null && _k !== void 0 ? _k : null, (_l = reflectionsByLearner.get(n)) !== null && _l !== void 0 ? _l : 0));
+        learners.push(buildLearnerRow(n, (_j = eventsByLearner.get(n)) !== null && _j !== void 0 ? _j : [], compulsory, pathOf, (_k = sessionDocByLearner.get(n)) !== null && _k !== void 0 ? _k : null, (_l = recordingByLearner.get(n)) !== null && _l !== void 0 ? _l : null, (_m = reflectionsByLearner.get(n)) !== null && _m !== void 0 ? _m : 0));
     }
     const aggregates = aggregateClass(learners, eventsByLearner);
     // ── 5. Layer 2 ──────────────────────────────────────────────────────────
@@ -588,8 +605,8 @@ exports.generateClassMeetingReport = (0, https_1.onCall)(exports.CLASS_REPORT_RU
         telemetry_event_count: telemetryEventCount,
         learners,
         aggregates,
-        class_patterns: (_m = analysis === null || analysis === void 0 ? void 0 : analysis.class_patterns) !== null && _m !== void 0 ? _m : [],
-        teaching_recommendations: (_o = analysis === null || analysis === void 0 ? void 0 : analysis.teaching_recommendations) !== null && _o !== void 0 ? _o : [],
+        class_patterns: (_o = analysis === null || analysis === void 0 ? void 0 : analysis.class_patterns) !== null && _o !== void 0 ? _o : [],
+        teaching_recommendations: (_p = analysis === null || analysis === void 0 ? void 0 : analysis.teaching_recommendations) !== null && _p !== void 0 ? _p : [],
         ai_analysis_available: Boolean(analysis),
         ai_fallback_text: pedagogicalReport_1.EXACT_AI_FALLBACK_TEXT,
     };

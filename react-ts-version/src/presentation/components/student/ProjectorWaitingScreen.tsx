@@ -1,4 +1,5 @@
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
+import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 
 /**
  * מודול 15: מסך המתנה למצב מקרן (Projector Waiting Screen)
@@ -7,6 +8,11 @@ import { motion } from 'framer-motion';
  * ללא חלונות קופצים או מודאלים מסיחים, סנכרון בזמן אמת מתחת ל-1000ms.
  */
 export function ProjectorWaitingScreen() {
+  // מצב שקט: MotionConfig מכבה תנועות תמרה, אך לא לולאת שקיפות אינסופית —
+  // הנקודות המשיכו לפעום מול ילד שהמורה סימנה כרגיש חושית. כאן הן עומדות.
+  const reduceMotion = useReducedMotion();
+  const loop = (frames: Record<string, number[]>, transition: Record<string, unknown>) =>
+    reduceMotion ? {} : { animate: frames, transition };
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -68,6 +74,7 @@ export function ProjectorWaitingScreen() {
           <p className="text-base text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
             הקשיבו להסבר של המורה על גבי המקרן
           </p>
+          <UdlSpeechButton text="הדגמה על גבי המקרן. הקשיבו להסבר של המורה על גבי המקרן" className="self-center" />
         </div>
 
         {/* Subtle breathing indicator */}
@@ -75,16 +82,7 @@ export function ProjectorWaitingScreen() {
           {[0, 1, 2].map((i) => (
             <motion.div
               key={i}
-              animate={{
-                scale: [1, 1.3, 1],
-                opacity: [0.4, 1, 0.4],
-              }}
-              transition={{
-                duration: 1.8,
-                repeat: Infinity,
-                delay: i * 0.35,
-                ease: "easeInOut",
-              }}
+              {...loop({ scale: [1, 1.3, 1], opacity: [0.4, 1, 0.4] }, { duration: 1.8, repeat: Infinity, delay: i * 0.35, ease: 'easeInOut' })}
               className="w-2.5 h-2.5 rounded-full bg-indigo-500 dark:bg-indigo-400"
             />
           ))}

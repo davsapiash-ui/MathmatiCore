@@ -10,7 +10,7 @@ import {
   ChevronDown,
   ChevronUp
 } from "lucide-react";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, writeBatch } from "firebase/firestore";
 import { db } from "@/infrastructure/firebase";
 import { toast } from "sonner";
 import { getHardcodedCatalogBanks, SESSION1_TASKS, SESSION2_TASKS, SESSIONS_BY_PATH, type SessionTask } from "@/data/sessionTasks";
@@ -126,21 +126,31 @@ export function AdminCurriculumView() {
   // apply updates only to sessions that have not started yet.
   const [isPublishingCatalog, setIsPublishingCatalog] = useState(false);
   const handlePublishCatalog = async () => {
+    const banks = getHardcodedCatalogBanks();
+    // Every learner's next meeting picks this up (Module 26). One click, no
+    // question asked, used to be enough.
+    const confirmed =
+      typeof window === "undefined" || typeof window.confirm !== "function"
+        ? true
+        : window.confirm(`לפרסם את תוכנית הלימודים? ${banks.length} מאגרי משימות יוחלפו במסד הנתונים, וכל לומד יקבל אותם במפגש הבא שלו.`);
+    if (!confirmed) return;
     try {
       setIsPublishingCatalog(true);
-      const banks = getHardcodedCatalogBanks();
       const publishedAt = Date.now();
-      await Promise.all(
-        banks.map((bank) =>
-          setDoc(doc(db, 'curriculum_catalog', bank.id), {
-            session_number: bank.session_number,
-            learning_path: bank.learning_path,
-            updated_at: publishedAt,
-            // JSON round-trip strips undefined optional fields Firestore rejects
-            tasks: JSON.parse(JSON.stringify(bank.tasks)),
-          })
-        )
-      );
+      // One atomic batch: the banks either all land or none do. Parallel
+      // setDoc calls could leave meeting 5 on the new catalog and meeting 6
+      // on the old one when a write in the middle was rejected.
+      const batch = writeBatch(db);
+      for (const bank of banks) {
+        batch.set(doc(db, 'curriculum_catalog', bank.id), {
+          session_number: bank.session_number,
+          learning_path: bank.learning_path,
+          updated_at: publishedAt,
+          // JSON round-trip strips undefined optional fields Firestore rejects
+          tasks: JSON.parse(JSON.stringify(bank.tasks)),
+        });
+      }
+      await batch.commit();
       toast.success(`תוכנית הלימודים פורסמה בהצלחה: ${banks.length} מאגרי משימות עודכנו במסד הנתונים! 📚`);
     } catch (e) {
       console.error(e);
