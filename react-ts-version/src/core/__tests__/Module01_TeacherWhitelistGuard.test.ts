@@ -40,9 +40,13 @@ describe('Module 1: teacher whitelist guard', () => {
     expect(app).not.toMatch(/if \(!isWhitelistedTeacherEmail\(email\)\) \{/);
   });
 
-  it('the hardcoded fallback still admits the two pilot accounts (nothing regressed)', () => {
-    expect(isWhitelistedTeacherEmail('davidsep@edu-haifa.org.il')).toBe(true);
-    expect(isWhitelistedTeacherEmail('1002220159@edu-haifa.org.il')).toBe(true);
+  it('no production address is hardcoded any more — the whitelist alone decides', () => {
+    // The owner confirmed both pilot addresses are in authorizedTeachers.
+    // Keeping them hardcoded meant deleting a teacher could not revoke her
+    // login (deviation 15), and it was exactly what the security screen told
+    // the admin did not exist.
+    expect(isWhitelistedTeacherEmail('davidsep@edu-haifa.org.il')).toBe(false);
+    expect(isWhitelistedTeacherEmail('1002220159@edu-haifa.org.il')).toBe(false);
   });
 
   it('the hardcoded fallback alone does not admit an arbitrary external email', () => {

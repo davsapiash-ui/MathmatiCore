@@ -21,29 +21,36 @@ import { isWhitelistedTeacherEmail } from '@/infrastructure/services/AuthService
 const repo = (p: string) => readFileSync(resolve(__dirname, '../../../..', p), 'utf-8');
 const server = repo('functions/src/syncUserRoles.ts');
 
-describe('השרת — אין ברירת מחדל שניתן לנחש', () => {
-  it('כתובות ברירת המחדל הוסרו', () => {
-    const code = server.split('\n').filter((l) => !l.trim().startsWith('//') && !l.trim().startsWith('*')).join('\n');
-    expect(code).not.toContain('teacher_sso@domain.edu');
-    expect(code).not.toContain('admin@mathmaticore.local');
-    expect(code).not.toContain('teacher_1002220159@mathmaticore.local');
+describe('השרת — אין כתובת מוטמעת בקוד', () => {
+  const code = server.split('\n').filter((l) => !l.trim().startsWith('//') && !l.trim().startsWith('*')).join('\n');
+
+  it('כל חמש העקיפות הוסרו', () => {
+    for (const bypass of [
+      'teacher_sso@domain.edu',
+      'admin@mathmaticore.local',
+      'teacher_1002220159@mathmaticore.local',
+      'davidsep@edu-haifa.org.il',
+      '1002220159@edu-haifa.org.il',
+    ]) {
+      expect(code, bypass).not.toContain(bypass);
+    }
   });
 
   it('משתנה סביבה מתקבל רק אם הוא כתובת דוא"ל אמיתית', () => {
     expect(server).toContain('raw.includes("@") ? raw : null');
   });
 
-  it('שתי כתובות הפיילוט נשארות כרשת ביטחון מתועדת', () => {
-    expect(server).toContain('const PILOT_ADMIN_EMAIL = "davidsep@edu-haifa.org.il"');
-    expect(server).toContain('const PILOT_TEACHER_EMAIL = "1002220159@edu-haifa.org.il"');
+  it('הרשימה הלבנה היא מקור האמת', () => {
+    expect(server).toContain('authorizedTeachers');
   });
 });
 
-describe('הלקוח — אין תו כללי לדומיין בייצור', () => {
-  it('שתי כתובות הפיילוט מורשות', () => {
-    expect(isWhitelistedTeacherEmail('davidsep@edu-haifa.org.il')).toBe(true);
-    expect(isWhitelistedTeacherEmail('1002220159@edu-haifa.org.il')).toBe(true);
-    expect(isWhitelistedTeacherEmail('DavidSep@Edu-Haifa.org.il  ')).toBe(true);
+describe('הלקוח — אין כתובת ייצור מוטמעת', () => {
+  const client = repo('react-ts-version/src/infrastructure/services/AuthService.ts');
+
+  it('שתי כתובות הפיילוט אינן מוחזרות כמורשות בלי הרשימה', () => {
+    expect(isWhitelistedTeacherEmail('davidsep@edu-haifa.org.il')).toBe(false);
+    expect(isWhitelistedTeacherEmail('1002220159@edu-haifa.org.il')).toBe(false);
   });
 
   it('כתובת זרה נדחית', () => {
@@ -53,19 +60,19 @@ describe('הלקוח — אין תו כללי לדומיין בייצור', () =
   });
 
   it('התו הכללי של @mathmaticore.local אינו מופיע מחוץ לגוש הפיתוח', () => {
-    const client = repo('react-ts-version/src/infrastructure/services/AuthService.ts');
     const fn = client.slice(client.indexOf('export function isWhitelistedTeacherEmail'));
     const body = fn.slice(0, fn.indexOf('\n}'));
     const devBlockAt = body.indexOf('import.meta.env.DEV');
     const wildcardAt = body.indexOf('endsWith("@mathmaticore.local")');
+    expect(devBlockAt).toBeGreaterThan(-1);
     expect(wildcardAt).toBeGreaterThan(devBlockAt);
   });
 });
 
 describe('מסך האבטחה אומר את האמת', () => {
-  it('ההצהרה מזכירה את החריג המתועד', () => {
+  it('ההצהרה תואמת את הקוד: רשימה בלבד, ומחיקה שוללת כניסה', () => {
     const view = repo('react-ts-version/src/presentation/pages/admin/AdminSecurityView.tsx');
-    expect(view).toContain('חריג מתועד');
-    expect(view).not.toContain('ניתנת אך ורק בהתאמה מדויקת');
+    expect(view).toContain('אין כתובת מוטמעת בקוד');
+    expect(view).toContain('מחיקת מורה מהרשימה שוללת את הכניסה שלה מיד');
   });
 });

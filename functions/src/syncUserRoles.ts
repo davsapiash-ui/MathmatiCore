@@ -25,30 +25,24 @@ export const syncUserRoles = onCall(
 
     const normalizedEmail = email.toLowerCase().trim();
 
-    // The two pilot identities are a deliberate, documented fallback: they
-    // guarantee the product owner and the lecturer are never locked out of
-    // their own system if Firestore is unreachable. See the deviations
-    // register. Everyone else goes through authorizedTeachers, which is what
-    // makes deleting a teacher actually revoke her login.
+    // authorizedTeachers is the single source of truth. Five hardcoded
+    // bypasses used to sit here, three of them guessable —
+    // "teacher_sso@domain.edu" was the DEFAULT when the env var is unset, on a
+    // domain this project does not own. They are gone, and so is the pilot
+    // pair: the product owner confirmed both addresses are in the whitelist,
+    // and keeping them hardcoded meant deleting a teacher could not actually
+    // revoke her login (deviation 15).
     //
-    // What was removed: "teacher_sso@domain.edu" was the DEFAULT when
-    // TEACHER_SSO_PRIMARY_EMAIL is unset — a registrable address on a domain
-    // this project does not own, granting teacher claims to whoever holds it.
-    // "admin@mathmaticore.local" was the same shape for admin, and
-    // "teacher_1002220159@mathmaticore.local" a third. An env var that is
-    // actually set is the owner's own configuration and is still honoured; a
-    // guessable default is not.
-    const PILOT_ADMIN_EMAIL = "davidsep@edu-haifa.org.il";
-    const PILOT_TEACHER_EMAIL = "1002220159@edu-haifa.org.il";
+    // The emergency hatch is the environment variables, which are the owner's
+    // own configuration rather than a value anyone can guess. They are honoured
+    // only when they look like an address.
     const envEmail = (name: string): string | null => {
       const raw = (process.env[name] || "").toLowerCase().trim();
       return raw.includes("@") ? raw : null;
     };
-    const teacherFallbacks = new Set(
-      [PILOT_TEACHER_EMAIL, envEmail("TEACHER_SSO_PRIMARY_EMAIL")].filter(Boolean) as string[]
-    );
+    const teacherFallbacks = new Set([envEmail("TEACHER_SSO_PRIMARY_EMAIL")].filter(Boolean) as string[]);
     const adminFallbacks = new Set(
-      [PILOT_ADMIN_EMAIL, envEmail("ADMIN_SSO_PRIMARY_EMAIL"), envEmail("ADMIN_SSO_ALIAS_EMAIL")].filter(Boolean) as string[]
+      [envEmail("ADMIN_SSO_PRIMARY_EMAIL"), envEmail("ADMIN_SSO_ALIAS_EMAIL")].filter(Boolean) as string[]
     );
 
     const firestore = admin.firestore();
