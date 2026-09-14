@@ -10,6 +10,7 @@ import { database } from '@/infrastructure/firebase';
 import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
 import { Play, Sparkles } from 'lucide-react';
 import { BeeFlightWaitingScreen } from '@/presentation/components/student/BeeFlightWaitingScreen';
+import { UdlSpeechButton } from "@/presentation/design-system/UdlSpeechButton";
 import { ProjectorWaitingScreen } from '@/presentation/components/student/ProjectorWaitingScreen';
 import { useProjectorMode } from '@/application/useProjectorMode';
 
@@ -279,10 +280,16 @@ export function StudentHub() {
               <span aria-hidden="true">⏳</span>
             </div>
 
-            <div className="flex flex-col gap-2">
-              <h2 className="font-display font-black text-2xl text-slate-900 dark:text-white">
-                היום עוד לא התחלנו
-              </h2>
+            <div className="flex flex-col gap-2 items-center">
+              <div className="flex items-center gap-2">
+                <h2 className="font-display font-black text-2xl text-slate-900 dark:text-white">
+                  היום עוד לא התחלנו
+                </h2>
+                {/* Module 7 (UDL): every on-screen instruction carries its own read-aloud
+                    button, triggered only by the learner. The lobby was the one waiting
+                    screen without it. */}
+                <UdlSpeechButton text="היום עוד לא התחלנו. המורה תפתח את הפעילות בקרוב." className="shrink-0" />
+              </div>
               <p className="text-sm text-slate-500 dark:text-slate-400 font-medium leading-relaxed max-w-sm">
                 המורה תפתח את הפעילות בקרוב.
               </p>
@@ -305,10 +312,13 @@ export function StudentHub() {
               <span aria-hidden="true">{activeSession.icon}</span>
             </div>
 
-            <div className="flex flex-col gap-2">
-              <h2 className="font-display font-black text-2xl text-slate-900 dark:text-white">
-                {activeSession.title}
-              </h2>
+            <div className="flex flex-col gap-2 items-center">
+              <div className="flex items-center gap-2">
+                <h2 className="font-display font-black text-2xl text-slate-900 dark:text-white">
+                  {activeSession.title}
+                </h2>
+                <UdlSpeechButton text={`${activeSession.title}. ${activeSession.desc}`} className="shrink-0" />
+              </div>
               <p className="text-sm text-slate-500 dark:text-slate-400 font-medium leading-relaxed max-w-sm">
                 {activeSession.desc}
               </p>
@@ -318,6 +328,7 @@ export function StudentHub() {
               <div className="w-full inline-flex items-center justify-center gap-2.5 px-5 py-3.5 rounded-2xl text-sm font-extrabold bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60">
                 <span aria-hidden="true">⏸️</span>
                 <span>המורה עצרה את הפעילות לרגע. חכו…</span>
+                <UdlSpeechButton text="המורה עצרה את הפעילות לרגע. חכו." className="shrink-0" />
               </div>
             ) : (
               <button
