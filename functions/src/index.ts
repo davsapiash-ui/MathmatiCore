@@ -322,7 +322,7 @@ export const onStudentEvent = onCall(async (request) => {
   return { status: "PROCESSED" };
 });
 
-export { authenticateStudentSession } from "./authenticateStudentSession";
+export { authenticateStudentSession, releaseStudentSession } from "./authenticateStudentSession";
 
 
 
