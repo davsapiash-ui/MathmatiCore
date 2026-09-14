@@ -1,0 +1,4 @@
+# Build output. Rebuilt by `npm run build` (tsc) — the deploy workflow runs it
+# before every deploy, and firebase.json has a predeploy hook for manual deploys.
+# Committing it made every build show up as a diff and could ship stale code.
+lib/
