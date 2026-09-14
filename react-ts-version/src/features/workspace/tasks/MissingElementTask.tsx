@@ -26,11 +26,12 @@ export function MissingElementTask({
 
   return (
     <div className="flex flex-col gap-6 mt-4 items-center w-full">
-      <div className="flex items-center gap-3">
-        <p className="text-xl font-bold text-ws-ink text-center">{instructionHe}</p>
-        <UdlSpeechButton text={speechText} />
-      </div>
-
+      {/* TaskCard already shows instructionHe with its own read-aloud button.
+          Repeating it here put the same sentence on screen twice, with two speech
+          buttons — the visual load Module 7 and the UDL design rules work to avoid.
+          The read-aloud stays, moved beside the equation it describes: it speaks the
+          instruction together with the equation in words, which is what a learner who
+          cannot read it needs. */}
       <div className="flex items-center justify-center gap-4 bg-ws-surface2/40 px-10 py-8 rounded-3xl border border-ws-surface2 w-full max-w-lg shadow-sm" dir="ltr">
         <span className="font-mono font-black text-5xl text-ws-ink tabular-nums">
           {numberA}
@@ -52,6 +53,9 @@ export function MissingElementTask({
         </span>
         <span className="font-mono font-black text-5xl text-ws-ink tabular-nums">
           {numberB}
+        </span>
+        <span dir="rtl" className="shrink-0">
+          <UdlSpeechButton text={speechText} />
         </span>
       </div>
     </div>
