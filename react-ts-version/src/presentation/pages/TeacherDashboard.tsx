@@ -18,6 +18,7 @@ import { database, auth, functions, firestore } from "@/infrastructure/firebase"
 import { doc, onSnapshot, collection, writeBatch } from "firebase/firestore";
 import type { SessionDocument, PedagogicalPath } from "@/types";
 import { httpsCallable } from "firebase/functions";
+import { indexedDBQueue } from "@/infrastructure/services/IndexedDBQueue";
 import {
   BarChart,
   Bar,
@@ -1015,16 +1016,38 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     // straight to RTDB here (as this used to) skipped the roster-based name
     // substitution entirely and dropped the message into a store no admin
     // ever reads — it looked sent and reached nobody.
+    // Module 22 §ה: with no network the message is queued (IndexedDB, Module 17)
+    // and sent through the same Cloud Function when the connection returns, so
+    // the server-side anonymizer still runs on it. client_message_id is the
+    // document id on the server: a retry overwrites, never duplicates.
+    const payload = {
+      receiver_id: "admin",
+      message_body: cleanText,
+      school_id: useAuthStore.getState().activeClass?.school_id || "school_pilot_01",
+      class_name: "המבקרים",
+      client_message_id: `tam_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`,
+    };
+    const queueForReconnect = async () => {
+      await indexedDBQueue.enqueueCallable("sendTeacherAdminMessage", payload, payload.client_message_id);
+      setAdminInputText("");
+      toast.info('אין חיבור לרשת. ההודעה נשמרה ותישלח להנהלה כשהחיבור יחזור.');
+    };
     try {
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        await queueForReconnect();
+        return;
+      }
       const sendFn = httpsCallable(functions, "sendTeacherAdminMessage");
-      await sendFn({
-        receiver_id: "admin",
-        message_body: cleanText,
-        school_id: useAuthStore.getState().activeClass?.school_id || "school_pilot_01",
-        class_name: "המבקרים",
-      });
+      await sendFn(payload);
       setAdminInputText("");
     } catch (err) {
+      const code = String((err as { code?: string })?.code ?? '');
+      const transient = code.endsWith('unavailable') || code.endsWith('deadline-exceeded') || code.endsWith('internal')
+        || (typeof navigator !== 'undefined' && navigator.onLine === false);
+      if (transient) {
+        await queueForReconnect();
+        return;
+      }
       console.error('[Module 22] Failed to send teacher-admin message:', err);
       toast.error('שגיאה בשליחת ההודעה להנהלה. בדקו את חיבור הרשת ונסו שוב.');
     } finally {
