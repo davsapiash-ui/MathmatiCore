@@ -14,6 +14,6 @@ first, and this repository has already lost time to exactly that — see Rule 0 
 
 ## Claude Code specifics
 
-- `.claude/skills/יועץ-פדגוגי-מתמטי` implements Rule 2 (the pedagogy gate). Invoke it
+- `.claude/skills/יועץ-פדגוגי-מתמטי` implements Rule 3 (the pedagogy gate). Invoke it
   before any change to exercise content. The rule binds even when the skill does not
   run — other tools have no equivalent mechanism.

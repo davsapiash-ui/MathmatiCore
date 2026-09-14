@@ -3,11 +3,27 @@
 **This file is the single source of agent rules for this repository.** Antigravity,
 Claude Code, Cursor and every other agent tool read it from the repo root. Do not
 copy these rules into another file — a second copy will drift, and drift is what
-this project has already been burned by (see Rule 0).
+this project has already been burned by (see Rule 1).
 
 ---
 
-## Rule 0 — There is exactly one specification
+## Rule 0 — Push when you finish
+
+More than one agent works on this project, on different machines. Antigravity works
+on the local clone; other sessions work on their own copy. **GitHub is the only place
+they can see each other.**
+
+So: when you finish a piece of work, commit it and push it. Work left only on the
+local disk is invisible to everyone else, and the next agent will build on a version
+that no longer matches — which is how two agents start undoing each other.
+
+If you are not confident the work is ready for `main`, push it to a branch. Pushing to
+a branch is always safe and always better than not pushing.
+
+Before you start work, `git pull` first, so you begin from what everyone else already
+has.
+
+## Rule 1 — There is exactly one specification
 
 The **only** authoritative requirements document is:
 
@@ -32,7 +48,7 @@ Therefore:
   the spec. The file above is the spec.
 - If the spec is silent on something, say so and ask. Do not invent a requirement.
 
-## Rule 1 — Deviations are registered, not improvised
+## Rule 2 — Deviations are registered, not improvised
 
 ```
 מסמכי אפיון/סטיות_מהאפיון.md
@@ -50,7 +66,7 @@ Before "fixing" a mismatch, check the register. If the deviation is approved, le
 it alone. If it is not, the code changes. Only the product owner adds a new approved
 deviation — you may propose one, never record one as approved yourself.
 
-## Rule 2 — Exercises go through the pedagogy gate
+## Rule 3 — Exercises go through the pedagogy gate
 
 Before **any** change to exercise content, and before quoting an exercise from the
 spec, the mathematical and pedagogical correctness must be checked. This applies to:
@@ -139,7 +155,7 @@ deploys hosting, Cloud Functions, Firestore rules, Storage rules and RTDB rules.
 - `מסמכי משרד החינוך/התאמות חנ''מ/` — special-education adaptations
 - `DESIGN_SYSTEM_RULES.md`, `BUTTON_DESIGN_RULES.md` — UI conventions
 
-These inform decisions. They do not override Rule 0.
+These inform decisions. They do not override Rule 1.
 
 ---
 
@@ -147,5 +163,5 @@ These inform decisions. They do not override Rule 0.
 
 Antigravity reads `AGENTS.md` and `GEMINI.md`, and **`GEMINI.md` wins on conflict**.
 No `GEMINI.md` exists in this repo, deliberately: a second rules file would silently
-override this one and recreate the exact drift Rule 0 exists to prevent. If you need
+override this one and recreate the exact drift Rule 1 exists to prevent. If you need
 a tool-specific note, keep it short and make it point here rather than restate.
