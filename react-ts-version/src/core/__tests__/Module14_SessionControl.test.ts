@@ -34,7 +34,7 @@ describe('Module 14 — class session status', () => {
   });
 });
 
-describe('Module 14 — the 45-minute hard cap (register item 11)', () => {
+describe('Module 14 — the 45-minute hard cap (register item 8)', () => {
   const startedAt = 1_800_000_000_000;
 
   it('is exactly 45 minutes from activation', () => {

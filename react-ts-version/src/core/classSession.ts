@@ -12,7 +12,7 @@
 export const TEACHER_DISCONNECT_GRACE_MS = 5 * 60 * 1000;
 
 /**
- * Owner decision (6.9.2026, register item 11): a meeting the teacher never
+ * Owner decision (6.9.2026, register item 8): a meeting the teacher never
  * closed closes by itself 45 minutes after activation. Until then nothing
  * closes on its own and the learner sees no timer and no message (PRD Module
  * 14 §ב1); the per-meeting working time (20 / 25 / 15 minutes) only raises the
@@ -27,7 +27,7 @@ export function getSessionAutoCloseAt(val: ActiveClassSessionRecord | null | und
 }
 
 /**
- * Owner decision (6.9.2026, register item 10): a meeting has three teacher
+ * Owner decision (6.9.2026, register item 7): a meeting has three teacher
  * controls — start, pause, close — and every one of them reaches the learner's
  * screen live, in place. `active` stays the on/off flag older readers and the
  * database rules know; `status` carries the pause.

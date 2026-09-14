@@ -14,7 +14,7 @@ const TIER_ORDER: RecommendationTier[] = ['below_50', 'between_50_75', 'above_75
 const OUTCOME_HE = { first_try: 'ניסיון ראשון', after_correction: 'אחרי תיקון', incomplete: 'לא הושלם' } as const;
 
 /**
- * Module 23, owner decision 6.9.2026 (register item 12): beside the report of
+ * Module 23, owner decision 6.9.2026 (register item 9): beside the report of
  * one learner there is a report of the whole class for every meeting, with
  * everything the individual report measures, aggregated. The numbers come
  * from the server's class_reports document; nothing here is computed.

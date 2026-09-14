@@ -4,7 +4,7 @@ import { resolve } from 'path';
 import { GRID_FADE_IN_SECONDS } from '@/core/hesitationStages';
 
 /**
- * Owner decision 7.9.2026 (register item 13): the adaptive addition grid
+ * Owner decision 7.9.2026 (register decision ב): the adaptive addition grid
  * fades in over 2 seconds and stays until the learner closes it with the X.
  * The matrix's automatic hide 3 seconds after a correct digit was built,
  * then rejected by the owner ("עדיף להשאיר את הלוח עם כפתור סגירה").

@@ -24,7 +24,7 @@ export const GRID_STAGE_SECONDS = 30;
 export const DEFAULT_SOCRATIC_STAGE_SECONDS = 45;
 
 /**
- * Owner decision (7.9.2026, register item 13): the board fades in softly over
+ * Owner decision (7.9.2026, register decision ב): the board fades in softly over
  * 2 seconds and stays until the learner closes it with the X. The matrix's
  * automatic hide 3 seconds after a correct digit was built and then rejected:
  * a board that vanishes mid-exercise surprises exactly the learner it serves.

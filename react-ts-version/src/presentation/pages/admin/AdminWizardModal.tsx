@@ -105,7 +105,7 @@ export function AdminWizardModal({
     return true;
   };
 
-  // Module 25 §ב + deviation 1 (מסמכי אפיון/סטיות_מהאפיון.md): the admin
+  // Module 25 §ב (the spec caps students, never teachers): the admin
   // adds every authorised teacher here, and every one of them sees the same
   // twelve learners. The PRD caps students (12) and names the single class —
   // it sets no cap on teachers. The former "one lead teacher per school" and

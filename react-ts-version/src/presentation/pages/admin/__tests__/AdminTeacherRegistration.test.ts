@@ -3,7 +3,7 @@ import { readFileSync } from 'fs';
 import { resolve } from 'path';
 
 /**
- * Module 25 §ב + Module 1 §ג + deviation 1 (מסמכי אפיון/סטיות_מהאפיון.md):
+ * Module 25 §ב + Module 1 §ג (the spec caps students, never teachers; no domain filter):
  * the admin registers every authorised teacher from the console, and that
  * registration is what lets the teacher through Google sign-in.
  *

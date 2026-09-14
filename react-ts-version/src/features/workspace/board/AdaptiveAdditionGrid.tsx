@@ -16,7 +16,7 @@ interface AdaptiveAdditionGridProps {
  * for enhanced_cognitive_support learners only (the gate is in the radar hook).
  * Features dual-axis (row/column) coordinate illumination and exact intersection sum calculation.
  *
- * Owner decision (7.9.2026, register item 13): a soft fade-in of 2 seconds,
+ * Owner decision (7.9.2026, register decision ב): a soft fade-in of 2 seconds,
  * and the board stays until the learner closes it with the X. Nothing closes
  * it automatically. The exit animation runs under the page's AnimatePresence,
  * so this component must be mounted inside one.

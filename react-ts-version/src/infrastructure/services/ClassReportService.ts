@@ -1,6 +1,6 @@
 /**
  * Module 23 — the class report of one meeting (owner decision, 6.9.2026,
- * register item 12): "צריך להיות בכל מפגש גם דו"ח תלמיד וגם דו"ח כיתה".
+ * register item 9): "צריך להיות בכל מפגש גם דו"ח תלמיד וגם דו"ח כיתה".
  *
  * The server (generateClassMeetingReport) measures for every learner what the
  * individual report measures for one, aggregates the class, asks the AI

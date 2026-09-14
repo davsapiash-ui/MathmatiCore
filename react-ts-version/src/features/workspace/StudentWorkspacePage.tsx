@@ -1110,7 +1110,7 @@ export function StudentWorkspacePage() {
           )}
         </AnimatePresence>
         
-        {/* Module 10 + the matrix (register item 13): the grid fades in over
+        {/* Module 10 + the matrix (register decision ב): the grid fades in over
             2.5s and hides itself 3s after a correct digit. AnimatePresence
             here lets the exit animation play after the store closes it. */}
         {isAdditionBoardEnabled && (

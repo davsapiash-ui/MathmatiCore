@@ -1387,7 +1387,7 @@ export class FirebaseSyncService {
       createdAt: Date.now()
     };
     await set(ref(database, `users/teachers/${id}`), newTeacher);
-    // Module 25 / deviation 1: the Firestore whitelist IS the teacher's key
+    // Module 25: the Firestore whitelist IS the teacher's key
     // to the door (isWhitelistedTeacherEmailAsync + syncUserRoles read it).
     // A failure here must reach the admin, not a console nobody watches.
     if (email.includes('@')) {

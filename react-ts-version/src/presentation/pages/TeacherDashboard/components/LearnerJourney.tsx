@@ -149,7 +149,7 @@ export function LearnerJourney({ studentId }: Props) {
 
   const sessionsWithData = SESSION_NUMBERS.filter((n) => (eventsBySession.get(n)?.length ?? 0) > 0 || (recordingsBySession.get(n)?.length ?? 0) > 0).length;
 
-  // Module 23 (owner decision, register item 7): the AI report of the selected
+  // Module 23 (owner decision, register item 4): the AI report of the selected
   // meeting. The meeting's telemetry session_id is the key the server needs.
   const meetingSessionId = sessionEvents.length > 0 ? sessionEvents[0].sessionId : null;
   const [report, setReport] = useState<MeetingReport | null>(null);
