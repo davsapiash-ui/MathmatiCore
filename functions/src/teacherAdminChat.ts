@@ -42,7 +42,7 @@ export const sendTeacherAdminMessage = onCall(async (request) => {
     throw new HttpsError("permission-denied", "Only teachers and admins may use this channel.");
   }
 
-  const { receiver_id, message_body, school_id, class_name, class_id = "class_1", ephemeral_name_map } = request.data || {};
+  const { receiver_id, message_body, school_id, class_name, class_id = "class_1", ephemeral_name_map, client_message_id } = request.data || {};
   if (!receiver_id || !message_body) {
     throw new HttpsError("invalid-argument", "Missing receiver_id or message_body.");
   }
@@ -95,9 +95,15 @@ export const sendTeacherAdminMessage = onCall(async (request) => {
     read: false,
   };
 
-  const res = await db.collection("messages").add(messageDoc);
+  // Module 22 §ה: a message queued offline (Module 17) is redelivered on reconnect.
+  // The client's id becomes the document id, so a retry overwrites instead of
+  // duplicating. Only a short, safe id is accepted; anything else falls back to
+  // a server-generated id as before.
+  const clientId = typeof client_message_id === "string" && /^[A-Za-z0-9_-]{8,64}$/.test(client_message_id) ? client_message_id : null;
+  const docRef = clientId ? db.collection("messages").doc(clientId) : db.collection("messages").doc();
+  await docRef.set(messageDoc);
 
-  logger.info(`Teacher-Admin message sent securely: ${res.id}`);
-  return { status: "SENT", messageId: res.id, message: messageDoc };
+  logger.info(`Teacher-Admin message sent securely: ${docRef.id}`);
+  return { status: "SENT", messageId: docRef.id, message: messageDoc };
 });
 

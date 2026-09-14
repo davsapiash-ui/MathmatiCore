@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useDismissableOverlay } from '@/hooks/useDismissableOverlay';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useWorkspaceStore, type SupportType, getActiveTasks } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, getActiveTasks } from '@/application/useWorkspaceStore';
 import { useAuthStore, currentStudentUid } from '@/application/useAuthStore';
 import { SUPPORT_CONTENT, getDynamicSocraticHint } from '@/data/sessionTasks';
 import type { SocraticChoice } from '@/infrastructure/services/SocraticEngine';
@@ -9,31 +8,22 @@ import { emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 
 /**
- * זרימת העזרה — "חיכוך מטא-קוגניטיבי יצרני":
- * נורה 💡 → שהיית 3 שניות מכוונת → בחירה מכוילת (3 רמות פיגום) → חלון תוכן.
- * לעולם לא נפתחת אוטומטית (האפיון: רשת ביטחון ביוזמת התלמיד בלבד).
+ * PRD Module 12: the only in-task help is the Socratic coaching card —
+ * a non-blocking side card with one guiding question and three closed options.
+ * It opens on Module 12's triggers and after a mistake (a 300ms "let's think"
+ * beat, then the card). Nothing else pops up.
+ *
+ * A "which help would you like?" palette with a thinking hint and a worked
+ * example used to live here. No button ever opened it, so no learner ever saw
+ * it; the owner had it deleted (14.9.2026) rather than wired up — the PRD has
+ * no such palette, and a worked example is what document 03 §1.3 ד calls a
+ * "פתרון מוכן".
  */
-
-const SUPPORT_OPTIONS: { type: SupportType; icon: string; titleHe: string; descHe: string }[] = [
-  { type: 'metacognitive', icon: '💭', titleHe: 'רמז לחשיבה', descHe: 'שאלה שתעזור לי לבדוק את עצמי' },
-  { type: 'socratic', icon: '🔍', titleHe: 'שאלה מנחה', descHe: 'שאלה שתפרק את הבעיה לשלבים' },
-  { type: 'worked_example', icon: '📖', titleHe: 'דוגמה פתורה', descHe: 'דוגמה של תרגיל דומה עם הסבר' },
-];
 
 export function HelpOverlays() {
   const helpState = useWorkspaceStore((s) => s.helpState);
   const helpFrictionDone = useWorkspaceStore((s) => s.helpFrictionDone);
-  const chooseSupport = useWorkspaceStore((s) => s.chooseSupport);
   const closeHelp = useWorkspaceStore((s) => s.closeHelp);
-  // מסמך העיצוב §1.2: כל חלון מודאלי נסגר ב-Escape. שלושת חלונות העזרה לא
-  // האזינו למקש כלל; שניים מהם חוסמים את המסך.
-  const paletteRef = useDismissableOverlay<HTMLDivElement>(helpState === 'palette', closeHelp);
-  // The blocking content modal is the metacognitive hint or the worked
-  // example; the Socratic card is non-blocking by design and stays out.
-  const contentRef = useDismissableOverlay<HTMLDivElement>(
-    helpState === 'metacognitive' || helpState === 'worked_example',
-    closeHelp
-  );
 
   // Fast, smooth transition (300ms) for snappy help response without lag.
   useEffect(() => {
@@ -43,14 +33,13 @@ export function HelpOverlays() {
   }, [helpState, helpFrictionDone]);
 
   const aiSocraticHint = useWorkspaceStore((s) => s.aiSocraticHint);
-  const hasStaticContent = helpState === 'metacognitive' || helpState === 'worked_example' || (helpState === 'socratic' && !aiSocraticHint);
-  
-  let content = hasStaticContent ? { ...SUPPORT_CONTENT[helpState as SupportType] } : null;
-  if (content && helpState === 'socratic') {
+
+  // Strict fallback: when the AI hint is not available the card shows the
+  // static Socratic content, with the line adapted to the task's target node.
+  let content = helpState === 'socratic' && !aiSocraticHint ? { ...SUPPORT_CONTENT.socratic } : null;
+  if (content) {
     const s = useWorkspaceStore.getState();
     const task = getActiveTasks(s)[s.standardTaskIdx];
-    
-    // Strict Fallback: Use static dynamic hint if AI hint is not available
     if (task?.targetNode) {
       content.lines = [getDynamicSocraticHint(task.targetNode, s.counts, task, s.answerDigits, s.carryDigits)];
     }
@@ -87,59 +76,7 @@ export function HelpOverlays() {
         )}
       </AnimatePresence>
 
-      {/* Calibrated-choice palette */}
-      <AnimatePresence>
-        {helpState === 'palette' && (
-          <motion.div
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%', pointerEvents: 'none' }}
-            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            ref={paletteRef}
-            className="fixed bottom-0 inset-x-0 z-50 bg-ws-surface rounded-t-3xl shadow-[0_-12px_40px_rgba(0,0,0,0.18)] border-t border-ws-surface2 p-6"
-            role="dialog"
-            aria-modal="true"
-            aria-label="חלון עזרה"
-            dir="rtl"
-          >
-            <div className="max-w-3xl mx-auto">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <h2 className="font-display font-extrabold text-xl text-ws-ink">איזו עזרה תרצו לקבל כעת?</h2>
-                  <UdlSpeechButton
-                    text={[
-                      'איזו עזרה תרצו לקבל כעת?',
-                      ...SUPPORT_OPTIONS.map((o) => `${o.titleHe}. ${o.descHe}`),
-                    ].join('. ')}
-                  />
-                </div>
-                <button
-                  onClick={closeHelp}
-                  aria-label="סגור חלון עזרה"
-                  className="w-11 h-11 rounded-full bg-ws-surface2 hover:bg-ws-surface2/70 font-bold text-ws-soft"
-                >
-                  ✕
-                </button>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" role="group" aria-label="אפשרויות עזרה">
-                {SUPPORT_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.type}
-                    onClick={() => chooseSupport(opt.type)}
-                    className="flex flex-col items-center gap-2 p-5 rounded-2xl border-2 border-ws-surface2 bg-ws-surface hover:border-ws-accent hover:bg-ws-accentSoft/40 transition-all text-center"
-                  >
-                    <span className="text-3xl" aria-hidden="true">{opt.icon}</span>
-                    <span className="font-display font-extrabold text-ws-ink">{opt.titleHe}</span>
-                    <span className="text-sm text-ws-soft leading-snug">{opt.descHe}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Socratic content card: non-intrusive floating card (NO blocking backdrop per PRD v4.2 Modules 10 & 12) */}
+      {/* Socratic content card: non-intrusive floating card (NO blocking backdrop per PRD Modules 10 & 12) */}
       <AnimatePresence>
         {helpState === 'socratic' && (
           <motion.div
@@ -187,7 +124,7 @@ export function HelpOverlays() {
                 </button>
               </div>
 
-              {content?.kind === 'equivalence' && (
+              {content && (
                 /* Visual 10 ↔ ten-units equivalence (vanilla socratic graphic) */
                 <div className="flex items-center justify-center gap-4 mb-4 bg-ws-surface2/50 rounded-2xl p-3" dir="ltr" aria-hidden="true">
                   <div className="w-[80px] h-[10px] rounded-[2px]" style={{ backgroundColor: 'var(--block-ten)' }} />
@@ -204,9 +141,7 @@ export function HelpOverlays() {
                 <ul className="flex flex-col gap-2 mb-3">
                   {content.lines.map((line, i) => (
                     <li key={i} className="flex items-start gap-2 text-base text-ws-ink leading-relaxed font-semibold">
-                      <span className="text-ws-accent font-black shrink-0 mt-0.5" aria-hidden="true">
-                        {content.kind === 'checklist' ? '✔' : content.kind === 'worked_example' ? `${i + 1}.` : '•'}
-                      </span>
+                      <span className="text-ws-accent font-black shrink-0 mt-0.5" aria-hidden="true">•</span>
                       {line}
                     </li>
                   ))}
@@ -216,53 +151,6 @@ export function HelpOverlays() {
               {/* 3 Closed Dynamic Options for Socratic Mentoring */}
               <SocraticPenaltyLockOptions onClose={closeHelp} />
             </motion.aside>
-          </motion.div>
-        )}
-
-        {content && helpState !== 'socratic' && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0, pointerEvents: 'none' }}
-            ref={contentRef}
-            className="fixed inset-0 z-50 bg-ws-ink/50 backdrop-blur-sm flex items-center justify-center p-6"
-            role="dialog"
-            aria-modal="true"
-            aria-label="חונך דיגיטלי"
-            dir="rtl"
-          >
-            <motion.div
-              initial={{ scale: 0.92, y: 16 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.92, y: 16, pointerEvents: 'none' }}
-              className="bg-ws-surface rounded-3xl shadow-2xl max-w-lg w-full p-8 relative"
-            >
-              <div className="flex items-start gap-3 mb-5">
-                <h2 className="font-display font-black text-2xl text-ws-ink flex-1">{content.titleHe}</h2>
-                <UdlSpeechButton
-                  text={[content.titleHe, ...content.lines].join('. ')}
-                  className="shrink-0"
-                />
-              </div>
-
-              <ul className="flex flex-col gap-3">
-                {content.lines.map((line, i) => (
-                  <li key={i} className="flex items-start gap-2 text-lg text-ws-ink leading-relaxed font-semibold">
-                    <span className="text-ws-accent font-black shrink-0 mt-0.5" aria-hidden="true">
-                      {content.kind === 'checklist' ? '✔' : content.kind === 'worked_example' ? `${i + 1}.` : '•'}
-                    </span>
-                    {line}
-                  </li>
-                ))}
-              </ul>
-
-              <button
-                onClick={closeHelp}
-                className="mt-7 w-full h-12 rounded-full font-display font-extrabold text-lg text-white bg-ws-accent shadow-md hover:brightness-105 active:scale-95 transition-all"
-              >
-                הבנתי, חזרה לתרגיל
-              </button>
-            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -353,7 +241,7 @@ function SocraticPenaltyLockOptions({ onClose }: { onClose: () => void }) {
     }).catch(console.error);
 
     if (!opt.correct) {
-      // PRD v4.2 Module 12: 60-second penalty lock on wrong distractor in Socratic Card
+      // PRD Module 12: 30-second penalty lock on the card's answer buttons after a wrong distractor
       triggerSocraticPenaltyLockout(opt.hint);
     } else {
       const state = useWorkspaceStore.getState();
@@ -418,8 +306,8 @@ function SocraticPenaltyLockOptions({ onClose }: { onClose: () => void }) {
           role="status"
           aria-live="assertive"
           className={`rounded-2xl p-3 text-xs sm:text-sm font-semibold ${
-          selectedOpt && options.find(o => o.id === selectedOpt)?.correct 
-            ? 'bg-emerald-50 text-emerald-950 dark:bg-emerald-950/50 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-800' 
+          selectedOpt && options.find(o => o.id === selectedOpt)?.correct
+            ? 'bg-emerald-50 text-emerald-950 dark:bg-emerald-950/50 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-800'
             : 'bg-rose-50 text-rose-950 dark:bg-rose-950/50 dark:text-rose-200 border border-rose-300 dark:border-rose-800'
         }`}
         >

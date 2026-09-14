@@ -43,6 +43,32 @@ decisions already lived in the deviation register — that is where they belong,
 only place they go (Rule 2). If the owner wants the specification itself changed, the
 owner uploads a new version.
 
+### The owner's pedagogical source documents — read-only
+
+```
+מסמכי אפיון/מקור פדגוגי/
+  01- האפיון הראשוני.md
+  02- אפיון רצף הפעילויות.md
+  03- אפיון מפורט לקראת פיתוח.md
+  04- ארכיטקטורת מידע ועיצוב ממשק משתמש.md
+  05- המטריקס מעודכן ומאושר.docx
+```
+
+These five are the product owner's pedagogical specification, written for their
+academic supervisor. The PRD was derived from them. They are here so an agent can
+**read** them — to understand why a requirement exists, or to check an exercise's
+numbers (the register's decision א cites document 03).
+
+**Agents never edit, rename, move, delete, convert or "update" these files, and never
+derive a new document from them.** They are not a second specification: where they and
+the PRD differ, the PRD governs (Rule 1), and the difference is a pedagogical question
+for the owner — not something an agent resolves, in either direction. If reading them
+reveals that the code departs from the PRD, propose it in the register's "ממתין להחלטה"
+table (Rule 2) and stop.
+
+A CI check (`.github/workflows/protect-spec.yml`) fails any pull request that touches
+these files or the PRD unless the owner has labelled it `owner-approved-spec-change`.
+
 Every other PRD/spec/plan/audit file that used to live here was **deleted on
 purpose**: there were conflicting PRD versions from v2.0 through v7.1, plus a
 fabricated "100% compliance" audit that cited files which do not exist in the

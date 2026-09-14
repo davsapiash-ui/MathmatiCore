@@ -136,12 +136,12 @@ describe('"התקדם" בלי בחירה מסביר, לא שותק', () => {
 describe('חלונות העזרה — Escape סוגר, וכפתור הסגירה אינו ננעל', () => {
   const overlays = src('features/workspace/overlays/HelpOverlays.tsx');
 
-  it('שני חלונות העזרה מחוברים ל-useDismissableOverlay', () => {
-    expect(overlays).toContain("import { useDismissableOverlay } from '@/hooks/useDismissableOverlay'");
-    expect(overlays).toContain("useDismissableOverlay<HTMLDivElement>(helpState === 'palette', closeHelp)");
-    expect(overlays).toContain("helpState === 'metacognitive' || helpState === 'worked_example'");
-    expect(overlays).toContain('ref={paletteRef}');
-    expect(overlays).toContain('ref={contentRef}');
+  it('חלון העזרה היחיד הוא הכרטיס הסוקרטי, שאינו חוסם ולכן אינו מודאלי (14.9.2026: פלטת הבחירה המתה נמחקה)', () => {
+    expect(overlays).not.toContain("helpState === 'palette'");
+    expect(overlays).not.toContain('worked_example');
+    expect(overlays).not.toContain('metacognitive');
+    expect(overlays).not.toContain('aria-modal="true"');
+    expect(overlays).toContain('data-testid="socratic-card"');
   });
 
   it('כפתור "הבנתי, סגור" אינו disabled בזמן נעילת המענה', () => {

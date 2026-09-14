@@ -6,8 +6,8 @@
  * אפס מידע מזהה (Zero PII).
  */
 
-import { firestore } from '@/infrastructure/firebase';
 import { doc, setDoc } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 import type { TelemetryPayload, TelemetryEventType } from '@/types/telemetry';
 
 /**
@@ -21,6 +21,14 @@ import type { TelemetryPayload, TelemetryEventType } from '@/types/telemetry';
 export interface QueuedAction {
   id?: number;
   refPath?: string;
+  /**
+   * Module 22 §ה: a teacher→admin message written while offline is queued here
+   * and sent through the named Cloud Function when the connection returns, so
+   * the server-side anonymizer still runs on it. The payload carries a
+   * client_message_id the function uses as the document id — redelivery
+   * overwrites, never duplicates.
+   */
+  callable?: string;
   payload: any;
   timestamp: number;
   idempotency_key?: string;
@@ -201,6 +209,11 @@ export class IndexedDBQueue {
       };
     }
 
+    await this.store(item);
+  }
+
+  /** Persists one queued item (IndexedDB, or the memory fallback when the database is unavailable). */
+  private async store(item: QueuedAction): Promise<void> {
     if (!this.db) {
       await this.initDB();
     }
@@ -242,6 +255,19 @@ export class IndexedDBQueue {
       this.memoryFallback.push(item);
       if (this.memoryFallback.length > MAX_QUEUE_CAPACITY) this.memoryFallback.shift();
     }
+  }
+
+  /** Module 22 §ה: queue a Cloud Function call (teacher→admin message) for delivery on reconnect. */
+  public async enqueueCallable(name: string, payload: Record<string, unknown>, idempotencyKey: string): Promise<void> {
+    const item: QueuedAction = {
+      callable: name,
+      payload,
+      timestamp: Date.now(),
+      idempotency_key: idempotencyKey,
+      client_timestamp: Date.now(),
+      retry_count: 0,
+    };
+    await this.store(item);
   }
 
   public async getAll(): Promise<QueuedAction[]> {
@@ -416,6 +442,13 @@ export class IndexedDBQueue {
    * מחזיר false אם אין עדיין נתיב מסירה — הפריט נשאר בתור.
    */
   private async deliver(item: QueuedAction): Promise<boolean> {
+    // Loaded lazily: '@/infrastructure/firebase' initialises FirebaseSyncService,
+    // which imports this queue — a static import here is a cycle.
+    const { firestore, functions } = await import('@/infrastructure/firebase');
+    if (item.callable) {
+      await httpsCallable(functions, item.callable)(item.payload);
+      return true;
+    }
     if (item.refPath) {
       if (!this.syncCallback) return false;
       await this.syncCallback(item.refPath, item.payload);

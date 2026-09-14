@@ -216,7 +216,7 @@ const TASK_HINTS: Record<string, SocraticHintResponse> = {
   // ── Session 1 ──────────────────────────────────────────────
 
   // Task: ארגז חול — גרירת 5 פריטים + מחיקת 1 בפח
-  // DO NOT show Socratic coach for this task (handled in requestHelp)
+  // DO NOT show Socratic coach for this task (the sandbox task has no coaching)
   // This entry exists only as a fallback safety net
   's1_sandbox_controlled': {
     pedagogical_intent: "procedural",

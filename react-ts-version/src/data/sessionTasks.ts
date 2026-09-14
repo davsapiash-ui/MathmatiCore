@@ -562,39 +562,21 @@ export function getDynamicSocraticHint(
   return SOCRATIC_HINTS[targetNode] ?? DEFAULT_SOCRATIC_HINT;
 }
 
-export type SupportType = 'metacognitive' | 'socratic' | 'worked_example';
+export type SupportType = 'socratic';
 
 export interface SupportContent {
   titleHe: string;
   lines: string[];
-  kind: 'checklist' | 'equivalence' | 'worked_example';
+  kind: 'equivalence';
 }
 
 export const SUPPORT_CONTENT: Record<SupportType, SupportContent> = {
-  metacognitive: {
-    titleHe: 'בואו נחשוב יחד',
-    kind: 'checklist',
-    lines: [
-      'מה עשיתי עד עכשיו ומה עוד נשאר לי לעשות?',
-      'האם בניתי את המספרים בלוח בדיוק כמו שהם מופיעים בתרגיל?',
-      'האם שמתי לב לפעולה הנדרשת (חיבור או חיסור)?',
-    ],
-  },
   socratic: {
     titleHe: 'נקודה למחשבה',
     kind: 'equivalence',
     lines: [
       'הסתכלו על הלוח: האם יש בטור כלשהו יותר מ-9 בלוקים? מה נוכל לעשות עם זה?',
       'אם אין לנו מספיק יחידות לפעולת החיסור, מאיפה נוכל להשיג עוד יחידות מבלי לשנות את המספר עצמו?',
-    ],
-  },
-  worked_example: {
-    titleHe: 'דוגמה מסייעת: פריטה וקיבוץ',
-    kind: 'worked_example',
-    lines: [
-      'בפעולת הקיבוץ, אנו אוספים 10 יחידות וממירים אותן לעשרת אחת.',
-      'בפעולת הפריטה, אנו מפרקים עשרת אחת חזרה ל-10 יחידות.',
-      'חשוב לזכור: הכמות הכוללת אינה משתנה – רק הייצוג שלה משתנה!',
     ],
   },
 };

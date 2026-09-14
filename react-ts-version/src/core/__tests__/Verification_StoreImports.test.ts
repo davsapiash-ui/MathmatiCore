@@ -37,7 +37,7 @@ describe('Empirical Verification: Static Imports & Zustand Store Initialization'
     expect(wsState.boardOpen).toBe(true);
     expect(typeof wsState.initSession).toBe('function');
     expect(typeof wsState.proceed).toBe('function');
-    expect(typeof wsState.requestHelp).toBe('function');
+    expect(typeof wsState.requestSilentHelp).toBe('function');
   });
 
   test('3. Zustand store initialization: useAuthStore initializes cleanly with AuditLogger static import', async () => {
