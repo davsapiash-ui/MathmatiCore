@@ -72,3 +72,25 @@ export const authenticateStudentSession = onCall(
     throw new HttpsError("internal", "Failed to assign student claims");
   }
 });
+
+/**
+ * Module 1 — the counterpart of authenticateStudentSession, called when a
+ * learner signs out. The anonymous Firebase user stays on the device and is
+ * reused by the next sign-in; only the student identity is removed from it,
+ * so a signed-out tab holds no learner claims. Discarding the anonymous user
+ * on every sign-out (the previous behaviour) made every next sign-in create a
+ * fresh anonymous account — and twelve laptops behind one classroom IP hit
+ * Firebase's TOO_MANY_ATTEMPTS_TRY_LATER, after which nobody could sign in.
+ */
+export const releaseStudentSession = onCall(
+  { invoker: "public", cors: true },
+  async (request: CallableRequest<Record<string, never>>) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "No session to release");
+    }
+    const uid = request.auth.uid;
+    await admin.auth().setCustomUserClaims(uid, {});
+    logger.info(`Released student claims on UID ${uid}`);
+    return { released: true };
+  }
+);

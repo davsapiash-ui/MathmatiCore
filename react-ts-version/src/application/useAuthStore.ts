@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { AuditLogger } from "@/infrastructure/services/AuditLogger";
-import { auth, database } from "@/infrastructure/firebase";
+import { auth, database, functions } from "@/infrastructure/firebase";
+import { httpsCallable } from "firebase/functions";
 import { ref, update } from "firebase/database";
 import { useStore } from "@/application/useStore";
 import { useWorkspaceStore } from "@/application/useWorkspaceStore";
@@ -264,7 +265,22 @@ export function unifiedLogout() {
 
   clearStoredAuth();
   indexedDBQueue.clearAll().catch((e) => console.warn("IndexedDB clear error:", e));
-  if (auth && typeof auth.signOut === 'function') {
+  // Module 1: a learner's Firebase user is anonymous. It stays on the device and
+  // is reused by the next sign-in — only the student claims are released on the
+  // server. Signing it out (as this used to) made every next sign-in create a new
+  // anonymous account, and twelve laptops behind one classroom IP then hit
+  // Firebase's TOO_MANY_ATTEMPTS_TRY_LATER: no learner could sign in at all.
+  // Teachers and admins sign in with Google and are signed out for real.
+  const firebaseUser = auth && 'currentUser' in auth ? (auth as { currentUser: { isAnonymous?: boolean } | null }).currentUser : null;
+  if (firebaseUser?.isAnonymous) {
+    httpsCallable(functions, 'releaseStudentSession')({})
+      .then(async () => {
+        // Refresh so the now-claimless token is what the next reader sees.
+        const u = firebaseUser as { getIdToken?: (force: boolean) => Promise<string> };
+        if (typeof u.getIdToken === 'function') await u.getIdToken(true);
+      })
+      .catch((e: { code?: string }) => console.warn('releaseStudentSession:', e?.code ?? e));
+  } else if (auth && typeof auth.signOut === 'function') {
     auth.signOut().catch((e) => console.warn("Firebase signOut error:", e));
   }
   // The auth store is cleared FIRST. FirebaseSyncService listens to it and
