@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { readFileSync } from 'fs';
+import { readFileSync, readdirSync } from 'fs';
 import { resolve } from 'path';
 
 /**
@@ -19,6 +19,18 @@ import { resolve } from 'path';
  */
 
 const SRC = (p: string) => readFileSync(resolve(__dirname, '../../', p), 'utf-8');
+
+/** כל קובצי ה-tsx מתחת לתיקייה, לעומק — כדי שגם מסך חדש ייתפס. */
+function tsxFilesUnder(dir: string): string[] {
+  const root = resolve(__dirname, '../../', dir);
+  const walk = (d: string): string[] =>
+    readdirSync(d, { withFileTypes: true }).flatMap((entry) => {
+      const full = resolve(d, entry.name);
+      if (entry.isDirectory()) return walk(full);
+      return entry.name.endsWith('.tsx') ? [full] : [];
+    });
+  return walk(root);
+}
 
 interface FakeVoice {
   name: string;
@@ -442,6 +454,39 @@ describe('שער השמע בכניסת הילד', () => {
     expect(tts.isAudioUnlocked()).toBe(true);
   });
 
+  it('פותח את השמע גם לילד שרענן את הדף ולא עבר שוב במסך הכניסה', async () => {
+    const tts = await setupTts();
+    tts.armAudioGate();
+    expect(synth.all).toHaveLength(0); // עוד לא נגעו במסך
+
+    window.dispatchEvent(new Event('pointerdown'));
+
+    expect(tts.isAudioUnlocked()).toBe(true);
+    expect(synth.all).toHaveLength(1);
+    expect(synth.all[0].volume).toBe(0);
+  });
+
+  it('מקלדת בלבד פותחת את השמע גם היא', async () => {
+    const tts = await setupTts();
+    tts.armAudioGate();
+    window.dispatchEvent(new Event('keydown'));
+    expect(tts.isAudioUnlocked()).toBe(true);
+  });
+
+  it('אינו חוזר על עצמו: נגיעה שנייה אינה מוסיפה עוד utterance', async () => {
+    const tts = await setupTts();
+    tts.armAudioGate();
+    window.dispatchEvent(new Event('pointerdown'));
+    window.dispatchEvent(new Event('pointerdown'));
+    tts.initializeAudioGate();
+
+    expect(synth.all).toHaveLength(1);
+  });
+
+  it('כפתור ההקראה דורך את השער בעצמו, ולכן הוא פעיל בכל מסך לומד', () => {
+    expect(SRC('presentation/design-system/UdlSpeechButton.tsx')).toContain('tts.armAudioGate()');
+  });
+
   it('דפדפן בלי Web Speech API אינו מפיל את המסך', async () => {
     // השם קיים על window אבל המנוע עצמו אינו — המלכודת שבה כל קריאה זורקת חריגה.
     vi.stubGlobal('speechSynthesis', undefined);
@@ -459,32 +504,57 @@ describe('שער השמע בכניסת הילד', () => {
 });
 
 describe('האפיון: הקראה בממשק הלומד בלבד', () => {
-  it('אין הקראה בממשק המורה ובממשק המנהל', () => {
-    const surfaces = [
-      'presentation/pages/admin/AdminChatView.tsx',
-      'presentation/pages/admin/AdminOverview.tsx',
-      'presentation/pages/TeacherDashboard/components/LearnerJourney.tsx',
+  it('אין הקראה בשום קובץ בממשק המורה או המנהל — גם לא בקובץ שייווסף מחר', () => {
+    const files = [
+      ...tsxFilesUnder('presentation/pages/admin'),
+      ...tsxFilesUnder('presentation/pages/TeacherDashboard'),
     ];
-    for (const p of surfaces) {
-      expect(SRC(p), p).not.toContain('UdlSpeechButton');
+    expect(files.length).toBeGreaterThan(5);
+    for (const file of files) {
+      expect(readFileSync(file, 'utf-8'), file).not.toContain('UdlSpeechButton');
     }
   });
 
-  it('מסכי הלומד שומרים על כפתור ההקראה', () => {
+  it('כל מסך לומד שמציג הנחיה משלו מקריא אותה', () => {
+    // האפיון: "כל הנחיה המוצגת ללומד על גבי המסך מלווה בכפתור הקראה קולית ייעודי".
+    // משימות המשנה אינן ברשימה משום שהן מוצגות בתוך TaskCard, שמקריא את ההנחיה.
     const surfaces = [
       'features/workspace/tasks/TaskCard.tsx',
       'features/workspace/tasks/IntroTask.tsx',
       'features/workspace/tasks/SmallChangeTask.tsx',
       'features/workspace/tasks/MissingElementTask.tsx',
       'features/workspace/tasks/BackwardDiagnosisView.tsx',
+      'features/workspace/overlays/SocraticDrawer.tsx',
+      'features/workspace/overlays/HelpOverlays.tsx',
+      'features/workspace/overlays/ReinforcementOrChallengeScreen.tsx',
+      'features/workspace/overlays/StudentChatOverlay.tsx',
+      'features/workspace/ReflectionScreen.tsx',
       'presentation/components/student/SessionPausedOverlay.tsx',
       'presentation/components/student/SessionClosedOverlay.tsx',
       'presentation/components/student/ProjectorWaitingScreen.tsx',
       'presentation/components/student/BeeFlightWaitingScreen.tsx',
+      'presentation/components/student/Session8ReflectionScreen.tsx',
+      'presentation/pages/Login.tsx',
     ];
     for (const p of surfaces) {
-      expect(SRC(p), p).toContain('<UdlSpeechButton text=');
+      expect(SRC(p), p).toContain('<UdlSpeechButton');
     }
+  });
+
+  it('החונך הסוקרטי מקריא גם את האפשרויות, לא רק את השאלה', () => {
+    const drawer = SRC('features/workspace/overlays/SocraticDrawer.tsx');
+    expect(drawer).toContain('hint.choices.map((c) => c.textHe)');
+  });
+
+  it('שלושת שלבי לוח מפגש 8 מוקראים, ולא רק הראשון', () => {
+    const board = SRC('presentation/components/student/Session8ReflectionScreen.tsx');
+    expect(board.match(/<UdlSpeechButton/g) ?? []).toHaveLength(3);
+  });
+
+  it('בצ׳אט של הילד מוקראות הודעות המורה, ולא מה שהילד עצמו כתב', () => {
+    const chat = SRC('features/workspace/overlays/StudentChatOverlay.tsx');
+    expect(chat).toContain('{!isMe && (');
+    expect(chat).toContain('<UdlSpeechButton text={m.text}');
   });
 
   it('מסך הכניסה עדיין פותח את שער השמע', () => {

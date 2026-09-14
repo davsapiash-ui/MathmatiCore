@@ -6,6 +6,7 @@ import { HelpCircle, Hourglass, X, CheckCircle2, AlertCircle } from 'lucide-reac
 import { useDismissableOverlay } from '@/hooks/useDismissableOverlay';
 import { SocraticEngine, type SocraticChoice } from '@/infrastructure/services/SocraticEngine';
 import { emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
+import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 
 interface SocraticDrawerProps {
   isOpen?: boolean;
@@ -203,10 +204,15 @@ export function SocraticDrawer({ isOpen, onClose }: SocraticDrawerProps) {
               )}
 
               {/* Question */}
-              <div className="mt-6">
-                <h3 className="font-display font-extrabold text-lg text-slate-800 dark:text-slate-100 leading-relaxed">
+              <div className="mt-6 flex items-start gap-3">
+                <h3 className="font-display font-extrabold text-lg text-slate-800 dark:text-slate-100 leading-relaxed flex-1">
                   {hint.questionHe}
                 </h3>
+                {/* UDL: the hint a stuck child gets is the last text that may go unread. */}
+                <UdlSpeechButton
+                  text={[hint.questionHe, ...hint.choices.map((c) => c.textHe)].filter(Boolean).join('. ')}
+                  className="shrink-0"
+                />
               </div>
 
               {/* Distractor Choices (Disabled ONLY during 60s lockout) */}

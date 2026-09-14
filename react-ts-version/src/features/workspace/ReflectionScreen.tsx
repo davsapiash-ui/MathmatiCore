@@ -9,6 +9,15 @@ import { normalizeStudentId } from '@/application/useChatStore';
 import { Q_FAIL_TAG } from '@/core/QMatrix';
 import { emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
 import { toast } from 'sonner';
+import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
+
+/** לוח הרפלקציה מוקרא במלואו: ילד שאינו קורא שוטף עדיין צריך לענות על שני השלבים. */
+const REFLECTION_SPEECH = [
+  'סיום מפגש הלמידה.',
+  'סיימת בהצלחה את כל משימות המפגש. בואו נחשוב יחד על דרך העבודה שלך.',
+  'שלב ראשון: כמה השתדלת היום? בחרו את הסמל שמתאר הכי טוב את מידת המאמץ שהשקעת.',
+  'שלב שני: מה סייע לך במהלך הלמידה? סמנו את הכלים הדיגיטליים שעזרו לך.',
+].join(' ');
 
 /**
  * מודול 16: לוח רפלקציה תלת-שלבי (SRL Reflection Board Spec)
@@ -185,7 +194,10 @@ export function ReflectionScreen() {
         className="bg-ws-surface rounded-3xl shadow-xl border border-ws-surface2 max-w-2xl w-full p-8 my-10"
         aria-label="לוח רפלקציה על המפגש"
       >
-        <h1 className="font-display font-black text-3xl text-ws-ink mb-1">סיום מפגש הלמידה 🎉</h1>
+        <div className="flex items-start gap-3 mb-1">
+          <h1 className="font-display font-black text-3xl text-ws-ink flex-1">סיום מפגש הלמידה 🎉</h1>
+          <UdlSpeechButton text={REFLECTION_SPEECH} className="shrink-0 mt-1" />
+        </div>
         <p className="text-ws-soft font-medium mb-7">סיימת בהצלחה את כל משימות המפגש. בואו נחשוב יחד על דרך העבודה שלך.</p>
 
         {/* Step 1: 3-point visual effort scale */}

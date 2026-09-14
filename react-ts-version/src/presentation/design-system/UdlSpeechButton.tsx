@@ -32,6 +32,9 @@ export function UdlSpeechButton({ text, lang = 'he-IL', className = '' }: UdlSpe
   };
 
   useEffect(() => {
+    // Scoped to the student surfaces by construction: this button exists nowhere else.
+    // Covers the child who reloads mid-lesson and never passes the login gate again.
+    tts.armAudioGate();
     return () => {
       // Only our own read: tts is a singleton shared by every speech button, so an
       // unconditional stop() here cuts off whichever button is actually speaking —

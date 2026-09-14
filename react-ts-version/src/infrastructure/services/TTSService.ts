@@ -36,6 +36,7 @@ export class TTSService {
   private voices: SpeechSynthesisVoice[] = [];
   private isLoaded = false;
   private audioUnlocked = false;
+  private gateArmed = false;
   private warnedNoVoice = false;
 
   /** Holds the utterances the engine is reading, so they are not collected (F4). */
@@ -75,6 +76,7 @@ export class TTSService {
    */
   public initializeAudioGate(): boolean {
     if (!this.isSupported()) return false;
+    if (this.audioUnlocked) return true;
     try {
       // Browsers unlock speech only once the document has been interacted with, so this
       // has to stay on the login click path. The text is a real character on purpose —
@@ -91,6 +93,29 @@ export class TTSService {
       console.warn('Audio gate initialization failed:', e);
       return false;
     }
+  }
+
+  /**
+   * The login click is the intended unlock, but a child who reloads the page mid-lesson
+   * never passes through it: the session is restored straight into the workspace, and
+   * narration would stay locked for the rest of the lesson. Arming here unlocks on
+   * whatever the child touches first and warms the voice list, so the first press of a
+   * speaker button speaks immediately. Nothing is ever read aloud by itself — the gate
+   * utterance is silent, and autoplay stays forbidden.
+   */
+  public armAudioGate(): void {
+    if (!this.isSupported() || this.gateArmed || this.audioUnlocked) return;
+    this.gateArmed = true;
+
+    const unlock = () => {
+      window.removeEventListener('pointerdown', unlock, true);
+      window.removeEventListener('keydown', unlock, true);
+      this.initializeAudioGate();
+    };
+    // Capture phase: the gate has to run even when the child's first touch lands on a
+    // control that stops the event from propagating.
+    window.addEventListener('pointerdown', unlock, true);
+    window.addEventListener('keydown', unlock, true);
   }
 
   public isAudioUnlocked(): boolean {

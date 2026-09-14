@@ -6,6 +6,7 @@ import { useAuthStore, currentStudentUid } from '@/application/useAuthStore';
 import { SUPPORT_CONTENT, getDynamicSocraticHint } from '@/data/sessionTasks';
 import type { SocraticChoice } from '@/infrastructure/services/SocraticEngine';
 import { emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
+import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 
 /**
  * זרימת העזרה — "חיכוך מטא-קוגניטיבי יצרני":
@@ -103,7 +104,15 @@ export function HelpOverlays() {
           >
             <div className="max-w-3xl mx-auto">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="font-display font-extrabold text-xl text-ws-ink">איזו עזרה תרצו לקבל כעת?</h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="font-display font-extrabold text-xl text-ws-ink">איזו עזרה תרצו לקבל כעת?</h2>
+                  <UdlSpeechButton
+                    text={[
+                      'איזו עזרה תרצו לקבל כעת?',
+                      ...SUPPORT_OPTIONS.map((o) => `${o.titleHe}. ${o.descHe}`),
+                    ].join('. ')}
+                  />
+                </div>
                 <button
                   onClick={closeHelp}
                   aria-label="סגור חלון עזרה"
@@ -161,6 +170,13 @@ export function HelpOverlays() {
                   <h2 className="font-display font-black text-lg sm:text-xl text-ws-ink leading-tight">
                     {aiSocraticHint?.questionHe || content?.titleHe || 'שאלה מנחה לחשיבה'}
                   </h2>
+                  <UdlSpeechButton
+                    text={[
+                      aiSocraticHint?.questionHe || content?.titleHe || 'שאלה מנחה לחשיבה',
+                      ...(!aiSocraticHint ? content?.lines ?? [] : []),
+                    ].join('. ')}
+                    className="shrink-0"
+                  />
                 </div>
                 <button
                   onClick={closeHelp}
@@ -221,7 +237,13 @@ export function HelpOverlays() {
               exit={{ scale: 0.92, y: 16, pointerEvents: 'none' }}
               className="bg-ws-surface rounded-3xl shadow-2xl max-w-lg w-full p-8 relative"
             >
-              <h2 className="font-display font-black text-2xl text-ws-ink mb-5">{content.titleHe}</h2>
+              <div className="flex items-start gap-3 mb-5">
+                <h2 className="font-display font-black text-2xl text-ws-ink flex-1">{content.titleHe}</h2>
+                <UdlSpeechButton
+                  text={[content.titleHe, ...content.lines].join('. ')}
+                  className="shrink-0"
+                />
+              </div>
 
               <ul className="flex flex-col gap-3">
                 {content.lines.map((line, i) => (
