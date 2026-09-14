@@ -1,0 +1,48 @@
+# Rule 1 (AGENTS.md): the PRD and the owner's pedagogical source documents are
+# written by the product owner only. Any pull request that changes them fails
+# unless the owner has put the label `owner-approved-spec-change` on it.
+#
+# The deviation register (סטיות_מהאפיון.md) is deliberately NOT protected —
+# that is the one file agents are supposed to write to (Rule 2).
+
+name: Protect the specification
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+permissions:
+  contents: read
+  pull-requests: read
+jobs:
+  spec_unchanged:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Fail if protected spec files changed without owner approval
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: |
+          set -euo pipefail
+          # -z: NUL-separated so Hebrew filenames come through intact.
+          changed=$(git diff --name-only -z "$BASE" "$HEAD" | tr '\0' '\n' \
+            | grep -E '^מסמכי אפיון/(מקור פדגוגי/|07- 2\.MathematiCore_PRD_v07 הסופי\.md$)' || true)
+          if [ -z "$changed" ]; then
+            echo "Protected spec files untouched."
+            exit 0
+          fi
+          echo "This pull request changes protected specification files:"
+          echo "$changed"
+          case ",$LABELS," in
+            *,owner-approved-spec-change,*)
+              echo "Label owner-approved-spec-change is present — allowed."
+              exit 0 ;;
+          esac
+          echo
+          echo "AGENTS.md Rule 1: only the product owner changes the PRD or the pedagogical"
+          echo "source documents. If this change is the owner's, add the label"
+          echo "owner-approved-spec-change to the pull request. Otherwise revert it and"
+          echo "record the decision in מסמכי אפיון/סטיות_מהאפיון.md instead."
+          exit 1

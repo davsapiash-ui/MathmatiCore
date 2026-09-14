@@ -1,0 +1,4 @@
+# The owner's pedagogical source documents are stored exactly as uploaded:
+# no line-ending conversion, and the matrix is a binary Word file.
+"מסמכי אפיון/מקור פדגוגי/**" -text
+"מסמכי אפיון/מקור פדגוגי/*.docx" binary
