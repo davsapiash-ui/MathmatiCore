@@ -877,21 +877,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         useStore.getState().updateQMatrix(studentId, qUpdate as any);
       }
       if (task.targetNode && s.sessionNumber >= 3 && !task.isOptionalChoiceTask) {
+        // Owner ruling (14.9.2026): nothing is injected into the seven compulsory
+        // exercises. The "excellence challenge" that used to appear after three
+        // successes in a row belongs where the PRD puts challenge work — the
+        // choice path after the compulsory set (Module 14 §ג), not mid-sequence.
         set({ nodeStrikes: { ...s.nodeStrikes, [task.targetNode]: 0 }, successStreak: s.successStreak + 1 });
-        if (s.successStreak + 1 >= 3) {
-          get().injectTask({
-            id: `challenge_${task.id}_${Date.now()}`,
-            type: task.type,
-            titleHe: 'אתגר מצוינות (הזרקה)',
-            instructionHe: 'מעולה! בואו נראה איך אתם מתמודדים עם אתגר במספרים מורכבים יותר:',
-            targetNode: task.targetNode,
-            numberA: task.numberA ? task.numberA * 10 : undefined,
-            numberB: task.numberB ? task.numberB * 10 : undefined,
-            isSubtraction: task.isSubtraction,
-            requiresGrouping: task.requiresGrouping,
-            requiresUngrouping: task.requiresUngrouping,
-          }, 'next');
-        }
       }
       
       if ((task.scaffoldLevel ?? 0) >= 1) {
