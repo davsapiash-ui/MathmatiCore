@@ -840,23 +840,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const strikes = (s.nodeStrikes[task.targetNode] || 0) + 1;
         set({ nodeStrikes: { ...s.nodeStrikes, [task.targetNode]: strikes }, successStreak: 0 });
         
-        if (strikes === 1) {
-          set({ helpState: 'friction', frictionTriggerSource: 'mistake' });
-        } else if (strikes >= 2) {
-          get().injectTask({
-            id: `scaffold_${task.id}_${Date.now()}`,
-            type: task.type,
-            titleHe: 'תרגיל חיזוק (הזרקה)',
-            instructionHe: 'בואו ננסה תרגיל נוסף כדי לחזק את ההבנה, במספרים קטנים יותר:',
-            targetNode: task.targetNode,
-            scaffoldLevel: 1,
-            numberA: task.numberA ? Math.floor(task.numberA / 2) : undefined,
-            numberB: task.numberB ? Math.floor(task.numberB / 2) : undefined,
-            isSubtraction: task.isSubtraction,
-            requiresGrouping: task.requiresGrouping,
-            requiresUngrouping: task.requiresUngrouping,
-          }, 'next');
-        }
+        // Owner ruling (14.9.2026), from the literature on learners on the autism
+        // spectrum: support stays inside the exercise. A separate "reinforcement"
+        // exercise injected after the second mistake broke the sequence the learner
+        // was in; document 03 §3.3 asks for scaffolds "בתוך התרגיל הקיים... מבלי
+        // להציג להם משימה נפרדת". Every mistake now offers the in-task coaching
+        // card; the 4-consecutive-errors and 45s triggers (Module 12) keep working.
+        set({ helpState: 'friction', frictionTriggerSource: 'mistake' });
       }
       showFeedback({ correct: false, title: feedbackTitle, sub: feedbackSub }, feedbackMs);
     };
