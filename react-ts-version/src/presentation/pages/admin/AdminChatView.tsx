@@ -1,7 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useAdminStore } from "@/application/useAdminStore";
 import { UdlButton } from "@/presentation/design-system/UdlButton";
-import { UdlSpeechButton } from "@/presentation/design-system/UdlSpeechButton";
 import { Send, UserCircle2, Users, ShieldCheck } from "lucide-react";
 import { collection, query, orderBy, onSnapshot, doc, updateDoc } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
@@ -306,12 +305,9 @@ export function AdminChatView() {
                   return (
                     <div key={msg.id} className={`flex flex-col max-w-[85%] md:max-w-[70%] ${isAdmin ? 'self-end items-end' : 'self-start items-start'}`}>
                       <div className={`px-4 py-2 rounded-2xl shadow-sm ${isAdmin ? 'bg-blue-600 text-white rounded-tl-sm' : 'bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-tr-sm'}`}>
-                        {msg.message_body && (
-                          <div className="flex items-center gap-2">
-                            <span>{msg.message_body}</span>
-                            <UdlSpeechButton text={msg.message_body} className="w-7 h-7 p-0 shrink-0 text-slate-500" />
-                          </div>
-                        )}
+                        {/* No narration here: the PRD applies TTS to the student interface
+                            only, and forbids it in the teacher and admin interfaces. */}
+                        {msg.message_body && <span>{msg.message_body}</span>}
                       </div>
                       <span className="text-[10px] text-slate-400 mt-1 px-1">
                         {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

@@ -2,6 +2,16 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { ShieldCheck, Rocket, CheckCircle2 } from 'lucide-react';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
+import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
+
+/** מה שנקרא בקול במסך הזה — כל מה שהילד צריך כדי לבחור מסלול בלי לקרוא. */
+const BRANCH_CHOICE_SPEECH = [
+  'איך תרצו להמשיך את החקר?',
+  'באפשרותכם לבחור מסלול המשך קצר לביסוס ההבנה או לאתגר חשיבה מתקדם.',
+  'מסלול ביסוס: תרגול נוסף של העקרונות שנלמדו במספרים נוחים לחיזוק הביטחון המתמטי.',
+  'מסלול אתגר: משימות חשיבה מורכבות יותר המשלבות מספרים גדולים ושיטות פירוק גמישות.',
+  'אפשר גם לסיים את המפגש כעת ולעבור למסך הסיכום.',
+].join(' ');
 
 interface ReinforcementOrChallengeScreenProps {
   onSelectBranch: (branch: 'reinforcement' | 'challenge') => void;
@@ -37,9 +47,12 @@ export function ReinforcementOrChallengeScreen({
         </div>
 
         <div>
-          <h2 className="font-display font-black text-2xl md:text-3xl text-slate-900 dark:text-white">
-            איך תרצו להמשיך את החקר?
-          </h2>
+          <div className="flex items-center justify-center gap-3">
+            <h2 className="font-display font-black text-2xl md:text-3xl text-slate-900 dark:text-white">
+              איך תרצו להמשיך את החקר?
+            </h2>
+            <UdlSpeechButton text={BRANCH_CHOICE_SPEECH} className="shrink-0" />
+          </div>
           <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mt-2 max-w-md">
             באפשרותכם לבחור מסלול המשך קצר לביסוס ההבנה או לאתגר חשיבה מתקדם (משימות רשות שאינן משפיעות על ציון השליטה):
           </p>

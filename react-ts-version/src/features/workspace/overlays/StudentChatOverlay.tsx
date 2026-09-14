@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { validateChatInputForPII, anonymizeChatMessageBody } from '@/core/security/PiiFilter';
 import { ref, update } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
+import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 
 export function StudentChatOverlay() {
   const [isOpen, setIsOpen] = useState(false);
@@ -190,7 +191,15 @@ export function StudentChatOverlay() {
             return (
               <div key={m.id} className={`flex flex-col max-w-[82%] ${isMe ? 'self-end items-end' : 'self-start items-start'}`}>
                 <div className={`p-3 rounded-2xl ${isMe ? 'bg-ws-accent text-white rounded-tr-sm' : 'bg-ws-surface2 text-ws-ink rounded-tl-sm shadow-sm'}`}>
-                  {m.text && <span className="leading-relaxed text-sm">{m.text}</span>}
+                  {m.text && (
+                    <div className="flex items-center gap-2">
+                      <span className="leading-relaxed text-sm">{m.text}</span>
+                      {/* הקראה להודעות המורה בלבד: מה שהילד כתב בעצמו הוא כבר יודע. */}
+                      {!isMe && (
+                        <UdlSpeechButton text={m.text} className="w-7 h-7 p-0 shrink-0" />
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-1.5 text-[10px] text-ws-soft mt-1">
                   <span>

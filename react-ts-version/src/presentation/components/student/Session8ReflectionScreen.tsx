@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckSquare, Square, RotateCcw, Brain, HelpCircle, Award, Sparkles, ArrowLeft } from 'lucide-react';
 import type { SRLReflectionResult } from '@/core/srlReflection';
+import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 
 interface Session8ReflectionScreenProps {
   /**
@@ -94,9 +95,20 @@ export function Session8ReflectionScreen({ onComplete, metrics }: Session8Reflec
 
               <div>
                 <span className="text-xs font-black text-indigo-600 uppercase tracking-wider block mb-1">שלב א מתוך ג: רפלקציית מאמץ</span>
-                <h1 className="text-2xl md:text-3xl font-display font-black text-slate-900 dark:text-white">
-                  איך הרגשתם במהלך פתרון המשימות?
-                </h1>
+                <div className="flex items-center justify-center gap-3">
+                  <h1 className="text-2xl md:text-3xl font-display font-black text-slate-900 dark:text-white">
+                    איך הרגשתם במהלך פתרון המשימות?
+                  </h1>
+                  <UdlSpeechButton
+                    text={[
+                      'שלב א מתוך ג: רפלקציית מאמץ.',
+                      'איך הרגשתם במהלך פתרון המשימות?',
+                      'בחרו את רמת המאמץ שהשקעתם במפגש המסכם.',
+                      ...effortOptions.map((o) => `${o.label}. ${o.desc}`),
+                    ].join(' ')}
+                    className="shrink-0"
+                  />
+                </div>
                 <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
                   בחרו את רמת המאמץ שהשקעתם במפגש המסכם:
                 </p>
@@ -146,9 +158,20 @@ export function Session8ReflectionScreen({ onComplete, metrics }: Session8Reflec
 
               <div>
                 <span className="text-xs font-black text-purple-600 uppercase tracking-wider block mb-1">שלב ב מתוך ג: אסטרטגיות למידה</span>
-                <h1 className="text-2xl md:text-3xl font-display font-black text-slate-900 dark:text-white">
-                  באילו אסטרטגיות וכלים נעזרתם?
-                </h1>
+                <div className="flex items-center justify-center gap-3">
+                  <h1 className="text-2xl md:text-3xl font-display font-black text-slate-900 dark:text-white">
+                    באילו אסטרטגיות וכלים נעזרתם?
+                  </h1>
+                  <UdlSpeechButton
+                    text={[
+                      'שלב ב מתוך ג: אסטרטגיות למידה.',
+                      'באילו אסטרטגיות וכלים נעזרתם?',
+                      'סמנו את הכלים שסייעו לכם לבדוק את עצמכם ולהתקדם.',
+                      ...strategyOptions.map((o) => o.label),
+                    ].join(' ')}
+                    className="shrink-0"
+                  />
+                </div>
                 <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
                   סמנו את הכלים שסייעו לכם לבדוק את עצמכם ולהתקדם:
                 </p>
@@ -219,9 +242,19 @@ export function Session8ReflectionScreen({ onComplete, metrics }: Session8Reflec
 
               <div>
                 <span className="text-xs font-black text-emerald-600 uppercase tracking-wider block mb-1">שלב ג מתוך ג: מדד ההתמדה והוויסות העצמי</span>
-                <h1 className="text-2xl md:text-3xl font-display font-black text-slate-900 dark:text-white">
-                  כל הכבוד על הדרך וההתמדה!
-                </h1>
+                <div className="flex items-center justify-center gap-3">
+                  <h1 className="text-2xl md:text-3xl font-display font-black text-slate-900 dark:text-white">
+                    כל הכבוד על הדרך וההתמדה!
+                  </h1>
+                  <UdlSpeechButton
+                    text={[
+                      'כל הכבוד על הדרך וההתמדה!',
+                      'השלמתם בהצלחה את מסע הלמידה במתמטיקור.',
+                      `מדד ההתמדה והבקרה העצמית שלכם: ${persistenceRatio} אחוז.`,
+                    ].join(' ')}
+                    className="shrink-0"
+                  />
+                </div>
                 <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
                   השלמתם בהצלחה את מסע הלמידה ב-MathmatiCore!
                 </p>
