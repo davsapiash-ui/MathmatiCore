@@ -410,6 +410,37 @@ describe('F3 — הנחיות ארוכות אינן נקטעות אחרי ~15 ש
     }
   });
 
+  it('ניקוד אינו מקצר את המקטעים — סימני ניקוד אינם הברות', async () => {
+    // הנחיה מנוקדת נושאת בערך פי 1.7 תווים על אותו דיבור בדיוק. ספירה תמימה
+    // הייתה חותכת אותה ליותר מקטעים ממה שהדיבור מצריך.
+    const plain = 'בנו בבית המספרים את המספר ארבע מאות ועשרים בעזרת מאות ועשרות, והקלידו את התוצאה בתיבת המענה שלמטה.';
+    const pointed =
+      'בְּנוּ בְּבֵית הַמִּסְפָּרִים אֶת הַמִּסְפָּר אַרְבַּע מֵאוֹת וְעֶשְׂרִים בְּעֶזְרַת מֵאוֹת וַעֲשָׂרוֹת, וְהַקְלִידוּ אֶת הַתּוֹצָאָה בְּתֵיבַת הַמַּעֲנֶה שֶׁלְּמַטָּה.';
+    expect(pointed.length).toBeGreaterThan(plain.length * 1.4); // אחרת הבדיקה אינה בודקת כלום
+
+    const a = await setupTts();
+    a.speak(plain);
+    const plainChunks = synth.queue.length;
+
+    const b = await setupTts();
+    b.speak(pointed);
+    const pointedChunks = synth.queue.length;
+
+    expect(pointedChunks).toBe(plainChunks);
+  });
+
+  it('מקטע לעולם אינו נחתך בין אות לניקוד שלה', async () => {
+    const tts = await setupTts();
+    tts.speak(
+      Array.from({ length: 40 }, () => 'בְּנוּ הַמִּסְפָּר הַמְבֻקָּשׁ').join(' ')
+    );
+    expect(synth.queue.length).toBeGreaterThan(1);
+    for (const utterance of synth.queue) {
+      // סימן ניקוד פותח מקטע = הוא נותק מהאות שלו.
+      expect(/^[\u0591-\u05C7]/.test(utterance.text), utterance.text.slice(0, 12)).toBe(false);
+    }
+  });
+
   it('onEnd מגיע רק אחרי המקטע האחרון, ולא אחרי הראשון', async () => {
     const tts = await setupTts();
     const onEnd = vi.fn();

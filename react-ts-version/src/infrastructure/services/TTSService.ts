@@ -256,24 +256,35 @@ export class TTSService {
   }
 
   /**
+   * How long this text takes to say, in characters. Hebrew niqqud are combining marks
+   * (U+0591-U+05C7): they add characters without adding a syllable, and a pointed
+   * instruction carries roughly two thirds again as many characters as a plain one.
+   * Counting them would cut it into far more utterances than the speech needs.
+   */
+  private spokenLength(text: string): number {
+    return text.replace(/[\u0591-\u05C7]/g, '').length;
+  }
+
+  /**
    * Splits a long instruction into utterances the engine will finish (F3). Packing is
    * done word by word and closed at sentence punctuation where one falls in range, so
-   * the seam lands on a pause the child would hear anyway.
+   * the seam lands on a pause the child would hear anyway. Splitting on whitespace also
+   * keeps every niqqud mark attached to the letter it belongs to.
    */
   private chunkText(text: string): string[] {
-    if (text.length <= TTSService.MAX_CHUNK_CHARS) return [text];
+    if (this.spokenLength(text) <= TTSService.MAX_CHUNK_CHARS) return [text];
 
     const chunks: string[] = [];
     let current = '';
     for (const word of text.split(/\s+/).filter(Boolean)) {
       const candidate = current ? `${current} ${word}` : word;
-      if (candidate.length > TTSService.MAX_CHUNK_CHARS && current) {
+      if (this.spokenLength(candidate) > TTSService.MAX_CHUNK_CHARS && current) {
         chunks.push(current);
         current = word;
       } else {
         current = candidate;
       }
-      if (current.length >= TTSService.MIN_CHUNK_CHARS && /[.!?:;]$/.test(current)) {
+      if (this.spokenLength(current) >= TTSService.MIN_CHUNK_CHARS && /[.!?:;]$/.test(current)) {
         chunks.push(current);
         current = '';
       }
