@@ -37,4 +37,13 @@ describe('Module 12 — a mistake is met inside the exercise, never with an inje
     expect(block).toContain("set({ helpState: 'friction', frictionTriggerSource: 'mistake' });");
     expect(block).not.toContain('injectTask(');
   });
+
+  it('the dead "which help would you like?" palette is gone (owner, 14.9.2026)', () => {
+    const overlays = readFileSync(resolve(__dirname, '../../features/workspace/overlays/HelpOverlays.tsx'), 'utf-8');
+    expect(overlays).not.toContain('איזו עזרה תרצו לקבל כעת?');
+    expect(overlays).not.toContain('דוגמה פתורה');
+    expect(store).not.toContain("helpState: 'palette'");
+    expect(store).not.toContain('requestHelp:');
+    expect(store).not.toContain('chooseSupport');
+  });
 });

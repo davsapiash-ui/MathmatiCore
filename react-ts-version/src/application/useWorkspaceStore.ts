@@ -76,8 +76,8 @@ const DEFAULT_SOCRATIC_HINT: SocraticHintResponse = {
 };
 
 export type SessionNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
-export type SupportType = 'metacognitive' | 'socratic' | 'worked_example';
-export type HelpState = 'closed' | 'friction' | 'palette' | SupportType;
+/** PRD Module 12: the only in-task help is the Socratic card ('socratic'), reached through a short 'friction' beat. */
+export type HelpState = 'closed' | 'friction' | 'socratic';
 export type FlowStatus = 'task' | 'choice_branch' | 'reflection' | 'sessionDone';
 
 /**
@@ -194,7 +194,7 @@ interface WorkspaceState {
   feedback: FeedbackState | null;
   feedbackNonce: number;
   helpState: HelpState;
-  frictionTriggerSource: 'lightbulb' | 'mistake' | null;
+  frictionTriggerSource: 'mistake' | null;
 
   /** Teacher-approved AI-generated task list (Socratic Engine); overrides session tasks when set. */
   /** Dynamically injected tasks for the current session (Micro-Agility engine). Takes precedence if length > 0. */
@@ -250,7 +250,6 @@ interface WorkspaceState {
   proceed: () => void;
   /** "סיום המפגש כעת" from the early-finisher screen; records completion like every other exit. */
   finishMeetingEarly: () => void;
-  requestHelp: () => void;
   /**
    * מסמך 04 §2א/§5: the silent help button — "שליחת אות מצוקה חרישי למורה ללא
    * תיוג חברתי בכיתה". It signals the teacher and nothing else: no overlay, no
@@ -258,7 +257,6 @@ interface WorkspaceState {
    */
   requestSilentHelp: () => void;
   helpFrictionDone: () => void;
-  chooseSupport: (type: SupportType) => void;
   closeHelp: () => void;
   showFeedback: (feedback: FeedbackState, ms: number, then?: () => void) => void;
   fetchSocraticHint: () => Promise<void>;
@@ -2251,70 +2249,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       }
     },
 
-    /** Help flow: lightbulb → 3s "productive metacognitive friction" → calibrated choice. */
-    requestHelp: () => {
-      const s = get();
-      if (s.helpState !== 'closed') {
-        set({ helpState: 'closed' });
-        return;
-      }
-      if (s.sessionNumber === 2) {
-        showFeedback({ correct: false, title: 'מפגש אבחון 📡', sub: 'במפגש אבחון זה עובדים באופן עצמאי ללא תמיכת רמזים.' }, 3000);
-        return;
-      }
-
-      const currentTask = getActiveTasks(s)[s.standardTaskIdx];
-      if (currentTask?.type === 'session1_intro' || currentTask?.id === 's1_sandbox_controlled') {
-        showFeedback(
-          { correct: true, title: 'טיפ 💡', sub: 'גררו לפחות 5 לבנים לבית המספרים ומחקו לבנה אחת בפח האשפה — כפתור "התקדם" ייפתח אוטומטית!' },
-          5000
-        );
-        return;
-      }
-      
-      const rawUser = useAuthStore.getState().user;
-      if (rawUser?.uid && !s.isSupersededByOtherDevice) {
-        const clean = rawUser.uid.trim().toLowerCase();
-        const studentId = normalizeStudentId(clean) || (clean.startsWith('student_') ? clean : `student_${clean}`);
-        AuditLogger.log('HINT_REQUESTED', studentId, 'Student clicked the hint lightbulb');
-
-        const alertId = `${studentId}_help_${Date.now()}`;
-        const helpKey = `help_${Date.now()}`;
-
-        // Sync to Realtime DB: STRICT Zero PII — NO studentName / displayName!
-        const studentHelpPayload = {
-          helpRequested: true,
-          handRaised: true,
-          isStruggling: true,
-          lastHelpTimestamp: Date.now(),
-          lastAction: 'תלמיד לחץ על נורת העזרה!',
-          last_alert: 'תלמיד לחץ על נורת העזרה!',
-        };
-        throttledRtdbUpdate(`users/students/${studentId}`, studentHelpPayload).catch(console.error);
-        throttledRtdbUpdate(`users/students/${studentId}/helpHistory/${helpKey}`, {
-          timestamp: Date.now(),
-          sessionNumber: s.sessionNumber || 1,
-          type: 'HINT_REQUESTED',
-          message: 'תלמיד לחץ על נורת העזרה והחניכה!',
-          status: 'pending'
-        }).catch(console.error);
-        update(ref(database, `radar_alerts/${alertId}`), {
-          studentId: studentId,
-          rawStudentId: studentId,
-          timestamp: Date.now(),
-          type: 'HESITATION',
-          message: 'תלמיד לחץ על נורת העזרה!',
-          severity: 'warning',
-          persistent: true
-        }).catch(console.error);
-      }
-
-      const initialHint = currentTask ? SocraticEngine.getSynchronousTaskHint(currentTask, s.counts) : null;
-      set({ helpState: 'friction', frictionTriggerSource: 'lightbulb', aiSocraticHint: initialHint });
-      get().transitionTo('SOCRATIC_ACTIVE');
-      get().fetchSocraticHint();
-    },
-
+    /** PRD Module 12: after a mistake, a 300ms "let's think" beat, then the Socratic card. */
     requestSilentHelp: () => {
       const s = get();
       const rawUser = useAuthStore.getState().user;
@@ -2346,28 +2281,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     helpFrictionDone: () => {
       const s = get();
       if (s.helpState === 'friction') {
-        if (s.frictionTriggerSource === 'mistake') {
-          set({ helpState: 'socratic' });
-          get().transitionTo('SOCRATIC_ACTIVE');
-        } else {
-          set({ helpState: 'palette' });
-        }
-      }
-    },
-
-    chooseSupport: (type) => {
-      const s = get();
-      if (Date.now() - s.taskStartTime < 10000) return;
-      if (type === 'worked_example' && (!s.hasRequestedBasicHelp || !s.hasInteracted)) {
-        return;
-      }
-      if (type === 'socratic') {
+        set({ helpState: 'socratic' });
         get().transitionTo('SOCRATIC_ACTIVE');
       }
-      set({ 
-        helpState: type,
-        ...((type as string) !== 'worked_example' && (type as string) !== 'closed' ? { hasRequestedBasicHelp: true } : {})
-      });
     },
 
     closeHelp: () => {
