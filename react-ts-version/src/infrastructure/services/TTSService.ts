@@ -260,6 +260,12 @@ export class TTSService {
    * (U+0591-U+05C7): they add characters without adding a syllable, and a pointed
    * instruction carries roughly two thirds again as many characters as a plain one.
    * Counting them would cut it into far more utterances than the speech needs.
+   *
+   * Settled, so nobody re-opens it: pointing the instructions was tried on the Windows
+   * Hebrew voice — the same instruction, played both ways — and made no audible
+   * difference, so instruction text stays unpointed and the screen stays unpointed with
+   * it. This guard stays because catalogue text can be authored outside the repo, and
+   * pointed text arriving that way must not be over-chunked.
    */
   private spokenLength(text: string): number {
     return text.replace(/[\u0591-\u05C7]/g, '').length;
