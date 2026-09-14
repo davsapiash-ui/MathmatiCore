@@ -495,11 +495,39 @@ exports.generatePedagogicalReportPDF = (0, https_1.onCall)(Object.assign(Object.
         failed_exercises: (0, reportAnalysis_1.buildFailedExercises)(failedExerciseIds, regroupingColumnsByExercise, catalogTasks, resolvedSessionNumber, analysisPath),
         telemetry_summary: (0, reportAnalysis_1.buildTelemetrySummary)(telemetryDocs),
     });
+    // Calculate telemetry data range for Provenance
+    let minTimestamp = Infinity;
+    let maxTimestamp = -Infinity;
+    for (const doc of telemetryDocs) {
+        const t = doc.client_timestamp || doc.timestamp;
+        if (typeof t === "number" && t > 0) {
+            if (t < minTimestamp)
+                minTimestamp = t;
+            if (t > maxTimestamp)
+                maxTimestamp = t;
+        }
+    }
+    let dataRangeStr = "אירועי טלמטריה מתועדים";
+    if (minTimestamp !== Infinity && maxTimestamp !== -Infinity) {
+        dataRangeStr = `${(0, exportDriveReport_1.formatIsraelDateTime)(minTimestamp)} — ${(0, exportDriveReport_1.formatIsraelDateTime)(maxTimestamp)}`;
+    }
+    const generatedAt = Date.now();
+    const provenance = {
+        documentTypeDescription: `דוח פדגוגי מסכם ללומד יחיד עבור מפגש ${resolvedSessionNumber}, הכולל ניתוח ביצועים, קבוצת עבודה והמלצות הוראה.`,
+        scopeDescription: `כיתה ${String(classId).replace(/\D/g, "") || "1"} | מפגש ${resolvedSessionNumber} | תלמיד ${clampedStudentNum}`,
+        dataRange: dataRangeStr,
+        generatedAtIsrael: (0, exportDriveReport_1.formatIsraelDateTime)(generatedAt),
+        generatedByRole: "מורת הכיתה",
+        dataSource: `אירועי טלמטריה מתועדים (סך הכל ${telemetryDocs.length} אירועים), מפגש ${resolvedSessionNumber}`,
+        aiLayerStatus: Boolean(aiAnalysis)
+            ? "שכבת ניתוח בינה מלאכותית פעילה (תובנות ופערי ידע)"
+            : exports.EXACT_AI_FALLBACK_TEXT,
+    };
     // Assemble pedagogical report data payload
     const report = {
         report_id: `rep_${sessionId}`,
         session_id: sessionId,
-        generated_at: Date.now(),
+        generated_at: generatedAt,
         title_he: `MathematiCore - דוח פדגוגי למפגש ${resolvedSessionNumber}`,
         anonymous_student_label: `תלמיד ${clampedStudentNum}`,
         student_id: clampedStudentNum,
@@ -523,6 +551,7 @@ exports.generatePedagogicalReportPDF = (0, https_1.onCall)(Object.assign(Object.
         teaching_recommendations: (aiAnalysis === null || aiAnalysis === void 0 ? void 0 : aiAnalysis.teaching_recommendations) || [],
         ai_analysis_available: Boolean(aiAnalysis),
         ai_fallback_text: exports.EXACT_AI_FALLBACK_TEXT,
+        provenance,
         summary_text_he: `דוח פדגוגי למפגש ${resolvedSessionNumber}. ציון שליטה: ${score}%. מסלול מומלץ: ${score >= 50 ? 'העמקה (ירוק)' : 'ביסוס ומענה מותאם (צהוב - remediation_path)'}.`
     };
     // Render authoritative server-side PDF binary & Upload to Cloud Storage
@@ -582,19 +611,30 @@ exports.generatePedagogicalReportPDF = (0, https_1.onCall)(Object.assign(Object.
         // Module 23 Drive mirror: archive a copy of the same PDF in the shared Drive folder.
         // Best-effort only — a Drive failure must never fail or degrade report generation.
         try {
-            const driveFileName = `דוח_תלמיד${clampedStudentNum}_מפגש${resolvedSessionNumber}_${new Date().toISOString().slice(0, 16).replace("T", "_").replace(":", "-")}.pdf`;
+            const driveFileName = (0, exportDriveReport_1.buildDriveFileName)({
+                kind: "learner_report",
+                studentNumber: clampedStudentNum,
+                sessionNumber: resolvedSessionNumber,
+                classId,
+                date: report.generated_at,
+            });
             const driveFolderId = await (0, exportDriveReport_1.resolveDriveFolder)([exportDriveReport_1.DRIVE_FOLDERS.learnerReports, `מפגש ${resolvedSessionNumber}`]);
-            const driveResult = await (0, exportDriveReport_1.uploadBufferToDrive)(pdfBuffer, driveFileName, "application/pdf", driveFolderId);
-            if (driveResult.success) {
-                driveMirrorUrl = driveResult.webViewLink;
-                await db.collection("reports").doc(`rep_${sessionId}`).set({
-                    drive_file_id: driveResult.fileId,
-                    drive_file_url: driveResult.webViewLink,
-                }, { merge: true });
-                logger.info(`Pedagogical PDF mirrored to shared Drive folder: ${driveResult.fileId}`);
+            if (driveFolderId) {
+                const driveResult = await (0, exportDriveReport_1.uploadBufferToDrive)(pdfBuffer, driveFileName, "application/pdf", driveFolderId);
+                if (driveResult.success) {
+                    driveMirrorUrl = driveResult.webViewLink;
+                    await db.collection("reports").doc(`rep_${sessionId}`).set({
+                        drive_file_id: driveResult.fileId,
+                        drive_file_url: driveResult.webViewLink,
+                    }, { merge: true });
+                    logger.info(`Pedagogical PDF mirrored to shared Drive folder: ${driveResult.fileId}`);
+                }
+                else {
+                    logger.warn(`Drive mirror skipped (non-fatal): ${driveResult.error}`);
+                }
             }
             else {
-                logger.warn(`Drive mirror skipped (non-fatal): ${driveResult.error}`);
+                logger.warn(`Drive folder resolution returned null for learner report; skipping Drive mirror.`);
             }
         }
         catch (driveErr) {

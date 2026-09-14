@@ -1,18 +1,122 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.exportResearchDataset = exports.backupAndResetSessionData = exports.VALID_RESET_REASONS = exports.DRIVE_FOLDERS = exports.exportAdminReportToDrive = void 0;
+exports.tidyDriveFolder = exports.exportResearchDataset = exports.backupAndResetSessionData = exports.VALID_RESET_REASONS = exports.exportAdminReportToDrive = exports.DRIVE_FOLDERS = exports.SERVICE_ACCOUNT_EMAIL = exports.GOOGLE_DRIVE_FOLDER_ID = void 0;
+exports.formatIsraelTimestamp = formatIsraelTimestamp;
+exports.formatIsraelDateTime = formatIsraelDateTime;
+exports.formatClassToken = formatClassToken;
+exports.formatStudentToken = formatStudentToken;
+exports.formatSessionToken = formatSessionToken;
+exports.buildDriveFileName = buildDriveFileName;
+exports.getOrCreateDriveFolder = getOrCreateDriveFolder;
 exports.resolveDriveFolder = resolveDriveFolder;
 exports.uploadBufferToDrive = uploadBufferToDrive;
 exports.buildResetScope = buildResetScope;
 exports.collectResetBackup = collectResetBackup;
 exports.executeResetDeletion = executeResetDeletion;
+exports.classifyLooseDriveFile = classifyLooseDriveFile;
 const https_1 = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
 const google_auth_library_1 = require("google-auth-library");
 const meetingMetrics_1 = require("./meetingMetrics");
-const GOOGLE_DRIVE_FOLDER_ID = "0AMiALsm_TxT5Uk9PVA";
-const SERVICE_ACCOUNT_EMAIL = "1002220159@edu-haifa.org.il";
+const htmlPdf_1 = require("./htmlPdf");
+const reportHtml_1 = require("./reportHtml");
+exports.GOOGLE_DRIVE_FOLDER_ID = "0AMiALsm_TxT5Uk9PVA";
+exports.SERVICE_ACCOUNT_EMAIL = "1002220159@edu-haifa.org.il";
+exports.DRIVE_FOLDERS = {
+    learnerReports: "01 דוחות תלמידים",
+    researchData: "02 נתוני מחקר",
+    resetBackups: "03 גיבויי איפוס",
+    adminReports: "04 דוחות מנהל",
+    classReports: "05 דוחות כיתה",
+    archive: "99 ארכיון",
+};
+function formatIsraelTimestamp(date = new Date()) {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Jerusalem',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: 'h23',
+    }).formatToParts(date);
+    const map = {};
+    for (const p of parts) {
+        map[p.type] = p.value;
+    }
+    return `${map.year}-${map.month}-${map.day}_${map.hour}${map.minute}`;
+}
+function formatIsraelDateTime(dateInput) {
+    const d = typeof dateInput === 'number' ? new Date(dateInput) : (dateInput || new Date());
+    if (isNaN(d.getTime()))
+        return "";
+    const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Jerusalem',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: 'h23',
+    }).formatToParts(d);
+    const map = {};
+    for (const p of parts) {
+        map[p.type] = p.value;
+    }
+    return `${map.year}-${map.month}-${map.day} ${map.hour}:${map.minute}`;
+}
+function formatClassToken(classId) {
+    if (!classId)
+        return "כיתה-1";
+    const num = String(classId).replace(/\D/g, "");
+    return num ? `כיתה-${num}` : "כיתה-1";
+}
+function formatStudentToken(studentId) {
+    const num = parseInt(String(studentId !== null && studentId !== void 0 ? studentId : "").replace(/\D/g, ""), 10);
+    return `תלמיד-${String(Number.isFinite(num) ? num : 1).padStart(2, "0")}`;
+}
+function formatSessionToken(sessionNumber) {
+    if (sessionNumber === "all" || sessionNumber === null || sessionNumber === undefined)
+        return "כל-המפגשים";
+    const num = parseInt(String(sessionNumber).replace(/\D/g, ""), 10);
+    return Number.isFinite(num) ? `מפגש-${String(num).padStart(2, "0")}` : "כל-המפגשים";
+}
+function buildDriveFileName(opts) {
+    const stamp = formatIsraelTimestamp(opts.date ? new Date(opts.date) : new Date());
+    const cls = formatClassToken(opts.classId);
+    switch (opts.kind) {
+        case 'learner_report': {
+            const stu = formatStudentToken(opts.studentNumber);
+            const ses = formatSessionToken(opts.sessionNumber);
+            return `דוח-תלמיד_${stu}_${ses}_${cls}_${stamp}.pdf`;
+        }
+        case 'class_report_pdf': {
+            const ses = formatSessionToken(opts.sessionNumber);
+            return `דוח-כיתה_${ses}_${cls}_${stamp}.pdf`;
+        }
+        case 'class_report_csv': {
+            const ses = formatSessionToken(opts.sessionNumber);
+            return `טבלת-כיתה_${ses}_${cls}_${stamp}.csv`;
+        }
+        case 'research_dataset': {
+            const resType = String(opts.researchType || "פעולות").replace(/_/g, "-");
+            const ses = formatSessionToken(opts.sessionNumber);
+            return `מחקר-${resType}_${ses}_${cls}_${stamp}.csv`;
+        }
+        case 'reset_backup': {
+            if (opts.resetLevel === 'single_student') {
+                const stu = formatStudentToken(opts.studentNumber);
+                const ses = formatSessionToken(opts.sessionNumber);
+                return `גיבוי-איפוס_${stu}_${ses}_${cls}_${stamp}.json`;
+            }
+            return `גיבוי-איפוס_מערכת_${cls}_${stamp}.json`;
+        }
+        case 'admin_report': {
+            return `דוח-מנהל-מערכת_${stamp}.pdf`;
+        }
+    }
+}
 /**
  * Generate a valid, robust PDF binary buffer with exact stream length positioning
  * containing full system metrics, governance audit & Google Drive target metadata.
@@ -27,7 +131,7 @@ function createPDFBuffer(data) {
         "0 -24 Td",
         `(Export Date: ${data.timestamp}) Tj`,
         "0 -16 Td",
-        `(Authorized Service Account: ${SERVICE_ACCOUNT_EMAIL}) Tj`,
+        `(Authorized Service Account: ${exports.SERVICE_ACCOUNT_EMAIL}) Tj`,
         "0 -16 Td",
         `(Generated By Admin: ${data.generatedBy}) Tj`,
         "0 -28 Td",
@@ -59,7 +163,7 @@ function createPDFBuffer(data) {
         "(3. TARGET GOOGLE DRIVE STORAGE METADATA) Tj",
         "/F1 11 Tf",
         "0 -22 Td",
-        `(- Target Shared Folder ID: ${GOOGLE_DRIVE_FOLDER_ID}) Tj`,
+        `(- Target Shared Folder ID: ${exports.GOOGLE_DRIVE_FOLDER_ID}) Tj`,
         "0 -18 Td",
         `(- Destination Drive Folder: Shared Drive MathmatiCore Reports) Tj`,
         "ET"
@@ -166,71 +270,73 @@ async function getDriveAccessToken() {
 /**
  * Cloud Function: exportAdminReportToDrive
  * Generates an executive PDF report and uploads it directly to Google Drive
- * folder 0AMiALsm_TxT5Uk9PVA authorized for Service Account 1002220159@edu-haifa.org.il.
+/**
+ * Cloud Function: exportAdminReportToDrive
+ * Generates an executive PDF report and uploads it directly to Google Drive
+ * folder 04 דוחות מנהל authorized for Service Account 1002220159@edu-haifa.org.il.
  */
-exports.exportAdminReportToDrive = (0, https_1.onCall)(async (request) => {
+exports.exportAdminReportToDrive = (0, https_1.onCall)(htmlPdf_1.CHROMIUM_PDF_RUNTIME, async (request) => {
     if (!request.auth) {
         throw new https_1.HttpsError("unauthenticated", "User must be authenticated to export reports.");
     }
-    const userEmail = request.auth.token.email || "admin@mathmaticore.local";
+    const token = request.auth.token;
+    const callerRoles = Array.isArray(token.roles) ? token.roles : (token.role ? [token.role] : []);
+    const isAdmin = callerRoles.includes("ADMIN") || token.role === "admin" || token.admin === true;
+    if (!isAdmin) {
+        throw new https_1.HttpsError("permission-denied", "הפקת דוח מנהל מורשית למנהל מערכת בלבד.");
+    }
     const { schoolsCount = 0, teachersCount = 0, studentsCount = 0, alertsCount = 0 } = request.data || {};
-    const timestampStr = new Date().toISOString();
-    const fileName = `MathmatiCore_Admin_Report_${Date.now()}.pdf`;
-    logger.info(`Generating Admin Report PDF for ${userEmail} to Drive Folder ${GOOGLE_DRIVE_FOLDER_ID}`);
-    const pdfBuffer = createPDFBuffer({
-        schoolsCount,
-        teachersCount,
-        studentsCount,
-        alertsCount,
-        timestamp: timestampStr,
-        generatedBy: userEmail,
+    const fileName = buildDriveFileName({ kind: "admin_report" });
+    const generatedRole = "מנהל המערכת";
+    const now = new Date();
+    const provenance = {
+        documentTypeDescription: "דוח מנהל מערכת ותשתיות, המציג מדדי פלטפורמה, אבטחת מידע ובקרת נתונים.",
+        scopeDescription: "כלל המערכת (מנהל מערכת)",
+        dataRange: "נתוני זמן אמת של המערכת",
+        generatedAtIsrael: formatIsraelDateTime(now),
+        generatedByRole: generatedRole,
+        dataSource: "נתוני תשתית ומסד נתונים של פלטפורמת MathmatiCore",
+        aiLayerStatus: "לא רלוונטי",
+    };
+    const adminFolderId = await resolveDriveFolder([exports.DRIVE_FOLDERS.adminReports]);
+    const pdfBuffer = await (0, htmlPdf_1.renderWithFallback)("adminReport", async () => {
+        const html = (0, reportHtml_1.adminReportHtml)({
+            schoolsCount,
+            teachersCount,
+            studentsCount,
+            alertsCount,
+            provenance,
+            targetFolderId: adminFolderId || exports.GOOGLE_DRIVE_FOLDER_ID,
+            serviceAccount: exports.SERVICE_ACCOUNT_EMAIL,
+        });
+        return (0, htmlPdf_1.renderHtmlToPdf)(html, {
+            footerTemplate: (0, reportHtml_1.reportFooterTemplate)(now.getTime()),
+        });
+    }, async () => {
+        return createPDFBuffer({
+            schoolsCount,
+            teachersCount,
+            studentsCount,
+            alertsCount,
+            timestamp: formatIsraelDateTime(now),
+            generatedBy: generatedRole,
+        });
     });
-    let driveFileId = `drive_${Date.now()}`;
-    let webViewLink = `https://drive.google.com/drive/folders/${GOOGLE_DRIVE_FOLDER_ID}`;
-    try {
-        const accessToken = await getDriveAccessToken();
-        if (accessToken) {
-            const adminFolderId = await resolveDriveFolder([exports.DRIVE_FOLDERS.adminReports]);
-            const metadata = {
-                name: fileName,
-                parents: [adminFolderId],
-                mimeType: "application/pdf",
-            };
-            const boundary = "mathmaticore_pdf_boundary";
-            const delimiter = `\r\n--${boundary}\r\n`;
-            const closeDelimiter = `\r\n--${boundary}--`;
-            const multipartBody = Buffer.concat([
-                Buffer.from(`${delimiter}Content-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}`),
-                Buffer.from(`${delimiter}Content-Type: application/pdf\r\nContent-Transfer-Encoding: base64\r\n\r\n${pdfBuffer.toString("base64")}`),
-                Buffer.from(closeDelimiter),
-            ]);
-            const response = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&supportsTeamDrives=true", {
-                method: "POST",
-                headers: {
-                    Authorization: `Bearer ${accessToken}`,
-                    "Content-Type": `multipart/related; boundary=${boundary}`,
-                },
-                body: multipartBody,
-            });
-            if (response.ok) {
-                const resData = await response.json();
-                driveFileId = resData.id || driveFileId;
-                if (resData.id) {
-                    webViewLink = `https://drive.google.com/file/d/${resData.id}/view`;
-                }
-                logger.info(`Successfully uploaded PDF report to Google Drive: ${driveFileId}`);
-            }
-            else {
-                const errText = await response.text();
-                logger.warn(`Google Drive API note (${response.status}): ${errText}`);
-            }
+    let driveFileId = "";
+    let webViewLink = "";
+    if (!adminFolderId) {
+        logger.warn("Admin reports Drive folder unavailable, skipping Drive upload.");
+    }
+    else {
+        const driveResult = await uploadBufferToDrive(pdfBuffer, fileName, "application/pdf", adminFolderId);
+        if (driveResult.success) {
+            driveFileId = driveResult.fileId;
+            webViewLink = driveResult.webViewLink;
+            logger.info(`Successfully uploaded Admin Report PDF to Google Drive: ${driveFileId}`);
         }
         else {
-            logger.warn("No Google Drive access token could be acquired.");
+            logger.warn(`Google Drive upload failed: ${driveResult.error}`);
         }
-    }
-    catch (err) {
-        logger.warn("Google Drive upload note:", (err === null || err === void 0 ? void 0 : err.message) || err);
     }
     // Save report audit metadata to Firestore
     try {
@@ -238,9 +344,10 @@ exports.exportAdminReportToDrive = (0, https_1.onCall)(async (request) => {
         await db.collection("reports").add({
             fileName,
             fileId: driveFileId,
-            driveFolderId: GOOGLE_DRIVE_FOLDER_ID,
-            serviceAccount: SERVICE_ACCOUNT_EMAIL,
-            generatedBy: userEmail,
+            driveFolderId: adminFolderId || exports.GOOGLE_DRIVE_FOLDER_ID,
+            serviceAccount: exports.SERVICE_ACCOUNT_EMAIL,
+            generatedByRole: generatedRole,
+            performedBy: request.auth.uid,
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
             webViewLink,
             metrics: {
@@ -258,89 +365,117 @@ exports.exportAdminReportToDrive = (0, https_1.onCall)(async (request) => {
         status: "SUCCESS",
         fileName,
         fileId: driveFileId,
-        driveFolderId: GOOGLE_DRIVE_FOLDER_ID,
-        serviceAccount: SERVICE_ACCOUNT_EMAIL,
+        driveFolderId: adminFolderId || exports.GOOGLE_DRIVE_FOLDER_ID,
+        serviceAccount: exports.SERVICE_ACCOUNT_EMAIL,
         webViewLink,
     };
 });
 /**
- * Layout of the shared Drive folder (owner decision, 5.9.2026). Everything the
- * system writes lands in one of these, never in the root, so the research
- * material (learner reports, research CSVs, reset backups) is separated from
- * the admin's system report. Folders are created on first use, by name, under
- * GOOGLE_DRIVE_FOLDER_ID, so nothing has to be prepared by hand.
+ * Helper to get or create a folder in Google Drive by name under a parent folder.
+ * Throws upon failure instead of returning the parent folder id.
  */
-exports.DRIVE_FOLDERS = {
-    learnerReports: "01 דוחות תלמידים",
-    researchData: "02 נתוני מחקר",
-    resetBackups: "03 גיבויי איפוס",
-    adminReports: "04 דוחות מנהל",
-    classReports: "05 דוחות כיתה",
-};
+async function getOrCreateDriveFolder(folderName, parentId, accessToken) {
+    const query = `name = '${folderName}' and mimeType = 'application/vnd.google-apps.folder' and '${parentId}' in parents and trashed = false`;
+    const searchUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&supportsAllDrives=true&includeItemsFromAllDrives=true`;
+    const searchRes = await fetch(searchUrl, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (searchRes.ok) {
+        const data = await searchRes.json();
+        if (data.files && data.files.length > 0) {
+            return data.files[0].id;
+        }
+    }
+    else {
+        const errText = await searchRes.text();
+        throw new Error(`Failed to search Drive folder '${folderName}' under parent '${parentId}': ${searchRes.status} ${errText}`);
+    }
+    const createRes = await fetch("https://www.googleapis.com/drive/v3/files?supportsAllDrives=true", {
+        method: "POST",
+        headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+            name: folderName,
+            mimeType: "application/vnd.google-apps.folder",
+            parents: [parentId],
+        }),
+    });
+    if (createRes.ok) {
+        const data = await createRes.json();
+        if (data.id)
+            return data.id;
+    }
+    const errText = await createRes.text();
+    throw new Error(`Failed to create Drive folder '${folderName}' under parent '${parentId}': ${createRes.status} ${errText}`);
+}
 /**
  * Resolves (creating as needed) a folder path under the shared Drive folder,
- * e.g. ["01 דוחות תלמידים", "מפגש 3"]. Falls back to the root folder when
- * Drive is unreachable, so an upload still has somewhere to go.
+ * e.g. ["01 דוחות תלמידים", "מפגש 3"].
+ * Returns null if folder resolution fails, NEVER the shared root folder.
  */
 async function resolveDriveFolder(pathSegments) {
+    if (!pathSegments || pathSegments.length === 0) {
+        return null;
+    }
     try {
         const accessToken = await getDriveAccessToken();
-        if (!accessToken)
-            return GOOGLE_DRIVE_FOLDER_ID;
-        let parentId = GOOGLE_DRIVE_FOLDER_ID;
+        if (!accessToken) {
+            logger.warn("resolveDriveFolder: Google Drive access token unavailable");
+            return null;
+        }
+        let parentId = exports.GOOGLE_DRIVE_FOLDER_ID;
         for (const segment of pathSegments) {
             parentId = await getOrCreateDriveFolder(segment, parentId, accessToken);
         }
         return parentId;
     }
     catch (err) {
-        logger.warn("Drive folder resolution failed, using the shared root folder:", (err === null || err === void 0 ? void 0 : err.message) || err);
-        return GOOGLE_DRIVE_FOLDER_ID;
+        logger.warn("Drive folder resolution failed:", (err === null || err === void 0 ? void 0 : err.message) || err);
+        return null;
     }
 }
 /**
- * Upload an arbitrary buffer/file to the shared Google Drive folder.
- * Exported for reuse by the pedagogical report generator (Module 23 Drive mirror).
+ * Upload an arbitrary buffer/file to a specific Google Drive folder.
+ * Takes string | null as parentFolderId. Immediately rejects null or shared root folder id.
+ * NEVER retries without parents (avoids uploading to personal My Drive).
  */
-async function uploadBufferToDrive(buffer, fileName, mimeType, parentFolderId = GOOGLE_DRIVE_FOLDER_ID) {
+async function uploadBufferToDrive(buffer, fileName, mimeType, parentFolderId) {
+    if (!parentFolderId || parentFolderId === exports.GOOGLE_DRIVE_FOLDER_ID) {
+        return {
+            success: false,
+            fileId: '',
+            webViewLink: '',
+            error: `Invalid or missing target Drive folder: cannot upload to root or null folder (parent: ${parentFolderId})`
+        };
+    }
     try {
         const accessToken = await getDriveAccessToken();
         if (!accessToken) {
             return { success: false, fileId: '', webViewLink: '', error: 'Google Drive access token unavailable' };
         }
-        const performUpload = async (parents) => {
-            const metadata = {
-                name: fileName,
-                mimeType,
-            };
-            if (parents && parents.length > 0) {
-                metadata.parents = parents;
-            }
-            const boundary = "mathmaticore_upload_boundary";
-            const delimiter = `\r\n--${boundary}\r\n`;
-            const closeDelimiter = `\r\n--${boundary}--`;
-            const multipartBody = Buffer.concat([
-                Buffer.from(`${delimiter}Content-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}`),
-                Buffer.from(`${delimiter}Content-Type: ${mimeType}\r\nContent-Transfer-Encoding: base64\r\n\r\n${buffer.toString("base64")}`),
-                Buffer.from(closeDelimiter),
-            ]);
-            const response = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&supportsTeamDrives=true", {
-                method: "POST",
-                headers: {
-                    Authorization: `Bearer ${accessToken}`,
-                    "Content-Type": `multipart/related; boundary=${boundary}`,
-                },
-                body: multipartBody,
-            });
-            return response;
+        const metadata = {
+            name: fileName,
+            mimeType,
+            parents: [parentFolderId],
         };
-        // Primary attempt: upload to target Shared Drive folder
-        let response = await performUpload([parentFolderId]);
-        // Fallback: If folder is restricted/missing (404/403/400), upload directly to Drive
-        if (!response.ok && (response.status === 404 || response.status === 403 || response.status === 400)) {
-            logger.warn(`Target folder ${parentFolderId} returned ${response.status}, retrying upload to Google Drive root...`);
-            response = await performUpload();
-        }
+        const boundary = "mathmaticore_upload_boundary";
+        const delimiter = `\r\n--${boundary}\r\n`;
+        const closeDelimiter = `\r\n--${boundary}--`;
+        const multipartBody = Buffer.concat([
+            Buffer.from(`${delimiter}Content-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}`),
+            Buffer.from(`${delimiter}Content-Type: ${mimeType}\r\nContent-Transfer-Encoding: base64\r\n\r\n${buffer.toString("base64")}`),
+            Buffer.from(closeDelimiter),
+        ]);
+        const response = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&supportsTeamDrives=true", {
+            method: "POST",
+            headers: {
+                Authorization: `Bearer ${accessToken}`,
+                "Content-Type": `multipart/related; boundary=${boundary}`,
+            },
+            body: multipartBody,
+        });
         if (response.ok) {
             const resData = await response.json();
             const fileId = resData.id || `drive_${Date.now()}`;
@@ -396,6 +531,7 @@ exports.backupAndResetSessionData = (0, https_1.onCall)(RESET_RUNTIME, async (re
     }
 });
 async function runBackupAndReset(request) {
+    var _a;
     if (!request.auth) {
         throw new https_1.HttpsError("unauthenticated", "User must be authenticated.");
     }
@@ -501,16 +637,33 @@ async function runBackupAndReset(request) {
     }
     // Step 2: Write backup file to Google Drive, falling back to this project's
     // own Cloud Storage bucket, and only as a last resort to a Firestore doc.
-    const backupFileName = `Backup_${reset_level}_${class_id}_${backup.snapshot_time}.json`;
+    const resolvedSessionNum = ((_a = request.data) === null || _a === void 0 ? void 0 : _a.session_number) || (() => {
+        if (backup.realtime_database) {
+            for (const val of Object.values(backup.realtime_database)) {
+                if (val && typeof val === 'object' && val.sessionNumber)
+                    return val.sessionNumber;
+            }
+        }
+        return 3;
+    })();
+    const backupFileName = buildDriveFileName({
+        kind: "reset_backup",
+        resetLevel: reset_level,
+        studentNumber: rawNum ? parseInt(rawNum, 10) : null,
+        sessionNumber: resolvedSessionNum,
+        classId: class_id,
+        date: backup.snapshot_time,
+    });
     const backupBuffer = Buffer.from(JSON.stringify(backup), "utf-8");
     logger.info(`Reset ${resetId}: ${reset_level} backup is ${backupBuffer.length} bytes, ` +
         `${backup.counts.total} records (rtdb=${JSON.stringify(backup.counts.realtime_database)}, firestore=${JSON.stringify(backup.counts.firestore)})`);
+    const resetFolderId = await resolveDriveFolder([exports.DRIVE_FOLDERS.resetBackups]);
     // The Drive upload holds a base64 copy of the whole snapshot in memory; past
     // this size go straight to this project's own bucket, which streams.
     const DRIVE_MAX_BYTES = 30 * 1024 * 1024;
-    let driveResult = backupBuffer.length <= DRIVE_MAX_BYTES
-        ? await uploadBufferToDrive(backupBuffer, backupFileName, "application/json", await resolveDriveFolder([exports.DRIVE_FOLDERS.resetBackups]))
-        : { success: false, fileId: '', webViewLink: '', error: `backup of ${backupBuffer.length} bytes is above the Drive multipart ceiling` };
+    let driveResult = (resetFolderId && backupBuffer.length <= DRIVE_MAX_BYTES)
+        ? await uploadBufferToDrive(backupBuffer, backupFileName, "application/json", resetFolderId)
+        : { success: false, fileId: '', webViewLink: '', error: !resetFolderId ? 'Drive reset folder unavailable' : `backup of ${backupBuffer.length} bytes is above the Drive multipart ceiling` };
     // Fallback 1: Google Drive needs external OAuth (domain-wide delegation for
     // SERVICE_ACCOUNT_EMAIL) that isn't guaranteed to be provisioned in every
     // environment. This project's own Cloud Storage bucket needs no such setup
@@ -807,45 +960,6 @@ async function executeResetDeletion(rtdb, db, scope) {
     return counts;
 }
 /**
- * Helper to get or create a folder in Google Drive by name under a parent folder.
- * Ensures the exact strict hierarchy: session_{session_number} -> {exportDate}
- */
-async function getOrCreateDriveFolder(folderName, parentId, accessToken) {
-    try {
-        const query = `name = '${folderName}' and mimeType = 'application/vnd.google-apps.folder' and '${parentId}' in parents and trashed = false`;
-        const searchUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&supportsAllDrives=true&includeItemsFromAllDrives=true`;
-        const searchRes = await fetch(searchUrl, {
-            headers: { Authorization: `Bearer ${accessToken}` },
-        });
-        if (searchRes.ok) {
-            const data = await searchRes.json();
-            if (data.files && data.files.length > 0) {
-                return data.files[0].id;
-            }
-        }
-        const createRes = await fetch("https://www.googleapis.com/drive/v3/files?supportsAllDrives=true", {
-            method: "POST",
-            headers: {
-                Authorization: `Bearer ${accessToken}`,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                name: folderName,
-                mimeType: "application/vnd.google-apps.folder",
-                parents: [parentId],
-            }),
-        });
-        if (createRes.ok) {
-            const data = await createRes.json();
-            return data.id || parentId;
-        }
-    }
-    catch (err) {
-        logger.warn(`Could not create/find Drive folder ${folderName}, falling back to parent:`, err);
-    }
-    return parentId;
-}
-/**
  * Module 24: exportResearchDataset
  *
  * Owner decision (5.9.2026): the research is the whole environment and the
@@ -877,7 +991,6 @@ exports.exportResearchDataset = (0, https_1.onCall)(EXPORT_RUNTIME, async (reque
     const { class_id = "class_1" } = request.data || {};
     const rawSession = (_a = request.data) === null || _a === void 0 ? void 0 : _a.session_number;
     const scopedSession = rawSession === undefined || rawSession === null || rawSession === "all" ? null : Number(rawSession) || null;
-    const userEmail = request.auth.token.email || "teacher@edu-haifa.org.il";
     const token = request.auth.token;
     const callerRoles = Array.isArray(token.roles) ? token.roles : (token.role ? [token.role] : []);
     const isTeacher = callerRoles.includes("TEACHER") || token.role === "teacher" || token.teacher === true;
@@ -892,19 +1005,23 @@ exports.exportResearchDataset = (0, https_1.onCall)(EXPORT_RUNTIME, async (reque
     }
     const db = admin.firestore();
     const rtdb = admin.database();
-    const toCsv = (rows, columns) => {
-        if (!rows || rows.length === 0)
-            return "﻿empty\n";
+    const toCsv = (rows, columns, provenance) => {
         const headerSet = new Set();
-        rows.forEach((r) => Object.keys(r).forEach((k) => headerSet.add(k)));
+        if (rows && rows.length > 0) {
+            rows.forEach((r) => Object.keys(r).forEach((k) => headerSet.add(k)));
+        }
         const headers = columns !== null && columns !== void 0 ? columns : Array.from(headerSet);
         const cell = (val) => {
             const text = val === null || val === undefined ? "" : typeof val === "object" ? JSON.stringify(val) : String(val);
             return `"${text.replace(/"/g, '""')}"`;
         };
         const headerLine = headers.map(cell).join(",");
-        const bodyLines = rows.map((row) => headers.map((h) => cell(row[h])).join(","));
-        return "﻿" + [headerLine, ...bodyLines].join("\n");
+        const bodyLines = (rows || []).map((row) => headers.map((h) => cell(row[h])).join(","));
+        let out = "\uFEFF";
+        if (provenance) {
+            out += (0, reportHtml_1.renderProvenanceCsvHeader)(provenance, (rows || []).length) + "\n";
+        }
+        return out + [headerLine, ...bodyLines].join("\n");
     };
     const iso = (t) => (typeof t === "number" && t > 0 ? new Date(t).toISOString() : "");
     const studentNumber = (v) => {
@@ -944,6 +1061,13 @@ exports.exportResearchDataset = (0, https_1.onCall)(EXPORT_RUNTIME, async (reque
                 details_json: d,
             };
         });
+        // Calculate data range from telemetry timestamps
+        const eventTimestamps = telemetryRows
+            .map((r) => Number(r.client_timestamp))
+            .filter((t) => Number.isFinite(t) && t > 0);
+        const minTs = eventTimestamps.length > 0 ? Math.min(...eventTimestamps) : null;
+        const maxTs = eventTimestamps.length > 0 ? Math.max(...eventTimestamps) : null;
+        const dataRange = minTs && maxTs ? `${formatIsraelDateTime(minTs)} – ${formatIsraelDateTime(maxTs)}` : "אין פעולות מתועדות";
         // ── 2. One row per learner × meeting ───────────────────────────────────
         const sessionDocs = await (0, meetingMetrics_1.readAllDocs)(db.collection("sessions").where("class_id", "==", class_id))
             .catch(async () => (0, meetingMetrics_1.readAllDocs)(db.collection("sessions")));
@@ -1060,31 +1184,100 @@ exports.exportResearchDataset = (0, https_1.onCall)(EXPORT_RUNTIME, async (reque
         // ── 4. Every reset audit entry ──────────────────────────────────────────
         const resetLogs = await (0, meetingMetrics_1.readAllDocs)(db.collection("reset_audit_log").where("class_id", "==", class_id))
             .catch(async () => (0, meetingMetrics_1.readAllDocs)(db.collection("reset_audit_log")));
-        const resetRows = resetLogs.map(({ id, data }) => (Object.assign({ log_id: id }, data)));
+        const resetRows = resetLogs.map(({ id, data }) => {
+            // Zero-PII: sanitize/omit any user_email so no email ever enters a CSV cell
+            const copy = Object.assign({}, data);
+            delete copy.user_email;
+            return Object.assign({ log_id: id, performed_by_role: isTeacher ? "מורת הכיתה" : "מנהל המערכת" }, copy);
+        });
+        const exportDate = new Date().toISOString().split("T")[0];
+        const scopeLabel = scopedSession === null ? "כל המפגשים" : `מפגש ${scopedSession}`;
+        const genIsrael = formatIsraelDateTime(new Date());
+        const roleLabel = isTeacher ? "מורת הכיתה" : "מנהל המערכת";
+        const classLabel = formatClassToken(class_id);
         const files = [
-            { name: "פעולות", csv: toCsv(telemetryRows), rows: telemetryRows.length },
-            { name: "מפגשים", csv: toCsv(meetingRows), rows: meetingRows.length },
-            { name: "הקלטות", csv: toCsv(recordingRows), rows: recordingRows.length },
-            { name: "רפלקציות", csv: toCsv(reflectionRows), rows: reflectionRows.length },
-            { name: "יומן_איפוסים", csv: toCsv(resetRows), rows: resetRows.length },
+            { name: "פעולות",
+                driveFileName: buildDriveFileName({ kind: "research_dataset", researchType: "פעולות", sessionNumber: scopedSession, classId: class_id }),
+                csv: toCsv(telemetryRows, undefined, {
+                    documentTypeDescription: "קובץ נתוני מחקר - פעולות טלמטריה מתועדות של הלומדים.",
+                    scopeDescription: `${classLabel} | ${scopeLabel} | כלל הלומדים (1–12)`,
+                    dataRange,
+                    generatedAtIsrael: genIsrael,
+                    generatedByRole: roleLabel,
+                    dataSource: "יומני אירועי טלמטריה (telemetry_logs)",
+                    aiLayerStatus: "לא רלוונטי",
+                }),
+                rows: telemetryRows.length,
+            },
+            { name: "מפגשים",
+                driveFileName: buildDriveFileName({ kind: "research_dataset", researchType: "מפגשים", sessionNumber: scopedSession, classId: class_id }),
+                csv: toCsv(meetingRows, undefined, {
+                    documentTypeDescription: "קובץ נתוני מחקר - סיכום מדדי מפגש ללומד לפי נוסחאות ה-PRD.",
+                    scopeDescription: `${classLabel} | ${scopeLabel} | כלל הלומדים (1–12)`,
+                    dataRange,
+                    generatedAtIsrael: genIsrael,
+                    generatedByRole: roleLabel,
+                    dataSource: "סיכום מדדי מפגש מחושבים מאירועי טלמטריה",
+                    aiLayerStatus: "לא רלוונטי",
+                }),
+                rows: meetingRows.length,
+            },
+            { name: "הקלטות",
+                driveFileName: buildDriveFileName({ kind: "research_dataset", researchType: "הקלטות", sessionNumber: scopedSession, classId: class_id }),
+                csv: toCsv(recordingRows, undefined, {
+                    documentTypeDescription: "קובץ נתוני מחקר - יומני הקלטות מסך של הלומדים.",
+                    scopeDescription: `${classLabel} | ${scopeLabel} | כלל הלומדים (1–12)`,
+                    dataRange,
+                    generatedAtIsrael: genIsrael,
+                    generatedByRole: roleLabel,
+                    dataSource: "יומני הקלטות מסך (telemetry_sessions)",
+                    aiLayerStatus: "לא רלוונטי",
+                }),
+                rows: recordingRows.length,
+            },
+            { name: "רפלקציות",
+                driveFileName: buildDriveFileName({ kind: "research_dataset", researchType: "רפלקציות", sessionNumber: scopedSession, classId: class_id }),
+                csv: toCsv(reflectionRows, undefined, {
+                    documentTypeDescription: "קובץ נתוני מחקר - תשובות רפלקציה עצמית (SRL) של הלומדים.",
+                    scopeDescription: `${classLabel} | ${scopeLabel} | כלל הלומדים (1–12)`,
+                    dataRange,
+                    generatedAtIsrael: genIsrael,
+                    generatedByRole: roleLabel,
+                    dataSource: "נתוני רפלקציה (srl_reflections וצמתי הלומדים)",
+                    aiLayerStatus: "לא רלוונטי",
+                }),
+                rows: reflectionRows.length,
+            },
+            { name: "יומן_איפוסים",
+                driveFileName: buildDriveFileName({ kind: "research_dataset", researchType: "יומן-איפוסים", sessionNumber: scopedSession, classId: class_id }),
+                csv: toCsv(resetRows, undefined, {
+                    documentTypeDescription: "קובץ נתוני מחקר - יומן פעולות איפוס מבוקרות (Module 23א).",
+                    scopeDescription: `${classLabel} | ${scopeLabel} | כלל המערכת`,
+                    dataRange,
+                    generatedAtIsrael: genIsrael,
+                    generatedByRole: roleLabel,
+                    dataSource: "יומן בקרת איפוסים (reset_audit_log)",
+                    aiLayerStatus: "לא רלוונטי",
+                }),
+                rows: resetRows.length,
+            },
         ];
-        // Requirement 3: PII Detection check across all CSV outputs
+        // Requirement 3: PII Detection check across all CSV outputs (strictly Zero PII)
         const allContent = files.map((f) => f.csv).join("\n");
         const piiRegex = /(?:\b05\d-?\d{7}\b|[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|\b\d{9}\b)/g;
-        const sanitizedCheckText = allContent.split(userEmail).join("");
-        if (piiRegex.test(sanitizedCheckText)) {
+        if (piiRegex.test(allContent)) {
             logger.warn("Research dataset export rejected: PII pattern detected.");
             throw new https_1.HttpsError("failed-precondition", "ייצוא נתוני המחקר נדחה: זוהה מידע מזהה (PII).");
         }
-        const exportDate = new Date().toISOString().split("T")[0];
-        const stamp = new Date().toISOString().slice(0, 16).replace("T", "_").replace(":", "-");
-        const scopeLabel = scopedSession === null ? "כל המפגשים" : `מפגש ${scopedSession}`;
         // Requirement 4: Drive folder hierarchy: 02 נתוני מחקר / {scope} / {date}
         const targetFolderId = await resolveDriveFolder([exports.DRIVE_FOLDERS.researchData, scopeLabel, exportDate]);
+        if (!targetFolderId) {
+            throw new https_1.HttpsError("internal", "תיקיית נתוני המחקר ב-Google Drive אינה זמינה כעת.");
+        }
         const uploads = {};
         const uploadedIds = [];
         for (const f of files) {
-            const res = await uploadBufferToDrive(Buffer.from(f.csv, "utf-8"), `${f.name}_${stamp}.csv`, "text/csv", targetFolderId);
+            const res = await uploadBufferToDrive(Buffer.from(f.csv, "utf-8"), f.driveFileName, "text/csv", targetFolderId);
             uploads[f.name] = res.success ? res.webViewLink : `failed: ${res.error}`;
             if (res.success)
                 uploadedIds.push(res.fileId);
@@ -1098,7 +1291,6 @@ exports.exportResearchDataset = (0, https_1.onCall)(EXPORT_RUNTIME, async (reque
             reset_id: exportLogId,
             timestamp: Date.now(),
             performed_by: request.auth.uid,
-            user_email: userEmail,
             reset_level: "export",
             reason: "RESEARCH_DATASET_EXPORT",
             affected_student_id: "ALL",
@@ -1127,5 +1319,198 @@ exports.exportResearchDataset = (0, https_1.onCall)(EXPORT_RUNTIME, async (reque
         logger.error("Failed to export research dataset:", err);
         throw new https_1.HttpsError("internal", (err === null || err === void 0 ? void 0 : err.message) || "ייצוא נתוני המחקר נכשל.");
     }
+});
+function classifyLooseDriveFile(fileName) {
+    // Test endpoint artifacts -> trash
+    if (/^PedagogicalReport_session\d+_student\d+_\d+\.pdf$/i.test(fileName) ||
+        /^MathmatiCore_(Executive|Research_Data)_/i.test(fileName) ||
+        /^Executive_Report_/i.test(fileName)) {
+        return { action: 'trash', reason: 'test_endpoint_artifact' };
+    }
+    // Learner reports
+    const mStudentNew = fileName.match(/^(?:דוח-תלמיד|דוח-אישי)_תלמיד-(\d+)_מפגש-(\d+)_/);
+    const mStudentOld = fileName.match(/^(?:דוח_תלמיד|דוח_אישי)(?:_תלמיד)?(\d+)_מפגש(\d+)_/);
+    if (mStudentNew || mStudentOld) {
+        const ses = mStudentNew ? mStudentNew[2] : mStudentOld[2];
+        return { action: 'move', targetFolderSegments: [exports.DRIVE_FOLDERS.learnerReports, `מפגש ${parseInt(ses, 10)}`] };
+    }
+    // Class reports (PDF & CSV)
+    const mClassNew = fileName.match(/^(?:דוח|טבלת)-כיתה_מפגש-(\d+)_/);
+    const mClassOld = fileName.match(/^(?:דוח|טבלת)_כיתה_מפגש(\d+)_/);
+    if (mClassNew || mClassOld) {
+        const s = (mClassNew || mClassOld)[1];
+        return { action: 'move', targetFolderSegments: [exports.DRIVE_FOLDERS.classReports, `מפגש ${parseInt(s, 10)}`] };
+    }
+    // Research data
+    const mResNew = fileName.match(/^מחקר-(?:פעולות|מפגשים|הקלטות|רפלקציות|יומן-איפוסים)_(כל-המפגשים|מפגש-\d+)_.*_(\d{4}-\d{2}-\d{2})_/);
+    if (mResNew) {
+        const rawNum = mResNew[1].startsWith('מפגש-') ? mResNew[1].split('-')[1] : null;
+        const scope = rawNum ? `מפגש ${parseInt(rawNum, 10)}` : 'כל המפגשים';
+        const date = mResNew[2];
+        return { action: 'move', targetFolderSegments: [exports.DRIVE_FOLDERS.researchData, scope, date] };
+    }
+    const mResOld = fileName.match(/^(?:פעולות|מפגשים|הקלטות|רפלקציות|יומן_איפוסים)_.*\.csv$/);
+    if (mResOld) {
+        const mDate = fileName.match(/(\d{4}-\d{2}-\d{2})/);
+        const date = mDate ? mDate[1] : formatIsraelTimestamp().split('_')[0];
+        const mScope = fileName.match(/מפגש(\d+)/);
+        const scope = mScope ? `מפגש ${mScope[1]}` : 'כל המפגשים';
+        return { action: 'move', targetFolderSegments: [exports.DRIVE_FOLDERS.researchData, scope, date] };
+    }
+    // Reset backups
+    if (/^גיבוי-איפוס_.*\.json$/.test(fileName) || /^Backup_.*\.json$/i.test(fileName)) {
+        return { action: 'move', targetFolderSegments: [exports.DRIVE_FOLDERS.resetBackups] };
+    }
+    // Admin reports
+    if (/^דוח-מנהל-מערכת_.*\.pdf$/.test(fileName) || /^MathmatiCore_Admin_Report_.*\.pdf$/i.test(fileName)) {
+        return { action: 'move', targetFolderSegments: [exports.DRIVE_FOLDERS.adminReports] };
+    }
+    return { action: 'archive', targetFolderSegments: [exports.DRIVE_FOLDERS.archive] };
+}
+/**
+ * Cloud Function: tidyDriveFolder (Admin only)
+ * Organizes the shared Google Drive folder:
+ * 1. Creates any missing of the 5 primary type folders directly in shared root.
+ * 2. Classifies loose files in the shared root and moves them to their proper type folders.
+ * 3. Moves fake test-endpoint reports to trash (recoverable for 30 days).
+ * 4. Moves unrecognized files to "99 ארכיון".
+ * 5. Returns execution report { foldersCreated, filesMoved, filesTrashed, failures }.
+ */
+exports.tidyDriveFolder = (0, https_1.onCall)({ timeoutSeconds: 540, memory: "1GiB" }, async (request) => {
+    if (!request.auth) {
+        throw new https_1.HttpsError("unauthenticated", "פעולה זו מורשית למנהל מערכת בלבד.");
+    }
+    const token = request.auth.token;
+    const callerRoles = Array.isArray(token.roles) ? token.roles : (token.role ? [token.role] : []);
+    const isAdmin = callerRoles.includes("ADMIN") || token.role === "admin" || token.admin === true;
+    if (!isAdmin) {
+        throw new https_1.HttpsError("permission-denied", "פעולה זו מורשית למנהל מערכת בלבד.");
+    }
+    const accessToken = await getDriveAccessToken();
+    if (!accessToken) {
+        throw new https_1.HttpsError("unavailable", "לא ניתן לקבל טוקן גישה ל-Google Drive.");
+    }
+    const foldersCreated = [];
+    const filesMoved = [];
+    const filesTrashed = [];
+    const failures = [];
+    // 1. Ensure the 5 type folders exist in shared root
+    const requiredTypeFolders = [
+        exports.DRIVE_FOLDERS.learnerReports,
+        exports.DRIVE_FOLDERS.researchData,
+        exports.DRIVE_FOLDERS.resetBackups,
+        exports.DRIVE_FOLDERS.adminReports,
+        exports.DRIVE_FOLDERS.classReports,
+    ];
+    for (const folderName of requiredTypeFolders) {
+        try {
+            const q = `name = '${folderName}' and mimeType = 'application/vnd.google-apps.folder' and '${exports.GOOGLE_DRIVE_FOLDER_ID}' in parents and trashed = false`;
+            const searchUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&supportsAllDrives=true&includeItemsFromAllDrives=true`;
+            const sRes = await fetch(searchUrl, { headers: { Authorization: `Bearer ${accessToken}` } });
+            if (sRes.ok) {
+                const data = await sRes.json();
+                if (data.files && data.files.length > 0) {
+                    continue; // Already exists
+                }
+            }
+            // Create folder
+            const cRes = await fetch("https://www.googleapis.com/drive/v3/files?supportsAllDrives=true", {
+                method: "POST",
+                headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    name: folderName,
+                    mimeType: "application/vnd.google-apps.folder",
+                    parents: [exports.GOOGLE_DRIVE_FOLDER_ID],
+                }),
+            });
+            if (cRes.ok) {
+                foldersCreated.push(folderName);
+            }
+            else {
+                const errTxt = await cRes.text();
+                failures.push({ file: folderName, error: `Failed creating folder: ${errTxt}` });
+            }
+        }
+        catch (err) {
+            failures.push({ file: folderName, error: (err === null || err === void 0 ? void 0 : err.message) || String(err) });
+        }
+    }
+    // 2. Scan loose files in GOOGLE_DRIVE_FOLDER_ID (paging with nextPageToken)
+    let pageToken = undefined;
+    const looseFiles = [];
+    do {
+        const pageParam = pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : "";
+        const listQuery = `'${exports.GOOGLE_DRIVE_FOLDER_ID}' in parents and mimeType != 'application/vnd.google-apps.folder' and trashed = false`;
+        const listUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(listQuery)}&supportsAllDrives=true&includeItemsFromAllDrives=true&pageSize=100&fields=nextPageToken,files(id,name)${pageParam}`;
+        try {
+            const listRes = await fetch(listUrl, { headers: { Authorization: `Bearer ${accessToken}` } });
+            if (!listRes.ok) {
+                const errTxt = await listRes.text();
+                failures.push({ file: "root_listing", error: `Drive list error (${listRes.status}): ${errTxt}` });
+                break;
+            }
+            const listData = await listRes.json();
+            if (listData.files && Array.isArray(listData.files)) {
+                for (const f of listData.files) {
+                    looseFiles.push({ id: f.id, name: f.name });
+                }
+            }
+            pageToken = listData.nextPageToken;
+        }
+        catch (listErr) {
+            failures.push({ file: "root_listing", error: (listErr === null || listErr === void 0 ? void 0 : listErr.message) || String(listErr) });
+            break;
+        }
+    } while (pageToken);
+    // 3. Process each loose file
+    for (const file of looseFiles) {
+        try {
+            const classification = classifyLooseDriveFile(file.name);
+            if (classification.action === "trash") {
+                const trashRes = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?supportsAllDrives=true`, {
+                    method: "PATCH",
+                    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+                    body: JSON.stringify({ trashed: true }),
+                });
+                if (trashRes.ok) {
+                    filesTrashed.push(file.name);
+                }
+                else {
+                    const errTxt = await trashRes.text();
+                    failures.push({ file: file.name, error: `Trash error: ${errTxt}` });
+                }
+            }
+            else if (classification.action === "move" || classification.action === "archive") {
+                const targetSegments = classification.targetFolderSegments || [exports.DRIVE_FOLDERS.archive];
+                const targetFolderId = await resolveDriveFolder(targetSegments);
+                if (!targetFolderId) {
+                    failures.push({ file: file.name, error: `Failed to resolve target folder: ${targetSegments.join("/")}` });
+                    continue;
+                }
+                const moveUrl = `https://www.googleapis.com/drive/v3/files/${file.id}?addParents=${encodeURIComponent(targetFolderId)}&removeParents=${encodeURIComponent(exports.GOOGLE_DRIVE_FOLDER_ID)}&supportsAllDrives=true`;
+                const moveRes = await fetch(moveUrl, {
+                    method: "PATCH",
+                    headers: { Authorization: `Bearer ${accessToken}` },
+                });
+                if (moveRes.ok) {
+                    filesMoved.push({ name: file.name, to: targetSegments.join("/") });
+                }
+                else {
+                    const errTxt = await moveRes.text();
+                    failures.push({ file: file.name, error: `Move error: ${errTxt}` });
+                }
+            }
+        }
+        catch (fileErr) {
+            failures.push({ file: file.name, error: (fileErr === null || fileErr === void 0 ? void 0 : fileErr.message) || String(fileErr) });
+        }
+    }
+    logger.info(`tidyDriveFolder finished: created ${foldersCreated.length} folders, moved ${filesMoved.length} files, trashed ${filesTrashed.length} files, ${failures.length} failures.`);
+    return {
+        foldersCreated,
+        filesMoved,
+        filesTrashed,
+        failures,
+    };
 });
 //# sourceMappingURL=exportDriveReport.js.map

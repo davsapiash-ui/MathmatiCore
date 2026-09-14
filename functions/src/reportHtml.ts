@@ -31,6 +31,43 @@ export const OUTCOME_HE: Record<ExerciseOutcome, string> = {
   incomplete: "לא הושלם",
 };
 
+export interface ProvenanceMetadata {
+  documentTypeDescription: string; // מה המסמך הזה
+  scopeDescription: string;        // כיתה / מפגש / לומד
+  dataRange: string;               // טווח הנתונים
+  generatedAtIsrael: string;       // נוצר בתאריך
+  generatedByRole: string;         // הופק על ידי
+  dataSource: string;              // מקור הנתונים
+  aiLayerStatus: string;           // שכבת הבינה
+}
+
+export function renderProvenanceBlockHtml(p: ProvenanceMetadata): string {
+  return `
+    <div class="provenance-card">
+      <div class="provenance-row"><span class="provenance-label">מה המסמך הזה:</span> <span class="provenance-val">${esc(p.documentTypeDescription)}</span></div>
+      <div class="provenance-row"><span class="provenance-label">כיתה / מפגש / לומד:</span> <span class="provenance-val">${esc(p.scopeDescription)}</span></div>
+      <div class="provenance-row"><span class="provenance-label">טווח הנתונים:</span> <span class="provenance-val">${esc(p.dataRange)}</span></div>
+      <div class="provenance-row"><span class="provenance-label">נוצר בתאריך:</span> <span class="provenance-val">${esc(p.generatedAtIsrael)}</span></div>
+      <div class="provenance-row"><span class="provenance-label">הופק על ידי:</span> <span class="provenance-val">${esc(p.generatedByRole)}</span></div>
+      <div class="provenance-row"><span class="provenance-label">מקור הנתונים:</span> <span class="provenance-val">${esc(p.dataSource)}</span></div>
+      <div class="provenance-row"><span class="provenance-label">שכבת הבינה:</span> <span class="provenance-val">${esc(p.aiLayerStatus)}</span></div>
+    </div>
+  `;
+}
+
+export function renderProvenanceCsvHeader(p: ProvenanceMetadata, rowCount: number): string {
+  return [
+    `# מה המסמך הזה: ${p.documentTypeDescription}`,
+    `# כיתה / מפגש / לומד: ${p.scopeDescription}`,
+    `# טווח הנתונים: ${p.dataRange}`,
+    `# נוצר בתאריך: ${p.generatedAtIsrael}`,
+    `# הופק על ידי: ${p.generatedByRole}`,
+    `# מקור הנתונים: ${p.dataSource}`,
+    `# שכבת הבינה: ${p.aiLayerStatus}`,
+    `# מספר שורות: ${rowCount}`,
+  ].join("\n");
+}
+
 export function esc(value: unknown): string {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -69,6 +106,14 @@ const BASE_CSS = `
   }
   h1 { margin: 0; font-size: 20pt; font-weight: 800; color: #1e1b4b; text-align: center; }
   .subtitle { margin: 4px 0 14px; font-size: 10pt; color: #475569; text-align: center; }
+  .provenance-card {
+    padding: 10px 14px; margin: 0 0 14px;
+    background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 9.5pt;
+    line-height: 1.6;
+  }
+  .provenance-row { margin-bottom: 3px; display: flex; flex-wrap: wrap; gap: 4px; }
+  .provenance-label { font-weight: 700; color: #334155; }
+  .provenance-val { color: #0f172a; }
   .card {
     display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px 14px;
     padding: 10px 14px; margin: 0 0 14px;
@@ -156,9 +201,21 @@ export function pedagogicalReportHtml(report: Record<string, any>): string {
     insights = `<p class="amber-text">${esc(report.ai_fallback_text || EXACT_AI_FALLBACK_TEXT_HE)}</p>`;
   }
 
+  const provenance: ProvenanceMetadata = report.provenance || {
+    documentTypeDescription: `דוח פדגוגי מסכם ללומד יחיד עבור מפגש ${report.session_number || ""}, הכולל ניתוח ביצועים, קבוצת עבודה והמלצות הוראה.`.trim(),
+    scopeDescription: `כיתה ${report.class_id ? String(report.class_id).replace(/\D/g, '') || "1" : "1"} | מפגש ${report.session_number || ""} | ${report.anonymous_student_label || "תלמיד"}`,
+    dataRange: report.data_range_he || "אירועי טלמטריה מתועדים",
+    generatedAtIsrael: report.generated_at_israel || (report.generated_at ? new Date(report.generated_at).toLocaleDateString("he-IL") : new Date().toLocaleDateString("he-IL")),
+    generatedByRole: report.generated_by_role || "מורת הכיתה",
+    dataSource: `אירועי טלמטריה מתועדים, מפגש ${report.session_number || ""}`.trim(),
+    aiLayerStatus: report.ai_analysis_available ? "שכבת ניתוח בינה מלאכותית פעילה" : (report.ai_fallback_text || EXACT_AI_FALLBACK_TEXT_HE),
+  };
+
   const body = `
     <h1>${esc(title)}</h1>
     <p class="subtitle">הערכה פדגוגית חסויה | מדיניות אפס מידע מזהה (Zero PII)</p>
+
+    ${renderProvenanceBlockHtml(provenance)}
 
     <div class="card">
       <div><b>לומד:</b> ${esc(report.anonymous_student_label)}</div>
@@ -189,7 +246,8 @@ export function pedagogicalReportHtml(report: Record<string, any>): string {
 const studentList = (ids: number[]) => (ids.length > 0 ? ids.map((id) => `תלמיד ${id}`).join(", ") : "אין");
 
 /** "key: value" pairs of Latin trigger/category names, each pair kept together as one left-to-right unit. */
-function keyValueList(map: Record<string, number>): string {
+function keyValueList(map?: Record<string, number> | null): string {
+  if (!map || typeof map !== "object") return "";
   return Object.entries(map).map(([k, v]) => ltr(`${k}: ${v}`)).join(", ");
 }
 
@@ -279,9 +337,21 @@ export function classReportHtml(report: Record<string, any>): string {
     analysis = `<p class="amber-text">${esc(EXACT_AI_FALLBACK_TEXT_HE)}</p>`;
   }
 
+  const provenance: ProvenanceMetadata = report.provenance || {
+    documentTypeDescription: `דוח כיתתי מסכם עבור מפגש ${report.session_number || ""}, המרכז את מדדי כלל הלומדים, חלוקה לקבוצות עבודה והמלצות הוראה כיתתיות.`.trim(),
+    scopeDescription: `כיתה ${report.class_id ? String(report.class_id).replace(/\D/g, '') || "1" : "1"} | מפגש ${report.session_number || ""} | כלל לומדי הכיתה (1–12)`,
+    dataRange: report.data_range_he || "אירועי טלמטריה מתועדים",
+    generatedAtIsrael: report.generated_at_israel || (report.generated_at ? new Date(report.generated_at).toLocaleDateString("he-IL") : new Date().toLocaleDateString("he-IL")),
+    generatedByRole: report.generated_by_role || "מורת הכיתה",
+    dataSource: `אירועי טלמטריה מתועדים, מפגש ${report.session_number || ""}`.trim(),
+    aiLayerStatus: report.ai_analysis_available ? "שכבת ניתוח בינה מלאכותית פעילה" : EXACT_AI_FALLBACK_TEXT_HE,
+  };
+
   const body = `
     <h1>${esc(title)}</h1>
     <p class="subtitle">דוח כיתתי חסוי | מדיניות אפס מידע מזהה (Zero PII) | לומדים מזוהים במספר בלבד</p>
+
+    ${renderProvenanceBlockHtml(provenance)}
 
     <div class="card">
       <div><b>מפגש:</b> ${esc(report.session_number)}</div>
@@ -312,6 +382,51 @@ export function classReportHtml(report: Record<string, any>): string {
 
     <h2 class="amber">5. ניתוח הבינה: דפוסים כיתתיים והמלצות הוראה</h2>
     ${analysis}
+  `;
+  return layout(title, body);
+}
+
+// ---------------------------------------------------------------------------
+// Admin Executive report.
+// ---------------------------------------------------------------------------
+
+export function adminReportHtml(data: {
+  schoolsCount: number;
+  teachersCount: number;
+  studentsCount: number;
+  alertsCount: number;
+  provenance: ProvenanceMetadata;
+  targetFolderId?: string;
+  serviceAccount?: string;
+}): string {
+  const title = "MathematiCore - דוח מנהל מערכת ותשתיות";
+  const body = `
+    <h1>${esc(title)}</h1>
+    <p class="subtitle">דוח מערכתי חסוי | מדיניות אפס מידע מזהה (Zero PII)</p>
+
+    ${renderProvenanceBlockHtml(data.provenance)}
+
+    <h2 class="green">1. סיכום מדדי פלטפורמה ותשתיות</h2>
+    <div class="card">
+      <div><b>בתי ספר שותפים:</b> ${esc(data.schoolsCount)}</div>
+      <div><b>מורים רשומים במערכת:</b> ${esc(data.teachersCount)}</div>
+      <div><b>תלמידים פעילים:</b> ${esc(data.studentsCount)}</div>
+      <div class="wide"><b>התראות רדאר פדגוגי פעילות:</b> ${esc(data.alertsCount)}</div>
+    </div>
+
+    <h2>2. בקרת אבטחת מידע, פרטיות ו-Zero PII</h2>
+    <div class="routing">
+      <p class="green-text"><b>שער סניטציה ואפס PII:</b> אכיפה מלאה (ללא דליפת מידע מזהה)</p>
+      <p><b>שימור הקלטות מסך:</b> תואם מדיניות 30 יום</p>
+      <p><b>אימות מורים:</b> רשימה מורשית ב-Firestore (Whitelist)</p>
+    </div>
+
+    <h2>3. נתוני יעד ב-Google Drive</h2>
+    <div class="card">
+      <div class="wide"><b>תיקיית דרייב משותפת:</b> ${esc(data.targetFolderId || "0AMiALsm_TxT5Uk9PVA")}</div>
+      <div class="wide"><b>חשבון שירות מורשה:</b> ${esc(data.serviceAccount || "1002220159@edu-haifa.org.il")}</div>
+      <div class="wide"><b>תיקיית סוג מסמך:</b> 04 דוחות מנהל</div>
+    </div>
   `;
   return layout(title, body);
 }

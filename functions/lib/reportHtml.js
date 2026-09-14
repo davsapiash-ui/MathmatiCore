@@ -1,10 +1,13 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CLASS_REPORT_PDF_OPTIONS = exports.OUTCOME_HE = exports.TIER_LABEL_HE = exports.EXACT_AI_FALLBACK_TEXT_HE = void 0;
+exports.renderProvenanceBlockHtml = renderProvenanceBlockHtml;
+exports.renderProvenanceCsvHeader = renderProvenanceCsvHeader;
 exports.esc = esc;
 exports.reportFooterTemplate = reportFooterTemplate;
 exports.pedagogicalReportHtml = pedagogicalReportHtml;
 exports.classReportHtml = classReportHtml;
+exports.adminReportHtml = adminReportHtml;
 /**
  * HTML templates for the Module 23 PDF reports, printed by Chromium (htmlPdf.ts).
  *
@@ -31,6 +34,31 @@ exports.OUTCOME_HE = {
     after_correction: "אחרי תיקון",
     incomplete: "לא הושלם",
 };
+function renderProvenanceBlockHtml(p) {
+    return `
+    <div class="provenance-card">
+      <div class="provenance-row"><span class="provenance-label">מה המסמך הזה:</span> <span class="provenance-val">${esc(p.documentTypeDescription)}</span></div>
+      <div class="provenance-row"><span class="provenance-label">כיתה / מפגש / לומד:</span> <span class="provenance-val">${esc(p.scopeDescription)}</span></div>
+      <div class="provenance-row"><span class="provenance-label">טווח הנתונים:</span> <span class="provenance-val">${esc(p.dataRange)}</span></div>
+      <div class="provenance-row"><span class="provenance-label">נוצר בתאריך:</span> <span class="provenance-val">${esc(p.generatedAtIsrael)}</span></div>
+      <div class="provenance-row"><span class="provenance-label">הופק על ידי:</span> <span class="provenance-val">${esc(p.generatedByRole)}</span></div>
+      <div class="provenance-row"><span class="provenance-label">מקור הנתונים:</span> <span class="provenance-val">${esc(p.dataSource)}</span></div>
+      <div class="provenance-row"><span class="provenance-label">שכבת הבינה:</span> <span class="provenance-val">${esc(p.aiLayerStatus)}</span></div>
+    </div>
+  `;
+}
+function renderProvenanceCsvHeader(p, rowCount) {
+    return [
+        `# מה המסמך הזה: ${p.documentTypeDescription}`,
+        `# כיתה / מפגש / לומד: ${p.scopeDescription}`,
+        `# טווח הנתונים: ${p.dataRange}`,
+        `# נוצר בתאריך: ${p.generatedAtIsrael}`,
+        `# הופק על ידי: ${p.generatedByRole}`,
+        `# מקור הנתונים: ${p.dataSource}`,
+        `# שכבת הבינה: ${p.aiLayerStatus}`,
+        `# מספר שורות: ${rowCount}`,
+    ].join("\n");
+}
 function esc(value) {
     return String(value !== null && value !== void 0 ? value : "")
         .replace(/&/g, "&amp;")
@@ -67,6 +95,14 @@ const BASE_CSS = `
   }
   h1 { margin: 0; font-size: 20pt; font-weight: 800; color: #1e1b4b; text-align: center; }
   .subtitle { margin: 4px 0 14px; font-size: 10pt; color: #475569; text-align: center; }
+  .provenance-card {
+    padding: 10px 14px; margin: 0 0 14px;
+    background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 9.5pt;
+    line-height: 1.6;
+  }
+  .provenance-row { margin-bottom: 3px; display: flex; flex-wrap: wrap; gap: 4px; }
+  .provenance-label { font-weight: 700; color: #334155; }
+  .provenance-val { color: #0f172a; }
   .card {
     display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px 14px;
     padding: 10px 14px; margin: 0 0 14px;
@@ -148,9 +184,20 @@ function pedagogicalReportHtml(report) {
         // The PRD fixes this sentence verbatim for the engine-unavailable case.
         insights = `<p class="amber-text">${esc(report.ai_fallback_text || exports.EXACT_AI_FALLBACK_TEXT_HE)}</p>`;
     }
+    const provenance = report.provenance || {
+        documentTypeDescription: `דוח פדגוגי מסכם ללומד יחיד עבור מפגש ${report.session_number || ""}, הכולל ניתוח ביצועים, קבוצת עבודה והמלצות הוראה.`.trim(),
+        scopeDescription: `כיתה ${report.class_id ? String(report.class_id).replace(/\D/g, '') || "1" : "1"} | מפגש ${report.session_number || ""} | ${report.anonymous_student_label || "תלמיד"}`,
+        dataRange: report.data_range_he || "אירועי טלמטריה מתועדים",
+        generatedAtIsrael: report.generated_at_israel || (report.generated_at ? new Date(report.generated_at).toLocaleDateString("he-IL") : new Date().toLocaleDateString("he-IL")),
+        generatedByRole: report.generated_by_role || "מורת הכיתה",
+        dataSource: `אירועי טלמטריה מתועדים, מפגש ${report.session_number || ""}`.trim(),
+        aiLayerStatus: report.ai_analysis_available ? "שכבת ניתוח בינה מלאכותית פעילה" : (report.ai_fallback_text || exports.EXACT_AI_FALLBACK_TEXT_HE),
+    };
     const body = `
     <h1>${esc(title)}</h1>
     <p class="subtitle">הערכה פדגוגית חסויה | מדיניות אפס מידע מזהה (Zero PII)</p>
+
+    ${renderProvenanceBlockHtml(provenance)}
 
     <div class="card">
       <div><b>לומד:</b> ${esc(report.anonymous_student_label)}</div>
@@ -179,6 +226,8 @@ function pedagogicalReportHtml(report) {
 const studentList = (ids) => (ids.length > 0 ? ids.map((id) => `תלמיד ${id}`).join(", ") : "אין");
 /** "key: value" pairs of Latin trigger/category names, each pair kept together as one left-to-right unit. */
 function keyValueList(map) {
+    if (!map || typeof map !== "object")
+        return "";
     return Object.entries(map).map(([k, v]) => ltr(`${k}: ${v}`)).join(", ");
 }
 function learnersTable(rows) {
@@ -263,9 +312,20 @@ function classReportHtml(report) {
     else {
         analysis = `<p class="amber-text">${esc(exports.EXACT_AI_FALLBACK_TEXT_HE)}</p>`;
     }
+    const provenance = report.provenance || {
+        documentTypeDescription: `דוח כיתתי מסכם עבור מפגש ${report.session_number || ""}, המרכז את מדדי כלל הלומדים, חלוקה לקבוצות עבודה והמלצות הוראה כיתתיות.`.trim(),
+        scopeDescription: `כיתה ${report.class_id ? String(report.class_id).replace(/\D/g, '') || "1" : "1"} | מפגש ${report.session_number || ""} | כלל לומדי הכיתה (1–12)`,
+        dataRange: report.data_range_he || "אירועי טלמטריה מתועדים",
+        generatedAtIsrael: report.generated_at_israel || (report.generated_at ? new Date(report.generated_at).toLocaleDateString("he-IL") : new Date().toLocaleDateString("he-IL")),
+        generatedByRole: report.generated_by_role || "מורת הכיתה",
+        dataSource: `אירועי טלמטריה מתועדים, מפגש ${report.session_number || ""}`.trim(),
+        aiLayerStatus: report.ai_analysis_available ? "שכבת ניתוח בינה מלאכותית פעילה" : exports.EXACT_AI_FALLBACK_TEXT_HE,
+    };
     const body = `
     <h1>${esc(title)}</h1>
     <p class="subtitle">דוח כיתתי חסוי | מדיניות אפס מידע מזהה (Zero PII) | לומדים מזוהים במספר בלבד</p>
+
+    ${renderProvenanceBlockHtml(provenance)}
 
     <div class="card">
       <div><b>מפגש:</b> ${esc(report.session_number)}</div>
@@ -296,6 +356,41 @@ function classReportHtml(report) {
 
     <h2 class="amber">5. ניתוח הבינה: דפוסים כיתתיים והמלצות הוראה</h2>
     ${analysis}
+  `;
+    return layout(title, body);
+}
+// ---------------------------------------------------------------------------
+// Admin Executive report.
+// ---------------------------------------------------------------------------
+function adminReportHtml(data) {
+    const title = "MathematiCore - דוח מנהל מערכת ותשתיות";
+    const body = `
+    <h1>${esc(title)}</h1>
+    <p class="subtitle">דוח מערכתי חסוי | מדיניות אפס מידע מזהה (Zero PII)</p>
+
+    ${renderProvenanceBlockHtml(data.provenance)}
+
+    <h2 class="green">1. סיכום מדדי פלטפורמה ותשתיות</h2>
+    <div class="card">
+      <div><b>בתי ספר שותפים:</b> ${esc(data.schoolsCount)}</div>
+      <div><b>מורים רשומים במערכת:</b> ${esc(data.teachersCount)}</div>
+      <div><b>תלמידים פעילים:</b> ${esc(data.studentsCount)}</div>
+      <div class="wide"><b>התראות רדאר פדגוגי פעילות:</b> ${esc(data.alertsCount)}</div>
+    </div>
+
+    <h2>2. בקרת אבטחת מידע, פרטיות ו-Zero PII</h2>
+    <div class="routing">
+      <p class="green-text"><b>שער סניטציה ואפס PII:</b> אכיפה מלאה (ללא דליפת מידע מזהה)</p>
+      <p><b>שימור הקלטות מסך:</b> תואם מדיניות 30 יום</p>
+      <p><b>אימות מורים:</b> רשימה מורשית ב-Firestore (Whitelist)</p>
+    </div>
+
+    <h2>3. נתוני יעד ב-Google Drive</h2>
+    <div class="card">
+      <div class="wide"><b>תיקיית דרייב משותפת:</b> ${esc(data.targetFolderId || "0AMiALsm_TxT5Uk9PVA")}</div>
+      <div class="wide"><b>חשבון שירות מורשה:</b> ${esc(data.serviceAccount || "1002220159@edu-haifa.org.il")}</div>
+      <div class="wide"><b>תיקיית סוג מסמך:</b> 04 דוחות מנהל</div>
+    </div>
   `;
     return layout(title, body);
 }

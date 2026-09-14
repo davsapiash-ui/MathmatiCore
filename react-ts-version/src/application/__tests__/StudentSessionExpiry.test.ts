@@ -47,7 +47,7 @@ describe('Student 5-Minute Window Close & Inactivity Timeout Suite', () => {
     const studentUser = {
       uid: 'student_user1',
       student_id: 1,
-      name: 'úìîéã 1',
+      name: '×ª×œ××™×“ 1',
       role: 'student',
     };
 
@@ -64,7 +64,7 @@ describe('Student 5-Minute Window Close & Inactivity Timeout Suite', () => {
     const studentUser = {
       uid: 'student_user2',
       student_id: 2,
-      name: 'úìîéã 2',
+      name: '×ª×œ××™×“ 2',
       role: 'student',
     };
 
@@ -82,7 +82,7 @@ describe('Student 5-Minute Window Close & Inactivity Timeout Suite', () => {
     const studentUser = {
       uid: 'student_user3',
       student_id: 3,
-      name: 'úìîéã 3',
+      name: '×ª×œ××™×“ 3',
       role: 'student',
     };
 
@@ -101,7 +101,7 @@ describe('Student 5-Minute Window Close & Inactivity Timeout Suite', () => {
     const studentUser = {
       uid: 'student_user4',
       student_id: 4,
-      name: 'úìîéã 4',
+      name: '×ª×œ××™×“ 4',
       role: 'student',
     };
 
@@ -118,7 +118,7 @@ describe('Student 5-Minute Window Close & Inactivity Timeout Suite', () => {
   it('5. Teacher sessions are NOT disconnected by the 5-minute rule (teachers use 8-hour token policy)', () => {
     const teacherUser = {
       uid: 'teacher_user1',
-      name: 'îåøä',
+      name: '××•×¨×”',
       email: 'teacher@school.edu',
       role: 'teacher',
     };

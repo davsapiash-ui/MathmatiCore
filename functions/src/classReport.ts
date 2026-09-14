@@ -3,7 +3,13 @@ import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import * as path from "path";
 import * as fs from "fs";
-import { DRIVE_FOLDERS, resolveDriveFolder, uploadBufferToDrive } from "./exportDriveReport";
+import {
+  DRIVE_FOLDERS,
+  resolveDriveFolder,
+  uploadBufferToDrive,
+  buildDriveFileName,
+  formatIsraelDateTime,
+} from "./exportDriveReport";
 import {
   computeFirstAttemptScore,
   readAllDocs,
@@ -15,7 +21,15 @@ import {
 import { EXACT_AI_FALLBACK_TEXT } from "./pedagogicalReport";
 import { rtlText } from "./hebrewPdf";
 import { CHROMIUM_PDF_RUNTIME, renderHtmlToPdf, renderWithFallback } from "./htmlPdf";
-import { CLASS_REPORT_PDF_OPTIONS, OUTCOME_HE, TIER_LABEL_HE, classReportHtml, reportFooterTemplate } from "./reportHtml";
+import {
+  CLASS_REPORT_PDF_OPTIONS,
+  OUTCOME_HE,
+  TIER_LABEL_HE,
+  classReportHtml,
+  reportFooterTemplate,
+  renderProvenanceCsvHeader,
+  type ProvenanceMetadata,
+} from "./reportHtml";
 import { resolveRecommendationTier, type RecommendationTier } from "./reportAnalysis";
 import { GEMINI_MODEL_ID, GEMINI_SECRETS, getGeminiClient } from "./geminiConfig";
 const PDFDocument = require("pdfkit");
@@ -428,7 +442,7 @@ export function parseClassAnalysis(text: string): ClassAnalysis | null {
 // ---------------------------------------------------------------------------
 
 /** One row per learner, every measurement as its own column; BOM so Excel reads the Hebrew. */
-export function buildClassCsv(rows: ClassLearnerRow[], exercises: ClassExerciseRow[]): string {
+export function buildClassCsv(rows: ClassLearnerRow[], exercises: ClassExerciseRow[], provenance?: ProvenanceMetadata): string {
   const exerciseIds = exercises.map((e) => e.exercise_id);
   const cell = (val: unknown) => {
     const text = val === null || val === undefined ? "" : typeof val === "object" ? JSON.stringify(val) : String(val);
@@ -457,7 +471,8 @@ export function buildClassCsv(rows: ClassLearnerRow[], exercises: ClassExerciseR
       ...exerciseIds.map((id) => r.exercise_outcomes[id] ?? "not_attempted"),
     ].map(cell).join(",")
   );
-  return "﻿" + [headers.map(cell).join(","), ...lines].join("\n");
+  const provBlock = provenance ? renderProvenanceCsvHeader(provenance, rows.length) + "\n" : "";
+  return "﻿" + provBlock + [headers.map(cell).join(","), ...lines].join("\n");
 }
 
 /**
@@ -622,12 +637,19 @@ export const generateClassMeetingReport = onCall(CLASS_REPORT_RUNTIME, async (re
   const allTelemetry = await readAllDocs(db.collection("telemetry_logs"));
   const eventsByLearner = new Map<number, Record<string, any>[]>();
   let telemetryEventCount = 0;
+  let minTimestamp = Infinity;
+  let maxTimestamp = -Infinity;
   for (const { data } of allTelemetry) {
     if (sessionNumberFromId(String(data.session_id || "")) !== sessionNumber) continue;
     const n = studentNumber(data.student_id);
     if (n === null) continue;
     telemetryEventCount++;
     eventsByLearner.set(n, [...(eventsByLearner.get(n) ?? []), data]);
+    const t = data.client_timestamp || data.timestamp;
+    if (typeof t === "number" && t > 0) {
+      if (t < minTimestamp) minTimestamp = t;
+      if (t > maxTimestamp) maxTimestamp = t;
+    }
   }
   if (eventsByLearner.size === 0) {
     throw new HttpsError("not-found", `אין פעולות מתועדות למפגש ${sessionNumber} של אף תלמיד; אין מה לנתח.`);
@@ -695,7 +717,24 @@ export const generateClassMeetingReport = onCall(CLASS_REPORT_RUNTIME, async (re
   // ── 5. Layer 2 ──────────────────────────────────────────────────────────
   const analysis = await generateClassAnalysis({ class_id: classId, session_number: sessionNumber, aggregates, learners });
 
+  let dataRangeStr = "אירועי טלמטריה מתועדים";
+  if (minTimestamp !== Infinity && maxTimestamp !== -Infinity) {
+    dataRangeStr = `${formatIsraelDateTime(minTimestamp)} — ${formatIsraelDateTime(maxTimestamp)}`;
+  }
+
   const generatedAt = Date.now();
+  const provenance: ProvenanceMetadata = {
+    documentTypeDescription: `דוח כיתתי מסכם עבור מפגש ${sessionNumber}, המרכז את מדדי כלל הלומדים, חלוקה לקבוצות עבודה והמלצות הוראה כיתתיות.`,
+    scopeDescription: `כיתה ${String(classId).replace(/\D/g, "") || "1"} | מפגש ${sessionNumber} | כלל לומדי הכיתה (1–12)`,
+    dataRange: dataRangeStr,
+    generatedAtIsrael: formatIsraelDateTime(generatedAt),
+    generatedByRole: "מורת הכיתה",
+    dataSource: `אירועי טלמטריה מתועדים (סך הכל ${telemetryEventCount} אירועים), מפגש ${sessionNumber}`,
+    aiLayerStatus: Boolean(analysis)
+      ? "שכבת ניתוח בינה מלאכותית פעילה (דפוסים והמלצות כיתתיות)"
+      : EXACT_AI_FALLBACK_TEXT,
+  };
+
   const reportId = `${classId}_session_${sessionNumber}`;
   const report: Record<string, any> = {
     report_id: reportId,
@@ -710,15 +749,15 @@ export const generateClassMeetingReport = onCall(CLASS_REPORT_RUNTIME, async (re
     teaching_recommendations: analysis?.teaching_recommendations ?? [],
     ai_analysis_available: Boolean(analysis),
     ai_fallback_text: EXACT_AI_FALLBACK_TEXT,
+    provenance,
   };
 
   // ── 6. PDF + CSV to Storage, mirror to Drive, record in Firestore ───────
-  const stamp = new Date(generatedAt).toISOString().slice(0, 16).replace("T", "_").replace(":", "-");
   const bucket = admin.storage().bucket();
   const pdfPath = `reports/${classId}/session_${sessionNumber}/class_report_${generatedAt}.pdf`;
   const csvPath = `reports/${classId}/session_${sessionNumber}/class_table_${generatedAt}.csv`;
   const pdfBuffer = await createClassReportPdfBuffer(report);
-  const csvText = buildClassCsv(learners, aggregates.exercises);
+  const csvText = buildClassCsv(learners, aggregates.exercises, provenance);
   const csvBuffer = Buffer.from(csvText, "utf-8");
 
   const tokenUrl = (storagePath: string, downloadToken: string) =>
@@ -740,10 +779,29 @@ export const generateClassMeetingReport = onCall(CLASS_REPORT_RUNTIME, async (re
   let driveCsvUrl: string | null = null;
   try {
     const folderId = await resolveDriveFolder([DRIVE_FOLDERS.classReports, `מפגש ${sessionNumber}`]);
-    const pdfRes = await uploadBufferToDrive(pdfBuffer, `דוח_כיתה_מפגש${sessionNumber}_${stamp}.pdf`, "application/pdf", folderId);
-    if (pdfRes.success) drivePdfUrl = pdfRes.webViewLink; else logger.warn(`[classReport] Drive PDF mirror skipped: ${pdfRes.error}`);
-    const csvRes = await uploadBufferToDrive(csvBuffer, `טבלת_כיתה_מפגש${sessionNumber}_${stamp}.csv`, "text/csv", folderId);
-    if (csvRes.success) driveCsvUrl = csvRes.webViewLink; else logger.warn(`[classReport] Drive CSV mirror skipped: ${csvRes.error}`);
+    if (folderId) {
+      const pdfFileName = buildDriveFileName({
+        kind: "class_report_pdf",
+        sessionNumber,
+        classId,
+        date: generatedAt,
+      });
+      const csvFileName = buildDriveFileName({
+        kind: "class_report_csv",
+        sessionNumber,
+        classId,
+        date: generatedAt,
+      });
+      const pdfRes = await uploadBufferToDrive(pdfBuffer, pdfFileName, "application/pdf", folderId);
+      if (pdfRes.success) drivePdfUrl = pdfRes.webViewLink;
+      else logger.warn(`[classReport] Drive PDF mirror skipped: ${pdfRes.error}`);
+
+      const csvRes = await uploadBufferToDrive(csvBuffer, csvFileName, "text/csv", folderId);
+      if (csvRes.success) driveCsvUrl = csvRes.webViewLink;
+      else logger.warn(`[classReport] Drive CSV mirror skipped: ${csvRes.error}`);
+    } else {
+      logger.warn(`[classReport] Drive folder resolution returned null for class report; skipping Drive mirror.`);
+    }
   } catch (err: any) {
     logger.warn(`[classReport] Drive mirror failed (non-fatal): ${err?.message || err}`);
   }

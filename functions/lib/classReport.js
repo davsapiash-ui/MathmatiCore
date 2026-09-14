@@ -330,7 +330,7 @@ function parseClassAnalysis(text) {
 // Outputs: CSV for the research, PDF for the teacher.
 // ---------------------------------------------------------------------------
 /** One row per learner, every measurement as its own column; BOM so Excel reads the Hebrew. */
-function buildClassCsv(rows, exercises) {
+function buildClassCsv(rows, exercises, provenance) {
     const exerciseIds = exercises.map((e) => e.exercise_id);
     const cell = (val) => {
         const text = val === null || val === undefined ? "" : typeof val === "object" ? JSON.stringify(val) : String(val);
@@ -357,7 +357,8 @@ function buildClassCsv(rows, exercises) {
         r.teacher_selected_path, r.teacher_gate_approved,
         ...exerciseIds.map((id) => { var _a; return (_a = r.exercise_outcomes[id]) !== null && _a !== void 0 ? _a : "not_attempted"; }),
     ].map(cell).join(","));
-    return "﻿" + [headers.map(cell).join(","), ...lines].join("\n");
+    const provBlock = provenance ? (0, reportHtml_1.renderProvenanceCsvHeader)(provenance, rows.length) + "\n" : "";
+    return "﻿" + provBlock + [headers.map(cell).join(","), ...lines].join("\n");
 }
 /**
  * Renders the class report to a PDF buffer: HTML printed by headless Chromium,
@@ -505,6 +506,8 @@ exports.generateClassMeetingReport = (0, https_1.onCall)(exports.CLASS_REPORT_RU
     const allTelemetry = await (0, meetingMetrics_1.readAllDocs)(db.collection("telemetry_logs"));
     const eventsByLearner = new Map();
     let telemetryEventCount = 0;
+    let minTimestamp = Infinity;
+    let maxTimestamp = -Infinity;
     for (const { data } of allTelemetry) {
         if ((0, meetingMetrics_1.sessionNumberFromId)(String(data.session_id || "")) !== sessionNumber)
             continue;
@@ -513,6 +516,13 @@ exports.generateClassMeetingReport = (0, https_1.onCall)(exports.CLASS_REPORT_RU
             continue;
         telemetryEventCount++;
         eventsByLearner.set(n, [...((_b = eventsByLearner.get(n)) !== null && _b !== void 0 ? _b : []), data]);
+        const t = data.client_timestamp || data.timestamp;
+        if (typeof t === "number" && t > 0) {
+            if (t < minTimestamp)
+                minTimestamp = t;
+            if (t > maxTimestamp)
+                maxTimestamp = t;
+        }
     }
     if (eventsByLearner.size === 0) {
         throw new https_1.HttpsError("not-found", `אין פעולות מתועדות למפגש ${sessionNumber} של אף תלמיד; אין מה לנתח.`);
@@ -577,7 +587,22 @@ exports.generateClassMeetingReport = (0, https_1.onCall)(exports.CLASS_REPORT_RU
     const aggregates = aggregateClass(learners, eventsByLearner);
     // ── 5. Layer 2 ──────────────────────────────────────────────────────────
     const analysis = await generateClassAnalysis({ class_id: classId, session_number: sessionNumber, aggregates, learners });
+    let dataRangeStr = "אירועי טלמטריה מתועדים";
+    if (minTimestamp !== Infinity && maxTimestamp !== -Infinity) {
+        dataRangeStr = `${(0, exportDriveReport_1.formatIsraelDateTime)(minTimestamp)} — ${(0, exportDriveReport_1.formatIsraelDateTime)(maxTimestamp)}`;
+    }
     const generatedAt = Date.now();
+    const provenance = {
+        documentTypeDescription: `דוח כיתתי מסכם עבור מפגש ${sessionNumber}, המרכז את מדדי כלל הלומדים, חלוקה לקבוצות עבודה והמלצות הוראה כיתתיות.`,
+        scopeDescription: `כיתה ${String(classId).replace(/\D/g, "") || "1"} | מפגש ${sessionNumber} | כלל לומדי הכיתה (1–12)`,
+        dataRange: dataRangeStr,
+        generatedAtIsrael: (0, exportDriveReport_1.formatIsraelDateTime)(generatedAt),
+        generatedByRole: "מורת הכיתה",
+        dataSource: `אירועי טלמטריה מתועדים (סך הכל ${telemetryEventCount} אירועים), מפגש ${sessionNumber}`,
+        aiLayerStatus: Boolean(analysis)
+            ? "שכבת ניתוח בינה מלאכותית פעילה (דפוסים והמלצות כיתתיות)"
+            : pedagogicalReport_1.EXACT_AI_FALLBACK_TEXT,
+    };
     const reportId = `${classId}_session_${sessionNumber}`;
     const report = {
         report_id: reportId,
@@ -592,14 +617,14 @@ exports.generateClassMeetingReport = (0, https_1.onCall)(exports.CLASS_REPORT_RU
         teaching_recommendations: (_o = analysis === null || analysis === void 0 ? void 0 : analysis.teaching_recommendations) !== null && _o !== void 0 ? _o : [],
         ai_analysis_available: Boolean(analysis),
         ai_fallback_text: pedagogicalReport_1.EXACT_AI_FALLBACK_TEXT,
+        provenance,
     };
     // ── 6. PDF + CSV to Storage, mirror to Drive, record in Firestore ───────
-    const stamp = new Date(generatedAt).toISOString().slice(0, 16).replace("T", "_").replace(":", "-");
     const bucket = admin.storage().bucket();
     const pdfPath = `reports/${classId}/session_${sessionNumber}/class_report_${generatedAt}.pdf`;
     const csvPath = `reports/${classId}/session_${sessionNumber}/class_table_${generatedAt}.csv`;
     const pdfBuffer = await createClassReportPdfBuffer(report);
-    const csvText = buildClassCsv(learners, aggregates.exercises);
+    const csvText = buildClassCsv(learners, aggregates.exercises, provenance);
     const csvBuffer = Buffer.from(csvText, "utf-8");
     const tokenUrl = (storagePath, downloadToken) => `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(storagePath)}?alt=media&token=${downloadToken}`;
     const pdfToken = require("crypto").randomUUID();
@@ -619,16 +644,33 @@ exports.generateClassMeetingReport = (0, https_1.onCall)(exports.CLASS_REPORT_RU
     let driveCsvUrl = null;
     try {
         const folderId = await (0, exportDriveReport_1.resolveDriveFolder)([exportDriveReport_1.DRIVE_FOLDERS.classReports, `מפגש ${sessionNumber}`]);
-        const pdfRes = await (0, exportDriveReport_1.uploadBufferToDrive)(pdfBuffer, `דוח_כיתה_מפגש${sessionNumber}_${stamp}.pdf`, "application/pdf", folderId);
-        if (pdfRes.success)
-            drivePdfUrl = pdfRes.webViewLink;
-        else
-            logger.warn(`[classReport] Drive PDF mirror skipped: ${pdfRes.error}`);
-        const csvRes = await (0, exportDriveReport_1.uploadBufferToDrive)(csvBuffer, `טבלת_כיתה_מפגש${sessionNumber}_${stamp}.csv`, "text/csv", folderId);
-        if (csvRes.success)
-            driveCsvUrl = csvRes.webViewLink;
-        else
-            logger.warn(`[classReport] Drive CSV mirror skipped: ${csvRes.error}`);
+        if (folderId) {
+            const pdfFileName = (0, exportDriveReport_1.buildDriveFileName)({
+                kind: "class_report_pdf",
+                sessionNumber,
+                classId,
+                date: generatedAt,
+            });
+            const csvFileName = (0, exportDriveReport_1.buildDriveFileName)({
+                kind: "class_report_csv",
+                sessionNumber,
+                classId,
+                date: generatedAt,
+            });
+            const pdfRes = await (0, exportDriveReport_1.uploadBufferToDrive)(pdfBuffer, pdfFileName, "application/pdf", folderId);
+            if (pdfRes.success)
+                drivePdfUrl = pdfRes.webViewLink;
+            else
+                logger.warn(`[classReport] Drive PDF mirror skipped: ${pdfRes.error}`);
+            const csvRes = await (0, exportDriveReport_1.uploadBufferToDrive)(csvBuffer, csvFileName, "text/csv", folderId);
+            if (csvRes.success)
+                driveCsvUrl = csvRes.webViewLink;
+            else
+                logger.warn(`[classReport] Drive CSV mirror skipped: ${csvRes.error}`);
+        }
+        else {
+            logger.warn(`[classReport] Drive folder resolution returned null for class report; skipping Drive mirror.`);
+        }
     }
     catch (err) {
         logger.warn(`[classReport] Drive mirror failed (non-fatal): ${(err === null || err === void 0 ? void 0 : err.message) || err}`);
