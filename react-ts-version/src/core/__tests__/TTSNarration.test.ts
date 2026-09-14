@@ -396,6 +396,36 @@ describe('F5 — לחיצה לפני שרשימת הקולות נטענה', () =
     expect(synth.queue[0].voice?.lang).toBe('he-IL');
   });
 
+  it('על מכונה בלי קולות כלל, רק הלחיצה הראשונה משלמת את ההמתנה', async () => {
+    // אומת בכרום אמיתי: מכונה בלי מנוע דיבור מחזירה רשימת קולות ריקה לתמיד,
+    // והמתנה חוזרת הייתה שמה חצי שנייה מתה לפני כל לחיצה.
+    const tts = await setupTts([]);
+
+    tts.speak('ראשונה.');
+    vi.advanceTimersByTime(1000);
+    await flushMicrotasks();
+    expect(synth.queue).toHaveLength(1);
+
+    tts.speak('שנייה.');
+    vi.advanceTimersByTime(200); // רק כדי שהביטול יתנקז, בלי המתנה לקולות
+    await flushMicrotasks();
+    expect(spoken()).toBe('שנייה.');
+  });
+
+  it('קולות שמגיעים באיחור עדיין נקלטים אחרי שההמתנה נזנחה', async () => {
+    const tts = await setupTts([]);
+    tts.speak('ראשונה.');
+    vi.advanceTimersByTime(1000);
+    await flushMicrotasks();
+
+    synth.setVoices(HEBREW_VOICES); // כרום הוסיף את קולות הרשת מאוחר יותר
+    tts.speak('שנייה.');
+    vi.advanceTimersByTime(200);
+    await flushMicrotasks();
+
+    expect(synth.queue[0].voice?.lang).toBe('he-IL');
+  });
+
   it('אינה נתקעת לנצח אם הקולות לעולם אינם מגיעים', async () => {
     const tts = await setupTts([]);
     tts.speak('שלום');

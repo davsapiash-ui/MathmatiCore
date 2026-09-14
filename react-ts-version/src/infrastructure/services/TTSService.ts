@@ -46,6 +46,8 @@ export class TTSService {
   /** Identifies the newest request, so a stale callback cannot clear newer state. */
   private currentToken = 0;
   private voiceWaiters: Array<() => void> = [];
+  /** Set once the wait for voices has already timed out; see whenVoicesReady. */
+  private voiceWaitExhausted = false;
 
   private constructor() {
     this.initVoices();
@@ -147,11 +149,19 @@ export class TTSService {
     window.speechSynthesis.addEventListener('voiceschanged', () => this.loadVoices());
   }
 
-  /** Resolves once the voice list is populated, or after a short deadline (F5). */
+  /**
+   * Resolves once the voice list is populated, or after a short deadline (F5).
+   *
+   * The deadline is paid at most once. On a machine with no speech engine at all
+   * getVoices() stays empty forever — verified in headless Chromium, which returns
+   * zero voices — and waiting again on every press would put a dead half-second in
+   * front of each one. If voices do show up later, the voiceschanged listener picks
+   * them up and the wait is moot.
+   */
   private whenVoicesReady(): Promise<void> {
     if (!this.isSupported()) return Promise.resolve();
     this.loadVoices();
-    if (this.isLoaded) return Promise.resolve();
+    if (this.isLoaded || this.voiceWaitExhausted) return Promise.resolve();
     return new Promise<void>((resolve) => {
       let done = false;
       const finish = () => {
@@ -160,7 +170,10 @@ export class TTSService {
         resolve();
       };
       this.voiceWaiters.push(finish);
-      setTimeout(finish, TTSService.VOICE_WAIT_MS);
+      setTimeout(() => {
+        this.voiceWaitExhausted = true;
+        finish();
+      }, TTSService.VOICE_WAIT_MS);
     });
   }
 
@@ -268,7 +281,7 @@ export class TTSService {
 
     // Stay synchronous inside the click handler whenever the voice list is ready; only
     // a cold first click pays the wait (F5).
-    if (this.isLoaded) {
+    if (this.isLoaded || this.voiceWaitExhausted) {
       begin();
     } else {
       void this.whenVoicesReady().then(() => {
