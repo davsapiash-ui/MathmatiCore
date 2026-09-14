@@ -24,7 +24,7 @@ const PDFDocument = require("pdfkit");
 
 /**
  * Module 23 — the CLASS report of one meeting (owner decision, 6.9.2026,
- * register item 12): "צריך להיות בכל מפגש גם דו"ח תלמיד וגם דו"ח כיתה" and
+ * register item 9): "צריך להיות בכל מפגש גם דו"ח תלמיד וגם דו"ח כיתה" and
  * "כל מה שנמדד ליחיד אני רוצה בפלט כיתתי באופן שישמש את המחקר".
  *
  * Everything the individual report measures for one learner is measured here

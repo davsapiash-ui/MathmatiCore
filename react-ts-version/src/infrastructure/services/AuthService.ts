@@ -23,7 +23,7 @@ export async function addAuthorizedTeacherFirestore(email: string, role: "teache
   }
 
   // Deliberately NOT swallowed: this document is the teacher's key to the
-  // door (Module 1 §ג + deviation 1). A denied write used to be logged as a
+  // door (Module 1 §ג; the spec sets no domain filter). A denied write used to be logged as a
   // "non-blocking" warning while the wizard reported success, and the new
   // teacher was then refused at Google sign-in with no way to tell why.
   const teacherDocRef = doc(firestore, "authorizedTeachers", normalized);
@@ -52,7 +52,7 @@ export async function isWhitelistedTeacherEmailAsync(email?: string | null): Pro
 
   // The two pilot addresses used to short-circuit this check. They are in
   // the whitelist like everyone else, and hardcoding them meant deleting a
-  // teacher could not revoke her login (deviation 15). authorizedTeachers is
+  // teacher could not revoke her login. authorizedTeachers is
   // the single source of truth.
 
   // Development/Test simulated accounts

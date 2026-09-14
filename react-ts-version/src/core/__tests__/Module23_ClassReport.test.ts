@@ -3,7 +3,7 @@ import { readFileSync } from 'fs';
 import { resolve } from 'path';
 
 /**
- * Module 23, owner decision 6.9.2026 (register item 12): "צריך להיות בכל מפגש
+ * Module 23, owner decision 6.9.2026 (register item 9): "צריך להיות בכל מפגש
  * גם דו"ח תלמיד וגם דו"ח כיתה" and "כל מה שנמדד ליחיד אני רוצה בפלט כיתתי
  * באופן שישמש את המחקר".
  *

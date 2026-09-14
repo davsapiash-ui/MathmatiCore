@@ -376,7 +376,7 @@ export function formatDuration(ms: number): string {
 
 // ─── Module 23 — the AI report for one meeting ──────────────────────────────
 //
-// Owner decision (2026-09-04, register item 7): the teacher can ask for the
+// Owner decision (2026-09-04, register item 4): the teacher can ask for the
 // pedagogical report of ANY meeting of a learner, from this page. The server
 // (generatePedagogicalReportPDF) builds it from that meeting's own telemetry:
 // layer 1 (score, working group) by the PRD percentage rule, layer 2 (knowledge

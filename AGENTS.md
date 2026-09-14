@@ -31,8 +31,17 @@ The **only** authoritative requirements document is:
 מסמכי אפיון/07- 2.MathematiCore_PRD_v07 הסופי.md
 ```
 
-1,383 lines, 30 modules (Module 1: login → Module 30). Read it before implementing
-anything. When you cite a requirement, cite it from this file, by module.
+Version 7.2, 30 August 2026, exactly as the product owner uploaded it — 29 modules plus
+23א, Appendix A and Appendix B. Read it before implementing anything. When you cite a
+requirement, cite it from this file, by module.
+
+**Agents never edit this file.** Not to record a decision, not to "update" a module, not
+to add an implementation note. Between 30 August and 9 September 2026 agents wrote seven
+rounds of product-owner decisions into it while its header still said v7.2; on 14
+September the owner had the file restored to the uploaded original. Every one of those
+decisions already lived in the deviation register — that is where they belong, and the
+only place they go (Rule 2). If the owner wants the specification itself changed, the
+owner uploads a new version.
 
 Every other PRD/spec/plan/audit file that used to live here was **deleted on
 purpose**: there were conflicting PRD versions from v2.0 through v7.1, plus a
@@ -43,7 +52,8 @@ and that drift was a real source of regressions.
 Therefore:
 
 - **Never create a new PRD, spec, plan, audit, roadmap or status document** — not at
-  the repo root, not anywhere. If a requirement must change, edit the canonical file.
+  the repo root, not anywhere. If a requirement must change, the product owner changes
+  it; you record the decision in the deviation register (Rule 2).
 - Never treat a chat message, a commit message, an old branch, or your own memory as
   the spec. The file above is the spec.
 - If the spec is silent on something, say so and ask. Do not invent a requirement.

@@ -160,7 +160,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
 
   // --- Class Session Management (Manual Start/Stop) ---
   const [isClassSessionActive, setIsClassSessionActive] = useState(false);
-  // Owner decision (6.9.2026, register item 10): start / pause / close, each
+  // Owner decision (6.9.2026, register item 7): start / pause / close, each
   // reaching the learners live. 'paused' keeps the meeting open with the
   // learners waiting in place.
   const [classSessionStatus, setClassSessionStatus] = useState<ClassSessionStatus>('closed');
@@ -1721,7 +1721,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
               </p>
             </header>
 
-            {/* Module 23, owner decision 6.9.2026 (register item 12): every
+            {/* Module 23, owner decision 6.9.2026 (register item 9): every
                 meeting has a class report beside the learner reports. */}
             <div className="mb-6">
               <ClassMeetingReportPanel />

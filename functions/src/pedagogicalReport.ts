@@ -308,7 +308,7 @@ export function createPedagogicalReportPdfBufferWithPdfkit(report: Record<string
  * Computes metrics, builds deterministic Exercise Narratives, renders an authoritative
  * binary PDF, stores it in Cloud Storage, and returns signed download link + structured data.
  *
- * Owner decision (2026-09-04, register item 7): the teacher may request this
+ * Owner decision (2026-09-04, register item 4): the teacher may request this
  * report for ANY meeting (1–8) of a learner from "דו"חות אבחון אישיים", not
  * only after meetings 2 and 8. The caller passes the meeting's telemetry
  * session_id, the meeting number and the learner number explicitly; the

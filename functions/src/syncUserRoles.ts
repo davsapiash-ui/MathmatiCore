@@ -31,7 +31,7 @@ export const syncUserRoles = onCall(
     // domain this project does not own. They are gone, and so is the pilot
     // pair: the product owner confirmed both addresses are in the whitelist,
     // and keeping them hardcoded meant deleting a teacher could not actually
-    // revoke her login (deviation 15).
+    // revoke her login.
     //
     // The emergency hatch is the environment variables, which are the owner's
     // own configuration rather than a value anyone can guess. They are honoured

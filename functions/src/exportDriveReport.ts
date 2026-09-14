@@ -49,7 +49,7 @@ function createPDFBuffer(data: {
     // hardcoded lines reading ENFORCED / COMPLIANT / ACTIVE, measured from
     // nothing. Two were untrue — the 30-day replay retention job does not
     // exist, and the institutional domain restriction was deliberately waived
-    // by the product owner (approved deviation 1). A governance report that
+    // by the product owner; the spec sets no domain filter. A governance report that
     // certifies controls nobody checked is worse than no report. The counts
     // above are real values the caller measured; nothing else is asserted.
     "ET"

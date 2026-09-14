@@ -2,7 +2,7 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 
 /**
- * Owner decision (6.9.2026, register item 10): when the teacher pauses the
+ * Owner decision (6.9.2026, register item 7): when the teacher pauses the
  * meeting, every learner sees this calm screen in place, over the workspace,
  * without leaving it. The board underneath is kept exactly as it was; the
  * overlay just takes the pointer. Resuming removes it and work continues.
