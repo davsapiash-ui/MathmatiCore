@@ -35,13 +35,27 @@ function tsxFilesUnder(dir: string): string[] {
 interface FakeVoice {
   name: string;
   lang: string;
+  localService: boolean;
 }
 
-const HEBREW_VOICES: FakeVoice[] = [
-  { name: 'Microsoft David - English (United States)', lang: 'en-US' },
-  { name: 'Google עברית', lang: 'he-IL' },
-  { name: 'Carmit', lang: 'he-IL' },
-];
+/**
+ * שמות הקולות העבריים האמיתיים, כפי שהם מדווחים בפועל בכל פלטפורמה
+ * (readium/speech he.json, נבדק בספטמבר 2026). לא שמות מומצאים.
+ */
+const REAL_HEBREW_VOICES = {
+  windows: { name: 'Microsoft Asaf - Hebrew (Israel)', lang: 'he-IL', localService: true },
+  edgeHila: { name: 'Microsoft Hila Online (Natural) - Hebrew (Israel)', lang: 'he-IL', localService: false },
+  edgeAvri: { name: 'Microsoft Avri Online (Natural) - Hebrew (Israel)', lang: 'he-IL', localService: false },
+  apple: { name: 'Carmit', lang: 'he-IL', localService: true },
+  chromeOs: {
+    name: 'Android Speech Recognition and Synthesis from Google he-il-x-heb-network',
+    lang: 'he-IL',
+    localService: false,
+  },
+  english: { name: 'Microsoft David - English (United States)', lang: 'en-US', localService: true },
+} satisfies Record<string, FakeVoice>;
+
+const HEBREW_VOICES: FakeVoice[] = [REAL_HEBREW_VOICES.english, REAL_HEBREW_VOICES.apple];
 
 class FakeUtterance {
   text: string;
@@ -197,10 +211,10 @@ describe('קריינות: הקראה בסיסית', () => {
     expect(synth.queue[0].voice?.lang).toBe('he-IL');
   });
 
-  it('מזהה גם את תג השפה הישן iw וגם קול ששמו עברי בלבד', async () => {
+  it('מזהה גם את תג השפה הישן iw', async () => {
     const tts = await setupTts([
-      { name: 'English', lang: 'en-US' },
-      { name: 'Asaf', lang: 'iw_IL' },
+      REAL_HEBREW_VOICES.english,
+      { name: 'Asaf', lang: 'iw_IL', localService: true },
     ]);
     tts.speak('שלום');
     expect(synth.queue[0].voice?.name).toBe('Asaf');
@@ -222,6 +236,76 @@ describe('קריינות: הקראה בסיסית', () => {
     expect(onEnd).not.toHaveBeenCalled();
     synth.finishAll();
     expect(onEnd).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('בחירת קול לפי מה שקיים באמת בכל פלטפורמה', () => {
+  it('ווינדוס: נבחר Microsoft Asaf ולא הקול האנגלי', async () => {
+    const tts = await setupTts([REAL_HEBREW_VOICES.english, REAL_HEBREW_VOICES.windows]);
+    tts.speak('שלום');
+    expect(synth.queue[0].voice?.name).toBe(REAL_HEBREW_VOICES.windows.name);
+  });
+
+  it('Edge: נבחר אחד מקולות Hila או Avri', async () => {
+    const tts = await setupTts([
+      REAL_HEBREW_VOICES.english,
+      REAL_HEBREW_VOICES.edgeAvri,
+      REAL_HEBREW_VOICES.edgeHila,
+    ]);
+    tts.speak('שלום');
+    expect([REAL_HEBREW_VOICES.edgeAvri.name, REAL_HEBREW_VOICES.edgeHila.name]).toContain(
+      synth.queue[0].voice?.name
+    );
+  });
+
+  it('כרומבוק: הקול של גוגל נבחר אף שאין בשמו מילה עברית', async () => {
+    // "Android Speech Recognition and Synthesis from Google he-il-x-heb-network" —
+    // רק תג השפה he-IL מסגיר אותו, ולכן התאמה לפי שם בלבד הייתה מחמיצה אותו.
+    const tts = await setupTts([REAL_HEBREW_VOICES.english, REAL_HEBREW_VOICES.chromeOs]);
+    tts.speak('שלום');
+    expect(synth.queue[0].voice?.name).toBe(REAL_HEBREW_VOICES.chromeOs.name);
+  });
+
+  it('מק ואייפד: נבחר Carmit', async () => {
+    const tts = await setupTts([REAL_HEBREW_VOICES.english, REAL_HEBREW_VOICES.apple]);
+    tts.speak('שלום');
+    expect(synth.queue[0].voice?.name).toBe('Carmit');
+  });
+});
+
+describe('אופליין — קולות הרשת אילמים, והאפליקציה בנויה לעבוד בלי רשת', () => {
+  const setOnline = (value: boolean) => {
+    Object.defineProperty(window.navigator, 'onLine', { value, configurable: true });
+  };
+
+  afterEach(() => {
+    setOnline(true);
+  });
+
+  it('כשיש גם קול מקומי וגם קול רשת, באופליין נבחר המקומי', async () => {
+    const tts = await setupTts([REAL_HEBREW_VOICES.chromeOs, REAL_HEBREW_VOICES.windows]);
+    setOnline(false);
+    tts.speak('שלום');
+    expect(synth.queue[0].voice?.localService).toBe(true);
+  });
+
+  it('כשמחוברים לרשת אין העדפה למקומי — קול הרשת האיכותי נשאר זמין', async () => {
+    const tts = await setupTts([REAL_HEBREW_VOICES.chromeOs, REAL_HEBREW_VOICES.windows]);
+    setOnline(true);
+    tts.speak('שלום');
+    expect(synth.queue[0].voice?.name).toBe(REAL_HEBREW_VOICES.chromeOs.name);
+  });
+
+  it('כרומבוק באופליין מדווח שכל הקולות העבריים שלו הם קולות רשת', async () => {
+    const tts = await setupTts([REAL_HEBREW_VOICES.english, REAL_HEBREW_VOICES.chromeOs]);
+    setOnline(false);
+    expect(tts.hasOnlyNetworkVoicesOffline('he-IL')).toBe(true);
+  });
+
+  it('מכונה עם קול מקומי אינה מסומנת ככזו', async () => {
+    const tts = await setupTts([REAL_HEBREW_VOICES.windows]);
+    setOnline(false);
+    expect(tts.hasOnlyNetworkVoicesOffline('he-IL')).toBe(false);
   });
 });
 

@@ -38,6 +38,7 @@ export class TTSService {
   private audioUnlocked = false;
   private gateArmed = false;
   private warnedNoVoice = false;
+  private warnedNetworkOnly = false;
 
   /** Holds the utterances the engine is reading, so they are not collected (F4). */
   private activeUtterances: SpeechSynthesisUtterance[] = [];
@@ -177,33 +178,63 @@ export class TTSService {
     });
   }
 
-  private pickVoice(lang: string): SpeechSynthesisVoice | undefined {
-    if (this.voices.length === 0) return undefined;
+  private voicesFor(lang: string): SpeechSynthesisVoice[] {
+    if (this.voices.length === 0) return [];
     const langPrefix = lang.split('-')[0].toLowerCase();
     // Hebrew ships under more than one tag: 'he', the legacy 'iw', and vendor spellings.
     const tags = langPrefix === 'he' ? ['he', 'iw'] : [langPrefix];
-    const names = langPrefix === 'he' ? ['hebrew', 'עברית', 'asaf', 'hila', 'carmit'] : [];
+    // Verified Hebrew voice names (readium/speech he.json): Windows "Microsoft Asaf",
+    // Edge "Microsoft Hila/Avri Online (Natural)", macOS and iPadOS "Carmit". The
+    // ChromeOS and Android ones carry no Hebrew word in the name at all, but they do
+    // tag themselves he-IL, so the tag match above is what finds them.
+    const names = langPrefix === 'he' ? ['hebrew', 'עברית', 'asaf', 'hila', 'avri', 'carmit'] : [];
 
-    const langVoices = this.voices.filter((v) => {
+    return this.voices.filter((v) => {
       const vl = v.lang.toLowerCase().replace(/_/g, '-');
       const vn = v.name.toLowerCase();
       return tags.some((t) => vl.startsWith(t)) || names.some((n) => vn.includes(n));
     });
+  }
+
+  private pickVoice(lang: string): SpeechSynthesisVoice | undefined {
+    const langVoices = this.voicesFor(lang);
     if (langVoices.length === 0) return undefined;
+
+    // Offline the network voices are mute, and on ChromeOS and Android every Hebrew
+    // voice Google ships is network-only — which matters here, because this app is
+    // built to keep working when the classroom connection drops.
+    const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+    const candidates = offline
+      ? (() => {
+          const local = langVoices.filter((v) => v.localService);
+          return local.length > 0 ? local : langVoices;
+        })()
+      : langVoices;
 
     // Prefer high quality, natural, or dedicated Hebrew voices.
     return (
-      langVoices.find((v) => {
+      candidates.find((v) => {
         const vn = v.name.toLowerCase();
         return (
           vn.includes('google') ||
           vn.includes('online') ||
           vn.includes('natural') ||
           vn.includes('asaf') ||
-          vn.includes('hila')
+          vn.includes('hila') ||
+          vn.includes('avri')
         );
-      }) ?? langVoices[0]
+      }) ?? candidates[0]
     );
+  }
+
+  /**
+   * True when a voice for this language exists but every one of them needs the network
+   * and the device is offline — narration will be mute for a reason no error reports.
+   */
+  public hasOnlyNetworkVoicesOffline(lang: string = 'he-IL'): boolean {
+    if (typeof navigator === 'undefined' || navigator.onLine !== false) return false;
+    const langVoices = this.voicesFor(lang);
+    return langVoices.length > 0 && langVoices.every((v) => !v.localService);
   }
 
   private cleanTextForSpeech(text: string): string {
@@ -326,12 +357,22 @@ export class TTSService {
 
     const synth = window.speechSynthesis;
     const voice = this.pickVoice(lang);
+    if (voice && this.hasOnlyNetworkVoicesOffline(lang) && !this.warnedNetworkOnly) {
+      this.warnedNetworkOnly = true;
+      console.warn(
+        `[TTS] The only ${lang} voices on this device are network voices and the device is ` +
+          'offline, so narration will stay silent until the connection returns. On ChromeOS ' +
+          'and Android every Hebrew voice Google ships is network-only.'
+      );
+    }
     if (!voice && !this.warnedNoVoice) {
       this.warnedNoVoice = true;
       console.warn(
-        `[TTS] No ${lang} voice is installed in this browser, so narration will be silent ` +
-          'or mispronounced. Install a Hebrew system voice (Windows: Settings → Time & ' +
-          'Language → Speech; ChromeOS/Android: Google Text-to-Speech Hebrew).'
+        `[TTS] No ${lang} voice is installed, so narration will be silent or mispronounced. ` +
+          'Windows: Settings → Time & Language → Language & Region → Add a language → ' +
+          'Hebrew, with "Text-to-speech" ticked (installs Microsoft Asaf). ' +
+          'ChromeOS: Settings → Accessibility → Text-to-speech → voice settings. ' +
+          'macOS/iPadOS: Accessibility → Spoken Content → Manage Voices → Hebrew (Carmit).'
       );
     }
 
