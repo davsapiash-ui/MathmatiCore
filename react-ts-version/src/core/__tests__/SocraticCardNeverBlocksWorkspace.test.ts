@@ -154,7 +154,8 @@ describe('Module 12: the coaching card never blocks the number house', () => {
   it('every help overlay releases the pointer as soon as it starts leaving (source pin)', () => {
     const src = read('features/workspace/overlays/HelpOverlays.tsx');
     const exits = src.match(/exit=\{\{[^}]*\}\}/g) || [];
-    expect(exits.length).toBeGreaterThanOrEqual(4);
+    // friction overlay + socratic wrapper + socratic card (the dead help palette and its modal were deleted 14.9.2026)
+    expect(exits.length).toBe(3);
     for (const exit of exits) {
       expect(exit).toContain("pointerEvents: 'none'");
     }
