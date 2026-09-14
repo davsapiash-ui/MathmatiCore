@@ -1,15 +1,8 @@
-# MathmatiCore — Claude Code Context & Instructions (Frontend)
+# MathmatiCore — Frontend
 
-## Project Overview
-MathmatiCore Frontend (React 19 + TypeScript + Vite + Tailwind CSS + Framer Motion).
+The project rules live in `AGENTS.md` at the repo root, shared by every agent tool.
+Read it before working here; nothing is restated in this file on purpose, so that the
+two cannot drift apart.
 
-## Key Commands
-- **Start Dev Server**: `npm run dev`
-- **Run Vitest Tests**: `npm test`
-- **Run TypeScript & Vite Build**: `npm run build`
-- **Run Code Linter**: `npm run lint`
-
-## Code Standards
-- Zero-PII Policy (Anonymous IDs 1-12).
-- Offline First FIFO telemetry queue (<50KB payload).
-- Always verify `npm test` and `npm run build` before finalizing changes.
+Frontend commands run from this directory: `npm run dev`, `npm test`, `npm run build`,
+`npm run lint`, `npm run verify-component`.
