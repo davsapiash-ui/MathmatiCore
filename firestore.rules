@@ -270,14 +270,16 @@ service cloud.firestore {
     }
 
     // Classes & Schools Collections
+    // Module 25 §ב.1: one school (school_bikorot) and one class (class_1).
     match /schools/{schoolId} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      allow create, update: if isAdmin() && schoolId == 'school_bikorot';
+      allow delete: if isAdmin();
     }
 
     match /classes/{classId} {
       allow read: if isAuthenticated();
-      allow create, update: if (isTeacherOfClass(classId) || isAdmin()) && isValidClassDoc();
+      allow create, update: if classId == 'class_1' && (isTeacherOfClass(classId) || isAdmin()) && isValidClassDoc();
       allow delete: if isAdmin();
     }
 

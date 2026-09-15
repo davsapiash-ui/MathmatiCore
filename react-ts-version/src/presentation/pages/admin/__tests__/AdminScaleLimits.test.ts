@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useAdminStore } from '@/application/useAdminStore';
+import { PILOT_CLASS_ID, PILOT_CLASS_NAME, PILOT_SCHOOL_ID, PILOT_SCHOOL_NAME } from '@/core/pilotInstitution';
 
 // Mock Firebase RTDB methods (mirrors application/__tests__/AdminStoreSync.test.ts)
 vi.mock('firebase/database', () => ({
@@ -24,12 +25,9 @@ vi.mock('@/infrastructure/firebase', () => ({
 /**
  * Module 25 Admin Scale Limits.
  *
- * The suite this replaced (title: "PRD Section 5.6 Admin Scale Limits") cited
- * a PRD subsection that doesn't exist (grep -n "5\.6" on the PRD returns
- * nothing) and injected its own 5-school/5-teacher/35-student-per-class
- * fixture via setState, then asserted that fixture against itself — it could
- * not fail, and 35 directly contradicts the PRD's hard 12-student cap
- * (Module 25 §ב.2). This version exercises the real store mutators instead.
+ * Module 25 §ב: "הגדרת בית ספר יחיד בשם 'בית ספר ביקורת' וכיתה פעילה אחת בלבד
+ * בשם 'המבקרים'" and a hard cap of 12 learners. The store used to allow up to
+ * five schools and five classes per teacher; it now allows exactly one of each.
  */
 describe('Module 25: Admin Scale Limits', () => {
   beforeEach(() => {
@@ -46,31 +44,50 @@ describe('Module 25: Admin Scale Limits', () => {
     const state = useAdminStore.getState();
 
     expect(state.schools).toHaveLength(1);
-    expect(state.schools[0].name).toBe('בית ספר ביקורת');
+    expect(state.schools[0].name).toBe(PILOT_SCHOOL_NAME);
 
     expect(state.classes).toHaveLength(1);
-    expect(state.classes[0].name).toBe('המבקרים');
+    expect(state.classes[0].name).toBe(PILOT_CLASS_NAME);
     expect(state.classes[0].studentLimit).toBe(12);
 
     expect(state.globalStudentLimit).toBe(12);
   });
 
-  it('addClassRoom() always caps a new class at the current globalStudentLimit, regardless of caller intent', () => {
-    useAdminStore.getState().addSchool('בית ספר ביקורת');
+  it('a second school is never created', () => {
+    useAdminStore.getState().addSchool('first');
+    useAdminStore.getState().addSchool('second');
+    const { schools } = useAdminStore.getState();
+    expect(schools).toHaveLength(1);
+    expect(schools[0].id).toBe(PILOT_SCHOOL_ID);
+  });
+
+  it('the one class takes the global limit, and a second class is refused', async () => {
+    useAdminStore.getState().addSchool('ignored');
     const schoolId = useAdminStore.getState().schools[0].id;
-    useAdminStore.getState().addTeacher(schoolId, 'teacher@edu-haifa.org.il');
-    const teacherId = 'teacher@edu-haifa.org.il';
 
-    useAdminStore.getState().addClassRoom(schoolId, teacherId, 'המבקרים');
-
+    await useAdminStore.getState().addClassRoom(schoolId, 'teacher_key', 'ignored');
     const created = useAdminStore.getState().classes[0];
+    expect(created.id).toBe(PILOT_CLASS_ID);
+    expect(created.name).toBe(PILOT_CLASS_NAME);
     expect(created.studentLimit).toBe(12);
 
-    // Module 25 §ב.2: the 12-cap tracks globalStudentLimit, which the pilot
-    // reset above always restores to 12 — it is not a value the class-creation
-    // call can override on its own.
-    useAdminStore.getState().setGlobalStudentLimit(6);
-    useAdminStore.getState().addClassRoom(schoolId, teacherId, 'כיתה נוספת');
-    expect(useAdminStore.getState().classes[1].studentLimit).toBe(6);
+    await expect(
+      useAdminStore.getState().addClassRoom(schoolId, 'teacher_key', 'כיתה נוספת')
+    ).rejects.toThrow();
+    expect(useAdminStore.getState().classes).toHaveLength(1);
+  });
+
+  it('full provisioning is refused once the pilot school or class exists', async () => {
+    useAdminStore.getState().addSchool('ignored');
+    await expect(
+      useAdminStore.getState().provisionFullInstitution({
+        schoolName: 'מוסד נוסף',
+        teacherEmail: 'second@school.org.il',
+        className: 'כיתה נוספת',
+        classType: 'קבוצת ביקורת פיילוט',
+        studentLimit: 12,
+      })
+    ).rejects.toThrow();
+    expect(useAdminStore.getState().schools).toHaveLength(1);
   });
 });

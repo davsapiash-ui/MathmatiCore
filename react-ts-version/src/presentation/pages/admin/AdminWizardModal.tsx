@@ -17,6 +17,7 @@ import {
   BookOpen
 } from "lucide-react";
 import { useAdminStore } from "@/application/useAdminStore";
+import { PILOT_SCHOOL_NAME, ONE_INSTITUTION_MESSAGE } from "@/core/pilotInstitution";
 import { UdlButton } from "@/presentation/design-system/UdlButton";
 
 interface AdminWizardModalProps {
@@ -46,7 +47,6 @@ export function AdminWizardModal({
   const [selectedSchoolId, setSelectedSchoolId] = useState<string>(initialTargetSchoolId || (schools[0]?.id ?? ""));
   
   // Step 1: School Form
-  const [schoolName, setSchoolName] = useState("");
   const [schoolError, setSchoolError] = useState("");
 
   // Step 2: Teacher Form
@@ -77,7 +77,6 @@ export function AdminWizardModal({
     if (!isOpen) return;
     setStep(mode === "add_teacher" ? 2 : mode === "add_class" ? 3 : 1);
     setSelectedSchoolId(initialTargetSchoolId || (schools[0]?.id ?? ""));
-    setSchoolName("");
     setTeacherSsoEmail("");
     setSchoolError("");
     setTeacherError("");
@@ -94,12 +93,9 @@ export function AdminWizardModal({
   // Validation functions
   const validateStep1 = () => {
     setSchoolError("");
-    if (!schoolName.trim()) {
-      setSchoolError("נא להזין שם מוסד חינוכי.");
-      return false;
-    }
-    if (schools.length >= 5) {
-      setSchoolError("המערכת הגיעה למגבלת הפיילוט המרבית של 5 מוסדות חינוך.");
+    // Module 25 §ב.1: one school and one class, with the names the spec fixes.
+    if (schools.length > 0 || classes.length > 0) {
+      setSchoolError(ONE_INSTITUTION_MESSAGE);
       return false;
     }
     return true;
@@ -125,7 +121,7 @@ export function AdminWizardModal({
     return true;
   };
 
-  const validateStep3 = (targetTeacherId: string) => {
+  const validateStep3 = (_targetTeacherId: string) => {
     setClassError("");
     const limitNum = parseInt(studentLimit, 10);
     if (isNaN(limitNum) || limitNum < 1 || limitNum > 12) {
@@ -135,9 +131,9 @@ export function AdminWizardModal({
       setClassError("ההרשמה חסומה. כיתת המחקר הגיעה לתפוסה מלאה של 12 לומדים.");
       return false;
     }
-    const teacherClasses = classes.filter(c => c.teacherId === targetTeacherId);
-    if (teacherClasses.length >= 5) {
-      setClassError("מורה זו הגיעה למכסת הפיילוט המרבית של 5 כיתות.");
+    // Module 25 §ב.1: the pilot has one class. A second one is refused.
+    if (mode === "add_class" && classes.length > 0) {
+      setClassError(ONE_INSTITUTION_MESSAGE);
       return false;
     }
     return true;
@@ -165,7 +161,7 @@ export function AdminWizardModal({
     setIsSubmitting(true);
     try {
       await provisionFullInstitution({
-        schoolName: schoolName.trim(),
+        schoolName: PILOT_SCHOOL_NAME,
         teacherEmail: teacherSsoEmail.trim(),
         className: PILOT_CLASS_NAME,
         classType,
@@ -235,7 +231,6 @@ export function AdminWizardModal({
 
   const resetAndClose = () => {
     setStep(1);
-    setSchoolName("");
     setTeacherSsoEmail("");
     setSchoolError("");
     setTeacherError("");
@@ -309,40 +304,6 @@ export function AdminWizardModal({
                 <X className="w-5 h-5" />
               </button>
             </div>
-
-            {/* A learner is identified across the whole system by their number
-                alone (student_user{1..12}) — the class and school they belong
-                to are stored elsewhere and are not part of that identity. One
-                class works perfectly; a second class would hand its "student 3"
-                the same identity as the first class's, and the two would share
-                progress, approved path and reports.
-                Adding TEACHERS is unaffected: a teacher is identified by email,
-                which is globally unique, and the dashboard shows every
-                authorised teacher the same twelve learners. So this notice is
-                shown for school and class creation only. */}
-            {(mode === "full_setup" || mode === "add_class") && !isDone && (
-              <div className="mx-8 mt-6 rounded-2xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-4">
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-900/60 border border-amber-300 dark:border-amber-800 flex items-center justify-center text-amber-700 dark:text-amber-300 shrink-0 text-sm font-black">
-                    !
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-extrabold text-amber-900 dark:text-amber-200">
-                      ניהול מוסדות וכיתות — הערת פיילוט
-                    </p>
-                    <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
-                      המסכים כאן ערוכים לתמיכה בריבוי מוסדות וכיתות, אך יכולת זו אינה פעילה
-                      בגרסת הפיילוט הנוכחית. תלמיד מזוהה במערכת לפי מספרו הסידורי בלבד (1–12), ללא שיוך
-                      מזהה לכיתה, ולכן כיתה נוספת תחפוף בנתוניה עם הכיתה הקיימת (התקדמות, מסלול מאושר ודוחות).
-                      הפיילוט פועל עם כיתת מחקר אחת: "המבקרים".
-                    </p>
-                    <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed font-semibold">
-                      הוספת מורים לכיתה הקיימת נתמכת במלואה ואינה מושפעת מכך.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* Stepper Progress Bar (Only in full setup) */}
             {mode === "full_setup" && !isDone && (
@@ -428,23 +389,19 @@ export function AdminWizardModal({
                         <div>
                           <h4 className="font-bold text-sm text-indigo-950 dark:text-indigo-200">הגדרת בית ספר / מוסד חינוכי</h4>
                           <p className="text-xs text-indigo-800/80 dark:text-indigo-300/80 mt-0.5">
-                            בשלב זה מוקם המוסד במערכת. מגבלת הפיילוט מאפשרת עד 5 מוסדות. (נוכחי: {schools.length}/5)
+                            הפיילוט פועל עם בית ספר אחד וכיתה אחת: {PILOT_SCHOOL_NAME}, כיתת המבקרים.
                           </p>
                         </div>
                       </div>
 
                       <div>
                         <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-2">
-                          שם המוסד החינוכי <span className="text-rose-500">*</span>
+                          שם המוסד החינוכי
                         </label>
-                        <input 
-                          type="text" 
-                          autoFocus
-                          placeholder="לדוגמה: בית ספר אלונים תל אביב"
-                          value={schoolName}
-                          onChange={(e) => { setSchoolName(e.target.value); setSchoolError(""); }}
-                          className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-2xl p-4 text-base focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
-                        />
+                        <div className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-2xl p-4 text-base font-bold flex items-center justify-between">
+                          <span>{PILOT_SCHOOL_NAME}</span>
+                          <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500">קבוע לפי תקן הפיילוט</span>
+                        </div>
                         {schoolError && (
                           <p className="text-xs text-rose-500 font-semibold flex items-center gap-1 mt-2">
                             <AlertCircle className="w-4 h-4" />
@@ -615,7 +572,7 @@ export function AdminWizardModal({
                         <div className="space-y-3 divide-y divide-slate-200 dark:divide-slate-800 text-sm">
                           <div className="pt-2 flex justify-between">
                             <span className="text-slate-500">שם המוסד:</span>
-                            <span className="font-bold text-slate-800 dark:text-slate-100">{schoolName}</span>
+                            <span className="font-bold text-slate-800 dark:text-slate-100">{PILOT_SCHOOL_NAME}</span>
                           </div>
                           <div className="pt-3 flex justify-between">
                             <span className="text-slate-500">מורה אחראי (דוא"ל SSO מורשה):</span>

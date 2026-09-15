@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { UdlButton } from "@/presentation/design-system/UdlButton";
-import { UdlTooltip } from "@/presentation/design-system/UdlTooltip";
 import { 
   Plus, 
   Users, 
@@ -192,6 +191,8 @@ export function AdminSchoolsView() {
               <span>{isResetting ? "מאפס נתונים..." : "איפוס נתונים למבנה הפיילוט הרשמי"}</span>
             </UdlButton>
 
+            {/* Module 25 §ב.1: one school. The wizard is offered only while there is none. */}
+            {schools.length === 0 && (
             <UdlButton 
               semanticColor="primary" 
               className="gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold py-3.5 px-6 rounded-2xl shadow-lg shadow-indigo-600/30 border border-indigo-400/30 transition-all hover:scale-105 active:scale-95"
@@ -200,6 +201,7 @@ export function AdminSchoolsView() {
               <Plus className="w-5 h-5" />
               <span>הקמת מוסד חדש (אשף מונחה)</span>
             </UdlButton>
+            )}
           </div>
         </div>
 
@@ -208,7 +210,7 @@ export function AdminSchoolsView() {
           <div className="bg-white/5 backdrop-blur-md border border-white/10 p-4 rounded-2xl flex items-center justify-between">
             <div>
               <span className="text-xs text-slate-300 block">מוסדות חינוך פעילים</span>
-              <span className="text-2xl font-black text-indigo-300">{schools.length} / 5</span>
+              <span className="text-2xl font-black text-indigo-300">{schools.length} / 1</span>
             </div>
             <div className="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-300">
               <Building className="w-5 h-5" />
@@ -236,32 +238,6 @@ export function AdminSchoolsView() {
           </div>
         </div>
       </header>
-
-      {/* Same reasoning as the wizard's banner: a learner's identity across the
-          whole system is their number alone (student_user{1..12}), with no class
-          in it, so a second class would collide with the first. Teachers are
-          keyed by email and are unaffected — see AdminWizardModal. */}
-      <div className="rounded-2xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-5">
-        <div className="flex items-start gap-4">
-          <div className="w-9 h-9 rounded-xl bg-amber-100 dark:bg-amber-900/60 border border-amber-300 dark:border-amber-800 flex items-center justify-center text-amber-700 dark:text-amber-300 shrink-0 text-base font-black">
-            !
-          </div>
-          <div className="space-y-1.5">
-            <h2 className="text-sm font-extrabold text-amber-900 dark:text-amber-200">
-              ניהול מוסדות וכיתות — הערת פיילוט
-            </h2>
-            <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed max-w-3xl">
-              המסך ערוך לתמיכה בריבוי מוסדות וכיתות, אך יכולת זו אינה פעילה בגרסת הפיילוט הנוכחית.
-              תלמיד מזוהה במערכת לפי מספרו הסידורי בלבד (1–12), ללא שיוך מזהה לכיתה, ולכן כיתה נוספת
-              תחפוף בנתוניה עם הכיתה הקיימת (התקדמות, מסלול מאושר ודוחות). הפיילוט פועל עם כיתת מחקר אחת: "המבקרים".
-            </p>
-            <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed font-semibold">
-              הוספת מורים לכיתה הקיימת נתמכת במלואה: כל מורה מזוהה באמצעות כתובת הדוא"ל שלה,
-              וכל המורים המורשים צופים באותם 12 תלמידי הכיתה.
-            </p>
-          </div>
-        </div>
-      </div>
 
       {/* Global Capacity Settings & Search Bar */}
       <div className="grid md:grid-cols-3 gap-6">
@@ -471,17 +447,15 @@ export function AdminSchoolsView() {
                       <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400">
                         כיתות לימוד במוסד:
                       </h4>
-                      <UdlTooltip content="אינו זמין בגרסת הפיילוט">
-                        <span className="inline-block cursor-not-allowed" tabIndex={0}>
-                          <button 
-                            type="button"
-                            disabled
-                            className="text-xs text-slate-400 dark:text-slate-500 font-bold opacity-60 cursor-not-allowed pointer-events-none"
-                          >
-                            + הוספת כיתה
-                          </button>
-                        </span>
-                      </UdlTooltip>
+                      {/* Module 25 §ב.1: the one class can be (re)created only when none exists. */}
+                      {classes.length === 0 && (
+                        <button
+                          onClick={() => openWizard("add_class", school.id)}
+                          className="text-xs text-indigo-600 dark:text-indigo-400 font-bold hover:underline cursor-pointer"
+                        >
+                          + הקמת כיתת המבקרים
+                        </button>
+                      )}
                     </div>
 
                     {schoolClasses.length === 0 ? (
@@ -526,19 +500,6 @@ export function AdminSchoolsView() {
                       <Users className="w-4 h-4" />
                       רישום מורה
                     </UdlButton>
-
-                    <UdlTooltip content="אינו זמין בגרסת הפיילוט">
-                      <span className="flex-1 inline-flex cursor-not-allowed" tabIndex={0}>
-                        <UdlButton 
-                          disabled
-                          semanticColor="neutral" 
-                          className="w-full justify-center gap-2 bg-slate-100/60 dark:bg-slate-800/40 text-slate-400 dark:text-slate-500 text-xs font-bold py-3 rounded-xl cursor-not-allowed opacity-60 pointer-events-none"
-                        >
-                          <Plus className="w-4 h-4" />
-                          הקמת כיתה
-                        </UdlButton>
-                      </span>
-                    </UdlTooltip>
                   </div>
                 </div>
               </motion.div>

@@ -2,15 +2,18 @@
   "rules": {
     "schools": {
       ".read": "auth != null",
-      ".write": "auth != null && (auth.token.role == 'admin' || auth.token.role == 'ADMIN')"
+      ".write": "auth != null && (auth.token.role == 'admin' || auth.token.role == 'ADMIN')",
+      "$schoolId": { ".validate": "$schoolId == 'school_bikorot'" }
     },
     "public_classes": {
       ".read": "auth != null",
-      ".write": "auth != null && (auth.token.role == 'admin' || auth.token.role == 'ADMIN')"
+      ".write": "auth != null && (auth.token.role == 'admin' || auth.token.role == 'ADMIN')",
+      "$classId": { ".validate": "$classId == 'class_1'" }
     },
     "classes": {
       ".read": "auth != null",
-      ".write": "auth != null && (auth.token.role == 'admin' || auth.token.role == 'ADMIN' || auth.token.role == 'teacher' || auth.token.role == 'TEACHER')"
+      ".write": "auth != null && (auth.token.role == 'admin' || auth.token.role == 'ADMIN' || auth.token.role == 'teacher' || auth.token.role == 'TEACHER')",
+      "$classId": { ".validate": "$classId == 'class_1'" }
     },
     "users": {
       "students": {

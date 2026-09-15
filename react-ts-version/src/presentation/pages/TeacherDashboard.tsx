@@ -51,6 +51,7 @@ import {
 } from "@/core/QMatrix";
 import { validateChatInputForPII, anonymizeChatMessageBody } from "@/core/security/PiiFilter";
 import { approveTeacherGate } from "@/core/teacherGate";
+import { PILOT_CLASS_ID, PILOT_SCHOOL_ID } from "@/core/pilotInstitution";
 
 type TabType =
   | "heatmap"
@@ -349,8 +350,10 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   const handleStartClassSession = async (sessionNum: number) => {
     const now = Date.now();
     const activeSessionId = `session_0${sessionNum}`;
-    const classId = useAdminStore.getState().classes[0]?.id || 'class_1';
-    const schoolId = useAdminStore.getState().classes[0]?.schoolId || 'school_bikorot';
+    // Module 25 §ב.1: the pilot's one class — from the spec, not from whatever
+    // class happens to be first in the admin store.
+    const classId = PILOT_CLASS_ID;
+    const schoolId = PILOT_SCHOOL_ID;
 
     try {
       // 1. Synchronize custom claims if needed

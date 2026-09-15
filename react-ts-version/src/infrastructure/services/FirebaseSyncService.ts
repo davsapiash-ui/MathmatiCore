@@ -6,6 +6,7 @@ import { useWorkspaceStore, getActiveTasks } from '@/application/useWorkspaceSto
 import { useStore, type QMatrix, type TraceData } from '@/application/useStore';
 import { normalizeStudentId } from '@/application/useChatStore';
 import { hasEnhancedSupport, ENHANCED_SUPPORT_PROFILE_ID } from '@/core/supportProfile';
+import { PILOT_SCHOOL_ID, PILOT_SCHOOL_NAME, PILOT_CLASS_ID, PILOT_CLASS_NAME } from '@/core/pilotInstitution';
 import { useAdminStore, type School, type Teacher, type ClassRoom } from '@/application/useAdminStore';
 import { indexedDBQueue } from './IndexedDBQueue';
 import type { SessionDocument, PedagogicalPath } from '@/types';
@@ -1323,10 +1324,10 @@ export class FirebaseSyncService {
   }
 
   // --- Admin actions syncing to Firebase ---
-  public async addSchool(name: string, preferredId?: string): Promise<School> {
-    const id = preferredId || push(ref(database, 'schools')).key;
-    if (!id) throw new Error("Failed to generate school ID");
-    const school: School = { id, name, createdAt: Date.now() };
+  // Module 25 §ב.1: one school with a fixed id and name — never a generated key.
+  public async addSchool(_name: string, _preferredId?: string): Promise<School> {
+    const id = PILOT_SCHOOL_ID;
+    const school: School = { id, name: PILOT_SCHOOL_NAME, createdAt: Date.now() };
     await set(ref(database, `schools/${id}`), school);
     return school;
   }
@@ -1433,9 +1434,10 @@ export class FirebaseSyncService {
     }
   }
 
-  public async addClassRoom(schoolId: string, teacherId: string, name: string, preferredId?: string, classType?: string): Promise<ClassRoom> {
-    const id = preferredId || push(ref(database, 'classes')).key;
-    if (!id) throw new Error("Failed to generate class ID");
+  // Module 25 §ב.1: one class with a fixed id and name — never a generated key.
+  public async addClassRoom(schoolId: string, teacherId: string, _name: string, _preferredId?: string, classType?: string): Promise<ClassRoom> {
+    const id = PILOT_CLASS_ID;
+    const name = PILOT_CLASS_NAME;
     const limit = useAdminStore.getState().globalStudentLimit;
     const newClass: ClassRoom = {
       id,
