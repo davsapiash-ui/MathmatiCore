@@ -13,7 +13,6 @@ import {
   RotateCcw, 
   Check, 
   BellRing, 
-  Layers,
   ExternalLink
 } from 'lucide-react';
 import { ResetConfirmationModal } from './ResetConfirmationModal';
@@ -32,7 +31,7 @@ interface Props {
 }
 
 export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, onOpenFullJourney, activeSessionNumber = null }: Props) {
-  const [activeTab, setActiveTab] = useState<'scaffolding' | 'accessibility' | 'replay'>('scaffolding');
+  const [activeTab, setActiveTab] = useState<'accessibility' | 'replay'>('accessibility');
   const [isResetting, setIsResetting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isClearingHelp, setIsClearingHelp] = useState(false);
@@ -41,9 +40,6 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
 
   // Form State
   const sAny = (student || {}) as any;
-  const [scaffoldLevel, setScaffoldLevel] = useState<0 | 1 | 2>(
-    (sAny.scaffoldLevel ?? 0) as 0 | 1 | 2
-  );
   const [isASD, setIsASD] = useState<boolean>(
     Boolean(student?.isASD || sAny.isASD)
   );
@@ -51,7 +47,6 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
   useEffect(() => {
     if (student) {
       const s = student as any;
-      setScaffoldLevel((s.scaffoldLevel ?? 0) as 0 | 1 | 2);
       setIsASD(Boolean(student.isASD || s.isASD));
     }
   }, [student]);
@@ -72,7 +67,6 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
       const normId = normalizeStudentId(student.studentId);
       const rawNum = student.studentId.replace(/\D/g, '');
       const updatePayload = {
-        scaffoldLevel,
         isASD,
         applyAtTaskBoundaryOnly: true,
         adaptationQueuedAt: Date.now(),
@@ -246,7 +240,6 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
         {/* Modern Tabs */}
         <div className="flex border-b border-slate-100 dark:border-slate-800 px-6 pt-2 bg-slate-50/40 dark:bg-slate-900/40 shrink-0 gap-2 overflow-x-auto no-scrollbar">
           {[
-            { id: 'scaffolding', label: 'רמת עזרה ופיגום', icon: Layers },
             { id: 'accessibility', label: 'שקט חזותי ונגישות', icon: EyeOff },
             { id: 'replay', label: 'שחזור מהלכים', icon: Video },
           ].map((tab) => {
@@ -272,83 +265,6 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
         {/* Tab Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           
-          {/* TAB 1: SCAFFOLDING */}
-          {activeTab === 'scaffolding' && (
-            <div className="space-y-6 animate-in fade-in duration-200">
-              <div className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-4">
-                <div>
-                  <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                    <Layers className="w-4 h-4 text-indigo-600" />
-                    רמת תמיכה וייצוג בלוח בית המספרים
-                  </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                    הגדרת מידת הפיגומים שהתלמיד יקבל במהלך פתרון התרגילים.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 gap-3">
-                  {[
-                    {
-                      level: 0,
-                      title: 'רמה 0 — עזרה מקיפה והמרות אוטומטיות',
-                      desc: 'עזרה מלאה: כפתור המרה אוטומטי (הקפצה), הדגשת טורים והדרכה צעד-אחר-צעד.',
-                      badge: 'מומלץ לתלמידים מתקשים',
-                      color: 'border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-700',
-                    },
-                    {
-                      level: 1,
-                      title: 'רמה 1 — עזרה מאוזנת (ברירת מחדל)',
-                      desc: 'איזון בין עצמאות להכוונה: דרישה להמרות ידניות עם רמזי גרירה עדינים.',
-                      badge: 'קצב למידה רגיל',
-                      color: 'border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/20 text-indigo-700',
-                    },
-                    {
-                      level: 2,
-                      title: 'רמה 2 — למידה עצמאית ללא עזרים',
-                      desc: 'מינימום עזרה: ללא המרות אוטומטיות, ללא מחסן עזרים – דורש פתרון מופשט ועצמאי.',
-                      badge: 'לתלמידים שולטים ומואצים',
-                      color: 'border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20 text-amber-700',
-                    },
-                  ].map((item) => {
-                    const isSelected = scaffoldLevel === item.level;
-                    return (
-                      <div
-                        key={item.level}
-                        onClick={() => setScaffoldLevel(item.level as any)}
-                        className={`p-4 rounded-xl border-2 transition-all cursor-pointer ${
-                          isSelected
-                            ? 'border-indigo-600 bg-indigo-50/60 dark:bg-indigo-950/40 shadow-sm'
-                            : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 bg-white dark:bg-slate-800'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between mb-1.5">
-                          <span className="font-bold text-xs text-slate-800 dark:text-slate-100">
-                            {item.title}
-                          </span>
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${item.color}`}>
-                            {item.badge}
-                          </span>
-                        </div>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                          {item.desc}
-                        </p>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Module 10 forbids a manual teacher toggle for the adaptive
-                    addition grid: "אין למורה אפשרות לפתוח את הלוח באופן ידני
-                    במהלך שיעור פעיל". The grid loads strictly for learners whose
-                    support_profile_id is 'enhanced_cognitive_support', and opens
-                    on the 30s hesitation stage alone. A switch here also never
-                    worked — StudentWorkspacePage gates rendering on the support
-                    profile and never reads the flag this wrote — so it promised
-                    the teacher a control the learner's screen ignored. */}
-              </div>
-            </div>
-          )}
-
           {/* TAB 2: ACCESSIBILITY & VISUAL CALM */}
           {activeTab === 'accessibility' && (
             <div className="space-y-6 animate-in fade-in duration-200">
