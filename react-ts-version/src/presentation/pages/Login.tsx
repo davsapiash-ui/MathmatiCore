@@ -1,8 +1,8 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "@/application/useAuthStore";
-import { useAdminStore } from "@/application/useAdminStore";
+import { PILOT_SCHOOL_ID, PILOT_SCHOOL_NAME, PILOT_CLASS_ID, PILOT_CLASS_NAME } from "@/core/pilotInstitution";
 import { useStore } from "@/application/useStore";
 import { executeGoogleSSO } from "@/infrastructure/services/AuthService";
 import { UdlSpeechButton } from "@/presentation/design-system/UdlSpeechButton";
@@ -20,30 +20,23 @@ const ROLES = [
   { id: "admin" as const, icon: "⚙️", label: "מנהל מערכת" },
 ];
 
+// Module 25 §ב.1: one school and one class, fixed by the spec. The lists used to
+// come from the admin store (and subscribed to the admin nodes on the login page),
+// so any extra school or class in the database would have been offered to a child.
+const PILOT_SCHOOLS = [{ id: PILOT_SCHOOL_ID, name: PILOT_SCHOOL_NAME }];
+const PILOT_CLASSES = [{ id: PILOT_CLASS_ID, name: PILOT_CLASS_NAME, schoolId: PILOT_SCHOOL_ID }];
+
 export function Login() {
   const { setUser } = useAuthStore();
   const { login } = useStore();
-  const { schools: storeSchools, classes: storeClasses } = useAdminStore();
   const navigate = useNavigate();
 
-  // Subscribe to real-time schools & classes from Firebase
-  useEffect(() => {
-    return useAdminStore.getState().initAdminSubscriptions();
-  }, []);
-
-  const schoolsList = useMemo(() => {
-    return storeSchools && storeSchools.length > 0
-      ? storeSchools
-      : [{ id: "school_bikorot", name: "בית ספר ביקורת" }];
-  }, [storeSchools]);
+  const schoolsList = PILOT_SCHOOLS;
 
   const [selectedRole, setSelectedRole] = useState<"student" | "teacher" | "admin" | null>(null);
   const [selectedSchool, setSelectedSchool] = useState<string>("school_bikorot");
 
-  const classesForSelectedSchool = useMemo(() => {
-    const list = storeClasses.filter((c) => c.schoolId === selectedSchool);
-    return list.length > 0 ? list : [{ id: "class_1", name: "המבקרים", schoolId: selectedSchool }];
-  }, [storeClasses, selectedSchool]);
+  const classesForSelectedSchool = PILOT_CLASSES;
 
   const [selectedClass, setSelectedClass] = useState<string>("class_1");
   const [selectedStudentNum, setSelectedStudentNum] = useState<number>(1);

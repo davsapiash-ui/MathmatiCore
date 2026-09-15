@@ -41,8 +41,9 @@ export const authenticateStudentSession = onCall(
   //    as a security input elsewhere (isTeacherOfClass in the rules, the
   //    research export's class scoping). It used to be whatever the caller
   //    sent — any string, or an object. The pilot has one class.
-  if (typeof classId !== "string" || !/^[A-Za-z0-9_-]{1,40}$/.test(classId)) {
-    throw new HttpsError("invalid-argument", "class_id is not a valid class identifier.");
+  //    Module 25 §ב.1 fixes that one class: "המבקרים", id class_1.
+  if (classId !== "class_1") {
+    throw new HttpsError("invalid-argument", "class_id is not the pilot class.");
   }
 
   const uid = request.auth.uid;

@@ -5,6 +5,7 @@ import { addAuthorizedTeacherFirestore } from "@/infrastructure/services/AuthSer
 import { teacherRecordKey } from "@/infrastructure/services/FirebaseSyncService";
 import { ref, onValue, update, type Unsubscribe } from "firebase/database";
 import { database } from "@/infrastructure/firebase";
+import { PILOT_SCHOOL_ID, PILOT_SCHOOL_NAME, PILOT_CLASS_ID, PILOT_CLASS_NAME, ONE_INSTITUTION_MESSAGE } from "@/core/pilotInstitution";
 
 export interface School {
   id: string;
@@ -269,22 +270,26 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
     }
   },
 
+  // Module 25 §ב.1: one school, "בית ספר ביקורת", and one class, "המבקרים".
+  // Ids and names come from the spec, never from the form, and a second
+  // institution is refused rather than created next to the first.
   provisionFullInstitution: async ({
-    schoolName,
     teacherEmail,
-    className,
     classType,
     studentLimit = 12,
   }) => {
+    if (get().schools.length > 0 || get().classes.length > 0) {
+      throw new Error(ONE_INSTITUTION_MESSAGE);
+    }
     const timestamp = Date.now();
-    const schoolId = `school_${timestamp}`;
+    const schoolId = PILOT_SCHOOL_ID;
     const teacherId = teacherEmail.trim().toLowerCase();
     const teacherKey = teacherRecordKey(teacherId);
-    const classId = `class_${timestamp}`;
+    const classId = PILOT_CLASS_ID;
 
     const school: School = {
       id: schoolId,
-      name: schoolName.trim(),
+      name: PILOT_SCHOOL_NAME,
       createdAt: timestamp,
     };
 
@@ -300,7 +305,7 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
       id: classId,
       schoolId,
       teacherId: teacherKey,
-      name: className.trim() || "כיתת המבקרים",
+      name: PILOT_CLASS_NAME,
       studentLimit: Math.min(12, Math.max(1, studentLimit)),
       createdAt: timestamp,
       ...(classType ? { classType } : {}),
@@ -328,22 +333,23 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
       await addAuthorizedTeacherFirestore(teacherId, 'teacher', schoolId);
     }
 
-    AuditLogger.log("הקמת מוסד מלאה", "admin", `מוסד: ${schoolName}, מורה: ${teacherId}, כיתה: ${className}`);
+    AuditLogger.log("הקמת מוסד מלאה", "admin", `מוסד: ${PILOT_SCHOOL_NAME}, מורה: ${teacherId}, כיתה: ${PILOT_CLASS_NAME}`);
     return { school, teacher, classRoom };
   },
 
-  addSchool: (name) => {
-    AuditLogger.log("יצירת מוסד", "admin", `מוסד חדש: ${name}`);
-    const tempId = `school_${Date.now()}`;
-    const newSchool: School = { id: tempId, name, createdAt: Date.now() };
+  // Module 25 §ב.1: the pilot has exactly one school, "בית ספר ביקורת". Its name
+  // is fixed by the spec, so the argument is ignored, and a second school is
+  // refused rather than created.
+  addSchool: (_name) => {
+    if (get().schools.length > 0) {
+      console.warn(ONE_INSTITUTION_MESSAGE);
+      return;
+    }
+    AuditLogger.log("יצירת מוסד", "admin", `מוסד: ${PILOT_SCHOOL_NAME}`);
+    const newSchool: School = { id: PILOT_SCHOOL_ID, name: PILOT_SCHOOL_NAME, createdAt: Date.now() };
     set((state) => ({ schools: [...state.schools, newSchool] }));
-    firebaseSyncService.addSchool(name, tempId).then((realSchool) => {
-      if (realSchool && realSchool.id !== tempId) {
-        set((state) => ({
-          schools: state.schools.map(s => s.id === tempId ? realSchool : s)
-        }));
-      }
-    }).catch(err => {
+    firebaseSyncService.addSchool(PILOT_SCHOOL_NAME, PILOT_SCHOOL_ID).catch(err => {
+      set((state) => ({ schools: state.schools.filter(s => s.id !== PILOT_SCHOOL_ID) }));
       console.error("Failed to add school to Firebase", err);
     });
   },
@@ -418,25 +424,31 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
     }
   },
 
-  addClassRoom: async (schoolId, teacherId, name, classType) => {
-    const tempId = `class_${Date.now()}`;
+  // Module 25 §ב.1: exactly one class, "המבקרים". A second class is refused —
+  // learners are identified by number alone (1–12), so it would share the first
+  // class's identities, progress and reports.
+  addClassRoom: async (schoolId, teacherId, _name, classType) => {
+    if (get().classes.length > 0) {
+      throw new Error(ONE_INSTITUTION_MESSAGE);
+    }
+    const tempId = PILOT_CLASS_ID;
     const limit = get().globalStudentLimit;
     const newClass: ClassRoom = {
       id: tempId,
       schoolId,
       teacherId,
-      name: name.trim(),
+      name: PILOT_CLASS_NAME,
       studentLimit: limit,
       createdAt: Date.now(),
       ...(classType ? { classType } : {}),
     };
     set((state) => ({ classes: [...state.classes, newClass] }));
     try {
-      const realClass = await firebaseSyncService.addClassRoom(schoolId, teacherId, name, tempId, classType);
+      const realClass = await firebaseSyncService.addClassRoom(schoolId, teacherId, PILOT_CLASS_NAME, tempId, classType);
       if (realClass && realClass.id !== tempId) {
         set((state) => ({ classes: state.classes.map(c => c.id === tempId ? realClass : c) }));
       }
-      AuditLogger.log("יצירת כיתה", "admin", `כיתה חדשה: ${name}`);
+      AuditLogger.log("יצירת כיתה", "admin", `כיתה: ${PILOT_CLASS_NAME}`);
     } catch (err) {
       // כיתה שנכשלה בשרת נעלמת מהמסך במקום להישאר ככיתה מדומה שמורה
       // תשובץ אליה ולא תמצא בה דבר.
