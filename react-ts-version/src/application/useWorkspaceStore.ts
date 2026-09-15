@@ -1875,8 +1875,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // Module 12(c): 3 consecutive UNDO_EXECUTED actions within a single exercise trigger Socratic coach, ONLY in Session 8
         if (nextConsecutiveUndos >= 3 && s.sessionNumber === 8 && s.currentState !== 'SOCRATIC_ACTIVE' && !s.isSocraticCardLocked) {
           setTimeout(() => {
+            set({ helpState: 'socratic', currentState: 'SOCRATIC_ACTIVE', socraticTriggerReason: 'consecutive_undos_3' });
             get().fetchSocraticHint();
-            set({ helpState: 'socratic', currentState: 'SOCRATIC_ACTIVE' });
           }, 0);
         }
 
