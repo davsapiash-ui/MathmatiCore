@@ -245,6 +245,7 @@ export function describeEvent(e: JourneyEvent): EventDescription {
         consecutive_errors_4: 'ארבע מחיקות רצופות',
         consecutive_undos_3: 'שלושה ביטולים רצופים',
         conversion_not_performed: 'לא בוצעה המרה נדרשת',
+        repeated_errors: 'תשובה שגויה שנייה ברצף באותו תרגיל',
       };
       const cat: Record<string, string> = { calculation: 'חישוב', procedural: 'רכיב', conceptual: 'מושגי' };
       detail = reason[String(d.trigger_reason)] ?? String(d.trigger_reason ?? '');

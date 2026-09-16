@@ -13,8 +13,10 @@ import { resolve } from 'path';
  * of the sequence — what document 03 §3.3 rules out ("בתוך התרגיל הקיים...
  * מבלי להציג להם משימה נפרדת") and what the PRD never asked for. Challenge
  * work belongs to the choice path after the compulsory set (Module 14 §ג).
- * Every mistake now leads to the in-task coaching card; Module 12's own
- * triggers (45s hesitation, 4 consecutive errors) are untouched.
+ * Owner ruling 16.9.2026: the card is contingent. The first wrong answer on an
+ * exercise gets feedback and the learner's own tools; the card opens on the
+ * second wrong answer in a row (מסמך 03 §1.3 ד' "שגיאות חוזרות"). An empty
+ * answer never opens it. Module 12's own triggers are untouched.
  */
 const store = readFileSync(resolve(__dirname, '../../application/useWorkspaceStore.ts'), 'utf-8');
 
@@ -31,9 +33,11 @@ describe('Module 12 — a mistake is met inside the exercise, never with an inje
     expect(store.includes('get().injectTask(')).toBe(false);
   });
 
-  it('every mistake on a tracked skill opens the in-task coaching flow', () => {
+  it('the second wrong answer in a row opens the in-task coaching flow; an empty answer never does', () => {
     const handler = store.slice(store.indexOf('const strikes = (s.nodeStrikes[task.targetNode] || 0) + 1;'));
     const block = handler.slice(0, handler.indexOf('showFeedback({ correct: false'));
+    expect(block).toContain("const incomplete = detail === 'missing_answer' || detail === 'no_choice';");
+    expect(block).toContain('if (streak >= 2) {');
     expect(block).toContain("set({ helpState: 'friction', frictionTriggerSource: 'mistake' });");
     expect(block).not.toContain('injectTask(');
   });

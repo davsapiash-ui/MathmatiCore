@@ -51,9 +51,8 @@ export function HelpOverlays() {
     const ws = useWorkspaceStore.getState();
     const studentId = currentStudentUid();
     const task = getActiveTasks(ws)[ws.standardTaskIdx] || null;
-    // The store records the trigger for the Module 12 paths. A card opened by
-    // the after-mistake beat has no Module 12 trigger of its own and is
-    // labelled by the error streak that opened it.
+    // Every opening path records its trigger in the store; the fallback only
+    // covers a card restored from a saved session.
     const triggerReason =
       ws.socraticTriggerReason ??
       (ws.sessionNumber === 8 && (ws.consecutiveUndoCount ?? 0) >= 3
