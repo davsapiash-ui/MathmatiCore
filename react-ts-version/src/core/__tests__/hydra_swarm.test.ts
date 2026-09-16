@@ -96,9 +96,6 @@ describe('THE HYDRA SWARM INQUISITION (20-Node Concurrent Fuzzer)', () => {
 
             useWorkspaceStore.getState().setAnswerDigit('tens', null as any);
             useWorkspaceStore.getState().setProbeAnswer(undefined as any);
-            useWorkspaceStore.setState((s: any) => ({
-              nodeStrikes: { ...s.nodeStrikes, [null as any]: NaN },
-            }));
 
             await new Promise((r) => setTimeout(r, 3));
           }

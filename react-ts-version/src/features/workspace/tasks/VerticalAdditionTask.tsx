@@ -55,6 +55,7 @@ export function VerticalAdditionTask({
   const setFocusedPlace = useWorkspaceStore((s) => s.setFocusedPlace);
   const keyboardState = useWorkspaceStore((s) => s.keyboardState);
   const isStoreColumnLocked = useWorkspaceStore((s) => s.isColumnInputLocked);
+  const recordBlockedKeystroke = useWorkspaceStore((s) => s.recordBlockedKeystroke);
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
 
   const [shake, setShake] = useState(false);
@@ -326,6 +327,8 @@ export function VerticalAdditionTask({
                 onBlur={() => setFocusedPlace(null)}
                 onKeyDown={(e) => {
                   if (isLocked) {
+                    // Module 9 lock: the key does nothing; the attempt itself is what the research needs.
+                    if (/^[0-9]$/.test(e.key)) recordBlockedKeystroke(place);
                     e.preventDefault();
                     setShake(true);
                     setTimeout(() => setShake(false), 500);

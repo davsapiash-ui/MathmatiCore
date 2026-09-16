@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useWorkspaceStore, getActiveTasks, placeToColumnIndex, type SocraticTriggerReason } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, getActiveTasks } from '@/application/useWorkspaceStore';
 import { useAuthStore, currentStudentUid } from '@/application/useAuthStore';
 import { HelpCircle, Hourglass, X, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useDismissableOverlay } from '@/hooks/useDismissableOverlay';
@@ -30,46 +30,8 @@ export function SocraticDrawer({ isOpen, onClose }: SocraticDrawerProps) {
   const [remainingSeconds, setRemainingSeconds] = useState<number>(0);
   const [selectedChoiceId, setSelectedChoiceId] = useState<string | null>(null);
   const [feedbackMsg, setFeedbackMsg] = useState<{ isCorrect: boolean; text: string } | null>(null);
-  const hasEmittedShowRef = useRef(false);
 
   const isDrawerOpen = isOpen !== undefined ? isOpen : (helpState === 'socratic' || helpState === 'friction');
-
-  useEffect(() => {
-    if (isDrawerOpen && !hasEmittedShowRef.current) {
-      hasEmittedShowRef.current = true;
-      const wsState = useWorkspaceStore.getState();
-      const studentId = currentStudentUid();
-      const currentTask = getActiveTasks(wsState)[wsState.standardTaskIdx] || null;
-      const colIdx = wsState.focusedPlace ? placeToColumnIndex(wsState.focusedPlace) : 0;
-      
-      // The store records which of מסמך 03's triggers opened the card; this used
-      // to re-derive it from counters and so mislabelled every card that a
-      // deletion streak or an unperformed conversion had opened.
-      const triggerReason: SocraticTriggerReason =
-        wsState.socraticTriggerReason ??
-        (wsState.consecutiveErrorCount >= 4
-          ? 'consecutive_errors_4'
-          : wsState.sessionNumber === 8 && (wsState.consecutiveUndoCount ?? 0) >= 3
-          ? 'consecutive_undos_3'
-          : 'hesitation_45s');
-
-      const errorCat = wsState.aiSocraticHint?.error_category ?? null;
-
-      emitTelemetry({
-        session_id: `session_${wsState.sessionNumber}_student_${studentId}`,
-        student_id: studentId,
-        exercise_id: currentTask?.id || `ex_${wsState.sessionNumber}_01`,
-        event_type: 'SOCRATIC_CARD_SHOWN',
-        column_index: colIdx,
-        details: {
-          trigger_reason: triggerReason,
-          error_category: errorCat,
-        },
-      }).catch(console.error);
-    } else if (!isDrawerOpen) {
-      hasEmittedShowRef.current = false;
-    }
-  }, [isDrawerOpen]);
 
   useEffect(() => {
     const updateCountdown = () => {

@@ -176,6 +176,9 @@ const EVENT_LABELS_HE: Record<string, string> = {
   SOCRATIC_OPTION_SELECTED: 'תשובה בכרטיס החניכה',
   PROBLEM_COMPLETE: 'סיום תרגיל',
   REFLECTION_SUBMITTED: 'רפלקציה',
+  ADAPTIVE_GRID_TOGGLED: 'לוח החיבור',
+  KEYBOARD_LOCK_BLOCKED: 'הקלדה לפני המרה (מקלדת נעולה)',
+  HELP_REQUESTED: 'קריאה שקטה למורה',
 };
 
 export interface EventDescription {
@@ -245,6 +248,7 @@ export function describeEvent(e: JourneyEvent): EventDescription {
         consecutive_errors_4: 'ארבע מחיקות רצופות',
         consecutive_undos_3: 'שלושה ביטולים רצופים',
         conversion_not_performed: 'לא בוצעה המרה נדרשת',
+        repeated_errors: 'תשובה שגויה שנייה ברצף באותו תרגיל',
       };
       const cat: Record<string, string> = { calculation: 'חישוב', procedural: 'רכיב', conceptual: 'מושגי' };
       detail = reason[String(d.trigger_reason)] ?? String(d.trigger_reason ?? '');

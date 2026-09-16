@@ -88,7 +88,8 @@ export type SocraticTriggerReasonWire =
   | 'hesitation_45s'
   | 'consecutive_errors_4'
   | 'consecutive_undos_3'
-  | 'conversion_not_performed';
+  | 'conversion_not_performed'
+  | 'repeated_errors';
 
 /**
  * Pillar 3 of PRD Module 13's triad — what the platform has MONITORED about
@@ -1158,7 +1159,7 @@ export class SocraticEngine {
       completed_columns: string[];
       current_column_input: string | null;
       memory_circles_state: Record<string, number>;
-      trigger_reason: 'hesitation_45s' | 'consecutive_errors_4' | 'consecutive_undos_3' | 'conversion_not_performed';
+      trigger_reason: 'hesitation_45s' | 'consecutive_errors_4' | 'consecutive_undos_3' | 'conversion_not_performed' | 'repeated_errors';
       consecutive_errors_count: number;
       recent_actions: TelemetryPayload<TelemetryEventType>[];
     };

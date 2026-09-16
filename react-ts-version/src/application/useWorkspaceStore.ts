@@ -53,6 +53,29 @@ import { firebaseSyncService, emitTelemetry } from '@/infrastructure/services/Fi
 import type { TelemetryEventType } from '@/types/telemetry';
 import type { VRAWorkspaceState } from '@/types';
 
+/**
+ * Appendix A §3 scaffold events (owner, 16.9.2026 — register deviation 19).
+ * One emitter so the three carry the same session/exercise identity as
+ * every other event and go through the same offline queue.
+ */
+function emitScaffoldEvent(
+  s: WorkspaceState,
+  eventType: 'ADAPTIVE_GRID_TOGGLED' | 'KEYBOARD_LOCK_BLOCKED' | 'HELP_REQUESTED',
+  details: Record<string, unknown>,
+  columnIndex?: number
+): void {
+  const studentId = currentStudentUid();
+  const task = getActiveTasks(s)[s.standardTaskIdx] || null;
+  emitTelemetry({
+    session_id: `session_${s.sessionNumber}_student_${studentId}`,
+    student_id: studentId,
+    exercise_id: task?.id || `ex_${s.sessionNumber}_01`,
+    event_type: eventType,
+    ...(columnIndex !== undefined ? { column_index: columnIndex } : {}),
+    details,
+  } as any).catch(console.error);
+}
+
 export function placeToColumnIndex(place: Place | string): number {
   switch (place) {
     case 'units': return 0;
@@ -92,7 +115,10 @@ export type SocraticTriggerReason =
   | 'hesitation_45s'
   | 'consecutive_errors_4'
   | 'consecutive_undos_3'
-  | 'conversion_not_performed';
+  | 'conversion_not_performed'
+  // מסמך 03 §1.3 ד' "שגיאות חוזרות": a second wrong answer submitted in a
+  // row on the same exercise (owner, 16.9.2026 — see the deviations register).
+  | 'repeated_errors';
 export type KeyboardState = 'LOCKED' | 'UNLOCKED' | 'SOCRATIC_ONLY';
 
 export interface FeedbackState {
@@ -195,14 +221,17 @@ interface WorkspaceState {
   feedbackNonce: number;
   helpState: HelpState;
   frictionTriggerSource: 'mistake' | null;
+  /** Wrong answers submitted in a row on the current exercise (מסמך 03 "שגיאות חוזרות"). */
+  wrongAnswerStreak: number;
+  wrongAnswerTaskId: string | null;
 
   /** Teacher-approved AI-generated task list (Socratic Engine); overrides session tasks when set. */
   /** Dynamically injected tasks for the current session (Micro-Agility engine). Takes precedence if length > 0. */
   dynamicTasks: SessionTask[] | null;
-  nodeStrikes: Record<string, number>;
-  successStreak: number;
   keyboardState: KeyboardState;
   isAdditionHelperOpen: boolean;
+  /** The Module 10 grid opened at least once this session, so the learner may bring it back (מסמך 03 §1.3 ב'). */
+  additionHelperOffered: boolean;
   helpRequested: boolean;
   pendingSupportProfileId: string | null;
   activeSupportProfileId: string | null;
@@ -215,7 +244,10 @@ interface WorkspaceState {
   setPendingSupportProfile: (profileId: string | null) => void;
   setHelpRequested: (val: boolean) => void;
   toggleHelpRequested: () => void;
-  openAdditionHelper: () => void;
+  /** 'learner' when the learner brings the grid back (מסמך 03 §1.3 ב'); default is the Module 10 hesitation stage. */
+  openAdditionHelper: (source?: 'hesitation_30s' | 'learner') => void;
+  /** Module 9: a digit key pressed on a locked result cell. Logged, never acted on. */
+  recordBlockedKeystroke: (place: Place) => void;
   closeAdditionHelper: () => void;
   toggleAdditionHelper: () => void;
   injectTask: (task: SessionTask, position: 'next' | 'end') => void;
@@ -256,6 +288,7 @@ interface WorkspaceState {
    * coaching card, no interruption to the learner's work.
    */
   requestSilentHelp: () => void;
+  helpRequestCount: number;
   helpFrictionDone: () => void;
   closeHelp: () => void;
   showFeedback: (feedback: FeedbackState, ms: number, then?: () => void) => void;
@@ -330,10 +363,12 @@ function resetTaskInteraction(_isASD = false) {
     undoTimestamps: [],
     isBoardLocked: false,
     hasRequestedBasicHelp: false,
+    helpRequestCount: 0,
     taskStartTime: Date.now(),
     keyboardState: 'UNLOCKED' as KeyboardState,
     hasDigitErrorInTask: false,
     isAdditionHelperOpen: false,
+    additionHelperOffered: false,
   };
 }
 
@@ -835,23 +870,27 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       }
 
       if (task.targetNode && s.sessionNumber >= 3) {
-        const strikes = (s.nodeStrikes[task.targetNode] || 0) + 1;
-        set({ nodeStrikes: { ...s.nodeStrikes, [task.targetNode]: strikes }, successStreak: 0 });
-        
-        // Owner ruling (14.9.2026), from the literature on learners on the autism
-        // spectrum: support stays inside the exercise. A separate "reinforcement"
-        // exercise injected after the second mistake broke the sequence the learner
-        // was in; document 03 §3.3 asks for scaffolds "בתוך התרגיל הקיים... מבלי
-        // להציג להם משימה נפרדת". Every mistake now offers the in-task coaching
-        // card; the 4-consecutive-errors and 45s triggers (Module 12) keep working.
-        set({ helpState: 'friction', frictionTriggerSource: 'mistake' });
+        // Owner rulings 14.9.2026 and 16.9.2026: support stays inside the exercise,
+        // and it is contingent (Wood et al.; מסמך 03 §1.3 ד' "שגיאות חוזרות").
+        // The first wrong answer gets the feedback line below and the learner's
+        // own tools (Undo, memory circles, blocks). The coaching card opens on the
+        // second wrong answer in a row on the same exercise. An empty answer or an
+        // unanswered question is not a wrong answer and never opens the card.
+        const incomplete = detail === 'missing_answer' || detail === 'no_choice';
+        if (!incomplete) {
+          const streak = (s.wrongAnswerTaskId === task.id ? s.wrongAnswerStreak : 0) + 1;
+          set({ wrongAnswerStreak: streak, wrongAnswerTaskId: task.id });
+          if (streak >= 2) {
+            set({ helpState: 'friction', frictionTriggerSource: 'mistake' });
+          }
+        }
       }
       showFeedback({ correct: false, title: feedbackTitle, sub: feedbackSub }, feedbackMs);
     };
 
     const handleSuccess = (feedbackTitle: string, feedbackSub: string, feedbackMs: number) => {
       get().resetConsecutiveErrors();
-      set({ awaitingNext: true });
+      set({ awaitingNext: true, wrongAnswerStreak: 0, wrongAnswerTaskId: null });
 
       const studentId = currentStudentUid();
       const durationMs = Math.max(0, Date.now() - (s.taskStartTime || Date.now()));
@@ -874,13 +913,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         firebaseSyncService.syncQMatrix(studentId, qUpdate as any).catch(console.error);
         useStore.getState().updateQMatrix(studentId, qUpdate as any);
       }
-      if (task.targetNode && s.sessionNumber >= 3 && !task.isOptionalChoiceTask) {
-        // Owner ruling (14.9.2026): nothing is injected into the seven compulsory
-        // exercises. The "excellence challenge" that used to appear after three
-        // successes in a row belongs where the PRD puts challenge work — the
-        // choice path after the compulsory set (Module 14 §ג), not mid-sequence.
-        set({ nodeStrikes: { ...s.nodeStrikes, [task.targetNode]: 0 }, successStreak: s.successStreak + 1 });
-      }
+      // Owner ruling (14.9.2026): nothing is injected into the seven compulsory
+      // exercises. Challenge work belongs to the choice path after the
+      // compulsory set (Module 14 §ג), not mid-sequence.
       
       if ((task.scaffoldLevel ?? 0) >= 1) {
         set({ scaffoldFadeLevel: Math.min(2, get().scaffoldFadeLevel + 1) });
@@ -1312,12 +1347,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     errorNonce: 0,
     focusedPlace: null,
     isAdditionHelperOpen: false,
+    additionHelperOffered: false,
 
     hasInteracted: false,
     undoTimestamps: [],
     isBoardLocked: false,
     pendingAdaptation: null,
     hasRequestedBasicHelp: false,
+    helpRequestCount: 0,
     taskStartTime: Date.now(),
     hasDeletedBlock: false,
     blocksAddedCount: 0,
@@ -1336,6 +1373,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     feedbackNonce: 0,
     helpState: 'closed',
     frictionTriggerSource: null,
+    wrongAnswerStreak: 0,
+    wrongAnswerTaskId: null,
     aiSocraticHint: null,
     socraticDistractorHint: null,
     typedErrorCount: 0,
@@ -1343,8 +1382,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     socraticDistractorErrors: 0,
     lastInteractionTime: Date.now(),
     dynamicTasks: null,
-    nodeStrikes: {},
-    successStreak: 0,
     helpRequested: false,
     pendingSupportProfileId: null,
     activeSupportProfileId: null,
@@ -1410,8 +1447,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         sessionDeadlineTime: deadline,
         selectedBranch: null,
         dynamicTasks: null,
-        nodeStrikes: {},
-        successStreak: 0,
         standardTaskIdx: startingTaskIdx ?? 0,
         qflow,
         flowStatus: 'task',
@@ -1422,6 +1457,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         feedback: null,
         helpState: 'closed',
         frictionTriggerSource: null,
+    wrongAnswerStreak: 0,
+    wrongAnswerTaskId: null,
         sessionStartTimeMs: Date.now(),
         isTimeExceeded: false,
         currentState: 'PROBLEM_ACTIVE',
@@ -1521,8 +1558,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         sessionStartTimeMs: saved.sessionStartTimeMs ?? Date.now(),
         isTimeExceeded: saved.isTimeExceeded ?? false,
         dynamicTasks: null,
-        nodeStrikes: {},
-        successStreak: 0,
         awaitingNext: false,
         boardOpen: true,
         isBoardLocked: false,
@@ -1535,6 +1570,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         feedback: null,
         helpState: 'closed',
         frictionTriggerSource: null,
+    wrongAnswerStreak: 0,
+    wrongAnswerTaskId: null,
         isSocraticCardLocked: Boolean(storedDeadline && storedDeadline > Date.now()),
         socraticLockDeadline: storedDeadline,
         socraticDistractorHint: saved.socraticDistractorHint ?? null,
@@ -1875,8 +1912,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // Module 12(c): 3 consecutive UNDO_EXECUTED actions within a single exercise trigger Socratic coach, ONLY in Session 8
         if (nextConsecutiveUndos >= 3 && s.sessionNumber === 8 && s.currentState !== 'SOCRATIC_ACTIVE' && !s.isSocraticCardLocked) {
           setTimeout(() => {
+            set({ helpState: 'socratic', currentState: 'SOCRATIC_ACTIVE', socraticTriggerReason: 'consecutive_undos_3' });
             get().fetchSocraticHint();
-            set({ helpState: 'socratic', currentState: 'SOCRATIC_ACTIVE' });
           }, 0);
         }
 
@@ -2273,7 +2310,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         status: 'pending',
       }).catch(console.error);
 
-      set({ hasRequestedBasicHelp: true });
+      const helpCount = (s.helpRequestCount || 0) + 1;
+      set({ hasRequestedBasicHelp: true, helpRequestCount: helpCount });
+      emitScaffoldEvent(get(), 'HELP_REQUESTED', { help_count: helpCount });
       // A calm, brief acknowledgement so the learner knows the signal was sent.
       showFeedback({ correct: true, title: 'המורה יודעת 🤝', sub: 'הסימן נשלח בשקט. אפשר להמשיך לעבוד.' }, 2600);
     },
@@ -2281,8 +2320,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     helpFrictionDone: () => {
       const s = get();
       if (s.helpState === 'friction') {
-        set({ helpState: 'socratic' });
-        get().transitionTo('SOCRATIC_ACTIVE');
+        get().openSocraticCard('repeated_errors');
+        // openSocraticCard declines during the 30s card lockout; the beat must
+        // still end, or its overlay would stay on screen.
+        if (get().helpState === 'friction') set({ helpState: 'closed' });
       }
     },
 
@@ -2302,8 +2343,26 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     showFeedback,
     unlockKeyboard: () => set({ keyboardState: 'UNLOCKED' }),
     lockKeyboard: () => set({ keyboardState: 'LOCKED' }),
-    openAdditionHelper: () => set({ isAdditionHelperOpen: true }),
-    closeAdditionHelper: () => set({ isAdditionHelperOpen: false }),
+    openAdditionHelper: (source = 'hesitation_30s') => {
+      if (get().isAdditionHelperOpen) return;
+      set({ isAdditionHelperOpen: true, additionHelperOffered: true });
+      emitScaffoldEvent(get(), 'ADAPTIVE_GRID_TOGGLED', { action: 'opened', source });
+    },
+    closeAdditionHelper: () => {
+      if (!get().isAdditionHelperOpen) return;
+      set({ isAdditionHelperOpen: false });
+      emitScaffoldEvent(get(), 'ADAPTIVE_GRID_TOGGLED', { action: 'closed', source: 'learner' });
+    },
+    recordBlockedKeystroke: (place) => {
+      const s = get();
+      const task = getActiveTasks(s)[s.standardTaskIdx] || null;
+      emitScaffoldEvent(
+        s,
+        'KEYBOARD_LOCK_BLOCKED',
+        { conversion_required: task?.isSubtraction ? 'decomposition' : 'composition' },
+        placeToColumnIndex(place)
+      );
+    },
     toggleAdditionHelper: () => set((s) => ({ isAdditionHelperOpen: !s.isAdditionHelperOpen })),
     setKeyboardSocratic: () => {
       get().openSocraticCard('hesitation_45s');
@@ -2496,11 +2555,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         errorNonce: 0,
         focusedPlace: null,
         isAdditionHelperOpen: false,
+    additionHelperOffered: false,
         hasInteracted: false,
         undoTimestamps: [],
         isBoardLocked: false,
         pendingAdaptation: null,
         hasRequestedBasicHelp: false,
+    helpRequestCount: 0,
         taskStartTime: Date.now(),
         hasDeletedBlock: false,
         blocksAddedCount: 0,
@@ -2516,14 +2577,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         feedbackNonce: 0,
         helpState: 'closed',
         frictionTriggerSource: null,
+    wrongAnswerStreak: 0,
+    wrongAnswerTaskId: null,
         aiSocraticHint: null,
         socraticDistractorHint: null,
         typedErrorCount: 0,
         socraticDistractorErrors: 0,
         lastInteractionTime: Date.now(),
         dynamicTasks: null,
-        nodeStrikes: {},
-        successStreak: 0,
         currentState: 'IDLE' as VRAWorkspaceState,
         activeColumnIndex: 0,
         isSocraticCardLocked: false,

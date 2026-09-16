@@ -28,7 +28,7 @@ const DOC03_COMPULSORY: Record<4 | 5 | 6 | 8, Record<LearningPath, Pair[]>> = {
   // promise (a borrow from the tens, a borrow from the hundreds) were exercised nowhere in the green path.
   5: { remediation_path: [[78, '-', 25], [53, '-', 18], [142, '-', 25], [345, '-', 182], [563, '-', 128], [480, '-', 155]], green_path: [[5432, '-', 2118], [6543, '-', 1227], [7651, '-', 3381], [8762, '-', 4932], [6284, '-', 1157], [3845, '-', 1517]] },
   6: { remediation_path: [[240, '-', 125], [305, '-', 12], [204, '-', 112], [300, '-', 142], [602, '-', 145], [500, '-', 287]], green_path: [[2045, '-', 1128], [3005, '-', 1248], [4000, '-', 1562], [5000, '-', 2345], [6020, '-', 1485], [7003, '-', 2845]] },
-  8: { remediation_path: [[142, '+', 23], [128, '+', 35], [456, '+', 281], [78, '-', 25], [53, '-', 18], [302, '-', 145]], green_path: [[1245, '+', 328], [5678, '+', 2453], [5432, '-', 2118], [4354, '-', 1126], [4000, '-', 1562]] },
+  8: { remediation_path: [[142, '+', 23], [128, '+', 35], [456, '+', 281], [78, '-', 25], [53, '-', 18], [602, '-', 145]], green_path: [[1245, '+', 328], [5678, '+', 2453], [5432, '-', 2118], [6284, '-', 1157], [4000, '-', 1562]] }, // 602 − 145 and 6,284 − 1,157 replace the two the document listed against its own rule (owner, 16.9.2026, register decision א)
 };
 
 /** מסמך 03 §3.3 — the number each representation task is about, in order (7 per path). */
@@ -285,15 +285,14 @@ describe('every exercise is arithmetically sound', () => {
     }
   });
 
-  it('session 8 reuses only numbers the learner met in sessions 4–6 of the same path, where the document reuses them', () => {
+  it('session 8 reuses only numbers the learner met in sessions 4–6 of the same path', () => {
     for (const path of PATHS) {
       const earlier = new Set(([4, 5, 6] as const).flatMap((s) => SESSIONS_BY_PATH[s][path].map((t) => `${t.numberA}${t.isSubtraction ? '-' : '+'}${t.numberB}`)));
       const s8 = SESSIONS_BY_PATH[8][path].map((t) => `${t.numberA}${t.isSubtraction ? '-' : '+'}${t.numberB}`);
-      // מסמך 03 §3.8 lists two exercises (302 − 145; 4,354 − 1,126) that do not appear in §3.4–3.6; every other one does.
-      const documentedExceptions = new Set(['302-145', '4354-1126']);
-      for (const key of s8) {
-        if (!documentedExceptions.has(key)) expect(earlier.has(key), `${path} ${key}`).toBe(true);
-      }
+      // מסמך 03 §3.8 listed two exercises (302 − 145; 4,354 − 1,126) that appear nowhere in §3.4–3.6, against its
+      // own rule. The owner replaced them (16.9.2026, register decision א) with the same-structure exercises the
+      // learner did meet, so the rule now holds without exception.
+      for (const key of s8) expect(earlier.has(key), `${path} ${key}`).toBe(true);
     }
   });
 });

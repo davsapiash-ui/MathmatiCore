@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useWorkspaceStore, getActiveTasks } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, getActiveTasks, placeToColumnIndex } from '@/application/useWorkspaceStore';
 import { useAuthStore, currentStudentUid } from '@/application/useAuthStore';
 import { SUPPORT_CONTENT, getDynamicSocraticHint } from '@/data/sessionTasks';
 import type { SocraticChoice } from '@/infrastructure/services/SocraticEngine';
@@ -33,6 +33,44 @@ export function HelpOverlays() {
   }, [helpState, helpFrictionDone]);
 
   const aiSocraticHint = useWorkspaceStore((s) => s.aiSocraticHint);
+
+  // PRD Appendix A §3: SOCRATIC_CARD_SHOWN is emitted once per opening of the
+  // card, from the component that actually renders it. It used to live in a
+  // drawer nothing mounted, so the radar, the session report and the AI
+  // analysis all counted zero cards. Emission waits for the first hint so the
+  // error_category (Module 18 distribution) is real, not always null.
+  const cardShownRef = useRef(false);
+  useEffect(() => {
+    if (helpState !== 'socratic') {
+      cardShownRef.current = false;
+      return;
+    }
+    if (cardShownRef.current || !aiSocraticHint) return;
+    cardShownRef.current = true;
+
+    const ws = useWorkspaceStore.getState();
+    const studentId = currentStudentUid();
+    const task = getActiveTasks(ws)[ws.standardTaskIdx] || null;
+    // Every opening path records its trigger in the store; the fallback only
+    // covers a card restored from a saved session.
+    const triggerReason =
+      ws.socraticTriggerReason ??
+      (ws.sessionNumber === 8 && (ws.consecutiveUndoCount ?? 0) >= 3
+        ? 'consecutive_undos_3'
+        : 'consecutive_errors_4');
+
+    emitTelemetry({
+      session_id: `session_${ws.sessionNumber}_student_${studentId}`,
+      student_id: studentId,
+      exercise_id: task?.id || `ex_${ws.sessionNumber}_01`,
+      event_type: 'SOCRATIC_CARD_SHOWN',
+      column_index: ws.focusedPlace ? placeToColumnIndex(ws.focusedPlace) : (ws.activeColumnIndex || 0),
+      details: {
+        trigger_reason: triggerReason,
+        error_category: aiSocraticHint.error_category ?? null,
+      },
+    }).catch(console.error);
+  }, [helpState, aiSocraticHint]);
 
   // Strict fallback: when the AI hint is not available the card shows the
   // static Socratic content, with the line adapted to the task's target node.

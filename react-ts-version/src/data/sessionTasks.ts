@@ -87,7 +87,6 @@ export interface SessionTask {
   choices?: TaskChoice[];
 
   /* Scaffolding & hints */
-  hintHe?: string;
 
   /** Module 14: Indicates an elective branch task (Reinforcement / Challenge) excluded from baseline mastery metrics */
   isOptionalChoiceTask?: boolean;
@@ -144,7 +143,6 @@ export const SESSION1_TASKS: SessionTask[] = [
     numberA: 240, numberB: 135, correctAnswer: 375,
     titleHe: 'תרגול חיבור: בלי המרות',
     instructionHe: 'בנו בבית המספרים את המספרים 240 ו-135 בעזרת הקוביות. חברו אותם ורשמו את התוצאה הסופית.',
-    hintHe: 'פשוט גררו את הבלוקים לטורים המתאימים בבית המספרים וחברו את כל המאות ואת כל העשרות.',
     scaffoldLevel: 1,
   },
   // 9. Math Refresh 2
@@ -154,7 +152,6 @@ export const SESSION1_TASKS: SessionTask[] = [
     numberA: 385, numberB: 152, correctAnswer: 537,
     titleHe: 'תרגול חיבור: קיבוץ לעשרות ומאות',
     instructionHe: 'בנו בבית המספרים 385 ו-152 וחברו אותם. כאשר מצטברים 10 פריטים בטור, לחצו על כפתור "הקבץ (10)" שמופיע בראש הטור.',
-    hintHe: 'כאשר יש 10 בלוקים בטור, לחצו על כפתור "הקבץ (10)" הירוק שבראש הטור כדי לקבצם.',
     scaffoldLevel: 1,
     requiresGrouping: true,
   },
@@ -166,7 +163,6 @@ export const SESSION1_TASKS: SessionTask[] = [
     numberA: 470, numberB: 250, correctAnswer: 220,
     titleHe: 'תרגול חיסור: הוצאת איברים',
     instructionHe: 'בואו נתרגל חיסור בבית המספרים: בנו רק את המספר הראשון (470). מתוכו, מחקו 250 (על ידי גרירת 2 מאות ו-5 עשרות לפח האשפה), והקלידו את התוצאה שנשארה.',
-    hintHe: 'בחיסור לא בונים את שני המספרים! בונים את המספר הגדול בבית המספרים ומוציאים מתוכו בלוקים.',
     scaffoldLevel: 1,
   },
   // 11. Math Refresh 4
@@ -177,7 +173,6 @@ export const SESSION1_TASKS: SessionTask[] = [
     numberA: 425, numberB: 162, correctAnswer: 263,
     titleHe: 'תרגול חיסור: פריטת עשרות',
     instructionHe: 'בנו 425 והחסירו 162. כדי לפרוט מאה לעשרות, לחצו על קוביית המאה בלוח או גררו אותה לטור העשרות.',
-    hintHe: 'לחצו על קוביית המאה כדי לפרק אותה ל-10 עשרות, או גררו אותה ימינה לטור העשרות!',
     scaffoldLevel: 1,
     requiresUngrouping: true,
   },
@@ -470,7 +465,10 @@ export const SESSION8_REMEDIATION_TASKS: SessionTask[] = [
   addition('s8_r_t3', 456, 281, 'חיבור עם המרה בטור העשרות', S8_ADD('456 + 281'), { scaffoldLevel: 1 }),
   subtraction('s8_r_t4', 78, 25, 'חיסור ללא פריטה בתחום המאה', S8_SUB('78 − 25'), { scaffoldLevel: 1 }),
   subtraction('s8_r_t5', 53, 18, 'חיסור עם פריטה פשוטה בתחום המאה', S8_SUB('53 − 18'), { scaffoldLevel: 1 }),
-  subtraction('s8_r_t6', 302, 145, 'חיסור עם פריטה כפולה דרך אפס יחיד', S8_SUB('302 − 145'), { scaffoldLevel: 1, targetNode: 'zero_placeholder' }),
+  // ★ chosen (owner, 16.9.2026): מסמך 03 §3.8 lists 302 − 145 here, which the learner never met in sessions 4–6,
+  // against the section's own rule. Replaced by session 6 exercise 5 (602 − 145 = 457): the same double
+  // decomposition through a single zero in the tens, so the title stays true and the fading gap can be measured.
+  subtraction('s8_r_t6', 602, 145, 'חיסור עם פריטה כפולה דרך אפס יחיד', S8_SUB('602 − 145'), { scaffoldLevel: 1, targetNode: 'zero_placeholder' }),
   // ★ chosen: reuses 456 + 281 (session 4) as מסמך 03 requires known numbers; the tens digit of an addend is hidden.
   skeleton('s8_r_t7', 456, 281, false, { a: ['tens'] },
     'בעיית חקר של גילוי ספרה חסרה בתחום האלף',
@@ -482,7 +480,9 @@ export const SESSION8_GREEN_TASKS: SessionTask[] = [
   addition('s8_g_t1', 1245, 328, 'חיבור עם המרה אחת בתחום הרבבה', S8_ADD('1,245 + 328'), { scaffoldLevel: 1 }),
   addition('s8_g_t2', 5678, 2453, 'חיבור עם המרה משולשת בתחום הרבבה', S8_ADD('5,678 + 2,453'), { scaffoldLevel: 1 }),
   subtraction('s8_g_t3', 5432, 2118, 'חיסור עם פריטה פשוטה בתחום הרבבה', S8_SUB('5,432 − 2,118'), { scaffoldLevel: 1 }),
-  subtraction('s8_g_t4', 4354, 1126, 'חיסור עם פריטה פשוטה בתחום הרבבה', S8_SUB('4,354 − 1,126'), { scaffoldLevel: 1 }),
+  // ★ chosen (owner, 16.9.2026): מסמך 03 §3.8 lists 4,354 − 1,126 here, never met in sessions 4–6. Replaced by
+  // session 5 exercise 5 (6,284 − 1,157 = 5,127), which the document titles identically: one decomposition, units only.
+  subtraction('s8_g_t4', 6284, 1157, 'חיסור עם פריטה פשוטה בתחום הרבבה', S8_SUB('6,284 − 1,157'), { scaffoldLevel: 1 }),
   subtraction('s8_g_t5', 4000, 1562, 'חיסור מעל אפסים רציפים בתחום הרבבה', S8_SUB('4,000 − 1,562'), { scaffoldLevel: 1, targetNode: 'zero_placeholder' }),
   // ★ chosen: reuses 5,678 + 2,453 (session 4); two addend digits hidden.
   skeleton('s8_g_t6', 5678, 2453, false, { a: ['hundreds', 'units'] },

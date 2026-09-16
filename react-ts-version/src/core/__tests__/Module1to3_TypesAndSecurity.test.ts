@@ -95,7 +95,7 @@ describe('Work Package 1 (WP1): Types & Security Contracts Verification', () => 
   });
 
   describe('2. Telemetry Contracts & column_index Validation Rules (Module 5 §C)', () => {
-    it('contains all 13 required TelemetryEventType values', () => {
+    it('contains the 13 Appendix A §3 TelemetryEventType values plus the three scaffold events (register deviation 19)', () => {
       const expectedEvents: TelemetryEventType[] = [
         'SESSION_START',
         'PROBLEM_LOAD',
@@ -110,11 +110,14 @@ describe('Work Package 1 (WP1): Types & Security Contracts Verification', () => 
         'SOCRATIC_OPTION_SELECTED',
         'PROBLEM_COMPLETE',
         'REFLECTION_SUBMITTED',
+        'ADAPTIVE_GRID_TOGGLED',
+        'KEYBOARD_LOCK_BLOCKED',
+        'HELP_REQUESTED',
       ];
 
-      expect(expectedEvents).toHaveLength(13);
-      expect(COLUMN_SCOPED_EVENTS).toHaveLength(7);
-      expect(NON_COLUMN_EVENTS).toHaveLength(5);
+      expect(expectedEvents).toHaveLength(16);
+      expect(COLUMN_SCOPED_EVENTS).toHaveLength(8);
+      expect(NON_COLUMN_EVENTS).toHaveLength(7);
     });
 
     it('validates that DIGIT_ENTERED requires is_correct boolean and column_index (0, 1, 2)', () => {

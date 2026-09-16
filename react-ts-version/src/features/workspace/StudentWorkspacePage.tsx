@@ -38,6 +38,7 @@ import { useStore } from '@/application/useStore';
 
 import { StudentChatOverlay } from './overlays/StudentChatOverlay';
 import { AdaptiveAdditionGrid } from './board/AdaptiveAdditionGrid';
+import { Grid3x3 } from 'lucide-react';
 
 import { SocraticEngine } from '@/infrastructure/services/SocraticEngine';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
@@ -423,6 +424,8 @@ export function StudentWorkspacePage() {
   const [isInitialized, setIsInitialized] = useState(false);
   const [networkError, setNetworkError] = useState(false);
   const isAdditionHelperOpen = useWorkspaceStore((s) => s.isAdditionHelperOpen);
+  const additionHelperOffered = useWorkspaceStore((s) => s.additionHelperOffered);
+  const openAdditionHelper = useWorkspaceStore((s) => s.openAdditionHelper);
 
   // Tab switching & background throttling detection (Module 10 & 18)
   const [isTabHidden, setIsTabHidden] = useState<boolean>(
@@ -1119,6 +1122,23 @@ export function StudentWorkspacePage() {
               <AdaptiveAdditionGrid key="adaptive-grid" />
             )}
           </AnimatePresence>
+        )}
+        {/* מסמך 03 §1.3 ב' / 04 §1 (register deviation 18): a learner may bring
+            back an aid that faded. The tab sits where the grid itself appears,
+            not in the topbar — מסמך 04 §3א keeps the topbar to "כפתורי ניווט
+            בסיסיים ושקטים". isAdditionBoardEnabled already restricts this to
+            enhanced_cognitive_support learners in sessions 3–7. */}
+        {isAdditionBoardEnabled && additionHelperOffered && !isAdditionHelperOpen && (
+          <button
+            type="button"
+            onClick={() => openAdditionHelper('learner')}
+            className="fixed bottom-6 left-6 z-40 h-12 px-4 rounded-2xl text-sm font-bold transition-all cursor-pointer flex items-center gap-1.5 border shadow-lg active:scale-95 bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/40 dark:border-amber-700/60 dark:text-amber-200"
+            aria-label="הצג שוב את לוח החיבור"
+            title="החזרת לוח החיבור למסך"
+          >
+            <Grid3x3 className="w-4 h-4" aria-hidden="true" />
+            <span>לוח חיבור</span>
+          </button>
         )}
       </div>
 

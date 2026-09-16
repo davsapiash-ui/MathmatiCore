@@ -13,6 +13,9 @@ import {
   studentNumberFromSessionId,
   summarizeMeeting,
   type MeetingSummary,
+  computeFadingGap,
+  FADING_GUESS_SECONDS,
+  type FadingGap,
 } from "./meetingMetrics";
 import { EXACT_AI_FALLBACK_TEXT } from "./pedagogicalReport";
 import { rtlText } from "./hebrewPdf";
@@ -83,12 +86,18 @@ export interface ClassLearnerRow {
   socratic_cards: number;
   socratic_triggers: Record<string, number>;
   error_categories: Record<string, number>;
+  grid_openings: number;
+  grid_reopenings: number;
+  keyboard_lock_blocks: number;
+  help_requests: number;
   reflection_submitted: boolean;
   reflections_count: number;
   recording_minutes: number;
   recording_truncated: boolean;
   /** exercise_id → how the learner finished it. */
   exercise_outcomes: Record<string, ExerciseOutcome>;
+  /** Session 8 only (מסמך 03 §3.8): the learner without blocks vs the same learner with blocks in sessions 4–6. */
+  fading_gap: FadingGap | null;
   session_doc_score_percent: number | null;
   session_doc_recommended_path: string | null;
   teacher_selected_path: string | null;
@@ -131,6 +140,10 @@ export interface ClassAggregates {
   socratic_cards_total: number;
   socratic_triggers: Record<string, number>;
   error_categories: Record<string, number>;
+  grid_openings_total: number;
+  grid_reopenings_total: number;
+  keyboard_lock_blocks_total: number;
+  help_requests_total: number;
   reflections_submitted: number;
   exercises: ClassExerciseRow[];
 }
@@ -154,7 +167,9 @@ export function buildLearnerRow(
   learningPath: "green_path" | "remediation_path",
   sessionDoc: Record<string, any> | null,
   recording: { minutes: number; truncated: boolean } | null,
-  reflectionsCount: number
+  reflectionsCount: number,
+  /** Sessions 4–6 events of the same learner; passed for session 8 only. */
+  earlierEvents: Record<string, any>[] | null = null
 ): ClassLearnerRow {
   const sorted = [...events].sort((a, b) => (a.client_timestamp || 0) - (b.client_timestamp || 0));
   const first = computeFirstAttemptScore(sorted, compulsoryTotal);
@@ -220,11 +235,16 @@ export function buildLearnerRow(
     socratic_cards: summary.socratic_cards,
     socratic_triggers: triggers,
     error_categories: categories,
+    grid_openings: summary.grid_openings,
+    grid_reopenings: summary.grid_reopenings,
+    keyboard_lock_blocks: summary.keyboard_lock_blocks,
+    help_requests: summary.help_requests,
     reflection_submitted: summary.reflection_submitted || reflectionsCount > 0,
     reflections_count: reflectionsCount,
     recording_minutes: recording?.minutes ?? 0,
     recording_truncated: recording?.truncated ?? false,
     exercise_outcomes: outcomes,
+    fading_gap: earlierEvents ? computeFadingGap(sorted, earlierEvents) : null,
     session_doc_score_percent: docScore,
     session_doc_recommended_path: sessionDoc?.matrix_recommended_path ?? null,
     teacher_selected_path: sessionDoc?.teacher_selected_path ?? null,
@@ -316,6 +336,10 @@ export function aggregateClass(rows: ClassLearnerRow[], eventsByLearner: Map<num
     socratic_cards_total: sum((r) => r.socratic_cards),
     socratic_triggers: mergeCounts((r) => r.socratic_triggers),
     error_categories: mergeCounts((r) => r.error_categories),
+    grid_openings_total: sum((r) => r.grid_openings),
+    grid_reopenings_total: sum((r) => r.grid_reopenings),
+    keyboard_lock_blocks_total: sum((r) => r.keyboard_lock_blocks),
+    help_requests_total: sum((r) => r.help_requests),
     reflections_submitted: rows.filter((r) => r.reflection_submitted).length,
     exercises,
   };
@@ -456,6 +480,9 @@ export function buildClassCsv(rows: ClassLearnerRow[], exercises: ClassExerciseR
     "socratic_cards", "socratic_triggers", "error_categories", "reflection_submitted", "reflections_count",
     "recording_minutes", "recording_truncated", "session_doc_score_percent", "session_doc_recommended_path",
     "teacher_selected_path", "teacher_gate_approved",
+    "grid_openings", "grid_reopenings", "keyboard_lock_blocks", "help_requests",
+    "fading_pairs", "fading_accuracy_with_blocks", "fading_accuracy_without_blocks",
+    "fading_seconds_with_blocks", "fading_seconds_without_blocks", "fading_guessed", "fading_unpaired",
     ...exerciseIds.map((id) => `outcome_${id}`),
   ];
   const lines = rows.map((r) =>
@@ -467,6 +494,10 @@ export function buildClassCsv(rows: ClassLearnerRow[], exercises: ClassExerciseR
       r.socratic_cards, r.socratic_triggers, r.error_categories, r.reflection_submitted, r.reflections_count,
       r.recording_minutes, r.recording_truncated, r.session_doc_score_percent, r.session_doc_recommended_path,
       r.teacher_selected_path, r.teacher_gate_approved,
+      r.grid_openings, r.grid_reopenings, r.keyboard_lock_blocks, r.help_requests,
+      r.fading_gap?.pairs_measured ?? "", r.fading_gap?.accuracy_with_blocks_percent ?? "", r.fading_gap?.accuracy_without_blocks_percent ?? "",
+      r.fading_gap?.mean_seconds_with_blocks ?? "", r.fading_gap?.mean_seconds_without_blocks ?? "",
+      r.fading_gap?.guessed_exercises.join("|") ?? "", r.fading_gap?.unpaired_exercises.join("|") ?? "",
       ...exerciseIds.map((id) => r.exercise_outcomes[id] ?? "not_attempted"),
     ].map(cell).join(",")
   );
@@ -556,6 +587,7 @@ export function createClassReportPdfBufferWithPdfkit(report: Record<string, any>
       const triggers = Object.entries(a.socratic_triggers).map(([k, v]) => `${k}: ${v}`).join(", ");
       const categories = Object.entries(a.error_categories).map(([k, v]) => `${k}: ${v}`).join(", ");
       line(`כרטיסי חניכה: ${a.socratic_cards_total}${triggers ? ` (${triggers})` : ""} | סיווגי שגיאה: ${categories || "אין"}`);
+      line(`לוח החיבור: נפתח ${a.grid_openings_total}, הוחזר על ידי הלומד ${a.grid_reopenings_total} | הקלדה לפני המרה (מקלדת נעולה): ${a.keyboard_lock_blocks_total} | קריאות שקטות למורה: ${a.help_requests_total}`);
       line(`זמן פעילות ממוצע: ${a.active_minutes_mean} דקות | דקות הקלטה: ${a.recording_minutes_total} | רפלקציות: ${a.reflections_submitted} מתוך ${a.learners_with_data}`);
 
       heading("3. תרגילים: כמה לומדים פתרו בניסיון ראשון");
@@ -573,6 +605,19 @@ export function createClassReportPdfBufferWithPdfkit(report: Record<string, any>
         );
         const outcomes = Object.entries(r.exercise_outcomes).map(([id, o]) => `${id}: ${OUTCOME_HE[o]}`).join(", ");
         if (outcomes) line(outcomes, 8, "#64748b", 16);
+      }
+
+      if (rows.some((r) => r.fading_gap)) {
+        const v = (x: number | null, unit: string) => (x === null ? "—" : `${x}${unit}`);
+        heading("4א. פער הדעיכה: מפגש 8 בלי לבנים מול מפגשים 4–6 עם לבנים (אותם מספרים, אותו לומד)", "#7c2d12");
+        for (const r of rows) {
+          const f = r.fading_gap;
+          if (!f) continue;
+          line(
+            `תלמיד ${r.student_id} | זוגות שנמדדו: ${f.pairs_measured} | נכון בניסיון ראשון: עם לבנים ${v(f.accuracy_with_blocks_percent, "%")}, בלי ${v(f.accuracy_without_blocks_percent, "%")} | זמן ממוצע לתרגיל: עם ${v(f.mean_seconds_with_blocks, " שנ׳")}, בלי ${v(f.mean_seconds_without_blocks, " שנ׳")} | מהר מדי (מתחת ל-${FADING_GUESS_SECONDS} שנ׳): ${f.guessed_exercises.join(", ") || "אין"}${f.unpaired_exercises.length > 0 ? ` | ללא זוג: ${f.unpaired_exercises.join(", ")}` : ""}`,
+            9, "#0f172a"
+          );
+        }
       }
 
       heading("5. ניתוח הבינה: דפוסים כיתתיים והמלצות הוראה", "#92400e");
@@ -634,11 +679,18 @@ export const generateClassMeetingReport = onCall(CLASS_REPORT_RUNTIME, async (re
   // ── 1. Every telemetry event of this meeting, per learner ──────────────
   const allTelemetry = await readAllDocs(db.collection("telemetry_logs"));
   const eventsByLearner = new Map<number, Record<string, any>[]>();
+  // A session-8 report also needs each learner's sessions 4–6 (fading gap).
+  const earlierByLearner = new Map<number, Record<string, any>[]>();
   let telemetryEventCount = 0;
   for (const { data } of allTelemetry) {
-    if (sessionNumberFromId(String(data.session_id || "")) !== sessionNumber) continue;
+    const m = sessionNumberFromId(String(data.session_id || ""));
     const n = studentNumber(data.student_id);
     if (n === null) continue;
+    if (sessionNumber === 8 && m !== null && m >= 4 && m <= 6) {
+      earlierByLearner.set(n, [...(earlierByLearner.get(n) ?? []), data]);
+      continue;
+    }
+    if (m !== sessionNumber) continue;
     telemetryEventCount++;
     eventsByLearner.set(n, [...(eventsByLearner.get(n) ?? []), data]);
   }
@@ -708,7 +760,8 @@ export const generateClassMeetingReport = onCall(CLASS_REPORT_RUNTIME, async (re
     const compulsory = await resolveCompulsoryTotal(db, sessionNumber, pathOf, compulsoryCache);
     learners.push(buildLearnerRow(
       n, eventsByLearner.get(n) ?? [], compulsory, pathOf,
-      sessionDocByLearner.get(n) ?? null, recordingByLearner.get(n) ?? null, reflectionsByLearner.get(n) ?? 0
+      sessionDocByLearner.get(n) ?? null, recordingByLearner.get(n) ?? null, reflectionsByLearner.get(n) ?? 0,
+      sessionNumber === 8 ? (earlierByLearner.get(n) ?? []) : null
     ));
   }
   const aggregates = aggregateClass(learners, eventsByLearner);

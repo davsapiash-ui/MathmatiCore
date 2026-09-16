@@ -25,7 +25,8 @@ export type SocraticTriggerReason =
   | "hesitation_45s"
   | "consecutive_errors_4"
   | "consecutive_undos_3"
-  | "conversion_not_performed";
+  | "conversion_not_performed"
+  | "repeated_errors";
 
 export const SOCRATIC_COLUMNS: SocraticColumn[] = ["units", "tens", "hundreds", "thousands"];
 export const SOCRATIC_ERROR_CATEGORIES: SocraticErrorCategory[] = ["calculation", "procedural", "conceptual"];
@@ -34,6 +35,7 @@ export const SOCRATIC_TRIGGER_REASONS: SocraticTriggerReason[] = [
   "consecutive_errors_4",
   "consecutive_undos_3",
   "conversion_not_performed",
+  "repeated_errors",
 ];
 
 /** Hebrew names of the columns, indexed like active_column_index. */
@@ -57,6 +59,7 @@ const TRIGGER_HE: Record<SocraticTriggerReason, string> = {
   consecutive_errors_4: "ארבע שגיאות רצופות בהקלדה",
   consecutive_undos_3: "שלוש לחיצות ביטול רצופות",
   conversion_not_performed: "הקלדה בטור שדורש קיבוץ או פריטה לפני שבוצעה ההמרה בלבנים",
+  repeated_errors: "תשובה שגויה שנייה ברצף באותו תרגיל",
 };
 
 /** Hard cap on blocks per column the proxy will accept — anything larger is not a real board. */
@@ -411,6 +414,9 @@ export function deriveSocraticFacts(req: SocraticRequest): SocraticFacts {
   } else if (trigger === "conversion_not_performed") {
     suggested_category = "procedural";
     suggested_focus_he = "הלומד ניסה להקליד תוצאה בטור שדורש קיבוץ או פריטה לפני שביצע את ההמרה בלבנים.";
+  } else if (trigger === "repeated_errors") {
+    suggested_category = "calculation";
+    suggested_focus_he = "הלומד הגיש תשובה שגויה פעמיים ברצף באותו תרגיל — יש לכוון אותו לטור שבו התוצאה אינה נכונה, בלי לומר את הספרה.";
   } else if (trigger === "consecutive_undos_3") {
     suggested_category = "conceptual";
     suggested_focus_he = "הלומד ביטל שלוש פעולות ברצף — סימן לחוסר ביטחון באסטרטגיה, לא לטעות בחישוב בודד.";
