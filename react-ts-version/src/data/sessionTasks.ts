@@ -87,7 +87,6 @@ export interface SessionTask {
   choices?: TaskChoice[];
 
   /* Scaffolding & hints */
-  hintHe?: string;
 
   /** Module 14: Indicates an elective branch task (Reinforcement / Challenge) excluded from baseline mastery metrics */
   isOptionalChoiceTask?: boolean;
@@ -144,7 +143,6 @@ export const SESSION1_TASKS: SessionTask[] = [
     numberA: 240, numberB: 135, correctAnswer: 375,
     titleHe: 'תרגול חיבור: בלי המרות',
     instructionHe: 'בנו בבית המספרים את המספרים 240 ו-135 בעזרת הקוביות. חברו אותם ורשמו את התוצאה הסופית.',
-    hintHe: 'פשוט גררו את הבלוקים לטורים המתאימים בבית המספרים וחברו את כל המאות ואת כל העשרות.',
     scaffoldLevel: 1,
   },
   // 9. Math Refresh 2
@@ -154,7 +152,6 @@ export const SESSION1_TASKS: SessionTask[] = [
     numberA: 385, numberB: 152, correctAnswer: 537,
     titleHe: 'תרגול חיבור: קיבוץ לעשרות ומאות',
     instructionHe: 'בנו בבית המספרים 385 ו-152 וחברו אותם. כאשר מצטברים 10 פריטים בטור, לחצו על כפתור "הקבץ (10)" שמופיע בראש הטור.',
-    hintHe: 'כאשר יש 10 בלוקים בטור, לחצו על כפתור "הקבץ (10)" הירוק שבראש הטור כדי לקבצם.',
     scaffoldLevel: 1,
     requiresGrouping: true,
   },
@@ -166,7 +163,6 @@ export const SESSION1_TASKS: SessionTask[] = [
     numberA: 470, numberB: 250, correctAnswer: 220,
     titleHe: 'תרגול חיסור: הוצאת איברים',
     instructionHe: 'בואו נתרגל חיסור בבית המספרים: בנו רק את המספר הראשון (470). מתוכו, מחקו 250 (על ידי גרירת 2 מאות ו-5 עשרות לפח האשפה), והקלידו את התוצאה שנשארה.',
-    hintHe: 'בחיסור לא בונים את שני המספרים! בונים את המספר הגדול בבית המספרים ומוציאים מתוכו בלוקים.',
     scaffoldLevel: 1,
   },
   // 11. Math Refresh 4
@@ -177,7 +173,6 @@ export const SESSION1_TASKS: SessionTask[] = [
     numberA: 425, numberB: 162, correctAnswer: 263,
     titleHe: 'תרגול חיסור: פריטת עשרות',
     instructionHe: 'בנו 425 והחסירו 162. כדי לפרוט מאה לעשרות, לחצו על קוביית המאה בלוח או גררו אותה לטור העשרות.',
-    hintHe: 'לחצו על קוביית המאה כדי לפרק אותה ל-10 עשרות, או גררו אותה ימינה לטור העשרות!',
     scaffoldLevel: 1,
     requiresUngrouping: true,
   },

@@ -21,7 +21,6 @@ export interface MathTask {
   thoughtQuestionHe?: string;
   choices?: TaskChoice[];
   correctChoice?: string;
-  hintHe?: string;
   scaffoldLevel?: number;
 
   // Q-Matrix backward diagnosis

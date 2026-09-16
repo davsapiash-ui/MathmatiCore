@@ -205,8 +205,6 @@ interface WorkspaceState {
   /** Teacher-approved AI-generated task list (Socratic Engine); overrides session tasks when set. */
   /** Dynamically injected tasks for the current session (Micro-Agility engine). Takes precedence if length > 0. */
   dynamicTasks: SessionTask[] | null;
-  nodeStrikes: Record<string, number>;
-  successStreak: number;
   keyboardState: KeyboardState;
   isAdditionHelperOpen: boolean;
   /** The Module 10 grid opened at least once this session, so the learner may bring it back (מסמך 03 §1.3 ב'). */
@@ -844,9 +842,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       }
 
       if (task.targetNode && s.sessionNumber >= 3) {
-        const strikes = (s.nodeStrikes[task.targetNode] || 0) + 1;
-        set({ nodeStrikes: { ...s.nodeStrikes, [task.targetNode]: strikes }, successStreak: 0 });
-        
         // Owner rulings 14.9.2026 and 16.9.2026: support stays inside the exercise,
         // and it is contingent (Wood et al.; מסמך 03 §1.3 ד' "שגיאות חוזרות").
         // The first wrong answer gets the feedback line below and the learner's
@@ -890,13 +885,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         firebaseSyncService.syncQMatrix(studentId, qUpdate as any).catch(console.error);
         useStore.getState().updateQMatrix(studentId, qUpdate as any);
       }
-      if (task.targetNode && s.sessionNumber >= 3 && !task.isOptionalChoiceTask) {
-        // Owner ruling (14.9.2026): nothing is injected into the seven compulsory
-        // exercises. The "excellence challenge" that used to appear after three
-        // successes in a row belongs where the PRD puts challenge work — the
-        // choice path after the compulsory set (Module 14 §ג), not mid-sequence.
-        set({ nodeStrikes: { ...s.nodeStrikes, [task.targetNode]: 0 }, successStreak: s.successStreak + 1 });
-      }
+      // Owner ruling (14.9.2026): nothing is injected into the seven compulsory
+      // exercises. Challenge work belongs to the choice path after the
+      // compulsory set (Module 14 §ג), not mid-sequence.
       
       if ((task.scaffoldLevel ?? 0) >= 1) {
         set({ scaffoldFadeLevel: Math.min(2, get().scaffoldFadeLevel + 1) });
@@ -1362,8 +1353,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     socraticDistractorErrors: 0,
     lastInteractionTime: Date.now(),
     dynamicTasks: null,
-    nodeStrikes: {},
-    successStreak: 0,
     helpRequested: false,
     pendingSupportProfileId: null,
     activeSupportProfileId: null,
@@ -1429,8 +1418,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         sessionDeadlineTime: deadline,
         selectedBranch: null,
         dynamicTasks: null,
-        nodeStrikes: {},
-        successStreak: 0,
         standardTaskIdx: startingTaskIdx ?? 0,
         qflow,
         flowStatus: 'task',
@@ -1542,8 +1529,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         sessionStartTimeMs: saved.sessionStartTimeMs ?? Date.now(),
         isTimeExceeded: saved.isTimeExceeded ?? false,
         dynamicTasks: null,
-        nodeStrikes: {},
-        successStreak: 0,
         awaitingNext: false,
         boardOpen: true,
         isBoardLocked: false,
@@ -2550,8 +2535,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         socraticDistractorErrors: 0,
         lastInteractionTime: Date.now(),
         dynamicTasks: null,
-        nodeStrikes: {},
-        successStreak: 0,
         currentState: 'IDLE' as VRAWorkspaceState,
         activeColumnIndex: 0,
         isSocraticCardLocked: false,

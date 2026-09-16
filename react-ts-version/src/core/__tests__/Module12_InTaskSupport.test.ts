@@ -34,7 +34,7 @@ describe('Module 12 — a mistake is met inside the exercise, never with an inje
   });
 
   it('the second wrong answer in a row opens the in-task coaching flow; an empty answer never does', () => {
-    const handler = store.slice(store.indexOf('const strikes = (s.nodeStrikes[task.targetNode] || 0) + 1;'));
+    const handler = store.slice(store.indexOf("const incomplete = detail === 'missing_answer' || detail === 'no_choice';"));
     const block = handler.slice(0, handler.indexOf('showFeedback({ correct: false'));
     expect(block).toContain("const incomplete = detail === 'missing_answer' || detail === 'no_choice';");
     expect(block).toContain('if (streak >= 2) {');

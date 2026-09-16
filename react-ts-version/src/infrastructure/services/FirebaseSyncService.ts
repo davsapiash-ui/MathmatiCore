@@ -2,7 +2,7 @@ import { ref, set, get, update, runTransaction, serverTimestamp, onValue, onDisc
 import { database, firestore } from '@/infrastructure/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { useAuthStore } from '@/application/useAuthStore';
-import { useWorkspaceStore, getActiveTasks } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, getActiveTasks, resolveLearningPath } from '@/application/useWorkspaceStore';
 import { useStore, type QMatrix, type TraceData } from '@/application/useStore';
 import { normalizeStudentId } from '@/application/useChatStore';
 import { hasEnhancedSupport, ENHANCED_SUPPORT_PROFILE_ID } from '@/core/supportProfile';
@@ -511,8 +511,11 @@ export class FirebaseSyncService {
       });
 
       if (this.currentUserId) {
-        const isStruggling = (state.hesitationCount || 0) > 6 || (state.undoCount || 0) > 3;
-        const currentPath: 'green_path' | 'remediation_path' = isStruggling ? 'remediation_path' : 'green_path';
+        // Module 20/26: the path is the one the teacher approved, mirrored on the
+        // student record. A local hesitation/undo heuristic used to be written
+        // here instead, so the dashboard could show a path that contradicted
+        // the approved one.
+        const currentPath: 'green_path' | 'remediation_path' = resolveLearningPath();
         const sessionStatus: 'active' | 'locked' | 'completed' = state.flowStatus === 'sessionDone' 
           ? 'completed' 
           : state.keyboardState === 'LOCKED' ? 'locked' : 'active';
