@@ -465,7 +465,10 @@ export const SESSION8_REMEDIATION_TASKS: SessionTask[] = [
   addition('s8_r_t3', 456, 281, 'חיבור עם המרה בטור העשרות', S8_ADD('456 + 281'), { scaffoldLevel: 1 }),
   subtraction('s8_r_t4', 78, 25, 'חיסור ללא פריטה בתחום המאה', S8_SUB('78 − 25'), { scaffoldLevel: 1 }),
   subtraction('s8_r_t5', 53, 18, 'חיסור עם פריטה פשוטה בתחום המאה', S8_SUB('53 − 18'), { scaffoldLevel: 1 }),
-  subtraction('s8_r_t6', 302, 145, 'חיסור עם פריטה כפולה דרך אפס יחיד', S8_SUB('302 − 145'), { scaffoldLevel: 1, targetNode: 'zero_placeholder' }),
+  // ★ chosen (owner, 16.9.2026): מסמך 03 §3.8 lists 302 − 145 here, which the learner never met in sessions 4–6,
+  // against the section's own rule. Replaced by session 6 exercise 5 (602 − 145 = 457): the same double
+  // decomposition through a single zero in the tens, so the title stays true and the fading gap can be measured.
+  subtraction('s8_r_t6', 602, 145, 'חיסור עם פריטה כפולה דרך אפס יחיד', S8_SUB('602 − 145'), { scaffoldLevel: 1, targetNode: 'zero_placeholder' }),
   // ★ chosen: reuses 456 + 281 (session 4) as מסמך 03 requires known numbers; the tens digit of an addend is hidden.
   skeleton('s8_r_t7', 456, 281, false, { a: ['tens'] },
     'בעיית חקר של גילוי ספרה חסרה בתחום האלף',
@@ -477,7 +480,9 @@ export const SESSION8_GREEN_TASKS: SessionTask[] = [
   addition('s8_g_t1', 1245, 328, 'חיבור עם המרה אחת בתחום הרבבה', S8_ADD('1,245 + 328'), { scaffoldLevel: 1 }),
   addition('s8_g_t2', 5678, 2453, 'חיבור עם המרה משולשת בתחום הרבבה', S8_ADD('5,678 + 2,453'), { scaffoldLevel: 1 }),
   subtraction('s8_g_t3', 5432, 2118, 'חיסור עם פריטה פשוטה בתחום הרבבה', S8_SUB('5,432 − 2,118'), { scaffoldLevel: 1 }),
-  subtraction('s8_g_t4', 4354, 1126, 'חיסור עם פריטה פשוטה בתחום הרבבה', S8_SUB('4,354 − 1,126'), { scaffoldLevel: 1 }),
+  // ★ chosen (owner, 16.9.2026): מסמך 03 §3.8 lists 4,354 − 1,126 here, never met in sessions 4–6. Replaced by
+  // session 5 exercise 5 (6,284 − 1,157 = 5,127), which the document titles identically: one decomposition, units only.
+  subtraction('s8_g_t4', 6284, 1157, 'חיסור עם פריטה פשוטה בתחום הרבבה', S8_SUB('6,284 − 1,157'), { scaffoldLevel: 1 }),
   subtraction('s8_g_t5', 4000, 1562, 'חיסור מעל אפסים רציפים בתחום הרבבה', S8_SUB('4,000 − 1,562'), { scaffoldLevel: 1, targetNode: 'zero_placeholder' }),
   // ★ chosen: reuses 5,678 + 2,453 (session 4); two addend digits hidden.
   skeleton('s8_g_t6', 5678, 2453, false, { a: ['hundreds', 'units'] },

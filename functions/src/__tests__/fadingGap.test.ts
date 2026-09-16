@@ -45,7 +45,7 @@ describe('computeFadingGap', () => {
         ev(8, 's8_r_t2', 'DIGIT_ENTERED', { is_correct: false }, 2),
         ev(8, 's8_r_t2', 'PROBLEM_COMPLETE', { total_duration_ms: 40_000 }, 3), // twin s4_r_t2
         ev(8, 's8_r_t4', 'PROBLEM_COMPLETE', { total_duration_ms: 10_000 }, 4), // twin s5_r_t1 — rushed
-        ev(8, 's8_r_t6', 'PROBLEM_COMPLETE', { total_duration_ms: 30_000 }, 5), // no twin in 4–6
+        ev(8, 's8_r_t7', 'PROBLEM_COMPLETE', { total_duration_ms: 30_000 }, 5), // missing-digit puzzle: no twin
       ],
       earlier
     );
@@ -55,7 +55,7 @@ describe('computeFadingGap', () => {
     expect(gap.mean_seconds_with_blocks).toBe(66.7);
     expect(gap.mean_seconds_without_blocks).toBe(23.3);
     expect(gap.guessed_exercises).toEqual(['s8_r_t4']);
-    expect(gap.unpaired_exercises).toEqual(['s8_r_t6']);
+    expect(gap.unpaired_exercises).toEqual(['s8_r_t7']);
   });
 
   it('a twin that was never completed with blocks is not a pair; with no pairs the percentages are null, not 0', () => {

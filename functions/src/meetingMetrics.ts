@@ -307,8 +307,9 @@ export async function readAllTelemetryForSession(
 /**
  * Session-8 exercise → the session 4–6 exercise with the same operands
  * (react-ts-version/src/data/sessionTasks.ts; pinned by
- * Module26_FadingPairs.test.ts on the client). Session-8 exercises with no
- * twin are reported as unpaired, never guessed.
+ * Module26_FadingPairs.test.ts on the client). Every column exercise of
+ * session 8 has a twin since the owner's 16.9.2026 replacement of the two
+ * that had none; the missing-digit puzzles are reported as unpaired.
  */
 export const FADING_PAIRS: Record<string, string> = {
   s8_r_t1: "s4_r_t1", // 142 + 23
@@ -316,9 +317,11 @@ export const FADING_PAIRS: Record<string, string> = {
   s8_r_t3: "s4_r_t4", // 456 + 281
   s8_r_t4: "s5_r_t1", // 78 − 25
   s8_r_t5: "s5_r_t2", // 53 − 18
+  s8_r_t6: "s6_r_t5", // 602 − 145
   s8_g_t1: "s4_g_t1", // 1,245 + 328
   s8_g_t2: "s4_g_t5", // 5,678 + 2,453
   s8_g_t3: "s5_g_t1", // 5,432 − 2,118
+  s8_g_t4: "s5_g_t5", // 6,284 − 1,157
   s8_g_t5: "s6_g_t3", // 4,000 − 1,562
 };
 
