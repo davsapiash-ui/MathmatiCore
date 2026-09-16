@@ -85,9 +85,12 @@ describe('מסמך 03 §1.3 ב\' — bringing the Module 10 grid back', () => {
     expect(useWorkspaceStore.getState().additionHelperOffered).toBe(false);
   });
 
-  it('the topbar button appears only after the grid was offered, and never in sessions 2 or 8 (source pin)', () => {
+  it('the bring-back tab sits where the grid lives, under the same profile/session gate as the grid, never in the topbar (source pin)', () => {
+    const page = readFileSync(resolve(__dirname, '../../features/workspace/StudentWorkspacePage.tsx'), 'utf-8');
+    expect(page).toContain('isAdditionBoardEnabled && additionHelperOffered && !isAdditionHelperOpen && (');
+    expect(page).toContain('aria-label="הצג שוב את לוח החיבור"');
+    // מסמך 04 §3א: the topbar holds basic navigation only.
     const topbar = readFileSync(resolve(__dirname, '../../features/workspace/WorkspaceTopbar.tsx'), 'utf-8');
-    expect(topbar).toContain("additionHelperOffered && !isAdditionHelperOpen && sessionNumber !== 2 && sessionNumber !== 8 && (");
-    expect(topbar).toContain('aria-label="הצג שוב את לוח החיבור"');
+    expect(topbar).not.toContain('additionHelperOffered');
   });
 });

@@ -4,7 +4,7 @@ import { useWorkspaceStore, selectCanProceed, getActiveTasks } from '@/applicati
 import { useChatStore, normalizeStudentId } from '@/application/useChatStore';
 import { TASKS } from '@/core/QMatrix';
 import { ProgressDots } from './ProgressDots';
-import { RotateCcw, MessageSquare, ArrowLeft, Cloud, CloudOff, Eye, EyeOff, HandHelping, Grid3x3 } from 'lucide-react';
+import { RotateCcw, MessageSquare, ArrowLeft, Cloud, CloudOff, Eye, EyeOff, HandHelping } from 'lucide-react';
 import { LogoutButton } from '@/presentation/components/ui/LogoutButton';
 import { Logo } from '@/presentation/components/ui/Logo';
 
@@ -51,13 +51,6 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
   const undo = useWorkspaceStore((s) => s.undo);
   const proceed = useWorkspaceStore((s) => s.proceed);
   const toggleBoard = useWorkspaceStore((s) => s.toggleBoard);
-  // מסמך 03 §1.3 ב' / 04 §1: a learner may bring back a visual aid that faded.
-  // The Module 10 grid is the one aid that fades; it is offered only to
-  // enhanced_cognitive_support learners in sessions 3–7, so this button can
-  // only ever appear for them, and only after the grid has opened once.
-  const additionHelperOffered = useWorkspaceStore((s) => s.additionHelperOffered);
-  const isAdditionHelperOpen = useWorkspaceStore((s) => s.isAdditionHelperOpen);
-  const openAdditionHelper = useWorkspaceStore((s) => s.openAdditionHelper);
   const requestSilentHelp = useWorkspaceStore((s) => s.requestSilentHelp);
   const hasRequestedHelp = useWorkspaceStore((s) => s.hasRequestedBasicHelp);
   const globalChatEnabled = useChatStore((s) => s.globalChatEnabled);
@@ -156,18 +149,6 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
           >
             {boardOpen ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             <span className="hidden sm:inline">{boardOpen ? "הסתר לוח" : "הצג לוח"}</span>
-          </button>
-        )}
-
-        {additionHelperOffered && !isAdditionHelperOpen && sessionNumber !== 2 && sessionNumber !== 8 && (
-          <button
-            onClick={() => openAdditionHelper('learner')}
-            className="h-12 px-4 rounded-2xl text-sm font-bold transition-all cursor-pointer flex items-center gap-1.5 border shadow-sm active:scale-95 bg-amber-50 border-amber-200 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-200"
-            aria-label="הצג שוב את לוח החיבור"
-            title="החזרת לוח החיבור למסך"
-          >
-            <Grid3x3 className="w-4 h-4" />
-            <span className="hidden sm:inline">לוח חיבור</span>
           </button>
         )}
 
