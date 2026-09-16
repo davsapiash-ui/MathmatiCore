@@ -26,7 +26,8 @@ describe('Module 23 — class report per meeting (server)', () => {
 
   it('reads every event of the meeting for every learner, by the same functions as the individual report', () => {
     expect(server).toMatch(/await readAllDocs\(db\.collection\("telemetry_logs"\)\)/);
-    expect(server).toMatch(/sessionNumberFromId\(String\(data\.session_id \|\| ""\)\) !== sessionNumber\) continue;/);
+    expect(server).toMatch(/const m = sessionNumberFromId\(String\(data\.session_id \|\| ""\)\);/);
+    expect(server).toMatch(/if \(m !== sessionNumber\) continue;/);
     expect(server).toMatch(/const first = computeFirstAttemptScore\(sorted, compulsoryTotal\);/);
     expect(server).toMatch(/const summary: MeetingSummary = summarizeMeeting\(sorted\);/);
     expect(server).toMatch(/resolveCompulsoryTotal\(db, sessionNumber, pathOf, compulsoryCache\)/);

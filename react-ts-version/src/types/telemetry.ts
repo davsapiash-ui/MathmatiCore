@@ -13,7 +13,12 @@ export type TelemetryEventType =
   | 'SOCRATIC_CARD_SHOWN'
   | 'SOCRATIC_OPTION_SELECTED'
   | 'PROBLEM_COMPLETE'
-  | 'REFLECTION_SUBMITTED';
+  | 'REFLECTION_SUBMITTED'
+  // Scaffold events beyond Appendix A §3 (owner, 16.9.2026 — register deviation 19):
+  // the three supports the research needs to see fade.
+  | 'ADAPTIVE_GRID_TOGGLED'
+  | 'KEYBOARD_LOCK_BLOCKED'
+  | 'HELP_REQUESTED';
 
 // --- Per-event-type details schemas (Master PRD v7.0 Appendix A §3) ---
 
@@ -81,6 +86,22 @@ export interface ReflectionSubmittedDetails {
   persistence_index: number | null; // 0-100
 }
 
+/** Module 10 grid: opened by the 30s hesitation stage, or brought back by the learner (מסמך 03 §1.3 ב'); closed by the learner's X. */
+export interface AdaptiveGridToggledDetails {
+  action: 'opened' | 'closed';
+  source: 'hesitation_30s' | 'learner';
+}
+
+/** Module 9: the learner tried to type a result digit in a column whose conversion has not been made on the canvas. */
+export interface KeyboardLockBlockedDetails {
+  conversion_required: 'composition' | 'decomposition';
+}
+
+/** The silent call to the teacher (Module 18 blue signal). */
+export interface HelpRequestedDetails {
+  help_count: number; // this learner's count in the current session, 1-based
+}
+
 export interface TelemetryDetailsMap {
   SESSION_START: SessionStartDetails;
   PROBLEM_LOAD: ProblemLoadDetails;
@@ -95,6 +116,9 @@ export interface TelemetryDetailsMap {
   SOCRATIC_OPTION_SELECTED: SocraticOptionSelectedDetails;
   PROBLEM_COMPLETE: ProblemCompleteDetails;
   REFLECTION_SUBMITTED: ReflectionSubmittedDetails;
+  ADAPTIVE_GRID_TOGGLED: AdaptiveGridToggledDetails;
+  KEYBOARD_LOCK_BLOCKED: KeyboardLockBlockedDetails;
+  HELP_REQUESTED: HelpRequestedDetails;
 }
 
 // Column-scoped event types where column_index is MANDATORY
@@ -106,6 +130,7 @@ export const COLUMN_SCOPED_EVENTS: readonly TelemetryEventType[] = [
   'DIGIT_DELETED',
   'HESITATION_DETECTED',
   'SOCRATIC_CARD_SHOWN',
+  'KEYBOARD_LOCK_BLOCKED',
 ] as const;
 
 // Session / Exercise / Global event types where column_index must be OMITTED
@@ -115,6 +140,8 @@ export const NON_COLUMN_EVENTS: readonly TelemetryEventType[] = [
   'SOCRATIC_OPTION_SELECTED',
   'PROBLEM_COMPLETE',
   'REFLECTION_SUBMITTED',
+  'ADAPTIVE_GRID_TOGGLED',
+  'HELP_REQUESTED',
 ] as const;
 
 export interface TelemetryPayload<T extends TelemetryEventType = TelemetryEventType> {

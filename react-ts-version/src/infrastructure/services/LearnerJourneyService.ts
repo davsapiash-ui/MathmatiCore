@@ -176,6 +176,9 @@ const EVENT_LABELS_HE: Record<string, string> = {
   SOCRATIC_OPTION_SELECTED: 'תשובה בכרטיס החניכה',
   PROBLEM_COMPLETE: 'סיום תרגיל',
   REFLECTION_SUBMITTED: 'רפלקציה',
+  ADAPTIVE_GRID_TOGGLED: 'לוח החיבור',
+  KEYBOARD_LOCK_BLOCKED: 'הקלדה לפני המרה (מקלדת נעולה)',
+  HELP_REQUESTED: 'קריאה שקטה למורה',
 };
 
 export interface EventDescription {

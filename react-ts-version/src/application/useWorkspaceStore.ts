@@ -53,6 +53,29 @@ import { firebaseSyncService, emitTelemetry } from '@/infrastructure/services/Fi
 import type { TelemetryEventType } from '@/types/telemetry';
 import type { VRAWorkspaceState } from '@/types';
 
+/**
+ * Appendix A §3 scaffold events (owner, 16.9.2026 — register deviation 19).
+ * One emitter so the three carry the same session/exercise identity as
+ * every other event and go through the same offline queue.
+ */
+function emitScaffoldEvent(
+  s: WorkspaceState,
+  eventType: 'ADAPTIVE_GRID_TOGGLED' | 'KEYBOARD_LOCK_BLOCKED' | 'HELP_REQUESTED',
+  details: Record<string, unknown>,
+  columnIndex?: number
+): void {
+  const studentId = currentStudentUid();
+  const task = getActiveTasks(s)[s.standardTaskIdx] || null;
+  emitTelemetry({
+    session_id: `session_${s.sessionNumber}_student_${studentId}`,
+    student_id: studentId,
+    exercise_id: task?.id || `ex_${s.sessionNumber}_01`,
+    event_type: eventType,
+    ...(columnIndex !== undefined ? { column_index: columnIndex } : {}),
+    details,
+  } as any).catch(console.error);
+}
+
 export function placeToColumnIndex(place: Place | string): number {
   switch (place) {
     case 'units': return 0;
@@ -221,7 +244,10 @@ interface WorkspaceState {
   setPendingSupportProfile: (profileId: string | null) => void;
   setHelpRequested: (val: boolean) => void;
   toggleHelpRequested: () => void;
-  openAdditionHelper: () => void;
+  /** 'learner' when the learner brings the grid back (מסמך 03 §1.3 ב'); default is the Module 10 hesitation stage. */
+  openAdditionHelper: (source?: 'hesitation_30s' | 'learner') => void;
+  /** Module 9: a digit key pressed on a locked result cell. Logged, never acted on. */
+  recordBlockedKeystroke: (place: Place) => void;
   closeAdditionHelper: () => void;
   toggleAdditionHelper: () => void;
   injectTask: (task: SessionTask, position: 'next' | 'end') => void;
@@ -262,6 +288,7 @@ interface WorkspaceState {
    * coaching card, no interruption to the learner's work.
    */
   requestSilentHelp: () => void;
+  helpRequestCount: number;
   helpFrictionDone: () => void;
   closeHelp: () => void;
   showFeedback: (feedback: FeedbackState, ms: number, then?: () => void) => void;
@@ -336,6 +363,7 @@ function resetTaskInteraction(_isASD = false) {
     undoTimestamps: [],
     isBoardLocked: false,
     hasRequestedBasicHelp: false,
+    helpRequestCount: 0,
     taskStartTime: Date.now(),
     keyboardState: 'UNLOCKED' as KeyboardState,
     hasDigitErrorInTask: false,
@@ -1326,6 +1354,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     isBoardLocked: false,
     pendingAdaptation: null,
     hasRequestedBasicHelp: false,
+    helpRequestCount: 0,
     taskStartTime: Date.now(),
     hasDeletedBlock: false,
     blocksAddedCount: 0,
@@ -2281,7 +2310,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         status: 'pending',
       }).catch(console.error);
 
-      set({ hasRequestedBasicHelp: true });
+      const helpCount = (s.helpRequestCount || 0) + 1;
+      set({ hasRequestedBasicHelp: true, helpRequestCount: helpCount });
+      emitScaffoldEvent(get(), 'HELP_REQUESTED', { help_count: helpCount });
       // A calm, brief acknowledgement so the learner knows the signal was sent.
       showFeedback({ correct: true, title: 'המורה יודעת 🤝', sub: 'הסימן נשלח בשקט. אפשר להמשיך לעבוד.' }, 2600);
     },
@@ -2312,8 +2343,26 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     showFeedback,
     unlockKeyboard: () => set({ keyboardState: 'UNLOCKED' }),
     lockKeyboard: () => set({ keyboardState: 'LOCKED' }),
-    openAdditionHelper: () => set({ isAdditionHelperOpen: true, additionHelperOffered: true }),
-    closeAdditionHelper: () => set({ isAdditionHelperOpen: false }),
+    openAdditionHelper: (source = 'hesitation_30s') => {
+      if (get().isAdditionHelperOpen) return;
+      set({ isAdditionHelperOpen: true, additionHelperOffered: true });
+      emitScaffoldEvent(get(), 'ADAPTIVE_GRID_TOGGLED', { action: 'opened', source });
+    },
+    closeAdditionHelper: () => {
+      if (!get().isAdditionHelperOpen) return;
+      set({ isAdditionHelperOpen: false });
+      emitScaffoldEvent(get(), 'ADAPTIVE_GRID_TOGGLED', { action: 'closed', source: 'learner' });
+    },
+    recordBlockedKeystroke: (place) => {
+      const s = get();
+      const task = getActiveTasks(s)[s.standardTaskIdx] || null;
+      emitScaffoldEvent(
+        s,
+        'KEYBOARD_LOCK_BLOCKED',
+        { conversion_required: task?.isSubtraction ? 'decomposition' : 'composition' },
+        placeToColumnIndex(place)
+      );
+    },
     toggleAdditionHelper: () => set((s) => ({ isAdditionHelperOpen: !s.isAdditionHelperOpen })),
     setKeyboardSocratic: () => {
       get().openSocraticCard('hesitation_45s');
@@ -2512,6 +2561,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         isBoardLocked: false,
         pendingAdaptation: null,
         hasRequestedBasicHelp: false,
+    helpRequestCount: 0,
         taskStartTime: Date.now(),
         hasDeletedBlock: false,
         blocksAddedCount: 0,

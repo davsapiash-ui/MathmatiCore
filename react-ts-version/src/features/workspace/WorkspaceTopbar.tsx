@@ -161,7 +161,7 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
 
         {additionHelperOffered && !isAdditionHelperOpen && sessionNumber !== 2 && sessionNumber !== 8 && (
           <button
-            onClick={openAdditionHelper}
+            onClick={() => openAdditionHelper('learner')}
             className="h-12 px-4 rounded-2xl text-sm font-bold transition-all cursor-pointer flex items-center gap-1.5 border shadow-sm active:scale-95 bg-amber-50 border-amber-200 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-200"
             aria-label="הצג שוב את לוח החיבור"
             title="החזרת לוח החיבור למסך"

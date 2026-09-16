@@ -3,7 +3,7 @@ import { requireAdmin, requireTeacherForIndividualData } from "./callerIdentity"
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import { GoogleAuth } from "google-auth-library";
-import { computeFirstAttemptScore, readAllDocs, resolveCompulsoryTotal, sessionNumberFromId, studentNumberFromSessionId, summarizeMeeting } from "./meetingMetrics";
+import { computeFirstAttemptScore, readAllDocs, resolveCompulsoryTotal, sessionNumberFromId, studentNumberFromSessionId, summarizeMeeting, computeFadingGap } from "./meetingMetrics";
 import { recomputeAdminMetrics } from "./adminAggregator";
 
 const GOOGLE_DRIVE_FOLDER_ID = "0AMiALsm_TxT5Uk9PVA";
@@ -1385,6 +1385,10 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
       const compulsory = await resolveCompulsoryTotal(db, m, path, compulsoryCache);
       const score = computeFirstAttemptScore(events, compulsory);
       const summary = summarizeMeeting(events);
+      // מסמך 03 §3.8: session 8 against the same learner's sessions 4–6.
+      const fading = m === 8
+        ? computeFadingGap(events, [4, 5, 6].flatMap((e) => byLearnerMeeting.get(`${n}:${e}`) ?? []))
+        : null;
       const sessionDoc = sessionDocByKey.get(k);
       const rec = recordingMinutesByKey.get(k);
       meetingRows.push({
@@ -1407,6 +1411,17 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
         hesitation_seconds_total: summary.hesitation_seconds_total,
         regroupings: summary.regroupings,
         socratic_cards: summary.socratic_cards,
+        grid_openings: summary.grid_openings,
+        grid_reopenings: summary.grid_reopenings,
+        keyboard_lock_blocks: summary.keyboard_lock_blocks,
+        help_requests: summary.help_requests,
+        fading_pairs: fading?.pairs_measured ?? "",
+        fading_accuracy_with_blocks: fading?.accuracy_with_blocks_percent ?? "",
+        fading_accuracy_without_blocks: fading?.accuracy_without_blocks_percent ?? "",
+        fading_seconds_with_blocks: fading?.mean_seconds_with_blocks ?? "",
+        fading_seconds_without_blocks: fading?.mean_seconds_without_blocks ?? "",
+        fading_guessed: fading?.guessed_exercises.join("|") ?? "",
+        fading_unpaired: fading?.unpaired_exercises.join("|") ?? "",
         reflection_submitted: summary.reflection_submitted,
         recording_minutes: rec?.minutes ?? 0,
         recording_truncated: rec?.truncated ?? false,

@@ -972,6 +972,9 @@ export class FirebaseSyncService {
       SOCRATIC_OPTION_SELECTED: 'בחירת תשובה בכרטיס חניכה',
       PROBLEM_COMPLETE: 'השלמת תרגיל בהצלחה',
       REFLECTION_SUBMITTED: 'הגשת רפלקציה SRL',
+      ADAPTIVE_GRID_TOGGLED: 'לוח החיבור נפתח או נסגר',
+      KEYBOARD_LOCK_BLOCKED: 'ניסיון הקלדה לפני המרה בלבנים',
+      HELP_REQUESTED: 'קריאה שקטה למורה',
     };
     rtdbLiveUpdate.lastAction = eventLabels[event.event_type] || event.event_type;
 

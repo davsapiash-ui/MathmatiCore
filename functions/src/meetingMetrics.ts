@@ -142,6 +142,14 @@ export interface MeetingSummary {
   regroupings: number;
   socratic_cards: number;
   reflection_submitted: boolean;
+  /** Module 10 grid opened by the 30s hesitation stage. */
+  grid_openings: number;
+  /** Module 10 grid brought back by the learner after closing it (מסמך 03 §1.3 ב'). */
+  grid_reopenings: number;
+  /** Module 9: digit keys pressed on a locked result cell. */
+  keyboard_lock_blocks: number;
+  /** Silent calls to the teacher. */
+  help_requests: number;
 }
 
 /** Counters of what happened in one meeting, straight from its events. */
@@ -166,6 +174,10 @@ export function summarizeMeeting(events: Record<string, any>[]): MeetingSummary 
     regroupings: 0,
     socratic_cards: 0,
     reflection_submitted: false,
+    grid_openings: 0,
+    grid_reopenings: 0,
+    keyboard_lock_blocks: 0,
+    help_requests: 0,
   };
   for (const ev of events) {
     const t = typeof ev.client_timestamp === "number" ? ev.client_timestamp : null;
@@ -190,6 +202,14 @@ export function summarizeMeeting(events: Record<string, any>[]): MeetingSummary 
       case "REGROUPING_SUCCESS": s.regroupings++; break;
       case "SOCRATIC_CARD_SHOWN": s.socratic_cards++; break;
       case "REFLECTION_SUBMITTED": s.reflection_submitted = true; break;
+      case "ADAPTIVE_GRID_TOGGLED":
+        if (ev.details?.action === "opened") {
+          if (ev.details?.source === "learner") s.grid_reopenings++;
+          else s.grid_openings++;
+        }
+        break;
+      case "KEYBOARD_LOCK_BLOCKED": s.keyboard_lock_blocks++; break;
+      case "HELP_REQUESTED": s.help_requests++; break;
       default: break;
     }
   }
@@ -276,3 +296,111 @@ export async function readAllTelemetryForSession(
   return docs;
 }
 
+
+// ---------------------------------------------------------------------------
+// פער הדעיכה (מסמך 03 §1.3 א׳ ו-§3.8; Bassette et al., 2020). Session 8 is
+// solved without blocks on numbers the learner already met with blocks in
+// sessions 4–6, so the same learner can be compared with themselves on the
+// same exercise. Owner, 16.9.2026 (register deviation 19).
+// ---------------------------------------------------------------------------
+
+/**
+ * Session-8 exercise → the session 4–6 exercise with the same operands
+ * (react-ts-version/src/data/sessionTasks.ts; pinned by
+ * Module26_FadingPairs.test.ts on the client). Session-8 exercises with no
+ * twin are reported as unpaired, never guessed.
+ */
+export const FADING_PAIRS: Record<string, string> = {
+  s8_r_t1: "s4_r_t1", // 142 + 23
+  s8_r_t2: "s4_r_t2", // 128 + 35
+  s8_r_t3: "s4_r_t4", // 456 + 281
+  s8_r_t4: "s5_r_t1", // 78 − 25
+  s8_r_t5: "s5_r_t2", // 53 − 18
+  s8_g_t1: "s4_g_t1", // 1,245 + 328
+  s8_g_t2: "s4_g_t5", // 5,678 + 2,453
+  s8_g_t3: "s5_g_t1", // 5,432 − 2,118
+  s8_g_t5: "s6_g_t3", // 4,000 − 1,562
+};
+
+/** A session-8 exercise finished faster than this, without the blocks, is flagged as rushed (calibration point; owner may change). */
+export const FADING_GUESS_SECONDS = 15;
+
+export interface ExerciseAttempt {
+  completed: boolean;
+  /** Completed with no wrong digit before completion (same rule as computeFirstAttemptScore). */
+  first_try: boolean;
+  duration_ms: number | null;
+}
+
+/** One record per exercise from a meeting's events, in time order. */
+export function exerciseAttempts(events: Record<string, any>[]): Record<string, ExerciseAttempt> {
+  const sorted = [...events].sort((a, b) => (a.client_timestamp || 0) - (b.client_timestamp || 0));
+  const out: Record<string, ExerciseAttempt> = {};
+  const wrong = new Set<string>();
+  for (const ev of sorted) {
+    const exId = String(ev.exercise_id || "");
+    if (!exId) continue;
+    if (!out[exId]) out[exId] = { completed: false, first_try: false, duration_ms: null };
+    if (ev.event_type === "DIGIT_ENTERED" && ev.details?.is_correct === false) {
+      wrong.add(exId);
+    } else if (ev.event_type === "PROBLEM_COMPLETE" && !out[exId].completed) {
+      out[exId].completed = true;
+      out[exId].first_try = !wrong.has(exId);
+      const d = ev.details?.total_duration_ms;
+      out[exId].duration_ms = typeof d === "number" && d >= 0 ? d : null;
+    }
+  }
+  return out;
+}
+
+export interface FadingGap {
+  /** Session-8 exercises completed whose twin was also completed in sessions 4–6. */
+  pairs_measured: number;
+  accuracy_with_blocks_percent: number | null;
+  accuracy_without_blocks_percent: number | null;
+  mean_seconds_with_blocks: number | null;
+  mean_seconds_without_blocks: number | null;
+  /** Session-8 exercises completed in under FADING_GUESS_SECONDS. */
+  guessed_exercises: string[];
+  /** Session-8 exercises attempted that have no session 4–6 twin. */
+  unpaired_exercises: string[];
+}
+
+export function computeFadingGap(
+  session8Events: Record<string, any>[],
+  earlierEvents: Record<string, any>[]
+): FadingGap {
+  const now = exerciseAttempts(session8Events);
+  const before = exerciseAttempts(earlierEvents);
+  let n = 0;
+  let firstWith = 0;
+  let firstWithout = 0;
+  const secWith: number[] = [];
+  const secWithout: number[] = [];
+  const guessed: string[] = [];
+  const unpaired: string[] = [];
+  for (const [id, a] of Object.entries(now)) {
+    if (a.completed && a.duration_ms !== null && a.duration_ms < FADING_GUESS_SECONDS * 1000) guessed.push(id);
+    const twin = FADING_PAIRS[id];
+    if (!twin) { unpaired.push(id); continue; }
+    const b = before[twin];
+    if (!a.completed || !b || !b.completed) continue;
+    n++;
+    if (b.first_try) firstWith++;
+    if (a.first_try) firstWithout++;
+    if (b.duration_ms !== null) secWith.push(b.duration_ms / 1000);
+    if (a.duration_ms !== null) secWithout.push(a.duration_ms / 1000);
+  }
+  const pct = (k: number): number | null => (n === 0 ? null : Math.round((k / n) * 100));
+  const mean = (xs: number[]): number | null =>
+    xs.length === 0 ? null : Math.round((xs.reduce((p, c) => p + c, 0) / xs.length) * 10) / 10;
+  return {
+    pairs_measured: n,
+    accuracy_with_blocks_percent: pct(firstWith),
+    accuracy_without_blocks_percent: pct(firstWithout),
+    mean_seconds_with_blocks: mean(secWith),
+    mean_seconds_without_blocks: mean(secWithout),
+    guessed_exercises: guessed.sort(),
+    unpaired_exercises: unpaired.sort(),
+  };
+}
