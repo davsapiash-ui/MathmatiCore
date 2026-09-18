@@ -224,6 +224,13 @@ interface WorkspaceState {
   /** Wrong answers submitted in a row on the current exercise (מסמך 03 "שגיאות חוזרות"). */
   wrongAnswerStreak: number;
   wrongAnswerTaskId: string | null;
+  /**
+   * PRD 7.3 Module 23 §ב, measure 3: in a representation exercise, error_count
+   * of PROBLEM_COMPLETE "סופר כל בדיקת לוח שנכשלה". Counted per exercise — the
+   * consecutive-error counter is shared with digit entry and was never that.
+   */
+  boardCheckFailures: number;
+  boardCheckFailuresTaskId: string | null;
 
   /** Teacher-approved AI-generated task list (Socratic Engine); overrides session tasks when set. */
   /** Dynamically injected tasks for the current session (Micro-Agility engine). Takes precedence if length > 0. */
@@ -845,6 +852,19 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     set({ flowStatus: 'reflection' });
   }
 
+  /** The two exercise shapes whose operation is representation (measure 3). */
+  function isRepresentationTask(task: SessionTask | undefined | null): boolean {
+    return task?.type === 'representation' || task?.type === 'flexible_decomp';
+  }
+
+  function recordBoardCheckFailure(taskId: string) {
+    const s = get();
+    set({
+      boardCheckFailures: (s.boardCheckFailuresTaskId === taskId ? s.boardCheckFailures : 0) + 1,
+      boardCheckFailuresTaskId: taskId,
+    });
+  }
+
   /** Sessions 1/3/4 proceed (vanilla handleSession1Proceed, app.js 999–1110). */
   function proceedStandard() {
     const s = get();
@@ -854,6 +874,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     const handleFailure = (detail: string, feedbackTitle: string, feedbackSub: string, feedbackMs: number) => {
       get().incrementConsecutiveErrors();
+      if (isRepresentationTask(task) && detail !== 'missing_answer') recordBoardCheckFailure(task.id);
       const studentId = useAuthStore.getState().user?.uid;
       if (studentId) {
         let errorCategory: 'FACTUAL_ERROR' | 'PROCEDURAL_ERROR' | 'STRATEGIC_ERROR' = 'FACTUAL_ERROR';
@@ -902,7 +923,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         details: {
           total_duration_ms: durationMs,
           undo_count: s.undoCount,
-          error_count: s.consecutiveErrorCount || 0,
+          error_count: isRepresentationTask(task)
+            ? (s.boardCheckFailuresTaskId === task.id ? s.boardCheckFailures : 0)
+            : s.consecutiveErrorCount || 0,
         },
       }).catch(console.error);
 
@@ -1375,6 +1398,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     frictionTriggerSource: null,
     wrongAnswerStreak: 0,
     wrongAnswerTaskId: null,
+    boardCheckFailures: 0,
+    boardCheckFailuresTaskId: null,
     aiSocraticHint: null,
     socraticDistractorHint: null,
     typedErrorCount: 0,
@@ -1459,6 +1484,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         frictionTriggerSource: null,
     wrongAnswerStreak: 0,
     wrongAnswerTaskId: null,
+    boardCheckFailures: 0,
+    boardCheckFailuresTaskId: null,
         sessionStartTimeMs: Date.now(),
         isTimeExceeded: false,
         currentState: 'PROBLEM_ACTIVE',
@@ -1572,6 +1599,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         frictionTriggerSource: null,
     wrongAnswerStreak: 0,
     wrongAnswerTaskId: null,
+    boardCheckFailures: 0,
+    boardCheckFailuresTaskId: null,
         isSocraticCardLocked: Boolean(storedDeadline && storedDeadline > Date.now()),
         socraticLockDeadline: storedDeadline,
         socraticDistractorHint: saved.socraticDistractorHint ?? null,
@@ -2154,19 +2183,24 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const value = selectBoardValue(s);
 
       let target: number | undefined;
+      // Measure 3: a refused representation in a lesson exercise is a failed board check.
+      let lessonTaskId: string | null = null;
       if (s.sessionNumber === 2) {
         const task = getCurrentQTask(s.qflow);
         target = task ? getEffectiveNumber(task, s.qflow, s.isASD) : undefined;
       } else {
         const task = getActiveTasks(s)[s.standardTaskIdx];
         target = task?.numberA;
+        lessonTaskId = isRepresentationTask(task) ? task.id : null;
         if (task?.requireEvenTens && s.counts.tens % 2 !== 0) {
+          if (lessonTaskId) recordBoardCheckFailure(lessonTaskId);
           showFeedback({ correct: false, title: 'בּוֹאוּ נִבְדֹּק אֶת הָעֲשָׂרוֹת 🤔', sub: 'בדרך הזאת מספר העשרות צריך להיות זוגי. נסו לפרוט או להקבץ עשרת אחת.' }, 3200);
           return;
         }
       }
 
       if (target !== undefined && value !== target) {
+        if (lessonTaskId) recordBoardCheckFailure(lessonTaskId);
         const hint =
           s.sessionNumber === 2
             ? 'סריקת הרדאר מזהה שכמות הבלוקים בלוח אינה תואמת למבוקש. איך נוכל לשנות זאת כדי להגיע לכמות המדויקת?'
@@ -2187,6 +2221,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // The second representation has to be a different one. With the board
       // kept between the two (below), pressing the button twice must not count.
       if (s.q3Reps.length === 1 && countsEqual(s.counts, s.q3Reps[0])) {
+        if (lessonTaskId) recordBoardCheckFailure(lessonTaskId);
         showFeedback({ correct: false, title: 'זוֹ אוֹתָהּ דֶּרֶךְ 🤔', sub: 'הַרְאוּ אֶת אוֹתוֹ מִסְפָּר בְּדֶרֶךְ שׁוֹנָה: פִּרְטוּ אוֹ הַקְבִּיצוּ, וְאָז הוֹסִיפוּ.' }, 3200);
         return;
       }
@@ -2579,6 +2614,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         frictionTriggerSource: null,
     wrongAnswerStreak: 0,
     wrongAnswerTaskId: null,
+    boardCheckFailures: 0,
+    boardCheckFailuresTaskId: null,
         aiSocraticHint: null,
         socraticDistractorHint: null,
         typedErrorCount: 0,
