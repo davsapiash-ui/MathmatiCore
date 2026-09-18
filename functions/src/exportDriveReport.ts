@@ -432,6 +432,8 @@ export interface ResetAuditEntry {
   reset_scope?: SingleStudentResetScope;
   /** Level 2 with reset_scope 'active_session': the meeting that was restarted. */
   session_number?: number | null;
+  /** Level 2 only: one learner, or the whole class at once (register, deviation 20). */
+  reset_target?: ResetTarget;
 }
 
 /**
@@ -441,6 +443,17 @@ export interface ResetAuditEntry {
  */
 export type SingleStudentResetScope = 'active_session' | 'full_student';
 export const SINGLE_STUDENT_RESET_SCOPES: readonly SingleStudentResetScope[] = ['active_session', 'full_student'];
+
+/**
+ * Who a level-2 reset covers. The product owner (14.9.2026, confirmed
+ * 18.9.2026; register deviation 20) added 'class': restart the active meeting
+ * for all 12 learners in one action, for the lesson that fell apart (network
+ * down) where twelve confirmation dialogs are not an option. 'class' exists
+ * only with reset_scope 'active_session' — wiping every learner completely is
+ * level 3, and §ב forbids merging the levels.
+ */
+export type ResetTarget = 'student' | 'class';
+export const RESET_TARGETS: readonly ResetTarget[] = ['student', 'class'];
 
 /**
  * Module 23א: backupAndResetSessionData
@@ -482,7 +495,7 @@ async function runBackupAndReset(request: CallableRequest<any>) {
     throw new HttpsError("unauthenticated", "User must be authenticated.");
   }
 
-  const { reset_level, reason, reason_note = null, student_id, class_id = "class_1", reset_scope, session_number } = request.data || {};
+  const { reset_level, reason, reason_note = null, student_id, class_id = "class_1", reset_scope, session_number, reset_target } = request.data || {};
 
   if (!reset_level || !['alerts', 'single_student', 'system'].includes(reset_level)) {
     throw new HttpsError("invalid-argument", "Invalid reset_level. Must be 'alerts', 'single_student', or 'system'.");
@@ -493,6 +506,19 @@ async function runBackupAndReset(request: CallableRequest<any>) {
   }
   if (reset_scope !== undefined && !SINGLE_STUDENT_RESET_SCOPES.includes(reset_scope)) {
     throw new HttpsError("invalid-argument", "Invalid reset_scope. Must be 'active_session' or 'full_student'.");
+  }
+  if (reset_target !== undefined && !RESET_TARGETS.includes(reset_target)) {
+    throw new HttpsError("invalid-argument", "Invalid reset_target. Must be 'student' or 'class'.");
+  }
+  if (reset_target === 'class' && reset_level !== 'single_student') {
+    throw new HttpsError("invalid-argument", "reset_target 'class' belongs to reset_level 'single_student' (level 2) only.");
+  }
+  const isClassTarget = reset_level === 'single_student' && reset_target === 'class';
+  if (isClassTarget && reset_scope === 'full_student') {
+    throw new HttpsError(
+      "invalid-argument",
+      "איפוס לכל הכיתה מאפס את המפגש הפעיל בלבד. למחיקת כל נתוני הכיתה יש להשתמש באיפוס מערכת (רמה 3)."
+    );
   }
 
   // PRD Module 23א §F: learning-data resets belong to the class teacher; a
@@ -580,19 +606,35 @@ async function runBackupAndReset(request: CallableRequest<any>) {
   // and what is deleted can never drift apart, and nothing is deleted that
   // was not first written to the backup file.
   // ───────────────────────────────────────────────────────────────────────
-  const rawNum = reset_level === 'single_student' ? String(student_id ?? '').replace(/\D/g, '') : '';
-  if (reset_level === 'single_student' && (!rawNum || parseInt(rawNum, 10) < 1 || parseInt(rawNum, 10) > 12)) {
+  const isOneLearner = reset_level === 'single_student' && !isClassTarget;
+  const rawNum = isOneLearner ? String(student_id ?? '').replace(/\D/g, '') : '';
+  if (isOneLearner && (!rawNum || parseInt(rawNum, 10) < 1 || parseInt(rawNum, 10) > 12)) {
     throw new HttpsError("invalid-argument", "student_id (1-12) is required for single_student reset.");
   }
-  const affectedStudentIds = reset_level === 'single_student' ? [parseInt(rawNum, 10)] : [...ALL_STUDENT_IDS];
+  const affectedStudentIds = isOneLearner ? [parseInt(rawNum, 10)] : [...ALL_STUDENT_IDS];
   // Level 2 defaults to the PRD's "restart the active meeting"; the teacher may
   // ask for the whole learner instead. The meeting is the one the teacher has
   // open (Module 14), unless the request names it.
   const singleScope: SingleStudentResetScope = reset_level === 'single_student' ? (reset_scope || 'active_session') : 'full_student';
-  const activeSessionNumber = reset_level === 'single_student' && singleScope === 'active_session'
-    ? await resolveActiveSessionNumber(rtdb, rawNum, session_number)
-    : null;
-  const scope = buildResetScope(reset_level, rawNum, singleScope, activeSessionNumber);
+  // A single learner falls back to the meeting their own record points at. A
+  // class has no such fallback — twelve learners may each be somewhere else —
+  // so the whole-class restart needs a meeting the teacher actually has open.
+  const activeSessionNumber = isClassTarget
+    ? await resolveClassSessionNumber(rtdb, session_number)
+    : isOneLearner && singleScope === 'active_session'
+      ? await resolveActiveSessionNumber(rtdb, rawNum, session_number)
+      : null;
+  if (isClassTarget && activeSessionNumber === null) {
+    throw new HttpsError(
+      "failed-precondition",
+      "אין מפגש פתוח לכיתה. איפוס המפגש לכל הכיתה אפשרי רק כשמפגש פתוח. לא נמחקו נתונים."
+    );
+  }
+  const resetTarget: ResetTarget = isClassTarget ? 'class' : 'student';
+  const level2Audit = reset_level === 'single_student'
+    ? { reset_scope: singleScope, session_number: activeSessionNumber, reset_target: resetTarget }
+    : {};
+  const scope = buildResetScope(reset_level, rawNum, singleScope, activeSessionNumber, resetTarget);
 
   // Step 1: collect everything in scope into one structured snapshot.
   let backup: ResetBackupFile;
@@ -611,7 +653,7 @@ async function runBackupAndReset(request: CallableRequest<any>) {
 
   // Step 2: Write backup file to Google Drive, falling back to this project's
   // own Cloud Storage bucket, and only as a last resort to a Firestore doc.
-  const backupFileName = `Backup_${reset_level}_${class_id}_${backup.snapshot_time}.json`;
+  const backupFileName = `Backup_${isClassTarget ? 'class_active_session' : reset_level}_${class_id}_${backup.snapshot_time}.json`;
   const backupBuffer = Buffer.from(JSON.stringify(backup), "utf-8");
   logger.info(
     `Reset ${resetId}: ${reset_level} backup is ${backupBuffer.length} bytes, ` +
@@ -689,7 +731,7 @@ async function runBackupAndReset(request: CallableRequest<any>) {
       reset_reason: reason,
       reason_note,
       records_deleted_count: 0,
-      ...(reset_level === 'single_student' ? { reset_scope: singleScope, session_number: activeSessionNumber } : {}),
+      ...level2Audit,
     };
     await db.collection("reset_audit_log").doc(resetId).set({
       ...failedEntry,
@@ -728,7 +770,7 @@ async function runBackupAndReset(request: CallableRequest<any>) {
     reset_reason: reason,
     reason_note,
     records_deleted_count: deletion.total,
-    ...(reset_level === 'single_student' ? { reset_scope: singleScope, session_number: activeSessionNumber } : {}),
+    ...level2Audit,
   };
 
   await db.collection("reset_audit_log").doc(resetId).set({
@@ -758,7 +800,7 @@ async function runBackupAndReset(request: CallableRequest<any>) {
     webViewLink: driveResult.webViewLink,
     backedUpRecords: backup.counts.total,
     deletedRecords: deletion.total,
-    ...(reset_level === 'single_student' ? { resetScope: singleScope, sessionNumber: activeSessionNumber } : {}),
+    ...(reset_level === 'single_student' ? { resetScope: singleScope, sessionNumber: activeSessionNumber, resetTarget } : {}),
   };
 }
 
@@ -792,6 +834,29 @@ export async function resolveActiveSessionNumber(
     } catch { /* try the next alias */ }
   }
   return 1;
+}
+
+/**
+ * The meeting a whole-class restart covers: the number the teacher's dashboard
+ * sent, else the class's open meeting (Module 14). Null when neither exists —
+ * the caller refuses rather than guess a meeting for twelve learners.
+ */
+export async function resolveClassSessionNumber(
+  rtdb: admin.database.Database,
+  requested: unknown
+): Promise<number | null> {
+  const valid = (n: unknown): number | null => {
+    const v = Number(n);
+    return Number.isInteger(v) && v >= 1 && v <= 8 ? v : null;
+  };
+  const fromRequest = valid(requested);
+  if (fromRequest) return fromRequest;
+  try {
+    const classSnap = await rtdb.ref("active_class_session/sessionNumber").get();
+    return valid(classSnap.val());
+  } catch {
+    return null;
+  }
 }
 
 // ─── Reset scope, backup and deletion helpers (Module 23א) ───────────────────
@@ -896,14 +961,38 @@ export function buildActiveSessionResetValues(sessionNumber: number, current: Re
  * and reflections are backed up with the rest but kept — even a full reset
  * does not erase the research evidence of a single learner.
  *
+ * Level 2, target 'class' (register deviation 20): the 'active_session' reset
+ * above, for all 12 learners in one action. Every learner record, the chat and
+ * every learning collection are backed up; only the meeting's fields on each
+ * record are reset and only that meeting's Firestore session documents are
+ * deleted. Earlier meetings, recordings, chat, telemetry, reports and
+ * reflections stay — this is a restart of one lesson, not level 3.
+ *
  * Level 3 (system): every learning-data node and collection, for all learners.
  */
 export function buildResetScope(
   level: 'single_student' | 'system',
   rawNum: string,
   singleScope: SingleStudentResetScope = 'full_student',
-  activeSessionNumber: number | null = null
+  activeSessionNumber: number | null = null,
+  target: ResetTarget = 'student'
 ): ResetScope {
+  if (level === 'single_student' && target === 'class') {
+    const sessionNumber = activeSessionNumber ?? 1;
+    const allAliases = ALL_STUDENT_IDS.flatMap((n) => studentAliases(String(n)));
+    return {
+      rtdbPaths: [],
+      rtdbBackupOnlyPaths: ["users/students", "chat_messages"],
+      fieldResets: allAliases.map((a) => ({ path: `users/students/${a}`, values: { __activeSessionNumber: sessionNumber } })),
+      // No student filter: twelve learners under four aliases each is past
+      // Firestore's 30-value "in" ceiling, and the class is the whole collection.
+      firestore: LEARNING_COLLECTIONS.map((collection) => ({
+        collection,
+        backupOnly: collection !== "sessions",
+        ...(collection === "sessions" ? { sessionNumber } : {}),
+      })),
+    };
+  }
   if (level === 'single_student' && singleScope === 'active_session') {
     const aliases = studentAliases(rawNum);
     const studentValues = Array.from(new Set<string | number>([rawNum, parseInt(rawNum, 10), ...aliases]));

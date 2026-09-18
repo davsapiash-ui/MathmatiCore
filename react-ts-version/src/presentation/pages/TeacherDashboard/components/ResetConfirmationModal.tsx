@@ -2,12 +2,18 @@ import React, { useState, useCallback } from 'react';
 import { useDismissableOverlay } from '@/hooks/useDismissableOverlay';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, ShieldAlert, RefreshCw, X, Check } from 'lucide-react';
-import type { ResetReason, SingleStudentResetScope } from '@/types';
+import type { ResetReason, ResetTarget, SingleStudentResetScope } from '@/types';
 
 export interface ResetConfirmationModalProps {
   isOpen: boolean;
   onClose: () => void;
   resetLevel: 'alerts' | 'single_student' | 'system';
+  /**
+   * Level 2 only. 'class' restarts the open meeting for all 12 learners in one
+   * action (register, deviation 20); it has no learner, no scope choice, and
+   * needs a meeting the teacher has open.
+   */
+  resetTarget?: ResetTarget;
   targetStudentId?: string;
   targetStudentName?: string;
   /** Level 2: the meeting the teacher currently has open (Module 14), if any. */
@@ -31,6 +37,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
   isOpen,
   onClose,
   resetLevel,
+  resetTarget = 'student',
   targetStudentId,
   targetStudentName,
   activeSessionNumber: activeSessionProp,
@@ -43,7 +50,11 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
   const [step, setStep] = useState<1 | 2>(1);
   // PRD Module 23א §ב.2: the default is the active meeting only.
   const [scope, setScope] = useState<SingleStudentResetScope>('active_session');
+  // Twelve learners lose the work of the open meeting: one explicit tick, so
+  // the button next to "איפוס התראות" cannot do it on a stray click.
+  const [classConfirmed, setClassConfirmed] = useState(false);
   const activeSessionNumber = activeSessionProp && activeSessionProp >= 1 && activeSessionProp <= 8 ? activeSessionProp : null;
+  const isClassTarget = resetLevel === 'single_student' && resetTarget === 'class';
 
   const handleClose = useCallback(() => {
     if (isSubmitting) return;
@@ -51,6 +62,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
     setDoubleConfirmed(false);
     setReasonNote('');
     setScope('active_session');
+    setClassConfirmed(false);
     onClose();
   }, [isSubmitting, onClose]);
 
@@ -76,13 +88,18 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
     if (resetLevel === 'system' && !doubleConfirmed) {
       return;
     }
+    if (isClassTarget && (!activeSessionNumber || !classConfirmed)) {
+      return;
+    }
 
     setIsSubmitting(true);
     try {
       await onConfirm(
         selectedReason,
         reasonNote.trim() || undefined,
-        resetLevel === 'single_student' ? { scope, sessionNumber: activeSessionNumber } : undefined
+        resetLevel === 'single_student'
+          ? { scope: isClassTarget ? 'active_session' : scope, sessionNumber: activeSessionNumber }
+          : undefined
       );
       handleClose();
     } catch (e) {
@@ -94,7 +111,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
 
   const isLevel3 = resetLevel === 'system';
   const isLevel2 = resetLevel === 'single_student';
-  const isFullStudent = isLevel2 && scope === 'full_student';
+  const isFullStudent = isLevel2 && !isClassTarget && scope === 'full_student';
   const meetingLabel = activeSessionNumber ? `מפגש ${activeSessionNumber}` : 'המפגש הנוכחי';
 
   return createPortal(
@@ -123,6 +140,8 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
             <h3 className="text-xl font-black text-slate-900 dark:text-white">
               {isLevel3
                 ? 'איפוס מערכת כולל (רמה 3)'
+                : isClassTarget
+                ? `איפוס ${meetingLabel} לכל הכיתה (רמה 2)`
                 : isLevel2
                 ? `איפוס לומד יחיד (רמה 2): ${targetStudentName || targetStudentId}`
                 : 'איפוס התראות רדאר (רמה 1)'}
@@ -145,7 +164,16 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                 <li>יירשם תיעוד בלתי-מחיק ביומן הביקורת reset_audit_log.</li>
               </>
             )}
-            {isLevel2 && !isFullStudent && (
+            {isClassTarget && (
+              <>
+                <li className="text-amber-700 dark:text-amber-300 font-semibold">יבוצע גיבוי מלא של כל 12 הלומדים אל Google Drive לפני האיפוס.</li>
+                <li>יימחקו מצב מרחב העבודה וההתקדמות ב{meetingLabel} של כל 12 הלומדים.</li>
+                <li>כל הלומדים יוחזרו לתחילת {meetingLabel}. מפגשים קודמים, הקלטות והודעות צ'אט נשמרים.</li>
+                <li>המפגש של הכיתה נשאר פתוח, והשעון שלו ממשיך מהרגע שהופעל.</li>
+                <li>יירשם תיעוד בלתי-מחיק ביומן הביקורת reset_audit_log.</li>
+              </>
+            )}
+            {isLevel2 && !isClassTarget && !isFullStudent && (
               <>
                 <li className="text-amber-700 dark:text-amber-300 font-semibold">יבוצע גיבוי מלא של נתוני {targetStudentName || targetStudentId} אל Google Drive.</li>
                 <li>יימחקו מצב מרחב העבודה והתקדמות {meetingLabel} של לומד זה בלבד.</li>
@@ -175,7 +203,25 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
         {/* Step 1: Mandatory Reason Selector */}
         {step === 1 && (
           <div className="space-y-4 mb-6">
-            {isLevel2 && (
+            {isClassTarget && !activeSessionNumber && (
+              <div role="alert" className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                אין מפגש פתוח לכיתה. איפוס המפגש לכל הכיתה אפשרי רק כשמפגש פתוח. לאיפוס של לומד אחד, פתחו את כרטיס הלומד.
+              </div>
+            )}
+            {isClassTarget && activeSessionNumber && (
+              <label className="flex items-center gap-3 cursor-pointer p-3 rounded-xl border border-amber-300 dark:border-amber-800 bg-amber-50/60 dark:bg-amber-950/30 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={classConfirmed}
+                  onChange={(e) => setClassConfirmed(e.target.checked)}
+                  className="w-5 h-5 rounded text-amber-600 focus:ring-amber-500"
+                />
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                  אני מאשר/ת לאפס את {meetingLabel} לכל 12 הלומדים.
+                </span>
+              </label>
+            )}
+            {isLevel2 && !isClassTarget && (
               <fieldset>
                 <legend className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                   מה לאפס?
@@ -282,12 +328,12 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
           <button
             type="button"
             onClick={handleExecute}
-            disabled={isSubmitting || (isLevel3 && step === 2 && !doubleConfirmed)}
+            disabled={isSubmitting || (isLevel3 && step === 2 && !doubleConfirmed) || (isClassTarget && (!activeSessionNumber || !classConfirmed))}
             className={`px-5 py-2.5 text-xs font-bold text-white rounded-xl shadow-sm transition-all flex items-center gap-2 cursor-pointer ${
               isLevel3
                 ? 'bg-red-600 hover:bg-red-700 disabled:opacity-50'
                 : isLevel2
-                ? 'bg-amber-600 hover:bg-amber-700'
+                ? 'bg-amber-600 hover:bg-amber-700 disabled:opacity-50'
                 : 'bg-indigo-600 hover:bg-indigo-700'
             }`}
           >

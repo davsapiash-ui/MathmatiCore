@@ -119,6 +119,20 @@ export interface SemanticEventLegacy {
 
 export type LogEventPayload = SemanticEventLegacy | Omit<SemanticEvent, 'timestamp' | 'event_type'>;
 
+/** The teacher-side mirror of a learner whose meeting N was restarted (the server did the real reset). */
+function patchStudentAfterSessionReset(existing: StudentData, sessionNum: number): StudentData {
+  return {
+    ...existing,
+    highestCompletedMeeting: sessionNum > 0 ? Math.min(existing.highestCompletedMeeting || 0, sessionNum - 1) : existing.highestCompletedMeeting,
+    ...(sessionNum === 2 ? { completedMeeting2: false, routeStatus: null, routeRecommendation: null, qMatrixResults: {
+      task1_read_write_zero: null, task2_digit_value: null, task3_subtraction_regrouping: null, task4_decompose_number: null,
+      task5_units_to_tens: null, task6_vertical_addition: null, task7_subtraction_zero_tens: null,
+    } } : {}),
+    ...(sessionNum === 8 ? { reflections: null } : {}),
+    liveSessionMetrics: null,
+  };
+}
+
 export interface SingleStudentResetOptions {
   scope?: SingleStudentResetScope;
   /** The meeting to restart (1–8) when scope is 'active_session'; the server falls back to the open class meeting. */
@@ -173,6 +187,11 @@ interface AppState {
    * meeting for this learner only. `scope: 'full_student'` wipes the learner.
    */
   resetStudentData: (studentId: string, reason: ResetReason, reasonNote?: string, options?: SingleStudentResetOptions) => Promise<void>;
+  /**
+   * Level 2, whole class (register, deviation 20): restart the open meeting
+   * for all 12 learners in one action. Needs a meeting the teacher has open.
+   */
+  resetClassActiveSession: (reason: ResetReason, reasonNote: string | undefined, sessionNumber: number) => Promise<void>;
   resetEntireSystemUsageData: (reason: ResetReason, reasonNote?: string) => Promise<void>;
   /** Module 23א level 1: clears radar alerts only, never learning data. */
   resetRadarAlerts: (reason: ResetReason, reasonNote?: string) => Promise<void>;
@@ -612,6 +631,61 @@ export const useStore = create<AppState>()(
         };
       }),
 
+      resetClassActiveSession: async (reason: ResetReason, reasonNote: string | undefined, sessionNumber: number) => {
+        if (!Number.isInteger(sessionNumber) || sessionNumber < 1 || sessionNumber > 8) {
+          toast.error('אין מפגש פתוח לכיתה. לא נמחקו נתונים.');
+          throw new Error('NO_ACTIVE_CLASS_SESSION');
+        }
+        invalidateLearnerEventsCache();
+
+        // Same hard gate as every other reset (Module 23א §ג): the server backs
+        // up first, and nothing is reset if the backup fails.
+        try {
+          const backupResetCallable = httpsCallable(functions, 'backupAndResetSessionData', { timeout: RESET_CALLABLE_TIMEOUT_MS });
+          await backupResetCallable({
+            reset_level: 'single_student',
+            reset_target: 'class',
+            reset_scope: 'active_session',
+            reason,
+            reason_note: reasonNote || null,
+            class_id: 'class_1',
+            session_number: sessionNumber,
+          });
+        } catch (err: any) {
+          const code: string = typeof err?.code === 'string' ? err.code : '';
+          const serverMessage: string = typeof err?.message === 'string' ? err.message : '';
+          if (code.endsWith('permission-denied')) {
+            console.error('[Module 23א] Class session reset denied by the server, no data deleted:', err);
+            toast.error(serverMessage || 'אין הרשאה לאיפוס. לא נמחקו נתונים.');
+            throw new Error('RESET_PERMISSION_DENIED');
+          }
+          if (code.endsWith('failed-precondition') || code.endsWith('invalid-argument')) {
+            console.error('[Module 23א] Class session reset refused, no data deleted:', err);
+            toast.error(serverMessage || 'האיפוס נדחה. לא נמחקו נתונים.');
+            throw new Error('RESET_REFUSED');
+          }
+          console.error('[Module 23א] Backup failed — class session reset aborted, no data deleted:', err);
+          toast.error(serverMessage ? `הגיבוי נכשל: ${serverMessage}. האיפוס בוטל ולא נמחקו נתונים.` : 'הגיבוי נכשל. האיפוס בוטל ולא נמחקו נתונים.');
+          throw new Error('BACKUP_FAILED_RESET_ABORTED');
+        }
+
+        // The server reset the meeting's fields on every learner record and set
+        // forceReload; here only the local mirrors follow.
+        for (let n = 1; n <= 12; n++) {
+          for (const id of [`student_user${n}`, `student_${n}`, `user${n}`, String(n)]) {
+            firebaseSyncService.clearLocalSessionProgress(id);
+          }
+        }
+        set((state) => {
+          const students = { ...state.students };
+          for (const [key, existing] of Object.entries(students)) {
+            if (existing) students[key] = patchStudentAfterSessionReset(existing, sessionNumber);
+          }
+          return { students };
+        });
+        toast.success(`מפגש ${sessionNumber} אופס לכל הכיתה. 12 הלומדים חוזרים לתחילתו, ושאר המפגשים נשמרו.`);
+      },
+
       resetStudentData: async (studentId: string, reason: ResetReason, reasonNote?: string, options?: SingleStudentResetOptions) => {
         const normId = normalizeStudentId(studentId);
         const num = normId.replace(/\D/g, '') || '1';
@@ -661,17 +735,7 @@ export const useStore = create<AppState>()(
           set((state) => {
             const existing = state.students[normId] || state.students[studentId];
             if (!existing) return {};
-            const sessionNum = requestedSession ?? 0;
-            const patched: StudentData = {
-              ...existing,
-              highestCompletedMeeting: sessionNum > 0 ? Math.min(existing.highestCompletedMeeting || 0, sessionNum - 1) : existing.highestCompletedMeeting,
-              ...(sessionNum === 2 ? { completedMeeting2: false, routeStatus: null, routeRecommendation: null, qMatrixResults: {
-                task1_read_write_zero: null, task2_digit_value: null, task3_subtraction_regrouping: null, task4_decompose_number: null,
-                task5_units_to_tens: null, task6_vertical_addition: null, task7_subtraction_zero_tens: null,
-              } } : {}),
-              ...(sessionNum === 8 ? { reflections: null } : {}),
-              liveSessionMetrics: null,
-            };
+            const patched = patchStudentAfterSessionReset(existing, requestedSession ?? 0);
             return {
               students: {
                 ...state.students,
