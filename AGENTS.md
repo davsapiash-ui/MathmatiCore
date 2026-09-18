@@ -28,10 +28,10 @@ has.
 The **only** authoritative requirements document is:
 
 ```
-מסמכי אפיון/07- 2.MathematiCore_PRD_v07 הסופי.md
+מסמכי אפיון/07- 3.MathematiCore_PRD_v07 הסופי.md
 ```
 
-Version 7.2, 30 August 2026, exactly as the product owner uploaded it — 29 modules plus
+Version 7.3, 18 September 2026, exactly as the product owner uploaded it — 29 modules plus
 23א, Appendix A and Appendix B. Read it before implementing anything. When you cite a
 requirement, cite it from this file, by module.
 

@@ -28,7 +28,7 @@ jobs:
           set -euo pipefail
           # -z: NUL-separated so Hebrew filenames come through intact.
           changed=$(git diff --name-only -z "$BASE" "$HEAD" | tr '\0' '\n' \
-            | grep -E '^מסמכי אפיון/(מקור פדגוגי/|07- 2\.MathematiCore_PRD_v07 הסופי\.md$)' || true)
+            | grep -E '^מסמכי אפיון/(מקור פדגוגי/|07- [0-9]+\.MathematiCore_PRD_v07 הסופי\.md$)' || true)
           if [ -z "$changed" ]; then
             echo "Protected spec files untouched."
             exit 0
