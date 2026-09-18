@@ -14,6 +14,13 @@ import {
   summarizeMeeting,
   type MeetingSummary,
   computeFadingGap,
+  computeFlexibilityIndex,
+  computeMediationEffectiveness,
+  FLEXIBILITY_SESSIONS,
+  flexibilityHe,
+  mediationHe,
+  type FlexibilityIndex,
+  type MediationEffectiveness,
   FADING_GUESS_SECONDS,
   type FadingGap,
 } from "./meetingMetrics";
@@ -98,6 +105,14 @@ export interface ClassLearnerRow {
   exercise_outcomes: Record<string, ExerciseOutcome>;
   /** Session 8 only (מסמך 03 §3.8): the learner without blocks vs the same learner with blocks in sessions 4–6. */
   fading_gap: FadingGap | null;
+  /** Research measure 3 (PRD 7.3, Module 23 §ב): meetings 3 and 7 only; null elsewhere. */
+  flexibility: FlexibilityIndex | null;
+  /** ΣR ÷ ΣT over meetings 3 and 7; null when the learner's other meetings were not passed. */
+  flexibility_cumulative: FlexibilityIndex | null;
+  /** Research measure 4: null in meeting 2, where the coaching card is disabled. */
+  mediation: MediationEffectiveness | null;
+  /** ΣS ÷ ΣC over all the learner's meetings; null when they were not passed. */
+  mediation_cumulative: MediationEffectiveness | null;
   session_doc_score_percent: number | null;
   session_doc_recommended_path: string | null;
   teacher_selected_path: string | null;
@@ -120,6 +135,8 @@ export interface ClassAggregates {
   learners_without_data: number[];
   /** Learners whose meeting has data but whose compulsory count is unknown: no score stated. */
   learners_without_score: number[];
+  /** Measure 4, C = 0: learners with data in this meeting who needed no coaching card. Null in meeting 2. */
+  learners_without_mediation: number[] | null;
   score_mean: number | null;
   score_median: number | null;
   score_min: number | null;
@@ -169,7 +186,9 @@ export function buildLearnerRow(
   recording: { minutes: number; truncated: boolean } | null,
   reflectionsCount: number,
   /** Sessions 4–6 events of the same learner; passed for session 8 only. */
-  earlierEvents: Record<string, any>[] | null = null
+  earlierEvents: Record<string, any>[] | null = null,
+  /** The meeting's number and every event of the learner in all meetings, for research measures 3–4. */
+  research: { sessionNumber: number; allEvents: Record<string, any>[] } | null = null
 ): ClassLearnerRow {
   const sorted = [...events].sort((a, b) => (a.client_timestamp || 0) - (b.client_timestamp || 0));
   const first = computeFirstAttemptScore(sorted, compulsoryTotal);
@@ -245,11 +264,25 @@ export function buildLearnerRow(
     recording_truncated: recording?.truncated ?? false,
     exercise_outcomes: outcomes,
     fading_gap: earlierEvents ? computeFadingGap(sorted, earlierEvents) : null,
+    flexibility: research && FLEXIBILITY_SESSIONS.includes(research.sessionNumber) ? computeFlexibilityIndex(sorted) : null,
+    flexibility_cumulative: research ? computeFlexibilityIndex(research.allEvents) : null,
+    mediation: research && research.sessionNumber !== 2 ? computeMediationEffectiveness(sorted) : null,
+    mediation_cumulative: research ? computeMediationEffectiveness(research.allEvents) : null,
     session_doc_score_percent: docScore,
     session_doc_recommended_path: sessionDoc?.matrix_recommended_path ?? null,
     teacher_selected_path: sessionDoc?.teacher_selected_path ?? null,
     teacher_gate_approved: Boolean(sessionDoc?.teacher_gate_approved),
   };
+}
+
+/** One learner's research measures 3–4, this meeting and cumulative, as one line. */
+export function researchMeasuresLineHe(r: ClassLearnerRow): string {
+  return [
+    `גמישות ייצוגית: ${flexibilityHe(r.flexibility)}`,
+    `מצטבר (מפגשים 3 ו-7): ${flexibilityHe(r.flexibility_cumulative)}`,
+    `אפקטיביות התיווך: ${mediationHe(r.mediation)}`,
+    `מצטבר (כל המפגשים): ${mediationHe(r.mediation_cumulative)}`,
+  ].join(" | ");
 }
 
 /** A percentage that may not have been measured. Never printed as a bare number. */
@@ -308,6 +341,9 @@ export function aggregateClass(rows: ClassLearnerRow[], eventsByLearner: Map<num
     learners_with_data: rows.length,
     learners_without_data: ALL_STUDENT_IDS.filter((id) => !withData.has(id)),
     learners_without_score: rows.filter((r) => r.score_percent === null).map((r) => r.student_id),
+    learners_without_mediation: rows.some((r) => r.mediation)
+      ? rows.filter((r) => r.mediation && r.mediation.cards === 0).map((r) => r.student_id)
+      : null,
     score_mean: n === 0 ? null : round1(scores.reduce((a, b) => a + b, 0) / n),
     score_median: n === 0 ? null : round1(median),
     score_min: n === 0 ? null : scores[0],
@@ -483,6 +519,10 @@ export function buildClassCsv(rows: ClassLearnerRow[], exercises: ClassExerciseR
     "grid_openings", "grid_reopenings", "keyboard_lock_blocks", "help_requests",
     "fading_pairs", "fading_accuracy_with_blocks", "fading_accuracy_without_blocks",
     "fading_seconds_with_blocks", "fading_seconds_without_blocks", "fading_guessed", "fading_unpaired",
+    "flexibility_completed", "flexibility_first_try", "flexibility_percent",
+    "flexibility_cumulative_completed", "flexibility_cumulative_first_try", "flexibility_cumulative_percent",
+    "mediation_cards", "mediation_effective", "mediation_percent",
+    "mediation_cumulative_cards", "mediation_cumulative_effective", "mediation_cumulative_percent",
     ...exerciseIds.map((id) => `outcome_${id}`),
   ];
   const lines = rows.map((r) =>
@@ -498,6 +538,10 @@ export function buildClassCsv(rows: ClassLearnerRow[], exercises: ClassExerciseR
       r.fading_gap?.pairs_measured ?? "", r.fading_gap?.accuracy_with_blocks_percent ?? "", r.fading_gap?.accuracy_without_blocks_percent ?? "",
       r.fading_gap?.mean_seconds_with_blocks ?? "", r.fading_gap?.mean_seconds_without_blocks ?? "",
       r.fading_gap?.guessed_exercises.join("|") ?? "", r.fading_gap?.unpaired_exercises.join("|") ?? "",
+      r.flexibility?.completed ?? "", r.flexibility?.first_try ?? "", r.flexibility?.percent ?? "",
+      r.flexibility_cumulative?.completed ?? "", r.flexibility_cumulative?.first_try ?? "", r.flexibility_cumulative?.percent ?? "",
+      r.mediation?.cards ?? "", r.mediation?.effective ?? "", r.mediation?.percent ?? "",
+      r.mediation_cumulative?.cards ?? "", r.mediation_cumulative?.effective ?? "", r.mediation_cumulative?.percent ?? "",
       ...exerciseIds.map((id) => r.exercise_outcomes[id] ?? "not_attempted"),
     ].map(cell).join(",")
   );
@@ -620,6 +664,13 @@ export function createClassReportPdfBufferWithPdfkit(report: Record<string, any>
         }
       }
 
+      if (rows.some((r) => r.flexibility || r.mediation)) {
+        heading("4ב. מדדי המחקר: גמישות ייצוגית ואפקטיביות התיווך");
+        const without = report.aggregates?.learners_without_mediation;
+        if (Array.isArray(without)) line(`לא נדרשו לתיווך במפגש זה: ${without.length} מתוך 12`, 10, "#0f172a");
+        for (const r of rows) line(`תלמיד ${r.student_id} | ${researchMeasuresLineHe(r)}`, 9, "#0f172a");
+      }
+
       heading("5. ניתוח הבינה: דפוסים כיתתיים והמלצות הוראה", "#92400e");
       const patterns: string[] = Array.isArray(report.class_patterns) ? report.class_patterns : [];
       const teaching: string[] = Array.isArray(report.teaching_recommendations) ? report.teaching_recommendations : [];
@@ -681,11 +732,14 @@ export const generateClassMeetingReport = onCall(CLASS_REPORT_RUNTIME, async (re
   const eventsByLearner = new Map<number, Record<string, any>[]>();
   // A session-8 report also needs each learner's sessions 4–6 (fading gap).
   const earlierByLearner = new Map<number, Record<string, any>[]>();
+  // Research measures 3–4 also carry a cumulative value over the learner's other meetings.
+  const allByLearner = new Map<number, Record<string, any>[]>();
   let telemetryEventCount = 0;
   for (const { data } of allTelemetry) {
     const m = sessionNumberFromId(String(data.session_id || ""));
     const n = studentNumber(data.student_id);
     if (n === null) continue;
+    if (m !== null) allByLearner.set(n, [...(allByLearner.get(n) ?? []), data]);
     if (sessionNumber === 8 && m !== null && m >= 4 && m <= 6) {
       earlierByLearner.set(n, [...(earlierByLearner.get(n) ?? []), data]);
       continue;
@@ -761,7 +815,8 @@ export const generateClassMeetingReport = onCall(CLASS_REPORT_RUNTIME, async (re
     learners.push(buildLearnerRow(
       n, eventsByLearner.get(n) ?? [], compulsory, pathOf,
       sessionDocByLearner.get(n) ?? null, recordingByLearner.get(n) ?? null, reflectionsByLearner.get(n) ?? 0,
-      sessionNumber === 8 ? (earlierByLearner.get(n) ?? []) : null
+      sessionNumber === 8 ? (earlierByLearner.get(n) ?? []) : null,
+      { sessionNumber, allEvents: allByLearner.get(n) ?? [] }
     ));
   }
   const aggregates = aggregateClass(learners, eventsByLearner);

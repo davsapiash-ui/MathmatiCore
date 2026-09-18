@@ -3,7 +3,7 @@ import { requireAdmin, requireTeacherForIndividualData } from "./callerIdentity"
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import { GoogleAuth } from "google-auth-library";
-import { computeFirstAttemptScore, readAllDocs, resolveCompulsoryTotal, sessionNumberFromId, studentNumberFromSessionId, summarizeMeeting, computeFadingGap } from "./meetingMetrics";
+import { computeFirstAttemptScore, readAllDocs, resolveCompulsoryTotal, sessionNumberFromId, studentNumberFromSessionId, summarizeMeeting, computeFadingGap, computeFlexibilityIndex, computeMediationEffectiveness, FLEXIBILITY_SESSIONS } from "./meetingMetrics";
 import { recomputeAdminMetrics } from "./adminAggregator";
 
 const GOOGLE_DRIVE_FOLDER_ID = "0AMiALsm_TxT5Uk9PVA";
@@ -1478,6 +1478,12 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
       const fading = m === 8
         ? computeFadingGap(events, [4, 5, 6].flatMap((e) => byLearnerMeeting.get(`${n}:${e}`) ?? []))
         : null;
+      // Research measures 3–4 (PRD 7.3, Module 23 §ב): this meeting, and the learner's cumulative value.
+      const allOfLearner = [1, 2, 3, 4, 5, 6, 7, 8].flatMap((e) => byLearnerMeeting.get(`${n}:${e}`) ?? []);
+      const flexibility = FLEXIBILITY_SESSIONS.includes(m) ? computeFlexibilityIndex(events) : null;
+      const flexibilityAll = computeFlexibilityIndex(allOfLearner);
+      const mediation = m !== 2 ? computeMediationEffectiveness(events) : null;
+      const mediationAll = computeMediationEffectiveness(allOfLearner);
       const sessionDoc = sessionDocByKey.get(k);
       const rec = recordingMinutesByKey.get(k);
       meetingRows.push({
@@ -1511,6 +1517,19 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
         fading_seconds_without_blocks: fading?.mean_seconds_without_blocks ?? "",
         fading_guessed: fading?.guessed_exercises.join("|") ?? "",
         fading_unpaired: fading?.unpaired_exercises.join("|") ?? "",
+        flexibility_completed: flexibility?.completed ?? "",
+        flexibility_first_try: flexibility?.first_try ?? "",
+        flexibility_percent: flexibility?.percent ?? "",
+        flexibility_cumulative_completed: flexibilityAll.completed,
+        flexibility_cumulative_first_try: flexibilityAll.first_try,
+        flexibility_cumulative_percent: flexibilityAll.percent ?? "",
+        mediation_cards: mediation?.cards ?? "",
+        mediation_effective: mediation?.effective ?? "",
+        mediation_percent: mediation?.percent ?? "",
+        mediation_not_needed: mediation ? mediation.cards === 0 : "",
+        mediation_cumulative_cards: mediationAll.cards,
+        mediation_cumulative_effective: mediationAll.effective,
+        mediation_cumulative_percent: mediationAll.percent ?? "",
         reflection_submitted: summary.reflection_submitted,
         recording_minutes: rec?.minutes ?? 0,
         recording_truncated: rec?.truncated ?? false,

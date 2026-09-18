@@ -14,6 +14,7 @@
 import * as fs from "fs";
 import { fontPath } from "./htmlPdf";
 import type { ClassAggregates, ClassLearnerRow, ExerciseOutcome } from "./classReport";
+import { flexibilityHe, mediationHe } from "./meetingMetrics";
 import type { RecommendationTier } from "./reportAnalysis";
 
 export const EXACT_AI_FALLBACK_TEXT_HE =
@@ -137,6 +138,14 @@ const asStringArray = (value: unknown): string[] =>
 // Individual pedagogical report (one learner, one meeting).
 // ---------------------------------------------------------------------------
 
+/** Research measures 3–4 of one learner (PRD 7.3, Module 23 §ב). Absent on reports generated before they existed. */
+function researchMeasuresCard(m: Record<string, any> | null | undefined): string {
+  if (!m) return "";
+  return `<h2>4. מדדי המחקר</h2>
+    <p><b>גמישות ייצוגית במפגש זה:</b> ${esc(flexibilityHe(m.flexibility ?? null))} | <b>מצטבר (מפגשים 3 ו-7):</b> ${esc(flexibilityHe(m.flexibility_cumulative ?? null))}</p>
+    <p><b>אפקטיביות התיווך במפגש זה:</b> ${esc(mediationHe(m.mediation ?? null))} | <b>מצטבר (כל המפגשים):</b> ${esc(mediationHe(m.mediation_cumulative ?? null))}</p>`;
+}
+
 export function pedagogicalReportHtml(report: Record<string, any>): string {
   const title = report.title_he || "MathematiCore - דוח פדגוגי מסכם";
   const pathLabel = report.matrix_recommended_path === "green_path"
@@ -178,6 +187,7 @@ export function pedagogicalReportHtml(report: Record<string, any>): string {
 
     <h2 class="amber">3. תובנות קוגניטיביות פדגוגיות</h2>
     ${insights}
+    ${researchMeasuresCard(report.research_measures)}
   `;
   return layout(title, body);
 }
@@ -234,6 +244,26 @@ function outcomesTable(rows: ClassLearnerRow[], exerciseIds: string[]): string {
     return `<tr><td class="label">תלמיד ${esc(r.student_id)}</td>${cells}</tr>`;
   }).join("");
   return `<p class="muted">תוצאה לכל תרגיל, לכל לומד:</p><table><thead>${head}</thead><tbody>${body}</tbody></table>`;
+}
+
+/** Research measures 3–4 (PRD 7.3, Module 23 §ב): this meeting and cumulative, per learner. */
+function researchMeasuresSection(rows: ClassLearnerRow[], a: ClassAggregates): string {
+  if (!rows.some((r) => r.flexibility || r.mediation)) return "";
+  const without = Array.isArray(a.learners_without_mediation)
+    ? `<p><b>לא נדרשו לתיווך במפגש זה:</b> ${esc(a.learners_without_mediation.length)} מתוך 12${a.learners_without_mediation.length > 0 ? ` (${esc(studentList(a.learners_without_mediation))})` : ""}</p>`
+    : "";
+  const head = ["לומד", "גמישות ייצוגית", "גמישות, מצטבר (מפגשים 3 ו-7)", "אפקטיביות התיווך", "אפקטיביות התיווך, מצטבר"];
+  const body = rows.map((r) => `
+    <tr>
+      <td class="label">תלמיד ${esc(r.student_id)}</td>
+      <td>${esc(flexibilityHe(r.flexibility))}</td>
+      <td>${esc(flexibilityHe(r.flexibility_cumulative))}</td>
+      <td>${esc(mediationHe(r.mediation))}</td>
+      <td>${esc(mediationHe(r.mediation_cumulative))}</td>
+    </tr>`).join("");
+  return `<h2>4ב. מדדי המחקר: גמישות ייצוגית ואפקטיביות התיווך</h2>
+    ${without}
+    <table><thead><tr>${head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table>`;
 }
 
 /** The class report is table-heavy (17 columns per learner), so it prints landscape. */
@@ -309,6 +339,8 @@ export function classReportHtml(report: Record<string, any>): string {
     <h2>4. טבלת הלומדים (כל מה שנמדד ליחיד)</h2>
     ${learnersTable(rows)}
     ${outcomesTable(rows, exerciseIds)}
+
+    ${researchMeasuresSection(rows, a)}
 
     <h2 class="amber">5. ניתוח הבינה: דפוסים כיתתיים והמלצות הוראה</h2>
     ${analysis}

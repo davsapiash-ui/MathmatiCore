@@ -5,7 +5,18 @@ import * as admin from "firebase-admin";
 import * as path from "path";
 import * as fs from "fs";
 import { DRIVE_FOLDERS, resolveDriveFolder, uploadBufferToDrive } from "./exportDriveReport";
-import { DIAGNOSTIC_COMPULSORY_COUNT, computeFirstAttemptScore, readAllTelemetryForSession, sessionNumberFromId } from "./meetingMetrics";
+import {
+  DIAGNOSTIC_COMPULSORY_COUNT,
+  computeFirstAttemptScore,
+  computeFlexibilityIndex,
+  computeMediationEffectiveness,
+  FLEXIBILITY_SESSIONS,
+  flexibilityHe,
+  mediationHe,
+  readAllTelemetryForSession,
+  sessionIdsOfSameLearner,
+  sessionNumberFromId,
+} from "./meetingMetrics";
 import { GEMINI_SECRETS } from "./geminiConfig";
 import {
   buildFailedExercises,
@@ -286,6 +297,18 @@ export function createPedagogicalReportPdfBufferWithPdfkit(report: Record<string
         doc.fontSize(10).fillColor("#78350f");
         rtlText(doc, report.ai_fallback_text || EXACT_AI_FALLBACK_TEXT, { lineGap: 3 });
       }
+
+      // Research measures 3–4 (PRD 7.3, Module 23 §ב); absent on older reports.
+      const measures = report.research_measures;
+      if (measures) {
+        doc.moveDown(1);
+        doc.fontSize(14).fillColor("#0f172a");
+        rtlText(doc, "4. מדדי המחקר");
+        doc.moveDown(0.3);
+        doc.fontSize(10).fillColor("#0f172a");
+        rtlText(doc, `גמישות ייצוגית במפגש זה: ${flexibilityHe(measures.flexibility ?? null)} | מצטבר (מפגשים 3 ו-7): ${flexibilityHe(measures.flexibility_cumulative ?? null)}`, { lineGap: 3 });
+        rtlText(doc, `אפקטיביות התיווך במפגש זה: ${mediationHe(measures.mediation ?? null)} | מצטבר (כל המפגשים): ${mediationHe(measures.mediation_cumulative ?? null)}`, { lineGap: 3 });
+      }
       doc.moveDown(1.5);
 
       // Footer
@@ -562,6 +585,26 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     telemetry_summary: buildTelemetrySummary(telemetryDocs),
   });
 
+  // Research measures 3–4 (PRD 7.3, Module 23 §ב). The cumulative values need
+  // the same learner's other meetings; a failure to read them leaves the
+  // cumulative values unmeasured and never fails the report.
+  let allMeetingsEvents: Record<string, any>[] | null = null;
+  try {
+    const others = sessionIdsOfSameLearner(sessionId).filter((id) => id !== sessionId);
+    if (others.length > 0) {
+      const lists = await Promise.all(others.map((id) => readAllTelemetryForSession(db, id)));
+      allMeetingsEvents = [...telemetryDocs, ...lists.flat()];
+    }
+  } catch (err) {
+    logger.warn("Research measures: the learner's other meetings could not be read", err);
+  }
+  const researchMeasures = {
+    flexibility: FLEXIBILITY_SESSIONS.includes(resolvedSessionNumber) ? computeFlexibilityIndex(telemetryDocs) : null,
+    flexibility_cumulative: allMeetingsEvents ? computeFlexibilityIndex(allMeetingsEvents) : null,
+    mediation: resolvedSessionNumber !== 2 ? computeMediationEffectiveness(telemetryDocs) : null,
+    mediation_cumulative: allMeetingsEvents ? computeMediationEffectiveness(allMeetingsEvents) : null,
+  };
+
   // Assemble pedagogical report data payload
   const report = {
     report_id: `rep_${sessionId}`,
@@ -585,6 +628,7 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     support_profile_id: studentData?.support_profile_id || "default",
     support_profile_version: studentData?.support_profile_version || 1,
     exercise_narratives: exerciseNarratives,
+    research_measures: researchMeasures,
     recommendation_tier: recommendationTier,
     knowledge_gaps: aiAnalysis?.knowledge_gaps || [],
     teaching_recommendations: aiAnalysis?.teaching_recommendations || [],
@@ -642,6 +686,7 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
       routing_label_he: routingLabelHe,
       recommendation_details_he: recommendationDetailsHe,
       exercise_narratives: exerciseNarratives,
+      research_measures: researchMeasures,
       knowledge_gaps: report.knowledge_gaps,
       teaching_recommendations: report.teaching_recommendations,
       ai_analysis_available: report.ai_analysis_available,

@@ -407,3 +407,130 @@ export function computeFadingGap(
     unpaired_exercises: unpaired.sort(),
   };
 }
+
+
+// ---------------------------------------------------------------------------
+// מדדי המחקר 3 ו-4 (PRD 7.3, Module 23 §ב "מדדי המחקר"). Measures 1 and 2 are
+// the first-attempt score above and the Persistence Index of Module 16.
+// ---------------------------------------------------------------------------
+
+/**
+ * The compulsory exercises whose operation is representation: the learner
+ * builds a number on the board (a required structure, or two different ways).
+ * They exist in sessions 3 and 7 only, which is why measure 3 is computed
+ * there. Mirrors react-ts-version/src/data/sessionTasks.ts and is pinned by
+ * Module23_ResearchMeasures.test.ts on the client, like FADING_PAIRS.
+ */
+export const REPRESENTATION_EXERCISES: ReadonlySet<string> = new Set([
+  "s3_r_t1", "s3_r_t2", "s3_r_t3", "s3_r_t4", "s3_r_t5", "s3_r_t6",
+  "s3_g_t1", "s3_g_t2", "s3_g_t3", "s3_g_t4", "s3_g_t5", "s3_g_t6", "s3_g_t7",
+  "s7_r_t1", "s7_r_t6", "s7_r_t7",
+  "s7_g_t1", "s7_g_t5", "s7_g_t6",
+]);
+
+export const FLEXIBILITY_SESSIONS: readonly number[] = [3, 7];
+
+/**
+ * "session_3_student_user4" → the same learner's eight session ids, in the same
+ * spelling. Empty when the id does not follow the pattern.
+ */
+export function sessionIdsOfSameLearner(sessionId: string): string[] {
+  const m = /^session_(0?)\d(_.+)$/.exec(String(sessionId || ""));
+  if (!m) return [];
+  return [1, 2, 3, 4, 5, 6, 7, 8].map((k) => `session_${m[1]}${k}${m[2]}`);
+}
+
+export interface FlexibilityIndex {
+  /** T: compulsory representation exercises the learner completed. */
+  completed: number;
+  /** R: those completed with error_count === 0. */
+  first_try: number;
+  /** R ÷ T × 100; null when T = 0 — the measure is not computed. */
+  percent: number | null;
+}
+
+/**
+ * Measure 3, one meeting's events (or several meetings' events together for
+ * the learner's cumulative value: ΣR ÷ ΣT). An exercise counts once, by its
+ * first PROBLEM_COMPLETE. In representation exercises the client's error_count
+ * counts every failed board check.
+ */
+export function computeFlexibilityIndex(events: Record<string, any>[]): FlexibilityIndex {
+  const sorted = [...events].sort((a, b) => (a.client_timestamp || 0) - (b.client_timestamp || 0));
+  const seen = new Set<string>();
+  let firstTry = 0;
+  for (const ev of sorted) {
+    if (ev?.event_type !== "PROBLEM_COMPLETE") continue;
+    const exId = String(ev.exercise_id || "");
+    if (!REPRESENTATION_EXERCISES.has(exId) || seen.has(exId)) continue;
+    seen.add(exId);
+    if (ev.details?.error_count === 0) firstTry++;
+  }
+  const completed = seen.size;
+  return {
+    completed,
+    first_try: firstTry,
+    percent: completed === 0 ? null : Math.round((firstTry / completed) * 100),
+  };
+}
+
+export interface MediationEffectiveness {
+  /** C: coaching cards shown. Always reported next to the percentage. */
+  cards: number;
+  /** S: cards after which the learner's next answer in the same exercise was correct. */
+  effective: number;
+  /** S ÷ C × 100; null when C = 0 — the learner needed no mediation. */
+  percent: number | null;
+}
+
+/**
+ * Measure 4. For each SOCRATIC_CARD_SHOWN, the learner's next answer in the
+ * same exercise_id decides: the first DIGIT_ENTERED whose is_correct is not
+ * null, or — where no digit is typed — a PROBLEM_COMPLETE that arrives before
+ * another card. Another card first, or no answer at all, is not a success.
+ * Pass one meeting's events, or all of a learner's meetings for ΣS ÷ ΣC
+ * (exercise ids are unique across meetings).
+ */
+export function computeMediationEffectiveness(events: Record<string, any>[]): MediationEffectiveness {
+  const sorted = [...events].sort((a, b) => (a.client_timestamp || 0) - (b.client_timestamp || 0));
+  let cards = 0;
+  let effective = 0;
+  // exercise_id → a card is waiting for the learner's next answer there
+  const pending = new Set<string>();
+  for (const ev of sorted) {
+    const exId = String(ev?.exercise_id || "");
+    switch (ev?.event_type) {
+      case "SOCRATIC_CARD_SHOWN":
+        cards++;
+        // A card over a still-unanswered card: the earlier one did not help.
+        pending.add(exId);
+        break;
+      case "DIGIT_ENTERED":
+        if (pending.has(exId) && typeof ev.details?.is_correct === "boolean") {
+          if (ev.details.is_correct) effective++;
+          pending.delete(exId);
+        }
+        break;
+      case "PROBLEM_COMPLETE":
+        if (pending.has(exId)) {
+          effective++;
+          pending.delete(exId);
+        }
+        break;
+      default:
+        break;
+    }
+  }
+  return { cards, effective, percent: cards === 0 ? null : Math.round((effective / cards) * 100) };
+}
+
+/** Measure 3 as text: "2 מתוך 3 (67%)", or that it was not measured. */
+export function flexibilityHe(f: FlexibilityIndex | null): string {
+  return !f || f.percent === null ? "לא נמדד" : `${f.first_try} מתוך ${f.completed} (${f.percent}%)`;
+}
+
+/** Measure 4 as text. C is always shown; C = 0 is a finding of its own, not a percentage. */
+export function mediationHe(m: MediationEffectiveness | null): string {
+  if (!m) return "לא נמדד";
+  return m.percent === null ? "לא נדרש תיווך (0 כרטיסים)" : `${m.effective} מתוך ${m.cards} כרטיסים (${m.percent}%)`;
+}
