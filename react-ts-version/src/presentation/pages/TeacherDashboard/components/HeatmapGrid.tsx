@@ -442,6 +442,8 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
 
   const [isClassResetModalOpen, setIsClassResetModalOpen] = useState(false);
   const [isAlertsResetModalOpen, setIsAlertsResetModalOpen] = useState(false);
+  const [isSessionResetModalOpen, setIsSessionResetModalOpen] = useState(false);
+  const [isResettingSession, setIsResettingSession] = useState(false);
   const [isResettingAlerts, setIsResettingAlerts] = useState(false);
 
   const handleResetAllClass = () => {
@@ -489,6 +491,19 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
               >
                 <RotateCcw className={`w-3.5 h-3.5 ${isResettingAlerts ? 'animate-spin' : ''}`} />
                 <span>איפוס התראות</span>
+              </button>
+
+              {/* Module 23א level 2, whole class (register, deviation 20): the
+                  lesson that fell apart — restart the open meeting for all 12
+                  learners at once. Earlier meetings stay; this is not level 3. */}
+              <button
+                onClick={() => setIsSessionResetModalOpen(true)}
+                disabled={isResettingSession}
+                className="px-3 py-2.5 min-h-11 rounded-xl border border-amber-200 hover:border-amber-400 bg-amber-50/60 hover:bg-amber-100 dark:bg-amber-950/40 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-xs"
+                title="מחזיר את כל 12 הלומדים לתחילת המפגש הפתוח. מפגשים קודמים נשמרים"
+              >
+                <RotateCcw className={`w-3.5 h-3.5 ${isResettingSession ? 'animate-spin' : ''}`} />
+                <span>איפוס המפגש לכיתה</span>
               </button>
 
               <button
@@ -916,6 +931,27 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
             throw err; // keep the dialog open — the reset did NOT happen
           } finally {
             setIsResettingAlerts(false);
+          }
+        }}
+      />
+
+      <ResetConfirmationModal
+        isOpen={isSessionResetModalOpen}
+        onClose={() => setIsSessionResetModalOpen(false)}
+        resetLevel="single_student"
+        resetTarget="class"
+        activeSessionNumber={activeSessionNum}
+        onConfirm={async (reason, reasonNote, options) => {
+          setIsResettingSession(true);
+          try {
+            // The store toasts its own outcome, including the server's refusal
+            // when no meeting is open.
+            await useStore.getState().resetClassActiveSession(reason, reasonNote, options?.sessionNumber ?? 0);
+          } catch (err) {
+            console.error('Class session reset error:', err);
+            throw err; // keep the dialog open — the reset did NOT happen
+          } finally {
+            setIsResettingSession(false);
           }
         }}
       />

@@ -224,6 +224,13 @@ export type ResetReason = typeof VALID_RESET_REASONS[number];
  */
 export type SingleStudentResetScope = 'active_session' | 'full_student';
 
+/**
+ * Who a level-2 reset covers (register, deviation 20): one learner, or the
+ * whole class at once. 'class' restarts the active meeting for all 12 learners
+ * and exists only with scope 'active_session' — wiping every learner is level 3.
+ */
+export type ResetTarget = 'student' | 'class';
+
 export interface ResetAuditEntry {
   reset_id: string;
   reset_level: 'alerts' | 'single_student' | 'system' | 'export';
@@ -240,4 +247,6 @@ export interface ResetAuditEntry {
   reset_scope?: SingleStudentResetScope;
   /** Level 2, 'active_session': the meeting that was restarted. */
   session_number?: number | null;
+  /** Level 2 only: one learner, or the whole class at once. */
+  reset_target?: ResetTarget;
 }

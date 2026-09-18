@@ -20,7 +20,7 @@ const fn = readFileSync(resolve(__dirname, '../../../../functions/src/exportDriv
 
 describe('Module 23א — one scope for backup and deletion', () => {
   it('the backup reads the scope and the deletion deletes the same scope', () => {
-    expect(fn).toMatch(/const scope = buildResetScope\(reset_level, rawNum, singleScope, activeSessionNumber\);/);
+    expect(fn).toMatch(/const scope = buildResetScope\(reset_level, rawNum, singleScope, activeSessionNumber, resetTarget\);/);
     expect(fn).toMatch(/backup = await collectResetBackup\(rtdb, db, scope,/);
     expect(fn).toMatch(/const deletion = await executeResetDeletion\(rtdb, db, scope\);/);
   });
@@ -116,7 +116,120 @@ describe('Module 23א — one scope for backup and deletion', () => {
   });
 
   it('refuses a single-learner reset without a learner number instead of defaulting to learner 1', () => {
+    // The whole-class restart is the one level-2 request that carries no learner number.
+    expect(fn).toContain("const isOneLearner = reset_level === 'single_student' && !isClassTarget;");
     expect(fn).not.toMatch(/replace\(\/\\D\/g, ''\) \|\| '1'/);
     expect(fn).toContain('student_id (1-12) is required for single_student reset.');
+  });
+});
+
+/**
+ * Register, deviation 20 (product owner, 14.9.2026, confirmed 18.9.2026):
+ * level 2 gains a second target. "לומד אחד" stays exactly as it was; "כל
+ * הכיתה" restarts the open meeting for all 12 learners in one action, for the
+ * lesson that fell apart. It is a restart of one lesson — never a second road
+ * to level 3, whose merging with the other levels §ב forbids.
+ */
+describe('Module 23א — level 2 for the whole class (register, deviation 20)', () => {
+  const store = readFileSync(resolve(__dirname, '../../application/useStore.ts'), 'utf-8');
+  const modal = readFileSync(resolve(__dirname, '../../presentation/pages/TeacherDashboard/components/ResetConfirmationModal.tsx'), 'utf-8');
+  const heat = readFileSync(resolve(__dirname, '../../presentation/pages/TeacherDashboard/components/HeatmapGrid.tsx'), 'utf-8');
+  const classScope = (() => {
+    const start = fn.indexOf("if (level === 'single_student' && target === 'class') {");
+    return fn.slice(start, fn.indexOf("if (level === 'single_student' && singleScope === 'active_session') {", start));
+  })();
+
+  it('the three levels stay three: the class target lives inside level 2', () => {
+    expect(fn).toContain("if (!reset_level || !['alerts', 'single_student', 'system'].includes(reset_level)) {");
+    expect(fn).toContain("export type ResetTarget = 'student' | 'class';");
+    expect(fn).toContain("const isClassTarget = reset_level === 'single_student' && reset_target === 'class';");
+    expect(fn).toContain("reset_target 'class' belongs to reset_level 'single_student' (level 2) only.");
+  });
+
+  it('a request without reset_target is a single learner, exactly as before', () => {
+    expect(fn).toContain("const resetTarget: ResetTarget = isClassTarget ? 'class' : 'student';");
+    expect(fn).toMatch(/target: ResetTarget = 'student'\s*\): ResetScope \{/);
+  });
+
+  it('the class target cannot wipe learners completely — that is level 3', () => {
+    expect(fn).toMatch(/if \(isClassTarget && reset_scope === 'full_student'\) \{\s*throw new HttpsError\(\s*"invalid-argument"/);
+    expect(fn).toContain('למחיקת כל נתוני הכיתה יש להשתמש באיפוס מערכת (רמה 3)');
+    // Nothing is removed whole, and the system-only nodes are not in this scope at all.
+    expect(classScope).toMatch(/rtdbPaths: \[\],/);
+    expect(classScope).not.toContain('"replays"');
+    expect(classScope).not.toContain('"telemetry_sessions"');
+  });
+
+  it('refuses when no meeting is open instead of guessing one for twelve learners', () => {
+    const start = fn.indexOf('export async function resolveClassSessionNumber');
+    const body = fn.slice(start, fn.indexOf('// ─── Reset scope, backup and deletion helpers', start));
+    expect(body.indexOf('valid(requested)')).toBeGreaterThan(-1);
+    expect(body.indexOf('active_class_session/sessionNumber')).toBeGreaterThan(body.indexOf('valid(requested)'));
+    // No fall-back to a learner record and no "meeting 1" default.
+    expect(body).not.toContain('/activeSessionId');
+    expect(body).not.toMatch(/return 1;/);
+    expect(fn).toMatch(/if \(isClassTarget && activeSessionNumber === null\) \{\s*throw new HttpsError\(\s*"failed-precondition"/);
+    // The refusal comes before anything is collected, written or deleted.
+    expect(fn.indexOf('isClassTarget && activeSessionNumber === null')).toBeLessThan(fn.indexOf('backup = await collectResetBackup('));
+  });
+
+  it('backs up the whole class and resets only the meeting on each of the 12 records', () => {
+    expect(classScope).toContain('rtdbBackupOnlyPaths: ["users/students", "chat_messages"],');
+    expect(classScope).toContain('ALL_STUDENT_IDS.flatMap((n) => studentAliases(String(n)))');
+    expect(classScope).toContain('values: { __activeSessionNumber: sessionNumber }');
+    // Same rule as one learner: every collection is backed up, only the meeting's session documents go.
+    expect(classScope).toContain('backupOnly: collection !== "sessions",');
+    expect(classScope).toContain('collection === "sessions" ? { sessionNumber } : {}');
+    // Twelve learners under four aliases is past Firestore's 30-value "in" limit.
+    expect(classScope).not.toContain('studentValues');
+  });
+
+  it('goes through the same backup-before-delete gate and leaves the class meeting open', () => {
+    // One code path: no second copy of the backup or the deletion for the class target.
+    expect((fn.match(/await collectResetBackup\(/g) || []).length).toBe(1);
+    expect((fn.match(/await executeResetDeletion\(/g) || []).length).toBe(1);
+    // Only a system reset closes the class meeting (Module 14: activation is the teacher's).
+    const closing = fn.indexOf('rtdb.ref("active_class_session").set({ active: false');
+    expect(fn.lastIndexOf("if (reset_level === 'system') {", closing)).toBeGreaterThan(fn.indexOf('const deletion = await executeResetDeletion'));
+  });
+
+  it('the audit entry says it was the class, which meeting, and all 12 learners', () => {
+    expect(fn).toContain("? { reset_scope: singleScope, session_number: activeSessionNumber, reset_target: resetTarget }");
+    expect(fn).toContain('const affectedStudentIds = isOneLearner ? [parseInt(rawNum, 10)] : [...ALL_STUDENT_IDS];');
+    expect((fn.match(/\.\.\.level2Audit,/g) || []).length).toBe(2); // failed-backup entry and success entry
+  });
+
+  it('the teacher store sends level 2 + class + active_session, and never a learner id', () => {
+    const start = store.indexOf('resetClassActiveSession: async');
+    const body = store.slice(start, store.indexOf('resetStudentData: async', start));
+    expect(body).toMatch(/reset_level: 'single_student',\s*reset_target: 'class',\s*reset_scope: 'active_session',/);
+    expect(body).toContain('session_number: sessionNumber,');
+    expect(body).not.toContain('student_id');
+    // No meeting, no call.
+    expect(body.indexOf("throw new Error('NO_ACTIVE_CLASS_SESSION')")).toBeLessThan(body.indexOf('httpsCallable('));
+    // A failed backup aborts: local state is touched only after the callable resolved.
+    expect(body.indexOf("throw new Error('BACKUP_FAILED_RESET_ABORTED')")).toBeLessThan(body.indexOf('patchStudentAfterSessionReset('));
+  });
+
+  it('the dialog offers no full wipe for the class, needs an open meeting and an explicit tick', () => {
+    expect(modal).toContain("const isClassTarget = resetLevel === 'single_student' && resetTarget === 'class';");
+    expect(modal).toContain('{isLevel2 && !isClassTarget && (');
+    expect(modal).toContain("? { scope: isClassTarget ? 'active_session' : scope, sessionNumber: activeSessionNumber }");
+    expect(modal).toContain('if (isClassTarget && (!activeSessionNumber || !classConfirmed)) {');
+    expect(modal).toContain('(isClassTarget && (!activeSessionNumber || !classConfirmed))');
+    // Escape must not leave the tick behind for the next opening (same trap as the level-3 double confirm).
+    expect(modal).toMatch(/setScope\('active_session'\);\s*setClassConfirmed\(false\);\s*onClose\(\);/);
+  });
+
+  it('the radar toolbar opens it with the meeting the class has open', () => {
+    expect(heat).toMatch(/resetLevel="single_student"\s*resetTarget="class"\s*activeSessionNumber=\{activeSessionNum\}/);
+    expect(heat).toContain('await useStore.getState().resetClassActiveSession(reason, reasonNote, options?.sessionNumber ?? 0);');
+  });
+
+  it('the per-learner dialogs are untouched: they never pass a class target', () => {
+    const cm = readFileSync(resolve(__dirname, '../../presentation/pages/TeacherDashboard/ClassManagement.tsx'), 'utf-8');
+    const drawer = readFileSync(resolve(__dirname, '../../presentation/pages/TeacherDashboard/components/StudentLearningConditionsDrawer.tsx'), 'utf-8');
+    expect(cm).not.toContain('resetTarget');
+    expect(drawer).not.toContain('resetTarget');
   });
 });

@@ -194,7 +194,8 @@ describe('Resets and reports tell the truth', () => {
     const cm = read('../../ClassManagement.tsx');
     const heat = read('../HeatmapGrid.tsx');
     expect(cm.includes('throw err; // keep the confirmation dialog open')).toBe(true);
-    expect((heat.match(/throw err; \/\/ keep the dialog open/g) || []).length).toBe(2);
+    // Alerts (level 1), the whole-class meeting restart (level 2) and the system reset (level 3).
+    expect((heat.match(/throw err; \/\/ keep the dialog open/g) || []).length).toBe(3);
   });
 
   it('a report that does not exist yet renders as "no report", not as an error banner', () => {
