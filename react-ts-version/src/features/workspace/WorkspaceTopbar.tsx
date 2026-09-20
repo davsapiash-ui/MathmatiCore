@@ -108,18 +108,21 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
 
       {/* Actions */}
       <div id="tour-action-buttons" className="flex items-center gap-2 sm:gap-3 shrink-0 bg-ws-surface/50 p-1.5 rounded-full border border-ws-surface2 shadow-sm max-w-full overflow-x-auto no-scrollbar">
-        {/* Undo Button (Module 11: 48x48px exact) */}
-        {sessionNumber !== 8 && (
-          <button
-            onClick={undo}
-            disabled={!canUndo}
-            className="w-12 h-12 min-w-[48px] min-h-[48px] rounded-2xl text-sm font-bold text-ws-ink bg-ws-surface2 hover:bg-ws-surface2/80 active:scale-95 transition-all flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-sm"
-            aria-label="בטל פעולה אחרונה"
-            title="בטל פעולה אחרונה"
-          >
-            <RotateCcw className="w-5 h-5" />
-          </button>
-        )}
+        {/* Undo Button (Module 11: 48x48px exact).
+            It used to be hidden in meeting 8, where the blocks are gone and
+            typing is all there is. PRD Module 12 §א makes meeting 8 the ONE
+            meeting with a third coaching trigger — "שלוש פעולות ביטול רצופות
+            בתרגיל בודד… אינדיקציה ללולאת ניחושים" — precisely because the
+            blocks are gone, so the button has to be there for it to fire. */}
+        <button
+          onClick={undo}
+          disabled={!canUndo}
+          className="w-12 h-12 min-w-[48px] min-h-[48px] rounded-2xl text-sm font-bold text-ws-ink bg-ws-surface2 hover:bg-ws-surface2/80 active:scale-95 transition-all flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-sm"
+          aria-label="בטל פעולה אחרונה"
+          title="בטל פעולה אחרונה"
+        >
+          <RotateCcw className="w-5 h-5" />
+        </button>
 
         {/* מסמך 04 §2א/§5: the silent help signal, permanently visible so the
             learner never has to open a window to reach it. */}
