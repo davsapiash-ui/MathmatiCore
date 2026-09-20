@@ -15,7 +15,7 @@ import {
 } from '@dnd-kit/core';
 import { useNavigate } from 'react-router-dom';
 import type { DragSource, Place } from '@/core/placeValue';
-import { useWorkspaceStore, getActiveTasks, type SessionNumber } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, getActiveTasks, activeExerciseId, type SessionNumber } from '@/application/useWorkspaceStore';
 import { useAuthStore, stampStudentWindowClosed, touchStudentActivity, currentStudentUid } from '@/application/useAuthStore';
 import { submitSRLReflection } from '@/core/srlReflection';
 import { useActiveClassSession } from '@/application/useActiveClassSession';
@@ -272,6 +272,12 @@ export function StudentWorkspacePage() {
   useEffect(() => {
     const uid = normUid;
     if (!canWriteWorkspaceData(uid, isSupersededRef.current)) return;
+    // Until initialisation runs, the store still holds the PREVIOUS meeting's
+    // state. Publishing it under this URL's meeting number (as this used to) made
+    // the saved record look like progress in the new meeting, and the restore
+    // below then put the learner on the old exercise index, board and digits —
+    // or on "השלמתם את משימות החובה" of a meeting they had not started.
+    if (sessionNumber !== meeting) return;
 
     const totalBlocks = (counts.units || 0) + (counts.tens || 0) + (counts.hundreds || 0) + (counts.thousands || 0);
     const hasInteracted = totalBlocks > 0 || Object.values(answerDigits || {}).some(Boolean);
@@ -283,7 +289,7 @@ export function StudentWorkspacePage() {
       'workspaceState/undoCount': undoCount,
       'workspaceState/hesitationCount': hesitationCount,
       'workspaceState/hasInteracted': hasInteracted,
-      'workspaceState/sessionNumber': meeting,
+      'workspaceState/sessionNumber': sessionNumber,
       'workspaceState/flowStatus': flowStatus,
       lastActivityTimestamp: Date.now(),
       lastPing: Date.now(),
@@ -291,7 +297,7 @@ export function StudentWorkspacePage() {
     };
 
     update(ref(database, `users/students/${uid}`), wsPayload).catch(() => {});
-  }, [normUid, counts, answerDigits, carryDigits, undoCount, hesitationCount, meeting, flowStatus]);
+  }, [normUid, counts, answerDigits, carryDigits, undoCount, hesitationCount, meeting, sessionNumber, flowStatus]);
 
   // --- RRWeb Telemetry Recording (Authentic High-Definition Screen Capture) ---
   useEffect(() => {
@@ -327,7 +333,7 @@ export function StudentWorkspacePage() {
       const ws = useWorkspaceStore.getState();
       // Same derivation the telemetry writers already use, so a chunk's
       // exercise_id lines up exactly with the decision-table rows beside it.
-      return getActiveTasks(ws)[ws.standardTaskIdx]?.id || `ex_${ws.sessionNumber}_01`;
+      return activeExerciseId(ws);
     };
 
     const flushTelemetry = () => {
@@ -601,9 +607,10 @@ export function StudentWorkspacePage() {
       hasJoinedSession: true,
       sessionJoined: true,
       lastAction: `פעיל/ה במפגש ${meeting}`,
-      'workspaceState/sessionNumber': meeting,
-      'workspaceState/isASD': Boolean(isASDMode),
-      'workspaceState/flowStatus': 'task',
+      // No workspaceState keys here. This payload is re-sent on every (re)connect,
+      // and it used to stamp flowStatus 'task' and this URL's meeting number over
+      // whatever the learner had really reached ('sessionDone', 'choice_branch').
+      // The store's own sync owns workspaceState.
     };
 
     // Re-arm presence and server-side onDisconnect hooks on every connection cycle (PRD Module 18)
@@ -644,7 +651,6 @@ export function StudentWorkspacePage() {
         lastActivityTimestamp: Date.now(),
         hasJoinedSession: true,
         lastAction: `פעיל/ה במפגש ${meeting}`,
-        'workspaceState/sessionNumber': meeting,
       }).catch(() => {});
     }, 4000);
 
@@ -673,6 +679,13 @@ export function StudentWorkspacePage() {
     if (isInitialized) return;
     let cancelled = false;
 
+    // PRD 14 §ג: a learner who has finished "ממתין במסך סיום שקט"; PRD 14 §ב0:
+    // re-opening a completed meeting deletes nothing. A saved 'sessionDone' used to
+    // be refused here, so the lobby's entry into the open meeting restarted it at
+    // exercise 1: after the diagnostic the bee-flight screen never appeared, and a
+    // second pass before the approval overwrote the score, the recommended path
+    // and the Q-matrix. Starting a meeting over is what the level-2 reset is for —
+    // it clears the saved state, and only then is there nothing to restore.
     const runInit = async () => {
       if (meeting === 3) {
         setIsInitializing(true);
@@ -714,12 +727,12 @@ export function StudentWorkspacePage() {
             return;
           }
 
-          const canRestore = myData?.workspaceState?.sessionNumber === meeting && Boolean(myData?.workspaceState?.flowStatus) && myData?.workspaceState?.flowStatus !== 'sessionDone';
+          const canRestore = myData?.workspaceState?.sessionNumber === meeting && Boolean(myData?.workspaceState?.flowStatus);
           if (canRestore && myData?.workspaceState) {
             restoreSession(myData.workspaceState);
           } else {
             const localSaved = firebaseSyncService.getLocalSessionProgress(normId || username);
-            if (localSaved && localSaved.sessionNumber === meeting && Boolean(localSaved.flowStatus) && localSaved.flowStatus !== 'sessionDone') {
+            if (localSaved && localSaved.sessionNumber === meeting && Boolean(localSaved.flowStatus)) {
               restoreSession(localSaved);
             } else {
               initSession(meeting, isASDMode, 0);
@@ -736,12 +749,12 @@ export function StudentWorkspacePage() {
           setIsInitializing(false);
         }
       } else {
-        const canRestore = myData?.workspaceState?.sessionNumber === meeting && Boolean(myData?.workspaceState?.flowStatus) && myData?.workspaceState?.flowStatus !== 'sessionDone';
+        const canRestore = myData?.workspaceState?.sessionNumber === meeting && Boolean(myData?.workspaceState?.flowStatus);
         if (canRestore && myData?.workspaceState) {
           restoreSession(myData.workspaceState);
         } else {
           const localSaved = firebaseSyncService.getLocalSessionProgress(normUid || user?.uid || '');
-          if (localSaved && localSaved.sessionNumber === meeting && Boolean(localSaved.flowStatus) && localSaved.flowStatus !== 'sessionDone') {
+          if (localSaved && localSaved.sessionNumber === meeting && Boolean(localSaved.flowStatus)) {
             restoreSession(localSaved);
           } else {
             initSession(meeting, isASDMode, 0);

@@ -450,6 +450,9 @@ export class FirebaseSyncService {
         sessionNumber: state.sessionNumber,
         isASD: state.isASD,
         standardTaskIdx: state.standardTaskIdx,
+        // The chosen branch travels with the index that points into it (restoreSession
+        // rebuilds the branch tasks from it), and the radar's "אתגר / ביסוס" badge reads it.
+        selectedBranch: state.selectedBranch ?? null,
         qflow: state.qflow,
         flowStatus: state.flowStatus,
         counts: state.counts,

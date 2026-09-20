@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useAuthStore, currentStudentUid } from './useAuthStore';
-import { useWorkspaceStore, getActiveTasks } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, activeExerciseId } from '@/application/useWorkspaceStore';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
 import { database } from '@/infrastructure/firebase';
 import { ref, set } from 'firebase/database';
@@ -100,8 +100,6 @@ export function useCognitiveHesitationRadar({
       );
       
       const wsState = useWorkspaceStore.getState();
-      const currentTasks = getActiveTasks(wsState);
-      const currentTask = currentTasks[wsState.standardTaskIdx];
       const activePlace = wsState.focusedPlace || 'units';
       const colIndex = activePlace === 'thousands' ? 3 : activePlace === 'hundreds' ? 2 : activePlace === 'tens' ? 1 : 0;
       const measuredSeconds = Math.max(
@@ -113,7 +111,7 @@ export function useCognitiveHesitationRadar({
       emitTelemetry({
         session_id: `session_${wsState.sessionNumber}_student_${userId}`,
         student_id: userId,
-        exercise_id: currentTask?.id || `ex_${wsState.sessionNumber}_01`,
+        exercise_id: activeExerciseId(wsState),
         event_type: 'HESITATION_DETECTED',
         column_index: colIndex,
         details: {
@@ -172,8 +170,13 @@ export function useCognitiveHesitationRadar({
     //                   otherwise sit permanently at "hesitating"
     // A mouse move, a stray click, or a click on a lobby button changes none of
     // these, so none of them resets the clock — which is the rule.
+    //   operandDigits — digits typed into the hidden operand cells of a skeleton
+    //                   exercise; the only action some meeting-8 exercises offer
+    //   probeAnswer   — the answer typed into a meeting-2 probe
+    // Without these two a learner who was busy typing was reported as hesitating
+    // at second 45, got a coaching card, and turned yellow then red on the radar.
     const selectCognitiveState = (s: any) =>
-      `${JSON.stringify(s.counts)}|${JSON.stringify(s.answerDigits)}|${JSON.stringify(s.carryDigits)}|${s.selectedChoiceId ?? ''}`;
+      `${JSON.stringify(s.counts)}|${JSON.stringify(s.answerDigits)}|${JSON.stringify(s.carryDigits)}|${s.selectedChoiceId ?? ''}|${JSON.stringify(s.operandDigits ?? {})}|${s.probeAnswer ?? ''}`;
 
     let lastSignature = selectCognitiveState(useWorkspaceStore.getState());
     const unsubscribe = useWorkspaceStore.subscribe((state: any) => {
