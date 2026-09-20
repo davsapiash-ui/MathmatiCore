@@ -13,7 +13,7 @@ import { extractTeacherId } from "@/infrastructure/services/FirebaseSyncService"
 import { useStore, type StudentData } from "@/application/useStore";
 import { toast } from "sonner";
 import { ref, onValue, set, update, onDisconnect, serverTimestamp } from "firebase/database";
-import { getClassSessionStatus, getSessionAutoCloseAt, isClassSessionLive, type ClassSessionStatus } from "@/core/classSession";
+import { getClassSessionStatus, getSessionAutoCloseAt, isClassSessionLive, TEACHER_DISCONNECT_GRACE_MS, type ClassSessionStatus } from "@/core/classSession";
 import { database, auth, functions, firestore } from "@/infrastructure/firebase";
 import { doc, onSnapshot, collection, writeBatch } from "firebase/firestore";
 import type { SessionDocument, PedagogicalPath } from "@/types";
@@ -347,8 +347,18 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     });
     // Closing a SECOND dashboard tab stamps the disconnect too, while this one is
     // alive and never reconnects. A connected dashboard clears a stamp it sees.
+    //
+    // It also tells the teacher. Her connection dropping is invisible to her —
+    // the children carry on working and her screen looks normal — but it starts
+    // the window after which the lesson closes for all twelve of them. She
+    // should know it happened, and that nothing was lost.
     const unsubStamp = onValue(disconnectStampRef, (snap) => {
-      if (snap.exists() && isConnected) armPresence();
+      if (!snap.exists() || !isConnected) return;
+      armPresence();
+      toast.info(
+        `החיבור שלך למערכת התנתק לרגע וחזר. המפגש נשאר פתוח והתלמידים המשיכו לעבוד. אם החיבור ייפול ליותר מ-${Math.round(TEACHER_DISCONNECT_GRACE_MS / 60000)} דקות, המפגש ייסגר אצלם.`,
+        { duration: 10000, id: 'teacher-reconnected' }
+      );
     });
 
     // 3. Keep heartbeat active every 5s

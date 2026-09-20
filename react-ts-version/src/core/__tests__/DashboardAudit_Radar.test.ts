@@ -115,8 +115,12 @@ describe('the lesson survives the teacher\'s connection', () => {
     expect(start).toBeGreaterThan(-1);
     expect(effect).toContain("onValue(ref(database, '.info/connected')");
     expect(effect).toContain('if (isConnected) armPresence();');
-    expect(effect).toContain('if (snap.exists() && isConnected) armPresence();');
+    expect(effect).toContain('if (!snap.exists() || !isConnected) return;');
     expect(effect).toContain('unsubConnected();');
+    // The teacher is told her connection dropped and came back: it is invisible
+    // to her otherwise, and it starts the window after which the lesson closes
+    // for all twelve learners (register entry 21).
+    expect(effect).toContain("id: 'teacher-reconnected'");
   });
 
   it('every projector write carries the server clock, so a release is always newer than its broadcast', () => {
