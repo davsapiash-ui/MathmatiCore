@@ -96,6 +96,15 @@ export function Login() {
       return;
     }
 
+    // One Firebase user per browser profile. A learner sign-in here would put
+    // learner claims on the signed-in staff user and cut the teacher's open
+    // dashboard off (the server now refuses it). This is never a child's laptop,
+    // so a plain explanation is right here, not the silent shake.
+    if (auth.currentUser && auth.currentUser.isAnonymous === false) {
+      setErrorMsg("בדפדפן הזה מחובר איש צוות. לכניסת תלמיד פתחו חלון גלישה בסתר או דפדפן אחר.");
+      return;
+    }
+
     setIsLoggingIn(true);
     setErrorMsg("");
 
