@@ -120,6 +120,27 @@ export interface SemanticEventLegacy {
 export type LogEventPayload = SemanticEventLegacy | Omit<SemanticEvent, 'timestamp' | 'event_type'>;
 
 /** The teacher-side mirror of a learner whose meeting N was restarted (the server did the real reset). */
+/**
+ * Module 23א §ג/§ז. Two reset failures are NOT "the backup failed, nothing was
+ * deleted", and used to be reported as exactly that:
+ *  - the server saved the backup and deleted most of the scope, but one item
+ *    failed (it says which, and that the reset can be run again);
+ *  - the call timed out on the client while the server may still be deleting.
+ * Throws for those two; returns for everything else, which the caller reports.
+ */
+function reportResetFailureAfterBackupStage(err: any, code: string, serverMessage: string): void {
+  if (err?.details?.stage === 'deletion_incomplete') {
+    console.error('[Module 23א] Reset deleted only part of its scope:', err);
+    toast.error(serverMessage || 'הגיבוי נשמר, אך חלק מהנתונים לא נמחקו. ניתן להריץ את האיפוס שוב.', { duration: 12000 });
+    throw new Error('RESET_DELETION_INCOMPLETE');
+  }
+  if (code.endsWith('deadline-exceeded') || code.endsWith('unavailable')) {
+    console.error('[Module 23א] Reset outcome unknown (no answer from the server):', err);
+    toast.error('לא התקבלה תשובה מהשרת, וייתכן שהאיפוס עדיין מתבצע. רעננו את הדף בעוד דקה ובדקו את המצב לפני שמריצים שוב.', { duration: 12000 });
+    throw new Error('RESET_OUTCOME_UNKNOWN');
+  }
+}
+
 function patchStudentAfterSessionReset(existing: StudentData, sessionNum: number): StudentData {
   return {
     ...existing,
@@ -668,6 +689,7 @@ export const useStore = create<AppState>()(
             toast.error(serverMessage || 'האיפוס נדחה. לא נמחקו נתונים.');
             throw new Error('RESET_REFUSED');
           }
+          reportResetFailureAfterBackupStage(err, code, serverMessage);
           console.error('[Module 23א] Backup failed — class session reset aborted, no data deleted:', err);
           toast.error(serverMessage ? `הגיבוי נכשל: ${serverMessage}. האיפוס בוטל ולא נמחקו נתונים.` : 'הגיבוי נכשל. האיפוס בוטל ולא נמחקו נתונים.');
           throw new Error('BACKUP_FAILED_RESET_ABORTED');
@@ -723,6 +745,7 @@ export const useStore = create<AppState>()(
             toast.error(serverMessage || 'אין הרשאה לאיפוס. לא נמחקו נתונים.');
             throw new Error('RESET_PERMISSION_DENIED');
           }
+          reportResetFailureAfterBackupStage(err, code, serverMessage);
           console.error('[Module 23א] Backup failed — reset aborted, no data deleted:', err);
           toast.error(serverMessage ? `הגיבוי נכשל: ${serverMessage}. האיפוס בוטל ולא נמחקו נתונים.` : 'הגיבוי נכשל. האיפוס בוטל ולא נמחקו נתונים.');
           throw new Error('BACKUP_FAILED_RESET_ABORTED');
@@ -900,6 +923,7 @@ export const useStore = create<AppState>()(
             toast.error(serverMessage || 'אין הרשאה לאיפוס. לא נמחקו נתונים.');
             throw new Error('RESET_PERMISSION_DENIED');
           }
+          reportResetFailureAfterBackupStage(err, code, serverMessage);
           console.error('[Module 23א] Backup failed — system reset aborted, no data deleted:', err);
           toast.error(serverMessage ? `הגיבוי נכשל: ${serverMessage}. האיפוס בוטל ולא נמחקו נתונים.` : 'הגיבוי נכשל. האיפוס בוטל ולא נמחקו נתונים.');
           throw new Error('BACKUP_FAILED_RESET_ABORTED');
