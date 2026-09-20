@@ -4,8 +4,9 @@ import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import {
   computeFirstAttemptScore,
-  readAllTelemetryForSession,
+  readMeetingTelemetry,
   resolveCompulsoryTotal,
+  studentNumberFromSessionId,
 } from "./meetingMetrics";
 
 /**
@@ -23,51 +24,78 @@ export const onSessionCompleteTrigger = onDocumentWritten({
 
   if (!afterData) return; // Deleted
 
-  // Only trigger when session transitioned to is_completed: true and path not evaluated yet
+  // The meeting has just been completed. This used to also require
+  // `!afterData.matrix_recommended_path` — and the learner's client writes that
+  // field in the very same write that sets is_completed, so the condition was
+  // never true and the server NEVER recomputed anything. The score the gate
+  // acted on was whatever the child's browser had posted, and the Firestore
+  // rules put no bound on it. PRD Module 23 §ב defines the score as a function
+  // of the meeting's telemetry; it is computed here, every time.
   const justCompleted = afterData.is_completed === true && (!beforeData || beforeData.is_completed !== true);
-  const needsPathEvaluation = !afterData.matrix_recommended_path;
+  if (!justCompleted) return;
 
-  if (!justCompleted && !needsPathEvaluation) {
+  // Guard against reacting to this function's own write below.
+  if (afterData.evaluated_at && beforeData?.is_completed === true) return;
+
+  const sessionNum = Number(afterData.session_number) || 1;
+  const studentNum = studentNumberFromSessionId(event.params.sessionId)
+    ?? studentNumberFromSessionId(String(afterData.session_id || ""));
+  if (studentNum === null) {
+    logger.warn(`Session ${event.params.sessionId}: no learner in the document id, score not recomputed.`);
     return;
   }
 
-  if (afterData.is_completed === true && needsPathEvaluation) {
-    const sessionNum = Number(afterData.session_number) || 1;
-
-    // The score used to be read straight off the document. The Firestore rules
-    // let the owning learner write session_score_percent with no constraint on
-    // its value, so a child could post 100 and be recommended onto the green
-    // path. PRD Module 23 §ב defines the score as a function of the meeting's
-    // telemetry; the server computes it here from that telemetry, and the
-    // learner's own number is only a fallback for a meeting with no events.
-    const db = admin.firestore();
-    const telemetry = await readAllTelemetryForSession(db, String(afterData.session_id || event.params.sessionId));
-    const path = afterData.teacher_selected_path === "remediation_path" ? "remediation_path" : "green_path";
-    const compulsoryIds = new Map<string, ReadonlySet<string>>();
-    const compulsoryTotal = await resolveCompulsoryTotal(db, sessionNum, path, new Map(), compulsoryIds);
-    const computed = computeFirstAttemptScore(
-      telemetry,
-      compulsoryTotal,
-      compulsoryIds.get(`${sessionNum}:${path}`) ?? null
-    );
-
-    if (computed.scorePercent === null) {
-      // No denominator means no score. Recommending a path from a number we
-      // could not compute is exactly the invented measurement Module 24 §ב
-      // forbids; leave the field unset so the teacher sees it is missing.
-      logger.warn(`Session ${event.params.sessionId}: compulsory count unknown, no path recommended.`);
-      return;
-    }
-
-    const recommendedPath = computed.scorePercent >= 50 ? "green_path" : "remediation_path";
-    logger.info(`Evaluating Session ${event.params.sessionId} (Session ${sessionNum}): Score ${computed.scorePercent}% -> Recommended ${recommendedPath}`);
-
-    await event.data?.after?.ref.update({
-      session_score_percent: computed.scorePercent,
-      matrix_recommended_path: recommendedPath,
-      evaluated_at: admin.firestore.FieldValue.serverTimestamp(),
-    });
+  const db = admin.firestore();
+  // By learner and meeting, not by the document's session_id: the document is
+  // `session_02_student_4` while its events carry `session_2_student_student_user4`,
+  // so reading by that id matched nothing and would have scored every learner 0%.
+  const telemetry = await readMeetingTelemetry(db, studentNum, sessionNum);
+  if (telemetry.length === 0) {
+    // Nothing to measure. Module 24 §ב forbids inventing one, and overwriting
+    // the learner's own number with a 0% computed from no events would be
+    // exactly that — so the document is left as it is.
+    logger.warn(`Session ${event.params.sessionId}: no telemetry for learner ${studentNum} meeting ${sessionNum}; score left as submitted.`);
+    return;
   }
+
+  const path = afterData.teacher_selected_path === "remediation_path" ? "remediation_path" : "green_path";
+  const compulsoryIds = new Map<string, ReadonlySet<string>>();
+  const compulsoryTotal = await resolveCompulsoryTotal(db, sessionNum, path, new Map(), compulsoryIds);
+  const computed = computeFirstAttemptScore(
+    telemetry,
+    compulsoryTotal,
+    compulsoryIds.get(`${sessionNum}:${path}`) ?? null
+  );
+
+  if (computed.scorePercent === null) {
+    // No denominator means no score. Recommending a path from a number we
+    // could not compute is exactly the invented measurement Module 24 §ב
+    // forbids; leave the field unset so the teacher sees it is missing.
+    logger.warn(`Session ${event.params.sessionId}: compulsory count unknown, no path recommended.`);
+    return;
+  }
+
+  const recommendedPath = computed.scorePercent >= 50 ? "green_path" : "remediation_path";
+  const submitted = Number(afterData.session_score_percent);
+  if (Number.isFinite(submitted) && submitted !== computed.scorePercent) {
+    logger.warn(`Session ${event.params.sessionId}: client reported ${submitted}%, server computed ${computed.scorePercent}%. Server value stands.`);
+  }
+  logger.info(`Evaluating Session ${event.params.sessionId} (Session ${sessionNum}): Score ${computed.scorePercent}% -> Recommended ${recommendedPath}`);
+
+  await event.data?.after?.ref.update({
+    session_score_percent: computed.scorePercent,
+    matrix_recommended_path: recommendedPath,
+    evaluated_at: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  // The learner's RTDB record mirrors the gate state (register 15 and 16), and
+  // the radar, the class-management card and the approval drawer all read the
+  // recommendation from there. Left unmirrored, the teacher would see the
+  // client's number on four screens and the server's in the gate tab.
+  await admin.database().ref(`users/students/student_user${studentNum}`).update({
+    session_score_percent: computed.scorePercent,
+    matrix_recommended_path: recommendedPath,
+  }).catch((err) => logger.warn(`Session ${event.params.sessionId}: RTDB mirror of the score failed:`, err));
 });
 
 /**

@@ -304,6 +304,28 @@ export async function resolveCompulsoryTotal(
 const TELEMETRY_PAGE = 500;
 const TELEMETRY_MAX_PAGES = 200; // 100,000 events — far beyond one learner's meeting.
 
+/**
+ * Every telemetry event one learner produced in one meeting, whatever spelling
+ * the session id happens to have.
+ *
+ * The learner's SessionDocument is `session_02_student_4`, but the events of
+ * that same meeting carry `session_2_student_student_user4`. Reading the events
+ * by the document's own `session_id` (as the score trigger did) therefore
+ * matched none of them, and the meeting scored 0%.
+ */
+export async function readMeetingTelemetry(
+  db: admin.firestore.Firestore,
+  studentNumber: number,
+  sessionNumber: number
+): Promise<Record<string, any>[]> {
+  const snap = await db.collection("telemetry_logs").where("student_id", "==", studentNumber).get();
+  const docs = snap.docs
+    .map((d) => d.data())
+    .filter((e) => sessionNumberFromId(String(e?.session_id || "")) === sessionNumber);
+  docs.sort((a, b) => (a.client_timestamp || 0) - (b.client_timestamp || 0));
+  return docs;
+}
+
 export async function readAllTelemetryForSession(
   db: admin.firestore.Firestore,
   sessionId: string
