@@ -138,6 +138,17 @@ export interface FeedbackState {
 export interface UndoFrame {
   counts: PlaceCounts;
   actionType?: TelemetryEventType | null;
+  /**
+   * PRD Module 11 §א: the snapshot restores the VRA state — "קואורדינטות,
+   * כמויות, קלט". Only the board counts were kept, so typing was not undoable
+   * at all. In meetings 2 and 8 the blocks are not on screen and typing is the
+   * only action there is, which left the undo button with nothing to undo —
+   * and Module 12's third trigger ("שלוש פעולות ביטול רצופות במפגש 8")
+   * unreachable. Absent on frames saved before this existed.
+   */
+  answerDigits?: Partial<Record<Place, string>>;
+  carryDigits?: Partial<Record<Place, string>>;
+  operandDigits?: { a: Partial<Record<Place, string>>; b: Partial<Record<Place, string>> };
 }
 
 interface WorkspaceState {
@@ -591,11 +602,24 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
   function createNextUndoStack(
     currentStack: UndoFrame[],
     counts: PlaceCounts,
-    actionType: TelemetryEventType = 'BLOCK_DRAG_COMPLETE'
+    actionType: TelemetryEventType = 'BLOCK_DRAG_COMPLETE',
+    /** The typed input as it was BEFORE the action (PRD Module 11 §א: "קלט"). */
+    input?: Pick<WorkspaceState, 'answerDigits' | 'carryDigits' | 'operandDigits'>
   ): UndoFrame[] {
-    const stack = [...currentStack, { counts: { ...counts }, actionType }];
+    const frame: UndoFrame = { counts: { ...counts }, actionType };
+    if (input) {
+      frame.answerDigits = { ...input.answerDigits };
+      frame.carryDigits = { ...input.carryDigits };
+      frame.operandDigits = { a: { ...input.operandDigits.a }, b: { ...input.operandDigits.b } };
+    }
+    const stack = [...currentStack, frame];
     if (stack.length > UNDO_STACK_CAP) stack.shift();
     return stack;
+  }
+
+  /** The learner's typed state, for an undo frame. */
+  function inputSnapshot(s: WorkspaceState): Pick<WorkspaceState, 'answerDigits' | 'carryDigits' | 'operandDigits'> {
+    return { answerDigits: s.answerDigits, carryDigits: s.carryDigits, operandDigits: s.operandDigits };
   }
 
   function computeExpectedDigitForColumn(
@@ -1996,9 +2020,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           });
         }
         
-        return { 
-          counts: snapshot.counts, 
-          undoStack: stack, 
+        return {
+          counts: snapshot.counts,
+          // PRD Module 11 §א: the snapshot restores the input too. A frame saved
+          // before this existed carries no input, and leaves it untouched.
+          ...(snapshot.answerDigits ? { answerDigits: { ...snapshot.answerDigits } } : {}),
+          ...(snapshot.carryDigits ? { carryDigits: { ...snapshot.carryDigits } } : {}),
+          ...(snapshot.operandDigits
+            ? { operandDigits: { a: { ...snapshot.operandDigits.a }, b: { ...snapshot.operandDigits.b } } }
+            : {}),
+          undoStack: stack,
           undoCount: s.undoCount + 1,
           consecutiveUndoCount: nextConsecutiveUndos,
           undoTimestamps: [],
@@ -2078,6 +2109,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
             return {
               answerDigits: { ...s.answerDigits, [place]: val },
               hasInteracted: true,
+              // Typing is an action the learner can take back (Module 11 §א).
+              undoStack: createNextUndoStack(s.undoStack, s.counts, 'DIGIT_ENTERED', inputSnapshot(s)),
+              // "שלוש פעולות ביטול רצופות" means consecutive: any other action ends the run.
+              consecutiveUndoCount: 0,
               // מסמך 03 counts "four consecutive deletions"; PRD Module 12 counts
               // "4 consecutive wrong typing attempts or deletions". One failed
               // attempt must count once, so a wrong digit typed into an empty
@@ -2170,6 +2205,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
             return {
               carryDigits: { ...s.carryDigits, [place]: val },
               hasInteracted: true,
+              undoStack: createNextUndoStack(s.undoStack, s.counts, 'DIGIT_ENTERED', inputSnapshot(s)),
+              consecutiveUndoCount: 0,
               hasDigitErrorInTask: isCorrect === false ? true : s.hasDigitErrorInTask,
               typedErrorCount: isCorrect === false ? s.typedErrorCount + 1 : s.typedErrorCount,
             };
@@ -2539,6 +2576,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         set({
           operandDigits: { ...s.operandDigits, [which]: { ...s.operandDigits[which], [place]: clean } },
           hasInteracted: true,
+          undoStack: createNextUndoStack(s.undoStack, s.counts, 'DIGIT_ENTERED', inputSnapshot(s)),
+          consecutiveUndoCount: 0,
           consecutiveDeletions: 0,
           hasDigitErrorInTask: isCorrect ? s.hasDigitErrorInTask : true,
           typedErrorCount: isCorrect ? s.typedErrorCount : s.typedErrorCount + 1,
