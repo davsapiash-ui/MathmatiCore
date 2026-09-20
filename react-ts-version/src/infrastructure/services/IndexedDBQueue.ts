@@ -55,6 +55,11 @@ const MAX_QUEUE_CAPACITY = 500;
 const MAX_RETRIES_BEFORE_PARKING = 5;
 /** השהיה מדורגת בין ניסיונות ריקון, עד תקרה. */
 const RETRY_BACKOFF_MS = [2000, 4000, 8000, 16000, 30000];
+/**
+ * מודול 29 §ג: "ברשת פעילה, הסנכרון ל-Firestore מתבצע ברקע לפי סדר FIFO".
+ * כל פריט שנכנס לתור מתזמן ריקון קצר אחריו; כמה פריטים ברצף חולקים ריקון אחד.
+ */
+const BACKGROUND_FLUSH_DELAY_MS = 1500;
 
 export class IndexedDBQueue {
   private static instance: IndexedDBQueue;
@@ -65,6 +70,10 @@ export class IndexedDBQueue {
   private syncCallback: ((refPath: string, payload: any) => Promise<void>) | null = null;
   private consecutiveFlushFailures = 0;
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
+  private backgroundFlushTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Something was enqueued while a flush was already running; flush again when it ends. */
+  private flushAgainAfterCurrent = false;
+  private currentFlush: Promise<void> | null = null;
   private pendingCount = 0;
   private pendingListeners: Array<(count: number) => void> = [];
 
@@ -111,6 +120,25 @@ export class IndexedDBQueue {
     }, delay);
   }
 
+  /**
+   * The queue used to be emptied only when the page loaded, when the browser
+   * fired 'online', or after a failed attempt. The app never reloads during a
+   * lesson, so on a stable network nothing a learner did reached telemetry_logs
+   * until the next visit — and signing out cleared the queue first.
+   */
+  private scheduleBackgroundFlush() {
+    if (!this.isOnline) return;
+    if (this.isFlushing) {
+      this.flushAgainAfterCurrent = true;
+      return;
+    }
+    if (this.backgroundFlushTimer) return;
+    this.backgroundFlushTimer = setTimeout(() => {
+      this.backgroundFlushTimer = null;
+      this.flushQueue().catch(console.error);
+    }, BACKGROUND_FLUSH_DELAY_MS);
+  }
+
   public static getInstance(): IndexedDBQueue {
     if (!IndexedDBQueue.instance) {
       IndexedDBQueue.instance = new IndexedDBQueue();
@@ -140,9 +168,15 @@ export class IndexedDBQueue {
         request.onsuccess = (event) => {
           this.db = (event.target as IDBOpenDBRequest).result;
           resolve(this.db);
-          if (this.isOnline) {
-            this.flushQueue().catch(console.error);
-          }
+          // A parked item is never deleted (Module 17 §ג step 4), so it must get
+          // another chance: each page load starts it again from zero attempts.
+          // Otherwise an item refused five times for a reason that was later
+          // fixed (a rules deploy, a returning sign-in) stays on the device forever.
+          this.reviveParkedItems()
+            .catch(() => {})
+            .finally(() => {
+              if (this.isOnline) this.flushQueue().catch(console.error);
+            });
         };
 
         request.onerror = () => {
@@ -210,6 +244,7 @@ export class IndexedDBQueue {
     }
 
     await this.store(item);
+    this.scheduleBackgroundFlush();
   }
 
   /** Persists one queued item (IndexedDB, or the memory fallback when the database is unavailable). */
@@ -268,6 +303,44 @@ export class IndexedDBQueue {
       retry_count: 0,
     };
     await this.store(item);
+    this.scheduleBackgroundFlush();
+  }
+
+  /** Gives every parked item a fresh set of attempts; called once per page load. */
+  private async reviveParkedItems(): Promise<void> {
+    if (!this.db) return;
+    const targetStore = this.db.objectStoreNames.contains(STORE_NAME) ? STORE_NAME : LEGACY_STORE_NAME;
+    await new Promise<void>((resolve) => {
+      try {
+        const tx = this.db!.transaction([targetStore], 'readwrite');
+        const req = tx.objectStore(targetStore).openCursor();
+        req.onsuccess = (e) => {
+          const cursor = (e.target as IDBRequest<IDBCursorWithValue>).result;
+          if (!cursor) return;
+          if ((cursor.value?.retry_count ?? 0) >= MAX_RETRIES_BEFORE_PARKING) {
+            cursor.update({ ...cursor.value, retry_count: 0 });
+          }
+          cursor.continue();
+        };
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => resolve();
+      } catch {
+        resolve();
+      }
+    });
+  }
+
+  /**
+   * Sends what is waiting and resolves when that pass ends or the budget runs
+   * out, whichever comes first. For sign-out: what the learner produced is sent
+   * while the claims that authorise the write still exist, and before the
+   * device forgets it. Never rejects.
+   */
+  public async flushWithin(budgetMs: number): Promise<void> {
+    const pass = (this.currentFlush ?? Promise.resolve())
+      .then(() => this.flushQueue())
+      .catch(() => {});
+    await Promise.race([pass, new Promise<void>((resolve) => setTimeout(resolve, budgetMs))]);
   }
 
   public async getAll(): Promise<QueuedAction[]> {
@@ -323,6 +396,8 @@ export class IndexedDBQueue {
   public async flushQueue(): Promise<void> {
     if (this.isFlushing || !this.isOnline) return;
     this.isFlushing = true;
+    let finished: () => void = () => {};
+    this.currentFlush = new Promise<void>((resolve) => { finished = resolve; });
 
     try {
       if (!this.db) {
@@ -430,7 +505,13 @@ export class IndexedDBQueue {
       if (failures > 0) this.scheduleRetry();
     } finally {
       this.isFlushing = false;
+      this.currentFlush = null;
+      finished();
       await this.refreshPendingCount().catch(() => {});
+      if (this.flushAgainAfterCurrent) {
+        this.flushAgainAfterCurrent = false;
+        this.scheduleBackgroundFlush();
+      }
     }
   }
 

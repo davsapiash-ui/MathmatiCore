@@ -246,6 +246,9 @@ export function currentStudentUid(): string {
   return n === null ? '' : `student_user${n}`;
 }
 
+/** How long sign-out waits for the offline queue to reach the server before wiping the device. */
+const LOGOUT_FLUSH_BUDGET_MS = 4000;
+
 export function unifiedLogout() {
   const currentUser = useAuthStore.getState().user;
   if (currentUser?.uid) {
@@ -264,7 +267,6 @@ export function unifiedLogout() {
   }
 
   clearStoredAuth();
-  indexedDBQueue.clearAll().catch((e) => console.warn("IndexedDB clear error:", e));
   // Module 1: a learner's Firebase user is anonymous. It stays on the device and
   // is reused by the next sign-in — only the student claims are released on the
   // server. Signing it out (as this used to) made every next sign-in create a new
@@ -272,17 +274,31 @@ export function unifiedLogout() {
   // Firebase's TOO_MANY_ATTEMPTS_TRY_LATER: no learner could sign in at all.
   // Teachers and admins sign in with Google and are signed out for real.
   const firebaseUser = auth && 'currentUser' in auth ? (auth as { currentUser: { isAnonymous?: boolean } | null }).currentUser : null;
-  if (firebaseUser?.isAnonymous) {
-    httpsCallable(functions, 'releaseStudentSession')({})
-      .then(async () => {
-        // Refresh so the now-claimless token is what the next reader sees.
-        const u = firebaseUser as { getIdToken?: (force: boolean) => Promise<string> };
-        if (typeof u.getIdToken === 'function') await u.getIdToken(true);
-      })
-      .catch((e: { code?: string }) => console.warn('releaseStudentSession:', e?.code ?? e));
-  } else if (auth && typeof auth.signOut === 'function') {
-    auth.signOut().catch((e) => console.warn("Firebase signOut error:", e));
-  }
+  // Module 17 §ג step 4: a queued event is deleted only after the server took it.
+  // Signing out used to clear the queue outright, and the queue was not being
+  // sent during the lesson either — a learner who pressed "התנתק" on the
+  // "המורה סגרה את המפגש" screen erased the whole meeting's telemetry. The queue
+  // is sent first, while the claims that authorise the write still exist; only
+  // then is the device wiped (Module 2 §ג) and the identity released.
+  indexedDBQueue
+    .flushWithin(LOGOUT_FLUSH_BUDGET_MS)
+    .finally(() => {
+      // Someone signed in again while the queue was being sent: the device and
+      // the Firebase user now belong to that session. Leave both alone.
+      if (useAuthStore.getState().isAuthenticated) return;
+      indexedDBQueue.clearAll().catch((e) => console.warn("IndexedDB clear error:", e));
+      if (firebaseUser?.isAnonymous) {
+        httpsCallable(functions, 'releaseStudentSession')({})
+          .then(async () => {
+            // Refresh so the now-claimless token is what the next reader sees.
+            const u = firebaseUser as { getIdToken?: (force: boolean) => Promise<string> };
+            if (typeof u.getIdToken === 'function') await u.getIdToken(true);
+          })
+          .catch((e: { code?: string }) => console.warn('releaseStudentSession:', e?.code ?? e));
+      } else if (auth && typeof auth.signOut === 'function') {
+        auth.signOut().catch((e) => console.warn("Firebase signOut error:", e));
+      }
+    });
   // The auth store is cleared FIRST. FirebaseSyncService listens to it and
   // tears down its workspace → RTDB subscription synchronously on sign-out;
   // only then is the workspace reset. Resetting before that, as this used to,
