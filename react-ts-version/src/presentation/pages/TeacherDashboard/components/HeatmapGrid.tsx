@@ -17,6 +17,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '@/application/useStore';
 import { ResetConfirmationModal } from './ResetConfirmationModal';
+import { recommendedPathOf } from '@/core/recommendedPath';
 import { hasEnhancedSupport } from '@/core/supportProfile';
 import { resolveRadarColor, RADAR_CELL_CLASSES } from '@/core/radarColor';
 import { isClassSessionLive } from '@/core/classSession';
@@ -217,13 +218,21 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
 
           const wsState = data.workspaceState || {};
           const sessionState = data.sessionState || {};
-          const hesitationEvents = Math.max(
-            wsState.hesitationCount || 0,
-            data.traceData?.hesitation_events || 0,
-            data.radar?.hesitations || 0
-          );
           const hesitationThreshold = getHesitationThresholdSeconds();
-          const hesitationSeconds = isOnline && hesitationEvents ? hesitationEvents * hesitationThreshold : (sessionState.hesitation_seconds || 0);
+          // Module 18 §ב: YELLOW is a learner who is hesitating NOW. This used to
+          // multiply a COUNT of past hesitations by the threshold: one pause kept
+          // the tile yellow until the next exercise, a pause in the last
+          // diagnostic task (traceData, never reset) kept it yellow in every later
+          // meeting, and "השהייה: 90ש'" meant two events, not ninety seconds. The
+          // learner's client raises the flag at the threshold and clears it on
+          // the next cognitive action.
+          const hesitatingSince =
+            data.hesitating?.hesitating === true && typeof data.hesitating?.timestamp === 'number'
+              ? data.hesitating.timestamp
+              : null;
+          const hesitationSeconds = isOnline && hesitatingSince !== null
+            ? hesitationThreshold + Math.max(0, Math.round((now - hesitatingSince) / 1000))
+            : 0;
           const errorCount = isOnline ? Math.max(wsState.undoCount || 0, data.traceData?.undo_clicks || 0, sessionState.error_count || 0) : 0;
           const isYellowPath = data.routeRecommendation === 'YELLOW' || sessionState.current_path === 'remediation_path';
           const enhancedSupport = hasEnhancedSupport(data) || Boolean(data.isASD || data.forceAdditionHelper || data.additionBoardEnabled);
@@ -252,9 +261,13 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
           // A learner with no recommendation on record has no recommendation.
           // This used to read "ירוק" for them — a green light the diagnostic
           // never gave, next to the approve button.
+          // core/recommendedPath.ts: the diagnostic's own result. sessionState.current_path
+          // is 'green_path' for everyone until the teacher approves, so it read
+          // "המלצה: ירוק" for a learner who scored 29%.
+          const diagnosticPath = recommendedPathOf(data);
           const recommendedPath: 'ירוק' | 'צמצום פערים' | 'טרם נקבעה' =
-            (data.routeRecommendation === 'YELLOW' || sessionState.current_path === 'remediation_path') ? 'צמצום פערים'
-            : (data.routeRecommendation === 'GREEN' || sessionState.current_path === 'green_path') ? 'ירוק'
+            diagnosticPath === 'remediation_path' ? 'צמצום פערים'
+            : diagnosticPath === 'green_path' ? 'ירוק'
             : 'טרם נקבעה';
           const errorCategory = data.error_category || data.errorCategory || wsState.aiSocraticHint?.error_category || wsState.errorCategory || null;
           // Module 18: classification distribution for the CURRENT session only

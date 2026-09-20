@@ -8,6 +8,7 @@ import { database } from '@/infrastructure/firebase';
 import { normalizeStudentId } from '@/application/useChatStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { approveTeacherGate } from '@/core/teacherGate';
+import { recommendedPathOf } from '@/core/recommendedPath';
 import { hasEnhancedSupport, buildSupportProfilePayload } from '@/core/supportProfile';
 import { toast } from 'sonner';
 import type { ResetReason, SingleStudentResetScope } from '@/types';
@@ -16,7 +17,7 @@ interface StudentGateState {
   id: string;
   studentNumber: number;
   session2Completed: boolean;
-  recommendedPath: 'ירוק' | 'צמצום פערי קדם';
+  recommendedPath: 'ירוק' | 'צמצום פערי קדם' | 'טרם נקבעה';
   isApproved: boolean;
   enhancedSupport: boolean;
   supportProfileVersion: number;
@@ -28,7 +29,7 @@ const INITIAL_GATE_STUDENTS: StudentGateState[] = Array.from({ length: 12 }, (_,
     id: `student_${num}`,
     studentNumber: num,
     session2Completed: false,
-    recommendedPath: 'ירוק',
+    recommendedPath: 'טרם נקבעה',
     isApproved: false,
     enhancedSupport: false,
     supportProfileVersion: 0,
@@ -84,7 +85,8 @@ export function ClassManagement({
               data.routeStatus === 'APPROVED'
             );
 
-            const isYellow = data.routeRecommendation === 'YELLOW' || data.sessionState?.current_path === 'remediation_path';
+            // core/recommendedPath.ts — the diagnostic's own result, never a default colour.
+            const diagnosticPath = recommendedPathOf(data);
             const isApproved = data.teacher_gate_approved === true || data.routeStatus === 'APPROVED';
             const enhanced = hasEnhancedSupport(data);
 
@@ -92,7 +94,7 @@ export function ClassManagement({
               id: uid,
               studentNumber: num,
               session2Completed: session2Done,
-              recommendedPath: isYellow ? 'צמצום פערי קדם' : 'ירוק',
+              recommendedPath: diagnosticPath === 'remediation_path' ? 'צמצום פערי קדם' : diagnosticPath === 'green_path' ? 'ירוק' : 'טרם נקבעה',
               isApproved,
               enhancedSupport: enhanced,
               supportProfileVersion: typeof data.support_profile_version === 'number' ? data.support_profile_version : 0,
@@ -135,8 +137,12 @@ export function ClassManagement({
 
   // Module 20: Approve Teacher Gate for Session 3
   const handleApproveGate = async (student: StudentGateState, chosenPath?: 'ירוק' | 'צמצום פערי קדם') => {
-    setUpdatingId(student.id);
     const path = chosenPath || student.recommendedPath;
+    if (path === 'טרם נקבעה') {
+      toast.error('אין עדיין המלצת מטריקס ללומד הזה. בחרו מסלול במפורש.');
+      return;
+    }
+    setUpdatingId(student.id);
 
     try {
       // PRD v7.1 Module 20: approval is written to the session-2 SessionDocument
@@ -285,6 +291,8 @@ export function ClassManagement({
                     <span className={`font-black px-2 py-0.5 rounded-md ${
                       student.recommendedPath === 'צמצום פערי קדם'
                         ? 'bg-amber-200/80 text-amber-900 dark:bg-amber-900 dark:text-amber-100'
+                        : student.recommendedPath === 'טרם נקבעה'
+                        ? 'bg-slate-200/80 text-slate-700 dark:bg-slate-700 dark:text-slate-200'
                         : 'bg-emerald-200/80 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-100'
                     }`}>
                       {student.recommendedPath}

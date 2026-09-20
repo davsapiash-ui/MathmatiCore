@@ -223,6 +223,8 @@ export function enforceMaxPayloadBytes(data: Record<string, any>): Record<string
 export class FirebaseSyncService {
   private static instance: FirebaseSyncService;
   private unsubscribeWorkspace: (() => void) | null = null;
+  /** The coaching-card state last published to the radar; null until the first change is seen. */
+  private lastPublishedCardOpen: boolean | null = null;
   private unsubscribeFirebase: (() => void) | null = null;
   private currentUserId: string | null = null;
   private isInitialLoad = false;
@@ -440,6 +442,20 @@ export class FirebaseSyncService {
     // Subscribe to local Workspace changes and push to Firebase
     this.unsubscribeWorkspace = useWorkspaceStore.subscribe((state) => {
       if (this.isInitialLoad) return;
+
+      // Module 18 §ב: RED is "כרטיס חניכה סוקרטי פעיל כעת". isSocraticActive was
+      // set when the card opened and cleared only by a correct answer in it. The
+      // card also closes by its X, by "הבנתי", three seconds after a typed digit,
+      // on the next exercise and on a reload — none of which told the radar, so
+      // a tile stayed red for the rest of the lesson and into the next one.
+      const cardOpen = state.helpState === 'socratic';
+      if (cardOpen !== this.lastPublishedCardOpen && this.currentUserId) {
+        this.lastPublishedCardOpen = cardOpen;
+        const canonical = normalizeStudentId(this.currentUserId);
+        for (const key of new Set([canonical, this.currentUserId])) {
+          if (key) update(ref(database, `users/students/${key}`), { isSocraticActive: cardOpen }).catch(() => {});
+        }
+      }
       
       const activeTasks = getActiveTasks(state);
       const currentTask = activeTasks[state.standardTaskIdx] || null;
