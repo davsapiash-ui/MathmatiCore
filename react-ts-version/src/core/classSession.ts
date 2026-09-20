@@ -9,7 +9,24 @@
  * the stamp on every (re)connect. Clients evaluate the stamp locally.
  */
 
-export const TEACHER_DISCONNECT_GRACE_MS = 5 * 60 * 1000;
+/**
+ * Owner decision (20.9.2026): 15 minutes, not 5.
+ *
+ * Nothing changes on the learners' screens while the window runs — the meeting
+ * stays 'active' and the children keep working, exactly as if the teacher's
+ * laptop had never dropped. Only when the window expires do they get the
+ * "המורה סגרה את המפגש" screen. So the window is the time the class is
+ * protected from the teacher's own connection, and 5 minutes was shorter than
+ * a single working block: a Wi-Fi drop in the middle of meeting 4 cut twelve
+ * children off before they finished.
+ *
+ * 15 minutes covers a full working block of meetings 3–7 (Module 14 §ב), so an
+ * outage no longer ends a lesson on its own. It cannot extend a lesson either:
+ * SESSION_HARD_CAP_MS below still closes every meeting 45 minutes after the
+ * teacher opened it (register item 8), and the teacher can always close the
+ * meeting herself from the dashboard.
+ */
+export const TEACHER_DISCONNECT_GRACE_MS = 15 * 60 * 1000;
 
 /**
  * Owner decision (6.9.2026, register item 8): a meeting the teacher never
