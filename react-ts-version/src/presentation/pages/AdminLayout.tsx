@@ -31,6 +31,12 @@ function useUnreadAdminMessages(): number {
   return count;
 }
 
+// ui/sidebar's SidebarMenuButton renders its own <button> around the link (its
+// `asChild` is ignored), 32px high with overflow hidden. A label that wraps to
+// two lines ("תוכנית לימודים ופדגוגיה", "נגישות ופדגוגיה מותאמת (UDL)") was cut
+// top and bottom, and the active highlight with it. The link sets the height.
+const NAV_BUTTON = "h-auto overflow-visible p-0";
+
 export function AdminLayout() {
   const { user } = useAuthStore();
   const unreadCount = useUnreadAdminMessages();
@@ -96,8 +102,8 @@ export function AdminLayout() {
             <SidebarGroup>
               <SidebarMenu className="gap-1.5">
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <NavLink id="tour-admin-overview" to="/admin" end className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 flex items-center" : "hover:bg-slate-100 text-slate-700 font-semibold transition-colors rounded-xl p-3.5 flex items-center"}>
+                  <SidebarMenuButton asChild className={NAV_BUTTON}>
+                    <NavLink id="tour-admin-overview" to="/admin" end className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 flex items-center w-full leading-snug" : "hover:bg-slate-100 text-slate-700 font-semibold transition-colors rounded-xl p-3.5 flex items-center w-full leading-snug"}>
                       <Settings className="w-5 h-5 ml-3 opacity-90" /> 
                       <span className="text-sm lg:text-base tracking-wide">סקירה כללית</span>
                     </NavLink>
@@ -105,8 +111,8 @@ export function AdminLayout() {
                 </SidebarMenuItem>
 
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <NavLink id="tour-admin-schools" to="/admin/schools" className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 flex items-center" : "hover:bg-slate-100 text-slate-700 font-semibold transition-colors rounded-xl p-3.5 flex items-center"}>
+                  <SidebarMenuButton asChild className={NAV_BUTTON}>
+                    <NavLink id="tour-admin-schools" to="/admin/schools" className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 flex items-center w-full leading-snug" : "hover:bg-slate-100 text-slate-700 font-semibold transition-colors rounded-xl p-3.5 flex items-center w-full leading-snug"}>
                       <GraduationCap className="w-5 h-5 ml-3 opacity-90" /> 
                       <span className="text-sm lg:text-base tracking-wide">מוסדות ומורים</span>
                     </NavLink>
@@ -114,8 +120,8 @@ export function AdminLayout() {
                 </SidebarMenuItem>
 
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <NavLink id="tour-admin-curriculum" to="/admin/curriculum" className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 flex items-center" : "hover:bg-slate-100 text-slate-700 font-semibold transition-colors rounded-xl p-3.5 flex items-center"}>
+                  <SidebarMenuButton asChild className={NAV_BUTTON}>
+                    <NavLink id="tour-admin-curriculum" to="/admin/curriculum" className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 flex items-center w-full leading-snug" : "hover:bg-slate-100 text-slate-700 font-semibold transition-colors rounded-xl p-3.5 flex items-center w-full leading-snug"}>
                       <Layers className="w-5 h-5 ml-3 opacity-90" /> 
                       <span className="text-sm lg:text-base tracking-wide">תוכנית לימודים ופדגוגיה</span>
                     </NavLink>
@@ -123,8 +129,8 @@ export function AdminLayout() {
                 </SidebarMenuItem>
 
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <NavLink id="tour-admin-support" to="/admin/support" className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 flex items-center" : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold transition-colors rounded-xl p-3.5 flex items-center"}>
+                  <SidebarMenuButton asChild className={NAV_BUTTON}>
+                    <NavLink id="tour-admin-support" to="/admin/support" className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 flex items-center w-full leading-snug" : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold transition-colors rounded-xl p-3.5 flex items-center w-full leading-snug"}>
                       <LifeBuoy className="w-5 h-5 ml-3 opacity-90" /> 
                       <span className="text-sm lg:text-base tracking-wide">מוקד תמיכה ופניות</span>
                     </NavLink>
@@ -132,8 +138,8 @@ export function AdminLayout() {
                 </SidebarMenuItem>
 
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <NavLink id="tour-admin-security" to="/admin/security" className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 flex items-center" : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold transition-colors rounded-xl p-3.5 flex items-center"}>
+                  <SidebarMenuButton asChild className={NAV_BUTTON}>
+                    <NavLink id="tour-admin-security" to="/admin/security" className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 flex items-center w-full leading-snug" : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold transition-colors rounded-xl p-3.5 flex items-center w-full leading-snug"}>
                       <Shield className="w-5 h-5 ml-3 opacity-90" /> 
                       <span className="text-sm lg:text-base tracking-wide">אבטחה והרשאות</span>
                     </NavLink>
@@ -141,8 +147,8 @@ export function AdminLayout() {
                 </SidebarMenuItem>
 
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <NavLink id="tour-admin-chat" to="/admin/chat" className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 flex items-center" : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold transition-colors rounded-xl p-3.5 flex items-center"}>
+                  <SidebarMenuButton asChild className={NAV_BUTTON}>
+                    <NavLink id="tour-admin-chat" to="/admin/chat" className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 flex items-center w-full leading-snug" : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold transition-colors rounded-xl p-3.5 flex items-center w-full leading-snug"}>
                       <Users className="w-5 h-5 ml-3 opacity-90" /> 
                       <span className="text-sm lg:text-base tracking-wide">ערוץ פניות מורים</span>
                     </NavLink>
@@ -150,8 +156,8 @@ export function AdminLayout() {
                 </SidebarMenuItem>
 
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <NavLink to="/admin/teacher-view" className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 flex items-center" : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold transition-colors rounded-xl p-3.5 flex items-center"}>
+                  <SidebarMenuButton asChild className={NAV_BUTTON}>
+                    <NavLink to="/admin/teacher-view" className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 flex items-center w-full leading-snug" : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold transition-colors rounded-xl p-3.5 flex items-center w-full leading-snug"}>
                       <Layers className="w-5 h-5 ml-3 opacity-90" /> 
                       <span className="text-sm lg:text-base tracking-wide">תצוגת מורה</span>
                     </NavLink>
@@ -159,8 +165,8 @@ export function AdminLayout() {
                 </SidebarMenuItem>
 
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <NavLink id="tour-admin-settings" to="/admin/settings" className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 flex items-center" : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold transition-colors rounded-xl p-3.5 flex items-center"}>
+                  <SidebarMenuButton asChild className={NAV_BUTTON}>
+                    <NavLink id="tour-admin-settings" to="/admin/settings" className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 flex items-center w-full leading-snug" : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold transition-colors rounded-xl p-3.5 flex items-center w-full leading-snug"}>
                       <Settings className="w-5 h-5 ml-3 opacity-90" /> 
                       <span className="text-sm lg:text-base tracking-wide">נגישות ופדגוגיה מותאמת (UDL)</span>
                     </NavLink>
