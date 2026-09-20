@@ -250,7 +250,7 @@ function outcomesTable(rows: ClassLearnerRow[], exerciseIds: string[]): string {
 function researchMeasuresSection(rows: ClassLearnerRow[], a: ClassAggregates): string {
   if (!rows.some((r) => r.flexibility || r.mediation)) return "";
   const without = Array.isArray(a.learners_without_mediation)
-    ? `<p><b>לא נדרשו לתיווך במפגש זה:</b> ${esc(a.learners_without_mediation.length)} מתוך 12${a.learners_without_mediation.length > 0 ? ` (${esc(studentList(a.learners_without_mediation))})` : ""}</p>`
+    ? `<p><b>לא נדרשו לתיווך במפגש זה:</b> ${esc(a.learners_without_mediation.length)} מתוך 12, נתונים קיימים ל-${esc(a.learners_with_data)} לומדים${a.learners_without_mediation.length > 0 ? ` (${esc(studentList(a.learners_without_mediation))})` : ""}</p>`
     : "";
   const head = ["לומד", "גמישות ייצוגית", "גמישות, מצטבר (מפגשים 3 ו-7)", "אפקטיביות התיווך", "אפקטיביות התיווך, מצטבר"];
   const body = rows.map((r) => `
