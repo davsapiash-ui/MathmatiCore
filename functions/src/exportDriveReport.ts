@@ -652,6 +652,22 @@ async function runBackupAndReset(request: CallableRequest<any>) {
     });
   } catch (err: any) {
     logger.error("Failed to collect data for backup:", err);
+    // Module 23א §ד: a reset that was attempted is recorded, also when it failed.
+    await db.collection("reset_audit_log").doc(resetId).set({
+      reset_id: resetId,
+      reset_level,
+      performed_by_teacher_id: performedBy,
+      performed_at: Date.now(),
+      class_id,
+      affected_student_ids: affectedStudentIds,
+      backup_file_url: null,
+      backup_status: 'failed',
+      reset_reason: reason,
+      reason_note,
+      records_deleted_count: 0,
+      ...level2Audit,
+      created_at: admin.firestore.FieldValue.serverTimestamp(),
+    }).catch((auditErr) => logger.error("Failed to write the failed-reset audit entry:", auditErr));
     throw new HttpsError("internal", "הגיבוי נכשל. האיפוס בוטל ולא נמחקו נתונים.");
   }
 
@@ -780,7 +796,11 @@ async function runBackupAndReset(request: CallableRequest<any>) {
   await db.collection("reset_audit_log").doc(resetId).set({
     ...auditEntry,
     created_at: admin.firestore.FieldValue.serverTimestamp(),
-  }).catch((auditErr) => logger.error("Failed to write reset audit entry:", auditErr));
+  }).catch((auditErr) => {
+    // The data is gone and the trail is not written: that is not a clean reset.
+    logger.error("Failed to write reset audit entry:", auditErr);
+    deletion.failures.push(`reset_audit_log: ${auditErr?.message || auditErr}`);
+  });
 
   if (deletion.failures.length > 0) {
     // The backup is safe and most of the scope is gone; say exactly what is
@@ -788,7 +808,10 @@ async function runBackupAndReset(request: CallableRequest<any>) {
     logger.error(`Reset ${resetId}: deletion incomplete —`, deletion.failures);
     throw new HttpsError(
       "internal",
-      `הגיבוי נשמר, אך חלק מהנתונים לא נמחקו: ${deletion.failures.join('; ')}. ניתן להריץ את האיפוס שוב.`
+      `הגיבוי נשמר, אך חלק מהנתונים לא נמחקו: ${deletion.failures.join('; ')}. ניתן להריץ את האיפוס שוב.`,
+      // The client used to report every non-permission error as "הגיבוי נכשל…
+      // לא נמחקו נתונים" — the opposite of what happened here.
+      { stage: 'deletion_incomplete' }
     );
   }
 
@@ -884,6 +907,16 @@ interface FirestoreScopeEntry {
   collection: string;
   /** When set, only documents whose `student_id` is one of these values. */
   studentValues?: Array<string | number>;
+  /**
+   * When set, only documents whose ID names one of these learners
+   * ("session_02_student_4" → 4). For `sessions`: a session document has no
+   * student_id field (the rules do not allow one), so the field filter above
+   * matched none of them — a single-learner reset never deleted, or even backed
+   * up, the learner's session documents. After a reset of meeting 2 the gate tab
+   * kept showing "completed and approved" with the old score, and the rules then
+   * refused the learner's new completion (teacher_gate_approved true → false).
+   */
+  studentNumbers?: number[];
   /** Backed up but not deleted (see buildResetScope). */
   backupOnly?: boolean;
   /**
@@ -943,6 +976,18 @@ export function buildActiveSessionResetValues(sessionNumber: number, current: Re
       teacher_gate_approved: false,
       session_score_percent: null,
       matrix_recommended_path: null,
+      // The learner's client records the diagnostic's completion as
+      // session_02_completed (two digits) and its own gate check reads that key;
+      // only session_2_completed was cleared above. The approved path, who
+      // approved it and when, and the mastery profile computed at the end of the
+      // diagnostic are its outputs too: left behind, the learner kept the old
+      // bank and the clustering widgets kept the old diagnostic.
+      session_02_completed: false,
+      pedagogicalPath: null,
+      teacher_selected_path: null,
+      gate_approved_at: null,
+      gate_approved_by: null,
+      conceptMastery: null,
     });
   }
   if (sessionNumber === 8) {
@@ -1011,9 +1056,8 @@ export function buildResetScope(
       fieldResets: aliases.map((a) => ({ path: `users/students/${a}`, values: { __activeSessionNumber: sessionNumber } })),
       firestore: LEARNING_COLLECTIONS.map((collection) => ({
         collection,
-        studentValues,
+        ...(collection === "sessions" ? { studentNumbers: [parseInt(rawNum, 10)], sessionNumber } : { studentValues }),
         backupOnly: collection !== "sessions",
-        ...(collection === "sessions" ? { sessionNumber } : {}),
       })),
     };
   }
@@ -1030,7 +1074,7 @@ export function buildResetScope(
       ],
       firestore: LEARNING_COLLECTIONS.map((collection) => ({
         collection,
-        studentValues,
+        ...(collection === "sessions" ? { studentNumbers: [parseInt(rawNum, 10)] } : { studentValues }),
         backupOnly: collection !== "sessions",
       })),
     };
@@ -1098,9 +1142,18 @@ const FIRESTORE_MAX_PAGES = 2000;
 
 function scopedQuery(db: admin.firestore.Firestore, entry: FirestoreScopeEntry): admin.firestore.Query {
   const base: admin.firestore.Query = db.collection(entry.collection);
+  // studentNumbers is matched on the document id, after the read (entryCoversDoc).
+  if (entry.studentNumbers) return base;
   return entry.studentValues && entry.studentValues.length > 0
     ? base.where("student_id", "in", entry.studentValues)
     : base;
+}
+
+/** Whether a document the scoped query returned belongs to the entry (see studentNumbers). */
+function entryCoversDoc(entry: FirestoreScopeEntry, docId: string): boolean {
+  if (!entry.studentNumbers) return true;
+  const n = studentNumberFromSessionId(docId);
+  return n !== null && entry.studentNumbers.includes(n);
 }
 
 /** Reads every document the entry covers — no page limit — as plain JSON. */
@@ -1112,7 +1165,9 @@ async function readCollectionFully(db: admin.firestore.Firestore, entry: Firesto
     const pageQuery: admin.firestore.Query = last ? query.startAfter(last) : query;
     const snap: admin.firestore.QuerySnapshot = await pageQuery.get();
     if (snap.empty) break;
-    for (const d of snap.docs) docs.push({ id: d.id, data: toPlainJson(d.data()) });
+    for (const d of snap.docs) {
+      if (entryCoversDoc(entry, d.id)) docs.push({ id: d.id, data: toPlainJson(d.data()) });
+    }
     last = snap.docs[snap.docs.length - 1];
     if (snap.size < FIRESTORE_PAGE) break;
   }
@@ -1121,6 +1176,18 @@ async function readCollectionFully(db: admin.firestore.Firestore, entry: Firesto
 
 /** Deletes every document the entry covers, page by page, and returns how many. */
 async function deleteCollectionFully(db: admin.firestore.Firestore, entry: FirestoreScopeEntry): Promise<number> {
+  if (entry.studentNumbers) {
+    // Matched by document id: the page loop below re-reads the first page until it
+    // is empty, which never happens while other learners' documents remain.
+    const all = await scopedQuery(db, entry).get();
+    const targets = all.docs.filter((d) => entryCoversDoc(entry, d.id));
+    for (let i = 0; i < targets.length; i += FIRESTORE_PAGE) {
+      const batch = db.batch();
+      targets.slice(i, i + FIRESTORE_PAGE).forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+    }
+    return targets.length;
+  }
   let deleted = 0;
   const query = scopedQuery(db, entry).limit(FIRESTORE_PAGE);
   for (let page = 0; page < FIRESTORE_MAX_PAGES; page++) {
@@ -1245,6 +1312,7 @@ export async function executeResetDeletion(
 async function deleteSessionDocsOfMeeting(db: admin.firestore.Firestore, entry: FirestoreScopeEntry, sessionNumber: number): Promise<number> {
   const docs = await scopedQuery(db, entry).get();
   const targets = docs.docs.filter((d) => {
+    if (!entryCoversDoc(entry, d.id)) return false;
     const data = d.data() || {};
     const fromField = Number(data.session_number);
     return sessionNumberFromId(d.id) === sessionNumber || fromField === sessionNumber;
