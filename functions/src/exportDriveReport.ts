@@ -535,7 +535,11 @@ async function runBackupAndReset(request: CallableRequest<any>) {
     token.teacher === true ||
     token.role === 'teacher' ||
     (Array.isArray(token.roles) && token.roles.includes('TEACHER'));
-  if (!isTeacherIdentity && (reset_level === 'single_student' || reset_level === 'system')) {
+  // Module 23א §ו gives all THREE levels to the class teacher. Level 1 used to
+  // skip this check: any signed-in identity — a learner's anonymous session
+  // included — could clear the radar's help signals mid-lesson and write its own
+  // free text into the immutable audit log.
+  if (!isTeacherIdentity) {
     logger.warn(`Non-teacher identity ${request.auth.uid} (role=${String(token.role)}) attempted a ${reset_level} reset, denied.`);
     throw new HttpsError(
       "permission-denied",

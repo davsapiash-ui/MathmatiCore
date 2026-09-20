@@ -110,7 +110,12 @@ service cloud.firestore {
         'DIGIT_ENTERED',
         'DIGIT_DELETED',
         'HESITATION_DETECTED',
-        'SOCRATIC_CARD_SHOWN'
+        'SOCRATIC_CARD_SHOWN',
+        // Register, deviation 19 (owner, 16.9.2026): the scaffold events. They were
+        // added to the client's lists only, so every one of them was refused here,
+        // retried five times and parked on the learner's device; the class report's
+        // grid / keyboard-lock / help counters stayed at zero.
+        'KEYBOARD_LOCK_BLOCKED'
       ];
     }
 
@@ -120,7 +125,10 @@ service cloud.firestore {
         'PROBLEM_LOAD',
         'SOCRATIC_OPTION_SELECTED',
         'PROBLEM_COMPLETE',
-        'REFLECTION_SUBMITTED'
+        'REFLECTION_SUBMITTED',
+        // Register, deviation 19 — see isColumnScopedEvent.
+        'ADAPTIVE_GRID_TOGGLED',
+        'HELP_REQUESTED'
       ];
     }
 

@@ -25,6 +25,16 @@ export const authenticateStudentSession = onCall(
       throw new HttpsError("unauthenticated", "User must be signed in anonymously first");
     }
 
+  // setCustomUserClaims REPLACES the user's claims. A learner sign-in made in a
+  // browser that already holds a Google staff session (the teacher trying a
+  // learner in a second tab) used to re-stamp the teacher's own user as a
+  // learner, and her open dashboard lost all access mid-lesson. Learner claims
+  // go on anonymous users only (Module 1 §א).
+  const signInProvider = (request.auth.token as Record<string, any>)?.firebase?.sign_in_provider;
+  if (signInProvider !== "anonymous") {
+    throw new HttpsError("failed-precondition", "Learner sign-in requires an anonymous session; this browser is signed in as staff.");
+  }
+
   const { studentId, passcode, classId = "class_1" } = request.data as AuthenticateStudentRequest;
 
   // 1. Validate studentId is integer 1 to 12
