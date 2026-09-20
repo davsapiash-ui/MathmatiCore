@@ -3,7 +3,7 @@ import { requireAdmin, requireTeacherForIndividualData } from "./callerIdentity"
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import { GoogleAuth } from "google-auth-library";
-import { computeFirstAttemptScore, readAllDocs, resolveCompulsoryTotal, sessionNumberFromId, studentNumberFromSessionId, summarizeMeeting, computeFadingGap, computeFlexibilityIndex, computeMediationEffectiveness, FLEXIBILITY_SESSIONS } from "./meetingMetrics";
+import { computeFirstAttemptScore, readAllDocs, resolveCompulsoryTotal, sessionNumberFromId, studentNumberFromSessionId, summarizeMeeting, computeFadingGap, computeFlexibilityIndex, computeMediationEffectiveness, computePersistenceIndex, FLEXIBILITY_SESSIONS } from "./meetingMetrics";
 import { recomputeAdminMetrics } from "./adminAggregator";
 
 const GOOGLE_DRIVE_FOLDER_ID = "0AMiALsm_TxT5Uk9PVA";
@@ -1477,13 +1477,18 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
     });
 
     // ── 2. One row per learner × meeting ───────────────────────────────────
-    const sessionDocs = await readAllDocs(db.collection("sessions").where("class_id", "==", class_id))
-      .catch(async () => readAllDocs(db.collection("sessions")));
+    // See classReport.ts: the class_id filter matched no document (the client
+    // wrote the school id there), so four research columns were empty for all
+    // twelve learners. One class in the pilot; documents are identified by id,
+    // and the document that carries the score wins over a stub.
+    const sessionDocs = await readAllDocs(db.collection("sessions"));
     const sessionDocByKey = new Map<string, Record<string, any>>();
-    for (const { data } of sessionDocs) {
-      const n = studentNumber(data.student_id) ?? studentNumberFromSessionId(String(data.session_id || ""));
-      const m = Number(data.session_number) || sessionNumberFromId(String(data.session_id || "")) || null;
-      if (n !== null && m !== null) sessionDocByKey.set(`${n}:${m}`, data);
+    for (const { id, data } of sessionDocs) {
+      const n = studentNumber(data.student_id) ?? studentNumberFromSessionId(String(data.session_id || "")) ?? studentNumberFromSessionId(id);
+      const m = Number(data.session_number) || sessionNumberFromId(String(data.session_id || "")) || sessionNumberFromId(id) || null;
+      if (n === null || m === null) continue;
+      const key = `${n}:${m}`;
+      if (typeof data.session_score_percent === "number" || !sessionDocByKey.has(key)) sessionDocByKey.set(key, data);
     }
 
     const studentsSnap = await rtdb.ref("users/students").get();
@@ -1537,14 +1542,17 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
       byLearnerMeeting.set(k, [...(byLearnerMeeting.get(k) ?? []), e.data]);
     }
     const compulsoryCache = new Map<string, number | null>();
+    const compulsoryIdsByBank = new Map<string, ReadonlySet<string>>();
     const meetingRows: Record<string, any>[] = [];
     for (const [k, events] of Array.from(byLearnerMeeting.entries()).sort()) {
       const [nStr, mStr] = k.split(":");
       const n = Number(nStr);
       const m = Number(mStr);
       const path = learnerPath.get(n) ?? "green_path";
-      const compulsory = await resolveCompulsoryTotal(db, m, path, compulsoryCache);
-      const score = computeFirstAttemptScore(events, compulsory);
+      const compulsory = await resolveCompulsoryTotal(db, m, path, compulsoryCache, compulsoryIdsByBank);
+      // With the ids: optional early-finisher tasks do not count towards the score (PRD 23 §ב).
+      const score = computeFirstAttemptScore(events, compulsory, compulsoryIdsByBank.get(`${m}:${path}`) ?? null);
+      const persistence = computePersistenceIndex(events);
       const summary = summarizeMeeting(events);
       // מסמך 03 §3.8: session 8 against the same learner's sessions 4–6.
       const fading = m === 8
@@ -1589,6 +1597,10 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
         fading_seconds_without_blocks: fading?.mean_seconds_without_blocks ?? "",
         fading_guessed: fading?.guessed_exercises.join("|") ?? "",
         fading_unpaired: fading?.unpaired_exercises.join("|") ?? "",
+        persistence_undos: persistence.undos,
+        persistence_wrong_digits: persistence.wrong_digits,
+        persistence_wrong_options: persistence.wrong_options,
+        persistence_percent: persistence.percent,
         flexibility_completed: flexibility?.completed ?? "",
         flexibility_first_try: flexibility?.first_try ?? "",
         flexibility_percent: flexibility?.percent ?? "",

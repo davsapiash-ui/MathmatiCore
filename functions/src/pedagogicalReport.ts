@@ -10,6 +10,11 @@ import {
   computeFirstAttemptScore,
   computeFlexibilityIndex,
   computeMediationEffectiveness,
+  computePersistenceIndex,
+  isExerciseEvent,
+  persistenceHe,
+  resolveCompulsoryTotal,
+  sessionDocumentIdCandidates,
   FLEXIBILITY_SESSIONS,
   flexibilityHe,
   mediationHe,
@@ -57,6 +62,8 @@ function generateExerciseNarrativeFromEvents(telemetryDocs: Record<string, any>[
   // Group events chronologically by exercise_id
   telemetryDocs.sort((a, b) => (a.client_timestamp || 0) - (b.client_timestamp || 0));
   for (const doc of telemetryDocs) {
+    // SESSION_START ("ex_N_01") and REFLECTION_SUBMITTED are not exercises (isExerciseEvent).
+    if (!isExerciseEvent(doc)) continue;
     const exId = doc.exercise_id || "ex_1";
     if (!exerciseMap[exId]) exerciseMap[exId] = [];
     exerciseMap[exId].push(doc);
@@ -306,6 +313,7 @@ export function createPedagogicalReportPdfBufferWithPdfkit(report: Record<string
         rtlText(doc, "4. מדדי המחקר");
         doc.moveDown(0.3);
         doc.fontSize(10).fillColor("#0f172a");
+        rtlText(doc, `התמדה וויסות עצמי במפגש זה: ${persistenceHe(measures.persistence ?? null)}`, { lineGap: 3 });
         rtlText(doc, `גמישות ייצוגית במפגש זה: ${flexibilityHe(measures.flexibility ?? null)} | מצטבר (מפגשים 3 ו-7): ${flexibilityHe(measures.flexibility_cumulative ?? null)}`, { lineGap: 3 });
         rtlText(doc, `אפקטיביות התיווך במפגש זה: ${mediationHe(measures.mediation ?? null)} | מצטבר (כל המפגשים): ${mediationHe(measures.mediation_cumulative ?? null)}`, { lineGap: 3 });
       }
@@ -358,13 +366,30 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
   }
 
   const db = admin.firestore();
-  const sessionDoc = await db.collection("sessions").doc(sessionId).get();
   const studentDigits = String(explicitStudentId ?? sessionId.split("_").pop() ?? "").replace(/\D/g, "");
   if (!studentDigits) {
     throw new HttpsError("invalid-argument", "Missing studentId (1-12).");
   }
   const studentId = studentDigits;
   const clampedStudentNum = Math.min(12, Math.max(1, parseInt(studentDigits, 10)));
+
+  // PRD 23 §ב: the report reads the session_score_percent that already exists on
+  // the SessionDocument. The caller passes the TELEMETRY session id
+  // ("session_2_student_student_user4"); the document lives at
+  // "session_02_student_4". It was looked up under the telemetry id, never
+  // found, and the score was recomputed from telemetry — so the report could say
+  // 100% "העמקה" one panel above a gate that acted on 43% "ביסוס".
+  const requestedMeeting = Number(sessionNumber) || sessionNumberFromId(sessionId) || 0;
+  let sessionDoc = await db.collection("sessions").doc(sessionId).get();
+  const hasScore = (snap: admin.firestore.DocumentSnapshot) => typeof snap.data()?.session_score_percent === "number";
+  if (!hasScore(sessionDoc) && requestedMeeting >= 1 && requestedMeeting <= 8) {
+    for (const candidate of sessionDocumentIdCandidates(clampedStudentNum, requestedMeeting)) {
+      if (candidate === sessionId) continue;
+      const snap = await db.collection("sessions").doc(candidate).get();
+      if (snap.exists && (hasScore(snap) || !sessionDoc.exists)) sessionDoc = snap;
+      if (hasScore(sessionDoc)) break;
+    }
+  }
 
   // A meeting number that cannot be resolved used to default to 2, which
   // titled the report "meeting 2", filed it under meeting 2, and fixed the
@@ -418,27 +443,22 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
   } else if (telemetryDocs.length > 0) {
     // No SessionDocument (meetings other than 2 never get one): the PRD score
     // rule applied to this meeting's own telemetry.
-    let compulsoryTotal: number | null = resolvedSessionNumber === 2 ? DIAGNOSTIC_COMPULSORY_COUNT : null;
-    if (compulsoryTotal === null) {
-      try {
-        const path = studentVal.teacher_selected_path === "remediation_path" || studentVal.pedagogicalPath === "remediation_path"
-          ? "remediation_path" : "green_path";
-        const bankIds = resolvedSessionNumber >= 3 && resolvedSessionNumber <= 8
-          ? [`session_${resolvedSessionNumber}_${path}`, `session_${resolvedSessionNumber}`]
-          : [`session_${resolvedSessionNumber}`];
-        for (const bankId of bankIds) {
-          const bankDoc = await db.collection("curriculum_catalog").doc(bankId).get();
-          const tasks = bankDoc.exists ? (bankDoc.data() || {}).tasks : null;
-          if (Array.isArray(tasks) && tasks.length > 0) {
-            compulsoryTotal = tasks.filter((t: any) => t && t.isOptionalChoiceTask !== true).length || tasks.length;
-            break;
-          }
-        }
-      } catch (err) {
-        logger.warn("[Module23] Curriculum catalog unavailable for compulsory count.", { session_id: sessionId, error: String(err) });
-      }
-    }
-    const first = computeFirstAttemptScore(telemetryDocs, compulsoryTotal);
+    // The same reader the class report and the research export use, so the three
+    // cannot disagree — and it returns WHICH exercises are compulsory. Without
+    // the ids the numerator also counted optional early-finisher tasks: 4 of 7
+    // compulsory plus 2 optional, all first try, was reported as 86%.
+    const scoringPath: "green_path" | "remediation_path" =
+      studentVal.teacher_selected_path === "remediation_path" || studentVal.pedagogicalPath === "remediation_path"
+        ? "remediation_path" : "green_path";
+    const compulsoryIdsByBank = new Map<string, ReadonlySet<string>>();
+    const compulsoryTotal: number | null = resolvedSessionNumber === 2
+      ? DIAGNOSTIC_COMPULSORY_COUNT
+      : await resolveCompulsoryTotal(db, resolvedSessionNumber, scoringPath, new Map(), compulsoryIdsByBank);
+    const first = computeFirstAttemptScore(
+      telemetryDocs,
+      compulsoryTotal,
+      compulsoryIdsByBank.get(`${resolvedSessionNumber}:${scoringPath}`) ?? null
+    );
     // Without the meeting's compulsory count there is no denominator, and a
     // percentage over "whatever the learner happened to open" is not a
     // measurement. The old code returned one anyway: one exercise opened and
@@ -553,14 +573,22 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
 
   let catalogTasks: Record<string, any>[] = [];
   try {
-    const bankId =
-      resolvedSessionNumber >= 3 && resolvedSessionNumber <= 7 && analysisPath
-        ? `session_${resolvedSessionNumber}_${analysisPath}`
-        : `session_${resolvedSessionNumber}`;
-    const bankDoc = await db.collection("curriculum_catalog").doc(bankId).get();
-    if (bankDoc.exists) {
-      const tasks = (bankDoc.data() || {}).tasks;
-      if (Array.isArray(tasks)) catalogTasks = tasks;
+    // The catalog is published per path for meetings 3–8
+    // ("session_8_green_path"). This used to ask for "session_N" whenever the
+    // learner was on the green path, and for meeting 8 always — a document that
+    // does not exist — so the engine received "addition, operands unknown" for
+    // every exercise, a subtraction included.
+    const templatePath = analysisPath ?? "green_path";
+    const bankIds = resolvedSessionNumber >= 3 && resolvedSessionNumber <= 8
+      ? [`session_${resolvedSessionNumber}_${templatePath}`, `session_${resolvedSessionNumber}`]
+      : [`session_${resolvedSessionNumber}`];
+    for (const bankId of bankIds) {
+      const bankDoc = await db.collection("curriculum_catalog").doc(bankId).get();
+      const tasks = bankDoc.exists ? (bankDoc.data() || {}).tasks : null;
+      if (Array.isArray(tasks) && tasks.length > 0) {
+        catalogTasks = tasks;
+        break;
+      }
     }
   } catch (err) {
     logger.warn("[Module23] Curriculum catalog unavailable for report analysis.", {
@@ -599,6 +627,7 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     logger.warn("Research measures: the learner's other meetings could not be read", err);
   }
   const researchMeasures = {
+    persistence: computePersistenceIndex(telemetryDocs),
     flexibility: FLEXIBILITY_SESSIONS.includes(resolvedSessionNumber) ? computeFlexibilityIndex(telemetryDocs) : null,
     flexibility_cumulative: allMeetingsEvents ? computeFlexibilityIndex(allMeetingsEvents) : null,
     mediation: resolvedSessionNumber !== 2 ? computeMediationEffectiveness(telemetryDocs) : null,
@@ -667,10 +696,16 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     pdfUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(storageFilePath)}?alt=media&token=${downloadToken}`;
 
     // Link permanent storage PDF path and timestamp to SessionDocument
-    await db.collection("sessions").doc(sessionId).set({
-      pedagogical_report_pdf_path: storageFilePath,
-      pedagogical_report_generated_at: Date.now(),
-    }, { merge: true });
+    // Only onto the learner's real SessionDocument. Writing it under the id the
+    // caller passed created a second, two-field "session" per report: the admin
+    // overview counted each as a meeting that was started and never completed,
+    // so the completion rate fell every time a teacher produced a report.
+    if (sessionDoc.exists) {
+      await sessionDoc.ref.set({
+        pedagogical_report_pdf_path: storageFilePath,
+        pedagogical_report_generated_at: Date.now(),
+      }, { merge: true });
+    }
 
     // Record immutable report artifact in Firestore reports collection
     await db.collection("reports").doc(`rep_${sessionId}`).set({

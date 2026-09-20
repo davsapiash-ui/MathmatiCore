@@ -34,7 +34,7 @@ describe('Module 24 — research export covers the whole process', () => {
   });
 
   it('writes one row per learner × meeting with the PRD first-attempt score for every meeting', () => {
-    expect(exportSection).toMatch(/const score = computeFirstAttemptScore\(events, compulsory\);/);
+    expect(exportSection).toMatch(/const score = computeFirstAttemptScore\(events, compulsory, compulsoryIdsByBank\.get\(/);
     expect(exportSection).toMatch(/const summary = summarizeMeeting\(events\);/);
     for (const col of [
       'first_attempt_score_percent', 'compulsory_total', 'active_minutes', 'wrong_digits', 'undos', 'deletions',

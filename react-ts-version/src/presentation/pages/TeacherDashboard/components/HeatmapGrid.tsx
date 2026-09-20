@@ -403,7 +403,18 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
         const counts = res.data.rowCounts && typeof res.data.rowCounts === 'object'
           ? Object.entries(res.data.rowCounts as Record<string, number>).map(([k, v]) => `${k}: ${v}`).join(' · ')
           : '';
-        toast.success(`ייצוא נתוני המחקר (כל המפגשים) נשמר בדרייב, תיקייה "02 נתוני מחקר". ${counts}`);
+        // The server answers SUCCESS when at least ONE of the five files reached
+        // Drive, and marks the others "failed: …" inside `files`. That list was
+        // never read, so a teacher was told the export was saved while four of
+        // its files were missing.
+        const failedFiles = res.data.files && typeof res.data.files === 'object'
+          ? Object.entries(res.data.files as Record<string, string>).filter(([, link]) => String(link).startsWith('failed:')).map(([name]) => name)
+          : [];
+        if (failedFiles.length > 0) {
+          toast.error(`הייצוא נשמר חלקית בדרייב. קבצים שלא נשמרו: ${failedFiles.join(', ')}. הריצו את הייצוא שוב.`, { duration: 12000 });
+        } else {
+          toast.success(`ייצוא נתוני המחקר (כל המפגשים) נשמר בדרייב, תיקייה "02 נתוני מחקר". ${counts}`);
+        }
       } else {
         toast.warning('הייצוא הסתיים אך ללא אישור מפורש מהשרת. בדקו את תיקיית Drive.');
       }

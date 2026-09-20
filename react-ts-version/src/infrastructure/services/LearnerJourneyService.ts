@@ -433,11 +433,36 @@ export interface MeetingReport {
   generatedAt: number | null;
   /** Direct PDF link when the server just produced it; otherwise fetched on demand. */
   downloadUrl: string | null;
+  /**
+   * PRD 7.3, Module 23 §ב "מדדי המחקר": shown in the learner report. One ready
+   * line per measure; empty for a report produced before the measures existed.
+   */
+  researchMeasures: string[];
+  /** Set when the server produced the report but could NOT render or store its PDF (Module 23 §ה). */
+  pdfFailureMessage: string | null;
+}
+
+const ratioLine = (v: unknown, a: string, b: string, unit = ''): string => {
+  if (!v || typeof v !== 'object') return 'לא נמדד';
+  const o = v as Record<string, unknown>;
+  if (typeof o.percent !== 'number') return unit ? 'לא נדרש תיווך (0 כרטיסים)' : 'לא נמדד';
+  return `${Number(o[b]) || 0} מתוך ${Number(o[a]) || 0}${unit} (${o.percent}%)`;
+};
+
+function researchMeasureLines(m: unknown): string[] {
+  if (!m || typeof m !== 'object') return [];
+  const r = m as Record<string, any>;
+  const p = r.persistence && typeof r.persistence === 'object' ? r.persistence : null;
+  return [
+    `התמדה וויסות עצמי במפגש זה: ${p ? `${Number(p.percent) || 0}% (ביטולים ${Number(p.undos) || 0}, ספרות שגויות ${Number(p.wrong_digits) || 0}, בחירות שגויות בכרטיס ${Number(p.wrong_options) || 0})` : 'לא נמדד'}`,
+    `גמישות ייצוגית במפגש זה: ${ratioLine(r.flexibility, 'completed', 'first_try')} · מצטבר (מפגשים 3 ו-7): ${ratioLine(r.flexibility_cumulative, 'completed', 'first_try')}`,
+    `אפקטיביות התיווך במפגש זה: ${r.mediation ? ratioLine(r.mediation, 'cards', 'effective', ' כרטיסים') : 'לא נמדד'} · מצטבר (כל המפגשים): ${r.mediation_cumulative ? ratioLine(r.mediation_cumulative, 'cards', 'effective', ' כרטיסים') : 'לא נמדד'}`,
+  ];
 }
 
 const strList = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
 
-function reportFromData(d: Record<string, any>, sessionId: string, downloadUrl: string | null): MeetingReport {
+function reportFromData(d: Record<string, any>, sessionId: string, downloadUrl: string | null, pdfFailureMessage: string | null = null): MeetingReport {
   return {
     reportId: String(d.report_id ?? `rep_${sessionId}`),
     sessionId: String(d.session_id ?? sessionId),
@@ -453,6 +478,8 @@ function reportFromData(d: Record<string, any>, sessionId: string, downloadUrl: 
     telemetryEventCount: Number(d.telemetry_event_count) || 0,
     generatedAt: typeof d.generated_at === 'number' ? d.generated_at : null,
     downloadUrl,
+    researchMeasures: researchMeasureLines(d.research_measures),
+    pdfFailureMessage,
   };
 }
 
@@ -475,7 +502,18 @@ export async function generateMeetingReport(params: { studentNum: number; sessio
   });
   const data = (res.data ?? {}) as Record<string, any>;
   if (!data.report) throw new Error('השרת לא החזיר דוח');
-  return reportFromData(data.report, params.sessionId, typeof data.downloadUrl === 'string' ? data.downloadUrl : null);
+  const downloadUrl = typeof data.downloadUrl === 'string' && data.downloadUrl ? data.downloadUrl : null;
+  // The server answers DEGRADED_JSON_ONLY when the report was built but its PDF
+  // could not be rendered or stored. That status used to be ignored: the report
+  // appeared on screen, and "פתח PDF" then opened the PDF of an EARLIER run (stale
+  // numbers) or failed with an unrelated message.
+  const pdfFailed = data.status === 'DEGRADED_JSON_ONLY' || downloadUrl === null;
+  return reportFromData(
+    data.report,
+    params.sessionId,
+    downloadUrl,
+    pdfFailed ? 'הדוח הופק ומוצג כאן, אך קובץ ה-PDF שלו לא נשמר הפעם. אפשר להפיק את הדוח שוב בעוד רגע.' : null
+  );
 }
 
 /** A fresh one-hour link to the stored PDF of a meeting's report. */

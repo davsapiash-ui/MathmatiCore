@@ -14,7 +14,7 @@
 import * as fs from "fs";
 import { fontPath } from "./htmlPdf";
 import type { ClassAggregates, ClassLearnerRow, ExerciseOutcome } from "./classReport";
-import { flexibilityHe, mediationHe } from "./meetingMetrics";
+import { flexibilityHe, mediationHe, persistenceHe } from "./meetingMetrics";
 import type { RecommendationTier } from "./reportAnalysis";
 
 export const EXACT_AI_FALLBACK_TEXT_HE =
@@ -142,6 +142,7 @@ const asStringArray = (value: unknown): string[] =>
 function researchMeasuresCard(m: Record<string, any> | null | undefined): string {
   if (!m) return "";
   return `<h2>4. מדדי המחקר</h2>
+    <p><b>התמדה וויסות עצמי במפגש זה:</b> ${esc(persistenceHe(m.persistence ?? null))}</p>
     <p><b>גמישות ייצוגית במפגש זה:</b> ${esc(flexibilityHe(m.flexibility ?? null))} | <b>מצטבר (מפגשים 3 ו-7):</b> ${esc(flexibilityHe(m.flexibility_cumulative ?? null))}</p>
     <p><b>אפקטיביות התיווך במפגש זה:</b> ${esc(mediationHe(m.mediation ?? null))} | <b>מצטבר (כל המפגשים):</b> ${esc(mediationHe(m.mediation_cumulative ?? null))}</p>`;
 }
@@ -203,6 +204,9 @@ function keyValueList(map: Record<string, number>): string {
   return Object.entries(map).map(([k, v]) => ltr(`${k}: ${v}`)).join(", ");
 }
 
+/** A percentage that may not have been measured. Never printed as a bare "%". */
+const pctHe = (value: number | null | undefined): string => (typeof value === "number" ? `${value}%` : "לא נמדד");
+
 function learnersTable(rows: ClassLearnerRow[]): string {
   const head = [
     "לומד", "ציון", "נכון בניסיון ראשון", "תרגילים שנפתחו", "תרגילים שהושלמו", "ספרות שגויות",
@@ -212,8 +216,8 @@ function learnersTable(rows: ClassLearnerRow[]): string {
   const body = rows.map((r) => `
     <tr>
       <td class="label">תלמיד ${esc(r.student_id)}</td>
-      <td>${esc(r.score_percent)}%</td>
-      <td>${esc(r.correct_first_attempt)} מתוך ${esc(r.compulsory_total)}</td>
+      <td>${esc(pctHe(r.score_percent))}</td>
+      <td>${r.score_percent === null ? "לא נמדד" : `${esc(r.correct_first_attempt)} מתוך ${esc(r.compulsory_total)}`}</td>
       <td>${esc(r.exercises_attempted)}</td>
       <td>${esc(r.exercises_completed)}</td>
       <td>${esc(r.wrong_digits)}</td>
@@ -248,20 +252,21 @@ function outcomesTable(rows: ClassLearnerRow[], exerciseIds: string[]): string {
 
 /** Research measures 3–4 (PRD 7.3, Module 23 §ב): this meeting and cumulative, per learner. */
 function researchMeasuresSection(rows: ClassLearnerRow[], a: ClassAggregates): string {
-  if (!rows.some((r) => r.flexibility || r.mediation)) return "";
+  if (rows.length === 0) return "";
   const without = Array.isArray(a.learners_without_mediation)
     ? `<p><b>לא נדרשו לתיווך במפגש זה:</b> ${esc(a.learners_without_mediation.length)} מתוך 12, נתונים קיימים ל-${esc(a.learners_with_data)} לומדים${a.learners_without_mediation.length > 0 ? ` (${esc(studentList(a.learners_without_mediation))})` : ""}</p>`
     : "";
-  const head = ["לומד", "גמישות ייצוגית", "גמישות, מצטבר (מפגשים 3 ו-7)", "אפקטיביות התיווך", "אפקטיביות התיווך, מצטבר"];
+  const head = ["לומד", "התמדה וויסות עצמי", "גמישות ייצוגית", "גמישות, מצטבר (מפגשים 3 ו-7)", "אפקטיביות התיווך", "אפקטיביות התיווך, מצטבר"];
   const body = rows.map((r) => `
     <tr>
       <td class="label">תלמיד ${esc(r.student_id)}</td>
+      <td>${esc(persistenceHe(r.persistence ?? null))}</td>
       <td>${esc(flexibilityHe(r.flexibility))}</td>
       <td>${esc(flexibilityHe(r.flexibility_cumulative))}</td>
       <td>${esc(mediationHe(r.mediation))}</td>
       <td>${esc(mediationHe(r.mediation_cumulative))}</td>
     </tr>`).join("");
-  return `<h2>4ב. מדדי המחקר: גמישות ייצוגית ואפקטיביות התיווך</h2>
+  return `<h2>4ב. מדדי המחקר: התמדה, גמישות ייצוגית ואפקטיביות התיווך</h2>
     ${without}
     <table><thead><tr>${head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table>`;
 }
@@ -282,6 +287,12 @@ export function classReportHtml(report: Record<string, any>): string {
     .join("");
   const withoutData = a.learners_without_data.length > 0
     ? `<p class="muted">ללא פעולות מתועדות במפגש זה: ${esc(studentList(a.learners_without_data))}</p>`
+    : "";
+
+  // The compulsory count comes from the published curriculum catalog. When it is
+  // missing there is no denominator and no score — say so, and say what to do.
+  const withoutScore = a.learners_without_score.length > 0
+    ? `<p class="muted"><b>ללא ציון:</b> ${esc(studentList(a.learners_without_score))}. מאגר תרגילי החובה של המפגש אינו זמין; על מנהל המערכת לפרסם את תוכנית הלימודים.</p>`
     : "";
 
   const triggers = keyValueList(a.socratic_triggers);
@@ -316,15 +327,16 @@ export function classReportHtml(report: Record<string, any>): string {
     <div class="card">
       <div><b>מפגש:</b> ${esc(report.session_number)}</div>
       <div><b>לומדים עם נתונים:</b> ${esc(a.learners_with_data)} מתוך 12</div>
-      <div><b>ציון ממוצע:</b> ${esc(a.score_mean)}%</div>
-      <div><b>חציון:</b> ${esc(a.score_median)}%</div>
-      <div><b>טווח:</b> ${esc(a.score_min)}%–${esc(a.score_max)}%</div>
+      <div><b>ציון ממוצע:</b> ${esc(pctHe(a.score_mean))}</div>
+      <div><b>חציון:</b> ${esc(pctHe(a.score_median))}</div>
+      <div><b>טווח:</b> ${a.score_min === null ? "לא נמדד" : `${esc(a.score_min)}%–${esc(a.score_max)}%`}</div>
       <div><b>מסלול ירוק:</b> ${esc(a.paths.green_path)} | <b>מסלול ביסוס:</b> ${esc(a.paths.remediation_path)}</div>
     </div>
 
     <h2 class="green">1. קבוצות עבודה לפי כלל האחוזים (שכבה 1, דטרמיניסטית)</h2>
     <ul>${tiers}</ul>
     ${withoutData}
+    ${withoutScore}
 
     <h2>2. תמונת מצב כיתתית</h2>
     <p>פעולות מתועדות: ${esc(a.events_total)} | ספרות שהוזנו: ${esc(a.digits_entered_total)} | ספרות שגויות: ${esc(a.wrong_digits_total)}
