@@ -37,8 +37,12 @@ const SESSION_NUMBERS = [1, 2, 3, 4, 5, 6, 7, 8] as const;
  */
 const isMissingReport = (err: unknown): boolean => {
   const code = String((err as { code?: string })?.code ?? '');
-  return code.includes('permission-denied') || code.includes('not-found');
+  return code.includes('not-found');
 };
+const isPermissionDenied = (err: unknown): boolean =>
+  String((err as { code?: string })?.code ?? '').includes('permission-denied');
+/** Shown instead of "no report yet" when the account cannot read reports at all (see firestore.rules, /reports). */
+const NO_REPORT_ACCESS_TEXT = 'אין לחשבון הזה הרשאה לקרוא דוחות. התנתקו והתחברו מחדש כמורה; אם זה חוזר, פנו למנהל המערכת.';
 
 export function LearnerJourney({ studentId }: Props) {
   // מזהה שאינו נפתר החזיר עד כה 1, ולכן המורה הייתה רואה את מסע הלמידה
@@ -170,7 +174,7 @@ export function LearnerJourney({ studentId }: Props) {
         // simply does not exist yet comes back as permission-denied — that is
         // the "no report yet" state, not a failure.
         if (isMissingReport(err)) { setReport(null); setReportState('idle'); return; }
-        setReportError(describeReportError(err).message);
+        setReportError(isPermissionDenied(err) ? NO_REPORT_ACCESS_TEXT : describeReportError(err).message);
         setReportState('error');
       });
     return () => { cancelled = true; };
@@ -192,6 +196,12 @@ export function LearnerJourney({ studentId }: Props) {
 
   const openReportPdf = async () => {
     if (!report) return;
+    // This run produced no PDF; the stored file (if any) belongs to an earlier run.
+    if (report.pdfFailureMessage) {
+      setReportError(report.pdfFailureMessage);
+      setReportState('error');
+      return;
+    }
     try {
       setReportState('opening');
       const url = report.downloadUrl ?? (await fetchMeetingReportUrl(report.sessionId));
@@ -421,6 +431,18 @@ export function LearnerJourney({ studentId }: Props) {
                     <div className="opacity-90">{AI_FALLBACK_TEXT}</div>
                   )}
                 </div>
+                {/* PRD 7.3, Module 23 §ב "מדדי המחקר": shown in the learner report. They were in the PDF only. */}
+                {report.researchMeasures.length > 0 && (
+                  <div className="p-3 rounded-xl bg-ws-bg border border-ws-surface2 text-ws-ink">
+                    <div className="font-black mb-1">מדדי המחקר</div>
+                    <ul className="space-y-1">{report.researchMeasures.map((line, i) => <li key={i}>• {line}</li>)}</ul>
+                  </div>
+                )}
+                {report.pdfFailureMessage && (
+                  <div role="status" className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 font-bold dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-200">
+                    {report.pdfFailureMessage}
+                  </div>
+                )}
               </div>
             )}
           </div>

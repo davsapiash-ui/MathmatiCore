@@ -16,6 +16,10 @@ import {
   computeFadingGap,
   computeFlexibilityIndex,
   computeMediationEffectiveness,
+  computePersistenceIndex,
+  isExerciseEvent,
+  persistenceHe,
+  type PersistenceIndex,
   FLEXIBILITY_SESSIONS,
   flexibilityHe,
   mediationHe,
@@ -105,6 +109,8 @@ export interface ClassLearnerRow {
   exercise_outcomes: Record<string, ExerciseOutcome>;
   /** Session 8 only (מסמך 03 §3.8): the learner without blocks vs the same learner with blocks in sessions 4–6. */
   fading_gap: FadingGap | null;
+  /** Research measure 2 (Module 16 §ב formula), this meeting's events. */
+  persistence: PersistenceIndex;
   /** Research measure 3 (PRD 7.3, Module 23 §ב): meetings 3 and 7 only; null elsewhere. */
   flexibility: FlexibilityIndex | null;
   /** ΣR ÷ ΣT over meetings 3 and 7; null when the learner's other meetings were not passed. */
@@ -188,10 +194,16 @@ export function buildLearnerRow(
   /** Sessions 4–6 events of the same learner; passed for session 8 only. */
   earlierEvents: Record<string, any>[] | null = null,
   /** The meeting's number and every event of the learner in all meetings, for research measures 3–4. */
-  research: { sessionNumber: number; allEvents: Record<string, any>[] } | null = null
+  research: { sessionNumber: number; allEvents: Record<string, any>[] } | null = null,
+  /** WHICH exercises are compulsory. Without them the numerator counted optional early-finisher tasks too. */
+  compulsoryIds: ReadonlySet<string> | null = null
 ): ClassLearnerRow {
   const sorted = [...events].sort((a, b) => (a.client_timestamp || 0) - (b.client_timestamp || 0));
-  const first = computeFirstAttemptScore(sorted, compulsoryTotal);
+  // PRD 23 §ב: compulsory exercises solved on the first attempt ÷ compulsory
+  // exercises. The ids were passed by one caller only (a trigger that never runs
+  // in the live flow), so a learner with 4 of 7 compulsory and 2 optional tasks
+  // solved first try was reported at 86% and moved up a tier in every report.
+  const first = computeFirstAttemptScore(sorted, compulsoryTotal, compulsoryIds);
   const summary: MeetingSummary = summarizeMeeting(sorted);
 
   const wrongByColumn = [0, 0, 0, 0];
@@ -200,7 +212,7 @@ export function buildLearnerRow(
   const wrongInExercise = new Set<string>();
   const outcomes: Record<string, ExerciseOutcome> = {};
   for (const ev of sorted) {
-    const exId = String(ev.exercise_id || "");
+    const exId = isExerciseEvent(ev) ? String(ev.exercise_id || "") : "";
     if (exId && !outcomes[exId]) outcomes[exId] = "incomplete";
     switch (ev.event_type) {
       case "DIGIT_ENTERED":
@@ -264,6 +276,7 @@ export function buildLearnerRow(
     recording_truncated: recording?.truncated ?? false,
     exercise_outcomes: outcomes,
     fading_gap: earlierEvents ? computeFadingGap(sorted, earlierEvents) : null,
+    persistence: computePersistenceIndex(sorted),
     flexibility: research && FLEXIBILITY_SESSIONS.includes(research.sessionNumber) ? computeFlexibilityIndex(sorted) : null,
     flexibility_cumulative: research ? computeFlexibilityIndex(research.allEvents) : null,
     mediation: research && research.sessionNumber !== 2 ? computeMediationEffectiveness(sorted) : null,
@@ -278,6 +291,7 @@ export function buildLearnerRow(
 /** One learner's research measures 3–4, this meeting and cumulative, as one line. */
 export function researchMeasuresLineHe(r: ClassLearnerRow): string {
   return [
+    `התמדה: ${persistenceHe(r.persistence)}`,
     `גמישות ייצוגית: ${flexibilityHe(r.flexibility)}`,
     `מצטבר (מפגשים 3 ו-7): ${flexibilityHe(r.flexibility_cumulative)}`,
     `אפקטיביות התיווך: ${mediationHe(r.mediation)}`,
@@ -326,7 +340,7 @@ export function aggregateClass(rows: ClassLearnerRow[], eventsByLearner: Map<num
     }
     for (const ev of eventsByLearner.get(r.student_id) ?? []) {
       const exId = String(ev.exercise_id || "");
-      if (!exId) continue;
+      if (!exId || !isExerciseEvent(ev)) continue;
       if (ev.event_type === "DIGIT_ENTERED" && ev.details?.is_correct === false) exerciseRow(exId).wrong_digits++;
       else if (ev.event_type === "SOCRATIC_CARD_SHOWN") exerciseRow(exId).socratic_cards++;
       else if (ev.event_type === "HESITATION_DETECTED") exerciseRow(exId).hesitations++;
@@ -519,6 +533,7 @@ export function buildClassCsv(rows: ClassLearnerRow[], exercises: ClassExerciseR
     "grid_openings", "grid_reopenings", "keyboard_lock_blocks", "help_requests",
     "fading_pairs", "fading_accuracy_with_blocks", "fading_accuracy_without_blocks",
     "fading_seconds_with_blocks", "fading_seconds_without_blocks", "fading_guessed", "fading_unpaired",
+    "persistence_undos", "persistence_wrong_digits", "persistence_wrong_options", "persistence_percent",
     "flexibility_completed", "flexibility_first_try", "flexibility_percent",
     "flexibility_cumulative_completed", "flexibility_cumulative_first_try", "flexibility_cumulative_percent",
     "mediation_cards", "mediation_effective", "mediation_percent",
@@ -538,6 +553,7 @@ export function buildClassCsv(rows: ClassLearnerRow[], exercises: ClassExerciseR
       r.fading_gap?.pairs_measured ?? "", r.fading_gap?.accuracy_with_blocks_percent ?? "", r.fading_gap?.accuracy_without_blocks_percent ?? "",
       r.fading_gap?.mean_seconds_with_blocks ?? "", r.fading_gap?.mean_seconds_without_blocks ?? "",
       r.fading_gap?.guessed_exercises.join("|") ?? "", r.fading_gap?.unpaired_exercises.join("|") ?? "",
+      r.persistence.undos, r.persistence.wrong_digits, r.persistence.wrong_options, r.persistence.percent,
       r.flexibility?.completed ?? "", r.flexibility?.first_try ?? "", r.flexibility?.percent ?? "",
       r.flexibility_cumulative?.completed ?? "", r.flexibility_cumulative?.first_try ?? "", r.flexibility_cumulative?.percent ?? "",
       r.mediation?.cards ?? "", r.mediation?.effective ?? "", r.mediation?.percent ?? "",
@@ -644,7 +660,7 @@ export function createClassReportPdfBufferWithPdfkit(report: Record<string, any>
       line("לומד | ציון | נכון בניסיון ראשון | תרגילים | ספרות שגויות (א/ע/מ/אל) | מחיקות | ביטולים | היסוסים | המרות | כרטיסים | דקות | רפלקציה", 8, "#64748b");
       for (const r of rows) {
         line(
-          `תלמיד ${r.student_id} | ${r.score_percent}% | ${r.correct_first_attempt}/${r.compulsory_total} | ${r.exercises_completed}/${r.exercises_attempted} | ${r.wrong_digits} (${r.wrong_digits_units}/${r.wrong_digits_tens}/${r.wrong_digits_hundreds}/${r.wrong_digits_thousands}) | ${r.deletions} | ${r.undos} | ${r.hesitations} | ${r.regroupings} | ${r.socratic_cards} | ${r.active_minutes} | ${r.reflection_submitted ? "כן" : "לא"}`,
+          `תלמיד ${r.student_id} | ${pct(r.score_percent)} | ${r.score_percent === null ? "לא נמדד" : `${r.correct_first_attempt}/${r.compulsory_total}`} | ${r.exercises_completed}/${r.exercises_attempted} | ${r.wrong_digits} (${r.wrong_digits_units}/${r.wrong_digits_tens}/${r.wrong_digits_hundreds}/${r.wrong_digits_thousands}) | ${r.deletions} | ${r.undos} | ${r.hesitations} | ${r.regroupings} | ${r.socratic_cards} | ${r.active_minutes} | ${r.reflection_submitted ? "כן" : "לא"}`,
           9, "#0f172a"
         );
         const outcomes = Object.entries(r.exercise_outcomes).map(([id, o]) => `${id}: ${OUTCOME_HE[o]}`).join(", ");
@@ -664,8 +680,8 @@ export function createClassReportPdfBufferWithPdfkit(report: Record<string, any>
         }
       }
 
-      if (rows.some((r) => r.flexibility || r.mediation)) {
-        heading("4ב. מדדי המחקר: גמישות ייצוגית ואפקטיביות התיווך");
+      if (rows.length > 0) {
+        heading("4ב. מדדי המחקר: התמדה, גמישות ייצוגית ואפקטיביות התיווך");
         const without = report.aggregates?.learners_without_mediation;
         if (Array.isArray(without)) line(`לא נדרשו לתיווך במפגש זה: ${without.length} מתוך 12 (נתונים קיימים ל-${rows.length} לומדים)`, 10, "#0f172a");
         for (const r of rows) line(`תלמיד ${r.student_id} | ${researchMeasuresLineHe(r)}`, 9, "#0f172a");
@@ -790,13 +806,20 @@ export const generateClassMeetingReport = onCall(CLASS_REPORT_RUNTIME, async (re
   }
 
   // ── 3. Session documents and reflections of this meeting ────────────────
-  const sessionDocs = await readAllDocs(db.collection("sessions").where("class_id", "==", classId))
-    .catch(async () => readAllDocs(db.collection("sessions")));
+  // The learner's client used to write the SCHOOL id into class_id
+  // ("school_bikorot"), so where("class_id","==","class_1") matched no document
+  // — quietly, and the .catch fallback runs on an error only. The pilot has one
+  // class (Module 25 §ב.1); documents are identified by their id.
+  const sessionDocs = await readAllDocs(db.collection("sessions"));
   const sessionDocByLearner = new Map<number, Record<string, any>>();
-  for (const { data } of sessionDocs) {
-    const n = studentNumber(data.student_id) ?? studentNumberFromSessionId(String(data.session_id || ""));
-    const m = Number(data.session_number) || sessionNumberFromId(String(data.session_id || ""));
-    if (n !== null && m === sessionNumber) sessionDocByLearner.set(n, data);
+  for (const { id, data } of sessionDocs) {
+    const n = studentNumber(data.student_id) ?? studentNumberFromSessionId(String(data.session_id || "")) ?? studentNumberFromSessionId(id);
+    const m = Number(data.session_number) || sessionNumberFromId(String(data.session_id || "")) || sessionNumberFromId(id);
+    if (n === null || m !== sessionNumber) continue;
+    // Earlier report runs left stub documents (a PDF path and nothing else)
+    // under the telemetry spelling of the id; the document with the score wins.
+    const hasScore = typeof data.session_score_percent === "number";
+    if (hasScore || !sessionDocByLearner.has(n)) sessionDocByLearner.set(n, data);
   }
   const reflectionDocs = await readAllDocs(db.collection("srl_reflections")).catch(() => []);
   const reflectionsByLearner = new Map<number, number>();
@@ -808,15 +831,17 @@ export const generateClassMeetingReport = onCall(CLASS_REPORT_RUNTIME, async (re
 
   // ── 4. One row per learner, then the class ──────────────────────────────
   const compulsoryCache = new Map<string, number | null>();
+  const compulsoryIdsByBank = new Map<string, ReadonlySet<string>>();
   const learners: ClassLearnerRow[] = [];
   for (const n of Array.from(eventsByLearner.keys()).sort((a, b) => a - b)) {
     const pathOf = learnerPath.get(n) ?? "green_path";
-    const compulsory = await resolveCompulsoryTotal(db, sessionNumber, pathOf, compulsoryCache);
+    const compulsory = await resolveCompulsoryTotal(db, sessionNumber, pathOf, compulsoryCache, compulsoryIdsByBank);
     learners.push(buildLearnerRow(
       n, eventsByLearner.get(n) ?? [], compulsory, pathOf,
       sessionDocByLearner.get(n) ?? null, recordingByLearner.get(n) ?? null, reflectionsByLearner.get(n) ?? 0,
       sessionNumber === 8 ? (earlierByLearner.get(n) ?? []) : null,
-      { sessionNumber, allEvents: allByLearner.get(n) ?? [] }
+      { sessionNumber, allEvents: allByLearner.get(n) ?? [] },
+      compulsoryIdsByBank.get(`${sessionNumber}:${pathOf}`) ?? null
     ));
   }
   const aggregates = aggregateClass(learners, eventsByLearner);

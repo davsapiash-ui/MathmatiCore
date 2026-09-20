@@ -21,8 +21,19 @@ const OUTCOME_HE = { first_try: 'ניסיון ראשון', after_correction: 'א
  */
 const isMissingReport = (err: unknown): boolean => {
   const code = String((err as { code?: string })?.code ?? '');
-  return code.includes('permission-denied') || code.includes('not-found');
+  return code.includes('not-found');
 };
+const isPermissionDenied = (err: unknown): boolean =>
+  String((err as { code?: string })?.code ?? '').includes('permission-denied');
+/** Shown instead of "no report yet" when the account cannot read reports at all. */
+const NO_REPORT_ACCESS_TEXT = 'אין לחשבון הזה הרשאה לקרוא דוחות. התנתקו והתחברו מחדש כמורה; אם זה חוזר, פנו למנהל המערכת.';
+
+/** A percentage the server may not have measured. Never "0%", never a bare "%". */
+const pctText = (value: number | null): string => (value === null ? 'לא נמדד' : `${value}%`);
+const ratioText = (r: { completed: number; firstTry: number; percent: number | null } | null): string =>
+  !r || r.percent === null ? 'לא נמדד' : `${r.firstTry} מתוך ${r.completed} (${r.percent}%)`;
+const mediationText = (m: { cards: number; effective: number; percent: number | null } | null): string =>
+  !m ? 'לא נמדד' : m.percent === null ? 'לא נדרש תיווך (0 כרטיסים)' : `${m.effective} מתוך ${m.cards} כרטיסים (${m.percent}%)`;
 
 export function ClassMeetingReportPanel() {
   const [selectedSession, setSelectedSession] = useState<number>(2);
@@ -43,7 +54,7 @@ export function ClassMeetingReportPanel() {
         // A missing report doc is denied by the rules (resource.data deref) —
         // surface it as "no report yet", not as an error banner.
         if (isMissingReport(err)) { setReport(null); setState('idle'); return; }
-        setError(describeReportError(err).message);
+        setError(isPermissionDenied(err) ? NO_REPORT_ACCESS_TEXT : describeReportError(err).message);
         setState('error');
       });
     return () => { cancelled = true; };
@@ -155,10 +166,20 @@ export function ClassMeetingReportPanel() {
           {/* Class picture */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             <Stat label="תלמידים עם נתונים" value={`${report.learnersWithData} / 12`} />
-            <Stat label="הצלחה ממוצעת בניסיון ראשון" value={`${report.scoreMean}%`} sub={`חציון ${report.scoreMedian}% · טווח ${report.scoreMin}%–${report.scoreMax}%`} />
+            <Stat
+              label="הצלחה ממוצעת בניסיון ראשון"
+              value={pctText(report.scoreMean)}
+              sub={report.scoreMean === null ? 'אין ציון ללומדי המפגש' : `חציון ${pctText(report.scoreMedian)} · טווח ${report.scoreMin}%–${report.scoreMax}%`}
+            />
             <Stat label="ספרות שגויות" value={String(report.wrongDigitsTotal)} sub={`אחדות ${report.wrongDigitsByColumn.units} · עשרות ${report.wrongDigitsByColumn.tens} · מאות ${report.wrongDigitsByColumn.hundreds}`} />
             <Stat label="כרטיסי חניכה" value={String(report.socraticCardsTotal)} sub={`היסוסים ${report.hesitationsTotal} · ביטולים ${report.undosTotal} · מחיקות ${report.deletionsTotal}`} />
           </div>
+
+          {report.learnersWithoutScore.length > 0 && (
+            <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-200">
+              ללא ציון: {report.learnersWithoutScore.map((id) => `תלמיד ${id}`).join(', ')}. מאגר תרגילי החובה של המפגש אינו זמין בשרת, ולכן אין ממה לחשב ציון. על מנהל המערכת ללחוץ "פרסום תוכנית הלימודים", ואז להפיק את הדוח מחדש.
+            </div>
+          )}
 
           {/* Detailed Section (Collapsible - kept mounted to preserve subscriptions & state) */}
           <div className={isExpanded ? "space-y-3 pt-1" : "hidden"}>
@@ -246,8 +267,8 @@ export function ClassMeetingReportPanel() {
                   <tr key={l.studentId} className="border-t border-ws-surface2">
                     <td className="text-right font-bold">תלמיד {l.studentId}</td>
                     <td className="text-center">{l.learningPath === 'green_path' ? 'ירוק' : 'ביסוס'}</td>
-                    <td className="text-center font-black">{l.scorePercent}%</td>
-                    <td className="text-center">{l.correctFirstAttempt}/{l.compulsoryTotal}</td>
+                    <td className="text-center font-black">{pctText(l.scorePercent)}</td>
+                    <td className="text-center">{l.scorePercent === null ? 'לא נמדד' : `${l.correctFirstAttempt}/${l.compulsoryTotal}`}</td>
                     <td className="text-center">{l.exercisesCompleted}/{l.exercisesAttempted}</td>
                     <td className="text-center">{l.wrongDigits} ({l.wrongDigitsByColumn[0]}/{l.wrongDigitsByColumn[1]}/{l.wrongDigitsByColumn[2]})</td>
                     <td className="text-center">{l.deletions}</td>
@@ -267,9 +288,45 @@ export function ClassMeetingReportPanel() {
             </table>
           </div>
 
+          {/* PRD 7.3, Module 23 §ב "מדדי המחקר": shown in the class report. They were in the PDF and the CSV only. */}
+          <div className="p-3 rounded-xl bg-ws-bg border border-ws-surface2 overflow-x-auto">
+            <div className="font-black text-ws-ink mb-1">מדדי המחקר: התמדה, גמישות ייצוגית ואפקטיביות התיווך</div>
+            {report.learnersWithoutMediation !== null && (
+              <div className="text-ws-ink mb-1">
+                לא נדרשו לתיווך במפגש זה: {report.learnersWithoutMediation.length} מתוך 12, נתונים קיימים ל-{report.learnersWithData} לומדים
+                {report.learnersWithoutMediation.length > 0 ? ` (${report.learnersWithoutMediation.map((id) => `תלמיד ${id}`).join(', ')})` : ''}
+              </div>
+            )}
+            <table className="w-full text-[11px] whitespace-nowrap">
+              <thead className="text-ws-soft">
+                <tr>
+                  <th className="text-right">תלמיד</th><th>התמדה וויסות עצמי</th><th>גמישות ייצוגית</th><th>גמישות, מצטבר (מפגשים 3 ו-7)</th><th>אפקטיביות התיווך</th><th>אפקטיביות התיווך, מצטבר</th>
+                </tr>
+              </thead>
+              <tbody className="text-ws-ink">
+                {report.learners.map((l) => (
+                  <tr key={l.studentId} className="border-t border-ws-surface2">
+                    <td className="text-right font-bold">תלמיד {l.studentId}</td>
+                    <td className="text-center">
+                      {l.measures.persistence
+                        ? `${l.measures.persistence.percent}% (ביטולים ${l.measures.persistence.undos}, ספרות שגויות ${l.measures.persistence.wrongDigits}, בחירות שגויות ${l.measures.persistence.wrongOptions})`
+                        : 'לא נמדד'}
+                    </td>
+                    <td className="text-center">{ratioText(l.measures.flexibility)}</td>
+                    <td className="text-center">{ratioText(l.measures.flexibilityCumulative)}</td>
+                    <td className="text-center">{mediationText(l.measures.mediation)}</td>
+                    <td className="text-center">{mediationText(l.measures.mediationCumulative)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
           <div className="text-[11px] text-ws-soft">
             {report.telemetryEventCount} פעולות מתועדות · {report.regroupingsTotal} המרות · {report.reflectionsSubmitted} רפלקציות · זמן פעילות ממוצע {report.activeMinutesMean} דקות
-            {report.drivePdfUrl && <> · <a href={report.drivePdfUrl} target="_blank" rel="noopener noreferrer" className="underline">עותק בדרייב</a></>}
+            {report.drivePdfUrl
+              ? <> · <a href={report.drivePdfUrl} target="_blank" rel="noopener noreferrer" className="underline">עותק בדרייב</a></>
+              : <> · העותק בדרייב לא נשמר (הדוח עצמו שמור במערכת)</>}
           </div>
           </div>
         </div>

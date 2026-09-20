@@ -32,7 +32,8 @@ describe('Module 23 — report for every meeting (server)', () => {
     expect(metrics).toMatch(/ev\.event_type === "DIGIT_ENTERED" && ev\.details\?\.is_correct === false/);
     expect(metrics).toMatch(/ev\.event_type === "PROBLEM_COMPLETE" && !wrongBeforeComplete\.has\(exId\)/);
     expect(metrics).toContain('export const DIAGNOSTIC_COMPULSORY_COUNT = 7;');
-    expect(server).toMatch(/const first = computeFirstAttemptScore\(telemetryDocs, compulsoryTotal\);/);
+    // The count AND the ids of the compulsory exercises, from the shared reader.
+    expect(server).toMatch(/const first = computeFirstAttemptScore\(\s*telemetryDocs,\s*compulsoryTotal,\s*compulsoryIdsByBank\.get\(/);
     expect(server).toMatch(/scoreSource = "telemetry_first_attempt"/);
   });
 

@@ -849,8 +849,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
               const session_score_percent = Math.round((compulsory_correct_first_attempt / 7) * 100);
               const matrix_recommended_path = session_score_percent >= 50 ? 'green_path' : 'remediation_path';
 
-              const activeClass = useAuthStore.getState().activeClass;
-              const classId = activeClass?.school_id || 'class_1';
+              // The pilot's one class (Module 25 §ב.1) — the same id the learner's
+              // signed claim carries. This used to take activeClass.school_id, so
+              // every SessionDocument said class_id "school_bikorot" and the class
+              // report and the research export, which filtered on "class_1", found none.
+              const classId = 'class_1';
               firebaseSyncService.syncSession2Completion(studentId, session_score_percent, matrix_recommended_path, classId).catch(console.error);
             }
           }

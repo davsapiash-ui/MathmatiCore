@@ -419,13 +419,19 @@ service cloud.firestore {
 
     // Pedagogical Reports (Module 23 & 27: Strict Class-Scoped Read-Only Access)
     match /reports/{reportId} {
-      allow read: if isTeacherOfClass(resource.data.class_id);
+      // A document that does not exist has no resource.data, so a teacher's get
+      // of a report not produced yet was DENIED — and the dashboard had to treat
+      // every denial as "no report yet". A teacher whose claims were missing then
+      // saw "עדיין לא הופק דוח" for ever, with nothing to say access was the problem.
+      allow get: if isTeacher() && (resource == null || isTeacherOfClass(resource.data.class_id));
+      allow list: if isTeacherOfClass(resource.data.class_id);
       allow write: if false; // Writes restricted strictly to Cloud Functions Admin SDK
     }
 
     // Module 23 — the class report of one meeting (generateClassMeetingReport).
     match /class_reports/{reportId} {
-      allow read: if isTeacherOfClass(resource.data.class_id);
+      allow get: if isTeacher() && (resource == null || isTeacherOfClass(resource.data.class_id));
+      allow list: if isTeacherOfClass(resource.data.class_id);
       allow write: if false; // Writes restricted strictly to Cloud Functions Admin SDK
     }
   }

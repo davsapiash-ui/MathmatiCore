@@ -34,6 +34,36 @@ export function sessionNumberFromId(sessionId: string): number | null {
 
 export const DIAGNOSTIC_COMPULSORY_COUNT = 7;
 
+/**
+ * Whether an event belongs to an exercise. SESSION_START carries the placeholder
+ * id "ex_N_01" and REFLECTION_SUBMITTED "reflection_meeting_N": neither is an
+ * exercise the learner opened. Counted as one, they put a phantom first
+ * paragraph in every report ("בתרגיל הראשון (ex_3_01) הלומד… לא השלים את
+ * התרגיל"), shifted every ordinal by one, added a row "פתחו 12, סיימו 0" to the
+ * class table and one to every learner's attempted count.
+ */
+export function isExerciseEvent(ev: Record<string, any> | null | undefined): boolean {
+  const type = ev?.event_type;
+  return type !== "SESSION_START" && type !== "REFLECTION_SUBMITTED";
+}
+
+/**
+ * The ids a learner's SessionDocument of one meeting can have. The client
+ * writes "session_02_student_4"; telemetry uses another spelling
+ * ("session_2_student_student_user4"), and the report used to look the document
+ * up under THAT id, never found it, and recomputed a score that could
+ * contradict the one the gate acted on.
+ */
+export function sessionDocumentIdCandidates(studentNumber: number, sessionNumber: number): string[] {
+  const two = String(sessionNumber).padStart(2, "0");
+  return [
+    `session_${two}_student_${studentNumber}`,
+    `session_${sessionNumber}_student_${studentNumber}`,
+    `session_${two}_student_user${studentNumber}`,
+    `session_${sessionNumber}_student_user${studentNumber}`,
+  ];
+}
+
 const PAGE = 500;
 const MAX_PAGES = 2000; // one million documents — a hard stop, never reached by a pilot class
 
@@ -104,7 +134,7 @@ export function computeFirstAttemptScore(
   const counts = (exId: string) => !compulsoryIds || compulsoryIds.size === 0 || compulsoryIds.has(exId);
   for (const ev of telemetryDocs) {
     const exId = String(ev?.exercise_id || "");
-    if (!exId) continue;
+    if (!exId || !isExerciseEvent(ev)) continue;
     attempted.add(exId);
     if (ev.event_type === "DIGIT_ENTERED" && ev.details?.is_correct === false) {
       wrongBeforeComplete.add(exId);
@@ -186,7 +216,7 @@ export function summarizeMeeting(events: Record<string, any>[]): MeetingSummary 
       last = last === null ? t : Math.max(last, t);
     }
     const exId = String(ev.exercise_id || "");
-    if (exId) attempted.add(exId);
+    if (exId && isExerciseEvent(ev)) attempted.add(exId);
     switch (ev.event_type) {
       case "PROBLEM_COMPLETE": if (exId) completed.add(exId); break;
       case "DIGIT_ENTERED":
@@ -342,7 +372,7 @@ export function exerciseAttempts(events: Record<string, any>[]): Record<string, 
   const wrong = new Set<string>();
   for (const ev of sorted) {
     const exId = String(ev.exercise_id || "");
-    if (!exId) continue;
+    if (!exId || !isExerciseEvent(ev)) continue;
     if (!out[exId]) out[exId] = { completed: false, first_try: false, duration_ms: null };
     if (ev.event_type === "DIGIT_ENTERED" && ev.details?.is_correct === false) {
       wrong.add(exId);
@@ -533,4 +563,46 @@ export function flexibilityHe(f: FlexibilityIndex | null): string {
 export function mediationHe(m: MediationEffectiveness | null): string {
   if (!m) return "לא נמדד";
   return m.percent === null ? "לא נדרש תיווך (0 כרטיסים)" : `${m.effective} מתוך ${m.cards} כרטיסים (${m.percent}%)`;
+}
+
+// ---------------------------------------------------------------------------
+// מדד 2 — התמדה וויסות עצמי (PRD Module 16 §ב; Module 23 §ב "מדדי המחקר":
+// "המערכת מחשבת בצד השרת ארבעה מדדים לכל לומד ולכל מפגש… המדדים מוצגים
+// בדוח הלומד ובדוח הכיתה"). It was computed on the learner's device only, at
+// the reflection board, and appeared in neither report.
+// ---------------------------------------------------------------------------
+
+export interface PersistenceIndex {
+  /** U: UNDO_EXECUTED events. */
+  undos: number;
+  /** E: DIGIT_ENTERED with is_correct === false (null is not counted at all). */
+  wrong_digits: number;
+  /** G: SOCRATIC_OPTION_SELECTED with is_correct === false. */
+  wrong_options: number;
+  /** U ÷ (U + E + G) × 100; 100 when U + E + G = 0 (Module 16 §ב, the edge case). */
+  percent: number;
+}
+
+export function computePersistenceIndex(events: Record<string, any>[]): PersistenceIndex {
+  let undos = 0;
+  let wrongDigits = 0;
+  let wrongOptions = 0;
+  for (const ev of events) {
+    if (ev?.event_type === "UNDO_EXECUTED") undos++;
+    else if (ev?.event_type === "DIGIT_ENTERED" && ev.details?.is_correct === false) wrongDigits++;
+    else if (ev?.event_type === "SOCRATIC_OPTION_SELECTED" && ev.details?.is_correct === false) wrongOptions++;
+  }
+  const denominator = undos + wrongDigits + wrongOptions;
+  return {
+    undos,
+    wrong_digits: wrongDigits,
+    wrong_options: wrongOptions,
+    percent: denominator === 0 ? 100 : Math.round((undos / denominator) * 100),
+  };
+}
+
+/** Measure 2 as text, with its three counts beside the percentage. */
+export function persistenceHe(p: PersistenceIndex | null): string {
+  if (!p) return "לא נמדד";
+  return `${p.percent}% (ביטולים ${p.undos}, ספרות שגויות ${p.wrong_digits}, בחירות שגויות בכרטיס ${p.wrong_options})`;
 }

@@ -20,14 +20,25 @@ export const TIER_LABELS_HE: Record<RecommendationTier, string> = {
   above_75: 'עבודה עצמאית, לוח מחיק וכרטיסיות מספרים (מעל 75%)',
 };
 
+/** Research measures of one learner in one meeting (PRD 7.3, Module 23 §ב), as the server computed them. */
+export interface ClassLearnerMeasures {
+  persistence: { undos: number; wrongDigits: number; wrongOptions: number; percent: number } | null;
+  flexibility: { completed: number; firstTry: number; percent: number | null } | null;
+  flexibilityCumulative: { completed: number; firstTry: number; percent: number | null } | null;
+  mediation: { cards: number; effective: number; percent: number | null } | null;
+  mediationCumulative: { cards: number; effective: number; percent: number | null } | null;
+}
+
 export interface ClassLearnerRow {
   studentId: number;
   learningPath: 'green_path' | 'remediation_path';
-  scorePercent: number;
+  /** null = not measured (the meeting's compulsory count is unknown). Never shown as 0%. */
+  scorePercent: number | null;
   scoreSource: string;
-  tier: RecommendationTier;
-  compulsoryTotal: number;
-  correctFirstAttempt: number;
+  tier: RecommendationTier | null;
+  compulsoryTotal: number | null;
+  correctFirstAttempt: number | null;
+  measures: ClassLearnerMeasures;
   exercisesAttempted: number;
   exercisesCompleted: number;
   events: number;
@@ -65,10 +76,14 @@ export interface ClassMeetingReport {
   telemetryEventCount: number;
   learnersWithData: number;
   learnersWithoutData: number[];
-  scoreMean: number;
-  scoreMedian: number;
-  scoreMin: number;
-  scoreMax: number;
+  /** Learners with data whose score could not be computed (no compulsory count): shown as "לא נמדד". */
+  learnersWithoutScore: number[];
+  /** Measure 4, C = 0: learners who needed no coaching card in this meeting; null when not computed (meeting 2). */
+  learnersWithoutMediation: number[] | null;
+  scoreMean: number | null;
+  scoreMedian: number | null;
+  scoreMin: number | null;
+  scoreMax: number | null;
   tiers: Record<RecommendationTier, number[]>;
   paths: { green_path: number; remediation_path: number };
   activeMinutesMean: number;
@@ -98,6 +113,31 @@ export interface ClassMeetingReport {
 }
 
 const num = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : Number(v) || 0);
+/**
+ * A value the server may not have measured. num() turned the server's null into
+ * 0, so a class whose curriculum catalog was not published read "ממוצע 0% ·
+ * טווח 0%–0%", every learner "0%, 0/0", and a null tier became the middle group.
+ */
+const numOrNull = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+const ratioFromData = (v: unknown, a: string, b: string): { completed: number; firstTry: number; percent: number | null } | null => {
+  if (!v || typeof v !== 'object') return null;
+  const o = v as Record<string, unknown>;
+  return { completed: num(o[a]), firstTry: num(o[b]), percent: numOrNull(o.percent) };
+};
+function measuresFromData(d: Record<string, any>): ClassLearnerMeasures {
+  const p = d.persistence && typeof d.persistence === 'object' ? d.persistence : null;
+  const mediation = (v: unknown) => {
+    const r = ratioFromData(v, 'cards', 'effective');
+    return r ? { cards: r.completed, effective: r.firstTry, percent: r.percent } : null;
+  };
+  return {
+    persistence: p ? { undos: num(p.undos), wrongDigits: num(p.wrong_digits), wrongOptions: num(p.wrong_options), percent: num(p.percent) } : null,
+    flexibility: ratioFromData(d.flexibility, 'completed', 'first_try'),
+    flexibilityCumulative: ratioFromData(d.flexibility_cumulative, 'completed', 'first_try'),
+    mediation: mediation(d.mediation),
+    mediationCumulative: mediation(d.mediation_cumulative),
+  };
+}
 const strList = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
 const numList = (v: unknown): number[] => (Array.isArray(v) ? v.map(num) : []);
 const counts = (v: unknown): Record<string, number> => {
@@ -114,16 +154,19 @@ function learnerFromData(d: Record<string, any>): ClassLearnerRow {
       if (v === 'first_try' || v === 'after_correction' || v === 'incomplete') outcomes[k] = v;
     }
   }
-  const tier: RecommendationTier =
-    d.recommendation_tier === 'below_50' || d.recommendation_tier === 'above_75' ? d.recommendation_tier : 'between_50_75';
+  const tier: RecommendationTier | null =
+    d.recommendation_tier === 'below_50' || d.recommendation_tier === 'above_75' || d.recommendation_tier === 'between_50_75'
+      ? d.recommendation_tier
+      : null;
   return {
     studentId: num(d.student_id),
     learningPath: d.learning_path === 'remediation_path' ? 'remediation_path' : 'green_path',
-    scorePercent: num(d.score_percent),
+    scorePercent: numOrNull(d.score_percent),
     scoreSource: String(d.score_source ?? ''),
     tier,
-    compulsoryTotal: num(d.compulsory_total),
-    correctFirstAttempt: num(d.correct_first_attempt),
+    compulsoryTotal: numOrNull(d.compulsory_total),
+    correctFirstAttempt: numOrNull(d.correct_first_attempt),
+    measures: measuresFromData(d),
     exercisesAttempted: num(d.exercises_attempted),
     exercisesCompleted: num(d.exercises_completed),
     events: num(d.events),
@@ -156,10 +199,12 @@ export function classReportFromData(d: Record<string, any>): ClassMeetingReport 
     telemetryEventCount: num(d.telemetry_event_count),
     learnersWithData: num(a.learners_with_data),
     learnersWithoutData: numList(a.learners_without_data),
-    scoreMean: num(a.score_mean),
-    scoreMedian: num(a.score_median),
-    scoreMin: num(a.score_min),
-    scoreMax: num(a.score_max),
+    learnersWithoutScore: numList(a.learners_without_score),
+    learnersWithoutMediation: Array.isArray(a.learners_without_mediation) ? numList(a.learners_without_mediation) : null,
+    scoreMean: numOrNull(a.score_mean),
+    scoreMedian: numOrNull(a.score_median),
+    scoreMin: numOrNull(a.score_min),
+    scoreMax: numOrNull(a.score_max),
     tiers: {
       below_50: numList(tiersRaw.below_50),
       between_50_75: numList(tiersRaw.between_50_75),

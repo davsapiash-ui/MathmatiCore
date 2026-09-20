@@ -28,9 +28,11 @@ describe('Module 23 — class report per meeting (server)', () => {
     expect(server).toMatch(/await readAllDocs\(db\.collection\("telemetry_logs"\)\)/);
     expect(server).toMatch(/const m = sessionNumberFromId\(String\(data\.session_id \|\| ""\)\);/);
     expect(server).toMatch(/if \(m !== sessionNumber\) continue;/);
-    expect(server).toMatch(/const first = computeFirstAttemptScore\(sorted, compulsoryTotal\);/);
+    // With the ids of the compulsory exercises: without them the numerator also
+    // counted optional early-finisher tasks (dashboard audit, 20.9.2026).
+    expect(server).toMatch(/const first = computeFirstAttemptScore\(sorted, compulsoryTotal, compulsoryIds\);/);
     expect(server).toMatch(/const summary: MeetingSummary = summarizeMeeting\(sorted\);/);
-    expect(server).toMatch(/resolveCompulsoryTotal\(db, sessionNumber, pathOf, compulsoryCache\)/);
+    expect(server).toMatch(/resolveCompulsoryTotal\(db, sessionNumber, pathOf, compulsoryCache, compulsoryIdsByBank\)/);
   });
 
   it('carries every individual measurement into the class output', () => {
@@ -75,7 +77,9 @@ describe('Module 23 — class report per meeting (server)', () => {
   });
 
   it('the class report is readable by the class teacher only, written by the server only, and reset with the rest', () => {
-    expect(rules).toMatch(/match \/class_reports\/\{reportId\} \{\s*allow read: if isTeacherOfClass\(resource\.data\.class_id\);\s*allow write: if false;/);
+    // get: a teacher may ask for a report that does not exist yet and be told so
+    // (resource == null), instead of being denied; list stays class-scoped.
+    expect(rules).toMatch(/match \/class_reports\/\{reportId\} \{\s*allow get: if isTeacher\(\) && \(resource == null \|\| isTeacherOfClass\(resource\.data\.class_id\)\);\s*allow list: if isTeacherOfClass\(resource\.data\.class_id\);\s*allow write: if false;/);
     expect(drive).toMatch(/LEARNING_COLLECTIONS = \[[^\]]*"class_reports"/);
   });
 });
