@@ -23,7 +23,7 @@ import {
   RotateCcw, 
   LogOut 
 } from 'lucide-react';
-import { ref, set, onDisconnect } from 'firebase/database';
+import { ref, set, onDisconnect, serverTimestamp } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
 
 /**
@@ -60,9 +60,15 @@ export function ProjectorSandboxPage() {
   // סנכרון מצב שידור מקרן מול Firebase RTDB
   useEffect(() => {
     const projectorRef = ref(database, 'system_control/projector_mode');
+    // Learners ignore an update whose timestamp is not newer than the last one
+    // they saw (out-of-order guard). The release used to take Date.now() HERE,
+    // before the broadcast below took its own — so the release was never newer:
+    // closing the projector tab released the flag on the server, every learner
+    // discarded it as stale and stayed on "הקשיבו להסבר…" until a page reload.
+    // All three writes now carry the server's clock, read at write time.
     const release = {
       projector_mode: false,
-      projector_mode_updated_at: Date.now(),
+      projector_mode_updated_at: serverTimestamp(),
       updated_by_teacher_id: user?.uid || 'teacher',
     };
 
@@ -75,7 +81,7 @@ export function ProjectorSandboxPage() {
 
     set(projectorRef, {
       projector_mode: isBroadcasting,
-      projector_mode_updated_at: Date.now(),
+      projector_mode_updated_at: serverTimestamp(),
       updated_by_teacher_id: user?.uid || 'teacher',
     })
       .then(() => setBroadcastError(false))
@@ -98,7 +104,7 @@ export function ProjectorSandboxPage() {
     const projectorRef = ref(database, 'system_control/projector_mode');
     set(projectorRef, {
       projector_mode: false,
-      projector_mode_updated_at: Date.now(),
+      projector_mode_updated_at: serverTimestamp(),
       updated_by_teacher_id: user?.uid || 'teacher',
     }).catch(console.error);
 

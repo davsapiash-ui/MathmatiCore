@@ -215,7 +215,11 @@ export const initStoreSubscriptions = (): (() => void) => {
         const current = { ...useStore.getState().students };
         let hasChanged = false;
 
-        Object.keys(rawData).forEach((uid) => {
+        // Aliases first, the canonical student_userN last: only the canonical
+        // record carries presence, and in plain key order the "userN" alias came
+        // last and marked every learner offline (see TeacherDashboard.tsx).
+        const canonicalLast = (key: string) => (/^student_user\d+$/.test(key) ? 1 : 0);
+        Object.keys(rawData).sort((a, b) => canonicalLast(a) - canonicalLast(b)).forEach((uid) => {
           const row = rawData[uid] || {};
           const normUid = normalizeStudentId(uid);
           if (!normUid.startsWith('student_user')) return;

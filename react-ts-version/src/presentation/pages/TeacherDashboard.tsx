@@ -51,6 +51,7 @@ import {
 } from "@/core/QMatrix";
 import { validateChatInputForPII, anonymizeChatMessageBody } from "@/core/security/PiiFilter";
 import { approveTeacherGate } from "@/core/teacherGate";
+import { recommendedPathOf } from "@/core/recommendedPath";
 import { PILOT_CLASS_ID, PILOT_SCHOOL_ID } from "@/core/pilotInstitution";
 
 type TabType =
@@ -308,29 +309,47 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     const activeSessionRef = ref(database, 'active_class_session');
     const disconnectStampRef = ref(database, 'active_class_session/teacherDisconnectedAt');
 
-    // 1. Mark teacher online and clear any stale disconnect stamp
-    update(teacherPresenceRef, {
-      isOnline: true,
-      onlineStatus: 'active',
-      lastPing: Date.now(),
-      lastActive: Date.now(),
-    }).catch(() => {});
-    set(disconnectStampRef, null).catch(() => {});
-
-    // 2. onDisconnect hooks: release presence and stamp the disconnect time.
-    //    Cancel any legacy whole-session close hook an older client left armed.
-    try {
-      onDisconnect(teacherPresenceRef).update({
-        isOnline: false,
-        onlineStatus: 'offline',
-        lastPing: 0,
+    // An onDisconnect hook fires once and is gone. This block used to run on
+    // mount only, so after the FIRST blip (Wi-Fi drop, laptop lid) the server
+    // stamped the disconnect, the dashboard reconnected — and nothing cleared the
+    // stamp or re-armed the hook. Five minutes later all twelve learners saw
+    // "המורה סגרה את המפגש" though she had pressed nothing. It now runs on every
+    // (re)connect, which is what the comment above always said.
+    let isConnected = false;
+    const armPresence = () => {
+      // 1. Mark teacher online and clear any stale disconnect stamp
+      update(teacherPresenceRef, {
+        isOnline: true,
+        onlineStatus: 'active',
+        lastPing: Date.now(),
         lastActive: Date.now(),
-      });
-      onDisconnect(activeSessionRef).cancel();
-      onDisconnect(disconnectStampRef).set(serverTimestamp());
-    } catch (e) {
-      console.warn('[TeacherDashboard] onDisconnect registration notice:', e);
-    }
+      }).catch(() => {});
+      set(disconnectStampRef, null).catch(() => {});
+
+      // 2. onDisconnect hooks: release presence and stamp the disconnect time.
+      //    Cancel any legacy whole-session close hook an older client left armed.
+      try {
+        onDisconnect(teacherPresenceRef).update({
+          isOnline: false,
+          onlineStatus: 'offline',
+          lastPing: 0,
+          lastActive: Date.now(),
+        });
+        onDisconnect(activeSessionRef).cancel();
+        onDisconnect(disconnectStampRef).set(serverTimestamp());
+      } catch (e) {
+        console.warn('[TeacherDashboard] onDisconnect registration notice:', e);
+      }
+    };
+    const unsubConnected = onValue(ref(database, '.info/connected'), (snap) => {
+      isConnected = snap.val() === true;
+      if (isConnected) armPresence();
+    });
+    // Closing a SECOND dashboard tab stamps the disconnect too, while this one is
+    // alive and never reconnects. A connected dashboard clears a stamp it sees.
+    const unsubStamp = onValue(disconnectStampRef, (snap) => {
+      if (snap.exists() && isConnected) armPresence();
+    });
 
     // 3. Keep heartbeat active every 5s
     const pingInterval = setInterval(() => {
@@ -344,6 +363,8 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
 
     return () => {
       clearInterval(pingInterval);
+      unsubConnected();
+      unsubStamp();
     };
   }, [user?.uid]);
 
@@ -578,8 +599,19 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
           } as any;
         }
 
-        // 2. Override with live cloud data
-        Object.keys(data).forEach((uid) => {
+        // 2. Override with live cloud data.
+        //
+        // A learner can sit under several keys (student_user3, student_3, user3, 3).
+        // Only the canonical student_userN carries presence; the learner's client
+        // also writes its workspace state to userN, with no isOnline / lastPing.
+        // Keys were merged in plain key order, "userN" sorts after
+        // "student_userN", so the alias won: every learner read "לא מחובר" in the
+        // reports tab, the learner list and the chat header during a live lesson,
+        // and the zeros a full reset writes to the alias overrode the real
+        // progress. Aliases first, the canonical record last.
+        const canonicalLast = (key: string) => (/^student_user\d+$/.test(key) ? 1 : 0);
+        const seenInSnapshot = new Set<string>();
+        Object.keys(data).sort((a, b) => canonicalLast(a) - canonicalLast(b)).forEach((uid) => {
           const row = data[uid] ?? {};
           const normUid = normalizeStudentId(uid);
           // Only map to normalized pilot IDs (student_user1..student_user12)
@@ -591,7 +623,14 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
             cleanName = num ? `תלמיד ${num}` : cleanName;
           }
 
-          const existingLocal = formattedStudents[normUid];
+          // For a learner the snapshot contains, the snapshot is the truth. The
+          // previous local copy used to be the fallback for every field, and the
+          // database delivers a field a reset has just cleared as an ABSENT key —
+          // so the old route status, recommendation, Q-matrix and workspace state
+          // stayed on the teacher's screen until she reloaded the page. Only an
+          // earlier alias row of THIS snapshot may fill a gap.
+          const existingLocal = seenInSnapshot.has(normUid) ? formattedStudents[normUid] : undefined;
+          seenInSnapshot.add(normUid);
 
           formattedStudents[normUid] = {
             ...(existingLocal || {}),
@@ -1831,7 +1870,10 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                         const highestDone = typeof s.highestCompletedMeeting === 'number' ? s.highestCompletedMeeting : 0;
                         const hasCompletedDiagnosticM2 = Boolean(s.completedMeeting2 || highestDone >= 2);
                         const hasStarted = hasCompletedDiagnosticM2 || highestDone >= 1;
-                        const isStruggling = (traceData.hesitation_events || 0) > 2 || (traceData.undo_clicks || 0) > 1 || s.routeRecommendation === 'YELLOW';
+                        // The badge below says "מסלול מומלץ". It used to be decided by live
+                        // hesitation / undo counters of whatever meeting the learner is in,
+                        // and could contradict the gate tab. core/recommendedPath.ts.
+                        const isStruggling = recommendedPathOf(s) === 'remediation_path';
                         const sNum = (s.studentId || effectiveReplayStudentId).replace(/\D/g, '') || s.studentId;
 
                         return (

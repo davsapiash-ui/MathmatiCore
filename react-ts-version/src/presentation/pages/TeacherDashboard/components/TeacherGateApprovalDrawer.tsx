@@ -4,6 +4,7 @@ import { useDismissableOverlay } from '@/hooks/useDismissableOverlay';
 import { type StudentData, useStore } from '@/application/useStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { approveTeacherGate } from '@/core/teacherGate';
+import { recommendedPathOf } from '@/core/recommendedPath';
 import { 
   X, 
   Sparkles, 
@@ -18,23 +19,25 @@ interface Props {
   onApproveSuccess?: () => void;
 }
 
+function pathToPreselect(s: Record<string, unknown>): 'green_path' | 'remediation_path' {
+  if (s.pedagogicalPath === 'remediation_path' || s.pedagogicalPath === 'green_path') return s.pedagogicalPath;
+  return recommendedPathOf(s) ?? (s.currentPath === 'צמצום פערים' ? 'remediation_path' : 'green_path');
+}
+
 export function TeacherGateApprovalDrawer({ student, onClose, onApproveSuccess }: Props) {
   const [isApproving, setIsApproving] = useState(false);
   const sAny = (student || {}) as any;
 
   // Track selected pedagogical path
-  const defaultPath = (sAny.pedagogicalPath === 'remediation_path' || sAny.currentPath === 'צמצום פערים' || student?.routeRecommendation === 'YELLOW')
-    ? 'remediation_path'
-    : 'green_path';
+  // An already-approved path first; otherwise the diagnostic's recommendation
+  // (core/recommendedPath.ts). This used to fall through to green for everyone
+  // whose routeRecommendation never reached the database — that is, everyone.
+  const defaultPath = pathToPreselect(sAny);
   const [selectedPath, setSelectedPath] = useState<'green_path' | 'remediation_path'>(defaultPath);
 
   useEffect(() => {
     if (student) {
-      const s = student as any;
-      const path = (s.pedagogicalPath === 'remediation_path' || s.currentPath === 'צמצום פערים' || student.routeRecommendation === 'YELLOW')
-        ? 'remediation_path'
-        : 'green_path';
-      setSelectedPath(path);
+      setSelectedPath(pathToPreselect(student as any));
     }
   }, [student]);
 

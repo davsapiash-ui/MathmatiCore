@@ -43,6 +43,11 @@ export function throttledRtdbUpdate(path: string, payload: Record<string, any>):
       // Window elapsed and no timer pending: flush immediately
       entry.lastFlushedTime = now;
       const dataToFlush = { ...entry.payload };
+      // What was sent is sent. The payload used to be kept and merged into every
+      // later write on the same path, so a field written once was re-sent for
+      // ever: a help request the teacher had marked "טופל" turned the tile BLUE
+      // again at the learner's next exercise, with no new request.
+      entry.payload = {};
       const currentResolves = [...entry.resolveList];
       const currentRejects = [...entry.rejectList];
       entry.resolveList = [];
@@ -59,6 +64,7 @@ export function throttledRtdbUpdate(path: string, payload: Record<string, any>):
         entry.timeoutId = null;
         entry.lastFlushedTime = Date.now();
         const dataToFlush = { ...entry.payload };
+        entry.payload = {};
         const currentResolves = [...entry.resolveList];
         const currentRejects = [...entry.rejectList];
         entry.resolveList = [];

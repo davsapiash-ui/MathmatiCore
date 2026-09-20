@@ -46,6 +46,8 @@ export function useCognitiveHesitationRadar({
   useEffect(() => { onHesitationRef.current = onHesitationDetected; }, [onHesitationDetected]);
 
   const lastActivityRef = useRef<number>(Date.now());
+  /** True while this device has a live 'hesitating' flag on the radar that the next action must clear. */
+  const hesitatingPublishedRef = useRef(false);
   // Module 26: subscribes this hook to the admin-configured threshold
   // (system_control/trace_calibration, default 45s per PRD). The return
   // value itself isn't needed here — resetTimeout reads the live value
@@ -132,6 +134,7 @@ export function useCognitiveHesitationRadar({
         hesitating: true,
         timestamp: Date.now()
       }).catch(console.error);
+      hesitatingPublishedRef.current = true;
 
       if (onHesitationRef.current) {
         onHesitationRef.current();
@@ -178,11 +181,26 @@ export function useCognitiveHesitationRadar({
     const selectCognitiveState = (s: any) =>
       `${JSON.stringify(s.counts)}|${JSON.stringify(s.answerDigits)}|${JSON.stringify(s.carryDigits)}|${s.selectedChoiceId ?? ''}|${JSON.stringify(s.operandDigits ?? {})}|${s.probeAnswer ?? ''}`;
 
+    // Module 18 §ב: YELLOW means hesitating now. The flag was written at second
+    // 45 and never cleared, and the radar did not read it: it multiplied a COUNT
+    // of hesitations instead, so one pause kept a tile yellow until the next
+    // exercise, and a pause in the last diagnostic task kept it yellow in every
+    // later meeting. The learner's next cognitive action clears the flag; so does
+    // opening the workspace, for a flag an older version left behind.
+    const clearHesitating = () => {
+      const uid = currentStudentUid();
+      if (!uid) return;
+      set(ref(database, `users/students/${uid}/hesitating`), { hesitating: false, timestamp: Date.now() }).catch(() => {});
+      hesitatingPublishedRef.current = false;
+    };
+    clearHesitating();
+
     let lastSignature = selectCognitiveState(useWorkspaceStore.getState());
     const unsubscribe = useWorkspaceStore.subscribe((state: any) => {
       const next = selectCognitiveState(state);
       if (next !== lastSignature) {
         lastSignature = next;
+        if (hesitatingPublishedRef.current) clearHesitating();
         resetTimeout();
       }
     });
