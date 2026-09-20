@@ -69,7 +69,7 @@ function emitScaffoldEvent(
   emitTelemetry({
     session_id: `session_${s.sessionNumber}_student_${studentId}`,
     student_id: studentId,
-    exercise_id: task?.id || `ex_${s.sessionNumber}_01`,
+    exercise_id: activeExerciseId(s),
     event_type: eventType,
     ...(columnIndex !== undefined ? { column_index: columnIndex } : {}),
     details,
@@ -419,6 +419,27 @@ export function selectScaffoldLevel(s: WorkspaceState): number {
   return task?.scaffoldLevel ?? 1;
 }
 
+/**
+ * The exercise the learner is on, for telemetry. Meeting 2 runs on the Q-matrix
+ * flow and has no task list, so every drag, digit, deletion, undo and hesitation
+ * of the diagnostic was filed under one invented exercise "ex_2_01": the
+ * teacher's timeline had a single chapter for the whole meeting, and the server
+ * could never pair a wrong digit with its task.
+ */
+export function activeExerciseId(s: WorkspaceState): string {
+  const id = s.sessionNumber === 2 ? getCurrentQTask(s.qflow)?.id : getActiveTasks(s)[s.standardTaskIdx]?.id;
+  return id || `ex_${s.sessionNumber}_01`;
+}
+
+/** The bank a saved branch choice ran on: the compulsory exercises plus that branch's tasks. */
+function restoredBranchTasks(sessionNumber: number, branch: 'reinforcement' | 'challenge' | null): SessionTask[] | null {
+  if (!branch || sessionNumber < 3 || sessionNumber > 7) return null;
+  const path = resolveLearningPath();
+  const extra = getSessionBranchTasks(sessionNumber as any, branch, path);
+  if (extra.length === 0) return null;
+  return [...(getSessionTasks(sessionNumber as any, path) ?? []), ...extra];
+}
+
 export function getActiveTasks(s: WorkspaceState): SessionTask[] {
   // Session 2 runs through the Q-Matrix flow — it has no standard task list.
   if (s.sessionNumber === 2) return [];
@@ -586,7 +607,15 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     if (!task) return null;
 
     if (isCarry) {
-      if (!task.numberA || !task.numberB || task.isSubtraction) return 0;
+      // Appendix A §3: is_correct is null "when the exercise defines no target
+      // digit for that column". Only column ADDITION defines one for a memory
+      // circle (the carried 0 or 1). In subtraction the circle holds the
+      // learner's own regrouping note — the 4 above the tens of 53 − 18 — and it
+      // used to be compared with 0: every correct note was recorded as a wrong
+      // digit, so no regrouping subtraction could ever count as solved on the
+      // first attempt (Module 23 §ב), the Persistence Index's E was inflated, and
+      // a coaching card whose advice was followed counted as ineffective.
+      if (!task.numberA || !task.numberB || task.isSubtraction) return null;
       const { a, b } = effectiveArithmetic(task, isASD);
       const uA = a % 10;
       const uB = b % 10;
@@ -849,7 +878,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         firebaseSyncService.syncHighestCompletedMeeting(normId, s.sessionNumber).catch(console.error);
       }
     }
-    set({ flowStatus: 'reflection' });
+    // PRD 14 §ג: a learner who is done waits on the quiet end screen. This used
+    // to set 'reflection', and every meeting other than 8 then rendered the
+    // MEETING-2 reflection screen: it overwrote the learner's diagnostic
+    // Q-matrix with nulls, replaced the meeting-2 reflection record, set the
+    // gate back to PENDING_TEACHER_APPROVAL and filed a reflection under meeting 8.
+    set({ flowStatus: 'sessionDone' });
   }
 
   /** The two exercise shapes whose operation is representation (measure 3). */
@@ -1058,16 +1092,15 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       if (task.type === 'vertical_addition' && (task.requiresGrouping || task.requiresUngrouping)) {
         const hasCarriesEntered = Object.values(s.carryDigits).some((v) => v !== undefined && v !== '');
         if (!hasCarriesEntered) {
-          showFeedback(
-            {
-              correct: true,
-              title: 'שימו לב לתיבות הזיכרון 💡',
-              sub: 'פתרתם נכון! זכרו שבתרגילי המרה ופריטה מומלץ להיעזר בחלוניות הזיכרון העליונות כדי לסמן את השאריות.',
-            },
-            3000,
-            () => {
-              advanceStandard();
-            }
+          // A correct answer with the memory circles left empty is still a
+          // solved exercise. This branch used to advance on its own and skip
+          // handleSuccess: no PROBLEM_COMPLETE (the report said "לא השלים את
+          // התרגיל" and scored it 0), no Q-matrix success, and the error streak
+          // carried into the next exercise.
+          handleSuccess(
+            'שימו לב לתיבות הזיכרון 💡',
+            'פתרתם נכון! זכרו שבתרגילי המרה ופריטה מומלץ להיעזר בחלוניות הזיכרון העליונות כדי לסמן את השאריות.',
+            3000
           );
           return;
         }
@@ -1166,6 +1199,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const studentId = useAuthStore.getState().user?.uid;
         if (studentId && !s.isSupersededByOtherDevice) {
           const normId = normalizeStudentId(studentId);
+          // PRD 14 §ב1: the meeting is completed by the seven compulsory
+          // exercises. It used to be recorded only after the optional path or
+          // "סיום המפגש כעת", so a learner still choosing (or inside a branch
+          // task) when the lesson ended was never marked as having finished.
+          useStore.getState().updateHighestCompletedMeeting(studentId, s.sessionNumber);
+          useStore.getState().updateHighestCompletedMeeting(normId, s.sessionNumber);
+          firebaseSyncService.syncHighestCompletedMeeting(studentId, s.sessionNumber).catch(console.error);
+          if (normId !== studentId) {
+            firebaseSyncService.syncHighestCompletedMeeting(normId, s.sessionNumber).catch(console.error);
+          }
           const studentPayload = {
             lastAction: 'השלים משימות חובה — בוחר מסלול (ביסוס/אתגר)',
             lastActivityTimestamp: Date.now(),
@@ -1222,20 +1265,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         }
       }
 
-      const nextTask = tasks[nextIdx];
-      if (nextTask) {
-        emitTelemetry({
-          session_id: `session_${s.sessionNumber}_student_${studentId}`,
-          student_id: studentId,
-          exercise_id: nextTask.id,
-          event_type: 'PROBLEM_LOAD',
-          details: {
-            exercise_template_id: nextTask.id,
-            path_type: nextTask.isOptionalChoiceTask ? (s.selectedBranch === 'challenge' ? 'challenge' : 'consolidation') : 'compulsory',
-          },
-        }).catch(console.error);
-      }
-
+      // startTask emits the exercise's PROBLEM_LOAD; a second one here doubled every load.
       startTask(tasks[nextIdx].id);
       return;
     }
@@ -1492,7 +1522,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         ...resetTaskInteraction(isASD),
       });
 
-      const initialTask = sanitized === 2 ? getCurrentQTask(qflow) : getSessionTasks(sanitized as any)[startingTaskIdx ?? 0];
+      // getActiveTasks resolves the learner's approved path. getSessionTasks with
+      // no path is the green bank, so every remediation learner's first event
+      // named an exercise they never saw — a phantom "לא השלים" in each report.
+      const initialTask = sanitized === 2 ? getCurrentQTask(qflow) : getActiveTasks(get())[startingTaskIdx ?? 0];
       const studentId = currentStudentUid();
       if (initialTask) {
         emitTelemetry({
@@ -1584,7 +1617,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         taskStartTime: saved.taskStartTime ?? Date.now(),
         sessionStartTimeMs: saved.sessionStartTimeMs ?? Date.now(),
         isTimeExceeded: saved.isTimeExceeded ?? false,
-        dynamicTasks: null,
+        // The branch tasks are appended to the bank in memory only. Restoring the
+        // index without them pointed past the seven compulsory exercises: an empty
+        // card and a disabled "התקדם", with logout or a teacher reset the only exits.
+        dynamicTasks: restoredBranchTasks(sanitized, saved.selectedBranch ?? null),
         awaitingNext: false,
         boardOpen: true,
         isBoardLocked: false,
@@ -1665,7 +1701,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const studentId = currentStudentUid();
         const currentTask = getActiveTasks(s)[s.standardTaskIdx] || null;
         const sessionId = `session_${s.sessionNumber}_student_${studentId}`;
-        const taskId = currentTask?.id || `ex_${s.sessionNumber}_01`;
+        const taskId = activeExerciseId(s);
 
         const updatedTriggerTimestamps = { ...s.regroupTriggerTimestamps };
 
@@ -1798,7 +1834,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const studentId = currentStudentUid();
         const task = getActiveTasks(state)[state.standardTaskIdx] || null;
         const sessionId = `session_${state.sessionNumber}_student_${studentId}`;
-        const taskId = task?.id || `ex_${state.sessionNumber}_01`;
+        const taskId = activeExerciseId(state);
         const colIdx = placeToColumnIndex(place);
 
         const updatedTriggerTimestamps = { ...state.regroupTriggerTimestamps };
@@ -1861,7 +1897,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const studentId = currentStudentUid();
         const task = getActiveTasks(state)[state.standardTaskIdx] || null;
         const sessionId = `session_${state.sessionNumber}_student_${studentId}`;
-        const taskId = task?.id || `ex_${state.sessionNumber}_01`;
+        const taskId = activeExerciseId(state);
         const colIdx = placeToColumnIndex(place);
 
         const updatedTriggerTimestamps = { ...state.regroupTriggerTimestamps };
@@ -1921,7 +1957,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const studentId = currentStudentUid();
         const task = getActiveTasks(s)[s.standardTaskIdx] || null;
         const sessionId = `session_${s.sessionNumber}_student_${studentId}`;
-        const taskId = task?.id || `ex_${s.sessionNumber}_01`;
+        const taskId = activeExerciseId(s);
         const depthBefore = Math.min(10, Math.max(1, s.undoStack.length));
         const revertedType: TelemetryEventType = snapshot.actionType || 'BLOCK_DRAG_COMPLETE';
 
@@ -1995,7 +2031,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const studentId = currentStudentUid();
         const task = getActiveTasks(s)[s.standardTaskIdx] || null;
         const sessionId = `session_${s.sessionNumber}_student_${studentId}`;
-        const taskId = task?.id || `ex_${s.sessionNumber}_01`;
+        const taskId = activeExerciseId(s);
         const colIdx = placeToColumnIndex(place);
 
         if (val !== '') {
@@ -2108,7 +2144,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const studentId = currentStudentUid();
         const task = getActiveTasks(s)[s.standardTaskIdx] || null;
         const sessionId = `session_${s.sessionNumber}_student_${studentId}`;
-        const taskId = task?.id || `ex_${s.sessionNumber}_01`;
+        const taskId = activeExerciseId(s);
         const colIdx = placeToColumnIndex(place);
 
         if (val !== '') {
@@ -2409,7 +2445,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // reopens over an open card or during the 30s wrong-answer lockout.
       if (s.sessionNumber === 2) return;
       if (s.currentState === 'SOCRATIC_ACTIVE' || s.helpState === 'socratic') return;
-      if (s.isSocraticCardLocked) return;
+      // The lock is released by the countdown the OPEN card polls. Closing the
+      // card during the 30 seconds (its close button stays enabled, and typing a
+      // digit closes it too) stopped the polling, the lock never ended, and no
+      // card could open again until the page was reloaded.
+      if (s.isSocraticCardLocked) {
+        if (get().getSocraticPenaltyRemaining() > 0) return;
+        if (get().isSocraticCardLocked) get().unlockSocraticCard();
+      }
       const currentTask = selectStandardTask(s);
       // An exercise that is already solved has nothing left to coach: a learner
       // who typed the right result and paused before pressing "התקדם" was

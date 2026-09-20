@@ -141,10 +141,14 @@ export function ReflectionScreen() {
         .map((s) => strategyMap[s])
         .filter((s): s is 'UNDO_BUTTON' | 'MEMORY_CIRCLES' | 'SOCRATIC_CARD' => Boolean(s));
 
+      // The meeting this screen really belongs to. It was hard-coded to 8, so the
+      // diagnostic meeting's reflection was counted as a meeting-8 reflection in
+      // the class report and the research export, and meeting 2 showed none.
+      const reflectionMeeting = useWorkspaceStore.getState().sessionNumber;
       emitTelemetry({
-        session_id: `session_8_student_${studentId}`,
+        session_id: `session_${reflectionMeeting}_student_${studentId}`,
         student_id: studentId,
-        exercise_id: 'reflection_meeting_8',
+        exercise_id: `reflection_meeting_${reflectionMeeting}`,
         event_type: 'REFLECTION_SUBMITTED',
         details: {
           reflection_step: 3,

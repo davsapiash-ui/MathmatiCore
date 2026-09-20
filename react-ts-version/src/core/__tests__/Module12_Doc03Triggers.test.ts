@@ -99,9 +99,21 @@ describe('Module 12: the three coaching triggers of מסמך 03', () => {
     expect(useWorkspaceStore.getState().socraticTriggerReason).toBe('hesitation_45s');
 
     startTask(4);
-    useWorkspaceStore.setState({ isSocraticCardLocked: true } as any);
+    useWorkspaceStore.getState().lockSocraticCard(30000);
     useWorkspaceStore.getState().openSocraticCard('consecutive_errors_4');
     expect(useWorkspaceStore.getState().helpState).not.toBe('socratic');
+  });
+
+  it('the lockout ends after its 30 seconds even when the card was closed meanwhile', async () => {
+    // The countdown that releases the lock is polled by the OPEN card only. A
+    // learner who picked a wrong option and closed the card (or typed a digit,
+    // which closes it) never got another card for the rest of the lesson.
+    startTask(4);
+    useWorkspaceStore.getState().lockSocraticCard(30000);
+    useWorkspaceStore.setState({ socraticLockDeadline: Date.now() - 1 } as any);
+    useWorkspaceStore.getState().openSocraticCard('consecutive_errors_4');
+    expect(useWorkspaceStore.getState().isSocraticCardLocked).toBe(false);
+    expect(useWorkspaceStore.getState().helpState).toBe('socratic');
   });
 });
 

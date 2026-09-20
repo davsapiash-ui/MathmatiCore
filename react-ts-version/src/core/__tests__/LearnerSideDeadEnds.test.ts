@@ -97,7 +97,10 @@ describe('"סיום המפגש כעת" רושם את המפגש כמושלם', (
   it('highestCompletedMeeting מתעדכן מקומית ונשלח לשרת', () => {
     useWorkspaceStore.getState().finishMeetingEarly();
 
-    expect(useWorkspaceStore.getState().flowStatus).toBe('reflection');
+    // PRD 14 §ג: the quiet end screen. 'reflection' here rendered the MEETING-2
+    // reflection screen in meetings 3–7, which wiped the learner's diagnostic
+    // Q-matrix and re-locked the gate (dashboard audit, 20.9.2026).
+    expect(useWorkspaceStore.getState().flowStatus).toBe('sessionDone');
     expect(useStore.getState().students.student_user4.highestCompletedMeeting).toBe(3);
     expect(syncSpy).toHaveBeenCalledWith('student_user4', 3);
   });
@@ -105,7 +108,7 @@ describe('"סיום המפגש כעת" רושם את המפגש כמושלם', (
   it('מכשיר שהוחלף אינו רושם השלמה בשם הלומד', () => {
     useWorkspaceStore.setState({ isSupersededByOtherDevice: true });
     useWorkspaceStore.getState().finishMeetingEarly();
-    expect(useWorkspaceStore.getState().flowStatus).toBe('reflection');
+    expect(useWorkspaceStore.getState().flowStatus).toBe('sessionDone');
     expect(syncSpy).not.toHaveBeenCalled();
   });
 
