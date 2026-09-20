@@ -667,7 +667,7 @@ export function createClassReportPdfBufferWithPdfkit(report: Record<string, any>
       if (rows.some((r) => r.flexibility || r.mediation)) {
         heading("4ב. מדדי המחקר: גמישות ייצוגית ואפקטיביות התיווך");
         const without = report.aggregates?.learners_without_mediation;
-        if (Array.isArray(without)) line(`לא נדרשו לתיווך במפגש זה: ${without.length} מתוך 12`, 10, "#0f172a");
+        if (Array.isArray(without)) line(`לא נדרשו לתיווך במפגש זה: ${without.length} מתוך 12 (נתונים קיימים ל-${rows.length} לומדים)`, 10, "#0f172a");
         for (const r of rows) line(`תלמיד ${r.student_id} | ${researchMeasuresLineHe(r)}`, 9, "#0f172a");
       }
 
