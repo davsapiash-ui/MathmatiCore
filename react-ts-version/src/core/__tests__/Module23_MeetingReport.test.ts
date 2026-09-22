@@ -23,7 +23,12 @@ describe('Module 23 — report for every meeting (server)', () => {
     expect(metrics).not.toMatch(/where\("session_id", "==", sessionId\)\s*\.limit\(100\)/);
     expect(metrics).toMatch(/export async function readAllTelemetryForSession/);
     expect(metrics).toMatch(/for \(let page = 0; page < TELEMETRY_MAX_PAGES; page\+\+\)/);
-    expect(server).toContain('readAllTelemetryForSession(db, sessionId)');
+    // 22.9.2026: by learner and meeting number, not by one spelling of the
+    // session id — the events of one meeting can carry more than one, and
+    // reading by the string the caller passed dropped the rest (same lesson
+    // as the score trigger, #93).
+    expect(server).toContain('readMeetingTelemetry(db, clampedStudentNum, resolvedSessionNumber)');
+    expect(server).not.toContain('readAllTelemetryForSession(db, sessionId)');
   });
 
   it('applies the PRD first-attempt rule when the meeting has no session document', () => {

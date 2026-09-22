@@ -137,11 +137,12 @@ export function PlaceColumn({ place, activeDragPlace }: { place: Place; activeDr
                 source="column"
                 noEnter={i < renderCount - 1}
                 onClick={() => {
-                  if (place === 'units') {
-                    removeBlockClick('units');
-                  } else {
-                    splitBlockClick(place);
-                  }
+                  // מודול 8 §א: לחיצה על לבנה = פריטה לעשר לבנות בערך הנמוך
+                  // הסמוך. ליחידה אין ערך נמוך יותר, ולכן הלחיצה אינה עושה
+                  // דבר — עד כה היא מחקה את הלבנה, נתיב מחיקה שלישי שאינו
+                  // באפיון (יש בדיוק שניים: גרירה לפח ולחיצה על הפח), וילד
+                  // שנגע בלבנה בטעות איבד אותה בלי להבין למה.
+                  if (place !== 'units') splitBlockClick(place);
                 }}
               />
             </div>
