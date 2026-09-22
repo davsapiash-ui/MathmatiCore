@@ -247,8 +247,21 @@ service cloud.firestore {
     }
 
     // Authorized Teachers / Whitelist (Module 25)
+    //
+    // The document id IS an institutional email address, and the collection
+    // was readable by every signed-in identity — a learner token could list
+    // every teacher in the pilot by name. Module 27 §ב.4 gives a student
+    // read access to their own document and nothing else, and architecture
+    // invariant 1 (Zero-PII) makes an email the one thing that must never
+    // reach a learner. Staff read it; anyone else reads only the document
+    // that IS their own address, which is what the login check
+    // (AuthService.isWhitelistedTeacherEmailAsync) asks for: at that moment
+    // the Google identity exists but the role claim has not been stamped yet.
     match /authorizedTeachers/{email} {
-      allow read: if isAuthenticated();
+      allow read: if isTeacher() || isAdmin() ||
+                     (isAuthenticated() && 'email' in request.auth.token &&
+                      request.auth.token.email is string &&
+                      email == request.auth.token.email.lower());
       allow write: if isAdmin();
     }
 
@@ -285,8 +298,13 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Module 27 §ב.4: a learner is "חסום מקריאת אוספי כיתות או תלמידים
+    // אחרים", and the strict instructions say the same — "Block student role
+    // auth tokens from … reading classes and students collections". Only the
+    // teacher dashboard reads this document; the learner's own lobby follows
+    // the RTDB class-session broadcast and never touches it.
     match /classes/{classId} {
-      allow read: if isAuthenticated();
+      allow read: if isTeacher() || isAdmin();
       allow create, update: if classId == 'class_1' && (isTeacherOfClass(classId) || isAdmin()) && isValidClassDoc();
       allow delete: if isAdmin();
     }
