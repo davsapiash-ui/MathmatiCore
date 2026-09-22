@@ -669,7 +669,6 @@ describe('האפיון: הקראה בממשק הלומד בלבד', () => {
       'features/workspace/tasks/SmallChangeTask.tsx',
       'features/workspace/tasks/MissingElementTask.tsx',
       'features/workspace/tasks/BackwardDiagnosisView.tsx',
-      'features/workspace/overlays/SocraticDrawer.tsx',
       'features/workspace/overlays/HelpOverlays.tsx',
       'features/workspace/overlays/ReinforcementOrChallengeScreen.tsx',
       'features/workspace/overlays/StudentChatOverlay.tsx',
@@ -687,8 +686,8 @@ describe('האפיון: הקראה בממשק הלומד בלבד', () => {
   });
 
   it('החונך הסוקרטי מקריא גם את האפשרויות, לא רק את השאלה', () => {
-    const drawer = SRC('features/workspace/overlays/SocraticDrawer.tsx');
-    expect(drawer).toContain('hint.choices.map((c) => c.textHe)');
+    const card = SRC('features/workspace/overlays/HelpOverlays.tsx');
+    expect(card).toContain('aiSocraticHint?.choices?.map((c) => c.textHe)');
   });
 
   it('שלושת שלבי לוח מפגש 8 מוקראים, ולא רק הראשון', () => {

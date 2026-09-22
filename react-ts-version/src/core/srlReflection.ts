@@ -15,6 +15,7 @@
 import { doc, setDoc } from 'firebase/firestore';
 import { ref, update } from 'firebase/database';
 import { firestore, database } from '@/infrastructure/firebase';
+import { emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
 
 export type SRLEffortLevel = 'LOW' | 'MEDIUM' | 'HIGH';
 export type SRLStrategy = 'UNDO_BUTTON' | 'MEMORY_CIRCLES' | 'SOCRATIC_CARD';
@@ -102,6 +103,22 @@ export async function submitSRLReflection(
     console.error('[srlReflection] failed writing the reflection document:', err);
     return { ok: false, reason: 'write_failed' };
   }
+
+  // נספח א׳ §3: REFLECTION_SUBMITTED. האירוע נפלט עד כה רק ממסך הרפלקציה
+  // של מפגש 2 — המסך שאינו באפיון. הוא נפלט כאן, מהכותב המשותף, כך שכל
+  // רפלקציה שנשמרת מייצרת אותו בדיוק פעם אחת.
+  emitTelemetry({
+    session_id: `session_8_student_student_user${studentNumber}`,
+    student_id: `student_user${studentNumber}`,
+    exercise_id: `reflection_meeting_8`,
+    event_type: 'REFLECTION_SUBMITTED',
+    details: {
+      reflection_step: 3,
+      effort_score: toSRLEffortLevel(result.effortLevel),
+      selected_strategies: toSRLStrategies(result.strategies),
+      persistence_index: persistenceIndex,
+    },
+  }).catch((err) => console.warn("[srlReflection] telemetry notice:", err));
 
   // מודול 16 §ב: reflection_step, reflection_completed ו-persistence_index
   // מנוהלים בשרת. זהו שיקוף לתצוגה החיה בלבד, לא מקור אמת שני.
