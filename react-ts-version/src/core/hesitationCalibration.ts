@@ -2,18 +2,23 @@ import { useEffect, useState } from 'react';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { firestore } from '@/infrastructure/firebase';
 
-/** PRD v7.0 Module 10 & 12 default — used whenever no admin calibration is on record. */
+/** Module 18 §ב default — used whenever no admin calibration is on record. */
 export const DEFAULT_HESITATION_THRESHOLD_SECONDS = 45;
 
 /**
  * Module 26's "כיול רדאר פדגוגי" panel writes system_control/trace_calibration
- * and tells the admin it "יוחלו על ניטור הלייב" (will apply to live
- * monitoring). Nothing previously read that document back — the student-side
- * trigger and the teacher-side radar display both hardcoded 45s independently,
- * so the save button's own claim was false. This is the one shared listener
- * both sides subscribe to, ref-counted so multiple mounted components (a
- * student's own hesitation timer, every open teacher radar cell) share a
- * single Firestore subscription instead of one each.
+ * and tells the admin it will apply to her live monitoring. Nothing used to
+ * read that document back, so the save button's own claim was false.
+ *
+ * What it calibrates is the teacher-facing radar: when a learner's tile turns
+ * yellow (Module 18 §ב) and the wording of the radar's own labels. It does
+ * NOT move the learner's Socratic card, which Module 12 fixes at 45 seconds
+ * (`SOCRATIC_STAGE_SECONDS`) — a card that moved with the slider would have
+ * contradicted the module's "strictly" and mislabelled every hesitation event
+ * in the pilot's data as hesitation_45s.
+ *
+ * Ref-counted, so multiple mounted components (a learner's radar stage, every
+ * open teacher radar cell) share one Firestore subscription instead of one each.
  */
 let liveThresholdSeconds = DEFAULT_HESITATION_THRESHOLD_SECONDS;
 const subscribers = new Set<(seconds: number) => void>();

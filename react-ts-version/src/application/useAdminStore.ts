@@ -243,7 +243,18 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
 
     const { set: firebaseSet } = await import("firebase/database");
     await firebaseSet(ref(database, 'schools'), { school_bikorot: cleanSchool });
-    await firebaseSet(ref(database, 'users/teachers'), { [pilotTeacherKey]: cleanTeacher });
+
+    // חוקי ה-RTDB מתירים כתיבה למנהל תחת `users/teachers/$teacherId` — ולא
+    // על הצומת `users/teachers` עצמו, שאין לו כלל `.write`. כתיבה מלאה של
+    // הצומת נדחתה תמיד, וכיוון שהיא הופיעה אחרי כתיבת בתי הספר, האיפוס
+    // נשבר באמצע: בתי הספר כבר נמחקו, המורות נשארו, והמסך הציג "שגיאה
+    // באיפוס מוסדות הפיילוט". עדכון רב-נתיבי נבדק מול כל ילד בנפרד, ולכן
+    // עובר — ונשאר פעולה אחת שלמה.
+    const teacherWipe: Record<string, Teacher | null> = { [pilotTeacherKey]: cleanTeacher };
+    for (const teacher of get().teachers) {
+      if (teacher.id && teacher.id !== pilotTeacherKey) teacherWipe[teacher.id] = null;
+    }
+    await update(ref(database, 'users/teachers'), teacherWipe);
     await firebaseSet(ref(database, 'classes'), { class_1: cleanClass });
     await firebaseSet(ref(database, 'public_classes'), { class_1: cleanPublicClass });
     await firebaseSet(ref(database, 'system_control/globalStudentLimit'), 12);

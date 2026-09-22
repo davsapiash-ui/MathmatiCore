@@ -1,13 +1,22 @@
 /**
  * PRD v7.1 Module 14 + pilot policy: an opened class session survives momentary
  * teacher disconnects (refresh, network blip, laptop sleep). Only when the
- * teacher stays disconnected beyond a 5-minute grace window is the session
+ * teacher stays disconnected beyond the grace window below is the session
  * considered closed for students.
  *
  * The teacher client arms an RTDB onDisconnect hook that stamps
  * `active_class_session/teacherDisconnectedAt` with the server time, and clears
- * the stamp on every (re)connect. Clients evaluate the stamp locally.
+ * the stamp on every (re)connect.
+ *
+ * Every timestamp in this record — `startedAt`, `teacherDisconnectedAt` — was
+ * written by a different device than the one reading it. Module 14 §ד makes the
+ * server the sole time authority ("Synchronize state upon refresh to prevent
+ * clock manipulation"), so the comparisons below default to `serverNow()` and
+ * not to the reader’s own clock: a tablet whose clock is half an hour fast
+ * used to shut its own learner out of a meeting that was still running, and a
+ * slow one kept a closed meeting open.
  */
+import { serverNow } from '@/infrastructure/firebase';
 
 /**
  * Owner decision (20.9.2026): 15 minutes, not 5.
@@ -79,7 +88,7 @@ export function getSessionDurationMinutes(sessionNumber: number): number {
  */
 export function getClassSessionStatus(
   val: ActiveClassSessionRecord | null | undefined,
-  now: number = Date.now()
+  now: number = serverNow()
 ): ClassSessionStatus {
   if (!isClassSessionLive(val, now)) return 'closed';
   return val?.status === 'paused' ? 'paused' : 'active';
@@ -88,7 +97,7 @@ export function getClassSessionStatus(
 /** True when the session is open AND the teacher-disconnect grace has not expired. */
 export function isClassSessionLive(
   val: ActiveClassSessionRecord | null | undefined,
-  now: number = Date.now()
+  now: number = serverNow()
 ): boolean {
   if (!val || val.active !== true) return false;
   const disconnectedAt = typeof val.teacherDisconnectedAt === 'number' ? val.teacherDisconnectedAt : null;

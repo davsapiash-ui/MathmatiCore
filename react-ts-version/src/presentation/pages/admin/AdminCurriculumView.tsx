@@ -1,21 +1,23 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AccessibleCard } from "@/presentation/design-system/AccessibleCard";
 import { UdlButton } from "@/presentation/design-system/UdlButton";
-import { 
-  SlidersHorizontal, 
-  CheckCircle2, 
-  BookOpen, 
-  Layers, 
-  Sparkles, 
+import {
+  SlidersHorizontal,
+  CheckCircle2,
+  BookOpen,
+  Layers,
+  Sparkles,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  AlertTriangle
 } from "lucide-react";
-import { doc, getDoc, setDoc, writeBatch } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, setDoc, writeBatch } from "firebase/firestore";
 import { db } from "@/infrastructure/firebase";
 import { toast } from "sonner";
 import { getHardcodedCatalogBanks, SESSION1_TASKS, SESSION2_TASKS, SESSIONS_BY_PATH, type SessionTask } from "@/data/sessionTasks";
 import { getSessionBranchTasks } from "@/data/sessionBranchTasks";
 import { DEFAULT_HESITATION_THRESHOLD_SECONDS } from "@/core/hesitationCalibration";
+import { compareCatalog, freshnessMessageHe, type CatalogFreshness } from "@/core/catalogFreshness";
 
 interface PathBank {
   label: string;
@@ -99,10 +101,12 @@ export function AdminCurriculumView() {
       .catch((err) => console.warn('[AdminCurriculumView] calibration read notice:', err));
   }, []);
 
-  // Only the hesitation threshold is read by anyone (core/hesitationCalibration.ts
-  // feeds the student trigger and the teacher radar). The former "consecutive
-  // deletions" slider wrote undo_threshold_clicks, which nothing reads: the
-  // PRD fixes that trigger at four (Module 12), so the slider is gone.
+  // Only the hesitation threshold is read by anyone, and it calibrates the
+  // teacher's radar alone (Module 18 §ב) — the learner's coaching card is
+  // fixed at SOCRATIC_STAGE_SECONDS, because Module 12 says "strictly… 45
+  // seconds" and the telemetry labels the event hesitation_45s. The former
+  // "consecutive deletions" slider wrote undo_threshold_clicks, which nothing
+  // reads: the PRD fixes that trigger at four (Module 12), so it is gone.
   const handleSaveCalibration = async () => {
     setIsSavingCalibration(true);
     try {
@@ -125,6 +129,34 @@ export function AdminCurriculumView() {
   // curriculum_catalog collection. Clients cache the banks in IndexedDB and
   // apply updates only to sessions that have not started yet.
   const [isPublishingCatalog, setIsPublishingCatalog] = useState(false);
+
+  // מודול 26 §ב: מאגר שפורסם גובר על הקוד (`getSessionTasks` מחזיר
+  // `getActiveBank(...) ?? hardcoded`). כלומר תיקון תרגיל שעלה לאוויר אינו
+  // מגיע לילדים עד שמישהו לוחץ "פרסום". עד היום לא הייתה דרך לדעת שזה המצב —
+  // המסך הראה את הקוד, המסד הגיש משהו אחר, ואף אחד לא ראה את הפער. החיווי
+  // כאן הוא ההשוואה עצמה.
+  const [freshness, setFreshness] = useState<CatalogFreshness | null>(null);
+  const [freshnessError, setFreshnessError] = useState(false);
+
+  const loadFreshness = useCallback(async () => {
+    try {
+      const snap = await getDocs(collection(db, 'curriculum_catalog'));
+      const published = snap.docs.map((d) => {
+        const data = d.data() as Record<string, unknown>;
+        return { id: d.id, updatedAt: data.updated_at, tasks: data.tasks };
+      });
+      setFreshness(compareCatalog(published, getHardcodedCatalogBanks()));
+      setFreshnessError(false);
+    } catch (err) {
+      // אין הרשאה או אין רשת: לא מציגים "הכול תקין" על סמך כלום.
+      console.warn('[AdminCurriculumView] catalog freshness read notice:', err);
+      setFreshness(null);
+      setFreshnessError(true);
+    }
+  }, []);
+
+  useEffect(() => { void loadFreshness(); }, [loadFreshness]);
+
   const handlePublishCatalog = async () => {
     const banks = getHardcodedCatalogBanks();
     // Every learner's next meeting picks this up (Module 26). One click, no
@@ -152,6 +184,8 @@ export function AdminCurriculumView() {
       }
       await batch.commit();
       toast.success(`תוכנית הלימודים פורסמה בהצלחה: ${banks.length} מאגרי משימות עודכנו במסד הנתונים! 📚`);
+      // החיווי חייב לענות על מה שקרה עכשיו, לא על מה שנקרא בטעינת המסך.
+      await loadFreshness();
     } catch (e) {
       console.error(e);
       toast.error('שגיאה בפרסום תוכנית הלימודים.');
@@ -201,6 +235,32 @@ export function AdminCurriculumView() {
           </div>
         </div>
       </header>
+
+      {/* מודול 26 §ב — מה שפורסם מול מה שבקוד */}
+      {(freshness || freshnessError) && (
+        <div
+          role="status"
+          className={`rounded-2xl border px-5 py-4 flex items-start gap-3 text-sm ${
+            freshnessError || freshness?.status === 'stale'
+              ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200'
+              : 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200'
+          }`}
+        >
+          {freshnessError || freshness?.status === 'stale' ? (
+            <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+          ) : (
+            <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" />
+          )}
+          <div className="space-y-1">
+            <p className="font-extrabold">מצב הפרסום</p>
+            <p className="font-medium leading-relaxed">
+              {freshnessError
+                ? 'לא הצלחנו לקרוא את הקטלוג מהמסד, ולכן אי אפשר להגיד אם מה שפורסם מעודכן. ודא שאתה מחובר כמנהל מערכת.'
+                : freshnessMessageHe(freshness as CatalogFreshness)}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Curriculum Catalog Section */}
       <AccessibleCard className="p-6 md:p-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl space-y-6">
@@ -320,7 +380,7 @@ export function AdminCurriculumView() {
               כיול רדאר פדגוגי (Trace Data Calibration)
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              הגדרת סף הרגישות לזיהוי מאבק קוגניטיבי סמוי במהלך עבודת התלמיד
+              הגדרת סף הרגישות שבו הרדאר של המורה מסמן מאבק קוגניטיבי סמוי במהלך עבודת התלמיד
             </p>
           </div>
 
@@ -343,7 +403,10 @@ export function AdminCurriculumView() {
                 className="w-full accent-indigo-600 h-2 bg-slate-200 dark:bg-slate-800 rounded-lg cursor-pointer" 
               />
               <p className="text-xs text-slate-500 leading-relaxed">
-                משך הזמן המרבי (בשניות) שבו הלומד משתהה ללא פעולה במרחב הלמידה, בטרם המערכת מתעדת מצב של התלבטות ומאמץ קוגניטיבי.
+                משך הזמן (בשניות) שבו הלומד משתהה ללא פעולה במרחב הלמידה, בטרם הריבוע שלו נצבע בצהוב ברדאר של המורה.
+              </p>
+              <p className="text-xs text-amber-700 dark:text-amber-400 leading-relaxed font-semibold">
+                הסף הזה נוגע לרדאר של המורה בלבד. כרטיס החניכה שהלומד מקבל קבוע על 45 שניות לפי האפיון, ואינו זז עם הסליידר.
               </p>
             </div>
 

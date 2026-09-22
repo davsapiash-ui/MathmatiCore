@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useWorkspaceStore } from '../../application/useWorkspaceStore';
 import {
   GRID_STAGE_SECONDS,
-  DEFAULT_SOCRATIC_STAGE_SECONDS,
+  SOCRATIC_STAGE_SECONDS,
   shouldOpenAdaptiveGrid,
 } from '@/core/hesitationStages';
 import { resolveDrop, EMPTY_COUNTS } from '../../core/placeValue';
@@ -215,15 +215,18 @@ describe('Work Package 3 (WP3): Student Learning Space & VRA Engine Comprehensiv
       // Module 10's grid is an intermediate step, not a synonym for Module 12's
       // coach. Collapsing the two onto one deadline is the regression that the
       // removed VerticalAdditionTask timer used to cause.
-      expect(GRID_STAGE_SECONDS).toBeLessThan(DEFAULT_SOCRATIC_STAGE_SECONDS);
+      expect(GRID_STAGE_SECONDS).toBeLessThan(SOCRATIC_STAGE_SECONDS);
     });
   });
 
   describe('6. Modules 12 & 13: Socratic Mentoring & 60s Penalty Lockout Scope', () => {
-    it('keeps the Socratic stage at the PRD default of 45s', () => {
-      // The live deadline is useCognitiveHesitationRadar's, calibrated through
-      // Module 26; this pins the default the calibration falls back to.
-      expect(DEFAULT_SOCRATIC_STAGE_SECONDS).toBe(45);
+    it('keeps the Socratic stage at 45s, uncalibrated', () => {
+      // Module 12 §ד: the card fires "strictly upon: (a) 45 seconds of
+      // continuous column hesitation". Appendix A §3 labels the event
+      // trigger_reason: 'hesitation_45s'. The admin slider used to move this
+      // deadline too, which made that label wrong; it now moves the teacher's
+      // radar alone (Module 18 §ב).
+      expect(SOCRATIC_STAGE_SECONDS).toBe(45);
     });
 
     it('triggers Socratic coach after 4 consecutive errors', () => {
