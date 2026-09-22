@@ -1918,6 +1918,24 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           });
         }
 
+        // מודול 8 §א: איפוס הלוח בפח הוא אירוע טלמטריה תקני, מסונכרן,
+        // ומוחרג ממדדי השגיאות. עד כה רק היומן הסמנטי שלמעלה ראה אותו,
+        // וציר הזמן של המורה הראה שלא קרה כלום.
+        const telemetryId = currentStudentUid();
+        emitTelemetry({
+          session_id: `session_${state.sessionNumber}_student_${telemetryId}`,
+          student_id: telemetryId,
+          exercise_id: activeExerciseId(state),
+          event_type: 'BOARD_CLEARED',
+          details: {
+            units: state.counts.units,
+            tens: state.counts.tens,
+            hundreds: state.counts.hundreds,
+            thousands: state.counts.thousands,
+            blocks_removed: state.counts.units + state.counts.tens + state.counts.hundreds + state.counts.thousands,
+          },
+        }).catch(console.error);
+
         return { 
           counts: { ...EMPTY_COUNTS },
           undoStack,

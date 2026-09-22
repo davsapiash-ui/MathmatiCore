@@ -128,7 +128,10 @@ service cloud.firestore {
         'REFLECTION_SUBMITTED',
         // Register, deviation 19 — see isColumnScopedEvent.
         'ADAPTIVE_GRID_TOGGLED',
-        'HELP_REQUESTED'
+        'HELP_REQUESTED',
+        // Module 8 §א: clearing the whole board with the trash button. It
+        // belongs to no single column — it empties all of them.
+        'BOARD_CLEARED'
       ];
     }
 

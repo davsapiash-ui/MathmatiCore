@@ -95,7 +95,7 @@ describe('Work Package 1 (WP1): Types & Security Contracts Verification', () => 
   });
 
   describe('2. Telemetry Contracts & column_index Validation Rules (Module 5 §C)', () => {
-    it('contains the 13 Appendix A §3 TelemetryEventType values plus the three scaffold events (register deviation 19)', () => {
+    it('contains the 13 Appendix A §3 TelemetryEventType values, the three scaffold events (register deviation 19) and BOARD_CLEARED (gap יז)', () => {
       const expectedEvents: TelemetryEventType[] = [
         'SESSION_START',
         'PROBLEM_LOAD',
@@ -113,11 +113,14 @@ describe('Work Package 1 (WP1): Types & Security Contracts Verification', () => 
         'ADAPTIVE_GRID_TOGGLED',
         'KEYBOARD_LOCK_BLOCKED',
         'HELP_REQUESTED',
+        // מודול 8 §א: ניקוי הלוח בפח הוא פעולת איפוס שהאפיון דורש לתעד
+        // כאירוע תקני. אין לו ערך בנספח א׳ — החלטת בעל המוצר, 23.9.2026.
+        'BOARD_CLEARED',
       ];
 
-      expect(expectedEvents).toHaveLength(16);
+      expect(expectedEvents).toHaveLength(17);
       expect(COLUMN_SCOPED_EVENTS).toHaveLength(8);
-      expect(NON_COLUMN_EVENTS).toHaveLength(7);
+      expect(NON_COLUMN_EVENTS).toHaveLength(8);
     });
 
     it('validates that DIGIT_ENTERED requires is_correct boolean and column_index (0, 1, 2)', () => {

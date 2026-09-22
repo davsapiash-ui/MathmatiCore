@@ -223,3 +223,25 @@ describe('הרשימה הלבנה — בדיקת הכניסה ממשיכה לע�
     await assertFails(getDoc(doc(learner7().firestore(), 'authorizedTeachers', TEACHER_EMAIL)));
   });
 });
+
+/* ── מודול 8 §א — ניקוי הלוח בפח (פער יז, 23.9.2026) ──────────────────── */
+
+describe('ניקוי הלוח נרשם כאירוע תקני', () => {
+  it('הילד כותב BOARD_CLEARED בלי טור, והשרת מקבל', async () => {
+    const key = 'idem_board_cleared';
+    await assertSucceeds(setDoc(doc(learner12().firestore(), 'telemetry_logs', key), {
+      idempotency_key: key, client_timestamp: Date.now(), session_id: 'session_4_student_user12',
+      student_id: 12, exercise_id: 's4_g_t1', event_type: 'BOARD_CLEARED',
+      details: { units: 3, tens: 2, hundreds: 0, thousands: 0, blocks_removed: 5 },
+    }));
+  });
+
+  it('עם טור — נדחה, כי הניקוי אינו שייך לטור אחד', async () => {
+    const key = 'idem_board_cleared_col';
+    await assertFails(setDoc(doc(learner12().firestore(), 'telemetry_logs', key), {
+      idempotency_key: key, client_timestamp: Date.now(), session_id: 'session_4_student_user12',
+      student_id: 12, exercise_id: 's4_g_t1', event_type: 'BOARD_CLEARED', column_index: 0,
+      details: { units: 3, tens: 2, hundreds: 0, thousands: 0, blocks_removed: 5 },
+    }));
+  });
+});
