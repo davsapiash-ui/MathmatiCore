@@ -18,8 +18,7 @@ import {
   FLEXIBILITY_SESSIONS,
   flexibilityHe,
   mediationHe,
-  readAllTelemetryForSession,
-  sessionIdsOfSameLearner,
+  readMeetingTelemetry,
   sessionNumberFromId,
 } from "./meetingMetrics";
 import { GEMINI_SECRETS } from "./geminiConfig";
@@ -404,8 +403,14 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     throw new HttpsError("invalid-argument", "לא ניתן לקבוע לאיזה מפגש שייך הדוח. יש להעביר מספר מפגש בין 1 ל-8.");
   }
 
-  // Every telemetry event of this meeting, for the narrative, the score and the analysis.
-  const telemetryDocs = await readAllTelemetryForSession(db, sessionId);
+  // Every telemetry event of this meeting, for the narrative, the score and
+  // the analysis — by learner and meeting number, not by the exact spelling
+  // of a session id. The events of one meeting can carry more than one
+  // spelling (`session_2_student_4`, `session_2_student_student_user4`), and
+  // reading by the one string the caller happened to pass silently dropped
+  // the rest: a narrative that ended after the first exercise, a score
+  // computed on half a meeting. Same lesson as the score trigger (#93).
+  const telemetryDocs = await readMeetingTelemetry(db, clampedStudentNum, resolvedSessionNumber);
 
   // The student number in the heading came from the caller and was never
   // checked against the events actually read. A stale or mistyped call
@@ -618,11 +623,9 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
   // cumulative values unmeasured and never fails the report.
   let allMeetingsEvents: Record<string, any>[] | null = null;
   try {
-    const others = sessionIdsOfSameLearner(sessionId).filter((id) => id !== sessionId);
-    if (others.length > 0) {
-      const lists = await Promise.all(others.map((id) => readAllTelemetryForSession(db, id)));
-      allMeetingsEvents = [...telemetryDocs, ...lists.flat()];
-    }
+    const otherMeetings = [1, 2, 3, 4, 5, 6, 7, 8].filter((n) => n !== resolvedSessionNumber);
+    const lists = await Promise.all(otherMeetings.map((n) => readMeetingTelemetry(db, clampedStudentNum, n)));
+    allMeetingsEvents = [...telemetryDocs, ...lists.flat()];
   } catch (err) {
     logger.warn("Research measures: the learner's other meetings could not be read", err);
   }

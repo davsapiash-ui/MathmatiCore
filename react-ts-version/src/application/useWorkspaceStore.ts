@@ -1816,6 +1816,25 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
               source_column_index: sourceColIdx,
             },
           }).catch(console.error);
+        } else if (isDelete && input.sourcePlace) {
+          // מודול 8 §א: מחיקה בפח היא אירוע טלמטריה תקני, מסונכרן לשרת,
+          // ומוחרג ממדדי השגיאות. עד כה רק היומן הסמנטי ב-RTDB ראה אותה.
+          // לפח אין טור משלו, ולכן שני שדות הטור נושאים את הטור שהלבנה
+          // עזבה — צירוף שאף גרירה אחרת אינה מייצרת (גרירה לאותו טור
+          // שקטה), וכך ציר הזמן מזהה השלכה לפח.
+          const leftColIdx = placeToColumnIndex(input.sourcePlace);
+          const blockVal = input.sourcePlace === 'thousands' ? 1000 : input.sourcePlace === 'hundreds' ? 100 : input.sourcePlace === 'tens' ? 10 : 1;
+          emitTelemetry({
+            session_id: sessionId,
+            student_id: studentId,
+            exercise_id: taskId,
+            event_type: 'BLOCK_DRAG_COMPLETE',
+            column_index: leftColIdx,
+            details: {
+              block_value: blockVal,
+              source_column_index: leftColIdx,
+            },
+          }).catch(console.error);
         }
 
         return { 

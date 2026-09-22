@@ -216,7 +216,10 @@ export function describeEvent(e: JourneyEvent): EventDescription {
       detail = d.path_type === 'challenge' ? 'נתיב אתגר' : d.path_type === 'consolidation' ? 'נתיב ביסוס' : 'תרגיל חובה';
       break;
     case 'BLOCK_DRAG_COMPLETE':
-      detail = `${blockName(d.block_value)}${col ? ` אל טור ה${col}` : ''}`;
+      // שני שדות הטור שווים רק בהשלכה לפח (מודול 8): גרירה לאותו טור שקטה.
+      detail = typeof d.source_column_index === 'number' && d.source_column_index === e.columnIndex
+        ? `${blockName(d.block_value)} הושלכה לפח האשפה${col ? ` מטור ה${col}` : ''}`
+        : `${blockName(d.block_value)}${col ? ` אל טור ה${col}` : ''}`;
       break;
     case 'REGROUPING_TRIGGERED':
     case 'REGROUPING_SUCCESS':
