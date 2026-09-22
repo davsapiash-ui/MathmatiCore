@@ -34,21 +34,41 @@ export function useActiveClassSession() {
     // Session is live only while the teacher-disconnect grace window has not
     // expired (core/classSession.ts). The comparison runs on the server clock,
     // because the stamps it reads were written by the teacher’s device.
+    // A new object on every tick (the 15s refresh, the 30s grace re-check,
+    // every RTDB echo) re-ran every effect that lists the session among its
+    // dependencies — the learner's screen recorder among them, which then
+    // stopped and restarted rrweb, emitted a fresh full-DOM snapshot and reset
+    // its 50MB counter each time. The state only changes when a value does.
+    const commit = (next: ActiveClassSession) => {
+      setSession((prev) =>
+        prev.active === next.active &&
+        prev.status === next.status &&
+        prev.sessionNumber === next.sessionNumber &&
+        prev.startedAt === next.startedAt &&
+        prev.teacherId === next.teacherId &&
+        prev.isLoaded === next.isLoaded
+          ? prev
+          : next
+      );
+    };
+
     const applySessionState = () => {
       if (!isSubscribed) return;
       const val = lastValRef.current;
       if (val && isClassSessionLive(val)) {
-        setSession({
+        commit({
           active: true,
           status: getClassSessionStatus(val),
           sessionNumber: Number(val.sessionNumber || 1),
-          startedAt: Number(val.startedAt || serverNow()),
+          // The stamp is the teacher’s; without one, a fixed fallback so
+          // the value does not drift on every re-check.
+          startedAt: Number(val.startedAt || 0) || null,
           teacherId: val.teacherId,
           isLoaded: true,
         });
         return;
       }
-      setSession({
+      commit({
         active: false,
         status: 'closed',
         sessionNumber: null,

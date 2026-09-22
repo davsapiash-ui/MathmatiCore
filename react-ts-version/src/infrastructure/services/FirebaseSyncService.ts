@@ -576,6 +576,16 @@ export class FirebaseSyncService {
       undoCount: state.undoCount,
       hesitationCount: state.hesitationCount,
       hasInteracted: state.hasInteracted,
+      // Per-exercise counters that decide the coaching card: the second
+      // wrong answer in a row (register 17) and the board checks that failed
+      // (Module 5 §ג PROBLEM_COMPLETE). They were not in the snapshot, so a
+      // refresh mid-exercise silently reset them and the card that was one
+      // wrong answer away never came. Each carries the exercise it counts
+      // for; the store ignores a value that belongs to another exercise.
+      wrongAnswerStreak: state.wrongAnswerStreak,
+      wrongAnswerTaskId: state.wrongAnswerTaskId,
+      boardCheckFailures: state.boardCheckFailures,
+      boardCheckFailuresTaskId: state.boardCheckFailuresTaskId,
       activeTask: currentTask ? {
         id: currentTask.id,
         titleHe: currentTask.titleHe,
@@ -1145,27 +1155,38 @@ export class FirebaseSyncService {
       matrix_recommended_path: recommendedPath,
     };
 
-    // 1. Write to RTDB users/students/${studentId}
+    // 1. Write to RTDB users/students/${studentId}. This is what the teacher’s
+    // gate list and the learner’s own waiting screen read. It used to fail
+    // into a console.warn: the child sat on "ממתין לאישור" with nothing
+    // pending on the teacher’s side, and nobody could tell why. A failed write
+    // is queued (Module 17) and lands when the connection returns.
+    const rtdbPath = `users/students/${studentId}`;
+    const rtdbPayload = {
+      session_02_completed: true,
+      session_score_percent: sessionScorePercent,
+      matrix_recommended_path: recommendedPath,
+      teacher_gate_approved: false,
+      routeStatus: 'PENDING_TEACHER_APPROVAL',
+      updatedAt: now
+    };
     try {
-      await update(ref(database, `users/students/${studentId}`), {
-        session_02_completed: true,
-        session_score_percent: sessionScorePercent,
-        matrix_recommended_path: recommendedPath,
-        teacher_gate_approved: false,
-        routeStatus: 'PENDING_TEACHER_APPROVAL',
-        updatedAt: now
-      });
+      await update(ref(database, rtdbPath), rtdbPayload);
     } catch (e) {
-      console.warn('[FirebaseSyncService] RTDB Session 2 completion update warning:', e);
+      console.warn('[FirebaseSyncService] RTDB Session 2 completion failed, queued for retry:', e);
+      await indexedDBQueue.enqueue(rtdbPath, { ...rtdbPayload, idempotency_key: `s2_done_rtdb_${studentId}` }).catch(() => {});
     }
 
-    // 2. Write to Firestore `sessions/${docId}`
+    // 2. Write to Firestore `sessions/${docId}` — the SessionDocument the
+    // server scores (Module 23 §ב) and the gate approves on (Module 20).
+    // Same rule: never lost, merged on redelivery so a gate approval written
+    // in the meantime is not overwritten.
     if (firestore && (typeof (firestore as any).type === 'string' || (firestore as any)._delegate || (firestore as any).app)) {
       try {
         const docRef = doc(firestore, 'sessions', docId);
         await setDoc(docRef, sessionDoc, { merge: true });
       } catch (err) {
-        console.warn('[FirebaseSyncService] Firestore Session 2 completion write warning:', err);
+        console.warn('[FirebaseSyncService] Firestore Session 2 completion failed, queued for retry:', err);
+        await indexedDBQueue.enqueueFirestoreDoc('sessions', docId, sessionDoc as unknown as Record<string, unknown>, `s2_done_doc_${docId}`).catch(() => {});
       }
     }
   }

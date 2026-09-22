@@ -12,6 +12,7 @@
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { ref, update } from 'firebase/database';
 import { firestore, database } from '@/infrastructure/firebase';
+import { indexedDBQueue } from '@/infrastructure/services/IndexedDBQueue';
 import type { SessionDocument, PedagogicalPath } from '@/types';
 
 export type GateApprovalResult =
@@ -97,14 +98,22 @@ export async function approveTeacherGate(
   // listener reads — if that write is rejected, the learner stays stuck on
   // the waiting screen, so it must fail the approval loudly. The legacy
   // aliases are best-effort back-compat only.
+  const canonicalPath = `users/students/student_user${num}`;
   try {
-    await update(ref(database, `users/students/student_user${num}`), mirror);
+    await update(ref(database, canonicalPath), mirror);
   } catch (err) {
     console.error('[teacherGate] canonical RTDB mirror failed:', err);
+    // The approval is already the truth (Firestore). The mirror that
+    // releases the learner’s screen is queued (Module 17) so it lands by
+    // itself when the connection returns — the teacher used to be told to
+    // "try again" while a second click re-read the document and, with the
+    // network still down, failed the same way. The message says what will
+    // happen instead of what to do.
+    await indexedDBQueue.enqueue(canonicalPath, { ...mirror, idempotency_key: `gate_mirror_${num}_${now}` }).catch(() => {});
     return {
       ok: false,
       reason: 'write_failed',
-      message: 'האישור נכתב ב-Firestore אך שחרור מסך התלמיד נכשל. בדוק חיבור לרשת ונסה שוב.',
+      message: 'האישור נשמר. שחרור מסך התלמיד לא הצליח כרגע בגלל הרשת — הוא יישלח מעצמו ברגע שהחיבור יחזור.',
     };
   }
   await Promise.all(

@@ -29,6 +29,12 @@ export interface QueuedAction {
    * overwrites, never duplicates.
    */
   callable?: string;
+  /**
+   * מודול 14/20: מסמך מפגש שכתיבתו נכשלה (סיום מפגש 2, למשל) נכתב מחדש
+   * עם החיבור — ב-merge, כך שחזרה על הכתיבה אינה דורסת אישור מורה שבינתיים
+   * נכתב על אותו מסמך.
+   */
+  firestoreDoc?: { collection: string; docId: string };
   payload: any;
   timestamp: number;
   idempotency_key?: string;
@@ -45,7 +51,15 @@ const DB_NAME = 'mathmaticore_offline_db';
 const STORE_NAME = 'offline_telemetry_queue';
 const LEGACY_STORE_NAME = 'offline_actions';
 const DB_VERSION = 2;
-const MAX_QUEUE_CAPACITY = 500;
+/**
+ * מודול 17: "A failed chunk is never discarded." התור יושב על הדיסק
+ * (IndexedDB) — 500 פריטים היו תקרה שמחקה את הפריט הישן ביותר אחרי כמה
+ * דקות של ניתוק במפגש פעיל. התקרה כאן היא הגנה מפני מצב פגום בלבד, לא
+ * מדיניות: מפגש שלם של 45 דקות אינו מתקרב אליה.
+ */
+const MAX_QUEUE_CAPACITY = 50_000;
+/** נפילה לזיכרון בלבד — כשאין IndexedDB כלל. כאן הזיכרון הוא הגבול. */
+const MAX_MEMORY_FALLBACK = 5_000;
 
 /**
  * אחרי כמה כישלונות רצופים פריט מוגדר "תקוע" ומדולג עד לריקון הבא.
@@ -277,18 +291,18 @@ export class IndexedDBQueue {
           tx.oncomplete = () => resolve();
           tx.onerror = () => {
             this.memoryFallback.push(item);
-            if (this.memoryFallback.length > MAX_QUEUE_CAPACITY) this.memoryFallback.shift();
+            if (this.memoryFallback.length > MAX_MEMORY_FALLBACK) this.memoryFallback.shift();
             resolve();
           };
         } catch {
           this.memoryFallback.push(item);
-          if (this.memoryFallback.length > MAX_QUEUE_CAPACITY) this.memoryFallback.shift();
+          if (this.memoryFallback.length > MAX_MEMORY_FALLBACK) this.memoryFallback.shift();
           resolve();
         }
       });
     } else {
       this.memoryFallback.push(item);
-      if (this.memoryFallback.length > MAX_QUEUE_CAPACITY) this.memoryFallback.shift();
+      if (this.memoryFallback.length > MAX_MEMORY_FALLBACK) this.memoryFallback.shift();
     }
   }
 
@@ -296,6 +310,20 @@ export class IndexedDBQueue {
   public async enqueueCallable(name: string, payload: Record<string, unknown>, idempotencyKey: string): Promise<void> {
     const item: QueuedAction = {
       callable: name,
+      payload,
+      timestamp: Date.now(),
+      idempotency_key: idempotencyKey,
+      client_timestamp: Date.now(),
+      retry_count: 0,
+    };
+    await this.store(item);
+    this.scheduleBackgroundFlush();
+  }
+
+  /** Queue a Firestore document merge for delivery on reconnect (see QueuedAction.firestoreDoc). */
+  public async enqueueFirestoreDoc(collection: string, docId: string, payload: Record<string, unknown>, idempotencyKey: string): Promise<void> {
+    const item: QueuedAction = {
+      firestoreDoc: { collection, docId },
       payload,
       timestamp: Date.now(),
       idempotency_key: idempotencyKey,
@@ -528,6 +556,10 @@ export class IndexedDBQueue {
     const { firestore, functions } = await import('@/infrastructure/firebase');
     if (item.callable) {
       await httpsCallable(functions, item.callable)(item.payload);
+      return true;
+    }
+    if (item.firestoreDoc) {
+      await setDoc(doc(firestore, item.firestoreDoc.collection, item.firestoreDoc.docId), item.payload, { merge: true });
       return true;
     }
     if (item.refPath) {

@@ -1246,7 +1246,13 @@ export class SocraticEngine {
       console.warn('[SocraticEngine] Gemini API error, falling back to static hint:', err);
     }
 
-    return staticFallback;
+    // מודול 13: "המנוע נדרש להחזיר את הסיווג בשדה error_category… והמערכת
+    // שומרת אותו". הסיווג הוא של המנוע. כשהמנוע לא ענה אין סיווג — והכרטיס
+    // הסטטי נשא עד כה ערך קבוע ('conceptual' / 'procedural') שנרשם
+    // ב-SOCRATIC_CARD_SHOWN כאילו המנוע קבע אותו, והזין את האות הקוגניטיבי
+    // ברדאר (מודול 18) ואת הדוח (מודול 23) במדידה מומצאת (מודול 24 §ב).
+    // התוכן הסטטי נשאר; הסיווג — לא.
+    return { ...staticFallback, error_category: null };
   }
 
   /**
@@ -1424,7 +1430,10 @@ export class SocraticEngine {
       console.warn('[SocraticEngine] Dynamic AI hint synthesis notice, using baseline anchor:', err);
     }
 
-    // 4. Fallback: Return the grounded baseline anchor
-    return baselineAnchor;
+    // 4. Fallback: the grounded baseline anchor — its content, not its
+    // classification. error_category is the engine's verdict (Module 13);
+    // the anchor's hard-coded value would be stored as if the engine had
+    // spoken. See requestSocraticHintWithFallback for the same rule.
+    return baselineAnchor ? { ...baselineAnchor, error_category: null } : baselineAnchor;
   }
 }

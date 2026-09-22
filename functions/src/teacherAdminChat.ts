@@ -55,9 +55,18 @@ export const sendTeacherAdminMessage = onCall(async (request) => {
   const callerRole = request.auth.token.role;
   const isAdminSender = callerRole === "admin" || callerRole === "ADMIN" || request.auth.token.admin === true;
   const callerEmail = request.auth.token.email;
-  const senderId = isAdminSender
-    ? "admin"
-    : (callerEmail ? String(callerEmail).trim().replace(/[@.#$[\]]/g, "_") : request.auth.uid);
+  const teacherKey = callerEmail ? String(callerEmail).trim().replace(/[@.#$[\]]/g, "_") : request.auth.uid;
+  // Which side is speaking follows the address, not the token alone. The
+  // pilot owner holds both roles; sending to "admin" from the teacher
+  // dashboard used to be stamped sender "admin" → receiver "admin", a
+  // message addressed to nobody that appeared on neither screen. A message
+  // to management is from a teacher; a message to a teacher is from
+  // management, and only an admin token may send one.
+  const addressingManagement = String(receiver_id) === "admin";
+  if (!addressingManagement && !isAdminSender) {
+    throw new HttpsError("permission-denied", "Only management may write to a teacher on this channel.");
+  }
+  const senderId = addressingManagement ? teacherKey : "admin";
   const db = admin.firestore();
 
   // Layer 2A: Ephemeral in-memory student name map (passed only during active teacher session, never stored in DB)

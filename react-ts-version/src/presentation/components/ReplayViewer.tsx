@@ -61,6 +61,16 @@ export function ReplayViewer({ events, seekToTime, seekNonce, onEnd, onProgress,
     }
 
     prevFingerprintRef.current = currentFingerprint;
+    // A recording that is still being written grows under the teacher’s eyes.
+    // Rebuilding the player is unavoidable (rrweb takes its events once), but
+    // it used to restart from 0:00 every time a chunk landed; it now resumes
+    // from where the previous instance was.
+    let resumeFrom = 0;
+    if (replayerRef.current) {
+      try { resumeFrom = Math.max(0, replayerRef.current.getCurrentTime() || 0); } catch { resumeFrom = 0; }
+      try { replayerRef.current.pause(); } catch { /* already gone */ }
+      replayerRef.current = null;
+    }
     container.innerHTML = "";
 
     try {
@@ -79,10 +89,10 @@ export function ReplayViewer({ events, seekToTime, seekNonce, onEnd, onProgress,
 
       replayerRef.current = replayer;
 
-      // Start playing
-      replayer.play(0);
+      // Start playing — from where the previous instance was, if there was one.
+      replayer.play(resumeFrom);
       setIsPlaying(true);
-      setCurrentTimeMs(0);
+      setCurrentTimeMs(resumeFrom);
 
       replayer.on('finish', () => {
         setIsPlaying(false);

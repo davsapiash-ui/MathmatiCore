@@ -3,6 +3,7 @@ import { useDismissableOverlay } from '@/hooks/useDismissableOverlay';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, ShieldAlert, RefreshCw, X, Check } from 'lucide-react';
 import type { ResetReason, ResetTarget, SingleStudentResetScope } from '@/types';
+import { validateChatInputForPII, anonymizeChatMessageBody } from '@/core/security/PiiFilter';
 
 export interface ResetConfirmationModalProps {
   isOpen: boolean;
@@ -45,6 +46,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
 }) => {
   const [selectedReason, setSelectedReason] = useState<ResetReason>('restart_session');
   const [reasonNote, setReasonNote] = useState('');
+  const [noteError, setNoteError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [doubleConfirmed, setDoubleConfirmed] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
@@ -92,11 +94,26 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
       return;
     }
 
+    // Zero-PII (architecture invariant 1, Module 3): the note goes into the
+    // audit log and the reset backup, which the admin console and the
+    // research export read. Every other free-text field a teacher types
+    // passes the same check; this one did not, so "איפוס כי דניאל בכה" would
+    // have put a child’s name in the one place nothing else ever does.
+    const trimmedNote = reasonNote.trim();
+    if (trimmedNote) {
+      const check = validateChatInputForPII(trimmedNote);
+      if (!check.valid) {
+        setNoteError(check.errorHe || 'ההערה מכילה פרטים מזהים. יש להשתמש במספר הלומד (1–12) בלבד.');
+        return;
+      }
+    }
+    setNoteError(null);
+
     setIsSubmitting(true);
     try {
       await onConfirm(
         selectedReason,
-        reasonNote.trim() || undefined,
+        trimmedNote ? anonymizeChatMessageBody(trimmedNote) : undefined,
         resetLevel === 'single_student'
           ? { scope: isClassTarget ? 'active_session' : scope, sessionNumber: activeSessionNumber }
           : undefined
@@ -282,10 +299,14 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
               <input
                 type="text"
                 value={reasonNote}
-                onChange={(e) => setReasonNote(e.target.value)}
-                placeholder="הסבר קצר על נסיבות האיפוס..."
+                onChange={(e) => { setReasonNote(e.target.value); if (noteError) setNoteError(null); }}
+                placeholder="הסבר קצר על נסיבות האיפוס — בלי שמות, רק מספר לומד"
+                aria-invalid={noteError ? true : undefined}
                 className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-sm text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500"
               />
+              {noteError && (
+                <p role="alert" className="mt-1.5 text-xs font-bold text-red-700 dark:text-red-300">{noteError}</p>
+              )}
             </div>
           </div>
         )}

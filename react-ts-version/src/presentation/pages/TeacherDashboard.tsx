@@ -1021,11 +1021,17 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   useEffect(() => {
     if (!user) return;
     
-    // Process admin messages
-    if (isAdminChatDrawerOpen && user.role !== "admin") {
-      const unreadAdmin = messages.filter(m => m.senderId === "admin" && !m.read);
+    // Process admin messages. They live in Firestore `messages` (Module 22),
+    // so they are marked read there — this used to call the RTDB chat
+    // store’s markAsRead, which never contains an admin message, and the
+    // badge never cleared. The rules let the receiving teacher change
+    // exactly the `read` field.
+    if (isAdminChatDrawerOpen) {
+      const unreadAdmin = adminMessages.filter(m => m.senderId === "admin" && !m.read);
       if (unreadAdmin.length > 0) {
-        markAsRead(user.uid as string, "admin");
+        const batch = writeBatch(firestore);
+        unreadAdmin.forEach((m) => batch.update(doc(firestore, "messages", m.id), { read: true }));
+        batch.commit().catch((err) => console.warn("[Module 22] mark-read failed:", err));
       }
     }
     
@@ -1037,7 +1043,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
         markAsRead(user.uid as string, targetId);
       }
     }
-  }, [isAdminChatDrawerOpen, activeTab, selectedStudentId, messages, user, markAsRead]);
+  }, [isAdminChatDrawerOpen, activeTab, selectedStudentId, messages, adminMessages, user, markAsRead]);
 
   const handleSendAdmin = async () => {
     if (!adminInputText.trim() || !user || isSendingAdmin || isSendingAdminRef.current) return;
@@ -2179,7 +2185,9 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                 </div>
               ) : (
                 adminMessages.map((msg) => {
-                  const isMe = msg.senderId === user?.uid;
+                  // The channel is already filtered to this teacher and management;
+                  // the server stamps her email-derived key, never the auth uid.
+                  const isMe = msg.senderId !== "admin";
                   return (
                     <div
                       key={msg.id}
