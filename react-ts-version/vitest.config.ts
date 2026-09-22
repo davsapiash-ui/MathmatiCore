@@ -13,6 +13,8 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['src/**/__tests__/**/*.test.{ts,tsx}'],
+    // האמולטור רץ בנפרד: npm run test:rules (vitest.emulator.config.ts).
+    exclude: ['src/__tests__/emulator/**'],
     cache: false,
   },
 });
