@@ -14,7 +14,7 @@ import { useStore, type StudentData } from "@/application/useStore";
 import { toast } from "sonner";
 import { ref, onValue, set, update, onDisconnect, serverTimestamp } from "firebase/database";
 import { getClassSessionStatus, getSessionAutoCloseAt, isClassSessionLive, TEACHER_DISCONNECT_GRACE_MS, type ClassSessionStatus } from "@/core/classSession";
-import { database, auth, functions, firestore } from "@/infrastructure/firebase";
+import { database, auth, functions, firestore, serverNow } from "@/infrastructure/firebase";
 import { doc, onSnapshot, collection, writeBatch } from "firebase/firestore";
 import type { SessionDocument, PedagogicalPath } from "@/types";
 import { httpsCallable } from "firebase/functions";
@@ -221,7 +221,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       // also records the close so the shared record says so. Once per start.
       const autoCloseAt = getSessionAutoCloseAt(lastVal);
       const startedAt = typeof lastVal?.startedAt === 'number' ? lastVal.startedAt : null;
-      if (lastVal?.active === true && autoCloseAt !== null && Date.now() >= autoCloseAt && startedAt !== autoClosedStart) {
+      if (lastVal?.active === true && autoCloseAt !== null && serverNow() >= autoCloseAt && startedAt !== autoClosedStart) {
         autoClosedStart = startedAt;
         set(sessionRef, {
           active: false,

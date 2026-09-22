@@ -129,6 +129,15 @@ export function LearnerJourney({ studentId }: Props) {
     [sessionEvents, selectedExercise],
   );
 
+  // מודול 21 §ב: "ההפעלה מתבצעת עבור התרגיל הספציפי שנבחר בלבד". בחירת
+  // תרגיל סיננה עד עכשיו רק את טבלת ההחלטות; הנגן המשיך לרוץ על כל המפגש,
+  // כך שהמורה שביקשה לראות תרגיל אחד קיבלה גם את כל מה שבא אחריו. הפרק
+  // של אותו תרגיל מגדיר עכשיו גם את סוף ההפעלה (הקפיצה לתחילתו כבר קיימת).
+  const selectedChapter = useMemo(
+    () => (selectedExercise ? chapters.find((c) => c.exerciseId === selectedExercise) ?? null : null),
+    [chapters, selectedExercise],
+  );
+
   // Reverse link (Module 21): as the player advances, highlight the last event at or before the playhead.
   const highlightedIdx = useMemo(() => {
     if (playheadTs === null) return -1;
@@ -522,6 +531,7 @@ export function LearnerJourney({ studentId }: Props) {
               {rrwebEvents.length >= 2 ? (
                 <ReplayViewer
                   events={rrwebEvents}
+                  stopAtTime={selectedChapter?.end}
                   seekToTime={seekRequest?.t}
                   seekNonce={seekRequest?.nonce}
                   onProgress={(absTs) => setPlayheadTs(absTs)}

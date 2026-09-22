@@ -246,6 +246,17 @@ interface WorkspaceState {
   /** Teacher-approved AI-generated task list (Socratic Engine); overrides session tasks when set. */
   /** Dynamically injected tasks for the current session (Micro-Agility engine). Takes precedence if length > 0. */
   dynamicTasks: SessionTask[] | null;
+  /**
+   * מודול 26 §ב/§ד: המסלול שממנו נטען המאגר הפעיל, ננעץ בתחילת כל תרגיל.
+   *
+   * `getActiveTasks` נהג לקרוא את המסלול של הלומד בכל רינדור. מורה ששינתה
+   * מסלול בזמן שהילד עמד באמצע תרגיל החליפה לו את המאגר תחת הידיים: אותו
+   * אינדקס, מספרים אחרים. האפיון אומר ההפך — "עדכוני תרגילים… מוחלים בצד
+   * התלמיד אך ורק על תרגילים שטרם נפתחו בפועל. תרגיל פעיל שפתרונו החל אינו
+   * מופרע." המסלול החדש נכנס לתוקף בתרגיל הבא, באותו גבול החלה בטוח של
+   * מודול 19. `null` = טרם ידוע מה אושר, ואז נקראת ההכרעה החיה.
+   */
+  activeBankPath: 'green_path' | 'remediation_path' | null;
   keyboardState: KeyboardState;
   isAdditionHelperOpen: boolean;
   /** The Module 10 grid opened at least once this session, so the learner may bring it back (מסמך 03 §1.3 ב'). */
@@ -455,7 +466,9 @@ export function getActiveTasks(s: WorkspaceState): SessionTask[] {
   // Session 2 runs through the Q-Matrix flow — it has no standard task list.
   if (s.sessionNumber === 2) return [];
   if (s.dynamicTasks) return s.dynamicTasks;
-  return getSessionTasks(s.sessionNumber as any, resolveLearningPath()) ?? [];
+  // מודול 26 §ב: המאגר נקבע לפי המסלול שננעץ בתחילת התרגיל, לא לפי הערך
+  // החי. שינוי מסלול באמצע תרגיל נכנס לתוקף רק בתרגיל הבא (ראו activeBankPath).
+  return getSessionTasks(s.sessionNumber as any, s.activeBankPath ?? resolveLearningPath()) ?? [];
 }
 
 /**
@@ -467,6 +480,22 @@ export function resolveLearningPath(): 'green_path' | 'remediation_path' {
   const student = authUser?.uid ? useStore.getState().students[authUser.uid] : null;
   const rawPath = (student as any)?.pedagogicalPath;
   return rawPath === 'remediation_path' ? 'remediation_path' : 'green_path';
+}
+
+/**
+ * The path to pin for the coming exercise, or null when the learner record has
+ * not yet said which path was approved.
+ *
+ * Pinning an unknown path would be worse than not pinning: the RTDB listener
+ * hydrates a moment after the workspace mounts, so a remediation learner would
+ * be frozen on the green bank for the whole first exercise. Until the record
+ * carries an explicit decision, the live resolution keeps applying.
+ */
+export function pinnableLearningPath(): 'green_path' | 'remediation_path' | null {
+  const authUser = useAuthStore.getState().user;
+  const student = authUser?.uid ? useStore.getState().students[authUser.uid] : null;
+  const rawPath = (student as any)?.pedagogicalPath;
+  return rawPath === 'remediation_path' || rawPath === 'green_path' ? rawPath : null;
 }
 
 /* ── מסמך 03 exercise-shape helpers (skeletons, representations) ── */
@@ -1215,6 +1244,18 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
   }
 
   function advanceStandard() {
+    // גבול ההחלה הבטוח (מודול 19 §ב, מודול 26 §ב). כל שינוי מסלול — זה
+    // שהמורה המתינה איתו במגירת הלומד, וזה שנכתב ישירות לרשומה — נכנס
+    // לתוקף כאן, בין תרגיל לתרגיל, לפני שנבחר המאגר של התרגיל הבא. קודם
+    // לכן המאגר נקרא חי בכל רינדור, ומורה ששינתה מסלול בזמן שילד עמד
+    // באמצע תרגיל החליפה לו את המספרים על המסך.
+    //
+    // הסדר חשוב: קודם ההחלה הממתינה של מודול 19 (שמעדכנת את הרשומה),
+    // ואז הנעיצה — אחרת שינוי שהומתן היה נכנס לתוקף תרגיל אחד מאוחר מדי.
+    // startTask קוראת ל-applyPendingAdaptationAtBoundary שוב, וזו כבר
+    // חוזרת ריקם.
+    applyPendingAdaptationAtBoundary();
+    set({ activeBankPath: pinnableLearningPath() });
     const s = get();
     const tasks = getActiveTasks(s);
     const nextIdx = s.standardTaskIdx + 1;
@@ -1464,6 +1505,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     socraticDistractorErrors: 0,
     lastInteractionTime: Date.now(),
     dynamicTasks: null,
+    activeBankPath: null,
     helpRequested: false,
     pendingSupportProfileId: null,
     activeSupportProfileId: null,
@@ -1529,6 +1571,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         sessionDeadlineTime: deadline,
         selectedBranch: null,
         dynamicTasks: null,
+        activeBankPath: pinnableLearningPath(),
         standardTaskIdx: startingTaskIdx ?? 0,
         qflow,
         flowStatus: 'task',

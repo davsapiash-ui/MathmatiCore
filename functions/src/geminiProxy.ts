@@ -28,6 +28,10 @@ import {
  * - Emails
  * - IDs and standard PII (e.g., 9-digit Israeli IDs, passwords)
  * - Hebrew/English name prefixes ("My name is X", "קוראים לי Y")
+ *
+ * It runs on the teacher-admin chat (Module 22), which is ordinary adult prose,
+ * so a false positive is not harmless: it deletes a word out of a real message.
+ * Every pattern here has to be one that cannot fire on normal writing.
  */
 export function scrubPII(text: string): string {
   if (!text) return text;
@@ -42,12 +46,29 @@ export function scrubPII(text: string): string {
   const idRegex = /\b\d{1,3}[-\s]?\d{3}[-\s]?\d{3}\b/g;
   scrubbed = scrubbed.replace(idRegex, "[REDACTED_ID]");
 
-  // Scrub Name prefixes in English
-  const englishNameRegex = /(my name is|i am|this is) ([A-Z][a-z]+(\s[A-Z][a-z]+)?)/gi;
+  // Scrub Name prefixes in English.
+  //
+  // The /i flag used to apply to the name group as well, so "i am tired"
+  // became "i am [REDACTED_NAME]". The prefixes carry their own casing here
+  // and the flag is gone: a name still has to look like a name.
+  const englishNameRegex = /([Mm]y name is|[Ii] am|[Tt]his is) ([A-Z][a-z]+(\s[A-Z][a-z]+)?)/g;
   scrubbed = scrubbed.replace(englishNameRegex, "$1 [REDACTED_NAME]");
 
-  // Scrub Name prefixes in Hebrew
-  const hebrewNameRegex = /(קוראים לי|שמי|אני) ([א-ת]+(\s[א-ת]+)?)/g;
+  // Scrub Name prefixes in Hebrew.
+  //
+  // "אני" is not a name introducer in Hebrew, it is the word "I" — the most
+  // common word a teacher writes. This function scrubs the teacher-admin chat
+  // (Module 22), so "אני צריכה עזרה עם תלמיד 4" reached the other side as
+  // "אני [REDACTED_NAME] עם תלמיד 4" and the message was destroyed. It also
+  // protected nothing that the two layers before it do not: the teacher's own
+  // twelve-name map is substituted first, and no name is ever stored anywhere
+  // in the system (Zero-PII).
+  //
+  // What replaces it is wider where it matters — every real Hebrew introducer,
+  // for oneself and for a third person — and it no longer fires on the middle
+  // of a word ("בשמי הארץ").
+  const hebrewNameRegex =
+    /(?<![א-ת])(קוראים לי|קוראים לו|קוראים לה|השם שלי|שמי|שמו|שמה) ([א-ת]+(\s[א-ת]+)?)/g;
   scrubbed = scrubbed.replace(hebrewNameRegex, "$1 [REDACTED_NAME]");
 
   // Password-like patterns (e.g., password: <something>, סיסמה: <משהו>, סיסמה שלי היא <משהו>)

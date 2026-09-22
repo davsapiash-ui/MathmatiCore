@@ -6,7 +6,7 @@ import { database } from '@/infrastructure/firebase';
 import { ref, set } from 'firebase/database';
 import { emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
 import { getHesitationThresholdSeconds, useHesitationThresholdSeconds } from '@/core/hesitationCalibration';
-import { GRID_STAGE_SECONDS, shouldOpenAdaptiveGrid } from '@/core/hesitationStages';
+import { GRID_STAGE_SECONDS, SOCRATIC_STAGE_SECONDS, shouldOpenAdaptiveGrid } from '@/core/hesitationStages';
 
 interface UseCognitiveHesitationRadarProps {
   isActive: boolean;
@@ -16,14 +16,23 @@ interface UseCognitiveHesitationRadarProps {
 /**
  * A silent pedagogical radar that tracks time between clicks/interactions.
  *
- * It owns the entire Module 10 / Module 12 hesitation hierarchy, in two stages
- * measured from the same "last cognitive action" mark:
+ * It owns the entire Module 10 / Module 12 hesitation hierarchy, in three
+ * stages measured from the same "last cognitive action" mark:
  *
  *   30s — Module 10: the adaptive addition grid opens, but only for learners
  *         carrying the `enhanced_cognitive_support` profile. Standard learners
  *         get no visible support at this stage.
- *   45s (Module 26 calibrated threshold) — Module 12: the silent teacher alert
- *         is emitted and the Socratic coach is offered.
+ *   45s — Module 12: the Socratic coach is offered and HESITATION_DETECTED is
+ *         emitted. Fixed, never calibrated: the module says the card fires
+ *         "strictly upon: (a) 45 seconds of continuous column hesitation",
+ *         and Appendix A §3 stamps the event `trigger_reason: 'hesitation_45s'`.
+ *   the calibrated threshold (default 45s) — Module 18 §ב: the learner's tile
+ *         turns yellow on the teacher's radar. This is the one an admin moves
+ *         in Module 26's "כיול רדאר פדגוגי" panel, whose own save message
+ *         promises exactly that ("יוחלו על לוח הבקרה"). Until now the slider
+ *         moved the learner's coaching card with it, so an admin who set 60
+ *         silently broke the module's "strictly" and left every hesitation in
+ *         the research data labelled 45s while it was really 60s.
  *
  * Both stages are silent from the learner's perspective until they fire, and
  * neither is shown as a countdown. This hook is the single owner of the
@@ -37,10 +46,13 @@ export function useCognitiveHesitationRadar({
   isActive, 
   onHesitationDetected 
 }: UseCognitiveHesitationRadarProps) {
+  /** Module 12 — the Socratic stage, fixed at SOCRATIC_STAGE_SECONDS. */
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Module 10's 30s grid stage runs on its own deadline so that reaching it
   // never consumes or delays the 45s Socratic stage below.
   const gridTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Module 18 §ב — the teacher radar stage, on the admin-calibrated threshold. */
+  const radarTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Store callback in a ref so changes to it don't reset the timer
   const onHesitationRef = useRef(onHesitationDetected);
   useEffect(() => { onHesitationRef.current = onHesitationDetected; }, [onHesitationDetected]);
@@ -48,12 +60,12 @@ export function useCognitiveHesitationRadar({
   const lastActivityRef = useRef<number>(Date.now());
   /** True while this device has a live 'hesitating' flag on the radar that the next action must clear. */
   const hesitatingPublishedRef = useRef(false);
-  // Module 26: subscribes this hook to the admin-configured threshold
-  // (system_control/trace_calibration, default 45s per PRD). The return
-  // value itself isn't needed here — resetTimeout reads the live value
-  // directly at fire time via getHesitationThresholdSeconds() below — this
-  // call just keeps the shared listener alive for as long as this hook is
-  // mounted.
+  // Module 26: subscribes this hook to the admin-configured radar threshold
+  // (system_control/trace_calibration, default 45s). The return value itself
+  // isn't needed here — resetTimeout reads the live value at fire time via
+  // getHesitationThresholdSeconds() below — this call just keeps the shared
+  // listener alive for as long as this hook is mounted. It governs the
+  // teacher's radar only; the learner's card is on SOCRATIC_STAGE_SECONDS.
   useHesitationThresholdSeconds();
 
   const resetTimeout = useCallback(() => {
@@ -62,6 +74,9 @@ export function useCognitiveHesitationRadar({
     }
     if (gridTimeoutRef.current) {
       clearTimeout(gridTimeoutRef.current);
+    }
+    if (radarTimeoutRef.current) {
+      clearTimeout(radarTimeoutRef.current);
     }
     lastActivityRef.current = Date.now();
     
@@ -105,7 +120,7 @@ export function useCognitiveHesitationRadar({
       const activePlace = wsState.focusedPlace || 'units';
       const colIndex = activePlace === 'thousands' ? 3 : activePlace === 'hundreds' ? 2 : activePlace === 'tens' ? 1 : 0;
       const measuredSeconds = Math.max(
-        getHesitationThresholdSeconds(),
+        SOCRATIC_STAGE_SECONDS,
         Math.round((Date.now() - lastActivityRef.current) / 1000)
       );
 
@@ -130,15 +145,24 @@ export function useCognitiveHesitationRadar({
         hesitationCount: s.hesitationCount + 1,
         hesitationTimerSeconds: measuredSeconds,
       }));
-      set(ref(database, `users/students/${userId}/hesitating`), {
+      if (onHesitationRef.current) {
+        onHesitationRef.current();
+      }
+    }, SOCRATIC_STAGE_SECONDS * 1000);
+
+    // Module 18 §ב — the teacher-facing stage, on the calibrated threshold.
+    // Separate from the card above so that an admin who widens the radar to
+    // 60s widens only what she watches; the child still gets the card at 45,
+    // as Module 12 requires. At the default 45 the two fire together, which
+    // is the behaviour this replaced.
+    radarTimeoutRef.current = setTimeout(() => {
+      const uid = currentStudentUid();
+      if (!uid) return;
+      set(ref(database, `users/students/${uid}/hesitating`), {
         hesitating: true,
         timestamp: Date.now()
       }).catch(console.error);
       hesitatingPublishedRef.current = true;
-
-      if (onHesitationRef.current) {
-        onHesitationRef.current();
-      }
     }, getHesitationThresholdSeconds() * 1000);
   }, [isActive]); // ← onHesitationDetected intentionally removed from deps
 
@@ -149,6 +173,9 @@ export function useCognitiveHesitationRadar({
       }
       if (gridTimeoutRef.current) {
         clearTimeout(gridTimeoutRef.current);
+      }
+      if (radarTimeoutRef.current) {
+        clearTimeout(radarTimeoutRef.current);
       }
       return;
     }
@@ -214,6 +241,9 @@ export function useCognitiveHesitationRadar({
       }
       if (gridTimeoutRef.current) {
         clearTimeout(gridTimeoutRef.current);
+      }
+      if (radarTimeoutRef.current) {
+        clearTimeout(radarTimeoutRef.current);
       }
       unsubscribe();
     };

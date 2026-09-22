@@ -12,6 +12,9 @@ vi.mock('@/infrastructure/firebase', () => ({
   functions: {},
   auth: { currentUser: null },
   db: {},
+  // מודול 14 §ד: שעון השרת הוא הסמכות; classSession קורא לו בהשוואות.
+  serverNow: () => Date.now(),
+  fetchServerClockOffset: () => Promise.resolve(0),
 }));
 
 vi.mock('firebase/database', () => ({

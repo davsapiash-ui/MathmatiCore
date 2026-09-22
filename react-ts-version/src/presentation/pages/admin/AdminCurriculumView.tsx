@@ -101,10 +101,12 @@ export function AdminCurriculumView() {
       .catch((err) => console.warn('[AdminCurriculumView] calibration read notice:', err));
   }, []);
 
-  // Only the hesitation threshold is read by anyone (core/hesitationCalibration.ts
-  // feeds the student trigger and the teacher radar). The former "consecutive
-  // deletions" slider wrote undo_threshold_clicks, which nothing reads: the
-  // PRD fixes that trigger at four (Module 12), so the slider is gone.
+  // Only the hesitation threshold is read by anyone, and it calibrates the
+  // teacher's radar alone (Module 18 §ב) — the learner's coaching card is
+  // fixed at SOCRATIC_STAGE_SECONDS, because Module 12 says "strictly… 45
+  // seconds" and the telemetry labels the event hesitation_45s. The former
+  // "consecutive deletions" slider wrote undo_threshold_clicks, which nothing
+  // reads: the PRD fixes that trigger at four (Module 12), so it is gone.
   const handleSaveCalibration = async () => {
     setIsSavingCalibration(true);
     try {
@@ -378,7 +380,7 @@ export function AdminCurriculumView() {
               כיול רדאר פדגוגי (Trace Data Calibration)
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              הגדרת סף הרגישות לזיהוי מאבק קוגניטיבי סמוי במהלך עבודת התלמיד
+              הגדרת סף הרגישות שבו הרדאר של המורה מסמן מאבק קוגניטיבי סמוי במהלך עבודת התלמיד
             </p>
           </div>
 
@@ -401,7 +403,10 @@ export function AdminCurriculumView() {
                 className="w-full accent-indigo-600 h-2 bg-slate-200 dark:bg-slate-800 rounded-lg cursor-pointer" 
               />
               <p className="text-xs text-slate-500 leading-relaxed">
-                משך הזמן המרבי (בשניות) שבו הלומד משתהה ללא פעולה במרחב הלמידה, בטרם המערכת מתעדת מצב של התלבטות ומאמץ קוגניטיבי.
+                משך הזמן (בשניות) שבו הלומד משתהה ללא פעולה במרחב הלמידה, בטרם הריבוע שלו נצבע בצהוב ברדאר של המורה.
+              </p>
+              <p className="text-xs text-amber-700 dark:text-amber-400 leading-relaxed font-semibold">
+                הסף הזה נוגע לרדאר של המורה בלבד. כרטיס החניכה שהלומד מקבל קבוע על 45 שניות לפי האפיון, ואינו זז עם הסליידר.
               </p>
             </div>
 

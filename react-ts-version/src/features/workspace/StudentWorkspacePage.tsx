@@ -502,8 +502,18 @@ export function StudentWorkspacePage() {
   const isGateApproved = Boolean(myData?.teacher_gate_approved === true || myData?.routeStatus === 'APPROVED');
   useEffect(() => {
     const isApproved = isGateApproved;
-    const isSession2Done = Boolean(myData?.session_2_completed || myData?.completedMeeting2 || (myData as any)?.session_02_completed);
-    const isAwaitingGate = meeting === 3 && (myData?.routeStatus === 'GATE_LOCKED' || myData?.routeStatus === 'PENDING_TEACHER_APPROVAL' || isSession2Done) && !isApproved;
+    // PRD 14 §ב0: "כדי שמפגש 3 ייפתח נדרשים שני התנאים במצטבר: אישור בשער
+    // המורה עבור אותו לומד, ופתיחת מפגש 3 על ידי המורה."
+    //
+    // התנאי כאן דרש בנוסף שהלומד יישא סימן כלשהו של מפגש 2 — routeStatus
+    // נעול/ממתין, או session_2_completed. לומד שלא סיים את האבחון כלל אינו
+    // נושא אף אחד מהם, ולכן דווקא הוא — היחיד שאיש לא ניתב למסלול — נכנס
+    // למפגש 3 בלי אישור, על המאגר הירוק, וזה בדיוק מה ששני התנאים
+    // במצטבר נועדו למנוע. האישור נדרש עכשיו ללא יוצא מן הכלל.
+    //
+    // firebaseLoaded: לפני שהרשומה נטענה אין מה להכריע, וממילא
+    // initSession עצמו ממתין לה — כך שאין הבהוב של מסך המתנה.
+    const isAwaitingGate = meeting === 3 && firebaseLoaded && !isApproved;
 
     if (myData?.routeStatus === 'GATE_LOCKED' || isAwaitingGate) {
       setNetworkError(false); // Teacher lock, not a network error
@@ -511,7 +521,7 @@ export function StudentWorkspacePage() {
     } else if (pendingApproval && isApproved && !networkError) {
       setPendingApproval(false);
     }
-  }, [isGateApproved, myData?.routeStatus, myData?.session_2_completed, myData?.completedMeeting2, meeting, pendingApproval, networkError]);
+  }, [isGateApproved, myData?.routeStatus, meeting, firebaseLoaded, pendingApproval, networkError]);
 
   // Reset initialization when meeting changes
   useEffect(() => {

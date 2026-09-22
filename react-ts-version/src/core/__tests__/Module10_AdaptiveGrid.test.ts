@@ -3,7 +3,7 @@ import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import {
   GRID_STAGE_SECONDS,
-  DEFAULT_SOCRATIC_STAGE_SECONDS,
+  SOCRATIC_STAGE_SECONDS,
   shouldOpenAdaptiveGrid,
 } from '@/core/hesitationStages';
 
@@ -69,7 +69,7 @@ describe('Module 10: מודול לוח חיבור אדפטיבי מבוקר (Can
   });
 
   it('places the grid stage strictly before the Socratic stage', () => {
-    expect(GRID_STAGE_SECONDS).toBeLessThan(DEFAULT_SOCRATIC_STAGE_SECONDS);
+    expect(GRID_STAGE_SECONDS).toBeLessThan(SOCRATIC_STAGE_SECONDS);
   });
 
   it('resets the hesitation measurement upon cognitive user interaction', () => {

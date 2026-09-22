@@ -7,10 +7,13 @@
  *
  *   30s  — Module 10: the adaptive addition grid opens, and only for learners
  *          carrying the `enhanced_cognitive_support` profile.
- *   45s  — Module 12: the silent teacher alert fires and the Socratic coach is
- *          offered. The 45s figure is the PRD default; Module 26 lets an admin
- *          calibrate it, so the live value comes from
- *          `getHesitationThresholdSeconds()`, never from a literal.
+ *   45s  — Module 12: the Socratic coach is offered. This one is fixed. The
+ *          module says the card fires "strictly upon: (a) 45 seconds of
+ *          continuous column hesitation", and Appendix A §3 stamps the event
+ *          `trigger_reason: 'hesitation_45s'`. A slider that moved it would
+ *          have made that label a lie and the pilot's hesitation data
+ *          incomparable between learners. The Module 26 calibration governs
+ *          the teacher's radar — when a tile turns yellow — and not this.
  *
  * The stage predicates live here, as pure functions, so they can be pinned by
  * tests directly. `useCognitiveHesitationRadar` is the only runtime caller —
@@ -20,8 +23,11 @@
 /** Module 10: unbroken hesitation, in seconds, before the adaptive grid opens. */
 export const GRID_STAGE_SECONDS = 30;
 
-/** Module 12: PRD default for the Socratic stage, before Module 26 calibration. */
-export const DEFAULT_SOCRATIC_STAGE_SECONDS = 45;
+/**
+ * Module 12 §ד: unbroken hesitation, in seconds, before the Socratic card is
+ * offered. Fixed — see the header. Not admin-calibrated, and not a default.
+ */
+export const SOCRATIC_STAGE_SECONDS = 45;
 
 /**
  * Owner decision (7.9.2026, register decision ב): the board fades in softly over

@@ -11,6 +11,16 @@ interface ReplayViewerProps {
   onEnd?: () => void;
   /** Fires on every progress tick with the current absolute event timestamp (ms epoch), so a parent can auto-highlight the matching decision-table row as playback advances. */
   onProgress?: (absoluteTimestampMs: number) => void;
+  /**
+   * מודול 21 §ב: "ההפעלה מתבצעת עבור התרגיל הספציפי שנבחר בלבד".
+   * חותמת זמן מוחלטת שבה ההפעלה נעצרת — סוף התרגיל שנבחר. ללא ערך,
+   * ההקלטה רצה עד סופה כרגיל.
+   *
+   * ה-Replayer עצמו מקבל את כל האירועים, כי תצלום המסך המלא (rrweb type 2)
+   * יושב בתחילת ההקלטה — חיתוך המערך היה משאיר נגן בלי מה לצייר. הגבול
+   * הוא על ההפעלה, לא על הנתונים.
+   */
+  stopAtTime?: number;
 }
 
 function formatTime(ms: number): string {
@@ -21,7 +31,7 @@ function formatTime(ms: number): string {
   return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 }
 
-export function ReplayViewer({ events, seekToTime, seekNonce, onEnd, onProgress }: ReplayViewerProps) {
+export function ReplayViewer({ events, seekToTime, seekNonce, onEnd, onProgress, stopAtTime }: ReplayViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const replayerRef = useRef<any>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -145,6 +155,10 @@ export function ReplayViewer({ events, seekToTime, seekNonce, onEnd, onProgress 
   // fresh inline callback.
   const onProgressRef = useRef(onProgress);
   onProgressRef.current = onProgress;
+  const stopAtRef = useRef(stopAtTime);
+  stopAtRef.current = stopAtTime;
+  const onEndRef = useRef(onEnd);
+  onEndRef.current = onEnd;
 
   // Track progress timer smoothly
   useEffect(() => {
@@ -154,6 +168,15 @@ export function ReplayViewer({ events, seekToTime, seekNonce, onEnd, onProgress 
           try {
             const current = replayerRef.current.getCurrentTime();
             setCurrentTimeMs(current);
+            // מודול 21 §ב: סוף התרגיל שנבחר הוא סוף ההפעלה.
+            const stopAt = stopAtRef.current;
+            if (typeof stopAt === 'number' && firstTimestamp + current >= stopAt) {
+              try { replayerRef.current.pause(); } catch {}
+              setIsPlaying(false);
+              onProgressRef.current?.(stopAt);
+              onEndRef.current?.();
+              return;
+            }
             // PRD Module 21 §ב: the bidirectional table<->player link requires
             // the decision table to auto-highlight the matching row as the
             // player advances, not just seek the player when a row is clicked.
