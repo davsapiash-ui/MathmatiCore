@@ -24,7 +24,7 @@ const OVERLAYS = [
   'src/presentation/pages/TeacherDashboard/components/ResetConfirmationModal.tsx',
   'src/presentation/pages/TeacherDashboard/components/SessionActivationModal.tsx',
   'src/presentation/pages/TeacherDashboard.tsx',
-  'src/features/workspace/overlays/SocraticDrawer.tsx',
+  'src/features/workspace/overlays/HelpOverlays.tsx',
   'src/features/workspace/overlays/StudentChatOverlay.tsx',
 ];
 
@@ -50,7 +50,7 @@ describe('מסמך העיצוב §1.2 — ניווט מקלדת מלא', () => {
   });
 
   it('פאנל לא-חוסם אינו לוכד פוקוס — אחרת הלומד ננעל מחוץ ללוח שלו', () => {
-    const socratic = read('src/features/workspace/overlays/SocraticDrawer.tsx');
+    const socratic = read('src/features/workspace/overlays/HelpOverlays.tsx');
     expect(socratic).toContain('trapFocus: false');
     expect(hook).toContain('trapFocus = true');
   });
@@ -70,7 +70,8 @@ describe('מסמך העיצוב §1.3 — מצב שקט חזותי', () => {
 
   it('תנועה שמלמדת שורדת את מצב השקט', () => {
     expect(css).toMatch(/\[data-quiet='true'\] \.motion-essential/);
-    expect(read('src/features/workspace/components/InteractiveTutorialPointer.tsx')).toContain('motion-essential');
+    // מסך סיום המפגש: החגיגה היא משוב, לא קישוט, ולכן היא שורדת את מצב השקט.
+    expect(read('src/features/workspace/StudentWorkspacePage.tsx')).toContain('motion-essential');
   });
 
   it('העדפת תנועה מופחתת של מערכת ההפעלה מכובדת גלובלית', () => {
@@ -131,7 +132,7 @@ describe('כפתור מושבת אומר מה חסר', () => {
 
   it('נעילת חלונית החניכה מסבירה למה, כמה זמן, ומה כן אפשר לעשות', () => {
     const help = read('src/features/workspace/overlays/HelpOverlays.tsx');
-    expect(help).toContain('החלונית נעולה לחשיבה');
+    expect(help).toContain('רגע לחשיבה — החלונית נעולה');
     expect(help).toContain('לוח הדינס וכפתור הביטול');
     // הודעת ההמתנה עצמה לא מהבהבת — היא מוצגת ברגע של תסכול.
     expect(help).not.toMatch(/החלונית נעולה[\s\S]{0,400}animate-pulse/);
@@ -143,7 +144,6 @@ describe('משוב פדגוגי נאמר, לא רק מצויר', () => {
   // הוא הופיע במסך בלי שום הכרזה, כך שילד שנעזר בהקראה בחר אפשרות
   // ולא קיבל שום סימן שמשהו קרה.
   it.each([
-    ['src/features/workspace/overlays/SocraticDrawer.tsx', 'feedbackMsg'],
     ['src/features/workspace/overlays/HelpOverlays.tsx', 'feedbackHint'],
   ])('%s מכריז על המשוב', (file, marker) => {
     const src = read(file);
@@ -152,8 +152,10 @@ describe('משוב פדגוגי נאמר, לא רק מצויר', () => {
   });
 
   it('נעילת ההמתנה בכרטיס החניכה מוכרזת גם היא', () => {
-    const drawer = read('src/features/workspace/overlays/SocraticDrawer.tsx');
-    expect(drawer).toMatch(/role="status"[\s\S]{0,600}רגע לחשיבה/);
+    const card = read('src/features/workspace/overlays/HelpOverlays.tsx');
+    expect(card).toMatch(/role="status"[\s\S]{0,600}רגע לחשיבה/);
+    // השנייה המתעדכנת מוכרזת, לא רק מצוירת.
+    expect(card).toContain('<span aria-live="polite">רגע לחשיבה');
   });
 });
 

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useDismissableOverlay } from '@/hooks/useDismissableOverlay';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useWorkspaceStore, getActiveTasks, placeToColumnIndex } from '@/application/useWorkspaceStore';
 import { useAuthStore, currentStudentUid } from '@/application/useAuthStore';
@@ -24,6 +25,13 @@ export function HelpOverlays() {
   const helpState = useWorkspaceStore((s) => s.helpState);
   const helpFrictionDone = useWorkspaceStore((s) => s.helpFrictionDone);
   const closeHelp = useWorkspaceStore((s) => s.closeHelp);
+
+  // מסמך העיצוב §1.2: כל חלונית נסגרת ב-Escape, דרך ההוק המשותף — אחרת
+  // מסך אחד מתנהג אחרת מכל השאר. הכרטיס הזה נשאר עד כה בלי Escape בכלל:
+  // ההתנהגות הייתה בנויה במגירה הישנה, שאיש לא הרכיב, ולכן הילד לא קיבל
+  // אותה. `trapFocus: false` — הכרטיס אינו חוסם, והלומד חייב להמשיך
+  // לנווט אל הלוח ואל כפתור הביטול בזמן שהוא פתוח (מודול 12 §ב).
+  const cardRef = useDismissableOverlay<HTMLElement>(helpState === 'socratic', closeHelp, { trapFocus: false, autoFocus: false });
 
   // Fast, smooth transition (300ms) for snappy help response without lag.
   useEffect(() => {
@@ -127,6 +135,7 @@ export function HelpOverlays() {
             data-testid="socratic-overlay-wrapper"
           >
             <motion.aside
+              ref={cardRef}
               initial={{ opacity: 0, y: -20, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -20, scale: 0.95, pointerEvents: 'none' }}
@@ -149,6 +158,9 @@ export function HelpOverlays() {
                     text={[
                       aiSocraticHint?.questionHe || content?.titleHe || 'שאלה מנחה לחשיבה',
                       ...(!aiSocraticHint ? content?.lines ?? [] : []),
+                      // הקראת השאלה בלי האפשרויות משאירה ילד שנעזר בהקראה
+                      // מול שלוש אפשרויות שלא שמע. מודול 7 (UDL).
+                      ...(aiSocraticHint?.choices?.map((c) => c.textHe) ?? []),
                     ].join('. ')}
                     className="shrink-0"
                   />
@@ -327,11 +339,14 @@ function SocraticPenaltyLockOptions({ onClose }: { onClose: () => void }) {
       })}
 
       {lockSeconds > 0 && (
+        // הנעילה של 30 השניות הופיעה על המסך בלי שום הכרזה: ילד שנעזר
+        // בהקראה בחר אפשרות שגויה, הכפתורים הפסיקו להגיב, ושום דבר לא אמר
+        // לו למה. `aria-live` אחד על הכותרת, לא על השנייה המתעדכנת.
         <div role="status"
           className="bg-amber-500/15 border border-amber-500/40 rounded-2xl p-3 text-center text-amber-900 dark:text-amber-200 text-xs sm:text-sm font-bold space-y-1">
           <div className="flex items-center justify-center gap-1.5 text-base font-black">
-            <span>⏳</span>
-            <span>החלונית נעולה לחשיבה: {lockSeconds} שניות</span>
+            <span aria-hidden="true">⏳</span>
+            <span aria-live="polite">רגע לחשיבה — החלונית נעולה: {lockSeconds} שניות</span>
           </div>
           <p className="text-xs text-amber-800/90 dark:text-amber-300/90 font-medium">
             לוח הדינס וכפתור הביטול (↩️) פתוחים ופעילים. נסו לחקור את הבלוקים עד שהחלונית תיפתח מחדש.
