@@ -1,6 +1,7 @@
 import { ref, push, serverTimestamp } from "firebase/database";
 import { database, authReady } from "@/infrastructure/firebase";
 import { sanitizePII } from "@/core/security/PiiFilter";
+import { isTeacherOrAdminId } from "@/core/staffIdentity";
 
 export type ErrorCategory = 'FACTUAL_ERROR' | 'PROCEDURAL_ERROR' | 'STRATEGIC_ERROR';
 export type AuditAction = ErrorCategory | 'TASK_ERROR' | string;
@@ -37,7 +38,12 @@ class AuditLoggerService {
       const sanitizedDetails = maskPII(details);
 
       const cleanId = (userId || '').trim().toLowerCase();
-      const isStudentEvent = cleanId.startsWith('student_') || (!['admin', 'teacher', 'unknown_uid'].includes(cleanId) && !cleanId.includes('@'));
+      // Same rule as the chat (core/staffIdentity). The local guess used here
+      // — "not admin, not teacher, no @" — took a teacher’s Firebase auth uid
+      // for a learner, so her login, logout and role switch were pushed into
+      // users/students/<uid>/radar_history and radar_alerts, and never into
+      // audit_logs where the admin console looks for them.
+      const isStudentEvent = cleanId !== 'unknown_uid' && !isTeacherOrAdminId(cleanId);
 
       // The global audit log is what the admin console shows under "יומן
       // אירועי אבטחה וביקורת". Every learner event — each wrong answer with

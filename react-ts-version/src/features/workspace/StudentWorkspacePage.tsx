@@ -20,7 +20,7 @@ import { useAuthStore, stampStudentWindowClosed, touchStudentActivity, currentSt
 import { submitSRLReflection } from '@/core/srlReflection';
 import { useActiveClassSession } from '@/application/useActiveClassSession';
 import { database, authReady, fetchServerClockOffset } from '@/infrastructure/firebase';
-import { ref, push, onValue, set, update, onDisconnect } from 'firebase/database';
+import { ref, push, onValue, set, update, get, onDisconnect } from 'firebase/database';
 import { normalizeStudentId } from '@/application/useChatStore';
 import { AnimatePresence, MotionConfig } from 'framer-motion';
 import { PlaceValueBoard } from './board/PlaceValueBoard';
@@ -300,6 +300,8 @@ export function StudentWorkspacePage() {
   }, [normUid, counts, answerDigits, carryDigits, undoCount, hesitationCount, meeting, sessionNumber, flowStatus]);
 
   // --- RRWeb Telemetry Recording (Authentic High-Definition Screen Capture) ---
+  const classStartedAt = activeClassSession?.startedAt ?? null;
+  const classSessionNumber = activeClassSession?.sessionNumber ?? null;
   useEffect(() => {
     let stopRecording: (() => void) | undefined;
     let eventsQueue: any[] = [];
@@ -310,8 +312,8 @@ export function StudentWorkspacePage() {
     if (!uid) return;
 
     // Use active class session timestamp or fallback to current student session start
-    const sessionTs = activeClassSession?.startedAt || Date.now();
-    const effectiveSessionNum = activeClassSession?.sessionNumber || meeting || 1;
+    const sessionTs = classStartedAt || Date.now();
+    const effectiveSessionNum = classSessionNumber || meeting || 1;
     const sessionId = `session_${sessionTs}`;
 
     // Save session metadata under student profile
@@ -325,8 +327,21 @@ export function StudentWorkspacePage() {
     // Module 21 caps a learner's recording at 50MB per meeting: on reaching it the
     // recording stops silently, recording_truncated is flagged, and learning goes
     // on untouched on the learner's side.
+    // The counter belongs to the recording, not to this mount: a refresh
+    // mid-meeting continues the same `session_{startedAt}` recording, so it
+    // continues the same count — otherwise every refresh handed the learner
+    // a fresh 50MB and the cap was never really a cap. It is kept on the
+    // recording’s own node (the student domain holds nothing in browser
+    // storage), read once here and advanced with every chunk.
+    const recordingPath = `users/students/${uid}/telemetry_sessions/${sessionId}`;
     let recordedBytes = 0;
     let truncated = false;
+    const bytesReady = get(ref(database, `${recordingPath}/recorded_bytes`))
+      .then((snap) => {
+        recordedBytes = Number(snap.val()) || 0;
+        truncated = recordedBytes >= RECORDING_BYTE_CAP;
+      })
+      .catch(() => { /* unknown — count from here */ });
 
     /** The exercise the learner is on right now, which chapters the replay timeline. */
     const currentExerciseId = (): string => {
@@ -360,6 +375,7 @@ export function StudentWorkspacePage() {
       if (!chunkKey) return;
 
       recordedBytes += payloadBytes;
+      update(ref(database, recordingPath), { recorded_bytes: recordedBytes }).catch(() => { /* the next flush writes it again */ });
       const chunksPath = `users/students/${uid}/telemetry_sessions/${sessionId}/chunks`;
       const metadataPath = `users/students/${uid}/telemetry_sessions/${sessionId}/metadata`;
       const metaPayload = {
@@ -389,6 +405,8 @@ export function StudentWorkspacePage() {
 
       const authOk = await authReady;
       if (!authOk || cancelled) return;
+      await bytesReady;
+      if (cancelled || truncated) return;
 
       const rrwebAny = rrweb as any;
       const recordFn = rrweb.record || (rrwebAny.default && rrwebAny.default.record) || rrwebAny;
@@ -423,7 +441,11 @@ export function StudentWorkspacePage() {
       window.removeEventListener('beforeunload', flushTelemetry);
       flushTelemetry();
     };
-  }, [user?.uid, normUid, isTeacherSessionActive, activeClassSession, meeting]);
+    // Values, not the session object: the object used to be rebuilt on every
+    // 15-second refresh, and each rebuild restarted rrweb with a full-DOM
+    // snapshot, which is why a replay looked like it started over on every
+    // chunk and why the 50MB cap never accumulated.
+  }, [user?.uid, normUid, isTeacherSessionActive, classStartedAt, classSessionNumber, meeting]);
 
   const [isInitializing, setIsInitializing] = useState(true);
   const [pendingApproval, setPendingApproval] = useState(false);
@@ -959,17 +981,41 @@ export function StudentWorkspacePage() {
   }
 
 
+  // The teacher’s three controls (Module 14 / register 7: start, pause,
+  // close) and projector mode (Module 15) reach the learner live, in place —
+  // on every screen. They used to render only under the task board, so a
+  // learner on the choice screen, the reflection or the "well done" screen
+  // saw nothing when the teacher paused, closed or projected.
+  const classStateOverlays = (
+    <>
+      <AnimatePresence>
+        {isProjectorModeActive && <ProjectorWaitingScreen />}
+      </AnimatePresence>
+      <AnimatePresence>
+        {activeClassSession.status === 'paused' && !isTeacherOrAdmin && <SessionPausedOverlay />}
+      </AnimatePresence>
+      <AnimatePresence>
+        {activeClassSession.status === 'closed' && !isTeacherOrAdmin && activeClassSession.isLoaded && (
+          <SessionClosedOverlay />
+        )}
+      </AnimatePresence>
+    </>
+  );
+
   // Module 14: Post-Mandatory Tasks Choice Point (Reinforcement vs Challenge)
   if (flowStatus === 'choice_branch') {
     return (
-      <ReinforcementOrChallengeScreen
-        onSelectBranch={(branch) => {
-          useWorkspaceStore.getState().selectBranch(branch);
-        }}
-        onSkipToFinish={() => {
-          useWorkspaceStore.getState().finishMeetingEarly();
-        }}
-      />
+      <>
+        <ReinforcementOrChallengeScreen
+          onSelectBranch={(branch) => {
+            useWorkspaceStore.getState().selectBranch(branch);
+          }}
+          onSkipToFinish={() => {
+            useWorkspaceStore.getState().finishMeetingEarly();
+          }}
+        />
+        {classStateOverlays}
+      </>
     );
   }
 
@@ -981,7 +1027,8 @@ export function StudentWorkspacePage() {
       const errorCount = (myData as any)?.errorCount || (myData as any)?.errors || 0;
       const guessCount = (myData as any)?.guessCount || (myData as any)?.distractorClicks || 0;
 
-      return <Session8ReflectionScreen 
+      return <>
+        <Session8ReflectionScreen 
         metrics={{ 
           fastestTaskType: 'כפל פי 10 ו-100', 
           slowestTaskType: 'כפל פי 20 ו-30',
@@ -999,9 +1046,11 @@ export function StudentWorkspacePage() {
           }
           navigate('/hub');
         }}
-      />;
+      />
+        {classStateOverlays}
+      </>;
     }
-    return <ReflectionScreen />;
+    return <><ReflectionScreen />{classStateOverlays}</>;
   }
 
   // Module 20 §ב: finishing the diagnostic meeting lands on the waiting screen.
@@ -1009,7 +1058,7 @@ export function StudentWorkspacePage() {
   // the opening of meeting 3 are both hers. The screen listens for the
   // approval and returns the learner to the lobby the moment it lands.
   if (flowStatus === 'sessionDone' && sessionNumber === 2 && !isGateApproved) {
-    return <BeeFlightWaitingScreen onApproved={() => navigate('/hub')} />;
+    return <><BeeFlightWaitingScreen onApproved={() => navigate('/hub')} />{classStateOverlays}</>;
   }
 
   // Module 14: Session complete screen
@@ -1032,6 +1081,7 @@ export function StudentWorkspacePage() {
             <p className="text-xs text-ws-soft">כשהמורה תפתח את המפגש הבא, נמשיך יחד.</p>
           </div>
         </div>
+        {classStateOverlays}
       </div>
     );
   }
@@ -1118,23 +1168,9 @@ export function StudentWorkspacePage() {
         <HelpOverlays />
         <StudentChatOverlay />
 
-        {/* Module 15: Projector Mode In-Place Overlay */}
-        <AnimatePresence>
-          {isProjectorModeActive && <ProjectorWaitingScreen />}
-        </AnimatePresence>
-
-        {/* Teacher paused the meeting: wait in place, board untouched underneath. */}
-        <AnimatePresence>
-          {activeClassSession.status === 'paused' && !isTeacherOrAdmin && <SessionPausedOverlay />}
-        </AnimatePresence>
-
-        {/* Teacher closed the meeting: wait in place, board untouched underneath (Deviation 10) */}
-        {/* המורה סגרה את המפגש */}
-        <AnimatePresence>
-          {activeClassSession.status === 'closed' && !isTeacherOrAdmin && activeClassSession.isLoaded && (
-            <SessionClosedOverlay />
-          )}
-        </AnimatePresence>
+        {/* Module 15 projector, teacher pause and teacher close (register 7):
+            wait in place, board untouched underneath. המורה סגרה את המפגש */}
+        {classStateOverlays}
         
         {/* Module 10 + the matrix (register decision ב): the grid fades in over
             2.5s and hides itself 3s after a correct digit. AnimatePresence

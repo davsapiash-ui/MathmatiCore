@@ -48,8 +48,11 @@ describe('Module 20: the approval gate cannot be bypassed or mis-routed', () => 
   });
 
   it('the canonical RTDB mirror must land or the approval fails loudly', () => {
-    expect(gateCore).toMatch(/await update\(ref\(database, `users\/students\/student_user\$\{num\}`\), mirror\);/);
-    expect(gateCore).toMatch(/reason:\s*'write_failed',\s*message:\s*'האישור נכתב ב-Firestore/);
+    expect(gateCore).toContain("const canonicalPath = `users/students/student_user${num}`;");
+    expect(gateCore).toMatch(/await update\(ref\(database, canonicalPath\), mirror\);/);
+    expect(gateCore).toMatch(/reason:\s*'write_failed',\s*message:\s*'האישור נשמר\. שחרור מסך התלמיד/);
+    // Module 17: the mirror that releases the learner is queued, never dropped.
+    expect(gateCore).toContain('indexedDBQueue.enqueue(canonicalPath, { ...mirror');
   });
 
   it('generating a report no longer bricks the gate: the session allowlist carries the report fields', () => {
