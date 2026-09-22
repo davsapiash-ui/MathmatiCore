@@ -147,7 +147,7 @@ describe('דף הנחיתה ומונחים', () => {
     for (const p of [
       'infrastructure/services/SocraticEngine.ts',
       'data/sessionTasks.ts',
-      'features/workspace/components/InteractiveTutorialPointer.tsx',
+      'features/workspace/overlays/HelpOverlays.tsx',
     ]) {
       expect(src(p), p).not.toContain('פח המחזור');
     }

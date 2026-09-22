@@ -824,7 +824,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         break;
       case 'all_complete':
         showFeedback({ correct: true, title: 'סִיַּמְתֶּם! 🎉', sub: 'כָּל הַכָּבוֹד עַל הָעֲבוֹדָה הַטּוֹבָה!' }, 2200, () => {
-          set({ flowStatus: 'reflection', awaitingNext: false, currentState: 'COMPLETE' });
+          // מודול 16 §א: לוח הרפלקציה הוא "בסיום מפגש 8" — שם בלבד. מודול 14
+          // §ב0 ומודול 20: מפגש 2 מסתיים במסך המתנה שקט עד שהמורה מאשרת את
+          // המסלול. הקוד הציג כאן את לוח הרפלקציה המלא, כולל אחוז מדד ההתמדה —
+          // לילד, ברגע שבו מוכרע לאיזה מסלול הוא הולך.
+          set({ flowStatus: 'sessionDone', awaitingNext: false, currentState: 'COMPLETE' });
           const studentId = useAuthStore.getState().user?.uid;
           if (studentId) {
             const store = useStore.getState();
@@ -935,11 +939,15 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       }
     }
     // PRD 14 §ג: a learner who is done waits on the quiet end screen. This used
-    // to set 'reflection', and every meeting other than 8 then rendered the
+    // to set 'reflection' for every meeting, and each one then rendered the
     // MEETING-2 reflection screen: it overwrote the learner's diagnostic
     // Q-matrix with nulls, replaced the meeting-2 reflection record, set the
     // gate back to PENDING_TEACHER_APPROVAL and filed a reflection under meeting 8.
-    set({ flowStatus: 'sessionDone' });
+    //
+    // Fixing that sent every meeting to the quiet screen — meeting 8 with
+    // them, and meeting 8 is the one meeting whose ending IS the reflection
+    // board (Module 16 §א; Module 14 calls it "סיכום ורפלקציית SRL").
+    set({ flowStatus: s.sessionNumber === 8 ? 'reflection' : 'sessionDone' });
   }
 
   /** The two exercise shapes whose operation is representation (measure 3). */
@@ -1304,7 +1312,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
       set({ awaitingNext: true, currentState: 'COMPLETE' });
       showFeedback({ correct: true, title: 'כָּל הַכָּבוֹד! 🎉', sub: `מִפְגָּשׁ ${s.sessionNumber} הוּשְׁלַם בְּהַצְלָחָה!` }, 2500, () => {
-        set({ flowStatus: 'sessionDone', awaitingNext: false });
+        // מודול 16: מפגש 8 מסתיים בלוח הרפלקציה התלת-שלבי — זו כל מטרתו
+        // ("חוקר-על — סיכום ורפלקציית SRL", מודול 14). הלוח היה בנוי, נבדק
+        // ונשמר כהלכה, אבל שום מסלול בקוד לא הוביל אליו: כל מפגש הסתיים
+        // במסך "כל הכבוד", והלוח לא נפתח לאף ילד מעולם.
+        set({ flowStatus: s.sessionNumber === 8 ? 'reflection' : 'sessionDone', awaitingNext: false });
       });
       return;
     }
@@ -1352,7 +1364,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     set({ awaitingNext: true, currentState: 'COMPLETE' });
     showFeedback({ correct: true, title: 'כָּל הַכָּבוֹד! 🎉', sub: `מִפְגָּשׁ ${s.sessionNumber} הוּשְׁלַם בְּהַצְלָחָה!` }, 2500, () => {
-      set({ flowStatus: 'sessionDone', awaitingNext: false });
+      // מודול 16: מפגש 8 מסתיים בלוח הרפלקציה התלת-שלבי — זו כל מטרתו
+      // ("חוקר-על — סיכום ורפלקציית SRL", מודול 14). הלוח היה בנוי, נבדק
+      // ונשמר כהלכה, אבל שום מסלול בקוד לא הוביל אליו: כל מפגש הסתיים
+      // במסך "כל הכבוד", והלוח לא נפתח לאף ילד מעולם.
+      set({ flowStatus: s.sessionNumber === 8 ? 'reflection' : 'sessionDone', awaitingNext: false });
     });
   }
 
