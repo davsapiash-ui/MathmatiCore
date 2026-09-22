@@ -333,16 +333,75 @@ export async function resolveDriveFolder(pathSegments: string[]): Promise<string
  * Upload an arbitrary buffer/file to the shared Google Drive folder.
  * Exported for reuse by the pedagogical report generator (Module 23 Drive mirror).
  */
+/**
+ * נפילה חזרה לאחסון כשהדרייב לא זמין (החלטת בעל המוצר, 23.9.2026).
+ *
+ * הדוחות והגיבויים נוצרים **בשרת**, לא במחשב של בעל המוצר — ולכן "אין
+ * רשת אצלי" אינו התרחיש (בלי רשת אי אפשר בכלל ללחוץ על הכפתור). התרחיש
+ * האמיתי הוא שהשרת אינו מצליח לכתוב לדרייב: פג תוקף ההרשאה, מכסה, או
+ * תקלה ב-API. עד כה הקובץ נוצר ונזרק.
+ *
+ * הקובץ נשמר עכשיו ב-Cloud Storage — אותו מרכז נתונים, בלי תלות ב-API
+ * של דרייב — ומחכה שם. הורדה ישירה לדפדפן הייתה עובדת רק אם בעל המוצר
+ * יושב מול המסך באותו רגע; כאן הקובץ נשאר גם אם ייכנס מחר.
+ */
+const DRIVE_FALLBACK_PREFIX = "drive_fallback";
+
+export async function uploadBufferToFallbackStorage(
+  buffer: Buffer,
+  fileName: string,
+  mimeType: string,
+  driveError: string
+): Promise<{ storagePath: string; downloadUrl: string | null }> {
+  const safeName = fileName.replace(/[^\w.\u0590-\u05FF-]+/g, "_");
+  const storagePath = `${DRIVE_FALLBACK_PREFIX}/${new Date().toISOString().slice(0, 10)}/${Date.now()}_${safeName}`;
+  const file = admin.storage().bucket().file(storagePath);
+
+  await file.save(buffer, {
+    contentType: mimeType,
+    metadata: {
+      metadata: {
+        drive_error: driveError.slice(0, 500),
+        original_name: fileName,
+        saved_at: String(Date.now()),
+      },
+    },
+  });
+
+  // קישור חתום לשבוע — מספיק זמן להוריד בלי להשאיר קובץ פתוח לעד.
+  let downloadUrl: string | null = null;
+  try {
+    const [url] = await file.getSignedUrl({ action: "read", expires: Date.now() + 7 * 24 * 60 * 60 * 1000 });
+    downloadUrl = url;
+  } catch (err) {
+    logger.warn("Drive fallback: the file was saved but no signed link could be issued", err);
+  }
+
+  logger.warn(`Drive upload failed for ${fileName}; the file is waiting at ${storagePath}. Drive said: ${driveError}`);
+  return { storagePath, downloadUrl };
+}
+
 export async function uploadBufferToDrive(
   buffer: Buffer,
   fileName: string,
   mimeType: string,
   parentFolderId = GOOGLE_DRIVE_FOLDER_ID
-): Promise<{ success: boolean; fileId: string; webViewLink: string; error?: string }> {
+): Promise<{ success: boolean; fileId: string; webViewLink: string; error?: string; fallbackStoragePath?: string; fallbackDownloadUrl?: string | null }> {
+  /** הקובץ לעולם אינו נזרק: מה שהדרייב דחה נשמר באחסון וממתין. */
+  const parkInStorage = async (reason: string) => {
+    try {
+      const parked = await uploadBufferToFallbackStorage(buffer, fileName, mimeType, reason);
+      return { success: false, fileId: '', webViewLink: '', error: reason, fallbackStoragePath: parked.storagePath, fallbackDownloadUrl: parked.downloadUrl };
+    } catch (err: any) {
+      logger.error(`Drive fallback also failed for ${fileName}:`, err);
+      return { success: false, fileId: '', webViewLink: '', error: `${reason} | fallback failed: ${err?.message || String(err)}` };
+    }
+  };
+
   try {
     const accessToken = await getDriveAccessToken();
     if (!accessToken) {
-      return { success: false, fileId: '', webViewLink: '', error: 'Google Drive access token unavailable' };
+      return await parkInStorage('Google Drive access token unavailable');
     }
 
     const performUpload = async (parents?: string[]) => {
@@ -399,10 +458,10 @@ export async function uploadBufferToDrive(
       return { success: true, fileId, webViewLink };
     } else {
       const errText = await response.text();
-      return { success: false, fileId: '', webViewLink: '', error: `Drive API ${response.status}: ${errText}` };
+      return await parkInStorage(`Drive API ${response.status}: ${errText}`);
     }
   } catch (err: any) {
-    return { success: false, fileId: '', webViewLink: '', error: err?.message || String(err) };
+    return await parkInStorage(err?.message || String(err));
   }
 }
 
@@ -1697,13 +1756,21 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
 
     const uploads: Record<string, string> = {};
     const uploadedIds: string[] = [];
+    // קבצים שהדרייב דחה והמתינו באחסון (החלטת בעל המוצר, 23.9.2026).
+    const parked: Array<{ name: string; url: string | null; path: string }> = [];
     for (const f of files) {
       const res = await uploadBufferToDrive(Buffer.from(f.csv, "utf-8"), `${f.name}_${stamp}.csv`, "text/csv", targetFolderId);
       uploads[f.name] = res.success ? res.webViewLink : `failed: ${res.error}`;
       if (res.success) uploadedIds.push(res.fileId);
+      else if (res.fallbackStoragePath) {
+        parked.push({ name: f.name, url: res.fallbackDownloadUrl ?? null, path: res.fallbackStoragePath });
+        uploads[f.name] = res.fallbackDownloadUrl ?? `נשמר באחסון: ${res.fallbackStoragePath}`;
+      }
     }
-    if (uploadedIds.length === 0) {
-      throw new HttpsError("internal", `הייצוא נבנה (${files.map((f) => `${f.name}: ${f.rows}`).join(", ")}) אך הכתיבה לדרייב נכשלה: ${uploads[files[0].name]}`);
+    // הייצוא נכשל רק אם גם הדרייב וגם האחסון לא קיבלו דבר. אם הקבצים
+    // ממתינים באחסון — הם קיימים, ואין שום סיבה להגיד למורה שהכול אבד.
+    if (uploadedIds.length === 0 && parked.length === 0) {
+      throw new HttpsError("internal", `הייצוא נבנה (${files.map((f) => `${f.name}: ${f.rows}`).join(", ")}) אך הכתיבה נכשלה: ${uploads[files[0].name]}`);
     }
 
     // Requirement 5: Log export event to reset_audit_log with reset_level: 'export'
@@ -1721,8 +1788,9 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
       export_date: exportDate,
       drive_folder_id: targetFolderId,
       files: uploadedIds,
+      parked_files: parked.map((p) => p.path),
       row_counts: Object.fromEntries(files.map((f) => [f.name, f.rows])),
-      status: "SUCCESS",
+      status: parked.length > 0 && uploadedIds.length === 0 ? "SUCCESS_STORAGE_ONLY" : "SUCCESS",
       created_at: admin.firestore.FieldValue.serverTimestamp(),
     });
 
