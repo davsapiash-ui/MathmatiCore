@@ -179,6 +179,7 @@ const EVENT_LABELS_HE: Record<string, string> = {
   ADAPTIVE_GRID_TOGGLED: 'לוח החיבור',
   KEYBOARD_LOCK_BLOCKED: 'הקלדה לפני המרה (מקלדת נעולה)',
   HELP_REQUESTED: 'קריאה שקטה למורה',
+  BOARD_CLEARED: 'ניקוי הלוח',
 };
 
 export interface EventDescription {
@@ -209,6 +210,9 @@ export function describeEvent(e: JourneyEvent): EventDescription {
   let selfRegulation = false;
   let attention = false;
   switch (e.eventType) {
+    case 'BOARD_CLEARED':
+      detail = `${d.blocks_removed ?? 0} לבנים ירדו מהלוח בבת אחת`;
+      break;
     case 'SESSION_START':
       detail = typeof d.session_number === 'number' ? `מפגש ${d.session_number}` : '';
       break;

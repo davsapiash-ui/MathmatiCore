@@ -1602,6 +1602,46 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
     }
     const compulsoryCache = new Map<string, number | null>();
     const compulsoryIdsByBank = new Map<string, ReadonlySet<string>>();
+    const resetLogs = await readAllDocs(db.collection("reset_audit_log").where("class_id", "==", class_id))
+      .catch(async () => readAllDocs(db.collection("reset_audit_log")));
+
+    // החלטת בעל המוצר, 23.9.2026 (פער יג): מפגש שאופס באמצע מוחזר ללומד
+    // מתרגיל 1, והוא פותר תרגילים שכבר ראה. מדד 1 של המחקר הוא "ניסיון
+    // ראשון", ולכן שורה כזו דורשת תשומת לב — אבל המספרים עצמם אינם
+    // משתנים ושום נתון אינו נמחק. היומן המלא (מי, מתי, למה) נשאר בקובץ
+    // "יומן_איפוסים"; כאן נוסף דגל על השורה עצמה, כדי שלא יידרש לחפש בו
+    // על כל אחת מ-96 שורות המפגש.
+    const resetsByLearnerMeeting = new Map<string, number[]>();
+    for (const { data } of resetLogs) {
+      const at = Number((data as any).performed_at);
+      if (!Number.isFinite(at)) continue;
+      const meeting = Number((data as any).session_number);
+      const affected: number[] = Array.isArray((data as any).affected_student_ids)
+        ? (data as any).affected_student_ids.map((v: unknown) => Number(v)).filter((v: number) => Number.isInteger(v))
+        : [];
+      for (const learner of affected) {
+        // איפוס בלי מספר מפגש (רמה 3, איפוס מערכת) נוגע בכל המפגשים.
+        const meetings = Number.isInteger(meeting) && meeting >= 1 && meeting <= 8 ? [meeting] : [1, 2, 3, 4, 5, 6, 7, 8];
+        for (const mm of meetings) {
+          const key = `${learner}:${mm}`;
+          const list = resetsByLearnerMeeting.get(key) ?? [];
+          list.push(at);
+          resetsByLearnerMeeting.set(key, list);
+        }
+      }
+    }
+    // The reset log records who performed each reset by e-mail. That is the
+    // one column of this export that is a person; it stays in Firestore for
+    // audit and does not go to Drive. PRD: anonymous ids 1-12 only.
+    const resetRows = resetLogs.map(({ id, data }) => {
+      const row: Record<string, any> = { log_id: id };
+      for (const [k, v] of Object.entries(data)) {
+        if (/email|performed_by/i.test(k)) continue;
+        row[k] = v;
+      }
+      return row;
+    });
+
     const meetingRows: Record<string, any>[] = [];
     for (const [k, events] of Array.from(byLearnerMeeting.entries()).sort()) {
       const [nStr, mStr] = k.split(":");
@@ -1625,9 +1665,14 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
       const mediationAll = computeMediationEffectiveness(allOfLearner);
       const sessionDoc = sessionDocByKey.get(k);
       const rec = recordingMinutesByKey.get(k);
+      const resetStamps = (resetsByLearnerMeeting.get(`${n}:${m}`) ?? []).sort((a, b) => a - b);
       meetingRows.push({
         student_id: n,
         session_number: m,
+        // פער יג: האם המפגש הזה אופס, וכמה פעמים. ריק = לא אופס.
+        was_reset: resetStamps.length > 0 ? "כן" : "",
+        reset_count: resetStamps.length,
+        reset_times_iso: resetStamps.map((t) => iso(t)).join(" | "),
         first_event_iso: iso(summary.first_event_at),
         last_event_iso: iso(summary.last_event_at),
         active_minutes: summary.active_minutes,
@@ -1715,19 +1760,6 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
     ].filter((r) => scopedSession === null || Number(r.session_number) === scopedSession || sessionNumberFromId(String(r.session_id || "")) === scopedSession);
 
     // ── 4. Every reset audit entry ──────────────────────────────────────────
-    const resetLogs = await readAllDocs(db.collection("reset_audit_log").where("class_id", "==", class_id))
-      .catch(async () => readAllDocs(db.collection("reset_audit_log")));
-    // The reset log records who performed each reset by e-mail. That is the
-    // one column of this export that is a person; it stays in Firestore for
-    // audit and does not go to Drive. PRD: anonymous ids 1-12 only.
-    const resetRows = resetLogs.map(({ id, data }) => {
-      const row: Record<string, any> = { log_id: id };
-      for (const [k, v] of Object.entries(data)) {
-        if (/email|performed_by/i.test(k)) continue;
-        row[k] = v;
-      }
-      return row;
-    });
 
     const files: Array<{ name: string; csv: string; rows: number }> = [
       { name: "פעולות", csv: toCsv(telemetryRows), rows: telemetryRows.length },

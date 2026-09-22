@@ -18,7 +18,8 @@ export type TelemetryEventType =
   // the three supports the research needs to see fade.
   | 'ADAPTIVE_GRID_TOGGLED'
   | 'KEYBOARD_LOCK_BLOCKED'
-  | 'HELP_REQUESTED';
+  | 'HELP_REQUESTED'
+  | 'BOARD_CLEARED';
 
 // --- Per-event-type details schemas (Master PRD v7.0 Appendix A §3) ---
 
@@ -102,6 +103,20 @@ export interface HelpRequestedDetails {
   help_count: number; // this learner's count in the current session, 1-based
 }
 
+/**
+ * מודול 8 §א: לחיצה על פח האשפה מנקה את כל הלוח. האירוע תקני ומסונכרן,
+ * ומוחרג ממדדי השגיאות והשחיקה — בדיוק כמו ביטול פעולה.
+ */
+export interface BoardClearedDetails {
+  /** כמה לבנים נמחקו מכל טור, כדי שציר הזמן יראה מה בדיוק ירד מהלוח. */
+  units: number;
+  tens: number;
+  hundreds: number;
+  thousands: number;
+  /** סך הלבנים שנמחקו — הנתון שמסכם את הפעולה בשורה אחת. */
+  blocks_removed: number;
+}
+
 export interface TelemetryDetailsMap {
   SESSION_START: SessionStartDetails;
   PROBLEM_LOAD: ProblemLoadDetails;
@@ -119,6 +134,7 @@ export interface TelemetryDetailsMap {
   ADAPTIVE_GRID_TOGGLED: AdaptiveGridToggledDetails;
   KEYBOARD_LOCK_BLOCKED: KeyboardLockBlockedDetails;
   HELP_REQUESTED: HelpRequestedDetails;
+  BOARD_CLEARED: BoardClearedDetails;
 }
 
 // Column-scoped event types where column_index is MANDATORY
@@ -142,6 +158,8 @@ export const NON_COLUMN_EVENTS: readonly TelemetryEventType[] = [
   'REFLECTION_SUBMITTED',
   'ADAPTIVE_GRID_TOGGLED',
   'HELP_REQUESTED',
+  // ניקוי הלוח אינו שייך לטור אחד — הוא מוחק את כולם.
+  'BOARD_CLEARED',
 ] as const;
 
 export interface TelemetryPayload<T extends TelemetryEventType = TelemetryEventType> {
