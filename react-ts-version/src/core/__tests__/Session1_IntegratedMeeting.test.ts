@@ -72,6 +72,13 @@ describe('steps 1–5 say on screen what מסמך 03 §3.1 says, word for word',
     });
   }
 
+  it('the refresh exercises and the target task say on screen what מסמך 03 §3.1 says, word for word', () => {
+    // The owner added them to the document on 24.9.2026 (register ו).
+    for (const id of ['s1_target_347', 's1_r_group26', 's1_t8', 's1_r_sub61', 's1_r_sub806']) {
+      for (const line of lines(task(id))) expect(DOC03, `${id}: ${line}`).toContain(line);
+    }
+  });
+
   it('step 6 names the document\'s number and actions', () => {
     const t = task('s1_target_347');
     expect(t.instructionHe.startsWith('משימת יעד מסכמת: בנו את המספר 347 בלבני דינס, פרטו עשרת אחת לעשר יחידות')).toBe(true);
