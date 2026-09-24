@@ -111,6 +111,22 @@ describe('what meeting 1 measures instead', () => {
     expect(computeExerciseOutcomes(steps)).toEqual({});
   });
 
+  it('…and out of the class table and the attempted/completed counts, even with a pause logged in a step', () => {
+    const events = [
+      ...MEETING1_TOOL_STEPS.flatMap((id, i) => [
+        ev(id, 'HESITATION_DETECTED', {}, i * 10),
+        ev(id, 'PROBLEM_COMPLETE', {}, i * 10 + 1),
+      ]),
+      ev('s1_t8', 'DIGIT_ENTERED', { column_index: 0, details: { digit_value: 7, is_correct: true } }, 100),
+      ev('s1_t8', 'PROBLEM_COMPLETE', {}, 101),
+    ];
+    const row = buildLearnerRow(4, events, null, 'green_path', null, null, 0, null, { sessionNumber: 1, allEvents: events });
+    expect(row.exercises_attempted).toBe(1);
+    expect(row.exercises_completed).toBe(1);
+    const cls = aggregateClass([row], new Map([[4, events]]), 1);
+    expect(cls.exercises.map((e) => e.exercise_id)).toEqual(['s1_t8']);
+  });
+
   it('the class row keeps the outcome rule it had (same function now)', () => {
     const row = buildLearnerRow(4, learner4, null, 'green_path', null, null, 0, null, { sessionNumber: 1, allEvents: learner4 });
     expect(row.exercise_outcomes).toEqual(computeExerciseOutcomes(learner4));

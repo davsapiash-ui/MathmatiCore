@@ -168,6 +168,27 @@ describe('the store gate follows the checklist', () => {
     expect(useWorkspaceStore.getState().counts).toEqual({ ...EMPTY_COUNTS });
   });
 
+  it('a reload in steps 1–2 keeps the blocks already dragged, and in step 5 keeps the undo history', () => {
+    useWorkspaceStore.getState().initSession(1, false, 0);
+    useWorkspaceStore.setState({ blocksAddedCount: 3 });
+    const s1 = (firebaseSyncService as any).getSyncableWorkspaceState();
+    useWorkspaceStore.getState().resetWorkspace();
+    useWorkspaceStore.getState().restoreSession(s1);
+    expect(useWorkspaceStore.getState().blocksAddedCount).toBe(3);
+
+    useWorkspaceStore.getState().resetWorkspace();
+    useWorkspaceStore.getState().initSession(1, false, 3);
+    const store = useWorkspaceStore.getState();
+    store.applyDrop({ source: 'palette', sourcePlace: 'tens', target: { kind: 'column', place: 'tens' } });
+    store.applyDrop({ source: 'palette', sourcePlace: 'tens', target: { kind: 'column', place: 'tens' } });
+    const s5 = JSON.parse(JSON.stringify((firebaseSyncService as any).getSyncableWorkspaceState()));
+    useWorkspaceStore.getState().resetWorkspace();
+    useWorkspaceStore.getState().restoreSession(s5);
+    useWorkspaceStore.getState().undo();
+    expect(useWorkspaceStore.getState().counts.tens).toBe(1);
+    expect(useWorkspaceStore.getState().undoCount).toBe(1);
+  });
+
   it('pressing the trash on an empty board still counts; dragging one block into it does not', () => {
     useWorkspaceStore.getState().initSession(1, false, 3);
     const store = useWorkspaceStore.getState();
@@ -189,8 +210,15 @@ describe('the store gate follows the checklist', () => {
       blocksAddedCount: 6,
       answerDigits: { hundreds: '3', tens: '4', units: '7' },
     });
+    // The in-lesson sync — the one restoreSession reads, from the database and
+    // the local cache — builds its payload from this same function, and there
+    // is no second copy of it to drift (the first fix of this missed exactly that).
+    const sync = readFileSync(resolve(__dirname, '../../infrastructure/services/FirebaseSyncService.ts'), 'utf-8');
+    expect(sync).toContain('const syncableData: Record<string, any> = this.getSyncableWorkspaceState();');
+    expect(sync.split('counts: state.counts,').length - 1).toBe(1);
     const snapshot = (firebaseSyncService as any).getSyncableWorkspaceState();
     expect(snapshot).toMatchObject({ hasUngrouped: true, hasGrouped: false, hasClearedBoard: true, blocksAddedCount: 6 });
+    expect(Array.isArray(snapshot.undoStack)).toBe(true);
     useWorkspaceStore.getState().resetWorkspace();
     useWorkspaceStore.getState().restoreSession(snapshot);
     expect(useWorkspaceStore.getState().hasUngrouped).toBe(true);
@@ -381,12 +409,16 @@ describe('the live card never asks to undo the step the exercise asks for', () =
     // card ("אפס עשרות": 305 holds 30 tens) is gone
     for (const id of ['s1_decompose_hundred', 's1_build_305', 's1_undo_trash']) expect(src).not.toContain(`'${id}': {`);
     expect(src).not.toContain('כמה עשרות יש במספר 305');
-    // the subtraction cards speak after the borrow, not "borrow again", and never the answer
+    const block = (id: string) => src.slice(src.indexOf(`'${id}': {`), src.indexOf('correctChoiceId', src.indexOf(`'${id}': {`)));
+    // the subtraction cards ask how to know you are done — true just after the
+    // borrow, halfway through, and at the end — and never give the answer
     for (const [id, answer] of [['s1_r_sub61', '37'], ['s1_r_sub806', '455']] as const) {
-      const block = src.slice(src.indexOf(`'${id}': {`), src.indexOf('correctChoiceId', src.indexOf(`'${id}': {`)));
-      expect(block).toContain('מספיק');
-      expect(block).not.toContain(answer);
+      expect(block(id)).toContain('בסך הכול');
+      expect(block(id)).not.toContain(answer);
     }
+    // 713 + 94: a rule true before and after the grouping, without the tens digit of 807
+    expect(block('s1_t8')).toContain('מה עושים כשבטור העשרות יש 10 עשרות');
+    expect(block('s1_t8')).not.toMatch(/(?<![0-9])0 עשרות|807/);
   });
 
   it('an addition with 12 units still gets the grouping card', () => {

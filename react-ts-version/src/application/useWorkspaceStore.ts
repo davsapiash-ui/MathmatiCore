@@ -1759,8 +1759,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         probeAnswer: saved.probeAnswer ?? '',
         q3Reps: saved.q3Reps ?? [],
         operandDigits: saved.operandDigits ?? { a: {}, b: {} },
-        hasDeletedBlock: saved.standardTaskIdx === 0 && sanitized === 1 ? false : (saved.hasDeletedBlock ?? false),
-        blocksAddedCount: saved.standardTaskIdx === 0 && sanitized === 1 ? 0 : (saved.blocksAddedCount ?? 0),
+        // Now that the snapshot carries them, they are restored as saved —
+        // including meeting 1's first step, which used to start over.
+        hasDeletedBlock: saved.hasDeletedBlock ?? false,
+        blocksAddedCount: saved.blocksAddedCount ?? 0,
         // Meeting 1 decides by these: a child who grouped or decomposed and
         // then reloaded was told "do the conversion yourself" on a correct board.
         hasGrouped: saved.hasGrouped ?? false,
@@ -1937,7 +1939,18 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         if (state.isBoardLocked) return state;
         const hasBlocks = state.counts.units > 0 || state.counts.tens > 0 || state.counts.hundreds > 0 || state.counts.thousands > 0;
         // Nothing to clear, but the child did press the trash (meeting 1 step 5).
-        if (!hasBlocks) return { hasClearedBoard: true };
+        // Recorded like any press, so the report's tool mastery agrees.
+        if (!hasBlocks) {
+          const emptyId = currentStudentUid();
+          emitTelemetry({
+            session_id: `session_${state.sessionNumber}_student_${emptyId}`,
+            student_id: emptyId,
+            exercise_id: activeExerciseId(state),
+            event_type: 'BOARD_CLEARED',
+            details: { units: 0, tens: 0, hundreds: 0, thousands: 0, blocks_removed: 0 },
+          }).catch(console.error);
+          return { hasClearedBoard: true };
+        }
 
         const undoStack = createNextUndoStack(state.undoStack, state.counts, 'BLOCK_DRAG_COMPLETE');
         const studentId = useAuthStore.getState().user?.uid;

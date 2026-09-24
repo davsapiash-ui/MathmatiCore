@@ -264,48 +264,51 @@ const TASK_HINTS: Record<string, SocraticHintResponse> = {
     correctChoiceId: "opt_1"
   },
 
-  // Refresh, mirrors diagnostic task 6: 713 + 94 (1 ten + 9 tens = exactly 10 tens, leaving 0).
+  // Refresh, mirrors diagnostic task 6: 713 + 94 (1 ten + 9 tens = exactly 10
+  // tens). With 10 or more tens on the board the live card speaks; this one is
+  // true before and after the grouping, and does not give the tens digit away.
   's1_t8': {
     pedagogical_intent: "procedural",
-    tts_text: "בתרגיל 713 + 94, בטור העשרות הצטברו 1 + 9 = 10 עשרות. מה הצעד הבא שנבצע?",
+    tts_text: "בתרגיל 713 + 94: מה עושים כשבטור העשרות יש 10 עשרות?",
     suggested_highlight: "tour-column-tens",
-    questionHe: "בתרגיל 713 + 94, בטור העשרות הצטברו 1 + 9 = 10 עשרות. מה הצעד הבא שנבצע?",
+    questionHe: "בתרגיל 713 + 94: מה עושים כשבטור העשרות יש 10 עשרות?",
     choices: [
-      { id: "opt_1", textHe: "נקבץ 10 עשרות למאה אחת בטור המאות (ובטור העשרות יישארו 0 עשרות)", isCorrect: true, feedbackHe: "נכון מאוד! 10 עשרות מומרות למאה אחת בטור המאות, ובטור העשרות נרשום 0." },
-      { id: "opt_2", textHe: "נמחק 10 עשרות לפח מבלי להוסיף מאה", isCorrect: false, feedbackHe: "רמז: מחיקת בלוקים לפח משנה את ערך המספר הכולל! יש להמיר למאה." },
+      { id: "opt_1", textHe: "מקבצים 10 עשרות למאה אחת בטור המאות", isCorrect: true, feedbackHe: "נכון מאוד! לחצו על כפתור הקבץ 10 שבראש טור העשרות." },
+      { id: "opt_2", textHe: "מוחקים 10 עשרות לפח בלי להוסיף מאה", isCorrect: false, feedbackHe: "רמז: מחיקת לבנים לפח משנה את ערך המספר. מקבצים למאה." },
       { id: "opt_3", textHe: "נרשום 10 בתוך משבצת העשרות", isCorrect: false, feedbackHe: "רמז: בכל משבצת בבית המספרים מותרת ספרה אחת בלבד (0 עד 9)." }
     ],
     correctChoiceId: "opt_1"
   },
 
   // Refresh, mirrors diagnostic task 3: 61 − 24, one borrow in the units.
-  // Before the borrow the live deficit card speaks; this one covers the rest
-  // of the exercise, and does not give the result.
+  // Before the borrow the live deficit card speaks. This one is true at every
+  // later point — just after the borrow, halfway through taking 24 away, or
+  // after it — and does not give the result.
   's1_r_sub61': {
     pedagogical_intent: "procedural",
-    tts_text: "בחיסור 61 − 24: מה עושים כשיש בלוח מספיק יחידות?",
+    tts_text: "בחיסור 61 − 24: איך יודעים שסיימנו להוציא מהלוח?",
     suggested_highlight: "tour-place-value-board",
-    questionHe: "בחיסור 61 − 24: מה עושים כשיש בלוח מספיק יחידות?",
+    questionHe: "בחיסור 61 − 24: איך יודעים שסיימנו להוציא מהלוח?",
     choices: [
-      { id: "opt_1", textHe: "מוציאים מהלוח 4 יחידות ו-2 עשרות, וכותבים בשורת התוצאה את מה שנשאר", isCorrect: true, feedbackHe: "נכון מאוד! הוציאו את הלבנים לפח האשפה וכתבו את מה שנשאר בלוח." },
-      { id: "opt_2", textHe: "פורטים עוד עשרת", isCorrect: false, feedbackHe: "רמז: יש כבר מספיק יחידות כדי להוציא 4." },
-      { id: "opt_3", textHe: "מוסיפים 24 לבנים ללוח", isCorrect: false, feedbackHe: "רמז: בחיסור מוציאים מהלוח ולא מוסיפים." }
+      { id: "opt_1", textHe: "כשהוצאנו בסך הכול 4 יחידות ו-2 עשרות. את מה שנשאר בלוח כותבים בשורת התוצאה", isCorrect: true, feedbackHe: "נכון מאוד! בדקו כמה כבר הוצאתם, וכתבו את מה שנשאר בלוח." },
+      { id: "opt_2", textHe: "כשפרטנו עוד עשרת", isCorrect: false, feedbackHe: "רמז: בתרגיל הזה פורטים עשרת אחת בלבד." },
+      { id: "opt_3", textHe: "כשהוספנו 24 לבנים ללוח", isCorrect: false, feedbackHe: "רמז: בחיסור מוציאים מהלוח ולא מוסיפים." }
     ],
     correctChoiceId: "opt_1"
   },
 
   // Refresh, mirrors diagnostic task 7: 806 − 351, a borrow into an empty tens
-  // column. Before the borrow the live deficit card speaks; this one covers
-  // the rest of the exercise, and does not give the result.
+  // column. Before the borrow the live deficit card speaks. This one is true at
+  // every later point, and does not give the result.
   's1_r_sub806': {
     pedagogical_intent: "procedural",
-    tts_text: "בחיסור 806 − 351: מה עושים כשיש בלוח מספיק עשרות?",
+    tts_text: "בחיסור 806 − 351: איך יודעים שסיימנו להוציא מהלוח?",
     suggested_highlight: "tour-place-value-board",
-    questionHe: "בחיסור 806 − 351: מה עושים כשיש בלוח מספיק עשרות?",
+    questionHe: "בחיסור 806 − 351: איך יודעים שסיימנו להוציא מהלוח?",
     choices: [
-      { id: "opt_1", textHe: "מוציאים מהלוח יחידה אחת, 5 עשרות ו-3 מאות, וכותבים בשורת התוצאה את מה שנשאר", isCorrect: true, feedbackHe: "נכון מאוד! הוציאו את הלבנים לפח האשפה וכתבו את מה שנשאר בלוח." },
-      { id: "opt_2", textHe: "פורטים עוד מאה", isCorrect: false, feedbackHe: "רמז: יש כבר מספיק עשרות כדי להוציא 5." },
-      { id: "opt_3", textHe: "מוסיפים 351 לבנים ללוח", isCorrect: false, feedbackHe: "רמז: בחיסור מוציאים מהלוח ולא מוסיפים." }
+      { id: "opt_1", textHe: "כשהוצאנו בסך הכול יחידה אחת, 5 עשרות ו-3 מאות. את מה שנשאר בלוח כותבים בשורת התוצאה", isCorrect: true, feedbackHe: "נכון מאוד! בדקו כמה כבר הוצאתם, וכתבו את מה שנשאר בלוח." },
+      { id: "opt_2", textHe: "כשפרטנו עוד מאה", isCorrect: false, feedbackHe: "רמז: בתרגיל הזה פורטים מאה אחת בלבד." },
+      { id: "opt_3", textHe: "כשהוספנו 351 לבנים ללוח", isCorrect: false, feedbackHe: "רמז: בחיסור מוציאים מהלוח ולא מוסיפים." }
     ],
     correctChoiceId: "opt_1"
   },
@@ -627,7 +630,7 @@ export class SocraticEngine {
             id: "opt_1", 
             textHe: "נאסוף 10 יחידות מטור היחידות ונמיר אותן לעשרת אחת בטור העשרות", 
             isCorrect: true, 
-            feedbackHe: "תשובה נכונה! לחצו על כפתור הקבץ (10) שבראש טור היחידות." 
+            feedbackHe: "תשובה נכונה! לחצו על כפתור הקבץ 10 שבראש טור היחידות." 
           },
           { 
             id: "opt_2", 
@@ -657,7 +660,7 @@ export class SocraticEngine {
             id: "opt_1", 
             textHe: "נאסוף 10 עשרות ונקבץ אותן למאה אחת בטור המאות", 
             isCorrect: true, 
-            feedbackHe: "נכון מאוד! לחצו על כפתור הקבץ (10) שבראש טור העשרות כדי להמיר למאה אחת." 
+            feedbackHe: "נכון מאוד! לחצו על כפתור הקבץ 10 שבראש טור העשרות כדי להמיר למאה אחת." 
           },
           { 
             id: "opt_2", 
@@ -687,7 +690,7 @@ export class SocraticEngine {
             id: "opt_1", 
             textHe: "נאסוף 10 מאות ונקבץ אותן לאלף אחד בטור האלפים", 
             isCorrect: true, 
-            feedbackHe: "מצוין! לחצו על כפתור הקבץ (10) שבראש טור המאות לקבצן לאלף אחד." 
+            feedbackHe: "מצוין! לחצו על כפתור הקבץ 10 שבראש טור המאות לקבצן לאלף אחד." 
           },
           { 
             id: "opt_2", 

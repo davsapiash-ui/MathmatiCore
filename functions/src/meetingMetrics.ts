@@ -80,8 +80,7 @@ export function computeExerciseOutcomes(events: Record<string, any>[]): Record<s
   const wrongInExercise = new Set<string>();
   const outcomes: Record<string, ExerciseOutcome> = {};
   for (const ev of sorted) {
-    const raw = isExerciseEvent(ev) ? String(ev.exercise_id || "") : "";
-    const exId = MEETING1_TOOL_STEPS.includes(raw) ? "" : raw;
+    const exId = isExerciseEvent(ev) ? String(ev.exercise_id || "") : "";
     if (exId && !outcomes[exId]) outcomes[exId] = "incomplete";
     if (ev.event_type === "DIGIT_ENTERED" && ev.details?.is_correct === false) {
       if (exId) wrongInExercise.add(exId);
@@ -168,7 +167,10 @@ export function computeToolMastery(events: Record<string, any>[]): ToolMastery {
  */
 export function isExerciseEvent(ev: Record<string, any> | null | undefined): boolean {
   const type = ev?.event_type;
-  return type !== "SESSION_START" && type !== "REFLECTION_SUBMITTED";
+  if (type === "SESSION_START" || type === "REFLECTION_SUBMITTED") return false;
+  // Meeting 1's tool steps are tool mastery, not exercises — in the outcomes,
+  // the attempted/completed counts, the class table, the CSV and the AI input.
+  return !MEETING1_TOOL_STEPS.includes(String(ev?.exercise_id ?? ""));
 }
 
 /**
@@ -340,9 +342,12 @@ export function summarizeMeeting(events: Record<string, any>[]): MeetingSummary 
       last = last === null ? t : Math.max(last, t);
     }
     const exId = String(ev.exercise_id || "");
-    if (exId && isExerciseEvent(ev)) attempted.add(exId);
+    const isExercise = Boolean(exId) && isExerciseEvent(ev);
+    if (isExercise) attempted.add(exId);
     switch (ev.event_type) {
-      case "PROBLEM_COMPLETE": if (exId) completed.add(exId); break;
+      // Completed only what was attempted: a completion without an exercise
+      // (a tool step) is not one more exercise completed.
+      case "PROBLEM_COMPLETE": if (isExercise) completed.add(exId); break;
       case "DIGIT_ENTERED":
         s.digits_entered++;
         if (ev.details?.is_correct === false) s.wrong_digits++;
