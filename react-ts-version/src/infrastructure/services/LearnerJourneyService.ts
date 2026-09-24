@@ -211,7 +211,10 @@ export function describeEvent(e: JourneyEvent): EventDescription {
   let attention = false;
   switch (e.eventType) {
     case 'BOARD_CLEARED':
-      detail = `${d.blocks_removed ?? 0} לבנים ירדו מהלוח בבת אחת`;
+      // Meeting 1 step 5 records a press on an already empty board too.
+      detail = Number(d.blocks_removed) > 0
+        ? `${d.blocks_removed} לבנים ירדו מהלוח בבת אחת`
+        : 'לחיצה על פח האשפה כשהלוח כבר היה ריק';
       break;
     case 'SESSION_START':
       detail = typeof d.session_number === 'number' ? `מפגש ${d.session_number}` : '';

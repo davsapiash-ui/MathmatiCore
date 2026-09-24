@@ -44,8 +44,13 @@ export function RepresentationTask({ task }: { task: SessionTask }) {
         style={{ backgroundColor: 'hsl(var(--ws-blue-soft) / 0.45)', borderColor: 'hsl(var(--ws-blue) / 0.45)' }}
         aria-live="polite"
       >
-        <p className="text-sm font-bold text-ws-soft mb-1">בנו בלוח בדיוק:</p>
-        <p className="text-xl font-black text-ws-ink">{describeCountsHe(required)}</p>
+        {/* Meeting 1 (hideRequiredCounts): the board to build is what the learner finds. */}
+        {!task.hideRequiredCounts && (
+          <>
+            <p className="text-sm font-bold text-ws-soft mb-1">בנו בלוח בדיוק:</p>
+            <p className="text-xl font-black text-ws-ink">{describeCountsHe(required)}</p>
+          </>
+        )}
         <p className={`mt-2 text-sm font-bold ${boardMatches ? 'text-ws-success' : 'text-ws-soft'}`}>
           {boardMatches ? '✓ הלוח תואם — כתבו את המספר בשורת התוצאה' : `בלוח כרגע: ${describeCountsHe(counts)}`}
         </p>

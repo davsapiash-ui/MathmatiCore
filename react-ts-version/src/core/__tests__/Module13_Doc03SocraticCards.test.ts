@@ -21,7 +21,7 @@ describe('Module 13: static Socratic cards come from מסמך 03', () => {
     expect(sessionCardKeysForTaskId('s3_g_reinforce_1')).toEqual(['s3_g_card', 's3_card']);
     expect(sessionCardKeysForTaskId('s7_r_challenge_1')).toEqual(['s7_r_card', 's7_card']);
     expect(sessionCardKeysForTaskId('s8_g_t7')).toEqual(['s8_g_card', 's8_card']);
-    expect(sessionCardKeysForTaskId('s1_t7')).toEqual([]);
+    expect(sessionCardKeysForTaskId('s1_t8')).toEqual([]);
   });
 
   it('session 3 serves the path-specific card: tens for remediation, hundreds for green', async () => {

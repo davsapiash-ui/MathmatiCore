@@ -14,7 +14,7 @@
  * remediation_path (up to 1,000). Session 8 deliberately reuses numbers the
  * learner met in sessions 4–6 (מסמך 03 §3.8, clean decay measurement).
  * Session 2 (the diagnostic) lives in src/core/QMatrix.ts and is re-exported here.
- * Session 1 keeps the sandbox tasks of the original implementation.
+ * Session 1 is מסמך 03 §3.1 plus four refresh exercises (register decision ו).
  */
 
 import { TASKS as QMATRIX_TASKS } from '@/core/QMatrix';
@@ -111,73 +111,120 @@ export interface SessionTask {
   revealedResultDigits?: Place[];
   /** flexible_decomp: every recorded representation must hold an even number of tens. */
   requireEvenTens?: boolean;
+  /** Blocks already on the board when the task starts (meeting 1's grouping refresh, like diagnostic task 5's cubes on screen). */
+  initialCounts?: Partial<PlaceCounts>;
+  /** representation: the card does not list the board to build — finding it is the exercise. */
+  hideRequiredCounts?: boolean;
+  /** The task opens on the board — and the undo history — the previous task left (meeting 1, step 5). */
+  continuesBoard?: boolean;
 }
 
-/* ── Session 1 — (מפגש 1: היכרות ותפעול, רישיון מעבדה מורחב) ── */
+/* ── Session 1 — ארגז החול המונחה: היכרות עם הכלים וריענון לקראת האבחון ── */
+
+/**
+ * מפגש 1 (owner, 24.9.2026 — register decision ו): the six introduction steps
+ * of מסמך 03 §3.1, then four refresh exercises. Each refresh exercise mirrors
+ * one diagnostic task of meeting 2 column for column with other numbers, so a
+ * wrong answer in the diagnostic is a real gap, not rust and not the interface.
+ * Meeting 1 is never scored (PRD Module 14 §ב); the teacher's report shows
+ * which tools each learner operated and how each exercise ended.
+ *
+ * מסמך 03 step 1 (entry, welcome) opens the sandbox task; its former step 5
+ * (typing creates blocks) was removed by the owner (register gap טז).
+ */
+/** A meeting 1 exercise: never compulsory (PRD Module 14 §ב), optionally requiring the conversion itself. */
+function s1(
+  task: SessionTask,
+  flags: Pick<SessionTask, 'requiresGrouping' | 'requiresUngrouping' | 'initialCounts' | 'hideRequiredCounts'> = {}
+): SessionTask {
+  const { isCompulsory: _dropped, ...rest } = task;
+  return { ...rest, ...flags };
+}
 
 export const SESSION1_TASKS: SessionTask[] = [
-
-  // 2. Controlled Sandbox (Friction built-in)
+  // מסמך 03 §3.1 steps 1–2: welcome, free dragging, the digits follow the
+  // blocks. Steps 1–5 are tool steps, their on-screen text the document's,
+  // word for word; core/session1Checklist.ts says what completes each.
   {
     id: 's1_sandbox_controlled',
     type: 'session1_intro',
-    titleHe: 'ארגז חול: אימון טכני',
-    instructionHe: "כדי לקבל את רישיון החוקר שלכם, הראו שאתם שולטים בציוד המעבדה:\n1. גררו לפחות 5 פריטים לבית המספרים.\n2. מחקו לפחות פריט אחד (גררו אותו לפח האשפה).\nלאחר שתסיימו, כפתור 'התקדם' יידלק ותוכלו לעבור לשלב הבא!",
+    titleHe: 'חקירה וירטואלית חופשית',
+    instructionHe: 'ברוכים הבאים לסביבת הלמידה מתמטיקאור! שחקו וחקרו בחופשיות בתחנה אחת הכרות עם המערכת שלנו.\nגררו לבנים לטורים משמאל וצפו בספרות המשתנות בלוח בית המספרים!',
     correctAnswer: 'proceed_any',
     scaffoldLevel: 0,
   },
-  // 3. License Proof (Build and type)
+  // Step 3: decompose a hundred into ten tens. The document's step 2 ends on
+  // 230 (two hundreds, three tens) and step 3 turns it into one hundred and 13
+  // tens — so step 3 opens on 230.
   {
-    id: 's1_license_test',
-    type: 'addition_simple',
-    numberA: 400, numberB: 20, correctAnswer: 420,
-    titleHe: 'בניית מספרים עגולים',
-    instructionHe: 'בנו בבית המספרים את המספר 420 בעזרת מאות ועשרות, והקלידו את התוצאה בתיבת המענה.',
-    targetNode: 'basic_addition_fluency',
+    id: 's1_decompose_hundred',
+    type: 'session1_intro',
+    titleHe: 'פירוק והרכבה',
+    instructionHe: 'לחצו על לבנה כדי לפרק אותה לחלקים קטנים יותר ועקבו אחר השינוי בלוח בית המספרים.',
+    correctAnswer: 'proceed_any',
+    scaffoldLevel: 0,
+    initialCounts: { hundreds: 2, tens: 3 },
   },
+  // Step 4: 305 — zero as a place holder.
+  {
+    id: 's1_build_305',
+    type: 'session1_intro',
+    titleHe: 'האפס כשומר מקום',
+    instructionHe: 'נסו לבנות את המספר 305 בלבני דינס ושימו לב לתפקיד של הספרה אפס בלוח בית המספרים הריק מעשרות.',
+    correctAnswer: 'proceed_any',
+    scaffoldLevel: 0,
+  },
+  // Step 5: the reversible mistake — undo, then the trash.
+  {
+    id: 's1_undo_trash',
+    type: 'session1_intro',
+    titleHe: 'ביטול פעולה וניקוי הלוח',
+    instructionHe: 'רוצים לחזור צעד אחד אחורה? לחצו על כפתור ביטול פעולה.\nרוצים להתחיל מחדש ולנקות את הלוח? לחצו על פח האשפה.',
+    correctAnswer: 'proceed_any',
+    scaffoldLevel: 0,
+    // מסמך 03: undo "the last typing or dragging", then the trash "resets the
+    // workspace" — the board step 4 built, with its history.
+    continuesBoard: true,
+  },
+  // מסמך 03 §3.1 step 6 (formerly 7) — the target task: 347 → 3 hundreds, 3 tens, 17 units.
+  s1(representation('s1_target_347', 347, { hundreds: 3, tens: 3, units: 17 },
+    'משימת יעד מסכמת',
+    'משימת יעד מסכמת: בנו את המספר 347 בלבני דינס, פרטו עשרת אחת לעשר יחידות, וכתבו בשורת התוצאה את המספר שעל הלוח!'),
+    { requiresUngrouping: true, hideRequiredCounts: true }),
 
-  // 8. Math Refresh 1
-  {
-    id: 's1_t7',
-    type: 'addition_simple',
-    numberA: 240, numberB: 135, correctAnswer: 375,
-    titleHe: 'תרגול חיבור: בלי המרות',
-    instructionHe: 'בנו בבית המספרים את המספרים 240 ו-135 בעזרת הקוביות. חברו אותם ורשמו את התוצאה הסופית.',
-    scaffoldLevel: 1,
-  },
-  // 9. Math Refresh 2 — ★ chosen (owner, 24.9.2026). Mirrors diagnostic task 6
-  // (124 + 85) in structure with other numbers: three digits plus two, no carry
-  // in the units, the tens sum to exactly 10, so the answer has a 0 in the tens.
+  // ── Refresh exercises: each mirrors one diagnostic task (QMatrix.ts) ──
+  // ★ chosen (owner, 24.9.2026). Mirrors task 5, where 25 unit cubes are on the
+  // screen and the learner finds how many tens and units they make: here 26
+  // unit cubes wait on the board, and are grouped twice into tens.
+  s1(representation('s1_r_group26', 26, { tens: 2, units: 6 },
+    'המרה עצמאית בין עזרים וירטואליים',
+    'בטור היחידות יש 26 קוביות יחידה. קבצו כל 10 יחידות לעשרת אחת בעזרת כפתור הקבץ 10 שבראש הטור, וכתבו בשורת התוצאה כמה עשרות וכמה יחידות קיבלתם.'),
+    { requiresGrouping: true, initialCounts: { units: 26 }, hideRequiredCounts: true }),
+  // ★ chosen (owner, 24.9.2026). Mirrors task 6 (124 + 85) in structure with
+  // other numbers: three digits plus two, no carry in the units, the tens sum
+  // to exactly 10, so the answer has a 0 in the tens.
   {
     id: 's1_t8',
     type: 'addition_simple',
     numberA: 713, numberB: 94, correctAnswer: 807,
     titleHe: 'חיבור במאונך עם המרה מעל מאה',
-    instructionHe: 'בנו בבית המספרים 713 ו-94 וחברו אותם. כאשר מצטברים 10 פריטים בטור, לחצו על כפתור "הקבץ (10)" שמופיע בראש הטור.',
+    instructionHe: 'בנו בבית המספרים 713 ו-94 וחברו אותם. כאשר מצטברים 10 פריטים בטור, לחצו על כפתור הקבץ 10 שבראש הטור.',
     scaffoldLevel: 1,
     requiresGrouping: true,
   },
-  // 10. Math Refresh 3
-  {
-    id: 's1_t9',
-    type: 'vertical_addition',
-    isSubtraction: true,
-    numberA: 470, numberB: 250, correctAnswer: 220,
-    titleHe: 'תרגול חיסור: הוצאת איברים',
-    instructionHe: 'בואו נתרגל חיסור בבית המספרים: בנו רק את המספר הראשון (470). מתוכו, מחקו 250 (על ידי גרירת 2 מאות ו-5 עשרות לפח האשפה), והקלידו את התוצאה שנשארה.',
-    scaffoldLevel: 1,
-  },
-  // 11. Math Refresh 4
-  {
-    id: 's1_t10',
-    type: 'vertical_addition',
-    isSubtraction: true,
-    numberA: 425, numberB: 162, correctAnswer: 263,
-    titleHe: 'תרגול חיסור: פריטת עשרות',
-    instructionHe: 'בנו 425 והחסירו 162. כדי לפרוט מאה לעשרות, לחצו על קוביית המאה בלוח או גררו אותה לטור העשרות.',
-    scaffoldLevel: 1,
-    requiresUngrouping: true,
-  },
+  // ★ chosen (owner, 24.9.2026). Mirrors task 3 (42 − 15): two digits minus
+  // two, one borrow in the units, the tens need no borrow.
+  s1(subtraction('s1_r_sub61', 61, 24,
+    'חיסור חד-שלבי עם פריטה בתחום המאה',
+    'בנו 61 והחסירו 24. כדי לפרוט עשרת ליחידות, לחצו על לבנת העשרת בלוח או גררו אותה לטור היחידות.',
+    { scaffoldLevel: 1 })),
+  // ★ chosen (owner, 24.9.2026). Mirrors task 7 (405 − 132): a 0 in the tens
+  // of the minuend, no borrow in the units, one borrow from the hundreds into
+  // the tens.
+  s1(subtraction('s1_r_sub806', 806, 351,
+    'חיסור במאונך עם פריטה דרך אפס בטור העשרות',
+    'בנו 806 והחסירו 351. שימו לב לטור העשרות. כדי לפרוט מאה לעשרות, לחצו על לבנת המאה בלוח או גררו אותה לטור העשרות.',
+    { scaffoldLevel: 1 })),
 ];
 
 /* ── Session 2 — the 5 Q-Matrix diagnostic tasks (מפגש 2: מיפוי יכולות ואבחון סמוי) ── */

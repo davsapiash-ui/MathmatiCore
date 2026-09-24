@@ -170,6 +170,7 @@ describe('מונח אחיד לילד: פח האשפה', () => {
   it('ההנחיות והטיפים אינם מדברים על "פח המחזור" או "מחוץ ללוח"', () => {
     for (const p of [
       'features/workspace/tasks/IntroTask.tsx',
+      'core/session1Checklist.ts',
       'features/workspace/overlays/HelpOverlays.tsx',
       'application/useWorkspaceStore.ts',
     ]) {
@@ -177,7 +178,8 @@ describe('מונח אחיד לילד: פח האשפה', () => {
       expect(text, p).not.toContain('פח המחזור');
       expect(text, p).not.toContain('מחוץ ללוח');
     }
-    expect(src('features/workspace/tasks/IntroTask.tsx')).toContain('פח האשפה');
+    // The meeting 1 checklist the card shows (IntroTask renders it) names the trash.
+    expect(src('core/session1Checklist.ts')).toContain('פח האשפה');
   });
 });
 

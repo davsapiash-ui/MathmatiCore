@@ -461,35 +461,16 @@ export class FirebaseSyncService {
       const currentTask = activeTasks[state.standardTaskIdx] || null;
 
       // Teacher-controlled authority fields (isBoardLocked, pendingAdaptation, support_profile_id)
-      // are strictly omitted so the student client never overwrites teacher controls in RTDB.
-      const syncableData: Record<string, any> = {
-        sessionNumber: state.sessionNumber,
-        isASD: state.isASD,
-        standardTaskIdx: state.standardTaskIdx,
-        // The chosen branch travels with the index that points into it (restoreSession
-        // rebuilds the branch tasks from it), and the radar's "אתגר / ביסוס" badge reads it.
-        selectedBranch: state.selectedBranch ?? null,
-        qflow: state.qflow,
-        flowStatus: state.flowStatus,
-        counts: state.counts,
-        answerDigits: state.answerDigits,
-        carryDigits: state.carryDigits,
-        probeAnswer: state.probeAnswer,
-        selectedChoiceId: state.selectedChoiceId,
-        keyboardState: state.keyboardState,
-        undoCount: state.undoCount,
-        hesitationCount: state.hesitationCount,
-        hasInteracted: state.hasInteracted,
-        helpRequested: Boolean(state.helpRequested),
-        activeTask: currentTask ? {
-          id: currentTask.id,
-          titleHe: currentTask.titleHe,
-          instructionHe: currentTask.instructionHe,
-          numberA: currentTask.numberA ?? null,
-          numberB: currentTask.numberB ?? null,
-          isSubtraction: currentTask.isSubtraction ?? false,
-        } : null,
-      };
+      // are strictly omitted so the student client never overwrites teacher controls in RTDB
+      // (isBoardLocked is forced to false below).
+      //
+      // One snapshot for both writers. This object used to be built here a
+      // second time, and the two drifted: every field added to
+      // getSyncableWorkspaceState — the wrong-answer streak and board-check
+      // counters (22.9.2026), the meeting 1 progress flags — reached only the
+      // record's creation, never the in-lesson sync that restoreSession
+      // actually reads, so a reload still reset them.
+      const syncableData: Record<string, any> = this.getSyncableWorkspaceState();
 
       // מודול 5: "Validate payload size (≤50KB) before every update".
       const updatePayload = enforceMaxPayloadBytes(syncableData);
@@ -576,6 +557,14 @@ export class FirebaseSyncService {
       undoCount: state.undoCount,
       hesitationCount: state.hesitationCount,
       hasInteracted: state.hasInteracted,
+      // What a meeting 1 step or exercise is decided by. restoreSession read
+      // most of these already, but they were never written, so a reload
+      // turned a done step or a done conversion back into "not yet".
+      blocksAddedCount: state.blocksAddedCount,
+      hasDeletedBlock: state.hasDeletedBlock,
+      hasClearedBoard: state.hasClearedBoard,
+      hasGrouped: state.hasGrouped,
+      hasUngrouped: state.hasUngrouped,
       // Per-exercise counters that decide the coaching card: the second
       // wrong answer in a row (register 17) and the board checks that failed
       // (Module 5 §ג PROBLEM_COMPLETE). They were not in the snapshot, so a
@@ -586,6 +575,16 @@ export class FirebaseSyncService {
       wrongAnswerTaskId: state.wrongAnswerTaskId,
       boardCheckFailures: state.boardCheckFailures,
       boardCheckFailuresTaskId: state.boardCheckFailuresTaskId,
+      // The chosen branch travels with the index that points into it (restoreSession
+      // rebuilds the branch tasks from it), and the radar's "אתגר / ביסוס" badge reads it.
+      selectedBranch: state.selectedBranch ?? null,
+      helpRequested: Boolean(state.helpRequested),
+      // PRD Module 11: the last actions stay undoable after a reload too
+      // (capped at UNDO_STACK_CAP frames; restoreSession already reads it).
+      // The database drops empty objects: a frame saved before the first digit
+      // would come back without its (empty) input, and undo would then leave
+      // that digit on screen. hasInput says the frame had one.
+      undoStack: state.undoStack.map((frame) => ({ ...frame, hasInput: frame.answerDigits !== undefined })),
       activeTask: currentTask ? {
         id: currentTask.id,
         titleHe: currentTask.titleHe,

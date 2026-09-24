@@ -22,6 +22,7 @@ import {
   describeCountsHe,
   digitAt,
 } from '@/core/placeValue';
+import { session1Checklist, session1NextStep } from '@/core/session1Checklist';
 import {
   advance,
   getCurrentQTask,
@@ -206,6 +207,8 @@ interface WorkspaceState {
   hasRequestedBasicHelp: boolean;
   hasInteracted: boolean;
   hasDeletedBlock: boolean;
+  /** The trash was pressed this task (clearBoard) — meeting 1 step 5. Dragging one block into it does not count. */
+  hasClearedBoard: boolean;
   blocksAddedCount: number; // Added to enforce the 5 block rule in Sandbox
   consecutiveDeletions: number;
   hasUngrouped: boolean;
@@ -365,6 +368,27 @@ function getStoredSocraticLockDeadline(): number | null {
 
 /* ── Pure helpers ── */
 
+/**
+ * Undo frames back from a saved snapshot (FirebaseSyncService). The database
+ * drops empty objects, so a frame saved before the first digit returns without
+ * its empty input; `hasInput` marks the frames that had one. Frames saved
+ * before typing was undoable carry no input and stay that way.
+ */
+export function restoreUndoFrames(raw: unknown): UndoFrame[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((f): f is Record<string, any> => Boolean(f) && typeof f === 'object' && typeof (f as any).counts === 'object')
+    .map((f) => {
+      const frame: UndoFrame = { counts: { ...EMPTY_COUNTS, ...f.counts }, actionType: f.actionType ?? null };
+      if (f.hasInput || f.answerDigits !== undefined) {
+        frame.answerDigits = { ...(f.answerDigits ?? {}) };
+        frame.carryDigits = { ...(f.carryDigits ?? {}) };
+        frame.operandDigits = { a: { ...(f.operandDigits?.a ?? {}) }, b: { ...(f.operandDigits?.b ?? {}) } };
+      }
+      return frame;
+    });
+}
+
 function resetTaskInteraction(_isASD = false) {
   return {
     counts: { ...EMPTY_COUNTS },
@@ -372,6 +396,7 @@ function resetTaskInteraction(_isASD = false) {
     regroupTriggerTimestamps: {} as Record<number, number>,
     hasInteracted: false,
     hasDeletedBlock: false,
+    hasClearedBoard: false,
     blocksAddedCount: 0,
     hasUngrouped: false,
     hasGrouped: false,
@@ -591,9 +616,9 @@ export function selectCanProceed(s: WorkspaceState): boolean {
   const task = selectStandardTask(s);
   if (!task) return false;
   if (task.type === 'session1_intro') {
-    if (task.id === 's1_sandbox_controlled') {
-      return s.blocksAddedCount >= 5 && s.hasDeletedBlock;
-    }
+    // Meeting 1 tool steps (מסמך 03 §3.1): done when every checklist item is.
+    const checklist = session1Checklist(task.id, s);
+    if (checklist) return checklist.every((item) => item.done);
     if (task.correctAnswer === 'proceed_any' || !task.choices?.length) {
       return true;
     }
@@ -747,10 +772,22 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     });
   }
 
+  /** A task that starts with blocks already on the board (SessionTask.initialCounts). */
+  function applyInitialBoard(task: SessionTask | null | undefined) {
+    if (task?.initialCounts) set({ counts: { ...EMPTY_COUNTS, ...task.initialCounts } });
+  }
+
   function startTask(taskId: string) {
+    const previous = get();
+    const previousBoard = { counts: { ...previous.counts }, undoStack: [...previous.undoStack] };
     set(resetTaskInteraction());
     set({ keyboardState: 'UNLOCKED', currentState: 'PROBLEM_ACTIVE', taskStartTime: Date.now() });
     applyPendingAdaptationAtBoundary();
+    if (get().sessionNumber !== 2) {
+      const task = getActiveTasks(get()).find((t) => t.id === taskId);
+      applyInitialBoard(task);
+      if (task?.continuesBoard) set(previousBoard);
+    }
 
     if (taskId) {
       const s = get();
@@ -1047,17 +1084,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     };
 
     if (task.type === 'session1_intro') {
-      if (task.id === 's1_sandbox_controlled') {
-        if (s.blocksAddedCount < 5 || !s.hasDeletedBlock) {
-          handleFailure(
-            'sandbox_incomplete',
-            'עֲדַיִן לֹא הִשְׁלַמְתֶּם אֶת הַמְּשִׂימָה 🛠️',
-            'יֵשׁ לִגְרֹר לְפָחוֹת 5 פְּרִיטִים לְבֵית הַמִּסְפָּרִים וּלִמְחֹק לְפָחוֹת פְּרִיט אֶחָד (לַפַּח אוֹ מִחוּץ לַלּוּחַ).',
-            3500
-          );
+      // Meeting 1 tool steps (מסמך 03 §3.1): the checklist on the card is the rule.
+      if (session1Checklist(task.id, s)) {
+        const nextStep = session1NextStep(task.id, s);
+        if (nextStep) {
+          handleFailure('sandbox_incomplete', 'עוד צעד אחד 🛠️', `${nextStep}.`, 3500);
           return;
         }
-        handleSuccess('כָּל הַכָּבוֹד! 🌟', 'הִשְׁלַמְתֶּם אֶת אִמּוּן אַרְגַּז הַחוֹל וְקִבַּלְתֶּם אֶת רִשְׁיוֹן הַחוֹקֵר!', 2500);
+        handleSuccess('כל הכבוד! 🌟', 'ממשיכים לשלב הבא.', 2000);
         return;
       }
       if (task.correctAnswer === 'proceed_any' || !task.choices?.length) {
@@ -1209,9 +1243,20 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         handleFailure(
           'wrong_representation',
           'בּוֹאוּ נְדַיֵּק אֶת הַמִּבְנֶה 🔍',
-          `הלוח צריך להציג בדיוק: ${describeCountsHe(required)}. כרגע יש בו: ${describeCountsHe(s.counts)}.`,
+          task.hideRequiredCounts
+            ? 'הלוח עדיין אינו מציג את מה שההנחיה מבקשת. קראו אותה שוב ובדקו את הלוח.'
+            : `הלוח צריך להציג בדיוק: ${describeCountsHe(required)}. כרגע יש בו: ${describeCountsHe(s.counts)}.`,
           3500
         );
+        return;
+      }
+      // Meeting 1: the exercise is the conversion itself, not only its result.
+      if (task.requiresGrouping && !s.hasGrouped) {
+        handleFailure('conversion_skipped', 'בּוֹאוּ נְקַבֵּץ 🧱', 'הלוח נכון, אבל המשימה היא לקבץ בעצמכם: 10 קוביות יחידה בכל פעם, בעזרת כפתור הקבץ 10 שבראש הטור.', 3500);
+        return;
+      }
+      if (task.requiresUngrouping && !s.hasUngrouped) {
+        handleFailure('conversion_skipped', 'בּוֹאוּ נִפְרֹט 🧱', 'הלוח נכון, אבל המשימה היא לפרוט בעצמכם: בנו את המספר ולחצו על לבנה כדי לפרק אותה.', 3500);
         return;
       }
       const typed = answerDigitsToNumber(s.answerDigits);
@@ -1494,6 +1539,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     helpRequestCount: 0,
     taskStartTime: Date.now(),
     hasDeletedBlock: false,
+    hasClearedBoard: false,
     blocksAddedCount: 0,
     consecutiveDeletions: 0,
     hasUngrouped: false,
@@ -1612,6 +1658,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // no path is the green bank, so every remediation learner's first event
       // named an exercise they never saw — a phantom "לא השלים" in each report.
       const initialTask = sanitized === 2 ? getCurrentQTask(qflow) : getActiveTasks(get())[startingTaskIdx ?? 0];
+      if (sanitized !== 2) applyInitialBoard(initialTask as SessionTask | undefined);
       const studentId = currentStudentUid();
       if (initialTask) {
         emitTelemetry({
@@ -1733,10 +1780,17 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         probeAnswer: saved.probeAnswer ?? '',
         q3Reps: saved.q3Reps ?? [],
         operandDigits: saved.operandDigits ?? { a: {}, b: {} },
-        hasDeletedBlock: saved.standardTaskIdx === 0 && sanitized === 1 ? false : (saved.hasDeletedBlock ?? false),
-        blocksAddedCount: saved.standardTaskIdx === 0 && sanitized === 1 ? 0 : (saved.blocksAddedCount ?? 0),
+        // Now that the snapshot carries them, they are restored as saved —
+        // including meeting 1's first step, which used to start over.
+        hasDeletedBlock: saved.hasDeletedBlock ?? false,
+        blocksAddedCount: saved.blocksAddedCount ?? 0,
+        // Meeting 1 decides by these: a child who grouped or decomposed and
+        // then reloaded was told "do the conversion yourself" on a correct board.
+        hasGrouped: saved.hasGrouped ?? false,
+        hasUngrouped: saved.hasUngrouped ?? false,
+        hasClearedBoard: saved.hasClearedBoard ?? false,
         focusedPlace: null,
-        undoStack: saved.undoStack ?? [],
+        undoStack: restoreUndoFrames(saved.undoStack),
         regroupTriggerTimestamps: {},
         currentState: 'PROBLEM_ACTIVE',
       });
@@ -1905,7 +1959,21 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       set((state) => {
         if (state.isBoardLocked) return state;
         const hasBlocks = state.counts.units > 0 || state.counts.tens > 0 || state.counts.hundreds > 0 || state.counts.thousands > 0;
-        if (!hasBlocks) return state;
+        // Nothing to clear, but the child did press the trash (meeting 1 step 5).
+        // In meeting 1 it is recorded, so the report's tool mastery agrees; the
+        // other meetings keep recording only a trash that cleared something.
+        if (!hasBlocks) {
+          if (state.sessionNumber !== 1) return { hasClearedBoard: true };
+          const emptyId = currentStudentUid();
+          emitTelemetry({
+            session_id: `session_${state.sessionNumber}_student_${emptyId}`,
+            student_id: emptyId,
+            exercise_id: activeExerciseId(state),
+            event_type: 'BOARD_CLEARED',
+            details: { units: 0, tens: 0, hundreds: 0, thousands: 0, blocks_removed: 0 },
+          }).catch(console.error);
+          return { hasClearedBoard: true };
+        }
 
         const undoStack = createNextUndoStack(state.undoStack, state.counts, 'BLOCK_DRAG_COMPLETE');
         const studentId = useAuthStore.getState().user?.uid;
@@ -1940,7 +2008,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           counts: { ...EMPTY_COUNTS },
           undoStack,
           hasInteracted: true,
-          hasDeletedBlock: true, 
+          hasDeletedBlock: true,
+          hasClearedBoard: true, 
         };
       });
     },
@@ -2382,15 +2451,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         return;
       }
       
-      if (s.sessionNumber === 1 && target === 20) {
-        const is2Tens = s.counts.tens === 2 && s.counts.units === 0 && s.counts.hundreds === 0 && s.counts.thousands === 0;
-        const is20Units = s.counts.units === 20 && s.counts.tens === 0 && s.counts.hundreds === 0 && s.counts.thousands === 0;
-        if (!is2Tens && !is20Units) {
-          showFeedback({ correct: false, title: 'בּוֹאוּ נְדַיֵּק אֶת הַמִּבְנֶה 🔍', sub: 'בְּנוּ אֶת הַמִּסְפָּר 20 בְּעֶזְרַת 2 עֲשָׂרוֹת, אוֹ בְּעֶזְרַת 20 יְחִידוֹת.' }, 3500);
-          return;
-        }
-      }
-
       // The second representation has to be a different one. With the board
       // kept between the two (below), pressing the button twice must not count.
       if (s.q3Reps.length === 1 && countsEqual(s.counts, s.q3Reps[0])) {
@@ -2781,6 +2841,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     helpRequestCount: 0,
         taskStartTime: Date.now(),
         hasDeletedBlock: false,
+        hasClearedBoard: false,
         blocksAddedCount: 0,
         consecutiveDeletions: 0,
         hasUngrouped: false,

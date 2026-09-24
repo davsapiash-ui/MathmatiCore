@@ -5,6 +5,7 @@ import {
   computeExerciseOutcomes,
   computeToolMastery,
   isScoredMeeting,
+  MEETING1_TOOL_STEPS,
   resolveCompulsoryTotal,
   TOOLS,
 } from '../meetingMetrics';
@@ -37,10 +38,10 @@ const learner4 = [
   ev('s1_sandbox_controlled', 'BLOCK_DRAG_COMPLETE', { column_index: 2, details: { block_value: 100, source_column_index: null } }, 1),
   ev('s1_sandbox_controlled', 'BLOCK_DRAG_COMPLETE', { column_index: 2, details: { block_value: 100, source_column_index: 2 } }, 2), // into the trash
   ev('s1_sandbox_controlled', 'PROBLEM_COMPLETE', {}, 3),
-  ev('s1_t10', 'REGROUPING_SUCCESS', { column_index: 2, details: { regrouping_type: 'decomposition', duration_ms: 400 } }, 4),
-  ev('s1_t10', 'DIGIT_ENTERED', { column_index: 0, details: { digit_value: 2, is_correct: false } }, 5),
-  ev('s1_t10', 'DIGIT_ENTERED', { column_index: 0, details: { digit_value: 3, is_correct: true } }, 6),
-  ev('s1_t10', 'PROBLEM_COMPLETE', {}, 7),
+  ev('s1_r_sub806', 'REGROUPING_SUCCESS', { column_index: 2, details: { regrouping_type: 'decomposition', duration_ms: 400 } }, 4),
+  ev('s1_r_sub806', 'DIGIT_ENTERED', { column_index: 0, details: { digit_value: 4, is_correct: false } }, 5),
+  ev('s1_r_sub806', 'DIGIT_ENTERED', { column_index: 0, details: { digit_value: 5, is_correct: true } }, 6),
+  ev('s1_r_sub806', 'PROBLEM_COMPLETE', {}, 7),
   ev('s1_t8', 'DIGIT_ENTERED', { column_index: 0, details: { digit_value: 7, is_correct: true } }, 8),
 ];
 
@@ -96,12 +97,34 @@ describe('what meeting 1 measures instead', () => {
     expect(m.used.trash).toBe(1);
   });
 
-  it('refresh outcomes: first try, after a wrong digit, not finished', () => {
+  it('refresh outcomes: after a wrong digit, not finished — and no outcome for a tool step', () => {
+    // s1_sandbox_controlled is a tool step (מסמך 03 §3.1 steps 1–5): it shows
+    // as tool mastery, not as an exercise (מסמך 04: "כיצד הסתיים כל תרגיל ריענון").
     expect(computeExerciseOutcomes(learner4)).toEqual({
-      s1_sandbox_controlled: 'first_try',
-      s1_t10: 'after_correction',
+      s1_r_sub806: 'after_correction',
       s1_t8: 'incomplete',
     });
+  });
+
+  it('every meeting 1 tool step is left out of the outcomes', () => {
+    const steps = MEETING1_TOOL_STEPS.map((id, i) => ev(id, 'PROBLEM_COMPLETE', {}, i));
+    expect(computeExerciseOutcomes(steps)).toEqual({});
+  });
+
+  it('…and out of the class table and the attempted/completed counts, even with a pause logged in a step', () => {
+    const events = [
+      ...MEETING1_TOOL_STEPS.flatMap((id, i) => [
+        ev(id, 'HESITATION_DETECTED', {}, i * 10),
+        ev(id, 'PROBLEM_COMPLETE', {}, i * 10 + 1),
+      ]),
+      ev('s1_t8', 'DIGIT_ENTERED', { column_index: 0, details: { digit_value: 7, is_correct: true } }, 100),
+      ev('s1_t8', 'PROBLEM_COMPLETE', {}, 101),
+    ];
+    const row = buildLearnerRow(4, events, null, 'green_path', null, null, 0, null, { sessionNumber: 1, allEvents: events });
+    expect(row.exercises_attempted).toBe(1);
+    expect(row.exercises_completed).toBe(1);
+    const cls = aggregateClass([row], new Map([[4, events]]), 1);
+    expect(cls.exercises.map((e) => e.exercise_id)).toEqual(['s1_t8']);
   });
 
   it('the class row keeps the outcome rule it had (same function now)', () => {
@@ -174,7 +197,7 @@ describe('the meeting 1 individual report (Chromium template)', () => {
     score_percent: null,
     tool_mastery: computeToolMastery(learner4),
     exercise_outcomes: computeExerciseOutcomes(learner4),
-    exercise_titles: { s1_t10: 'תרגול חיסור: פריטת עשרות' },
+    exercise_titles: { s1_r_sub806: 'חיסור במאונך עם פריטה דרך אפס בטור העשרות' },
     exercise_narratives: [],
     knowledge_gaps: [],
     teaching_recommendations: [],
@@ -186,7 +209,7 @@ describe('the meeting 1 individual report (Chromium template)', () => {
     expect(html).toContain('ביטול פעולה');
     expect(html).toContain('לא הופעל');
     expect(html).toContain('הופעל פעם אחת');
-    expect(html).toContain('תרגול חיסור: פריטת עשרות');
+    expect(html).toContain('חיסור במאונך עם פריטה דרך אפס בטור העשרות');
     expect(html).toContain('אחרי תיקון');
     expect(html).toContain('לקראת האבחון');
   });

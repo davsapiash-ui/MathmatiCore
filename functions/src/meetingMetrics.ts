@@ -61,6 +61,20 @@ export type ExerciseOutcome = "first_try" | "after_correction" | "incomplete";
  * without turning it into a percentage — so meeting 1 can show the teacher what
  * happened in each refresh exercise without grading it.
  */
+/**
+ * Meeting 1's tool steps (מסמך 03 §3.1, steps 1–5; react-ts-version
+ * SESSION1_TASKS of type session1_intro). The learner does something with a
+ * tool and nothing is checked, so there is no outcome to report: the report
+ * shows them as tool mastery, and lists only the exercises (מסמך 04: "כיצד
+ * הסתיים כל תרגיל ריענון"). A client test keeps this list equal to the bank.
+ */
+export const MEETING1_TOOL_STEPS: readonly string[] = [
+  "s1_sandbox_controlled",
+  "s1_decompose_hundred",
+  "s1_build_305",
+  "s1_undo_trash",
+];
+
 export function computeExerciseOutcomes(events: Record<string, any>[]): Record<string, ExerciseOutcome> {
   const sorted = [...events].sort((a, b) => (a.client_timestamp || 0) - (b.client_timestamp || 0));
   const wrongInExercise = new Set<string>();
@@ -153,7 +167,10 @@ export function computeToolMastery(events: Record<string, any>[]): ToolMastery {
  */
 export function isExerciseEvent(ev: Record<string, any> | null | undefined): boolean {
   const type = ev?.event_type;
-  return type !== "SESSION_START" && type !== "REFLECTION_SUBMITTED";
+  if (type === "SESSION_START" || type === "REFLECTION_SUBMITTED") return false;
+  // Meeting 1's tool steps are tool mastery, not exercises — in the outcomes,
+  // the attempted/completed counts, the class table, the CSV and the AI input.
+  return !MEETING1_TOOL_STEPS.includes(String(ev?.exercise_id ?? ""));
 }
 
 /**
@@ -325,9 +342,12 @@ export function summarizeMeeting(events: Record<string, any>[]): MeetingSummary 
       last = last === null ? t : Math.max(last, t);
     }
     const exId = String(ev.exercise_id || "");
-    if (exId && isExerciseEvent(ev)) attempted.add(exId);
+    const isExercise = Boolean(exId) && isExerciseEvent(ev);
+    if (isExercise) attempted.add(exId);
     switch (ev.event_type) {
-      case "PROBLEM_COMPLETE": if (exId) completed.add(exId); break;
+      // Completed only what was attempted: a completion without an exercise
+      // (a tool step) is not one more exercise completed.
+      case "PROBLEM_COMPLETE": if (isExercise) completed.add(exId); break;
       case "DIGIT_ENTERED":
         s.digits_entered++;
         if (ev.details?.is_correct === false) s.wrong_digits++;
