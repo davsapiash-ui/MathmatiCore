@@ -374,10 +374,14 @@ describe('F3 — הנחיות ארוכות אינן נקטעות אחרי ~15 ש
   const MAX_CHARS = 140;
 
   it('ההנחיה הארוכה ביותר בקטלוג מפוצלת למקטעים קצרים, בלי לאבד מילה', async () => {
-    const catalog = ['data/sessionTasks.ts', 'data/taskBuilders.ts', 'core/QMatrix.ts']
-      .map(SRC)
-      .join('\n');
-    const instructions = [...catalog.matchAll(/instructionHe: *(['"])([\s\S]*?)\1/g)].map((m) => m[2]);
+    // The instructions a child can actually hear: every bank the administrator
+    // publishes, and the diagnostic. (Reading them off the source missed every
+    // exercise written through a builder.)
+    const { getHardcodedCatalogBanks } = await import('@/data/sessionTasks');
+    const { TASKS: DIAGNOSTIC } = await import('@/core/QMatrix');
+    const instructions = [...getHardcodedCatalogBanks().flatMap((b) => b.tasks), ...DIAGNOSTIC]
+      .map((t) => t.instructionHe)
+      .filter((s): s is string => typeof s === 'string' && s.length > 0);
     expect(instructions.length).toBeGreaterThan(15);
 
     const longest = instructions.sort((a, b) => b.length - a.length)[0];

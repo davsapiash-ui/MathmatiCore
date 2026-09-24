@@ -37,10 +37,10 @@ const learner4 = [
   ev('s1_sandbox_controlled', 'BLOCK_DRAG_COMPLETE', { column_index: 2, details: { block_value: 100, source_column_index: null } }, 1),
   ev('s1_sandbox_controlled', 'BLOCK_DRAG_COMPLETE', { column_index: 2, details: { block_value: 100, source_column_index: 2 } }, 2), // into the trash
   ev('s1_sandbox_controlled', 'PROBLEM_COMPLETE', {}, 3),
-  ev('s1_t10', 'REGROUPING_SUCCESS', { column_index: 2, details: { regrouping_type: 'decomposition', duration_ms: 400 } }, 4),
-  ev('s1_t10', 'DIGIT_ENTERED', { column_index: 0, details: { digit_value: 2, is_correct: false } }, 5),
-  ev('s1_t10', 'DIGIT_ENTERED', { column_index: 0, details: { digit_value: 3, is_correct: true } }, 6),
-  ev('s1_t10', 'PROBLEM_COMPLETE', {}, 7),
+  ev('s1_r_sub806', 'REGROUPING_SUCCESS', { column_index: 2, details: { regrouping_type: 'decomposition', duration_ms: 400 } }, 4),
+  ev('s1_r_sub806', 'DIGIT_ENTERED', { column_index: 0, details: { digit_value: 4, is_correct: false } }, 5),
+  ev('s1_r_sub806', 'DIGIT_ENTERED', { column_index: 0, details: { digit_value: 5, is_correct: true } }, 6),
+  ev('s1_r_sub806', 'PROBLEM_COMPLETE', {}, 7),
   ev('s1_t8', 'DIGIT_ENTERED', { column_index: 0, details: { digit_value: 7, is_correct: true } }, 8),
 ];
 
@@ -99,7 +99,7 @@ describe('what meeting 1 measures instead', () => {
   it('refresh outcomes: first try, after a wrong digit, not finished', () => {
     expect(computeExerciseOutcomes(learner4)).toEqual({
       s1_sandbox_controlled: 'first_try',
-      s1_t10: 'after_correction',
+      s1_r_sub806: 'after_correction',
       s1_t8: 'incomplete',
     });
   });
@@ -174,7 +174,7 @@ describe('the meeting 1 individual report (Chromium template)', () => {
     score_percent: null,
     tool_mastery: computeToolMastery(learner4),
     exercise_outcomes: computeExerciseOutcomes(learner4),
-    exercise_titles: { s1_t10: 'תרגול חיסור: פריטת עשרות' },
+    exercise_titles: { s1_r_sub806: 'חיסור במאונך עם פריטה דרך אפס בטור העשרות' },
     exercise_narratives: [],
     knowledge_gaps: [],
     teaching_recommendations: [],
@@ -186,7 +186,7 @@ describe('the meeting 1 individual report (Chromium template)', () => {
     expect(html).toContain('ביטול פעולה');
     expect(html).toContain('לא הופעל');
     expect(html).toContain('הופעל פעם אחת');
-    expect(html).toContain('תרגול חיסור: פריטת עשרות');
+    expect(html).toContain('חיסור במאונך עם פריטה דרך אפס בטור העשרות');
     expect(html).toContain('אחרי תיקון');
     expect(html).toContain('לקראת האבחון');
   });

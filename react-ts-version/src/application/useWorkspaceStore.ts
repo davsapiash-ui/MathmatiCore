@@ -22,6 +22,7 @@ import {
   describeCountsHe,
   digitAt,
 } from '@/core/placeValue';
+import { session1Checklist, session1NextStep } from '@/core/session1Checklist';
 import {
   advance,
   getCurrentQTask,
@@ -591,9 +592,9 @@ export function selectCanProceed(s: WorkspaceState): boolean {
   const task = selectStandardTask(s);
   if (!task) return false;
   if (task.type === 'session1_intro') {
-    if (task.id === 's1_sandbox_controlled') {
-      return s.blocksAddedCount >= 5 && s.hasDeletedBlock;
-    }
+    // Meeting 1 tool steps (מסמך 03 §3.1): done when every checklist item is.
+    const checklist = session1Checklist(task.id, s);
+    if (checklist) return checklist.every((item) => item.done);
     if (task.correctAnswer === 'proceed_any' || !task.choices?.length) {
       return true;
     }
@@ -1047,17 +1048,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     };
 
     if (task.type === 'session1_intro') {
-      if (task.id === 's1_sandbox_controlled') {
-        if (s.blocksAddedCount < 5 || !s.hasDeletedBlock) {
-          handleFailure(
-            'sandbox_incomplete',
-            'עֲדַיִן לֹא הִשְׁלַמְתֶּם אֶת הַמְּשִׂימָה 🛠️',
-            'יֵשׁ לִגְרֹר לְפָחוֹת 5 פְּרִיטִים לְבֵית הַמִּסְפָּרִים וּלִמְחֹק לְפָחוֹת פְּרִיט אֶחָד (לַפַּח אוֹ מִחוּץ לַלּוּחַ).',
-            3500
-          );
+      // Meeting 1 tool steps (מסמך 03 §3.1): the checklist on the card is the rule.
+      if (session1Checklist(task.id, s)) {
+        const nextStep = session1NextStep(task.id, s);
+        if (nextStep) {
+          handleFailure('sandbox_incomplete', 'עוד צעד אחד 🛠️', `${nextStep}.`, 3500);
           return;
         }
-        handleSuccess('כָּל הַכָּבוֹד! 🌟', 'הִשְׁלַמְתֶּם אֶת אִמּוּן אַרְגַּז הַחוֹל וְקִבַּלְתֶּם אֶת רִשְׁיוֹן הַחוֹקֵר!', 2500);
+        handleSuccess('כל הכבוד! 🌟', 'ממשיכים לשלב הבא.', 2000);
         return;
       }
       if (task.correctAnswer === 'proceed_any' || !task.choices?.length) {
@@ -1212,6 +1210,15 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           `הלוח צריך להציג בדיוק: ${describeCountsHe(required)}. כרגע יש בו: ${describeCountsHe(s.counts)}.`,
           3500
         );
+        return;
+      }
+      // Meeting 1: the exercise is the conversion itself, not only its result.
+      if (task.requiresGrouping && !s.hasGrouped) {
+        handleFailure('conversion_skipped', 'בּוֹאוּ נְקַבֵּץ 🧱', 'הלוח נכון, אבל המשימה היא לקבץ בעצמכם: גררו יחידות בודדות ולחצו על כפתור "הקבץ (10)".', 3500);
+        return;
+      }
+      if (task.requiresUngrouping && !s.hasUngrouped) {
+        handleFailure('conversion_skipped', 'בּוֹאוּ נִפְרֹט 🧱', 'הלוח נכון, אבל המשימה היא לפרוט בעצמכם: בנו את המספר ולחצו על לבנה כדי לפרק אותה.', 3500);
         return;
       }
       const typed = answerDigitsToNumber(s.answerDigits);

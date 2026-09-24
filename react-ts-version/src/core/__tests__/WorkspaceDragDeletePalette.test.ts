@@ -99,33 +99,29 @@ describe('Workspace Drag-and-Drop & Trash Deletion Suite', () => {
     expect(useWorkspaceStore.getState().hasUngrouped).toBe(true);
   });
 
-  it('enforces that s1_sandbox_controlled requires BOTH 5 blocks added AND at least 1 deleted to proceed', () => {
+  it('s1_sandbox_controlled (מסמך 03 §3.1 steps 1–2) proceeds once 5 blocks were dragged; the trash is step 5', () => {
     const store = useWorkspaceStore.getState();
     // Initially, cannot proceed
     expect(selectCanProceed(useWorkspaceStore.getState())).toBe(false);
 
-    // Add 5 blocks from palette
-    for (let i = 0; i < 5; i++) {
+    // Add 4 blocks from palette: not yet
+    for (let i = 0; i < 4; i++) {
       store.applyDrop({
         source: 'palette',
         sourcePlace: 'tens',
         target: { kind: 'column', place: 'tens' },
       });
     }
-    expect(useWorkspaceStore.getState().blocksAddedCount).toBe(5);
-    expect(useWorkspaceStore.getState().hasDeletedBlock).toBe(false);
-    // Still cannot proceed because deletion step is incomplete!
     expect(selectCanProceed(useWorkspaceStore.getState())).toBe(false);
 
-    // Delete 1 block
+    // The fifth block completes free exploration — no deletion is asked here.
     store.applyDrop({
-      source: 'column',
+      source: 'palette',
       sourcePlace: 'tens',
-      target: { kind: 'trash' },
+      target: { kind: 'column', place: 'tens' },
     });
-    expect(useWorkspaceStore.getState().hasDeletedBlock).toBe(true);
-
-    // Now BOTH steps are complete -> can proceed!
+    expect(useWorkspaceStore.getState().blocksAddedCount).toBe(5);
+    expect(useWorkspaceStore.getState().hasDeletedBlock).toBe(false);
     expect(selectCanProceed(useWorkspaceStore.getState())).toBe(true);
   });
 
@@ -134,8 +130,8 @@ describe('Workspace Drag-and-Drop & Trash Deletion Suite', () => {
     const task = {
       id: 's1_sandbox_controlled',
       type: 'session1_intro',
-      titleHe: 'ארגז חול: אימון טכני',
-      instructionHe: 'גררו 5 פריטים ומחקו 1',
+      titleHe: 'חקירה וירטואלית חופשית',
+      instructionHe: 'גררו לבנים לטורים משמאל וצפו בספרות המשתנות בלוח בית המספרים!',
     };
 
     // 12 tens on the board during sandbox
@@ -145,6 +141,6 @@ describe('Workspace Drag-and-Drop & Trash Deletion Suite', () => {
     expect(hint).toBeDefined();
     // Must NOT ask about overcrowding (12 tens)
     expect(hint?.questionHe).not.toContain('12 עשרות');
-    expect(hint?.questionHe).toContain('בוא נסתכל על רשימת המשימות שלנו בצד');
+    expect(hint?.questionHe).toContain('בואו נסתכל על רשימת המשימות');
   });
 });
