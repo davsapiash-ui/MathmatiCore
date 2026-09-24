@@ -35,6 +35,115 @@ export function sessionNumberFromId(sessionId: string): number | null {
 export const DIAGNOSTIC_COMPULSORY_COUNT = 7;
 
 /**
+ * PRD Module 14 §ב: "מפגש 1 הוא ארגז חול חקירתי ואינו כולל משימות חובה
+ * ממוספרות, אינו מקבל ציון, ואינו מפעיל את נוסחת session_score_percent."
+ *
+ * Meeting 1 lets the learner meet the tools and refresh what meeting 2 will
+ * diagnose, so that a wrong answer there is a real gap and not the interface
+ * or rust (owner, 24.9.2026). A percentage measured while the child is still
+ * learning where to drag would mix exactly those two things, and a teacher
+ * could read it as a diagnosis before the diagnosis. Every score path asks
+ * here — the trigger, the individual report, the class report and the research
+ * export — so none of them can grade meeting 1 on its own.
+ */
+export const UNSCORED_MEETINGS: ReadonlySet<number> = new Set([1]);
+
+export function isScoredMeeting(sessionNumber: number): boolean {
+  return !UNSCORED_MEETINGS.has(sessionNumber);
+}
+
+/** How the learner finished one exercise. */
+export type ExerciseOutcome = "first_try" | "after_correction" | "incomplete";
+
+/**
+ * Per exercise: opened and not finished, finished after a wrong digit, or
+ * finished first try. The same rule as the score's numerator (Module 23 §ב),
+ * without turning it into a percentage — so meeting 1 can show the teacher what
+ * happened in each refresh exercise without grading it.
+ */
+export function computeExerciseOutcomes(events: Record<string, any>[]): Record<string, ExerciseOutcome> {
+  const sorted = [...events].sort((a, b) => (a.client_timestamp || 0) - (b.client_timestamp || 0));
+  const wrongInExercise = new Set<string>();
+  const outcomes: Record<string, ExerciseOutcome> = {};
+  for (const ev of sorted) {
+    const exId = isExerciseEvent(ev) ? String(ev.exercise_id || "") : "";
+    if (exId && !outcomes[exId]) outcomes[exId] = "incomplete";
+    if (ev.event_type === "DIGIT_ENTERED" && ev.details?.is_correct === false) {
+      if (exId) wrongInExercise.add(exId);
+    } else if (ev.event_type === "PROBLEM_COMPLETE" && exId) {
+      outcomes[exId] = wrongInExercise.has(exId) ? "after_correction" : "first_try";
+    }
+  }
+  return outcomes;
+}
+
+/** The six interface actions a learner needs before the diagnostic. */
+export const TOOLS = ["drag", "decompose", "compose", "type", "undo", "trash"] as const;
+export type Tool = typeof TOOLS[number];
+
+export const TOOL_LABEL_HE: Record<Tool, string> = {
+  drag: "גרירת לבנים ללוח",
+  decompose: "פירוק לבנה (פריטה)",
+  compose: "הקבצה בכפתור \"הקבץ\"",
+  type: "הקלדת ספרות",
+  undo: "ביטול פעולה",
+  trash: "פח האשפה",
+};
+
+/**
+ * What meeting 1 is for, stated once for every reader of its reports — the
+ * teacher's PDFs and the AI engine alike.
+ */
+export const SANDBOX_MEETING_PURPOSE_HE =
+  "מפגש 1 הוא ארגז חול: היכרות עם כלי המערכת וריענון קל של החומר, לקראת מפגש האבחון (מפגש 2). " +
+  "המפגש אינו מקבל ציון ואינו מסווג לקבוצת עבודה (PRD, מודול 14). " +
+  "מטרתו שטעות באבחון תשקף פער ידע אמיתי, ולא אי-היכרות עם הממשק או שכחה.";
+
+export interface ToolMastery {
+  /** How many times the learner performed each action in the meeting. */
+  used: Record<Tool, number>;
+  /** The actions the learner never performed — what the teacher checks before meeting 2. */
+  not_used: Tool[];
+}
+
+/**
+ * Which interface tools the learner actually operated, read from the events:
+ *   drag      — BLOCK_DRAG_COMPLETE onto the board (not into the trash)
+ *   decompose — REGROUPING_SUCCESS, regrouping_type "decomposition" (click or drag right)
+ *   compose   — REGROUPING_SUCCESS, regrouping_type "composition" (the "הקבץ" button)
+ *   type      — DIGIT_ENTERED
+ *   undo      — UNDO_EXECUTED
+ *   trash     — a drag into the trash, or BOARD_CLEARED
+ * A drag into the trash carries the column the block left in both column
+ * fields (Module 8 §א, register "ביקורת צד הילד"); no other drag does, since a
+ * drag within the same column is silent.
+ */
+export function computeToolMastery(events: Record<string, any>[]): ToolMastery {
+  const used: Record<Tool, number> = { drag: 0, decompose: 0, compose: 0, type: 0, undo: 0, trash: 0 };
+  for (const ev of events) {
+    switch (ev?.event_type) {
+      case "BLOCK_DRAG_COMPLETE": {
+        const col = ev.column_index;
+        const source = ev.details?.source_column_index;
+        const intoTrash = typeof col === "number" && typeof source === "number" && col === source;
+        if (intoTrash) used.trash++;
+        else used.drag++;
+        break;
+      }
+      case "BOARD_CLEARED": used.trash++; break;
+      case "REGROUPING_SUCCESS":
+        if (ev.details?.regrouping_type === "composition") used.compose++;
+        else if (ev.details?.regrouping_type === "decomposition") used.decompose++;
+        break;
+      case "DIGIT_ENTERED": used.type++; break;
+      case "UNDO_EXECUTED": used.undo++; break;
+      default: break;
+    }
+  }
+  return { used, not_used: TOOLS.filter((t) => used[t] === 0) };
+}
+
+/**
  * Whether an event belongs to an exercise. SESSION_START carries the placeholder
  * id "ex_N_01" and REFLECTION_SUBMITTED "reflection_meeting_N": neither is an
  * exercise the learner opened. Counted as one, they put a phantom first
@@ -268,6 +377,9 @@ export async function resolveCompulsoryTotal(
   cache: Map<string, number | null> = new Map(),
   idsOut?: Map<string, ReadonlySet<string>>
 ): Promise<number | null> {
+  // Meeting 1 has no compulsory exercises (Module 14 §ב), so no denominator —
+  // and no denominator is no score, on every path that asks.
+  if (!isScoredMeeting(sessionNumber)) return null;
   if (sessionNumber === 2) return DIAGNOSTIC_COMPULSORY_COUNT;
   const key = `${sessionNumber}:${path}`;
   if (cache.has(key)) return cache.get(key) ?? null;

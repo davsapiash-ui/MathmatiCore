@@ -4,6 +4,7 @@ import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import {
   computeFirstAttemptScore,
+  isScoredMeeting,
   readMeetingTelemetry,
   resolveCompulsoryTotal,
   studentNumberFromSessionId,
@@ -38,6 +39,12 @@ export const onSessionCompleteTrigger = onDocumentWritten({
   if (afterData.evaluated_at && beforeData?.is_completed === true) return;
 
   const sessionNum = Number(afterData.session_number) || 1;
+  // Module 14 §ב: meeting 1 "אינו מקבל ציון, ואינו מפעיל את נוסחת
+  // session_score_percent" — nor, therefore, a path recommendation.
+  if (!isScoredMeeting(sessionNum)) {
+    logger.info(`Session ${event.params.sessionId}: meeting ${sessionNum} is not scored (Module 14 §ב).`);
+    return;
+  }
   const studentNum = studentNumberFromSessionId(event.params.sessionId)
     ?? studentNumberFromSessionId(String(afterData.session_id || ""));
   if (studentNum === null) {
@@ -165,7 +172,10 @@ export const createSessionWithServerDeadline = onCall(async (request) => {
     session_deadline_time: deadlineTimeMs,
     active_exercise_id: `ex_${session_number}_01`,
     is_completed: false,
-    session_score_percent: 0,
+    // Not 0: a meeting that has not been worked on has no score yet, and every
+    // report reads a number here as a measurement (Module 24 §ב). Meeting 1
+    // never gets one (Module 14 §ב); the others get theirs from the trigger.
+    session_score_percent: null,
     teacher_gate_approved: false,
     gate_approved_at: null,
     gate_approved_by: null,

@@ -3,7 +3,7 @@ import { requireAdmin, requireTeacherForIndividualData } from "./callerIdentity"
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import { GoogleAuth } from "google-auth-library";
-import { computeFirstAttemptScore, readAllDocs, resolveCompulsoryTotal, sessionNumberFromId, studentNumberFromSessionId, summarizeMeeting, computeFadingGap, computeFlexibilityIndex, computeMediationEffectiveness, computePersistenceIndex, FLEXIBILITY_SESSIONS } from "./meetingMetrics";
+import { computeToolMastery, isScoredMeeting, TOOLS, computeFirstAttemptScore, readAllDocs, resolveCompulsoryTotal, sessionNumberFromId, studentNumberFromSessionId, summarizeMeeting, computeFadingGap, computeFlexibilityIndex, computeMediationEffectiveness, computePersistenceIndex, FLEXIBILITY_SESSIONS } from "./meetingMetrics";
 import { recomputeAdminMetrics } from "./adminAggregator";
 
 const GOOGLE_DRIVE_FOLDER_ID = "0AMiALsm_TxT5Uk9PVA";
@@ -1653,6 +1653,7 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
       const score = computeFirstAttemptScore(events, compulsory, compulsoryIdsByBank.get(`${m}:${path}`) ?? null);
       const persistence = computePersistenceIndex(events);
       const summary = summarizeMeeting(events);
+      const tools = computeToolMastery(events);
       // מסמך 03 §3.8: session 8 against the same learner's sessions 4–6.
       const fading = m === 8
         ? computeFadingGap(events, [4, 5, 6].flatMap((e) => byLearnerMeeting.get(`${n}:${e}`) ?? []))
@@ -1722,10 +1723,13 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
         recording_minutes: rec?.minutes ?? 0,
         recording_truncated: rec?.truncated ?? false,
         learning_path: path,
-        session_doc_score_percent: sessionDoc?.session_score_percent ?? "",
+        // Module 14 §ב: meeting 1 is not scored, whatever a stored document says.
+        session_doc_score_percent: isScoredMeeting(m) ? (sessionDoc?.session_score_percent ?? "") : "",
         session_doc_recommended_path: sessionDoc?.matrix_recommended_path ?? "",
         session_doc_teacher_path: sessionDoc?.teacher_selected_path ?? "",
         teacher_gate_approved: sessionDoc?.teacher_gate_approved ?? "",
+        // Which interface tools the learner operated — the measurement meeting 1 exists for.
+        ...Object.fromEntries(TOOLS.map((tool) => [`tool_${tool}`, tools.used[tool]])),
       });
     }
 

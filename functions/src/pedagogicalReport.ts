@@ -20,6 +20,14 @@ import {
   mediationHe,
   readMeetingTelemetry,
   sessionNumberFromId,
+  computeExerciseOutcomes,
+  computeToolMastery,
+  isScoredMeeting,
+  SANDBOX_MEETING_PURPOSE_HE,
+  TOOL_LABEL_HE,
+  TOOLS,
+  type ExerciseOutcome,
+  type Tool,
 } from "./meetingMetrics";
 import { GEMINI_SECRETS } from "./geminiConfig";
 import {
@@ -30,7 +38,7 @@ import {
 } from "./reportAnalysis";
 import { rtlText } from "./hebrewPdf";
 import { CHROMIUM_PDF_RUNTIME, renderHtmlToPdf, renderWithFallback } from "./htmlPdf";
-import { EXACT_AI_FALLBACK_TEXT_HE, pedagogicalReportHtml, reportFooterTemplate } from "./reportHtml";
+import { EXACT_AI_FALLBACK_TEXT_HE, OUTCOME_HE, pedagogicalReportHtml, reportFooterTemplate } from "./reportHtml";
 const PDFDocument = require("pdfkit");
 
 export const EXACT_AI_FALLBACK_TEXT = EXACT_AI_FALLBACK_TEXT_HE;
@@ -236,27 +244,62 @@ export function createPedagogicalReportPdfBufferWithPdfkit(report: Record<string
       doc.rect(40, doc.y, 515, 60).fillAndStroke("#f8fafc", "#cbd5e1");
       doc.fillColor("#0f172a").fontSize(11);
       const cardY = doc.y + 12;
+      // Meeting 1 (Module 14 §ב): no score, no group, no path — the same
+      // sections the Chromium template prints for it (reportHtml.ts).
+      const sandbox = report.meeting_kind === "sandbox_refresh";
       rtlText(doc, `לומד: ${report.anonymous_student_label}`, 390, cardY, { width: 150 });
-      rtlText(doc, `מפגש: ${report.session_number}`, 260, cardY, { width: 110 });
-      rtlText(doc, `ציון שליטה: ${report.score_percent}%`, 70, cardY, { width: 170 });
-      rtlText(doc, `מסלול מומלץ: ${report.matrix_recommended_path === 'green_path' ? 'מסלול העמקה (ירוק)' : 'מסלול ביסוס ומענה מותאם (צהוב)'}`, 55, cardY + 25, { width: 490 });
+      if (sandbox) {
+        rtlText(doc, "מפגש: 1 — היכרות וריענון", 180, cardY, { width: 190 });
+        const notUsed: string[] = (report.tool_mastery?.not_used ?? []).map((t: Tool) => TOOL_LABEL_HE[t] ?? t);
+        rtlText(doc, `כלים שעוד לא הופעלו: ${notUsed.length > 0 ? notUsed.join(", ") : "אין — כל הכלים הופעלו"}`, 55, cardY + 25, { width: 490 });
+      } else {
+        rtlText(doc, `מפגש: ${report.session_number}`, 260, cardY, { width: 110 });
+        rtlText(doc, `ציון שליטה: ${report.score_percent}%`, 70, cardY, { width: 170 });
+        rtlText(doc, `מסלול מומלץ: ${report.matrix_recommended_path === 'green_path' ? 'מסלול העמקה (ירוק)' : 'מסלול ביסוס ומענה מותאם (צהוב)'}`, 55, cardY + 25, { width: 490 });
+      }
       doc.x = 40;
       doc.y = cardY + 60;
       doc.moveDown(1);
 
-      // Grouping Recommendation
-      doc.fontSize(14).fillColor("#166534");
-      rtlText(doc, "1. המלצת ניתוב פדגוגי");
-      doc.moveDown(0.3);
-      doc.fontSize(11).fillColor("#14532d");
-      rtlText(doc, `קבוצת למידה: ${report.routing_label_he || report.routing_group}`);
-      doc.fontSize(10).fillColor("#334155");
-      rtlText(doc, `פירוט פדגוגי: ${report.recommendation_details_he || report.routing_label_he}`, { lineGap: 3 });
-      doc.moveDown(1);
+      if (sandbox) {
+        doc.fontSize(9).fillColor("#64748b");
+        rtlText(doc, SANDBOX_MEETING_PURPOSE_HE, { lineGap: 3 });
+        doc.moveDown(0.6);
+        doc.fontSize(14).fillColor("#166534");
+        rtlText(doc, "1. שליטה בכלי המערכת");
+        doc.moveDown(0.3);
+        for (const tool of TOOLS) {
+          const n = report.tool_mastery?.used?.[tool] ?? 0;
+          doc.fontSize(10).fillColor(n > 0 ? "#14532d" : "#991b1b");
+          rtlText(doc, `${TOOL_LABEL_HE[tool]}: ${n === 0 ? "לא הופעל" : n === 1 ? "הופעל פעם אחת" : `הופעל ${n} פעמים`}`, { lineGap: 2 });
+        }
+        doc.moveDown(0.8);
+        doc.fontSize(14).fillColor("#1e293b");
+        rtlText(doc, "2. תרגילי הריענון");
+        doc.moveDown(0.3);
+        const titles: Record<string, string> = report.exercise_titles || {};
+        const outcomes = Object.entries((report.exercise_outcomes || {}) as Record<string, ExerciseOutcome>);
+        if (outcomes.length === 0) rtlText(doc, "לא נרשמו תרגילים.");
+        for (const [id, outcome] of outcomes) {
+          doc.fontSize(10).fillColor("#334155");
+          rtlText(doc, `${titles[id] || id}: ${OUTCOME_HE[outcome]}`, { lineGap: 2 });
+        }
+        doc.moveDown(1);
+      } else {
+        // Grouping Recommendation
+        doc.fontSize(14).fillColor("#166534");
+        rtlText(doc, "1. המלצת ניתוב פדגוגי");
+        doc.moveDown(0.3);
+        doc.fontSize(11).fillColor("#14532d");
+        rtlText(doc, `קבוצת למידה: ${report.routing_label_he || report.routing_group}`);
+        doc.fontSize(10).fillColor("#334155");
+        rtlText(doc, `פירוט פדגוגי: ${report.recommendation_details_he || report.routing_label_he}`, { lineGap: 3 });
+        doc.moveDown(1);
+      }
 
       // Chronological Exercise Narratives
       doc.fontSize(14).fillColor("#1e293b");
-      rtlText(doc, "2. סיפור התרגילים הכרונולוגי (Exercise Narratives)");
+      rtlText(doc, `${sandbox ? "3" : "2"}. סיפור התרגילים הכרונולוגי (Exercise Narratives)`);
       doc.moveDown(0.4);
       if (report.exercise_narratives && Array.isArray(report.exercise_narratives)) {
         for (const narrative of report.exercise_narratives) {
@@ -269,7 +312,7 @@ export function createPedagogicalReportPdfBufferWithPdfkit(report: Record<string
 
       // AI Insights (Module 23 layer 2) / Exact Fallback
       doc.fontSize(14).fillColor("#92400e");
-      rtlText(doc, "3. תובנות קוגניטיביות פדגוגיות");
+      rtlText(doc, sandbox ? "4. לקראת האבחון" : "3. תובנות קוגניטיביות פדגוגיות");
       doc.moveDown(0.3);
       const gaps: string[] = Array.isArray(report.knowledge_gaps) ? report.knowledge_gaps : [];
       const teaching: string[] = Array.isArray(report.teaching_recommendations)
@@ -279,7 +322,7 @@ export function createPedagogicalReportPdfBufferWithPdfkit(report: Record<string
       if (gaps.length > 0 || teaching.length > 0) {
         if (gaps.length > 0) {
           doc.fontSize(11).fillColor("#92400e");
-          rtlText(doc, "פערי ידע שאותרו:");
+          rtlText(doc, sandbox ? "נקודות לתשומת לב לקראת האבחון:" : "פערי ידע שאותרו:");
           doc.moveDown(0.2);
           for (const gap of gaps) {
             doc.fontSize(10).fillColor("#78350f");
@@ -290,7 +333,7 @@ export function createPedagogicalReportPdfBufferWithPdfkit(report: Record<string
         }
         if (teaching.length > 0) {
           doc.fontSize(11).fillColor("#92400e");
-          rtlText(doc, "המלצות הוראה להמשך העבודה בכיתה:");
+          rtlText(doc, sandbox ? "מה אפשר לעשות לפני האבחון:" : "המלצות הוראה להמשך העבודה בכיתה:");
           doc.moveDown(0.2);
           for (const rec of teaching) {
             doc.fontSize(10).fillColor("#78350f");
@@ -309,7 +352,7 @@ export function createPedagogicalReportPdfBufferWithPdfkit(report: Record<string
       if (measures) {
         doc.moveDown(1);
         doc.fontSize(14).fillColor("#0f172a");
-        rtlText(doc, "4. מדדי המחקר");
+        rtlText(doc, sandbox ? "5. מדדי המחקר" : "4. מדדי המחקר");
         doc.moveDown(0.3);
         doc.fontSize(10).fillColor("#0f172a");
         rtlText(doc, `התמדה וויסות עצמי במפגש זה: ${persistenceHe(measures.persistence ?? null)}`, { lineGap: 3 });
@@ -440,9 +483,25 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
   );
   const studentVal = aliasSnaps.find((snap) => snap.exists())?.val() || {};
 
+  // Module 14 §ב: meeting 1 "אינו מקבל ציון, ואינו מפעיל את נוסחת
+  // session_score_percent". Its report is built without one — and without the
+  // working group and path that the score would have decided.
+  const scoredMeeting = isScoredMeeting(resolvedSessionNumber);
+
   let sessionData: Record<string, any>;
-  let scoreSource: "session_document" | "telemetry_first_attempt" | "q_matrix";
-  if (sessionDoc.exists && sessionDoc.data()?.session_score_percent !== undefined && sessionDoc.data()?.session_score_percent !== null) {
+  let scoreSource: "session_document" | "telemetry_first_attempt" | "q_matrix" | "not_scored";
+  if (!scoredMeeting) {
+    if (telemetryDocs.length === 0) {
+      throw new HttpsError("not-found", `אין פעולות מתועדות למפגש ${resolvedSessionNumber} של תלמיד ${clampedStudentNum}; אין מה לנתח.`);
+    }
+    sessionData = {
+      session_number: resolvedSessionNumber,
+      is_completed: telemetryDocs.some((d) => d.event_type === "SESSION_END" || d.event_type === "PROBLEM_COMPLETE"),
+      teacher_selected_path: studentVal.teacher_selected_path || null,
+      teacher_gate_approved: Boolean(studentVal.teacher_gate_approved),
+    };
+    scoreSource = "not_scored";
+  } else if (sessionDoc.exists && sessionDoc.data()?.session_score_percent !== undefined && sessionDoc.data()?.session_score_percent !== null) {
     sessionData = sessionDoc.data() || {};
     scoreSource = "session_document";
   } else if (telemetryDocs.length > 0) {
@@ -513,15 +572,22 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
   const studentDoc = await db.collection("students").doc(studentId).get();
   const studentData = studentDoc.exists ? studentDoc.data() : null;
 
-  const score = sessionData.session_score_percent !== undefined && sessionData.session_score_percent !== null
-    ? sessionData.session_score_percent
-    : 0;
+  const score: number | null = !scoredMeeting
+    ? null
+    : sessionData.session_score_percent !== undefined && sessionData.session_score_percent !== null
+      ? sessionData.session_score_percent
+      : 0;
 
-  let routingGroup = 'Independent challenge track, whiteboard';
-  let routingLabelHe = 'מסלול אתגר עצמאי, לוח מחיק';
-  let recommendationDetailsHe = 'המלצה למסלול אתגר וחקר עצמאי תוך שימוש בלוח מחיק ומשימות הרחבה והעמקה.';
+  let routingGroup: string | null = 'Independent challenge track, whiteboard';
+  let routingLabelHe: string | null = 'מסלול אתגר עצמאי, לוח מחיק';
+  let recommendationDetailsHe: string | null = 'המלצה למסלול אתגר וחקר עצמאי תוך שימוש בלוח מחיק ומשימות הרחבה והעמקה.';
 
-  if (score < 50) {
+  if (score === null) {
+    // No score, no working group (Module 23 layer 1 is decided by the score).
+    routingGroup = null;
+    routingLabelHe = null;
+    recommendationDetailsHe = null;
+  } else if (score < 50) {
     routingGroup = 'Small homogeneous group, physical ten frames';
     routingLabelHe = 'קבוצה הומוגנית קטנה, מסגרות עשר פיזיות';
     recommendationDetailsHe = 'המלצה לעבודה בקבוצה קטנה הומוגנית עם תיווך צמוד ושימוש במסגרות עשר פיזיות לביסוס המבנה העשרוני.';
@@ -531,6 +597,10 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     recommendationDetailsHe = 'המלצה ללמידה שיתופית ושיח עמיתים הטרוגני בשילוב חשבונייה לחיזוק הגמישות בהמרות וחקר משותף.';
   }
 
+  // Meeting 1: what the learner can operate, and how each refresh exercise ended.
+  const toolMastery = scoredMeeting ? null : computeToolMastery(telemetryDocs);
+  const exerciseOutcomes = scoredMeeting ? null : computeExerciseOutcomes(telemetryDocs);
+
   // ---- Module 23 layer 2: the AI-authored verbal analysis. ----
   // Layer 1 (routingGroup / routingLabelHe / recommendationDetailsHe above) is
   // already decided and is never revisited here; the tier is passed to the
@@ -538,7 +608,7 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
   // unavailable, timed out, or malformed — leaves ai_analysis absent and the
   // renderer falls back to the exact sentence the PRD fixes. Report generation
   // never fails because of the engine.
-  const recommendationTier = resolveRecommendationTier(score);
+  const recommendationTier = score === null ? null : resolveRecommendationTier(score);
 
   // Exercises the learner actually erred on, and the columns those errors fell
   // in, taken from the telemetry rather than assumed from the score.
@@ -616,7 +686,17 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
       analysisPath
     ),
     telemetry_summary: buildTelemetrySummary(telemetryDocs),
+    ...(toolMastery ? { tools_not_used: toolMastery.not_used.map((t) => TOOL_LABEL_HE[t]) } : {}),
   });
+
+  // Meeting 1 names its refresh exercises by their titles, from the same bank.
+  const exerciseTitles: Record<string, string> | null = scoredMeeting
+    ? null
+    : Object.fromEntries(
+        catalogTasks
+          .filter((t) => t && typeof t.id === "string" && typeof t.titleHe === "string")
+          .map((t) => [t.id as string, t.titleHe as string])
+      );
 
   // Research measures 3–4 (PRD 7.3, Module 23 §ב). The cumulative values need
   // the same learner's other meetings; a failure to read them leaves the
@@ -642,16 +722,22 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     report_id: `rep_${sessionId}`,
     session_id: sessionId,
     generated_at: Date.now(),
-    title_he: `MathematiCore - דוח פדגוגי למפגש ${resolvedSessionNumber}`,
+    title_he: scoredMeeting
+      ? `MathematiCore - דוח פדגוגי למפגש ${resolvedSessionNumber}`
+      : `MathematiCore - דוח היכרות וריענון, מפגש ${resolvedSessionNumber}`,
     anonymous_student_label: `תלמיד ${clampedStudentNum}`,
     student_id: clampedStudentNum,
     session_number: resolvedSessionNumber,
+    /** "sandbox_refresh" for meeting 1: the templates print its own sections. */
+    meeting_kind: scoredMeeting ? "scored" : "sandbox_refresh",
     is_completed: Boolean(sessionData.is_completed),
     score_percent: score,
     score_source: scoreSource,
     first_attempt: sessionData.first_attempt || null,
     telemetry_event_count: telemetryDocs.length,
-    matrix_recommended_path: sessionData.matrix_recommended_path || (score >= 50 ? "green_path" : "remediation_path"),
+    matrix_recommended_path: score === null
+      ? null
+      : sessionData.matrix_recommended_path || (score >= 50 ? "green_path" : "remediation_path"),
     teacher_selected_path: sessionData.teacher_selected_path || null,
     teacher_gate_approved: Boolean(sessionData.teacher_gate_approved),
     routing_group: routingGroup,
@@ -666,7 +752,12 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     teaching_recommendations: aiAnalysis?.teaching_recommendations || [],
     ai_analysis_available: Boolean(aiAnalysis),
     ai_fallback_text: EXACT_AI_FALLBACK_TEXT,
-    summary_text_he: `דוח פדגוגי למפגש ${resolvedSessionNumber}. ציון שליטה: ${score}%. מסלול מומלץ: ${score >= 50 ? 'העמקה (ירוק)' : 'ביסוס ומענה מותאם (צהוב - remediation_path)'}.`
+    tool_mastery: toolMastery,
+    exercise_outcomes: exerciseOutcomes,
+    exercise_titles: exerciseTitles,
+    summary_text_he: score === null
+      ? `דוח היכרות וריענון למפגש ${resolvedSessionNumber}, ללא ציון. כלים שעוד לא הופעלו: ${toolMastery && toolMastery.not_used.length > 0 ? toolMastery.not_used.map((t) => TOOL_LABEL_HE[t]).join(", ") : "אין"}.`
+      : `דוח פדגוגי למפגש ${resolvedSessionNumber}. ציון שליטה: ${score}%. מסלול מומלץ: ${score >= 50 ? 'העמקה (ירוק)' : 'ביסוס ומענה מותאם (צהוב - remediation_path)'}.`
   };
 
   // Render authoritative server-side PDF binary & Upload to Cloud Storage
@@ -723,6 +814,10 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
       routing_group: routingGroup,
       routing_label_he: routingLabelHe,
       recommendation_details_he: recommendationDetailsHe,
+      meeting_kind: report.meeting_kind,
+      tool_mastery: toolMastery,
+      exercise_outcomes: exerciseOutcomes,
+      exercise_titles: exerciseTitles,
       exercise_narratives: exerciseNarratives,
       research_measures: researchMeasures,
       knowledge_gaps: report.knowledge_gaps,

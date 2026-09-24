@@ -42,8 +42,9 @@ describe('Module 23 — Hebrew in the PDF reports', () => {
   it('keeps the PRD fallback sentence and the report sections', () => {
     expect(learner).toContain('rtlText(doc, report.ai_fallback_text || EXACT_AI_FALLBACK_TEXT, { lineGap: 3 });');
     expect(learner).toContain('rtlText(doc, "1. המלצת ניתוב פדגוגי");');
-    expect(learner).toContain('rtlText(doc, "2. סיפור התרגילים הכרונולוגי (Exercise Narratives)");');
-    expect(learner).toContain('rtlText(doc, "3. תובנות קוגניטיביות פדגוגיות");');
+    // Section 2 in a scored meeting, 3 in meeting 1 (which opens with tools and refresh exercises).
+    expect(learner).toContain('rtlText(doc, `${sandbox ? "3" : "2"}. סיפור התרגילים הכרונולוגי (Exercise Narratives)`);');
+    expect(learner).toContain('rtlText(doc, sandbox ? "4. לקראת האבחון" : "3. תובנות קוגניטיביות פדגוגיות");');
     expect(klass).toContain('line(EXACT_AI_FALLBACK_TEXT, 10, "#78350f");');
   });
 });

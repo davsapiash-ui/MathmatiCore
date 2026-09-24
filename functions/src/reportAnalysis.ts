@@ -1,5 +1,6 @@
 import * as logger from "firebase-functions/logger";
 import { GEMINI_MODEL_ID, getGeminiClient } from "./geminiConfig";
+import { SANDBOX_MEETING_PURPOSE_HE } from "./meetingMetrics";
 
 /**
  * PRD Module 23 — layer two of the pedagogical report: the verbal analysis.
@@ -81,10 +82,14 @@ export interface GeminiReportRequest {
   student_id: number;
   session_id: string;
   session_number: number;
-  session_score_percent: number;
-  recommendation_tier: RecommendationTier;
+  /** null in meeting 1, which is not scored (Module 14 §ב). */
+  session_score_percent: number | null;
+  /** null in meeting 1: no working group, so no framework to stay within. */
+  recommendation_tier: RecommendationTier | null;
   failed_exercises: ReportExerciseTemplate[];
   telemetry_summary: ReportTelemetryEvent[];
+  /** Meeting 1: the interface actions the learner never performed. */
+  tools_not_used?: string[];
 }
 
 export interface GeminiReportResponse {
@@ -222,6 +227,34 @@ export function buildTelemetrySummary(
   });
 }
 
+/**
+ * Meeting 1: no score, no tier. The engine is asked the question meeting 1
+ * exists for — what could make tomorrow's diagnostic measure the interface or
+ * rust instead of the learner's knowledge.
+ */
+function buildSandboxSystemInstruction(): string {
+  return `אתה מנתח פדגוגי של מערכת MathematiCore, המנתח את נתוני תלמיד כיתה ג' במפגש 1.
+
+${SANDBOX_MEETING_PURPOSE_HE}
+
+מטרת הניתוח: לזהות מה עלול להפוך טעות של הלומד באבחון לרעש במקום לראיה — כלי ממשק שעוד לא הפעיל, ונושא ריענון שבו התקשה.
+
+חוקים מחייבים:
+1. אל תציין ציון, אחוז, דירוג, קבוצת עבודה או מסלול. במפגש זה אין כאלה.
+2. אל תפנה לתלמיד ואל תנקוב בשם. התלמיד אנונימי ומזוהה במספר בלבד.
+3. בסס כל טענה על הראיות שבנתונים — כלים, תרגילים, טורים ואירועים קונקרטיים. אל תמציא נתונים שאינם בקלט.
+4. כתוב בעברית תקנית, ענייני ותמציתי. כל פריט משפט אחד עד שניים.
+5. החזר JSON תקין בלבד, לפי הסכימה:
+{
+  "knowledge_gaps": ["string", ...],
+  "teaching_recommendations": ["string", ...]
+}
+ב-knowledge_gaps: נקודות לתשומת לב לקראת האבחון. ב-teaching_recommendations: מה המורה יכולה לעשות עם הלומד לפני האבחון.
+2 עד 4 פריטים בכל מערך. אם אין די ראיות, החזר מערכים ריקים.
+
+מונחי הטורים: ${COLUMN_NAMES_HE.map((n, i) => `${i}=${n}`).join(", ")}.`;
+}
+
 function buildSystemInstruction(tier: RecommendationTier): string {
   return `אתה מנתח פדגוגי של מערכת MathematiCore, המנתח נתוני ביצוע של תלמיד כיתה ג' בחשבון (ערך מיקום, הקבצה, פריטה וחישוב במאונך).
 
@@ -266,21 +299,30 @@ export async function generateReportAnalysis(
         temperature: 0.3,
         responseMimeType: "application/json",
       },
-      systemInstruction: buildSystemInstruction(req.recommendation_tier),
+      systemInstruction: req.recommendation_tier === null
+        ? buildSandboxSystemInstruction()
+        : buildSystemInstruction(req.recommendation_tier),
     });
 
+    const sandbox = req.recommendation_tier === null;
+    const toolsLine = sandbox
+      ? `\nכלי ממשק שהלומד לא הפעיל במפגש: ${JSON.stringify(req.tools_not_used ?? [])}\n`
+      : "";
+    const closing = sandbox
+      ? "נסח את הנקודות לתשומת לב לקראת האבחון ואת מה שהמורה יכולה לעשות עם הלומד לפני האבחון."
+      : "נסח את פערי הידע הספציפיים שאותרו ואת המלצות ההוראה להמשך העבודה בכיתה הפיזית, בתוך המסגרת שנקבעה.";
     const userPrompt = `נתוני הלומד לניתוח:
 
 מזהה אנונימי: ${req.student_id}
 מפגש: ${req.session_number}
-
+${toolsLine}
 תרגילים שבהם נרשמו שגיאות (תבניות מלאות):
 ${JSON.stringify(req.failed_exercises, null, 2)}
 
 רצף אירועי הטלמטריה במפגש:
 ${JSON.stringify(req.telemetry_summary)}
 
-נסח את פערי הידע הספציפיים שאותרו ואת המלצות ההוראה להמשך העבודה בכיתה הפיזית, בתוך המסגרת שנקבעה.`;
+${closing}`;
 
     const timeout = new Promise<null>((resolve) =>
       setTimeout(() => resolve(null), AI_ANALYSIS_TIMEOUT_MS)

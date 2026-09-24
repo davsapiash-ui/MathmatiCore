@@ -157,7 +157,9 @@ export function ClassMeetingReportPanel() {
         <p className="text-xs text-ws-soft">
           {state === 'loading'
             ? 'בודק אם כבר יש דוח כיתה למפגש זה…'
-            : 'עדיין לא הופק דוח כיתה למפגש זה. הדוח נבנה מכל הפעולות המתועדות של כל התלמידים במפגש: שיעור ההצלחה בניסיון ראשון לכל תלמיד, חלוקה לקבוצות למידה, טעויות לפי טור, ביטולים, היסוסים, כרטיסי חניכה, הצלחה בכל תרגיל, ותובנות פדגוגיות כיתתיות. הקובץ נשמר גם בדרייב, תיקייה "05 דוחות כיתה".'}
+            : selectedSession === 1
+              ? 'עדיין לא הופק דוח כיתה למפגש זה. מפגש 1 אינו מקבל ציון: הדוח מראה מי עוד לא הפעיל כל אחד מכלי המערכת, איך הסתיים כל תרגיל ריענון, ועל מה לשים לב לקראת האבחון. הקובץ נשמר גם בדרייב, תיקייה "05 דוחות כיתה".'
+              : 'עדיין לא הופק דוח כיתה למפגש זה. הדוח נבנה מכל הפעולות המתועדות של כל התלמידים במפגש: שיעור ההצלחה בניסיון ראשון לכל תלמיד, חלוקה לקבוצות למידה, טעויות לפי טור, ביטולים, היסוסים, כרטיסי חניכה, הצלחה בכל תרגיל, ותובנות פדגוגיות כיתתיות. הקובץ נשמר גם בדרייב, תיקייה "05 דוחות כיתה".'}
         </p>
       )}
 
@@ -166,16 +168,20 @@ export function ClassMeetingReportPanel() {
           {/* Class picture */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             <Stat label="תלמידים עם נתונים" value={`${report.learnersWithData} / 12`} />
-            <Stat
-              label="הצלחה ממוצעת בניסיון ראשון"
-              value={pctText(report.scoreMean)}
-              sub={report.scoreMean === null ? 'אין ציון ללומדי המפגש' : `חציון ${pctText(report.scoreMedian)} · טווח ${report.scoreMin}%–${report.scoreMax}%`}
-            />
+            {report.scored ? (
+              <Stat
+                label="הצלחה ממוצעת בניסיון ראשון"
+                value={pctText(report.scoreMean)}
+                sub={report.scoreMean === null ? 'אין ציון ללומדי המפגש' : `חציון ${pctText(report.scoreMedian)} · טווח ${report.scoreMin}%–${report.scoreMax}%`}
+              />
+            ) : (
+              <Stat label="מפגש היכרות וריענון" value="ללא ציון" sub={`זמן פעילות ממוצע ${report.activeMinutesMean} דקות`} />
+            )}
             <Stat label="ספרות שגויות" value={String(report.wrongDigitsTotal)} sub={`אחדות ${report.wrongDigitsByColumn.units} · עשרות ${report.wrongDigitsByColumn.tens} · מאות ${report.wrongDigitsByColumn.hundreds}`} />
             <Stat label="כרטיסי חניכה" value={String(report.socraticCardsTotal)} sub={`היסוסים ${report.hesitationsTotal} · ביטולים ${report.undosTotal} · מחיקות ${report.deletionsTotal}`} />
           </div>
 
-          {report.learnersWithoutScore.length > 0 && (
+          {report.scored && report.learnersWithoutScore.length > 0 && (
             <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-200">
               ללא ציון: {report.learnersWithoutScore.map((id) => `תלמיד ${id}`).join(', ')}. מאגר תרגילי החובה של המפגש אינו זמין בשרת, ולכן אין ממה לחשב ציון. על מנהל המערכת ללחוץ "פרסום תוכנית הלימודים", ואז להפיק את הדוח מחדש.
             </div>
@@ -185,17 +191,37 @@ export function ClassMeetingReportPanel() {
           <div className={isExpanded ? "space-y-3 pt-1" : "hidden"}>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             <div className="space-y-2">
-              {/* Layer 1: working groups */}
+              {/* Layer 1: working groups — or, in meeting 1 (Module 14 §ב), the tools before the diagnostic */}
               <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-100">
-                <div className="font-black mb-1">חלוקה לקבוצות למידה דיפרנציאליות (לפי רמת הישג)</div>
-                <ul className="space-y-1">
-                  {TIER_ORDER.map((tier) => (
-                    <li key={tier}>
-                      <span className="font-bold">{TIER_LABELS_HE[tier]}:</span>{' '}
-                      {report.tiers[tier].length > 0 ? report.tiers[tier].map((id) => `תלמיד ${id}`).join(', ') : 'אין'}
-                    </li>
-                  ))}
-                </ul>
+                {report.scored ? (
+                  <>
+                    <div className="font-black mb-1">חלוקה לקבוצות למידה דיפרנציאליות (לפי רמת הישג)</div>
+                    <ul className="space-y-1">
+                      {TIER_ORDER.map((tier) => (
+                        <li key={tier}>
+                          <span className="font-bold">{TIER_LABELS_HE[tier]}:</span>{' '}
+                          {report.tiers[tier].length > 0 ? report.tiers[tier].map((id) => `תלמיד ${id}`).join(', ') : 'אין'}
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                ) : (
+                  <>
+                    <div className="font-black mb-1">שליטה בכלי המערכת לקראת האבחון</div>
+                    {report.toolsNotUsed.length === 0 ? (
+                      <div className="opacity-80">דוח זה הופק לפני שנוסף לו פירוט הכלים. הפיקו אותו מחדש כדי לראות אותו.</div>
+                    ) : (
+                      <ul className="space-y-1">
+                        {report.toolsNotUsed.map((t) => (
+                          <li key={t.label}>
+                            <span className="font-bold">{t.label}:</span>{' '}
+                            {t.learners.length > 0 ? `לא הפעילו — ${t.learners.map((id) => `תלמיד ${id}`).join(', ')}` : 'כל התלמידים הפעילו'}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </>
+                )}
                 {report.learnersWithoutData.length > 0 && (
                   <div className="mt-1 opacity-80">ללא פעולות במפגש: {report.learnersWithoutData.map((id) => `תלמיד ${id}`).join(', ')}</div>
                 )}
@@ -229,18 +255,18 @@ export function ClassMeetingReportPanel() {
 
             {/* Layer 2 */}
             <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-950 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-100 space-y-2">
-              <div className="font-black">תובנות פדגוגיות כיתתיות</div>
+              <div className="font-black">{report.scored ? 'תובנות פדגוגיות כיתתיות' : 'לקראת האבחון'}</div>
               {report.aiAnalysisAvailable ? (
                 <>
                   <div className="text-[11px] font-bold opacity-70">נותח אוטומטית מהפעולות המתועדות. ההחלטה הפדגוגית נותרת בידי המורה.</div>
                   <div>
-                    <div className="font-bold mb-1">דפוסים כיתתיים</div>
+                    <div className="font-bold mb-1">{report.scored ? 'דפוסים כיתתיים' : 'נקודות לתשומת לב לקראת האבחון'}</div>
                     {report.classPatterns.length > 0
                       ? <ul className="space-y-1">{report.classPatterns.map((p, i) => <li key={i}>• {p}</li>)}</ul>
                       : <div className="opacity-80">לא אותרו דפוסים בפעולות המתועדות.</div>}
                   </div>
                   <div>
-                    <div className="font-bold mb-1">המלצות הוראה לכיתה</div>
+                    <div className="font-bold mb-1">{report.scored ? 'המלצות הוראה לכיתה' : 'מה אפשר לעשות לפני האבחון'}</div>
                     {report.teachingRecommendations.length > 0
                       ? <ul className="space-y-1">{report.teachingRecommendations.map((r, i) => <li key={i}>• {r}</li>)}</ul>
                       : <div className="opacity-80">אין המלצות נוספות.</div>}
@@ -258,7 +284,7 @@ export function ClassMeetingReportPanel() {
             <table className="w-full text-[11px] whitespace-nowrap">
               <thead className="text-ws-soft">
                 <tr>
-                  <th className="text-right">תלמיד</th><th>מסלול</th><th>ציון</th><th>נכון בניסיון ראשון</th><th>תרגילים</th>
+                  <th className="text-right">תלמיד</th><th>מסלול</th>{report.scored && <><th>ציון</th><th>נכון בניסיון ראשון</th></>}<th>תרגילים</th>
                   <th>שגויות (א/ע/מ)</th><th>מחיקות</th><th>ביטולים</th><th>היסוסים</th><th>המרות</th><th>כרטיסים</th><th>דקות</th><th>הקלטה</th><th>רפלקציה</th><th className="text-right">תרגילים</th>
                 </tr>
               </thead>
@@ -267,8 +293,12 @@ export function ClassMeetingReportPanel() {
                   <tr key={l.studentId} className="border-t border-ws-surface2">
                     <td className="text-right font-bold">תלמיד {l.studentId}</td>
                     <td className="text-center">{l.learningPath === 'green_path' ? 'ירוק' : 'ביסוס'}</td>
-                    <td className="text-center font-black">{pctText(l.scorePercent)}</td>
-                    <td className="text-center">{l.scorePercent === null ? 'לא נמדד' : `${l.correctFirstAttempt}/${l.compulsoryTotal}`}</td>
+                    {report.scored && (
+                      <>
+                        <td className="text-center font-black">{pctText(l.scorePercent)}</td>
+                        <td className="text-center">{l.scorePercent === null ? 'לא נמדד' : `${l.correctFirstAttempt}/${l.compulsoryTotal}`}</td>
+                      </>
+                    )}
                     <td className="text-center">{l.exercisesCompleted}/{l.exercisesAttempted}</td>
                     <td className="text-center">{l.wrongDigits} ({l.wrongDigitsByColumn[0]}/{l.wrongDigitsByColumn[1]}/{l.wrongDigitsByColumn[2]})</td>
                     <td className="text-center">{l.deletions}</td>

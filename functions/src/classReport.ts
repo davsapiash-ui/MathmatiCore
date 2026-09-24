@@ -27,6 +27,15 @@ import {
   type MediationEffectiveness,
   FADING_GUESS_SECONDS,
   type FadingGap,
+  computeExerciseOutcomes,
+  computeToolMastery,
+  isScoredMeeting,
+  SANDBOX_MEETING_PURPOSE_HE,
+  TOOL_LABEL_HE,
+  TOOLS,
+  type ExerciseOutcome,
+  type Tool,
+  type ToolMastery,
 } from "./meetingMetrics";
 import { EXACT_AI_FALLBACK_TEXT } from "./pedagogicalReport";
 import { rtlText } from "./hebrewPdf";
@@ -66,7 +75,7 @@ export const CLASS_AI_ANALYSIS_TIMEOUT_MS = 20000;
 const ALL_STUDENT_IDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 const COLUMN_NAMES_HE = ["אחדות", "עשרות", "מאות", "אלפים"];
 
-export type ExerciseOutcome = "first_try" | "after_correction" | "incomplete";
+export type { ExerciseOutcome };
 
 export interface ClassLearnerRow {
   student_id: number;
@@ -107,6 +116,8 @@ export interface ClassLearnerRow {
   recording_truncated: boolean;
   /** exercise_id → how the learner finished it. */
   exercise_outcomes: Record<string, ExerciseOutcome>;
+  /** Which interface tools the learner operated in this meeting (drag, regroup, type, undo, trash). */
+  tool_mastery: ToolMastery;
   /** Session 8 only (מסמך 03 §3.8): the learner without blocks vs the same learner with blocks in sessions 4–6. */
   fading_gap: FadingGap | null;
   /** Research measure 2 (Module 16 §ב formula), this meeting's events. */
@@ -137,6 +148,10 @@ export interface ClassExerciseRow {
 }
 
 export interface ClassAggregates {
+  /** False for meeting 1 (Module 14 §ב): no score, no mean, no working groups — the report says so instead. */
+  scored: boolean;
+  /** Per tool, the learners with data in this meeting who never operated it. */
+  tools_not_used: Record<Tool, number[]>;
   learners_with_data: number;
   learners_without_data: number[];
   /** Learners whose meeting has data but whose compulsory count is unknown: no score stated. */
@@ -209,33 +224,30 @@ export function buildLearnerRow(
   const wrongByColumn = [0, 0, 0, 0];
   const triggers: Record<string, number> = {};
   const categories: Record<string, number> = {};
-  const wrongInExercise = new Set<string>();
-  const outcomes: Record<string, ExerciseOutcome> = {};
+  // The same rule the individual report and meeting 1 use (meetingMetrics.ts).
+  const outcomes: Record<string, ExerciseOutcome> = computeExerciseOutcomes(sorted);
   for (const ev of sorted) {
-    const exId = isExerciseEvent(ev) ? String(ev.exercise_id || "") : "";
-    if (exId && !outcomes[exId]) outcomes[exId] = "incomplete";
     switch (ev.event_type) {
       case "DIGIT_ENTERED":
         if (ev.details?.is_correct === false) {
           const col = typeof ev.column_index === "number" ? ev.column_index : -1;
           if (col >= 0 && col < 4) wrongByColumn[col]++;
-          if (exId) wrongInExercise.add(exId);
         }
         break;
       case "SOCRATIC_CARD_SHOWN":
         if (typeof ev.details?.trigger_reason === "string") bump(triggers, ev.details.trigger_reason);
         if (typeof ev.details?.error_category === "string") bump(categories, ev.details.error_category);
         break;
-      case "PROBLEM_COMPLETE":
-        if (exId) outcomes[exId] = wrongInExercise.has(exId) ? "after_correction" : "first_try";
-        break;
       default:
         break;
     }
   }
 
+  // Module 14 §ב: a meeting that is not scored stays unscored even if a stored
+  // document carries a number.
+  const unscored = research !== null && !isScoredMeeting(research.sessionNumber);
   const docScore =
-    sessionDoc && typeof sessionDoc.session_score_percent === "number" ? sessionDoc.session_score_percent : null;
+    !unscored && sessionDoc && typeof sessionDoc.session_score_percent === "number" ? sessionDoc.session_score_percent : null;
   const score = docScore !== null ? docScore : first.scorePercent;
 
   return {
@@ -275,6 +287,7 @@ export function buildLearnerRow(
     recording_minutes: recording?.minutes ?? 0,
     recording_truncated: recording?.truncated ?? false,
     exercise_outcomes: outcomes,
+    tool_mastery: computeToolMastery(sorted),
     fading_gap: earlierEvents ? computeFadingGap(sorted, earlierEvents) : null,
     persistence: computePersistenceIndex(sorted),
     flexibility: research && FLEXIBILITY_SESSIONS.includes(research.sessionNumber) ? computeFlexibilityIndex(sorted) : null,
@@ -303,7 +316,15 @@ export function researchMeasuresLineHe(r: ClassLearnerRow): string {
 const pct = (value: number | null): string => (value === null ? "לא נמדד" : `${value}%`);
 
 /** The class picture: the same measurements, summed and distributed across the learners. */
-export function aggregateClass(rows: ClassLearnerRow[], eventsByLearner: Map<number, Record<string, any>[]>): ClassAggregates {
+export function aggregateClass(
+  rows: ClassLearnerRow[],
+  eventsByLearner: Map<number, Record<string, any>[]>,
+  sessionNumber?: number
+): ClassAggregates {
+  const scoredMeeting = sessionNumber === undefined || isScoredMeeting(sessionNumber);
+  const toolsNotUsed = Object.fromEntries(
+    TOOLS.map((tool) => [tool, rows.filter((r) => r.tool_mastery.used[tool] === 0).map((r) => r.student_id)])
+  ) as Record<Tool, number[]>;
   // Only learners whose score could actually be computed enter the class
   // statistics. Averaging a fabricated 0% or 100% into the class mean was the
   // same defect one level up.
@@ -352,9 +373,13 @@ export function aggregateClass(rows: ClassLearnerRow[], eventsByLearner: Map<num
 
   const withData = new Set(rows.map((r) => r.student_id));
   return {
+    scored: scoredMeeting,
+    tools_not_used: toolsNotUsed,
     learners_with_data: rows.length,
     learners_without_data: ALL_STUDENT_IDS.filter((id) => !withData.has(id)),
-    learners_without_score: rows.filter((r) => r.score_percent === null).map((r) => r.student_id),
+    // In an unscored meeting no learner "lacks" a score — there is none to lack,
+    // and listing all twelve would tell the teacher to republish the catalog.
+    learners_without_score: scoredMeeting ? rows.filter((r) => r.score_percent === null).map((r) => r.student_id) : [],
     learners_without_mediation: rows.some((r) => r.mediation)
       ? rows.filter((r) => r.mediation && r.mediation.cards === 0).map((r) => r.student_id)
       : null,
@@ -367,7 +392,10 @@ export function aggregateClass(rows: ClassLearnerRow[], eventsByLearner: Map<num
       green_path: rows.filter((r) => r.learning_path === "green_path").length,
       remediation_path: rows.filter((r) => r.learning_path === "remediation_path").length,
     },
-    active_minutes_mean: n === 0 ? 0 : round1(sum((r) => r.active_minutes) / n),
+    // Over every learner with data. It was divided by the learners with a
+    // score, so an unscored learner's minutes were summed but not counted, and
+    // a meeting without scores (meeting 1) always read 0 minutes.
+    active_minutes_mean: rows.length === 0 ? 0 : round1(sum((r) => r.active_minutes) / rows.length),
     recording_minutes_total: round1(sum((r) => r.recording_minutes)),
     events_total: sum((r) => r.events),
     digits_entered_total: sum((r) => r.digits_entered),
@@ -404,6 +432,36 @@ export interface ClassAnalysis {
   teaching_recommendations: string[];
 }
 
+/**
+ * Meeting 1 (Module 14 §ב): no score and no working groups, so there is no
+ * framework to stay within. The analysis answers the question meeting 1 exists
+ * for: before tomorrow's diagnostic, which tools and which refresh topics could
+ * turn a wrong answer into noise instead of evidence.
+ */
+function buildSandboxClassSystemInstruction(): string {
+  return `אתה מנתח פדגוגי של מערכת MathematiCore, המנתח את נתוני כיתה ג' שלמה במפגש 1.
+
+${SANDBOX_MEETING_PURPOSE_HE}
+
+מטרת הניתוח: לזהות, לפני האבחון, מה עלול להפוך טעות באבחון לרעש במקום לראיה — כלי ממשק שלומדים עוד לא הפעילו, ונושאי ריענון שבהם רבים התקשו.
+
+חוקים מחייבים:
+1. אל תציין ציון, אחוז, דירוג, קבוצת עבודה או מסלול. במפגש זה אין כאלה.
+2. תאר דפוסים כיתתיים: אילו כלים לא הופעלו ובידי כמה לומדים, ואילו תרגילי ריענון הקשו על רבים.
+3. אל תפנה ללומדים ואל תנקוב בשם. לומד מזוהה במספרו בלבד.
+4. בסס כל טענה על הראיות שבנתונים. אל תמציא נתונים שאינם בקלט.
+5. כתוב בעברית תקנית, ענייני ותמציתי. כל פריט משפט אחד עד שניים.
+6. החזר JSON תקין בלבד, לפי הסכימה:
+{
+  "class_patterns": ["string", ...],
+  "teaching_recommendations": ["string", ...]
+}
+ב-class_patterns: נקודות לתשומת לב לקראת האבחון. ב-teaching_recommendations: מה המורה יכולה לעשות לפני האבחון (למשל הדגמה קצרה במליאה של כלי שרבים לא הפעילו).
+2 עד 5 פריטים בכל מערך. אם אין די ראיות, החזר מערכים ריקים.
+
+מונחי הטורים: ${COLUMN_NAMES_HE.map((n, i) => `${i}=${n}`).join(", ")}.`;
+}
+
 function buildClassSystemInstruction(): string {
   return `אתה מנתח פדגוגי של מערכת MathematiCore, המנתח את נתוני הביצוע של כיתה ג' שלמה במפגש אחד בחשבון (ערך מיקום, הקבצה, פריטה וחישוב במאונך).
 
@@ -436,20 +494,22 @@ export async function generateClassAnalysis(input: {
   learners: ClassLearnerRow[];
 }): Promise<ClassAnalysis | null> {
   if (input.learners.length === 0) return null;
+  const scored = isScoredMeeting(input.session_number);
   try {
     const ai = getGeminiClient();
     const model = ai.getGenerativeModel({
       model: GEMINI_MODEL_ID,
       generationConfig: { temperature: 0.3, responseMimeType: "application/json" },
-      systemInstruction: buildClassSystemInstruction(),
+      systemInstruction: scored ? buildClassSystemInstruction() : buildSandboxClassSystemInstruction(),
     });
     // An explicit projection, as in reportAnalysis.ts: only the measurements
-    // the analysis reasons about reach the engine.
+    // the analysis reasons about reach the engine. In meeting 1 there is no
+    // tier and no score to pass.
     const learners = input.learners.map((r) => ({
       student_id: r.student_id,
-      tier: r.recommendation_tier,
-      compulsory_total: r.compulsory_total,
-      correct_first_attempt: r.correct_first_attempt,
+      ...(scored
+        ? { tier: r.recommendation_tier, compulsory_total: r.compulsory_total, correct_first_attempt: r.correct_first_attempt }
+        : { tools_not_used: r.tool_mastery.not_used }),
       wrong_digits_by_column: [r.wrong_digits_units, r.wrong_digits_tens, r.wrong_digits_hundreds, r.wrong_digits_thousands],
       deletions: r.deletions,
       undos: r.undos,
@@ -461,11 +521,17 @@ export async function generateClassAnalysis(input: {
       exercise_outcomes: r.exercise_outcomes,
     }));
     const a = input.aggregates;
+    const framing = scored
+      ? `חלוקה לקבוצות (מספרי לומדים): ${JSON.stringify(a.tiers)}`
+      : `לומדים שלא הפעילו כל כלי (מספרי לומדים): ${JSON.stringify(a.tools_not_used)}`;
+    const closing = scored
+      ? "נסח את הדפוסים הכיתתיים שאותרו ואת המלצות ההוראה לכיתה הפיזית להמשך, בתוך החלוקה שנקבעה."
+      : "נסח את הנקודות לתשומת לב לקראת האבחון ואת מה שהמורה יכולה לעשות לפני האבחון.";
     const userPrompt = `נתוני הכיתה לניתוח:
 
 מפגש: ${input.session_number}
 לומדים עם נתונים: ${a.learners_with_data}
-חלוקה לקבוצות (מספרי לומדים): ${JSON.stringify(a.tiers)}
+${framing}
 טעויות ספרה לפי טור: ${JSON.stringify(a.wrong_digits_by_column)}
 תרגילים (כמה פתחו, כמה סיימו, כמה בניסיון ראשון, טעויות, כרטיסי חניכה, היסוסים):
 ${JSON.stringify(a.exercises)}
@@ -476,7 +542,7 @@ ${JSON.stringify(a.exercises)}
 שורות הלומדים (אנונימיות):
 ${JSON.stringify(learners)}
 
-נסח את הדפוסים הכיתתיים שאותרו ואת המלצות ההוראה לכיתה הפיזית להמשך, בתוך החלוקה שנקבעה.`;
+${closing}`;
 
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), CLASS_AI_ANALYSIS_TIMEOUT_MS));
     const call = model.generateContent(userPrompt).then((r: any) => r.response.text() as string);
@@ -539,6 +605,8 @@ export function buildClassCsv(rows: ClassLearnerRow[], exercises: ClassExerciseR
     "mediation_cards", "mediation_effective", "mediation_percent",
     "mediation_cumulative_cards", "mediation_cumulative_effective", "mediation_cumulative_percent",
     ...exerciseIds.map((id) => `outcome_${id}`),
+    // Appended last, so every column a research script already reads keeps its place.
+    ...TOOLS.map((tool) => `tool_${tool}`),
   ];
   const lines = rows.map((r) =>
     [
@@ -559,6 +627,7 @@ export function buildClassCsv(rows: ClassLearnerRow[], exercises: ClassExerciseR
       r.mediation?.cards ?? "", r.mediation?.effective ?? "", r.mediation?.percent ?? "",
       r.mediation_cumulative?.cards ?? "", r.mediation_cumulative?.effective ?? "", r.mediation_cumulative?.percent ?? "",
       ...exerciseIds.map((id) => r.exercise_outcomes[id] ?? "not_attempted"),
+      ...TOOLS.map((tool) => r.tool_mastery?.used[tool] ?? ""),
     ].map(cell).join(",")
   );
   return "﻿" + [headers.map(cell).join(","), ...lines].join("\n");
@@ -625,17 +694,31 @@ export function createClassReportPdfBufferWithPdfkit(report: Record<string, any>
       doc.rect(40, doc.y, 515, 60).fillAndStroke("#f8fafc", "#cbd5e1");
       doc.fillColor("#0f172a").fontSize(11);
       const cardY = doc.y + 12;
+      const scored = a.scored !== false;
       rtlText(doc, `מפגש: ${report.session_number}`, 400, cardY, { width: 140 });
       rtlText(doc, `לומדים עם נתונים: ${a.learners_with_data} מתוך 12`, 200, cardY, { width: 190 });
-      rtlText(doc, `ציון ממוצע: ${pct(a.score_mean)}`, 55, cardY, { width: 140 });
-      rtlText(doc, `חציון: ${pct(a.score_median)} | טווח: ${pct(a.score_min)}–${pct(a.score_max)} | מסלול ירוק: ${a.paths.green_path} | מסלול ביסוס: ${a.paths.remediation_path}`, 55, cardY + 25, { width: 490 });
+      if (scored) {
+        rtlText(doc, `ציון ממוצע: ${pct(a.score_mean)}`, 55, cardY, { width: 140 });
+        rtlText(doc, `חציון: ${pct(a.score_median)} | טווח: ${pct(a.score_min)}–${pct(a.score_max)} | מסלול ירוק: ${a.paths.green_path} | מסלול ביסוס: ${a.paths.remediation_path}`, 55, cardY + 25, { width: 490 });
+      } else {
+        rtlText(doc, "מפגש היכרות וריענון — ללא ציון וללא קבוצות עבודה", 55, cardY + 25, { width: 490 });
+      }
       doc.x = 40;
       doc.y = cardY + 60;
 
-      heading("1. קבוצות עבודה לפי כלל האחוזים (שכבה 1, דטרמיניסטית)", "#166534");
-      for (const tier of ["below_50", "between_50_75", "above_75"] as RecommendationTier[]) {
-        const ids = a.tiers[tier];
-        line(`${TIER_LABEL_HE[tier]}: ${ids.length > 0 ? ids.map((id) => `תלמיד ${id}`).join(", ") : "אין"}`, 10, "#14532d");
+      if (scored) {
+        heading("1. קבוצות עבודה לפי כלל האחוזים (שכבה 1, דטרמיניסטית)", "#166534");
+        for (const tier of ["below_50", "between_50_75", "above_75"] as RecommendationTier[]) {
+          const ids = a.tiers[tier];
+          line(`${TIER_LABEL_HE[tier]}: ${ids.length > 0 ? ids.map((id) => `תלמיד ${id}`).join(", ") : "אין"}`, 10, "#14532d");
+        }
+      } else {
+        heading("1. שליטה בכלי המערכת לקראת האבחון", "#166534");
+        line(SANDBOX_MEETING_PURPOSE_HE, 9, "#64748b");
+        for (const tool of TOOLS) {
+          const ids = a.tools_not_used[tool];
+          line(`${TOOL_LABEL_HE[tool]} — לא הפעילו: ${ids.length > 0 ? ids.map((id) => `תלמיד ${id}`).join(", ") : "כולם הפעילו"}`, 10, "#14532d");
+        }
       }
       if (a.learners_without_data.length > 0) {
         line(`ללא פעולות מתועדות במפגש זה: ${a.learners_without_data.map((id) => `תלמיד ${id}`).join(", ")}`, 9, "#64748b");
@@ -657,10 +740,18 @@ export function createClassReportPdfBufferWithPdfkit(report: Record<string, any>
       }
 
       heading("4. טבלת הלומדים (כל מה שנמדד ליחיד)");
-      line("לומד | ציון | נכון בניסיון ראשון | תרגילים | ספרות שגויות (א/ע/מ/אל) | מחיקות | ביטולים | היסוסים | המרות | כרטיסים | דקות | רפלקציה", 8, "#64748b");
+      line(
+        scored
+          ? "לומד | ציון | נכון בניסיון ראשון | תרגילים | ספרות שגויות (א/ע/מ/אל) | מחיקות | ביטולים | היסוסים | המרות | כרטיסים | דקות | רפלקציה"
+          : "לומד | תרגילים | ספרות שגויות (א/ע/מ/אל) | מחיקות | ביטולים | היסוסים | המרות | כרטיסים | דקות | כלים שלא הופעלו",
+        8, "#64748b"
+      );
       for (const r of rows) {
+        const common = `${r.exercises_completed}/${r.exercises_attempted} | ${r.wrong_digits} (${r.wrong_digits_units}/${r.wrong_digits_tens}/${r.wrong_digits_hundreds}/${r.wrong_digits_thousands}) | ${r.deletions} | ${r.undos} | ${r.hesitations} | ${r.regroupings} | ${r.socratic_cards} | ${r.active_minutes}`;
         line(
-          `תלמיד ${r.student_id} | ${pct(r.score_percent)} | ${r.score_percent === null ? "לא נמדד" : `${r.correct_first_attempt}/${r.compulsory_total}`} | ${r.exercises_completed}/${r.exercises_attempted} | ${r.wrong_digits} (${r.wrong_digits_units}/${r.wrong_digits_tens}/${r.wrong_digits_hundreds}/${r.wrong_digits_thousands}) | ${r.deletions} | ${r.undos} | ${r.hesitations} | ${r.regroupings} | ${r.socratic_cards} | ${r.active_minutes} | ${r.reflection_submitted ? "כן" : "לא"}`,
+          scored
+            ? `תלמיד ${r.student_id} | ${pct(r.score_percent)} | ${r.score_percent === null ? "לא נמדד" : `${r.correct_first_attempt}/${r.compulsory_total}`} | ${common} | ${r.reflection_submitted ? "כן" : "לא"}`
+            : `תלמיד ${r.student_id} | ${common} | ${r.tool_mastery.not_used.map((t) => TOOL_LABEL_HE[t]).join(", ") || "אין"}`,
           9, "#0f172a"
         );
         const outcomes = Object.entries(r.exercise_outcomes).map(([id, o]) => `${id}: ${OUTCOME_HE[o]}`).join(", ");
@@ -687,17 +778,17 @@ export function createClassReportPdfBufferWithPdfkit(report: Record<string, any>
         for (const r of rows) line(`תלמיד ${r.student_id} | ${researchMeasuresLineHe(r)}`, 9, "#0f172a");
       }
 
-      heading("5. ניתוח הבינה: דפוסים כיתתיים והמלצות הוראה", "#92400e");
+      heading(scored ? "5. ניתוח הבינה: דפוסים כיתתיים והמלצות הוראה" : "5. ניתוח הבינה: לקראת האבחון", "#92400e");
       const patterns: string[] = Array.isArray(report.class_patterns) ? report.class_patterns : [];
       const teaching: string[] = Array.isArray(report.teaching_recommendations) ? report.teaching_recommendations : [];
       if (patterns.length > 0 || teaching.length > 0) {
         if (patterns.length > 0) {
-          line("דפוסים כיתתיים שאותרו:", 11, "#92400e");
+          line(scored ? "דפוסים כיתתיים שאותרו:" : "נקודות לתשומת לב לקראת האבחון:", 11, "#92400e");
           for (const p of patterns) line(`• ${p}`, 10, "#78350f");
         }
         if (teaching.length > 0) {
           doc.moveDown(0.3);
-          line("המלצות הוראה לכיתה:", 11, "#92400e");
+          line(scored ? "המלצות הוראה לכיתה:" : "מה אפשר לעשות לפני האבחון:", 11, "#92400e");
           for (const t of teaching) line(`• ${t}`, 10, "#78350f");
         }
       } else {
@@ -844,7 +935,7 @@ export const generateClassMeetingReport = onCall(CLASS_REPORT_RUNTIME, async (re
       compulsoryIdsByBank.get(`${sessionNumber}:${pathOf}`) ?? null
     ));
   }
-  const aggregates = aggregateClass(learners, eventsByLearner);
+  const aggregates = aggregateClass(learners, eventsByLearner, sessionNumber);
 
   // ── 5. Layer 2 ──────────────────────────────────────────────────────────
   const analysis = await generateClassAnalysis({ class_id: classId, session_number: sessionNumber, aggregates, learners });

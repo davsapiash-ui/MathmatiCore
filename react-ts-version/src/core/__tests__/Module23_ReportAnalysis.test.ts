@@ -82,7 +82,7 @@ describe('Module 23: pedagogical report, layer 2 (AI verbal analysis)', () => {
   });
 
   it('keeps layer 1 deterministic and free of engine involvement', () => {
-    const layer1Start = report.indexOf("let routingGroup =");
+    const layer1Start = report.indexOf("let routingGroup");
     const layer1End = report.indexOf('// ---- Module 23 layer 2');
     expect(layer1Start).toBeGreaterThan(-1);
     expect(layer1End).toBeGreaterThan(layer1Start);
