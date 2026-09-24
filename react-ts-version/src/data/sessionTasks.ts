@@ -145,13 +145,15 @@ export const SESSION1_TASKS: SessionTask[] = [
     instructionHe: 'בנו בבית המספרים את המספרים 240 ו-135 בעזרת הקוביות. חברו אותם ורשמו את התוצאה הסופית.',
     scaffoldLevel: 1,
   },
-  // 9. Math Refresh 2
+  // 9. Math Refresh 2 — ★ chosen (owner, 24.9.2026). Mirrors diagnostic task 6
+  // (124 + 85) in structure with other numbers: three digits plus two, no carry
+  // in the units, the tens sum to exactly 10, so the answer has a 0 in the tens.
   {
     id: 's1_t8',
     type: 'addition_simple',
-    numberA: 385, numberB: 152, correctAnswer: 537,
-    titleHe: 'תרגול חיבור: קיבוץ לעשרות ומאות',
-    instructionHe: 'בנו בבית המספרים 385 ו-152 וחברו אותם. כאשר מצטברים 10 פריטים בטור, לחצו על כפתור "הקבץ (10)" שמופיע בראש הטור.',
+    numberA: 713, numberB: 94, correctAnswer: 807,
+    titleHe: 'חיבור במאונך עם המרה מעל מאה',
+    instructionHe: 'בנו בבית המספרים 713 ו-94 וחברו אותם. כאשר מצטברים 10 פריטים בטור, לחצו על כפתור "הקבץ (10)" שמופיע בראש הטור.',
     scaffoldLevel: 1,
     requiresGrouping: true,
   },

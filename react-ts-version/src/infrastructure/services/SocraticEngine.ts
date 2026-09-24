@@ -275,16 +275,16 @@ const TASK_HINTS: Record<string, SocraticHintResponse> = {
     correctChoiceId: "opt_1"
   },
 
-  // Task: תרגול חיבור עם קיבוץ — 385 + 152 (requiresGrouping in Tens column: 8 tens + 5 tens = 13 tens)
+  // Task: חיבור במאונך עם המרה מעל מאה — 713 + 94 (requiresGrouping in Tens column: 1 ten + 9 tens = exactly 10 tens, leaving 0)
   's1_t8': {
     pedagogical_intent: "procedural",
-    tts_text: "בחיבור 385 + 152: 8 עשרות + 5 עשרות הן 13 עשרות. קבצו 10 עשרות למאה אחת בטור המאות.",
+    tts_text: "בחיבור 713 + 94: עשרת אחת ועוד 9 עשרות הן 10 עשרות. קבצו 10 עשרות למאה אחת בטור המאות.",
     suggested_highlight: "tour-column-tens",
-    questionHe: "בתרגיל 385 + 152, בטור העשרות הצטברו 8 + 5 = 13 עשרות (יותר מ-9). מה הצעד הבא שנבצע?",
+    questionHe: "בתרגיל 713 + 94, בטור העשרות הצטברו 1 + 9 = 10 עשרות. מה הצעד הבא שנבצע?",
     choices: [
-      { id: "opt_1", textHe: "נקבץ 10 עשרות למאה אחת בטור המאות (ונשאיר 3 עשרות בטור העשרות)", isCorrect: true, feedbackHe: "נכון מאוד! 10 עשרות מומרות למאה אחת בטור המאות." },
+      { id: "opt_1", textHe: "נקבץ 10 עשרות למאה אחת בטור המאות (ובטור העשרות יישארו 0 עשרות)", isCorrect: true, feedbackHe: "נכון מאוד! 10 עשרות מומרות למאה אחת בטור המאות, ובטור העשרות נרשום 0." },
       { id: "opt_2", textHe: "נמחק 10 עשרות לפח מבלי להוסיף מאה", isCorrect: false, feedbackHe: "רמז: מחיקת בלוקים לפח משנה את ערך המספר הכולל! יש להמיר למאה." },
-      { id: "opt_3", textHe: "נרשום 13 בתוך משבצת העשרות", isCorrect: false, feedbackHe: "רמז: בכל משבצת בבית המספרים מותרת ספרה אחת בלבד (0 עד 9)." }
+      { id: "opt_3", textHe: "נרשום 10 בתוך משבצת העשרות", isCorrect: false, feedbackHe: "רמז: בכל משבצת בבית המספרים מותרת ספרה אחת בלבד (0 עד 9)." }
     ],
     correctChoiceId: "opt_1"
   },
