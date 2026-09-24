@@ -189,6 +189,34 @@ describe('the store gate follows the checklist', () => {
     expect(useWorkspaceStore.getState().undoCount).toBe(1);
   });
 
+  it('after a reload through the database, undo still erases the first digit typed', () => {
+    // The Realtime Database drops empty objects; simulate its round trip.
+    const viaDatabase = (v: any): any => {
+      if (Array.isArray(v)) return v.map(viaDatabase);
+      if (v && typeof v === 'object') {
+        const out: Record<string, any> = {};
+        for (const [k, x] of Object.entries(v)) {
+          const y = viaDatabase(x);
+          if (y === null || y === undefined) continue;
+          if (typeof y === 'object' && !Array.isArray(y) && Object.keys(y).length === 0) continue;
+          out[k] = y;
+        }
+        return out;
+      }
+      return v;
+    };
+    useWorkspaceStore.getState().initSession(1, false, 4);
+    useWorkspaceStore.getState().setAnswerDigit('hundreds', '3');
+    expect(useWorkspaceStore.getState().answerDigits.hundreds).toBe('3');
+    const saved = viaDatabase(JSON.parse(JSON.stringify((firebaseSyncService as any).getSyncableWorkspaceState())));
+    expect(saved.undoStack[0].answerDigits).toBeUndefined(); // the database dropped the empty input
+    useWorkspaceStore.getState().resetWorkspace();
+    useWorkspaceStore.getState().restoreSession(saved);
+    expect(useWorkspaceStore.getState().answerDigits.hundreds).toBe('3');
+    useWorkspaceStore.getState().undo();
+    expect(useWorkspaceStore.getState().answerDigits.hundreds).toBeUndefined();
+  });
+
   it('pressing the trash on an empty board still counts; dragging one block into it does not', () => {
     useWorkspaceStore.getState().initSession(1, false, 3);
     const store = useWorkspaceStore.getState();

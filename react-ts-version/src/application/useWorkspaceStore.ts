@@ -368,6 +368,27 @@ function getStoredSocraticLockDeadline(): number | null {
 
 /* ── Pure helpers ── */
 
+/**
+ * Undo frames back from a saved snapshot (FirebaseSyncService). The database
+ * drops empty objects, so a frame saved before the first digit returns without
+ * its empty input; `hasInput` marks the frames that had one. Frames saved
+ * before typing was undoable carry no input and stay that way.
+ */
+export function restoreUndoFrames(raw: unknown): UndoFrame[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((f): f is Record<string, any> => Boolean(f) && typeof f === 'object' && typeof (f as any).counts === 'object')
+    .map((f) => {
+      const frame: UndoFrame = { counts: { ...EMPTY_COUNTS, ...f.counts }, actionType: f.actionType ?? null };
+      if (f.hasInput || f.answerDigits !== undefined) {
+        frame.answerDigits = { ...(f.answerDigits ?? {}) };
+        frame.carryDigits = { ...(f.carryDigits ?? {}) };
+        frame.operandDigits = { a: { ...(f.operandDigits?.a ?? {}) }, b: { ...(f.operandDigits?.b ?? {}) } };
+      }
+      return frame;
+    });
+}
+
 function resetTaskInteraction(_isASD = false) {
   return {
     counts: { ...EMPTY_COUNTS },
@@ -1769,7 +1790,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         hasUngrouped: saved.hasUngrouped ?? false,
         hasClearedBoard: saved.hasClearedBoard ?? false,
         focusedPlace: null,
-        undoStack: saved.undoStack ?? [],
+        undoStack: restoreUndoFrames(saved.undoStack),
         regroupTriggerTimestamps: {},
         currentState: 'PROBLEM_ACTIVE',
       });
@@ -1939,8 +1960,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         if (state.isBoardLocked) return state;
         const hasBlocks = state.counts.units > 0 || state.counts.tens > 0 || state.counts.hundreds > 0 || state.counts.thousands > 0;
         // Nothing to clear, but the child did press the trash (meeting 1 step 5).
-        // Recorded like any press, so the report's tool mastery agrees.
+        // In meeting 1 it is recorded, so the report's tool mastery agrees; the
+        // other meetings keep recording only a trash that cleared something.
         if (!hasBlocks) {
+          if (state.sessionNumber !== 1) return { hasClearedBoard: true };
           const emptyId = currentStudentUid();
           emitTelemetry({
             session_id: `session_${state.sessionNumber}_student_${emptyId}`,

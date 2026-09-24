@@ -10,7 +10,7 @@ vi.mock('@/infrastructure/firebase', () => ({
 }));
 
 import { classReportFromData } from '@/infrastructure/services/ClassReportService';
-import { reportFromData } from '@/infrastructure/services/LearnerJourneyService';
+import { reportFromData, describeEvent } from '@/infrastructure/services/LearnerJourneyService';
 import { buildSessionCatalog } from '@/presentation/pages/admin/AdminCurriculumView';
 
 /**
@@ -59,6 +59,12 @@ describe('meeting 1 on the teacher dashboard', () => {
   it('an old meeting 1 class report is unscored too', () => {
     expect(classReportFromData({ session_number: 1, aggregates: {} }).scored).toBe(false);
     expect(classReportFromData({ session_number: 5, aggregates: {} }).scored).toBe(true);
+  });
+
+  it('the teacher timeline reads a press on an empty board as such, not as "0 לבנים ירדו"', () => {
+    const ev = (blocks: number) => describeEvent({ eventType: 'BOARD_CLEARED', details: { blocks_removed: blocks } } as any).detail;
+    expect(ev(0)).toBe('לחיצה על פח האשפה כשהלוח כבר היה ריק');
+    expect(ev(7)).toBe('7 לבנים ירדו מהלוח בבת אחת');
   });
 
   it('the admin catalog calls meeting 1 refresh exercises, not compulsory tasks', () => {

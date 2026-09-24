@@ -581,7 +581,10 @@ export class FirebaseSyncService {
       helpRequested: Boolean(state.helpRequested),
       // PRD Module 11: the last actions stay undoable after a reload too
       // (capped at UNDO_STACK_CAP frames; restoreSession already reads it).
-      undoStack: state.undoStack,
+      // The database drops empty objects: a frame saved before the first digit
+      // would come back without its (empty) input, and undo would then leave
+      // that digit on screen. hasInput says the frame had one.
+      undoStack: state.undoStack.map((frame) => ({ ...frame, hasInput: frame.answerDigits !== undefined })),
       activeTask: currentTask ? {
         id: currentTask.id,
         titleHe: currentTask.titleHe,

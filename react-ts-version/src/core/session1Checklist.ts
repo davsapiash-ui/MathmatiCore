@@ -6,8 +6,8 @@
  *
  * Every label is the document's own on-screen wording for that step. The
  * steps are guided, as the document writes them: the learners "מונחים לבצע
- * פעולת פירוק", "נדרשים לייצג… את המספר 305", "מונחים ללחוץ… על כפתור ביטול
- * פעולה".
+ * פעולת פירוק יזומה", "נדרשים לייצג על הלוח מספר המכיל את הספרה אפס בטור
+ * העשרות, למשל המספר 305", "מונחים ללחוץ באופן אקטיבי על כפתור ביטול פעולה".
  */
 import { countsEqual, EMPTY_COUNTS, type PlaceCounts } from './placeValue';
 
