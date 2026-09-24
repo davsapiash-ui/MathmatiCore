@@ -30,6 +30,8 @@ interface SessionCurriculumItem {
   sessionId: number;
   sessionTitle: string;
   banks: PathBank[];
+  /** Meeting 1 (PRD Module 14 §ב): refresh exercises with no score — never labelled "משימות חובה". */
+  unscored?: boolean;
 }
 
 const SESSION_TITLES: Record<number, string> = {
@@ -58,6 +60,7 @@ export function buildSessionCatalog(): SessionCurriculumItem[] {
     sessionId: 1,
     sessionTitle: SESSION_TITLES[1],
     banks: [{ label: "מסלול אחיד", compulsory: titles(SESSION1_TASKS), reinforcement: [], challenge: [] }],
+    unscored: true,
   });
   items.push({
     sessionId: 2,
@@ -305,7 +308,11 @@ export function AdminCurriculumView() {
                         {item.sessionTitle}
                       </h3>
                       <div className="flex items-center gap-3 text-[11px] text-slate-500 mt-0.5">
-                        <span>{compulsoryCount} משימות חובה{item.banks.length > 1 ? " בכל מסלול" : ""}</span>
+                        <span>
+                          {item.unscored
+                            ? `${compulsoryCount} תרגילי ריענון, ללא ציון`
+                            : `${compulsoryCount} משימות חובה${item.banks.length > 1 ? " בכל מסלול" : ""}`}
+                        </span>
                         {branchCount > 0 && (
                           <>
                             <span>•</span>
@@ -328,7 +335,7 @@ export function AdminCurriculumView() {
                         <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 space-y-1.5">
                           <div className="text-xs font-bold text-indigo-600 flex items-center gap-1">
                             <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>{bank.label}: משימות חובה ({bank.compulsory.length})</span>
+                            <span>{bank.label}: {item.unscored ? "תרגילי ריענון" : "משימות חובה"} ({bank.compulsory.length})</span>
                           </div>
                           <ol className="text-xs text-slate-600 dark:text-slate-300 space-y-1 list-decimal list-inside pr-1">
                             {bank.compulsory.map((t, idx) => (

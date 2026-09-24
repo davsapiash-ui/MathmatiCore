@@ -385,30 +385,70 @@ export function LearnerJourney({ studentId }: Props) {
                   ? 'אין פעולות מתועדות במפגש זה, ולכן אין דוח.'
                   : reportState === 'loading'
                     ? 'בודק אם כבר יש דוח למפגש זה…'
-                    : 'עדיין לא הופק דוח למפגש זה. הדוח נבנה מכלל הפעולות המתועדות במפגש: שיעור ההצלחה בניסיון ראשון, קבוצת למידה מומלצת, מהלך הפתרון בכל תרגיל, מוקדי קושי שאותרו והמלצות להמשך ההוראה.'}
+                    : selectedSession === 1
+                      ? 'עדיין לא הופק דוח למפגש זה. מפגש 1 אינו מקבל ציון: הדוח מראה באילו כלים הלומד כבר שולט, איך הסתיים כל תרגיל ריענון, ועל מה לשים לב לקראת האבחון.'
+                      : 'עדיין לא הופק דוח למפגש זה. הדוח נבנה מכלל הפעולות המתועדות במפגש: שיעור ההצלחה בניסיון ראשון, קבוצת למידה מומלצת, מהלך הפתרון בכל תרגיל, מוקדי קושי שאותרו והמלצות להמשך ההוראה.'}
               </p>
             )}
 
             {report && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 text-xs">
                 <div className="space-y-2">
-                  <div className="flex items-center gap-3 p-3 rounded-xl bg-ws-bg border border-ws-surface2">
-                    <div className="text-2xl font-black text-ws-ink" dir="ltr">{report.scorePercent}%</div>
-                    <div>
-                      <div className="font-bold text-ws-ink">הצלחה בניסיון ראשון</div>
-                      <div className="text-ws-soft">
-                        {report.scoreSource === 'session_document'
-                          ? 'ממסמך המפגש'
-                          : report.scoreSource === 'telemetry_first_attempt'
-                            ? `מחושב מ-${report.telemetryEventCount} פעולות מתועדות`
-                            : 'מתוצאות האבחון'}
+                  {report.sandbox ? (
+                    // Meeting 1 (Module 14 §ב): no score and no working group.
+                    <>
+                      <div className="p-3 rounded-xl bg-ws-bg border border-ws-surface2 text-ws-ink">
+                        <div className="font-black mb-1">מפגש היכרות וריענון — ללא ציון</div>
+                        <div className="text-ws-soft">מטרת המפגש: שטעות באבחון מחר תשקף פער ידע אמיתי, ולא אי-היכרות עם הממשק או שכחה.</div>
                       </div>
-                    </div>
-                  </div>
-                  <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-100">
-                    <div className="font-black mb-1">קבוצת למידה מומלצת: {report.routingLabelHe}</div>
-                    <div>{report.recommendationDetailsHe}</div>
-                  </div>
+                      {report.sandbox.outdated ? (
+                        <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-950 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-100">
+                          דוח זה הופק לפני שנוסף לו פירוט הכלים ותרגילי הריענון. לחצו "הפק מחדש" כדי לראות אותם.
+                        </div>
+                      ) : (
+                        <>
+                          <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-100">
+                            <div className="font-black mb-1">שליטה בכלי המערכת</div>
+                            <ul className="space-y-0.5">
+                              {report.sandbox.tools.map((t) => (
+                                <li key={t.label}>• {t.label}: {t.count === 0 ? 'לא הופעל' : t.count === 1 ? 'הופעל פעם אחת' : `הופעל ${t.count} פעמים`}</li>
+                              ))}
+                            </ul>
+                          </div>
+                          {report.sandbox.refresh.length > 0 && (
+                            <div className="p-3 rounded-xl bg-ws-bg border border-ws-surface2 text-ws-ink">
+                              <div className="font-black mb-1">תרגילי הריענון</div>
+                              <ul className="space-y-0.5">
+                                {report.sandbox.refresh.map((r, i) => <li key={i}>• {r.title}: {r.outcomeHe}</li>)}
+                              </ul>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-3 p-3 rounded-xl bg-ws-bg border border-ws-surface2">
+                        <div className="text-2xl font-black text-ws-ink" dir="ltr">{report.scorePercent === null ? '—' : `${report.scorePercent}%`}</div>
+                        <div>
+                          <div className="font-bold text-ws-ink">הצלחה בניסיון ראשון</div>
+                          <div className="text-ws-soft">
+                            {report.scorePercent === null
+                              ? 'לא נמדד'
+                              : report.scoreSource === 'session_document'
+                                ? 'ממסמך המפגש'
+                                : report.scoreSource === 'telemetry_first_attempt'
+                                  ? `מחושב מ-${report.telemetryEventCount} פעולות מתועדות`
+                                  : 'מתוצאות האבחון'}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-100">
+                        <div className="font-black mb-1">קבוצת למידה מומלצת: {report.routingLabelHe}</div>
+                        <div>{report.recommendationDetailsHe}</div>
+                      </div>
+                    </>
+                  )}
                   {report.exerciseNarratives.length > 0 && (
                     <div className="p-3 rounded-xl bg-ws-bg border border-ws-surface2">
                       <div className="font-black text-ws-ink mb-1">מהלך הפתרון לפי תרגילים</div>
@@ -419,18 +459,18 @@ export function LearnerJourney({ studentId }: Props) {
                   )}
                 </div>
                 <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-950 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-100 space-y-2">
-                  <div className="font-black">תובנות פדגוגיות וניתוח למידה</div>
+                  <div className="font-black">{report.sandbox ? 'לקראת האבחון' : 'תובנות פדגוגיות וניתוח למידה'}</div>
                   {report.aiAnalysisAvailable ? (
                     <>
                       <div className="text-[11px] font-bold opacity-70">נותח אוטומטית מהפעולות המתועדות. ההחלטה הפדגוגית נותרת בידי המורה.</div>
                       <div>
-                        <div className="font-bold mb-1">מוקדי קושי והבנה שאותרו</div>
+                        <div className="font-bold mb-1">{report.sandbox ? 'נקודות לתשומת לב לקראת האבחון' : 'מוקדי קושי והבנה שאותרו'}</div>
                         {report.knowledgeGaps.length > 0
                           ? <ul className="space-y-1">{report.knowledgeGaps.map((g, i) => <li key={i}>• {g}</li>)}</ul>
                           : <div className="opacity-80">לא אותרו פערים בפעולות המתועדות.</div>}
                       </div>
                       <div>
-                        <div className="font-bold mb-1">המלצות הוראה להמשך</div>
+                        <div className="font-bold mb-1">{report.sandbox ? 'מה אפשר לעשות לפני האבחון' : 'המלצות הוראה להמשך'}</div>
                         {report.teachingRecommendations.length > 0
                           ? <ul className="space-y-1">{report.teachingRecommendations.map((r, i) => <li key={i}>• {r}</li>)}</ul>
                           : <div className="opacity-80">אין המלצות נוספות.</div>}

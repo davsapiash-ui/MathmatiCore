@@ -14,7 +14,15 @@
 import * as fs from "fs";
 import { fontPath } from "./htmlPdf";
 import type { ClassAggregates, ClassLearnerRow, ExerciseOutcome } from "./classReport";
-import { flexibilityHe, mediationHe, persistenceHe } from "./meetingMetrics";
+import {
+  flexibilityHe,
+  mediationHe,
+  persistenceHe,
+  SANDBOX_MEETING_PURPOSE_HE,
+  TOOL_LABEL_HE,
+  TOOLS,
+  type ToolMastery,
+} from "./meetingMetrics";
 import type { RecommendationTier } from "./reportAnalysis";
 
 export const EXACT_AI_FALLBACK_TEXT_HE =
@@ -147,7 +155,79 @@ function researchMeasuresCard(m: Record<string, any> | null | undefined): string
     <p><b>אפקטיביות התיווך במפגש זה:</b> ${esc(mediationHe(m.mediation ?? null))} | <b>מצטבר (כל המפגשים):</b> ${esc(mediationHe(m.mediation_cumulative ?? null))}</p>`;
 }
 
+/** One learner's tools: how often each was operated, and "לא הופעל" where it never was. */
+function toolMasteryTable(m: ToolMastery | null | undefined): string {
+  if (!m) return "";
+  const rows = TOOLS.map((tool) => {
+    const n = m.used?.[tool] ?? 0;
+    return `<tr><td class="label">${esc(TOOL_LABEL_HE[tool])}</td><td class="${n > 0 ? "outcome-first_try" : "outcome-incomplete"}">${n === 0 ? "לא הופעל" : n === 1 ? "הופעל פעם אחת" : `הופעל ${esc(n)} פעמים`}</td></tr>`;
+  }).join("");
+  return `<table><thead><tr><th>כלי</th><th>שימוש במפגש</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+/** Each refresh exercise of meeting 1 and how the learner finished it — no percentage. */
+function refreshOutcomesList(outcomes: Record<string, ExerciseOutcome> | null | undefined, titles: Record<string, string> | null | undefined): string {
+  const entries = Object.entries(outcomes ?? {});
+  if (entries.length === 0) return "<p>לא נרשמו תרגילים.</p>";
+  const rows = entries.map(([id, outcome]) => {
+    const title = titles?.[id];
+    return `<tr><td class="label">${title ? esc(title) : ltr(id)}</td><td class="outcome-${outcome}">${esc(OUTCOME_HE[outcome])}</td></tr>`;
+  }).join("");
+  return `<table><thead><tr><th>תרגיל</th><th>איך הסתיים</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+/**
+ * Meeting 1 (Module 14 §ב): no score, no working group, no recommended path.
+ * The report answers what meeting 1 is for — can this learner be diagnosed
+ * tomorrow without the interface or rust getting in the way.
+ */
+function sandboxReportHtml(report: Record<string, any>): string {
+  const title = report.title_he || "MathematiCore - דוח היכרות וריענון";
+  const narratives = asStringArray(report.exercise_narratives);
+  const gaps = asStringArray(report.knowledge_gaps);
+  const teaching = asStringArray(report.teaching_recommendations);
+  const notUsed: string[] = Array.isArray(report.tool_mastery?.not_used)
+    ? report.tool_mastery.not_used.map((t: string) => TOOL_LABEL_HE[t as keyof typeof TOOL_LABEL_HE] ?? t)
+    : [];
+
+  let insights: string;
+  if (gaps.length > 0 || teaching.length > 0) {
+    insights = "";
+    if (gaps.length > 0) insights += `<h3>נקודות לתשומת לב לקראת האבחון:</h3>${bulletList(gaps, "amber-text")}`;
+    if (teaching.length > 0) insights += `<h3>מה אפשר לעשות לפני האבחון:</h3>${bulletList(teaching, "amber-text")}`;
+  } else {
+    insights = `<p class="amber-text">${esc(report.ai_fallback_text || EXACT_AI_FALLBACK_TEXT_HE)}</p>`;
+  }
+
+  const body = `
+    <h1>${esc(title)}</h1>
+    <p class="subtitle">הערכה פדגוגית חסויה | מדיניות אפס מידע מזהה (Zero PII)</p>
+
+    <div class="card">
+      <div><b>לומד:</b> ${esc(report.anonymous_student_label)}</div>
+      <div><b>מפגש:</b> 1 — היכרות וריענון</div>
+      <div class="wide"><b>כלים שעוד לא הופעלו:</b> ${notUsed.length > 0 ? esc(notUsed.join(", ")) : "אין — כל הכלים הופעלו"}</div>
+    </div>
+    <p class="muted">${esc(SANDBOX_MEETING_PURPOSE_HE)}</p>
+
+    <h2 class="green">1. שליטה בכלי המערכת</h2>
+    ${toolMasteryTable(report.tool_mastery)}
+
+    <h2>2. תרגילי הריענון</h2>
+    ${refreshOutcomesList(report.exercise_outcomes, report.exercise_titles)}
+
+    <h2>3. סיפור התרגילים הכרונולוגי (Exercise Narratives)</h2>
+    ${narratives.length > 0 ? bulletList(narratives, "") : ""}
+
+    <h2 class="amber">4. לקראת האבחון</h2>
+    ${insights}
+    ${researchMeasuresCard(report.research_measures)}
+  `;
+  return layout(title, body);
+}
+
 export function pedagogicalReportHtml(report: Record<string, any>): string {
+  if (report.meeting_kind === "sandbox_refresh") return sandboxReportHtml(report);
   const title = report.title_he || "MathematiCore - דוח פדגוגי מסכם";
   const pathLabel = report.matrix_recommended_path === "green_path"
     ? "מסלול העמקה (ירוק)"
@@ -207,17 +287,17 @@ function keyValueList(map: Record<string, number>): string {
 /** A percentage that may not have been measured. Never printed as a bare "%". */
 const pctHe = (value: number | null | undefined): string => (typeof value === "number" ? `${value}%` : "לא נמדד");
 
-function learnersTable(rows: ClassLearnerRow[]): string {
+function learnersTable(rows: ClassLearnerRow[], scored = true): string {
   const head = [
-    "לומד", "ציון", "נכון בניסיון ראשון", "תרגילים שנפתחו", "תרגילים שהושלמו", "ספרות שגויות",
+    "לומד", ...(scored ? ["ציון", "נכון בניסיון ראשון"] : []), "תרגילים שנפתחו", "תרגילים שהושלמו", "ספרות שגויות",
     "שגויות: אחדות", "שגויות: עשרות", "שגויות: מאות", "שגויות: אלפים",
     "מחיקות", "ביטולים", "היסוסים", "המרות", "כרטיסים", "דקות", "רפלקציה",
   ];
   const body = rows.map((r) => `
     <tr>
       <td class="label">תלמיד ${esc(r.student_id)}</td>
-      <td>${esc(pctHe(r.score_percent))}</td>
-      <td>${r.score_percent === null ? "לא נמדד" : `${esc(r.correct_first_attempt)} מתוך ${esc(r.compulsory_total)}`}</td>
+      ${scored ? `<td>${esc(pctHe(r.score_percent))}</td>
+      <td>${r.score_percent === null ? "לא נמדד" : `${esc(r.correct_first_attempt)} מתוך ${esc(r.compulsory_total)}`}</td>` : ""}
       <td>${esc(r.exercises_attempted)}</td>
       <td>${esc(r.exercises_completed)}</td>
       <td>${esc(r.wrong_digits)}</td>
@@ -271,6 +351,25 @@ function researchMeasuresSection(rows: ClassLearnerRow[], a: ClassAggregates): s
     <table><thead><tr>${head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table>`;
 }
 
+/** Meeting 1: per tool, which learners never operated it — what to show the class before the diagnostic. */
+function classToolsSection(rows: ClassLearnerRow[], a: ClassAggregates): string {
+  const list = TOOLS.map((tool) => {
+    const ids = a.tools_not_used?.[tool] ?? [];
+    return `<li><b>${esc(TOOL_LABEL_HE[tool])}:</b> ${ids.length > 0 ? `לא הפעילו — ${esc(studentList(ids))}` : "כל הלומדים הפעילו"}</li>`;
+  }).join("");
+  const head = ["לומד", ...TOOLS.map((t) => TOOL_LABEL_HE[t])];
+  const body = rows.map((r) => `
+    <tr>
+      <td class="label">תלמיד ${esc(r.student_id)}</td>
+      ${TOOLS.map((t) => {
+        const n = r.tool_mastery?.used?.[t] ?? 0;
+        return `<td class="${n > 0 ? "outcome-first_try" : "outcome-incomplete"}">${n > 0 ? esc(n) : "—"}</td>`;
+      }).join("")}
+    </tr>`).join("");
+  return `<ul>${list}</ul>
+    <table><thead><tr>${head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table>`;
+}
+
 /** The class report is table-heavy (17 columns per learner), so it prints landscape. */
 export const CLASS_REPORT_PDF_OPTIONS = { landscape: true };
 
@@ -311,13 +410,52 @@ export function classReportHtml(report: Record<string, any>): string {
           </tr>`).join("")}
         </tbody></table>`;
 
+  const scored = a.scored !== false;
   let analysis: string;
   if (patterns.length > 0 || teaching.length > 0) {
     analysis = "";
-    if (patterns.length > 0) analysis += `<h3>דפוסים כיתתיים שאותרו:</h3>${bulletList(patterns, "amber-text")}`;
-    if (teaching.length > 0) analysis += `<h3>המלצות הוראה לכיתה:</h3>${bulletList(teaching, "amber-text")}`;
+    if (patterns.length > 0) analysis += `<h3>${scored ? "דפוסים כיתתיים שאותרו:" : "נקודות לתשומת לב לקראת האבחון:"}</h3>${bulletList(patterns, "amber-text")}`;
+    if (teaching.length > 0) analysis += `<h3>${scored ? "המלצות הוראה לכיתה:" : "מה אפשר לעשות לפני האבחון:"}</h3>${bulletList(teaching, "amber-text")}`;
   } else {
     analysis = `<p class="amber-text">${esc(EXACT_AI_FALLBACK_TEXT_HE)}</p>`;
+  }
+
+  if (!scored) {
+    // Meeting 1 (Module 14 §ב): no mean, no median, no working groups.
+    const sandboxBody = `
+    <h1>${esc(title)}</h1>
+    <p class="subtitle">דוח כיתתי חסוי | מדיניות אפס מידע מזהה (Zero PII) | לומדים מזוהים במספר בלבד</p>
+
+    <div class="card">
+      <div><b>מפגש:</b> 1 — היכרות וריענון</div>
+      <div><b>לומדים עם נתונים:</b> ${esc(a.learners_with_data)} מתוך 12</div>
+      <div class="wide"><b>זמן פעילות ממוצע:</b> ${esc(a.active_minutes_mean)} דקות</div>
+    </div>
+    <p class="muted">${esc(SANDBOX_MEETING_PURPOSE_HE)}</p>
+    ${withoutData}
+
+    <h2 class="green">1. שליטה בכלי המערכת לקראת האבחון</h2>
+    ${classToolsSection(rows, a)}
+
+    <h2>2. תמונת מצב כיתתית</h2>
+    <p>פעולות מתועדות: ${esc(a.events_total)} | ספרות שהוזנו: ${esc(a.digits_entered_total)} | ספרות שגויות: ${esc(a.wrong_digits_total)}
+      (אחדות ${esc(a.wrong_digits_by_column.units)}, עשרות ${esc(a.wrong_digits_by_column.tens)}, מאות ${esc(a.wrong_digits_by_column.hundreds)}, אלפים ${esc(a.wrong_digits_by_column.thousands)})</p>
+    <p>מחיקות: ${esc(a.deletions_total)} | ביטולים: ${esc(a.undos_total)} | היסוסים: ${esc(a.hesitations_total)} (${esc(a.hesitation_seconds_total)} שניות) | המרות (הקבצה/פריטה): ${esc(a.regroupings_total)}</p>
+    <p>כרטיסי חניכה: ${esc(a.socratic_cards_total)}${triggers ? ` (${triggers})` : ""} | סיווגי שגיאה: ${categories || "אין"}</p>
+
+    <h2>3. תרגילי הריענון: כמה לומדים פתרו בניסיון ראשון</h2>
+    ${exercises}
+
+    <h2>4. טבלת הלומדים</h2>
+    ${learnersTable(rows, false)}
+    ${outcomesTable(rows, exerciseIds)}
+
+    ${researchMeasuresSection(rows, a)}
+
+    <h2 class="amber">5. ניתוח הבינה: לקראת האבחון</h2>
+    ${analysis}
+  `;
+    return layout(title, sandboxBody);
   }
 
   const body = `

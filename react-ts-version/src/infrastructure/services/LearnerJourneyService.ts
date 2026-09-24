@@ -423,11 +423,42 @@ export function describeReportError(err: unknown): { final: boolean; message: st
 /** PRD Module 23 §ב: the only text shown when the AI layer is unavailable. */
 export const AI_FALLBACK_TEXT = 'הניתוח הפדגוגי המפורט אינו זמין כעת. ההמלצות שלהלן מבוססות על מדדי הביצוע.';
 
+/**
+ * The six interface actions meeting 1 checks, in the server's order
+ * (functions/src/meetingMetrics.ts TOOLS / TOOL_LABEL_HE).
+ */
+export const TOOL_LABELS_HE: ReadonlyArray<[string, string]> = [
+  ['drag', 'גרירת לבנים ללוח'],
+  ['decompose', 'פירוק לבנה (פריטה)'],
+  ['compose', 'הקבצה בכפתור "הקבץ"'],
+  ['type', 'הקלדת ספרות'],
+  ['undo', 'ביטול פעולה'],
+  ['trash', 'פח האשפה'],
+];
+
+const OUTCOME_LABELS_HE: Record<string, string> = {
+  first_try: 'ניסיון ראשון',
+  after_correction: 'אחרי תיקון',
+  incomplete: 'לא הושלם',
+};
+
+/** Meeting 1 (Module 14 §ב) is a sandbox and refresh: no score, no working group. */
+export interface SandboxReportPart {
+  tools: { label: string; count: number }[];
+  toolsNotUsed: string[];
+  refresh: { title: string; outcomeHe: string }[];
+  /** A meeting-1 report produced before it had these sections; the teacher regenerates it. */
+  outdated: boolean;
+}
+
 export interface MeetingReport {
   reportId: string;
   sessionId: string;
   sessionNumber: number;
-  scorePercent: number;
+  /** null when the meeting is not scored (meeting 1) — never shown as 0%. */
+  scorePercent: number | null;
+  /** Set for meeting 1: the report shows tools and refresh outcomes instead of a score and a group. */
+  sandbox: SandboxReportPart | null;
   /** Where the score came from: the meeting's session document, or the PRD first-attempt rule over its telemetry. */
   scoreSource: string;
   routingLabelHe: string;
@@ -469,12 +500,31 @@ function researchMeasureLines(m: unknown): string[] {
 
 const strList = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
 
-function reportFromData(d: Record<string, any>, sessionId: string, downloadUrl: string | null, pdfFailureMessage: string | null = null): MeetingReport {
+function sandboxPartOf(d: Record<string, any>): SandboxReportPart {
+  const used = d.tool_mastery?.used && typeof d.tool_mastery.used === 'object' ? d.tool_mastery.used : null;
+  const titles = d.exercise_titles && typeof d.exercise_titles === 'object' ? d.exercise_titles : {};
+  const outcomes = d.exercise_outcomes && typeof d.exercise_outcomes === 'object' ? d.exercise_outcomes : {};
+  return {
+    tools: used ? TOOL_LABELS_HE.map(([key, label]) => ({ label, count: Number(used[key]) || 0 })) : [],
+    toolsNotUsed: used ? TOOL_LABELS_HE.filter(([key]) => !(Number(used[key]) > 0)).map(([, label]) => label) : [],
+    refresh: Object.entries(outcomes as Record<string, string>).map(([id, o]) => ({
+      title: typeof titles[id] === 'string' ? titles[id] : id,
+      outcomeHe: OUTCOME_LABELS_HE[o] ?? o,
+    })),
+    outdated: used === null,
+  };
+}
+
+export function reportFromData(d: Record<string, any>, sessionId: string, downloadUrl: string | null, pdfFailureMessage: string | null = null): MeetingReport {
+  const sessionNumber = Number(d.session_number) || 0;
+  // Meeting 1 is never scored — also on a report stored before this was enforced.
+  const sandbox = d.meeting_kind === 'sandbox_refresh' || sessionNumber === 1;
   return {
     reportId: String(d.report_id ?? `rep_${sessionId}`),
     sessionId: String(d.session_id ?? sessionId),
-    sessionNumber: Number(d.session_number) || 0,
-    scorePercent: Number(d.score_percent) || 0,
+    sessionNumber,
+    scorePercent: sandbox || typeof d.score_percent !== 'number' ? null : d.score_percent,
+    sandbox: sandbox ? sandboxPartOf(d) : null,
     scoreSource: String(d.score_source ?? ''),
     routingLabelHe: String(d.routing_label_he ?? ''),
     recommendationDetailsHe: String(d.recommendation_details_he ?? ''),

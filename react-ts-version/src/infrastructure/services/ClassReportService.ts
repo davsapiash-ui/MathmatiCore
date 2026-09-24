@@ -11,6 +11,7 @@
 import { doc, getDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { firestore, functions, authReady } from '@/infrastructure/firebase';
+import { TOOL_LABELS_HE } from './LearnerJourneyService';
 
 export type RecommendationTier = 'below_50' | 'between_50_75' | 'above_75';
 
@@ -72,6 +73,10 @@ export interface ClassMeetingReport {
   reportId: string;
   classId: string;
   sessionNumber: number;
+  /** False for meeting 1 (Module 14 §ב): the panel shows tools and refresh outcomes, no mean and no groups. */
+  scored: boolean;
+  /** Per tool (Hebrew label), the learners with data who never operated it. Empty on older reports. */
+  toolsNotUsed: { label: string; learners: number[] }[];
   generatedAt: number | null;
   telemetryEventCount: number;
   learnersWithData: number;
@@ -191,10 +196,16 @@ export function classReportFromData(d: Record<string, any>): ClassMeetingReport 
   const tiersRaw = (a.tiers && typeof a.tiers === 'object' ? a.tiers : {}) as Record<string, unknown>;
   const col = (a.wrong_digits_by_column && typeof a.wrong_digits_by_column === 'object' ? a.wrong_digits_by_column : {}) as Record<string, unknown>;
   const pathsRaw = (a.paths && typeof a.paths === 'object' ? a.paths : {}) as Record<string, unknown>;
+  const sessionNumber = num(d.session_number);
+  // Meeting 1 is never scored — also on a report stored before this was enforced.
+  const scored = a.scored !== false && sessionNumber !== 1;
+  const notUsedRaw = (a.tools_not_used && typeof a.tools_not_used === 'object' ? a.tools_not_used : null) as Record<string, unknown> | null;
   return {
     reportId: String(d.report_id ?? ''),
     classId: String(d.class_id ?? 'class_1'),
-    sessionNumber: num(d.session_number),
+    sessionNumber,
+    scored,
+    toolsNotUsed: notUsedRaw ? TOOL_LABELS_HE.map(([key, label]) => ({ label, learners: numList(notUsedRaw[key]) })) : [],
     generatedAt: typeof d.generated_at === 'number' ? d.generated_at : null,
     telemetryEventCount: num(d.telemetry_event_count),
     learnersWithData: num(a.learners_with_data),
