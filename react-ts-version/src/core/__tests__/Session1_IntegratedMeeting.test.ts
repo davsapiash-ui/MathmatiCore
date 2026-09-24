@@ -8,6 +8,7 @@ import { TASKS as DIAGNOSTIC_TASKS } from '@/core/QMatrix';
 import { session1Checklist } from '@/core/session1Checklist';
 import { EMPTY_COUNTS } from '@/core/placeValue';
 import { SocraticEngine } from '@/infrastructure/services/SocraticEngine';
+import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
 
 /**
  * מפגש 1 (owner, 24.9.2026 — register decision ו): the six introduction steps
@@ -46,6 +47,16 @@ describe('the order of meeting 1', () => {
     expect(bank.tasks).toEqual(SESSION1_TASKS);
   });
 
+  it('the server leaves out of the report exactly the tool steps of this bank', () => {
+    // functions/src/meetingMetrics.ts MEETING1_TOOL_STEPS: tool steps are tool
+    // mastery, not exercises (מסמך 04: "כיצד הסתיים כל תרגיל ריענון").
+    const server = readFileSync(resolve(__dirname, '../../../../functions/src/meetingMetrics.ts'), 'utf-8');
+    const list = server.slice(server.indexOf('export const MEETING1_TOOL_STEPS'), server.indexOf('];', server.indexOf('export const MEETING1_TOOL_STEPS')));
+    const serverIds = [...list.matchAll(/"(s1_[a-z0-9_]+)"/g)].map((m) => m[1]);
+    const toolSteps = SESSION1_TASKS.filter((t) => t.type === 'session1_intro').map((t) => t.id);
+    expect(serverIds).toEqual(toolSteps);
+  });
+
   it('the removed typing-creates-blocks step is not back (register gap טז)', () => {
     const all = JSON.stringify(SESSION1_TASKS);
     expect(all).not.toContain('הקלידו ספרות בשורת התוצאה');
@@ -72,7 +83,7 @@ describe('steps 1–5 say on screen what מסמך 03 §3.1 says, word for word',
 });
 
 describe('what completes each introduction step', () => {
-  const base = { counts: { ...EMPTY_COUNTS }, blocksAddedCount: 0, hasUngrouped: false, undoCount: 0, hasDeletedBlock: false };
+  const base = { counts: { ...EMPTY_COUNTS }, blocksAddedCount: 0, hasUngrouped: false, undoCount: 0, hasClearedBoard: false };
   const done = (id: string, s: Partial<typeof base>) => session1Checklist(id, { ...base, ...s })!.every((i) => i.done);
 
   it('steps 1–2: five dragged blocks', () => {
@@ -91,10 +102,23 @@ describe('what completes each introduction step', () => {
     expect(done('s1_build_305', { counts: { ...EMPTY_COUNTS, hundreds: 2, tens: 10, units: 5 } })).toBe(false);
   });
 
-  it('step 5: undo and the trash, both', () => {
+  it('step 4: 305 built another way shows which part is left, instead of a silent ⏳', () => {
+    const items = session1Checklist('s1_build_305', { ...base, counts: { ...EMPTY_COUNTS, hundreds: 2, tens: 10, units: 5 } })!;
+    expect(items.map((i) => i.done)).toEqual([true, false]);
+    expect(items[1].label).toBe('הספרה אפס בלוח בית המספרים הריק מעשרות');
+  });
+
+  it('step 5: undo and pressing the trash, both', () => {
     expect(done('s1_undo_trash', { undoCount: 1 })).toBe(false);
-    expect(done('s1_undo_trash', { hasDeletedBlock: true })).toBe(false);
-    expect(done('s1_undo_trash', { undoCount: 1, hasDeletedBlock: true })).toBe(true);
+    expect(done('s1_undo_trash', { hasClearedBoard: true })).toBe(false);
+    expect(done('s1_undo_trash', { undoCount: 1, hasClearedBoard: true })).toBe(true);
+  });
+
+  it('every checklist label is the document\'s own wording', () => {
+    const state = { ...base, counts: { ...EMPTY_COUNTS } };
+    for (const id of ['s1_sandbox_controlled', 's1_decompose_hundred', 's1_build_305', 's1_undo_trash']) {
+      for (const item of session1Checklist(id, state)!) expect(DOC03, item.label).toContain(item.label);
+    }
   });
 
   it('exercises have no checklist', () => {
@@ -122,6 +146,58 @@ describe('the store gate follows the checklist', () => {
     const s = useWorkspaceStore.getState();
     expect(getActiveTasks(s)[s.standardTaskIdx].id).toBe('s1_build_305');
     expect(s.counts).toEqual({ ...EMPTY_COUNTS }); // "הלומדים גוררים שלוש מאות וחמש יחידות"
+  });
+
+  it('step 5 opens on the board step 4 built, and undo works on it at once', () => {
+    useWorkspaceStore.getState().initSession(1, false, 2);
+    const store = useWorkspaceStore.getState();
+    for (let i = 0; i < 3; i++) store.applyDrop({ source: 'palette', sourcePlace: 'hundreds', target: { kind: 'column', place: 'hundreds' } });
+    for (let i = 0; i < 5; i++) store.applyDrop({ source: 'palette', sourcePlace: 'units', target: { kind: 'column', place: 'units' } });
+    expect(useWorkspaceStore.getState().counts).toEqual({ ...EMPTY_COUNTS, hundreds: 3, units: 5 });
+    useWorkspaceStore.getState().proceed();
+    const s = useWorkspaceStore.getState();
+    expect(getActiveTasks(s)[s.standardTaskIdx].id).toBe('s1_undo_trash');
+    expect(s.counts).toEqual({ ...EMPTY_COUNTS, hundreds: 3, units: 5 });
+    useWorkspaceStore.getState().undo();
+    expect(useWorkspaceStore.getState().counts).toEqual({ ...EMPTY_COUNTS, hundreds: 3, units: 4 });
+    useWorkspaceStore.getState().clearBoard();
+    expect(useWorkspaceStore.getState().counts).toEqual({ ...EMPTY_COUNTS });
+    useWorkspaceStore.getState().proceed();
+    expect(getActiveTasks(useWorkspaceStore.getState())[useWorkspaceStore.getState().standardTaskIdx].id).toBe('s1_target_347');
+    // …and the target task opens on an empty board again
+    expect(useWorkspaceStore.getState().counts).toEqual({ ...EMPTY_COUNTS });
+  });
+
+  it('pressing the trash on an empty board still counts; dragging one block into it does not', () => {
+    useWorkspaceStore.getState().initSession(1, false, 3);
+    const store = useWorkspaceStore.getState();
+    store.applyDrop({ source: 'palette', sourcePlace: 'tens', target: { kind: 'column', place: 'tens' } });
+    store.applyDrop({ source: 'column', sourcePlace: 'tens', target: { kind: 'trash' } });
+    expect(useWorkspaceStore.getState().hasDeletedBlock).toBe(true);
+    expect(useWorkspaceStore.getState().hasClearedBoard).toBe(false);
+    useWorkspaceStore.getState().clearBoard(); // the board is empty now
+    expect(useWorkspaceStore.getState().hasClearedBoard).toBe(true);
+  });
+
+  it('a reload keeps what a step or a conversion was decided by', () => {
+    useWorkspaceStore.getState().initSession(1, false, 4);
+    useWorkspaceStore.setState({
+      counts: { ...EMPTY_COUNTS, hundreds: 3, tens: 3, units: 17 },
+      hasUngrouped: true,
+      hasGrouped: false,
+      hasClearedBoard: true,
+      blocksAddedCount: 6,
+      answerDigits: { hundreds: '3', tens: '4', units: '7' },
+    });
+    const snapshot = (firebaseSyncService as any).getSyncableWorkspaceState();
+    expect(snapshot).toMatchObject({ hasUngrouped: true, hasGrouped: false, hasClearedBoard: true, blocksAddedCount: 6 });
+    useWorkspaceStore.getState().resetWorkspace();
+    useWorkspaceStore.getState().restoreSession(snapshot);
+    expect(useWorkspaceStore.getState().hasUngrouped).toBe(true);
+    // …so the child who decomposed and reloaded is not told to decompose again
+    useWorkspaceStore.getState().proceed();
+    const s = useWorkspaceStore.getState();
+    expect(getActiveTasks(s)[s.standardTaskIdx].id).toBe('s1_r_group26');
   });
 
   it('step 5 cannot proceed on undo alone, and proceeds after the trash', () => {
@@ -175,7 +251,7 @@ describe('the store gate follows the checklist', () => {
     useWorkspaceStore.setState({ counts: { ...EMPTY_COUNTS, tens: 2, units: 6 }, answerDigits: { tens: '2', units: '6' } });
     useWorkspaceStore.getState().proceed();
     expect(useWorkspaceStore.getState().standardTaskIdx).toBe(5);
-    expect(useWorkspaceStore.getState().feedback?.sub).toContain('הקבץ (10)');
+    expect(useWorkspaceStore.getState().feedback?.sub).toContain('כפתור הקבץ 10');
     // Grouped from loose units: accepted.
     useWorkspaceStore.setState({ hasGrouped: true });
     useWorkspaceStore.getState().proceed();
@@ -291,6 +367,26 @@ describe('the live card never asks to undo the step the exercise asks for', () =
   it('26 loose units in the grouping refresh still get the grouping card', () => {
     const hint = SocraticEngine.analyzeLiveBoardState(task('s1_r_group26'), 'flexible_regrouping', { ...EMPTY_COUNTS, units: 26 });
     expect(hint?.questionHe).toContain('הצטברו 26');
+  });
+
+  it('a "two different representations" task holding 15 tens is left alone', () => {
+    const flex = { id: 's7_r_t7', type: 'flexible_decomp', numberA: 150 };
+    const hint = SocraticEngine.analyzeLiveBoardState(flex, 'flexible_regrouping', { ...EMPTY_COUNTS, tens: 15 });
+    expect(hint?.questionHe ?? '').not.toContain('הצטברו 15');
+  });
+
+  it('the backup cards are true in every state they can appear in, and give no result', () => {
+    const src = readFileSync(resolve(__dirname, '../../infrastructure/services/SocraticEngine.ts'), 'utf-8');
+    // the intro steps never open a card, so they carry none — and the old 305
+    // card ("אפס עשרות": 305 holds 30 tens) is gone
+    for (const id of ['s1_decompose_hundred', 's1_build_305', 's1_undo_trash']) expect(src).not.toContain(`'${id}': {`);
+    expect(src).not.toContain('כמה עשרות יש במספר 305');
+    // the subtraction cards speak after the borrow, not "borrow again", and never the answer
+    for (const [id, answer] of [['s1_r_sub61', '37'], ['s1_r_sub806', '455']] as const) {
+      const block = src.slice(src.indexOf(`'${id}': {`), src.indexOf('correctChoiceId', src.indexOf(`'${id}': {`)));
+      expect(block).toContain('מספיק');
+      expect(block).not.toContain(answer);
+    }
   });
 
   it('an addition with 12 units still gets the grouping card', () => {

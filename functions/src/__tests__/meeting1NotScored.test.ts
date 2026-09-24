@@ -5,6 +5,7 @@ import {
   computeExerciseOutcomes,
   computeToolMastery,
   isScoredMeeting,
+  MEETING1_TOOL_STEPS,
   resolveCompulsoryTotal,
   TOOLS,
 } from '../meetingMetrics';
@@ -96,12 +97,18 @@ describe('what meeting 1 measures instead', () => {
     expect(m.used.trash).toBe(1);
   });
 
-  it('refresh outcomes: first try, after a wrong digit, not finished', () => {
+  it('refresh outcomes: after a wrong digit, not finished — and no outcome for a tool step', () => {
+    // s1_sandbox_controlled is a tool step (מסמך 03 §3.1 steps 1–5): it shows
+    // as tool mastery, not as an exercise (מסמך 04: "כיצד הסתיים כל תרגיל ריענון").
     expect(computeExerciseOutcomes(learner4)).toEqual({
-      s1_sandbox_controlled: 'first_try',
       s1_r_sub806: 'after_correction',
       s1_t8: 'incomplete',
     });
+  });
+
+  it('every meeting 1 tool step is left out of the outcomes', () => {
+    const steps = MEETING1_TOOL_STEPS.map((id, i) => ev(id, 'PROBLEM_COMPLETE', {}, i));
+    expect(computeExerciseOutcomes(steps)).toEqual({});
   });
 
   it('the class row keeps the outcome rule it had (same function now)', () => {

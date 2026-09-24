@@ -11,7 +11,7 @@ export function IntroTask({ task }: { task: SessionTask }) {
   const blocksAddedCount = useWorkspaceStore((s) => s.blocksAddedCount);
   const hasUngrouped = useWorkspaceStore((s) => s.hasUngrouped);
   const undoCount = useWorkspaceStore((s) => s.undoCount);
-  const hasDeletedBlock = useWorkspaceStore((s) => s.hasDeletedBlock);
+  const hasClearedBoard = useWorkspaceStore((s) => s.hasClearedBoard);
 
   // UDL: the densest text on screen gets audio too — question + all choices in one read.
   const speechText = [task.thoughtQuestionHe, ...(task.choices ?? []).map((c) => `${c.id}. ${c.textHe}`)]
@@ -20,7 +20,7 @@ export function IntroTask({ task }: { task: SessionTask }) {
 
   // Meeting 1 tool steps (מסמך 03 §3.1): a checklist the learner ticks off by
   // acting — the same rule the store applies to "התקדם".
-  const checklist = session1Checklist(task.id, { counts, blocksAddedCount, hasUngrouped, undoCount, hasDeletedBlock });
+  const checklist = session1Checklist(task.id, { counts, blocksAddedCount, hasUngrouped, undoCount, hasClearedBoard });
   const allDone = checklist?.every((i) => i.done) ?? false;
 
   return (

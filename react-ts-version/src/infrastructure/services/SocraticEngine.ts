@@ -215,9 +215,10 @@ function synthesiseRecentEvents(
 const TASK_HINTS: Record<string, SocraticHintResponse> = {
 
   // ── Session 1 — ארגז החול המונחה (מסמך 03 §3.1) ────────────────
-  // The tool tasks (session1_intro) get no arithmetic coaching:
-  // analyzeLiveBoardState returns null for them, and these two entries are
-  // the static safety net only.
+  // The tool steps (session1_intro) never open a card: "התקדם" stays
+  // disabled until the step is done, so no wrong answer is ever checked, and
+  // the 45-second hesitation card is off for them (StudentWorkspacePage).
+  // The sandbox entry is the one safety net that was there before.
 
   // Steps 1–2: free dragging, the digits follow the blocks.
   's1_sandbox_controlled': {
@@ -229,48 +230,6 @@ const TASK_HINTS: Record<string, SocraticHintResponse> = {
       { id: "1", textHe: "לגרור עוד לבנים לטורים ולצפות בספרות בלוח בית המספרים", isCorrect: true, feedbackHe: "בדיוק! כל לבנה שגוררים משנה את הספרה בטור שלה." },
       { id: "2", textHe: "לקבץ 10 עשרות ולהמיר אותן למאה אחת", isCorrect: false, feedbackHe: "זה נכון מבחינה מתמטית, אבל כרגע אנחנו מכירים את הכלים ולא פותרים תרגיל." },
       { id: "3", textHe: "לכתוב מספר בשורת התוצאה", isCorrect: false, feedbackHe: "במשימה הזו לא כותבים. גוררים לבנים ומסתכלים על לוח בית המספרים." }
-    ],
-    correctChoiceId: "1"
-  },
-
-  // Step 3: decompose a hundred — 230 becomes 1 hundred and 13 tens.
-  's1_decompose_hundred': {
-    pedagogical_intent: "conceptual",
-    tts_text: "מה קורה ללבנת מאה כשלוחצים עליה?",
-    suggested_highlight: "tour-column-hundreds",
-    questionHe: "מה קורה ללבנת מאה כשלוחצים עליה?",
-    choices: [
-      { id: "opt_1", textHe: "היא מתפרקת לעשר עשרות, והמספר על הלוח נשאר אותו מספר", isCorrect: true, feedbackHe: "נכון מאוד! לחצו על לבנת מאה וצפו בעשר העשרות שנודדות לטור העשרות." },
-      { id: "opt_2", textHe: "היא נמחקת מהלוח", isCorrect: false, feedbackHe: "רמז: לחיצה מפרקת את הלבנה. כדי למחוק גוררים לפח האשפה." },
-      { id: "opt_3", textHe: "המספר על הלוח גדל", isCorrect: false, feedbackHe: "רמז: פירוק משנה את הלבנים, אבל הכמות הכוללת נשמרת." }
-    ],
-    correctChoiceId: "opt_1"
-  },
-
-  // Step 4: 305, zero as a place holder.
-  's1_build_305': {
-    pedagogical_intent: "conceptual",
-    tts_text: "כמה עשרות יש במספר 305?",
-    suggested_highlight: "tour-column-tens",
-    questionHe: "כמה עשרות יש במספר 305?",
-    choices: [
-      { id: "opt_1", textHe: "אפס עשרות, ולכן טור העשרות נשאר ריק", isCorrect: true, feedbackHe: "נכון מאוד! האפס שומר את המקום של העשרות." },
-      { id: "opt_2", textHe: "5 עשרות", isCorrect: false, feedbackHe: "רמז: הספרה 5 נמצאת בטור היחידות." },
-      { id: "opt_3", textHe: "3 עשרות", isCorrect: false, feedbackHe: "רמז: הספרה 3 נמצאת בטור המאות." }
-    ],
-    correctChoiceId: "opt_1"
-  },
-
-  // Step 5: undo, then the trash.
-  's1_undo_trash': {
-    pedagogical_intent: "procedural",
-    tts_text: "בואו נסתכל על רשימת המשימות. מה עוד נשאר לעשות?",
-    suggested_highlight: "tour-place-value-board",
-    questionHe: "בואו נסתכל על רשימת המשימות. מה עוד נשאר לעשות?",
-    choices: [
-      { id: "1", textHe: "לגרור לבנים, ללחוץ על ביטול פעולה, ואחר כך ללחוץ על פח האשפה", isCorrect: true, feedbackHe: "בדיוק! ביטול מחזיר צעד אחד אחורה, והפח מנקה את כל הלוח." },
-      { id: "2", textHe: "לכתוב מספר בשורת התוצאה", isCorrect: false, feedbackHe: "במשימה הזו לא כותבים. מתאמנים בביטול פעולה ובפח האשפה." },
-      { id: "3", textHe: "לקבץ 10 יחידות לעשרת", isCorrect: false, feedbackHe: "זה נכון מבחינה מתמטית, אבל כרגע אנחנו מכירים את הכלים." }
     ],
     correctChoiceId: "1"
   },
@@ -289,16 +248,18 @@ const TASK_HINTS: Record<string, SocraticHintResponse> = {
     correctChoiceId: "opt_1"
   },
 
-  // Refresh, mirrors diagnostic task 5: 26 units grouped into 2 tens and 6 units.
+  // Refresh, mirrors diagnostic task 5: 26 unit cubes grouped into tens. With
+  // 10 or more units on the board the live card speaks; this one is true in
+  // every other state and does not name the result.
   's1_r_group26': {
-    pedagogical_intent: "procedural",
-    tts_text: "בטור היחידות יש יותר מ-9 קוביות. מה נעשה?",
+    pedagogical_intent: "conceptual",
+    tts_text: "מה צריך להיות בטור היחידות בסוף התרגיל?",
     suggested_highlight: "tour-column-units",
-    questionHe: "בטור היחידות יש יותר מ-9 קוביות. מה נעשה?",
+    questionHe: "מה צריך להיות בטור היחידות בסוף התרגיל?",
     choices: [
-      { id: "opt_1", textHe: "נקבץ 10 יחידות לעשרת אחת, ונחזור על כך כל עוד יש 10 יחידות או יותר", isCorrect: true, feedbackHe: "נכון מאוד! לחצו על כפתור הקבץ (10) שבראש טור היחידות." },
-      { id: "opt_2", textHe: "נמחק יחידות לפח עד שיישארו פחות מ-10", isCorrect: false, feedbackHe: "רמז: מחיקה משנה את המספר. קיבוץ שומר על הכמות." },
-      { id: "opt_3", textHe: "נעביר קובייה אחת לטור העשרות", isCorrect: false, feedbackHe: "רמז: עשרת אחת שווה בדיוק ל-10 יחידות." }
+      { id: "opt_1", textHe: "פחות מ-10 קוביות: כל 10 יחידות הפכו לעשרת אחת בטור העשרות", isCorrect: true, feedbackHe: "נכון מאוד! כשיש בטור 10 יחידות או יותר, לחצו על כפתור הקבץ 10 שבראש הטור." },
+      { id: "opt_2", textHe: "כל 26 הקוביות", isCorrect: false, feedbackHe: "רמז: כשיש 10 יחידות או יותר בטור, מקבצים אותן לעשרת." },
+      { id: "opt_3", textHe: "אף קובייה", isCorrect: false, feedbackHe: "רמז: אחרי הקיבוץ נשארות בטור היחידות היחידות שלא נכנסו לעשרת." }
     ],
     correctChoiceId: "opt_1"
   },
@@ -318,29 +279,33 @@ const TASK_HINTS: Record<string, SocraticHintResponse> = {
   },
 
   // Refresh, mirrors diagnostic task 3: 61 − 24, one borrow in the units.
+  // Before the borrow the live deficit card speaks; this one covers the rest
+  // of the exercise, and does not give the result.
   's1_r_sub61': {
     pedagogical_intent: "procedural",
-    tts_text: "בטור היחידות של 61 יש יחידה אחת, וצריך להחסיר 4 יחידות. מה נעשה?",
-    suggested_highlight: "tour-column-tens",
-    questionHe: "בטור היחידות של 61 יש יחידה אחת, וצריך להחסיר 4 יחידות. מה נעשה?",
+    tts_text: "בחיסור 61 − 24: מה עושים כשיש בלוח מספיק יחידות?",
+    suggested_highlight: "tour-place-value-board",
+    questionHe: "בחיסור 61 − 24: מה עושים כשיש בלוח מספיק יחידות?",
     choices: [
-      { id: "opt_1", textHe: "נפרוט עשרת אחת ל-10 יחידות", isCorrect: true, feedbackHe: "נכון מאוד! לחצו על לבנת עשרת כדי לפרוט אותה ליחידות." },
-      { id: "opt_2", textHe: "נחסיר הפוך: 4 פחות 1", isCorrect: false, feedbackHe: "רמז: בחיסור מוציאים מהמספר העליון. אם אין מספיק, פורטים." },
-      { id: "opt_3", textHe: "נוסיף יחידות מהמחסן", isCorrect: false, feedbackHe: "רמז: בחיסור בונים רק את המספר הראשון ומוציאים ממנו." }
+      { id: "opt_1", textHe: "מוציאים מהלוח 4 יחידות ו-2 עשרות, וכותבים בשורת התוצאה את מה שנשאר", isCorrect: true, feedbackHe: "נכון מאוד! הוציאו את הלבנים לפח האשפה וכתבו את מה שנשאר בלוח." },
+      { id: "opt_2", textHe: "פורטים עוד עשרת", isCorrect: false, feedbackHe: "רמז: יש כבר מספיק יחידות כדי להוציא 4." },
+      { id: "opt_3", textHe: "מוסיפים 24 לבנים ללוח", isCorrect: false, feedbackHe: "רמז: בחיסור מוציאים מהלוח ולא מוסיפים." }
     ],
     correctChoiceId: "opt_1"
   },
 
-  // Refresh, mirrors diagnostic task 7: 806 − 351, a borrow into an empty tens column.
+  // Refresh, mirrors diagnostic task 7: 806 − 351, a borrow into an empty tens
+  // column. Before the borrow the live deficit card speaks; this one covers
+  // the rest of the exercise, and does not give the result.
   's1_r_sub806': {
     pedagogical_intent: "procedural",
-    tts_text: "בטור העשרות של 806 אין עשרות, וצריך להחסיר 5 עשרות. מה נעשה?",
-    suggested_highlight: "tour-column-hundreds",
-    questionHe: "בטור העשרות של 806 אין עשרות, וצריך להחסיר 5 עשרות. מה נעשה?",
+    tts_text: "בחיסור 806 − 351: מה עושים כשיש בלוח מספיק עשרות?",
+    suggested_highlight: "tour-place-value-board",
+    questionHe: "בחיסור 806 − 351: מה עושים כשיש בלוח מספיק עשרות?",
     choices: [
-      { id: "opt_1", textHe: "נפרוט מאה אחת ל-10 עשרות", isCorrect: true, feedbackHe: "נכון מאוד! לחצו על לבנת מאה כדי לפרוט אותה לעשרות." },
-      { id: "opt_2", textHe: "נכתוב 0 בטור העשרות ונמשיך לטור הבא", isCorrect: false, feedbackHe: "רמז: צריך להחסיר 5 עשרות, ואין עשרות. פורטים מהטור השכן הגבוה." },
-      { id: "opt_3", textHe: "נפרוט יחידה לעשרות", isCorrect: false, feedbackHe: "רמז: פורטים תמיד מהטור הגבוה יותר: מאה לעשרות, עשרת ליחידות." }
+      { id: "opt_1", textHe: "מוציאים מהלוח יחידה אחת, 5 עשרות ו-3 מאות, וכותבים בשורת התוצאה את מה שנשאר", isCorrect: true, feedbackHe: "נכון מאוד! הוציאו את הלבנים לפח האשפה וכתבו את מה שנשאר בלוח." },
+      { id: "opt_2", textHe: "פורטים עוד מאה", isCorrect: false, feedbackHe: "רמז: יש כבר מספיק עשרות כדי להוציא 5." },
+      { id: "opt_3", textHe: "מוסיפים 351 לבנים ללוח", isCorrect: false, feedbackHe: "רמז: בחיסור מוציאים מהלוח ולא מוסיפים." }
     ],
     correctChoiceId: "opt_1"
   },
@@ -641,15 +606,16 @@ export class SocraticEngine {
       return null;
     }
 
-    // 1. Overcrowding Check (>= 10 blocks in a column). Two states where ten or
-    // more in a column is the goal, not a mess: a representation whose required
-    // board holds it (230 as 1 hundred and 13 tens, 347 as 3, 3 and 17), and a
-    // subtraction after a borrow (61 − 24 as 5 tens and 11 units). "Group them
-    // back" would undo the very step the exercise asks for; subtraction gets
-    // its own deficit reading below.
+    // 1. Overcrowding Check (>= 10 blocks in a column). Three states where ten
+    // or more in a column is the goal, not a mess: a representation whose
+    // required board holds it (meeting 3's 13 and 14 tens, meeting 1's 347 as
+    // 3, 3 and 17), a "two different representations" task (150 as 15 tens),
+    // and a subtraction after a borrow (61 − 24 as 5 tens and 11 units).
+    // "Group them back" would undo the very step the exercise asks for;
+    // subtraction gets its own deficit reading below.
     const required = (currentTask?.requiredCounts ?? {}) as Partial<Record<'units' | 'tens' | 'hundreds', number>>;
     const crowdingIsTheGoal = (place: 'units' | 'tens' | 'hundreds') =>
-      currentTask?.isSubtraction === true || (required[place] ?? 0) >= 10;
+      currentTask?.isSubtraction === true || currentTask?.type === 'flexible_decomp' || (required[place] ?? 0) >= 10;
     if (counts.units >= 10 && !crowdingIsTheGoal('units')) {
       return {
         pedagogical_intent: "procedural",

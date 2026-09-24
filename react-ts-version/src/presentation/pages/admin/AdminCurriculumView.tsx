@@ -335,7 +335,7 @@ export function AdminCurriculumView() {
                         <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 space-y-1.5">
                           <div className="text-xs font-bold text-indigo-600 flex items-center gap-1">
                             <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>{bank.label}: {item.unscored ? "תרגילי ריענון" : "משימות חובה"} ({bank.compulsory.length})</span>
+                            <span>{bank.label}: {item.unscored ? "שלבי היכרות ותרגילי ריענון, ללא ציון" : "משימות חובה"} ({bank.compulsory.length})</span>
                           </div>
                           <ol className="text-xs text-slate-600 dark:text-slate-300 space-y-1 list-decimal list-inside pr-1">
                             {bank.compulsory.map((t, idx) => (

@@ -98,10 +98,10 @@ describe('Verification Suite: Module 12(c) and Module 13(a)', () => {
         workspaceState: { ones_count: 5, tens_count: 2, hundreds_count: 0, memory_circles: {} },
       });
 
-      const result = await SocraticEngine.requestSocraticHintWithFallback(request, { id: 's1_build_305' });
+      const result = await SocraticEngine.requestSocraticHintWithFallback(request, { id: 's1_target_347' });
 
       expect(result).toBeDefined();
-      expect(result.questionHe).toBe('כמה עשרות יש במספר 305?');
+      expect(result.questionHe).toBe('בואו נחשוב רגע יחד: מה קורה כאשר אנו מפרקים עשרת אחת לטור היחידות?');
     });
 
     it('accepts response containing valid error_category and populates error_category in hint', async () => {
@@ -129,7 +129,7 @@ describe('Verification Suite: Module 12(c) and Module 13(a)', () => {
         workspaceState: { ones_count: 5, tens_count: 2, hundreds_count: 0, memory_circles: {} },
       });
 
-      const result = await SocraticEngine.requestSocraticHintWithFallback(request, { id: 's1_build_305' });
+      const result = await SocraticEngine.requestSocraticHintWithFallback(request, { id: 's1_target_347' });
 
       expect(result).toBeDefined();
       expect(result.questionHe).toBe('מה הצעד הבא לאחר קיבוץ 10 יחידות?');

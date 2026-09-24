@@ -14,7 +14,7 @@
  * remediation_path (up to 1,000). Session 8 deliberately reuses numbers the
  * learner met in sessions 4–6 (מסמך 03 §3.8, clean decay measurement).
  * Session 2 (the diagnostic) lives in src/core/QMatrix.ts and is re-exported here.
- * Session 1 keeps the sandbox tasks of the original implementation.
+ * Session 1 is מסמך 03 §3.1 plus four refresh exercises (register decision ו).
  */
 
 import { TASKS as QMATRIX_TASKS } from '@/core/QMatrix';
@@ -115,6 +115,8 @@ export interface SessionTask {
   initialCounts?: Partial<PlaceCounts>;
   /** representation: the card does not list the board to build — finding it is the exercise. */
   hideRequiredCounts?: boolean;
+  /** The task opens on the board — and the undo history — the previous task left (meeting 1, step 5). */
+  continuesBoard?: boolean;
 }
 
 /* ── Session 1 — ארגז החול המונחה: היכרות עם הכלים וריענון לקראת האבחון ── */
@@ -180,6 +182,9 @@ export const SESSION1_TASKS: SessionTask[] = [
     instructionHe: 'רוצים לחזור צעד אחד אחורה? לחצו על כפתור ביטול פעולה.\nרוצים להתחיל מחדש ולנקות את הלוח? לחצו על פח האשפה.',
     correctAnswer: 'proceed_any',
     scaffoldLevel: 0,
+    // מסמך 03: undo "the last typing or dragging", then the trash "resets the
+    // workspace" — the board step 4 built, with its history.
+    continuesBoard: true,
   },
   // מסמך 03 §3.1 step 6 (formerly 7) — the target task: 347 → 3 hundreds, 3 tens, 17 units.
   s1(representation('s1_target_347', 347, { hundreds: 3, tens: 3, units: 17 },
@@ -193,7 +198,7 @@ export const SESSION1_TASKS: SessionTask[] = [
   // unit cubes wait on the board, and are grouped twice into tens.
   s1(representation('s1_r_group26', 26, { tens: 2, units: 6 },
     'המרה עצמאית בין עזרים וירטואליים',
-    'בטור היחידות יש 26 קוביות יחידה. קבצו כל 10 יחידות לעשרת אחת בעזרת כפתור "הקבץ (10)", וכתבו בשורת התוצאה כמה עשרות וכמה יחידות קיבלתם.'),
+    'בטור היחידות יש 26 קוביות יחידה. קבצו כל 10 יחידות לעשרת אחת בעזרת כפתור הקבץ 10 שבראש הטור, וכתבו בשורת התוצאה כמה עשרות וכמה יחידות קיבלתם.'),
     { requiresGrouping: true, initialCounts: { units: 26 }, hideRequiredCounts: true }),
   // ★ chosen (owner, 24.9.2026). Mirrors task 6 (124 + 85) in structure with
   // other numbers: three digits plus two, no carry in the units, the tens sum
@@ -203,7 +208,7 @@ export const SESSION1_TASKS: SessionTask[] = [
     type: 'addition_simple',
     numberA: 713, numberB: 94, correctAnswer: 807,
     titleHe: 'חיבור במאונך עם המרה מעל מאה',
-    instructionHe: 'בנו בבית המספרים 713 ו-94 וחברו אותם. כאשר מצטברים 10 פריטים בטור, לחצו על כפתור "הקבץ (10)" שמופיע בראש הטור.',
+    instructionHe: 'בנו בבית המספרים 713 ו-94 וחברו אותם. כאשר מצטברים 10 פריטים בטור, לחצו על כפתור הקבץ 10 שבראש הטור.',
     scaffoldLevel: 1,
     requiresGrouping: true,
   },

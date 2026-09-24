@@ -156,17 +156,17 @@ describe('Realtime Socratic Engine & Live Board State Analyzer', () => {
 
   it('6. Falls back to static task hint when no active live board anomaly exists', async () => {
     const task = {
-      id: 's1_build_305',
-      numberA: 305,
+      id: 's1_target_347',
+      numberA: 347,
       targetNode: 'flexible_regrouping'
     };
 
     // Clean balanced counts matching target without overcrowding or deficit
-    const counts = { units: 5, tens: 0, hundreds: 3, thousands: 0 };
+    const counts = { units: 7, tens: 4, hundreds: 3, thousands: 0 };
 
     const hint = await SocraticEngine.getSocraticHint(task, 'flexible_regrouping', counts);
 
     expect(hint).toBeDefined();
-    expect(hint?.questionHe).toContain('כמה עשרות יש במספר 305');
+    expect(hint?.questionHe).toContain('מה קורה כאשר אנו מפרקים עשרת אחת לטור היחידות');
   });
 });

@@ -576,6 +576,14 @@ export class FirebaseSyncService {
       undoCount: state.undoCount,
       hesitationCount: state.hesitationCount,
       hasInteracted: state.hasInteracted,
+      // What a meeting 1 step or exercise is decided by. restoreSession read
+      // most of these already, but they were never written, so a reload
+      // turned a done step or a done conversion back into "not yet".
+      blocksAddedCount: state.blocksAddedCount,
+      hasDeletedBlock: state.hasDeletedBlock,
+      hasClearedBoard: state.hasClearedBoard,
+      hasGrouped: state.hasGrouped,
+      hasUngrouped: state.hasUngrouped,
       // Per-exercise counters that decide the coaching card: the second
       // wrong answer in a row (register 17) and the board checks that failed
       // (Module 5 §ג PROBLEM_COMPLETE). They were not in the snapshot, so a
