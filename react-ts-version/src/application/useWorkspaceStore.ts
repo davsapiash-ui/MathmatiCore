@@ -634,6 +634,9 @@ export function selectCanProceed(s: WorkspaceState): boolean {
     return (hasBoardBlocks || hasDigits || s.hasInteracted) && hiddenDigitsStatus(s, task, a, b).complete;
   }
   if (task.type === 'representation') {
+    // Meeting 1's target task is a guided step with a checklist (מסמך 03 §3.1 step 6).
+    const checklist = session1Checklist(task.id, s);
+    if (checklist) return checklist.every((item) => item.done);
     return selectBoardValue(s) > 0 || answerDigitsToNumber(s.answerDigits) !== null || s.hasInteracted;
   }
   if (!s.hasInteracted) return false;

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 
-import { useWorkspaceStore, getActiveTasks } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, getActiveTasks, selectCanProceed } from '@/application/useWorkspaceStore';
 import { SESSION1_TASKS, getHardcodedCatalogBanks, type SessionTask } from '@/data/sessionTasks';
 import { TASKS as DIAGNOSTIC_TASKS } from '@/core/QMatrix';
 import { session1Checklist } from '@/core/session1Checklist';
@@ -109,6 +109,21 @@ describe('what completes each introduction step', () => {
     expect(done('s1_build_305', { counts: { ...EMPTY_COUNTS, hundreds: 2, tens: 10, units: 5 } })).toBe(false);
   });
 
+  it('step 4 shows one item; the second appears only for 305 built another way', () => {
+    const standard = session1Checklist('s1_build_305', { ...base, counts: { ...EMPTY_COUNTS, hundreds: 3, units: 5 } })!;
+    expect(standard.map((i) => i.done)).toEqual([true]);
+    expect(session1Checklist('s1_build_305', base)!).toHaveLength(1);
+  });
+
+  it('step 6, the target task: the document\u2019s instruction clause by clause, and all three before "התקדם"', () => {
+    const at = (s: Partial<typeof base> & { answerDigits?: Record<string, string> }) =>
+      session1Checklist('s1_target_347', { ...base, ...s } as any)!.map((i) => i.done);
+    expect(at({ counts: { ...EMPTY_COUNTS, units: 7 } })).toEqual([false, false, false]);
+    expect(at({ counts: { ...EMPTY_COUNTS, hundreds: 3, tens: 4, units: 7 }, answerDigits: { hundreds: '3', tens: '4', units: '7' } })).toEqual([true, false, true]);
+    expect(at({ counts: { ...EMPTY_COUNTS, hundreds: 3, tens: 3, units: 17 }, hasUngrouped: true })).toEqual([true, true, false]);
+    expect(at({ counts: { ...EMPTY_COUNTS, hundreds: 3, tens: 3, units: 17 }, hasUngrouped: true, answerDigits: { hundreds: '3', tens: '4', units: '7' } })).toEqual([true, true, true]);
+  });
+
   it('step 4: 305 built another way shows which part is left, instead of a silent ⏳', () => {
     const items = session1Checklist('s1_build_305', { ...base, counts: { ...EMPTY_COUNTS, hundreds: 2, tens: 10, units: 5 } })!;
     expect(items.map((i) => i.done)).toEqual([true, false]);
@@ -123,13 +138,15 @@ describe('what completes each introduction step', () => {
 
   it('every checklist label is the document\'s own wording', () => {
     const state = { ...base, counts: { ...EMPTY_COUNTS } };
-    for (const id of ['s1_sandbox_controlled', 's1_decompose_hundred', 's1_build_305', 's1_undo_trash']) {
+    for (const id of ['s1_sandbox_controlled', 's1_decompose_hundred', 's1_build_305', 's1_undo_trash', 's1_target_347']) {
       for (const item of session1Checklist(id, state)!) expect(DOC03, item.label).toContain(item.label);
     }
+    const other305 = session1Checklist('s1_build_305', { ...state, counts: { ...EMPTY_COUNTS, hundreds: 2, tens: 10, units: 5 } })!;
+    for (const item of other305) expect(DOC03, item.label).toContain(item.label);
   });
 
   it('exercises have no checklist', () => {
-    for (const id of ['s1_target_347', 's1_r_group26', 's1_t8', 's1_r_sub61', 's1_r_sub806']) {
+    for (const id of ['s1_r_group26', 's1_t8', 's1_r_sub61', 's1_r_sub806']) {
       expect(session1Checklist(id, base)).toBeNull();
     }
   });
@@ -261,6 +278,15 @@ describe('the store gate follows the checklist', () => {
     useWorkspaceStore.getState().proceed();
     const s = useWorkspaceStore.getState();
     expect(getActiveTasks(s)[s.standardTaskIdx].id).toBe('s1_r_group26');
+  });
+
+  it('the target task: "התקדם" stays off until the ten is decomposed and the number written', () => {
+    useWorkspaceStore.getState().initSession(1, false, 4);
+    useWorkspaceStore.setState({ counts: { ...EMPTY_COUNTS, hundreds: 3, tens: 4, units: 7 }, answerDigits: { hundreds: '3', tens: '4', units: '7' } });
+    expect(selectCanProceed(useWorkspaceStore.getState())).toBe(false);
+    useWorkspaceStore.getState().splitBlockClick('tens');
+    expect(useWorkspaceStore.getState().counts).toEqual({ ...EMPTY_COUNTS, hundreds: 3, tens: 3, units: 17 });
+    expect(selectCanProceed(useWorkspaceStore.getState())).toBe(true);
   });
 
   it('step 5 cannot proceed on undo alone, and proceeds after the trash', () => {
