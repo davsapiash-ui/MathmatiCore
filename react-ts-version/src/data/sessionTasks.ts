@@ -111,6 +111,10 @@ export interface SessionTask {
   revealedResultDigits?: Place[];
   /** flexible_decomp: every recorded representation must hold an even number of tens. */
   requireEvenTens?: boolean;
+  /** Blocks already on the board when the task starts (meeting 1's grouping refresh, like diagnostic task 5's cubes on screen). */
+  initialCounts?: Partial<PlaceCounts>;
+  /** representation: the card does not list the board to build — finding it is the exercise. */
+  hideRequiredCounts?: boolean;
 }
 
 /* ── Session 1 — ארגז החול המונחה: היכרות עם הכלים וריענון לקראת האבחון ── */
@@ -127,7 +131,10 @@ export interface SessionTask {
  * (typing creates blocks) was removed by the owner (register gap טז).
  */
 /** A meeting 1 exercise: never compulsory (PRD Module 14 §ב), optionally requiring the conversion itself. */
-function s1(task: SessionTask, flags: Pick<SessionTask, 'requiresGrouping' | 'requiresUngrouping'> = {}): SessionTask {
+function s1(
+  task: SessionTask,
+  flags: Pick<SessionTask, 'requiresGrouping' | 'requiresUngrouping' | 'initialCounts' | 'hideRequiredCounts'> = {}
+): SessionTask {
   const { isCompulsory: _dropped, ...rest } = task;
   return { ...rest, ...flags };
 }
@@ -144,7 +151,9 @@ export const SESSION1_TASKS: SessionTask[] = [
     correctAnswer: 'proceed_any',
     scaffoldLevel: 0,
   },
-  // Step 3: decompose a hundred into ten tens.
+  // Step 3: decompose a hundred into ten tens. The document's step 2 ends on
+  // 230 (two hundreds, three tens) and step 3 turns it into one hundred and 13
+  // tens — so step 3 opens on 230.
   {
     id: 's1_decompose_hundred',
     type: 'session1_intro',
@@ -152,6 +161,7 @@ export const SESSION1_TASKS: SessionTask[] = [
     instructionHe: 'לחצו על לבנה כדי לפרק אותה לחלקים קטנים יותר ועקבו אחר השינוי בלוח בית המספרים.',
     correctAnswer: 'proceed_any',
     scaffoldLevel: 0,
+    initialCounts: { hundreds: 2, tens: 3 },
   },
   // Step 4: 305 — zero as a place holder.
   {
@@ -175,15 +185,16 @@ export const SESSION1_TASKS: SessionTask[] = [
   s1(representation('s1_target_347', 347, { hundreds: 3, tens: 3, units: 17 },
     'משימת יעד מסכמת',
     'משימת יעד מסכמת: בנו את המספר 347 בלבני דינס, פרטו עשרת אחת לעשר יחידות, וכתבו בשורת התוצאה את המספר שעל הלוח!'),
-    { requiresUngrouping: true }),
+    { requiresUngrouping: true, hideRequiredCounts: true }),
 
   // ── Refresh exercises: each mirrors one diagnostic task (QMatrix.ts) ──
-  // ★ chosen (owner, 24.9.2026). Mirrors task 5 (25 units → 2 tens, 5 units):
-  // a two-digit number of loose units, grouped twice into tens.
+  // ★ chosen (owner, 24.9.2026). Mirrors task 5, where 25 unit cubes are on the
+  // screen and the learner finds how many tens and units they make: here 26
+  // unit cubes wait on the board, and are grouped twice into tens.
   s1(representation('s1_r_group26', 26, { tens: 2, units: 6 },
     'המרה עצמאית בין עזרים וירטואליים',
-    'גררו 26 קוביות יחידה לטור היחידות. קבצו כל 10 יחידות לעשרת אחת בעזרת כפתור "הקבץ (10)", וכתבו בשורת התוצאה את המספר שעל הלוח.'),
-    { requiresGrouping: true }),
+    'בטור היחידות יש 26 קוביות יחידה. קבצו כל 10 יחידות לעשרת אחת בעזרת כפתור "הקבץ (10)", וכתבו בשורת התוצאה כמה עשרות וכמה יחידות קיבלתם.'),
+    { requiresGrouping: true, initialCounts: { units: 26 }, hideRequiredCounts: true }),
   // ★ chosen (owner, 24.9.2026). Mirrors task 6 (124 + 85) in structure with
   // other numbers: three digits plus two, no carry in the units, the tens sum
   // to exactly 10, so the answer has a 0 in the tens.

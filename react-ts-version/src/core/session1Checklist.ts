@@ -32,9 +32,9 @@ export function session1Checklist(taskId: string, s: Session1ChecklistState): Se
         done: s.blocksAddedCount >= SANDBOX_MIN_BLOCKS,
         progress: { value: s.blocksAddedCount, of: SANDBOX_MIN_BLOCKS },
       }];
-    // Step 3: decompose a hundred into ten tens.
+    // Step 3: decompose a block (the board opens on 230).
     case 's1_decompose_hundred':
-      return [{ label: 'גררו לבנת מאה ללוח ולחצו עליה כדי לפרק אותה', done: s.hasUngrouped }];
+      return [{ label: 'לחצו על לבנת מאה כדי לפרק אותה', done: s.hasUngrouped }];
     // Step 4: 305 — three hundreds and five units, the tens column empty.
     case 's1_build_305':
       return [{ label: 'בנו את המספר 305 בלבני דינס', done: countsEqual(s.counts, { ...EMPTY_COUNTS, hundreds: 3, units: 5 }) }];

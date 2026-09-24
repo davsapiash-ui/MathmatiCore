@@ -66,6 +66,8 @@ describe('steps 1–5 say on screen what מסמך 03 §3.1 says, word for word',
     expect(t.instructionHe.startsWith('משימת יעד מסכמת: בנו את המספר 347 בלבני דינס, פרטו עשרת אחת לעשר יחידות')).toBe(true);
     expect(t.requiredCounts).toEqual({ hundreds: 3, tens: 3, units: 17 });
     expect(t.requiresUngrouping).toBe(true);
+    // the new representation is what the child finds — the card does not list it in advance
+    expect(t.hideRequiredCounts).toBe(true);
   });
 });
 
@@ -107,6 +109,21 @@ describe('the store gate follows the checklist', () => {
     useWorkspaceStore.getState().resetWorkspace();
   });
 
+  it('each step opens on the board מסמך 03 describes: empty, 230 for the decomposition, empty for 305', () => {
+    useWorkspaceStore.getState().initSession(1, false, 0);
+    expect(useWorkspaceStore.getState().counts).toEqual({ ...EMPTY_COUNTS }); // "לוח הדינס ריק מלבנים"
+    useWorkspaceStore.getState().resetWorkspace();
+    useWorkspaceStore.getState().initSession(1, false, 1);
+    // step 2 ends on 230 ("שתי מאות ושלוש עשרות"), step 3 turns it into one hundred and 13 tens
+    expect(useWorkspaceStore.getState().counts).toEqual({ ...EMPTY_COUNTS, hundreds: 2, tens: 3 });
+    useWorkspaceStore.getState().splitBlockClick('hundreds');
+    expect(useWorkspaceStore.getState().counts).toEqual({ ...EMPTY_COUNTS, hundreds: 1, tens: 13 });
+    useWorkspaceStore.getState().proceed();
+    const s = useWorkspaceStore.getState();
+    expect(getActiveTasks(s)[s.standardTaskIdx].id).toBe('s1_build_305');
+    expect(s.counts).toEqual({ ...EMPTY_COUNTS }); // "הלומדים גוררים שלוש מאות וחמש יחידות"
+  });
+
   it('step 5 cannot proceed on undo alone, and proceeds after the trash', () => {
     useWorkspaceStore.getState().initSession(1, false, 3);
     const s0 = useWorkspaceStore.getState();
@@ -121,6 +138,33 @@ describe('the store gate follows the checklist', () => {
     useWorkspaceStore.getState().clearBoard();
     useWorkspaceStore.getState().proceed();
     expect(useWorkspaceStore.getState().standardTaskIdx).toBe(4);
+  });
+
+  it('the grouping refresh opens with the 26 unit cubes already on the board, like task 5', () => {
+    // Reached from the target task, through the normal transition…
+    useWorkspaceStore.getState().initSession(1, false, 4);
+    expect(useWorkspaceStore.getState().counts).toEqual({ ...EMPTY_COUNTS });
+    useWorkspaceStore.setState({
+      counts: { ...EMPTY_COUNTS, hundreds: 3, tens: 3, units: 17 },
+      hasUngrouped: true,
+      answerDigits: { hundreds: '3', tens: '4', units: '7' },
+    });
+    useWorkspaceStore.getState().proceed();
+    const s1 = useWorkspaceStore.getState();
+    expect(getActiveTasks(s1)[s1.standardTaskIdx].id).toBe('s1_r_group26');
+    expect(s1.counts).toEqual({ ...EMPTY_COUNTS, units: 26 });
+    // …and when the meeting resumes straight into it.
+    useWorkspaceStore.getState().resetWorkspace();
+    useWorkspaceStore.getState().initSession(1, false, 5);
+    expect(useWorkspaceStore.getState().counts).toEqual({ ...EMPTY_COUNTS, units: 26 });
+  });
+
+  it('a failed check on a hidden board does not name the board', () => {
+    useWorkspaceStore.getState().initSession(1, false, 5);
+    useWorkspaceStore.getState().proceed(); // 26 loose units, nothing grouped yet
+    const sub = useWorkspaceStore.getState().feedback?.sub ?? '';
+    expect(sub).not.toContain('2 עשרות');
+    expect(sub).not.toContain('6 יחידות');
   });
 
   it('the grouping refresh asks for the grouping itself, not only its result', () => {
@@ -175,6 +219,10 @@ describe('each refresh exercise mirrors its diagnostic task, column for column',
     expect(r.numberA).toBe(26);
     expect(r.requiresGrouping).toBe(true);
     expect(r.instructionHe).toContain('26 קוביות יחידה');
+    // the cubes are on the board and the card does not say what they make
+    expect(r.initialCounts).toEqual({ units: 26 });
+    expect(r.hideRequiredCounts).toBe(true);
+    expect(r.instructionHe).toContain('כמה עשרות וכמה יחידות');
   });
 
   it('s1_t8 ← task 6 (713 + 94 vs 124 + 85)', () => {

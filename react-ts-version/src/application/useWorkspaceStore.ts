@@ -748,10 +748,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     });
   }
 
+  /** A task that starts with blocks already on the board (SessionTask.initialCounts). */
+  function applyInitialBoard(task: SessionTask | null | undefined) {
+    if (task?.initialCounts) set({ counts: { ...EMPTY_COUNTS, ...task.initialCounts } });
+  }
+
   function startTask(taskId: string) {
     set(resetTaskInteraction());
     set({ keyboardState: 'UNLOCKED', currentState: 'PROBLEM_ACTIVE', taskStartTime: Date.now() });
     applyPendingAdaptationAtBoundary();
+    if (get().sessionNumber !== 2) applyInitialBoard(getActiveTasks(get()).find((t) => t.id === taskId));
 
     if (taskId) {
       const s = get();
@@ -1207,7 +1213,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         handleFailure(
           'wrong_representation',
           'בּוֹאוּ נְדַיֵּק אֶת הַמִּבְנֶה 🔍',
-          `הלוח צריך להציג בדיוק: ${describeCountsHe(required)}. כרגע יש בו: ${describeCountsHe(s.counts)}.`,
+          task.hideRequiredCounts
+            ? 'הלוח עדיין אינו מציג את מה שההנחיה מבקשת. קראו אותה שוב ובדקו את הלוח.'
+            : `הלוח צריך להציג בדיוק: ${describeCountsHe(required)}. כרגע יש בו: ${describeCountsHe(s.counts)}.`,
           3500
         );
         return;
@@ -1619,6 +1627,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // no path is the green bank, so every remediation learner's first event
       // named an exercise they never saw — a phantom "לא השלים" in each report.
       const initialTask = sanitized === 2 ? getCurrentQTask(qflow) : getActiveTasks(get())[startingTaskIdx ?? 0];
+      if (sanitized !== 2) applyInitialBoard(initialTask as SessionTask | undefined);
       const studentId = currentStudentUid();
       if (initialTask) {
         emitTelemetry({
