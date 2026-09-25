@@ -26,6 +26,7 @@ const DOC03_COMPULSORY: Record<4 | 5 | 6 | 8, Record<LearningPath, Pair[]>> = {
   // green_path exercises 3 and 4 are the owner-approved replacements of 3.9.2026 (מרשם הסטיות, item 3):
   // the document's 7,651 − 3,325 and 8,762 − 4,439 borrow in the units only, so the skills their labels
   // promise (a borrow from the tens, a borrow from the hundreds) were exercised nowhere in the green path.
+  // Since 25.9.2026 the document itself carries 7,651 − 3,381 and 8,762 − 4,932.
   5: { remediation_path: [[78, '-', 25], [53, '-', 18], [142, '-', 25], [345, '-', 182], [563, '-', 128], [480, '-', 155]], green_path: [[5432, '-', 2118], [6543, '-', 1227], [7651, '-', 3381], [8762, '-', 4932], [6284, '-', 1157], [3845, '-', 1517]] },
   6: { remediation_path: [[240, '-', 125], [305, '-', 12], [204, '-', 112], [300, '-', 142], [602, '-', 145], [500, '-', 287]], green_path: [[2045, '-', 1128], [3005, '-', 1248], [4000, '-', 1562], [5000, '-', 2345], [6020, '-', 1485], [7003, '-', 2845]] },
   8: { remediation_path: [[142, '+', 23], [128, '+', 35], [456, '+', 281], [78, '-', 25], [53, '-', 18], [602, '-', 145]], green_path: [[1245, '+', 328], [5678, '+', 2453], [5432, '-', 2118], [6284, '-', 1157], [4000, '-', 1562]] }, // 602 − 145 and 6,284 − 1,157 replace the two the document listed against its own rule (owner, 16.9.2026, register decision א)
