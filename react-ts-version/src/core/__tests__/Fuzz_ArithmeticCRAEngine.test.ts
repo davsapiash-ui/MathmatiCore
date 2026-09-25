@@ -234,23 +234,23 @@ describe('Challenger 1 — Adversarial Stress & Fuzz Suite: Arithmetic & VRA Eng
 
     it('handles multiple consecutive hammer decompositions across hundreds and thousands', () => {
       // 5 thousands -> decompose to 4 thousands, 10 hundreds -> decompose 1 hundred to 10 tens -> decompose 1 ten to 10 units
-      let counts: PlaceCounts = { units: 0, tens: 0, hundreds: 0, thousands: 5 };
-      expect(getValue(counts)).toBe(5000);
+      let counts: PlaceCounts = { units: 0, tens: 0, hundreds: 0, thousands: 6 };
+      expect(getValue(counts)).toBe(6000);
 
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < 5; i++) {
         const d = ungroupBlock(counts, 'thousands');
         expect(d).not.toBeNull();
         counts = d!.counts;
-        expect(getValue(counts)).toBe(5000);
+        expect(getValue(counts)).toBe(6000);
       }
-      expect(counts.thousands).toBe(2);
-      expect(counts.hundreds).toBe(30); // 3 * 10 = 30 (hit MAX_VISIBLE_BLOCKS)
-      expect(getValue(counts)).toBe(5000);
+      expect(counts.thousands).toBe(1);
+      expect(counts.hundreds).toBe(50); // 5 * 10 = 50 (hit MAX_VISIBLE_BLOCKS)
+      expect(getValue(counts)).toBe(6000);
 
-      // Attempting to ungroup another thousand when hundreds is at 30 must be safely rejected
+      // Attempting to ungroup another thousand when hundreds is at 50 must be safely rejected
       const overflowAttempt = ungroupBlock(counts, 'thousands');
       expect(overflowAttempt).toBeNull();
-      expect(getValue(counts)).toBe(5000);
+      expect(getValue(counts)).toBe(6000);
     });
 
     it('rejects illegal decomposition attempts ("take from zero" and units decomposition)', () => {
@@ -326,8 +326,8 @@ describe('Challenger 1 — Adversarial Stress & Fuzz Suite: Arithmetic & VRA Eng
       expect(groupBlocksManually(lowCounts, 'tens')).toBeNull();
       expect(groupBlocksManually(lowCounts, 'hundreds')).toBeNull();
 
-      const fullTarget: PlaceCounts = { units: 10, tens: 30, hundreds: 0, thousands: 0 };
-      expect(groupBlocksManually(fullTarget, 'units')).toBeNull(); // tens is already at 30
+      const fullTarget: PlaceCounts = { units: 10, tens: 50, hundreds: 0, thousands: 0 };
+      expect(groupBlocksManually(fullTarget, 'units')).toBeNull(); // tens is already at 50
     });
   });
 
@@ -409,7 +409,7 @@ describe('Challenger 1 — Adversarial Stress & Fuzz Suite: Arithmetic & VRA Eng
       }
 
       const s = useWorkspaceStore.getState();
-      expect(s.counts.units).toBe(30); // Capped at MAX_VISIBLE_BLOCKS
+      expect(s.counts.units).toBe(50); // Capped at MAX_VISIBLE_BLOCKS
       expect(s.undoStack.length).toBeLessThanOrEqual(50); // Capped at UNDO_STACK_CAP = 50
 
       // Now hammer undo 60 times

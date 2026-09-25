@@ -211,6 +211,7 @@ export const SESSION1_TASKS: SessionTask[] = [
     instructionHe: 'בנו בבית המספרים 713 ו-94 וחברו אותם. כאשר מצטברים 10 פריטים בטור, לחצו על כפתור הקבץ 10 שבראש הטור.',
     scaffoldLevel: 1,
     requiresGrouping: true,
+    targetNode: 'regrouping_fluency',
   },
   // ★ chosen (owner, 24.9.2026). Mirrors task 3 (42 − 15): two digits minus
   // two, one borrow in the units, the tens need no borrow.

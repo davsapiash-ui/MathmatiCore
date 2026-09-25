@@ -62,6 +62,14 @@ export function RepresentationTask({ task }: { task: SessionTask }) {
         </div>
       )}
 
+      {/* Meeting 1's target task: the steps first, the result row under them, so
+          a 1366×768 school laptop shows the checklist without scrolling. */}
+      {checklist && (
+        <div className="w-full max-w-md">
+          <Session1ChecklistCard items={checklist} />
+        </div>
+      )}
+
       {/* Result row (שורת התוצאה) */}
       <div dir="ltr" className="grid gap-2" style={{ gridTemplateColumns: `repeat(${places.length}, ${CELL}px)` }} role="group" aria-label="שורת התוצאה">
         {places.map((place, i) => (
@@ -99,12 +107,6 @@ export function RepresentationTask({ task }: { task: SessionTask }) {
           </div>
         ))}
       </div>
-
-      {checklist && (
-        <div className="w-full max-w-md">
-          <Session1ChecklistCard items={checklist} />
-        </div>
-      )}
     </div>
   );
 }

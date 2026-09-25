@@ -212,6 +212,9 @@ function synthesiseRecentEvents(
 // Each entry is keyed by task ID (exact match from sessionTasks.ts).
 // The hints must address ONLY what is pedagogically required in that task.
 // ─────────────────────────────────────────────────────────────
+/** "יחידה אחת", not "1 יחידות". */
+const unitsHe = (n: number) => (n === 1 ? 'יחידה אחת' : `${n} יחידות`);
+
 const TASK_HINTS: Record<string, SocraticHintResponse> = {
 
   // ── Session 1 — ארגז החול המונחה (מסמך 03 §3.1) ────────────────
@@ -259,7 +262,7 @@ const TASK_HINTS: Record<string, SocraticHintResponse> = {
     choices: [
       { id: "opt_1", textHe: "פחות מ-10 קוביות: כל 10 יחידות הפכו לעשרת אחת בטור העשרות", isCorrect: true, feedbackHe: "נכון מאוד! כשיש בטור 10 יחידות או יותר, לחצו על כפתור הקבץ 10 שבראש הטור." },
       { id: "opt_2", textHe: "כל 26 הקוביות", isCorrect: false, feedbackHe: "רמז: כשיש 10 יחידות או יותר בטור, מקבצים אותן לעשרת." },
-      { id: "opt_3", textHe: "אף קובייה", isCorrect: false, feedbackHe: "רמז: אחרי הקיבוץ נשארות בטור היחידות היחידות שלא נכנסו לעשרת." }
+      { id: "opt_3", textHe: "אף קובייה", isCorrect: false, feedbackHe: "רמז: אחרי הקיבוץ נשארות בטור היחידות רק הקוביות שלא נכנסו לעשרת." }
     ],
     correctChoiceId: "opt_1"
   },
@@ -275,7 +278,7 @@ const TASK_HINTS: Record<string, SocraticHintResponse> = {
     choices: [
       { id: "opt_1", textHe: "מקבצים 10 עשרות למאה אחת בטור המאות", isCorrect: true, feedbackHe: "נכון מאוד! לחצו על כפתור הקבץ 10 שבראש טור העשרות." },
       { id: "opt_2", textHe: "מוחקים 10 עשרות לפח בלי להוסיף מאה", isCorrect: false, feedbackHe: "רמז: מחיקת לבנים לפח משנה את ערך המספר. מקבצים למאה." },
-      { id: "opt_3", textHe: "נרשום 10 בתוך משבצת העשרות", isCorrect: false, feedbackHe: "רמז: בכל משבצת בבית המספרים מותרת ספרה אחת בלבד (0 עד 9)." }
+      { id: "opt_3", textHe: "נרשום 10 בתוך משבצת העשרות", isCorrect: false, feedbackHe: "רמז: בכל משבצת בשורת התוצאה מותרת ספרה אחת בלבד (0 עד 9)." }
     ],
     correctChoiceId: "opt_1"
   },
@@ -666,13 +669,13 @@ export class SocraticEngine {
             id: "opt_2", 
             textHe: "נמחק עשרות מיותרות לפח האשפה", 
             isCorrect: false, 
-            feedbackHe: "רמז: אסור למחוק בלוקים ללא המרה כדי לא לאבד מהערך הכולל של המספר." 
+            feedbackHe: "רמז: מחיקת לבנים בלי המרה מורידה מהערך הכולל של המספר. מקבצים במקום למחוק." 
           },
           { 
             id: "opt_3", 
             textHe: "נרשום מספר דו-ספרתי במשבצת העשרות", 
             isCorrect: false, 
-            feedbackHe: "רמז: בכל משבצת בבית המספרים מותרת רק ספרה אחת (0 עד 9)." 
+            feedbackHe: "רמז: בכל משבצת בשורת התוצאה מותרת רק ספרה אחת (0 עד 9)." 
           }
         ],
         correctChoiceId: "opt_1"
@@ -785,9 +788,9 @@ export class SocraticEngine {
       if (needUnits && unitsB > 0 && counts.units < unitsB) {
         return {
           pedagogical_intent: "procedural",
-          tts_text: `יש לנו ${counts.units} יחידות בלוח ואנו צריכים להחסיר ${unitsB}. פרטו עשרת אחת ל-10 יחידות.`,
+          tts_text: `יש לנו ${unitsHe(counts.units)} בלוח ואנו צריכים להחסיר ${unitsB}. פרטו עשרת אחת ל-10 יחידות.`,
           suggested_highlight: "tour-column-tens",
-          questionHe: `יש לנו ${counts.units} יחידות בלוח ואנו צריכים להחסיר ${unitsB} יחידות. מה הצעד הנכון לבצע?`,
+          questionHe: `יש לנו ${unitsHe(counts.units)} בלוח ואנו צריכים להחסיר ${unitsHe(unitsB)}. מה הצעד הנכון לבצע?`,
           choices: [
             { 
               id: "opt_1", 
@@ -797,7 +800,7 @@ export class SocraticEngine {
             },
             { 
               id: "opt_2", 
-              textHe: `נחסיר הפוך: ${unitsB} פחות ${counts.units} יחידות`, 
+              textHe: `נחסיר הפוך: ${unitsB} פחות ${unitsHe(counts.units)}`, 
               isCorrect: false, 
               feedbackHe: "רמז: בחיסור אנו מוציאים רק מהכמות הקיימת. אי אפשר להחסיר הפוך מלמטה למעלה. אפשר להשתמש בביטול ↩️." 
             },
@@ -805,7 +808,7 @@ export class SocraticEngine {
               id: "opt_3", 
               textHe: `נוסיף ${unitsB - counts.units} יחידות חדשות מהמחסן`, 
               isCorrect: false, 
-              feedbackHe: "רמז: הוספת בלוקים מהמחסן משנה את ערך המספר המקורי! יש לבצע פריטה משכן כדי לשמור על הכמות." 
+              feedbackHe: "רמז: הוספת בלוקים מהמחסן משנה את ערך המספר המקורי! פורטים מהטור השכן כדי לשמור על הכמות." 
             }
           ],
           correctChoiceId: "opt_1"
@@ -1340,7 +1343,7 @@ export class SocraticEngine {
           choices: [
             { id: "opt_1", textHe: "נקבץ 10 עשרות למאה אחת בטור המאות (ונשאיר את שאר העשרות בטור העשרות)", isCorrect: true, feedbackHe: "נכון מאוד! 10 עשרות שוות בדיוק למאה אחת בטור המאות." },
             { id: "opt_2", textHe: "נמחק 10 עשרות לפח מבלי להוסיף מאה", isCorrect: false, feedbackHe: "רמז: מחיקת בלוקים לפח משנה את ערך המספר הכולל!" },
-            { id: "opt_3", textHe: "נרשום מספר דו-ספרתי במשבצת העשרות", isCorrect: false, feedbackHe: "רמז: בכל משבצת בבית המספרים מותרת ספרה אחת בלבד (0 עד 9)." }
+            { id: "opt_3", textHe: "נרשום מספר דו-ספרתי במשבצת העשרות", isCorrect: false, feedbackHe: "רמז: בכל משבצת בשורת התוצאה מותרת ספרה אחת בלבד (0 עד 9)." }
           ],
           correctChoiceId: "opt_1"
         };

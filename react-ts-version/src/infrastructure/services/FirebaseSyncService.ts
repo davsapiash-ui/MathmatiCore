@@ -5,6 +5,9 @@ import { useAuthStore } from '@/application/useAuthStore';
 import { useWorkspaceStore, getActiveTasks, resolveLearningPath } from '@/application/useWorkspaceStore';
 import { useStore, type QMatrix, type TraceData } from '@/application/useStore';
 import { normalizeStudentId } from '@/application/useChatStore';
+
+/** How long database writes of the workspace state are coalesced (ms). */
+export const REMOTE_SYNC_WINDOW_MS = 500;
 import { hasEnhancedSupport, ENHANCED_SUPPORT_PROFILE_ID } from '@/core/supportProfile';
 import { PILOT_SCHOOL_ID, PILOT_SCHOOL_NAME, PILOT_CLASS_ID, PILOT_CLASS_NAME } from '@/core/pilotInstitution';
 import { useAdminStore, type School, type Teacher, type ClassRoom } from '@/application/useAdminStore';
@@ -223,6 +226,12 @@ export function enforceMaxPayloadBytes(data: Record<string, any>): Record<string
 export class FirebaseSyncService {
   private static instance: FirebaseSyncService;
   private unsubscribeWorkspace: (() => void) | null = null;
+  /** The last payload sent — a store change that leaves it untouched is not synced again. */
+  private lastSyncedPayloadKey: string | null = null;
+  /** The database writes of the latest payload, sent once per window (PRD Module 5 §ב: local-first, event-driven). */
+  private pendingRemoteSync: (() => void) | null = null;
+  private remoteSyncTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly flushRemoteSyncOnPageHide = () => this.flushRemoteSync();
   /** The coaching-card state last published to the radar; null until the first change is seen. */
   private lastPublishedCardOpen: boolean | null = null;
   private unsubscribeFirebase: (() => void) | null = null;
@@ -335,6 +344,11 @@ export class FirebaseSyncService {
     }).catch(() => {});
     
     this.isInitialLoad = true;
+    this.lastSyncedPayloadKey = null;
+    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+      window.removeEventListener('pagehide', this.flushRemoteSyncOnPageHide);
+      window.addEventListener('pagehide', this.flushRemoteSyncOnPageHide);
+    }
 
     // Load initial state from Firebase and keep it synced LIVE
     this.unsubscribeFirebase = onValue(studentRef, (snapshot: DataSnapshot) => {
@@ -491,19 +505,31 @@ export class FirebaseSyncService {
       const rawNum = (this.currentUserId || '').replace(/[^0-9]/g, '');
       const studentKeys = Array.from(new Set([this.currentUserId, normId, rawNum ? `student_user${rawNum}` : null, rawNum ? `user${rawNum}` : null].filter(Boolean) as string[]));
       
-      // Save locally to prevent refresh race conditions
+      // The same synced state again (a focus change, a toast, the device-lock
+      // echo) is not a new event: PRD Module 5 §ב, "סנכרון… מבוסס אירועים בלבד".
+      const payloadKey = JSON.stringify(sanitizedPayload);
+      if (payloadKey === this.lastSyncedPayloadKey) return;
+      this.lastSyncedPayloadKey = payloadKey;
+
+      // Save locally at once (a reload reads it), and send the database writes
+      // of the latest state once per short window, so the main thread is never
+      // behind a burst of writes ("הממשק מגיב מיידית בצד הלקוח").
       if (normId) this.saveSessionProgressLocally(normId, sanitizedPayload);
       if (this.currentUserId && this.currentUserId !== normId) {
         this.saveSessionProgressLocally(this.currentUserId, sanitizedPayload);
       }
 
+      const standardTaskIdx = state.standardTaskIdx;
+      const flowStatus = state.flowStatus;
+      const keyboardState = state.keyboardState;
+      this.pendingRemoteSync = () => {
       studentKeys.forEach(key => {
         const studentDirectRef = ref(database, `users/students/${key}`);
         update(studentDirectRef, {
           workspaceState: sanitizedPayload,
           lastActive: serverTimestamp(),
-          currentTaskIdx: state.standardTaskIdx,
-          activeStep: state.standardTaskIdx + 1,
+          currentTaskIdx: standardTaskIdx,
+          activeStep: standardTaskIdx + 1,
           lastActivityTimestamp: Date.now(),
           onlineStatus: 'active'
         }).catch((err) => {
@@ -517,9 +543,9 @@ export class FirebaseSyncService {
         // here instead, so the dashboard could show a path that contradicted
         // the approved one.
         const currentPath: 'green_path' | 'remediation_path' = resolveLearningPath();
-        const sessionStatus: 'active' | 'locked' | 'completed' = state.flowStatus === 'sessionDone' 
+        const sessionStatus: 'active' | 'locked' | 'completed' = flowStatus === 'sessionDone' 
           ? 'completed' 
-          : state.keyboardState === 'LOCKED' ? 'locked' : 'active';
+          : keyboardState === 'LOCKED' ? 'locked' : 'active';
 
         const sessionState: SessionState = {
           student_id: this.currentUserId,
@@ -533,7 +559,29 @@ export class FirebaseSyncService {
           console.warn('[FirebaseSyncService] syncSessionState notice:', err);
         });
       }
+      };
+      this.scheduleRemoteSync();
     });
+  }
+
+  /** Database writes go out once per window; the latest payload wins. */
+  private scheduleRemoteSync() {
+    if (this.remoteSyncTimer) return;
+    this.remoteSyncTimer = setTimeout(() => {
+      this.remoteSyncTimer = null;
+      this.flushRemoteSync();
+    }, REMOTE_SYNC_WINDOW_MS);
+  }
+
+  /** Send what is pending now (page hide, sign-out, tests). */
+  public flushRemoteSync() {
+    if (this.remoteSyncTimer) {
+      clearTimeout(this.remoteSyncTimer);
+      this.remoteSyncTimer = null;
+    }
+    const run = this.pendingRemoteSync;
+    this.pendingRemoteSync = null;
+    if (run) run();
   }
 
   private getSyncableWorkspaceState() {
@@ -585,6 +633,9 @@ export class FirebaseSyncService {
       // would come back without its (empty) input, and undo would then leave
       // that digit on screen. hasInput says the frame had one.
       undoStack: state.undoStack.map((frame) => ({ ...frame, hasInput: frame.answerDigits !== undefined })),
+      // The hidden digits of a skeleton exercise (meetings 4–8) were never saved:
+      // a reload lost them, and the next undo brought a lost one back.
+      operandDigits: state.operandDigits,
       activeTask: currentTask ? {
         id: currentTask.id,
         titleHe: currentTask.titleHe,
@@ -607,6 +658,7 @@ export class FirebaseSyncService {
       this.currentUserId = null;
     }
     if (this.unsubscribeWorkspace) {
+      this.flushRemoteSync();
       this.unsubscribeWorkspace();
       this.unsubscribeWorkspace = null;
     }

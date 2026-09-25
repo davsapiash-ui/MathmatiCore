@@ -163,7 +163,7 @@ export const ThousandSVG = () => {
 const BLOCK_VISUALS: Record<Place, { style?: React.CSSProperties; labelHe: string; Component: React.FC }> = {
   units: {
     style: { width: '20px', height: '20px', maxWidth: '100%' },
-    labelHe: 'יחידה — לחצו להסרה או גררו לטור אחר או לפח',
+    labelHe: 'יחידה — גררו לטור אחר או לפח האשפה',
     Component: UnitSVG,
   },
   tens: {

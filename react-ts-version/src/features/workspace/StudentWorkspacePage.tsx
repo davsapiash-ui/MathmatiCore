@@ -238,8 +238,11 @@ export function StudentWorkspacePage() {
   // Keyboard: Enter = proceed (outside inputs), Ctrl/Cmd+Z = undo (vanilla app.js 1412–1416).
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      const inInput = (e.target as HTMLElement)?.tagName === 'INPUT';
-      if (e.key === 'Enter' && !inInput) {
+      const tag = (e.target as HTMLElement)?.tagName;
+      const inInput = tag === 'INPUT';
+      // A focused button already acts on Enter; running proceed() here too
+      // pressed "התקדם" twice, and the second press hit the next exercise.
+      if (e.key === 'Enter' && !inInput && tag !== 'BUTTON') {
         useWorkspaceStore.getState().proceed();
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
         e.preventDefault();
@@ -1160,7 +1163,7 @@ export function StudentWorkspacePage() {
 
           {/* Place-value board (hidden/unmounted in Session 2 and Session 8) */}
           {sessionNumber !== 2 && sessionNumber !== 8 && (
-            <PlaceValueBoard activeDragPlace={activeDrag?.place ?? null} />
+            <PlaceValueBoard activeDragPlace={activeDrag?.place ?? null} hideValueDisplay={sessionNumber === 1} />
           )}
         </main>
 
