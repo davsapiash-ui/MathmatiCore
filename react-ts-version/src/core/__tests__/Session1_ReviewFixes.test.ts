@@ -47,6 +47,19 @@ describe('the meeting ends even if the help button is pressed during the celebra
     ws().requestSilentHelp();
     expect(ws().feedback?.neutral).toBe(true);
   });
+
+  it('a second press takes the call back (PRD 7.3: מיתוג דו-כיווני; מסמך 03 §3.1: ניתנת לביטול בכל עת)', () => {
+    ws().initSession(1, false, 0);
+    ws().requestSilentHelp();
+    expect(ws().hasRequestedBasicHelp).toBe(true);
+    ws().requestSilentHelp();
+    expect(ws().hasRequestedBasicHelp).toBe(false);
+    expect(ws().feedback?.title).toBe('הקריאה בוטלה');
+    expect(ws().feedback?.neutral).toBe(true);
+    ws().requestSilentHelp(); // and it can be sent again
+    expect(ws().hasRequestedBasicHelp).toBe(true);
+    expect(ws().helpRequestCount).toBe(2);
+  });
 });
 
 describe('a coaching card belongs to the exercise that opened it', () => {

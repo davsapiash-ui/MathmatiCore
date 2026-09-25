@@ -59,7 +59,7 @@ export function session1Checklist(taskId: string, s: Session1ChecklistState): Se
       const is305 = boardValue(s.counts) === 305;
       const standard = countsEqual(s.counts, { ...EMPTY_COUNTS, hundreds: 3, units: 5 });
       const items: Session1ChecklistItem[] = [{ label: 'נסו לבנות את המספר 305 בלבני דינס', done: is305 }];
-      if (is305 && !standard) items.push({ label: 'הספרה אפס בלוח בית המספרים הריק מעשרות', done: false });
+      if (is305 && !standard) items.push({ label: 'רוקנו את טור העשרות, כדי שבלוח בית המספרים תופיע בו הספרה אפס', done: false });
       return items;
     }
     // Step 5: undo, then the trash.

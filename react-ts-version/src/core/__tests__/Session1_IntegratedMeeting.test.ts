@@ -127,7 +127,7 @@ describe('what completes each introduction step', () => {
   it('step 4: 305 built another way shows which part is left, instead of a silent ⏳', () => {
     const items = session1Checklist('s1_build_305', { ...base, counts: { ...EMPTY_COUNTS, hundreds: 2, tens: 10, units: 5 } })!;
     expect(items.map((i) => i.done)).toEqual([true, false]);
-    expect(items[1].label).toBe('הספרה אפס בלוח בית המספרים הריק מעשרות');
+    expect(items[1].label).toBe('רוקנו את טור העשרות, כדי שבלוח בית המספרים תופיע בו הספרה אפס');
   });
 
   it('step 5: undo and pressing the trash, both', () => {
@@ -142,7 +142,12 @@ describe('what completes each introduction step', () => {
       for (const item of session1Checklist(id, state)!) expect(DOC03, item.label).toContain(item.label);
     }
     const other305 = session1Checklist('s1_build_305', { ...state, counts: { ...EMPTY_COUNTS, hundreds: 2, tens: 10, units: 5 } })!;
-    for (const item of other305) expect(DOC03, item.label).toContain(item.label);
+    // The corrective second item is an action, not a phrase (owner, 25.9.2026:
+    // on-screen texts say what the child actually has to do); it ends on the
+    // document's own words.
+    expect(other305[0].label).toBe('נסו לבנות את המספר 305 בלבני דינס');
+    expect(DOC03).toContain(other305[0].label);
+    expect(other305[1].label).toMatch(/^רוקנו את טור העשרות/);
   });
 
   it('exercises have no checklist', () => {
