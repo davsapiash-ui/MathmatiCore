@@ -2592,6 +2592,21 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
       const clean = rawUser.uid.trim().toLowerCase();
       const studentId = normalizeStudentId(clean) || (clean.startsWith('student_') ? clean : `student_${clean}`);
+
+      // PRD 7.3 (useWorkspaceStore: "מיתוג דו-כיווני לקריאת עזרה") and מסמך 03
+      // §3.1 ("בלחיצה הפיכה (ניתנת לביטול בכל עת)"): a second press takes the
+      // call back.
+      if (s.hasRequestedBasicHelp) {
+        AuditLogger.log('HELP_REQUESTED', studentId, 'Student took back the silent help call');
+        throttledRtdbUpdate(`users/students/${studentId}`, {
+          helpRequested: false,
+          lastAction: 'ביטל את הקריאה למורה',
+        }).catch(console.error);
+        set({ hasRequestedBasicHelp: false });
+        showFeedback({ correct: true, neutral: true, title: 'הקריאה בוטלה', sub: 'אפשר ללחוץ שוב בכל עת.' }, 2000);
+        return;
+      }
+
       AuditLogger.log('HELP_REQUESTED', studentId, 'Student pressed the silent help button');
 
       // PRD Module 18: helpRequested is the BLUE radar signal, the highest

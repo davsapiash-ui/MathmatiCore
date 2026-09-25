@@ -50,7 +50,7 @@ describe('מה האבחון באמת מודד', () => {
 describe('מפגש 2 — אישור שקט, לא חגיגה על טעות', () => {
   it('האבחון משתמש במשוב ניטרלי', () => {
     const matches = store.match(/showFeedback\(\{ correct: true, neutral: true,/g) ?? [];
-    expect(matches).toHaveLength(3); // two in the diagnostic, one for the silent help button (מסמך 03 §3.1)
+    expect(matches).toHaveLength(4); // two in the diagnostic; the silent help call and taking it back (מסמך 03 §3.1)
   });
 
   it('קונפטי אינו יורה על משוב ניטרלי', () => {

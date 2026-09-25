@@ -133,8 +133,9 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
               ? 'bg-amber-50 border-amber-300 text-amber-600 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-400'
               : 'bg-ws-surface border-ws-surface2 text-ws-soft hover:text-ws-accent hover:border-ws-accent/40'
           }`}
-          aria-label="קריאה שקטה למורה"
-          title="קריאה שקטה למורה"
+          aria-label={hasRequestedHelp ? 'ביטול הקריאה למורה' : 'קריאה שקטה למורה'}
+          aria-pressed={hasRequestedHelp}
+          title={hasRequestedHelp ? 'ביטול הקריאה למורה' : 'קריאה שקטה למורה'}
         >
           <HandHelping className="w-5 h-5" />
         </button>
