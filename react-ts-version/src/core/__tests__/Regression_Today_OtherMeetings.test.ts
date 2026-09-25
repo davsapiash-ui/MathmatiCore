@@ -85,7 +85,10 @@ import { EMPTY_COUNTS, MAX_VISIBLE_BLOCKS, type Place, type PlaceCounts } from '
 import { SocraticEngine } from '@/infrastructure/services/SocraticEngine';
 import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
 import { RepresentationTask } from '@/features/workspace/tasks/RepresentationTask';
-import * as serverMetrics from '../../../../functions/src/meetingMetrics';
+// Loaded by path, not by a static import: the app's type-check (tsc -b) covers
+// src/ only and CI builds without the functions' packages.
+const SERVER_METRICS = '../../../../functions/src/meetingMetrics';
+const serverMetrics: any = await import(/* @vite-ignore */ SERVER_METRICS);
 
 /* ── helpers ─────────────────────────────────────────────────────────────── */
 
