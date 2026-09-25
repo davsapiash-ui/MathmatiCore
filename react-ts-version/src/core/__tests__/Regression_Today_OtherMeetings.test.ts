@@ -21,6 +21,10 @@ const rtdb = vi.hoisted(() => ({
   valueEvents: 0,
 }));
 
+// The server's pure metric functions are imported below; CI runs this suite
+// without the functions' packages, so firebase-admin is stubbed (unused by them).
+vi.mock('firebase-admin', () => ({ default: {}, firestore: { FieldValue: {} } }));
+
 vi.mock('firebase/database', async () => {
   const actual = await vi.importActual<typeof import('firebase/database')>('firebase/database');
   return {
