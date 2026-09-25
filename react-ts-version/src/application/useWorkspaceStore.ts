@@ -2629,7 +2629,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // A calm, brief acknowledgement so the learner knows the signal was sent.
       // מסמך 03 §3.1: the signal is silent, "ללא צליל או תשומת לב חברתית" — a
       // neutral acknowledgement, not a success (no confetti).
-      showFeedback({ correct: true, neutral: true, title: 'המורה יודעת 🤝', sub: 'הסימן נשלח בשקט. אפשר להמשיך לעבוד.' }, 2600);
+      // The same toast tells the learner how to take the call back — the button's
+      // colour alone does not say it, and its tooltip needs a hover.
+      showFeedback({ correct: true, neutral: true, title: 'המורה יודעת 🤝', sub: 'הסימן נשלח בשקט. אפשר להמשיך לעבוד. לחיצה נוספת על הכפתור מבטלת את הקריאה.' }, 4000);
     },
 
     helpFrictionDone: () => {
