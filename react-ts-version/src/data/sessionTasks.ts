@@ -361,9 +361,11 @@ export const SESSION5_REMEDIATION_TASKS: SessionTask[] = [
 export const SESSION5_GREEN_TASKS: SessionTask[] = [
   subtraction('s5_g_t1', 5432, 2118, 'פריטה פשוטה בטור היחידות בתחום הרבבה', S5_SUB('5,432 − 2,118', true)),
   subtraction('s5_g_t2', 6543, 1227, 'פריטה ביחידות עם נוכחות אלפים', S5_SUB('6,543 − 1,227', true)),
-  // ★ owner-approved replacement (3.9.2026): the document's 7,651 − 3,325 borrows in the units, not the tens.
+  // ★ owner-approved replacement (3.9.2026): the document's 7,651 − 3,325 borrowed in the units, not the tens.
+  // מסמך 03 carries 7,651 − 3,381 since 25.9.2026 (the owner updated it).
   subtraction('s5_g_t3', 7651, 3381, 'פריטה בטור העשרות בלבד', S5_SUB('7,651 − 3,381', true)),
-  // ★ owner-approved replacement (3.9.2026): the document's 8,762 − 4,439 borrows in the units, not the hundreds.
+  // ★ owner-approved replacement (3.9.2026): the document's 8,762 − 4,439 borrowed in the units, not the hundreds.
+  // מסמך 03 carries 8,762 − 4,932 since 25.9.2026 (the owner updated it).
   subtraction('s5_g_t4', 8762, 4932, 'פריטה בטור המאות בלבד', S5_SUB('8,762 − 4,932', true)),
   subtraction('s5_g_t5', 6284, 1157, 'פריטה פשוטה בטור היחידות בתחום הרבבה', S5_SUB('6,284 − 1,157', true)),
   subtraction('s5_g_t6', 3845, 1517, 'פריטה פשוטה ביחידות, כל הספרות שונות מאפס', S5_SUB('3,845 − 1,517', true)),
