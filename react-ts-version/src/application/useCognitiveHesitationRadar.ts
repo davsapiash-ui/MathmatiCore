@@ -205,8 +205,12 @@ export function useCognitiveHesitationRadar({
     //   probeAnswer   — the answer typed into a meeting-2 probe
     // Without these two a learner who was busy typing was reported as hesitating
     // at second 45, got a coaching card, and turned yellow then red on the radar.
+    // The exercise itself: PRD Module 12 §ב counts the pause "באותו תרגיל". A
+    // new exercise that opens on the same board (empty after the trash, or
+    // the same preset) used to inherit the previous exercise's pause, and the
+    // card opened seconds into it, before any action.
     const selectCognitiveState = (s: any) =>
-      `${JSON.stringify(s.counts)}|${JSON.stringify(s.answerDigits)}|${JSON.stringify(s.carryDigits)}|${s.selectedChoiceId ?? ''}|${JSON.stringify(s.operandDigits ?? {})}|${s.probeAnswer ?? ''}`;
+      `${s.sessionNumber}:${s.standardTaskIdx}|${JSON.stringify(s.counts)}|${JSON.stringify(s.answerDigits)}|${JSON.stringify(s.carryDigits)}|${s.selectedChoiceId ?? ''}|${JSON.stringify(s.operandDigits ?? {})}|${s.probeAnswer ?? ''}`;
 
     // Module 18 §ב: YELLOW means hesitating now. The flag was written at second
     // 45 and never cleared, and the radar did not read it: it multiplied a COUNT

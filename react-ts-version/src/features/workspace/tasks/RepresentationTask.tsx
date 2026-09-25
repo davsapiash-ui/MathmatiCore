@@ -2,6 +2,8 @@ import { useRef } from 'react';
 import { useWorkspaceStore, requiredCountsOf } from '@/application/useWorkspaceStore';
 import { PLACE_ORDER, PLACE_NAMES_HE, countsEqual, describeCountsHe, type Place } from '@/core/placeValue';
 import type { SessionTask } from '@/data/sessionTasks';
+import { session1Checklist } from '@/core/session1Checklist';
+import { Session1ChecklistCard } from './Session1ChecklistCard';
 
 const CELL = 64;
 const PLACE_TINT: Record<Place, string> = {
@@ -23,6 +25,10 @@ export function RepresentationTask({ task }: { task: SessionTask }) {
   const setAnswerDigit = useWorkspaceStore((s) => s.setAnswerDigit);
   const setFocusedPlace = useWorkspaceStore((s) => s.setFocusedPlace);
   const isRepresentationInputLocked = useWorkspaceStore((s) => s.isRepresentationInputLocked);
+  const hasUngrouped = useWorkspaceStore((s) => s.hasUngrouped);
+  // Meeting 1's target task (מסמך 03 §3.1 step 6) is a guided step: its
+  // instruction as a checklist, the rule "התקדם" follows.
+  const checklist = session1Checklist(task.id, { counts, answerDigits, hasUngrouped, blocksAddedCount: 0, undoCount: 0, hasClearedBoard: false });
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
 
   const value = task.numberA ?? 0;
@@ -39,22 +45,30 @@ export function RepresentationTask({ task }: { task: SessionTask }) {
         <span className="font-display font-black text-6xl text-ws-accent tabular-nums">{value.toLocaleString('he-IL')}</span>
       </div>
 
-      <div
-        className="rounded-2xl px-6 py-4 border text-center max-w-md"
-        style={{ backgroundColor: 'hsl(var(--ws-blue-soft) / 0.45)', borderColor: 'hsl(var(--ws-blue) / 0.45)' }}
-        aria-live="polite"
-      >
-        {/* Meeting 1 (hideRequiredCounts): the board to build is what the learner finds. */}
-        {!task.hideRequiredCounts && (
-          <>
-            <p className="text-sm font-bold text-ws-soft mb-1">בנו בלוח בדיוק:</p>
-            <p className="text-xl font-black text-ws-ink">{describeCountsHe(required)}</p>
-          </>
-        )}
-        <p className={`mt-2 text-sm font-bold ${boardMatches ? 'text-ws-success' : 'text-ws-soft'}`}>
-          {boardMatches ? '✓ הלוח תואם — כתבו את המספר בשורת התוצאה' : `בלוח כרגע: ${describeCountsHe(counts)}`}
-        </p>
-      </div>
+      {/* Meeting 1 (hideRequiredCounts): no box at all. The board to build is
+          what the learner finds, the place-value board already shows every
+          column, and the step's checklist says what is done. */}
+      {!task.hideRequiredCounts && (
+        <div
+          className="rounded-2xl px-6 py-4 border text-center max-w-md"
+          style={{ backgroundColor: 'hsl(var(--ws-blue-soft) / 0.45)', borderColor: 'hsl(var(--ws-blue) / 0.45)' }}
+          aria-live="polite"
+        >
+          <p className="text-sm font-bold text-ws-soft mb-1">בנו בלוח בדיוק:</p>
+          <p className="text-xl font-black text-ws-ink">{describeCountsHe(required)}</p>
+          <p className={`mt-2 text-sm font-bold ${boardMatches ? 'text-ws-success' : 'text-ws-soft'}`}>
+            {boardMatches ? '✓ הלוח תואם — כתבו את המספר בשורת התוצאה' : `בלוח כרגע: ${describeCountsHe(counts)}`}
+          </p>
+        </div>
+      )}
+
+      {/* Meeting 1's target task: the steps first, the result row under them, so
+          a 1366×768 school laptop shows the checklist without scrolling. */}
+      {checklist && (
+        <div className="w-full max-w-md">
+          <Session1ChecklistCard items={checklist} />
+        </div>
+      )}
 
       {/* Result row (שורת התוצאה) */}
       <div dir="ltr" className="grid gap-2" style={{ gridTemplateColumns: `repeat(${places.length}, ${CELL}px)` }} role="group" aria-label="שורת התוצאה">

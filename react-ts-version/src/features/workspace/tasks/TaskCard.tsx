@@ -41,7 +41,7 @@ export function TaskCard() {
   const taskKey = `${sessionNumber}-${qTask?.id ?? standardTask?.id ?? ''}-${subtask ? 'sub' : qflow.subphase}-${standardTaskIdx}`;
 
   return (
-    <AccessibleCard id="tour-task-card" className="flex-1 min-w-0 p-8 overflow-y-auto no-scrollbar relative border-none rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-white/95 dark:bg-slate-900/95">
+    <AccessibleCard id="tour-task-card" className="flex-1 min-w-0 p-8 overflow-y-auto relative border-none rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-white/95 dark:bg-slate-900/95">
       {/* Soft decorative corner glow — warmth without noise */}
       <div
         aria-hidden="true"
@@ -63,7 +63,7 @@ export function TaskCard() {
             className="flex items-start gap-3 mb-6 rounded-2xl p-4 pr-5 border-r-4"
             style={{ backgroundColor: 'hsl(var(--ws-blue-soft) / 0.55)', borderColor: 'hsl(var(--ws-blue) / 0.55)' }}
           >
-            <p className="text-xl text-ws-ink/85 font-medium leading-relaxed flex-1">{instruction}</p>
+            <p className="text-xl text-ws-ink/85 font-medium leading-relaxed flex-1 whitespace-pre-line">{instruction}</p>
             <UdlSpeechButton text={instruction} />
           </div>
         )}

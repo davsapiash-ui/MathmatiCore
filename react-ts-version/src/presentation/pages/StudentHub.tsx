@@ -24,9 +24,10 @@ interface ActiveSessionConfig {
 const SESSIONS_CONFIG: Record<number, ActiveSessionConfig> = {
   1: {
     id: 1,
-    title: 'תחנה 1: היכרות עם המערכת',
-    desc: 'היכרות עם כלי המעבדה השונים במרחב החקר הווירטואלי.',
-    icon: '🧪',
+    // מסמך 04 §1: "ארגז החול" for the first meeting; מסמך 03 §3.1 step 1.
+    title: 'תחנה 1: ארגז החול',
+    desc: 'שחקו וחקרו בחופשיות: היכרות עם המערכת שלנו.',
+    icon: '🧱',
   },
   2: {
     id: 2,

@@ -634,6 +634,12 @@ export function selectCanProceed(s: WorkspaceState): boolean {
     return (hasBoardBlocks || hasDigits || s.hasInteracted) && hiddenDigitsStatus(s, task, a, b).complete;
   }
   if (task.type === 'representation') {
+    // Meeting 1's target task is a guided step with a checklist (מסמך 03 §3.1 step 6).
+    const checklist = session1Checklist(task.id, s);
+    if (checklist) return checklist.every((item) => item.done);
+    // Blocks the task itself put on the board (the 26 cubes) are not the
+    // learner's work: "התקדם" waits for an answer to check.
+    if (task.initialCounts) return answerDigitsToNumber(s.answerDigits) !== null;
     return selectBoardValue(s) > 0 || answerDigitsToNumber(s.answerDigits) !== null || s.hasInteracted;
   }
   if (!s.hasInteracted) return false;
@@ -781,7 +787,18 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     const previous = get();
     const previousBoard = { counts: { ...previous.counts }, undoStack: [...previous.undoStack] };
     set(resetTaskInteraction());
-    set({ keyboardState: 'UNLOCKED', currentState: 'PROBLEM_ACTIVE', taskStartTime: Date.now() });
+    // PRD state machine: the next exercise starts PROBLEM_ACTIVE. A card left
+    // open (and the hint the AI was still preparing) belonged to the exercise
+    // that opened it; it used to follow the learner into the next one.
+    set({
+      keyboardState: 'UNLOCKED',
+      currentState: 'PROBLEM_ACTIVE',
+      taskStartTime: Date.now(),
+      helpState: 'closed',
+      aiSocraticHint: null,
+      socraticDistractorHint: null,
+      frictionTriggerSource: null,
+    });
     applyPendingAdaptationAtBoundary();
     if (get().sessionNumber !== 2) {
       const task = getActiveTasks(get()).find((t) => t.id === taskId);
@@ -1008,7 +1025,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     if (!task) return;
 
     const handleFailure = (detail: string, feedbackTitle: string, feedbackSub: string, feedbackMs: number) => {
-      get().incrementConsecutiveErrors();
+      // Register 17 / PRD Module 12 §ב: an empty answer or an unanswered
+      // question is not a wrong answer — not for the card on the second wrong
+      // answer, and not for the card on the fourth wrong attempt either.
+      const incomplete = detail === 'missing_answer' || detail === 'no_choice';
+      if (!incomplete) get().incrementConsecutiveErrors();
       if (isRepresentationTask(task) && detail !== 'missing_answer') recordBoardCheckFailure(task.id);
       const studentId = useAuthStore.getState().user?.uid;
       if (studentId) {
@@ -1019,20 +1040,24 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           errorCategory = 'STRATEGIC_ERROR';
         }
         AuditLogger.log(errorCategory, studentId, `Task: ${task.id}, Detail: ${detail}`);
-        const qKey = (task as any).qMatrixKey || (task as any).targetNode || task.id;
-        const qUpdate = { [qKey]: detail };
-        firebaseSyncService.syncQMatrix(studentId, qUpdate as any).catch(console.error);
-        useStore.getState().updateQMatrix(studentId, qUpdate as any);
+        // PRD Module 14 §ב: meeting 1 is not scored, so it writes no Q-matrix result.
+        if (s.sessionNumber !== 1) {
+          const qKey = (task as any).qMatrixKey || (task as any).targetNode || task.id;
+          const qUpdate = { [qKey]: detail };
+          firebaseSyncService.syncQMatrix(studentId, qUpdate as any).catch(console.error);
+          useStore.getState().updateQMatrix(studentId, qUpdate as any);
+        }
       }
 
-      if (task.targetNode && s.sessionNumber >= 3) {
+      // PRD Module 12 & 14: the card never opens in the diagnostic. מסמך 03 §3.1
+      // names this trigger for meeting 1 too.
+      if (s.sessionNumber !== 2) {
         // Owner rulings 14.9.2026 and 16.9.2026: support stays inside the exercise,
         // and it is contingent (Wood et al.; מסמך 03 §1.3 ד' "שגיאות חוזרות").
         // The first wrong answer gets the feedback line below and the learner's
         // own tools (Undo, memory circles, blocks). The coaching card opens on the
         // second wrong answer in a row on the same exercise. An empty answer or an
         // unanswered question is not a wrong answer and never opens the card.
-        const incomplete = detail === 'missing_answer' || detail === 'no_choice';
         if (!incomplete) {
           const streak = (s.wrongAnswerTaskId === task.id ? s.wrongAnswerStreak : 0) + 1;
           set({ wrongAnswerStreak: streak, wrongAnswerTaskId: task.id });
@@ -1064,8 +1089,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         },
       }).catch(console.error);
 
-      // Module 14: Choice branch tasks are strictly excluded from baseline Q-Matrix mastery
-      if (studentId && !task.isOptionalChoiceTask) {
+      // Module 14: Choice branch tasks are strictly excluded from baseline Q-Matrix mastery,
+      // and meeting 1 (§ב, never scored) writes no result at all.
+      if (studentId && !task.isOptionalChoiceTask && s.sessionNumber !== 1) {
         const qKey = (task as any).qMatrixKey || (task as any).targetNode || task.id;
         const qUpdate = { [qKey]: 'success' };
         firebaseSyncService.syncQMatrix(studentId, qUpdate as any).catch(console.error);
@@ -1128,8 +1154,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         if (boardVal !== target) {
           handleFailure(
             'wrong_blocks',
-            'מערכת המעבדה 🤔',
-            'בואו נבדוק שוב את בית המספרים. הכמות של הקוביות שהנחתם אינה תואמת לתוצאת התרגיל.',
+            'בּוֹאוּ נְדַיֵּק אֶת הַמִּבְנֶה 🔍',
+            'הלבנים שבבית המספרים אינן מתאימות לתוצאת התרגיל. בדקו שוב.',
             3500
           );
           return;
@@ -1137,11 +1163,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
         const hasOvercrowded = s.counts.units >= 10 || s.counts.tens >= 10 || s.counts.hundreds >= 10;
         if (hasOvercrowded) {
-          const title = 'בית המספרים לא מסודר 🧐';
-          const msg = task.isSubtraction
-            ? 'נראה שיש מעל 9 יחידות או עשרות בעמודה. בתרגילי חיסור, האם שכחתם לבצע פריטה או להחסיר קוביות כדי להגיע לתוצאה הסופית?'
-            : 'נראה שיש מעל 9 יחידות או עשרות בעמודה. בתרגילי חיבור, יש לבצע המרה/קיבוץ כדי לסדר את בית המספרים בצורה תקנית!';
-          handleFailure('overcrowded_columns', title, msg, 4000);
+          // Names the column and the one action (מסמך 02: "כפתור הקבץ 10 שבראש הטור").
+          const crowded = s.counts.units >= 10 ? 'היחידות' : s.counts.tens >= 10 ? 'העשרות' : 'המאות';
+          handleFailure(
+            'overcrowded_columns',
+            'בּוֹאוּ נְקַבֵּץ 🧱',
+            `בטור ${crowded} יש 10 לבנים או יותר. לחצו על כפתור הקבץ 10 שבראש הטור.`,
+            4000
+          );
           return;
         }
       }
@@ -1187,7 +1216,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         return;
       }
 
-      if (task.type === 'vertical_addition' && (task.requiresGrouping || task.requiresUngrouping)) {
+      // Memory circles are introduced in meeting 4 (מסמך 03 §3.4); meeting 1 does
+      // not mention them, so its refresh exercises get the plain success.
+      if (task.type === 'vertical_addition' && (task.requiresGrouping || task.requiresUngrouping) && s.sessionNumber !== 1) {
         const hasCarriesEntered = Object.values(s.carryDigits).some((v) => v !== undefined && v !== '');
         if (!hasCarriesEntered) {
           // A correct answer with the memory circles left empty is still a
@@ -1196,8 +1227,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           // התרגיל" and scored it 0), no Q-matrix success, and the error streak
           // carried into the next exercise.
           handleSuccess(
-            'שימו לב לתיבות הזיכרון 💡',
-            'פתרתם נכון! זכרו שבתרגילי המרה ופריטה מומלץ להיעזר בחלוניות הזיכרון העליונות כדי לסמן את השאריות.',
+            'שימו לב לעיגולי הזיכרון 💡',
+            'פתרתם נכון! בתרגילי המרה ופריטה כדאי לרשום את ההמרה בעיגולי הזיכרון שבראש הטורים.',
             3000
           );
           return;
@@ -1356,13 +1387,15 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       }
 
       set({ awaitingNext: true, currentState: 'COMPLETE' });
-      showFeedback({ correct: true, title: 'כָּל הַכָּבוֹד! 🎉', sub: `מִפְגָּשׁ ${s.sessionNumber} הוּשְׁלַם בְּהַצְלָחָה!` }, 2500, () => {
-        // מודול 16: מפגש 8 מסתיים בלוח הרפלקציה התלת-שלבי — זו כל מטרתו
-        // ("חוקר-על — סיכום ורפלקציית SRL", מודול 14). הלוח היה בנוי, נבדק
-        // ונשמר כהלכה, אבל שום מסלול בקוד לא הוביל אליו: כל מפגש הסתיים
-        // במסך "כל הכבוד", והלוח לא נפתח לאף ילד מעולם.
-        set({ flowStatus: s.sessionNumber === 8 ? 'reflection' : 'sessionDone', awaitingNext: false });
-      });
+      showFeedback({ correct: true, title: 'כָּל הַכָּבוֹד! 🎉', sub: `מִפְגָּשׁ ${s.sessionNumber} הוּשְׁלַם בְּהַצְלָחָה!` }, 2500);
+      // מודול 16: מפגש 8 מסתיים בלוח הרפלקציה התלת-שלבי — זו כל מטרתו
+      // ("חוקר-על — סיכום ורפלקציית SRL", מודול 14). הלוח היה בנוי, נבדק
+      // ונשמר כהלכה, אבל שום מסלול בקוד לא הוביל אליו: כל מפגש הסתיים
+      // במסך "כל הכבוד", והלוח לא נפתח לאף ילד מעולם.
+      // The end used to be the toast’s callback, which runs only if no newer
+      // toast appeared: the help button’s toast in those 2.5 seconds left
+      // "התקדם" off and the meeting unfinished until a reload (PRD Module 14).
+      setTimeout(() => set({ flowStatus: s.sessionNumber === 8 ? 'reflection' : 'sessionDone', awaitingNext: false }), 2500);
       return;
     }
 
@@ -1408,13 +1441,15 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     }
 
     set({ awaitingNext: true, currentState: 'COMPLETE' });
-    showFeedback({ correct: true, title: 'כָּל הַכָּבוֹד! 🎉', sub: `מִפְגָּשׁ ${s.sessionNumber} הוּשְׁלַם בְּהַצְלָחָה!` }, 2500, () => {
-      // מודול 16: מפגש 8 מסתיים בלוח הרפלקציה התלת-שלבי — זו כל מטרתו
-      // ("חוקר-על — סיכום ורפלקציית SRL", מודול 14). הלוח היה בנוי, נבדק
-      // ונשמר כהלכה, אבל שום מסלול בקוד לא הוביל אליו: כל מפגש הסתיים
-      // במסך "כל הכבוד", והלוח לא נפתח לאף ילד מעולם.
-      set({ flowStatus: s.sessionNumber === 8 ? 'reflection' : 'sessionDone', awaitingNext: false });
-    });
+    showFeedback({ correct: true, title: 'כָּל הַכָּבוֹד! 🎉', sub: `מִפְגָּשׁ ${s.sessionNumber} הוּשְׁלַם בְּהַצְלָחָה!` }, 2500);
+    // מודול 16: מפגש 8 מסתיים בלוח הרפלקציה התלת-שלבי — זו כל מטרתו
+    // ("חוקר-על — סיכום ורפלקציית SRL", מודול 14). הלוח היה בנוי, נבדק
+    // ונשמר כהלכה, אבל שום מסלול בקוד לא הוביל אליו: כל מפגש הסתיים
+    // במסך "כל הכבוד", והלוח לא נפתח לאף ילד מעולם.
+    // The end used to be the toast’s callback, which runs only if no newer
+    // toast appeared: the help button’s toast in those 2.5 seconds left
+    // "התקדם" off and the meeting unfinished until a reload (PRD Module 14).
+    setTimeout(() => set({ flowStatus: s.sessionNumber === 8 ? 'reflection' : 'sessionDone', awaitingNext: false }), 2500);
   }
 
   /** Session-2 proceed (vanilla handleQTaskProceed, app.js 1112–1162). */
@@ -1575,7 +1610,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     isSupersededByOtherDevice: false,
 
     setActiveDeviceId: (id) => set({ activeDeviceId: id }),
-    setSupersededByOtherDevice: (superseded) => set({ isSupersededByOtherDevice: superseded }),
+    setSupersededByOtherDevice: (superseded) => {
+      // Every change to the student record echoed this call with the same
+      // value; each call re-ran the workspace sync, which wrote the record
+      // again, which fired the listener again — a write loop behind the slow
+      // mouse and undo.
+      if (get().isSupersededByOtherDevice !== superseded) set({ isSupersededByOtherDevice: superseded });
+    },
     setHelpRequested: (val) => set({ helpRequested: val }),
     toggleHelpRequested: () => set((state) => ({ helpRequested: !state.helpRequested })),
 
@@ -2307,13 +2348,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           }).catch(console.error);
         }
 
-        if (val !== '' && s.helpState === 'socratic') {
-          setTimeout(() => {
-            if (get().helpState === 'socratic') {
-              get().closeHelp();
-            }
-          }, 3000);
-        }
 
         // מסמך 03, trigger 2: four consecutive deletions in the active column.
         // The count was kept but never read, so this trigger did not exist.
@@ -2391,13 +2425,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           }).catch(console.error);
         }
 
-        if (val !== '' && s.helpState === 'socratic') {
-          setTimeout(() => {
-            if (get().helpState === 'socratic') {
-              get().closeHelp();
-            }
-          }, 3000);
-        }
         return { carryDigits: { ...s.carryDigits, [place]: val }, hasInteracted: true };
       });
     },
@@ -2447,7 +2474,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           s.sessionNumber === 2
             ? 'סריקת הרדאר מזהה שכמות הבלוקים בלוח אינה תואמת למבוקש. איך נוכל לשנות זאת כדי להגיע לכמות המדויקת?'
             : 'הסכום הנוכחי אינו תואם לערך היעד של הניסוי. נסו שוב!';
-        showFeedback({ correct: false, title: 'מערכת המעבדה 🤔', sub: hint }, 3200);
+        showFeedback({ correct: false, title: 'בּוֹאוּ נְדַיֵּק אֶת הַמִּבְנֶה 🔍', sub: hint }, 3200);
         return;
       }
       
@@ -2541,6 +2568,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           monitoring
         );
         
+        const now = get();
+        const stillTheSameCard = now.helpState === 'socratic' && selectStandardTask(now)?.id === currentTask?.id;
+        if (!stillTheSameCard) return;
         if (hint) {
           set({ aiSocraticHint: hint });
         } else if (!get().aiSocraticHint) {
@@ -2582,7 +2612,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       set({ hasRequestedBasicHelp: true, helpRequestCount: helpCount });
       emitScaffoldEvent(get(), 'HELP_REQUESTED', { help_count: helpCount });
       // A calm, brief acknowledgement so the learner knows the signal was sent.
-      showFeedback({ correct: true, title: 'המורה יודעת 🤝', sub: 'הסימן נשלח בשקט. אפשר להמשיך לעבוד.' }, 2600);
+      // מסמך 03 §3.1: the signal is silent, "ללא צליל או תשומת לב חברתית" — a
+      // neutral acknowledgement, not a success (no confetti).
+      showFeedback({ correct: true, neutral: true, title: 'המורה יודעת 🤝', sub: 'הסימן נשלח בשקט. אפשר להמשיך לעבוד.' }, 2600);
     },
 
     helpFrictionDone: () => {

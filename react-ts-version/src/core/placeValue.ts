@@ -21,8 +21,11 @@ export const PLACE_NAMES_HE: Record<Place, string> = {
 
 export const EMPTY_COUNTS: PlaceCounts = { units: 0, tens: 0, hundreds: 0, thousands: 0 };
 
-/** Max blocks rendered per column (model may exceed; badges show true count). */
-export const MAX_VISIBLE_BLOCKS = 30;
+/**
+ * Max blocks a column holds. מסמך 03 §3.3 exercise 3 asks for 45 tens (450) and
+ * 45 hundreds (4,500) in one column; at 30 no child could finish it.
+ */
+export const MAX_VISIBLE_BLOCKS = 50;
 
 export interface RegroupEvent { from: Place; to: Place; groups: number }
 export interface UngroupEvent { from: Place; to: Place }
