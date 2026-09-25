@@ -301,8 +301,8 @@ export const SESSION3_TASKS: SessionTask[] = SESSION3_GREEN_TASKS;
  * ══════════════════════════════════════════════════════════════════════════ */
 
 export const SESSION4_REMEDIATION_TASKS: SessionTask[] = [
-  addition('s4_r_t1', 142, 23, 'ביסוס אלגוריתם ללא המרה בתחום המאה', S4_ADD('142 + 23', false)),
-  addition('s4_r_t2', 128, 35, 'המרה פשוטה ראשונה ביחידות בתחום המאה', S4_ADD('128 + 35', true)),
+  addition('s4_r_t1', 142, 23, 'ביסוס אלגוריתם ללא המרה בתחום האלף', S4_ADD('142 + 23', false)),
+  addition('s4_r_t2', 128, 35, 'המרה פשוטה ראשונה ביחידות בתחום האלף', S4_ADD('128 + 35', true)),
   addition('s4_r_t3', 247, 135, 'המרה ביחידות עם נוכחות מאות', S4_ADD('247 + 135', true)),
   addition('s4_r_t4', 456, 281, 'המרה בטור העשרות בתחום האלף', S4_ADD('456 + 281', true)),
   addition('s4_r_t5', 354, 128, 'המרה פשוטה ביחידות המעבירה עשרת לטור העשרות', S4_ADD('354 + 128', true)),
@@ -320,7 +320,7 @@ export const SESSION4_GREEN_TASKS: SessionTask[] = [
   addition('s4_g_t3', 3456, 2183, 'המרה בטור העשרות בלבד', S4_ADD('3,456 + 2,183', true)),
   addition('s4_g_t4', 4821, 1534, 'המרה בטור המאות בלבד', S4_ADD('4,821 + 1,534', true)),
   addition('s4_g_t5', 5678, 2453, 'שרשרת המרות ביחידות, בעשרות ובמאות בתחום הרבבה', S4_ADD('5,678 + 2,453', true)),
-  addition('s4_g_t6', 7045, 1283, 'חישוב המרה עם אפסים כשומרי מקום', S4_ADD('7,045 + 1,283', true)),
+  addition('s4_g_t6', 7045, 1283, 'חישוב המרה עם אפס כשומר מקום', S4_ADD('7,045 + 1,283', true)),
   // ★ chosen: מסמך 03 describes an inquiry comparing near exercises, without numbers.
   withOpts({
     id: 's4_g_t7', type: 'small_change',
@@ -396,7 +396,7 @@ export const SESSION6_REMEDIATION_TASKS: SessionTask[] = [
   subtraction('s6_r_t1', 240, 125, 'ביסוס פריטה פשוטה עם אפס בטור היחידות של המחוסר', S6_SUB('240 − 125', 240, 125), ZERO),
   subtraction('s6_r_t2', 305, 12, 'פריטה פשוטה מטור המאות כאשר טור העשרות ריק', S6_SUB('305 − 12', 305, 12), ZERO),
   subtraction('s6_r_t3', 204, 112, 'פריטה פשוטה מטור המאות לטור העשרות', S6_SUB('204 − 112', 204, 112), ZERO),
-  subtraction('s6_r_t4', 300, 142, 'פריטה כפולה קלאסית דרך אפס בתחום המאה', S6_SUB('300 − 142', 300, 142), ZERO),
+  subtraction('s6_r_t4', 300, 142, 'פריטה כפולה קלאסית דרך אפס בתחום האלף', S6_SUB('300 − 142', 300, 142), ZERO),
   subtraction('s6_r_t5', 602, 145, 'פריטה כפולה דרך אפס כאשר ספרת היחידות אינה אפס', S6_SUB('602 − 145', 602, 145), ZERO),
   subtraction('s6_r_t6', 500, 287, 'ביסוס פריטה כפולה בתחום האלף', S6_SUB('500 − 287', 500, 287), ZERO),
   // ★ chosen (400 − 156 is the grade-ג example in מסמך 05, המטריקס).
@@ -407,8 +407,8 @@ export const SESSION6_REMEDIATION_TASKS: SessionTask[] = [
 ];
 
 export const SESSION6_GREEN_TASKS: SessionTask[] = [
-  subtraction('s6_g_t1', 2045, 1128, 'פריטה כפולה דרך טור מאות ריק', S6_SUB('2,045 − 1,128', 2045, 1128), ZERO),
-  subtraction('s6_g_t2', 3005, 1248, 'פריטה משולשת דרך טור עשרות ריק', S6_SUB('3,005 − 1,248', 3005, 1248), ZERO),
+  subtraction('s6_g_t1', 2045, 1128, 'פריטה כפולה, אחת מהן אל טור מאות ריק', S6_SUB('2,045 − 1,128', 2045, 1128), ZERO),
+  subtraction('s6_g_t2', 3005, 1248, 'פריטה משולשת דרך טורי מאות ועשרות ריקים', S6_SUB('3,005 − 1,248', 3005, 1248), ZERO),
   subtraction('s6_g_t3', 4000, 1562, 'פריטה משולשת דרך אפסים עוקבים', S6_SUB('4,000 − 1,562', 4000, 1562), ZERO),
   subtraction('s6_g_t4', 5000, 2345, 'תרגול נוסף של פריטה משולשת', S6_SUB('5,000 − 2,345', 5000, 2345), ZERO),
   subtraction('s6_g_t5', 6020, 1485, 'פריטה משולשת עם אפסים שאינם רציפים', S6_SUB('6,020 − 1,485', 6020, 1485), ZERO),
@@ -481,8 +481,8 @@ export const SESSION7_GREEN_TASKS: SessionTask[] = [
     INQUIRY),
   // ★ chosen: the imaginary learner's error is the one מסמך 03 describes (a wrong double regrouping in the hundreds).
   addition('s7_g_t4', 4857, 3568,
-    'איתור ותיקון שגיאת המרה בשרשרת המרות',
-    'תלמיד פתר 4,857 + 3,568 וקיבל 7,425. התרגיל דורש שלוש המרות רצופות, וביניהן, בטור המאות, הוא שכח להעביר את המאה שהתקבצה לטור האלפים. תקנו את התרגיל בעזרת הלבנים על הלוח וכתבו את התוצאה הנכונה.',
+    'איתור ותיקון שגיאה בשרשרת המרות',
+    'תלמיד פתר 4,857 + 3,568 וקיבל 7,425. התרגיל דורש שלוש המרות רצופות, והוא שכח לרשום בטור האלפים את ההמרה מטור המאות. תקנו את התרגיל בעזרת הלבנים על הלוח וכתבו את התוצאה הנכונה.',
     INQUIRY),
   // ★ chosen: add one thousand, remove hundreds, reach a defined target.
   representation('s7_g_t5', 3800, { thousands: 3, hundreds: 8 },
@@ -510,7 +510,7 @@ export const SESSION7_TASKS: SessionTask[] = SESSION7_GREEN_TASKS;
  * ══════════════════════════════════════════════════════════════════════════ */
 
 export const SESSION8_REMEDIATION_TASKS: SessionTask[] = [
-  addition('s8_r_t1', 142, 23, 'חיבור ללא המרה בתחום המאה', S8_ADD('142 + 23'), { scaffoldLevel: 1 }),
+  addition('s8_r_t1', 142, 23, 'חיבור ללא המרה בתחום האלף', S8_ADD('142 + 23'), { scaffoldLevel: 1 }),
   addition('s8_r_t2', 128, 35, 'חיבור עם המרה אחת ביחידות', S8_ADD('128 + 35'), { scaffoldLevel: 1 }),
   addition('s8_r_t3', 456, 281, 'חיבור עם המרה בטור העשרות', S8_ADD('456 + 281'), { scaffoldLevel: 1 }),
   subtraction('s8_r_t4', 78, 25, 'חיסור ללא פריטה בתחום המאה', S8_SUB('78 − 25'), { scaffoldLevel: 1 }),
