@@ -38,7 +38,7 @@ describe('Module 13: static Socratic cards come from מסמך 03', () => {
       5: 'פורטים עשרת אחת לעשר יחידות',
       6: 'פרטו תחילה לבנת מאה אחת לעשר עשרות',
       7: 'ניעזר בלבני הדינס',
-      8: 'נתבונן בלוח בית המספרים',
+      8: 'נתבונן בתרגיל',
     };
     for (const [session, opening] of Object.entries(expected)) {
       for (const id of [`s${session}_r_t1`, `s${session}_g_t7`, ...(Number(session) <= 7 ? [`s${session}_g_challenge_1`] : [])]) {
