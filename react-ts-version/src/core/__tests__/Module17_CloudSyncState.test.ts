@@ -89,3 +89,26 @@ describe('Module 17 §ד: the cloud is green only when the queue has been delive
     expect(topbar).toMatch(/syncState === 'synced' \?/);
   });
 });
+
+describe('Module 17 §ד: an item enqueued just before the network dropped', () => {
+  beforeAll(() => { vi.stubGlobal('window', fakeWindow); });
+  afterAll(() => { vi.unstubAllGlobals(); });
+
+  it('is still counted when the connection returns — the cloud does not go green over it', async () => {
+    const { indexedDBQueue } = await import('@/infrastructure/services/IndexedDBQueue');
+    await indexedDBQueue.clearAll();
+    setDoc.mockClear();
+    fakeWindow.dispatchEvent(new Event('online'));
+    await vi.waitFor(() => expect(indexedDBQueue.getSyncState()).toBe('synced'));
+    // enqueued online: it waits for the background flush, and the network drops before it
+    await indexedDBQueue.enqueue(event('evt_inflight'));
+    fakeWindow.dispatchEvent(new Event('offline'));
+    let ack: () => void = () => {};
+    setDoc.mockImplementationOnce(() => new Promise<void>((r) => { ack = r; }));
+    fakeWindow.dispatchEvent(new Event('online'));
+    await vi.waitFor(() => expect(setDoc).toHaveBeenCalledTimes(1));
+    expect(indexedDBQueue.getSyncState()).toBe('pending'); // was: 'synced' while the item still sat in the store
+    ack();
+    await vi.waitFor(() => expect(indexedDBQueue.getSyncState()).toBe('synced'));
+  });
+});

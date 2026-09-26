@@ -257,14 +257,19 @@ export class IndexedDBQueue {
     window.addEventListener('online', () => {
       this.isOnline = true;
       // Back online is not yet synced: with a backlog the cloud stays grey
-      // until the flush below has delivered it (Module 17 §ג–§ד).
-      this.emitSyncState();
-      this.flushQueue().catch(console.error);
+      // until the flush below has delivered it (Module 17 §ג–§ד). The count is
+      // re-read first: an item enqueued just before the drop (still "in flight",
+      // not yet counted) would otherwise let the cloud go green while it still
+      // sits in the store.
+      this.refreshPendingCount()
+        .catch(() => {})
+        .then(() => { this.emitSyncState(); return this.flushQueue(); })
+        .catch(console.error);
     });
 
     window.addEventListener('offline', () => {
       this.isOnline = false;
-      this.emitSyncState();
+      this.refreshPendingCount().catch(() => {}).then(() => this.emitSyncState());
     });
   }
 
