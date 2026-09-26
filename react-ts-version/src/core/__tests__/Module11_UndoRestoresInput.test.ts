@@ -93,7 +93,7 @@ describe('undo restores what the learner typed (Module 11 §א)', () => {
     const label = topbar.indexOf('aria-label="בטל פעולה אחרונה"');
     expect(label).toBeGreaterThan(-1);
     // Nothing gates it on the meeting number. ("הצג לוח" right below it IS gated
-    // on meeting 8, correctly — there are no blocks there.)
+    // on meetings 2 and 8, correctly — there is no board there.)
     const buttonStart = topbar.lastIndexOf('<button', label);
     expect(topbar.slice(topbar.lastIndexOf('>', buttonStart), buttonStart)).not.toContain('sessionNumber');
   });

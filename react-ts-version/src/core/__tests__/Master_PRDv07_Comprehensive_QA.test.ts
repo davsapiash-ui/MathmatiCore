@@ -215,8 +215,8 @@ describe('MASTER PRD v07 COMPREHENSIVE QA & AUDIT SUITE', () => {
       const isLockedEnhanced = store.isColumnInputLocked('units', 345, 278, false);
       expect(isLockedEnhanced).toBe(true);
 
-      // Once regrouped -> unlocked
-      useWorkspaceStore.setState({ hasGrouped: true });
+      // Once the units are regrouped -> the units column unlocks
+      useWorkspaceStore.setState({ hasGrouped: true, conversionsByColumn: { composed: { units: true }, decomposed: {} } });
       const isUnlockedEnhanced = store.isColumnInputLocked('units', 345, 278, false);
       expect(isUnlockedEnhanced).toBe(false);
     });

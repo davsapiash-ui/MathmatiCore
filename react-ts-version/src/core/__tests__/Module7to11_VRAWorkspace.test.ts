@@ -146,7 +146,11 @@ describe('Work Package 3 (WP3): Student Learning Space & VRA Engine Comprehensiv
 
     it('unlocks keyboard after regrouping/grouping operation completes', () => {
       const store = useWorkspaceStore.getState();
-      useWorkspaceStore.setState({ support_profile_id: 'enhanced_cognitive_support', hasGrouped: true } as any);
+      useWorkspaceStore.setState({
+        support_profile_id: 'enhanced_cognitive_support',
+        hasGrouped: true,
+        conversionsByColumn: { composed: { units: true }, decomposed: {} },
+      } as any);
 
       const isLocked = store.isColumnInputLocked('units', 17, 8, false);
       expect(isLocked).toBe(false);
@@ -159,8 +163,8 @@ describe('Work Package 3 (WP3): Student Learning Space & VRA Engine Comprehensiv
       const isLocked = store.isColumnInputLocked('units', 52, 17, true);
       expect(isLocked).toBe(true);
 
-      // After ungrouping
-      useWorkspaceStore.setState({ hasUngrouped: true });
+      // After a ten is decomposed into the units
+      useWorkspaceStore.setState({ hasUngrouped: true, conversionsByColumn: { composed: {}, decomposed: { units: true } } });
       const isUnlocked = store.isColumnInputLocked('units', 52, 17, true);
       expect(isUnlocked).toBe(false);
     });

@@ -8,7 +8,7 @@ import { normalizeStudentId } from '@/application/useChatStore';
 import { ref, onValue, update, onDisconnect } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
 import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
-import { Play, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { BeeFlightWaitingScreen } from '@/presentation/components/student/BeeFlightWaitingScreen';
 import { UdlSpeechButton } from "@/presentation/design-system/UdlSpeechButton";
 import { ProjectorWaitingScreen } from '@/presentation/components/student/ProjectorWaitingScreen';
@@ -21,6 +21,18 @@ interface ActiveSessionConfig {
   icon: string;
 }
 
+/**
+ * The name of each meeting on the lobby card — the headings of מסמך 02 ("הגדרת
+ * רצף המפגשים") and מסמך 03 §3.1–3.8, in words a third-grader reads, as the
+ * register decided (תיקונים נדרשים במסמכי האפיון, row 4): 3 place value, built
+ * and taken apart up to a thousand and ten thousand; 4 addition WITH grouping;
+ * 5 SUBTRACTION with decomposition; 6 the zero challenge; 7 inquiry problems;
+ * 8 the researcher meeting, blocks removed entirely. The earlier names
+ * ("מחקר אישי", "פריטה וקיבוץ", "תכנון ניסויים"…) described no meeting — the
+ * subtraction meeting was called "תכנון ניסויים". Descriptions say what the
+ * children do, second person plural where there is a sentence; meetings 1, 2
+ * and 8 reuse the on-screen wording of מסמך 03.
+ */
 const SESSIONS_CONFIG: Record<number, ActiveSessionConfig> = {
   1: {
     id: 1,
@@ -31,44 +43,53 @@ const SESSIONS_CONFIG: Record<number, ActiveSessionConfig> = {
   },
   2: {
     id: 2,
+    // מסמך 03 §3.2: "התחילו בתחנה שתיים יוצאים למסע. אין לחץ. עבדו בקצב שלכם."
+    // and "הפעם פתרו לבד, ללא עזרים."
     title: 'תחנה 2: יוצאים למסע',
-    desc: 'משימות חקר כדי שהמערכת תלמד את סגנון החשיבה הייחודי שלך.',
+    desc: 'הפעם פתרו לבד, ללא עזרים. אין לחץ, עבדו בקצב שלכם.',
     icon: '📡',
   },
   3: {
     id: 3,
-    title: 'תחנה 3: מחקר אישי',
-    desc: 'משימות מחקר שמותאמות בדיוק עבורך.',
+    // מסמכים 02/03: "ערך המקום וגמישות ייצוגית (פירוק והרכבה)".
+    title: 'תחנה 3: ערך המקום, פירוק והרכבה',
+    desc: 'בונים מספרים עד אלף ועד רבבה, כל מספר בכמה דרכים שונות.',
     icon: '🔬',
   },
   4: {
     id: 4,
-    title: 'תחנה 4: פריטה וקיבוץ',
-    desc: 'ניסויי פריטה וקיבוץ במבנה העשרוני.',
+    // מסמכים 02/03: "אלגוריתם החיבור במאונך והמרה פשוטה (הקבצה)".
+    title: 'תחנה 4: חיבור במאונך עם הקבצה',
+    desc: 'מחברים במאונך, וכשמצטברות בטור 10 לבנים, מקבצים אותן ללבנה אחת.',
     icon: '🔍',
   },
   5: {
     id: 5,
-    title: 'תחנה 5: תכנון ניסויים',
-    desc: 'ממשיכים לתכנון ניסויים ולגלות שיטות חשיבה חדשות.',
+    // מסמכים 02/03: "אלגוריתם החיסור במאונך והמרה פשוטה (פריטה)".
+    title: 'תחנה 5: חיסור במאונך עם פריטה',
+    desc: 'מחסרים במאונך, וכשחסרות לבנים בטור, פורטים לבנה מהטור שמשמאלו.',
     icon: '💡',
   },
   6: {
     id: 6,
-    title: 'תחנה 6: מחקר מתקדם',
-    desc: 'אתגרים מחשבתיים שמותאמים לקצב הגילוי שלך.',
+    // מסמכים 02/03: "אתגר האפס כשומר מקום ומעבר מעל אפסים (המרה כפולה)".
+    title: 'תחנה 6: אתגר האפס',
+    desc: 'מחסרים ממספרים שיש בהם אפס, ולפעמים פורטים כמה פעמים, זו אחרי זו.',
     icon: '🧬',
   },
   7: {
     id: 7,
-    title: 'תחנה 7: אתגרי חיבור וחיסור',
-    desc: 'חיזוק מיומנויות חקר מתקדמות במבנה המספר.',
+    // מסמכים 02/03: "פתרון בעיות חקר ואינטגרציה של פעולות החשבון".
+    title: 'תחנה 7: בעיות חקר בחיבור ובחיסור',
+    desc: 'מגלים ספרות חסרות ומוצאים טעויות בתרגילי חיבור וחיסור.',
     icon: '🚀',
   },
   8: {
     id: 8,
-    title: 'תחנה 8: סיכום ותובנות',
-    desc: 'מסכמים את המחקר ובודקים מה גילינו בדרך!',
+    // מסמכים 02/03: "מפגש חוקר (הערכה ורפלקציה מסכמת)"; §3.8 on screen:
+    // "פתרו את התרגילים בנחת ובקצב שלכם". The blocks and the board are gone.
+    title: 'תחנה 8: מפגש חוקר',
+    desc: 'פתרו את התרגילים בנחת ובקצב שלכם, בלי לבנים ובלי לוח.',
     icon: '🏆',
   },
 };
@@ -81,7 +102,6 @@ export function StudentHub() {
   const normUid = normalizeStudentId(uid);
 
   const [activeSessionId, setActiveSessionId] = useState<number>(1);
-  const [highestCompletedMeeting, setHighestCompletedMeeting] = useState<number>(0);
   const [, setLiveRouteStatus] = useState<string | null>(null);
   const [isTeacherGateApproved, setIsTeacherGateApproved] = useState<boolean>(false);
   const [hasCompletedSession2, setHasCompletedSession2] = useState<boolean>(false);
@@ -106,7 +126,6 @@ export function StudentHub() {
             useWorkspaceStore.getState().resetWorkspace?.();
             firebaseSyncService.clearLocalSessionProgress(normUid);
             if (uid) firebaseSyncService.clearLocalSessionProgress(uid);
-            setHighestCompletedMeeting(0);
             setHasCompletedSession2(false);
             setIsTeacherGateApproved(false);
             setLiveRouteStatus(null);
@@ -119,7 +138,6 @@ export function StudentHub() {
           setIsTeacherGateApproved(approved);
 
           const highest = typeof val.highestCompletedMeeting === 'number' ? val.highestCompletedMeeting : 0;
-          setHighestCompletedMeeting(highest);
 
           const completedM2 = Boolean(
             val.completedMeeting2 ||
@@ -219,22 +237,6 @@ export function StudentHub() {
     return <BeeFlightWaitingScreen onApproved={() => setIsTeacherGateApproved(true)} />;
   }
 
-  const handleStartActiveSession = (e?: React.MouseEvent) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-    if (!isTeacherSessionActive) return;
-
-    const targetSessionId = activeSession?.id || 1;
-    try {
-      navigate(`/workspace?meeting=${targetSessionId}`);
-    } catch (navErr) {
-      console.warn('[StudentHub] navigate fallback:', navErr);
-      window.location.href = `/workspace?meeting=${targetSessionId}`;
-    }
-  };
-
   return (
     <div
       dir="rtl"
@@ -325,20 +327,18 @@ export function StudentHub() {
               </p>
             </div>
 
-            {activeClassSession.status === 'paused' ? (
+            {/* The card carries no entry button. A running meeting moves the
+                learner in by itself (the effect above; register, "תיקונים נדרשים"
+                rows 14 and 17), and it does so in every state in which a button could
+                have shown: the only other live state is the pause, below. The
+                button only flashed for the frame before that navigation.
+                PRD Module 6 / 14 §ב0: no navigation control in the lobby. */}
+            {activeClassSession.status === 'paused' && (
               <div className="w-full inline-flex items-center justify-center gap-2.5 px-5 py-3.5 rounded-2xl text-sm font-extrabold bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60">
                 <span aria-hidden="true">⏸️</span>
                 <span>המורה עצרה את הפעילות לרגע. חכו…</span>
                 <UdlSpeechButton text="המורה עצרה את הפעילות לרגע. חכו." className="shrink-0" />
               </div>
-            ) : (
-              <button
-                onClick={handleStartActiveSession}
-                className="w-full h-14 min-h-[48px] bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-2xl font-display font-extrabold text-lg flex items-center justify-center gap-3 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 active:scale-[0.98] transition-all cursor-pointer"
-              >
-                <span>{highestCompletedMeeting >= effectiveSessionId ? 'היכנס לפעילות' : 'התחל פעילות'}</span>
-                <Play className="w-5 h-5 fill-current" />
-              </button>
             )}
           </motion.div>
         )}

@@ -613,6 +613,9 @@ export class FirebaseSyncService {
       hasClearedBoard: state.hasClearedBoard,
       hasGrouped: state.hasGrouped,
       hasUngrouped: state.hasUngrouped,
+      // Module 9 §א: which columns the blocks already converted — the
+      // enhanced-support keyboard opens column by column on these.
+      conversionsByColumn: state.conversionsByColumn,
       // Per-exercise counters that decide the coaching card: the second
       // wrong answer in a row (register 17) and the board checks that failed
       // (Module 5 §ג PROBLEM_COMPLETE). They were not in the snapshot, so a
@@ -632,7 +635,12 @@ export class FirebaseSyncService {
       // The database drops empty objects: a frame saved before the first digit
       // would come back without its (empty) input, and undo would then leave
       // that digit on screen. hasInput says the frame had one.
-      undoStack: state.undoStack.map((frame) => ({ ...frame, hasInput: frame.answerDigits !== undefined })),
+      // hasConversions does the same for a conversion frame saved before any conversion.
+      undoStack: state.undoStack.map((frame) => ({
+        ...frame,
+        hasInput: frame.answerDigits !== undefined,
+        hasConversions: frame.conversionsByColumn !== undefined,
+      })),
       // The hidden digits of a skeleton exercise (meetings 4–8) were never saved:
       // a reload lost them, and the next undo brought a lost one back.
       operandDigits: state.operandDigits,

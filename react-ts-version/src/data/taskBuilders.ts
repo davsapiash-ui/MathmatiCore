@@ -120,8 +120,55 @@ export const S3_NONSTANDARD = (what: string, n: string, desc: string) =>
   `פרקו ${what} ונסו לייצג את המספר ${n} בדרך החדשה: ${desc}. בדקו התאמה ללוח בית המספרים וכתבו את המספר בשורת התוצאה!`;
 export const S4_ADD = (ex: string, regroup: boolean) =>
   `פתרו במאונך: ${ex}. ייצגו את המספרים בעזרת לבנות.${regroup ? ' כאשר מצטברים 10 פריטים בטור, לחצו על כפתור הקבץ 10 שבראש הטור ורשמו את ההמרה בעיגול הזיכרון.' : ''} רשמו את התוצאה בשורת התוצאה.`;
-export const S5_SUB = (ex: string, borrow: boolean) =>
-  `פתרו במאונך: ${ex}. בנו את המחוסר בלוח.${borrow ? ' פרקו עשרת אחת ליחידות (או מאה לעשרות) בלחיצה עליה ובדקו את הכמויות החדשות בלוח בית המספרים.' : ''} החסירו את הכמות הנדרשת וכתבו את התוצאה בשורת התוצאה.`;
+/**
+ * הנחיית מפגש 5 אומרת בדיוק אילו פריטות התרגיל דורש, טור אחר טור.
+ *
+ * הנוסח הקודם היה אחד לכל התרגילים: "פרקו עשרת אחת ליחידות (או מאה לעשרות)",
+ * גם ב-8,762 − 4,932 (פריטת אלף למאות בלבד), ב-523 − 187 (שתי פריטות) וב-7,214
+ * − 3,568 (שלוש). הבסיס נשאר הנוסח של מסמך 02 ("פרקו עשרת אחת ליחידות בלחיצה
+ * עליה", "בדקו את הכמויות החדשות בלוח בית המספרים"); רק הלבנה שפורטים משתנה
+ * לפי החשבון. הסדר הוא סדר העבודה במאונך — מימין לשמאל.
+ */
+const S5_DECOMPOSE: Record<Place, string> = {
+  units: 'עשרת אחת ליחידות',
+  tens: 'מאה אחת לעשרות',
+  hundreds: 'אלף אחד למאות',
+  thousands: '',
+};
+
+export function S5_SUB(ex: string, a: number, b: number): string {
+  const steps = borrowColumns(a, b).map((p) => S5_DECOMPOSE[p]);
+  let phrase = '';
+  if (steps.length === 1) {
+    const onIt = steps[0] === S5_DECOMPOSE.hundreds ? 'עליו' : 'עליה';
+    phrase = ` פרקו ${steps[0]} בלחיצה ${onIt} ובדקו את הכמויות החדשות בלוח בית המספרים.`;
+  } else if (steps.length === 2) {
+    phrase = ` פרקו ${steps[0]}, ואחר כך ${steps[1]}, בלחיצה על כל לבנה, ובדקו את הכמויות החדשות בלוח בית המספרים.`;
+  } else if (steps.length === 3) {
+    phrase = ` פרקו ${steps[0]}, אחר כך ${steps[1]}, ואחר כך ${steps[2]}, בלחיצה על כל לבנה, ובדקו את הכמויות החדשות בלוח בית המספרים.`;
+  }
+  return `פתרו במאונך: ${ex}. בנו את המחוסר בלוח.${phrase} החסירו את הכמות הנדרשת וכתבו את התוצאה בשורת התוצאה.`;
+}
+
+/**
+ * הטורים שבהם החיסור a − b דורש פריטה, מימין לשמאל, כולל שרשור: בטור p
+ * פורטים לבנה אחת מהטור שמשמאלו.
+ */
+export function borrowColumns(a: number, b: number): Place[] {
+  const cols: Place[] = [];
+  let borrow = 0;
+  for (const p of LOW_TO_HIGH) {
+    const digit = digitOf(a, p) - borrow;
+    if (digit < digitOf(b, p)) {
+      cols.push(p);
+      borrow = 1;
+    } else {
+      borrow = 0;
+    }
+  }
+  return cols;
+}
+
 /**
  * מספר הפריטות שהתרגיל דורש בפועל, טור אחר טור, כולל שרשור.
  * זה מה שקובע את נוסח ההנחיה: ההנחיה הקודמת אמרה "צפו בשינוי בפריטה הכפולה"
@@ -130,18 +177,7 @@ export const S5_SUB = (ex: string, borrow: boolean) =>
  * לפרוט פעמיים במקום שאין בו מה לפרוט.
  */
 export function borrowCount(a: number, b: number): number {
-  let count = 0;
-  let borrow = 0;
-  for (const p of LOW_TO_HIGH) {
-    const digit = digitOf(a, p) - borrow;
-    if (digit < digitOf(b, p)) {
-      count += 1;
-      borrow = 1;
-    } else {
-      borrow = 0;
-    }
-  }
-  return count;
+  return borrowColumns(a, b).length;
 }
 
 const S6_BORROW_PHRASE: Record<number, string> = {

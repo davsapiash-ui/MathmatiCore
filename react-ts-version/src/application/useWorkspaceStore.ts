@@ -38,6 +38,7 @@ import {
 import { stateReducer } from '@/machines/vraMachine';
 import { computeCognitiveMastery, Q_FAIL_TAG } from '@/core/QMatrix';
 import { useStore } from '@/application/useStore';
+import { announceRegroup } from '@/application/useRegroupAnimationStore';
 import { useAuthStore, currentStudentUid } from '@/application/useAuthStore';
 import { CurriculumRouter } from '@/core/CurriculumRouter';
 import { syncQMatrixEvaluation } from '@/core/ExerciseValidationEngine';
@@ -150,6 +151,53 @@ export interface UndoFrame {
   answerDigits?: Partial<Record<Place, string>>;
   carryDigits?: Partial<Record<Place, string>>;
   operandDigits?: { a: Partial<Record<Place, string>>; b: Partial<Record<Place, string>> };
+  /**
+   * The per-column conversions as they were BEFORE a conversion action
+   * (see ColumnConversions). Undoing the grouping or decomposition takes the
+   * column's conversion back with it, so the column locks again until it is
+   * redone. Absent on frames of other actions and on frames saved before this
+   * existed; undoing those leaves the conversions as they are.
+   */
+  conversionsByColumn?: ColumnConversions;
+}
+
+/**
+ * Module 9 §א, מסמכים 01 ו-03: the enhanced-support keyboard lock and the
+ * "wrong digit before the conversion was done with the blocks" coaching
+ * trigger are both PER COLUMN. A column's conversion is done when the blocks
+ * performed it for that column:
+ *  - addition — ten blocks of the column grouped into one block of the next
+ *    ("הקבץ 10" on the column): `composed[place]`;
+ *  - subtraction — a block of the next column decomposed into ten blocks of
+ *    this column (a click on it, or a drag to the right): `decomposed[place]`.
+ * Chained conversions are just several columns: 403 − 128 decomposes a hundred
+ * into the tens (tens done) and then a ten into the units (units done).
+ * `hasGrouped`/`hasUngrouped` stay per exercise for meeting 1's checklist and
+ * the board checks; they no longer open a column.
+ */
+export interface ColumnConversions {
+  composed: Partial<Record<Place, boolean>>;
+  decomposed: Partial<Record<Place, boolean>>;
+}
+
+export function emptyColumnConversions(): ColumnConversions {
+  return { composed: {}, decomposed: {} };
+}
+
+/** A saved value back into shape; the database drops empty objects. */
+export function normalizeColumnConversions(raw: unknown): ColumnConversions {
+  const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, any>;
+  return { composed: { ...(r.composed ?? {}) }, decomposed: { ...(r.decomposed ?? {}) } };
+}
+
+/** Was the conversion this column needs performed with the blocks? */
+export function conversionDoneInColumn(conv: ColumnConversions, place: Place, isSubtraction: boolean | undefined): boolean {
+  return Boolean(isSubtraction ? conv.decomposed[place] : conv.composed[place]);
+}
+
+/** The conversions after one board event (a grouping from `from`, or a decomposition into `to`). */
+function withColumnConversion(conv: ColumnConversions, kind: 'composed' | 'decomposed', place: Place): ColumnConversions {
+  return { ...conv, [kind]: { ...conv[kind], [place]: true } };
 }
 
 interface WorkspaceState {
@@ -213,6 +261,8 @@ interface WorkspaceState {
   consecutiveDeletions: number;
   hasUngrouped: boolean;
   hasGrouped: boolean;
+  /** Which columns' conversions the blocks performed in this exercise (Module 9 §א, per column). */
+  conversionsByColumn: ColumnConversions;
   selectedChoiceId: string | null;
   answerDigits: Partial<Record<Place, string>>;
   carryDigits: Partial<Record<Place, string>>;
@@ -385,6 +435,10 @@ export function restoreUndoFrames(raw: unknown): UndoFrame[] {
         frame.carryDigits = { ...(f.carryDigits ?? {}) };
         frame.operandDigits = { a: { ...(f.operandDigits?.a ?? {}) }, b: { ...(f.operandDigits?.b ?? {}) } };
       }
+      // A conversion frame saved with no conversion before it comes back empty.
+      if (f.hasConversions || f.conversionsByColumn !== undefined) {
+        frame.conversionsByColumn = normalizeColumnConversions(f.conversionsByColumn);
+      }
       return frame;
     });
 }
@@ -400,6 +454,7 @@ function resetTaskInteraction(_isASD = false) {
     blocksAddedCount: 0,
     hasUngrouped: false,
     hasGrouped: false,
+    conversionsByColumn: emptyColumnConversions(),
     selectedChoiceId: null as string | null,
     answerDigits: {} as Partial<Record<Place, string>>,
     carryDigits: {} as Partial<Record<Place, string>>,
@@ -564,18 +619,49 @@ export function effectiveAnswerDigits(
  * be completed there without one — a carry in addition, a decomposition in
  * subtraction. Shared by the keyboard lock (Module 9) and by the third coaching
  * trigger, so both agree on what a required conversion is.
+ *
+ * The carry or borrow coming INTO the column is the exercise's own, walked up
+ * from the units — not what the child happened to write in a memory circle.
+ * With the typed circle as the carry, 85 + 17 left the tens (8 + 1 + 1 = 10)
+ * open until the child wrote the 1, and 512 − 13 never counted the tens
+ * (1 − 1 < 1) as needing a decomposition at all.
  */
 export function columnRequiresConversion(
   place: Place,
   numberA: number,
   numberB: number,
-  isSubtraction: boolean | undefined,
-  carryDigit: string | undefined
+  isSubtraction: boolean | undefined
 ): boolean {
-  const da = digitAt(numberA, place);
-  const db = digitAt(numberB, place);
-  const carry = parseInt(carryDigit || '0', 10) || 0;
-  return isSubtraction ? da < db : da + db + carry >= 10;
+  let carry = 0;
+  for (const p of PLACE_ORDER) {
+    const da = digitAt(numberA, p);
+    const db = digitAt(numberB, p);
+    const needs = isSubtraction ? da - carry < db : da + db + carry >= 10;
+    if (p === place) return needs;
+    carry = needs ? 1 : 0;
+  }
+  return false;
+}
+
+/**
+ * The third coaching trigger's "the conversion was done in this column".
+ * Meetings with blocks (מסמכים 01–03: "לפני שההמרה בוצעה בלבנים") — the
+ * blocks performed this column's conversion, the same notion that opens the
+ * keyboard lock. Meeting 8 has no blocks (מסמך 03 §3.8: "בלי רישום ההמרה
+ * בעיגול הזיכרון") — the conversion is recorded in a memory circle: the
+ * carried 1 above the next column in addition, the new digit above the next
+ * column (or the regrouped value above this one) in subtraction.
+ */
+export function conversionRecordedInColumn(
+  s: Pick<WorkspaceState, 'sessionNumber' | 'carryDigits' | 'conversionsByColumn'>,
+  place: Place,
+  isSubtraction: boolean | undefined
+): boolean {
+  if (s.sessionNumber === 8) {
+    const next = PLACE_ORDER[PLACE_ORDER.indexOf(place) + 1];
+    return Boolean((next && s.carryDigits[next]) || (isSubtraction && s.carryDigits[place]));
+  }
+  return conversionDoneInColumn(s.conversionsByColumn, place, isSubtraction);
 }
 
 /** Exact board a representation task prescribes (places it does not list must be empty). */
@@ -678,7 +764,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     counts: PlaceCounts,
     actionType: TelemetryEventType = 'BLOCK_DRAG_COMPLETE',
     /** The typed input as it was BEFORE the action (PRD Module 11 §א: "קלט"). */
-    input?: Pick<WorkspaceState, 'answerDigits' | 'carryDigits' | 'operandDigits'>
+    input?: Pick<WorkspaceState, 'answerDigits' | 'carryDigits' | 'operandDigits'>,
+    /** Conversion actions only: the per-column conversions BEFORE the action. */
+    conversions?: ColumnConversions
   ): UndoFrame[] {
     const frame: UndoFrame = { counts: { ...counts }, actionType };
     if (input) {
@@ -686,6 +774,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       frame.carryDigits = { ...input.carryDigits };
       frame.operandDigits = { a: { ...input.operandDigits.a }, b: { ...input.operandDigits.b } };
     }
+    if (conversions) frame.conversionsByColumn = normalizeColumnConversions(conversions);
     const stack = [...currentStack, frame];
     if (stack.length > UNDO_STACK_CAP) stack.shift();
     return stack;
@@ -1601,6 +1690,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     consecutiveDeletions: 0,
     hasUngrouped: false,
     hasGrouped: false,
+    conversionsByColumn: emptyColumnConversions(),
     selectedChoiceId: null,
     answerDigits: {},
     carryDigits: {},
@@ -1851,6 +1941,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // then reloaded was told "do the conversion yourself" on a correct board.
         hasGrouped: saved.hasGrouped ?? false,
         hasUngrouped: saved.hasUngrouped ?? false,
+        // Module 9 §א: a column already converted stays open after a reload —
+        // its ten blocks are no longer on the board to be grouped again.
+        conversionsByColumn: normalizeColumnConversions(saved.conversionsByColumn),
         hasClearedBoard: saved.hasClearedBoard ?? false,
         focusedPlace: null,
         undoStack: restoreUndoFrames(saved.undoStack),
@@ -1899,8 +1992,17 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const addedCount = isFromStore ? (s.blocksAddedCount + 1) : s.blocksAddedCount;
 
         const actionType: TelemetryEventType = (isGroup || isUngroup) ? 'REGROUPING_SUCCESS' : 'BLOCK_DRAG_COMPLETE';
-        const stack = [...s.undoStack, { counts: { ...s.counts }, actionType }];
-        if (stack.length > UNDO_STACK_CAP) stack.shift();
+        const stack = createNextUndoStack(
+          s.undoStack,
+          s.counts,
+          actionType,
+          undefined,
+          isGroup || isUngroup ? s.conversionsByColumn : undefined
+        );
+        // Module 9 §א, per column: which column this drop converted.
+        let conversionsByColumn = s.conversionsByColumn;
+        if (result.ungroupEvent) conversionsByColumn = withColumnConversion(conversionsByColumn, 'decomposed', result.ungroupEvent.to);
+        for (const ev of result.regroupEvents ?? []) conversionsByColumn = withColumnConversion(conversionsByColumn, 'composed', ev.from);
 
         const studentId = currentStudentUid();
         const currentTask = getActiveTasks(s)[s.standardTaskIdx] || null;
@@ -1970,7 +2072,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           }).catch(console.error);
         }
 
-        return { 
+        // מסמך 03 §3.3–3.5 / מודול 8 §א: the drag-right decomposition runs the
+        // same animation as the click. View only — the counts above are final.
+        if (result.ungroupEvent) {
+          announceRegroup({ kind: 'split', from: result.ungroupEvent.from, to: result.ungroupEvent.to, toCount: result.counts[result.ungroupEvent.to] });
+        } else if (result.regroupEvents && result.regroupEvents.length > 0) {
+          const ev = result.regroupEvents[0];
+          announceRegroup({ kind: 'group', from: ev.from, to: ev.to, toCount: result.counts[ev.to] });
+        }
+
+        return {
           counts: result.counts,
           undoStack: stack,
           regroupTriggerTimestamps: updatedTriggerTimestamps,
@@ -1981,6 +2092,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           ...(isDelete ? { hasDeletedBlock: true } : {}),
           ...(isUngroup ? { hasUngrouped: true } : {}),
           ...(isGroup ? { hasGrouped: true } : {}),
+          conversionsByColumn,
           ...((isGroup || isUngroup) && s.keyboardState === 'LOCKED' ? { keyboardState: 'UNLOCKED' as KeyboardState } : {})
         };
       });
@@ -2085,7 +2197,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           flagConstraintError(place);
           return state;
         }
-        const undoStack = createNextUndoStack(state.undoStack, state.counts, 'REGROUPING_SUCCESS');
+        const undoStack = createNextUndoStack(state.undoStack, state.counts, 'REGROUPING_SUCCESS', undefined, state.conversionsByColumn);
 
         const studentId = currentStudentUid();
         const task = getActiveTasks(state)[state.standardTaskIdx] || null;
@@ -2128,6 +2240,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         }
 
         get().transitionTo('REGROUPING_ACTIVE');
+        // מסמך 03 §3.5: the block breaks apart and travels right. View only.
+        announceRegroup({ kind: 'split', from: place, to: res.event.to, toCount: res.counts[res.event.to] });
 
         return {
           counts: res.counts,
@@ -2135,6 +2249,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           regroupTriggerTimestamps: updatedTriggerTimestamps,
           hasInteracted: true,
           hasUngrouped: true,
+          // The decomposition feeds the column to the right (a ten into the units).
+          conversionsByColumn: withColumnConversion(state.conversionsByColumn, 'decomposed', res.event.to),
           keyboardState: state.keyboardState === 'LOCKED' ? ('UNLOCKED' as KeyboardState) : state.keyboardState,
         };
       });
@@ -2148,7 +2264,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           flagConstraintError(place);
           return state;
         }
-        const undoStack = createNextUndoStack(state.undoStack, state.counts, 'REGROUPING_SUCCESS');
+        const undoStack = createNextUndoStack(state.undoStack, state.counts, 'REGROUPING_SUCCESS', undefined, state.conversionsByColumn);
 
         const studentId = currentStudentUid();
         const task = getActiveTasks(state)[state.standardTaskIdx] || null;
@@ -2191,6 +2307,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         }
 
         get().transitionTo('REGROUPING_ACTIVE');
+        // מסמך 03 §3.4: ten blocks merge into one and travel left. View only.
+        announceRegroup({ kind: 'group', from: place, to: res.event.to, toCount: res.counts[res.event.to] });
 
         return {
           counts: res.counts,
@@ -2198,6 +2316,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           regroupTriggerTimestamps: updatedTriggerTimestamps,
           hasInteracted: true,
           hasGrouped: true,
+          // The grouping converts the column it was pressed on (ten units into a ten).
+          conversionsByColumn: withColumnConversion(state.conversionsByColumn, 'composed', res.event.from),
           keyboardState: state.keyboardState === 'LOCKED' ? ('UNLOCKED' as KeyboardState) : state.keyboardState,
         };
       });
@@ -2258,6 +2378,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           ...(snapshot.operandDigits
             ? { operandDigits: { a: { ...snapshot.operandDigits.a }, b: { ...snapshot.operandDigits.b } } }
             : {}),
+          // Undoing a grouping or decomposition takes its column's conversion
+          // back: the column locks again until the blocks redo it (Module 9 §א).
+          ...(snapshot.conversionsByColumn
+            ? { conversionsByColumn: normalizeColumnConversions(snapshot.conversionsByColumn) }
+            : {}),
           undoStack: stack,
           undoCount: s.undoCount + 1,
           consecutiveUndoCount: nextConsecutiveUndos,
@@ -2316,14 +2441,15 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
             // מסמך 03, trigger 3: a required conversion the learner did not perform.
             // Wrong digit, in a column the algorithm cannot finish without a carry
-            // or a decomposition, with no conversion made on the canvas yet.
+            // or a decomposition, before THAT column's conversion was done
+            // (מסמכים 01–04: "בטור המצריך המרה לפני שההמרה בוצעה בלבנים").
+            // It used to ask whether any conversion was made in the exercise, so
+            // after one grouping the card never opened in another carry column.
             if (isCorrect === false && task) {
               const { a, b } = effectiveArithmetic(task, s.isASD);
-              const conversionDone = task.isSubtraction ? s.hasUngrouped : s.hasGrouped;
               if (
-                !conversionDone &&
-                !s.carryDigits[place] &&
-                columnRequiresConversion(place, a, b, task.isSubtraction, s.carryDigits[place])
+                columnRequiresConversion(place, a, b, task.isSubtraction) &&
+                !conversionRecordedInColumn(s, place, task.isSubtraction)
               ) {
                 setTimeout(() => get().openSocraticCard('conversion_not_performed'), 0);
               }
@@ -2530,6 +2656,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const undoStack = createNextUndoStack(s.undoStack, s.counts, 'REGROUPING_SUCCESS');
         get().transitionTo('REGROUPING_ACTIVE');
         set({ counts: result.counts, undoStack, hasInteracted: true, hasUngrouped: true });
+        if (result.ungroupEvent) {
+          announceRegroup({ kind: 'split', from: result.ungroupEvent.from, to: result.ungroupEvent.to, toCount: result.counts[result.ungroupEvent.to] });
+        }
       }
     },
 
@@ -2865,14 +2994,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const colIdx = colPlaces.indexOf(place);
       if (colIdx === -1) return false;
 
-      const requiresExchange = columnRequiresConversion(place, numberA, numberB, isSubtraction, s.carryDigits[place]);
-      if (requiresExchange) {
-        const conversionDone = isSubtraction ? s.hasUngrouped : s.hasGrouped;
-        if (!conversionDone && !s.carryDigits[place]) {
-          return true;
-        }
-      }
-      return false;
+      // The highest column has no column above it on the board to group into
+      // or decompose from; locking it would leave nothing that could open it.
+      if (PLACE_ORDER.indexOf(place) === PLACE_ORDER.length - 1) return false;
+
+      // Module 9 §א: "ננעלת בטורים הדורשים המרה… ומשתחררת רק עם השלמת הפעולה
+      // הפיזית בקנבס הלבנים" — column by column. Two things used to open it
+      // without that: any digit written in the column's memory circle, and one
+      // conversion anywhere in the exercise, which opened every column.
+      if (!columnRequiresConversion(place, numberA, numberB, isSubtraction)) return false;
+      return !conversionDoneInColumn(s.conversionsByColumn, place, isSubtraction);
     },
     checkTimeExceeded: () => {
       const { sessionDeadlineTime, isTimeExceeded } = get();
@@ -2917,6 +3048,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         consecutiveDeletions: 0,
         hasUngrouped: false,
         hasGrouped: false,
+        conversionsByColumn: emptyColumnConversions(),
         selectedChoiceId: null,
         answerDigits: {},
         carryDigits: {},

@@ -22,6 +22,8 @@ import {
   sessionNumberFromId,
   computeExerciseOutcomes,
   computeToolMastery,
+  exercisePathType,
+  CHOICE_PATH_LABEL_HE,
   isScoredMeeting,
   SANDBOX_MEETING_PURPOSE_HE,
   TOOL_LABEL_HE,
@@ -38,7 +40,13 @@ import {
 } from "./reportAnalysis";
 import { rtlText } from "./hebrewPdf";
 import { CHROMIUM_PDF_RUNTIME, renderHtmlToPdf, renderWithFallback } from "./htmlPdf";
-import { EXACT_AI_FALLBACK_TEXT_HE, OUTCOME_HE, pedagogicalReportHtml, reportFooterTemplate } from "./reportHtml";
+import {
+  CHOICE_EXERCISES_HEADING_HE,
+  EXACT_AI_FALLBACK_TEXT_HE,
+  OUTCOME_HE,
+  pedagogicalReportHtml,
+  reportFooterTemplate,
+} from "./reportHtml";
 const PDFDocument = require("pdfkit");
 
 export const EXACT_AI_FALLBACK_TEXT = EXACT_AI_FALLBACK_TEXT_HE;
@@ -62,8 +70,9 @@ const COLUMN_NAMES_HE = ["אחדות", "עשרות", "מאות", "אלפים"];
  * the aggregate-only form the spec rules out, and it dropped deletions,
  * hesitations and Socratic cards entirely.
  */
-function generateExerciseNarrativeFromEvents(telemetryDocs: Record<string, any>[]): string[] {
+export function generateExerciseNarrativeFromEvents(telemetryDocs: Record<string, any>[]): ExerciseNarratives {
   const narratives: string[] = [];
+  const choiceNarratives: string[] = [];
   const exerciseMap: Record<string, any[]> = {};
 
   // Group events chronologically by exercise_id
@@ -173,7 +182,6 @@ function generateExerciseNarrativeFromEvents(telemetryDocs: Record<string, any>[
       clauses.unshift(`ייצג את המספרים בקנבס באמצעות בלוקים של ${distinct.join(", ")}`);
     }
 
-    const ordinal = ORDINALS_HE[exerciseIdx - 1] || `ה-${exerciseIdx}`;
     const ending = completed
       ? firstAttemptCorrect
         ? "והשלים את התרגיל בניסיון הראשון"
@@ -181,6 +189,15 @@ function generateExerciseNarrativeFromEvents(telemetryDocs: Record<string, any>[
       : "ולא השלים את התרגיל";
 
     const body = clauses.length > 0 ? clauses.join(", ") + ", " : "";
+    // מסמך 03: choice exercises appear "מסומנים כתרגילי בחירה, בנפרד משבעת
+    // תרגילי החובה". They used to be numbered on after the compulsory ones
+    // ("בתרגיל השמיני"), as if the meeting had eight compulsory exercises.
+    const pathType = exercisePathType(exId);
+    if (pathType !== "compulsory") {
+      choiceNarratives.push(`${CHOICE_PATH_LABEL_HE[pathType]} (${exId}): הלומד ${body}${ending}.`);
+      continue;
+    }
+    const ordinal = ORDINALS_HE[exerciseIdx - 1] || `ה-${exerciseIdx}`;
     narratives.push(`בתרגיל ${ordinal} (${exId}) הלומד ${body}${ending}.`);
     exerciseIdx++;
   }
@@ -189,7 +206,13 @@ function generateExerciseNarrativeFromEvents(telemetryDocs: Record<string, any>[
     narratives.push("לא נרשמו אירועי טלמטריה עבור משימות החובה במפגש זה.");
   }
 
-  return narratives;
+  return { compulsory: narratives, choice: choiceNarratives };
+}
+
+/** The narrative, split: the compulsory exercises, and the choice exercises marked and apart. */
+export interface ExerciseNarratives {
+  compulsory: string[];
+  choice: string[];
 }
 
 /**
@@ -303,6 +326,21 @@ export function createPedagogicalReportPdfBufferWithPdfkit(report: Record<string
       doc.moveDown(0.4);
       if (report.exercise_narratives && Array.isArray(report.exercise_narratives)) {
         for (const narrative of report.exercise_narratives) {
+          doc.fontSize(10).fillColor("#334155");
+          rtlText(doc, `• ${narrative}`, { lineGap: 3 });
+          doc.moveDown(0.3);
+        }
+      }
+      // Choice exercises: marked, and apart from the compulsory ones (מסמך 03).
+      const choiceNarratives: string[] = Array.isArray(report.choice_exercise_narratives)
+        ? report.choice_exercise_narratives
+        : [];
+      if (choiceNarratives.length > 0) {
+        doc.moveDown(0.4);
+        doc.fontSize(11).fillColor("#1e293b");
+        rtlText(doc, CHOICE_EXERCISES_HEADING_HE);
+        doc.moveDown(0.2);
+        for (const narrative of choiceNarratives) {
           doc.fontSize(10).fillColor("#334155");
           rtlText(doc, `• ${narrative}`, { lineGap: 3 });
           doc.moveDown(0.3);
@@ -471,7 +509,9 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
       `הפעולות המתועדות במפגש ${sessionId} שייכות לתלמיד ${foreign.student_id}, לא לתלמיד ${clampedStudentNum}. הדוח לא הופק.`
     );
   }
-  const exerciseNarratives = generateExerciseNarrativeFromEvents(telemetryDocs);
+  const narrativesByPath = generateExerciseNarrativeFromEvents(telemetryDocs);
+  const exerciseNarratives = narrativesByPath.compulsory;
+  const choiceExerciseNarratives = narrativesByPath.choice;
 
   // The learner's live record: the approved path and gate state live there
   // for every meeting, whether or not a SessionDocument was written.
@@ -746,6 +786,7 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     support_profile_id: studentData?.support_profile_id || "default",
     support_profile_version: studentData?.support_profile_version || 1,
     exercise_narratives: exerciseNarratives,
+    choice_exercise_narratives: choiceExerciseNarratives,
     research_measures: researchMeasures,
     recommendation_tier: recommendationTier,
     knowledge_gaps: aiAnalysis?.knowledge_gaps || [],
@@ -819,6 +860,7 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
       exercise_outcomes: exerciseOutcomes,
       exercise_titles: exerciseTitles,
       exercise_narratives: exerciseNarratives,
+      choice_exercise_narratives: choiceExerciseNarratives,
       research_measures: researchMeasures,
       knowledge_gaps: report.knowledge_gaps,
       teaching_recommendations: report.teaching_recommendations,

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckSquare, Square, RotateCcw, Brain, HelpCircle, Award, Sparkles, ArrowLeft } from 'lucide-react';
+import { CheckSquare, Square, RotateCcw, CircleDot, HelpCircle, Award, ArrowLeft } from 'lucide-react';
 import type { SRLReflectionResult } from '@/core/srlReflection';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 
@@ -19,35 +19,99 @@ interface Session8ReflectionScreenProps {
   };
 }
 
+type EffortId = 'EASY' | 'MEDIUM' | 'HARD';
+
 /**
- * מודול 16: לוח רפלקציה וויסות עצמי (SRL Reflection Board - End of Session 8)
- * שלב א: הערכת מאמץ (3 אימוג'ים ויזואליים: קל, בינוני, מאתגר).
- * שלב ב: סימון אסטרטגיות למידה ובקרה (Undo, עיגולי זיכרון, שימוש ברמזים/לבנים).
- * שלב ג: חישוב והצגת מדד התמדה וויסות עצמי: (U / (U + E + G)) * 100 עם טיפול בחלוקה באפס (100% כברירת מחדל).
- * ללא חלונות קופצים (Inline), אפס PII.
+ * כל מה שהילד רואה ושומע במסך. הנוסחים של מסמך 03 §3.8, "מסך הרפלקציה
+ * האישי התלת שלבי"; ההתנהגות של PRD מודול 16 §ג.
+ *
+ * שלב 1 — PRD: "בחירה מתוך 3 סמלים חזותיים (מאמץ קל, בינוני, רב)". מסמך 03:
+ * "סרגל מאמץ חזותי קווי תלת שלבי ללא מילים: רמה אחת: קל, רמה שתיים: מתאים,
+ * רמה שלוש: מאתגר". שניהם מתקיימים: על המסך שלושה סמלים של סרגל עולה (פס
+ * אחד, שניים, שלושה) — חזותיים, בלי מילים, ומאמץ קל־בינוני־רב בגובה הפסים.
+ * המילים של מסמך 03 נשמעות בהקראה ומשמשות שם נגיש לכל כפתור, כך שילד
+ * שאינו קורא, או שמשתמש בקורא מסך, יודע מה כל רמה.
+ *
+ * שלב 2 — שלוש האסטרטגיות בסדר של המרשם (שורה 10): כפתור ביטול פעולה,
+ * עיגולי הזיכרון, השאלות בכרטיס החניכה. אפשר לסמן כמה (מסמך 03: "לסמן כל
+ * תשובה מתאימה מתוך שלוש").
+ *
+ * שלב 3 — PRD: "הצגת האחוז, מסר מעצים וכפתור סיום מפגש סופי". המסר הוא
+ * המשפט של מסמך 03 ("ותיקנתם" בכתיב מלא).
+ *
+ * אין מילים באנגלית, והפנייה בגוף שני רבים.
+ */
+export const REFLECTION_TEXT_HE = {
+  stepLabel: (n: 1 | 2 | 3) => `שלב ${n} מתוך 3`,
+  stepLabelSpoken: { 1: 'שלב ראשון מתוך שלושה.', 2: 'שלב שני מתוך שלושה.', 3: 'שלב שלישי מתוך שלושה.' } as const,
+  effortQuestion: 'כמה מאמץ והשתדלות השקעתם היום בפתרון התרגילים?',
+  effortInstruction: 'בחרו רמה אחת.',
+  strategyQuestion: 'מה עזר לכם הכי הרבה להצליח היום בפתרון התרגילים?',
+  strategyInstruction: 'אפשר לסמן יותר מתשובה אחת.',
+  feedbackTitle: 'כל הכבוד!',
+  feedbackBody: 'ראינו שחקרתם, ניסיתם ותיקנתם טעויות בעצמכם כמו מתמטיקאים אמיתיים! המשיכו להאמין בכוח שלכם!',
+  persistenceLabel: 'מדד ההתמדה שלכם',
+  next: 'המשיכו',
+  back: 'חזרה',
+  finish: 'סיום המפגש',
+} as const;
+
+/** שלוש רמות המאמץ: סמל חזותי בלבד על המסך; השם (מסמך 03) להקראה ולקורא מסך. */
+export const EFFORT_LEVELS: ReadonlyArray<{ id: EffortId; bars: 1 | 2 | 3; spokenHe: string }> = [
+  { id: 'EASY', bars: 1, spokenHe: 'רמה אחת: קל' },
+  { id: 'MEDIUM', bars: 2, spokenHe: 'רמה שתיים: מתאים' },
+  { id: 'HARD', bars: 3, spokenHe: 'רמה שלוש: מאתגר' },
+];
+
+/** מזהי האסטרטגיות נשמרים כפי שהיו (core/srlReflection.ts ממפה אותם). */
+export const STRATEGY_OPTIONS = [
+  { id: 'undo', label: 'כפתור ביטול פעולה שאיפשר לי לתקן טעויות בביטחון וברוגע', icon: RotateCcw },
+  { id: 'memory', label: 'עיגולי הזיכרון שעזרו לי לנהל את המעברים', icon: CircleDot },
+  { id: 'hints', label: 'השאלות המנחות בכרטיס החניכה', icon: HelpCircle },
+] as const;
+
+/** מה שנקרא בקול בכל שלב — כל הנחיה שעל המסך, וגם שמות הרמות שאין להן מילים על המסך. */
+export function reflectionSpeech(step: 1 | 2 | 3, persistencePercent: number): string {
+  const t = REFLECTION_TEXT_HE;
+  if (step === 1) {
+    return [t.stepLabelSpoken[1], t.effortQuestion, t.effortInstruction, ...EFFORT_LEVELS.map((l) => `${l.spokenHe}.`)].join(' ');
+  }
+  if (step === 2) {
+    return [t.stepLabelSpoken[2], t.strategyQuestion, t.strategyInstruction, ...STRATEGY_OPTIONS.map((o) => `${o.label}.`)].join(' ');
+  }
+  return [t.stepLabelSpoken[3], t.feedbackTitle, t.feedbackBody, `${t.persistenceLabel}: ${persistencePercent} אחוז.`].join(' ');
+}
+
+/** סרגל קווי: שלושה פסים בגובה עולה, ו-`filled` מהם צבועים. */
+function EffortBars({ filled }: { filled: 1 | 2 | 3 }) {
+  const heights = ['h-4', 'h-8', 'h-12'];
+  return (
+    <span aria-hidden="true" className="flex items-end justify-center gap-1.5 h-12">
+      {heights.map((h, i) => (
+        <span
+          key={h}
+          className={`w-4 rounded-md ${h} ${i < filled ? 'bg-indigo-500 dark:bg-indigo-400' : 'bg-slate-200 dark:bg-slate-700'}`}
+        />
+      ))}
+    </span>
+  );
+}
+
+/**
+ * מודול 16: לוח רפלקציה תלת־שלבי בסיום מפגש 8.
+ * שלב 1: הערכת מאמץ. שלב 2: בחירת אסטרטגיות. שלב 3: משוב התמדה —
+ * (U / (U + E + G)) * 100, ו-100% כשהמכנה אפס.
+ * ללא חלונות קופצים, אפס PII.
  */
 export function Session8ReflectionScreen({ onComplete, metrics }: Session8ReflectionScreenProps) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [effortLevel, setEffortLevel] = useState<'EASY' | 'MEDIUM' | 'HARD' | null>(null);
+  const [effortLevel, setEffortLevel] = useState<EffortId | null>(null);
   const [selectedStrategies, setSelectedStrategies] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Stage A: 3 Visual Emojis
-  const effortOptions = [
-    { id: 'EASY' as const, emoji: '🟢', label: 'היה לי קל וברור', desc: 'פתרתי בביטחון ובזריזות', color: 'border-emerald-400 bg-emerald-50/60 dark:bg-emerald-950/20' },
-    { id: 'MEDIUM' as const, emoji: '🟡', label: 'השקעתי מאמץ והצלחתי', desc: 'חשבתי לעומק והתקדמתי', color: 'border-amber-400 bg-amber-50/60 dark:bg-amber-950/20' },
-    { id: 'HARD' as const, emoji: '🔴', label: 'היה מאתגר מאוד', desc: 'התאמצתי ולמדתי דברים חדשים', color: 'border-rose-400 bg-rose-50/60 dark:bg-rose-950/20' },
-  ];
-
-  // Stage B: Strategy Checkboxes (Strictly 3 digital strategies per PRD v5.0 Module 16)
-  const strategyOptions = [
-    { id: 'undo', label: 'שימוש בכפתור ביטול הפעולה (Undo) לבקרה ותיקון עצמי', icon: RotateCcw },
-    { id: 'memory', label: 'שימוש בעיגולי הזיכרון בעמודות לחישוב שארית', icon: Brain },
-    { id: 'hints', label: 'שימוש בשאלות כרטיס החניכה הסוקרטי והרמזים המכוונים', icon: HelpCircle },
-  ];
+  const t = REFLECTION_TEXT_HE;
 
   const toggleStrategy = (id: string) => {
-    setSelectedStrategies(prev => 
+    setSelectedStrategies(prev =>
       prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
     );
   };
@@ -74,117 +138,95 @@ export function Session8ReflectionScreen({ onComplete, metrics }: Session8Reflec
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/90 backdrop-blur-md p-4 font-body" dir="rtl">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         className="max-w-2xl w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 md:p-10 shadow-2xl relative overflow-hidden"
       >
         <AnimatePresence mode="wait">
-          {/* STAGE A: Effort Assessment (3 Visual Emojis) */}
+          {/* שלב 1: הערכת מאמץ — סרגל חזותי ללא מילים */}
           {step === 1 && (
-            <motion.div 
+            <motion.div
               key="step1"
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -15 }}
               className="flex flex-col items-center text-center gap-6"
             >
-              <div className="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 flex items-center justify-center text-3xl shadow-inner">
-                ✨
-              </div>
-
               <div>
-                <span className="text-xs font-black text-indigo-600 uppercase tracking-wider block mb-1">שלב א מתוך ג: רפלקציית מאמץ</span>
+                <span className="text-xs font-black text-indigo-600 block mb-1">{t.stepLabel(1)}</span>
                 <div className="flex items-center justify-center gap-3">
                   <h1 className="text-2xl md:text-3xl font-display font-black text-slate-900 dark:text-white">
-                    איך הרגשתם במהלך פתרון המשימות?
+                    {t.effortQuestion}
                   </h1>
-                  <UdlSpeechButton
-                    text={[
-                      'שלב א מתוך ג: רפלקציית מאמץ.',
-                      'איך הרגשתם במהלך פתרון המשימות?',
-                      'בחרו את רמת המאמץ שהשקעתם במפגש המסכם.',
-                      ...effortOptions.map((o) => `${o.label}. ${o.desc}`),
-                    ].join(' ')}
-                    className="shrink-0"
-                  />
+                  <UdlSpeechButton text={reflectionSpeech(1, persistenceRatio)} className="shrink-0" />
                 </div>
-                <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
-                  בחרו את רמת המאמץ שהשקעתם במפגש המסכם:
-                </p>
+                <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">{t.effortInstruction}</p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full pt-2">
-                {effortOptions.map((opt) => (
+              <div className="grid grid-cols-3 gap-4 w-full pt-2" role="group" aria-label={t.effortQuestion}>
+                {EFFORT_LEVELS.map((level) => (
                   <button
-                    key={opt.id}
-                    onClick={() => setEffortLevel(opt.id)}
-                    className={`flex flex-col items-center text-center p-5 rounded-2xl border-2 transition-all cursor-pointer ${
-                      effortLevel === opt.id
+                    key={level.id}
+                    type="button"
+                    onClick={() => setEffortLevel(level.id)}
+                    aria-label={level.spokenHe}
+                    aria-pressed={effortLevel === level.id}
+                    title={level.spokenHe}
+                    className={`flex items-center justify-center p-5 rounded-2xl border-2 transition-all cursor-pointer ${
+                      effortLevel === level.id
                         ? 'border-indigo-600 bg-indigo-50/60 dark:bg-indigo-950/30 shadow-md scale-105'
-                        : `${opt.color} hover:scale-102 border-transparent`
+                        : 'border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/40 hover:scale-102'
                     }`}
                   >
-                    <span className="text-4xl mb-3">{opt.emoji}</span>
-                    <span className="font-extrabold text-base text-slate-900 dark:text-white">{opt.label}</span>
-                    <span className="text-xs text-slate-500 dark:text-slate-400 mt-1">{opt.desc}</span>
+                    <EffortBars filled={level.bars} />
                   </button>
                 ))}
               </div>
 
               <button
+                type="button"
                 disabled={!effortLevel}
                 onClick={() => setStep(2)}
                 className="mt-4 px-8 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-base rounded-2xl shadow-lg shadow-indigo-600/25 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center gap-2"
               >
-                <span>המשך לשלב האסטרטגיות</span>
+                <span>{t.next}</span>
                 <ArrowLeft className="w-4 h-4" />
               </button>
             </motion.div>
           )}
 
-          {/* STAGE B: Strategy Checkboxes */}
+          {/* שלב 2: מה עזר לכם — שלוש אסטרטגיות, אפשר לסמן כמה */}
           {step === 2 && (
-            <motion.div 
+            <motion.div
               key="step2"
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -15 }}
               className="flex flex-col items-center text-center gap-6"
             >
-              <div className="w-16 h-16 rounded-2xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 flex items-center justify-center text-3xl shadow-inner">
-                🧭
-              </div>
-
               <div>
-                <span className="text-xs font-black text-purple-600 uppercase tracking-wider block mb-1">שלב ב מתוך ג: אסטרטגיות למידה</span>
+                <span className="text-xs font-black text-purple-600 block mb-1">{t.stepLabel(2)}</span>
                 <div className="flex items-center justify-center gap-3">
                   <h1 className="text-2xl md:text-3xl font-display font-black text-slate-900 dark:text-white">
-                    באילו אסטרטגיות וכלים נעזרתם?
+                    {t.strategyQuestion}
                   </h1>
-                  <UdlSpeechButton
-                    text={[
-                      'שלב ב מתוך ג: אסטרטגיות למידה.',
-                      'באילו אסטרטגיות וכלים נעזרתם?',
-                      'סמנו את הכלים שסייעו לכם לבדוק את עצמכם ולהתקדם.',
-                      ...strategyOptions.map((o) => o.label),
-                    ].join(' ')}
-                    className="shrink-0"
-                  />
+                  <UdlSpeechButton text={reflectionSpeech(2, persistenceRatio)} className="shrink-0" />
                 </div>
-                <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
-                  סמנו את הכלים שסייעו לכם לבדוק את עצמכם ולהתקדם:
-                </p>
+                <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">{t.strategyInstruction}</p>
               </div>
 
               <div className="flex flex-col gap-3 w-full text-right pt-2">
-                {strategyOptions.map((strat) => {
+                {STRATEGY_OPTIONS.map((strat) => {
                   const Icon = strat.icon;
                   const isChecked = selectedStrategies.includes(strat.id);
 
                   return (
                     <button
                       key={strat.id}
+                      type="button"
+                      role="checkbox"
+                      aria-checked={isChecked}
                       onClick={() => toggleStrategy(strat.id)}
                       className={`p-4 rounded-2xl border-2 transition-all flex items-center justify-between gap-4 cursor-pointer text-right ${
                         isChecked
@@ -211,80 +253,65 @@ export function Session8ReflectionScreen({ onComplete, metrics }: Session8Reflec
 
               <div className="flex gap-3 w-full mt-2">
                 <button
+                  type="button"
                   onClick={() => setStep(1)}
                   className="py-3.5 px-6 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-sm hover:bg-slate-200 transition-all cursor-pointer"
                 >
-                  חזרה
+                  {t.back}
                 </button>
                 <button
+                  type="button"
                   onClick={() => setStep(3)}
                   className="flex-1 py-3.5 px-8 bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-base rounded-2xl shadow-lg shadow-purple-600/25 transition-all cursor-pointer flex items-center justify-center gap-2"
                 >
-                  <span>המשך לחישוב מדד ההתמדה</span>
+                  <span>{t.next}</span>
                   <ArrowLeft className="w-4 h-4" />
                 </button>
               </div>
             </motion.div>
           )}
 
-          {/* STAGE C: Persistence Metric Calculation & Celebration */}
+          {/* שלב 3: משוב חיובי מעודד התמדה, האחוז וכפתור הסיום */}
           {step === 3 && (
-            <motion.div 
+            <motion.div
               key="step3"
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -15 }}
               className="flex flex-col items-center text-center gap-6"
             >
-              <div className="w-16 h-16 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center text-3xl shadow-inner">
+              <div className="w-16 h-16 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center text-3xl shadow-inner" aria-hidden="true">
                 🏆
               </div>
 
               <div>
-                <span className="text-xs font-black text-emerald-600 uppercase tracking-wider block mb-1">שלב ג מתוך ג: מדד ההתמדה והוויסות העצמי</span>
+                <span className="text-xs font-black text-emerald-600 block mb-1">{t.stepLabel(3)}</span>
                 <div className="flex items-center justify-center gap-3">
                   <h1 className="text-2xl md:text-3xl font-display font-black text-slate-900 dark:text-white">
-                    כל הכבוד על הדרך וההתמדה!
+                    {t.feedbackTitle}
                   </h1>
-                  <UdlSpeechButton
-                    text={[
-                      'כל הכבוד על הדרך וההתמדה!',
-                      'השלמתם בהצלחה את מסע הלמידה במתמטיקור.',
-                      `מדד ההתמדה והבקרה העצמית שלכם: ${persistenceRatio} אחוז.`,
-                    ].join(' ')}
-                    className="shrink-0"
-                  />
+                  <UdlSpeechButton text={reflectionSpeech(3, persistenceRatio)} className="shrink-0" />
                 </div>
-                <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
-                  השלמתם בהצלחה את מסע הלמידה ב-MathmatiCore!
+                <p className="text-slate-600 dark:text-slate-300 text-base mt-2 max-w-md leading-relaxed">
+                  {t.feedbackBody}
                 </p>
               </div>
 
-              {/* Persistence Score Box */}
-              <div className="w-full bg-gradient-to-br from-emerald-50 via-teal-50 to-sky-50 dark:from-slate-800 dark:to-slate-850 p-6 rounded-3xl border border-emerald-200 dark:border-slate-700 flex flex-col items-center gap-3">
-                <div className="flex items-center gap-2 text-xs font-bold text-emerald-800 dark:text-emerald-300">
-                  <Sparkles className="w-4 h-4 text-amber-500" />
-                  <span>מדד התמדה ובקרה עצמית (SRL Persistence Index):</span>
-                </div>
-
-                <div className="text-5xl font-display font-black text-emerald-600 dark:text-emerald-400">
+              <div className="w-full bg-gradient-to-br from-emerald-50 via-teal-50 to-sky-50 dark:from-slate-800 dark:to-slate-850 p-6 rounded-3xl border border-emerald-200 dark:border-slate-700 flex flex-col items-center gap-2">
+                <span className="text-sm font-bold text-emerald-800 dark:text-emerald-300">{t.persistenceLabel}</span>
+                <div className="text-5xl font-display font-black text-emerald-600 dark:text-emerald-400" dir="ltr">
                   {persistenceRatio}%
                 </div>
-
-                <p className="text-xs text-slate-600 dark:text-slate-300 max-w-md leading-relaxed mt-1">
-                  {persistenceRatio >= 80 
-                    ? 'הפגנתם ויסות עצמי גבוה ובקרה מעולה לאורך כל המפגשים. בדקתם ותיקנתם את הפתרונות באופן עצמאי!'
-                    : 'השקעתם מחשבה, התמדתם בניסיונות ובניתם בסיס מתמטי איתן להמשך הדרך!'}
-                </p>
               </div>
 
               <button
+                type="button"
                 onClick={handleComplete}
                 disabled={isSubmitting}
                 className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-base rounded-2xl shadow-lg shadow-emerald-600/25 transition-all cursor-pointer flex items-center justify-center gap-2 mt-2"
               >
                 <Award className="w-5 h-5" />
-                <span>סיום מפגש 8 וחזרה ללובי</span>
+                <span>{t.finish}</span>
               </button>
             </motion.div>
           )}

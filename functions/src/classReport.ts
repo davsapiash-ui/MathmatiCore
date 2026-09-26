@@ -29,6 +29,9 @@ import {
   type FadingGap,
   computeExerciseOutcomes,
   computeToolMastery,
+  CHOICE_PATH_LABEL_HE,
+  exercisePathType,
+  type ExercisePathType,
   isScoredMeeting,
   SANDBOX_MEETING_PURPOSE_HE,
   TOOL_LABEL_HE,
@@ -40,7 +43,14 @@ import {
 import { EXACT_AI_FALLBACK_TEXT } from "./pedagogicalReport";
 import { rtlText } from "./hebrewPdf";
 import { CHROMIUM_PDF_RUNTIME, renderHtmlToPdf, renderWithFallback } from "./htmlPdf";
-import { CLASS_REPORT_PDF_OPTIONS, OUTCOME_HE, TIER_LABEL_HE, classReportHtml, reportFooterTemplate } from "./reportHtml";
+import {
+  CHOICE_EXERCISES_HEADING_HE,
+  CLASS_REPORT_PDF_OPTIONS,
+  OUTCOME_HE,
+  TIER_LABEL_HE,
+  classReportHtml,
+  reportFooterTemplate,
+} from "./reportHtml";
 import { resolveRecommendationTier, type RecommendationTier } from "./reportAnalysis";
 import { GEMINI_MODEL_ID, GEMINI_SECRETS, getGeminiClient } from "./geminiConfig";
 const PDFDocument = require("pdfkit");
@@ -138,6 +148,8 @@ export interface ClassLearnerRow {
 
 export interface ClassExerciseRow {
   exercise_id: string;
+  /** Appendix A §2: compulsory, or a choice exercise (consolidation / challenge) — shown apart (מסמך 03). */
+  path_type: ExercisePathType;
   attempted: number;
   completed: number;
   first_try: number;
@@ -347,7 +359,7 @@ export function aggregateClass(
   const exerciseRow = (id: string) => {
     let row = perExercise.get(id);
     if (!row) {
-      row = { exercise_id: id, attempted: 0, completed: 0, first_try: 0, first_try_percent: 0, wrong_digits: 0, socratic_cards: 0, hesitations: 0 };
+      row = { exercise_id: id, path_type: exercisePathType(id), attempted: 0, completed: 0, first_try: 0, first_try_percent: 0, wrong_digits: 0, socratic_cards: 0, hesitations: 0 };
       perExercise.set(id, row);
     }
     return row;
@@ -369,7 +381,10 @@ export function aggregateClass(
   }
   const exercises = Array.from(perExercise.values())
     .map((row) => ({ ...row, first_try_percent: row.attempted > 0 ? Math.round((row.first_try / row.attempted) * 100) : 0 }))
-    .sort((a, b) => a.exercise_id.localeCompare(b.exercise_id, undefined, { numeric: true }));
+    // The compulsory exercises first, the choice exercises after them (מסמך 03: "בנפרד").
+    .sort((a, b) =>
+      Number(a.path_type !== "compulsory") - Number(b.path_type !== "compulsory") ||
+      a.exercise_id.localeCompare(b.exercise_id, undefined, { numeric: true }));
 
   const withData = new Set(rows.map((r) => r.student_id));
   return {
@@ -735,8 +750,18 @@ export function createClassReportPdfBufferWithPdfkit(report: Record<string, any>
 
       heading("3. תרגילים: כמה לומדים פתרו בניסיון ראשון");
       if (a.exercises.length === 0) line("לא נרשמו תרגילים.");
-      for (const ex of a.exercises) {
-        line(`${ex.exercise_id}: פתחו ${ex.attempted}, סיימו ${ex.completed}, בניסיון ראשון ${ex.first_try} (${ex.first_try_percent}%) | ספרות שגויות ${ex.wrong_digits} | כרטיסים ${ex.socratic_cards} | היסוסים ${ex.hesitations}`);
+      const exerciseLine = (ex: ClassExerciseRow) =>
+        `${ex.exercise_id}: פתחו ${ex.attempted}, סיימו ${ex.completed}, בניסיון ראשון ${ex.first_try} (${ex.first_try_percent}%) | ספרות שגויות ${ex.wrong_digits} | כרטיסים ${ex.socratic_cards} | היסוסים ${ex.hesitations}`;
+      // מסמך 03: the choice exercises marked as such, apart from the compulsory ones.
+      const choiceTypeOf = (ex: ClassExerciseRow) => ex.path_type ?? exercisePathType(ex.exercise_id);
+      for (const ex of a.exercises.filter((e) => choiceTypeOf(e) === "compulsory")) line(exerciseLine(ex));
+      const choiceRows = a.exercises.filter((e) => choiceTypeOf(e) !== "compulsory");
+      if (choiceRows.length > 0) {
+        line(CHOICE_EXERCISES_HEADING_HE, 10, "#1e293b");
+        for (const ex of choiceRows) {
+          const t = choiceTypeOf(ex);
+          line(`${t === "compulsory" ? "" : `${CHOICE_PATH_LABEL_HE[t]} — `}${exerciseLine(ex)}`);
+        }
       }
 
       heading("4. טבלת הלומדים (כל מה שנמדד ליחיד)");

@@ -58,7 +58,7 @@ import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { useAuthStore, unifiedLogout } from '@/application/useAuthStore';
 import { useStore } from '@/application/useStore';
 import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
-import { HelpOverlays } from '@/features/workspace/overlays/HelpOverlays';
+import { HelpOverlays, SocraticSidePanel } from '@/features/workspace/overlays/HelpOverlays';
 import { PlaceValueBoard } from '@/features/workspace/board/PlaceValueBoard';
 
 const read = (rel: string) => readFileSync(resolve(__dirname, '../../', rel), 'utf-8').replace(/\r\n/g, '\n');
@@ -154,8 +154,10 @@ describe('Module 12: the coaching card never blocks the number house', () => {
   it('every help overlay releases the pointer as soon as it starts leaving (source pin)', () => {
     const src = read('features/workspace/overlays/HelpOverlays.tsx');
     const exits = src.match(/exit=\{\{[^}]*\}\}/g) || [];
-    // friction overlay + socratic wrapper + socratic card (the dead help palette and its modal were deleted 14.9.2026)
-    expect(exits.length).toBe(3);
+    // friction overlay + the Socratic side panel (the dead help palette and its
+    // modal were deleted 14.9.2026; the floating wrapper + card became one
+    // in-row side panel with register row 17, 26.9.2026)
+    expect(exits.length).toBe(2);
     for (const exit of exits) {
       expect(exit).toContain("pointerEvents: 'none'");
     }
@@ -200,7 +202,7 @@ describe('Module 12: the coaching card never blocks the number house', () => {
     expect(useWorkspaceStore.getState().counts.tens).toBe(1);
   });
 
-  it('renders interactive component tree: outer wrapper has pointer-events-none, card has pointer-events-auto, and board receives pointer/drag events unimpeded', () => {
+  it('renders interactive component tree: the card is an in-row side panel (no fixed overlay), and the board receives pointer/drag events unimpeded', () => {
     startMeeting1AtExercise3();
     useWorkspaceStore.getState().openSocraticCard('hesitation_45s');
     expect(useWorkspaceStore.getState().helpState).toBe('socratic');
@@ -246,26 +248,28 @@ describe('Module 12: the coaching card never blocks the number house', () => {
             )
           )
         ),
-        // Socratic overlay
-        React.createElement(HelpOverlays, null)
+        // Help overlays + the Socratic side panel
+        React.createElement(HelpOverlays, null),
+        React.createElement(SocraticSidePanel, null)
       )
     );
 
-    // Assert Socratic overlay wrapper architecture
-    const wrapper = screen.getByTestId('socratic-overlay-wrapper');
-    expect(wrapper).toBeDefined();
-    // a. Outer fullscreen/fixed wrapper MUST have pointer-events-none
-    expect(wrapper.className).toContain('pointer-events-none');
-    expect(wrapper.className).toContain('fixed');
-    expect(wrapper.className).toContain('inset-0');
-    // Docked floating near top-center
-    expect(wrapper.className).toContain('justify-center');
-    expect(wrapper.className).toContain('items-start');
+    // Assert the side-panel architecture (מסמך 03/04, register row 17): the
+    // panel is a column of the workspace row, never a layer over it.
+    const panel = screen.getByTestId('socratic-side-panel');
+    expect(panel).toBeDefined();
+    // a. Nothing fixed / absolute / full-screen that could sit on the sheet or board
+    expect(panel.className).not.toContain('fixed');
+    expect(panel.className).not.toContain('absolute');
+    expect(panel.className).not.toContain('inset-0');
+    expect(panel.className).toContain('shrink-0');
+    expect(screen.queryByTestId('socratic-overlay-wrapper')).toBeNull();
 
-    // b. Inner card container MUST have pointer-events-auto
+    // b. The card inside it is interactive
     const card = screen.getByTestId('socratic-card');
     expect(card).toBeDefined();
     expect(card.className).toContain('pointer-events-auto');
+    expect(panel.contains(card)).toBe(true);
 
     // c. Strictly NO invisible backdrop, scrim, or modal overlay element
     expect(container.querySelector('.bg-ws-ink\\/50.backdrop-blur-sm')).toBeNull();
@@ -327,8 +331,9 @@ describe('Module 12: the coaching card never blocks the number house', () => {
         React.createElement(
           'div',
           { style: { position: 'relative' } },
-          React.createElement(PlaceValueBoard, null),
-          React.createElement(HelpOverlays, null)
+          React.createElement(PlaceValueBoard, { shareRow: true }),
+          React.createElement(HelpOverlays, null),
+          React.createElement(SocraticSidePanel, null)
         )
       )
     );
@@ -337,9 +342,10 @@ describe('Module 12: the coaching card never blocks the number house', () => {
     const board = screen.getByLabelText('טבלת ערך המקום');
     expect(board).toBeDefined();
 
-    // Verify Socratic wrapper has pointer-events-none and card has pointer-events-auto
-    const wrapper = screen.getByTestId('socratic-overlay-wrapper');
-    expect(wrapper.className).toContain('pointer-events-none');
+    // The panel sits beside the board, not inside or over it
+    const panel = screen.getByTestId('socratic-side-panel');
+    expect(board.contains(panel)).toBe(false);
+    expect(panel.contains(board)).toBe(false);
     const card = screen.getByTestId('socratic-card');
     expect(card.className).toContain('pointer-events-auto');
 

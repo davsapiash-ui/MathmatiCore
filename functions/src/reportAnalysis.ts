@@ -1,6 +1,6 @@
 import * as logger from "firebase-functions/logger";
 import { GEMINI_MODEL_ID, getGeminiClient } from "./geminiConfig";
-import { SANDBOX_MEETING_PURPOSE_HE } from "./meetingMetrics";
+import { SANDBOX_MEETING_PURPOSE_HE, exercisePathType, type ExercisePathType } from "./meetingMetrics";
 
 /**
  * PRD Module 23 — layer two of the pedagogical report: the verbal analysis.
@@ -61,7 +61,7 @@ export interface ReportExerciseTemplate {
   session_number: number;
   order_index: number;
   learning_path: "green_path" | "remediation_path" | null;
-  path_type: "compulsory" | "consolidation" | "challenge";
+  path_type: ExercisePathType;
   operation: "addition" | "subtraction" | "representation" | "inquiry";
   operand_a: number | null;
   operand_b: number | null;
@@ -151,7 +151,8 @@ export function buildFailedExercises(
         session_number: sessionNumber,
         order_index: 0,
         learning_path: learningPath,
-        path_type: "compulsory",
+        // The choice banks are not in the catalog; the id still says what the exercise is.
+        path_type: exercisePathType(exerciseId),
         operation: "addition",
         operand_a: null,
         operand_b: null,
@@ -177,7 +178,8 @@ export function buildFailedExercises(
       session_number: sessionNumber,
       order_index: typeof task.__order === "number" ? task.__order : 0,
       learning_path: learningPath,
-      path_type: task.isOptionalChoiceTask === true ? "consolidation" : "compulsory",
+      // A challenge exercise is "challenge", not "consolidation" (Appendix A §2).
+      path_type: exercisePathType(exerciseId, task),
       operation,
       operand_a: typeof task.numberA === "number" ? task.numberA : null,
       operand_b: typeof task.numberB === "number" ? task.numberB : null,

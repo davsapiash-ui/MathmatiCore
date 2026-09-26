@@ -5,13 +5,62 @@ import {
   fetchClassReport,
   generateClassReport,
   TIER_LABELS_HE,
+  type ClassExerciseRow,
   type ClassMeetingReport,
   type RecommendationTier,
 } from '@/infrastructure/services/ClassReportService';
+import { CHOICE_EXERCISES_HEADING_HE, CHOICE_PATH_LABEL_HE } from '@/core/choiceExercises';
 
 const SESSION_NUMBERS = [1, 2, 3, 4, 5, 6, 7, 8] as const;
 const TIER_ORDER: RecommendationTier[] = ['below_50', 'between_50_75', 'above_75'];
 const OUTCOME_HE = { first_try: 'ניסיון ראשון', after_correction: 'אחרי תיקון', incomplete: 'לא הושלם' } as const;
+
+function ExerciseRows({ rows, choice }: { rows: ClassExerciseRow[]; choice: boolean }) {
+  return (
+    <table className="w-full text-[11px]">
+      <thead className="text-ws-soft">
+        <tr><th className="text-right">תרגיל</th>{choice && <th className="text-right">נתיב</th>}<th>פתחו</th><th>סיימו</th><th>ניסיון ראשון</th><th>שגויות</th><th>כרטיסים</th><th>היסוסים</th></tr>
+      </thead>
+      <tbody className="text-ws-ink">
+        {rows.map((ex) => (
+          <tr key={ex.exerciseId}>
+            <td className="text-right font-bold">{ex.exerciseId}</td>
+            {choice && <td className="text-right">{ex.pathType === 'compulsory' ? '' : CHOICE_PATH_LABEL_HE[ex.pathType]}</td>}
+            <td className="text-center">{ex.attempted}</td>
+            <td className="text-center">{ex.completed}</td>
+            <td className="text-center">{ex.firstTry} ({ex.firstTryPercent}%)</td>
+            <td className="text-center">{ex.wrongDigits}</td>
+            <td className="text-center">{ex.socraticCards}</td>
+            <td className="text-center">{ex.hesitations}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+/**
+ * מסמך 03: the choice exercises appear "מסומנים כתרגילי בחירה, בנפרד משבעת
+ * תרגילי החובה" — their own table, each row naming its path.
+ */
+export function ClassExerciseTables({ exercises }: { exercises: ClassExerciseRow[] }) {
+  const compulsory = exercises.filter((ex) => ex.pathType === 'compulsory');
+  const choice = exercises.filter((ex) => ex.pathType !== 'compulsory');
+  return (
+    <div className="p-3 rounded-xl bg-ws-bg border border-ws-surface2 overflow-x-auto space-y-3">
+      <div>
+        <div className="font-black text-ws-ink mb-1">התפלגות הצלחה בניסיון ראשון לפי תרגיל</div>
+        {compulsory.length > 0 ? <ExerciseRows rows={compulsory} choice={false} /> : <div className="text-ws-soft">לא נרשמו תרגילי חובה.</div>}
+      </div>
+      {choice.length > 0 && (
+        <div data-testid="choice-exercises">
+          <div className="font-black text-ws-ink mb-1">{CHOICE_EXERCISES_HEADING_HE}</div>
+          <ExerciseRows rows={choice} choice />
+        </div>
+      )}
+    </div>
+  );
+}
 
 /**
  * Module 23, owner decision 6.9.2026 (register item 9): beside the report of
@@ -228,29 +277,7 @@ export function ClassMeetingReportPanel() {
               </div>
 
               {/* Exercises */}
-              {report.exercises.length > 0 && (
-                <div className="p-3 rounded-xl bg-ws-bg border border-ws-surface2 overflow-x-auto">
-                  <div className="font-black text-ws-ink mb-1">התפלגות הצלחה בניסיון ראשון לפי תרגיל</div>
-                  <table className="w-full text-[11px]">
-                    <thead className="text-ws-soft">
-                      <tr><th className="text-right">תרגיל</th><th>פתחו</th><th>סיימו</th><th>ניסיון ראשון</th><th>שגויות</th><th>כרטיסים</th><th>היסוסים</th></tr>
-                    </thead>
-                    <tbody className="text-ws-ink">
-                      {report.exercises.map((ex) => (
-                        <tr key={ex.exerciseId}>
-                          <td className="text-right font-bold">{ex.exerciseId}</td>
-                          <td className="text-center">{ex.attempted}</td>
-                          <td className="text-center">{ex.completed}</td>
-                          <td className="text-center">{ex.firstTry} ({ex.firstTryPercent}%)</td>
-                          <td className="text-center">{ex.wrongDigits}</td>
-                          <td className="text-center">{ex.socraticCards}</td>
-                          <td className="text-center">{ex.hesitations}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+              {report.exercises.length > 0 && <ClassExerciseTables exercises={report.exercises} />}
             </div>
 
             {/* Layer 2 */}

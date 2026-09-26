@@ -751,7 +751,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   const decimalStructureGroup = allStudents.filter(
     (s) => s.conceptMastery && s.conceptMastery.decimal_structure < 0.5
   );
-  const _numberMagnitudeGroup = allStudents.filter(
+  const numberMagnitudeGroup = allStudents.filter(
     (s) => s.conceptMastery && s.conceptMastery.number_magnitude < 0.5
   );
   const regroupingFluencyGroup = allStudents.filter(
@@ -1658,6 +1658,36 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                         id: s.studentId,
                         name: s.name,
                         mastery: s.conceptMastery ? `${Math.round(s.conceptMastery.decimal_structure * 100)}%` : "חסר מידע",
+                      }))}
+                    />
+                  </div>
+                </div>
+              </AccessibleCard>
+              )}
+
+              {/* The sixth skill had a filter but no card: clicking it emptied the grid.
+                  מסמך 04, "מיפוי מיומנויות כיתתי": each of the six core skills, and a
+                  click on a skill shows its group and each learner's mastery. */}
+              {(!activeClusterFilter || activeClusterFilter === 'number_magnitude') && (
+              <AccessibleCard className="flex flex-col justify-between p-6 bg-white dark:bg-slate-900 shadow-sm hover:shadow-md transition-all duration-300 border border-slate-200 dark:border-slate-800 rounded-2xl relative overflow-hidden group min-h-[340px]">
+                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
+                <div>
+                  <h3 className="text-xl font-bold mb-3 text-slate-900 dark:text-slate-100">
+                    {CONCEPT_LABELS_HE.number_magnitude}
+                  </h3>
+                  <p className="text-slate-600 dark:text-slate-400 mb-4 text-sm leading-relaxed">
+                    תלמידים שמתקשים להעריך את גודלו של מספר ואת מקומו ביחס למספרים אחרים.
+                  </p>
+                  <div className="rounded-xl overflow-y-auto max-h-[160px] border border-slate-200 dark:border-slate-800 shadow-inner">
+                    <DataGrid
+                      columns={[
+                        { key: "name", header: "שם תלמיד" },
+                        { key: "mastery", header: "רמת שליטה" },
+                      ]}
+                      data={numberMagnitudeGroup.map((s) => ({
+                        id: s.studentId,
+                        name: s.name,
+                        mastery: s.conceptMastery ? `${Math.round(s.conceptMastery.number_magnitude * 100)}%` : "חסר מידע",
                       }))}
                     />
                   </div>

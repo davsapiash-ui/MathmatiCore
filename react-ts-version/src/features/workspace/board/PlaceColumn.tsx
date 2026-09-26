@@ -4,6 +4,7 @@ import { motion, useAnimationControls } from 'framer-motion';
 import { MAX_VISIBLE_BLOCKS, PLACE_NAMES_HE, type Place } from '@/core/placeValue';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { DienesBlock } from './DienesBlock';
+import { useVisibleRegroup, arrivingBlockCount } from './RegroupAnimationLayer';
 
 /** Per-place functional colors (vanilla workspace.css 346–375). */
 const COLUMN_COLORS: Record<Place, { header: string; border: string; tint: string; headerBg: string }> = {
@@ -37,6 +38,16 @@ export function PlaceColumn({ place, activeDragPlace }: { place: Place; activeDr
 
   const colors = COLUMN_COLORS[place];
   const renderCount = Math.min(count, MAX_VISIBLE_BLOCKS);
+  // מסמך 03 §3.3–3.5: during the grouping / decomposition animation the
+  // blocks that just arrived here stay invisible (still in the layout, so
+  // nothing shifts) until the ghost lands on them — under a second.
+  const regroup = useVisibleRegroup();
+  const arriving = Math.min(renderCount, arrivingBlockCount(regroup, place));
+  const firstArrivingIdx = renderCount - arriving;
+  // The count badge lands with the blocks: while they are still in flight it
+  // shows what is visibly in the column, so the symbol never runs ahead of the
+  // bricks (VRA: the concrete and the symbolic change together).
+  const shownCount = count - (regroup && regroup.to === place ? arrivingBlockCount(regroup, place) : 0);
   const isError = errorPlace === place;
   const activeColumnIndex = useWorkspaceStore((s) => s.activeColumnIndex);
   const places: Place[] = ['units', 'tens', 'hundreds', 'thousands'];
@@ -86,7 +97,7 @@ export function PlaceColumn({ place, activeDragPlace }: { place: Place; activeDr
           className="absolute left-3 min-w-[22px] h-[22px] px-1 rounded-full text-xs font-black text-white inline-flex items-center justify-center transition-all opacity-100 scale-100"
           style={{ backgroundColor: colors.header }}
         >
-          {count}
+          {shownCount}
         </span>
         {/* אזור ההכרזה קרא עד כה את תוכן התגית בלבד — מספר ערום. לומד
             שנעזר בהקראה שמע "3", "4", "3" בלי לדעת על איזה טור מדובר.
@@ -128,9 +139,11 @@ export function PlaceColumn({ place, activeDragPlace }: { place: Place; activeDr
           className="w-full mt-auto flex flex-row flex-wrap content-end justify-center items-end gap-1.5 min-w-0"
         >
           {Array.from({ length: renderCount }).map((_, i) => (
-            <div 
+            <div
               key={`${place}-${i}`}
               className="shrink-0 flex items-center justify-center select-none"
+              data-arriving={i >= firstArrivingIdx ? 'true' : undefined}
+              style={i >= firstArrivingIdx ? { visibility: 'hidden' } : undefined}
             >
               <DienesBlock 
                 id={`column-${place}-${i}`}

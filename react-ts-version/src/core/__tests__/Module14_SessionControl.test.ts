@@ -87,7 +87,9 @@ describe('Module 14 — the learner sees every state in place', () => {
   });
 
   it('the lobby shows a paused meeting as waiting, not as enterable', () => {
-    expect(hub).toMatch(/activeClassSession\.status === 'paused' \? \([\s\S]*?המורה עצרה את הפעילות לרגע/);
+    // The lobby card has no entry button at all any more (a running meeting
+    // moves the learner in); the pause shows the waiting message on the card.
+    expect(hub).toMatch(/activeClassSession\.status === 'paused' && \([\s\S]*?המורה עצרה את הפעילות לרגע/);
   });
 
   it('the learner re-reads the session state from the server, not only through the listener', () => {

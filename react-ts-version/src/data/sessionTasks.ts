@@ -345,12 +345,12 @@ export const SESSION4_TASKS: SessionTask[] = SESSION4_GREEN_TASKS;
  * ══════════════════════════════════════════════════════════════════════════ */
 
 export const SESSION5_REMEDIATION_TASKS: SessionTask[] = [
-  subtraction('s5_r_t1', 78, 25, 'ביסוס אלגוריתם ללא פריטה בתחום המאה', S5_SUB('78 − 25', false)),
-  subtraction('s5_r_t2', 53, 18, 'פריטה פשוטה ראשונה מעשרות ליחידות בתחום המאה', S5_SUB('53 − 18', true)),
-  subtraction('s5_r_t3', 142, 25, 'פריטה ביחידות עם נוכחות מאות', S5_SUB('142 − 25', true)),
-  subtraction('s5_r_t4', 345, 182, 'פריטה בטור העשרות בתחום האלף', S5_SUB('345 − 182', true)),
-  subtraction('s5_r_t5', 563, 128, 'פריטה פשוטה בטור היחידות', S5_SUB('563 − 128', true)),
-  subtraction('s5_r_t6', 480, 155, 'פריטה פשוטה מטור העשרות לטור היחידות, עם אפס בטור היחידות', S5_SUB('480 − 155', true)),
+  subtraction('s5_r_t1', 78, 25, 'ביסוס אלגוריתם ללא פריטה בתחום המאה', S5_SUB('78 − 25', 78, 25)),
+  subtraction('s5_r_t2', 53, 18, 'פריטה פשוטה ראשונה מעשרות ליחידות בתחום המאה', S5_SUB('53 − 18', 53, 18)),
+  subtraction('s5_r_t3', 142, 25, 'פריטה ביחידות עם נוכחות מאות', S5_SUB('142 − 25', 142, 25)),
+  subtraction('s5_r_t4', 345, 182, 'פריטה בטור העשרות בתחום האלף', S5_SUB('345 − 182', 345, 182)),
+  subtraction('s5_r_t5', 563, 128, 'פריטה פשוטה בטור היחידות', S5_SUB('563 − 128', 563, 128)),
+  subtraction('s5_r_t6', 480, 155, 'פריטה פשוטה מטור העשרות לטור היחידות, עם אפס בטור היחידות', S5_SUB('480 − 155', 480, 155)),
   // ★ chosen: מסמך 03 names the task ("ספרה חסרה בטור המחוסר") without numbers.
   skeleton('s5_r_t7', 442, 128, true, { a: ['tens'] },
     'משימת חקר וגילוי ספרה חסרה',
@@ -359,16 +359,16 @@ export const SESSION5_REMEDIATION_TASKS: SessionTask[] = [
 ];
 
 export const SESSION5_GREEN_TASKS: SessionTask[] = [
-  subtraction('s5_g_t1', 5432, 2118, 'פריטה פשוטה בטור היחידות בתחום הרבבה', S5_SUB('5,432 − 2,118', true)),
-  subtraction('s5_g_t2', 6543, 1227, 'פריטה ביחידות עם נוכחות אלפים', S5_SUB('6,543 − 1,227', true)),
+  subtraction('s5_g_t1', 5432, 2118, 'פריטה פשוטה בטור היחידות בתחום הרבבה', S5_SUB('5,432 − 2,118', 5432, 2118)),
+  subtraction('s5_g_t2', 6543, 1227, 'פריטה ביחידות עם נוכחות אלפים', S5_SUB('6,543 − 1,227', 6543, 1227)),
   // ★ owner-approved replacement (3.9.2026): the document's 7,651 − 3,325 borrowed in the units, not the tens.
   // מסמך 03 carries 7,651 − 3,381 since 25.9.2026 (the owner updated it).
-  subtraction('s5_g_t3', 7651, 3381, 'פריטה בטור העשרות בלבד', S5_SUB('7,651 − 3,381', true)),
+  subtraction('s5_g_t3', 7651, 3381, 'פריטה בטור העשרות בלבד', S5_SUB('7,651 − 3,381', 7651, 3381)),
   // ★ owner-approved replacement (3.9.2026): the document's 8,762 − 4,439 borrowed in the units, not the hundreds.
   // מסמך 03 carries 8,762 − 4,932 since 25.9.2026 (the owner updated it).
-  subtraction('s5_g_t4', 8762, 4932, 'פריטה בטור המאות בלבד', S5_SUB('8,762 − 4,932', true)),
-  subtraction('s5_g_t5', 6284, 1157, 'פריטה פשוטה בטור היחידות בתחום הרבבה', S5_SUB('6,284 − 1,157', true)),
-  subtraction('s5_g_t6', 3845, 1517, 'פריטה פשוטה ביחידות, כל הספרות שונות מאפס', S5_SUB('3,845 − 1,517', true)),
+  subtraction('s5_g_t4', 8762, 4932, 'פריטה בטור המאות בלבד', S5_SUB('8,762 − 4,932', 8762, 4932)),
+  subtraction('s5_g_t5', 6284, 1157, 'פריטה פשוטה בטור היחידות בתחום הרבבה', S5_SUB('6,284 − 1,157', 6284, 1157)),
+  subtraction('s5_g_t6', 3845, 1517, 'פריטה פשוטה ביחידות, כל הספרות שונות מאפס', S5_SUB('3,845 − 1,517', 3845, 1517)),
   // ★ chosen: מסמך 03 describes an inquiry comparing near exercises, without numbers.
   withOpts({
     id: 's5_g_t7', type: 'small_change',

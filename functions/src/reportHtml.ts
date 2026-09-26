@@ -15,6 +15,8 @@ import * as fs from "fs";
 import { fontPath } from "./htmlPdf";
 import type { ClassAggregates, ClassLearnerRow, ExerciseOutcome } from "./classReport";
 import {
+  CHOICE_PATH_LABEL_HE,
+  exercisePathType,
   flexibilityHe,
   mediationHe,
   persistenceHe,
@@ -27,6 +29,14 @@ import type { RecommendationTier } from "./reportAnalysis";
 
 export const EXACT_AI_FALLBACK_TEXT_HE =
   "הניתוח הפדגוגי המפורט אינו זמין כעת. ההמלצות שלהלן מבוססות על מדדי הביצוע.";
+
+/**
+ * מסמך 03: the choice exercises appear in the teacher's reports "מסומנים
+ * כתרגילי בחירה, בנפרד משבעת תרגילי החובה", and the conceptual-independence
+ * score counts the compulsory exercises only.
+ */
+export const CHOICE_EXERCISES_HEADING_HE =
+  "תרגילי בחירה (אחרי תרגילי החובה) — בנפרד מתרגילי החובה, ואינם נכללים בציון השליטה";
 
 export const TIER_LABEL_HE: Record<RecommendationTier, string> = {
   below_50: "קבוצה הומוגנית קטנה, תבניות עשר פיזיות (ציון מתחת ל-50%)",
@@ -233,6 +243,7 @@ export function pedagogicalReportHtml(report: Record<string, any>): string {
     ? "מסלול העמקה (ירוק)"
     : "מסלול ביסוס ומענה מותאם (צהוב)";
   const narratives = asStringArray(report.exercise_narratives);
+  const choiceNarratives = asStringArray(report.choice_exercise_narratives);
   const gaps = asStringArray(report.knowledge_gaps);
   const teaching = asStringArray(report.teaching_recommendations);
 
@@ -265,6 +276,7 @@ export function pedagogicalReportHtml(report: Record<string, any>): string {
 
     <h2>2. סיפור התרגילים הכרונולוגי (Exercise Narratives)</h2>
     ${narratives.length > 0 ? bulletList(narratives, "") : ""}
+    ${choiceNarratives.length > 0 ? `<h3>${esc(CHOICE_EXERCISES_HEADING_HE)}</h3>${bulletList(choiceNarratives, "")}` : ""}
 
     <h2 class="amber">3. תובנות קוגניטיביות פדגוגיות</h2>
     ${insights}
@@ -316,9 +328,21 @@ function learnersTable(rows: ClassLearnerRow[], scored = true): string {
   return `<table class="dense"><thead><tr>${head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table>`;
 }
 
+/** A stored report from before `path_type` existed is classified by the exercise id. */
+function pathTypeOf(ex: { exercise_id: string; path_type?: string }) {
+  return ex.path_type === "compulsory" || ex.path_type === "consolidation" || ex.path_type === "challenge"
+    ? ex.path_type
+    : exercisePathType(ex.exercise_id);
+}
+
+function choiceLabelOf(ex: { exercise_id: string; path_type?: string }): string {
+  const t = pathTypeOf(ex);
+  return t === "compulsory" ? "" : CHOICE_PATH_LABEL_HE[t];
+}
+
 function outcomesTable(rows: ClassLearnerRow[], exerciseIds: string[]): string {
   if (exerciseIds.length === 0) return "";
-  const head = `<tr><th>לומד</th>${exerciseIds.map((id) => `<th>${ltr(id)}</th>`).join("")}</tr>`;
+  const head = `<tr><th>לומד</th>${exerciseIds.map((id) => `<th>${ltr(id)}${exercisePathType(id) === "compulsory" ? "" : "<br>(תרגיל בחירה)"}</th>`).join("")}</tr>`;
   const body = rows.map((r) => {
     const cells = exerciseIds.map((id) => {
       const outcome = r.exercise_outcomes[id];
@@ -397,18 +421,24 @@ export function classReportHtml(report: Record<string, any>): string {
   const triggers = keyValueList(a.socratic_triggers);
   const categories = keyValueList(a.error_categories);
 
-  const exercises = a.exercises.length === 0
-    ? "<p>לא נרשמו תרגילים.</p>"
-    : `<table>
-        <thead><tr><th>תרגיל</th><th>פתחו</th><th>סיימו</th><th>בניסיון ראשון</th><th>אחוז בניסיון ראשון</th><th>ספרות שגויות</th><th>כרטיסים</th><th>היסוסים</th></tr></thead>
-        <tbody>${a.exercises.map((ex) => `
+  // מסמך 03: the choice exercises marked as such, apart from the compulsory ones.
+  const compulsoryExercises = a.exercises.filter((ex) => pathTypeOf(ex) === "compulsory");
+  const choiceExercises = a.exercises.filter((ex) => pathTypeOf(ex) !== "compulsory");
+  const exerciseTable = (list: ClassAggregates["exercises"], choice: boolean) => `<table>
+        <thead><tr><th>תרגיל</th>${choice ? "<th>נתיב</th>" : ""}<th>פתחו</th><th>סיימו</th><th>בניסיון ראשון</th><th>אחוז בניסיון ראשון</th><th>ספרות שגויות</th><th>כרטיסים</th><th>היסוסים</th></tr></thead>
+        <tbody>${list.map((ex) => `
           <tr>
             <td class="label">${ltr(ex.exercise_id)}</td>
+            ${choice ? `<td>${esc(choiceLabelOf(ex))}</td>` : ""}
             <td>${esc(ex.attempted)}</td><td>${esc(ex.completed)}</td><td>${esc(ex.first_try)}</td>
             <td>${esc(ex.first_try_percent)}%</td><td>${esc(ex.wrong_digits)}</td>
             <td>${esc(ex.socratic_cards)}</td><td>${esc(ex.hesitations)}</td>
           </tr>`).join("")}
         </tbody></table>`;
+  const exercises = a.exercises.length === 0
+    ? "<p>לא נרשמו תרגילים.</p>"
+    : `${compulsoryExercises.length > 0 ? exerciseTable(compulsoryExercises, false) : "<p>לא נרשמו תרגילי חובה.</p>"}
+       ${choiceExercises.length > 0 ? `<h3>${esc(CHOICE_EXERCISES_HEADING_HE)}</h3>${exerciseTable(choiceExercises, true)}` : ""}`;
 
   const scored = a.scored !== false;
   let analysis: string;
