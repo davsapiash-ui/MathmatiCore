@@ -75,11 +75,25 @@ const RETRY_BACKOFF_MS = [2000, 4000, 8000, 16000, 30000];
  */
 const BACKGROUND_FLUSH_DELAY_MS = 1500;
 
+/**
+ * מודול 17 §ד: "אופליין = אייקון ענן אפור… אונליין מסונכרן = ענן ירוק".
+ *  - 'offline' — no network;
+ *  - 'pending' — the network is back (or up) but the queue still holds work
+ *    that has not reached the server: what was stored while offline, or what
+ *    a flush failed to deliver. Not green: nothing is synced yet;
+ *  - 'synced'  — online, and the last flush left the queue empty.
+ * An event waiting for its first background send (BACKGROUND_FLUSH_DELAY_MS)
+ * is in flight, not a backlog: counting it would make the cloud blink on
+ * every block the child drags. The count is taken when each flush ends.
+ */
+export type QueueSyncState = 'offline' | 'pending' | 'synced';
+
 export class IndexedDBQueue {
   private static instance: IndexedDBQueue;
   private db: IDBDatabase | null = null;
   private memoryFallback: QueuedAction[] = [];
-  private isOnline = true;
+  // navigator.onLine is undefined outside a browser; only an explicit false is offline.
+  private isOnline = typeof navigator === 'undefined' || navigator.onLine !== false;
   private isFlushing = false;
   private syncCallback: ((refPath: string, payload: any) => Promise<void>) | null = null;
   private consecutiveFlushFailures = 0;
@@ -90,6 +104,8 @@ export class IndexedDBQueue {
   private currentFlush: Promise<void> | null = null;
   private pendingCount = 0;
   private pendingListeners: Array<(count: number) => void> = [];
+  private syncStateListeners: Array<(state: QueueSyncState) => void> = [];
+  private lastSyncState: QueueSyncState | null = null;
 
   private constructor() {
     this.initDB();
@@ -116,10 +132,37 @@ export class IndexedDBQueue {
     for (const l of this.pendingListeners) {
       try { l(count); } catch { /* a listener must never break the queue */ }
     }
+    this.emitSyncState();
+  }
+
+  /** מודול 17 §ד: מצב הענן — ירוק רק כשהתור רוקן בפועל (ראו QueueSyncState). */
+  public getSyncState(): QueueSyncState {
+    if (!this.isOnline) return 'offline';
+    return this.pendingCount > 0 ? 'pending' : 'synced';
+  }
+
+  /** מנוי על מצב הסנכרון. מחזיר פונקציית ביטול. */
+  public onSyncStateChange(listener: (state: QueueSyncState) => void): () => void {
+    this.syncStateListeners.push(listener);
+    listener(this.getSyncState());
+    return () => {
+      this.syncStateListeners = this.syncStateListeners.filter((l) => l !== listener);
+    };
+  }
+
+  private emitSyncState() {
+    const state = this.getSyncState();
+    if (state === this.lastSyncState) return;
+    this.lastSyncState = state;
+    for (const l of this.syncStateListeners) {
+      try { l(state); } catch { /* a listener must never break the queue */ }
+    }
   }
 
   private async refreshPendingCount(): Promise<void> {
-    const items = await this.getAll();
+    // Without a database getAll() IS the memory fallback — counting both
+    // counted every waiting item twice.
+    const items = this.db ? await this.getAll() : [];
     this.setPendingCount(items.length + this.memoryFallback.length);
   }
 
@@ -188,6 +231,10 @@ export class IndexedDBQueue {
           // fixed (a rules deploy, a returning sign-in) stays on the device forever.
           this.reviveParkedItems()
             .catch(() => {})
+            // What a previous visit left unsent is a backlog from the first
+            // moment, not only once the first flush ends (Module 17 §ד).
+            .then(() => this.refreshPendingCount())
+            .catch(() => {})
             .finally(() => {
               if (this.isOnline) this.flushQueue().catch(console.error);
             });
@@ -209,11 +256,15 @@ export class IndexedDBQueue {
 
     window.addEventListener('online', () => {
       this.isOnline = true;
+      // Back online is not yet synced: with a backlog the cloud stays grey
+      // until the flush below has delivered it (Module 17 §ג–§ד).
+      this.emitSyncState();
       this.flushQueue().catch(console.error);
     });
 
     window.addEventListener('offline', () => {
       this.isOnline = false;
+      this.emitSyncState();
     });
   }
 
@@ -261,8 +312,17 @@ export class IndexedDBQueue {
     this.scheduleBackgroundFlush();
   }
 
-  /** Persists one queued item (IndexedDB, or the memory fallback when the database is unavailable). */
+  /**
+   * Persists one queued item and, while offline, counts it as backlog at once.
+   * Online, the flush that follows takes the count (see QueueSyncState).
+   */
   private async store(item: QueuedAction): Promise<void> {
+    await this.persist(item);
+    if (!this.isOnline) await this.refreshPendingCount().catch(() => {});
+  }
+
+  /** Persists one queued item (IndexedDB, or the memory fallback when the database is unavailable). */
+  private async persist(item: QueuedAction): Promise<void> {
     if (!this.db) {
       await this.initDB();
     }
@@ -397,7 +457,12 @@ export class IndexedDBQueue {
 
   public async clear(): Promise<void> {
     this.memoryFallback = [];
-    if (!this.db) return;
+    await this.clearStore();
+    this.setPendingCount(0);
+  }
+
+  private clearStore(): Promise<void> {
+    if (!this.db) return Promise.resolve();
 
     return new Promise((resolve) => {
       try {
@@ -619,7 +684,12 @@ export class IndexedDBQueue {
 
   public async clearAll(): Promise<void> {
     this.memoryFallback = [];
-    if (!this.db) return;
+    await this.clearAllStores();
+    this.setPendingCount(0);
+  }
+
+  private clearAllStores(): Promise<void> {
+    if (!this.db) return Promise.resolve();
     return new Promise((resolve) => {
       try {
         const tx = this.db!.transaction([STORE_NAME, LEGACY_STORE_NAME], 'readwrite');

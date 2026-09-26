@@ -33,8 +33,8 @@ describe('Module 09: מודול מקלדת דינמית וגשר VRA (Canonical 
     const isLockedUnits = useWorkspaceStore.getState().isColumnInputLocked('units', 47, 28, false);
     expect(isLockedUnits).toBe(true);
 
-    // After regrouping is performed in the number house, column unlocks
-    useWorkspaceStore.setState({ hasGrouped: true } as any);
+    // After the units are grouped in the number house, the units column unlocks
+    useWorkspaceStore.setState({ hasGrouped: true, conversionsByColumn: { composed: { units: true }, decomposed: {} } } as any);
     const isUnlockedAfterRegroup = useWorkspaceStore.getState().isColumnInputLocked('units', 47, 28, false);
     expect(isUnlockedAfterRegroup).toBe(false);
   });
