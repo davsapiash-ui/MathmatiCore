@@ -7,6 +7,7 @@ import { ProgressDots } from './ProgressDots';
 import { RotateCcw, MessageSquare, ArrowLeft, Cloud, CloudOff, Eye, EyeOff, HandHelping } from 'lucide-react';
 import { LogoutButton } from '@/presentation/components/ui/LogoutButton';
 import { Logo } from '@/presentation/components/ui/Logo';
+import { indexedDBQueue, type QueueSyncState } from '@/infrastructure/services/IndexedDBQueue';
 
 /**
  * הסרגל העליון של מרחב הפעילות.
@@ -26,20 +27,21 @@ interface WorkspaceTopbarProps {
   isDragging?: boolean;
 }
 
+/** מודול 17 §ד: what the cloud says in each sync state (read aloud and on hover). */
+const CLOUD_STATUS_LABEL: Record<QueueSyncState, string> = {
+  synced: 'מחובר. העבודה שלך נשמרה.',
+  pending: 'מחובר. העבודה שלך נשמרת ותישלח בעוד רגע.',
+  offline: 'אין כרגע חיבור לרשת. העבודה שלך נשמרת כאן ותיסנכרן לבד כשהחיבור יחזור.',
+};
+
 export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
-  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  // מודול 17 §ד: "אונליין מסונכרן = ענן ירוק". The cloud followed the
+  // browser's online flag, so it turned green the moment the network came
+  // back, while what was saved offline still sat in the queue. It now follows
+  // the queue itself: green only once the queue has been delivered.
+  const [syncState, setSyncState] = useState<QueueSyncState>(() => indexedDBQueue.getSyncState());
 
-  useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
+  useEffect(() => indexedDBQueue.onSyncStateChange(setSyncState), []);
 
   const studentNumber = currentStudentNumber();
   const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
@@ -80,22 +82,24 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
           </div>
         )}
 
-        {/* Module 17: Silent Cloud Status Icon (Green=Online, Grey=Offline) */}
+        {/* Module 17 §ד: Silent Cloud Status Icon — green only when synced,
+            grey while offline or while the queue is still being delivered. */}
         <div
           className="flex items-center mr-1"
           role="status"
-          aria-label={isOnline ? 'מחובר. העבודה שלך נשמרת.' : 'אין כרגע חיבור לרשת. העבודה שלך נשמרת כאן ותיסנכרן לבד כשהחיבור יחזור.'}
-          title={isOnline ? 'מחובר. העבודה שלך נשמרת.' : 'אין כרגע חיבור לרשת. העבודה שלך נשמרת כאן ותיסנכרן לבד כשהחיבור יחזור.'}
+          data-sync-state={syncState}
+          aria-label={CLOUD_STATUS_LABEL[syncState]}
+          title={CLOUD_STATUS_LABEL[syncState]}
         >
-          {isOnline ? (
+          {syncState === 'synced' ? (
             <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-1 rounded-full border border-emerald-200 dark:border-emerald-800">
               <span aria-hidden="true" className="w-2 h-2 rounded-full bg-emerald-500" />
               <Cloud className="w-3.5 h-3.5" />
             </span>
           ) : (
             <span className="flex items-center gap-1 text-[11px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-full border border-slate-300 dark:border-slate-700">
-              <span className="w-2 h-2 rounded-full bg-slate-400" />
-              <CloudOff className="w-3.5 h-3.5" />
+              <span aria-hidden="true" className="w-2 h-2 rounded-full bg-slate-400" />
+              {syncState === 'offline' ? <CloudOff className="w-3.5 h-3.5" /> : <Cloud className="w-3.5 h-3.5" />}
             </span>
           )}
         </div>
