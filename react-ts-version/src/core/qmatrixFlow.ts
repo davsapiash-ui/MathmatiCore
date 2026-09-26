@@ -44,6 +44,16 @@ export function getCurrentQTask(state: QMatrixFlowState): QMatrixTask | null {
   return TASKS[state.taskIdx] ?? null;
 }
 
+/**
+ * The correction round has no hints (owner's decision, 25.9.2026). Addition and
+ * subtraction tasks first show a simpler exercise in round numbers, then the task
+ * itself again. The other tasks have no simpler exercise, so their question is
+ * asked once more — one second attempt, not two.
+ */
+export function hasProbeExercise(task: QMatrixTask): boolean {
+  return task.backwardDiagnosis?.probeA !== undefined;
+}
+
 /** Record an evaluation result (vanilla handleTaskResult). Returns new state + the feedback event. */
 export function recordResult(
   state: QMatrixFlowState,
@@ -80,6 +90,12 @@ export function recordResult(
         updated.tag = evalResult.correct ? 'computational_fluency_deficit' : 'algebraic_concept_deficit';
       } else if (task.id === 'task8_missing_addend') {
         updated.tag = evalResult.correct ? 'inverse_operation_gap' : 'missing_addend_deficit';
+      }
+      // A task with no simpler exercise (no probe) asks its own question again:
+      // that answer is the task's one second attempt, and no retry follows.
+      if (!hasProbeExercise(task)) {
+        updated.secondAttemptCorrect = evalResult.correct;
+        updated.secondAttemptDetail = evalResult.detail;
       }
       results[task.id] = updated;
       return {
@@ -122,8 +138,9 @@ export function advance(state: QMatrixFlowState): { state: QMatrixFlowState; eve
   }
 
   // correction phase
-  if (state.subphase === 'subtask') {
-    const task = getCurrentQTask(state);
+  const current = getCurrentQTask(state);
+  if (state.subphase === 'subtask' && current && hasProbeExercise(current)) {
+    const task = current;
     return {
       state: { ...state, subphase: 'retry' },
       event: { type: 'start_retry', taskId: task?.id ?? '' },

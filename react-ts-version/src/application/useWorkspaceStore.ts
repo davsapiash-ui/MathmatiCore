@@ -837,15 +837,17 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           }
         });
         break;
+      // The correction round has no hints and no right/wrong feedback (owner's
+      // decision, 25.9.2026): it is still part of the diagnostic.
       case 'start_correction':
-        showFeedback({ correct: false, title: 'סֶבֶב תִּקּוּנִים 🔍', sub: 'בּוֹאוּ נַעֲבֹר יַחַד עַל כַּמָּה דְּבָרִים...' }, 1800, () => {
+        showFeedback({ correct: true, neutral: true, title: 'מְשִׂימָה נוֹסֶפֶת 📝' }, 1800, () => {
           startTask(event.taskId);
           set({ awaitingNext: false });
         });
         break;
       case 'subtask_done':
         showFeedback(
-          { correct: event.correct, title: event.correct ? 'מְצֻיָּן! 🟢' : 'הֵבַנְתִּי, נַמְשִׁיךְ... 🟡' },
+          { correct: true, neutral: true, title: 'הַתְּשׁוּבָה הִתְקַבְּלָה! 👍' },
           1500,
           () => {
             const { state, event: next } = advance(get().qflow);
@@ -863,7 +865,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         break;
       case 'retry_done':
         showFeedback(
-          { correct: event.correct, title: event.correct ? 'מְעֻלֶּה, הִצְלַחְתֶּם! 🎉' : 'הַתְּשׁוּבָה נִשְׁמְרָה. 👍' },
+          { correct: true, neutral: true, title: 'הַתְּשׁוּבָה הִתְקַבְּלָה! 👍' },
           1500,
           () => {
             const { state, event: next } = advance(get().qflow);

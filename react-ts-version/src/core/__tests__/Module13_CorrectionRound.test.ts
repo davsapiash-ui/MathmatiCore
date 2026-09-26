@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { TASKS } from '@/core/QMatrix';
+import { initQFlow, recordResult, advance, hasProbeExercise } from '@/core/qmatrixFlow';
 
 /**
  * סבב התיקונים של מפגש 2 (מודול 13).
@@ -81,6 +82,8 @@ describe('ההנחיה אינה מוסרת את התשובה', () => {
       const text = t.backwardDiagnosis?.probeInstructionHe ?? '';
       if (!text || t.correctAnswer === undefined) continue;
       const answer = String(t.correctAnswer);
+      // a number the task itself shows the child (task 5: "25 קוביות יחידה") gives nothing away
+      if ((t.givenHe ?? '').includes(answer)) continue;
       const digits = text.replace(/[^0-9]/g, ' ');
       if (new RegExp(`(^| )${answer}( |$)`).test(digits)) offenders.push(`${t.id}: "${text}"`);
     }
@@ -90,5 +93,74 @@ describe('ההנחיה אינה מוסרת את התשובה', () => {
   it('אין הבטחה של העלאת פתרון שאיש אינו קולט', () => {
     expect(view).not.toContain('הפתרון הועלה בהצלחה למורה');
     expect(view).not.toContain('type="file"');
+  });
+});
+
+/**
+ * הכרעת בעל המוצר (25.9.2026): סבב התיקונים נשאר, בלי רמזים ובלי משפטי הכוונה,
+ * והמשוב בו אינו מגלה אם התשובה נכונה — הוא עדיין חלק מהאבחון. בתרגילי החיבור
+ * והחיסור קודם מוצג תרגיל פשוט יותר במספרים עגולים ואחר כך המשימה עצמה; בשאר
+ * המשימות אין תרגיל פשוט יותר, ולכן יש ניסיון שני אחד בלבד.
+ */
+describe('סבב התיקונים בלי רמזים', () => {
+  it('המסך אינו מציג רובוט, כותרת "בדיקה מונחית" או משפט הכוונה', () => {
+    expect(view).not.toContain('🤖');
+    expect(view).not.toContain('בדיקה מונחית');
+    expect(view).not.toContain('בואו נפתור יחד');
+  });
+
+  it('ההנחיות בסבב אינן מסבירות איך לפתור', () => {
+    for (const t of TASKS) {
+      const text = t.backwardDiagnosis?.probeInstructionHe ?? '';
+      for (const hint of ['שאלו את עצמכם', 'טור שאין בו כלום', 'ערך הספרה הוא', 'כל 10 יחידות', 'נתאמן קודם', 'פרקו בראש']) {
+        expect(text, t.id).not.toContain(hint);
+      }
+    }
+  });
+
+  it('המשוב בסבב אינו תלוי בנכונות התשובה', () => {
+    const start = store.indexOf("case 'start_correction':");
+    const end = store.indexOf("case 'all_complete':", start);
+    const round = store.slice(start, end);
+    expect(start).toBeGreaterThan(0);
+    expect(round).not.toContain('event.correct ?');
+    expect(round).not.toContain('correct: event.correct');
+  });
+
+  it('משימה בלי תרגיל פשוט יותר: ניסיון שני אחד; משימת חשבון: תרגיל פשוט ואז המשימה', () => {
+    let state = initQFlow();
+    let event: any = null;
+    for (let i = 0; i < TASKS.length; i++) {
+      state = recordResult(state, { correct: false, detail: '' }).state;
+      ({ state, event } = advance(state));
+    }
+    const seen: string[] = [];
+    while (event && event.type !== 'all_complete') {
+      if (event.type === 'start_correction') {
+        const task = TASKS.find((t) => t.id === event.taskId)!;
+        const r = recordResult(state, { correct: true, detail: '' });
+        state = r.state;
+        ({ state, event } = advance(state));
+        if (hasProbeExercise(task)) {
+          expect(event.type, task.id).toBe('start_retry');
+          state = recordResult(state, { correct: true, detail: '' }).state;
+          ({ state, event } = advance(state));
+          seen.push(task.id + ':probe+retry');
+        } else {
+          expect(state.results[task.id].secondAttemptCorrect, task.id).toBe(true);
+          seen.push(task.id + ':one');
+        }
+      } else break;
+    }
+    expect(event?.type).toBe('all_complete');
+    expect(seen).toEqual([
+      'task1_read_write_zero:one',
+      'task2_digit_value:one',
+      'task3_subtraction_regrouping:probe+retry',
+      'task4_decompose_number:one',
+      'task5_units_to_tens:one',
+      'task6_vertical_addition:probe+retry',
+      'task7_subtraction_zero_tens:probe+retry',
+    ]);
   });
 });
