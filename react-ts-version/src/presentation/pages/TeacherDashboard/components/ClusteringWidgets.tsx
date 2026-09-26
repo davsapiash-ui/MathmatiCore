@@ -8,6 +8,20 @@ interface Props {
   activeFilter: string | null;
 }
 
+/**
+ * The six core skills (מסמך 04, "מיפוי מיומנויות כיתתי"). Each is a filter, and
+ * each must have a group card in TeacherDashboard.tsx — a test holds the two
+ * together, because number_magnitude once had a filter and no card.
+ */
+export const CLUSTER_WIDGETS = [
+  { key: 'decimal_structure', label: CONCEPT_LABELS_HE.decimal_structure, color: 'from-blue-500 to-cyan-500' },
+  { key: 'number_magnitude', label: CONCEPT_LABELS_HE.number_magnitude, color: 'from-emerald-500 to-teal-500' },
+  { key: 'regrouping_fluency', label: CONCEPT_LABELS_HE.regrouping_fluency, color: 'from-purple-500 to-indigo-500' },
+  { key: 'procedural_fluency', label: CONCEPT_LABELS_HE.procedural_fluency, color: 'from-red-500 to-rose-500' },
+  { key: 'relational_thinking', label: CONCEPT_LABELS_HE.relational_thinking, color: 'from-orange-500 to-amber-500' },
+  { key: 'algebraic_reasoning', label: CONCEPT_LABELS_HE.algebraic_reasoning, color: 'from-pink-500 to-rose-400' },
+] as const;
+
 export function ClusteringWidgets({ students, onFilterChange, activeFilter }: Props) {
   // Threshold unified with the group cards below (they filter at mastery < 0.5);
   // this widget used < 0.8, so its counts disagreed with its own lists.
@@ -15,14 +29,7 @@ const getStrugglingCount = (conceptKey: keyof NonNullable<StudentData['conceptMa
     return students.filter(s => s.conceptMastery && s.conceptMastery[conceptKey] < 0.5).length;
   };
 
-  const widgets = [
-    { key: 'decimal_structure', label: CONCEPT_LABELS_HE.decimal_structure, color: 'from-blue-500 to-cyan-500' },
-    { key: 'number_magnitude', label: CONCEPT_LABELS_HE.number_magnitude, color: 'from-emerald-500 to-teal-500' },
-    { key: 'regrouping_fluency', label: CONCEPT_LABELS_HE.regrouping_fluency, color: 'from-purple-500 to-indigo-500' },
-    { key: 'procedural_fluency', label: CONCEPT_LABELS_HE.procedural_fluency, color: 'from-red-500 to-rose-500' },
-    { key: 'relational_thinking', label: CONCEPT_LABELS_HE.relational_thinking, color: 'from-orange-500 to-amber-500' },
-    { key: 'algebraic_reasoning', label: CONCEPT_LABELS_HE.algebraic_reasoning, color: 'from-pink-500 to-rose-400' },
-  ] as const;
+  const widgets = CLUSTER_WIDGETS;
 
   return (
     <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">

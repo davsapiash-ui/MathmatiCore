@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { MonitorPlay, ListOrdered, AlertTriangle, RotateCcw, Sparkles, FileText, Loader2 } from 'lucide-react';
 import { ReplayViewer } from '@/presentation/components/ReplayViewer';
+import { CHOICE_EXERCISES_HEADING_HE, exercisePathType } from '@/core/choiceExercises';
 import {
   AI_FALLBACK_TEXT,
   REPORT_PROCESSING_TEXT,
@@ -317,9 +318,12 @@ export function LearnerJourney({ studentId }: Props) {
               >
                 הכול
               </button>
-              {exerciseIds.map((id, i) => {
+              {exerciseIds.map((id) => {
                 const chapter = chapters.find((c) => c.exerciseId === id);
                 const active = selectedExercise === id;
+                // Only the compulsory exercises are numbered; a choice exercise is marked in its title.
+                const isChoice = exercisePathType(id) !== 'compulsory';
+                const number = isChoice ? null : exerciseIds.filter((x) => exercisePathType(x) === 'compulsory').indexOf(id) + 1;
                 return (
                   <button
                     key={id}
@@ -331,7 +335,7 @@ export function LearnerJourney({ studentId }: Props) {
                     title={exerciseTitle(selectedSession, id)}
                     className={`text-xs font-bold px-3 py-1.5 rounded-full border cursor-pointer ${active ? 'bg-ws-accent text-white border-ws-accent' : 'bg-ws-surface text-ws-ink border-ws-surface2 hover:border-ws-accent/40'}`}
                   >
-                    {i + 1}. {exerciseTitle(selectedSession, id)}{chapter ? '' : ' (ללא הקלטה)'}
+                    {number !== null ? `${number}. ` : ''}{exerciseTitle(selectedSession, id)}{chapter ? '' : ' (ללא הקלטה)'}
                   </button>
                 );
               })}
@@ -454,6 +458,14 @@ export function LearnerJourney({ studentId }: Props) {
                       <div className="font-black text-ws-ink mb-1">מהלך הפתרון לפי תרגילים</div>
                       <ul className="space-y-1 text-ws-ink">
                         {report.exerciseNarratives.map((n, i) => <li key={i}>• {n}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                  {report.choiceExerciseNarratives.length > 0 && (
+                    <div className="p-3 rounded-xl bg-ws-bg border border-dashed border-ws-surface2" data-testid="choice-exercise-narratives">
+                      <div className="font-black text-ws-ink mb-1">{CHOICE_EXERCISES_HEADING_HE}</div>
+                      <ul className="space-y-1 text-ws-ink">
+                        {report.choiceExerciseNarratives.map((n, i) => <li key={i}>• {n}</li>)}
                       </ul>
                     </div>
                   )}

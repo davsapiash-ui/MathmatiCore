@@ -22,6 +22,7 @@ import { database, firestore, functions, authReady } from '@/infrastructure/fire
 import type { TelemetryEventType } from '@/types/telemetry';
 import { getSessionTasks } from '@/data/sessionTasks';
 import { TASKS as DIAGNOSTIC_TASKS } from '@/core/QMatrix';
+import { CHOICE_PATH_LABEL_HE, choiceTask, exercisePathType } from '@/core/choiceExercises';
 
 export interface RecordingChapter {
   exerciseId: string;
@@ -285,6 +286,13 @@ export function describeEvent(e: JourneyEvent): EventDescription {
 /** Human title for an exercise id inside a meeting, from the session banks. */
 export function exerciseTitle(sessionNumber: number | null, exerciseId: string): string {
   if (!exerciseId) return '';
+  // מסמך 03: a choice exercise is marked as one. These banks are not in
+  // getSessionTasks, so the teacher used to see the bare id.
+  const choice = choiceTask(exerciseId);
+  if (choice) {
+    const type = exercisePathType(exerciseId);
+    return type === 'compulsory' ? choice.titleHe : `${CHOICE_PATH_LABEL_HE[type]}: ${choice.titleHe}`;
+  }
   if (sessionNumber === 2) {
     const t = DIAGNOSTIC_TASKS.find((x) => x.id === exerciseId);
     if (t) return t.titleHe;
@@ -466,7 +474,10 @@ export interface MeetingReport {
   scoreSource: string;
   routingLabelHe: string;
   recommendationDetailsHe: string;
+  /** The compulsory exercises only. */
   exerciseNarratives: string[];
+  /** מסמך 03: the choice exercises, marked, apart from the compulsory ones. */
+  choiceExerciseNarratives: string[];
   knowledgeGaps: string[];
   teachingRecommendations: string[];
   aiAnalysisAvailable: boolean;
@@ -503,6 +514,24 @@ function researchMeasureLines(m: unknown): string[] {
 
 const strList = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
 
+/**
+ * The narrative of the compulsory exercises, and of the choice exercises apart
+ * (מסמך 03). A report stored before the server split them numbered the choice
+ * exercises on after the compulsory ones ("בתרגיל השמיני (s4_g_reinforce_1)");
+ * those paragraphs are moved by the exercise id they name.
+ */
+function splitNarratives(d: Record<string, any>): { exerciseNarratives: string[]; choiceExerciseNarratives: string[] } {
+  const compulsory: string[] = [];
+  const choice: string[] = strList(d.choice_exercise_narratives);
+  for (const n of strList(d.exercise_narratives)) {
+    const id = /\(([^()\s]+)\)/.exec(n)?.[1] ?? '';
+    const type = exercisePathType(id);
+    if (type === 'compulsory') compulsory.push(n);
+    else choice.push(`${CHOICE_PATH_LABEL_HE[type]}: ${n}`);
+  }
+  return { exerciseNarratives: compulsory, choiceExerciseNarratives: choice };
+}
+
 function sandboxPartOf(d: Record<string, any>): SandboxReportPart {
   const used = d.tool_mastery?.used && typeof d.tool_mastery.used === 'object' ? d.tool_mastery.used : null;
   const titles = d.exercise_titles && typeof d.exercise_titles === 'object' ? d.exercise_titles : {};
@@ -531,7 +560,7 @@ export function reportFromData(d: Record<string, any>, sessionId: string, downlo
     scoreSource: String(d.score_source ?? ''),
     routingLabelHe: String(d.routing_label_he ?? ''),
     recommendationDetailsHe: String(d.recommendation_details_he ?? ''),
-    exerciseNarratives: strList(d.exercise_narratives),
+    ...splitNarratives(d),
     knowledgeGaps: strList(d.knowledge_gaps),
     teachingRecommendations: strList(d.teaching_recommendations),
     aiAnalysisAvailable: d.ai_analysis_available === true,
