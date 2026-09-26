@@ -2,13 +2,16 @@ import { describe, it, expect } from 'vitest';
 import {
   CONCEPT_LABELS_HE,
   DIAGNOSTIC_DOMAINS,
+  Q_LEGACY_TASK_ALIASES,
   Q_MATRIX_MAPPING,
   REGROUPING_KIND_BY_TASK,
   REGROUPING_KIND_LABELS_HE,
   TASKS,
   computeCognitiveMastery,
+  computeRegroupingDomain,
   computeRegroupingSplit,
   diagnosticTaskLabelHe,
+  isRegroupingBelow,
 } from '@/core/QMatrix';
 
 /**
@@ -94,6 +97,53 @@ describe('הקבצה and פריטה are counted separately', () => {
     expect(split.grouping).toEqual({ attempted: 1, succeeded: 1, ratio: 1 });
     expect(split.decomposition).toEqual({ attempted: 0, succeeded: 0, ratio: null });
     expect(computeRegroupingSplit(undefined).grouping.ratio).toBeNull();
+  });
+
+  it('legacy alias rows carry exactly what their canonical task carries', () => {
+    for (const [canonical, alias] of Object.entries(Q_LEGACY_TASK_ALIASES)) {
+      expect(Q_MATRIX_MAPPING[alias], `${alias} differs from ${canonical}`).toEqual(Q_MATRIX_MAPPING[canonical]);
+    }
+    for (const concepts of Object.values(Q_MATRIX_MAPPING)) {
+      for (const c of concepts) expect(DIAGNOSTIC_DOMAINS).toContain(c);
+    }
+  });
+
+  it('the dashboard domain number is computed from the live results when they exist, from the stored profile only without them', () => {
+    const results = {
+      task3_subtraction_regrouping: 'fail',
+      task5_units_to_tens: 'success',
+      task6_vertical_addition: 'success',
+      task7_subtraction_zero_tens: 'fail',
+    };
+    const live = computeRegroupingDomain(results, 0.9);
+    expect(live.source).toBe('live');
+    expect(live.combined).toBe(0.5);
+    const stored = computeRegroupingDomain({}, 0.3);
+    expect(stored).toMatchObject({ source: 'stored', combined: 0.3 });
+    expect(computeRegroupingDomain(undefined, undefined)).toMatchObject({ source: 'none', combined: null });
+  });
+
+  it('no mixing: either part below the threshold puts the learner below it', () => {
+    const groupsOnly = computeRegroupingDomain({
+      task3_subtraction_regrouping: 'fail',
+      task5_units_to_tens: 'success',
+      task6_vertical_addition: 'success',
+      task7_subtraction_zero_tens: 'fail',
+    });
+    expect(groupsOnly.combined).toBe(0.5);
+    expect(isRegroupingBelow(groupsOnly, 0.5)).toBe(true); // פריטה 0/2
+    expect(isRegroupingBelow(groupsOnly, 0.8)).toBe(true);
+    const allSolved = computeRegroupingDomain({
+      task3_subtraction_regrouping: 'success',
+      task5_units_to_tens: 'success',
+      task6_vertical_addition: 'success',
+      task7_subtraction_zero_tens: 'success',
+    });
+    expect(isRegroupingBelow(allSolved, 0.8)).toBe(false);
+    // An unattempted part is unknown, not a failure; a missing domain is not "below".
+    expect(isRegroupingBelow(computeRegroupingDomain({ task5_units_to_tens: 'success' }), 0.5)).toBe(false);
+    expect(isRegroupingBelow(computeRegroupingDomain(undefined, undefined), 0.5)).toBe(false);
+    expect(isRegroupingBelow(computeRegroupingDomain(undefined, 0.2), 0.5)).toBe(true);
   });
 
   it('reads legacy task ids through the same alias table as the rest of the diagnostic', () => {

@@ -38,7 +38,7 @@ import { StudentLearningConditionsDrawer } from "./TeacherDashboard/components/S
 import { TeacherGateApprovalDrawer } from "./TeacherDashboard/components/TeacherGateApprovalDrawer";
 import { FloatingChatPanel } from "./TeacherDashboard/components/FloatingChatPanel";
 import { HeatmapGrid } from "./TeacherDashboard/components/HeatmapGrid";
-import { ClusteringWidgets } from "./TeacherDashboard/components/ClusteringWidgets";
+import { ClusteringWidgets, isStudentBelow } from "./TeacherDashboard/components/ClusteringWidgets";
 import { TeacherApprovalGate, type GateStudentItem } from "./TeacherDashboard/components/TeacherApprovalGate";
 import { SessionActivationModal, type SessionRow } from "./TeacherDashboard/components/SessionActivationModal";
 import { getSessionDurationMinutes } from "@/core/classSession";
@@ -47,7 +47,7 @@ import {
   DIAGNOSTIC_DOMAINS,
   REGROUPING_KIND_LABELS_HE,
   TASKS as DIAGNOSTIC_TASKS,
-  computeRegroupingSplit,
+  computeRegroupingDomain,
   diagnosticTaskLabelHe,
   getFailedDiagnosticTasks,
   getQTaskStatus,
@@ -758,15 +758,23 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   const decimalStructureGroup = allStudents.filter(
     (s) => s.conceptMastery && s.conceptMastery.decimal_structure < 0.5
   );
+  // "הקבצה ופריטה": אין ערבוב (הוראת בעל המוצר 26.9.2026). לומד שייך לקבוצה אם
+  // המספר המאוחד מתחת ל-0.5 או אם אחד משני החלקים לבדו מתחתיו — אותו כלל
+  // (isStudentBelow) משמש את הווידג'ט, את הכרטיס ואת התרשים. המספר המאוחד
+  // מחושב מתוצאות המשימות עצמן כשהן קיימות, לא מהפרופיל השמור.
   const regroupingFluencyGroup = allStudents.filter(
-    (s) => s.conceptMastery && s.conceptMastery.regrouping_fluency < 0.5
+    (s) => s.conceptMastery && isStudentBelow(s, 'regrouping_fluency', 0.5)
   );
   const proceduralFluencyGroup = allStudents.filter(
     (s) => s.conceptMastery && s.conceptMastery.procedural_fluency < 0.5
   );
 
-  // "הקבצה ופריטה" הוא מספר אחד בפרופיל, אבל המורה חייבת לראות את שני חלקיו
-  // בנפרד (הוראת בעל המוצר 26.9.2026): הקבצה = משימות 5 ו-6, פריטה = משימות 3 ו-7.
+  // הקבצה = משימות 5 ו-6, פריטה = משימות 3 ו-7. שני החלקים מוצגים ליד המאוחד.
+  const regroupingOf = (s: StudentData) =>
+    computeRegroupingDomain(
+      s.qMatrixResults as Record<string, unknown> | undefined,
+      s.conceptMastery?.regrouping_fluency
+    );
   const regroupingKindCell = (score: RegroupingKindScore) =>
     score.ratio === null ? "טרם ניגש" : `${Math.round(score.ratio * 100)}% (${score.succeeded}/${score.attempted})`;
 
@@ -785,7 +793,8 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     allStudents.forEach((s) => {
       if (!s.conceptMastery) return;
       DIAGNOSTIC_DOMAINS.forEach((domain, i) => {
-        if (s.conceptMastery![domain] >= 0.8) counts[i].success++; else counts[i].struggle++;
+        // Same rule as the widget and the group card (isStudentBelow), at the chart's 0.8 bar.
+        if (isStudentBelow(s, domain, 0.8)) counts[i].struggle++; else counts[i].success++;
       });
     });
     return counts;
@@ -1673,13 +1682,13 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                         { key: "decomposition", header: REGROUPING_KIND_LABELS_HE.decomposition },
                       ]}
                       data={regroupingFluencyGroup.map((s) => {
-                        const split = computeRegroupingSplit(s.qMatrixResults as Record<string, unknown> | undefined);
+                        const view = regroupingOf(s);
                         return {
                           id: s.studentId,
                           name: s.name,
-                          mastery: s.conceptMastery ? `${Math.round(s.conceptMastery.regrouping_fluency * 100)}%` : "חסר מידע",
-                          grouping: regroupingKindCell(split.grouping),
-                          decomposition: regroupingKindCell(split.decomposition),
+                          mastery: view.combined === null ? "חסר מידע" : `${Math.round(view.combined * 100)}%`,
+                          grouping: regroupingKindCell(view.split.grouping),
+                          decomposition: regroupingKindCell(view.split.decomposition),
                         };
                       })}
                     />
