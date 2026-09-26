@@ -80,7 +80,7 @@ export const TASKS: QMatrixTask[] = [
     expectedBlocks: { hundreds: 6, tens: 0, units: 5 },
     backwardDiagnosis: {
       triggerOn: "wrong_answer",
-      probeInstructionHe: "שש מאות וחמש. שאלו את עצמכם: כמה מאות? כמה עשרות? כמה יחידות? טור שאין בו כלום מקבל 0.",
+      probeInstructionHe: "כתבו במספרים: שש מאות וחמש.",
       probeAnswer: 605,
     },
   },
@@ -96,7 +96,7 @@ export const TASKS: QMatrixTask[] = [
     correctAnswer: 40,
     backwardDiagnosis: {
       triggerOn: "wrong_answer",
-      probeInstructionHe: "בדקו באיזה טור יושבת הספרה 4. ערך הספרה הוא מספר הפריטים בטור כפול ערך הטור.",
+      probeInstructionHe: "מה ערך הספרה 4 במספר 742? כתבו את התשובה.",
       probeAnswer: 40,
     },
   },
@@ -114,7 +114,7 @@ export const TASKS: QMatrixTask[] = [
       probeA: 40,
       probeB: 10,
       probeAnswer: 30,
-      probeInstructionHe: "נתאמן קודם על המספרים העגולים — בלי היחידות — ואז נחזור לתרגיל המלא.",
+      probeInstructionHe: "פתרו את התרגיל וכתבו את התשובה.",
     },
   },
   {
@@ -127,7 +127,7 @@ export const TASKS: QMatrixTask[] = [
     expectedBlocks: { hundreds: 5, tens: 6, units: 3 },
     backwardDiagnosis: {
       triggerOn: "wrong_answer",
-      probeInstructionHe: "חמש מאות שישים ושלוש. פרקו בראש: כמה מאות, כמה עשרות וכמה יחידות — ואז כתבו את המספר.",
+      probeInstructionHe: "כתבו במספרים: חמש מאות שישים ושלוש.",
       probeAnswer: 563,
     },
   },
@@ -141,7 +141,7 @@ export const TASKS: QMatrixTask[] = [
     expectedBlocks: { tens: 2, units: 5 },
     backwardDiagnosis: {
       triggerOn: "wrong_answer",
-      probeInstructionHe: "כל 10 יחידות מתקבצות לעשרת אחת. כמה עשרות שלמות מסתתרות כאן, וכמה יחידות נשארות?",
+      probeInstructionHe: "קבעו כמה עשרות וכמה יחידות תקבלו מהקוביות, וכתבו את המספר.",
       probeAnswer: 25,
     },
   },
@@ -159,7 +159,7 @@ export const TASKS: QMatrixTask[] = [
       probeA: 120,
       probeB: 80,
       probeAnswer: 200,
-      probeInstructionHe: "נתאמן קודם על המספרים העגולים — בלי היחידות — ואז נחזור לתרגיל המלא.",
+      probeInstructionHe: "פתרו את התרגיל וכתבו את התשובה.",
     },
   },
   {
@@ -176,7 +176,7 @@ export const TASKS: QMatrixTask[] = [
       probeA: 400,
       probeB: 130,
       probeAnswer: 270,
-      probeInstructionHe: "נתאמן קודם על המספרים העגולים — בלי היחידות — ואז נחזור לתרגיל המלא.",
+      probeInstructionHe: "פתרו את התרגיל וכתבו את התשובה.",
     },
   },
 ];

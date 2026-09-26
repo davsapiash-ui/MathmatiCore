@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { UdlButton } from "@/presentation/design-system/UdlButton";
 import { 
@@ -12,7 +13,8 @@ import {
   Sparkles,
   KeyRound,
   GraduationCap,
-  Layers
+  Layers,
+  Printer
 } from "lucide-react";
 import { useAdminStore } from "@/application/useAdminStore";
 import { AdminWizardModal } from "./AdminWizardModal";
@@ -26,6 +28,7 @@ import { toast } from "sonner";
 const MAX_STUDENTS_PER_CLASS = 12;
 
 export function AdminSchoolsView() {
+  const navigate = useNavigate();
   const { 
     schools, 
     teachers, 
@@ -181,8 +184,18 @@ export function AdminSchoolsView() {
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <UdlButton 
-              semanticColor="neutral" 
+            {/* Module 25 §ד: printable login cards for the 12 learners. */}
+            <UdlButton
+              semanticColor="neutral"
+              className="gap-2 bg-white/15 hover:bg-white/25 text-white font-bold py-3.5 px-5 rounded-2xl shadow-lg border border-white/30 transition-all text-xs cursor-pointer"
+              onClick={() => navigate("/admin/login-cards")}
+            >
+              <Printer className="w-4 h-4 text-white" />
+              <span>הדפסת כרטיסי כניסה לתלמידים</span>
+            </UdlButton>
+
+            <UdlButton
+              semanticColor="neutral"
               className="gap-2 bg-rose-600 hover:bg-rose-700 text-white font-bold py-3.5 px-5 rounded-2xl shadow-lg border border-rose-400/40 transition-all hover:scale-105 active:scale-95 text-xs cursor-pointer"
               onClick={handleResetPilot}
               disabled={isResetting}

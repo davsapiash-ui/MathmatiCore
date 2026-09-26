@@ -659,6 +659,20 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     }, ms);
   }
 
+  /**
+   * A message that must not cancel what the child is in the middle of. The
+   * silent-help toast used showFeedback, which bumps the nonce — so pressing
+   * the help button while a meeting-2 step was showing ("התשובה התקבלה",
+   * "משימה נוספת") dropped that step's continuation, and "התקדם" stayed
+   * disabled until a reload.
+   */
+  function showSideFeedback(feedback: FeedbackState, ms: number) {
+    set({ feedback });
+    setTimeout(() => {
+      if (get().feedback === feedback) set({ feedback: null });
+    }, ms);
+  }
+
   function createNextUndoStack(
     currentStack: UndoFrame[],
     counts: PlaceCounts,
@@ -837,15 +851,17 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           }
         });
         break;
+      // The correction round has no hints and no right/wrong feedback (owner's
+      // decision, 25.9.2026): it is still part of the diagnostic.
       case 'start_correction':
-        showFeedback({ correct: false, title: 'סֶבֶב תִּקּוּנִים 🔍', sub: 'בּוֹאוּ נַעֲבֹר יַחַד עַל כַּמָּה דְּבָרִים...' }, 1800, () => {
+        showFeedback({ correct: true, neutral: true, title: 'מְשִׂימָה נוֹסֶפֶת 📝' }, 1800, () => {
           startTask(event.taskId);
           set({ awaitingNext: false });
         });
         break;
       case 'subtask_done':
         showFeedback(
-          { correct: event.correct, title: event.correct ? 'מְצֻיָּן! 🟢' : 'הֵבַנְתִּי, נַמְשִׁיךְ... 🟡' },
+          { correct: true, neutral: true, title: 'הַתְּשׁוּבָה הִתְקַבְּלָה! 👍' },
           1500,
           () => {
             const { state, event: next } = advance(get().qflow);
@@ -863,7 +879,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         break;
       case 'retry_done':
         showFeedback(
-          { correct: event.correct, title: event.correct ? 'מְעֻלֶּה, הִצְלַחְתֶּם! 🎉' : 'הַתְּשׁוּבָה נִשְׁמְרָה. 👍' },
+          { correct: true, neutral: true, title: 'הַתְּשׁוּבָה הִתְקַבְּלָה! 👍' },
           1500,
           () => {
             const { state, event: next } = advance(get().qflow);
@@ -1503,6 +1519,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           }
           AuditLogger.log(errorCategory, studentId, `QTask: ${task.id}, Detail: ${d}`);
         }
+      } else if (s.qflow.phase === 'correction') {
+        // A correct answer in the correction round is not a solved task: the
+        // server's first-attempt score (sessionTrigger → computeFirstAttemptScore)
+        // counts every PROBLEM_COMPLETE, so sending one here scored a task the
+        // child failed — or the easier round-number exercise — as solved first time.
+        get().resetConsecutiveErrors();
       } else {
         get().resetConsecutiveErrors();
         const studentId = currentStudentUid();
@@ -2603,7 +2625,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           lastAction: 'ביטל את הקריאה למורה',
         }).catch(console.error);
         set({ hasRequestedBasicHelp: false });
-        showFeedback({ correct: true, neutral: true, title: 'הקריאה בוטלה', sub: 'אפשר ללחוץ שוב בכל עת.' }, 2000);
+        showSideFeedback({ correct: true, neutral: true, title: 'הקריאה בוטלה', sub: 'אפשר ללחוץ שוב בכל עת.' }, 2000);
         return;
       }
 
@@ -2631,7 +2653,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // neutral acknowledgement, not a success (no confetti).
       // The same toast tells the learner how to take the call back — the button's
       // colour alone does not say it, and its tooltip needs a hover.
-      showFeedback({ correct: true, neutral: true, title: 'המורה יודעת 🤝', sub: 'הסימן נשלח בשקט. אפשר להמשיך לעבוד. לחיצה נוספת על הכפתור מבטלת את הקריאה.' }, 4000);
+      showSideFeedback({ correct: true, neutral: true, title: 'המורה יודעת 🤝', sub: 'הסימן נשלח בשקט. אפשר להמשיך לעבוד. לחיצה נוספת על הכפתור מבטלת את הקריאה.' }, 4000);
     },
 
     helpFrictionDone: () => {

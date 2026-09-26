@@ -2,7 +2,7 @@ import { onCall, HttpsError, CallableRequest } from "firebase-functions/v2/https
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
 
-const FIXED_CLASS_PASSCODE = "10203040";
+export const FIXED_CLASS_PASSCODE = "10203040";
 
 export interface AuthenticateStudentRequest {
   studentId: number;
