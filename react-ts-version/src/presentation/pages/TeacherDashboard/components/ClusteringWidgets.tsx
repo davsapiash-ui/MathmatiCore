@@ -1,5 +1,10 @@
 import { type StudentData } from '@/application/useStore';
-import { CONCEPT_LABELS_HE, type DiagnosticDomain } from '@/core/QMatrix';
+import {
+  CONCEPT_LABELS_HE,
+  computeRegroupingDomain,
+  isRegroupingBelow,
+  type DiagnosticDomain,
+} from '@/core/QMatrix';
 
 interface Props {
   students: StudentData[];
@@ -30,7 +35,7 @@ export const CLUSTER_WIDGETS: readonly {
   {
     key: 'regrouping_fluency',
     label: CONCEPT_LABELS_HE.regrouping_fluency,
-    strugglingLabel: 'מתקשים בהקבצה ופריטה',
+    strugglingLabel: 'מתקשים בהקבצה ובפריטה',
     color: 'from-purple-500 to-indigo-500',
   },
   {
@@ -41,11 +46,30 @@ export const CLUSTER_WIDGETS: readonly {
   },
 ];
 
+/**
+ * One rule for the widget, the group card and the class chart: a learner is
+ * below `threshold` in a domain when the domain's number is — and, for
+ * "הקבצה ופריטה", also when either part alone is (no mixing; owner 26.9.2026).
+ * The regrouping number itself comes from the learner's live task results when
+ * they exist, so old and new mastery profiles read the same.
+ */
+export function isStudentBelow(s: StudentData, domain: DiagnosticDomain, threshold: number): boolean {
+  if (!s.conceptMastery) return false;
+  if (domain === 'regrouping_fluency') {
+    const view = computeRegroupingDomain(
+      s.qMatrixResults as Record<string, unknown> | undefined,
+      s.conceptMastery.regrouping_fluency
+    );
+    return isRegroupingBelow(view, threshold);
+  }
+  return s.conceptMastery[domain] < threshold;
+}
+
 export function ClusteringWidgets({ students, onFilterChange, activeFilter }: Props) {
   // Threshold unified with the group cards below (they filter at mastery < 0.5);
   // this widget used < 0.8, so its counts disagreed with its own lists.
-  const getStrugglingCount = (conceptKey: DiagnosticDomain) => {
-    return students.filter(s => s.conceptMastery && s.conceptMastery[conceptKey] < 0.5).length;
+  const getStrugglingCount = (domain: DiagnosticDomain) => {
+    return students.filter((s) => isStudentBelow(s, domain, 0.5)).length;
   };
 
   const widgets = CLUSTER_WIDGETS;
@@ -62,7 +86,6 @@ export function ClusteringWidgets({ students, onFilterChange, activeFilter }: Pr
           <button
             key={widget.key}
             onClick={() => onFilterChange(isActive ? null : widget.key)}
-            aria-label={`${count} ${widget.strugglingLabel}: ${widget.label}`}
             className={`flex-shrink-0 relative overflow-hidden rounded-2xl border transition-all duration-300 text-right p-4 min-w-[200px]
               ${isActive
                 ? 'border-indigo-500 shadow-md bg-white dark:bg-slate-800'
