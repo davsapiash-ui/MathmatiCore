@@ -24,6 +24,66 @@ import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 export function HelpOverlays() {
   const helpState = useWorkspaceStore((s) => s.helpState);
   const helpFrictionDone = useWorkspaceStore((s) => s.helpFrictionDone);
+
+  // Fast, smooth transition (300ms) for snappy help response without lag.
+  useEffect(() => {
+    if (helpState !== 'friction') return;
+    const t = window.setTimeout(helpFrictionDone, 300);
+    return () => window.clearTimeout(t);
+  }, [helpState, helpFrictionDone]);
+
+  return (
+    <>
+      {/* 3s friction overlay */}
+      <AnimatePresence>
+        {helpState === 'friction' && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            /* Every overlay here releases the pointer the instant it starts
+               leaving: a fading element is invisible long before AnimatePresence
+               unmounts it, and with pointer events still on it kept swallowing
+               the learner's drags onto the number house. */
+            exit={{ opacity: 0, pointerEvents: 'none' }}
+            className="fixed inset-0 z-50 bg-ws-ink/50 backdrop-blur-sm flex flex-col items-center justify-center gap-4"
+            role="status"
+            aria-live="polite"
+          >
+            <motion.span
+              animate={{ rotate: [0, -8, 8, 0] }}
+              transition={{ repeat: Infinity, duration: 2 }}
+              className="text-6xl"
+              aria-hidden="true"
+            >
+              🤔
+            </motion.span>
+            <p className="font-display font-extrabold text-2xl text-white">בואו נחשוב רגע יחד…</p>
+            <p className="text-white/80 font-medium">מכין רמז מותאם אישית...</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
+  );
+}
+
+/**
+ * כרטיס החניכה הסוקרטי — חלונית צדדית.
+ *
+ * מסמך 03: הכרטיס מוצג "כרכיב צדדי עדין השומר על נראות מלאה של התרגיל", "בחלונית
+ * צדדית"; מסמך 04 §א: "אך ורק כחלונית צדדית נשלפת מצד המסך המותירה את מרחב
+ * העבודה במרכז פעיל". Register row 17 (25.9.2026): built as document 03 says.
+ *
+ * It used to float over the top centre of the screen, on top of the exercise
+ * sheet. It is now a column of the workspace row itself — after the board, so
+ * in RTL it slides out from the left edge of the screen — and the sheet and the
+ * board share the rest of the row. Being in the layout, it cannot cover the
+ * sheet, the board or the result row on any screen size. Nothing about its
+ * behaviour changed: the 30-second lock on the answer buttons, the read-aloud
+ * button, SOCRATIC_CARD_SHOWN / SOCRATIC_OPTION_SELECTED, Escape to close, no
+ * focus trap (the keyboard and the board stay usable while it is open).
+ */
+export function SocraticSidePanel() {
+  const helpState = useWorkspaceStore((s) => s.helpState);
   const closeHelp = useWorkspaceStore((s) => s.closeHelp);
 
   // מסמך העיצוב §1.2: כל חלונית נסגרת ב-Escape, דרך ההוק המשותף — אחרת
@@ -32,13 +92,6 @@ export function HelpOverlays() {
   // אותה. `trapFocus: false` — הכרטיס אינו חוסם, והלומד חייב להמשיך
   // לנווט אל הלוח ואל כפתור הביטול בזמן שהוא פתוח (מודול 12 §ב).
   const cardRef = useDismissableOverlay<HTMLElement>(helpState === 'socratic', closeHelp, { trapFocus: false, autoFocus: false });
-
-  // Fast, smooth transition (300ms) for snappy help response without lag.
-  useEffect(() => {
-    if (helpState !== 'friction') return;
-    const t = window.setTimeout(helpFrictionDone, 300);
-    return () => window.clearTimeout(t);
-  }, [helpState, helpFrictionDone]);
 
   const aiSocraticHint = useWorkspaceStore((s) => s.aiSocraticHint);
 
@@ -92,68 +145,36 @@ export function HelpOverlays() {
   }
 
   return (
-    <>
-      {/* 3s friction overlay */}
-      <AnimatePresence>
-        {helpState === 'friction' && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            /* Every overlay here releases the pointer the instant it starts
-               leaving: a fading element is invisible long before AnimatePresence
-               unmounts it, and with pointer events still on it kept swallowing
-               the learner's drags onto the number house. */
-            exit={{ opacity: 0, pointerEvents: 'none' }}
-            className="fixed inset-0 z-50 bg-ws-ink/50 backdrop-blur-sm flex flex-col items-center justify-center gap-4"
-            role="status"
-            aria-live="polite"
-          >
-            <motion.span
-              animate={{ rotate: [0, -8, 8, 0] }}
-              transition={{ repeat: Infinity, duration: 2 }}
-              className="text-6xl"
-              aria-hidden="true"
-            >
-              🤔
-            </motion.span>
-            <p className="font-display font-extrabold text-2xl text-white">בואו נחשוב רגע יחד…</p>
-            <p className="text-white/80 font-medium">מכין רמז מותאם אישית...</p>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Socratic content card: non-intrusive floating card (NO blocking backdrop per PRD Modules 10 & 12) */}
-      <AnimatePresence>
-        {helpState === 'socratic' && (
-          <motion.div
-            key="socratic-overlay-wrapper"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0, pointerEvents: 'none' }}
-            className="fixed inset-0 z-40 pointer-events-none flex items-start justify-center pt-16 sm:pt-20 px-4"
-            dir="rtl"
-            data-testid="socratic-overlay-wrapper"
-          >
-            <motion.aside
+    <AnimatePresence initial={false}>
+      {helpState === 'socratic' && (
+        /* In the workspace row, not over it: the panel takes its own width
+           (max-width grows 0 → full in 250ms, so the sheet and the board ease
+           aside instead of jumping) and releases the pointer the moment it
+           starts leaving. No backdrop, no z-index over the work. */
+        <motion.div
+          key="socratic-side-panel"
+          initial={{ maxWidth: 0, opacity: 0 }}
+          animate={{ maxWidth: 400, opacity: 1 }}
+          exit={{ maxWidth: 0, opacity: 0, pointerEvents: 'none' }}
+          transition={{ duration: 0.25, ease: 'easeOut' }}
+          className="socratic-side-panel shrink-0 self-stretch min-h-0 max-h-full overflow-hidden w-[260px] xl:w-[280px] 2xl:w-[340px]"
+          dir="rtl"
+          data-testid="socratic-side-panel"
+        >
+            <aside
               ref={cardRef}
-              initial={{ opacity: 0, y: -20, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -20, scale: 0.95, pointerEvents: 'none' }}
-              transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-              /* Floats cleanly docked near top-center / above board columns so active
-                 place-value columns and the bottom block palette remain 100% visible and unblocked.
-                 Outer wrapper has pointer-events-none; only this card has pointer-events-auto. */
-              className="pointer-events-auto max-w-sm sm:max-w-md w-[92vw] sm:w-[440px] bg-ws-surface rounded-3xl shadow-2xl border-2 border-indigo-200 dark:border-indigo-800/80 p-6 max-h-[calc(100dvh-6rem)] overflow-y-auto"
+              /* Fixed inner width, so the text does not reflow while the panel
+                 slides out. Scrolls inside itself on a short screen. */
+              className="pointer-events-auto h-full w-[260px] xl:w-[280px] 2xl:w-[340px] bg-ws-surface rounded-3xl shadow-lg border-2 border-indigo-200 dark:border-indigo-800/80 p-5 overflow-y-auto"
               role="region"
               aria-label="חונך דיגיטלי סוקרטי"
               data-testid="socratic-card"
             >
-              <div className="flex items-center justify-between mb-3">
+              {/* The panel is narrow, so the question gets its own full-width
+                  line under the icon, read-aloud and close buttons. */}
+              <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <span className="text-2xl" aria-hidden="true">💡</span>
-                  <h2 className="font-display font-black text-lg sm:text-xl text-ws-ink leading-tight">
-                    {aiSocraticHint?.questionHe || content?.titleHe || 'שאלה מנחה לחשיבה'}
-                  </h2>
                   <UdlSpeechButton
                     text={[
                       aiSocraticHint?.questionHe || content?.titleHe || 'שאלה מנחה לחשיבה',
@@ -173,6 +194,9 @@ export function HelpOverlays() {
                   ✕
                 </button>
               </div>
+              <h2 className="font-display font-black text-lg xl:text-xl text-ws-ink leading-tight mb-3">
+                {aiSocraticHint?.questionHe || content?.titleHe || 'שאלה מנחה לחשיבה'}
+              </h2>
 
               {content && (
                 /* Visual 10 ↔ ten-units equivalence (vanilla socratic graphic) */
@@ -200,11 +224,10 @@ export function HelpOverlays() {
 
               {/* 3 Closed Dynamic Options for Socratic Mentoring */}
               <SocraticPenaltyLockOptions onClose={closeHelp} />
-            </motion.aside>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </>
+            </aside>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 

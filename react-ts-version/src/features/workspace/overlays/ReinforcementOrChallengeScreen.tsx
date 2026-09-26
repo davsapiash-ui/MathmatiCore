@@ -1,16 +1,37 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { ShieldCheck, Rocket, CheckCircle2 } from 'lucide-react';
-import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 
-/** מה שנקרא בקול במסך הזה — כל מה שהילד צריך כדי לבחור מסלול בלי לקרוא. */
+/**
+ * מה שכתוב במסך — ומה שנקרא בקול, כדי שהילד יוכל לבחור בלי לקרוא.
+ *
+ * מסמך 03 §3.3–3.7, "מדיניות סיום מוקדם": נתיב החזרה והביסוס הוא **שני**
+ * תרגילים נוספים בנושא המפגש, ונתיב האתגר והעומק הוא **תרגיל אחד**
+ * (`SESSION_BRANCH_TASKS`: שניים ואחד בכל מפגש ובכל מסלול). הנוסח הקודם הבטיח
+ * "משימות חשיבה מורכבות… מספרים גדולים" — ברבים, וגם במסלול צמצום הפערים,
+ * שבו תרגיל האתגר בתחום האלף — ודיבר עם הילד על "ציון השליטה". תרגילי
+ * הבחירה אכן אינם נספרים בשבעת תרגילי החובה (PRD מודול 14 §ג); לילד נאמר
+ * רק שהם בחירה ולא חובה.
+ */
+const BRANCH_CHOICE_TEXT = {
+  badge: 'סיימתם את שבעת התרגילים של המפגש!',
+  heading: 'איך תרצו להמשיך?',
+  intro: 'התרגילים הבאים הם בחירה שלכם, לא חובה.',
+  reinforcementTitle: 'מסלול ביסוס',
+  reinforcement: 'שני תרגילים נוספים, לחזרה על מה שתרגלנו היום.',
+  challengeTitle: 'מסלול אתגר',
+  challenge: 'תרגיל אתגר אחד, קשה יותר, בנושא של היום.',
+  finish: 'סיום המפגש עכשיו',
+} as const;
+
 const BRANCH_CHOICE_SPEECH = [
-  'איך תרצו להמשיך את החקר?',
-  'באפשרותכם לבחור מסלול המשך קצר לביסוס ההבנה או לאתגר חשיבה מתקדם.',
-  'מסלול ביסוס: תרגול נוסף של העקרונות שנלמדו במספרים נוחים לחיזוק הביטחון המתמטי.',
-  'מסלול אתגר: משימות חשיבה מורכבות יותר המשלבות מספרים גדולים ושיטות פירוק גמישות.',
-  'אפשר גם לסיים את המפגש כעת ולעבור למסך הסיכום.',
+  BRANCH_CHOICE_TEXT.badge,
+  BRANCH_CHOICE_TEXT.heading,
+  BRANCH_CHOICE_TEXT.intro,
+  `${BRANCH_CHOICE_TEXT.reinforcementTitle}: ${BRANCH_CHOICE_TEXT.reinforcement}`,
+  `${BRANCH_CHOICE_TEXT.challengeTitle}: ${BRANCH_CHOICE_TEXT.challenge}`,
+  'אפשר גם לסיים את המפגש עכשיו.',
 ].join(' ');
 
 interface ReinforcementOrChallengeScreenProps {
@@ -27,8 +48,6 @@ export function ReinforcementOrChallengeScreen({
   onSelectBranch,
   onSkipToFinish,
 }: ReinforcementOrChallengeScreenProps) {
-  const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
-
   return (
     <div
       dir="rtl"
@@ -43,18 +62,18 @@ export function ReinforcementOrChallengeScreen({
         {/* Badge */}
         <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-extrabold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300">
           <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-          <span>השלמתם בהצלחה את משימות החובה במפגש {sessionNumber}!</span>
+          <span>{BRANCH_CHOICE_TEXT.badge}</span>
         </div>
 
         <div>
           <div className="flex items-center justify-center gap-3">
             <h2 className="font-display font-black text-2xl md:text-3xl text-slate-900 dark:text-white">
-              איך תרצו להמשיך את החקר?
+              {BRANCH_CHOICE_TEXT.heading}
             </h2>
             <UdlSpeechButton text={BRANCH_CHOICE_SPEECH} className="shrink-0" />
           </div>
           <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mt-2 max-w-md">
-            באפשרותכם לבחור מסלול המשך קצר לביסוס ההבנה או לאתגר חשיבה מתקדם (משימות רשות שאינן משפיעות על ציון השליטה):
+            {BRANCH_CHOICE_TEXT.intro}
           </p>
         </div>
 
@@ -71,10 +90,10 @@ export function ReinforcementOrChallengeScreen({
               <ShieldCheck className="w-8 h-8" />
             </div>
             <h3 className="font-display font-black text-xl text-emerald-900 dark:text-emerald-200">
-              מסלול ביסוס
+              {BRANCH_CHOICE_TEXT.reinforcementTitle}
             </h3>
             <p className="text-xs text-slate-600 dark:text-slate-400 mt-1.5 leading-relaxed font-medium">
-              תרגול נוסף של העקרונות שנלמדו במספרים נוחים לחיזוק הביטחון המתמטי.
+              {BRANCH_CHOICE_TEXT.reinforcement}
             </p>
           </motion.button>
 
@@ -89,10 +108,10 @@ export function ReinforcementOrChallengeScreen({
               <Rocket className="w-8 h-8" />
             </div>
             <h3 className="font-display font-black text-xl text-purple-900 dark:text-purple-200">
-              מסלול אתגר
+              {BRANCH_CHOICE_TEXT.challengeTitle}
             </h3>
             <p className="text-xs text-slate-600 dark:text-slate-400 mt-1.5 leading-relaxed font-medium">
-              משימות חשיבה מורכבות יותר המשלבות מספרים גדולים ושיטות פירוק גמישות.
+              {BRANCH_CHOICE_TEXT.challenge}
             </p>
           </motion.button>
         </div>
@@ -103,7 +122,7 @@ export function ReinforcementOrChallengeScreen({
           onClick={onSkipToFinish}
           className="text-xs font-bold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-colors pt-2 underline underline-offset-4 cursor-pointer"
         >
-          סיום המפגש כעת ומעבר למסך הסיכום
+          {BRANCH_CHOICE_TEXT.finish}
         </button>
       </motion.div>
     </div>

@@ -68,7 +68,7 @@ describe('Module 12: the three coaching triggers of מסמך 03', () => {
   });
 
   it('trigger 3 stays silent once the conversion has been made on the canvas', async () => {
-    useWorkspaceStore.setState({ hasGrouped: true } as any);
+    useWorkspaceStore.setState({ hasGrouped: true, conversionsByColumn: { composed: { units: true }, decomposed: {} } } as any);
     useWorkspaceStore.getState().setAnswerDigit('units', '9');
     await flush();
     expect(useWorkspaceStore.getState().helpState).not.toBe('socratic');
@@ -119,14 +119,24 @@ describe('Module 12: the three coaching triggers of מסמך 03', () => {
 
 describe('columnRequiresConversion agrees with the vertical algorithm', () => {
   it('addition: a carry column is required, a quiet one is not', () => {
-    expect(columnRequiresConversion('units', 1245, 328, false, undefined)).toBe(true);  // 5+8
-    expect(columnRequiresConversion('tens', 1245, 328, false, undefined)).toBe(false);  // 4+2
-    expect(columnRequiresConversion('tens', 1245, 328, false, '1')).toBe(false);        // 4+2+1
-    expect(columnRequiresConversion('tens', 456, 281, false, undefined)).toBe(true);    // 5+8
+    expect(columnRequiresConversion('units', 1245, 328, false)).toBe(true);  // 5+8
+    expect(columnRequiresConversion('tens', 1245, 328, false)).toBe(false);  // 4+2+1
+    expect(columnRequiresConversion('tens', 456, 281, false)).toBe(true);    // 5+8
   });
 
   it('subtraction: a borrow column is required', () => {
-    expect(columnRequiresConversion('units', 53, 18, true, undefined)).toBe(true);      // 3 < 8
-    expect(columnRequiresConversion('tens', 78, 25, true, undefined)).toBe(false);      // 7 > 2
+    expect(columnRequiresConversion('units', 53, 18, true)).toBe(true);      // 3 < 8
+    expect(columnRequiresConversion('tens', 78, 25, true)).toBe(false);      // 7 > 2
+  });
+
+  it('the carry or borrow into a column is the exercise\'s own, not the memory circle', () => {
+    // 85 + 17: the tens are 8 + 1 + the carried 1 = 10 — a conversion, circle or not.
+    expect(columnRequiresConversion('tens', 85, 17, false)).toBe(true);
+    // 512 − 13: after the units borrow, the tens are 1 − 1 = 0 < 1 — a decomposition.
+    expect(columnRequiresConversion('tens', 512, 13, true)).toBe(true);
+    // 403 − 128: a chained decomposition through the empty tens.
+    expect(columnRequiresConversion('units', 403, 128, true)).toBe(true);
+    expect(columnRequiresConversion('tens', 403, 128, true)).toBe(true);
+    expect(columnRequiresConversion('hundreds', 403, 128, true)).toBe(false);
   });
 });

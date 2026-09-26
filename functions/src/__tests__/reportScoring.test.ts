@@ -42,8 +42,10 @@ const earlyFinisher = [
 describe('optional early-finisher tasks do not count towards the score', () => {
   it('4 of 7 compulsory first try + 2 optional first try is 57%, not 86%', () => {
     expect(computeFirstAttemptScore(earlyFinisher, 7, COMPULSORY).scorePercent).toBe(57);
-    // What every report used to compute, because only a dead trigger passed the ids:
-    expect(computeFirstAttemptScore(earlyFinisher, 7).scorePercent).toBe(86);
+    // Every report used to compute 86% here, because only a dead trigger passed
+    // the ids. A choice exercise is now known by its id and never counts, so the
+    // score stays on the compulsory exercises even without them (26.9.2026).
+    expect(computeFirstAttemptScore(earlyFinisher, 7).scorePercent).toBe(57);
   });
 
   it('the class report row takes the ids, so its tier is the PRD\'s', () => {

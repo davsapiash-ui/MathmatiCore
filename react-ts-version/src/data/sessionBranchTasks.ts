@@ -85,20 +85,20 @@ export const SESSION_BRANCH_TASKS: Record<BranchSession, Record<LearningPath, Br
   5: {
     remediation_path: {
       reinforcement: [
-        subtraction('s5_r_reinforce_1', 86, 34, 'ביסוס 1: חיסור ללא פריטה', S5_SUB('86 − 34', false), R),
-        subtraction('s5_r_reinforce_2', 72, 48, 'ביסוס 2: פריטה אחת בטור היחידות', S5_SUB('72 − 48', true), R),
+        subtraction('s5_r_reinforce_1', 86, 34, 'ביסוס 1: חיסור ללא פריטה', S5_SUB('86 − 34', 86, 34), R),
+        subtraction('s5_r_reinforce_2', 72, 48, 'ביסוס 2: פריטה אחת בטור היחידות', S5_SUB('72 − 48', 72, 48), R),
       ],
       challenge: [
-        subtraction('s5_r_challenge_1', 523, 187, 'אתגר: שתי פריטות עוקבות', S5_SUB('523 − 187', true), C),
+        subtraction('s5_r_challenge_1', 523, 187, 'אתגר: שתי פריטות עוקבות', S5_SUB('523 − 187', 523, 187), C),
       ],
     },
     green_path: {
       reinforcement: [
-        subtraction('s5_g_reinforce_1', 5879, 2431, 'ביסוס 1: חיסור ללא פריטה', S5_SUB('5,879 − 2,431', false), R),
-        subtraction('s5_g_reinforce_2', 6352, 1128, 'ביסוס 2: פריטה אחת בטור היחידות', S5_SUB('6,352 − 1,128', true), R),
+        subtraction('s5_g_reinforce_1', 5879, 2431, 'ביסוס 1: חיסור ללא פריטה', S5_SUB('5,879 − 2,431', 5879, 2431), R),
+        subtraction('s5_g_reinforce_2', 6352, 1128, 'ביסוס 2: פריטה אחת בטור היחידות', S5_SUB('6,352 − 1,128', 6352, 1128), R),
       ],
       challenge: [
-        subtraction('s5_g_challenge_1', 7214, 3568, 'אתגר: שלוש פריטות רצופות', S5_SUB('7,214 − 3,568', true), C),
+        subtraction('s5_g_challenge_1', 7214, 3568, 'אתגר: שלוש פריטות רצופות', S5_SUB('7,214 − 3,568', 7214, 3568), C),
       ],
     },
   },

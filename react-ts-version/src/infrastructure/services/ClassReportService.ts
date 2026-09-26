@@ -12,6 +12,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { firestore, functions, authReady } from '@/infrastructure/firebase';
 import { TOOL_LABELS_HE } from './LearnerJourneyService';
+import { exercisePathType, type ExercisePathType } from '@/core/choiceExercises';
 
 export type RecommendationTier = 'below_50' | 'between_50_75' | 'above_75';
 
@@ -60,6 +61,8 @@ export interface ClassLearnerRow {
 
 export interface ClassExerciseRow {
   exerciseId: string;
+  /** מסמך 03: a choice exercise is shown marked, apart from the compulsory ones. */
+  pathType: ExercisePathType;
   attempted: number;
   completed: number;
   firstTry: number;
@@ -239,6 +242,8 @@ export function classReportFromData(d: Record<string, any>): ClassMeetingReport 
     reflectionsSubmitted: num(a.reflections_submitted),
     exercises: (Array.isArray(a.exercises) ? a.exercises : []).map((e: Record<string, any>) => ({
       exerciseId: String(e.exercise_id ?? ''),
+      // A report stored before the server sent path_type is classified by the exercise id.
+      pathType: exercisePathType(String(e.exercise_id ?? ''), e.path_type),
       attempted: num(e.attempted),
       completed: num(e.completed),
       firstTry: num(e.first_try),
