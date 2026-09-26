@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Video, ListOrdered, AlertTriangle, RotateCcw, Sparkles, FileText, Loader2 } from 'lucide-react';
+import { MonitorPlay, ListOrdered, AlertTriangle, RotateCcw, Sparkles, FileText, Loader2 } from 'lucide-react';
 import { ReplayViewer } from '@/presentation/components/ReplayViewer';
 import {
   AI_FALLBACK_TEXT,
@@ -554,12 +554,16 @@ export function LearnerJourney({ studentId }: Props) {
 
             <div className="bg-slate-950 rounded-2xl border border-slate-800 p-3 text-white space-y-3">
               <div className="flex items-center justify-between text-xs px-1">
+                {/* מסמך 03 §1.3 ז' / מסמך 04: "שחזור של מסך העבודה של הלומד…
+                    ללא קול". Not a video: a reconstruction of the work screen
+                    from recorded DOM changes (Module 21), and there is no sound
+                    to have. Hence no camera icon and no English "chunks". */}
                 <span className="font-black flex items-center gap-1.5">
-                  <Video className="w-4 h-4 text-indigo-300" />
-                  שחזור לוח התלמיד · מפגש {selectedSession}
+                  <MonitorPlay className="w-4 h-4 text-indigo-300" aria-hidden="true" />
+                  שחזור מסך העבודה, ללא קול · מפגש {selectedSession}
                 </span>
-                <span className="text-slate-400 font-mono" dir="ltr">
-                  {sessionRecordings.length > 0 ? `${sessionRecordings.reduce((s, r) => s + r.chunkCount, 0)} chunks` : ''}
+                <span className="text-slate-400">
+                  {sessionRecordings.length > 0 ? `${sessionRecordings.reduce((s, r) => s + r.chunkCount, 0)} מקטעי הקלטה` : ''}
                 </span>
               </div>
               {truncated && (
@@ -580,6 +584,10 @@ export function LearnerJourney({ studentId }: Props) {
               ) : (
                 <div className="h-[320px] flex items-center justify-center text-center px-6">
                   <div className="space-y-2">
+                    {/* PRD 7.3 Module 21 §ה quotes this message word for word
+                        ("המערכת מציגה הודעה שקטה: 'וידאו השחזור בהכנה'"). The
+                        word "וידאו" stays until the owner changes the PRD or
+                        registers a deviation; the line below says what is true. */}
                     <p className="font-bold text-slate-200">וידאו השחזור בהכנה</p>
                     <p className="text-xs text-slate-400">
                       {sessionEvents.length > 0
