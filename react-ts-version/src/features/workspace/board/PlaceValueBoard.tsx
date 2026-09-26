@@ -1,11 +1,12 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { PLACE_ORDER, type Place } from '@/core/placeValue';
 import { useWorkspaceStore, selectScaffoldLevel } from '@/application/useWorkspaceStore';
 import { PlaceColumn } from './PlaceColumn';
 import { ValueDisplay } from './ValueDisplay';
 import { BlockPalette } from './BlockPalette';
+import { RegroupAnimationLayer } from './RegroupAnimationLayer';
 
 /**
  * טבלת ערך המקום ("בית המספרים") — the mathematical place-value structure.
@@ -16,16 +17,22 @@ export function PlaceValueBoard({
   hideValueDisplay,
   fullWidth = false,
   activeDragPlace = null,
+  shareRow = false,
 }: {
   hideValueDisplay?: boolean;
   fullWidth?: boolean;
   activeDragPlace?: Place | null;
+  /** The Socratic side panel is open beside the board: the board and the
+   *  exercise sheet share what is left of the row equally, instead of the
+   *  board keeping a fixed half and squeezing the sheet. */
+  shareRow?: boolean;
 }) {
   const boardOpen = useWorkspaceStore((s) => s.boardOpen);
   const scaffoldLevel = useWorkspaceStore(selectScaffoldLevel);
   const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
   const isBoardLocked = useWorkspaceStore((s) => s.isBoardLocked);
   const [showSession8Priming, setShowSession8Priming] = useState(true);
+  const columnsRef = useRef<HTMLDivElement | null>(null);
 
   const { setNodeRef: setBoardRef } = useDroppable({
     id: 'place-value-board-dropzone',
@@ -77,7 +84,10 @@ export function PlaceValueBoard({
           animate={{ 
             opacity: 1, 
             width: fullWidth ? '100%' : '50%', 
-            flex: fullWidth ? '1 1 100%' : '0 0 50%' 
+            // With the side panel open the board takes a little more than the
+            // sheet (1.25 : 1), so its columns and the whole tray, trash
+            // included, stay usable on a 1280–1366px laptop.
+            flex: fullWidth ? '1 1 100%' : shareRow ? '1.25 1 0%' : '0 0 50%'
           }}
           exit={{ opacity: 0, width: 0, flex: '0 0 0%' }}
           transition={{ duration: 0.25, ease: 'easeInOut' }}
@@ -108,17 +118,21 @@ export function PlaceValueBoard({
             )}
 
             {/* Place-value columns with permanent clear solid borders */}
-            <div dir="rtl" className="flex-1 flex flex-row gap-2 min-h-0 select-none" role="group" aria-label="טורי ערך המקום">
+            <div ref={columnsRef} dir="rtl" className="relative flex-1 flex flex-row gap-2 min-h-0 select-none" role="group" aria-label="טורי ערך המקום">
               {placesToRender.map((place) => (
                 <PlaceColumn key={place} place={place} activeDragPlace={activeDragPlace} />
               ))}
+              {/* מסמך 03 §3.3–3.5: grouping merges and travels left, decomposition
+                  breaks apart and travels right. Drawn over the columns, never in
+                  the way of a click or a drop. */}
+              <RegroupAnimationLayer containerRef={columnsRef} />
             </div>
 
             {!hideValueDisplay && <ValueDisplay />}
           </div>
 
           <div className="transition-opacity">
-            <BlockPalette scaffoldLevel={scaffoldLevel} />
+            <BlockPalette scaffoldLevel={scaffoldLevel} compact={shareRow} />
           </div>
         </motion.section>
       )}

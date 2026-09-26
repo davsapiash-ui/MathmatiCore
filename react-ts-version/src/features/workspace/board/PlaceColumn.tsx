@@ -4,6 +4,7 @@ import { motion, useAnimationControls } from 'framer-motion';
 import { MAX_VISIBLE_BLOCKS, PLACE_NAMES_HE, type Place } from '@/core/placeValue';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { DienesBlock } from './DienesBlock';
+import { useVisibleRegroup, arrivingBlockCount } from './RegroupAnimationLayer';
 
 /** Per-place functional colors (vanilla workspace.css 346–375). */
 const COLUMN_COLORS: Record<Place, { header: string; border: string; tint: string; headerBg: string }> = {
@@ -37,6 +38,11 @@ export function PlaceColumn({ place, activeDragPlace }: { place: Place; activeDr
 
   const colors = COLUMN_COLORS[place];
   const renderCount = Math.min(count, MAX_VISIBLE_BLOCKS);
+  // מסמך 03 §3.3–3.5: during the grouping / decomposition animation the
+  // blocks that just arrived here stay invisible (still in the layout, so
+  // nothing shifts) until the ghost lands on them — under a second.
+  const regroup = useVisibleRegroup();
+  const firstArrivingIdx = renderCount - Math.min(renderCount, arrivingBlockCount(regroup, place));
   const isError = errorPlace === place;
   const activeColumnIndex = useWorkspaceStore((s) => s.activeColumnIndex);
   const places: Place[] = ['units', 'tens', 'hundreds', 'thousands'];
@@ -128,9 +134,11 @@ export function PlaceColumn({ place, activeDragPlace }: { place: Place; activeDr
           className="w-full mt-auto flex flex-row flex-wrap content-end justify-center items-end gap-1.5 min-w-0"
         >
           {Array.from({ length: renderCount }).map((_, i) => (
-            <div 
+            <div
               key={`${place}-${i}`}
               className="shrink-0 flex items-center justify-center select-none"
+              data-arriving={i >= firstArrivingIdx ? 'true' : undefined}
+              style={i >= firstArrivingIdx ? { visibility: 'hidden' } : undefined}
             >
               <DienesBlock 
                 id={`column-${place}-${i}`}
