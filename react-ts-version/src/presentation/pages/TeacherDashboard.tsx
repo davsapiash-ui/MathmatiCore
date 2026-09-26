@@ -2282,7 +2282,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                     type="text"
                     value={studentSearchQuery}
                     onChange={(e) => setStudentSearchQuery(e.target.value)}
-                    placeholder="חפש תלמיד לפי שם..."
+                    placeholder="חפש תלמיד לפי מספר..."
                     className="w-full pl-3 pr-9 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white"
                   />
                 </div>
