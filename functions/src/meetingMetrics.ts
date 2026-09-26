@@ -174,6 +174,48 @@ export function isExerciseEvent(ev: Record<string, any> | null | undefined): boo
 }
 
 /**
+ * Appendix A §2 `path_type`: a compulsory exercise, or one of the early-finisher
+ * choice exercises — "consolidation" (נתיב החזרה והביסוס) or "challenge"
+ * (נתיב האתגר והעומק).
+ */
+export type ExercisePathType = "compulsory" | "consolidation" | "challenge";
+
+/**
+ * The choice banks (react-ts-version/src/data/sessionBranchTasks.ts) are not
+ * published to the catalog, so the server knows a choice exercise by its id:
+ * `s{N}_{g|r}_reinforce_{k}` and `s{N}_{g|r}_challenge_{k}`. A test pins every
+ * id of those banks, and every compulsory id, against this pattern.
+ */
+const CHOICE_EXERCISE_ID = /^s\d+_[gr]_(reinforce|challenge)_\d+$/;
+
+/**
+ * מסמך 03: "ביצועי הלומדים במשימות האקסטרה של נתיבי הבחירה … יופיעו בדוחות
+ * המורה מסומנים כתרגילי בחירה, בנפרד משבעת תרגילי החובה". A catalog task that
+ * declares itself optional is trusted first; otherwise the id decides.
+ */
+export function exercisePathType(
+  exerciseId: string,
+  task?: { isOptionalChoiceTask?: unknown; branchType?: unknown } | null
+): ExercisePathType {
+  if (task && task.isOptionalChoiceTask === true) {
+    return task.branchType === "challenge" ? "challenge" : "consolidation";
+  }
+  const m = CHOICE_EXERCISE_ID.exec(String(exerciseId ?? ""));
+  if (!m) return "compulsory";
+  return m[1] === "challenge" ? "challenge" : "consolidation";
+}
+
+export function isChoiceExercise(exerciseId: string): boolean {
+  return exercisePathType(exerciseId) !== "compulsory";
+}
+
+/** How a choice exercise is named in the teacher's reports (the path names of מסמך 03). */
+export const CHOICE_PATH_LABEL_HE: Record<Exclude<ExercisePathType, "compulsory">, string> = {
+  consolidation: "תרגיל בחירה — נתיב החזרה והביסוס",
+  challenge: "תרגיל בחירה — נתיב האתגר והעומק",
+};
+
+/**
  * The ids a learner's SessionDocument of one meeting can have. The client
  * writes "session_02_student_4"; telemetry uses another spelling
  * ("session_2_student_student_user4"), and the report used to look the document
@@ -257,7 +299,10 @@ export function computeFirstAttemptScore(
   const wrongBeforeComplete = new Set<string>();
   const completedFirstTry = new Set<string>();
   const attempted = new Set<string>();
-  const counts = (exId: string) => !compulsoryIds || compulsoryIds.size === 0 || compulsoryIds.has(exId);
+  // A choice exercise never counts — also when the compulsory ids are unknown
+  // (conceptual independence is measured on the compulsory exercises only).
+  const counts = (exId: string) =>
+    !isChoiceExercise(exId) && (!compulsoryIds || compulsoryIds.size === 0 || compulsoryIds.has(exId));
   for (const ev of telemetryDocs) {
     const exId = String(ev?.exercise_id || "");
     if (!exId || !isExerciseEvent(ev)) continue;
