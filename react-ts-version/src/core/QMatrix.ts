@@ -141,7 +141,7 @@ export const TASKS: QMatrixTask[] = [
     expectedBlocks: { tens: 2, units: 5 },
     backwardDiagnosis: {
       triggerOn: "wrong_answer",
-      probeInstructionHe: "כמה עשרות וכמה יחידות יש ב־25 קוביות יחידה? כתבו את המספר.",
+      probeInstructionHe: "קבעו כמה עשרות וכמה יחידות תקבלו מהקוביות, וכתבו את המספר.",
       probeAnswer: 25,
     },
   },

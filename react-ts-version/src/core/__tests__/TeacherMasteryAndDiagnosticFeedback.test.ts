@@ -49,7 +49,7 @@ describe('מה האבחון באמת מודד', () => {
 
 describe('מפגש 2 — אישור שקט, לא חגיגה על טעות', () => {
   it('האבחון משתמש במשוב ניטרלי', () => {
-    const matches = store.match(/showFeedback\(\{ correct: true, neutral: true,/g) ?? [];
+    const matches = store.match(/show(?:Side)?Feedback\(\{ correct: true, neutral: true,/g) ?? [];
     // three in the diagnostic (answer received; the next task of the correction round; trying again),
     // the silent help call and taking it back (מסמך 03 §3.1). The round's answers are neutral too —
     // Module13_CorrectionRound.test.ts checks that block as a whole.

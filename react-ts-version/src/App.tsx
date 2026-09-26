@@ -31,6 +31,9 @@ const AdminLayout = lazy(() =>
 const AdminOverview = lazy(() =>
   import("@/presentation/pages/admin/AdminOverview").then((m) => ({ default: m.AdminOverview }))
 );
+const StudentLoginCardsPage = lazy(() =>
+  import("@/presentation/pages/admin/StudentLoginCardsPage").then((m) => ({ default: m.StudentLoginCardsPage }))
+);
 const AdminSchoolsView = lazy(() =>
   import("@/presentation/pages/admin/AdminSchoolsView").then((m) => ({ default: m.AdminSchoolsView }))
 );
@@ -290,6 +293,15 @@ function App() {
         } />
 
         <Route path="/admin/dashboard" element={<Navigate to="/admin" replace />} />
+
+        {/* Module 25 §ד: printable login cards — outside the admin layout so the page prints clean. */}
+        <Route path="/admin/login-cards" element={
+          <AuthGuard allowedRoles={["admin"]}>
+            <FirebaseGate>
+              <StudentLoginCardsPage />
+            </FirebaseGate>
+          </AuthGuard>
+        } />
 
         <Route path="/admin" element={
           <AuthGuard allowedRoles={["admin"]}>

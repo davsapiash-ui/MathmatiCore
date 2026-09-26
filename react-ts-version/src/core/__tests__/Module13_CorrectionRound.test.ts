@@ -82,8 +82,6 @@ describe('ההנחיה אינה מוסרת את התשובה', () => {
       const text = t.backwardDiagnosis?.probeInstructionHe ?? '';
       if (!text || t.correctAnswer === undefined) continue;
       const answer = String(t.correctAnswer);
-      // a number the task itself shows the child (task 5: "25 קוביות יחידה") gives nothing away
-      if ((t.givenHe ?? '').includes(answer)) continue;
       const digits = text.replace(/[^0-9]/g, ' ');
       if (new RegExp(`(^| )${answer}( |$)`).test(digits)) offenders.push(`${t.id}: "${text}"`);
     }
@@ -162,5 +160,38 @@ describe('סבב התיקונים בלי רמזים', () => {
       'task6_vertical_addition:probe+retry',
       'task7_subtraction_zero_tens:probe+retry',
     ]);
+  });
+});
+
+/** ביקורת 26.9.2026 על השינוי: שלוש תקלות שנמצאו ותוקנו. */
+describe('סבב התיקונים — אחרי הביקורת', () => {
+  it('תשובה נכונה בסבב אינה נשלחת לשרת כמשימה שנפתרה (הציון = הניסיון הראשון)', () => {
+    const at = store.indexOf("} else if (s.qflow.phase === 'correction') {");
+    const emit = store.indexOf("event_type: 'PROBLEM_COMPLETE'", at);
+    expect(at).toBeGreaterThan(0);
+    // the correction branch comes first and has no PROBLEM_COMPLETE of its own
+    expect(store.slice(at, store.indexOf('} else {', at))).not.toContain('emitTelemetry(');
+    expect(emit).toBeGreaterThan(at);
+  });
+
+  it('משימה בלי תרגיל פשוט יותר חוזרת כמו שהיא, במסך שלה, והתיוג נקבע מהניסיון השני', () => {
+    let state = initQFlow();
+    let event: any = null;
+    for (let i = 0; i < TASKS.length; i++) {
+      state = recordResult(state, { correct: false, detail: '' }).state;
+      ({ state, event } = advance(state));
+    }
+    expect(event.taskId).toBe('task1_read_write_zero');
+    expect(state.subphase).toBe('retry');
+    state = recordResult(state, { correct: true, detail: '' }).state;
+    expect(state.results['task1_read_write_zero'].tag).toBe('zero_placeholder_hundreds_error');
+    expect(state.results['task1_read_write_zero'].secondAttemptCorrect).toBe(true);
+  });
+
+  it('כפתור העזרה השקטה אינו מבטל את המשך המשימה', () => {
+    const help = store.slice(store.indexOf('requestSilentHelp: () => {'));
+    const helpBlock = help.slice(0, help.indexOf('\n    },'));
+    expect(helpBlock).toContain('showSideFeedback(');
+    expect(helpBlock).not.toMatch(/[^e]showFeedback\(/);
   });
 });

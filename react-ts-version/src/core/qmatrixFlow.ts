@@ -47,11 +47,29 @@ export function getCurrentQTask(state: QMatrixFlowState): QMatrixTask | null {
 /**
  * The correction round has no hints (owner's decision, 25.9.2026). Addition and
  * subtraction tasks first show a simpler exercise in round numbers, then the task
- * itself again. The other tasks have no simpler exercise, so their question is
- * asked once more — one second attempt, not two.
+ * itself again. The other tasks have no simpler exercise, so the task itself is
+ * shown again, in its own screen — one second attempt, not two.
  */
 export function hasProbeExercise(task: QMatrixTask): boolean {
   return task.backwardDiagnosis?.probeA !== undefined;
+}
+
+function firstSubphase(taskId: string): CorrectionSubphase {
+  const task = TASKS.find((t) => t.id === taskId);
+  return task && hasProbeExercise(task) ? 'subtask' : 'retry';
+}
+
+/** The diagnostic tag of a failed task, from its answer in the correction round. */
+function diagnosticTag(taskId: string, correct: boolean): string | undefined {
+  if (taskId === 'task1_read_write_zero' || taskId === 'task1_zero_placeholder') return correct ? 'zero_placeholder_hundreds_error' : 'zero_placeholder_global_error';
+  if (taskId === 'task2_digit_value') return correct ? 'digit_value_procedural_error' : 'digit_value_conceptual_error';
+  if (taskId === 'task3_subtraction_regrouping' || taskId === 'task6_subtraction_regrouping') return correct ? 'regrouping_anxiety' : 'subtraction_operation_deficit';
+  if (taskId === 'task4_decompose_number' || taskId === 'task3_flexible_regrouping') return correct ? 'canonical_fixation' : 'regrouping_deficit';
+  if (taskId === 'task5_units_to_tens' || taskId === 'task5_small_change') return correct ? 'small_change_confusion' : 'directional_error';
+  if (taskId === 'task6_vertical_addition' || taskId === 'task4_basic_addition_fluency') return correct ? 'procedural_error' : 'basic_facts_deficit';
+  if (taskId === 'task7_subtraction_zero_tens' || taskId === 'task7_missing_subtrahend') return correct ? 'computational_fluency_deficit' : 'algebraic_concept_deficit';
+  if (taskId === 'task8_missing_addend') return correct ? 'inverse_operation_gap' : 'missing_addend_deficit';
+  return undefined;
 }
 
 /** Record an evaluation result (vanilla handleTaskResult). Returns new state + the feedback event. */
@@ -74,29 +92,7 @@ export function recordResult(
   const prev: QTaskResult = results[task.id] ?? { correct: false, detail: '' };
     if (state.subphase === 'subtask') {
       const updated: QTaskResult = { ...prev, subtaskCorrect: evalResult.correct, subtaskDetail: evalResult.detail };
-      if (task.id === 'task1_read_write_zero' || task.id === 'task1_zero_placeholder') {
-        updated.tag = evalResult.correct ? 'zero_placeholder_hundreds_error' : 'zero_placeholder_global_error';
-      } else if (task.id === 'task2_digit_value') {
-        updated.tag = evalResult.correct ? 'digit_value_procedural_error' : 'digit_value_conceptual_error';
-      } else if (task.id === 'task3_subtraction_regrouping' || task.id === 'task6_subtraction_regrouping') {
-        updated.tag = evalResult.correct ? 'regrouping_anxiety' : 'subtraction_operation_deficit';
-      } else if (task.id === 'task4_decompose_number' || task.id === 'task3_flexible_regrouping') {
-        updated.tag = evalResult.correct ? 'canonical_fixation' : 'regrouping_deficit';
-      } else if (task.id === 'task5_units_to_tens' || task.id === 'task5_small_change') {
-        updated.tag = evalResult.correct ? 'small_change_confusion' : 'directional_error';
-      } else if (task.id === 'task6_vertical_addition' || task.id === 'task4_basic_addition_fluency') {
-        updated.tag = evalResult.correct ? 'procedural_error' : 'basic_facts_deficit';
-      } else if (task.id === 'task7_subtraction_zero_tens' || task.id === 'task7_missing_subtrahend') {
-        updated.tag = evalResult.correct ? 'computational_fluency_deficit' : 'algebraic_concept_deficit';
-      } else if (task.id === 'task8_missing_addend') {
-        updated.tag = evalResult.correct ? 'inverse_operation_gap' : 'missing_addend_deficit';
-      }
-      // A task with no simpler exercise (no probe) asks its own question again:
-      // that answer is the task's one second attempt, and no retry follows.
-      if (!hasProbeExercise(task)) {
-        updated.secondAttemptCorrect = evalResult.correct;
-        updated.secondAttemptDetail = evalResult.detail;
-      }
+      updated.tag = diagnosticTag(task.id, evalResult.correct) ?? updated.tag;
       results[task.id] = updated;
       return {
         state: { ...state, results },
@@ -105,6 +101,7 @@ export function recordResult(
     }
 
   results[task.id] = { ...prev, secondAttemptCorrect: evalResult.correct, secondAttemptDetail: evalResult.detail };
+  if (!hasProbeExercise(task)) results[task.id].tag = diagnosticTag(task.id, evalResult.correct) ?? prev.tag;
   return {
     state: { ...state, results },
     event: { type: 'retry_done', taskId: task.id, correct: evalResult.correct },
@@ -126,7 +123,7 @@ export function advance(state: QMatrixFlowState): { state: QMatrixFlowState; eve
         state: {
           ...state,
           phase: 'correction',
-          subphase: 'subtask',
+          subphase: firstSubphase(firstFailedId),
           failedTasks,
           correctionIdx: 0,
           taskIdx: TASKS.findIndex((t) => t.id === firstFailedId),
@@ -138,9 +135,8 @@ export function advance(state: QMatrixFlowState): { state: QMatrixFlowState; eve
   }
 
   // correction phase
-  const current = getCurrentQTask(state);
-  if (state.subphase === 'subtask' && current && hasProbeExercise(current)) {
-    const task = current;
+  if (state.subphase === 'subtask') {
+    const task = getCurrentQTask(state);
     return {
       state: { ...state, subphase: 'retry' },
       event: { type: 'start_retry', taskId: task?.id ?? '' },
@@ -154,7 +150,7 @@ export function advance(state: QMatrixFlowState): { state: QMatrixFlowState; eve
       state: {
         ...state,
         correctionIdx: nextCorrectionIdx,
-        subphase: 'subtask',
+        subphase: firstSubphase(nextFailedId),
         taskIdx: TASKS.findIndex((t) => t.id === nextFailedId),
       },
       event: { type: 'start_correction', taskId: nextFailedId },

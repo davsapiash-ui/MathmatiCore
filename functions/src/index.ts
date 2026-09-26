@@ -34,6 +34,8 @@ export { generatePedagogicalReportPDF, getPedagogicalReportDownloadUrl } from ".
 export { generateClassMeetingReport } from "./classReport";
 export { hourlyAdminAggregator } from "./adminAggregator";
 export { sendTeacherAdminMessage } from "./teacherAdminChat";
+// Module 25 §ד, owner's decision 26.9.2026: printable login cards for the 12 learners.
+export { getStudentLoginCards } from "./studentLoginCards";
 
 /**
  * verifyTeacherSSO Cloud Function (PRD Section 4.1)
