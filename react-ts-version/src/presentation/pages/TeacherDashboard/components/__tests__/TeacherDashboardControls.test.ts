@@ -175,7 +175,8 @@ describe('Dead controls removed / dead screens exposed', () => {
 
   it('the clustering filter actually filters the group cards, with one threshold', () => {
     expect(dash).toMatch(/activeClusterFilter === 'decimal_structure'\) &&/);
-    expect(dash).toMatch(/activeClusterFilter === 'algebraic_reasoning'\) &&/);
+    expect(dash).toMatch(/activeClusterFilter === 'regrouping_fluency'\) &&/);
+    expect(dash).toMatch(/activeClusterFilter === 'procedural_fluency'\) &&/);
     const widgets = read('../ClusteringWidgets.tsx');
     expect(widgets.includes('used < 0.8, so its counts disagreed')).toBe(true); // comment only
     expect(widgets.includes('< 0.5')).toBe(true);

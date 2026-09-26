@@ -271,32 +271,146 @@ export type CognitiveConcept =
   | 'relational_thinking'
   | 'algebraic_reasoning';
 
+/**
+ * שלושת התחומים שמפגש 2 מאבחן, בשמות של מסמך 03 (§"מפגש שתיים", מטרה
+ * פדגוגית): "המבנה העשרוני והאפס, הקבצה ופריטה, וחישוב במאונך".
+ * החלטת בעל המוצר 26.9.2026: מסך "מיפוי מיומנויות כיתתי" והדוחות מציגים
+ * את שלושת אלה בלבד.
+ *
+ * שלושת המפתחות הנוספים (number_magnitude, relational_thinking,
+ * algebraic_reasoning) אינם נמדדים על ידי אף משימת אבחון; הם נשארים בטיפוס
+ * כי פרופיל השליטה שכבר נשמר ב-RTDB מכיל אותם, אבל אינם מוצגים למורה.
+ */
+export const DIAGNOSTIC_DOMAINS = ['decimal_structure', 'regrouping_fluency', 'procedural_fluency'] as const;
+export type DiagnosticDomain = (typeof DIAGNOSTIC_DOMAINS)[number];
+
 export const CONCEPT_LABELS_HE: Record<CognitiveConcept, string> = {
-  decimal_structure: 'הבנת המבנה העשרוני ושומר מקום',
+  decimal_structure: 'המבנה העשרוני והאפס',
   number_magnitude: 'תחושת גודל המספר',
-  regrouping_fluency: 'גמישות בהמרה ופריטה',
-  procedural_fluency: 'שליטה בפרוצדורות ובעובדות',
+  regrouping_fluency: 'הקבצה ופריטה',
+  procedural_fluency: 'חישוב במאונך',
   relational_thinking: 'חשיבה יחסית',
   algebraic_reasoning: 'חשיבה אלגברית ומציאת נעלם',
 };
 
+/**
+ * "הקבצה ופריטה" הוא שם התחום, אבל שתי היכולות נספרות בנפרד (הוראת בעל
+ * המוצר 26.9.2026): בכל מקום שמוצגת תוצאה למשימה, כתוב איזו מהשתיים נמדדה.
+ * המרה של יחידות לעשרות וחיבור עם המרה הם הקבצה; חיסור עם פריטה הוא
+ * פריטה. משימה שאינה כאן אינה מודדת אף אחת מהשתיים.
+ */
+export type RegroupingKind = 'grouping' | 'decomposition';
+
+export const REGROUPING_KIND_LABELS_HE: Record<RegroupingKind, string> = {
+  grouping: 'הקבצה',
+  decomposition: 'פריטה',
+};
+
+export const REGROUPING_KIND_BY_TASK: Record<string, RegroupingKind> = {
+  task3_subtraction_regrouping: 'decomposition',
+  task5_units_to_tens: 'grouping',
+  task6_vertical_addition: 'grouping',
+  task7_subtraction_zero_tens: 'decomposition',
+};
+
+/** כותרת המשימה כפי שהמורה רואה אותה — עם "(הקבצה)" או "(פריטה)" כשהיא מודדת אחת מהן. */
+export function diagnosticTaskLabelHe(task: Pick<QMatrixTask, 'id' | 'titleHe'>): string {
+  const kind = REGROUPING_KIND_BY_TASK[task.id];
+  return kind ? `${task.titleHe} (${REGROUPING_KIND_LABELS_HE[kind]})` : task.titleHe;
+}
+
+export interface RegroupingKindScore {
+  attempted: number;
+  succeeded: number;
+  /** null כשאף משימה מהסוג הזה לא נוסתה. */
+  ratio: number | null;
+}
+
+/**
+ * שני חלקי "הקבצה ופריטה" בנפרד, מתוך תוצאות משימות האבחון של הלומד. המספר
+ * המאוחד (regrouping_fluency בפרופיל) לעולם לא מוצג בלי שני אלה לצידו.
+ */
+export function computeRegroupingSplit(
+  results: Record<string, unknown> | null | undefined
+): Record<RegroupingKind, RegroupingKindScore> {
+  const split: Record<RegroupingKind, RegroupingKindScore> = {
+    grouping: { attempted: 0, succeeded: 0, ratio: null },
+    decomposition: { attempted: 0, succeeded: 0, ratio: null },
+  };
+  for (const [taskId, kind] of Object.entries(REGROUPING_KIND_BY_TASK)) {
+    const status = getQTaskStatus(readQTaskValue(results, taskId));
+    if (status === 'not_attempted') continue;
+    split[kind].attempted++;
+    if (status === 'mastered') split[kind].succeeded++;
+  }
+  for (const kind of Object.keys(split) as RegroupingKind[]) {
+    const s = split[kind];
+    s.ratio = s.attempted > 0 ? s.succeeded / s.attempted : null;
+  }
+  return split;
+}
+
+export interface RegroupingDomainView {
+  /** המספר המאוחד על ארבע המשימות; null כשאין תוצאות ואין פרופיל שמור. */
+  combined: number | null;
+  /** 'live' — חושב עכשיו מתוצאות המשימות; 'stored' — מהפרופיל שנשמר; 'none' — אין. */
+  source: 'live' | 'stored' | 'none';
+  split: Record<RegroupingKind, RegroupingKindScore>;
+}
+
+/**
+ * תחום "הקבצה ופריטה" של לומד אחד, כפי שהדשבורד מציג אותו. כשיש תוצאות
+ * משימות, המספר המאוחד מחושב מהן עכשיו — על אותן ארבע משימות שהחלוקה
+ * להקבצה ופריטה מחושבת עליהן — ולא מהפרופיל שנשמר (פרופיל של לומד שסיים
+ * לפני 26.9.2026 נספר גם על משימה 4). הפרופיל השמור משמש רק כשאין תוצאות.
+ */
+export function computeRegroupingDomain(
+  results: Record<string, unknown> | null | undefined,
+  storedCombined?: number | null
+): RegroupingDomainView {
+  const split = computeRegroupingSplit(results);
+  const attempted = split.grouping.attempted + split.decomposition.attempted;
+  if (attempted > 0) {
+    const succeeded = split.grouping.succeeded + split.decomposition.succeeded;
+    return { combined: succeeded / attempted, source: 'live', split };
+  }
+  if (typeof storedCombined === 'number') return { combined: storedCombined, source: 'stored', split };
+  return { combined: null, source: 'none', split };
+}
+
+/**
+ * כלל בעל המוצר (26.9.2026): אין ערבוב. לומד נמצא מתחת לסף בתחום "הקבצה
+ * ופריטה" אם המספר המאוחד מתחתיו — או אם אחד משני החלקים לבדו מתחתיו. כך
+ * לומד עם הקבצה 2/2 ופריטה 0/2 (מאוחד 0.5) נספר כמתקשה. הווידג'ט, כרטיס
+ * הקבוצה והתרשים הכיתתי משתמשים כולם בפונקציה הזו.
+ */
+export function isRegroupingBelow(view: RegroupingDomainView, threshold: number): boolean {
+  if (view.combined === null) return false;
+  if (view.combined < threshold) return true;
+  const g = view.split.grouping.ratio;
+  const d = view.split.decomposition.ratio;
+  return (g !== null && g < threshold) || (d !== null && d < threshold);
+}
+
 export const Q_MATRIX_MAPPING: Record<string, CognitiveConcept[]> = {
-  // Canonical 7 Tasks (PRD v7.0)
+  // שבע משימות האבחון (מודול 20) על שלושת התחומים של מסמך 03.
+  // משימה 4 (פירוק 563 למאות, עשרות ויחידות) בודקת את המבנה העשרוני בלבד —
+  // אין בה הקבצה ולא פריטה, ולכן אינה נספרת ב"הקבצה ופריטה".
   task1_read_write_zero: ['decimal_structure'],
   task2_digit_value: ['decimal_structure'],
   task3_subtraction_regrouping: ['procedural_fluency', 'regrouping_fluency'],
-  task4_decompose_number: ['decimal_structure', 'regrouping_fluency'],
+  task4_decompose_number: ['decimal_structure'],
   task5_units_to_tens: ['regrouping_fluency'],
   task6_vertical_addition: ['procedural_fluency', 'regrouping_fluency'],
   task7_subtraction_zero_tens: ['decimal_structure', 'procedural_fluency', 'regrouping_fluency'],
   // Legacy Aliases (Backward Compatibility)
+  // Each alias carries exactly what its canonical task carries (Q_LEGACY_TASK_ALIASES).
   task1_zero_placeholder: ['decimal_structure'],
-  task3_flexible_regrouping: ['decimal_structure', 'regrouping_fluency'],
+  task3_flexible_regrouping: ['decimal_structure'],
   task4_basic_addition_fluency: ['procedural_fluency', 'regrouping_fluency'],
   task5_small_change: ['regrouping_fluency'],
-  task6_subtraction_regrouping_legacy: ['procedural_fluency', 'regrouping_fluency'],
-  task7_missing_subtrahend: ['algebraic_reasoning', 'relational_thinking'],
-  task8_missing_addend: ['algebraic_reasoning', 'relational_thinking'],
+  task6_subtraction_regrouping: ['procedural_fluency', 'regrouping_fluency'],
+  task7_missing_subtrahend: ['decimal_structure', 'procedural_fluency', 'regrouping_fluency'],
 };
 
 export type MasteryProfile = Record<CognitiveConcept, number>;

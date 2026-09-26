@@ -38,16 +38,21 @@ import { StudentLearningConditionsDrawer } from "./TeacherDashboard/components/S
 import { TeacherGateApprovalDrawer } from "./TeacherDashboard/components/TeacherGateApprovalDrawer";
 import { FloatingChatPanel } from "./TeacherDashboard/components/FloatingChatPanel";
 import { HeatmapGrid } from "./TeacherDashboard/components/HeatmapGrid";
-import { ClusteringWidgets } from "./TeacherDashboard/components/ClusteringWidgets";
+import { ClusteringWidgets, isStudentBelow } from "./TeacherDashboard/components/ClusteringWidgets";
 import { TeacherApprovalGate, type GateStudentItem } from "./TeacherDashboard/components/TeacherApprovalGate";
 import { SessionActivationModal, type SessionRow } from "./TeacherDashboard/components/SessionActivationModal";
 import { getSessionDurationMinutes } from "@/core/classSession";
 import {
   CONCEPT_LABELS_HE,
+  DIAGNOSTIC_DOMAINS,
+  REGROUPING_KIND_LABELS_HE,
   TASKS as DIAGNOSTIC_TASKS,
+  computeRegroupingDomain,
+  diagnosticTaskLabelHe,
   getFailedDiagnosticTasks,
   getQTaskStatus,
   readQTaskValue,
+  type RegroupingKindScore,
 } from "@/core/QMatrix";
 import { validateChatInputForPII, anonymizeChatMessageBody } from "@/core/security/PiiFilter";
 import { approveTeacherGate } from "@/core/teacherGate";
@@ -748,24 +753,30 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     });
   }, [allStudents, isClassSessionActive, selectedSessionNum]);
 
+  // שלושת התחומים של מסמך 03 (§"מפגש שתיים"): המבנה העשרוני והאפס, הקבצה
+  // ופריטה, וחישוב במאונך. החלטת בעל המוצר 26.9.2026.
   const decimalStructureGroup = allStudents.filter(
     (s) => s.conceptMastery && s.conceptMastery.decimal_structure < 0.5
   );
-  const numberMagnitudeGroup = allStudents.filter(
-    (s) => s.conceptMastery && s.conceptMastery.number_magnitude < 0.5
-  );
+  // "הקבצה ופריטה": אין ערבוב (הוראת בעל המוצר 26.9.2026). לומד שייך לקבוצה אם
+  // המספר המאוחד מתחת ל-0.5 או אם אחד משני החלקים לבדו מתחתיו — אותו כלל
+  // (isStudentBelow) משמש את הווידג'ט, את הכרטיס ואת התרשים. המספר המאוחד
+  // מחושב מתוצאות המשימות עצמן כשהן קיימות, לא מהפרופיל השמור.
   const regroupingFluencyGroup = allStudents.filter(
-    (s) => s.conceptMastery && s.conceptMastery.regrouping_fluency < 0.5
+    (s) => s.conceptMastery && isStudentBelow(s, 'regrouping_fluency', 0.5)
   );
   const proceduralFluencyGroup = allStudents.filter(
     (s) => s.conceptMastery && s.conceptMastery.procedural_fluency < 0.5
   );
-  const relationalThinkingGroup = allStudents.filter(
-    (s) => s.conceptMastery && s.conceptMastery.relational_thinking < 0.5
-  );
-  const algebraicReasoningGroup = allStudents.filter(
-    (s) => s.conceptMastery && s.conceptMastery.algebraic_reasoning < 0.5
-  );
+
+  // הקבצה = משימות 5 ו-6, פריטה = משימות 3 ו-7. שני החלקים מוצגים ליד המאוחד.
+  const regroupingOf = (s: StudentData) =>
+    computeRegroupingDomain(
+      s.qMatrixResults as Record<string, unknown> | undefined,
+      s.conceptMastery?.regrouping_fluency
+    );
+  const regroupingKindCell = (score: RegroupingKindScore) =>
+    score.ratio === null ? "טרם ניגש" : `${Math.round(score.ratio * 100)}% (${score.succeeded}/${score.attempted})`;
 
   // כמה תלמידים כבר סיימו את מפגש האבחון ויש להם פרופיל שליטה. בלי המספר
   // הזה גרף שמציג אפס נראה בדיוק כמו כיתה בלי פערים.
@@ -778,31 +789,15 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
 
   // Aggregate data for Chart
   const qMatrixData = useMemo(() => {
-    let ds_s = 0, ds_f = 0,
-        nm_s = 0, nm_f = 0,
-        rf_s = 0, rf_f = 0,
-        pf_s = 0, pf_f = 0,
-        rt_s = 0, rt_f = 0,
-        ar_s = 0, ar_f = 0;
-    
+    const counts = DIAGNOSTIC_DOMAINS.map((domain) => ({ name: CONCEPT_LABELS_HE[domain], success: 0, struggle: 0 }));
     allStudents.forEach((s) => {
       if (!s.conceptMastery) return;
-      if (s.conceptMastery.decimal_structure >= 0.8) ds_s++; else ds_f++;
-      if (s.conceptMastery.number_magnitude >= 0.8) nm_s++; else nm_f++;
-      if (s.conceptMastery.regrouping_fluency >= 0.8) rf_s++; else rf_f++;
-      if (s.conceptMastery.procedural_fluency >= 0.8) pf_s++; else pf_f++;
-      if (s.conceptMastery.relational_thinking >= 0.8) rt_s++; else rt_f++;
-      if (s.conceptMastery.algebraic_reasoning >= 0.8) ar_s++; else ar_f++;
+      DIAGNOSTIC_DOMAINS.forEach((domain, i) => {
+        // Same rule as the widget and the group card (isStudentBelow), at the chart's 0.8 bar.
+        if (isStudentBelow(s, domain, 0.8)) counts[i].struggle++; else counts[i].success++;
+      });
     });
-
-    return [
-      { name: CONCEPT_LABELS_HE.decimal_structure, success: ds_s, struggle: ds_f },
-      { name: CONCEPT_LABELS_HE.number_magnitude, success: nm_s, struggle: nm_f },
-      { name: CONCEPT_LABELS_HE.regrouping_fluency, success: rf_s, struggle: rf_f },
-      { name: CONCEPT_LABELS_HE.procedural_fluency, success: pf_s, struggle: pf_f },
-      { name: CONCEPT_LABELS_HE.relational_thinking, success: rt_s, struggle: rt_f },
-      { name: CONCEPT_LABELS_HE.algebraic_reasoning, success: ar_s, struggle: ar_f },
-    ];
+    return counts;
   }, [allStudents]);
 
   // --- Module 20: Diagnostic Gate Students Computation (WP6 Formulas & Firestore Sync) ---
@@ -859,7 +854,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
         errorNodes: (() => {
           const failed = getFailedDiagnosticTasks(
             studentData?.qMatrixResults as Record<string, unknown> | undefined
-          ).map((t) => t.titleHe);
+          ).map(diagnosticTaskLabelHe);
           return failed.length > 0 ? failed : undefined;
         })(),
       });
@@ -1643,10 +1638,10 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                 <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-500 to-cyan-500"></div>
                 <div>
                   <h3 className="text-xl font-bold mb-3 text-ws-ink">
-                    הבנת המבנה העשרוני ושומר מקום
+                    {CONCEPT_LABELS_HE.decimal_structure}
                   </h3>
                   <p className="text-ws-soft mb-4 text-sm leading-relaxed">
-                    תלמידים שהתקשו בהבנת האפס כשומר מקום או זיהוי ערך המקום במערכת העשרונית.
+                    תלמידים שהתקשו בקריאה וכתיבה של מספר עם אפס (משימה 1), בערך הספרה (משימה 2), בפירוק מספר לרכיביו (משימה 4) או בחיסור דרך אפס בטור העשרות (משימה 7).
                   </p>
                   <div className="rounded-xl overflow-y-auto max-h-[160px] border border-ws-surface2 shadow-inner">
                     <DataGrid
@@ -1665,57 +1660,37 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
               </AccessibleCard>
               )}
 
-              {/* The sixth skill had a filter but no card: clicking it emptied the grid.
-                  מסמך 04, "מיפוי מיומנויות כיתתי": each of the six core skills, and a
-                  click on a skill shows its group and each learner's mastery. */}
-              {(!activeClusterFilter || activeClusterFilter === 'number_magnitude') && (
-              <AccessibleCard className="flex flex-col justify-between p-6 bg-white dark:bg-slate-900 shadow-sm hover:shadow-md transition-all duration-300 border border-slate-200 dark:border-slate-800 rounded-2xl relative overflow-hidden group min-h-[340px]">
-                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
-                <div>
-                  <h3 className="text-xl font-bold mb-3 text-slate-900 dark:text-slate-100">
-                    {CONCEPT_LABELS_HE.number_magnitude}
-                  </h3>
-                  <p className="text-slate-600 dark:text-slate-400 mb-4 text-sm leading-relaxed">
-                    תלמידים שמתקשים להעריך את גודלו של מספר ואת מקומו ביחס למספרים אחרים.
-                  </p>
-                  <div className="rounded-xl overflow-y-auto max-h-[160px] border border-slate-200 dark:border-slate-800 shadow-inner">
-                    <DataGrid
-                      columns={[
-                        { key: "name", header: "שם תלמיד" },
-                        { key: "mastery", header: "רמת שליטה" },
-                      ]}
-                      data={numberMagnitudeGroup.map((s) => ({
-                        id: s.studentId,
-                        name: s.name,
-                        mastery: s.conceptMastery ? `${Math.round(s.conceptMastery.number_magnitude * 100)}%` : "חסר מידע",
-                      }))}
-                    />
-                  </div>
-                </div>
-              </AccessibleCard>
-              )}
-
+              {/* "הקבצה ופריטה" is one number in the profile; the teacher sees its two
+                  parts beside it, never merged silently (owner, 26.9.2026):
+                  הקבצה = tasks 5 and 6, פריטה = tasks 3 and 7. */}
               {(!activeClusterFilter || activeClusterFilter === 'regrouping_fluency') && (
               <AccessibleCard className="flex flex-col justify-between p-6 bg-white dark:bg-slate-900 shadow-sm hover:shadow-md transition-all duration-300 border border-slate-200 dark:border-slate-800 rounded-2xl relative overflow-hidden group min-h-[340px]">
                 <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-purple-500 to-indigo-500"></div>
                 <div>
                   <h3 className="text-xl font-bold mb-3 text-slate-900 dark:text-slate-100">
-                    גמישות בהמרה ופריטה
+                    {CONCEPT_LABELS_HE.regrouping_fluency}
                   </h3>
                   <p className="text-slate-600 dark:text-slate-400 mb-4 text-sm leading-relaxed">
-                    תלמידים המקובעים לייצוג הקנוני ומתקשים לפרוט עשרות ליחידות.
+                    הקבצה: המרת יחידות לעשרות (משימה 5) וחיבור עם המרה (משימה 6). פריטה: חיסור עם פריטה (משימה 3) וחיסור דרך אפס בטור העשרות (משימה 7). "רמת שליטה" מאחדת את ארבע המשימות; שני החלקים מוצגים לצידה.
                   </p>
                   <div className="rounded-xl overflow-y-auto max-h-[160px] border border-slate-200 dark:border-slate-800 shadow-inner">
                     <DataGrid
                       columns={[
                         { key: "name", header: "שם תלמיד" },
                         { key: "mastery", header: "רמת שליטה" },
+                        { key: "grouping", header: REGROUPING_KIND_LABELS_HE.grouping },
+                        { key: "decomposition", header: REGROUPING_KIND_LABELS_HE.decomposition },
                       ]}
-                      data={regroupingFluencyGroup.map((s) => ({
-                        id: s.studentId,
-                        name: s.name,
-                        mastery: s.conceptMastery ? `${Math.round(s.conceptMastery.regrouping_fluency * 100)}%` : "חסר מידע",
-                      }))}
+                      data={regroupingFluencyGroup.map((s) => {
+                        const view = regroupingOf(s);
+                        return {
+                          id: s.studentId,
+                          name: s.name,
+                          mastery: view.combined === null ? "חסר מידע" : `${Math.round(view.combined * 100)}%`,
+                          grouping: regroupingKindCell(view.split.grouping),
+                          decomposition: regroupingKindCell(view.split.decomposition),
+                        };
+                      })}
                     />
                   </div>
                 </div>
@@ -1727,10 +1702,10 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                 <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-rose-500 to-red-500"></div>
                 <div>
                   <h3 className="text-xl font-bold mb-3 text-slate-900 dark:text-slate-100">
-                    שליטה בפרוצדורות ובעובדות
+                    {CONCEPT_LABELS_HE.procedural_fluency}
                   </h3>
                   <p className="text-slate-600 dark:text-slate-400 mb-4 text-sm leading-relaxed">
-                    תלמידים שזקוקים לחיזוק האלגוריתם המסורתי בחיבור וחיסור.
+                    תלמידים שהתקשו בתרגילי החיבור והחיסור במאונך (משימות 3, 6 ו-7).
                   </p>
                   <div className="rounded-xl overflow-y-auto max-h-[160px] border border-slate-200 dark:border-slate-800 shadow-inner">
                     <DataGrid
@@ -1742,60 +1717,6 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                         id: s.studentId,
                         name: s.name,
                         mastery: s.conceptMastery ? `${Math.round(s.conceptMastery.procedural_fluency * 100)}%` : "חסר מידע",
-                      }))}
-                    />
-                  </div>
-                </div>
-              </AccessibleCard>
-              )}
-
-              {(!activeClusterFilter || activeClusterFilter === 'relational_thinking') && (
-              <AccessibleCard className="flex flex-col justify-between p-6 bg-white dark:bg-slate-900 shadow-sm hover:shadow-md transition-all duration-300 border border-slate-200 dark:border-slate-800 rounded-2xl relative overflow-hidden group min-h-[340px]">
-                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-slate-500 to-gray-500"></div>
-                <div>
-                  <h3 className="text-xl font-bold mb-3 text-slate-900 dark:text-slate-100">
-                    חשיבה יחסית (Relational Thinking)
-                  </h3>
-                  <p className="text-slate-600 dark:text-slate-400 mb-4 text-sm leading-relaxed">
-                    תלמידים שמתקשים לגזור עובדה חדשה מתוך עובדה ידועה ללא חישוב מחדש.
-                  </p>
-                  <div className="rounded-xl overflow-y-auto max-h-[160px] border border-slate-200 dark:border-slate-800 shadow-inner">
-                    <DataGrid
-                      columns={[
-                        { key: "name", header: "שם תלמיד" },
-                        { key: "mastery", header: "רמת שליטה" },
-                      ]}
-                      data={relationalThinkingGroup.map((s) => ({
-                        id: s.studentId,
-                        name: s.name,
-                        mastery: s.conceptMastery ? `${Math.round(s.conceptMastery.relational_thinking * 100)}%` : "חסר מידע",
-                      }))}
-                    />
-                  </div>
-                </div>
-              </AccessibleCard>
-              )}
-
-              {(!activeClusterFilter || activeClusterFilter === 'algebraic_reasoning') && (
-              <AccessibleCard className="flex flex-col justify-between p-6 bg-white dark:bg-slate-900 shadow-sm hover:shadow-md transition-all duration-300 border border-slate-200 dark:border-slate-800 rounded-2xl relative overflow-hidden group min-h-[340px]">
-                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-amber-500 to-orange-500"></div>
-                <div>
-                  <h3 className="text-xl font-bold mb-3 text-slate-900 dark:text-slate-100">
-                    חשיבה אלגברית ומציאת נעלם
-                  </h3>
-                  <p className="text-slate-600 dark:text-slate-400 mb-4 text-sm leading-relaxed">
-                    תלמידים המתקשים להבין את סימן השוויון כמאזניים ואת הדינמיקה של משוואה.
-                  </p>
-                  <div className="rounded-xl overflow-y-auto max-h-[160px] border border-slate-200 dark:border-slate-800 shadow-inner">
-                    <DataGrid
-                      columns={[
-                        { key: "name", header: "שם תלמיד" },
-                        { key: "mastery", header: "רמת שליטה" },
-                      ]}
-                      data={algebraicReasoningGroup.map((s) => ({
-                        id: s.studentId,
-                        name: s.name,
-                        mastery: s.conceptMastery ? `${Math.round(s.conceptMastery.algebraic_reasoning * 100)}%` : "חסר מידע",
                       }))}
                     />
                   </div>
@@ -2020,7 +1941,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                     <span className="text-ws-accent">📊</span>
                                     תוצאות מיפוי מיומנויות היסוד (מפגש 2)
                                   </h3>
-                                  <p className="text-xs text-ws-soft mb-4">שבע משימות אבחון למיפוי מיומנויות יסוד. "שליטה" מעידה על פתרון מדויק בניסיון ראשון.</p>
+                                  <p className="text-xs text-ws-soft mb-4">שבע משימות אבחון בשלושה תחומים: המבנה העשרוני והאפס, הקבצה ופריטה, וחישוב במאונך. ליד משימה שמודדת הקבצה או פריטה כתוב איזו מהשתיים. "שליטה" מעידה על פתרון מדויק בניסיון ראשון.</p>
                                   <div className="grid grid-cols-1 gap-2 text-sm">
                                     {DIAGNOSTIC_TASKS.map((task, i) => {
                                       const status = getQStatus(
@@ -2030,7 +1951,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                         <div key={task.id} className="flex items-center justify-between gap-3 bg-ws-bg px-3 py-2 rounded-xl border border-ws-surface2">
                                           <span className="text-ws-ink text-xs font-bold">
                                             <span className="text-ws-soft ml-1">{i + 1}.</span>
-                                            {task.titleHe}
+                                            {diagnosticTaskLabelHe(task)}
                                           </span>
                                           <span className={`font-semibold text-xs whitespace-nowrap flex items-center gap-1 ${status.color}`}>
                                             <span aria-hidden="true">{status.icon}</span>
