@@ -29,7 +29,7 @@ import { DienesBlock } from './board/DienesBlock';
 import { WorkspaceTopbar } from './WorkspaceTopbar';
 import { TaskCard } from './tasks/TaskCard';
 import { FeedbackToast } from './overlays/FeedbackToast';
-import { HelpOverlays } from './overlays/HelpOverlays';
+import { HelpOverlays, SocraticSidePanel } from './overlays/HelpOverlays';
 import { ReflectionScreen } from './ReflectionScreen';
 import { Session8ReflectionScreen } from '@/presentation/components/student/Session8ReflectionScreen';
 import { firebaseSyncService, emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
@@ -96,6 +96,7 @@ export function StudentWorkspacePage() {
   const applyDrop = useWorkspaceStore((s) => s.applyDrop);
   const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
   const flowStatus = useWorkspaceStore((s) => s.flowStatus);
+  const isSocraticPanelOpen = useWorkspaceStore((s) => s.helpState === 'socratic');
   const user = useAuthStore((s) => s.user);
   const isTeacherOrAdmin = user?.role === 'teacher' || user?.role === 'admin';
 
@@ -1163,8 +1164,14 @@ export function StudentWorkspacePage() {
 
           {/* Place-value board (hidden/unmounted in Session 2 and Session 8) */}
           {sessionNumber !== 2 && sessionNumber !== 8 && (
-            <PlaceValueBoard activeDragPlace={activeDrag?.place ?? null} hideValueDisplay={sessionNumber === 1} />
+            <PlaceValueBoard activeDragPlace={activeDrag?.place ?? null} hideValueDisplay={sessionNumber === 1} shareRow={isSocraticPanelOpen} />
           )}
+
+          {/* מסמך 03 / 04 §א: the Socratic card is a side panel that slides out
+              from the side of the screen (the left edge in RTL) and keeps the
+              exercise fully visible. It is part of this row, so it can never
+              cover the sheet, the board or the result row. */}
+          <SocraticSidePanel />
         </main>
 
         <FeedbackToast />

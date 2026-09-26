@@ -38,6 +38,7 @@ import {
 import { stateReducer } from '@/machines/vraMachine';
 import { computeCognitiveMastery, Q_FAIL_TAG } from '@/core/QMatrix';
 import { useStore } from '@/application/useStore';
+import { announceRegroup } from '@/application/useRegroupAnimationStore';
 import { useAuthStore, currentStudentUid } from '@/application/useAuthStore';
 import { CurriculumRouter } from '@/core/CurriculumRouter';
 import { syncQMatrixEvaluation } from '@/core/ExerciseValidationEngine';
@@ -2071,7 +2072,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           }).catch(console.error);
         }
 
-        return { 
+        // מסמך 03 §3.3–3.5 / מודול 8 §א: the drag-right decomposition runs the
+        // same animation as the click. View only — the counts above are final.
+        if (result.ungroupEvent) {
+          announceRegroup({ kind: 'split', from: result.ungroupEvent.from, to: result.ungroupEvent.to, toCount: result.counts[result.ungroupEvent.to] });
+        } else if (result.regroupEvents && result.regroupEvents.length > 0) {
+          const ev = result.regroupEvents[0];
+          announceRegroup({ kind: 'group', from: ev.from, to: ev.to, toCount: result.counts[ev.to] });
+        }
+
+        return {
           counts: result.counts,
           undoStack: stack,
           regroupTriggerTimestamps: updatedTriggerTimestamps,
@@ -2230,6 +2240,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         }
 
         get().transitionTo('REGROUPING_ACTIVE');
+        // מסמך 03 §3.5: the block breaks apart and travels right. View only.
+        announceRegroup({ kind: 'split', from: place, to: res.event.to, toCount: res.counts[res.event.to] });
 
         return {
           counts: res.counts,
@@ -2295,6 +2307,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         }
 
         get().transitionTo('REGROUPING_ACTIVE');
+        // מסמך 03 §3.4: ten blocks merge into one and travel left. View only.
+        announceRegroup({ kind: 'group', from: place, to: res.event.to, toCount: res.counts[res.event.to] });
 
         return {
           counts: res.counts,
@@ -2642,6 +2656,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const undoStack = createNextUndoStack(s.undoStack, s.counts, 'REGROUPING_SUCCESS');
         get().transitionTo('REGROUPING_ACTIVE');
         set({ counts: result.counts, undoStack, hasInteracted: true, hasUngrouped: true });
+        if (result.ungroupEvent) {
+          announceRegroup({ kind: 'split', from: result.ungroupEvent.from, to: result.ungroupEvent.to, toCount: result.counts[result.ungroupEvent.to] });
+        }
       }
     },
 

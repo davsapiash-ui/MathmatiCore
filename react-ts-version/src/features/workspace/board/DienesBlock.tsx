@@ -160,6 +160,21 @@ export const ThousandSVG = () => {
 // Main Component
 // ----------------------------------------------------------------------
 
+/** Rendered block sizes in px — shared with the grouping animation's ghosts. */
+export const BLOCK_SIZES: Record<Place, { w: number; h: number }> = {
+  units: { w: 20, h: 20 },
+  tens: { w: 68, h: 42 },
+  hundreds: { w: 82, h: 48 },
+  thousands: { w: 82, h: 82 },
+};
+
+export const BLOCK_SVGS: Record<Place, React.FC> = {
+  units: UnitSVG,
+  tens: TenSVG,
+  hundreds: HundredSVG,
+  thousands: ThousandSVG,
+};
+
 const BLOCK_VISUALS: Record<Place, { style?: React.CSSProperties; labelHe: string; Component: React.FC }> = {
   units: {
     style: { width: '20px', height: '20px', maxWidth: '100%' },
