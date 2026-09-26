@@ -1,5 +1,5 @@
 import { useLayoutEffect, useState, type RefObject } from 'react';
-import { motion, MotionConfig, useReducedMotion } from 'framer-motion';
+import { animate, useReducedMotion, type AnimationPlaybackControls } from 'framer-motion';
 import type { Place } from '@/core/placeValue';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import {
@@ -22,6 +22,12 @@ import { BLOCK_SIZES, BLOCK_SVGS } from './DienesBlock';
  * of the move over the columns (pointer-events-none — every drop, click and
  * drag below it stays live), and PlaceColumn keeps the arriving blocks
  * invisible until the ghost lands on them.
+ *
+ * Driven by the imperative animate(): the board lives inside PlaceValueBoard's
+ * <AnimatePresence initial={false}>, and framer-motion passes that initial=false
+ * down to every motion component mounted later — declarative ghosts rendered
+ * straight in their final state (measured on 26.9.2026: final positions from the
+ * first frame). animate() on the DOM nodes ignores the presence context.
  *
  * Calm by design: under a second, opacity and position only — no flashing,
  * no bounce, no repeat. A learner whose device asks for reduced motion gets
@@ -126,11 +132,19 @@ function Ghost({ place }: { place: Place }) {
   );
 }
 
-const ghostStyle = { position: 'absolute' as const, left: 0, top: 0, willChange: 'transform, opacity' };
+const ghostStyle = (p: Point, opacity: number, scale: number) => ({
+  position: 'absolute' as const,
+  left: 0,
+  top: 0,
+  transform: `translateX(${p.x}px) translateY(${p.y}px) scale(${scale})`,
+  opacity,
+  willChange: 'transform, opacity',
+});
 
 export function RegroupAnimationLayer({ containerRef }: { containerRef: RefObject<HTMLElement | null> }) {
   const regroup = useVisibleRegroup();
   const [geometry, setGeometry] = useState<{ id: number; g: Geometry } | null>(null);
+  const [layer, setLayer] = useState<HTMLDivElement | null>(null);
 
   // Measured after the columns have committed the new counts, so the landing
   // spots are the real blocks' positions.
@@ -140,12 +154,53 @@ export function RegroupAnimationLayer({ containerRef }: { containerRef: RefObjec
     setGeometry(g ? { id: regroup.id, g } : null);
   }, [regroup, containerRef]);
 
-  if (!regroup || !geometry || geometry.id !== regroup.id) return null;
-  const { source, targets, cluster } = geometry.g;
-  const merge = SEC(REGROUP_MERGE_MS);
-  const total = SEC(REGROUP_ANIMATION_MS);
-  const mergeShare = REGROUP_MERGE_MS / REGROUP_ANIMATION_MS;
+  const ready = regroup && geometry && geometry.id === regroup.id ? geometry.g : null;
 
+  useLayoutEffect(() => {
+    if (!regroup || !ready || !layer) return;
+    const { source, targets, cluster } = ready;
+    const merge = SEC(REGROUP_MERGE_MS);
+    const total = SEC(REGROUP_ANIMATION_MS);
+    const mergeShare = REGROUP_MERGE_MS / REGROUP_ANIMATION_MS;
+    const high: Place = regroup.kind === 'group' ? regroup.to : regroup.from;
+    const low: Place = regroup.kind === 'group' ? regroup.from : regroup.to;
+    const highSize = BLOCK_SIZES[high];
+    const lowSize = BLOCK_SIZES[low];
+    const highAtSource = { x: source.x - highSize.w / 2, y: source.y - highSize.h / 2 };
+    const lowAtSource = { x: source.x - lowSize.w / 2, y: source.y - lowSize.h / 2 };
+    const controls: AnimationPlaybackControls[] = [];
+    const lows = layer.querySelectorAll<HTMLElement>('[data-ghost="low"]');
+    const highEl = layer.querySelector<HTMLElement>('[data-ghost="high"]');
+    if (regroup.kind === 'group') {
+      lows.forEach((el, i) => {
+        const p = cluster[i];
+        controls.push(animate(el, { x: [p.x, lowAtSource.x], y: [p.y, lowAtSource.y], opacity: [1, 0], scale: [1, 0.6] }, { duration: merge, ease: 'easeIn', delay: i * 0.008 }));
+      });
+      if (highEl) controls.push(animate(highEl, {
+        x: [highAtSource.x, highAtSource.x, targets[0].x],
+        y: [highAtSource.y, highAtSource.y, targets[0].y],
+        opacity: [0, 1, 1],
+        scale: [0.85, 1, 1],
+      }, { duration: total, times: [0, mergeShare, 1], ease: 'easeInOut' }));
+    } else {
+      if (highEl) controls.push(animate(highEl, { opacity: [1, 0], scale: [1, 0.9] }, { duration: merge * 0.8, ease: 'easeOut' }));
+      lows.forEach((el, i) => {
+        const t = targets[i];
+        // Break apart: fan out a little around the block, then travel.
+        const fan = { x: lowAtSource.x + (i - 4.5) * (lowSize.w * 0.35), y: lowAtSource.y - 10 };
+        controls.push(animate(el, {
+          x: [lowAtSource.x, fan.x, t.x],
+          y: [lowAtSource.y, fan.y, t.y],
+          opacity: [0, 1, 1],
+          scale: [0.7, 1, 1],
+        }, { duration: total - 0.12, delay: i * 0.012, times: [0, mergeShare, 1], ease: 'easeInOut' }));
+      });
+    }
+    return () => controls.forEach((c) => c.stop());
+  }, [regroup, ready, layer]);
+
+  if (!regroup || !ready) return null;
+  const { source, targets, cluster } = ready;
   const high: Place = regroup.kind === 'group' ? regroup.to : regroup.from;
   const low: Place = regroup.kind === 'group' ? regroup.from : regroup.to;
   const highSize = BLOCK_SIZES[high];
@@ -154,78 +209,29 @@ export function RegroupAnimationLayer({ containerRef }: { containerRef: RefObjec
   const lowAtSource = { x: source.x - lowSize.w / 2, y: source.y - lowSize.h / 2 };
 
   return (
-    // Framer's quiet-mode config ('always') would turn these moves into jumps;
-    // the reduced-motion preference itself is already honoured above.
-    <MotionConfig reducedMotion="never">
-      <div
-        aria-hidden="true"
-        data-testid="regroup-animation-layer"
-        data-kind={regroup.kind}
-        className="absolute inset-0 pointer-events-none z-20 overflow-visible"
-      >
-        {regroup.kind === 'group' ? (
-          <>
-            {cluster.map((p, i) => (
-              <motion.div
-                key={`${regroup.id}-low-${i}`}
-                style={ghostStyle}
-                initial={{ x: p.x, y: p.y, opacity: 1, scale: 1 }}
-                animate={{ x: lowAtSource.x, y: lowAtSource.y, opacity: 0, scale: 0.6 }}
-                transition={{ duration: merge, ease: 'easeIn', delay: i * 0.008 }}
-              >
-                <Ghost place={low} />
-              </motion.div>
-            ))}
-            <motion.div
-              key={`${regroup.id}-high`}
-              style={ghostStyle}
-              initial={{ x: highAtSource.x, y: highAtSource.y, opacity: 0, scale: 0.85 }}
-              animate={{
-                x: [highAtSource.x, highAtSource.x, targets[0].x],
-                y: [highAtSource.y, highAtSource.y, targets[0].y],
-                opacity: [0, 1, 1],
-                scale: [0.85, 1, 1],
-              }}
-              transition={{ duration: total, times: [0, mergeShare, 1], ease: 'easeInOut' }}
-            >
-              <Ghost place={high} />
-            </motion.div>
-          </>
-        ) : (
-          <>
-            <motion.div
-              key={`${regroup.id}-high`}
-              style={ghostStyle}
-              initial={{ x: highAtSource.x, y: highAtSource.y, opacity: 1, scale: 1 }}
-              animate={{ opacity: 0, scale: 0.9 }}
-              transition={{ duration: merge * 0.8, ease: 'easeOut' }}
-            >
-              <Ghost place={high} />
-            </motion.div>
-            {targets.map((t, i) => {
-              // Break apart: fan out a little around the block, then travel.
-              const fan = { x: lowAtSource.x + (i - 4.5) * (lowSize.w * 0.35), y: lowAtSource.y - 10 };
-              const stagger = i * 0.012;
-              return (
-                <motion.div
-                  key={`${regroup.id}-low-${i}`}
-                  style={ghostStyle}
-                  initial={{ x: lowAtSource.x, y: lowAtSource.y, opacity: 0, scale: 0.7 }}
-                  animate={{
-                    x: [lowAtSource.x, fan.x, t.x],
-                    y: [lowAtSource.y, fan.y, t.y],
-                    opacity: [0, 1, 1],
-                    scale: [0.7, 1, 1],
-                  }}
-                  transition={{ duration: total - 0.12, delay: stagger, times: [0, mergeShare, 1], ease: 'easeInOut' }}
-                >
-                  <Ghost place={low} />
-                </motion.div>
-              );
-            })}
-          </>
-        )}
-      </div>
-    </MotionConfig>
+    <div
+      key={regroup.id}
+      ref={setLayer}
+      aria-hidden="true"
+      data-testid="regroup-animation-layer"
+      data-kind={regroup.kind}
+      className="absolute inset-0 pointer-events-none z-20 overflow-visible"
+    >
+      {regroup.kind === 'group' ? (
+        <>
+          {cluster.map((p, i) => (
+            <div key={`low-${i}`} data-ghost="low" style={ghostStyle(p, 1, 1)}><Ghost place={low} /></div>
+          ))}
+          <div data-ghost="high" style={ghostStyle(highAtSource, 0, 0.85)}><Ghost place={high} /></div>
+        </>
+      ) : (
+        <>
+          <div data-ghost="high" style={ghostStyle(highAtSource, 1, 1)}><Ghost place={high} /></div>
+          {targets.map((_, i) => (
+            <div key={`low-${i}`} data-ghost="low" style={ghostStyle(lowAtSource, 0, 0.7)}><Ghost place={low} /></div>
+          ))}
+        </>
+      )}
+    </div>
   );
 }

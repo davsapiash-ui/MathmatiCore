@@ -8,6 +8,9 @@ import { ValueDisplay } from './ValueDisplay';
 import { BlockPalette } from './BlockPalette';
 import { RegroupAnimationLayer } from './RegroupAnimationLayer';
 
+/** Width below which the full tray no longer fits on one row (measured: 708px). */
+export const TRAY_FULL_WIDTH_PX = 720;
+
 /**
  * טבלת ערך המקום ("בית המספרים") — the mathematical place-value structure.
  * Column order in RTL: units rightmost → thousands leftmost (standard Hebrew notation).
@@ -33,6 +36,21 @@ export function PlaceValueBoard({
   const isBoardLocked = useWorkspaceStore((s) => s.isBoardLocked);
   const [showSession8Priming, setShowSession8Priming] = useState(true);
   const columnsRef = useRef<HTMLDivElement | null>(null);
+
+  // The tray's full form (title, divider, four blocks, trash) needs about 710px.
+  // At the board's usual half width on a 1280–1366px laptop it has ~610–660px,
+  // and the RTL row cut off its far (left) end — the trash. Measured, not
+  // assumed: the tray goes compact whenever the board is too narrow for it,
+  // with the side panel open or not.
+  const [narrow, setNarrow] = useState(false);
+  const sectionRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    const el = sectionRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(([entry]) => setNarrow(entry.contentRect.width < TRAY_FULL_WIDTH_PX));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [boardOpen, sessionNumber]);
 
   const { setNodeRef: setBoardRef } = useDroppable({
     id: 'place-value-board-dropzone',
@@ -80,6 +98,7 @@ export function PlaceValueBoard({
       {boardOpen && (
         <motion.section
           key="place-value-board"
+          ref={sectionRef}
           initial={{ opacity: 0, width: 0, flex: '0 0 0%' }}
           animate={{ 
             opacity: 1, 
@@ -132,7 +151,7 @@ export function PlaceValueBoard({
           </div>
 
           <div className="transition-opacity">
-            <BlockPalette scaffoldLevel={scaffoldLevel} compact={shareRow} />
+            <BlockPalette scaffoldLevel={scaffoldLevel} compact={shareRow || narrow} />
           </div>
         </motion.section>
       )}

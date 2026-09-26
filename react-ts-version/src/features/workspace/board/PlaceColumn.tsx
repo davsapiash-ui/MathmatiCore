@@ -42,7 +42,12 @@ export function PlaceColumn({ place, activeDragPlace }: { place: Place; activeDr
   // blocks that just arrived here stay invisible (still in the layout, so
   // nothing shifts) until the ghost lands on them — under a second.
   const regroup = useVisibleRegroup();
-  const firstArrivingIdx = renderCount - Math.min(renderCount, arrivingBlockCount(regroup, place));
+  const arriving = Math.min(renderCount, arrivingBlockCount(regroup, place));
+  const firstArrivingIdx = renderCount - arriving;
+  // The count badge lands with the blocks: while they are still in flight it
+  // shows what is visibly in the column, so the symbol never runs ahead of the
+  // bricks (VRA: the concrete and the symbolic change together).
+  const shownCount = count - (regroup && regroup.to === place ? arrivingBlockCount(regroup, place) : 0);
   const isError = errorPlace === place;
   const activeColumnIndex = useWorkspaceStore((s) => s.activeColumnIndex);
   const places: Place[] = ['units', 'tens', 'hundreds', 'thousands'];
@@ -92,7 +97,7 @@ export function PlaceColumn({ place, activeDragPlace }: { place: Place; activeDr
           className="absolute left-3 min-w-[22px] h-[22px] px-1 rounded-full text-xs font-black text-white inline-flex items-center justify-center transition-all opacity-100 scale-100"
           style={{ backgroundColor: colors.header }}
         >
-          {count}
+          {shownCount}
         </span>
         {/* אזור ההכרזה קרא עד כה את תוכן התגית בלבד — מספר ערום. לומד
             שנעזר בהקראה שמע "3", "4", "3" בלי לדעת על איזה טור מדובר.
