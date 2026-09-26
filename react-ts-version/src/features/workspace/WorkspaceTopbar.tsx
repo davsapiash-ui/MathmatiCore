@@ -140,7 +140,11 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
           <HandHelping className="w-5 h-5" />
         </button>
 
-        {sessionNumber !== 8 && (
+        {/* The board toggle exists only where there is a board. In meetings 2
+            and 8 the place-value board and the blocks are not mounted at all
+            (PRD Module 14 §ב; מסמך 03 §3.2 and §3.8: "לוח לבני הדינס ולוח בית
+            המספרים אינם מוצגים"), so "הצג לוח" there showed nothing. */}
+        {sessionNumber !== 2 && sessionNumber !== 8 && (
           <button
             onClick={toggleBoard}
             className={`h-12 px-4 rounded-2xl text-sm font-bold transition-all cursor-pointer flex items-center gap-1.5 border shadow-sm active:scale-95 ${
