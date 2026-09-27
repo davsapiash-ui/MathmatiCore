@@ -1046,7 +1046,7 @@ export function StudentWorkspacePage() {
           // דרסה את routeStatus ל-'PENDING', כלומר ביטלה את החלטת השער.
           const outcome = await submitSRLReflection(currentStudentUid(), result);
           if (!outcome.ok) {
-            toast.error('אירעה שגיאת רשת בשמירת הרפלקציה.');
+            toast.error('לא הצלחנו לשמור הפעם. זה בסדר.');
           }
           navigate('/hub');
         }}

@@ -182,7 +182,7 @@ export function ReflectionScreen() {
       useWorkspaceStore.setState({ flowStatus: 'sessionDone' });
     } catch (e) {
       console.error("Failed to save reflection:", e);
-      toast.error("אירעה שגיאת רשת בשמירת הרפלקציה. המידע נשמר וסונכרן מקומית.");
+      toast.error("לא הצלחנו לשמור הפעם. לחצו שוב על הכפתור.");
       setDone(false);
       return;
     }
@@ -196,7 +196,7 @@ export function ReflectionScreen() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="bg-ws-surface rounded-3xl shadow-xl border border-ws-surface2 max-w-2xl w-full p-8 my-10"
-        aria-label="לוח רפלקציה על המפגש"
+        aria-label="מה עזר לכם היום"
       >
         <div className="flex items-start gap-3 mb-1">
           <h1 className="font-display font-black text-3xl text-ws-ink flex-1">סיום מפגש הלמידה 🎉</h1>
@@ -286,7 +286,7 @@ export function ReflectionScreen() {
           disabled={!canComplete || done}
           className="w-full h-13 py-3.5 rounded-full font-display font-extrabold text-lg text-white bg-ws-accent shadow-md hover:brightness-105 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
         >
-          {done ? '🎉 מעדכן וממשיך...' : '✓ סיום הרפלקציה וחזרה ללובי'}
+          {done ? '🎉 מעדכן וממשיך...' : '✓ סיימנו! חוזרים לתחנות'}
         </button>
       </motion.article>
     </div>
