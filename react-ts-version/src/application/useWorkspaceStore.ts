@@ -54,6 +54,15 @@ import { normalizeStudentId } from '@/application/useChatStore';
 import { firebaseSyncService, emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
 import type { TelemetryEventType } from '@/types/telemetry';
 import type { VRAWorkspaceState } from '@/types';
+import {
+  EMPTY_PERSISTENCE_COUNTS,
+  addPersistenceEvent,
+  hasClosingSentence,
+  meetingOfSessionId,
+  persistenceEventKind,
+  type PersistenceCounts,
+  type PersistenceEventLike,
+} from '@/core/persistenceEncouragement';
 
 /**
  * Appendix A §3 scaffold events (owner, 16.9.2026 — register deviation 19).
@@ -93,7 +102,7 @@ const UNDO_STACK_CAP = 10;
 const DEFAULT_SOCRATIC_HINT: SocraticHintResponse = {
   questionHe: 'מה הפעולה המתמטית שנרצה לבצע בבית המספרים?',
   choices: [
-    { id: 'opt_1', textHe: 'לבדוק את מספר הבלוקים בכל טור בבית המספרים ולחשב מחדש' },
+    { id: 'opt_1', textHe: 'לבדוק את מספר הלבנים בכל טור בבית המספרים ולחשב מחדש' },
     { id: 'opt_2', textHe: 'לפרוט עשרת אחת ל-10 יחידות' },
     { id: 'opt_3', textHe: 'לקבץ 10 יחידות לעשרת אחת' }
   ],
@@ -101,6 +110,31 @@ const DEFAULT_SOCRATIC_HINT: SocraticHintResponse = {
 };
 
 export type SessionNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+
+/**
+ * U, E and G of the meeting in progress (owner decision E1, 27.9.2026,
+ * register deviation 24): counted exactly as the server counts them
+ * (core/persistenceEncouragement.ts), for this meeting only, so the closing
+ * sentence can be chosen on the child's device. Never shown as a number.
+ */
+export interface MeetingPersistenceTally extends PersistenceCounts {
+  /** The meeting these counts belong to; an event of another meeting is not counted. */
+  sessionNumber: number;
+}
+
+const freshMeetingPersistence = (sessionNumber: number): MeetingPersistenceTally => ({
+  sessionNumber,
+  ...EMPTY_PERSISTENCE_COUNTS,
+});
+
+/** A saved tally, if it is a tally of this meeting; otherwise a fresh one. */
+function restoredMeetingPersistence(saved: unknown, sessionNumber: number): MeetingPersistenceTally {
+  const s = saved as Partial<MeetingPersistenceTally> | null | undefined;
+  if (!s || Number(s.sessionNumber) !== sessionNumber) return freshMeetingPersistence(sessionNumber);
+  const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.floor(v) : 0);
+  return { sessionNumber, undos: n(s.undos), wrongDigits: n(s.wrongDigits), wrongOptions: n(s.wrongOptions) };
+}
+
 /** PRD Module 12: the only in-task help is the Socratic card ('socratic'), reached through a short 'friction' beat. */
 export type HelpState = 'closed' | 'friction' | 'socratic';
 export type FlowStatus = 'task' | 'choice_branch' | 'reflection' | 'sessionDone';
@@ -278,6 +312,14 @@ interface WorkspaceState {
   typedErrorCount: number;
   hasDigitErrorInTask: boolean;
   socraticDistractorErrors: number;
+  /** U, E and G of the meeting in progress (E1); reset when a meeting starts, kept across a reload. */
+  meetingPersistence: MeetingPersistenceTally;
+  /**
+   * Stations 2 and 8 open with one quiet screen before their first task
+   * (owner, 27.9.2026). Set once the learner pressed "מתחילים" in the meeting
+   * in progress; kept across a reload, so the screen never returns mid-meeting.
+   */
+  openingScreenSeen: boolean;
   lastInteractionTime: number;
 
   // overlays
@@ -347,6 +389,14 @@ interface WorkspaceState {
   recordUserInteraction: () => void;
   incrementTypedErrorCount: () => void;
   getPersistenceIndex: () => number;
+  /**
+   * Counts one telemetry event toward this meeting's U, E or G (E1). Called
+   * by the one telemetry emitter for every event it sends, so the child's
+   * device counts exactly what the server will count.
+   */
+  recordPersistenceEvent: (event: PersistenceEventLike & { session_id?: string }) => void;
+  /** The learner pressed "מתחילים" on the opening screen of station 2 or 8. */
+  markOpeningScreenSeen: () => void;
   toggleBoard: () => void;
   setFocusedPlace: (place: Place | null) => void;
   selectChoice: (id: string) => void;
@@ -1388,7 +1438,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       }
       // Meeting 1: the exercise is the conversion itself, not only its result.
       if (task.requiresGrouping && !s.hasGrouped) {
-        handleFailure('conversion_skipped', 'בּוֹאוּ נְקַבֵּץ 🧱', 'הלוח נכון, אבל המשימה היא לקבץ בעצמכם: 10 קוביות יחידה בכל פעם, בעזרת כפתור הקבץ 10 שבראש הטור.', 3500);
+        handleFailure('conversion_skipped', 'בּוֹאוּ נְקַבֵּץ 🧱', 'הלוח נכון, אבל המשימה היא לקבץ בעצמכם: 10 לבני יחידה בכל פעם, בעזרת כפתור הקבץ 10 שבראש הטור.', 3500);
         return;
       }
       if (task.requiresUngrouping && !s.hasUngrouped) {
@@ -1429,7 +1479,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       return;
     }
 
-    handleSuccess('כָּל הַכָּבוֹד! 🌟', 'המשך לשלב הבא.', 2500);
+    handleSuccess('כָּל הַכָּבוֹד! 🌟', 'המשיכו לשלב הבא.', 2500);
   }
 
   function advanceStandard() {
@@ -1492,7 +1542,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       }
 
       set({ awaitingNext: true, currentState: 'COMPLETE' });
-      showFeedback({ correct: true, title: 'כָּל הַכָּבוֹד! 🎉', sub: `מִפְגָּשׁ ${s.sessionNumber} הוּשְׁלַם בְּהַצְלָחָה!` }, 2500);
+      showFeedback({ correct: true, title: 'כָּל הַכָּבוֹד! 🎉', sub: `תַּחֲנָה ${s.sessionNumber} הוּשְׁלְמָה בְּהַצְלָחָה!` }, 2500);
       // מודול 16: מפגש 8 מסתיים בלוח הרפלקציה התלת-שלבי — זו כל מטרתו
       // ("חוקר-על — סיכום ורפלקציית SRL", מודול 14). הלוח היה בנוי, נבדק
       // ונשמר כהלכה, אבל שום מסלול בקוד לא הוביל אליו: כל מפגש הסתיים
@@ -1546,7 +1596,15 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     }
 
     set({ awaitingNext: true, currentState: 'COMPLETE' });
-    showFeedback({ correct: true, title: 'כָּל הַכָּבוֹד! 🎉', sub: `מִפְגָּשׁ ${s.sessionNumber} הוּשְׁלַם בְּהַצְלָחָה!` }, 2500);
+    // One praise, one sentence: meetings 3–7 end on the closing sentence of
+    // owner decision E2, which opens with "כל הכבוד" itself, so the toast
+    // before it only says the station is done.
+    showFeedback(
+      hasClosingSentence(s.sessionNumber)
+        ? { correct: true, title: `תַּחֲנָה ${s.sessionNumber} הוּשְׁלְמָה בְּהַצְלָחָה! 🎉` }
+        : { correct: true, title: 'כָּל הַכָּבוֹד! 🎉', sub: `תַּחֲנָה ${s.sessionNumber} הוּשְׁלְמָה בְּהַצְלָחָה!` },
+      2500,
+    );
     // מודול 16: מפגש 8 מסתיים בלוח הרפלקציה התלת-שלבי — זו כל מטרתו
     // ("חוקר-על — סיכום ורפלקציית SRL", מודול 14). הלוח היה בנוי, נבדק
     // ונשמר כהלכה, אבל שום מסלול בקוד לא הוביל אליו: כל מפגש הסתיים
@@ -1712,6 +1770,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     typedErrorCount: 0,
     hasDigitErrorInTask: false,
     socraticDistractorErrors: 0,
+    meetingPersistence: freshMeetingPersistence(1),
+    openingScreenSeen: false,
     lastInteractionTime: Date.now(),
     dynamicTasks: null,
     activeBankPath: null,
@@ -1804,6 +1864,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         sessionStartTimeMs: Date.now(),
         isTimeExceeded: false,
         currentState: 'PROBLEM_ACTIVE',
+        // A meeting starts here (a reload goes through restoreSession), so its
+        // U, E and G start from zero (E1: "the events of the current meeting only").
+        meetingPersistence: freshMeetingPersistence(sanitized),
+        // A fresh meeting 2 or 8 starts on its opening screen.
+        openingScreenSeen: false,
         ...resetTaskInteraction(isASD),
       });
 
@@ -1895,7 +1960,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         selectedBranch: saved.selectedBranch ?? null,
         standardTaskIdx: saved.standardTaskIdx ?? 0,
         qflow: saved.qflow ?? initQFlow(),
-        flowStatus: saved.flowStatus ?? 'task',
+        // Only meeting 8 ends on the reflection board (Module 16 §א). A snapshot
+        // saved by older code as 'reflection' in another meeting is a finished
+        // meeting: it reopens on the quiet end screen, never on a board with
+        // questions (owner decision E2, 27.9.2026).
+        flowStatus: saved.flowStatus === 'reflection' && sanitized !== 8 ? 'sessionDone' : (saved.flowStatus ?? 'task'),
+        // This meeting's U, E and G survive the reload (E1).
+        meetingPersistence: restoredMeetingPersistence(saved.meetingPersistence, sanitized),
+        // A snapshot saved before the opening screen existed is a meeting
+        // already under way: it does not go back to the opening.
+        openingScreenSeen: saved.openingScreenSeen === false ? false : true,
         counts: saved.counts ?? { ...EMPTY_COUNTS },
         undoCount: saved.undoCount ?? 0,
         hesitationCount: saved.hesitationCount ?? 0,
@@ -2620,7 +2694,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         if (lessonTaskId) recordBoardCheckFailure(lessonTaskId);
         const hint =
           s.sessionNumber === 2
-            ? 'סריקת הרדאר מזהה שכמות הבלוקים בלוח אינה תואמת למבוקש. איך נוכל לשנות זאת כדי להגיע לכמות המדויקת?'
+            ? 'כמות הלבנים בלוח אינה תואמת למבוקש. איך נוכל לשנות זאת כדי להגיע לכמות המדויקת?'
             : 'הסכום הנוכחי אינו תואם לערך היעד של הניסוי. נסו שוב!';
         showFeedback({ correct: false, title: 'בּוֹאוּ נְדַיֵּק אֶת הַמִּבְנֶה 🔍', sub: hint }, 3200);
         return;
@@ -2886,6 +2960,17 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       if (denom === 0) return 100;
       return Math.min(100, Math.max(0, Math.round((undoCount / denom) * 100)));
     },
+    markOpeningScreenSeen: () => set({ openingScreenSeen: true, lastInteractionTime: Date.now() }),
+    recordPersistenceEvent: (event) => {
+      if (!persistenceEventKind(event)) return;
+      const tally = get().meetingPersistence;
+      // "The events of the current meeting only" (E1): an event filed under
+      // another meeting — sent while the page is still moving the learner
+      // between meetings — does not count toward this one.
+      const meeting = meetingOfSessionId(event.session_id);
+      if (meeting !== null && meeting !== tally.sessionNumber) return;
+      set({ meetingPersistence: { ...tally, ...addPersistenceEvent(tally, event) } });
+    },
     triggerSocraticPenaltyLockout: (hintText) => {
       get().lockSocraticCard(30000);
       set((s) => ({
@@ -3066,6 +3151,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         socraticDistractorHint: null,
         typedErrorCount: 0,
         socraticDistractorErrors: 0,
+        meetingPersistence: freshMeetingPersistence(1),
+        openingScreenSeen: false,
         lastInteractionTime: Date.now(),
         dynamicTasks: null,
         currentState: 'IDLE' as VRAWorkspaceState,

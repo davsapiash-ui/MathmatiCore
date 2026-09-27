@@ -1,5 +1,6 @@
 import { createPortal } from 'react-dom';
 import { useDismissableOverlay } from '@/hooks/useDismissableOverlay';
+import { meetingLabelHe, meetingShortLabelHe } from '@/core/stationNames';
 
 /**
  * PRD v7.1 Module 14 §ב0 — Session Activation.
@@ -55,6 +56,10 @@ export function SessionActivationModal({ isOpen, sessionNumber, sessions, isStar
             <h2 className="text-xl font-black text-slate-900 dark:text-white">
               פתיחת מפגש {sessionNumber} לכלל הכיתה
             </h2>
+            {/* The name the children will see on their lobby card (owner, 27.9.2026). */}
+            <p className="text-sm font-bold text-indigo-700 dark:text-indigo-300 mt-1">
+              {meetingLabelHe(sessionNumber)}
+            </p>
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
               אישור הפעולה יפתח את המפגש עבור כל 12 הלומדים במקביל.
             </p>
@@ -67,10 +72,10 @@ export function SessionActivationModal({ isOpen, sessionNumber, sessions, isStar
             <ul className="text-sm text-slate-700 dark:text-slate-300 space-y-2 list-disc pr-5">
               {currentlyActive && (
                 <li className="text-amber-700 dark:text-amber-400">
-                  מפגש {currentlyActive.sessionNumber} הפעיל כעת ייסגר, וכל הלומדים יעברו למפגש {sessionNumber} מיד.
+                  המפגש הפעיל כעת, {meetingShortLabelHe(currentlyActive.sessionNumber)}, ייסגר, וכל הלומדים יעברו מיד ל{meetingShortLabelHe(sessionNumber)}.
                 </li>
               )}
-              <li>המפגש יישאר פעיל עד שתפתחי מפגש אחר.</li>
+              <li>המפגש יישאר פעיל עד שתפתחו מפגש אחר.</li>
               {isReopen && (
                 <li className="text-emerald-700 dark:text-emerald-400">
                   מפגש זה כבר הושלם. חזרה אליו אפשרית ומותרת, ואינה מוחקת נתונים קיימים.

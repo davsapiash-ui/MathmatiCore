@@ -14,7 +14,7 @@ import { ResetConfirmationModal } from '../ResetConfirmationModal';
 
 afterEach(cleanup);
 
-const executeButton = () => screen.getByRole('button', { name: /בצע איפוס מבוקר/ }) as HTMLButtonElement;
+const executeButton = () => screen.getByRole('button', { name: /בצעו איפוס מבוקר/ }) as HTMLButtonElement;
 
 describe('ResetConfirmationModal — level 2, whole class', () => {
   it('needs the explicit tick, then sends the open meeting with scope active_session', async () => {
@@ -23,7 +23,9 @@ describe('ResetConfirmationModal — level 2, whole class', () => {
       <ResetConfirmationModal isOpen onClose={() => {}} resetLevel="single_student" resetTarget="class" activeSessionNumber={4} onConfirm={onConfirm} />
     );
 
-    expect(screen.getByText('איפוס מפגש 4 לכל הכיתה (רמה 2)')).toBeTruthy();
+    expect(screen.getByText('איפוס המפגש הפתוח לכל הכיתה (רמה 2)')).toBeTruthy();
+    // The meeting under the name the children see (owner, 27.9.2026, register ט).
+    expect(screen.getByText('מפגש 4 · אצל התלמידים: חיבור במאונך עם הקבצה')).toBeTruthy();
     expect(executeButton().disabled).toBe(true);
 
     fireEvent.click(executeButton());
@@ -86,6 +88,22 @@ describe('ResetConfirmationModal — level 2, one learner (unchanged)', () => {
 
     await act(async () => { fireEvent.click(executeButton()); });
     expect(onConfirm).toHaveBeenCalledWith('restart_session', undefined, { scope: 'active_session', sessionNumber: 4 });
+  });
+
+  it('names the meeting as the children see it — and names none for the full reset of all eight', () => {
+    render(
+      <ResetConfirmationModal isOpen onClose={() => {}} resetLevel="single_student" targetStudentId="student_user3" targetStudentName="תלמיד 3" activeSessionNumber={4} onConfirm={vi.fn()} />
+    );
+    const label = 'מפגש 4 · אצל התלמידים: חיבור במאונך עם הקבצה';
+    // Default scope: the line under the heading and the "… בלבד" choice both carry the station name.
+    expect(screen.getByText(label)).toBeTruthy();
+    expect(screen.getByRole('radio', { name: new RegExp(`המפגש הזה בלבד \\(ברירת המחדל\\): ${label}`) })).toBeTruthy();
+    expect(screen.getByText(`יימחקו מצב מרחב העבודה וההתקדמות של לומד זה בלבד ב${label}.`)).toBeTruthy();
+
+    // The full reset touches all eight meetings: no single meeting under the heading.
+    fireEvent.click(screen.getByRole('radio', { name: /איפוס מוחלט של הלומד/ }));
+    expect(screen.queryByText(label)).toBeNull();
+    expect(screen.getByText(/יימחקו כל ההתקדמות בכל 8 המפגשים/)).toBeTruthy();
   });
 
   it('still lets the teacher choose the full wipe of that learner', async () => {

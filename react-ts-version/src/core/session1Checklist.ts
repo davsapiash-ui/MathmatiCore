@@ -44,7 +44,7 @@ export function session1Checklist(taskId: string, s: Session1ChecklistState): Se
     // Steps 1–2: welcome, free dragging.
     case 's1_sandbox_controlled':
       return [{
-        label: 'גררו לבנים לטורים משמאל וצפו בספרות המשתנות בלוח בית המספרים',
+        label: 'גררו לבנים לטורים משמאל וצפו בספרות המשתנות בבית המספרים',
         done: s.blocksAddedCount >= SANDBOX_MIN_BLOCKS,
         progress: { value: s.blocksAddedCount, of: SANDBOX_MIN_BLOCKS },
       }];
@@ -59,7 +59,7 @@ export function session1Checklist(taskId: string, s: Session1ChecklistState): Se
       const is305 = boardValue(s.counts) === 305;
       const standard = countsEqual(s.counts, { ...EMPTY_COUNTS, hundreds: 3, units: 5 });
       const items: Session1ChecklistItem[] = [{ label: 'נסו לבנות את המספר 305 בלבני דינס', done: is305 }];
-      if (is305 && !standard) items.push({ label: 'רוקנו את טור העשרות, כדי שבלוח בית המספרים תופיע בו הספרה אפס', done: false });
+      if (is305 && !standard) items.push({ label: 'רוקנו את טור העשרות, כדי שבבית המספרים תופיע בו הספרה אפס', done: false });
       return items;
     }
     // Step 5: undo, then the trash.

@@ -12,6 +12,8 @@ import {
   Compass
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { ROUTE_NAME_HE, TEACHER_GATE_HE } from '@/core/routeLabels';
+import { meetingShortLabelHe } from '@/core/stationNames';
 
 interface Props {
   student: StudentData | null;
@@ -64,12 +66,12 @@ export function TeacherGateApprovalDrawer({ student, onClose, onApproveSuccess }
       }
 
       useStore.getState().approveRoute(student.studentId);
-      toast.success(`✓ שער המורה אושר! תלמיד ${studentNum} הועבר למסלול ${selectedPath === 'green_path' ? 'ירוק (מואץ)' : 'צהוב (צמצום פערים)'} ונפתח למפגש 3 🚀`);
+      toast.success(`✓ ${TEACHER_GATE_HE}: תלמיד ${studentNum} הועבר ל${ROUTE_NAME_HE[selectedPath === 'green_path' ? 'green_path' : 'remediation_path']}, ו${meetingShortLabelHe(3)} נפתח עבורו 🚀`);
       if (onApproveSuccess) onApproveSuccess();
       onClose();
     } catch (err) {
       console.error('Error approving gate:', err);
-      toast.error('שגיאה באישור שער המורה');
+      toast.error(`שגיאה ב${TEACHER_GATE_HE}`);
     } finally {
       setIsApproving(false);
     }
@@ -88,7 +90,7 @@ export function TeacherGateApprovalDrawer({ student, onClose, onApproveSuccess }
         ref={drawerRef}
         role="dialog"
         aria-modal="true"
-        aria-label={`אישור מסלול למפגש 3 — תלמיד ${studentNum}`}
+        aria-label={`אישור מסלול ל${meetingShortLabelHe(3)} — תלמיד ${studentNum}`}
         className="fixed top-0 right-0 w-full sm:w-[620px] h-[100dvh] bg-white dark:bg-slate-900 shadow-2xl z-[9999] flex flex-col transform transition-transform duration-300 border-l border-slate-200 dark:border-slate-800 animate-in slide-in-from-right" 
         dir="rtl"
       >
@@ -104,14 +106,14 @@ export function TeacherGateApprovalDrawer({ student, onClose, onApproveSuccess }
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-black text-slate-900 dark:text-slate-100">
-                  שער אישור מעבר — תלמיד {studentNum}
+                  {TEACHER_GATE_HE} — תלמיד {studentNum}
                 </h2>
                 <span className="bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800">
-                  ממתין להחלטתך
+                  ממתין להחלטתכם
                 </span>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                אישור מסלול לימוד ותוכנית תרגילים לקראת מפגש 3
+                אישור מסלול לימוד ותוכנית תרגילים לקראת {meetingShortLabelHe(3)}
               </p>
             </div>
           </div>
@@ -119,7 +121,7 @@ export function TeacherGateApprovalDrawer({ student, onClose, onApproveSuccess }
           <button 
             onClick={onClose}
             className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
-            title="סגור חלון"
+            title="סגרו את החלון"
           >
             <X className="w-5 h-5" />
           </button>
@@ -132,7 +134,7 @@ export function TeacherGateApprovalDrawer({ student, onClose, onApproveSuccess }
           <div className="space-y-3">
             <label className="block text-xs font-black text-slate-700 dark:text-slate-300 flex items-center gap-1.5 uppercase tracking-wide">
               <Compass className="w-4 h-4 text-indigo-600" />
-              <span>1. קביעת מסלול הלימוד למפגש 3 ואילך:</span>
+              <span>1. קביעת מסלול הלימוד ל{meetingShortLabelHe(3)} ואילך:</span>
             </label>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -149,7 +151,7 @@ export function TeacherGateApprovalDrawer({ student, onClose, onApproveSuccess }
                   <div className="flex items-center gap-2">
                     <span className="w-3 h-3 rounded-full bg-emerald-500" />
                     <span className="font-extrabold text-sm text-slate-900 dark:text-slate-100">
-                      מסלול ירוק (מואץ)
+                      {ROUTE_NAME_HE.green_path}
                     </span>
                   </div>
                   {selectedPath === 'green_path' && (
@@ -174,7 +176,7 @@ export function TeacherGateApprovalDrawer({ student, onClose, onApproveSuccess }
                   <div className="flex items-center gap-2">
                     <span className="w-3 h-3 rounded-full bg-amber-500" />
                     <span className="font-extrabold text-sm text-slate-900 dark:text-slate-100">
-                      מסלול צהוב (צמצום פערים)
+                      {ROUTE_NAME_HE.remediation_path}
                     </span>
                   </div>
                   {selectedPath === 'remediation_path' && (
@@ -205,7 +207,7 @@ export function TeacherGateApprovalDrawer({ student, onClose, onApproveSuccess }
             className="px-7 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-extrabold text-sm rounded-xl shadow-lg shadow-indigo-600/30 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 active:scale-95"
           >
             <CheckCircle2 className="w-5 h-5 text-amber-300" />
-            <span>{isApproving ? 'מאשר ומפעיל...' : 'אשר והפעל תוכנית למפגש 3'}</span>
+            <span>{isApproving ? 'מאשר ומפעיל...' : `אשרו והפעילו את התוכנית ל${meetingShortLabelHe(3)}`}</span>
           </button>
         </div>
       </div>

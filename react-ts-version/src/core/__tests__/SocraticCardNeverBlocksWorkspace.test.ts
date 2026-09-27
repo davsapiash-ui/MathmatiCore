@@ -223,7 +223,7 @@ describe('Module 12: the coaching card never blocks the number house', () => {
           'section',
           {
             'data-testid': 'place-value-board',
-            'aria-label': 'טבלת ערך המקום',
+            'aria-label': 'בית המספרים',
             onPointerDown: onBoardPointerDown,
             onPointerMove: onBoardPointerMove,
             onPointerUp: onBoardPointerUp,
@@ -306,7 +306,7 @@ describe('Module 12: the coaching card never blocks the number house', () => {
     expect(useWorkspaceStore.getState().counts.units).toBe(1);
 
     // Card's own buttons remain interactive
-    const closeBtn = screen.getByRole('button', { name: 'סגור חלונית עזרה' });
+    const closeBtn = screen.getByRole('button', { name: 'סגירת חלונית העזרה' });
     expect(closeBtn).toBeDefined();
     act(() => {
       fireEvent.click(closeBtn);
@@ -339,7 +339,7 @@ describe('Module 12: the coaching card never blocks the number house', () => {
     );
 
     // Verify PlaceValueBoard elements are rendered
-    const board = screen.getByLabelText('טבלת ערך המקום');
+    const board = screen.getByLabelText('בית המספרים');
     expect(board).toBeDefined();
 
     // The panel sits beside the board, not inside or over it

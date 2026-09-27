@@ -201,7 +201,7 @@ describe('QA Battery 1: Hammer & Race-Condition Testing (Multi-Clicks & In-Fligh
     fireEvent.click(openAdminChatBtn);
 
     // 2. Find admin input and enter a message
-    const adminInput = await screen.findByPlaceholderText(/הקלד הודעה למנהל המערכת/i) as HTMLInputElement;
+    const adminInput = await screen.findByPlaceholderText(/הקלידו הודעה למנהל המערכת/i) as HTMLInputElement;
     fireEvent.change(adminInput, { target: { value: 'פנייה דחופה להנהלה' } });
 
     // 3. Find the send button (in the input container)
@@ -256,7 +256,7 @@ describe('QA Battery 1: Hammer & Race-Condition Testing (Multi-Clicks & In-Fligh
     }, { timeout: 3000 });
 
     // Find the "עצור מפגש" (Pause session) button
-    const pauseBtn = screen.getByRole('button', { name: /עצור מפגש/i }) as HTMLButtonElement;
+    const pauseBtn = screen.getByRole('button', { name: /עצרו את המפגש/i }) as HTMLButtonElement;
     expect(pauseBtn.disabled).toBe(false);
 
     // HAMMER: 5 rapid clicks on pause button
@@ -281,7 +281,7 @@ describe('QA Battery 1: Hammer & Race-Condition Testing (Multi-Clicks & In-Fligh
     });
 
     // Now button flips to "המשך מפגש" (Resume) and is enabled
-    const resumeBtn = await screen.findByRole('button', { name: /המשך מפגש/i }) as HTMLButtonElement;
+    const resumeBtn = await screen.findByRole('button', { name: /המשיכו את המפגש/i }) as HTMLButtonElement;
     expect(resumeBtn.disabled).toBe(false);
 
     // Now hammer Resume button
@@ -322,7 +322,7 @@ describe('QA Battery 1: Hammer & Race-Condition Testing (Multi-Clicks & In-Fligh
     render(<HeatmapGrid />);
 
     // Find the quick-approval "אשר ירוק" button in the gate banner
-    const greenApproveBtn = await screen.findByRole('button', { name: /אשר ירוק/i }) as HTMLButtonElement;
+    const greenApproveBtn = await screen.findByRole('button', { name: /אישור המסלול הירוק/i }) as HTMLButtonElement;
     expect(greenApproveBtn.disabled).toBe(false);
 
     // HAMMER: 5 rapid clicks within 50ms
@@ -341,7 +341,7 @@ describe('QA Battery 1: Hammer & Race-Condition Testing (Multi-Clicks & In-Fligh
     expect(greenApproveBtn.querySelector('.animate-spin')).not.toBeNull();
 
     // Sibling button "אשר צמצום" must also be disabled during this in-flight approval
-    const redApproveBtn = screen.getByRole('button', { name: /אשר צמצום/i }) as HTMLButtonElement;
+    const redApproveBtn = screen.getByRole('button', { name: /אישור מסלול צמצום פערי קדם/i }) as HTMLButtonElement;
     expect(redApproveBtn.disabled).toBe(true);
 
     // Resolve flight
@@ -381,7 +381,7 @@ describe('QA Battery 1: Hammer & Race-Condition Testing (Multi-Clicks & In-Fligh
     );
 
     // Find "סמן כטופל" button
-    const handleBtn = screen.getByRole('button', { name: /סמן כטופל/i }) as HTMLButtonElement;
+    const handleBtn = screen.getByRole('button', { name: /סמנו כטופל/i }) as HTMLButtonElement;
     expect(handleBtn.disabled).toBe(false);
 
     // HAMMER: 5 rapid clicks

@@ -110,7 +110,7 @@ export function AiEngineStatusCard() {
       <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
         <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
           <BrainCircuit className="w-5 h-5 text-violet-500" />
-          מנוע החניכה הסוקרטית (Gemini)
+          מנוע כרטיס החניכה (Gemini)
         </h2>
         <button
           type="button"

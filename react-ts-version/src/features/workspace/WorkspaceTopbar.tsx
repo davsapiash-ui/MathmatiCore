@@ -29,9 +29,9 @@ interface WorkspaceTopbarProps {
 
 /** מודול 17 §ד: what the cloud says in each sync state (read aloud and on hover). */
 const CLOUD_STATUS_LABEL: Record<QueueSyncState, string> = {
-  synced: 'מחובר. העבודה שלך נשמרה.',
-  pending: 'מחובר. העבודה שלך נשמרת ותישלח בעוד רגע.',
-  offline: 'אין כרגע חיבור לרשת. העבודה שלך נשמרת כאן ותיסנכרן לבד כשהחיבור יחזור.',
+  synced: 'מחובר. העבודה שלכם נשמרה.',
+  pending: 'מחובר. העבודה שלכם נשמרת ותישלח בעוד רגע.',
+  offline: 'אין כרגע חיבור לרשת. העבודה שלכם נשמרת כאן ותיסנכרן לבד כשהחיבור יחזור.',
 };
 
 export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
@@ -122,8 +122,8 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
           onClick={undo}
           disabled={!canUndo}
           className="w-12 h-12 min-w-[48px] min-h-[48px] rounded-2xl text-sm font-bold text-ws-ink bg-ws-surface2 hover:bg-ws-surface2/80 active:scale-95 transition-all flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-sm"
-          aria-label="בטל פעולה אחרונה"
-          title="בטל פעולה אחרונה"
+          aria-label="ביטול הפעולה האחרונה"
+          title="ביטול הפעולה האחרונה"
         >
           <RotateCcw className="w-5 h-5" />
         </button>
@@ -156,11 +156,11 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
                 ? 'bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-950/40 dark:border-indigo-800 dark:text-indigo-300' 
                 : 'bg-ws-surface2/60 border-ws-surface2 text-ws-ink hover:bg-ws-surface2'
             }`}
-            aria-label={boardOpen ? "הסתר לוח עבודה" : "הצג לוח עבודה"}
-            title={boardOpen ? "הסתר את לוח העבודה והבלוקים" : "הצג את לוח העבודה והבלוקים"}
+            aria-label={boardOpen ? "הסתרת בית המספרים" : "הצגת בית המספרים"}
+            title={boardOpen ? "הסתרת בית המספרים" : "הצגת בית המספרים"}
           >
             {boardOpen ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            <span className="hidden sm:inline">{boardOpen ? "הסתר לוח" : "הצג לוח"}</span>
+            <span className="hidden sm:inline">{boardOpen ? "הסתרת בית המספרים" : "הצגת בית המספרים"}</span>
           </button>
         )}
 
@@ -193,8 +193,8 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
           onClick={proceed}
           disabled={!canProceed}
           className="h-12 px-6 rounded-2xl text-base font-display font-extrabold text-white bg-ws-accent hover:brightness-110 active:scale-95 shadow-md hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed cursor-pointer"
-          aria-label="עבור למשימה הבאה"
-          title="התקדם למשימה הבאה"
+          aria-label="מעבר למשימה הבאה"
+          title="מעבר למשימה הבאה"
         >
           <span>התקדם</span>
           <ArrowLeft className="w-5 h-5" />

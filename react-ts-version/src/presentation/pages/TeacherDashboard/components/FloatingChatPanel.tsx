@@ -60,7 +60,7 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
     try {
       const validation = validateChatInputForPII(inputText);
       if (!validation.valid) {
-        toast.warning(validation.errorHe || 'הודעה מכילה פרטים מזהים (PII). יש להשתמש במזהה 1-12 בלבד.');
+        toast.warning(validation.errorHe || 'הודעה מכילה פרטים מזהים. יש להשתמש במזהה 1-12 בלבד.');
         return;
       }
 
@@ -69,7 +69,7 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
       setInputText('');
     } catch (err) {
       console.error('[Module 3/22 Fail-Closed] PII scanning error caught:', err);
-      toast.error('שגיאה בבדיקת אבטחה (PII). שליחת ההודעה נחסמה להגנה על פרטיות התלמידים.');
+      toast.error('שגיאה בבדיקת הפרטים המזהים. שליחת ההודעה נחסמה להגנה על פרטיות התלמידים.');
       return; // Fail-Closed: Strictly blocks message transmission
     }
   };
@@ -89,7 +89,7 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
           <button 
             onClick={handleClearChat}
             className="hover:text-red-200 transition-colors p-0.5 rounded"
-            title="נקה היסטוריית שיחה"
+            title="נקו את היסטוריית השיחה"
           >
             <Trash2 className="w-4 h-4" />
           </button>
@@ -104,7 +104,7 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
           <button 
             onClick={(e) => { e.stopPropagation(); onClose(); }}
             className="hover:text-white transition-colors"
-            title="סגור"
+            title="סגרו"
           >
             <X className="w-4 h-4" />
           </button>
@@ -117,7 +117,7 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
           <div className="flex-1 overflow-y-auto p-4 bg-slate-50 dark:bg-slate-950" ref={scrollRef}>
             <div className="flex flex-col gap-3">
               {studentMessages.length === 0 ? (
-                <div className="text-center text-xs text-slate-400 mt-8">אין הודעות קודמות. התחל התכתבות.</div>
+                <div className="text-center text-xs text-slate-400 mt-8">אין הודעות קודמות. התחילו התכתבות.</div>
               ) : (
                 studentMessages.map(msg => {
                   const isTeacher = msg.senderId === teacherId || isTeacherOrAdminId(msg.senderId) || msg.senderName === 'מורה';
@@ -149,7 +149,7 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
               value={inputText}
               onChange={e => setInputText(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSend()}
-              placeholder="כתוב הודעה לתלמיד..."
+              placeholder="כתבו הודעה לתלמיד..."
               className="flex-1 border border-slate-200 dark:border-slate-700 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
             />
             

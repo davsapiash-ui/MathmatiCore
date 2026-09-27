@@ -50,8 +50,8 @@ export function UdlSpeechButton({ text, lang = 'he-IL', className = '' }: UdlSpe
       semanticColor={isPlaying ? "primary" : "neutral"}
       onClick={handleSpeak}
       className={`rounded-full shadow-sm hover:shadow-md transition-all ${isPlaying ? 'animate-pulse' : ''} ${className}`}
-      aria-label="הקרא טקסט בקול"
-      title="הקרא טקסט בקול"
+      aria-label="הקראה בקול"
+      title="הקראה בקול"
     >
       {isPlaying ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
     </UdlButton>

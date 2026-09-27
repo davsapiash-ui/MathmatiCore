@@ -11,6 +11,7 @@ import type { MasteryProfile } from '@/core/QMatrix';
 import { hasEnhancedSupport, ENHANCED_SUPPORT_PROFILE_ID } from '@/core/supportProfile';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import type { ResetReason, SingleStudentResetScope } from '@/types';
+import { meetingShortLabelHe } from '@/core/stationNames';
 
 // The reset callable backs up the whole class before it deletes anything; the
 // server side is allowed 540 s for that, so the client must wait as long
@@ -709,7 +710,7 @@ export const useStore = create<AppState>()(
           }
           return { students };
         });
-        toast.success(`מפגש ${sessionNumber} אופס לכל הכיתה. 12 הלומדים חוזרים לתחילתו, ושאר המפגשים נשמרו.`);
+        toast.success(`${meetingShortLabelHe(sessionNumber)} אופס לכל הכיתה. 12 הלומדים חוזרים לתחילתו, ושאר המפגשים נשמרו.`);
       },
 
       resetStudentData: async (studentId: string, reason: ResetReason, reasonNote?: string, options?: SingleStudentResetOptions) => {
@@ -758,7 +759,7 @@ export const useStore = create<AppState>()(
           for (const id of [normId, studentId, `student_${num}`, `user${num}`, num]) {
             firebaseSyncService.clearLocalSessionProgress(id);
           }
-          const sessionLabel = requestedSession ? `מפגש ${requestedSession}` : 'המפגש הנוכחי';
+          const sessionLabel = requestedSession ? meetingShortLabelHe(requestedSession) : 'המפגש הנוכחי';
           set((state) => {
             const existing = state.students[normId] || state.students[studentId];
             if (!existing) return {};

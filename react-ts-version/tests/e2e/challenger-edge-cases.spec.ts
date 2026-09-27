@@ -189,7 +189,7 @@ test.describe('Challenger Edge Cases', () => {
     await expect(studentPage.locator('#tour-place-value-board')).not.toBeVisible();
     await expect(studentPage.locator('[id^="palette-units"]')).not.toBeVisible();
 
-    const proceedBtn = studentPage.getByRole('button', { name: 'עבור למשימה הבאה' });
+    const proceedBtn = studentPage.getByRole('button', { name: 'מעבר למשימה הבאה' });
 
     // -- Task 1: 6,400 + 2,700 = 9,100 --
     console.log("Task 1: Testing incorrect answer...");

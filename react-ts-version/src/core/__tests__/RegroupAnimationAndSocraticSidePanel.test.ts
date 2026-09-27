@@ -275,11 +275,11 @@ describe('The Socratic card is a side panel beside the work (מסמך 03 / 04 §
 
     const panel = screen.getByTestId('socratic-side-panel');
     expect(panel.className).not.toMatch(/\b(fixed|absolute)\b/);
-    const card = within(panel).getByRole('region', { name: 'חונך דיגיטלי סוקרטי' });
-    expect(within(card).getByRole('button', { name: 'הקרא טקסט בקול' })).toBeDefined();
+    const card = within(panel).getByRole('region', { name: 'כרטיס החניכה' });
+    expect(within(card).getByRole('button', { name: 'הקראה בקול' })).toBeDefined();
 
     act(() => { ws().triggerSocraticPenaltyLockout('רמז'); });
-    act(() => { fireEvent.click(within(card).getByRole('button', { name: 'סגור חלונית עזרה' })); });
+    act(() => { fireEvent.click(within(card).getByRole('button', { name: 'סגירת חלונית העזרה' })); });
     expect(ws().helpState).toBe('closed');
     expect(ws().isBoardLocked).toBe(false);
     unmount();
@@ -294,7 +294,7 @@ describe('The Socratic card is a side panel beside the work (מסמך 03 / 04 §
     const answers = buttons.filter((b) => b.className.includes('text-right'));
     expect(answers.length).toBe(3);
     for (const b of answers) expect(b.disabled).toBe(true);
-    const closeNow = buttons.find((b) => b.textContent?.includes('סגור לעת עתה'));
+    const closeNow = buttons.find((b) => b.textContent?.includes('סגירה לעת עתה'));
     expect(closeNow?.disabled).toBe(false);
     unmount();
   });

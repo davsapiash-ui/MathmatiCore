@@ -9,6 +9,9 @@
  * ההשוואה היא טהורה ונבדקת: שתי רשימות מאגרים, טביעת אצבע יציבה לכל אחת.
  */
 
+import { meetingShortLabelHe } from '@/core/stationNames';
+import { ROUTE_NAME_HE } from '@/core/routeLabels';
+
 export interface PublishedBankSnapshot {
   id: string;
   /** חותמת הפרסום שנכתבה ע"י מסך המנהל (`updated_at`). */
@@ -105,16 +108,16 @@ export function compareCatalog(
 }
 
 const PATH_LABEL: Record<string, string> = {
-  green_path: 'מסלול ירוק',
-  remediation_path: 'מסלול ביסוס',
+  green_path: ROUTE_NAME_HE.green_path,
+  remediation_path: ROUTE_NAME_HE.remediation_path,
 };
 
-/** `session_4_green_path` → "מפגש 4 — מסלול ירוק". */
+/** `session_4_green_path` → "מפגש 4 · חיבור במאונך עם הקבצה — המסלול הירוק". */
 export function bankLabelHe(bankId: string): string {
   const match = /^session_(\d+)(?:_(green_path|remediation_path))?$/.exec(bankId);
   if (!match) return bankId;
   const path = match[2] ? ` — ${PATH_LABEL[match[2]]}` : '';
-  return `מפגש ${match[1]}${path}`;
+  return `${meetingShortLabelHe(Number(match[1]))}${path}`;
 }
 
 /** משפט אחד למסך המנהל. */

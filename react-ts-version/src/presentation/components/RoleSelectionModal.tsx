@@ -42,7 +42,7 @@ export function RoleSelectionModal() {
                 בחירת תפקיד במערכת
               </h2>
               <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
-                זוהו הרשאות מרובות עבור המשתמש. בחר את מרחב העבודה הרצוי:
+                זוהו הרשאות מרובות עבור המשתמש. בחרו את מרחב העבודה הרצוי:
               </p>
             </div>
             <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/50 flex items-center justify-center text-[hsl(var(--ws-blue))]">
@@ -64,7 +64,7 @@ export function RoleSelectionModal() {
                 מרחב מורה
               </span>
               <span className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                דשבורד מעקב כיתתי, רדאר פדגוגי ואבחון
+                דשבורד מעקב כיתתי, הרדאר הפדגוגי השקט ואבחון
               </span>
             </button>
 

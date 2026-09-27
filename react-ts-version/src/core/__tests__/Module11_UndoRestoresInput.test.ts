@@ -90,7 +90,7 @@ describe('undo restores what the learner typed (Module 11 §א)', () => {
 
   it('the button is present in every meeting, meeting 8 included', () => {
     const topbar = src('features/workspace/WorkspaceTopbar.tsx');
-    const label = topbar.indexOf('aria-label="בטל פעולה אחרונה"');
+    const label = topbar.indexOf('aria-label="ביטול הפעולה האחרונה"');
     expect(label).toBeGreaterThan(-1);
     // Nothing gates it on the meeting number. ("הצג לוח" right below it IS gated
     // on meetings 2 and 8, correctly — there is no board there.)

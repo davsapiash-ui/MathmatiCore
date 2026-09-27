@@ -204,7 +204,8 @@ describe('no wording from the old meeting 1, and the documents’ names for thin
   });
 
   it('the lobby card of meeting 1 says "ארגז החול" (מסמך 04)', () => {
-    expect(src('presentation/pages/StudentHub.tsx')).toContain("title: 'תחנה 1: ארגז החול'");
+    expect(src('presentation/pages/StudentHub.tsx')).toContain('title: stationTitleHe(1),');
+    expect(src('core/stationNames.ts')).toContain("1: 'ארגז החול',");
   });
 
   it('the checklist has a read-aloud button (PRD Module 24)', () => {

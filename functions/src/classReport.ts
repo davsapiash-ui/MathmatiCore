@@ -5,6 +5,8 @@ import * as admin from "firebase-admin";
 import * as path from "path";
 import * as fs from "fs";
 import { DRIVE_FOLDERS, resolveDriveFolder, uploadBufferToDrive } from "./exportDriveReport";
+import { meetingLabelHe } from "./stationNames";
+import { ROUTE_NAME_HE, errorCategoryHe } from "./teacherLabels";
 import {
   computeFirstAttemptScore,
   readAllDocs,
@@ -714,7 +716,7 @@ export function createClassReportPdfBufferWithPdfkit(report: Record<string, any>
       rtlText(doc, `לומדים עם נתונים: ${a.learners_with_data} מתוך 12`, 200, cardY, { width: 190 });
       if (scored) {
         rtlText(doc, `ציון ממוצע: ${pct(a.score_mean)}`, 55, cardY, { width: 140 });
-        rtlText(doc, `חציון: ${pct(a.score_median)} | טווח: ${pct(a.score_min)}–${pct(a.score_max)} | מסלול ירוק: ${a.paths.green_path} | מסלול ביסוס: ${a.paths.remediation_path}`, 55, cardY + 25, { width: 490 });
+        rtlText(doc, `חציון: ${pct(a.score_median)} | טווח: ${pct(a.score_min)}–${pct(a.score_max)} | ${ROUTE_NAME_HE.green_path}: ${a.paths.green_path} | ${ROUTE_NAME_HE.remediation_path}: ${a.paths.remediation_path}`, 55, cardY + 25, { width: 490 });
       } else {
         rtlText(doc, "מפגש היכרות וריענון — ללא ציון וללא קבוצות עבודה", 55, cardY + 25, { width: 490 });
       }
@@ -743,7 +745,7 @@ export function createClassReportPdfBufferWithPdfkit(report: Record<string, any>
       line(`פעולות מתועדות: ${a.events_total} | ספרות שהוזנו: ${a.digits_entered_total} | ספרות שגויות: ${a.wrong_digits_total} (אחדות ${a.wrong_digits_by_column.units}, עשרות ${a.wrong_digits_by_column.tens}, מאות ${a.wrong_digits_by_column.hundreds}, אלפים ${a.wrong_digits_by_column.thousands})`);
       line(`מחיקות: ${a.deletions_total} | ביטולים: ${a.undos_total} | היסוסים: ${a.hesitations_total} (${a.hesitation_seconds_total} שניות) | המרות (הקבצה/פריטה): ${a.regroupings_total}`);
       const triggers = Object.entries(a.socratic_triggers).map(([k, v]) => `${k}: ${v}`).join(", ");
-      const categories = Object.entries(a.error_categories).map(([k, v]) => `${k}: ${v}`).join(", ");
+      const categories = Object.entries(a.error_categories).map(([k, v]) => `${errorCategoryHe(k) ?? k}: ${v}`).join(", ");
       line(`כרטיסי חניכה: ${a.socratic_cards_total}${triggers ? ` (${triggers})` : ""} | סיווגי שגיאה: ${categories || "אין"}`);
       line(`לוח החיבור: נפתח ${a.grid_openings_total}, הוחזר על ידי הלומד ${a.grid_reopenings_total} | הקלדה לפני המרה (מקלדת נעולה): ${a.keyboard_lock_blocks_total} | קריאות שקטות למורה: ${a.help_requests_total}`);
       line(`זמן פעילות ממוצע: ${a.active_minutes_mean} דקות | דקות הקלטה: ${a.recording_minutes_total} | רפלקציות: ${a.reflections_submitted} מתוך ${a.learners_with_data}`);
@@ -971,7 +973,7 @@ export const generateClassMeetingReport = onCall(CLASS_REPORT_RUNTIME, async (re
     report_id: reportId,
     class_id: classId,
     session_number: sessionNumber,
-    title_he: `MathematiCore - דוח כיתה למפגש ${sessionNumber}`,
+    title_he: `MathematiCore - דוח כיתה · ${meetingLabelHe(sessionNumber)}`,
     generated_at: generatedAt,
     telemetry_event_count: telemetryEventCount,
     learners,

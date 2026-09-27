@@ -147,11 +147,11 @@ describe('חלונות העזרה — Escape סוגר, וכפתור הסגירה
     expect(overlays).toContain('data-testid="socratic-card"');
   });
 
-  it('כפתור "הבנתי, סגור" אינו disabled בזמן נעילת המענה', () => {
+  it('כפתור "הבנתי, סגירת החלונית" אינו disabled בזמן נעילת המענה', () => {
     const closeBtn = overlays.slice(overlays.lastIndexOf('onClick={onClose}'), overlays.lastIndexOf('onClick={onClose}') + 500);
     expect(closeBtn).not.toContain('disabled={lockSeconds > 0}');
     expect(closeBtn).not.toContain('חלונית נעולה');
-    expect(closeBtn).toContain('הבנתי, סגור חלונית');
+    expect(closeBtn).toContain('הבנתי, סגירת החלונית');
   });
 });
 

@@ -98,12 +98,12 @@ test.describe('Session 8 (Scaffold-Free E2E)', () => {
       return {
         taskIdx: store.standardTaskIdx,
         answerDigits: store.answerDigits,
-        canProceed: !document.querySelector('button[aria-label="עבור למשימה הבאה"]')?.hasAttribute('disabled')
+        canProceed: !document.querySelector('button[aria-label="מעבר למשימה הבאה"]')?.hasAttribute('disabled')
       };
     });
     console.log('Task 1 State:', state1);
 
-    const proceedBtn = page.getByRole('button', { name: 'עבור למשימה הבאה' });
+    const proceedBtn = page.getByRole('button', { name: 'מעבר למשימה הבאה' });
     await expect(proceedBtn).toBeEnabled({ timeout: 5000 });
     await proceedBtn.click();
 
@@ -131,7 +131,7 @@ test.describe('Session 8 (Scaffold-Free E2E)', () => {
       return {
         taskIdx: store.standardTaskIdx,
         answerDigits: store.answerDigits,
-        canProceed: !document.querySelector('button[aria-label="עבור למשימה הבאה"]')?.hasAttribute('disabled')
+        canProceed: !document.querySelector('button[aria-label="מעבר למשימה הבאה"]')?.hasAttribute('disabled')
       };
     });
     console.log('Task 2 State:', state2);

@@ -30,8 +30,11 @@ import { WorkspaceTopbar } from './WorkspaceTopbar';
 import { TaskCard } from './tasks/TaskCard';
 import { FeedbackToast } from './overlays/FeedbackToast';
 import { HelpOverlays, SocraticSidePanel } from './overlays/HelpOverlays';
-import { ReflectionScreen } from './ReflectionScreen';
 import { Session8ReflectionScreen } from '@/presentation/components/student/Session8ReflectionScreen';
+import { ClosingSentence } from './ClosingSentence';
+import { hasClosingSentence } from '@/core/persistenceEncouragement';
+import { StationOpening } from './StationOpening';
+import { hasOpeningScreen } from '@/core/stationOpening';
 import { firebaseSyncService, emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
 import { indexedDBQueue } from '@/infrastructure/services/IndexedDBQueue';
 import { useStore } from '@/application/useStore';
@@ -112,6 +115,11 @@ export function StudentWorkspacePage() {
   const carryDigits = useWorkspaceStore((s) => s.carryDigits);
   const undoCount = useWorkspaceStore((s) => s.undoCount);
   const hesitationCount = useWorkspaceStore((s) => s.hesitationCount);
+  // This meeting's U, E and G: they choose the closing sentence (E1, E2).
+  const meetingPersistence = useWorkspaceStore((s) => s.meetingPersistence);
+  // Stations 2 and 8 open with one quiet screen, once (owner, 27.9.2026).
+  const openingScreenSeen = useWorkspaceStore((s) => s.openingScreenSeen);
+  const markOpeningScreenSeen = useWorkspaceStore((s) => s.markOpeningScreenSeen);
 
   // --- Active Teacher Class Session Listener ---
   const activeClassSession = useActiveClassSession();
@@ -232,10 +240,11 @@ export function StudentWorkspacePage() {
 
   // הרדאר השקט — covert monitoring for the teacher dashboard; nothing student-visible.
 
-  // Session done (meeting 4 end) → back to the hub.
-  // NOTE: qMatrixResults/traceData are written ONCE, at the right moment — the
-  // ReflectionScreen at the end of meeting 2. A second write here used wrong result
-  // keys with correct=true defaults and silently overwrote real diagnostics — removed.
+  // NOTE: this page writes no qMatrixResults and no traceData. Meeting 2's are
+  // written once, when the diagnostic ends (useWorkspaceStore, qflow step
+  // 'all_complete'); the exercise results of the later meetings by the store's
+  // success and failure handlers. A second write here used wrong result keys with
+  // correct=true defaults and silently overwrote real diagnostics — removed.
   // Keyboard: Enter = proceed (outside inputs), Ctrl/Cmd+Z = undo (vanilla app.js 1412–1416).
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -480,6 +489,8 @@ export function StudentWorkspacePage() {
     activeClassSession.status === 'closed' || 
     pendingApproval || 
     flowStatus === 'sessionDone' ||
+    // The opening screen of station 2 or 8 is not work: no hesitation is measured on it.
+    (hasOpeningScreen(sessionNumber) && flowStatus === 'task' && !openingScreenSeen) ||
     isTabHidden;
 
   // Pedagogical Radar — active during real student problem solving, strictly PAUSED during overlays
@@ -977,7 +988,7 @@ export function StudentWorkspacePage() {
             המשכת במכשיר אחר
           </h2>
           <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-            הפעילות שלך פתוחה כעת במכשיר אחר. מסך זה נעול באופן שקט כדי למנוע כפילויות ולשמור על הנתונים שלך.
+            הפעילות שלכם פתוחה כעת במכשיר אחר. מסך זה נעול באופן שקט כדי למנוע כפילויות ולשמור על הנתונים שלכם.
           </p>
         </div>
       </div>
@@ -1023,18 +1034,23 @@ export function StudentWorkspacePage() {
     );
   }
 
-  // All diagnostic tasks done → reflection (icons, no numeric grades).
+  // Meeting 8 ends on the reflection board (Module 16 §א), and only meeting 8:
+  // owner decision E2 (27.9.2026) gives meetings 3–7 one closing sentence and
+  // no board, and meetings 1–2 nothing. A 'reflection' in any other meeting can
+  // only be a snapshot older code saved (restoreSession already turns it into
+  // 'sessionDone'); it is shown as the finished meeting it is.
   // After every hook so React's hook order stays stable.
-  if (flowStatus === 'reflection') {
-    if (sessionNumber === 8) {
-      const undoCount = useWorkspaceStore.getState().undoCount || myData?.traceData?.undo_clicks || 0;
-      const errorCount = (myData as any)?.errorCount || (myData as any)?.errors || 0;
-      const guessCount = (myData as any)?.guessCount || (myData as any)?.distractorClicks || 0;
+  const endScreen = flowStatus === 'reflection' && sessionNumber !== 8 ? 'sessionDone' : flowStatus;
+  if (endScreen === 'reflection') {
+    {
+      // Meeting 8's own U, E and G, counted from the events the server counts
+      // (E1). They choose the stage-3 sentence and are saved for the teacher.
+      const { undos: undoCount, wrongDigits: errorCount, wrongOptions: guessCount } = meetingPersistence;
 
       return <>
-        <Session8ReflectionScreen 
-        metrics={{ 
-          fastestTaskType: 'כפל פי 10 ו-100', 
+        <Session8ReflectionScreen
+        metrics={{
+          fastestTaskType: 'כפל פי 10 ו-100',
           slowestTaskType: 'כפל פי 20 ו-30',
           undoCount,
           errorCount,
@@ -1054,29 +1070,46 @@ export function StudentWorkspacePage() {
         {classStateOverlays}
       </>;
     }
-    return <><ReflectionScreen />{classStateOverlays}</>;
   }
 
   // Module 20 §ב: finishing the diagnostic meeting lands on the waiting screen.
   // The learner cannot go anywhere from here — the teacher's gate approval and
   // the opening of meeting 3 are both hers. The screen listens for the
   // approval and returns the learner to the lobby the moment it lands.
-  if (flowStatus === 'sessionDone' && sessionNumber === 2 && !isGateApproved) {
+  if (endScreen === 'sessionDone' && sessionNumber === 2 && !isGateApproved) {
     return <><BeeFlightWaitingScreen onApproved={() => navigate('/hub')} />{classStateOverlays}</>;
   }
 
-  // Module 14: Session complete screen
-  if (flowStatus === 'sessionDone') {
+  // Module 14: Session complete screen. In meetings 3–7 it carries the one
+  // closing sentence of owner decision E2, chosen by this meeting's own
+  // persistence index (E1): the sentence and its read-aloud button, and
+  // nothing else — no number, no board, no question. Meetings 1 and 2 have
+  // no sentence; meeting 8 has its own on the reflection board.
+  //
+  // One praise, one sentence: every closing sentence already opens with
+  // "כל הכבוד", so where it is shown the heading only says which station is
+  // done (and the end toast carries no praise either, useWorkspaceStore).
+  if (endScreen === 'sessionDone') {
+    const withClosingSentence = hasClosingSentence(sessionNumber);
     return (
       <div dir="rtl" className="h-screen w-full flex flex-col items-center justify-center bg-ws-bg text-ws-ink font-body p-6 animate-in fade-in duration-300">
         <div className="bg-ws-surface p-10 rounded-3xl shadow-2xl max-w-md w-full text-center border-2 border-ws-surface2 space-y-6">
           <div className="text-6xl animate-bounce motion-essential">🎉✨</div>
-          <h1 className="text-3xl font-display font-black text-ws-ink">
-            כל הכבוד, מתמטיקאים!
-          </h1>
-          <p className="text-base text-ws-soft leading-relaxed">
-            השלמתם את מפגש {sessionNumber} בהצלחה רבה!
-          </p>
+          {withClosingSentence ? (
+            <h1 className="text-3xl font-display font-black text-ws-ink">
+              סיימתם את תחנה {sessionNumber}!
+            </h1>
+          ) : (
+            <>
+              <h1 className="text-3xl font-display font-black text-ws-ink">
+                כל הכבוד, מתמטיקאים!
+              </h1>
+              <p className="text-base text-ws-soft leading-relaxed">
+                סיימתם את תחנה {sessionNumber}!
+              </p>
+            </>
+          )}
+          <ClosingSentence sessionNumber={sessionNumber} counts={meetingPersistence} />
           <div className="pt-4 flex flex-col gap-2">
             <div className="inline-flex items-center justify-center gap-2 py-3 px-6 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-200 dark:border-emerald-800 text-sm">
               <span>העבודה נשמרה בבטחה</span>
@@ -1094,7 +1127,7 @@ export function StudentWorkspacePage() {
     return (
       <div dir="rtl" className="h-screen w-full flex flex-col items-center justify-center bg-ws-bg text-ws-ink font-body">
         <div className="animate-spin text-4xl mb-4">⏳</div>
-        <h2 className="text-xl font-bold">טוען את המשימות המותאמות שלך...</h2>
+        <h2 className="text-xl font-bold">טוען את המשימות המותאמות שלכם...</h2>
       </div>
     );
   }
@@ -1104,13 +1137,20 @@ export function StudentWorkspacePage() {
     return (
       <div dir="rtl" className="h-screen w-full flex flex-col items-center justify-center bg-ws-bg text-ws-ink font-body">
         <div className="animate-spin text-4xl mb-4">⏳</div>
-        <h2 className="text-xl font-bold text-ws-ink">עוברים למפגש {activeClassSession?.sessionNumber}...</h2>
+        <h2 className="text-xl font-bold text-ws-ink">עוברים לתחנה {activeClassSession?.sessionNumber}...</h2>
       </div>
     );
   }
 
   if (pendingApproval) {
     return <BeeFlightWaitingScreen onApproved={() => setPendingApproval(false)} />;
+  }
+
+  // Stations 2 and 8, before their first task: one text, its read-aloud button
+  // and "מתחילים" (owner, 27.9.2026). Once pressed it does not return, not even
+  // after a reload (openingScreenSeen travels with the saved workspace).
+  if (hasOpeningScreen(sessionNumber) && meeting === sessionNumber && endScreen === 'task' && !openingScreenSeen) {
+    return <><StationOpening meeting={sessionNumber} onStart={markOpeningScreenSeen} />{classStateOverlays}</>;
   }
 
   return (
@@ -1202,7 +1242,7 @@ export function StudentWorkspacePage() {
             type="button"
             onClick={() => openAdditionHelper('learner')}
             className="fixed bottom-6 left-6 z-40 h-12 px-4 rounded-2xl text-sm font-bold transition-all cursor-pointer flex items-center gap-1.5 border shadow-lg active:scale-95 bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/40 dark:border-amber-700/60 dark:text-amber-200"
-            aria-label="הצג שוב את לוח החיבור"
+            aria-label="הצגה חוזרת של לוח החיבור"
             title="החזרת לוח החיבור למסך"
           >
             <Grid3x3 className="w-4 h-4" aria-hidden="true" />

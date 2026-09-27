@@ -140,7 +140,6 @@ describe('Student Domain Verification & Audit Suite', () => {
         'features/workspace/board/PlaceColumn.tsx',
         'features/workspace/board/AdaptiveAdditionGrid.tsx',
         'features/workspace/board/BlockPalette.tsx',
-        'features/workspace/ReflectionScreen.tsx',
         'features/workspace/WorkspaceTopbar.tsx',
         'features/workspace/ProgressDots.tsx',
       ];
@@ -165,7 +164,7 @@ describe('Student Domain Verification & Audit Suite', () => {
       const topbarContent = readFileSync(join(__dirname, '../../features/workspace/WorkspaceTopbar.tsx'), 'utf-8');
       expect(topbarContent).toMatch(/aria-label/);
 
-      const reflectionContent = readFileSync(join(__dirname, '../../features/workspace/ReflectionScreen.tsx'), 'utf-8');
+      const reflectionContent = readFileSync(join(__dirname, '../../presentation/components/student/Session8ReflectionScreen.tsx'), 'utf-8');
       expect(reflectionContent).toMatch(/aria-label/);
       expect(reflectionContent).toMatch(/role="radio"|role="checkbox"|role="radiogroup"/);
     });

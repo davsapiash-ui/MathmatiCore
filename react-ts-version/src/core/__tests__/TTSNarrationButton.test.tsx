@@ -187,7 +187,7 @@ describe('כפתור ההקראה — מהלחיצה ועד המנוע', () => {
     const UdlSpeechButton = await loadButton();
     const { getByRole } = render(<UdlSpeechButton text={INSTRUCTION} />);
 
-    expect(getByRole('button').getAttribute('aria-label')).toBe('הקרא טקסט בקול');
+    expect(getByRole('button').getAttribute('aria-label')).toBe('הקראה בקול');
   });
 });
 

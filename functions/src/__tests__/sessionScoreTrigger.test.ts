@@ -63,7 +63,8 @@ describe('the score stays the teacher\'s (Module 24 §ב, Module 23 §ג)', () =
     const fe = resolve(__dirname, '../../../react-ts-version/src');
     for (const file of [
       'features/workspace/StudentWorkspacePage.tsx',
-      'features/workspace/ReflectionScreen.tsx',
+      'features/workspace/ClosingSentence.tsx',
+      'features/workspace/tasks/TaskCard.tsx',
       'presentation/components/student/Session8ReflectionScreen.tsx',
       'presentation/pages/StudentHub.tsx',
     ]) {

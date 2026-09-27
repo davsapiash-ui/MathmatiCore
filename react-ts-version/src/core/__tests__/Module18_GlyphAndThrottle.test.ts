@@ -42,14 +42,14 @@ describe('Master PRD — Module 18: Silent Radar Additions (Glyphs & Write Throt
       const res = getCognitiveGlyph('procedural');
       expect(res).not.toBeNull();
       expect(res?.glyph).toBe('ר');
-      expect(res?.title).toContain('מיומנות רכיב');
+      expect(res?.title).toContain('טעות בשלבי הפתרון');
     });
 
     it('maps conceptual/structural errors strictly to "מ"', () => {
       const res = getCognitiveGlyph('conceptual');
       expect(res).not.toBeNull();
       expect(res?.glyph).toBe('מ');
-      expect(res?.title).toContain('מבנה עשרוני');
+      expect(res?.title).toContain('טעות בהבנת ערך המקום');
     });
 
     it('returns null when errorCategory is null, undefined, or empty', () => {
@@ -85,7 +85,7 @@ describe('Master PRD — Module 18: Silent Radar Additions (Glyphs & Write Throt
       // Assert glyph element exists for student 1 with character 'ח' and title
       expect(html).toContain('data-testid="glyph-student-1"');
       expect(html).toContain('ח');
-      expect(html).toContain('title="שגיאת חישוב בסיסי (ח)"');
+      expect(html).toContain('title="טעות חישוב (ח)"');
 
       // Assert students without errors do not render a glyph element
       expect(html).not.toContain('data-testid="glyph-student-2"');

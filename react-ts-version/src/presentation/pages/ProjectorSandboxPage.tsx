@@ -205,7 +205,7 @@ export function ProjectorSandboxPage() {
                 ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700 shadow-xs'
                 : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-700'
             }`}
-            title={isBroadcasting ? 'לחץ להשהיית השידור למסכי התלמידים' : 'לחץ להפעלת שידור ונעילת מסכי התלמידים'}
+            title={isBroadcasting ? 'לחצו להשהיית השידור למסכי התלמידים' : 'לחצו להפעלת שידור ונעילת מסכי התלמידים'}
           >
             <span className={`w-2 h-2 rounded-full ${isBroadcasting ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
             <span>{isBroadcasting ? 'שידור פעיל (תלמידים בהמתנה)' : 'שידור מושהה (תלמידים פעילים)'}</span>
@@ -232,7 +232,7 @@ export function ProjectorSandboxPage() {
             title="ניקוי כל הלבנים מהלוח"
           >
             <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
-            <span>נקה לוח</span>
+            <span>נקו את הלוח</span>
           </button>
 
           <button
@@ -249,7 +249,7 @@ export function ProjectorSandboxPage() {
               logout();
             }}
             className="p-2 rounded-xl text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-all"
-            title="התנתק מהמערכת"
+            title="התנתקו מהמערכת"
           >
             <LogOut className="w-4 h-4" />
           </button>

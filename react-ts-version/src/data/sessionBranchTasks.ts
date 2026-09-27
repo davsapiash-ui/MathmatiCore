@@ -142,7 +142,7 @@ export const SESSION_BRANCH_TASKS: Record<BranchSession, Record<LearningPath, Br
       challenge: [
         skeleton('s7_r_challenge_1', 415, 258, false, { a: ['hundreds', 'tens', 'units'] },
           'אתגר: תרגיל שלד עם שלוש ספרות חסרות',
-          'בתרגיל ▢▢▢ + 258 = 673 חסרות שלוש ספרות של המחובר הראשון, בטורים שונים. גלו אותן באמצעות מניפולציה בלבני הדינס וכתבו אותן בתיבות הריקות.',
+          'בתרגיל ▢▢▢ + 258 = 673 חסרות שלוש ספרות של המחובר הראשון, בטורים שונים. גלו אותן בעזרת הלבנים בבית המספרים וכתבו אותן בתיבות הריקות.',
           { ...C, targetNode: 'relational_thinking' }),
       ],
     },

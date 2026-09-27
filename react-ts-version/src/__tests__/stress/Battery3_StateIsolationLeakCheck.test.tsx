@@ -165,7 +165,7 @@ describe('QA Battery 3: State Isolation & Leak Check (TeacherDashboard)', () => 
     fireEvent.click(student1SelectBtn);
 
     // 3. Locate student chat input and pre-populate inputText
-    const studentInput = (await screen.findByPlaceholderText(/הקלד הודעה לתלמיד/i)) as HTMLInputElement;
+    const studentInput = (await screen.findByPlaceholderText(/הקלידו הודעה לתלמיד/i)) as HTMLInputElement;
     fireEvent.change(studentInput, { target: { value: 'שלום תלמיד 1, שים לב לעמודת העשרות' } });
     expect(studentInput.value).toBe('שלום תלמיד 1, שים לב לעמודת העשרות');
 
@@ -174,7 +174,7 @@ describe('QA Battery 3: State Isolation & Leak Check (TeacherDashboard)', () => 
     fireEvent.click(openAdminDrawerBtn);
 
     // 5. Locate admin input and pre-populate adminInputText
-    const adminInput = (await screen.findByPlaceholderText(/הקלד הודעה למנהל המערכת/i)) as HTMLInputElement;
+    const adminInput = (await screen.findByPlaceholderText(/הקלידו הודעה למנהל המערכת/i)) as HTMLInputElement;
     fireEvent.change(adminInput, { target: { value: 'הודעה למנהל: ישנה תקלת רשת בכיתה' } });
     expect(adminInput.value).toBe('הודעה למנהל: ישנה תקלת רשת בכיתה');
 

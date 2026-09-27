@@ -18,8 +18,18 @@ import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncServi
  * diagnostic task they refresh, and no number with meeting 2.
  */
 
-const DOC03 = readFileSync(resolve(__dirname, '../../../../מסמכי אפיון/מקור פדגוגי/03- אפיון מפורט לקראת פיתוח.md'), 'utf-8')
-  .replace(/\\!/g, '!');
+/**
+ * Grammar fix (owner, 27.9.2026): "לבנים" is feminine, so the refresh exercise
+ * 713 + 94 says "כאשר מצטברות 10 לבנים בטור". The owner makes the same change in
+ * מסמך 03 in Drive; until the Drive sync of 27.9.2026 evening the repository
+ * copy still says "מצטברים", so the comparison applies this one substitution.
+ * It is a no-op after the sync — delete it then.
+ */
+const REGISTERED_SUBSTITUTIONS: ReadonlyArray<[RegExp, string]> = []; // the repository copy now equals Drive (27.9.2026)
+const DOC03 = REGISTERED_SUBSTITUTIONS.reduce(
+  (text, [from, to]) => text.replace(from, to),
+  readFileSync(resolve(__dirname, '../../../../מסמכי אפיון/מקור פדגוגי/03- אפיון מפורט לקראת פיתוח.md'), 'utf-8').replace(/\\!/g, '!')
+);
 const task = (id: string) => SESSION1_TASKS.find((t) => t.id === id)!;
 const diag = (id: string) => DIAGNOSTIC_TASKS.find((t) => t.id === id)!;
 
@@ -81,7 +91,7 @@ describe('steps 1–5 say on screen what מסמך 03 §3.1 says, word for word',
 
   it('step 6 names the document\'s number and actions', () => {
     const t = task('s1_target_347');
-    expect(t.instructionHe.startsWith('משימת יעד מסכמת: בנו את המספר 347 בלבני דינס, פרטו עשרת אחת לעשר יחידות')).toBe(true);
+    expect(t.instructionHe.startsWith('משימת היעד: בנו את המספר 347 בלבני דינס, פרטו עשרת אחת לעשר יחידות')).toBe(true);
     expect(t.requiredCounts).toEqual({ hundreds: 3, tens: 3, units: 17 });
     expect(t.requiresUngrouping).toBe(true);
     // the new representation is what the child finds — the card does not list it in advance
@@ -127,7 +137,7 @@ describe('what completes each introduction step', () => {
   it('step 4: 305 built another way shows which part is left, instead of a silent ⏳', () => {
     const items = session1Checklist('s1_build_305', { ...base, counts: { ...EMPTY_COUNTS, hundreds: 2, tens: 10, units: 5 } })!;
     expect(items.map((i) => i.done)).toEqual([true, false]);
-    expect(items[1].label).toBe('רוקנו את טור העשרות, כדי שבלוח בית המספרים תופיע בו הספרה אפס');
+    expect(items[1].label).toBe('רוקנו את טור העשרות, כדי שבבית המספרים תופיע בו הספרה אפס');
   });
 
   it('step 5: undo and pressing the trash, both', () => {
@@ -388,7 +398,7 @@ describe('each refresh exercise mirrors its diagnostic task, column for column',
     expect(d.expectedBlocks).toEqual({ tens: 2, units: 5 });
     expect(r.numberA).toBe(26);
     expect(r.requiresGrouping).toBe(true);
-    expect(r.instructionHe).toContain('26 קוביות יחידה');
+    expect(r.instructionHe).toContain('26 לבני יחידה');
     // the cubes are on the board and the card does not say what they make
     expect(r.initialCounts).toEqual({ units: 26 });
     expect(r.hideRequiredCounts).toBe(true);

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
+import { stationTitleHe, MEETING_NUMBERS } from '@/core/stationNames';
 
 /**
  * Texts on the learner's and teacher's screens that did not say what the
@@ -16,6 +17,8 @@ const code = (p: string) =>
 
 describe('the lobby card names the meeting as documents 02 and 03 do (register row 4)', () => {
   const hub = code('presentation/pages/StudentHub.tsx');
+  // The names live in one place since 27.9.2026 (register ט); the lobby reads them from there.
+  const names = code('core/stationNames.ts');
 
   const TITLES: Record<number, string> = {
     1: 'תחנה 1: ארגז החול',
@@ -30,19 +33,22 @@ describe('the lobby card names the meeting as documents 02 and 03 do (register r
 
   for (const [n, title] of Object.entries(TITLES)) {
     it(`meeting ${n}: "${title}"`, () => {
-      expect(hub).toContain(`title: '${title}'`);
+      expect(stationTitleHe(Number(n) as (typeof MEETING_NUMBERS)[number])).toBe(title);
+      expect(hub).toContain(`title: stationTitleHe(${n}),`);
     });
   }
 
   it('no educator jargon reaches the child (owner, 27.9.2026)', () => {
     for (const word of ['אבחון', 'הערכה', 'רפלקציה', 'אינטגרציה', 'מסכם', 'המערכת']) {
       expect(hub, word).not.toContain(word);
+      expect(names, word).not.toContain(word);
     }
   });
 
   it('none of the old names that described no meeting is left', () => {
     for (const old of ['מחקר אישי', 'פריטה וקיבוץ', 'תכנון ניסויים', 'מחקר מתקדם', 'אתגרי חיבור וחיסור', 'סיכום ותובנות']) {
       expect(hub, old).not.toContain(old);
+      expect(names, old).not.toContain(old);
     }
   });
 
@@ -56,7 +62,7 @@ describe('the lobby card names the meeting as documents 02 and 03 do (register r
 
   it('meeting 8 says the blocks are gone, in a positive way; meeting 5 is subtraction', () => {
     expect(hub).toContain("desc: 'עכשיו אפשר כבר גם בלי לבנים. בסוף ספרו מה עזר לכם.'");
-    expect(hub).toMatch(/title: 'תחנה 5: [^']*חיסור/);
+    expect(stationTitleHe(5)).toMatch(/^תחנה 5: [^']*חיסור/);
   });
 });
 
@@ -80,7 +86,7 @@ describe('the lobby has no entry button — the learner is moved in (register ro
   });
 });
 
-describe('"הצג לוח" appears only in meetings that have a board', () => {
+describe('"הצגת בית המספרים" appears only in meetings that have a board', () => {
   const topbar = src('features/workspace/WorkspaceTopbar.tsx');
   const page = src('features/workspace/StudentWorkspacePage.tsx');
 
@@ -133,7 +139,7 @@ describe("the teacher's replay panel is a reconstruction without sound, not a vi
   });
 
   it('the panel heading says what it is', () => {
-    expect(journey).toContain('שחזור מסך העבודה, ללא קול · מפגש {selectedSession}');
+    expect(journey).toContain('שחזור מסך העבודה, ללא קול · {meetingShortLabelHe(selectedSession)}');
   });
 
   it('keeps the fallback message PRD 7.3 Module 21 §ה quotes word for word', () => {

@@ -13,6 +13,7 @@
  */
 import * as fs from "fs";
 import { fontPath } from "./htmlPdf";
+import { ROUTE_NAME_HE, errorCategoryHe } from "./teacherLabels";
 import type { ClassAggregates, ClassLearnerRow, ExerciseOutcome } from "./classReport";
 import {
   CHOICE_PATH_LABEL_HE,
@@ -240,8 +241,8 @@ export function pedagogicalReportHtml(report: Record<string, any>): string {
   if (report.meeting_kind === "sandbox_refresh") return sandboxReportHtml(report);
   const title = report.title_he || "MathematiCore - דוח פדגוגי מסכם";
   const pathLabel = report.matrix_recommended_path === "green_path"
-    ? "מסלול העמקה (ירוק)"
-    : "מסלול ביסוס ומענה מותאם (צהוב)";
+    ? ROUTE_NAME_HE.green_path
+    : ROUTE_NAME_HE.remediation_path;
   const narratives = asStringArray(report.exercise_narratives);
   const choiceNarratives = asStringArray(report.choice_exercise_narratives);
   const gaps = asStringArray(report.knowledge_gaps);
@@ -294,6 +295,14 @@ const studentList = (ids: number[]) => (ids.length > 0 ? ids.map((id) => `תלמ
 /** "key: value" pairs of Latin trigger/category names, each pair kept together as one left-to-right unit. */
 function keyValueList(map: Record<string, number>): string {
   return Object.entries(map).map(([k, v]) => ltr(`${k}: ${v}`)).join(", ");
+}
+
+/** The error categories by the names the teacher reads (PRD Module 18); a key outside the three stays as stored. */
+function errorCategoryList(map: Record<string, number>): string {
+  return Object.entries(map).map(([k, v]) => {
+    const name = errorCategoryHe(k);
+    return name ? esc(`${name}: ${v}`) : ltr(`${k}: ${v}`);
+  }).join(", ");
 }
 
 /** A percentage that may not have been measured. Never printed as a bare "%". */
@@ -419,7 +428,7 @@ export function classReportHtml(report: Record<string, any>): string {
     : "";
 
   const triggers = keyValueList(a.socratic_triggers);
-  const categories = keyValueList(a.error_categories);
+  const categories = errorCategoryList(a.error_categories);
 
   // מסמך 03: the choice exercises marked as such, apart from the compulsory ones.
   const compulsoryExercises = a.exercises.filter((ex) => pathTypeOf(ex) === "compulsory");
@@ -498,7 +507,7 @@ export function classReportHtml(report: Record<string, any>): string {
       <div><b>ציון ממוצע:</b> ${esc(pctHe(a.score_mean))}</div>
       <div><b>חציון:</b> ${esc(pctHe(a.score_median))}</div>
       <div><b>טווח:</b> ${a.score_min === null ? "לא נמדד" : `${esc(a.score_min)}%–${esc(a.score_max)}%`}</div>
-      <div><b>מסלול ירוק:</b> ${esc(a.paths.green_path)} | <b>מסלול ביסוס:</b> ${esc(a.paths.remediation_path)}</div>
+      <div><b>${esc(ROUTE_NAME_HE.green_path)}:</b> ${esc(a.paths.green_path)} | <b>${esc(ROUTE_NAME_HE.remediation_path)}:</b> ${esc(a.paths.remediation_path)}</div>
     </div>
 
     <h2 class="green">1. קבוצות עבודה לפי כלל האחוזים (שכבה 1, דטרמיניסטית)</h2>

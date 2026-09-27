@@ -10,6 +10,8 @@ import {
   type RecommendationTier,
 } from '@/infrastructure/services/ClassReportService';
 import { CHOICE_EXERCISES_HEADING_HE, CHOICE_PATH_LABEL_HE } from '@/core/choiceExercises';
+import { meetingLabelHe } from '@/core/stationNames';
+import { ROUTE_NAME_HE } from '@/core/routeLabels';
 
 const SESSION_NUMBERS = [1, 2, 3, 4, 5, 6, 7, 8] as const;
 const TIER_ORDER: RecommendationTier[] = ['below_50', 'between_50_75', 'above_75'];
@@ -142,11 +144,15 @@ export function ClassMeetingReportPanel() {
                   selectedSession === n ? 'bg-indigo-600 text-white' : 'bg-ws-bg text-ws-soft hover:text-ws-ink'
                 }`}
                 aria-pressed={selectedSession === n}
+                aria-label={meetingLabelHe(n)}
+                title={meetingLabelHe(n)}
               >
                 {n}
               </button>
             ))}
           </div>
+          {/* The selected meeting under the name the children see (owner, 27.9.2026). */}
+          <span className="text-xs font-bold text-ws-soft">{meetingLabelHe(selectedSession)}</span>
           {report?.generatedAt && (
             <span className="text-[11px] font-bold text-ws-soft">הופק {formatDate(report.generatedAt)} {formatClock(report.generatedAt)}</span>
           )}
@@ -159,7 +165,7 @@ export function ClassMeetingReportPanel() {
               className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border border-ws-surface2 bg-ws-bg text-ws-ink hover:border-ws-accent/40 cursor-pointer"
             >
               <FileText className="w-3.5 h-3.5" />
-              פתח PDF
+              פתחו PDF
             </button>
           )}
           {report?.csvUrl && (
@@ -180,17 +186,17 @@ export function ClassMeetingReportPanel() {
             className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {state === 'generating' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-amber-300" />}
-            {state === 'generating' ? 'מעבד את כל פעולות המפגש… (עד דקה)' : report ? 'הפק מחדש' : `הפק דוח כיתה למפגש ${selectedSession}`}
+            {state === 'generating' ? 'מעבד את כל פעולות המפגש… (עד דקה)' : report ? 'הפיקו מחדש' : `הפיקו דוח כיתה למפגש ${selectedSession}`}
           </button>
           {report && (
             <button
               type="button"
               onClick={() => setIsExpanded((prev) => !prev)}
               className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border border-ws-surface2 bg-ws-bg text-ws-ink hover:border-ws-accent/40 cursor-pointer transition-colors"
-              title={isExpanded ? 'כווץ פירוט כיתתי' : 'הצג פירוט כיתתי מלא'}
+              title={isExpanded ? 'כווצו את הפירוט הכיתתי' : 'הציגו פירוט כיתתי מלא'}
             >
               {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-              <span>{isExpanded ? 'כווץ פירוט' : 'הצג פירוט כיתתי מלא'}</span>
+              <span>{isExpanded ? 'כווצו פירוט' : 'הציגו פירוט כיתתי מלא'}</span>
             </button>
           )}
         </div>
@@ -319,7 +325,7 @@ export function ClassMeetingReportPanel() {
                 {report.learners.map((l) => (
                   <tr key={l.studentId} className="border-t border-ws-surface2">
                     <td className="text-right font-bold">תלמיד {l.studentId}</td>
-                    <td className="text-center">{l.learningPath === 'green_path' ? 'ירוק' : 'ביסוס'}</td>
+                    <td className="text-center">{ROUTE_NAME_HE[l.learningPath === 'green_path' ? 'green_path' : 'remediation_path']}</td>
                     {report.scored && (
                       <>
                         <td className="text-center font-black">{pctText(l.scorePercent)}</td>

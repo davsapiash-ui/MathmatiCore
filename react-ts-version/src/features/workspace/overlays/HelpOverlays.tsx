@@ -167,7 +167,7 @@ export function SocraticSidePanel() {
                  slides out. Scrolls inside itself on a short screen. */
               className="pointer-events-auto h-full w-[260px] xl:w-[280px] 2xl:w-[340px] bg-ws-surface rounded-3xl shadow-lg border-2 border-indigo-200 dark:border-indigo-800/80 p-5 overflow-y-auto"
               role="region"
-              aria-label="חונך דיגיטלי סוקרטי"
+              aria-label="כרטיס החניכה"
               data-testid="socratic-card"
             >
               {/* The panel is narrow, so the question gets its own full-width
@@ -188,7 +188,7 @@ export function SocraticSidePanel() {
                 </div>
                 <button
                   onClick={closeHelp}
-                  aria-label="סגור חלונית עזרה"
+                  aria-label="סגירת חלונית העזרה"
                   className="w-11 h-11 rounded-full bg-ws-surface2 hover:bg-ws-surface2/80 text-ws-soft font-bold flex items-center justify-center text-sm transition-colors shrink-0"
                 >
                   ✕
@@ -257,19 +257,19 @@ function SocraticPenaltyLockOptions({ onClose }: { onClose: () => void }) {
 
   const defaultChoices: SocraticChoice[] = isSubtraction
     ? [
-        { id: 'A', textHe: 'נפרוט בלוק מהטור הגבוה השכן (מאה לעשרות / עשרת ליחידות) כדי שנוכל לחסר.', isCorrect: true, feedbackHe: 'תשובה נכונה! לחצו על הבלוק בבית המספרים כדי לפרוט אותו.' },
+        { id: 'A', textHe: 'נפרוט לבנה מהטור הגבוה השכן (מאה לעשרות / עשרת ליחידות) כדי שנוכל לחסר.', isCorrect: true, feedbackHe: 'תשובה נכונה! לחצו על הלבנה בבית המספרים כדי לפרוט אותה.' },
         { id: 'B', textHe: 'נחסר את המספר הקטן מהגדול גם אם הוא למטה, ללא פריטה.', isCorrect: false, feedbackHe: 'רמז: בחיסור חובה לחסר את המספר התחתון מהעליון. אם חסר — יש לפרוט!' },
-        { id: 'C', textHe: 'נוסיף בלוקים חדשים מהמחסן אל המספר הראשון.', isCorrect: false, feedbackHe: 'רמז: בחיסור בונים רק את המספר הראשון ומוציאים מתוכו בלוקים לפח.' },
+        { id: 'C', textHe: 'נוסיף לבנים חדשות מהמחסן אל המספר הראשון.', isCorrect: false, feedbackHe: 'רמז: בחיסור בונים רק את המספר הראשון ומוציאים מתוכו לבנים לפח.' },
       ]
     : (currentTask?.id === 's1_t8' || (currentTask?.numberA && currentTask?.numberB && Math.floor((currentTask.numberA % 100) / 10) + Math.floor((currentTask.numberB % 100) / 10) >= 10))
     ? [
         { id: 'A', textHe: 'נקבץ 10 עשרות לטור המאות (מאה אחת) ונשאיר את שאר העשרות בטור העשרות.', isCorrect: true, feedbackHe: 'תשובה נכונה! קבצו 10 עשרות למאה אחת בטור המאות.' },
-        { id: 'B', textHe: 'נמחק 10 עשרות בפח האשפה מבלי להוסיף מאה.', isCorrect: false, feedbackHe: 'רמז: מחיקת בלוקים משנה את ערך המספר הכולל. יש להמיר למאה!' },
-        { id: 'C', textHe: 'נרשום מספר דו-ספרתי בתוך משבצת העשרות.', isCorrect: false, feedbackHe: 'רמז: בכל משבצת בבית המספרים מותרת ספרה אחת בלבד (0 עד 9).' },
+        { id: 'B', textHe: 'נמחק 10 עשרות בפח האשפה מבלי להוסיף מאה.', isCorrect: false, feedbackHe: 'רמז: מחיקת לבנים משנה את ערך המספר הכולל. יש להמיר למאה!' },
+        { id: 'C', textHe: 'נרשום מספר דו-ספרתי בתוך משבצת העשרות.', isCorrect: false, feedbackHe: 'רמז: בכל משבצת בשורת התוצאה מותרת ספרה אחת בלבד (0 עד 9).' },
       ]
     : [
-        { id: 'A', textHe: 'נבדוק את הטורים מימין לשמאל: אם יש 10 בלוקים בטור, נקבץ אותם לטור הבא.', isCorrect: true, feedbackHe: 'תשובה נכונה! כעת בצעו את הפעולה בלוח הדינס.' },
-        { id: 'B', textHe: 'נמחק בלוקים לפח מבלי לבצע קיבוץ או המרה.', isCorrect: false, feedbackHe: 'רמז: מחיקת בלוקים משנה את ערך המספר הכולל! אפשר להשתמש בביטול ↩️.' },
+        { id: 'A', textHe: 'נבדוק את הטורים מימין לשמאל: אם יש 10 לבנים בטור, נקבץ אותן לטור הבא.', isCorrect: true, feedbackHe: 'תשובה נכונה! כעת בצעו את הפעולה בבית המספרים.' },
+        { id: 'B', textHe: 'נמחק לבנים לפח מבלי לבצע קיבוץ או המרה.', isCorrect: false, feedbackHe: 'רמז: מחיקת לבנים משנה את ערך המספר הכולל! אפשר להשתמש בביטול ↩️.' },
         { id: 'C', textHe: 'נרשום מספר דו-ספרתי בתוך משבצת יחידה.', isCorrect: false, feedbackHe: 'רמז: בכל משבצת מותרת ספרה אחת בלבד (0 עד 9).' },
       ];
 
@@ -282,7 +282,7 @@ function SocraticPenaltyLockOptions({ onClose }: { onClose: () => void }) {
       ? c.isCorrect
       : (aiSocraticHint?.correctChoiceId ? c.id === aiSocraticHint.correctChoiceId : idx === 0);
     const hint = c.feedbackHe || c.hint || (isCorrect
-      ? 'תשובה נכונה! כעת בצעו את הפעולה בלוח הדינס.'
+      ? 'תשובה נכונה! כעת בצעו את הפעולה בבית המספרים.'
       : 'רמז: חשבו שוב כיצד לשמר את הכמות בבית המספרים. אפשר להשתמש בביטול ↩️.');
     return {
       id: c.id,
@@ -372,7 +372,7 @@ function SocraticPenaltyLockOptions({ onClose }: { onClose: () => void }) {
             <span aria-live="polite">רגע לחשיבה — החלונית נעולה: {lockSeconds} שניות</span>
           </div>
           <p className="text-xs text-amber-800/90 dark:text-amber-300/90 font-medium">
-            לוח הדינס וכפתור הביטול (↩️) פתוחים ופעילים. נסו לחקור את הבלוקים עד שהחלונית תיפתח מחדש.
+            בית המספרים וכפתור הביטול (↩️) פתוחים ופעילים. נסו לחקור את הלבנים עד שהחלונית תיפתח מחדש.
           </p>
         </div>
       )}
@@ -398,7 +398,7 @@ function SocraticPenaltyLockOptions({ onClose }: { onClose: () => void }) {
         onClick={onClose}
         className="mt-2 w-full h-11 rounded-full font-display font-extrabold text-sm transition-all bg-ws-accent text-white hover:brightness-105 shadow-md"
       >
-        {lockSeconds > 0 ? `סגור לעת עתה (המענה ייפתח בעוד ${lockSeconds}ש')` : 'הבנתי, סגור חלונית'}
+        {lockSeconds > 0 ? `סגירה לעת עתה (המענה ייפתח בעוד ${lockSeconds}ש')` : 'הבנתי, סגירת החלונית'}
       </button>
     </div>
   );

@@ -1780,7 +1780,7 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
     // exported. Nothing in these files may be an address, the caller's included.
     if (piiRegex.test(allContent)) {
       logger.warn("Research dataset export rejected: PII pattern detected.");
-      throw new HttpsError("failed-precondition", "ייצוא נתוני המחקר נדחה: זוהה מידע מזהה (PII).");
+      throw new HttpsError("failed-precondition", "ייצוא נתוני המחקר נדחה: זוהו פרטים מזהים.");
     }
 
     const exportDate = new Date().toISOString().split("T")[0];

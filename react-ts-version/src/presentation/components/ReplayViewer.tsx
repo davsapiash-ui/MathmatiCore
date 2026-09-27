@@ -278,7 +278,7 @@ export function ReplayViewer({ events, seekToTime, seekNonce, onEnd, onProgress,
           <button 
             onClick={togglePlay}
             className="w-11 h-11 bg-indigo-600 hover:bg-indigo-500 active:scale-95 rounded-xl flex items-center justify-center text-white transition-all shadow-md cursor-pointer"
-            aria-label={isPlaying ? 'השהה' : 'נגן'}
+            aria-label={isPlaying ? 'השהו את השחזור' : 'הפעילו את השחזור'}
           >
             {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 fill-current ml-0.5" />}
           </button>

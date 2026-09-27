@@ -23,6 +23,8 @@ import type { TelemetryEventType } from '@/types/telemetry';
 import { getSessionTasks } from '@/data/sessionTasks';
 import { TASKS as DIAGNOSTIC_TASKS } from '@/core/QMatrix';
 import { CHOICE_PATH_LABEL_HE, choiceTask, exercisePathType } from '@/core/choiceExercises';
+import { meetingShortLabelHe } from '@/core/stationNames';
+import { ERROR_CATEGORY_HE } from '@/core/routeLabels';
 
 export interface RecordingChapter {
   exerciseId: string;
@@ -54,17 +56,6 @@ export interface JourneyEvent {
   columnIndex?: number;
   details: Record<string, unknown>;
 }
-
-export const SESSION_NAMES_HE: Record<number, string> = {
-  1: 'ארגז החול',
-  2: 'תחנה שתיים: אבחון',
-  3: 'ערך המקום ופירוק',
-  4: 'חיבור עם הקבצה',
-  5: 'חיסור עם פריטה',
-  6: 'האפס והמרה כפולה',
-  7: 'חקר ואינטגרציה',
-  8: 'מפגש חוקר מסכם',
-};
 
 const COLUMN_NAMES_HE = ['יחידות', 'עשרות', 'מאות', 'אלפים'];
 
@@ -218,7 +209,7 @@ export function describeEvent(e: JourneyEvent): EventDescription {
         : 'לחיצה על פח האשפה כשהלוח כבר היה ריק';
       break;
     case 'SESSION_START':
-      detail = typeof d.session_number === 'number' ? `מפגש ${d.session_number}` : '';
+      detail = typeof d.session_number === 'number' ? meetingShortLabelHe(d.session_number) : '';
       break;
     case 'PROBLEM_LOAD':
       detail = d.path_type === 'challenge' ? 'נתיב אתגר' : d.path_type === 'consolidation' ? 'נתיב ביסוס' : 'תרגיל חובה';
@@ -261,9 +252,9 @@ export function describeEvent(e: JourneyEvent): EventDescription {
         conversion_not_performed: 'לא בוצעה המרה נדרשת',
         repeated_errors: 'תשובה שגויה שנייה ברצף באותו תרגיל',
       };
-      const cat: Record<string, string> = { calculation: 'חישוב', procedural: 'רכיב', conceptual: 'מושגי' };
+      const cat: Record<string, string> = ERROR_CATEGORY_HE;
       detail = reason[String(d.trigger_reason)] ?? String(d.trigger_reason ?? '');
-      if (d.error_category) detail += ` · סיווג: ${cat[String(d.error_category)] ?? d.error_category}`;
+      if (d.error_category) detail += ` · ${cat[String(d.error_category)] ?? d.error_category}`;
       attention = true;
       break;
     }

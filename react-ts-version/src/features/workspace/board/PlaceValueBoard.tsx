@@ -111,7 +111,7 @@ export function PlaceValueBoard({
           exit={{ opacity: 0, width: 0, flex: '0 0 0%' }}
           transition={{ duration: 0.25, ease: 'easeInOut' }}
           className="flex flex-col gap-3 overflow-hidden h-full max-h-full min-w-0 w-full"
-          aria-label="טבלת ערך המקום"
+          aria-label="בית המספרים"
         >
           <div
             id="tour-place-value-board"
@@ -132,7 +132,7 @@ export function PlaceValueBoard({
                 className="bg-amber-500/15 border border-amber-500/30 text-amber-900 dark:text-amber-200 px-4 py-2 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 shadow-xs shrink-0 animate-in fade-in"
               >
                 <span aria-hidden="true">🔒</span>
-                <span>לוח הפעילות נעול זמנית על ידי המורה</span>
+                <span>בית המספרים נעול זמנית על ידי המורה</span>
               </div>
             )}
 

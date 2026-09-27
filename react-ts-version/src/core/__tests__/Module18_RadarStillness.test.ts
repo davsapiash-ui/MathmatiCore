@@ -31,7 +31,7 @@ describe('Module 18: the radar is still', () => {
   });
 
   it('the states that describe most of the class are static', () => {
-    for (const title of ['title="מחובר בלובי"', 'title="פעיל ותקין"', 'title="חניכה סוקרטית פעילה"', 'title="ממתין לאישור מסלול למפגש 3"']) {
+    for (const title of ['title="מחובר בלובי"', 'title="פעיל ותקין"', 'title={CARD_OPEN_HE}', 'title={`ממתין ב${TEACHER_GATE_HE} למפגש 3`}']) {
       const at = src.indexOf(title);
       expect(at, title).toBeGreaterThan(-1);
       // Nothing animated in the 200 characters of markup around each tag.

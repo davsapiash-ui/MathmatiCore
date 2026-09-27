@@ -90,10 +90,11 @@ describe('the end of a meeting', () => {
     expect((page.match(/const canRestore = myData\?\.workspaceState\?\.sessionNumber === meeting && Boolean\(myData\?\.workspaceState\?\.flowStatus\);/g) || []).length).toBe(2);
   });
 
-  it('the meeting-2 reflection is filed under meeting 2, not under meeting 8', () => {
-    const reflection = src('features/workspace/ReflectionScreen.tsx');
-    expect(reflection).not.toContain('session_8_student_');
-    expect(reflection).toContain('session_${reflectionMeeting}_student_${studentId}');
+  it('no reflection is filed outside meeting 8: the old every-meeting board is gone (owner decision E2, 27.9.2026)', () => {
+    let exists = true;
+    try { src('features/workspace/ReflectionScreen.tsx'); } catch { exists = false; }
+    expect(exists).toBe(false);
+    expect(page).not.toContain('<ReflectionScreen');
   });
 });
 
