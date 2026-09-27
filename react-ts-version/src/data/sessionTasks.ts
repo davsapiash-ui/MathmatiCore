@@ -149,7 +149,7 @@ export const SESSION1_TASKS: SessionTask[] = [
     id: 's1_sandbox_controlled',
     type: 'session1_intro',
     titleHe: 'חקירה וירטואלית חופשית',
-    instructionHe: 'ברוכים הבאים לסביבת הלמידה מתמטיקאור! שחקו וחקרו בחופשיות בתחנה אחת הכרות עם המערכת שלנו.\nגררו לבנים לטורים משמאל וצפו בספרות המשתנות בבית המספרים!',
+    instructionHe: 'ברוכים הבאים למתמטיקאור! בתחנה הראשונה מכירים את הכלים: שחקו וחקרו בחופשיות.\nגררו לבנים לטורים משמאל וצפו בספרות המשתנות בבית המספרים!',
     correctAnswer: 'proceed_any',
     scaffoldLevel: 0,
   },
@@ -189,7 +189,7 @@ export const SESSION1_TASKS: SessionTask[] = [
   // מסמך 03 §3.1 step 6 (formerly 7) — the target task: 347 → 3 hundreds, 3 tens, 17 units.
   s1(representation('s1_target_347', 347, { hundreds: 3, tens: 3, units: 17 },
     'משימת יעד מסכמת',
-    'משימת יעד מסכמת: בנו את המספר 347 בלבני דינס, פרטו עשרת אחת לעשר יחידות, וכתבו בשורת התוצאה את המספר שעל הלוח!'),
+    'משימת היעד: בנו את המספר 347 בלבני דינס, פרטו עשרת אחת לעשר יחידות, וכתבו בשורת התוצאה את המספר שעל הלוח!'),
     { requiresUngrouping: true, hideRequiredCounts: true }),
 
   // ── Refresh exercises: each mirrors one diagnostic task (QMatrix.ts) ──
@@ -494,7 +494,7 @@ export const SESSION7_GREEN_TASKS: SessionTask[] = [
   // ★ chosen: a quantity given in non-standard form, to be regrouped into the fewest blocks.
   representation('s7_g_t6', 2730, { thousands: 2, hundreds: 7, tens: 3 },
     'בעיית חקר של ייצוג מינימלי של לבנים',
-    'לפניכם כמות: אלף אחד, 16 מאות ו-13 עשרות. הציגו את אותה כמות במספר הלבנים הקטן ביותר האפשרי — בצעו את כל ההקבצות שמאלה לאורך העמודות — וכתבו את המספר בשורת התוצאה.',
+    'לפניכם כמות: אלף אחד, 16 מאות ו-13 עשרות. הציגו את אותה כמות במספר הלבנים הקטן ביותר האפשרי — בצעו את כל ההקבצות שמאלה לאורך הטורים — וכתבו את המספר בשורת התוצאה.',
     INQUIRY),
   // ★ chosen.
   skeleton('s7_g_t7', 6752, 2827, true, { a: ['hundreds', 'units'] },

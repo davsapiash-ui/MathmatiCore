@@ -332,7 +332,7 @@ const TASK_HINTS: Record<string, SocraticHintResponse> = {
     choices: [
       { id: "opt_1", textHe: 'נשתמש ב-34 עשרות', isCorrect: true, feedbackHe: 'נכון מאוד! צברתם את הכמות המדויקת בבית המספרים.' },
       { id: "opt_2", textHe: 'נשתמש ב-3 מאות ו-4 עשרות', isCorrect: false, feedbackHe: 'רמז: זהו הייצוג הסטנדרטי הרגיל. אנו מבקשים לייצג את המספר באמצעות עשרות בלבד.' },
-      { id: "opt_3", textHe: 'נשתמש ב-340 יחידות בודדות', isCorrect: false, feedbackHe: 'רמז: ייצוג זה צפוף ומעמיס מדי על הלוח. השתמשו בעמודת העשרות.' }
+      { id: "opt_3", textHe: 'נשתמש ב-340 יחידות בודדות', isCorrect: false, feedbackHe: 'רמז: ייצוג זה צפוף ומעמיס מדי על הלוח. השתמשו בטור העשרות.' }
     ],
     correctChoiceId: "opt_1"
   },
@@ -345,7 +345,7 @@ const TASK_HINTS: Record<string, SocraticHintResponse> = {
     choices: [
       { id: "opt_1", textHe: 'נשתמש ב-34 מאות', isCorrect: true, feedbackHe: 'נכון מאוד! צברתם את הכמות המדויקת בבית המספרים.' },
       { id: "opt_2", textHe: 'נשתמש ב-3 אלפים ו-4 מאות', isCorrect: false, feedbackHe: 'רמז: זהו הייצוג הסטנדרטי הרגיל. אנו מבקשים לייצג את המספר באמצעות מאות בלבד.' },
-      { id: "opt_3", textHe: 'נשתמש ב-3,400 יחידות בודדות', isCorrect: false, feedbackHe: 'רמז: ייצוג זה צפוף ומעמיס מדי על הלוח. השתמשו בעמודת המאות.' }
+      { id: "opt_3", textHe: 'נשתמש ב-3,400 יחידות בודדות', isCorrect: false, feedbackHe: 'רמז: ייצוג זה צפוף ומעמיס מדי על הלוח. השתמשו בטור המאות.' }
     ],
     correctChoiceId: "opt_1"
   },
@@ -358,7 +358,7 @@ const TASK_HINTS: Record<string, SocraticHintResponse> = {
     choices: [
       { id: "opt_1", textHe: 'נשתמש ב-34 מאות', isCorrect: true, feedbackHe: 'נכון מאוד! צברתם את הכמות המדויקת בבית המספרים.' },
       { id: "opt_2", textHe: 'נשתמש ב-3 אלפים ו-4 מאות', isCorrect: false, feedbackHe: 'רמז: זהו הייצוג הסטנדרטי הרגיל. אנו מבקשים לייצג את המספר באמצעות מאות בלבד.' },
-      { id: "opt_3", textHe: 'נשתמש ב-3,400 יחידות בודדות', isCorrect: false, feedbackHe: 'רמז: ייצוג זה צפוף ומעמיס מדי על הלוח. השתמשו בעמודת המאות.' }
+      { id: "opt_3", textHe: 'נשתמש ב-3,400 יחידות בודדות', isCorrect: false, feedbackHe: 'רמז: ייצוג זה צפוף ומעמיס מדי על הלוח. השתמשו בטור המאות.' }
     ],
     correctChoiceId: "opt_1"
   },
@@ -428,7 +428,7 @@ const TASK_HINTS: Record<string, SocraticHintResponse> = {
     choices: [
       { id: "opt_1", textHe: 'נתבונן בתרגיל וניעזר בעיגולי הזיכרון בראש הטורים כדי לנהל את פעולת ההמרה או הפריטה בשלבים', isCorrect: true, feedbackHe: 'מצוין! התקדמו טור אחר טור ורשמו את המעברים בעיגולי הזיכרון.' },
       { id: "opt_2", textHe: 'ננחש את התוצאה הסופית ונקליד אותה מיד', isCorrect: false, feedbackHe: 'רמז: הימנעו מניחושים מהירים. פתרו את התרגיל בצורה מסודרת מימין לשמאל.' },
-      { id: "opt_3", textHe: 'נמתין שהמערכת תציג לנו את התשובה הנכונה', isCorrect: false, feedbackHe: 'רמז: המערכת לא תציג תשובות מוכנות. האוטונומיה היא שלכם, נסו לפתור שלב אחר שלב.' }
+      { id: "opt_3", textHe: 'נחכה שהתשובה הנכונה תופיע על המסך', isCorrect: false, feedbackHe: 'רמז: התשובה לא תופיע מעצמה. אתם יכולים לפתור בעצמכם, שלב אחר שלב.' }
     ],
     correctChoiceId: "opt_1"
   }
@@ -890,25 +890,25 @@ export class SocraticEngine {
           pedagogical_intent: "conceptual",
           tts_text: "כאשר אין לבנים בטור העשרות, נרשום 0 כדי לשמור על ערך המקום.",
           suggested_highlight: "tour-column-tens",
-          questionHe: "כאשר אין לבנים בעמודת העשרות, איזה מספר נרשום בבית המספרים?",
+          questionHe: "כאשר אין לבנים בטור העשרות, איזה מספר נרשום בבית המספרים?",
           choices: [
             { 
               id: "opt_1", 
-              textHe: "נרשום 0 בעמודת העשרות כדי לשמור על ערך המקום של שאר הספרות", 
+              textHe: "נרשום 0 בטור העשרות כדי לשמור על ערך המקום של שאר הספרות", 
               isCorrect: true, 
               feedbackHe: "מדויק! ה-0 שומר שהמאות לא יזוזו ימינה ויהפכו לעשרות." 
             },
             { 
               id: "opt_2", 
-              textHe: "נשאיר את העמודה ריקה לחלוטין ללא ספרה", 
+              textHe: "נשאיר את הטור ריק לחלוטין ללא ספרה", 
               isCorrect: false, 
               feedbackHe: "רמז: אם נשאיר ריק, הספרות יתחברו והמספר כולו ישתנה!" 
             },
             { 
               id: "opt_3", 
-              textHe: "נרשום 1 בעמודת העשרות", 
+              textHe: "נרשום 1 בטור העשרות", 
               isCorrect: false, 
-              feedbackHe: "רמז: אין לבנים בעמודה זו, ולכן הערך שלה הוא 0." 
+              feedbackHe: "רמז: אין לבנים בטור זה, ולכן הערך שלו הוא 0." 
             }
           ],
           correctChoiceId: "opt_1"
