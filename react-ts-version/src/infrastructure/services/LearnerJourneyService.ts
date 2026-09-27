@@ -55,17 +55,6 @@ export interface JourneyEvent {
   details: Record<string, unknown>;
 }
 
-export const SESSION_NAMES_HE: Record<number, string> = {
-  1: 'ארגז החול',
-  2: 'תחנה שתיים: אבחון',
-  3: 'ערך המקום ופירוק',
-  4: 'חיבור עם הקבצה',
-  5: 'חיסור עם פריטה',
-  6: 'האפס והמרה כפולה',
-  7: 'חקר ואינטגרציה',
-  8: 'מפגש חוקר מסכם',
-};
-
 const COLUMN_NAMES_HE = ['יחידות', 'עשרות', 'מאות', 'אלפים'];
 
 /** "session_3_student_user4" → 3; anything else → null. */

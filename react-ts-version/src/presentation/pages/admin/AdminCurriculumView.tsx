@@ -18,6 +18,7 @@ import { getHardcodedCatalogBanks, SESSION1_TASKS, SESSION2_TASKS, SESSIONS_BY_P
 import { getSessionBranchTasks } from "@/data/sessionBranchTasks";
 import { DEFAULT_HESITATION_THRESHOLD_SECONDS } from "@/core/hesitationCalibration";
 import { compareCatalog, freshnessMessageHe, type CatalogFreshness } from "@/core/catalogFreshness";
+import { MEETING_NUMBERS, meetingLabelHe, type MeetingNumber } from "@/core/stationNames";
 
 interface PathBank {
   label: string;
@@ -34,16 +35,26 @@ interface SessionCurriculumItem {
   unscored?: boolean;
 }
 
-const SESSION_TITLES: Record<number, string> = {
-  1: "מפגש 1: ארגז חול — היכרות עם בית המספרים",
-  2: "מפגש 2: אבחון (Q-Matrix) — שבע משימות אבחון",
-  3: "מפגש 3: שיעור VRA אדפטיבי",
-  4: "מפגש 4: שיעור VRA אדפטיבי",
-  5: "מפגש 5: שיעור VRA אדפטיבי",
-  6: "מפגש 6: שיעור VRA אדפטיבי",
-  7: "מפגש 7: שיעור VRA אדפטיבי",
-  8: "מפגש 8: חוקר-על — סיכום ורפלקציית SRL",
+/** The formal meeting name (PRD Module 14), shown after the child's station name. */
+const SESSION_FORMAL_HE: Record<MeetingNumber, string> = {
+  1: "היכרות עם בית המספרים, ללא ציון",
+  2: "אבחון (Q-Matrix), שבע משימות אבחון",
+  3: "שיעור VRA אדפטיבי",
+  4: "שיעור VRA אדפטיבי",
+  5: "שיעור VRA אדפטיבי",
+  6: "שיעור VRA אדפטיבי",
+  7: "שיעור VRA אדפטיבי",
+  8: "חוקר-על, סיכום ורפלקציית SRL",
 };
+
+/**
+ * Each meeting as the admin sees it: first the station name the children see
+ * (owner, 27.9.2026; core/stationNames, the lobby's own source), then the
+ * formal name. "מפגש 7 · אצל התלמידים: בלשי המספרים — שיעור VRA אדפטיבי".
+ */
+const SESSION_TITLES: Record<MeetingNumber, string> = Object.fromEntries(
+  MEETING_NUMBERS.map((n) => [n, `${meetingLabelHe(n)} — ${SESSION_FORMAL_HE[n]}`])
+) as Record<MeetingNumber, string>;
 
 const titles = (tasks: Array<{ titleHe?: string }>) => tasks.map((t) => t.titleHe || "").filter(Boolean);
 
@@ -384,7 +395,7 @@ export function AdminCurriculumView() {
           <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
             <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
               <SlidersHorizontal className="w-5 h-5 text-indigo-500" />
-              כיול רדאר פדגוגי (Trace Data Calibration)
+              כיול הרדאר הפדגוגי השקט (Trace Data Calibration)
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
               הגדרת סף הרגישות שבו הרדאר של המורה מסמן מאבק קוגניטיבי סמוי במהלך עבודת התלמיד

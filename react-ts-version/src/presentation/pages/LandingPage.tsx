@@ -8,8 +8,8 @@ import { Logo } from "@/presentation/components/ui/Logo";
 const FEATURES = [
   {
     icon: Blocks,
-    title: "לוח ערך המקום",
-    desc: "קוביות, עשרות ומאות שגוררים ביד — התלמידים בונים מספרים ומבינים באמת מה זה \"להקפיץ\" ו\"לפרוט\".",
+    title: "בית המספרים",
+    desc: "לבנים של יחידות, עשרות ומאות שגוררים ביד — התלמידים בונים מספרים ומבינים באמת מה זה \"לקבץ\" ו\"לפרוט\".",
   },
   {
     icon: MessageCircleQuestion,

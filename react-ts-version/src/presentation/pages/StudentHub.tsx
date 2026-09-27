@@ -13,6 +13,7 @@ import { BeeFlightWaitingScreen } from '@/presentation/components/student/BeeFli
 import { UdlSpeechButton } from "@/presentation/design-system/UdlSpeechButton";
 import { ProjectorWaitingScreen } from '@/presentation/components/student/ProjectorWaitingScreen';
 import { useProjectorMode } from '@/application/useProjectorMode';
+import { stationTitleHe } from '@/core/stationNames';
 
 interface ActiveSessionConfig {
   id: number;
@@ -36,10 +37,11 @@ interface ActiveSessionConfig {
 const SESSIONS_CONFIG: Record<number, ActiveSessionConfig> = {
   // שמות התחנות בשפה של הילד: פעולה בכותרת, הוראה בגוף שני רבים מתחת,
   // בלי מונחים של אנשי חינוך (אבחון, הערכה, רפלקציה). בעל המוצר, 27.9.2026.
+  // השם עצמו נקרא מ-core/stationNames: אותו מקור שממנו המורה רואה אותו.
   1: {
     id: 1,
     // מסמך 04 §1: "ארגז החול" for the first meeting; מסמך 03 §3.1 step 1.
-    title: 'תחנה 1: ארגז החול',
+    title: stationTitleHe(1),
     desc: 'שחקו עם הלבנים ועם הלוח והכירו את הכלים. כאן אין תשובות נכונות או שגויות.',
     icon: '🧱',
   },
@@ -47,42 +49,42 @@ const SESSIONS_CONFIG: Record<number, ActiveSessionConfig> = {
     id: 2,
     // מסמך 03 §3.2: "התחילו בתחנה שתיים יוצאים למסע. אין לחץ. עבדו בקצב שלכם."
     // and "הפעם פתרו לבד, ללא עזרים."
-    title: 'תחנה 2: יוצאים למסע',
+    title: stationTitleHe(2),
     desc: 'הפעם פתרו לבד. אין לחץ, עבדו בקצב שלכם.',
     icon: '📡',
   },
   3: {
     id: 3,
     // מסמכים 02/03: "ערך המקום וגמישות ייצוגית (פירוק והרכבה)".
-    title: 'תחנה 3: בונים מספרים בכמה דרכים',
+    title: stationTitleHe(3),
     desc: 'פרקו מאה לעשר עשרות, וגלו שהמספר נשאר אותו מספר.',
     icon: '🔬',
   },
   4: {
     id: 4,
     // מסמכים 02/03: "אלגוריתם החיבור במאונך והמרה פשוטה (הקבצה)".
-    title: 'תחנה 4: חיבור במאונך עם הקבצה',
+    title: stationTitleHe(4),
     desc: 'כשמצטברות בטור עשר לבנים, קבצו אותן ללבנה אחת גדולה.',
     icon: '🔍',
   },
   5: {
     id: 5,
     // מסמכים 02/03: "אלגוריתם החיסור במאונך והמרה פשוטה (פריטה)".
-    title: 'תחנה 5: חיסור במאונך עם פריטה',
+    title: stationTitleHe(5),
     desc: 'כשאין בטור מספיק לבנים, פרטו לבנה אחת מהטור שמשמאל.',
     icon: '💡',
   },
   6: {
     id: 6,
     // מסמכים 02/03: "אתגר האפס כשומר מקום ומעבר מעל אפסים (המרה כפולה)".
-    title: 'תחנה 6: אתגר האפס',
+    title: stationTitleHe(6),
     desc: 'מה עושים כשצריך לפרוט ויש אפס? גלו את הדרך.',
     icon: '🧬',
   },
   7: {
     id: 7,
     // מסמכים 02/03: "פתרון בעיות חקר ואינטגרציה של פעולות החשבון".
-    title: 'תחנה 7: בלשי המספרים',
+    title: stationTitleHe(7),
     desc: 'מצאו ספרות חסרות, וגלו איפה התחבאה הטעות.',
     icon: '🚀',
   },
@@ -90,7 +92,7 @@ const SESSIONS_CONFIG: Record<number, ActiveSessionConfig> = {
     id: 8,
     // מסמכים 02/03: "מפגש חוקר (הערכה ורפלקציה מסכמת)"; §3.8 on screen:
     // "פתרו את התרגילים בנחת ובקצב שלכם". The blocks and the board are gone.
-    title: 'תחנה 8: חוקרים בעצמנו',
+    title: stationTitleHe(8),
     desc: 'עכשיו אפשר כבר גם בלי לבנים. בסוף ספרו מה עזר לכם.',
     icon: '🏆',
   },

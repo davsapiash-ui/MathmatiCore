@@ -133,7 +133,7 @@ describe('כפתור מושבת אומר מה חסר', () => {
   it('נעילת חלונית החניכה מסבירה למה, כמה זמן, ומה כן אפשר לעשות', () => {
     const help = read('src/features/workspace/overlays/HelpOverlays.tsx');
     expect(help).toContain('רגע לחשיבה — החלונית נעולה');
-    expect(help).toContain('לוח הדינס וכפתור הביטול');
+    expect(help).toContain('בית המספרים וכפתור הביטול');
     // הודעת ההמתנה עצמה לא מהבהבת — היא מוצגת ברגע של תסכול.
     expect(help).not.toMatch(/החלונית נעולה[\s\S]{0,400}animate-pulse/);
   });

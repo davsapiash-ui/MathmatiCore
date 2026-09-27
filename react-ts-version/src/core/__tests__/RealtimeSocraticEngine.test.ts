@@ -114,7 +114,7 @@ describe('Realtime Socratic Engine & Live Board State Analyzer', () => {
 
     expect(hint).toBeDefined();
     expect(hint?.suggested_highlight).toBe('tour-column-units');
-    expect(hint?.questionHe).toContain('14 קוביות');
+    expect(hint?.questionHe).toContain('14 לבנים');
     expect(hint?.choices[0].textHe).toContain('נאסוף 10 יחידות מטור היחידות ונמיר אותן לעשרת אחת בטור העשרות');
     expect(hint?.choices[1].textHe).toContain('נמחק 10 יחידות');
   });
@@ -150,7 +150,7 @@ describe('Realtime Socratic Engine & Live Board State Analyzer', () => {
 
     expect(hint).toBeDefined();
     expect(hint?.suggested_highlight).toBe('tour-column-tens');
-    expect(hint?.questionHe).toContain('אין קוביות בעמודת העשרות');
+    expect(hint?.questionHe).toContain('אין לבנים בעמודת העשרות');
     expect(hint?.choices[0].textHe).toContain('נרשום 0 בעמודת העשרות כדי לשמור על ערך המקום');
   });
 

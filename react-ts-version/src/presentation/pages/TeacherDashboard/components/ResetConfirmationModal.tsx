@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { AlertTriangle, ShieldAlert, RefreshCw, X, Check } from 'lucide-react';
 import type { ResetReason, ResetTarget, SingleStudentResetScope } from '@/types';
 import { validateChatInputForPII, anonymizeChatMessageBody } from '@/core/security/PiiFilter';
+import { meetingLabelHe } from '@/core/stationNames';
 
 export interface ResetConfirmationModalProps {
   isOpen: boolean;
@@ -163,6 +164,10 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                 ? `איפוס לומד יחיד (רמה 2): ${targetStudentName || targetStudentId}`
                 : 'איפוס התראות רדאר (רמה 1)'}
             </h3>
+            {isLevel2 && activeSessionNumber ? (
+              // The meeting under the name the children see (owner, 27.9.2026).
+              <p className="text-sm font-bold text-amber-700 dark:text-amber-300 mt-0.5">{meetingLabelHe(activeSessionNumber)}</p>
+            ) : null}
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               לפני האיפוס נשמר גיבוי מלא, והפעולה נרשמת ביומן הפעולות של הכיתה
             </p>

@@ -67,7 +67,7 @@ export function AdminSettingsView() {
             <span>מידע מערכתי — הגדרות מנוהלות ברמת המורה והתוכן</span>
           </div>
           <h1 className="text-3xl md:text-4xl font-black tracking-tight text-white">
-            נגישות ורדאר פדגוגי
+            נגישות והרדאר הפדגוגי השקט
           </h1>
           <p className="text-slate-300 text-sm md:text-base font-light max-w-3xl">
             ההתאמות האישיות וכיול הרדאר הפדגוגי מנוהלים במקומות הייעודיים להם. להלן פירוט אופן הפעלתם במערכת:
@@ -83,7 +83,7 @@ export function AdminSettingsView() {
         />
         <PointerRow
           icon={<Activity className="w-5 h-5" />}
-          title="רדאר פדגוגי שקט (Trace Data)"
+          title="הרדאר הפדגוגי השקט (Trace Data)"
           body="הרדאר פועל תמיד ואינו ניתן לכיבוי — הוא מזין את התראות המאבק הקוגניטיבי בלוח הבקרה של המורה. הערך היחיד שניתן לכייל הוא סף ההיסוס בשניות, והוא נקרא בזמן אמת על ידי מנגנון הניטור."
           to="/admin/curriculum"
           linkLabel="למסך קטלוג וכיול"

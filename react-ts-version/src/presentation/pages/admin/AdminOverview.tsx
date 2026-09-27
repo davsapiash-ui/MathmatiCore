@@ -17,6 +17,7 @@ import {
 import { UdlButton } from "@/presentation/design-system/UdlButton";
 import { toast } from "sonner";
 import { useAdminStore } from "@/application/useAdminStore";
+import { stationNameHe } from "@/core/stationNames";
 import {
   BarChart,
   Bar,
@@ -245,6 +246,8 @@ export function AdminOverview() {
       return {
         session,
         title: `מפגש ${session}`,
+        // The station name the children see (owner, 27.9.2026).
+        childName: stationNameHe(session),
         hasData: Boolean(row),
         completionRate: row ? `${Math.round(row.completion_rate_percent)}%` : null,
         averageScore: row ? `${Math.round(row.average_score_percent)}%` : null,
@@ -407,7 +410,12 @@ export function AdminOverview() {
           {pedagogicalSessionRows.map((stat) => (
             <div key={stat.session} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 flex flex-col gap-2">
               <div className="flex justify-between items-center">
-                <span className="font-extrabold text-xs text-slate-900 dark:text-white">{stat.title}</span>
+                <span className="font-extrabold text-xs text-slate-900 dark:text-white">
+                  {stat.title}
+                  {stat.childName && (
+                    <span className="block font-bold text-[11px] text-slate-500 dark:text-slate-400">אצל התלמידים: {stat.childName}</span>
+                  )}
+                </span>
                 {stat.hasData && (
                   <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950 px-1.5 py-0.5 rounded">
                     {stat.completionRate}
@@ -493,7 +501,7 @@ export function AdminOverview() {
                 <div className="space-y-1 flex-1">
                   <h4 className="font-bold text-slate-800 dark:text-slate-200">הקלטות ומחיקת נתוני לומדים</h4>
                   <p className="text-slate-500 leading-relaxed">
-                    ההקלטות מתעדות שינויי מסך וקנבס בלבד — ללא מצלמה, מיקרופון או שמע.
+                    ההקלטות מתעדות שינויים במסך ובבית המספרים בלבד — ללא מצלמה, מיקרופון או שמע.
                     מנהל המערכת אינו ניגש לנתוני לומד פרטניים; איפוס ומחיקה של נתוני
                     כיתה מתבצעים על ידי המורה מלוח הבקרה של הכיתה, עם גיבוי אוטומטי לפני המחיקה.
                   </p>

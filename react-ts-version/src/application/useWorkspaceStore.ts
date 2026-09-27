@@ -93,7 +93,7 @@ const UNDO_STACK_CAP = 10;
 const DEFAULT_SOCRATIC_HINT: SocraticHintResponse = {
   questionHe: 'מה הפעולה המתמטית שנרצה לבצע בבית המספרים?',
   choices: [
-    { id: 'opt_1', textHe: 'לבדוק את מספר הבלוקים בכל טור בבית המספרים ולחשב מחדש' },
+    { id: 'opt_1', textHe: 'לבדוק את מספר הלבנים בכל טור בבית המספרים ולחשב מחדש' },
     { id: 'opt_2', textHe: 'לפרוט עשרת אחת ל-10 יחידות' },
     { id: 'opt_3', textHe: 'לקבץ 10 יחידות לעשרת אחת' }
   ],
@@ -1388,7 +1388,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       }
       // Meeting 1: the exercise is the conversion itself, not only its result.
       if (task.requiresGrouping && !s.hasGrouped) {
-        handleFailure('conversion_skipped', 'בּוֹאוּ נְקַבֵּץ 🧱', 'הלוח נכון, אבל המשימה היא לקבץ בעצמכם: 10 קוביות יחידה בכל פעם, בעזרת כפתור הקבץ 10 שבראש הטור.', 3500);
+        handleFailure('conversion_skipped', 'בּוֹאוּ נְקַבֵּץ 🧱', 'הלוח נכון, אבל המשימה היא לקבץ בעצמכם: 10 לבני יחידה בכל פעם, בעזרת כפתור הקבץ 10 שבראש הטור.', 3500);
         return;
       }
       if (task.requiresUngrouping && !s.hasUngrouped) {
@@ -2620,7 +2620,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         if (lessonTaskId) recordBoardCheckFailure(lessonTaskId);
         const hint =
           s.sessionNumber === 2
-            ? 'סריקת הרדאר מזהה שכמות הבלוקים בלוח אינה תואמת למבוקש. איך נוכל לשנות זאת כדי להגיע לכמות המדויקת?'
+            ? 'כמות הלבנים בלוח אינה תואמת למבוקש. איך נוכל לשנות זאת כדי להגיע לכמות המדויקת?'
             : 'הסכום הנוכחי אינו תואם לערך היעד של הניסוי. נסו שוב!';
         showFeedback({ correct: false, title: 'בּוֹאוּ נְדַיֵּק אֶת הַמִּבְנֶה 🔍', sub: hint }, 3200);
         return;

@@ -10,6 +10,7 @@ import {
   type RecommendationTier,
 } from '@/infrastructure/services/ClassReportService';
 import { CHOICE_EXERCISES_HEADING_HE, CHOICE_PATH_LABEL_HE } from '@/core/choiceExercises';
+import { meetingLabelHe } from '@/core/stationNames';
 
 const SESSION_NUMBERS = [1, 2, 3, 4, 5, 6, 7, 8] as const;
 const TIER_ORDER: RecommendationTier[] = ['below_50', 'between_50_75', 'above_75'];
@@ -142,11 +143,15 @@ export function ClassMeetingReportPanel() {
                   selectedSession === n ? 'bg-indigo-600 text-white' : 'bg-ws-bg text-ws-soft hover:text-ws-ink'
                 }`}
                 aria-pressed={selectedSession === n}
+                aria-label={meetingLabelHe(n)}
+                title={meetingLabelHe(n)}
               >
                 {n}
               </button>
             ))}
           </div>
+          {/* The selected meeting under the name the children see (owner, 27.9.2026). */}
+          <span className="text-xs font-bold text-ws-soft">{meetingLabelHe(selectedSession)}</span>
           {report?.generatedAt && (
             <span className="text-[11px] font-bold text-ws-soft">הופק {formatDate(report.generatedAt)} {formatClock(report.generatedAt)}</span>
           )}

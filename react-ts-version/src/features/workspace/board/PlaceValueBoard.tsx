@@ -132,7 +132,7 @@ export function PlaceValueBoard({
                 className="bg-amber-500/15 border border-amber-500/30 text-amber-900 dark:text-amber-200 px-4 py-2 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 shadow-xs shrink-0 animate-in fade-in"
               >
                 <span aria-hidden="true">🔒</span>
-                <span>לוח הפעילות נעול זמנית על ידי המורה</span>
+                <span>בית המספרים נעול זמנית על ידי המורה</span>
               </div>
             )}
 

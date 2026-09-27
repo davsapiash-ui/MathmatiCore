@@ -58,6 +58,7 @@ import { validateChatInputForPII, anonymizeChatMessageBody } from "@/core/securi
 import { approveTeacherGate } from "@/core/teacherGate";
 import { recommendedPathOf } from "@/core/recommendedPath";
 import { PILOT_CLASS_ID, PILOT_SCHOOL_ID } from "@/core/pilotInstitution";
+import { meetingLabelHe, meetingShortLabelHe } from "@/core/stationNames";
 
 type TabType =
   | "heatmap"
@@ -1200,7 +1201,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
               aria-selected={activeTab === "heatmap"}
               className={`px-3 py-2.5 min-h-11 rounded-xl text-xs font-bold transition-all ${activeTab === "heatmap" ? "bg-indigo-600 text-white shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}
             >
-              מפת חום ורדאר
+              הרדאר הפדגוגי השקט
             </button>
             <button
               onClick={() => handleTabChange("clustering")}
@@ -1290,7 +1291,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
               aria-selected={activeTab === "heatmap"}
             className={`w-full text-right px-4 py-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "heatmap" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg text-ws-soft "}`}
           >
-            רדאר פדגוגי שקט
+            הרדאר הפדגוגי השקט
           </button>
           <button
             id="tour-tab-clustering"
@@ -1387,12 +1388,12 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
             </div>
             <div>
               <div className="flex items-center gap-2">
+                {/* The open meeting under the station name the children see on
+                    their lobby card (owner, 27.9.2026). Its state is in the badge. */}
                 <h3 className="font-bold text-lg text-slate-900 dark:text-slate-100">
-                  {classSessionStatus === 'active'
-                    ? `מפגש ${selectedSessionNum} פעיל בכיתה`
-                    : classSessionStatus === 'paused'
-                      ? `מפגש ${selectedSessionNum} מושהה`
-                      : 'ניהול מפגש בלייב'}
+                  {classSessionStatus === 'active' || classSessionStatus === 'paused'
+                    ? meetingLabelHe(selectedSessionNum)
+                    : 'ניהול מפגש בלייב'}
                 </h3>
                 {classSessionStatus === 'active' && (
                   <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-black px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
@@ -1403,7 +1404,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                 {classSessionStatus === 'paused' && (
                   <span className="bg-amber-50 text-amber-700 border border-amber-200 text-xs font-black px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-                    התלמידים ממתינים
+                    מושהה · התלמידים ממתינים
                   </span>
                 )}
               </div>
@@ -1428,7 +1429,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
             >
               {sessionRows.map(({ sessionNumber, state }) => (
                 <option key={sessionNumber} value={sessionNumber}>
-                  {`מפגש ${sessionNumber} — ${state === 'active' ? 'פעיל כעת' : state === 'completed' ? 'הושלם' : 'טרם נפתח'}`}
+                  {`${meetingShortLabelHe(sessionNumber)} — ${state === 'active' ? 'פעיל כעת' : state === 'completed' ? 'הושלם' : 'טרם נפתח'}`}
                 </option>
               ))}
             </select>
@@ -1493,10 +1494,10 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <header className="mb-6">
               <h1 className="text-4xl font-black bg-gradient-to-l from-slate-900 to-slate-600 dark:from-white dark:to-slate-400 bg-clip-text text-transparent tracking-tight">
-                לוח בקרה כיתתי ומפת חום בזמן אמת
+                הכיתה בזמן אמת
               </h1>
               <p className="text-ws-soft mt-2 text-lg">
-                ניטור 12 תלמידים אנונימיים, רדאר פדגוגי שקט ומרחב למידה דיגיטלי.
+                12 תלמידים אנונימיים על הרדאר הפדגוגי השקט.
               </p>
             </header>
             <HeatmapGrid
@@ -1926,8 +1927,9 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                         ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/20'
                                         : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-50'
                                     }`}
+                                    title={meetingLabelHe(num)}
                                   >
-                                    {num === 2 ? 'מפגש 2 (מיפוי יסוד)' : `מפגש ${num}`}
+                                    {meetingShortLabelHe(num)}
                                   </button>
                                 ))}
                               </div>

@@ -21,6 +21,7 @@ import { recommendedPathOf } from '@/core/recommendedPath';
 import { hasEnhancedSupport } from '@/core/supportProfile';
 import { resolveRadarColor, RADAR_CELL_CLASSES } from '@/core/radarColor';
 import { isClassSessionLive } from '@/core/classSession';
+import { meetingLabelHe, meetingShortLabelHe, stationNameHe } from '@/core/stationNames';
 import { getHesitationThresholdSeconds, useHesitationThresholdSeconds } from '@/core/hesitationCalibration';
 
 // Radar status color resolution lives in core/radarColor.ts (resolveRadarColor)
@@ -485,7 +486,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
           <div className="flex items-center gap-3 flex-wrap">
             <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2.5">
               <Users className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
-              <span>רדאר פדגוגי שקט</span>
+              <span>הרדאר הפדגוגי השקט</span>
               <span className="text-xs bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-800 px-2.5 py-0.5 rounded-full font-bold">
                 12 תלמידים
               </span>
@@ -729,8 +730,8 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                   <>
                     {/* Session & Path Info */}
                     <div className="flex flex-col gap-1 my-1">
-                      <div className="flex justify-between text-[11px] font-bold">
-                        <span>מפגש {student.sessionNumber}</span>
+                      <div className="flex flex-wrap justify-between gap-1 text-[11px] font-bold">
+                        <span title={meetingLabelHe(student.sessionNumber)}>{meetingShortLabelHe(student.sessionNumber)}</span>
                         <span className={`px-1.5 py-0.5 rounded-md text-[10px] ${student.currentPath === 'צמצום פערים' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200'}`}>
                           {student.currentPath}
                         </span>
@@ -838,6 +839,11 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                     <span className="text-base font-extrabold text-indigo-600">
                       מפגש {selectedStudent.sessionNumber} מתוך 8
                     </span>
+                    {stationNameHe(selectedStudent.sessionNumber) && (
+                      <span className="block text-xs font-bold text-slate-500 mt-1">
+                        אצל התלמידים: {stationNameHe(selectedStudent.sessionNumber)}
+                      </span>
+                    )}
                   </div>
                 </div>
 

@@ -64,7 +64,7 @@ export function RoleSelectionModal() {
                 מרחב מורה
               </span>
               <span className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                דשבורד מעקב כיתתי, רדאר פדגוגי ואבחון
+                דשבורד מעקב כיתתי, הרדאר הפדגוגי השקט ואבחון
               </span>
             </button>
 

@@ -237,7 +237,8 @@ const TASK_HINTS: Record<string, SocraticHintResponse> = {
     correctChoiceId: "1"
   },
 
-  // Step 6, the target task (347 → 3 hundreds, 3 tens, 17 units): the card מסמך 03 §3.1 writes for meeting 1, word for word.
+  // Step 6, the target task (347 → 3 hundreds, 3 tens, 17 units): the card מסמך 03 §3.1 writes for meeting 1, word for word,
+  // except that the pieces are "לבנים" (owner, 27.9.2026; register ט). The document still says "הקוביות" until it is synced.
   's1_target_347': {
     pedagogical_intent: "conceptual",
     tts_text: "בואו נחשוב רגע יחד: מה קורה כאשר אנו מפרקים עשרת אחת לטור היחידות?",
@@ -246,7 +247,7 @@ const TASK_HINTS: Record<string, SocraticHintResponse> = {
     choices: [
       { id: "opt_1", textHe: "אנו מקבלים 10 יחידות בודדות הנוספות לטור היחידות על הלוח", isCorrect: true, feedbackHe: "נכון מאוד! בואו נלחץ על לבנת עשרת ונצפה ביחידות המתווספות ללוח." },
       { id: "opt_2", textHe: "אנו משאירים את הלוח ללא שינוי", isCorrect: false, feedbackHe: "רמז: פעולת הפריטה משנה את ייצוג הלבנים אך שומרת על ערך הכמות הכולל." },
-      { id: "opt_3", textHe: "אנו מוחקים את העשרת מהלוח", isCorrect: false, feedbackHe: "רמז: מומלץ לשמור על הקוביות, הכמות המתמטית נשמרת תמיד." }
+      { id: "opt_3", textHe: "אנו מוחקים את העשרת מהלוח", isCorrect: false, feedbackHe: "רמז: מומלץ לשמור על הלבנים, הכמות המתמטית נשמרת תמיד." }
     ],
     correctChoiceId: "opt_1"
   },
@@ -260,9 +261,9 @@ const TASK_HINTS: Record<string, SocraticHintResponse> = {
     suggested_highlight: "tour-column-units",
     questionHe: "מה צריך להיות בטור היחידות בסוף התרגיל?",
     choices: [
-      { id: "opt_1", textHe: "פחות מ-10 קוביות: כל 10 יחידות הפכו לעשרת אחת בטור העשרות", isCorrect: true, feedbackHe: "נכון מאוד! כשיש בטור 10 יחידות או יותר, לחצו על כפתור הקבץ 10 שבראש הטור." },
-      { id: "opt_2", textHe: "כל 26 הקוביות", isCorrect: false, feedbackHe: "רמז: כשיש 10 יחידות או יותר בטור, מקבצים אותן לעשרת." },
-      { id: "opt_3", textHe: "אף קובייה", isCorrect: false, feedbackHe: "רמז: אחרי הקיבוץ נשארות בטור היחידות רק הקוביות שלא נכנסו לעשרת." }
+      { id: "opt_1", textHe: "פחות מ-10 לבנים: כל 10 יחידות הפכו לעשרת אחת בטור העשרות", isCorrect: true, feedbackHe: "נכון מאוד! כשיש בטור 10 יחידות או יותר, לחצו על כפתור הקבץ 10 שבראש הטור." },
+      { id: "opt_2", textHe: "כל 26 הלבנים", isCorrect: false, feedbackHe: "רמז: כשיש 10 יחידות או יותר בטור, מקבצים אותן לעשרת." },
+      { id: "opt_3", textHe: "אף לבנה", isCorrect: false, feedbackHe: "רמז: אחרי הקיבוץ נשארות בטור היחידות רק הלבנים שלא נכנסו לעשרת." }
     ],
     correctChoiceId: "opt_1"
   },
@@ -317,6 +318,7 @@ const TASK_HINTS: Record<string, SocraticHintResponse> = {
   },
 
   // ── Sessions 3–8 — the Socratic cards written in מסמך 03 (one card per session,
+  //    with the board called "בית המספרים" and the pieces "לבנים": owner, 27.9.2026, register ט;
   //    served for every exercise of that session; session 3 has a card per path). ──
   // מסמך 03 §3.3
   's3_r_card':   {
@@ -326,7 +328,7 @@ const TASK_HINTS: Record<string, SocraticHintResponse> = {
     suggested_highlight: "tour-column-tens",
     questionHe: 'בואו נחשוב רגע יחד: האם שקלתם את ערך המיקום של הספרות?',
     choices: [
-      { id: "opt_1", textHe: 'נשתמש ב-34 עשרות', isCorrect: true, feedbackHe: 'נכון מאוד! צברתם את הכמות המדויקת בלוח הלבנים.' },
+      { id: "opt_1", textHe: 'נשתמש ב-34 עשרות', isCorrect: true, feedbackHe: 'נכון מאוד! צברתם את הכמות המדויקת בבית המספרים.' },
       { id: "opt_2", textHe: 'נשתמש ב-3 מאות ו-4 עשרות', isCorrect: false, feedbackHe: 'רמז: זהו הייצוג הסטנדרטי הרגיל. אנו מבקשים לייצג את המספר באמצעות עשרות בלבד.' },
       { id: "opt_3", textHe: 'נשתמש ב-340 יחידות בודדות', isCorrect: false, feedbackHe: 'רמז: ייצוג זה צפוף ומעמיס מדי על הלוח. השתמשו בעמודת העשרות.' }
     ],
@@ -339,7 +341,7 @@ const TASK_HINTS: Record<string, SocraticHintResponse> = {
     suggested_highlight: "tour-column-hundreds",
     questionHe: 'בואו נחשוב רגע יחד: האם שקלתם את ערך המיקום של הספרות?',
     choices: [
-      { id: "opt_1", textHe: 'נשתמש ב-34 מאות', isCorrect: true, feedbackHe: 'נכון מאוד! צברתם את הכמות המדויקת בלוח הלבנים.' },
+      { id: "opt_1", textHe: 'נשתמש ב-34 מאות', isCorrect: true, feedbackHe: 'נכון מאוד! צברתם את הכמות המדויקת בבית המספרים.' },
       { id: "opt_2", textHe: 'נשתמש ב-3 אלפים ו-4 מאות', isCorrect: false, feedbackHe: 'רמז: זהו הייצוג הסטנדרטי הרגיל. אנו מבקשים לייצג את המספר באמצעות מאות בלבד.' },
       { id: "opt_3", textHe: 'נשתמש ב-3,400 יחידות בודדות', isCorrect: false, feedbackHe: 'רמז: ייצוג זה צפוף ומעמיס מדי על הלוח. השתמשו בעמודת המאות.' }
     ],
@@ -352,7 +354,7 @@ const TASK_HINTS: Record<string, SocraticHintResponse> = {
     suggested_highlight: "tour-column-hundreds",
     questionHe: 'בואו נחשוב רגע יחד: האם שקלתם את ערך המיקום של הספרות?',
     choices: [
-      { id: "opt_1", textHe: 'נשתמש ב-34 מאות', isCorrect: true, feedbackHe: 'נכון מאוד! צברתם את הכמות המדויקת בלוח הלבנים.' },
+      { id: "opt_1", textHe: 'נשתמש ב-34 מאות', isCorrect: true, feedbackHe: 'נכון מאוד! צברתם את הכמות המדויקת בבית המספרים.' },
       { id: "opt_2", textHe: 'נשתמש ב-3 אלפים ו-4 מאות', isCorrect: false, feedbackHe: 'רמז: זהו הייצוג הסטנדרטי הרגיל. אנו מבקשים לייצג את המספר באמצעות מאות בלבד.' },
       { id: "opt_3", textHe: 'נשתמש ב-3,400 יחידות בודדות', isCorrect: false, feedbackHe: 'רמז: ייצוג זה צפוף ומעמיס מדי על הלוח. השתמשו בעמודת המאות.' }
     ],
@@ -368,7 +370,7 @@ const TASK_HINTS: Record<string, SocraticHintResponse> = {
     choices: [
       { id: "opt_1", textHe: 'מקבצים 10 יחידות לעשרת אחת ומעבירים אותה שמאלה לטור העשרות', isCorrect: true, feedbackHe: 'נכון מאוד! בואו נלחץ על הקבץ ונצפה בעשרת הנודדת שמאלה.' },
       { id: "opt_2", textHe: 'משאירים את כולן בטור היחידות', isCorrect: false, feedbackHe: 'רמז: טור היחידות קטן וצפוף. הוא יכול להכיל רק ספרה אחת בין 0 ל-9.' },
-      { id: "opt_3", textHe: 'מוחקים את היחידות המיותרות', isCorrect: false, feedbackHe: 'רמז: מומלץ לשמור על הקוביות. הכמות המתמטית נשמרת תמיד.' }
+      { id: "opt_3", textHe: 'מוחקים את היחידות המיותרות', isCorrect: false, feedbackHe: 'רמז: מומלץ לשמור על הלבנים. הכמות המתמטית נשמרת תמיד.' }
     ],
     correctChoiceId: "opt_1"
   },
@@ -409,7 +411,7 @@ const TASK_HINTS: Record<string, SocraticHintResponse> = {
     questionHe: 'בואו נחשוב רגע יחד: איך נגלה כמה יחידות או עשרות חסרות כדי להגיע לתוצאה?',
     choices: [
       { id: "opt_1", textHe: 'ניעזר בלבני הדינס משמאל, נבדוק כמה עשרות יש לנו כעת בלוח וכמה חסרות כדי להגיע לתוצאה הרשומה בתרגיל', isCorrect: true, feedbackHe: 'מדויק! בואו נבצע את הבדיקה על הלוח ונכתוב את הספרה החסרה.' },
-      { id: "opt_2", textHe: 'ננחש מספר אקראי ונכתוב אותו בתיבת התשובה', isCorrect: false, feedbackHe: 'רמז: בואו נשתמש בלוח הלבנים כדי להוכיח את התשובה בבטחה.' },
+      { id: "opt_2", textHe: 'ננחש מספר אקראי ונכתוב אותו בתיבת התשובה', isCorrect: false, feedbackHe: 'רמז: בואו נשתמש בבית המספרים כדי להוכיח את התשובה בבטחה.' },
       { id: "opt_3", textHe: 'נעבור לפתור את הטור הבא תחילה', isCorrect: false, feedbackHe: 'רמז: באלגוריתם הטורי מומלץ להתקדם לפי הסדר כדי לנהל נכון את ההמרות בעיגולי הזיכרון.' }
     ],
     correctChoiceId: "opt_1"
@@ -441,32 +443,32 @@ const NODE_HINTS: Record<string, SocraticHintResponse> = {
     suggested_highlight: "tour-place-value-board",
     questionHe: "כיצד מחברים שני מספרים בבית המספרים?",
     choices: [
-      { id: "opt_1", textHe: "בונים את שני המספרים וסופרים את הבלוקים בכל טור בנפרד" },
+      { id: "opt_1", textHe: "בונים את שני המספרים וסופרים את הלבנים בכל טור בנפרד" },
       { id: "opt_2", textHe: "בונים רק את המספר הגדול" },
-      { id: "opt_3", textHe: "מוחקים את כל הבלוקים ורושמים ישירות" }
+      { id: "opt_3", textHe: "מוחקים את כל הלבנים ורושמים ישירות" }
     ],
     correctChoiceId: "opt_1"
   },
   regrouping_fluency: {
     pedagogical_intent: "procedural",
-    tts_text: "כאשר יש 10 בלוקים ומעלה בטור — יש לבצע קיבוץ לטור הבא.",
+    tts_text: "כאשר יש 10 לבנים ומעלה בטור — יש לבצע קיבוץ לטור הבא.",
     suggested_highlight: "tour-column-units",
-    questionHe: "יש יותר מ-9 בלוקים בטור — מה עושים?",
+    questionHe: "יש יותר מ-9 לבנים בטור — מה עושים?",
     choices: [
-      { id: "opt_1", textHe: "מקבצים 10 בלוקים לבלוק גדול אחד בטור הבא" },
+      { id: "opt_1", textHe: "מקבצים 10 לבנים ללבנה גדולה אחת בטור הבא" },
       { id: "opt_2", textHe: "כותבים 10 בתוצאה" },
-      { id: "opt_3", textHe: "מוחקים בלוקים מיותרים" }
+      { id: "opt_3", textHe: "מוחקים לבנים מיותרות" }
     ],
     correctChoiceId: "opt_1"
   },
   flexible_regrouping: {
     pedagogical_intent: "conceptual",
-    tts_text: "ניתן לפרוט בלוק גדול לקטנים יותר — הכמות הכוללת לא משתנה.",
+    tts_text: "ניתן לפרוט לבנה גדולה לקטנות יותר — הכמות הכוללת לא משתנה.",
     suggested_highlight: "tour-column-hundreds",
     questionHe: "כיצד מייצגים את אותו מספר בדרך אחרת?",
     choices: [
-      { id: "opt_1", textHe: "פורטים בלוק גדול לבלוקים קטנים — הכמות נשמרת" },
-      { id: "opt_2", textHe: "מוסיפים בלוקים נוספים" },
+      { id: "opt_1", textHe: "פורטים לבנה גדולה ללבנים קטנות — הכמות נשמרת" },
+      { id: "opt_2", textHe: "מוסיפים לבנים נוספות" },
       { id: "opt_3", textHe: "לכל מספר יש ייצוג אחד בלבד" }
     ],
     correctChoiceId: "opt_1"
@@ -539,9 +541,9 @@ const GENERAL_FALLBACK: SocraticHintResponse = {
   suggested_highlight: "tour-place-value-board",
   questionHe: "מה הצעד הבא שצריך לעשות בבית המספרים?",
   choices: [
-    { id: "opt_1", textHe: "בודק את הלוח — מספר הבלוקים בכל טור ומה חסר" },
-    { id: "opt_2", textHe: "כותב את התשובה מיד" },
-    { id: "opt_3", textHe: "מוחק הכל ומתחיל מחדש" }
+    { id: "opt_1", textHe: "בודקים את הלוח — מספר הלבנים בכל טור ומה חסר" },
+    { id: "opt_2", textHe: "כותבים את התשובה מיד" },
+    { id: "opt_3", textHe: "מוחקים הכול ומתחילים מחדש" }
   ],
   correctChoiceId: "opt_1"
 };
@@ -573,12 +575,12 @@ export class SocraticEngine {
       },
       addition_regrouping: {
         pedagogical_intent: "procedural",
-        tts_text: "יש יותר מ-9 קוביות בטור — קבצו 10 לבלוק אחד גדול יותר.",
+        tts_text: "יש יותר מ-9 לבנים בטור — קבצו 10 ללבנה אחת גדולה יותר.",
         suggested_highlight: "tour-column-units",
-        questionHe: "יש יותר מ-9 קוביות בטור — מה עושים?",
+        questionHe: "יש יותר מ-9 לבנים בטור — מה עושים?",
         choices: [
           { id: "opt_1", textHe: "מקבצים 10 יחידות לעשרת אחת" },
-          { id: "opt_2", textHe: "מוחקים את הקוביות המיותרות" },
+          { id: "opt_2", textHe: "מוחקים את הלבנים המיותרות" },
           { id: "opt_3", textHe: "כותבים את המספר ישירות" }
         ],
         correctChoiceId: "opt_1"
@@ -625,9 +627,9 @@ export class SocraticEngine {
     if (counts.units >= 10 && !crowdingIsTheGoal('units')) {
       return {
         pedagogical_intent: "procedural",
-        tts_text: `בטור היחידות יש ${counts.units} קוביות. עלינו לקבץ 10 מהן לעשרת אחת.`,
+        tts_text: `בטור היחידות יש ${counts.units} לבנים. עלינו לקבץ 10 מהן לעשרת אחת.`,
         suggested_highlight: "tour-column-units",
-        questionHe: `בטור היחידות הצטברו ${counts.units} קוביות (יותר מ-9). מה הצעד הבא שנבצע?`,
+        questionHe: `בטור היחידות הצטברו ${counts.units} לבנים (יותר מ-9). מה הצעד הבא שנבצע?`,
         choices: [
           { 
             id: "opt_1", 
@@ -639,13 +641,13 @@ export class SocraticEngine {
             id: "opt_2", 
             textHe: "נמחק 10 יחידות מטור היחידות לפח מבלי להוסיף עשרת", 
             isCorrect: false, 
-            feedbackHe: "רמז: מחיקת בלוקים לפח משנה את ערך המספר! עלינו לשמר את הכמות הכוללת בעזרת המרה. אפשר להשתמש בביטול ↩️." 
+            feedbackHe: "רמז: מחיקת לבנים לפח משנה את ערך המספר! עלינו לשמר את הכמות הכוללת בעזרת המרה. אפשר להשתמש בביטול ↩️." 
           },
           { 
             id: "opt_3", 
-            textHe: "נעביר קובייה אחת בלבד לטור העשרות", 
+            textHe: "נעביר לבנה אחת בלבד לטור העשרות", 
             isCorrect: false, 
-            feedbackHe: "רמז: 1 עשרת שווה בדיוק ל-10 יחידות. העברת קובייה אחת אינה שקולה לעשרת. אפשר להשתמש בביטול ↩️." 
+            feedbackHe: "רמז: 1 עשרת שווה בדיוק ל-10 יחידות. העברת לבנה אחת אינה שקולה לעשרת. אפשר להשתמש בביטול ↩️." 
           }
         ],
         correctChoiceId: "opt_1"
@@ -699,7 +701,7 @@ export class SocraticEngine {
             id: "opt_2", 
             textHe: "נשאיר 10 מאות באותו הטור", 
             isCorrect: false, 
-            feedbackHe: "רמז: כל טור יכול להכיל לכל היותר 9 בלוקים." 
+            feedbackHe: "רמז: כל טור יכול להכיל לכל היותר 9 לבנים." 
           },
           { 
             id: "opt_3", 
@@ -751,7 +753,7 @@ export class SocraticEngine {
               id: "opt_1",
               textHe: `נבנה רק את המספר הראשון${minuend !== undefined ? ` (${minuend})` : ''} מהמחסן, ואחר כך נוציא ממנו ${subtrahend} לפח האשפה`,
               isCorrect: true,
-              feedbackHe: "נכון! גררו קוביות מהמחסן עד שהלוח מראה את המספר הראשון, ורק אז הוציאו ממנו."
+              feedbackHe: "נכון! גררו לבנים מהמחסן עד שהלוח מראה את המספר הראשון, ורק אז הוציאו ממנו."
             },
             {
               id: "opt_2",
@@ -763,7 +765,7 @@ export class SocraticEngine {
               id: "opt_3",
               textHe: "נקליד את התוצאה בלי לבנות כלום",
               isCorrect: false,
-              feedbackHe: "רמז: קודם מייצגים את המספר בקוביות, ורק אחר כך כותבים את התוצאה."
+              feedbackHe: "רמז: קודם מייצגים את המספר בלבנים, ורק אחר כך כותבים את התוצאה."
             }
           ],
           correctChoiceId: "opt_1"
@@ -796,7 +798,7 @@ export class SocraticEngine {
               id: "opt_1", 
               textHe: "נלחץ על עשרת אחת מטור העשרות כדי לפרוט אותה ל-10 יחידות", 
               isCorrect: true, 
-              feedbackHe: "מעולה! לחצו על בלוק העשרת בלוח כדי לפרוט אותו ל-10 יחידות." 
+              feedbackHe: "מעולה! לחצו על לבנת העשרת בלוח כדי לפרוט אותה ל-10 יחידות." 
             },
             { 
               id: "opt_2", 
@@ -808,7 +810,7 @@ export class SocraticEngine {
               id: "opt_3", 
               textHe: `נוסיף ${unitsB - counts.units} יחידות חדשות מהמחסן`, 
               isCorrect: false, 
-              feedbackHe: "רמז: הוספת בלוקים מהמחסן משנה את ערך המספר המקורי! פורטים מהטור השכן כדי לשמור על הכמות." 
+              feedbackHe: "רמז: הוספת לבנים מהמחסן משנה את ערך המספר המקורי! פורטים מהטור השכן כדי לשמור על הכמות." 
             }
           ],
           correctChoiceId: "opt_1"
@@ -821,13 +823,13 @@ export class SocraticEngine {
           pedagogical_intent: "procedural",
           tts_text: `יש לנו ${counts.tens} עשרות ואנו צריכים להחסיר ${tensB}. פרטו מאה אחת ל-10 עשרות.`,
           suggested_highlight: "tour-column-hundreds",
-          questionHe: `יש לנו ${counts.tens} עשרות בלוח ואנו צריכים להחסיר ${tensB} עשרות. מאיזה טור שכן נוכל לפרוט בלוק?`,
+          questionHe: `יש לנו ${counts.tens} עשרות בלוח ואנו צריכים להחסיר ${tensB} עשרות. מאיזה טור שכן נוכל לפרוט לבנה?`,
           choices: [
             { 
               id: "opt_1", 
               textHe: "נלחץ על מאה אחת מטור המאות כדי לפרוט אותה ל-10 עשרות", 
               isCorrect: true, 
-              feedbackHe: "מצוין! לחצו על בלוק המאה בלוח כדי לפרוט אותו ל-10 עשרות." 
+              feedbackHe: "מצוין! לחצו על לבנת המאה בלוח כדי לפרוט אותה ל-10 עשרות." 
             },
             { 
               id: "opt_2", 
@@ -858,19 +860,19 @@ export class SocraticEngine {
               id: "opt_1", 
               textHe: "נלחץ על אלף אחד מטור האלפים כדי לפרוט אותו ל-10 מאות", 
               isCorrect: true, 
-              feedbackHe: "מדויק! לחצו על בלוק האלף בטור האלפים כדי לפרוט אותו ל-10 מאות." 
+              feedbackHe: "מדויק! לחצו על לבנת האלף בטור האלפים כדי לפרוט אותה ל-10 מאות." 
             },
             { 
               id: "opt_2", 
               textHe: `נחסיר הפוך: ${hundredsB} פחות ${counts.hundreds} מאות`, 
               isCorrect: false, 
-              feedbackHe: "רמז: בחיסור אנו גורעים רק מהכמות הקיימת. נסה לחקור את הפריטה בעזרת כפתור הביטול ↩️." 
+              feedbackHe: "רמז: בחיסור אנו גורעים רק מהכמות הקיימת. נסו לחקור את הפריטה בעזרת כפתור הביטול ↩️." 
             },
             { 
               id: "opt_3", 
               textHe: "נוסיף מאות נוספות מהמחסן", 
               isCorrect: false, 
-              feedbackHe: "רמז: הוספת בלוקים מהמחסן משנה את המספר. עלינו לשמר את הכמות על ידי פריטה מטור האלפים." 
+              feedbackHe: "רמז: הוספת לבנים מהמחסן משנה את המספר. עלינו לשמר את הכמות על ידי פריטה מטור האלפים." 
             }
           ],
           correctChoiceId: "opt_1"
@@ -884,9 +886,9 @@ export class SocraticEngine {
       if (numStr.includes('0') && counts.tens === 0) {
         return {
           pedagogical_intent: "conceptual",
-          tts_text: "כאשר אין קוביות בטור העשרות, נרשום 0 כדי לשמור על ערך המקום.",
+          tts_text: "כאשר אין לבנים בטור העשרות, נרשום 0 כדי לשמור על ערך המקום.",
           suggested_highlight: "tour-column-tens",
-          questionHe: "כאשר אין קוביות בעמודת העשרות, איזה מספר נרשום בבית המספרים?",
+          questionHe: "כאשר אין לבנים בעמודת העשרות, איזה מספר נרשום בבית המספרים?",
           choices: [
             { 
               id: "opt_1", 
@@ -904,7 +906,7 @@ export class SocraticEngine {
               id: "opt_3", 
               textHe: "נרשום 1 בעמודת העשרות", 
               isCorrect: false, 
-              feedbackHe: "רמז: אין בלוקים בעמודה זו, ולכן הערך שלה הוא 0." 
+              feedbackHe: "רמז: אין לבנים בעמודה זו, ולכן הערך שלה הוא 0." 
             }
           ],
           correctChoiceId: "opt_1"
@@ -1211,7 +1213,7 @@ export class SocraticEngine {
         error_category: 'conceptual',
         questionHe: 'מה הפעולה המתמטית שנרצה לבצע בבית המספרים?',
         choices: [
-          { id: 'opt_1', textHe: 'לבדוק את כמות הבלוקים בכל טור בבית המספרים', isCorrect: true },
+          { id: 'opt_1', textHe: 'לבדוק את כמות הלבנים בכל טור בבית המספרים', isCorrect: true },
           { id: 'opt_2', textHe: 'לפרוט עשרת אחת ל-10 יחידות', isCorrect: false },
           { id: 'opt_3', textHe: 'לקבץ 10 יחידות לעשרת אחת', isCorrect: false },
         ],
@@ -1342,7 +1344,7 @@ export class SocraticEngine {
           questionHe: `בתרגיל ${numA} + ${numB}, בטור העשרות הצטברו יותר מ-9 עשרות. מה הצעד הבא שנבצע?`,
           choices: [
             { id: "opt_1", textHe: "נקבץ 10 עשרות למאה אחת בטור המאות (ונשאיר את שאר העשרות בטור העשרות)", isCorrect: true, feedbackHe: "נכון מאוד! 10 עשרות שוות בדיוק למאה אחת בטור המאות." },
-            { id: "opt_2", textHe: "נמחק 10 עשרות לפח מבלי להוסיף מאה", isCorrect: false, feedbackHe: "רמז: מחיקת בלוקים לפח משנה את ערך המספר הכולל!" },
+            { id: "opt_2", textHe: "נמחק 10 עשרות לפח מבלי להוסיף מאה", isCorrect: false, feedbackHe: "רמז: מחיקת לבנים לפח משנה את ערך המספר הכולל!" },
             { id: "opt_3", textHe: "נרשום מספר דו-ספרתי במשבצת העשרות", isCorrect: false, feedbackHe: "רמז: בכל משבצת בשורת התוצאה מותרת ספרה אחת בלבד (0 עד 9)." }
           ],
           correctChoiceId: "opt_1"

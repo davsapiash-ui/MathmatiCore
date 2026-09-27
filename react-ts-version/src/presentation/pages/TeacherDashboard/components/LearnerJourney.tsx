@@ -18,11 +18,11 @@ import {
   groupEventsBySession,
   parseRecordingEvents,
   subscribeLearnerRecordings,
-  SESSION_NAMES_HE,
   type JourneyEvent,
   type MeetingReport,
   type RecordingSession,
 } from '@/infrastructure/services/LearnerJourneyService';
+import { STATION_NAMES_HE, meetingLabelHe } from '@/core/stationNames';
 
 interface Props {
   studentId: string;
@@ -284,9 +284,13 @@ export function LearnerJourney({ studentId }: Props) {
                     : 'bg-ws-bg border-ws-surface2 opacity-60'
               }`}
               aria-pressed={selected}
+              title={meetingLabelHe(n)}
             >
+              {/* The station name the children see (owner, 27.9.2026), from
+                  the same source as their lobby card. */}
               <div className="text-[11px] font-black text-ws-soft">מפגש {n}</div>
-              <div className="text-xs font-bold text-ws-ink leading-snug">{SESSION_NAMES_HE[n]}</div>
+              <div className="text-[10px] font-bold text-ws-soft">אצל התלמידים:</div>
+              <div className="text-xs font-bold text-ws-ink leading-snug">{STATION_NAMES_HE[n]}</div>
               {hasData ? (
                 <div className="mt-1.5 text-[11px] text-ws-soft space-y-0.5">
                   {Number.isFinite(firstTs) && <div>{formatDate(firstTs)}</div>}

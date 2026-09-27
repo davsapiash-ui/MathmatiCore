@@ -179,7 +179,7 @@ export function generateExerciseNarrativeFromEvents(telemetryDocs: Record<string
     // values dragged rather than a drag tally.
     if (representedColumns.length > 0) {
       const distinct = Array.from(new Set(representedColumns)).sort((a, b) => b - a);
-      clauses.unshift(`ייצג את המספרים בקנבס באמצעות בלוקים של ${distinct.join(", ")}`);
+      clauses.unshift(`ייצג את המספרים בבית המספרים באמצעות לבנים של ${distinct.join(", ")}`);
     }
 
     const ending = completed

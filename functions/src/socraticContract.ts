@@ -401,7 +401,7 @@ export function deriveSocraticFacts(req: SocraticRequest): SocraticFacts {
       : `בית המספרים ריק. הצעד הראשון הוא לבנות את שני המספרים (${ec.number_a} ו-${ec.number_b}) בלבנים.`;
   } else if (overcrowded) {
     suggested_category = "conceptual";
-    suggested_focus_he = `ב${COLUMN_NAME_HE[overcrowded.column]} יש ${overcrowded.blocks_on_board} ${BLOCK_NOUN_HE[overcrowded.column]} — יותר מ-9, ולכן נדרש קיבוץ של 10 לבלוק אחד בטור הבא.`;
+    suggested_focus_he = `ב${COLUMN_NAME_HE[overcrowded.column]} יש ${overcrowded.blocks_on_board} ${BLOCK_NOUN_HE[overcrowded.column]} — יותר מ-9, ולכן נדרש קיבוץ של 10 ללבנה אחת בטור הבא.`;
   } else if (ec && active && ec.operation === "subtraction" && active.needs_conversion && active.board_deficit > 0) {
     suggested_category = "procedural";
     suggested_focus_he = `ב${COLUMN_NAME_HE[active.column]} צריך להחסיר ${active.digit_b} אבל בלוח יש רק ${active.blocks_on_board} ${BLOCK_NOUN_HE[active.column]} — נדרשת פריטה מהטור השכן הגדול יותר.`;
@@ -462,7 +462,7 @@ DIAGNOSIS. Classify the difficulty as exactly one of:
 - "conceptual": place value not understood — two digits in one cell, blocks deleted without preserving the total, 10 or more blocks left in one column.
 
 HEBREW. Natural, grammatically flawless Hebrew for children: short, warm, empowering sentences; exact gender/number agreement (4 מאות, 2 עשרות, 5 יחידות, 10 עשרות, עשרת אחת, מאה אחת). Address the learner in plural-neutral form ("נבדוק", "נפרוט", "מה נעשה").
-TERMINOLOGY (Ministry of Education): subtraction regrouping is "פריטה" ONLY (never שבירה / הלוואה / לווים); addition regrouping is "קיבוץ" / "הקבצה" / "צירוף עשר" ONLY (never נשיאה); the workspace is "בית המספרים" with "טור היחידות / טור העשרות / טור המאות / טור האלפים"; tools are "עיגולי הזיכרון" and "פח האשפה". Blocks are "לבנים" or "קוביות". Never mention physical objects that do not exist on screen (מקלות, חרוזים, אצבעות, מטבעות, חשבונייה).
+TERMINOLOGY (Ministry of Education): subtraction regrouping is "פריטה" ONLY (never שבירה / הלוואה / לווים); addition regrouping is "קיבוץ" / "הקבצה" / "צירוף עשר" ONLY (never נשיאה); the workspace is "בית המספרים" with "טור היחידות / טור העשרות / טור המאות / טור האלפים"; tools are "עיגולי הזיכרון" and "פח האשפה". The blocks are "לבנים" ONLY ("לבנה" in the singular; never "קוביות", "קובייה", "בלוק" or "בלוקים"), and the board is "בית המספרים" ONLY (never "לוח הדינס", "לוח הלבנים" or "קנבס"). Never mention physical objects that do not exist on screen (מקלות, חרוזים, אצבעות, מטבעות, חשבונייה).
 
 IRON RULES:
 - NEVER state or imply the final numeric answer of the exercise, and never state the result digit of the active column. Guide the next ACTION only.

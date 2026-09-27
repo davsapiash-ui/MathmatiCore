@@ -156,11 +156,11 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
                 ? 'bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-950/40 dark:border-indigo-800 dark:text-indigo-300' 
                 : 'bg-ws-surface2/60 border-ws-surface2 text-ws-ink hover:bg-ws-surface2'
             }`}
-            aria-label={boardOpen ? "הסתר לוח עבודה" : "הצג לוח עבודה"}
-            title={boardOpen ? "הסתר את לוח העבודה והבלוקים" : "הצג את לוח העבודה והבלוקים"}
+            aria-label={boardOpen ? "הסתר את בית המספרים" : "הצג את בית המספרים"}
+            title={boardOpen ? "הסתר את בית המספרים" : "הצג את בית המספרים"}
           >
             {boardOpen ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            <span className="hidden sm:inline">{boardOpen ? "הסתר לוח" : "הצג לוח"}</span>
+            <span className="hidden sm:inline">{boardOpen ? "הסתר את בית המספרים" : "הצג את בית המספרים"}</span>
           </button>
         )}
 
