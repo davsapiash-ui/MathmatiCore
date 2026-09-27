@@ -139,7 +139,7 @@ describe("the teacher's replay panel is a reconstruction without sound, not a vi
   });
 
   it('the panel heading says what it is', () => {
-    expect(journey).toContain('שחזור מסך העבודה, ללא קול · מפגש {selectedSession}');
+    expect(journey).toContain('שחזור מסך העבודה, ללא קול · {meetingShortLabelHe(selectedSession)}');
   });
 
   it('keeps the fallback message PRD 7.3 Module 21 §ה quotes word for word', () => {

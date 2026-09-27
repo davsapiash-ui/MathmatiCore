@@ -12,6 +12,7 @@ import { recommendedPathOf } from '@/core/recommendedPath';
 import { hasEnhancedSupport, buildSupportProfilePayload } from '@/core/supportProfile';
 import { toast } from 'sonner';
 import type { ResetReason, SingleStudentResetScope } from '@/types';
+import { ROUTE_APPROVE_HE, ROUTE_NAME_HE, TEACHER_GATE_HE } from '@/core/routeLabels';
 
 interface StudentGateState {
   id: string;
@@ -234,7 +235,7 @@ export function ClassManagement({
           <div>
             <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
               <ShieldCheck className="w-6 h-6 text-indigo-600" />
-              שער אישור מורה למפגש 3
+              {TEACHER_GATE_HE} למפגש 3
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
               בסיום מפגש 2, התלמידים ממתינים במסך "מעוף הדבורה". אישור המורה כאן משחרר את הנתיב מיידית (פחות משנייה אחת).
@@ -295,7 +296,7 @@ export function ClassManagement({
                         ? 'bg-slate-200/80 text-slate-700 dark:bg-slate-700 dark:text-slate-200'
                         : 'bg-emerald-200/80 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-100'
                     }`}>
-                      {student.recommendedPath}
+                      {student.recommendedPath === 'ירוק' ? ROUTE_NAME_HE.green_path : student.recommendedPath === 'צמצום פערי קדם' ? ROUTE_NAME_HE.remediation_path : student.recommendedPath}
                     </span>
                   </div>
 
@@ -309,7 +310,7 @@ export function ClassManagement({
                           : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-200'
                       }`}
                     >
-                      אישור מסלול ירוק
+                      {ROUTE_APPROVE_HE.green_path}
                     </button>
                     <button
                       onClick={() => handleApproveGate(student, 'צמצום פערי קדם')}
@@ -320,7 +321,7 @@ export function ClassManagement({
                           : 'bg-amber-100 text-amber-800 hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-200'
                       }`}
                     >
-                      אישור צמצום פערים
+                      {ROUTE_APPROVE_HE.remediation_path}
                     </button>
                     <button
                       onClick={() => setStudentToReset({ id: student.id, name: `תלמיד ${student.studentNumber}` })}
@@ -385,7 +386,7 @@ export function ClassManagement({
                 }`}
               >
                 <Zap className="w-3.5 h-3.5" />
-                <span>{student.enhancedSupport ? 'בטל תמיכה מוגברת' : 'הפעל תמיכה מוגברת'}</span>
+                <span>{student.enhancedSupport ? 'בטלו תמיכה מוגברת' : 'הפעילו תמיכה מוגברת'}</span>
               </button>
             </div>
           ))}

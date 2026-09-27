@@ -583,6 +583,12 @@ export const FORBIDDEN_TERMS_HE: string[] = [
   "הלוואה", "ללוות", "לווים", "נלווה", "להלוות",
   "נשיאה", "נושאים", "לשאת",
   "אבקוס", "חשבונייה", "מקלות", "חרוזים", "אצבעות", "מטבעות", "גפרורים", "קשיות",
+  // One name per component (owner, 27.9.2026, register ט): the pieces are
+  // "לבנים" and the board is "בית המספרים". The prompt says so; this makes the
+  // output check enforce it, so a card that says "קוביות" or "קנבס" is refused
+  // and the child gets the fixed question instead. "קובי" catches קובייה,
+  // קוביה and קוביות; "בלוק" catches בלוק and בלוקים.
+  "קובי", "בלוק", "לוח הדינס", "לוח הלבנים", "קנבס",
 ];
 
 const HEBREW_RE = /[א-ת]/;

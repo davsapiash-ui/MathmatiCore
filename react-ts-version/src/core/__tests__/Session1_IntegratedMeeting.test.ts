@@ -18,8 +18,24 @@ import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncServi
  * diagnostic task they refresh, and no number with meeting 2.
  */
 
-const DOC03 = readFileSync(resolve(__dirname, '../../../../מסמכי אפיון/מקור פדגוגי/03- אפיון מפורט לקראת פיתוח.md'), 'utf-8')
-  .replace(/\\!/g, '!');
+/**
+ * One name per component (owner, 27.9.2026, register ט): on screen the board is
+ * "בית המספרים" and the pieces are "לבנים". The owner changes מסמך 03 the same
+ * way in Drive, and its repository copy is synced afterwards. Until then the
+ * copy here still says "לוח בית המספרים" and "קוביות יחידה", so the comparison
+ * applies the registered substitutions to it — it passes now and after the sync.
+ */
+const REGISTERED_SUBSTITUTIONS: ReadonlyArray<[RegExp, string]> = [
+  [/בלוח בית המספרים/g, 'בבית המספרים'],
+  [/ללוח בית המספרים/g, 'לבית המספרים'],
+  [/מלוח בית המספרים/g, 'מבית המספרים'],
+  [/לוח בית המספרים/g, 'בית המספרים'],
+  [/קוביות יחידה/g, 'לבני יחידה'],
+];
+const DOC03 = REGISTERED_SUBSTITUTIONS.reduce(
+  (text, [from, to]) => text.replace(from, to),
+  readFileSync(resolve(__dirname, '../../../../מסמכי אפיון/מקור פדגוגי/03- אפיון מפורט לקראת פיתוח.md'), 'utf-8').replace(/\\!/g, '!')
+);
 const task = (id: string) => SESSION1_TASKS.find((t) => t.id === id)!;
 const diag = (id: string) => DIAGNOSTIC_TASKS.find((t) => t.id === id)!;
 
@@ -127,7 +143,7 @@ describe('what completes each introduction step', () => {
   it('step 4: 305 built another way shows which part is left, instead of a silent ⏳', () => {
     const items = session1Checklist('s1_build_305', { ...base, counts: { ...EMPTY_COUNTS, hundreds: 2, tens: 10, units: 5 } })!;
     expect(items.map((i) => i.done)).toEqual([true, false]);
-    expect(items[1].label).toBe('רוקנו את טור העשרות, כדי שבלוח בית המספרים תופיע בו הספרה אפס');
+    expect(items[1].label).toBe('רוקנו את טור העשרות, כדי שבבית המספרים תופיע בו הספרה אפס');
   });
 
   it('step 5: undo and pressing the trash, both', () => {
@@ -388,7 +404,7 @@ describe('each refresh exercise mirrors its diagnostic task, column for column',
     expect(d.expectedBlocks).toEqual({ tens: 2, units: 5 });
     expect(r.numberA).toBe(26);
     expect(r.requiresGrouping).toBe(true);
-    expect(r.instructionHe).toContain('26 קוביות יחידה');
+    expect(r.instructionHe).toContain('26 לבני יחידה');
     // the cubes are on the board and the card does not say what they make
     expect(r.initialCounts).toEqual({ units: 26 });
     expect(r.hideRequiredCounts).toBe(true);

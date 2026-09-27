@@ -9,6 +9,7 @@ import {
   stationNameHe,
   stationTitleHe,
 } from '@/core/stationNames';
+import { MEETING_FORMAL_HE, meetingFullLabelHe } from '@/core/meetingFormalNames';
 import { buildSessionCatalog } from '@/presentation/pages/admin/AdminCurriculumView';
 import * as JourneyService from '@/infrastructure/services/LearnerJourneyService';
 import { TASKS as DIAGNOSTIC_TASKS } from '@/core/QMatrix';
@@ -103,6 +104,17 @@ describe('one source for the station names', () => {
       expect(hits(everything, literal), STATION_NAMES_HE[n]).toEqual([]);
     }
   });
+
+  it('nor inside a longer text: every station name in code is built from the source', () => {
+    // A name hidden inside a sentence ('מפגש 1 (ארגז החול והיכרות) הושלם.')
+    // drifts just the same. Exercise titles may contain the words for their
+    // own mathematics; only those, listed here, are allowed.
+    const everything = filesUnder('.').filter((f) => f !== 'core/stationNames.ts');
+    const EXERCISE_WORDS = ['חיסור במאונך עם פריטה דרך אפס בטור העשרות'];
+    for (const n of MEETING_NUMBERS) {
+      expect(hits(everything, new RegExp(STATION_NAMES_HE[n]), EXERCISE_WORDS), STATION_NAMES_HE[n]).toEqual([]);
+    }
+  });
 });
 
 describe('the teacher and the admin see the child’s station name next to each meeting', () => {
@@ -113,11 +125,42 @@ describe('the teacher and the admin see the child’s station name next to each 
     expect(dash).not.toContain('פעיל בכיתה`');
   });
 
-  it('the skills-mapping meeting buttons', () => {
+  it('the skills-mapping meeting buttons: the child’s name and the teacher’s formal information', () => {
     const dash = code('presentation/pages/TeacherDashboard.tsx');
-    expect(dash).toContain('{meetingShortLabelHe(num)}');
-    expect(dash).toContain('title={meetingLabelHe(num)}');
-    expect(dash).not.toContain('(מיפוי יסוד)');
+    // "מפגש 2 · יוצאים למסע (מיפוי יסוד)": the formal information stays beside the name.
+    expect(dash).toContain("{meetingShortLabelHe(num)}{num === 2 ? ' (מיפוי יסוד)' : ''}");
+    expect(dash).toContain('title={meetingFullLabelHe(num)}');
+    expect(meetingFullLabelHe(3)).toBe('מפגש 3 · אצל התלמידים: בונים מספרים בכמה דרכים — ערך המקום וגמישות ייצוגית');
+  });
+
+  it('the learner journey keeps a short formal description under the child’s name', () => {
+    const journey = code('presentation/pages/TeacherDashboard/components/LearnerJourney.tsx');
+    expect(journey).toContain('{MEETING_FORMAL_HE[n]}');
+    expect(journey).toContain('title={meetingFullLabelHe(n)}');
+    for (const n of MEETING_NUMBERS) expect(MEETING_FORMAL_HE[n].length).toBeGreaterThan(0);
+  });
+
+  it('section headings, toasts, bank labels, journey rows and the reset window name the station too', () => {
+    const journey = code('presentation/pages/TeacherDashboard/components/LearnerJourney.tsx');
+    for (const h of [
+      'תרגילים ב{meetingShortLabelHe(selectedSession)}:',
+      'דוח תובנות פדגוגיות · {meetingShortLabelHe(selectedSession)}',
+      'ציר ההחלטות · {meetingShortLabelHe(selectedSession)}',
+      'שחזור מסך העבודה, ללא קול · {meetingShortLabelHe(selectedSession)}',
+    ]) {
+      expect(journey, h).toContain(h);
+    }
+    expect(code('presentation/pages/TeacherDashboard.tsx')).toContain('מיפוי מיומנויות — {meetingShortLabelHe(diagnosticSelectedSession)}');
+    expect(code('presentation/pages/TeacherDashboard/components/HeatmapGrid.tsx')).toContain('התפלגות סיווגי הטעות · {meetingShortLabelHe(selectedStudent.sessionNumber)}');
+    expect(code('presentation/pages/TeacherDashboard/components/SessionActivationModal.tsx')).toContain('המפגש הפעיל כעת, {meetingShortLabelHe(currentlyActive.sessionNumber)}, ייסגר');
+    const store = code('application/useStore.ts');
+    expect(store).toContain('${meetingShortLabelHe(sessionNumber)} אופס לכל הכיתה.');
+    expect(store).toContain('const sessionLabel = requestedSession ? meetingShortLabelHe(requestedSession)');
+    expect(code('core/catalogFreshness.ts')).toContain('${meetingShortLabelHe(Number(match[1]))}${path}');
+    expect(code('infrastructure/services/LearnerJourneyService.ts')).toContain('meetingShortLabelHe(d.session_number)');
+    const modal = code('presentation/pages/TeacherDashboard/components/ResetConfirmationModal.tsx');
+    expect(modal).toContain("const meetingLabel = activeSessionNumber ? meetingLabelHe(activeSessionNumber) : 'המפגש הנוכחי';");
+    expect(modal).toContain('isLevel2 && !isFullStudent && activeSessionNumber ?');
   });
 
   it('the confirmation to open a meeting, the reset window and the class report', () => {
@@ -159,16 +202,22 @@ describe('the teacher and the admin see the child’s station name next to each 
   });
 });
 
-/** Words the owner replaced on 27.9.2026. */
-const OLD_BOARD_OR_PIECE = /לוח הדינס|לוח הלבנים|קנבס|בלוק|קוביות|קובייה|קוביה/;
+/** Words the owner replaced on 27.9.2026: the board and the pieces have one name each. */
+const OLD_BOARD_OR_PIECE = /לוח הדינס|לוח הלבנים|לוח לבני הדינס|לוח העבודה|לוח הפעילות|קנבס|בלוק|קוביות|קובייה|קוביה/;
 
 /**
- * Texts the tests lock word for word to the repository copy of מסמך 03
- * (Session1_IntegratedMeeting). An agent does not edit that document, so these
- * keep the old word until the owner syncs it (register ט, "נותר"; table of
- * required document fixes, row 19).
+ * On the child's side there is no table and no "לוח בית המספרים": "טבלה" can
+ * only mean the board, and the owner replaced "בלוח בית המספרים" with
+ * "בבית המספרים" in every child text (27.9.2026). Staff screens do have real
+ * tables, so this is checked on the child's files only.
  */
-const WAITS_FOR_DOC_SYNC = ['בטור היחידות יש 26 קוביות יחידה.'];
+const CHILD_BOARD_WORDS = /טבלה|טבלת ערך המקום|לוח בית המספרים/;
+
+/**
+ * Child texts that still carry an old name. Awaiting owner decision (Rule 3;
+ * listed in owner_items.json of 27.9.2026) — a NEW one anywhere else fails.
+ */
+const AWAITING_OWNER = ['גלו אותן באמצעות מניפולציה בלבני הדינס'];
 
 describe('the child reads "בית המספרים" and "לבנים"', () => {
   const childFiles = [
@@ -184,15 +233,21 @@ describe('the child reads "בית המספרים" and "לבנים"', () => {
   ];
 
   it('no "לוח הדינס", "לוח הלבנים", "קנבס", "בלוק" or "קובייה" in anything the child sees or hears', () => {
-    expect(hits(childFiles, OLD_BOARD_OR_PIECE, WAITS_FOR_DOC_SYNC)).toEqual([]);
+    // The coaching card's refusal list names the old words in order to refuse them.
+    const REFUSAL_LIST = ["'קובי', 'בלוק', 'לוח הדינס', 'לוח הלבנים', 'קנבס',"];
+    expect(hits(childFiles, OLD_BOARD_OR_PIECE, [...AWAITING_OWNER, ...REFUSAL_LIST])).toEqual([]);
   });
 
-  it('what is left is only what the copy of מסמך 03 still says, word for word', () => {
-    const doc03 = read(resolve(REPO, 'מסמכי אפיון/מקור פדגוגי/03- אפיון מפורט לקראת פיתוח.md')).replace(/\\!/g, '!');
-    for (const text of WAITS_FOR_DOC_SYNC) {
-      expect(doc03, text).toContain(text);
-      expect(SESSION1_TASKS.find((t) => t.id === 's1_r_group26')?.instructionHe).toContain(text);
-    }
+  it('no "טבלה" and no "לוח בית המספרים" on the child’s side: the board is "בית המספרים"', () => {
+    expect(hits(childFiles, CHILD_BOARD_WORDS)).toEqual([]);
+    expect(code('features/workspace/board/PlaceValueBoard.tsx')).toContain('aria-label="בית המספרים"');
+    const palette = code('features/workspace/board/BlockPalette.tsx');
+    expect(palette).toContain('לחצו או גררו ${PLACE_NAMES_HE[place]} לבית המספרים');
+    expect(palette).not.toMatch(/לחץ או גרור/);
+  });
+
+  it('meeting 1 shows "26 לבני יחידה" (the registered substitution of מסמך 03)', () => {
+    expect(SESSION1_TASKS.find((t) => t.id === 's1_r_group26')?.instructionHe).toContain('בטור היחידות יש 26 לבני יחידה.');
   });
 
   it('diagnostic task 5 shows "25 לבני יחידה"', () => {
@@ -227,7 +282,7 @@ describe('the child reads "בית המספרים" and "לבנים"', () => {
   });
 
   it('no radar on a child’s screen', () => {
-    expect(hits(childFiles.filter((f) => f !== 'features/workspace/StudentWorkspacePage.tsx'), /הרדאר|רדאר/)).toEqual([]);
+    expect(hits(childFiles, /הרדאר|רדאר/)).toEqual([]);
   });
 
   it('the AI that writes the coaching card is told the same names', () => {

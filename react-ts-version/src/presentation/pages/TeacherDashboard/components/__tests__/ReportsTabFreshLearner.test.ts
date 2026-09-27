@@ -20,7 +20,8 @@ describe('Reports tab — a reset or brand-new learner is shown as such', () => 
 
   it('shows "מפגש 1 הושלם" only when meeting 1 was actually completed', () => {
     expect(dashboard).toMatch(/hasStarted \? 'מפגש 1 הושלם — ממתין לאבחון במפגש 2' : 'טרם התחיל — אין נתונים'/);
-    expect(dashboard).toMatch(/hasStarted \? 'מפגש 1 \(ארגז החול והיכרות\) הושלם\.' : 'התלמיד עדיין לא סיים אף מפגש\.'/);
+    // Meeting 1 under the station name the children see, with its formal subject (owner, 27.9.2026).
+    expect(dashboard).toContain("hasStarted ? `${meetingShortLabelHe(1)} (${MEETING_FORMAL_HE[1]}) הושלם.` : 'התלמיד עדיין לא סיים אף מפגש.'");
     expect(dashboard).not.toContain('הושלם בהצלחה.</p>');
   });
 

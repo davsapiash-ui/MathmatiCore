@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { CheckSquare, Square, RotateCcw, CircleDot, HelpCircle, Award, ArrowLeft } from 'lucide-react';
 import type { SRLReflectionResult } from '@/core/srlReflection';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
+import { encouragementSentenceHe, persistenceIndexPercent } from '@/core/persistenceEncouragement';
 
 interface Session8ReflectionScreenProps {
   /**
@@ -36,10 +37,11 @@ type EffortId = 'EASY' | 'MEDIUM' | 'HARD';
  * עיגולי הזיכרון, השאלות בכרטיס החניכה. אפשר לסמן כמה (מסמך 03: "לסמן כל
  * תשובה מתאימה מתוך שלוש").
  *
- * שלב 3 — המשפט המעודד של מסמך 03 ("ותיקנתם" בכתיב מלא) וכפתור הסיום.
- * האחוז של מדד ההתמדה אינו מוצג לילד ואינו מוקרא לו (החלטת בעל המוצר,
- * 27.9.2026, מרשם הסטיות): הילד לא רואה אחוזים או ציונים. המדד מחושב
- * ונשמר כרגיל, והמורה רואה אותו.
+ * שלב 3 — משפט עידוד אחד מתוך ארבעה, שנבחר לפי מדד ההתמדה של מפגש 8
+ * עצמו, וכפתור הסיום (החלטות בעל המוצר E1 ו-E2, 27.9.2026, מרשם הסטיות,
+ * סטייה 24; core/persistenceEncouragement.ts). המדד רק בוחר את המשפט: הוא
+ * אינו מוצג לילד ואינו מוקרא לו, ואין על המסך מספר, ציון או דירוג (סטייה
+ * 23). המדד מחושב ונשמר כרגיל, והמורה רואה אותו.
  *
  * אין מילים באנגלית, והפנייה בגוף שני רבים.
  */
@@ -50,12 +52,21 @@ export const REFLECTION_TEXT_HE = {
   effortInstruction: 'בחרו רמה אחת.',
   strategyQuestion: 'מה עזר לכם הכי הרבה להצליח היום בפתרון התרגילים?',
   strategyInstruction: 'אפשר לסמן יותר מתשובה אחת.',
-  feedbackTitle: 'כל הכבוד!',
-  feedbackBody: 'ראינו שחקרתם, ניסיתם ותיקנתם טעויות בעצמכם כמו מתמטיקאים אמיתיים! המשיכו להאמין בכוח שלכם!',
   next: 'המשיכו',
   back: 'חזרה',
   finish: 'סיום המפגש',
 } as const;
+
+/**
+ * The sentence split for the screen: its first exclamation ("כל הכבוד!",
+ * "כל הכבוד שהתמדתם עד הסוף!") as the heading, the rest under it. Together
+ * they are the sentence word for word.
+ */
+export function splitEncouragement(sentence: string): { title: string; body: string } {
+  const at = sentence.indexOf('!');
+  if (at < 0) return { title: sentence, body: '' };
+  return { title: sentence.slice(0, at + 1), body: sentence.slice(at + 1).trim() };
+}
 
 /** שלוש רמות המאמץ: סמל חזותי בלבד על המסך; השם (מסמך 03) להקראה ולקורא מסך. */
 export const EFFORT_LEVELS: ReadonlyArray<{ id: EffortId; bars: 1 | 2 | 3; spokenHe: string }> = [
@@ -71,8 +82,11 @@ export const STRATEGY_OPTIONS = [
   { id: 'hints', label: 'השאלות המנחות בכרטיס החניכה', icon: HelpCircle },
 ] as const;
 
-/** מה שנקרא בקול בכל שלב — כל הנחיה שעל המסך, וגם שמות הרמות שאין להן מילים על המסך. */
-export function reflectionSpeech(step: 1 | 2 | 3): string {
+/**
+ * מה שנקרא בקול בכל שלב — כל הנחיה שעל המסך, וגם שמות הרמות שאין להן מילים
+ * על המסך. בשלב 3: משפט העידוד שנבחר, כפי שהוא מוצג.
+ */
+export function reflectionSpeech(step: 1 | 2 | 3, encouragement = ''): string {
   const t = REFLECTION_TEXT_HE;
   if (step === 1) {
     return [t.stepLabelSpoken[1], t.effortQuestion, t.effortInstruction, ...EFFORT_LEVELS.map((l) => `${l.spokenHe}.`)].join(' ');
@@ -80,7 +94,7 @@ export function reflectionSpeech(step: 1 | 2 | 3): string {
   if (step === 2) {
     return [t.stepLabelSpoken[2], t.strategyQuestion, t.strategyInstruction, ...STRATEGY_OPTIONS.map((o) => `${o.label}.`)].join(' ');
   }
-  return [t.stepLabelSpoken[3], t.feedbackTitle, t.feedbackBody].join(' ');
+  return [t.stepLabelSpoken[3], encouragement].join(' ').trim();
 }
 
 /** סרגל קווי: שלושה פסים בגובה עולה, ו-`filled` מהם צבועים. */
@@ -100,8 +114,9 @@ function EffortBars({ filled }: { filled: 1 | 2 | 3 }) {
 
 /**
  * מודול 16: לוח רפלקציה תלת־שלבי בסיום מפגש 8.
- * שלב 1: הערכת מאמץ. שלב 2: בחירת אסטרטגיות. שלב 3: משוב התמדה —
- * (U / (U + E + G)) * 100, ו-100% כשהמכנה אפס.
+ * שלב 1: הערכת מאמץ. שלב 2: בחירת אסטרטגיות. שלב 3: משפט עידוד שנבחר לפי
+ * מדד ההתמדה (U / (U + E + G)) * 100 של המפגש. המדד נשמר למורה, והילד רואה
+ * רק את המשפט.
  * ללא חלונות קופצים, אפס PII.
  */
 export function Session8ReflectionScreen({ onComplete, metrics }: Session8ReflectionScreenProps) {
@@ -121,8 +136,10 @@ export function Session8ReflectionScreen({ onComplete, metrics }: Session8Reflec
   const U = Math.max(0, metrics?.undoCount || 0);
   const E = Math.max(0, metrics?.errorCount || 0);
   const G = Math.max(0, metrics?.guessCount || 0);
-  const denominator = U + E + G;
-  const persistenceRatio = denominator === 0 ? 100 : Math.min(100, Math.max(0, Math.round((U / denominator) * 100)));
+  const persistenceRatio = persistenceIndexPercent({ undos: U, wrongDigits: E, wrongOptions: G });
+  // E1: the index only chooses the sentence; the child never sees the index.
+  const encouragement = encouragementSentenceHe({ undos: U, wrongDigits: E, wrongOptions: G });
+  const { title: encouragementTitle, body: encouragementBody } = splitEncouragement(encouragement);
 
   const handleComplete = () => {
     if (isSubmitting) return;
@@ -289,13 +306,15 @@ export function Session8ReflectionScreen({ onComplete, metrics }: Session8Reflec
                 <span className="text-xs font-black text-emerald-600 block mb-1">{t.stepLabel(3)}</span>
                 <div className="flex items-center justify-center gap-3">
                   <h1 className="text-2xl md:text-3xl font-display font-black text-slate-900 dark:text-white">
-                    {t.feedbackTitle}
+                    {encouragementTitle}
                   </h1>
-                  <UdlSpeechButton text={reflectionSpeech(3)} className="shrink-0" />
+                  <UdlSpeechButton text={reflectionSpeech(3, encouragement)} className="shrink-0" />
                 </div>
-                <p className="text-slate-600 dark:text-slate-300 text-base mt-2 max-w-md leading-relaxed">
-                  {t.feedbackBody}
-                </p>
+                {encouragementBody && (
+                  <p className="text-slate-600 dark:text-slate-300 text-base mt-2 max-w-md leading-relaxed">
+                    {encouragementBody}
+                  </p>
+                )}
               </div>
 
 

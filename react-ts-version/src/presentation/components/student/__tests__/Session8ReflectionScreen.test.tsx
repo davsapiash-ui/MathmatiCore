@@ -33,7 +33,9 @@ import {
   Session8ReflectionScreen,
   REFLECTION_TEXT_HE,
   STRATEGY_OPTIONS,
+  splitEncouragement,
 } from '../Session8ReflectionScreen';
+import { ENCOURAGEMENT_SENTENCES_HE } from '@/core/persistenceEncouragement';
 
 afterEach(cleanup);
 
@@ -116,9 +118,9 @@ describe('שלב 2 — מה עזר לכם', () => {
   });
 });
 
-describe('שלב 3 — משוב, האחוז וסיום', () => {
-  function toStep3(onComplete = vi.fn()) {
-    const r = renderBoard(onComplete);
+describe('שלב 3 — משפט עידוד לפי מדד ההתמדה של מפגש 8, בלי מספר, וסיום', () => {
+  function toStep3(onComplete = vi.fn(), metrics = { undoCount: 2, errorCount: 1, guessCount: 1 }) {
+    const r = renderBoard(onComplete, metrics);
     fireEvent.click(screen.getByRole('button', { name: 'רמה שלוש: מאתגר' }));
     fireEvent.click(screen.getByRole('button', { name: /המשיכו/ }));
     fireEvent.click(screen.getByRole('checkbox', { name: /כפתור ביטול פעולה/ }));
@@ -127,21 +129,36 @@ describe('שלב 3 — משוב, האחוז וסיום', () => {
     return r;
   }
 
-  it('משפט המשוב של מסמך 03, בלי אחוז (החלטת בעל המוצר 27.9.2026)', () => {
-    const { container } = toStep3();
-    const text = visibleText(container);
-    expect(text).toContain('כל הכבוד!');
-    expect(text).toContain('ראינו שחקרתם, ניסיתם ותיקנתם טעויות בעצמכם כמו מתמטיקאים אמיתיים! המשיכו להאמין בכוח שלכם!');
-    expect(text).not.toContain('מדד ההתמדה');
-    expect(text).not.toMatch(/d+s*%/);
-  });
+  // Owner decision E1 (27.9.2026, register deviation 24): the index only CHOOSES the sentence.
+  const CASES: Array<{ name: string; metrics: { undoCount: number; errorCount: number; guessCount: number }; sentence: string }> = [
+    { name: 'E + G ≤ 2', metrics: { undoCount: 0, errorCount: 1, guessCount: 1 }, sentence: ENCOURAGEMENT_SENTENCES_HE.fewMistakes },
+    { name: 'מדד 75', metrics: { undoCount: 9, errorCount: 2, guessCount: 1 }, sentence: ENCOURAGEMENT_SENTENCES_HE.selfCorrecting },
+    { name: 'מדד 50', metrics: { undoCount: 3, errorCount: 2, guessCount: 1 }, sentence: ENCOURAGEMENT_SENTENCES_HE.persevering },
+    { name: 'מדד 0', metrics: { undoCount: 0, errorCount: 3, guessCount: 2 }, sentence: ENCOURAGEMENT_SENTENCES_HE.keepTrying },
+  ];
 
-  it('ההקראה אומרת את המשוב, ולא אחוז', () => {
-    toStep3();
-    const s = speech();
-    expect(s).toContain(REFLECTION_TEXT_HE.feedbackBody);
-    expect(s).not.toContain('אחוז');
-  });
+  for (const c of CASES) {
+    it(`${c.name}: המשפט שנבחר מוצג ומוקרא מילה במילה, בלי ספרה ובלי אחוז`, () => {
+      const { container } = toStep3(vi.fn(), c.metrics);
+      const text = visibleText(container);
+      const { title, body } = splitEncouragement(c.sentence);
+      expect(`${title} ${body}`).toBe(c.sentence);
+      expect(text).toContain(title);
+      expect(text).toContain(body);
+      for (const other of Object.values(ENCOURAGEMENT_SENTENCES_HE).filter((s) => s !== c.sentence)) {
+        expect(text).not.toContain(splitEncouragement(other).body);
+      }
+      const s = speech();
+      expect(s).toContain(c.sentence);
+      // The step label "שלב 3 מתוך 3" is the only digit on this stage: no score, no index.
+      const withoutStepLabel = text.replace(REFLECTION_TEXT_HE.stepLabel(3), '');
+      expect(withoutStepLabel).not.toMatch(/[0-9]/);
+      expect(text).not.toContain('%');
+      expect(text).not.toContain('מדד ההתמדה');
+      expect(s).not.toMatch(/[0-9%]/);
+      expect(s).not.toContain('אחוז');
+    });
+  }
 
   it('הנתונים שנשלחים בסיום לא השתנו', () => {
     const onComplete = vi.fn();

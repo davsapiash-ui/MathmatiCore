@@ -73,7 +73,7 @@ describe('ההשוואה בין מה שפורסם לקוד', () => {
     expect(f.changedBankIds).toEqual(['session_3_green_path']);
     const msg = freshnessMessageHe(f);
     expect(msg).toContain('הילדים ממשיכים לקבל את הגרסה שפורסמה');
-    expect(msg).toContain('מפגש 3 — מסלול ירוק');
+    expect(msg).toContain('מפגש 3 · בונים מספרים בכמה דרכים — המסלול הירוק');
   });
 
   it('מאגר שקיים בקוד ולא פורסם, ומאגר שפורסם ואינו בקוד — שניהם פער', () => {
@@ -104,8 +104,8 @@ describe('ההשוואה בין מה שפורסם לקוד', () => {
   });
 
   it('שמות המאגרים מוצגים בעברית', () => {
-    expect(bankLabelHe('session_1')).toBe('מפגש 1');
-    expect(bankLabelHe('session_4_remediation_path')).toBe('מפגש 4 — מסלול ביסוס');
+    expect(bankLabelHe('session_1')).toBe('מפגש 1 · ארגז החול');
+    expect(bankLabelHe('session_4_remediation_path')).toBe('מפגש 4 · חיבור במאונך עם הקבצה — מסלול צמצום פערי קדם');
     expect(bankLabelHe('לא_מזוהה')).toBe('לא_מזוהה');
   });
 });

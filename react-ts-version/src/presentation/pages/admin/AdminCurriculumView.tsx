@@ -19,6 +19,7 @@ import { getSessionBranchTasks } from "@/data/sessionBranchTasks";
 import { DEFAULT_HESITATION_THRESHOLD_SECONDS } from "@/core/hesitationCalibration";
 import { compareCatalog, freshnessMessageHe, type CatalogFreshness } from "@/core/catalogFreshness";
 import { MEETING_NUMBERS, meetingLabelHe, type MeetingNumber } from "@/core/stationNames";
+import { ROUTE_NAME_HE } from "@/core/routeLabels";
 
 interface PathBank {
   label: string;
@@ -81,7 +82,7 @@ export function buildSessionCatalog(): SessionCurriculumItem[] {
   for (const n of [3, 4, 5, 6, 7, 8] as const) {
     const byPath = SESSIONS_BY_PATH[n];
     const banks: PathBank[] = (["green_path", "remediation_path"] as const).map((path) => ({
-      label: path === "green_path" ? "מסלול ירוק (עד 10,000)" : "מסלול ביסוס (עד 1,000)",
+      label: path === "green_path" ? `${ROUTE_NAME_HE.green_path} (עד 10,000)` : `${ROUTE_NAME_HE.remediation_path} (עד 1,000)`,
       compulsory: titles((byPath?.[path] ?? []) as SessionTask[]),
       reinforcement: titles(getSessionBranchTasks(n, "reinforcement", path)),
       challenge: titles(getSessionBranchTasks(n, "challenge", path)),
@@ -398,7 +399,7 @@ export function AdminCurriculumView() {
               כיול הרדאר הפדגוגי השקט (Trace Data Calibration)
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              הגדרת סף הרגישות שבו הרדאר של המורה מסמן מאבק קוגניטיבי סמוי במהלך עבודת התלמיד
+              הגדרת סף הרגישות שבו הרדאר של המורה מסמן קושי סמוי במהלך עבודת התלמיד
             </p>
           </div>
 
@@ -421,7 +422,7 @@ export function AdminCurriculumView() {
                 className="w-full accent-indigo-600 h-2 bg-slate-200 dark:bg-slate-800 rounded-lg cursor-pointer" 
               />
               <p className="text-xs text-slate-500 leading-relaxed">
-                משך הזמן (בשניות) שבו הלומד משתהה ללא פעולה במרחב הלמידה, בטרם הריבוע שלו נצבע בצהוב ברדאר של המורה.
+                משך הזמן (בשניות) שבו הלומד משתהה ללא פעולה במרחב הלמידה, בטרם הריבוע שלו מסמן היסוס ברדאר של המורה.
               </p>
               <p className="text-xs text-amber-700 dark:text-amber-400 leading-relaxed font-semibold">
                 הסף הזה נוגע לרדאר של המורה בלבד. כרטיס החניכה שהלומד מקבל קבוע על 45 שניות לפי האפיון, ואינו זז עם הסליידר.

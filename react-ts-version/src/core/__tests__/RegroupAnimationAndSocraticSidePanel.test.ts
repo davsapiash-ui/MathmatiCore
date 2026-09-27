@@ -275,7 +275,7 @@ describe('The Socratic card is a side panel beside the work (מסמך 03 / 04 §
 
     const panel = screen.getByTestId('socratic-side-panel');
     expect(panel.className).not.toMatch(/\b(fixed|absolute)\b/);
-    const card = within(panel).getByRole('region', { name: 'חונך דיגיטלי סוקרטי' });
+    const card = within(panel).getByRole('region', { name: 'כרטיס החניכה' });
     expect(within(card).getByRole('button', { name: 'הקרא טקסט בקול' })).toBeDefined();
 
     act(() => { ws().triggerSocraticPenaltyLockout('רמז'); });

@@ -62,15 +62,33 @@ describe('מפגש 2 — האבחון מסתיים בהמתנה לאישור ה�
 
   it('המסך שמחכה ללומד אחרי האבחון הוא מסך ההמתנה, כל עוד השער לא אושר', () => {
     const page = src('features/workspace/StudentWorkspacePage.tsx');
-    expect(page).toContain("flowStatus === 'sessionDone' && sessionNumber === 2 && !isGateApproved");
+    expect(page).toContain("endScreen === 'sessionDone' && sessionNumber === 2 && !isGateApproved");
     expect(page).toContain('<BeeFlightWaitingScreen');
   });
 
-  it('המסך של מפגש 8 הוא זה שמרונדר כשמגיעים לרפלקציה', () => {
+  it('המסך של מפגש 8 הוא זה שמרונדר כשמגיעים לרפלקציה — ורק במפגש 8', () => {
     const page = src('features/workspace/StudentWorkspacePage.tsx');
-    const block = page.slice(page.indexOf("if (flowStatus === 'reflection')"), page.indexOf("flowStatus === 'sessionDone' && sessionNumber === 2"));
-    expect(block).toContain('sessionNumber === 8');
+    // החלטת בעל המוצר E2 (27.9.2026): לוח רפלקציה רק במפגש 8. 'reflection'
+    // במפגש אחר (תמונת מצב ישנה) מוצג כמפגש שהסתיים.
+    expect(page).toContain("const endScreen = flowStatus === 'reflection' && sessionNumber !== 8 ? 'sessionDone' : flowStatus;");
+    const block = page.slice(page.indexOf("if (endScreen === 'reflection')"), page.indexOf("endScreen === 'sessionDone' && sessionNumber === 2"));
     expect(block).toContain('<Session8ReflectionScreen');
+    expect(page).not.toContain('<ReflectionScreen');
+  });
+
+  it('לוח הרפלקציה הישן של "כל מפגש" הוסר: איש לא הגיע אליו, והוא דרס את מיפוי האבחון ואת שער המורה', () => {
+    let exists = true;
+    try { src('features/workspace/ReflectionScreen.tsx'); } catch { exists = false; }
+    expect(exists).toBe(false);
+  });
+
+  it('תמונת מצב ישנה של "רפלקציה" במפגש אחר נפתחת כמפגש שהסתיים', () => {
+    useAuthStore.setState({ user: { uid: STUDENT, name: 'user12' } as any, role: 'student', isAuthenticated: true });
+    useWorkspaceStore.getState().resetWorkspace();
+    useWorkspaceStore.getState().restoreSession({ sessionNumber: 5, flowStatus: 'reflection', standardTaskIdx: 7 });
+    expect(useWorkspaceStore.getState().flowStatus).toBe('sessionDone');
+    useWorkspaceStore.getState().restoreSession({ sessionNumber: 8, flowStatus: 'reflection', standardTaskIdx: 7 });
+    expect(useWorkspaceStore.getState().flowStatus).toBe('reflection');
   });
 });
 

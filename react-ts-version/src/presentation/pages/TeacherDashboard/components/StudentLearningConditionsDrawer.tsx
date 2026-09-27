@@ -208,7 +208,7 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
             <button 
               onClick={onClose}
               className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
-              title="סגור חלון"
+              title="סגרו את החלון"
             >
               <X className="w-5 h-5" />
             </button>
@@ -232,7 +232,7 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
               ) : (
                 <Check className="w-3.5 h-3.5" />
               )}
-              <span>{isClearingHelp ? 'מעדכן...' : 'סמן כטופל'}</span>
+              <span>{isClearingHelp ? 'מעדכן...' : 'סמנו כטופל'}</span>
             </button>
           </div>
         )}
@@ -364,7 +364,7 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
               className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md shadow-indigo-600/20 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 active:scale-95"
             >
               <Check className="w-4 h-4" />
-              <span>{isSaving ? 'שומר שינויים...' : 'שמור תנאי למידה'}</span>
+              <span>{isSaving ? 'שומר שינויים...' : 'שמרו את תנאי הלמידה'}</span>
             </button>
           </div>
         </div>

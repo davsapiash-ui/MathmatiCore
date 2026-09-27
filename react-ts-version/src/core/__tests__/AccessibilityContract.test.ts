@@ -124,10 +124,10 @@ describe('מסמך העיצוב §1.1 — אף פעם לא צבע בלבד', () 
 });
 
 describe('כפתור מושבת אומר מה חסר', () => {
-  it('סיום הרפלקציה מסביר לילד מה נשאר לבחור', () => {
-    const reflection = read('src/features/workspace/ReflectionScreen.tsx');
-    expect(reflection).toContain('נשאר לבחור כמה השתדלתם היום');
-    expect(reflection).toContain('נשאר לסמן לפחות כלי אחד שעזר לכם');
+  it('הלוח הישן שהסביר מה נשאר לבחור הוסר — לוח הרפלקציה הוא של מפגש 8 בלבד (החלטת בעל המוצר E2, 27.9.2026)', () => {
+    let exists = true;
+    try { read('src/features/workspace/ReflectionScreen.tsx'); } catch { exists = false; }
+    expect(exists).toBe(false);
   });
 
   it('נעילת חלונית החניכה מסבירה למה, כמה זמן, ומה כן אפשר לעשות', () => {

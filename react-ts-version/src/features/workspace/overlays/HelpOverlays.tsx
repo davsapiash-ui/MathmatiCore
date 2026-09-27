@@ -167,7 +167,7 @@ export function SocraticSidePanel() {
                  slides out. Scrolls inside itself on a short screen. */
               className="pointer-events-auto h-full w-[260px] xl:w-[280px] 2xl:w-[340px] bg-ws-surface rounded-3xl shadow-lg border-2 border-indigo-200 dark:border-indigo-800/80 p-5 overflow-y-auto"
               role="region"
-              aria-label="חונך דיגיטלי סוקרטי"
+              aria-label="כרטיס החניכה"
               data-testid="socratic-card"
             >
               {/* The panel is narrow, so the question gets its own full-width

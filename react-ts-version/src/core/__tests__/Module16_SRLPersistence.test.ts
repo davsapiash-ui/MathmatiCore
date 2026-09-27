@@ -38,11 +38,11 @@ describe('הרפלקציה נשמרת, ולא לשדה של מישהו אחר', 
     expect(screen).not.toContain("onComplete(effortLevel || 'MEDIUM')");
   });
 
-  it('רפלקציית מפגש 2 נכתבת במזהה שהחוקים מתירים ללומד', () => {
-    // push() מייצר מפתח אקראי, ולכן כל כתיבה לצומת המשותף נדחתה בשקט.
-    const reflection = src('features/workspace/ReflectionScreen.tsx');
-    expect(reflection).toContain('reflections/reflection_02_student_${studentNumber}');
-    expect(reflection).not.toContain("push(ref(database, 'reflections')");
+  it('אין רפלקציה מחוץ למפגש 8: לוח "כל מפגש" הישן הוסר (החלטת בעל המוצר E2, 27.9.2026)', () => {
+    // הוא נשמר רק מתמונת מצב ישנה, ודרס את מיפוי האבחון ואת שער המורה.
+    let exists = true;
+    try { src('features/workspace/ReflectionScreen.tsx'); } catch { exists = false; }
+    expect(exists).toBe(false);
   });
 });
 

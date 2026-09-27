@@ -111,7 +111,7 @@ export function PlaceValueBoard({
           exit={{ opacity: 0, width: 0, flex: '0 0 0%' }}
           transition={{ duration: 0.25, ease: 'easeInOut' }}
           className="flex flex-col gap-3 overflow-hidden h-full max-h-full min-w-0 w-full"
-          aria-label="טבלת ערך המקום"
+          aria-label="בית המספרים"
         >
           <div
             id="tour-place-value-board"

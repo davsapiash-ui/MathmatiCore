@@ -57,7 +57,7 @@ describe('Module 24 — research export covers the whole process', () => {
   });
 
   it('keeps the PII gate, the class scope and the audit entry', () => {
-    expect(exportSection).toContain('ייצוא נתוני המחקר נדחה: זוהה מידע מזהה (PII).');
+    expect(exportSection).toContain('ייצוא נתוני המחקר נדחה: זוהו פרטים מזהים.');
     expect(exportSection).toMatch(/callerClassId !== class_id/);
     expect(exportSection).toMatch(/reset_level: "export",/);
   });

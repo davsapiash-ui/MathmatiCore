@@ -1,6 +1,6 @@
 import { createPortal } from 'react-dom';
 import { useDismissableOverlay } from '@/hooks/useDismissableOverlay';
-import { meetingLabelHe } from '@/core/stationNames';
+import { meetingLabelHe, meetingShortLabelHe } from '@/core/stationNames';
 
 /**
  * PRD v7.1 Module 14 §ב0 — Session Activation.
@@ -72,10 +72,10 @@ export function SessionActivationModal({ isOpen, sessionNumber, sessions, isStar
             <ul className="text-sm text-slate-700 dark:text-slate-300 space-y-2 list-disc pr-5">
               {currentlyActive && (
                 <li className="text-amber-700 dark:text-amber-400">
-                  מפגש {currentlyActive.sessionNumber} הפעיל כעת ייסגר, וכל הלומדים יעברו למפגש {sessionNumber} מיד.
+                  המפגש הפעיל כעת, {meetingShortLabelHe(currentlyActive.sessionNumber)}, ייסגר, וכל הלומדים יעברו מיד ל{meetingShortLabelHe(sessionNumber)}.
                 </li>
               )}
-              <li>המפגש יישאר פעיל עד שתפתחי מפגש אחר.</li>
+              <li>המפגש יישאר פעיל עד שתפתחו מפגש אחר.</li>
               {isReopen && (
                 <li className="text-emerald-700 dark:text-emerald-400">
                   מפגש זה כבר הושלם. חזרה אליו אפשרית ומותרת, ואינה מוחקת נתונים קיימים.

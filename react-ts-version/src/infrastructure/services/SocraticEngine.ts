@@ -124,6 +124,8 @@ const FORBIDDEN_TERMS_HE = [
   'הלוואה', 'ללוות', 'לווים', 'נלווה', 'להלוות',
   'נשיאה', 'נושאים', 'לשאת',
   'אבקוס', 'חשבונייה', 'מקלות', 'חרוזים', 'אצבעות', 'מטבעות', 'גפרורים', 'קשיות',
+  // One name per component (owner, 27.9.2026, register ט).
+  'קובי', 'בלוק', 'לוח הדינס', 'לוח הלבנים', 'קנבס',
 ];
 
 /**
@@ -230,9 +232,9 @@ const TASK_HINTS: Record<string, SocraticHintResponse> = {
     suggested_highlight: "tour-place-value-board",
     questionHe: "בואו נסתכל על רשימת המשימות. מה עוד נשאר לעשות כדי לעבור לשלב הבא?",
     choices: [
-      { id: "1", textHe: "לגרור עוד לבנים לטורים ולצפות בספרות בלוח בית המספרים", isCorrect: true, feedbackHe: "בדיוק! כל לבנה שגוררים משנה את הספרה בטור שלה." },
+      { id: "1", textHe: "לגרור עוד לבנים לטורים ולצפות בספרות בבית המספרים", isCorrect: true, feedbackHe: "בדיוק! כל לבנה שגוררים משנה את הספרה בטור שלה." },
       { id: "2", textHe: "לקבץ 10 עשרות ולהמיר אותן למאה אחת", isCorrect: false, feedbackHe: "זה נכון מבחינה מתמטית, אבל כרגע אנחנו מכירים את הכלים ולא פותרים תרגיל." },
-      { id: "3", textHe: "לכתוב מספר בשורת התוצאה", isCorrect: false, feedbackHe: "במשימה הזו לא כותבים. גוררים לבנים ומסתכלים על לוח בית המספרים." }
+      { id: "3", textHe: "לכתוב מספר בשורת התוצאה", isCorrect: false, feedbackHe: "במשימה הזו לא כותבים. גוררים לבנים ומסתכלים על בית המספרים." }
     ],
     correctChoiceId: "1"
   },
@@ -475,11 +477,11 @@ const NODE_HINTS: Record<string, SocraticHintResponse> = {
   },
   procedural_fluency: {
     pedagogical_intent: "procedural",
-    tts_text: "עבדו טור טור מימין לשמאל — אל תשכחו לרשום שארית.",
+    tts_text: "עבדו טור טור מימין לשמאל, ואל תשכחו לרשום את ההמרה בעיגול הזיכרון.",
     suggested_highlight: "tour-column-units",
     questionHe: "מה הסדר הנכון בחיבור במאונך?",
     choices: [
-      { id: "opt_1", textHe: "מתחילים מיחידות, עוברים לעשרות, מאות — ורושמים שאריות" },
+      { id: "opt_1", textHe: "מתחילים מהיחידות, עוברים לעשרות ואחר כך למאות, ורושמים כל המרה בעיגול הזיכרון" },
       { id: "opt_2", textHe: "מתחילים מהמספר הגדול" },
       { id: "opt_3", textHe: "אין חשיבות לסדר" }
     ],
@@ -513,9 +515,9 @@ const NODE_HINTS: Record<string, SocraticHintResponse> = {
     pedagogical_intent: "conceptual",
     tts_text: "אם יודעים מה נשאר — נחסר אותו מהמספר המקורי כדי לגלות מה חסרנו.",
     suggested_highlight: "tour-place-value-board",
-    questionHe: "כיצד מוצאים את הספרה החסרה בחיסור?",
+    questionHe: "כיצד מוצאים את המספר שחיסרנו?",
     choices: [
-      { id: "opt_1", textHe: "תוצאה - מה שנשאר = הספרה שחסרנו" },
+      { id: "opt_1", textHe: "מהמספר שממנו מחסרים מורידים את התוצאה, ומקבלים את המספר שחיסרנו" },
       { id: "opt_2", textHe: "מנחשים" },
       { id: "opt_3", textHe: "אי אפשר למצוא" }
     ],
@@ -523,11 +525,11 @@ const NODE_HINTS: Record<string, SocraticHintResponse> = {
   },
   missing_addend: {
     pedagogical_intent: "conceptual",
-    tts_text: "מחוברים + מחוברים = סכום. אם חסר מחוברים, אפשר לחסר מהסכום.",
+    tts_text: "מחובר ועוד מחובר שווה סכום. אם חסר מחובר, מחסרים מהסכום את המחובר הידוע.",
     suggested_highlight: "tour-place-value-board",
-    questionHe: "כיצד מוצאים מחוברים חסר?",
+    questionHe: "כיצד מוצאים מחובר חסר?",
     choices: [
-      { id: "opt_1", textHe: "סכום - מחוברים ידוע = מחוברים חסר" },
+      { id: "opt_1", textHe: "מהסכום מחסרים את המחובר הידוע, ומקבלים את המחובר החסר" },
       { id: "opt_2", textHe: "מנחשים" },
       { id: "opt_3", textHe: "מחברים את כל המספרים" }
     ],
@@ -701,7 +703,7 @@ export class SocraticEngine {
             id: "opt_2", 
             textHe: "נשאיר 10 מאות באותו הטור", 
             isCorrect: false, 
-            feedbackHe: "רמז: כל טור יכול להכיל לכל היותר 9 לבנים." 
+            feedbackHe: "רמז: בסוף התרגיל נשארות בכל טור לכל היותר 9 לבנים, כי 10 לבנים יוצרות לבנה אחת בטור השמאלי." 
           },
           { 
             id: "opt_3", 

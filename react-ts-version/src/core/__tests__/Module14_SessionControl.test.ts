@@ -66,9 +66,9 @@ describe('Module 14 — teacher controls', () => {
     expect(teacher).toMatch(/const handlePauseClassSession = async \(\) => \{[\s\S]*?update\(ref\(database, 'active_class_session'\), \{ status: 'paused', pausedAt: Date\.now\(\) \}\)/);
     expect(teacher).toMatch(/const handleResumeClassSession = async \(\) => \{[\s\S]*?update\(ref\(database, 'active_class_session'\), \{ status: 'active', pausedAt: null/);
     expect(teacher).toMatch(/status: 'closed',\s*sessionNumber: null,\s*endedAt: Date\.now\(\)/);
-    expect(teacher).toContain('<span>עצור מפגש</span>');
-    expect(teacher).toContain('<span>המשך מפגש</span>');
-    expect(teacher).toContain('<span>סגור מפגש</span>');
+    expect(teacher).toContain('<span>עצרו את המפגש</span>');
+    expect(teacher).toContain('<span>המשיכו את המפגש</span>');
+    expect(teacher).toContain('<span>סגרו את המפגש</span>');
   });
 
   it('starting a meeting stamps status active', () => {

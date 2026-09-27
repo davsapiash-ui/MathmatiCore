@@ -22,7 +22,8 @@ import {
   type MeetingReport,
   type RecordingSession,
 } from '@/infrastructure/services/LearnerJourneyService';
-import { STATION_NAMES_HE, meetingLabelHe } from '@/core/stationNames';
+import { STATION_NAMES_HE, meetingShortLabelHe } from '@/core/stationNames';
+import { MEETING_FORMAL_HE, meetingFullLabelHe } from '@/core/meetingFormalNames';
 
 interface Props {
   studentId: string;
@@ -284,13 +285,16 @@ export function LearnerJourney({ studentId }: Props) {
                     : 'bg-ws-bg border-ws-surface2 opacity-60'
               }`}
               aria-pressed={selected}
-              title={meetingLabelHe(n)}
+              title={meetingFullLabelHe(n)}
             >
               {/* The station name the children see (owner, 27.9.2026), from
-                  the same source as their lobby card. */}
+                  the same source as their lobby card, and under it the
+                  meeting's formal subject (document 03 §2) — the teacher keeps
+                  both. */}
               <div className="text-[11px] font-black text-ws-soft">מפגש {n}</div>
               <div className="text-[10px] font-bold text-ws-soft">אצל התלמידים:</div>
               <div className="text-xs font-bold text-ws-ink leading-snug">{STATION_NAMES_HE[n]}</div>
+              <div className="text-[10px] text-ws-soft leading-snug mt-0.5">{MEETING_FORMAL_HE[n]}</div>
               {hasData ? (
                 <div className="mt-1.5 text-[11px] text-ws-soft space-y-0.5">
                   {Number.isFinite(firstTs) && <div>{formatDate(firstTs)}</div>}
@@ -314,7 +318,7 @@ export function LearnerJourney({ studentId }: Props) {
           {/* Exercise chapters */}
           {exerciseIds.length > 0 && (
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[11px] font-black text-ws-soft">תרגילים במפגש {selectedSession}:</span>
+              <span className="text-[11px] font-black text-ws-soft">תרגילים ב{meetingShortLabelHe(selectedSession)}:</span>
               <button
                 type="button"
                 onClick={() => setSelectedExercise(null)}
@@ -351,7 +355,7 @@ export function LearnerJourney({ studentId }: Props) {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-sm font-black text-ws-ink">
                 <Sparkles className="w-4 h-4 text-amber-500" />
-                דוח תובנות פדגוגיות · מפגש {selectedSession}
+                דוח תובנות פדגוגיות · {meetingShortLabelHe(selectedSession)}
                 {report?.generatedAt && (
                   <span className="text-[11px] font-bold text-ws-soft">הופק {formatDate(report.generatedAt)} {formatClock(report.generatedAt)}</span>
                 )}
@@ -365,7 +369,7 @@ export function LearnerJourney({ studentId }: Props) {
                     className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border border-ws-surface2 bg-ws-bg text-ws-ink hover:border-ws-accent/40 cursor-pointer disabled:opacity-50"
                   >
                     {reportState === 'opening' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />}
-                    פתח PDF
+                    פתחו PDF
                   </button>
                 )}
                 <button
@@ -376,7 +380,7 @@ export function LearnerJourney({ studentId }: Props) {
                   className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {reportState === 'generating' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-amber-300" />}
-                  {reportState === 'generating' ? 'הדוח בעיבוד… (כ-20 שניות)' : report ? 'הפק מחדש' : `הפק דוח למפגש ${selectedSession}`}
+                  {reportState === 'generating' ? 'הדוח בעיבוד… (כ-20 שניות)' : report ? 'הפיקו מחדש' : `הפיקו דוח למפגש ${selectedSession}`}
                 </button>
               </div>
             </div>
@@ -411,7 +415,7 @@ export function LearnerJourney({ studentId }: Props) {
                       </div>
                       {report.sandbox.outdated ? (
                         <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-950 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-100">
-                          דוח זה הופק לפני שנוסף לו פירוט הכלים ותרגילי הריענון. לחצו "הפק מחדש" כדי לראות אותם.
+                          דוח זה הופק לפני שנוסף לו פירוט הכלים ותרגילי הריענון. לחצו "הפיקו מחדש" כדי לראות אותם.
                         </div>
                       ) : (
                         <>
@@ -518,7 +522,7 @@ export function LearnerJourney({ studentId }: Props) {
               <div className="px-4 py-3 border-b border-ws-surface2 flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm font-black text-ws-ink">
                   <ListOrdered className="w-4 h-4 text-ws-accent" />
-                  ציר ההחלטות · מפגש {selectedSession}
+                  ציר ההחלטות · {meetingShortLabelHe(selectedSession)}
                 </div>
                 <span className="text-[11px] text-ws-soft">{visibleEvents.length} פעולות</span>
               </div>
@@ -576,7 +580,7 @@ export function LearnerJourney({ studentId }: Props) {
                     to have. Hence no camera icon and no English "chunks". */}
                 <span className="font-black flex items-center gap-1.5">
                   <MonitorPlay className="w-4 h-4 text-indigo-300" aria-hidden="true" />
-                  שחזור מסך העבודה, ללא קול · מפגש {selectedSession}
+                  שחזור מסך העבודה, ללא קול · {meetingShortLabelHe(selectedSession)}
                 </span>
                 <span className="text-slate-400">
                   {sessionRecordings.length > 0 ? `${sessionRecordings.reduce((s, r) => s + r.chunkCount, 0)} מקטעי הקלטה` : ''}

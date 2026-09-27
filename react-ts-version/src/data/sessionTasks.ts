@@ -149,7 +149,7 @@ export const SESSION1_TASKS: SessionTask[] = [
     id: 's1_sandbox_controlled',
     type: 'session1_intro',
     titleHe: 'חקירה וירטואלית חופשית',
-    instructionHe: 'ברוכים הבאים לסביבת הלמידה מתמטיקאור! שחקו וחקרו בחופשיות בתחנה אחת הכרות עם המערכת שלנו.\nגררו לבנים לטורים משמאל וצפו בספרות המשתנות בלוח בית המספרים!',
+    instructionHe: 'ברוכים הבאים לסביבת הלמידה מתמטיקאור! שחקו וחקרו בחופשיות בתחנה אחת הכרות עם המערכת שלנו.\nגררו לבנים לטורים משמאל וצפו בספרות המשתנות בבית המספרים!',
     correctAnswer: 'proceed_any',
     scaffoldLevel: 0,
   },
@@ -160,7 +160,7 @@ export const SESSION1_TASKS: SessionTask[] = [
     id: 's1_decompose_hundred',
     type: 'session1_intro',
     titleHe: 'פירוק והרכבה',
-    instructionHe: 'לחצו על לבנה כדי לפרק אותה לחלקים קטנים יותר ועקבו אחר השינוי בלוח בית המספרים.',
+    instructionHe: 'לחצו על לבנה כדי לפרק אותה לחלקים קטנים יותר ועקבו אחר השינוי בבית המספרים.',
     correctAnswer: 'proceed_any',
     scaffoldLevel: 0,
     initialCounts: { hundreds: 2, tens: 3 },
@@ -170,7 +170,7 @@ export const SESSION1_TASKS: SessionTask[] = [
     id: 's1_build_305',
     type: 'session1_intro',
     titleHe: 'האפס כשומר מקום',
-    instructionHe: 'נסו לבנות את המספר 305 בלבני דינס ושימו לב לתפקיד של הספרה אפס בלוח בית המספרים הריק מעשרות.',
+    instructionHe: 'נסו לבנות את המספר 305 בלבני דינס ושימו לב לתפקיד של הספרה אפס בבית המספרים הריק מעשרות.',
     correctAnswer: 'proceed_any',
     scaffoldLevel: 0,
   },
@@ -198,7 +198,7 @@ export const SESSION1_TASKS: SessionTask[] = [
   // unit cubes wait on the board, and are grouped twice into tens.
   s1(representation('s1_r_group26', 26, { tens: 2, units: 6 },
     'המרה עצמאית בין עזרים וירטואליים',
-    'בטור היחידות יש 26 קוביות יחידה. קבצו כל 10 יחידות לעשרת אחת בעזרת כפתור הקבץ 10 שבראש הטור, וכתבו בשורת התוצאה כמה עשרות וכמה יחידות קיבלתם.'),
+    'בטור היחידות יש 26 לבני יחידה. קבצו כל 10 יחידות לעשרת אחת בעזרת כפתור הקבץ 10 שבראש הטור, וכתבו בשורת התוצאה כמה עשרות וכמה יחידות קיבלתם.'),
     { requiresGrouping: true, initialCounts: { units: 26 }, hideRequiredCounts: true }),
   // ★ chosen (owner, 24.9.2026). Mirrors task 6 (124 + 85) in structure with
   // other numbers: three digits plus two, no carry in the units, the tens sum
@@ -245,7 +245,7 @@ export const SESSION3_REMEDIATION_TASKS: SessionTask[] = [
     S3_NONSTANDARD('מאה אחת לעשר עשרות', '340', '2 מאות ו-14 עשרות')),
   representation('s3_r_t3', 450, { tens: 45 },
     'מעבר לייצוג לא סטנדרטי מלא',
-    'ייצגו את המספר 450 באמצעות עשרות בלבד: 45 עשרות על הלוח. בדקו התאמה ללוח בית המספרים וכתבו את המספר בשורת התוצאה!'),
+    'ייצגו את המספר 450 באמצעות עשרות בלבד: 45 עשרות על הלוח. בדקו התאמה לבית המספרים וכתבו את המספר בשורת התוצאה!'),
   representation('s3_r_t4', 85, { tens: 7, units: 15 },
     'פירוק עשרות ליחידות בתחום המאה',
     S3_NONSTANDARD('עשרת אחת לעשר יחידות', '85', '7 עשרות ו-15 יחידות')),
@@ -274,7 +274,7 @@ export const SESSION3_GREEN_TASKS: SessionTask[] = [
     S3_NONSTANDARD('לבנת אלף אחת לעשר מאות', '3,400', '2 אלפים ו-14 מאות')),
   representation('s3_g_t3', 4500, { hundreds: 45 },
     'מעבר לייצוג לא סטנדרטי מלא',
-    'ייצגו את המספר 4,500 באמצעות מאות בלבד: 45 מאות על הלוח. בדקו התאמה ללוח בית המספרים וכתבו את המספר בשורת התוצאה!'),
+    'ייצגו את המספר 4,500 באמצעות מאות בלבד: 45 מאות על הלוח. בדקו התאמה לבית המספרים וכתבו את המספר בשורת התוצאה!'),
   representation('s3_g_t4', 5230, { thousands: 4, hundreds: 11, tens: 13 },
     'פירוק מעורב רב שלבי',
     S3_NONSTANDARD('אלף אחד למאות ומאה אחת לעשרות', '5,230', '4 אלפים, 11 מאות ו-13 עשרות')),
@@ -499,7 +499,7 @@ export const SESSION7_GREEN_TASKS: SessionTask[] = [
   // ★ chosen.
   skeleton('s7_g_t7', 6752, 2827, true, { a: ['hundreds', 'units'] },
     'בעיית חקר של ספרות חסרות משולבות',
-    'בתרגיל 6,▢5▢ − 2,827 = 3,925 חסרות שתי ספרות של המחוסר המקורי. גלו אותן על סמך התוצאה ומניפולציה פעילה בלוח לבני הדינס, וכתבו אותן בתיבות הריקות.',
+    'בתרגיל 6,▢5▢ − 2,827 = 3,925 חסרות שתי ספרות של המחוסר המקורי. גלו אותן על סמך התוצאה ובעזרת הלבנים בבית המספרים, וכתבו אותן בתיבות הריקות.',
     INQUIRY),
 ];
 
@@ -607,7 +607,11 @@ export function getDynamicSocraticHint(
     const hasAnswer = Object.keys(answerDigits).length > 0;
     const hasCarry = Object.keys(carryDigits).length > 0;
     if (hasAnswer && !hasCarry) {
-      return `רשמתם ספרה בתשובה, אך האם ביצעתם המרה כלשהי? אם כן, איפה עלינו לרשום את השארית (הספרה שהעברנו) בראש התרגיל כדי לא לשכוח אותה?`;
+      // Owner, 27.9.2026: the carried digit is not a "שארית". In addition it
+      // is an המרה, in subtraction a פריטה — chosen by the exercise's operation.
+      return task?.isSubtraction
+        ? 'רשמתם ספרה בתשובה, אך האם ביצעתם פריטה? אם כן, איפה עלינו לרשום אותה בראש התרגיל כדי לא לשכוח?'
+        : 'רשמתם ספרה בתשובה, אך האם ביצעתם המרה? אם כן, איפה עלינו לרשום אותה בראש התרגיל כדי לא לשכוח?';
     }
   }
 

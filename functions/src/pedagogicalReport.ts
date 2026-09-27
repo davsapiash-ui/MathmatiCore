@@ -5,6 +5,8 @@ import * as admin from "firebase-admin";
 import * as path from "path";
 import * as fs from "fs";
 import { DRIVE_FOLDERS, resolveDriveFolder, uploadBufferToDrive } from "./exportDriveReport";
+import { meetingLabelHe } from "./stationNames";
+import { ROUTE_NAME_HE } from "./teacherLabels";
 import {
   DIAGNOSTIC_COMPULSORY_COUNT,
   computeFirstAttemptScore,
@@ -278,7 +280,7 @@ export function createPedagogicalReportPdfBufferWithPdfkit(report: Record<string
       } else {
         rtlText(doc, `מפגש: ${report.session_number}`, 260, cardY, { width: 110 });
         rtlText(doc, `ציון שליטה: ${report.score_percent}%`, 70, cardY, { width: 170 });
-        rtlText(doc, `מסלול מומלץ: ${report.matrix_recommended_path === 'green_path' ? 'מסלול העמקה (ירוק)' : 'מסלול ביסוס ומענה מותאם (צהוב)'}`, 55, cardY + 25, { width: 490 });
+        rtlText(doc, `מסלול מומלץ: ${report.matrix_recommended_path === 'green_path' ? ROUTE_NAME_HE.green_path : ROUTE_NAME_HE.remediation_path}`, 55, cardY + 25, { width: 490 });
       }
       doc.x = 40;
       doc.y = cardY + 60;
@@ -763,8 +765,8 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     session_id: sessionId,
     generated_at: Date.now(),
     title_he: scoredMeeting
-      ? `MathematiCore - דוח פדגוגי למפגש ${resolvedSessionNumber}`
-      : `MathematiCore - דוח היכרות וריענון, מפגש ${resolvedSessionNumber}`,
+      ? `MathematiCore - דוח פדגוגי · ${meetingLabelHe(resolvedSessionNumber)}`
+      : `MathematiCore - דוח היכרות וריענון · ${meetingLabelHe(resolvedSessionNumber)}`,
     anonymous_student_label: `תלמיד ${clampedStudentNum}`,
     student_id: clampedStudentNum,
     session_number: resolvedSessionNumber,
@@ -798,7 +800,7 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     exercise_titles: exerciseTitles,
     summary_text_he: score === null
       ? `דוח היכרות וריענון למפגש ${resolvedSessionNumber}, ללא ציון. כלים שעוד לא הופעלו: ${toolMastery && toolMastery.not_used.length > 0 ? toolMastery.not_used.map((t) => TOOL_LABEL_HE[t]).join(", ") : "אין"}.`
-      : `דוח פדגוגי למפגש ${resolvedSessionNumber}. ציון שליטה: ${score}%. מסלול מומלץ: ${score >= 50 ? 'העמקה (ירוק)' : 'ביסוס ומענה מותאם (צהוב - remediation_path)'}.`
+      : `דוח פדגוגי למפגש ${resolvedSessionNumber}. ציון שליטה: ${score}%. מסלול מומלץ: ${score >= 50 ? ROUTE_NAME_HE.green_path : ROUTE_NAME_HE.remediation_path}.`
   };
 
   // Render authoritative server-side PDF binary & Upload to Cloud Storage

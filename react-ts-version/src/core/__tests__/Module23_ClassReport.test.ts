@@ -88,7 +88,7 @@ describe('Module 23 — class report per meeting (teacher page)', () => {
   it('sits in the reports tab with a meeting selector 1–8', () => {
     expect(dashboard).toContain('<ClassMeetingReportPanel />');
     expect(panel).toContain('const SESSION_NUMBERS = [1, 2, 3, 4, 5, 6, 7, 8] as const;');
-    expect(panel).toContain('הפק דוח כיתה למפגש ${selectedSession}');
+    expect(panel).toContain('הפיקו דוח כיתה למפגש ${selectedSession}');
   });
 
   it('calls the deployed function and reads the stored document', () => {

@@ -130,7 +130,11 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
   const isLevel3 = resetLevel === 'system';
   const isLevel2 = resetLevel === 'single_student';
   const isFullStudent = isLevel2 && !isClassTarget && scope === 'full_student';
-  const meetingLabel = activeSessionNumber ? `מפגש ${activeSessionNumber}` : 'המפגש הנוכחי';
+  // The meeting under the name the children see (owner, 27.9.2026, register
+  // ט), wherever this window names it: the line under the heading, the list
+  // of what is deleted, the tick and the "… בלבד" choice.
+  const meetingLabel = activeSessionNumber ? meetingLabelHe(activeSessionNumber) : 'המפגש הנוכחי';
+  const inMeetingLabel = activeSessionNumber ? `ב${meetingLabelHe(activeSessionNumber)}` : 'במפגש הנוכחי';
 
   return createPortal(
     <div
@@ -159,13 +163,14 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
               {isLevel3
                 ? 'איפוס מערכת כולל (רמה 3)'
                 : isClassTarget
-                ? `איפוס ${meetingLabel} לכל הכיתה (רמה 2)`
+                ? 'איפוס המפגש הפתוח לכל הכיתה (רמה 2)'
                 : isLevel2
                 ? `איפוס לומד יחיד (רמה 2): ${targetStudentName || targetStudentId}`
                 : 'איפוס התראות רדאר (רמה 1)'}
             </h3>
-            {isLevel2 && activeSessionNumber ? (
-              // The meeting under the name the children see (owner, 27.9.2026).
+            {isLevel2 && !isFullStudent && activeSessionNumber ? (
+              // The one meeting this reset touches. A full reset of the learner
+              // touches all eight, so no single meeting is named for it.
               <p className="text-sm font-bold text-amber-700 dark:text-amber-300 mt-0.5">{meetingLabelHe(activeSessionNumber)}</p>
             ) : null}
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
@@ -189,8 +194,8 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
             {isClassTarget && (
               <>
                 <li className="text-amber-700 dark:text-amber-300 font-semibold">יבוצע גיבוי מלא של כל 12 הלומדים אל Google Drive לפני האיפוס.</li>
-                <li>יימחקו מצב מרחב העבודה וההתקדמות ב{meetingLabel} של כל 12 הלומדים.</li>
-                <li>כל הלומדים יוחזרו לתחילת {meetingLabel}. מפגשים קודמים, הקלטות והודעות צ'אט נשמרים.</li>
+                <li>יימחקו מצב מרחב העבודה וההתקדמות של כל 12 הלומדים {inMeetingLabel}.</li>
+                <li>כל הלומדים יוחזרו לתחילת המפגש. מפגשים קודמים, הקלטות והודעות צ'אט נשמרים.</li>
                 <li>המפגש של הכיתה נשאר פתוח, והשעון שלו ממשיך מהרגע שהופעל.</li>
                 <li>יירשם תיעוד בלתי-מחיק ביומן הביקורת reset_audit_log.</li>
               </>
@@ -198,8 +203,8 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
             {isLevel2 && !isClassTarget && !isFullStudent && (
               <>
                 <li className="text-amber-700 dark:text-amber-300 font-semibold">יבוצע גיבוי מלא של נתוני {targetStudentName || targetStudentId} אל Google Drive.</li>
-                <li>יימחקו מצב מרחב העבודה והתקדמות {meetingLabel} של לומד זה בלבד.</li>
-                <li>הלומד יוחזר לתחילת {meetingLabel}. מפגשים קודמים, הקלטות והודעות צ'אט נשמרים.</li>
+                <li>יימחקו מצב מרחב העבודה וההתקדמות של לומד זה בלבד {inMeetingLabel}.</li>
+                <li>הלומד יוחזר לתחילת המפגש. מפגשים קודמים, הקלטות והודעות צ'אט נשמרים.</li>
                 {!activeSessionNumber && <li>אין מפגש פתוח כרגע: יאופס המפגש שהלומד נמצא בו.</li>}
                 <li>יירשם תיעוד בלתי-מחיק ביומן הביקורת reset_audit_log.</li>
               </>
@@ -239,7 +244,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                   className="w-5 h-5 rounded text-amber-600 focus:ring-amber-500"
                 />
                 <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                  אני מאשר/ת לאפס את {meetingLabel} לכל 12 הלומדים.
+                  אני מאשר/ת לאפס לכל 12 הלומדים את {meetingLabel}.
                 </span>
               </label>
             )}
@@ -259,8 +264,8 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                       className="mt-0.5 w-4 h-4 text-amber-600 focus:ring-amber-500"
                     />
                     <span className="text-xs">
-                      <span className="block font-bold text-slate-800 dark:text-slate-200">{meetingLabel} בלבד (ברירת המחדל)</span>
-                      <span className="block text-slate-500 dark:text-slate-400">הלומד מתחיל את {meetingLabel} מההתחלה. כל שאר המפגשים נשמרים.</span>
+                      <span className="block font-bold text-slate-800 dark:text-slate-200">המפגש הזה בלבד (ברירת המחדל): {meetingLabel}</span>
+                      <span className="block text-slate-500 dark:text-slate-400">הלומד מתחיל את המפגש הזה מההתחלה. כל שאר המפגשים נשמרים.</span>
                     </span>
                   </label>
                   <label className={`flex items-start gap-3 cursor-pointer p-3 rounded-xl border transition-colors ${scope === 'full_student' ? 'border-red-400 bg-red-50/60 dark:bg-red-950/30' : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40'}`}>
@@ -322,7 +327,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
             <div className="p-4 rounded-2xl bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 text-sm">
               <p className="font-extrabold mb-1">⚠️ אישור כפול נדרש לאיפוס מערכת כולל</p>
               <p className="text-xs leading-relaxed">
-                פעולה זו תאפס את כל 12 הלומדים בכיתה. אנא אשר/י כי ברצונך להמשיך לאחר יצירת קובץ הגיבוי בדרייב.
+                פעולה זו תאפס את כל 12 הלומדים בכיתה. אנא אשרו שברצונכם להמשיך לאחר יצירת קובץ הגיבוי בדרייב.
               </p>
             </div>
 
@@ -369,11 +374,11 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                 <span>מבצע גיבוי ואיפוס...</span>
               </>
             ) : isLevel3 && step === 1 ? (
-              <span>המשך לשלב אישור סופי</span>
+              <span>המשיכו לשלב אישור סופי</span>
             ) : (
               <>
                 <Check className="w-4 h-4" />
-                <span>בצע איפוס מבוקר</span>
+                <span>בצעו איפוס מבוקר</span>
               </>
             )}
           </button>

@@ -117,7 +117,7 @@ describe('Module 21 — learner journey parsing (teacher side)', () => {
     expect(describeEvent({ ...base, eventType: 'HESITATION_DETECTED', columnIndex: 2, details: { hesitation_seconds: 45 } }))
       .toMatchObject({ detail: '45 שניות ללא פעולה בטור המאות', attention: true });
     expect(describeEvent({ ...base, eventType: 'SOCRATIC_CARD_SHOWN', details: { trigger_reason: 'conversion_not_performed', error_category: 'procedural' } }).detail)
-      .toBe('לא בוצעה המרה נדרשת · סיווג: רכיב');
+      .toBe('לא בוצעה המרה נדרשת · טעות בשלבי הפתרון');
   });
 });
 

@@ -63,7 +63,7 @@ describe('Module 23 — report for every meeting (teacher page)', () => {
   it('offers the report on the selected meeting, keyed by that meeting\'s telemetry session_id', () => {
     expect(journey).toMatch(/const meetingSessionId = sessionEvents\.length > 0 \? sessionEvents\[0\]\.sessionId : null;/);
     expect(journey).toMatch(/generateMeetingReport\(\{ studentNum, sessionNumber: selectedSession, sessionId: meetingSessionId \}\)/);
-    expect(journey).toContain('הפק דוח למפגש ${selectedSession}');
+    expect(journey).toContain('הפיקו דוח למפגש ${selectedSession}');
   });
 
   it('shows the PRD texts: processing fallback and AI-unavailable fallback', () => {

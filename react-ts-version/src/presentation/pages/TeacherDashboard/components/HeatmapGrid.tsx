@@ -23,6 +23,7 @@ import { resolveRadarColor, RADAR_CELL_CLASSES } from '@/core/radarColor';
 import { isClassSessionLive } from '@/core/classSession';
 import { meetingLabelHe, meetingShortLabelHe, stationNameHe } from '@/core/stationNames';
 import { getHesitationThresholdSeconds, useHesitationThresholdSeconds } from '@/core/hesitationCalibration';
+import { CARD_OPEN_HE, ERROR_CATEGORY_HE, ROUTE_APPROVE_HE, ROUTE_NAME_HE, TEACHER_GATE_HE, radarPathLabelHe } from '@/core/routeLabels';
 
 // Radar status color resolution lives in core/radarColor.ts (resolveRadarColor)
 // — the full BLUE > RED > GREY > YELLOW > GREEN priority actually rendered
@@ -34,13 +35,13 @@ export function getCognitiveGlyph(errorCategory: 'calculation' | 'procedural' | 
   if (!errorCategory) return null;
   const norm = String(errorCategory).toLowerCase().trim();
   if (norm === 'calculation' || norm === 'computational' || norm === 'facts' || norm === 'basic_facts') {
-    return { glyph: 'ח', title: 'שגיאת חישוב בסיסי (ח)' };
+    return { glyph: 'ח', title: `${ERROR_CATEGORY_HE.calculation} (ח)` };
   }
   if (norm === 'procedural' || norm === 'regrouping' || norm === 'algorithm' || norm === 'steps') {
-    return { glyph: 'ר', title: 'שגיאת מיומנות רכיב / אלגוריתם (ר)' };
+    return { glyph: 'ר', title: `${ERROR_CATEGORY_HE.procedural} (ר)` };
   }
   if (norm === 'conceptual' || norm === 'place_value' || norm === 'decimal_structure' || norm === 'structure') {
-    return { glyph: 'מ', title: 'שגיאת מבנה עשרוני / מושגי (מ)' };
+    return { glyph: 'מ', title: `${ERROR_CATEGORY_HE.conceptual} (מ)` };
   }
   return null;
 }
@@ -103,8 +104,8 @@ export function describeRadarCell(
   const parts: string[] = [`תלמיד ${student.studentNumber}`];
 
   if (student.helpRequested) parts.push('קורא לעזרה');
-  else if (student.isWaitingAtGate) parts.push('סיים אבחון וממתין לאישור מסלול למפגש 3');
-  else if (student.isSocraticActive) parts.push('כרטיס חניכה סוקרטי פעיל');
+  else if (student.isWaitingAtGate) parts.push(`סיים אבחון וממתין ב${TEACHER_GATE_HE}`);
+  else if (student.isSocraticActive) parts.push(CARD_OPEN_HE);
   else if (!student.isOnline) parts.push(student.lastAction === 'יצא מהחלון' ? 'יצא מהחלון' : 'לא מחובר');
   else if (!isSessionActive) parts.push('מחובר וממתין בלובי');
   else if (student.hesitationSeconds >= hesitationThresholdSeconds) {
@@ -250,7 +251,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
 
           let lastAction = 'לא מחובר';
           if (isOnline) {
-            lastAction = data.lastAction || (isSocraticActive ? 'כרטיס חניכה סוקרטי פעיל' : hesitationSeconds >= hesitationThreshold ? `היסוס מעל ${hesitationThreshold} שניות בטור הפעיל` : 'פעיל בלמידה');
+            lastAction = data.lastAction || (isSocraticActive ? CARD_OPEN_HE : hesitationSeconds >= hesitationThreshold ? `היסוס מעל ${hesitationThreshold} שניות בטור הפעיל` : 'פעיל בלמידה');
           } else {
             lastAction = hasJoinedSession ? 'יצא מהחלון' : 'לא מחובר';
           }
@@ -354,38 +355,38 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
       return {
         category: `עומס קוגניטיבי / השהייה מעל ${getHesitationThresholdSeconds()} שניות`,
         questions: [
-          'איזה צעד ראשון שקלת לבצע? מה גורם לך להתלבט בטור הפעיל?',
-          'איזה כלי עזר בלוח בית המספרים יכול לעזור לך להתחיל?',
-          'האם תרצה שנבדוק יחד דוגמה פשוטה יותר במספרים קטנים?'
+          'איזה צעד ראשון שקלתם לבצע? מה גורם לכם להתלבט בטור הפעיל?',
+          'איזה כלי עזר בבית המספרים יכול לעזור לכם להתחיל?',
+          'האם תרצו שנבדוק יחד דוגמה פשוטה יותר במספרים קטנים?'
         ]
       };
     }
     if (student.isSocraticActive) {
       return {
-        category: 'חניכה סוקרטית פעילה',
+        category: CARD_OPEN_HE,
         questions: [
           'התלמיד מתמודד עם שאלת חקר מנחה.',
           'מומלץ לאפשר לו לחשוב עצמאית לפני התערבות פרונטלית.',
-          'בדקי האם שאלת החונך מכוונת אותו למקור השגיאה.'
+          'בדקו האם השאלה בכרטיס החניכה מכוונת אותו למקור השגיאה.'
         ]
       };
     }
     if (student.currentPath === 'צמצום פערים') {
       return {
-        category: 'מסלול צמצום פערים - חיזוק תפיסת המבנה',
+        category: `${ROUTE_NAME_HE.remediation_path} - חיזוק תפיסת המבנה`,
         questions: [
           'מה מייצגת כל ספרה במספר הזה לפי עמודת הערך המקומי שלה?',
           'מה תפקיד הספרה 0 במספר? מה ישתנה אם נשמיט אותה?',
-          'איך ניתן לבדוק את התוצאה שקיבלת באמצעות חישוב הפוך?'
+          'איך ניתן לבדוק את התוצאה שקיבלתם באמצעות חישוב הפוך?'
         ]
       };
     }
     return {
-      category: 'שיח פדגוגי מעמיק (מסלול ירוק)',
+      category: `שיח פדגוגי מעמיק (${ROUTE_NAME_HE.green_path})`,
       questions: [
-        'איזו אסטרטגיה בחרת לפתרון הבעיה ומדוע היא יעילה בעיניך?',
+        'איזו אסטרטגיה בחרתם לפתרון הבעיה ומדוע היא יעילה בעיניכם?',
         'האם קיימת דרך נוספת להגיע לאותה התוצאה?',
-        'איך תוכל להסביר את תהליך הפתרון לחבר בכיתה?'
+        'איך תוכלו להסביר את תהליך הפתרון לחבר בכיתה?'
       ]
     };
   };
@@ -455,10 +456,10 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
       useStore.getState().approveRoute(`student_${num}`);
       useStore.getState().approveRoute(num);
 
-      toast.success(`✓ מסלול ${path} אושר עבור תלמיד ${num}! השער למפגש 3 נפתח.`);
+      toast.success(`✓ ${radarPathLabelHe(path)} אושר עבור תלמיד ${num}! ${TEACHER_GATE_HE} למפגש 3 נפתח.`);
     } catch (err) {
       console.error('Failed to approve gate:', err);
-      toast.error('שגיאה באישור שער המעבר');
+      toast.error(`שגיאה ב${TEACHER_GATE_HE}`);
     } finally {
       approvingStudentIdRef.current = null;
       setApprovingStudentId(null);
@@ -543,7 +544,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
             </div>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            מרכז בקרה אחוד. עדכוני צבע בלבד ללא הפרעה לתלמיד. לחץ על משבצת לצפייה בלוח, בהקלטות ובאישור שערים.
+            מרכז בקרה אחוד. עדכוני צבע בלבד ללא הפרעה לתלמיד. לחצו על משבצת לצפייה בלוח, בהקלטות וב{TEACHER_GATE_HE}.
           </p>
         </div>
 
@@ -563,7 +564,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-3 h-3 rounded-full bg-rose-500 shadow-sm" />
-            <span>כרטיס סוקרטי</span>
+            <span>{CARD_OPEN_HE}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-3 h-3 rounded-full bg-slate-300 dark:bg-slate-600 shadow-sm" />
@@ -581,8 +582,8 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
               <span className="font-extrabold text-sm text-amber-950 dark:text-amber-100 flex items-center gap-2">
                 <DoorOpen className="w-4 h-4 text-amber-600" />
                 {pendingGateStudents.length === 1 
-                  ? `תלמיד ${pendingGateStudents[0].studentNumber} סיים את שלב האבחון וממתין לאישור מסלול למפגש 3`
-                  : `${pendingGateStudents.length} תלמידים סיימו את שלב האבחון וממתינים לאישור מסלול למפגש 3`}
+                  ? `תלמיד ${pendingGateStudents[0].studentNumber} סיים את שלב האבחון וממתין ב${TEACHER_GATE_HE} למפגש 3`
+                  : `${pendingGateStudents.length} תלמידים סיימו את שלב האבחון וממתינים ב${TEACHER_GATE_HE} למפגש 3`}
               </span>
             </div>
             <div className="flex items-center gap-2.5 flex-wrap">
@@ -591,14 +592,14 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                 return (
                   <div key={st.id} className="flex items-center gap-2 bg-white dark:bg-slate-900 px-3 py-2.5 min-h-11 rounded-xl border border-amber-200 dark:border-amber-800 shadow-xs">
                     <span className="font-extrabold text-xs text-slate-800 dark:text-slate-200">תלמיד {st.studentNumber}</span>
-                    <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">המלצה: {st.recommendedPath}</span>
+                    <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">המלצה: {radarPathLabelHe(st.recommendedPath)}</span>
                     <button
                       onClick={() => handleApproveGate(st.id, 'ירוק')}
                       disabled={Boolean(approvingStudentId)}
                       className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
                     >
                       {isApprovingThis && <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-                      <span>אשר ירוק</span>
+                      <span>{ROUTE_APPROVE_HE.green_path}</span>
                     </button>
                     <button
                       onClick={() => handleApproveGate(st.id, 'צמצום פערים')}
@@ -606,7 +607,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                       className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
                     >
                       {isApprovingThis && <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-                      <span>אשר צמצום</span>
+                      <span>{ROUTE_APPROVE_HE.remediation_path}</span>
                     </button>
                   </div>
                 );
@@ -677,14 +678,14 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                   
                   {/* Status Icon - Deterministic Precedence: GATE > SOCRATIC > OFFLINE > HESITATION > ONLINE/ACTIVE */}
                   {student.isWaitingAtGate ? (
-                    <span className="inline-flex items-center gap-1 bg-amber-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="ממתין לאישור מסלול למפגש 3">
+                    <span className="inline-flex items-center gap-1 bg-amber-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title={`ממתין ב${TEACHER_GATE_HE} למפגש 3`}>
                       <DoorOpen className="w-3 h-3" />
-                      שער מפגש 3
+                      {TEACHER_GATE_HE}
                     </span>
                   ) : student.isSocraticActive ? (
-                    <span className="inline-flex items-center gap-1 bg-rose-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="חניכה סוקרטית פעילה">
+                    <span className="inline-flex items-center gap-1 bg-rose-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title={CARD_OPEN_HE}>
                       <ShieldAlert className="w-3 h-3" />
-                      סוקרטי
+                      {CARD_OPEN_HE}
                     </span>
                   ) : !student.isOnline ? (
                     <span className="inline-flex items-center gap-1 bg-slate-400 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title={student.lastAction === 'יצא מהחלון' ? 'יצא מהחלון' : 'לא מחובר'}>
@@ -733,7 +734,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                       <div className="flex flex-wrap justify-between gap-1 text-[11px] font-bold">
                         <span title={meetingLabelHe(student.sessionNumber)}>{meetingShortLabelHe(student.sessionNumber)}</span>
                         <span className={`px-1.5 py-0.5 rounded-md text-[10px] ${student.currentPath === 'צמצום פערים' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200'}`}>
-                          {student.currentPath}
+                          {radarPathLabelHe(student.currentPath)}
                         </span>
                       </div>
                     </div>
@@ -747,13 +748,13 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                     {/* In-Card Quick Gate Approval Buttons */}
                     {student.isWaitingAtGate && (
                       <div className="mt-2 pt-2 border-t border-amber-300/80 dark:border-amber-700/80 flex items-center justify-between gap-1 z-10" onClick={e => e.stopPropagation()}>
-                        <span className="text-[10px] font-bold text-amber-900 dark:text-amber-200">{student.recommendedPath}</span>
+                        <span className="text-[10px] font-bold text-amber-900 dark:text-amber-200">{radarPathLabelHe(student.recommendedPath)}</span>
                         <div className="flex items-center gap-1">
                           <button
                             onClick={() => handleApproveGate(student.id, 'ירוק')}
                             disabled={Boolean(approvingStudentId)}
                             className="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded text-[10px] font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
-                            title="אשר מסלול ירוק"
+                            title={ROUTE_APPROVE_HE.green_path}
                           >
                             {approvingStudentId === student.id && <span className="w-2.5 h-2.5 border border-white border-t-transparent rounded-full animate-spin" />}
                             <span>ירוק</span>
@@ -762,10 +763,10 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                             onClick={() => handleApproveGate(student.id, 'צמצום פערים')}
                             disabled={Boolean(approvingStudentId)}
                             className="px-2 py-0.5 bg-amber-500 hover:bg-amber-600 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded text-[10px] font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
-                            title="אשר צמצום פערים"
+                            title={ROUTE_APPROVE_HE.remediation_path}
                           >
                             {approvingStudentId === student.id && <span className="w-2.5 h-2.5 border border-white border-t-transparent rounded-full animate-spin" />}
-                            <span>צמצום</span>
+                            <span>צמצום פערי קדם</span>
                           </button>
                         </div>
                       </div>
@@ -831,7 +832,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                   <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
                     <span className="text-xs text-slate-500 font-bold block mb-1">מסלול למידה נוכחי</span>
                     <span className={`text-base font-extrabold ${selectedStudent.currentPath === 'צמצום פערים' ? 'text-amber-600' : 'text-emerald-600'}`}>
-                      {selectedStudent.currentPath}
+                      {radarPathLabelHe(selectedStudent.currentPath)}
                     </span>
                   </div>
                   <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
@@ -853,15 +854,15 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                   const dist = selectedStudent.errorCategoryDistribution || { calculation: 0, procedural: 0, conceptual: 0 };
                   const total = dist.calculation + dist.procedural + dist.conceptual;
                   const rows = [
-                    { key: 'calculation', glyph: 'ח', label: 'טעות חישוב בסיסי', count: dist.calculation, bar: 'bg-sky-500' },
-                    { key: 'procedural', glyph: 'ר', label: 'טעות מיומנות רכיב (סדר האלגוריתם)', count: dist.procedural, bar: 'bg-violet-500' },
-                    { key: 'conceptual', glyph: 'מ', label: 'טעות מושגית (מבנה עשרוני)', count: dist.conceptual, bar: 'bg-rose-500' },
+                    { key: 'calculation', glyph: 'ח', label: ERROR_CATEGORY_HE.calculation, count: dist.calculation, bar: 'bg-sky-500' },
+                    { key: 'procedural', glyph: 'ר', label: ERROR_CATEGORY_HE.procedural, count: dist.procedural, bar: 'bg-violet-500' },
+                    { key: 'conceptual', glyph: 'מ', label: ERROR_CATEGORY_HE.conceptual, count: dist.conceptual, bar: 'bg-rose-500' },
                   ];
                   return (
                     <div className="mb-6 p-4 rounded-2xl bg-white dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700">
                       <div className="flex items-baseline justify-between mb-3">
                         <span className="text-sm font-extrabold text-slate-800 dark:text-slate-100">
-                          התפלגות סיווגי הטעות במפגש {selectedStudent.sessionNumber}
+                          התפלגות סיווגי הטעות · {meetingShortLabelHe(selectedStudent.sessionNumber)}
                         </span>
                         <span className="text-xs font-bold text-slate-400">{total} סיווגים</span>
                       </div>

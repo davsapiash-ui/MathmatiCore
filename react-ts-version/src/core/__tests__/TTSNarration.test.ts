@@ -676,7 +676,10 @@ describe('האפיון: הקראה בממשק הלומד בלבד', () => {
       'features/workspace/overlays/HelpOverlays.tsx',
       'features/workspace/overlays/ReinforcementOrChallengeScreen.tsx',
       'features/workspace/overlays/StudentChatOverlay.tsx',
-      'features/workspace/ReflectionScreen.tsx',
+      // The end screen of meetings 3–7 reads its closing sentence aloud (owner decision E2).
+      'features/workspace/ClosingSentence.tsx',
+      // The opening screens of stations 2 and 8 (owner, 27.9.2026).
+      'features/workspace/StationOpening.tsx',
       'presentation/components/student/SessionPausedOverlay.tsx',
       'presentation/components/student/SessionClosedOverlay.tsx',
       'presentation/components/student/ProjectorWaitingScreen.tsx',

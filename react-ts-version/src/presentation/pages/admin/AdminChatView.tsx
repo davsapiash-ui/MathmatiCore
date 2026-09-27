@@ -141,7 +141,7 @@ export function AdminChatView() {
 
     // Layer 1: Client-side PII check
     if (containsPII(inputText)) {
-      toast.error("ההודעה מכילה פרטים מזהים (PII). נא לנסח מחדש ללא שמות, תעודות זהות או מספרי טלפון.");
+      toast.error("ההודעה מכילה פרטים מזהים. נא לנסח מחדש ללא שמות, תעודות זהות או מספרי טלפון.");
       return;
     }
 

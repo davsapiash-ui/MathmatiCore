@@ -1,5 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { useWorkspaceStore, selectStandardTask, effectiveArithmetic } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, selectStandardTask, effectiveArithmetic, getActiveTasks } from '@/application/useWorkspaceStore';
+import { TASKS as DIAGNOSTIC_TASKS } from '@/core/QMatrix';
+import { taskPositionLabelHe } from '@/core/taskPositionLabel';
 import { getCurrentQTask, getEffectiveNumber, isSubtaskActive } from '@/core/qmatrixFlow';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 import { AccessibleCard } from '@/presentation/design-system/AccessibleCard';
@@ -28,7 +30,26 @@ export function TaskCard() {
   const qTask = sessionNumber === 2 ? getCurrentQTask(qflow) : null;
   const subtask = sessionNumber === 2 && isSubtaskActive(qflow);
 
-  const title = qTask ? qTask.titleHe : standardTask?.titleHe ?? '';
+  // The child reads where it is in the meeting, never the exercise's title —
+  // the titles are the teacher's professional names (owner, 27.9.2026).
+  // Read, not subscribed: getActiveTasks builds a new list on every call, and
+  // the card already re-renders whenever the exercise (standardTask) changes.
+  const compulsory = getActiveTasks(useWorkspaceStore.getState()).filter((t) => !t.isOptionalChoiceTask);
+  const positionLabel = taskPositionLabelHe(
+    qTask
+      ? {
+          sessionNumber,
+          isCorrection: qflow.phase === 'correction',
+          position: qflow.taskIdx + 1,
+          total: DIAGNOSTIC_TASKS.length,
+        }
+      : {
+          sessionNumber,
+          isChoice: Boolean(standardTask?.isOptionalChoiceTask),
+          position: standardTask ? compulsory.findIndex((t) => t.id === standardTask.id) + 1 || null : null,
+          total: compulsory.length,
+        }
+  );
   let instruction = subtask ? '' : qTask ? qTask.instructionHe : standardTask?.instructionHe ?? '';
   
   if (instruction.includes('{{number}}')) {
@@ -51,11 +72,11 @@ export function TaskCard() {
       <motion.div key={taskKey} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="relative">
         {qflow.phase !== 'correction' && (
           <span className="inline-flex items-center gap-1.5 text-sm font-display font-extrabold text-ws-accent bg-ws-accentSoft rounded-full px-3.5 py-1.5 mb-3 shadow-[0_2px_6px_-2px_hsl(var(--ws-accent)/0.35)]">
-            <span aria-hidden="true">✦</span> מפגש {sessionNumber}
+            <span aria-hidden="true">✦</span> תחנה {sessionNumber}
           </span>
         )}
         <h1 className="font-display font-black text-[2.15rem] text-ws-ink mb-4 leading-[1.15]">
-          {qflow.phase === 'correction' ? 'משימת צד' : title}
+          {positionLabel}
         </h1>
 
         {instruction && (

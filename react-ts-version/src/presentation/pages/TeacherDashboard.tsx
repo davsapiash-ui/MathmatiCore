@@ -59,6 +59,8 @@ import { approveTeacherGate } from "@/core/teacherGate";
 import { recommendedPathOf } from "@/core/recommendedPath";
 import { PILOT_CLASS_ID, PILOT_SCHOOL_ID } from "@/core/pilotInstitution";
 import { meetingLabelHe, meetingShortLabelHe } from "@/core/stationNames";
+import { MEETING_FORMAL_HE, meetingFullLabelHe } from "@/core/meetingFormalNames";
+import { ROUTE_NAME_HE, TEACHER_GATE_HE } from "@/core/routeLabels";
 
 type TabType =
   | "heatmap"
@@ -362,7 +364,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       if (!snap.exists() || !isConnected) return;
       armPresence();
       toast.info(
-        `החיבור שלך למערכת התנתק לרגע וחזר. המפגש נשאר פתוח והתלמידים המשיכו לעבוד. אם החיבור ייפול ליותר מ-${Math.round(TEACHER_DISCONNECT_GRACE_MS / 60000)} דקות, המפגש ייסגר אצלם.`,
+        `החיבור שלכם למערכת התנתק לרגע וחזר. המפגש נשאר פתוח והתלמידים המשיכו לעבוד. אם החיבור ייפול ליותר מ-${Math.round(TEACHER_DISCONNECT_GRACE_MS / 60000)} דקות, המפגש ייסגר אצלם.`,
         { duration: 10000, id: 'teacher-reconnected' }
       );
     });
@@ -465,7 +467,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
         // this is a warning, not a rollback — but the teacher must know the
         // canonical class/student documents did not take the update.
         console.warn('[TeacherDashboard] Firestore class session sync failed:', firestoreErr);
-        toast.warning('המפגש שודר לתלמידים, אך עדכון מסמכי הכיתה בשרת נדחה. ודא שהחשבון משויך לכיתה.');
+        toast.warning('המפגש שודר לתלמידים, אך עדכון מסמכי הכיתה בשרת נדחה. ודאו שהחשבון משויך לכיתה.');
       }
 
       setSessionStartTime(now);
@@ -484,9 +486,9 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       const errCode = String(err?.code || '');
       const errMsg = String(err?.message || '');
       if (errCode.includes('permission-denied') || errMsg.includes('PERMISSION_DENIED') || errMsg.includes('permission')) {
-        toast.error('ההרשאה נדחתה על ידי השרת. ודא שהתחברת לחשבון מורה מורשה.');
+        toast.error('ההרשאה נדחתה על ידי השרת. ודאו שהתחברתם לחשבון מורה מורשה.');
       } else {
-        toast.error('שגיאה בהפעלת המפגש מול השרת. אנא בדוק חיבור לרשת.');
+        toast.error('שגיאה בהפעלת המפגש מול השרת. אנא בדקו את החיבור לרשת.');
       }
       return false;
     }
@@ -893,11 +895,11 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       approveRoute(`student_${normNum}`);
       approveRoute(normNum);
 
-      toast.success(`תלמיד ${normNum} אושר בהצלחה למפגש 3 (${path === 'green_path' ? 'מסלול ירוק' : 'מסלול צהוב'})! 🛡️`);
+      toast.success(`תלמיד ${normNum} אושר בהצלחה למפגש 3 (${ROUTE_NAME_HE[path === 'green_path' ? 'green_path' : 'remediation_path']})! 🛡️`);
       return true;
     } catch (err: any) {
       console.error('[TeacherDashboard] Gate approval write failed:', err);
-      toast.error(`שגיאה באישור שער המעבר: ${err?.message || 'אנא בדוק חיבור לרשת'}`);
+      toast.error(`שגיאה ב${TEACHER_GATE_HE}: ${err?.message || 'אנא בדקו את החיבור לרשת'}`);
       return false;
     } finally {
       setIsApprovingGate(false);
@@ -1051,7 +1053,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     try {
       const validation = validateChatInputForPII(adminInputText);
       if (!validation.valid) {
-        toast.warning(validation.errorHe || 'הודעה מכילה פרטים מזהים (PII). יש להשתמש במזהה 1-12 בלבד.');
+        toast.warning(validation.errorHe || 'הודעה מכילה פרטים מזהים. יש להשתמש במזהה 1-12 בלבד.');
         isSendingAdminRef.current = false;
         setIsSendingAdmin(false);
         return;
@@ -1059,7 +1061,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       cleanText = anonymizeChatMessageBody(adminInputText.trim());
     } catch (err) {
       console.error('[Module 3/22 Fail-Closed] PII scanning error caught:', err);
-      toast.error('שגיאה בבדיקת אבטחה (PII). שליחת ההודעה נחסמה להגנה על פרטיות התלמידים.');
+      toast.error('שגיאה בבדיקת הפרטים המזהים. שליחת ההודעה נחסמה להגנה על פרטיות התלמידים.');
       isSendingAdminRef.current = false;
       setIsSendingAdmin(false);
       return;
@@ -1117,7 +1119,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     try {
       const validation = validateChatInputForPII(inputText);
       if (!validation.valid) {
-        toast.warning(validation.errorHe || 'הודעה מכילה פרטים מזהים (PII). יש להשתמש במזהה 1-12 בלבד.');
+        toast.warning(validation.errorHe || 'הודעה מכילה פרטים מזהים. יש להשתמש במזהה 1-12 בלבד.');
         return;
       }
 
@@ -1134,7 +1136,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       setInputText("");
     } catch (err) {
       console.error('[Module 3/22 Fail-Closed] PII scanning error caught:', err);
-      toast.error('שגיאה בבדיקת אבטחה (PII). שליחת ההודעה נחסמה להגנה על פרטיות התלמידים.');
+      toast.error('שגיאה בבדיקת הפרטים המזהים. שליחת ההודעה נחסמה להגנה על פרטיות התלמידים.');
       return;
     }
   };
@@ -1191,10 +1193,10 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
         <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 p-4 rounded-2xl mb-6 shadow-sm border border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <span className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="font-extrabold text-sm tracking-tight text-slate-900">תצוגת מורה אדמיניסטרטיבית</span>
+            <span className="font-extrabold text-sm tracking-tight text-slate-900">המסך של המורה</span>
           </div>
 
-          <div role="tablist" aria-label="מסכי דשבורד המורה" className="flex flex-wrap gap-1.5 overflow-x-auto custom-scrollbar py-1">
+          <div role="tablist" aria-label="המסך של המורה" className="flex flex-wrap gap-1.5 overflow-x-auto custom-scrollbar py-1">
             <button
               onClick={() => handleTabChange("heatmap")}
               role="tab"
@@ -1225,7 +1227,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
               aria-selected={activeTab === "approvals"}
               className={`px-3 py-2.5 min-h-11 rounded-xl text-xs font-bold transition-all ${activeTab === "approvals" ? "bg-indigo-600 text-white shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}
             >
-              שער מעבר
+              {TEACHER_GATE_HE}
             </button>
             <button
               onClick={() => handleTabChange("chat_students")}
@@ -1280,7 +1282,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
           </div>
         </div>
 
-        <nav role="tablist" aria-orientation="vertical" aria-label="מסכי דשבורד המורה" className="flex-1 p-4 flex flex-col gap-2">
+        <nav role="tablist" aria-orientation="vertical" aria-label="המסך של המורה" className="flex-1 p-4 flex flex-col gap-2">
           <div className="text-[10px] font-bold text-slate-400  mb-2 mt-2 px-2 uppercase tracking-widest">
             פדגוגיה ומעקב
           </div>
@@ -1317,7 +1319,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
               aria-selected={activeTab === "approvals"}
             className={`w-full flex justify-between items-center text-right px-4 py-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "approvals" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg text-ws-soft "}`}
           >
-            <span>שער מעבר</span>
+            <span>{TEACHER_GATE_HE}</span>
             {/* Badge: learners waiting at the Module 20 gate. */}
             {pendingApprovalsBadgeCount > 0 && (
               <span className="bg-ws-accent text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg">
@@ -1393,7 +1395,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                 <h3 className="font-bold text-lg text-slate-900 dark:text-slate-100">
                   {classSessionStatus === 'active' || classSessionStatus === 'paused'
                     ? meetingLabelHe(selectedSessionNum)
-                    : 'ניהול מפגש בלייב'}
+                    : 'ניהול המפגש בזמן אמת'}
                 </h3>
                 {classSessionStatus === 'active' && (
                   <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-black px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
@@ -1412,8 +1414,8 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                 {classSessionStatus === 'active'
                   ? `מפגש ${selectedSessionNum} פתוח כעת עבור התלמידים בכיתה.`
                   : classSessionStatus === 'paused'
-                    ? 'העבודה של התלמידים שמורה. "המשך מפגש" מחזיר אותם לאותה נקודה.'
-                    : 'בחר מפגש ולחץ על "הפעל מפגש" כדי לפתוח את הלמידה לתלמידים.'}
+                    ? 'העבודה של התלמידים שמורה. "המשיכו את המפגש" מחזיר אותם לאותה נקודה.'
+                    : 'בחרו מפגש ולחצו על "הפעילו מפגש" כדי לפתוח את הלמידה לתלמידים.'}
               </p>
             </div>
           </div>
@@ -1441,7 +1443,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
               className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed disabled:hover:bg-slate-300 text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
             >
               <span>▶️</span>
-              <span>הפעל מפגש</span>
+              <span>הפעילו מפגש</span>
             </button>
             {isClassSessionActive && (
               <>
@@ -1456,7 +1458,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                     ) : (
                       <span>▶️</span>
                     )}
-                    <span>המשך מפגש</span>
+                    <span>המשיכו את המפגש</span>
                   </button>
                 ) : (
                   <button
@@ -1469,7 +1471,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                     ) : (
                       <span>⏸️</span>
                     )}
-                    <span>עצור מפגש</span>
+                    <span>עצרו את המפגש</span>
                   </button>
                 )}
                 <button
@@ -1482,7 +1484,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                   ) : (
                     <span>⏹️</span>
                   )}
-                  <span>סגור מפגש</span>
+                  <span>סגרו את המפגש</span>
                 </button>
               </>
             )}
@@ -1622,7 +1624,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                       />
                       <Bar
                         dataKey="struggle"
-                        name="מאבק / פער (%)"
+                        name="קושי (%)"
                         stackId="a"
                         fill="#f43f5e"
                         radius={[6, 6, 0, 0]}
@@ -1875,8 +1877,8 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                   {!hasCompletedDiagnosticM2
                                     ? (hasStarted ? 'מפגש 1 הושלם — ממתין לאבחון במפגש 2' : 'טרם התחיל — אין נתונים')
                                     : isStruggling
-                                    ? 'מסלול מומלץ: צמצום פערי קדם (צהוב)'
-                                    : 'מסלול מומלץ: ירוק (מואץ)'}
+                                    ? `מסלול מומלץ: ${ROUTE_NAME_HE.remediation_path}`
+                                    : `מסלול מומלץ: ${ROUTE_NAME_HE.green_path}`}
                                 </span>
                               </div>
 
@@ -1896,10 +1898,10 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                   <button
                                     onClick={() => setGateStudent(s)}
                                     className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold text-xs rounded-xl shadow-md shadow-indigo-600/25 transition-all active:scale-95 cursor-pointer"
-                                    title="אישור מסלול למפגש 3 — שער מעבר"
+                                    title={`${TEACHER_GATE_HE}: אישור המסלול למפגש 3`}
                                   >
                                     <Sparkles className="w-4 h-4 text-amber-300" />
-                                    <span>אישור מסלול — שער מעבר</span>
+                                    <span>{TEACHER_GATE_HE}</span>
                                     {!(s.routeStatus === 'APPROVED' || (s as any).teacher_gate_approved) && (
                                       <span className="bg-white/20 text-white text-[10px] px-1.5 py-0.5 rounded-md font-semibold">ממתין לאישור</span>
                                     )}
@@ -1927,9 +1929,11 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                         ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/20'
                                         : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-50'
                                     }`}
-                                    title={meetingLabelHe(num)}
+                                    title={meetingFullLabelHe(num)}
                                   >
-                                    {meetingShortLabelHe(num)}
+                                    {/* The child's station name, and the formal information the
+                                        teacher had here before it (owner, 27.9.2026). */}
+                                    {meetingShortLabelHe(num)}{num === 2 ? ' (מיפוי יסוד)' : ''}
                                   </button>
                                 ))}
                               </div>
@@ -1941,7 +1945,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                 <AccessibleCard className="p-6 bg-white dark:bg-slate-900 border border-ws-surface2 shadow-md rounded-2xl h-full">
                                   <h3 className="text-xl font-bold text-ws-ink mb-1 flex items-center gap-2">
                                     <span className="text-ws-accent">📊</span>
-                                    תוצאות מיפוי מיומנויות היסוד (מפגש 2)
+                                    תוצאות מיפוי מיומנויות היסוד ({meetingShortLabelHe(2)})
                                   </h3>
                                   <p className="text-xs text-ws-soft mb-4">שבע משימות אבחון בשלושה תחומים: המבנה העשרוני והאפס, הקבצה ופריטה, וחישוב במאונך. ליד משימה שמודדת הקבצה או פריטה כתוב איזו מהשתיים. "שליטה" מעידה על פתרון מדויק בניסיון ראשון.</p>
                                   <div className="grid grid-cols-1 gap-2 text-sm">
@@ -1970,7 +1974,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                     📊
                                   </div>
                                   <h4 className="text-base font-bold text-ws-ink mb-1">
-                                    מיפוי מיומנויות — מפגש {diagnosticSelectedSession}
+                                    מיפוי מיומנויות — {meetingShortLabelHe(diagnosticSelectedSession)}
                                   </h4>
                                   <p className="text-xs text-ws-soft max-w-sm mb-4 leading-relaxed">
                                     מחוון משימות היסוד מיועד למפגש 2 (מיפוי ראשוני). במפגש {diagnosticSelectedSession} המעקב מתבסס על ציר ההחלטות ועל דוח הלמידה המוצגים למעלה.
@@ -2021,10 +2025,10 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                       </h4>
                                       <div className="bg-indigo-50/60 p-3.5 rounded-xl border border-indigo-100 text-indigo-950 text-xs leading-relaxed">
                                         <p className="font-bold mb-1">
-                                          {hasStarted ? 'מפגש 1 (ארגז החול והיכרות) הושלם.' : 'התלמיד עדיין לא סיים אף מפגש.'}
+                                          {hasStarted ? `${meetingShortLabelHe(1)} (${MEETING_FORMAL_HE[1]}) הושלם.` : 'התלמיד עדיין לא סיים אף מפגש.'}
                                         </p>
                                         <p className="text-indigo-800">
-                                          מיפוי מיומנויות היסוד, שאינו מוצג לתלמיד כמבחן, והמלצת המסלול (ירוק/צהוב) ייבנו רק מביצועי התלמיד במפגש 2.
+                                          מיפוי מיומנויות היסוד, שאינו מוצג לתלמיד כמבחן, והמלצת המסלול ({ROUTE_NAME_HE.green_path} או {ROUTE_NAME_HE.remediation_path}) ייבנו רק מביצועי התלמיד במפגש 2.
                                         </p>
                                       </div>
                                     </div>
@@ -2043,14 +2047,14 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                           handleTabChange("approvals");
                                         }}
                                       >
-                                        מעבר לשער אישור מסלולים
+                                        מעבר ל{TEACHER_GATE_HE}
                                       </UdlButton>
                                       <button
                                         onClick={() => setGateStudent(s)}
                                         className="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/50 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 font-bold text-xs rounded-xl border border-indigo-200 dark:border-indigo-800 transition-all cursor-pointer flex items-center gap-1.5"
                                       >
                                         <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                                        <span>אישור שער מעבר</span>
+                                        <span>{TEACHER_GATE_HE}</span>
                                       </button>
                                     </div>
                                   </div>
@@ -2134,7 +2138,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                     <MessageCircle className="w-8 h-8 opacity-40" />
                   </div>
                   <h4 className="font-bold text-lg text-slate-700 dark:text-slate-200 mb-1">אין הודעות קודמות</h4>
-                  <p className="text-xs text-slate-500">תוכל להקליד פנייה חדשה למנהל המערכת.</p>
+                  <p className="text-xs text-slate-500">תוכלו להקליד פנייה חדשה למנהל המערכת.</p>
                 </div>
               ) : (
                 adminMessages.map((msg) => {
@@ -2183,7 +2187,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                 value={adminInputText}
                 onChange={(e) => setAdminInputText(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSendAdmin()}
-                placeholder="הקלד הודעה למנהל המערכת..."
+                placeholder="הקלידו הודעה למנהל המערכת..."
                 disabled={isSendingAdmin}
                 className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-slate-900 dark:text-white disabled:opacity-60"
               />
@@ -2217,9 +2221,9 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                       <button
                         onClick={() => markAllAsRead()}
                         className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 hover:underline transition-colors px-1"
-                        title="סמן את כל ההודעות כנקראו"
+                        title="סמנו את כל ההודעות כנקראו"
                       >
-                        סמן הכל כנקרא
+                        סמנו הכול כנקרא
                       </button>
                     )}
                     <span className="text-xs font-bold px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 rounded-full border border-indigo-200/50 dark:border-indigo-800/40">
@@ -2235,7 +2239,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                     type="text"
                     value={studentSearchQuery}
                     onChange={(e) => setStudentSearchQuery(e.target.value)}
-                    placeholder="חפש תלמיד לפי מספר..."
+                    placeholder="חפשו תלמיד לפי מספר..."
                     className="w-full pl-3 pr-9 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white"
                   />
                 </div>
@@ -2278,7 +2282,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                             {student.traceData?.hesitation_events > 0 && (
                               <div
                                 className="absolute -top-1 -right-1 bg-amber-500 text-white rounded-full p-0.5 shadow-md"
-                                title="מאבק קוגניטיבי"
+                                title="מתקשה"
                               >
                                 <ShieldAlert className="w-3 h-3 text-white" />
                               </div>
@@ -2289,7 +2293,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                               תלמיד {student.studentId.replace(/\D/g, '') || student.studentId}
                             </span>
                             <span className={`text-xs truncate ${isSelected ? "text-indigo-100" : "text-slate-400"}`}>
-                              {lastStudentMsg ? (lastStudentMsg.text || '📷 תמונה מצורפת') : 'לחץ לפתיחת שיחה'}
+                              {lastStudentMsg ? (lastStudentMsg.text || '📷 תמונה מצורפת') : 'לחצו לפתיחת שיחה'}
                             </span>
                           </div>
                         </div>
@@ -2351,7 +2355,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                           <MessageCircle className="w-8 h-8 opacity-40" />
                         </div>
                         <h4 className="font-bold text-lg text-slate-700 dark:text-slate-200 mb-1">אין הודעות קודמות</h4>
-                        <p className="text-xs text-slate-500">הקלד הודעה או שלח רמז פדגוגי לתלמיד.</p>
+                        <p className="text-xs text-slate-500">הקלידו הודעה או שלחו רמז פדגוגי לתלמיד.</p>
                       </div>
                     ) : (
                       studentMessages.map((msg) => {
@@ -2399,7 +2403,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                       value={inputText}
                       onChange={(e) => setInputText(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && handleSendStudent()}
-                      placeholder="הקלד הודעה לתלמיד..."
+                      placeholder="הקלידו הודעה לתלמיד..."
                       className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-slate-900 dark:text-white"
                     />
 
@@ -2421,7 +2425,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                     שיחות פדגוגיות עם תלמידים
                   </h3>
                   <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm leading-relaxed">
-                    בחר תלמיד מהרשימה מימין כדי להציג את היסטוריית השיחה ולהעביר הנחיות או רמזים פדגוגיים בזמן אמת.
+                    בחרו תלמיד מהרשימה מימין כדי להציג את היסטוריית השיחה ולהעביר הנחיות או רמזים פדגוגיים בזמן אמת.
                   </p>
                 </div>
               )}

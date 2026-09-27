@@ -604,6 +604,11 @@ export class FirebaseSyncService {
       keyboardState: state.keyboardState,
       undoCount: state.undoCount,
       hesitationCount: state.hesitationCount,
+      // This meeting's U, E and G (E1), so a reload keeps the closing sentence
+      // the child earned. Counts only — the index is never stored for the child.
+      meetingPersistence: state.meetingPersistence,
+      // The opening screen of station 2 or 8 was already passed (owner, 27.9.2026).
+      openingScreenSeen: state.openingScreenSeen,
       hasInteracted: state.hasInteracted,
       // What a meeting 1 step or exercise is decided by. restoreSession read
       // most of these already, but they were never written, so a reload
@@ -1033,6 +1038,11 @@ export class FirebaseSyncService {
       details: event.details,
     };
 
+    // Owner decision E1 (27.9.2026, register deviation 24): the closing
+    // sentence is chosen by this meeting's U, E and G. They are counted here,
+    // from the very events the server will count, so the two cannot disagree.
+    useWorkspaceStore.getState().recordPersistenceEvent(payload);
+
     // 4. Validate column_index rule (Module 5 §C)
     const validation = validateTelemetryColumnIndexRule(payload);
     if (!validation.isValid) {
@@ -1058,7 +1068,7 @@ export class FirebaseSyncService {
       DIGIT_DELETED: 'מחיקת ספרה (בקרה עצמית)',
       UNDO_EXECUTED: 'ביטול פעולה (Undo)',
       HESITATION_DETECTED: 'היסוס קוגניטיבי (45 שנ׳)',
-      SOCRATIC_CARD_SHOWN: 'הצגת כרטיס חניכה סוקרטי',
+      SOCRATIC_CARD_SHOWN: 'כרטיס החניכה נפתח',
       SOCRATIC_OPTION_SELECTED: 'בחירת תשובה בכרטיס חניכה',
       PROBLEM_COMPLETE: 'השלמת תרגיל בהצלחה',
       REFLECTION_SUBMITTED: 'הגשת רפלקציה SRL',
