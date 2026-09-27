@@ -42,7 +42,7 @@ import { announceRegroup } from '@/application/useRegroupAnimationStore';
 import { useAuthStore, currentStudentUid } from '@/application/useAuthStore';
 import { CurriculumRouter } from '@/core/CurriculumRouter';
 import { syncQMatrixEvaluation } from '@/core/ExerciseValidationEngine';
-import { getSessionTasks, type SessionTask } from '@/data/sessionTasks';
+import { getSessionTasks, SESSION1_TASKS, type SessionTask } from '@/data/sessionTasks';
 import { curriculumCatalog } from '@/infrastructure/services/CurriculumCatalogService';
 import { getSessionBranchTasks } from '@/data/sessionBranchTasks';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
@@ -590,6 +590,55 @@ function restoredBranchTasks(sessionNumber: number, branch: 'reinforcement' | 'c
   const extra = getSessionBranchTasks(sessionNumber as any, branch, path);
   if (extra.length === 0) return null;
   return [...(getSessionTasks(sessionNumber as any, path) ?? []), ...extra];
+}
+
+/**
+ * Meeting 1 as it ran until the owner's decision of 27.9.2026 (register,
+ * decision י): the target task 347 came before the grouping exercise.
+ *
+ * The saved workspace records the exercise by its place in the list
+ * (standardTaskIdx) and by its id (activeTask.id). A learner who was in the
+ * middle of meeting 1 when the new order reached them — with this deploy, or
+ * later when the catalog is published again (Module 26) — has a place counted
+ * in this old order. Neither place in the new order is right for them: one
+ * standing on the target task would skip the grouping exercise, and one
+ * standing on the grouping exercise would do the target task again. So they
+ * finish the meeting in the order they started it; the next meeting 1 they
+ * start is in the new order.
+ */
+export const SESSION1_ORDER_BEFORE_27_9: readonly string[] = [
+  's1_sandbox_controlled',
+  's1_decompose_hundred',
+  's1_build_305',
+  's1_undo_trash',
+  's1_target_347',
+  's1_r_group26',
+  's1_t8',
+  's1_r_sub61',
+  's1_r_sub806',
+];
+
+/**
+ * The list a restored meeting 1 goes on with, or null for the meeting's bank
+ * as usual. When the saved place and id disagree with the bank, the place was
+ * counted in another order of the same exercises: the one before 27.9.2026
+ * (SESSION1_ORDER_BEFORE_27_9), or — on a device whose cached catalog is
+ * still the old one — the new order of this code. The learner goes on in the
+ * order the place was counted in.
+ */
+function restoredSession1Order(saved: { standardTaskIdx?: number; activeTask?: { id?: unknown } | null }): SessionTask[] | null {
+  const idx = saved.standardTaskIdx ?? 0;
+  const savedId = saved.activeTask?.id;
+  const bank = getSessionTasks(1) ?? [];
+  // The place and the id agree with the bank, or there is no id to compare
+  // (a snapshot trimmed to its minimal core): nothing to translate.
+  if (typeof savedId !== 'string' || bank[idx]?.id === savedId) return null;
+  const byId = new Map(bank.map((t) => [t.id, t]));
+  const knownOrders = [SESSION1_ORDER_BEFORE_27_9, SESSION1_TASKS.map((t) => t.id)];
+  const order = knownOrders.find(
+    (ids) => ids[idx] === savedId && ids.length === bank.length && ids.every((id) => byId.has(id))
+  );
+  return order ? order.map((id) => byId.get(id)!) : null;
 }
 
 export function getActiveTasks(s: WorkspaceState): SessionTask[] {
@@ -1980,7 +2029,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // The branch tasks are appended to the bank in memory only. Restoring the
         // index without them pointed past the seven compulsory exercises: an empty
         // card and a disabled "התקדם", with logout or a teacher reset the only exits.
-        dynamicTasks: restoredBranchTasks(sanitized, saved.selectedBranch ?? null),
+        // Meeting 1: a learner whose saved place was counted in the order before
+        // 27.9.2026 finishes the meeting in that order (SESSION1_ORDER_BEFORE_27_9).
+        dynamicTasks: sanitized === 1
+          ? restoredSession1Order(saved)
+          : restoredBranchTasks(sanitized, saved.selectedBranch ?? null),
         awaitingNext: false,
         boardOpen: true,
         isBoardLocked: false,

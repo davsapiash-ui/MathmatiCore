@@ -32,16 +32,20 @@ const DOC03 = REGISTERED_SUBSTITUTIONS.reduce(
 );
 const task = (id: string) => SESSION1_TASKS.find((t) => t.id === id)!;
 const diag = (id: string) => DIAGNOSTIC_TASKS.find((t) => t.id === id)!;
+/** A task's place in meeting 1. */
+const at = (id: string) => SESSION1_TASKS.findIndex((t) => t.id === id);
 
 describe('the order of meeting 1', () => {
-  it('six introduction steps of מסמך 03, then four refresh exercises', () => {
+  it('steps 1–5 of מסמך 03, the grouping exercise, the target task, then the other three refresh exercises (owner, 27.9.2026)', () => {
+    // Register decision י: easy to hard — grouping ends in the familiar
+    // standard form, the target task's decomposition in a non-standard one.
     expect(SESSION1_TASKS.map((t) => t.id)).toEqual([
       's1_sandbox_controlled', // steps 1–2
       's1_decompose_hundred', // step 3
       's1_build_305', // step 4
       's1_undo_trash', // step 5
-      's1_target_347', // step 6, the target task
       's1_r_group26', // refresh ← diagnostic task 5
+      's1_target_347', // step 6, the target task
       's1_t8', // refresh ← diagnostic task 6
       's1_r_sub61', // refresh ← diagnostic task 3
       's1_r_sub806', // refresh ← diagnostic task 7

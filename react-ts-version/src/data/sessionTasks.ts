@@ -122,8 +122,10 @@ export interface SessionTask {
 /* ── Session 1 — ארגז החול המונחה: היכרות עם הכלים וריענון לקראת האבחון ── */
 
 /**
- * מפגש 1 (owner, 24.9.2026 — register decision ו): the six introduction steps
- * of מסמך 03 §3.1, then four refresh exercises. Each refresh exercise mirrors
+ * מפגש 1 (owner, 24.9.2026 — register decision ו): the introduction steps of
+ * מסמך 03 §3.1 and four refresh exercises. Since 27.9.2026 (register decision
+ * י) the order is: steps 1–5, the grouping exercise, the target task (step 6),
+ * then the other three refresh exercises. Each refresh exercise mirrors
  * one diagnostic task of meeting 2 column for column with other numbers, so a
  * wrong answer in the diagnostic is a real gap, not rust and not the interface.
  * Meeting 1 is never scored (PRD Module 14 §ב); the teacher's report shows
@@ -186,13 +188,14 @@ export const SESSION1_TASKS: SessionTask[] = [
     // workspace" — the board step 4 built, with its history.
     continuesBoard: true,
   },
-  // מסמך 03 §3.1 step 6 (formerly 7) — the target task: 347 → 3 hundreds, 3 tens, 17 units.
-  s1(representation('s1_target_347', 347, { hundreds: 3, tens: 3, units: 17 },
-    'משימת יעד מסכמת',
-    'משימת היעד: בנו את המספר 347 בלבני דינס, פרטו עשרת אחת לעשר יחידות, וכתבו בשורת התוצאה את המספר שעל הלוח!'),
-    { requiresUngrouping: true, hideRequiredCounts: true }),
-
   // ── Refresh exercises: each mirrors one diagnostic task (QMatrix.ts) ──
+  // Order (owner, 27.9.2026 — register decision י): the grouping exercise
+  // comes before the target task, easy to hard. Grouping ends in the familiar
+  // standard form (2 tens, 6 units); the target task's decomposition ends in a
+  // non-standard one (3 hundreds, 3 tens, 17 units), where the child has to see
+  // that the quantity did not change. SESSION1_ORDER_BEFORE_27_9 in
+  // useWorkspaceStore.ts keeps a learner who was mid-meeting under the old
+  // order on it, so nobody skips or repeats an exercise.
   // ★ chosen (owner, 24.9.2026). Mirrors task 5, where 25 unit cubes are on the
   // screen and the learner finds how many tens and units they make: here 26
   // unit cubes wait on the board, and are grouped twice into tens.
@@ -200,6 +203,13 @@ export const SESSION1_TASKS: SessionTask[] = [
     'המרה עצמאית בין עזרים וירטואליים',
     'בטור היחידות יש 26 לבני יחידה. קבצו כל 10 יחידות לעשרת אחת בעזרת כפתור הקבץ 10 שבראש הטור, וכתבו בשורת התוצאה כמה עשרות וכמה יחידות קיבלתם.'),
     { requiresGrouping: true, initialCounts: { units: 26 }, hideRequiredCounts: true }),
+
+  // מסמך 03 §3.1 step 6 — the target task: 347 → 3 hundreds, 3 tens, 17 units.
+  s1(representation('s1_target_347', 347, { hundreds: 3, tens: 3, units: 17 },
+    'משימת יעד מסכמת',
+    'משימת היעד: בנו את המספר 347 בלבני דינס, פרטו עשרת אחת לעשר יחידות, וכתבו בשורת התוצאה את המספר שעל הלוח!'),
+    { requiresUngrouping: true, hideRequiredCounts: true }),
+
   // ★ chosen (owner, 24.9.2026). Mirrors task 6 (124 + 85) in structure with
   // other numbers: three digits plus two, no carry in the units, the tens sum
   // to exactly 10, so the answer has a 0 in the tens.
