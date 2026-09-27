@@ -36,8 +36,10 @@ type EffortId = 'EASY' | 'MEDIUM' | 'HARD';
  * עיגולי הזיכרון, השאלות בכרטיס החניכה. אפשר לסמן כמה (מסמך 03: "לסמן כל
  * תשובה מתאימה מתוך שלוש").
  *
- * שלב 3 — PRD: "הצגת האחוז, מסר מעצים וכפתור סיום מפגש סופי". המסר הוא
- * המשפט של מסמך 03 ("ותיקנתם" בכתיב מלא).
+ * שלב 3 — המשפט המעודד של מסמך 03 ("ותיקנתם" בכתיב מלא) וכפתור הסיום.
+ * האחוז של מדד ההתמדה אינו מוצג לילד ואינו מוקרא לו (החלטת בעל המוצר,
+ * 27.9.2026, מרשם הסטיות): הילד לא רואה אחוזים או ציונים. המדד מחושב
+ * ונשמר כרגיל, והמורה רואה אותו.
  *
  * אין מילים באנגלית, והפנייה בגוף שני רבים.
  */
@@ -50,7 +52,6 @@ export const REFLECTION_TEXT_HE = {
   strategyInstruction: 'אפשר לסמן יותר מתשובה אחת.',
   feedbackTitle: 'כל הכבוד!',
   feedbackBody: 'ראינו שחקרתם, ניסיתם ותיקנתם טעויות בעצמכם כמו מתמטיקאים אמיתיים! המשיכו להאמין בכוח שלכם!',
-  persistenceLabel: 'מדד ההתמדה שלכם',
   next: 'המשיכו',
   back: 'חזרה',
   finish: 'סיום המפגש',
@@ -71,7 +72,7 @@ export const STRATEGY_OPTIONS = [
 ] as const;
 
 /** מה שנקרא בקול בכל שלב — כל הנחיה שעל המסך, וגם שמות הרמות שאין להן מילים על המסך. */
-export function reflectionSpeech(step: 1 | 2 | 3, persistencePercent: number): string {
+export function reflectionSpeech(step: 1 | 2 | 3): string {
   const t = REFLECTION_TEXT_HE;
   if (step === 1) {
     return [t.stepLabelSpoken[1], t.effortQuestion, t.effortInstruction, ...EFFORT_LEVELS.map((l) => `${l.spokenHe}.`)].join(' ');
@@ -79,7 +80,7 @@ export function reflectionSpeech(step: 1 | 2 | 3, persistencePercent: number): s
   if (step === 2) {
     return [t.stepLabelSpoken[2], t.strategyQuestion, t.strategyInstruction, ...STRATEGY_OPTIONS.map((o) => `${o.label}.`)].join(' ');
   }
-  return [t.stepLabelSpoken[3], t.feedbackTitle, t.feedbackBody, `${t.persistenceLabel}: ${persistencePercent} אחוז.`].join(' ');
+  return [t.stepLabelSpoken[3], t.feedbackTitle, t.feedbackBody].join(' ');
 }
 
 /** סרגל קווי: שלושה פסים בגובה עולה, ו-`filled` מהם צבועים. */
@@ -159,7 +160,7 @@ export function Session8ReflectionScreen({ onComplete, metrics }: Session8Reflec
                   <h1 className="text-2xl md:text-3xl font-display font-black text-slate-900 dark:text-white">
                     {t.effortQuestion}
                   </h1>
-                  <UdlSpeechButton text={reflectionSpeech(1, persistenceRatio)} className="shrink-0" />
+                  <UdlSpeechButton text={reflectionSpeech(1)} className="shrink-0" />
                 </div>
                 <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">{t.effortInstruction}</p>
               </div>
@@ -211,7 +212,7 @@ export function Session8ReflectionScreen({ onComplete, metrics }: Session8Reflec
                   <h1 className="text-2xl md:text-3xl font-display font-black text-slate-900 dark:text-white">
                     {t.strategyQuestion}
                   </h1>
-                  <UdlSpeechButton text={reflectionSpeech(2, persistenceRatio)} className="shrink-0" />
+                  <UdlSpeechButton text={reflectionSpeech(2)} className="shrink-0" />
                 </div>
                 <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">{t.strategyInstruction}</p>
               </div>
@@ -271,7 +272,7 @@ export function Session8ReflectionScreen({ onComplete, metrics }: Session8Reflec
             </motion.div>
           )}
 
-          {/* שלב 3: משוב חיובי מעודד התמדה, האחוז וכפתור הסיום */}
+          {/* שלב 3: משוב חיובי מעודד התמדה וכפתור הסיום — בלי אחוז */}
           {step === 3 && (
             <motion.div
               key="step3"
@@ -290,19 +291,13 @@ export function Session8ReflectionScreen({ onComplete, metrics }: Session8Reflec
                   <h1 className="text-2xl md:text-3xl font-display font-black text-slate-900 dark:text-white">
                     {t.feedbackTitle}
                   </h1>
-                  <UdlSpeechButton text={reflectionSpeech(3, persistenceRatio)} className="shrink-0" />
+                  <UdlSpeechButton text={reflectionSpeech(3)} className="shrink-0" />
                 </div>
                 <p className="text-slate-600 dark:text-slate-300 text-base mt-2 max-w-md leading-relaxed">
                   {t.feedbackBody}
                 </p>
               </div>
 
-              <div className="w-full bg-gradient-to-br from-emerald-50 via-teal-50 to-sky-50 dark:from-slate-800 dark:to-slate-850 p-6 rounded-3xl border border-emerald-200 dark:border-slate-700 flex flex-col items-center gap-2">
-                <span className="text-sm font-bold text-emerald-800 dark:text-emerald-300">{t.persistenceLabel}</span>
-                <div className="text-5xl font-display font-black text-emerald-600 dark:text-emerald-400" dir="ltr">
-                  {persistenceRatio}%
-                </div>
-              </div>
 
               <button
                 type="button"

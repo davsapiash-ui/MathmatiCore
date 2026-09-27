@@ -20,12 +20,12 @@ describe('the lobby card names the meeting as documents 02 and 03 do (register r
   const TITLES: Record<number, string> = {
     1: 'תחנה 1: ארגז החול',
     2: 'תחנה 2: יוצאים למסע',
-    3: 'תחנה 3: ערך המקום, פירוק והרכבה',
+    3: 'תחנה 3: בונים מספרים בכמה דרכים',
     4: 'תחנה 4: חיבור במאונך עם הקבצה',
     5: 'תחנה 5: חיסור במאונך עם פריטה',
     6: 'תחנה 6: אתגר האפס',
-    7: 'תחנה 7: בעיות חקר בחיבור ובחיסור',
-    8: 'תחנה 8: מפגש חוקר',
+    7: 'תחנה 7: בלשי המספרים',
+    8: 'תחנה 8: חוקרים בעצמנו',
   };
 
   for (const [n, title] of Object.entries(TITLES)) {
@@ -33,6 +33,12 @@ describe('the lobby card names the meeting as documents 02 and 03 do (register r
       expect(hub).toContain(`title: '${title}'`);
     });
   }
+
+  it('no educator jargon reaches the child (owner, 27.9.2026)', () => {
+    for (const word of ['אבחון', 'הערכה', 'רפלקציה', 'אינטגרציה', 'מסכם', 'המערכת']) {
+      expect(hub, word).not.toContain(word);
+    }
+  });
 
   it('none of the old names that described no meeting is left', () => {
     for (const old of ['מחקר אישי', 'פריטה וקיבוץ', 'תכנון ניסויים', 'מחקר מתקדם', 'אתגרי חיבור וחיסור', 'סיכום ותובנות']) {
@@ -48,8 +54,8 @@ describe('the lobby card names the meeting as documents 02 and 03 do (register r
     }
   });
 
-  it('meeting 8 says the blocks and the board are gone; meeting 5 is subtraction', () => {
-    expect(hub).toContain("desc: 'פתרו את התרגילים בנחת ובקצב שלכם, בלי לבנים ובלי לוח.'");
+  it('meeting 8 says the blocks are gone, in a positive way; meeting 5 is subtraction', () => {
+    expect(hub).toContain("desc: 'עכשיו אפשר כבר גם בלי לבנים. בסוף ספרו מה עזר לכם.'");
     expect(hub).toMatch(/title: 'תחנה 5: [^']*חיסור/);
   });
 });
