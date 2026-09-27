@@ -127,20 +127,20 @@ describe('שלב 3 — משוב, האחוז וסיום', () => {
     return r;
   }
 
-  it('משפט המשוב של מסמך 03 והאחוז (PRD מודול 16 §ג)', () => {
+  it('משפט המשוב של מסמך 03, בלי אחוז (החלטת בעל המוצר 27.9.2026)', () => {
     const { container } = toStep3();
     const text = visibleText(container);
     expect(text).toContain('כל הכבוד!');
     expect(text).toContain('ראינו שחקרתם, ניסיתם ותיקנתם טעויות בעצמכם כמו מתמטיקאים אמיתיים! המשיכו להאמין בכוח שלכם!');
-    expect(text).toContain('מדד ההתמדה שלכם');
-    expect(text).toContain('50%'); // U=2, E=1, G=1 → 2 / 4
+    expect(text).not.toContain('מדד ההתמדה');
+    expect(text).not.toMatch(/d+s*%/);
   });
 
-  it('ההקראה אומרת את המשוב ואת האחוז', () => {
+  it('ההקראה אומרת את המשוב, ולא אחוז', () => {
     toStep3();
     const s = speech();
     expect(s).toContain(REFLECTION_TEXT_HE.feedbackBody);
-    expect(s).toContain('50 אחוז');
+    expect(s).not.toContain('אחוז');
   });
 
   it('הנתונים שנשלחים בסיום לא השתנו', () => {

@@ -258,16 +258,13 @@ export function ReflectionScreen() {
           </div>
         </section>
 
-        {/* Step 3: Process feedback & persistence index */}
+        {/* Step 3: process feedback. The persistence index is saved for the teacher
+            but never shown to the child (owner decision 27.9.2026, deviation register). */}
         <section aria-live="polite" className="bg-ws-accentSoft/50 border border-ws-accent/25 rounded-2xl p-5 text-center mb-7 min-h-[100px]">
           <motion.div key={effort ?? 'default'} initial={{ scale: 0.9 }} animate={{ scale: 1 }}>
             <div className="text-3xl mb-1" aria-hidden="true">{feedback?.emoji ?? '🌟'}</div>
             <p className="font-display font-extrabold text-lg text-ws-ink">{feedback?.text ?? 'הכוח שלכם הוא בהתמדה ובניסיון החוזר!'}</p>
             <p className="text-sm text-ws-soft mt-1">{feedback?.sub ?? 'כל ניסיון ובדיקה עצמית מעמיקים את ההבנה המתמטית שלכם.'}</p>
-            <div className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-700/60 rounded-full text-xs sm:text-sm font-bold text-emerald-800 dark:text-emerald-300 shadow-sm">
-              <span>💪</span>
-              <span>מדד התמדה ובקרה עצמית: {persistenceIndex}%</span>
-            </div>
           </motion.div>
         </section>
 
