@@ -25,9 +25,7 @@ import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncServi
  * copy still says "מצטברים", so the comparison applies this one substitution.
  * It is a no-op after the sync — delete it then.
  */
-const REGISTERED_SUBSTITUTIONS: ReadonlyArray<[RegExp, string]> = [
-  [/כאשר מצטברים 10 לבנים בטור/g, 'כאשר מצטברות 10 לבנים בטור'],
-];
+const REGISTERED_SUBSTITUTIONS: ReadonlyArray<[RegExp, string]> = []; // the repository copy now equals Drive (27.9.2026)
 const DOC03 = REGISTERED_SUBSTITUTIONS.reduce(
   (text, [from, to]) => text.replace(from, to),
   readFileSync(resolve(__dirname, '../../../../מסמכי אפיון/מקור פדגוגי/03- אפיון מפורט לקראת פיתוח.md'), 'utf-8').replace(/\\!/g, '!')

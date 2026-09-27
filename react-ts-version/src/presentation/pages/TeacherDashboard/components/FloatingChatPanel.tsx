@@ -149,7 +149,7 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
               value={inputText}
               onChange={e => setInputText(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSend()}
-              placeholder="כתוב הודעה לתלמיד..."
+              placeholder="כתבו הודעה לתלמיד..."
               className="flex-1 border border-slate-200 dark:border-slate-700 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
             />
             
