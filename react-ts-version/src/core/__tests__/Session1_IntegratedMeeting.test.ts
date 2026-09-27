@@ -12,10 +12,12 @@ import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncServi
 
 /**
  * מפגש 1 (owner, 24.9.2026 — register decision ו): the six introduction steps
- * of מסמך 03 §3.1, then four refresh exercises, each mirroring one diagnostic
- * task of meeting 2 with other numbers. The steps say on screen exactly what
- * the document says; the refresh exercises share every column feature of the
- * diagnostic task they refresh, and no number with meeting 2.
+ * of מסמך 03 §3.1 and four refresh exercises, each mirroring one diagnostic
+ * task of meeting 2 with other numbers. Since 27.9.2026 (register decision י)
+ * the grouping exercise comes before the target task (step 6). The steps say
+ * on screen exactly what the document says; the refresh exercises share every
+ * column feature of the diagnostic task they refresh, and no number with
+ * meeting 2. Tasks are reached by id (`at`), never by a hard-coded place.
  */
 
 /**
@@ -206,9 +208,21 @@ describe('the store gate follows the checklist', () => {
     useWorkspaceStore.getState().clearBoard();
     expect(useWorkspaceStore.getState().counts).toEqual({ ...EMPTY_COUNTS });
     useWorkspaceStore.getState().proceed();
-    expect(getActiveTasks(useWorkspaceStore.getState())[useWorkspaceStore.getState().standardTaskIdx].id).toBe('s1_target_347');
-    // …and the target task opens on an empty board again
-    expect(useWorkspaceStore.getState().counts).toEqual({ ...EMPTY_COUNTS });
+    // Since 27.9.2026 (register decision י) the grouping exercise comes next…
+    expect(getActiveTasks(useWorkspaceStore.getState())[useWorkspaceStore.getState().standardTaskIdx].id).toBe('s1_r_group26');
+    // …and it opens on its own 26 unit blocks
+    expect(useWorkspaceStore.getState().counts).toEqual({ ...EMPTY_COUNTS, units: 26 });
+  });
+
+  it('the target task comes after the grouping exercise and opens on an empty board', () => {
+    useWorkspaceStore.getState().initSession(1, false, at('s1_r_group26'));
+    useWorkspaceStore.getState().groupColumnClick('units');
+    useWorkspaceStore.getState().groupColumnClick('units');
+    useWorkspaceStore.setState({ answerDigits: { tens: '2', units: '6' } });
+    useWorkspaceStore.getState().proceed();
+    const s = useWorkspaceStore.getState();
+    expect(getActiveTasks(s)[s.standardTaskIdx].id).toBe('s1_target_347');
+    expect(s.counts).toEqual({ ...EMPTY_COUNTS });
   });
 
   it('a reload in steps 1–2 keeps the blocks already dragged, and in step 5 keeps the undo history', () => {
@@ -248,7 +262,7 @@ describe('the store gate follows the checklist', () => {
       }
       return v;
     };
-    useWorkspaceStore.getState().initSession(1, false, 4);
+    useWorkspaceStore.getState().initSession(1, false, at('s1_target_347'));
     useWorkspaceStore.getState().setAnswerDigit('hundreds', '3');
     expect(useWorkspaceStore.getState().answerDigits.hundreds).toBe('3');
     const saved = viaDatabase(JSON.parse(JSON.stringify((firebaseSyncService as any).getSyncableWorkspaceState())));
@@ -272,7 +286,7 @@ describe('the store gate follows the checklist', () => {
   });
 
   it('a reload keeps what a step or a conversion was decided by', () => {
-    useWorkspaceStore.getState().initSession(1, false, 4);
+    useWorkspaceStore.getState().initSession(1, false, at('s1_target_347'));
     useWorkspaceStore.setState({
       counts: { ...EMPTY_COUNTS, hundreds: 3, tens: 3, units: 17 },
       hasUngrouped: true,
@@ -296,11 +310,11 @@ describe('the store gate follows the checklist', () => {
     // …so the child who decomposed and reloaded is not told to decompose again
     useWorkspaceStore.getState().proceed();
     const s = useWorkspaceStore.getState();
-    expect(getActiveTasks(s)[s.standardTaskIdx].id).toBe('s1_r_group26');
+    expect(getActiveTasks(s)[s.standardTaskIdx].id).toBe('s1_t8');
   });
 
   it('the target task: "התקדם" stays off until the ten is decomposed and the number written', () => {
-    useWorkspaceStore.getState().initSession(1, false, 4);
+    useWorkspaceStore.getState().initSession(1, false, at('s1_target_347'));
     useWorkspaceStore.setState({ counts: { ...EMPTY_COUNTS, hundreds: 3, tens: 4, units: 7 }, answerDigits: { hundreds: '3', tens: '4', units: '7' } });
     expect(selectCanProceed(useWorkspaceStore.getState())).toBe(false);
     useWorkspaceStore.getState().splitBlockClick('tens');
@@ -318,33 +332,31 @@ describe('the store gate follows the checklist', () => {
     useWorkspaceStore.getState().undo();
     expect(useWorkspaceStore.getState().undoCount).toBe(1);
     useWorkspaceStore.getState().proceed();
-    expect(useWorkspaceStore.getState().standardTaskIdx).toBe(3);
+    expect(useWorkspaceStore.getState().standardTaskIdx).toBe(at('s1_undo_trash'));
     useWorkspaceStore.getState().clearBoard();
     useWorkspaceStore.getState().proceed();
-    expect(useWorkspaceStore.getState().standardTaskIdx).toBe(4);
+    expect(useWorkspaceStore.getState().standardTaskIdx).toBe(at('s1_undo_trash') + 1);
   });
 
   it('the grouping refresh opens with the 26 unit cubes already on the board, like task 5', () => {
-    // Reached from the target task, through the normal transition…
-    useWorkspaceStore.getState().initSession(1, false, 4);
+    // Reached from step 5 (undo and the trash), through the normal transition…
+    useWorkspaceStore.getState().initSession(1, false, at('s1_undo_trash'));
+    useWorkspaceStore.getState().applyDrop({ source: 'palette', sourcePlace: 'tens', target: { kind: 'column', place: 'tens' } });
+    useWorkspaceStore.getState().undo();
+    useWorkspaceStore.getState().clearBoard();
     expect(useWorkspaceStore.getState().counts).toEqual({ ...EMPTY_COUNTS });
-    useWorkspaceStore.setState({
-      counts: { ...EMPTY_COUNTS, hundreds: 3, tens: 3, units: 17 },
-      hasUngrouped: true,
-      answerDigits: { hundreds: '3', tens: '4', units: '7' },
-    });
     useWorkspaceStore.getState().proceed();
     const s1 = useWorkspaceStore.getState();
     expect(getActiveTasks(s1)[s1.standardTaskIdx].id).toBe('s1_r_group26');
     expect(s1.counts).toEqual({ ...EMPTY_COUNTS, units: 26 });
     // …and when the meeting resumes straight into it.
     useWorkspaceStore.getState().resetWorkspace();
-    useWorkspaceStore.getState().initSession(1, false, 5);
+    useWorkspaceStore.getState().initSession(1, false, at('s1_r_group26'));
     expect(useWorkspaceStore.getState().counts).toEqual({ ...EMPTY_COUNTS, units: 26 });
   });
 
   it('a failed check on a hidden board does not name the board', () => {
-    useWorkspaceStore.getState().initSession(1, false, 5);
+    useWorkspaceStore.getState().initSession(1, false, at('s1_r_group26'));
     useWorkspaceStore.getState().proceed(); // 26 loose units, nothing grouped yet
     const sub = useWorkspaceStore.getState().feedback?.sub ?? '';
     expect(sub).not.toContain('2 עשרות');
@@ -352,18 +364,18 @@ describe('the store gate follows the checklist', () => {
   });
 
   it('the grouping refresh asks for the grouping itself, not only its result', () => {
-    useWorkspaceStore.getState().initSession(1, false, 5);
+    useWorkspaceStore.getState().initSession(1, false, at('s1_r_group26'));
     const s0 = useWorkspaceStore.getState();
     expect(getActiveTasks(s0)[s0.standardTaskIdx].id).toBe('s1_r_group26');
     // 2 tens and 6 units dragged in directly: the board is right, the grouping never happened.
     useWorkspaceStore.setState({ counts: { ...EMPTY_COUNTS, tens: 2, units: 6 }, answerDigits: { tens: '2', units: '6' } });
     useWorkspaceStore.getState().proceed();
-    expect(useWorkspaceStore.getState().standardTaskIdx).toBe(5);
+    expect(useWorkspaceStore.getState().standardTaskIdx).toBe(at('s1_r_group26'));
     expect(useWorkspaceStore.getState().feedback?.sub).toContain('כפתור הקבץ 10');
-    // Grouped from loose units: accepted.
+    // Grouped from loose units: accepted, and the target task comes next.
     useWorkspaceStore.setState({ hasGrouped: true });
     useWorkspaceStore.getState().proceed();
-    expect(useWorkspaceStore.getState().standardTaskIdx).toBe(6);
+    expect(useWorkspaceStore.getState().standardTaskIdx).toBe(at('s1_target_347'));
   });
 });
 
