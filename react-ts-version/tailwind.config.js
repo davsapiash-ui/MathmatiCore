@@ -86,6 +86,15 @@ export default {
       transitionDuration: {
         '2500': '2500ms',
       },
+      // Short laptop screens (owner, 27.9.2026): the exercise column tightens
+      // so the result row is in view without scrolling. `short` covers a
+      // 1366×768 or 1280×720 screen, `tiny` the same screens inside a browser
+      // window with its tabs and address bar. Being screens, they come after
+      // sm/md/lg in the CSS, so `short:` can override `md:`.
+      screens: {
+        short: { raw: '(max-height: 820px)' },
+        tiny: { raw: '(max-height: 680px)' },
+      },
     },
   },
   plugins: [require("tailwindcss-animate")],

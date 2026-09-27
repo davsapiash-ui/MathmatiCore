@@ -12,9 +12,9 @@ export function FlexibleDecompTask({ targetNumber }: { targetNumber: number }) {
   const done = q3Reps.length >= 2;
 
   return (
-    <div className="flex flex-col items-center gap-5 mt-4">
-      <div className="bg-ws-accentSoft rounded-3xl px-10 py-6 border border-ws-accent/30 text-center">
-        <span className="font-display font-black text-6xl text-ws-accent tabular-nums">{targetNumber.toLocaleString('he-IL')}</span>
+    <div className="flex flex-col items-center gap-5 short:gap-3 mt-4 short:mt-1">
+      <div className="bg-ws-accentSoft rounded-3xl px-10 py-6 short:px-8 short:py-3 tiny:py-2 border border-ws-accent/30 text-center">
+        <span className="font-display font-black text-6xl short:text-5xl tiny:text-4xl text-ws-accent tabular-nums">{targetNumber.toLocaleString('he-IL')}</span>
       </div>
 
       {/* Recorded representations */}

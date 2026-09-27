@@ -111,6 +111,13 @@
     --warning: 40 92% 50%;
     --warning-foreground: 40 92% 10%;
 
+    /* One notebook square of the exercise sheet: the vertical exercises and
+       the result row. 64px on a tall screen, smaller on a short or narrow
+       laptop screen so the result row stays in view without scrolling (owner,
+       27.9.2026): 1366×768 → ~57px, 1280×720 → ~53px, 1024×768 → ~51px,
+       1536×864 → ~64px. */
+    --ws-cell: clamp(40px, min(7.4vh, 5vw), 64px);
+
     /* Workspace design tokens */
     --ws-bg: 210 55% 97%;           /* clean cool white */
     --ws-surface: 0 0% 100%;

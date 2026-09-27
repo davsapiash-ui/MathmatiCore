@@ -16,18 +16,18 @@ export function Session1ChecklistCard({ items, doneNote = null }: { items: Sessi
   const allDone = items.every((i) => i.done);
   const proceedHe = 'לחצו על כפתור התקדם בסרגל העליון כדי לעבור לשלב הבא!';
   return (
-    <div className="flex flex-col gap-4 bg-ws-surface p-6 rounded-2xl border border-ws-surface2 shadow-sm" data-testid="session1-checklist">
-      <div className="flex items-center justify-between gap-3 mb-1">
+    <div className="flex flex-col gap-4 short:gap-2.5 bg-ws-surface p-6 short:p-4 tiny:p-3 rounded-2xl border border-ws-surface2 shadow-sm" data-testid="session1-checklist">
+      <div className="flex items-center justify-between gap-3 mb-1 short:mb-0">
         <h3 className="text-lg font-bold text-ws-ink">📋 מה עושים בשלב הזה:</h3>
         {/* PRD Module 24: every instruction on screen has its read-aloud button. */}
         <UdlSpeechButton text={items.map((i) => i.label).join('. ')} />
       </div>
 
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3 short:gap-2">
         {items.map((item) => (
-          <div key={item.label} className="flex items-center justify-between p-4 rounded-xl bg-ws-bg border border-ws-surface2 transition-all">
+          <div key={item.label} className="flex items-center justify-between p-4 short:p-2.5 rounded-xl bg-ws-bg border border-ws-surface2 transition-all">
             <div className="flex items-center gap-3">
-              <span className={`text-2xl transition-transform ${item.done ? 'scale-110 text-green-500' : 'text-slate-400'}`}>
+              <span className={`text-2xl short:text-xl transition-transform ${item.done ? 'scale-110 text-green-500' : 'text-slate-400'}`}>
                 {item.done ? '✅' : '⏳'}
               </span>
               <span className={`text-base font-semibold ${item.done ? 'text-ws-soft line-through' : 'text-ws-ink'}`}>
@@ -45,7 +45,7 @@ export function Session1ChecklistCard({ items, doneNote = null }: { items: Sessi
                 <span className="text-xs font-mono font-bold text-ws-soft">{Math.min(item.progress.value, item.progress.of)}/{item.progress.of}</span>
               </div>
             ) : (
-              <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-ws-soft">
+              <span className="shrink-0 whitespace-nowrap text-xs font-bold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-ws-soft">
                 {item.done ? 'בוצע!' : 'עוד לא'}
               </span>
             )}
@@ -57,7 +57,7 @@ export function Session1ChecklistCard({ items, doneNote = null }: { items: Sessi
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="mt-2 p-4 bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-300 dark:border-emerald-800 rounded-2xl text-center shadow-sm"
+          className="mt-2 short:mt-0 p-4 short:p-3 bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-300 dark:border-emerald-800 rounded-2xl text-center shadow-sm"
           role="status"
           aria-live="polite"
           data-testid="session1-done"
