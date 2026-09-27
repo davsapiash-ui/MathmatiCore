@@ -150,8 +150,8 @@ describe('Realtime Socratic Engine & Live Board State Analyzer', () => {
 
     expect(hint).toBeDefined();
     expect(hint?.suggested_highlight).toBe('tour-column-tens');
-    expect(hint?.questionHe).toContain('אין לבנים בעמודת העשרות');
-    expect(hint?.choices[0].textHe).toContain('נרשום 0 בעמודת העשרות כדי לשמור על ערך המקום');
+    expect(hint?.questionHe).toContain('אין לבנים בטור העשרות');
+    expect(hint?.choices[0].textHe).toContain('נרשום 0 בטור העשרות כדי לשמור על ערך המקום');
   });
 
   it('6. Falls back to static task hint when no active live board anomaly exists', async () => {

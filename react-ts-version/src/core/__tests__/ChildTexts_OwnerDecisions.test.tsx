@@ -240,17 +240,8 @@ describe('no educator word reaches the child (register ט)', () => {
    * Awaiting owner decision (Rule 3; listed in owner_items.json of 27.9.2026).
    * Each stays until the owner rules on it. A NEW educator word anywhere fails.
    */
-  const AWAITING_OWNER = [
-    // s1_sandbox_controlled instruction (locked to מסמך 03 §3.1)
-    'ברוכים הבאים לסביבת הלמידה מתמטיקאור! שחקו וחקרו בחופשיות בתחנה אחת הכרות עם המערכת שלנו.',
-    // מפגש 8 card, third option and its feedback
-    'נמתין שהמערכת תציג לנו את התשובה הנכונה',
-    'רמז: המערכת לא תציג תשובות מוכנות. האוטונומיה היא שלכם, נסו לפתור שלב אחר שלב.',
-    // s1_target_347 instruction (locked to מסמך 03 §3.1)
-    'משימת יעד מסכמת: ',
-    // s7_r_challenge_1 instruction
-    'גלו אותן באמצעות מניפולציה בלבני הדינס',
-  ];
+  // The owner ruled on all of them on 27.9.2026; the list stays so that a new one is added here, not silently.
+  const AWAITING_OWNER: string[] = [];
   const withoutAllowed = (s: string) => AWAITING_OWNER.reduce((t, a) => t.split(a).join(''), s);
 
   function hebrewStrings(text: string): string[] {
@@ -305,12 +296,13 @@ describe('no educator word reaches the child (register ט)', () => {
     expect(found).toEqual([]);
   });
 
-  it('every text still waiting for the owner is really there — remove it here once it is fixed', () => {
+  it('every text still waiting for the owner is really there, and the ones he ruled on are gone', () => {
     const all = [
       read('data/sessionTasks.ts'),
       read('data/sessionBranchTasks.ts'),
       read('infrastructure/services/SocraticEngine.ts'),
     ].join('\n');
     for (const a of AWAITING_OWNER) expect(all, a).toContain(a);
+    for (const gone of ['הכרות עם המערכת שלנו', 'האוטונומיה היא שלכם', 'משימת יעד מסכמת: ', 'מניפולציה בלבני הדינס', 'נמתין שהמערכת']) expect(all, gone).not.toContain(gone);
   });
 });
