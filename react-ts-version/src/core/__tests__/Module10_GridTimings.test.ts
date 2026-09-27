@@ -21,7 +21,7 @@ describe('Module 10 — adaptive addition grid: slow fade-in, closed by the lear
   });
 
   it('has the X and nothing else closes it', () => {
-    expect(grid).toContain('aria-label="סגור לוח עזר"');
+    expect(grid).toContain('aria-label="סגירת לוח העזר"');
     expect(grid).not.toMatch(/setTimeout\([^)]*closeAdditionHelper/);
     expect(grid).not.toMatch(/AUTO_HIDE|lastCorrectDigitAt/);
     expect(store).not.toContain('lastCorrectDigitAt');

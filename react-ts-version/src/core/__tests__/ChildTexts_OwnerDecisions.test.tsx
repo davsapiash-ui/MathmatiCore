@@ -306,3 +306,38 @@ describe('no educator word reaches the child (register ט)', () => {
     for (const gone of ['הכרות עם המערכת שלנו', 'האוטונומיה היא שלכם', 'משימת יעד מסכמת: ', 'מניפולציה בלבני הדינס', 'נמתין שהמערכת']) expect(all, gone).not.toContain(gone);
   });
 });
+
+describe('the child is addressed in the plural (gender-equal writing, 27.9.2026)', () => {
+  // The documents' own button names stay as they are: "קבץ 10" ("כפתור הקבץ 10"),
+  // "התקדם" ("כפתור התקדם") and "קרא למורה" (לחצן "קרא למורה").
+  const files = [
+    ...filesUnder('features/workspace'),
+    ...filesUnder('presentation/components/student'),
+    'presentation/pages/StudentHub.tsx',
+    'presentation/pages/Login.tsx',
+    'presentation/design-system/UdlSpeechButton.tsx',
+    'application/useWorkspaceStore.ts',
+  ];
+  const SINGULAR = /(^|[>"'`( ])(הקרא|בטל|סגור|כתוב|הצג|הסתר|המשך|בחר|גרור|הקלד|בדוק|נסה|פתח|הוסף|שמור|שלח|הזן|התחל|חזור)([ .,!:<"'`)?]|$)|(?<![א-ת])(שלך|עבורך|לך|אתה|זקוק)(?![א-ת])|אני צריך/;
+
+  it('no singular instruction, label, placeholder or "שלך" on a child screen', () => {
+    const found: string[] = [];
+    for (const f of files) {
+      for (const line of code(f).split('\n')) {
+        if (/lastAction|last_alert/.test(line)) continue; // the radar's lines are the teacher's
+        if (SINGULAR.test(line)) found.push(`${f}: ${line.trim()}`);
+      }
+    }
+    expect(found).toEqual([]);
+  });
+
+  it('the read-aloud button, undo, the chat and the help card', () => {
+    expect(code('presentation/design-system/UdlSpeechButton.tsx')).toContain('aria-label="הקראה בקול"');
+    expect(code('features/workspace/WorkspaceTopbar.tsx')).toContain('aria-label="ביטול הפעולה האחרונה"');
+    const chat = code('features/workspace/overlays/StudentChatOverlay.tsx');
+    expect(chat).toContain('placeholder="כתבו הודעה למורה..."');
+    expect(chat).toContain('זקוקים לעזרה מיידית?');
+    expect(chat).toContain('<span>קרא למורה 🔔</span>');
+    expect(code('features/workspace/overlays/HelpOverlays.tsx')).toContain("'הבנתי, סגירת החלונית'");
+  });
+});

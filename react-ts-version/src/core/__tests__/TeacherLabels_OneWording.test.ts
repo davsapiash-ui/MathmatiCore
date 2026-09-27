@@ -135,7 +135,7 @@ describe('what the teacher no longer reads', () => {
   });
 
   it('no old name of the open card, no "(PII)", no "בלייב", no "אדמיניסטרטיבית"', () => {
-    expect(hits(teacherTexts(), /כרטיס חניכה סוקרטי|חניכה סוקרטית|כרטיס סוקרטי|\(PII\)|בלייב|אדמיניסטרטיבית|מסכי דשבורד המורה/)).toEqual([]);
+    expect(hits(teacherTexts(), /כרטיס חניכה סוקרטי|חניכה ה?סוקרטית|כרטיס סוקרטי|\(PII\)|בלייב|אדמיניסטרטיבית|מסכי דשבורד המורה/)).toEqual([]);
   });
 
   it('no old route name on screen — only the radar’s internal values, which are not shown', () => {

@@ -130,7 +130,7 @@ export function StudentChatOverlay() {
       normUid,
       `תלמיד ${studentNum}`,
       targetTeacherId as string,
-      'המורה, אני צריך עזרה בכיתה! 🙋‍♂️'
+      'המורה, אפשר לבוא לעזור לי? 🙋'
     );
     toast.success('הקריאה נשלחה למורה בהצלחה! 🔔');
   };
@@ -158,7 +158,7 @@ export function StudentChatOverlay() {
         <button 
           onClick={() => setIsOpen(false)}
           className="text-ws-soft hover:text-ws-ink text-sm font-bold min-w-11 min-h-11 px-3 rounded-lg hover:bg-ws-surface transition-colors cursor-pointer"
-          aria-label="סגור חלון צ'אט"
+          aria-label="סגירת חלון הצ'אט"
         >
           ✕
         </button>
@@ -167,7 +167,7 @@ export function StudentChatOverlay() {
       {/* Call Teacher Action Banner */}
       <div className="bg-amber-50 dark:bg-amber-950/40 border-b border-amber-200 dark:border-amber-900/50 p-2.5 px-4 flex items-center justify-between gap-2 shrink-0">
         <span className="text-xs font-medium text-amber-900 dark:text-amber-200">
-          זקוק לעזרה מיידית?
+          זקוקים לעזרה מיידית?
         </span>
         <button
           onClick={handleCallTeacher}
@@ -223,10 +223,10 @@ export function StudentChatOverlay() {
       {/* Quick Prompts */}
       <div className="px-3 py-1.5 bg-slate-50 dark:bg-slate-900 border-t border-ws-surface2 flex gap-1.5 overflow-x-auto no-scrollbar shrink-0">
         <button
-          onClick={() => handleQuickPrompt('אני צריך עזרה בתרגיל הזה')}
+          onClick={() => handleQuickPrompt('אפשר עזרה בתרגיל הזה?')}
           className="text-[11px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-full px-3.5 min-h-11 flex items-center whitespace-nowrap hover:border-ws-accent transition-colors cursor-pointer"
         >
-          אני צריך עזרה בתרגיל
+          אפשר עזרה בתרגיל?
         </button>
         <button
           onClick={() => handleQuickPrompt('לא הבנתי את ההוראה')}
@@ -244,7 +244,7 @@ export function StudentChatOverlay() {
             value={text}
             onChange={e => setText(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleSend()}
-            placeholder="כתוב הודעה למורה..."
+            placeholder="כתבו הודעה למורה..."
             className="flex-1 border border-ws-surface2 rounded-full px-4 py-2 text-sm focus:outline-none focus:border-ws-accent bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
           />
           <button

@@ -57,6 +57,7 @@ import type { VRAWorkspaceState } from '@/types';
 import {
   EMPTY_PERSISTENCE_COUNTS,
   addPersistenceEvent,
+  hasClosingSentence,
   meetingOfSessionId,
   persistenceEventKind,
   type PersistenceCounts,
@@ -1478,7 +1479,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       return;
     }
 
-    handleSuccess('כָּל הַכָּבוֹד! 🌟', 'המשך לשלב הבא.', 2500);
+    handleSuccess('כָּל הַכָּבוֹד! 🌟', 'המשיכו לשלב הבא.', 2500);
   }
 
   function advanceStandard() {
@@ -1595,7 +1596,15 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     }
 
     set({ awaitingNext: true, currentState: 'COMPLETE' });
-    showFeedback({ correct: true, title: 'כָּל הַכָּבוֹד! 🎉', sub: `תַּחֲנָה ${s.sessionNumber} הוּשְׁלְמָה בְּהַצְלָחָה!` }, 2500);
+    // One praise, one sentence: meetings 3–7 end on the closing sentence of
+    // owner decision E2, which opens with "כל הכבוד" itself, so the toast
+    // before it only says the station is done.
+    showFeedback(
+      hasClosingSentence(s.sessionNumber)
+        ? { correct: true, title: `תַּחֲנָה ${s.sessionNumber} הוּשְׁלְמָה בְּהַצְלָחָה! 🎉` }
+        : { correct: true, title: 'כָּל הַכָּבוֹד! 🎉', sub: `תַּחֲנָה ${s.sessionNumber} הוּשְׁלְמָה בְּהַצְלָחָה!` },
+      2500,
+    );
     // מודול 16: מפגש 8 מסתיים בלוח הרפלקציה התלת-שלבי — זו כל מטרתו
     // ("חוקר-על — סיכום ורפלקציית SRL", מודול 14). הלוח היה בנוי, נבדק
     // ונשמר כהלכה, אבל שום מסלול בקוד לא הוביל אליו: כל מפגש הסתיים

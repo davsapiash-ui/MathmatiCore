@@ -19,18 +19,14 @@ import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncServi
  */
 
 /**
- * One name per component (owner, 27.9.2026, register ט): on screen the board is
- * "בית המספרים" and the pieces are "לבנים". The owner changes מסמך 03 the same
- * way in Drive, and its repository copy is synced afterwards. Until then the
- * copy here still says "לוח בית המספרים" and "קוביות יחידה", so the comparison
- * applies the registered substitutions to it — it passes now and after the sync.
+ * Grammar fix (owner, 27.9.2026): "לבנים" is feminine, so the refresh exercise
+ * 713 + 94 says "כאשר מצטברות 10 לבנים בטור". The owner makes the same change in
+ * מסמך 03 in Drive; until the Drive sync of 27.9.2026 evening the repository
+ * copy still says "מצטברים", so the comparison applies this one substitution.
+ * It is a no-op after the sync — delete it then.
  */
 const REGISTERED_SUBSTITUTIONS: ReadonlyArray<[RegExp, string]> = [
-  [/בלוח בית המספרים/g, 'בבית המספרים'],
-  [/ללוח בית המספרים/g, 'לבית המספרים'],
-  [/מלוח בית המספרים/g, 'מבית המספרים'],
-  [/לוח בית המספרים/g, 'בית המספרים'],
-  [/קוביות יחידה/g, 'לבני יחידה'],
+  [/כאשר מצטברים 10 לבנים בטור/g, 'כאשר מצטברות 10 לבנים בטור'],
 ];
 const DOC03 = REGISTERED_SUBSTITUTIONS.reduce(
   (text, [from, to]) => text.replace(from, to),

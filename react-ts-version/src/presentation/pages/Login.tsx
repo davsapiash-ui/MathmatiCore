@@ -231,7 +231,7 @@ export function Login() {
       const msg = String(err?.message || "");
 
       if (code === "auth/popup-closed-by-user" || msg.includes("popup-closed-by-user")) {
-        setErrorMsg("חלון ההזדהות של Google נסגר. אנא לחץ שוב כדי להתחבר.");
+        setErrorMsg("חלון ההזדהות של Google נסגר. אנא לחצו שוב כדי להתחבר.");
       } else if (code === "auth/popup-blocked" || msg.includes("popup-blocked")) {
         setErrorMsg("הדפדפן חסם את חלון ההתחברות הקופץ. אנא אשר חלונות קופצים (Popups) בדפדפן ונסה שוב.");
       } else if (code === "auth/unauthorized-domain" || msg.includes("unauthorized-domain")) {
@@ -239,7 +239,7 @@ export function Login() {
       } else if (code === "auth/cancelled-popup-request" || msg.includes("cancelled-popup-request")) {
         setErrorMsg("");
       } else if (code === "auth/network-request-failed" || msg.includes("network-request-failed")) {
-        setErrorMsg("שגיאת תקשורת ברשת. אנא בדוק את החיבור לאינטרנט ונסה שוב.");
+        setErrorMsg("שגיאת תקשורת ברשת. אנא בדקו את החיבור לאינטרנט ונסו שוב.");
       } else {
         // Our own refusals are written in Hebrew and say what to do. Anything
         // else is a Firebase internal ("auth/internal-error (auth/…)") that
@@ -301,7 +301,7 @@ export function Login() {
                   שלום! מי נכנס היום?
                 </h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 text-center">
-                  בחר את שער הכניסה שלך
+                  בחרו את שער הכניסה שלכם
                 </p>
 
                 <div className="flex gap-3 justify-center flex-col sm:flex-row">

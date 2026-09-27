@@ -236,3 +236,31 @@ describe('E2 — where the child gets it', () => {
     }
   });
 });
+
+describe('one praise, one sentence at the end of meetings 3–7', () => {
+  it('every closing sentence carries the praise itself', () => {
+    for (const s of Object.values(ENCOURAGEMENT_SENTENCES_HE)) expect(s.startsWith('כל הכבוד'), s).toBe(true);
+  });
+
+  it('where the sentence is shown, the heading only names the station', () => {
+    const page = read(resolve(SRC, 'features/workspace/StudentWorkspacePage.tsx'));
+    const end = page.slice(page.indexOf("if (endScreen === 'sessionDone') {"), page.indexOf('<ClosingSentence sessionNumber={sessionNumber}'));
+    expect(end).toContain('const withClosingSentence = hasClosingSentence(sessionNumber);');
+    const at = end.indexOf('{withClosingSentence ? (');
+    expect(at).toBeGreaterThan(-1);
+    const withSentence = end.slice(at, end.indexOf(') : (', at));
+    expect(withSentence).toContain('סיימתם את תחנה {sessionNumber}!');
+    expect(withSentence).not.toContain('כל הכבוד');
+  });
+
+  it('the toast before that screen carries no praise either', () => {
+    const store = read(resolve(SRC, 'application/useWorkspaceStore.ts'));
+    const at = store.indexOf('hasClosingSentence(s.sessionNumber)\n        ? { correct: true, title: ');
+    expect(at).toBeGreaterThan(-1);
+    const toast = store.slice(at, store.indexOf('\n', store.indexOf('?', at)));
+    const plain = toast.replace(/[֑-ׇ]/g, ''); // without the vowel points
+    expect(plain).toContain('תחנה ${s.sessionNumber} הושלמה בהצלחה!');
+    expect(plain).not.toContain('כל הכבוד');
+    expect(plain).not.toContain('sub:');
+  });
+});

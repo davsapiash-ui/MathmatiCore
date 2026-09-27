@@ -267,7 +267,7 @@ export function StudentHub() {
           className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-extrabold bg-[hsl(var(--ws-blue-soft))] text-[hsl(var(--ws-blue))] shadow-sm"
         >
           <Sparkles className="w-4 h-4" />
-          <span>מרחב הלמידה האישי שלך</span>
+          <span>מרחב הלמידה האישי שלכם</span>
         </motion.div>
 
         {/* Dynamic Class Session State: Gated strictly by Teacher's Broadcast */}

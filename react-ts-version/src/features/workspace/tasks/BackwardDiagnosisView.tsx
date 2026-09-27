@@ -90,7 +90,7 @@ export function BackwardDiagnosisView({ task, qflow, isASD }: { task: QMatrixTas
           >
             הדגם פריטה: עשרת ← 10 יחידות
           </button>
-          <p className="text-sm text-ws-soft">אחרי ההדגמה, בנו את המספר בדרך חדשה ולחצו "הוסף ייצוג".</p>
+          <p className="text-sm text-ws-soft">אחרי ההדגמה, בנו את המספר בדרך חדשה ולחצו "הוספת ייצוג".</p>
 
           {q3Reps.length > 0 && (
             <div className="flex flex-wrap gap-2 justify-center" aria-live="polite">

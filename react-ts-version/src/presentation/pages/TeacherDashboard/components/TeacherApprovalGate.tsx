@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { CheckCircle2, AlertCircle, Sparkles, UserCheck } from 'lucide-react';
 import type { SessionDocument } from '@/types';
 import { ROUTE_NAME_HE, TEACHER_GATE_HE } from '@/core/routeLabels';
+import { meetingShortLabelHe } from '@/core/stationNames';
 
 export interface GateStudentItem {
   studentId: string;
@@ -84,11 +85,11 @@ export function TeacherApprovalGate({
           <div className="flex items-center gap-2">
             <span className="w-3 h-3 rounded-full bg-indigo-500 inline-block" />
             <h2 className="text-xl font-display font-black text-slate-900 dark:text-white">
-              {TEACHER_GATE_HE} למפגש 3 🛡️
+              {TEACHER_GATE_HE} ל{meetingShortLabelHe(3)} 🛡️
             </h2>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            אישור מעבר ממפגש 2 למפגש 3 ובחירת מסלול מותאם לפי תוצאות האבחון.
+            אישור מעבר מ{meetingShortLabelHe(2)} ל{meetingShortLabelHe(3)} ובחירת מסלול מותאם לפי תוצאות האבחון.
           </p>
         </div>
 
@@ -109,7 +110,7 @@ export function TeacherApprovalGate({
       <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
         <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
           <span className="font-extrabold text-sm text-slate-800 dark:text-slate-200">
-            תלמידים הממתינים לאישור כניסה למפגש 3 ({waitingStudents.length})
+            תלמידים הממתינים לאישור כניסה ל{meetingShortLabelHe(3)} ({waitingStudents.length})
           </span>
         </div>
 
@@ -143,7 +144,7 @@ export function TeacherApprovalGate({
                       <td className="p-4">
                         <div className="flex flex-col gap-1">
                           <span className="font-bold text-slate-700 dark:text-slate-300">
-                            {st.scoreSummary || 'הושלם אבחון מפגש 2'}
+                            {st.scoreSummary || `הושלם אבחון ${meetingShortLabelHe(2)}`}
                           </span>
                           {st.errorNodes && st.errorNodes.length > 0 && (
                             <span className="text-[10px] text-rose-500 font-medium">
@@ -201,7 +202,7 @@ export function TeacherApprovalGate({
       {/* Approved Students Summary */}
       {approvedStudents.length > 0 && (
         <div className="bg-slate-50 dark:bg-slate-900/40 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs text-slate-500 flex items-center justify-between">
-          <span>תלמידים שכבר אושרו למפגש 3: {approvedStudents.length}</span>
+          <span>תלמידים שכבר אושרו ל{meetingShortLabelHe(3)}: {approvedStudents.length}</span>
           <span className="font-bold text-emerald-600 dark:text-emerald-400">השער פתוח עבורם</span>
         </div>
       )}

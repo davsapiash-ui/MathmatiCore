@@ -13,7 +13,7 @@
  */
 import * as fs from "fs";
 import { fontPath } from "./htmlPdf";
-import { ROUTE_NAME_HE } from "./teacherLabels";
+import { ROUTE_NAME_HE, errorCategoryHe } from "./teacherLabels";
 import type { ClassAggregates, ClassLearnerRow, ExerciseOutcome } from "./classReport";
 import {
   CHOICE_PATH_LABEL_HE,
@@ -297,6 +297,14 @@ function keyValueList(map: Record<string, number>): string {
   return Object.entries(map).map(([k, v]) => ltr(`${k}: ${v}`)).join(", ");
 }
 
+/** The error categories by the names the teacher reads (PRD Module 18); a key outside the three stays as stored. */
+function errorCategoryList(map: Record<string, number>): string {
+  return Object.entries(map).map(([k, v]) => {
+    const name = errorCategoryHe(k);
+    return name ? esc(`${name}: ${v}`) : ltr(`${k}: ${v}`);
+  }).join(", ");
+}
+
 /** A percentage that may not have been measured. Never printed as a bare "%". */
 const pctHe = (value: number | null | undefined): string => (typeof value === "number" ? `${value}%` : "לא נמדד");
 
@@ -420,7 +428,7 @@ export function classReportHtml(report: Record<string, any>): string {
     : "";
 
   const triggers = keyValueList(a.socratic_triggers);
-  const categories = keyValueList(a.error_categories);
+  const categories = errorCategoryList(a.error_categories);
 
   // מסמך 03: the choice exercises marked as such, apart from the compulsory ones.
   const compulsoryExercises = a.exercises.filter((ex) => pathTypeOf(ex) === "compulsory");

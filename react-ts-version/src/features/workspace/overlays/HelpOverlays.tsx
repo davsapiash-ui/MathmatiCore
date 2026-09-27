@@ -188,7 +188,7 @@ export function SocraticSidePanel() {
                 </div>
                 <button
                   onClick={closeHelp}
-                  aria-label="סגור חלונית עזרה"
+                  aria-label="סגירת חלונית העזרה"
                   className="w-11 h-11 rounded-full bg-ws-surface2 hover:bg-ws-surface2/80 text-ws-soft font-bold flex items-center justify-center text-sm transition-colors shrink-0"
                 >
                   ✕
@@ -398,7 +398,7 @@ function SocraticPenaltyLockOptions({ onClose }: { onClose: () => void }) {
         onClick={onClose}
         className="mt-2 w-full h-11 rounded-full font-display font-extrabold text-sm transition-all bg-ws-accent text-white hover:brightness-105 shadow-md"
       >
-        {lockSeconds > 0 ? `סגור לעת עתה (המענה ייפתח בעוד ${lockSeconds}ש')` : 'הבנתי, סגור חלונית'}
+        {lockSeconds > 0 ? `סגירה לעת עתה (המענה ייפתח בעוד ${lockSeconds}ש')` : 'הבנתי, סגירת החלונית'}
       </button>
     </div>
   );

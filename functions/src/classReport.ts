@@ -6,7 +6,7 @@ import * as path from "path";
 import * as fs from "fs";
 import { DRIVE_FOLDERS, resolveDriveFolder, uploadBufferToDrive } from "./exportDriveReport";
 import { meetingLabelHe } from "./stationNames";
-import { ROUTE_NAME_HE } from "./teacherLabels";
+import { ROUTE_NAME_HE, errorCategoryHe } from "./teacherLabels";
 import {
   computeFirstAttemptScore,
   readAllDocs,
@@ -745,7 +745,7 @@ export function createClassReportPdfBufferWithPdfkit(report: Record<string, any>
       line(`פעולות מתועדות: ${a.events_total} | ספרות שהוזנו: ${a.digits_entered_total} | ספרות שגויות: ${a.wrong_digits_total} (אחדות ${a.wrong_digits_by_column.units}, עשרות ${a.wrong_digits_by_column.tens}, מאות ${a.wrong_digits_by_column.hundreds}, אלפים ${a.wrong_digits_by_column.thousands})`);
       line(`מחיקות: ${a.deletions_total} | ביטולים: ${a.undos_total} | היסוסים: ${a.hesitations_total} (${a.hesitation_seconds_total} שניות) | המרות (הקבצה/פריטה): ${a.regroupings_total}`);
       const triggers = Object.entries(a.socratic_triggers).map(([k, v]) => `${k}: ${v}`).join(", ");
-      const categories = Object.entries(a.error_categories).map(([k, v]) => `${k}: ${v}`).join(", ");
+      const categories = Object.entries(a.error_categories).map(([k, v]) => `${errorCategoryHe(k) ?? k}: ${v}`).join(", ");
       line(`כרטיסי חניכה: ${a.socratic_cards_total}${triggers ? ` (${triggers})` : ""} | סיווגי שגיאה: ${categories || "אין"}`);
       line(`לוח החיבור: נפתח ${a.grid_openings_total}, הוחזר על ידי הלומד ${a.grid_reopenings_total} | הקלדה לפני המרה (מקלדת נעולה): ${a.keyboard_lock_blocks_total} | קריאות שקטות למורה: ${a.help_requests_total}`);
       line(`זמן פעילות ממוצע: ${a.active_minutes_mean} דקות | דקות הקלטה: ${a.recording_minutes_total} | רפלקציות: ${a.reflections_submitted} מתוך ${a.learners_with_data}`);

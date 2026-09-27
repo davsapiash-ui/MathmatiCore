@@ -208,7 +208,7 @@ export const SESSION1_TASKS: SessionTask[] = [
     type: 'addition_simple',
     numberA: 713, numberB: 94, correctAnswer: 807,
     titleHe: 'חיבור במאונך עם המרה מעל מאה',
-    instructionHe: 'בנו בבית המספרים 713 ו-94 וחברו אותם. כאשר מצטברים 10 לבנים בטור, לחצו על כפתור הקבץ 10 שבראש הטור. כתבו את התשובה בשורת התוצאה.',
+    instructionHe: 'בנו בבית המספרים 713 ו-94 וחברו אותם. כאשר מצטברות 10 לבנים בטור, לחצו על כפתור הקבץ 10 שבראש הטור. כתבו את התשובה בשורת התוצאה.',
     scaffoldLevel: 1,
     requiresGrouping: true,
     targetNode: 'regrouping_fluency',

@@ -86,7 +86,7 @@ describe('the lobby has no entry button — the learner is moved in (register ro
   });
 });
 
-describe('"הצג את בית המספרים" appears only in meetings that have a board', () => {
+describe('"הצגת בית המספרים" appears only in meetings that have a board', () => {
   const topbar = src('features/workspace/WorkspaceTopbar.tsx');
   const page = src('features/workspace/StudentWorkspacePage.tsx');
 

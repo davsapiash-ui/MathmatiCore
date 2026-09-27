@@ -169,6 +169,17 @@ describe('the teacher and the admin see the child’s station name next to each 
     expect(code('presentation/pages/TeacherDashboard/components/ClassMeetingReportPanel.tsx')).toContain('{meetingLabelHe(selectedSession)}');
   });
 
+  it('the gate between meetings 2 and 3 names both stations, in every text and message', () => {
+    const gate = [
+      'presentation/pages/TeacherDashboard/ClassManagement.tsx',
+      'presentation/pages/TeacherDashboard/components/TeacherApprovalGate.tsx',
+      'presentation/pages/TeacherDashboard/components/TeacherGateApprovalDrawer.tsx',
+      'core/teacherGate.ts',
+    ];
+    expect(hits(gate, /מפגש [23](?![0-9])/)).toEqual([]);
+    for (const f of gate) expect(code(f), f).toMatch(/meetingShortLabelHe\([23]\)/);
+  });
+
   it('the radar tiles and the learner detail', () => {
     const grid = code('presentation/pages/TeacherDashboard/components/HeatmapGrid.tsx');
     expect(grid).toContain('{meetingShortLabelHe(student.sessionNumber)}');
@@ -214,10 +225,12 @@ const OLD_BOARD_OR_PIECE = /לוח הדינס|לוח הלבנים|לוח לבנ�
 const CHILD_BOARD_WORDS = /טבלה|טבלת ערך המקום|לוח בית המספרים/;
 
 /**
- * Child texts that still carry an old name. Awaiting owner decision (Rule 3;
- * listed in owner_items.json of 27.9.2026) — a NEW one anywhere else fails.
+ * Child texts that still carry an old name, awaiting owner decision (Rule 3).
+ * The owner ruled on the last one on 27.9.2026 (s7_r_challenge_1 now says
+ * "בעזרת הלבנים בבית המספרים"); the list stays so that a new one is added
+ * here, not silently — a NEW one anywhere else fails.
  */
-const AWAITING_OWNER = ['גלו אותן באמצעות מניפולציה בלבני הדינס'];
+const AWAITING_OWNER: string[] = [];
 
 describe('the child reads "בית המספרים" and "לבנים"', () => {
   const childFiles = [
@@ -273,7 +286,7 @@ describe('the child reads "בית המספרים" and "לבנים"', () => {
 
   it('the board button and the lock notice name the board', () => {
     const topbar = code('features/workspace/WorkspaceTopbar.tsx');
-    expect(topbar).toContain('{boardOpen ? "הסתר את בית המספרים" : "הצג את בית המספרים"}');
+    expect(topbar).toContain('{boardOpen ? "הסתרת בית המספרים" : "הצגת בית המספרים"}');
     expect(code('features/workspace/board/PlaceValueBoard.tsx')).toContain('בית המספרים נעול זמנית על ידי המורה');
   });
 

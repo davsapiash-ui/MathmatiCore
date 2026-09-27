@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { CheckSquare, Square, RotateCcw, CircleDot, HelpCircle, Award, ArrowLeft } from 'lucide-react';
 import type { SRLReflectionResult } from '@/core/srlReflection';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
-import { encouragementSentenceHe, persistenceIndexPercent } from '@/core/persistenceEncouragement';
+import { encouragementSentenceHe, persistenceIndexPercent, splitEncouragement } from '@/core/persistenceEncouragement';
 
 interface Session8ReflectionScreenProps {
   /**
@@ -56,17 +56,6 @@ export const REFLECTION_TEXT_HE = {
   back: 'חזרה',
   finish: 'סיום המפגש',
 } as const;
-
-/**
- * The sentence split for the screen: its first exclamation ("כל הכבוד!",
- * "כל הכבוד שהתמדתם עד הסוף!") as the heading, the rest under it. Together
- * they are the sentence word for word.
- */
-export function splitEncouragement(sentence: string): { title: string; body: string } {
-  const at = sentence.indexOf('!');
-  if (at < 0) return { title: sentence, body: '' };
-  return { title: sentence.slice(0, at + 1), body: sentence.slice(at + 1).trim() };
-}
 
 /** שלוש רמות המאמץ: סמל חזותי בלבד על המסך; השם (מסמך 03) להקראה ולקורא מסך. */
 export const EFFORT_LEVELS: ReadonlyArray<{ id: EffortId; bars: 1 | 2 | 3; spokenHe: string }> = [

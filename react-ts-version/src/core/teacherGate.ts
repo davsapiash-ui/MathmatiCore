@@ -14,6 +14,7 @@ import { ref, update } from 'firebase/database';
 import { firestore, database } from '@/infrastructure/firebase';
 import { indexedDBQueue } from '@/infrastructure/services/IndexedDBQueue';
 import type { SessionDocument, PedagogicalPath } from '@/types';
+import { meetingShortLabelHe } from '@/core/stationNames';
 
 export type GateApprovalResult =
   | { ok: true }
@@ -46,14 +47,14 @@ export async function approveTeacherGate(
     return {
       ok: false,
       reason: 'missing_session_doc',
-      message: `לא נמצא מסמך אבחון (מפגש 2) עבור תלמיד ${num}. לא ניתן לאשר מעבר טרם סיום המפגש בפועל.`,
+      message: `לא נמצא מסמך אבחון (${meetingShortLabelHe(2)}) עבור תלמיד ${num}. לא ניתן לאשר מעבר טרם סיום המפגש בפועל.`,
     };
   }
   if ((snap.data() as SessionDocument).is_completed === false) {
     return {
       ok: false,
       reason: 'not_completed',
-      message: `תלמיד ${num} טרם השלים את כל משימות החובה במפגש 2. לא ניתן לאשר מעבר.`,
+      message: `תלמיד ${num} טרם השלים את כל משימות החובה ב${meetingShortLabelHe(2)}. לא ניתן לאשר מעבר.`,
     };
   }
 

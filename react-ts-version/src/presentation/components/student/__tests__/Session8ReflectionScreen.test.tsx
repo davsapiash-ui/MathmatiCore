@@ -33,9 +33,8 @@ import {
   Session8ReflectionScreen,
   REFLECTION_TEXT_HE,
   STRATEGY_OPTIONS,
-  splitEncouragement,
 } from '../Session8ReflectionScreen';
-import { ENCOURAGEMENT_SENTENCES_HE } from '@/core/persistenceEncouragement';
+import { ENCOURAGEMENT_SENTENCES_HE, splitEncouragement } from '@/core/persistenceEncouragement';
 
 afterEach(cleanup);
 

@@ -80,6 +80,18 @@ export function encouragementSentenceHe(c: PersistenceCounts): string {
 }
 
 /**
+ * The sentence split for stage 3 of meeting 8's reflection board: its first
+ * exclamation ("כל הכבוד!", "כל הכבוד שהתמדתם עד הסוף!") as the heading, the
+ * rest under it. Together they are the sentence word for word. (Kept out of
+ * the screen's file for the fast-refresh lint rule, only-export-components.)
+ */
+export function splitEncouragement(sentence: string): { title: string; body: string } {
+  const at = sentence.indexOf('!');
+  if (at < 0) return { title: sentence, body: '' };
+  return { title: sentence.slice(0, at + 1), body: sentence.slice(at + 1).trim() };
+}
+
+/**
  * E2: the meetings whose end carries one closing sentence and nothing else —
  * no board, no question, no number. Meeting 8 gets its sentence on stage 3 of
  * the reflection board instead; meetings 1 and 2 get none.
