@@ -52,7 +52,9 @@ function reloadFrom(saved: unknown) {
 }
 
 beforeEach(() => ws().resetWorkspace());
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('the order before 27.9.2026', () => {
   it('holds the same nine exercises, with only the target task and the grouping exercise swapped', () => {

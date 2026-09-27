@@ -2,7 +2,7 @@ import { useRef } from 'react';
 import { useWorkspaceStore, requiredCountsOf } from '@/application/useWorkspaceStore';
 import { PLACE_ORDER, PLACE_NAMES_HE, countsEqual, describeCountsHe, type Place } from '@/core/placeValue';
 import type { SessionTask } from '@/data/sessionTasks';
-import { session1Checklist } from '@/core/session1Checklist';
+import { session1Checklist, session1DoneNoteHe } from '@/core/session1Checklist';
 import { Session1ChecklistCard } from './Session1ChecklistCard';
 
 const CELL = 64;
@@ -66,7 +66,7 @@ export function RepresentationTask({ task }: { task: SessionTask }) {
           a 1366×768 school laptop shows the checklist without scrolling. */}
       {checklist && (
         <div className="w-full max-w-md">
-          <Session1ChecklistCard items={checklist} />
+          <Session1ChecklistCard items={checklist} doneNote={session1DoneNoteHe(task.id)} />
         </div>
       )}
 

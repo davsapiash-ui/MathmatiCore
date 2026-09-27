@@ -205,9 +205,12 @@ export const SESSION1_TASKS: SessionTask[] = [
     { requiresGrouping: true, initialCounts: { units: 26 }, hideRequiredCounts: true }),
 
   // מסמך 03 §3.1 step 6 — the target task: 347 → 3 hundreds, 3 tens, 17 units.
+  // On-screen wording: the owner's, 27.9.2026 (register decision י). The child
+  // is asked which number the blocks show after the decomposition, so that
+  // they see the quantity did not change; the numbers are unchanged.
   s1(representation('s1_target_347', 347, { hundreds: 3, tens: 3, units: 17 },
     'משימת יעד מסכמת',
-    'משימת היעד: בנו את המספר 347 בלבני דינס, פרטו עשרת אחת לעשר יחידות, וכתבו בשורת התוצאה את המספר שעל הלוח!'),
+    'משימת היעד: בנו את המספר 347 בלבני דינס ופרטו עשרת אחת לעשר יחידות. איזה מספר, לדעתכם, מייצגות הלבנים לאחר הפריטה? כתבו אותו בשורת התוצאה.'),
     { requiresUngrouping: true, hideRequiredCounts: true }),
 
   // ★ chosen (owner, 24.9.2026). Mirrors task 6 (124 + 85) in structure with

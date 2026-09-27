@@ -68,18 +68,29 @@ export function session1Checklist(taskId: string, s: Session1ChecklistState): Se
         { label: 'לחצו על כפתור ביטול פעולה', done: s.undoCount >= 1 },
         { label: 'לחצו על פח האשפה', done: s.hasClearedBoard },
       ];
-    // Step 6, the target task: the document's instruction, clause by clause.
+    // Step 6, the target task: the instruction, clause by clause. The third
+    // line is the owner's wording of 27.9.2026 (register decision י).
     case 's1_target_347': {
       const is347 = boardValue(s.counts) === 347;
       return [
         { label: 'בנו את המספר 347 בלבני דינס', done: is347 },
         { label: 'פרטו עשרת אחת לעשר יחידות', done: s.hasUngrouped && countsEqual(s.counts, { ...EMPTY_COUNTS, hundreds: 3, tens: 3, units: 17 }) },
-        { label: 'כתבו בשורת התוצאה את המספר שעל הלוח', done: typedNumber(s.answerDigits) === 347 },
+        { label: 'כתבו בשורת התוצאה איזה מספר מייצגות הלבנים לאחר הפריטה', done: typedNumber(s.answerDigits) === 347 },
       ];
     }
     default:
       return null;
   }
+}
+
+/**
+ * What the checklist card says first once every item of a step is done, before
+ * "לחצו על כפתור התקדם…", or null for the card's usual words. The target task
+ * names what the child has just seen: the blocks are arranged differently, the
+ * number is the same (owner, 27.9.2026 — register decision י).
+ */
+export function session1DoneNoteHe(taskId: string): string | null {
+  return taskId === 's1_target_347' ? 'נכון! הלבנים מסודרות אחרת, אבל המספר נשאר 347.' : null;
 }
 
 /** The first thing still to do, or null when the step is complete (or has no checklist). */

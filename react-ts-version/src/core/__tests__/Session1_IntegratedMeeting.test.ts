@@ -5,7 +5,7 @@ import { resolve } from 'path';
 import { useWorkspaceStore, getActiveTasks, selectCanProceed } from '@/application/useWorkspaceStore';
 import { SESSION1_TASKS, getHardcodedCatalogBanks, type SessionTask } from '@/data/sessionTasks';
 import { TASKS as DIAGNOSTIC_TASKS } from '@/core/QMatrix';
-import { session1Checklist } from '@/core/session1Checklist';
+import { session1Checklist, session1DoneNoteHe } from '@/core/session1Checklist';
 import { EMPTY_COUNTS } from '@/core/placeValue';
 import { SocraticEngine } from '@/infrastructure/services/SocraticEngine';
 import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
@@ -32,6 +32,29 @@ const DOC03 = REGISTERED_SUBSTITUTIONS.reduce(
   (text, [from, to]) => text.replace(from, to),
   readFileSync(resolve(__dirname, '../../../../מסמכי אפיון/מקור פדגוגי/03- אפיון מפורט לקראת פיתוח.md'), 'utf-8').replace(/\\!/g, '!')
 );
+/**
+ * TEMPORARY — pending Drive sync of the meeting-1 order (27.9.2026).
+ *
+ * Register decision י changed the target task's on-screen instruction and the
+ * third line of its checklist to the owner's wording. The owner puts the same
+ * wording (and the new order) into מסמך 03 in Drive; the repository copy is
+ * synced from Drive after this change. Until then these two texts cannot be
+ * found in the repository copy, so they are compared with the owner's decision
+ * instead. Once the copy is synced the allowance is a no-op.
+ *
+ * After the sync, remove: this constant, the helper `inDoc03OrPending` (use
+ * `expect(DOC03, …).toContain(…)` again at its two call sites), and the test
+ * "the texts waiting for the Drive sync are texts the software shows".
+ */
+const PENDING_DOC03_SYNC_27_9: ReadonlySet<string> = new Set([
+  'משימת היעד: בנו את המספר 347 בלבני דינס ופרטו עשרת אחת לעשר יחידות. איזה מספר, לדעתכם, מייצגות הלבנים לאחר הפריטה? כתבו אותו בשורת התוצאה.',
+  'כתבו בשורת התוצאה איזה מספר מייצגות הלבנים לאחר הפריטה',
+]);
+/** The line is in the repository copy of מסמך 03 — or is one of the two texts waiting for its Drive sync. */
+const inDoc03OrPending = (line: string, where: string) => {
+  if (PENDING_DOC03_SYNC_27_9.has(line)) return;
+  expect(DOC03, where).toContain(line);
+};
 const task = (id: string) => SESSION1_TASKS.find((t) => t.id === id)!;
 const diag = (id: string) => DIAGNOSTIC_TASKS.find((t) => t.id === id)!;
 /** A task's place in meeting 1. */
@@ -91,13 +114,34 @@ describe('steps 1–5 say on screen what מסמך 03 §3.1 says, word for word',
   it('the refresh exercises and the target task say on screen what מסמך 03 §3.1 says, word for word', () => {
     // The owner added them to the document on 24.9.2026 (register ו).
     for (const id of ['s1_target_347', 's1_r_group26', 's1_t8', 's1_r_sub61', 's1_r_sub806']) {
-      for (const line of lines(task(id))) expect(DOC03, `${id}: ${line}`).toContain(line);
+      for (const line of lines(task(id))) inDoc03OrPending(line, `${id}: ${line}`);
     }
+  });
+
+  it('the target task says the owner\'s words exactly (register decision י, 27.9.2026)', () => {
+    expect(task('s1_target_347').instructionHe).toBe(
+      'משימת היעד: בנו את המספר 347 בלבני דינס ופרטו עשרת אחת לעשר יחידות. איזה מספר, לדעתכם, מייצגות הלבנים לאחר הפריטה? כתבו אותו בשורת התוצאה.'
+    );
+    const labels = session1Checklist('s1_target_347', { counts: { ...EMPTY_COUNTS }, blocksAddedCount: 0, hasUngrouped: false, undoCount: 0, hasClearedBoard: false })!.map((i) => i.label);
+    expect(labels).toEqual([
+      'בנו את המספר 347 בלבני דינס',
+      'פרטו עשרת אחת לעשר יחידות',
+      'כתבו בשורת התוצאה איזה מספר מייצגות הלבנים לאחר הפריטה',
+    ]);
+    expect(session1DoneNoteHe('s1_target_347')).toBe('נכון! הלבנים מסודרות אחרת, אבל המספר נשאר 347.');
+    for (const id of ['s1_sandbox_controlled', 's1_decompose_hundred', 's1_build_305', 's1_undo_trash', 's1_r_group26']) {
+      expect(session1DoneNoteHe(id)).toBeNull();
+    }
+  });
+
+  it('the texts waiting for the Drive sync are texts the software shows (TEMPORARY — remove with PENDING_DOC03_SYNC_27_9)', () => {
+    const labels = session1Checklist('s1_target_347', { counts: { ...EMPTY_COUNTS }, blocksAddedCount: 0, hasUngrouped: false, undoCount: 0, hasClearedBoard: false })!.map((i) => i.label);
+    for (const text of PENDING_DOC03_SYNC_27_9) expect([task('s1_target_347').instructionHe, ...labels]).toContain(text);
   });
 
   it('step 6 names the document\'s number and actions', () => {
     const t = task('s1_target_347');
-    expect(t.instructionHe.startsWith('משימת היעד: בנו את המספר 347 בלבני דינס, פרטו עשרת אחת לעשר יחידות')).toBe(true);
+    expect(t.instructionHe.startsWith('משימת היעד: בנו את המספר 347 בלבני דינס ופרטו עשרת אחת לעשר יחידות')).toBe(true);
     expect(t.requiredCounts).toEqual({ hundreds: 3, tens: 3, units: 17 });
     expect(t.requiresUngrouping).toBe(true);
     // the new representation is what the child finds — the card does not list it in advance
@@ -155,7 +199,7 @@ describe('what completes each introduction step', () => {
   it('every checklist label is the document\'s own wording', () => {
     const state = { ...base, counts: { ...EMPTY_COUNTS } };
     for (const id of ['s1_sandbox_controlled', 's1_decompose_hundred', 's1_build_305', 's1_undo_trash', 's1_target_347']) {
-      for (const item of session1Checklist(id, state)!) expect(DOC03, item.label).toContain(item.label);
+      for (const item of session1Checklist(id, state)!) inDoc03OrPending(item.label, item.label);
     }
     const other305 = session1Checklist('s1_build_305', { ...state, counts: { ...EMPTY_COUNTS, hundreds: 2, tens: 10, units: 5 } })!;
     // The corrective second item is an action, not a phrase (owner, 25.9.2026:
