@@ -43,6 +43,7 @@ import { useAuthStore, currentStudentUid } from '@/application/useAuthStore';
 import { CurriculumRouter } from '@/core/CurriculumRouter';
 import { syncQMatrixEvaluation } from '@/core/ExerciseValidationEngine';
 import { getSessionTasks, SESSION1_TASKS, type SessionTask } from '@/data/sessionTasks';
+import { boardStaysOpen } from '@/core/boardVisibility';
 import { curriculumCatalog } from '@/infrastructure/services/CurriculumCatalogService';
 import { getSessionBranchTasks } from '@/data/sessionBranchTasks';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
@@ -560,6 +561,15 @@ function sanitizeSessionNumber(n: any): SessionNumber {
   const parsed = parseInt(n, 10);
   if (isNaN(parsed) || parsed < 1 || parsed > 8) return 1;
   return parsed as SessionNumber;
+}
+
+/**
+ * Whether the number house is on screen. In station 1 it always is (owner,
+ * 27.9.2026): even a boardOpen:false left in the store by another meeting, or
+ * by anything else, cannot hide it there.
+ */
+export function selectBoardOpen(s: WorkspaceState): boolean {
+  return s.boardOpen || boardStaysOpen(s.sessionNumber);
 }
 
 export function selectScaffoldLevel(s: WorkspaceState): number {
@@ -2519,7 +2529,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       });
     },
 
-    toggleBoard: () => set((s) => ({ boardOpen: !s.boardOpen })),
+    // Station 1: the board stays open (owner, 27.9.2026 — core/boardVisibility.ts).
+    toggleBoard: () => set((s) => ({ boardOpen: boardStaysOpen(s.sessionNumber) ? true : !s.boardOpen })),
     setFocusedPlace: (place) => set({ focusedPlace: place }),
 
     selectChoice: (id) => {

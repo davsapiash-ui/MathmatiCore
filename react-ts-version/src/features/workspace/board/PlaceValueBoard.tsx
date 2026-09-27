@@ -2,7 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useState, useEffect, useRef } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { PLACE_ORDER, type Place } from '@/core/placeValue';
-import { useWorkspaceStore, selectScaffoldLevel } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, selectScaffoldLevel, selectBoardOpen } from '@/application/useWorkspaceStore';
 import { PlaceColumn } from './PlaceColumn';
 import { ValueDisplay } from './ValueDisplay';
 import { BlockPalette } from './BlockPalette';
@@ -30,7 +30,8 @@ export function PlaceValueBoard({
    *  board keeping a fixed half and squeezing the sheet. */
   shareRow?: boolean;
 }) {
-  const boardOpen = useWorkspaceStore((s) => s.boardOpen);
+  // Station 1 keeps the board open whatever the store says (selectBoardOpen).
+  const boardOpen = useWorkspaceStore(selectBoardOpen);
   const scaffoldLevel = useWorkspaceStore(selectScaffoldLevel);
   const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
   const isBoardLocked = useWorkspaceStore((s) => s.isBoardLocked);

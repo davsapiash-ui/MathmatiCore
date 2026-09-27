@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { currentStudentNumber, currentStudentUid } from '@/application/useAuthStore';
-import { useWorkspaceStore, selectCanProceed, getActiveTasks } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, selectCanProceed, getActiveTasks, selectBoardOpen } from '@/application/useWorkspaceStore';
+import { BOARD_STAYS_OPEN_HE, boardStaysOpen } from '@/core/boardVisibility';
+import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 import { useChatStore, normalizeStudentId } from '@/application/useChatStore';
 import { TASKS } from '@/core/QMatrix';
 import { ProgressDots } from './ProgressDots';
@@ -28,6 +30,9 @@ interface WorkspaceTopbarProps {
 }
 
 /** מודול 17 §ד: what the cloud says in each sync state (read aloud and on hover). */
+/** How long the station-1 note under the board button stays (long enough to hear it read aloud). */
+const STAYS_OPEN_NOTE_MS = 10_000;
+
 const CLOUD_STATUS_LABEL: Record<QueueSyncState, string> = {
   synced: 'מחובר. העבודה שלכם נשמרה.',
   pending: 'מחובר. העבודה שלכם נשמרת ותישלח בעוד רגע.',
@@ -49,7 +54,21 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
   const qflow = useWorkspaceStore((s) => s.qflow);
   const canUndo = useWorkspaceStore((s) => s.undoStack.length > 0) && !isDragging;
   const canProceed = useWorkspaceStore(selectCanProceed);
-  const boardOpen = useWorkspaceStore((s) => s.boardOpen);
+  const boardOpen = useWorkspaceStore(selectBoardOpen);
+  // Station 1: the board is not hidden; the button explains why (owner, 27.9.2026).
+  const staysOpen = boardStaysOpen(sessionNumber);
+  /** When the note was last asked for (each press restarts its time), or null while it is not shown. */
+  const [staysOpenNote, setStaysOpenNote] = useState<number | null>(null);
+  const showStaysOpenNote = () => setStaysOpenNote(Date.now());
+  // The note is calm and passing: it goes after a while, and with the meeting.
+  useEffect(() => {
+    if (staysOpenNote === null) return;
+    const t = setTimeout(() => setStaysOpenNote(null), STAYS_OPEN_NOTE_MS);
+    return () => clearTimeout(t);
+  }, [staysOpenNote]);
+  useEffect(() => {
+    if (!staysOpen) setStaysOpenNote(null);
+  }, [staysOpen]);
   const undo = useWorkspaceStore((s) => s.undo);
   const proceed = useWorkspaceStore((s) => s.proceed);
   const toggleBoard = useWorkspaceStore((s) => s.toggleBoard);
@@ -63,7 +82,7 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
   const currentIdx = sessionNumber === 2 ? Math.min(qflow.taskIdx, TASKS.length - 1) : standardTaskIdx;
 
   return (
-    <nav className="h-[72px] shrink-0 bg-ws-surface/90 backdrop-saturate-150 border-b border-ws-surface2 shadow-[0_4px_20px_-8px_hsl(var(--ws-shadow-warm)/0.25)] flex items-center justify-between px-5 gap-4 z-20">
+    <nav className="relative h-[72px] shrink-0 bg-ws-surface/90 backdrop-saturate-150 border-b border-ws-surface2 shadow-[0_4px_20px_-8px_hsl(var(--ws-shadow-warm)/0.25)] flex items-center justify-between px-5 gap-4 z-20">
       {/* Brand + Student Identity + Silent Cloud Status Icon */}
       <div className="flex items-center gap-3 shrink-0">
         <Logo size="md" subtitle="מרחב חקר אישי" />
@@ -147,17 +166,26 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
         {/* The board toggle exists only where there is a board. In meetings 2
             and 8 the place-value board and the blocks are not mounted at all
             (PRD Module 14 §ב; מסמך 03 §3.2 and §3.8: "לוח לבני הדינס ולוח בית
-            המספרים אינם מוצגים"), so "הצג לוח" there showed nothing. */}
+            המספרים אינם מוצגים"), so "הצג לוח" there showed nothing.
+            Station 1 (owner, 27.9.2026): the button stays, but the board is not
+            hidden; hovering or pressing it says why. aria-disabled rather than
+            the disabled attribute, so the hover and the press still reach it. */}
         {sessionNumber !== 2 && sessionNumber !== 8 && (
           <button
-            onClick={toggleBoard}
-            className={`h-12 px-4 rounded-2xl text-sm font-bold transition-all cursor-pointer flex items-center gap-1.5 border shadow-sm active:scale-95 ${
-              boardOpen 
-                ? 'bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-950/40 dark:border-indigo-800 dark:text-indigo-300' 
-                : 'bg-ws-surface2/60 border-ws-surface2 text-ws-ink hover:bg-ws-surface2'
+            type="button"
+            onClick={staysOpen ? showStaysOpenNote : toggleBoard}
+            className={`h-12 px-4 rounded-2xl text-sm font-bold transition-all flex items-center gap-1.5 border shadow-sm ${
+              staysOpen
+                ? 'bg-indigo-50/60 border-indigo-200/70 text-indigo-700/60 dark:bg-indigo-950/30 dark:border-indigo-800/60 dark:text-indigo-300/60 cursor-help'
+                : boardOpen
+                  ? 'bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-950/40 dark:border-indigo-800 dark:text-indigo-300 cursor-pointer active:scale-95'
+                  : 'bg-ws-surface2/60 border-ws-surface2 text-ws-ink hover:bg-ws-surface2 cursor-pointer active:scale-95'
             }`}
+            aria-disabled={staysOpen ? true : undefined}
+            aria-describedby={staysOpen && staysOpenNote !== null ? 'board-stays-open-note' : undefined}
             aria-label={boardOpen ? "הסתרת בית המספרים" : "הצגת בית המספרים"}
-            title={boardOpen ? "הסתרת בית המספרים" : "הצגת בית המספרים"}
+            title={staysOpen ? BOARD_STAYS_OPEN_HE : boardOpen ? "הסתרת בית המספרים" : "הצגת בית המספרים"}
+            data-testid="board-toggle"
           >
             {boardOpen ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             <span className="hidden sm:inline">{boardOpen ? "הסתרת בית המספרים" : "הצגת בית המספרים"}</span>
@@ -203,6 +231,22 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
         {/* Module 1: Clean Synchronous Logout */}
         <LogoutButton className="h-12 px-3 rounded-2xl text-xs sm:text-sm font-bold text-ws-soft hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 border border-transparent hover:border-red-200" />
       </div>
+
+      {/* Station 1: why the board button does nothing — a quiet note under the
+          buttons (not an error), with its read-aloud button (PRD Module 24). It
+          sits outside the button row, whose horizontal scroll would clip it. */}
+      {staysOpen && staysOpenNote !== null && (
+        <div
+          id="board-stays-open-note"
+          role="status"
+          aria-live="polite"
+          data-testid="board-stays-open-note"
+          className="absolute top-full left-5 mt-2 z-30 max-w-md flex items-center gap-3 rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm font-bold text-indigo-800 shadow-md dark:bg-indigo-950/90 dark:border-indigo-800 dark:text-indigo-200"
+        >
+          <span>{BOARD_STAYS_OPEN_HE}</span>
+          <UdlSpeechButton text={BOARD_STAYS_OPEN_HE} className="shrink-0" />
+        </div>
+      )}
     </nav>
   );
 }
