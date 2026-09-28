@@ -204,14 +204,15 @@ describe('MASTER PRD v07 COMPREHENSIVE QA & AUDIT SUITE', () => {
       const store = useWorkspaceStore.getState();
 
       // Standard student: NO lock on column keyboard
-      useAuthStore.setState({ user: { student_id: 1, support_profile_id: null } });
+      useAuthStore.setState({ user: { student_id: 1 } });
       store.initSession(4, false);
+      useWorkspaceStore.setState({ activeSupportProfileId: null });
       const isLockedStandard = store.isColumnInputLocked('units', 345, 278, false);
       expect(isLockedStandard).toBe(false);
 
       // Enhanced support student: Lock IS active until regrouping
-      useAuthStore.setState({ user: { student_id: 1, support_profile_id: 'enhanced_cognitive_support' } });
-      useWorkspaceStore.setState({ hasGrouped: false });
+      // (Module 19 §ב: the lock reads the profile applied at the exercise's start).
+      useWorkspaceStore.setState({ activeSupportProfileId: 'enhanced_cognitive_support', hasGrouped: false });
       const isLockedEnhanced = store.isColumnInputLocked('units', 345, 278, false);
       expect(isLockedEnhanced).toBe(true);
 
@@ -317,8 +318,9 @@ describe('MASTER PRD v07 COMPREHENSIVE QA & AUDIT SUITE', () => {
       const store = useWorkspaceStore.getState();
       store.initSession(3, false);
 
-      // Advance to 7th task completion
-      useWorkspaceStore.setState({ standardTaskIdx: 6, selectedBranch: null, flowStatus: 'choice_branch' });
+      // Advance to 7th task completion (on the approved green path — Module 26:
+      // without an approved path there is no bank at all).
+      useWorkspaceStore.setState({ activeBankPath: 'green_path', standardTaskIdx: 6, selectedBranch: null, flowStatus: 'choice_branch' });
       expect(useWorkspaceStore.getState().flowStatus).toBe('choice_branch');
 
       // Select Challenge Branch

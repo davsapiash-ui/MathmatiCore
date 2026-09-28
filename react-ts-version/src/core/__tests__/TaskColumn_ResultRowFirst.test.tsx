@@ -14,6 +14,7 @@ vi.mock('@/presentation/design-system/UdlSpeechButton', () => ({
 import { TaskCard } from '@/features/workspace/tasks/TaskCard';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { SESSION1_TASKS, getSessionTasks } from '@/data/sessionTasks';
+import { approvePath } from '@/test/approvedPath';
 
 /**
  * Owner, 27.9.2026: the result row (שורת התוצאה) is in view without scrolling
@@ -76,6 +77,7 @@ describe('other representation exercises: no "בנו בלוח בדיוק / בל�
         tasks.forEach((t, idx) => {
           if (t.type !== 'representation') return;
           cleanup();
+          approvePath(path); // the learner's approved path (Module 26)
           ws().initSession(meeting, false, idx);
           render(<TaskCard />);
           expect(screen.getByTestId('result-row')).toBeTruthy();

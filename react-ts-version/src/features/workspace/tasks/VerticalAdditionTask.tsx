@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState } from 'react';
 import { PLACE_ORDER, type Place } from '@/core/placeValue';
+import { MISSING_DIGIT_BOX, speakMissingDigits } from '@/core/missingDigitSpeech';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { useBoardFocusStore } from '@/application/useBoardFocusStore';
 import { NEUTRAL_BOX_BORDER, PLACE_COLORS } from '../placeColors';
@@ -34,6 +35,22 @@ const NEUTRAL_TINT: Record<Place, string> = {
   hundreds: NEUTRAL_BOX_BORDER,
   thousands: NEUTRAL_BOX_BORDER,
 };
+
+/**
+ * An operand as the exercise's screen-reader label says it. In a skeleton
+ * exercise the hidden digit is what the child has to find, and the label must
+ * not say it (PRD Module 13: the answer is never revealed): each hidden place
+ * is written as a box, and the operand is said the way the read-aloud says a
+ * number with boxes (core/missingDigitSpeech.ts) — "3, ספרה חסרה, 6". An
+ * operand with no hidden digit is said as the number, as before.
+ */
+function spokenOperand(digits: string, hidden: Place[]): string {
+  const written = digits
+    .split('')
+    .map((d, i) => (hidden.includes(PLACE_ORDER[digits.length - 1 - i]) ? MISSING_DIGIT_BOX : d))
+    .join('');
+  return speakMissingDigits(written);
+}
 
 /** One notebook square: grid columns AND paper background share it. A CSS
  * length (--ws-cell, index.css) — 64px on a tall screen, smaller on a short or
@@ -203,7 +220,7 @@ export function VerticalAdditionTask({
       <div
         dir="ltr"
         role="group"
-        aria-label={`תרגיל במאונך: ${numberA} ${isSubtraction ? 'פחות' : 'ועוד'} ${numberB}`}
+        aria-label={`תרגיל במאונך: ${spokenOperand(aStr, hiddenA)} ${isSubtraction ? 'פחות' : 'ועוד'} ${spokenOperand(bStr, hiddenB)}`}
         className="grid rounded-2xl shadow-sm"
         style={{
           gridTemplateColumns: `${CELL} repeat(${cols}, ${CELL})`,

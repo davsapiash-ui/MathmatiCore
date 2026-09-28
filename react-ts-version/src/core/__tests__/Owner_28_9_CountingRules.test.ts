@@ -58,6 +58,8 @@ function load(meeting: number, task: SessionTask, profile?: string) {
   ws().resetWorkspace();
   useAuthStore.setState({ user: { uid: 'student_user1', student_id: 1, ...(profile ? { support_profile_id: profile } : {}) } } as any);
   useWorkspaceStore.setState({
+    // Module 19 §ב: the lock reads the profile applied at the exercise's start.
+    activeSupportProfileId: profile ?? null,
     sessionNumber: meeting, dynamicTasks: [task], standardTaskIdx: 0, flowStatus: 'task',
     helpState: 'none', currentState: 'PROBLEM_ACTIVE', socraticTriggerReason: null, socraticCardPlace: null,
     operandDigits: { a: {}, b: {} }, // resetWorkspace keeps them; a real task load (resetTaskInteraction) clears them

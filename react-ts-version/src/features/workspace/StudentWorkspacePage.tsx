@@ -15,7 +15,7 @@ import {
 } from '@dnd-kit/core';
 import { useNavigate } from 'react-router-dom';
 import type { DragSource, Place } from '@/core/placeValue';
-import { useWorkspaceStore, getActiveTasks, activeExerciseId, type SessionNumber } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, getActiveTasks, activeExerciseId, isPathSplitMeeting, savedBankPath, recordLearningPath, type SessionNumber } from '@/application/useWorkspaceStore';
 import { useAuthStore, stampStudentWindowClosed, touchStudentActivity, currentStudentUid } from '@/application/useAuthStore';
 import { submitSRLReflection, hasSavedSRLReflection } from '@/core/srlReflection';
 import { useActiveClassSession } from '@/application/useActiveClassSession';
@@ -50,7 +50,8 @@ import { AuditLogger } from '@/infrastructure/services/AuditLogger';
 import { useCognitiveHesitationRadar } from '@/application/useCognitiveHesitationRadar';
 import { toast } from 'sonner';
 import { BeeFlightWaitingScreen } from '@/presentation/components/student/BeeFlightWaitingScreen';
-import { hasEnhancedSupport as hasEnhancedSupportProfile } from '@/core/supportProfile';
+import { TeacherWillOpenWaitingScreen } from '@/presentation/components/student/TeacherWillOpenWaitingScreen';
+import { ENHANCED_SUPPORT_PROFILE_ID } from '@/core/supportProfile';
 import { ProjectorWaitingScreen } from '@/presentation/components/student/ProjectorWaitingScreen';
 import { SessionPausedOverlay } from '@/presentation/components/student/SessionPausedOverlay';
 import { SessionClosedOverlay } from '@/presentation/components/student/SessionClosedOverlay';
@@ -416,6 +417,27 @@ export function StudentWorkspacePage() {
 
   // --- PRD Section 4.5 & Module 20: Gate Locked / Pending Approval Guard ---
   const isGateApproved = Boolean(myData?.teacher_gate_approved === true || myData?.routeStatus === 'APPROVED');
+  // Module 26: "Never load, prefetch, or fall back to an exercise from the
+  // non-matching bank under any circumstance." A learner in meetings 3–8 needs
+  // the gate's approval and the path it approved; until both are on the
+  // record the meeting is not started (a teacher previewing the workspace has
+  // no learner path and is not held).
+  const needsApprovedPath = isPathSplitMeeting(meeting) && !isTeacherOrAdmin;
+  // pedagogicalPath, or — for a learner approved before 2.9.2026 — the gate's
+  // teacher_selected_path (recordLearningPath).
+  const learnerPath = recordLearningPath(myData as Record<string, unknown> | null);
+  const hasApprovedPath = isGateApproved && learnerPath !== null;
+  // The bee screen says "סיימתם את התחנה השנייה בהצלחה": it is shown only to a
+  // learner who did finish meeting 2 and is waiting for the gate. Anyone else
+  // waiting here — no completed meeting 2, or no path — is told only "המורה
+  // תפתח את הפעילות בקרוב." (PRD 14 §ב0), so the text matches what the child did.
+  const completedMeeting2 = Boolean(
+    myData?.completedMeeting2 ||
+    (myData as any)?.session_completed === 2 ||
+    (typeof myData?.highestCompletedMeeting === 'number' && myData.highestCompletedMeeting >= 2) ||
+    myData?.routeStatus === 'PENDING_TEACHER_APPROVAL'
+  );
+  const showBeeWaiting = completedMeeting2 && !isGateApproved;
   useEffect(() => {
     const isApproved = isGateApproved;
     // PRD 14 §ב0: "כדי שמפגש 3 ייפתח נדרשים שני התנאים במצטבר: אישור בשער
@@ -429,15 +451,22 @@ export function StudentWorkspacePage() {
     //
     // firebaseLoaded: לפני שהרשומה נטענה אין מה להכריע, וממילא
     // initSession עצמו ממתין לה — כך שאין הבהוב של מסך המתנה.
-    const isAwaitingGate = meeting === 3 && firebaseLoaded && !isApproved;
+    //
+    // Module 26 and the owner's ruling of 28.9.2026 ("ילד לא יתחיל שלב לפני
+    // שהוא עשה את השלבים הקודמים"): meetings 3–8 run on the bank of the
+    // learner's approved path, so without an approved path they wait here too.
+    const isAwaitingGate = firebaseLoaded && ((meeting === 3 && !isApproved) || (needsApprovedPath && !hasApprovedPath));
 
     if (myData?.routeStatus === 'GATE_LOCKED' || isAwaitingGate) {
       setNetworkError(false); // Teacher lock, not a network error
       setPendingApproval(true);
-    } else if (pendingApproval && isApproved && !networkError) {
+    } else if (pendingApproval && isInitialized && isApproved && !networkError) {
+      // A meeting that is already running goes on. One not yet started is
+      // released by its initialisation (runInit), which starts it on the
+      // approved path in the same step.
       setPendingApproval(false);
     }
-  }, [isGateApproved, myData?.routeStatus, meeting, firebaseLoaded, pendingApproval, networkError]);
+  }, [isGateApproved, myData?.routeStatus, meeting, firebaseLoaded, pendingApproval, networkError, needsApprovedPath, hasApprovedPath, isInitialized]);
 
   // Reset initialization when meeting changes
   useEffect(() => {
@@ -482,7 +511,9 @@ export function StudentWorkspacePage() {
                   forceAdditionHelper: Boolean(val.forceAdditionHelper),
                   isBoardLocked: isLocked !== undefined ? Boolean(isLocked) : existing.isBoardLocked,
                   scaffoldLevel: val.scaffoldLevel !== undefined ? val.scaffoldLevel : existing.scaffoldLevel,
-                  pedagogicalPath: val.pedagogicalPath || existing.pedagogicalPath,
+                  // The snapshot is the whole record: a path reset to null is gone (Module 26).
+                  pedagogicalPath: val.pedagogicalPath || undefined,
+                  teacher_selected_path: val.teacher_selected_path || undefined,
                   routeStatus: val.routeStatus || existing.routeStatus,
                   teacher_gate_approved: val.teacher_gate_approved !== undefined ? val.teacher_gate_approved : existing.teacher_gate_approved,
                 },
@@ -598,14 +629,35 @@ export function StudentWorkspacePage() {
   // contract in core/supportProfile.ts, honoring the legacy boolean on live
   // records). No manual teacher toggle during a live session. For every other
   // learner the grid must not mount, render or exist in the DOM.
-  const hasEnhancedSupport = hasEnhancedSupportProfile(user as Record<string, unknown> | null) ||
-    hasEnhancedSupportProfile(myData as Record<string, unknown> | null);
-  const isAdditionBoardEnabled = hasEnhancedSupport && sessionNumber !== 2 && sessionNumber !== 8;
+  // Module 19 §ב: the profile applied at this exercise's start — a change the
+  // teacher makes mid-exercise waits for the next one (useWorkspaceStore
+  // receiveSupportProfile), so the grid does not appear or vanish under the
+  // learner's hands.
+  const hasEnhancedSupport = useWorkspaceStore((s) => s.activeSupportProfileId === ENHANCED_SUPPORT_PROFILE_ID);
+  // Register 18: "רק לפרופיל תמיכה מוגבר, ורק במפגשים 3–7" — never meeting 1, 2 or 8.
+  const isAdditionBoardEnabled = hasEnhancedSupport && sessionNumber >= 3 && sessionNumber <= 7;
 
 
   useEffect(() => {
     if (isInitialized) return;
     let cancelled = false;
+
+    // Module 26 / owner, 28.9.2026: no approved path, no meeting. The learner
+    // waits on the waiting screen, and this effect runs again when the record
+    // changes — the approval and the path arrive together from the gate — so
+    // the meeting starts on the approved bank the moment they do. It used to
+    // start on the green bank behind the waiting screen, and nothing started
+    // it again after the approval.
+    const waitForApprovedPath = () => {
+      setPendingApproval(true);
+      setIsInitializing(false);
+    };
+    // Starting or restoring the meeting also releases the waiting screen.
+    const markInitialized = () => {
+      setPendingApproval(false);
+      setIsInitialized(true);
+      setIsInitializing(false);
+    };
 
     // PRD 14 §ג: a learner who has finished "ממתין במסך סיום שקט"; PRD 14 §ב0:
     // re-opening a completed meeting deletes nothing. A saved 'sessionDone' used to
@@ -615,45 +667,42 @@ export function StudentWorkspacePage() {
     // and the Q-matrix. Starting a meeting over is what the level-2 reset is for —
     // it clears the saved state, and only then is there nothing to restore.
     const runInit = async () => {
+      if (needsApprovedPath && !hasApprovedPath) {
+        waitForApprovedPath();
+        return;
+      }
       if (meeting === 3) {
+        // מזהה קנוני בלבד. מזהה שאינו נפתר למספר תלמיד 1-12 נחשב
+        // "אין לומד מזוהה", ולא נופל לתלמיד כלשהו.
+        const username = currentStudentUid();
+        const activeSessionNum = isTeacherSessionActive ? (Number(activeClassSession?.sessionNumber) || 1) : null;
+        const teacherSessionAllowsMeeting3 = isTeacherSessionActive && activeSessionNum !== null && activeSessionNum >= 3;
+        const routeStatus = myData?.routeStatus;
+        const highestCompleted = myData?.highestCompletedMeeting ?? (myData?.completedMeeting2 ? 2 : 0);
+        const isAllowedMeeting3 = username
+          ? teacherSessionAllowsMeeting3 || (highestCompleted >= 2 && routeStatus === 'APPROVED') || Boolean(myData?.physicalOverride || (myData as any)?.physicalOverrideActive)
+          : teacherSessionAllowsMeeting3;
+
+        // If prerequisite completion or active teacher session requirement is
+        // not met, wait. Not marked initialised: when the teacher opens the
+        // meeting or the record changes, this runs again and starts it.
+        if (!isAllowedMeeting3) {
+          waitForApprovedPath();
+          return;
+        }
+
         setIsInitializing(true);
         try {
           // תרחיש 1 — שעון עקום: קריאת offset שרת פעם אחת לפני כל חישוב deadline
           await fetchServerClockOffset();
-
-          // מזהה קנוני בלבד. מזהה שאינו נפתר למספר תלמיד 1-12 נחשב
-          // "אין לומד מזוהה", ולא נופל לתלמיד כלשהו.
-          const username = currentStudentUid();
-          const activeSessionNum = isTeacherSessionActive ? (Number(activeClassSession?.sessionNumber) || 1) : null;
-          const teacherSessionAllowsMeeting3 = isTeacherSessionActive && activeSessionNum !== null && activeSessionNum >= 3;
+          if (cancelled) return;
 
           if (!username) {
-            if (!teacherSessionAllowsMeeting3) {
-              setPendingApproval(true);
-              setIsInitialized(true);
-              setIsInitializing(false);
-              return;
-            }
             initSession(meeting, isASDMode, 0);
-            setIsInitialized(true);
-            setIsInitializing(false);
+            markInitialized();
             return;
           }
           const normId = username;
-          if (cancelled) return;
-
-          const routeStatus = myData?.routeStatus;
-          const highestCompleted = myData?.highestCompletedMeeting ?? (myData?.completedMeeting2 ? 2 : 0);
-
-          const isAllowedMeeting3 = teacherSessionAllowsMeeting3 || (highestCompleted >= 2 && routeStatus === 'APPROVED') || Boolean(myData?.physicalOverride || (myData as any)?.physicalOverrideActive);
-
-          // If prerequisite completion or active teacher session requirement is not met, lock and show waiting screen
-          if (!isAllowedMeeting3) {
-            setPendingApproval(true);
-            setIsInitialized(true);
-            setIsInitializing(false);
-            return;
-          }
 
           const canRestore = myData?.workspaceState?.sessionNumber === meeting && Boolean(myData?.workspaceState?.flowStatus);
           if (canRestore && myData?.workspaceState) {
@@ -666,8 +715,7 @@ export function StudentWorkspacePage() {
               initSession(meeting, isASDMode, 0);
             }
           }
-          setIsInitialized(true);
-          setIsInitializing(false);
+          markInitialized();
         } catch (err) {
           if (cancelled) return;
           console.error("Network or server error during Teacher Gate verification:", err);
@@ -688,8 +736,7 @@ export function StudentWorkspacePage() {
             initSession(meeting, isASDMode, 0);
           }
         }
-        setIsInitialized(true);
-        setIsInitializing(false);
+        markInitialized();
       }
     };
 
@@ -697,12 +744,17 @@ export function StudentWorkspacePage() {
     if (firebaseLoaded) {
       runInit();
     } else {
-      // Check if local cache has current meeting state for instantaneous restoration
+      // Check if local cache has current meeting state for instantaneous restoration.
+      // In meetings 3–8 only a copy that carries the bank it was pinned to
+      // (Module 26): an older copy without it waits for the record, which
+      // says which path was approved — never the green bank by default.
       const cached = firebaseSyncService.getLocalSessionProgress(normUid || user?.uid || '');
-      if (cached && cached.sessionNumber === meeting && Boolean(cached.flowStatus)) {
+      if (
+        cached && cached.sessionNumber === meeting && Boolean(cached.flowStatus) &&
+        (!needsApprovedPath || savedBankPath(cached) !== null)
+      ) {
         restoreSession(cached);
-        setIsInitialized(true);
-        setIsInitializing(false);
+        markInitialized();
       } else {
         // No local copy of this meeting: wait for the learner's Firebase
         // record before deciding. Starting a fresh session here right away —
@@ -721,7 +773,7 @@ export function StudentWorkspacePage() {
       cancelled = true;
       if (fallbackTimer) clearTimeout(fallbackTimer);
     };
-  }, [meeting, firebaseLoaded, isInitialized, myData, initSession, restoreSession, isASDMode, activeClassSession, isTeacherSessionActive]);
+  }, [meeting, firebaseLoaded, isInitialized, myData, initSession, restoreSession, isASDMode, activeClassSession, isTeacherSessionActive, needsApprovedPath, hasApprovedPath]);
 
   // --- Module 21: screen recording (rrweb) ---
   // It runs only for this meeting's own recording: once the class session's
@@ -946,6 +998,15 @@ export function StudentWorkspacePage() {
     </>
   );
 
+  // A meeting that has not started because the learner waits for an approved
+  // path (Module 26; owner, 28.9.2026) shows the waiting screen, not whatever
+  // the previous meeting left in the store — its end screen or choice screen.
+  // The meeting starts, and this screen goes, when the approval and the path
+  // arrive (runInit above).
+  if (pendingApproval && !isInitialized) {
+    return <>{showBeeWaiting ? <BeeFlightWaitingScreen /> : <TeacherWillOpenWaitingScreen />}{classStateOverlays}</>;
+  }
+
   // Module 14: Post-Mandatory Tasks Choice Point (Reinforcement vs Challenge)
   if (flowStatus === 'choice_branch') {
     return (
@@ -1072,7 +1133,8 @@ export function StudentWorkspacePage() {
     );
   }
 
-  if (isInitializing) {
+  // Not started yet: never the workspace with what the previous meeting left in the store.
+  if (isInitializing || !isInitialized) {
     return (
       <div dir="rtl" className="h-screen w-full flex flex-col items-center justify-center bg-ws-bg text-ws-ink font-body">
         <div className="animate-spin text-4xl mb-4">⏳</div>
@@ -1092,7 +1154,9 @@ export function StudentWorkspacePage() {
   }
 
   if (pendingApproval) {
-    return <BeeFlightWaitingScreen onApproved={() => setPendingApproval(false)} />;
+    return showBeeWaiting
+      ? <BeeFlightWaitingScreen onApproved={() => setPendingApproval(false)} />
+      : <TeacherWillOpenWaitingScreen />;
   }
 
   // Stations 2 and 8, before their first task: one text, its read-aloud button

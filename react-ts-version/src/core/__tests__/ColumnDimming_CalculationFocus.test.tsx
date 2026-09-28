@@ -9,6 +9,7 @@ import { VerticalAdditionTask } from '@/features/workspace/tasks/VerticalAdditio
 import { useWorkspaceStore, getActiveTasks, effectiveArithmetic } from '@/application/useWorkspaceStore';
 import { useBoardFocusStore } from '@/application/useBoardFocusStore';
 import { useAuthStore } from '@/application/useAuthStore';
+import { approvePath } from '@/test/approvedPath';
 import * as SessionTasks from '@/data/sessionTasks';
 import * as BranchTasks from '@/data/sessionBranchTasks';
 import type { SessionTask } from '@/data/sessionTasks';
@@ -192,6 +193,7 @@ describe('on the board', () => {
   beforeEach(() => {
     cleanup();
     useAuthStore.setState({ user: { uid: 'student_user12', name: 'user12' } as any, role: 'student', isAuthenticated: true });
+    approvePath(); // the s3_g_ / s4_g_ exercises are on the approved green path (Module 26)
     useWorkspaceStore.getState().resetWorkspace();
     useBoardFocusStore.setState({ focusedMemoryCircle: null });
   });

@@ -3,6 +3,7 @@ import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { SESSIONS_BY_PATH } from '@/data/sessionTasks';
 import { useWorkspaceStore, getActiveTasks } from '@/application/useWorkspaceStore';
+import { approvePath } from '@/test/approvedPath';
 
 /**
  * PRD 7.3, מודול 23 §ב "מדדי המחקר". מדד 3 (גמישות ייצוגית) נספר על תרגילי
@@ -45,6 +46,7 @@ describe('REPRESENTATION_EXERCISES (functions/src/meetingMetrics.ts) matches the
 describe('the client counts every failed board check of a representation exercise', () => {
   beforeEach(() => {
     useWorkspaceStore.getState().resetWorkspace();
+    approvePath(); // Module 26: meetings 3–8 run on the learner's approved path
     useWorkspaceStore.getState().initSession(3, false);
   });
 
