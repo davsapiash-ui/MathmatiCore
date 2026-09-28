@@ -85,6 +85,23 @@ export function sanitizeChatText(text?: string | null): string {
 
 let activeSyncedKey: string | null = null;
 let chatUnsubscribe: (() => void) | null = null;
+// The switch listener is detached like the chat one. It used to be attached
+// again on every new identity and never removed, so a shared tablet collected
+// one live listener per learner who signed in on it, each kept after sign-out.
+let chatEnabledUnsubscribe: (() => void) | null = null;
+
+/** Detaches every chat listener (sign-out, an admin sign-in). */
+export function stopChatSync(): void {
+  activeSyncedKey = null;
+  if (chatUnsubscribe) {
+    chatUnsubscribe();
+    chatUnsubscribe = null;
+  }
+  if (chatEnabledUnsubscribe) {
+    chatEnabledUnsubscribe();
+    chatEnabledUnsubscribe = null;
+  }
+}
 
 export const useChatStore = create<ChatState>()(
   (set, get) => ({
@@ -103,11 +120,7 @@ export const useChatStore = create<ChatState>()(
       // an admin sign-in has its own channel with the teachers (Module 22, the
       // Firestore `messages` collection) and the rules refuse it this one.
       if (role === 'admin') {
-        activeSyncedKey = null;
-        if (chatUnsubscribe) {
-          chatUnsubscribe();
-          chatUnsubscribe = null;
-        }
+        stopChatSync();
         set({ messages: [] });
         return;
       }
@@ -119,8 +132,12 @@ export const useChatStore = create<ChatState>()(
       activeSyncedKey = syncKey;
 
       // Sync globalChatEnabled control flag from Firebase Realtime DB
+      if (chatEnabledUnsubscribe) {
+        chatEnabledUnsubscribe();
+        chatEnabledUnsubscribe = null;
+      }
       try {
-        onValue(
+        chatEnabledUnsubscribe = onValue(
           ref(database, 'system_control/globalChatEnabled'),
           (snap) => {
             const enabled = snap.exists() ? Boolean(snap.val()) : true;
@@ -320,11 +337,7 @@ if (typeof window !== 'undefined') {
           if (authState?.isAuthenticated && authState?.user) {
             useChatStore.getState().initSync();
           } else {
-            activeSyncedKey = null;
-            if (chatUnsubscribe) {
-              chatUnsubscribe();
-              chatUnsubscribe = null;
-            }
+            stopChatSync();
             useChatStore.setState({ messages: [] });
           }
         });

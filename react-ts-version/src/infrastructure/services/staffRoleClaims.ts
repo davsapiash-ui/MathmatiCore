@@ -38,7 +38,10 @@ export function hasSingleStaffRole(claims: Record<string, unknown>): boolean {
  */
 export async function ensureStaffRoleClaims(role: StaffRole): Promise<void> {
   const current = auth.currentUser;
-  if (!current) return;
+  // An anonymous user is no staff member: the staff session behind this page
+  // ended (signed out in another tab), and the server would refuse the stamp.
+  // useAuthStore's reconcileWithFirebaseUser sends the page to /login.
+  if (!current || current.isAnonymous) return;
   const token = await current.getIdTokenResult();
   if (hasSingleStaffRole(token.claims as Record<string, unknown>)) return;
   await stampStaffRole(role);

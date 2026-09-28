@@ -95,15 +95,17 @@ describe('the queue is sent in the background while the network is up', () => {
 
 describe('sign-out sends the queue and keeps what did not arrive', () => {
   const auth = readFileSync(resolve(__dirname, '../../application/useAuthStore.ts'), 'utf-8');
-  const start = auth.indexOf('export function unifiedLogout()');
+  const start = auth.indexOf('export function unifiedLogout(');
   const body = auth.slice(start, auth.indexOf('export const useAuthStore', start));
 
   it('flush → release, in that order, and the queue is never cleared', () => {
     // Module 17 §ג step 4: deleted only on a server Ack. Sign-out used to
     // clearAll() after the flush, acknowledged or not — offline, that erased
     // the whole meeting's telemetry, recording chunks and queued messages.
+    expect(start).toBeGreaterThan(-1);
     const flush = body.indexOf('.flushWithin(LOGOUT_FLUSH_BUDGET_MS, queueOwnerOf(useAuthStore.getState()))');
-    const release = body.indexOf("httpsCallable(functions, 'releaseStudentSession')");
+    // releaseFirebaseIdentity holds releaseStudentSession (Module 1).
+    const release = body.indexOf('return releaseFirebaseIdentity(firebaseUser);');
     expect(flush).toBeGreaterThan(-1);
     // The learner's claims authorise the telemetry write, so they go last.
     expect(release).toBeGreaterThan(flush);

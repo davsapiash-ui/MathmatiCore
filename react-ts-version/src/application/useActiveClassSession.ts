@@ -15,6 +15,38 @@ export interface ActiveClassSession {
   isLoaded: boolean;
 }
 
+/**
+ * Until the database has reported the server clock, serverNow() is this
+ * device's own clock: a tablet whose clock runs fast would see a running
+ * meeting as past its 45 minutes. No time limit is decided before then — the
+ * record is read without its stamps.
+ */
+function withoutStampsUntilServerClock(raw: ActiveClassSessionRecord | null): ActiveClassSessionRecord | null {
+  return raw && !isServerClockKnown() ? { ...raw, startedAt: null, teacherDisconnectedAt: null } : raw;
+}
+
+/**
+ * The meeting a learner who signs in now enters, or null for the lobby.
+ *
+ * The sign-in and the /login redirect used to route on the raw record
+ * (`active && status !== 'closed'`). A meeting the teacher never closed stays
+ * `active` in the database after its 45 minutes (SESSION_HARD_CAP_MS) or after
+ * the teacher left (TEACHER_DISCONNECT_GRACE_MS), so a child who signed in
+ * before the teacher opened today's meeting landed in yesterday's — a closed
+ * meeting screen and a fresh SESSION_START — instead of the lobby's "היום עוד
+ * לא התחלנו" (PRD Module 14 §ב0). Same test and same clock as the lobby below.
+ */
+export async function readLiveMeetingNumber(): Promise<number | null> {
+  const [, snap] = await Promise.all([
+    fetchServerClockOffset(),
+    get(ref(database, 'active_class_session')),
+  ]);
+  const val = withoutStampsUntilServerClock(snap.exists() ? (snap.val() as ActiveClassSessionRecord) : null);
+  if (!val || !isClassSessionLive(val)) return null;
+  const meeting = Number(val.sessionNumber);
+  return Number.isInteger(meeting) && meeting >= 1 && meeting <= 8 ? meeting : null;
+}
+
 export function useActiveClassSession() {
   const [session, setSession] = useState<ActiveClassSession>({
     active: false,
@@ -55,12 +87,9 @@ export function useActiveClassSession() {
     const applySessionState = () => {
       if (!isSubscribed) return;
       const raw = lastValRef.current;
-      // Until the database has reported the server clock, serverNow() is this
-      // device's own clock: a tablet whose clock runs fast would see a running
-      // meeting as past its 45 minutes. No time limit is decided before then —
-      // the record is read without its stamps — and the clock's arrival
-      // re-evaluates (fetchServerClockOffset below).
-      const val = raw && !isServerClockKnown() ? { ...raw, startedAt: null, teacherDisconnectedAt: null } : raw;
+      // No time limit is decided before the server clock is known; its
+      // arrival re-evaluates (fetchServerClockOffset below).
+      const val = withoutStampsUntilServerClock(raw);
       if (raw && val && isClassSessionLive(val)) {
         commit({
           active: true,

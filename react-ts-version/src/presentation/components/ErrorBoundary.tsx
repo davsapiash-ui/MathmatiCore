@@ -3,6 +3,7 @@ import { useAuthStore } from '@/application/useAuthStore';
 import {
   claimQuietReload,
   isSignedInStaff,
+  loginPage,
   pageReload,
   QUIET_RECOVERY_TEXT,
   QUIET_RELOAD_DELAY_MS,
@@ -78,17 +79,21 @@ export class ErrorBoundary extends Component<Props, State> {
     window.location.reload();
   };
 
-  private handleResetStorage = () => {
+  private handleResetStorage = async () => {
+    // Leave only once the sign-out is done. Navigating at once unloaded the
+    // page in the middle of it: the Firebase session (a teacher's Google
+    // sign-in) stayed on the device, contrary to PRD Module 2 §ג "מחיקת
+    // אסמכתת ההזדהות", and the next learner on it was refused at the login.
     try {
-      useAuthStore.getState().logout();
+      await useAuthStore.getState().logout();
     } catch (e) {
       console.warn('Failed to logout:', e);
     }
-    window.location.href = '/login';
+    loginPage.open();
   };
 
   private handleGoHome = () => {
-    window.location.href = '/login';
+    loginPage.open();
   };
 
   private handleCopyError = () => {
