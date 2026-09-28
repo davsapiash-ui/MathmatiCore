@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach, afterAll } from 'vitest';
 import { render, cleanup, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { FakeRealtimeDatabase } from './fakeRealtimeDatabase';
@@ -16,6 +16,13 @@ import type { FakeRealtimeDatabase } from './fakeRealtimeDatabase';
  *  PRD 18 (Strict): "Throttle client writes to maximum once per 1000ms".
  */
 
+// Fake timers before any module loads: the app's sync service schedules its
+// start with setTimeout(0) on import, and on the real clock that start used to
+// land in the middle of a test (it attached the learner's record listener and
+// initialised the meeting early — about 4 runs in 10 failed).
+vi.hoisted(() => {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
+});
 const fake = vi.hoisted(() => ({ db: null as unknown as FakeRealtimeDatabase }));
 const rrweb = vi.hoisted(() => ({
   emit: null as null | ((event: unknown) => void),
@@ -83,9 +90,11 @@ vi.mock('@/presentation/design-system/UdlSpeechButton', () => ({
 
 import { FakeRealtimeDatabase as FakeDb } from './fakeRealtimeDatabase';
 import { StudentWorkspacePage } from '../StudentWorkspacePage';
+import { budgetBytesUsed } from '../screenRecorder';
 import { useWorkspaceStore, activeExerciseId } from '@/application/useWorkspaceStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useStore } from '@/application/useStore';
+import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
 import { resetThrottledWrites, RTDB_WRITE_THROTTLE_MS } from '@/infrastructure/services/ThrottledRtdbWriter';
 import { HeatmapGrid } from '@/presentation/pages/TeacherDashboard/components/HeatmapGrid';
 import { isHeartbeatFresh, PRESENCE_FRESH_WINDOW_MS } from '@/core/presence';
@@ -131,10 +140,15 @@ const settle = async () => {
 };
 
 const recordings = () => Object.keys(fake.db.read(`${STUDENT}/telemetry_sessions`) ?? {});
-const boardWrites = () => fake.db.writesTo(STUDENT).filter((w) => w.op === 'update' && 'workspaceState/counts' in w.value);
+
+beforeAll(() => {
+  // The sync service's own start (scheduled with setTimeout(0) when it was
+  // imported, under the fake timers installed on the first line) runs here,
+  // before any test — never on the real clock in the middle of one.
+  vi.advanceTimersByTime(0);
+});
 
 beforeEach(() => {
-  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
   vi.setSystemTime(new Date('2026-09-28T09:00:00Z'));
   fake.db ??= new FakeDb();
   fake.db.reset();
@@ -142,6 +156,7 @@ beforeEach(() => {
   rrweb.started = 0;
   rrweb.stopped = 0;
   resetThrottledWrites();
+  // Signing in starts the real sync service for this learner (its record listener).
   signIn();
   // The learner's store still holds the previous meeting (meeting 1), exactly
   // as it does when the lobby sends the child on to the next meeting.
@@ -152,11 +167,21 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  (firebaseSyncService as any).stopSync();
+  resetThrottledWrites();
+  useAuthStore.setState({ user: null, role: null, isAuthenticated: false, isStudentAuthenticated: false } as any);
+});
+
+afterAll(() => {
   vi.useRealTimers();
 });
 
 describe('Module 21 — the recording starts with the right meeting', () => {
   it('no recording before the class session\'s start stamp, none while the store holds meeting 1; then one recording, stamped with meeting 4\'s exercise', async () => {
+    // The learner's record has not loaded yet: the sync service, which marks it
+    // loaded, is held back, and the test says when it arrives.
+    (firebaseSyncService as any).stopSync();
+    useStore.setState({ firebaseLoaded: false } as any);
     await mountMeeting(4);
     await settle();
     // No class session yet: nothing records (it used to start as session_{Date.now()}).
@@ -188,7 +213,7 @@ describe('Module 21 — the recording starts with the right meeting', () => {
     const [first] = Object.values(metadata) as any[];
     expect(first).toMatchObject({ sessionNumber: 4, exercise_id: exercise });
     // Its bytes count against this learner's meeting-4 budget.
-    expect(fake.db.read(`${STUDENT}/recorded_bytes/meeting_4`)).toBeGreaterThan(0);
+    expect(budgetBytesUsed(fake.db.read(`${STUDENT}/recorded_bytes/meeting_4`))).toBeGreaterThan(0);
   });
 
   it('stops on a device another device has taken over, and does not start again', async () => {
@@ -209,31 +234,77 @@ describe('Module 21 — the recording starts with the right meeting', () => {
   });
 });
 
-describe('Module 18 — board writes are throttled to one per second', () => {
-  it('rapid board changes make at most one write to the learner record per second, the latest state last', async () => {
+describe('Module 18 — every client write to the learner record is throttled to one per second', () => {
+  /** Every write the learner's device made to the record or anything under it. */
+  const recordWrites = (path = STUDENT) => fake.db.writes.filter((w) => w.path === path || w.path.startsWith(`${path}/`));
+  const assertOnePerSecond = (writes: Array<{ at: number }>) => {
+    for (let i = 1; i < writes.length; i++) {
+      expect(writes[i].at - writes[i - 1].at, `writes ${i - 1} and ${i}`).toBeGreaterThanOrEqual(RTDB_WRITE_THROTTLE_MS);
+    }
+  };
+
+  it('ten block drops in half a second: at most one write per second to the learner record — board, telemetry, sync, heartbeat together — the latest state last', async () => {
     useStore.setState({ firebaseLoaded: true } as any);
     await mountMeeting(4);
     await settle();
     expect(ws().sessionNumber).toBe(4);
-    await advance(RTDB_WRITE_THROTTLE_MS); // the mount's own first write has its window
-    const before = boardWrites().length;
+    await advance(RTDB_WRITE_THROTTLE_MS);
+    const before = recordWrites().length;
+    const aliasBefore = recordWrites('users/students/user12').length;
 
-    // Ten board changes in half a second (the probe on main measured 5 writes in 500 ms).
+    // Ten board changes in half a second. On main this made 11 writes: one per
+    // drop from the telemetry live update, plus the board write.
     for (let i = 0; i < 10; i++) {
       act(() => { ws().applyDrop({ source: 'palette', sourcePlace: 'units', target: { kind: 'column', place: 'units' } } as any); });
       await advance(50);
     }
-    const inHalfSecond = boardWrites().length - before;
-    expect(inHalfSecond).toBeLessThanOrEqual(1);
+    expect(recordWrites().length - before).toBeLessThanOrEqual(1);
 
-    await advance(2_000);
-    const writes = boardWrites().slice(before);
-    expect(writes.length).toBeLessThanOrEqual(2);
-    for (let i = 1; i < writes.length; i++) {
-      expect(writes[i].at - writes[i - 1].at).toBeGreaterThanOrEqual(RTDB_WRITE_THROTTLE_MS);
-    }
-    // Nothing is lost: the last write carries the board as it ended.
-    expect(writes[writes.length - 1].value['workspaceState/counts']).toEqual(ws().counts);
+    // Through two heartbeats and the sync window.
+    await advance(9_000);
+    await settle();
+    const writes = recordWrites().slice(before);
+    expect(writes.length).toBeGreaterThan(0);
+    assertOnePerSecond(recordWrites());
+    // The learner's alias record (userN) is written by the same writer, on its own window.
+    assertOnePerSecond(recordWrites('users/students/user12').slice(aliasBefore));
+    // Nothing is lost: the record holds the board as it ended.
+    expect(fake.db.read(`${STUDENT}/workspaceState/counts`)).toEqual(ws().counts);
+  });
+
+  it('a help request waits at most one window', async () => {
+    useStore.setState({ firebaseLoaded: true } as any);
+    await mountMeeting(4);
+    await settle();
+    await advance(RTDB_WRITE_THROTTLE_MS);
+    // A write has just gone out: the window is busy.
+    act(() => { ws().applyDrop({ source: 'palette', sourcePlace: 'units', target: { kind: 'column', place: 'units' } } as any); });
+    await advance(100);
+    const asked = Date.now();
+    act(() => { ws().requestSilentHelp(); });
+    await advance(RTDB_WRITE_THROTTLE_MS);
+    const help = fake.db.writes.find((w) => w.path === STUDENT && w.value.helpRequested === true);
+    expect(help).toBeTruthy();
+    expect(help!.at - asked).toBeLessThanOrEqual(RTDB_WRITE_THROTTLE_MS);
+    expect(fake.db.read(`${STUDENT}/helpRequested`)).toBe(true);
+  });
+
+  it('a board write queued before a takeover is not sent after it', async () => {
+    useStore.setState({ firebaseLoaded: true } as any);
+    await mountMeeting(4);
+    await settle();
+    await advance(RTDB_WRITE_THROTTLE_MS);
+    act(() => { ws().applyDrop({ source: 'palette', sourcePlace: 'units', target: { kind: 'column', place: 'units' } } as any); });
+    act(() => { ws().applyDrop({ source: 'palette', sourcePlace: 'tens', target: { kind: 'column', place: 'tens' } } as any); });
+    const countsBefore = fake.db.read(`${STUDENT}/workspaceState/counts`);
+    // Another tablet takes the learner over inside the window.
+    await act(async () => { fake.db.update(STUDENT, { active_device_id: 'dev_other_tablet' }); });
+    const after = fake.db.writes.length;
+    await advance(3 * RTDB_WRITE_THROTTLE_MS);
+    await settle();
+    const late = fake.db.writes.slice(after).filter((w) => w.path === STUDENT && 'workspaceState/counts' in w.value);
+    expect(late).toEqual([]);
+    expect(fake.db.read(`${STUDENT}/workspaceState/counts`)).toEqual(countsBefore);
   });
 });
 
@@ -256,6 +327,9 @@ describe('Module 18 §ג — presence is decided on the server clock', () => {
 
   for (const skew of [+20_000, -20_000]) {
     it(`the teacher's radar shows a learner online when the teacher's clock is ${skew > 0 ? '20 s fast' : '20 s slow'}`, async () => {
+      // This device is the teacher's: no learner is signed in on it.
+      (firebaseSyncService as any).stopSync();
+      useAuthStore.setState({ user: null, role: null, isAuthenticated: false, isStudentAuthenticated: false } as any);
       // Server time now is T. The learner's heartbeat was stamped 3 s ago on the server.
       const T = Date.now();
       fake.db.set('active_class_session', { active: true, status: 'active', sessionNumber: 4, startedAt: T - 60_000 });

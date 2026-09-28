@@ -51,7 +51,7 @@ vi.mock('firebase/database', async () => {
     runTransaction: async () => ({ committed: true }),
     // The real sentinels: what the queue stores is what the SDK would get.
     serverTimestamp: actual.serverTimestamp,
-    increment: actual.increment,
+
     onDisconnect: () => ({ set: async () => {}, update: async () => {}, cancel: async () => {} }),
     off: () => {},
   };
@@ -86,7 +86,7 @@ const fakeWindow = Object.assign(new EventTarget(), { indexedDB: fakeIDB });
 const UID = 'student_user3';
 const STARTED_AT = 1_790_000_000_000;
 const RECORDING = `users/students/${UID}/telemetry_sessions/session_${STARTED_AT}`;
-const BUDGET = `users/students/${UID}/recorded_bytes`;
+const BUDGET = `users/students/${UID}/recorded_bytes/meeting_4`;
 
 let queueModule: typeof import('@/infrastructure/services/IndexedDBQueue');
 let recorder: typeof import('../screenRecorder');
@@ -119,7 +119,7 @@ function databaseTree() {
 
 const chunkWrites = () => rtdb.set.mock.calls.filter((c: any[]) => c[0].path.startsWith(`${RECORDING}/chunks/`));
 const metaWrites = () => rtdb.set.mock.calls.filter((c: any[]) => c[0].path.startsWith(`${RECORDING}/metadata/`));
-const budgetWrites = () => rtdb.update.mock.calls.filter((c: any[]) => c[0].path === BUDGET);
+const budgetWrites = () => rtdb.update.mock.calls.filter((c: any[]) => c[0].path.startsWith(BUDGET));
 
 const startSync = (exerciseId = () => 's4_g_t1', meeting = 4) =>
   recorder.startScreenRecorder({ uid: UID, meeting, classStartedAt: STARTED_AT, currentExerciseId: exerciseId });
@@ -201,9 +201,9 @@ describe('Module 21 — recording chunks go through the device queue first', () 
     expect(chunkWrites()).toEqual([]);
     const stored = await queueModule.indexedDBQueue.getAll();
     expect(stored.map((i) => `${i.refPath}#${i.idempotency_key}`)).toEqual([
-      `${RECORDING}/chunks#k0001`, `${RECORDING}/metadata#k0001`, `${BUDGET}#k0001_bytes`,
-      `${RECORDING}/chunks#k0002`, `${RECORDING}/metadata#k0002`, `${BUDGET}#k0002_bytes`,
-      `${RECORDING}/chunks#k0003`, `${RECORDING}/metadata#k0003`, `${BUDGET}#k0003_bytes`,
+      `${RECORDING}/chunks#k0001`, `${RECORDING}/metadata#k0001`, `${BUDGET}/chunks#k0001#bytes`,
+      `${RECORDING}/chunks#k0002`, `${RECORDING}/metadata#k0002`, `${BUDGET}/chunks#k0002#bytes`,
+      `${RECORDING}/chunks#k0003`, `${RECORDING}/metadata#k0003`, `${BUDGET}/chunks#k0003#bytes`,
     ]);
 
     fakeWindow.dispatchEvent(new Event('online'));
@@ -228,7 +228,9 @@ describe('Module 21 — recording chunks go through the device queue first', () 
     ]);
     // The budget of this learner in this meeting counted every byte that was queued.
     const bytes = chunkWrites().reduce((n: number, c: any[]) => n + new TextEncoder().encode(c[1].data).length, 0);
-    expect(tree.users.students[UID].recorded_bytes).toEqual({ meeting_4: bytes });
+    const budget = tree.users.students[UID].recorded_bytes.meeting_4;
+    expect(Object.keys(budget.chunks)).toEqual(["k0001", "k0002", "k0003"]);
+    expect(recorder.budgetBytesUsed(budget)).toBe(bytes);
     stop();
   });
 
@@ -239,58 +241,104 @@ describe('Module 21 — recording chunks go through the device queue first', () 
     stop(); // unmount / pagehide: the buffered events are flushed, not lost
     expect(rrweb.stopped).toBe(1);
     await vi.waitFor(async () =>
-      expect((await queueModule.indexedDBQueue.getAll()).map((i) => i.idempotency_key)).toEqual(['k0001', 'k0001', 'k0001_bytes'])
+      expect((await queueModule.indexedDBQueue.getAll()).map((i) => i.idempotency_key)).toEqual(['k0001', 'k0001', 'k0001#bytes'])
     );
     await vi.advanceTimersByTimeAsync(5_000);
     await settle();
     expect(chunkWrites()).toEqual([]);
     fakeWindow.dispatchEvent(new Event('online'));
+    await settle(5); await vi.advanceTimersByTimeAsync(3_000); await settle(5);
     await vi.waitFor(() => expect(chunkWrites()).toHaveLength(1), { timeout: 10_000 });
   });
 
-  it('stamps the first chunk with the exercise the learner is on', async () => {
+  it('stamps each chunk with the exercise its events were recorded in — not the one at flush time', async () => {
     let exercise = 's4_g_t1';
     const stop = await start(() => exercise);
     await recordChunk(30_000);
     exercise = 's4_g_t2';
-    await recordChunk(32_000);
+    rrweb.emit!({ type: 3, timestamp: 32_000, data: {} });
+    // A teacher reset puts the store back on meeting 1 before the chunk is sent.
+    exercise = 's1_sandbox_controlled';
+    stop();
+    await settle(5); await vi.advanceTimersByTimeAsync(3_000); await settle(5);
     await vi.waitFor(() => expect(metaWrites()).toHaveLength(2), { timeout: 10_000 });
     expect(metaWrites().map((c: any[]) => c[1].exercise_id)).toEqual(['s4_g_t1', 's4_g_t2']);
+  });
+
+  it('a new exercise closes the chunk before it, so one chunk never spans two exercises', async () => {
+    let exercise = 's4_g_t1';
+    const stop = await start(() => exercise);
+    rrweb.emit!({ type: 3, timestamp: 40_000, data: {} });
+    exercise = 's4_g_t2';
+    rrweb.emit!({ type: 3, timestamp: 40_500, data: {} });
+    await vi.advanceTimersByTimeAsync(recorder.RECORDING_FLUSH_INTERVAL_MS);
+    await settle(5); await vi.advanceTimersByTimeAsync(3_000); await settle(5);
+    await vi.waitFor(() => expect(metaWrites()).toHaveLength(2), { timeout: 10_000 });
+    expect(metaWrites().map((c: any[]) => [c[1].exercise_id, c[1].startTime])).toEqual([['s4_g_t1', 40_000], ['s4_g_t2', 40_500]]);
     stop();
   });
 
-  it('the 50MB budget is read per learner per meeting, and on reaching it the recording stops and is flagged', async () => {
+  it('the 50MB budget is read per learner per meeting; on reaching it the recording stops and the MEETING is flagged', async () => {
     const cap = recorder.RECORDING_BYTE_CAP;
     rtdb.get.mockImplementation(async (r: { path: string }) =>
-      r.path === `${BUDGET}/meeting_4`
-        ? { val: () => cap - 50, exists: () => true }
+      r.path === BUDGET
+        ? { val: () => ({ chunks: { older_chunk: cap - 50 } }), exists: () => true }
         : { val: () => null, exists: () => false });
     const stop = await start();
-    expect(rtdb.get).toHaveBeenCalledWith({ path: `${BUDGET}/meeting_4` });
+    expect(rtdb.get).toHaveBeenCalledWith({ path: BUDGET });
 
-    await recordChunk(40_000, 5); // well over 50 bytes
-    await vi.waitFor(() => expect(rtdb.update).toHaveBeenCalledWith({ path: RECORDING }, { recording_truncated: true }), { timeout: 10_000 });
+    await recordChunk(50_000, 5); // well over 50 bytes, and the first chunk of this recording
+    await settle(5); await vi.advanceTimersByTimeAsync(3_000); await settle(5);
+    await vi.waitFor(() => expect(rtdb.update).toHaveBeenCalledWith({ path: BUDGET }, { truncated: true }), { timeout: 10_000 });
     expect(rrweb.stopped).toBe(1);
     expect(chunkWrites()).toEqual([]);
+    // No flag on a recording node that holds no chunk: the reports could not place it.
+    expect(rtdb.update).not.toHaveBeenCalledWith({ path: RECORDING }, { recording_truncated: true });
     stop();
   });
 
-  it('a meeting whose budget is already spent does not record again, even under a new opening', async () => {
-    rtdb.get.mockImplementation(async () => ({ val: () => recorder.RECORDING_BYTE_CAP, exists: () => true }));
+  it('a recording that already holds chunks is flagged too, for the replay', async () => {
+    const cap = recorder.RECORDING_BYTE_CAP;
+    // Room for one small chunk, not for a second, larger one.
+    rtdb.get.mockImplementation(async () => ({ val: () => ({ chunks: { older_chunk: cap - 120 } }), exists: () => true }));
+    const stop = await start();
+    await recordChunk(60_000, 1);
+    await settle(5); await vi.advanceTimersByTimeAsync(3_000); await settle(5);
+    await vi.waitFor(() => expect(chunkWrites()).toHaveLength(1), { timeout: 10_000 });
+    rrweb.emit!({ type: 3, timestamp: 61_000, data: { big: 'x'.repeat(200) } });
+    await vi.advanceTimersByTimeAsync(recorder.RECORDING_FLUSH_INTERVAL_MS);
+    await settle(5); await vi.advanceTimersByTimeAsync(3_000); await settle(5);
+    await vi.waitFor(() => expect(rtdb.update).toHaveBeenCalledWith({ path: RECORDING }, { recording_truncated: true }), { timeout: 10_000 });
+    expect(rtdb.update).toHaveBeenCalledWith({ path: BUDGET }, { truncated: true });
+    expect(chunkWrites()).toHaveLength(1);
+    stop();
+  });
+
+  it('a meeting whose budget is already spent does not record again, even under a new opening, and is flagged', async () => {
+    rtdb.get.mockImplementation(async () => ({ val: () => ({ chunks: { a: recorder.RECORDING_BYTE_CAP } }), exists: () => true }));
     const stop = startSync();
-    await vi.waitFor(() => expect(rtdb.get).toHaveBeenCalled());
-    await settle(200);
+    await settle(5); await vi.advanceTimersByTimeAsync(3_000); await settle(5);
+    await vi.waitFor(() => expect(rtdb.update).toHaveBeenCalledWith({ path: BUDGET }, { truncated: true }), { timeout: 10_000 });
+    await settle(100);
     expect(rrweb.started).toBe(0);
     stop();
   });
 
-  it('the budget is counted with a server-side increment, so two mounts never overwrite each other', async () => {
+  it('the budget is idempotent: each chunk\'s size sits under its own key, so a re-delivery or a second tab never counts it twice', async () => {
     const stop = await start();
-    await recordChunk(50_000);
+    await recordChunk(70_000);
+    await settle(5); await vi.advanceTimersByTimeAsync(3_000); await settle(5);
     await vi.waitFor(() => expect(budgetWrites()).toHaveLength(1), { timeout: 10_000 });
-    const [[, fields]] = budgetWrites();
-    expect(Object.keys(fields)).toEqual(['meeting_4']);
-    expect(fields.meeting_4).toEqual({ '.sv': { increment: expect.any(Number) } });
+    const [[r, fields]] = budgetWrites();
+    expect(r.path).toBe(`${BUDGET}/chunks`);
+    expect(Object.keys(fields)).toEqual(['k0001']);
+    expect(typeof fields.k0001).toBe('number');
+    // Delivered twice (an Ack lost), the stored budget is the same.
+    const once = { chunks: { ...fields } };
+    const twice = { chunks: { ...fields, ...fields } };
+    expect(recorder.budgetBytesUsed(twice)).toBe(recorder.budgetBytesUsed(once));
+    // Two tabs: two chunks, two keys, both counted once.
+    expect(recorder.budgetBytesUsed({ chunks: { tabA_1: 100, tabB_1: 50 } })).toBe(150);
     stop();
   });
 });

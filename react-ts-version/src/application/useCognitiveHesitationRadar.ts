@@ -2,8 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useAuthStore, currentStudentUid } from './useAuthStore';
 import { useWorkspaceStore, activeExerciseId } from '@/application/useWorkspaceStore';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
-import { database } from '@/infrastructure/firebase';
-import { ref, set } from 'firebase/database';
+import { throttledRtdbUpdate } from '@/infrastructure/services/ThrottledRtdbWriter';
 import { emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
 import { getHesitationThresholdSeconds, useHesitationThresholdSeconds } from '@/core/hesitationCalibration';
 import { GRID_STAGE_SECONDS, SOCRATIC_STAGE_SECONDS, shouldOpenAdaptiveGrid } from '@/core/hesitationStages';
@@ -158,10 +157,10 @@ export function useCognitiveHesitationRadar({
     radarTimeoutRef.current = setTimeout(() => {
       const uid = currentStudentUid();
       if (!uid) return;
-      set(ref(database, `users/students/${uid}/hesitating`), {
+      throttledRtdbUpdate(`users/students/${uid}`, { hesitating: {
         hesitating: true,
         timestamp: Date.now()
-      }).catch(console.error);
+      } }).catch(console.error);
       hesitatingPublishedRef.current = true;
     }, getHesitationThresholdSeconds() * 1000);
   }, [isActive]); // ← onHesitationDetected intentionally removed from deps
@@ -221,7 +220,7 @@ export function useCognitiveHesitationRadar({
     const clearHesitating = () => {
       const uid = currentStudentUid();
       if (!uid) return;
-      set(ref(database, `users/students/${uid}/hesitating`), { hesitating: false, timestamp: Date.now() }).catch(() => {});
+      throttledRtdbUpdate(`users/students/${uid}`, { hesitating: { hesitating: false, timestamp: Date.now() } }).catch(() => {});
       hesitatingPublishedRef.current = false;
     };
     clearHesitating();

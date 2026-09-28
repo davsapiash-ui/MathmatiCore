@@ -30,7 +30,9 @@ describe('Module 21 — recorder contract (learner side)', () => {
   const workspace = read('../../features/workspace/StudentWorkspacePage.tsx');
 
   it('writes exercise_id into every chunk metadata record', () => {
-    expect(recorder).toMatch(/exercise_id:\s*currentExerciseId\(\)/);
+    // Read when the events are buffered (not at flush time), carried into the chunk's metadata.
+    expect(recorder).toMatch(/const exerciseId = currentExerciseId\(\);/);
+    expect(recorder).toMatch(/exercise_id:\s*exerciseId/);
     expect(workspace).toMatch(/currentExerciseId:\s*\(\) => activeExerciseId\(useWorkspaceStore\.getState\(\)\)/);
   });
 

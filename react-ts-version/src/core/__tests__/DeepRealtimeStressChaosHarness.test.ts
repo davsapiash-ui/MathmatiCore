@@ -165,7 +165,11 @@ describe('HARDCORE REALTIME CHAOS & UNCOMPROMISING STRESS TEST HARNESS', () => {
       expect(network.totalRetriesSucceeded).toBeGreaterThan(0);
 
       // Verify final state in RTDB converged cleanly
-      const saved = chaoticDb[`users/students/${studentId}/sessionState`] || chaoticDb[`sessions/${studentId}`];
+      // PRD 18 throttle: sessionState's fields now go out on the learner record's
+      // one write per second, as 'sessionState/<field>' keys of that record.
+      const record = chaoticDb[`users/students/${studentId}`] || {};
+      const saved = chaoticDb[`users/students/${studentId}/sessionState`] || chaoticDb[`sessions/${studentId}`] ||
+        (record['sessionState/student_id'] !== undefined ? { student_id: record['sessionState/student_id'] } : undefined);
       expect(saved).toBeDefined();
       expect(saved.student_id).toBe(studentId);
     });

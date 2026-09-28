@@ -36,7 +36,7 @@ import { hasClosingSentence } from '@/core/persistenceEncouragement';
 import { StationOpening } from './StationOpening';
 import { hasOpeningScreen } from '@/core/stationOpening';
 import { firebaseSyncService, emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
-import { throttledRtdbUpdate } from '@/infrastructure/services/ThrottledRtdbWriter';
+import { throttledRtdbUpdate, rtdbUpdateNow } from '@/infrastructure/services/ThrottledRtdbWriter';
 import { shouldRecordScreen, startScreenRecorder } from './screenRecorder';
 import { useStore } from '@/application/useStore';
 
@@ -197,7 +197,7 @@ export function StudentWorkspacePage() {
     useWorkspaceStore.getState().setSupersededByOtherDevice(false);
 
     // 1. Claim ownership of student session for this device
-    update(ref(database, `users/students/${normUid}`), {
+    throttledRtdbUpdate(`users/students/${normUid}`, {
       active_device_id: myDevId,
       device_claimed_at: myClaimTime,
     }).catch(console.error);
@@ -315,7 +315,11 @@ export function StudentWorkspacePage() {
     // every board change — five writes in half a second while a child dragged
     // blocks. The shared writer sends at most one per second per path, the
     // latest state last, merged with the store's own writes to this record.
-    throttledRtdbUpdate(`users/students/${uid}`, wsPayload).catch(() => {});
+    // The device check runs again when the write is SENT: a takeover inside the
+    // window must not let this device write its board over the new one.
+    throttledRtdbUpdate(`users/students/${uid}`, wsPayload, {
+      guard: () => canWriteWorkspaceData(uid, isSupersededRef.current),
+    }).catch(() => {});
   }, [normUid, counts, answerDigits, carryDigits, undoCount, hesitationCount, meeting, sessionNumber, flowStatus]);
 
   // --- Module 21 screen recording: see the recorder effect below initialisation ---
@@ -329,7 +333,7 @@ export function StudentWorkspacePage() {
   useEffect(() => {
     const uid = normUid;
     if (!uid) return;
-    update(ref(database, `users/students/${uid}`), {
+    throttledRtdbUpdate(`users/students/${uid}`, {
       activeSessionNumber: classSessionNumber || meeting || 1,
       lastActive: Date.now(),
     }).catch(console.error);
@@ -503,7 +507,7 @@ export function StudentWorkspacePage() {
         const val = snap.val();
         if (val?.forceReload === true) {
           if (canWriteWorkspaceData(normUid, isSupersededRef.current)) {
-            update(studentRef, { forceReload: null, isOnline: false, lastPing: 0 }).catch(() => {});
+            rtdbUpdateNow(`users/students/${normUid}`, { forceReload: null, isOnline: false, lastPing: 0 }).catch(() => {});
           } else {
             update(studentRef, { forceReload: null }).catch(() => {});
           }
@@ -520,7 +524,9 @@ export function StudentWorkspacePage() {
   // --- Module 18: Live Presence Heartbeat & Session Sync (5s interval, 60s server window) ---
   useEffect(() => {
     if (!normUid) return;
-    const studentPresenceRef = ref(database, `users/students/${normUid}`);
+    // Checked again when the throttled write is SENT: a device taken over in
+    // the meantime writes nothing.
+    const canWrite = () => canWriteWorkspaceData(normUid, isSupersededRef.current);
     
     const presencePayload = {
       isOnline: true,
@@ -541,7 +547,7 @@ export function StudentWorkspacePage() {
       if (snap.val() === true) {
         if (!canWriteWorkspaceData(normUid, isSupersededRef.current)) return;
 
-        update(studentPresenceRef, presencePayload).catch(() => {});
+        throttledRtdbUpdate(`users/students/${normUid}`, presencePayload, { guard: canWrite }).catch(() => {});
         try {
           onDisconnect(ref(database, `users/students/${normUid}/isOnline`)).set(false);
           onDisconnect(ref(database, `users/students/${normUid}/onlineStatus`)).set('offline');
@@ -556,7 +562,7 @@ export function StudentWorkspacePage() {
     const handleBeforeUnload = () => {
       stampStudentWindowClosed();
       if (canWriteWorkspaceData(normUid, isSupersededRef.current)) {
-        update(studentPresenceRef, { isOnline: false, onlineStatus: 'offline', lastPing: 0, lastAction: 'לא מחובר' }).catch(() => {});
+        rtdbUpdateNow(`users/students/${normUid}`, { isOnline: false, onlineStatus: 'offline', lastPing: 0, lastAction: 'לא מחובר' }).catch(() => {});
       }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
@@ -566,14 +572,14 @@ export function StudentWorkspacePage() {
       touchStudentActivity();
       if (!canWriteWorkspaceData(normUid, isSupersededRef.current)) return;
 
-      update(studentPresenceRef, {
+      throttledRtdbUpdate(`users/students/${normUid}`, {
         isOnline: true,
         onlineStatus: 'active',
         lastPing: serverTimestamp(),
         lastActivityTimestamp: Date.now(),
         hasJoinedSession: true,
         lastAction: `פעיל/ה במפגש ${meeting}`,
-      }).catch(() => {});
+      }, { guard: canWrite }).catch(() => {});
     }, 4000);
 
     return () => {
@@ -582,7 +588,7 @@ export function StudentWorkspacePage() {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       window.removeEventListener('pagehide', handleBeforeUnload);
       if (canWriteWorkspaceData(normUid, isSupersededRef.current)) {
-        update(studentPresenceRef, { isOnline: false, onlineStatus: 'offline', lastPing: 0, lastAction: 'לא מחובר' }).catch(() => {});
+        rtdbUpdateNow(`users/students/${normUid}`, { isOnline: false, onlineStatus: 'offline', lastPing: 0, lastAction: 'לא מחובר' }).catch(() => {});
       }
     };
   }, [normUid, meeting, isASDMode]);

@@ -9,6 +9,7 @@ import { meetingLabelHe } from "./stationNames";
 import { ROUTE_NAME_HE, errorCategoryHe } from "./teacherLabels";
 import {
   computeFirstAttemptScore,
+  meetingRecordingTruncated,
   readAllDocs,
   resolveCompulsoryTotal,
   sessionNumberFromId,
@@ -920,6 +921,12 @@ export const generateClassMeetingReport = onCall(CLASS_REPORT_RUNTIME, async (re
         minutes: round1(prev.minutes + (end - start) / 60000),
         truncated: prev.truncated || rec.recording_truncated === true,
       });
+    }
+    // Module 21: the 50MB budget is per learner per meeting, and its flag lives
+    // with the budget — also when the recording that reached it has no chunk.
+    if (meetingRecordingTruncated(node, sessionNumber)) {
+      const prev = recordingByLearner.get(n) ?? { minutes: 0, truncated: false };
+      recordingByLearner.set(n, { ...prev, truncated: true });
     }
   }
 
