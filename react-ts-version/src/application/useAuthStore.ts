@@ -97,7 +97,6 @@ const getStoredAuth = () => {
     let rawUser: string | null = null;
     let rawRole: string | null = null;
     let rawTime: string | null = null;
-    let rawLastActive: string | null = null;
     let rawWindowClosed: string | null = null;
 
     if (typeof sessionStorage !== 'undefined') {
@@ -111,7 +110,6 @@ const getStoredAuth = () => {
       rawTime = localStorage.getItem(STORAGE_KEY_TIMESTAMP);
     }
     if (typeof localStorage !== 'undefined') {
-      rawLastActive = localStorage.getItem(STORAGE_KEY_STUDENT_LAST_ACTIVE);
       rawWindowClosed = localStorage.getItem(STORAGE_KEY_STUDENT_WINDOW_CLOSED);
     }
 
@@ -120,19 +118,18 @@ const getStoredAuth = () => {
       const authTime = rawTime ? parseInt(rawTime, 10) : Date.now();
       const now = Date.now();
 
-      // Student 5-minute disconnect check (after window closure or inactivity)
+      // Student 5-minute disconnect check: after a genuine window close only
       if (rawRole === 'student') {
         const lastClosed = rawWindowClosed ? parseInt(rawWindowClosed, 10) : null;
-        const lastActive = rawLastActive ? parseInt(rawLastActive, 10) : null;
 
         if (lastClosed && now - lastClosed > STUDENT_WINDOW_CLOSE_TIMEOUT_MS) {
           clearStoredAuth();
           return { user: null, role: null, isAuthenticated: false, isStudentAuthenticated: false, isRoleLocked: false, showRoleSelector: false, authTimestamp: null };
         }
-        if (lastActive && now - lastActive > STUDENT_WINDOW_CLOSE_TIMEOUT_MS) {
-          clearStoredAuth();
-          return { user: null, role: null, isAuthenticated: false, isStudentAuthenticated: false, isRoleLocked: false, showRoleSelector: false, authTimestamp: null };
-        }
+        // The presence stamp (`mc_student_last_active`) is never a reason to
+        // sign a learner out: a sleeping tablet stops refreshing it, and the OS
+        // may reload the tab on wake (register: "הטיימר הוסר עבור לומדים";
+        // Module 14 §ב1). Only a genuinely closed window counts, above.
       }
 
       // Check 8-hour token expiration
@@ -381,11 +378,9 @@ export const useAuthStore = create<AuthState>()(
             const lastClosed = parseInt(lastClosedStr, 10);
             if (now - lastClosed > STUDENT_WINDOW_CLOSE_TIMEOUT_MS) return true;
           }
-          const lastActiveStr = localStorage.getItem(STORAGE_KEY_STUDENT_LAST_ACTIVE);
-          if (lastActiveStr) {
-            const lastActive = parseInt(lastActiveStr, 10);
-            if (now - lastActive > STUDENT_WINDOW_CLOSE_TIMEOUT_MS) return true;
-          }
+          // No comparison with the presence stamp: a device that slept or
+          // locked its screen for five minutes did not close the window
+          // (register: "הטיימר הוסר עבור לומדים"; Module 14 §ב1).
         } catch {}
       }
 

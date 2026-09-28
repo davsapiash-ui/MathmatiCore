@@ -3,6 +3,7 @@ import { database } from '@/infrastructure/firebase';
 import { ref, onValue, set as firebaseSet, push, update, remove } from 'firebase/database';
 import { toast } from 'sonner';
 import { useAuthStore } from "@/application/useAuthStore";
+import { redactPhoneNumbers } from '@/core/security/phonePattern';
 
 export interface ChatMessage {
   id: string;
@@ -73,8 +74,10 @@ export function sanitizeChatText(text?: string | null): string {
   if (!text) return '';
   // 1. Mask 9-digit Israeli IDs
   let sanitized = text.replace(/\b\d{9}\b/g, (match) => `***${match.slice(-4)}`);
-  // 2. Mask Israeli phone numbers (e.g. 050-1234567, 0521234567, 02-1234567)
-  sanitized = sanitized.replace(/\b0[23489]-?\d{7}\b|\b05\d-?\d{7}\b/g, '[PHONE_REDACTED]');
+  // 2. Mask Israeli phone numbers in every common layout (050-123-4567,
+  //    050 123 4567, +972501234567, (050) 1234567 …) and never arithmetic —
+  //    the client's one phone rule, the same as the server's (PRD Module 22 §ב.1).
+  sanitized = redactPhoneNumbers(sanitized, '[PHONE_REDACTED]');
   // 3. Mask personal emails
   sanitized = sanitized.replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g, '[EMAIL_REDACTED]');
   return sanitized;

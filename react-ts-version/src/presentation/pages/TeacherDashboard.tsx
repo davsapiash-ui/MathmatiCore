@@ -13,7 +13,7 @@ import { extractTeacherId } from "@/infrastructure/services/FirebaseSyncService"
 import { useStore, type StudentData } from "@/application/useStore";
 import { toast } from "sonner";
 import { ref, onValue, set, update, onDisconnect, serverTimestamp } from "firebase/database";
-import { getClassSessionStatus, getSessionAutoCloseAt, isClassSessionLive, TEACHER_DISCONNECT_GRACE_MS, type ClassSessionStatus } from "@/core/classSession";
+import { getClassSessionStatus, getSessionAutoCloseAt, isClassSessionLive, readSessionStartedAt, TEACHER_DISCONNECT_GRACE_MS, type ClassSessionStatus } from "@/core/classSession";
 import { database, auth, functions, firestore, serverNow } from "@/infrastructure/firebase";
 import { doc, onSnapshot, collection, writeBatch } from "firebase/firestore";
 import type { SessionDocument, PedagogicalPath } from "@/types";
@@ -214,7 +214,10 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
         const liveNum = (lastVal.sessionNumber as number) || 1;
         setIsClassSessionActive(true);
         setClassSessionStatus(getClassSessionStatus(lastVal));
-        setSessionStartTime((lastVal.startedAt as number) || Date.now());
+        // The server's start stamp (Module 14 §ב). Until the placeholder of
+        // our own write resolves, keep what activation set (serverNow()).
+        const serverStart = readSessionStartedAt(lastVal);
+        setSessionStartTime((prev) => serverStart ?? prev ?? serverNow());
         setSelectedSessionNum(liveNum);
         // Follow the live session in the picker only when it actually changes,
         // so a pause/resume write never discards a choice the teacher is making.
@@ -229,7 +232,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       // the meeting as closed; the teacher's client, the one allowed to write,
       // also records the close so the shared record says so. Once per start.
       const autoCloseAt = getSessionAutoCloseAt(lastVal);
-      const startedAt = typeof lastVal?.startedAt === 'number' ? lastVal.startedAt : null;
+      const startedAt = readSessionStartedAt(lastVal);
       if (lastVal?.active === true && autoCloseAt !== null && serverNow() >= autoCloseAt && startedAt !== autoClosedStart) {
         autoClosedStart = startedAt;
         set(sessionRef, {
@@ -277,7 +280,8 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     const seenKey = `mathmaticore_deadline_notice_${selectedSessionNum}_${_sessionStartTime}`;
 
     const evaluate = () => {
-      if (Date.now() < deadlineAt) return;
+      // The start stamp is the server's, so the elapsed time is too (Module 14 §ב).
+      if (serverNow() < deadlineAt) return;
       try {
         if (localStorage.getItem(seenKey) === '1') return;
         localStorage.setItem(seenKey, '1');
@@ -393,11 +397,16 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       }
 
       // 2. Primary Realtime Database Broadcast (Instant client sync for all 12 student pods <1000ms)
+      // PRD Module 14 §ב: "השרת הוא מקור האמת היחיד והמוחלט עבור זמן המפגש".
+      // The start is stamped by the server, like teacherDisconnectedAt below:
+      // a teacher laptop 46 minutes slow used to write a start that every
+      // reader (on serverNow()) already saw as past the 45-minute cap
+      // (register item 8), and a fast one stretched the meeting.
       await set(ref(database, 'active_class_session'), {
         active: true,
         status: 'active',
         sessionNumber: sessionNum,
-        startedAt: now,
+        startedAt: serverTimestamp(),
         teacherId: user?.uid || 'teacher',
       });
 
@@ -453,7 +462,8 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
         toast.warning('המפגש שודר לתלמידים, אך עדכון מסמכי הכיתה בשרת נדחה. ודאו שהחשבון משויך לכיתה.');
       }
 
-      setSessionStartTime(now);
+      // The listener replaces this with the server's stamp as soon as it arrives.
+      setSessionStartTime(serverNow());
       setSelectedSessionNum(sessionNum);
       setPickedSessionNum(sessionNum);
       setClassSessionStatus('active');
