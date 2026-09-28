@@ -198,6 +198,9 @@ async function defaultSteps(c: AuditContext, scope: Scope): Promise<Step[]> {
         id: 'm3-friction',
         meeting: 3,
         note: 'the 3-second "let us think" overlay after a mistake',
+        // Measured while the overlay is up: on a fast machine the beat is over
+        // sooner and the default settle caught the coaching panel sliding in.
+        settleMs: 300,
         run: async (cc) => {
           await ws(cc.page, INIT, { meeting: 3, isASD, idx: 0 });
           await ws(cc.page, SET, { helpState: 'friction', frictionTriggerSource: 'mistake' });
