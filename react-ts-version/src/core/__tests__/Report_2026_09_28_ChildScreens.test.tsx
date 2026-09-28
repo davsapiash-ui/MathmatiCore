@@ -115,8 +115,9 @@ describe('rows 1.30, 2.11, 3.18 — every toolbar button fits a 1024 px screen',
 describe('the column\'s digit sits beside its name, not over it (seen on screen at 1024 px, four columns)', () => {
   it('in the header flow, not pinned to the corner', () => {
     const col = src('features/workspace/board/PlaceColumn.tsx');
-    expect(col).toContain('className="relative flex items-center justify-center gap-2 py-2.5');
-    expect(col).not.toContain('absolute left-3 min-w-[22px]');
+    // The header wraps, so in the narrowest column the digit goes under the name.
+    expect(col).toContain('className="relative flex flex-wrap items-center justify-center');
+    expect(col).not.toContain('absolute left-3');
   });
 });
 
