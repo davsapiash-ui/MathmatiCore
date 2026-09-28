@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState } from 'react';
 import { PLACE_ORDER, type Place } from '@/core/placeValue';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
+import { useBoardFocusStore } from '@/application/useBoardFocusStore';
 import { NEUTRAL_BOX_BORDER, PLACE_COLORS } from '../placeColors';
 import { useEnhancedSupport } from './useEnhancedSupport';
 
@@ -34,7 +35,12 @@ const NEUTRAL_TINT: Record<Place, string> = {
   thousands: NEUTRAL_BOX_BORDER,
 };
 
-const CELL = 64; // px — one notebook square; grid columns AND paper background share this size
+/** One notebook square: grid columns AND paper background share it. A CSS
+ * length (--ws-cell, index.css) — 64px on a tall screen, smaller on a short or
+ * narrow laptop screen so the result row stays in view (owner, 27.9.2026). */
+const CELL = "var(--ws-cell)";
+const cell = (k: number) => `calc(${CELL} * ${k})`;
+const cellMinus = (px: number) => `calc(${CELL} - ${px}px)`;
 
 export function VerticalAdditionTask({
   numberA,
@@ -62,6 +68,9 @@ export function VerticalAdditionTask({
   const carryDigits = useWorkspaceStore((s) => s.carryDigits);
   const setCarryDigit = useWorkspaceStore((s) => s.setCarryDigit);
   const setFocusedPlace = useWorkspaceStore((s) => s.setFocusedPlace);
+  // The memory circle lights its column (core/columnFocus.ts) through a view
+  // store only; it never sets focusedPlace, which the telemetry reads.
+  const setFocusedMemoryCircle = useBoardFocusStore((s) => s.setFocusedMemoryCircle);
   const keyboardState = useWorkspaceStore((s) => s.keyboardState);
   const isStoreColumnLocked = useWorkspaceStore((s) => s.isColumnInputLocked);
   const recordBlockedKeystroke = useWorkspaceStore((s) => s.recordBlockedKeystroke);
@@ -72,11 +81,17 @@ export function VerticalAdditionTask({
   const enhancedSupport = useEnhancedSupport();
   const placeCues = sessionNumber !== 2 || enhancedSupport;
   const PLACE_TINT = placeCues ? BOARD_PLACE_TINT : NEUTRAL_TINT;
-  const PAPER_TOP = sessionNumber === 2 ? CELL * 0.5 : CELL * 0.75;
+  // Paper over the memory circles: half a square in meeting 2 (its card is the
+  // whole screen and must fit a short window), three quarters elsewhere.
+  const PAPER_TOP = sessionNumber === 2 ? cell(0.5) : cell(0.75);
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
 
   const [shake, setShake] = useState(false);
   const [_lockedClicks, setLockedClicks] = useState(0);
+
+  // A circle that unmounts while focused (next exercise) fires no blur.
+  // (TaskCard remounts the sheet for every exercise.)
+  useEffect(() => () => setFocusedMemoryCircle(null), [setFocusedMemoryCircle]);
 
   useEffect(() => {
     if (keyboardState === 'UNLOCKED') {
@@ -140,7 +155,7 @@ export function VerticalAdditionTask({
         className={`relative flex items-center justify-center font-mono font-black text-ws-ink leading-none ${
           isStriked && d ? 'opacity-60' : ''
         }`}
-        style={{ fontSize: CELL * 0.6, ...extra }}
+        style={{ fontSize: cell(0.6), ...extra }}
       >
         {d}
         {isStriked && d && (
@@ -161,8 +176,8 @@ export function VerticalAdditionTask({
         maxLength={1}
         value={operandDigits[which][place] ?? ''}
         aria-label={`ספרת ה${PLACE_LABEL_HE[place]} החסרה ב${which === 'a' ? 'מספר הראשון' : 'מספר השני'}`}
-        className="rounded-lg border-2 border-dashed text-center font-mono font-black bg-ws-accentSoft/40 text-ws-ink transition-all focus:outline-none focus:ring-2 focus:ring-ws-accent"
-        style={{ width: CELL - 12, height: CELL - 12, fontSize: CELL * 0.48, borderColor: PLACE_TINT[place] }}
+        className="rounded-xl border-2 border-dashed text-center font-mono font-black bg-ws-accentSoft/40 text-ws-ink transition-all focus:outline-none focus:ring-2 focus:ring-ws-accent"
+        style={{ width: cellMinus(12), height: cellMinus(12), fontSize: cell(0.48), borderColor: PLACE_TINT[place] }}
         onFocus={() => setFocusedPlace(place)}
         onBlur={() => setFocusedPlace(null)}
         onChange={(e) => setOperandDigit(which, place, e.target.value)}
@@ -174,8 +189,8 @@ export function VerticalAdditionTask({
   const revealedCell = (d: string, place: Place, key: string) => (
     <div
       key={key}
-      className="flex items-center justify-center rounded-lg border-2 font-mono font-black text-ws-ink/80 bg-ws-surface2/40"
-      style={{ width: CELL - 12, height: CELL - 12, fontSize: CELL * 0.48, borderColor: PLACE_TINT[place], margin: 'auto' }}
+      className="flex items-center justify-center rounded-xl border-2 font-mono font-black text-ws-ink/80 bg-ws-surface2/40"
+      style={{ width: cellMinus(12), height: cellMinus(12), fontSize: cell(0.48), borderColor: PLACE_TINT[place], margin: 'auto' }}
       aria-label={`ספרת ה${PLACE_LABEL_HE[place]} בתשובה, נתונה: ${d}`}
     >
       {d}
@@ -183,9 +198,7 @@ export function VerticalAdditionTask({
   );
 
   return (
-    // Meeting 2's card is the whole screen: the sheet's paddings follow the
-    // window's height there (600px → 950px), so it fits without scrolling.
-    <div className={`self-center w-full max-w-md flex flex-col items-center bg-ws-surface rounded-3xl border border-ws-surface2 shadow-[0_10px_28px_-14px_hsl(var(--ws-shadow-warm)/0.3)] relative ${sessionNumber === 2 ? 'gap-[clamp(4px,calc(3.4286vh-16.57px),16px)] p-[clamp(8px,calc(4.5714vh-19.43px),24px)]' : 'gap-4 p-6'}`}>
+    <div className="shrink-0 self-center w-full max-w-md flex flex-col items-center gap-fl-4-16 bg-ws-surface rounded-3xl border border-ws-surface2 shadow-[0_10px_28px_-14px_hsl(var(--ws-shadow-warm)/0.3)] p-fl-8-24 relative">
       {/* Notebook paper: background squares EXACTLY the size of a grid column */}
       <div
         dir="ltr"
@@ -193,16 +206,17 @@ export function VerticalAdditionTask({
         aria-label={`תרגיל במאונך: ${numberA} ${isSubtraction ? 'פחות' : 'ועוד'} ${numberB}`}
         className="grid rounded-2xl shadow-sm"
         style={{
-          gridTemplateColumns: `${CELL}px repeat(${cols}, ${CELL}px)`,
-          gridTemplateRows: `${CELL}px ${CELL}px ${CELL}px ${CELL}px`,
-          // Meeting 2: less paper over the memory circles and under the answer
-          // row, so the sheet fits a short window.
-          padding: sessionNumber === 2 ? `${PAPER_TOP}px ${CELL}px ${CELL * 0.4}px` : `${PAPER_TOP}px ${CELL}px`,
+          gridTemplateColumns: `${CELL} repeat(${cols}, ${CELL})`,
+          gridTemplateRows: `${CELL} ${CELL} ${CELL} ${CELL}`,
+          // Less paper under the answer row than over the memory circles:
+          // the place names sit right below it, and a short window needs the room.
+          // Meeting 2 also has less over the memory circles (PAPER_TOP).
+          padding: `${PAPER_TOP} ${CELL} ${cell(0.4)}`,
           backgroundColor: 'var(--ws-surface)',
           backgroundImage:
             'linear-gradient(rgba(96,130,190,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(96,130,190,0.15) 1px, transparent 1px)',
-          backgroundSize: `${CELL}px ${CELL}px`,
-          backgroundPosition: `0 ${PAPER_TOP}px`,
+          backgroundSize: `${CELL} ${CELL}`,
+          backgroundPosition: `0 ${PAPER_TOP}`,
         }}
       >
         {/* Row 0 — Carry/Borrow inputs (Memory circles ALWAYS active for working memory relief) */}
@@ -218,7 +232,9 @@ export function VerticalAdditionTask({
                 readOnly={false}
                 aria-label={`חלונית המרה ל${PLACE_LABEL_HE[place]}`}
                 className="rounded-full border-2 border-ws-surface2 text-center font-mono font-bold bg-ws-surface text-ws-ink transition-shadow focus:outline-none focus:ring-2 focus:ring-ws-accent shadow-sm"
-                style={{ width: CELL * 0.6, height: CELL * 0.6, fontSize: CELL * 0.35 }}
+                style={{ width: cell(0.6), height: cell(0.6), fontSize: cell(0.35) }}
+                onFocus={() => setFocusedMemoryCircle(place)}
+                onBlur={() => setFocusedMemoryCircle(null)}
                 onChange={(e) => {
                   const v = e.target.value.replace(/[^0-9]/g, '').slice(-2);
                   setCarryDigit(place, v);
@@ -258,9 +274,9 @@ export function VerticalAdditionTask({
                     aria-hidden="true"
                     className="absolute inset-0 flex items-center justify-end font-mono font-black leading-none"
                     style={{ 
-                      fontSize: CELL * 0.6, 
+                      fontSize: cell(0.6), 
                       color: 'hsl(var(--ws-accent))',
-                      transform: 'translateY(-32px)',
+                      transform: `translateY(${cell(-0.5)})`,
                       paddingRight: '8px',
                       height: CELL,
                       zIndex: 10
@@ -289,9 +305,9 @@ export function VerticalAdditionTask({
                         aria-hidden="true"
                         className="absolute inset-0 flex items-center justify-end font-mono font-black leading-none"
                         style={{ 
-                          fontSize: CELL * 0.6, 
+                          fontSize: cell(0.6), 
                           color: 'hsl(var(--ws-accent))',
-                          transform: 'translateY(-32px)',
+                          transform: `translateY(${cell(-0.5)})`,
                           paddingRight: '8px',
                           height: CELL,
                           zIndex: 10
@@ -334,10 +350,10 @@ export function VerticalAdditionTask({
                 readOnly={isLocked}
                 aria-label={`ספרת ה${PLACE_LABEL_HE[place]} בתשובה`}
                 aria-disabled={isLocked}
-                className={`rounded-lg border-2 text-center font-mono font-black bg-ws-surface text-ws-ink transition-all focus:outline-none focus:ring-2 focus:ring-ws-accent ${
+                className={`rounded-xl border-2 text-center font-mono font-black bg-ws-surface text-ws-ink transition-all focus:outline-none focus:ring-2 focus:ring-ws-accent ${
                   isLocked ? 'cursor-not-allowed opacity-75' : ''
                 }`}
-                style={{ width: CELL - 12, height: CELL - 12, fontSize: CELL * 0.48, borderColor: PLACE_TINT[place], ...shakeStyle }}
+                style={{ width: cellMinus(12), height: cellMinus(12), fontSize: cell(0.48), borderColor: PLACE_TINT[place], ...shakeStyle }}
                 onFocus={() => {
                   if (isLocked) {
                     setShake(true);
@@ -375,7 +391,7 @@ export function VerticalAdditionTask({
       {/* Place labels under the paper, aligned to the answer columns (none
           without the cues: meeting 2 without the profile). */}
       {placeCues && (
-      <div dir="ltr" className="grid" style={{ gridTemplateColumns: `${CELL}px repeat(${cols}, ${CELL}px)` }}>
+      <div dir="ltr" className="grid" style={{ gridTemplateColumns: `${CELL} repeat(${cols}, ${CELL})` }}>
         <div aria-hidden="true" />
         {colPlaces.map((place, j) =>
           j < firstAnswerCol ? (
@@ -384,7 +400,7 @@ export function VerticalAdditionTask({
             <div
               key={`l${j}`}
               className="text-center font-bold"
-              style={{ width: CELL, fontSize: CELL * 0.22, color: PLACE_TINT[place] }}
+              style={{ width: CELL, fontSize: cell(0.22), color: PLACE_TINT[place] }}
             >
               {PLACE_LABEL_HE[place]}
             </div>

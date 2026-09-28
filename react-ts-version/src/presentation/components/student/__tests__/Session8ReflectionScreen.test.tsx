@@ -3,7 +3,7 @@
  */
 import React from 'react';
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { render, fireEvent, cleanup, screen } from '@testing-library/react';
+import { render, fireEvent, cleanup, screen, act } from '@testing-library/react';
 
 /**
  * מודול 16 / מסמך 03 §3.8 — מסך הרפלקציה של מפגש 8, כפי שהילד רואה ושומע אותו.
@@ -159,10 +159,85 @@ describe('שלב 3 — משפט עידוד לפי מדד ההתמדה של מפ�
     });
   }
 
+  // Audit 8.10 (28.9.2026): a save that failed does not end the meeting —
+  // the board stays on step 3 and the finish button works again.
+  it('שמירה שנכשלה: הלוח נשאר בשלב 3 והכפתור פעיל שוב', async () => {
+    const onComplete = vi.fn(() => Promise.resolve(false));
+    toStep3(onComplete);
+    const finish = screen.getByRole('button', { name: /סיום התחנה/ }) as HTMLButtonElement;
+    fireEvent.click(finish);
+    expect(finish.disabled).toBe(true);
+    // The failed save settles inside act(), so React applies it before the checks.
+    await act(async () => {});
+    expect(finish.disabled).toBe(false);
+    expect(screen.getByText(REFLECTION_TEXT_HE.stepLabel(3))).toBeTruthy();
+    await act(async () => {
+      fireEvent.click(finish);
+    });
+    expect(onComplete).toHaveBeenCalledTimes(2);
+  });
+
+  it('שמירה שנזרקה: הכפתור פעיל שוב', async () => {
+    const onComplete = vi.fn(() => Promise.reject(new Error('boom')));
+    toStep3(onComplete);
+    const finish = screen.getByRole('button', { name: /סיום התחנה/ }) as HTMLButtonElement;
+    await act(async () => {
+      fireEvent.click(finish);
+    });
+    expect(finish.disabled).toBe(false);
+  });
+
+  it('לחיצה כפולה: הרפלקציה נשלחת פעם אחת בלבד', async () => {
+    let settle: (done: boolean) => void = () => {};
+    const onComplete = vi.fn(() => new Promise<boolean>((resolve) => { settle = resolve; }));
+    toStep3(onComplete);
+    const finish = screen.getByRole('button', { name: /סיום התחנה/ }) as HTMLButtonElement;
+    // One act() scope: both clicks land before React renders the disabled
+    // button, so the second click's handler still sees isSubmitting === false.
+    await act(async () => {
+      fireEvent.click(finish);
+      fireEvent.click(finish);
+    });
+    expect(onComplete).toHaveBeenCalledTimes(1);
+    expect(finish.disabled).toBe(true);
+    // The save succeeds: the board is about to be replaced by the end screen,
+    // and a click meanwhile sends nothing.
+    await act(async () => {
+      settle(true);
+    });
+    await act(async () => {
+      fireEvent.click(finish);
+    });
+    expect(onComplete).toHaveBeenCalledTimes(1);
+    expect(finish.disabled).toBe(true);
+  });
+
+  it('בזמן השמירה הכפתור מראה שמשהו קורה, ואחרי שמירה שנכשלה חוזר לשמו', async () => {
+    let settle: (done: boolean) => void = () => {};
+    const onComplete = vi.fn(() => new Promise<boolean>((resolve) => { settle = resolve; }));
+    toStep3(onComplete);
+    const finish = screen.getByRole('button', { name: /סיום התחנה/ }) as HTMLButtonElement;
+    expect(finish.getAttribute('aria-busy')).toBe('false');
+    fireEvent.click(finish);
+    // Busy for a screen reader, and on the screen in words and with a turning icon.
+    expect(finish.getAttribute('aria-busy')).toBe('true');
+    expect(screen.getByRole('button', { name: REFLECTION_TEXT_HE.saving })).toBe(finish);
+    expect(finish.textContent).not.toContain(REFLECTION_TEXT_HE.finish);
+    expect(finish.querySelector('.animate-spin')).not.toBeNull();
+    expect(finish.className).toContain('disabled:cursor-wait');
+    await act(async () => {
+      settle(false);
+    });
+    expect(finish.getAttribute('aria-busy')).toBe('false');
+    expect(finish.textContent).toContain(REFLECTION_TEXT_HE.finish);
+    expect(finish.querySelector('.animate-spin')).toBeNull();
+    expect(finish.disabled).toBe(false);
+  });
+
   it('הנתונים שנשלחים בסיום לא השתנו', () => {
     const onComplete = vi.fn();
     toStep3(onComplete);
-    fireEvent.click(screen.getByRole('button', { name: /סיום המפגש/ }));
+    fireEvent.click(screen.getByRole('button', { name: /סיום התחנה/ }));
     expect(onComplete).toHaveBeenCalledTimes(1);
     expect(onComplete).toHaveBeenCalledWith({
       effortLevel: 'HARD',

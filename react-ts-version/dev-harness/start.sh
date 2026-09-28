@@ -3,8 +3,11 @@
 # the frontend pointed at them. Needs firebase-tools (FIREBASE_BIN) and Java.
 set -euo pipefail
 cd "$(dirname "$0")"
-# The emulators only read rules inside this folder: copy the real ones fresh.
-mkdir -p .rules && cp ../../database.rules.json ../../firestore.rules .rules/
+# The emulators only read rules inside this folder: copy the real Firestore rules
+# fresh. The RTDB rules are PUT after start (meeting2-walk.mjs, seed.mjs):
+# firebase.harness.json names none, because the CLI's own upload of them goes
+# through the outbound proxy in some sandboxes (see start-emulators.sh).
+mkdir -p .rules && cp ../../firestore.rules .rules/
 FIREBASE_BIN="${FIREBASE_BIN:-npx firebase}"
 $FIREBASE_BIN emulators:start --project demo-mathmaticore --config firebase.harness.json --only auth,database,firestore > emulators.log 2>&1 &
 export VITE_FIREBASE_PROJECT_ID=demo-mathmaticore

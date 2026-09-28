@@ -6,6 +6,7 @@
  * All math rules live in core/placeValue.ts; all flow rules in core/qmatrixFlow.ts.
  */
 
+import { PROCEED_HE } from '@/core/toolbarNames';
 import { create } from 'zustand';
 import {
   EMPTY_COUNTS,
@@ -19,7 +20,6 @@ import {
   type Place,
   type PlaceCounts,
   countsEqual,
-  describeCountsHe,
   digitAt,
 } from '@/core/placeValue';
 import { session1Checklist, session1NextStep } from '@/core/session1Checklist';
@@ -42,7 +42,8 @@ import { announceRegroup } from '@/application/useRegroupAnimationStore';
 import { useAuthStore, currentStudentUid } from '@/application/useAuthStore';
 import { CurriculumRouter } from '@/core/CurriculumRouter';
 import { syncQMatrixEvaluation } from '@/core/ExerciseValidationEngine';
-import { getSessionTasks, type SessionTask } from '@/data/sessionTasks';
+import { getSessionTasks, SESSION1_TASKS, type SessionTask } from '@/data/sessionTasks';
+import { boardStaysOpen } from '@/core/boardVisibility';
 import { curriculumCatalog } from '@/infrastructure/services/CurriculumCatalogService';
 import { getSessionBranchTasks } from '@/data/sessionBranchTasks';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
@@ -415,6 +416,15 @@ interface WorkspaceState {
   /** "סיום המפגש כעת" from the early-finisher screen; records completion like every other exit. */
   finishMeetingEarly: () => void;
   /**
+   * Meeting 8's reflection board is done. PRD Module 16 §ג gives "כפתור סיום
+   * מפגש סופי"; Module 14 §ג gives the quiet waiting screen ("ממתין במסך סיום
+   * שקט"). The rest is the implementer's reading: the finish button leads to
+   * that quiet end screen, and the state is synced like every other, so a
+   * reload or a new sign-in does not bring the board back while the teacher
+   * keeps meeting 8 open.
+   */
+  finishReflection: () => void;
+  /**
    * מסמך 04 §2א/§5: the silent help button — "שליחת אות מצוקה חרישי למורה ללא
    * תיוג חברתי בכיתה". It signals the teacher and nothing else: no overlay, no
    * coaching card, no interruption to the learner's work.
@@ -562,6 +572,15 @@ function sanitizeSessionNumber(n: any): SessionNumber {
   return parsed as SessionNumber;
 }
 
+/**
+ * Whether the number house is on screen. In station 1 it always is (owner,
+ * 27.9.2026): even a boardOpen:false left in the store by another meeting, or
+ * by anything else, cannot hide it there.
+ */
+export function selectBoardOpen(s: WorkspaceState): boolean {
+  return s.boardOpen || boardStaysOpen(s.sessionNumber);
+}
+
 export function selectScaffoldLevel(s: WorkspaceState): number {
   if (s.sessionNumber === 2) {
     if (isSubtaskActive(s.qflow)) return 1;
@@ -590,6 +609,55 @@ function restoredBranchTasks(sessionNumber: number, branch: 'reinforcement' | 'c
   const extra = getSessionBranchTasks(sessionNumber as any, branch, path);
   if (extra.length === 0) return null;
   return [...(getSessionTasks(sessionNumber as any, path) ?? []), ...extra];
+}
+
+/**
+ * Meeting 1 as it ran until the owner's decision of 27.9.2026 (register,
+ * decision י): the target task 347 came before the grouping exercise.
+ *
+ * The saved workspace records the exercise by its place in the list
+ * (standardTaskIdx) and by its id (activeTask.id). A learner who was in the
+ * middle of meeting 1 when the new order reached them — with this deploy, or
+ * later when the catalog is published again (Module 26) — has a place counted
+ * in this old order. Neither place in the new order is right for them: one
+ * standing on the target task would skip the grouping exercise, and one
+ * standing on the grouping exercise would do the target task again. So they
+ * finish the meeting in the order they started it; the next meeting 1 they
+ * start is in the new order.
+ */
+export const SESSION1_ORDER_BEFORE_27_9: readonly string[] = [
+  's1_sandbox_controlled',
+  's1_decompose_hundred',
+  's1_build_305',
+  's1_undo_trash',
+  's1_target_347',
+  's1_r_group26',
+  's1_t8',
+  's1_r_sub61',
+  's1_r_sub806',
+];
+
+/**
+ * The list a restored meeting 1 goes on with, or null for the meeting's bank
+ * as usual. When the saved place and id disagree with the bank, the place was
+ * counted in another order of the same exercises: the one before 27.9.2026
+ * (SESSION1_ORDER_BEFORE_27_9), or — on a device whose cached catalog is
+ * still the old one — the new order of this code. The learner goes on in the
+ * order the place was counted in.
+ */
+function restoredSession1Order(saved: { standardTaskIdx?: number; activeTask?: { id?: unknown } | null }): SessionTask[] | null {
+  const idx = saved.standardTaskIdx ?? 0;
+  const savedId = saved.activeTask?.id;
+  const bank = getSessionTasks(1) ?? [];
+  // The place and the id agree with the bank, or there is no id to compare
+  // (a snapshot trimmed to its minimal core): nothing to translate.
+  if (typeof savedId !== 'string' || bank[idx]?.id === savedId) return null;
+  const byId = new Map(bank.map((t) => [t.id, t]));
+  const knownOrders = [SESSION1_ORDER_BEFORE_27_9, SESSION1_TASKS.map((t) => t.id)];
+  const order = knownOrders.find(
+    (ids) => ids[idx] === savedId && ids.length === bank.length && ids.every((id) => byId.has(id))
+  );
+  return order ? order.map((id) => byId.get(id)!) : null;
 }
 
 export function getActiveTasks(s: WorkspaceState): SessionTask[] {
@@ -1284,7 +1352,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         return;
       }
       if (s.selectedChoiceId !== task.correctAnswer) {
-        handleFailure('wrong_choice', 'בּוֹאוּ נַחְשֹׁב שׁוּב 🤔', 'הַאִם הוֹסַפְנוּ אוֹ גָּרַעְנוּ קֻבִּיּוֹת כָּלְשֵׁהֵן מִבֵּית הַמְּסִפָּרִים?', 2800);
+        handleFailure('wrong_choice', 'בּוֹאוּ נַחְשֹׁב שׁוּב 🤔', 'האם הוספנו או הורדנו לבנים כלשהן מבית המספרים?', 2800);
         return;
       }
       handleSuccess('נכון מאוד! 🌟', 'הערך נשאר זהה לחלוטין מכיוון שלא שינינו את הכמות הכוללת.', 2500);
@@ -1299,8 +1367,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         if (isBoardEmpty) {
           handleFailure(
             'empty_board',
-            'בְּנִיַּת הַמִּסְפָּר בַּבַּיִת 🧱',
-            'עֲדַיִן לֹא הִנַּחְתֶּם קֻבִּיּוֹת בְּבֵית הַמְּסִפָּרִים. לַחֲצוּ אוֹ גִּרְרוּ אֶת קֻבִּיּוֹת הַדִּינֶס מֵאַרְגַּז הַכֵּלִים כְּדֵי לִבְנוֹת אֶת הַמִּסְפָּר!',
+            'בונים בבית המספרים 🧱',
+            'עוד אין לבנים בבית המספרים. לחצו על לבנה בארגז הכלים או גררו אותה לבית המספרים, ובנו את המספרים שבתרגיל.',
             3500
           );
           return;
@@ -1318,12 +1386,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
         const hasOvercrowded = s.counts.units >= 10 || s.counts.tens >= 10 || s.counts.hundreds >= 10;
         if (hasOvercrowded) {
-          // Names the column and the one action (מסמך 02: "כפתור הקבץ 10 שבראש הטור").
+          // Names the column and the one action: the button "קבץ 10" at the head of the column (מסמך 02).
           const crowded = s.counts.units >= 10 ? 'היחידות' : s.counts.tens >= 10 ? 'העשרות' : 'המאות';
           handleFailure(
             'overcrowded_columns',
             'בּוֹאוּ נְקַבֵּץ 🧱',
-            `בטור ${crowded} יש 10 לבנים או יותר. לחצו על כפתור הקבץ 10 שבראש הטור.`,
+            `בטור ${crowded} יש 10 לבנים או יותר. לחצו על הכפתור "קבץ 10" שבראש הטור.`,
             4000
           );
           return;
@@ -1337,7 +1405,17 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         return;
       }
       if (!hidden.correct) {
-        handleFailure('wrong_numeric', 'כִּמְעַט... 🧐', 'הספרה החסרה שכתבתם אינה נכונה. בדקו שוב בעזרת הלבנים בלוח.', 2800);
+        // Meeting 8 has no blocks and no board (מסמך 03 §3.8), so its skeleton
+        // tasks (s8_r_t7, s8_g_t6, s8_g_t7) cannot point the child to them.
+        // With two or three digits missing, the sentence does not say which one.
+        const hiddenCount = (task.hiddenDigits?.a?.length ?? 0) + (task.hiddenDigits?.b?.length ?? 0);
+        const which = hiddenCount > 1 ? 'אחת הספרות החסרות שכתבתם אינה נכונה.' : 'הספרה החסרה שכתבתם אינה נכונה.';
+        handleFailure(
+          'wrong_numeric',
+          'כִּמְעַט... 🧐',
+          s.sessionNumber === 8 ? `${which} בדקו שוב.` : `${which} בדקו שוב בעזרת הלבנים בבית המספרים.`,
+          2800
+        );
         return;
       }
 
@@ -1350,7 +1428,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         handleFailure(
           'missing_answer',
           'הַקְלָדַת תְּשׁוּבָה ✏️',
-          'הִנַּחְתֶּם אֶת הַקֻּבִּיּוֹת בְּבֵית הַמְּסִפָּרִים בְּצוּרָה מְעֻלָּה! כָּעֵת, הַקְלִידוּ אֶת הַתְּשׁוּבָה בְּתֵיבַת הַמַּעֲנֶה כְּדֵי לְהַמְשִׁיךְ.',
+          'כתבו את התשובה בשורת התוצאה כדי להמשיך.',
           3500
         );
         return;
@@ -1364,7 +1442,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           handleFailure(
             'wrong_numeric',
             'כִּמְעַט... 🧐',
-            'הַתְּשׁוּבָה שֶׁכְּתַבְתֶּם אֵינָהּ תּוֹאֶמֶת לְסַךְ הַקֻּבִּיּוֹת בְּבֵית הַמְּסִפָּרִים. בִּדְקוּ שׁוּב!',
+            'התשובה שכתבתם לא מתאימה ללבנים בבית המספרים. בדקו שוב!',
             2800
           );
         }
@@ -1398,7 +1476,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       if (!s.selectedChoiceId) {
         // "התקדם" is enabled by any board touch in meetings 3-5, so a press
         // with no option chosen used to do nothing at all — no message.
-        showFeedback({ correct: false, title: 'בַּחֲרוּ תְּשׁוּבָה', sub: 'סַמְּנוּ אַחַת מֵהָאֶפְשָׁרֻיּוֹת, וְאָז לַחֲצוּ "הִתְקַדֵּם".' }, 1800);
+        showFeedback({ correct: false, title: 'בַּחֲרוּ תְּשׁוּבָה', sub: `סמנו אחת מהאפשרויות, ואז לחצו על "${PROCEED_HE}".` }, 1800);
         return;
       }
       if (s.selectedChoiceId !== task.correctAnswer) {
@@ -1412,7 +1490,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     if (task.type === 'missing_element') {
       const answer = s.probeAnswer ? parseInt(s.probeAnswer, 10) : null;
       if (answer === null || Number.isNaN(answer)) {
-        showFeedback({ correct: false, title: 'נָא לְהַקְלִיד תְּשׁוּבָה', sub: 'כִּתְבוּ אֶת הַחֵלֶק הֶחָסֵר בַּתֵּיבָה, וְאָז לַחֲצוּ "הִתְקַדֵּם".' }, 1800);
+        showFeedback({ correct: false, title: 'נָא לְהַקְלִיד תְּשׁוּבָה', sub: `כתבו את החלק החסר בתיבה, ואז לחצו על "${PROCEED_HE}".` }, 1800);
         return;
       }
       if (answer !== task.correctAnswer) {
@@ -1429,32 +1507,34 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         handleFailure(
           'wrong_representation',
           'בּוֹאוּ נְדַיֵּק אֶת הַמִּבְנֶה 🔍',
-          task.hideRequiredCounts
-            ? 'הלוח עדיין אינו מציג את מה שההנחיה מבקשת. קראו אותה שוב ובדקו את הלוח.'
-            : `הלוח צריך להציג בדיוק: ${describeCountsHe(required)}. כרגע יש בו: ${describeCountsHe(s.counts)}.`,
+          // One sentence for every representation exercise. It used to spell out
+          // the blocks to build, as the box by the result row did; with the box
+          // gone (owner, 28.9.2026) that gave the answer away on a wrong press
+          // ("איזה מספר קיבלתם?"), and it was too long for the feedback note.
+          'בית המספרים עוד לא מראה את מה שההנחיה מבקשת. קראו אותה שוב ובדקו כמה לבנים יש בכל טור.',
           3500
         );
         return;
       }
       // Meeting 1: the exercise is the conversion itself, not only its result.
       if (task.requiresGrouping && !s.hasGrouped) {
-        handleFailure('conversion_skipped', 'בּוֹאוּ נְקַבֵּץ 🧱', 'הלוח נכון, אבל המשימה היא לקבץ בעצמכם: 10 לבני יחידה בכל פעם, בעזרת כפתור הקבץ 10 שבראש הטור.', 3500);
+        handleFailure('conversion_skipped', 'בּוֹאוּ נְקַבֵּץ 🧱', 'הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם: 10 לבני יחידה בכל פעם, בעזרת הכפתור "קבץ 10" שבראש הטור.', 3500);
         return;
       }
       if (task.requiresUngrouping && !s.hasUngrouped) {
-        handleFailure('conversion_skipped', 'בּוֹאוּ נִפְרֹט 🧱', 'הלוח נכון, אבל המשימה היא לפרוט בעצמכם: בנו את המספר ולחצו על לבנה כדי לפרק אותה.', 3500);
+        handleFailure('conversion_skipped', 'בּוֹאוּ נִפְרֹט 🧱', 'הלבנים מסודרות נכון, אבל המשימה היא לפרוט בעצמכם: בנו את המספר ולחצו על לבנת עשרת כדי לפרוט אותה.', 3500);
         return;
       }
       const typed = answerDigitsToNumber(s.answerDigits);
       if (typed === null) {
-        handleFailure('missing_answer', 'הַקְלָדַת תְּשׁוּבָה ✏️', 'הלוח מסודר בדיוק כנדרש! כעת כתבו את המספר בשורת התוצאה.', 3000);
+        handleFailure('missing_answer', 'הַקְלָדַת תְּשׁוּבָה ✏️', 'הלבנים מסודרות בדיוק כנדרש! עכשיו כתבו את המספר בשורת התוצאה.', 3000);
         return;
       }
       if (typed !== (task.numberA ?? 0)) {
-        handleFailure('wrong_numeric', 'כִּמְעַט... 🧐', 'המספר שכתבתם אינו תואם לכמות שבלוח. בדקו שוב!', 2800);
+        handleFailure('wrong_numeric', 'כִּמְעַט... 🧐', 'המספר שכתבתם לא מתאים ללבנים בבית המספרים. בדקו שוב!', 2800);
         return;
       }
-      handleSuccess('כָּל הַכָּבוֹד! 🌟', 'ייצגתם את המספר בדיוק כפי שנדרש, והמספר שכתבתם תואם ללוח.', 2500);
+      handleSuccess('כָּל הַכָּבוֹד! 🌟', 'בניתם בדיוק את מה שהתבקש, והמספר שכתבתם מתאים ללבנים בבית המספרים.', 2500);
       return;
     }
 
@@ -1980,7 +2060,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // The branch tasks are appended to the bank in memory only. Restoring the
         // index without them pointed past the seven compulsory exercises: an empty
         // card and a disabled "התקדם", with logout or a teacher reset the only exits.
-        dynamicTasks: restoredBranchTasks(sanitized, saved.selectedBranch ?? null),
+        // Meeting 1: a learner whose saved place was counted in the order before
+        // 27.9.2026 finishes the meeting in that order (SESSION1_ORDER_BEFORE_27_9).
+        dynamicTasks: sanitized === 1
+          ? restoredSession1Order(saved)
+          : restoredBranchTasks(sanitized, saved.selectedBranch ?? null),
         awaitingNext: false,
         boardOpen: true,
         isBoardLocked: false,
@@ -2466,7 +2550,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       });
     },
 
-    toggleBoard: () => set((s) => ({ boardOpen: !s.boardOpen })),
+    // Station 1: the board stays open (owner, 27.9.2026 — core/boardVisibility.ts).
+    toggleBoard: () => set((s) => ({ boardOpen: boardStaysOpen(s.sessionNumber) ? true : !s.boardOpen })),
     setFocusedPlace: (place) => set({ focusedPlace: place }),
 
     selectChoice: (id) => {
@@ -2685,7 +2770,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         lessonTaskId = isRepresentationTask(task) ? task.id : null;
         if (task?.requireEvenTens && s.counts.tens % 2 !== 0) {
           if (lessonTaskId) recordBoardCheckFailure(lessonTaskId);
-          showFeedback({ correct: false, title: 'בּוֹאוּ נִבְדֹּק אֶת הָעֲשָׂרוֹת 🤔', sub: 'בדרך הזאת מספר העשרות צריך להיות זוגי. נסו לפרוט או להקבץ עשרת אחת.' }, 3200);
+          showFeedback({ correct: false, title: 'בּוֹאוּ נִבְדֹּק אֶת הָעֲשָׂרוֹת 🤔', sub: 'בדרך הזאת מספר העשרות צריך להיות זוגי. נסו לפרוט עשרת אחת ליחידות, או לקבץ 10 יחידות לעשרת.' }, 3200);
           return;
         }
       }
@@ -2695,7 +2780,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const hint =
           s.sessionNumber === 2
             ? 'כמות הלבנים בלוח אינה תואמת למבוקש. איך נוכל לשנות זאת כדי להגיע לכמות המדויקת?'
-            : 'הסכום הנוכחי אינו תואם לערך היעד של הניסוי. נסו שוב!';
+            : 'הלבנים בבית המספרים עוד לא מראות את המספר שבהנחיה. נסו שוב!';
         showFeedback({ correct: false, title: 'בּוֹאוּ נְדַיֵּק אֶת הַמִּבְנֶה 🔍', sub: hint }, 3200);
         return;
       }
@@ -2737,6 +2822,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     },
 
     finishMeetingEarly,
+    finishReflection: () => {
+      const s = get();
+      if (s.sessionNumber !== 8 || s.flowStatus !== 'reflection') return;
+      set({ flowStatus: 'sessionDone', awaitingNext: false });
+    },
     proceed: () => {
       const s = get();
       if (s.awaitingNext || s.flowStatus !== 'task' || !selectCanProceed(s)) return;

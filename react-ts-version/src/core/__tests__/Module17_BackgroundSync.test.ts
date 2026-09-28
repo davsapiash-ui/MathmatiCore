@@ -93,20 +93,23 @@ describe('the queue is sent in the background while the network is up', () => {
   });
 });
 
-describe('sign-out sends the queue before it wipes the device', () => {
+describe('sign-out sends the queue and keeps what did not arrive', () => {
   const auth = readFileSync(resolve(__dirname, '../../application/useAuthStore.ts'), 'utf-8');
   const start = auth.indexOf('export function unifiedLogout()');
   const body = auth.slice(start, auth.indexOf('export const useAuthStore', start));
 
-  it('flush → clear → release, in that order, and never a bare clearAll', () => {
-    const flush = body.indexOf('.flushWithin(LOGOUT_FLUSH_BUDGET_MS)');
-    const clear = body.indexOf('indexedDBQueue.clearAll()');
+  it('flush → release, in that order, and the queue is never cleared', () => {
+    // Module 17 §ג step 4: deleted only on a server Ack. Sign-out used to
+    // clearAll() after the flush, acknowledged or not — offline, that erased
+    // the whole meeting's telemetry, recording chunks and queued messages.
+    const flush = body.indexOf('.flushWithin(LOGOUT_FLUSH_BUDGET_MS, queueOwnerOf(useAuthStore.getState()))');
     const release = body.indexOf("httpsCallable(functions, 'releaseStudentSession')");
     expect(flush).toBeGreaterThan(-1);
-    expect(clear).toBeGreaterThan(flush);
     // The learner's claims authorise the telemetry write, so they go last.
-    expect(release).toBeGreaterThan(clear);
-    expect((body.match(/indexedDBQueue\.clearAll\(\)/g) || []).length).toBe(1);
+    expect(release).toBeGreaterThan(flush);
+    expect(body).not.toContain('clearAll');
+    // No sign-out path anywhere in the app clears the queue.
+    expect(auth).not.toContain('indexedDBQueue.clearAll');
   });
 
   it('a new sign-in during the wait is left alone', () => {
@@ -123,6 +126,6 @@ describe('a parked item gets another chance on the next page load', () => {
     const firstFlush = queue.indexOf('this.flushQueue()', revive);
     expect(revive).toBeGreaterThan(open);
     expect(firstFlush).toBeGreaterThan(revive);
-    expect(queue).toContain('cursor.update({ ...cursor.value, retry_count: 0 });');
+    expect(queue).toContain('cursor.update({ ...cursor.value, retry_count: 0, transient_count: 0 });');
   });
 });

@@ -16,6 +16,7 @@ import { BackwardDiagnosisView } from './BackwardDiagnosisView';
 
 import { PlaceValueInputBoxes } from './PlaceValueInputBoxes';
 import { UnitBlocksPicture } from './UnitBlocksPicture';
+import { FeedbackToast } from '../overlays/FeedbackToast';
 
 /**
  * כרטיס המשימה — כותרת, הוראה (עם הקראה), וגוף דינמי לפי סוג המשימה והשלב.
@@ -62,37 +63,43 @@ export function TaskCard() {
 
   const taskKey = `${sessionNumber}-${qTask?.id ?? standardTask?.id ?? ''}-${subtask ? 'sub' : qflow.subphase}-${standardTaskIdx}`;
 
-  // Meeting 2 has no board: the card is the whole screen, centred, and must fit
-  // any window without scrolling or clipping (owner, 28.9.2026: "רספונסיבי ככל
-  // שניתן לכל גודל מסך"). Its paddings, gaps and heading follow the window's
-  // height — the small size in a window 600px tall, the large one at 950px, in
-  // proportion in between — with no step at any screen size.
-  const m2 = sessionNumber === 2;
-
+  // Layout (owner, 27.9.2026): the result row is in view without scrolling on
+  // a 1024×768, 1280×720, 1366×768 or 1536×864 laptop. Top to bottom: the
+  // station and position, the instruction, the number or the exercise, the
+  // result row, and only then a checklist or other extra content. The column
+  // is a flex column whose paddings, gaps and big number grow and shrink with
+  // the window's height (`fl-*` in tailwind.config.js, `--ws-cell`), with no
+  // step at any screen size (owner, 28.9.2026). The card itself still scrolls
+  // as a last resort, so nothing is ever out of reach. Meeting 2 has no board:
+  // its card is the whole screen, centred, with the same sizes.
   return (
-    <AccessibleCard id="tour-task-card" className={`flex-1 min-w-0 ${m2 ? 'min-h-0 p-[clamp(12px,calc(5.7143vh-22.29px),32px)]' : 'p-8'} overflow-y-auto relative border-none rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-white/95 dark:bg-slate-900/95`}>
+    <AccessibleCard id="tour-task-card" className="flex-1 min-w-0 min-h-0 p-fl-12-32 overflow-y-auto relative border-none rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-white/95 dark:bg-slate-900/95">
       {/* Soft decorative corner glow — warmth without noise */}
       <div
         aria-hidden="true"
         className="absolute top-0 left-0 w-56 h-56 pointer-events-none rounded-full opacity-70"
         style={{ background: 'radial-gradient(closest-side, hsl(var(--ws-blue-soft)), transparent)' }}
       />
-      <motion.div key={taskKey} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="relative">
+      {/* The feedback, over this column's heading only: not over the board,
+          the coaching card or the exercise (report row 1.15). Meetings 2 and 8
+          keep the page's floating one. */}
+      {sessionNumber !== 2 && sessionNumber !== 8 && <FeedbackToast placement="inline" />}
+      <motion.div key={taskKey} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="relative flex flex-col flex-1 min-h-0" data-testid="task-column">
         {qflow.phase !== 'correction' && (
-          <span className={`inline-flex items-center gap-1.5 text-sm font-display font-extrabold text-ws-accent bg-ws-accentSoft rounded-full px-3.5 py-1.5 ${m2 ? 'mb-[clamp(4px,calc(2.2857vh-9.71px),12px)]' : 'mb-3'} shadow-[0_2px_6px_-2px_hsl(var(--ws-accent)/0.35)]`}>
+          <span className="self-start shrink-0 inline-flex items-center gap-1.5 text-sm font-display font-extrabold text-ws-accent bg-ws-accentSoft rounded-full px-3.5 py-fl-4-6 mb-fl-6-12 shadow-[0_2px_6px_-2px_hsl(var(--ws-accent)/0.35)]">
             <span aria-hidden="true">✦</span> תחנה {sessionNumber}
           </span>
         )}
-        <h1 className={`font-display font-black text-ws-ink leading-[1.15] ${m2 ? 'text-[length:clamp(24px,calc(2.8571vh+6.86px),34px)] mb-[clamp(6px,calc(2.8571vh-11.14px),16px)]' : 'text-[2.15rem] mb-4'}`}>
+        <h1 className="shrink-0 font-display font-black text-fl-22-34 text-ws-ink mb-fl-6-16 leading-[1.15]">
           {positionLabel}
         </h1>
 
         {instruction && (
           <div
-            className={`flex items-start gap-3 rounded-2xl border-r-4 ${m2 ? 'mb-[clamp(6px,calc(5.1429vh-24.86px),24px)] px-4 pr-5 py-[clamp(6px,calc(2.8571vh-11.14px),16px)]' : 'mb-6 p-4 pr-5'}`}
+            className="shrink-0 flex items-start gap-3 mb-fl-6-24 rounded-2xl px-fl-12-16 pr-fl-14-20 py-fl-6-16 border-r-4"
             style={{ backgroundColor: 'hsl(var(--ws-blue-soft) / 0.55)', borderColor: 'hsl(var(--ws-blue) / 0.55)' }}
           >
-            <p className={`text-ws-ink/85 font-medium leading-relaxed flex-1 whitespace-pre-line ${m2 ? 'text-[length:clamp(16px,calc(1.1429vh+9.14px),20px)]' : 'text-xl'}`}>{instruction}</p>
+            <p className="text-fl-16-20 text-ws-ink/85 font-medium leading-[1.55] flex-1 whitespace-pre-line">{instruction}</p>
             <UdlSpeechButton text={instruction} />
           </div>
         )}

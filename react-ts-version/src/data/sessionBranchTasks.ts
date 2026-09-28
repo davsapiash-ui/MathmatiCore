@@ -154,7 +154,7 @@ export const SESSION_BRANCH_TASKS: Record<BranchSession, Record<LearningPath, Br
           { ...R, targetNode: 'relational_thinking' }),
         flexible('s7_g_reinforce_2', 2500,
           'ביסוס 2: 25 מאות שוות ל-2 אלפים ו-5 מאות',
-          'הוכיחו בלבנים ש-25 מאות שוות בדיוק ל-2 אלפים ו-5 מאות: בנו 25 מאות ולחצו "הוספת ייצוג", ואז הקבצו והוסיפו את הייצוג הרגיל.',
+          'הוכיחו בלבנים ש-25 מאות שוות בדיוק ל-2 אלפים ו-5 מאות: בנו 25 מאות ולחצו "הוספת ייצוג", ואז קבצו והוסיפו את הייצוג הרגיל.',
           { ...R, targetNode: 'relational_thinking' }),
       ],
       challenge: [

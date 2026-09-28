@@ -12,6 +12,7 @@
 import { chromium } from 'playwright';
 import fs from 'node:fs';
 import path from 'node:path';
+import { uploadRules } from './seed.mjs';
 
 const args = Object.fromEntries(
   process.argv.slice(2).reduce((acc, a, i, all) => (a.startsWith('--') ? [...acc, [a.slice(2), all[i + 1]]] : acc), [])
@@ -48,6 +49,10 @@ const STUDENT_CLAIMS = { role: 'student', student_id: 12, class_id: 'class_1', r
   if (!r.ok) r = await fetch(AUTH, { method: 'POST', headers: h, body: JSON.stringify(body) });
   if (!r.ok) throw new Error(`auth emulator: ${r.status} ${await r.text()}`);
 }
+
+// The repository's own RTDB rules (database.rules.json): firebase.harness.json
+// names none, so they are PUT here, as seed.mjs does.
+await uploadRules();
 
 const enhanced = profile === 'enhanced';
 await rtdb('PUT', 'users/students/student_user12', {

@@ -101,7 +101,7 @@ export function Login() {
     // dashboard off (the server now refuses it). This is never a child's laptop,
     // so a plain explanation is right here, not the silent shake.
     if (auth.currentUser && auth.currentUser.isAnonymous === false) {
-      setErrorMsg("בדפדפן הזה מחובר איש צוות. לכניסת תלמיד פתחו חלון גלישה בסתר או דפדפן אחר.");
+      setErrorMsg("בדפדפן הזה מחובר איש צוות. לכניסת תלמידים פתחו חלון גלישה בסתר או דפדפן אחר.");
       return;
     }
 
@@ -253,7 +253,7 @@ export function Login() {
 
   const roleTitle =
     selectedRole === "student"
-      ? "כניסת תלמיד"
+      ? "כניסת תלמידים"
       : selectedRole === "teacher"
       ? "כניסת מורה"
       : selectedRole === "admin"
@@ -263,15 +263,22 @@ export function Login() {
   return (
     <div
       dir="rtl"
-      className="min-h-screen bg-slate-50 dark:bg-slate-950 font-body text-slate-900 dark:text-slate-100 flex items-center justify-center p-4 sm:p-6"
+      // The whole login fits the window without scrolling on every screen the
+      // pilot uses (owner, 28.9.2026): the vertical spacing is fluid — it
+      // follows the window's height (clamp on vh) instead of fixed paddings —
+      // and on a window that is wide but short (a laptop with the browser's
+      // bars: 1366×768 leaves ≈633px of page) the logo moves beside the card
+      // instead of above it. That is the one place the layout changes shape,
+      // so it is the one place with a breakpoint; everything else scales.
+      className="min-h-[100dvh] bg-slate-50 dark:bg-slate-950 font-body text-slate-900 dark:text-slate-100 flex items-center justify-center p-[clamp(0.5rem,2vh,1.5rem)]"
     >
-      <main className="w-full max-w-[520px] flex flex-col items-center gap-6 my-auto">
+      <main className="w-full max-w-[520px] flex flex-col items-center gap-[clamp(0.5rem,2.5vh,1.5rem)] my-auto [@media(max-height:700px)_and_(min-width:900px)]:max-w-[1000px] [@media(max-height:700px)_and_(min-width:900px)]:flex-row [@media(max-height:700px)_and_(min-width:900px)]:justify-center [@media(max-height:700px)_and_(min-width:900px)]:gap-[clamp(1.5rem,5vw,5rem)]">
         {/* Logo Area */}
         <motion.div
           initial={{ opacity: 0, y: -16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="cursor-default select-none"
+          className="cursor-default select-none shrink-0"
         >
           <Logo
             size="xl"
@@ -285,7 +292,7 @@ export function Login() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, delay: 0.08 }}
-          className="w-full bg-white dark:bg-slate-900 p-6 sm:p-8 shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-200 dark:border-slate-800 rounded-3xl"
+          className="w-full max-w-[520px] bg-white dark:bg-slate-900 p-[clamp(1rem,3.5vh,2rem)] shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-200 dark:border-slate-800 rounded-3xl"
         >
           <AnimatePresence mode="wait" initial={false}>
             {!selectedRole ? (
@@ -333,7 +340,7 @@ export function Login() {
                 exit={{ opacity: 0, x: -16 }}
                 transition={{ duration: 0.2 }}
               >
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between mb-[clamp(0.5rem,2vh,1rem)]">
                   <h2 className="font-display font-extrabold text-xl text-slate-900 dark:text-white">
                     {roleTitle}
                   </h2>
@@ -362,7 +369,7 @@ export function Login() {
 
                 {/* Student Sequential Login Flow (Master PRD v5.0 Module 1) */}
                 {selectedRole === "student" && (
-                  <form onSubmit={handleStudentLogin} className="flex flex-col gap-4">
+                  <form onSubmit={handleStudentLogin} className="flex flex-col gap-[clamp(0.5rem,1.6vh,1rem)]">
                     {/* Step 1: School Selection Dropdown */}
                     <div className="flex flex-col gap-1 text-right">
                       <label className="text-xs font-black text-slate-700 dark:text-slate-300">שם בית ספר</label>
@@ -453,7 +460,7 @@ export function Login() {
                       variant="udl"
                       size="lg"
                       disabled={isLoggingIn || !selectedStudentNum}
-                      className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl font-extrabold text-base transition-all shadow-md active:scale-95 bg-[hsl(var(--ws-blue))] text-white hover:brightness-105 disabled:opacity-50 mt-2 min-h-[48px] cursor-pointer"
+                      className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl font-extrabold text-base transition-all shadow-md active:scale-95 bg-[hsl(var(--ws-blue))] text-white hover:brightness-105 disabled:opacity-50 mt-2 min-h-[48px] cursor-pointer"
                     >
                       <span>{isLoggingIn ? "רגע, בודקים..." : "כניסה"}</span>
                     </Button>

@@ -17,7 +17,7 @@ import { useNavigate } from 'react-router-dom';
 import type { DragSource, Place } from '@/core/placeValue';
 import { useWorkspaceStore, getActiveTasks, activeExerciseId, type SessionNumber } from '@/application/useWorkspaceStore';
 import { useAuthStore, stampStudentWindowClosed, touchStudentActivity, currentStudentUid } from '@/application/useAuthStore';
-import { submitSRLReflection } from '@/core/srlReflection';
+import { submitSRLReflection, hasSavedSRLReflection } from '@/core/srlReflection';
 import { useActiveClassSession } from '@/application/useActiveClassSession';
 import { database, authReady, fetchServerClockOffset } from '@/infrastructure/firebase';
 import { ref, push, onValue, set, update, get, onDisconnect } from 'firebase/database';
@@ -30,7 +30,7 @@ import { WorkspaceTopbar } from './WorkspaceTopbar';
 import { TaskCard } from './tasks/TaskCard';
 import { FeedbackToast } from './overlays/FeedbackToast';
 import { HelpOverlays, SocraticSidePanel } from './overlays/HelpOverlays';
-import { Session8ReflectionScreen } from '@/presentation/components/student/Session8ReflectionScreen';
+import { Session8ReflectionScreen, REFLECTION_TEXT_HE } from '@/presentation/components/student/Session8ReflectionScreen';
 import { ClosingSentence } from './ClosingSentence';
 import { hasClosingSentence } from '@/core/persistenceEncouragement';
 import { StationOpening } from './StationOpening';
@@ -40,7 +40,8 @@ import { indexedDBQueue } from '@/infrastructure/services/IndexedDBQueue';
 import { useStore } from '@/application/useStore';
 
 import { StudentChatOverlay } from './overlays/StudentChatOverlay';
-import { AdaptiveAdditionGrid } from './board/AdaptiveAdditionGrid';
+import { AdaptiveAdditionGrid, ADDITION_GRID_HE } from './board/AdaptiveAdditionGrid';
+import { useLeftClearOfSidePanel } from './board/useLeftClearOfSidePanel';
 import { Grid3x3 } from 'lucide-react';
 
 import { SocraticEngine } from '@/infrastructure/services/SocraticEngine';
@@ -100,6 +101,8 @@ export function StudentWorkspacePage() {
   const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
   const flowStatus = useWorkspaceStore((s) => s.flowStatus);
   const isSocraticPanelOpen = useWorkspaceStore((s) => s.helpState === 'socratic');
+  // The grid's re-open tab keeps clear of the coaching card too (report row 1.28).
+  const gridTabLeft = useLeftClearOfSidePanel();
   const user = useAuthStore((s) => s.user);
   const isTeacherOrAdmin = user?.role === 'teacher' || user?.role === 'admin';
 
@@ -842,6 +845,23 @@ export function StudentWorkspacePage() {
     };
   }, [meeting, firebaseLoaded, isInitialized, myData, initSession, restoreSession, isASDMode, activeClassSession, isTeacherSessionActive]);
 
+  // Meeting 8, 8.10 of the 28.9.2026 audit: a learner whose reflection is
+  // already saved — on the server, or waiting in the offline queue on this
+  // device — is done (PRD Module 16 §ג, "כפתור סיום מפגש סופי"). The
+  // finished state is saved with the workspace, so this only acts
+  // when that state did not land before a reload — the board is not shown again
+  // over a reflection the rules will not let anyone overwrite.
+  useEffect(() => {
+    if (isTeacherOrAdmin || sessionNumber !== 8 || flowStatus !== 'reflection') return;
+    let cancelled = false;
+    hasSavedSRLReflection(currentStudentUid()).then((saved) => {
+      if (saved && !cancelled) useWorkspaceStore.getState().finishReflection();
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isTeacherOrAdmin, sessionNumber, flowStatus]);
+
   // The learner's own RTDB listener re-runs initialisation when the gate
   // opens; there is no separate task list to poll for any more (tasks come
   // from the session banks per learning path, never from a per-learner node).
@@ -1062,9 +1082,22 @@ export function StudentWorkspacePage() {
           // דרסה את routeStatus ל-'PENDING', כלומר ביטלה את החלטת השער.
           const outcome = await submitSRLReflection(currentStudentUid(), result);
           if (!outcome.ok) {
-            toast.error('לא הצלחנו לשמור הפעם. זה בסדר.');
+            // Not even stored in the offline queue on this device (Module 17
+            // holds everything else): the board stays on step 3 with the same
+            // answers, the button works again, and the child is told what to
+            // do. Ending the meeting here would lose the reflection for good
+            // behind "העבודה נשמרה בבטחה".
+            toast.error(REFLECTION_TEXT_HE.notSaved, { duration: 15000 });
+            return false;
           }
-          navigate('/hub');
+          // In the offline queue, which sends it and removes it only on the
+          // server's Ack: the reflection is safe, and the child is done —
+          // "כפתור סיום מפגש סופי" (Module 16 §ג).
+          // The learner stays here, on the quiet end screen. Sending them to the
+          // lobby sent them straight back into meeting 8 — still open — and the
+          // board started again at step 1 (audit 8.10).
+          useWorkspaceStore.getState().finishReflection();
+          return true;
         }}
       />
         {classStateOverlays}
@@ -1089,13 +1122,18 @@ export function StudentWorkspacePage() {
   // One praise, one sentence: every closing sentence already opens with
   // "כל הכבוד", so where it is shown the heading only says which station is
   // done (and the end toast carries no praise either, useWorkspaceStore).
+  //
+  // Meeting 8 reaches this screen from its reflection board, whose last step
+  // already said "כל הכבוד": the heading only says which station is done. It is
+  // the last station, so there is no "next station" line.
   if (endScreen === 'sessionDone') {
     const withClosingSentence = hasClosingSentence(sessionNumber);
+    const afterReflection = sessionNumber === 8;
     return (
       <div dir="rtl" className="h-screen w-full flex flex-col items-center justify-center bg-ws-bg text-ws-ink font-body p-6 animate-in fade-in duration-300">
         <div className="bg-ws-surface p-10 rounded-3xl shadow-2xl max-w-md w-full text-center border-2 border-ws-surface2 space-y-6">
           <div className="text-6xl animate-bounce motion-essential">🎉✨</div>
-          {withClosingSentence ? (
+          {withClosingSentence || afterReflection ? (
             <h1 className="text-3xl font-display font-black text-ws-ink">
               סיימתם את תחנה {sessionNumber}!
             </h1>
@@ -1115,7 +1153,9 @@ export function StudentWorkspacePage() {
               <span>העבודה נשמרה בבטחה</span>
               <span>✓</span>
             </div>
-            <p className="text-xs text-ws-soft">כשהמורה תפתח את המפגש הבא, נמשיך יחד.</p>
+            {!afterReflection && (
+              <p className="text-xs text-ws-soft">כשהמורה תפתח את התחנה הבאה, נמשיך יחד.</p>
+            )}
           </div>
         </div>
         {classStateOverlays}
@@ -1196,15 +1236,15 @@ export function StudentWorkspacePage() {
         <WorkspaceTopbar isDragging={activeDrag !== null} />
 
         {/* Main 50/50 workspace (or centered in Session 2 & 8) */}
-        <main className={`flex flex-row flex-1 overflow-hidden p-5 gap-5 max-w-[1600px] mx-auto w-full box-border ${(sessionNumber === 2 || sessionNumber === 8) ? 'justify-center items-center' : ''}`}>
+        <main className={`flex flex-row flex-1 overflow-hidden p-fl-10-20 gap-fl-10-20 max-w-[1600px] mx-auto w-full box-border ${(sessionNumber === 2 || sessionNumber === 8) ? 'justify-center items-center' : ''}`}>
           {/* Task card */}
-          <div className={`flex-1 min-h-0 min-w-0 flex flex-col ${(sessionNumber === 2 || sessionNumber === 8) ? 'max-w-3xl flex-none h-auto' : ''} ${sessionNumber === 2 ? 'max-h-full' : ''}`}>
+          <div className={`flex-1 min-h-0 min-w-0 flex flex-col ${(sessionNumber === 2 || sessionNumber === 8) ? 'max-w-3xl flex-none h-auto max-h-full' : ''}`}>
             <TaskCard />
           </div>
 
           {/* Place-value board (hidden/unmounted in Session 2 and Session 8) */}
           {sessionNumber !== 2 && sessionNumber !== 8 && (
-            <PlaceValueBoard activeDragPlace={activeDrag?.place ?? null} hideValueDisplay={sessionNumber === 1} shareRow={isSocraticPanelOpen} />
+            <PlaceValueBoard activeDragPlace={activeDrag?.place ?? null} shareRow={isSocraticPanelOpen} />
           )}
 
           {/* מסמך 03 / 04 §א: the Socratic card is a side panel that slides out
@@ -1214,7 +1254,8 @@ export function StudentWorkspacePage() {
           <SocraticSidePanel />
         </main>
 
-        <FeedbackToast />
+        {/* Meetings with the number house show the feedback in the task column (TaskCard). */}
+        {(sessionNumber === 2 || sessionNumber === 8) && <FeedbackToast />}
         <HelpOverlays />
         <StudentChatOverlay />
 
@@ -1241,12 +1282,13 @@ export function StudentWorkspacePage() {
           <button
             type="button"
             onClick={() => openAdditionHelper('learner')}
-            className="fixed bottom-6 left-6 z-40 h-12 px-4 rounded-2xl text-sm font-bold transition-all cursor-pointer flex items-center gap-1.5 border shadow-lg active:scale-95 bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/40 dark:border-amber-700/60 dark:text-amber-200"
-            aria-label="הצגה חוזרת של לוח החיבור"
-            title="החזרת לוח החיבור למסך"
+            style={{ left: gridTabLeft }}
+            className="fixed bottom-6 z-40 h-12 px-4 rounded-2xl text-sm font-bold transition-all cursor-pointer flex items-center gap-1.5 border shadow-lg active:scale-95 bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/40 dark:border-amber-700/60 dark:text-amber-200"
+            aria-label={`הצגה חוזרת של ${ADDITION_GRID_HE}`}
+            title={`החזרת ${ADDITION_GRID_HE} למסך`}
           >
             <Grid3x3 className="w-4 h-4" aria-hidden="true" />
-            <span>לוח חיבור</span>
+            <span>{ADDITION_GRID_HE}</span>
           </button>
         )}
       </div>

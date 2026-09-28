@@ -226,7 +226,10 @@ const initial = getStoredAuth();
  * אחד היה יכול להיכתב על נתוני לומד אחר.
  */
 export function currentStudentNumber(): number | null {
-  const u = useAuthStore.getState().user;
+  return studentNumberOf(useAuthStore.getState().user);
+}
+
+function studentNumberOf(u: AuthUser | null | undefined): number | null {
   const fromField = Number(u?.student_id);
   if (Number.isInteger(fromField) && fromField >= 1 && fromField <= 12) return fromField;
 
@@ -246,8 +249,36 @@ export function currentStudentUid(): string {
   return n === null ? '' : `student_user${n}`;
 }
 
-/** How long sign-out waits for the offline queue to reach the server before wiping the device. */
+/** How long sign-out waits for the offline queue to reach the server before releasing the identity. */
 const LOGOUT_FLUSH_BUDGET_MS = 4000;
+
+/** FNV-1a — the queue records whose item it is without storing a staff uid on the device. */
+function shortHash(value: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < value.length; i++) {
+    h ^= value.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(36);
+}
+
+/**
+ * Module 17: the identity a queued item belongs to (IndexedDBQueue
+ * QueuedAction.owner). Unsent items outlive sign-out, so the queue must know
+ * which of them the identity signed in now can deliver: a learner by number,
+ * staff by role and a hash of the Firebase uid (never the uid or address itself).
+ */
+export function queueOwnerOf(
+  state: Pick<AuthState, 'user' | 'role' | 'isAuthenticated' | 'isStudentAuthenticated'>
+): string | null {
+  if (!state.isAuthenticated || !state.user) return null;
+  if (state.isStudentAuthenticated || state.role === 'student') {
+    const n = studentNumberOf(state.user);
+    return n === null ? null : `student:${n}`;
+  }
+  const uid = String(state.user.uid ?? state.user.id ?? '');
+  return uid ? `${state.role ?? 'staff'}:${shortHash(uid)}` : null;
+}
 
 export function unifiedLogout() {
   const currentUser = useAuthStore.getState().user;
@@ -274,19 +305,23 @@ export function unifiedLogout() {
   // Firebase's TOO_MANY_ATTEMPTS_TRY_LATER: no learner could sign in at all.
   // Teachers and admins sign in with Google and are signed out for real.
   const firebaseUser = auth && 'currentUser' in auth ? (auth as { currentUser: { isAnonymous?: boolean } | null }).currentUser : null;
-  // Module 17 §ג step 4: a queued event is deleted only after the server took it.
-  // Signing out used to clear the queue outright, and the queue was not being
-  // sent during the lesson either — a learner who pressed "התנתק" on the
-  // "המורה סגרה את המפגש" screen erased the whole meeting's telemetry. The queue
-  // is sent first, while the claims that authorise the write still exist; only
-  // then is the device wiped (Module 2 §ג) and the identity released.
+  // Module 17 §ג step 4: a queued item is deleted only after the server took it.
+  // The queue is sent first, as the identity that is signing out and while the
+  // claims that authorise the write still exist; only then is the identity
+  // released. What did not reach the server in that time — every item, when
+  // the device is offline — STAYS in IndexedDB and is sent on this identity's
+  // next sign-in on this device (QueuedAction.owner). Sign-out used to clear
+  // the queue here whether or not anything had been acknowledged, and so
+  // erased an offline meeting's telemetry, its recording chunks and a
+  // teacher's queued messages. Manual sign-out, the 8-hour limit, the learner
+  // inactivity expiry and role switches all come through here; none of them
+  // deletes unsent data.
   indexedDBQueue
-    .flushWithin(LOGOUT_FLUSH_BUDGET_MS)
+    .flushWithin(LOGOUT_FLUSH_BUDGET_MS, queueOwnerOf(useAuthStore.getState()))
     .finally(() => {
-      // Someone signed in again while the queue was being sent: the device and
-      // the Firebase user now belong to that session. Leave both alone.
+      // Someone signed in again while the queue was being sent: the Firebase
+      // user now belongs to that session. Leave it alone.
       if (useAuthStore.getState().isAuthenticated) return;
-      indexedDBQueue.clearAll().catch((e) => console.warn("IndexedDB clear error:", e));
       if (firebaseUser?.isAnonymous) {
         httpsCallable(functions, 'releaseStudentSession')({})
           .then(async () => {
@@ -486,3 +521,8 @@ export const useAuthStore = create<AuthState>()(
     },
   })
 );
+
+// Module 17: the offline queue sends only the items of whoever is signed in,
+// and recounts and sends that identity's backlog on every sign-in.
+indexedDBQueue.registerOwnerResolver(() => queueOwnerOf(useAuthStore.getState()));
+useAuthStore.subscribe(() => indexedDBQueue.notifyOwnerChanged());
