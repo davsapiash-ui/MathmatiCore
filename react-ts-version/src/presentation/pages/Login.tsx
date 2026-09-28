@@ -101,7 +101,7 @@ export function Login() {
     // dashboard off (the server now refuses it). This is never a child's laptop,
     // so a plain explanation is right here, not the silent shake.
     if (auth.currentUser && auth.currentUser.isAnonymous === false) {
-      setErrorMsg("בדפדפן הזה מחובר איש צוות. לכניסת תלמיד פתחו חלון גלישה בסתר או דפדפן אחר.");
+      setErrorMsg("בדפדפן הזה מחובר איש צוות. לכניסת תלמידים פתחו חלון גלישה בסתר או דפדפן אחר.");
       return;
     }
 
@@ -253,7 +253,7 @@ export function Login() {
 
   const roleTitle =
     selectedRole === "student"
-      ? "כניסת תלמיד"
+      ? "כניסת תלמידים"
       : selectedRole === "teacher"
       ? "כניסת מורה"
       : selectedRole === "admin"
