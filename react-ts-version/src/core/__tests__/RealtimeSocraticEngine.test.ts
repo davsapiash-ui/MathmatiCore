@@ -162,6 +162,6 @@ describe('Realtime Socratic Engine & Live Board State Analyzer', () => {
     const hint = await SocraticEngine.getSocraticHint(task, 'flexible_regrouping', counts);
 
     expect(hint).toBeDefined();
-    expect(hint?.questionHe).toContain('מה קורה כאשר אנו מפרקים עשרת אחת לטור היחידות');
+    expect(hint?.questionHe).toContain('מה קורה כשפורטים עשרת אחת לטור היחידות');
   });
 });

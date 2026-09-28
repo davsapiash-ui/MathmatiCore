@@ -149,14 +149,23 @@ export function secretNumbersOf(task: any): number[] {
   return out;
 }
 
-/** Does any text show one of these numbers ("4500" or "4,500")? */
+/**
+ * Deletes a digit-group separator between two digits — comma, apostrophe,
+ * geresh, space, NBSP, narrow NBSP, thin space — so that "1,573", "1 573"
+ * and "1'573" all read as 1573. Mirrored on the server
+ * (functions/src/socraticContract.ts, stripDigitGroupSeparators).
+ */
+const DIGIT_GROUP_SEPARATOR = /(?<=\d)[,'\u05F3 \u00A0\u202F\u2009](?=\d{3}(?!\d))/g;
+export function stripDigitGroupSeparators(text: string): string {
+  return text.replace(DIGIT_GROUP_SEPARATOR, '');
+}
+
+/** Does any text show one of these numbers ("4500", "4,500", "4 500", …)? */
 export function revealsSecret(texts: string[], secrets: number[]): number | null {
+  const plain = texts.map(stripDigitGroupSeparators);
   for (const n of secrets) {
-    const forms = [String(n), formatNumberHe(n)];
-    for (const f of forms) {
-      const re = new RegExp(`(^|[^0-9,])${f.replace(',', '\\,')}(?![0-9])`);
-      if (texts.some((t) => re.test(t))) return n;
-    }
+    const re = new RegExp(`(^|[^0-9])${n}(?![0-9])`);
+    if (plain.some((t) => re.test(t))) return n;
   }
   return null;
 }
@@ -370,7 +379,60 @@ function missingDigitsCard(task: any, blocks: boolean): SocraticHintResponse {
   );
 }
 
-/** Build a representation on the board and write the number (meetings 3 and 7). */
+/**
+ * The card of meeting 3 when nothing about the task can be named: which
+ * number is built in the number house. It marks no representation wrong
+ * (owner, 28.9.2026, שהB.1): also the fallback for any meeting-3 task this
+ * module does not recognise (SocraticEngine.resolveStaticHint).
+ */
+export function whichNumberIsBuiltCard(): SocraticHintResponse {
+  return card(`${OPEN}איך יודעים איזה מספר בנוי בבית המספרים?`, 'conceptual', 'tour-place-value-board', [
+    ['מסתכלים על הספרה שליד שם כל טור', 'נכון מאוד! כתבו כל ספרה בשורת התוצאה, בתיבה של הטור שלה.'],
+    ['סופרים את כל הלבנים יחד', 'רמז: לבנת מאה שווה יותר מלבנת יחידה. סופרים כל טור לחוד.'],
+    ['מנחשים מספר', 'רמז: אין צורך לנחש. בית המספרים עוזר לכם לבדוק.'],
+  ]);
+}
+
+/**
+ * A place-value slip on a representation in the usual way (★ chosen by the
+ * agent, 28.9.2026; owner's rule שהB.1): where the instruction names an empty
+ * column ("טור העשרות נשאר ריק"), the digit just right of it moves into it
+ * (506 → "5 מאות ו-6 עשרות", 6,030 → "6 אלפים ו-3 מאות"); otherwise the two
+ * highest digits trade places (340 → "4 מאות ו-3 עשרות"). Its value is never N.
+ */
+function placeValueSlip(task: any, n: number, standard: Counts): [string, string] | null {
+  const N = formatNumberHe(n);
+  const ps = [...LOW_TO_HIGH].reverse().filter((p) => (standard[p] ?? 0) > 0);
+  const empty = LOW_TO_HIGH.find((p) => (standard[p] ?? 0) === 0 && onScreen(task, `${COLUMN[p]} נשאר ריק`));
+  if (empty) {
+    const i = LOW_TO_HIGH.indexOf(empty);
+    const from = LOW_TO_HIGH.slice(0, i).reverse().find((p) => (standard[p] ?? 0) > 0);
+    if (from) {
+      const moved: Counts = { ...standard, [empty]: standard[from], [from]: 0 };
+      return [
+        `נשתמש ${withBe(countsPhrase(moved))}`,
+        `רמז: במספר ${N} הספרה ${standard[from]} היא ספרת ה${PLURAL[from]}, ו${COLUMN[empty]} נשאר ריק.`,
+      ];
+    }
+  }
+  if (ps.length >= 2 && standard[ps[0]] !== standard[ps[1]]) {
+    const [p1, p2] = ps;
+    const swapped: Counts = { ...standard, [p1]: standard[p2], [p2]: standard[p1] };
+    return [
+      `נשתמש ${withBe(countsPhrase(swapped))}`,
+      `רמז: במספר ${N} הספרה ${standard[p1]} היא ספרת ה${PLURAL[p1]}, והספרה ${standard[p2]} היא ספרת ה${PLURAL[p2]}.`,
+    ];
+  }
+  return null;
+}
+
+/**
+ * Build a representation on the board and write the number (meetings 3 and 7).
+ * The owner's rule (28.9.2026, שהב.1): the correct option lists exactly the
+ * blocks the instruction asks for; no wrong option lists them; a wrong option
+ * that is also N says so and says what the instruction asks instead. The
+ * question names the criterion: which blocks the instruction asks for.
+ */
 function representationCard(task: any): SocraticHintResponse {
   const n: number = task.numberA;
   const N = formatNumberHe(n);
@@ -378,36 +440,24 @@ function representationCard(task: any): SocraticHintResponse {
   const requiredPhrase = countsPhrase(required);
   if (!onScreen(task, N) || !requiredPhrase || !onScreen(task, requiredPhrase)) {
     // The number (or the blocks) is what the child is asked to find: name neither.
-    return card(`${OPEN}איך יודעים איזה מספר בנוי בבית המספרים?`, 'conceptual', 'tour-place-value-board', [
-      ['מסתכלים על הספרה שליד שם כל טור', 'נכון מאוד! כתבו כל ספרה בשורת התוצאה, בתיבה של הטור שלה.'],
-      ['סופרים את כל הלבנים יחד', 'רמז: לבנת מאה שווה יותר מלבנת יחידה. סופרים כל טור לחוד.'],
-      ['מנחשים מספר', 'רמז: אין צורך לנחש. בית המספרים עוזר לכם לבדוק.'],
-    ]);
+    return whichNumberIsBuiltCard();
   }
   const standard = standardCounts(n);
   const isStandard = sameCounts(required, standard);
   const choices: [string, string][] = [[`נשתמש ${withBe(requiredPhrase)}`, 'נכון מאוד! בנו את זה בבית המספרים.']];
   if (!isStandard) {
-    choices.push([`נשתמש ${withBe(countsPhrase(standard))}`, 'רמז: זו הדרך הרגילה. קראו שוב את ההנחיה: היא מבקשת דרך אחרת.']);
+    choices.push([`נשתמש ${withBe(countsPhrase(standard))}`, `רמז: גם זה ${N}, בדרך הרגילה. ההנחיה מבקשת דרך אחרת. קראו אותה שוב.`]);
   } else {
-    // A place-value slip: the two highest digits trade places.
-    const ps = [...LOW_TO_HIGH].reverse().filter((p) => (standard[p] ?? 0) > 0);
-    if (ps.length >= 2 && standard[ps[0]] !== standard[ps[1]]) {
-      const [p1, p2] = ps;
-      const swapped: Counts = { ...standard, [p1]: standard[p2], [p2]: standard[p1] };
-      choices.push([
-        `נשתמש ${withBe(countsPhrase(swapped))}`,
-        `רמז: במספר ${N} הספרה ${standard[p1]} היא ספרת ה${PLURAL[p1]}, והספרה ${standard[p2]} היא ספרת ה${PLURAL[p2]}.`,
-      ]);
-    }
+    const slip = placeValueSlip(task, n, standard);
+    if (slip) choices.push(slip);
   }
   if (!sameCounts(required, { units: n })) {
-    choices.push([`נשתמש ב-${N} יחידות`, 'רמז: זה יותר מדי לבנים. השתמשו בטורים שההנחיה מבקשת.']);
+    choices.push([`נשתמש ב-${N} יחידות`, `רמז: גם זה ${N}, אבל ההנחיה מבקשת לבנות אותו בטורים אחרים.`]);
   }
   if (choices.length < 3) {
     choices.push(['נכתוב את המספר בלי לבנות אותו', 'רמז: קודם בונים בבית המספרים, ורק אחר כך כותבים בשורת התוצאה.']);
   }
-  return card(`${OPEN}האם שקלתם את ערך המיקום של הספרות במספר ${N}?`, 'conceptual', 'tour-place-value-board', choices.slice(0, 3));
+  return card(`${OPEN}באילו לבנים ההנחיה מבקשת לבנות את המספר ${N}?`, 'conceptual', 'tour-place-value-board', choices.slice(0, 3));
 }
 
 /** Two different representations of one number. */

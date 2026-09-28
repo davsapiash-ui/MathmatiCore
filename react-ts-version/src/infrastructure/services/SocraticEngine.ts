@@ -4,7 +4,7 @@ import type { GeminiSocraticRequest, GeminiSocraticResponse, GeminiSocraticOptio
 import type { TelemetryEventType, TelemetryPayload } from "@/types/telemetry";
 import { normalizeStudentId } from "@/application/useChatStore";
 import { digitAt, type Place } from "@/core/placeValue";
-import { exerciseCard, meetingOfTaskId, blocksOnScreen, secretNumbersOf, revealsSecret, formatNumberHe } from "./staticSocraticCards";
+import { exerciseCard, whichNumberIsBuiltCard, meetingOfTaskId, blocksOnScreen, secretNumbersOf, revealsSecret, formatNumberHe, stripDigitGroupSeparators } from "./staticSocraticCards";
 
 export type { GeminiSocraticRequest, GeminiSocraticResponse, GeminiSocraticOption };
 
@@ -71,7 +71,7 @@ export function groundCardInExercise(card: SocraticHintResponse, currentTask?: a
 
 /**
  * Static-card keys for a session 3–8 exercise id (compulsory or early-finisher):
- * the path-specific card first (`s3_r_card`), then the session card (`s3_card`).
+ * the path-specific card first (`s4_r_card`), then the session card (`s4_card`).
  * מסמך 03 writes one Socratic card per session, so every exercise of a session
  * shares it; only session 3 differs by path (34 tens vs 34 hundreds).
  */
@@ -147,7 +147,8 @@ export function socraticTextViolation(
     const exempt = answer === 10 || answer === 100 || answer === 1000 || answer === operands.a || answer === operands.b;
     if (!exempt) {
       const re = new RegExp(`(^|[^0-9])${answer}(?![0-9])`);
-      if (texts.some((t) => re.test(t))) return 'final answer leaked';
+      // "1,573" and "1 573" are 1573 to the child (stripDigitGroupSeparators).
+      if (texts.some((t) => re.test(stripDigitGroupSeparators(t)))) return 'final answer leaked';
     }
   }
   return null;
@@ -180,6 +181,9 @@ export function absentAidViolation(texts: string[], sessionNumber?: number | nul
   }
   return null;
 }
+
+/** Exercises that are neither an addition nor a subtraction: no exercise_context goes to the model. */
+export const NON_ARITHMETIC_TYPES = ['representation', 'flexible_decomp', 'missing_element'];
 
 /** Same operation inference analyzeLiveBoardState uses, so the AI and the static engine never disagree on the sign. */
 export function inferIsSubtraction(task: any, targetNode?: string): boolean {
@@ -251,7 +255,7 @@ function synthesiseRecentEvents(
 /** "יחידה אחת", not "1 יחידות". */
 const unitsHe = (n: number) => (n === 1 ? 'יחידה אחת' : `${n} יחידות`);
 
-const TASK_HINTS: Record<string, SocraticHintResponse> = {
+export const TASK_HINTS: Record<string, SocraticHintResponse> = {
 
   // ── Session 1 — ארגז החול המונחה (מסמך 03 §3.1) ────────────────
   // The tool steps (session1_intro) never open a card: "התקדם" stays
@@ -273,20 +277,21 @@ const TASK_HINTS: Record<string, SocraticHintResponse> = {
     correctChoiceId: "1"
   },
 
-  // Step 6, the target task (347 → 3 hundreds, 3 tens, 17 units): the card מסמך 03 §3.1 writes for meeting 1, word for word,
-  // except that the pieces are "לבנים" (owner, 27.9.2026; register ט), and the two hints of the wrong options.
+  // Step 6, the target task (347 → 3 hundreds, 3 tens, 17 units): the card מסמך 03 §3.1 writes for meeting 1, meaning
+  // unchanged, in the words of the screen (28.9.2026): "פורטים" as the task says "פרטו" (not "מפרקים"), "בית המספרים" for
+  // the board (not "הלוח"), no formal "אנו"; the pieces are "לבנים" (owner, 27.9.2026; register ט).
   // The task asks "which number do the blocks show after the decomposition?"; the document's hints answered it
   // ("שומרת על ערך הכמות הכולל", "הכמות המתמטית נשמרת תמיד"). Now they point at the quantity without saying
   // what happens to it (owner's instruction, 28.9.2026: change only the wording, so it no longer gives the answer).
   's1_target_347': {
     pedagogical_intent: "conceptual",
-    tts_text: "בואו נחשוב רגע יחד: מה קורה כאשר אנו מפרקים עשרת אחת לטור היחידות?",
+    tts_text: "בואו נחשוב רגע יחד: מה קורה כשפורטים עשרת אחת לטור היחידות?",
     suggested_highlight: "tour-column-tens",
-    questionHe: "בואו נחשוב רגע יחד: מה קורה כאשר אנו מפרקים עשרת אחת לטור היחידות?",
+    questionHe: "בואו נחשוב רגע יחד: מה קורה כשפורטים עשרת אחת לטור היחידות?",
     choices: [
-      { id: "opt_1", textHe: "אנו מקבלים 10 יחידות בודדות הנוספות לטור היחידות על הלוח", isCorrect: true, feedbackHe: "נכון מאוד! בואו נלחץ על לבנת עשרת ונצפה ביחידות המתווספות ללוח." },
-      { id: "opt_2", textHe: "אנו משאירים את הלוח ללא שינוי", isCorrect: false, feedbackHe: "רמז: הפריטה משנה את הלבנים בבית המספרים. בדקו מה קורה לכמות." },
-      { id: "opt_3", textHe: "אנו מוחקים את העשרת מהלוח", isCorrect: false, feedbackHe: "רמז: בפריטה לא מוחקים לבנים. בדקו מה קורה לעשרת." }
+      { id: "opt_1", textHe: "מקבלים 10 יחידות, שנוספות לטור היחידות בבית המספרים", isCorrect: true, feedbackHe: "נכון מאוד! לחצו על לבנת עשרת, וראו את היחידות שנוספות לטור היחידות." },
+      { id: "opt_2", textHe: "בית המספרים נשאר בלי שינוי", isCorrect: false, feedbackHe: "רמז: הפריטה משנה את הלבנים בבית המספרים. בדקו מה קורה לכמות." },
+      { id: "opt_3", textHe: "העשרת נמחקת מבית המספרים", isCorrect: false, feedbackHe: "רמז: בפריטה לא מוחקים לבנים. בדקו מה קורה לעשרת." }
     ],
     correctChoiceId: "opt_1"
   },
@@ -359,46 +364,11 @@ const TASK_HINTS: Record<string, SocraticHintResponse> = {
   // ── Sessions 3–8 — the Socratic cards written in מסמך 03 (one card per session,
   //    with the board called "בית המספרים" and the pieces "לבנים": owner, 27.9.2026, register ט;
   //    served for every exercise of that session; session 3 has a card per path). ──
-  // מסמך 03 §3.3
-  's3_r_card':   {
-    pedagogical_intent: "conceptual",
-    error_category: "conceptual",
-    tts_text: 'בואו נחשוב רגע יחד: האם שקלתם את ערך המיקום של הספרות?',
-    suggested_highlight: "tour-column-tens",
-    questionHe: 'בואו נחשוב רגע יחד: האם שקלתם את ערך המיקום של הספרות?',
-    choices: [
-      { id: "opt_1", textHe: 'נשתמש ב-34 עשרות', isCorrect: true, feedbackHe: 'נכון מאוד! צברתם את הכמות המדויקת בבית המספרים.' },
-      { id: "opt_2", textHe: 'נשתמש ב-3 מאות ו-4 עשרות', isCorrect: false, feedbackHe: 'רמז: זהו הייצוג הסטנדרטי הרגיל. אנו מבקשים לייצג את המספר באמצעות עשרות בלבד.' },
-      { id: "opt_3", textHe: 'נשתמש ב-340 יחידות בודדות', isCorrect: false, feedbackHe: 'רמז: ייצוג זה צפוף ומעמיס מדי על הלוח. השתמשו בטור העשרות.' }
-    ],
-    correctChoiceId: "opt_1"
-  },
-  's3_g_card':   {
-    pedagogical_intent: "conceptual",
-    error_category: "conceptual",
-    tts_text: 'בואו נחשוב רגע יחד: האם שקלתם את ערך המיקום של הספרות?',
-    suggested_highlight: "tour-column-hundreds",
-    questionHe: 'בואו נחשוב רגע יחד: האם שקלתם את ערך המיקום של הספרות?',
-    choices: [
-      { id: "opt_1", textHe: 'נשתמש ב-34 מאות', isCorrect: true, feedbackHe: 'נכון מאוד! צברתם את הכמות המדויקת בבית המספרים.' },
-      { id: "opt_2", textHe: 'נשתמש ב-3 אלפים ו-4 מאות', isCorrect: false, feedbackHe: 'רמז: זהו הייצוג הסטנדרטי הרגיל. אנו מבקשים לייצג את המספר באמצעות מאות בלבד.' },
-      { id: "opt_3", textHe: 'נשתמש ב-3,400 יחידות בודדות', isCorrect: false, feedbackHe: 'רמז: ייצוג זה צפוף ומעמיס מדי על הלוח. השתמשו בטור המאות.' }
-    ],
-    correctChoiceId: "opt_1"
-  },
-  's3_card':   {
-    pedagogical_intent: "conceptual",
-    error_category: "conceptual",
-    tts_text: 'בואו נחשוב רגע יחד: האם שקלתם את ערך המיקום של הספרות?',
-    suggested_highlight: "tour-column-hundreds",
-    questionHe: 'בואו נחשוב רגע יחד: האם שקלתם את ערך המיקום של הספרות?',
-    choices: [
-      { id: "opt_1", textHe: 'נשתמש ב-34 מאות', isCorrect: true, feedbackHe: 'נכון מאוד! צברתם את הכמות המדויקת בבית המספרים.' },
-      { id: "opt_2", textHe: 'נשתמש ב-3 אלפים ו-4 מאות', isCorrect: false, feedbackHe: 'רמז: זהו הייצוג הסטנדרטי הרגיל. אנו מבקשים לייצג את המספר באמצעות מאות בלבד.' },
-      { id: "opt_3", textHe: 'נשתמש ב-3,400 יחידות בודדות', isCorrect: false, feedbackHe: 'רמז: ייצוג זה צפוף ומעמיס מדי על הלוח. השתמשו בטור המאות.' }
-    ],
-    correctChoiceId: "opt_1"
-  },
+  // מסמך 03 §3.3 — no session card: its "34 עשרות / 34 מאות" marked the
+  // instruction's own representation wrong in tasks 1, 2 and 4–6 (owner,
+  // 28.9.2026, שהB.1). Every meeting-3 task gets the card of its own
+  // instruction (staticSocraticCards.ts), and an unrecognised one gets
+  // "איך יודעים איזה מספר בנוי בבית המספרים?" (resolveStaticHint).
   // מסמך 03 §3.4
   's4_card':   {
     pedagogical_intent: "procedural",
@@ -963,7 +933,11 @@ export class SocraticEngine {
       // ── Pillar 1: the exercise ─────────────────────────────────────────
       const colIdx = Math.max(0, Math.min(3, monitoring.activeColumnIndex ?? Math.max(0, ['יחידות', 'עשרות', 'מאות', 'אלפים'].indexOf(activeColumnName))));
       const activeColumn = WIRE_COLUMNS[colIdx];
-      const operands: { a: number; b: number; isSubtraction: boolean } | null =
+      // A representation, a "different ways" task and a missing part are
+      // not an addition or a subtraction: "160 is 100 and how much more?"
+      // went to the model as 100 + 160 (owner, 28.9.2026, שהB.1).
+      const arithmetic = !NON_ARITHMETIC_TYPES.includes(currentTask?.type);
+      const operands: { a: number; b: number; isSubtraction: boolean } | null = !arithmetic ? null :
         monitoring.operands ??
         (typeof currentTask?.numberA === 'number' && typeof currentTask?.numberB === 'number'
           ? { a: currentTask.numberA, b: currentTask.numberB, isSubtraction: inferIsSubtraction(currentTask, targetNode) }
@@ -1372,6 +1346,9 @@ export class SocraticEngine {
     //    deviation 2; owner, 28.9.2026 — staticSocraticCards.ts).
     const computed = exerciseCard(currentTask, currentCounts);
     if (computed) return computed;
+    // A meeting-3 task this module does not recognise gets the card that marks
+    // no representation wrong (owner, 28.9.2026, שהB.1).
+    if (meetingOfTaskId(taskId) === 3) return whichNumberIsBuiltCard();
 
     // 4. The מסמך 03 session card, grounded in this exercise. It comes AFTER the
     //    operand-specific computation above: PRD Module 13's holistic-triad rule

@@ -706,10 +706,21 @@ function textHasHebrew(s: string): boolean {
   return HEBREW_RE.test(s);
 }
 
+/**
+ * Digit-group separators between two digits: comma, apostrophe, geresh,
+ * space, NBSP, narrow NBSP, thin space. "1,573", "1 573" and "1'573" are
+ * all 1573 to a child reading the card. Mirrored on the client
+ * (staticSocraticCards.stripDigitGroupSeparators).
+ */
+const DIGIT_GROUP_SEPARATOR = /(?<=\d)[,'\u05F3 \u00A0\u202F\u2009](?=\d{3}(?!\d))/g;
+export function stripDigitGroupSeparators(text: string): string {
+  return text.replace(DIGIT_GROUP_SEPARATOR, "");
+}
+
 function containsNumberToken(text: string, n: number): boolean {
   // A standalone number: not part of a longer digit run ("15" inside "150" does not count).
   const re = new RegExp(`(^|[^0-9])${n}(?![0-9])`);
-  return re.test(text);
+  return re.test(stripDigitGroupSeparators(text));
 }
 
 /**

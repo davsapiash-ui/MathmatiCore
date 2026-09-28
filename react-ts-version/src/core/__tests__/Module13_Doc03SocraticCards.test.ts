@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   SocraticEngine,
   sessionCardKeysForTaskId,
+  TASK_HINTS,
   socraticTextViolation,
 } from '@/infrastructure/services/SocraticEngine';
 import { secretNumbersOf, revealsSecret } from '@/infrastructure/services/staticSocraticCards';
@@ -16,28 +17,35 @@ import { SESSIONS_BY_PATH, type SessionTask } from '@/data/sessionTasks';
 const EMPTY = { units: 0, tens: 0, hundreds: 0, thousands: 0 };
 
 describe('Module 13: static Socratic cards come from מסמך 03', () => {
-  it('maps compulsory and early-finisher ids of sessions 3–8 to their session card', () => {
-    expect(sessionCardKeysForTaskId('s3_r_t2')).toEqual(['s3_r_card', 's3_card']);
-    expect(sessionCardKeysForTaskId('s3_g_reinforce_1')).toEqual(['s3_g_card', 's3_card']);
+  it('maps compulsory and early-finisher ids of sessions 4–8 to their session card', () => {
     expect(sessionCardKeysForTaskId('s7_r_challenge_1')).toEqual(['s7_r_card', 's7_card']);
     expect(sessionCardKeysForTaskId('s8_g_t7')).toEqual(['s8_g_card', 's8_card']);
     expect(sessionCardKeysForTaskId('s1_t8')).toEqual([]);
   });
 
   // Until 28.9.2026 every meeting-3 exercise got the one card of מסמך 03 — on
-  // the 4,500 exercise a card about 3,400 (audit row 3.14). The card is now the
-  // document's question with the exercise's own numbers (owner, 28.9.2026;
-  // register, approved deviation 2): SocraticStaticCards_ExerciseOnScreen.test.ts.
-  it('session 3 asks the document\'s question about the number on the screen', async () => {
+  // the 4,500 exercise a card about 3,400 (audit row 3.14), and on "3,400 in
+  // the usual way" a card that marked the usual way wrong (הB.11). Meeting 3
+  // has no session card any more (owner, 28.9.2026, שהB.1): the card asks
+  // which blocks the instruction asks for, with the task's own blocks as the
+  // correct option. Full rules: Meeting3_CardFitsExercise.test.ts.
+  it('session 3 has no session card: the card asks which blocks the instruction asks for', async () => {
+    expect(sessionCardKeysForTaskId('s3_r_t2').filter((k) => k in TASK_HINTS)).toEqual([]);
+    expect(sessionCardKeysForTaskId('s3_g_reinforce_1').filter((k) => k in TASK_HINTS)).toEqual([]);
     const tasks = [...SESSIONS_BY_PATH[3].remediation_path, ...SESSIONS_BY_PATH[3].green_path];
     const rem = (await SocraticEngine.getSocraticHint(tasks.find((t) => t.id === 's3_r_t3') as any, 'flexible_regrouping', EMPTY))!;
-    expect(rem.questionHe).toContain('ערך המיקום');
-    expect(rem.questionHe).toContain('450');
+    expect(rem.questionHe).toBe('בואו נחשוב רגע יחד: באילו לבנים ההנחיה מבקשת לבנות את המספר 450?');
     expect(rem.choices[0].textHe).toBe('נשתמש ב-45 עשרות');
     const green = (await SocraticEngine.getSocraticHint(tasks.find((t) => t.id === 's3_g_t3') as any, 'flexible_regrouping', EMPTY))!;
-    expect(green.questionHe).toContain('4,500');
+    expect(green.questionHe).toBe('בואו נחשוב רגע יחד: באילו לבנים ההנחיה מבקשת לבנות את המספר 4,500?');
     expect(green.choices[0].textHe).toBe('נשתמש ב-45 מאות');
     expect(JSON.stringify(green)).not.toMatch(/3,?400|34 מאות/);
+  });
+
+  it('an unrecognised meeting-3 task gets the card that marks no representation wrong', () => {
+    const card = SocraticEngine.getSynchronousTaskHint({ id: 's3_g_t99', type: 'unknown' } as any, EMPTY);
+    expect(card.questionHe).toBe('בואו נחשוב רגע יחד: איך יודעים איזה מספר בנוי בבית המספרים?');
+    expect(JSON.stringify(card)).not.toMatch(/נשתמש ב/);
   });
 
   it('every other session serves the document card, correct option first, with feedback on each option', async () => {

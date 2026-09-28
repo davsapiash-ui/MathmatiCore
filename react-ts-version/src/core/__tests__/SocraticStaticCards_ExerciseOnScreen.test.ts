@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { SocraticEngine, absentAidViolation, inferIsSubtraction } from '@/infrastructure/services/SocraticEngine';
+import { SocraticEngine, absentAidViolation, inferIsSubtraction, socraticTextViolation } from '@/infrastructure/services/SocraticEngine';
 import {
   carryColumns,
   borrowColumns,
@@ -134,7 +134,7 @@ describe('the two cards the audit saw', () => {
 
   it('3.14 — "represent 4,500 with hundreds only" is about 4,500 and 45 hundreds', () => {
     const card = SocraticEngine.getSynchronousTaskHint(byId('s3_g_t3'), EMPTY);
-    expect(card.questionHe).toBe('בואו נחשוב רגע יחד: האם שקלתם את ערך המיקום של הספרות במספר 4,500?');
+    expect(card.questionHe).toBe('בואו נחשוב רגע יחד: באילו לבנים ההנחיה מבקשת לבנות את המספר 4,500?');
     expect(card.choices.map((c) => c.textHe)).toEqual(['נשתמש ב-45 מאות', 'נשתמש ב-4 אלפים ו-5 מאות', 'נשתמש ב-4,500 יחידות']);
     expect(JSON.stringify(card)).not.toMatch(/3,?400|34/);
   });
@@ -165,13 +165,25 @@ describe('the two cards the audit saw', () => {
 describe('meeting 1 target task (347): the card does not answer the task\'s question', () => {
   it('the wrong-option hints no longer say that the quantity is kept', () => {
     const card = SocraticEngine.getSynchronousTaskHint({ id: 's1_target_347', type: 'representation', numberA: 347 }, EMPTY);
-    expect(card.questionHe).toBe('בואו נחשוב רגע יחד: מה קורה כאשר אנו מפרקים עשרת אחת לטור היחידות?');
+    expect(card.questionHe).toBe('בואו נחשוב רגע יחד: מה קורה כשפורטים עשרת אחת לטור היחידות?');
     const hints = card.choices.filter((c) => !c.isCorrect).map((c) => c.feedbackHe);
     expect(hints).toEqual([
       'רמז: הפריטה משנה את הלבנים בבית המספרים. בדקו מה קורה לכמות.',
       'רמז: בפריטה לא מוחקים לבנים. בדקו מה קורה לעשרת.',
     ]);
     expect(JSON.stringify(card)).not.toMatch(/שומרת על ערך הכמות|נשמרת|347/);
+  });
+
+  it('speaks the words of the screen: "פורטים", "בית המספרים", no formal "אנו" (28.9.2026)', () => {
+    const card = SocraticEngine.getSynchronousTaskHint({ id: 's1_target_347', type: 'representation', numberA: 347 }, EMPTY);
+    expect(card.choices.map((c) => c.textHe)).toEqual([
+      'מקבלים 10 יחידות, שנוספות לטור היחידות בבית המספרים',
+      'בית המספרים נשאר בלי שינוי',
+      'העשרת נמחקת מבית המספרים',
+    ]);
+    const all = textsOf(card).join(' ');
+    expect(all).not.toMatch(/מפרק|(^|[^א-ת])[ובלמהש]{0,3}לוח(?![א-ת])|(^|[^א-ת])אנו(?![א-ת])/);
+    expect(card.tts_text).toBe(card.questionHe);
   });
 });
 
@@ -205,6 +217,40 @@ describe('the AI card gets the same checks (the engine runs on the server)', () 
     expect(await ask(task, 7)).toBeNull();
     vi.spyOn(SocraticEngine, 'callGeminiProxy').mockResolvedValue(answer('בתרגיל 31▢ + 254 = 568, מה חסר בטור היחידות?'));
     expect(await ask(task, 7)).not.toBeNull();
+  });
+
+  // Thousand separators (28.9.2026): "1,573" and "1 573" are the answer too.
+  it('the answer or a hidden number with a thousands separator is thrown away', async () => {
+    const add = rows.find((r) => r.task.id === 's8_g_t1')!.task; // 1,245 + 328
+    for (const leak of ['נקבל 1,573', 'נקבל 1 573', 'נקבל 1\u00A0573', 'נקבל 1\u202F573', 'נקבל 1\u2009573', "נקבל 1'573", 'נקבל 1\u05F3573']) {
+      vi.spyOn(SocraticEngine, 'callGeminiProxy').mockResolvedValue(answer(`בתרגיל 1,245 + 328, ${leak}?`));
+      expect(await ask(add, 8), leak).toBeNull();
+    }
+    vi.spyOn(SocraticEngine, 'callGeminiProxy').mockResolvedValue(answer('בתרגיל 1,245 + 328, מה עושים בטור היחידות?'));
+    expect(await ask(add, 8)).not.toBeNull();
+
+    const skeleton = rows.find((r) => r.task.id === 's7_g_challenge_1')!.task; // ▢,▢▢▢ − 2,587
+    for (const leak of ['בונים את 8003 בבית המספרים', 'בונים את 8,003 בבית המספרים', 'בונים את 8 003 בבית המספרים']) {
+      vi.spyOn(SocraticEngine, 'callGeminiProxy').mockResolvedValue(answer(leak));
+      expect(await ask(skeleton, 7), leak).toBeNull();
+    }
+  });
+
+  it('the client check itself: socraticTextViolation and revealsSecret read through separators', () => {
+    const ops = { a: 1245, b: 328, isSubtraction: false };
+    for (const t of ['נקבל 1,573', 'נקבל 1 573', "נקבל 1'573", 'נקבל 1\u00A0573']) expect(socraticTextViolation([t], ops), t).toBe('final answer leaked');
+    expect(socraticTextViolation(['בתרגיל 1,245 + 328'], ops)).toBeNull();
+    expect(revealsSecret(['בונים את 8 003'], [8003])).toBe(8003);
+    expect(revealsSecret(['בתרגיל 3,400'], [400])).toBeNull();
+  });
+
+  it('no static card of a skeleton exercise prints its hidden number, in any board state', () => {
+    for (const { task } of rows.filter((r) => (r.task as any).hiddenDigits)) {
+      const hidden = secretNumbersOf(task).filter((n) => ![10, 100, 1000].includes(n));
+      for (const counts of [EMPTY, SOME, { units: 3, tens: 0, hundreds: 0, thousands: 8 }]) {
+        expect(revealsSecret(textsOf(SocraticEngine.getSynchronousTaskHint(task, counts)), hidden), task.id).toBeNull();
+      }
+    }
   });
 
   it('a meeting-8 card that sends the child to blocks or the trash is thrown away', async () => {
