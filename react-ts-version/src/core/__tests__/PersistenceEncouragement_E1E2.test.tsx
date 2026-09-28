@@ -246,7 +246,9 @@ describe('one praise, one sentence at the end of meetings 3–7', () => {
     const page = read(resolve(SRC, 'features/workspace/StudentWorkspacePage.tsx'));
     const end = page.slice(page.indexOf("if (endScreen === 'sessionDone') {"), page.indexOf('<ClosingSentence sessionNumber={sessionNumber}'));
     expect(end).toContain('const withClosingSentence = hasClosingSentence(sessionNumber);');
-    const at = end.indexOf('{withClosingSentence ? (');
+    // Meeting 8 arrives here from its reflection board, which already praised
+    // (audit 8.10, 28.9.2026): it takes the same praise-free heading.
+    const at = end.indexOf('{withClosingSentence || afterReflection ? (');
     expect(at).toBeGreaterThan(-1);
     const withSentence = end.slice(at, end.indexOf(') : (', at));
     expect(withSentence).toContain('סיימתם את תחנה {sessionNumber}!');
