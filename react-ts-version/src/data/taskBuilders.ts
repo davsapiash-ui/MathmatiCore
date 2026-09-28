@@ -181,7 +181,10 @@ export function borrowCount(a: number, b: number): number {
 }
 
 const S6_BORROW_PHRASE: Record<number, string> = {
-  0: ' בכל טור יש מספיק לבנים, ולכן אין כאן צורך בפריטה.',
+  // Owner's decision 28.9.2026 (register, שהC.2): the child checks each
+  // column; the instruction no longer decides for them that nothing needs
+  // decomposing. Used only by s6_r_reinforce_1/2 and s6_g_reinforce_1/2.
+  0: ' בנו את המחוסר בבית המספרים. בדקו בכל טור אם יש בו מספיק לבנים כדי להחסיר.',
   1: ' פרקו פעם אחת ובדקו את הכמויות בבית המספרים.',
   2: ' כאן דרושה פריטה כפולה: פרקו פעמיים, זו אחרי זו, ובדקו את הכמויות בבית המספרים.',
   3: ' כאן דרושה פריטה משולשת: פרקו שלוש פעמים, זו אחרי זו, ובדקו את הכמויות בבית המספרים.',

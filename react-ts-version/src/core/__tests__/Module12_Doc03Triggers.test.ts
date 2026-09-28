@@ -5,7 +5,7 @@ import { useAuthStore } from '@/application/useAuthStore';
 /**
  * מסמך 03 §3.3–3.8 names three triggers for the coaching card:
  *   1. 45 seconds of hesitation in the active column (owned by the radar hook),
- *   2. four consecutive deletions in the active column,
+ *   2. four consecutive errors in the active column (since 28.9.2026: wrong digits, not deletions),
  *   3. a required conversion the learner did not perform.
  * Only the first was wired. The deletion count existed but nothing read it, and
  * the third trigger did not exist at all — so a learner who kept answering a
@@ -24,7 +24,10 @@ function startTask(sessionNumber: number) {
 describe('Module 12: the three coaching triggers of מסמך 03', () => {
   beforeEach(() => startTask(4));
 
-  it('trigger 2 — four consecutive deletions open the card and are reported as such', async () => {
+  // Owner's decisions 28.9.2026 (שהB.2, שהB.3): trigger 2 counts wrong digits
+  // in one column when they are typed; deletions count nothing. Every clause
+  // is tested in Owner_28_9_CountingRules.test.ts.
+  it('trigger 2 — four wrong digits in one column open the card and are reported as such', async () => {
     // The tens of 1,245 + 328 need no carry, so trigger 3 cannot fire here.
     const s = useWorkspaceStore.getState();
     for (let i = 0; i < 4; i++) {
@@ -32,12 +35,11 @@ describe('Module 12: the three coaching triggers of מסמך 03', () => {
       s.setAnswerDigit('tens', '');
     }
     await flush();
-    expect(useWorkspaceStore.getState().consecutiveDeletions).toBeGreaterThanOrEqual(4);
     expect(useWorkspaceStore.getState().helpState).toBe('socratic');
     expect(useWorkspaceStore.getState().socraticTriggerReason).toBe('consecutive_errors_4');
   });
 
-  it('three deletions do not open it — the threshold is four', async () => {
+  it('three wrong digits do not open it — the threshold is four', async () => {
     const s = useWorkspaceStore.getState();
     for (let i = 0; i < 3; i++) {
       s.setAnswerDigit('tens', '6');
@@ -47,12 +49,12 @@ describe('Module 12: the three coaching triggers of מסמך 03', () => {
     expect(useWorkspaceStore.getState().helpState).not.toBe('socratic');
   });
 
-  it('a correct entry between deletions restarts the count', async () => {
+  it('a correct entry between wrong digits restarts the count', async () => {
     const s = useWorkspaceStore.getState();
     s.setAnswerDigit('tens', '6'); s.setAnswerDigit('tens', '');
     s.setAnswerDigit('tens', '6'); s.setAnswerDigit('tens', '');
     s.setAnswerDigit('tens', '7'); // 4 + 2 + 1 carried = 7, the correct tens digit
-    expect(useWorkspaceStore.getState().consecutiveDeletions).toBe(0);
+    expect(useWorkspaceStore.getState().digitErrorStreak).toBe(0);
     s.setAnswerDigit('tens', ''); s.setAnswerDigit('tens', '6'); s.setAnswerDigit('tens', '');
     await flush();
     expect(useWorkspaceStore.getState().helpState).not.toBe('socratic');

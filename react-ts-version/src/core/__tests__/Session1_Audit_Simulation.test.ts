@@ -18,7 +18,7 @@ import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncServi
  * 'trash'), the trash button (clearBoard), undo, and digits typed one at a
  * time from the units leftward (the answer rows move focus leftward).
  * Typing goes through the same locks the components apply
- * (isRepresentationInputLocked / isColumnInputLocked), so an enhanced-support
+ * (isRepresentationColumnLocked / isColumnInputLocked), so an enhanced-support
  * child can only type what the screen lets them type.
  *
  * Tests whose names start with "BUG:" fail on purpose — each demonstrates a
@@ -48,7 +48,7 @@ const group = (place: Place) => ws().groupColumnClick(place);
 function type(place: Place, digit: string): boolean {
   const t = task();
   if (t?.type === 'representation') {
-    if (ws().isRepresentationInputLocked()) return false;
+    if (ws().isRepresentationColumnLocked(place)) return false;
   } else if (t && (t.type === 'addition_simple' || t.type === 'vertical_addition')) {
     if (ws().isColumnInputLocked(place, t.numberA ?? 0, t.numberB ?? 0, t.isSubtraction)) return false;
   }
@@ -573,11 +573,10 @@ describe('4. enhanced-support profile', () => {
     expect(type('units', '7')).toBe(true);
   });
 
-  it('26: the result row opens at 2 tens and 6 units', () => {
+  it('26: the units open with the first grouping; the tens were never locked (owner, 28.9.2026, שהB.4)', () => {
     goTo(5);
     expect(type('units', '6')).toBe(false);
-    group('units');
-    expect(type('units', '6')).toBe(false);
+    expect(type('tens', '2')).toBe(true);
     group('units');
     expect(type('units', '6')).toBe(true);
   });
