@@ -302,10 +302,11 @@ export function StudentHub() {
               </p>
             </div>
 
-            <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full text-xs font-extrabold bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60">
-              <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
-              <span>ממתין לפתיחת השיעור ע״י המורה...</span>
-            </div>
+            {/* PRD Module 14 §ב0 gives this screen's exact text, above, and
+                nothing else. A second line here said the same in the masculine
+                singular, with an abbreviation and a third name for the meeting
+                ("השיעור"), and the read-aloud button skipped it (audit ע0.1,
+                28.9.2026). */}
           </motion.div>
         ) : (
           /* SINGLE Dynamic Active Session Card */
