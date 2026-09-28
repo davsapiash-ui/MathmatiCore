@@ -53,6 +53,7 @@ import { database, serverNow } from '@/infrastructure/firebase';
 import { throttledRtdbUpdate } from '@/infrastructure/services/ThrottledRtdbWriter';
 import { normalizeStudentId } from '@/application/useChatStore';
 import { firebaseSyncService, emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
+import { readStoredMeetingDeadline, storeMeetingDeadline } from '@/application/meetingDeadline';
 import type { TelemetryEventType } from '@/types/telemetry';
 import { REPRESENTATION_LOCKS } from '@/data/representationLocks';
 import type { VRAWorkspaceState } from '@/types';
@@ -548,6 +549,12 @@ function getStoredSocraticLockDeadline(): number | null {
     console.error('Failed to read socratic penalty from storage', e);
   }
   return null;
+}
+
+/** This learner's own saved progress on this device (the Module 17 cache), or null. */
+function ownSavedProgress(learnerUid: string) {
+  if (!learnerUid || typeof firebaseSyncService?.getLocalSessionProgress !== 'function') return null;
+  return firebaseSyncService.getLocalSessionProgress(learnerUid);
 }
 
 /* ── Pure helpers ── */
@@ -2259,28 +2266,28 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // PRD v7.1 Module 14 §ב: Session 1 sandbox = 20 min; Sessions 3-7 = 15 min; Sessions 2 & 8 = 25 min
       const durationMin = sanitized === 1 ? 20 : (sanitized >= 3 && sanitized <= 7) ? 15 : 25;
 
+      // The deadline is kept on this device per learner, never per device
+      // alone (application/meetingDeadline.ts): the next learner on a shared
+      // tablet starts their own, and a learner who signs back in keeps theirs.
+      // A deadline handed in (the server's) wins, and becomes the device copy.
+      const learnerUid = currentStudentUid();
       let deadline = existingDeadline || null;
-      if (!deadline && typeof localStorage !== 'undefined') {
-        const stored = localStorage.getItem(`mathmaticore_session_${sanitized}_deadline`);
-        if (stored) {
-          const parsed = parseInt(stored, 10);
-          // serverNow() — מסנכרן עם שרת Firebase לפני הבדיקה
-          if (parsed > serverNow()) {
-            deadline = parsed;
-          }
-        }
+      if (deadline) {
+        storeMeetingDeadline(sanitized, learnerUid, deadline);
+      } else {
+        // serverNow() — מסנכרן עם שרת Firebase לפני הבדיקה
+        deadline = readStoredMeetingDeadline({
+          meeting: sanitized,
+          learnerUid,
+          now: serverNow(),
+          ownProgress: () => ownSavedProgress(learnerUid),
+        });
       }
       if (!deadline) {
         // יש לקרוא fetchServerClockOffset לפני כן (StudentHubPage / StudentWorkspacePage)
         // אם עדיין לא נקרא — serverNow() == Date.now() (offset=0, בטוח)
         deadline = serverNow() + durationMin * 60 * 1000;
-        try {
-          if (typeof localStorage !== 'undefined') {
-            localStorage.setItem(`mathmaticore_session_${sanitized}_deadline`, deadline.toString());
-          }
-        } catch (e) {
-          console.error('Failed to store session deadline', e);
-        }
+        storeMeetingDeadline(sanitized, learnerUid, deadline);
       }
 
       const qflow = initQFlow();
@@ -2397,15 +2404,21 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // so a refresh mid-sandbox handed the teacher a "עברו 25 דקות" popup
       // five minutes late.
       const durationMin = sanitized === 1 ? 20 : (sanitized >= 3 && sanitized <= 7) ? 15 : 25;
+      // This learner's deadline for the meeting, as initSession keeps it: the
+      // one the snapshot carries, else this learner's device copy. Never
+      // another learner's, and never a fresh one — a restore continues a
+      // meeting and does not restart its time (Module 14 §ב).
+      const learnerUid = currentStudentUid();
       let sessionDeadline = saved.sessionDeadlineTime || null;
-      if (!sessionDeadline && typeof localStorage !== 'undefined') {
-        const stored = localStorage.getItem(`mathmaticore_session_${sanitized}_deadline`);
-        if (stored) {
-          const parsed = parseInt(stored, 10);
-          if (parsed > Date.now()) {
-            sessionDeadline = parsed;
-          }
-        }
+      if (sessionDeadline) {
+        storeMeetingDeadline(sanitized, learnerUid, sessionDeadline);
+      } else {
+        sessionDeadline = readStoredMeetingDeadline({
+          meeting: sanitized,
+          learnerUid,
+          now: serverNow(),
+          ownProgress: () => ownSavedProgress(learnerUid),
+        });
       }
 
       // Module 26: the meeting goes on in the bank it was pinned to. The pin
@@ -3651,6 +3664,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         keyboardState: 'UNLOCKED',
         sessionStartTimeMs: Date.now(),
         isTimeExceeded: false,
+        // The deadline belongs to the learner who signed out; the next one
+        // gets their own from initSession / restoreSession.
+        sessionDeadlineTime: null,
         counts: { ...EMPTY_COUNTS },
         undoStack: [],
         undoCount: 0,
