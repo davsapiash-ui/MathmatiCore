@@ -61,7 +61,9 @@ const DEFAULT_CLASS: ClassSchema = {
   class_type: "כיתת ביקורת",
 };
 
-// 8 hours continuous token limit per Master PRD v5.0 Module 2
+// 8 hours from sign-in or role selection, every role, by the device clock:
+// the owner's decision of 28.9.2026 (register, "החלטות בעל המוצר במקום שהאפיון
+// שותק", יג). PRD 7.3 Module 2 §ג sets no duration. Do not shorten it.
 export const JWT_EXPIRY_MS = 8 * 60 * 60 * 1000;
 
 // 5 minutes student window-close / inactivity disconnect limit
