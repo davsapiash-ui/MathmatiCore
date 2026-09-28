@@ -15,6 +15,7 @@ import { useAuthStore } from '@/application/useAuthStore';
 import * as SessionTasks from '@/data/sessionTasks';
 import * as BranchTasks from '@/data/sessionBranchTasks';
 import type { SessionTask } from '@/data/sessionTasks';
+import { approvePath } from '@/test/approvedPath';
 
 /**
  * The vertical exercise's screen-reader label (role="group") must not say a
@@ -134,6 +135,8 @@ describe('a skeleton exercise: the label says "ספרה חסרה" and never the 
   it('in its meeting, through the task card — and the instruction on the screen keeps its boxes', () => {
     const idx = SessionTasks.getSessionTasks(7, 'green_path').findIndex((t) => t.id === 's7_g_t2');
     expect(idx).toBeGreaterThanOrEqual(0);
+    // Meetings 3–8 have no exercises without an approved path (#139, Module 26).
+    approvePath('green_path');
     useWorkspaceStore.getState().initSession(7, false, idx);
     const { container } = render(<TaskCard />);
     const group = screen.getByRole('group', { name: /^תרגיל במאונך/ });
