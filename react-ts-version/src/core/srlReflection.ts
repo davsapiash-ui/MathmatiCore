@@ -12,7 +12,7 @@
  * לאותו מפגש נדחית בחוקים (`allow update: if false`), כך שהראשונה קובעת.
  */
 
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { ref, update } from 'firebase/database';
 import { firestore, database } from '@/infrastructure/firebase';
 import { emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
@@ -65,6 +65,24 @@ function asPilotNumber(value: unknown): number | null {
 export interface SRLPersistResult {
   ok: boolean;
   reason?: 'unknown_student' | 'write_failed';
+  /** The write was refused because this learner's reflection was already saved; it stays as it was. */
+  alreadySaved?: boolean;
+}
+
+/**
+ * Whether this learner's meeting-8 reflection is already saved. The rules let
+ * the owner read the document; one that does not exist (never saved, or removed
+ * by a reset of meeting 8) is refused, and every failure reads as "not saved".
+ */
+export async function hasSavedSRLReflection(rawStudentId: string | number): Promise<boolean> {
+  const studentNumber = asPilotNumber(rawStudentId);
+  if (studentNumber === null) return false;
+  try {
+    const snap = await getDoc(doc(firestore, 'srl_reflections', srlReflectionDocId(studentNumber)));
+    return snap.exists();
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -100,6 +118,11 @@ export async function submitSRLReflection(
       submitted_at: submittedAt,
     });
   } catch (err) {
+    // A second write for the same learner is refused (create-only). That is
+    // not a failure: the first reflection stands, and the learner is done.
+    if (await hasSavedSRLReflection(studentNumber)) {
+      return { ok: true, alreadySaved: true };
+    }
     console.error('[srlReflection] failed writing the reflection document:', err);
     return { ok: false, reason: 'write_failed' };
   }

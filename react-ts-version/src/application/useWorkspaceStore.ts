@@ -415,6 +415,13 @@ interface WorkspaceState {
   /** "סיום המפגש כעת" from the early-finisher screen; records completion like every other exit. */
   finishMeetingEarly: () => void;
   /**
+   * Meeting 8's reflection board is done (PRD Module 16 §ג, "כפתור סיום מפגש
+   * סופי"): the learner now waits on the quiet end screen (Module 14 §ג). The
+   * state is synced like every other, so a reload or a new sign-in does not
+   * bring the board back while the teacher keeps meeting 8 open.
+   */
+  finishReflection: () => void;
+  /**
    * מסמך 04 §2א/§5: the silent help button — "שליחת אות מצוקה חרישי למורה ללא
    * תיוג חברתי בכיתה". It signals the teacher and nothing else: no overlay, no
    * coaching card, no interruption to the learner's work.
@@ -2737,6 +2744,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     },
 
     finishMeetingEarly,
+    finishReflection: () => {
+      const s = get();
+      if (s.sessionNumber !== 8 || s.flowStatus !== 'reflection') return;
+      set({ flowStatus: 'sessionDone', awaitingNext: false });
+    },
     proceed: () => {
       const s = get();
       if (s.awaitingNext || s.flowStatus !== 'task' || !selectCanProceed(s)) return;
