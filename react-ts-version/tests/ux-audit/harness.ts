@@ -553,12 +553,14 @@ export interface CaptureOptions {
   note?: string;
   /** Always keep a screenshot for this viewport (the primary one). */
   screenshotAll: boolean;
+  /** Wait before measuring; default 650ms. */
+  settleMs?: number;
 }
 
 export async function capture(o: CaptureOptions): Promise<StateResult> {
   const { page, opts } = o.ctx;
   o.ctx.setState(o.state);
-  await settle(page);
+  await settle(page, o.settleMs);
   const m = await measure(page);
   const consoleErrors = o.ctx.drainConsole();
   const realErrors = consoleErrors.filter((e) => !isExpectedNoise(e));

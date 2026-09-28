@@ -52,6 +52,10 @@ interface Step {
   url?: string;
   note?: string;
   run: (c: AuditContext) => Promise<void>;
+  /** Wait before measuring (default 650ms); shorter for a screen that goes away by itself. */
+  settleMs?: number;
+  /** The step leaves the page reloaded or stuck: the next step navigates afresh. */
+  resets?: boolean;
 }
 
 const noop = async () => {};
@@ -445,6 +449,46 @@ function enhancedSteps(): Step[] {
   return steps;
 }
 
+/**
+ * A render crash in the child's workspace (PRD Module 1 §ב: a severe fault
+ * returns the child to a quiet working state, no error text). The app-wide
+ * ErrorBoundary (main.tsx) replaces the whole page, so the crash screens are
+ * measured like any other. The crash itself is a store value no component can
+ * render (counts = null), thrown inside React's render — the boundary's own path.
+ */
+const CRASH = 'try { api.setState({ counts: null }); } catch (e) { /* the render throws; the boundary catches */ }';
+const QUIET_RELOADS_KEY = 'mc_quiet_recovery_reloads';
+
+function crashSteps(): Step[] {
+  return [
+    {
+      id: 'crash-first',
+      meeting: 3,
+      note: 'the first crash: the quiet screen, before its automatic reload',
+      settleMs: 350,
+      resets: true,
+      run: async (cc) => {
+        await gotoWorkspace(cc, 3);
+        await ws(cc.page, INIT, { meeting: 3, isASD: false, idx: 0 });
+        await cc.page.evaluate((key) => localStorage.removeItem(key), QUIET_RELOADS_KEY);
+        await ws(cc.page, CRASH);
+      },
+    },
+    {
+      id: 'crash-repeated',
+      meeting: 3,
+      note: 'the third crash within a minute: the one "נסו שוב" button, no automatic reload',
+      resets: true,
+      run: async (cc) => {
+        await gotoWorkspace(cc, 3);
+        await ws(cc.page, INIT, { meeting: 3, isASD: false, idx: 0 });
+        await cc.page.evaluate((key) => localStorage.setItem(key, JSON.stringify([Date.now() - 4000, Date.now() - 2000])), QUIET_RELOADS_KEY);
+        await ws(cc.page, CRASH);
+      },
+    },
+  ];
+}
+
 /** Screens outside the workspace, and the meeting-3 gate. */
 const LOBBY_AND_LOGIN: Array<{ opts: ContextOptions; steps: Step[] }> = [
   {
@@ -563,7 +607,11 @@ async function runSteps(
         }
         c.drainConsole();
         await step.run(c);
-        results.push(await capture({ viewport, ctx: c, meeting: step.meeting, state: step.id, note: step.note, screenshotAll }));
+        results.push(await capture({ viewport, ctx: c, meeting: step.meeting, state: step.id, note: step.note, screenshotAll, settleMs: step.settleMs }));
+        if (step.resets) {
+          currentMeeting = undefined;
+          currentUrl = undefined;
+        }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         if (message.startsWith('skip:')) continue;
@@ -621,6 +669,7 @@ for (const viewport of selectedViewports()) {
     for (const group of LOBBY_AND_LOGIN) {
       await runSteps(browser, viewport, group.opts, () => group.steps, results);
     }
+    await runSteps(browser, viewport, { mode: 'default', path: 'green_path', approved: true }, () => crashSteps(), results);
 
     const report = checkpoint();
     const failing = results.filter((r) => r.findings.some((f) => HIGH.has(f.type)));
