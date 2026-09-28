@@ -294,8 +294,49 @@ describe('The Socratic card is a side panel beside the work (מסמך 03 / 04 §
     const answers = buttons.filter((b) => b.className.includes('text-right'));
     expect(answers.length).toBe(3);
     for (const b of answers) expect(b.disabled).toBe(true);
-    const closeNow = buttons.find((b) => b.textContent?.includes('סגירה לעת עתה'));
+    const closeNow = buttons.find((b) => b.textContent?.trim() === 'סגירה');
     expect(closeNow?.disabled).toBe(false);
+    unmount();
+  });
+
+  // PRD Module 12 §ב: "נעילה שקטה ... (pointer-events: none בתוספת אינדיקטור
+  // שעון חול עדין)". Audit row 1.14 (28.9.2026): the card counted the seconds
+  // down on a bold line and on the close button. Now: an hourglass and one
+  // sentence, and no number anywhere on the card while it is locked.
+  it('the lock is silent: an hourglass and one sentence, no seconds', () => {
+    ws().openSocraticCard('hesitation_45s');
+    act(() => { ws().triggerSocraticPenaltyLockout('רמז: בדקו שוב.'); });
+    const { unmount } = render(React.createElement(SocraticSidePanel, null));
+    const indicator = screen.getByTestId('socratic-lock-indicator');
+    expect(indicator.textContent).toBe('⏳רגע לחשיבה. אפשר לבחור תשובה שוב עוד מעט.');
+    const card = screen.getByTestId('socratic-card');
+    const buttons = within(card).getAllByRole('button') as HTMLButtonElement[];
+    // The wide button under the options (the ✕ in the corner has only an aria-label).
+    const close = buttons.find((b) => b.className.includes('w-full'))!;
+    expect(close.textContent).toBe('סגירה');
+    expect(indicator.textContent + close.textContent).not.toMatch(/\d|שניות|ש'/);
+    unmount();
+  });
+
+  // Screen fit (owner, 28.9.2026: no scroll at any size): after a wrong
+  // choice the hint and the lock line share one box, so the close button
+  // stays in a 585px-high window.
+  it('after a wrong choice the hint and the silent lock are one box', () => {
+    ws().openSocraticCard('hesitation_45s');
+    const { unmount } = render(React.createElement(SocraticSidePanel, null));
+    const card = screen.getByTestId('socratic-card');
+    const answers = (within(card).getAllByRole('button') as HTMLButtonElement[]).filter((b) => b.className.includes('text-right'));
+    // A wrong option, found by its text: the correct one is not always first (owner, 28.9.2026).
+    const wrongTexts = new Set((ws().aiSocraticHint?.choices ?? []).filter((c) => c.isCorrect === false).map((c) => c.textHe));
+    const wrong = answers.find((b) => wrongTexts.has(b.textContent ?? ''))!;
+    expect(wrong).toBeDefined();
+    act(() => { fireEvent.click(wrong); });
+    const indicator = screen.getByTestId('socratic-lock-indicator');
+    expect(indicator.textContent).toBe('⏳רגע לחשיבה. אפשר לבחור תשובה שוב עוד מעט.');
+    const box = indicator.parentElement!;
+    expect(box.getAttribute('role')).toBe('status');
+    expect(box.textContent).toMatch(/^💡 \S.*⏳רגע לחשיבה/);
+    expect(within(card).getAllByRole('status')).toHaveLength(1);
     unmount();
   });
 

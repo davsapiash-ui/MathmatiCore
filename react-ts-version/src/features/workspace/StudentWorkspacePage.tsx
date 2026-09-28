@@ -1217,7 +1217,7 @@ export function StudentWorkspacePage() {
 
           {/* Place-value board (hidden/unmounted in Session 2 and Session 8) */}
           {sessionNumber !== 2 && sessionNumber !== 8 && (
-            <PlaceValueBoard activeDragPlace={activeDrag?.place ?? null} shareRow={isSocraticPanelOpen} />
+            <PlaceValueBoard activeDragPlace={activeDrag?.place ?? null} shareRow={isSocraticPanelOpen} additionGridOpen={isAdditionBoardEnabled && isAdditionHelperOpen} />
           )}
 
           {/* מסמך 03 / 04 §א: the Socratic card is a side panel that slides out

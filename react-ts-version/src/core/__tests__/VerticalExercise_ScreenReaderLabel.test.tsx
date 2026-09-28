@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { approvePath } from '@/test/approvedPath';
 import { render, cleanup, screen } from '@testing-library/react';
 
 vi.mock('@/presentation/design-system/UdlSpeechButton', () => ({
@@ -134,6 +135,8 @@ describe('a skeleton exercise: the label says "ספרה חסרה" and never the 
   it('in its meeting, through the task card — and the instruction on the screen keeps its boxes', () => {
     const idx = SessionTasks.getSessionTasks(7, 'green_path').findIndex((t) => t.id === 's7_g_t2');
     expect(idx).toBeGreaterThanOrEqual(0);
+    // Meetings 3–8 have no exercises without the path the gate approved (#139).
+    approvePath('green_path');
     useWorkspaceStore.getState().initSession(7, false, idx);
     const { container } = render(<TaskCard />);
     const group = screen.getByRole('group', { name: /^תרגיל במאונך/ });
