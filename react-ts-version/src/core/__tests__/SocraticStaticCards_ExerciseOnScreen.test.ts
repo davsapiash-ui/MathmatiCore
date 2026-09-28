@@ -299,7 +299,7 @@ describe('the AI card gets the same checks (the engine runs on the server)', () 
   it('"לבנות" (to build) and "לפחות" (at least) are not aids', () => {
     expect(absentAidViolation(['צריך לפחות עשר', 'אפשר לבנות'], 8)).toBeNull();
     expect(absentAidViolation(['גררו לפח'], 8)).not.toBeNull();
-    expect(absentAidViolation(['כיצד תפתרו את התרגילים כאשר אין לכם לבני דינס על המסך?'], 8)).toBeNull();
+    expect(absentAidViolation(['כיצד תפתרו את התרגילים כאשר אין לכם לבנים על המסך?'], 8)).toBeNull();
     expect(absentAidViolation(['גררו לפח'], 7)).toBeNull();
   });
 });
@@ -379,7 +379,7 @@ describe('with blocks on the screen, the card follows the board', () => {
     expect(done.questionHe).toBe('בואו נחשוב רגע יחד: בתרגיל 1,245 + 328, כל הלבנים כבר בבית המספרים. מה עושים עכשיו?');
     // Before that, the grouping advice holds in any state: the button shows only at 10.
     const building = SocraticEngine.getSynchronousTaskHint(t, { thousands: 1, hundreds: 2, tens: 4, units: 5 });
-    expect(building.choices[0].feedbackHe).toBe('נכון מאוד! כשיש בטור היחידות 10 לבנים או יותר, לחצו על כפתור הקבץ 10 שבראש הטור.');
+    expect(building.choices[0].feedbackHe).toBe('נכון מאוד! כשיש בטור היחידות 10 לבנים או יותר, לחצו על הכפתור "קבץ 10" שבראש הטור.');
   });
 
   it('a block is feminine: "לחצו על לבנת אלף כדי לפרוט אותה"', () => {

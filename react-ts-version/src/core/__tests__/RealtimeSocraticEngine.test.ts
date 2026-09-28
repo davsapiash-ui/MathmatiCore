@@ -88,7 +88,7 @@ describe('Realtime Socratic Engine & Live Board State Analyzer', () => {
       const t = { id: 'task7', isSubtraction: true, numberA: 405, numberB: 132 };
       const hint = SocraticEngine.analyzeLiveBoardState(t, 'subtraction_regrouping', { units: 5, tens: 0, hundreds: 4, thousands: 0 });
       expect(hint?.suggested_highlight).toBe('tour-column-hundreds');
-      expect(hint?.questionHe).toContain('0 עשרות');
+      expect(hint?.questionHe).toContain('בטור העשרות אין אף עשרת');
       expect(hint?.questionHe).toContain('3 עשרות');
     });
 

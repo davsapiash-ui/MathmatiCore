@@ -58,7 +58,7 @@ describe('meeting 8: the prompt and the check know there are no blocks', () => {
     const req = request('session_8_student_12');
     const prompt = buildSocraticPrompt(req, deriveSocraticFacts(req));
     expect(prompt).toContain('אין לבנים, אין פח אשפה ואין בית מספרים');
-    expect(prompt).not.toContain('ערך כולל בלוח');
+    expect(prompt).not.toContain('ערך כולל בבית המספרים');
     expect(prompt).not.toContain('ואת מצב הלבנים');
   });
 
@@ -74,7 +74,7 @@ describe('meeting 8: the prompt and the check know there are no blocks', () => {
 
   it('whole words only: "לבנות" and "לפחות" are not aids; מסמך 03\'s own question passes', () => {
     expect(findAbsentAid(['צריך לפחות עשר', 'אפשר לבנות'], false)).toBeNull();
-    expect(findAbsentAid(['כיצד תפתרו את התרגילים כאשר אין לכם לבני דינס על המסך?'], false)).toBeNull();
+    expect(findAbsentAid(['כיצד תפתרו את התרגילים כאשר אין לכם לבנים על המסך?'], false)).toBeNull();
     expect(findAbsentAid(['גררו לפח האשפה'], false)).not.toBeNull();
     expect(findAbsentAid(['גררו לפח האשפה'], true)).toBeNull();
   });

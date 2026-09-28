@@ -53,7 +53,7 @@ describe('Module 13: static Socratic cards come from מסמך 03', () => {
       4: 'מקבצים 10 יחידות לעשרת אחת',
       5: 'פורטים עשרת אחת לעשר יחידות',
       6: 'פרטו תחילה לבנת מאה אחת לעשר עשרות',
-      7: 'ניעזר בלבני הדינס',
+      7: 'ניעזר בלבנים',
       8: 'נתבונן בתרגיל',
     };
     for (const [session, opening] of Object.entries(expected)) {

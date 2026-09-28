@@ -54,6 +54,26 @@ export const BLOCK_NOUN_HE: Record<SocraticColumn, string> = {
   thousands: "אלפים",
 };
 
+/** One block of a column: "מאה אחת", never "1 מאות". "אלף" is masculine. */
+const ONE_BLOCK_HE: Record<SocraticColumn, string> = {
+  units: "יחידה אחת",
+  tens: "עשרת אחת",
+  hundreds: "מאה אחת",
+  thousands: "אלף אחד",
+};
+
+/** "4 מאות", "מאה אחת". */
+function countHe(n: number, column: SocraticColumn): string {
+  return n === 1 ? ONE_BLOCK_HE[column] : `${n} ${BLOCK_NOUN_HE[column]}`;
+}
+
+/** "חסרות 4 עשרות", "חסרה עשרת אחת", "חסרים 2 אלפים", "חסר אלף אחד". */
+function missingHe(n: number, column: SocraticColumn): string {
+  const masculine = column === "thousands";
+  const verb = n === 1 ? (masculine ? "חסר" : "חסרה") : masculine ? "חסרים" : "חסרות";
+  return `${verb} ${countHe(n, column)}`;
+}
+
 /** A number as the child's screen writes it: "1,245", "328". */
 export function formatNumberHe(n: number): string {
   const str = String(Math.abs(n));
@@ -72,7 +92,7 @@ const TRIGGER_HE: Record<SocraticTriggerReason, string> = {
   hesitation_45s: "השהיה של 45 שניות ומעלה ללא פעולה בטור הפעיל",
   consecutive_errors_4: "ארבע שגיאות רצופות בהקלדה",
   consecutive_undos_3: "שלוש לחיצות ביטול רצופות",
-  conversion_not_performed: "הקלדה בטור שדורש קיבוץ או פריטה לפני שבוצעה ההמרה בלבנים",
+  conversion_not_performed: "הקלדה בטור שדורש הקבצה או פריטה לפני שבוצעה ההמרה בלבנים",
   repeated_errors: "תשובה שגויה שנייה ברצף באותו תרגיל",
 };
 
@@ -457,20 +477,20 @@ export function deriveSocraticFacts(req: SocraticRequest): SocraticFacts {
       : `בית המספרים ריק. הצעד הראשון הוא לבנות את שני המספרים (${maskedNumberHe(ec.number_a, ec.hidden_places?.a)} ו-${maskedNumberHe(ec.number_b, ec.hidden_places?.b)}) בלבנים.`;
   } else if (blocks_on_screen && overcrowded) {
     suggested_category = "conceptual";
-    suggested_focus_he = `ב${COLUMN_NAME_HE[overcrowded.column]} יש ${overcrowded.blocks_on_board} ${BLOCK_NOUN_HE[overcrowded.column]} — יותר מ-9, ולכן נדרש קיבוץ של 10 ללבנה אחת בטור הבא.`;
+    suggested_focus_he = `ב${COLUMN_NAME_HE[overcrowded.column]} יש ${overcrowded.blocks_on_board} ${BLOCK_NOUN_HE[overcrowded.column]} — יותר מ-9, ולכן נדרשת הקבצה של 10 ללבנה אחת בטור הבא.`;
   } else if (blocks_on_screen && ec && active && ec.operation === "subtraction" && activeNeedsConversion && active.board_deficit > 0) {
     suggested_category = "procedural";
-    suggested_focus_he = `ב${COLUMN_NAME_HE[active.column]} צריך להחסיר ${active.shown_b} אבל בלוח יש רק ${active.blocks_on_board} ${BLOCK_NOUN_HE[active.column]} — נדרשת פריטה מהטור השכן הגדול יותר.`;
+    suggested_focus_he = `ב${COLUMN_NAME_HE[active.column]} צריך להחסיר ${active.shown_b} אבל בבית המספרים יש רק ${countHe(active.blocks_on_board, active.column)} — נדרשת פריטה מהטור השכן הגדול יותר.`;
   } else if (ec && active && ec.operation === "addition" && activeNeedsConversion && !active.completed) {
     suggested_category = "procedural";
-    suggested_focus_he = `ב${COLUMN_NAME_HE[active.column]} החיבור ${active.shown_a} + ${active.shown_b}${(memory[active.column] ?? 0) > 0 ? ` + ${memory[active.column]} מעיגול הזיכרון` : ""} עובר את 9 — נדרש קיבוץ של 10 ${BLOCK_NOUN_HE[active.column]} והעברה לטור הבא.`;
+    suggested_focus_he = `ב${COLUMN_NAME_HE[active.column]} החיבור ${active.shown_a} + ${active.shown_b}${(memory[active.column] ?? 0) > 0 ? ` + ${memory[active.column]} מעיגול הזיכרון` : ""} עובר את 9 — נדרשת הקבצה של 10 ${BLOCK_NOUN_HE[active.column]} והעברה לטור הבא.`;
   } else if (trigger === "consecutive_errors_4" && active && !activeNeedsConversion) {
     suggested_category = "calculation";
     suggested_focus_he = `הטור הפעיל (${COLUMN_NAME_HE[active.column]}) אינו דורש המרה, והלומד טעה בהקלדה ארבע פעמים — כנראה טעות בעובדת החשבון הבסיסית של הטור.`;
   } else if (trigger === "conversion_not_performed") {
     suggested_category = "procedural";
     suggested_focus_he = blocks_on_screen
-      ? "הלומד ניסה להקליד תוצאה בטור שדורש קיבוץ או פריטה לפני שביצע את ההמרה בלבנים."
+      ? "הלומד ניסה להקליד תוצאה בטור שדורש הקבצה או פריטה לפני שביצע את ההמרה בלבנים."
       : "הלומד ניסה להקליד תוצאה בטור שדורש המרה או פריטה לפני שרשם אותה בעיגול הזיכרון.";
   } else if (trigger === "repeated_errors") {
     suggested_category = "calculation";
@@ -523,7 +543,7 @@ DIAGNOSIS. Classify the difficulty as exactly one of:
 - "conceptual": place value not understood — two digits in one cell, blocks deleted without preserving the total, 10 or more blocks left in one column.
 
 HEBREW. Natural, grammatically flawless Hebrew for children: short, warm, empowering sentences; exact gender/number agreement (4 מאות, 2 עשרות, 5 יחידות, 10 עשרות, עשרת אחת, מאה אחת). Address the learner in plural-neutral form ("נבדוק", "נפרוט", "מה נעשה").
-TERMINOLOGY (Ministry of Education): subtraction regrouping is "פריטה" ONLY (never שבירה / הלוואה / לווים); addition regrouping is "קיבוץ" / "הקבצה" / "צירוף עשר" ONLY (never נשיאה); the workspace is "בית המספרים" with "טור היחידות / טור העשרות / טור המאות / טור האלפים"; tools are "עיגולי הזיכרון" and "פח האשפה". The blocks are "לבנים" ONLY ("לבנה" in the singular; never "קוביות", "קובייה", "בלוק" or "בלוקים"), and the board is "בית המספרים" ONLY (never "לוח הדינס", "לוח הלבנים" or "קנבס"). Never mention physical objects that do not exist on screen (מקלות, חרוזים, אצבעות, מטבעות, חשבונייה).
+TERMINOLOGY (Ministry of Education): subtraction regrouping is "פריטה" ONLY (never שבירה / הלוואה / לווים); addition regrouping is "המרה" / "הקבצה" ONLY, the verb "מקבצים" (never נשיאה); the workspace is "בית המספרים" with "טור היחידות / טור העשרות / טור המאות / טור האלפים"; tools are "עיגולי הזיכרון" and "פח האשפה". The blocks are "לבנים" ONLY ("לבנה" in the singular; never "קוביות", "קובייה", "בלוק" or "בלוקים"), and the board is "בית המספרים" ONLY (never "לוח הדינס", "לוח הלבנים" or "קנבס"). Never mention physical objects that do not exist on screen (מקלות, חרוזים, אצבעות, מטבעות, חשבונייה).
 
 IRON RULES:
 - NEVER state or imply the final numeric answer of the exercise, and never state the result digit of the active column. Guide the next ACTION only.
@@ -556,15 +576,15 @@ export const SOCRATIC_SYSTEM_INSTRUCTION_NO_BLOCKS = SOCRATIC_SYSTEM_INSTRUCTION
   )
   .replace("blocks deleted without preserving the total, 10 or more blocks left in one column.", "a conversion not written in the memory circle.")
   .replace('the workspace is "בית המספרים" with "טור היחידות / טור העשרות / טור המאות / טור האלפים";', 'the columns are "טור היחידות / טור העשרות / טור המאות / טור האלפים";')
-  .replace('addition regrouping is "קיבוץ" / "הקבצה" / "צירוף עשר" ONLY (never נשיאה)', 'addition regrouping is "המרה", written in the memory circle (never נשיאה)');
+  .replace('addition regrouping is "המרה" / "הקבצה" ONLY, the verb "מקבצים" (never נשיאה)', 'addition regrouping is "המרה", written in the memory circle (never נשיאה)');
 
 function fmtColumnFact(c: ColumnFact, facts: SocraticFacts): string {
-  const parts = [`${COLUMN_NAME_HE[c.column]}: ${c.blocks_on_board} ${BLOCK_NOUN_HE[c.column]} בלוח`];
+  const parts = [`${COLUMN_NAME_HE[c.column]}: ${countHe(c.blocks_on_board, c.column)} בבית המספרים`];
   if (facts.operation) {
     parts.push(facts.operation === "subtraction" ? `תת-תרגיל ${c.shown_a} − ${c.shown_b}` : `תת-תרגיל ${c.shown_a} + ${c.shown_b}`);
     if (facts.memory_circles[c.column] !== undefined) parts.push(`עיגול זיכרון: ${facts.memory_circles[c.column]}`);
-    if (c.needs_conversion && c.shown_a !== "▢" && c.shown_b !== "▢") parts.push(facts.operation === "subtraction" ? "דורש פריטה" : "דורש קיבוץ");
-    if (c.board_deficit > 0) parts.push(`חסרות ${c.board_deficit} ${BLOCK_NOUN_HE[c.column]} בלוח לביצוע החיסור`);
+    if (c.needs_conversion && c.shown_a !== "▢" && c.shown_b !== "▢") parts.push(facts.operation === "subtraction" ? "דורש פריטה" : "דורש הקבצה");
+    if (c.board_deficit > 0) parts.push(`${missingHe(c.board_deficit, c.column)} בבית המספרים לביצוע החיסור`);
   }
   if (c.board_overcrowded) parts.push("10 ומעלה — חובה לקבץ");
   parts.push(c.completed ? "הטור כבר נפתר נכון" : c.column === facts.active_column ? "<< הטור הפעיל" : "טרם נפתר");
@@ -599,7 +619,7 @@ export function buildSocraticPrompt(req: SocraticRequest, facts: SocraticFacts, 
   lines.push("");
   if (facts.blocks_on_screen) {
     lines.push("=== עמוד 2: המצב הייצוגי בבית המספרים (לבנים) ===");
-    lines.push(`ערך כולל בלוח: ${facts.board_value}.`);
+    lines.push(`ערך כולל בבית המספרים: ${facts.board_value}.`);
     for (const c of [...facts.columns].reverse()) lines.push(fmtColumnFact(c, facts));
     if (req.workspace_state.is_regrouped_in_canvas !== undefined) {
       lines.push(req.workspace_state.is_regrouped_in_canvas ? "בוצעה כבר פריטה/הקבצה בלבנים." : "טרם בוצעה פריטה/הקבצה בלבנים.");
@@ -757,8 +777,9 @@ export const ABSENT_AIDS_NO_BOARD: RegExp[] = [
 export function findAbsentAid(texts: string[], blocksOnScreen: boolean): string | null {
   if (blocksOnScreen) return null;
   for (const raw of texts) {
-    // מסמך 03's own meeting-8 question names the blocks to say they are gone.
-    const t = raw.replace(/אין לכם לבני דינס על המסך/g, "");
+    // מסמך 03's own meeting-8 question names the blocks to say they are gone
+    // (its "לבני דינס" is "לבנים" on the screen: owner, 28.9.2026, register ט).
+    const t = raw.replace(/אין לכם לבנים על המסך/g, "");
     for (const re of ABSENT_AIDS_NO_BOARD) if (re.test(t)) return re.source;
   }
   return null;

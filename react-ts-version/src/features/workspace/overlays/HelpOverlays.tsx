@@ -265,7 +265,7 @@ function SocraticPenaltyLockOptions({ choices, onClose }: { choices: SocraticCho
     const noBoard = wsState.sessionNumber === 8;
     const hint = c.feedbackHe || c.hint || (isCorrect
       ? (noBoard ? 'תשובה נכונה! כעת כתבו בשורת התוצאה, טור אחר טור.' : 'תשובה נכונה! כעת בצעו את הפעולה בבית המספרים.')
-      : (noBoard ? 'רמז: חשבו שוב, טור אחר טור. אפשר להשתמש בביטול ↩️.' : 'רמז: חשבו שוב כיצד לשמר את הכמות בבית המספרים. אפשר להשתמש בביטול ↩️.'));
+      : (noBoard ? 'רמז: חשבו שוב, טור אחר טור. אפשר להשתמש בכפתור ביטול פעולה ↺.' : 'רמז: חשבו שוב כיצד לשמור על הכמות בבית המספרים. אפשר להשתמש בכפתור ביטול פעולה ↺.'));
     return {
       id: c.id,
       text: c.textHe,
