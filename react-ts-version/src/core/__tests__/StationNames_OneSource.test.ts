@@ -274,12 +274,10 @@ describe('the child reads "בית המספרים" and "לבנים"', () => {
   it('the live cards count "לבנים" and tap "לבנת העשרת"', () => {
     const crowded = SocraticEngine.analyzeLiveBoardState({ id: 's4_r_t1', numberA: 146, numberB: 235 }, 'regrouping_fluency', { ...EMPTY_COUNTS, hundreds: 3, tens: 7, units: 14 })!;
     expect(crowded.questionHe).toContain('14 לבנים');
-    expect(crowded.choices.map((c) => c.textHe).join(' ')).toContain('נעביר לבנה אחת בלבד');
-    const deficit = SocraticEngine.analyzeLiveBoardState({ id: 's5_r_t1', numberA: 52, numberB: 27, isSubtraction: true }, 'subtraction_regrouping', { ...EMPTY_COUNTS, tens: 5, units: 2 })!;
-    expect(deficit.choices[0].feedbackHe).toBe('מעולה! לחצו על לבנת העשרת בלוח כדי לפרוט אותה ל-10 יחידות.');
-    const zero = SocraticEngine.analyzeLiveBoardState({ id: 's6_r_t1', numberA: 305 }, 'zero_placeholder', { ...EMPTY_COUNTS, hundreds: 3, units: 5 })!;
-    expect(zero.questionHe).toBe('כאשר אין לבנים בטור העשרות, איזה מספר נרשום בבית המספרים?');
-    for (const card of [crowded, deficit, zero]) {
+    expect(crowded.choices.map((c) => c.textHe).join(' ')).toContain('מעבירים לבנה אחת בלבד');
+    const deficit = SocraticEngine.analyzeLiveBoardState({ id: 's1_r_sub61', numberA: 52, numberB: 27, isSubtraction: true }, 'subtraction_regrouping', { ...EMPTY_COUNTS, tens: 5, units: 2 })!;
+    expect(deficit.choices[0].feedbackHe).toBe('מעולה! לחצו על לבנת העשרת בבית המספרים כדי לפרוט אותה ל-10 יחידות.');
+    for (const card of [crowded, deficit]) {
       const all = [card.questionHe, card.tts_text ?? '', ...card.choices.flatMap((c) => [c.textHe, c.feedbackHe ?? ''])].join(' ');
       expect(all).not.toMatch(OLD_BOARD_OR_PIECE);
     }

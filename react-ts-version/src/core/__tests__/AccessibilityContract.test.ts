@@ -130,12 +130,15 @@ describe('כפתור מושבת אומר מה חסר', () => {
     expect(exists).toBe(false);
   });
 
-  it('נעילת חלונית החניכה מסבירה למה, כמה זמן, ומה כן אפשר לעשות', () => {
+  // PRD מודול 12 §ב: "נעילה שקטה ... בתוספת אינדיקטור שעון חול עדין" — בלי
+  // ספירה לאחור (ממצא 1.14, 28.9.2026). משפט אחד אומר לילד שאפשר לבחור שוב.
+  it('נעילת חלונית החניכה שקטה: שעון חול ומשפט אחד, בלי שניות', () => {
     const help = read('src/features/workspace/overlays/HelpOverlays.tsx');
-    expect(help).toContain('רגע לחשיבה — החלונית נעולה');
-    expect(help).toContain('בית המספרים וכפתור הביטול');
+    expect(help).toContain('רגע לחשיבה. אפשר לבחור תשובה שוב עוד מעט.');
+    expect(help).not.toContain('שניות</span>');
+    expect(help).not.toMatch(/\$\{lockSeconds\}|\{lockSeconds\}/);
     // הודעת ההמתנה עצמה לא מהבהבת — היא מוצגת ברגע של תסכול.
-    expect(help).not.toMatch(/החלונית נעולה[\s\S]{0,400}animate-pulse/);
+    expect(help).not.toMatch(/רגע לחשיבה[\s\S]{0,400}animate-pulse/);
   });
 });
 
@@ -154,8 +157,6 @@ describe('משוב פדגוגי נאמר, לא רק מצויר', () => {
   it('נעילת ההמתנה בכרטיס החניכה מוכרזת גם היא', () => {
     const card = read('src/features/workspace/overlays/HelpOverlays.tsx');
     expect(card).toMatch(/role="status"[\s\S]{0,600}רגע לחשיבה/);
-    // השנייה המתעדכנת מוכרזת, לא רק מצוירת.
-    expect(card).toContain('<span aria-live="polite">רגע לחשיבה');
   });
 });
 
