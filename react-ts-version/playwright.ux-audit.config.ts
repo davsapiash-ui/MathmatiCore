@@ -35,7 +35,11 @@ export default defineConfig({
   webServer: {
     command: `npx vite --port ${PORT} --strictPort`,
     url: `http://localhost:${PORT}`,
-    reuseExistingServer: true,
+    // Never attach to a server that is already there: it may serve another
+    // checkout's code (a stale run, a second worktree), and the report would
+    // stamp this checkout's commit on measurements of that code. With
+    // strictPort a busy port fails loudly instead; free it or set UX_AUDIT_PORT.
+    reuseExistingServer: false,
     timeout: 180_000,
   },
 });
