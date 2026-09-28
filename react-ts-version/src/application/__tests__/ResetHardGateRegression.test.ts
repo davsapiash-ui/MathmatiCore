@@ -49,6 +49,11 @@ vi.mock('firebase/firestore', () => ({
   setDoc: vi.fn(async () => {}),
 }));
 
+const mockToastError = vi.fn();
+vi.mock('sonner', () => ({
+  toast: { error: (...args: any[]) => mockToastError(...args), success: vi.fn(), info: vi.fn(), warning: vi.fn() },
+}));
+
 const { useStore } = await import('@/application/useStore');
 
 describe('Module 23א: backup-before-delete hard gate (regression for Antigravity commit 2cbd71a)', () => {
@@ -148,6 +153,37 @@ describe('Module 23א: backup-before-delete hard gate (regression for Antigravit
       expect(mockUpdate).not.toHaveBeenCalled();
       expect(mockRemove).not.toHaveBeenCalled();
       expect(mockSet).not.toHaveBeenCalled();
+    });
+
+    it("shows the server's own Hebrew refusal as it is, not wrapped as a failed backup", async () => {
+      const refusal = Object.assign(
+        new Error('הגיבוי נשמר, אך רישום האיפוס ביומן הביקורת נכשל, ולכן האיפוס בוטל ולא נמחקו נתונים.'),
+        { code: 'functions/aborted' }
+      );
+      mockCallable.mockRejectedValueOnce(refusal);
+
+      await expect(
+        useStore.getState().resetEntireSystemUsageData('technical_fault')
+      ).rejects.toThrow('BACKUP_FAILED_RESET_ABORTED');
+
+      expect(mockToastError).toHaveBeenLastCalledWith('הגיבוי נשמר, אך רישום האיפוס ביומן הביקורת נכשל, ולכן האיפוס בוטל ולא נמחקו נתונים.');
+      expect(mockRemove).not.toHaveBeenCalled();
+      expect(mockSet).not.toHaveBeenCalled();
+    });
+
+    it('keeps the wrapper for anything that is not a Hebrew server refusal', async () => {
+      mockCallable.mockRejectedValueOnce(new Error('network down'));
+      await expect(
+        useStore.getState().resetEntireSystemUsageData('technical_fault')
+      ).rejects.toThrow('BACKUP_FAILED_RESET_ABORTED');
+      expect(mockToastError).toHaveBeenLastCalledWith('הגיבוי נכשל: network down. האיפוס בוטל ולא נמחקו נתונים.');
+
+      // An English server message (an HttpsError with no Hebrew) is wrapped too.
+      mockCallable.mockRejectedValueOnce(Object.assign(new Error('INTERNAL'), { code: 'functions/internal' }));
+      await expect(
+        useStore.getState().resetEntireSystemUsageData('technical_fault')
+      ).rejects.toThrow('BACKUP_FAILED_RESET_ABORTED');
+      expect(mockToastError).toHaveBeenLastCalledWith('הגיבוי נכשל: INTERNAL. האיפוס בוטל ולא נמחקו נתונים.');
     });
 
     it('proceeds with the full class RTDB wipe once the backup callable succeeds', async () => {
