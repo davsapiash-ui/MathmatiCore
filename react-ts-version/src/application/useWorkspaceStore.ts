@@ -669,6 +669,46 @@ export function activeExerciseId(s: WorkspaceState): string {
   return id || `ex_${s.sessionNumber}_01`;
 }
 
+/**
+ * What a typed digit of meeting 2 is judged against: the diagnostic task on
+ * the screen (QMatrix), in the shape computeExpectedDigitForColumn reads.
+ *
+ * The digit setters used to look the task up in the meetings 3–7 task list,
+ * which is empty in meeting 2, so every digit of the diagnostic was sent with
+ * is_correct: null. PRD Module 23 §ב counts a task as solved on the first
+ * attempt only when no DIGIT_ENTERED with is_correct === false came before its
+ * PROBLEM_COMPLETE — so a wrong digit the child then corrected never counted,
+ * and the diagnostic score (server: sessionTrigger → computeFirstAttemptScore)
+ * was higher than the formula gives.
+ *
+ * Owner's rulings, 28.9.2026:
+ *  1. Task 2 (one answer box) is judged by the value in the box when "התקדם"
+ *     is pressed (proceedQ). Its keystrokes are not judged — null — because
+ *     "4" on the way to "40" is not a wrong answer.
+ *  2. Every other task: each typed digit is judged against its column, and a
+ *     wrong digit counts even if the child corrects it later (PRD 23).
+ *
+ * In the correction round's simpler exercise the probe is the exercise, and
+ * proceedQ grades against its answer, so the digits are judged against it too.
+ */
+export function diagnosticDigitTask(
+  qflow: QMatrixFlowState,
+  isASD: boolean
+): { numberA?: number; numberB?: number; isSubtraction?: boolean; correctAnswer?: number } | null {
+  const task = getCurrentQTask(qflow);
+  if (!task || task.type === 'digit_value') return null;
+  if (isSubtaskActive(qflow)) {
+    const d = task.backwardDiagnosis;
+    const answer = isASD && d?.asdProbeAnswer !== undefined ? d.asdProbeAnswer : d?.probeAnswer;
+    if (answer === undefined) return null;
+    const a = isASD && d?.asdProbeA !== undefined ? d.asdProbeA : d?.probeA;
+    const b = isASD && d?.asdProbeB !== undefined ? d.asdProbeB : d?.probeB;
+    return { numberA: a, numberB: b, isSubtraction: task.isSubtraction, correctAnswer: answer };
+  }
+  // proceedQ grades against task.correctAnswer; the digits follow the same answer.
+  return { numberA: task.numberA, numberB: task.numberB, isSubtraction: task.isSubtraction, correctAnswer: task.correctAnswer };
+}
+
 /** The bank a saved branch choice ran on: the compulsory exercises plus that branch's tasks. */
 function restoredBranchTasks(sessionNumber: number, branch: 'reinforcement' | 'challenge' | null): SessionTask[] | null {
   if (!branch || sessionNumber < 3 || sessionNumber > 7) return null;
@@ -1023,6 +1063,18 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     }
 
     return null;
+  }
+
+  /**
+   * The digit the learner's box in `place` should hold in the exercise on the
+   * screen, or null when the exercise defines none (Appendix A §3). Meeting 2
+   * runs on the diagnostic flow, not on a task list (diagnosticDigitTask).
+   */
+  function expectedDigitInActiveTask(s: WorkspaceState, place: Place, isCarry: boolean): number | null {
+    const task = s.sessionNumber === 2
+      ? diagnosticDigitTask(s.qflow, s.isASD)
+      : getActiveTasks(s)[s.standardTaskIdx] || null;
+    return computeExpectedDigitForColumn(task, place, s.isASD, isCarry);
   }
 
   /** Flash a constraint violation on a column, then clear the tint (shake lasts 400ms). */
@@ -1823,6 +1875,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         ? diag.asdProbeAnswer
         : diag?.probeAnswer;
       if (probeExpected !== undefined) expected = probeExpected;
+    } else if (task.type === 'digit_value') {
+      // Owner's ruling 28.9.2026: task 2 is judged by the value in its one box
+      // when "התקדם" is pressed. The box also writes its last two digits into
+      // the tens and units, and the answer used to be read from those — so 140
+      // in the box was graded as 40.
+      answer = s.probeAnswer ? parseInt(s.probeAnswer, 10) : null;
     } else {
       answer = answerDigitsToNumber(s.answerDigits);
       if ((answer === null || isNaN(answer)) && s.probeAnswer) {
@@ -2691,7 +2749,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         if (val !== '') {
           const numVal = parseInt(val, 10);
           if (!isNaN(numVal) && numVal >= 0 && numVal <= 9) {
-            const expectedDigit = computeExpectedDigitForColumn(task, place, s.isASD, false);
+            const expectedDigit = expectedDigitInActiveTask(s, place, false);
             const isCorrect = expectedDigit !== null ? numVal === expectedDigit : null;
             emitTelemetry({
               session_id: sessionId,
@@ -2751,7 +2809,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
           // "ארבע מחיקות או הקלדות שגויות רצופות באותו טור" (מסמך 03): the
           // deletion counts in its column, unless it erases a wrong digit.
-          const expectedDigit = computeExpectedDigitForColumn(task, place, s.isASD, false);
+          const expectedDigit = expectedDigitInActiveTask(s, place, false);
           const deletedWasCorrect =
             expectedDigit !== null && deletedVal !== null && !isNaN(deletedVal) ? deletedVal === expectedDigit : null;
           const streak = nextDigitErrorStreakOnDelete(s, place, deletedWasCorrect);
@@ -2787,7 +2845,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       set((s) => {
         const isDelete = val === '' && Boolean(s.carryDigits[place]);
         const studentId = currentStudentUid();
-        const task = getActiveTasks(s)[s.standardTaskIdx] || null;
         const sessionId = `session_${s.sessionNumber}_student_${studentId}`;
         const taskId = activeExerciseId(s);
         const colIdx = placeToColumnIndex(place);
@@ -2795,7 +2852,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         if (val !== '') {
           const numVal = parseInt(val, 10);
           if (!isNaN(numVal) && numVal >= 0 && numVal <= 9) {
-            const expectedCarry = computeExpectedDigitForColumn(task, place, s.isASD, true);
+            const expectedCarry = expectedDigitInActiveTask(s, place, true);
             const isCorrect = expectedCarry !== null ? numVal === expectedCarry : null;
             emitTelemetry({
               session_id: sessionId,
