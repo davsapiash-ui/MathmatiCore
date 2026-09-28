@@ -37,7 +37,8 @@ type SessionBreakdown = Record<string, {
   created: number;
   completed: number;
   completion_rate_percent: number;
-  average_score_percent: number;
+  /** null until a learner who completed the meeting has a score. */
+  average_score_percent: number | null;
 }>;
 
 export function AdminOverview() {
@@ -250,7 +251,8 @@ export function AdminOverview() {
         childName: stationNameHe(session),
         hasData: Boolean(row),
         completionRate: row ? `${Math.round(row.completion_rate_percent)}%` : null,
-        averageScore: row ? `${Math.round(row.average_score_percent)}%` : null,
+        // No score yet is not a score of 0.
+        averageScore: row && typeof row.average_score_percent === "number" ? `${Math.round(row.average_score_percent)}%` : "אין עדיין ציון",
       };
     });
   }, [sessionBreakdown]);
