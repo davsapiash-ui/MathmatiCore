@@ -245,7 +245,7 @@ describe('with blocks on the screen, the card follows the board', () => {
         const card = SocraticEngine.getSynchronousTaskHint(task, counts as any);
         const lacking = PL.findIndex((p, i) => counts[p] < digit(b, i));
         if (lacking < 0) {
-          expect(card.questionHe, task.id).toContain('בכל טור יש עכשיו מספיק לבנים');
+          expect(card.questionHe, task.id).toContain('בכל טור יש מספיק לבנים');
           break;
         }
         // Where the blocks come from: the first column to the left that has any.
@@ -263,11 +263,26 @@ describe('with blocks on the screen, the card follows the board', () => {
     }
   });
 
-  it('once taking away has started, the card asks how we know we are done — not for another decomposition', () => {
+  // The board cannot tell "still building the first number" from "taking
+  // away under way" (re-review, 28.9.2026): 305 − 12 with 3 hundreds and
+  // 3 units is both. Neither card may then call a needed decomposition a
+  // mistake, nor say that taking away has started.
+  it('between building and the result, the card asks what to check before taking from a column', () => {
     const t = rows.find((r) => r.task.id === 's5_g_t1')!.task; // 5,432 − 2,118
-    const card = SocraticEngine.getSynchronousTaskHint(t, { thousands: 5, hundreds: 4, tens: 2, units: 4 });
-    expect(card.questionHe).toBe('בואו נחשוב רגע יחד: בחיסור 5,432 − 2,118, איך יודעים שסיימנו להוציא?');
-    expect(card.choices[0].textHe).toBe('כשהוצאנו בסך הכול 2 אלפים, מאה אחת, עשרת אחת ו-8 יחידות. את מה שנשאר כותבים בשורת התוצאה');
+    for (const counts of [
+      { thousands: 5, hundreds: 0, tens: 0, units: 0 }, // only the thousands built
+      { thousands: 5, hundreds: 4, tens: 2, units: 4 }, // 8 units taken away
+    ]) {
+      const card = SocraticEngine.getSynchronousTaskHint(t, counts);
+      expect(card.questionHe).toBe('בואו נחשוב רגע יחד: בתרגיל 5,432 − 2,118, מה בודקים לפני שמוציאים לבנים מטור?');
+      expect(JSON.stringify(card)).not.toMatch(/סיימנו|פורטים רק כש/);
+    }
+    // Both numbers built: only the first one is built in subtraction.
+    const both = SocraticEngine.getSynchronousTaskHint(rows.find((r) => r.task.id === 's6_g_t3')!.task, { thousands: 5, hundreds: 5, tens: 6, units: 2 });
+    expect(both.choices[0].textHe).toBe('רק את המספר הראשון, 4,000');
+    // Everything taken away: the result row.
+    const done = SocraticEngine.getSynchronousTaskHint(t, { thousands: 3, hundreds: 3, tens: 1, units: 4 });
+    expect(done.questionHe).toBe('בואו נחשוב רגע יחד: בתרגיל 5,432 − 2,118, מה עושים אחרי שמוציאים את כל מה שמחסרים?');
   });
 
   it('an addition whose blocks are all on the board, grouped, asks for the result row', () => {

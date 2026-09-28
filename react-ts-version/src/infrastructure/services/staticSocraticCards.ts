@@ -204,7 +204,7 @@ function additionCard(a: number, b: number, blocks: boolean, counts?: BoardCount
     return card(`${OPEN}בתרגיל ${ex}, כל הלבנים כבר בבית המספרים. מה עושים עכשיו?`, 'procedural', 'tour-place-value-board', [
       ['כותבים בכל תיבה בשורת התוצאה את מספר הלבנים שבטור שלה', 'נכון מאוד! התחילו בטור היחידות.'],
       ['מוסיפים עוד לבנים', 'רמז: כל הלבנים של שני המספרים כבר בבית המספרים.'],
-      ['מקבצים שוב את טור היחידות', 'רמז: מקבצים רק כשיש בטור 10 לבנים או יותר.'],
+      ['מקבצים את טור היחידות', 'רמז: מקבצים רק כשיש בטור 10 לבנים או יותר.'],
     ]);
   }
   const c = carryColumns(a, b)[0];
@@ -283,30 +283,50 @@ function source(c: Place, has: (p: Place) => number): { zeros: Place[]; m: Place
  *    that still has fewer blocks than it must give, and where its blocks come
  *    from — across empty columns if need be; or, when every column has
  *    enough, "take away";
- *  - anything else (taking away has started): how the child knows the taking
- *    away is done — the meeting-1 card's question (register, decision ו).
+ *  - more than the first number on the board: in subtraction only the first
+ *    number is built;
+ *  - what is left after taking all of it away (board value = a − b): the
+ *    result row;
+ *  - anything else — the first number still being built, or taking away
+ *    under way; the board alone cannot tell which — what to check before
+ *    taking from a column, which is true in both.
  * The empty board has its own live card ("מה בונים קודם?").
  */
 function subtractionCard(a: number, b: number, blocks: boolean, counts?: BoardCounts): SocraticHintResponse {
   const ex = `${formatNumberHe(a)} − ${formatNumberHe(b)}`;
   const takeAway = countsPhrase(standardCounts(b));
-  if (blocks && counts && boardValue(counts) > 0) {
-    if (boardValue(counts) === a) {
+  const value = counts ? boardValue(counts) : 0;
+  if (blocks && counts && value > 0) {
+    if (value === a) {
       const c = LOW_TO_HIGH.find((p) => (counts[p] ?? 0) < digit(b, p));
       if (c) {
         const { zeros, m } = source(c, (p) => counts[p] ?? 0);
         if (m) return borrowCard(ex, c, counts[c] ?? 0, digit(b, c), zeros, m, true);
       }
-      return card(`${OPEN}בתרגיל ${ex}, בכל טור יש עכשיו מספיק לבנים. מה עושים עכשיו?`, 'procedural', 'tour-place-value-board', [
-        [`מוציאים לפח האשפה ${takeAway}`, 'נכון מאוד! את מה שנשאר בבית המספרים כותבים בשורת התוצאה.'],
+      return card(`${OPEN}בתרגיל ${ex}, בכל טור יש מספיק לבנים. מה עושים עכשיו?`, 'procedural', 'tour-place-value-board', [
+        [`מוציאים לפח האשפה ${takeAway}`, 'נכון מאוד! אחר כך כותבים בשורת התוצאה את מה שנשאר בבית המספרים.'],
         ['פורטים עוד לבנה', 'רמז: פורטים רק כשאין בטור מספיק לבנים.'],
         ['מוסיפים לבנים', 'רמז: בחיסור מוציאים מבית המספרים ולא מוסיפים.'],
       ]);
     }
-    return card(`${OPEN}בחיסור ${ex}, איך יודעים שסיימנו להוציא?`, 'procedural', 'tour-place-value-board', [
-      [`כשהוצאנו בסך הכול ${takeAway}. את מה שנשאר כותבים בשורת התוצאה`, 'נכון מאוד! בדקו כמה כבר הוצאתם, וכתבו את מה שנשאר בבית המספרים.'],
-      ['כשפרטנו עוד לבנה', 'רמז: פורטים רק כשאין בטור מספיק לבנים.'],
-      [`כשהוספנו ${formatNumberHe(b)} לבנים`, 'רמז: בחיסור מוציאים מבית המספרים ולא מוסיפים.'],
+    if (value > a) {
+      return card(`${OPEN}בתרגיל ${ex}, בבית המספרים יש יותר מ-${formatNumberHe(a)}. מה בונים בחיסור?`, 'procedural', 'tour-place-value-board', [
+        [`רק את המספר הראשון, ${formatNumberHe(a)}`, 'נכון מאוד! אחר כך מוציאים ממנו לפח את מה שמחסרים.'],
+        ['את שני המספרים', 'רמז: בחיסור לא בונים את שני המספרים. בונים את הראשון ומוציאים ממנו את השני.'],
+        ['רק את המספר השני', 'רמז: בונים את המספר שמחסרים ממנו: המספר הראשון.'],
+      ]);
+    }
+    if (value === a - b) {
+      return card(`${OPEN}בתרגיל ${ex}, מה עושים אחרי שמוציאים את כל מה שמחסרים?`, 'procedural', 'tour-place-value-board', [
+        ['כותבים בכל תיבה בשורת התוצאה את מספר הלבנים שבטור שלה', 'נכון מאוד! התחילו בטור היחידות.'],
+        ['מוציאים עוד לבנים', 'רמז: מוציאים רק את מה שמחסרים.'],
+        ['מוסיפים לבנים', 'רמז: בחיסור לא מוסיפים לבנים.'],
+      ]);
+    }
+    return card(`${OPEN}בתרגיל ${ex}, מה בודקים לפני שמוציאים לבנים מטור?`, 'procedural', 'tour-place-value-board', [
+      ['אם יש בטור מספיק לבנים להוציא', 'נכון מאוד! אם אין מספיק, פורטים לבנה מהטור שמשמאל.'],
+      ['שום דבר, מוציאים מיד', 'רמז: אם אין בטור מספיק לבנים, קודם פורטים לבנה מהטור שמשמאל.'],
+      ['מוסיפים לבנים חדשות לטור', 'רמז: בחיסור לא מוסיפים לבנים. פורטים לבנה מהטור שמשמאל.'],
     ]);
   }
   const c = borrowColumns(a, b)[0];

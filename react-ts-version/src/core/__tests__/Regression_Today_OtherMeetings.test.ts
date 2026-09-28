@@ -452,10 +452,10 @@ describe('live coaching card (SocraticEngine.analyzeLiveBoardState), meetings 3�
     const afterBorrow = card(t, { thousands: 5, hundreds: 4, tens: 2, units: 12 });
     expect(isGroupCard(afterBorrow)).toBe(false);
     // The borrow is done: the card no longer asks for a second one (28.9.2026).
-    expect(afterBorrow.questionHe).toContain('בכל טור יש עכשיו מספיק לבנים');
+    expect(afterBorrow.questionHe).toContain('בכל טור יש מספיק לבנים');
     const afterRemoving = card(t, { thousands: 5, hundreds: 4, tens: 2, units: 4 });
     expect(isGroupCard(afterRemoving)).toBe(false);
-    expect(afterRemoving.questionHe).toContain('איך יודעים שסיימנו להוציא');
+    expect(afterRemoving.questionHe).toContain('מה בודקים לפני שמוציאים לבנים מטור');
   });
 
   it('meeting 6, 300 − 142 (double borrow through a zero): no "group back" at either step', () => {

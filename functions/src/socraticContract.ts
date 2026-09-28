@@ -443,7 +443,9 @@ export function deriveSocraticFacts(req: SocraticRequest): SocraticFacts {
   // Without blocks the counts are always 0: that is not an empty board to build on.
   const emptyBoard = blocks_on_screen && board_value === 0;
 
-  if (!blocks_on_screen && ec && active && active.needs_conversion && !active.completed) {
+  // A hidden column's "needs a conversion" would tell the model about the hidden digit.
+  const activeNeedsConversion = Boolean(active && active.needs_conversion && active.shown_a !== "▢" && active.shown_b !== "▢");
+  if (!blocks_on_screen && ec && active && activeNeedsConversion && !active.completed) {
     suggested_category = "procedural";
     suggested_focus_he = ec.operation === "subtraction"
       ? `ב${COLUMN_NAME_HE[active.column]} צריך לחסר ${active.shown_b} מ-${active.shown_a} — נדרשת פריטה מהטור השכן, ורישום השינוי בעיגול הזיכרון.`
@@ -456,13 +458,13 @@ export function deriveSocraticFacts(req: SocraticRequest): SocraticFacts {
   } else if (blocks_on_screen && overcrowded) {
     suggested_category = "conceptual";
     suggested_focus_he = `ב${COLUMN_NAME_HE[overcrowded.column]} יש ${overcrowded.blocks_on_board} ${BLOCK_NOUN_HE[overcrowded.column]} — יותר מ-9, ולכן נדרש קיבוץ של 10 ללבנה אחת בטור הבא.`;
-  } else if (blocks_on_screen && ec && active && ec.operation === "subtraction" && active.needs_conversion && active.board_deficit > 0) {
+  } else if (blocks_on_screen && ec && active && ec.operation === "subtraction" && activeNeedsConversion && active.board_deficit > 0) {
     suggested_category = "procedural";
     suggested_focus_he = `ב${COLUMN_NAME_HE[active.column]} צריך להחסיר ${active.shown_b} אבל בלוח יש רק ${active.blocks_on_board} ${BLOCK_NOUN_HE[active.column]} — נדרשת פריטה מהטור השכן הגדול יותר.`;
-  } else if (ec && active && ec.operation === "addition" && active.needs_conversion && !active.completed) {
+  } else if (ec && active && ec.operation === "addition" && activeNeedsConversion && !active.completed) {
     suggested_category = "procedural";
     suggested_focus_he = `ב${COLUMN_NAME_HE[active.column]} החיבור ${active.shown_a} + ${active.shown_b}${(memory[active.column] ?? 0) > 0 ? ` + ${memory[active.column]} מעיגול הזיכרון` : ""} עובר את 9 — נדרש קיבוץ של 10 ${BLOCK_NOUN_HE[active.column]} והעברה לטור הבא.`;
-  } else if (trigger === "consecutive_errors_4" && active && !active.needs_conversion) {
+  } else if (trigger === "consecutive_errors_4" && active && !activeNeedsConversion) {
     suggested_category = "calculation";
     suggested_focus_he = `הטור הפעיל (${COLUMN_NAME_HE[active.column]}) אינו דורש המרה, והלומד טעה בהקלדה ארבע פעמים — כנראה טעות בעובדת החשבון הבסיסית של הטור.`;
   } else if (trigger === "conversion_not_performed") {
@@ -553,14 +555,15 @@ export const SOCRATIC_SYSTEM_INSTRUCTION_NO_BLOCKS = SOCRATIC_SYSTEM_INSTRUCTION
     'the only tools on this screen are "עיגולי הזיכרון" and "שורת התוצאה". NEVER mention blocks (לבנים), a board or number house (בית המספרים, לוח), the trash (פח) or grouping buttons.'
   )
   .replace("blocks deleted without preserving the total, 10 or more blocks left in one column.", "a conversion not written in the memory circle.")
-  .replace('the workspace is "בית המספרים" with "טור היחידות / טור העשרות / טור המאות / טור האלפים";', 'the columns are "טור היחידות / טור העשרות / טור המאות / טור האלפים";');
+  .replace('the workspace is "בית המספרים" with "טור היחידות / טור העשרות / טור המאות / טור האלפים";', 'the columns are "טור היחידות / טור העשרות / טור המאות / טור האלפים";')
+  .replace('addition regrouping is "קיבוץ" / "הקבצה" / "צירוף עשר" ONLY (never נשיאה)', 'addition regrouping is "המרה", written in the memory circle (never נשיאה)');
 
 function fmtColumnFact(c: ColumnFact, facts: SocraticFacts): string {
   const parts = [`${COLUMN_NAME_HE[c.column]}: ${c.blocks_on_board} ${BLOCK_NOUN_HE[c.column]} בלוח`];
   if (facts.operation) {
     parts.push(facts.operation === "subtraction" ? `תת-תרגיל ${c.shown_a} − ${c.shown_b}` : `תת-תרגיל ${c.shown_a} + ${c.shown_b}`);
     if (facts.memory_circles[c.column] !== undefined) parts.push(`עיגול זיכרון: ${facts.memory_circles[c.column]}`);
-    if (c.needs_conversion) parts.push(facts.operation === "subtraction" ? "דורש פריטה" : "דורש קיבוץ");
+    if (c.needs_conversion && c.shown_a !== "▢" && c.shown_b !== "▢") parts.push(facts.operation === "subtraction" ? "דורש פריטה" : "דורש קיבוץ");
     if (c.board_deficit > 0) parts.push(`חסרות ${c.board_deficit} ${BLOCK_NOUN_HE[c.column]} בלוח לביצוע החיסור`);
   }
   if (c.board_overcrowded) parts.push("10 ומעלה — חובה לקבץ");
@@ -609,7 +612,7 @@ export function buildSocraticPrompt(req: SocraticRequest, facts: SocraticFacts, 
     if (facts.operation) {
       for (const c of [...facts.columns].reverse()) {
         const sub = facts.operation === "subtraction" ? `${c.shown_a} − ${c.shown_b}` : `${c.shown_a} + ${c.shown_b}`;
-        lines.push(`  - ${COLUMN_NAME_HE[c.column]}: תת-תרגיל ${sub}${c.needs_conversion ? (facts.operation === "subtraction" ? " | דורש פריטה" : " | דורש המרה") : ""} | ${c.completed ? "הטור כבר נפתר נכון" : c.column === facts.active_column ? "<< הטור הפעיל" : "טרם נפתר"}`);
+        lines.push(`  - ${COLUMN_NAME_HE[c.column]}: תת-תרגיל ${sub}${c.needs_conversion && c.shown_a !== "▢" && c.shown_b !== "▢" ? (facts.operation === "subtraction" ? " | דורש פריטה" : " | דורש המרה") : ""} | ${c.completed ? "הטור כבר נפתר נכון" : c.column === facts.active_column ? "<< הטור הפעיל" : "טרם נפתר"}`);
       }
     }
   }
@@ -818,7 +821,8 @@ export function validateSocraticResponse(raw: unknown, facts?: SocraticFacts | n
   const texts = [question, ...options.flatMap((o) => [o.option_text, o.feedback_text])];
   const forbidden = findForbiddenTerm(texts);
   if (forbidden) return { ok: false, reason: `forbidden terminology: ${forbidden}` };
-  if (facts && leaksFinalAnswer(texts, facts)) return { ok: false, reason: "final answer leaked" };
+  // A skeleton shows its result on the screen; what it hides is checked below.
+  if (facts && !(facts.hidden_operands ?? []).length && leaksFinalAnswer(texts, facts)) return { ok: false, reason: "final answer leaked" };
   if (facts && (facts.hidden_operands ?? []).some((n) => texts.some((t) => containsNumberToken(t, n) || t.includes(formatNumberHe(n))))) {
     return { ok: false, reason: "hidden digits leaked" };
   }

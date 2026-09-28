@@ -123,6 +123,15 @@ describe('what the model is told matches the screen', () => {
     expect(validateSocraticResponse(card('בתרגיל 31▢ + 254, מה חסר בטור היחידות?', 'נבדוק'), facts).ok).toBe(true);
   });
 
+  it('the skeleton\'s result is on the screen, so a card may name it; a hidden column is not marked "needs a conversion"', () => {
+    const req = skeleton('session_7_student_12', { a: ['units'], b: [] });
+    const facts = deriveSocraticFacts(req);
+    expect(validateSocraticResponse(card('בתרגיל 31▢ + 254 = 568, מה חסר בטור היחידות?', 'נבדוק'), facts).ok).toBe(true);
+    const units = buildSocraticPrompt(req, facts).split('\n').filter((l) => l.includes('טור היחידות') && l.includes('תת-תרגיל'));
+    expect(units.join(' ')).not.toMatch(/דורש/);
+    expect(facts.suggested_focus_he).not.toMatch(/נדרש/);
+  });
+
   it('hidden_places must name columns', () => {
     expect(() => skeleton('session_7_student_12', { a: ['ones'], b: [] })).toThrow();
   });
