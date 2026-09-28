@@ -23,9 +23,9 @@ import { SESSION_BRANCH_TASKS } from '@/data/sessionBranchTasks';
  * דוח "האפיון מול התוכנה", 28.9.2026, שורות 1.16 ו-3.8.
  *
  * PRD מודול 7 §א: גרירת לבנה, פריטתה או הקבצתה "מעדכנת מיידית את הספרה בטור
- * המתאים". הספרה אישרה מה שהילד לא ראה: ב-1366×768 טור המאות הציג 6 לוחות
- * כשהספרה הייתה 8, ובתרגיל 3 של מפגש 3 במסלול הירוק (45 מאות) 5 לוחות מתחת
- * לספרה 45. עכשיו כל טור מציג את כל הלבנים שלו: הן שומרות על גודלן כל עוד
+ * המתאים". הספרה אישרה מה שהילד לא ראה: ב-1366×768 נראו במלואם 5 לוחות מאה
+ * כשהספרה הייתה 8 (806 במפגש 1), ובתרגיל 3 של מפגש 3 במסלול הירוק (45 מאות)
+ * 4 לוחות מתחת לספרה 45. עכשיו כל טור מציג את כל הלבנים שלו: הן שומרות על גודלן כל עוד
  * הן נכנסות, וכשלא — כל לבני הטור קטנות יחד בדיוק כדי להיכנס.
  */
 
@@ -131,6 +131,23 @@ describe('fitBlockGrid', () => {
     // Just enough: the same blocks in a column a little smaller no longer fit at this size.
     const tighter = fitBlockGrid(45, COLUMN_CELLS.hundreds, { w: 120, h: f.rows * f.cell.h - 1 });
     expect(tighter.scale).toBeLessThan(f.scale);
+  });
+
+  it('always fits: every count 1–50, every kind of block, a dense sweep of column sizes', () => {
+    // The independent review found boxes (e.g. 60×148, thousands ×25) where a
+    // rounded-up scale made the grid a pixel too big, and blocks were cut off.
+    for (const place of PLACE_ORDER) {
+      for (let w = 40; w <= 260; w += 3) {
+        for (let h = 80; h <= 460; h += 7) {
+          for (let n = 1; n <= MAX_VISIBLE_BLOCKS; n += 1) {
+            const f = fitBlockGrid(n, COLUMN_CELLS[place], { w, h });
+            if (f.perRow * f.cell.w > w || f.rows * f.cell.h > h || f.perRow * f.rows < n) {
+              throw new Error(`${place} n=${n} in ${w}×${h}: ${f.perRow}×${f.rows} cells of ${f.cell.w}×${f.cell.h}`);
+            }
+          }
+        }
+      }
+    }
   });
 
   it('empty column: nothing to lay out', () => {

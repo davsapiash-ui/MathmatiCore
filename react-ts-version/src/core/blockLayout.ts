@@ -5,9 +5,9 @@
  * הספרה בטור המתאים", and מסמך 04 (Feedback) makes that digit "אישור חזותי קבוע
  * לפעולות הלומדים". The digit only confirms what the child did if every block it
  * counts is on the screen. Until 28.9.2026 the blocks had one fixed size, the
- * column clipped whatever did not fit and showed no scroll bar: at 1366×768 the
- * hundreds column showed 6 flats for the digit 8, and meeting 3 exercise 3
- * (45 hundreds) showed 5 flats under the digit 45.
+ * column clipped whatever did not fit and showed no scroll bar. Measured on the
+ * screen at 1366×768: 5 of 8 hundreds fully visible in meeting 1 (806), and 4 of
+ * 45 in meeting 3 exercise 3 ("45 מאות").
  *
  * So a column never hides a block. Its blocks keep their drawn size while they
  * fit; when they do not, the whole column's blocks shrink together, just enough
@@ -85,5 +85,7 @@ export function fitBlockGrid(count: number, spec: CellSpec, box: Size): BlockGri
       return done(1, widest);
     }
   }
-  return done(Math.max(0.01, Math.round(best.scale * 1000) / 1000), best.perRow);
+  // Returned exactly as checked: rounding it up could tip a block onto the next
+  // pixel and make the grid one pixel too big for the column.
+  return done(Math.max(0.01, best.scale), best.perRow);
 }
