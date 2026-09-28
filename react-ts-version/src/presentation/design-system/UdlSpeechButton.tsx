@@ -44,12 +44,15 @@ export function UdlSpeechButton({ text, lang = 'he-IL', className = '' }: UdlSpe
   }, []);
 
   return (
-    <UdlButton 
-      variant="outline" 
+    <UdlButton
+      variant="outline"
       size="icon"
       semanticColor={isPlaying ? "primary" : "neutral"}
       onClick={handleSpeak}
-      className={`rounded-full shadow-sm hover:shadow-md transition-all ${isPlaying ? 'animate-pulse' : ''} ${className}`}
+      // 44×44: the smallest touch target the design rules allow
+      // (DESIGN_SYSTEM_RULES.md) — this is the child's read-aloud, on every
+      // screen, on tablets too. The icon size stays; only the target grows.
+      className={`size-11 rounded-full shadow-sm hover:shadow-md transition-all ${isPlaying ? 'animate-pulse' : ''} ${className}`}
       aria-label="הקראה בקול"
       title="הקראה בקול"
     >
