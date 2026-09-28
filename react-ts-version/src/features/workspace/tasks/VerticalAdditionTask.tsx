@@ -26,7 +26,12 @@ const PLACE_TINT: Record<Place, string> = {
   thousands: 'var(--block-thousand-dark)',
 };
 
-const CELL = 64; // px — one notebook square; grid columns AND paper background share this size
+/** One notebook square: grid columns AND paper background share it. A CSS
+ * length (--ws-cell, index.css) — 64px on a tall screen, smaller on a short or
+ * narrow laptop screen so the result row stays in view (owner, 27.9.2026). */
+const CELL = "var(--ws-cell)";
+const cell = (k: number) => `calc(${CELL} * ${k})`;
+const cellMinus = (px: number) => `calc(${CELL} - ${px}px)`;
 
 export function VerticalAdditionTask({
   numberA,
@@ -131,7 +136,7 @@ export function VerticalAdditionTask({
         className={`relative flex items-center justify-center font-mono font-black text-ws-ink leading-none ${
           isStriked && d ? 'opacity-60' : ''
         }`}
-        style={{ fontSize: CELL * 0.6, ...extra }}
+        style={{ fontSize: cell(0.6), ...extra }}
       >
         {d}
         {isStriked && d && (
@@ -152,8 +157,8 @@ export function VerticalAdditionTask({
         maxLength={1}
         value={operandDigits[which][place] ?? ''}
         aria-label={`ספרת ה${PLACE_LABEL_HE[place]} החסרה ב${which === 'a' ? 'מספר הראשון' : 'מספר השני'}`}
-        className="rounded-lg border-2 border-dashed text-center font-mono font-black bg-ws-accentSoft/40 text-ws-ink transition-all focus:outline-none focus:ring-2 focus:ring-ws-accent"
-        style={{ width: CELL - 12, height: CELL - 12, fontSize: CELL * 0.48, borderColor: PLACE_TINT[place] }}
+        className="rounded-xl border-2 border-dashed text-center font-mono font-black bg-ws-accentSoft/40 text-ws-ink transition-all focus:outline-none focus:ring-2 focus:ring-ws-accent"
+        style={{ width: cellMinus(12), height: cellMinus(12), fontSize: cell(0.48), borderColor: PLACE_TINT[place] }}
         onFocus={() => setFocusedPlace(place)}
         onBlur={() => setFocusedPlace(null)}
         onChange={(e) => setOperandDigit(which, place, e.target.value)}
@@ -165,8 +170,8 @@ export function VerticalAdditionTask({
   const revealedCell = (d: string, place: Place, key: string) => (
     <div
       key={key}
-      className="flex items-center justify-center rounded-lg border-2 font-mono font-black text-ws-ink/80 bg-ws-surface2/40"
-      style={{ width: CELL - 12, height: CELL - 12, fontSize: CELL * 0.48, borderColor: PLACE_TINT[place], margin: 'auto' }}
+      className="flex items-center justify-center rounded-xl border-2 font-mono font-black text-ws-ink/80 bg-ws-surface2/40"
+      style={{ width: cellMinus(12), height: cellMinus(12), fontSize: cell(0.48), borderColor: PLACE_TINT[place], margin: 'auto' }}
       aria-label={`ספרת ה${PLACE_LABEL_HE[place]} בתשובה, נתונה: ${d}`}
     >
       {d}
@@ -174,7 +179,7 @@ export function VerticalAdditionTask({
   );
 
   return (
-    <div className="self-center w-full max-w-md flex flex-col items-center gap-4 bg-ws-surface rounded-3xl border border-ws-surface2 shadow-[0_10px_28px_-14px_hsl(var(--ws-shadow-warm)/0.3)] p-6 relative">
+    <div className="shrink-0 self-center w-full max-w-md flex flex-col items-center gap-fl-4-16 bg-ws-surface rounded-3xl border border-ws-surface2 shadow-[0_10px_28px_-14px_hsl(var(--ws-shadow-warm)/0.3)] p-fl-8-24 relative">
       {/* Notebook paper: background squares EXACTLY the size of a grid column */}
       <div
         dir="ltr"
@@ -182,14 +187,16 @@ export function VerticalAdditionTask({
         aria-label={`תרגיל במאונך: ${numberA} ${isSubtraction ? 'פחות' : 'ועוד'} ${numberB}`}
         className="grid rounded-2xl shadow-sm"
         style={{
-          gridTemplateColumns: `${CELL}px repeat(${cols}, ${CELL}px)`,
-          gridTemplateRows: `${CELL}px ${CELL}px ${CELL}px ${CELL}px`,
-          padding: `${CELL * 0.75}px ${CELL}px`,
+          gridTemplateColumns: `${CELL} repeat(${cols}, ${CELL})`,
+          gridTemplateRows: `${CELL} ${CELL} ${CELL} ${CELL}`,
+          // Less paper under the answer row than over the memory circles:
+          // the place names sit right below it, and a short window needs the room.
+          padding: `${cell(0.75)} ${CELL} ${cell(0.4)}`,
           backgroundColor: 'var(--ws-surface)',
           backgroundImage:
             'linear-gradient(rgba(96,130,190,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(96,130,190,0.15) 1px, transparent 1px)',
-          backgroundSize: `${CELL}px ${CELL}px`,
-          backgroundPosition: `0 ${CELL * 0.75}px`,
+          backgroundSize: `${CELL} ${CELL}`,
+          backgroundPosition: `0 ${cell(0.75)}`,
         }}
       >
         {/* Row 0 — Carry/Borrow inputs (Memory circles ALWAYS active for working memory relief) */}
@@ -205,7 +212,7 @@ export function VerticalAdditionTask({
                 readOnly={false}
                 aria-label={`חלונית המרה ל${PLACE_LABEL_HE[place]}`}
                 className="rounded-full border-2 border-ws-surface2 text-center font-mono font-bold bg-ws-surface text-ws-ink transition-shadow focus:outline-none focus:ring-2 focus:ring-ws-accent shadow-sm"
-                style={{ width: CELL * 0.6, height: CELL * 0.6, fontSize: CELL * 0.35 }}
+                style={{ width: cell(0.6), height: cell(0.6), fontSize: cell(0.35) }}
                 onFocus={() => setFocusedMemoryCircle(place)}
                 onBlur={() => setFocusedMemoryCircle(null)}
                 onChange={(e) => {
@@ -247,9 +254,9 @@ export function VerticalAdditionTask({
                     aria-hidden="true"
                     className="absolute inset-0 flex items-center justify-end font-mono font-black leading-none"
                     style={{ 
-                      fontSize: CELL * 0.6, 
+                      fontSize: cell(0.6), 
                       color: 'hsl(var(--ws-accent))',
-                      transform: 'translateY(-32px)',
+                      transform: `translateY(${cell(-0.5)})`,
                       paddingRight: '8px',
                       height: CELL,
                       zIndex: 10
@@ -278,9 +285,9 @@ export function VerticalAdditionTask({
                         aria-hidden="true"
                         className="absolute inset-0 flex items-center justify-end font-mono font-black leading-none"
                         style={{ 
-                          fontSize: CELL * 0.6, 
+                          fontSize: cell(0.6), 
                           color: 'hsl(var(--ws-accent))',
-                          transform: 'translateY(-32px)',
+                          transform: `translateY(${cell(-0.5)})`,
                           paddingRight: '8px',
                           height: CELL,
                           zIndex: 10
@@ -323,10 +330,10 @@ export function VerticalAdditionTask({
                 readOnly={isLocked}
                 aria-label={`ספרת ה${PLACE_LABEL_HE[place]} בתשובה`}
                 aria-disabled={isLocked}
-                className={`rounded-lg border-2 text-center font-mono font-black bg-ws-surface text-ws-ink transition-all focus:outline-none focus:ring-2 focus:ring-ws-accent ${
+                className={`rounded-xl border-2 text-center font-mono font-black bg-ws-surface text-ws-ink transition-all focus:outline-none focus:ring-2 focus:ring-ws-accent ${
                   isLocked ? 'cursor-not-allowed opacity-75' : ''
                 }`}
-                style={{ width: CELL - 12, height: CELL - 12, fontSize: CELL * 0.48, borderColor: PLACE_TINT[place], ...shakeStyle }}
+                style={{ width: cellMinus(12), height: cellMinus(12), fontSize: cell(0.48), borderColor: PLACE_TINT[place], ...shakeStyle }}
                 onFocus={() => {
                   if (isLocked) {
                     setShake(true);
@@ -362,7 +369,7 @@ export function VerticalAdditionTask({
       </div>
 
       {/* Place labels under the paper, aligned to the answer columns */}
-      <div dir="ltr" className="grid" style={{ gridTemplateColumns: `${CELL}px repeat(${cols}, ${CELL}px)` }}>
+      <div dir="ltr" className="grid" style={{ gridTemplateColumns: `${CELL} repeat(${cols}, ${CELL})` }}>
         <div aria-hidden="true" />
         {colPlaces.map((place, j) =>
           j < firstAnswerCol ? (
@@ -371,7 +378,7 @@ export function VerticalAdditionTask({
             <div
               key={`l${j}`}
               className="text-center font-bold"
-              style={{ width: CELL, fontSize: CELL * 0.22, color: PLACE_TINT[place] }}
+              style={{ width: CELL, fontSize: cell(0.22), color: PLACE_TINT[place] }}
             >
               {PLACE_LABEL_HE[place]}
             </div>

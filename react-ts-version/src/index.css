@@ -111,6 +111,13 @@
     --warning: 40 92% 50%;
     --warning-foreground: 40 92% 10%;
 
+    /* One notebook square of the exercise sheet: the vertical exercises and
+       the result row. 64px on a tall screen, smaller on a short or narrow
+       laptop screen so the result row stays in view without scrolling (owner,
+       27.9.2026): 1366×768 → ~57px, 1280×720 → ~53px, 1024×768 → ~51px,
+       1536×864 → ~64px. */
+    --ws-cell: clamp(40px, min(7.4vh, 5vw), 64px);
+
     /* Workspace design tokens */
     --ws-bg: 210 55% 97%;           /* clean cool white */
     --ws-surface: 0 0% 100%;
@@ -398,6 +405,27 @@
     box-shadow: 0 0 24px 4px rgba(16, 185, 129, 0.35), inset 0 0 12px rgba(16, 185, 129, 0.15);
     border-color: rgba(16, 185, 129, 0.6) !important;
     transition: box-shadow 0.4s ease, border-color 0.4s ease;
+  }
+
+  /* The learner's top bar: the logo shows its words only when the bar itself
+     has room for them (a container query, not a screen-size step). */
+  .ws-topbar {
+    container-type: inline-size;
+  }
+  .ws-topbar-wide {
+    display: none;
+  }
+  .ws-topbar-narrow {
+    display: inline-flex;
+  }
+  /* 1240 px of bar (inside its side padding) is what a 1280 px window leaves. */
+  @container (min-width: 1240px) {
+    .ws-topbar-wide {
+      display: inline-flex;
+    }
+    .ws-topbar-narrow {
+      display: none;
+    }
   }
 }
 

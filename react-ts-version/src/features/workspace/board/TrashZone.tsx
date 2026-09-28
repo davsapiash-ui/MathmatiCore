@@ -27,7 +27,7 @@ export function TrashZone() {
             handleClick();
           }
         }}
-        aria-label="פח אשפה — גררו לכאן לבנים למחיקה או לחצו לניקוי הלוח"
+        aria-label="פח אשפה — גררו לכאן לבנים למחיקה או לחצו לניקוי בית המספרים"
         className={`relative flex flex-col items-center justify-center min-w-[84px] h-[80px] px-3.5 py-2 rounded-2xl transition-all duration-150 select-none cursor-pointer touch-none active:scale-95 ${
           isOver
             ? 'bg-red-100/95 ring-4 ring-red-400/90 shadow-[0_0_20px_rgba(239,68,68,0.4)]'

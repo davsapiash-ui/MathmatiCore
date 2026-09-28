@@ -95,12 +95,24 @@ let _serverClockOffsetMs = 0;
  * קורא את serverTimeOffset מה-RTDB פעם אחת ושומר.
  * יש לקרוא ב-initSession לפני חישוב ה-deadline.
  */
+/**
+ * How long a caller may wait for the server clock. The read never settles
+ * while the database is unreachable, and meeting 3's opening awaits it — a
+ * learner whose connection was down at that moment stayed on "טוען את
+ * המשימות" for good. Past this, the last known offset (0 at first) is used,
+ * and the meeting opens (AGENTS.md invariant 2: offline first).
+ */
+const SERVER_CLOCK_TIMEOUT_MS = 4000;
+
 export async function fetchServerClockOffset(): Promise<number> {
   try {
-    const snap = await rtdbGet(rtdbRef(database, '.info/serverTimeOffset'));
+    const snap = await Promise.race([
+      rtdbGet(rtdbRef(database, '.info/serverTimeOffset')),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('server clock timeout')), SERVER_CLOCK_TIMEOUT_MS)),
+    ]);
     _serverClockOffsetMs = snap.exists() ? (snap.val() as number) : 0;
   } catch {
-    _serverClockOffsetMs = 0;
+    // Unreachable or slow: keep the last known offset rather than reset it.
   }
   return _serverClockOffsetMs;
 }
