@@ -175,6 +175,25 @@ describe('a window that really closed is still handled as today', () => {
     expect(restored.isAuthenticated).toBe(true);
   });
 
+  it('a new tab within 5 minutes, then asleep 6 minutes, then a reload: still signed in', async () => {
+    signInLearner();
+    const first = renderHook(() => useIdleTimeout(), { wrapper });
+    first.unmount(); // the tab closes or crashes, no pagehide
+    vi.setSystemTime(Date.now() + 2 * MIN);
+    sessionStorage.clear(); // reopened in a new tab
+
+    const reopened = await reloadAuthStore();
+    expect(reopened.isAuthenticated).toBe(true);
+    // The restored tab is now marked as this learner's.
+    expect(sessionStorage.getItem(STORAGE_KEY_USER)).not.toBeNull();
+
+    // The tablet sleeps for 6 minutes; the OS reloads the tab on wake.
+    vi.setSystemTime(Date.now() + 6 * MIN);
+    const afterSleep = await reloadAuthStore();
+    expect(afterSleep.isAuthenticated).toBe(true);
+    expect(afterSleep.role).toBe('student');
+  });
+
   it('pagehide into the back-forward cache, back after 6 minutes: signed out', () => {
     signInLearner();
     renderHook(() => useIdleTimeout(), { wrapper });

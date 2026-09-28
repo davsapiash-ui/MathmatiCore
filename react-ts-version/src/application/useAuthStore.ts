@@ -156,6 +156,21 @@ const getStoredAuth = () => {
         return { user: null, role: null, isAuthenticated: false, isStudentAuthenticated: false, isRoleLocked: false, showRoleSelector: false, authTimestamp: null };
       }
 
+      // A learner restored from localStorage in a new tab: mark this tab as
+      // theirs, with the same keys setStoredAuth writes. Otherwise the tab
+      // stays unmarked for its whole life, and a later sleep with a reload on
+      // wake would look like a new window and sign the learner out — the very
+      // sleep sign-out the check above must never cause.
+      if (rawRole === 'student' && !restoredFromThisTab && typeof sessionStorage !== 'undefined') {
+        try {
+          sessionStorage.setItem(STORAGE_KEY_USER, rawUser);
+          sessionStorage.setItem(STORAGE_KEY_ROLE, rawRole);
+          sessionStorage.setItem(STORAGE_KEY_TIMESTAMP, rawTime ?? authTime.toString());
+        } catch {
+          // Storage unavailable: nothing to mark; the sign-in itself stands.
+        }
+      }
+
       return {
         user: parsed,
         role: rawRole,
