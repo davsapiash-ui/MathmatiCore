@@ -84,7 +84,11 @@ async function openExercise(browser, [w, h], meeting, pathName, idx) {
   const start = page.getByRole('button', { name: 'מתחילים' });
   if (await start.isVisible({ timeout: 8000 }).catch(() => false)) await start.click();
   // Let the page finish its own start of the meeting, then move to the exercise.
-  await page.getByText(/משימה 1 מתוך|משימת היכרות/).first().waitFor({ timeout: 20000 });
+  const firstTask = page.getByText(/משימה 1 מתוך|משימת היכרות/).first();
+  if (!(await firstTask.isVisible({ timeout: 20000 }).catch(() => false))) {
+    if (await start.isVisible().catch(() => false)) await start.click();
+    await firstTask.waitFor({ timeout: 20000 });
+  }
   // Without the learner record the page starts the meeting after a 6-second
   // grace (FIREBASE_RESTORE_GRACE_MS); wait it out so it does not start over
   // after we moved.
@@ -194,8 +198,15 @@ const report = {};
 for (const name of names) {
   const sc = SCENARIOS[name];
   for (const size of SIZES) {
-    const { context, page, id } = await openExercise(browser, size, sc.meeting, sc.path, indexOf[name]);
     const tag = `${name}-${size[0]}x${size[1]}`;
+    let opened;
+    try {
+      opened = await openExercise(browser, size, sc.meeting, sc.path, indexOf[name]);
+    } catch (e) {
+      console.log(`✗ ${tag}: could not open the exercise: ${String(e).slice(0, 200)}`);
+      continue;
+    }
+    const { context, page, id } = opened;
     try {
       if (id !== sc.expectId) throw new Error(`on ${id}, expected ${sc.expectId}`);
       await sc.act(page);
