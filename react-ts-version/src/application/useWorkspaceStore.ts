@@ -54,6 +54,7 @@ import { throttledRtdbUpdate } from '@/infrastructure/services/ThrottledRtdbWrit
 import { normalizeStudentId } from '@/application/useChatStore';
 import { firebaseSyncService, emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
 import type { TelemetryEventType } from '@/types/telemetry';
+import { REPRESENTATION_LOCKS } from '@/data/representationLocks';
 import type { VRAWorkspaceState } from '@/types';
 import {
   EMPTY_PERSISTENCE_COUNTS,
@@ -293,7 +294,14 @@ interface WorkspaceState {
   /** The trash was pressed this task (clearBoard) — meeting 1 step 5. Dragging one block into it does not count. */
   hasClearedBoard: boolean;
   blocksAddedCount: number; // Added to enforce the 5 block rule in Sandbox
-  consecutiveDeletions: number;
+  /**
+   * The "four errors" streak (מסמך 03: "ארבע מחיקות או הקלדות שגויות רצופות
+   * באותו טור"; 28.9.2026): wrong result-row or missing-digit entries and
+   * deletions in a row, in ONE column (`digitErrorStreakPlace`). See
+   * `nextDigitErrorStreak` and `nextDigitErrorStreakOnDelete`.
+   */
+  digitErrorStreak: number;
+  digitErrorStreakPlace: Place | null;
   hasUngrouped: boolean;
   hasGrouped: boolean;
   /** Which columns' conversions the blocks performed in this exercise (Module 9 §א, per column). */
@@ -305,6 +313,8 @@ interface WorkspaceState {
   q3Reps: PlaceCounts[];
   /** Which of מסמך 03's triggers opened the coaching card (null when it is closed). */
   socraticTriggerReason: SocraticTriggerReason | null;
+  /** The column a 'consecutive_errors_4' card belongs to — the streak's column, not where the cursor moved. */
+  socraticCardPlace: Place | null;
   /** Skeleton exercises (מסמך 03): digits the learner types into hidden operand cells. */
   operandDigits: { a: Partial<Record<Place, string>>; b: Partial<Record<Place, string>> };
   aiSocraticHint: SocraticHintResponse | null;
@@ -406,7 +416,7 @@ interface WorkspaceState {
   setProbeAnswer: (v: string) => void;
   setOperandDigit: (which: 'a' | 'b', place: Place, val: string) => void;
   /** representation tasks, enhanced profile only: the result row opens once the board shows the prescribed blocks. */
-  isRepresentationInputLocked: () => boolean;
+  isRepresentationColumnLocked: (place: Place) => boolean;
   checkTimeExceeded: () => void;
   /** "החזרת עזרים" — bidirectional scaffold fading per spec: temporarily restore faded aids. */
   restoreScaffolds: () => void;
@@ -439,7 +449,7 @@ interface WorkspaceState {
   lockKeyboard: () => void;
   setKeyboardSocratic: () => void;
   /** מסמך 03: open the coaching card, recording which trigger did it. */
-  openSocraticCard: (reason: SocraticTriggerReason) => void;
+  openSocraticCard: (reason: SocraticTriggerReason, place?: Place) => void;
   triggerSocraticPenaltyLockout: (hintText?: string) => void;
   clearSocraticPenaltyLockout: () => void;
   getSocraticPenaltyRemaining: () => number;
@@ -503,6 +513,61 @@ export function restoreUndoFrames(raw: unknown): UndoFrame[] {
     });
 }
 
+/**
+ * The "four errors" coaching trigger — מסמך 03: "ארבע מחיקות או הקלדות שגויות
+ * רצופות באותו טור"; PRD Module 12: "4 consecutive digit deletions/errors in
+ * the active column" (register, deviation 2). One streak per exercise, tied to
+ * one column:
+ *  - a wrong digit (is_correct === false) in a result-row or missing-digit box
+ *    counts at the moment it is typed, into an empty box or over a digit;
+ *    in another column than the streak's, the streak restarts there at 1;
+ *  - a deletion counts the same way (nextDigitErrorStreakOnDelete), except
+ *    the erasure of a wrong digit;
+ *  - a correct digit in any of those boxes resets the streak to 0;
+ *  - is_correct === null, memory circles and undo leave it as is.
+ * The card opens at 4, for the streak's column (openSocraticCard resets it).
+ */
+export function nextDigitErrorStreak(
+  s: Pick<WorkspaceState, 'digitErrorStreak' | 'digitErrorStreakPlace'>,
+  place: Place,
+  isCorrect: boolean | null
+): { digitErrorStreak: number; digitErrorStreakPlace: Place | null } {
+  if (isCorrect === true) return { digitErrorStreak: 0, digitErrorStreakPlace: null };
+  if (isCorrect === false) {
+    const same = s.digitErrorStreakPlace === place;
+    return { digitErrorStreak: same ? s.digitErrorStreak + 1 : 1, digitErrorStreakPlace: place };
+  }
+  return { digitErrorStreak: s.digitErrorStreak, digitErrorStreakPlace: s.digitErrorStreakPlace };
+}
+
+/**
+ * A deletion in the "four errors" streak. The documents count deletions
+ * ("ארבע מחיקות"), so erasing a digit counts in its column like a wrong digit —
+ * except erasing a WRONG digit: that failed attempt was already counted when it
+ * was typed, and one failed attempt counts once (register, deviation 2).
+ */
+export function nextDigitErrorStreakOnDelete(
+  s: Pick<WorkspaceState, 'digitErrorStreak' | 'digitErrorStreakPlace'>,
+  place: Place,
+  deletedWasCorrect: boolean | null
+): { digitErrorStreak: number; digitErrorStreakPlace: Place | null } {
+  if (deletedWasCorrect === false) return { digitErrorStreak: s.digitErrorStreak, digitErrorStreakPlace: s.digitErrorStreakPlace };
+  const same = s.digitErrorStreakPlace === place;
+  return { digitErrorStreak: same ? s.digitErrorStreak + 1 : 1, digitErrorStreakPlace: place };
+}
+
+/**
+ * The column the open coaching card is about: a card opened by the "four
+ * errors" streak belongs to the streak's column, even after the cursor
+ * auto-advanced to the next box; any other card keeps the focused box.
+ */
+export function socraticCardColumnIndex(
+  s: Pick<WorkspaceState, 'socraticTriggerReason' | 'socraticCardPlace' | 'focusedPlace' | 'activeColumnIndex'>
+): number {
+  if (s.socraticTriggerReason === 'consecutive_errors_4' && s.socraticCardPlace) return placeToColumnIndex(s.socraticCardPlace);
+  return s.focusedPlace ? placeToColumnIndex(s.focusedPlace) : (s.activeColumnIndex || 0);
+}
+
 function resetTaskInteraction(_isASD = false) {
   return {
     counts: { ...EMPTY_COUNTS },
@@ -524,7 +589,9 @@ function resetTaskInteraction(_isASD = false) {
     socraticTriggerReason: null as SocraticTriggerReason | null,
     focusedPlace: null as Place | null,
     undoCount: 0,
-    consecutiveDeletions: 0,
+    digitErrorStreak: 0,
+    digitErrorStreakPlace: null as Place | null,
+    socraticCardPlace: null as Place | null,
     hesitationCount: 0,
     hesitationTimerSeconds: 0,
     consecutiveErrorCount: 0,
@@ -718,6 +785,11 @@ export function hiddenDigitsStatus(
   check('a', a);
   check('b', b);
   return { complete, correct };
+}
+
+/** A skeleton exercise whose hidden digits are operand digits (not missingResultDigit). */
+export function hasHiddenDigits(task: SessionTask | null): boolean {
+  return Boolean(task?.hiddenDigits?.a?.length || task?.hiddenDigits?.b?.length);
 }
 
 /** Answer digits with the exercise's revealed result digits overlaid (skeleton exercises). */
@@ -1240,6 +1312,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     });
   }
 
+  /** Opens the card for the "four errors" streak's column (see nextDigitErrorStreak). */
+  function openCardForDigitErrorStreak(place: Place) {
+    setTimeout(() => get().openSocraticCard('consecutive_errors_4', place), 0);
+  }
+
   /** Sessions 1/3/4 proceed (vanilla handleSession1Proceed, app.js 999–1110). */
   function proceedStandard() {
     const s = get();
@@ -1374,7 +1451,36 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           return;
         }
 
-        if (boardVal !== target) {
+        // Owner's decision 28.9.2026 (register, שהC.1 option א): in the
+        // skeleton exercises of meetings 3–7 the hidden digits are checked
+        // BEFORE the board, and the board may show either the exercise's result
+        // or the number the child discovered. The order is: empty board →
+        // hidden digits incomplete → hidden digits wrong → board → overcrowded.
+        // Ordinary exercises, missingResultDigit exercises and meeting 8 keep
+        // the order below unchanged.
+        const skeletonHidden = s.sessionNumber >= 3 && s.sessionNumber <= 7 && hasHiddenDigits(task);
+        if (skeletonHidden) {
+          const { a: hA, b: hB } = effectiveArithmetic(task, s.isASD);
+          const hiddenCheck = hiddenDigitsStatus(s, task, hA, hB);
+          if (!hiddenCheck.complete) {
+            handleFailure('missing_answer', 'הַקְלָדַת תְּשׁוּבָה ✏️', 'כתבו את הספרה החסרה בתיבה הריקה כדי להמשיך.', 3000);
+            return;
+          }
+          if (!hiddenCheck.correct) {
+            handleFailure('wrong_numeric', 'כִּמְעַט... 🧐', 'הספרה החסרה שכתבתם אינה נכונה. בדקו שוב בעזרת הלבנים בלוח.', 2800);
+            return;
+          }
+          const discovered = (task.hiddenDigits?.a?.length ? [hA] : []).concat(task.hiddenDigits?.b?.length ? [hB] : []);
+          if (boardVal !== target && !discovered.includes(boardVal)) {
+            handleFailure(
+              'wrong_blocks',
+              'בּוֹאוּ נְדַיֵּק אֶת הַמִּבְנֶה 🔍',
+              'הלבנים שבבית המספרים אינן מראות את תוצאת התרגיל ואינן מראות את המספר שגיליתם. בדקו שוב.',
+              3500
+            );
+            return;
+          }
+        } else if (boardVal !== target) {
           handleFailure(
             'wrong_blocks',
             'בּוֹאוּ נְדַיֵּק אֶת הַמִּבְנֶה 🔍',
@@ -1825,7 +1931,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     hasDeletedBlock: false,
     hasClearedBoard: false,
     blocksAddedCount: 0,
-    consecutiveDeletions: 0,
+    digitErrorStreak: 0,
+    digitErrorStreakPlace: null,
     hasUngrouped: false,
     hasGrouped: false,
     conversionsByColumn: emptyColumnConversions(),
@@ -1836,6 +1943,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     q3Reps: [],
     operandDigits: { a: {}, b: {} },
     socraticTriggerReason: null,
+    socraticCardPlace: null,
 
     feedback: null,
     feedbackNonce: 0,
@@ -2573,7 +2681,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     setAnswerDigit: (place, val) => {
       set((s) => {
         const isDelete = val === '' && Boolean(s.answerDigits[place]);
-        const nextDeletions = isDelete ? s.consecutiveDeletions + 1 : (val !== '' ? 0 : s.consecutiveDeletions);
 
         const studentId = currentStudentUid();
         const task = getActiveTasks(s)[s.standardTaskIdx] || null;
@@ -2614,11 +2721,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
               }
             }
 
-            if (isCorrect === false) {
-              setTimeout(() => {
-                if (get().consecutiveDeletions >= 4) get().openSocraticCard('consecutive_errors_4');
-              }, 0);
-            }
+            const streak = nextDigitErrorStreak(s, place, isCorrect);
+            if (streak.digitErrorStreak >= 4) openCardForDigitErrorStreak(place);
 
             return {
               answerDigits: { ...s.answerDigits, [place]: val },
@@ -2627,16 +2731,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
               undoStack: createNextUndoStack(s.undoStack, s.counts, 'DIGIT_ENTERED', inputSnapshot(s)),
               // "שלוש פעולות ביטול רצופות" means consecutive: any other action ends the run.
               consecutiveUndoCount: 0,
-              // מסמך 03 counts "four consecutive deletions"; PRD Module 12 counts
-              // "4 consecutive wrong typing attempts or deletions". One failed
-              // attempt must count once, so a wrong digit typed into an empty
-              // cell leaves the streak to the erasure that follows it, while a
-              // wrong digit typed OVER an existing one is a second attempt and
-              // counts here. A correct digit is productive and restarts it.
-              consecutiveDeletions:
-                isCorrect === false
-                  ? s.consecutiveDeletions + (s.answerDigits[place] ? 1 : 0)
-                  : 0,
+              ...streak,
               hasDigitErrorInTask: isCorrect === false ? true : s.hasDigitErrorInTask,
               typedErrorCount: isCorrect === false ? s.typedErrorCount + 1 : s.typedErrorCount,
             };
@@ -2653,19 +2748,24 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
               deleted_digit_value: isNaN(deletedVal as number) ? null : deletedVal,
             },
           }).catch(console.error);
-        }
 
-
-        // מסמך 03, trigger 2: four consecutive deletions in the active column.
-        // The count was kept but never read, so this trigger did not exist.
-        if (nextDeletions >= 4) {
-          setTimeout(() => get().openSocraticCard('consecutive_errors_4'), 0);
+          // "ארבע מחיקות או הקלדות שגויות רצופות באותו טור" (מסמך 03): the
+          // deletion counts in its column, unless it erases a wrong digit.
+          const expectedDigit = computeExpectedDigitForColumn(task, place, s.isASD, false);
+          const deletedWasCorrect =
+            expectedDigit !== null && deletedVal !== null && !isNaN(deletedVal) ? deletedVal === expectedDigit : null;
+          const streak = nextDigitErrorStreakOnDelete(s, place, deletedWasCorrect);
+          if (streak.digitErrorStreak >= 4) openCardForDigitErrorStreak(place);
+          return {
+            answerDigits: { ...s.answerDigits, [place]: val },
+            hasInteracted: true,
+            ...streak,
+          };
         }
 
         return {
           answerDigits: { ...s.answerDigits, [place]: val },
           hasInteracted: true,
-          consecutiveDeletions: nextDeletions,
         };
       });
       
@@ -2868,7 +2968,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           memoryCircles: s.carryDigits,
           answerDigits: s.answerDigits,
           operands: eff ? { a: eff.a, b: eff.b, isSubtraction: Boolean(currentTask?.isSubtraction) } : null,
-          activeColumnIndex: s.focusedPlace ? placeToColumnIndex(s.focusedPlace) : (s.activeColumnIndex || 0),
+          activeColumnIndex: socraticCardColumnIndex(s),
           hasRegroupedInCanvas: Boolean(s.hasUngrouped || s.hasGrouped),
         };
 
@@ -2988,10 +3088,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     recordBlockedKeystroke: (place) => {
       const s = get();
       const task = getActiveTasks(s)[s.standardTaskIdx] || null;
+      // A representation exercise names its own conversion (REPRESENTATION_LOCKS);
+      // it has no isSubtraction to derive it from.
+      const reprLock = task?.type === 'representation' ? REPRESENTATION_LOCKS[task.id] : undefined;
       emitScaffoldEvent(
         s,
         'KEYBOARD_LOCK_BLOCKED',
-        { conversion_required: task?.isSubtraction ? 'decomposition' : 'composition' },
+        { conversion_required: reprLock ? reprLock.conversion : task?.isSubtraction ? 'decomposition' : 'composition' },
         placeToColumnIndex(place)
       );
     },
@@ -3000,7 +3103,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       get().openSocraticCard('hesitation_45s');
     },
 
-    openSocraticCard: (reason) => {
+    openSocraticCard: (reason, place) => {
       const s = get();
       // PRD Module 12 & 14: the card is disabled outright in session 2, and never
       // reopens over an open card or during the 30s wrong-answer lockout.
@@ -3021,7 +3124,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       if (currentTask && (currentTask.type === 'addition_simple' || currentTask.type === 'vertical_addition')) {
         const { a, b, target } = effectiveArithmetic(currentTask, s.isASD);
         const typed = answerDigitsToNumber(effectiveAnswerDigits(s, currentTask, target));
-        if (typed === target && hiddenDigitsStatus(s, currentTask, a, b).complete) return;
+        const hidden = hiddenDigitsStatus(s, currentTask, a, b);
+        // A skeleton shows every result digit, so a WRONG hidden digit is not a
+        // solved exercise: the "four errors" card of the missing-digit boxes
+        // (owner's decision 28.9.2026, שהB.2) needs the digits to be right.
+        // Every other trigger keeps the check it had.
+        const streakCard = reason === 'consecutive_errors_4' && place !== undefined;
+        if (typed === target && (streakCard ? hidden.correct : hidden.complete)) return;
       }
       const initialHint = SocraticEngine.getSynchronousTaskHint(currentTask, s.counts);
       set((st) => ({
@@ -3036,6 +3145,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         helpState: 'socratic',
         currentState: 'SOCRATIC_ACTIVE',
         socraticTriggerReason: reason,
+        socraticCardPlace: place ?? null,
+        // The "four errors" streak returns to 0 once its card is shown (שהB.2).
+        ...(reason === 'consecutive_errors_4' && place ? { digitErrorStreak: 0, digitErrorStreakPlace: null } : {}),
         aiSocraticHint: initialHint || st.aiSocraticHint,
       }));
       get().fetchSocraticHint();
@@ -3105,36 +3217,45 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           column_index: placeToColumnIndex(place),
           details: { digit_value: parseInt(clean, 10), is_correct: isCorrect },
         }).catch(console.error);
+        // The same "four errors" streak as the result row (owner's decision 28.9.2026, שהB.2).
+        const streak = nextDigitErrorStreak(s, place, isCorrect);
+        if (streak.digitErrorStreak >= 4) openCardForDigitErrorStreak(place);
         set({
           operandDigits: { ...s.operandDigits, [which]: { ...s.operandDigits[which], [place]: clean } },
           hasInteracted: true,
           undoStack: createNextUndoStack(s.undoStack, s.counts, 'DIGIT_ENTERED', inputSnapshot(s)),
           consecutiveUndoCount: 0,
-          consecutiveDeletions: 0,
+          ...streak,
           hasDigitErrorInTask: isCorrect ? s.hasDigitErrorInTask : true,
           typedErrorCount: isCorrect ? s.typedErrorCount : s.typedErrorCount + 1,
         });
         return;
       }
       const wasSet = Boolean(s.operandDigits[which][place]);
+      let streak: ReturnType<typeof nextDigitErrorStreakOnDelete> | null = null;
       if (wasSet && task) {
+        const deleted = parseInt(s.operandDigits[which][place] as string, 10);
         emitTelemetry({
           session_id: `session_${s.sessionNumber}_student_${studentId}`,
           student_id: studentId,
           exercise_id: task.id,
           event_type: 'DIGIT_DELETED',
           column_index: placeToColumnIndex(place),
-          details: { deleted_digit_value: parseInt(s.operandDigits[which][place] as string, 10) },
+          details: { deleted_digit_value: deleted },
         }).catch(console.error);
+        // The same deletion rule as the result row (nextDigitErrorStreakOnDelete).
+        const { a, b } = effectiveArithmetic(task, s.isASD);
+        streak = nextDigitErrorStreakOnDelete(s, place, deleted === digitAt(which === 'a' ? a : b, place));
+        if (streak.digitErrorStreak >= 4) openCardForDigitErrorStreak(place);
       }
       set({
         operandDigits: { ...s.operandDigits, [which]: { ...s.operandDigits[which], [place]: '' } },
         hasInteracted: true,
-        consecutiveDeletions: wasSet ? s.consecutiveDeletions + 1 : s.consecutiveDeletions,
+        ...(streak ?? {}),
       });
     },
 
-    isRepresentationInputLocked: () => {
+    isRepresentationColumnLocked: (place) => {
       const s = get();
       if (s.sessionNumber === 2 || s.sessionNumber === 8) return false;
       // PRD Module 9: the lock exists for enhanced_cognitive_support only; every other learner's row stays open.
@@ -3143,7 +3264,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       if (supportProfile !== 'enhanced_cognitive_support') return false;
       const task = getActiveTasks(s)[s.standardTaskIdx] || null;
       if (!task || task.type !== 'representation') return false;
-      // מסמך 03 §3.3: the row opens only after the virtual conversion — i.e. once the board shows the prescribed blocks.
+      // Owner's decision 28.9.2026 (register שהB.4): PRD Module 9 §א, not
+      // מסמך 03 §3.3's whole row — only the exercise's conversion columns lock
+      // (REPRESENTATION_LOCKS), each until the blocks perform that conversion
+      // there. Undo takes the conversion back and the column locks again.
+      const lock = REPRESENTATION_LOCKS[task.id];
+      if (!lock || !lock.columns.includes(place)) return false;
+      if (conversionDoneInColumn(s.conversionsByColumn, place, lock.conversion === 'decomposition')) return false;
+      // Safety valve (register, pending the owner's confirmation): a board that
+      // already shows the required blocks opens the row, so a child who built
+      // them without converting is never stuck.
       return !countsEqual(s.counts, requiredCountsOf(task));
     },
 
@@ -3220,7 +3350,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         hasDeletedBlock: false,
         hasClearedBoard: false,
         blocksAddedCount: 0,
-        consecutiveDeletions: 0,
+        digitErrorStreak: 0,
+        digitErrorStreakPlace: null,
+        socraticCardPlace: null,
         hasUngrouped: false,
         hasGrouped: false,
         conversionsByColumn: emptyColumnConversions(),

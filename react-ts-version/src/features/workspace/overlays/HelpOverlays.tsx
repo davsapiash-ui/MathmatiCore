@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useDismissableOverlay } from '@/hooks/useDismissableOverlay';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useWorkspaceStore, getActiveTasks, placeToColumnIndex } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, getActiveTasks, socraticCardColumnIndex } from '@/application/useWorkspaceStore';
 import { useAuthStore, currentStudentUid } from '@/application/useAuthStore';
 import { SUPPORT_CONTENT, getDynamicSocraticHint } from '@/data/sessionTasks';
 import type { SocraticChoice } from '@/infrastructure/services/SocraticEngine';
@@ -125,7 +125,8 @@ export function SocraticSidePanel() {
       student_id: studentId,
       exercise_id: task?.id || `ex_${ws.sessionNumber}_01`,
       event_type: 'SOCRATIC_CARD_SHOWN',
-      column_index: ws.focusedPlace ? placeToColumnIndex(ws.focusedPlace) : (ws.activeColumnIndex || 0),
+      // A "four errors" card is about the streak's column, not the box the cursor moved to (שהB.2).
+      column_index: socraticCardColumnIndex(ws),
       details: {
         trigger_reason: triggerReason,
         error_category: aiSocraticHint.error_category ?? null,

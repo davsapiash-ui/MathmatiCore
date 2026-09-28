@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { PLACE_ORDER, PLACE_NAMES_HE, type Place } from '@/core/placeValue';
 import type { SessionTask } from '@/data/sessionTasks';
@@ -25,7 +25,16 @@ export function RepresentationTask({ task }: { task: SessionTask }) {
   const answerDigits = useWorkspaceStore((s) => s.answerDigits);
   const setAnswerDigit = useWorkspaceStore((s) => s.setAnswerDigit);
   const setFocusedPlace = useWorkspaceStore((s) => s.setFocusedPlace);
-  const isRepresentationInputLocked = useWorkspaceStore((s) => s.isRepresentationInputLocked);
+  const isRepresentationColumnLocked = useWorkspaceStore((s) => s.isRepresentationColumnLocked);
+  const recordBlockedKeystroke = useWorkspaceStore((s) => s.recordBlockedKeystroke);
+  // Subscribed so a conversion (or its undo) re-renders the lock at once.
+  useWorkspaceStore((s) => s.conversionsByColumn);
+  // Module 9: a keystroke into a locked box shakes that box only.
+  const [shakingPlace, setShakingPlace] = useState<Place | null>(null);
+  const shake = (place: Place) => {
+    setShakingPlace(place);
+    setTimeout(() => setShakingPlace((p) => (p === place ? null : p)), 500);
+  };
   const hasUngrouped = useWorkspaceStore((s) => s.hasUngrouped);
   // Meeting 1's target task (מסמך 03 §3.1 step 6) is a guided step: its
   // instruction as a checklist, the rule the proceed button follows.
@@ -33,7 +42,6 @@ export function RepresentationTask({ task }: { task: SessionTask }) {
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
 
   const value = task.numberA ?? 0;
-  const locked = isRepresentationInputLocked();
 
   // Result row: one square per digit of the number, high place on the left.
   const places: Place[] = PLACE_ORDER.slice(0, String(value).length).reverse();
@@ -47,7 +55,10 @@ export function RepresentationTask({ task }: { task: SessionTask }) {
       {/* Result row (שורת התוצאה) — right under the number, before anything
           else, so it is in view without scrolling (owner, 27.9.2026). */}
       <div dir="ltr" className="shrink-0 grid gap-2" style={{ gridTemplateColumns: `repeat(${places.length}, ${CELL})` }} role="group" aria-label="שורת התוצאה" data-testid="result-row">
-        {places.map((place, i) => (
+        {places.map((place, i) => {
+          // Owner's decision 28.9.2026 (שהB.4): only this exercise's conversion columns lock.
+          const locked = isRepresentationColumnLocked(place);
+          return (
           <div key={place} className="flex flex-col items-center gap-1">
             <input
               ref={(el) => {
@@ -63,14 +74,28 @@ export function RepresentationTask({ task }: { task: SessionTask }) {
               className={`rounded-xl border-2 text-center font-mono font-black bg-ws-surface text-ws-ink transition-all focus:outline-none focus:ring-2 focus:ring-ws-accent ${
                 locked ? 'cursor-not-allowed opacity-75' : ''
               }`}
-              style={{ width: `calc(${CELL} - 12px)`, height: `calc(${CELL} - 12px)`, fontSize: `calc(${CELL} * 0.48)`, borderColor: PLACE_TINT[place] }}
+              style={{
+                width: `calc(${CELL} - 12px)`,
+                height: `calc(${CELL} - 12px)`,
+                fontSize: `calc(${CELL} * 0.48)`,
+                borderColor: PLACE_TINT[place],
+                ...(shakingPlace === place ? { animation: 'shake 0.5s ease-in-out' } : {}),
+              }}
               onFocus={() => setFocusedPlace(place)}
               onBlur={() => setFocusedPlace(null)}
               onKeyDown={(e) => {
-                if (locked) e.preventDefault();
+                if (locked) {
+                  // Rejected; the attempt itself is what the research needs (KEYBOARD_LOCK_BLOCKED).
+                  if (/^[0-9]$/.test(e.key)) recordBlockedKeystroke(place);
+                  e.preventDefault();
+                  shake(place);
+                }
               }}
               onChange={(e) => {
-                if (locked) return;
+                if (locked) {
+                  shake(place);
+                  return;
+                }
                 const v = e.target.value.replace(/[^0-9]/g, '').slice(-1);
                 setAnswerDigit(place, v);
                 if (v && i > 0) inputsRef.current[i - 1]?.focus();
@@ -80,7 +105,8 @@ export function RepresentationTask({ task }: { task: SessionTask }) {
               {PLACE_NAMES_HE[place]}
             </span>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* No box listing the blocks to build and the blocks now on the board
