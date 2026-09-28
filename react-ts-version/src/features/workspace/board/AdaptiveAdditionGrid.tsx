@@ -3,6 +3,10 @@ import { motion } from 'framer-motion';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { GRID_FADE_IN_SECONDS } from '@/core/hesitationStages';
 import { X, Sparkles } from 'lucide-react';
+import { useClearOfSidePanel } from './useLeftClearOfSidePanel';
+
+/** The grid's one name on the child's screen (register decision ט: one name per component). */
+export const ADDITION_GRID_HE = 'לוח החיבור';
 
 interface AdaptiveAdditionGridProps {
   onSelection?: (sum: number) => void;
@@ -64,6 +68,8 @@ export function AdaptiveAdditionGrid({ onSelection, onClose, className = '' }: A
   // The grid fades in over two seconds and sits over the block tray. While it
   // is still transparent it must not catch the learner's clicks.
   const [visible, setVisible] = useState(false);
+  // Never over the coaching card (report row 1.28).
+  const { left, maxWidth } = useClearOfSidePanel();
 
   return (
     <motion.div
@@ -74,9 +80,10 @@ export function AdaptiveAdditionGrid({ onSelection, onClose, className = '' }: A
       transition={{ duration: GRID_FADE_IN_SECONDS, ease: 'easeInOut' }}
       onAnimationComplete={() => setVisible(true)}
       dir="rtl"
-      className={`${visible ? 'pointer-events-auto' : 'pointer-events-none'} fixed bottom-6 left-6 z-50 bg-white dark:bg-slate-900 border-2 border-amber-300 dark:border-amber-700/60 rounded-3xl p-5 shadow-2xl max-w-md w-full select-none ${className}`}
+      className={`${visible ? 'pointer-events-auto' : 'pointer-events-none'} fixed bottom-6 z-50 bg-white dark:bg-slate-900 border-2 border-amber-300 dark:border-amber-700/60 rounded-3xl p-5 shadow-2xl max-w-md w-full select-none ${className}`}
+      style={{ left, maxWidth }}
       role="dialog"
-      aria-label="לוח עזר אדפטיבי לחיבור"
+      aria-label={ADDITION_GRID_HE}
       data-testid="adaptive-addition-grid"
     >
         <div className="flex justify-between items-center mb-3">
@@ -85,7 +92,7 @@ export function AdaptiveAdditionGrid({ onSelection, onClose, className = '' }: A
               <Sparkles className="w-5 h-5" />
             </span>
             <h3 className="font-display font-extrabold text-lg text-slate-800 dark:text-slate-100">
-              לוח עזר לחיבור (תמיכה אדפטיבית)
+              {ADDITION_GRID_HE}
             </h3>
           </div>
 
@@ -93,7 +100,7 @@ export function AdaptiveAdditionGrid({ onSelection, onClose, className = '' }: A
             type="button"
             onClick={handleClose}
             className="w-11 h-11 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 flex items-center justify-center transition-all cursor-pointer"
-            aria-label="סגירת לוח העזר"
+            aria-label={`סגירת ${ADDITION_GRID_HE}`}
           >
             <X className="w-4 h-4" />
           </button>

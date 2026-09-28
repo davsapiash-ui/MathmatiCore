@@ -15,14 +15,14 @@ export function SmallChangeTask({
   const speechText = [questionHe, ...choices.map((c) => `${c.id}. ${c.textHe}`)].join('. ');
 
   return (
-    <div className="flex flex-col gap-4 mt-2">
-      <div className="self-center bg-ws-surface2/60 rounded-2xl px-8 py-4 border border-ws-surface2">
-        <span className="font-mono font-black text-4xl text-ws-ink tabular-nums" dir="ltr">
+    <div className="flex flex-col gap-fl-6-16 mt-fl-0-8">
+      <div className="self-center bg-ws-surface2/60 rounded-2xl px-8 py-fl-6-16 border border-ws-surface2">
+        <span className="font-mono font-black text-fl-28-36 leading-tight text-ws-ink tabular-nums" dir="ltr">
           {givenHe}
         </span>
       </div>
       <div className="flex items-center justify-center gap-2">
-        <p className="text-xl font-bold text-ws-ink text-center">{questionHe}</p>
+        <p className="text-fl-16-20 font-bold text-ws-ink text-center">{questionHe}</p>
         <UdlSpeechButton text={speechText} />
       </div>
       <ChoiceList choices={choices} />

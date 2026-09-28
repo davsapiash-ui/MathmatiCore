@@ -5,6 +5,7 @@ import { resolve } from 'path';
 import { useWorkspaceStore, getActiveTasks, selectCanProceed } from '@/application/useWorkspaceStore';
 import { EMPTY_COUNTS, MAX_VISIBLE_BLOCKS } from '@/core/placeValue';
 import { useAuthStore } from '@/application/useAuthStore';
+import { SESSION1_TASKS } from '@/data/sessionTasks';
 
 /**
  * The owner walked meeting 1 on the live site (24.9.2026) and four audits
@@ -14,6 +15,8 @@ import { useAuthStore } from '@/application/useAuthStore';
 const src = (p: string) => readFileSync(resolve(__dirname, '../../', p), 'utf-8').replace(/\r\n/g, '\n');
 const signIn = () => useAuthStore.setState({ user: { uid: 'student_user5', name: 'user5' } as any, role: 'student', isAuthenticated: true });
 const ws = () => useWorkspaceStore.getState();
+/** A meeting 1 exercise's place in the meeting (the order is the owner's, 27.9.2026). */
+const at = (id: string) => SESSION1_TASKS.findIndex((t) => t.id === id);
 
 describe('the meeting ends even if the help button is pressed during the celebration', () => {
   beforeEach(() => {
@@ -70,14 +73,14 @@ describe('a coaching card belongs to the exercise that opened it', () => {
   afterEach(() => { vi.useRealTimers(); });
 
   it('the next exercise opens with no card and no hint', () => {
-    ws().initSession(1, false, 5); // 26 cubes
+    ws().initSession(1, false, at('s1_r_group26')); // 26 cubes
     ws().setKeyboardSocratic(); // the 45-second card
     expect(ws().helpState).toBe('socratic');
     useWorkspaceStore.setState({ counts: { ...EMPTY_COUNTS, tens: 2, units: 6 }, hasGrouped: true, answerDigits: { tens: '2', units: '6' } });
     ws().proceed();
     vi.advanceTimersByTime(5_000);
     const s = ws();
-    expect(getActiveTasks(s)[s.standardTaskIdx].id).toBe('s1_t8');
+    expect(getActiveTasks(s)[s.standardTaskIdx].id).toBe('s1_target_347');
     expect(s.helpState).toBe('closed');
     expect(s.aiSocraticHint).toBeNull();
   });
@@ -89,7 +92,7 @@ describe('a coaching card belongs to the exercise that opened it', () => {
   });
 
   it('four presses of "התקדם" on an empty answer open no card (register 17: an empty answer is not a wrong answer)', () => {
-    ws().initSession(1, false, 6); // 713 + 94
+    ws().initSession(1, false, at('s1_t8')); // 713 + 94
     useWorkspaceStore.setState({ counts: { ...EMPTY_COUNTS, hundreds: 8, units: 7 }, hasGrouped: true });
     for (let i = 0; i < 5; i++) {
       ws().proceed();
@@ -135,7 +138,7 @@ describe('"התקדם" and the blocks a task puts on the board', () => {
   beforeEach(() => ws().resetWorkspace());
 
   it('the 26 cubes do not light "התקדם"; an answer does', () => {
-    ws().initSession(1, false, 5);
+    ws().initSession(1, false, at('s1_r_group26'));
     expect(ws().counts.units).toBe(26);
     expect(selectCanProceed(ws())).toBe(false);
     ws().groupColumnClick('units');

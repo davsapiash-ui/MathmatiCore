@@ -141,16 +141,16 @@ const STEPS: Step[] = [
     board: counts({}),
   },
   {
-    id: 's1_target_347',
-    half: () => { tap('hundreds', 3); tap('tens', 4); tap('units', 7); split('tens'); type('units', '7'); },
-    finish: () => { type('tens', '4'); type('hundreds', '3'); },
-    board: counts({ hundreds: 3, tens: 3, units: 17 }),
-  },
-  {
     id: 's1_r_group26',
     half: () => group('units'),
     finish: () => { group('units'); typeNumber(26); },
     board: counts({ tens: 2, units: 6 }),
+  },
+  {
+    id: 's1_target_347',
+    half: () => { tap('hundreds', 3); tap('tens', 4); tap('units', 7); split('tens'); type('units', '7'); },
+    finish: () => { type('tens', '4'); type('hundreds', '3'); },
+    board: counts({ hundreds: 3, tens: 3, units: 17 }),
   },
   {
     id: 's1_t8',
@@ -171,6 +171,11 @@ const STEPS: Step[] = [
     board: counts({ hundreds: 4, tens: 5, units: 5 }),
   },
 ];
+
+/** The place of a task in the meeting (the order is the owner's, 27.9.2026 — register decision י). */
+const at = (id: string) => STEPS.findIndex((s) => s.id === id);
+const TARGET = at('s1_target_347');
+const GROUP26 = at('s1_r_group26');
 
 /** Reach task `idx` the natural way, from the start of the meeting. */
 function goTo(idx: number) {
@@ -311,20 +316,21 @@ describe('2. typical mistakes: is there always a way forward?', () => {
     expect(ws().counts).toEqual(counts({ hundreds: 3, units: 5 }));
     expect(canProceed()).toBe(true);
     proceed();
-    expect(taskId()).toBe('s1_target_347');
-    expect(ws().counts).toEqual(counts({}));
+    expect(taskId()).toBe('s1_r_group26');
+    expect(ws().counts).toEqual(counts({ units: 26 }));
   });
 
   it('347 dragged straight as 3H 3T 17U (no decomposition): recoverable, but "decompose a ten" alone does not tick', () => {
-    goTo(4);
+    goTo(TARGET);
     tap('hundreds', 3); tap('tens', 3); tap('units', 17);
     typeNumber(347);
     const done = () => session1Checklist('s1_target_347', ws() as any)!.map((i) => i.done);
-    expect(done()).toEqual([true, false, true]);
+    // The third line waits for the decomposition line (owner, 28.9.2026).
+    expect(done()).toEqual([true, false, false]);
     // The child does what the pending item says: decompose a ten.
     split('tens');
     expect(ws().counts).toEqual(counts({ hundreds: 3, tens: 2, units: 27 }));
-    expect(done()).toEqual([true, false, true]); // still ⏳ — the board is no longer 3/3/17
+    expect(done()).toEqual([true, false, false]); // still ⏳ — the board is no longer 3/3/17
     // Way out: group the units back (the button is showing: 27 ≥ 10).
     group('units');
     expect(done()).toEqual([true, true, true]);
@@ -332,7 +338,7 @@ describe('2. typical mistakes: is there always a way forward?', () => {
   });
 
   it('347: decomposing the hundred by mistake → undo, decompose the ten', () => {
-    goTo(4);
+    goTo(TARGET);
     tap('hundreds', 3); tap('tens', 4); tap('units', 7);
     split('hundreds');
     expect(ws().counts).toEqual(counts({ hundreds: 2, tens: 14, units: 7 }));
@@ -343,7 +349,7 @@ describe('2. typical mistakes: is there always a way forward?', () => {
   });
 
   it('347: typing 337 (reading the blocks) gets no message at all — "התקדם" stays off silently', () => {
-    goTo(4);
+    goTo(TARGET);
     tap('hundreds', 3); tap('tens', 4); tap('units', 7); split('tens');
     typeNumber(337);
     expect(canProceed()).toBe(false);
@@ -355,7 +361,7 @@ describe('2. typical mistakes: is there always a way forward?', () => {
   });
 
   it('347: typing before building is allowed and counts once the board is right', () => {
-    goTo(4);
+    goTo(TARGET);
     typeNumber(347);
     expect(canProceed()).toBe(false);
     tap('hundreds', 3); tap('tens', 4); tap('units', 7); split('tens');
@@ -363,32 +369,32 @@ describe('2. typical mistakes: is there always a way forward?', () => {
   });
 
   it('26: grouping only once → a clear "not yet", then the second grouping passes', () => {
-    goTo(5);
+    goTo(GROUP26);
     group('units');
     typeNumber(26);
     proceed();
-    expect(ws().standardTaskIdx).toBe(5);
+    expect(ws().standardTaskIdx).toBe(GROUP26);
     group('units');
     proceed();
-    expect(taskId()).toBe('s1_t8');
+    expect(taskId()).toBe('s1_target_347');
   });
 
   it('26: the cubes replaced by 2 tens + 6 units from the palette → told to group; a ten dragged into the units, then grouped, passes', () => {
-    goTo(5);
+    goTo(GROUP26);
     ws().clearBoard();
     tap('tens', 2); tap('units', 6);
     typeNumber(26);
     proceed();
-    expect(ws().standardTaskIdx).toBe(5);
+    expect(ws().standardTaskIdx).toBe(GROUP26);
     ws().applyDrop({ source: 'column', sourcePlace: 'tens', target: { kind: 'column', place: 'units' } });
     expect(ws().counts).toEqual(counts({ tens: 1, units: 16 }));
     group('units');
     proceed();
-    expect(taskId()).toBe('s1_t8');
+    expect(taskId()).toBe('s1_target_347');
   });
 
   it('26: four wrong answers open the coaching card (an empty press counts for nothing); after it closes, typing, dragging, undo and "התקדם" all work', () => {
-    goTo(5);
+    goTo(GROUP26);
     // Register 17: pressing "התקדם" with nothing written is not a wrong answer…
     for (let i = 0; i < 4; i++) proceed();
     expect(ws().helpState).toBe('closed');
@@ -410,8 +416,8 @@ describe('2. typical mistakes: is there always a way forward?', () => {
     expect(ws().counts).toEqual(counts({ tens: 2, units: 6 }));
     typeNumber(26);
     proceed();
-    expect(taskId()).toBe('s1_t8');
-    expectClean('s1_t8 start');
+    expect(taskId()).toBe('s1_target_347');
+    expectClean('s1_target_347 start');
   });
 
   it('713 + 94: a wrong tens digit before grouping opens trigger 3; after the X everything works; an ungrouped board is refused with a reason', () => {
@@ -521,7 +527,7 @@ describe('3. a reload in the middle of every task', () => {
 
   it('undo after a reload still reverses the last digit and the last block (step 6)', () => {
     start();
-    goTo(4);
+    goTo(TARGET);
     tap('hundreds', 3); tap('tens', 4); tap('units', 7); split('tens');
     type('units', '7');
     reload();
@@ -566,7 +572,7 @@ describe('4. enhanced-support profile', () => {
   beforeEach(() => start(ENHANCED));
 
   it('347: the result row stays closed until the board is 3/3/17', () => {
-    goTo(4);
+    goTo(TARGET);
     tap('hundreds', 3); tap('tens', 4); tap('units', 7);
     expect(type('units', '7')).toBe(false);
     split('tens');
@@ -574,7 +580,7 @@ describe('4. enhanced-support profile', () => {
   });
 
   it('26: the result row opens at 2 tens and 6 units', () => {
-    goTo(5);
+    goTo(GROUP26);
     expect(type('units', '6')).toBe(false);
     group('units');
     expect(type('units', '6')).toBe(false);
@@ -627,7 +633,7 @@ describe('5. timing', () => {
   });
 
   it('the 45 s hesitation card on the target task closes cleanly and the checklist still completes', () => {
-    goTo(4);
+    goTo(TARGET);
     tap('hundreds', 3);
     ws().setKeyboardSocratic(); // what StudentWorkspacePage does at 45 s on a non-intro task
     expect(ws().helpState).toBe('socratic');
@@ -640,7 +646,7 @@ describe('5. timing', () => {
   });
 
   it('a digit typed while the card is open leaves it open — it closes by its X, a correct option or the next exercise', () => {
-    goTo(4);
+    goTo(TARGET);
     tap('hundreds', 3);
     ws().setKeyboardSocratic();
     tap('tens', 4); tap('units', 7); split('tens');
@@ -685,11 +691,23 @@ describe('6. the coaching card and the next exercise', () => {
 
   /** 26 loose cubes, the answer typed first, "התקדם" four times → the card. */
   function cardInGroup26() {
-    goTo(5);
+    goTo(GROUP26);
     typeNumber(26);
     for (let i = 0; i < 4; i++) proceed();
     expect(ws().helpState).toBe('socratic');
     group('units'); group('units');
+    ws().proceed();
+    vi.advanceTimersByTime(3000);
+    expect(taskId()).toBe('s1_target_347');
+  }
+
+  /** The 45-second card open on the target task, the task solved with it open → 713 + 94. */
+  function cardInTarget347() {
+    goTo(TARGET);
+    ws().setKeyboardSocratic();
+    expect(ws().helpState).toBe('socratic');
+    STEPS[TARGET].half();
+    STEPS[TARGET].finish();
     ws().proceed();
     vi.advanceTimersByTime(3000);
     expect(taskId()).toBe('s1_t8');
@@ -701,7 +719,7 @@ describe('6. the coaching card and the next exercise', () => {
   });
 
   it('fixed: that stale card swallows the next exercise\'s own trigger (713 + 94, wrong tens digit)', () => {
-    cardInGroup26();
+    cardInTarget347();
     STEPS[6].half();
     type('tens', '1');
     vi.advanceTimersByTime(0);

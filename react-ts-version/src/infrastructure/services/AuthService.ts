@@ -88,21 +88,11 @@ export async function isWhitelistedTeacherEmailAsync(email?: string | null): Pro
     console.warn("Firestore authorizedTeachers exact match check error:", err);
   }
 
-  // Check Realtime Database users/teachers as fallback for existing records
-  try {
-    const teachersSnap = await get(ref(database, 'users/teachers'));
-    if (teachersSnap.exists()) {
-      const teachersObj = teachersSnap.val();
-      // Admin-created records carry ssoEmail; login-created ones carried email.
-      const match = Object.values(teachersObj).some((t: any) =>
-        [t?.ssoEmail, t?.email].some((e) => typeof e === 'string' && e.toLowerCase().trim() === normalized)
-      );
-      if (match) return true;
-    }
-  } catch (err) {
-    console.warn("Database teacher whitelist fallback check warning:", err);
-  }
-
+  // No second list. The RTDB users/teachers node used to be read here as a
+  // fallback, which kept it readable by every visitor (the anonymous session
+  // every page load creates) and let anyone who wrote a record there pass this
+  // check. It is now staff-only (database.rules.json), and authorizedTeachers is
+  // the single source, as the admin security screen states.
   return false;
 }
 

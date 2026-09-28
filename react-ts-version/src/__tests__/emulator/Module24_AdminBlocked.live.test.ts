@@ -25,8 +25,8 @@ import { claimsForSignIn } from '../../../../functions/src/roleClaims';
 const root = resolve(__dirname, '../../../..');
 let env: RulesTestEnvironment;
 
-const OWNER_EMAIL = 'owner@edu-haifa.org.il';
-const TEACHER_EMAIL = 'pilot.teacher@edu-haifa.org.il';
+const OWNER_EMAIL = 'admin@example.com';
+const TEACHER_EMAIL = 'teacher@example.com';
 
 beforeAll(async () => {
   env = await initializeTestEnvironment({
@@ -185,7 +185,7 @@ describe('הקונסולה של המנהל עובדת', () => {
   it('מוסדות, מורות, כיתה ומגבלת תלמידים (RTDB)', async () => {
     const db = adminSignIn().database();
     await assertSucceeds(rtdbSet(ref(db, 'schools/school_bikorot'), { id: 'school_bikorot', name: 'בית ספר ביקורת' }));
-    await assertSucceeds(rtdbSet(ref(db, 'users/teachers/pilot_teacher'), { id: 'pilot_teacher', licenseActive: true }));
+    await assertSucceeds(rtdbSet(ref(db, 'users/teachers/example_teacher'), { id: 'example_teacher', licenseActive: true }));
     await assertSucceeds(rtdbSet(ref(db, 'classes/class_1'), { id: 'class_1', name: 'המבקרים' }));
     await assertSucceeds(rtdbSet(ref(db, 'public_classes/class_1'), { id: 'class_1', name: 'המבקרים' }));
     await assertSucceeds(rtdbSet(ref(db, 'system_control/globalStudentLimit'), 12));
@@ -195,7 +195,7 @@ describe('הקונסולה של המנהל עובדת', () => {
 
   it('רשימת המורות, קטלוג, כיול, סקירה מצרפית, פניות וצ\'אט (Firestore)', async () => {
     const fs = adminSignIn().firestore();
-    await assertSucceeds(setDoc(doc(fs, 'authorizedTeachers', 'new.teacher@edu-haifa.org.il'), { email: 'new.teacher@edu-haifa.org.il', role: 'teacher' }));
+    await assertSucceeds(setDoc(doc(fs, 'authorizedTeachers', 'new.teacher@example.com'), { email: 'new.teacher@example.com', role: 'teacher' }));
     await assertSucceeds(setDoc(doc(fs, 'curriculum_catalog', 'bank_s3_green'), { id: 'bank_s3_green' }));
     await assertSucceeds(setDoc(doc(fs, 'system_control', 'trace_calibration'), { hesitation_threshold_seconds: 45 }, { merge: true }));
     await assertSucceeds(getDoc(doc(fs, 'store_cache', 'admin_metrics')));
@@ -233,8 +233,60 @@ describe('המורה עובדת כרגיל, גם כשבעל המוצר נכנס 
     });
 
     it(`${name}: אינה מקבלת את כלי המנהל`, async () => {
-      await assertFails(setDoc(doc(who().firestore(), 'authorizedTeachers', 'x@edu-haifa.org.il'), { email: 'x@edu-haifa.org.il', role: 'teacher' }));
+      await assertFails(setDoc(doc(who().firestore(), 'authorizedTeachers', 'x@example.com'), { email: 'x@example.com', role: 'teacher' }));
       await assertFails(rtdbSet(ref(who().database(), 'schools/school_bikorot'), { id: 'school_bikorot' }));
     });
   }
+});
+
+/* ── רשימת המורים (users/teachers) גלויה לצוות בלבד ─────────────────────── */
+
+// הצומת מחזיק את כתובת הדוא"ל של כל מורה. עד 28.9.2026 כל זהות מחוברת קראה
+// אותו — גם הזהות האנונימית שכל ביקור באתר יוצר לפני הכניסה — וכל זהות יכלה
+// לרשום את עצמה בו, והלקוח קיבל את הרישום כאישור מורה.
+describe('רשימת המורים — קריאה לצוות בלבד, כתיבה למנהל בלבד', () => {
+  beforeEach(async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await rtdbSet(ref(ctx.database(), 'users/teachers/example_teacher'), {
+        id: 'example_teacher', ssoEmail: TEACHER_EMAIL, licenseActive: false,
+      });
+    });
+  });
+
+  // מבקר שפתח את האתר: זהות אנונימית בלי claims (firebase.ts, כניסה שקטה).
+  const visitor = () => env.authenticatedContext('anonymous_visitor', {});
+  // לומד אחרי הכניסה עם קוד הכיתה — ה-claims ש-authenticateStudentSession חותם.
+  const learner = () => env.authenticatedContext('learner_uid', {
+    role: 'student', student_id: 12, class_id: 'class_1', roles: ['STUDENT'],
+  });
+
+  it('מבקר בלי קוד, לומד ומשתמש לא מחובר אינם קוראים את הרשימה', async () => {
+    for (const who of [visitor, learner]) {
+      await assertFails(rtdbGet(ref(who().database(), 'users/teachers')));
+      await assertFails(rtdbGet(ref(who().database(), 'users/teachers/example_teacher')));
+    }
+    await assertFails(rtdbGet(ref(env.unauthenticatedContext().database(), 'users/teachers')));
+  });
+
+  it('אף אחד מלבד המנהל אינו רושם את עצמו או משנה רשומה', async () => {
+    await assertFails(rtdbSet(ref(visitor().database(), 'users/teachers/anonymous_visitor'), { ssoEmail: 'stranger@example.com' }));
+    await assertFails(rtdbSet(ref(learner().database(), 'users/teachers/learner_uid'), { ssoEmail: 'stranger@example.com' }));
+    await assertFails(rtdbSet(ref(teacher().database(), 'users/teachers/teacher_uid'), { ssoEmail: 'stranger@example.com' }));
+    await assertFails(rtdbUpdate(ref(teacher().database(), 'users/teachers/example_teacher'), { licenseActive: true }));
+  });
+
+  it('המורה, בעל המוצר כמורה והמנהל קוראים את הרשימה; המנהל מנהל אותה', async () => {
+    for (const who of [teacher, ownerAsTeacher, adminSignIn]) {
+      await assertSucceeds(rtdbGet(ref(who().database(), 'users/teachers')));
+    }
+    await assertSucceeds(rtdbUpdate(ref(adminSignIn().database(), 'users/teachers/example_teacher'), { licenseActive: true }));
+  });
+
+  it('מורה מאומתת עדיין נכנסת: היא קוראת את רשומת הרשימה הלבנה שלה לפני שה-claims נחתמו', async () => {
+    const beforeClaims = env.authenticatedContext('fresh_google_uid', { email: TEACHER_EMAIL });
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'authorizedTeachers', TEACHER_EMAIL), { email: TEACHER_EMAIL, role: 'teacher' });
+    });
+    await assertSucceeds(getDoc(doc(beforeClaims.firestore(), 'authorizedTeachers', TEACHER_EMAIL)));
+  });
 });

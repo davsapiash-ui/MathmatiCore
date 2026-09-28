@@ -116,7 +116,7 @@ export function BlockPalette({ scaffoldLevel, compact = false }: { scaffoldLevel
     <div
       id="tour-block-palette"
       role="toolbar"
-      aria-label="מחסן הכלים — גררו לבנים לבית המספרים"
+      aria-label="ארגז כלים — גררו לבנים לבית המספרים"
       data-compact={compact ? 'true' : undefined}
       className={`shrink-0 ws-card !rounded-2xl flex items-center max-w-full select-none bg-white/95 dark:bg-slate-900/95 border border-slate-200/90 dark:border-slate-800 shadow-sm ${
         compact ? 'px-3 py-2 gap-2 flex-wrap justify-center' : 'px-5 py-2.5 gap-4 justify-between overflow-x-auto no-scrollbar'
@@ -130,7 +130,7 @@ export function BlockPalette({ scaffoldLevel, compact = false }: { scaffoldLevel
             ארגז כלים
           </span>
           <span className="text-[10px] font-bold text-slate-400 leading-none">
-            לבני דינס
+            לבנים
           </span>
         </div>
       </div>
