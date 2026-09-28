@@ -686,7 +686,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                     })()}
                   </div>
                   
-                  {/* Status tag — the same states as the tile's colour (Module 18); the gate has its own row below */}
+                  {/* Status tag — help, card and connection in the colour's order (Module 18); the gate has its own row below */}
                   {student.helpRequested ? (
                     <span className="inline-flex items-center gap-1 bg-blue-600 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="קריאה לעזרה">
                       קריאה לעזרה

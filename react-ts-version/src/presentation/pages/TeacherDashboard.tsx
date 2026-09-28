@@ -292,12 +292,6 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     return () => clearInterval(timer);
   }, [isClassSessionActive, _sessionStartTime, selectedSessionNum]);
 
-  // The dashboard runs on the teacher's claims only (register, gap יא; PRD
-  // Module 24 §ב). The owner's account may still carry the admin's claims
-  // from an earlier sign-in; re-stamp them as the teacher's on mount.
-  useEffect(() => {
-    ensureStaffRoleClaims("teacher").catch((e) => console.warn("Auto-sync role warning:", e));
-  }, []);
 
   // Teacher Presence heartbeat + 5-minute session grace window.
   // PRD v7.1 Module 14: an opened session must survive a momentary teacher

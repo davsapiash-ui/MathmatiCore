@@ -15,6 +15,7 @@ import { RoleSelectionModal } from "@/presentation/components/RoleSelectionModal
 import { useAuthStore } from "@/application/useAuthStore";
 import { SocraticEngine } from "./infrastructure/services/SocraticEngine";
 import { useStore } from "@/application/useStore";
+import { ensureStaffRoleClaims, type StaffRole } from "@/infrastructure/services/staffRoleClaims";
 
 // Teacher/Admin surfaces are code-split out of the student bundle: a student
 // opening /workspace should never pay for downloading the teacher dashboard,
@@ -101,6 +102,35 @@ function FirebaseGate({ children }: { children: React.ReactNode }) {
       clearTimeout(timer);
     };
   }, []);
+  if (!ready) {
+    return (
+      <div dir="rtl" className="flex h-screen items-center justify-center bg-ws-bg text-ws-soft font-bold">
+        מתחבר…
+      </div>
+    );
+  }
+  return <>{children}</>;
+}
+
+/**
+ * Holds a staff page until its token carries a single staff role (register,
+ * gap יא; PRD Module 24 §ב). Only a legacy dual-claim token — or one with no
+ * role — is re-stamped, and the page's listeners attach after that, so none
+ * of them is refused first and never re-attached. Bounded: after 8 seconds,
+ * or on a failure, the page opens with the token it has.
+ */
+function StaffClaimsGate({ role, children }: { role: StaffRole; children: React.ReactNode }) {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    const open = () => { if (!cancelled) setReady(true); };
+    const timer = setTimeout(open, 8000);
+    authReady
+      .then(() => ensureStaffRoleClaims(role))
+      .catch((e) => console.warn("[StaffClaimsGate] role sync notice:", e))
+      .finally(() => { clearTimeout(timer); open(); });
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [role]);
   if (!ready) {
     return (
       <div dir="rtl" className="flex h-screen items-center justify-center bg-ws-bg text-ws-soft font-bold">
@@ -255,7 +285,7 @@ function App() {
         <Route path="/dashboard" element={
           <AuthGuard allowedRoles={TEACHER_ONLY}>
             <FirebaseGate>
-              <TeacherDashboard />
+              <StaffClaimsGate role="teacher"><TeacherDashboard /></StaffClaimsGate>
             </FirebaseGate>
           </AuthGuard>
         } />
@@ -263,7 +293,7 @@ function App() {
         <Route path="/teacher/dashboard" element={
           <AuthGuard allowedRoles={TEACHER_ONLY}>
             <FirebaseGate>
-              <TeacherDashboard />
+              <StaffClaimsGate role="teacher"><TeacherDashboard /></StaffClaimsGate>
             </FirebaseGate>
           </AuthGuard>
         } />
@@ -272,7 +302,7 @@ function App() {
         <Route path="/reports/student/:id" element={
           <AuthGuard allowedRoles={TEACHER_ONLY}>
             <FirebaseGate>
-              <TeacherDashboard />
+              <StaffClaimsGate role="teacher"><TeacherDashboard /></StaffClaimsGate>
             </FirebaseGate>
           </AuthGuard>
         } />
@@ -280,7 +310,7 @@ function App() {
         <Route path="/dashboard/student/:id/view" element={
           <AuthGuard allowedRoles={TEACHER_ONLY}>
             <FirebaseGate>
-              <TeacherDashboard />
+              <StaffClaimsGate role="teacher"><TeacherDashboard /></StaffClaimsGate>
             </FirebaseGate>
           </AuthGuard>
         } />
@@ -307,7 +337,7 @@ function App() {
         <Route path="/admin/login-cards" element={
           <AuthGuard allowedRoles={["admin"]}>
             <FirebaseGate>
-              <StudentLoginCardsPage />
+              <StaffClaimsGate role="admin"><StudentLoginCardsPage /></StaffClaimsGate>
             </FirebaseGate>
           </AuthGuard>
         } />
@@ -315,7 +345,7 @@ function App() {
         <Route path="/admin" element={
           <AuthGuard allowedRoles={["admin"]}>
             <FirebaseGate>
-              <AdminLayout />
+              <StaffClaimsGate role="admin"><AdminLayout /></StaffClaimsGate>
             </FirebaseGate>
           </AuthGuard>
         }>

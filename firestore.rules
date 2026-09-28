@@ -350,7 +350,7 @@ service cloud.firestore {
 
     match /radar_alerts/{alertId} {
       allow read: if isTeacher();
-      allow write: if isAdmin();
+      allow write: if false; // no client writes these; per-learner alerts are not the admin's
     }
 
     match /audit_logs/{logId} {
@@ -361,7 +361,8 @@ service cloud.firestore {
     // Reset Audit Logs (Module 23א: Immutable Audit Log for All Data Resets & Dataset Exports)
     match /reset_audit_log/{logId} {
       allow read: if isTeacher() || isAdmin();
-      allow create: if isTeacher() || isAdmin();
+      // Module 23א §ו: resets are the teacher's, so is their log.
+      allow create: if isTeacher();
       allow update, delete: if false; // Strict requirement: log is immutable and cannot be deleted
     }
 

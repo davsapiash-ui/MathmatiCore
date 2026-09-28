@@ -1468,8 +1468,8 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
   // PRD: "callable exclusively by authorized teachers scoped to their own
   // class_id", and Module 24 blocks a system administrator from individual
   // telemetry — which is most of what this export is. An admin-only identity
-  // used to pass and to skip the class scope as well. The product owner's
-  // identity carries both claims and is unaffected.
+  // used to pass and to skip the class scope as well. The owner signed in as
+  // the teacher passes; signed in as the admin, not (roleClaims.ts).
   requireTeacherForIndividualData(token);
 
   const callerClassId = token.class_id;

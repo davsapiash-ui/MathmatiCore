@@ -6,10 +6,12 @@ import { auth, functions } from "@/infrastructure/firebase";
  * PRD Module 24 §ב). syncUserRoles stamps a teacher sign-in with the teacher's
  * claims only and an admin sign-in with the admin's only.
  *
- * The claims live on the account, not on the tab, so the owner's account may
- * still carry the other role's claims from an earlier sign-in (or the dual
- * claims every admin sign-in received before 28.9.2026). Each side re-asserts
- * its own role when it opens.
+ * Only the sign-in chooses the role. The claims live on the account, not on
+ * the tab: if opening a page re-stamped them, the owner opening the admin
+ * console in a second tab would cut the dashboard of a lesson in progress off
+ * from the learners. So a page re-stamps only a token that carries NO single
+ * staff role — the dual claims every admin sign-in received before 28.9.2026,
+ * or none at all — and leaves the other role's claims alone.
  */
 export type StaffRole = "teacher" | "admin";
 
@@ -24,11 +26,20 @@ export async function stampStaffRole(role: StaffRole): Promise<void> {
   await auth.currentUser?.getIdToken(true);
 }
 
-/** Re-stamps only when the current token does not already carry exactly this role. */
+/** A token that carries exactly one staff role (teacher or admin). */
+export function hasSingleStaffRole(claims: Record<string, unknown>): boolean {
+  return claimsMatchRole(claims, "teacher") || claimsMatchRole(claims, "admin");
+}
+
+/**
+ * Re-stamps only a token with no single staff role (legacy dual claims, or
+ * none). A token that already carries one role — this one or the other — is
+ * left as it is: switching roles is a new sign-in.
+ */
 export async function ensureStaffRoleClaims(role: StaffRole): Promise<void> {
   const current = auth.currentUser;
   if (!current) return;
   const token = await current.getIdTokenResult();
-  if (claimsMatchRole(token.claims as Record<string, unknown>, role)) return;
+  if (hasSingleStaffRole(token.claims as Record<string, unknown>)) return;
   await stampStaffRole(role);
 }

@@ -2,8 +2,11 @@ import { describe, it, expect, vi } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 
-vi.mock('@/infrastructure/firebase', () => ({ auth: { currentUser: null }, functions: {} }));
-import { claimsMatchRole } from '@/infrastructure/services/staffRoleClaims';
+const firebaseMock = vi.hoisted(() => ({ auth: { currentUser: null as null | { getIdTokenResult: () => Promise<{ claims: Record<string, unknown> }>; getIdToken: (f: boolean) => Promise<string> } }, functions: {} }));
+const syncMock = vi.hoisted(() => vi.fn().mockResolvedValue({}));
+vi.mock('@/infrastructure/firebase', () => firebaseMock);
+vi.mock('firebase/functions', () => ({ httpsCallable: vi.fn(() => syncMock) }));
+import { claimsMatchRole, ensureStaffRoleClaims } from '@/infrastructure/services/staffRoleClaims';
 
 /**
  * דוח "האפיון מול התוכנה" (28.9.2026), נ.2: בעמוד "תצוגת מורה" המנהל ראה את
@@ -67,11 +70,11 @@ describe('נ.2 — ה-claims של הכניסה הם של התפקיד שנבחר
     expect(src('infrastructure/services/AuthService.ts')).toContain('await syncCallable({ role: targetRole });');
   });
 
-  it('הדשבורד חותם את עצמו כמורה, והקונסולה כמנהל', () => {
-    const dash = src('presentation/pages/TeacherDashboard.tsx');
-    expect(dash).toContain('ensureStaffRoleClaims("teacher")');
-    expect(dash).not.toContain('tokenRes.claims.role !== "admin"');
-    expect(src('presentation/pages/AdminLayout.tsx')).toContain('ensureStaffRoleClaims("admin")');
+  it('הדשבורד והקונסולה נפתחים רק אחרי שהאסימון נושא תפקיד אחד (StaffClaimsGate)', () => {
+    expect(app.split('<StaffClaimsGate role="teacher"><TeacherDashboard /></StaffClaimsGate>').length - 1).toBe(4);
+    expect(app).toContain('<StaffClaimsGate role="admin"><AdminLayout /></StaffClaimsGate>');
+    expect(app).toContain('<StaffClaimsGate role="admin"><StudentLoginCardsPage /></StaffClaimsGate>');
+    expect(src('presentation/pages/TeacherDashboard.tsx')).not.toContain('tokenRes.claims.role !== "admin"');
   });
 
   it('claims כפולים (כפי שנחתמו לכל מנהל עד 28.9) אינם נחשבים לאף אחד מהתפקידים', () => {
@@ -87,5 +90,37 @@ describe('נ.2 — ה-claims של הכניסה הם של התפקיד שנבחר
     expect(claimsMatchRole(admin, 'teacher')).toBe(false);
     expect(claimsMatchRole(teacher, 'teacher')).toBe(true);
     expect(claimsMatchRole(teacher, 'admin')).toBe(false);
+  });
+});
+
+describe('נ.2 — פתיחת עמוד אינה מחליפה תפקיד (ביקורת עצמאית, ממצא 1)', () => {
+  const withClaims = (claims: Record<string, unknown>) => {
+    firebaseMock.auth.currentUser = {
+      getIdTokenResult: async () => ({ claims }),
+      getIdToken: async () => 'token',
+    };
+  };
+
+  it('אסימון מורה בלשונית שבה נפתחת הקונסולה — אינו נחתם מחדש כמנהל (השיעור הפתוח אינו נקטע)', async () => {
+    syncMock.mockClear();
+    withClaims({ teacher: true, admin: false, role: 'teacher', class_id: 'class_1', roles: ['TEACHER'] });
+    await ensureStaffRoleClaims('admin');
+    expect(syncMock).not.toHaveBeenCalled();
+  });
+
+  it('אסימון מנהל בעמוד המורה — גם הוא נשאר; החלפת תפקיד היא כניסה חדשה', async () => {
+    syncMock.mockClear();
+    withClaims({ admin: true, teacher: false, role: 'admin', roles: ['ADMIN'] });
+    await ensureStaffRoleClaims('teacher');
+    expect(syncMock).not.toHaveBeenCalled();
+  });
+
+  it('claims כפולים מלפני התיקון, או בלי תפקיד — נחתמים מחדש לתפקיד העמוד', async () => {
+    for (const claims of [{ admin: true, teacher: true, role: 'admin', roles: ['TEACHER', 'ADMIN'] }, {}]) {
+      syncMock.mockClear();
+      withClaims(claims);
+      await ensureStaffRoleClaims('teacher');
+      expect(syncMock).toHaveBeenCalledWith({ role: 'teacher' });
+    }
   });
 });

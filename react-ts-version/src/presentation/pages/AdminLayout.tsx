@@ -7,7 +7,6 @@ import { Settings, Shield, Users, Layers, GraduationCap, Bell, UserCircle, LifeB
 import { useAuthStore } from "@/application/useAuthStore";
 import { Logo } from "@/presentation/components/ui/Logo";
 import { LogoutButton } from "@/presentation/components/ui/LogoutButton";
-import { ensureStaffRoleClaims } from "@/infrastructure/services/staffRoleClaims";
 
 /**
  * Unread teacher→admin messages. Module 22 stores this channel in Firestore
@@ -41,14 +40,6 @@ const NAV_BUTTON = "h-auto overflow-visible p-0";
 export function AdminLayout() {
   const { user } = useAuthStore();
   const unreadCount = useUnreadAdminMessages();
-
-  // The console runs on the admin's claims only: PRD Module 24 §ב blocks the
-  // admin from individual learner data, and the rules can enforce that only
-  // when this sign-in does not also carry the teacher's claim (register, gap
-  // יא). An account stamped as the teacher earlier is re-stamped here.
-  useEffect(() => {
-    ensureStaffRoleClaims("admin").catch((e) => console.warn("[AdminLayout] role sync notice:", e));
-  }, []);
 
   return (
     <SidebarProvider>
@@ -181,7 +172,7 @@ export function AdminLayout() {
               <div className="flex-1 overflow-hidden">
                 <div className="font-bold text-sm truncate">{(user?.displayName as string) || "System Admin"}</div>
                 <div className="text-[9px] text-slate-500 dark:text-slate-400 tracking-wider uppercase font-semibold">
-                  {user?.role === "admin" ? "Root Access" : "Teacher Mode"}
+                  Root Access
                 </div>
               </div>
             </div>

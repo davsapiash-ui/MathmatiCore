@@ -156,6 +156,13 @@ describe('מודול 24 §ב ו-23א §ו — כניסת מנהל אינה קו�
     await assertFails(deleteDoc(doc(fs, 'srl_reflections', 'r_12')));
   });
 
+  it('אינה כותבת התראות רדאר ואינה רושמת ביומן האיפוסים', async () => {
+    const fs = adminSignIn().firestore();
+    await assertFails(setDoc(doc(fs, 'radar_alerts', 'a_new'), { student_id: 12 }));
+    await assertFails(setDoc(doc(fs, 'reset_audit_log', 'r_new'), { reset_level: 'alerts' }));
+    await assertSucceeds(setDoc(doc(teacher().firestore(), 'reset_audit_log', 'r_t'), { reset_level: 'alerts' }));
+  });
+
   it('אינה קוראת דוח אישי או גיבוי איפוס בקבצים', async () => {
     const st = adminSignIn().storage();
     await assertFails(getBytes(storageRef(st, 'reports/class_1/student_12.pdf')));
