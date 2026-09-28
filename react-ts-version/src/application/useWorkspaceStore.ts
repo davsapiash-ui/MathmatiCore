@@ -33,6 +33,7 @@ import {
   isQFlowComplete,
   isSubtaskActive,
   recordResult,
+  restoredQFlow,
   settlePendingQResults,
   type QFlowEvent,
   type QMatrixFlowState,
@@ -1102,7 +1103,6 @@ export function selectCanProceed(s: WorkspaceState): boolean {
 }
 
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
-  /** Show feedback and auto-hide after ms (nonce-guarded against stale hides). */
   /**
    * Which meeting a deferred step belongs to. initSession, restoreSession and
    * resetWorkspace each start a new one, so a step still waiting behind a
@@ -1121,6 +1121,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     }, ms);
   }
 
+  /** Show feedback and auto-hide after ms (nonce-guarded against stale hides). */
   function showFeedback(feedback: FeedbackState, ms: number, then?: () => void) {
     const nonce = get().feedbackNonce + 1;
     const epoch = flowEpoch;
@@ -1431,25 +1432,58 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     const { state, moved } = settlePendingQResults(get().qflow);
     if (moved) set({ qflow: state });
     if (isQFlowComplete(state)) {
-      finishMeeting2();
+      showMeeting2EndScreen();
+      recordMeeting2CompletionIfNotRecorded();
       return;
     }
     if (moved) startTask(getCurrentQTask(state)?.id ?? '');
   }
 
-  /**
-   * The end of meeting 2: the quiet end screen, and the diagnostic recorded
-   * (Q-matrix, score, recommended path). It runs after the toast, and again
-   * from restoreSession when a reload or a sign-out cut the toast short —
-   * that used to leave the child on an empty card with "התקדם" off and the
-   * diagnostic never recorded (Module 14 §ד, Module 20 §ב).
-   */
-  function finishMeeting2() {
-    // מודול 16 §א: לוח הרפלקציה הוא "בסיום מפגש 8" — שם בלבד. מודול 14
-    // §ב0 ומודול 20: מפגש 2 מסתיים במסך המתנה שקט עד שהמורה מאשרת את
-    // המסלול. הקוד הציג כאן את לוח הרפלקציה המלא, כולל אחוז מדד ההתמדה —
-    // לילד, ברגע שבו מוכרע לאיזה מסלול הוא הולך.
+  // מודול 16 §א: לוח הרפלקציה הוא "בסיום מפגש 8" — שם בלבד. מודול 14
+  // §ב0 ומודול 20: מפגש 2 מסתיים במסך המתנה שקט עד שהמורה מאשרת את
+  // המסלול. הקוד הציג כאן את לוח הרפלקציה המלא, כולל אחוז מדד ההתמדה —
+  // לילד, ברגע שבו מוכרע לאיזה מסלול הוא הולך.
+  function showMeeting2EndScreen() {
     set({ flowStatus: 'sessionDone', awaitingNext: false, currentState: 'COMPLETE' });
+  }
+
+  /** The end of meeting 2, after its toast: the end screen, and the diagnostic recorded. */
+  function finishMeeting2() {
+    showMeeting2EndScreen();
+    recordMeeting2Completion();
+  }
+
+  /**
+   * The restore's end of meeting 2 (a reload or a sign-out cut "סיימתם" short).
+   * The diagnostic is recorded only when the learner record says it was not:
+   * the snapshot can be older than the record — its end-screen save lost
+   * offline — and recording it again would send the recommended path back to
+   * PENDING after the teacher approved it, keeping the child out of meeting 3.
+   * The record decides, so a restore from this device's copy before the record
+   * has loaded waits for it.
+   */
+  function recordMeeting2CompletionIfNotRecorded() {
+    const epoch = flowEpoch;
+    const recordIfNeeded = () => {
+      if (epoch !== flowEpoch) return;
+      const uid = useAuthStore.getState().user?.uid;
+      const student = uid ? useStore.getState().students[uid] : undefined;
+      if (student?.completedMeeting2 || student?.teacher_gate_approved || student?.routeStatus === 'APPROVED') return;
+      recordMeeting2Completion();
+    };
+    if (useStore.getState().firebaseLoaded) {
+      recordIfNeeded();
+      return;
+    }
+    const unsubscribe = useStore.subscribe((s) => {
+      if (!s.firebaseLoaded) return;
+      unsubscribe();
+      recordIfNeeded();
+    });
+  }
+
+  /** The diagnostic's outputs (Q-matrix, score, recommended path; Modules 19–20). */
+  function recordMeeting2Completion() {
     const studentId = useAuthStore.getState().user?.uid;
     if (studentId) {
       const store = useStore.getState();
@@ -2470,7 +2504,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         activeBankPath: bankPath,
         selectedBranch: saved.selectedBranch ?? null,
         standardTaskIdx: saved.standardTaskIdx ?? 0,
-        qflow: saved.qflow ?? initQFlow(),
+        qflow: restoredQFlow(saved.qflow),
         // Only meeting 8 ends on the reflection board (Module 16 §א). A snapshot
         // saved by older code as 'reflection' in another meeting is a finished
         // meeting: it reopens on the quiet end screen, never on a board with

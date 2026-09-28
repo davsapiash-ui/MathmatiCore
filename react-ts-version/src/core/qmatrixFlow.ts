@@ -163,7 +163,23 @@ export function advance(state: QMatrixFlowState): { state: QMatrixFlowState; eve
 export function isQFlowComplete(state: QMatrixFlowState): boolean {
   return state.phase === 'primary'
     ? state.taskIdx >= TASKS.length
-    : state.correctionIdx >= state.failedTasks.length;
+    : state.correctionIdx >= (state.failedTasks?.length ?? 0);
+}
+
+/**
+ * A saved flow as the store needs it. The Realtime Database keeps no empty
+ * object or array, so a copy saved before the first answer comes back from
+ * the record without `results` and `failedTasks`.
+ */
+export function restoredQFlow(saved: Partial<QMatrixFlowState> | null | undefined): QMatrixFlowState {
+  const base = initQFlow();
+  if (!saved) return base;
+  return {
+    ...base,
+    ...saved,
+    results: saved.results ?? {},
+    failedTasks: Array.isArray(saved.failedTasks) ? saved.failedTasks : [],
+  };
 }
 
 /**
@@ -177,7 +193,7 @@ export function hasPendingQResult(state: QMatrixFlowState): boolean {
   if (isQFlowComplete(state)) return false;
   const task = getCurrentQTask(state);
   if (!task) return false;
-  const result = state.results[task.id];
+  const result = state.results?.[task.id];
   if (state.phase === 'primary') return result !== undefined;
   if (state.subphase === 'subtask') return result?.subtaskCorrect !== undefined;
   return result?.secondAttemptCorrect !== undefined;

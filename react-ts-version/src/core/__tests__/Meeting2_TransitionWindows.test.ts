@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
+import { useAuthStore } from '@/application/useAuthStore';
+import { useStore } from '@/application/useStore';
 import { TASKS } from '@/core/QMatrix';
 import { initQFlow, type QMatrixFlowState } from '@/core/qmatrixFlow';
 
@@ -110,6 +112,32 @@ describe('a reload inside a meeting-2 toast carries out the step it was waiting 
     store().restoreSession(snapshot(qflow));
     expect(store().qflow.taskIdx).toBe(3);
     expect(store().probeAnswer).toBe('4');
+  });
+});
+
+describe('restoring from the learner record', () => {
+  it('a copy saved before the first answer (RTDB drops the empty results and failedTasks) restores without a crash', () => {
+    const fromRtdb = snapshot({ taskIdx: 0, phase: 'primary', subphase: 'subtask', correctionIdx: 0 } as any);
+    expect(() => store().restoreSession(fromRtdb)).not.toThrow();
+    expect(store().qflow.results).toEqual({});
+    expect(store().qflow.failedTasks).toEqual([]);
+    expect(store().flowStatus).toBe('task');
+  });
+
+  it('a finished diagnostic restored after the teacher approved the path is not recorded again', () => {
+    useAuthStore.setState({ user: { uid: 'student_user4' } as any, role: 'student' } as any);
+    useStore.setState({
+      firebaseLoaded: true,
+      students: { student_user4: { studentId: 'student_user4', completedMeeting2: true, routeStatus: 'APPROVED', teacher_gate_approved: true } as any },
+    } as any);
+    const markComplete = vi.spyOn(useStore.getState(), 'markMeeting2Complete');
+    const results = Object.fromEntries(TASKS.map((t) => [t.id, { correct: true, detail: '' }]));
+    store().restoreSession(snapshot({ ...initQFlow(), taskIdx: TASKS.length, results }));
+    expect(store().flowStatus).toBe('sessionDone');
+    expect(markComplete).not.toHaveBeenCalled();
+    expect(useStore.getState().students.student_user4.routeStatus).toBe('APPROVED');
+    markComplete.mockRestore();
+    useAuthStore.setState({ user: null } as any);
   });
 });
 
